@@ -8,6 +8,34 @@ import {
   selectProviders,
   sha256,
 } from './registry/provider-registry.mjs';
+import { PROVIDER_PHASES, PROVIDER_ROLES, PROVIDER_STATUS } from './registry/provider-contracts.mjs';
+
+// Single source of truth for schema versions bound into every plan. Rejecting
+// unknown future schema versions is explicit: a plan carrying a schema version
+// this build does not understand must never be executed as if it were current.
+export const SCHEMA_VERSIONS = Object.freeze({
+  plan: 1,
+  providerResult: 1,
+  securityVerdict: 1,
+});
+
+export function assertSupportedSchemaVersion(version, label) {
+  if (typeof version !== 'number') {
+    throw new Error(`${label} schemaVersion must be a number; got ${JSON.stringify(version)}`);
+  }
+  const supported = SCHEMA_VERSIONS[label];
+  if (supported === undefined) throw new Error(`unknown schema label ${label}`);
+  if (version > supported) {
+    throw new Error(`${label} schemaVersion ${version} is newer than this Nemesis build supports (${supported}); refusing to execute`);
+  }
+  return version;
+}
+
+export const CONTRACT_FRAGMENTS = Object.freeze({
+  providerStatus: [...PROVIDER_STATUS],
+  providerRoles: [...PROVIDER_ROLES],
+  providerPhases: [...PROVIDER_PHASES],
+});
 
 function normalizedScope(scope = {}) {
   return {
@@ -90,6 +118,7 @@ export function buildAuditPlan({
   generatedAt = new Date().toISOString(),
   signingKey = process.env.AUDIT_PLAN_SIGNING_KEY ?? null,
 }) {
+  assertSupportedSchemaVersion(1, 'plan');
   const selection = selectProviders(registry, projection, { only, skip });
   const providers = selection.selected.map(providerPlanRecord);
   const coverage = evaluateCoverageFamilies(registry, projection, selection.selected);
@@ -140,6 +169,7 @@ export function buildAuditPlan({
         sourceHead: projection.sourceObservation?.head ?? null,
       },
       registryDigest: registryDigest(registry),
+      schemaVersions: { ...SCHEMA_VERSIONS },
     },
     denominator: {
       discoveryOwner: 'cortex',
