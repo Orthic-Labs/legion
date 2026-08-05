@@ -1,27 +1,103 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://operator.dev/schemas/security-verdict-v1.json",
+  "$id": "https://orthic.dev/schemas/security-verdict-v1.json",
   "title": "SecurityVerdictV1",
   "type": "object",
-  "required": ["schemaVersion", "kind", "candidateId", "candidateProvider", "adjudicatorProvider", "adjudicatorContextId", "evidenceStrength", "verdict", "threatModel", "reachability", "impact", "variantAnalysisRequired"],
+  "required": [
+    "schemaVersion",
+    "kind",
+    "candidateId",
+    "candidateProvider",
+    "adjudicatorProvider",
+    "adjudicatorContextId",
+    "evidenceStrength",
+    "verdict",
+    "threatModel",
+    "reachability",
+    "impact",
+    "variantAnalysisRequired"
+  ],
   "properties": {
-    "schemaVersion": { "const": 1 },
-    "kind": { "const": "security-verdict" },
-    "candidateId": { "type": "string" },
-    "candidateProvider": { "type": "string" },
-    "adjudicatorProvider": { "type": "string" },
-    "adjudicatorContextId": { "type": "string" },
-    "evidenceStrength": { "enum": ["verified", "strong-inference", "possible"] },
-    "verdict": { "enum": ["TRUE_POSITIVE", "LIKELY_TRUE_POSITIVE", "LIKELY_FALSE_POSITIVE", "FALSE_POSITIVE", "OUT_OF_SCOPE", "HARDENING_GAP", "MISUSE_HAZARD"] },
-    "severity": { "type": ["string", "null"], "enum": ["critical", "high", "medium", "low", null] },
-    "threatModel": { "type": "string" },
-    "attackerControl": { "type": "string" },
-    "reachability": { "type": "string" },
-    "trustBoundaries": { "type": "array", "items": { "type": "string" } },
-    "impact": { "type": "string" },
-    "proof": { "type": ["object", "null"] },
-    "variantAnalysisRequired": { "type": "boolean" },
-    "verdictDigest": { "type": "string", "pattern": "^sha256:" }
+    "schemaVersion": {
+      "const": 1
+    },
+    "kind": {
+      "const": "security-verdict"
+    },
+    "candidateId": {
+      "type": "string"
+    },
+    "candidateProvider": {
+      "type": "string"
+    },
+    "adjudicatorProvider": {
+      "type": "string"
+    },
+    "adjudicatorContextId": {
+      "type": "string"
+    },
+    "evidenceStrength": {
+      "enum": [
+        "possible",
+        "strong-inference",
+        "verified"
+      ]
+    },
+    "verdict": {
+      "enum": [
+        "TRUE_POSITIVE",
+        "LIKELY_TRUE_POSITIVE",
+        "LIKELY_FALSE_POSITIVE",
+        "FALSE_POSITIVE",
+        "OUT_OF_SCOPE",
+        "HARDENING_GAP",
+        "MISUSE_HAZARD"
+      ]
+    },
+    "severity": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "enum": [
+        "critical",
+        "high",
+        "medium",
+        "low",
+        null
+      ]
+    },
+    "threatModel": {
+      "type": "string"
+    },
+    "attackerControl": {
+      "type": "string"
+    },
+    "reachability": {
+      "type": "string"
+    },
+    "trustBoundaries": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "impact": {
+      "type": "string"
+    },
+    "proof": {
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "variantAnalysisRequired": {
+      "type": "boolean"
+    },
+    "verdictDigest": {
+      "type": "string",
+      "pattern": "^sha256:"
+    }
   },
   "additionalProperties": true
 }
