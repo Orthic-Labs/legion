@@ -1,0 +1,35 @@
+{
+  "run_id": "20260508-232310",
+  "started_at": "2026-05-08T17:53:10.108026+00:00",
+  "root": "D:\\Claude",
+  "provider": "cerebras",
+  "model": "llama3.1-8b",
+  "result_count": 1,
+  "issue_count": 0,
+  "error_count": 0,
+  "warning_count": 0,
+  "issues": [],
+  "results": [
+    {
+      "skill": "status",
+      "provider": "cerebras",
+      "model": "llama3.1-8b",
+      "elapsed_ms": 779,
+      "parsed": {
+        "skill": "status",
+        "verdict": "PASS",
+        "score": 9,
+        "blockers": [],
+        "notes": [
+          "The skill manifest is well-structured and covers various test cases.",
+          "Trigger cases match the skill and are well-defined.",
+          "Non-trigger cases are meaningful near misses.",
+          "Output, safety, pressure, and compatibility cases test real risk.",
+          "Confirmation, source, and verification gates are represented when relevant.",
+          "No OS portability requirement, which is acceptable for this skill."
+        ]
+      },
+      "raw": "{\n  \"skill\": \"status\",\n  \"verdict\": \"PASS\",\n  \"score\": 9,\n  \"blockers\": [],\n  \"notes\": [\n    \"The skill manifest is well-structured and covers various test cases.\",\n    \"Trigger cases match the skill and are well-defined.\",\n    \"Non-trigger cases are meaningful near misses.\",\n    \"Output, safety, pressure, and compatibility cases test real risk.\",\n    \"Confirmation, source, and verification gates are represented when relevant.\",\n    \"No OS portability requirement, which is acceptable for this skill.\"\n  ]\n}"
+    }
+  ]
+}

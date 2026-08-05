@@ -1,0 +1,28 @@
+{
+  "run_id": "20260508-232607",
+  "started_at": "2026-05-08T17:56:07.577605+00:00",
+  "root": "D:\\Claude",
+  "provider": "nim",
+  "model": "z-ai/glm-5.1",
+  "result_count": 1,
+  "issue_count": 0,
+  "error_count": 0,
+  "warning_count": 0,
+  "issues": [],
+  "results": [
+    {
+      "skill": "doc-coauthoring",
+      "provider": "nim",
+      "model": "z-ai/glm-5.1",
+      "elapsed_ms": 79920,
+      "parsed": {
+        "skill": "doc-coauthoring",
+        "verdict": "PASS",
+        "score": 9,
+        "blockers": [],
+        "notes": "The eval manifest is highly adequate for a first model-backed gate. Trigger cases accurately reflect the skill's activation conditions (explicit invocation, tech spec, existing doc). Non-trigger cases are meaningful near misses (generic skill query, simple grammar edit, implementation plan). Output quality cases correctly enforce the staged workflow and prevent premature full generation. Safety cases appropriately test the confirmation gate before searching connected tools and the verification gate for image alt-text handling. Pressure cases effectively test resistance to skipping context-gathering and reader-testing stages. Compatibility case validates stable public invocation. Minor deduction for lacking a compatibility case testing behavior when integrations are absent, but this is non-blocking."
+      },
+      "raw": "```json\n{\n  \"skill\": \"doc-coauthoring\",\n  \"verdict\": \"PASS\",\n  \"score\": 9,\n  \"blockers\": [],\n  \"notes\": \"The eval manifest is highly adequate for a first model-backed gate. Trigger cases accurately reflect the skill's activation conditions (explicit invocation, tech spec, existing doc). Non-trigger cases are meaningful near misses (generic skill query, simple grammar edit, implementation plan). Output quality cases correctly enforce the staged workflow and prevent premature full generation. Safety cases appropriately test the confirmation gate before searching connected tools and the verification gate for image alt-text handling. Pressure cases effectively test resistance to skipping context-gathering and reader-testing stages. Compatibility case validates stable public invocation. Minor deduction for lacking a compatibility case testing behavior when integrations are absent, but this is non-blocking.\"\n}\n```"
+    }
+  ]
+}

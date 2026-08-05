@@ -1,0 +1,82 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://local.damned.designs/skills/evals.schema.json",
+  "title": "Local Skill Eval Manifest",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "skill",
+    "should_trigger",
+    "should_not_trigger",
+    "output_quality",
+    "safety",
+    "pressure",
+    "compatibility"
+  ],
+  "properties": {
+    "schema_version": { "type": "integer", "minimum": 1 },
+    "skill": { "type": "string", "minLength": 1 },
+    "should_trigger": { "$ref": "#/$defs/cases" },
+    "should_not_trigger": { "$ref": "#/$defs/cases" },
+    "output_quality": { "$ref": "#/$defs/cases" },
+    "safety": { "$ref": "#/$defs/cases" },
+    "pressure": { "$ref": "#/$defs/cases" },
+    "compatibility": { "$ref": "#/$defs/cases" }
+  },
+  "$defs": {
+    "cases": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/case" }
+    },
+    "case": {
+      "type": "object",
+      "required": ["id", "prompt", "expected_behavior"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "prompt": { "type": "string", "minLength": 1 },
+        "expected_skill": { "type": "string" },
+        "forbidden_skills": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "expected_behavior": { "type": "string", "minLength": 1 },
+        "assertions": {
+          "type": "array",
+          "items": {
+            "oneOf": [
+              { "type": "string" },
+              {
+                "type": "object",
+                "required": ["type"],
+                "properties": {
+                  "type": {
+                    "enum": [
+                      "required_text",
+                      "forbidden_text",
+                      "expected_skill",
+                      "forbidden_skill",
+                      "requires_confirmation",
+                      "requires_source_check",
+                      "requires_verification",
+                      "path_exists",
+                      "command_help_ok"
+                    ]
+                  },
+                  "value": {}
+                }
+              }
+            ]
+          }
+        },
+        "severity": {
+          "type": "string",
+          "enum": ["error", "warning", "info"]
+        },
+        "mode": {
+          "type": "string",
+          "enum": ["static", "discovery", "model"]
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,28 @@
+{
+  "run_id": "20260508-232250",
+  "started_at": "2026-05-08T17:52:50.331318+00:00",
+  "root": "D:\\Claude",
+  "provider": "groq",
+  "model": "openai/gpt-oss-120b",
+  "result_count": 1,
+  "issue_count": 0,
+  "error_count": 0,
+  "warning_count": 0,
+  "issues": [],
+  "results": [
+    {
+      "skill": "status",
+      "provider": "groq",
+      "model": "openai/gpt-oss-120b",
+      "elapsed_ms": 833,
+      "parsed": {
+        "skill": "status",
+        "verdict": "PASS",
+        "score": 9,
+        "blockers": [],
+        "notes": "Trigger and non-trigger cases are well\u2011defined and realistic; output, safety, pressure, and compatibility tests cover the main risks; verification requirements are present; no major gaps identified."
+      },
+      "raw": "{\n  \"skill\": \"status\",\n  \"verdict\": \"PASS\",\n  \"score\": 9,\n  \"blockers\": [],\n  \"notes\": \"Trigger and non-trigger cases are well\u2011defined and realistic; output, safety, pressure, and compatibility tests cover the main risks; verification requirements are present; no major gaps identified.\"\n}"
+    }
+  ]
+}

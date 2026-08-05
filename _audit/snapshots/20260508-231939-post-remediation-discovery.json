@@ -1,0 +1,402 @@
+{
+  "created_at": "2026-05-08T17:49:40.220437+00:00",
+  "root": "D:\\Claude",
+  "skills": [
+    {
+      "folder": "ads",
+      "name": "ads",
+      "description": "Multi-platform paid advertising audit, strategy, and optimization skill. Analyzes Google, Meta, YouTube, LinkedIn, TikTok, Microsoft, and Apple Search Ads. 225+ checks with scoring, parallel agents, industry templates, AI creative generation, campaign strategy, audience targeting, retargeting, bidding, and optimization. Use when user mentions audit, PPC, paid media, ROAS, CPA, ad campaign, retargeting, audience targeting, Google Ads, Facebook ads, LinkedIn ads, ad budget, cost per click, ad spend, or should I run ads.",
+      "body_lines": 260,
+      "frontmatter_error": null
+    },
+    {
+      "folder": "brainstorming",
+      "name": "brainstorming",
+      "description": "You MUST use this before any creative work - creating features, building components, adding functionality, or modifying behavior. Explores user intent, requirements and design before implementation.",
+      "body_lines": 180,
+      "frontmatter_error": null
+    },
+    {
+      "folder": "brand",
+      "name": "brand",
+      "description": "Loads brand voice, visual system, tone, and content restrictions for Damned Designs (DD), Rotten Hand (RH), or Stunning Strangers (SS). MUST be invoked before ANY content creation task \u2014 blog post, caption, ad, email, video script, design. Trigger words: \"/brand\", \"for DD\", \"for Damned Designs\", \"for Rotten Hand\", \"for RH\", \"for Stunning Strangers\", \"for SS\", \"write for\", \"design for\", \"create for\". Skipping this skill causes brand drift. Always specify which brand. Returns a Brand Card the rest of the session must respect.",
+      "body_lines": 129,
+      "frontmatter_error": null
+    },
+    {
+      "folder": "brief",
+      "name": "brief",
+      "description": "Activates a terse response mode that keeps answers short, precise, and legible \u2014 no filler, no fluff, full grammar. Use this skill whenever the user says /brief, /brief strict, \"be brief\", \"keep it short\", \"terse mode\", \"less words\", \"just the answer\", or expresses frustration with long responses. Also use proactively if the user has previously asked for brevity in this session. Deactivate with /stop brief or \"normal mode\". This skill is NOT caveman speak \u2014 grammar is correct, words are real English, the responses are just ruthlessly edited. Use this skill whenever conciseness is the goal.",
+      "body_lines": 85,
+      "frontmatter_error": null
+    },
+    {
+      "folder": "build",
+      "name": "build",
+      "description": "Top-level CONTENT GENERATION router. Routes to specialized references for ad copy/creative, cold email, marketing copy, scroll-stopping hooks, research articles, video scripts, and content repurposing. Use when user says \"/build\", \"write ad\", \"write copy\", \"write hook\", \"write script\", \"write cold email\", \"write a post\", \"write thread\", \"write blog\", \"draft <content>\", \"create copy for\", \"repurpose this\", \"atomize this\".\n",
+      "body_lines": 37,
+      "frontmatter_error": null
+    },
+    {
+      "folder": "changelog-generator",
+      "name": "changelog-generator",
+      "description": "Automatically creates user-facing changelogs from git commits by analyzing commit history, categorizing changes, and transforming technical commits into clear, customer-friendly release notes. Turns hours of manual changelog writing into minutes of automated generation.",
+      "body_lines": 99,
+      "frontmatter_error": null
+    },
+    {
+      "folder": "claude-api",
+      "name": "claude-api",
+      "description": "Build apps with the Claude API or Anthropic SDK. TRIGGER when: code imports `anthropic`/`@anthropic-ai/sdk`/`claude_agent_sdk`, or user asks to use Claude API, Anthropic SDKs, or Agent SDK. DO NOT TRIGGER when: code imports `openai`/other AI SDK, general programming, or ML/data-science tasks.",
+      "body_lines": 256,
+      "frontmatter_error": null
+    },
+    {
+      "folder": "connect",
+      "name": "connect",
+      "description": "Connect Claude to any app. Send emails, create issues, post messages, update databases - take real actions across Gmail, Slack, GitHub, Notion, and 1000+ services.",
+      "body_lines": 151,
+      "frontmatter_error": null
+    },
+    {
+      "folder": "daily-mvp",
+      "name": "daily-mvp",
+      "description": "Idea-to-shipped-MVP loop in one session. Domain check \u2192 landing page \u2192 teaser \u2192 deploy. Use when user says \"/daily-mvp\", \"ship today\", \"build this idea\", \"MVP\", \"landing page for\". For rapid validation, not production builds.",
+      "body_lines": 53,
+      "frontmatter_error": null
+    },
+    {
+      "folder": "debug-code",
+      "name": "debug-code",
+      "description": "Structured debugging session for code/system issues \u2014 reproduce, isolate, diagnose, fix. Walks through hypothesis-driven debugging instead of \"try random things\". Replaces engineering:debug. Pair with /review code AFTER fix to gate the change before merge/ship decisions. Use when user says \"/debug-code\", \"debug this\", \"this works in staging not prod\", \"this test fails sometimes\", \"find the bug\", error message + stack trace, \"why is this slow\", \"why does this crash\", \"intermittent failure\".",
+      "body_lines": 60,
+      "frontmatter_error": null
+    },
+    {
+      "folder": "design",
+      "name": "design",
+      "description": "Top-level design router. Routes to specialized references for app/dashboard interfaces, frontend components, marketing pages, and deep UI/UX design intelligence. Applies six core design laws (Hick's, NNG, Baymard, Gestalt, Luxury UX, Peak-End). Use when user says \"/design\", \"design this page\", \"build a landing page\", \"redesign\", \"frontend\", \"UI\", \"component\", \"store page\", \"checkout\", \"dashboard\", \"admin panel\", \"flyer\", \"social post\", \"OG image\", \"marketing creative\".\n",
+      "body_lines": 160,
+      "frontmatter_error": null
+    },
+    {
+      "folder": "dictate",
+      "name": "dictate",
+      "description": "Manage the local Whisper dictation daemon. Use this skill when the user asks to start/stop/configure global voice dictation, change the dictation hotkey, switch microphones, troubleshoot audio capture, set dictation to launch on startup, or pick a different Whisper model for live dictation. Daemon hotkey is hold Win+Ctrl by default; releases trigger transcription and paste into the focused window.",
+      "body_lines": 105,
+      "frontmatter_error": null
+    },
+    {
+      "folder": "doc-coauthoring",
+      "name": "doc-coauthoring",
+      "description": "Guide users through a structured workflow for co-authoring documentation. Use when user wants to write documentation, proposals, technical specs, decision docs, or similar structured content. This workflow helps users efficiently transfer context, refine content through iteration, and verify the doc works for readers. Trigger when user mentions writing docs, creating proposals, drafting specs, or similar documentation tasks.",
+      "body_lines": 370,
+      "frontmatter_error": null
+    },
+    {
+      "folder": "doctor",
+      "name": "doctor",
+      "description": "Top-level HEALTH/MEDICAL router for Adrian's protocol work. Routes to specialized references for evidence-pack research and adversarial multi-juror medical review. Use when user says \"/doctor\", \"doctor question\", \"health protocol\", \"medical research\", \"drug interaction\", \"lab result\", \"TRT\", \"tirzepatide\", \"peptide\", \"supplement\", \"protocol decision\", \"evaluate this regimen\", \"review my health plan\". DISTINCT from generic /research and /review \u2014 health work has its own canonical source of truth (adrian.yaml).\n",
+      "body_lines": 46,
+      "frontmatter_error": null
+    },
+    {
+      "folder": "email-pro",
+      "name": "email-pro",
+      "description": "Top-level email skill. Lifecycle flows, newsletters, cold outreach, transactional, post-purchase, win-back. Consolidates cold-email, email-pro sequence, churn-prevention. Use when user says \"/email\", \"newsletter\", \"drip\", \"sequence\", \"abandoned cart\", \"welcome series\", \"post-purchase\", \"win-back\", \"broadcast\". Always /brand first.",
+      "body_lines": 84,
+      "frontmatter_error": null
+    },
+    {
+      "folder": "file-organizer",
+      "name": "file-organizer",
+      "description": "Intelligently organizes your files and folders across your computer by understanding context, finding duplicates, suggesting better structures, and automating cleanup tasks. Reduces cognitive load and keeps your digital workspace tidy without manual effort.",
+      "body_lines": 428,
+      "frontmatter_error": null
+    },
+    {
+      "folder": "file-search",
+      "name": "file-search",
+      "description": "This skill should be used when agents need to search codebases for text patterns or structural code patterns. Provides fast search using ripgrep for text and ast-grep for syntax-aware code search.",
+      "body_lines": 274,
+      "frontmatter_error": null
+    },
+    {
+      "folder": "graphify",
+      "name": "graphify-windows",
+      "description": "any input (code, docs, papers, images) \u2192 knowledge graph \u2192 clustered communities \u2192 HTML + JSON + audit report",
+      "body_lines": 1195,
+      "frontmatter_error": null
+    },
+    {
+      "folder": "growth",
+      "name": "growth",
+      "description": "Top-level GROWTH router. Routes to specialized references for experiments, analytics, lead magnets, pricing, referral programs, revenue operations, sales enablement, and content performance audits. Use when user says \"/growth\", \"A/B test\", \"experiment\", \"analytics\", \"lead magnet\", \"pricing\", \"referral\", \"revops\", \"sales collateral\", \"conversion system\", or \"content performance\".\n",
+      "body_lines": 43,
+      "frontmatter_error": null
+    },
+    {
+      "folder": "hooks-automation",
+      "name": "hooks-automation",
+      "description": "Use when working on Claude Code hook coordination, hook configuration, session/Git/memory automation, hook status debugging, or hook-related formatting/learning workflows. Do not use for ordinary code edits unless hook behavior is the task.",
+      "body_lines": 34,
+      "frontmatter_error": null
+    },
+    {
+      "folder": "hormozi",
+      "name": "hormozi",
+      "description": "IMPORTANT MARKETING SKILL. Builds a Grand Slam Offer using Alex Hormozi's 6-step framework. Use this to construct or rebuild an irresistible offer for any commercial venture: starving crowd, dream outcome, obstacles, solutions, value stack, guarantees. Trigger when user says \"/hormozi\", \"grand slam offer\", \"build an offer\", \"package my product\", \"stack value\", \"value stack\", \"guarantee\", \"irresistible offer\", \"fix conversion\". MUST be paired with a specific venture (DD, RH, Heard Right, Toxic Sundae, KDP/Etsy, dropship, etc.) \u2014 never run without naming the venture. SS (Stunning Strangers) is exempt \u2014 never apply this to SS.",
+      "body_lines": 107,
+      "frontmatter_error": null
+    },
+    {
+      "folder": "ideas",
+      "name": "ideas",
+      "description": "Top-level IDEATION router. Routes to specialized references for ad/video concept variants, domain name brainstorming, marketing ideas (tactical + psychological). Use when user says \"/ideas\", \"brainstorm\", \"concept variants\", \"domain ideas\", \"marketing ideas\", \"100 concepts for\", \"campaign concepts\".\n",
+      "body_lines": 27,
+      "frontmatter_error": null
+    },
+    {
+      "folder": "image-enhancer",
+      "name": "image-enhancer",
+      "description": "Improves the quality of images, especially screenshots, by enhancing resolution, sharpness, and clarity. Perfect for preparing images for presentations, documentation, or social media posts.",
+      "body_lines": 94,
+      "frontmatter_error": null
+    },
+    {
+      "folder": "init",
+      "name": "init",
+      "description": "Session initializer \u2014 sets working defaults for the entire conversation. Use this skill whenever the user says /init, \"init session\", \"set up session\", \"start session\", or begins a conversation with a task and hasn't set preferences yet. Loads the user's standard workflow rules: skill-first lookups, parallel agents, sequential resource-heavy work, brief responses, and human-in-the-loop gate before building. Always trigger this at session start if the user invokes it. These rules override defaults for the rest of the conversation.",
+      "body_lines": 83,
+      "frontmatter_error": null
+    },
+    {
+      "folder": "internal-comms",
+      "name": "internal-comms",
+      "description": "A set of resources to help me write all kinds of internal communications, using the formats that my company likes to use. Claude should use this skill whenever asked to write some sort of internal communications (status reports, leadership updates, 3P updates, company newsletters, FAQs, incident reports, project updates, etc.).",
+      "body_lines": 26,
+      "frontmatter_error": null
+    },
+    {
+      "folder": "invoice-organizer",
+      "name": "invoice-organizer",
+      "description": "Automatically organizes invoices and receipts for tax preparation by reading messy files, extracting key information, renaming them consistently, and sorting them into logical folders. Turns hours of manual bookkeeping into minutes of automated organization.",
+      "body_lines": 441,
+      "frontmatter_error": null
+    },
+    {
+      "folder": "llms-txt",
+      "name": "llms-txt",
+      "description": "Generates /llms.txt for a brand site. Tells AI crawlers (ChatGPT, Perplexity, Claude, Google AI Overviews) what the site is about. Like sitemap.xml but for LLMs. Spec: https://llmstxt.org. Use when user says \"/llms-txt\", \"llms.txt\", \"AI search file\", \"Perplexity file\", \"AI crawler\".",
+      "body_lines": 61,
+      "frontmatter_error": null
+    },
+    {
+      "folder": "meeting-insights-analyzer",
+      "name": "meeting-insights-analyzer",
+      "description": "Analyzes meeting transcripts and recordings to uncover behavioral patterns, communication insights, and actionable feedback. Identifies when you avoid conflict, use filler words, dominate conversations, or miss opportunities to listen. Perfect for professionals seeking to improve their communication and leadership skills.",
+      "body_lines": 322,
+      "frontmatter_error": null
+    },
+    {
+      "folder": "mem-recency",
+      "name": "mem-recency",
+      "description": "Memory rotation, conflict detection, weekly digest. Use when user says \"/mem-recency\", \"memory digest\", \"rotate memories\", \"memory cleanup\", \"show memory zones\".",
+      "body_lines": 58,
+      "frontmatter_error": null
+    },
+    {
+      "folder": "notebooklm",
+      "name": "notebooklm",
+      "description": "Complete API for Google NotebookLM - full programmatic access including features not in the web UI. Create notebooks, add sources, generate all artifact types, download in multiple formats. Activates on explicit /notebooklm or intent like \"create a podcast about X\"",
+      "body_lines": 36,
+      "frontmatter_error": null
+    },
+    {
+      "folder": "offer-and-bio-writer",
+      "name": "offer-and-bio-writer",
+      "description": "Writes and iterates Instagram/LinkedIn bios, link-in-bio pages, landing page copy, and DM scripts \u2014 all aligned to brand positioning and designed to convert attention into action. Use this skill whenever the user says things like \"write my bio\", \"fix my Instagram bio\", \"my bio isn't converting\", \"write a landing page\", \"help me write my link in bio\", \"write a DM script\", \"how should I pitch my offer\", \"write my offer\", \"I need copy for my page\", \"help me position myself\", or anything involving how they show up when someone clicks their profile. Also trigger when the user is launching a new offer, service, or product and needs words that make people want to buy, book, or DM. This skill turns strangers into leads.",
+      "body_lines": 188,
+      "frontmatter_error": null
+    },
+    {
+      "folder": "optimize",
+      "name": "optimize",
+      "description": "Top-level CRO router for measurable conversion improvements. Routes to specialized references for form CRO, onboarding/activation, marketing page CRO, paywalls/upgrades, popups/modals, retention/churn, signup. Use when user says \"/optimize\", \"improve conversion\", \"CRO\", \"increase signups\", \"reduce churn\", \"optimize page\", \"fix paywall\", \"popup conversion\", \"improve form\", \"onboarding flow\".\n",
+      "body_lines": 35,
+      "frontmatter_error": null
+    },
+    {
+      "folder": "plan",
+      "name": "plan",
+      "description": "Top-level STRATEGY router. Routes to specialized references for ad campaigns, code architecture, content strategy, free tools, Graham 5-stage idea validation, product launches, SEO strategy/structure, visual storytelling. Use when user says \"/plan\", \"plan a campaign\", \"plan a launch\", \"content plan\", \"SEO plan\", \"site structure\", \"MVP plan\", \"validate this idea\", \"go-to-market\".\n",
+      "body_lines": 39,
+      "frontmatter_error": null
+    },
+    {
+      "folder": "product-marketing-context",
+      "name": "product-marketing-context",
+      "description": "When the user wants to create or update their product marketing context document. Also use when the user mentions 'product context,' 'marketing context,' 'set up context,' 'positioning,' 'who is my target audience,' 'describe my product,' 'ICP,' 'ideal customer profile,' or wants to avoid repeating foundational information across marketing tasks. Use this at the start of any new project before using other marketing skills \u2014 it creates `.agents/product-marketing-context.md` that all other skills reference for product, audience, and positioning context.",
+      "body_lines": 234,
+      "frontmatter_error": null
+    },
+    {
+      "folder": "raffle-winner-picker",
+      "name": "raffle-winner-picker",
+      "description": "Picks random winners from lists, spreadsheets, or Google Sheets for giveaways, raffles, and contests. Ensures fair, unbiased selection with transparency.",
+      "body_lines": 154,
+      "frontmatter_error": null
+    },
+    {
+      "folder": "remotion-best-practices",
+      "name": "remotion-best-practices",
+      "description": "Best practices for Remotion - Video creation in React",
+      "body_lines": 54,
+      "frontmatter_error": null
+    },
+    {
+      "folder": "research",
+      "name": "research",
+      "description": "",
+      "body_lines": 95,
+      "frontmatter_error": "YAML parse error: while scanning a simple key\n  in \"<unicode string>\", line 10, column 1:\n    (Health/medical research \u2192 use ` ... \n    ^\ncould not find expected ':'\n  in \"<unicode string>\", line 10, column 103:\n     ... outer with adrian.yaml mandate.)\n                                         ^"
+    },
+    {
+      "folder": "review",
+      "name": "review",
+      "description": "Top-level multi-LLM JURY router. Routes to specialized rubrics for ad pre-flight, blog drafts, brand voice, business plans, code, compliance/risk, content strategy, design/UX, ideas (kill/build), images, launches, offers (Hormozi), plans (architecture), priority (portfolio), video. Use when user says \"/review\", \"jury\", \"verdict on\", \"review my X\", \"is this good\", \"should I ship\". Health/medical reviews \u2192 use `/doctor review` (separate router with adrian.yaml mandate).\n",
+      "body_lines": 65,
+      "frontmatter_error": null
+    },
+    {
+      "folder": "review-cli",
+      "name": "review-cli",
+      "description": "Manual CLI review router. Use only when Adrian explicitly asks for a CLI review, a second review gate, or asks to consult Codex CLI, Gemini CLI, or Claude CLI. Routes to provider-specific references and runs exactly one CLI reviewer by default through D:/Claude/tools/council/cli-review.py. This is distinct from /review, which uses API jurors.\n",
+      "body_lines": 70,
+      "frontmatter_error": null
+    },
+    {
+      "folder": "review-self",
+      "name": "review-self",
+      "description": "Structured self-review router. Use when Adrian asks for self review, internal review, preflight, or wants the agent to critique its own work before API jurors or CLI escalation. Routes by review kind and applies domain-specific role cards with veto conditions and explicit ignore lists.\n",
+      "body_lines": 80,
+      "frontmatter_error": null
+    },
+    {
+      "folder": "seedance",
+      "name": "seedance",
+      "description": "AI video generation via Seedance / fal.ai. Premium motion shots Remotion can't produce (fluid motion, cinematic camera). Use when user says \"/seedance\", \"AI video\", \"fal\", \"video gen\", \"cinematic shot\". Requires FAL_KEY in D:\\Claude\\.env (todo.md P1).",
+      "body_lines": 56,
+      "frontmatter_error": null
+    },
+    {
+      "folder": "seo",
+      "name": "seo",
+      "description": "Comprehensive SEO analysis for any website or business type. Performs full site audits (agentic, parallel sub-agent orchestration), single-page deep analysis, technical SEO checks (crawlability, indexability, Core Web Vitals with INP), schema markup detection/validation/generation, content quality assessment (E-E-A-T framework per Dec 2025 update extending to all competitive queries), image optimization, sitemap analysis, Generative Engine Optimization (GEO) for AI Overviews, ChatGPT, and Perplexity citations, and GitHub repository SEO. Analyzes AI crawler accessibility (GPTBot, ClaudeBot, PerplexityBot), llms.txt compliance, brand mention signals, and passage-level citability. Industry detection for SaaS, e-commerce, local business, publishers, agencies. LLM-first analysis with deterministic script-backed evidence. Triggers on: \"SEO\", \"audit\", \"SEO audit\", \"technical SEO\", \"why am I not ranking\", \"SEO issues\", \"on-page SEO\", \"meta tags review\", \"SEO health check\", \"my traffic dropped\", \"lost rankings\", \"not showing up in Google\", \"site isn't ranking\", \"Google update hit me\", \"page speed\", \"core web vitals\", \"crawl errors\", \"indexing issues\", \"schema\", \"sitemap\", \"E-E-A-T\", \"AI Overviews\", \"GEO\", \"AEO\", \"content quality\", \"structured data\", \"hreflang\", \"GitHub repo SEO\".\n",
+      "body_lines": 201,
+      "frontmatter_error": null
+    },
+    {
+      "folder": "social",
+      "name": "social",
+      "description": "Top-level SOCIAL router. Routes to specialized references for Instagram, Pinterest, YouTube, Twitter/X optimization, and general multi-platform social content strategy. Use when user says \"/social\", \"Instagram\", \"Pinterest\", \"YouTube\", \"Twitter\", \"X thread\", \"social content\", \"content calendar\", \"Reels\", \"Shorts\", \"pins\", \"tweet\", \"LinkedIn post\", or \"grow my following\".\n",
+      "body_lines": 36,
+      "frontmatter_error": null
+    },
+    {
+      "folder": "status",
+      "name": "status",
+      "description": "Session task status snapshot. Use when user says \"/status\", \"where are we\", \"what's the status\", \"what's next\", \"summary\", \"where did we leave off\". Outputs active task, what's done this session, what's pending, what's blocked, files touched, and the immediate next step. Reads conversation context, not external state.",
+      "body_lines": 44,
+      "frontmatter_error": null
+    },
+    {
+      "folder": "swarm",
+      "name": "swarm",
+      "description": "Parallel agent dispatch router. Use when a task has 2+ independent workstreams, cross-brand work, multi-platform analysis, bulk generation, parallel research, or when the user says \"/swarm\", \"in parallel\", \"all at once\", \"everything together\", \"fan out\", or asks to open/control multiple agent chats. Prefers visible/controllable parallel sessions when the host app supports them; otherwise uses native subagents. Never creates git worktrees unless the user explicitly asks.\n",
+      "body_lines": 94,
+      "frontmatter_error": null
+    },
+    {
+      "folder": "token-audit",
+      "name": "token-audit",
+      "description": "Unified token + cost analysis across recent Claude Code sessions. Replaces the split between built-in /usage (current only) and /cost (per-session) with a multi-day view + optimization signals. Use when user says \"/token-audit\", \"token spend\", \"where are my tokens going\", \"cost breakdown\", \"am I using too much Opus\", \"cache hit ratio\", \"optimize tokens\".",
+      "body_lines": 52,
+      "frontmatter_error": null
+    },
+    {
+      "folder": "transcribe",
+      "name": "transcribe",
+      "description": "Transcribe Instagram reels, YouTube videos, TikToks, or any yt-dlp supported URL to text and SRT subtitles using local faster-whisper (large-v3) on the user's RTX 4070 GPU. Also handles local audio/video files. Use when the user types `/transcribe`, says \"transcribe this reel/video\", pastes a social media URL with intent to extract speech, or asks for an SRT or text transcript of a clip.",
+      "body_lines": 93,
+      "frontmatter_error": null
+    },
+    {
+      "folder": "using-superpowers",
+      "name": "using-superpowers",
+      "description": "Use when starting any conversation - establishes how to find and use skills, requiring Skill tool invocation before ANY response including clarifying questions",
+      "body_lines": 110,
+      "frontmatter_error": null
+    },
+    {
+      "folder": "verification-before-completion",
+      "name": "verification-before-completion",
+      "description": "Use when about to claim work is complete, fixed, or passing, before committing or creating PRs - requires running verification commands and confirming output before making any success claims; evidence before assertions always",
+      "body_lines": 134,
+      "frontmatter_error": null
+    },
+    {
+      "folder": "video-downloader",
+      "name": "youtube-downloader",
+      "description": "Download YouTube videos with customizable quality and format options. Use this skill when the user asks to download, save, or grab YouTube videos. Supports various quality settings (best, 1080p, 720p, 480p, 360p), multiple formats (mp4, webm, mkv), and audio-only downloads as MP3.",
+      "body_lines": 94,
+      "frontmatter_error": null
+    },
+    {
+      "folder": "workflow-automation",
+      "name": "workflow-automation",
+      "description": "Workflow creation, execution, and template management. Automates complex multi-step processes with agent coordination. Use when: automating processes, creating reusable workflows, orchestrating multi-step tasks. Skip when: simple single-step tasks, ad-hoc operations.",
+      "body_lines": 70,
+      "frontmatter_error": null
+    },
+    {
+      "folder": "writing-plans",
+      "name": "writing-plans",
+      "description": "Use when you have a spec or requirements for a multi-step task, before touching code",
+      "body_lines": 149,
+      "frontmatter_error": null
+    },
+    {
+      "folder": "writing-pro",
+      "name": "writing-pro",
+      "description": "Top-level writing skill. Use for blog posts, captions, scripts, body copy, long-form essays, emails, product descriptions, About pages, threads. Consolidates copywriting, copy-editing, content-research-writer, killer-scripter, offer-and-bio-writer, content-repurposer. Applies the 5 Levels framework. Always run /brand <DD|RH|SS> first. Use when user says \"/writing\", \"write\", \"draft\", \"blog post\", \"caption\", \"long-form\", \"essay\", \"newsletter\", \"thread\".",
+      "body_lines": 117,
+      "frontmatter_error": null
+    },
+    {
+      "folder": "writing-skills",
+      "name": "writing-skills",
+      "description": "Use when creating new skills, editing existing skills, or verifying skills work before deployment",
+      "body_lines": 34,
+      "frontmatter_error": null
+    }
+  ],
+  "validation": {
+    "root": "D:\\Claude",
+    "issue_count": 0,
+    "error_count": 0,
+    "warning_count": 0,
+    "issues": []
+  },
+  "paths": {
+    "claude_index": "D:\\Claude\\.claude\\rules\\skills.md",
+    "codex_index": "D:\\Claude\\.codex\\rules\\skills.md",
+    "skill_root": "D:\\Claude\\tools\\skills",
+    "claude_skill_root": "C:\\Users\\adrds\\.claude\\skills",
+    "codex_skill_root": "C:\\Users\\adrds\\.codex\\skills"
+  },
+  "resolved_paths": {
+    "claude_skill_root": "D:\\Claude\\tools\\skills",
+    "codex_skill_root": "D:\\Claude\\tools\\skills"
+  }
+}

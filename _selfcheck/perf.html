@@ -1,0 +1,18 @@
+<!doctype html>
+<html>
+  <head><meta charset="utf-8"><title>perf fixture</title></head>
+  <body>
+    <h1>Runtime perf fixture</h1>
+    <p>Typing here runs a deliberately expensive (~60ms) synchronous handler per keystroke — the audit MUST flag it.</p>
+    <input id="x" type="text" placeholder="type here" style="width:300px;height:30px;font-size:16px">
+    <div id="out"></div>
+    <script>
+      document.getElementById('x').addEventListener('input', function (e) {
+        // simulate an expensive whole-app re-render on every keystroke
+        var t0 = performance.now();
+        while (performance.now() - t0 < 60) { /* busy */ }
+        document.getElementById('out').textContent = 'len ' + e.target.value.length;
+      });
+    </script>
+  </body>
+</html>

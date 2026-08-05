@@ -1,0 +1,287 @@
+{
+  "created_at": "2026-05-08T17:46:03.782490+00:00",
+  "root": "D:\\Claude",
+  "skills": [
+    {
+      "skill": "hooks-automation",
+      "priority_band": "structural-blocker",
+      "issue_codes": [
+        "FOLDER_NAME_MISMATCH",
+        "INVALID_SKILL_NAME",
+        "MISSING_EVALS",
+        "SKILL_BODY_TOO_LONG"
+      ],
+      "risk_score": 3
+    },
+    {
+      "skill": "notebooklm",
+      "priority_band": "structural-blocker",
+      "issue_codes": [
+        "MISSING_EVALS",
+        "SKILL_BODY_LONG"
+      ],
+      "risk_score": 3
+    },
+    {
+      "skill": "offer-and-bio-writer",
+      "priority_band": "structural-blocker",
+      "issue_codes": [
+        "UNINDEXED_SKILL"
+      ],
+      "risk_score": 3
+    },
+    {
+      "skill": "remotion-best-practices",
+      "priority_band": "structural-blocker",
+      "issue_codes": [
+        "BROKEN_MARKDOWN_LINK",
+        "MISSING_EVALS"
+      ],
+      "risk_score": 3
+    },
+    {
+      "skill": "writing-skills",
+      "priority_band": "structural-blocker",
+      "issue_codes": [
+        "MISSING_EVALS",
+        "SKILL_BODY_LONG"
+      ],
+      "risk_score": 3
+    },
+    {
+      "skill": "connect",
+      "priority_band": "high-risk-action",
+      "issue_codes": [
+        "MISSING_EVALS"
+      ],
+      "risk_score": 2
+    },
+    {
+      "skill": "dictate",
+      "priority_band": "high-risk-action",
+      "issue_codes": [
+        "MISSING_EVALS"
+      ],
+      "risk_score": 2
+    },
+    {
+      "skill": "file-organizer",
+      "priority_band": "high-risk-action",
+      "issue_codes": [
+        "MISSING_EVALS"
+      ],
+      "risk_score": 2
+    },
+    {
+      "skill": "invoice-organizer",
+      "priority_band": "high-risk-action",
+      "issue_codes": [
+        "MISSING_EVALS"
+      ],
+      "risk_score": 2
+    },
+    {
+      "skill": "seedance",
+      "priority_band": "high-risk-action",
+      "issue_codes": [
+        "MISSING_EVALS",
+        "MISSING_LOCAL_PATH"
+      ],
+      "risk_score": 2
+    },
+    {
+      "skill": "transcribe",
+      "priority_band": "high-risk-action",
+      "issue_codes": [
+        "MISSING_EVALS",
+        "MISSING_LOCAL_PATH"
+      ],
+      "risk_score": 2
+    },
+    {
+      "skill": "workflow-automation",
+      "priority_band": "high-risk-action",
+      "issue_codes": [
+        "MISSING_EVALS"
+      ],
+      "risk_score": 2
+    },
+    {
+      "skill": "brainstorming",
+      "priority_band": "missing-evals",
+      "issue_codes": [
+        "MISSING_EVALS"
+      ],
+      "risk_score": 1
+    },
+    {
+      "skill": "brand",
+      "priority_band": "missing-evals",
+      "issue_codes": [
+        "MISSING_EVALS"
+      ],
+      "risk_score": 1
+    },
+    {
+      "skill": "changelog-generator",
+      "priority_band": "missing-evals",
+      "issue_codes": [
+        "MISSING_EVALS"
+      ],
+      "risk_score": 1
+    },
+    {
+      "skill": "claude-api",
+      "priority_band": "missing-evals",
+      "issue_codes": [
+        "MISSING_EVALS"
+      ],
+      "risk_score": 1
+    },
+    {
+      "skill": "daily-mvp",
+      "priority_band": "missing-evals",
+      "issue_codes": [
+        "MISSING_EVALS"
+      ],
+      "risk_score": 1
+    },
+    {
+      "skill": "debug-code",
+      "priority_band": "missing-evals",
+      "issue_codes": [
+        "MISSING_EVALS"
+      ],
+      "risk_score": 1
+    },
+    {
+      "skill": "doc-coauthoring",
+      "priority_band": "missing-evals",
+      "issue_codes": [
+        "MISSING_EVALS"
+      ],
+      "risk_score": 1
+    },
+    {
+      "skill": "file-search",
+      "priority_band": "missing-evals",
+      "issue_codes": [
+        "MISSING_EVALS"
+      ],
+      "risk_score": 1
+    },
+    {
+      "skill": "hormozi",
+      "priority_band": "missing-evals",
+      "issue_codes": [
+        "MISSING_EVALS"
+      ],
+      "risk_score": 1
+    },
+    {
+      "skill": "image-enhancer",
+      "priority_band": "missing-evals",
+      "issue_codes": [
+        "MISSING_EVALS"
+      ],
+      "risk_score": 1
+    },
+    {
+      "skill": "init",
+      "priority_band": "missing-evals",
+      "issue_codes": [
+        "MISSING_EVALS"
+      ],
+      "risk_score": 1
+    },
+    {
+      "skill": "internal-comms",
+      "priority_band": "missing-evals",
+      "issue_codes": [
+        "MISSING_EVALS"
+      ],
+      "risk_score": 1
+    },
+    {
+      "skill": "llms-txt",
+      "priority_band": "missing-evals",
+      "issue_codes": [
+        "MISSING_EVALS"
+      ],
+      "risk_score": 1
+    },
+    {
+      "skill": "meeting-insights-analyzer",
+      "priority_band": "missing-evals",
+      "issue_codes": [
+        "MISSING_EVALS"
+      ],
+      "risk_score": 1
+    },
+    {
+      "skill": "mem-recency",
+      "priority_band": "missing-evals",
+      "issue_codes": [
+        "MISSING_EVALS"
+      ],
+      "risk_score": 1
+    },
+    {
+      "skill": "raffle-winner-picker",
+      "priority_band": "missing-evals",
+      "issue_codes": [
+        "MISSING_EVALS"
+      ],
+      "risk_score": 1
+    },
+    {
+      "skill": "status",
+      "priority_band": "missing-evals",
+      "issue_codes": [
+        "MISSING_EVALS"
+      ],
+      "risk_score": 1
+    },
+    {
+      "skill": "token-audit",
+      "priority_band": "missing-evals",
+      "issue_codes": [
+        "MISSING_EVALS"
+      ],
+      "risk_score": 1
+    },
+    {
+      "skill": "using-superpowers",
+      "priority_band": "missing-evals",
+      "issue_codes": [
+        "MISSING_EVALS"
+      ],
+      "risk_score": 1
+    },
+    {
+      "skill": "verification-before-completion",
+      "priority_band": "missing-evals",
+      "issue_codes": [
+        "MISSING_EVALS"
+      ],
+      "risk_score": 1
+    },
+    {
+      "skill": "video-downloader",
+      "priority_band": "missing-evals",
+      "issue_codes": [
+        "LINUX_PATH_LEAK",
+        "MISSING_EVALS"
+      ],
+      "risk_score": 1
+    },
+    {
+      "skill": "writing-plans",
+      "priority_band": "missing-evals",
+      "issue_codes": [
+        "MISSING_EVALS"
+      ],
+      "risk_score": 1
+    }
+  ]
+}

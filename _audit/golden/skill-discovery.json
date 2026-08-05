@@ -1,0 +1,380 @@
+{
+  "schema_version": 1,
+  "skills": [
+    {
+      "skill": "brainstorming",
+      "should_trigger": [
+        "/brainstorming",
+        "Help me think through this feature before we build it."
+      ],
+      "should_not_trigger": [
+        "What skills do I have installed?"
+      ],
+      "compatibility": [
+        "/brainstorming"
+      ]
+    },
+    {
+      "skill": "brand",
+      "should_trigger": [
+        "/brand",
+        "Use the Damned Designs brand voice for this caption."
+      ],
+      "should_not_trigger": [
+        "What skills do I have installed?",
+        "Use this for Stunning Strangers growth, SEO, ads, or monetization."
+      ],
+      "compatibility": [
+        "/brand"
+      ]
+    },
+    {
+      "skill": "brief",
+      "should_trigger": [
+        "/brief",
+        "Keep it short and answer directly.",
+        "/brief\n\nExplain what a React useEffect cleanup function does and when you need one.",
+        "/brief strict\n\nWhat are the differences between == and === in JavaScript?",
+        "keep it short please\n\nI'm getting a CORS error when my React app calls my Express API. Both are running locally. How do I fix it?"
+      ],
+      "should_not_trigger": [
+        "What skills do I have installed?"
+      ],
+      "compatibility": [
+        "/brief"
+      ]
+    },
+    {
+      "skill": "changelog-generator",
+      "should_trigger": [
+        "/changelog-generator",
+        "Turn the recent commits into user-facing release notes."
+      ],
+      "should_not_trigger": [
+        "What skills do I have installed?"
+      ],
+      "compatibility": [
+        "/changelog-generator"
+      ]
+    },
+    {
+      "skill": "claude-api",
+      "should_trigger": [
+        "/claude-api",
+        "Help me fix this Anthropic SDK code."
+      ],
+      "should_not_trigger": [
+        "What skills do I have installed?"
+      ],
+      "compatibility": [
+        "/claude-api"
+      ]
+    },
+    {
+      "skill": "connect",
+      "should_trigger": [
+        "/connect",
+        "Draft and send this update to Slack after I confirm."
+      ],
+      "should_not_trigger": [
+        "What skills do I have installed?"
+      ],
+      "compatibility": [
+        "/connect"
+      ]
+    },
+    {
+      "skill": "daily-mvp",
+      "should_trigger": [
+        "/daily-mvp",
+        "I want to validate this idea with a landing page today."
+      ],
+      "should_not_trigger": [
+        "What skills do I have installed?",
+        "Use this for Stunning Strangers growth, SEO, ads, or monetization."
+      ],
+      "compatibility": [
+        "/daily-mvp"
+      ]
+    },
+    {
+      "skill": "debug-code",
+      "should_trigger": [
+        "/debug-code",
+        "This test is failing; reproduce and debug it."
+      ],
+      "should_not_trigger": [
+        "What skills do I have installed?"
+      ],
+      "compatibility": [
+        "/debug-code"
+      ]
+    },
+    {
+      "skill": "dictate",
+      "should_trigger": [
+        "/dictate",
+        "Start the local dictation daemon."
+      ],
+      "should_not_trigger": [
+        "What skills do I have installed?"
+      ],
+      "compatibility": [
+        "/dictate"
+      ]
+    },
+    {
+      "skill": "file-organizer",
+      "should_trigger": [
+        "/file-organizer",
+        "Organize these receipts into clean folders after a preview."
+      ],
+      "should_not_trigger": [
+        "What skills do I have installed?"
+      ],
+      "compatibility": [
+        "/file-organizer"
+      ]
+    },
+    {
+      "skill": "file-search",
+      "should_trigger": [
+        "/file-search",
+        "Search the codebase for where this function is used."
+      ],
+      "should_not_trigger": [
+        "What skills do I have installed?"
+      ],
+      "compatibility": [
+        "/file-search"
+      ]
+    },
+    {
+      "skill": "hooks-automation",
+      "should_trigger": [
+        "/hooks-automation",
+        "Check the Claude hook status and explain the blocker."
+      ],
+      "should_not_trigger": [
+        "What skills do I have installed?"
+      ],
+      "compatibility": [
+        "/hooks-automation"
+      ]
+    },
+    {
+      "skill": "image-enhancer",
+      "should_trigger": [
+        "/image-enhancer",
+        "Clean up this screenshot so it is presentation-ready."
+      ],
+      "should_not_trigger": [
+        "What skills do I have installed?"
+      ],
+      "compatibility": [
+        "/image-enhancer"
+      ]
+    },
+    {
+      "skill": "init",
+      "should_trigger": [
+        "/init",
+        "Initialize this session."
+      ],
+      "should_not_trigger": [
+        "What skills do I have installed?"
+      ],
+      "compatibility": [
+        "/init"
+      ]
+    },
+    {
+      "skill": "invoice-organizer",
+      "should_trigger": [
+        "/invoice-organizer",
+        "Sort these invoices for tax prep with a preview first."
+      ],
+      "should_not_trigger": [
+        "What skills do I have installed?"
+      ],
+      "compatibility": [
+        "/invoice-organizer"
+      ]
+    },
+    {
+      "skill": "meeting-insights-analyzer",
+      "should_trigger": [
+        "/meeting-insights-analyzer",
+        "Analyze this meeting transcript for communication patterns."
+      ],
+      "should_not_trigger": [
+        "What skills do I have installed?"
+      ],
+      "compatibility": [
+        "/meeting-insights-analyzer"
+      ]
+    },
+    {
+      "skill": "mem-recency",
+      "should_trigger": [
+        "/mem-recency",
+        "Create a memory recency digest."
+      ],
+      "should_not_trigger": [
+        "What skills do I have installed?"
+      ],
+      "compatibility": [
+        "/mem-recency"
+      ]
+    },
+    {
+      "skill": "notebooklm",
+      "should_trigger": [
+        "/notebooklm",
+        "Create a NotebookLM notebook and add these sources."
+      ],
+      "should_not_trigger": [
+        "What skills do I have installed?"
+      ],
+      "compatibility": [
+        "/notebooklm"
+      ]
+    },
+    {
+      "skill": "offer-and-bio-writer",
+      "should_trigger": [
+        "/offer-and-bio-writer",
+        "Rewrite my Instagram bio and link-in-bio offer."
+      ],
+      "should_not_trigger": [
+        "What skills do I have installed?",
+        "Use this for Stunning Strangers growth, SEO, ads, or monetization."
+      ],
+      "compatibility": [
+        "/offer-and-bio-writer"
+      ]
+    },
+    {
+      "skill": "product-marketing-context",
+      "should_trigger": [
+        "/product-marketing-context",
+        "Set up our product marketing context document.",
+        "I want to set up my product marketing context. We're a B2B SaaS company that sells a customer feedback platform to product teams.",
+        "Update our product marketing context. We just added a new enterprise tier and our target audience has expanded to include VP of Engineering, not just Product Managers.",
+        "create a product context doc for my app. it's a mobile app that helps people find hiking trails. we're just getting started."
+      ],
+      "should_not_trigger": [
+        "What skills do I have installed?",
+        "Use this for Stunning Strangers growth, SEO, ads, or monetization."
+      ],
+      "compatibility": [
+        "/product-marketing-context"
+      ]
+    },
+    {
+      "skill": "raffle-winner-picker",
+      "should_trigger": [
+        "/raffle-winner-picker",
+        "Pick a fair random winner from this list."
+      ],
+      "should_not_trigger": [
+        "What skills do I have installed?"
+      ],
+      "compatibility": [
+        "/raffle-winner-picker"
+      ]
+    },
+    {
+      "skill": "remotion-best-practices",
+      "should_trigger": [
+        "/remotion-best-practices",
+        "Help with this Remotion composition."
+      ],
+      "should_not_trigger": [
+        "What skills do I have installed?"
+      ],
+      "compatibility": [
+        "/remotion-best-practices"
+      ]
+    },
+    {
+      "skill": "seedance",
+      "should_trigger": [
+        "/seedance",
+        "Generate a cinematic Seedance video shot after I approve the prompt."
+      ],
+      "should_not_trigger": [
+        "What skills do I have installed?"
+      ],
+      "compatibility": [
+        "/seedance"
+      ]
+    },
+    {
+      "skill": "status",
+      "should_trigger": [
+        "/status",
+        "where are we and what's next?"
+      ],
+      "should_not_trigger": [
+        "Check whether the Claude hook pipeline is healthy.",
+        "What skills do I have installed?"
+      ],
+      "compatibility": [
+        "/status"
+      ]
+    },
+    {
+      "skill": "token-audit",
+      "should_trigger": [
+        "/token-audit",
+        "Audit recent token usage and costs."
+      ],
+      "should_not_trigger": [
+        "What skills do I have installed?"
+      ],
+      "compatibility": [
+        "/token-audit"
+      ]
+    },
+    {
+      "skill": "transcribe",
+      "should_trigger": [
+        "/transcribe",
+        "Transcribe this YouTube video to text and SRT."
+      ],
+      "should_not_trigger": [
+        "What skills do I have installed?"
+      ],
+      "compatibility": [
+        "/transcribe"
+      ]
+    },
+    {
+      "skill": "youtube-downloader",
+      "should_trigger": [
+        "/youtube-downloader",
+        "Download this YouTube video after I confirm the output folder."
+      ],
+      "should_not_trigger": [
+        "What skills do I have installed?"
+      ],
+      "compatibility": [
+        "/youtube-downloader"
+      ]
+    },
+    {
+      "skill": "writing-skills",
+      "should_trigger": [
+        "/writing-skills",
+        "Create or improve a skill and test it."
+      ],
+      "should_not_trigger": [
+        "What skills do I have installed?"
+      ],
+      "compatibility": [
+        "/writing-skills"
+      ]
+    }
+  ]
+}

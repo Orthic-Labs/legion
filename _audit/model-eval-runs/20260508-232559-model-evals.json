@@ -1,0 +1,20 @@
+{
+  "run_id": "20260508-232559",
+  "started_at": "2026-05-08T17:55:59.271877+00:00",
+  "root": "D:\\Claude",
+  "provider": "cerebras",
+  "model": "llama3.1-8b",
+  "result_count": 0,
+  "issue_count": 1,
+  "error_count": 1,
+  "warning_count": 0,
+  "issues": [
+    {
+      "code": "MODEL_EVAL_ERROR",
+      "severity": "error",
+      "path": "D:\\Claude\\tools\\skills\\doc-coauthoring\\evals\\evals.json",
+      "message": "cerebras/llama3.1-8b HTTP 429: {\"message\":\"We're experiencing high traffic right now! Please try again soon.\",\"type\":\"too_many_requests_error\",\"param\":\"queue\",\"code\":\"queue_exceeded\"}"
+    }
+  ],
+  "results": []
+}

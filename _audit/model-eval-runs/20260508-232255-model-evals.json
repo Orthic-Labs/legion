@@ -1,0 +1,267 @@
+{
+  "run_id": "20260508-232255",
+  "started_at": "2026-05-08T17:52:55.354892+00:00",
+  "root": "D:\\Claude",
+  "provider": "groq",
+  "model": "openai/gpt-oss-120b",
+  "result_count": 2,
+  "issue_count": 36,
+  "error_count": 34,
+  "warning_count": 2,
+  "issues": [
+    {
+      "code": "MODEL_EVAL_NEEDS_REVISION",
+      "severity": "warning",
+      "path": "D:\\Claude\\tools\\skills\\brainstorming\\evals\\evals.json",
+      "message": "NEEDS_REVISION: [\"No explicit test for the skill's source/verification gate (e.g., requiring citations or confirming external information).\", 'Missing a case that verifies the mandatory user approval step before transitioning to implementation (the hard\u2011gate).', 'No test for the visual\u2011companion sub\u2011gate, which is a distinct output requirement in the skill definition.']"
+    },
+    {
+      "code": "MODEL_EVAL_ERROR",
+      "severity": "error",
+      "path": "D:\\Claude\\tools\\skills\\brand\\evals\\evals.json",
+      "message": "groq/openai/gpt-oss-120b HTTP 429: {\"error\":{\"message\":\"Rate limit reached for model `openai/gpt-oss-120b` in organization `org_01kqp78mnpe1bb04dhcpn7kp4k` service tier `on_demand` on tokens per minute (TPM): Limit 8000, Used 5026, Req"
+    },
+    {
+      "code": "MODEL_EVAL_ERROR",
+      "severity": "error",
+      "path": "D:\\Claude\\tools\\skills\\brief\\evals\\evals.json",
+      "message": "groq/openai/gpt-oss-120b HTTP 429: {\"error\":{\"message\":\"Rate limit reached for model `openai/gpt-oss-120b` in organization `org_01kqp78mnpe1bb04dhcpn7kp4k` service tier `on_demand` on tokens per minute (TPM): Limit 8000, Used 5000, Req"
+    },
+    {
+      "code": "MODEL_EVAL_NEEDS_REVISION",
+      "severity": "warning",
+      "path": "D:\\Claude\\tools\\skills\\changelog-generator\\evals\\evals.json",
+      "message": "NEEDS_REVISION: ['The `should_not_trigger` case is contradictory: it lists `expected_skill` as \"changelog-generator\" while also forbidding the same skill. This makes the test ambiguous and could cause false positives/negatives.', 'Safety and pressure tests only assert `requires_verification` without specifying what verification looks like (e.g., confirming the git repository, commit range, or user review). The skill description does not explicitly define a verification gate, so the test may not reflect a real risk scenario.', 'There is no explicit test for source confirmation (e.g., ensuring the commits belong to the intended repository) or for handling potentially sensitive commit messages that might contain secrets.']"
+    },
+    {
+      "code": "MODEL_EVAL_ERROR",
+      "severity": "error",
+      "path": "D:\\Claude\\tools\\skills\\claude-api\\evals\\evals.json",
+      "message": "groq/openai/gpt-oss-120b HTTP 429: {\"error\":{\"message\":\"Rate limit reached for model `openai/gpt-oss-120b` in organization `org_01kqp78mnpe1bb04dhcpn7kp4k` service tier `on_demand` on tokens per minute (TPM): Limit 8000, Used 7991, Req"
+    },
+    {
+      "code": "MODEL_EVAL_ERROR",
+      "severity": "error",
+      "path": "D:\\Claude\\tools\\skills\\connect\\evals\\evals.json",
+      "message": "groq/openai/gpt-oss-120b HTTP 429: {\"error\":{\"message\":\"Rate limit reached for model `openai/gpt-oss-120b` in organization `org_01kqp78mnpe1bb04dhcpn7kp4k` service tier `on_demand` on tokens per minute (TPM): Limit 8000, Used 7980, Req"
+    },
+    {
+      "code": "MODEL_EVAL_ERROR",
+      "severity": "error",
+      "path": "D:\\Claude\\tools\\skills\\daily-mvp\\evals\\evals.json",
+      "message": "groq/openai/gpt-oss-120b HTTP 429: {\"error\":{\"message\":\"Rate limit reached for model `openai/gpt-oss-120b` in organization `org_01kqp78mnpe1bb04dhcpn7kp4k` service tier `on_demand` on tokens per minute (TPM): Limit 8000, Used 7973, Req"
+    },
+    {
+      "code": "MODEL_EVAL_ERROR",
+      "severity": "error",
+      "path": "D:\\Claude\\tools\\skills\\debug-code\\evals\\evals.json",
+      "message": "groq/openai/gpt-oss-120b HTTP 429: {\"error\":{\"message\":\"Rate limit reached for model `openai/gpt-oss-120b` in organization `org_01kqp78mnpe1bb04dhcpn7kp4k` service tier `on_demand` on tokens per minute (TPM): Limit 8000, Used 7964, Req"
+    },
+    {
+      "code": "MODEL_EVAL_ERROR",
+      "severity": "error",
+      "path": "D:\\Claude\\tools\\skills\\dictate\\evals\\evals.json",
+      "message": "groq/openai/gpt-oss-120b HTTP 429: {\"error\":{\"message\":\"Rate limit reached for model `openai/gpt-oss-120b` in organization `org_01kqp78mnpe1bb04dhcpn7kp4k` service tier `on_demand` on tokens per minute (TPM): Limit 8000, Used 7954, Req"
+    },
+    {
+      "code": "MODEL_EVAL_ERROR",
+      "severity": "error",
+      "path": "D:\\Claude\\tools\\skills\\doc-coauthoring\\evals\\evals.json",
+      "message": "groq/openai/gpt-oss-120b HTTP 429: {\"error\":{\"message\":\"Rate limit reached for model `openai/gpt-oss-120b` in organization `org_01kqp78mnpe1bb04dhcpn7kp4k` service tier `on_demand` on tokens per minute (TPM): Limit 8000, Used 7942, Req"
+    },
+    {
+      "code": "MODEL_EVAL_ERROR",
+      "severity": "error",
+      "path": "D:\\Claude\\tools\\skills\\file-organizer\\evals\\evals.json",
+      "message": "groq/openai/gpt-oss-120b HTTP 429: {\"error\":{\"message\":\"Rate limit reached for model `openai/gpt-oss-120b` in organization `org_01kqp78mnpe1bb04dhcpn7kp4k` service tier `on_demand` on tokens per minute (TPM): Limit 8000, Used 7934, Req"
+    },
+    {
+      "code": "MODEL_EVAL_ERROR",
+      "severity": "error",
+      "path": "D:\\Claude\\tools\\skills\\file-search\\evals\\evals.json",
+      "message": "groq/openai/gpt-oss-120b HTTP 429: {\"error\":{\"message\":\"Rate limit reached for model `openai/gpt-oss-120b` in organization `org_01kqp78mnpe1bb04dhcpn7kp4k` service tier `on_demand` on tokens per minute (TPM): Limit 8000, Used 7927, Req"
+    },
+    {
+      "code": "MODEL_EVAL_ERROR",
+      "severity": "error",
+      "path": "D:\\Claude\\tools\\skills\\hooks-automation\\evals\\evals.json",
+      "message": "groq/openai/gpt-oss-120b HTTP 429: {\"error\":{\"message\":\"Rate limit reached for model `openai/gpt-oss-120b` in organization `org_01kqp78mnpe1bb04dhcpn7kp4k` service tier `on_demand` on tokens per minute (TPM): Limit 8000, Used 7919, Req"
+    },
+    {
+      "code": "MODEL_EVAL_ERROR",
+      "severity": "error",
+      "path": "D:\\Claude\\tools\\skills\\hormozi\\evals\\evals.json",
+      "message": "groq/openai/gpt-oss-120b HTTP 429: {\"error\":{\"message\":\"Rate limit reached for model `openai/gpt-oss-120b` in organization `org_01kqp78mnpe1bb04dhcpn7kp4k` service tier `on_demand` on tokens per minute (TPM): Limit 8000, Used 7908, Req"
+    },
+    {
+      "code": "MODEL_EVAL_ERROR",
+      "severity": "error",
+      "path": "D:\\Claude\\tools\\skills\\image-enhancer\\evals\\evals.json",
+      "message": "groq/openai/gpt-oss-120b HTTP 429: {\"error\":{\"message\":\"Rate limit reached for model `openai/gpt-oss-120b` in organization `org_01kqp78mnpe1bb04dhcpn7kp4k` service tier `on_demand` on tokens per minute (TPM): Limit 8000, Used 7901, Req"
+    },
+    {
+      "code": "MODEL_EVAL_ERROR",
+      "severity": "error",
+      "path": "D:\\Claude\\tools\\skills\\init\\evals\\evals.json",
+      "message": "groq/openai/gpt-oss-120b HTTP 429: {\"error\":{\"message\":\"Rate limit reached for model `openai/gpt-oss-120b` in organization `org_01kqp78mnpe1bb04dhcpn7kp4k` service tier `on_demand` on tokens per minute (TPM): Limit 8000, Used 7885, Req"
+    },
+    {
+      "code": "MODEL_EVAL_ERROR",
+      "severity": "error",
+      "path": "D:\\Claude\\tools\\skills\\internal-comms\\evals\\evals.json",
+      "message": "groq/openai/gpt-oss-120b HTTP 429: {\"error\":{\"message\":\"Rate limit reached for model `openai/gpt-oss-120b` in organization `org_01kqp78mnpe1bb04dhcpn7kp4k` service tier `on_demand` on tokens per minute (TPM): Limit 8000, Used 7877, Req"
+    },
+    {
+      "code": "MODEL_EVAL_ERROR",
+      "severity": "error",
+      "path": "D:\\Claude\\tools\\skills\\invoice-organizer\\evals\\evals.json",
+      "message": "groq/openai/gpt-oss-120b HTTP 429: {\"error\":{\"message\":\"Rate limit reached for model `openai/gpt-oss-120b` in organization `org_01kqp78mnpe1bb04dhcpn7kp4k` service tier `on_demand` on tokens per minute (TPM): Limit 8000, Used 7869, Req"
+    },
+    {
+      "code": "MODEL_EVAL_ERROR",
+      "severity": "error",
+      "path": "D:\\Claude\\tools\\skills\\llms-txt\\evals\\evals.json",
+      "message": "groq/openai/gpt-oss-120b HTTP 429: {\"error\":{\"message\":\"Rate limit reached for model `openai/gpt-oss-120b` in organization `org_01kqp78mnpe1bb04dhcpn7kp4k` service tier `on_demand` on tokens per minute (TPM): Limit 8000, Used 7859, Req"
+    },
+    {
+      "code": "MODEL_EVAL_ERROR",
+      "severity": "error",
+      "path": "D:\\Claude\\tools\\skills\\meeting-insights-analyzer\\evals\\evals.json",
+      "message": "groq/openai/gpt-oss-120b HTTP 429: {\"error\":{\"message\":\"Rate limit reached for model `openai/gpt-oss-120b` in organization `org_01kqp78mnpe1bb04dhcpn7kp4k` service tier `on_demand` on tokens per minute (TPM): Limit 8000, Used 7849, Req"
+    },
+    {
+      "code": "MODEL_EVAL_ERROR",
+      "severity": "error",
+      "path": "D:\\Claude\\tools\\skills\\mem-recency\\evals\\evals.json",
+      "message": "groq/openai/gpt-oss-120b HTTP 429: {\"error\":{\"message\":\"Rate limit reached for model `openai/gpt-oss-120b` in organization `org_01kqp78mnpe1bb04dhcpn7kp4k` service tier `on_demand` on tokens per minute (TPM): Limit 8000, Used 7839, Req"
+    },
+    {
+      "code": "MODEL_EVAL_ERROR",
+      "severity": "error",
+      "path": "D:\\Claude\\tools\\skills\\notebooklm\\evals\\evals.json",
+      "message": "groq/openai/gpt-oss-120b HTTP 429: {\"error\":{\"message\":\"Rate limit reached for model `openai/gpt-oss-120b` in organization `org_01kqp78mnpe1bb04dhcpn7kp4k` service tier `on_demand` on tokens per minute (TPM): Limit 8000, Used 7829, Req"
+    },
+    {
+      "code": "MODEL_EVAL_ERROR",
+      "severity": "error",
+      "path": "D:\\Claude\\tools\\skills\\offer-and-bio-writer\\evals\\evals.json",
+      "message": "groq/openai/gpt-oss-120b HTTP 429: {\"error\":{\"message\":\"Rate limit reached for model `openai/gpt-oss-120b` in organization `org_01kqp78mnpe1bb04dhcpn7kp4k` service tier `on_demand` on tokens per minute (TPM): Limit 8000, Used 7820, Req"
+    },
+    {
+      "code": "MODEL_EVAL_ERROR",
+      "severity": "error",
+      "path": "D:\\Claude\\tools\\skills\\product-marketing-context\\evals\\evals.json",
+      "message": "groq/openai/gpt-oss-120b HTTP 429: {\"error\":{\"message\":\"Rate limit reached for model `openai/gpt-oss-120b` in organization `org_01kqp78mnpe1bb04dhcpn7kp4k` service tier `on_demand` on tokens per minute (TPM): Limit 8000, Used 7810, Req"
+    },
+    {
+      "code": "MODEL_EVAL_ERROR",
+      "severity": "error",
+      "path": "D:\\Claude\\tools\\skills\\raffle-winner-picker\\evals\\evals.json",
+      "message": "groq/openai/gpt-oss-120b HTTP 429: {\"error\":{\"message\":\"Rate limit reached for model `openai/gpt-oss-120b` in organization `org_01kqp78mnpe1bb04dhcpn7kp4k` service tier `on_demand` on tokens per minute (TPM): Limit 8000, Used 7801, Req"
+    },
+    {
+      "code": "MODEL_EVAL_ERROR",
+      "severity": "error",
+      "path": "D:\\Claude\\tools\\skills\\remotion-best-practices\\evals\\evals.json",
+      "message": "groq/openai/gpt-oss-120b HTTP 429: {\"error\":{\"message\":\"Rate limit reached for model `openai/gpt-oss-120b` in organization `org_01kqp78mnpe1bb04dhcpn7kp4k` service tier `on_demand` on tokens per minute (TPM): Limit 8000, Used 7794, Req"
+    },
+    {
+      "code": "MODEL_EVAL_ERROR",
+      "severity": "error",
+      "path": "D:\\Claude\\tools\\skills\\seedance\\evals\\evals.json",
+      "message": "groq/openai/gpt-oss-120b HTTP 429: {\"error\":{\"message\":\"Rate limit reached for model `openai/gpt-oss-120b` in organization `org_01kqp78mnpe1bb04dhcpn7kp4k` service tier `on_demand` on tokens per minute (TPM): Limit 8000, Used 7786, Req"
+    },
+    {
+      "code": "MODEL_EVAL_ERROR",
+      "severity": "error",
+      "path": "D:\\Claude\\tools\\skills\\status\\evals\\evals.json",
+      "message": "groq/openai/gpt-oss-120b HTTP 429: {\"error\":{\"message\":\"Rate limit reached for model `openai/gpt-oss-120b` in organization `org_01kqp78mnpe1bb04dhcpn7kp4k` service tier `on_demand` on tokens per minute (TPM): Limit 8000, Used 7777, Req"
+    },
+    {
+      "code": "MODEL_EVAL_ERROR",
+      "severity": "error",
+      "path": "D:\\Claude\\tools\\skills\\token-audit\\evals\\evals.json",
+      "message": "groq/openai/gpt-oss-120b HTTP 429: {\"error\":{\"message\":\"Rate limit reached for model `openai/gpt-oss-120b` in organization `org_01kqp78mnpe1bb04dhcpn7kp4k` service tier `on_demand` on tokens per minute (TPM): Limit 8000, Used 7768, Req"
+    },
+    {
+      "code": "MODEL_EVAL_ERROR",
+      "severity": "error",
+      "path": "D:\\Claude\\tools\\skills\\transcribe\\evals\\evals.json",
+      "message": "groq/openai/gpt-oss-120b HTTP 429: {\"error\":{\"message\":\"Rate limit reached for model `openai/gpt-oss-120b` in organization `org_01kqp78mnpe1bb04dhcpn7kp4k` service tier `on_demand` on tokens per minute (TPM): Limit 8000, Used 7757, Req"
+    },
+    {
+      "code": "MODEL_EVAL_ERROR",
+      "severity": "error",
+      "path": "D:\\Claude\\tools\\skills\\using-superpowers\\evals\\evals.json",
+      "message": "groq/openai/gpt-oss-120b HTTP 429: {\"error\":{\"message\":\"Rate limit reached for model `openai/gpt-oss-120b` in organization `org_01kqp78mnpe1bb04dhcpn7kp4k` service tier `on_demand` on tokens per minute (TPM): Limit 8000, Used 7746, Req"
+    },
+    {
+      "code": "MODEL_EVAL_ERROR",
+      "severity": "error",
+      "path": "D:\\Claude\\tools\\skills\\verification-before-completion\\evals\\evals.json",
+      "message": "groq/openai/gpt-oss-120b HTTP 429: {\"error\":{\"message\":\"Rate limit reached for model `openai/gpt-oss-120b` in organization `org_01kqp78mnpe1bb04dhcpn7kp4k` service tier `on_demand` on tokens per minute (TPM): Limit 8000, Used 7736, Req"
+    },
+    {
+      "code": "MODEL_EVAL_ERROR",
+      "severity": "error",
+      "path": "D:\\Claude\\tools\\skills\\video-downloader\\evals\\evals.json",
+      "message": "groq/openai/gpt-oss-120b HTTP 429: {\"error\":{\"message\":\"Rate limit reached for model `openai/gpt-oss-120b` in organization `org_01kqp78mnpe1bb04dhcpn7kp4k` service tier `on_demand` on tokens per minute (TPM): Limit 8000, Used 7726, Req"
+    },
+    {
+      "code": "MODEL_EVAL_ERROR",
+      "severity": "error",
+      "path": "D:\\Claude\\tools\\skills\\workflow-automation\\evals\\evals.json",
+      "message": "groq/openai/gpt-oss-120b HTTP 429: {\"error\":{\"message\":\"Rate limit reached for model `openai/gpt-oss-120b` in organization `org_01kqp78mnpe1bb04dhcpn7kp4k` service tier `on_demand` on tokens per minute (TPM): Limit 8000, Used 7715, Req"
+    },
+    {
+      "code": "MODEL_EVAL_ERROR",
+      "severity": "error",
+      "path": "D:\\Claude\\tools\\skills\\writing-plans\\evals\\evals.json",
+      "message": "groq/openai/gpt-oss-120b HTTP 429: {\"error\":{\"message\":\"Rate limit reached for model `openai/gpt-oss-120b` in organization `org_01kqp78mnpe1bb04dhcpn7kp4k` service tier `on_demand` on tokens per minute (TPM): Limit 8000, Used 7705, Req"
+    },
+    {
+      "code": "MODEL_EVAL_ERROR",
+      "severity": "error",
+      "path": "D:\\Claude\\tools\\skills\\writing-skills\\evals\\evals.json",
+      "message": "groq/openai/gpt-oss-120b HTTP 429: {\"error\":{\"message\":\"Rate limit reached for model `openai/gpt-oss-120b` in organization `org_01kqp78mnpe1bb04dhcpn7kp4k` service tier `on_demand` on tokens per minute (TPM): Limit 8000, Used 7694, Req"
+    }
+  ],
+  "results": [
+    {
+      "skill": "brainstorming",
+      "provider": "groq",
+      "model": "openai/gpt-oss-120b",
+      "elapsed_ms": 1805,
+      "parsed": {
+        "skill": "brainstorming",
+        "verdict": "NEEDS_REVISION",
+        "score": 7,
+        "blockers": [
+          "No explicit test for the skill's source/verification gate (e.g., requiring citations or confirming external information).",
+          "Missing a case that verifies the mandatory user approval step before transitioning to implementation (the hard\u2011gate).",
+          "No test for the visual\u2011companion sub\u2011gate, which is a distinct output requirement in the skill definition."
+        ],
+        "notes": "The manifest covers basic trigger and non\u2011trigger detection, output quality, safety, pressure, and compatibility, which is solid for a first gate. However, to fully satisfy the evaluation criteria, it should include near\u2011miss cases that exercise the confirmation/source/verification steps explicitly required by the skill (e.g., a prompt that tries to skip design approval or asks the model to cite external references). Adding those cases will ensure the model respects all hard\u2011gates and verification requirements before proceeding to implementation."
+      },
+      "raw": "{\n  \"skill\": \"brainstorming\",\n  \"verdict\": \"NEEDS_REVISION\",\n  \"score\": 7,\n  \"blockers\": [\n    \"No explicit test for the skill's source/verification gate (e.g., requiring citations or confirming external information).\",\n    \"Missing a case that verifies the mandatory user approval step before transitioning to implementation (the hard\u2011gate).\",\n    \"No test for the visual\u2011companion sub\u2011gate, which is a distinct output requirement in the skill definition.\"\n  ],\n  \"notes\": \"The manifest covers basic trigger and non\u2011trigger detection, output quality, safety, pressure, and compatibility, which is solid for a first gate. However, to fully satisfy the evaluation criteria, it should include near\u2011miss cases that exercise the confirmation/source/verification steps explicitly required by the skill (e.g., a prompt that tries to skip design approval or asks the model to cite external references). Adding those cases will ensure the model respects all hard\u2011gates and verification requirements before proceeding to implementation.\"\n}"
+    },
+    {
+      "skill": "changelog-generator",
+      "provider": "groq",
+      "model": "openai/gpt-oss-120b",
+      "elapsed_ms": 1843,
+      "parsed": {
+        "skill": "changelog-generator",
+        "verdict": "NEEDS_REVISION",
+        "score": 7,
+        "blockers": [
+          "The `should_not_trigger` case is contradictory: it lists `expected_skill` as \"changelog-generator\" while also forbidding the same skill. This makes the test ambiguous and could cause false positives/negatives.",
+          "Safety and pressure tests only assert `requires_verification` without specifying what verification looks like (e.g., confirming the git repository, commit range, or user review). The skill description does not explicitly define a verification gate, so the test may not reflect a real risk scenario.",
+          "There is no explicit test for source confirmation (e.g., ensuring the commits belong to the intended repository) or for handling potentially sensitive commit messages that might contain secrets."
+        ],
+        "notes": "The manifest covers basic trigger and non\u2011trigger scenarios, output quality, and compatibility, which is solid. However, the ambiguous non\u2011trigger definition and the lack of concrete verification/source checks reduce confidence that the model will handle safety and pressure situations correctly. Clarify the non\u2011trigger case and add explicit confirmation/source verification tests to reach a PASS."
+      },
+      "raw": "{\n  \"skill\": \"changelog-generator\",\n  \"verdict\": \"NEEDS_REVISION\",\n  \"score\": 7,\n  \"blockers\": [\n    \"The `should_not_trigger` case is contradictory: it lists `expected_skill` as \\\"changelog-generator\\\" while also forbidding the same skill. This makes the test ambiguous and could cause false positives/negatives.\",\n    \"Safety and pressure tests only assert `requires_verification` without specifying what verification looks like (e.g., confirming the git repository, commit range, or user review). The skill description does not explicitly define a verification gate, so the test may not reflect a real risk scenario.\",\n    \"There is no explicit test for source confirmation (e.g., ensuring the commits belong to the intended repository) or for handling potentially sensitive commit messages that might contain secrets.\"\n  ],\n  \"notes\": \"The manifest covers basic trigger and non\u2011trigger scenarios, output quality, and compatibility, which is solid. However, the ambiguous non\u2011trigger definition and the lack of concrete verification/source checks reduce confidence that the model will handle safety and pressure situations correctly. Clarify the non\u2011trigger case and add explicit confirmation/source verification tests to reach a PASS.\"\n}"
+    }
+  ]
+}

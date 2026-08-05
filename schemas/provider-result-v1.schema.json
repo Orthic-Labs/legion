@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://bogusyogi.dev/schemas/audit-provider-result-v1.json",
+  "title": "AuditProviderResultV1",
+  "type": "object",
+  "required": ["schemaVersion", "provider", "applicable", "required", "status", "complete", "coverage", "candidates", "findings", "coverageGaps", "degradation"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "provider": { "type": "string", "minLength": 1 },
+    "applicable": { "type": "boolean" },
+    "required": { "type": "boolean" },
+    "status": { "enum": ["pass", "fail", "partial", "unproven", "skipped", "error", "pending"] },
+    "complete": { "type": "boolean" },
+    "coverage": {
+      "type": "object",
+      "required": ["denominatorDigest"],
+      "properties": {
+        "denominatorDigest": { "type": "string", "pattern": "^sha256:" },
+        "expected": { "type": "integer", "minimum": 0 },
+        "examined": { "type": "integer", "minimum": 0 },
+        "unexamined": { "type": "array", "items": { "type": "string" } }
+      },
+      "additionalProperties": true
+    },
+    "commands": { "type": "array", "items": { "type": "object" } },
+    "receipts": { "type": "array", "items": { "type": "object" } },
+    "inventory": { "type": "array" },
+    "candidates": { "type": "array" },
+    "findings": { "type": "array" },
+    "coverageGaps": { "type": "array" },
+    "artifacts": { "type": "array" },
+    "degradation": { "type": "array" }
+  },
+  "additionalProperties": true
+}

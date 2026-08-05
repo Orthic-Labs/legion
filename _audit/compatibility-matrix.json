@@ -1,0 +1,34 @@
+{
+  "aliases": [
+    {
+      "folder": "video-downloader",
+      "frontmatter_name": "youtube-downloader",
+      "public_invocations": ["youtube-downloader", "/youtube-downloader"],
+      "reason": "Existing public skill name differs from the local folder name."
+    }
+  ],
+  "pending_migrations": [
+    {
+      "folder": "hooks-automation",
+      "current_frontmatter_name": "Hooks Automation",
+      "target_frontmatter_name": "hooks-automation",
+      "public_invocations": ["hooks-automation", "/hooks-automation", "Hooks Automation"],
+      "reason": "Frontmatter name is not valid Agent Skills syntax and must be normalized."
+    },
+    {
+      "folder": "offer-and-bio-writer",
+      "current_frontmatter_name": "offer-and-bio-writer",
+      "public_invocations": ["offer-and-bio-writer", "/offer-and-bio-writer"],
+      "reason": "Skill exists on disk but is not currently listed in the direct top-level index."
+    }
+  ],
+  "skill_roots": {
+    "canonical": "D:/Claude/tools/skills",
+    "claude": "C:/Users/adrds/.claude/skills",
+    "codex": "C:/Users/adrds/.codex/skills"
+  },
+  "optional_local_paths": [
+    "D:/Claude/.env",
+    "D:\\Claude\\.env"
+  ]
+}
