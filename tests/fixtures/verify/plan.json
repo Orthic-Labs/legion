@@ -1,0 +1,48 @@
+{
+  "schemaVersion": 1,
+  "kind": "audit-provider-plan",
+  "root": "/tmp/nemesis-verify-fixture",
+  "scope": { "mode": "whole-repo", "type": "all" },
+  "filters": { "only": [], "skip": [] },
+  "seal": {
+    "algorithm": "sha256",
+    "digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "authenticity": "hmac-sha256",
+    "signature": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "keyId": "local-key"
+  },
+  "binding": {
+    "repositoryRevision": "4e82122e713341f9a27545207a00ba45645d8e8f",
+    "dirty": false,
+    "dirtyPatchDigest": null,
+    "cortex": {
+      "state": "ready",
+      "generationId": "generation-verify-001",
+      "manifestDigest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "sourceStatusDigest": null,
+      "sourceHead": null
+    },
+    "registryDigest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+  },
+  "denominator": {
+    "discoveryOwner": "cortex",
+    "firstPartyFileCount": 10,
+    "sourceFileCount": 8,
+    "fileSetDigest": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+    "parsedExtensions": ["ts", "js"],
+    "unsupportedExtensions": [],
+    "providerIds": ["language.typescript", "security.credentials"],
+    "expectedChecks": ["secrets", "types"]
+  },
+  "providers": [],
+  "excludedProviders": [],
+  "coverageFamilies": {},
+  "coverageGaps": [],
+  "qualification": {
+    "state": "ready",
+    "discovery": "ready",
+    "providerCoverageComplete": true,
+    "precisionMeasured": false,
+    "planSigned": true
+  }
+}
