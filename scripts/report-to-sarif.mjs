@@ -10,6 +10,15 @@ const LEVEL = {
   info: 'note',
 };
 
+// One canonical product identity for every machine output. No legacy
+// bogusyogi-audit naming may survive.
+const TOOL = Object.freeze({
+  name: 'Nemesis',
+  fullName: 'Orthic Labs Nemesis',
+  organization: 'Orthic Labs',
+  informationUri: 'https://github.com/Orthic-Labs/nemesis',
+});
+
 function locationFor(finding) {
   if (!finding?.file) return [];
   const line = Number(finding.line ?? 1);
@@ -40,7 +49,14 @@ export function reportToSarif(report) {
       level: LEVEL[finding.severity] ?? 'warning',
       message: { text: finding.title ? `${finding.title}${finding.detail ? ` — ${finding.detail}` : ''}` : String(finding.detail ?? 'Audit finding') },
       locations: locationFor(finding),
-      partialFingerprints: finding.id ? { auditFindingId: String(finding.id) } : undefined,
+      // Stable semantic fingerprint, never presentation text. Based on the
+      // finding's semantic identity so line moves do not create new findings.
+      partialFingerprints: {
+        'nemesisFinding/v1': String(finding.id ?? finding.candidateId ?? finding.ruleId),
+        ...(finding.rootCauseDigest || finding.rootCauseSignature
+          ? { 'nemesisRootCause/v1': String(finding.rootCauseDigest ?? finding.rootCauseSignature) }
+          : {}),
+      },
       properties: {
         severity: finding.severity ?? null,
         evidenceStrength: finding.evidence_strength ?? finding.evidenceStrength ?? null,
@@ -59,8 +75,8 @@ export function reportToSarif(report) {
     runs: [{
       tool: {
         driver: {
-          name: 'bogusyogi-audit',
-          informationUri: 'https://github.com/bogusyogi/claude',
+          ...TOOL,
+          semanticVersion: report?.tool?.version ?? report?.nemesisVersion ?? '0.0.0-dev',
           rules: [...rules.values()].sort((left, right) => left.id.localeCompare(right.id)),
         },
       },

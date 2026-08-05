@@ -8,21 +8,25 @@ const DATA_EXTENSIONS = new Set(['sql', 'ts', 'tsx', 'js', 'mjs', 'cjs', 'py', '
 
 function read(root, path) { try { return readFileSync(join(root, path), 'utf8'); } catch { return ''; } }
 function lineAt(text, index) { return text.slice(0, index).split('\n').length; }
-function item(ruleId, level, message, file, line) {
-  return { id: `sha256:${createHash('sha256').update(`${ruleId}\0${file}\0${line}`).digest('hex')}`, ruleId, level, message, file, line };
+function severityHint(level) { return level === 'error' ? 'high' : level === 'warning' ? 'medium' : 'low'; }
+function candidate(ruleId, level, message, file, line) {
+  return {
+    id: `sha256:${createHash('sha256').update(`${ruleId}\0${file}\0${line}`).digest('hex')}`,
+    ruleId, severityHint: severityHint(level), claim: message, file, line,
+  };
 }
 function scan(root, files, rule) {
-  const findings = [];
+  const candidates = [];
   for (const file of files) {
     const ext = basename(file).split('.').at(-1)?.toLowerCase();
     if (!DATA_EXTENSIONS.has(ext)) continue;
     const text = read(root, file);
     for (const pattern of rule.patterns) {
       pattern.lastIndex = 0;
-      for (const match of text.matchAll(pattern)) findings.push(item(rule.id, rule.level, rule.message, file, lineAt(text, match.index ?? 0)));
+      for (const match of text.matchAll(pattern)) candidates.push(candidate(rule.id, rule.level, rule.message, file, lineAt(text, match.index ?? 0)));
     }
   }
-  return findings;
+  return candidates;
 }
 
 const RULES = Object.freeze([
@@ -38,11 +42,18 @@ const RULES = Object.freeze([
 ]);
 
 export function runDataSuite({ root, files }) {
-  const findings = RULES.flatMap((rule) => scan(root, files, rule));
+  const candidates = RULES.flatMap((rule) => scan(root, files, rule));
   return {
-    provider: 'data.internal-suite', phase: 'runtime', status: findings.some((finding) => finding.level === 'error') ? 'fail' : 'pass',
+    schemaVersion: 1,
+    provider: 'data.internal-suite',
+    providerVersion: '1.0.0',
+    ownerProvider: 'data.internal-suite',
+    phase: 'runtime',
+    role: 'candidate-generator',
+    status: candidates.length ? 'candidates' : 'pass',
     complete: true, applicable: true, required: true,
-    coverage: { pathCount: files.length, rules: RULES.length }, findings, receipts: [], coverageGaps: [], degradation: [],
+    coverage: { pathCount: files.length, rules: RULES.length },
+    candidates, findings: [], receipts: [], coverageGaps: [], degradation: [],
   };
 }
 

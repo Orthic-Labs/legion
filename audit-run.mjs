@@ -8,8 +8,6 @@ import { runGenericSourceAccounting } from './providers/generic-source-suite.mjs
 import { runAccessibilitySuite } from './providers/accessibility-suite.mjs';
 import { prepareAdjudicationBundle } from './security-pipeline.mjs';
 
-const EXTRA_CANDIDATE_PROVIDERS = new Set(['data.internal-suite', 'infrastructure.internal-suite']);
-
 function arg(args, name) { const index = args.indexOf(name); return index >= 0 ? args[index + 1] : null; }
 function values(args, name) { const raw = arg(args, name); return raw ? raw.split(',').map((value) => value.trim()).filter(Boolean) : []; }
 function firstPositional(args) {
@@ -52,28 +50,36 @@ function severityHint(level) {
   if (level === 'warning') return 'medium';
   return 'low';
 }
-function isCandidateProvider(result) {
-  const provider = String(result?.provider ?? '');
-  const family = String(result?.family ?? '');
-  return EXTRA_CANDIDATE_PROVIDERS.has(provider) || provider.startsWith('framework.framework.') || family.startsWith('framework.');
+
+// Candidate authority comes from the frozen plan record, never from a provider
+// name prefix or a local family heuristic. A provider is a candidate provider
+// only when the sealed plan says producesSecurityCandidates: true.
+export function candidateProviderIds(plan) {
+  return new Set((plan.providers ?? [])
+    .filter((provider) => provider.producesSecurityCandidates)
+    .map((provider) => provider.id));
 }
 
-export function aggregateSecurityCandidates(internalReport, providerResults) {
+export function aggregateSecurityCandidates(plan, internalReport, providerResults) {
+  const allowed = candidateProviderIds(plan);
   const candidates = [...(internalReport?.candidates ?? [])];
   for (const result of providerResults ?? []) {
-    if (!isCandidateProvider(result)) continue;
-    for (const [index, finding] of (result.findings ?? []).entries()) {
-      const file = finding.file ?? finding.path ?? null;
-      const line = Number(finding.line ?? 1);
-      const ruleId = finding.ruleId ?? `${result.provider}.finding`;
-      const evidence = file ? [{ file, line }] : [{ artifact: result.provider, index }];
+    // A result is authorized when its provider id is a plan candidate provider,
+    // or when its ownerProvider (the plan record that ran the suite) is.
+    const authorized = allowed.has(result.provider) || allowed.has(result.ownerProvider);
+    if (!authorized) continue;
+    if ((result.findings ?? []).length > 0) {
+      throw new Error(`candidate provider ${result.provider} emitted findings; candidate providers must emit candidates with findings: []`);
+    }
+    for (const candidate of result.candidates ?? []) {
       candidates.push({
-        id: finding.id ?? stableId(`${result.provider}\0${ruleId}\0${file ?? ''}\0${line}\0${index}`),
-        ruleId, provider: result.provider, role: 'candidate-generator',
-        claim: finding.message ?? finding.claim ?? finding.title ?? ruleId,
-        severityHint: finding.severityHint ?? severityHint(finding.level),
-        threatModel: finding.threatModel ?? 'provider-specific', evidence,
-        evidenceStrength: 'candidate', verdict: 'UNADJUDICATED', adjudicationRequired: true,
+        ...candidate,
+        id: candidate.id ?? stableId(`${result.provider}\0${candidate.ruleId}\0${candidate.file ?? ''}\0${candidate.line ?? 1}`),
+        provider: candidate.provider ?? result.provider,
+        role: 'candidate-generator',
+        evidence: candidate.evidence ?? (candidate.file ? [{ file: candidate.file, line: Number(candidate.line ?? 1) }] : []),
+        verdict: 'UNADJUDICATED',
+        adjudicationRequired: true,
       });
     }
   }
@@ -121,7 +127,7 @@ export async function runAuditProviders(options) {
     ...(result.providerResults ?? []).filter((provider) => !addedProviderIds.has(provider.provider)),
     ...appended,
   ];
-  const securityResult = aggregateSecurityCandidates(result.securityResult, providerResults);
+  const securityResult = aggregateSecurityCandidates(result.plan, result.securityResult, providerResults);
   writeJson(join(result.outDir, 'security-candidates.json'), securityResult);
 
   const bindingVerification = result.facts.plan_binding_verification ?? { valid: false, drift: [{ field: 'binding', observed: 'missing' }] };
