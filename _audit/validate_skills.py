@@ -34,7 +34,7 @@ SKILL_ROOT = Path("tools/skills")
 # longer a separate Claude/Codex split: the two former per-agent rule indexes
 # were merged into this single catalogue.
 CLAUDE_INDEX = Path("docs/SKILL-ARCHITECTURE.md")
-AUDIT_DIR = Path("tools/skills/_audit")
+AUDIT_DIR = Path("tools/skills/nemesis/_audit")
 COMPATIBILITY_MATRIX = AUDIT_DIR / "compatibility-matrix.json"
 CAPABILITY_ALIASES = AUDIT_DIR / "capability-aliases.json"
 DESCRIPTION_TOKEN_LIMIT = 60
@@ -118,9 +118,23 @@ def parse_skill_index(index_text: str) -> dict[str, set[str]]:
     routers = section_between("**Top-level router skills**", "**Direct top-level skills**")
     direct = section_between("**Direct top-level skills**", "### Council pipeline")
     pattern = re.compile(r"^\| `/([^` ]+)", re.M)
-    return {
+    result = {
         "routers": set(pattern.findall(routers)),
         "direct": set(pattern.findall(direct)),
+    }
+    if result["routers"] or result["direct"]:
+        return result
+
+    # Current catalogue format: "### Core routers" table (first column = name)
+    # and "### Direct top-level specialists" table (a "Skills" column of
+    # backtick names, no leading slash).
+    routers_section = section_between("### Core routers", "### Direct top-level specialists")
+    direct_section = section_between("### Direct top-level specialists", "###")
+    router_names = set(re.findall(r"^\| `([^` ]+)`", routers_section, re.M))
+    direct_names = set(re.findall(r"`([^`]+)`", direct_section))
+    return {
+        "routers": router_names,
+        "direct": direct_names,
     }
 
 
