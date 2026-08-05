@@ -1,107 +1,180 @@
 <img src=".github/banner.svg" alt="Nemesis — Every angle attacked. Every claim proven." width="100%">
 
-**Most AI code review is a single LLM pass guessing at things a scanner could prove. Nemesis attacks a whole repository from every angle — secrets, dependency CVEs, type errors, dead code, duplication, SAST, license risk, CI and container flaws, architecture drift, AI-slop, runtime behavior, rendered UI — and binds every claim to evidence: a frozen, sealed, and signed provider plan, scanner output that re-runs line by line, and typed `UNPROVEN` degradation wherever proof is missing. It is named for the goddess who punished hubris — including the hubris of a clean bill of health without evidence.**
+**Nemesis audits a whole repository from a plan it commits to before it looks at the results. It reads the file inventory from Cortex, selects checks deterministically from a declarative registry, seals the selection into a signed `plan.json`, executes exactly that, and emits `report.json` + SARIF. Anything it could not prove — a missing scanner, a stale graph, an unsandboxed build, an unadjudicated security candidate — is recorded as `UNPROVEN` and blocks a clean verdict. Zero findings is not a pass unless coverage was complete.**
 
 ![license](https://img.shields.io/badge/license-source--available-df6428?style=flat-square&labelColor=111318)
 ![execution](https://img.shields.io/badge/execution-offline--first-df6428?style=flat-square&labelColor=111318)
 ![output](https://img.shields.io/badge/output-JSON%20·%20SARIF%20·%20Markdown-df6428?style=flat-square&labelColor=111318)
 
+```sh
+node audit-run.mjs .                                   # audit this repo
+node audit-verify.mjs --facts .audit/<ts>/facts.json   # re-prove that run out-of-band
+```
+
+Node ≥ 18, zero runtime dependencies, no install step, no daemon, no network.
+
 ## Three entry points
 
 | Entry point | What it does |
 |---|---|
-| **`/audit`** | Freezes scope, seals and signs a deterministic provider plan, executes it exactly, and returns a re-runnable audit report with bounded findings |
-| **`/audit-fix`** | A bounded mutation loop over the same frozen plan — fixes unambiguous findings, re-runs the identical provider contract, caps at four batches, never auto-commits, never claims a false clean |
-| **`/audit-visual`** | A thin route over the shared visual provider — rendered-state, screenshot-baseline, and viewport-matrix evidence through the same report pipeline |
+| **`/audit`** | Freezes scope, seals a plan, executes it, returns a re-runnable report |
+| **`/audit-fix`** | Fixes findings and re-audits in a loop until the report is clean or the loop hits a stop condition |
+| **`/audit-visual`** | Rendered-state, screenshot-baseline, and viewport-matrix evidence through the same report pipeline |
 
-All three share one engine: the same declarative provider registry, the same sealed plan, the same reconciliation gate. No entry point may invent providers, narrow a denominator, or report clean while anything selected is skipped, unmeasured, unsigned, or unadjudicated.
+All three share one registry, one sealed plan, and one reconciliation gate. No entry point may add providers, narrow a denominator, or report clean while something selected was skipped.
 
-## How an audit runs
+## The five stages
+
+Each stage may only consume what the previous one produced. The plan is sealed at stage 2 and never widens or narrows after that.
 
 ```mermaid
 flowchart LR
-    A["/audit"] --> B["freeze scope<br/>root · revision · dirty tree"]
-    B --> C["pin one fresh Cortex generation<br/>project graph into audit facts"]
-    C --> D["declarative registry<br/>additive deterministic selection"]
-    D --> E["plan.json<br/>SHA-256 seal + HMAC-SHA-256 signature"]
-    E --> F["execute the exact frozen plan<br/>scanners + first-party providers"]
-    F --> G["reasoning lenses<br/>inside selected provider contracts"]
-    G --> H["security adjudication<br/>fresh context per candidate<br/>+ variant analysis"]
-    H --> I["report.json · report.sarif<br/>rendered Markdown"]
-    F -. every check re-runnable .-> P["audit-verify.mjs<br/>out-of-band proof"]
+    A["1 · freeze<br/>root · revision · dirty digest"] --> B["2 · select + seal<br/>registry → plan.json"]
+    B --> C["3 · deterministic<br/>scanners + first-party providers"]
+    C --> D["4 · adjudicate<br/>security candidates → verdicts"]
+    D --> E["5 · reason<br/>lenses over redacted facts"]
+    E --> F["report.json · report.sarif · Markdown"]
+    C -. every check re-runnable .-> V["audit-verify.mjs"]
 ```
 
-The plan binds the repository revision, dirty-tree digest, Cortex generation, registry digest, provider set, and expected denominators. Anything that cannot be proven — a missing scanner, a stale generation, an unsigned plan, an unsandboxed build — is recorded as `UNPROVEN` and keeps the audit incomplete. Zero findings is never a pass unless coverage is complete.
+**1 · Freeze.** Repository root, revision, and a digest of the dirty tree. One fresh Cortex generation is pinned here — its graph is the file inventory for everything downstream.
 
-## What makes it different
+**2 · Select and seal.** The registry is evaluated against the projected graph, additively: every provider whose selector matches is selected. The result binds revision, dirty digest, Cortex generation, registry digest, provider set, and per-provider path denominators into `plan.json`, sealed with SHA-256 and signed with HMAC-SHA-256.
 
-- **Frozen, sealed, signed plans.** The provider set is selected deterministically from a declarative registry, then bound to revision, dirty tree, Cortex generation, and denominators. The agent never adds, removes, or narrows providers after execution begins.
-- **`UNPROVEN` instead of silent clean.** Missing scanners, stale generations, unsigned plans, unsandboxed builds, unmeasured rule packs — every gap is typed degradation that blocks a clean claim. A finding-free report with incomplete coverage is still an incomplete audit.
-- **Security findings survive cross-examination.** Candidate generators may not close their own candidates. A different provider adjudicates each one in a fresh context — threat model, attacker control, source-to-sink reachability, impact, proof, false-positive challenge — and confirmed findings require repository-wide variant analysis before closure.
-- **Proof lives outside the agent.** Every check prints its literal command; `audit-verify.mjs` re-runs the replayable checks out-of-band and compares their status and finding counts against the prior report. `build` and any sandbox-blocked check are reported `UNPROVEN` and counted as drift, never silently skipped. The agent is never the thing that proves it did the work.
-- **Offline-first execution.** No installs, no mutable ruleset fetches, no external model APIs, no network. Project-executing checks run only behind a host-enforced sandbox receipt — environment variables are defense in depth, never proof.
-- **Discovery has exactly one owner.** Cortex owns files, languages, symbols, and graphs, and every plan pins one fresh generation of it; Nemesis owns toolchain, runtime, visual, release, and adjudication evidence. Without a current generation the audit degrades to `UNPROVEN` rather than inventing a parallel file inventory.
-- **Optional scanners cannot gate a clean claim.** Eight third-party checks — gitleaks, semgrep, cargo-audit, cargo-deny, swiftlint, license-checker, and both outdated probes — run in a `supplemental` tier: present, they add evidence; absent, they are recorded and the audit still reaches a verdict. Only first-party and project-declared tooling counts toward the completeness denominator.
+**3 · Deterministic execution.** Scanners and first-party providers run at `min(cpus-1, 4)` concurrency, each against its frozen path denominator. Each result carries `execution_status` (did the command complete) separately from `verdict` (did it pass) — a command that ran and exited nonzero can never reconcile as a pass.
 
-## The gauntlet
+**4 · Adjudication.** Security candidates go to a different provider in a fresh context. Nothing that generated a candidate may close it.
 
-| Front | What it attacks | Backing |
+**5 · Reasoning.** Lenses fan out over redacted facts, each bound to the providers that back it. Findings are re-verified locally before they render.
+
+## How it decides what to run
+
+Selection is a pure function of the projected graph — no heuristics, no "primarily a TypeScript repo" guesses, no agent input. Every provider declares a selector and a required-condition:
+
+| Selector | Fires when | Example provider |
 |---|---|---|
-| Secrets & credentials | leaked keys, tokens, high-entropy strings | gitleaks + three-stage regex / entropy / file-context credential filter |
-| Supply chain | dependency CVEs, license risk, unpinned or vendored deps, stale majors | npm · pnpm · yarn audit, pip-audit, cargo-audit / deny / machete, license-checker, outdated |
-| Static security | injection, misconfiguration, unsafe code, CI/CD and container flaws | semgrep · actionlint · hadolint · cargo-geiger · binary-pin checks |
-| Types, build & lint | type errors, build breakage, lint debt | tsc · basedpyright · mypy · biome · eslint · ruff · clippy · swiftlint · project build |
-| Architecture & dead weight | dead code, duplication, god modules, missing tests/CI/license, TODO sprawl | knip · jscpd · Cortex graph metrics · negative-space & debt-marker checks |
-| Frameworks & platforms | framework-specific misuse across 20 coverage families; Tauri contract/capability drift; Apple targets; React hooks config | first-party framework, Tauri, Apple, and React providers |
-| Runtime & rendered UI | console errors, performance, accessibility, visual matrix gaps a static pass cannot see | runtime capture · visual core · accessibility suite |
-| Reasoning lenses | doc drift, architecture, correctness, AI-slop, naming, dead files, schema drift, security, over-engineering, performance — plus conditional a11y, data-safety, resilience, platform-parity, release-readiness | 15 lenses fanned out over redacted facts; every finding re-verified locally before it renders |
+| `always` | every run | `core.repo`, `security.secrets` |
+| `{ ext: [...] }` | those extensions exist | `security.rust-unsafe` on `.rs` |
+| `{ paths: [...] }` | those files exist | `security.docker` on `Dockerfile` |
+| `{ deps: [...] }` | that dependency is declared | `react.hooks-config` on `react` |
+| `{ scripts: [...] }` | that package script exists | `runtime.app` on `qa:browser` \| `dev` |
+| `{ sourceAtLeast: n }` | at least n first-party source files | `security.sast`, `quality.duplication` |
+| `{ any: [...] }` / `{ all: [...] }` | composed | `quality.types` on tsconfig **or** `.ts`/`.py` |
 
-## Measured, not vibes
-
-| Figure | Value |
+| Required-condition | Meaning when unmet |
 |---|---|
-| Executable providers | 31 deterministic checks + runtime capture + 2 security reasoning contracts, selected additively from a declarative registry |
-| Framework coverage families | 20 — Next to Phoenix, Electron to Flutter |
-| Reasoning lenses | 10 always-on + 5 conditional, one parallel wave |
-| Plan binding | SHA-256 integrity seal + HMAC-SHA-256 authenticity signature over revision, dirty tree, Cortex generation, registry digest, provider set, and denominators |
-| Conformance suite | 11 end-to-end cases proving the trust invariants |
-| Detector bench | 13 labeled fixtures; precision/recall harness with a `--real` mode against production scanners — unmeasured rule packs block clean claims |
-| Runtime dependencies | 0 — Node builtins only |
+| `always` | hard failure |
+| `manifest` / `typed` / `configured` / `buildable` | not applicable — excluded from the denominator |
+| `tool_present` | scanner absent → `UNPROVEN`, recorded, audit stays incomplete |
+| `optional` | absent → recorded as a coverage gap, does not block |
+
+A Rust workspace with a `Cargo.lock`, a `Dockerfile`, and no `package.json` therefore gets clippy, `cargo-audit`, `cargo-deny`, `cargo-geiger`, `cargo-machete`, `cargo-outdated`, hadolint, secrets, SAST, duplication, and the always-on repo providers — and never gets `knip`, `npm audit`, or the React provider. That selection is written into the plan before the first scanner runs.
+
+## Provider roles
+
+| Role | May emit | May close its own candidates |
+|---|---|---|
+| `deterministic` | findings | n/a |
+| `candidate-generator` | candidates only | **no** |
+| `adjudicator` | verdicts on other providers' candidates | n/a |
+| `variant-analysis` | repository-wide sweep for a confirmed finding | n/a |
+
+The registry enforces `sameProviderForbidden`, `sameContextForbidden`, `freshContextRequired`, and `confirmedFindingRequiresVariantAnalysis`. A candidate that never reached an adjudicator is not a finding and does not appear in the report — but it does keep the audit incomplete.
+
+## Security pipeline
+
+A security candidate becomes a finding only by surviving every stage, in order:
+
+1. **Candidate** — file, line, rule ID, claim, threat model, severity hint. Emitted by a candidate-generator, never by the adjudicator.
+2. **Attacker control** — who can influence the input. `unproven` fails the verdict.
+3. **Reachability** — source-to-sink path through the graph.
+4. **Impact** — what breaks, and for whom.
+5. **Proof** — the concrete evidence. A surviving verdict requires `evidenceStrength` above `possible`.
+6. **False-positive challenge** — a recorded devil's-advocate argument against the finding.
+7. **Variant analysis** — repository-wide sweep for the same pattern before closure.
+
+Verdicts missing attacker control, proof, evidence strength, or the challenge are rejected by the adjudication contract, not by convention.
+
+## Coverage, stated honestly
+
+Language and framework families carry a qualification the report inherits. `partial` means the family has providers and a benchmark that has not measured every rule pack. `unproven` means the family is detected and reported as a coverage gap, with no provider yet.
+
+| Qualification | Families |
+|---|---|
+| `partial` | JavaScript/TypeScript · Python · Rust · Swift/Objective-C · Shell/PowerShell · React · Tauri |
+| `unproven` | C/C++ · Java/Kotlin/Scala · .NET · PHP · Go · Ruby · Dart · Elixir/Erlang · Tailwind · Laravel · ASP.NET |
+
+Detected-but-unproven is a reported gap, never a silent pass. Rule packs without a benchmark result ship as `unproven` and block a clean claim on their own.
+
+## `/audit-fix` — the loop
+
+`/audit-fix` is a mutation loop over the frozen plan from a prior `/audit`. It does not select providers, build a second registry, or reinterpret the denominator.
+
+```text
+verify plan seal, revision, dirty binding, Cortex generation, provider set, denominators
+  ↓  (drift → stop, cut a new /audit plan instead)
+fix a bounded batch of unambiguous findings
+  ↓
+rerun the identical provider contract, finalize the report
+  ↓
+repeat
+```
+
+It stops on the first of: **four batches**, no progress, a regression, plan drift, or a newly introduced high/critical finding.
+
+It will not auto-fix `MANUAL` findings, security findings without completed adjudication and variant analysis, or visual findings without acceptance evidence. It never installs tools, calls the network, or auto-commits. It returns files changed, findings closed, findings still open, regressions, the exact rerun commands, and the new report and SARIF paths.
+
+## What blocks a clean verdict
+
+Any one of these keeps the audit `incomplete` no matter how many findings are open:
+
+- A selected provider that was skipped, errored, or returned `fail`
+- A `tool_present` scanner that was absent
+- A stale or missing Cortex generation
+- An unsigned plan, or a plan whose binding no longer matches the tree
+- A provider whose examined path set does not match its sealed denominator
+- A security candidate with no adjudication verdict
+- A rule pack with no benchmark result
+- A project-executing check with no host sandbox receipt
+
+## Requirements
+
+| Requirement | Without it |
+|---|---|
+| **A current [Cortex](https://github.com/Orthic-Labs/Cortex) generation** — Cortex owns the file inventory, and the plan pins one generation of its graph | Declared-safe providers still run; coverage is `UNPROVEN` and no clean claim is possible |
+| `AUDIT_PLAN_SIGNING_KEY` — host-supplied HMAC key | The plan is still a valid integrity artifact, but the audit stays `UNPROVEN` |
+| `AUDIT_NETWORK_GUARD=active` — host receipt that network denial is enforced outside the audited process | Build, type, lint, test, and runtime capture stay blocked and report `UNPROVEN` |
+
+Optional third-party scanners (gitleaks, semgrep, pip-audit, cargo-audit, cargo-deny, swiftlint, license-checker, outdated probes) run in a `supplemental` tier: present, they add evidence; absent, they are recorded and the audit still reaches a verdict. They never enlarge the completeness denominator. First-party and project-declared tooling does.
+
+## Outputs
+
+| Artifact | Contents |
+|---|---|
+| `.audit/<ts>/plan.json` | The sealed, signed provider plan — selection, bindings, denominators |
+| `.audit/<ts>/facts.json` | Raw provider results, secret-redacted, with per-check commands |
+| `.audit/<ts>/report.json` | Canonical findings, coverage gaps, gates, `audit_status` |
+| `.audit/<ts>/report.sarif` | SARIF 2.1.0, dependency-free, for code-scanning consumers |
+| Rendered Markdown | Human-readable report |
+
+Every check prints its literal command. `audit-verify.mjs` re-runs the replayable checks out-of-band and compares status and finding counts against the prior report; `build` and sandbox-blocked checks are reported `UNPROVEN` and counted as drift rather than silently skipped.
 
 ## Inside
 
-- **`audit-run.mjs`** — the canonical entrypoint: pins a fresh Cortex generation, loads the registry, seals and signs `plan.json`, executes exactly the frozen provider set.
-- **`registry/`** — the declarative provider registry is the executable source of truth; loaders validate and merge but may never invent providers or qualifications.
-- **`providers/`** — first-party suites: security, framework, data, infrastructure, accessibility, visual, generic source, and the native-family runner.
-- **`security-pipeline.mjs`** — enforces candidate/adjudicator separation, rejects context reuse, and gates closure on variant analysis.
-- **`collect-facts.mjs`** — legacy scanner runner with secret redaction and graceful-skip accounting; it records `execution_status` separately from `verdict`, so a command that ran and failed can never reconcile as a pass.
-- **`render-report.mjs` + `report-to-sarif.mjs`** — one canonical `report.json`, rendered to Markdown and dependency-free SARIF 2.1.0 for code-scanning consumers.
-- **`bench/`** — precision/recall harness over labeled fixtures; `unproven` rule packs are coverage gaps, not passes.
+- **`audit-run.mjs`** — canonical entrypoint: pins the Cortex generation, loads the registry, seals and signs `plan.json`, executes the frozen set.
+- **`registry/`** — the declarative registry is the executable source of truth; loaders validate and merge, never invent.
+- **`providers/`** — first-party suites: security, framework, data, infrastructure, accessibility, visual, generic source, native-family runner.
+- **`security-pipeline.mjs`** + **`adapters/security-adjudication.mjs`** — candidate/adjudicator separation and verdict field enforcement.
+- **`collect-facts.mjs`** — scanner runner with secret redaction and graceful-skip accounting; records `execution_status` separately from `verdict`.
+- **`render-report.mjs`** + **`report-to-sarif.mjs`** — one canonical `report.json`, rendered to Markdown and SARIF.
+- **`bench/`** — precision/recall harness over 13 labeled fixtures, with a `--real` mode against production scanners.
 - **`tests/`** — unit suites plus an eleven-case conformance runner over the trust invariants.
 
-## Running it
-
 ```sh
-node audit-run.mjs <root>                              # full audit — Node ≥ 18, zero dependencies
-node audit-run.mjs <root> --url http://localhost:3000 --visual-spec spec.json
-node audit-verify.mjs --facts .audit/<ts>/facts.json   # re-prove a prior run out-of-band
-
 node scripts/self-test.mjs                             # syntax + manifest + unit suites
 node tests/run-audit-conformance-tests.mjs             # eleven trust-invariant cases
 node bench/run-bench.mjs --real                        # detector recall vs production scanners
 ```
-
-### What a complete audit requires
-
-| Requirement | Without it |
-|---|---|
-| **A current [Cortex](https://github.com/Orthic-Labs/Cortex) generation** — Cortex owns repository discovery, and the plan pins one generation of its graph | The audit still runs its declared-safe providers, but coverage is `UNPROVEN` and no clean claim is possible. Run Cortex against the target repository first. |
-| `AUDIT_PLAN_SIGNING_KEY` — host-supplied HMAC key for plan authenticity | The plan is still a valid integrity artifact, but the audit stays `UNPROVEN` |
-| `AUDIT_NETWORK_GUARD=active` — host receipt that network denial is enforced outside the audited process | Build, type, lint, test, and runtime capture stay blocked and report `UNPROVEN` |
-
-Nemesis is usable standalone for scanner-backed evidence, but it is built to run beside Cortex: the graph is the file inventory, and a stale or missing generation is treated as missing proof rather than as a clean repository.
-
-No install step and no daemon: the engine is dependency-free Node ESM. Optional scanners (gitleaks, semgrep, pip-audit, cargo-audit, …) are used when present and flagged when absent — never installed mid-run.
 
 ## Reference docs
 
@@ -114,7 +187,7 @@ No install step and no daemon: the engine is dependency-free Node ESM. Optional 
 
 ## Repository posture
 
-This checkout is the internal home of the workspace's audit skill — an engine coupled to the Orthic Labs workspace, not a standalone public product. It is source-available, not open source (see [LICENSE](LICENSE)). Full proof requires the sibling Cortex skill, which owns repository discovery; without a current Cortex generation the audit still runs its declared-safe providers but stays `UNPROVEN` rather than inventing a file inventory. Naming: **Nemesis** is the public name; inside the workspace the skill registers as `audit`, with `audit-fix` and `audit-visual` as bounded companions. Project-executing checks additionally require a host-enforced network sandbox — the engine never trades proof for coverage.
+This checkout is the internal home of the workspace's audit skill — an engine coupled to the Orthic Labs workspace, not a standalone public product. It is source-available, not open source (see [LICENSE](LICENSE)). **Nemesis** is the public name; inside the workspace the skill registers as `audit`, with `audit-fix` and `audit-visual` as bounded companions.
 
 ---
 
