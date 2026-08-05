@@ -59,11 +59,12 @@ test('executePlan produces one receipt per selected provider', async () => {
     repositoryBinding: { repositoryRevision: 'abc', dirty: false, dirtyPatchDigest: 'sha256:clean' },
     registry,
   }, host);
-  const { providerResults } = await executePlan(plan, host);
-  assert.ok(Array.isArray(providerResults));
-  for (const result of providerResults) {
-    assert.ok(result.provider);
-    assert.ok(['pass', 'error', 'pending', 'unproven'].includes(result.status));
+  const { receipts } = await executePlan(plan, host);
+  assert.ok(Array.isArray(receipts));
+  for (const receipt of receipts) {
+    assert.ok(receipt.provider);
+    assert.ok(receipt.providerResult);
+    assert.ok(['pass', 'error', 'skipped', 'unproven', 'blocked', 'pending'].includes(receipt.providerResult.status));
   }
 });
 
