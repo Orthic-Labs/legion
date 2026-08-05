@@ -1,6 +1,6 @@
 <img src=".github/banner.svg" alt="Nemesis — Every angle attacked. Every claim proven." width="100%">
 
-**Nemesis audits a whole repository from a plan it commits to before it looks at the results. It reads the file inventory from Cortex, selects checks deterministically from a declarative registry, seals the selection into a signed `plan.json`, executes exactly that, and emits `report.json` + SARIF. Anything it could not prove — a missing scanner, a stale graph, an unsandboxed build, an unadjudicated security candidate — is recorded as `UNPROVEN` and blocks a clean verdict. Zero findings is not a pass unless coverage was complete.**
+**Nemesis audits a whole repository from a plan it commits to before it looks at the results. It reads the file inventory from [Cortex](https://github.com/Orthic-Labs/Cortex), selects checks deterministically from a declarative registry, seals the selection into a signed `plan.json`, executes exactly that, and emits `report.json` + SARIF. Anything it could not prove — a missing scanner, a stale graph, an unsandboxed build, an unadjudicated security candidate — is recorded as `UNPROVEN` and blocks a clean verdict. Zero findings is not a pass unless coverage was complete.**
 
 ![license](https://img.shields.io/badge/license-source--available-df6428?style=flat-square&labelColor=111318)
 ![execution](https://img.shields.io/badge/execution-offline--first-df6428?style=flat-square&labelColor=111318)
