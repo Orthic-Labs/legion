@@ -1,0 +1,25 @@
+{
+  "name": "@orthic-labs/nemesis",
+  "allowlistedTopLevel": [
+    "bin/",
+    "lib/",
+    "providers/",
+    "registry/",
+    "schemas/",
+    "scripts/",
+    "references/",
+    "README.md",
+    "CHANGELOG.md",
+    "LICENSE",
+    "THIRD_PARTY_NOTICES.md",
+    "package.json"
+  ],
+  "forbiddenContents": [
+    "NEMESIS-MASTER-IMPLEMENTATION-DISPATCH",
+    "nemesis-dispatch",
+    "UPGRADE-PLAN",
+    "_audit",
+    ".audit",
+    "bogusyogi"
+  ]
+}

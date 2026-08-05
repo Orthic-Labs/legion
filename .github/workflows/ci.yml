@@ -30,6 +30,8 @@ jobs:
       - run: node --test --test-concurrency=1 "tests/*.test.mjs"
       - run: node tests/run-audit-conformance-tests.mjs
       - run: node bench/run-bench.mjs
+      - run: node scripts/package-smoke.mjs
+      - run: node --test tests/package-install.test.mjs
       - run: npm pack --dry-run --json
         if: ${{ hashFiles('package.json') != '' }}
 
