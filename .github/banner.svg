@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 300" role="img" aria-label="Nemesis — Every angle attacked. Every claim proven.">
+  <rect width="1200" height="300" fill="#111318"/>
+  <rect width="1200" height="6" fill="#df6428"/>
+  <g stroke="#df6428" stroke-opacity="0.12" stroke-width="1">
+    <line x1="830" y1="148" x2="1200" y2="148"/>
+    <line x1="1010" y1="10" x2="1010" y2="290"/>
+  </g>
+  <g fill="none" stroke="#df6428" stroke-opacity="0.2" stroke-width="1.5">
+    <circle cx="1010" cy="148" r="36"/>
+    <circle cx="1010" cy="148" r="64"/>
+    <circle cx="1010" cy="148" r="92"/>
+    <circle cx="1010" cy="148" r="120"/>
+  </g>
+  <g stroke="#df6428" stroke-opacity="0.35" stroke-width="1.5">
+    <line x1="1134" y1="148" x2="1150" y2="148"/>
+    <line x1="1097.7" y1="235.7" x2="1109" y2="247"/>
+    <line x1="1010" y1="272" x2="1010" y2="288"/>
+    <line x1="922.3" y1="235.7" x2="911" y2="247"/>
+    <line x1="886" y1="148" x2="870" y2="148"/>
+    <line x1="922.3" y1="60.3" x2="911" y2="49"/>
+    <line x1="1010" y1="24" x2="1010" y2="8"/>
+    <line x1="1097.7" y1="60.3" x2="1109" y2="49"/>
+  </g>
+  <circle cx="1010" cy="148" r="5" fill="#df6428"/>
+  <text x="64" y="108" font-family="Inter,-apple-system,'Segoe UI',sans-serif" font-size="15" font-weight="800" letter-spacing="4" fill="#df6428">ORTHIC LABS</text>
+  <text x="64" y="196" font-family="Inter,-apple-system,'Segoe UI',sans-serif" font-size="96" font-weight="800" letter-spacing="6" fill="#f7f7f4">NEMESIS</text>
+  <text x="64" y="242" font-family="Inter,-apple-system,'Segoe UI',sans-serif" font-size="24" fill="#9aa3af">Every angle attacked. Every claim proven.</text>
+</svg>
