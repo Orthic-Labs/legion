@@ -38,9 +38,10 @@ The plan binds the repository revision, dirty-tree digest, Cortex generation, re
 - **Frozen, sealed, signed plans.** The provider set is selected deterministically from a declarative registry, then bound to revision, dirty tree, Cortex generation, and denominators. The agent never adds, removes, or narrows providers after execution begins.
 - **`UNPROVEN` instead of silent clean.** Missing scanners, stale generations, unsigned plans, unsandboxed builds, unmeasured rule packs — every gap is typed degradation that blocks a clean claim. A finding-free report with incomplete coverage is still an incomplete audit.
 - **Security findings survive cross-examination.** Candidate generators may not close their own candidates. A different provider adjudicates each one in a fresh context — threat model, attacker control, source-to-sink reachability, impact, proof, false-positive challenge — and confirmed findings require repository-wide variant analysis before closure.
-- **Proof lives outside the agent.** Every check prints its literal command; `audit-verify.mjs` re-runs required checks out-of-band and diffs the findings. The agent is never the thing that proves it did the work.
+- **Proof lives outside the agent.** Every check prints its literal command; `audit-verify.mjs` re-runs the replayable checks out-of-band and compares their status and finding counts against the prior report. `build` and any sandbox-blocked check are reported `UNPROVEN` and counted as drift, never silently skipped. The agent is never the thing that proves it did the work.
 - **Offline-first execution.** No installs, no mutable ruleset fetches, no external model APIs, no network. Project-executing checks run only behind a host-enforced sandbox receipt — environment variables are defense in depth, never proof.
-- **Discovery has exactly one owner.** Cortex owns files, languages, symbols, and graphs; Nemesis owns toolchain, runtime, visual, release, and adjudication evidence. It degrades to `UNPROVEN` before it invents a parallel file inventory.
+- **Discovery has exactly one owner.** Cortex owns files, languages, symbols, and graphs, and every plan pins one fresh generation of it; Nemesis owns toolchain, runtime, visual, release, and adjudication evidence. Without a current generation the audit degrades to `UNPROVEN` rather than inventing a parallel file inventory.
+- **Optional scanners cannot gate a clean claim.** Eight third-party checks — gitleaks, semgrep, cargo-audit, cargo-deny, swiftlint, license-checker, and both outdated probes — run in a `supplemental` tier: present, they add evidence; absent, they are recorded and the audit still reaches a verdict. Only first-party and project-declared tooling counts toward the completeness denominator.
 
 ## The gauntlet
 
@@ -73,7 +74,7 @@ The plan binds the repository revision, dirty-tree digest, Cortex generation, re
 - **`registry/`** — the declarative provider registry is the executable source of truth; loaders validate and merge but may never invent providers or qualifications.
 - **`providers/`** — first-party suites: security, framework, data, infrastructure, accessibility, visual, generic source, and the native-family runner.
 - **`security-pipeline.mjs`** — enforces candidate/adjudicator separation, rejects context reuse, and gates closure on variant analysis.
-- **`collect-facts.mjs`** — legacy scanner runner with secret redaction and graceful-skip accounting; applicability disagreements degrade to `UNPROVEN`, never to clean.
+- **`collect-facts.mjs`** — legacy scanner runner with secret redaction and graceful-skip accounting; it records `execution_status` separately from `verdict`, so a command that ran and failed can never reconcile as a pass.
 - **`render-report.mjs` + `report-to-sarif.mjs`** — one canonical `report.json`, rendered to Markdown and dependency-free SARIF 2.1.0 for code-scanning consumers.
 - **`bench/`** — precision/recall harness over labeled fixtures; `unproven` rule packs are coverage gaps, not passes.
 - **`tests/`** — unit suites plus an eleven-case conformance runner over the trust invariants.
@@ -90,10 +91,15 @@ node tests/run-audit-conformance-tests.mjs             # eleven trust-invariant 
 node bench/run-bench.mjs --real                        # detector recall vs production scanners
 ```
 
-| Variable | Effect |
+### What a complete audit requires
+
+| Requirement | Without it |
 |---|---|
-| `AUDIT_PLAN_SIGNING_KEY` | Host-supplied HMAC key for plan authenticity; without it the plan is a valid integrity artifact but the audit stays `UNPROVEN` |
-| `AUDIT_NETWORK_GUARD=active` | Host receipt that network denial is enforced outside the audited process; unlocks build / type / lint / test and runtime capture |
+| **A current [Cortex](https://github.com/Orthic-Labs/Cortex) generation** — Cortex owns repository discovery, and the plan pins one generation of its graph | The audit still runs its declared-safe providers, but coverage is `UNPROVEN` and no clean claim is possible. Run Cortex against the target repository first. |
+| `AUDIT_PLAN_SIGNING_KEY` — host-supplied HMAC key for plan authenticity | The plan is still a valid integrity artifact, but the audit stays `UNPROVEN` |
+| `AUDIT_NETWORK_GUARD=active` — host receipt that network denial is enforced outside the audited process | Build, type, lint, test, and runtime capture stay blocked and report `UNPROVEN` |
+
+Nemesis is usable standalone for scanner-backed evidence, but it is built to run beside Cortex: the graph is the file inventory, and a stale or missing generation is treated as missing proof rather than as a clean repository.
 
 No install step and no daemon: the engine is dependency-free Node ESM. Optional scanners (gitleaks, semgrep, pip-audit, cargo-audit, …) are used when present and flagged when absent — never installed mid-run.
 
