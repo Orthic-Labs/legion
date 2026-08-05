@@ -9,17 +9,23 @@ const SURVIVING = new Set(['TRUE_POSITIVE', 'LIKELY_TRUE_POSITIVE']);
 function readJson(path) { return JSON.parse(readFileSync(resolve(path), 'utf8')); }
 function writeJson(path, value) { writeFileSync(resolve(path), `${JSON.stringify(value, null, 2)}\n`, 'utf8'); }
 
-const CANDIDATE_GENERATOR_SCRIPTS = new Set(['providers/security-suite.mjs', 'providers/framework-suite.mjs', 'providers/data-suite.mjs', 'providers/infrastructure-suite.mjs']);
-const CANDIDATE_GENERATOR_PREFIXES = ['security.', 'data.internal', 'infrastructure.internal', 'framework.'];
+// Candidate-generator authority comes from the frozen plan record, never from a
+// provider name prefix. A provider may emit security candidates only when the
+// sealed plan says producesSecurityCandidates: true.
+function candidateGeneratorIds(facts) {
+  return new Set((facts.plan?.providers ?? [])
+    .filter((provider) => provider.producesSecurityCandidates)
+    .map((provider) => provider.id));
+}
 
-function isCandidateGenerator(provider) {
-  if (CANDIDATE_GENERATOR_SCRIPTS.has(provider.runner?.script)) return true;
-  return CANDIDATE_GENERATOR_PREFIXES.some((prefix) => (provider.provider ?? '').startsWith(prefix));
+function isCandidateGenerator(facts, provider) {
+  const ids = candidateGeneratorIds(facts);
+  return ids.has(provider.provider) || ids.has(provider.ownerProvider);
 }
 
 function providerFindings(facts) {
   return (facts.provider_reconciliation?.providerResults ?? []).flatMap((provider) => {
-    if (isCandidateGenerator(provider)) return [];
+    if (isCandidateGenerator(facts, provider)) return [];
     return (provider.findings ?? []).map((finding) => ({
       id: finding.id ?? `${provider.provider}:${finding.ruleId}:${finding.file ?? finding.surface ?? 'unknown'}:${finding.line ?? 1}`,
       category: String(finding.ruleId ?? provider.provider).split('.')[0],
@@ -89,7 +95,7 @@ export function finalizeAudit({ facts, candidates, adjudication }) {
 
   // Contract violation: candidate-generating providers must not emit findings directly
   for (const provider of (facts.provider_reconciliation?.providerResults ?? [])) {
-    if (isCandidateGenerator(provider) && (provider.findings ?? []).length > 0) {
+    if (isCandidateGenerator(facts, provider) && (provider.findings ?? []).length > 0) {
       gaps.push({ kind: 'candidate-provider-contract-violation', provider: provider.provider, findingsCount: provider.findings.length });
     }
   }
@@ -144,8 +150,8 @@ export function finalizeAudit({ facts, candidates, adjudication }) {
       verdicts: adjudication?.verdicts ?? [],
     },
     rerun: {
-      audit: `node tools/skills/audit/audit-run.mjs ${JSON.stringify(facts.workspace)}`,
-      verify: `node tools/skills/audit/audit-verify.mjs --facts ${JSON.stringify(facts.out_dir + '/facts.json')}`,
+      audit: `node audit-run.mjs ${JSON.stringify(facts.workspace)}`,
+      verify: `node audit-verify.mjs --facts ${JSON.stringify(facts.out_dir + '/facts.json')}`,
     },
   };
 }

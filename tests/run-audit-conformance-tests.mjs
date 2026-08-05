@@ -44,7 +44,7 @@ function test_security_routing() {
       ],
       missingChecks: [], unplannedChecks: [], denominatorMismatches: [], unresolvedCoverage: [], missingRuntimeProviders: [],
     },
-    plan: { coverageGaps: [] },
+    plan: { coverageGaps: [], providers: [{ id: 'security.credentials', producesSecurityCandidates: true }] },
     network_policy: { mode: 'deny' },
     plan_binding_verification: { valid: true },
   };
@@ -295,7 +295,8 @@ function test_security_routing_real(mod) {
       ],
       missingChecks: [], unplannedChecks: [], denominatorMismatches: [], unresolvedCoverage: [], missingRuntimeProviders: [],
     },
-    plan: { coverageGaps: [] },
+    // Candidate authority comes from the frozen plan record.
+    plan: { coverageGaps: [], providers: [{ id: 'security.credentials', producesSecurityCandidates: true }] },
     network_policy: { mode: 'deny' },
     plan_binding_verification: { valid: true },
   };

@@ -6,20 +6,24 @@ import { pathToFileURL } from 'node:url';
 
 function read(root, path) { try { return readFileSync(join(root, path), 'utf8'); } catch { return ''; } }
 function lineAt(text, index) { return text.slice(0, index).split('\n').length; }
-function finding(ruleId, level, message, file, line = 1) {
-  return { id: `sha256:${createHash('sha256').update(`${ruleId}\0${file}\0${line}`).digest('hex')}`, ruleId, level, message, file, line };
+function severityHint(level) { return level === 'critical' || level === 'error' ? 'high' : level === 'warning' ? 'medium' : 'low'; }
+function candidate(ruleId, level, message, file, line = 1) {
+  return {
+    id: `sha256:${createHash('sha256').update(`${ruleId}\0${file}\0${line}`).digest('hex')}`,
+    ruleId, severityHint: severityHint(level), claim: message, file, line,
+  };
 }
 function matchRules(root, files, rules) {
-  const findings = [];
+  const candidates = [];
   for (const file of files) {
     const text = read(root, file);
     for (const rule of rules) {
       if (rule.applies && !rule.applies(file, text)) continue;
       rule.pattern.lastIndex = 0;
-      for (const match of text.matchAll(rule.pattern)) findings.push(finding(rule.id, rule.level, rule.message, file, lineAt(text, match.index ?? 0)));
+      for (const match of text.matchAll(rule.pattern)) candidates.push(candidate(rule.id, rule.level, rule.message, file, lineAt(text, match.index ?? 0)));
     }
   }
-  return findings;
+  return candidates;
 }
 
 const RULES = Object.freeze([
@@ -43,11 +47,18 @@ const RULES = Object.freeze([
 ]);
 
 export function runInfrastructureSuite({ root, files }) {
-  const findings = matchRules(root, files, RULES);
+  const candidates = matchRules(root, files, RULES);
   return {
-    provider: 'infrastructure.internal-suite', phase: 'runtime', applicable: true, required: true,
-    status: findings.some((item) => ['critical', 'error'].includes(item.level)) ? 'fail' : 'pass', complete: true,
-    coverage: { pathCount: files.length, rules: RULES.length }, findings, receipts: [], coverageGaps: [], degradation: [],
+    schemaVersion: 1,
+    provider: 'infrastructure.internal-suite',
+    providerVersion: '1.0.0',
+    ownerProvider: 'infrastructure.internal-suite',
+    phase: 'runtime',
+    role: 'candidate-generator',
+    status: candidates.length ? 'candidates' : 'pass',
+    complete: true, applicable: true, required: true,
+    coverage: { pathCount: files.length, rules: RULES.length },
+    candidates, findings: [], receipts: [], coverageGaps: [], degradation: [],
   };
 }
 
