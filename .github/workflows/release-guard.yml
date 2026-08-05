@@ -1,0 +1,24 @@
+name: release-guard
+
+on:
+  workflow_dispatch:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: read
+
+jobs:
+  publication-policy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.13.0'
+      - name: Block publication without an explicit policy grant
+        run: node scripts/check-publication-policy.mjs --channel signed-release
+      - name: Block npm publication without an explicit policy grant
+        run: node scripts/check-publication-policy.mjs --channel npm
+      - name: Internal pack channel is allowed for CI
+        run: node scripts/check-publication-policy.mjs --channel internal-pack

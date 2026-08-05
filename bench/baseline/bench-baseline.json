@@ -1,0 +1,96 @@
+{
+  "mode": "bench-local-detectors",
+  "fixture_count": 13,
+  "defect_classes": [
+    "secret",
+    "dependency_cve",
+    "dead_code",
+    "duplication",
+    "type_error",
+    "drift"
+  ],
+  "scored_classes": [
+    "secret",
+    "dependency_cve",
+    "dead_code",
+    "duplication",
+    "type_error",
+    "drift"
+  ],
+  "unavailable_classes": [],
+  "unavailable_entries": [],
+  "negative_controls": 7,
+  "planted_defects": 6,
+  "recall_by_class": {
+    "secret": 1,
+    "dependency_cve": 1,
+    "dead_code": 1,
+    "duplication": 1,
+    "type_error": 1,
+    "drift": 1
+  },
+  "precision_by_class": {
+    "secret": 1,
+    "dependency_cve": 1,
+    "dead_code": 1,
+    "duplication": 1,
+    "type_error": 1,
+    "drift": 1
+  },
+  "overall_recall": 1,
+  "overall_precision": 1,
+  "true_positives": 6,
+  "false_negatives": 0,
+  "false_positives": 0,
+  "true_negatives": 7,
+  "missed_defects": [],
+  "false_positive_entries": [],
+  "gate_threshold": 0.7,
+  "gate_passed": true,
+  "qualificationReceipt": {
+    "schemaVersion": 1,
+    "kind": "audit-qualification-receipt",
+    "corpusDigest": "sha256:24a61a73dbc5179507377596f899b200e6a8cecd8e2c94d8734cf2e6cc84a0c3",
+    "mode": "bench-local-detectors",
+    "fixtureCount": 13,
+    "metrics": {
+      "overallRecall": 1,
+      "overallPrecision": 1,
+      "falsePositives": 0,
+      "recallByClass": {
+        "secret": 1,
+        "dependency_cve": 1,
+        "dead_code": 1,
+        "duplication": 1,
+        "type_error": 1,
+        "drift": 1
+      },
+      "precisionByClass": {
+        "secret": 1,
+        "dependency_cve": 1,
+        "dead_code": 1,
+        "duplication": 1,
+        "type_error": 1,
+        "drift": 1
+      }
+    },
+    "threshold": 0.7,
+    "gatePassed": true,
+    "executionEnvironment": {
+      "node": "v26.5.1",
+      "platform": "darwin",
+      "arch": "arm64",
+      "timestamp": "2026-08-05T23:36:44.105Z"
+    },
+    "unavailableClasses": [],
+    "scoredClasses": [
+      "secret",
+      "dependency_cve",
+      "dead_code",
+      "duplication",
+      "type_error",
+      "drift"
+    ],
+    "receiptDigest": "sha256:4fd510f93bca2af9fd3beb7220bb87f4c10541487089d66b4b7269c691d22fec"
+  }
+}
