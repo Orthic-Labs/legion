@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://orthic.dev/schemas/nemesis-config-v1.json",
+  "title": "NemesisConfigV1",
+  "type": "object",
+  "required": ["schemaVersion", "profile", "providers", "limits", "policy", "outputs"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "profile": { "enum": ["fast", "standard", "full", "release"] },
+    "providers": {
+      "type": "object",
+      "properties": {
+        "require": { "type": "array", "items": { "type": "string" } },
+        "disable": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "limits": {
+      "type": "object",
+      "properties": {
+        "providerTimeoutMs": { "type": "integer", "minimum": 1000 },
+        "maxOutputBytes": { "type": "integer", "minimum": 1024 },
+        "maxConcurrency": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "policy": {
+      "type": "object",
+      "properties": {
+        "failOn": { "type": "array", "items": { "enum": ["critical", "high", "medium", "low"] } },
+        "baseline": { "type": ["string", "null"] },
+        "acceptedRisk": { "type": ["string", "null"] }
+      }
+    },
+    "outputs": { "type": "array", "items": { "enum": ["json", "sarif", "markdown", "html"] } }
+  },
+  "additionalProperties": false
+}
