@@ -1,0 +1,242 @@
+{
+  "schemaVersion": 1,
+  "kind": "audit-provider-registry-extension",
+  "providers": [
+    {
+      "id": "native.family-suite",
+      "role": "deterministic",
+      "phase": "runtime",
+      "selector": { "op": "sourceFilesAtLeast", "count": 1 },
+      "allowWithoutCortex": false,
+      "runner": { "kind": "runtime-script", "script": "providers/native-family-runner.mjs" },
+      "benchmark": { "status": "unproven", "requiredForCleanClaim": true }
+    },
+    {
+      "id": "framework.major-suite",
+      "role": "candidate-generator",
+      "phase": "runtime",
+      "selector": {
+        "op": "any",
+        "selectors": [
+          {
+            "op": "anyDependency",
+            "names": [
+              "react", "next", "vue", "nuxt", "@angular/core", "svelte", "@sveltejs/kit",
+              "electron", "tailwindcss", "flutter", "express", "fastify", "@nestjs/core",
+              "django", "fastapi", "flask", "spring-boot-starter", "spring-boot-starter-web",
+              "org.springframework.boot:spring-boot-starter", "org.springframework.boot:spring-boot-starter-web",
+              "ktor-server-core", "io.ktor:ktor-server-core", "rails", "phoenix", "laravel/framework",
+              "microsoft.aspnetcore", "github.com/gin-gonic/gin", "github.com/labstack/echo/v4",
+              "github.com/gofiber/fiber/v2", "github.com/go-chi/chi/v5", "axum", "actix-web", "rocket", "warp"
+            ]
+          },
+          {
+            "op": "anyPath",
+            "patterns": [
+              "**/tauri.conf.json", "**/tauri.conf.json5", "**/Tauri.toml", "**/*.csproj",
+              "**/*.sln", "**/artisan", "**/pubspec.yaml"
+            ]
+          }
+        ]
+      },
+      "allowWithoutCortex": false,
+      "runner": { "kind": "runtime-script", "script": "providers/framework-suite.mjs" },
+      "benchmark": { "status": "unproven", "requiredForCleanClaim": true },
+      "producesSecurityCandidates": true,
+      "mayCloseOwnCandidates": false
+    },
+    {
+      "id": "data.internal-suite",
+      "role": "candidate-generator",
+      "phase": "runtime",
+      "selector": {
+        "op": "any",
+        "selectors": [
+          { "op": "anyExtension", "extensions": ["sql"] },
+          {
+            "op": "anyDependency",
+            "names": [
+              "sqlite3", "better-sqlite3", "pg", "mysql", "mysql2", "redis", "mongodb", "mongoose",
+              "prisma", "@prisma/client", "sequelize", "typeorm", "django", "sqlalchemy",
+              "laravel/framework", "activerecord", "ecto_sql", "diesel", "sqlx"
+            ]
+          }
+        ]
+      },
+      "allowWithoutCortex": false,
+      "runner": { "kind": "runtime-script", "script": "providers/data-suite.mjs" },
+      "benchmark": { "status": "unproven", "requiredForCleanClaim": true },
+      "producesSecurityCandidates": true,
+      "mayCloseOwnCandidates": false
+    },
+    {
+      "id": "infrastructure.internal-suite",
+      "role": "candidate-generator",
+      "phase": "runtime",
+      "selector": {
+        "op": "anyPath",
+        "patterns": [
+          ".github/workflows/*.yml", ".github/workflows/*.yaml", "Dockerfile", "**/Dockerfile",
+          "Dockerfile.*", "**/Dockerfile.*", "**/*.tf", "**/k8s/*.yml", "**/k8s/*.yaml",
+          "**/kubernetes/*.yml", "**/kubernetes/*.yaml", "**/tauri.conf.json",
+          "**/tauri.conf.json5", "**/Tauri.toml"
+        ]
+      },
+      "allowWithoutCortex": false,
+      "runner": { "kind": "runtime-script", "script": "providers/infrastructure-suite.mjs" },
+      "benchmark": { "status": "unproven", "requiredForCleanClaim": true },
+      "producesSecurityCandidates": true,
+      "mayCloseOwnCandidates": false
+    },
+    {
+      "id": "security.credentials",
+      "role": "candidate-generator",
+      "phase": "runtime",
+      "selector": { "op": "sourceFilesAtLeast", "count": 1 },
+      "allowWithoutCortex": false,
+      "runner": { "kind": "runtime-script", "script": "providers/security-suite.mjs", "pack": "credentials" },
+      "benchmark": { "status": "unproven", "requiredForCleanClaim": true },
+      "producesSecurityCandidates": true,
+      "mayCloseOwnCandidates": false
+    },
+    {
+      "id": "security.insecure-defaults",
+      "role": "candidate-generator",
+      "phase": "runtime",
+      "selector": { "op": "sourceFilesAtLeast", "count": 1 },
+      "allowWithoutCortex": false,
+      "runner": { "kind": "runtime-script", "script": "providers/security-suite.mjs", "pack": "insecure-defaults" },
+      "benchmark": { "status": "unproven", "requiredForCleanClaim": true },
+      "producesSecurityCandidates": true,
+      "mayCloseOwnCandidates": false
+    },
+    {
+      "id": "security.misuse-resistance",
+      "role": "candidate-generator",
+      "phase": "runtime",
+      "selector": { "op": "sourceFilesAtLeast", "count": 1 },
+      "allowWithoutCortex": false,
+      "runner": { "kind": "runtime-script", "script": "providers/security-suite.mjs", "pack": "misuse-resistance" },
+      "benchmark": { "status": "unproven", "requiredForCleanClaim": true },
+      "producesSecurityCandidates": true,
+      "mayCloseOwnCandidates": false
+    },
+    {
+      "id": "security.agentic-ci",
+      "role": "candidate-generator",
+      "phase": "runtime",
+      "selector": {
+        "op": "anyPath",
+        "patterns": [".github/workflows/*.yml", ".github/workflows/*.yaml", "**/*.mjs", "**/*.cjs", "**/*.js", "**/*.ts", "**/*.py"]
+      },
+      "allowWithoutCortex": false,
+      "runner": { "kind": "runtime-script", "script": "providers/security-suite.mjs", "pack": "agentic-ci" },
+      "benchmark": { "status": "unproven", "requiredForCleanClaim": true },
+      "producesSecurityCandidates": true,
+      "mayCloseOwnCandidates": false
+    },
+    {
+      "id": "security.agent-skill-mcp",
+      "role": "candidate-generator",
+      "phase": "runtime",
+      "selector": {
+        "op": "anyPath",
+        "patterns": ["**/SKILL.md", "**/hooks/**", "**/mcp/**", "**/*mcp*.mjs", "**/*mcp*.js", "**/*mcp*.ts", "**/*.md"]
+      },
+      "allowWithoutCortex": false,
+      "runner": { "kind": "runtime-script", "script": "providers/security-suite.mjs", "pack": "agent-skill-mcp" },
+      "benchmark": { "status": "unproven", "requiredForCleanClaim": true },
+      "producesSecurityCandidates": true,
+      "mayCloseOwnCandidates": false
+    },
+    {
+      "id": "generic.source-accounting",
+      "role": "deterministic",
+      "phase": "runtime",
+      "selector": { "op": "sourceFilesAtLeast", "count": 1 },
+      "allowWithoutCortex": false,
+      "runner": { "kind": "runtime-script", "script": "providers/generic-source-suite.mjs" },
+      "benchmark": { "status": "unproven", "requiredForCleanClaim": true }
+    },
+    {
+      "id": "accessibility.internal-suite",
+      "role": "deterministic",
+      "phase": "runtime",
+      "selector": {
+        "op": "any",
+        "selectors": [
+          {
+            "op": "anyDependency",
+            "names": ["react", "next", "vue", "nuxt", "@angular/core", "svelte", "@sveltejs/kit", "electron", "tailwindcss", "flutter"]
+          },
+          {
+            "op": "anyExtension",
+            "extensions": ["html", "htm", "jsx", "tsx", "vue", "svelte", "astro", "css", "scss", "sass", "less"]
+          }
+        ]
+      },
+      "allowWithoutCortex": false,
+      "runner": { "kind": "runtime-script", "script": "providers/accessibility-suite.mjs" },
+      "benchmark": { "status": "unproven", "requiredForCleanClaim": true }
+    },
+    {
+      "id": "visual.core",
+      "role": "deterministic",
+      "phase": "runtime",
+      "selector": {
+        "op": "any",
+        "selectors": [
+          {
+            "op": "anyDependency",
+            "names": ["react", "next", "vue", "nuxt", "@angular/core", "svelte", "@sveltejs/kit", "electron", "tailwindcss", "flutter"]
+          },
+          {
+            "op": "anyPath",
+            "patterns": ["**/tauri.conf.json", "**/tauri.conf.json5", "**/Tauri.toml", "**/pubspec.yaml"]
+          }
+        ]
+      },
+      "allowWithoutCortex": false,
+      "runner": { "kind": "runtime-script", "script": "providers/visual-core.mjs" },
+      "benchmark": { "status": "unproven", "requiredForCleanClaim": true }
+    }
+  ],
+  "coverageFamilies": [
+    { "id": "framework.next", "kind": "framework", "selector": { "op": "anyDependency", "names": ["next"] }, "qualification": "unproven", "providers": ["framework.major-suite"] },
+    { "id": "framework.vue", "kind": "framework", "selector": { "op": "anyDependency", "names": ["vue"] }, "qualification": "unproven", "providers": ["framework.major-suite"] },
+    { "id": "framework.nuxt", "kind": "framework", "selector": { "op": "anyDependency", "names": ["nuxt"] }, "qualification": "unproven", "providers": ["framework.major-suite"] },
+    { "id": "framework.angular", "kind": "framework", "selector": { "op": "anyDependency", "names": ["@angular/core"] }, "qualification": "unproven", "providers": ["framework.major-suite"] },
+    { "id": "framework.svelte", "kind": "framework", "selector": { "op": "anyDependency", "names": ["svelte"] }, "qualification": "unproven", "providers": ["framework.major-suite"] },
+    { "id": "framework.sveltekit", "kind": "framework", "selector": { "op": "anyDependency", "names": ["@sveltejs/kit"] }, "qualification": "unproven", "providers": ["framework.major-suite"] },
+    { "id": "framework.express", "kind": "framework", "selector": { "op": "anyDependency", "names": ["express"] }, "qualification": "unproven", "providers": ["framework.major-suite"] },
+    { "id": "framework.fastify", "kind": "framework", "selector": { "op": "anyDependency", "names": ["fastify"] }, "qualification": "unproven", "providers": ["framework.major-suite"] },
+    { "id": "framework.nest", "kind": "framework", "selector": { "op": "anyDependency", "names": ["@nestjs/core"] }, "qualification": "unproven", "providers": ["framework.major-suite"] },
+    { "id": "framework.electron", "kind": "framework", "selector": { "op": "anyDependency", "names": ["electron"] }, "qualification": "unproven", "providers": ["framework.major-suite"] },
+    { "id": "framework.django", "kind": "framework", "selector": { "op": "anyDependency", "names": ["django"] }, "qualification": "unproven", "providers": ["framework.major-suite"] },
+    { "id": "framework.fastapi", "kind": "framework", "selector": { "op": "anyDependency", "names": ["fastapi"] }, "qualification": "unproven", "providers": ["framework.major-suite"] },
+    { "id": "framework.flask", "kind": "framework", "selector": { "op": "anyDependency", "names": ["flask"] }, "qualification": "unproven", "providers": ["framework.major-suite"] },
+    { "id": "framework.spring", "kind": "framework", "selector": { "op": "anyDependency", "names": ["spring-boot-starter", "spring-boot-starter-web", "org.springframework.boot:spring-boot-starter", "org.springframework.boot:spring-boot-starter-web"] }, "qualification": "unproven", "providers": ["framework.major-suite"] },
+    { "id": "framework.ktor", "kind": "framework", "selector": { "op": "anyDependency", "names": ["ktor-server-core", "io.ktor:ktor-server-core"] }, "qualification": "unproven", "providers": ["framework.major-suite"] },
+    { "id": "framework.rails", "kind": "framework", "selector": { "op": "anyDependency", "names": ["rails"] }, "qualification": "unproven", "providers": ["framework.major-suite"] },
+    { "id": "framework.phoenix", "kind": "framework", "selector": { "op": "anyDependency", "names": ["phoenix"] }, "qualification": "unproven", "providers": ["framework.major-suite"] },
+    { "id": "framework.flutter", "kind": "framework", "selector": { "op": "anyDependency", "names": ["flutter"] }, "qualification": "unproven", "providers": ["framework.major-suite"] },
+    { "id": "framework.go-web", "kind": "framework", "selector": { "op": "anyDependency", "names": ["github.com/gin-gonic/gin", "github.com/labstack/echo/v4", "github.com/gofiber/fiber/v2", "github.com/go-chi/chi/v5"] }, "qualification": "unproven", "providers": ["framework.major-suite"] },
+    { "id": "framework.rust-web", "kind": "framework", "selector": { "op": "anyDependency", "names": ["axum", "actix-web", "rocket", "warp"] }, "qualification": "unproven", "providers": ["framework.major-suite"] }
+  ],
+  "familyAugmentations": [
+    {
+      "provider": "native.family-suite",
+      "qualificationCeiling": "partial",
+      "familyIds": [
+        "language.javascript-typescript", "language.python", "language.rust", "language.swift-objective-c",
+        "language.shell-powershell", "language.java-kotlin-scala", "language.dotnet", "language.php",
+        "language.go", "language.c-cpp", "language.ruby", "language.dart", "language.elixir-erlang"
+      ]
+    },
+    {
+      "provider": "framework.major-suite",
+      "qualificationCeiling": "partial",
+      "familyIds": ["framework.react", "framework.tauri", "framework.tailwind", "framework.laravel", "framework.aspnet"]
+    }
+  ]
+}

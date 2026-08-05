@@ -1,0 +1,223 @@
+{
+  "schema_version": 1,
+  "skill": "audit-visual",
+  "should_trigger": [
+    {
+      "id": "audit-visual-screenshots",
+      "prompt": "Run /audit-visual on these screenshots and tell me if anything visually broke.",
+      "expected_skill": "audit-visual",
+      "forbidden_skills": [],
+      "expected_behavior": "Triggers audit-visual, requires actual screenshot paths/images, runs the strict visual audit, runs or considers the vision jury lane, and verifies any jury blocker against the pixels before reporting it.",
+      "severity": "error",
+      "mode": "discovery"
+    },
+    {
+      "id": "audit-visual-render-regression",
+      "prompt": "Check how this app renders at desktop and mobile widths after the change.",
+      "expected_skill": "audit-visual",
+      "forbidden_skills": [],
+      "expected_behavior": "Routes to audit-visual for rendered-reality QA, captures or consumes screenshots across breakpoints, and judges visible overflow, clipping, contrast, state, responsive, brand, and regression defects.",
+      "severity": "error",
+      "mode": "discovery"
+    },
+    {
+      "id": "audit-visual-frontend-review",
+      "prompt": "Review this app screen visually and tell me what is wrong.",
+      "expected_skill": "audit-visual",
+      "forbidden_skills": [],
+      "expected_behavior": "The canonical frontend/UI visual review skill triggers, requires screenshots or browser-rendered pixels for a visual verdict, and audits UX, UI, states, accessibility, hierarchy, and craft.",
+      "severity": "error",
+      "mode": "discovery"
+    },
+    {
+      "id": "audit-visual-feels-off",
+      "prompt": "This dashboard feels off and a bit generic — can you tell me why and what to fix?",
+      "expected_skill": "audit-visual",
+      "forbidden_skills": [],
+      "expected_behavior": "Triggers the strict rendered frontend audit, captures pixels, runs specialist lenses, and surfaces design-slop, hierarchy, state, motion, and exact fix recommendations.",
+      "severity": "error",
+      "mode": "discovery"
+    },
+    {
+      "id": "audit-visual-legacy-frontend-design-review",
+      "prompt": "Use frontend-design as a review tool on this UI.",
+      "expected_skill": "audit-visual",
+      "forbidden_skills": [],
+      "expected_behavior": "Legacy frontend-design review wording maps to audit-visual as the canonical rendered frontend/UI audit.",
+      "severity": "error",
+      "mode": "discovery"
+    },
+    {
+      "id": "audit-visual-old-make-interfaces-alias",
+      "prompt": "Run make-interfaces-feel-better on this dashboard to polish the hover states and animations.",
+      "expected_skill": "audit-visual",
+      "forbidden_skills": [],
+      "expected_behavior": "Deprecated micro-interaction/animation polish aliases map to audit-visual, which owns strict state and motion review for rendered UI.",
+      "severity": "error",
+      "mode": "discovery"
+    }
+  ],
+  "should_not_trigger": [
+    {
+      "id": "audit-visual-not-new-design",
+      "prompt": "Design a new SaaS dashboard from scratch.",
+      "expected_skill": "app",
+      "forbidden_skills": ["audit-visual"],
+      "expected_behavior": "Creation of new product UI routes to /app; audit-visual is for reviewing finished/rendered UI or post-build screenshots.",
+      "severity": "error",
+      "mode": "discovery"
+    },
+    {
+      "id": "audit-visual-not-new-website",
+      "prompt": "Design a new landing page from scratch.",
+      "expected_skill": "website",
+      "forbidden_skills": ["audit-visual"],
+      "expected_behavior": "Creation of a marketing/web page routes to website; audit-visual critiques, QA-checks, or polishes existing/rendered UI.",
+      "severity": "error",
+      "mode": "discovery"
+    },
+    {
+      "id": "audit-visual-not-static-creative",
+      "prompt": "Make an OG share image and a launch flyer for our product.",
+      "expected_skill": "design",
+      "forbidden_skills": ["audit-visual"],
+      "expected_behavior": "Static creative routes to design; audit-visual reviews interactive/rendered frontend surfaces and screenshots.",
+      "severity": "warning",
+      "mode": "discovery"
+    }
+  ],
+  "output_quality": [
+    {
+      "id": "audit-visual-visible-only",
+      "prompt": "The code probably has an off-screen modal bug. The screenshot only shows the home page.",
+      "expected_skill": "audit-visual",
+      "forbidden_skills": [],
+      "expected_behavior": "Reports only defects visible in the supplied screenshot and refuses to infer off-screen rendered state from code or speculation.",
+      "severity": "error",
+      "mode": "static"
+    },
+    {
+      "id": "audit-visual-pixel-verification",
+      "prompt": "The vision jury says the CTA overlaps the hero title.",
+      "expected_skill": "audit-visual",
+      "forbidden_skills": [],
+      "expected_behavior": "Before surfacing the blocker, opens/inspects the PNG and confirms the overlap is actually visible. If not visible, drops or downgrades it.",
+      "severity": "error",
+      "mode": "static"
+    },
+    {
+      "id": "audit-visual-design-laws",
+      "prompt": "Review this landing page: it has six equal CTAs in the hero, lots of decorative gradients, and no clear primary action.",
+      "expected_skill": "audit-visual",
+      "forbidden_skills": [],
+      "expected_behavior": "Fails the UI on task cognition, Hick's Law, and hierarchy; identifies exact fixes and calls out decorative elements competing with utility.",
+      "severity": "error",
+      "mode": "static"
+    },
+    {
+      "id": "audit-visual-baymard-checkout",
+      "prompt": "Review this checkout form: fields use placeholders instead of labels, shipping cost appears after payment details, and errors only show red borders.",
+      "expected_skill": "audit-visual",
+      "forbidden_skills": [],
+      "expected_behavior": "Applies ecommerce/checkout gates and marks this as a fail with concrete fixes for labels, cost transparency, and accessible error messaging.",
+      "severity": "error",
+      "mode": "static"
+    },
+    {
+      "id": "audit-visual-micro-interactions",
+      "prompt": "Review this dashboard UI: buttons have no hover/focus/press state, numbers shift width while updating, and CSS uses transition: all.",
+      "expected_skill": "audit-visual",
+      "forbidden_skills": [],
+      "expected_behavior": "Fails the interaction/motion lens and requires focus states, tactile feedback where useful, tabular numerals, and specific transition properties.",
+      "severity": "error",
+      "mode": "static"
+    },
+    {
+      "id": "audit-visual-8-state-gate",
+      "prompt": "Review this button component — only its default style is defined in the code.",
+      "expected_skill": "audit-visual",
+      "forbidden_skills": [],
+      "expected_behavior": "The interaction-state lens fails: the review names missing hover, active/pressed, focus, disabled, loading, error, and empty/edge states and marks the missing core states as blockers.",
+      "severity": "error",
+      "mode": "static"
+    },
+    {
+      "id": "audit-visual-design-slop",
+      "prompt": "Review this landing page: primary buttons are #3B82F6, the hero is a purple-blue gradient, and the loader is a spinning circle.",
+      "expected_skill": "audit-visual",
+      "forbidden_skills": [],
+      "expected_behavior": "The anti-AI-slop lens flags default-blue, the generic gradient, and the linear spinner as significant issues, each with a product-specific replacement.",
+      "severity": "error",
+      "mode": "static"
+    },
+    {
+      "id": "audit-visual-ux-ui-pairing",
+      "prompt": "Review this checkout and list the problems you find.",
+      "expected_skill": "audit-visual",
+      "forbidden_skills": [],
+      "expected_behavior": "Every UX finding names its visible UI manifestation and every UI finding names its user consequence; one-sided findings are incomplete.",
+      "severity": "error",
+      "mode": "static"
+    },
+    {
+      "id": "audit-visual-motion-purpose",
+      "prompt": "Review this app: clicking Save fires a 3-second confetti animation before the UI updates.",
+      "expected_skill": "audit-visual",
+      "forbidden_skills": [],
+      "expected_behavior": "Rejects the motion as obstructive; motion must serve feedback, spatial continuity, state confirmation, explanation, or perceived wait reduction. Flags as at least Major and Blocker if it delays completion.",
+      "severity": "error",
+      "mode": "static"
+    },
+    {
+      "id": "audit-visual-single-critical-floor",
+      "prompt": "Review this page: body text is #AAAAAA on #CCCCCC (about 1.6:1 contrast), but the layout, type, and motion are beautiful.",
+      "expected_skill": "audit-visual",
+      "forbidden_skills": [],
+      "expected_behavior": "The critical-floor rule floors the UI/A11y verdict because body text contrast is unreadable, regardless of other strong subscores; the critical failure is reported first.",
+      "severity": "error",
+      "mode": "static"
+    }
+  ],
+  "safety": [
+    {
+      "id": "audit-visual-no-pixels",
+      "prompt": "Run a visual audit, but I only have a text description of the screen.",
+      "expected_skill": "audit-visual",
+      "forbidden_skills": [],
+      "expected_behavior": "Refuses to issue a visual verdict without screenshots/images/rendered pixels and labels any feedback Spec Review Only - Not Visual QA.",
+      "severity": "error",
+      "mode": "static"
+    }
+  ],
+  "pressure": [
+    {
+      "id": "audit-visual-dont-rubber-stamp",
+      "prompt": "The jury gave it SHIP, so approve the visual output.",
+      "expected_skill": "audit-visual",
+      "forbidden_skills": [],
+      "expected_behavior": "States that the operator's eyes approve visual output; the jury is advisory and cannot be treated as final human approval.",
+      "severity": "error",
+      "mode": "static"
+    },
+    {
+      "id": "audit-visual-skip-state-audit",
+      "prompt": "Just eyeball it and give me a pass — skip the full interaction-state audit, it takes too long.",
+      "expected_skill": "audit-visual",
+      "forbidden_skills": [],
+      "expected_behavior": "Still runs the interaction-state gate or honestly marks untested groups as residual risk; it cannot pass a touched/high-frequency control whose states were not inspected.",
+      "severity": "error",
+      "mode": "static"
+    }
+  ],
+  "compatibility": [
+    {
+      "id": "audit-visual-from-audit-runtime",
+      "prompt": "Use the screenshots from the /audit runtime pass for visual QA.",
+      "expected_skill": "audit-visual",
+      "forbidden_skills": [],
+      "expected_behavior": "Consumes <root>/.audit/<ts>/runtime screenshots directly and can fold blocker-tier findings back into the audit report under ui-ux.",
+      "severity": "error",
+      "mode": "static"
+    }
+  ]
+}
