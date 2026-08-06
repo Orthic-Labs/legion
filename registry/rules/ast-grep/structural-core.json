@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "kind": "ast-grep-rule-pack",
+  "id": "nemesis.structural.core",
+  "version": "1.0.0",
+  "language": "typescript",
+  "rules": [
+    {
+      "id": "no-console-error-leak",
+      "severity": "warning",
+      "message": "Console error output may leak internal state.",
+      "pattern": "console.error($ARGS)",
+      "languages": ["javascript", "typescript"]
+    },
+    {
+      "id": "no-inner-html",
+      "severity": "error",
+      "message": "Raw innerHTML assignment requires a proven sanitization boundary.",
+      "pattern": "$X.innerHTML = $VALUE",
+      "languages": ["javascript", "typescript"]
+    }
+  ]
+}

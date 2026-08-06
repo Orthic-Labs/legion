@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://orthic.dev/schemas/structural-match-v1.json",
+  "title": "StructuralMatchV1",
+  "type": "object",
+  "required": ["ruleId", "severity", "message", "file", "range", "fingerprint"],
+  "properties": {
+    "ruleId": { "type": "string", "minLength": 1 },
+    "severity": { "enum": ["error", "warning", "note", "info"] },
+    "message": { "type": "string" },
+    "file": { "type": "string" },
+    "range": {
+      "type": "object",
+      "properties": {
+        "start": { "type": "object", "properties": { "line": { "type": "integer" }, "column": { "type": "integer" } } },
+        "end": { "type": "object", "properties": { "line": { "type": "integer" }, "column": { "type": "integer" } } }
+      }
+    },
+    "metavariables": { "type": "object" },
+    "fingerprint": { "type": "string", "pattern": "^sha256:" },
+    "rawArtifactRef": { "type": ["string", "null"] }
+  },
+  "additionalProperties": true
+}
