@@ -1,0 +1,23 @@
+rules:
+  - id: nemesis-command-injection-shell
+    languages: [python, javascript, typescript]
+    message: Request-controlled data may reach a shell execution sink.
+    severity: WARNING
+    mode: taint
+    pattern-sources:
+      - pattern: request.args.get(...)
+      - pattern: req.query[...]
+    pattern-sinks:
+      - pattern: os.system(...)
+      - pattern: exec(...)
+      - pattern: child_process.exec(...)
+  - id: nemesis-sql-interpolation
+    languages: [python, javascript, typescript]
+    message: SQL text appears to interpolate variable input.
+    severity: WARNING
+    mode: taint
+    pattern-sources:
+      - pattern: request.args.get(...)
+    pattern-sinks:
+      - pattern: cursor.execute(...)
+      - pattern: db.query(...)
