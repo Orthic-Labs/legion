@@ -1,0 +1,64 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://orthic.dev/schemas/security-model-v1.json",
+  "title": "SecurityModelV1",
+  "type": "object",
+  "required": [
+    "schemaVersion",
+    "kind",
+    "provider",
+    "providerVersion",
+    "binding",
+    "denominatorDigest",
+    "complete",
+    "entities",
+    "relations",
+    "initialFacts",
+    "evidence",
+    "coverage",
+    "coverageGaps"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": 1
+    },
+    "kind": {
+      "const": "security-surface-model"
+    },
+    "provider": {
+      "const": "security.surface-model"
+    },
+    "providerVersion": {
+      "type": "string"
+    },
+    "binding": {
+      "$ref": "security-binding-v1.schema.json"
+    },
+    "denominatorDigest": {
+      "type": "string",
+      "pattern": "^sha256:"
+    },
+    "complete": {
+      "type": "boolean"
+    },
+    "entities": {
+      "type": "array"
+    },
+    "relations": {
+      "type": "array"
+    },
+    "initialFacts": {
+      "type": "array"
+    },
+    "evidence": {
+      "type": "array"
+    },
+    "coverage": {
+      "type": "object"
+    },
+    "coverageGaps": {
+      "type": "array"
+    }
+  },
+  "additionalProperties": true
+}
