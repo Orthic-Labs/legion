@@ -1,0 +1,37 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://orthic.dev/schemas/coverage-v2.json",
+  "title": "CoverageV2",
+  "type": "object",
+  "required": ["schemaVersion", "id", "kind", "extensions", "tiers", "providers", "limitations", "qualification"],
+  "properties": {
+    "schemaVersion": { "const": 2 },
+    "id": { "type": "string" },
+    "kind": { "enum": ["language", "format", "system", "framework"] },
+    "extensions": { "type": "array", "items": { "type": "string" } },
+    "tiers": {
+      "type": "object",
+      "properties": {
+        "inventory": { "type": "integer", "minimum": 0, "maximum": 7 },
+        "parser": { "type": "integer", "minimum": 0, "maximum": 7 },
+        "nativeSemantics": { "type": "integer", "minimum": 0, "maximum": 7 },
+        "crossFileDataflow": { "type": "integer", "minimum": 0, "maximum": 7 },
+        "measuredPack": { "type": "integer", "minimum": 0, "maximum": 7 },
+        "runtime": { "type": "integer", "minimum": 0, "maximum": 7 },
+        "remediation": { "type": "integer", "minimum": 0, "maximum": 7 }
+      }
+    },
+    "providers": { "type": "array", "items": { "type": "string" } },
+    "limitations": { "type": "array", "items": { "type": "string" } },
+    "qualification": {
+      "type": "object",
+      "properties": {
+        "status": { "enum": ["unproven", "implemented", "measured"] },
+        "providerVersion": { "type": ["string", "null"] },
+        "corpusDigest": { "type": ["string", "null"] },
+        "artifactDigest": { "type": ["string", "null"] }
+      }
+    }
+  },
+  "additionalProperties": true
+}
