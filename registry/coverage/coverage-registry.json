@@ -1,0 +1,2325 @@
+{
+  "schemaVersion": 2,
+  "kind": "nemesis-coverage-registry",
+  "languages": [
+    {
+      "schemaVersion": 2,
+      "id": "language.javascript",
+      "kind": "language",
+      "extensions": [
+        "js",
+        "mjs",
+        "cjs"
+      ],
+      "tiers": {
+        "inventory": 2,
+        "parser": 3,
+        "nativeSemantics": 2,
+        "crossFileDataflow": 0,
+        "measuredPack": 0,
+        "runtime": 0,
+        "remediation": 0
+      },
+      "providers": [],
+      "limitations": [
+        "cross-file/dataflow unmeasured"
+      ],
+      "qualification": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "artifactDigest": null
+      }
+    },
+    {
+      "schemaVersion": 2,
+      "id": "language.typescript",
+      "kind": "language",
+      "extensions": [
+        "ts",
+        "mts",
+        "cts"
+      ],
+      "tiers": {
+        "inventory": 2,
+        "parser": 3,
+        "nativeSemantics": 2,
+        "crossFileDataflow": 0,
+        "measuredPack": 0,
+        "runtime": 0,
+        "remediation": 0
+      },
+      "providers": [],
+      "limitations": [
+        "cross-file/dataflow unmeasured"
+      ],
+      "qualification": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "artifactDigest": null
+      }
+    },
+    {
+      "schemaVersion": 2,
+      "id": "language.tsx",
+      "kind": "language",
+      "extensions": [
+        "tsx"
+      ],
+      "tiers": {
+        "inventory": 2,
+        "parser": 3,
+        "nativeSemantics": 2,
+        "crossFileDataflow": 0,
+        "measuredPack": 0,
+        "runtime": 0,
+        "remediation": 0
+      },
+      "providers": [],
+      "limitations": [
+        "cross-file/dataflow unmeasured"
+      ],
+      "qualification": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "artifactDigest": null
+      }
+    },
+    {
+      "schemaVersion": 2,
+      "id": "language.jsx",
+      "kind": "language",
+      "extensions": [
+        "jsx"
+      ],
+      "tiers": {
+        "inventory": 2,
+        "parser": 3,
+        "nativeSemantics": 2,
+        "crossFileDataflow": 0,
+        "measuredPack": 0,
+        "runtime": 0,
+        "remediation": 0
+      },
+      "providers": [],
+      "limitations": [
+        "cross-file/dataflow unmeasured"
+      ],
+      "qualification": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "artifactDigest": null
+      }
+    },
+    {
+      "schemaVersion": 2,
+      "id": "language.python",
+      "kind": "language",
+      "extensions": [
+        "py"
+      ],
+      "tiers": {
+        "inventory": 2,
+        "parser": 3,
+        "nativeSemantics": 2,
+        "crossFileDataflow": 0,
+        "measuredPack": 0,
+        "runtime": 0,
+        "remediation": 0
+      },
+      "providers": [],
+      "limitations": [
+        "cross-file/dataflow unmeasured"
+      ],
+      "qualification": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "artifactDigest": null
+      }
+    },
+    {
+      "schemaVersion": 2,
+      "id": "language.rust",
+      "kind": "language",
+      "extensions": [
+        "rs"
+      ],
+      "tiers": {
+        "inventory": 2,
+        "parser": 3,
+        "nativeSemantics": 2,
+        "crossFileDataflow": 0,
+        "measuredPack": 0,
+        "runtime": 0,
+        "remediation": 0
+      },
+      "providers": [],
+      "limitations": [
+        "cross-file/dataflow unmeasured"
+      ],
+      "qualification": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "artifactDigest": null
+      }
+    },
+    {
+      "schemaVersion": 2,
+      "id": "language.go",
+      "kind": "language",
+      "extensions": [
+        "go"
+      ],
+      "tiers": {
+        "inventory": 2,
+        "parser": 2,
+        "nativeSemantics": 1,
+        "crossFileDataflow": 0,
+        "measuredPack": 0,
+        "runtime": 0,
+        "remediation": 0
+      },
+      "providers": [],
+      "limitations": [
+        "cross-file/dataflow unmeasured"
+      ],
+      "qualification": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "artifactDigest": null
+      }
+    },
+    {
+      "schemaVersion": 2,
+      "id": "language.java",
+      "kind": "language",
+      "extensions": [
+        "java"
+      ],
+      "tiers": {
+        "inventory": 2,
+        "parser": 2,
+        "nativeSemantics": 1,
+        "crossFileDataflow": 0,
+        "measuredPack": 0,
+        "runtime": 0,
+        "remediation": 0
+      },
+      "providers": [],
+      "limitations": [
+        "cross-file/dataflow unmeasured"
+      ],
+      "qualification": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "artifactDigest": null
+      }
+    },
+    {
+      "schemaVersion": 2,
+      "id": "language.kotlin",
+      "kind": "language",
+      "extensions": [
+        "kt"
+      ],
+      "tiers": {
+        "inventory": 2,
+        "parser": 2,
+        "nativeSemantics": 1,
+        "crossFileDataflow": 0,
+        "measuredPack": 0,
+        "runtime": 0,
+        "remediation": 0
+      },
+      "providers": [],
+      "limitations": [
+        "cross-file/dataflow unmeasured"
+      ],
+      "qualification": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "artifactDigest": null
+      }
+    },
+    {
+      "schemaVersion": 2,
+      "id": "language.c",
+      "kind": "language",
+      "extensions": [
+        "c",
+        "h"
+      ],
+      "tiers": {
+        "inventory": 2,
+        "parser": 2,
+        "nativeSemantics": 1,
+        "crossFileDataflow": 0,
+        "measuredPack": 0,
+        "runtime": 0,
+        "remediation": 0
+      },
+      "providers": [],
+      "limitations": [
+        "cross-file/dataflow unmeasured"
+      ],
+      "qualification": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "artifactDigest": null
+      }
+    },
+    {
+      "schemaVersion": 2,
+      "id": "language.cpp",
+      "kind": "language",
+      "extensions": [
+        "cpp",
+        "cc",
+        "cxx",
+        "hpp"
+      ],
+      "tiers": {
+        "inventory": 2,
+        "parser": 2,
+        "nativeSemantics": 1,
+        "crossFileDataflow": 0,
+        "measuredPack": 0,
+        "runtime": 0,
+        "remediation": 0
+      },
+      "providers": [],
+      "limitations": [
+        "cross-file/dataflow unmeasured"
+      ],
+      "qualification": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "artifactDigest": null
+      }
+    },
+    {
+      "schemaVersion": 2,
+      "id": "language.csharp",
+      "kind": "language",
+      "extensions": [
+        "cs"
+      ],
+      "tiers": {
+        "inventory": 2,
+        "parser": 2,
+        "nativeSemantics": 1,
+        "crossFileDataflow": 0,
+        "measuredPack": 0,
+        "runtime": 0,
+        "remediation": 0
+      },
+      "providers": [],
+      "limitations": [
+        "cross-file/dataflow unmeasured"
+      ],
+      "qualification": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "artifactDigest": null
+      }
+    },
+    {
+      "schemaVersion": 2,
+      "id": "language.swift",
+      "kind": "language",
+      "extensions": [
+        "swift"
+      ],
+      "tiers": {
+        "inventory": 2,
+        "parser": 3,
+        "nativeSemantics": 2,
+        "crossFileDataflow": 0,
+        "measuredPack": 0,
+        "runtime": 0,
+        "remediation": 0
+      },
+      "providers": [],
+      "limitations": [
+        "cross-file/dataflow unmeasured"
+      ],
+      "qualification": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "artifactDigest": null
+      }
+    },
+    {
+      "schemaVersion": 2,
+      "id": "language.objective-c",
+      "kind": "language",
+      "extensions": [
+        "m",
+        "mm"
+      ],
+      "tiers": {
+        "inventory": 2,
+        "parser": 2,
+        "nativeSemantics": 1,
+        "crossFileDataflow": 0,
+        "measuredPack": 0,
+        "runtime": 0,
+        "remediation": 0
+      },
+      "providers": [],
+      "limitations": [
+        "cross-file/dataflow unmeasured"
+      ],
+      "qualification": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "artifactDigest": null
+      }
+    },
+    {
+      "schemaVersion": 2,
+      "id": "language.php",
+      "kind": "language",
+      "extensions": [
+        "php"
+      ],
+      "tiers": {
+        "inventory": 2,
+        "parser": 2,
+        "nativeSemantics": 1,
+        "crossFileDataflow": 0,
+        "measuredPack": 0,
+        "runtime": 0,
+        "remediation": 0
+      },
+      "providers": [],
+      "limitations": [
+        "cross-file/dataflow unmeasured"
+      ],
+      "qualification": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "artifactDigest": null
+      }
+    },
+    {
+      "schemaVersion": 2,
+      "id": "language.ruby",
+      "kind": "language",
+      "extensions": [
+        "rb"
+      ],
+      "tiers": {
+        "inventory": 2,
+        "parser": 2,
+        "nativeSemantics": 1,
+        "crossFileDataflow": 0,
+        "measuredPack": 0,
+        "runtime": 0,
+        "remediation": 0
+      },
+      "providers": [],
+      "limitations": [
+        "cross-file/dataflow unmeasured"
+      ],
+      "qualification": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "artifactDigest": null
+      }
+    },
+    {
+      "schemaVersion": 2,
+      "id": "language.dart",
+      "kind": "language",
+      "extensions": [
+        "dart"
+      ],
+      "tiers": {
+        "inventory": 2,
+        "parser": 2,
+        "nativeSemantics": 1,
+        "crossFileDataflow": 0,
+        "measuredPack": 0,
+        "runtime": 0,
+        "remediation": 0
+      },
+      "providers": [],
+      "limitations": [
+        "cross-file/dataflow unmeasured"
+      ],
+      "qualification": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "artifactDigest": null
+      }
+    },
+    {
+      "schemaVersion": 2,
+      "id": "language.bash",
+      "kind": "language",
+      "extensions": [
+        "sh",
+        "bash"
+      ],
+      "tiers": {
+        "inventory": 2,
+        "parser": 2,
+        "nativeSemantics": 1,
+        "crossFileDataflow": 0,
+        "measuredPack": 0,
+        "runtime": 0,
+        "remediation": 0
+      },
+      "providers": [],
+      "limitations": [
+        "cross-file/dataflow unmeasured"
+      ],
+      "qualification": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "artifactDigest": null
+      }
+    },
+    {
+      "schemaVersion": 2,
+      "id": "language.powershell",
+      "kind": "language",
+      "extensions": [
+        "ps1"
+      ],
+      "tiers": {
+        "inventory": 2,
+        "parser": 2,
+        "nativeSemantics": 1,
+        "crossFileDataflow": 0,
+        "measuredPack": 0,
+        "runtime": 0,
+        "remediation": 0
+      },
+      "providers": [],
+      "limitations": [
+        "cross-file/dataflow unmeasured"
+      ],
+      "qualification": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "artifactDigest": null
+      }
+    },
+    {
+      "schemaVersion": 2,
+      "id": "language.scala",
+      "kind": "language",
+      "extensions": [
+        "scala"
+      ],
+      "tiers": {
+        "inventory": 1,
+        "parser": 1,
+        "nativeSemantics": 0,
+        "crossFileDataflow": 0,
+        "measuredPack": 0,
+        "runtime": 0,
+        "remediation": 0
+      },
+      "providers": [],
+      "limitations": [
+        "parser/provider unqualified; lexical fallback only"
+      ],
+      "qualification": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "artifactDigest": null
+      }
+    },
+    {
+      "schemaVersion": 2,
+      "id": "language.fsharp",
+      "kind": "language",
+      "extensions": [
+        "fs",
+        "fsx"
+      ],
+      "tiers": {
+        "inventory": 1,
+        "parser": 1,
+        "nativeSemantics": 0,
+        "crossFileDataflow": 0,
+        "measuredPack": 0,
+        "runtime": 0,
+        "remediation": 0
+      },
+      "providers": [],
+      "limitations": [
+        "parser/provider unqualified; lexical fallback only"
+      ],
+      "qualification": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "artifactDigest": null
+      }
+    },
+    {
+      "schemaVersion": 2,
+      "id": "language.vb",
+      "kind": "language",
+      "extensions": [
+        "vb"
+      ],
+      "tiers": {
+        "inventory": 1,
+        "parser": 1,
+        "nativeSemantics": 0,
+        "crossFileDataflow": 0,
+        "measuredPack": 0,
+        "runtime": 0,
+        "remediation": 0
+      },
+      "providers": [],
+      "limitations": [
+        "parser/provider unqualified; lexical fallback only"
+      ],
+      "qualification": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "artifactDigest": null
+      }
+    },
+    {
+      "schemaVersion": 2,
+      "id": "language.elixir",
+      "kind": "language",
+      "extensions": [
+        "ex",
+        "exs"
+      ],
+      "tiers": {
+        "inventory": 1,
+        "parser": 1,
+        "nativeSemantics": 0,
+        "crossFileDataflow": 0,
+        "measuredPack": 0,
+        "runtime": 0,
+        "remediation": 0
+      },
+      "providers": [],
+      "limitations": [
+        "parser/provider unqualified; lexical fallback only"
+      ],
+      "qualification": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "artifactDigest": null
+      }
+    },
+    {
+      "schemaVersion": 2,
+      "id": "language.erlang",
+      "kind": "language",
+      "extensions": [
+        "erl"
+      ],
+      "tiers": {
+        "inventory": 1,
+        "parser": 1,
+        "nativeSemantics": 0,
+        "crossFileDataflow": 0,
+        "measuredPack": 0,
+        "runtime": 0,
+        "remediation": 0
+      },
+      "providers": [],
+      "limitations": [
+        "parser/provider unqualified; lexical fallback only"
+      ],
+      "qualification": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "artifactDigest": null
+      }
+    },
+    {
+      "schemaVersion": 2,
+      "id": "language.lua",
+      "kind": "language",
+      "extensions": [
+        "lua"
+      ],
+      "tiers": {
+        "inventory": 1,
+        "parser": 1,
+        "nativeSemantics": 0,
+        "crossFileDataflow": 0,
+        "measuredPack": 0,
+        "runtime": 0,
+        "remediation": 0
+      },
+      "providers": [],
+      "limitations": [
+        "parser/provider unqualified; lexical fallback only"
+      ],
+      "qualification": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "artifactDigest": null
+      }
+    },
+    {
+      "schemaVersion": 2,
+      "id": "language.r",
+      "kind": "language",
+      "extensions": [
+        "r"
+      ],
+      "tiers": {
+        "inventory": 1,
+        "parser": 1,
+        "nativeSemantics": 0,
+        "crossFileDataflow": 0,
+        "measuredPack": 0,
+        "runtime": 0,
+        "remediation": 0
+      },
+      "providers": [],
+      "limitations": [
+        "parser/provider unqualified; lexical fallback only"
+      ],
+      "qualification": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "artifactDigest": null
+      }
+    },
+    {
+      "schemaVersion": 2,
+      "id": "language.julia",
+      "kind": "language",
+      "extensions": [
+        "jl"
+      ],
+      "tiers": {
+        "inventory": 1,
+        "parser": 1,
+        "nativeSemantics": 0,
+        "crossFileDataflow": 0,
+        "measuredPack": 0,
+        "runtime": 0,
+        "remediation": 0
+      },
+      "providers": [],
+      "limitations": [
+        "parser/provider unqualified; lexical fallback only"
+      ],
+      "qualification": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "artifactDigest": null
+      }
+    },
+    {
+      "schemaVersion": 2,
+      "id": "language.ocaml",
+      "kind": "language",
+      "extensions": [
+        "ml"
+      ],
+      "tiers": {
+        "inventory": 1,
+        "parser": 1,
+        "nativeSemantics": 0,
+        "crossFileDataflow": 0,
+        "measuredPack": 0,
+        "runtime": 0,
+        "remediation": 0
+      },
+      "providers": [],
+      "limitations": [
+        "parser/provider unqualified; lexical fallback only"
+      ],
+      "qualification": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "artifactDigest": null
+      }
+    },
+    {
+      "schemaVersion": 2,
+      "id": "language.clojure",
+      "kind": "language",
+      "extensions": [
+        "clj"
+      ],
+      "tiers": {
+        "inventory": 1,
+        "parser": 1,
+        "nativeSemantics": 0,
+        "crossFileDataflow": 0,
+        "measuredPack": 0,
+        "runtime": 0,
+        "remediation": 0
+      },
+      "providers": [],
+      "limitations": [
+        "parser/provider unqualified; lexical fallback only"
+      ],
+      "qualification": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "artifactDigest": null
+      }
+    },
+    {
+      "schemaVersion": 2,
+      "id": "language.haskell",
+      "kind": "language",
+      "extensions": [
+        "hs"
+      ],
+      "tiers": {
+        "inventory": 1,
+        "parser": 1,
+        "nativeSemantics": 0,
+        "crossFileDataflow": 0,
+        "measuredPack": 0,
+        "runtime": 0,
+        "remediation": 0
+      },
+      "providers": [],
+      "limitations": [
+        "parser/provider unqualified; lexical fallback only"
+      ],
+      "qualification": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "artifactDigest": null
+      }
+    },
+    {
+      "schemaVersion": 2,
+      "id": "language.lisp",
+      "kind": "language",
+      "extensions": [
+        "lisp",
+        "lsp"
+      ],
+      "tiers": {
+        "inventory": 1,
+        "parser": 1,
+        "nativeSemantics": 0,
+        "crossFileDataflow": 0,
+        "measuredPack": 0,
+        "runtime": 0,
+        "remediation": 0
+      },
+      "providers": [],
+      "limitations": [
+        "parser/provider unqualified; lexical fallback only"
+      ],
+      "qualification": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "artifactDigest": null
+      }
+    },
+    {
+      "schemaVersion": 2,
+      "id": "language.scheme",
+      "kind": "language",
+      "extensions": [
+        "scm"
+      ],
+      "tiers": {
+        "inventory": 1,
+        "parser": 1,
+        "nativeSemantics": 0,
+        "crossFileDataflow": 0,
+        "measuredPack": 0,
+        "runtime": 0,
+        "remediation": 0
+      },
+      "providers": [],
+      "limitations": [
+        "parser/provider unqualified; lexical fallback only"
+      ],
+      "qualification": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "artifactDigest": null
+      }
+    },
+    {
+      "schemaVersion": 2,
+      "id": "language.solidity",
+      "kind": "language",
+      "extensions": [
+        "sol"
+      ],
+      "tiers": {
+        "inventory": 1,
+        "parser": 1,
+        "nativeSemantics": 0,
+        "crossFileDataflow": 0,
+        "measuredPack": 0,
+        "runtime": 0,
+        "remediation": 0
+      },
+      "providers": [],
+      "limitations": [
+        "parser/provider unqualified; lexical fallback only"
+      ],
+      "qualification": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "artifactDigest": null
+      }
+    },
+    {
+      "schemaVersion": 2,
+      "id": "language.cairo",
+      "kind": "language",
+      "extensions": [
+        "cairo"
+      ],
+      "tiers": {
+        "inventory": 1,
+        "parser": 1,
+        "nativeSemantics": 0,
+        "crossFileDataflow": 0,
+        "measuredPack": 0,
+        "runtime": 0,
+        "remediation": 0
+      },
+      "providers": [],
+      "limitations": [
+        "parser/provider unqualified; lexical fallback only"
+      ],
+      "qualification": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "artifactDigest": null
+      }
+    },
+    {
+      "schemaVersion": 2,
+      "id": "language.move",
+      "kind": "language",
+      "extensions": [
+        "move"
+      ],
+      "tiers": {
+        "inventory": 1,
+        "parser": 1,
+        "nativeSemantics": 0,
+        "crossFileDataflow": 0,
+        "measuredPack": 0,
+        "runtime": 0,
+        "remediation": 0
+      },
+      "providers": [],
+      "limitations": [
+        "parser/provider unqualified; lexical fallback only"
+      ],
+      "qualification": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "artifactDigest": null
+      }
+    },
+    {
+      "schemaVersion": 2,
+      "id": "language.apex",
+      "kind": "language",
+      "extensions": [
+        "cls"
+      ],
+      "tiers": {
+        "inventory": 1,
+        "parser": 1,
+        "nativeSemantics": 0,
+        "crossFileDataflow": 0,
+        "measuredPack": 0,
+        "runtime": 0,
+        "remediation": 0
+      },
+      "providers": [],
+      "limitations": [
+        "parser/provider unqualified; lexical fallback only"
+      ],
+      "qualification": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "artifactDigest": null
+      }
+    },
+    {
+      "schemaVersion": 2,
+      "id": "language.crystal",
+      "kind": "language",
+      "extensions": [
+        "cr"
+      ],
+      "tiers": {
+        "inventory": 1,
+        "parser": 1,
+        "nativeSemantics": 0,
+        "crossFileDataflow": 0,
+        "measuredPack": 0,
+        "runtime": 0,
+        "remediation": 0
+      },
+      "providers": [],
+      "limitations": [
+        "parser/provider unqualified; lexical fallback only"
+      ],
+      "qualification": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "artifactDigest": null
+      }
+    },
+    {
+      "schemaVersion": 2,
+      "id": "language.hack",
+      "kind": "language",
+      "extensions": [
+        "hack"
+      ],
+      "tiers": {
+        "inventory": 1,
+        "parser": 1,
+        "nativeSemantics": 0,
+        "crossFileDataflow": 0,
+        "measuredPack": 0,
+        "runtime": 0,
+        "remediation": 0
+      },
+      "providers": [],
+      "limitations": [
+        "parser/provider unqualified; lexical fallback only"
+      ],
+      "qualification": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "artifactDigest": null
+      }
+    },
+    {
+      "schemaVersion": 2,
+      "id": "language.nix",
+      "kind": "language",
+      "extensions": [
+        "nix"
+      ],
+      "tiers": {
+        "inventory": 1,
+        "parser": 1,
+        "nativeSemantics": 0,
+        "crossFileDataflow": 0,
+        "measuredPack": 0,
+        "runtime": 0,
+        "remediation": 0
+      },
+      "providers": [],
+      "limitations": [
+        "parser/provider unqualified; lexical fallback only"
+      ],
+      "qualification": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "artifactDigest": null
+      }
+    },
+    {
+      "schemaVersion": 2,
+      "id": "format.hcl-terraform",
+      "kind": "format",
+      "extensions": [
+        "tf",
+        "hcl"
+      ],
+      "tiers": {
+        "inventory": 1,
+        "parser": 1,
+        "nativeSemantics": 0,
+        "crossFileDataflow": 0,
+        "measuredPack": 0,
+        "runtime": 0,
+        "remediation": 0
+      },
+      "providers": [],
+      "limitations": [
+        "parser/provider unqualified; lexical fallback only"
+      ],
+      "qualification": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "artifactDigest": null
+      }
+    },
+    {
+      "schemaVersion": 2,
+      "id": "format.dockerfile",
+      "kind": "format",
+      "extensions": [
+        "Dockerfile"
+      ],
+      "tiers": {
+        "inventory": 1,
+        "parser": 1,
+        "nativeSemantics": 0,
+        "crossFileDataflow": 0,
+        "measuredPack": 0,
+        "runtime": 0,
+        "remediation": 0
+      },
+      "providers": [],
+      "limitations": [
+        "parser/provider unqualified; lexical fallback only"
+      ],
+      "qualification": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "artifactDigest": null
+      }
+    },
+    {
+      "schemaVersion": 2,
+      "id": "format.html",
+      "kind": "format",
+      "extensions": [
+        "html",
+        "htm"
+      ],
+      "tiers": {
+        "inventory": 1,
+        "parser": 1,
+        "nativeSemantics": 0,
+        "crossFileDataflow": 0,
+        "measuredPack": 0,
+        "runtime": 0,
+        "remediation": 0
+      },
+      "providers": [],
+      "limitations": [
+        "parser/provider unqualified; lexical fallback only"
+      ],
+      "qualification": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "artifactDigest": null
+      }
+    },
+    {
+      "schemaVersion": 2,
+      "id": "format.css",
+      "kind": "format",
+      "extensions": [
+        "css"
+      ],
+      "tiers": {
+        "inventory": 1,
+        "parser": 1,
+        "nativeSemantics": 0,
+        "crossFileDataflow": 0,
+        "measuredPack": 0,
+        "runtime": 0,
+        "remediation": 0
+      },
+      "providers": [],
+      "limitations": [
+        "parser/provider unqualified; lexical fallback only"
+      ],
+      "qualification": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "artifactDigest": null
+      }
+    },
+    {
+      "schemaVersion": 2,
+      "id": "format.scss",
+      "kind": "format",
+      "extensions": [
+        "scss",
+        "sass"
+      ],
+      "tiers": {
+        "inventory": 1,
+        "parser": 1,
+        "nativeSemantics": 0,
+        "crossFileDataflow": 0,
+        "measuredPack": 0,
+        "runtime": 0,
+        "remediation": 0
+      },
+      "providers": [],
+      "limitations": [
+        "parser/provider unqualified; lexical fallback only"
+      ],
+      "qualification": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "artifactDigest": null
+      }
+    },
+    {
+      "schemaVersion": 2,
+      "id": "format.yaml",
+      "kind": "format",
+      "extensions": [
+        "yml",
+        "yaml"
+      ],
+      "tiers": {
+        "inventory": 1,
+        "parser": 1,
+        "nativeSemantics": 0,
+        "crossFileDataflow": 0,
+        "measuredPack": 0,
+        "runtime": 0,
+        "remediation": 0
+      },
+      "providers": [],
+      "limitations": [
+        "parser/provider unqualified; lexical fallback only"
+      ],
+      "qualification": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "artifactDigest": null
+      }
+    },
+    {
+      "schemaVersion": 2,
+      "id": "format.json",
+      "kind": "format",
+      "extensions": [
+        "json",
+        "json5",
+        "jsonnet"
+      ],
+      "tiers": {
+        "inventory": 1,
+        "parser": 1,
+        "nativeSemantics": 0,
+        "crossFileDataflow": 0,
+        "measuredPack": 0,
+        "runtime": 0,
+        "remediation": 0
+      },
+      "providers": [],
+      "limitations": [
+        "parser/provider unqualified; lexical fallback only"
+      ],
+      "qualification": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "artifactDigest": null
+      }
+    },
+    {
+      "schemaVersion": 2,
+      "id": "format.xml",
+      "kind": "format",
+      "extensions": [
+        "xml"
+      ],
+      "tiers": {
+        "inventory": 1,
+        "parser": 1,
+        "nativeSemantics": 0,
+        "crossFileDataflow": 0,
+        "measuredPack": 0,
+        "runtime": 0,
+        "remediation": 0
+      },
+      "providers": [],
+      "limitations": [
+        "parser/provider unqualified; lexical fallback only"
+      ],
+      "qualification": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "artifactDigest": null
+      }
+    },
+    {
+      "schemaVersion": 2,
+      "id": "format.sql",
+      "kind": "format",
+      "extensions": [
+        "sql"
+      ],
+      "tiers": {
+        "inventory": 1,
+        "parser": 1,
+        "nativeSemantics": 0,
+        "crossFileDataflow": 0,
+        "measuredPack": 0,
+        "runtime": 0,
+        "remediation": 0
+      },
+      "providers": [],
+      "limitations": [
+        "parser/provider unqualified; lexical fallback only"
+      ],
+      "qualification": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "artifactDigest": null
+      }
+    },
+    {
+      "schemaVersion": 2,
+      "id": "format.graphql",
+      "kind": "format",
+      "extensions": [
+        "graphql",
+        "gql"
+      ],
+      "tiers": {
+        "inventory": 1,
+        "parser": 1,
+        "nativeSemantics": 0,
+        "crossFileDataflow": 0,
+        "measuredPack": 0,
+        "runtime": 0,
+        "remediation": 0
+      },
+      "providers": [],
+      "limitations": [
+        "parser/provider unqualified; lexical fallback only"
+      ],
+      "qualification": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "artifactDigest": null
+      }
+    },
+    {
+      "schemaVersion": 2,
+      "id": "format.protobuf",
+      "kind": "format",
+      "extensions": [
+        "proto"
+      ],
+      "tiers": {
+        "inventory": 1,
+        "parser": 1,
+        "nativeSemantics": 0,
+        "crossFileDataflow": 0,
+        "measuredPack": 0,
+        "runtime": 0,
+        "remediation": 0
+      },
+      "providers": [],
+      "limitations": [
+        "parser/provider unqualified; lexical fallback only"
+      ],
+      "qualification": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "artifactDigest": null
+      }
+    },
+    {
+      "schemaVersion": 2,
+      "id": "format.markdown",
+      "kind": "format",
+      "extensions": [
+        "md",
+        "mdx"
+      ],
+      "tiers": {
+        "inventory": 1,
+        "parser": 1,
+        "nativeSemantics": 0,
+        "crossFileDataflow": 0,
+        "measuredPack": 0,
+        "runtime": 0,
+        "remediation": 0
+      },
+      "providers": [],
+      "limitations": [
+        "parser/provider unqualified; lexical fallback only"
+      ],
+      "qualification": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "artifactDigest": null
+      }
+    },
+    {
+      "schemaVersion": 2,
+      "id": "format.vue",
+      "kind": "format",
+      "extensions": [
+        "vue"
+      ],
+      "tiers": {
+        "inventory": 1,
+        "parser": 1,
+        "nativeSemantics": 0,
+        "crossFileDataflow": 0,
+        "measuredPack": 0,
+        "runtime": 0,
+        "remediation": 0
+      },
+      "providers": [],
+      "limitations": [
+        "parser/provider unqualified; lexical fallback only"
+      ],
+      "qualification": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "artifactDigest": null
+      }
+    },
+    {
+      "schemaVersion": 2,
+      "id": "format.svelte",
+      "kind": "format",
+      "extensions": [
+        "svelte"
+      ],
+      "tiers": {
+        "inventory": 1,
+        "parser": 1,
+        "nativeSemantics": 0,
+        "crossFileDataflow": 0,
+        "measuredPack": 0,
+        "runtime": 0,
+        "remediation": 0
+      },
+      "providers": [],
+      "limitations": [
+        "parser/provider unqualified; lexical fallback only"
+      ],
+      "qualification": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "artifactDigest": null
+      }
+    },
+    {
+      "schemaVersion": 2,
+      "id": "format.astro",
+      "kind": "format",
+      "extensions": [
+        "astro"
+      ],
+      "tiers": {
+        "inventory": 1,
+        "parser": 1,
+        "nativeSemantics": 0,
+        "crossFileDataflow": 0,
+        "measuredPack": 0,
+        "runtime": 0,
+        "remediation": 0
+      },
+      "providers": [],
+      "limitations": [
+        "parser/provider unqualified; lexical fallback only"
+      ],
+      "qualification": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "artifactDigest": null
+      }
+    },
+    {
+      "schemaVersion": 2,
+      "id": "format.angular-template",
+      "kind": "format",
+      "extensions": [
+        "html"
+      ],
+      "tiers": {
+        "inventory": 1,
+        "parser": 1,
+        "nativeSemantics": 0,
+        "crossFileDataflow": 0,
+        "measuredPack": 0,
+        "runtime": 0,
+        "remediation": 0
+      },
+      "providers": [],
+      "limitations": [
+        "parser/provider unqualified; lexical fallback only"
+      ],
+      "qualification": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "artifactDigest": null
+      }
+    },
+    {
+      "schemaVersion": 2,
+      "id": "format.cmake",
+      "kind": "format",
+      "extensions": [
+        "CMakeLists.txt"
+      ],
+      "tiers": {
+        "inventory": 1,
+        "parser": 1,
+        "nativeSemantics": 0,
+        "crossFileDataflow": 0,
+        "measuredPack": 0,
+        "runtime": 0,
+        "remediation": 0
+      },
+      "providers": [],
+      "limitations": [
+        "parser/provider unqualified; lexical fallback only"
+      ],
+      "qualification": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "artifactDigest": null
+      }
+    },
+    {
+      "schemaVersion": 2,
+      "id": "format.make",
+      "kind": "format",
+      "extensions": [
+        "Makefile"
+      ],
+      "tiers": {
+        "inventory": 1,
+        "parser": 1,
+        "nativeSemantics": 0,
+        "crossFileDataflow": 0,
+        "measuredPack": 0,
+        "runtime": 0,
+        "remediation": 0
+      },
+      "providers": [],
+      "limitations": [
+        "parser/provider unqualified; lexical fallback only"
+      ],
+      "qualification": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "artifactDigest": null
+      }
+    },
+    {
+      "schemaVersion": 2,
+      "id": "format.bazel",
+      "kind": "format",
+      "extensions": [
+        "BUILD",
+        "WORKSPACE"
+      ],
+      "tiers": {
+        "inventory": 1,
+        "parser": 1,
+        "nativeSemantics": 0,
+        "crossFileDataflow": 0,
+        "measuredPack": 0,
+        "runtime": 0,
+        "remediation": 0
+      },
+      "providers": [],
+      "limitations": [
+        "parser/provider unqualified; lexical fallback only"
+      ],
+      "qualification": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "artifactDigest": null
+      }
+    },
+    {
+      "schemaVersion": 2,
+      "id": "format.gradle",
+      "kind": "format",
+      "extensions": [
+        "gradle"
+      ],
+      "tiers": {
+        "inventory": 1,
+        "parser": 1,
+        "nativeSemantics": 0,
+        "crossFileDataflow": 0,
+        "measuredPack": 0,
+        "runtime": 0,
+        "remediation": 0
+      },
+      "providers": [],
+      "limitations": [
+        "parser/provider unqualified; lexical fallback only"
+      ],
+      "qualification": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "artifactDigest": null
+      }
+    },
+    {
+      "schemaVersion": 2,
+      "id": "format.github-actions",
+      "kind": "format",
+      "extensions": [
+        "yml"
+      ],
+      "tiers": {
+        "inventory": 1,
+        "parser": 1,
+        "nativeSemantics": 0,
+        "crossFileDataflow": 0,
+        "measuredPack": 0,
+        "runtime": 0,
+        "remediation": 0
+      },
+      "providers": [],
+      "limitations": [
+        "parser/provider unqualified; lexical fallback only"
+      ],
+      "qualification": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "artifactDigest": null
+      }
+    },
+    {
+      "schemaVersion": 2,
+      "id": "format.gitlab-ci",
+      "kind": "format",
+      "extensions": [
+        "yml"
+      ],
+      "tiers": {
+        "inventory": 1,
+        "parser": 1,
+        "nativeSemantics": 0,
+        "crossFileDataflow": 0,
+        "measuredPack": 0,
+        "runtime": 0,
+        "remediation": 0
+      },
+      "providers": [],
+      "limitations": [
+        "parser/provider unqualified; lexical fallback only"
+      ],
+      "qualification": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "artifactDigest": null
+      }
+    },
+    {
+      "schemaVersion": 2,
+      "id": "format.azure-pipelines",
+      "kind": "format",
+      "extensions": [
+        "yml"
+      ],
+      "tiers": {
+        "inventory": 1,
+        "parser": 1,
+        "nativeSemantics": 0,
+        "crossFileDataflow": 0,
+        "measuredPack": 0,
+        "runtime": 0,
+        "remediation": 0
+      },
+      "providers": [],
+      "limitations": [
+        "parser/provider unqualified; lexical fallback only"
+      ],
+      "qualification": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "artifactDigest": null
+      }
+    },
+    {
+      "schemaVersion": 2,
+      "id": "format.helm",
+      "kind": "format",
+      "extensions": [
+        "yaml"
+      ],
+      "tiers": {
+        "inventory": 1,
+        "parser": 1,
+        "nativeSemantics": 0,
+        "crossFileDataflow": 0,
+        "measuredPack": 0,
+        "runtime": 0,
+        "remediation": 0
+      },
+      "providers": [],
+      "limitations": [
+        "parser/provider unqualified; lexical fallback only"
+      ],
+      "qualification": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "artifactDigest": null
+      }
+    },
+    {
+      "schemaVersion": 2,
+      "id": "format.ansible",
+      "kind": "format",
+      "extensions": [
+        "yml"
+      ],
+      "tiers": {
+        "inventory": 1,
+        "parser": 1,
+        "nativeSemantics": 0,
+        "crossFileDataflow": 0,
+        "measuredPack": 0,
+        "runtime": 0,
+        "remediation": 0
+      },
+      "providers": [],
+      "limitations": [
+        "parser/provider unqualified; lexical fallback only"
+      ],
+      "qualification": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "artifactDigest": null
+      }
+    },
+    {
+      "schemaVersion": 2,
+      "id": "format.bicep",
+      "kind": "format",
+      "extensions": [
+        "bicep"
+      ],
+      "tiers": {
+        "inventory": 1,
+        "parser": 1,
+        "nativeSemantics": 0,
+        "crossFileDataflow": 0,
+        "measuredPack": 0,
+        "runtime": 0,
+        "remediation": 0
+      },
+      "providers": [],
+      "limitations": [
+        "parser/provider unqualified; lexical fallback only"
+      ],
+      "qualification": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "artifactDigest": null
+      }
+    },
+    {
+      "schemaVersion": 2,
+      "id": "format.pulumi",
+      "kind": "format",
+      "extensions": [
+        "ts",
+        "py"
+      ],
+      "tiers": {
+        "inventory": 1,
+        "parser": 1,
+        "nativeSemantics": 0,
+        "crossFileDataflow": 0,
+        "measuredPack": 0,
+        "runtime": 0,
+        "remediation": 0
+      },
+      "providers": [],
+      "limitations": [
+        "parser/provider unqualified; lexical fallback only"
+      ],
+      "qualification": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "artifactDigest": null
+      }
+    },
+    {
+      "schemaVersion": 2,
+      "id": "format.cloudformation",
+      "kind": "format",
+      "extensions": [
+        "yaml",
+        "json"
+      ],
+      "tiers": {
+        "inventory": 1,
+        "parser": 1,
+        "nativeSemantics": 0,
+        "crossFileDataflow": 0,
+        "measuredPack": 0,
+        "runtime": 0,
+        "remediation": 0
+      },
+      "providers": [],
+      "limitations": [
+        "parser/provider unqualified; lexical fallback only"
+      ],
+      "qualification": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "artifactDigest": null
+      }
+    },
+    {
+      "schemaVersion": 2,
+      "id": "format.openapi",
+      "kind": "format",
+      "extensions": [
+        "yaml",
+        "json"
+      ],
+      "tiers": {
+        "inventory": 1,
+        "parser": 1,
+        "nativeSemantics": 0,
+        "crossFileDataflow": 0,
+        "measuredPack": 0,
+        "runtime": 0,
+        "remediation": 0
+      },
+      "providers": [],
+      "limitations": [
+        "parser/provider unqualified; lexical fallback only"
+      ],
+      "qualification": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "artifactDigest": null
+      }
+    },
+    {
+      "schemaVersion": 2,
+      "id": "format.toml",
+      "kind": "format",
+      "extensions": [
+        "toml"
+      ],
+      "tiers": {
+        "inventory": 1,
+        "parser": 1,
+        "nativeSemantics": 0,
+        "crossFileDataflow": 0,
+        "measuredPack": 0,
+        "runtime": 0,
+        "remediation": 0
+      },
+      "providers": [],
+      "limitations": [
+        "parser/provider unqualified; lexical fallback only"
+      ],
+      "qualification": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "artifactDigest": null
+      }
+    },
+    {
+      "schemaVersion": 2,
+      "id": "format.ini",
+      "kind": "format",
+      "extensions": [
+        "ini"
+      ],
+      "tiers": {
+        "inventory": 1,
+        "parser": 1,
+        "nativeSemantics": 0,
+        "crossFileDataflow": 0,
+        "measuredPack": 0,
+        "runtime": 0,
+        "remediation": 0
+      },
+      "providers": [],
+      "limitations": [
+        "parser/provider unqualified; lexical fallback only"
+      ],
+      "qualification": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "artifactDigest": null
+      }
+    },
+    {
+      "schemaVersion": 2,
+      "id": "format.csv",
+      "kind": "format",
+      "extensions": [
+        "csv"
+      ],
+      "tiers": {
+        "inventory": 1,
+        "parser": 1,
+        "nativeSemantics": 0,
+        "crossFileDataflow": 0,
+        "measuredPack": 0,
+        "runtime": 0,
+        "remediation": 0
+      },
+      "providers": [],
+      "limitations": [
+        "parser/provider unqualified; lexical fallback only"
+      ],
+      "qualification": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "artifactDigest": null
+      }
+    },
+    {
+      "schemaVersion": 2,
+      "id": "format.regex",
+      "kind": "format",
+      "extensions": [],
+      "tiers": {
+        "inventory": 1,
+        "parser": 1,
+        "nativeSemantics": 0,
+        "crossFileDataflow": 0,
+        "measuredPack": 0,
+        "runtime": 0,
+        "remediation": 0
+      },
+      "providers": [],
+      "limitations": [
+        "parser/provider unqualified; lexical fallback only"
+      ],
+      "qualification": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "artifactDigest": null
+      }
+    },
+    {
+      "schemaVersion": 2,
+      "id": "format.promql",
+      "kind": "format",
+      "extensions": [],
+      "tiers": {
+        "inventory": 1,
+        "parser": 1,
+        "nativeSemantics": 0,
+        "crossFileDataflow": 0,
+        "measuredPack": 0,
+        "runtime": 0,
+        "remediation": 0
+      },
+      "providers": [],
+      "limitations": [
+        "parser/provider unqualified; lexical fallback only"
+      ],
+      "qualification": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "artifactDigest": null
+      }
+    },
+    {
+      "schemaVersion": 2,
+      "id": "format.ql",
+      "kind": "format",
+      "extensions": [
+        "ql"
+      ],
+      "tiers": {
+        "inventory": 1,
+        "parser": 1,
+        "nativeSemantics": 0,
+        "crossFileDataflow": 0,
+        "measuredPack": 0,
+        "runtime": 0,
+        "remediation": 0
+      },
+      "providers": [],
+      "limitations": [
+        "parser/provider unqualified; lexical fallback only"
+      ],
+      "qualification": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "artifactDigest": null
+      }
+    },
+    {
+      "schemaVersion": 2,
+      "id": "language.arduino",
+      "kind": "language",
+      "extensions": [
+        "ino"
+      ],
+      "tiers": {
+        "inventory": 1,
+        "parser": 1,
+        "nativeSemantics": 0,
+        "crossFileDataflow": 0,
+        "measuredPack": 0,
+        "runtime": 0,
+        "remediation": 0
+      },
+      "providers": [],
+      "limitations": [
+        "parser/provider unqualified; lexical fallback only"
+      ],
+      "qualification": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "artifactDigest": null
+      }
+    },
+    {
+      "schemaVersion": 2,
+      "id": "language.assembly",
+      "kind": "language",
+      "extensions": [
+        "asm",
+        "s"
+      ],
+      "tiers": {
+        "inventory": 1,
+        "parser": 1,
+        "nativeSemantics": 0,
+        "crossFileDataflow": 0,
+        "measuredPack": 0,
+        "runtime": 0,
+        "remediation": 0
+      },
+      "providers": [],
+      "limitations": [
+        "parser/provider unqualified; lexical fallback only"
+      ],
+      "qualification": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "artifactDigest": null
+      }
+    },
+    {
+      "schemaVersion": 2,
+      "id": "language.cuda",
+      "kind": "language",
+      "extensions": [
+        "cu"
+      ],
+      "tiers": {
+        "inventory": 1,
+        "parser": 1,
+        "nativeSemantics": 0,
+        "crossFileDataflow": 0,
+        "measuredPack": 0,
+        "runtime": 0,
+        "remediation": 0
+      },
+      "providers": [],
+      "limitations": [
+        "parser/provider unqualified; lexical fallback only"
+      ],
+      "qualification": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "artifactDigest": null
+      }
+    },
+    {
+      "schemaVersion": 2,
+      "id": "language.zig",
+      "kind": "language",
+      "extensions": [
+        "zig"
+      ],
+      "tiers": {
+        "inventory": 1,
+        "parser": 1,
+        "nativeSemantics": 0,
+        "crossFileDataflow": 0,
+        "measuredPack": 0,
+        "runtime": 0,
+        "remediation": 0
+      },
+      "providers": [],
+      "limitations": [
+        "parser/provider unqualified; lexical fallback only"
+      ],
+      "qualification": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "artifactDigest": null
+      }
+    },
+    {
+      "schemaVersion": 2,
+      "id": "language.nim",
+      "kind": "language",
+      "extensions": [
+        "nim"
+      ],
+      "tiers": {
+        "inventory": 1,
+        "parser": 1,
+        "nativeSemantics": 0,
+        "crossFileDataflow": 0,
+        "measuredPack": 0,
+        "runtime": 0,
+        "remediation": 0
+      },
+      "providers": [],
+      "limitations": [
+        "parser/provider unqualified; lexical fallback only"
+      ],
+      "qualification": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "artifactDigest": null
+      }
+    },
+    {
+      "schemaVersion": 2,
+      "id": "language.perl",
+      "kind": "language",
+      "extensions": [
+        "pl",
+        "pm"
+      ],
+      "tiers": {
+        "inventory": 1,
+        "parser": 1,
+        "nativeSemantics": 0,
+        "crossFileDataflow": 0,
+        "measuredPack": 0,
+        "runtime": 0,
+        "remediation": 0
+      },
+      "providers": [],
+      "limitations": [
+        "parser/provider unqualified; lexical fallback only"
+      ],
+      "qualification": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "artifactDigest": null
+      }
+    },
+    {
+      "schemaVersion": 2,
+      "id": "language.cobol",
+      "kind": "language",
+      "extensions": [
+        "cob",
+        "cbl"
+      ],
+      "tiers": {
+        "inventory": 1,
+        "parser": 1,
+        "nativeSemantics": 0,
+        "crossFileDataflow": 0,
+        "measuredPack": 0,
+        "runtime": 0,
+        "remediation": 0
+      },
+      "providers": [],
+      "limitations": [
+        "parser/provider unqualified; lexical fallback only"
+      ],
+      "qualification": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "artifactDigest": null
+      }
+    },
+    {
+      "schemaVersion": 2,
+      "id": "language.fortran",
+      "kind": "language",
+      "extensions": [
+        "f",
+        "f90"
+      ],
+      "tiers": {
+        "inventory": 1,
+        "parser": 1,
+        "nativeSemantics": 0,
+        "crossFileDataflow": 0,
+        "measuredPack": 0,
+        "runtime": 0,
+        "remediation": 0
+      },
+      "providers": [],
+      "limitations": [
+        "parser/provider unqualified; lexical fallback only"
+      ],
+      "qualification": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "artifactDigest": null
+      }
+    },
+    {
+      "schemaVersion": 2,
+      "id": "language.ada",
+      "kind": "language",
+      "extensions": [
+        "ada",
+        "adb"
+      ],
+      "tiers": {
+        "inventory": 1,
+        "parser": 1,
+        "nativeSemantics": 0,
+        "crossFileDataflow": 0,
+        "measuredPack": 0,
+        "runtime": 0,
+        "remediation": 0
+      },
+      "providers": [],
+      "limitations": [
+        "parser/provider unqualified; lexical fallback only"
+      ],
+      "qualification": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "artifactDigest": null
+      }
+    },
+    {
+      "schemaVersion": 2,
+      "id": "language.groovy",
+      "kind": "language",
+      "extensions": [
+        "groovy"
+      ],
+      "tiers": {
+        "inventory": 1,
+        "parser": 1,
+        "nativeSemantics": 0,
+        "crossFileDataflow": 0,
+        "measuredPack": 0,
+        "runtime": 0,
+        "remediation": 0
+      },
+      "providers": [],
+      "limitations": [
+        "parser/provider unqualified; lexical fallback only"
+      ],
+      "qualification": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "artifactDigest": null
+      }
+    },
+    {
+      "schemaVersion": 2,
+      "id": "language.generic",
+      "kind": "language",
+      "extensions": [],
+      "tiers": {
+        "inventory": 1,
+        "parser": 1,
+        "nativeSemantics": 0,
+        "crossFileDataflow": 0,
+        "measuredPack": 0,
+        "runtime": 0,
+        "remediation": 0
+      },
+      "providers": [],
+      "limitations": [
+        "parser/provider unqualified; lexical fallback only"
+      ],
+      "qualification": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "artifactDigest": null
+      }
+    }
+  ]
+}
