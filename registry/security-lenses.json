@@ -1,0 +1,76 @@
+{
+  "schemaVersion": 1,
+  "kind": "security-lens-registry",
+  "lenses": [
+    {
+      "id": "security.credentials",
+      "version": "1",
+      "family": "credentials",
+      "description": "Credential material in repository artifacts.",
+      "module": "providers/security/packs/credentials.mjs",
+      "selector": { "op": "any", "selectors": [{ "op": "sourceFilesAtLeast", "count": 1 }] },
+      "modelRequirements": ["repository-artifact"],
+      "denominatorKind": "security-relevant-source-files",
+      "benchmark": { "status": "unproven", "requiredForCleanClaim": true },
+      "producesSecurityCandidates": true,
+      "mayCloseOwnCandidates": false,
+      "implementationState": "implemented"
+    },
+    {
+      "id": "security.injection",
+      "version": "1",
+      "family": "injection",
+      "description": "Injection into interpreter, query, template, and process sinks.",
+      "module": "providers/security/packs/injection.mjs",
+      "selector": { "op": "any", "selectors": [{ "op": "sourceFilesAtLeast", "count": 1 }] },
+      "modelRequirements": ["repository-artifact"],
+      "denominatorKind": "security-relevant-source-files",
+      "benchmark": { "status": "unproven", "requiredForCleanClaim": true },
+      "producesSecurityCandidates": true,
+      "mayCloseOwnCandidates": false,
+      "implementationState": "implemented"
+    },
+    {
+      "id": "security.insecure-defaults",
+      "version": "1",
+      "family": "insecure-defaults",
+      "description": "Authentication/TLS/debug fail-open defaults.",
+      "module": "providers/security/packs/insecure-defaults.mjs",
+      "selector": { "op": "any", "selectors": [{ "op": "sourceFilesAtLeast", "count": 1 }] },
+      "modelRequirements": ["repository-artifact"],
+      "denominatorKind": "security-relevant-source-files",
+      "benchmark": { "status": "unproven", "requiredForCleanClaim": true },
+      "producesSecurityCandidates": true,
+      "mayCloseOwnCandidates": false,
+      "implementationState": "planned"
+    },
+    {
+      "id": "security.cicd-automation",
+      "version": "1",
+      "family": "cicd-automation",
+      "description": "CI/CD event, permission, secret, and release trust.",
+      "module": "providers/security/packs/cicd-automation.mjs",
+      "selector": { "op": "any", "selectors": [{ "op": "anyPath", "patterns": [".github/workflows/**", ".gitlab-ci.yml", "azure-pipelines.yml"] }] },
+      "modelRequirements": ["entrypoint", "identity", "sink"],
+      "denominatorKind": "workflow-files",
+      "benchmark": { "status": "unproven", "requiredForCleanClaim": true },
+      "producesSecurityCandidates": true,
+      "mayCloseOwnCandidates": false,
+      "implementationState": "implemented"
+    },
+    {
+      "id": "security.native-workspace",
+      "version": "1",
+      "family": "native-workspace",
+      "description": "Workspace config, plugin, tool, and process trust.",
+      "module": "providers/security/packs/native-workspace.mjs",
+      "selector": { "op": "any", "selectors": [{ "op": "sourceFilesAtLeast", "count": 1 }] },
+      "modelRequirements": ["entrypoint", "repository-artifact", "sink"],
+      "denominatorKind": "security-relevant-source-files",
+      "benchmark": { "status": "unproven", "requiredForCleanClaim": true },
+      "producesSecurityCandidates": true,
+      "mayCloseOwnCandidates": false,
+      "implementationState": "planned"
+    }
+  ]
+}
