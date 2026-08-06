@@ -1,0 +1,19 @@
+name: Nemesis Audit
+description: Evidence-governed repository audit
+inputs:
+  profile:
+    description: fast | standard | full | release
+    default: standard
+  baseline:
+    description: Optional baseline artifact path
+    required: false
+  upload-sarif:
+    description: Upload report.sarif
+    default: 'true'
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      run: npm install --global "${{ github.action_path }}"
+    - shell: bash
+      run: nemesis audit "$GITHUB_WORKSPACE" --profile "${{ inputs.profile }}" --out "$RUNNER_TEMP/nemesis"
