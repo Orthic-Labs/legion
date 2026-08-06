@@ -128,3 +128,26 @@ export function assertBinding(binding) {
   }
   return binding;
 }
+
+export function bindingFromPlan(plan) {
+  if (!plan?.seal?.digest) throw new Error('plan has no seal digest');
+  return assertBinding({
+    planDigest: plan.seal.digest,
+    repositoryRevision: plan.binding.repositoryRevision,
+    dirtyPatchDigest: plan.binding.dirtyPatchDigest,
+    cortexGenerationId: plan.binding.cortex.generationId,
+    cortexManifestDigest: plan.binding.cortex.manifestDigest,
+    registryDigest: plan.binding.registryDigest,
+  });
+}
+
+export function sameBinding(left, right) {
+  return JSON.stringify(canonicalize(left)) === JSON.stringify(canonicalize(right));
+}
+
+export function assertArtifactBinding(artifact, expectedBinding, label) {
+  assertBinding(artifact?.binding);
+  if (!sameBinding(artifact.binding, expectedBinding)) {
+    throw new Error(`${label} binding does not match the frozen audit plan`);
+  }
+}
