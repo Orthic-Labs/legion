@@ -1,0 +1,34 @@
+{
+  "schemaVersion": 1,
+  "kind": "nemesis-compliance-registry",
+  "controls": [
+    {
+      "id": "control.secret-management",
+      "catalog": "generic",
+      "description": "Secrets are not committed to the repository.",
+      "evidenceKinds": ["secret-scan", "credentials-pack"],
+      "absenceIsEvidence": false
+    },
+    {
+      "id": "control.dependency-vulnerability",
+      "catalog": "generic",
+      "description": "Dependencies are scanned for known vulnerabilities.",
+      "evidenceKinds": ["osv-scan", "dependency-scan"],
+      "absenceIsEvidence": false
+    },
+    {
+      "id": "control.authn-authz",
+      "catalog": "generic",
+      "description": "Authentication and authorization controls are present.",
+      "evidenceKinds": ["authorization-pack", "authentication-pack"],
+      "absenceIsEvidence": false
+    },
+    {
+      "id": "control.secure-build",
+      "catalog": "generic",
+      "description": "Build and release are protected.",
+      "evidenceKinds": ["cicd-pack", "supply-chain-pack"],
+      "absenceIsEvidence": false
+    }
+  ]
+}
