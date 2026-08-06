@@ -1,0 +1,11 @@
+{
+  "main": "dist/sea-entry.cjs",
+  "output": "dist/sea-preparation.blob",
+  "disableExperimentalSEAWarning": true,
+  "useCodeCache": false,
+  "useSnapshot": false,
+  "assets": {
+    "schemas.tar": "dist/assets/schemas.tar",
+    "registry.tar": "dist/assets/registry.tar"
+  }
+}
