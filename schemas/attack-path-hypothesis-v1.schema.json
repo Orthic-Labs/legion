@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://orthic.dev/schemas/attack-path-hypothesis-v1.json",
+  "title": "AttackPathHypothesisV1",
+  "type": "object",
+  "required": ["schemaVersion", "kind", "id", "provider", "providerVersion", "binding", "denominatorDigest", "status", "priority", "start", "objective", "steps", "joins", "terminalFacts", "controls", "unsupportedAssertions", "alternateExplanations", "synthesis"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "kind": { "const": "attack-path-hypothesis" },
+    "id": { "type": "string", "pattern": "^sha256:" },
+    "provider": { "const": "security.attack-path-synthesis" },
+    "providerVersion": { "type": "string" },
+    "binding": { "type": "object" },
+    "denominatorDigest": { "type": "string", "pattern": "^sha256:" },
+    "status": { "enum": ["PROPOSED", "PARTIALLY_SUPPORTED", "PROVEN", "REFUTED", "BLOCKED", "UNPROVEN"] },
+    "priority": { "enum": ["DIRECT_CROWN_JEWEL", "PRIVILEGE_ESCALATION", "CROSS_TENANT", "CREDENTIAL_PIVOT", "LATERAL_PIVOT", "CONTROL_BYPASS", "PERSISTENT_COMPROMISE", "DATA_EXFILTRATION", "INTEGRITY_DESTRUCTION", "AVAILABILITY_FAILURE", "PARTIAL_PATH"] },
+    "start": { "type": "object" },
+    "objective": { "type": "object" },
+    "steps": { "type": "array" },
+    "joins": { "type": "array" },
+    "terminalFacts": { "type": "array", "items": { "type": "string" } },
+    "controls": { "type": "object" },
+    "unsupportedAssertions": { "type": "array" },
+    "alternateExplanations": { "type": "array" },
+    "synthesis": {
+      "type": "object",
+      "required": ["maxHops", "maxBranching", "maxHypotheses", "truncated", "truncationReasons"],
+      "properties": {
+        "maxHops": { "type": "integer" },
+        "maxBranching": { "type": "integer" },
+        "maxHypotheses": { "type": "integer" },
+        "truncated": { "type": "boolean" },
+        "truncationReasons": { "type": "array", "items": { "type": "string" } }
+      }
+    }
+  },
+  "additionalProperties": true
+}
