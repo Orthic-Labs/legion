@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://orthic.dev/schemas/editor-diagnostic-v1.json",
+  "title": "EditorDiagnosticV1",
+  "type": "object",
+  "required": ["schemaVersion", "kind", "file", "line", "severity", "code", "message", "fingerprint"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "kind": { "const": "nemesis-editor-diagnostic" },
+    "file": { "type": ["string", "null"] },
+    "line": { "type": "integer", "minimum": 1 },
+    "column": { "type": "integer", "minimum": 0 },
+    "severity": { "enum": [1, 2, 3] },
+    "code": { "type": "string" },
+    "message": { "type": "string" },
+    "fingerprint": { "type": "string" },
+    "run": { "type": ["string", "null"] },
+    "codeActions": { "type": "array" }
+  },
+  "additionalProperties": true
+}
