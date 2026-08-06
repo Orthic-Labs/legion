@@ -252,6 +252,65 @@
       "producesSecurityCandidates": true,
       "mayCloseOwnCandidates": false,
       "implementationState": "implemented"
+    },
+    {
+      "id": "security.mobile",
+      "version": "1",
+      "family": "mobile",
+      "description": "Android/iOS/mobile framework manifests and source.",
+      "module": "providers/security/packs/mobile.mjs",
+      "selector": {
+        "op": "any",
+        "selectors": [
+          {
+            "op": "anyPath",
+            "patterns": [
+              "**/AndroidManifest.xml",
+              "**/*.swift",
+              "**/*.kt",
+              "**/Info.plist"
+            ]
+          }
+        ]
+      },
+      "modelRequirements": [
+        "repository-artifact"
+      ],
+      "denominatorKind": "security-relevant-source-files",
+      "benchmark": {
+        "status": "unproven",
+        "requiredForCleanClaim": true
+      },
+      "producesSecurityCandidates": true,
+      "mayCloseOwnCandidates": false,
+      "implementationState": "implemented"
+    },
+    {
+      "id": "security.repository-footprint",
+      "version": "1",
+      "family": "repository-footprint",
+      "description": "Repository contents and release artifacts.",
+      "module": "providers/security/packs/repository-footprint.mjs",
+      "selector": {
+        "op": "any",
+        "selectors": [
+          {
+            "op": "sourceFilesAtLeast",
+            "count": 1
+          }
+        ]
+      },
+      "modelRequirements": [
+        "repository-artifact"
+      ],
+      "denominatorKind": "repository-contents",
+      "benchmark": {
+        "status": "unproven",
+        "requiredForCleanClaim": true
+      },
+      "producesSecurityCandidates": true,
+      "mayCloseOwnCandidates": false,
+      "implementationState": "implemented"
     }
   ]
 }
