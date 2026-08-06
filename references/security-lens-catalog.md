@@ -12,4 +12,6 @@ Generated from `registry/security-lenses.json`.
 | security.credentials | credentials | implemented | unproven | required |
 | security.injection | injection | implemented | unproven | required |
 | security.insecure-defaults | insecure-defaults | planned | unproven | required |
+| security.mobile | mobile | implemented | unproven | required |
 | security.native-workspace | native-workspace | planned | unproven | required |
+| security.repository-footprint | repository-footprint | implemented | unproven | required |
