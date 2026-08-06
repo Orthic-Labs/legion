@@ -1,0 +1,50 @@
+{
+  "schemaVersion": 1,
+  "kind": "attack-objective-registry",
+  "objectives": [
+    {
+      "id": "objective.crown-jewel-access",
+      "priority": "DIRECT_CROWN_JEWEL",
+      "matches": {
+        "assetKinds": ["crown-jewel"],
+        "factKinds": ["data-access", "object-access", "code-execution", "principal-access"]
+      }
+    },
+    {
+      "id": "objective.privilege-escalation",
+      "priority": "PRIVILEGE_ESCALATION",
+      "matches": {
+        "factKind": "principal-access",
+        "scopePatterns": ["admin", "owner", "control-plane", "release", "signing"]
+      }
+    },
+    {
+      "id": "objective.cross-tenant",
+      "priority": "CROSS_TENANT",
+      "matches": {
+        "factKinds": ["data-access", "object-access"],
+        "scopePatterns": ["cross-tenant", "cross-workspace", "cross-project"]
+      }
+    },
+    {
+      "id": "objective.code-execution",
+      "priority": "PERSISTENT_COMPROMISE",
+      "matches": { "factKind": "code-execution" }
+    },
+    {
+      "id": "objective.data-exfiltration",
+      "priority": "DATA_EXFILTRATION",
+      "matches": { "factKind": "confidentiality-impact" }
+    },
+    {
+      "id": "objective.integrity-destruction",
+      "priority": "INTEGRITY_DESTRUCTION",
+      "matches": { "factKind": "integrity-impact" }
+    },
+    {
+      "id": "objective.availability",
+      "priority": "AVAILABILITY_FAILURE",
+      "matches": { "factKind": "availability-impact" }
+    }
+  ]
+}
