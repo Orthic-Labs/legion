@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://orthic.dev/schemas/change-passport-v1.json",
+  "title": "ChangePassportV1",
+  "type": "object",
+  "required": ["schemaVersion", "kind", "baseCommit", "patchDigest", "findingIds", "producer", "commands", "verificationArtifacts", "createdAt", "signature"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "kind": { "const": "nemesis-change-passport" },
+    "baseCommit": { "type": "string" },
+    "patchDigest": { "type": "string", "pattern": "^sha256:" },
+    "findingIds": { "type": "array", "items": { "type": "string" } },
+    "producer": { "type": "object" },
+    "commands": { "type": "array", "items": { "type": "string" } },
+    "verificationArtifacts": { "type": "array", "items": { "type": "string" } },
+    "createdAt": { "type": "string" },
+    "signature": {
+      "type": "object",
+      "required": ["algorithm", "keyId", "value"],
+      "properties": {
+        "algorithm": { "enum": ["HMAC-SHA256", "platform-attestation"] },
+        "keyId": { "type": "string" },
+        "value": { "type": "string" }
+      }
+    }
+  },
+  "additionalProperties": true
+}
