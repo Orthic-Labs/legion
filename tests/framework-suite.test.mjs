@@ -18,22 +18,24 @@ function plan(families) {
   return { coverageFamilies: Object.entries(families).map(([id, paths]) => ({ id, denominator: { paths } })) };
 }
 
-test('Electron dangerous preferences are blocking findings', () => {
+test('Electron dangerous preferences are blocking candidates', () => {
   const root = fixture({ 'src/main.ts': `new BrowserWindow({ webPreferences: { nodeIntegration: true, contextIsolation: false } })` });
   try {
     const result = runFrameworkSuite({ root, plan: plan({ 'framework.electron': ['src/main.ts'] }) })[0];
-    assert.equal(result.status, 'fail');
-    assert.deepEqual(result.findings.map((item) => item.ruleId).sort(), ['electron-context-isolation', 'electron-node-integration']);
+    assert.equal(result.status, 'candidates');
+    assert.equal(result.ownerProvider, 'framework.major-suite');
+    assert.deepEqual(result.candidates.map((item) => item.ruleId).sort(), ['electron-context-isolation', 'electron-node-integration']);
+    assert.deepEqual(result.findings, []);
   } finally { rmSync(root, { recursive: true, force: true }); }
 });
 
-test('Django debug and CSRF bypass are detected', () => {
+test('Django debug and CSRF bypass are detected as candidates', () => {
   const root = fixture({ 'app/settings.py': 'DEBUG = True\nALLOWED_HOSTS = ["*"]', 'app/views.py': '@csrf_exempt\ndef hook(request): pass' });
   try {
     const result = runFrameworkSuite({ root, plan: plan({ 'framework.django': ['app/settings.py', 'app/views.py'] }) })[0];
-    assert.equal(result.status, 'fail');
-    assert.ok(result.findings.some((item) => item.ruleId === 'django-debug'));
-    assert.ok(result.findings.some((item) => item.ruleId === 'django-csrf-exempt'));
+    assert.equal(result.status, 'candidates');
+    assert.ok(result.candidates.some((item) => item.ruleId === 'django-debug'));
+    assert.ok(result.candidates.some((item) => item.ruleId === 'django-csrf-exempt'));
   } finally { rmSync(root, { recursive: true, force: true }); }
 });
 
@@ -44,16 +46,17 @@ test('Next public secret and Angular trust bypass are detected', () => {
   });
   try {
     const results = runFrameworkSuite({ root, plan: plan({ 'framework.next': ['next.config.js'], 'framework.angular': ['src/component.ts'] }) });
-    assert.equal(results.find((item) => item.family === 'framework.next').status, 'fail');
-    assert.equal(results.find((item) => item.family === 'framework.angular').status, 'fail');
+    assert.equal(results.find((item) => item.family === 'framework.next').status, 'candidates');
+    assert.equal(results.find((item) => item.family === 'framework.angular').status, 'candidates');
   } finally { rmSync(root, { recursive: true, force: true }); }
 });
 
-test('benign framework fixture remains clean', () => {
+test('benign framework fixture emits no candidates', () => {
   const root = fixture({ 'src/app.py': 'from fastapi import FastAPI\napp = FastAPI()' });
   try {
     const result = runFrameworkSuite({ root, plan: plan({ 'framework.fastapi': ['src/app.py'] }) })[0];
     assert.equal(result.status, 'pass');
+    assert.equal(result.candidates.length, 0);
     assert.equal(result.findings.length, 0);
   } finally { rmSync(root, { recursive: true, force: true }); }
 });

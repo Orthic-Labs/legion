@@ -1,0 +1,34 @@
+{
+  "schemaVersion": 1,
+  "kind": "nemesis-profiles",
+  "profiles": {
+    "fast": {
+      "profile": "fast",
+      "providers": { "require": [], "disable": ["runtime.app", "visual.core"] },
+      "limits": { "providerTimeoutMs": 30000, "maxOutputBytes": 2097152, "maxConcurrency": 2 },
+      "policy": { "failOn": ["critical", "high"], "baseline": null, "acceptedRisk": null },
+      "outputs": ["json", "sarif"]
+    },
+    "standard": {
+      "profile": "standard",
+      "providers": { "require": [], "disable": [] },
+      "limits": { "providerTimeoutMs": 120000, "maxOutputBytes": 8388608, "maxConcurrency": 4 },
+      "policy": { "failOn": ["critical", "high"], "baseline": null, "acceptedRisk": null },
+      "outputs": ["json", "sarif", "markdown"]
+    },
+    "full": {
+      "profile": "full",
+      "providers": { "require": [], "disable": [] },
+      "limits": { "providerTimeoutMs": 300000, "maxOutputBytes": 16777216, "maxConcurrency": 8 },
+      "policy": { "failOn": ["critical", "high"], "baseline": null, "acceptedRisk": null },
+      "outputs": ["json", "sarif", "markdown"]
+    },
+    "release": {
+      "profile": "release",
+      "providers": { "require": [], "disable": [] },
+      "limits": { "providerTimeoutMs": 600000, "maxOutputBytes": 33554432, "maxConcurrency": 16 },
+      "policy": { "failOn": ["critical", "high", "medium"], "baseline": null, "acceptedRisk": null },
+      "outputs": ["json", "sarif", "markdown", "html"]
+    }
+  }
+}

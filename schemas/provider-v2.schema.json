@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://orthic.dev/schemas/provider-v2.json",
+  "title": "ProviderV2",
+  "type": "object",
+  "required": ["schemaVersion", "id", "providerVersion", "role", "phase", "dependsOn", "consumes", "produces", "activation", "runner", "benchmark"],
+  "properties": {
+    "schemaVersion": { "const": 2 },
+    "id": { "type": "string", "minLength": 1 },
+    "providerVersion": { "type": "string", "minLength": 1 },
+    "role": { "enum": ["deterministic", "model-builder", "candidate-generator", "hypothesis-generator", "adjudicator", "variant-analyzer", "evidence-synthesizer"] },
+    "phase": { "enum": ["facts", "model", "runtime", "hypothesis", "reasoning", "variants", "synthesis"] },
+    "dependsOn": { "type": "array", "items": { "type": "string" } },
+    "consumes": { "type": "array", "items": { "type": "string" } },
+    "produces": { "type": "array", "items": { "type": "string" } },
+    "activation": {
+      "type": "object",
+      "properties": {
+        "kind": { "enum": ["always", "candidates-present", "surviving-findings-present", "chain-eligible-paths-present"] }
+      }
+    },
+    "selector": { "type": "object" },
+    "denominatorKind": { "type": "string" },
+    "runner": { "type": "object" },
+    "hostCapabilities": { "type": "array", "items": { "type": "string" } },
+    "benchmark": {
+      "type": "object",
+      "properties": {
+        "status": { "enum": ["unproven", "implemented", "measured"] },
+        "requiredForCleanClaim": { "type": "boolean" },
+        "qualificationDigest": { "type": ["string", "null"] }
+      }
+    },
+    "producesSecurityCandidates": { "type": "boolean" },
+    "mayCloseOwnCandidates": { "type": "boolean" }
+  },
+  "additionalProperties": true
+}

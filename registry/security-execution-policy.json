@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 1,
+  "maxTextFileBytes": 2097152,
+  "maxCandidatePacketBytes": 16384,
+  "maxChainPacketBytes": 65536,
+  "maxExcerptBytes": 4096,
+  "maxAttackPathHops": 6,
+  "maxAttackPathBranching": 12,
+  "maxAttackPathHypotheses": 100,
+  "maxPathsPerObjective": 20,
+  "maxCandidatesPerPack": 10000
+}

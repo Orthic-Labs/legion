@@ -77,3 +77,51 @@ test('unclosed adjudication is never clean', () => {
   assert.equal(report.audit_status, 'incomplete');
   assert.equal(report.gates.security_adjudication, 'unproven');
 });
+
+test('candidate provider emitting findings is a contract violation', () => {
+  const report = finalizeAudit({
+    facts: facts({
+      plan: {
+        binding: { repositoryRevision: 'abc' }, coverageGaps: [],
+        providers: [
+          { id: 'data.internal-suite', producesSecurityCandidates: true },
+          { id: 'visual.core', producesSecurityCandidates: false },
+        ],
+      },
+      provider_reconciliation: {
+        valid: true, missingChecks: [], unplannedChecks: [], unresolvedCoverage: [],
+        missingRuntimeProviders: [], denominatorMismatches: [],
+        providerResults: [
+          { provider: 'data.internal-suite', findings: [{ id: 'd1', ruleId: 'data.sql', message: 'SQL' }], status: 'candidates', complete: true },
+          { provider: 'visual.core', findings: [{ id: 'v1', ruleId: 'visual.diff', message: 'diff' }], status: 'pass', complete: true },
+        ],
+      },
+    }),
+    candidates: emptyCandidates,
+    adjudication: completeAdjudication,
+  });
+  assert.ok(report.coverage_gaps.some((gap) => gap.kind === 'candidate-provider-contract-violation'));
+  // The non-candidate provider's finding is still a provider finding.
+  assert.ok(report.findings.some((finding) => finding.id === 'v1'));
+  // The candidate provider's findings are never promoted into report findings.
+  assert.ok(!report.findings.some((finding) => finding.id === 'd1'));
+});
+
+test('candidate provider findings are never materialized as findings', () => {
+  const report = finalizeAudit({
+    facts: facts({
+      plan: {
+        binding: { repositoryRevision: 'abc' }, coverageGaps: [],
+        providers: [{ id: 'security.credentials', producesSecurityCandidates: true }],
+      },
+      provider_reconciliation: {
+        valid: true, missingChecks: [], unplannedChecks: [], unresolvedCoverage: [],
+        missingRuntimeProviders: [], denominatorMismatches: [],
+        providerResults: [{ provider: 'security.credentials', findings: [], candidates: [{ id: 'c1' }], status: 'candidates', complete: true }],
+      },
+    }),
+    candidates: { candidates: [{ id: 'c1', provider: 'security.credentials' }] },
+    adjudication: completeAdjudication,
+  });
+  assert.ok(!report.findings.some((finding) => finding.id === 'c1'));
+});

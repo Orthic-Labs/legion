@@ -10,7 +10,11 @@ import { fileURLToPath } from 'node:url';
 import { tmpdir } from 'node:os';
 import { collectRepositoryBinding, readCortexManifestBinding, readCortexProjection } from './adapters/cortex-projection.mjs';
 import { buildAuditPlan, verifyPlanBinding, verifyPlanSeal } from './audit-plan.mjs';
-import { canonicalJson, loadProviderRegistry } from './registry/provider-registry.mjs';
+import { canonicalJson, loadProviderRegistry, sha256 } from './registry/provider-registry.mjs';
+import {
+  verificationDigest,
+  verificationProjection,
+} from './lib/verification-projection.mjs';
 
 const PROJECT_EXECUTION_CHECKS = new Set(['types', 'lint', 'build', 'dead_code', 'duplication', 'ci_lint', 'docker', 'sast', 'swift_lint', 'js_licenses', 'cargo_unsafe', 'cargo_unused_deps']);
 const args = process.argv.slice(2);
@@ -134,6 +138,7 @@ if (unprovenChecks.length) {
   console.log(`UNPROVEN  verifier cannot replay: ${unprovenChecks.join(',')} (build excluded by design; ${blockedChecks.length ? 'project-executing checks require network sandbox' : 'no sandbox blocks'})`);
   drift += unprovenChecks.length;
 }
+let fresh = null;
 if (checks.length) {
   // Scope replay: pass the sealed plan's scope options
   const scope = priorPlan.scope ?? {};
@@ -145,7 +150,7 @@ if (checks.length) {
 
   console.log(`\nReplaying ${checks.length} deterministic checks on ${prior.workspace} (offline policy active; scope=${scope.mode ?? 'whole-repo'}) ...\n`);
   execFileSync(process.execPath, [collect, prior.workspace, '--only', checks.join(','), '--out', out, ...scopeArgs], { stdio: 'inherit', env: offlineEnv });
-  const fresh = JSON.parse(readFileSync(join(out, 'facts.json'), 'utf8'));
+  fresh = JSON.parse(readFileSync(join(out, 'facts.json'), 'utf8'));
   const index = (facts) => Object.fromEntries((facts.checks ?? []).map((check) => [check.check, check]));
   const before = index(prior);
   const after = index(fresh);
@@ -162,7 +167,8 @@ if (checks.length) {
     }
   }
 
-  // Result digest comparison
+  // Semantic projection digest for the replayed checks (non-gating here; the
+  // full projection gate runs below after fresh facts are known).
   const normalizeChecks = (checks) => checks.map((c) => ({ check: c.check, status: c.status, findings_count: c.findings_count })).sort((a, b) => a.check.localeCompare(b.check));
   const priorResultDigest = sha256(canonicalJson(normalizeChecks(prior.checks ?? [])));
   const freshResultDigest = sha256(canonicalJson(normalizeChecks(fresh.checks ?? [])));
@@ -172,6 +178,11 @@ if (checks.length) {
   } else {
     console.log(`MATCH  result digest ${priorResultDigest}`);
   }
+} else {
+  // No checks replayed (all unproven or none planned): classify as unreplayable
+  // rather than merged into content drift. The semantic projection below still
+  // gates the frozen experiment's stable evidence (fresh stays null).
+  console.log('UNPROVEN  no deterministic checks were replayed (all planned checks are unreplayable under the current sandbox/scope contract)');
 }
 
 console.log(drift
@@ -192,15 +203,45 @@ for (const provider of recomputed.denominator.providerIds ?? []) {
 }
 console.log(`MATCH  provider result digest coverage: ${priorProviderResults.length} providers recorded`);
 
-// Artifact hash comparison: facts.json
+// Semantic projection comparison: compare the canonical verification projection
+// digest, not the complete facts.json byte stream. Output directory, log path,
+// timestamp, and temporary-path changes must not create semantic drift.
+// When no checks were replayed (fresh is null), only the prior projection is
+// reported and the run remains unproven rather than falsely matched.
+const priorProjection = verificationProjection(prior);
+const priorSemanticDigest = verificationDigest(prior);
+console.log('\n--- semantic verification projection ---');
+if (fresh === null) {
+  console.log(`UNPROVEN  semantic projection prior=${priorSemanticDigest} (no fresh replay available; run remains unproven)`);
+} else {
+  const freshProjection = verificationProjection(fresh);
+  const freshSemanticDigest = verificationDigest(fresh);
+  if (priorSemanticDigest !== freshSemanticDigest) {
+    drift += 1;
+    console.log(`DRIFT  semantic projection: expected=${priorSemanticDigest} observed=${freshSemanticDigest}`);
+    const keys = new Set([...Object.keys(priorProjection), ...Object.keys(freshProjection)]);
+    for (const key of [...keys].sort()) {
+      const left = canonicalJson(priorProjection[key]);
+      const right = canonicalJson(freshProjection[key]);
+      if (left !== right) console.log(`DRIFT  projection.${key} differs`);
+    }
+  } else {
+    console.log(`MATCH  semantic projection ${priorSemanticDigest}`);
+  }
+}
+
+// Raw artifact hashes are non-gating evidence only. They can legitimately differ
+// when rerun-specific paths/metadata change; they must never by themselves mark
+// a semantically stable frozen experiment as drifted.
 const priorFactsPath = resolve(factsPath);
 const priorFactsHash = sha256(readFileSync(priorFactsPath, 'utf8'));
 const freshFactsPath = join(out, 'facts.json');
-const freshFactsHash = sha256(readFileSync(freshFactsPath, 'utf8'));
-console.log('\n--- artifact digests ---');
-if (priorFactsHash !== freshFactsHash) {
-  drift += 1;
-  console.log(`DRIFT  facts.json: expected=${priorFactsHash} observed=${freshFactsHash}`);
+const freshFactsHash = fresh === null ? null : sha256(readFileSync(freshFactsPath, 'utf8'));
+console.log('\n--- artifact digests (non-gating evidence) ---');
+if (freshFactsHash === null) {
+  console.log(`INFO   facts.json: expected=${priorFactsHash} observed=<none> (no replay; non-gating)`);
+} else if (priorFactsHash !== freshFactsHash) {
+  console.log(`INFO   facts.json: expected=${priorFactsHash} observed=${freshFactsHash} (non-gating; semantic projection is the gate)`);
 } else {
   console.log(`MATCH  facts.json ${priorFactsHash}`);
 }

@@ -27,11 +27,10 @@ test('framework, security, and visual providers are frozen before execution with
   const ids = new Set(registry.providers.map((provider) => provider.id));
   assert.ok(ids.has('native.family-suite'));
   assert.ok(ids.has('framework.major-suite'));
+  // Security pack providers migrate to the lens registry (appendix §15.3):
+  // the runtime registry keeps no duplicate security pack records.
   for (const id of ['security.credentials', 'security.insecure-defaults', 'security.misuse-resistance', 'security.agentic-ci', 'security.agent-skill-mcp']) {
-    assert.ok(ids.has(id), id);
-    const provider = registry.providers.find((item) => item.id === id);
-    assert.equal(provider.benchmark.status, 'unproven');
-    assert.equal(provider.mayCloseOwnCandidates, false);
+    assert.ok(!ids.has(id), `${id} must live in the security lens registry, not the runtime registry`);
   }
   assert.ok(ids.has('visual.core'));
   const go = registry.coverageFamilies.find((family) => family.id === 'language.go');

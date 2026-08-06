@@ -1,0 +1,8 @@
+{
+  "kind": "repository-audit-report",
+  "audit_status": "fail",
+  "findings": [
+    { "id": "f1", "ruleId": "credentials.format", "severity": "high", "title": "Credential in repo", "detail": "AKIA key in env.ts" }
+  ],
+  "coverage_gaps": []
+}

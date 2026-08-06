@@ -10,7 +10,6 @@ import { tmpdir } from 'node:os';
 import { pathToFileURL } from 'node:url';
 
 const AUDIT_ROOT = new URL('../', import.meta.url).pathname;
-const WORKSPACE_ROOT = new URL('../../../../', import.meta.url).pathname;
 let passed = 0;
 let failed = 0;
 
@@ -44,7 +43,7 @@ function test_security_routing() {
       ],
       missingChecks: [], unplannedChecks: [], denominatorMismatches: [], unresolvedCoverage: [], missingRuntimeProviders: [],
     },
-    plan: { coverageGaps: [] },
+    plan: { coverageGaps: [], providers: [{ id: 'security.credentials', producesSecurityCandidates: true }] },
     network_policy: { mode: 'deny' },
     plan_binding_verification: { valid: true },
   };
@@ -222,14 +221,18 @@ function test_supplemental_tier() {
   pass('supplemental tier: missing scanners are flagged, not silently clean');
 }
 
-// --- Case 11: CI gates — workflow runs on main ---
+// --- Case 11: CI gates — standalone workflow runs on main ---
 function test_ci_gates() {
-  const workflow = readFileSync(join(WORKSPACE_ROOT, '.github', 'workflows', 'audit-provider-tests.yml'), 'utf8');
-  assert(workflow.includes('- main'), 'workflow triggers on pushes to main');
+  // The public checkout must be independently reproducible: the CI workflow must
+  // live in this repository (never a parent workspace path).
+  const workflow = readFileSync(join(AUDIT_ROOT, '.github', 'workflows', 'ci.yml'), 'utf8');
+  assert(workflow.includes('[main]') || workflow.includes('- main'), 'workflow triggers on pushes to main');
   assert(workflow.includes('windows-latest'), 'workflow includes windows-latest');
-  assert(workflow.includes('audit-conformance'), 'conformance suite job exists');
-  assert(workflow.includes('audit-provider-schema'), 'provider schema job exists');
-  pass('CI gates: workflow runs on main with windows and conformance suite');
+  assert(workflow.includes('run-audit-conformance-tests.mjs'), 'conformance suite job exists');
+  assert(workflow.includes('generate-schemas.mjs --check'), 'provider schema job exists');
+  assert(workflow.includes('bench/run-bench.mjs'), 'benchmark smoke runs');
+  assert(workflow.includes('verifier-e2e'), 'verifier end-to-end job exists');
+  pass('CI gates: standalone workflow runs on main with windows, conformance, and verifier');
 }
 
 // --- Dynamic import helper ---
@@ -295,7 +298,8 @@ function test_security_routing_real(mod) {
       ],
       missingChecks: [], unplannedChecks: [], denominatorMismatches: [], unresolvedCoverage: [], missingRuntimeProviders: [],
     },
-    plan: { coverageGaps: [] },
+    // Candidate authority comes from the frozen plan record.
+    plan: { coverageGaps: [], providers: [{ id: 'security.credentials', producesSecurityCandidates: true }] },
     network_policy: { mode: 'deny' },
     plan_binding_verification: { valid: true },
   };

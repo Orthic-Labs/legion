@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://orthic.dev/schemas/security-binding-v1.json",
+  "title": "SecurityBindingV1",
+  "type": "object",
+  "required": [
+    "planDigest",
+    "repositoryRevision",
+    "dirtyPatchDigest",
+    "cortexGenerationId",
+    "cortexManifestDigest",
+    "registryDigest"
+  ],
+  "properties": {
+    "planDigest": {
+      "type": "string",
+      "pattern": "^sha256:"
+    },
+    "repositoryRevision": {
+      "type": "string",
+      "minLength": 1
+    },
+    "dirtyPatchDigest": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "string",
+          "pattern": "^sha256:"
+        }
+      ]
+    },
+    "cortexGenerationId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "cortexManifestDigest": {
+      "type": "string",
+      "pattern": "^sha256:"
+    },
+    "registryDigest": {
+      "type": "string",
+      "pattern": "^sha256:"
+    }
+  },
+  "additionalProperties": false
+}

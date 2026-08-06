@@ -1,0 +1,13 @@
+# Linux release channels per PR43. tar.gz archives first; Homebrew/Linuxbrew
+# and demand-led deb/rpm later.
+
+channels:
+  archive:
+    format: tar.gz
+    targets: [x64, arm64]
+    contents:
+      - dist/nemesis
+      - dist/SHA256SUMS
+      - dist/*.sbom.json
+    notes:
+      - "x64/arm64 artifacts pass install/uninstall and offline audit smoke tests."

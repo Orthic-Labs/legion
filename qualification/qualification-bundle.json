@@ -1,0 +1,63 @@
+{
+  "schemaVersion": 1,
+  "kind": "nemesis-release-qualification",
+  "sourceCommit": "ffbb58fcff39a609614432e025fc93fe245e1248",
+  "dispatchDigest": null,
+  "package": {},
+  "nativeArtifacts": [],
+  "signatures": [],
+  "attestations": [],
+  "testRuns": [
+    {
+      "name": "unit-tests",
+      "command": "/Users/adrdsouza/.local/node-v26.5.1-darwin-arm64/bin/node --test --test-concurrency=1 tests/*.test.mjs",
+      "exitCode": 1,
+      "outputDigest": "sha256:81a1f445e9c6f03eac28d83cbcd3a1fe0d4f7ef6648a8e8c6330f318242f5e8b"
+    },
+    {
+      "name": "conformance",
+      "command": "/Users/adrdsouza/.local/node-v26.5.1-darwin-arm64/bin/node tests/run-audit-conformance-tests.mjs",
+      "exitCode": 0,
+      "outputDigest": "sha256:fd83c3d5dea6766e28a9e2591958b140389bf6cb0789d12ac4162ffa2682c53c"
+    },
+    {
+      "name": "security-bench",
+      "command": "/Users/adrdsouza/.local/node-v26.5.1-darwin-arm64/bin/node bench/security/run.mjs",
+      "exitCode": 0,
+      "outputDigest": "sha256:1c47bf5b6bce21c5390daf47f92cf428c7fe2ba6091d159da30ac1607f350879"
+    },
+    {
+      "name": "bench",
+      "command": "/Users/adrdsouza/.local/node-v26.5.1-darwin-arm64/bin/node bench/run-bench.mjs",
+      "exitCode": 0,
+      "outputDigest": "sha256:62e048fe4a6ec7b5f50ec2bb744276e46e46b80688f950daa3295d2eff0d3703"
+    }
+  ],
+  "benchmarks": [
+    {
+      "name": "bench",
+      "ok": true
+    },
+    {
+      "name": "security",
+      "ok": true
+    }
+  ],
+  "coverageRegistryDigest": "sha256:ff2985ceff43b4d057f72c0fa5489576c42b4e37c40c8e86869cfbd4e35c8837",
+  "securityQualificationDigest": null,
+  "knownGaps": [
+    {
+      "kind": "unit-tests-failed"
+    },
+    {
+      "kind": "publication-policy-closed"
+    }
+  ],
+  "publicationPolicy": {
+    "schemaVersion": 1,
+    "kind": "nemesis-publication-policy",
+    "channels": {},
+    "absent": true
+  },
+  "decision": "BLOCKED"
+}

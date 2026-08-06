@@ -5,18 +5,28 @@ import { join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
 function read(root, path) { try { return readFileSync(join(root, path), 'utf8'); } catch { return ''; } }
-function finding(ruleId, level, message, file, line = 1) { return { id: `sha256:${createHash('sha256').update(`${ruleId}\0${file}\0${line}`).digest('hex')}`, ruleId, level, message, file, line }; }
+function candidate(ruleId, level, message, file, line = 1) {
+  return {
+    id: `sha256:${createHash('sha256').update(`${ruleId}\0${file}\0${line}`).digest('hex')}`,
+    ruleId, severityHint: severityHint(level), claim: message, file, line,
+  };
+}
+function severityHint(level) {
+  if (level === 'critical' || level === 'error' || level === 'high') return 'high';
+  if (level === 'warning') return 'medium';
+  return 'low';
+}
 function lineOf(text, pattern) { const match = pattern.exec(text); pattern.lastIndex = 0; return match ? text.slice(0, match.index).split('\n').length : 1; }
 function scan(root, files, rules) {
-  const findings = [];
+  const candidates = [];
   for (const file of files) {
     const text = read(root, file);
     for (const rule of rules) {
       rule.pattern.lastIndex = 0;
-      if (rule.pattern.test(text)) findings.push(finding(rule.id, rule.level, rule.message, file, lineOf(text, rule.pattern)));
+      if (rule.pattern.test(text)) candidates.push(candidate(rule.id, rule.level, rule.message, file, lineOf(text, rule.pattern)));
     }
   }
-  return findings;
+  return candidates;
 }
 
 const SPECS = Object.freeze({
@@ -118,16 +128,20 @@ export function runFrameworkSuite({ root, plan }) {
   for (const [family, rules] of Object.entries(SPECS)) {
     const files = familyFiles(plan, family);
     if (!files.length) continue;
-    const findings = scan(root, files, rules);
+    const candidates = scan(root, files, rules);
     results.push({
+      schemaVersion: 1,
       provider: `framework.${family}`,
+      providerVersion: '1.0.0',
+      ownerProvider: 'framework.major-suite',
       family,
       applicable: true,
       required: true,
-      status: findings.some((item) => item.level === 'error' || item.level === 'high') ? 'fail' : 'pass',
+      role: 'candidate-generator',
+      status: candidates.length ? 'candidates' : 'pass',
       complete: true,
       coverage: { pathCount: files.length, paths: files, rules: rules.length },
-      receipts: [], findings, coverageGaps: [], degradation: [],
+      receipts: [], candidates, findings: [], coverageGaps: [], degradation: [],
     });
   }
   return results;

@@ -1,0 +1,110 @@
+{
+  "kind": "audit-facts",
+  "workspace": "/tmp/nemesis-verify-fixture",
+  "out_dir": "/tmp/nemesis-verify-fixture/.audit/20260806T000000Z",
+  "generated_at": "2026-08-06T00:00:00.000Z",
+  "stack": { "node": true, "ts": true, "py": false, "rust": false, "swift": false, "tauri": false, "pkgMgr": "npm", "git": true },
+  "concurrency": 4,
+  "incomplete": false,
+  "secrets_unscanned": false,
+  "manifest_drift": null,
+  "scope": { "mode": "whole-repo", "type": "all" },
+  "detectionOwner": "cortex",
+  "detectionDisagreement": [],
+  "network_policy": { "mode": "deny", "sandboxActive": false },
+  "checks": [
+    {
+      "check": "secrets",
+      "status": "ran",
+      "exit_code": 0,
+      "findings_count": 1,
+      "tool": "gitleaks",
+      "toolVersion": "8.18.0",
+      "verdict": "pass",
+      "findings": [
+        {
+          "id": "finding-secret-001",
+          "ruleId": "secret-format",
+          "severity": "high",
+          "verdict": "TRUE_POSITIVE",
+          "file": "src/config.example.ts",
+          "line": 12,
+          "evidenceDigest": "sha256:1111111111111111111111111111111111111111111111111111111111111111"
+        }
+      ]
+    },
+    {
+      "check": "types",
+      "status": "ran",
+      "exit_code": 0,
+      "findings_count": 0,
+      "tool": "tsc",
+      "toolVersion": "5.5.0",
+      "verdict": "pass",
+      "findings": []
+    }
+  ],
+  "provider_reconciliation": {
+    "providerResults": [
+      {
+        "provider": "security.credentials",
+        "providerVersion": "1",
+        "status": "candidates",
+        "complete": true,
+        "applicable": true,
+        "required": true,
+        "coverage": { "denominatorDigest": "sha256:2222222222222222222222222222222222222222222222222222222222222222" },
+        "toolVersion": "1",
+        "findings": [],
+        "candidates": [
+          { "id": "candidate-cred-001", "ruleId": "credentials.format", "provider": "security.credentials", "verdict": "UNADJUDICATED", "evidenceRefs": ["sha256:3333333333333333333333333333333333333333333333333333333333333333"] }
+        ],
+        "coverageGaps": []
+      },
+      {
+        "provider": "language.typescript",
+        "providerVersion": "1",
+        "status": "pass",
+        "complete": true,
+        "applicable": true,
+        "required": true,
+        "coverage": { "denominatorDigest": "sha256:4444444444444444444444444444444444444444444444444444444444444444" },
+        "toolVersion": "5.5.0",
+        "findings": [],
+        "candidates": [],
+        "coverageGaps": []
+      }
+    ],
+    "coverageFamilies": { "security": "candidates" },
+    "unresolvedCoverage": [],
+    "missingRuntimeProviders": [],
+    "denominatorMismatches": []
+  },
+  "plan": {
+    "schemaVersion": 1,
+    "kind": "audit-provider-plan",
+    "seal": { "algorithm": "sha256", "digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "authenticity": "hmac-sha256", "signature": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "keyId": "local-key" },
+    "binding": {
+      "repositoryRevision": "4e82122e713341f9a27545207a00ba45645d8e8f",
+      "dirty": false,
+      "dirtyPatchDigest": null,
+      "cortex": { "state": "ready", "generationId": "generation-verify-001", "manifestDigest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", "sourceStatusDigest": null, "sourceHead": null },
+      "registryDigest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+    },
+    "denominator": {
+      "discoveryOwner": "cortex",
+      "firstPartyFileCount": 10,
+      "sourceFileCount": 8,
+      "fileSetDigest": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+      "parsedExtensions": ["ts", "js"],
+      "unsupportedExtensions": [],
+      "providerIds": ["language.typescript", "security.credentials"],
+      "expectedChecks": ["secrets", "types"]
+    },
+    "providers": [],
+    "excludedProviders": [],
+    "coverageFamilies": {},
+    "coverageGaps": [],
+    "qualification": { "state": "ready", "discovery": "ready", "providerCoverageComplete": true, "precisionMeasured": false, "planSigned": true }
+  }
+}

@@ -3,13 +3,16 @@
  * normalize-provider-result.mjs — Validates and normalizes a provider result
  * against the provider-result-v1 schema. Every provider result must pass through
  * this boundary before reaching facts or finalization.
+ *
+ * The status enum is imported from registry/provider-contracts.mjs — the single
+ * source of truth shared with the generated provider-result-v1.schema.json — so
+ * the runtime validator and the JSON schema accept exactly the same values.
  */
 
+import { PROVIDER_STATUS } from '../registry/provider-contracts.mjs';
+
 const REQUIRED_FIELDS = ['schemaVersion', 'provider', 'status', 'complete'];
-const STATUS_ENUM = new Set([
-  'pass', 'fail', 'unproven', 'error', 'skipped', 'missing',
-  'candidates', 'partial', 'blocked',
-]);
+const STATUS_ENUM = new Set(PROVIDER_STATUS);
 
 export class ProviderResultValidationError extends Error {
   constructor(field, detail) {
@@ -33,7 +36,7 @@ export function validateProviderResult(result) {
     throw new ProviderResultValidationError('provider', 'must be a non-empty string');
   }
   if (!STATUS_ENUM.has(result.status)) {
-    throw new ProviderResultValidationError('status', `invalid status ${JSON.stringify(result.status)}; expected one of ${[...STATUS_ENUM].join(', ')}`);
+    throw new ProviderResultValidationError('status', `invalid status ${JSON.stringify(result.status)}; expected one of ${PROVIDER_STATUS.join(', ')}`);
   }
   if (typeof result.complete !== 'boolean') {
     throw new ProviderResultValidationError('complete', 'must be a boolean');
@@ -41,14 +44,25 @@ export function validateProviderResult(result) {
   if (result.schemaVersion !== 1) {
     throw new ProviderResultValidationError('schemaVersion', `expected 1, got ${result.schemaVersion}`);
   }
-  if (result.candidates && !Array.isArray(result.candidates)) {
-    throw new ProviderResultValidationError('candidates', 'must be an array if present');
+  // Normalized arrays must be arrays, never null.
+  for (const field of ['commands', 'receipts', 'inventory', 'candidates', 'findings', 'coverageGaps', 'artifacts', 'degradation', 'inputArtifacts']) {
+    if (result[field] === null) {
+      throw new ProviderResultValidationError(field, 'must be an array, never null');
+    }
+    if (result[field] !== undefined && !Array.isArray(result[field])) {
+      throw new ProviderResultValidationError(field, 'must be an array when present');
+    }
   }
-  if (result.findings && !Array.isArray(result.findings)) {
-    throw new ProviderResultValidationError('findings', 'must be an array if present');
-  }
-  if (result.coverageGaps && !Array.isArray(result.coverageGaps)) {
-    throw new ProviderResultValidationError('coverageGaps', 'must be an array if present');
+  if (result.artifacts) {
+    for (const artifact of result.artifacts) {
+      if (!artifact || typeof artifact !== 'object'
+          || !artifact.kind || !artifact.path || !artifact.digest) {
+        throw new ProviderResultValidationError('artifacts', 'each artifact requires kind, path, and digest');
+      }
+      if (typeof artifact.digest !== 'string' || !artifact.digest.startsWith('sha256:')) {
+        throw new ProviderResultValidationError('artifacts.digest', 'must be a sha256: prefixed string');
+      }
+    }
   }
   return true;
 }
@@ -63,12 +77,19 @@ export function normalizeProviderResult(planContract, rawOutput) {
     complete: rawOutput?.complete ?? false,
     coverage: {
       ...(rawOutput?.coverage ?? {}),
-      denominatorDigest: planContract?.denominator?.pathDigest ?? null,
+      denominatorDigest:
+        rawOutput?.coverage?.denominatorDigest
+        ?? planContract?.denominator?.pathDigest
+        ?? 'sha256:unbound',
     },
+    commands: rawOutput?.commands ?? [],
+    receipts: rawOutput?.receipts ?? [],
+    inventory: rawOutput?.inventory ?? [],
     candidates: rawOutput?.candidates ?? [],
     findings: rawOutput?.findings ?? [],
     coverageGaps: rawOutput?.coverageGaps ?? [],
-    degradation: rawOutput?.degradation ?? null,
+    artifacts: rawOutput?.artifacts ?? [],
+    degradation: rawOutput?.degradation ?? [],
   };
   validateProviderResult(normalized);
   return normalized;
@@ -84,6 +105,7 @@ if (process.argv[1] && process.argv[1].endsWith('normalize-provider-result.mjs')
   console.assert(testResult.status === 'pass', 'status preserved');
   console.assert(testResult.coverage.denominatorDigest === 'sha256:test', 'digest bound');
   console.assert(testResult.required === true, 'required from contract');
+  console.assert(Array.isArray(testResult.degradation), 'degradation normalized to array');
 
   try {
     validateProviderResult({ schemaVersion: 1, provider: 'x', status: 'invalid-status', complete: true });
@@ -91,6 +113,14 @@ if (process.argv[1] && process.argv[1].endsWith('normalize-provider-result.mjs')
     process.exit(1);
   } catch (e) {
     console.assert(e.field === 'status', 'rejected invalid status');
+  }
+
+  try {
+    validateProviderResult({ schemaVersion: 1, provider: 'x', status: 'pass', complete: true, findings: null });
+    console.error('FAIL: should have rejected null findings');
+    process.exit(1);
+  } catch (e) {
+    console.assert(e.field === 'findings', 'rejected null findings array');
   }
 
   console.log('OK: normalize-provider-result.mjs self-test passed');

@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://orthic.dev/schemas/imported-sarif-v1.json",
+  "title": "ImportedSarifV1",
+  "type": "object",
+  "required": ["schemaVersion", "kind", "provider", "providerVersion", "sourceArtifact", "repositoryBinding", "tool", "capabilities", "complete"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "kind": { "const": "nemesis-imported-sarif" },
+    "provider": { "type": "string" },
+    "providerVersion": { "type": "string" },
+    "sourceArtifact": {
+      "type": "object",
+      "required": ["path", "digest"],
+      "properties": {
+        "path": { "type": "string" },
+        "digest": { "type": "string", "pattern": "^sha256:" }
+      }
+    },
+    "repositoryBinding": {
+      "type": "object",
+      "required": ["repositoryRevision"],
+      "properties": { "repositoryRevision": { "type": "string" } }
+    },
+    "tool": { "type": "object" },
+    "capabilities": { "type": "object" },
+    "complete": { "type": "boolean" },
+    "coverageGaps": { "type": "array" }
+  },
+  "additionalProperties": true
+}
