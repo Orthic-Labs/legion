@@ -2,6 +2,20 @@
 
 All notable changes to Nemesis are recorded here.
 
+## [0.1.0-dev.0] — PR44 (full qualification)
+
+- Added the full qualification runner (`scripts/qualify-release.mjs`) producing
+  a versioned qualification bundle with an honest RELEASE/BLOCKED/
+  INTERNAL_ONLY decision.
+- Added the signed/notarized/attested release pipeline outlines for macOS,
+  Windows, Linux, Homebrew, and winget channels; every channel is gated by the
+  publication policy guard.
+- Completed the end-to-end security lifecycle: model → candidates → attack
+  paths → independent adjudication → variants → evidence synthesis → report.
+- Qualification at PR44 reports `BLOCKED`: one preserved baseline test
+  (`tests/provider-architecture.test.mjs` binding verification) plus the
+  closed publication policy. No false-clean claim is possible.
+
 ## [0.1.0-dev.0] — PR05
 
 - Added canonical `@orthic-labs/nemesis` package manifest with `nemesis` binary.
