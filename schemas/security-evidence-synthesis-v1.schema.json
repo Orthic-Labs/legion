@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://orthic.dev/schemas/security-evidence-synthesis-v1.json",
+  "title": "SecurityEvidenceSynthesisV1",
+  "type": "object",
+  "required": ["schemaVersion", "kind", "provider", "providerVersion", "binding", "complete", "findings", "attackPaths", "systemicRootCauses", "controls", "hypotheses", "coverage", "coverageGaps"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "kind": { "const": "security-evidence-synthesis" },
+    "provider": { "const": "security.evidence-synthesis" },
+    "providerVersion": { "type": "string" },
+    "binding": { "type": "object" },
+    "complete": { "type": "boolean" },
+    "findings": { "type": "array" },
+    "attackPaths": { "type": "array" },
+    "systemicRootCauses": { "type": "array" },
+    "controls": { "type": "array" },
+    "hypotheses": { "type": "object" },
+    "coverage": { "type": "object" },
+    "coverageGaps": { "type": "array" }
+  },
+  "additionalProperties": true
+}

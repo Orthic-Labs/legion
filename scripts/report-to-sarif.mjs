@@ -32,6 +32,8 @@ function locationFor(finding) {
 
 export function reportToSarif(report) {
   const findings = report?.findings ?? [];
+  const security = report?.security ?? {};
+  const attackPaths = security?.attackPaths?.proven ?? [];
   const rules = new Map();
   const results = findings.map((finding) => {
     const ruleId = String(finding.ruleId ?? finding.category ?? finding.subtype ?? 'audit-finding');
@@ -44,6 +46,22 @@ export function reportToSarif(report) {
         properties: { category: finding.category ?? null },
       });
     }
+    const properties = {
+      severity: finding.severity ?? null,
+      evidenceStrength: finding.evidence_strength ?? finding.evidenceStrength ?? null,
+      judgment: finding.judgment ?? null,
+      status: finding.status ?? null,
+      tier: finding.tier ?? null,
+      evidence: finding.evidence ?? null,
+      action: finding.action ?? null,
+      sources: finding.sources ?? [],
+    };
+    if (finding.candidateId) properties.candidateId = finding.candidateId;
+    if (finding.rootCauseDigest || finding.rootCauseSignature) {
+      properties.rootCauseDigest = finding.rootCauseDigest ?? finding.rootCauseSignature;
+    }
+    if (finding.variantReceiptId) properties.variantReceiptId = finding.variantReceiptId;
+    if (finding.relatedAttackPathIds?.length) properties.relatedAttackPathIds = finding.relatedAttackPathIds;
     return {
       ruleId,
       level: LEVEL[finding.severity] ?? 'warning',
@@ -57,18 +75,48 @@ export function reportToSarif(report) {
           ? { 'nemesisRootCause/v1': String(finding.rootCauseDigest ?? finding.rootCauseSignature) }
           : {}),
       },
-      properties: {
-        severity: finding.severity ?? null,
-        evidenceStrength: finding.evidence_strength ?? finding.evidenceStrength ?? null,
-        judgment: finding.judgment ?? null,
-        status: finding.status ?? null,
-        tier: finding.tier ?? null,
-        evidence: finding.evidence ?? null,
-        action: finding.action ?? null,
-        sources: finding.sources ?? [],
-      },
+      properties,
     };
   });
+
+  // Proven attack paths become separate SARIF results with ordered code flows
+  // per Security Appendix §47. Partial/blocked/refuted paths are never emitted
+  // as failing results.
+  for (const path of attackPaths) {
+    const ruleId = `security.attack-path.${path.objective?.id ?? 'proven-path'}`;
+    if (!rules.has(ruleId)) {
+      rules.set(ruleId, {
+        id: ruleId,
+        name: ruleId.replaceAll(/[^A-Za-z0-9]+/g, '_'),
+        shortDescription: { text: 'Proven attack path' },
+        defaultConfiguration: { level: LEVEL[path.severity] ?? 'error' },
+        properties: { category: 'security-attack-path' },
+      });
+    }
+    const threadFlow = (path.stepAssessments ?? []).map((step, index) => ({
+      order: index,
+      location: locationFor({ file: step.file, line: step.line })[0],
+    })).filter((entry) => entry.location);
+    results.push({
+      ruleId,
+      level: LEVEL[path.severity] ?? 'error',
+      message: { text: `Proven attack path: ${path.objective?.id ?? ''} (${path.severity ?? 'unknown'})` },
+      locations: threadFlow[0]?.location ? [threadFlow[0].location] : [],
+      partialFingerprints: {
+        'nemesisPath/v1': String(path.id ?? path.pathId),
+      },
+      codeFlows: threadFlow.length
+        ? [{ threadFlows: [{ id: `path-${path.id ?? path.pathId}`, locations: threadFlow }] }]
+        : undefined,
+      properties: {
+        pathId: path.id ?? path.pathId,
+        constituentFindingIds: path.constituentFindingIds ?? [],
+        start: path.start ?? null,
+        objective: path.objective ?? null,
+        proofDigest: path.proof?.digest ?? null,
+      },
+    });
+  }
   return {
     version: '2.1.0',
     $schema: 'https://json.schemastore.org/sarif-2.1.0.json',

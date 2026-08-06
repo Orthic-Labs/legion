@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://orthic.dev/schemas/security-variant-receipt-v2.json",
+  "title": "SecurityVariantReceiptV2",
+  "type": "object",
+  "required": ["schemaVersion", "kind", "findingId", "ruleId", "rootCauseSignature", "provider", "providerVersion", "binding", "denominator", "strategies", "matches", "summary", "complete", "coverageGaps"],
+  "properties": {
+    "schemaVersion": { "const": 2 },
+    "kind": { "const": "security-variant-receipt" },
+    "findingId": { "type": "string" },
+    "ruleId": { "type": "string" },
+    "rootCauseSignature": { "type": "object" },
+    "provider": { "const": "security.variant-analysis" },
+    "providerVersion": { "type": "string" },
+    "binding": { "type": "object" },
+    "denominator": {
+      "type": "object",
+      "properties": {
+        "kind": { "type": "string" },
+        "digest": { "type": "string", "pattern": "^sha256:" },
+        "expected": { "type": "integer" },
+        "examined": { "type": "integer" },
+        "unexamined": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "strategies": { "type": "array" },
+    "matches": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "file", "line", "semanticFingerprint", "disposition"],
+        "properties": {
+          "id": { "type": "string" },
+          "file": { "type": "string" },
+          "line": { "type": "integer" },
+          "semanticFingerprint": { "type": "string" },
+          "disposition": { "enum": ["CONFIRMED", "REJECTED", "DUPLICATE", "OUT_OF_SCOPE", "UNRESOLVED"] },
+          "candidateId": { "type": ["string", "null"] },
+          "rationale": { "type": ["string", "null"] },
+          "controls": { "type": "array", "items": { "type": "string" } }
+        }
+      }
+    },
+    "summary": { "type": "object" },
+    "complete": { "type": "boolean" },
+    "coverageGaps": { "type": "array", "items": { "type": "string" } }
+  },
+  "additionalProperties": true
+}
