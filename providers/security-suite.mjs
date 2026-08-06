@@ -14,6 +14,13 @@ const PACK_PROVIDERS = Object.freeze({
   all: 'security.internal-suite',
 });
 
+// Compatibility wrapper contract (Security Appendix §63.1): old pack names map
+// to the canonical lens IDs. The wrapper invokes the new pack engine and emits
+// candidate v2; it is removed after two schema releases.
+export function legacyPackMapping() {
+  return { ...PACK_PROVIDERS };
+}
+
 const RULES = Object.freeze([
   {
     pack: 'insecure-defaults', id: 'security.insecure-default.secret', severityHint: 'high', threatModel: 'deployment-misconfiguration',

@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "kind": "security-rule-aliases",
+  "aliases": {
+    "security.command-injection": "injection.shell.source-to-sink",
+    "data.sql-interpolation": "injection.sql.dynamic-query",
+    "security.credential-format": "credentials.format",
+    "security.credential-assignment": "credentials.assignment",
+    "actions-expression-in-shell": "cicd.event-data-to-shell",
+    "actions-pr-target-checkout": "cicd.privileged-checkout",
+    "electron-node-integration": "native.desktop.renderer-node-authority",
+    "agent-skill-mcp-exfiltration": "native.workspace.secret-network",
+    "next-unsafe-html": "browser-client.raw-html"
+  }
+}

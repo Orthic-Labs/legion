@@ -4,8 +4,62 @@ import { fileURLToPath } from 'node:url';
 
 const DEFAULT_REGISTRY = fileURLToPath(new URL('./providers.json', import.meta.url));
 const DEFAULT_EXTENSION = fileURLToPath(new URL('./providers-runtime.json', import.meta.url));
+const DEFAULT_SECURITY_LENSES = fileURLToPath(new URL('./security-lenses.json', import.meta.url));
 const RUNNER_KINDS = new Set(['legacy-check', 'runtime-script', 'reasoning-contract']);
 const QUALIFICATION_RANK = new Map([['unproven', 0], ['partial', 1], ['complete', 2]]);
+
+// Security lens registry loader (Security Appendix §15.2). Lenses become
+// candidate-generator provider records; no provider ID may exist in both the
+// runtime registry and the lens registry.
+export function loadSecurityLensRegistry(path = DEFAULT_SECURITY_LENSES) {
+  const registry = JSON.parse(readFileSync(path, 'utf8'));
+  if (registry?.schemaVersion !== 1 || registry?.kind !== 'security-lens-registry') {
+    throw new Error('security lens registry must be security-lens-registry schemaVersion=1');
+  }
+  if (!Array.isArray(registry.lenses)) throw new Error('security lens registry must declare lenses');
+  const ids = new Set();
+  for (const lens of registry.lenses) {
+    if (!lens?.id || ids.has(lens.id)) throw new Error(`duplicate or missing security lens id: ${lens?.id}`);
+    if (!['planned', 'implemented', 'measured'].includes(lens.implementationState)) {
+      throw new Error(`lens ${lens.id} has invalid implementationState ${lens.implementationState}`);
+    }
+    ids.add(lens.id);
+  }
+  return registry;
+}
+
+export function expandSecurityLensProviders(lensRegistry) {
+  return (lensRegistry.lenses ?? []).map((lens) => ({
+    id: lens.id,
+    providerVersion: lens.version ?? '1',
+    role: 'candidate-generator',
+    phase: 'runtime',
+    selector: lens.selector,
+    allowWithoutCortex: false,
+    runner: {
+      kind: 'runtime-script',
+      script: 'providers/security/candidate-engine.mjs',
+      module: lens.module,
+    },
+    benchmark: lens.benchmark,
+    producesSecurityCandidates: true,
+    mayCloseOwnCandidates: false,
+    modelRequirements: lens.modelRequirements,
+    denominatorKind: lens.denominatorKind,
+    implementationState: lens.implementationState,
+  }));
+}
+
+export function extendRegistryWithSecurityLenses(registry, lensRegistry) {
+  const merged = structuredClone(registry);
+  const providerIds = new Set(merged.providers.map((provider) => provider.id));
+  for (const provider of expandSecurityLensProviders(lensRegistry)) {
+    if (providerIds.has(provider.id)) throw new Error(`security lens duplicates provider id: ${provider.id}`);
+    providerIds.add(provider.id);
+    merged.providers.push(provider);
+  }
+  return merged;
+}
 
 export function canonicalize(value) {
   if (Array.isArray(value)) return value.map(canonicalize);
