@@ -1,0 +1,59 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://orthic.dev/schemas/security-chain-verdict-v1.json",
+  "title": "SecurityChainVerdictV1",
+  "type": "object",
+  "required": ["schemaVersion", "kind", "pathId", "synthesizerProvider", "adjudicatorProvider", "contextId", "binding", "verdict", "evidenceStrength", "stepAssessments", "joinAssessments", "controlAssessments", "terminalImpact", "proof", "negativeControl", "devilsAdvocate", "rationale", "severity"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "kind": { "const": "security-chain-verdict" },
+    "pathId": { "type": "string" },
+    "synthesizerProvider": { "type": "string" },
+    "adjudicatorProvider": { "type": "string" },
+    "contextId": { "type": "string" },
+    "binding": { "type": "object" },
+    "verdict": { "enum": ["PROVEN", "PARTIALLY_SUPPORTED", "REFUTED", "BLOCKED", "UNPROVEN"] },
+    "evidenceStrength": { "enum": ["possible", "strong-inference", "verified"] },
+    "stepAssessments": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["candidateId", "usableInChain"],
+        "properties": {
+          "candidateId": { "type": "string" },
+          "usableInChain": { "type": "boolean" },
+          "rationale": { "type": "string" }
+        }
+      }
+    },
+    "joinAssessments": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["joinId", "verdict"],
+        "properties": {
+          "joinId": { "type": "string" },
+          "verdict": { "enum": ["VERIFIED", "STRONG_INFERENCE", "UNPROVEN", "REFUTED", "BLOCKED"] }
+        }
+      }
+    },
+    "controlAssessments": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["controlId", "status"],
+        "properties": {
+          "controlId": { "type": "string" },
+          "status": { "enum": ["ABSENT", "INEFFECTIVE", "EFFECTIVE", "UNKNOWN"] }
+        }
+      }
+    },
+    "terminalImpact": { "type": ["object", "null"] },
+    "proof": { "type": ["object", "null"] },
+    "negativeControl": { "type": ["object", "null"] },
+    "devilsAdvocate": { "type": "string" },
+    "rationale": { "type": "string" },
+    "severity": { "type": ["string", "null"], "enum": ["critical", "high", "medium", "low", null] }
+  },
+  "additionalProperties": true
+}
