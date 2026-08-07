@@ -1,0 +1,1 @@
+{"$schema":"https://json-schema.org/draft/2020-12/schema","type":"object","required":["id","kind","status"],"properties":{"id":{"type":"string"},"kind":{"type":"string"},"status":{"type":"string"}}}

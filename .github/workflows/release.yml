@@ -1,62 +1,19 @@
-name: release
+name: release-contract
 
 on:
   workflow_dispatch:
-  push:
-    tags: ['v*']
 
 permissions:
   contents: read
-  id-token: write
-  attestations: write
 
+# Hosted release work is deliberately unavailable until every third-party
+# action has a locally verified immutable SHA.  This workflow never builds,
+# signs, uploads, attests, or publishes a release candidate.
 jobs:
-  qualification:
+  blocked-until-pinned:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '22.13.0'
-      - name: Publication guard
-        run: node scripts/check-publication-policy.mjs --channel signed-release
-      - name: Full qualification
-        run: node scripts/qualify-release.mjs --profile release
-
-  sign-and-attest:
-    needs: qualification
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [macos-latest, windows-latest, ubuntu-latest]
-    runs-on: ${{ matrix.os }}
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '22.13.0'
-      - name: Build native
-        run: node scripts/build-native.mjs
-      - name: Sign (platform-specific)
+      - name: Block unpinned hosted release execution
         run: |
-          case "${{ matrix.os }}" in
-            macos-latest) cat packaging/macos/sign.md ;;
-            windows-latest) cat packaging/windows/sign.md ;;
-            ubuntu-latest) cat packaging/linux/channels.json ;;
-          esac
-      - name: Generate checksums and SBOMs
-        run: |
-          shasum -a 256 dist/* > dist/SHA256SUMS
-          node -e "console.log(JSON.stringify({bomVersion: 1, artifacts: []}))" > dist/nemesis.sbom.json
-      - name: Verify release manifest
-        run: node scripts/verify-release.mjs dist/release-manifest.json || true
-      - uses: actions/attest-build-provenance@v2
-        with:
-          subject-path: |
-            dist/nemesis-*
-            dist/*.sbom.json
-            dist/SHA256SUMS
-      - uses: actions/upload-artifact@v4
-        with:
-          name: release-${{ matrix.os }}
-          path: dist/
+          echo "BLOCKED: immutable action pins, signing credentials, & platform hosts are required."
+          exit 1

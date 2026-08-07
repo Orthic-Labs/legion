@@ -113,20 +113,6 @@ export function collectRepositoryBinding(root) {
   };
 }
 
-function commandReady(command) {
-  const executable = process.platform === 'win32' ? `${command}.cmd` : command;
-  let result = spawnSync(executable, ['--version'], {
-    encoding: 'utf8',
-    windowsHide: true,
-    timeout: 8_000,
-    shell: process.platform === 'win32',
-  });
-  if (result.error?.code === 'ENOENT' && executable !== command) {
-    result = spawnSync(command, ['--version'], { encoding: 'utf8', windowsHide: true, timeout: 8_000, shell: true });
-  }
-  return !result.error || result.error.code !== 'ENOENT';
-}
-
 function readPackageManifest(root, path) {
   try {
     const parsed = JSON.parse(readFileSync(join(root, path), 'utf8'));
@@ -176,17 +162,16 @@ function deriveAuditFacts(root, files) {
     '.gitlab-ci.yml', 'azure-pipelines.yml', '.circleci/config.yml',
   ].includes(path));
   const releaseFiles = files.filter((path) => /(^|\/)(tauri\.conf\.(json|json5)|Tauri\.toml|Dockerfile[^/]*|.*\.(entitlements|plist|wixproj|nsi|nsis|appxmanifest))$/i.test(path));
-  const toolchains = Object.fromEntries([
-    'node', 'pnpm', 'npm', 'yarn', 'python3', 'python', 'php', 'composer', 'dotnet',
-    'go', 'cargo', 'rustc', 'java', 'javac', 'gradle', 'mvn', 'swift', 'xcodebuild',
-    'dart', 'flutter', 'ruby', 'bundle', 'elixir', 'mix', 'gcc', 'clang', 'cmake',
-  ].map((command) => [command, commandReady(command)]));
   const projectRoots = [...new Set(
     files
       .filter((path) => /(^|\/)(package\.json|composer\.json|Cargo\.toml|pyproject\.toml|go\.mod|Gemfile|Package\.swift|pubspec\.yaml|mix\.exs|pom\.xml|build\.gradle(?:\.kts)?|.*\.csproj)$/.test(path))
       .map((path) => normalizePath(dirname(path)) || '.'),
   )].sort();
-  return { packageManifests, lockfiles, ciFiles, releaseFiles, projectRoots, toolchains };
+  return {
+    packageManifests, lockfiles, ciFiles, releaseFiles, projectRoots,
+    toolchains: {},
+    toolchainDiscovery: 'deferred-to-host-capabilities',
+  };
 }
 
 function projectionFailure(reason, details = {}) {

@@ -1,0 +1,1 @@
+{"$schema":"https://json-schema.org/draft/2020-12/schema","$id":"https://orthic.dev/schemas/design/runtime-surface-spec-v1.json","type":"object","required":["schemaVersion","kind","specs","coverageGaps"],"properties":{"schemaVersion":{"const":1},"kind":{"const":"nemesis-runtime-surface-spec"},"specs":{"type":"array"},"coverageGaps":{"type":"array"}},"additionalProperties":true}

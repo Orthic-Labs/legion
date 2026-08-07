@@ -1,0 +1,1 @@
+{"schemaVersion":1,"id":"ux-designer-derived","rules":[{"id":"ux.surface-inventory-required","kind":"deterministic","evidenceRequirement":"surface-inventory"},{"id":"ux.runtime-spec-required","kind":"deterministic","evidenceRequirement":"runtime-surface-spec"},{"id":"ux.flow-review","kind":"interpretive","evidenceRequirement":"ux-flow"}]}

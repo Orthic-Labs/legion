@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "nemesis-release-qualification-v1",
+  "type": "object",
+  "required": ["schemaVersion", "kind", "evidence", "knownGaps", "decision"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "kind": { "const": "nemesis-release-qualification" },
+    "evidence": { "type": "array" },
+    "knownGaps": { "type": "array" },
+    "decision": { "enum": ["RELEASE", "INTERNAL_ONLY", "BLOCKED"] }
+  }
+}

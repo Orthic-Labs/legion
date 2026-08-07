@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 1,
+  "kind": "nemesis-control-source-ledger",
+  "sourceFamily": "platform-checklists",
+  "expectedPlatforms": ["desktop", "mobile", "web"],
+  "status": "external-input-required",
+  "sources": [],
+  "items": [],
+  "nextEvidence": [
+    "Provide canonical desktop, mobile, and web checklist documents with source digests, rights, and item boundaries."
+  ]
+}

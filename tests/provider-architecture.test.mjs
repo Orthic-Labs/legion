@@ -201,17 +201,20 @@ test('binding verification includes Cortex source observation', () => {
       files: [], parsedExtensions: [], unsupportedExtensions: [], fileSetDigest: 'sha256:files', auditFacts: {},
     },
     repositoryBinding: { repositoryRevision: 'abc', dirty: false, dirtyPatchDigest: 'sha256:clean' },
+    signingKey: 'test-signing-key',
   });
   const good = verifyPlanBinding(
     plan,
     { repositoryRevision: 'abc', dirty: false, dirtyPatchDigest: 'sha256:clean' },
     { state: 'ready', generationId: 'gen-1', manifestDigest: 'sha256:manifest', sourceObservation: { head: 'abc', statusDigest: 'status-a' } },
+    'test-signing-key',
   );
   assert.equal(good.valid, true);
   const stale = verifyPlanBinding(
     plan,
     { repositoryRevision: 'abc', dirty: false, dirtyPatchDigest: 'sha256:clean' },
     { state: 'ready', generationId: 'gen-1', manifestDigest: 'sha256:manifest', sourceObservation: { head: 'abc', statusDigest: 'status-b' } },
+    'test-signing-key',
   );
   assert.equal(stale.valid, false);
   assert.ok(stale.drift.some((item) => item.field === 'cortex.sourceStatusDigest'));

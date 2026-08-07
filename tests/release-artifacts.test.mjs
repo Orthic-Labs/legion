@@ -17,9 +17,11 @@ test('verifyReleaseManifest accepts a complete manifest', () => {
     writeFileSync(join(dir, 'SHA256SUMS'), 'sums');
     writeFileSync(join(dir, 'nemesis.sbom.json'), '{}');
     writeFileSync(join(dir, 'THIRD_PARTY_NOTICES.md'), 'notices');
+    writeFileSync(join(dir, 'attestation.jsonl'), '{"predicateType":"test"}\n');
     const digest = sha256File(join(dir, 'nemesis'));
     const manifest = {
       schemaVersion: 1, kind: 'nemesis-release-manifest',
+      version: '0.0.0-test', sourceRevision: '0123456789abcdef',
       artifacts: [{ path: 'nemesis', digest }],
       checksums: ['SHA256SUMS'], sboms: ['nemesis.sbom.json'],
       notices: ['THIRD_PARTY_NOTICES.md'], attestations: ['attestation.jsonl'],
@@ -66,21 +68,19 @@ test('verifyReleaseManifest rejects missing required artifacts', () => {
   }
 });
 
-test('release workflow requires qualification before signing', () => {
+test('release workflow fails closed until pinned signing workflow exists', () => {
   const workflow = readWorkflow();
-  const qualificationIndex = workflow.indexOf('qualify-release.mjs');
-  const signingIndex = workflow.indexOf('sign-and-attest');
-  assert.ok(qualificationIndex >= 0);
-  assert.ok(signingIndex > qualificationIndex, 'qualification must precede signing');
-  // Never expose credentials to PR code.
+  assert.match(workflow, /workflow_dispatch/);
+  assert.match(workflow, /BLOCKED: immutable action pins/);
+  assert.match(workflow, /exit 1/);
   assert.ok(!workflow.includes('pull_request'));
 });
 
-test('release workflow uses artifact attestation permissions', () => {
+test('blocked release workflow grants no signing or attestation permissions', () => {
   const workflow = readWorkflow();
-  assert.match(workflow, /id-token: write/);
-  assert.match(workflow, /attestations: write/);
-  assert.match(workflow, /attest-build-provenance@v2/);
+  assert.doesNotMatch(workflow, /id-token: write/);
+  assert.doesNotMatch(workflow, /attestations: write/);
+  assert.doesNotMatch(workflow, /uses:/);
 });
 
 test('macOS and Windows signing outlines are documented', () => {

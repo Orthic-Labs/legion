@@ -1,0 +1,1 @@
+{"schemaVersion":1,"id":"visual-designer-derived","rules":[{"id":"visual.design-context-required","kind":"deterministic","evidenceRequirement":"design-context"},{"id":"visual.rendered-surface-required","kind":"deterministic","evidenceRequirement":"rendered-surface"},{"id":"visual.hierarchy-review","kind":"interpretive","evidenceRequirement":"rendered-surface"}]}

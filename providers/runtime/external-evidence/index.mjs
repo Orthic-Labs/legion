@@ -1,0 +1,2 @@
+import { validateExternalEvidence } from '../../../lib/platform/external/validate.mjs';
+export function importExternalEvidence({ evidence = [], expected = {} } = {}) { const validations = evidence.map((item) => ({ evidence: item, validation: validateExternalEvidence(item, expected) })); return { schemaVersion: 1, provider: 'runtime.external-evidence', status: validations.every((item) => item.validation.status === 'pass') ? 'pass' : 'unproven', validations, coverageGaps: validations.flatMap((item) => item.validation.gaps) }; }

@@ -1,0 +1,1 @@
+{"schemaVersion":1,"id":"mobile","kind":"platform-matrix","dimensions":["platform","device","osVersion","network","permission"],"status":"unproven","qualificationDigest":null}

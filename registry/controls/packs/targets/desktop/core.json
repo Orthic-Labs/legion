@@ -1,0 +1,1 @@
+{"id":"target.desktop","version":"1.0.0","class":"target","controls":[{"id":"desktop.signed-artifact","version":"1.0.0","selector":{"targetKinds":["desktop-app"]},"denominator":"signed-artifacts","evidence":["native-surface","installer","signing"],"families":["release","security"],"claimLevels":["release"],"missingEvidenceEffect":"unproven"}]}

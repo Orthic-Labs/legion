@@ -1,0 +1,1 @@
+{"$schema":"https://json-schema.org/draft/2020-12/schema","$id":"https://orthic.dev/schemas/platform/web-surface-v1.json","type":"object","required":["id","targetId","path","kind"],"properties":{"id":{"type":"string","pattern":"^sha256:"},"targetId":{"type":"string"},"path":{"type":"string"},"kind":{"type":"string"}},"additionalProperties":true}

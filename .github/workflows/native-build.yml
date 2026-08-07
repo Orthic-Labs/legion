@@ -1,28 +1,18 @@
-name: native-build
+name: native-build-contract
 
 on:
   workflow_dispatch:
-  push:
-    tags: ['v*']
 
 permissions:
   contents: read
 
+# Native builds require platform hosts plus an injected executable.  Do not use
+# floating GitHub Actions references to manufacture release evidence.
 jobs:
-  native:
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
-    runs-on: ${{ matrix.os }}
+  blocked-until-pinned:
+    runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '22.13.0'
-      - run: node scripts/build-native.mjs
-      - run: node --test tests/native-equivalence.test.mjs
-      - uses: actions/upload-artifact@v4
-        with:
-          name: nemesis-native-${{ matrix.os }}
-          path: dist/
+      - name: Block unpinned hosted native execution
+        run: |
+          echo "BLOCKED: immutable action pins & platform build hosts are required."
+          exit 1
