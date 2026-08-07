@@ -1,0 +1,49 @@
+{
+  "schemaVersion": 1,
+  "kind": "nemesis-book-qualification",
+  "book": 3,
+  "expectedTaskCount": 30,
+  "sourceRevision": "ef4b116006691b4ee5976930070e8292e873f4a3",
+  "decision": "SOURCE_COMPLETE",
+  "tasks": [
+    { "id": "B3-001", "status": "implemented", "evidence": ["registry/provider-registry.mjs", "registry/providers.json"] },
+    { "id": "B3-002", "status": "mapped", "evidence": ["lib/providers/external-process.mjs", "tests/provider-executor.test.mjs"], "note": "Cohesive executor kept at existing public path." },
+    { "id": "B3-003", "status": "implemented", "evidence": ["providers/ast-grep/index.mjs", "tests/providers/ast-grep/structural.test.mjs"] },
+    { "id": "B3-004", "status": "implemented", "evidence": ["providers/opengrep/index.mjs", "tests/providers/opengrep/sast.test.mjs"] },
+    { "id": "B3-005", "status": "mapped", "evidence": ["providers/codeql/index.mjs", "schemas/imported-sarif-v1.schema.json"] },
+    { "id": "B3-006", "status": "implemented", "evidence": ["providers/secrets/index.mjs", "tests/providers/supply-chain/supply-chain.test.mjs"] },
+    { "id": "B3-007", "status": "implemented", "evidence": ["providers/osv/index.mjs", "tests/providers/supply-chain/supply-chain.test.mjs"] },
+    { "id": "B3-008", "status": "implemented", "evidence": ["providers/licenses/index.mjs", "providers/sbom/index.mjs", "lib/provenance/passport.mjs"] },
+    { "id": "B3-009", "status": "implemented", "evidence": ["providers/container-iac/index.mjs", "providers/infrastructure-suite.mjs"] },
+    { "id": "B3-010", "status": "implemented", "evidence": ["lib/analysis/reachability.mjs", "tests/reachability.test.mjs"] },
+    { "id": "B3-011", "status": "mapped", "evidence": ["registry/coverage/coverage-registry.json", "schemas/coverage-v2.schema.json", "tests/coverage-registry.test.mjs"] },
+    { "id": "B3-012", "status": "mapped", "evidence": ["providers/native/javascript/index.mjs", "tests/providers/javascript/javascript.test.mjs"] },
+    { "id": "B3-013", "status": "mapped", "evidence": ["providers/native/python/index.mjs", "tests/providers/python/python.test.mjs"] },
+    { "id": "B3-014", "status": "mapped", "evidence": ["providers/native/rust/index.mjs", "providers/frameworks/tauri/index.mjs", "tests/providers/rust/rust.test.mjs"] },
+    { "id": "B3-015", "status": "mapped", "evidence": ["providers/native/go/index.mjs", "tests/providers/go/go.test.mjs"] },
+    { "id": "B3-016", "status": "mapped", "evidence": ["providers/native/jvm/index.mjs", "providers/build/maven/index.mjs", "providers/build/gradle/index.mjs"] },
+    { "id": "B3-017", "status": "mapped", "evidence": ["providers/native/dotnet/index.mjs", "tests/providers/dotnet/dotnet.test.mjs"] },
+    { "id": "B3-018", "status": "mapped", "evidence": ["providers/native/c-family/index.mjs", "providers/build/cmake/index.mjs", "tests/providers/c-family/c-family.test.mjs"] },
+    { "id": "B3-019", "status": "mapped", "evidence": ["providers/native/php/index.mjs", "providers/native/ruby/index.mjs", "tests/providers/php-ruby/php-ruby.test.mjs"] },
+    { "id": "B3-020", "status": "mapped", "evidence": ["providers/native/swift-objc/index.mjs", "providers/native/dart/index.mjs", "providers/frameworks/flutter/index.mjs", "providers/frameworks/react-native/index.mjs"] },
+    { "id": "B3-021", "status": "mapped", "evidence": ["providers/generic/index.mjs", "providers/systems/custom-grammar.mjs", "tests/coverage-long-tail.test.mjs"] },
+    { "id": "B3-022", "status": "mapped", "evidence": ["providers/framework-suite.mjs", "tests/framework-suite.test.mjs"] },
+    { "id": "B3-023", "status": "mapped", "evidence": ["providers/framework-suite.mjs", "tests/framework-suite.test.mjs"] },
+    { "id": "B3-024", "status": "mapped", "evidence": ["providers/data-suite.mjs", "lib/privacy/index.mjs"] },
+    { "id": "B3-025", "status": "mapped", "evidence": ["providers/monorepo/index.mjs", "lib/inventory/components/build-graph.mjs"] },
+    { "id": "B3-026", "status": "mapped", "evidence": ["providers/monorepo/index.mjs", "lib/analysis/reachability.mjs", "registry/providers.json"] },
+    { "id": "B3-027", "status": "mapped", "evidence": ["registry/providers.json", "bench/detectors/duplication.mjs", "bench/detectors/dead-code.mjs"] },
+    { "id": "B3-028", "status": "mapped", "evidence": ["registry/providers.json", "bench/detectors/drift.mjs", "providers/generic-source-suite.mjs"] },
+    { "id": "B3-029", "status": "mapped", "evidence": ["lib/core/reconcile-run.mjs", "lib/core/finalize-run.mjs", "lib/cli/commands/report.mjs"] },
+    { "id": "B3-030", "status": "implemented", "evidence": ["tests/coverage-registry.test.mjs", "bench/languages/run-smoke.mjs", "qualification/book-3.json"] }
+  ],
+  "checks": [
+    { "command": "node bench/languages/run-smoke.mjs", "result": "PASS", "summary": "8/8 Wave-0 families mapped" },
+    { "command": "node bench/frameworks/react/run.mjs", "result": "PASS" },
+    { "command": "node bench/long-tail/run.mjs", "result": "PASS_WITH_RECORDED_GAP" }
+  ],
+  "blockers": [
+    { "kind": "measurement", "detail": "Coverage registry remains unproven until corpus and artifact digests are generated on qualified tool hosts." },
+    { "kind": "external-tools", "detail": "OpenGrep, ast-grep, CodeQL, OSV, secret, compiler, and platform-tool identities require host receipts before clean claims." }
+  ]
+}

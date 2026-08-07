@@ -1,7 +1,6 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import { writeFileSync, mkdtempSync, rmSync } from 'node:fs';
-import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
 import { listTools, callTool } from '../../integrations/mcp/tools.mjs';
@@ -58,7 +57,7 @@ test('stdout carries protocol frames only', () => {
 });
 
 test('nemesis_get_run and nemesis_get_finding read run artifacts', async () => {
-  const dir = mkdtempSync(join(tmpdir(), 'nemesis-mcp-'));
+  const dir = mkdtempSync(join(process.cwd(), '.nemesis-mcp-'));
   try {
     writeFileSync(join(dir, 'report.json'), JSON.stringify({ findings: [{ id: 'f1', ruleId: 'r', severity: 'high' }] }));
     const run = await callTool({ name: 'nemesis_get_run', arguments: { run: dir, artifact: 'report.json' } });

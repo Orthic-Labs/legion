@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "nemesis-book-qualification-v1",
+  "type": "object",
+  "required": ["schemaVersion", "kind", "book", "expectedTaskCount", "decision", "tasks", "checks", "blockers"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "kind": { "const": "nemesis-book-qualification" },
+    "book": { "type": "integer", "minimum": 1, "maximum": 8 },
+    "expectedTaskCount": { "type": "integer", "minimum": 1 },
+    "decision": { "enum": ["QUALIFIED", "SOURCE_COMPLETE", "BLOCKED"] },
+    "tasks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "status"],
+        "properties": {
+          "id": { "type": "string", "pattern": "^B[1-8]-[0-9]{3}$" },
+          "status": { "enum": ["implemented", "mapped", "blocked"] },
+          "evidence": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 } },
+          "mapping": { "type": "string", "minLength": 1 },
+          "note": { "type": "string" }
+        }
+      }
+    },
+    "checks": { "type": "array" },
+    "blockers": { "type": "array" }
+  }
+}

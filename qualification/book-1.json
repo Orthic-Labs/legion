@@ -1,0 +1,45 @@
+{
+  "schemaVersion": 1,
+  "kind": "nemesis-book-qualification",
+  "book": 1,
+  "expectedTaskCount": 28,
+  "decision": "SOURCE_COMPLETE",
+  "tasks": [
+    { "id": "B1-001", "status": "mapped", "evidence": ["package.json", "MANIFEST.package.json"] },
+    { "id": "B1-002", "status": "mapped", "evidence": ["lib/errors.mjs", "lib/contracts/index.mjs"] },
+    { "id": "B1-003", "status": "mapped", "evidence": ["bin/nemesis.mjs", "lib/cli/run.mjs"] },
+    { "id": "B1-004", "status": "mapped", "evidence": ["lib/host/index.mjs", "lib/host/capabilities.mjs", "tests/core-foundations.test.mjs"] },
+    { "id": "B1-005", "status": "mapped", "evidence": ["lib/artifacts/run-store.mjs"] },
+    { "id": "B1-006", "status": "mapped", "evidence": ["lib/core/run-layout.mjs", "lib/core/run-manifest.mjs"] },
+    { "id": "B1-007", "status": "mapped", "evidence": ["lib/config/index.mjs"] },
+    { "id": "B1-008", "status": "mapped", "evidence": ["lib/config/profiles.mjs"] },
+    { "id": "B1-009", "status": "mapped", "evidence": ["registry/providers.json", "registry/security-lenses.json"] },
+    { "id": "B1-010", "status": "mapped", "evidence": ["lib/providers/sdk", "schemas/provider-v2.schema.json"] },
+    { "id": "B1-011", "status": "mapped", "evidence": ["lib/core/scheduler.mjs", "lib/providers/sdk/dag.mjs"] },
+    { "id": "B1-012", "status": "mapped", "evidence": ["lib/providers/provider-executor.mjs"] },
+    { "id": "B1-013", "status": "mapped", "evidence": ["lib/adapters/cortex/index.mjs"] },
+    { "id": "B1-014", "status": "mapped", "evidence": ["lib/core/binding.mjs", "lib/core/repository-binding.mjs"] },
+    { "id": "B1-015", "status": "implemented", "evidence": ["lib/core/build-plan.mjs", "lib/core/plan-stages", "tests/core-foundations.test.mjs"] },
+    { "id": "B1-016", "status": "mapped", "evidence": ["lib/core/execute-plan.mjs"] },
+    { "id": "B1-017", "status": "mapped", "evidence": ["lib/core/reconcile-run.mjs"] },
+    { "id": "B1-018", "status": "mapped", "evidence": ["lib/core/reconcile-run.mjs"] },
+    { "id": "B1-019", "status": "mapped", "evidence": ["lib/core/finalize-run.mjs"] },
+    { "id": "B1-020", "status": "mapped", "evidence": ["lib/core/verify-run.mjs"] },
+    { "id": "B1-021", "status": "mapped", "evidence": ["lib/cli/commands"] },
+    { "id": "B1-022", "status": "mapped", "evidence": ["registry/skills/designer-audit-profile.json", "registry/skills/writing-audit-profile.json"] },
+    { "id": "B1-023", "status": "mapped", "evidence": ["scripts/qualify-book.mjs", "registry/skills/designer-audit-profile.json"] },
+    { "id": "B1-024", "status": "mapped", "evidence": ["scripts/qualify-book.mjs", "registry/skills/writing-audit-profile.json"] },
+    { "id": "B1-025", "status": "mapped", "evidence": ["registry/skills/designer-audit-profile.json", "lib/design/skill-compiler.mjs"] },
+    { "id": "B1-026", "status": "mapped", "evidence": ["registry/skills/writing-audit-profile.json", "lib/content/skill-compiler.mjs"] },
+    { "id": "B1-027", "status": "implemented", "evidence": ["scripts/qualify-book.mjs", "qualification/book-1-artifacts/README.md", "tests/core-foundations.test.mjs"] },
+    { "id": "B1-028", "status": "mapped", "evidence": ["scripts/qualify-book.mjs", "qualification/book-1-artifacts"] , "note": "Gate implementation is present; full Book 1 execution is runtime evidence." }
+  ],
+  "checks": [
+    { "id": "core-foundations", "command": "node --test tests/core-foundations.test.mjs", "status": "pass", "evidence": "3 passed, 0 failed" },
+    { "id": "book-1-gate", "command": "node scripts/qualify-book.mjs --book 1", "status": "source-implemented", "evidence": "dispatcher writes a content-digested gate receipt after execution" },
+    { "id": "package-smoke", "status": "external-evidence-required", "evidence": "package smoke must run against an assembled package artifact" }
+  ],
+  "blockers": [
+    "Package smoke, serial/auto semantic-equivalence, resource-lock, and reasoning-boundary results require executed runtime artifacts."
+  ]
+}

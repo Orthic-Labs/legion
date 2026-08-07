@@ -1,0 +1,1 @@
+{"id":"target.web","version":"1.0.0","class":"target","controls":[{"id":"web.browser.runtime","version":"1.0.0","selector":{"targetKinds":["website","web-app"]},"denominator":"browser-matrix","evidence":["browser","deployment"],"families":["runtime","accessibility"],"claimLevels":["runtime","product","release"],"missingEvidenceEffect":"unproven"}]}

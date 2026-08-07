@@ -1,0 +1,1 @@
+{"$schema":"https://json-schema.org/draft/2020-12/schema","$id":"https://orthic.dev/schemas/content/claim-proof-ledger-v1.json","type":"object","required":["schemaVersion","kind","claims","evidence"],"properties":{"schemaVersion":{"const":1},"kind":{"const":"nemesis-claim-proof-ledger"},"claims":{"type":"array"},"evidence":{"type":"array"}},"additionalProperties":true}

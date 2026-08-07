@@ -1,0 +1,50 @@
+{
+  "schemaVersion": 1,
+  "kind": "nemesis-book-qualification",
+  "book": 2,
+  "expectedTaskCount": 30,
+  "decision": "SOURCE_COMPLETE",
+  "tasks": [
+    { "id": "B2-001", "status": "mapped", "evidence": ["lib/inventory/product-targets/contracts.mjs", "registry/product-target-kinds.json"] },
+    { "id": "B2-002", "status": "mapped", "evidence": ["lib/inventory/product-targets/detectors/index.mjs"] },
+    { "id": "B2-003", "status": "mapped", "evidence": ["lib/inventory/product-targets/review.mjs"] },
+    { "id": "B2-004", "status": "mapped", "evidence": ["lib/inventory/product-targets/build-portfolio.mjs"] },
+    { "id": "B2-005", "status": "mapped", "evidence": ["lib/inventory/components/contracts.mjs", "registry/component-kinds.json"] },
+    { "id": "B2-006", "status": "mapped", "evidence": ["lib/inventory/components/extract-build.mjs", "lib/inventory/components/extract-runtime.mjs"] },
+    { "id": "B2-007", "status": "mapped", "evidence": ["lib/inventory/components/extract-logical.mjs", "lib/inventory/components/extract-data.mjs"] },
+    { "id": "B2-008", "status": "mapped", "evidence": ["lib/inventory/components/build-graph.mjs", "lib/inventory/components/trust-boundaries.mjs"] },
+    { "id": "B2-009", "status": "mapped", "evidence": ["lib/inventory/stacks/contracts.mjs", "lib/inventory/external-systems/contracts.mjs"] },
+    { "id": "B2-010", "status": "mapped", "evidence": ["lib/inventory/stacks/build-graph.mjs"] },
+    { "id": "B2-011", "status": "mapped", "evidence": ["lib/inventory/external-systems/discover.mjs"] },
+    { "id": "B2-012", "status": "mapped", "evidence": ["lib/inventory/release-contract/load.mjs", "lib/inventory/release-contract/merge.mjs"] },
+    { "id": "B2-013", "status": "mapped", "evidence": ["lib/inventory/product-context"] },
+    { "id": "B2-014", "status": "mapped", "evidence": ["lib/inventory/journeys/build.mjs"] },
+    { "id": "B2-015", "status": "mapped", "evidence": ["lib/controls/sources/ingest.mjs", "registry/controls/sources/catalogue.json"] },
+    { "id": "B2-016", "status": "mapped", "evidence": ["registry/controls/sources/creator-audits-v1.json"], "note": "Ledger records external source input as required; no creator content is invented." },
+    { "id": "B2-017", "status": "mapped", "evidence": ["registry/controls/sources/platform-checklists-v1.json"], "note": "Ledger records external source input as required; no checklist content is invented." },
+    { "id": "B2-018", "status": "mapped", "evidence": ["lib/controls/contracts.mjs", "schemas/controls/assurance-control-v1.schema.json"] },
+    { "id": "B2-019", "status": "mapped", "evidence": ["registry/controls/packs/universal/core.json"] },
+    { "id": "B2-020", "status": "mapped", "evidence": ["registry/controls/packs/targets/web/core.json"] },
+    { "id": "B2-021", "status": "mapped", "evidence": ["registry/controls/packs/targets/desktop/core.json"] },
+    { "id": "B2-022", "status": "mapped", "evidence": ["registry/controls/packs/targets/mobile/core.json"] },
+    { "id": "B2-023", "status": "mapped", "evidence": ["registry/controls/packs/targets/service/core.json"] },
+    { "id": "B2-024", "status": "mapped", "evidence": ["registry/controls/packs/targets/developer-tools/core.json"] },
+    { "id": "B2-025", "status": "mapped", "evidence": ["registry/controls/packs/components/infrastructure-release/core.json"] },
+    { "id": "B2-026", "status": "mapped", "evidence": ["registry/controls/packs/conditional/core.json"] },
+    { "id": "B2-027", "status": "mapped", "evidence": ["lib/controls/baseline/compile.mjs", "lib/core/plan-stages/control-baseline.mjs"] },
+    { "id": "B2-028", "status": "mapped", "evidence": ["lib/controls/evidence/capabilities.mjs", "lib/controls/evidence/impacts.mjs"] },
+    { "id": "B2-029", "status": "mapped", "evidence": ["lib/controls/scenarios/compile.mjs"] },
+    { "id": "B2-030", "status": "implemented", "evidence": ["scripts/qualify-book-2.mjs", "scripts/qualify-book.mjs", "tests/core-foundations.test.mjs"], "note": "Gate implementation is present; full topology execution is runtime evidence." }
+  ],
+  "checks": [
+    { "id": "core-foundations", "command": "node --test tests/core-foundations.test.mjs", "status": "pass", "evidence": "3 passed, 0 failed" },
+    { "id": "book-2-gate", "command": "node scripts/qualify-book-2.mjs", "status": "source-implemented", "evidence": "deterministic Book 2 dispatcher is present" },
+    { "id": "creator-source-ingestion", "status": "external-evidence-required", "evidence": "ledger awaits three canonical creator-audit documents" },
+    { "id": "platform-source-ingestion", "status": "external-evidence-required", "evidence": "ledger awaits canonical desktop, mobile, and web checklist documents" }
+  ],
+  "blockers": [
+    "Three canonical creator-audit documents with rights, digests, and item boundaries are required before B2-016 import qualification.",
+    "Canonical desktop, mobile, and web checklist documents with rights, digests, and item boundaries are required before B2-017 import qualification.",
+    "Hybrid portfolio, stale-binding, and package-exclusion results require an executed Book 2 gate."
+  ]
+}

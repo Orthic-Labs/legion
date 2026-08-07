@@ -96,9 +96,9 @@ test('finalizeRun produces a report with injected clock', async () => {
 
 test('verifyRun produces a deterministic receipt', async () => {
   const host = fixedHost({
-    fs: { readFile: async (path, encoding) => JSON.stringify({ kind: 'audit-facts', checks: [], plan: { seal: { digest: 'sha256:x' } } }) },
+    fs: { readFile: async () => JSON.stringify({ kind: 'audit-facts', binding: { repositoryRevision: 'abc' }, checks: [], plan: { seal: { digest: 'sha256:x' } } }) },
   });
-  const receipt = await verifyRun({ priorRun: '/tmp/run/facts.json', currentRepository: { revision: 'abc' } }, host);
+  const receipt = await verifyRun({ priorRun: '/tmp/run/facts.json', currentRepository: { repositoryRevision: 'abc' } }, host);
   assert.equal(receipt.kind, 'nemesis-verification-receipt');
   assert.ok(receipt.priorDigest.startsWith('sha256:'));
   assert.equal(receipt.valid, true);

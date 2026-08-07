@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "kind": "nemesis-control-source-ledger",
+  "sourceFamily": "creator-audits",
+  "expectedSourceCount": 3,
+  "expectedItemCount": 300,
+  "status": "external-input-required",
+  "sources": [],
+  "items": [],
+  "nextEvidence": [
+    "Provide three canonical creator-audit documents with source digests, rights, and item boundaries."
+  ]
+}

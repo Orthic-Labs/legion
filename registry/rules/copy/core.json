@@ -1,0 +1,1 @@
+{"schemaVersion":1,"id":"copy-core","rules":[{"id":"copy.empty","kind":"deterministic"},{"id":"copy.unresolved-interpolation","kind":"deterministic"},{"id":"copy.hard-limit","kind":"deterministic"}]}

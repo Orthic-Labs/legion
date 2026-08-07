@@ -3,6 +3,8 @@
 // can never alter the tool schema.
 
 import { NEMESIS_VERSION } from '../../lib/version.mjs';
+import { readFileSync, statSync } from 'node:fs';
+import { resolve, relative, sep } from 'node:path';
 
 export function listTools() {
   return [
@@ -52,20 +54,33 @@ async function invoke(name, args) {
       return { exitCode: result.exitCode };
     }
     case 'nemesis_get_run': {
-      const { readFileSync } = await import('node:fs');
-      const { join } = await import('node:path');
-      const artifact = args.artifact ?? 'report.json';
-      const text = readFileSync(join(args.run, artifact), 'utf8');
+      const artifact = safeArtifactName(args.artifact ?? 'report.json');
+      const text = readFileSync(runArtifactPath(args.run, artifact), 'utf8');
       return { artifact, content: JSON.parse(text) };
     }
     case 'nemesis_get_finding': {
-      const { readFileSync } = await import('node:fs');
-      const { join } = await import('node:path');
-      const report = JSON.parse(readFileSync(join(args.run, 'report.json'), 'utf8'));
+      const report = JSON.parse(readFileSync(runArtifactPath(args.run, 'report.json'), 'utf8'));
       const finding = (report.findings ?? []).find((f) => f.id === args.findingId || f.ruleId === args.findingId);
       return { finding: finding ?? null };
     }
     default:
       throw new Error(`tool ${name} requires a host-granted root and is not invoked in stdio tests`);
   }
+}
+
+function safeArtifactName(name) {
+  if (typeof name !== 'string' || !name || name.includes('\0') || name.includes('/') || name.includes('\\')) {
+    throw new Error('artifact must be a single file name');
+  }
+  return name;
+}
+
+function runArtifactPath(run, artifact) {
+  if (typeof run !== 'string' || !run) throw new Error('run must be an explicit artifact directory');
+  const root = resolve(process.cwd());
+  const absolute = resolve(root, run, artifact);
+  const rel = relative(root, absolute);
+  if (!rel || rel === '..' || rel.startsWith(`..${sep}`)) throw new Error('run artifact path escapes host root');
+  if (!statSync(resolve(root, run)).isDirectory()) throw new Error('run must identify a directory');
+  return absolute;
 }

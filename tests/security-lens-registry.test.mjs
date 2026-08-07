@@ -50,12 +50,15 @@ test('lens registry marks unmeasured lenses as required for clean claim', () => 
   }
 });
 
-test('planned lenses remain catalog gaps, never silently omitted', () => {
+test('every registered security lens has an implemented module', async () => {
   const registry = loadSecurityLensRegistry();
   const planned = registry.lenses.filter((lens) => lens.implementationState === 'planned');
-  assert.ok(planned.length > 0, 'planned lenses exist');
-  // The catalog must surface them (they are not silently dropped).
-  assert.ok(planned.every((lens) => lens.id.startsWith('security.')));
+  assert.deepEqual(planned, []);
+  for (const lens of registry.lenses) {
+    const loaded = await import(new URL(`../${lens.module}`, import.meta.url));
+    assert.equal(loaded.default.id, lens.id);
+    assert.equal(typeof loaded.default.analyze, 'function');
+  }
 });
 
 test('rule alias registry preserves history references', () => {

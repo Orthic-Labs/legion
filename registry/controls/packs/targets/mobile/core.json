@@ -1,0 +1,1 @@
+{"id":"target.mobile","version":"1.0.0","class":"target","controls":[{"id":"mobile.physical-device","version":"1.0.0","selector":{"targetKinds":["ios-app","android-app"]},"denominator":"device-matrix","evidence":["physical-device","store"],"families":["runtime","release"],"claimLevels":["runtime","product","release"],"missingEvidenceEffect":"unproven"}]}

@@ -1,0 +1,1 @@
+{"schemaVersion":1,"id":"desktop","kind":"platform-matrix","dimensions":["os","architecture","installer","updater","accessibility"],"status":"unproven","qualificationDigest":null}

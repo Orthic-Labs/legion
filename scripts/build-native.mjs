@@ -5,17 +5,16 @@
 
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { platform } from 'node:os';
+import { arch, platform } from 'node:os';
+import { nativeBuildManifest } from '../lib/distribution/native-manifest.mjs';
+import { fileDigest } from '../lib/distribution/release-manifest.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
-function digestOf(file) {
-  if (!existsSync(file)) return null;
-  return `sha256:${createHash('sha256').update(readFileSync(file)).digest('hex')}`;
-}
+function digestOf(file) { return fileDigest(file); }
 
 export function exeSuffix() {
   return platform() === 'win32' ? '.exe' : '';
@@ -31,50 +30,43 @@ export function buildNative({ nodeBinary = process.execPath, outDir = join(root,
   const prepDir = join(root, 'dist');
   mkdirSync(prepDir, { recursive: true });
 
-  // SEA requires a CommonJS entry that loads the ESM CLI via dynamic import.
+  // SEA starts a CJS file. Dynamic import preserves the canonical ESM CLI.
   const entry = join(prepDir, 'sea-entry.cjs');
-  writeFileSync(entry, `module.exports = require('../bin/nemesis.mjs');\n`);
+  writeFileSync(entry, `void import('../bin/nemesis.mjs');\n`);
   const output = join(prepDir, 'sea-preparation.blob');
 
-  // SEA requires the declared assets to exist; create empty placeholder tarballs.
+  // SEA assets must contain real shipped material; empty placeholders are a
+  // release-integrity failure, not an optional optimization.
   const assetsDir = join(prepDir, 'assets');
   mkdirSync(assetsDir, { recursive: true });
-  for (const asset of ['schemas.tar', 'registry.tar']) {
+  for (const [asset, source] of [['schemas.tar', 'schemas'], ['registry.tar', 'registry']]) {
     const assetPath = join(assetsDir, asset);
-    if (!existsSync(assetPath)) {
-      execFileSync('tar', ['-cf', assetPath, '--files-from', '/dev/null'], { stdio: 'ignore' });
-    }
+    rmSync(assetPath, { force: true });
+    execFileSync('tar', ['-cf', assetPath, '-C', root, source], { stdio: 'inherit' });
+    if (!existsSync(assetPath) || readFileSync(assetPath).length === 0) throw new Error(`SEA asset archive is empty: ${asset}`);
   }
 
   execFileSync(nodeBinary, ['--build-sea', join(root, 'packaging', 'sea', 'sea-config.json')], { cwd: root, stdio: 'inherit' });
 
   const target = join(outDir, `nemesis${suffix}`);
-  if (existsSync(join(root, 'node_modules', 'postject'))) {
+  if (existsSync(join(root, 'node_modules', 'postject', 'postject.js'))) {
     execFileSync('cp', [nodeBinary, target], { stdio: 'inherit' });
     execFileSync(process.execPath, [
       join(root, 'node_modules', 'postject', 'postject.js'), target, 'NODE_SEA_BLOB', output,
       '--sentinel-fuse', 'NODE_SEA_FUSE_fce680ab2cc467b6e072b8b5df1996b2',
     ], { stdio: 'inherit' });
     console.log('SEA blob injected');
-  } else {
-    // postject is optional; without it no executable is emitted, so a bare
-    // node copy can never be mistaken for a nemesis binary.
-    console.log('postject not installed; SEA blob injection skipped (equivalence test uses npm CLI)');
-  }
+  } else throw new Error('native build BLOCKED: postject injection tool is absent');
 
-  const manifest = {
-    schemaVersion: 1,
-    kind: 'nemesis-native-build',
-    platform: platform(),
-    nodeBinary: nodeBinary,
+  if (!existsSync(target)) throw new Error('native build failed: injected executable is absent');
+  const manifest = nativeBuildManifest({
+    platform: platform(), architecture: arch(), nodeBinary,
     nodeVersion: execFileSync(nodeBinary, ['--version'], { encoding: 'utf8' }).trim(),
     seaConfigDigest: digestOf(join(root, 'packaging', 'sea', 'sea-config.json')),
     packageDigest: digestOf(join(root, 'package.json')),
-    executable: existsSync(target) ? target : null,
-    executableDigest: digestOf(target),
-    rustCrate: false,
-    blobInjected: existsSync(target),
-  };
+    assets: ['schemas.tar', 'registry.tar'].map((name) => ({ path: `assets/${name}`, digest: digestOf(join(assetsDir, name)) })),
+    executable: target,
+  });
   writeFileSync(join(outDir, 'native-build-manifest.json'), `${JSON.stringify(manifest, null, 2)}\n`);
   return manifest;
 }

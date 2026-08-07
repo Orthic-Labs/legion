@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "kind": "nemesis-task-path-mappings",
+  "book": 8,
+  "mappings": [
+    { "task": "B8-002", "paths": ["integrations/mcp/server.mjs"], "state": "implemented" },
+    { "task": "B8-003", "paths": ["integrations/mcp/tools.mjs"], "state": "mapped" },
+    { "task": "B8-004", "paths": ["integrations/mcp/install.mjs", "lib/cli/commands/mcp.mjs"], "state": "implemented" },
+    { "task": "B8-005", "paths": ["lib/report/markdown/index.mjs", "lib/cli/commands/report.mjs"], "state": "implemented" },
+    { "task": "B8-006", "paths": ["lib/report/sarif/index.mjs"], "state": "implemented" },
+    { "task": "B8-007", "paths": ["lib/report/html/index.mjs"], "state": "mapped" },
+    { "task": "B8-008", "paths": ["lib/report/editor/index.mjs"], "state": "mapped" },
+    { "task": "B8-012", "paths": ["scripts/build-native.mjs", "lib/distribution/native-manifest.mjs"], "state": "implemented" },
+    { "task": "B8-017", "paths": ["lib/distribution/sbom.mjs", "lib/distribution/notices.mjs", "THIRD_PARTY_NOTICES.md"], "state": "mapped" },
+    { "task": "B8-018", "paths": ["lib/distribution/release-manifest.mjs", "scripts/verify-release.mjs"], "state": "mapped" },
+    { "task": "B8-026", "paths": ["scripts/qualify-release.mjs"], "state": "blocked" }
+  ]
+}
