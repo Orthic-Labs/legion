@@ -1,0 +1,201 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "legion-execution-contract-v1",
+  "title": "ExecutionContract",
+  "description": "Canonical ExecutionContract (ARCHITECTURE.md §10-12, §33). No product-state mutation begins without a bounded executable contract (G2); a contract is executable only when openQuestions == [] (G9, §11).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion", "kind", "contractId", "version", "sourceRevision",
+    "objective", "currentState", "desiredState",
+    "requirements", "decisions", "invariants", "nonGoals",
+    "scope", "artifacts",
+    "tasks", "dependencies",
+    "acceptanceCriteria", "declaredChecks", "evidenceRequirements",
+    "authorizedEffectClasses", "repairLatitude",
+    "stopConditions", "escalationConditions", "rollback",
+    "openQuestions"
+  ],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "kind": { "const": "legion-execution-contract" },
+
+    "contractId": { "type": "string", "pattern": "^EC-\\d+$" },
+    "version": { "type": "integer", "minimum": 1, "description": "ARCHITECTURE §15: 'EC-44 v1 -> Amendment A-2 -> EC-44 v2'." },
+    "sourceRevision": { "type": "string", "minLength": 7 },
+
+    "objective": { "type": "string", "minLength": 1 },
+    "currentState": { "type": "string", "minLength": 1 },
+    "desiredState": { "type": "string", "minLength": 1 },
+
+    "requirements": { "type": "array", "items": { "$ref": "#/$defs/requirement" } },
+    "decisions": { "type": "array", "items": { "$ref": "#/$defs/decision" } },
+    "invariants": { "type": "array", "items": { "$ref": "#/$defs/invariant" } },
+    "nonGoals": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/nonGoal" },
+      "description": "NG-# id family is illustrative-only in ARCHITECTURE §5.2, not in the §33 canonical shared-state list. Included because Sage 'Architect' output explicitly names non-goals as a typed artifact. Judgment call J-1, see FREEZE.md."
+    },
+
+    "scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["own", "read", "forbidden"],
+      "properties": {
+        "own": { "type": "array", "items": { "type": "string" } },
+        "read": { "type": "array", "items": { "type": "string" } },
+        "forbidden": { "type": "array", "items": { "type": "string" } }
+      },
+      "description": "ARCHITECTURE §11 scope{own[],read[],forbidden[]}; §32a: own[] is the parallelism-partitioning tool."
+    },
+
+    "artifacts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["exact", "bounded"],
+      "properties": {
+        "exact": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/artifactUnit" },
+          "description": "Every item's latitude MUST be 'EXACT' (ARCHITECTURE §12)."
+        },
+        "bounded": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/artifactUnit" },
+          "description": "Every item's latitude MUST be 'BOUNDED' and MUST declare locked[]/freedom[] (ARCHITECTURE §12)."
+        }
+      },
+      "description": "ARCHITECTURE §11 artifacts{exact[],bounded[]}. OPEN-latitude items are never placed here — an OPEN item is, by definition (§12), 'not executable; it must return to Sage', and therefore lives in openQuestions[] until it resolves into EXACT or BOUNDED. This is a structural judgment call: the source text names three latitude values but only two artifact buckets. See FREEZE.md J-3."
+    },
+
+    "tasks": { "type": "array", "items": { "type": "string", "pattern": "^T-\\d+(\\.\\d+)*$" }, "description": "References to legion-execution-task-v1 records by id; the full ExecutionTask objects are stored separately, not inlined, to avoid dual-sourcing task state." },
+    "dependencies": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["from", "to", "reason"],
+        "properties": {
+          "from": { "type": "string" },
+          "to": { "type": "string" },
+          "reason": {
+            "type": "string",
+            "enum": ["dependency-edge", "shared-mutable-resource", "ordering-invariant"],
+            "description": "ARCHITECTURE §32a: every serial edge must name its dependency, shared resource, or ordering invariant. A dependency without one of these three reasons is a planning defect."
+          },
+          "resourceKey": { "type": ["string", "null"], "description": "Required in practice when reason == 'shared-mutable-resource' (concurrency key). Not enforced structurally here; see FREEZE.md open questions." }
+        }
+      }
+    },
+
+    "acceptanceCriteria": { "type": "array", "items": { "$ref": "#/$defs/acceptanceCriterion" } },
+    "declaredChecks": { "type": "array", "items": { "type": "string" } },
+    "evidenceRequirements": { "type": "array", "items": { "type": "string" } },
+
+    "authorizedEffectClasses": {
+      "type": "array",
+      "items": { "enum": ["FILE_WRITE", "FILE_DELETE", "FILE_MOVE", "COMMAND_EXEC", "NETWORK_EGRESS", "PROCESS_SPAWN", "CREDENTIAL_ACCESS", "DEPENDENCY_INSTALL", "VCS_COMMIT", "VCS_PUSH", "PUBLISH", "EXTERNAL_SIDE_EFFECT"] }
+    },
+    "repairLatitude": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "ARCHITECTURE §14 mechanical-repair latitude statements (free text; the boundary test itself is qualitative in source docs)."
+    },
+
+    "stopConditions": { "type": "array", "items": { "type": "string" } },
+    "escalationConditions": { "type": "array", "items": { "type": "string" } },
+    "rollback": { "type": "array", "items": { "type": "string" } },
+
+    "openQuestions": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/openQuestion" },
+      "description": "ARCHITECTURE §11, G9: MUST be empty for the contract to be executable. Non-empty is a valid (non-executable, draft) contract state."
+    }
+  },
+
+  "$defs": {
+    "requirement": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "statement"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^R-\\d+$" },
+        "statement": { "type": "string", "minLength": 1 },
+        "rationale": { "type": ["string", "null"] }
+      }
+    },
+    "decision": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "statement"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^D-\\d+$" },
+        "statement": { "type": "string", "minLength": 1 },
+        "rationale": { "type": ["string", "null"] },
+        "alternativesConsidered": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "invariant": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "statement"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^I-\\d+$" },
+        "statement": { "type": "string", "minLength": 1 }
+      }
+    },
+    "nonGoal": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "statement"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^NG-\\d+$" },
+        "statement": { "type": "string", "minLength": 1 }
+      }
+    },
+    "acceptanceCriterion": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "statement"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^AC-\\d+$" },
+        "statement": { "type": "string", "minLength": 1 },
+        "verifiesDecisions": { "type": "array", "items": { "type": "string", "pattern": "^D-\\d+$" } }
+      }
+    },
+    "artifactUnit": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "path", "latitude"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "path": { "type": "string", "minLength": 1 },
+        "latitude": { "enum": ["EXACT", "BOUNDED"] },
+        "content": {
+          "type": ["string", "null"],
+          "description": "Required in practice for latitude == 'EXACT' (ARCHITECTURE §12 example: the artifact is completely determined). Not enforced structurally to keep the schema simple; see FREEZE.md open questions."
+        },
+        "locked": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "ARCHITECTURE §12 BOUNDED 'LOCKED:' semantics."
+        },
+        "freedom": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "ARCHITECTURE §12 BOUNDED 'LATITUDE:' mechanics Alchemist owns."
+        }
+      }
+    },
+    "openQuestion": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "question"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "question": { "type": "string", "minLength": 1 },
+        "blocksArtifacts": { "type": "array", "items": { "type": "string" } }
+      }
+    }
+  }
+}

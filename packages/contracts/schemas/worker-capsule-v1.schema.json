@@ -1,0 +1,114 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "legion-worker-capsule-v1",
+  "title": "WorkerCapsule",
+  "description": "Canonical WorkerCapsule (ARCHITECTURE.md §31): the mechanical, zero-context projection of an ExecutionTask dispatched to a worker executor. 'The worker packet must derive from canonical state, not from a new free-form model reinterpretation.' Worker output remains untrusted until reconciled by Alchemist + Arcane (§32, G16).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion", "kind", "capsuleId", "taskId", "contractId", "sourceRevision",
+    "exactScope", "decisions", "invariants", "exactArtifacts", "boundedLatitude",
+    "checks", "forbiddenActions", "stopRules", "escalationRules", "outputContract",
+    "modelTier", "workerProfile"
+  ],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "kind": { "const": "legion-worker-capsule" },
+
+    "capsuleId": { "type": "string", "pattern": "^wc_[0-9A-HJKMNP-TV-Z]{26}$" },
+    "taskId": { "type": "string", "pattern": "^T-\\d+(\\.\\d+)*$" },
+    "contractId": { "type": "string", "pattern": "^EC-\\d+$" },
+    "sourceRevision": { "type": "string", "minLength": 7 },
+
+    "exactScope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["own", "read", "forbidden"],
+      "properties": {
+        "own": { "type": "array", "items": { "type": "string" } },
+        "read": { "type": "array", "items": { "type": "string" } },
+        "forbidden": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+
+    "decisions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "statement"],
+        "properties": {
+          "id": { "type": "string", "pattern": "^D-\\d+$" },
+          "statement": { "type": "string", "minLength": 1 }
+        }
+      },
+      "description": "Embedded copies (not references) — §31/§45 zero-context completeness: the capsule must be self-sufficient without conversation history."
+    },
+    "invariants": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "statement"],
+        "properties": {
+          "id": { "type": "string", "pattern": "^I-\\d+$" },
+          "statement": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "relevantEvidence": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["ref"],
+        "properties": {
+          "ref": { "type": "string", "minLength": 1 },
+          "embedded": { "type": ["string", "null"] }
+        }
+      }
+    },
+
+    "exactArtifacts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "path", "content"],
+        "properties": {
+          "id": { "type": "string", "minLength": 1 },
+          "path": { "type": "string", "minLength": 1 },
+          "content": { "type": "string" }
+        }
+      }
+    },
+    "boundedLatitude": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["locked", "freedom"],
+      "properties": {
+        "locked": { "type": "array", "items": { "type": "string" } },
+        "freedom": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+
+    "checks": { "type": "array", "items": { "type": "string" } },
+    "forbiddenActions": { "type": "array", "items": { "type": "string" } },
+    "stopRules": { "type": "array", "items": { "type": "string" } },
+    "escalationRules": { "type": "array", "items": { "type": "string" } },
+
+    "outputContract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["expectedArtifacts", "expectedReceipts"],
+      "properties": {
+        "expectedArtifacts": { "type": "array", "items": { "type": "string" } },
+        "expectedReceipts": { "type": "array", "items": { "type": "string" } },
+        "responseSchemaRef": { "type": ["string", "null"] }
+      }
+    },
+
+    "modelTier": { "enum": ["FRONTIER", "MID", "CHEAP_STRICT", "NONE"] },
+    "workerProfile": { "enum": ["strict", "standard", "advanced"] }
+  }
+}

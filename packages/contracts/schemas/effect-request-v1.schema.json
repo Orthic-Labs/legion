@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "legion-effect-request-v1",
+  "title": "EffectRequest",
+  "description": "Pre-effect authorization request to Arcane (ARCHITECTURE.md §24, §24a PRE-EFFECT GATE: 'capability check, path ownership, effect-class authorization, contract version, latitude class'). Answered by an effect-receipt-v1 record.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion", "kind", "requestId", "runId", "contractId", "taskId",
+    "requestedBy", "effectClass", "target", "operation", "latitude", "sourceRevision", "requestedAt"
+  ],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "kind": { "const": "legion-effect-request" },
+
+    "requestId": { "type": "string", "pattern": "^req_[0-9A-HJKMNP-TV-Z]{26}$" },
+    "runId": { "type": "string", "pattern": "^run_[0-9A-HJKMNP-TV-Z]{26}$" },
+    "contractId": { "type": "string", "pattern": "^EC-\\d+$" },
+    "taskId": { "type": "string", "pattern": "^T-\\d+(\\.\\d+)*$" },
+
+    "requestedBy": { "enum": ["legion", "sage", "alchemist", "seer", "arcane", "covenant", "kernel"] },
+    "effectClass": { "enum": ["FILE_WRITE", "FILE_DELETE", "FILE_MOVE", "COMMAND_EXEC", "NETWORK_EGRESS", "PROCESS_SPAWN", "CREDENTIAL_ACCESS", "DEPENDENCY_INSTALL", "VCS_COMMIT", "VCS_PUSH", "PUBLISH", "EXTERNAL_SIDE_EFFECT"] },
+
+    "target": { "type": "string", "minLength": 1, "description": "Path or resource identity the effect applies to." },
+    "operation": { "type": "string", "minLength": 1, "description": "Verb, e.g. 'create', 'edit', 'delete', 'move', 'exec', 'connect'." },
+    "latitude": { "enum": ["EXACT", "BOUNDED"], "description": "OPEN latitude can never reach an effect request (ARCHITECTURE §12: OPEN is not executable)." },
+
+    "preview": { "type": ["string", "null"], "description": "Diff or structured preview of the intended effect, used for approval-digest binding (COVENANT.md §17-18, ARCHITECTURE §24a)." },
+    "idempotencyKey": { "type": ["string", "null"] },
+    "approvalRequired": { "type": "boolean", "default": false },
+
+    "sourceRevision": { "type": "string", "minLength": 7 },
+    "requestedAt": { "type": "string", "format": "date-time" }
+  }
+}

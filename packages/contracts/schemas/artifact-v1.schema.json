@@ -1,0 +1,83 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "legion-artifact-v1",
+  "title": "Artifact",
+  "description": "Shared canonical Artifact object (ARCHITECTURE.md §33 shared-state list; content-addressed per IMPLEMENTATION-PLAN.md §9.2 'content-addressed immutable artifacts', 'sensitivity and retention on every artifact', 'secret redaction before persistence'). Reused by execution-contract-v1 (artifacts.exact[]/bounded[] entries wrap this shape), worker-capsule-v1, operation-envelope-v1 results, and legion-result-v1.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "kind", "artifactId", "artifactKind", "digest", "bytes", "immutable", "producerAuthority", "sourceRevision", "sensitivity", "retention", "redaction", "createdAt"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "kind": { "const": "legion-artifact" },
+    "artifactId": {
+      "type": "string",
+      "pattern": "^art_[0-9A-HJKMNP-TV-Z]{26}$"
+    },
+    "artifactKind": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Domain kind of the artifact content, e.g. 'patch', 'exact-code', 'schema', 'fixture', 'test', 'report', 'log', 'evidence'. Not a closed enum in source docs — free string by design (judgment call, see FREEZE.md J-11)."
+    },
+    "path": {
+      "type": ["string", "null"],
+      "description": "Repository-relative path when the artifact materializes as a file; null for non-file artifacts."
+    },
+    "digest": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    },
+    "bytes": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "mediaType": {
+      "type": ["string", "null"]
+    },
+    "immutable": {
+      "type": "boolean",
+      "description": "IMPLEMENTATION-PLAN §9.2: content-addressed immutable artifacts."
+    },
+    "producerAuthority": {
+      "enum": ["legion", "sage", "alchemist", "seer", "arcane", "covenant", "kernel"]
+    },
+    "producerVersion": {
+      "type": ["string", "null"]
+    },
+    "sourceRevision": {
+      "type": "string",
+      "minLength": 7
+    },
+    "denominatorDigest": {
+      "type": ["string", "null"],
+      "description": "Present when the artifact is bound to a Seer denominator (target/control/provider set), matching the nemesis artifact-record-v1 'denominatorDigest' field intent."
+    },
+    "sensitivity": {
+      "type": "string",
+      "enum": ["public", "internal", "restricted", "secret"],
+      "description": "IMPLEMENTATION-PLAN §9.2: 'sensitivity and retention on every artifact'."
+    },
+    "retention": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["policy"],
+      "properties": {
+        "policy": { "type": "string", "minLength": 1 },
+        "expiresAt": { "type": ["string", "null"], "format": "date-time" }
+      }
+    },
+    "redaction": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["applied", "metadata"],
+      "properties": {
+        "applied": { "type": "boolean" },
+        "metadata": { "type": "array" }
+      },
+      "description": "Same shape as nemesis execution-receipt-v1.schema.json's artifact.redaction; IMPLEMENTATION-PLAN §9.2 'secret redaction before persistence'."
+    },
+    "createdAt": {
+      "type": "string",
+      "format": "date-time"
+    }
+  }
+}

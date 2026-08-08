@@ -1,0 +1,121 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "legion-operation-envelope-v1",
+  "title": "OperationEnvelope",
+  "description": "Canonical operation request/result envelope (IMPLEMENTATION-PLAN.md §8 operation registry descriptor fields; §7.12 Legion result: 'invocation state, domain outcome, claim boundary, artifacts, warnings, next actions, and typed error'; I-09: invocation, domain outcome, proof, enforcement health, audit completeness, and finding disposition are orthogonal status dimensions, not collapsed into one status). Modeled as a single discriminated file (envelopeKind: request|result) rather than two files, since the WP2 task names 'operation-envelope-v1' as one schema while explicitly requiring the invocation/domain/claim triad to stay separate fields on the result branch. Judgment call, see FREEZE.md.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/OperationRequest" },
+    { "$ref": "#/$defs/OperationResult" }
+  ],
+  "$defs": {
+    "OperationRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion", "kind", "envelopeKind", "operationId", "operationVersion",
+        "requestId", "runId", "callerAuthority", "authorityAssertion", "input", "sourceRevision", "requestedAt"
+      ],
+      "properties": {
+        "schemaVersion": { "const": 1 },
+        "kind": { "const": "legion-operation-envelope" },
+        "envelopeKind": { "const": "request" },
+
+        "operationId": { "type": "string", "minLength": 1, "description": "e.g. 'legion.task.start' (IMPLEMENTATION-PLAN §8.1)." },
+        "operationVersion": { "type": "string", "minLength": 1 },
+
+        "requestId": { "type": "string", "pattern": "^req_[0-9A-HJKMNP-TV-Z]{26}$" },
+        "runId": { "type": "string", "pattern": "^run_[0-9A-HJKMNP-TV-Z]{26}$" },
+        "taskId": { "type": ["string", "null"], "pattern": "^ktask_[0-9A-HJKMNP-TV-Z]{26}$" },
+
+        "callerAuthority": { "enum": ["legion", "sage", "alchemist", "seer", "arcane", "covenant", "kernel"] },
+        "authorityAssertion": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["assertedBy", "perMessage", "verificationMethod"],
+          "properties": {
+            "assertedBy": { "type": "string", "minLength": 1, "description": "Concrete identity asserting callerAuthority for this specific message (process/capability/session identity)." },
+            "perMessage": {
+              "type": "boolean",
+              "description": "S00 Forge baseline finding (docs/plans/legion/s00-baseline/legacy-semantic-inventory.json): legacy Forge trust (lib/host.js process-identity/code-signing) is connection-level, asserted once at MCP startup, never re-checked per message. This field forces every operation request to say explicitly whether its authority was actually re-asserted for this message (true) or merely inherited from the connection (false) — the gap must be visible, not silently inherited."
+            },
+            "verificationMethod": { "enum": ["host-connection-trust", "capability-signature", "unauthenticated"] }
+          },
+          "description": "Added mid-freeze at coordinator direction from the S00 baseline. Distinct from callerAuthority (which authority role is claimed) — this is how strongly Arcane can trust that claim for this one message."
+        },
+        "input": { "type": "object", "description": "Operation-specific input payload, validated against that operation's own registered input schema (IMPLEMENTATION-PLAN §8) — not further constrained here." },
+
+        "idempotencyKey": { "type": ["string", "null"] },
+        "sourceRevision": { "type": "string", "minLength": 7 },
+        "requestedAt": { "type": "string", "format": "date-time" }
+      }
+    },
+
+    "OperationResult": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion", "kind", "envelopeKind", "operationId", "operationVersion",
+        "requestId", "runId", "invocationState", "domainOutcome", "claimBoundary",
+        "artifacts", "warnings", "nextActions", "error", "sourceRevision"
+      ],
+      "properties": {
+        "schemaVersion": { "const": 1 },
+        "kind": { "const": "legion-operation-envelope" },
+        "envelopeKind": { "const": "result" },
+
+        "operationId": { "type": "string", "minLength": 1 },
+        "operationVersion": { "type": "string", "minLength": 1 },
+        "requestId": { "type": "string", "pattern": "^req_[0-9A-HJKMNP-TV-Z]{26}$" },
+        "runId": { "type": "string", "pattern": "^run_[0-9A-HJKMNP-TV-Z]{26}$" },
+        "taskId": { "type": ["string", "null"], "pattern": "^ktask_[0-9A-HJKMNP-TV-Z]{26}$" },
+
+        "invocationState": {
+          "enum": ["ACCEPTED", "RUNNING", "INPUT_REQUIRED", "CANCELLED", "EXPIRED", "FAILED_INVOCATION", "COMPLETED"],
+          "description": "Kernel-owned axis: did the operation itself run to completion? Orthogonal to domainOutcome and claimBoundary (I-09)."
+        },
+        "domainOutcome": {
+          "enum": ["REPAIR", "BLOCKED_DECISION", "NEEDS_AMENDMENT", "OUT_OF_SCOPE", "BUDGET_STOP", "FAILED_CONTRACT", "COMPLETE"],
+          "description": "Reuses ALCHEMIST_STATE verbatim (ARCHITECTURE §18: 'part of Legion's shared state vocabulary'). Engineering-outcome axis: did the requested change actually happen as intended?"
+        },
+        "claimBoundary": {
+          "enum": ["CLEAN_WITHIN_DECLARED_SCOPE", "PARTIALLY_PROVEN", "UNPROVEN", "EVIDENCE_INSUFFICIENT", "NOT_APPLICABLE"],
+          "description": "What the result may honestly claim, independent of whether it ran (invocationState) or succeeded (domainOutcome). Grounded in I-12 'no false clean' and IMPLEMENTATION-PLAN §7.11 safe/prohibited claims."
+        },
+
+        "artifacts": { "type": "array", "items": { "type": "string" }, "description": "artifactId references (legion-artifact-v1)." },
+        "warnings": { "type": "array", "items": { "type": "string" } },
+        "nextActions": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["action"],
+            "properties": {
+              "action": { "type": "string", "minLength": 1 },
+              "reason": { "type": ["string", "null"] },
+              "owner": { "type": ["string", "null"] }
+            }
+          }
+        },
+        "error": {
+          "type": ["object", "null"],
+          "additionalProperties": false,
+          "required": ["code", "message"],
+          "properties": {
+            "code": { "type": "string", "minLength": 1 },
+            "message": { "type": "string", "minLength": 1 },
+            "remediation": { "type": ["string", "null"] },
+            "retriable": { "type": "boolean", "default": false }
+          }
+        },
+
+        "evidenceRefs": { "type": "array", "items": { "type": "string" } },
+        "receiptRefs": { "type": "array", "items": { "type": "string" } },
+
+        "sourceRevision": { "type": "string", "minLength": 7 },
+        "completedAt": { "type": ["string", "null"], "format": "date-time" }
+      }
+    }
+  }
+}

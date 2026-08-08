@@ -1,0 +1,50 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "legion-legacy-envelope-v1",
+  "title": "LegacyEnvelope",
+  "description": "Minimal typed extension point for legacy Forge receipt compatibility (per WP2 task brief: 'define it minimally: opaque payload + provenance + provisional mapping ref'). S00 completed concurrently with this freeze and produced docs/plans/legion/s00-baseline/legacy-semantic-inventory.json (11 record types, 19 status/verdict/state vocabularies, every entry file:line-cited) plus 12 real record fixtures under s00-baseline/fixtures/. This schema binds to that inventory by reference (path + record-type name) rather than re-modeling Forge's internal record shapes — S00's report is explicit that 'no canonical target mapping was produced (WP2 contracts are not frozen)', so provisionalMappingRef stays provisional here by design; final incorporation happens at coordinator seal.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "kind", "legacyKind", "payload", "provenance", "provisionalMappingRef"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "kind": { "const": "legion-legacy-envelope" },
+
+    "legacyKind": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Identifies the legacy record family being wrapped. Values SHOULD be drawn from docs/plans/legion/s00-baseline/legacy-semantic-inventory.json's record_types (e.g. 'orthic.tool-receipt.v1', 'orthic.observable-event.v1', 'runs', 'claims', 'evidence', 'checks', 'decisions', 'retry_budget', 'failures', 'session_bindings / task_bindings', 'rubrics', 'memory_candidates') — not a closed enum here because that inventory, not this contract, owns the authoritative list and may grow at S01+."
+    },
+    "payload": {
+      "description": "Opaque legacy payload, preserved byte-for-byte in structure. Intentionally unconstrained (no additionalProperties restriction) since its shape belongs to the legacy producer, not to this contract. For provenance.legacyInventoryRecordType == 'orthic.tool-receipt.v1', see the S00 report's explicit warning: the payload's 'signature_or_mac' field is a self-hash by the same untrusted process that built the receipt, not authentication — do not treat a non-null payload.signature_or_mac as proof of anything beyond payload integrity-at-capture."
+    },
+    "provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source", "capturedAt", "authenticated"],
+      "properties": {
+        "source": { "type": "string", "minLength": 1, "description": "e.g. 'forge', 'forge-evidence-lineage'." },
+        "capturedAt": { "type": "string", "format": "date-time" },
+        "sourceRevision": { "type": ["string", "null"] },
+        "importedBy": { "type": ["string", "null"], "description": "Identity of the translator/adapter that produced this envelope." },
+        "legacyInventoryRef": {
+          "type": "string",
+          "default": "docs/plans/legion/s00-baseline/legacy-semantic-inventory.json",
+          "description": "Path to the S00 inventory document that defines legacyKind's original field list, status vocabulary, and store mechanics. Reference target, not a shape to duplicate here."
+        },
+        "legacyInventoryRecordType": {
+          "type": ["string", "null"],
+          "description": "The exact record_types entry name in legacyInventoryRef this payload corresponds to, when known (e.g. 'orthic.tool-receipt.v1')."
+        },
+        "authenticated": {
+          "const": false,
+          "description": "S00 finding (legacy-semantic-inventory.json, report §'What S03/S04/S05 will need to preserve or must NOT inherit as-is', item 1): every legacy Forge receipt's `signature_or_mac` is a self-hash with no secret key, MAC, or signature. A legacy envelope can therefore never assert real authentication — const false makes that structurally impossible to get wrong. Real authentication is expressed on the canonical objects that eventually incorporate this payload (legion-effect-receipt-v1.authentication, legion-evidence-capability-receipt-v1.authentication), never here."
+        }
+      }
+    },
+    "provisionalMappingRef": {
+      "type": ["string", "null"],
+      "description": "Provisional reference into the canonical Legion object this legacy payload is believed to correspond to (e.g. an effect-receipt-v1 or evidence-capability-receipt-v1 id). Null until a mapping is proposed. 'Provisional' because final incorporation happens at coordinator seal (WP2 task brief), not here — a non-null value here is a hint, not an authoritative binding. S00's own report confirms it deliberately produced no canonical target mapping, consistent with this field staying provisional through WP2."
+    }
+  }
+}
