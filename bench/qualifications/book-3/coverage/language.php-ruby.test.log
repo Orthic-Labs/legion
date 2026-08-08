@@ -1,0 +1,17 @@
+✔ php pack detects composer projects (0.6163ms)
+✔ php pack emits configured-only commands (0.1599ms)
+✔ ruby pack detects Gemfile projects (0.1306ms)
+✔ ruby pack emits brakeman security command (0.117ms)
+✔ laravel pack flags raw SQL and unescaped Blade (0.329ms)
+✔ laravel pack flags mass assignment (0.1333ms)
+✔ symfony pack flags untrusted binds (0.2023ms)
+✔ rails pack flags forgery bypass and constantize (0.2366ms)
+✔ rails pack stays clean for permitted params (0.2004ms)
+ℹ tests 9
+ℹ suites 0
+ℹ pass 9
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 65.9709

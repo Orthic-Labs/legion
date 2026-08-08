@@ -11,7 +11,7 @@ const LEVEL = {
 };
 
 // One canonical product identity for every machine output. No legacy
-// bogusyogi-audit naming may survive.
+// Legacy prototype naming may survive in imported artifacts.
 const TOOL = Object.freeze({
   name: 'Nemesis',
   fullName: 'Orthic Labs Nemesis',

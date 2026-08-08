@@ -1,0 +1,25 @@
+file:///D:/Claude/tools/skills/nemesis/tests/security-l4/b7-001-contracts.test.mjs:7
+  CONTROL_STATES,
+  ^^^^^^^^^^^^^^
+SyntaxError: The requested module '../../providers/security/contracts.mjs' does not provide an export named 'CONTROL_STATES'
+    at #asyncInstantiate (node:internal/modules/esm/module_job:463:21)
+    at async ModuleJob.run (node:internal/modules/esm/module_job:561:5)
+    at async node:internal/modules/esm/loader:650:26
+    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:101:5)
+
+Node.js v26.5.0
+✖ tests\security-l4\b7-001-contracts.test.mjs (50.5413ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 56.1968
+
+✖ failing tests:
+
+test at tests\security-l4\b7-001-contracts.test.mjs:1:1
+✖ tests\security-l4\b7-001-contracts.test.mjs (50.5413ms)
+  'test failed'

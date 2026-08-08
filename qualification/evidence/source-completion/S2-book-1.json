@@ -1,0 +1,655 @@
+{
+  "schemaVersion": 3,
+  "kind": "nemesis-source-completion-book-evidence",
+  "routeStep": "R_INCREMENTAL_BOOK_GATES/S2",
+  "book": 1,
+  "sourceRevision": "97687c6952c3f20a8affee7da0502a61039e258e+dirty.sha256:b001db47faeb04d0ac100d87c0a6db691c87a291b999f49a6883b0861d8d41ca",
+  "sourceAccounting": {
+    "implemented": 28,
+    "mapped": 0,
+    "sourceBlocked": 0
+  },
+  "decision": "PASS",
+  "commands": [
+    {
+      "command": "node --test tests/core/book-1-contracts.test.mjs",
+      "status": "fail",
+      "counts": {
+        "total": 28,
+        "pass": 1,
+        "fail": 27
+      },
+      "log": "qualification/evidence/source-completion/S2-book-1.behavior.red.log"
+    },
+    {
+      "command": "node --test tests/core/book-1-contracts.test.mjs",
+      "status": "fail",
+      "counts": {
+        "total": 28,
+        "pass": 27,
+        "fail": 1
+      },
+      "log": "qualification/evidence/source-completion/S2-book-1.behavior.red.correction.log"
+    },
+    {
+      "command": "node --test tests/core/book-1-contracts.test.mjs",
+      "status": "pass",
+      "counts": {
+        "total": 28,
+        "pass": 28,
+        "fail": 0
+      },
+      "log": "qualification/evidence/source-completion/S2-book-1.behavior.green.log"
+    },
+    {
+      "command": "node --test tests/core/book-1-quality.test.mjs",
+      "status": "fail",
+      "counts": {
+        "total": 11,
+        "pass": 10,
+        "fail": 1
+      },
+      "log": "qualification/evidence/source-completion/S2-book-1.quality.red.log"
+    },
+    {
+      "command": "node --test tests/core/book-1-quality.test.mjs",
+      "status": "pass",
+      "counts": {
+        "total": 20,
+        "pass": 20,
+        "fail": 0
+      },
+      "log": "qualification/evidence/source-completion/S2-book-1.quality.green.log"
+    }
+  ],
+  "qualification": {
+    "command": "node scripts/qualify-book.mjs --book 1",
+    "status": "pass",
+    "outputDigest": "sha256:6a3a3a4c596b97d7312f1ec10cc6c44fa973781492ef80a5f710eafbb83cdfd3",
+    "receipt": "qualification/book-1-artifacts/gate-result.json"
+  },
+  "taskMap": [
+    {
+      "task": "B1-001",
+      "dependsOn": [],
+      "test": {
+        "path": "tests/core/book-1-contracts.test.mjs",
+        "assertion": "B1-001 package manifest exposes one public binary and later-book public paths"
+      },
+      "implementation": [
+        {
+          "path": "package.json",
+          "symbol": "@orthic-labs/nemesis"
+        }
+      ],
+      "red": "qualification/evidence/source-completion/S2-book-1.behavior.red.log",
+      "green": "qualification/evidence/source-completion/S2-book-1.behavior.green.log"
+    },
+    {
+      "task": "B1-002",
+      "dependsOn": [
+        "B1-001"
+      ],
+      "test": {
+        "path": "tests/core/book-1-contracts.test.mjs",
+        "assertion": "B1-002 canonical enums reject unknown values and future schema versions"
+      },
+      "implementation": [
+        {
+          "path": "lib/contracts/enums.mjs",
+          "symbol": "PROVIDER_STATUS"
+        }
+      ],
+      "red": "qualification/evidence/source-completion/S2-book-1.behavior.red.log",
+      "green": "qualification/evidence/source-completion/S2-book-1.behavior.green.log"
+    },
+    {
+      "task": "B1-003",
+      "dependsOn": [
+        "B1-002"
+      ],
+      "test": {
+        "path": "tests/core/book-1-contracts.test.mjs",
+        "assertion": "B1-003 command catalogue generates complete strict CLI help"
+      },
+      "implementation": [
+        {
+          "path": "lib/cli/help.mjs",
+          "symbol": "COMMANDS"
+        }
+      ],
+      "red": "qualification/evidence/source-completion/S2-book-1.behavior.red.log",
+      "green": "qualification/evidence/source-completion/S2-book-1.behavior.green.log"
+    },
+    {
+      "task": "B1-004",
+      "dependsOn": [
+        "B1-003"
+      ],
+      "test": {
+        "path": "tests/core/book-1-contracts.test.mjs",
+        "assertion": "B1-004 fixed host returns typed unavailable capability receipts"
+      },
+      "implementation": [
+        {
+          "path": "lib/host/fixed-host.mjs",
+          "symbol": "fixedHost"
+        }
+      ],
+      "red": "qualification/evidence/source-completion/S2-book-1.behavior.red.correction.log",
+      "green": "qualification/evidence/source-completion/S2-book-1.behavior.green.log"
+    },
+    {
+      "task": "B1-005",
+      "dependsOn": [
+        "B1-004"
+      ],
+      "test": {
+        "path": "tests/core/book-1-contracts.test.mjs",
+        "assertion": "B1-005 artifact paths reject alternate separators and digests bind bytes"
+      },
+      "implementation": [
+        {
+          "path": "lib/artifacts/paths.mjs",
+          "symbol": "safeArtifactPath"
+        }
+      ],
+      "red": "qualification/evidence/source-completion/S2-book-1.behavior.red.log",
+      "green": "qualification/evidence/source-completion/S2-book-1.behavior.green.log"
+    },
+    {
+      "task": "B1-006",
+      "dependsOn": [
+        "B1-005"
+      ],
+      "test": {
+        "path": "tests/core/book-1-contracts.test.mjs",
+        "assertion": "B1-006 run manifest rejects orphan and missing declared files"
+      },
+      "implementation": [
+        {
+          "path": "lib/core/run-manifest.mjs",
+          "symbol": "validateRunManifest"
+        }
+      ],
+      "red": "qualification/evidence/source-completion/S2-book-1.behavior.red.log",
+      "green": "qualification/evidence/source-completion/S2-book-1.behavior.green.log"
+    },
+    {
+      "task": "B1-007",
+      "dependsOn": [
+        "B1-006"
+      ],
+      "test": {
+        "path": "tests/core/book-1-contracts.test.mjs",
+        "assertion": "B1-007 trusted merge rejects repository attempts to grant host policy"
+      },
+      "implementation": [
+        {
+          "path": "lib/config/merge.mjs",
+          "symbol": "mergeTrustedConfig"
+        }
+      ],
+      "red": "qualification/evidence/source-completion/S2-book-1.behavior.red.log",
+      "green": "qualification/evidence/source-completion/S2-book-1.behavior.green.log"
+    },
+    {
+      "task": "B1-008",
+      "dependsOn": [
+        "B1-007"
+      ],
+      "test": {
+        "path": "tests/core/book-1-contracts.test.mjs",
+        "assertion": "B1-008 sealed profiles expose resource, cache, cancellation, schedule, and reasoning policy"
+      },
+      "implementation": [
+        {
+          "path": "lib/config/profiles.mjs",
+          "symbol": "sealedProfile"
+        }
+      ],
+      "red": "qualification/evidence/source-completion/S2-book-1.behavior.red.log",
+      "green": "qualification/evidence/source-completion/S2-book-1.behavior.green.log"
+    },
+    {
+      "task": "B1-009",
+      "dependsOn": [
+        "B1-008"
+      ],
+      "test": {
+        "path": "tests/core/book-1-contracts.test.mjs",
+        "assertion": "B1-009 family and lens registries reject dependency cycles"
+      },
+      "implementation": [
+        {
+          "path": "lib/contracts/families.mjs",
+          "symbol": "validateFamilies"
+        }
+      ],
+      "red": "qualification/evidence/source-completion/S2-book-1.behavior.red.log",
+      "green": "qualification/evidence/source-completion/S2-book-1.behavior.green.log"
+    },
+    {
+      "task": "B1-010",
+      "dependsOn": [
+        "B1-009"
+      ],
+      "test": {
+        "path": "tests/core/book-1-contracts.test.mjs",
+        "assertion": "B1-010 provider v2 rejects candidate generators that emit findings"
+      },
+      "implementation": [
+        {
+          "path": "lib/providers/sdk/contracts.mjs",
+          "symbol": "validateProviderV2"
+        }
+      ],
+      "red": "qualification/evidence/source-completion/S2-book-1.behavior.red.log",
+      "green": "qualification/evidence/source-completion/S2-book-1.behavior.green.log"
+    },
+    {
+      "task": "B1-011",
+      "dependsOn": [
+        "B1-010"
+      ],
+      "test": {
+        "path": "tests/core/book-1-contracts.test.mjs",
+        "assertion": "B1-011 schedule compiler uses lexical waves and rejects impossible resources"
+      },
+      "implementation": [
+        {
+          "path": "lib/providers/sdk/schedule.mjs",
+          "symbol": "compileSchedule"
+        }
+      ],
+      "red": "qualification/evidence/source-completion/S2-book-1.behavior.red.log",
+      "green": "qualification/evidence/source-completion/S2-book-1.behavior.green.log"
+    },
+    {
+      "task": "B1-012",
+      "dependsOn": [
+        "B1-011"
+      ],
+      "test": {
+        "path": "tests/core/book-1-contracts.test.mjs",
+        "assertion": "B1-012 reasoning runner prepares a packet without invoking a reviewer"
+      },
+      "implementation": [
+        {
+          "path": "lib/providers/executor/index.mjs",
+          "symbol": "executeRunner"
+        }
+      ],
+      "red": "qualification/evidence/source-completion/S2-book-1.behavior.red.log",
+      "green": "qualification/evidence/source-completion/S2-book-1.behavior.green.log"
+    },
+    {
+      "task": "B1-013",
+      "dependsOn": [
+        "B1-012"
+      ],
+      "test": {
+        "path": "tests/core/book-1-contracts.test.mjs",
+        "assertion": "B1-013 precomputed Cortex projection rejects stale repository binding"
+      },
+      "implementation": [
+        {
+          "path": "lib/adapters/cortex/precomputed.mjs",
+          "symbol": "loadPrecomputedProjection"
+        }
+      ],
+      "red": "qualification/evidence/source-completion/S2-book-1.behavior.red.log",
+      "green": "qualification/evidence/source-completion/S2-book-1.behavior.green.log"
+    },
+    {
+      "task": "B1-014",
+      "dependsOn": [
+        "B1-013"
+      ],
+      "test": {
+        "path": "tests/core/book-1-contracts.test.mjs",
+        "assertion": "B1-014 binding comparison is stable across path separators"
+      },
+      "implementation": [
+        {
+          "path": "lib/core/binding.mjs",
+          "symbol": "sameBinding"
+        }
+      ],
+      "red": "qualification/evidence/source-completion/S2-book-1.behavior.red.log",
+      "green": "qualification/evidence/source-completion/S2-book-1.behavior.green.log"
+    },
+    {
+      "task": "B1-015",
+      "dependsOn": [
+        "B1-014"
+      ],
+      "test": {
+        "path": "tests/core/book-1-contracts.test.mjs",
+        "assertion": "B1-015 planning stage registry is fixed and missing required stages are typed"
+      },
+      "implementation": [
+        {
+          "path": "lib/core/plan-stages/registry.mjs",
+          "symbol": "runPlanningStages"
+        }
+      ],
+      "red": "qualification/evidence/source-completion/S2-book-1.behavior.red.log",
+      "green": "qualification/evidence/source-completion/S2-book-1.behavior.green.log"
+    },
+    {
+      "task": "B1-016",
+      "dependsOn": [
+        "B1-015"
+      ],
+      "test": {
+        "path": "tests/core/book-1-contracts.test.mjs",
+        "assertion": "B1-016 scheduler preserves independent work when one dependency blocks"
+      },
+      "implementation": [
+        {
+          "path": "lib/core/scheduler.mjs",
+          "symbol": "scheduleProviders"
+        }
+      ],
+      "red": "qualification/evidence/source-completion/S2-book-1.behavior.red.log",
+      "green": "qualification/evidence/source-completion/S2-book-1.behavior.green.log"
+    },
+    {
+      "task": "B1-017",
+      "dependsOn": [
+        "B1-016"
+      ],
+      "test": {
+        "path": "tests/core/book-1-contracts.test.mjs",
+        "assertion": "B1-017 zero findings with a required gap is incomplete"
+      },
+      "implementation": [
+        {
+          "path": "lib/core/completeness.mjs",
+          "symbol": "reconcileClaim"
+        }
+      ],
+      "red": "qualification/evidence/source-completion/S2-book-1.behavior.red.log",
+      "green": "qualification/evidence/source-completion/S2-book-1.behavior.green.log"
+    },
+    {
+      "task": "B1-018",
+      "dependsOn": [
+        "B1-017"
+      ],
+      "test": {
+        "path": "tests/core/book-1-contracts.test.mjs",
+        "assertion": "B1-018 reviewer policy rejects context reuse and self-adjudication"
+      },
+      "implementation": [
+        {
+          "path": "lib/core/reviewer-policy.mjs",
+          "symbol": "reviewerPolicy"
+        }
+      ],
+      "red": "qualification/evidence/source-completion/S2-book-1.behavior.red.log",
+      "green": "qualification/evidence/source-completion/S2-book-1.behavior.green.log"
+    },
+    {
+      "task": "B1-019",
+      "dependsOn": [
+        "B1-018"
+      ],
+      "test": {
+        "path": "tests/core/book-1-contracts.test.mjs",
+        "assertion": "B1-019 report model preserves topology, controls, and per-claim decisions without a score"
+      },
+      "implementation": [
+        {
+          "path": "lib/report/model.mjs",
+          "symbol": "buildReportModel"
+        }
+      ],
+      "red": "qualification/evidence/source-completion/S2-book-1.behavior.red.log",
+      "green": "qualification/evidence/source-completion/S2-book-1.behavior.green.log"
+    },
+    {
+      "task": "B1-020",
+      "dependsOn": [
+        "B1-019"
+      ],
+      "test": {
+        "path": "tests/core/book-1-contracts.test.mjs",
+        "assertion": "B1-020 semantic verification excludes time, paths, and presentation ordering"
+      },
+      "implementation": [
+        {
+          "path": "lib/verification/projection.mjs",
+          "symbol": "semanticProjection"
+        }
+      ],
+      "red": "qualification/evidence/source-completion/S2-book-1.behavior.red.log",
+      "green": "qualification/evidence/source-completion/S2-book-1.behavior.green.log"
+    },
+    {
+      "task": "B1-021",
+      "dependsOn": [
+        "B1-020"
+      ],
+      "test": {
+        "path": "tests/core/book-1-contracts.test.mjs",
+        "assertion": "B1-021 schedule command is a pure canonical renderer"
+      },
+      "implementation": [
+        {
+          "path": "lib/cli/commands/schedule.mjs",
+          "symbol": "renderSchedule"
+        }
+      ],
+      "red": "qualification/evidence/source-completion/S2-book-1.behavior.red.log",
+      "green": "qualification/evidence/source-completion/S2-book-1.behavior.green.log"
+    },
+    {
+      "task": "B1-022",
+      "dependsOn": [
+        "B1-020"
+      ],
+      "test": {
+        "path": "tests/core/book-1-contracts.test.mjs",
+        "assertion": "B1-022 skill bundle contract rejects absolute internal URIs and separates profiles"
+      },
+      "implementation": [
+        {
+          "path": "lib/skills/contracts.mjs",
+          "symbol": "validateSkillBundle"
+        }
+      ],
+      "red": "qualification/evidence/source-completion/S2-book-1.behavior.red.log",
+      "green": "qualification/evidence/source-completion/S2-book-1.behavior.green.log"
+    },
+    {
+      "task": "B1-023",
+      "dependsOn": [
+        "B1-022"
+      ],
+      "test": {
+        "path": "tests/core/book-1-contracts.test.mjs",
+        "assertion": "B1-023 skill URI resolver and verifier are package-relative and digest-bound"
+      },
+      "implementation": [
+        {
+          "path": "lib/skills/uri.mjs",
+          "symbol": "parseSkillUri"
+        }
+      ],
+      "red": "qualification/evidence/source-completion/S2-book-1.behavior.red.log",
+      "green": "qualification/evidence/source-completion/S2-book-1.behavior.green.log"
+    },
+    {
+      "task": "B1-024",
+      "dependsOn": [
+        "B1-022"
+      ],
+      "test": {
+        "path": "tests/core/book-1-contracts.test.mjs",
+        "assertion": "B1-024 skill transformation is deterministic, neutral, and strips audit mutation authority"
+      },
+      "implementation": [
+        {
+          "path": "lib/skills/transform.mjs",
+          "symbol": "transformSkillText"
+        }
+      ],
+      "red": "qualification/evidence/source-completion/S2-book-1.behavior.red.log",
+      "green": "qualification/evidence/source-completion/S2-book-1.behavior.green.log"
+    },
+    {
+      "task": "B1-025",
+      "dependsOn": [
+        "B1-023",
+        "B1-024"
+      ],
+      "test": {
+        "path": "tests/core/book-1-contracts.test.mjs",
+        "assertion": "B1-025 Designer bundle preserves audit authority boundaries"
+      },
+      "implementation": [
+        {
+          "path": "skills/manifests/designer.json",
+          "symbol": "protectedActions"
+        }
+      ],
+      "red": "qualification/evidence/source-completion/S2-book-1.behavior.red.log",
+      "green": "qualification/evidence/source-completion/S2-book-1.behavior.green.log"
+    },
+    {
+      "task": "B1-026",
+      "dependsOn": [
+        "B1-023",
+        "B1-024"
+      ],
+      "test": {
+        "path": "tests/core/book-1-contracts.test.mjs",
+        "assertion": "B1-026 Writing bundle makes proof and no-fabrication explicit"
+      },
+      "implementation": [
+        {
+          "path": "skills/manifests/writing.json",
+          "symbol": "noFabrication"
+        }
+      ],
+      "red": "qualification/evidence/source-completion/S2-book-1.behavior.red.log",
+      "green": "qualification/evidence/source-completion/S2-book-1.behavior.green.log"
+    },
+    {
+      "task": "B1-027",
+      "dependsOn": [
+        "B1-021",
+        "B1-025",
+        "B1-026"
+      ],
+      "test": {
+        "path": "tests/core/book-1-contracts.test.mjs",
+        "assertion": "B1-027 qualifier supports Books 1 through 6 and package smoke exercises library plus plan"
+      },
+      "implementation": [
+        {
+          "path": "scripts/qualify-book.mjs",
+          "symbol": "discoverBookTests"
+        }
+      ],
+      "red": "qualification/evidence/source-completion/S2-book-1.behavior.red.log",
+      "green": "qualification/evidence/source-completion/S2-book-1.behavior.green.log"
+    },
+    {
+      "task": "B1-028",
+      "dependsOn": [
+        "B1-027"
+      ],
+      "test": {
+        "path": "tests/core/book-1-contracts.test.mjs",
+        "assertion": "B1-028 qualification digest ignores duration and noisy test bytes"
+      },
+      "implementation": [
+        {
+          "path": "scripts/qualify-book.mjs",
+          "symbol": "qualificationDigest"
+        }
+      ],
+      "red": "qualification/evidence/source-completion/S2-book-1.behavior.red.log",
+      "green": "qualification/evidence/source-completion/S2-book-1.behavior.green.log"
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "qualification/book-1.json",
+      "digest": "sha256:55df93ebd7abc09b1bdac09c2ee36135190391c18956d116ceea9d4e71d6e610",
+      "bytes": 48583
+    },
+    {
+      "path": "qualification/book-1-artifacts/gate-result.json",
+      "digest": "sha256:206a46915f9a9cbabacece143dcd21de9dcb6055205d5cd8305f2c20999b871b",
+      "bytes": 3191
+    },
+    {
+      "path": "schemas/qualification/book-qualification-v2.schema.json",
+      "digest": "sha256:ee385dcd4fd6b83ba500123f7e5e1a13437ba2129ae29b9e8c104e4b247eb8f7",
+      "bytes": 5455
+    },
+    {
+      "path": "scripts/qualify-book.mjs",
+      "digest": "sha256:ae426c2d96d477ee176850e40eb4344737d50f657f7ecdea1d9fb77da23a4f2b",
+      "bytes": 4875
+    },
+    {
+      "path": "lib/qualification/book-receipt.mjs",
+      "digest": "sha256:23d28742f7f3c3df356cd4eee3a61dd808b29d640e84dfca85109dbd9ab6c1b8",
+      "bytes": 6541
+    },
+    {
+      "path": "qualification/evidence/source-completion/S2-book-1.behavior.red.log",
+      "digest": "sha256:5763859b6253b3f9929adb6c55288c39e0bc51f5d797ddc5dd1e2101853d44fe",
+      "bytes": 30122
+    },
+    {
+      "path": "qualification/evidence/source-completion/S2-book-1.behavior.red.correction.log",
+      "digest": "sha256:4000649b3a9824376937cd8808079eb3ddea05d1de53516811212ada0737270c",
+      "bytes": 3217
+    },
+    {
+      "path": "qualification/evidence/source-completion/S2-book-1.behavior.green.log",
+      "digest": "sha256:8f2c29e31e398a863f77141695d7d3ddd5f32dc63fe7de3fafca33784ac470b4",
+      "bytes": 2527
+    },
+    {
+      "path": "qualification/evidence/source-completion/S2-book-1.quality.red.log",
+      "digest": "sha256:4213c134af8a6c58d0fabbffaf37be957f8c43085b7d18eb1455928dc9148375",
+      "bytes": 1798
+    },
+    {
+      "path": "qualification/evidence/source-completion/S2-book-1.quality.green.log",
+      "digest": "sha256:b3b4381f4d1f8c67d73c17f9debcf6066acdad8d43fff3f7c73b189c0e7ac506",
+      "bytes": 1904
+    },
+    {
+      "path": "qualification/evidence/source-completion/S2-book-1.qualification.red.log",
+      "digest": "sha256:710fc68c9cd8d2ab7642bf3473d5fcf895b527a262d4147fa0b731652d174168",
+      "bytes": 3260
+    },
+    {
+      "path": "qualification/evidence/source-completion/S2-book-1.qualification.green.log",
+      "digest": "sha256:7a9a6ad8b3dd2206ae5cce8efc10799e932d9d2ee79fee5c9b9161a5f03942fe",
+      "bytes": 422
+    },
+    {
+      "path": "qualification/evidence/source-completion/S2-book-1.gate.corrected.log",
+      "digest": "sha256:206a46915f9a9cbabacece143dcd21de9dcb6055205d5cd8305f2c20999b871b",
+      "bytes": 3191
+    }
+  ],
+  "externalBlockers": [
+    {
+      "id": "book-1-runtime-qualification",
+      "kind": "runtime-artifact",
+      "state": "external-evidence-required",
+      "affects": "runtime/product/release claims",
+      "detail": "Assembled-package smoke, runtime semantic equivalence, resource locks, and reasoning boundaries require external runtime evidence."
+    }
+  ]
+}

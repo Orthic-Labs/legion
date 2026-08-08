@@ -1,0 +1,24 @@
+✔ EFFECT_RECEIPT_BOUND_FIELDS / EVIDENCE_RECEIPT_BOUND_FIELDS are non-empty and exclude self-referential fields (0.7802ms)
+✔ positive: a correctly signed record verifies (2.0634ms)
+✔ reject: forged MAC (0.3288ms)
+✔ reject: altered signed data (mutate a bound field after signing) (0.2471ms)
+✔ reject: shrunken bound-field list re-signed (boundFieldsDigest mismatch) (0.2535ms)
+✔ reject: legacy Forge signature_or_mac self-hash presented as authentication (0.1616ms)
+✔ reject: legacy signature_or_mac takes priority even alongside a well-formed-looking mac (0.1975ms)
+✔ reject: missing authentication material -> ARC_AUTH_UNAUTHENTICATED (0.1156ms)
+✔ reject: missing key -> ARC_AUTH_KEY_UNAVAILABLE, failClosed === true (throws) (0.6338ms)
+✔ signRecord() with a missing key propagates ARC_AUTH_KEY_UNAVAILABLE, failClosed === true (0.2531ms)
+✔ reject: caller-selected authority (a record asserting its own authority value) (0.2988ms)
+✔ reject: wrong run binding (0.2754ms)
+✔ reject: wrong session binding (0.2253ms)
+✔ reject: wrong workspace binding (0.2246ms)
+✔ reject: wrong operation/arguments binding (0.292ms)
+✔ positive: a valid effect-receipt-v1 record satisfies assertValid after signing/verification (1.3724ms)
+ℹ tests 16
+ℹ suites 0
+ℹ pass 16
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 93.4976

@@ -1,0 +1,471 @@
+✖ B3-001 provider v2 registry resolves aliases and rejects invented providers (1.7239ms)
+✖ B3-002 external execution records exact tool identity and non-null output digests (112.8355ms)
+✔ B3-003 structural fingerprints ignore presentation messages and rewrites stay previews (4.9006ms)
+✔ B3-004 OpenGrep emits candidates without final findings authority (1.2669ms)
+✖ B3-005 imported SARIF rejects wrong repository revision base URI and digest (0.5978ms)
+✔ B3-006 secret evidence separates history denominator and never persists secret bytes (0.9045ms)
+✖ B3-007 dependency reachability remains unknown without qualified graph evidence (0.532ms)
+✖ B3-008 SBOM receipt reconciles package count and keeps provenance absence distinct (0.4462ms)
+✖ B3-009 infrastructure evidence keeps source and rendered denominators separate (0.7566ms)
+✔ B3-010 reachability never renders not-observed as safe (0.8358ms)
+✖ B3-011 coverage v2 prevents parser-only semantic promotion and accounts unknown formats (0.4949ms)
+✖ B3-012 javascript provider reports measured denominators and explicit gaps (0.3949ms)
+✖ B3-013 python provider reports measured denominators and explicit gaps (0.3275ms)
+✖ B3-014 rust and Tauri provider reports measured denominators and explicit gaps (0.3199ms)
+✖ B3-015 go provider reports measured denominators and explicit gaps (0.3184ms)
+✖ B3-016 JVM provider reports measured denominators and explicit gaps (0.3018ms)
+✖ B3-017 .NET provider reports measured denominators and explicit gaps (0.3037ms)
+✖ B3-018 C family provider reports measured denominators and explicit gaps (0.3578ms)
+✖ B3-019 PHP and Ruby provider reports measured denominators and explicit gaps (0.3401ms)
+✖ B3-020 mobile languages provider reports measured denominators and explicit gaps (0.3645ms)
+✖ B3-021 long-tail and custom grammar provider reports measured denominators and explicit gaps (0.2888ms)
+✖ B3-022 frontend framework providers expose distinct framework denominators (0.4034ms)
+✖ B3-023 backend framework providers preserve unknown-auth routes (0.3168ms)
+✖ B3-024 data provider separates integrity privacy performance and reliability facts (0.2914ms)
+✖ B3-025 monorepo component identity depends on manifests not folder names (0.3136ms)
+✖ B3-026 architecture findings require exact paths scenario and affected consumers (0.2695ms)
+✖ B3-027 test-quality distinguishes missing coverage weak oracle and fake completion (0.4182ms)
+✖ B3-028 requirement and governance records retain authority owner expiry and disposition (0.3464ms)
+✖ B3-029 family reports cannot mark clean while a required provider is incomplete (0.2991ms)
+✖ B3-030 catalogue generation and recursive qualification remain deterministic (0.2824ms)
+ℹ tests 30
+ℹ suites 0
+ℹ pass 4
+ℹ fail 26
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 235.4193
+
+✖ failing tests:
+
+test at tests\providers\book-3-contracts.test.mjs:3:1
+✖ B3-001 provider v2 registry resolves aliases and rejects invented providers (1.7239ms)
+  Error [ERR_MODULE_NOT_FOUND]: Cannot find module 'D:\Claude\tools\skills\nemesis\lib\providers\registry.mjs' imported from D:\Claude\tools\skills\nemesis\tests\providers\book-3-contracts.test.mjs
+      at finalizeResolution (node:internal/modules/esm/resolve:272:11)
+      at moduleResolve (node:internal/modules/esm/resolve:879:10)
+      at defaultResolve (node:internal/modules/esm/resolve:1006:11)
+      at #cachedDefaultResolve (node:internal/modules/esm/loader:708:20)
+      at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:728:38)
+      at ModuleLoader.resolveSync (node:internal/modules/esm/loader:766:56)
+      at #resolve (node:internal/modules/esm/loader:690:17)
+      at ModuleLoader.getOrCreateModuleJob (node:internal/modules/esm/loader:610:35)
+      at node:internal/modules/esm/loader:639:32
+      at TracingChannel.tracePromise (node:diagnostics_channel:539:22) {
+    code: 'ERR_MODULE_NOT_FOUND',
+    url: 'file:///D:/Claude/tools/skills/nemesis/lib/providers/registry.mjs'
+  }
+
+test at tests\providers\book-3-contracts.test.mjs:4:1
+✖ B3-002 external execution records exact tool identity and non-null output digests (112.8355ms)
+  AssertionError [ERR_ASSERTION]: The "string" argument must be of type string. Received type object (null)
+      at TestContext.<anonymous> (file:///D:/Claude/tools/skills/nemesis/tests/providers/book-3-contracts.test.mjs:4:541)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: null,
+    expected: /v\d+/,
+    operator: 'match',
+    diff: 'simple'
+  }
+
+test at tests\providers\book-3-contracts.test.mjs:7:1
+✖ B3-005 imported SARIF rejects wrong repository revision base URI and digest (0.5978ms)
+  Error [ERR_MODULE_NOT_FOUND]: Cannot find module 'D:\Claude\tools\skills\nemesis\providers\imported-sarif\index.mjs' imported from D:\Claude\tools\skills\nemesis\tests\providers\book-3-contracts.test.mjs
+      at finalizeResolution (node:internal/modules/esm/resolve:272:11)
+      at moduleResolve (node:internal/modules/esm/resolve:879:10)
+      at defaultResolve (node:internal/modules/esm/resolve:1006:11)
+      at #cachedDefaultResolve (node:internal/modules/esm/loader:708:20)
+      at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:728:38)
+      at ModuleLoader.resolveSync (node:internal/modules/esm/loader:766:56)
+      at #resolve (node:internal/modules/esm/loader:690:17)
+      at ModuleLoader.getOrCreateModuleJob (node:internal/modules/esm/loader:610:35)
+      at node:internal/modules/esm/loader:639:32
+      at TracingChannel.tracePromise (node:diagnostics_channel:539:22) {
+    code: 'ERR_MODULE_NOT_FOUND',
+    url: 'file:///D:/Claude/tools/skills/nemesis/providers/imported-sarif/index.mjs'
+  }
+
+test at tests\providers\book-3-contracts.test.mjs:9:1
+✖ B3-007 dependency reachability remains unknown without qualified graph evidence (0.532ms)
+  Error [ERR_MODULE_NOT_FOUND]: Cannot find module 'D:\Claude\tools\skills\nemesis\providers\dependency\index.mjs' imported from D:\Claude\tools\skills\nemesis\tests\providers\book-3-contracts.test.mjs
+      at finalizeResolution (node:internal/modules/esm/resolve:272:11)
+      at moduleResolve (node:internal/modules/esm/resolve:879:10)
+      at defaultResolve (node:internal/modules/esm/resolve:1006:11)
+      at #cachedDefaultResolve (node:internal/modules/esm/loader:708:20)
+      at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:728:38)
+      at ModuleLoader.resolveSync (node:internal/modules/esm/loader:766:56)
+      at #resolve (node:internal/modules/esm/loader:690:17)
+      at ModuleLoader.getOrCreateModuleJob (node:internal/modules/esm/loader:610:35)
+      at node:internal/modules/esm/loader:639:32
+      at TracingChannel.tracePromise (node:diagnostics_channel:539:22) {
+    code: 'ERR_MODULE_NOT_FOUND',
+    url: 'file:///D:/Claude/tools/skills/nemesis/providers/dependency/index.mjs'
+  }
+
+test at tests\providers\book-3-contracts.test.mjs:10:1
+✖ B3-008 SBOM receipt reconciles package count and keeps provenance absence distinct (0.4462ms)
+  Error [ERR_MODULE_NOT_FOUND]: Cannot find module 'D:\Claude\tools\skills\nemesis\providers\provenance\index.mjs' imported from D:\Claude\tools\skills\nemesis\tests\providers\book-3-contracts.test.mjs
+      at finalizeResolution (node:internal/modules/esm/resolve:272:11)
+      at moduleResolve (node:internal/modules/esm/resolve:879:10)
+      at defaultResolve (node:internal/modules/esm/resolve:1006:11)
+      at #cachedDefaultResolve (node:internal/modules/esm/loader:708:20)
+      at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:728:38)
+      at ModuleLoader.resolveSync (node:internal/modules/esm/loader:766:56)
+      at #resolve (node:internal/modules/esm/loader:690:17)
+      at ModuleLoader.getOrCreateModuleJob (node:internal/modules/esm/loader:610:35)
+      at node:internal/modules/esm/loader:639:32
+      at TracingChannel.tracePromise (node:diagnostics_channel:539:22) {
+    code: 'ERR_MODULE_NOT_FOUND',
+    url: 'file:///D:/Claude/tools/skills/nemesis/providers/provenance/index.mjs'
+  }
+
+test at tests\providers\book-3-contracts.test.mjs:11:1
+✖ B3-009 infrastructure evidence keeps source and rendered denominators separate (0.7566ms)
+  TypeError: infrastructureDenominator is not a function
+      at TestContext.<anonymous> (file:///D:/Claude/tools/skills/nemesis/tests/providers/book-3-contracts.test.mjs:11:204)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7)
+
+test at tests\providers\book-3-contracts.test.mjs:13:1
+✖ B3-011 coverage v2 prevents parser-only semantic promotion and accounts unknown formats (0.4949ms)
+  Error [ERR_MODULE_NOT_FOUND]: Cannot find module 'D:\Claude\tools\skills\nemesis\lib\coverage\index.mjs' imported from D:\Claude\tools\skills\nemesis\tests\providers\book-3-contracts.test.mjs
+      at finalizeResolution (node:internal/modules/esm/resolve:272:11)
+      at moduleResolve (node:internal/modules/esm/resolve:879:10)
+      at defaultResolve (node:internal/modules/esm/resolve:1006:11)
+      at #cachedDefaultResolve (node:internal/modules/esm/loader:708:20)
+      at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:728:38)
+      at ModuleLoader.resolveSync (node:internal/modules/esm/loader:766:56)
+      at #resolve (node:internal/modules/esm/loader:690:17)
+      at ModuleLoader.getOrCreateModuleJob (node:internal/modules/esm/loader:610:35)
+      at node:internal/modules/esm/loader:639:32
+      at TracingChannel.tracePromise (node:diagnostics_channel:539:22) {
+    code: 'ERR_MODULE_NOT_FOUND',
+    url: 'file:///D:/Claude/tools/skills/nemesis/lib/coverage/index.mjs'
+  }
+
+test at tests\providers\book-3-contracts.test.mjs:14:297
+✖ B3-012 javascript provider reports measured denominators and explicit gaps (0.3949ms)
+  Error [ERR_MODULE_NOT_FOUND]: Cannot find module 'D:\Claude\tools\skills\nemesis\providers\code\javascript\index.mjs' imported from D:\Claude\tools\skills\nemesis\tests\providers\book-3-contracts.test.mjs
+      at finalizeResolution (node:internal/modules/esm/resolve:272:11)
+      at moduleResolve (node:internal/modules/esm/resolve:879:10)
+      at defaultResolve (node:internal/modules/esm/resolve:1006:11)
+      at #cachedDefaultResolve (node:internal/modules/esm/loader:708:20)
+      at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:728:38)
+      at ModuleLoader.resolveSync (node:internal/modules/esm/loader:766:56)
+      at #resolve (node:internal/modules/esm/loader:690:17)
+      at ModuleLoader.getOrCreateModuleJob (node:internal/modules/esm/loader:610:35)
+      at node:internal/modules/esm/loader:639:32
+      at TracingChannel.tracePromise (node:diagnostics_channel:539:22) {
+    code: 'ERR_MODULE_NOT_FOUND',
+    url: 'file:///D:/Claude/tools/skills/nemesis/providers/code/javascript/index.mjs'
+  }
+
+test at tests\providers\book-3-contracts.test.mjs:14:297
+✖ B3-013 python provider reports measured denominators and explicit gaps (0.3275ms)
+  Error [ERR_MODULE_NOT_FOUND]: Cannot find module 'D:\Claude\tools\skills\nemesis\providers\code\python\index.mjs' imported from D:\Claude\tools\skills\nemesis\tests\providers\book-3-contracts.test.mjs
+      at finalizeResolution (node:internal/modules/esm/resolve:272:11)
+      at moduleResolve (node:internal/modules/esm/resolve:879:10)
+      at defaultResolve (node:internal/modules/esm/resolve:1006:11)
+      at #cachedDefaultResolve (node:internal/modules/esm/loader:708:20)
+      at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:728:38)
+      at ModuleLoader.resolveSync (node:internal/modules/esm/loader:766:56)
+      at #resolve (node:internal/modules/esm/loader:690:17)
+      at ModuleLoader.getOrCreateModuleJob (node:internal/modules/esm/loader:610:35)
+      at node:internal/modules/esm/loader:639:32
+      at TracingChannel.tracePromise (node:diagnostics_channel:539:22) {
+    code: 'ERR_MODULE_NOT_FOUND',
+    url: 'file:///D:/Claude/tools/skills/nemesis/providers/code/python/index.mjs'
+  }
+
+test at tests\providers\book-3-contracts.test.mjs:14:297
+✖ B3-014 rust and Tauri provider reports measured denominators and explicit gaps (0.3199ms)
+  Error [ERR_MODULE_NOT_FOUND]: Cannot find module 'D:\Claude\tools\skills\nemesis\providers\code\rust\index.mjs' imported from D:\Claude\tools\skills\nemesis\tests\providers\book-3-contracts.test.mjs
+      at finalizeResolution (node:internal/modules/esm/resolve:272:11)
+      at moduleResolve (node:internal/modules/esm/resolve:879:10)
+      at defaultResolve (node:internal/modules/esm/resolve:1006:11)
+      at #cachedDefaultResolve (node:internal/modules/esm/loader:708:20)
+      at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:728:38)
+      at ModuleLoader.resolveSync (node:internal/modules/esm/loader:766:56)
+      at #resolve (node:internal/modules/esm/loader:690:17)
+      at ModuleLoader.getOrCreateModuleJob (node:internal/modules/esm/loader:610:35)
+      at node:internal/modules/esm/loader:639:32
+      at TracingChannel.tracePromise (node:diagnostics_channel:539:22) {
+    code: 'ERR_MODULE_NOT_FOUND',
+    url: 'file:///D:/Claude/tools/skills/nemesis/providers/code/rust/index.mjs'
+  }
+
+test at tests\providers\book-3-contracts.test.mjs:14:297
+✖ B3-015 go provider reports measured denominators and explicit gaps (0.3184ms)
+  Error [ERR_MODULE_NOT_FOUND]: Cannot find module 'D:\Claude\tools\skills\nemesis\providers\code\go\index.mjs' imported from D:\Claude\tools\skills\nemesis\tests\providers\book-3-contracts.test.mjs
+      at finalizeResolution (node:internal/modules/esm/resolve:272:11)
+      at moduleResolve (node:internal/modules/esm/resolve:879:10)
+      at defaultResolve (node:internal/modules/esm/resolve:1006:11)
+      at #cachedDefaultResolve (node:internal/modules/esm/loader:708:20)
+      at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:728:38)
+      at ModuleLoader.resolveSync (node:internal/modules/esm/loader:766:56)
+      at #resolve (node:internal/modules/esm/loader:690:17)
+      at ModuleLoader.getOrCreateModuleJob (node:internal/modules/esm/loader:610:35)
+      at node:internal/modules/esm/loader:639:32
+      at TracingChannel.tracePromise (node:diagnostics_channel:539:22) {
+    code: 'ERR_MODULE_NOT_FOUND',
+    url: 'file:///D:/Claude/tools/skills/nemesis/providers/code/go/index.mjs'
+  }
+
+test at tests\providers\book-3-contracts.test.mjs:14:297
+✖ B3-016 JVM provider reports measured denominators and explicit gaps (0.3018ms)
+  Error [ERR_MODULE_NOT_FOUND]: Cannot find module 'D:\Claude\tools\skills\nemesis\providers\code\jvm\index.mjs' imported from D:\Claude\tools\skills\nemesis\tests\providers\book-3-contracts.test.mjs
+      at finalizeResolution (node:internal/modules/esm/resolve:272:11)
+      at moduleResolve (node:internal/modules/esm/resolve:879:10)
+      at defaultResolve (node:internal/modules/esm/resolve:1006:11)
+      at #cachedDefaultResolve (node:internal/modules/esm/loader:708:20)
+      at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:728:38)
+      at ModuleLoader.resolveSync (node:internal/modules/esm/loader:766:56)
+      at #resolve (node:internal/modules/esm/loader:690:17)
+      at ModuleLoader.getOrCreateModuleJob (node:internal/modules/esm/loader:610:35)
+      at node:internal/modules/esm/loader:639:32
+      at TracingChannel.tracePromise (node:diagnostics_channel:539:22) {
+    code: 'ERR_MODULE_NOT_FOUND',
+    url: 'file:///D:/Claude/tools/skills/nemesis/providers/code/jvm/index.mjs'
+  }
+
+test at tests\providers\book-3-contracts.test.mjs:14:297
+✖ B3-017 .NET provider reports measured denominators and explicit gaps (0.3037ms)
+  Error [ERR_MODULE_NOT_FOUND]: Cannot find module 'D:\Claude\tools\skills\nemesis\providers\code\dotnet\index.mjs' imported from D:\Claude\tools\skills\nemesis\tests\providers\book-3-contracts.test.mjs
+      at finalizeResolution (node:internal/modules/esm/resolve:272:11)
+      at moduleResolve (node:internal/modules/esm/resolve:879:10)
+      at defaultResolve (node:internal/modules/esm/resolve:1006:11)
+      at #cachedDefaultResolve (node:internal/modules/esm/loader:708:20)
+      at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:728:38)
+      at ModuleLoader.resolveSync (node:internal/modules/esm/loader:766:56)
+      at #resolve (node:internal/modules/esm/loader:690:17)
+      at ModuleLoader.getOrCreateModuleJob (node:internal/modules/esm/loader:610:35)
+      at node:internal/modules/esm/loader:639:32
+      at TracingChannel.tracePromise (node:diagnostics_channel:539:22) {
+    code: 'ERR_MODULE_NOT_FOUND',
+    url: 'file:///D:/Claude/tools/skills/nemesis/providers/code/dotnet/index.mjs'
+  }
+
+test at tests\providers\book-3-contracts.test.mjs:14:297
+✖ B3-018 C family provider reports measured denominators and explicit gaps (0.3578ms)
+  Error [ERR_MODULE_NOT_FOUND]: Cannot find module 'D:\Claude\tools\skills\nemesis\providers\code\c-family\index.mjs' imported from D:\Claude\tools\skills\nemesis\tests\providers\book-3-contracts.test.mjs
+      at finalizeResolution (node:internal/modules/esm/resolve:272:11)
+      at moduleResolve (node:internal/modules/esm/resolve:879:10)
+      at defaultResolve (node:internal/modules/esm/resolve:1006:11)
+      at #cachedDefaultResolve (node:internal/modules/esm/loader:708:20)
+      at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:728:38)
+      at ModuleLoader.resolveSync (node:internal/modules/esm/loader:766:56)
+      at #resolve (node:internal/modules/esm/loader:690:17)
+      at ModuleLoader.getOrCreateModuleJob (node:internal/modules/esm/loader:610:35)
+      at node:internal/modules/esm/loader:639:32
+      at TracingChannel.tracePromise (node:diagnostics_channel:539:22) {
+    code: 'ERR_MODULE_NOT_FOUND',
+    url: 'file:///D:/Claude/tools/skills/nemesis/providers/code/c-family/index.mjs'
+  }
+
+test at tests\providers\book-3-contracts.test.mjs:14:297
+✖ B3-019 PHP and Ruby provider reports measured denominators and explicit gaps (0.3401ms)
+  Error [ERR_MODULE_NOT_FOUND]: Cannot find module 'D:\Claude\tools\skills\nemesis\providers\code\php\index.mjs' imported from D:\Claude\tools\skills\nemesis\tests\providers\book-3-contracts.test.mjs
+      at finalizeResolution (node:internal/modules/esm/resolve:272:11)
+      at moduleResolve (node:internal/modules/esm/resolve:879:10)
+      at defaultResolve (node:internal/modules/esm/resolve:1006:11)
+      at #cachedDefaultResolve (node:internal/modules/esm/loader:708:20)
+      at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:728:38)
+      at ModuleLoader.resolveSync (node:internal/modules/esm/loader:766:56)
+      at #resolve (node:internal/modules/esm/loader:690:17)
+      at ModuleLoader.getOrCreateModuleJob (node:internal/modules/esm/loader:610:35)
+      at node:internal/modules/esm/loader:639:32
+      at TracingChannel.tracePromise (node:diagnostics_channel:539:22) {
+    code: 'ERR_MODULE_NOT_FOUND',
+    url: 'file:///D:/Claude/tools/skills/nemesis/providers/code/php/index.mjs'
+  }
+
+test at tests\providers\book-3-contracts.test.mjs:14:297
+✖ B3-020 mobile languages provider reports measured denominators and explicit gaps (0.3645ms)
+  Error [ERR_MODULE_NOT_FOUND]: Cannot find module 'D:\Claude\tools\skills\nemesis\providers\code\apple\index.mjs' imported from D:\Claude\tools\skills\nemesis\tests\providers\book-3-contracts.test.mjs
+      at finalizeResolution (node:internal/modules/esm/resolve:272:11)
+      at moduleResolve (node:internal/modules/esm/resolve:879:10)
+      at defaultResolve (node:internal/modules/esm/resolve:1006:11)
+      at #cachedDefaultResolve (node:internal/modules/esm/loader:708:20)
+      at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:728:38)
+      at ModuleLoader.resolveSync (node:internal/modules/esm/loader:766:56)
+      at #resolve (node:internal/modules/esm/loader:690:17)
+      at ModuleLoader.getOrCreateModuleJob (node:internal/modules/esm/loader:610:35)
+      at node:internal/modules/esm/loader:639:32
+      at TracingChannel.tracePromise (node:diagnostics_channel:539:22) {
+    code: 'ERR_MODULE_NOT_FOUND',
+    url: 'file:///D:/Claude/tools/skills/nemesis/providers/code/apple/index.mjs'
+  }
+
+test at tests\providers\book-3-contracts.test.mjs:14:297
+✖ B3-021 long-tail and custom grammar provider reports measured denominators and explicit gaps (0.2888ms)
+  Error [ERR_MODULE_NOT_FOUND]: Cannot find module 'D:\Claude\tools\skills\nemesis\providers\code\generic\index.mjs' imported from D:\Claude\tools\skills\nemesis\tests\providers\book-3-contracts.test.mjs
+      at finalizeResolution (node:internal/modules/esm/resolve:272:11)
+      at moduleResolve (node:internal/modules/esm/resolve:879:10)
+      at defaultResolve (node:internal/modules/esm/resolve:1006:11)
+      at #cachedDefaultResolve (node:internal/modules/esm/loader:708:20)
+      at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:728:38)
+      at ModuleLoader.resolveSync (node:internal/modules/esm/loader:766:56)
+      at #resolve (node:internal/modules/esm/loader:690:17)
+      at ModuleLoader.getOrCreateModuleJob (node:internal/modules/esm/loader:610:35)
+      at node:internal/modules/esm/loader:639:32
+      at TracingChannel.tracePromise (node:diagnostics_channel:539:22) {
+    code: 'ERR_MODULE_NOT_FOUND',
+    url: 'file:///D:/Claude/tools/skills/nemesis/providers/code/generic/index.mjs'
+  }
+
+test at tests\providers\book-3-contracts.test.mjs:15:1
+✖ B3-022 frontend framework providers expose distinct framework denominators (0.4034ms)
+  Error [ERR_MODULE_NOT_FOUND]: Cannot find module 'D:\Claude\tools\skills\nemesis\providers\frameworks\frontend\index.mjs' imported from D:\Claude\tools\skills\nemesis\tests\providers\book-3-contracts.test.mjs
+      at finalizeResolution (node:internal/modules/esm/resolve:272:11)
+      at moduleResolve (node:internal/modules/esm/resolve:879:10)
+      at defaultResolve (node:internal/modules/esm/resolve:1006:11)
+      at #cachedDefaultResolve (node:internal/modules/esm/loader:708:20)
+      at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:728:38)
+      at ModuleLoader.resolveSync (node:internal/modules/esm/loader:766:56)
+      at #resolve (node:internal/modules/esm/loader:690:17)
+      at ModuleLoader.getOrCreateModuleJob (node:internal/modules/esm/loader:610:35)
+      at node:internal/modules/esm/loader:639:32
+      at TracingChannel.tracePromise (node:diagnostics_channel:539:22) {
+    code: 'ERR_MODULE_NOT_FOUND',
+    url: 'file:///D:/Claude/tools/skills/nemesis/providers/frameworks/frontend/index.mjs'
+  }
+
+test at tests\providers\book-3-contracts.test.mjs:16:1
+✖ B3-023 backend framework providers preserve unknown-auth routes (0.3168ms)
+  Error [ERR_MODULE_NOT_FOUND]: Cannot find module 'D:\Claude\tools\skills\nemesis\providers\frameworks\backend\index.mjs' imported from D:\Claude\tools\skills\nemesis\tests\providers\book-3-contracts.test.mjs
+      at finalizeResolution (node:internal/modules/esm/resolve:272:11)
+      at moduleResolve (node:internal/modules/esm/resolve:879:10)
+      at defaultResolve (node:internal/modules/esm/resolve:1006:11)
+      at #cachedDefaultResolve (node:internal/modules/esm/loader:708:20)
+      at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:728:38)
+      at ModuleLoader.resolveSync (node:internal/modules/esm/loader:766:56)
+      at #resolve (node:internal/modules/esm/loader:690:17)
+      at ModuleLoader.getOrCreateModuleJob (node:internal/modules/esm/loader:610:35)
+      at node:internal/modules/esm/loader:639:32
+      at TracingChannel.tracePromise (node:diagnostics_channel:539:22) {
+    code: 'ERR_MODULE_NOT_FOUND',
+    url: 'file:///D:/Claude/tools/skills/nemesis/providers/frameworks/backend/index.mjs'
+  }
+
+test at tests\providers\book-3-contracts.test.mjs:17:1
+✖ B3-024 data provider separates integrity privacy performance and reliability facts (0.2914ms)
+  Error [ERR_MODULE_NOT_FOUND]: Cannot find module 'D:\Claude\tools\skills\nemesis\providers\frameworks\data\index.mjs' imported from D:\Claude\tools\skills\nemesis\tests\providers\book-3-contracts.test.mjs
+      at finalizeResolution (node:internal/modules/esm/resolve:272:11)
+      at moduleResolve (node:internal/modules/esm/resolve:879:10)
+      at defaultResolve (node:internal/modules/esm/resolve:1006:11)
+      at #cachedDefaultResolve (node:internal/modules/esm/loader:708:20)
+      at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:728:38)
+      at ModuleLoader.resolveSync (node:internal/modules/esm/loader:766:56)
+      at #resolve (node:internal/modules/esm/loader:690:17)
+      at ModuleLoader.getOrCreateModuleJob (node:internal/modules/esm/loader:610:35)
+      at node:internal/modules/esm/loader:639:32
+      at TracingChannel.tracePromise (node:diagnostics_channel:539:22) {
+    code: 'ERR_MODULE_NOT_FOUND',
+    url: 'file:///D:/Claude/tools/skills/nemesis/providers/frameworks/data/index.mjs'
+  }
+
+test at tests\providers\book-3-contracts.test.mjs:18:1
+✖ B3-025 monorepo component identity depends on manifests not folder names (0.3136ms)
+  Error [ERR_MODULE_NOT_FOUND]: Cannot find module 'D:\Claude\tools\skills\nemesis\lib\analysis\components.mjs' imported from D:\Claude\tools\skills\nemesis\tests\providers\book-3-contracts.test.mjs
+      at finalizeResolution (node:internal/modules/esm/resolve:272:11)
+      at moduleResolve (node:internal/modules/esm/resolve:879:10)
+      at defaultResolve (node:internal/modules/esm/resolve:1006:11)
+      at #cachedDefaultResolve (node:internal/modules/esm/loader:708:20)
+      at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:728:38)
+      at ModuleLoader.resolveSync (node:internal/modules/esm/loader:766:56)
+      at #resolve (node:internal/modules/esm/loader:690:17)
+      at ModuleLoader.getOrCreateModuleJob (node:internal/modules/esm/loader:610:35)
+      at node:internal/modules/esm/loader:639:32
+      at TracingChannel.tracePromise (node:diagnostics_channel:539:22) {
+    code: 'ERR_MODULE_NOT_FOUND',
+    url: 'file:///D:/Claude/tools/skills/nemesis/lib/analysis/components.mjs'
+  }
+
+test at tests\providers\book-3-contracts.test.mjs:19:1
+✖ B3-026 architecture findings require exact paths scenario and affected consumers (0.2695ms)
+  Error [ERR_MODULE_NOT_FOUND]: Cannot find module 'D:\Claude\tools\skills\nemesis\providers\architecture\core\index.mjs' imported from D:\Claude\tools\skills\nemesis\tests\providers\book-3-contracts.test.mjs
+      at finalizeResolution (node:internal/modules/esm/resolve:272:11)
+      at moduleResolve (node:internal/modules/esm/resolve:879:10)
+      at defaultResolve (node:internal/modules/esm/resolve:1006:11)
+      at #cachedDefaultResolve (node:internal/modules/esm/loader:708:20)
+      at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:728:38)
+      at ModuleLoader.resolveSync (node:internal/modules/esm/loader:766:56)
+      at #resolve (node:internal/modules/esm/loader:690:17)
+      at ModuleLoader.getOrCreateModuleJob (node:internal/modules/esm/loader:610:35)
+      at node:internal/modules/esm/loader:639:32
+      at TracingChannel.tracePromise (node:diagnostics_channel:539:22) {
+    code: 'ERR_MODULE_NOT_FOUND',
+    url: 'file:///D:/Claude/tools/skills/nemesis/providers/architecture/core/index.mjs'
+  }
+
+test at tests\providers\book-3-contracts.test.mjs:20:1
+✖ B3-027 test-quality distinguishes missing coverage weak oracle and fake completion (0.4182ms)
+  Error [ERR_MODULE_NOT_FOUND]: Cannot find module 'D:\Claude\tools\skills\nemesis\providers\test-quality\index.mjs' imported from D:\Claude\tools\skills\nemesis\tests\providers\book-3-contracts.test.mjs
+      at finalizeResolution (node:internal/modules/esm/resolve:272:11)
+      at moduleResolve (node:internal/modules/esm/resolve:879:10)
+      at defaultResolve (node:internal/modules/esm/resolve:1006:11)
+      at #cachedDefaultResolve (node:internal/modules/esm/loader:708:20)
+      at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:728:38)
+      at ModuleLoader.resolveSync (node:internal/modules/esm/loader:766:56)
+      at #resolve (node:internal/modules/esm/loader:690:17)
+      at ModuleLoader.getOrCreateModuleJob (node:internal/modules/esm/loader:610:35)
+      at node:internal/modules/esm/loader:639:32
+      at TracingChannel.tracePromise (node:diagnostics_channel:539:22) {
+    code: 'ERR_MODULE_NOT_FOUND',
+    url: 'file:///D:/Claude/tools/skills/nemesis/providers/test-quality/index.mjs'
+  }
+
+test at tests\providers\book-3-contracts.test.mjs:21:1
+✖ B3-028 requirement and governance records retain authority owner expiry and disposition (0.3464ms)
+  Error [ERR_MODULE_NOT_FOUND]: Cannot find module 'D:\Claude\tools\skills\nemesis\providers\requirements\index.mjs' imported from D:\Claude\tools\skills\nemesis\tests\providers\book-3-contracts.test.mjs
+      at finalizeResolution (node:internal/modules/esm/resolve:272:11)
+      at moduleResolve (node:internal/modules/esm/resolve:879:10)
+      at defaultResolve (node:internal/modules/esm/resolve:1006:11)
+      at #cachedDefaultResolve (node:internal/modules/esm/loader:708:20)
+      at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:728:38)
+      at ModuleLoader.resolveSync (node:internal/modules/esm/loader:766:56)
+      at #resolve (node:internal/modules/esm/loader:690:17)
+      at ModuleLoader.getOrCreateModuleJob (node:internal/modules/esm/loader:610:35)
+      at node:internal/modules/esm/loader:639:32
+      at TracingChannel.tracePromise (node:diagnostics_channel:539:22) {
+    code: 'ERR_MODULE_NOT_FOUND',
+    url: 'file:///D:/Claude/tools/skills/nemesis/providers/requirements/index.mjs'
+  }
+
+test at tests\providers\book-3-contracts.test.mjs:22:1
+✖ B3-029 family reports cannot mark clean while a required provider is incomplete (0.2991ms)
+  Error [ERR_MODULE_NOT_FOUND]: Cannot find module 'D:\Claude\tools\skills\nemesis\lib\report\families\code.mjs' imported from D:\Claude\tools\skills\nemesis\tests\providers\book-3-contracts.test.mjs
+      at finalizeResolution (node:internal/modules/esm/resolve:272:11)
+      at moduleResolve (node:internal/modules/esm/resolve:879:10)
+      at defaultResolve (node:internal/modules/esm/resolve:1006:11)
+      at #cachedDefaultResolve (node:internal/modules/esm/loader:708:20)
+      at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:728:38)
+      at ModuleLoader.resolveSync (node:internal/modules/esm/loader:766:56)
+      at #resolve (node:internal/modules/esm/loader:690:17)
+      at ModuleLoader.getOrCreateModuleJob (node:internal/modules/esm/loader:610:35)
+      at node:internal/modules/esm/loader:639:32
+      at TracingChannel.tracePromise (node:diagnostics_channel:539:22) {
+    code: 'ERR_MODULE_NOT_FOUND',
+    url: 'file:///D:/Claude/tools/skills/nemesis/lib/report/families/code.mjs'
+  }
+
+test at tests\providers\book-3-contracts.test.mjs:23:1
+✖ B3-030 catalogue generation and recursive qualification remain deterministic (0.2824ms)
+  Error [ERR_MODULE_NOT_FOUND]: Cannot find module 'D:\Claude\tools\skills\nemesis\scripts\generate-catalogs.mjs' imported from D:\Claude\tools\skills\nemesis\tests\providers\book-3-contracts.test.mjs
+      at finalizeResolution (node:internal/modules/esm/resolve:272:11)
+      at moduleResolve (node:internal/modules/esm/resolve:879:10)
+      at defaultResolve (node:internal/modules/esm/resolve:1006:11)
+      at #cachedDefaultResolve (node:internal/modules/esm/loader:708:20)
+      at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:728:38)
+      at ModuleLoader.resolveSync (node:internal/modules/esm/loader:766:56)
+      at #resolve (node:internal/modules/esm/loader:690:17)
+      at ModuleLoader.getOrCreateModuleJob (node:internal/modules/esm/loader:610:35)
+      at node:internal/modules/esm/loader:639:32
+      at TracingChannel.tracePromise (node:diagnostics_channel:539:22) {
+    code: 'ERR_MODULE_NOT_FOUND',
+    url: 'file:///D:/Claude/tools/skills/nemesis/scripts/generate-catalogs.mjs'
+  }

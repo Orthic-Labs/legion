@@ -1,0 +1,39 @@
+✖ event and artifact stores preserve digest-bound append-only records (29.8081ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 116.9451
+
+✖ failing tests:
+
+test at packages\kernel\tests\kernel.test.mjs:140:1
+✖ event and artifact stores preserve digest-bound append-only records (29.8081ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+    [
+      1,
+      2,
+      3,
+  +   3,
+  +   3,
+  +   3
+  -   4,
+  -   5,
+  -   6
+    ]
+  
+      at TestContext.<anonymous> (file:///D:/Claude/tools/skills/nemesis/packages/kernel/tests/kernel.test.mjs:154:10)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [ 1, 2, 3, 3, 3, 3 ],
+    expected: [ 1, 2, 3, 4, 5, 6 ],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }

@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "kind": "nemesis-coverage-qualification",
+  "recordId": "language.rust",
+  "corpusRoot": "bench/corpora/rust",
+  "corpusDigest": "sha256:6eafeaaa9a9d62324ce2c0ddda206a8d5b02fe2a032d89b386c289d73d72a6b9",
+  "artifactDigest": "sha256:2c8a4655c07a4ac0fcb1e21f41622708893de956a5ac55a3e6c65aa44e650a05",
+  "providerVersions": {
+    "code.rust": "1.0.0"
+  },
+  "casesRequired": [
+    "positive",
+    "negative",
+    "tauri-v2",
+    "blocked-counterpart"
+  ],
+  "command": [
+    "node",
+    "--test",
+    "tests/providers/rust/rust.test.mjs"
+  ],
+  "decision": "source-measured-runtime-unproven"
+}

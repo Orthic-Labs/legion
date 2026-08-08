@@ -1,0 +1,33 @@
+✔ registry rule ids match browser-client and http-protocol-cache pack rule ids exactly, in both directions (1.906ms)
+✔ neither pack imports or references a live network module (1.1961ms)
+✔ browser-client flags a cookie-session state-changing route with no CSRF token check (3.3123ms)
+✔ browser-client stays clean when a CSRF token check is present (0.6566ms)
+✔ browser-client flags SameSite=None without Secure, and a session cookie with no SameSite at all (0.4007ms)
+✔ browser-client flags Access-Control-Allow-Origin: * combined with Access-Control-Allow-Credentials: true (0.4247ms)
+✔ browser-client flags a reflected Origin header with no allowlist check (0.3666ms)
+✔ browser-client flags missing frame protection and missing CSP as capped defense-in-depth without deployment evidence (0.3778ms)
+✔ browser-client is clean when X-Frame-Options and a strict CSP are both present (0.274ms)
+✔ browser-client flags CSP unsafe-inline, unsafe-eval, and wildcard sources, all capped as defense-in-depth (0.9889ms)
+✔ browser-client flags an unvalidated redirect target and an unvalidated OAuth redirect_uri (0.6091ms)
+✔ browser-client stays clean when redirect and OAuth targets are allowlisted (0.3304ms)
+✔ http-protocol-cache flags a plain HTTP server with no HTTPS enforcement (1.353ms)
+✔ http-protocol-cache keeps runtime and source disagreement visible instead of silently resolving it (0.4699ms)
+✔ http-protocol-cache is clean when the runtime header matches a compliant source header (0.1924ms)
+✔ http-protocol-cache proxy-trust candidates cite the exact file, line, and config key (0.3182ms)
+✔ http-protocol-cache flags a publicly cacheable authenticated route and stays clean with no-store (1.1712ms)
+✔ http-protocol-cache flags conflicting Content-Length/Transfer-Encoding as a request-smuggling precondition only (0.3863ms)
+✔ http-protocol-cache flags a naive first-hop split of a forwarded header as an ambiguous proxy chain (0.2889ms)
+✔ http-protocol-cache flags a text response Content-Type with no charset (0.2448ms)
+✔ http-protocol-cache: missing deployment evidence caps every deployment-aware candidate at medium and records an explicit assumption (0.4023ms)
+✔ browser-client: missing deployment evidence never exceeds medium for header-based claims (0.1955ms)
+✔ both packs stay fully clean on a mitigated fixture: CSRF token, SameSite=Strict+Secure, strict CSP, frame protection, HSTS, nosniff, and no-store on an authenticated route (0.1841ms)
+✔ every candidate from both packs is adjudication-only, cites evidence, and never carries a final verdict (0.5593ms)
+✔ variantStrategies enumerate route and configuration variants for representative rules in both packs (0.2848ms)
+ℹ tests 25
+ℹ suites 0
+ℹ pass 25
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 118.217

@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "nemesis-doc-claim-v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "claim",
+    "authority",
+    "status",
+    "evidence"
+  ],
+  "properties": {
+    "claim": {
+      "type": "string"
+    },
+    "authority": {
+      "type": "string"
+    },
+    "status": {
+      "type": "string"
+    },
+    "evidence": {
+      "type": "array"
+    }
+  }
+}

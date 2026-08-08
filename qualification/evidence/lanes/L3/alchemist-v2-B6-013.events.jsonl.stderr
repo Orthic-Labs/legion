@@ -1,0 +1,150 @@
+(node:109580) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+(node:109580) [DEP0190] DeprecationWarning: Passing args to a child process with shell option true can lead to security vulnerabilities, as the arguments are not escaped, only concatenated.
+WARNING: proceeding, even though we could not create PATH aliases: Refusing to create helper binaries under temporary dir "C:\\Users\\adrds\\AppData\\Local\\Temp\\" (codex_home: AbsolutePathBuf("C:\\Users\\adrds\\AppData\\Local\\Temp\\alchemist-codex-113052-eb6eb24fa691428ba98d2f3fa1ba00ff"))
+2026-08-08T21:54:53.131983Z  WARN codex_core::shell_snapshot: Failed to create shell snapshot for powershell: Shell snapshot not supported yet for PowerShell
+2026-08-08T21:54:53.286621Z  WARN codex_core_plugins::manager: failed to warm featured plugin ids cache error=remote featured plugin request to https://chatgpt.com/backend-api/plugins/featured failed with status 401 Unauthorized: {"detail":"Unauthorized"}
+2026-08-08T21:55:05.200901Z  WARN codex_core_plugins::manifest: ignoring interface.defaultPrompt[0]: prompt must be at most 128 characters path=file:///C:/Users/adrds/AppData/Local/Temp/alchemist-codex-113052-eb6eb24fa691428ba98d2f3fa1ba00ff/.tmp/plugins/plugins/ngs-analysis/.codex-plugin/plugin.json
+2026-08-08T21:55:05.209312Z  WARN codex_core_plugins::manifest: ignoring interface.defaultPrompt[0]: prompt must be at most 128 characters path=file:///C:/Users/adrds/AppData/Local/Temp/alchemist-codex-113052-eb6eb24fa691428ba98d2f3fa1ba00ff/.tmp/plugins/plugins/ngs-analysis/.codex-plugin/plugin.json
+2026-08-08T21:55:24.035491Z ERROR codex_core::tools::router: error=Exit code: 1
+Wall time: 1 seconds
+Output:
+[31;1mCould not find 'tests/content-l3-b6-013.test.mjs'[0m
+
+2026-08-08T21:55:58.461464Z ERROR codex_core::tools::router: error=apply_patch verification failed: invalid patch: The first line of the patch must be '*** Begin Patch'
+2026-08-08T21:57:37.011642Z ERROR codex_core::tools::router: error=Exit code: 1
+Wall time: 0.6 seconds
+Output:
+✖ B6-013 generic-opener: detects generic opening phrases (3.2796ms)
+✔ B6-013 generic-opener: technical near-miss is not flagged (0.5106ms)
+✔ B6-013 empty-intensifier: detects intensifier without measurable qualifier (0.7251ms)
+✔ B6-013 empty-intensifier: measured qualifier suppresses finding (0.2822ms)
+✔ B6-013 empty-intensifier: technicalUse=true suppresses finding (0.2226ms)
+✔ B6-013 unsupported-superlative: flags superlative without bound claims (0.2514ms)
+✔ B6-013 unsupported-superlative: bound claim suppresses finding (0.1452ms)
+✔ B6-013 unsupported-superlative: technicalUse=true suppresses finding (0.1533ms)
+✔ B6-013 interchangeable-competitor-copy: detects generic comparison (0.2404ms)
+✖ B6-013 interchangeable-competitor-copy: named competitor with differentiator suppresses (0.7654ms)
+✔ B6-013 passive-unspecific-cta: detects passive language in CTA context (0.4327ms)
+✔ B6-013 passive-unspecific-cta: active CTA is not flagged (0.1994ms)
+✔ B6-013 passive-unspecific-cta: non-CTA context suppresses finding (0.1836ms)
+✔ B6-013 abstract-benefit-stacking: detects three or more abstract terms (0.2142ms)
+✔ B6-013 abstract-benefit-stacking: two abstract terms is not flagged (0.1114ms)
+✔ B6-013 template-repetition: detects duplicate content across items (0.4244ms)
+✔ B6-013 template-repetition: unique content is not flagged (0.226ms)
+✔ B6-013 fake-personalization: detects unbound personalization language (0.1605ms)
+✔ B6-013 fake-personalization: bound personalization evidence suppresses (0.118ms)
+✔ B6-013 vague-transformation: detects transformation without mechanism or outcome (0.4254ms)
+✔ B6-013 vague-transformation: mechanism + outcome suppresses finding (0.2763ms)
+✔ B6-013 informational-filler: detects filler phrases (0.1677ms)
+✔ B6-013 informational-filler: content without filler is not flagged (0.0879ms)
+✔ B6-013 short text guard: items under 4 words produce no interpretive candidates (0.1402ms)
+✔ B6-013 context requirement: items missing audience and purpose produce no interpretive candidates (0.1138ms)
+✔ B6-013 no interpretive rule produces a deterministic finding (0.1324ms)
+✔ B6-013 explicitBans produce deterministic findings only (0.13ms)
+✔ B6-013 every candidate carries a complete feature vector (0.266ms)
+✔ B6-013 candidate claims explain why copy is generic or unsupported (0.2117ms)
+✖ B6-013 fixture corpus produces expected rule coverage (11.6335ms)
+✔ B6-013 binding is forwarded to every candidate and finding (0.508ms)
+✔ B6-013 single banned-word phrase does not produce an interpretive finding from alone (0.1358ms)
+✔ B6-013 no candidate includes a replacement field (0.8031ms)
+ℹ tests 33
+ℹ suites 0
+ℹ pass 30
+ℹ fail 3
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 113.8298
+
+✖ failing tests:
+
+test at tests\content-l3-b6-013.test.mjs:20:1
+✖ B6-013 generic-opener: detects generic opening phrases (3.2796ms)
+  AssertionError [ERR_ASSERTION]: should detect generic opener
+      at TestContext.<anonymous> (file:///D:/Claude/tools/skills/nemesis/tests/content-l3-b6-013.test.mjs:31:10)
+      at Test.runInAsyncScope (node:async_hooks:226:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.start (node:internal/test_runner/test:1242:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:387:17) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at tests\content-l3-b6-013.test.mjs:175:1
+✖ B6-013 interchangeable-competitor-copy: named competitor with differentiator suppresses (0.7654ms)
+  AssertionError [ERR_ASSERTION]: named competitor with bounded outcome should not be flagged as generic
+  
+  true !== false
+  
+      at TestContext.<anonymous> (file:///D:/Claude/tools/skills/nemesis/tests/content-l3-b6-013.test.mjs:187:10)
+      at Test.runInAsyncScope (node:async_hooks:226:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: true,
+    expected: false,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests\content-l3-b6-013.test.mjs:555:1
+✖ B6-013 fixture corpus produces expected rule coverage (11.6335ms)
+  AssertionError [ERR_ASSERTION]: corpus should cover generic-opener
+      at TestContext.<anonymous> (file:///D:/Claude/tools/skills/nemesis/tests/content-l3-b6-013.test.mjs:562:10)
+      at Test.runInAsyncScope (node:async_hooks:226:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+2026-08-08T21:57:49.465369Z ERROR codex_core::tools::router: error=Exit code: 1
+Wall time: 0.5 seconds
+Output:
+[31;1mParserError: [0m
+[31;1m[36;1mLine |[0m
+[31;1m[36;1m[36;1m   4 | [0m node -e "console.log(/in (?:today's|this[36;1m)[0m (?:fast-paced|ever-changing …[0m
+[31;1m[36;1m[36;1m[0m[36;1m[0m[36;1m     | [31;1m                                         ~[0m
+[31;1m[36;1m[36;1m[0m[36;1m[0m[36;1m[31;1m[31;1m[36;1m     | [31;1mUnexpected token ')' in expression or statement.[0m
+
+2026-08-08T21:57:57.476565Z ERROR codex_core::tools::router: error=Exit code: 1
+Wall time: 0.6 seconds
+Output:
+[31;1mParserError: [0m
+[31;1m[36;1mLine |[0m
+[31;1m[36;1m[36;1m   3 | [0m node -e "console.log(/in (?:today\'s|this[36;1m)[0m (?:fast-paced|ever-changin …[0m
+[31;1m[36;1m[36;1m[0m[36;1m[0m[36;1m     | [31;1m                                          ~[0m
+[31;1m[36;1m[36;1m[0m[36;1m[0m[36;1m[31;1m[31;1m[36;1m     | [31;1mUnexpected token ')' in expression or statement.[0m
+
+2026-08-08T21:58:02.626410Z ERROR codex_core::tools::router: error=Exit code: 1
+Wall time: 0.6 seconds
+Output:
+[eval]:1
+const r = /\bin (?:today's|this) (?:fast-paced|ever-changing|digital) world\b/i; console.log('digi:', r.test(\
+                                                                                                             ^
+Expected unicode escape
+
+SyntaxError: Invalid or unexpected token
+    at makeContextifyScript (node:internal/vm:194:14)
+    at compileScript (node:internal/process/execution:420:10)
+    at evalTypeScript (node:internal/process/execution:292:22)
+    at node:internal/main/eval_string:71:3
+
+Node.js v26.5.0
+

@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "kind": "nemesis-coverage-qualification",
+  "recordId": "language.mobile",
+  "corpusRoot": "bench/corpora/mobile",
+  "corpusDigest": "sha256:95e430523fc4a53e0a8a19d295d5576f842a2263bd2271cf52125feb50c7929e",
+  "artifactDigest": "sha256:9d2ffae92e3f9a1b8dd70e94dcdbb0dcb68fd22c29e3daf9d93d91c89faa7440",
+  "providerVersions": {
+    "code.mobile": "1.0.0"
+  },
+  "casesRequired": [
+    "apple-safe",
+    "apple-unsafe",
+    "flutter-safe",
+    "flutter-unsafe"
+  ],
+  "command": [
+    "node",
+    "--test",
+    "tests/providers/mobile/mobile.test.mjs"
+  ],
+  "decision": "source-measured-runtime-unproven"
+}

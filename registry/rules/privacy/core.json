@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "rules": [
+    {
+      "id": "privacy",
+      "version": "1.0.0",
+      "decisionMode": "evidence",
+      "cleanClaim": "never-without-denominator"
+    }
+  ],
+  "source": "internal",
+  "license": "internal"
+}

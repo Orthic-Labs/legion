@@ -1,0 +1,17 @@
+✔ rust pack detects rust projects (1.2796ms)
+✔ rust pack emits offline cargo commands (0.2018ms)
+✔ rust pack normalizes execution (0.1064ms)
+✔ unsafe boundaries and FFI are modeled (0.2366ms)
+✔ tauri pack detects tauri config (0.1479ms)
+✔ tauri pack flags insecure updater transport (0.3321ms)
+✔ tauri pack flags updater without signature verification (0.1625ms)
+✔ tauri pack flags broad shell and fs scopes (0.1633ms)
+✔ tauri pack is clean for signed updater config (0.1239ms)
+ℹ tests 9
+ℹ suites 0
+ℹ pass 9
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 62.4056

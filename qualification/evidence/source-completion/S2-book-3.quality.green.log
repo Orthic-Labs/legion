@@ -1,0 +1,34 @@
+✔ B3 provider registry is schema-valid and implemented Book3 providers are selectable with authority (14.6326ms)
+✔ B3 provider registry has one canonical 63-provider authority and seals every runtime module (36.5631ms)
+✔ B3 runtime executor rejects module drift before import (5.7441ms)
+✔ B3 legacy checks use named host dispatch and reasoning uses reviewer instead of executable or skip (0.6238ms)
+✔ B3 external executor requires project sandbox and persists immutable raw stream bytes (250.7597ms)
+✔ B3 external executor rejects executable digest drift (164.9565ms)
+✔ B3 external executor refuses bare PATH tools without sealed executable bytes (0.642ms)
+✔ B3 secret normalization redacts short punctuated values and history uses valid argv (2.6292ms)
+✔ B3 secrets reconcile tracked untracked ignored generated release history and examined counts (0.5826ms)
+✔ B3 dependency evidence cannot complete without path and qualified database identity (1.1495ms)
+✔ B3 dependency SBOM IaC and OpenGrep reject forged provenance binding receipts and reachability (3.1279ms)
+✔ B3 measured coverage rejects equal corpus artifact digests and absent qualification proof (2.0523ms)
+✔ B3 coverage tiers are monotone and qualification binds cases test artifact corpus and providers semantically (5.687ms)
+✔ B3 language tools require bound identity and independent result artifact (1.6662ms)
+✔ B3 frontend backend and data adapters fail closed on name-only or zero denominators (2.4329ms)
+✔ B3 compatibility requires explicit expected and observed evidence (0.9913ms)
+✔ B3 verified requirements and policy evidence require evidence plus disposition metadata (1.6127ms)
+✔ B3 framework data compatibility requirements governance and docs reject arbitrary or expired evidence refs (2.0693ms)
+✔ B3 empty family reports are incomplete and never clean (1.4469ms)
+✔ B3 family report reconciles exact selected providers and rejects unrelated results (0.28ms)
+✔ B3 imported SARIF binds immutable raw bytes rather than reserialized objects (0.8255ms)
+✔ B3 OpenGrep provider result keeps empty findings plus binding denominator rules tool and execution provenance (0.2501ms)
+✔ B3 every selectable runtime provider exports one sealed analyze entrypoint (19.4151ms)
+✔ B3 execution and tool receipt schemas reject forged minimal objects and accept sealed execution (265.8182ms)
+✔ B3 runtime result normalization rejects caller clean labels without denominator evidence (1.182ms)
+✔ B3 receipt revision verification is noncircular and cannot trust caller supplied receipt revision (259.9127ms)
+ℹ tests 26
+ℹ suites 0
+ℹ pass 26
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1149.3667

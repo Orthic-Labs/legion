@@ -1,0 +1,18 @@
+✔ S04: a model self-report never becomes a receipt (mandatory test 1) (7.0963ms)
+✔ S04: S00 finding 5 — the legacy attack. authority=host plus a non-empty receipt string is not authentication (15.4599ms)
+✔ S04: duplicate delivery of the same idempotencyKey returns the original receipt and appends nothing new (11.7925ms)
+✔ S04: a post-effect event with no correlated pre-effect request is refused (ARC_INGEST_CORRELATION_MISSING) (3.6113ms)
+✔ S04: a trusted host check event can satisfy a criterion — the identical payload from a model cannot (11.8438ms)
+✔ S04: failed and successful effects both correlate exactly to their pre-effect request (20.4431ms)
+✔ S04: an observed mutation invalidates affected evidence (DependencyLedger integration, WP4 action 10) (4.9942ms)
+✔ S04: honest downgrade — connection-level trust records host-connection-trust, never a strength it lacks (4.4392ms)
+✔ S04: authority=host with neither a receipt nor connection-trust proof is untrusted (2.8751ms)
+✔ S04: pre-effect and lifecycle events are accepted and classified but never become a receipt (3.1595ms)
+ℹ tests 10
+ℹ suites 0
+ℹ pass 10
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 158.7076

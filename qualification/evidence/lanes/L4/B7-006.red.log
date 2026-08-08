@@ -1,0 +1,27 @@
+NOTE: implementation (automation.mjs) pre-existed this test file due to a prior tooling-gate failure that interrupted the original red step; this is a first-run log, not a true TDD red. Test authored fresh from spec in this resumed session.
+
+✔ the module performs no remote operation and reads no filesystem/network/process API (1.0889ms)
+✔ a fully-configured release workflow produces a complete, evidence-cited trust path with no unknown markers (11.283ms)
+✔ an unresolved permission scope and identity remain explicitly visible, never defaulted (0.8751ms)
+✔ untrusted-content triggers are modeled as hostile data crossing a trust boundary (0.3938ms)
+✔ package manifest scripts, direct-URL dependencies, and a missing lockfile are all captured (0.9358ms)
+✔ a matching lockfile in the denominator suppresses the missing-lockfile gap and is itself modeled (0.7829ms)
+✔ an unparseable package manifest is recorded as a typed coverage gap, not silently skipped (0.2841ms)
+✔ a Jenkinsfile is recorded as an unparsed automation format while still surfacing credential references (0.2867ms)
+✔ scheduled dependency-update automation with automerge records the elevated capability and an unresolved scope gap (0.5385ms)
+✔ a release-tool config with no inline registry, credential, or permission info surfaces every unresolved dimension (0.4744ms)
+✔ an updater config with signature verification explicitly disabled records an absent control, not an unknown one (0.4733ms)
+✔ an updater config with no signature information at all leaves the signature posture explicitly unknown (0.2823ms)
+✔ .npmrc with an auth token but no registry line leaves the publication target explicitly unresolved (0.2684ms)
+✔ .npmrc with an explicit registry line resolves the publication target (0.1642ms)
+✔ a Dockerfile with a remote install pipe and a recognizable registry models both flows (0.4579ms)
+✔ every produced kind belongs to the canonical security contracts vocabulary (1.0615ms)
+✔ extraction is deterministic: identical input yields deeply-equal output on repeated calls (1.793ms)
+ℹ tests 17
+ℹ suites 0
+ℹ pass 17
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 103.6541

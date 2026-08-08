@@ -1,1 +1,4778 @@
-{"schemaVersion":1,"kind":"audit-provider-registry","discoveryOwner":"cortex","planSeal":"sha256","concurrency":"min(cpus-1,4)","candidateAdjudication":{"sameProviderForbidden":true,"sameContextForbidden":true,"freshContextRequired":true,"confirmedFindingRequiresVariantAnalysis":true},"legacy":[{"id":"core.repo","role":"deterministic","selector":"always","allowWithoutCortex":true,"check":"repo","tool":"git","required":"always","applies":"git repo","parallel":true,"backs":["prioritization"]},{"id":"security.secrets","role":"candidate-generator","selector":"always","allowWithoutCortex":true,"check":"secrets","tool":"gitleaks","required":"tool_present","applies":"always","parallel":true,"backs":["security"],"flagIfAbsent":true},{"id":"security.node-dependencies","role":"candidate-generator","selector":{"paths":["package.json","**/package.json"]},"check":"deps_cve","tool":"npm|pnpm|yarn audit","required":"manifest","applies":"package.json","parallel":true,"backs":["security"]},{"id":"security.python-dependencies","role":"candidate-generator","selector":{"any":[{"paths":["pyproject.toml","**/pyproject.toml","setup.py","**/setup.py","requirements*.txt","**/requirements*.txt"]},{"ext":["py"]}]},"covers":["py"],"check":"py_deps_cve","tool":"pip-audit","required":"tool_present","applies":"Python project (pyproject/setup.py/requirements)","parallel":true,"backs":["security"],"flagIfAbsent":true},{"id":"security.rust-advisories","role":"candidate-generator","selector":{"paths":["Cargo.lock","**/Cargo.lock"]},"covers":["rs"],"check":"cargo_audit","tool":"cargo-audit","required":"tool_present","applies":"Cargo.lock","parallel":true,"backs":["security"],"flagIfAbsent":true},{"id":"security.rust-policy","role":"candidate-generator","selector":{"paths":["Cargo.toml","**/Cargo.toml"]},"covers":["rs"],"check":"cargo_deny","tool":"cargo-deny","required":"optional","applies":"Cargo.toml","parallel":true,"backs":["security","stack"]},{"id":"quality.rust-unused-deps","role":"deterministic","selector":{"paths":["Cargo.toml","**/Cargo.toml"]},"covers":["rs"],"check":"cargo_unused_deps","tool":"cargo-machete","required":"optional","applies":"Cargo.toml","parallel":true,"backs":["dead-file","stack"]},{"id":"security.rust-unsafe","role":"candidate-generator","selector":{"ext":["rs"]},"covers":["rs"],"benchmark":"unproven","check":"cargo_unsafe","tool":"cargo-geiger","required":"optional","applies":"Rust source; tool present","parallel":true,"backs":["security"]},{"id":"quality.types","role":"deterministic","selector":{"any":[{"paths":["tsconfig.json","**/tsconfig.json","pyproject.toml","**/pyproject.toml"]},{"ext":["ts","tsx","cts","mts","py"]}]},"covers":["ts","tsx","cts","mts","py"],"check":"types","tool":"tsc|basedpyright|mypy","required":"typed","applies":"TypeScript/Python typed project","parallel":true,"backs":["schema","architecture"]},{"id":"quality.lint","role":"deterministic","selector":{"any":[{"paths":["biome.json","biome.jsonc","eslint.config.*","**/eslint.config.*",".eslintrc*","**/.eslintrc*"]},{"ext":["py","rs"]}]},"covers":["js","jsx","mjs","cjs","ts","tsx","cts","mts","py","rs"],"check":"lint","tool":"biome|eslint|ruff|clippy","required":"configured","applies":"configured language linter","parallel":true,"backs":["ai-slop","naming","performance","a11y"]},{"id":"quality.build","role":"deterministic","selector":{"any":[{"paths":["package.json","**/package.json","Cargo.toml","**/Cargo.toml"]}]},"check":"build","tool":"<project build>","required":"buildable","applies":"build script / Cargo.toml","parallel":false,"backs":["installer-hygiene"]},{"id":"architecture.decomposition","role":"deterministic","selector":{"sourceAtLeast":1},"benchmark":"unproven","check":"decomposition","tool":"size/graph metrics","required":"optional","applies":"Cortex first-party source inventory","parallel":true,"backs":["architecture","minimize"]},{"id":"quality.dead-code","role":"deterministic","selector":{"paths":["package.json","**/package.json"]},"check":"dead_code","tool":"knip","required":"optional","applies":"package.json","parallel":true,"backs":["dead-file","ai-slop"]},{"id":"quality.duplication","role":"deterministic","selector":{"sourceAtLeast":1},"benchmark":"unproven","check":"duplication","tool":"jscpd","required":"optional","applies":"first-party source","parallel":true,"backs":["ai-slop","minimize"]},{"id":"security.github-actions-lint","role":"candidate-generator","selector":{"paths":[".github/workflows/*.yml",".github/workflows/*.yaml"]},"check":"ci_lint","tool":"actionlint","required":"optional","applies":".github/workflows","parallel":true,"backs":["security"]},{"id":"security.docker","role":"candidate-generator","selector":{"paths":["Dockerfile","**/Dockerfile","Dockerfile.*","**/Dockerfile.*"]},"check":"docker","tool":"hadolint","required":"optional","applies":"Dockerfile","parallel":true,"backs":["security"]},{"id":"security.sast","role":"candidate-generator","selector":{"sourceAtLeast":1},"benchmark":"unproven","check":"sast","tool":"semgrep","required":"optional","applies":"first-party source","parallel":true,"backs":["security"]},{"id":"quality.swift-lint","role":"deterministic","selector":{"ext":["swift"]},"covers":["swift"],"check":"swift_lint","tool":"swiftlint","required":"tool_present","applies":"Swift sources","parallel":true,"backs":["ai-slop","naming","correctness"],"flagIfAbsent":true},{"id":"security.js-licenses","role":"candidate-generator","selector":{"paths":["package.json","**/package.json"]},"check":"js_licenses","tool":"license-checker","required":"optional","applies":"package.json","parallel":true,"backs":["security","release-readiness"]},{"id":"security.vendored-dependencies","role":"candidate-generator","selector":"always","allowWithoutCortex":true,"check":"vendored_deps","tool":"fs","required":"optional","applies":"vendored manifests (audit-only fact)","parallel":true,"backs":["security"]},{"id":"security.dependency-pinning","role":"candidate-generator","selector":"always","allowWithoutCortex":true,"check":"dep_pinning","tool":"grep","required":"optional","applies":"git repository manifests","parallel":true,"backs":["security"]},{"id":"quality.tool-coverage","role":"deterministic","selector":"always","allowWithoutCortex":true,"check":"tool_coverage","tool":"fs","required":"optional","applies":"always","parallel":true,"backs":["security","correctness"]},{"id":"tauri.contract-mirror","role":"candidate-generator","selector":{"paths":["**/tauri.conf.json","**/tauri.conf.json5","**/Tauri.toml"]},"covers":["rs","ts","tsx","js","jsx"],"benchmark":"unproven","check":"contract_mirror","tool":"grep","required":"optional","applies":"Tauri configuration","parallel":true,"backs":["schema","security","dead-file"]},{"id":"tauri.capabilities","role":"candidate-generator","selector":{"paths":["**/tauri.conf.json","**/tauri.conf.json5","**/Tauri.toml","**/capabilities/*.json","**/capabilities/*.toml"]},"covers":["rs"],"benchmark":"unproven","check":"tauri_capabilities","tool":"fs","required":"optional","applies":"Tauri capabilities","parallel":true,"backs":["security","platform-parity"]},{"id":"apple.platform","role":"candidate-generator","selector":{"all":[{"ext":["swift"]},{"any":[{"paths":["Info.plist","**/Info.plist","project.yml","**/project.yml"]}]}]},"covers":["swift","m","mm"],"benchmark":"unproven","check":"apple_platform","tool":"fs","required":"optional","applies":"Apple target","parallel":true,"backs":["security","correctness","platform-parity"]},{"id":"react.hooks-config","role":"deterministic","selector":{"deps":["react"]},"covers":["js","jsx","ts","tsx"],"benchmark":"unproven","check":"react_hooks","tool":"fs","required":"optional","applies":"React dependency","parallel":true,"backs":["correctness","ai-slop"]},{"id":"quality.negative-space","role":"deterministic","selector":"always","allowWithoutCortex":true,"benchmark":"unproven","check":"negative_space","tool":"fs","required":"optional","applies":"always","parallel":true,"backs":["architecture","maintainability"]},{"id":"stack.node-outdated","role":"deterministic","selector":{"paths":["package.json","**/package.json"]},"check":"outdated","tool":"npm|pnpm outdated","required":"optional","applies":"package.json","parallel":true,"backs":["stack"]},{"id":"stack.rust-outdated","role":"deterministic","selector":{"paths":["Cargo.lock","**/Cargo.lock"]},"covers":["rs"],"check":"cargo_outdated","tool":"cargo-outdated","required":"optional","applies":"Cargo.lock","parallel":true,"backs":["stack"]},{"id":"security.binary-pins","role":"candidate-generator","selector":{"any":[{"ext":["ps1","psm1","sh","bash","zsh","mjs","cjs","js","py","rb"]},{"paths":["Dockerfile","**/Dockerfile","Makefile","**/Makefile","Justfile","**/Justfile"]}]},"benchmark":"unproven","check":"binary_pins","tool":"grep+upstream metadata","required":"optional","applies":"build and packaging scripts","parallel":true,"backs":["security","release-readiness","stack"]},{"id":"quality.debt-markers","role":"deterministic","selector":"always","allowWithoutCortex":true,"benchmark":"unproven","check":"debt_markers","tool":"git grep","required":"optional","applies":"git repository","parallel":true,"backs":["ai-slop","maintainability"]}],"runtime":[{"id":"runtime.app","role":"deterministic","selector":{"any":[{"scripts":["qa:browser","qa","dev","start"]},{"paths":["vite.config.*","**/vite.config.*"]}]},"benchmark":"unproven","script":"audit-runtime.mjs","manifest":{"check":"runtime","tool":"audit-runtime.mjs","required_when":"optional","applies":"runnable app (qa:browser / dev server)","parallel":false,"backs":["performance","runtime","a11y"],"phase":"P2"}}],"reasoning":[{"id":"security.adjudication","role":"adjudicator","selector":"securityCandidatesSelected","freshContextRequired":true,"mayCloseOwnCandidates":false,"benchmark":"unproven","contract":"adapters/security-adjudication.mjs"},{"id":"security.variant-analysis","role":"variant-analysis","selector":"confirmedSecurityFinding","freshContextRequired":true,"benchmark":"unproven","contract":"adapters/security-adjudication.mjs"}],"coverageFamilies":[{"id":"language.javascript-typescript","kind":"language","selector":{"ext":["js","jsx","mjs","cjs","ts","tsx","cts","mts","astro","vue"]},"qualification":"partial","providers":["quality.types","quality.lint","quality.build","quality.dead-code","quality.duplication","security.sast"]},{"id":"language.python","kind":"language","selector":{"ext":["py"]},"qualification":"partial","providers":["quality.types","quality.lint","security.python-dependencies","security.sast"]},{"id":"language.rust","kind":"language","selector":{"ext":["rs"]},"qualification":"partial","providers":["quality.lint","quality.build","security.rust-advisories","security.rust-policy","security.rust-unsafe"]},{"id":"language.swift-objective-c","kind":"language","selector":{"ext":["swift","m","mm"]},"qualification":"partial","providers":["quality.swift-lint","apple.platform"]},{"id":"language.c-cpp","kind":"language","selector":{"ext":["c","cc","cpp","cxx","h","hpp"]},"qualification":"unproven","providers":[]},{"id":"language.java-kotlin-scala","kind":"language","selector":{"ext":["java","kt","kts","scala"]},"qualification":"unproven","providers":[]},{"id":"language.dotnet","kind":"language","selector":{"ext":["cs","fs","vb"]},"qualification":"unproven","providers":[]},{"id":"language.php","kind":"language","selector":{"ext":["php"]},"qualification":"unproven","providers":[]},{"id":"language.go","kind":"language","selector":{"ext":["go"]},"qualification":"unproven","providers":[]},{"id":"language.ruby","kind":"language","selector":{"ext":["rb"]},"qualification":"unproven","providers":[]},{"id":"language.dart","kind":"language","selector":{"ext":["dart"]},"qualification":"unproven","providers":[]},{"id":"language.elixir-erlang","kind":"language","selector":{"ext":["ex","exs","erl","hrl"]},"qualification":"unproven","providers":[]},{"id":"language.shell-powershell","kind":"language","selector":{"ext":["sh","bash","zsh","ps1","psm1","bat","vbs","nsh","nsi"]},"qualification":"partial","providers":["security.sast","quality.debt-markers","security.binary-pins"]},{"id":"framework.react","kind":"framework","selector":{"deps":["react"]},"qualification":"partial","providers":["react.hooks-config","runtime.app"]},{"id":"framework.tailwind","kind":"framework","selector":{"any":[{"deps":["tailwindcss"]},{"paths":["tailwind.config.*","**/tailwind.config.*"]}]},"qualification":"unproven","providers":[]},{"id":"framework.tauri","kind":"framework","selector":{"paths":["**/tauri.conf.json","**/tauri.conf.json5","**/Tauri.toml"]},"qualification":"partial","providers":["tauri.contract-mirror","tauri.capabilities","runtime.app"]},{"id":"framework.laravel","kind":"framework","selector":{"deps":["laravel/framework"]},"qualification":"unproven","providers":[]},{"id":"framework.aspnet","kind":"framework","selector":{"paths":["*.csproj","**/*.csproj","*.sln","**/*.sln"]},"qualification":"unproven","providers":[]}]}
+{
+  "schemaVersion": 2,
+  "kind": "nemesis-provider-registry",
+  "providers": [
+    {
+      "schemaVersion": 2,
+      "id": "architecture.core",
+      "providerVersion": "1.0.0",
+      "family": "architecture",
+      "lensIds": [],
+      "role": "deterministic",
+      "phase": "source",
+      "dependsOn": [],
+      "consumes": [
+        "cortex-projection"
+      ],
+      "produces": [
+        "provider-result"
+      ],
+      "selector": {
+        "op": "always"
+      },
+      "denominatorKind": "selected-scope",
+      "runner": {
+        "kind": "runtime-script",
+        "module": "providers/architecture/core/index.mjs",
+        "moduleDigest": "sha256:8dddd6c315760648ed427d11431919e41555c23d7cea72008a2b9c51d0fac1cd"
+      },
+      "hostCapabilities": [],
+      "execution": {
+        "scheduleClass": "parallel-safe",
+        "resourceClaims": {
+          "cpu": 1,
+          "memoryMb": 256,
+          "io": 1,
+          "projectExecution": 0,
+          "browser": 0,
+          "nativeSurface": 0,
+          "virtualMachine": 0,
+          "simulator": 0,
+          "physicalDevice": 0,
+          "externalSystem": 0,
+          "reviewer": 0,
+          "signer": 0
+        },
+        "concurrencyKey": null,
+        "maxParallelism": null,
+        "orderSensitive": false,
+        "interruptible": true,
+        "cachePolicy": "content-addressed",
+        "failurePolicy": "block-dependents"
+      },
+      "reasoning": {
+        "requirement": "none",
+        "trigger": "none",
+        "subjectKind": "provider-result",
+        "freshContext": true,
+        "producerSeparation": true
+      },
+      "benchmark": {
+        "status": "unproven",
+        "requiredForCleanClaim": true,
+        "qualificationDigest": null
+      },
+      "cleanClaim": "evidence-only",
+      "controlIds": [
+        "architecture.source-assurance"
+      ],
+      "scopes": [
+        "family:architecture"
+      ],
+      "selectable": true
+    },
+    {
+      "schemaVersion": 2,
+      "id": "code.c-family",
+      "providerVersion": "1.0.0",
+      "family": "code",
+      "lensIds": [],
+      "role": "deterministic",
+      "phase": "source",
+      "dependsOn": [],
+      "consumes": [
+        "cortex-projection"
+      ],
+      "produces": [
+        "provider-result"
+      ],
+      "selector": {
+        "op": "always"
+      },
+      "denominatorKind": "selected-scope",
+      "runner": {
+        "kind": "runtime-script",
+        "module": "providers/code/c-family/index.mjs",
+        "moduleDigest": "sha256:676ebaf9c77b8bd48fa8573af6f0fc4a8aa7a24b426e00be840a37598683d6f6"
+      },
+      "hostCapabilities": [],
+      "execution": {
+        "scheduleClass": "parallel-safe",
+        "resourceClaims": {
+          "cpu": 1,
+          "memoryMb": 256,
+          "io": 1,
+          "projectExecution": 0,
+          "browser": 0,
+          "nativeSurface": 0,
+          "virtualMachine": 0,
+          "simulator": 0,
+          "physicalDevice": 0,
+          "externalSystem": 0,
+          "reviewer": 0,
+          "signer": 0
+        },
+        "concurrencyKey": null,
+        "maxParallelism": null,
+        "orderSensitive": false,
+        "interruptible": true,
+        "cachePolicy": "content-addressed",
+        "failurePolicy": "block-dependents"
+      },
+      "reasoning": {
+        "requirement": "none",
+        "trigger": "none",
+        "subjectKind": "provider-result",
+        "freshContext": true,
+        "producerSeparation": true
+      },
+      "benchmark": {
+        "status": "unproven",
+        "requiredForCleanClaim": true,
+        "qualificationDigest": null
+      },
+      "cleanClaim": "evidence-only",
+      "controlIds": [
+        "code.source-assurance"
+      ],
+      "scopes": [
+        "family:code"
+      ],
+      "selectable": true
+    },
+    {
+      "schemaVersion": 2,
+      "id": "code.dotnet",
+      "providerVersion": "1.0.0",
+      "family": "code",
+      "lensIds": [],
+      "role": "deterministic",
+      "phase": "source",
+      "dependsOn": [],
+      "consumes": [
+        "cortex-projection"
+      ],
+      "produces": [
+        "provider-result"
+      ],
+      "selector": {
+        "op": "always"
+      },
+      "denominatorKind": "selected-scope",
+      "runner": {
+        "kind": "runtime-script",
+        "module": "providers/code/dotnet/index.mjs",
+        "moduleDigest": "sha256:57088516c5abff104da86dad58a081ed9d6b747bcb3a6aa9acf1c442b4907137"
+      },
+      "hostCapabilities": [],
+      "execution": {
+        "scheduleClass": "parallel-safe",
+        "resourceClaims": {
+          "cpu": 1,
+          "memoryMb": 256,
+          "io": 1,
+          "projectExecution": 0,
+          "browser": 0,
+          "nativeSurface": 0,
+          "virtualMachine": 0,
+          "simulator": 0,
+          "physicalDevice": 0,
+          "externalSystem": 0,
+          "reviewer": 0,
+          "signer": 0
+        },
+        "concurrencyKey": null,
+        "maxParallelism": null,
+        "orderSensitive": false,
+        "interruptible": true,
+        "cachePolicy": "content-addressed",
+        "failurePolicy": "block-dependents"
+      },
+      "reasoning": {
+        "requirement": "none",
+        "trigger": "none",
+        "subjectKind": "provider-result",
+        "freshContext": true,
+        "producerSeparation": true
+      },
+      "benchmark": {
+        "status": "unproven",
+        "requiredForCleanClaim": true,
+        "qualificationDigest": null
+      },
+      "cleanClaim": "evidence-only",
+      "controlIds": [
+        "code.source-assurance"
+      ],
+      "scopes": [
+        "family:code"
+      ],
+      "selectable": true
+    },
+    {
+      "schemaVersion": 2,
+      "id": "code.go",
+      "providerVersion": "1.0.0",
+      "family": "code",
+      "lensIds": [],
+      "role": "deterministic",
+      "phase": "source",
+      "dependsOn": [],
+      "consumes": [
+        "cortex-projection"
+      ],
+      "produces": [
+        "provider-result"
+      ],
+      "selector": {
+        "op": "always"
+      },
+      "denominatorKind": "selected-scope",
+      "runner": {
+        "kind": "runtime-script",
+        "module": "providers/code/go/index.mjs",
+        "moduleDigest": "sha256:fac016accfc400895f2f53b4397d5518e1e2b12aa44ddb5fa0a35489f88bfde7"
+      },
+      "hostCapabilities": [],
+      "execution": {
+        "scheduleClass": "parallel-safe",
+        "resourceClaims": {
+          "cpu": 1,
+          "memoryMb": 256,
+          "io": 1,
+          "projectExecution": 0,
+          "browser": 0,
+          "nativeSurface": 0,
+          "virtualMachine": 0,
+          "simulator": 0,
+          "physicalDevice": 0,
+          "externalSystem": 0,
+          "reviewer": 0,
+          "signer": 0
+        },
+        "concurrencyKey": null,
+        "maxParallelism": null,
+        "orderSensitive": false,
+        "interruptible": true,
+        "cachePolicy": "content-addressed",
+        "failurePolicy": "block-dependents"
+      },
+      "reasoning": {
+        "requirement": "none",
+        "trigger": "none",
+        "subjectKind": "provider-result",
+        "freshContext": true,
+        "producerSeparation": true
+      },
+      "benchmark": {
+        "status": "unproven",
+        "requiredForCleanClaim": true,
+        "qualificationDigest": null
+      },
+      "cleanClaim": "evidence-only",
+      "controlIds": [
+        "code.source-assurance"
+      ],
+      "scopes": [
+        "family:code"
+      ],
+      "selectable": true
+    },
+    {
+      "schemaVersion": 2,
+      "id": "code.javascript",
+      "providerVersion": "1.0.0",
+      "family": "code",
+      "lensIds": [],
+      "role": "deterministic",
+      "phase": "source",
+      "dependsOn": [],
+      "consumes": [
+        "cortex-projection"
+      ],
+      "produces": [
+        "provider-result"
+      ],
+      "selector": {
+        "op": "always"
+      },
+      "denominatorKind": "selected-scope",
+      "runner": {
+        "kind": "runtime-script",
+        "module": "providers/code/javascript/index.mjs",
+        "moduleDigest": "sha256:278ab6568bf8259d762a8720c8081d74b500dc69f6ef3894e1eb39a9d6721b30"
+      },
+      "hostCapabilities": [],
+      "execution": {
+        "scheduleClass": "parallel-safe",
+        "resourceClaims": {
+          "cpu": 1,
+          "memoryMb": 256,
+          "io": 1,
+          "projectExecution": 0,
+          "browser": 0,
+          "nativeSurface": 0,
+          "virtualMachine": 0,
+          "simulator": 0,
+          "physicalDevice": 0,
+          "externalSystem": 0,
+          "reviewer": 0,
+          "signer": 0
+        },
+        "concurrencyKey": null,
+        "maxParallelism": null,
+        "orderSensitive": false,
+        "interruptible": true,
+        "cachePolicy": "content-addressed",
+        "failurePolicy": "block-dependents"
+      },
+      "reasoning": {
+        "requirement": "none",
+        "trigger": "none",
+        "subjectKind": "provider-result",
+        "freshContext": true,
+        "producerSeparation": true
+      },
+      "benchmark": {
+        "status": "unproven",
+        "requiredForCleanClaim": true,
+        "qualificationDigest": null
+      },
+      "cleanClaim": "evidence-only",
+      "controlIds": [
+        "code.source-assurance"
+      ],
+      "scopes": [
+        "family:code"
+      ],
+      "selectable": true
+    },
+    {
+      "schemaVersion": 2,
+      "id": "code.jvm",
+      "providerVersion": "1.0.0",
+      "family": "code",
+      "lensIds": [],
+      "role": "deterministic",
+      "phase": "source",
+      "dependsOn": [],
+      "consumes": [
+        "cortex-projection"
+      ],
+      "produces": [
+        "provider-result"
+      ],
+      "selector": {
+        "op": "always"
+      },
+      "denominatorKind": "selected-scope",
+      "runner": {
+        "kind": "runtime-script",
+        "module": "providers/code/jvm/index.mjs",
+        "moduleDigest": "sha256:5776a58c84c888b4aab6d17e4f296861c06bd9431a49e7ff8479bdb084663363"
+      },
+      "hostCapabilities": [],
+      "execution": {
+        "scheduleClass": "parallel-safe",
+        "resourceClaims": {
+          "cpu": 1,
+          "memoryMb": 256,
+          "io": 1,
+          "projectExecution": 0,
+          "browser": 0,
+          "nativeSurface": 0,
+          "virtualMachine": 0,
+          "simulator": 0,
+          "physicalDevice": 0,
+          "externalSystem": 0,
+          "reviewer": 0,
+          "signer": 0
+        },
+        "concurrencyKey": null,
+        "maxParallelism": null,
+        "orderSensitive": false,
+        "interruptible": true,
+        "cachePolicy": "content-addressed",
+        "failurePolicy": "block-dependents"
+      },
+      "reasoning": {
+        "requirement": "none",
+        "trigger": "none",
+        "subjectKind": "provider-result",
+        "freshContext": true,
+        "producerSeparation": true
+      },
+      "benchmark": {
+        "status": "unproven",
+        "requiredForCleanClaim": true,
+        "qualificationDigest": null
+      },
+      "cleanClaim": "evidence-only",
+      "controlIds": [
+        "code.source-assurance"
+      ],
+      "scopes": [
+        "family:code"
+      ],
+      "selectable": true
+    },
+    {
+      "schemaVersion": 2,
+      "id": "code.long-tail",
+      "providerVersion": "1.0.0",
+      "family": "code",
+      "lensIds": [],
+      "role": "deterministic",
+      "phase": "source",
+      "dependsOn": [],
+      "consumes": [
+        "cortex-projection"
+      ],
+      "produces": [
+        "provider-result"
+      ],
+      "selector": {
+        "op": "always"
+      },
+      "denominatorKind": "selected-scope",
+      "runner": {
+        "kind": "runtime-script",
+        "module": "providers/code/generic/index.mjs",
+        "moduleDigest": "sha256:e608681cb91019c618a45b1afe15aa1357da2b4653f1a619484e1838ef5d53dd"
+      },
+      "hostCapabilities": [],
+      "execution": {
+        "scheduleClass": "parallel-safe",
+        "resourceClaims": {
+          "cpu": 1,
+          "memoryMb": 256,
+          "io": 1,
+          "projectExecution": 0,
+          "browser": 0,
+          "nativeSurface": 0,
+          "virtualMachine": 0,
+          "simulator": 0,
+          "physicalDevice": 0,
+          "externalSystem": 0,
+          "reviewer": 0,
+          "signer": 0
+        },
+        "concurrencyKey": null,
+        "maxParallelism": null,
+        "orderSensitive": false,
+        "interruptible": true,
+        "cachePolicy": "content-addressed",
+        "failurePolicy": "block-dependents"
+      },
+      "reasoning": {
+        "requirement": "none",
+        "trigger": "none",
+        "subjectKind": "provider-result",
+        "freshContext": true,
+        "producerSeparation": true
+      },
+      "benchmark": {
+        "status": "unproven",
+        "requiredForCleanClaim": true,
+        "qualificationDigest": null
+      },
+      "cleanClaim": "evidence-only",
+      "controlIds": [
+        "code.source-assurance"
+      ],
+      "scopes": [
+        "family:code"
+      ],
+      "selectable": true
+    },
+    {
+      "schemaVersion": 2,
+      "id": "code.mobile",
+      "providerVersion": "1.0.0",
+      "family": "code",
+      "lensIds": [],
+      "role": "deterministic",
+      "phase": "source",
+      "dependsOn": [],
+      "consumes": [
+        "cortex-projection"
+      ],
+      "produces": [
+        "provider-result"
+      ],
+      "selector": {
+        "op": "always"
+      },
+      "denominatorKind": "selected-scope",
+      "runner": {
+        "kind": "runtime-script",
+        "module": "providers/code/apple/index.mjs",
+        "moduleDigest": "sha256:21360bf86c328fd42161bae60b65ba29ce8356ef6126841b3a8f3e6110bb8a54"
+      },
+      "hostCapabilities": [],
+      "execution": {
+        "scheduleClass": "parallel-safe",
+        "resourceClaims": {
+          "cpu": 1,
+          "memoryMb": 256,
+          "io": 1,
+          "projectExecution": 0,
+          "browser": 0,
+          "nativeSurface": 0,
+          "virtualMachine": 0,
+          "simulator": 0,
+          "physicalDevice": 0,
+          "externalSystem": 0,
+          "reviewer": 0,
+          "signer": 0
+        },
+        "concurrencyKey": null,
+        "maxParallelism": null,
+        "orderSensitive": false,
+        "interruptible": true,
+        "cachePolicy": "content-addressed",
+        "failurePolicy": "block-dependents"
+      },
+      "reasoning": {
+        "requirement": "none",
+        "trigger": "none",
+        "subjectKind": "provider-result",
+        "freshContext": true,
+        "producerSeparation": true
+      },
+      "benchmark": {
+        "status": "unproven",
+        "requiredForCleanClaim": true,
+        "qualificationDigest": null
+      },
+      "cleanClaim": "evidence-only",
+      "controlIds": [
+        "code.source-assurance"
+      ],
+      "scopes": [
+        "family:code"
+      ],
+      "selectable": true
+    },
+    {
+      "schemaVersion": 2,
+      "id": "code.php-ruby",
+      "providerVersion": "1.0.0",
+      "family": "code",
+      "lensIds": [],
+      "role": "deterministic",
+      "phase": "source",
+      "dependsOn": [],
+      "consumes": [
+        "cortex-projection"
+      ],
+      "produces": [
+        "provider-result"
+      ],
+      "selector": {
+        "op": "always"
+      },
+      "denominatorKind": "selected-scope",
+      "runner": {
+        "kind": "runtime-script",
+        "module": "providers/code/php/index.mjs",
+        "moduleDigest": "sha256:24233b72c778f6150e8f88d308aabab97ca18c0c4286b6f9ebced299f02414b7"
+      },
+      "hostCapabilities": [],
+      "execution": {
+        "scheduleClass": "parallel-safe",
+        "resourceClaims": {
+          "cpu": 1,
+          "memoryMb": 256,
+          "io": 1,
+          "projectExecution": 0,
+          "browser": 0,
+          "nativeSurface": 0,
+          "virtualMachine": 0,
+          "simulator": 0,
+          "physicalDevice": 0,
+          "externalSystem": 0,
+          "reviewer": 0,
+          "signer": 0
+        },
+        "concurrencyKey": null,
+        "maxParallelism": null,
+        "orderSensitive": false,
+        "interruptible": true,
+        "cachePolicy": "content-addressed",
+        "failurePolicy": "block-dependents"
+      },
+      "reasoning": {
+        "requirement": "none",
+        "trigger": "none",
+        "subjectKind": "provider-result",
+        "freshContext": true,
+        "producerSeparation": true
+      },
+      "benchmark": {
+        "status": "unproven",
+        "requiredForCleanClaim": true,
+        "qualificationDigest": null
+      },
+      "cleanClaim": "evidence-only",
+      "controlIds": [
+        "code.source-assurance"
+      ],
+      "scopes": [
+        "family:code"
+      ],
+      "selectable": true
+    },
+    {
+      "schemaVersion": 2,
+      "id": "code.python",
+      "providerVersion": "1.0.0",
+      "family": "code",
+      "lensIds": [],
+      "role": "deterministic",
+      "phase": "source",
+      "dependsOn": [],
+      "consumes": [
+        "cortex-projection"
+      ],
+      "produces": [
+        "provider-result"
+      ],
+      "selector": {
+        "op": "always"
+      },
+      "denominatorKind": "selected-scope",
+      "runner": {
+        "kind": "runtime-script",
+        "module": "providers/code/python/index.mjs",
+        "moduleDigest": "sha256:a19de829960ab2d7e238bc4eac60815c6e92bc15418b606debb645ccfc772483"
+      },
+      "hostCapabilities": [],
+      "execution": {
+        "scheduleClass": "parallel-safe",
+        "resourceClaims": {
+          "cpu": 1,
+          "memoryMb": 256,
+          "io": 1,
+          "projectExecution": 0,
+          "browser": 0,
+          "nativeSurface": 0,
+          "virtualMachine": 0,
+          "simulator": 0,
+          "physicalDevice": 0,
+          "externalSystem": 0,
+          "reviewer": 0,
+          "signer": 0
+        },
+        "concurrencyKey": null,
+        "maxParallelism": null,
+        "orderSensitive": false,
+        "interruptible": true,
+        "cachePolicy": "content-addressed",
+        "failurePolicy": "block-dependents"
+      },
+      "reasoning": {
+        "requirement": "none",
+        "trigger": "none",
+        "subjectKind": "provider-result",
+        "freshContext": true,
+        "producerSeparation": true
+      },
+      "benchmark": {
+        "status": "unproven",
+        "requiredForCleanClaim": true,
+        "qualificationDigest": null
+      },
+      "cleanClaim": "evidence-only",
+      "controlIds": [
+        "code.source-assurance"
+      ],
+      "scopes": [
+        "family:code"
+      ],
+      "selectable": true
+    },
+    {
+      "schemaVersion": 2,
+      "id": "code.rust",
+      "providerVersion": "1.0.0",
+      "family": "code",
+      "lensIds": [],
+      "role": "deterministic",
+      "phase": "source",
+      "dependsOn": [],
+      "consumes": [
+        "cortex-projection"
+      ],
+      "produces": [
+        "provider-result"
+      ],
+      "selector": {
+        "op": "always"
+      },
+      "denominatorKind": "selected-scope",
+      "runner": {
+        "kind": "runtime-script",
+        "module": "providers/code/rust/index.mjs",
+        "moduleDigest": "sha256:a7b2c0ea179837253ee791fe31ee13461485472e7e8ccbfe9c49ae16b7530bd1"
+      },
+      "hostCapabilities": [],
+      "execution": {
+        "scheduleClass": "parallel-safe",
+        "resourceClaims": {
+          "cpu": 1,
+          "memoryMb": 256,
+          "io": 1,
+          "projectExecution": 0,
+          "browser": 0,
+          "nativeSurface": 0,
+          "virtualMachine": 0,
+          "simulator": 0,
+          "physicalDevice": 0,
+          "externalSystem": 0,
+          "reviewer": 0,
+          "signer": 0
+        },
+        "concurrencyKey": null,
+        "maxParallelism": null,
+        "orderSensitive": false,
+        "interruptible": true,
+        "cachePolicy": "content-addressed",
+        "failurePolicy": "block-dependents"
+      },
+      "reasoning": {
+        "requirement": "none",
+        "trigger": "none",
+        "subjectKind": "provider-result",
+        "freshContext": true,
+        "producerSeparation": true
+      },
+      "benchmark": {
+        "status": "unproven",
+        "requiredForCleanClaim": true,
+        "qualificationDigest": null
+      },
+      "cleanClaim": "evidence-only",
+      "controlIds": [
+        "code.source-assurance"
+      ],
+      "scopes": [
+        "family:code"
+      ],
+      "selectable": true
+    },
+    {
+      "schemaVersion": 2,
+      "id": "compatibility.core",
+      "providerVersion": "1.0.0",
+      "family": "compatibility",
+      "lensIds": [],
+      "role": "deterministic",
+      "phase": "source",
+      "dependsOn": [],
+      "consumes": [
+        "cortex-projection"
+      ],
+      "produces": [
+        "provider-result"
+      ],
+      "selector": {
+        "op": "always"
+      },
+      "denominatorKind": "selected-scope",
+      "runner": {
+        "kind": "runtime-script",
+        "module": "providers/compatibility/index.mjs",
+        "moduleDigest": "sha256:74513251d2d5cc75ad50a273a3e1a016f0a9316d84be0015f9acb242d572576d"
+      },
+      "hostCapabilities": [],
+      "execution": {
+        "scheduleClass": "parallel-safe",
+        "resourceClaims": {
+          "cpu": 1,
+          "memoryMb": 256,
+          "io": 1,
+          "projectExecution": 0,
+          "browser": 0,
+          "nativeSurface": 0,
+          "virtualMachine": 0,
+          "simulator": 0,
+          "physicalDevice": 0,
+          "externalSystem": 0,
+          "reviewer": 0,
+          "signer": 0
+        },
+        "concurrencyKey": null,
+        "maxParallelism": null,
+        "orderSensitive": false,
+        "interruptible": true,
+        "cachePolicy": "content-addressed",
+        "failurePolicy": "block-dependents"
+      },
+      "reasoning": {
+        "requirement": "none",
+        "trigger": "none",
+        "subjectKind": "provider-result",
+        "freshContext": true,
+        "producerSeparation": true
+      },
+      "benchmark": {
+        "status": "unproven",
+        "requiredForCleanClaim": true,
+        "qualificationDigest": null
+      },
+      "cleanClaim": "evidence-only",
+      "controlIds": [
+        "compatibility.source-assurance"
+      ],
+      "scopes": [
+        "family:compatibility"
+      ],
+      "selectable": true
+    },
+    {
+      "schemaVersion": 2,
+      "id": "container.iac",
+      "providerVersion": "1.0.0",
+      "family": "container",
+      "lensIds": [],
+      "role": "deterministic",
+      "phase": "source",
+      "dependsOn": [],
+      "consumes": [
+        "cortex-projection"
+      ],
+      "produces": [
+        "provider-result"
+      ],
+      "selector": {
+        "op": "always"
+      },
+      "denominatorKind": "selected-scope",
+      "runner": {
+        "kind": "runtime-script",
+        "module": "providers/container-iac/index.mjs",
+        "moduleDigest": "sha256:03635b9770102589ab69766d26cf9792d182cf1f0aca9e03244df7e3dbf7efd3"
+      },
+      "hostCapabilities": [],
+      "execution": {
+        "scheduleClass": "parallel-safe",
+        "resourceClaims": {
+          "cpu": 1,
+          "memoryMb": 256,
+          "io": 1,
+          "projectExecution": 0,
+          "browser": 0,
+          "nativeSurface": 0,
+          "virtualMachine": 0,
+          "simulator": 0,
+          "physicalDevice": 0,
+          "externalSystem": 0,
+          "reviewer": 0,
+          "signer": 0
+        },
+        "concurrencyKey": null,
+        "maxParallelism": null,
+        "orderSensitive": false,
+        "interruptible": true,
+        "cachePolicy": "content-addressed",
+        "failurePolicy": "block-dependents"
+      },
+      "reasoning": {
+        "requirement": "none",
+        "trigger": "none",
+        "subjectKind": "provider-result",
+        "freshContext": true,
+        "producerSeparation": true
+      },
+      "benchmark": {
+        "status": "unproven",
+        "requiredForCleanClaim": true,
+        "qualificationDigest": null
+      },
+      "cleanClaim": "evidence-only",
+      "controlIds": [
+        "container.source-assurance"
+      ],
+      "scopes": [
+        "family:container"
+      ],
+      "selectable": true
+    },
+    {
+      "schemaVersion": 2,
+      "id": "dependency.osv",
+      "providerVersion": "1.0.0",
+      "family": "dependency",
+      "lensIds": [],
+      "role": "deterministic",
+      "phase": "source",
+      "dependsOn": [],
+      "consumes": [
+        "cortex-projection"
+      ],
+      "produces": [
+        "provider-result"
+      ],
+      "selector": {
+        "op": "always"
+      },
+      "denominatorKind": "selected-scope",
+      "runner": {
+        "kind": "runtime-script",
+        "module": "providers/dependency/index.mjs",
+        "moduleDigest": "sha256:3210a84759c6ad8529d261ca6fbf6c79b89784060deb09d274573f7577ccaa70"
+      },
+      "hostCapabilities": [],
+      "execution": {
+        "scheduleClass": "parallel-safe",
+        "resourceClaims": {
+          "cpu": 1,
+          "memoryMb": 256,
+          "io": 1,
+          "projectExecution": 0,
+          "browser": 0,
+          "nativeSurface": 0,
+          "virtualMachine": 0,
+          "simulator": 0,
+          "physicalDevice": 0,
+          "externalSystem": 0,
+          "reviewer": 0,
+          "signer": 0
+        },
+        "concurrencyKey": null,
+        "maxParallelism": null,
+        "orderSensitive": false,
+        "interruptible": true,
+        "cachePolicy": "content-addressed",
+        "failurePolicy": "block-dependents"
+      },
+      "reasoning": {
+        "requirement": "none",
+        "trigger": "none",
+        "subjectKind": "provider-result",
+        "freshContext": true,
+        "producerSeparation": true
+      },
+      "benchmark": {
+        "status": "unproven",
+        "requiredForCleanClaim": true,
+        "qualificationDigest": null
+      },
+      "cleanClaim": "evidence-only",
+      "controlIds": [
+        "dependency.source-assurance"
+      ],
+      "scopes": [
+        "family:dependency"
+      ],
+      "selectable": true
+    },
+    {
+      "schemaVersion": 2,
+      "id": "docs.contract",
+      "providerVersion": "1.0.0",
+      "family": "docs",
+      "lensIds": [],
+      "role": "deterministic",
+      "phase": "source",
+      "dependsOn": [],
+      "consumes": [
+        "cortex-projection"
+      ],
+      "produces": [
+        "provider-result"
+      ],
+      "selector": {
+        "op": "always"
+      },
+      "denominatorKind": "selected-scope",
+      "runner": {
+        "kind": "runtime-script",
+        "module": "providers/docs-contract/index.mjs",
+        "moduleDigest": "sha256:b5dc2571903952fd2b18e3f0bccaa78cb6c41b3fdf55323e689ff9462b72c9dc"
+      },
+      "hostCapabilities": [],
+      "execution": {
+        "scheduleClass": "parallel-safe",
+        "resourceClaims": {
+          "cpu": 1,
+          "memoryMb": 256,
+          "io": 1,
+          "projectExecution": 0,
+          "browser": 0,
+          "nativeSurface": 0,
+          "virtualMachine": 0,
+          "simulator": 0,
+          "physicalDevice": 0,
+          "externalSystem": 0,
+          "reviewer": 0,
+          "signer": 0
+        },
+        "concurrencyKey": null,
+        "maxParallelism": null,
+        "orderSensitive": false,
+        "interruptible": true,
+        "cachePolicy": "content-addressed",
+        "failurePolicy": "block-dependents"
+      },
+      "reasoning": {
+        "requirement": "none",
+        "trigger": "none",
+        "subjectKind": "provider-result",
+        "freshContext": true,
+        "producerSeparation": true
+      },
+      "benchmark": {
+        "status": "unproven",
+        "requiredForCleanClaim": true,
+        "qualificationDigest": null
+      },
+      "cleanClaim": "evidence-only",
+      "controlIds": [
+        "docs.source-assurance"
+      ],
+      "scopes": [
+        "family:docs"
+      ],
+      "selectable": true
+    },
+    {
+      "schemaVersion": 2,
+      "id": "framework.backend",
+      "providerVersion": "1.0.0",
+      "family": "framework",
+      "lensIds": [],
+      "role": "deterministic",
+      "phase": "source",
+      "dependsOn": [],
+      "consumes": [
+        "cortex-projection"
+      ],
+      "produces": [
+        "provider-result"
+      ],
+      "selector": {
+        "op": "always"
+      },
+      "denominatorKind": "selected-scope",
+      "runner": {
+        "kind": "runtime-script",
+        "module": "providers/frameworks/backend/index.mjs",
+        "moduleDigest": "sha256:72c12dad2531fd3d32adba4b403c19d7a567bf84b1d49cef6de7ed768ab1e008"
+      },
+      "hostCapabilities": [],
+      "execution": {
+        "scheduleClass": "parallel-safe",
+        "resourceClaims": {
+          "cpu": 1,
+          "memoryMb": 256,
+          "io": 1,
+          "projectExecution": 0,
+          "browser": 0,
+          "nativeSurface": 0,
+          "virtualMachine": 0,
+          "simulator": 0,
+          "physicalDevice": 0,
+          "externalSystem": 0,
+          "reviewer": 0,
+          "signer": 0
+        },
+        "concurrencyKey": null,
+        "maxParallelism": null,
+        "orderSensitive": false,
+        "interruptible": true,
+        "cachePolicy": "content-addressed",
+        "failurePolicy": "block-dependents"
+      },
+      "reasoning": {
+        "requirement": "none",
+        "trigger": "none",
+        "subjectKind": "provider-result",
+        "freshContext": true,
+        "producerSeparation": true
+      },
+      "benchmark": {
+        "status": "unproven",
+        "requiredForCleanClaim": true,
+        "qualificationDigest": null
+      },
+      "cleanClaim": "evidence-only",
+      "controlIds": [
+        "framework.source-assurance"
+      ],
+      "scopes": [
+        "family:framework"
+      ],
+      "selectable": true
+    },
+    {
+      "schemaVersion": 2,
+      "id": "framework.data",
+      "providerVersion": "1.0.0",
+      "family": "framework",
+      "lensIds": [],
+      "role": "deterministic",
+      "phase": "source",
+      "dependsOn": [],
+      "consumes": [
+        "cortex-projection"
+      ],
+      "produces": [
+        "provider-result"
+      ],
+      "selector": {
+        "op": "always"
+      },
+      "denominatorKind": "selected-scope",
+      "runner": {
+        "kind": "runtime-script",
+        "module": "providers/frameworks/data/index.mjs",
+        "moduleDigest": "sha256:ecdf364d790f94dbfd3288dcd9dd447fee79cc696c8939f68a0743bef3decb33"
+      },
+      "hostCapabilities": [],
+      "execution": {
+        "scheduleClass": "parallel-safe",
+        "resourceClaims": {
+          "cpu": 1,
+          "memoryMb": 256,
+          "io": 1,
+          "projectExecution": 0,
+          "browser": 0,
+          "nativeSurface": 0,
+          "virtualMachine": 0,
+          "simulator": 0,
+          "physicalDevice": 0,
+          "externalSystem": 0,
+          "reviewer": 0,
+          "signer": 0
+        },
+        "concurrencyKey": null,
+        "maxParallelism": null,
+        "orderSensitive": false,
+        "interruptible": true,
+        "cachePolicy": "content-addressed",
+        "failurePolicy": "block-dependents"
+      },
+      "reasoning": {
+        "requirement": "none",
+        "trigger": "none",
+        "subjectKind": "provider-result",
+        "freshContext": true,
+        "producerSeparation": true
+      },
+      "benchmark": {
+        "status": "unproven",
+        "requiredForCleanClaim": true,
+        "qualificationDigest": null
+      },
+      "cleanClaim": "evidence-only",
+      "controlIds": [
+        "framework.source-assurance"
+      ],
+      "scopes": [
+        "family:framework"
+      ],
+      "selectable": true
+    },
+    {
+      "schemaVersion": 2,
+      "id": "framework.frontend",
+      "providerVersion": "1.0.0",
+      "family": "framework",
+      "lensIds": [],
+      "role": "deterministic",
+      "phase": "source",
+      "dependsOn": [],
+      "consumes": [
+        "cortex-projection"
+      ],
+      "produces": [
+        "provider-result"
+      ],
+      "selector": {
+        "op": "always"
+      },
+      "denominatorKind": "selected-scope",
+      "runner": {
+        "kind": "runtime-script",
+        "module": "providers/frameworks/frontend/index.mjs",
+        "moduleDigest": "sha256:2b5af3adc886911893606497cfe0c81d4bad1f315968447ed09b9d853806f05c"
+      },
+      "hostCapabilities": [],
+      "execution": {
+        "scheduleClass": "parallel-safe",
+        "resourceClaims": {
+          "cpu": 1,
+          "memoryMb": 256,
+          "io": 1,
+          "projectExecution": 0,
+          "browser": 0,
+          "nativeSurface": 0,
+          "virtualMachine": 0,
+          "simulator": 0,
+          "physicalDevice": 0,
+          "externalSystem": 0,
+          "reviewer": 0,
+          "signer": 0
+        },
+        "concurrencyKey": null,
+        "maxParallelism": null,
+        "orderSensitive": false,
+        "interruptible": true,
+        "cachePolicy": "content-addressed",
+        "failurePolicy": "block-dependents"
+      },
+      "reasoning": {
+        "requirement": "none",
+        "trigger": "none",
+        "subjectKind": "provider-result",
+        "freshContext": true,
+        "producerSeparation": true
+      },
+      "benchmark": {
+        "status": "unproven",
+        "requiredForCleanClaim": true,
+        "qualificationDigest": null
+      },
+      "cleanClaim": "evidence-only",
+      "controlIds": [
+        "framework.source-assurance"
+      ],
+      "scopes": [
+        "family:framework"
+      ],
+      "selectable": true
+    },
+    {
+      "schemaVersion": 2,
+      "id": "governance.policy",
+      "providerVersion": "1.0.0",
+      "family": "governance",
+      "lensIds": [],
+      "role": "deterministic",
+      "phase": "source",
+      "dependsOn": [],
+      "consumes": [
+        "cortex-projection"
+      ],
+      "produces": [
+        "provider-result"
+      ],
+      "selector": {
+        "op": "always"
+      },
+      "denominatorKind": "selected-scope",
+      "runner": {
+        "kind": "runtime-script",
+        "module": "providers/governance/index.mjs",
+        "moduleDigest": "sha256:6f643b9b712ed0046885ec7d59977cf4db397df4a3b1e49c1d8cd9cd2400d165"
+      },
+      "hostCapabilities": [],
+      "execution": {
+        "scheduleClass": "parallel-safe",
+        "resourceClaims": {
+          "cpu": 1,
+          "memoryMb": 256,
+          "io": 1,
+          "projectExecution": 0,
+          "browser": 0,
+          "nativeSurface": 0,
+          "virtualMachine": 0,
+          "simulator": 0,
+          "physicalDevice": 0,
+          "externalSystem": 0,
+          "reviewer": 0,
+          "signer": 0
+        },
+        "concurrencyKey": null,
+        "maxParallelism": null,
+        "orderSensitive": false,
+        "interruptible": true,
+        "cachePolicy": "content-addressed",
+        "failurePolicy": "block-dependents"
+      },
+      "reasoning": {
+        "requirement": "none",
+        "trigger": "none",
+        "subjectKind": "provider-result",
+        "freshContext": true,
+        "producerSeparation": true
+      },
+      "benchmark": {
+        "status": "unproven",
+        "requiredForCleanClaim": true,
+        "qualificationDigest": null
+      },
+      "cleanClaim": "evidence-only",
+      "controlIds": [
+        "governance.source-assurance"
+      ],
+      "scopes": [
+        "family:governance"
+      ],
+      "selectable": true
+    },
+    {
+      "schemaVersion": 2,
+      "id": "imported.sarif",
+      "providerVersion": "1.0.0",
+      "family": "imported",
+      "lensIds": [],
+      "role": "deterministic",
+      "phase": "source",
+      "dependsOn": [],
+      "consumes": [
+        "cortex-projection"
+      ],
+      "produces": [
+        "provider-result"
+      ],
+      "selector": {
+        "op": "always"
+      },
+      "denominatorKind": "selected-scope",
+      "runner": {
+        "kind": "runtime-script",
+        "module": "providers/imported-sarif/index.mjs",
+        "moduleDigest": "sha256:8f1dac89ff023dca1833ec40d932e5b056d6d07311261f750018d6ce7a794081"
+      },
+      "hostCapabilities": [],
+      "execution": {
+        "scheduleClass": "parallel-safe",
+        "resourceClaims": {
+          "cpu": 1,
+          "memoryMb": 256,
+          "io": 1,
+          "projectExecution": 0,
+          "browser": 0,
+          "nativeSurface": 0,
+          "virtualMachine": 0,
+          "simulator": 0,
+          "physicalDevice": 0,
+          "externalSystem": 0,
+          "reviewer": 0,
+          "signer": 0
+        },
+        "concurrencyKey": null,
+        "maxParallelism": null,
+        "orderSensitive": false,
+        "interruptible": true,
+        "cachePolicy": "content-addressed",
+        "failurePolicy": "block-dependents"
+      },
+      "reasoning": {
+        "requirement": "none",
+        "trigger": "none",
+        "subjectKind": "provider-result",
+        "freshContext": true,
+        "producerSeparation": true
+      },
+      "benchmark": {
+        "status": "unproven",
+        "requiredForCleanClaim": true,
+        "qualificationDigest": null
+      },
+      "cleanClaim": "evidence-only",
+      "controlIds": [
+        "imported.source-assurance"
+      ],
+      "scopes": [
+        "family:imported"
+      ],
+      "selectable": true
+    },
+    {
+      "schemaVersion": 2,
+      "id": "legacy.accessibility.internal-suite",
+      "providerVersion": "2.0.0",
+      "family": "accessibility",
+      "lensIds": [
+        "accessibility"
+      ],
+      "role": "deterministic",
+      "phase": "runtime",
+      "dependsOn": [],
+      "consumes": [
+        "cortex-projection"
+      ],
+      "produces": [
+        "provider-result"
+      ],
+      "selector": {
+        "op": "sourceFilesAtLeast",
+        "count": 1
+      },
+      "denominatorKind": "selected-scope",
+      "runner": {
+        "kind": "runtime-script",
+        "module": "providers/accessibility-suite.mjs",
+        "moduleDigest": "sha256:7a00294039ed49aeeeda8f5a6a62401c17a2edbf34fae97df133d2cb89b67d64"
+      },
+      "hostCapabilities": [],
+      "execution": {
+        "scheduleClass": "parallel-safe",
+        "resourceClaims": {
+          "cpu": 1,
+          "memoryMb": 256,
+          "io": 1,
+          "projectExecution": 0,
+          "browser": 0,
+          "nativeSurface": 0,
+          "virtualMachine": 0,
+          "simulator": 0,
+          "physicalDevice": 0,
+          "externalSystem": 0,
+          "reviewer": 0,
+          "signer": 0
+        },
+        "concurrencyKey": null,
+        "maxParallelism": null,
+        "orderSensitive": false,
+        "interruptible": true,
+        "cachePolicy": "content-addressed",
+        "failurePolicy": "block-dependents"
+      },
+      "reasoning": {
+        "requirement": "none",
+        "trigger": "none",
+        "subjectKind": "provider-result",
+        "freshContext": true,
+        "producerSeparation": true
+      },
+      "benchmark": {
+        "status": "unproven",
+        "requiredForCleanClaim": true,
+        "qualificationDigest": null
+      },
+      "cleanClaim": "evidence-only",
+      "controlIds": [
+        "accessibility.source-assurance"
+      ],
+      "scopes": [
+        "family:accessibility"
+      ],
+      "selectable": true
+    },
+    {
+      "schemaVersion": 2,
+      "id": "legacy.apple.platform",
+      "providerVersion": "2.0.0",
+      "family": "security",
+      "lensIds": [
+        "security",
+        "correctness",
+        "platform-parity"
+      ],
+      "role": "candidate-generator",
+      "phase": "source",
+      "dependsOn": [],
+      "consumes": [
+        "cortex-projection"
+      ],
+      "produces": [
+        "security-candidates"
+      ],
+      "selector": {
+        "op": "anyExtension",
+        "extensions": [
+          "swift",
+          "m",
+          "mm"
+        ]
+      },
+      "denominatorKind": "Apple target",
+      "runner": {
+        "kind": "legacy-check",
+        "check": "apple_platform",
+        "tool": "fs",
+        "requiredWhen": "optional",
+        "applies": "Apple target",
+        "parallel": true,
+        "backs": [
+          "security",
+          "correctness",
+          "platform-parity"
+        ]
+      },
+      "hostCapabilities": [],
+      "execution": {
+        "scheduleClass": "parallel-safe",
+        "resourceClaims": {
+          "cpu": 1,
+          "memoryMb": 256,
+          "io": 1,
+          "projectExecution": 0,
+          "browser": 0,
+          "nativeSurface": 0,
+          "virtualMachine": 0,
+          "simulator": 0,
+          "physicalDevice": 0,
+          "externalSystem": 0,
+          "reviewer": 0,
+          "signer": 0
+        },
+        "concurrencyKey": null,
+        "maxParallelism": null,
+        "orderSensitive": false,
+        "interruptible": true,
+        "cachePolicy": "content-addressed",
+        "failurePolicy": "block-dependents"
+      },
+      "reasoning": {
+        "requirement": "review",
+        "trigger": "candidate",
+        "subjectKind": "provider-result",
+        "freshContext": true,
+        "producerSeparation": true
+      },
+      "benchmark": {
+        "status": "unproven",
+        "requiredForCleanClaim": true,
+        "qualificationDigest": null
+      },
+      "cleanClaim": "evidence-only",
+      "controlIds": [
+        "security.source-assurance"
+      ],
+      "scopes": [
+        "family:security"
+      ],
+      "selectable": true
+    },
+    {
+      "schemaVersion": 2,
+      "id": "legacy.architecture.decomposition",
+      "providerVersion": "2.0.0",
+      "family": "architecture",
+      "lensIds": [
+        "architecture",
+        "minimize"
+      ],
+      "role": "deterministic",
+      "phase": "source",
+      "dependsOn": [],
+      "consumes": [
+        "cortex-projection"
+      ],
+      "produces": [
+        "provider-result"
+      ],
+      "selector": {
+        "op": "sourceFilesAtLeast",
+        "count": 1
+      },
+      "denominatorKind": "Cortex first-party source inventory",
+      "runner": {
+        "kind": "legacy-check",
+        "check": "decomposition",
+        "tool": "size/graph metrics",
+        "requiredWhen": "optional",
+        "applies": "Cortex first-party source inventory",
+        "parallel": true,
+        "backs": [
+          "architecture",
+          "minimize"
+        ]
+      },
+      "hostCapabilities": [],
+      "execution": {
+        "scheduleClass": "parallel-safe",
+        "resourceClaims": {
+          "cpu": 1,
+          "memoryMb": 256,
+          "io": 1,
+          "projectExecution": 0,
+          "browser": 0,
+          "nativeSurface": 0,
+          "virtualMachine": 0,
+          "simulator": 0,
+          "physicalDevice": 0,
+          "externalSystem": 0,
+          "reviewer": 0,
+          "signer": 0
+        },
+        "concurrencyKey": null,
+        "maxParallelism": null,
+        "orderSensitive": false,
+        "interruptible": true,
+        "cachePolicy": "content-addressed",
+        "failurePolicy": "block-dependents"
+      },
+      "reasoning": {
+        "requirement": "none",
+        "trigger": "none",
+        "subjectKind": "provider-result",
+        "freshContext": true,
+        "producerSeparation": true
+      },
+      "benchmark": {
+        "status": "unproven",
+        "requiredForCleanClaim": true,
+        "qualificationDigest": null
+      },
+      "cleanClaim": "evidence-only",
+      "controlIds": [
+        "architecture.source-assurance"
+      ],
+      "scopes": [
+        "family:architecture"
+      ],
+      "selectable": true
+    },
+    {
+      "schemaVersion": 2,
+      "id": "legacy.core.repo",
+      "providerVersion": "2.0.0",
+      "family": "prioritization",
+      "lensIds": [
+        "prioritization"
+      ],
+      "role": "deterministic",
+      "phase": "source",
+      "dependsOn": [],
+      "consumes": [
+        "cortex-projection"
+      ],
+      "produces": [
+        "provider-result"
+      ],
+      "selector": {
+        "op": "always"
+      },
+      "denominatorKind": "git repo",
+      "runner": {
+        "kind": "legacy-check",
+        "check": "repo",
+        "tool": "git",
+        "requiredWhen": "always",
+        "applies": "git repo",
+        "parallel": true,
+        "backs": [
+          "prioritization"
+        ]
+      },
+      "hostCapabilities": [],
+      "execution": {
+        "scheduleClass": "parallel-safe",
+        "resourceClaims": {
+          "cpu": 1,
+          "memoryMb": 256,
+          "io": 1,
+          "projectExecution": 0,
+          "browser": 0,
+          "nativeSurface": 0,
+          "virtualMachine": 0,
+          "simulator": 0,
+          "physicalDevice": 0,
+          "externalSystem": 0,
+          "reviewer": 0,
+          "signer": 0
+        },
+        "concurrencyKey": null,
+        "maxParallelism": null,
+        "orderSensitive": false,
+        "interruptible": true,
+        "cachePolicy": "content-addressed",
+        "failurePolicy": "block-dependents"
+      },
+      "reasoning": {
+        "requirement": "none",
+        "trigger": "none",
+        "subjectKind": "provider-result",
+        "freshContext": true,
+        "producerSeparation": true
+      },
+      "benchmark": {
+        "status": "unproven",
+        "requiredForCleanClaim": true,
+        "qualificationDigest": null
+      },
+      "cleanClaim": "evidence-only",
+      "controlIds": [
+        "prioritization.source-assurance"
+      ],
+      "scopes": [
+        "family:prioritization"
+      ],
+      "selectable": true
+    },
+    {
+      "schemaVersion": 2,
+      "id": "legacy.framework.major-suite",
+      "providerVersion": "2.0.0",
+      "family": "framework",
+      "lensIds": [
+        "framework"
+      ],
+      "role": "candidate-generator",
+      "phase": "runtime",
+      "dependsOn": [],
+      "consumes": [
+        "cortex-projection"
+      ],
+      "produces": [
+        "security-candidates"
+      ],
+      "selector": {
+        "op": "anyDependency",
+        "names": [
+          "react",
+          "next",
+          "vue",
+          "nuxt",
+          "angular",
+          "svelte",
+          "astro",
+          "remix",
+          "express",
+          "fastify",
+          "django",
+          "flask"
+        ]
+      },
+      "denominatorKind": "selected-scope",
+      "runner": {
+        "kind": "runtime-script",
+        "module": "providers/framework-suite.mjs",
+        "moduleDigest": "sha256:2fa0c921cca66a57ed9b1a28471ff52bfe573391fba21d52eeb332e188e5ee90"
+      },
+      "hostCapabilities": [],
+      "execution": {
+        "scheduleClass": "parallel-safe",
+        "resourceClaims": {
+          "cpu": 1,
+          "memoryMb": 256,
+          "io": 1,
+          "projectExecution": 0,
+          "browser": 0,
+          "nativeSurface": 0,
+          "virtualMachine": 0,
+          "simulator": 0,
+          "physicalDevice": 0,
+          "externalSystem": 0,
+          "reviewer": 0,
+          "signer": 0
+        },
+        "concurrencyKey": null,
+        "maxParallelism": null,
+        "orderSensitive": false,
+        "interruptible": true,
+        "cachePolicy": "content-addressed",
+        "failurePolicy": "block-dependents"
+      },
+      "reasoning": {
+        "requirement": "review",
+        "trigger": "candidate",
+        "subjectKind": "provider-result",
+        "freshContext": true,
+        "producerSeparation": true
+      },
+      "benchmark": {
+        "status": "unproven",
+        "requiredForCleanClaim": true,
+        "qualificationDigest": null
+      },
+      "cleanClaim": "evidence-only",
+      "controlIds": [
+        "framework.source-assurance"
+      ],
+      "scopes": [
+        "family:framework"
+      ],
+      "selectable": true
+    },
+    {
+      "schemaVersion": 2,
+      "id": "legacy.quality.build",
+      "providerVersion": "2.0.0",
+      "family": "installer-hygiene",
+      "lensIds": [
+        "installer-hygiene"
+      ],
+      "role": "deterministic",
+      "phase": "source",
+      "dependsOn": [],
+      "consumes": [
+        "cortex-projection"
+      ],
+      "produces": [
+        "provider-result"
+      ],
+      "selector": {
+        "op": "any",
+        "selectors": [
+          {
+            "op": "anyPackageScript",
+            "names": [
+              "build"
+            ]
+          },
+          {
+            "op": "anyPath",
+            "patterns": [
+              "**/Cargo.toml"
+            ]
+          }
+        ]
+      },
+      "denominatorKind": "build script / Cargo.toml",
+      "runner": {
+        "kind": "legacy-check",
+        "check": "build",
+        "tool": "<project build>",
+        "requiredWhen": "buildable",
+        "applies": "build script / Cargo.toml",
+        "parallel": false,
+        "backs": [
+          "installer-hygiene"
+        ]
+      },
+      "hostCapabilities": [],
+      "execution": {
+        "scheduleClass": "serial",
+        "resourceClaims": {
+          "cpu": 1,
+          "memoryMb": 256,
+          "io": 1,
+          "projectExecution": 0,
+          "browser": 0,
+          "nativeSurface": 0,
+          "virtualMachine": 0,
+          "simulator": 0,
+          "physicalDevice": 0,
+          "externalSystem": 0,
+          "reviewer": 0,
+          "signer": 0
+        },
+        "concurrencyKey": null,
+        "maxParallelism": null,
+        "orderSensitive": false,
+        "interruptible": true,
+        "cachePolicy": "content-addressed",
+        "failurePolicy": "block-dependents"
+      },
+      "reasoning": {
+        "requirement": "none",
+        "trigger": "none",
+        "subjectKind": "provider-result",
+        "freshContext": true,
+        "producerSeparation": true
+      },
+      "benchmark": {
+        "status": "unproven",
+        "requiredForCleanClaim": true,
+        "qualificationDigest": null
+      },
+      "cleanClaim": "evidence-only",
+      "controlIds": [
+        "installer-hygiene.source-assurance"
+      ],
+      "scopes": [
+        "family:installer-hygiene"
+      ],
+      "selectable": true
+    },
+    {
+      "schemaVersion": 2,
+      "id": "legacy.quality.dead-code",
+      "providerVersion": "2.0.0",
+      "family": "dead-file",
+      "lensIds": [
+        "dead-file",
+        "ai-slop"
+      ],
+      "role": "deterministic",
+      "phase": "source",
+      "dependsOn": [],
+      "consumes": [
+        "cortex-projection"
+      ],
+      "produces": [
+        "provider-result"
+      ],
+      "selector": {
+        "op": "anyPath",
+        "patterns": [
+          "**/package.json"
+        ]
+      },
+      "denominatorKind": "package.json",
+      "runner": {
+        "kind": "legacy-check",
+        "check": "dead_code",
+        "tool": "knip",
+        "requiredWhen": "optional",
+        "applies": "package.json",
+        "parallel": true,
+        "backs": [
+          "dead-file",
+          "ai-slop"
+        ]
+      },
+      "hostCapabilities": [],
+      "execution": {
+        "scheduleClass": "parallel-safe",
+        "resourceClaims": {
+          "cpu": 1,
+          "memoryMb": 256,
+          "io": 1,
+          "projectExecution": 0,
+          "browser": 0,
+          "nativeSurface": 0,
+          "virtualMachine": 0,
+          "simulator": 0,
+          "physicalDevice": 0,
+          "externalSystem": 0,
+          "reviewer": 0,
+          "signer": 0
+        },
+        "concurrencyKey": null,
+        "maxParallelism": null,
+        "orderSensitive": false,
+        "interruptible": true,
+        "cachePolicy": "content-addressed",
+        "failurePolicy": "block-dependents"
+      },
+      "reasoning": {
+        "requirement": "none",
+        "trigger": "none",
+        "subjectKind": "provider-result",
+        "freshContext": true,
+        "producerSeparation": true
+      },
+      "benchmark": {
+        "status": "unproven",
+        "requiredForCleanClaim": true,
+        "qualificationDigest": null
+      },
+      "cleanClaim": "evidence-only",
+      "controlIds": [
+        "dead-file.source-assurance"
+      ],
+      "scopes": [
+        "family:dead-file"
+      ],
+      "selectable": true
+    },
+    {
+      "schemaVersion": 2,
+      "id": "legacy.quality.debt-markers",
+      "providerVersion": "2.0.0",
+      "family": "ai-slop",
+      "lensIds": [
+        "ai-slop",
+        "maintainability"
+      ],
+      "role": "deterministic",
+      "phase": "source",
+      "dependsOn": [],
+      "consumes": [
+        "cortex-projection"
+      ],
+      "produces": [
+        "provider-result"
+      ],
+      "selector": {
+        "op": "sourceFilesAtLeast",
+        "count": 1
+      },
+      "denominatorKind": "git repository",
+      "runner": {
+        "kind": "legacy-check",
+        "check": "debt_markers",
+        "tool": "git grep",
+        "requiredWhen": "optional",
+        "applies": "git repository",
+        "parallel": true,
+        "backs": [
+          "ai-slop",
+          "maintainability"
+        ]
+      },
+      "hostCapabilities": [],
+      "execution": {
+        "scheduleClass": "parallel-safe",
+        "resourceClaims": {
+          "cpu": 1,
+          "memoryMb": 256,
+          "io": 1,
+          "projectExecution": 0,
+          "browser": 0,
+          "nativeSurface": 0,
+          "virtualMachine": 0,
+          "simulator": 0,
+          "physicalDevice": 0,
+          "externalSystem": 0,
+          "reviewer": 0,
+          "signer": 0
+        },
+        "concurrencyKey": null,
+        "maxParallelism": null,
+        "orderSensitive": false,
+        "interruptible": true,
+        "cachePolicy": "content-addressed",
+        "failurePolicy": "block-dependents"
+      },
+      "reasoning": {
+        "requirement": "none",
+        "trigger": "none",
+        "subjectKind": "provider-result",
+        "freshContext": true,
+        "producerSeparation": true
+      },
+      "benchmark": {
+        "status": "unproven",
+        "requiredForCleanClaim": true,
+        "qualificationDigest": null
+      },
+      "cleanClaim": "evidence-only",
+      "controlIds": [
+        "ai-slop.source-assurance"
+      ],
+      "scopes": [
+        "family:ai-slop"
+      ],
+      "selectable": true
+    },
+    {
+      "schemaVersion": 2,
+      "id": "legacy.quality.duplication",
+      "providerVersion": "2.0.0",
+      "family": "ai-slop",
+      "lensIds": [
+        "ai-slop",
+        "minimize"
+      ],
+      "role": "deterministic",
+      "phase": "source",
+      "dependsOn": [],
+      "consumes": [
+        "cortex-projection"
+      ],
+      "produces": [
+        "provider-result"
+      ],
+      "selector": {
+        "op": "sourceFilesAtLeast",
+        "count": 1
+      },
+      "denominatorKind": "first-party source",
+      "runner": {
+        "kind": "legacy-check",
+        "check": "duplication",
+        "tool": "jscpd",
+        "requiredWhen": "optional",
+        "applies": "first-party source",
+        "parallel": true,
+        "backs": [
+          "ai-slop",
+          "minimize"
+        ]
+      },
+      "hostCapabilities": [],
+      "execution": {
+        "scheduleClass": "parallel-safe",
+        "resourceClaims": {
+          "cpu": 1,
+          "memoryMb": 256,
+          "io": 1,
+          "projectExecution": 0,
+          "browser": 0,
+          "nativeSurface": 0,
+          "virtualMachine": 0,
+          "simulator": 0,
+          "physicalDevice": 0,
+          "externalSystem": 0,
+          "reviewer": 0,
+          "signer": 0
+        },
+        "concurrencyKey": null,
+        "maxParallelism": null,
+        "orderSensitive": false,
+        "interruptible": true,
+        "cachePolicy": "content-addressed",
+        "failurePolicy": "block-dependents"
+      },
+      "reasoning": {
+        "requirement": "none",
+        "trigger": "none",
+        "subjectKind": "provider-result",
+        "freshContext": true,
+        "producerSeparation": true
+      },
+      "benchmark": {
+        "status": "unproven",
+        "requiredForCleanClaim": true,
+        "qualificationDigest": null
+      },
+      "cleanClaim": "evidence-only",
+      "controlIds": [
+        "ai-slop.source-assurance"
+      ],
+      "scopes": [
+        "family:ai-slop"
+      ],
+      "selectable": true
+    },
+    {
+      "schemaVersion": 2,
+      "id": "legacy.quality.lint",
+      "providerVersion": "2.0.0",
+      "family": "ai-slop",
+      "lensIds": [
+        "ai-slop",
+        "naming",
+        "performance",
+        "a11y"
+      ],
+      "role": "deterministic",
+      "phase": "source",
+      "dependsOn": [],
+      "consumes": [
+        "cortex-projection"
+      ],
+      "produces": [
+        "provider-result"
+      ],
+      "selector": {
+        "op": "sourceFilesAtLeast",
+        "count": 1
+      },
+      "denominatorKind": "configured language linter",
+      "runner": {
+        "kind": "legacy-check",
+        "check": "lint",
+        "tool": "biome|eslint|ruff|clippy",
+        "requiredWhen": "configured",
+        "applies": "configured language linter",
+        "parallel": true,
+        "backs": [
+          "ai-slop",
+          "naming",
+          "performance",
+          "a11y"
+        ]
+      },
+      "hostCapabilities": [],
+      "execution": {
+        "scheduleClass": "parallel-safe",
+        "resourceClaims": {
+          "cpu": 1,
+          "memoryMb": 256,
+          "io": 1,
+          "projectExecution": 0,
+          "browser": 0,
+          "nativeSurface": 0,
+          "virtualMachine": 0,
+          "simulator": 0,
+          "physicalDevice": 0,
+          "externalSystem": 0,
+          "reviewer": 0,
+          "signer": 0
+        },
+        "concurrencyKey": null,
+        "maxParallelism": null,
+        "orderSensitive": false,
+        "interruptible": true,
+        "cachePolicy": "content-addressed",
+        "failurePolicy": "block-dependents"
+      },
+      "reasoning": {
+        "requirement": "none",
+        "trigger": "none",
+        "subjectKind": "provider-result",
+        "freshContext": true,
+        "producerSeparation": true
+      },
+      "benchmark": {
+        "status": "unproven",
+        "requiredForCleanClaim": true,
+        "qualificationDigest": null
+      },
+      "cleanClaim": "evidence-only",
+      "controlIds": [
+        "ai-slop.source-assurance"
+      ],
+      "scopes": [
+        "family:ai-slop"
+      ],
+      "selectable": true
+    },
+    {
+      "schemaVersion": 2,
+      "id": "legacy.quality.negative-space",
+      "providerVersion": "2.0.0",
+      "family": "architecture",
+      "lensIds": [
+        "architecture",
+        "maintainability"
+      ],
+      "role": "deterministic",
+      "phase": "source",
+      "dependsOn": [],
+      "consumes": [
+        "cortex-projection"
+      ],
+      "produces": [
+        "provider-result"
+      ],
+      "selector": {
+        "op": "always"
+      },
+      "denominatorKind": "always",
+      "runner": {
+        "kind": "legacy-check",
+        "check": "negative_space",
+        "tool": "fs",
+        "requiredWhen": "optional",
+        "applies": "always",
+        "parallel": true,
+        "backs": [
+          "architecture",
+          "maintainability"
+        ]
+      },
+      "hostCapabilities": [],
+      "execution": {
+        "scheduleClass": "parallel-safe",
+        "resourceClaims": {
+          "cpu": 1,
+          "memoryMb": 256,
+          "io": 1,
+          "projectExecution": 0,
+          "browser": 0,
+          "nativeSurface": 0,
+          "virtualMachine": 0,
+          "simulator": 0,
+          "physicalDevice": 0,
+          "externalSystem": 0,
+          "reviewer": 0,
+          "signer": 0
+        },
+        "concurrencyKey": null,
+        "maxParallelism": null,
+        "orderSensitive": false,
+        "interruptible": true,
+        "cachePolicy": "content-addressed",
+        "failurePolicy": "block-dependents"
+      },
+      "reasoning": {
+        "requirement": "none",
+        "trigger": "none",
+        "subjectKind": "provider-result",
+        "freshContext": true,
+        "producerSeparation": true
+      },
+      "benchmark": {
+        "status": "unproven",
+        "requiredForCleanClaim": true,
+        "qualificationDigest": null
+      },
+      "cleanClaim": "evidence-only",
+      "controlIds": [
+        "architecture.source-assurance"
+      ],
+      "scopes": [
+        "family:architecture"
+      ],
+      "selectable": true
+    },
+    {
+      "schemaVersion": 2,
+      "id": "legacy.quality.rust-unused-deps",
+      "providerVersion": "2.0.0",
+      "family": "dead-file",
+      "lensIds": [
+        "dead-file",
+        "stack"
+      ],
+      "role": "deterministic",
+      "phase": "source",
+      "dependsOn": [],
+      "consumes": [
+        "cortex-projection"
+      ],
+      "produces": [
+        "provider-result"
+      ],
+      "selector": {
+        "op": "anyPath",
+        "patterns": [
+          "**/Cargo.toml",
+          "**/*.rs"
+        ]
+      },
+      "denominatorKind": "Cargo.toml",
+      "runner": {
+        "kind": "legacy-check",
+        "check": "cargo_unused_deps",
+        "tool": "cargo-machete",
+        "requiredWhen": "optional",
+        "applies": "Cargo.toml",
+        "parallel": true,
+        "backs": [
+          "dead-file",
+          "stack"
+        ]
+      },
+      "hostCapabilities": [],
+      "execution": {
+        "scheduleClass": "parallel-safe",
+        "resourceClaims": {
+          "cpu": 1,
+          "memoryMb": 256,
+          "io": 1,
+          "projectExecution": 0,
+          "browser": 0,
+          "nativeSurface": 0,
+          "virtualMachine": 0,
+          "simulator": 0,
+          "physicalDevice": 0,
+          "externalSystem": 0,
+          "reviewer": 0,
+          "signer": 0
+        },
+        "concurrencyKey": null,
+        "maxParallelism": null,
+        "orderSensitive": false,
+        "interruptible": true,
+        "cachePolicy": "content-addressed",
+        "failurePolicy": "block-dependents"
+      },
+      "reasoning": {
+        "requirement": "none",
+        "trigger": "none",
+        "subjectKind": "provider-result",
+        "freshContext": true,
+        "producerSeparation": true
+      },
+      "benchmark": {
+        "status": "unproven",
+        "requiredForCleanClaim": true,
+        "qualificationDigest": null
+      },
+      "cleanClaim": "evidence-only",
+      "controlIds": [
+        "dead-file.source-assurance"
+      ],
+      "scopes": [
+        "family:dead-file"
+      ],
+      "selectable": true
+    },
+    {
+      "schemaVersion": 2,
+      "id": "legacy.quality.swift-lint",
+      "providerVersion": "2.0.0",
+      "family": "ai-slop",
+      "lensIds": [
+        "ai-slop",
+        "naming",
+        "correctness"
+      ],
+      "role": "deterministic",
+      "phase": "source",
+      "dependsOn": [],
+      "consumes": [
+        "cortex-projection"
+      ],
+      "produces": [
+        "provider-result"
+      ],
+      "selector": {
+        "op": "anyExtension",
+        "extensions": [
+          "swift",
+          "m",
+          "mm"
+        ]
+      },
+      "denominatorKind": "Swift sources",
+      "runner": {
+        "kind": "legacy-check",
+        "check": "swift_lint",
+        "tool": "swiftlint",
+        "requiredWhen": "tool_present",
+        "applies": "Swift sources",
+        "parallel": true,
+        "backs": [
+          "ai-slop",
+          "naming",
+          "correctness"
+        ]
+      },
+      "hostCapabilities": [],
+      "execution": {
+        "scheduleClass": "parallel-safe",
+        "resourceClaims": {
+          "cpu": 1,
+          "memoryMb": 256,
+          "io": 1,
+          "projectExecution": 0,
+          "browser": 0,
+          "nativeSurface": 0,
+          "virtualMachine": 0,
+          "simulator": 0,
+          "physicalDevice": 0,
+          "externalSystem": 0,
+          "reviewer": 0,
+          "signer": 0
+        },
+        "concurrencyKey": null,
+        "maxParallelism": null,
+        "orderSensitive": false,
+        "interruptible": true,
+        "cachePolicy": "content-addressed",
+        "failurePolicy": "block-dependents"
+      },
+      "reasoning": {
+        "requirement": "none",
+        "trigger": "none",
+        "subjectKind": "provider-result",
+        "freshContext": true,
+        "producerSeparation": true
+      },
+      "benchmark": {
+        "status": "unproven",
+        "requiredForCleanClaim": true,
+        "qualificationDigest": null
+      },
+      "cleanClaim": "evidence-only",
+      "controlIds": [
+        "ai-slop.source-assurance"
+      ],
+      "scopes": [
+        "family:ai-slop"
+      ],
+      "selectable": true
+    },
+    {
+      "schemaVersion": 2,
+      "id": "legacy.quality.tool-coverage",
+      "providerVersion": "2.0.0",
+      "family": "security",
+      "lensIds": [
+        "security",
+        "correctness"
+      ],
+      "role": "deterministic",
+      "phase": "source",
+      "dependsOn": [],
+      "consumes": [
+        "cortex-projection"
+      ],
+      "produces": [
+        "provider-result"
+      ],
+      "selector": {
+        "op": "always"
+      },
+      "denominatorKind": "always",
+      "runner": {
+        "kind": "legacy-check",
+        "check": "tool_coverage",
+        "tool": "fs",
+        "requiredWhen": "optional",
+        "applies": "always",
+        "parallel": true,
+        "backs": [
+          "security",
+          "correctness"
+        ]
+      },
+      "hostCapabilities": [],
+      "execution": {
+        "scheduleClass": "parallel-safe",
+        "resourceClaims": {
+          "cpu": 1,
+          "memoryMb": 256,
+          "io": 1,
+          "projectExecution": 0,
+          "browser": 0,
+          "nativeSurface": 0,
+          "virtualMachine": 0,
+          "simulator": 0,
+          "physicalDevice": 0,
+          "externalSystem": 0,
+          "reviewer": 0,
+          "signer": 0
+        },
+        "concurrencyKey": null,
+        "maxParallelism": null,
+        "orderSensitive": false,
+        "interruptible": true,
+        "cachePolicy": "content-addressed",
+        "failurePolicy": "block-dependents"
+      },
+      "reasoning": {
+        "requirement": "none",
+        "trigger": "none",
+        "subjectKind": "provider-result",
+        "freshContext": true,
+        "producerSeparation": true
+      },
+      "benchmark": {
+        "status": "unproven",
+        "requiredForCleanClaim": true,
+        "qualificationDigest": null
+      },
+      "cleanClaim": "evidence-only",
+      "controlIds": [
+        "security.source-assurance"
+      ],
+      "scopes": [
+        "family:security"
+      ],
+      "selectable": true
+    },
+    {
+      "schemaVersion": 2,
+      "id": "legacy.quality.types",
+      "providerVersion": "2.0.0",
+      "family": "schema",
+      "lensIds": [
+        "schema",
+        "architecture"
+      ],
+      "role": "deterministic",
+      "phase": "source",
+      "dependsOn": [],
+      "consumes": [
+        "cortex-projection"
+      ],
+      "produces": [
+        "provider-result"
+      ],
+      "selector": {
+        "op": "anyExtension",
+        "extensions": [
+          "ts",
+          "tsx",
+          "py"
+        ]
+      },
+      "denominatorKind": "TypeScript/Python typed project",
+      "runner": {
+        "kind": "legacy-check",
+        "check": "types",
+        "tool": "tsc|basedpyright|mypy",
+        "requiredWhen": "typed",
+        "applies": "TypeScript/Python typed project",
+        "parallel": true,
+        "backs": [
+          "schema",
+          "architecture"
+        ]
+      },
+      "hostCapabilities": [],
+      "execution": {
+        "scheduleClass": "parallel-safe",
+        "resourceClaims": {
+          "cpu": 1,
+          "memoryMb": 256,
+          "io": 1,
+          "projectExecution": 0,
+          "browser": 0,
+          "nativeSurface": 0,
+          "virtualMachine": 0,
+          "simulator": 0,
+          "physicalDevice": 0,
+          "externalSystem": 0,
+          "reviewer": 0,
+          "signer": 0
+        },
+        "concurrencyKey": null,
+        "maxParallelism": null,
+        "orderSensitive": false,
+        "interruptible": true,
+        "cachePolicy": "content-addressed",
+        "failurePolicy": "block-dependents"
+      },
+      "reasoning": {
+        "requirement": "none",
+        "trigger": "none",
+        "subjectKind": "provider-result",
+        "freshContext": true,
+        "producerSeparation": true
+      },
+      "benchmark": {
+        "status": "unproven",
+        "requiredForCleanClaim": true,
+        "qualificationDigest": null
+      },
+      "cleanClaim": "evidence-only",
+      "controlIds": [
+        "schema.source-assurance"
+      ],
+      "scopes": [
+        "family:schema"
+      ],
+      "selectable": true
+    },
+    {
+      "schemaVersion": 2,
+      "id": "legacy.react.hooks-config",
+      "providerVersion": "2.0.0",
+      "family": "correctness",
+      "lensIds": [
+        "correctness",
+        "ai-slop"
+      ],
+      "role": "deterministic",
+      "phase": "source",
+      "dependsOn": [],
+      "consumes": [
+        "cortex-projection"
+      ],
+      "produces": [
+        "provider-result"
+      ],
+      "selector": {
+        "op": "anyDependency",
+        "names": [
+          "react",
+          "react-dom"
+        ]
+      },
+      "denominatorKind": "React dependency",
+      "runner": {
+        "kind": "legacy-check",
+        "check": "react_hooks",
+        "tool": "fs",
+        "requiredWhen": "optional",
+        "applies": "React dependency",
+        "parallel": true,
+        "backs": [
+          "correctness",
+          "ai-slop"
+        ]
+      },
+      "hostCapabilities": [],
+      "execution": {
+        "scheduleClass": "parallel-safe",
+        "resourceClaims": {
+          "cpu": 1,
+          "memoryMb": 256,
+          "io": 1,
+          "projectExecution": 0,
+          "browser": 0,
+          "nativeSurface": 0,
+          "virtualMachine": 0,
+          "simulator": 0,
+          "physicalDevice": 0,
+          "externalSystem": 0,
+          "reviewer": 0,
+          "signer": 0
+        },
+        "concurrencyKey": null,
+        "maxParallelism": null,
+        "orderSensitive": false,
+        "interruptible": true,
+        "cachePolicy": "content-addressed",
+        "failurePolicy": "block-dependents"
+      },
+      "reasoning": {
+        "requirement": "none",
+        "trigger": "none",
+        "subjectKind": "provider-result",
+        "freshContext": true,
+        "producerSeparation": true
+      },
+      "benchmark": {
+        "status": "unproven",
+        "requiredForCleanClaim": true,
+        "qualificationDigest": null
+      },
+      "cleanClaim": "evidence-only",
+      "controlIds": [
+        "correctness.source-assurance"
+      ],
+      "scopes": [
+        "family:correctness"
+      ],
+      "selectable": true
+    },
+    {
+      "schemaVersion": 2,
+      "id": "legacy.runtime.app",
+      "providerVersion": "2.0.0",
+      "family": "performance",
+      "lensIds": [
+        "performance",
+        "runtime",
+        "a11y"
+      ],
+      "role": "deterministic",
+      "phase": "runtime",
+      "dependsOn": [],
+      "consumes": [
+        "cortex-projection"
+      ],
+      "produces": [
+        "provider-result"
+      ],
+      "selector": {
+        "op": "anyPackageScript",
+        "names": [
+          "dev",
+          "start",
+          "preview",
+          "qa:browser"
+        ]
+      },
+      "denominatorKind": "runnable app (qa:browser / dev server)",
+      "runner": {
+        "kind": "legacy-check",
+        "check": "runtime",
+        "tool": "audit-runtime.mjs",
+        "requiredWhen": "optional",
+        "applies": "runnable app (qa:browser / dev server)",
+        "parallel": false,
+        "backs": [
+          "performance",
+          "runtime",
+          "a11y"
+        ]
+      },
+      "hostCapabilities": [],
+      "execution": {
+        "scheduleClass": "serial",
+        "resourceClaims": {
+          "cpu": 1,
+          "memoryMb": 256,
+          "io": 1,
+          "projectExecution": 0,
+          "browser": 0,
+          "nativeSurface": 0,
+          "virtualMachine": 0,
+          "simulator": 0,
+          "physicalDevice": 0,
+          "externalSystem": 0,
+          "reviewer": 0,
+          "signer": 0
+        },
+        "concurrencyKey": null,
+        "maxParallelism": null,
+        "orderSensitive": false,
+        "interruptible": true,
+        "cachePolicy": "content-addressed",
+        "failurePolicy": "block-dependents"
+      },
+      "reasoning": {
+        "requirement": "none",
+        "trigger": "none",
+        "subjectKind": "provider-result",
+        "freshContext": true,
+        "producerSeparation": true
+      },
+      "benchmark": {
+        "status": "unproven",
+        "requiredForCleanClaim": true,
+        "qualificationDigest": null
+      },
+      "cleanClaim": "evidence-only",
+      "controlIds": [
+        "performance.source-assurance"
+      ],
+      "scopes": [
+        "family:performance"
+      ],
+      "selectable": true
+    },
+    {
+      "schemaVersion": 2,
+      "id": "legacy.security.adjudication",
+      "providerVersion": "2.0.0",
+      "family": "security",
+      "lensIds": [
+        "security"
+      ],
+      "role": "adjudicator",
+      "phase": "judgment",
+      "dependsOn": [],
+      "consumes": [
+        "cortex-projection"
+      ],
+      "produces": [
+        "provider-result"
+      ],
+      "selector": {
+        "op": "securityCandidatesSelected"
+      },
+      "denominatorKind": "selected-scope",
+      "runner": {
+        "kind": "reasoning-contract",
+        "contract": "security-adjudication-v1"
+      },
+      "hostCapabilities": [],
+      "execution": {
+        "scheduleClass": "parallel-safe",
+        "resourceClaims": {
+          "cpu": 1,
+          "memoryMb": 256,
+          "io": 1,
+          "projectExecution": 0,
+          "browser": 0,
+          "nativeSurface": 0,
+          "virtualMachine": 0,
+          "simulator": 0,
+          "physicalDevice": 0,
+          "externalSystem": 0,
+          "reviewer": 0,
+          "signer": 0
+        },
+        "concurrencyKey": null,
+        "maxParallelism": null,
+        "orderSensitive": false,
+        "interruptible": true,
+        "cachePolicy": "content-addressed",
+        "failurePolicy": "block-dependents"
+      },
+      "reasoning": {
+        "requirement": "review",
+        "trigger": "none",
+        "subjectKind": "provider-result",
+        "freshContext": true,
+        "producerSeparation": true
+      },
+      "benchmark": {
+        "status": "unproven",
+        "requiredForCleanClaim": true,
+        "qualificationDigest": null
+      },
+      "cleanClaim": "evidence-only",
+      "controlIds": [
+        "security.source-assurance"
+      ],
+      "scopes": [
+        "family:security"
+      ],
+      "selectable": true
+    },
+    {
+      "schemaVersion": 2,
+      "id": "legacy.security.binary-pins",
+      "providerVersion": "2.0.0",
+      "family": "security",
+      "lensIds": [
+        "security",
+        "release-readiness",
+        "stack"
+      ],
+      "role": "candidate-generator",
+      "phase": "source",
+      "dependsOn": [],
+      "consumes": [
+        "cortex-projection"
+      ],
+      "produces": [
+        "security-candidates"
+      ],
+      "selector": {
+        "op": "sourceFilesAtLeast",
+        "count": 1
+      },
+      "denominatorKind": "build and packaging scripts",
+      "runner": {
+        "kind": "legacy-check",
+        "check": "binary_pins",
+        "tool": "grep+upstream metadata",
+        "requiredWhen": "optional",
+        "applies": "build and packaging scripts",
+        "parallel": true,
+        "backs": [
+          "security",
+          "release-readiness",
+          "stack"
+        ]
+      },
+      "hostCapabilities": [],
+      "execution": {
+        "scheduleClass": "parallel-safe",
+        "resourceClaims": {
+          "cpu": 1,
+          "memoryMb": 256,
+          "io": 1,
+          "projectExecution": 0,
+          "browser": 0,
+          "nativeSurface": 0,
+          "virtualMachine": 0,
+          "simulator": 0,
+          "physicalDevice": 0,
+          "externalSystem": 0,
+          "reviewer": 0,
+          "signer": 0
+        },
+        "concurrencyKey": null,
+        "maxParallelism": null,
+        "orderSensitive": false,
+        "interruptible": true,
+        "cachePolicy": "content-addressed",
+        "failurePolicy": "block-dependents"
+      },
+      "reasoning": {
+        "requirement": "review",
+        "trigger": "candidate",
+        "subjectKind": "provider-result",
+        "freshContext": true,
+        "producerSeparation": true
+      },
+      "benchmark": {
+        "status": "unproven",
+        "requiredForCleanClaim": true,
+        "qualificationDigest": null
+      },
+      "cleanClaim": "evidence-only",
+      "controlIds": [
+        "security.source-assurance"
+      ],
+      "scopes": [
+        "family:security"
+      ],
+      "selectable": true
+    },
+    {
+      "schemaVersion": 2,
+      "id": "legacy.security.dependency-pinning",
+      "providerVersion": "2.0.0",
+      "family": "security",
+      "lensIds": [
+        "security"
+      ],
+      "role": "candidate-generator",
+      "phase": "source",
+      "dependsOn": [],
+      "consumes": [
+        "cortex-projection"
+      ],
+      "produces": [
+        "security-candidates"
+      ],
+      "selector": {
+        "op": "sourceFilesAtLeast",
+        "count": 1
+      },
+      "denominatorKind": "git repository manifests",
+      "runner": {
+        "kind": "legacy-check",
+        "check": "dep_pinning",
+        "tool": "grep",
+        "requiredWhen": "optional",
+        "applies": "git repository manifests",
+        "parallel": true,
+        "backs": [
+          "security"
+        ]
+      },
+      "hostCapabilities": [],
+      "execution": {
+        "scheduleClass": "parallel-safe",
+        "resourceClaims": {
+          "cpu": 1,
+          "memoryMb": 256,
+          "io": 1,
+          "projectExecution": 0,
+          "browser": 0,
+          "nativeSurface": 0,
+          "virtualMachine": 0,
+          "simulator": 0,
+          "physicalDevice": 0,
+          "externalSystem": 0,
+          "reviewer": 0,
+          "signer": 0
+        },
+        "concurrencyKey": null,
+        "maxParallelism": null,
+        "orderSensitive": false,
+        "interruptible": true,
+        "cachePolicy": "content-addressed",
+        "failurePolicy": "block-dependents"
+      },
+      "reasoning": {
+        "requirement": "review",
+        "trigger": "candidate",
+        "subjectKind": "provider-result",
+        "freshContext": true,
+        "producerSeparation": true
+      },
+      "benchmark": {
+        "status": "unproven",
+        "requiredForCleanClaim": true,
+        "qualificationDigest": null
+      },
+      "cleanClaim": "evidence-only",
+      "controlIds": [
+        "security.source-assurance"
+      ],
+      "scopes": [
+        "family:security"
+      ],
+      "selectable": true
+    },
+    {
+      "schemaVersion": 2,
+      "id": "legacy.security.docker",
+      "providerVersion": "2.0.0",
+      "family": "security",
+      "lensIds": [
+        "security"
+      ],
+      "role": "candidate-generator",
+      "phase": "source",
+      "dependsOn": [],
+      "consumes": [
+        "cortex-projection"
+      ],
+      "produces": [
+        "security-candidates"
+      ],
+      "selector": {
+        "op": "anyPath",
+        "patterns": [
+          "**/Dockerfile",
+          "**/Containerfile"
+        ]
+      },
+      "denominatorKind": "Dockerfile",
+      "runner": {
+        "kind": "legacy-check",
+        "check": "docker",
+        "tool": "hadolint",
+        "requiredWhen": "optional",
+        "applies": "Dockerfile",
+        "parallel": true,
+        "backs": [
+          "security"
+        ]
+      },
+      "hostCapabilities": [],
+      "execution": {
+        "scheduleClass": "parallel-safe",
+        "resourceClaims": {
+          "cpu": 1,
+          "memoryMb": 256,
+          "io": 1,
+          "projectExecution": 0,
+          "browser": 0,
+          "nativeSurface": 0,
+          "virtualMachine": 0,
+          "simulator": 0,
+          "physicalDevice": 0,
+          "externalSystem": 0,
+          "reviewer": 0,
+          "signer": 0
+        },
+        "concurrencyKey": null,
+        "maxParallelism": null,
+        "orderSensitive": false,
+        "interruptible": true,
+        "cachePolicy": "content-addressed",
+        "failurePolicy": "block-dependents"
+      },
+      "reasoning": {
+        "requirement": "review",
+        "trigger": "candidate",
+        "subjectKind": "provider-result",
+        "freshContext": true,
+        "producerSeparation": true
+      },
+      "benchmark": {
+        "status": "unproven",
+        "requiredForCleanClaim": true,
+        "qualificationDigest": null
+      },
+      "cleanClaim": "evidence-only",
+      "controlIds": [
+        "security.source-assurance"
+      ],
+      "scopes": [
+        "family:security"
+      ],
+      "selectable": true
+    },
+    {
+      "schemaVersion": 2,
+      "id": "legacy.security.github-actions-lint",
+      "providerVersion": "2.0.0",
+      "family": "security",
+      "lensIds": [
+        "security"
+      ],
+      "role": "candidate-generator",
+      "phase": "source",
+      "dependsOn": [],
+      "consumes": [
+        "cortex-projection"
+      ],
+      "produces": [
+        "security-candidates"
+      ],
+      "selector": {
+        "op": "anyPath",
+        "patterns": [
+          ".github/workflows/**"
+        ]
+      },
+      "denominatorKind": ".github/workflows",
+      "runner": {
+        "kind": "legacy-check",
+        "check": "ci_lint",
+        "tool": "actionlint",
+        "requiredWhen": "optional",
+        "applies": ".github/workflows",
+        "parallel": true,
+        "backs": [
+          "security"
+        ]
+      },
+      "hostCapabilities": [],
+      "execution": {
+        "scheduleClass": "parallel-safe",
+        "resourceClaims": {
+          "cpu": 1,
+          "memoryMb": 256,
+          "io": 1,
+          "projectExecution": 0,
+          "browser": 0,
+          "nativeSurface": 0,
+          "virtualMachine": 0,
+          "simulator": 0,
+          "physicalDevice": 0,
+          "externalSystem": 0,
+          "reviewer": 0,
+          "signer": 0
+        },
+        "concurrencyKey": null,
+        "maxParallelism": null,
+        "orderSensitive": false,
+        "interruptible": true,
+        "cachePolicy": "content-addressed",
+        "failurePolicy": "block-dependents"
+      },
+      "reasoning": {
+        "requirement": "review",
+        "trigger": "candidate",
+        "subjectKind": "provider-result",
+        "freshContext": true,
+        "producerSeparation": true
+      },
+      "benchmark": {
+        "status": "unproven",
+        "requiredForCleanClaim": true,
+        "qualificationDigest": null
+      },
+      "cleanClaim": "evidence-only",
+      "controlIds": [
+        "security.source-assurance"
+      ],
+      "scopes": [
+        "family:security"
+      ],
+      "selectable": true
+    },
+    {
+      "schemaVersion": 2,
+      "id": "legacy.security.js-licenses",
+      "providerVersion": "2.0.0",
+      "family": "security",
+      "lensIds": [
+        "security",
+        "release-readiness"
+      ],
+      "role": "candidate-generator",
+      "phase": "source",
+      "dependsOn": [],
+      "consumes": [
+        "cortex-projection"
+      ],
+      "produces": [
+        "security-candidates"
+      ],
+      "selector": {
+        "op": "anyPath",
+        "patterns": [
+          "**/package.json"
+        ]
+      },
+      "denominatorKind": "package.json",
+      "runner": {
+        "kind": "legacy-check",
+        "check": "js_licenses",
+        "tool": "license-checker",
+        "requiredWhen": "optional",
+        "applies": "package.json",
+        "parallel": true,
+        "backs": [
+          "security",
+          "release-readiness"
+        ]
+      },
+      "hostCapabilities": [],
+      "execution": {
+        "scheduleClass": "parallel-safe",
+        "resourceClaims": {
+          "cpu": 1,
+          "memoryMb": 256,
+          "io": 1,
+          "projectExecution": 0,
+          "browser": 0,
+          "nativeSurface": 0,
+          "virtualMachine": 0,
+          "simulator": 0,
+          "physicalDevice": 0,
+          "externalSystem": 0,
+          "reviewer": 0,
+          "signer": 0
+        },
+        "concurrencyKey": null,
+        "maxParallelism": null,
+        "orderSensitive": false,
+        "interruptible": true,
+        "cachePolicy": "content-addressed",
+        "failurePolicy": "block-dependents"
+      },
+      "reasoning": {
+        "requirement": "review",
+        "trigger": "candidate",
+        "subjectKind": "provider-result",
+        "freshContext": true,
+        "producerSeparation": true
+      },
+      "benchmark": {
+        "status": "unproven",
+        "requiredForCleanClaim": true,
+        "qualificationDigest": null
+      },
+      "cleanClaim": "evidence-only",
+      "controlIds": [
+        "security.source-assurance"
+      ],
+      "scopes": [
+        "family:security"
+      ],
+      "selectable": true
+    },
+    {
+      "schemaVersion": 2,
+      "id": "legacy.security.node-dependencies",
+      "providerVersion": "2.0.0",
+      "family": "security",
+      "lensIds": [
+        "security"
+      ],
+      "role": "candidate-generator",
+      "phase": "source",
+      "dependsOn": [],
+      "consumes": [
+        "cortex-projection"
+      ],
+      "produces": [
+        "security-candidates"
+      ],
+      "selector": {
+        "op": "anyPath",
+        "patterns": [
+          "**/package.json"
+        ]
+      },
+      "denominatorKind": "package.json",
+      "runner": {
+        "kind": "legacy-check",
+        "check": "deps_cve",
+        "tool": "npm|pnpm|yarn audit",
+        "requiredWhen": "manifest",
+        "applies": "package.json",
+        "parallel": true,
+        "backs": [
+          "security"
+        ]
+      },
+      "hostCapabilities": [],
+      "execution": {
+        "scheduleClass": "parallel-safe",
+        "resourceClaims": {
+          "cpu": 1,
+          "memoryMb": 256,
+          "io": 1,
+          "projectExecution": 0,
+          "browser": 0,
+          "nativeSurface": 0,
+          "virtualMachine": 0,
+          "simulator": 0,
+          "physicalDevice": 0,
+          "externalSystem": 0,
+          "reviewer": 0,
+          "signer": 0
+        },
+        "concurrencyKey": null,
+        "maxParallelism": null,
+        "orderSensitive": false,
+        "interruptible": true,
+        "cachePolicy": "content-addressed",
+        "failurePolicy": "block-dependents"
+      },
+      "reasoning": {
+        "requirement": "review",
+        "trigger": "candidate",
+        "subjectKind": "provider-result",
+        "freshContext": true,
+        "producerSeparation": true
+      },
+      "benchmark": {
+        "status": "unproven",
+        "requiredForCleanClaim": true,
+        "qualificationDigest": null
+      },
+      "cleanClaim": "evidence-only",
+      "controlIds": [
+        "security.source-assurance"
+      ],
+      "scopes": [
+        "family:security"
+      ],
+      "selectable": true
+    },
+    {
+      "schemaVersion": 2,
+      "id": "legacy.security.python-dependencies",
+      "providerVersion": "2.0.0",
+      "family": "security",
+      "lensIds": [
+        "security"
+      ],
+      "role": "candidate-generator",
+      "phase": "source",
+      "dependsOn": [],
+      "consumes": [
+        "cortex-projection"
+      ],
+      "produces": [
+        "security-candidates"
+      ],
+      "selector": {
+        "op": "anyPath",
+        "patterns": [
+          "**/pyproject.toml",
+          "**/requirements*.txt",
+          "**/setup.py"
+        ]
+      },
+      "denominatorKind": "Python project (pyproject/setup.py/requirements)",
+      "runner": {
+        "kind": "legacy-check",
+        "check": "py_deps_cve",
+        "tool": "pip-audit",
+        "requiredWhen": "tool_present",
+        "applies": "Python project (pyproject/setup.py/requirements)",
+        "parallel": true,
+        "backs": [
+          "security"
+        ]
+      },
+      "hostCapabilities": [],
+      "execution": {
+        "scheduleClass": "parallel-safe",
+        "resourceClaims": {
+          "cpu": 1,
+          "memoryMb": 256,
+          "io": 1,
+          "projectExecution": 0,
+          "browser": 0,
+          "nativeSurface": 0,
+          "virtualMachine": 0,
+          "simulator": 0,
+          "physicalDevice": 0,
+          "externalSystem": 0,
+          "reviewer": 0,
+          "signer": 0
+        },
+        "concurrencyKey": null,
+        "maxParallelism": null,
+        "orderSensitive": false,
+        "interruptible": true,
+        "cachePolicy": "content-addressed",
+        "failurePolicy": "block-dependents"
+      },
+      "reasoning": {
+        "requirement": "review",
+        "trigger": "candidate",
+        "subjectKind": "provider-result",
+        "freshContext": true,
+        "producerSeparation": true
+      },
+      "benchmark": {
+        "status": "unproven",
+        "requiredForCleanClaim": true,
+        "qualificationDigest": null
+      },
+      "cleanClaim": "evidence-only",
+      "controlIds": [
+        "security.source-assurance"
+      ],
+      "scopes": [
+        "family:security"
+      ],
+      "selectable": true
+    },
+    {
+      "schemaVersion": 2,
+      "id": "legacy.security.rust-advisories",
+      "providerVersion": "2.0.0",
+      "family": "security",
+      "lensIds": [
+        "security"
+      ],
+      "role": "candidate-generator",
+      "phase": "source",
+      "dependsOn": [],
+      "consumes": [
+        "cortex-projection"
+      ],
+      "produces": [
+        "security-candidates"
+      ],
+      "selector": {
+        "op": "anyPath",
+        "patterns": [
+          "**/Cargo.lock"
+        ]
+      },
+      "denominatorKind": "Cargo.lock",
+      "runner": {
+        "kind": "legacy-check",
+        "check": "cargo_audit",
+        "tool": "cargo-audit",
+        "requiredWhen": "tool_present",
+        "applies": "Cargo.lock",
+        "parallel": true,
+        "backs": [
+          "security"
+        ]
+      },
+      "hostCapabilities": [],
+      "execution": {
+        "scheduleClass": "parallel-safe",
+        "resourceClaims": {
+          "cpu": 1,
+          "memoryMb": 256,
+          "io": 1,
+          "projectExecution": 0,
+          "browser": 0,
+          "nativeSurface": 0,
+          "virtualMachine": 0,
+          "simulator": 0,
+          "physicalDevice": 0,
+          "externalSystem": 0,
+          "reviewer": 0,
+          "signer": 0
+        },
+        "concurrencyKey": null,
+        "maxParallelism": null,
+        "orderSensitive": false,
+        "interruptible": true,
+        "cachePolicy": "content-addressed",
+        "failurePolicy": "block-dependents"
+      },
+      "reasoning": {
+        "requirement": "review",
+        "trigger": "candidate",
+        "subjectKind": "provider-result",
+        "freshContext": true,
+        "producerSeparation": true
+      },
+      "benchmark": {
+        "status": "unproven",
+        "requiredForCleanClaim": true,
+        "qualificationDigest": null
+      },
+      "cleanClaim": "evidence-only",
+      "controlIds": [
+        "security.source-assurance"
+      ],
+      "scopes": [
+        "family:security"
+      ],
+      "selectable": true
+    },
+    {
+      "schemaVersion": 2,
+      "id": "legacy.security.rust-policy",
+      "providerVersion": "2.0.0",
+      "family": "security",
+      "lensIds": [
+        "security",
+        "stack"
+      ],
+      "role": "candidate-generator",
+      "phase": "source",
+      "dependsOn": [],
+      "consumes": [
+        "cortex-projection"
+      ],
+      "produces": [
+        "security-candidates"
+      ],
+      "selector": {
+        "op": "anyPath",
+        "patterns": [
+          "**/Cargo.toml",
+          "**/*.rs"
+        ]
+      },
+      "denominatorKind": "Cargo.toml",
+      "runner": {
+        "kind": "legacy-check",
+        "check": "cargo_deny",
+        "tool": "cargo-deny",
+        "requiredWhen": "optional",
+        "applies": "Cargo.toml",
+        "parallel": true,
+        "backs": [
+          "security",
+          "stack"
+        ]
+      },
+      "hostCapabilities": [],
+      "execution": {
+        "scheduleClass": "parallel-safe",
+        "resourceClaims": {
+          "cpu": 1,
+          "memoryMb": 256,
+          "io": 1,
+          "projectExecution": 0,
+          "browser": 0,
+          "nativeSurface": 0,
+          "virtualMachine": 0,
+          "simulator": 0,
+          "physicalDevice": 0,
+          "externalSystem": 0,
+          "reviewer": 0,
+          "signer": 0
+        },
+        "concurrencyKey": null,
+        "maxParallelism": null,
+        "orderSensitive": false,
+        "interruptible": true,
+        "cachePolicy": "content-addressed",
+        "failurePolicy": "block-dependents"
+      },
+      "reasoning": {
+        "requirement": "review",
+        "trigger": "candidate",
+        "subjectKind": "provider-result",
+        "freshContext": true,
+        "producerSeparation": true
+      },
+      "benchmark": {
+        "status": "unproven",
+        "requiredForCleanClaim": true,
+        "qualificationDigest": null
+      },
+      "cleanClaim": "evidence-only",
+      "controlIds": [
+        "security.source-assurance"
+      ],
+      "scopes": [
+        "family:security"
+      ],
+      "selectable": true
+    },
+    {
+      "schemaVersion": 2,
+      "id": "legacy.security.rust-unsafe",
+      "providerVersion": "2.0.0",
+      "family": "security",
+      "lensIds": [
+        "security"
+      ],
+      "role": "candidate-generator",
+      "phase": "source",
+      "dependsOn": [],
+      "consumes": [
+        "cortex-projection"
+      ],
+      "produces": [
+        "security-candidates"
+      ],
+      "selector": {
+        "op": "anyPath",
+        "patterns": [
+          "**/Cargo.toml",
+          "**/*.rs"
+        ]
+      },
+      "denominatorKind": "Rust source; tool present",
+      "runner": {
+        "kind": "legacy-check",
+        "check": "cargo_unsafe",
+        "tool": "cargo-geiger",
+        "requiredWhen": "optional",
+        "applies": "Rust source; tool present",
+        "parallel": true,
+        "backs": [
+          "security"
+        ]
+      },
+      "hostCapabilities": [],
+      "execution": {
+        "scheduleClass": "parallel-safe",
+        "resourceClaims": {
+          "cpu": 1,
+          "memoryMb": 256,
+          "io": 1,
+          "projectExecution": 0,
+          "browser": 0,
+          "nativeSurface": 0,
+          "virtualMachine": 0,
+          "simulator": 0,
+          "physicalDevice": 0,
+          "externalSystem": 0,
+          "reviewer": 0,
+          "signer": 0
+        },
+        "concurrencyKey": null,
+        "maxParallelism": null,
+        "orderSensitive": false,
+        "interruptible": true,
+        "cachePolicy": "content-addressed",
+        "failurePolicy": "block-dependents"
+      },
+      "reasoning": {
+        "requirement": "review",
+        "trigger": "candidate",
+        "subjectKind": "provider-result",
+        "freshContext": true,
+        "producerSeparation": true
+      },
+      "benchmark": {
+        "status": "unproven",
+        "requiredForCleanClaim": true,
+        "qualificationDigest": null
+      },
+      "cleanClaim": "evidence-only",
+      "controlIds": [
+        "security.source-assurance"
+      ],
+      "scopes": [
+        "family:security"
+      ],
+      "selectable": true
+    },
+    {
+      "schemaVersion": 2,
+      "id": "legacy.security.sast",
+      "providerVersion": "2.0.0",
+      "family": "security",
+      "lensIds": [
+        "security"
+      ],
+      "role": "candidate-generator",
+      "phase": "source",
+      "dependsOn": [],
+      "consumes": [
+        "cortex-projection"
+      ],
+      "produces": [
+        "security-candidates"
+      ],
+      "selector": {
+        "op": "sourceFilesAtLeast",
+        "count": 1
+      },
+      "denominatorKind": "first-party source",
+      "runner": {
+        "kind": "legacy-check",
+        "check": "sast",
+        "tool": "semgrep",
+        "requiredWhen": "optional",
+        "applies": "first-party source",
+        "parallel": true,
+        "backs": [
+          "security"
+        ]
+      },
+      "hostCapabilities": [],
+      "execution": {
+        "scheduleClass": "parallel-safe",
+        "resourceClaims": {
+          "cpu": 1,
+          "memoryMb": 256,
+          "io": 1,
+          "projectExecution": 0,
+          "browser": 0,
+          "nativeSurface": 0,
+          "virtualMachine": 0,
+          "simulator": 0,
+          "physicalDevice": 0,
+          "externalSystem": 0,
+          "reviewer": 0,
+          "signer": 0
+        },
+        "concurrencyKey": null,
+        "maxParallelism": null,
+        "orderSensitive": false,
+        "interruptible": true,
+        "cachePolicy": "content-addressed",
+        "failurePolicy": "block-dependents"
+      },
+      "reasoning": {
+        "requirement": "review",
+        "trigger": "candidate",
+        "subjectKind": "provider-result",
+        "freshContext": true,
+        "producerSeparation": true
+      },
+      "benchmark": {
+        "status": "unproven",
+        "requiredForCleanClaim": true,
+        "qualificationDigest": null
+      },
+      "cleanClaim": "evidence-only",
+      "controlIds": [
+        "security.source-assurance"
+      ],
+      "scopes": [
+        "family:security"
+      ],
+      "selectable": true
+    },
+    {
+      "schemaVersion": 2,
+      "id": "legacy.security.secrets",
+      "providerVersion": "2.0.0",
+      "family": "security",
+      "lensIds": [
+        "security"
+      ],
+      "role": "candidate-generator",
+      "phase": "source",
+      "dependsOn": [],
+      "consumes": [
+        "cortex-projection"
+      ],
+      "produces": [
+        "security-candidates"
+      ],
+      "selector": {
+        "op": "always"
+      },
+      "denominatorKind": "always",
+      "runner": {
+        "kind": "legacy-check",
+        "check": "secrets",
+        "tool": "gitleaks",
+        "requiredWhen": "tool_present",
+        "applies": "always",
+        "parallel": true,
+        "backs": [
+          "security"
+        ]
+      },
+      "hostCapabilities": [],
+      "execution": {
+        "scheduleClass": "parallel-safe",
+        "resourceClaims": {
+          "cpu": 1,
+          "memoryMb": 256,
+          "io": 1,
+          "projectExecution": 0,
+          "browser": 0,
+          "nativeSurface": 0,
+          "virtualMachine": 0,
+          "simulator": 0,
+          "physicalDevice": 0,
+          "externalSystem": 0,
+          "reviewer": 0,
+          "signer": 0
+        },
+        "concurrencyKey": null,
+        "maxParallelism": null,
+        "orderSensitive": false,
+        "interruptible": true,
+        "cachePolicy": "content-addressed",
+        "failurePolicy": "block-dependents"
+      },
+      "reasoning": {
+        "requirement": "review",
+        "trigger": "candidate",
+        "subjectKind": "provider-result",
+        "freshContext": true,
+        "producerSeparation": true
+      },
+      "benchmark": {
+        "status": "unproven",
+        "requiredForCleanClaim": true,
+        "qualificationDigest": null
+      },
+      "cleanClaim": "evidence-only",
+      "controlIds": [
+        "security.source-assurance"
+      ],
+      "scopes": [
+        "family:security"
+      ],
+      "selectable": true
+    },
+    {
+      "schemaVersion": 2,
+      "id": "legacy.security.variant-analysis",
+      "providerVersion": "2.0.0",
+      "family": "security",
+      "lensIds": [
+        "security"
+      ],
+      "role": "variant-analysis",
+      "phase": "judgment",
+      "dependsOn": [],
+      "consumes": [
+        "cortex-projection"
+      ],
+      "produces": [
+        "provider-result"
+      ],
+      "selector": {
+        "op": "confirmedSecurityFinding"
+      },
+      "denominatorKind": "selected-scope",
+      "runner": {
+        "kind": "reasoning-contract",
+        "contract": "security-variant-analysis-v1"
+      },
+      "hostCapabilities": [],
+      "execution": {
+        "scheduleClass": "parallel-safe",
+        "resourceClaims": {
+          "cpu": 1,
+          "memoryMb": 256,
+          "io": 1,
+          "projectExecution": 0,
+          "browser": 0,
+          "nativeSurface": 0,
+          "virtualMachine": 0,
+          "simulator": 0,
+          "physicalDevice": 0,
+          "externalSystem": 0,
+          "reviewer": 0,
+          "signer": 0
+        },
+        "concurrencyKey": null,
+        "maxParallelism": null,
+        "orderSensitive": false,
+        "interruptible": true,
+        "cachePolicy": "content-addressed",
+        "failurePolicy": "block-dependents"
+      },
+      "reasoning": {
+        "requirement": "review",
+        "trigger": "none",
+        "subjectKind": "provider-result",
+        "freshContext": true,
+        "producerSeparation": true
+      },
+      "benchmark": {
+        "status": "unproven",
+        "requiredForCleanClaim": true,
+        "qualificationDigest": null
+      },
+      "cleanClaim": "evidence-only",
+      "controlIds": [
+        "security.source-assurance"
+      ],
+      "scopes": [
+        "family:security"
+      ],
+      "selectable": true
+    },
+    {
+      "schemaVersion": 2,
+      "id": "legacy.security.vendored-dependencies",
+      "providerVersion": "2.0.0",
+      "family": "security",
+      "lensIds": [
+        "security"
+      ],
+      "role": "candidate-generator",
+      "phase": "source",
+      "dependsOn": [],
+      "consumes": [
+        "cortex-projection"
+      ],
+      "produces": [
+        "security-candidates"
+      ],
+      "selector": {
+        "op": "sourceFilesAtLeast",
+        "count": 1
+      },
+      "denominatorKind": "vendored manifests (audit-only fact)",
+      "runner": {
+        "kind": "legacy-check",
+        "check": "vendored_deps",
+        "tool": "fs",
+        "requiredWhen": "optional",
+        "applies": "vendored manifests (audit-only fact)",
+        "parallel": true,
+        "backs": [
+          "security"
+        ]
+      },
+      "hostCapabilities": [],
+      "execution": {
+        "scheduleClass": "parallel-safe",
+        "resourceClaims": {
+          "cpu": 1,
+          "memoryMb": 256,
+          "io": 1,
+          "projectExecution": 0,
+          "browser": 0,
+          "nativeSurface": 0,
+          "virtualMachine": 0,
+          "simulator": 0,
+          "physicalDevice": 0,
+          "externalSystem": 0,
+          "reviewer": 0,
+          "signer": 0
+        },
+        "concurrencyKey": null,
+        "maxParallelism": null,
+        "orderSensitive": false,
+        "interruptible": true,
+        "cachePolicy": "content-addressed",
+        "failurePolicy": "block-dependents"
+      },
+      "reasoning": {
+        "requirement": "review",
+        "trigger": "candidate",
+        "subjectKind": "provider-result",
+        "freshContext": true,
+        "producerSeparation": true
+      },
+      "benchmark": {
+        "status": "unproven",
+        "requiredForCleanClaim": true,
+        "qualificationDigest": null
+      },
+      "cleanClaim": "evidence-only",
+      "controlIds": [
+        "security.source-assurance"
+      ],
+      "scopes": [
+        "family:security"
+      ],
+      "selectable": true
+    },
+    {
+      "schemaVersion": 2,
+      "id": "legacy.stack.node-outdated",
+      "providerVersion": "2.0.0",
+      "family": "stack",
+      "lensIds": [
+        "stack"
+      ],
+      "role": "deterministic",
+      "phase": "source",
+      "dependsOn": [],
+      "consumes": [
+        "cortex-projection"
+      ],
+      "produces": [
+        "provider-result"
+      ],
+      "selector": {
+        "op": "anyPath",
+        "patterns": [
+          "**/package.json"
+        ]
+      },
+      "denominatorKind": "package.json",
+      "runner": {
+        "kind": "legacy-check",
+        "check": "outdated",
+        "tool": "npm|pnpm outdated",
+        "requiredWhen": "optional",
+        "applies": "package.json",
+        "parallel": true,
+        "backs": [
+          "stack"
+        ]
+      },
+      "hostCapabilities": [],
+      "execution": {
+        "scheduleClass": "parallel-safe",
+        "resourceClaims": {
+          "cpu": 1,
+          "memoryMb": 256,
+          "io": 1,
+          "projectExecution": 0,
+          "browser": 0,
+          "nativeSurface": 0,
+          "virtualMachine": 0,
+          "simulator": 0,
+          "physicalDevice": 0,
+          "externalSystem": 0,
+          "reviewer": 0,
+          "signer": 0
+        },
+        "concurrencyKey": null,
+        "maxParallelism": null,
+        "orderSensitive": false,
+        "interruptible": true,
+        "cachePolicy": "content-addressed",
+        "failurePolicy": "block-dependents"
+      },
+      "reasoning": {
+        "requirement": "none",
+        "trigger": "none",
+        "subjectKind": "provider-result",
+        "freshContext": true,
+        "producerSeparation": true
+      },
+      "benchmark": {
+        "status": "unproven",
+        "requiredForCleanClaim": true,
+        "qualificationDigest": null
+      },
+      "cleanClaim": "evidence-only",
+      "controlIds": [
+        "stack.source-assurance"
+      ],
+      "scopes": [
+        "family:stack"
+      ],
+      "selectable": true
+    },
+    {
+      "schemaVersion": 2,
+      "id": "legacy.stack.rust-outdated",
+      "providerVersion": "2.0.0",
+      "family": "stack",
+      "lensIds": [
+        "stack"
+      ],
+      "role": "deterministic",
+      "phase": "source",
+      "dependsOn": [],
+      "consumes": [
+        "cortex-projection"
+      ],
+      "produces": [
+        "provider-result"
+      ],
+      "selector": {
+        "op": "anyPath",
+        "patterns": [
+          "**/Cargo.lock"
+        ]
+      },
+      "denominatorKind": "Cargo.lock",
+      "runner": {
+        "kind": "legacy-check",
+        "check": "cargo_outdated",
+        "tool": "cargo-outdated",
+        "requiredWhen": "optional",
+        "applies": "Cargo.lock",
+        "parallel": true,
+        "backs": [
+          "stack"
+        ]
+      },
+      "hostCapabilities": [],
+      "execution": {
+        "scheduleClass": "parallel-safe",
+        "resourceClaims": {
+          "cpu": 1,
+          "memoryMb": 256,
+          "io": 1,
+          "projectExecution": 0,
+          "browser": 0,
+          "nativeSurface": 0,
+          "virtualMachine": 0,
+          "simulator": 0,
+          "physicalDevice": 0,
+          "externalSystem": 0,
+          "reviewer": 0,
+          "signer": 0
+        },
+        "concurrencyKey": null,
+        "maxParallelism": null,
+        "orderSensitive": false,
+        "interruptible": true,
+        "cachePolicy": "content-addressed",
+        "failurePolicy": "block-dependents"
+      },
+      "reasoning": {
+        "requirement": "none",
+        "trigger": "none",
+        "subjectKind": "provider-result",
+        "freshContext": true,
+        "producerSeparation": true
+      },
+      "benchmark": {
+        "status": "unproven",
+        "requiredForCleanClaim": true,
+        "qualificationDigest": null
+      },
+      "cleanClaim": "evidence-only",
+      "controlIds": [
+        "stack.source-assurance"
+      ],
+      "scopes": [
+        "family:stack"
+      ],
+      "selectable": true
+    },
+    {
+      "schemaVersion": 2,
+      "id": "legacy.tauri.capabilities",
+      "providerVersion": "2.0.0",
+      "family": "security",
+      "lensIds": [
+        "security",
+        "platform-parity"
+      ],
+      "role": "candidate-generator",
+      "phase": "source",
+      "dependsOn": [],
+      "consumes": [
+        "cortex-projection"
+      ],
+      "produces": [
+        "security-candidates"
+      ],
+      "selector": {
+        "op": "anyPath",
+        "patterns": [
+          "src-tauri/**"
+        ]
+      },
+      "denominatorKind": "Tauri capabilities",
+      "runner": {
+        "kind": "legacy-check",
+        "check": "tauri_capabilities",
+        "tool": "fs",
+        "requiredWhen": "optional",
+        "applies": "Tauri capabilities",
+        "parallel": true,
+        "backs": [
+          "security",
+          "platform-parity"
+        ]
+      },
+      "hostCapabilities": [],
+      "execution": {
+        "scheduleClass": "parallel-safe",
+        "resourceClaims": {
+          "cpu": 1,
+          "memoryMb": 256,
+          "io": 1,
+          "projectExecution": 0,
+          "browser": 0,
+          "nativeSurface": 0,
+          "virtualMachine": 0,
+          "simulator": 0,
+          "physicalDevice": 0,
+          "externalSystem": 0,
+          "reviewer": 0,
+          "signer": 0
+        },
+        "concurrencyKey": null,
+        "maxParallelism": null,
+        "orderSensitive": false,
+        "interruptible": true,
+        "cachePolicy": "content-addressed",
+        "failurePolicy": "block-dependents"
+      },
+      "reasoning": {
+        "requirement": "review",
+        "trigger": "candidate",
+        "subjectKind": "provider-result",
+        "freshContext": true,
+        "producerSeparation": true
+      },
+      "benchmark": {
+        "status": "unproven",
+        "requiredForCleanClaim": true,
+        "qualificationDigest": null
+      },
+      "cleanClaim": "evidence-only",
+      "controlIds": [
+        "security.source-assurance"
+      ],
+      "scopes": [
+        "family:security"
+      ],
+      "selectable": true
+    },
+    {
+      "schemaVersion": 2,
+      "id": "legacy.tauri.contract-mirror",
+      "providerVersion": "2.0.0",
+      "family": "schema",
+      "lensIds": [
+        "schema",
+        "security",
+        "dead-file"
+      ],
+      "role": "candidate-generator",
+      "phase": "source",
+      "dependsOn": [],
+      "consumes": [
+        "cortex-projection"
+      ],
+      "produces": [
+        "security-candidates"
+      ],
+      "selector": {
+        "op": "anyPath",
+        "patterns": [
+          "src-tauri/**"
+        ]
+      },
+      "denominatorKind": "Tauri configuration",
+      "runner": {
+        "kind": "legacy-check",
+        "check": "contract_mirror",
+        "tool": "grep",
+        "requiredWhen": "optional",
+        "applies": "Tauri configuration",
+        "parallel": true,
+        "backs": [
+          "schema",
+          "security",
+          "dead-file"
+        ]
+      },
+      "hostCapabilities": [],
+      "execution": {
+        "scheduleClass": "parallel-safe",
+        "resourceClaims": {
+          "cpu": 1,
+          "memoryMb": 256,
+          "io": 1,
+          "projectExecution": 0,
+          "browser": 0,
+          "nativeSurface": 0,
+          "virtualMachine": 0,
+          "simulator": 0,
+          "physicalDevice": 0,
+          "externalSystem": 0,
+          "reviewer": 0,
+          "signer": 0
+        },
+        "concurrencyKey": null,
+        "maxParallelism": null,
+        "orderSensitive": false,
+        "interruptible": true,
+        "cachePolicy": "content-addressed",
+        "failurePolicy": "block-dependents"
+      },
+      "reasoning": {
+        "requirement": "review",
+        "trigger": "candidate",
+        "subjectKind": "provider-result",
+        "freshContext": true,
+        "producerSeparation": true
+      },
+      "benchmark": {
+        "status": "unproven",
+        "requiredForCleanClaim": true,
+        "qualificationDigest": null
+      },
+      "cleanClaim": "evidence-only",
+      "controlIds": [
+        "schema.source-assurance"
+      ],
+      "scopes": [
+        "family:schema"
+      ],
+      "selectable": true
+    },
+    {
+      "schemaVersion": 2,
+      "id": "legacy.visual.core",
+      "providerVersion": "2.0.0",
+      "family": "visual",
+      "lensIds": [
+        "visual"
+      ],
+      "role": "deterministic",
+      "phase": "runtime",
+      "dependsOn": [],
+      "consumes": [
+        "cortex-projection"
+      ],
+      "produces": [
+        "provider-result"
+      ],
+      "selector": {
+        "op": "sourceFilesAtLeast",
+        "count": 1
+      },
+      "denominatorKind": "selected-scope",
+      "runner": {
+        "kind": "runtime-script",
+        "module": "providers/visual-core.mjs",
+        "moduleDigest": "sha256:dfc9123279e008a37e098e2369d037395549844cb3aa0376c3ea3599368f3fdf"
+      },
+      "hostCapabilities": [],
+      "execution": {
+        "scheduleClass": "parallel-safe",
+        "resourceClaims": {
+          "cpu": 1,
+          "memoryMb": 256,
+          "io": 1,
+          "projectExecution": 0,
+          "browser": 0,
+          "nativeSurface": 0,
+          "virtualMachine": 0,
+          "simulator": 0,
+          "physicalDevice": 0,
+          "externalSystem": 0,
+          "reviewer": 0,
+          "signer": 0
+        },
+        "concurrencyKey": null,
+        "maxParallelism": null,
+        "orderSensitive": false,
+        "interruptible": true,
+        "cachePolicy": "content-addressed",
+        "failurePolicy": "block-dependents"
+      },
+      "reasoning": {
+        "requirement": "none",
+        "trigger": "none",
+        "subjectKind": "provider-result",
+        "freshContext": true,
+        "producerSeparation": true
+      },
+      "benchmark": {
+        "status": "unproven",
+        "requiredForCleanClaim": true,
+        "qualificationDigest": null
+      },
+      "cleanClaim": "evidence-only",
+      "controlIds": [
+        "visual.source-assurance"
+      ],
+      "scopes": [
+        "family:visual"
+      ],
+      "selectable": true
+    },
+    {
+      "schemaVersion": 2,
+      "id": "requirements.traceability",
+      "providerVersion": "1.0.0",
+      "family": "requirements",
+      "lensIds": [],
+      "role": "deterministic",
+      "phase": "source",
+      "dependsOn": [],
+      "consumes": [
+        "cortex-projection"
+      ],
+      "produces": [
+        "provider-result"
+      ],
+      "selector": {
+        "op": "always"
+      },
+      "denominatorKind": "selected-scope",
+      "runner": {
+        "kind": "runtime-script",
+        "module": "providers/requirements/index.mjs",
+        "moduleDigest": "sha256:d5b5bcc7e70f21b3fbbcb051af2f1f1f701ac3d695965f0405ef70b245e60809"
+      },
+      "hostCapabilities": [],
+      "execution": {
+        "scheduleClass": "parallel-safe",
+        "resourceClaims": {
+          "cpu": 1,
+          "memoryMb": 256,
+          "io": 1,
+          "projectExecution": 0,
+          "browser": 0,
+          "nativeSurface": 0,
+          "virtualMachine": 0,
+          "simulator": 0,
+          "physicalDevice": 0,
+          "externalSystem": 0,
+          "reviewer": 0,
+          "signer": 0
+        },
+        "concurrencyKey": null,
+        "maxParallelism": null,
+        "orderSensitive": false,
+        "interruptible": true,
+        "cachePolicy": "content-addressed",
+        "failurePolicy": "block-dependents"
+      },
+      "reasoning": {
+        "requirement": "none",
+        "trigger": "none",
+        "subjectKind": "provider-result",
+        "freshContext": true,
+        "producerSeparation": true
+      },
+      "benchmark": {
+        "status": "unproven",
+        "requiredForCleanClaim": true,
+        "qualificationDigest": null
+      },
+      "cleanClaim": "evidence-only",
+      "controlIds": [
+        "requirements.source-assurance"
+      ],
+      "scopes": [
+        "family:requirements"
+      ],
+      "selectable": true
+    },
+    {
+      "schemaVersion": 2,
+      "id": "secrets.current-history",
+      "providerVersion": "1.0.0",
+      "family": "secrets",
+      "lensIds": [],
+      "role": "deterministic",
+      "phase": "source",
+      "dependsOn": [],
+      "consumes": [
+        "cortex-projection"
+      ],
+      "produces": [
+        "provider-result"
+      ],
+      "selector": {
+        "op": "always"
+      },
+      "denominatorKind": "selected-scope",
+      "runner": {
+        "kind": "runtime-script",
+        "module": "providers/secrets/index.mjs",
+        "moduleDigest": "sha256:ef6066a25704c1c9b71f6b7e31eda0892aa4c6a52fdb220e3017cbb2e624a146"
+      },
+      "hostCapabilities": [],
+      "execution": {
+        "scheduleClass": "parallel-safe",
+        "resourceClaims": {
+          "cpu": 1,
+          "memoryMb": 256,
+          "io": 1,
+          "projectExecution": 0,
+          "browser": 0,
+          "nativeSurface": 0,
+          "virtualMachine": 0,
+          "simulator": 0,
+          "physicalDevice": 0,
+          "externalSystem": 0,
+          "reviewer": 0,
+          "signer": 0
+        },
+        "concurrencyKey": null,
+        "maxParallelism": null,
+        "orderSensitive": false,
+        "interruptible": true,
+        "cachePolicy": "content-addressed",
+        "failurePolicy": "block-dependents"
+      },
+      "reasoning": {
+        "requirement": "none",
+        "trigger": "none",
+        "subjectKind": "provider-result",
+        "freshContext": true,
+        "producerSeparation": true
+      },
+      "benchmark": {
+        "status": "unproven",
+        "requiredForCleanClaim": true,
+        "qualificationDigest": null
+      },
+      "cleanClaim": "evidence-only",
+      "controlIds": [
+        "secrets.source-assurance"
+      ],
+      "scopes": [
+        "family:secrets"
+      ],
+      "selectable": true
+    },
+    {
+      "schemaVersion": 2,
+      "id": "security.opengrep",
+      "providerVersion": "1.0.0",
+      "family": "security",
+      "lensIds": [],
+      "role": "candidate-generator",
+      "phase": "source",
+      "dependsOn": [],
+      "consumes": [
+        "cortex-projection"
+      ],
+      "produces": [
+        "security-candidates"
+      ],
+      "selector": {
+        "op": "always"
+      },
+      "denominatorKind": "selected-scope",
+      "runner": {
+        "kind": "runtime-script",
+        "module": "providers/opengrep/index.mjs",
+        "moduleDigest": "sha256:3fffecd982f6f449e98f854bc93da0b757e0c186b9142c8e30f21b214c170a0b"
+      },
+      "hostCapabilities": [],
+      "execution": {
+        "scheduleClass": "parallel-safe",
+        "resourceClaims": {
+          "cpu": 1,
+          "memoryMb": 256,
+          "io": 1,
+          "projectExecution": 0,
+          "browser": 0,
+          "nativeSurface": 0,
+          "virtualMachine": 0,
+          "simulator": 0,
+          "physicalDevice": 0,
+          "externalSystem": 0,
+          "reviewer": 0,
+          "signer": 0
+        },
+        "concurrencyKey": null,
+        "maxParallelism": null,
+        "orderSensitive": false,
+        "interruptible": true,
+        "cachePolicy": "content-addressed",
+        "failurePolicy": "block-dependents"
+      },
+      "reasoning": {
+        "requirement": "none",
+        "trigger": "candidate",
+        "subjectKind": "provider-result",
+        "freshContext": true,
+        "producerSeparation": true
+      },
+      "benchmark": {
+        "status": "unproven",
+        "requiredForCleanClaim": true,
+        "qualificationDigest": null
+      },
+      "cleanClaim": "evidence-only",
+      "controlIds": [
+        "security.source-assurance"
+      ],
+      "scopes": [
+        "family:security"
+      ],
+      "selectable": true
+    },
+    {
+      "schemaVersion": 2,
+      "id": "structural.ast-grep",
+      "providerVersion": "1.0.0",
+      "family": "structural",
+      "lensIds": [],
+      "role": "deterministic",
+      "phase": "source",
+      "dependsOn": [],
+      "consumes": [
+        "cortex-projection"
+      ],
+      "produces": [
+        "provider-result"
+      ],
+      "selector": {
+        "op": "always"
+      },
+      "denominatorKind": "selected-scope",
+      "runner": {
+        "kind": "runtime-script",
+        "module": "providers/ast-grep/index.mjs",
+        "moduleDigest": "sha256:c96709eafbfbddc9df0582d197698a84c21e03d63fdeea7346ee8ddb538948b1"
+      },
+      "hostCapabilities": [],
+      "execution": {
+        "scheduleClass": "parallel-safe",
+        "resourceClaims": {
+          "cpu": 1,
+          "memoryMb": 256,
+          "io": 1,
+          "projectExecution": 0,
+          "browser": 0,
+          "nativeSurface": 0,
+          "virtualMachine": 0,
+          "simulator": 0,
+          "physicalDevice": 0,
+          "externalSystem": 0,
+          "reviewer": 0,
+          "signer": 0
+        },
+        "concurrencyKey": null,
+        "maxParallelism": null,
+        "orderSensitive": false,
+        "interruptible": true,
+        "cachePolicy": "content-addressed",
+        "failurePolicy": "block-dependents"
+      },
+      "reasoning": {
+        "requirement": "none",
+        "trigger": "none",
+        "subjectKind": "provider-result",
+        "freshContext": true,
+        "producerSeparation": true
+      },
+      "benchmark": {
+        "status": "unproven",
+        "requiredForCleanClaim": true,
+        "qualificationDigest": null
+      },
+      "cleanClaim": "evidence-only",
+      "controlIds": [
+        "structural.source-assurance"
+      ],
+      "scopes": [
+        "family:structural"
+      ],
+      "selectable": true
+    },
+    {
+      "schemaVersion": 2,
+      "id": "supply-chain.license-sbom-provenance",
+      "providerVersion": "1.0.0",
+      "family": "supply-chain",
+      "lensIds": [],
+      "role": "deterministic",
+      "phase": "source",
+      "dependsOn": [],
+      "consumes": [
+        "cortex-projection"
+      ],
+      "produces": [
+        "provider-result"
+      ],
+      "selector": {
+        "op": "always"
+      },
+      "denominatorKind": "selected-scope",
+      "runner": {
+        "kind": "runtime-script",
+        "module": "providers/provenance/index.mjs",
+        "moduleDigest": "sha256:cc01346e432feb3cbb28db528f046d453e172206f89d5a4099904b99a0bbb729"
+      },
+      "hostCapabilities": [],
+      "execution": {
+        "scheduleClass": "parallel-safe",
+        "resourceClaims": {
+          "cpu": 1,
+          "memoryMb": 256,
+          "io": 1,
+          "projectExecution": 0,
+          "browser": 0,
+          "nativeSurface": 0,
+          "virtualMachine": 0,
+          "simulator": 0,
+          "physicalDevice": 0,
+          "externalSystem": 0,
+          "reviewer": 0,
+          "signer": 0
+        },
+        "concurrencyKey": null,
+        "maxParallelism": null,
+        "orderSensitive": false,
+        "interruptible": true,
+        "cachePolicy": "content-addressed",
+        "failurePolicy": "block-dependents"
+      },
+      "reasoning": {
+        "requirement": "none",
+        "trigger": "none",
+        "subjectKind": "provider-result",
+        "freshContext": true,
+        "producerSeparation": true
+      },
+      "benchmark": {
+        "status": "unproven",
+        "requiredForCleanClaim": true,
+        "qualificationDigest": null
+      },
+      "cleanClaim": "evidence-only",
+      "controlIds": [
+        "supply-chain.source-assurance"
+      ],
+      "scopes": [
+        "family:supply-chain"
+      ],
+      "selectable": true
+    },
+    {
+      "schemaVersion": 2,
+      "id": "test-quality.core",
+      "providerVersion": "1.0.0",
+      "family": "test-quality",
+      "lensIds": [],
+      "role": "deterministic",
+      "phase": "source",
+      "dependsOn": [],
+      "consumes": [
+        "cortex-projection"
+      ],
+      "produces": [
+        "provider-result"
+      ],
+      "selector": {
+        "op": "always"
+      },
+      "denominatorKind": "selected-scope",
+      "runner": {
+        "kind": "runtime-script",
+        "module": "providers/test-quality/index.mjs",
+        "moduleDigest": "sha256:3091a36c15ea2890dec11e4b33f6471a4cefcbed28cb5b30f4c4c73bd30e55ad"
+      },
+      "hostCapabilities": [],
+      "execution": {
+        "scheduleClass": "parallel-safe",
+        "resourceClaims": {
+          "cpu": 1,
+          "memoryMb": 256,
+          "io": 1,
+          "projectExecution": 0,
+          "browser": 0,
+          "nativeSurface": 0,
+          "virtualMachine": 0,
+          "simulator": 0,
+          "physicalDevice": 0,
+          "externalSystem": 0,
+          "reviewer": 0,
+          "signer": 0
+        },
+        "concurrencyKey": null,
+        "maxParallelism": null,
+        "orderSensitive": false,
+        "interruptible": true,
+        "cachePolicy": "content-addressed",
+        "failurePolicy": "block-dependents"
+      },
+      "reasoning": {
+        "requirement": "none",
+        "trigger": "none",
+        "subjectKind": "provider-result",
+        "freshContext": true,
+        "producerSeparation": true
+      },
+      "benchmark": {
+        "status": "unproven",
+        "requiredForCleanClaim": true,
+        "qualificationDigest": null
+      },
+      "cleanClaim": "evidence-only",
+      "controlIds": [
+        "test-quality.source-assurance"
+      ],
+      "scopes": [
+        "family:test-quality"
+      ],
+      "selectable": true
+    }
+  ]
+}

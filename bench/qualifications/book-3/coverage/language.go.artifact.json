@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "kind": "nemesis-coverage-test-artifact",
+  "recordId": "language.go",
+  "testPath": "tests/providers/go/go.test.mjs",
+  "status": "pass",
+  "rawLog": {
+    "path": "bench/qualifications/book-3/coverage/language.go.test.log",
+    "digest": "sha256:efddccc08cb2b339fb5dd951bcd79c53339e84ee27b65a48dd77a23f173b2d88",
+    "bytes": 692
+  },
+  "providerVersions": {
+    "code.go": "1.0.0"
+  }
+}

@@ -1,0 +1,28 @@
+✔ ReceiptStore: append then get/list round-trip (27.3474ms)
+✔ ReceiptStore: list({runId}) filters correctly when runIds differ (22.7367ms)
+✔ ReceiptStore: verifyChain() is green on a clean store (35.4469ms)
+✔ ReceiptStore: a hand-tampered JSONL line makes verifyChain() report ok:false with the exact corruptAt (45.3083ms)
+✔ ReceiptStore: quarantine() preserves earlier records as readable and never truncates the file (62.7446ms)
+✔ ReceiptStore: a receipt written through the store still satisfies assertValid(effect-receipt-v1) (11.4134ms)
+✔ CapabilityStore: positive check() on a freshly issued capability (0.4134ms)
+✔ CapabilityStore: unknown capability -> ARC_CAPABILITY_UNKNOWN (0.1331ms)
+✔ CapabilityStore: expired capability -> ARC_CAPABILITY_EXPIRED (0.1373ms)
+✔ CapabilityStore: max-used capability -> ARC_CAPABILITY_EXHAUSTED (0.2901ms)
+✔ CapabilityStore: revoked capability -> ARC_CAPABILITY_REVOKED (0.1966ms)
+✔ CapabilityStore: wrong run -> ARC_BINDING_MISMATCH (0.1171ms)
+✔ CapabilityStore: wrong workspace -> ARC_BINDING_MISMATCH (0.0785ms)
+✔ CapabilityStore: wrong operation -> ARC_BINDING_MISMATCH (0.0692ms)
+✔ CapabilityStore: wrong effectClass -> ARC_BINDING_MISMATCH (0.1106ms)
+✔ CapabilityStore: target not in the granted set -> ARC_BINDING_MISMATCH (0.1268ms)
+✔ CapabilityStore: consume()/revoke() on an unknown capability throw ARC_CAPABILITY_UNKNOWN (0.4645ms)
+✔ verifyChain detects a rewritten tail entry whose own digest was recomputed (43.2885ms)
+✔ verifyChain detects truncated history — never a silent shorter chain (37.4117ms)
+✔ a legitimate quarantine of the newest entry still verifies — re-anchored, not flagged (50.3256ms)
+ℹ tests 20
+ℹ suites 0
+ℹ pass 20
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 412.454

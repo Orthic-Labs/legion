@@ -57,19 +57,21 @@ test('gitleaks current-tree command uses detect with a report path', () => {
 
 test('gitleaks history mode scans full git history', () => {
   const contract = gitleaksCommand({ resolvedGitleaks: '/opt/gitleaks', repositoryRoot: '/repo', mode: 'history', policy: {} });
-  assert.deepEqual(contract.args.slice(0, 2), ['git', 'log']);
+  assert.deepEqual(contract.args.slice(0, 2), ['git', '/repo']);
+  assert.ok(contract.args.some((arg) => arg.startsWith('--log-opts=')));
 });
 
 test('secret values are redacted; digests retained', () => {
-  const finding = normalizeSecret({ RuleID: 'aws-access-key', File: 'env.ts', StartLine: 3, Match: 'AKIAIOSFODNN7EXAMPLE-SUPERSECRET-123456', SecretDigest: 'sha256:secret' });
+  const secretDigest = `sha256:${'a'.repeat(64)}`;
+  const finding = normalizeSecret({ RuleID: 'aws-access-key', File: 'env.ts', StartLine: 3, Match: 'AKIAIOSFODNN7EXAMPLE-SUPERSECRET-123456', SecretDigest: secretDigest });
   assert.ok(!finding.match.includes('SUPERSECRET'), 'raw secret must not persist');
   assert.ok(finding.match.includes('[REDACTED]'));
-  assert.equal(finding.secretDigest, 'sha256:secret');
+  assert.equal(finding.secretDigest, secretDigest);
 });
 
 test('redact masks long token-like strings', () => {
   assert.equal(redact('ghp_123456789012345678901234567890123456'), '[REDACTED]');
-  assert.equal(redact('short'), 'short');
+  assert.equal(redact('short'), '[REDACTED]');
 });
 
 test('secret denominator receipt records tracked/untracked/history', () => {

@@ -1,0 +1,4 @@
+<task>Review and, only if needed, correct DISPATCH-13 Seer operation facade in packages/seer/lib/facade.mjs and packages/seer/index.mjs.</task>
+<acceptance_criteria>inspect/plan/audit/verify/explain expose operation-envelope-v1 request/result pairs; named public core delegation only; separate invocationState/domainOutcome/claimBoundary; findings are successful invocation; run identity and context forward immutably; mutation capability rejected; missing API typed blocked.</acceptance_criteria>
+<non_goals>Edit no file except packages/seer/lib/facade.mjs and packages/seer/index.mjs. Do not edit core, contracts, tests, fixtures, evidence, dependencies, git state, branches, or worktrees. Preserve unrelated dirt.</non_goals>
+<verification>node --check packages/seer/lib/facade.mjs; node --check packages/seer/index.mjs</verification>

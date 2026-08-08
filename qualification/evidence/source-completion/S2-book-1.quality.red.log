@@ -1,0 +1,40 @@
+✔ B1 CLI rejects unknown options and every advertised command has live help (14.9483ms)
+✔ B1 selected unsupported runners remain incomplete and visible in checks (4.0928ms)
+✔ B1 resource scheduler retains dependents and aggregate ceilings split waves (10.6375ms)
+✔ B1 audit skill profile denies authoring tree and bundle links resolve once (59.5006ms)
+✔ B1 profiles are deeply immutable and digest bound (2.7577ms)
+✔ B1 fixed host exposes typed service and capability absence (0.2526ms)
+✔ B1 runtime module cannot invoke an arbitrary run export (3.1803ms)
+✔ B1 reconciliation rejects duplicate unplanned and forged receipts (0.5065ms)
+✔ B1 scheduler enforces canonical dependencies exclusive locks and blocked descendants (0.4013ms)
+✔ B1 semantic verification rejects binding-only replay and control drift (1.7533ms)
+✖ B1 skill manifests never manufacture rights evidence and reject unsupported versions (3.1831ms)
+ℹ tests 11
+ℹ suites 0
+ℹ pass 10
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 198.5955
+
+✖ failing tests:
+
+test at tests\core\book-1-quality.test.mjs:17:1
+✖ B1 skill manifests never manufacture rights evidence and reject unsupported versions (3.1831ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + 'user-owned-supplied'
+  - 'unresolved'
+  
+      at TestContext.<anonymous> (file:///D:/Claude/tools/skills/nemesis/tests/core/book-1-quality.test.mjs:17:340)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'user-owned-supplied',
+    expected: 'unresolved',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

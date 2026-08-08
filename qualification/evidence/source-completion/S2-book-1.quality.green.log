@@ -1,0 +1,28 @@
+✔ B1 CLI rejects unknown options and every advertised command has live help (26.7965ms)
+✔ B1 selected unsupported runners remain incomplete and visible in checks (12.9784ms)
+✔ B1 resource scheduler retains dependents and aggregate ceilings split waves (15.1447ms)
+✔ B1 audit skill profile denies authoring tree and bundle links resolve once (88.4871ms)
+✔ B1 profiles are deeply immutable and digest bound (2.5787ms)
+✔ B1 fixed host exposes typed service and capability absence (0.2468ms)
+✔ B1 runtime module cannot invoke an arbitrary run export (3.4439ms)
+✔ B1 reconciliation rejects duplicate unplanned and forged receipts (0.8418ms)
+✔ B1 scheduler enforces canonical dependencies exclusive locks and blocked descendants (0.5238ms)
+✔ B1 semantic verification rejects binding-only replay and control drift (2.5678ms)
+✔ B1 skill manifests never manufacture rights evidence and reject unsupported versions (3.5139ms)
+✔ B1 executor runtime modules are sealed package files and never embedded callbacks (1.9264ms)
+✔ B1 imported artifacts return bound terminal receipts not bare artifacts (1.9541ms)
+✔ B1 audit CLI invokes public core pipeline once without legacy subprocess entrypoints (1.1405ms)
+✔ B1 skills and rules commands load packaged registries by default (10.9289ms)
+✔ B1 required adjudication without reviewer remains typed unproven (2.4792ms)
+✔ B1 report model fails closed on missing topology and control denominators (0.9231ms)
+✔ B1 schedule consumes canonical plan bytes and fix validates sealed remediation digest (37.8663ms)
+✔ B1 packaged audit instructions and native providers expose no mutation or shell execution grants (88.5472ms)
+✔ B1 public audit binds repository honors filters planOnly and persists canonical plan (153.1877ms)
+ℹ tests 20
+ℹ suites 0
+ℹ pass 20
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 558.6849

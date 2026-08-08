@@ -1,0 +1,19 @@
+✔ proposal owners are a closed, single-authority vocabulary (1.3068ms)
+✔ a packet carries only relevant findings, root causes, proof, scope, protected surfaces, and stop conditions (7.9472ms)
+✔ packets are hostile-input-safe: repository text is enveloped, never instruction (0.4141ms)
+✔ packets are size-bounded and truncation stays visible (0.2985ms)
+✔ each owner has exactly its own authority and nothing more (0.2089ms)
+✔ a writing proposal changes words only and stays inside its scope (0.8798ms)
+✔ a design proposal changes layout or style and preserves approved text digests (0.4278ms)
+✔ a code proposal is a bounded source patch confined to scope and protected surfaces (0.3428ms)
+✔ cross-owner changes are rejected or split into dependent proposals, never merged (0.2621ms)
+✔ a producer can never verify its own proposal (0.4033ms)
+✔ the deterministic core never calls an external model (0.5639ms)
+ℹ tests 11
+ℹ suites 0
+ℹ pass 11
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 80.1864

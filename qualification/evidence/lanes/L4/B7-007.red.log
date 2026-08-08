@@ -1,0 +1,38 @@
+✔ cloud/mobile/developer-machine/ai-agent extractors share the same contract shape (9.5077ms)
+✖ cloud extractor models IAM roles, public exposure, workload identity, storage, secrets, deployment context (1.6532ms)
+✔ mobile extractor models permissions, deep links, bridges, exported components, backup/cleartext flags (0.8113ms)
+✔ developer-machine extractor models lifecycle hooks, config discovery, local grants, sandbox bypass (0.7147ms)
+✔ ai-agent extractor models tools, MCP schemas, model output, memory/RAG, approvals, budgets, and untrusted content (0.9406ms)
+✔ tool authority and model output remain structurally separate facts and entities (1.0495ms)
+✔ missing rendered configuration yields a typed coverage gap, not a silent pass (0.276ms)
+✔ absent domain signal yields a typed coverage gap for each specialist extractor (0.3427ms)
+✔ extraction is deterministic: same input produces deeply-equal output twice (4.1544ms)
+✔ no specialist extractor module directly imports a live-probe capable node builtin (0.8457ms)
+ℹ tests 10
+ℹ suites 0
+ℹ pass 9
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 136.7975
+
+✖ failing tests:
+
+test at tests\security-l4\b7-007-specialist-extractors.test.mjs:138:1
+✖ cloud extractor models IAM roles, public exposure, workload identity, storage, secrets, deployment context (1.6532ms)
+  AssertionError [ERR_ASSERTION]: deployment context
+      at TestContext.<anonymous> (file:///D:/Claude/tools/skills/nemesis/tests/security-l4/b7-007-specialist-extractors.test.mjs:145:10)
+      at Test.runInAsyncScope (node:async_hooks:226:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }

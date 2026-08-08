@@ -1,1 +1,687 @@
-{"id":"conditional.core","version":"1.0.0","class":"conditional","controls":[{"id":"conditional.commerce.entitlement","version":"1.0.0","selector":{"componentKinds":["commerce"]},"denominator":"entitlement-flows","evidence":["scenario","external-evidence"],"families":["trust-safety"],"claimLevels":["runtime","product","release"],"missingEvidenceEffect":"unproven"},{"id":"conditional.ai.authority","version":"1.0.0","selector":{"componentKinds":["ai"]},"denominator":"tool-authority-flows","evidence":["scenario","human-decision"],"families":["ai-quality","safety"],"claimLevels":["product","release"],"missingEvidenceEffect":"unproven"}]}
+{
+  "id": "target.conditional",
+  "version": "1.0.0",
+  "class": "conditional",
+  "dependencies": [
+    "universal.core"
+  ],
+  "source": {
+    "kind": "canonical",
+    "rights": "internal-contract"
+  },
+  "qualification": "source-tested",
+  "controls": [
+    {
+      "id": "conditional.commerce",
+      "version": "1.0.0",
+      "selector": {
+        "facets": [
+          "commerce"
+        ]
+      },
+      "denominator": "commerce-subjects",
+      "evidence": [
+        "repository",
+        "external-evidence"
+      ],
+      "families": [
+        "governance"
+      ],
+      "lenses": [
+        "conditional.commerce"
+      ],
+      "providers": [
+        "governance.policy"
+      ],
+      "rules": [
+        "governance"
+      ],
+      "scenarios": [
+        "conditional.commerce.default"
+      ],
+      "decisionMode": "measured",
+      "missingEvidenceEffect": "unproven",
+      "claimLevels": [
+        "source",
+        "runtime",
+        "product",
+        "release"
+      ],
+      "remediationOwner": "code",
+      "sourceConcepts": [
+        "canonical:conditional:commerce"
+      ],
+      "stopShip": false,
+      "benchmark": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "qualificationDigest": null
+      },
+      "provenance": {
+        "kind": "canonical",
+        "source": "nemesis:conditional",
+        "rights": "internal-contract",
+        "lineage": [
+          "canonical:conditional:commerce"
+        ]
+      }
+    },
+    {
+      "id": "conditional.ugc",
+      "version": "1.0.0",
+      "selector": {
+        "facets": [
+          "ugc"
+        ]
+      },
+      "denominator": "ugc-subjects",
+      "evidence": [
+        "repository",
+        "external-evidence"
+      ],
+      "families": [
+        "governance"
+      ],
+      "lenses": [
+        "conditional.ugc"
+      ],
+      "providers": [
+        "governance.policy"
+      ],
+      "rules": [
+        "governance"
+      ],
+      "scenarios": [
+        "conditional.ugc.default"
+      ],
+      "decisionMode": "measured",
+      "missingEvidenceEffect": "unproven",
+      "claimLevels": [
+        "source",
+        "runtime",
+        "product",
+        "release"
+      ],
+      "remediationOwner": "code",
+      "sourceConcepts": [
+        "canonical:conditional:ugc"
+      ],
+      "stopShip": false,
+      "benchmark": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "qualificationDigest": null
+      },
+      "provenance": {
+        "kind": "canonical",
+        "source": "nemesis:conditional",
+        "rights": "internal-contract",
+        "lineage": [
+          "canonical:conditional:ugc"
+        ]
+      }
+    },
+    {
+      "id": "conditional.ai-tools",
+      "version": "1.0.0",
+      "selector": {
+        "facets": [
+          "ai-tools"
+        ]
+      },
+      "denominator": "ai-tools-subjects",
+      "evidence": [
+        "repository",
+        "external-evidence"
+      ],
+      "families": [
+        "governance"
+      ],
+      "lenses": [
+        "conditional.ai-tools"
+      ],
+      "providers": [
+        "governance.policy"
+      ],
+      "rules": [
+        "governance"
+      ],
+      "scenarios": [
+        "conditional.ai-tools.default"
+      ],
+      "decisionMode": "measured",
+      "missingEvidenceEffect": "unproven",
+      "claimLevels": [
+        "source",
+        "runtime",
+        "product",
+        "release"
+      ],
+      "remediationOwner": "code",
+      "sourceConcepts": [
+        "canonical:conditional:ai-tools"
+      ],
+      "stopShip": false,
+      "benchmark": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "qualificationDigest": null
+      },
+      "provenance": {
+        "kind": "canonical",
+        "source": "nemesis:conditional",
+        "rights": "internal-contract",
+        "lineage": [
+          "canonical:conditional:ai-tools"
+        ]
+      }
+    },
+    {
+      "id": "conditional.pwa-offline",
+      "version": "1.0.0",
+      "selector": {
+        "facets": [
+          "pwa-offline"
+        ]
+      },
+      "denominator": "pwa-offline-subjects",
+      "evidence": [
+        "repository",
+        "external-evidence"
+      ],
+      "families": [
+        "governance"
+      ],
+      "lenses": [
+        "conditional.pwa-offline"
+      ],
+      "providers": [
+        "governance.policy"
+      ],
+      "rules": [
+        "governance"
+      ],
+      "scenarios": [
+        "conditional.pwa-offline.default"
+      ],
+      "decisionMode": "measured",
+      "missingEvidenceEffect": "unproven",
+      "claimLevels": [
+        "source",
+        "runtime",
+        "product",
+        "release"
+      ],
+      "remediationOwner": "code",
+      "sourceConcepts": [
+        "canonical:conditional:pwa-offline"
+      ],
+      "stopShip": false,
+      "benchmark": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "qualificationDigest": null
+      },
+      "provenance": {
+        "kind": "canonical",
+        "source": "nemesis:conditional",
+        "rights": "internal-contract",
+        "lineage": [
+          "canonical:conditional:pwa-offline"
+        ]
+      }
+    },
+    {
+      "id": "conditional.realtime",
+      "version": "1.0.0",
+      "selector": {
+        "facets": [
+          "realtime"
+        ]
+      },
+      "denominator": "realtime-subjects",
+      "evidence": [
+        "repository",
+        "external-evidence"
+      ],
+      "families": [
+        "governance"
+      ],
+      "lenses": [
+        "conditional.realtime"
+      ],
+      "providers": [
+        "governance.policy"
+      ],
+      "rules": [
+        "governance"
+      ],
+      "scenarios": [
+        "conditional.realtime.default"
+      ],
+      "decisionMode": "measured",
+      "missingEvidenceEffect": "unproven",
+      "claimLevels": [
+        "source",
+        "runtime",
+        "product",
+        "release"
+      ],
+      "remediationOwner": "code",
+      "sourceConcepts": [
+        "canonical:conditional:realtime"
+      ],
+      "stopShip": false,
+      "benchmark": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "qualificationDigest": null
+      },
+      "provenance": {
+        "kind": "canonical",
+        "source": "nemesis:conditional",
+        "rights": "internal-contract",
+        "lineage": [
+          "canonical:conditional:realtime"
+        ]
+      }
+    },
+    {
+      "id": "conditional.hardware-sensors",
+      "version": "1.0.0",
+      "selector": {
+        "facets": [
+          "hardware-sensors"
+        ]
+      },
+      "denominator": "hardware-sensors-subjects",
+      "evidence": [
+        "repository",
+        "external-evidence"
+      ],
+      "families": [
+        "governance"
+      ],
+      "lenses": [
+        "conditional.hardware-sensors"
+      ],
+      "providers": [
+        "governance.policy"
+      ],
+      "rules": [
+        "governance"
+      ],
+      "scenarios": [
+        "conditional.hardware-sensors.default"
+      ],
+      "decisionMode": "measured",
+      "missingEvidenceEffect": "unproven",
+      "claimLevels": [
+        "source",
+        "runtime",
+        "product",
+        "release"
+      ],
+      "remediationOwner": "code",
+      "sourceConcepts": [
+        "canonical:conditional:hardware-sensors"
+      ],
+      "stopShip": false,
+      "benchmark": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "qualificationDigest": null
+      },
+      "provenance": {
+        "kind": "canonical",
+        "source": "nemesis:conditional",
+        "rights": "internal-contract",
+        "lineage": [
+          "canonical:conditional:hardware-sensors"
+        ]
+      }
+    },
+    {
+      "id": "conditional.multi-tenant",
+      "version": "1.0.0",
+      "selector": {
+        "facets": [
+          "multi-tenant"
+        ]
+      },
+      "denominator": "multi-tenant-subjects",
+      "evidence": [
+        "repository",
+        "external-evidence"
+      ],
+      "families": [
+        "governance"
+      ],
+      "lenses": [
+        "conditional.multi-tenant"
+      ],
+      "providers": [
+        "governance.policy"
+      ],
+      "rules": [
+        "governance"
+      ],
+      "scenarios": [
+        "conditional.multi-tenant.default"
+      ],
+      "decisionMode": "measured",
+      "missingEvidenceEffect": "unproven",
+      "claimLevels": [
+        "source",
+        "runtime",
+        "product",
+        "release"
+      ],
+      "remediationOwner": "code",
+      "sourceConcepts": [
+        "canonical:conditional:multi-tenant"
+      ],
+      "stopShip": false,
+      "benchmark": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "qualificationDigest": null
+      },
+      "provenance": {
+        "kind": "canonical",
+        "source": "nemesis:conditional",
+        "rights": "internal-contract",
+        "lineage": [
+          "canonical:conditional:multi-tenant"
+        ]
+      }
+    },
+    {
+      "id": "conditional.regulated-data",
+      "version": "1.0.0",
+      "selector": {
+        "facets": [
+          "regulated-data"
+        ]
+      },
+      "denominator": "regulated-data-subjects",
+      "evidence": [
+        "repository",
+        "external-evidence"
+      ],
+      "families": [
+        "governance"
+      ],
+      "lenses": [
+        "conditional.regulated-data"
+      ],
+      "providers": [
+        "governance.policy"
+      ],
+      "rules": [
+        "governance"
+      ],
+      "scenarios": [
+        "conditional.regulated-data.default"
+      ],
+      "decisionMode": "measured",
+      "missingEvidenceEffect": "unproven",
+      "claimLevels": [
+        "source",
+        "runtime",
+        "product",
+        "release"
+      ],
+      "remediationOwner": "code",
+      "sourceConcepts": [
+        "canonical:conditional:regulated-data"
+      ],
+      "stopShip": false,
+      "benchmark": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "qualificationDigest": null
+      },
+      "provenance": {
+        "kind": "canonical",
+        "source": "nemesis:conditional",
+        "rights": "internal-contract",
+        "lineage": [
+          "canonical:conditional:regulated-data"
+        ]
+      }
+    },
+    {
+      "id": "conditional.high-consequence",
+      "version": "1.0.0",
+      "selector": {
+        "facets": [
+          "high-consequence"
+        ]
+      },
+      "denominator": "high-consequence-subjects",
+      "evidence": [
+        "repository",
+        "external-evidence"
+      ],
+      "families": [
+        "governance"
+      ],
+      "lenses": [
+        "conditional.high-consequence"
+      ],
+      "providers": [
+        "governance.policy"
+      ],
+      "rules": [
+        "governance"
+      ],
+      "scenarios": [
+        "conditional.high-consequence.default"
+      ],
+      "decisionMode": "measured",
+      "missingEvidenceEffect": "unproven",
+      "claimLevels": [
+        "source",
+        "runtime",
+        "product",
+        "release"
+      ],
+      "remediationOwner": "code",
+      "sourceConcepts": [
+        "canonical:conditional:high-consequence"
+      ],
+      "stopShip": true,
+      "benchmark": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "qualificationDigest": null
+      },
+      "provenance": {
+        "kind": "canonical",
+        "source": "nemesis:conditional",
+        "rights": "internal-contract",
+        "lineage": [
+          "canonical:conditional:high-consequence"
+        ]
+      }
+    },
+    {
+      "id": "conditional.children-safety",
+      "version": "1.0.0",
+      "selector": {
+        "facets": [
+          "children-safety"
+        ]
+      },
+      "denominator": "children-safety-subjects",
+      "evidence": [
+        "repository",
+        "external-evidence"
+      ],
+      "families": [
+        "governance"
+      ],
+      "lenses": [
+        "conditional.children-safety"
+      ],
+      "providers": [
+        "governance.policy"
+      ],
+      "rules": [
+        "governance"
+      ],
+      "scenarios": [
+        "conditional.children-safety.default"
+      ],
+      "decisionMode": "measured",
+      "missingEvidenceEffect": "unproven",
+      "claimLevels": [
+        "source",
+        "runtime",
+        "product",
+        "release"
+      ],
+      "remediationOwner": "code",
+      "sourceConcepts": [
+        "canonical:conditional:children-safety"
+      ],
+      "stopShip": false,
+      "benchmark": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "qualificationDigest": null
+      },
+      "provenance": {
+        "kind": "canonical",
+        "source": "nemesis:conditional",
+        "rights": "internal-contract",
+        "lineage": [
+          "canonical:conditional:children-safety"
+        ]
+      }
+    },
+    {
+      "id": "conditional.consent",
+      "version": "1.0.0",
+      "selector": {
+        "facets": [
+          "consent"
+        ]
+      },
+      "denominator": "consent-subjects",
+      "evidence": [
+        "repository",
+        "external-evidence"
+      ],
+      "families": [
+        "governance"
+      ],
+      "lenses": [
+        "conditional.consent"
+      ],
+      "providers": [
+        "governance.policy"
+      ],
+      "rules": [
+        "governance"
+      ],
+      "scenarios": [
+        "conditional.consent.default"
+      ],
+      "decisionMode": "measured",
+      "missingEvidenceEffect": "unproven",
+      "claimLevels": [
+        "source",
+        "runtime",
+        "product",
+        "release"
+      ],
+      "remediationOwner": "code",
+      "sourceConcepts": [
+        "canonical:conditional:consent"
+      ],
+      "stopShip": false,
+      "benchmark": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "qualificationDigest": null
+      },
+      "provenance": {
+        "kind": "canonical",
+        "source": "nemesis:conditional",
+        "rights": "internal-contract",
+        "lineage": [
+          "canonical:conditional:consent"
+        ]
+      }
+    },
+    {
+      "id": "conditional.human-policy",
+      "version": "1.0.0",
+      "selector": {
+        "facets": [
+          "human-policy"
+        ]
+      },
+      "denominator": "human-policy-subjects",
+      "evidence": [
+        "repository",
+        "external-evidence"
+      ],
+      "families": [
+        "governance"
+      ],
+      "lenses": [
+        "conditional.human-policy"
+      ],
+      "providers": [
+        "governance.policy"
+      ],
+      "rules": [
+        "governance"
+      ],
+      "scenarios": [
+        "conditional.human-policy.default"
+      ],
+      "decisionMode": "measured",
+      "missingEvidenceEffect": "unproven",
+      "claimLevels": [
+        "source",
+        "runtime",
+        "product",
+        "release"
+      ],
+      "remediationOwner": "code",
+      "sourceConcepts": [
+        "canonical:conditional:human-policy"
+      ],
+      "stopShip": false,
+      "benchmark": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "qualificationDigest": null
+      },
+      "provenance": {
+        "kind": "canonical",
+        "source": "nemesis:conditional",
+        "rights": "internal-contract",
+        "lineage": [
+          "canonical:conditional:human-policy"
+        ]
+      }
+    }
+  ]
+}

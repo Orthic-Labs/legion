@@ -1,0 +1,13 @@
+✔ assembles a structurally valid, digest-bound context packet (2.0769ms)
+✔ binds only a matching precomputed Cortex projection (5.5002ms)
+✔ revision change invalidates packet and evidence-capability receipt (1.2087ms)
+✔ reports capability degradation without silent upgrades (0.2822ms)
+✔ Crypt interface remains a typed absence without live access (0.216ms)
+ℹ tests 5
+ℹ suites 0
+ℹ pass 5
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 107.6474

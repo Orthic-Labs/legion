@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "kind": "nemesis-coverage-qualification",
+  "recordId": "language.go",
+  "corpusRoot": "bench/corpora/go",
+  "corpusDigest": "sha256:3bd9035878a90d5e777fc6ae61c70e7a65da0c421c79b01909b7912a4d9aa729",
+  "artifactDigest": "sha256:99a942e42d2335ca8f34aff33359ba3e3c9e061fc9bace9c67696862d076c785",
+  "providerVersions": {
+    "code.go": "1.0.0"
+  },
+  "casesRequired": [
+    "positive",
+    "negative",
+    "missing-tool",
+    "platform"
+  ],
+  "command": [
+    "node",
+    "--test",
+    "tests/providers/go/go.test.mjs"
+  ],
+  "decision": "source-measured-runtime-unproven"
+}

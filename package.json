@@ -13,16 +13,36 @@
   "exports": {
     ".": "./lib/index.mjs",
     "./contracts": "./lib/contracts/index.mjs",
-    "./provider-sdk": "./lib/providers/sdk/index.mjs"
+    "./provider-sdk": "./lib/providers/sdk/index.mjs",
+    "./schemas/*": "./schemas/*"
   },
   "files": [
     "bin/",
+    "audit-complete.mjs",
+    "audit-finalize.mjs",
+    "audit-plan.mjs",
+    "audit-run.mjs",
+    "audit-runtime.mjs",
+    "audit-verify.mjs",
+    "collect-facts.mjs",
+    "render-report.mjs",
+    "security-chain-pipeline.mjs",
+    "security-pipeline.mjs",
+    "adapters/",
     "lib/",
     "providers/",
     "registry/",
     "schemas/",
-    "scripts/",
+    "integrations/",
+    "skills/",
+    "scripts/self-test.mjs",
+    "scripts/generate-schemas.mjs",
+    "scripts/package-smoke.mjs",
+    "scripts/check-publication-policy.mjs",
+    "scripts/qualify-book.mjs",
+    "scripts/report-to-sarif.mjs",
     "references/",
+    "MANIFEST.package.json",
     "README.md",
     "CHANGELOG.md",
     "LICENSE",
@@ -33,6 +53,6 @@
     "test": "node --test --test-concurrency=1 \"tests/*.test.mjs\"",
     "self-test": "node scripts/self-test.mjs",
     "schemas:check": "node scripts/generate-schemas.mjs --check",
-    "prepack": "node scripts/check-publication-policy.mjs --channel internal-pack && npm run schemas:check && npm test"
+    "prepack": "node scripts/check-publication-policy.mjs --channel internal-pack && node scripts/generate-schemas.mjs --check && node --test --test-concurrency=1 tests/*.test.mjs"
   }
 }

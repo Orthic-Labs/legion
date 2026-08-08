@@ -1,0 +1,1 @@
+{"$schema":"https://json-schema.org/draft/2020-12/schema","$id":"nemesis-target-classification-review-v1","type":"object","additionalProperties":false,"required":["schemaVersion","nominations","conflicts"],"properties":{"schemaVersion":{"const":1},"nominations":{"type":"array"},"conflicts":{"type":"array"}}}

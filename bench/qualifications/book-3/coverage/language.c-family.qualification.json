@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "kind": "nemesis-coverage-qualification",
+  "recordId": "language.c-family",
+  "corpusRoot": "bench/corpora/c-family",
+  "corpusDigest": "sha256:93fbf81f9e58c276532f52d8da099b9b3eea968d510bf2db250c8018b5e522eb",
+  "artifactDigest": "sha256:48f79133c5b56621b7d6c72dc93a5bfe75e19a255364c30a975f64a907e83483",
+  "providerVersions": {
+    "code.c-family": "1.0.0"
+  },
+  "casesRequired": [
+    "header",
+    "macro",
+    "compile-context",
+    "unsupported"
+  ],
+  "command": [
+    "node",
+    "--test",
+    "tests/providers/c-family/c-family.test.mjs"
+  ],
+  "decision": "source-measured-runtime-unproven"
+}

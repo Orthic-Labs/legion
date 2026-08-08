@@ -1,0 +1,198 @@
+✔ B3 provider registry is schema-valid and implemented Book3 providers are selectable with authority (9.8512ms)
+✖ B3 external executor refuses bare PATH tools without sealed executable bytes (62.6848ms)
+✖ B3 secret normalization redacts short punctuated values and history uses valid argv (1.2218ms)
+✖ B3 dependency evidence cannot complete without path and qualified database identity (0.5873ms)
+✖ B3 measured coverage rejects equal corpus artifact digests and absent qualification proof (0.8165ms)
+✖ B3 language tools require bound identity and independent result artifact (0.9495ms)
+✖ B3 frontend backend and data adapters fail closed on name-only or zero denominators (1.0354ms)
+✖ B3 compatibility requires explicit expected and observed evidence (0.5614ms)
+✖ B3 verified requirements and policy evidence require evidence plus disposition metadata (0.7054ms)
+✖ B3 empty family reports are incomplete and never clean (0.5728ms)
+✖ B3 imported SARIF binds immutable raw bytes rather than reserialized objects (0.5483ms)
+✖ B3 OpenGrep provider result keeps empty findings plus binding denominator rules and tool provenance (0.443ms)
+ℹ tests 12
+ℹ suites 0
+ℹ pass 1
+ℹ fail 11
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 156.4291
+
+✖ failing tests:
+
+test at tests\providers\book-3-quality.test.mjs:7:1
+✖ B3 external executor refuses bare PATH tools without sealed executable bytes (62.6848ms)
+  AssertionError [ERR_ASSERTION]: Expected "actual" to be strictly unequal to:
+  
+  'completed'
+      at TestContext.<anonymous> (file:///D:/Claude/tools/skills/nemesis/tests/providers/book-3-quality.test.mjs:7:419)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'completed',
+    expected: 'completed',
+    operator: 'notStrictEqual',
+    diff: 'simple'
+  }
+
+test at tests\providers\book-3-quality.test.mjs:8:1
+✖ B3 secret normalization redacts short punctuated values and history uses valid argv (1.2218ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  true !== false
+  
+      at TestContext.<anonymous> (file:///D:/Claude/tools/skills/nemesis/tests/providers/book-3-quality.test.mjs:8:273)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: true,
+    expected: false,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests\providers\book-3-quality.test.mjs:9:1
+✖ B3 dependency evidence cannot complete without path and qualified database identity (0.5873ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  true !== false
+  
+      at TestContext.<anonymous> (file:///D:/Claude/tools/skills/nemesis/tests/providers/book-3-quality.test.mjs:9:319)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: true,
+    expected: false,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests\providers\book-3-quality.test.mjs:10:1
+✖ B3 measured coverage rejects equal corpus artifact digests and absent qualification proof (0.8165ms)
+  AssertionError [ERR_ASSERTION]: Missing expected exception.
+      at TestContext.<anonymous> (file:///D:/Claude/tools/skills/nemesis/tests/providers/book-3-quality.test.mjs:10:294)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: /independent|qualification/,
+    operator: 'throws',
+    diff: 'simple'
+  }
+
+test at tests\providers\book-3-quality.test.mjs:11:1
+✖ B3 language tools require bound identity and independent result artifact (0.9495ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  true !== false
+  
+      at TestContext.<anonymous> (file:///D:/Claude/tools/skills/nemesis/tests/providers/book-3-quality.test.mjs:11:304)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: true,
+    expected: false,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests\providers\book-3-quality.test.mjs:12:1
+✖ B3 frontend backend and data adapters fail closed on name-only or zero denominators (1.0354ms)
+  AssertionError [ERR_ASSERTION]: Expected "actual" to be strictly unequal to:
+  
+  'measured'
+      at TestContext.<anonymous> (file:///D:/Claude/tools/skills/nemesis/tests/providers/book-3-quality.test.mjs:12:330)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'measured',
+    expected: 'measured',
+    operator: 'notStrictEqual',
+    diff: 'simple'
+  }
+
+test at tests\providers\book-3-quality.test.mjs:13:1
+✖ B3 compatibility requires explicit expected and observed evidence (0.5614ms)
+  AssertionError [ERR_ASSERTION]: Missing expected exception.
+      at TestContext.<anonymous> (file:///D:/Claude/tools/skills/nemesis/tests/providers/book-3-quality.test.mjs:13:176)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: /expected|observed/,
+    operator: 'throws',
+    diff: 'simple'
+  }
+
+test at tests\providers\book-3-quality.test.mjs:14:1
+✖ B3 verified requirements and policy evidence require evidence plus disposition metadata (0.7054ms)
+  AssertionError [ERR_ASSERTION]: Missing expected exception.
+      at TestContext.<anonymous> (file:///D:/Claude/tools/skills/nemesis/tests/providers/book-3-quality.test.mjs:14:269)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: /evidence/,
+    operator: 'throws',
+    diff: 'simple'
+  }
+
+test at tests\providers\book-3-quality.test.mjs:15:1
+✖ B3 empty family reports are incomplete and never clean (0.5728ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + 'complete'
+  - 'incomplete'
+  
+      at TestContext.<anonymous> (file:///D:/Claude/tools/skills/nemesis/tests/providers/book-3-quality.test.mjs:15:203)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'complete',
+    expected: 'incomplete',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests\providers\book-3-quality.test.mjs:16:1
+✖ B3 imported SARIF binds immutable raw bytes rather than reserialized objects (0.5483ms)
+  AssertionError [ERR_ASSERTION]: Missing expected exception.
+      at TestContext.<anonymous> (file:///D:/Claude/tools/skills/nemesis/tests/providers/book-3-quality.test.mjs:16:179)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: /raw bytes/,
+    operator: 'throws',
+    diff: 'simple'
+  }
+
+test at tests\providers\book-3-quality.test.mjs:17:1
+✖ B3 OpenGrep provider result keeps empty findings plus binding denominator rules and tool provenance (0.443ms)
+  TypeError: providerResult is not a function
+      at TestContext.<anonymous> (file:///D:/Claude/tools/skills/nemesis/tests/providers/book-3-quality.test.mjs:17:205)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7)

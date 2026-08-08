@@ -1,0 +1,4 @@
+<task>Review and, only if needed, correct DISPATCH-13 Seer artifact wrapping in packages/seer/lib/artifact.mjs.</task>
+<acceptance_criteria>artifact-v1 fields are exact; canonical JSON is deterministic and rejects lossy values; digest and bytes bind immutable snapshot; denominator digest passes through without claim changes; no business logic.</acceptance_criteria>
+<non_goals>Edit no file except packages/seer/lib/artifact.mjs. Do not edit core, contracts, tests, fixtures, evidence, dependencies, git state, branches, or worktrees. Preserve unrelated dirt.</non_goals>
+<verification>node --check packages/seer/lib/artifact.mjs</verification>

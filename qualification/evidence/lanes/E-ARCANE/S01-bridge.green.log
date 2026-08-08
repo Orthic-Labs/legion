@@ -1,0 +1,25 @@
+✔ S01: the schema map covers every record type in the S00 inventory (1.5786ms)
+✔ S01: no unresolved legacy item, and every trust-bearing field is canonical-with-target or rejected-with-reason (0.3052ms)
+✔ S01: the three S00 trust findings are rejected, never carried across (0.1525ms)
+✔ S01: bridging a real S00 store-snapshot fixture yields valid envelopes with authenticated:false (1.5178ms)
+✔ S01: bridging preserves the legacy payload byte-for-byte (0.6677ms)
+✔ S01: reverseEnvelope round-trips — migration is reversible (1.114ms)
+✔ S01: reading the legacy store is deterministic — same input, identical digest (1.3284ms)
+✔ S01: every S00 operation-response fixture bridges to a typed compatibility result (1.8126ms)
+✔ S01: a legacy authority claim in an alias payload is a typed compatibility error, not a silent drop (0.3866ms)
+✔ S01: legacy trust fields present in a fixture are reported as rejected, with their values quarantined in the payload (0.4074ms)
+✔ S01: the bridge contains no independent policy decision (alias rule) (0.3471ms)
+✔ S01: migrationDryRun is a projection with source/destination counts and digests, and writes nothing (4.3612ms)
+✔ S01: parityReport tallies dispositions and asserts zero unresolved (0.3091ms)
+✔ S01: an unknown legacy kind is a typed error, never a silent passthrough (0.3229ms)
+✔ S01: the runtime bridge mints no private ids while the Kernel is unbound (0.3053ms)
+✔ S01: the operation map preserves the retired sole-open-run heuristic and refuses purge (0.1988ms)
+✔ S01: the dispatcher fail-open defect is explicitly NOT reproduced (0.1955ms)
+ℹ tests 17
+ℹ suites 0
+ℹ pass 17
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 101.6527

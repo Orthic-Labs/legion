@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "kind": "nemesis-coverage-test-artifact",
+  "recordId": "language.mobile",
+  "testPath": "tests/providers/mobile/mobile.test.mjs",
+  "status": "pass",
+  "rawLog": {
+    "path": "bench/qualifications/book-3/coverage/language.mobile.test.log",
+    "digest": "sha256:8e87b40de2eff59e3768806d3e2d68894e62cf7da9af1b4d7b219288fdabb8dc",
+    "bytes": 718
+  },
+  "providerVersions": {
+    "code.mobile": "1.0.0"
+  }
+}

@@ -1,0 +1,1 @@
+import assert from 'node:assert/strict';import test from 'node:test';import value from '../../../../registry/controls/controls/developer-tools/core.json' with {type:'json'};test('developer-tool baseline includes workspace trust',()=>assert.ok(value.controls.some(({id})=>id.endsWith('workspace-trust'))));

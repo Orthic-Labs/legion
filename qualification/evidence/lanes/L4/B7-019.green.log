@@ -1,0 +1,39 @@
+✔ all 17 declared AI-quality metrics are covered by the aggregator (3.4529ms)
+✔ groundedness: grounded vs. ungrounded fixture (0.2655ms)
+✔ citation faithfulness: faithful vs. unfaithful fixture (0.2081ms)
+✔ tool selection: correct vs. incorrect fixture (0.2227ms)
+✔ uncertainty calibration: calibrated vs. overconfident fixture (0.2095ms)
+✔ refusal/fallback fixture (0.165ms)
+✔ model/provider/version drift fixture (0.1979ms)
+✔ latency and cost fixtures (0.201ms)
+✔ a clean control fixture set passes across representative metrics (0.2401ms)
+✔ subgroup fairness is unproven without a policy-selected subgroup set, and pass/fail once selected (0.293ms)
+✔ every evaluation receipt binds the full required identity/denominator shape (0.4207ms)
+✔ a receipt is version-bound and denominator-bound: metricVersion, datasetVersion.version, and denominator are all present and required (0.3321ms)
+✔ an evaluation receipt is not and cannot substitute for a security verdict (0.5773ms)
+✔ no ai-quality module imports from providers/security/**, and no security pack imports from providers/ai-quality/** (4.618ms)
+✔ no ai-quality module imports a network-capable node builtin, calls fetch, or imports an AI vendor SDK (1.4721ms)
+✔ committed schemas/ai-quality/evaluation-receipt-v1.schema.json is byte-identical to the code-owned builder (0.6131ms)
+✔ the generated schema enumerates all 17 metrics and the 4-member quality verdict vocabulary (0.1298ms)
+✔ registry rule ids and the 5 AI security pack rule ids are in exact two-way parity (1.0513ms)
+✔ a bare mention of "prompt" or "llm" produces no candidate from any AI security pack (4.1556ms)
+✔ ai-prompt-injection pack detects each rule as a typed, bound candidate (1.8838ms)
+✔ ai-output-handling pack detects each of the required sink classes (0.9609ms)
+✔ model output flowing to a sink with no observed validator produces a candidate (0.2503ms)
+✔ an observed validator control bound to the sink suppresses the candidate entirely (not merely downgraded) (0.5699ms)
+✔ ai-excessive-agency pack flags a cross-tenant tool boundary and a missing side-effect budget (1.1188ms)
+✔ prompt-injection-to-sensitive-action fixture: retrieved content driving a destructive tool call (0.5164ms)
+✔ blocked-control counterpart: a human-approval control bound to the tool suppresses the same fixture (0.2457ms)
+✔ missing agent-framework evidence produces an explicit coverage gap alongside the zero-candidate pass, not a clean claim (1.2043ms)
+✔ with a full ai-agent surface model, candidates bind to the extractor's typed entities, not just the file artifact (0.7601ms)
+✔ every AI security pack declares variantStrategies with rootCause/enumerate for every rule (0.1664ms)
+✔ all 5 AI security packs emit only UNADJUDICATED, adjudication-required candidates with empty findings (1.1283ms)
+✔ no AI security pack imports a network-capable node builtin, calls fetch, or imports an AI vendor SDK (2.1101ms)
+ℹ tests 31
+ℹ suites 0
+ℹ pass 31
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 110.732

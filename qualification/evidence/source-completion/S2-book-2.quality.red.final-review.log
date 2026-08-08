@@ -1,0 +1,92 @@
+✔ B2 platform source raw paths preserve declared bytes and digests (13.8126ms)
+✔ B2 detector registry has executable evidence rules for every target kind (2.8145ms)
+✔ B2 browser extension evidence cannot yield zero-target clean topology (1.518ms)
+✔ B2 target IDs are stable across Windows separators (0.2379ms)
+✔ B2 selector compiler rejects unknown keys and honors stack environment policy (0.7536ms)
+✔ B2 unresolved rights cannot produce derived control IDs (0.5304ms)
+✔ B2 external evidence rejects duplicate claim levels and missing artifact freshness (0.9557ms)
+✔ B2 generated controls retain lineage providers rules and stop-ship semantics (2.6641ms)
+✔ B2 controls map to real provider authority and source catalogue retains parser lineage (3.3338ms)
+✔ B2 control stage fails closed on absent packs and zero denominator (1.8887ms)
+✔ B2 pairwise output covers all pairs and reports constrained omissions (7.9482ms)
+✔ B2 portfolio accounts for every declared material deliverable (1.1864ms)
+✔ B2 component IDs are structural path-stable and collision resistant (0.6019ms)
+✔ B2 release contracts reject unknown fields and report claim gaps (0.9095ms)
+✔ B2 baseline rejects missing pack dependencies and incompatible duplicate contracts (0.4974ms)
+✔ B2 product topology cannot pass with zero targets or unknown components (9.567ms)
+✔ B2 scenarios preserve unavailable mandatory cases as claim-blocking omissions (0.2869ms)
+✔ B2 schemas validate full runtime targets and controls with no undeclared fields (2.955ms)
+✔ B2 component graph schema validates nested runtime records and rejects malformed components (0.7944ms)
+✔ B2 portfolio schema enforces nested target parity and nullable bindings (0.9068ms)
+✔ B2 target detection handles root bin but ignores prose-only API words (0.2376ms)
+✔ B2 component graph rejects ghost targets and invalid relation endpoints (0.1694ms)
+✔ B2 portfolio rejects unknown relation endpoints and emits schema-complete unknown targets (0.7674ms)
+✔ B2 topology conflicts and unknown stacks block completion (0.9178ms)
+✔ B2 rights remain item-scoped and external evidence expiry uses supplied clock (0.2137ms)
+✔ B2 capabilities require host receipts rather than boolean assertions (0.3104ms)
+✔ B2 capability availability requires bound fresh artifact evidence under host clock (0.2153ms)
+✔ B2 runtime target validator enforces schema-required arrays and enums (0.1439ms)
+✔ B2 targets bind classification graphs and bounded review merges provenance (1.146ms)
+✔ B2 duplicate controls compare all semantic execution fields (0.1631ms)
+✔ B2 pairwise preserves one-dimensional and mandatory cases without Cartesian candidates (1.081ms)
+✔ B2 pairwise finds non-default constrained witnesses and rejects malformed mandatory rows (0.4092ms)
+✔ B2 inspect command returns incomplete for empty topology (7.1884ms)
+✔ B2 inspection integrates release context external systems scenario axes and report skeleton (18.2984ms)
+✔ B2 capabilities require exact expected binding and an injected clock (0.3727ms)
+✔ B2 baseline evaluates shared components against every linked target (0.2539ms)
+✔ B2 empty scenario dimensions remain incomplete and constraints flow into pairwise (0.3312ms)
+✔ B2 detector ignores manifest descriptions and duplicate targets retain contradictions (0.6276ms)
+✔ B2 source ingestion validates digest algorithm and external declarations need evidence (0.3722ms)
+✔ B2 platform parser retains all mobile table rows and release blockers without prose redistribution (9.5968ms)
+✔ B2 release context scenario runtime values validate against strict schemas (1.9012ms)
+✔ B2 controls resolve real rules and compare complete duplicate contracts (7.0538ms)
+✖ B2 classification review requires sealed nonempty evidence and strict confidence (0.638ms)
+✖ B2 external evidence validation requires an injected frozen clock (0.2738ms)
+ℹ tests 44
+ℹ suites 0
+ℹ pass 42
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 186.625
+
+✖ failing tests:
+
+test at tests\inventory\book-2-quality.test.mjs:51:1
+✖ B2 classification review requires sealed nonempty evidence and strict confidence (0.638ms)
+  AssertionError [ERR_ASSERTION]: Missing expected exception.
+      at TestContext.<anonymous> (file:///D:/Claude/tools/skills/nemesis/tests/inventory/book-2-quality.test.mjs:51:312)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: /evidence/,
+    operator: 'throws',
+    diff: 'simple'
+  }
+
+test at tests\inventory\book-2-quality.test.mjs:52:1
+✖ B2 external evidence validation requires an injected frozen clock (0.2738ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /clock/. Input:
+  
+  'Error: external evidence expired'
+  
+      at TestContext.<anonymous> (file:///D:/Claude/tools/skills/nemesis/tests/inventory/book-2-quality.test.mjs:52:412)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: Error: external evidence expired
+        at validateExternalEvidence (file:///D:/Claude/tools/skills/nemesis/lib/controls/evidence/external-manifest.mjs:13:76)
+        at file:///D:/Claude/tools/skills/nemesis/tests/inventory/book-2-quality.test.mjs:52:423
+        at getActual (node:assert:580:5)
+        at strict.throws (node:assert:728:24)
+        at TestContext.<anonymous> (file:///D:/Claude/tools/skills/nemesis/tests/inventory/book-2-quality.test.mjs:52:412)
+        at async Test.run (node:internal/test_runner/test:1389:7)
+        at async Test.processPendingSubtests (node:internal/test_runner/test:960:7),
+    expected: /clock/,
+    operator: 'throws',
+    diff: 'simple'
+  }

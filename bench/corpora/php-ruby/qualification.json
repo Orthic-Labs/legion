@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "family": "php-ruby",
+  "cases": [
+    {
+      "id": "php",
+      "expected": "measured"
+    },
+    {
+      "id": "ruby",
+      "expected": "measured"
+    },
+    {
+      "id": "dynamic-limit",
+      "expected": "measured"
+    },
+    {
+      "id": "missing-package",
+      "expected": "unproven"
+    }
+  ]
+}

@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 1,
+  "hazards": [
+    { "id": "safety.physical.direct-actuator-command", "version": "1.0.0", "domain": "physical.direct-actuator-command", "outcomeClass": "physical", "reasoningRequirement": "human-decision", "certifiable": false, "regulatoryClaim": null },
+    { "id": "safety.medical.dose-administration", "version": "1.0.0", "domain": "medical.dose-administration", "outcomeClass": "medical", "reasoningRequirement": "human-decision", "certifiable": false, "regulatoryClaim": null },
+    { "id": "safety.financial.irreversible-transfer", "version": "1.0.0", "domain": "financial.irreversible-transfer", "outcomeClass": "financial", "reasoningRequirement": "human-decision", "certifiable": false, "regulatoryClaim": null },
+    { "id": "safety.child-facing.minor-data-collection", "version": "1.0.0", "domain": "child-facing.minor-data-collection", "outcomeClass": "child-facing", "reasoningRequirement": "human-decision", "certifiable": false, "regulatoryClaim": null },
+    { "id": "safety.operational.production-disruption-command", "version": "1.0.0", "domain": "operational.production-disruption-command", "outcomeClass": "operational", "reasoningRequirement": "human-decision", "certifiable": false, "regulatoryClaim": null },
+    { "id": "safety.irreversible.destructive-account-action", "version": "1.0.0", "domain": "irreversible.destructive-account-action", "outcomeClass": "irreversible", "reasoningRequirement": "human-decision", "certifiable": false, "regulatoryClaim": null },
+    { "id": "safety.catastrophic-data-loss.bulk-destructive-operation", "version": "1.0.0", "domain": "catastrophic-data-loss.bulk-destructive-operation", "outcomeClass": "catastrophic-data-loss", "reasoningRequirement": "human-decision", "certifiable": false, "regulatoryClaim": null }
+  ],
+  "source": "internal",
+  "license": "internal"
+}

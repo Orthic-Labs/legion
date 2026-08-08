@@ -101,7 +101,8 @@ test('verifyRun produces a deterministic receipt', async () => {
   const receipt = await verifyRun({ priorRun: '/tmp/run/facts.json', currentRepository: { repositoryRevision: 'abc' } }, host);
   assert.equal(receipt.kind, 'nemesis-verification-receipt');
   assert.ok(receipt.priorDigest.startsWith('sha256:'));
-  assert.equal(receipt.valid, true);
+  assert.equal(receipt.valid, false);
+  assert.ok(receipt.gaps.some(({ kind }) => kind === 'semantic-replay-unavailable'));
 });
 
 test('run manifest is written from the artifact store records', async () => {

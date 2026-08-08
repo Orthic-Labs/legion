@@ -146,6 +146,7 @@ export function runFrameworkSuite({ root, plan }) {
   }
   return results;
 }
+export function analyze({root,plan}={}){const results=runFrameworkSuite({root,plan});const gaps=results.flatMap((result)=>result.coverageGaps??[]);if(!results.length)gaps.push({kind:'framework-denominator-zero'});return{status:gaps.length?'unproven':results.some(({status})=>status==='candidates')?'candidates':'pass',complete:gaps.length===0,denominator:{kind:'framework-provider-results',expected:results.length,examined:results.filter(({complete})=>complete).length},findings:[],candidates:results.flatMap((result)=>result.candidates??[]),coverageGaps:gaps};}
 
 function main() {
   const [rootArg, planPath, outPath] = process.argv.slice(2);

@@ -1,0 +1,30 @@
+✖ durable task lifecycle resumes from append-only journal after crash (65.9986ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 182.6003
+
+✖ failing tests:
+
+test at packages\kernel\tests\kernel.test.mjs:74:1
+✖ durable task lifecycle resumes from append-only journal after crash (65.9986ms)
+  Error [KernelError]: duplicate idempotency key: request-2
+      at TaskLifecycle.apply (file:///D:/Claude/tools/skills/nemesis/packages/kernel/lib/lifecycle.mjs:48:46)
+      at TaskLifecycle.create (file:///D:/Claude/tools/skills/nemesis/packages/kernel/lib/lifecycle.mjs:85:10)
+      at async Promise.all (index 1)
+      at async TestContext.<anonymous> (file:///D:/Claude/tools/skills/nemesis/packages/kernel/tests/kernel.test.mjs:93:22)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    code: 'JOURNAL_CORRUPT',
+    category: 'integrity',
+    layer: 'kernel',
+    retryable: false,
+    statePreserved: true,
+    exitCode: 6,
+    remediation: null,
+    details: null
+  }

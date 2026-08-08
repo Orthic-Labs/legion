@@ -1,0 +1,17 @@
+✔ dotnet pack detects .NET projects (0.7892ms)
+✔ dotnet pack emits offline build/test commands (0.2515ms)
+✔ dotnet pack normalizes execution (0.1086ms)
+✔ aspnet pack flags permissive CORS and developer exception page (0.2647ms)
+✔ aspnet pack flags sensitive routes without [Authorize] (0.1938ms)
+✔ aspnet pack accepts authorized routes (0.1056ms)
+✔ ef pack flags raw SQL interpolation (0.209ms)
+✔ ef pack flags missing tenant filter (0.1631ms)
+✔ ef pack accepts tenant-filtered queries (0.1437ms)
+ℹ tests 9
+ℹ suites 0
+ℹ pass 9
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 64.7042

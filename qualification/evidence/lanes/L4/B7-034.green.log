@@ -1,0 +1,20 @@
+✔ application requires explicit capability and never happens without it (1.2134ms)
+✔ application cannot proceed on stale target identity (0.2085ms)
+✔ an unverified or invalidly-verified proposal is never applied (0.2312ms)
+✔ the engine delegates the mutation and never writes to a repository itself (0.6966ms)
+✔ a failed application stops in a recoverable state and is never reported applied (0.1837ms)
+✔ rollback restores the pre-apply fingerprint and a failed rollback is never suppressed (0.371ms)
+✔ lineage classifies every state from stable identity (0.6005ms)
+✔ the lineage ledger is keyed on stable fingerprints, not line numbers (0.5905ms)
+✔ accepted risk changes workflow state only — never truth, never severity (0.927ms)
+✔ a higher-impact path reopens an accepted risk (0.3511ms)
+✔ the committed apply-receipt and accepted-risk schemas match their generators (0.7767ms)
+✔ the pre-existing apply helpers still behave (0.1314ms)
+ℹ tests 12
+ℹ suites 0
+ℹ pass 12
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 96.5463

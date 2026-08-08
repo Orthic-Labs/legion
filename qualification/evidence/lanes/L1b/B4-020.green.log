@@ -1,0 +1,7 @@
+✔ B4-020 binds native UX/accessibility cases to exact platform state
+✔ B4-020 exposes missing platform bindings
+✔ B4-020 rejects empty/caller-defined matrix & requires state/control bindings
+ℹ tests 3
+ℹ pass 3
+ℹ fail 0
+GREEN_EXIT=0

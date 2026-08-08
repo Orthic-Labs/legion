@@ -1,0 +1,22 @@
+✔ registry rule ids and the 5 AI security pack rule ids are in exact two-way parity (1.0678ms)
+✔ a bare mention of "prompt" or "llm" produces no candidate from any AI security pack (4.3353ms)
+✔ ai-prompt-injection pack detects each rule as a typed, bound candidate (2.2036ms)
+✔ ai-output-handling pack detects each of the required sink classes (1.3148ms)
+✔ model output flowing to a sink with no observed validator produces a candidate (0.3303ms)
+✔ an observed validator control bound to the sink suppresses the candidate entirely (not merely downgraded) (0.5711ms)
+✔ ai-excessive-agency pack flags a cross-tenant tool boundary and a missing side-effect budget (1.1982ms)
+✔ prompt-injection-to-sensitive-action fixture: retrieved content driving a destructive tool call (0.4704ms)
+✔ blocked-control counterpart: a human-approval control bound to the tool suppresses the same fixture (0.262ms)
+✔ missing agent-framework evidence produces an explicit coverage gap alongside the zero-candidate pass, not a clean claim (1.1073ms)
+✔ with a full ai-agent surface model, candidates bind to the extractor's typed entities, not just the file artifact (0.6979ms)
+✔ every AI security pack declares variantStrategies with rootCause/enumerate for every rule (0.1338ms)
+✔ all 5 AI security packs emit only UNADJUDICATED, adjudication-required candidates with empty findings (0.9891ms)
+✔ no AI security pack imports a network-capable node builtin, calls fetch, or imports an AI vendor SDK (2.075ms)
+ℹ tests 14
+ℹ suites 0
+ℹ pass 14
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 112.6842

@@ -30,7 +30,7 @@ test('missing tool produces a blocked execution receipt', () => {
   assert.equal(receipt.providerResult.complete, false);
 });
 
-test('nonzero tool exit produces an error provider result', async () => {
+test('unsealed legacy host result stays unproven', async () => {
   const host = fixedHost({
     processRunner: { run: async () => ({ exitCode: 1, status: 'completed', stdout: '', stderr: '' }) },
   });
@@ -38,19 +38,19 @@ test('nonzero tool exit produces an error provider result', async () => {
   const { receipts } = await executePlan(plan, host);
   const receipt = receipts[0];
   assert.equal(receipt.spawnStatus, 'completed');
-  assert.equal(receipt.providerResult.status, 'error');
+  assert.equal(receipt.providerResult.status, 'unproven');
   assert.equal(receipt.providerResult.complete, false);
 });
 
-test('timeout tool produces a timeout receipt', async () => {
+test('unsealed timeout-shaped host result cannot claim timeout receipt authority', async () => {
   const host = fixedHost({
     processRunner: { run: async () => ({ status: 'timeout', timedOut: true, exitCode: null, stdout: '', stderr: '' }) },
   });
   const plan = planWithProviders([{ id: 'build', phase: 'facts', runner: { kind: 'legacy-check', check: 'build' }, benchmark: {} }]);
   const { receipts } = await executePlan(plan, host);
-  assert.equal(receipts[0].spawnStatus, 'timeout');
-  assert.equal(receipts[0].timedOut, true);
-  assert.equal(receipts[0].providerResult.status, 'error');
+  assert.equal(receipts[0].spawnStatus, 'completed');
+  assert.equal(receipts[0].timedOut, false);
+  assert.equal(receipts[0].providerResult.status, 'unproven');
 });
 
 test('malformed output (runner throws) produces an error receipt', async () => {
@@ -59,20 +59,20 @@ test('malformed output (runner throws) produces an error receipt', async () => {
   });
   const plan = planWithProviders([{ id: 'sast', phase: 'facts', runner: { kind: 'legacy-check', check: 'semgrep' }, benchmark: {} }]);
   const { receipts } = await executePlan(plan, host);
-  assert.equal(receipts[0].spawnStatus, 'error');
+  assert.equal(receipts[0].spawnStatus, 'blocked');
   assert.equal(receipts[0].providerResult.complete, false);
 });
 
-test('selected-but-not-activated providers emit deterministic skipped receipts', async () => {
+test('selected provider with unsealed runtime module remains blocked', async () => {
   const host = fixedHost({ processRunner: { run: async () => ({ exitCode: 0, status: 'completed', stdout: '', stderr: '' }) } });
   const plan = planWithProviders([
     { id: 'runtime.app', phase: 'runtime', runner: { kind: 'runtime-script', script: 'x' }, activation: { kind: 'url-supplied' }, benchmark: {} },
   ]);
   const { receipts } = await executePlan(plan, host);
   assert.equal(receipts.length, 1);
-  assert.equal(receipts[0].providerResult.status, 'skipped');
-  assert.equal(receipts[0].providerResult.complete, true);
-  assert.equal(receipts[0].providerResult.activation.matched, false);
+  assert.equal(receipts[0].providerResult.status, 'blocked');
+  assert.equal(receipts[0].providerResult.complete, false);
+  assert.ok(receipts[0].providerResult.coverageGaps.length);
 });
 
 test('reconcileRun marks incomplete when a terminal receipt is missing', () => {
@@ -83,14 +83,13 @@ test('reconcileRun marks incomplete when a terminal receipt is missing', () => {
   assert.equal(facts.provider_reconciliation.providerResults[0].status, 'missing');
 });
 
-test('reconcileRun keeps quality-relevant execution status separate', () => {
+test('reconcileRun keeps blocked execution status visible', () => {
   const host = fixedHost();
   const plan = planWithProviders([{ id: 'a', phase: 'facts', runner: { kind: 'legacy-check', check: 'a' }, benchmark: {} }]);
   const receipt = skippedReceipt({ id: 'a', activation: { kind: 'always' } }, 'not-activated');
   const facts = reconcileRun({ plan, receipts: [receipt], artifacts: null }, host);
-  // A skipped provider is complete, so the run is not incomplete.
-  assert.equal(facts.incomplete, false);
-  assert.equal(facts.provider_reconciliation.providerResults[0].status, 'skipped');
+  assert.equal(facts.incomplete, true);
+  assert.equal(facts.provider_reconciliation.providerResults[0].status, 'blocked');
 });
 
 test('exit taxonomy: incomplete is never pass, policy fail is 1', async () => {

@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "kind": "nemesis-coverage-test-artifact",
+  "recordId": "language.python",
+  "testPath": "tests/providers/python/python.test.mjs",
+  "status": "pass",
+  "rawLog": {
+    "path": "bench/qualifications/book-3/coverage/language.python.test.log",
+    "digest": "sha256:42f23bde1dab5b060ba1f4954178b2372fe4dcab4e4dac7e87b94951d90d2128",
+    "bytes": 656
+  },
+  "providerVersions": {
+    "code.python": "1.0.0"
+  }
+}

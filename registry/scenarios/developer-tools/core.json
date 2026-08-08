@@ -1,0 +1,260 @@
+{
+  "schemaVersion": 1,
+  "templates": [
+    {
+      "id": "developer-tools.cli-contract.default",
+      "controlId": "developer-tools.cli-contract",
+      "mandatory": true,
+      "requiredCapabilities": [
+        "repository",
+        "external-evidence"
+      ],
+      "destructive": false,
+      "isolation": "fresh",
+      "timeoutMs": 30000,
+      "invariants": [
+        "no-unaccounted-side-effects"
+      ]
+    },
+    {
+      "id": "developer-tools.streams-exit.default",
+      "controlId": "developer-tools.streams-exit",
+      "mandatory": true,
+      "requiredCapabilities": [
+        "repository",
+        "external-evidence"
+      ],
+      "destructive": false,
+      "isolation": "fresh",
+      "timeoutMs": 30000,
+      "invariants": [
+        "no-unaccounted-side-effects"
+      ]
+    },
+    {
+      "id": "developer-tools.signals-shells.default",
+      "controlId": "developer-tools.signals-shells",
+      "mandatory": true,
+      "requiredCapabilities": [
+        "repository",
+        "external-evidence"
+      ],
+      "destructive": false,
+      "isolation": "fresh",
+      "timeoutMs": 30000,
+      "invariants": [
+        "no-unaccounted-side-effects"
+      ]
+    },
+    {
+      "id": "developer-tools.paths-config.default",
+      "controlId": "developer-tools.paths-config",
+      "mandatory": true,
+      "requiredCapabilities": [
+        "repository",
+        "external-evidence"
+      ],
+      "destructive": false,
+      "isolation": "fresh",
+      "timeoutMs": 30000,
+      "invariants": [
+        "no-unaccounted-side-effects"
+      ]
+    },
+    {
+      "id": "developer-tools.destructive-actions.default",
+      "controlId": "developer-tools.destructive-actions",
+      "mandatory": true,
+      "requiredCapabilities": [
+        "repository",
+        "external-evidence"
+      ],
+      "destructive": false,
+      "isolation": "fresh",
+      "timeoutMs": 30000,
+      "invariants": [
+        "no-unaccounted-side-effects"
+      ]
+    },
+    {
+      "id": "developer-tools.credentials.default",
+      "controlId": "developer-tools.credentials",
+      "mandatory": true,
+      "requiredCapabilities": [
+        "repository",
+        "external-evidence"
+      ],
+      "destructive": false,
+      "isolation": "fresh",
+      "timeoutMs": 30000,
+      "invariants": [
+        "no-unaccounted-side-effects"
+      ]
+    },
+    {
+      "id": "developer-tools.distribution.default",
+      "controlId": "developer-tools.distribution",
+      "mandatory": true,
+      "requiredCapabilities": [
+        "repository",
+        "external-evidence"
+      ],
+      "destructive": false,
+      "isolation": "fresh",
+      "timeoutMs": 30000,
+      "invariants": [
+        "no-unaccounted-side-effects"
+      ]
+    },
+    {
+      "id": "developer-tools.sdk-api-abi.default",
+      "controlId": "developer-tools.sdk-api-abi",
+      "mandatory": true,
+      "requiredCapabilities": [
+        "repository",
+        "external-evidence"
+      ],
+      "destructive": false,
+      "isolation": "fresh",
+      "timeoutMs": 30000,
+      "invariants": [
+        "no-unaccounted-side-effects"
+      ]
+    },
+    {
+      "id": "developer-tools.sdk-versions.default",
+      "controlId": "developer-tools.sdk-versions",
+      "mandatory": true,
+      "requiredCapabilities": [
+        "repository",
+        "external-evidence"
+      ],
+      "destructive": false,
+      "isolation": "fresh",
+      "timeoutMs": 30000,
+      "invariants": [
+        "no-unaccounted-side-effects"
+      ]
+    },
+    {
+      "id": "developer-tools.package-contents.default",
+      "controlId": "developer-tools.package-contents",
+      "mandatory": true,
+      "requiredCapabilities": [
+        "repository",
+        "external-evidence"
+      ],
+      "destructive": false,
+      "isolation": "fresh",
+      "timeoutMs": 30000,
+      "invariants": [
+        "no-unaccounted-side-effects"
+      ]
+    },
+    {
+      "id": "developer-tools.errors-concurrency.default",
+      "controlId": "developer-tools.errors-concurrency",
+      "mandatory": true,
+      "requiredCapabilities": [
+        "repository",
+        "external-evidence"
+      ],
+      "destructive": false,
+      "isolation": "fresh",
+      "timeoutMs": 30000,
+      "invariants": [
+        "no-unaccounted-side-effects"
+      ]
+    },
+    {
+      "id": "developer-tools.runtime-support.default",
+      "controlId": "developer-tools.runtime-support",
+      "mandatory": true,
+      "requiredCapabilities": [
+        "repository",
+        "external-evidence"
+      ],
+      "destructive": false,
+      "isolation": "fresh",
+      "timeoutMs": 30000,
+      "invariants": [
+        "no-unaccounted-side-effects"
+      ]
+    },
+    {
+      "id": "developer-tools.migration-deprecation.default",
+      "controlId": "developer-tools.migration-deprecation",
+      "mandatory": true,
+      "requiredCapabilities": [
+        "repository",
+        "external-evidence"
+      ],
+      "destructive": false,
+      "isolation": "fresh",
+      "timeoutMs": 30000,
+      "invariants": [
+        "no-unaccounted-side-effects"
+      ]
+    },
+    {
+      "id": "developer-tools.extension-permissions.default",
+      "controlId": "developer-tools.extension-permissions",
+      "mandatory": true,
+      "requiredCapabilities": [
+        "repository",
+        "external-evidence"
+      ],
+      "destructive": false,
+      "isolation": "fresh",
+      "timeoutMs": 30000,
+      "invariants": [
+        "no-unaccounted-side-effects"
+      ]
+    },
+    {
+      "id": "developer-tools.workspace-trust.default",
+      "controlId": "developer-tools.workspace-trust",
+      "mandatory": true,
+      "requiredCapabilities": [
+        "repository",
+        "external-evidence"
+      ],
+      "destructive": false,
+      "isolation": "fresh",
+      "timeoutMs": 30000,
+      "invariants": [
+        "no-unaccounted-side-effects"
+      ]
+    },
+    {
+      "id": "developer-tools.plugin-isolation.default",
+      "controlId": "developer-tools.plugin-isolation",
+      "mandatory": true,
+      "requiredCapabilities": [
+        "repository",
+        "external-evidence"
+      ],
+      "destructive": false,
+      "isolation": "fresh",
+      "timeoutMs": 30000,
+      "invariants": [
+        "no-unaccounted-side-effects"
+      ]
+    },
+    {
+      "id": "developer-tools.plugin-signing-update.default",
+      "controlId": "developer-tools.plugin-signing-update",
+      "mandatory": true,
+      "requiredCapabilities": [
+        "repository",
+        "external-evidence"
+      ],
+      "destructive": false,
+      "isolation": "fresh",
+      "timeoutMs": 30000,
+      "invariants": [
+        "no-unaccounted-side-effects"
+      ]
+    }
+  ]
+}

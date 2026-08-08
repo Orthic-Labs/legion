@@ -1,0 +1,4 @@
+<task>Fix B6-014 clarity false-positive in D:\Claude\tools\skills\nemesis\providers\copy\clarity.mjs only.</task>
+<acceptance_criteria>Existing exact-label contradiction behavior remains. A label such as "Continue to dashboard" is not deterministically classified vague merely because it contains "Continue". Deterministic vague-label detection applies only when full normalized label is generic. All B6-014 tests pass.</acceptance_criteria>
+<non_goals>Do not edit tests, registry, schemas, logs, lane evidence, or any other file. Preserve unrelated dirty work. Do not run git commands. No dependency changes.</non_goals>
+<verification>From D:\Claude\tools\skills\nemesis run: node --test --test-name-pattern="B6-014" tests/content-l3.test.mjs ; node --check providers/copy/clarity.mjs</verification>

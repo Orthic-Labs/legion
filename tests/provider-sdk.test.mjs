@@ -41,9 +41,9 @@ test('topologicalProviders is exported through the SDK', () => {
   assert.deepEqual(ordered.map((p) => p.id), ['a', 'b']);
 });
 
-test('selected-but-not-activated provider emits a deterministic skipped receipt', () => {
+test('selected-but-not-activated provider emits an explicit incomplete blocked receipt', () => {
   const receipt = skippedReceipt({ id: 'security.chain-adjudication', activation: { kind: 'chain-eligible-paths-present' } }, 'no-path-retained');
-  assert.equal(receipt.providerResult.status, 'skipped');
-  assert.equal(receipt.providerResult.complete, true);
-  assert.equal(receipt.providerResult.activation.matched, false);
+  assert.equal(receipt.providerResult.status, 'blocked');
+  assert.equal(receipt.providerResult.complete, false);
+  assert.equal(receipt.providerResult.coverageGaps[0].reason, 'no-path-retained');
 });

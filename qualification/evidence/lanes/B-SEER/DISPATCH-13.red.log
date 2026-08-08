@@ -1,0 +1,19 @@
+Command: node --test packages/seer/tests/seer-facade.test.mjs
+Working directory: D:/Claude/tools/skills/nemesis
+Node: v26.5.0
+Exit code: 1
+Expected RED: ERR_MODULE_NOT_FOUND for packages/seer/index.mjs
+
+Error [ERR_MODULE_NOT_FOUND]: Cannot find module 'D:\Claude\tools\skills\nemesis\packages\seer\index.mjs' imported from D:\Claude\tools\skills\nemesis\packages\seer\tests\seer-facade.test.mjs
+tests 1
+pass 0
+fail 1
+
+Command: node --test --test-name-pattern="mutation-capable" packages/seer/tests/seer-facade.test.mjs
+Exit code: 1
+Expected RED: applyEffect option reached core instead of read-only rejection
+Actual code: SEER_CORE_INVOCATION_FAILED
+Expected code: SEER_MUTATION_CAPABILITY_REJECTED
+tests 1
+pass 0
+fail 1

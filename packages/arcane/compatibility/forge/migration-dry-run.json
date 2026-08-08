@@ -1,0 +1,159 @@
+{
+  "schema": "arcane.forge-migration-dry-run.v1",
+  "deliverable": "S01",
+  "lane": "E-ARCANE",
+  "destructive": false,
+  "mappingVersion": "arcane.forge-schema-map.v1",
+  "baseline": {
+    "forgeCommit": "947d5b89a45049fe18ffb6ffdda085d19479431e",
+    "forgePackage": "@orthic-labs/forge@2.0.1",
+    "inventoryRef": "docs/plans/legion/s00-baseline/legacy-semantic-inventory.json",
+    "reportRef": "docs/plans/legion/s00-baseline/S00-REPORT.md",
+    "fixturesRef": "docs/plans/legion/s00-baseline/fixtures/",
+    "contractsFreezeRef": "tools/skills/nemesis/packages/contracts/FREEZE.md",
+    "contractsSealRef": "tools/skills/nemesis/packages/contracts/SEAL.md"
+  },
+  "capturedAt": "2026-08-06T02:31:10.000Z",
+  "source": {
+    "root": "docs/plans/legion/s00-baseline/fixtures",
+    "fixtureCount": 12,
+    "recordCount": 23,
+    "digest": "sha256:cf6afdbd7c4ffc2cc8a099a04357c003493b6653d6b8a1ff6d9a24ea680c94ce"
+  },
+  "destination": {
+    "namespace": "arcane",
+    "envelopeCount": 23,
+    "digest": "sha256:89073655fb7fbb19480c257926f9f7fcf7ccb24722ee21d79cd1d1fb539b0693",
+    "authenticatedCount": 0,
+    "canonicalIdsAllocated": 0
+  },
+  "parity": {
+    "recordCountMatches": true,
+    "payloadsPreservedByteForByte": true,
+    "rejectedFieldCount": 22,
+    "rejectedFields": [
+      "checks.authority",
+      "checks.executor",
+      "checks.status",
+      "claims.status",
+      "decisions.authority",
+      "evidence.attested",
+      "evidence.trust_class",
+      "failures.error_fingerprint",
+      "forge.operation-response.assess.authority",
+      "forge.operation-response.checkpoint.authority",
+      "forge.operation-response.close.authority",
+      "forge.operation-response.verify.authority",
+      "retry_budget.fingerprint",
+      "runs.authority"
+    ]
+  },
+  "perFixture": [
+    {
+      "file": "01-assess-response.json",
+      "kind": "operation-response",
+      "legacyOperation": "assess",
+      "canonicalOperationId": "legion.run.open",
+      "records": 1,
+      "rejections": 1
+    },
+    {
+      "file": "02-checkpoint-response.json",
+      "kind": "operation-response",
+      "legacyOperation": "checkpoint",
+      "canonicalOperationId": "legion.evidence.record",
+      "records": 1,
+      "rejections": 1
+    },
+    {
+      "file": "03-checkpoint-failure-response.json",
+      "kind": "operation-response",
+      "legacyOperation": "checkpoint",
+      "canonicalOperationId": "legion.evidence.record",
+      "records": 1,
+      "rejections": 1
+    },
+    {
+      "file": "04-checkpoint-host-check-response.json",
+      "kind": "operation-response",
+      "legacyOperation": "checkpoint",
+      "canonicalOperationId": "legion.evidence.record",
+      "records": 1,
+      "rejections": 1
+    },
+    {
+      "file": "05-verify-signoff-blocked-response.json",
+      "kind": "operation-response",
+      "legacyOperation": "verify",
+      "canonicalOperationId": "legion.claim.evaluate",
+      "records": 1,
+      "rejections": 1
+    },
+    {
+      "file": "06-verify-high-risk-blocked-response.json",
+      "kind": "operation-response",
+      "legacyOperation": "verify",
+      "canonicalOperationId": "legion.claim.evaluate",
+      "records": 1,
+      "rejections": 1
+    },
+    {
+      "file": "07-close-blocked-response.json",
+      "kind": "operation-response",
+      "legacyOperation": "close",
+      "canonicalOperationId": "legion.run.close",
+      "records": 1,
+      "rejections": 1
+    },
+    {
+      "file": "08-store-snapshot-scoped.json",
+      "kind": "store-snapshot",
+      "records": 12,
+      "rejections": 12
+    },
+    {
+      "file": "09-resolve-session-response.json",
+      "kind": "operation-response",
+      "legacyOperation": "resolveSession",
+      "canonicalOperationId": "legion.run.resolve",
+      "records": 1,
+      "rejections": 0
+    },
+    {
+      "file": "10-verify-signoff-passing-response.json",
+      "kind": "operation-response",
+      "legacyOperation": "verify",
+      "canonicalOperationId": "legion.claim.evaluate",
+      "records": 1,
+      "rejections": 1
+    },
+    {
+      "file": "11-close-success-response.json",
+      "kind": "operation-response",
+      "legacyOperation": "close",
+      "canonicalOperationId": "legion.run.close",
+      "records": 1,
+      "rejections": 1
+    },
+    {
+      "file": "12-close-idempotent-response.json",
+      "kind": "operation-response",
+      "legacyOperation": "close",
+      "canonicalOperationId": "legion.run.close",
+      "records": 1,
+      "rejections": 1
+    }
+  ],
+  "rollback": {
+    "source": "docs/plans/legion/s00-baseline/fixtures (unmodified; the legacy store is read-only to this bridge)",
+    "method": "reverseEnvelope(envelope) restores the legacy payload exactly; no destructive rewrite occurred, so rollback is a no-op on the source.",
+    "reversible": true
+  },
+  "kernel": {
+    "bound": false,
+    "identity": false,
+    "events": false,
+    "objects": false,
+    "note": "packages/kernel not available at build time (Lane D pending) — ids are provisional and canonical writes fail closed"
+  }
+}

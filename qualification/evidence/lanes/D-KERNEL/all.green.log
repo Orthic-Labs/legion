@@ -1,0 +1,25 @@
+✔ run/task identity mints contract IDs and binds run-identity-v1 (23.8165ms)
+✔ durable task lifecycle resumes from append-only journal after crash (108.9561ms)
+✔ operation registry validates envelopes and returns typed unknown-operation error (1.7894ms)
+✔ event and artifact stores preserve digest-bound append-only records (73.2874ms)
+✔ lane scheduler respects dependencies and concurrency keys with serial equivalence (104.7257ms)
+✔ model profile enforcement is data-driven and only downgrades (0.8335ms)
+✔ kernelTaskId bridge stays distinct from ExecutionTask identity (0.4284ms)
+✔ profile policy requires complete coherent packet limits (3.6836ms)
+✔ model authority cannot request a profile change regardless of casing (0.3919ms)
+✔ policy downgrade is monotonic and preserves supplied policy limits (0.4178ms)
+✔ registers and looks up descriptors by operationId with a defensive copy (3.6816ms)
+✔ validates every registered descriptor envelope against operation-envelope-v1 (0.8963ms)
+✔ returns typed taxonomy for duplicate and unknown operations (0.6287ms)
+✔ negotiates capabilities deterministically, uniquely, and independent of input order (0.5683ms)
+✔ rejects malformed capability collections with typed usage errors (0.2687ms)
+✔ concurrent duplicate artifact writes preserve one typed immutable record (33.0216ms)
+✔ artifact retrieval detects blob corruption against bound digest (14.8371ms)
+ℹ tests 17
+ℹ suites 0
+ℹ pass 17
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 433.0455

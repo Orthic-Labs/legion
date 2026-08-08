@@ -1,0 +1,62 @@
+✔ B2 platform source raw paths preserve declared bytes and digests (14.1907ms)
+✔ B2 detector registry has executable evidence rules for every target kind (1.878ms)
+✔ B2 browser extension evidence cannot yield zero-target clean topology (1.4089ms)
+✔ B2 target IDs are stable across Windows separators (0.2932ms)
+✔ B2 selector compiler rejects unknown keys and honors stack environment policy (1.1252ms)
+✔ B2 unresolved rights cannot produce derived control IDs (0.6457ms)
+✔ B2 external evidence rejects duplicate claim levels and missing artifact freshness (1.3847ms)
+✔ B2 generated controls retain lineage providers rules and stop-ship semantics (3.1489ms)
+✔ B2 control stage fails closed on absent packs and zero denominator (2.1809ms)
+✔ B2 pairwise output covers all pairs and reports constrained omissions (29.2844ms)
+✔ B2 portfolio accounts for every declared material deliverable (1.1722ms)
+✔ B2 component IDs are structural path-stable and collision resistant (0.6465ms)
+✔ B2 release contracts reject unknown fields and report claim gaps (0.7799ms)
+✔ B2 baseline rejects missing pack dependencies and incompatible duplicate contracts (0.4892ms)
+✔ B2 product topology cannot pass with zero targets or unknown components (6.5876ms)
+✔ B2 scenarios preserve unavailable mandatory cases as claim-blocking omissions (0.2791ms)
+✔ B2 schemas validate full runtime targets and controls with no undeclared fields (4.8738ms)
+✔ B2 portfolio schema enforces nested target parity and nullable bindings (1.1199ms)
+✔ B2 target detection handles root bin but ignores prose-only API words (0.2428ms)
+✔ B2 component graph rejects ghost targets and invalid relation endpoints (0.3224ms)
+✔ B2 portfolio rejects unknown relation endpoints and emits schema-complete unknown targets (0.7982ms)
+✔ B2 topology conflicts and unknown stacks block completion (0.7325ms)
+✔ B2 rights remain item-scoped and external evidence expiry uses supplied clock (0.2651ms)
+✔ B2 capabilities require host receipts rather than boolean assertions (0.3576ms)
+✔ B2 capability availability requires bound fresh artifact evidence under host clock (0.2067ms)
+✔ B2 runtime target validator enforces schema-required arrays and enums (0.1282ms)
+✖ B2 targets bind classification graphs and bounded review merges provenance (1.011ms)
+✔ B2 duplicate controls compare all semantic execution fields (0.1912ms)
+✔ B2 pairwise preserves one-dimensional and mandatory cases without Cartesian candidates (1.2622ms)
+✔ B2 pairwise finds non-default constrained witnesses and rejects malformed mandatory rows (0.3906ms)
+✔ B2 inspect command returns incomplete for empty topology (4.306ms)
+ℹ tests 31
+ℹ suites 0
+ℹ pass 30
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 177.4668
+
+✖ failing tests:
+
+test at tests\inventory\book-2-quality.test.mjs:35:1
+✖ B2 targets bind classification graphs and bounded review merges provenance (1.011ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+  + undefined
+  - {
+  -   revision: 'r'
+  - }
+  
+      at TestContext.<anonymous> (file:///D:/Claude/tools/skills/nemesis/tests/inventory/book-2-quality.test.mjs:35:287)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: { revision: 'r' },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }

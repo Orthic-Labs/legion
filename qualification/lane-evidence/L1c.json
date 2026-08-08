@@ -1,0 +1,86 @@
+{
+  "lane": "L1c",
+  "tasks": [
+    {
+      "id": "B4-026",
+      "status": "implemented",
+      "test": { "path": "tests/platform/mobile/host/book-4-mobile-host.test.mjs", "assertion": "simulator and physical evidence stay distinct and unavailable devices are typed gaps" },
+      "implementation": [{ "path": "providers/runtime/mobile/host/index.mjs", "symbol": "planMobileHosts" }, { "path": "providers/runtime/mobile/devices/index.mjs", "symbol": "createMobileDeviceAdapter" }],
+      "proof": { "red": "qualification/evidence/lanes/L1c/B4-026.red.log", "green": "qualification/evidence/lanes/L1c/B4-026.green.log" }
+    },
+    {
+      "id": "B4-027",
+      "status": "implemented",
+      "test": { "path": "tests/platform/mobile/lifecycle/book-4-mobile-lifecycle.test.mjs", "assertion": "process death and cold entry have explicit blocked outcomes without device execution" },
+      "implementation": [{ "path": "providers/runtime/mobile/lifecycle/index.mjs", "symbol": "planMobileLifecycle" }],
+      "proof": { "red": "qualification/evidence/lanes/L1c/B4-027.red.log", "green": "qualification/evidence/lanes/L1c/B4-027.green.log" }
+    },
+    {
+      "id": "B4-028",
+      "status": "implemented",
+      "test": { "path": "tests/platform/mobile/platform-surfaces/book-4-mobile-surfaces.test.mjs", "assertion": "permission denial, link authorization, and untrusted push or IPC payload contracts are planned" },
+      "implementation": [{ "path": "providers/runtime/mobile/platform-surfaces/index.mjs", "symbol": "planMobilePlatformSurfaces" }],
+      "proof": { "red": "qualification/evidence/lanes/L1c/B4-028.red.log", "green": "qualification/evidence/lanes/L1c/B4-028.green.log" }
+    },
+    {
+      "id": "B4-029",
+      "status": "implemented",
+      "test": { "path": "tests/platform/mobile/data-network/book-4-mobile-data-network.test.mjs", "assertion": "offline replay is actor-scoped and migration preserves user data" },
+      "implementation": [{ "path": "providers/runtime/mobile/network/index.mjs", "symbol": "planMobileDataNetwork" }],
+      "proof": { "red": "qualification/evidence/lanes/L1c/B4-029.red.log", "green": "qualification/evidence/lanes/L1c/B4-029.green.log" }
+    },
+    {
+      "id": "B4-030",
+      "status": "implemented",
+      "test": { "path": "tests/platform/mobile/performance/book-4-mobile-performance.test.mjs", "assertion": "battery and thermal claims remain unproven without physical release measurements" },
+      "implementation": [{ "path": "providers/runtime/mobile/performance/index.mjs", "symbol": "assessMobilePerformance" }],
+      "proof": { "red": "qualification/evidence/lanes/L1c/B4-030.red.log", "green": "qualification/evidence/lanes/L1c/B4-030.green.log" }
+    },
+    {
+      "id": "B4-031",
+      "status": "implemented",
+      "test": { "path": "tests/platform/mobile/compatibility/book-4-mobile-compatibility.test.mjs", "assertion": "accessibility journey and device or OEM omissions reconcile explicitly" },
+      "implementation": [{ "path": "providers/runtime/mobile/compatibility/index.mjs", "symbol": "compileMobileCompatibility" }],
+      "proof": { "red": "qualification/evidence/lanes/L1c/B4-031.red.log", "green": "qualification/evidence/lanes/L1c/B4-031.green.log" }
+    },
+    {
+      "id": "B4-032",
+      "status": "implemented",
+      "test": { "path": "tests/platform/mobile/release/book-4-mobile-release.test.mjs", "assertion": "privacy declaration mismatch blocks release and exact artifact identity remains bound" },
+      "implementation": [{ "path": "providers/runtime/mobile/release/index.mjs", "symbol": "verifyMobileRelease" }],
+      "proof": { "red": "qualification/evidence/lanes/L1c/B4-032.red.log", "green": "qualification/evidence/lanes/L1c/B4-032.green.log" }
+    },
+    {
+      "id": "B4-033",
+      "status": "implemented",
+      "test": { "path": "tests/platform/mobile/commerce-ops/book-4-mobile-commerce-ops.test.mjs", "assertion": "client-only entitlement, push privacy, analytics consent, and operations gaps cannot pass" },
+      "implementation": [{ "path": "providers/runtime/mobile/commerce/index.mjs", "symbol": "verifyMobileCommerceOperations" }],
+      "proof": { "red": "qualification/evidence/lanes/L1c/B4-033.red.log", "green": "qualification/evidence/lanes/L1c/B4-033.green.log" }
+    },
+    {
+      "id": "B4-034",
+      "status": "implemented",
+      "test": { "path": "tests/platform/mobile/book-4-mobile-pack.test.mjs", "assertion": "mobile denominators reconcile and simulator receipts cannot satisfy physical controls" },
+      "implementation": [
+        { "path": "providers/runtime/mobile/index.mjs", "symbol": "mobile provider exports" },
+        { "path": "qualification/platforms/mobile/fixtures.mjs", "symbol": "createMobileQualificationFixtures" },
+        { "path": "qualification/platforms/mobile/qualification.mjs", "symbol": "qualifyMobilePlatform" },
+        { "path": "scripts/qualify-mobile-platform.mjs", "symbol": "qualifyMobilePlatformFile" }
+      ],
+      "proof": { "red": "qualification/evidence/lanes/L1c/B4-034.red.log", "green": "qualification/evidence/lanes/L1c/B4-034.green.log" }
+    },
+    {
+      "id": "B4-035",
+      "status": "implemented",
+      "test": { "path": "tests/platform/service/book-4-service-runtime.test.mjs", "assertion": "service and worker runtime failures plus production-only evidence gaps remain typed" },
+      "implementation": [
+        { "path": "providers/runtime/service/core/index.mjs", "symbol": "assessServiceRuntime" },
+        { "path": "providers/runtime/service/faults/index.mjs", "symbol": "createServiceFixtureAdapter" },
+        { "path": "providers/runtime/worker/index.mjs", "symbol": "SERVICE_RUNTIME_SCENARIOS" },
+        { "path": "qualification/platforms/service/fixtures.mjs", "symbol": "createServiceQualificationFixtures" },
+        { "path": "qualification/platforms/service/qualification.mjs", "symbol": "qualifyServicePlatform" }
+      ],
+      "proof": { "red": "qualification/evidence/lanes/L1c/B4-035.red.log", "green": "qualification/evidence/lanes/L1c/B4-035.green.log" }
+    }
+  ]
+}

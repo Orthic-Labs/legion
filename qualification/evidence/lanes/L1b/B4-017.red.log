@@ -1,0 +1,26 @@
+file:///D:/Claude/tools/skills/nemesis/tests/platform/desktop/runner/runner.test.mjs:4
+import { collectDesktopRuntime, executeDesktopRuntime } from '../../../../providers/runtime/desktop/runner/index.mjs';
+                                ^^^^^^^^^^^^^^^^^^^^^
+SyntaxError: The requested module '../../../../providers/runtime/desktop/runner/index.mjs' does not provide an export named 'executeDesktopRuntime'
+    at #asyncInstantiate (node:internal/modules/esm/module_job:463:21)
+    at async ModuleJob.run (node:internal/modules/esm/module_job:561:5)
+    at async node:internal/modules/esm/loader:650:26
+    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:101:5)
+
+Node.js v26.5.0
+✖ tests\platform\desktop\runner\runner.test.mjs (103.7821ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 111.6838
+
+✖ failing tests:
+
+test at tests\platform\desktop\runner\runner.test.mjs:1:1
+✖ tests\platform\desktop\runner\runner.test.mjs (103.7821ms)
+  'test failed'
+RED_EXIT=1

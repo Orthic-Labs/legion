@@ -35,6 +35,6 @@ All notable changes to Nemesis are recorded here.
   instead of raw `facts.json` bytes (`PR01`).
 - Centralized provider/security contracts and generated schemas (`PR02`).
 - Enforced candidate-provider authority from the frozen plan record and
-  replaced legacy `bogusyogi-audit` identity with Orthic Labs Nemesis (`PR03`).
+  replaced legacy prototype identity with Orthic Labs Nemesis (`PR03`).
 - Added self-contained CI, publication guards, benchmark baseline, and
   standalone-checkout tests (`PR04`).

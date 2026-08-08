@@ -23,10 +23,10 @@ test('exe suffix is platform-correct', () => {
 });
 
 test('npm CLI and SEA surface must agree on version', () => {
-  const cliOut = execFileSync(process.execPath, [new URL('../bin/nemesis.mjs', import.meta.url).pathname, '--version'], { encoding: 'utf8' }).trim();
+  const cliOut = execFileSync(process.execPath, [fileURLToPath(new URL('../bin/nemesis.mjs', import.meta.url)), '--version'], { encoding: 'utf8' }).trim();
   assert.equal(cliOut, NEMESIS_VERSION);
   // A native build (if present) must match the npm CLI output exactly.
-  const native = new URL('../dist/nemesis', import.meta.url).pathname;
+  const native = fileURLToPath(new URL('../dist/nemesis', import.meta.url));
   if (existsSync(native)) {
     const nativeOut = execFileSync(native, ['--version'], { encoding: 'utf8' }).trim();
     assert.equal(nativeOut, NEMESIS_VERSION);
@@ -34,7 +34,7 @@ test('npm CLI and SEA surface must agree on version', () => {
 });
 
 test('native build manifest records toolchain and digests', () => {
-  const manifestPath = new URL('../dist/native-build-manifest.json', import.meta.url).pathname;
+  const manifestPath = fileURLToPath(new URL('../dist/native-build-manifest.json', import.meta.url));
   if (!existsSync(manifestPath)) return; // manifest only after a build
   const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'));
   assert.equal(manifest.kind, 'nemesis-native-build');
@@ -44,5 +44,5 @@ test('native build manifest records toolchain and digests', () => {
 });
 
 test('no Rust wrapper crate exists', () => {
-  assert.ok(!existsSync(new URL('../Cargo.toml', import.meta.url).pathname), 'no wrapper crate');
+  assert.ok(!existsSync(fileURLToPath(new URL('../Cargo.toml', import.meta.url))), 'no wrapper crate');
 });

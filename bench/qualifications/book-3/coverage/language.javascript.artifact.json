@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "kind": "nemesis-coverage-test-artifact",
+  "recordId": "language.javascript",
+  "testPath": "tests/providers/javascript/javascript.test.mjs",
+  "status": "pass",
+  "rawLog": {
+    "path": "bench/qualifications/book-3/coverage/language.javascript.test.log",
+    "digest": "sha256:067f2ecd2e0299eb14544ed1272048617beea657d62e84412e113cc6c5a80d3c",
+    "bytes": 1022
+  },
+  "providerVersions": {
+    "code.javascript": "1.0.0"
+  }
+}

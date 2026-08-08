@@ -1,0 +1,102 @@
+✔ B2-001 target registry is versioned additive and unknown targets block clean claims (5.2546ms)
+✔ B2-002 hybrid target detection preserves desktop web API iOS and Android candidates (9.5292ms)
+✖ B2-003 classification review cannot delete observations or close material ambiguity (1.7934ms)
+✔ B2-004 portfolio retains relations conflicts and unknown coverage deterministically (1.3849ms)
+✔ B2-005 component registry defines trust metadata and rejects folder-only graphs (2.2037ms)
+✔ B2-006 build deployment and runtime extractors keep installer updater and workers separate (1.0218ms)
+✔ B2-007 logical extractors emit distinct identity data integration and external components (1.1756ms)
+✔ B2-008 component graph preserves typed trust-boundary relations and coverage denominators (1.3476ms)
+✔ B2-009 stack catalogue has seven independent tiers and first-class external kinds (1.6044ms)
+✔ B2-010 stack graph distinguishes declared ranges resolved versions and unknown stacks (1.2626ms)
+✖ B2-011 external discovery labels references without claiming production configuration (1.391ms)
+✔ B2-012 release contract rejects host authority keys and canonicalizes equivalent declarations (0.7906ms)
+✔ B2-013 product context preserves observed and declared actors data and risk authority (0.4881ms)
+✔ B2-014 journeys retain origin recovery effects and stable target ownership (0.5599ms)
+✔ B2-015 source ingestion requires rights and terminal disposition without importing execution authority (0.5177ms)
+✔ B2-016 creator ledger preserves 3 sources and 300 unresolved-rights excluded items (2.2397ms)
+✔ B2-017 platform ledgers pin three supplied digests and terminally disposition parsed hierarchy (7.5124ms)
+✖ B2-018 control contracts keep denominator independent from provider availability (1.3163ms)
+✔ B2-019 universal control catalogue carries selectors evidence and claim effects (2.4601ms)
+✔ B2-020 web control catalogue carries selectors evidence and claim effects (0.7296ms)
+✔ B2-021 desktop control catalogue carries selectors evidence and claim effects (2.6234ms)
+✔ B2-022 mobile control catalogue carries selectors evidence and claim effects (0.6592ms)
+✔ B2-023 service data control catalogue carries selectors evidence and claim effects (1.084ms)
+✔ B2-024 developer tools control catalogue carries selectors evidence and claim effects (0.7693ms)
+✔ B2-025 infrastructure release control catalogue carries selectors evidence and claim effects (0.4073ms)
+✔ B2-026 conditional control catalogue carries selectors evidence and claim effects (0.3266ms)
+✖ B2-027 baseline unions applicable packs and reproduces digest independent of pack order (1.7063ms)
+✔ B2-028 missing external capability produces deterministic target-scoped claim impacts (0.4516ms)
+✔ B2-029 pairwise compiler covers every value pair and preserves mandatory cases (1.1015ms)
+✔ B2-030 product inspection integrates topology controls capabilities and scenario artifacts (33.3379ms)
+ℹ tests 30
+ℹ suites 0
+ℹ pass 26
+ℹ fail 4
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 171.1379
+
+✖ failing tests:
+
+test at tests\inventory\book-2-contracts.test.mjs:11:1
+✖ B2-003 classification review cannot delete observations or close material ambiguity (1.7934ms)
+  AssertionError [ERR_ASSERTION]: Missing expected exception.
+      at TestContext.<anonymous> (file:///D:/Claude/tools/skills/nemesis/tests/inventory/book-2-contracts.test.mjs:11:435)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: /unknown nomination kind/,
+    operator: 'throws',
+    diff: 'simple'
+  }
+
+test at tests\inventory\book-2-contracts.test.mjs:19:1
+✖ B2-011 external discovery labels references without claiming production configuration (1.391ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + 'external:unknown:0'
+  - 'external:unknown:1'
+                      ^
+  
+      at TestContext.<anonymous> (file:///D:/Claude/tools/skills/nemesis/tests/inventory/book-2-contracts.test.mjs:19:723)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'external:unknown:0',
+    expected: 'external:unknown:1',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests\inventory\book-2-contracts.test.mjs:26:1
+✖ B2-018 control contracts keep denominator independent from provider availability (1.3163ms)
+  AssertionError [ERR_ASSERTION]: Missing expected exception.
+      at TestContext.<anonymous> (file:///D:/Claude/tools/skills/nemesis/tests/inventory/book-2-contracts.test.mjs:26:693)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: /pack source|qualification/,
+    operator: 'throws',
+    diff: 'simple'
+  }
+
+test at tests\inventory\book-2-contracts.test.mjs:36:1
+✖ B2-027 baseline unions applicable packs and reproduces digest independent of pack order (1.7063ms)
+  AssertionError [ERR_ASSERTION]: Missing expected exception.
+      at TestContext.<anonymous> (file:///D:/Claude/tools/skills/nemesis/tests/inventory/book-2-contracts.test.mjs:36:617)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: /cycle/,
+    operator: 'throws',
+    diff: 'simple'
+  }

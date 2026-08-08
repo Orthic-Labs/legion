@@ -1,0 +1,31 @@
+
+<--- Last few GCs --->
+
+[91052:000001DF9146D000]    51722 ms: Scavenge (during sweeping) 4067.4 (4076.7) -> 4060.6 (4077.9) MB, pooled: 0.0 MB, 2.39 / 0.00 ms (average mu = 0.192, current mu = 0.073) allocation failure; 
+[91052:000001DF9146D000]    54761 ms: Incremental Mark-Compact (reduce) 4060.6 (4078.2) -> 4060.5 (4062.9) MB, pooled: 0.0 MB, 3028.66 / 0.00 ms (+ 1.0 ms in 1 steps since start of marking, biggest step 1.0 ms, walltime since start of marking 3039 ms) (av
+FATAL ERROR: Ineffective mark-compacts near heap limit Allocation failed - JavaScript heap out of memory
+----- Native stack trace -----
+
+ 1: 00007FF63B777F8D node::OnFatalError+1325
+ 2: 00007FF63C546101 v8::Function::NewInstance+577
+ 3: 00007FF63C32A357 EVP_PKEY_asn1_set_public_check+504087
+ 4: 00007FF63C327F1D EVP_PKEY_asn1_set_public_check+494813
+ 5: 00007FF63C327667 EVP_PKEY_asn1_set_public_check+492583
+ 6: 00007FF63C3C5442 v8::Unlocker::~Unlocker+10290
+ 7: 00007FF63BEDCA98 v8::String::Value::~Value+164520
+ 8: 000001DFB9B7F43A 
+✖ tests\security-l4\b7-018-supply-developer.test.mjs (55199.049ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 55205.4347
+
+✖ failing tests:
+
+test at tests\security-l4\b7-018-supply-developer.test.mjs:1:1
+✖ tests\security-l4\b7-018-supply-developer.test.mjs (55199.049ms)
+  'test failed'

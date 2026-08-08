@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "family": "rust",
+  "cases": [
+    {
+      "id": "positive",
+      "expected": "measured"
+    },
+    {
+      "id": "negative",
+      "expected": "measured"
+    },
+    {
+      "id": "tauri-v2",
+      "expected": "measured"
+    },
+    {
+      "id": "blocked-counterpart",
+      "expected": "measured"
+    }
+  ]
+}

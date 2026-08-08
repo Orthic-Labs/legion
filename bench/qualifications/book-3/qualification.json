@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 1,
+  "requiredCases": [
+    "positive",
+    "negative",
+    "mitigated",
+    "unsupported",
+    "missing-capability",
+    "denominator",
+    "binding",
+    "deterministic-repeat"
+  ],
+  "coverageRecords": [
+    "language.javascript",
+    "language.python",
+    "language.rust",
+    "language.go",
+    "language.jvm",
+    "language.dotnet",
+    "language.c-family",
+    "language.php-ruby",
+    "language.mobile",
+    "language.long-tail",
+    "framework.frontend",
+    "framework.backend",
+    "framework.data"
+  ],
+  "status": "source-tested",
+  "externalTools": "unproven"
+}

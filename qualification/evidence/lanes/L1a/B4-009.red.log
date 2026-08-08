@@ -1,0 +1,5 @@
+ANNOTATED RED EVIDENCE
+No true TDD red is available: implementation & task test existed before L1a execution began.
+First focused run passed; code was not broken to manufacture a failure.
+Assertion: runtime records expected, observed & durable state across protocol applicability; production effects are blocked before adapter invocation.
+

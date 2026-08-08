@@ -1,0 +1,23 @@
+✔ no B7-018 pack module imports a live-execution/filesystem/network-capable node builtin (1.2089ms)
+✔ registry rule ids and the four packs' rule ids are in exact two-way parity (0.2565ms)
+✔ each rule in each of the four packs fires on its representative positive fixture (9.1872ms)
+✔ every rule id fired by a fixture is declared by its pack and present in the registry (0.2275ms)
+✔ every candidate from every pack carries a repository-as-hostile precondition and named authority/execution path (1.8247ms)
+✔ execution-chain rules are exactly the registry-declared requiresSandboxReceipt set (0.1121ms)
+✔ absent an external sandbox receipt, no execution-chain candidate carries a clean/proven execution claim (0.6601ms)
+✔ a supplied external sandbox receipt still never upgrades a candidate to a clean/proven claim (0.3299ms)
+✔ a pinned lockfile with integrity hashes and no direct-URL dependency suppresses the supply-chain dependency/lockfile rules (0.1824ms)
+✔ ignore-scripts configuration suppresses the install-time-execution rule even with a remote-fetch postinstall script (0.3188ms)
+✔ a signed, verified, minimally-scoped release automation config suppresses the automation signing/scope rules (0.1686ms)
+✔ a repository with no committed secrets, db files, source maps, or auto-loaded hooks produces no repository-footprint candidates (0.1688ms)
+✔ each of the four packs emits no candidates for a neutral, unrelated source file (0.1663ms)
+✔ all four packs declare non-empty variantStrategies for every rule and expose the credentials.mjs-style enumerate/rootCause shape (0.1159ms)
+✔ each pack's variantStrategies enumerate alternate configuration/package entrypoints for a multi-entrypoint fixture (0.2873ms)
+ℹ tests 15
+ℹ suites 0
+ℹ pass 15
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 89.6617

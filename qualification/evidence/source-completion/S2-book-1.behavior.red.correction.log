@@ -1,0 +1,55 @@
+✔ B1-001 package manifest exposes one public binary and later-book public paths (5.9847ms)
+✔ B1-002 canonical enums reject unknown values and future schema versions (0.9292ms)
+✔ B1-003 command catalogue generates complete strict CLI help (1.0146ms)
+✖ B1-004 fixed host returns typed unavailable capability receipts (4.2488ms)
+✔ B1-005 artifact paths reject alternate separators and digests bind bytes (1.5915ms)
+✔ B1-006 run manifest rejects orphan and missing declared files (1.7734ms)
+✔ B1-007 trusted merge rejects repository attempts to grant host policy (0.9696ms)
+✔ B1-008 sealed profiles expose resource, cache, cancellation, schedule, and reasoning policy (1.5662ms)
+✔ B1-009 family and lens registries reject dependency cycles (1.1187ms)
+✔ B1-010 provider v2 rejects candidate generators that emit findings (0.8944ms)
+✔ B1-011 schedule compiler uses lexical waves and rejects impossible resources (9.0547ms)
+✔ B1-012 reasoning runner prepares a packet without invoking a reviewer (3.0569ms)
+✔ B1-013 precomputed Cortex projection rejects stale repository binding (0.6368ms)
+✔ B1-014 binding comparison is stable across path separators (0.1992ms)
+✔ B1-015 planning stage registry is fixed and missing required stages are typed (0.6371ms)
+✔ B1-016 scheduler preserves independent work when one dependency blocks (1.0621ms)
+✔ B1-017 zero findings with a required gap is incomplete (0.4822ms)
+✔ B1-018 reviewer policy rejects context reuse and self-adjudication (0.4833ms)
+✔ B1-019 report model preserves topology, controls, and per-claim decisions without a score (0.6069ms)
+✔ B1-020 semantic verification excludes time, paths, and presentation ordering (0.6885ms)
+✔ B1-021 schedule command is a pure canonical renderer (0.6147ms)
+✔ B1-022 skill bundle contract rejects absolute internal URIs and separates profiles (0.6166ms)
+✔ B1-023 skill URI resolver and verifier are package-relative and digest-bound (1.0615ms)
+✔ B1-024 skill transformation is deterministic, neutral, and strips audit mutation authority (1.294ms)
+✔ B1-025 Designer bundle preserves audit authority boundaries (4.9611ms)
+✔ B1-026 Writing bundle makes proof and no-fabrication explicit (0.5663ms)
+✔ B1-027 qualifier supports Books 1 through 6 and package smoke exercises library plus plan (24.0425ms)
+✔ B1-028 qualification digest ignores duration and noisy test bytes (0.3666ms)
+ℹ tests 28
+ℹ suites 0
+ℹ pass 27
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 166.1915
+
+✖ failing tests:
+
+test at tests\core\book-1-contracts.test.mjs:31:1
+✖ B1-004 fixed host returns typed unavailable capability receipts (4.2488ms)
+  AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:
+  
+    assert.ok(host.allowedExecutables instanceof Set)
+  
+      at TestContext.<anonymous> (file:///D:/Claude/tools/skills/nemesis/tests/core/book-1-contracts.test.mjs:35:10)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }

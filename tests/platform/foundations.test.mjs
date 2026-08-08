@@ -20,3 +20,19 @@ test('designer compiler retains audit rules & excludes authoring directives', ()
 test('content extraction stays artifact scoped & source qualification accounts every task', () => { const inventory = extractVisibleContent({ artifacts: [{ path: 'src/App.tsx', text: '<button aria-label="Save">Save</button>' }] }); assert.equal(inventory.items.length, 2); const receipt = sourceSliceQualification({ book: 9, expectedTaskCount: 1, tasks: [{ id: 'B9-001', status: 'implemented', mapping: 'unit' }] }); assert.equal(receipt.decision, 'SOURCE_COMPLETE'); });
 test('surface & content identities remain stable for same input', () => { const inventory = buildSurfaceInventory({ artifacts: [{ file: 'src/A.tsx', route: '/a' }] }); assert.equal(inventory.surfaces.length, 1); const content = createContentInventory({ items: [{ text: 'Save', source: { file: 'src/A.tsx' }, surface: { type: 'button' } }] }); const lock = createTextLock({ contentId: content.items[0].id, text: 'Save', approver: 'a', reason: 'approved', approvedAt: '2026-08-08' }); assert.equal(verifyTextLock(lock, 'Save').status, 'pass'); assert.equal(verifyTextLock(lock, 'Delete').status, 'reopened'); });
 test('content & discoverability providers preserve objective gaps', () => { assert.equal(analyzeContrast([{ foreground: '#777777', background: '#ffffff' }]).findings.length, 1); assert.equal(copyFacts([{ id: 'x', text: '{{name}}', surface: { type: 'button' } }]).findings.length, 1); assert.equal(assessDiscoverability({ pages: [{ id: 'home', indexable: true }] }).status, 'candidates'); });
+
+test('journey runner rejects empty, malformed, nonterminal and nondurable exercises safely', async () => {
+  const capability = { status: 'available' }, scenario = { id: 'j', targetId: 't', initialState: 'start', machine: { transitions: [{ from: 'start', event: 'go', to: 'done' }] }, steps: [{ id: 's', event: 'go', action: 'run', invariant: { path: 'ok', equals: true } }] };
+  assert.notEqual((await runJourney({ scenario: { id: 'empty', targetId: 't', steps: [] }, capability, adapter: {} })).status, 'pass');
+  assert.equal((await runJourney({ scenario, capability, adapter: { execute: async () => ({ status: 'fail', terminal: true, observedState: { ok: true }, durableState: { ok: true } }) } })).status, 'fail');
+  assert.notEqual((await runJourney({ scenario, capability, adapter: { execute: async () => ({ status: 'pass', terminal: true, observedState: { ok: true } }) } })).status, 'pass');
+  const thrown = await runJourney({ scenario, capability, adapter: { execute: async () => { throw new Error('Bearer journey-token journey@example.com'); } } });
+  assert.equal(thrown.status, 'error'); assert.equal(JSON.stringify(thrown).includes('journey-token'), false); assert.equal(JSON.stringify(thrown).includes('journey@example.com'), false);
+});
+
+test('lifecycle action sanitizes returned and exception evidence plus binding', async () => {
+  const capability = { status: 'available' }, binding = { targetId: 't', apiToken: 'Bearer binding-token', email: 'binding@example.com' };
+  const returned = await runLifecycleAction({ action: 'launch', targetId: 't', binding, capability, adapter: { launch: async () => ({ status: 'pass', password: 'lifecycle-secret', message: 'owner@example.com' }) } });
+  const thrown = await runLifecycleAction({ action: 'launch', targetId: 't', binding, capability, adapter: { launch: async () => { throw new Error('Bearer lifecycle-token operator@example.com'); } } });
+  for (const [receipt, leaks] of [[returned, ['binding-token', 'binding@example.com', 'lifecycle-secret', 'owner@example.com']], [thrown, ['binding-token', 'binding@example.com', 'lifecycle-token', 'operator@example.com']]]) for (const leak of leaks) assert.equal(JSON.stringify(receipt).includes(leak), false);
+});

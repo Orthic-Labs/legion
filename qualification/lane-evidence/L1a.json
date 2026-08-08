@@ -1,0 +1,274 @@
+{
+  "lane": "L1a",
+  "tasks": [
+    {
+      "id": "B4-007",
+      "status": "implemented",
+      "test": {
+        "path": "tests/platform/web/book-4-web-contracts.test.mjs",
+        "assertion": "Actor fixtures bind isolated secret references, explicit role/tenant/account state coverage, typed capability gaps, session transitions, and server authorization distinct from UI visibility."
+      },
+      "implementation": [
+        {
+          "path": "providers/runtime/web/actors/index.mjs",
+          "symbol": "buildActorFixtures, switchActor"
+        },
+        {
+          "path": "schemas/platform/web-actor-fixture-v1.schema.json",
+          "symbol": "web actor fixture schema (pre-existing sealed input; not modified by L1a)"
+        }
+      ],
+      "proof": {
+        "red": "qualification/evidence/lanes/L1a/B4-007.red.log",
+        "green": "qualification/evidence/lanes/L1a/B4-007.green.log"
+      },
+      "notes": [
+        "Annotated red only: implementation and test pre-existed lane start; no failure was manufactured."
+      ]
+    },
+    {
+      "id": "B4-009",
+      "status": "implemented",
+      "test": {
+        "path": "tests/platform/web/book-4-web-contracts.test.mjs",
+        "assertion": "Runtime scenarios preserve expected, observed, durable, terminal, browser diagnostic, server authorization, protocol applicability, route/state/action denominator, omission, and production-effect gating evidence."
+      },
+      "implementation": [
+        {
+          "path": "providers/runtime/web/runner/index.mjs",
+          "symbol": "runWebControl"
+        },
+        {
+          "path": "providers/runtime/web/protocols/index.mjs",
+          "symbol": "executeWebProtocol"
+        },
+        {
+          "path": "providers/runtime/web/scenario/index.mjs",
+          "symbol": "runWebScenario"
+        }
+      ],
+      "proof": {
+        "red": "qualification/evidence/lanes/L1a/B4-009.red.log",
+        "green": "qualification/evidence/lanes/L1a/B4-009.green.log"
+      },
+      "notes": [
+        "Annotated red only: implementation and test pre-existed lane start; no failure was manufactured."
+      ]
+    },
+    {
+      "id": "B4-010",
+      "status": "implemented",
+      "test": {
+        "path": "tests/platform/web/book-4-web-contracts.test.mjs",
+        "assertion": "Capture binds surface, route, state, actor, browser, viewport, locale, target, tool identity, repeats, variance, p75 inputs, runtime accessibility, and performance without interpretive verdict elevation."
+      },
+      "implementation": [
+        {
+          "path": "providers/runtime/web/capture/index.mjs",
+          "symbol": "captureWebEvidence"
+        },
+        {
+          "path": "providers/runtime/web/performance/index.mjs",
+          "symbol": "verifyWebPerformance"
+        },
+        {
+          "path": "providers/runtime/web/accessibility/index.mjs",
+          "symbol": "verifyWebAccessibility"
+        }
+      ],
+      "proof": {
+        "red": "qualification/evidence/lanes/L1a/B4-010.red.log",
+        "green": "qualification/evidence/lanes/L1a/B4-010.green.log"
+      },
+      "notes": [
+        "Annotated red only: implementation and test pre-existed lane start; no failure was manufactured."
+      ]
+    },
+    {
+      "id": "B4-011",
+      "status": "implemented",
+      "test": {
+        "path": "tests/platform/web/book-4-web-contracts.test.mjs",
+        "assertion": "API evidence validates actor/tenant/data scope, exact present and absent values, durable effects, resilience, protocol packs, redacted raw request/response artifacts, and external-only production controls."
+      },
+      "implementation": [
+        {
+          "path": "providers/runtime/web/backend/index.mjs",
+          "symbol": "inspectWebBackend"
+        },
+        {
+          "path": "providers/runtime/web/api/index.mjs",
+          "symbol": "verifyApiExercise"
+        },
+        {
+          "path": "providers/runtime/service/api/index.mjs",
+          "symbol": "verifyServiceApi"
+        }
+      ],
+      "proof": {
+        "red": "qualification/evidence/lanes/L1a/B4-011.red.log",
+        "green": "qualification/evidence/lanes/L1a/B4-011.green.log"
+      },
+      "notes": [
+        "Annotated red only: implementation and test pre-existed lane start; no failure was manufactured."
+      ]
+    },
+    {
+      "id": "B4-012",
+      "status": "implemented",
+      "test": {
+        "path": "tests/platform/web/book-4-web-contracts.test.mjs",
+        "assertion": "Data exercises bind representative dataset/schema identity, lifecycle cases, durable evidence, isolation, cleanup, and primary plus cleanup failure receipts."
+      },
+      "implementation": [
+        {
+          "path": "providers/runtime/web/data/index.mjs",
+          "symbol": "verifyDataExercise"
+        },
+        {
+          "path": "providers/runtime/service/data/index.mjs",
+          "symbol": "verifyServiceData"
+        }
+      ],
+      "proof": {
+        "red": "qualification/evidence/lanes/L1a/B4-012.red.log",
+        "green": "qualification/evidence/lanes/L1a/B4-012.green.log"
+      },
+      "notes": [
+        "Annotated red only: implementation and test pre-existed lane start; no failure was manufactured."
+      ]
+    },
+    {
+      "id": "B4-013",
+      "status": "implemented",
+      "test": {
+        "path": "tests/platform/web/book-4-web-contracts.test.mjs",
+        "assertion": "Infrastructure evidence distinguishes repository intent from deployed state, verifies signed bound exercises, records drift, and refuses inferred DNS, certificate, rollback, or regional proof."
+      },
+      "implementation": [
+        {
+          "path": "providers/runtime/web/infrastructure/index.mjs",
+          "symbol": "verifyInfrastructureExercise"
+        },
+        {
+          "path": "providers/runtime/external/cloud/index.mjs",
+          "symbol": "verifyCloudEvidence"
+        },
+        {
+          "path": "providers/runtime/external/dns/index.mjs",
+          "symbol": "verifyDnsEvidence"
+        }
+      ],
+      "proof": {
+        "red": "qualification/evidence/lanes/L1a/B4-013.red.log",
+        "green": "qualification/evidence/lanes/L1a/B4-013.green.log"
+      },
+      "notes": [
+        "Annotated red only: implementation and test pre-existed lane start; no failure was manufactured."
+      ]
+    },
+    {
+      "id": "B4-014",
+      "status": "implemented",
+      "test": {
+        "path": "tests/platform/web/book-4-web-contracts.test.mjs",
+        "assertion": "External provider evidence remains sandboxed, signed, fresh, actor/tenant bound, privacy aware, and reconciled across client, backend, provider, and user-visible state."
+      },
+      "implementation": [
+        {
+          "path": "providers/runtime/web/third-party/index.mjs",
+          "symbol": "verifyThirdPartyExercise"
+        },
+        {
+          "path": "providers/runtime/external/email/index.mjs",
+          "symbol": "verifyEmailEvidence"
+        },
+        {
+          "path": "providers/runtime/external/commerce/index.mjs",
+          "symbol": "verifyCommerceEvidence"
+        },
+        {
+          "path": "providers/runtime/external/analytics/index.mjs",
+          "symbol": "verifyAnalyticsEvidence"
+        },
+        {
+          "path": "providers/runtime/external/third-party/index.mjs",
+          "symbol": "verifyThirdPartyEvidence"
+        }
+      ],
+      "proof": {
+        "red": "qualification/evidence/lanes/L1a/B4-014.red.log",
+        "green": "qualification/evidence/lanes/L1a/B4-014.green.log"
+      },
+      "notes": [
+        "Annotated red only: implementation and test pre-existed lane start; no failure was manufactured."
+      ]
+    },
+    {
+      "id": "B4-015",
+      "status": "implemented",
+      "test": {
+        "path": "tests/platform/web/book-4-web-contracts.test.mjs",
+        "assertion": "Operations evidence requires current exercised recovery, alert delivery/action, capacity workload, release/environment binding, signed artifacts, and exact omissions instead of configuration-only claims."
+      },
+      "implementation": [
+        {
+          "path": "providers/runtime/web/operations/index.mjs",
+          "symbol": "verifyOperationsExercise"
+        },
+        {
+          "path": "providers/runtime/external/backup/index.mjs",
+          "symbol": "verifyBackupEvidence"
+        },
+        {
+          "path": "providers/runtime/external/incidents/index.mjs",
+          "symbol": "verifyIncidentEvidence"
+        }
+      ],
+      "proof": {
+        "red": "qualification/evidence/lanes/L1a/B4-015.red.log",
+        "green": "qualification/evidence/lanes/L1a/B4-015.green.log"
+      },
+      "notes": [
+        "Annotated red only: implementation and test pre-existed lane start; no failure was manufactured."
+      ]
+    },
+    {
+      "id": "B4-016",
+      "status": "implemented",
+      "test": {
+        "path": "tests/platform/web/book-4-web-contracts.test.mjs",
+        "assertion": "Web integration emits one terminal receipt per applicable control, reconciles denominators and artifacts deterministically, rejects cross-target or repository-only release proof, and qualifies six provisional fixtures."
+      },
+      "implementation": [
+        {
+          "path": "providers/runtime/web/integration/index.mjs",
+          "symbol": "integrateWebEvidence"
+        },
+        {
+          "path": "providers/runtime/web/index.mjs",
+          "symbol": "web platform exports"
+        },
+        {
+          "path": "qualification/platforms/web/fixtures.mjs",
+          "symbol": "createWebQualificationFixtures"
+        },
+        {
+          "path": "qualification/platforms/web/qualification.mjs",
+          "symbol": "qualifyWebPlatform"
+        },
+        {
+          "path": "scripts/qualify-web-platform.mjs",
+          "symbol": "qualifyWebPlatformFile"
+        }
+      ],
+      "proof": {
+        "red": "qualification/evidence/lanes/L1a/B4-016.red.log",
+        "green": "qualification/evidence/lanes/L1a/B4-016.green.log"
+      },
+      "notes": [
+        "Annotated red only: implementation and test pre-existed lane start; no failure was manufactured."
+      ]
+    }
+  ]
+}

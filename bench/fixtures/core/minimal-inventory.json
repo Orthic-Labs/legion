@@ -1,0 +1,1 @@
+{"schemaVersion":1,"repository":{"root":"fixture","revision":"0000000"},"projection":{"files":["package.json"],"parsedExtensions":["json"]},"expected":{"claimLevel":"inventory","status":"pass"}}

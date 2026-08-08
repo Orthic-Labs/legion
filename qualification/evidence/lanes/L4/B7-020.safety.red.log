@@ -1,0 +1,40 @@
+✔ registry/rules/safety/hazards.json and the scanner domains are in exact rule-id parity (0.8095ms)
+✔ the hazard scanner covers all seven required outcome classes (0.1329ms)
+✔ every safety domain produces every required disposition counterpart from its own trigger (3.2617ms)
+✔ every emitted hazard requires human-decision reasoning, regardless of outcome class or disposition (0.4606ms)
+✔ a hazard requiring human-decision cannot be closed by a model or automated verdict, only by a human decision (0.5701ms)
+✔ createHazardCandidate refuses to build a hazard for an outcome class outside the defined vocabulary (0.1663ms)
+✔ every hazard states a non-empty static/runtime scope, hazards, assumptions, authority limits, misuse scenarios, and evidence (0.3475ms)
+✖ no hazard status, claim, hazard, assumption, or authority-limit string ever certifies or asserts regulatory compliance (0.8573ms)
+✔ no safety module imports a live-probe-capable builtin, a serial/USB library, or calls fetch( (1.1169ms)
+✔ generated hazard-model schema is byte-identical to the committed schemas/safety/hazard-model-v1.schema.json (1.1134ms)
+✔ the committed schema requires reasoningRequirement to be exactly human-decision and forbids certifiable/regulatoryClaim from being anything but false/null (0.1464ms)
+✔ scanning is deterministic: same input produces deeply-equal hazards twice, and no hazard carries a timestamp field (0.2377ms)
+ℹ tests 12
+ℹ suites 0
+ℹ pass 11
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 123.5026
+
+✖ failing tests:
+
+test at tests\security-l4\b7-020-safety.test.mjs:223:1
+✖ no hazard status, claim, hazard, assumption, or authority-limit string ever certifies or asserts regulatory compliance (0.8573ms)
+  AssertionError [ERR_ASSERTION]: safety.physical.direct-actuator-command: "This lens does not certify physical, medical, financial, child-safety, operational, or data-recovery adequacy under any standard." uses certification/compliance language
+      at TestContext.<anonymous> (file:///D:/Claude/tools/skills/nemesis/tests/security-l4/b7-020-safety.test.mjs:235:18)
+      at Test.runInAsyncScope (node:async_hooks:226:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }

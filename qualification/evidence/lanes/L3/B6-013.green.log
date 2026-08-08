@@ -1,0 +1,11 @@
+✔ B6-013 requires context, preserves technical near misses, and records feature vectors (8.1353ms)
+✔ B6-013 emits deterministic findings only for explicit policy bans (1.196ms)
+✔ B6-013 every expanded anti-slop candidate has an explanatory claim (0.9957ms)
+ℹ tests 3
+ℹ suites 0
+ℹ pass 3
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 122.4307

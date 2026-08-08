@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 1,
+  "id": "copy-clarity",
+  "rules": [
+    { "id": "copy.clarity.ambiguous-pronoun", "kind": "interpretive", "reasoningRequirement": "bounded-review" },
+    { "id": "copy.clarity.repeated-hedge", "kind": "interpretive", "reasoningRequirement": "bounded-review" },
+    { "id": "copy.clarity.nominalization", "kind": "interpretive", "reasoningRequirement": "bounded-review" },
+    { "id": "copy.clarity.unexplained-jargon", "kind": "interpretive", "reasoningRequirement": "bounded-review" },
+    { "id": "copy.clarity.control-label-contradiction", "kind": "deterministic", "reasoningRequirement": "none" }
+  ]
+}

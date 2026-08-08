@@ -1,0 +1,4 @@
+<task>Complete DISPATCH-10 operation registry and capability negotiation lane against current bytes.</task>
+<acceptance_criteria>Operation descriptors validate frozen operation-envelope-v1; registration, lookup, sorted listing, duplicate and unknown typed taxonomy are correct; capability negotiation is deterministic, duplicate-free, and typed for malformed input; focused tests pass.</acceptance_criteria>
+<non_goals>OWN only packages/kernel/lib/registry.mjs and packages/kernel/tests/registry.test.mjs. Do not edit index, contracts, shared tests, evidence fragment/logs, docs, git, dependencies, or unrelated dirt.</non_goals>
+<verification>node --test D:\Claude\tools\skills\nemesis\packages\kernel\tests\registry.test.mjs; node --check D:\Claude\tools\skills\nemesis\packages\kernel\lib\registry.mjs</verification>

@@ -1,0 +1,23 @@
+✔ js pack detects js/ts extensions (1.1911ms)
+✔ js pack emits type-check and test commands from the denominator (0.2682ms)
+✔ js pack normalizes execution to a provider result (0.1095ms)
+✔ js fingerprint is stable (0.3695ms)
+✔ react pack detects react dependency (0.1292ms)
+✔ react pack flags conditional hooks and missing deps (0.3175ms)
+✔ react pack flags a11y and dangerous HTML (0.1795ms)
+✔ react pack emits no observations for clean code (0.4709ms)
+✔ next pack detects next dependency (0.1418ms)
+✔ next pack flags routes without auth (0.4811ms)
+✔ next pack accepts routes with visible auth (0.1709ms)
+✔ browser runtime receipt reports shallow traversal as a gap (0.1025ms)
+✔ browser runtime receipt is complete only when fully tested (0.0654ms)
+✔ performance observation flags long tasks and slow interactions (0.0854ms)
+✔ console error observation is structured (0.0595ms)
+ℹ tests 15
+ℹ suites 0
+ℹ pass 15
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 74.0188

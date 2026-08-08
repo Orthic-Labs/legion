@@ -1,1 +1,68 @@
-{"$schema":"https://json-schema.org/draft/2020-12/schema","type":"object","required":["id","targetId","name"],"properties":{"id":{"type":"string"},"targetId":{"type":"string"},"name":{"type":"string"}}}
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "nemesis-journey-v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "targetId",
+    "name",
+    "origin",
+    "criticality",
+    "actors",
+    "steps",
+    "invariants",
+    "dataEffects",
+    "externalDependencies",
+    "failure",
+    "recovery"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "targetId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1
+    },
+    "origin": {
+      "enum": [
+        "observed",
+        "declared",
+        "inferred"
+      ]
+    },
+    "criticality": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "actors": {
+      "type": "array"
+    },
+    "steps": {
+      "type": "array"
+    },
+    "invariants": {
+      "type": "array"
+    },
+    "dataEffects": {
+      "type": "array"
+    },
+    "externalDependencies": {
+      "type": "array"
+    },
+    "failure": {
+      "type": "array"
+    },
+    "recovery": {
+      "type": "array"
+    }
+  }
+}

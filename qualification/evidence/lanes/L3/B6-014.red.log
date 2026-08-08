@@ -1,0 +1,31 @@
+✔ B6-014 binds clarity candidates to audience, role, exact spans, and safe suggestions (3.5121ms)
+✔ B6-014 makes known control-label contradictions deterministic (0.272ms)
+✖ B6-014 does not treat a specific control label as a deterministic vague label (1.0135ms)
+ℹ tests 3
+ℹ suites 0
+ℹ pass 2
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 112.24
+
+✖ failing tests:
+
+test at tests\content-l3.test.mjs:282:1
+✖ B6-014 does not treat a specific control label as a deterministic vague label (1.0135ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  true !== false
+  
+      at TestContext.<anonymous> (file:///D:/Claude/tools/skills/nemesis/tests/content-l3.test.mjs:297:10)
+      at Test.runInAsyncScope (node:async_hooks:226:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: true,
+    expected: false,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

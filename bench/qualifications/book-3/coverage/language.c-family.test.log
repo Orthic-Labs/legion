@@ -1,0 +1,17 @@
+✔ c-family pack detects C/C++ projects (1.1955ms)
+✔ c-family pack uses compile_commands when present (0.174ms)
+✔ c-family pack falls back to cmake build (0.0914ms)
+✔ c-family pack emits optional linters only outside fast profile (0.1066ms)
+✔ unsafe libc functions are flagged (0.2028ms)
+✔ safe bounded functions are not flagged (0.1209ms)
+✔ cmake preset receipt records configuration (0.0902ms)
+✔ cmake command prefers presets (0.4737ms)
+✔ cmake command falls back to -S/-B (0.114ms)
+ℹ tests 9
+ℹ suites 0
+ℹ pass 9
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 67.4033

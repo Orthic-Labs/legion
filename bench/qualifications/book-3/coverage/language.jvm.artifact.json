@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "kind": "nemesis-coverage-test-artifact",
+  "recordId": "language.jvm",
+  "testPath": "tests/providers/jvm/jvm.test.mjs",
+  "status": "pass",
+  "rawLog": {
+    "path": "bench/qualifications/book-3/coverage/language.jvm.test.log",
+    "digest": "sha256:aeb8c633de79048fc4a1b135f35053f12ddf5642d137a7ccd6526ed38479ac68",
+    "bytes": 764
+  },
+  "providerVersions": {
+    "code.jvm": "1.0.0"
+  }
+}

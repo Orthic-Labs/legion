@@ -1,0 +1,38 @@
+{
+  "schemaVersion": 1,
+  "family": "framework.data",
+  "cases": [
+    {
+      "id": "orm.positive",
+      "expected": "measured"
+    },
+    {
+      "id": "orm.unsupported",
+      "expected": "unproven"
+    },
+    {
+      "id": "migration.positive",
+      "expected": "measured"
+    },
+    {
+      "id": "migration.unsupported",
+      "expected": "unproven"
+    },
+    {
+      "id": "integrity.positive",
+      "expected": "measured"
+    },
+    {
+      "id": "integrity.unsupported",
+      "expected": "unproven"
+    },
+    {
+      "id": "privacy.positive",
+      "expected": "measured"
+    },
+    {
+      "id": "privacy.unsupported",
+      "expected": "unproven"
+    }
+  ]
+}

@@ -1,0 +1,192 @@
+{
+  "lane": "L2",
+  "tasks": [
+    {
+      "id": "B5-007",
+      "status": "implemented",
+      "test": { "path": "tests/design-l2.test.mjs", "assertion": "geometry tokens preserve denominators, affected instances, source/rendered classes, and avoid invented standards" },
+      "implementation": [{ "path": "providers/visual/geometry-tokens.mjs", "symbol": "analyzeGeometryTokens" }],
+      "proof": { "red": "qualification/evidence/lanes/L2/B5-007.red.log", "green": "qualification/evidence/lanes/L2/B5-007.green.log" },
+      "typedGaps": ["registry-rule-sealed-coordinator-integration"]
+    },
+    {
+      "id": "B5-008",
+      "status": "implemented",
+      "test": { "path": "tests/design-l2.test.mjs", "assertion": "typography findings bind role, surface, viewport, locale, and missing font evidence" },
+      "implementation": [{ "path": "providers/visual/typography.mjs", "symbol": "analyzeTypography" }],
+      "proof": { "red": "qualification/evidence/lanes/L2/B5-008.red.log", "green": "qualification/evidence/lanes/L2/B5-008.green.log" },
+      "typedGaps": ["registry-rule-sealed-coordinator-integration"]
+    },
+    {
+      "id": "B5-009",
+      "status": "implemented",
+      "test": { "path": "tests/design-l2.test.mjs", "assertion": "static hierarchy separates deterministic semantic mismatch from source-limited interpretation" },
+      "implementation": [{ "path": "providers/visual/hierarchy-static.mjs", "symbol": "analyzeHierarchy" }],
+      "proof": { "red": "qualification/evidence/lanes/L2/B5-009.red.log", "green": "qualification/evidence/lanes/L2/B5-009.green.log" },
+      "typedGaps": ["registry-rule-sealed-coordinator-integration"]
+    },
+    {
+      "id": "B5-010",
+      "status": "implemented",
+      "test": { "path": "tests/design-l2.test.mjs", "assertion": "responsive and stacking analysis keeps viewport and safe-area coverage explicit" },
+      "implementation": [
+        { "path": "providers/visual/responsive.mjs", "symbol": "analyzeResponsive" },
+        { "path": "providers/visual/stacking.mjs", "symbol": "analyzeStacking" }
+      ],
+      "proof": { "red": "qualification/evidence/lanes/L2/B5-010.red.log", "green": "qualification/evidence/lanes/L2/B5-010.green.log" },
+      "typedGaps": ["registry-rule-sealed-coordinator-integration"]
+    },
+    {
+      "id": "B5-011",
+      "status": "implemented",
+      "test": { "path": "tests/design-l2.test.mjs", "assertion": "control applicability matrices expose missing state evidence without false pass" },
+      "implementation": [{ "path": "providers/ux/control-states.mjs", "symbol": "analyzeControlStates" }],
+      "proof": { "red": "qualification/evidence/lanes/L2/B5-011.red.log", "green": "qualification/evidence/lanes/L2/B5-011.green.log" },
+      "typedGaps": ["registry-rule-sealed-coordinator-integration"]
+    },
+    {
+      "id": "B5-012",
+      "status": "implemented",
+      "test": { "path": "tests/design-l2.test.mjs", "assertion": "UX flows preserve cohort, alternate paths, measurements, inferred goals, and behavior-backed success" },
+      "implementation": [
+        { "path": "lib/design/ux-flow.mjs", "symbol": "buildUxFlow" },
+        { "path": "providers/ux/flow-model.mjs", "symbol": "createFlowModel" }
+      ],
+      "proof": { "red": "qualification/evidence/lanes/L2/B5-012.red.log", "green": "qualification/evidence/lanes/L2/B5-012.green.log" },
+      "typedGaps": ["schema-sealed-coordinator-amendment"]
+    },
+    {
+      "id": "B5-013",
+      "status": "implemented",
+      "test": { "path": "tests/design-l2.test.mjs", "assertion": "navigation findings cite exact route and flow evidence without inventing features" },
+      "implementation": [{ "path": "providers/ux/navigation.mjs", "symbol": "analyzeNavigation" }],
+      "proof": { "red": "qualification/evidence/lanes/L2/B5-013.red.log", "green": "qualification/evidence/lanes/L2/B5-013.green.log" },
+      "typedGaps": ["registry-rule-sealed-coordinator-integration"]
+    },
+    {
+      "id": "B5-014",
+      "status": "implemented",
+      "test": { "path": "tests/design-l2.test.mjs", "assertion": "forms bind field denominator and keep client validation separate from server security" },
+      "implementation": [{ "path": "providers/ux/forms.mjs", "symbol": "analyzeForms" }],
+      "proof": { "red": "qualification/evidence/lanes/L2/B5-014.red.log", "green": "qualification/evidence/lanes/L2/B5-014.green.log" },
+      "typedGaps": ["registry-rule-sealed-coordinator-integration"]
+    },
+    {
+      "id": "B5-015",
+      "status": "implemented",
+      "test": { "path": "tests/design-l2.test.mjs", "assertion": "system-state coverage separates absent implementation from untested state" },
+      "implementation": [{ "path": "providers/ux/system-states.mjs", "symbol": "analyzeSystemStates" }],
+      "proof": { "red": "qualification/evidence/lanes/L2/B5-015.red.log", "green": "qualification/evidence/lanes/L2/B5-015.green.log" },
+      "typedGaps": ["registry-rule-sealed-coordinator-integration"]
+    },
+    {
+      "id": "B5-016",
+      "status": "implemented",
+      "test": { "path": "tests/design-l2.test.mjs", "assertion": "recovery analysis requires side-effect evidence before irreversible classification" },
+      "implementation": [{ "path": "providers/ux/recovery.mjs", "symbol": "analyzeRecovery" }],
+      "proof": { "red": "qualification/evidence/lanes/L2/B5-016.red.log", "green": "qualification/evidence/lanes/L2/B5-016.green.log" },
+      "typedGaps": ["registry-rule-sealed-coordinator-integration"]
+    },
+    {
+      "id": "B5-017",
+      "status": "implemented",
+      "test": { "path": "tests/design-l2.test.mjs", "assertion": "data interactions bind dataset and action while keeping scale and chart interpretation unproven" },
+      "implementation": [{ "path": "providers/ux/data-interaction.mjs", "symbol": "analyzeDataInteractions" }],
+      "proof": { "red": "qualification/evidence/lanes/L2/B5-017.red.log", "green": "qualification/evidence/lanes/L2/B5-017.green.log" },
+      "typedGaps": ["registry-rule-sealed-coordinator-integration"]
+    },
+    {
+      "id": "B5-018",
+      "status": "implemented",
+      "test": { "path": "tests/design-l2.test.mjs", "assertion": "friction and deceptive-design evidence separates deterministic behavior from interpretive judgment" },
+      "implementation": [
+        { "path": "providers/ux/friction.mjs", "symbol": "analyzeFriction" },
+        { "path": "providers/trust-safety/deceptive-design.mjs", "symbol": "analyzeDeceptiveDesign" }
+      ],
+      "proof": { "red": "qualification/evidence/lanes/L2/B5-018.red.log", "green": "qualification/evidence/lanes/L2/B5-018.green.log" },
+      "typedGaps": ["registry-rule-sealed-coordinator-integration", "policy-or-legal-conclusions-review-required"]
+    },
+    {
+      "id": "B5-020",
+      "status": "implemented",
+      "test": { "path": "tests/design-l2.test.mjs", "assertion": "runtime accessibility names engine, surfaces, states, exercises, and never passes missing capability" },
+      "implementation": [{ "path": "providers/accessibility/runtime/core.mjs", "symbol": "analyzeRuntimeAccessibility" }],
+      "proof": { "red": "qualification/evidence/lanes/L2/B5-020.red.log", "green": "qualification/evidence/lanes/L2/B5-020.green.log" },
+      "typedGaps": ["registry-rule-sealed-coordinator-integration", "engine-and-runtime-paths-unproven-when-unavailable"]
+    },
+    {
+      "id": "B5-021",
+      "status": "implemented",
+      "test": { "path": "tests/design-l2.test.mjs", "assertion": "browser and native adapters enforce declared actions/destinations, redact secrets, and type shallow runs" },
+      "implementation": [
+        { "path": "providers/runtime/browser/adapter.mjs", "symbol": "buildBrowserSurfaceReceipt" },
+        { "path": "providers/runtime/native-surface/adapter.mjs", "symbol": "buildNativeSurfaceReceipt" }
+      ],
+      "proof": { "red": "qualification/evidence/lanes/L2/B5-021.red.log", "green": "qualification/evidence/lanes/L2/B5-021.green.log" },
+      "typedGaps": ["schema-sealed-coordinator-amendment", "runtime-capability-unproven-when-unavailable"]
+    },
+    {
+      "id": "B5-022",
+      "status": "implemented",
+      "test": { "path": "tests/design-l2.test.mjs", "assertion": "visual capture validates real PNG bytes, binds digests, separates raw/normalized evidence, and redacts secrets" },
+      "implementation": [
+        { "path": "providers/visual/capture.mjs", "symbol": "captureVisualEvidence" },
+        { "path": "lib/design/geometry.mjs", "symbol": "normalizeGeometry" }
+      ],
+      "proof": { "red": "qualification/evidence/lanes/L2/B5-022.red.log", "green": "qualification/evidence/lanes/L2/B5-022.green.log" },
+      "typedGaps": ["schema-sealed-coordinator-amendment", "declared-private-surface-capture-only"]
+    },
+    {
+      "id": "B5-023",
+      "status": "implemented",
+      "test": { "path": "tests/design-l2.test.mjs", "assertion": "geometry findings use exact bounds and preserve unsupported primitive gaps" },
+      "implementation": [{ "path": "providers/visual/geometry.mjs", "symbol": "analyzeGeometryEvidence" }],
+      "proof": { "red": "qualification/evidence/lanes/L2/B5-023.red.log", "green": "qualification/evidence/lanes/L2/B5-023.green.log" },
+      "typedGaps": ["registry-rule-sealed-coordinator-integration"]
+    },
+    {
+      "id": "B5-024",
+      "status": "implemented",
+      "test": { "path": "tests/design-l2.test.mjs", "assertion": "visual diff rejects mismatched identities and never auto-accepts baselines" },
+      "implementation": [
+        { "path": "providers/visual/diff.mjs", "symbol": "compareVisualEvidence" },
+        { "path": "lib/design/baselines.mjs", "symbol": "baselineIdentity" }
+      ],
+      "proof": { "red": "qualification/evidence/lanes/L2/B5-024.red.log", "green": "qualification/evidence/lanes/L2/B5-024.green.log" },
+      "typedGaps": ["schema-sealed-coordinator-amendment", "baseline-review-required"]
+    },
+    {
+      "id": "B5-025",
+      "status": "implemented",
+      "test": { "path": "tests/design-l2.test.mjs", "assertion": "review packets require fresh independent identity, exact evidence, counterargument, uncertainty, and brand limits" },
+      "implementation": [{ "path": "providers/visual/reviewer.mjs", "symbol": "buildReviewPacket; validateJudgmentReceipt" }],
+      "proof": { "red": "qualification/evidence/lanes/L2/B5-025.red.log", "green": "qualification/evidence/lanes/L2/B5-025.green.log" },
+      "typedGaps": ["schema-and-registry-sealed-coordinator-amendment", "fresh-independent-reviewer-required-at-runtime"]
+    },
+    {
+      "id": "B5-026",
+      "status": "implemented",
+      "test": { "path": "tests/design-l2.test.mjs", "assertion": "motion findings bind transitions and timing while missing reduced-motion exercise remains unproven" },
+      "implementation": [{ "path": "providers/visual/motion.mjs", "symbol": "analyzeMotion" }],
+      "proof": { "red": "qualification/evidence/lanes/L2/B5-026.red.log", "green": "qualification/evidence/lanes/L2/B5-026.green.log" },
+      "typedGaps": ["registry-rule-sealed-coordinator-integration"]
+    },
+    {
+      "id": "B5-028",
+      "status": "implemented",
+      "test": { "path": "tests/design-l2.test.mjs", "assertion": "bundle identity, request evidence, and cache correctness/invalidation requirements stay explicit" },
+      "implementation": [
+        { "path": "providers/performance/bundle/core.mjs", "symbol": "analyzeBundleEvidence" },
+        { "path": "providers/performance/network/core.mjs", "symbol": "analyzeNetworkEvidence" },
+        { "path": "providers/performance/cache/core.mjs", "symbol": "analyzeCacheEvidence" }
+      ],
+      "proof": { "red": "qualification/evidence/lanes/L2/B5-028.red.log", "green": "qualification/evidence/lanes/L2/B5-028.green.log" },
+      "typedGaps": ["registry-rule-sealed-coordinator-integration"]
+    }
+  ],
+  "verification": {
+    "command": "node --test tests/design-l2.test.mjs",
+    "log": "qualification/evidence/lanes/L2/L2.full.green.log",
+    "result": "20 passed, 0 failed"
+  }
+}

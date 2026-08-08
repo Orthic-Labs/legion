@@ -1,0 +1,12 @@
+✔ Electron dangerous preferences are blocking candidates (4.5765ms)
+✔ Django debug and CSRF bypass are detected as candidates (2.8713ms)
+✔ Next public secret and Angular trust bypass are detected (2.9325ms)
+✔ benign framework fixture emits no candidates (2.1812ms)
+ℹ tests 4
+ℹ suites 0
+ℹ pass 4
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 76.9932

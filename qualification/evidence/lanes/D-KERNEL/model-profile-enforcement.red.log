@@ -1,0 +1,25 @@
+✖ model profile enforcement is data-driven and only downgrades (16.4179ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 99.275
+
+✖ failing tests:
+
+test at packages\kernel\tests\kernel.test.mjs:219:1
+✖ model profile enforcement is data-driven and only downgrades (16.4179ms)
+  AssertionError [ERR_ASSERTION]: kernel package entry point must exist
+      at TestContext.<anonymous> (file:///D:/Claude/tools/skills/nemesis/packages/kernel/tests/kernel.test.mjs:221:10)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: null,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }

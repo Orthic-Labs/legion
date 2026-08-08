@@ -1,0 +1,29 @@
+import { readFileSync, readdirSync, writeFileSync } from 'node:fs';
+import { join, resolve } from 'node:path';
+import { createHash } from 'node:crypto';
+
+const root=resolve(import.meta.dirname,'..');
+const providerByFamily={universal:'requirements.traceability',web:'framework.frontend',desktop:'compatibility.core',mobile:'code.mobile','service-data':'framework.backend','developer-tools':'test-quality.core','infrastructure-release':'container.iac',conditional:'governance.policy'};
+const familyByPack={universal:'requirements',web:'framework',desktop:'compatibility',mobile:'code','service-data':'data','developer-tools':'test-quality','infrastructure-release':'supply-chain',conditional:'governance'};
+const ruleByFamily={universal:'requirements',web:'code.architecture',desktop:'compatibility',mobile:'code.architecture','service-data':'data-integrity','developer-tools':'code.test-quality','infrastructure-release':'governance',conditional:'governance'};
+const controlRoot=join(root,'registry','controls','controls');
+const controlsByFamily=new Map();
+for(const family of readdirSync(controlRoot)){
+  const path=join(controlRoot,family,'core.json');const catalogue=JSON.parse(readFileSync(path,'utf8'));
+  catalogue.controls=catalogue.controls.map((control)=>{const name=control.id.slice(family.length+1);return{...control,selector:family==='conditional'?{facets:[name]}:control.selector,families:[familyByPack[family]],lenses:[`${family}.${name}`],providers:[providerByFamily[family]],rules:[ruleByFamily[family]],decisionMode:family==='universal'?'deterministic':'measured',remediationOwner:/documentation|legal|content/.test(name)?'writing':/architecture|infrastructure|release|backup|signing/.test(name)?'architecture':'code',sourceConcepts:[`canonical:${family}:${name}`],benchmark:{status:'unproven',providerVersion:null,corpusDigest:null,qualificationDigest:null},provenance:{kind:'canonical',source:`nemesis:${family}`,rights:'internal-contract',lineage:[`canonical:${family}:${name}`]}};});
+  controlsByFamily.set(family,catalogue.controls);writeFileSync(path,`${JSON.stringify(catalogue,null,2)}\n`);
+}
+const packRoot=join(root,'registry','controls','packs');
+const walk=(path)=>readdirSync(path,{withFileTypes:true}).flatMap((entry)=>entry.isDirectory()?walk(join(path,entry.name)):entry.name==='core.json'?[join(path,entry.name)]:[]);
+for(const path of walk(packRoot)){const pack=JSON.parse(readFileSync(path,'utf8'));const family=pack.id==='universal.core'?'universal':pack.id==='component.service-data'?'service-data':pack.id.replace(/^target\.|^component\./,'');if(controlsByFamily.has(family)){pack.controls=controlsByFamily.get(family);writeFileSync(path,`${JSON.stringify(pack,null,2)}\n`);}}
+
+const sourceRoot=join(root,'registry','controls','sources');
+const ledgers=[['creator-audits-v1.json','creator-audits',{kind:'seed-metadata',version:'1.0.0',rawDocumentsAvailable:false}],['platform-checklists-v1.json','platform-checklists',{kind:'markdown-hierarchy',version:'1.0.0',headings:true,proseDigests:true,stopShip:true}]];
+const sourceRecords=[];
+const hash=(value)=>createHash('sha256').update(value).digest('hex');
+for(const [name,family,parser] of ledgers){const path=join(sourceRoot,name),ledger=JSON.parse(readFileSync(path,'utf8'));ledger.parser=parser;
+  if(family==='platform-checklists')for(const source of ledger.sources){const raw=readFileSync(join(root,source.rawPath),'utf8');const existing=new Set(ledger.items.filter((item)=>item.sourceId===source.id).map(({line,type})=>`${line}:${type}`));let hierarchy=[];for(const [offset,line] of raw.split(/\r?\n/).entries()){const lineNumber=offset+1;if(/^#{1,6}\s+/.test(line))hierarchy=[`sha256:${hash(line).slice(0,16)}`];const table=/^\s*\|.*\|\s*$/.test(line);const stopShip=/release blocker|stop[- ]ship|must not ship|block(?:s|ing)? release/i.test(line);if(!table&&!stopShip)continue;const type=table?'table-row':'stop-ship';if(existing.has(`${lineNumber}:${type}`))continue;ledger.items.push({id:`${source.id}:${lineNumber}:${type}`,sourceId:source.id,line:lineNumber,type,stopShip,evidenceRequirement:/evidence|proof|receipt|artifact/i.test(line),outputRequirement:/output|report|record|receipt/i.test(line),hierarchy,textDigest:`sha256:${hash(line)}`,normalizedConceptId:`concept:${hash(`${source.id}:${lineNumber}:${line}`).slice(0,20)}`,disposition:'policy-dependent',owners:[`target.${source.platform}-app`],rightsStatus:'unresolved',internalUse:'metadata-analysis-only',redistribution:'forbidden-pending-rights',controlIds:[],executionAuthority:false});}}
+  ledger.items.sort((a,b)=>String(a.sourceId??a.sourceDocumentId).localeCompare(String(b.sourceId??b.sourceDocumentId))||(a.line??0)-(b.line??0)||String(a.type).localeCompare(String(b.type)));
+  for(const source of ledger.sources)source.itemCount=ledger.items.filter((item)=>(item.sourceId??item.sourceDocumentId)===source.id).length;
+  ledger.derivedRefs={normalizedConceptIds:[...new Set(ledger.items.flatMap((item)=>item.normalizedConceptIds??(item.normalizedConceptId?[item.normalizedConceptId]:[])))].sort(),controlIds:[...new Set(ledger.items.flatMap((item)=>item.controlIds??[]))].sort()};for(const source of ledger.sources){sourceRecords.push({id:source.id,sourceFamily:family,kind:'guidance-source',digest:source.digest,itemCount:source.itemCount??ledger.items.filter((item)=>(item.sourceId??item.sourceDocumentId)===source.id).length,rawAvailable:source.rawAvailable??Boolean(source.rawPath),rawPath:source.rawPath??null,rightsStatus:source.rightsStatus,allowedTransformations:[],verbatimDistribution:false,executionAuthority:false,parserVersion:parser.version,derivedRefs:ledger.derivedRefs,nextEvidence:ledger.nextEvidence});}writeFileSync(path,`${JSON.stringify(ledger,null,2)}\n`);}
+writeFileSync(join(sourceRoot,'catalogue.json'),`${JSON.stringify({schemaVersion:1,kind:'nemesis-control-source-catalogue',sources:sourceRecords},null,2)}\n`);

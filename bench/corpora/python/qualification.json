@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "family": "python",
+  "cases": [
+    {
+      "id": "positive",
+      "expected": "measured"
+    },
+    {
+      "id": "negative",
+      "expected": "measured"
+    },
+    {
+      "id": "mitigated",
+      "expected": "measured"
+    },
+    {
+      "id": "unavailable-tool",
+      "expected": "unproven"
+    },
+    {
+      "id": "path-layout",
+      "expected": "measured"
+    }
+  ]
+}

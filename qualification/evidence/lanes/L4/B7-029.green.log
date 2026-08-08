@@ -1,0 +1,17 @@
+✔ every untrusted evidence kind and reviewer family is covered (3.0254ms)
+✔ control and bidirectional characters are escaped and normalization is recorded (0.5057ms)
+✔ byte caps truncate visibly and list omissions (0.4233ms)
+✔ the source digest survives and raw bytes stay behind a bound artifact reference (0.2943ms)
+✔ packets separate trusted instructions from untrusted evidence in every family (1.8258ms)
+✔ repository attempts to change provider, role, context, schema, tools, policy, or verdict are recorded and never applied (8.3701ms)
+✔ untrusted text can never be interpolated into instructions or tool definitions (0.3376ms)
+✔ packet truncation stays visible on the packet itself (0.2792ms)
+✔ the committed untrusted-evidence schema matches its generator (0.6238ms)
+ℹ tests 9
+ℹ suites 0
+ℹ pass 9
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 101.627

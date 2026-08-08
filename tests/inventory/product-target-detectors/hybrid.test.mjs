@@ -1,0 +1,2 @@
+import assert from 'node:assert/strict';import test from 'node:test';import {discoverTargets} from '../../../lib/inventory/product-targets/detectors/index.mjs';
+test('hybrid detector emits every evidence-backed target',async()=>{const rows=await discoverTargets({files:['tauri.conf.json','next.config.mjs','AndroidManifest.xml','App.xcodeproj']});assert.deepEqual(new Set(rows.map(({kind})=>kind)),new Set(['desktop-app','web-app','android-app','ios-app']));});

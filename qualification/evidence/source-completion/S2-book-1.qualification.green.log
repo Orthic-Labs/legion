@@ -1,0 +1,11 @@
+✔ B1 receipt binds every task to a behavioral assertion and owned implementation symbol (13.7213ms)
+✔ B1 receipt rejects stale revision, changed evidence bytes, and undeclared fields (30.1397ms)
+✔ B1 receipt rejects dependency reordering and assertions absent from named test bytes (19.042ms)
+ℹ tests 3
+ℹ suites 0
+ℹ pass 3
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 138.325

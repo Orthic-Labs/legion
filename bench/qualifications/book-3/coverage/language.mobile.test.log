@@ -1,0 +1,19 @@
+✔ swift pack detects Swift projects (0.9118ms)
+✔ swift pack degrades on non-macOS hosts (0.2731ms)
+✔ swift pack emits build/test/lint on macOS (0.1355ms)
+✔ dart pack detects pubspec projects (0.1887ms)
+✔ dart pack emits analyze/test (0.1516ms)
+✔ apple pack flags ATS disabled (0.4087ms)
+✔ apple pack flags sensitive UserDefaults storage (0.228ms)
+✔ flutter pack flags bad cert callback (0.2914ms)
+✔ flutter pack flags sensitive SharedPreferences storage (0.2882ms)
+✔ react-native pack flags unvalidated openURL (0.3893ms)
+✔ react-native pack flags sensitive AsyncStorage (0.1708ms)
+ℹ tests 11
+ℹ suites 0
+ℹ pass 11
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 69.8278

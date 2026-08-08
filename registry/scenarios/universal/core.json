@@ -1,0 +1,257 @@
+{
+  "schemaVersion": 1,
+  "templates": [
+    {
+      "id": "universal.scope.default",
+      "controlId": "universal.scope",
+      "mandatory": true,
+      "requiredCapabilities": [
+        "repository"
+      ],
+      "destructive": false,
+      "isolation": "fresh",
+      "timeoutMs": 30000,
+      "invariants": [
+        "no-unaccounted-side-effects"
+      ]
+    },
+    {
+      "id": "universal.requirements.default",
+      "controlId": "universal.requirements",
+      "mandatory": true,
+      "requiredCapabilities": [
+        "repository"
+      ],
+      "destructive": false,
+      "isolation": "fresh",
+      "timeoutMs": 30000,
+      "invariants": [
+        "no-unaccounted-side-effects"
+      ]
+    },
+    {
+      "id": "universal.journeys.default",
+      "controlId": "universal.journeys",
+      "mandatory": true,
+      "requiredCapabilities": [
+        "repository"
+      ],
+      "destructive": false,
+      "isolation": "fresh",
+      "timeoutMs": 30000,
+      "invariants": [
+        "no-unaccounted-side-effects"
+      ]
+    },
+    {
+      "id": "universal.architecture.default",
+      "controlId": "universal.architecture",
+      "mandatory": true,
+      "requiredCapabilities": [
+        "repository"
+      ],
+      "destructive": false,
+      "isolation": "fresh",
+      "timeoutMs": 30000,
+      "invariants": [
+        "no-unaccounted-side-effects"
+      ]
+    },
+    {
+      "id": "universal.code.default",
+      "controlId": "universal.code",
+      "mandatory": true,
+      "requiredCapabilities": [
+        "repository"
+      ],
+      "destructive": false,
+      "isolation": "fresh",
+      "timeoutMs": 30000,
+      "invariants": [
+        "no-unaccounted-side-effects"
+      ]
+    },
+    {
+      "id": "universal.tests.default",
+      "controlId": "universal.tests",
+      "mandatory": true,
+      "requiredCapabilities": [
+        "repository"
+      ],
+      "destructive": false,
+      "isolation": "fresh",
+      "timeoutMs": 30000,
+      "invariants": [
+        "no-unaccounted-side-effects"
+      ]
+    },
+    {
+      "id": "universal.errors.default",
+      "controlId": "universal.errors",
+      "mandatory": true,
+      "requiredCapabilities": [
+        "repository"
+      ],
+      "destructive": false,
+      "isolation": "fresh",
+      "timeoutMs": 30000,
+      "invariants": [
+        "no-unaccounted-side-effects"
+      ]
+    },
+    {
+      "id": "universal.security.default",
+      "controlId": "universal.security",
+      "mandatory": true,
+      "requiredCapabilities": [
+        "repository"
+      ],
+      "destructive": false,
+      "isolation": "fresh",
+      "timeoutMs": 30000,
+      "invariants": [
+        "no-unaccounted-side-effects"
+      ]
+    },
+    {
+      "id": "universal.privacy.default",
+      "controlId": "universal.privacy",
+      "mandatory": true,
+      "requiredCapabilities": [
+        "repository"
+      ],
+      "destructive": false,
+      "isolation": "fresh",
+      "timeoutMs": 30000,
+      "invariants": [
+        "no-unaccounted-side-effects"
+      ]
+    },
+    {
+      "id": "universal.supply-chain.default",
+      "controlId": "universal.supply-chain",
+      "mandatory": true,
+      "requiredCapabilities": [
+        "repository"
+      ],
+      "destructive": false,
+      "isolation": "fresh",
+      "timeoutMs": 30000,
+      "invariants": [
+        "no-unaccounted-side-effects"
+      ]
+    },
+    {
+      "id": "universal.data.default",
+      "controlId": "universal.data",
+      "mandatory": true,
+      "requiredCapabilities": [
+        "repository"
+      ],
+      "destructive": false,
+      "isolation": "fresh",
+      "timeoutMs": 30000,
+      "invariants": [
+        "no-unaccounted-side-effects"
+      ]
+    },
+    {
+      "id": "universal.reliability.default",
+      "controlId": "universal.reliability",
+      "mandatory": true,
+      "requiredCapabilities": [
+        "repository"
+      ],
+      "destructive": false,
+      "isolation": "fresh",
+      "timeoutMs": 30000,
+      "invariants": [
+        "no-unaccounted-side-effects"
+      ]
+    },
+    {
+      "id": "universal.observability.default",
+      "controlId": "universal.observability",
+      "mandatory": true,
+      "requiredCapabilities": [
+        "repository"
+      ],
+      "destructive": false,
+      "isolation": "fresh",
+      "timeoutMs": 30000,
+      "invariants": [
+        "no-unaccounted-side-effects"
+      ]
+    },
+    {
+      "id": "universal.ownership.default",
+      "controlId": "universal.ownership",
+      "mandatory": true,
+      "requiredCapabilities": [
+        "repository"
+      ],
+      "destructive": false,
+      "isolation": "fresh",
+      "timeoutMs": 30000,
+      "invariants": [
+        "no-unaccounted-side-effects"
+      ]
+    },
+    {
+      "id": "universal.documentation.default",
+      "controlId": "universal.documentation",
+      "mandatory": true,
+      "requiredCapabilities": [
+        "repository"
+      ],
+      "destructive": false,
+      "isolation": "fresh",
+      "timeoutMs": 30000,
+      "invariants": [
+        "no-unaccounted-side-effects"
+      ]
+    },
+    {
+      "id": "universal.release-identity.default",
+      "controlId": "universal.release-identity",
+      "mandatory": true,
+      "requiredCapabilities": [
+        "repository"
+      ],
+      "destructive": false,
+      "isolation": "fresh",
+      "timeoutMs": 30000,
+      "invariants": [
+        "no-unaccounted-side-effects"
+      ]
+    },
+    {
+      "id": "universal.support.default",
+      "controlId": "universal.support",
+      "mandatory": true,
+      "requiredCapabilities": [
+        "repository"
+      ],
+      "destructive": false,
+      "isolation": "fresh",
+      "timeoutMs": 30000,
+      "invariants": [
+        "no-unaccounted-side-effects"
+      ]
+    },
+    {
+      "id": "universal.unknown-material.default",
+      "controlId": "universal.unknown-material",
+      "mandatory": true,
+      "requiredCapabilities": [
+        "repository"
+      ],
+      "destructive": false,
+      "isolation": "fresh",
+      "timeoutMs": 30000,
+      "invariants": [
+        "no-unaccounted-side-effects"
+      ]
+    }
+  ]
+}

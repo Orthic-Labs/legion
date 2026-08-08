@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "kind": "nemesis-coverage-test-artifact",
+  "recordId": "framework.data",
+  "testPath": "tests/generic-source-suite.test.mjs",
+  "status": "pass",
+  "rawLog": {
+    "path": "bench/qualifications/book-3/coverage/framework.data.test.log",
+    "digest": "sha256:d42ff8f2a74e3443584063a8ac349d2966f43da9c7a8dbc070938e57b38516b6",
+    "bytes": 254
+  },
+  "providerVersions": {
+    "framework.data": "1.0.0"
+  }
+}

@@ -1,0 +1,207 @@
+{
+  "schemaVersion": 1,
+  "rules": [
+    {
+      "id": "csrf.state-changing-route.missing-token",
+      "version": "1.0.0",
+      "pack": "security.browser-client",
+      "class": "browser-client",
+      "decisionMode": "evidence",
+      "cleanClaim": "never-without-denominator",
+      "primitiveClass": "exploitable-primitive",
+      "applicability": "cookie-session-state-changing-routes"
+    },
+    {
+      "id": "csrf.samesite-none-without-secure",
+      "version": "1.0.0",
+      "pack": "security.browser-client",
+      "class": "browser-client",
+      "decisionMode": "evidence",
+      "cleanClaim": "never-without-denominator",
+      "primitiveClass": "exploitable-primitive",
+      "applicability": "session-cookies"
+    },
+    {
+      "id": "csrf.samesite-missing",
+      "version": "1.0.0",
+      "pack": "security.browser-client",
+      "class": "browser-client",
+      "decisionMode": "evidence",
+      "cleanClaim": "never-without-denominator",
+      "primitiveClass": "exploitable-primitive",
+      "applicability": "session-cookies"
+    },
+    {
+      "id": "cors.wildcard-origin-with-credentials",
+      "version": "1.0.0",
+      "pack": "security.browser-client",
+      "class": "browser-client",
+      "decisionMode": "evidence",
+      "cleanClaim": "never-without-denominator",
+      "primitiveClass": "exploitable-primitive",
+      "applicability": "cors-response-headers"
+    },
+    {
+      "id": "cors.reflected-origin-without-allowlist",
+      "version": "1.0.0",
+      "pack": "security.browser-client",
+      "class": "browser-client",
+      "decisionMode": "evidence",
+      "cleanClaim": "never-without-denominator",
+      "primitiveClass": "exploitable-primitive",
+      "applicability": "cors-response-headers"
+    },
+    {
+      "id": "clickjacking.missing-frame-protection",
+      "version": "1.0.0",
+      "pack": "security.browser-client",
+      "class": "browser-client",
+      "decisionMode": "evidence",
+      "cleanClaim": "never-without-denominator",
+      "primitiveClass": "defense-in-depth",
+      "applicability": "html-serving-applications"
+    },
+    {
+      "id": "open-redirect.unvalidated-target",
+      "version": "1.0.0",
+      "pack": "security.browser-client",
+      "class": "browser-client",
+      "decisionMode": "evidence",
+      "cleanClaim": "never-without-denominator",
+      "primitiveClass": "exploitable-primitive",
+      "applicability": "redirect-handlers"
+    },
+    {
+      "id": "oauth.redirect-uri.unvalidated",
+      "version": "1.0.0",
+      "pack": "security.browser-client",
+      "class": "browser-client",
+      "decisionMode": "evidence",
+      "cleanClaim": "never-without-denominator",
+      "primitiveClass": "exploitable-primitive",
+      "applicability": "oauth-clients"
+    },
+    {
+      "id": "csp.missing",
+      "version": "1.0.0",
+      "pack": "security.browser-client",
+      "class": "browser-client",
+      "decisionMode": "evidence",
+      "cleanClaim": "never-without-denominator",
+      "primitiveClass": "defense-in-depth",
+      "applicability": "html-serving-applications"
+    },
+    {
+      "id": "csp.unsafe-inline",
+      "version": "1.0.0",
+      "pack": "security.browser-client",
+      "class": "browser-client",
+      "decisionMode": "evidence",
+      "cleanClaim": "never-without-denominator",
+      "primitiveClass": "defense-in-depth",
+      "applicability": "content-security-policy"
+    },
+    {
+      "id": "csp.unsafe-eval",
+      "version": "1.0.0",
+      "pack": "security.browser-client",
+      "class": "browser-client",
+      "decisionMode": "evidence",
+      "cleanClaim": "never-without-denominator",
+      "primitiveClass": "defense-in-depth",
+      "applicability": "content-security-policy"
+    },
+    {
+      "id": "csp.wildcard-source",
+      "version": "1.0.0",
+      "pack": "security.browser-client",
+      "class": "browser-client",
+      "decisionMode": "evidence",
+      "cleanClaim": "never-without-denominator",
+      "primitiveClass": "defense-in-depth",
+      "applicability": "content-security-policy"
+    },
+    {
+      "id": "hsts.missing",
+      "version": "1.0.0",
+      "pack": "security.http-protocol-cache",
+      "class": "http-protocol",
+      "decisionMode": "evidence",
+      "cleanClaim": "never-without-denominator",
+      "primitiveClass": "defense-in-depth",
+      "applicability": "https-deployments"
+    },
+    {
+      "id": "https.not-enforced",
+      "version": "1.0.0",
+      "pack": "security.http-protocol-cache",
+      "class": "http-protocol",
+      "decisionMode": "evidence",
+      "cleanClaim": "never-without-denominator",
+      "primitiveClass": "exploitable-primitive",
+      "applicability": "server-transport-config"
+    },
+    {
+      "id": "headers.missing-content-type-options",
+      "version": "1.0.0",
+      "pack": "security.http-protocol-cache",
+      "class": "http-protocol",
+      "decisionMode": "evidence",
+      "cleanClaim": "never-without-denominator",
+      "primitiveClass": "defense-in-depth",
+      "applicability": "http-response-headers"
+    },
+    {
+      "id": "headers.content-type-missing-charset",
+      "version": "1.0.0",
+      "pack": "security.http-protocol-cache",
+      "class": "http-protocol",
+      "decisionMode": "evidence",
+      "cleanClaim": "never-without-denominator",
+      "primitiveClass": "defense-in-depth",
+      "applicability": "text-responses"
+    },
+    {
+      "id": "cache.sensitive-content-cacheable",
+      "version": "1.0.0",
+      "pack": "security.http-protocol-cache",
+      "class": "http-protocol",
+      "decisionMode": "evidence",
+      "cleanClaim": "never-without-denominator",
+      "primitiveClass": "exploitable-primitive",
+      "applicability": "authenticated-routes"
+    },
+    {
+      "id": "proxy.trust-misconfigured",
+      "version": "1.0.0",
+      "pack": "security.http-protocol-cache",
+      "class": "http-protocol",
+      "decisionMode": "evidence",
+      "cleanClaim": "never-without-denominator",
+      "primitiveClass": "exploitable-primitive",
+      "applicability": "reverse-proxy-deployments"
+    },
+    {
+      "id": "smuggling.conflicting-content-length-transfer-encoding",
+      "version": "1.0.0",
+      "pack": "security.http-protocol-cache",
+      "class": "http-protocol",
+      "decisionMode": "evidence",
+      "cleanClaim": "never-without-denominator",
+      "primitiveClass": "exploitable-primitive",
+      "applicability": "raw-http-handling"
+    },
+    {
+      "id": "smuggling.ambiguous-proxy-chain",
+      "version": "1.0.0",
+      "pack": "security.http-protocol-cache",
+      "class": "http-protocol",
+      "decisionMode": "evidence",
+      "cleanClaim": "never-without-denominator",
+      "primitiveClass": "exploitable-primitive",
+      "applicability": "forwarded-header-parsing"
+    }
+  ],
+  "source": "internal",
+  "license": "internal"
+}

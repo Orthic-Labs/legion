@@ -1,0 +1,19 @@
+✔ GATE 2: authorize -> effect -> authenticated receipt -> verified chain (29.1875ms)
+✔ GATE 2: gate health reports strong only when every capability is actually present (6.4845ms)
+✔ GATE 2: an EXPIRED capability is refused through the gate (4.8693ms)
+✔ GATE 2: a capability bound to a different target does not authorize this effect (4.7154ms)
+✔ GATE 2: a single-use capability cannot authorize a second effect (5.8501ms)
+✔ GATE 2: a revoked capability is refused, and revocation is not retroactively forgotten (4.8921ms)
+✔ GATE 2: a replayed receipt is refused even though its signature is genuine (4.6398ms)
+✔ GATE 2: a tampered receipt chain is detected by independent verification (35.3312ms)
+✔ GATE 2: a model self-report never becomes a receipt — no signature, no entry (5.0776ms)
+✔ GATE 2: a legacy Forge signature_or_mac cannot stand in for authentication (4.3994ms)
+✔ GATE 2: with the gate down, the mutation is refused and nothing is written (6.0879ms)
+ℹ tests 11
+ℹ suites 0
+ℹ pass 11
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 209.4934

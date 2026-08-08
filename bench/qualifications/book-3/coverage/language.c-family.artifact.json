@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "kind": "nemesis-coverage-test-artifact",
+  "recordId": "language.c-family",
+  "testPath": "tests/providers/c-family/c-family.test.mjs",
+  "status": "pass",
+  "rawLog": {
+    "path": "bench/qualifications/book-3/coverage/language.c-family.test.log",
+    "digest": "sha256:d156638aa54e10aa24f4db5fdbe733a6b366ba5e39c56479c5ee553971376c4b",
+    "bytes": 614
+  },
+  "providerVersions": {
+    "code.c-family": "1.0.0"
+  }
+}

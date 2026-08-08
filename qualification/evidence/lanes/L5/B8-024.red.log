@@ -1,0 +1,30 @@
+✖ B8-024 derives claims from exact measured qualification identity (3.979ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 96.8209
+
+✖ failing tests:
+
+test at tests\public-l5.test.mjs:119:1
+✖ B8-024 derives claims from exact measured qualification identity (3.979ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + 'deterministic-measured'
+  - 'unproven'
+  
+      at TestContext.<anonymous> (file:///D:/Claude/tools/skills/nemesis/tests/public-l5.test.mjs:127:10)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'deterministic-measured',
+    expected: 'unproven',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

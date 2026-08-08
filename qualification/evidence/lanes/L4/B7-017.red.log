@@ -1,0 +1,96 @@
+✔ registry rule ids match abuse-resilience and observability-forensics pack rule ids exactly, in both directions (3.419ms)
+✔ neither pack imports a live network, process, or worker module (1.4472ms)
+✔ abuse-resilience flags a server with no global rate limiter as a capped design recommendation without cost evidence (5.0731ms)
+✔ abuse-resilience stays clean on global rate limit when a limiter is present (0.7441ms)
+✔ abuse-resilience upgrades the global rate-limit claim to proven-primitive when cost/amplification evidence is present (0.5389ms)
+✔ abuse-resilience flags an identity-sensitive operation with no per-operation rate limit and names the resource (0.7472ms)
+✖ abuse-resilience stays clean on per-operation rate limit when a limiter is registered near the route (1.6458ms)
+✔ abuse-resilience flags a GraphQL server with no depth or cost limit (1.5014ms)
+✔ abuse-resilience stays clean on GraphQL depth/cost when limits are configured (1.6608ms)
+✔ abuse-resilience flags explicit GraphQL introspection: true as a proven, low-severity information-exposure primitive (1.2749ms)
+✔ abuse-resilience flags unbounded pagination taken directly from request input (0.7593ms)
+✔ abuse-resilience stays clean on pagination when the page size is capped (0.321ms)
+✔ abuse-resilience flags over-exposed fields when a sensitive-looking field name coexists with a full-object response and no allowlist (0.5933ms)
+✔ abuse-resilience stays clean on over-exposed fields when a field allowlist/pick is present (0.2818ms)
+✔ abuse-resilience flags a webhook receiver with no signature verification at all (0.4923ms)
+✔ abuse-resilience flags a webhook receiver that uses the body before verifying its signature (ordering matters) (0.4741ms)
+✔ abuse-resilience stays clean when a webhook receiver verifies the signature before using the body (0.3073ms)
+✔ abuse-resilience flags a payment mutation with no idempotency key check (0.4463ms)
+✔ abuse-resilience stays clean on idempotency when a key check is present (0.2162ms)
+✔ abuse-resilience flags an unbounded, request-derived allocation as a proven resource-exhaustion primitive (0.3551ms)
+✔ abuse-resilience stays clean on resource exhaustion when the size is capped (0.1912ms)
+✔ abuse-resilience flags outbound calls with no circuit breaker as a design recommendation capped at low, always (0.3965ms)
+✔ abuse-resilience stays clean on circuit breaker when a breaker/retry pattern is present (0.8017ms)
+✔ every abuse-resilience candidate names the resource and what the attacker controls, and declares non-empty attacker capabilities (0.9802ms)
+✔ every design-recommendation candidate across both packs is capped at low severity and labelled as such (0.3511ms)
+✔ observability-forensics flags a raw stack trace returned to the client (1.4646ms)
+✔ observability-forensics stays clean when the leak is guarded by a non-production check (0.3009ms)
+✔ observability-forensics flags a session-issuing auth-success path with no security-event record, and names the expected event (0.3615ms)
+✔ observability-forensics stays clean on auth-success when a security-event log call is present (0.1399ms)
+✔ observability-forensics stays clean on auth-success when an upstream logging trace confirms the event is emitted (0.1457ms)
+✔ observability-forensics flags a 401 auth-failure branch with no security-event record (0.1933ms)
+✔ observability-forensics flags a role mutation with no security-event record (0.1997ms)
+✔ observability-forensics flags a bulk export path with no security-event record (0.2218ms)
+✔ observability-forensics flags request-derived data concatenated directly into a log statement (0.3625ms)
+✔ observability-forensics stays clean on log injection when the value is sanitized first (0.1082ms)
+✔ no observability rule claim or uncertainty text demands logging credentials, tokens, PII, or a full request body (1.1602ms)
+✔ every candidate from both packs is adjudication-only, cites evidence, and never carries a final verdict (0.5256ms)
+✔ variantStrategies enumerate equivalent endpoint and event-consumer variants for representative rules in both packs (0.6176ms)
+✖ both packs stay fully clean on a fully mitigated fixture (0.8459ms)
+✔ both packs emit nothing for neutral source with no abuse or observability markers (0.1668ms)
+ℹ tests 40
+ℹ suites 0
+ℹ pass 38
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 167.7513
+
+✖ failing tests:
+
+test at tests\security-l4\b7-017-abuse-observability.test.mjs:119:1
+✖ abuse-resilience stays clean on per-operation rate limit when a limiter is registered near the route (1.6458ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  1 !== 0
+  
+      at TestContext.<anonymous> (file:///D:/Claude/tools/skills/nemesis/tests/security-l4/b7-017-abuse-observability.test.mjs:123:10)
+      at Test.runInAsyncScope (node:async_hooks:226:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests\security-l4\b7-017-abuse-observability.test.mjs:497:1
+✖ both packs stay fully clean on a fully mitigated fixture (0.8459ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+  + [
+  +   'abuse.rate-limit.operation-missing'
+  + ]
+  - []
+  
+      at TestContext.<anonymous> (file:///D:/Claude/tools/skills/nemesis/tests/security-l4/b7-017-abuse-observability.test.mjs:526:10)
+      at Test.runInAsyncScope (node:async_hooks:226:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [ 'abuse.rate-limit.operation-missing' ],
+    expected: [],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }

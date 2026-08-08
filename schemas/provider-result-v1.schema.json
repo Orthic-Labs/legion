@@ -1,8 +1,8 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://orthic.dev/schemas/audit-provider-result-v1.json",
-  "title": "AuditProviderResultV1",
   "type": "object",
+  "additionalProperties": false,
   "required": [
     "schemaVersion",
     "provider",
@@ -14,7 +14,8 @@
     "candidates",
     "findings",
     "coverageGaps",
-    "degradation"
+    "degradation",
+    "details"
   ],
   "properties": {
     "schemaVersion": {
@@ -49,13 +50,16 @@
     },
     "coverage": {
       "type": "object",
+      "additionalProperties": false,
       "required": [
-        "denominatorDigest"
+        "denominatorDigest",
+        "expected",
+        "examined"
       ],
       "properties": {
         "denominatorDigest": {
           "type": "string",
-          "pattern": "^sha256:"
+          "pattern": "^sha256:[a-f0-9]{64}$"
         },
         "expected": {
           "type": "integer",
@@ -64,30 +68,8 @@
         "examined": {
           "type": "integer",
           "minimum": 0
-        },
-        "unexamined": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
         }
-      },
-      "additionalProperties": true
-    },
-    "commands": {
-      "type": "array",
-      "items": {
-        "type": "object"
       }
-    },
-    "receipts": {
-      "type": "array",
-      "items": {
-        "type": "object"
-      }
-    },
-    "inventory": {
-      "type": "array"
     },
     "candidates": {
       "type": "array"
@@ -98,38 +80,36 @@
     "coverageGaps": {
       "type": "array"
     },
-    "inputArtifacts": {
-      "type": "array",
-      "items": {
-        "type": "string"
-      }
-    },
-    "artifacts": {
-      "type": "array",
-      "items": {
-        "type": "object",
-        "required": [
-          "kind",
-          "path",
-          "digest"
-        ],
-        "properties": {
-          "kind": {
-            "type": "string"
-          },
-          "path": {
-            "type": "string"
-          },
-          "digest": {
-            "type": "string",
-            "pattern": "^sha256:"
-          }
-        }
-      }
-    },
     "degradation": {
       "type": "array"
+    },
+    "details": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "family",
+        "componentIds",
+        "limitations",
+        "rawArtifacts"
+      ],
+      "properties": {
+        "family": {
+          "type": "string",
+          "minLength": 1
+        },
+        "componentIds": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "limitations": {
+          "type": "array"
+        },
+        "rawArtifacts": {
+          "type": "array"
+        }
+      }
     }
-  },
-  "additionalProperties": true
+  }
 }

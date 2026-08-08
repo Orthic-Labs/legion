@@ -1,0 +1,2 @@
+import assert from 'node:assert/strict';import test from 'node:test';import ledger from '../../../../registry/controls/sources/creator-audits-v1.json' with {type:'json'};
+test('creator denominator stays 3 sources and 300 excluded items',()=>{assert.equal(ledger.sources.length,3);assert.equal(ledger.items.length,300);assert.ok(ledger.items.every(({rightsStatus})=>rightsStatus==='unresolved'));});

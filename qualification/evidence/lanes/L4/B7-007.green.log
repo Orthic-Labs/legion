@@ -1,0 +1,18 @@
+✔ cloud/mobile/developer-machine/ai-agent extractors share the same contract shape (5.7085ms)
+✔ cloud extractor models IAM roles, public exposure, workload identity, storage, secrets, deployment context (0.4856ms)
+✔ mobile extractor models permissions, deep links, bridges, exported components, backup/cleartext flags (0.6132ms)
+✔ developer-machine extractor models lifecycle hooks, config discovery, local grants, sandbox bypass (0.4074ms)
+✔ ai-agent extractor models tools, MCP schemas, model output, memory/RAG, approvals, budgets, and untrusted content (0.4101ms)
+✔ tool authority and model output remain structurally separate facts and entities (0.4881ms)
+✔ missing rendered configuration yields a typed coverage gap, not a silent pass (0.1214ms)
+✔ absent domain signal yields a typed coverage gap for each specialist extractor (0.1645ms)
+✔ extraction is deterministic: same input produces deeply-equal output twice (3.0734ms)
+✔ no specialist extractor module directly imports a live-probe capable node builtin (0.6081ms)
+ℹ tests 10
+ℹ suites 0
+ℹ pass 10
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 91.482

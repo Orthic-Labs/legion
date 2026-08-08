@@ -1,0 +1,11 @@
+Command: node --test --test-name-pattern "B4-009" tests\\platform\\web\\book-4-web-contracts.test.mjs
+Result: PASS
+tests 2
+pass 2
+fail 0
+cancelled 0
+skipped 0
+todo 0
+observed test timing ms: 12.182 / 1.2948
+total duration ms: 196.1382
+

@@ -1,0 +1,7 @@
+✔ B4-018 scopes IPC by actor/capability & fails unknown callers safely
+✔ B4-018 reports helper lifecycle & identity gaps
+✔ B4-018 requires adversarial denominator & executes cases through host
+ℹ tests 3
+ℹ pass 3
+ℹ fail 0
+GREEN_EXIT=0

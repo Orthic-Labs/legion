@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "kind": "nemesis-coverage-qualification",
+  "recordId": "language.jvm",
+  "corpusRoot": "bench/corpora/jvm",
+  "corpusDigest": "sha256:455f1a4cdff9e7e312d30eaa593a2aed9a56135be7056c8fd308346dfbec85dd",
+  "artifactDigest": "sha256:9b845a2425ce3a9f4bc8cfc03457ecf43d319ff87c6b4905b5861542799d776c",
+  "providerVersions": {
+    "code.jvm": "1.0.0"
+  },
+  "casesRequired": [
+    "java",
+    "kotlin",
+    "scala",
+    "wrapper-offline"
+  ],
+  "command": [
+    "node",
+    "--test",
+    "tests/providers/jvm/jvm.test.mjs"
+  ],
+  "decision": "source-measured-runtime-unproven"
+}

@@ -1,0 +1,197 @@
+{
+  "schema": "arcane.forge-operation-map.v1",
+  "deliverable": "S01",
+  "lane": "E-ARCANE",
+  "purpose": "Legacy Forge operation surface -> canonical Legion operation identity. S01 action 3 requires legacy assess/checkpoint/verify/close observable behavior be preserved where it does not conflict with stronger Arcane invariants; action 4 requires every conflict be an explicit compatibility error, never a silent weakening; action 7 requires compatibility aliases contain no independent policy decisions.",
+  "baseline": {
+    "forgeCommit": "947d5b89a45049fe18ffb6ffdda085d19479431e",
+    "inventoryRef": "docs/plans/legion/s00-baseline/legacy-semantic-inventory.json",
+    "entryPointsRef": "legacy-semantic-inventory.json#public_entry_points"
+  },
+  "aliasRule": "A compatibility alias performs exactly one job: translate shapes and forward. It evaluates no policy, chooses no authority, and grants no trust. Every allow/deny answer comes from the single Arcane policy bundle (policy/arcane-policy-v1.json) so no adapter can hold divergent logic (S02 acceptance: 'adapters do not contain divergent allow/deny logic').",
+  "operationEnvelope": {
+    "contract": "packages/contracts/schemas/operation-envelope-v1.schema.json#/$defs/OperationRequest",
+    "note": "operation-envelope-v1 is a $defs-only schema: validate against the OperationRequest / OperationResult definitions, not against the file's (empty) top level."
+  },
+  "operations": [
+    {
+      "legacyOperation": "assess",
+      "legacySurface": "MCP tool `forge` + CLI (server.js:349-413; lib/core.js:51-62)",
+      "loadBearing": true,
+      "canonicalOperationId": "legion.run.open",
+      "canonicalOperationVersion": "1",
+      "canonicalInput": "run-identity-v1 (workspace/repository/revision binding) + execution-contract-v1 draft (objective, acceptanceCriteria)",
+      "canonicalResult": "OperationResult with invocationState=ACCEPTED",
+      "preservedBehavior": [
+        "Returns a run handle and a budget projection to the caller.",
+        "Trigger scoring remains available as compatibility-only output; it drives nothing canonical."
+      ],
+      "conflicts": [
+        {
+          "legacy": "assess accepts caller-supplied `authority` and stores it on the run row.",
+          "arcaneInvariant": "Authority identity is asserted by the kernel per turn, never claimed by the model in text (ARCHITECTURE §24a).",
+          "resolution": "Compatibility error ARC_AUTHORITY_MODEL_CLAIMED when the alias payload carries an `authority` field. The alias does not silently drop it and does not silently honor it."
+        }
+      ]
+    },
+    {
+      "legacyOperation": "checkpoint",
+      "legacySurface": "MCP tool `forge` + CLI (lib/core.js:64-108)",
+      "loadBearing": true,
+      "canonicalOperationId": "legion.evidence.record",
+      "canonicalOperationVersion": "1",
+      "canonicalInput": "evidence-capability-receipt-v1 (candidate) and/or blocker-v1 (failure half)",
+      "canonicalResult": "OperationResult carrying the recorded evidence ids and any invalidation event id",
+      "preservedBehavior": [
+        "invalidated_keys[] still stales matching evidence — mapped onto DependencyLedger.observeChange with dimension 'opaque-legacy-key' (S05).",
+        "A `failure` object still consumes retry budget and can block when exhausted."
+      ],
+      "conflicts": [
+        {
+          "legacy": "checkpoint under authority='host' with a non-empty `receipt` string mints tool-trust evidence and can set a check to passed, with zero structural validation of that receipt (lib/core.js:493-494, 536-539).",
+          "arcaneInvariant": "Only host-observed, structurally valid, S03-verified events become receipts (S00 finding 5; S04).",
+          "resolution": "Compatibility error ARC_HOST_EVENT_UNTRUSTED. The evidence is still recorded — as an unauthenticated legacy envelope with no canonical trust — so the caller does not lose data, but it never becomes qualifying evidence."
+        },
+        {
+          "legacy": "Caller may supply failure.error_fingerprint and thereby choose its own retry-budget key (lib/budget.js:46-51).",
+          "arcaneInvariant": "Retry fingerprints are derived from host-observed effect data (S04 action 9).",
+          "resolution": "The supplied fingerprint is retained as compatibility metadata; the canonical fingerprint is recomputed. Divergence is reported, not hidden."
+        }
+      ]
+    },
+    {
+      "legacyOperation": "verify",
+      "legacySurface": "MCP tool `forge` + CLI `verify --gate signoff|high_risk` (lib/core.js:110-145, lib/verify.js)",
+      "loadBearing": true,
+      "criticality": "README.md:114 — 'the exit code of verify --gate signoff is the enforcement surface' for CI.",
+      "canonicalOperationId": "legion.claim.evaluate",
+      "canonicalOperationVersion": "1",
+      "canonicalInput": "claim-v1 (requested claim) + contract id",
+      "canonicalResult": "OperationResult with claimBoundary + deficits as blocker-v1 entries",
+      "preservedBehavior": [
+        "Gate semantics survive as policy claim levels: `signoff` -> policy.claimLevels.signoff, `high_risk` -> policy.claimLevels.highRisk.",
+        "Exit-code contract preserved for CI: non-zero on a blocked gate.",
+        "refreshAttestations' re-hash-on-verify behavior is preserved and GENERALIZED by the S05 ledger (which re-checks every bound dimension, not only the locator file)."
+      ],
+      "conflicts": [
+        {
+          "legacy": "A gate can pass on evidence whose trust came from an unvalidated host receipt.",
+          "arcaneInvariant": "Claim prerequisites are validated against authenticated evidence only (ARCHITECTURE §26: Arcane validates prerequisites and controls release).",
+          "resolution": "Gate outcome is recomputed from canonical evidence. A legacy-passing gate may evaluate to blocked under Arcane; that is a strengthening and is reported explicitly, never suppressed."
+        }
+      ]
+    },
+    {
+      "legacyOperation": "close",
+      "legacySurface": "MCP tool `forge` + CLI (lib/core.js:147-190)",
+      "loadBearing": true,
+      "canonicalOperationId": "legion.run.close",
+      "canonicalOperationVersion": "1",
+      "canonicalInput": "run id + final claim request",
+      "canonicalResult": "legion-result-v1",
+      "preservedBehavior": [
+        "Idempotent close: re-closing an already-closed run returns the original terminal result (fixture 12-close-idempotent-response.json) rather than erroring.",
+        "close still refuses when the signoff gate is unsatisfied (fixture 07-close-blocked-response.json)."
+      ],
+      "conflicts": [
+        {
+          "legacy": "close_ledger_hash is computed by the same process that wrote the ledger.",
+          "arcaneInvariant": "Tamper evidence must be independently verifiable (detailed plan §5.2).",
+          "resolution": "close still returns close_ledger_hash for compatibility, but canonical integrity is the Arcane receipt-store prev-digest chain, verified by ReceiptStore.verifyChain(). The legacy hash is not treated as evidence of anything."
+        }
+      ]
+    },
+    {
+      "legacyOperation": "resolveSession",
+      "legacySurface": "lib/core.js:213-268",
+      "loadBearing": true,
+      "canonicalOperationId": "legion.run.resolve",
+      "canonicalOperationVersion": "1",
+      "canonicalInput": "session_id or task_id",
+      "canonicalResult": "run identity or an explicit unbound result",
+      "preservedBehavior": [
+        "The 'sole open run' heuristic stays RETIRED (lib/core.js:209-212). An unbound session resolves to unbound. This legacy behavior is stronger than guessing and is preserved verbatim."
+      ],
+      "conflicts": []
+    },
+    {
+      "legacyOperation": "doctor",
+      "legacySurface": "CLI (cli.js:12-17, lib/host.js:166-210)",
+      "loadBearing": true,
+      "canonicalOperationId": "legion.enforcement.health",
+      "canonicalOperationVersion": "1",
+      "canonicalResult": "enforcement-health report using ENFORCEMENT_LEVEL (strong|observed|read_only|unsupported)",
+      "preservedBehavior": [
+        "Read-only; never initializes a store (S00 confirmed by a passing Forge test)."
+      ],
+      "conflicts": [
+        {
+          "legacy": "doctor reports environment facts but never states an enforcement level.",
+          "arcaneInvariant": "A host without working interception cannot be labeled `strong`; Arcane reports its own degradation honestly, typed, per capability (ARCHITECTURE §24a).",
+          "resolution": "Extended, not weakened: the canonical operation additionally returns a per-capability enforcement level. No legacy output field is removed."
+        }
+      ]
+    },
+    {
+      "legacyOperation": "purge",
+      "legacySurface": "CLI (cli.js:26, lib/core.js:286-290)",
+      "loadBearing": false,
+      "canonicalOperationId": null,
+      "disposition": "rejected",
+      "reason": "Destructive, unconfirmed, and authenticated by nothing beyond the same model-only CLI ceiling as every other command; deletes every row matching a run id across all tables. It contradicts the append-only history requirement (detailed plan §5.3: 'never truncate history merely to get a green result'). No canonical successor. Calling the alias returns a typed compatibility error.",
+      "conflicts": [
+        {
+          "legacy": "purge deletes history.",
+          "arcaneInvariant": "Append-only logical event history; corruption is quarantined, not truncated.",
+          "resolution": "Explicit rejection. Retention/expiry is a policy concern (policy.retention), executed as expiry of unlinked candidates, never as an unauthenticated caller-triggered delete."
+        }
+      ]
+    },
+    {
+      "legacyOperation": "docs",
+      "legacySurface": "MCP tool `docs` (server.js:415+, lib/docs.js)",
+      "loadBearing": true,
+      "canonicalOperationId": null,
+      "disposition": "out-of-scope",
+      "reason": "ARCHITECTURE §24a: Arcane 'does not absorb Forge's product expansion (no second daemon, no docs-provider hub, no separate CLI, no competing lifecycle store).' The docs resolver is product expansion, not enforcement lineage. Listed here so the omission is explicit rather than an oversight."
+    },
+    {
+      "legacyOperation": "sequentialthinking / resolve-library-id / query-docs",
+      "legacySurface": "MCP legacy tools, active only under FORGE_LEGACY_TOOLS=1 (server.js:11,431)",
+      "loadBearing": false,
+      "canonicalOperationId": null,
+      "disposition": "deprecated",
+      "reason": "Already deprecated/compat-only in Forge and disabled by default. S00 flagged the tension between docs/store-migration.md:3 ('Current Forge accepts no legacy ... MCP tool ... alias') and the flag still existing with test coverage. No canonical successor; no alias is provided."
+    },
+    {
+      "legacyOperation": "hook dispatch (SessionStart, UserPromptSubmit, PreToolUse, PostToolUse, PostToolUseFailure, Stop)",
+      "legacySurface": "hooks/dispatcher.js -> hooks/generic/hook.js:evaluate()",
+      "loadBearing": true,
+      "canonicalOperationId": "arcane.gate.preEffect / arcane.ingest.postEffect / arcane.gate.prePrompt",
+      "canonicalOperationVersion": "1",
+      "mapping": {
+        "SessionStart": "arcane.gate.prePrompt (bind authority identity for the turn)",
+        "UserPromptSubmit": "arcane.gate.prePrompt",
+        "PreToolUse": "arcane.gate.preEffect",
+        "PostToolUse": "arcane.ingest.postEffect",
+        "PostToolUseFailure": "arcane.ingest.postEffect (result=failed)",
+        "Stop": "arcane.claim.gate (final claim eligibility)"
+      },
+      "preservedBehavior": [
+        "PostToolUse success is still NOT recorded as a passing check (hooks/generic/hook.js:99-101). This legacy restraint is correct and is preserved: S04 classifies a successful tool call as an observation, never as proof."
+      ],
+      "conflicts": [
+        {
+          "legacy": "A handler exceeding its 1500ms budget is marked bypassed_delayed_verifier and the dispatcher CONTINUES past it (lib/dispatcher.js:29-37) — enforcement can be skipped purely on a timeout, fail-open.",
+          "arcaneInvariant": "If the pre-effect gate is unavailable, mutation-bearing operations fail closed; read-only operations may continue with a recorded enforcement-health downgrade (ARCHITECTURE §24a).",
+          "resolution": "NOT preserved. This is the single most important behavioral divergence in this map. Arcane's pre-effect gate returns ARC_GATE_UNAVAILABLE with failClosed:true for mutation-bearing effect classes on timeout/unavailability, and a recorded downgrade for read-only ones. Legacy callers relying on fail-open will observe denials they did not previously get; that is the intended strengthening."
+        }
+      ]
+    }
+  ],
+  "aliasPolicyAudit": {
+    "requirement": "S01 action 7 / S02 acceptance — compatibility aliases contain no independent policy decisions.",
+    "method": "lib/legacy-bridge.mjs contains no allow/deny branch. Every decision-shaped answer it returns originates from lib/policy.mjs or lib/pre-effect-gate.mjs. tests/s01-bridge.test.mjs asserts the bridge module's source contains no policy-decision literals.",
+    "status": "enforced by test"
+  }
+}

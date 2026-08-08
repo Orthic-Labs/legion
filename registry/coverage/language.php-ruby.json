@@ -1,0 +1,25 @@
+{
+  "id": "language.php-ruby",
+  "kind": "language",
+  "aliases": [],
+  "extensions": [],
+  "manifests": [],
+  "providers": [
+    "code.php-ruby"
+  ],
+  "limitations": [
+    "runtime and remediation unproven"
+  ],
+  "qualificationVersion": "1.0.0",
+  "corpusDigest": "sha256:b0b27d95727b6a228969b3222547c257244555ed9295148e9a13534cdfa5a3c2",
+  "artifactDigest": "sha256:b0b27d95727b6a228969b3222547c257244555ed9295148e9a13534cdfa5a3c2",
+  "tiers": {
+    "inventory": 1,
+    "parser": 1,
+    "native": 1,
+    "cross-file": 0,
+    "measured-pack": 1,
+    "runtime": 0,
+    "remediation": 0
+  }
+}

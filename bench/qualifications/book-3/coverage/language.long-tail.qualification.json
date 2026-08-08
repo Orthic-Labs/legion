@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "kind": "nemesis-coverage-qualification",
+  "recordId": "language.long-tail",
+  "corpusRoot": "bench/corpora/long-tail",
+  "corpusDigest": "sha256:bffe6c2e621c63df87fe3bcaf058bef0b845dc3302bf489511450c220954c3a0",
+  "artifactDigest": "sha256:ea8dcd97a52794f2ef06215352208c7f3fea458d113a0430308340d645ccb615",
+  "providerVersions": {
+    "code.long-tail": "1.0.0"
+  },
+  "casesRequired": [
+    "positive",
+    "parse-error",
+    "untrusted-grammar",
+    "denominator-gap"
+  ],
+  "command": [
+    "node",
+    "--test",
+    "tests/coverage-long-tail.test.mjs"
+  ],
+  "decision": "source-measured-runtime-unproven"
+}

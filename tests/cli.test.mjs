@@ -10,7 +10,7 @@ import { NEMESIS_VERSION } from '../lib/version.mjs';
 import { runCli } from '../lib/cli/run.mjs';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
-const BIN = new URL('../bin/nemesis.mjs', import.meta.url).pathname;
+const BIN = fileURLToPath(new URL('../bin/nemesis.mjs', import.meta.url));
 
 function capture(args) {
   const result = spawnSync(process.execPath, [BIN, ...args], {
@@ -82,6 +82,54 @@ test('report --format json renders a report', () => {
     const { exitCode, stdout } = capture(['report', reportPath, '--format', 'json']);
     assert.equal(exitCode, EXIT.PASS);
     assert.equal(JSON.parse(stdout).kind, 'repository-audit-report');
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('verify resolves a run directory to its facts artifact', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'nemesis-verify-run-'));
+  writeFileSync(join(dir, 'facts.json'), '{}');
+  writeFileSync(join(dir, 'plan.json'), '{}');
+  try {
+    const { stderr } = capture(['verify', dir]);
+    assert.doesNotMatch(stderr, /EISDIR|facts artifact missing/);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('verify preserves direct facts-file support', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'nemesis-verify-file-'));
+  const facts = join(dir, 'facts.json');
+  writeFileSync(facts, '{}');
+  try {
+    const { stderr } = capture(['verify', facts]);
+    assert.doesNotMatch(stderr, /EISDIR|facts artifact missing|plan artifact missing/);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('verify reports a typed missing-facts error for an invalid run directory', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'nemesis-verify-missing-'));
+  try {
+    const { exitCode, stderr } = capture(['verify', dir]);
+    assert.equal(exitCode, EXIT.USAGE);
+    assert.match(stderr, /verify facts artifact missing:/);
+    assert.doesNotMatch(stderr, /EISDIR/);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('verify reports a typed missing-plan error for an incomplete run directory', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'nemesis-verify-plan-'));
+  writeFileSync(join(dir, 'facts.json'), '{}');
+  try {
+    const { exitCode, stderr } = capture(['verify', dir]);
+    assert.equal(exitCode, EXIT.USAGE);
+    assert.match(stderr, /verify plan artifact missing:/);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }

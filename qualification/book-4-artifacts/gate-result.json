@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "kind": "nemesis-book-gate-receipt",
+  "book": 4,
+  "tests": [
+    "tests/book-source-completion.test.mjs",
+    "tests/platform/foundations.test.mjs",
+    "tests/platform/web/book-4-owned-families.test.mjs",
+    "tests/platform/web/book-4-web-adversarial.test.mjs",
+    "tests/platform/web/book-4-web-completeness.test.mjs",
+    "tests/platform/web/book-4-web-contracts.test.mjs",
+    "tests/platform/web/book-4-web-false-pass.test.mjs",
+    "tests/platform/web/book-4-web-trust-boundaries.test.mjs"
+  ],
+  "command": [
+    "node",
+    "--test",
+    "D:\\Claude\\tools\\skills\\nemesis\\tests\\book-source-completion.test.mjs",
+    "D:\\Claude\\tools\\skills\\nemesis\\tests\\platform\\foundations.test.mjs",
+    "D:\\Claude\\tools\\skills\\nemesis\\tests\\platform\\web\\book-4-owned-families.test.mjs",
+    "D:\\Claude\\tools\\skills\\nemesis\\tests\\platform\\web\\book-4-web-adversarial.test.mjs",
+    "D:\\Claude\\tools\\skills\\nemesis\\tests\\platform\\web\\book-4-web-completeness.test.mjs",
+    "D:\\Claude\\tools\\skills\\nemesis\\tests\\platform\\web\\book-4-web-contracts.test.mjs",
+    "D:\\Claude\\tools\\skills\\nemesis\\tests\\platform\\web\\book-4-web-false-pass.test.mjs",
+    "D:\\Claude\\tools\\skills\\nemesis\\tests\\platform\\web\\book-4-web-trust-boundaries.test.mjs"
+  ],
+  "status": "pass",
+  "outputDigest": "sha256:30bc03918a5e92d9eba0fc22e5b075f71fd96ce89bbeb1f27629658752eb0b38"
+}

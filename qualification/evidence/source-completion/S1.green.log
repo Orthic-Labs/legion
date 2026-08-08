@@ -1,0 +1,323 @@
+TAP version 13
+# Subtest: --help prints usage and exits 0
+ok 1 - --help prints usage and exits 0
+  ---
+  duration_ms: 74.8114
+  type: 'test'
+  ...
+# Subtest: --version prints the canonical version
+ok 2 - --version prints the canonical version
+  ---
+  duration_ms: 93.554
+  type: 'test'
+  ...
+# Subtest: no subcommand prints usage and exits 4
+ok 3 - no subcommand prints usage and exits 4
+  ---
+  duration_ms: 70.4315
+  type: 'test'
+  ...
+# Subtest: unknown subcommand exits 4
+ok 4 - unknown subcommand exits 4
+  ---
+  duration_ms: 70.076
+  type: 'test'
+  ...
+# Subtest: providers --json emits machine JSON on stdout
+ok 5 - providers --json emits machine JSON on stdout
+  ---
+  duration_ms: 93.0407
+  type: 'test'
+  ...
+# Subtest: languages --json emits the coverage family surface
+ok 6 - languages --json emits the coverage family surface
+  ---
+  duration_ms: 88.8274
+  type: 'test'
+  ...
+# Subtest: plan --json seals a plan for the checkout root
+ok 7 - plan --json seals a plan for the checkout root
+  ---
+  duration_ms: 155.2342
+  type: 'test'
+  ...
+# Subtest: report --format json renders a report
+ok 8 - report --format json renders a report
+  ---
+  duration_ms: 60.6148
+  type: 'test'
+  ...
+# Subtest: verify resolves a run directory to its facts artifact
+ok 9 - verify resolves a run directory to its facts artifact
+  ---
+  duration_ms: 326.4086
+  type: 'test'
+  ...
+# Subtest: verify preserves direct facts-file support
+ok 10 - verify preserves direct facts-file support
+  ---
+  duration_ms: 116.9337
+  type: 'test'
+  ...
+# Subtest: verify reports a typed missing-facts error for an invalid run directory
+ok 11 - verify reports a typed missing-facts error for an invalid run directory
+  ---
+  duration_ms: 58.3716
+  type: 'test'
+  ...
+# Subtest: verify reports a typed missing-plan error for an incomplete run directory
+ok 12 - verify reports a typed missing-plan error for an incomplete run directory
+  ---
+  duration_ms: 59.3406
+  type: 'test'
+  ...
+# Subtest: exit taxonomy maps report states to codes
+ok 13 - exit taxonomy maps report states to codes
+  ---
+  duration_ms: 0.1883
+  type: 'test'
+  ...
+# Subtest: runCli returns structured results with injected streams
+ok 14 - runCli returns structured results with injected streams
+  ---
+  duration_ms: 1.0143
+  type: 'test'
+  ...
+# Subtest: doctor --json emits the canonical shape
+ok 15 - doctor --json emits the canonical shape
+  ---
+  duration_ms: 82.6959
+  type: 'test'
+  ...
+# Subtest: doctor reflects the network guard environment
+ok 16 - doctor reflects the network guard environment
+  ---
+  duration_ms: 87.5978
+  type: 'test'
+  ...
+# Subtest: doctor reflects signing key presence
+ok 17 - doctor reflects signing key presence
+  ---
+  duration_ms: 77.63
+  type: 'test'
+  ...
+# Subtest: init dry-run previews without writing
+ok 18 - init dry-run previews without writing
+  ---
+  duration_ms: 75.9774
+  type: 'test'
+  ...
+# Subtest: init --write creates config and ignore entries
+ok 19 - init --write creates config and ignore entries
+  ---
+  duration_ms: 89.0557
+  type: 'test'
+  ...
+# Subtest: init defaults to a no-write preview
+ok 20 - init defaults to a no-write preview
+  ---
+  duration_ms: 2.8324
+  type: 'test'
+  ...
+# Subtest: all 135 legacy paths remain in standalone Nemesis
+ok 21 - all 135 legacy paths remain in standalone Nemesis
+  ---
+  duration_ms: 4089.1432
+  type: 'test'
+  ...
+# Subtest: source completion reports legacy mappings without source blockers
+ok 22 - source completion reports legacy mappings without source blockers
+  ---
+  duration_ms: 8619.0034
+  type: 'test'
+  ...
+# Subtest: source qualification fails closed for blocked tasks or source records
+ok 23 - source qualification fails closed for blocked tasks or source records
+  ---
+  duration_ms: 0.5928
+  type: 'test'
+  ...
+# Subtest: source qualification rejects malformed, missing, mismatched, or escaping records
+ok 24 - source qualification rejects malformed, missing, mismatched, or escaping records
+  ---
+  duration_ms: 38.5365
+  type: 'test'
+  ...
+# Subtest: SEA config pins the entry, output, and disabled experimental warning
+ok 25 - SEA config pins the entry, output, and disabled experimental warning
+  ---
+  duration_ms: 2.8361
+  type: 'test'
+  ...
+# Subtest: exe suffix is platform-correct
+ok 26 - exe suffix is platform-correct
+  ---
+  duration_ms: 0.2947
+  type: 'test'
+  ...
+# Subtest: npm CLI and SEA surface must agree on version
+ok 27 - npm CLI and SEA surface must agree on version
+  ---
+  duration_ms: 83.8948
+  type: 'test'
+  ...
+# Subtest: native build manifest records toolchain and digests
+ok 28 - native build manifest records toolchain and digests
+  ---
+  duration_ms: 0.2969
+  type: 'test'
+  ...
+# Subtest: no Rust wrapper crate exists
+ok 29 - no Rust wrapper crate exists
+  ---
+  duration_ms: 0.3225
+  type: 'test'
+  ...
+# Subtest: external process runner blocks non-allowlisted executables
+ok 30 - external process runner blocks non-allowlisted executables
+  ---
+  duration_ms: 1.6527
+  type: 'test'
+  ...
+# Subtest: shell execution is forbidden
+ok 31 - shell execution is forbidden
+  ---
+  duration_ms: 0.53
+  type: 'test'
+  ...
+# Subtest: external process runs with sanitized environment
+ok 32 - external process runs with sanitized environment
+  ---
+  duration_ms: 78.2476
+  type: 'test'
+  ...
+# Subtest: timeout aborts the child and reports timeout
+ok 33 - timeout aborts the child and reports timeout
+  ---
+  duration_ms: 211.6817
+  type: 'test'
+  ...
+# Subtest: output cap terminates the child
+ok 34 - output cap terminates the child
+  ---
+  duration_ms: 69.4874
+  type: 'test'
+  ...
+# Subtest: project-executing provider requires a network-sandbox receipt
+ok 35 - project-executing provider requires a network-sandbox receipt
+  ---
+  duration_ms: 0.7026
+  type: 'test'
+  ...
+# Subtest: non-project providers do not require a sandbox
+ok 36 - non-project providers do not require a sandbox
+  ---
+  duration_ms: 0.2445
+  type: 'test'
+  ...
+# Subtest: reasoning-contract providers are never invoked by the executor
+ok 37 - reasoning-contract providers are never invoked by the executor
+  ---
+  duration_ms: 0.3778
+  type: 'test'
+  ...
+# Subtest: imported-artifact provider requires its artifact
+ok 38 - imported-artifact provider requires its artifact
+  ---
+  duration_ms: 0.3329
+  type: 'test'
+  ...
+# Subtest: resolveRepositoryModule rejects absolute external paths
+ok 39 - resolveRepositoryModule rejects absolute external paths
+  ---
+  duration_ms: 0.4272
+  type: 'test'
+  ...
+# Subtest: pickEnvironment only carries allowlisted keys
+ok 40 - pickEnvironment only carries allowlisted keys
+  ---
+  duration_ms: 0.1942
+  type: 'test'
+  ...
+# Subtest: blocked helper produces a canonical blocked receipt
+ok 41 - blocked helper produces a canonical blocked receipt
+  ---
+  duration_ms: 0.151
+  type: 'test'
+  ...
+# publication blocked: D:\\Claude\\tools\\skills\\nemesis\\release\\publication-policy.json is absent
+# Subtest: public checkout contains no parent-workspace path dependency
+ok 42 - public checkout contains no parent-workspace path dependency
+  ---
+  duration_ms: 1.3254
+  type: 'test'
+  ...
+# Subtest: CI workflow is self-contained in this repository
+ok 43 - CI workflow is self-contained in this repository
+  ---
+  duration_ms: 0.5265
+  type: 'test'
+  ...
+# Subtest: publication guard exists and blocks public channels without a grant
+ok 44 - publication guard exists and blocks public channels without a grant
+  ---
+  duration_ms: 136.4461
+  type: 'test'
+  ...
+# Subtest: benchmark baseline is versioned and reproducible
+ok 45 - benchmark baseline is versioned and reproducible
+  ---
+  duration_ms: 0.5085
+  type: 'test'
+  ...
+# Subtest: license and third-party notices are present
+ok 46 - license and third-party notices are present
+  ---
+  duration_ms: 0.5574
+  type: 'test'
+  ...
+# Subtest: fresh standalone checkout runs self-test and schema check without parent files
+ok 47 - fresh standalone checkout runs self-test and schema check without parent files
+  ---
+  duration_ms: 1237.0945
+  type: 'test'
+  ...
+# Subtest: Windows portability tests pass from a copied standalone checkout
+ok 48 - Windows portability tests pass from a copied standalone checkout
+  ---
+  duration_ms: 866.4683
+  type: 'test'
+  ...
+# Subtest: Windows drive paths are normalized once
+ok 49 - Windows drive paths are normalized once
+  ---
+  duration_ms: 1.651
+  type: 'test'
+  ...
+# Subtest: doctor obtains toolchains from injected host capability
+ok 50 - doctor obtains toolchains from injected host capability
+  ---
+  duration_ms: 4.9646
+  type: 'test'
+  ...
+# Subtest: external process receipt has a schema-valid provider result
+ok 51 - external process receipt has a schema-valid provider result
+  ---
+  duration_ms: 80.3266
+  type: 'test'
+  ...
+# Subtest: audit rerun commands preserve adversarial paths as non-shell argv data
+ok 52 - audit rerun commands preserve adversarial paths as non-shell argv data
+  ---
+  duration_ms: 1.6082
+  type: 'test'
+  ...
+1..52
+# tests 52
+# suites 0
+# pass 52
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 12875.1777

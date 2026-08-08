@@ -1,0 +1,1 @@
+export function maintainabilityCandidate(value){if(!value.representativeChange||!value.evidencePath||!value.testSeam)throw new Error('representative change evidence required');return{...value,verdict:'candidate',adjudicationRequired:true};}

@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "nemesis-traceability-v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "requirements",
+    "edges"
+  ],
+  "properties": {
+    "requirements": {
+      "type": "array"
+    },
+    "edges": {
+      "type": "array"
+    }
+  }
+}

@@ -1,1 +1,59 @@
-{"$schema":"https://json-schema.org/draft/2020-12/schema","type":"object","required":["stacks"],"properties":{"stacks":{"type":"array"}}}
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "nemesis-stack-graph-v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "kind",
+    "stacks",
+    "targetIds",
+    "componentIds",
+    "coverage",
+    "binding",
+    "digest"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": 1
+    },
+    "kind": {
+      "const": "nemesis-stack-graph"
+    },
+    "stacks": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    },
+    "targetIds": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "uniqueItems": true
+    },
+    "componentIds": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "uniqueItems": true
+    },
+    "coverage": {
+      "type": "object"
+    },
+    "binding": {
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "digest": {
+      "type": "string",
+      "minLength": 1
+    }
+  }
+}

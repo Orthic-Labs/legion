@@ -1,0 +1,9 @@
+✔ durable task lifecycle resumes from append-only journal after crash (105.8867ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 185.5782

@@ -1,0 +1,70 @@
+{
+  "schemaVersion": 1,
+  "family": "framework.frontend",
+  "cases": [
+    {
+      "id": "react.positive",
+      "expected": "measured"
+    },
+    {
+      "id": "react.unsupported",
+      "expected": "unproven"
+    },
+    {
+      "id": "next.positive",
+      "expected": "measured"
+    },
+    {
+      "id": "next.unsupported",
+      "expected": "unproven"
+    },
+    {
+      "id": "vue.positive",
+      "expected": "measured"
+    },
+    {
+      "id": "vue.unsupported",
+      "expected": "unproven"
+    },
+    {
+      "id": "nuxt.positive",
+      "expected": "measured"
+    },
+    {
+      "id": "nuxt.unsupported",
+      "expected": "unproven"
+    },
+    {
+      "id": "angular.positive",
+      "expected": "measured"
+    },
+    {
+      "id": "angular.unsupported",
+      "expected": "unproven"
+    },
+    {
+      "id": "svelte.positive",
+      "expected": "measured"
+    },
+    {
+      "id": "svelte.unsupported",
+      "expected": "unproven"
+    },
+    {
+      "id": "astro.positive",
+      "expected": "measured"
+    },
+    {
+      "id": "astro.unsupported",
+      "expected": "unproven"
+    },
+    {
+      "id": "remix.positive",
+      "expected": "measured"
+    },
+    {
+      "id": "remix.unsupported",
+      "expected": "unproven"
+    }
+  ]
+}

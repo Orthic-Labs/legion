@@ -1,0 +1,18 @@
+✔ a proposal maps to its full effect surface (2.965ms)
+✔ the affected provider and family closure is transitive over the plan graph (0.3226ms)
+✔ unplanned public-surface changes block application (0.4105ms)
+✔ every valid proposal has a complete effect graph (0.5814ms)
+✔ producer and verifier identities must be distinct (0.6255ms)
+✔ verification never trusts producer-supplied pass booleans (0.2947ms)
+✔ all affected mandatory evidence and baseline gates must be present and pass (0.3396ms)
+✔ vacuous verification is rejected when effects exist (8.1117ms)
+✔ the committed effect-graph and verification schemas match their generators (1.0071ms)
+✔ the pre-existing patchEffectGraph helper still behaves (0.2978ms)
+ℹ tests 10
+ℹ suites 0
+ℹ pass 10
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 102.7869

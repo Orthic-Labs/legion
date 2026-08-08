@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 1,
+  "status": "external-evidence-required",
+  "sourceCount": 3,
+  "itemCount": 300,
+  "terminalDispositionCount": 300,
+  "derivedControlCount": 0,
+  "rights": {
+    "unresolved": 300
+  },
+  "publicRawTextIncluded": false
+}

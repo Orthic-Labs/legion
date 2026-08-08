@@ -1,0 +1,31 @@
+✔ B6-025 blocks evidence-backed false sequence and ignores reviewer booleans (2.1004ms)
+✔ B6-025 preserves truthful cold opens and keeps uncertain reordering review-required (0.1916ms)
+✖ B6-025 blocks duplicate unit identities and evidence-backed false attribution (3.3423ms)
+ℹ tests 3
+ℹ suites 0
+ℹ pass 2
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 80.1792
+
+✖ failing tests:
+
+test at tests\content-l3.test.mjs:329:1
+✖ B6-025 blocks duplicate unit identities and evidence-backed false attribution (3.3423ms)
+  AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:
+  
+    assert.ok(result.findings.some(({ ruleId }) => ruleId === 'narrative.chronology.duplicate-unit-id'))
+  
+      at TestContext.<anonymous> (file:///D:/Claude/tools/skills/nemesis/tests/content-l3.test.mjs:349:10)
+      at Test.runInAsyncScope (node:async_hooks:226:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }

@@ -1,0 +1,110 @@
+{
+  "schemaVersion": 1,
+  "family": "framework.backend",
+  "cases": [
+    {
+      "id": "express.positive",
+      "expected": "measured"
+    },
+    {
+      "id": "express.unsupported",
+      "expected": "unproven"
+    },
+    {
+      "id": "fastify.positive",
+      "expected": "measured"
+    },
+    {
+      "id": "fastify.unsupported",
+      "expected": "unproven"
+    },
+    {
+      "id": "nest.positive",
+      "expected": "measured"
+    },
+    {
+      "id": "nest.unsupported",
+      "expected": "unproven"
+    },
+    {
+      "id": "django.positive",
+      "expected": "measured"
+    },
+    {
+      "id": "django.unsupported",
+      "expected": "unproven"
+    },
+    {
+      "id": "fastapi.positive",
+      "expected": "measured"
+    },
+    {
+      "id": "fastapi.unsupported",
+      "expected": "unproven"
+    },
+    {
+      "id": "flask.positive",
+      "expected": "measured"
+    },
+    {
+      "id": "flask.unsupported",
+      "expected": "unproven"
+    },
+    {
+      "id": "spring.positive",
+      "expected": "measured"
+    },
+    {
+      "id": "spring.unsupported",
+      "expected": "unproven"
+    },
+    {
+      "id": "ktor.positive",
+      "expected": "measured"
+    },
+    {
+      "id": "ktor.unsupported",
+      "expected": "unproven"
+    },
+    {
+      "id": "aspnet.positive",
+      "expected": "measured"
+    },
+    {
+      "id": "aspnet.unsupported",
+      "expected": "unproven"
+    },
+    {
+      "id": "rails.positive",
+      "expected": "measured"
+    },
+    {
+      "id": "rails.unsupported",
+      "expected": "unproven"
+    },
+    {
+      "id": "laravel.positive",
+      "expected": "measured"
+    },
+    {
+      "id": "laravel.unsupported",
+      "expected": "unproven"
+    },
+    {
+      "id": "go-router.positive",
+      "expected": "measured"
+    },
+    {
+      "id": "go-router.unsupported",
+      "expected": "unproven"
+    },
+    {
+      "id": "rust-web.positive",
+      "expected": "measured"
+    },
+    {
+      "id": "rust-web.unsupported",
+      "expected": "unproven"
+    }
+  ]
+}

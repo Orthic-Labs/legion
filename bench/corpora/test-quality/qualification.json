@@ -1,0 +1,10 @@
+{
+  "schemaVersion": 1,
+  "family": "test-quality",
+  "cases": [
+    "disabled",
+    "tautological",
+    "missing-assertion",
+    "clean-near-miss"
+  ]
+}

@@ -1,0 +1,36 @@
+✔ B1-001 package manifest exposes one public binary and later-book public paths (7.7284ms)
+✔ B1-002 canonical enums reject unknown values and future schema versions (1.1772ms)
+✔ B1-003 command catalogue generates complete strict CLI help (1.238ms)
+✔ B1-004 fixed host returns typed unavailable capability receipts (1.3807ms)
+✔ B1-005 artifact paths reject alternate separators and digests bind bytes (2.1022ms)
+✔ B1-006 run manifest rejects orphan and missing declared files (2.934ms)
+✔ B1-007 trusted merge rejects repository attempts to grant host policy (1.2909ms)
+✔ B1-008 sealed profiles expose resource, cache, cancellation, schedule, and reasoning policy (2.1295ms)
+✔ B1-009 family and lens registries reject dependency cycles (1.8711ms)
+✔ B1-010 provider v2 rejects candidate generators that emit findings (1.2739ms)
+✔ B1-011 schedule compiler uses lexical waves and rejects impossible resources (12.0014ms)
+✔ B1-012 reasoning runner prepares a packet without invoking a reviewer (3.7889ms)
+✔ B1-013 precomputed Cortex projection rejects stale repository binding (0.7991ms)
+✔ B1-014 binding comparison is stable across path separators (0.3111ms)
+✔ B1-015 planning stage registry is fixed and missing required stages are typed (0.8898ms)
+✔ B1-016 scheduler preserves independent work when one dependency blocks (2.2975ms)
+✔ B1-017 zero findings with a required gap is incomplete (0.7207ms)
+✔ B1-018 reviewer policy rejects context reuse and self-adjudication (0.6378ms)
+✔ B1-019 report model preserves topology, controls, and per-claim decisions without a score (0.7608ms)
+✔ B1-020 semantic verification excludes time, paths, and presentation ordering (1.5819ms)
+✔ B1-021 schedule command is a pure canonical renderer (1.1393ms)
+✔ B1-022 skill bundle contract rejects absolute internal URIs and separates profiles (0.8783ms)
+✔ B1-023 skill URI resolver and verifier are package-relative and digest-bound (1.4989ms)
+✔ B1-024 skill transformation is deterministic, neutral, and strips audit mutation authority (1.753ms)
+✔ B1-025 Designer bundle preserves audit authority boundaries (5.2028ms)
+✔ B1-026 Writing bundle makes proof and no-fabrication explicit (0.8629ms)
+✔ B1-027 qualifier supports Books 1 through 6 and package smoke exercises library plus plan (32.2848ms)
+✔ B1-028 qualification digest ignores duration and noisy test bytes (0.4651ms)
+ℹ tests 28
+ℹ suites 0
+ℹ pass 28
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 195.5454

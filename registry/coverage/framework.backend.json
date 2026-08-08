@@ -1,0 +1,25 @@
+{
+  "id": "framework.backend",
+  "kind": "framework",
+  "aliases": [],
+  "extensions": [],
+  "manifests": [],
+  "providers": [
+    "framework.backend"
+  ],
+  "limitations": [
+    "runtime unproven"
+  ],
+  "qualificationVersion": "1.0.0",
+  "corpusDigest": "sha256:cad4631cef65a311709349f0e99c961c850a550073db22119dd399f3bd503422",
+  "artifactDigest": "sha256:cad4631cef65a311709349f0e99c961c850a550073db22119dd399f3bd503422",
+  "tiers": {
+    "inventory": 1,
+    "parser": 1,
+    "native": 1,
+    "cross-file": 1,
+    "measured-pack": 1,
+    "runtime": 0,
+    "remediation": 0
+  }
+}

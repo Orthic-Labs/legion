@@ -1,0 +1,477 @@
+✖ B1-001 package manifest exposes one public binary and later-book public paths (10.3683ms)
+✖ B1-002 canonical enums reject unknown values and future schema versions (1.3293ms)
+✖ B1-003 command catalogue generates complete strict CLI help (0.471ms)
+✔ B1-004 fixed host returns typed unavailable capability receipts (1.2319ms)
+✖ B1-005 artifact paths reject alternate separators and digests bind bytes (0.3813ms)
+✖ B1-006 run manifest rejects orphan and missing declared files (1.5511ms)
+✖ B1-007 trusted merge rejects repository attempts to grant host policy (2.1275ms)
+✖ B1-008 sealed profiles expose resource, cache, cancellation, schedule, and reasoning policy (0.9937ms)
+✖ B1-009 family and lens registries reject dependency cycles (0.5013ms)
+✖ B1-010 provider v2 rejects candidate generators that emit findings (0.6523ms)
+✖ B1-011 schedule compiler uses lexical waves and rejects impossible resources (0.4505ms)
+✖ B1-012 reasoning runner prepares a packet without invoking a reviewer (0.3973ms)
+✖ B1-013 precomputed Cortex projection rejects stale repository binding (0.2882ms)
+✖ B1-014 binding comparison is stable across path separators (0.6871ms)
+✖ B1-015 planning stage registry is fixed and missing required stages are typed (0.4344ms)
+✖ B1-016 scheduler preserves independent work when one dependency blocks (9.27ms)
+✖ B1-017 zero findings with a required gap is incomplete (0.4117ms)
+✖ B1-018 reviewer policy rejects context reuse and self-adjudication (0.3398ms)
+✖ B1-019 report model preserves topology, controls, and per-claim decisions without a score (0.2767ms)
+✖ B1-020 semantic verification excludes time, paths, and presentation ordering (0.2663ms)
+✖ B1-021 schedule command is a pure canonical renderer (0.2851ms)
+✖ B1-022 skill bundle contract rejects absolute internal URIs and separates profiles (0.2648ms)
+✖ B1-023 skill URI resolver and verifier are package-relative and digest-bound (0.2685ms)
+✖ B1-024 skill transformation is deterministic, neutral, and strips audit mutation authority (0.28ms)
+✖ B1-025 Designer bundle preserves audit authority boundaries (9.0131ms)
+✖ B1-026 Writing bundle makes proof and no-fabrication explicit (0.7702ms)
+✖ B1-027 qualifier supports Books 1 through 6 and package smoke exercises library plus plan (10.3927ms)
+✖ B1-028 qualification digest ignores duration and noisy test bytes (0.6788ms)
+ℹ tests 28
+ℹ suites 0
+ℹ pass 1
+ℹ fail 27
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 152.7645
+
+✖ failing tests:
+
+test at tests\core\book-1-contracts.test.mjs:9:1
+✖ B1-001 package manifest exposes one public binary and later-book public paths (10.3683ms)
+  AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:
+  
+    assert.ok(pkg.files.includes('integrations/') && pkg.files.includes('skills/'))
+  
+      at TestContext.<anonymous> (file:///D:/Claude/tools/skills/nemesis/tests/core/book-1-contracts.test.mjs:13:10)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at tests\core\book-1-contracts.test.mjs:17:1
+✖ B1-002 canonical enums reject unknown values and future schema versions (1.3293ms)
+  Error [ERR_MODULE_NOT_FOUND]: Cannot find module 'D:\Claude\tools\skills\nemesis\lib\contracts\enums.mjs' imported from D:\Claude\tools\skills\nemesis\tests\core\book-1-contracts.test.mjs
+      at finalizeResolution (node:internal/modules/esm/resolve:272:11)
+      at moduleResolve (node:internal/modules/esm/resolve:879:10)
+      at defaultResolve (node:internal/modules/esm/resolve:1006:11)
+      at #cachedDefaultResolve (node:internal/modules/esm/loader:708:20)
+      at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:728:38)
+      at ModuleLoader.resolveSync (node:internal/modules/esm/loader:766:56)
+      at #resolve (node:internal/modules/esm/loader:690:17)
+      at ModuleLoader.getOrCreateModuleJob (node:internal/modules/esm/loader:610:35)
+      at node:internal/modules/esm/loader:639:32
+      at TracingChannel.tracePromise (node:diagnostics_channel:539:22) {
+    code: 'ERR_MODULE_NOT_FOUND',
+    url: 'file:///D:/Claude/tools/skills/nemesis/lib/contracts/enums.mjs'
+  }
+
+test at tests\core\book-1-contracts.test.mjs:24:1
+✖ B1-003 command catalogue generates complete strict CLI help (0.471ms)
+  Error [ERR_MODULE_NOT_FOUND]: Cannot find module 'D:\Claude\tools\skills\nemesis\lib\cli\help.mjs' imported from D:\Claude\tools\skills\nemesis\tests\core\book-1-contracts.test.mjs
+      at finalizeResolution (node:internal/modules/esm/resolve:272:11)
+      at moduleResolve (node:internal/modules/esm/resolve:879:10)
+      at defaultResolve (node:internal/modules/esm/resolve:1006:11)
+      at #cachedDefaultResolve (node:internal/modules/esm/loader:708:20)
+      at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:728:38)
+      at ModuleLoader.resolveSync (node:internal/modules/esm/loader:766:56)
+      at #resolve (node:internal/modules/esm/loader:690:17)
+      at ModuleLoader.getOrCreateModuleJob (node:internal/modules/esm/loader:610:35)
+      at node:internal/modules/esm/loader:639:32
+      at TracingChannel.tracePromise (node:diagnostics_channel:539:22) {
+    code: 'ERR_MODULE_NOT_FOUND',
+    url: 'file:///D:/Claude/tools/skills/nemesis/lib/cli/help.mjs'
+  }
+
+test at tests\core\book-1-contracts.test.mjs:37:1
+✖ B1-005 artifact paths reject alternate separators and digests bind bytes (0.3813ms)
+  Error [ERR_MODULE_NOT_FOUND]: Cannot find module 'D:\Claude\tools\skills\nemesis\lib\artifacts\paths.mjs' imported from D:\Claude\tools\skills\nemesis\tests\core\book-1-contracts.test.mjs
+      at finalizeResolution (node:internal/modules/esm/resolve:272:11)
+      at moduleResolve (node:internal/modules/esm/resolve:879:10)
+      at defaultResolve (node:internal/modules/esm/resolve:1006:11)
+      at #cachedDefaultResolve (node:internal/modules/esm/loader:708:20)
+      at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:728:38)
+      at ModuleLoader.resolveSync (node:internal/modules/esm/loader:766:56)
+      at #resolve (node:internal/modules/esm/loader:690:17)
+      at ModuleLoader.getOrCreateModuleJob (node:internal/modules/esm/loader:610:35)
+      at node:internal/modules/esm/loader:639:32
+      at TracingChannel.tracePromise (node:diagnostics_channel:539:22) {
+    code: 'ERR_MODULE_NOT_FOUND',
+    url: 'file:///D:/Claude/tools/skills/nemesis/lib/artifacts/paths.mjs'
+  }
+
+test at tests\core\book-1-contracts.test.mjs:44:1
+✖ B1-006 run manifest rejects orphan and missing declared files (1.5511ms)
+  TypeError: validateRunManifest is not a function
+      at TestContext.<anonymous> (file:///D:/Claude/tools/skills/nemesis/tests/core/book-1-contracts.test.mjs:46:20)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7)
+
+test at tests\core\book-1-contracts.test.mjs:50:1
+✖ B1-007 trusted merge rejects repository attempts to grant host policy (2.1275ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /host-owned/. Input:
+  
+  'Error: config.schemaVersion must be 1; got undefined'
+  
+      at TestContext.<anonymous> (file:///D:/Claude/tools/skills/nemesis/tests/core/book-1-contracts.test.mjs:52:10)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: Error: config.schemaVersion must be 1; got undefined
+        at validateConfig (file:///D:/Claude/tools/skills/nemesis/lib/config/index.mjs:89:11)
+        at mergeConfig (file:///D:/Claude/tools/skills/nemesis/lib/config/index.mjs:76:3)
+        at mergeTrustedConfig (file:///D:/Claude/tools/skills/nemesis/lib/config/merge.mjs:3:60)
+        at file:///D:/Claude/tools/skills/nemesis/tests/core/book-1-contracts.test.mjs:52:23
+        at getActual (node:assert:580:5)
+        at strict.throws (node:assert:728:24)
+        at TestContext.<anonymous> (file:///D:/Claude/tools/skills/nemesis/tests/core/book-1-contracts.test.mjs:52:10)
+        at async Test.run (node:internal/test_runner/test:1389:7)
+        at async Test.processPendingSubtests (node:internal/test_runner/test:960:7),
+    expected: /host-owned/,
+    operator: 'throws',
+    diff: 'simple'
+  }
+
+test at tests\core\book-1-contracts.test.mjs:56:1
+✖ B1-008 sealed profiles expose resource, cache, cancellation, schedule, and reasoning policy (0.9937ms)
+  AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:
+  
+    assert.ok(profile.schedule && profile.cache && profile.cancellation && profile.reasoning)
+  
+      at TestContext.<anonymous> (file:///D:/Claude/tools/skills/nemesis/tests/core/book-1-contracts.test.mjs:60:10)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at tests\core\book-1-contracts.test.mjs:63:1
+✖ B1-009 family and lens registries reject dependency cycles (0.5013ms)
+  Error [ERR_MODULE_NOT_FOUND]: Cannot find module 'D:\Claude\tools\skills\nemesis\lib\contracts\families.mjs' imported from D:\Claude\tools\skills\nemesis\tests\core\book-1-contracts.test.mjs
+      at finalizeResolution (node:internal/modules/esm/resolve:272:11)
+      at moduleResolve (node:internal/modules/esm/resolve:879:10)
+      at defaultResolve (node:internal/modules/esm/resolve:1006:11)
+      at #cachedDefaultResolve (node:internal/modules/esm/loader:708:20)
+      at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:728:38)
+      at ModuleLoader.resolveSync (node:internal/modules/esm/loader:766:56)
+      at #resolve (node:internal/modules/esm/loader:690:17)
+      at ModuleLoader.getOrCreateModuleJob (node:internal/modules/esm/loader:610:35)
+      at node:internal/modules/esm/loader:639:32
+      at TracingChannel.tracePromise (node:diagnostics_channel:539:22) {
+    code: 'ERR_MODULE_NOT_FOUND',
+    url: 'file:///D:/Claude/tools/skills/nemesis/lib/contracts/families.mjs'
+  }
+
+test at tests\core\book-1-contracts.test.mjs:70:1
+✖ B1-010 provider v2 rejects candidate generators that emit findings (0.6523ms)
+  Error [ERR_MODULE_NOT_FOUND]: Cannot find module 'D:\Claude\tools\skills\nemesis\lib\providers\sdk\contracts.mjs' imported from D:\Claude\tools\skills\nemesis\tests\core\book-1-contracts.test.mjs
+      at finalizeResolution (node:internal/modules/esm/resolve:272:11)
+      at moduleResolve (node:internal/modules/esm/resolve:879:10)
+      at defaultResolve (node:internal/modules/esm/resolve:1006:11)
+      at #cachedDefaultResolve (node:internal/modules/esm/loader:708:20)
+      at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:728:38)
+      at ModuleLoader.resolveSync (node:internal/modules/esm/loader:766:56)
+      at #resolve (node:internal/modules/esm/loader:690:17)
+      at ModuleLoader.getOrCreateModuleJob (node:internal/modules/esm/loader:610:35)
+      at node:internal/modules/esm/loader:639:32
+      at TracingChannel.tracePromise (node:diagnostics_channel:539:22) {
+    code: 'ERR_MODULE_NOT_FOUND',
+    url: 'file:///D:/Claude/tools/skills/nemesis/lib/providers/sdk/contracts.mjs'
+  }
+
+test at tests\core\book-1-contracts.test.mjs:77:1
+✖ B1-011 schedule compiler uses lexical waves and rejects impossible resources (0.4505ms)
+  Error [ERR_MODULE_NOT_FOUND]: Cannot find module 'D:\Claude\tools\skills\nemesis\lib\providers\sdk\schedule.mjs' imported from D:\Claude\tools\skills\nemesis\tests\core\book-1-contracts.test.mjs
+      at finalizeResolution (node:internal/modules/esm/resolve:272:11)
+      at moduleResolve (node:internal/modules/esm/resolve:879:10)
+      at defaultResolve (node:internal/modules/esm/resolve:1006:11)
+      at #cachedDefaultResolve (node:internal/modules/esm/loader:708:20)
+      at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:728:38)
+      at ModuleLoader.resolveSync (node:internal/modules/esm/loader:766:56)
+      at #resolve (node:internal/modules/esm/loader:690:17)
+      at ModuleLoader.getOrCreateModuleJob (node:internal/modules/esm/loader:610:35)
+      at node:internal/modules/esm/loader:639:32
+      at TracingChannel.tracePromise (node:diagnostics_channel:539:22) {
+    code: 'ERR_MODULE_NOT_FOUND',
+    url: 'file:///D:/Claude/tools/skills/nemesis/lib/providers/sdk/schedule.mjs'
+  }
+
+test at tests\core\book-1-contracts.test.mjs:84:1
+✖ B1-012 reasoning runner prepares a packet without invoking a reviewer (0.3973ms)
+  Error [ERR_MODULE_NOT_FOUND]: Cannot find module 'D:\Claude\tools\skills\nemesis\lib\providers\executor\index.mjs' imported from D:\Claude\tools\skills\nemesis\tests\core\book-1-contracts.test.mjs
+      at finalizeResolution (node:internal/modules/esm/resolve:272:11)
+      at moduleResolve (node:internal/modules/esm/resolve:879:10)
+      at defaultResolve (node:internal/modules/esm/resolve:1006:11)
+      at #cachedDefaultResolve (node:internal/modules/esm/loader:708:20)
+      at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:728:38)
+      at ModuleLoader.resolveSync (node:internal/modules/esm/loader:766:56)
+      at #resolve (node:internal/modules/esm/loader:690:17)
+      at ModuleLoader.getOrCreateModuleJob (node:internal/modules/esm/loader:610:35)
+      at node:internal/modules/esm/loader:639:32
+      at TracingChannel.tracePromise (node:diagnostics_channel:539:22) {
+    code: 'ERR_MODULE_NOT_FOUND',
+    url: 'file:///D:/Claude/tools/skills/nemesis/lib/providers/executor/index.mjs'
+  }
+
+test at tests\core\book-1-contracts.test.mjs:92:1
+✖ B1-013 precomputed Cortex projection rejects stale repository binding (0.2882ms)
+  Error [ERR_MODULE_NOT_FOUND]: Cannot find module 'D:\Claude\tools\skills\nemesis\lib\adapters\cortex\precomputed.mjs' imported from D:\Claude\tools\skills\nemesis\tests\core\book-1-contracts.test.mjs
+      at finalizeResolution (node:internal/modules/esm/resolve:272:11)
+      at moduleResolve (node:internal/modules/esm/resolve:879:10)
+      at defaultResolve (node:internal/modules/esm/resolve:1006:11)
+      at #cachedDefaultResolve (node:internal/modules/esm/loader:708:20)
+      at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:728:38)
+      at ModuleLoader.resolveSync (node:internal/modules/esm/loader:766:56)
+      at #resolve (node:internal/modules/esm/loader:690:17)
+      at ModuleLoader.getOrCreateModuleJob (node:internal/modules/esm/loader:610:35)
+      at node:internal/modules/esm/loader:639:32
+      at TracingChannel.tracePromise (node:diagnostics_channel:539:22) {
+    code: 'ERR_MODULE_NOT_FOUND',
+    url: 'file:///D:/Claude/tools/skills/nemesis/lib/adapters/cortex/precomputed.mjs'
+  }
+
+test at tests\core\book-1-contracts.test.mjs:97:1
+✖ B1-014 binding comparison is stable across path separators (0.6871ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  false !== true
+  
+      at TestContext.<anonymous> (file:///D:/Claude/tools/skills/nemesis/tests/core/book-1-contracts.test.mjs:99:10)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests\core\book-1-contracts.test.mjs:102:1
+✖ B1-015 planning stage registry is fixed and missing required stages are typed (0.4344ms)
+  Error [ERR_MODULE_NOT_FOUND]: Cannot find module 'D:\Claude\tools\skills\nemesis\lib\core\plan-stages\registry.mjs' imported from D:\Claude\tools\skills\nemesis\tests\core\book-1-contracts.test.mjs
+      at finalizeResolution (node:internal/modules/esm/resolve:272:11)
+      at moduleResolve (node:internal/modules/esm/resolve:879:10)
+      at defaultResolve (node:internal/modules/esm/resolve:1006:11)
+      at #cachedDefaultResolve (node:internal/modules/esm/loader:708:20)
+      at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:728:38)
+      at ModuleLoader.resolveSync (node:internal/modules/esm/loader:766:56)
+      at #resolve (node:internal/modules/esm/loader:690:17)
+      at ModuleLoader.getOrCreateModuleJob (node:internal/modules/esm/loader:610:35)
+      at node:internal/modules/esm/loader:639:32
+      at TracingChannel.tracePromise (node:diagnostics_channel:539:22) {
+    code: 'ERR_MODULE_NOT_FOUND',
+    url: 'file:///D:/Claude/tools/skills/nemesis/lib/core/plan-stages/registry.mjs'
+  }
+
+test at tests\core\book-1-contracts.test.mjs:110:1
+✖ B1-016 scheduler preserves independent work when one dependency blocks (9.27ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+  + undefined
+  - [
+  -   'a'
+  - ]
+  
+      at TestContext.<anonymous> (file:///D:/Claude/tools/skills/nemesis/tests/core/book-1-contracts.test.mjs:113:10)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: [ 'a' ],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at tests\core\book-1-contracts.test.mjs:118:1
+✖ B1-017 zero findings with a required gap is incomplete (0.4117ms)
+  Error [ERR_MODULE_NOT_FOUND]: Cannot find module 'D:\Claude\tools\skills\nemesis\lib\core\completeness.mjs' imported from D:\Claude\tools\skills\nemesis\tests\core\book-1-contracts.test.mjs
+      at finalizeResolution (node:internal/modules/esm/resolve:272:11)
+      at moduleResolve (node:internal/modules/esm/resolve:879:10)
+      at defaultResolve (node:internal/modules/esm/resolve:1006:11)
+      at #cachedDefaultResolve (node:internal/modules/esm/loader:708:20)
+      at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:728:38)
+      at ModuleLoader.resolveSync (node:internal/modules/esm/loader:766:56)
+      at #resolve (node:internal/modules/esm/loader:690:17)
+      at ModuleLoader.getOrCreateModuleJob (node:internal/modules/esm/loader:610:35)
+      at node:internal/modules/esm/loader:639:32
+      at TracingChannel.tracePromise (node:diagnostics_channel:539:22) {
+    code: 'ERR_MODULE_NOT_FOUND',
+    url: 'file:///D:/Claude/tools/skills/nemesis/lib/core/completeness.mjs'
+  }
+
+test at tests\core\book-1-contracts.test.mjs:123:1
+✖ B1-018 reviewer policy rejects context reuse and self-adjudication (0.3398ms)
+  Error [ERR_MODULE_NOT_FOUND]: Cannot find module 'D:\Claude\tools\skills\nemesis\lib\core\reviewer-policy.mjs' imported from D:\Claude\tools\skills\nemesis\tests\core\book-1-contracts.test.mjs
+      at finalizeResolution (node:internal/modules/esm/resolve:272:11)
+      at moduleResolve (node:internal/modules/esm/resolve:879:10)
+      at defaultResolve (node:internal/modules/esm/resolve:1006:11)
+      at #cachedDefaultResolve (node:internal/modules/esm/loader:708:20)
+      at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:728:38)
+      at ModuleLoader.resolveSync (node:internal/modules/esm/loader:766:56)
+      at #resolve (node:internal/modules/esm/loader:690:17)
+      at ModuleLoader.getOrCreateModuleJob (node:internal/modules/esm/loader:610:35)
+      at node:internal/modules/esm/loader:639:32
+      at TracingChannel.tracePromise (node:diagnostics_channel:539:22) {
+    code: 'ERR_MODULE_NOT_FOUND',
+    url: 'file:///D:/Claude/tools/skills/nemesis/lib/core/reviewer-policy.mjs'
+  }
+
+test at tests\core\book-1-contracts.test.mjs:129:1
+✖ B1-019 report model preserves topology, controls, and per-claim decisions without a score (0.2767ms)
+  Error [ERR_MODULE_NOT_FOUND]: Cannot find module 'D:\Claude\tools\skills\nemesis\lib\report\model.mjs' imported from D:\Claude\tools\skills\nemesis\tests\core\book-1-contracts.test.mjs
+      at finalizeResolution (node:internal/modules/esm/resolve:272:11)
+      at moduleResolve (node:internal/modules/esm/resolve:879:10)
+      at defaultResolve (node:internal/modules/esm/resolve:1006:11)
+      at #cachedDefaultResolve (node:internal/modules/esm/loader:708:20)
+      at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:728:38)
+      at ModuleLoader.resolveSync (node:internal/modules/esm/loader:766:56)
+      at #resolve (node:internal/modules/esm/loader:690:17)
+      at ModuleLoader.getOrCreateModuleJob (node:internal/modules/esm/loader:610:35)
+      at node:internal/modules/esm/loader:639:32
+      at TracingChannel.tracePromise (node:diagnostics_channel:539:22) {
+    code: 'ERR_MODULE_NOT_FOUND',
+    url: 'file:///D:/Claude/tools/skills/nemesis/lib/report/model.mjs'
+  }
+
+test at tests\core\book-1-contracts.test.mjs:136:1
+✖ B1-020 semantic verification excludes time, paths, and presentation ordering (0.2663ms)
+  Error [ERR_MODULE_NOT_FOUND]: Cannot find module 'D:\Claude\tools\skills\nemesis\lib\verification\projection.mjs' imported from D:\Claude\tools\skills\nemesis\tests\core\book-1-contracts.test.mjs
+      at finalizeResolution (node:internal/modules/esm/resolve:272:11)
+      at moduleResolve (node:internal/modules/esm/resolve:879:10)
+      at defaultResolve (node:internal/modules/esm/resolve:1006:11)
+      at #cachedDefaultResolve (node:internal/modules/esm/loader:708:20)
+      at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:728:38)
+      at ModuleLoader.resolveSync (node:internal/modules/esm/loader:766:56)
+      at #resolve (node:internal/modules/esm/loader:690:17)
+      at ModuleLoader.getOrCreateModuleJob (node:internal/modules/esm/loader:610:35)
+      at node:internal/modules/esm/loader:639:32
+      at TracingChannel.tracePromise (node:diagnostics_channel:539:22) {
+    code: 'ERR_MODULE_NOT_FOUND',
+    url: 'file:///D:/Claude/tools/skills/nemesis/lib/verification/projection.mjs'
+  }
+
+test at tests\core\book-1-contracts.test.mjs:143:1
+✖ B1-021 schedule command is a pure canonical renderer (0.2851ms)
+  Error [ERR_MODULE_NOT_FOUND]: Cannot find module 'D:\Claude\tools\skills\nemesis\lib\cli\commands\schedule.mjs' imported from D:\Claude\tools\skills\nemesis\tests\core\book-1-contracts.test.mjs
+      at finalizeResolution (node:internal/modules/esm/resolve:272:11)
+      at moduleResolve (node:internal/modules/esm/resolve:879:10)
+      at defaultResolve (node:internal/modules/esm/resolve:1006:11)
+      at #cachedDefaultResolve (node:internal/modules/esm/loader:708:20)
+      at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:728:38)
+      at ModuleLoader.resolveSync (node:internal/modules/esm/loader:766:56)
+      at #resolve (node:internal/modules/esm/loader:690:17)
+      at ModuleLoader.getOrCreateModuleJob (node:internal/modules/esm/loader:610:35)
+      at node:internal/modules/esm/loader:639:32
+      at TracingChannel.tracePromise (node:diagnostics_channel:539:22) {
+    code: 'ERR_MODULE_NOT_FOUND',
+    url: 'file:///D:/Claude/tools/skills/nemesis/lib/cli/commands/schedule.mjs'
+  }
+
+test at tests\core\book-1-contracts.test.mjs:150:1
+✖ B1-022 skill bundle contract rejects absolute internal URIs and separates profiles (0.2648ms)
+  Error [ERR_MODULE_NOT_FOUND]: Cannot find module 'D:\Claude\tools\skills\nemesis\lib\skills\contracts.mjs' imported from D:\Claude\tools\skills\nemesis\tests\core\book-1-contracts.test.mjs
+      at finalizeResolution (node:internal/modules/esm/resolve:272:11)
+      at moduleResolve (node:internal/modules/esm/resolve:879:10)
+      at defaultResolve (node:internal/modules/esm/resolve:1006:11)
+      at #cachedDefaultResolve (node:internal/modules/esm/loader:708:20)
+      at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:728:38)
+      at ModuleLoader.resolveSync (node:internal/modules/esm/loader:766:56)
+      at #resolve (node:internal/modules/esm/loader:690:17)
+      at ModuleLoader.getOrCreateModuleJob (node:internal/modules/esm/loader:610:35)
+      at node:internal/modules/esm/loader:639:32
+      at TracingChannel.tracePromise (node:diagnostics_channel:539:22) {
+    code: 'ERR_MODULE_NOT_FOUND',
+    url: 'file:///D:/Claude/tools/skills/nemesis/lib/skills/contracts.mjs'
+  }
+
+test at tests\core\book-1-contracts.test.mjs:156:1
+✖ B1-023 skill URI resolver and verifier are package-relative and digest-bound (0.2685ms)
+  Error [ERR_MODULE_NOT_FOUND]: Cannot find module 'D:\Claude\tools\skills\nemesis\lib\skills\uri.mjs' imported from D:\Claude\tools\skills\nemesis\tests\core\book-1-contracts.test.mjs
+      at finalizeResolution (node:internal/modules/esm/resolve:272:11)
+      at moduleResolve (node:internal/modules/esm/resolve:879:10)
+      at defaultResolve (node:internal/modules/esm/resolve:1006:11)
+      at #cachedDefaultResolve (node:internal/modules/esm/loader:708:20)
+      at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:728:38)
+      at ModuleLoader.resolveSync (node:internal/modules/esm/loader:766:56)
+      at #resolve (node:internal/modules/esm/loader:690:17)
+      at ModuleLoader.getOrCreateModuleJob (node:internal/modules/esm/loader:610:35)
+      at node:internal/modules/esm/loader:639:32
+      at TracingChannel.tracePromise (node:diagnostics_channel:539:22) {
+    code: 'ERR_MODULE_NOT_FOUND',
+    url: 'file:///D:/Claude/tools/skills/nemesis/lib/skills/uri.mjs'
+  }
+
+test at tests\core\book-1-contracts.test.mjs:164:1
+✖ B1-024 skill transformation is deterministic, neutral, and strips audit mutation authority (0.28ms)
+  Error [ERR_MODULE_NOT_FOUND]: Cannot find module 'D:\Claude\tools\skills\nemesis\lib\skills\transform.mjs' imported from D:\Claude\tools\skills\nemesis\tests\core\book-1-contracts.test.mjs
+      at finalizeResolution (node:internal/modules/esm/resolve:272:11)
+      at moduleResolve (node:internal/modules/esm/resolve:879:10)
+      at defaultResolve (node:internal/modules/esm/resolve:1006:11)
+      at #cachedDefaultResolve (node:internal/modules/esm/loader:708:20)
+      at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:728:38)
+      at ModuleLoader.resolveSync (node:internal/modules/esm/loader:766:56)
+      at #resolve (node:internal/modules/esm/loader:690:17)
+      at ModuleLoader.getOrCreateModuleJob (node:internal/modules/esm/loader:610:35)
+      at node:internal/modules/esm/loader:639:32
+      at TracingChannel.tracePromise (node:diagnostics_channel:539:22) {
+    code: 'ERR_MODULE_NOT_FOUND',
+    url: 'file:///D:/Claude/tools/skills/nemesis/lib/skills/transform.mjs'
+  }
+
+test at tests\core\book-1-contracts.test.mjs:173:1
+✖ B1-025 Designer bundle preserves audit authority boundaries (9.0131ms)
+  Error: ENOENT: no such file or directory, open 'D:\Claude\tools\skills\nemesis\skills\manifests\designer.json'
+      at async open (node:internal/fs/promises:1360:25)
+      at async readFile (node:internal/fs/promises:2149:14)
+      at async json (file:///D:/Claude/tools/skills/nemesis/tests/core/book-1-contracts.test.mjs:6:41)
+      at async TestContext.<anonymous> (file:///D:/Claude/tools/skills/nemesis/tests/core/book-1-contracts.test.mjs:174:20)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    errno: -4058,
+    code: 'ENOENT',
+    syscall: 'open',
+    path: 'D:\\Claude\\tools\\skills\\nemesis\\skills\\manifests\\designer.json'
+  }
+
+test at tests\core\book-1-contracts.test.mjs:179:1
+✖ B1-026 Writing bundle makes proof and no-fabrication explicit (0.7702ms)
+  Error: ENOENT: no such file or directory, open 'D:\Claude\tools\skills\nemesis\skills\manifests\writing.json'
+      at async open (node:internal/fs/promises:1360:25)
+      at async readFile (node:internal/fs/promises:2149:14)
+      at async json (file:///D:/Claude/tools/skills/nemesis/tests/core/book-1-contracts.test.mjs:6:41)
+      at async TestContext.<anonymous> (file:///D:/Claude/tools/skills/nemesis/tests/core/book-1-contracts.test.mjs:180:20)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    errno: -4058,
+    code: 'ENOENT',
+    syscall: 'open',
+    path: 'D:\\Claude\\tools\\skills\\nemesis\\skills\\manifests\\writing.json'
+  }
+
+test at tests\core\book-1-contracts.test.mjs:186:1
+✖ B1-027 qualifier supports Books 1 through 6 and package smoke exercises library plus plan (10.3927ms)
+  Error: unsupported book: 4
+      at discoverBookTests (file:///D:/Claude/tools/skills/nemesis/scripts/qualify-book.mjs:43:37)
+      at TestContext.<anonymous> (file:///D:/Claude/tools/skills/nemesis/tests/core/book-1-contracts.test.mjs:189:59)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7)
+
+test at tests\core\book-1-contracts.test.mjs:193:1
+✖ B1-028 qualification digest ignores duration and noisy test bytes (0.6788ms)
+  TypeError: qualificationDigest is not a function
+      at TestContext.<anonymous> (file:///D:/Claude/tools/skills/nemesis/tests/core/book-1-contracts.test.mjs:195:13)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7)

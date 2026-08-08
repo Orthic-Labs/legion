@@ -1,0 +1,18 @@
+✔ go pack detects go.mod projects (0.7592ms)
+✔ go pack emits vet/test/vuln commands (0.2177ms)
+✔ go pack normalizes execution (0.1575ms)
+✔ go-web pack flags HTTP servers without timeouts (0.3715ms)
+✔ go-web pack accepts timeouts and body bounds (0.1961ms)
+✔ go-web pack flags command sinks with request input (0.1436ms)
+✔ go-web pack flags routes without auth middleware (0.1029ms)
+✔ grpc pack flags services without auth interceptors (0.266ms)
+✔ grpc pack flags servers without limits (0.2297ms)
+✔ grpc pack accepts servers with keepalive config (0.1876ms)
+ℹ tests 10
+ℹ suites 0
+ℹ pass 10
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 72.7435

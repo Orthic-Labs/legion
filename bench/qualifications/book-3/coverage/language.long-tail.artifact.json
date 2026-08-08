@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "kind": "nemesis-coverage-test-artifact",
+  "recordId": "language.long-tail",
+  "testPath": "tests/coverage-long-tail.test.mjs",
+  "status": "pass",
+  "rawLog": {
+    "path": "bench/qualifications/book-3/coverage/language.long-tail.test.log",
+    "digest": "sha256:6d2eaa008985e404f1fa730c7069b35f4f6d464b9512bd071322c81ed1cfee9b",
+    "bytes": 806
+  },
+  "providerVersions": {
+    "code.long-tail": "1.0.0"
+  }
+}

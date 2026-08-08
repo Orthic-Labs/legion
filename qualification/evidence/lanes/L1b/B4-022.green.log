@@ -1,0 +1,7 @@
+✔ B4-022 records clean-machine capability gap without simulating installer success
+✔ B4-022 fails unsafe rollback & rejects non-isolated destructive targets
+✔ B4-022 cannot pass zero lifecycle scenarios or caller-only signing booleans
+ℹ tests 3
+ℹ pass 3
+ℹ fail 0
+GREEN_EXIT=0

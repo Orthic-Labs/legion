@@ -1,0 +1,1 @@
+{"$schema":"https://json-schema.org/draft/2020-12/schema","type":"object","required":["schemaVersion","subject","reviewer","contextId","verdict","binding"],"properties":{"schemaVersion":{"const":1},"subject":{"type":"object"},"reviewer":{"type":"string"},"contextId":{"type":"string"},"verdict":{"type":"string"},"binding":{"type":"object"}},"additionalProperties":false}

@@ -1,0 +1,79 @@
+{
+  "schemaVersion": 1,
+  "kind": "seer-legacy-parity-fixture",
+  "source": "../../../tests/fixtures/verify/facts.json",
+  "assertion": "facade artifact value is byte-semantic JSON parity with canonical legacy facts; findings, denominators, and claims remain unchanged",
+  "expected": {
+    "findings": {
+      "checks": [
+        {
+          "check": "secrets",
+          "findings": [
+            {
+              "id": "finding-secret-001",
+              "ruleId": "secret-format",
+              "severity": "high",
+              "verdict": "TRUE_POSITIVE",
+              "file": "src/config.example.ts",
+              "line": 12,
+              "evidenceDigest": "sha256:1111111111111111111111111111111111111111111111111111111111111111"
+            }
+          ]
+        },
+        { "check": "types", "findings": [] }
+      ],
+      "providerResults": [
+        {
+          "provider": "security.credentials",
+          "findings": [],
+          "candidates": [
+            {
+              "id": "candidate-cred-001",
+              "ruleId": "credentials.format",
+              "provider": "security.credentials",
+              "verdict": "UNADJUDICATED",
+              "evidenceRefs": ["sha256:3333333333333333333333333333333333333333333333333333333333333333"]
+            }
+          ],
+          "coverageGaps": []
+        },
+        {
+          "provider": "language.typescript",
+          "findings": [],
+          "candidates": [],
+          "coverageGaps": []
+        }
+      ]
+    },
+    "denominators": {
+      "plan": {
+        "discoveryOwner": "cortex",
+        "firstPartyFileCount": 10,
+        "sourceFileCount": 8,
+        "fileSetDigest": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+        "parsedExtensions": ["ts", "js"],
+        "unsupportedExtensions": [],
+        "providerIds": ["language.typescript", "security.credentials"],
+        "expectedChecks": ["secrets", "types"]
+      },
+      "providers": [
+        { "provider": "security.credentials", "denominatorDigest": "sha256:2222222222222222222222222222222222222222222222222222222222222222" },
+        { "provider": "language.typescript", "denominatorDigest": "sha256:4444444444444444444444444444444444444444444444444444444444444444" }
+      ]
+    },
+    "claims": {
+      "checkVerdicts": [
+        { "check": "secrets", "status": "ran", "verdict": "pass" },
+        { "check": "types", "status": "ran", "verdict": "pass" }
+      ],
+      "providerStatuses": [
+        { "provider": "security.credentials", "status": "candidates" },
+        { "provider": "language.typescript", "status": "pass" }
+      ],
+      "coverageFamilies": { "security": "candidates" },
+      "unresolvedCoverage": [],
+      "missingRuntimeProviders": [],
+      "denominatorMismatches": []
+    }
+  }
+}

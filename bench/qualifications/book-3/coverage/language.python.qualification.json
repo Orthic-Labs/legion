@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "kind": "nemesis-coverage-qualification",
+  "recordId": "language.python",
+  "corpusRoot": "bench/corpora/python",
+  "corpusDigest": "sha256:9c10ae213d0162904c6b65a5af15b26cb76a615dba527707925c15f3efe849db",
+  "artifactDigest": "sha256:0125e0f24c63c9d7f783060bb93d81a36887f0d4ce67f8decc139090537b7473",
+  "providerVersions": {
+    "code.python": "1.0.0"
+  },
+  "casesRequired": [
+    "positive",
+    "negative",
+    "mitigated",
+    "unavailable-tool",
+    "path-layout"
+  ],
+  "command": [
+    "node",
+    "--test",
+    "tests/providers/python/python.test.mjs"
+  ],
+  "decision": "source-measured-runtime-unproven"
+}

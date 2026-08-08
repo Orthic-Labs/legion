@@ -1,0 +1,21 @@
+✔ KeyRing.add + get round-trips key material (67.8733ms)
+✔ KeyRing.list() never exposes key material (0.424ms)
+✔ KeyRing.has() reflects presence without throwing (0.1924ms)
+✔ KeyRing.get() on unknown key throws ARC_AUTH_KEY_UNAVAILABLE, failClosed (1.0484ms)
+✔ KeyRing.revoke() then get() throws ARC_AUTH_KEY_UNAVAILABLE (0.6693ms)
+✔ KeyRing.revoke() on unknown key throws ARC_AUTH_KEY_UNAVAILABLE (0.3699ms)
+✔ KeyRing.activeKeyId() returns the newest non-revoked key (0.5625ms)
+✔ KeyRing.activeKeyId() throws ARC_AUTH_KEY_UNAVAILABLE when no active key exists (0.6182ms)
+✔ generateTestKeyRing() mints usable, distinct random keys for fixtures (1.1282ms)
+✔ loadHostKeyRing() fails closed with ARC_AUTH_KEY_UNAVAILABLE when the directory is absent (1.353ms)
+✔ loadHostKeyRing() fails closed with ARC_AUTH_KEY_UNAVAILABLE when the directory has no key files (2.5749ms)
+✔ loadHostKeyRing() loads host-held key material and metadata from disk (23.8627ms)
+✔ loadHostKeyRing() never surfaces key material through KeyRing.list() (6.3529ms)
+ℹ tests 13
+ℹ suites 0
+ℹ pass 13
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1118.5355

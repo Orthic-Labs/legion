@@ -1,0 +1,28 @@
+✔ B5-007 geometry tokens preserve denominators and evidence classes (2.3611ms)
+✔ B5-008 typography binds role surface viewport locale and font gaps (1.4015ms)
+✔ B5-009 hierarchy separates deterministic mismatch from taste (0.8707ms)
+✔ B5-010 responsive and stacking preserve untested viewports and safe-area gaps (1.2629ms)
+✔ B5-011 control states expose applicability and missing evidence (0.8953ms)
+✔ B5-012 UX flow preserves cohorts paths measurements and inferred goals (5.3342ms)
+✔ B5-013 navigation cites flow and route evidence without feature invention (1.0105ms)
+✔ B5-014 forms bind field denominator and separate client validation from security (0.8301ms)
+✔ B5-015 system states separate absent implementation from untested state (0.7137ms)
+✔ B5-016 recovery requires side-effect evidence for irreversible classification (0.7727ms)
+✔ B5-017 data interaction keeps scale and chart interpretation unproven (1.1595ms)
+✔ B5-018 friction and deceptive design separate deterministic and interpretive evidence (1.3805ms)
+✔ B5-020 runtime accessibility never passes missing engine or paths (0.9606ms)
+✔ B5-021 runtime adapters are bounded redacted surface receipts (1.5583ms)
+✔ B5-022 visual capture binds digests and redacts sensitive values (4.5119ms)
+✔ B5-023 geometry findings are measured and unsupported primitives remain gaps (1.1513ms)
+✔ B5-024 visual diff rejects identity mismatch and never auto-accepts (1.3251ms)
+✔ B5-025 reviewer packets require fresh independent receipts and preserve uncertainty (0.9404ms)
+✔ B5-026 motion binds transitions timing and reduced-motion coverage (0.5876ms)
+✔ B5-028 bundle network cache evidence keeps identity and correctness analysis (1.3399ms)
+ℹ tests 20
+ℹ suites 0
+ℹ pass 20
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 117.479

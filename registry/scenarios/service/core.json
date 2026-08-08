@@ -1,0 +1,275 @@
+{
+  "schemaVersion": 1,
+  "templates": [
+    {
+      "id": "service-data.api-contracts.default",
+      "controlId": "service-data.api-contracts",
+      "mandatory": true,
+      "requiredCapabilities": [
+        "repository",
+        "external-evidence"
+      ],
+      "destructive": false,
+      "isolation": "fresh",
+      "timeoutMs": 30000,
+      "invariants": [
+        "no-unaccounted-side-effects"
+      ]
+    },
+    {
+      "id": "service-data.identity-authorization.default",
+      "controlId": "service-data.identity-authorization",
+      "mandatory": true,
+      "requiredCapabilities": [
+        "repository",
+        "external-evidence"
+      ],
+      "destructive": false,
+      "isolation": "fresh",
+      "timeoutMs": 30000,
+      "invariants": [
+        "no-unaccounted-side-effects"
+      ]
+    },
+    {
+      "id": "service-data.validation.default",
+      "controlId": "service-data.validation",
+      "mandatory": true,
+      "requiredCapabilities": [
+        "repository",
+        "external-evidence"
+      ],
+      "destructive": false,
+      "isolation": "fresh",
+      "timeoutMs": 30000,
+      "invariants": [
+        "no-unaccounted-side-effects"
+      ]
+    },
+    {
+      "id": "service-data.idempotency.default",
+      "controlId": "service-data.idempotency",
+      "mandatory": true,
+      "requiredCapabilities": [
+        "repository",
+        "external-evidence"
+      ],
+      "destructive": false,
+      "isolation": "fresh",
+      "timeoutMs": 30000,
+      "invariants": [
+        "no-unaccounted-side-effects"
+      ]
+    },
+    {
+      "id": "service-data.transactions.default",
+      "controlId": "service-data.transactions",
+      "mandatory": true,
+      "requiredCapabilities": [
+        "repository",
+        "external-evidence"
+      ],
+      "destructive": false,
+      "isolation": "fresh",
+      "timeoutMs": 30000,
+      "invariants": [
+        "no-unaccounted-side-effects"
+      ]
+    },
+    {
+      "id": "service-data.queues.default",
+      "controlId": "service-data.queues",
+      "mandatory": true,
+      "requiredCapabilities": [
+        "repository",
+        "external-evidence"
+      ],
+      "destructive": false,
+      "isolation": "fresh",
+      "timeoutMs": 30000,
+      "invariants": [
+        "no-unaccounted-side-effects"
+      ]
+    },
+    {
+      "id": "service-data.schedules.default",
+      "controlId": "service-data.schedules",
+      "mandatory": true,
+      "requiredCapabilities": [
+        "repository",
+        "external-evidence"
+      ],
+      "destructive": false,
+      "isolation": "fresh",
+      "timeoutMs": 30000,
+      "invariants": [
+        "no-unaccounted-side-effects"
+      ]
+    },
+    {
+      "id": "service-data.backpressure.default",
+      "controlId": "service-data.backpressure",
+      "mandatory": true,
+      "requiredCapabilities": [
+        "repository",
+        "external-evidence"
+      ],
+      "destructive": false,
+      "isolation": "fresh",
+      "timeoutMs": 30000,
+      "invariants": [
+        "no-unaccounted-side-effects"
+      ]
+    },
+    {
+      "id": "service-data.timeouts-retries.default",
+      "controlId": "service-data.timeouts-retries",
+      "mandatory": true,
+      "requiredCapabilities": [
+        "repository",
+        "external-evidence"
+      ],
+      "destructive": false,
+      "isolation": "fresh",
+      "timeoutMs": 30000,
+      "invariants": [
+        "no-unaccounted-side-effects"
+      ]
+    },
+    {
+      "id": "service-data.rate-cost.default",
+      "controlId": "service-data.rate-cost",
+      "mandatory": true,
+      "requiredCapabilities": [
+        "repository",
+        "external-evidence"
+      ],
+      "destructive": false,
+      "isolation": "fresh",
+      "timeoutMs": 30000,
+      "invariants": [
+        "no-unaccounted-side-effects"
+      ]
+    },
+    {
+      "id": "service-data.shutdown-health.default",
+      "controlId": "service-data.shutdown-health",
+      "mandatory": true,
+      "requiredCapabilities": [
+        "repository",
+        "external-evidence"
+      ],
+      "destructive": false,
+      "isolation": "fresh",
+      "timeoutMs": 30000,
+      "invariants": [
+        "no-unaccounted-side-effects"
+      ]
+    },
+    {
+      "id": "service-data.lineage.default",
+      "controlId": "service-data.lineage",
+      "mandatory": true,
+      "requiredCapabilities": [
+        "repository",
+        "external-evidence"
+      ],
+      "destructive": false,
+      "isolation": "fresh",
+      "timeoutMs": 30000,
+      "invariants": [
+        "no-unaccounted-side-effects"
+      ]
+    },
+    {
+      "id": "service-data.migrations.default",
+      "controlId": "service-data.migrations",
+      "mandatory": true,
+      "requiredCapabilities": [
+        "repository",
+        "external-evidence"
+      ],
+      "destructive": false,
+      "isolation": "fresh",
+      "timeoutMs": 30000,
+      "invariants": [
+        "no-unaccounted-side-effects"
+      ]
+    },
+    {
+      "id": "service-data.backup-restore.default",
+      "controlId": "service-data.backup-restore",
+      "mandatory": true,
+      "requiredCapabilities": [
+        "repository",
+        "external-evidence"
+      ],
+      "destructive": false,
+      "isolation": "fresh",
+      "timeoutMs": 30000,
+      "invariants": [
+        "no-unaccounted-side-effects"
+      ]
+    },
+    {
+      "id": "service-data.capacity-deployment.default",
+      "controlId": "service-data.capacity-deployment",
+      "mandatory": true,
+      "requiredCapabilities": [
+        "repository",
+        "external-evidence"
+      ],
+      "destructive": false,
+      "isolation": "fresh",
+      "timeoutMs": 30000,
+      "invariants": [
+        "no-unaccounted-side-effects"
+      ]
+    },
+    {
+      "id": "service-data.observability-incidents.default",
+      "controlId": "service-data.observability-incidents",
+      "mandatory": true,
+      "requiredCapabilities": [
+        "repository",
+        "external-evidence"
+      ],
+      "destructive": false,
+      "isolation": "fresh",
+      "timeoutMs": 30000,
+      "invariants": [
+        "no-unaccounted-side-effects"
+      ]
+    },
+    {
+      "id": "service-data.compatibility-abuse.default",
+      "controlId": "service-data.compatibility-abuse",
+      "mandatory": true,
+      "requiredCapabilities": [
+        "repository",
+        "external-evidence"
+      ],
+      "destructive": false,
+      "isolation": "fresh",
+      "timeoutMs": 30000,
+      "invariants": [
+        "no-unaccounted-side-effects"
+      ]
+    },
+    {
+      "id": "service-data.replay-correctness.default",
+      "controlId": "service-data.replay-correctness",
+      "mandatory": true,
+      "requiredCapabilities": [
+        "repository",
+        "external-evidence"
+      ],
+      "destructive": false,
+      "isolation": "fresh",
+      "timeoutMs": 30000,
+      "invariants": [
+        "no-unaccounted-side-effects"
+      ]
+    }
+  ]
+}

@@ -1,1 +1,81 @@
-{"$schema":"https://json-schema.org/draft/2020-12/schema","type":"object","required":["id","name","tiers"],"properties":{"id":{"type":"string"},"name":{"type":"string"},"tiers":{"type":"object"}}}
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "nemesis-stack-record-v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "name",
+    "role",
+    "evidencePaths",
+    "tiers"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^stack:"
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1
+    },
+    "role": {
+      "type": "string",
+      "minLength": 1
+    },
+    "evidencePaths": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "uniqueItems": true
+    },
+    "tiers": {
+      "type": "object"
+    },
+    "version": {
+      "type": "object"
+    },
+    "declaredVersion": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "resolvedVersion": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "runtimeVersion": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "known": {
+      "type": "boolean"
+    },
+    "targetIds": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "uniqueItems": true
+    },
+    "componentIds": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "uniqueItems": true
+    },
+    "knownLimitations": {
+      "type": "array"
+    }
+  }
+}

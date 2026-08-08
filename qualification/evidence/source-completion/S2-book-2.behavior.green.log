@@ -1,0 +1,38 @@
+✔ B2-001 target registry is versioned additive and unknown targets block clean claims (8.617ms)
+✔ B2-002 hybrid target detection preserves desktop web API iOS and Android candidates (13.2359ms)
+✔ B2-003 classification review cannot delete observations or close material ambiguity (1.6962ms)
+✔ B2-004 portfolio retains relations conflicts and unknown coverage deterministically (1.6496ms)
+✔ B2-005 component registry defines trust metadata and rejects folder-only graphs (2.139ms)
+✔ B2-006 build deployment and runtime extractors keep installer updater and workers separate (1.363ms)
+✔ B2-007 logical extractors emit distinct identity data integration and external components (1.6253ms)
+✔ B2-008 component graph preserves typed trust-boundary relations and coverage denominators (2.0293ms)
+✔ B2-009 stack catalogue has seven independent tiers and first-class external kinds (3.1319ms)
+✔ B2-010 stack graph distinguishes declared ranges resolved versions and unknown stacks (2.7775ms)
+✔ B2-011 external discovery labels references without claiming production configuration (1.9619ms)
+✔ B2-012 release contract rejects host authority keys and canonicalizes equivalent declarations (1.3734ms)
+✔ B2-013 product context preserves observed and declared actors data and risk authority (0.8167ms)
+✔ B2-014 journeys retain origin recovery effects and stable target ownership (1.0609ms)
+✔ B2-015 source ingestion requires rights and terminal disposition without importing execution authority (0.8589ms)
+✔ B2-016 creator ledger preserves 3 sources and 300 unresolved-rights excluded items (2.6209ms)
+✔ B2-017 platform ledgers pin three supplied digests and terminally disposition parsed hierarchy (10.2782ms)
+✔ B2-018 control contracts keep denominator independent from provider availability (1.4094ms)
+✔ B2-019 universal control catalogue carries selectors evidence and claim effects (2.8757ms)
+✔ B2-020 web control catalogue carries selectors evidence and claim effects (0.9191ms)
+✔ B2-021 desktop control catalogue carries selectors evidence and claim effects (2.406ms)
+✔ B2-022 mobile control catalogue carries selectors evidence and claim effects (0.7751ms)
+✔ B2-023 service data control catalogue carries selectors evidence and claim effects (0.7647ms)
+✔ B2-024 developer tools control catalogue carries selectors evidence and claim effects (0.803ms)
+✔ B2-025 infrastructure release control catalogue carries selectors evidence and claim effects (0.8439ms)
+✔ B2-026 conditional control catalogue carries selectors evidence and claim effects (0.7371ms)
+✔ B2-027 baseline unions applicable packs and reproduces digest independent of pack order (2.4621ms)
+✔ B2-028 missing external capability produces deterministic target-scoped claim impacts (0.6616ms)
+✔ B2-029 pairwise compiler covers every value pair and preserves mandatory cases (1.7032ms)
+✔ B2-030 product inspection integrates topology controls capabilities and scenario artifacts (56.539ms)
+ℹ tests 30
+ℹ suites 0
+ℹ pass 30
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 240.5474

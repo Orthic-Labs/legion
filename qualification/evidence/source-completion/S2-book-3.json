@@ -1,0 +1,1084 @@
+{
+  "schemaVersion": 3,
+  "kind": "nemesis-source-completion-book-evidence",
+  "routeStep": "R_INCREMENTAL_BOOK_GATES/S2",
+  "book": 3,
+  "sourceRevision": "97687c6952c3f20a8affee7da0502a61039e258e+dirty.sha256:83f851ef92df38c9ebd44bb63715e765185bceb525a00e45be9894f8fb45296e",
+  "sourceAccounting": {
+    "implemented": 30,
+    "mapped": 0,
+    "sourceBlocked": 0
+  },
+  "decision": "PASS",
+  "commands": [
+    {
+      "command": "node --test tests/providers/book-3-contracts.test.mjs",
+      "status": "fail",
+      "counts": {
+        "total": 30,
+        "pass": 4,
+        "fail": 26
+      },
+      "log": "qualification/evidence/source-completion/S2-book-3.behavior.red.log"
+    },
+    {
+      "command": "node --test tests/providers/book-3-contracts.test.mjs",
+      "status": "fail",
+      "counts": {
+        "total": 30,
+        "pass": 26,
+        "fail": 4
+      },
+      "log": "qualification/evidence/source-completion/S2-book-3.behavior.red.correction.log"
+    },
+    {
+      "command": "node --test tests/providers/book-3-contracts.test.mjs",
+      "status": "pass",
+      "counts": {
+        "total": 30,
+        "pass": 30,
+        "fail": 0
+      },
+      "log": "qualification/evidence/source-completion/S2-book-3.behavior.green.log"
+    },
+    {
+      "command": "node --test tests/providers/book-3-quality.test.mjs",
+      "status": "fail",
+      "counts": {
+        "total": 12,
+        "pass": 1,
+        "fail": 11
+      },
+      "log": "qualification/evidence/source-completion/S2-book-3.quality.red.correction.log"
+    },
+    {
+      "command": "node --test tests/providers/book-3-quality.test.mjs",
+      "status": "pass",
+      "counts": {
+        "total": 26,
+        "pass": 26,
+        "fail": 0
+      },
+      "log": "qualification/evidence/source-completion/S2-book-3.quality.green.log"
+    }
+  ],
+  "qualification": {
+    "command": "node scripts/qualify-book.mjs --book 3",
+    "status": "pass",
+    "outputDigest": "sha256:a86bacb306fc007f7bba872a344458f87953fac05566cfca8b12d72eed9e083f",
+    "receipt": "qualification/book-3-artifacts/gate-result.json"
+  },
+  "taskMap": [
+    {
+      "task": "B3-001",
+      "dependsOn": [
+        "B1-028"
+      ],
+      "test": {
+        "path": "tests/providers/book-3-contracts.test.mjs",
+        "assertion": "B3-001 provider v2 registry resolves aliases and rejects invented providers"
+      },
+      "implementation": [
+        {
+          "path": "registry/providers.json",
+          "symbol": "nemesis-provider-registry"
+        },
+        {
+          "path": "registry/provider-aliases.json",
+          "symbol": "aliases"
+        },
+        {
+          "path": "lib/providers/registry.mjs",
+          "symbol": "loadProviderRegistry"
+        }
+      ],
+      "red": "qualification/evidence/source-completion/S2-book-3.behavior.red.log",
+      "green": "qualification/evidence/source-completion/S2-book-3.behavior.green.log"
+    },
+    {
+      "task": "B3-002",
+      "dependsOn": [
+        "B3-001"
+      ],
+      "test": {
+        "path": "tests/providers/book-3-contracts.test.mjs",
+        "assertion": "B3-002 external execution records exact tool identity and non-null output digests"
+      },
+      "implementation": [
+        {
+          "path": "lib/providers/executor/external-process.mjs",
+          "symbol": "runExternal"
+        },
+        {
+          "path": "lib/providers/executor/tool-identity.mjs",
+          "symbol": "qualifyTool"
+        },
+        {
+          "path": "lib/providers/executor/output-limit.mjs",
+          "symbol": "createOutputCollector"
+        },
+        {
+          "path": "schemas/provider/tool-receipt-v1.schema.json",
+          "symbol": "nemesis-tool-receipt-v1"
+        }
+      ],
+      "red": "qualification/evidence/source-completion/S2-book-3.behavior.red.log",
+      "green": "qualification/evidence/source-completion/S2-book-3.behavior.green.log"
+    },
+    {
+      "task": "B3-003",
+      "dependsOn": [
+        "B3-002"
+      ],
+      "test": {
+        "path": "tests/providers/book-3-contracts.test.mjs",
+        "assertion": "B3-003 structural fingerprints ignore presentation messages and rewrites stay previews"
+      },
+      "implementation": [
+        {
+          "path": "providers/ast-grep/index.mjs",
+          "symbol": "stableFingerprint"
+        },
+        {
+          "path": "registry/rules/code/ast-grep/core.json",
+          "symbol": "cleanClaim"
+        },
+        {
+          "path": "schemas/provider/structural-match-v1.schema.json",
+          "symbol": "nemesis-structural-match-v1"
+        }
+      ],
+      "red": "qualification/evidence/source-completion/S2-book-3.behavior.red.correction.log",
+      "green": "qualification/evidence/source-completion/S2-book-3.behavior.green.log"
+    },
+    {
+      "task": "B3-004",
+      "dependsOn": [
+        "B3-002"
+      ],
+      "test": {
+        "path": "tests/providers/book-3-contracts.test.mjs",
+        "assertion": "B3-004 OpenGrep emits candidates without final findings authority"
+      },
+      "implementation": [
+        {
+          "path": "providers/opengrep/index.mjs",
+          "symbol": "toCandidate"
+        },
+        {
+          "path": "registry/rules/security/opengrep/core.json",
+          "symbol": "cleanClaim"
+        },
+        {
+          "path": "schemas/provider/sast-candidate-v1.schema.json",
+          "symbol": "nemesis-sast-candidate-v1"
+        }
+      ],
+      "red": "qualification/evidence/source-completion/S2-book-3.behavior.red.correction.log",
+      "green": "qualification/evidence/source-completion/S2-book-3.behavior.green.log"
+    },
+    {
+      "task": "B3-005",
+      "dependsOn": [
+        "B3-002"
+      ],
+      "test": {
+        "path": "tests/providers/book-3-contracts.test.mjs",
+        "assertion": "B3-005 imported SARIF rejects wrong repository revision base URI and digest"
+      },
+      "implementation": [
+        {
+          "path": "providers/imported-sarif/index.mjs",
+          "symbol": "ingestSarif"
+        },
+        {
+          "path": "schemas/provider/imported-sarif-v1.schema.json",
+          "symbol": "nemesis-imported-sarif-v1"
+        }
+      ],
+      "red": "qualification/evidence/source-completion/S2-book-3.behavior.red.log",
+      "green": "qualification/evidence/source-completion/S2-book-3.behavior.green.log"
+    },
+    {
+      "task": "B3-006",
+      "dependsOn": [
+        "B3-002"
+      ],
+      "test": {
+        "path": "tests/providers/book-3-contracts.test.mjs",
+        "assertion": "B3-006 secret evidence separates history denominator and never persists secret bytes"
+      },
+      "implementation": [
+        {
+          "path": "providers/secrets/index.mjs",
+          "symbol": "denominatorReceipt"
+        },
+        {
+          "path": "schemas/provider/secret-receipt-v1.schema.json",
+          "symbol": "nemesis-secret-receipt-v1"
+        }
+      ],
+      "red": "qualification/evidence/source-completion/S2-book-3.behavior.red.correction.log",
+      "green": "qualification/evidence/source-completion/S2-book-3.behavior.green.log"
+    },
+    {
+      "task": "B3-007",
+      "dependsOn": [
+        "B3-002"
+      ],
+      "test": {
+        "path": "tests/providers/book-3-contracts.test.mjs",
+        "assertion": "B3-007 dependency reachability remains unknown without qualified graph evidence"
+      },
+      "implementation": [
+        {
+          "path": "providers/dependency/index.mjs",
+          "symbol": "normalizeDependencyReceipt"
+        },
+        {
+          "path": "schemas/provider/dependency-receipt-v1.schema.json",
+          "symbol": "nemesis-dependency-receipt-v1"
+        }
+      ],
+      "red": "qualification/evidence/source-completion/S2-book-3.behavior.red.log",
+      "green": "qualification/evidence/source-completion/S2-book-3.behavior.green.log"
+    },
+    {
+      "task": "B3-008",
+      "dependsOn": [
+        "B3-002"
+      ],
+      "test": {
+        "path": "tests/providers/book-3-contracts.test.mjs",
+        "assertion": "B3-008 SBOM receipt reconciles package count and keeps provenance absence distinct"
+      },
+      "implementation": [
+        {
+          "path": "providers/licenses/index.mjs",
+          "symbol": "normalizeLicense"
+        },
+        {
+          "path": "providers/sbom/index.mjs",
+          "symbol": "sbomReceipt"
+        },
+        {
+          "path": "providers/provenance/index.mjs",
+          "symbol": "reconcileSbom"
+        },
+        {
+          "path": "schemas/provider/sbom-receipt-v1.schema.json",
+          "symbol": "nemesis-sbom-receipt-v1"
+        }
+      ],
+      "red": "qualification/evidence/source-completion/S2-book-3.behavior.red.log",
+      "green": "qualification/evidence/source-completion/S2-book-3.behavior.green.log"
+    },
+    {
+      "task": "B3-009",
+      "dependsOn": [
+        "B3-002"
+      ],
+      "test": {
+        "path": "tests/providers/book-3-contracts.test.mjs",
+        "assertion": "B3-009 infrastructure evidence keeps source and rendered denominators separate"
+      },
+      "implementation": [
+        {
+          "path": "providers/container-iac/index.mjs",
+          "symbol": "infrastructureDenominator"
+        },
+        {
+          "path": "schemas/provider/infrastructure-receipt-v1.schema.json",
+          "symbol": "nemesis-infrastructure-receipt-v1"
+        }
+      ],
+      "red": "qualification/evidence/source-completion/S2-book-3.behavior.red.log",
+      "green": "qualification/evidence/source-completion/S2-book-3.behavior.green.log"
+    },
+    {
+      "task": "B3-010",
+      "dependsOn": [
+        "B3-003",
+        "B3-004",
+        "B3-005",
+        "B3-007"
+      ],
+      "test": {
+        "path": "tests/providers/book-3-contracts.test.mjs",
+        "assertion": "B3-010 reachability never renders not-observed as safe"
+      },
+      "implementation": [
+        {
+          "path": "lib/analysis/reachability.mjs",
+          "symbol": "joinReachability"
+        },
+        {
+          "path": "schemas/provider/reachability-v1.schema.json",
+          "symbol": "nemesis-reachability-v1"
+        }
+      ],
+      "red": "qualification/evidence/source-completion/S2-book-3.behavior.red.correction.log",
+      "green": "qualification/evidence/source-completion/S2-book-3.behavior.green.log"
+    },
+    {
+      "task": "B3-011",
+      "dependsOn": [
+        "B3-001"
+      ],
+      "test": {
+        "path": "tests/providers/book-3-contracts.test.mjs",
+        "assertion": "B3-011 coverage v2 prevents parser-only semantic promotion and accounts unknown formats"
+      },
+      "implementation": [
+        {
+          "path": "registry/coverage/index.json",
+          "symbol": "nemesis-coverage-registry"
+        },
+        {
+          "path": "schemas/provider/coverage-v2.schema.json",
+          "symbol": "nemesis-coverage-v2"
+        },
+        {
+          "path": "lib/coverage/index.mjs",
+          "symbol": "validateCoverageRegistry"
+        },
+        {
+          "path": "scripts/generate-catalogs.mjs",
+          "symbol": "buildCatalogs"
+        }
+      ],
+      "red": "qualification/evidence/source-completion/S2-book-3.behavior.red.log",
+      "green": "qualification/evidence/source-completion/S2-book-3.behavior.green.log"
+    },
+    {
+      "task": "B3-012",
+      "dependsOn": [
+        "B3-003",
+        "B3-004",
+        "B3-011"
+      ],
+      "test": {
+        "path": "tests/providers/book-3-contracts.test.mjs",
+        "assertion": "B3-012 javascript provider reports measured denominators and explicit gaps"
+      },
+      "implementation": [
+        {
+          "path": "providers/code/javascript/index.mjs",
+          "symbol": "analyzeLanguage"
+        },
+        {
+          "path": "registry/coverage/language.javascript.json",
+          "symbol": "language.javascript"
+        },
+        {
+          "path": "bench/corpora/javascript/qualification.json",
+          "symbol": "denominator-gap"
+        }
+      ],
+      "red": "qualification/evidence/source-completion/S2-book-3.behavior.red.log",
+      "green": "qualification/evidence/source-completion/S2-book-3.behavior.green.log"
+    },
+    {
+      "task": "B3-013",
+      "dependsOn": [
+        "B3-003",
+        "B3-004",
+        "B3-011"
+      ],
+      "test": {
+        "path": "tests/providers/book-3-contracts.test.mjs",
+        "assertion": "B3-013 python provider reports measured denominators and explicit gaps"
+      },
+      "implementation": [
+        {
+          "path": "providers/code/python/index.mjs",
+          "symbol": "analyzeLanguage"
+        },
+        {
+          "path": "registry/coverage/language.python.json",
+          "symbol": "language.python"
+        },
+        {
+          "path": "bench/corpora/python/qualification.json",
+          "symbol": "unavailable-tool"
+        }
+      ],
+      "red": "qualification/evidence/source-completion/S2-book-3.behavior.red.log",
+      "green": "qualification/evidence/source-completion/S2-book-3.behavior.green.log"
+    },
+    {
+      "task": "B3-014",
+      "dependsOn": [
+        "B3-003",
+        "B3-004",
+        "B3-011"
+      ],
+      "test": {
+        "path": "tests/providers/book-3-contracts.test.mjs",
+        "assertion": "B3-014 rust and Tauri provider reports measured denominators and explicit gaps"
+      },
+      "implementation": [
+        {
+          "path": "providers/code/rust/index.mjs",
+          "symbol": "analyzeLanguage"
+        },
+        {
+          "path": "providers/frameworks/tauri/index.mjs",
+          "symbol": "analyze"
+        },
+        {
+          "path": "registry/coverage/language.rust.json",
+          "symbol": "language.rust"
+        },
+        {
+          "path": "bench/corpora/rust/qualification.json",
+          "symbol": "tauri-v2"
+        }
+      ],
+      "red": "qualification/evidence/source-completion/S2-book-3.behavior.red.log",
+      "green": "qualification/evidence/source-completion/S2-book-3.behavior.green.log"
+    },
+    {
+      "task": "B3-015",
+      "dependsOn": [
+        "B3-003",
+        "B3-004",
+        "B3-011"
+      ],
+      "test": {
+        "path": "tests/providers/book-3-contracts.test.mjs",
+        "assertion": "B3-015 go provider reports measured denominators and explicit gaps"
+      },
+      "implementation": [
+        {
+          "path": "providers/code/go/index.mjs",
+          "symbol": "analyzeLanguage"
+        },
+        {
+          "path": "registry/coverage/language.go.json",
+          "symbol": "language.go"
+        },
+        {
+          "path": "bench/corpora/go/qualification.json",
+          "symbol": "missing-tool"
+        }
+      ],
+      "red": "qualification/evidence/source-completion/S2-book-3.behavior.red.log",
+      "green": "qualification/evidence/source-completion/S2-book-3.behavior.green.log"
+    },
+    {
+      "task": "B3-016",
+      "dependsOn": [
+        "B3-003",
+        "B3-004",
+        "B3-011"
+      ],
+      "test": {
+        "path": "tests/providers/book-3-contracts.test.mjs",
+        "assertion": "B3-016 JVM provider reports measured denominators and explicit gaps"
+      },
+      "implementation": [
+        {
+          "path": "providers/code/jvm/index.mjs",
+          "symbol": "analyzeLanguage"
+        },
+        {
+          "path": "providers/build/maven/index.mjs",
+          "symbol": "mavenCommand"
+        },
+        {
+          "path": "providers/build/gradle/index.mjs",
+          "symbol": "gradleCommand"
+        },
+        {
+          "path": "registry/coverage/language.jvm.json",
+          "symbol": "language.jvm"
+        },
+        {
+          "path": "bench/corpora/jvm/qualification.json",
+          "symbol": "wrapper-offline"
+        }
+      ],
+      "red": "qualification/evidence/source-completion/S2-book-3.behavior.red.log",
+      "green": "qualification/evidence/source-completion/S2-book-3.behavior.green.log"
+    },
+    {
+      "task": "B3-017",
+      "dependsOn": [
+        "B3-003",
+        "B3-004",
+        "B3-011"
+      ],
+      "test": {
+        "path": "tests/providers/book-3-contracts.test.mjs",
+        "assertion": "B3-017 .NET provider reports measured denominators and explicit gaps"
+      },
+      "implementation": [
+        {
+          "path": "providers/code/dotnet/index.mjs",
+          "symbol": "analyzeLanguage"
+        },
+        {
+          "path": "registry/coverage/language.dotnet.json",
+          "symbol": "language.dotnet"
+        },
+        {
+          "path": "bench/corpora/dotnet/qualification.json",
+          "symbol": "offline-packages"
+        }
+      ],
+      "red": "qualification/evidence/source-completion/S2-book-3.behavior.red.log",
+      "green": "qualification/evidence/source-completion/S2-book-3.behavior.green.log"
+    },
+    {
+      "task": "B3-018",
+      "dependsOn": [
+        "B3-003",
+        "B3-004",
+        "B3-011"
+      ],
+      "test": {
+        "path": "tests/providers/book-3-contracts.test.mjs",
+        "assertion": "B3-018 C family provider reports measured denominators and explicit gaps"
+      },
+      "implementation": [
+        {
+          "path": "providers/code/c-family/index.mjs",
+          "symbol": "analyzeLanguage"
+        },
+        {
+          "path": "providers/build/cmake/index.mjs",
+          "symbol": "cmakeCommand"
+        },
+        {
+          "path": "registry/coverage/language.c-family.json",
+          "symbol": "language.c-family"
+        },
+        {
+          "path": "bench/corpora/c-family/qualification.json",
+          "symbol": "compile-context"
+        }
+      ],
+      "red": "qualification/evidence/source-completion/S2-book-3.behavior.red.log",
+      "green": "qualification/evidence/source-completion/S2-book-3.behavior.green.log"
+    },
+    {
+      "task": "B3-019",
+      "dependsOn": [
+        "B3-003",
+        "B3-004",
+        "B3-011"
+      ],
+      "test": {
+        "path": "tests/providers/book-3-contracts.test.mjs",
+        "assertion": "B3-019 PHP and Ruby provider reports measured denominators and explicit gaps"
+      },
+      "implementation": [
+        {
+          "path": "providers/code/php/index.mjs",
+          "symbol": "analyzeLanguage"
+        },
+        {
+          "path": "providers/code/ruby/index.mjs",
+          "symbol": "analyzeLanguage"
+        },
+        {
+          "path": "registry/coverage/language.php-ruby.json",
+          "symbol": "language.php-ruby"
+        },
+        {
+          "path": "bench/corpora/php-ruby/qualification.json",
+          "symbol": "dynamic-limit"
+        }
+      ],
+      "red": "qualification/evidence/source-completion/S2-book-3.behavior.red.log",
+      "green": "qualification/evidence/source-completion/S2-book-3.behavior.green.log"
+    },
+    {
+      "task": "B3-020",
+      "dependsOn": [
+        "B3-003",
+        "B3-004",
+        "B3-011"
+      ],
+      "test": {
+        "path": "tests/providers/book-3-contracts.test.mjs",
+        "assertion": "B3-020 mobile languages provider reports measured denominators and explicit gaps"
+      },
+      "implementation": [
+        {
+          "path": "providers/code/apple/index.mjs",
+          "symbol": "analyzeLanguage"
+        },
+        {
+          "path": "providers/code/dart/index.mjs",
+          "symbol": "analyzeLanguage"
+        },
+        {
+          "path": "providers/frameworks/apple/index.mjs",
+          "symbol": "analyze"
+        },
+        {
+          "path": "providers/frameworks/flutter/index.mjs",
+          "symbol": "analyze"
+        },
+        {
+          "path": "providers/frameworks/react-native/index.mjs",
+          "symbol": "analyze"
+        },
+        {
+          "path": "registry/coverage/language.mobile.json",
+          "symbol": "language.mobile"
+        },
+        {
+          "path": "bench/corpora/mobile/qualification.json",
+          "symbol": "flutter-unsafe"
+        }
+      ],
+      "red": "qualification/evidence/source-completion/S2-book-3.behavior.red.log",
+      "green": "qualification/evidence/source-completion/S2-book-3.behavior.green.log"
+    },
+    {
+      "task": "B3-021",
+      "dependsOn": [
+        "B3-011"
+      ],
+      "test": {
+        "path": "tests/providers/book-3-contracts.test.mjs",
+        "assertion": "B3-021 long-tail and custom grammar provider reports measured denominators and explicit gaps"
+      },
+      "implementation": [
+        {
+          "path": "providers/code/generic/index.mjs",
+          "symbol": "analyzeLanguage"
+        },
+        {
+          "path": "providers/code/custom-grammar/index.mjs",
+          "symbol": "loadCustomGrammar"
+        },
+        {
+          "path": "registry/coverage/long-tail/index.json",
+          "symbol": "long-tail.unknown"
+        },
+        {
+          "path": "bench/corpora/long-tail/qualification.json",
+          "symbol": "untrusted-grammar"
+        }
+      ],
+      "red": "qualification/evidence/source-completion/S2-book-3.behavior.red.log",
+      "green": "qualification/evidence/source-completion/S2-book-3.behavior.green.log"
+    },
+    {
+      "task": "B3-022",
+      "dependsOn": [
+        "B3-012"
+      ],
+      "test": {
+        "path": "tests/providers/book-3-contracts.test.mjs",
+        "assertion": "B3-022 frontend framework providers expose distinct framework denominators"
+      },
+      "implementation": [
+        {
+          "path": "providers/frameworks/frontend/index.mjs",
+          "symbol": "analyzeFramework"
+        },
+        {
+          "path": "registry/coverage/framework.frontend.json",
+          "symbol": "framework.frontend"
+        },
+        {
+          "path": "bench/corpora/frameworks/frontend/qualification.json",
+          "symbol": "react.positive"
+        }
+      ],
+      "red": "qualification/evidence/source-completion/S2-book-3.behavior.red.log",
+      "green": "qualification/evidence/source-completion/S2-book-3.behavior.green.log"
+    },
+    {
+      "task": "B3-023",
+      "dependsOn": [
+        "B3-013",
+        "B3-015",
+        "B3-016",
+        "B3-017",
+        "B3-019"
+      ],
+      "test": {
+        "path": "tests/providers/book-3-contracts.test.mjs",
+        "assertion": "B3-023 backend framework providers preserve unknown-auth routes"
+      },
+      "implementation": [
+        {
+          "path": "providers/frameworks/backend/index.mjs",
+          "symbol": "analyzeFramework"
+        },
+        {
+          "path": "registry/coverage/framework.backend.json",
+          "symbol": "framework.backend"
+        },
+        {
+          "path": "bench/corpora/frameworks/backend/qualification.json",
+          "symbol": "fastapi.positive"
+        }
+      ],
+      "red": "qualification/evidence/source-completion/S2-book-3.behavior.red.log",
+      "green": "qualification/evidence/source-completion/S2-book-3.behavior.green.log"
+    },
+    {
+      "task": "B3-024",
+      "dependsOn": [
+        "B3-012",
+        "B3-013",
+        "B3-015",
+        "B3-016",
+        "B3-017",
+        "B3-019"
+      ],
+      "test": {
+        "path": "tests/providers/book-3-contracts.test.mjs",
+        "assertion": "B3-024 data provider separates integrity privacy performance and reliability facts"
+      },
+      "implementation": [
+        {
+          "path": "providers/frameworks/data/index.mjs",
+          "symbol": "analyzeData"
+        },
+        {
+          "path": "providers/data-integrity/index.mjs",
+          "symbol": "integrityFacts"
+        },
+        {
+          "path": "providers/privacy/index.mjs",
+          "symbol": "privacyFacts"
+        },
+        {
+          "path": "registry/coverage/framework.data.json",
+          "symbol": "framework.data"
+        },
+        {
+          "path": "bench/corpora/frameworks/data/qualification.json",
+          "symbol": "migration"
+        }
+      ],
+      "red": "qualification/evidence/source-completion/S2-book-3.behavior.red.log",
+      "green": "qualification/evidence/source-completion/S2-book-3.behavior.green.log"
+    },
+    {
+      "task": "B3-025",
+      "dependsOn": [
+        "B3-011"
+      ],
+      "test": {
+        "path": "tests/providers/book-3-contracts.test.mjs",
+        "assertion": "B3-025 monorepo component identity depends on manifests not folder names"
+      },
+      "implementation": [
+        {
+          "path": "providers/architecture/monorepo/index.mjs",
+          "symbol": "analyzeMonorepo"
+        },
+        {
+          "path": "lib/analysis/components.mjs",
+          "symbol": "buildComponents"
+        },
+        {
+          "path": "schemas/provider/component-v1.schema.json",
+          "symbol": "nemesis-provider-component-v1"
+        }
+      ],
+      "red": "qualification/evidence/source-completion/S2-book-3.behavior.red.log",
+      "green": "qualification/evidence/source-completion/S2-book-3.behavior.green.log"
+    },
+    {
+      "task": "B3-026",
+      "dependsOn": [
+        "B3-010",
+        "B3-025"
+      ],
+      "test": {
+        "path": "tests/providers/book-3-contracts.test.mjs",
+        "assertion": "B3-026 architecture findings require exact paths scenario and affected consumers"
+      },
+      "implementation": [
+        {
+          "path": "providers/architecture/core/index.mjs",
+          "symbol": "architectureFinding"
+        },
+        {
+          "path": "providers/compatibility/index.mjs",
+          "symbol": "compatibilityFinding"
+        },
+        {
+          "path": "registry/rules/code/architecture/core.json",
+          "symbol": "cleanClaim"
+        },
+        {
+          "path": "registry/rules/compatibility/core.json",
+          "symbol": "cleanClaim"
+        },
+        {
+          "path": "schemas/provider/architecture-finding-v1.schema.json",
+          "symbol": "nemesis-architecture-finding-v1"
+        }
+      ],
+      "red": "qualification/evidence/source-completion/S2-book-3.behavior.red.log",
+      "green": "qualification/evidence/source-completion/S2-book-3.behavior.green.log"
+    },
+    {
+      "task": "B3-027",
+      "dependsOn": [
+        "B3-012",
+        "B3-013",
+        "B3-014",
+        "B3-015",
+        "B3-016",
+        "B3-017",
+        "B3-018",
+        "B3-019",
+        "B3-020"
+      ],
+      "test": {
+        "path": "tests/providers/book-3-contracts.test.mjs",
+        "assertion": "B3-027 test-quality distinguishes missing coverage weak oracle and fake completion"
+      },
+      "implementation": [
+        {
+          "path": "providers/test-quality/index.mjs",
+          "symbol": "classifyTestGap"
+        },
+        {
+          "path": "providers/code/maintainability/index.mjs",
+          "symbol": "maintainabilityCandidate"
+        },
+        {
+          "path": "registry/rules/code/test-quality/core.json",
+          "symbol": "cleanClaim"
+        },
+        {
+          "path": "registry/rules/code/maintainability/core.json",
+          "symbol": "cleanClaim"
+        },
+        {
+          "path": "bench/corpora/test-quality/qualification.json",
+          "symbol": "missing-assertion"
+        },
+        {
+          "path": "bench/corpora/maintainability/qualification.json",
+          "symbol": "localized-change"
+        }
+      ],
+      "red": "qualification/evidence/source-completion/S2-book-3.behavior.red.log",
+      "green": "qualification/evidence/source-completion/S2-book-3.behavior.green.log"
+    },
+    {
+      "task": "B3-028",
+      "dependsOn": [
+        "B3-011",
+        "B3-025"
+      ],
+      "test": {
+        "path": "tests/providers/book-3-contracts.test.mjs",
+        "assertion": "B3-028 requirement and governance records retain authority owner expiry and disposition"
+      },
+      "implementation": [
+        {
+          "path": "providers/requirements/index.mjs",
+          "symbol": "traceRequirement"
+        },
+        {
+          "path": "providers/governance/index.mjs",
+          "symbol": "policyEvidence"
+        },
+        {
+          "path": "providers/docs-contract/index.mjs",
+          "symbol": "docClaim"
+        },
+        {
+          "path": "schemas/requirements/requirement-v1.schema.json",
+          "symbol": "nemesis-requirement-v1"
+        },
+        {
+          "path": "schemas/requirements/traceability-v1.schema.json",
+          "symbol": "nemesis-traceability-v1"
+        },
+        {
+          "path": "schemas/governance/policy-evidence-v1.schema.json",
+          "symbol": "nemesis-policy-evidence-v1"
+        },
+        {
+          "path": "schemas/provider/doc-claim-v1.schema.json",
+          "symbol": "nemesis-doc-claim-v1"
+        }
+      ],
+      "red": "qualification/evidence/source-completion/S2-book-3.behavior.red.log",
+      "green": "qualification/evidence/source-completion/S2-book-3.behavior.green.log"
+    },
+    {
+      "task": "B3-029",
+      "dependsOn": [
+        "B3-006",
+        "B3-007",
+        "B3-008",
+        "B3-009",
+        "B3-010",
+        "B3-012",
+        "B3-013",
+        "B3-014",
+        "B3-015",
+        "B3-016",
+        "B3-017",
+        "B3-018",
+        "B3-019",
+        "B3-020",
+        "B3-021",
+        "B3-022",
+        "B3-023",
+        "B3-024",
+        "B3-025",
+        "B3-026",
+        "B3-027",
+        "B3-028"
+      ],
+      "test": {
+        "path": "tests/providers/book-3-contracts.test.mjs",
+        "assertion": "B3-029 family reports cannot mark clean while a required provider is incomplete"
+      },
+      "implementation": [
+        {
+          "path": "lib/report/families/code.mjs",
+          "symbol": "buildFamilySummary"
+        },
+        {
+          "path": "lib/report/families/requirements.mjs",
+          "symbol": "buildFamilySummary"
+        },
+        {
+          "path": "lib/report/families/governance.mjs",
+          "symbol": "buildFamilySummary"
+        },
+        {
+          "path": "lib/report/families/architecture.mjs",
+          "symbol": "buildFamilySummary"
+        },
+        {
+          "path": "lib/report/families/compatibility.mjs",
+          "symbol": "buildFamilySummary"
+        },
+        {
+          "path": "lib/report/families/test-quality.mjs",
+          "symbol": "buildFamilySummary"
+        },
+        {
+          "path": "lib/report/families/supply-chain.mjs",
+          "symbol": "buildFamilySummary"
+        },
+        {
+          "path": "lib/report/families/data-integrity.mjs",
+          "symbol": "buildFamilySummary"
+        },
+        {
+          "path": "lib/report/families/data-privacy.mjs",
+          "symbol": "buildFamilySummary"
+        },
+        {
+          "path": "lib/report/families/docs-contract.mjs",
+          "symbol": "buildFamilySummary"
+        }
+      ],
+      "red": "qualification/evidence/source-completion/S2-book-3.behavior.red.log",
+      "green": "qualification/evidence/source-completion/S2-book-3.behavior.green.log"
+    },
+    {
+      "task": "B3-030",
+      "dependsOn": [
+        "B3-029"
+      ],
+      "test": {
+        "path": "tests/providers/book-3-contracts.test.mjs",
+        "assertion": "B3-030 catalogue generation and recursive qualification remain deterministic"
+      },
+      "implementation": [
+        {
+          "path": "bench/qualifications/book-3/qualification.json",
+          "symbol": "deterministic-repeat"
+        },
+        {
+          "path": "scripts/qualify-book.mjs",
+          "symbol": "discoverBookTests"
+        },
+        {
+          "path": "scripts/generate-catalogs.mjs",
+          "symbol": "generated-catalogs"
+        }
+      ],
+      "red": "qualification/evidence/source-completion/S2-book-3.behavior.red.log",
+      "green": "qualification/evidence/source-completion/S2-book-3.behavior.green.log"
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "qualification/book-3.json",
+      "digest": "sha256:019207e7a377c9cea5692e4a0b41505185b5e11a272d9117af934f0fcfbd9740",
+      "bytes": 75482
+    },
+    {
+      "path": "qualification/book-3-artifacts/gate-result.json",
+      "digest": "sha256:064e53ca49784030768a488afda3ba9b9124e4d44362bdf9438298b198254ff9",
+      "bytes": 4379
+    },
+    {
+      "path": "schemas/qualification/book-qualification-v2.schema.json",
+      "digest": "sha256:ee385dcd4fd6b83ba500123f7e5e1a13437ba2129ae29b9e8c104e4b247eb8f7",
+      "bytes": 5455
+    },
+    {
+      "path": "scripts/qualify-book.mjs",
+      "digest": "sha256:ae426c2d96d477ee176850e40eb4344737d50f657f7ecdea1d9fb77da23a4f2b",
+      "bytes": 4875
+    },
+    {
+      "path": "lib/qualification/book-receipt.mjs",
+      "digest": "sha256:23d28742f7f3c3df356cd4eee3a61dd808b29d640e84dfca85109dbd9ab6c1b8",
+      "bytes": 6541
+    },
+    {
+      "path": "qualification/evidence/source-completion/S2-book-3.behavior.red.log",
+      "digest": "sha256:7a7187163f4a9a8b76f8cd65ecbfe16d7b8f8b2f3f4df31c55516732d035be44",
+      "bytes": 33012
+    },
+    {
+      "path": "qualification/evidence/source-completion/S2-book-3.behavior.red.correction.log",
+      "digest": "sha256:4399cbaaa5198cd18c5fd0587c890253f7647145f7112121720eaf67acfb9032",
+      "bytes": 6250
+    },
+    {
+      "path": "qualification/evidence/source-completion/S2-book-3.behavior.green.log",
+      "digest": "sha256:e3c2679b2144b04689c4912f65212d73d3c0e7d0be2ff82c494b0519829a51ee",
+      "bytes": 2878
+    },
+    {
+      "path": "qualification/evidence/source-completion/S2-book-3.quality.red.correction.log",
+      "digest": "sha256:2488182bb9f64ebae5b785fed71e70c925b6826956a01fa759275773bf0e57a4",
+      "bytes": 9271
+    },
+    {
+      "path": "qualification/evidence/source-completion/S2-book-3.quality.green.log",
+      "digest": "sha256:895ee89dfd38340b932d771fd83302db47761377ed264402f1ca9ff0776fbeba",
+      "bytes": 2729
+    },
+    {
+      "path": "qualification/evidence/source-completion/S2-book-3.gate.corrected.log",
+      "digest": "sha256:2cdb74b367f0bd0ce41db7b5feaeab5962568c3eed2904d3803c712e3aa6bff9",
+      "bytes": 4014
+    }
+  ],
+  "externalBlockers": [
+    {
+      "id": "external-provider-tools",
+      "kind": "tool-availability",
+      "state": "external-evidence-required",
+      "affects": "runtime and clean provider claims",
+      "detail": "External provider binaries, versions, offline databases, and platform toolchains remain unproven until host-qualified execution receipts exist."
+    }
+  ]
+}

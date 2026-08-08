@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "family": "long-tail",
+  "cases": [
+    {
+      "id": "positive",
+      "expected": "measured"
+    },
+    {
+      "id": "parse-error",
+      "expected": "unproven"
+    },
+    {
+      "id": "untrusted-grammar",
+      "expected": "unproven"
+    },
+    {
+      "id": "denominator-gap",
+      "expected": "unproven"
+    }
+  ]
+}

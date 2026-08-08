@@ -1,0 +1,48 @@
+✔ registry rule ids match abuse-resilience and observability-forensics pack rule ids exactly, in both directions (1.7726ms)
+✔ neither pack imports a live network, process, or worker module (0.9082ms)
+✔ abuse-resilience flags a server with no global rate limiter as a capped design recommendation without cost evidence (2.6788ms)
+✔ abuse-resilience stays clean on global rate limit when a limiter is present (0.4291ms)
+✔ abuse-resilience upgrades the global rate-limit claim to proven-primitive when cost/amplification evidence is present (0.334ms)
+✔ abuse-resilience flags an identity-sensitive operation with no per-operation rate limit and names the resource (0.319ms)
+✔ abuse-resilience stays clean on per-operation rate limit when a limiter is registered near the route (0.1606ms)
+✔ abuse-resilience flags a GraphQL server with no depth or cost limit (0.4244ms)
+✔ abuse-resilience stays clean on GraphQL depth/cost when limits are configured (0.2111ms)
+✔ abuse-resilience flags explicit GraphQL introspection: true as a proven, low-severity information-exposure primitive (0.4075ms)
+✔ abuse-resilience flags unbounded pagination taken directly from request input (0.2722ms)
+✔ abuse-resilience stays clean on pagination when the page size is capped (0.1405ms)
+✔ abuse-resilience flags over-exposed fields when a sensitive-looking field name coexists with a full-object response and no allowlist (0.3358ms)
+✔ abuse-resilience stays clean on over-exposed fields when a field allowlist/pick is present (0.1354ms)
+✔ abuse-resilience flags a webhook receiver with no signature verification at all (0.2071ms)
+✔ abuse-resilience flags a webhook receiver that uses the body before verifying its signature (ordering matters) (0.2328ms)
+✔ abuse-resilience stays clean when a webhook receiver verifies the signature before using the body (0.1019ms)
+✔ abuse-resilience flags a payment mutation with no idempotency key check (0.1918ms)
+✔ abuse-resilience stays clean on idempotency when a key check is present (0.1118ms)
+✔ abuse-resilience flags an unbounded, request-derived allocation as a proven resource-exhaustion primitive (0.1521ms)
+✔ abuse-resilience stays clean on resource exhaustion when the size is capped (0.0746ms)
+✔ abuse-resilience flags outbound calls with no circuit breaker as a design recommendation capped at low, always (0.1837ms)
+✔ abuse-resilience stays clean on circuit breaker when a breaker/retry pattern is present (0.0964ms)
+✔ every abuse-resilience candidate names the resource and what the attacker controls, and declares non-empty attacker capabilities (0.8195ms)
+✔ every design-recommendation candidate across both packs is capped at low severity and labelled as such (0.2523ms)
+✔ observability-forensics flags a raw stack trace returned to the client (1.0696ms)
+✔ observability-forensics stays clean when the leak is guarded by a non-production check (0.2049ms)
+✔ observability-forensics flags a session-issuing auth-success path with no security-event record, and names the expected event (0.2452ms)
+✔ observability-forensics stays clean on auth-success when a security-event log call is present (0.0972ms)
+✔ observability-forensics stays clean on auth-success when an upstream logging trace confirms the event is emitted (0.1019ms)
+✔ observability-forensics flags a 401 auth-failure branch with no security-event record (0.1165ms)
+✔ observability-forensics flags a role mutation with no security-event record (0.1382ms)
+✔ observability-forensics flags a bulk export path with no security-event record (0.1341ms)
+✔ observability-forensics flags request-derived data concatenated directly into a log statement (0.1904ms)
+✔ observability-forensics stays clean on log injection when the value is sanitized first (0.0658ms)
+✔ no observability rule claim or uncertainty text demands logging credentials, tokens, PII, or a full request body (0.632ms)
+✔ every candidate from both packs is adjudication-only, cites evidence, and never carries a final verdict (0.3758ms)
+✔ variantStrategies enumerate equivalent endpoint and event-consumer variants for representative rules in both packs (0.3649ms)
+✔ both packs stay fully clean on a fully mitigated fixture (0.1833ms)
+✔ both packs emit nothing for neutral source with no abuse or observability markers (0.1088ms)
+ℹ tests 40
+ℹ suites 0
+ℹ pass 40
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 99.2373

@@ -1,0 +1,20 @@
+✔ extended packs emit adjudication-only candidates for representative hazards (7.2735ms)
+✔ extended packs do not emit candidates for neutral source (0.8644ms)
+✔ authorization pack flags tenant-object writes without owner checks (2.0941ms)
+✔ authorization pack stays clean when an owner check is present (0.1915ms)
+✔ authorization pack flags privileged functions without role checks (0.2602ms)
+✔ authorization pack flags role-gated privileged functions only when gate missing (0.1306ms)
+✔ ai prompt-injection pack flags untrusted content in prompts (1.02ms)
+✔ ai output-handling pack flags model output to shell (0.7355ms)
+✔ ai output-handling pack flags model output to HTML (0.3026ms)
+✔ ai excessive-agency pack flags destructive tools without approval (0.8009ms)
+✔ ai excessive-agency pack accepts approval-gated tools (0.2831ms)
+✔ all packs emit candidates with empty findings and adjudication required (0.6799ms)
+ℹ tests 12
+ℹ suites 0
+ℹ pass 12
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 83.7132

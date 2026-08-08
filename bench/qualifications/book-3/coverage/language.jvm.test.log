@@ -1,0 +1,20 @@
+✔ jvm pack detects java/kotlin/scala projects (0.8027ms)
+✔ jvm pack prefers the wrapper over global tools (0.2039ms)
+✔ jvm pack runs offline (0.1034ms)
+✔ jvm pack normalizes execution (0.1084ms)
+✔ spring pack flags CSRF disable and SpEL input (0.3774ms)
+✔ spring pack flags permitAll on sensitive routes (0.1569ms)
+✔ ktor pack flags anyHost CORS (0.2031ms)
+✔ ktor pack flags sensitive routes without auth (0.1406ms)
+✔ maven wrapper receipt verifies integrity (0.1184ms)
+✔ maven command is offline by default (0.1718ms)
+✔ gradle wrapper receipt requires both digests (0.117ms)
+✔ gradle command is offline by default (0.0775ms)
+ℹ tests 12
+ℹ suites 0
+ℹ pass 12
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 66.9981

@@ -1,0 +1,27 @@
+{
+  "id": "language.python",
+  "kind": "language",
+  "aliases": [],
+  "extensions": [
+    "py"
+  ],
+  "manifests": [],
+  "providers": [
+    "code.python"
+  ],
+  "limitations": [
+    "runtime and remediation unproven"
+  ],
+  "qualificationVersion": "1.0.0",
+  "corpusDigest": "sha256:c741428bbc3ffeabb44af186a00c0c288d30d8e058f9dbb4c7a257773ed67652",
+  "artifactDigest": "sha256:c741428bbc3ffeabb44af186a00c0c288d30d8e058f9dbb4c7a257773ed67652",
+  "tiers": {
+    "inventory": 1,
+    "parser": 1,
+    "native": 1,
+    "cross-file": 0,
+    "measured-pack": 1,
+    "runtime": 0,
+    "remediation": 0
+  }
+}

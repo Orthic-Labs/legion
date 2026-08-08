@@ -1,0 +1,20 @@
+✔ registry/rules/safety/hazards.json and the scanner domains are in exact rule-id parity (1.0904ms)
+✔ the hazard scanner covers all seven required outcome classes (0.1835ms)
+✔ every safety domain produces every required disposition counterpart from its own trigger (3.388ms)
+✔ every emitted hazard requires human-decision reasoning, regardless of outcome class or disposition (0.4639ms)
+✔ a hazard requiring human-decision cannot be closed by a model or automated verdict, only by a human decision (0.587ms)
+✔ createHazardCandidate refuses to build a hazard for an outcome class outside the defined vocabulary (0.1837ms)
+✔ every hazard states a non-empty static/runtime scope, hazards, assumptions, authority limits, misuse scenarios, and evidence (0.4485ms)
+✔ no hazard status, claim, hazard, assumption, or authority-limit string ever certifies or asserts regulatory compliance (0.6023ms)
+✔ no safety module imports a live-probe-capable builtin, a serial/USB library, or calls fetch( (0.8674ms)
+✔ generated hazard-model schema is byte-identical to the committed schemas/safety/hazard-model-v1.schema.json (1.1262ms)
+✔ the committed schema requires reasoningRequirement to be exactly human-decision and forbids certifiable/regulatoryClaim from being anything but false/null (0.1468ms)
+✔ scanning is deterministic: same input produces deeply-equal hazards twice, and no hazard carries a timestamp field (0.2579ms)
+ℹ tests 12
+ℹ suites 0
+ℹ pass 12
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 92.3926

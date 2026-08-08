@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "family": "jvm",
+  "cases": [
+    {
+      "id": "java",
+      "expected": "measured"
+    },
+    {
+      "id": "kotlin",
+      "expected": "measured"
+    },
+    {
+      "id": "scala",
+      "expected": "measured"
+    },
+    {
+      "id": "wrapper-offline",
+      "expected": "measured"
+    }
+  ]
+}

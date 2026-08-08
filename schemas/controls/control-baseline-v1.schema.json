@@ -1,1 +1,62 @@
-{"$schema":"https://json-schema.org/draft/2020-12/schema","type":"object","required":["schemaVersion","controls","traces","digest"],"properties":{"schemaVersion":{"const":1},"controls":{"type":"array"},"traces":{"type":"array"},"digest":{"type":"string"}}}
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "nemesis-control-baseline-v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "kind",
+    "controls",
+    "traces",
+    "binding",
+    "denominator",
+    "unimplemented",
+    "digest"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": 1
+    },
+    "kind": {
+      "const": "nemesis-control-baseline"
+    },
+    "controls": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    },
+    "traces": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    },
+    "binding": {
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "denominator": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "uniqueItems": true
+    },
+    "unimplemented": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "uniqueItems": true
+    },
+    "digest": {
+      "type": "string",
+      "minLength": 1
+    }
+  }
+}

@@ -1,0 +1,1 @@
+{"schemaVersion":1,"rules":[{"id":"approving-human","from":"Adrian","to":"the approving human"},{"id":"package-uri","kind":"relative-link-to-nemesis-uri"},{"id":"audit-authority","kind":"strip-audit-publication-authority"}]}

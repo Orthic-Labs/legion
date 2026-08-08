@@ -1,0 +1,171 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "arcane-policy-bundle-v1",
+  "title": "ArcanePolicyBundle",
+  "description": "Schema for Arcane's policy bundle (S02 action 2). additionalProperties:false at every level is the mechanism behind the 'malformed/unknown policy fields fail closed for protected operations' acceptance criterion — an unrecognised field is a validation failure, not an ignored key, because a policy nobody can fully interpret must not be trusted to authorize a mutation.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion", "kind", "policyId", "version",
+    "unclassifiedEffect", "effectRules", "capability", "replay",
+    "trustMinima", "hostEnforcement", "claimLevels", "waiverAuthority",
+    "degradation", "evidence", "retention"
+  ],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "kind": { "const": "arcane-policy-bundle" },
+    "policyId": { "type": "string", "pattern": "^POL-\\d+$" },
+    "version": { "type": "integer", "minimum": 1 },
+    "description": { "type": "string" },
+
+    "unclassifiedEffect": {
+      "enum": ["deny"],
+      "description": "Only 'deny' is representable. An effect class the bundle does not rule cannot be authorized, and must not fall through to EXTERNAL_SIDE_EFFECT or any other catch-all."
+    },
+
+    "effectRules": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["effectClass", "rule", "approvalRequired", "trustMinimum", "requiredEnforcement"],
+        "properties": {
+          "effectClass": { "enum": ["FILE_WRITE", "FILE_DELETE", "FILE_MOVE", "COMMAND_EXEC", "NETWORK_EGRESS", "PROCESS_SPAWN", "CREDENTIAL_ACCESS", "DEPENDENCY_INSTALL", "VCS_COMMIT", "VCS_PUSH", "PUBLISH", "EXTERNAL_SIDE_EFFECT"] },
+          "rule": { "enum": ["allow", "deny"] },
+          "approvalRequired": { "type": "boolean" },
+          "trustMinimum": { "enum": ["host-connection-trust", "capability-signature", "unauthenticated"] },
+          "requiredEnforcement": { "enum": ["strong", "observed", "read_only", "unsupported"] },
+          "note": { "type": "string" }
+        }
+      }
+    },
+
+    "capability": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["ttlSeconds", "maxUses", "delegable"],
+      "properties": {
+        "ttlSeconds": { "type": "integer", "minimum": 1 },
+        "maxUses": { "type": "integer", "minimum": 1 },
+        "delegable": { "type": "boolean" },
+        "note": { "type": "string" }
+      }
+    },
+
+    "replay": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["freshnessWindowSeconds", "maxSkewSeconds", "nonceRequired", "sequenceRequired"],
+      "properties": {
+        "freshnessWindowSeconds": { "type": "integer", "minimum": 1 },
+        "maxSkewSeconds": { "type": "integer", "minimum": 0 },
+        "nonceRequired": { "type": "boolean" },
+        "sequenceRequired": { "type": "boolean" },
+        "note": { "type": "string" }
+      }
+    },
+
+    "trustMinima": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["mutation", "readOnly", "claimRelease", "legacyImport"],
+      "properties": {
+        "mutation": { "enum": ["host-connection-trust", "capability-signature", "unauthenticated"] },
+        "readOnly": { "enum": ["host-connection-trust", "capability-signature", "unauthenticated"] },
+        "claimRelease": { "enum": ["host-connection-trust", "capability-signature", "unauthenticated"] },
+        "legacyImport": {
+          "enum": ["unauthenticated"],
+          "description": "Pinned. A legacy import can never be anything else — legacy-envelope-v1.provenance.authenticated is const:false in the frozen contract."
+        }
+      }
+    },
+
+    "hostEnforcement": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["requiredForMutation", "requiredForReadOnly"],
+      "properties": {
+        "requiredForMutation": { "enum": ["strong", "observed", "read_only", "unsupported"] },
+        "requiredForReadOnly": { "enum": ["strong", "observed", "read_only", "unsupported"] },
+        "note": { "type": "string" }
+      }
+    },
+
+    "claimLevels": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["signoff", "highRisk", "release"],
+      "properties": {
+        "signoff": { "$ref": "#/$defs/claimLevel" },
+        "highRisk": { "$ref": "#/$defs/claimLevel" },
+        "release": { "$ref": "#/$defs/claimLevel" }
+      }
+    },
+
+    "waiverAuthority": {
+      "type": "array",
+      "items": { "enum": ["legion", "sage", "alchemist", "seer", "arcane", "covenant", "kernel"] },
+      "description": "Which authorities may waive a claim prerequisite. Arcane validates; it does not invent claims (ARCHITECTURE §26)."
+    },
+
+    "degradation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "preEffectGateUnavailable", "prePromptGateUnavailable", "postEffectReceiptUnavailable",
+        "receiptStoreUnavailable", "kernelUnavailable", "policyUnavailable"
+      ],
+      "properties": {
+        "preEffectGateUnavailable": { "enum": ["fail-closed", "downgrade"] },
+        "prePromptGateUnavailable": { "enum": ["fail-closed", "downgrade"] },
+        "postEffectReceiptUnavailable": { "enum": ["fail-closed", "downgrade"] },
+        "receiptStoreUnavailable": { "enum": ["fail-closed", "downgrade"] },
+        "kernelUnavailable": { "enum": ["fail-closed", "downgrade"] },
+        "policyUnavailable": { "enum": ["fail-closed"] },
+        "note": { "type": "string" }
+      },
+      "description": "'allow' is not a representable degradation value anywhere. A missing capability never becomes a silent pass (detailed plan §7.4)."
+    },
+
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["freshnessSeconds", "unlinkedCandidateExpirySeconds", "requireDependencyBinding"],
+      "properties": {
+        "freshnessSeconds": { "type": "integer", "minimum": 1 },
+        "unlinkedCandidateExpirySeconds": { "type": "integer", "minimum": 1 },
+        "requireDependencyBinding": { "type": "boolean" }
+      }
+    },
+
+    "retention": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["excerptMaxBytes", "storePayloads"],
+      "properties": {
+        "excerptMaxBytes": { "type": "integer", "minimum": 0 },
+        "storePayloads": { "type": "boolean" },
+        "note": { "type": "string" }
+      }
+    }
+  },
+
+  "$defs": {
+    "claimLevel": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["requiredEvidenceClasses", "requiredEnforcement", "requiresCovenant", "allowStaleEvidence", "requiredFields"],
+      "properties": {
+        "requiredEvidenceClasses": {
+          "type": "array",
+          "items": { "enum": ["deterministic", "measured", "interpretive", "external", "human"] }
+        },
+        "requiredEnforcement": { "enum": ["strong", "observed", "read_only", "unsupported"] },
+        "requiresCovenant": { "type": "boolean" },
+        "allowStaleEvidence": { "type": "boolean" },
+        "requiredFields": { "type": "array", "items": { "type": "string" } },
+        "note": { "type": "string" }
+      }
+    }
+  }
+}

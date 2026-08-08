@@ -1,0 +1,2 @@
+import assert from 'node:assert/strict';import test from 'node:test';import {extractPhysicalComponents} from '../../../../lib/inventory/components/extract-build.mjs';
+test('installer updater worker stay separate',()=>{const rows=extractPhysicalComponents({portfolio:{targets:[{id:'t'}]},projection:{buildOutputs:['setup.msi','updater.exe'],entrypoints:['worker.js']}});assert.deepEqual(new Set(rows.map(({kind})=>kind),),new Set(['installer','updater','queue-job']));});

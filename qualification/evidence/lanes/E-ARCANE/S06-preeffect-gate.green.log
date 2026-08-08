@@ -1,0 +1,34 @@
+✔ gate fixtures are themselves valid against the frozen contracts (3.2965ms)
+✔ an EXACT write inside scope.own with a valid capability is authorized (2.9528ms)
+✔ a BOUNDED write against a bounded artifact is authorized (1.1155ms)
+✔ G2: mutation without a contract is denied — ARC_NO_CONTRACT (1.7786ms)
+✔ G9: a contract with open questions is not executable (1.0197ms)
+✔ a request naming a different contract id is refused (0.8518ms)
+✔ a request pinned to a superseded contract version is refused (1.059ms)
+✔ a write outside scope.own is denied — ARC_PATH_NOT_OWNED (1.0284ms)
+✔ forbidden beats own — a path in both is denied as forbidden (1.1956ms)
+✔ FILE_MOVE checks BOTH source and destination ownership (1.2352ms)
+✔ pathMatches: ** spans depth, * stays in one segment, exact is exact (0.3652ms)
+✔ an effect class the contract does not authorize is denied (0.8595ms)
+✔ an effect class the policy denies is denied even when the contract allows it (0.7363ms)
+✔ an approval-required effect without an approval digest is denied (0.7203ms)
+✔ EXACT latitude against a BOUNDED artifact is a latitude violation (0.9721ms)
+✔ BOUNDED latitude against an EXACT artifact is a latitude violation (0.7338ms)
+✔ a target owned by scope but named by no artifact unit may not claim EXACT (0.5172ms)
+✔ capability failures propagate with their own codes (1.7035ms)
+✔ a mutation with no capability id at all is denied (0.5035ms)
+✔ an effect on a turn with no kernel-asserted authority is denied (0.6166ms)
+✔ a request whose requestedBy differs from the kernel assertion is refused as model-claimed (0.5817ms)
+✔ gate unavailable: a MUTATION fails closed (0.2479ms)
+✔ gate unavailable: a READ-ONLY operation continues with a recorded downgrade (0.1753ms)
+✔ isMutating classifies every frozen effect class, and read-only is not inferred from a tool name (0.062ms)
+✔ a structurally invalid effect request is refused before any policy is consulted (0.5232ms)
+✔ the gate never authorizes when the contract source revision differs from the request (0.7625ms)
+ℹ tests 26
+ℹ suites 0
+ℹ pass 26
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 133.5851

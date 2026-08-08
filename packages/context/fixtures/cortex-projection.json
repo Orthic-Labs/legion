@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 1,
+  "binding": {
+    "repository": "D:/Claude",
+    "revision": "abcdef0"
+  },
+  "generation": "cortex:gen-1",
+  "files": [
+    {
+      "path": "src/example.mjs",
+      "digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    }
+  ]
+}

@@ -1,0 +1,15 @@
+✔ remediation requires an explicit mutation capability (2.6408ms)
+✔ a sandbox is an isolated copy of the bound base revision, outside the primary worktree (1.303ms)
+✔ the sandbox receipt records identity, policy, files, cleanup, and the finding run it belongs to (1.4393ms)
+✔ an unbounded input overlay policy is rejected (0.2657ms)
+✔ checkpoints restore and a failed restore is visible, never silently passed (0.6238ms)
+✔ failed cleanup leaves exact recovery data and is never reported as removed (0.7323ms)
+✔ the committed sandbox receipt schema matches its generator (0.6494ms)
+ℹ tests 7
+ℹ suites 0
+ℹ pass 7
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 101.1126

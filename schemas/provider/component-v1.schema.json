@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "nemesis-provider-component-v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "root",
+    "manifest"
+  ],
+  "properties": {
+    "id": {
+      "type": "string"
+    },
+    "root": {
+      "type": "string"
+    },
+    "manifest": {
+      "type": "object"
+    }
+  }
+}

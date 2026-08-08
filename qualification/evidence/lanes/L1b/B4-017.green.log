@@ -1,0 +1,7 @@
+✔ B4-017 binds native runtime evidence to exact executable & inventories components
+✔ B4-017 rejects browser-only or mismatched executable evidence
+✔ B4-017 cannot pass an empty inventory & executes a framework-specific host adapter
+ℹ tests 3
+ℹ pass 3
+ℹ fail 0
+GREEN_EXIT=0

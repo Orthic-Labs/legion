@@ -1,1 +1,1098 @@
-{"id":"component.infrastructure-release","version":"1.0.0","class":"component","controls":[{"id":"infrastructure.deployed-state","version":"1.0.0","selector":{"componentKinds":["infrastructure-dns","build-sign-release"]},"denominator":"deployed-resources","evidence":["external-evidence","signing"],"families":["release","reliability"],"claimLevels":["product","release"],"missingEvidenceEffect":"unproven"}]}
+{
+  "id": "target.infrastructure-release",
+  "version": "1.0.0",
+  "class": "component",
+  "dependencies": [
+    "universal.core"
+  ],
+  "source": {
+    "kind": "canonical",
+    "rights": "internal-contract"
+  },
+  "qualification": "source-tested",
+  "controls": [
+    {
+      "id": "infrastructure-release.rendered-resources",
+      "version": "1.0.0",
+      "selector": {
+        "componentKinds": [
+          "infrastructure-dns",
+          "build-sign-release"
+        ]
+      },
+      "denominator": "rendered-resources-subjects",
+      "evidence": [
+        "repository",
+        "external-evidence"
+      ],
+      "families": [
+        "supply-chain"
+      ],
+      "lenses": [
+        "infrastructure-release.rendered-resources"
+      ],
+      "providers": [
+        "container.iac"
+      ],
+      "rules": [
+        "governance"
+      ],
+      "scenarios": [
+        "infrastructure-release.rendered-resources.default"
+      ],
+      "decisionMode": "measured",
+      "missingEvidenceEffect": "unproven",
+      "claimLevels": [
+        "source",
+        "runtime",
+        "product",
+        "release"
+      ],
+      "remediationOwner": "code",
+      "sourceConcepts": [
+        "canonical:infrastructure-release:rendered-resources"
+      ],
+      "stopShip": false,
+      "benchmark": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "qualificationDigest": null
+      },
+      "provenance": {
+        "kind": "canonical",
+        "source": "nemesis:infrastructure-release",
+        "rights": "internal-contract",
+        "lineage": [
+          "canonical:infrastructure-release:rendered-resources"
+        ]
+      }
+    },
+    {
+      "id": "infrastructure-release.iam",
+      "version": "1.0.0",
+      "selector": {
+        "componentKinds": [
+          "infrastructure-dns",
+          "build-sign-release"
+        ]
+      },
+      "denominator": "iam-subjects",
+      "evidence": [
+        "repository",
+        "external-evidence"
+      ],
+      "families": [
+        "supply-chain"
+      ],
+      "lenses": [
+        "infrastructure-release.iam"
+      ],
+      "providers": [
+        "container.iac"
+      ],
+      "rules": [
+        "governance"
+      ],
+      "scenarios": [
+        "infrastructure-release.iam.default"
+      ],
+      "decisionMode": "measured",
+      "missingEvidenceEffect": "unproven",
+      "claimLevels": [
+        "source",
+        "runtime",
+        "product",
+        "release"
+      ],
+      "remediationOwner": "code",
+      "sourceConcepts": [
+        "canonical:infrastructure-release:iam"
+      ],
+      "stopShip": false,
+      "benchmark": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "qualificationDigest": null
+      },
+      "provenance": {
+        "kind": "canonical",
+        "source": "nemesis:infrastructure-release",
+        "rights": "internal-contract",
+        "lineage": [
+          "canonical:infrastructure-release:iam"
+        ]
+      }
+    },
+    {
+      "id": "infrastructure-release.network",
+      "version": "1.0.0",
+      "selector": {
+        "componentKinds": [
+          "infrastructure-dns",
+          "build-sign-release"
+        ]
+      },
+      "denominator": "network-subjects",
+      "evidence": [
+        "repository",
+        "external-evidence"
+      ],
+      "families": [
+        "supply-chain"
+      ],
+      "lenses": [
+        "infrastructure-release.network"
+      ],
+      "providers": [
+        "container.iac"
+      ],
+      "rules": [
+        "governance"
+      ],
+      "scenarios": [
+        "infrastructure-release.network.default"
+      ],
+      "decisionMode": "measured",
+      "missingEvidenceEffect": "unproven",
+      "claimLevels": [
+        "source",
+        "runtime",
+        "product",
+        "release"
+      ],
+      "remediationOwner": "code",
+      "sourceConcepts": [
+        "canonical:infrastructure-release:network"
+      ],
+      "stopShip": false,
+      "benchmark": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "qualificationDigest": null
+      },
+      "provenance": {
+        "kind": "canonical",
+        "source": "nemesis:infrastructure-release",
+        "rights": "internal-contract",
+        "lineage": [
+          "canonical:infrastructure-release:network"
+        ]
+      }
+    },
+    {
+      "id": "infrastructure-release.containers",
+      "version": "1.0.0",
+      "selector": {
+        "componentKinds": [
+          "infrastructure-dns",
+          "build-sign-release"
+        ]
+      },
+      "denominator": "containers-subjects",
+      "evidence": [
+        "repository",
+        "external-evidence"
+      ],
+      "families": [
+        "supply-chain"
+      ],
+      "lenses": [
+        "infrastructure-release.containers"
+      ],
+      "providers": [
+        "container.iac"
+      ],
+      "rules": [
+        "governance"
+      ],
+      "scenarios": [
+        "infrastructure-release.containers.default"
+      ],
+      "decisionMode": "measured",
+      "missingEvidenceEffect": "unproven",
+      "claimLevels": [
+        "source",
+        "runtime",
+        "product",
+        "release"
+      ],
+      "remediationOwner": "code",
+      "sourceConcepts": [
+        "canonical:infrastructure-release:containers"
+      ],
+      "stopShip": false,
+      "benchmark": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "qualificationDigest": null
+      },
+      "provenance": {
+        "kind": "canonical",
+        "source": "nemesis:infrastructure-release",
+        "rights": "internal-contract",
+        "lineage": [
+          "canonical:infrastructure-release:containers"
+        ]
+      }
+    },
+    {
+      "id": "infrastructure-release.serverless",
+      "version": "1.0.0",
+      "selector": {
+        "componentKinds": [
+          "infrastructure-dns",
+          "build-sign-release"
+        ]
+      },
+      "denominator": "serverless-subjects",
+      "evidence": [
+        "repository",
+        "external-evidence"
+      ],
+      "families": [
+        "supply-chain"
+      ],
+      "lenses": [
+        "infrastructure-release.serverless"
+      ],
+      "providers": [
+        "container.iac"
+      ],
+      "rules": [
+        "governance"
+      ],
+      "scenarios": [
+        "infrastructure-release.serverless.default"
+      ],
+      "decisionMode": "measured",
+      "missingEvidenceEffect": "unproven",
+      "claimLevels": [
+        "source",
+        "runtime",
+        "product",
+        "release"
+      ],
+      "remediationOwner": "code",
+      "sourceConcepts": [
+        "canonical:infrastructure-release:serverless"
+      ],
+      "stopShip": false,
+      "benchmark": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "qualificationDigest": null
+      },
+      "provenance": {
+        "kind": "canonical",
+        "source": "nemesis:infrastructure-release",
+        "rights": "internal-contract",
+        "lineage": [
+          "canonical:infrastructure-release:serverless"
+        ]
+      }
+    },
+    {
+      "id": "infrastructure-release.storage",
+      "version": "1.0.0",
+      "selector": {
+        "componentKinds": [
+          "infrastructure-dns",
+          "build-sign-release"
+        ]
+      },
+      "denominator": "storage-subjects",
+      "evidence": [
+        "repository",
+        "external-evidence"
+      ],
+      "families": [
+        "supply-chain"
+      ],
+      "lenses": [
+        "infrastructure-release.storage"
+      ],
+      "providers": [
+        "container.iac"
+      ],
+      "rules": [
+        "governance"
+      ],
+      "scenarios": [
+        "infrastructure-release.storage.default"
+      ],
+      "decisionMode": "measured",
+      "missingEvidenceEffect": "unproven",
+      "claimLevels": [
+        "source",
+        "runtime",
+        "product",
+        "release"
+      ],
+      "remediationOwner": "code",
+      "sourceConcepts": [
+        "canonical:infrastructure-release:storage"
+      ],
+      "stopShip": false,
+      "benchmark": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "qualificationDigest": null
+      },
+      "provenance": {
+        "kind": "canonical",
+        "source": "nemesis:infrastructure-release",
+        "rights": "internal-contract",
+        "lineage": [
+          "canonical:infrastructure-release:storage"
+        ]
+      }
+    },
+    {
+      "id": "infrastructure-release.secrets",
+      "version": "1.0.0",
+      "selector": {
+        "componentKinds": [
+          "infrastructure-dns",
+          "build-sign-release"
+        ]
+      },
+      "denominator": "secrets-subjects",
+      "evidence": [
+        "repository",
+        "external-evidence"
+      ],
+      "families": [
+        "supply-chain"
+      ],
+      "lenses": [
+        "infrastructure-release.secrets"
+      ],
+      "providers": [
+        "container.iac"
+      ],
+      "rules": [
+        "governance"
+      ],
+      "scenarios": [
+        "infrastructure-release.secrets.default"
+      ],
+      "decisionMode": "measured",
+      "missingEvidenceEffect": "unproven",
+      "claimLevels": [
+        "source",
+        "runtime",
+        "product",
+        "release"
+      ],
+      "remediationOwner": "code",
+      "sourceConcepts": [
+        "canonical:infrastructure-release:secrets"
+      ],
+      "stopShip": false,
+      "benchmark": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "qualificationDigest": null
+      },
+      "provenance": {
+        "kind": "canonical",
+        "source": "nemesis:infrastructure-release",
+        "rights": "internal-contract",
+        "lineage": [
+          "canonical:infrastructure-release:secrets"
+        ]
+      }
+    },
+    {
+      "id": "infrastructure-release.regions",
+      "version": "1.0.0",
+      "selector": {
+        "componentKinds": [
+          "infrastructure-dns",
+          "build-sign-release"
+        ]
+      },
+      "denominator": "regions-subjects",
+      "evidence": [
+        "repository",
+        "external-evidence"
+      ],
+      "families": [
+        "supply-chain"
+      ],
+      "lenses": [
+        "infrastructure-release.regions"
+      ],
+      "providers": [
+        "container.iac"
+      ],
+      "rules": [
+        "governance"
+      ],
+      "scenarios": [
+        "infrastructure-release.regions.default"
+      ],
+      "decisionMode": "measured",
+      "missingEvidenceEffect": "unproven",
+      "claimLevels": [
+        "source",
+        "runtime",
+        "product",
+        "release"
+      ],
+      "remediationOwner": "code",
+      "sourceConcepts": [
+        "canonical:infrastructure-release:regions"
+      ],
+      "stopShip": false,
+      "benchmark": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "qualificationDigest": null
+      },
+      "provenance": {
+        "kind": "canonical",
+        "source": "nemesis:infrastructure-release",
+        "rights": "internal-contract",
+        "lineage": [
+          "canonical:infrastructure-release:regions"
+        ]
+      }
+    },
+    {
+      "id": "infrastructure-release.dns-cdn-tls",
+      "version": "1.0.0",
+      "selector": {
+        "componentKinds": [
+          "infrastructure-dns",
+          "build-sign-release"
+        ]
+      },
+      "denominator": "dns-cdn-tls-subjects",
+      "evidence": [
+        "repository",
+        "external-evidence"
+      ],
+      "families": [
+        "supply-chain"
+      ],
+      "lenses": [
+        "infrastructure-release.dns-cdn-tls"
+      ],
+      "providers": [
+        "container.iac"
+      ],
+      "rules": [
+        "governance"
+      ],
+      "scenarios": [
+        "infrastructure-release.dns-cdn-tls.default"
+      ],
+      "decisionMode": "measured",
+      "missingEvidenceEffect": "unproven",
+      "claimLevels": [
+        "source",
+        "runtime",
+        "product",
+        "release"
+      ],
+      "remediationOwner": "code",
+      "sourceConcepts": [
+        "canonical:infrastructure-release:dns-cdn-tls"
+      ],
+      "stopShip": false,
+      "benchmark": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "qualificationDigest": null
+      },
+      "provenance": {
+        "kind": "canonical",
+        "source": "nemesis:infrastructure-release",
+        "rights": "internal-contract",
+        "lineage": [
+          "canonical:infrastructure-release:dns-cdn-tls"
+        ]
+      }
+    },
+    {
+      "id": "infrastructure-release.delivery",
+      "version": "1.0.0",
+      "selector": {
+        "componentKinds": [
+          "infrastructure-dns",
+          "build-sign-release"
+        ]
+      },
+      "denominator": "delivery-subjects",
+      "evidence": [
+        "repository",
+        "external-evidence"
+      ],
+      "families": [
+        "supply-chain"
+      ],
+      "lenses": [
+        "infrastructure-release.delivery"
+      ],
+      "providers": [
+        "container.iac"
+      ],
+      "rules": [
+        "governance"
+      ],
+      "scenarios": [
+        "infrastructure-release.delivery.default"
+      ],
+      "decisionMode": "measured",
+      "missingEvidenceEffect": "unproven",
+      "claimLevels": [
+        "source",
+        "runtime",
+        "product",
+        "release"
+      ],
+      "remediationOwner": "code",
+      "sourceConcepts": [
+        "canonical:infrastructure-release:delivery"
+      ],
+      "stopShip": false,
+      "benchmark": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "qualificationDigest": null
+      },
+      "provenance": {
+        "kind": "canonical",
+        "source": "nemesis:infrastructure-release",
+        "rights": "internal-contract",
+        "lineage": [
+          "canonical:infrastructure-release:delivery"
+        ]
+      }
+    },
+    {
+      "id": "infrastructure-release.artifacts",
+      "version": "1.0.0",
+      "selector": {
+        "componentKinds": [
+          "infrastructure-dns",
+          "build-sign-release"
+        ]
+      },
+      "denominator": "artifacts-subjects",
+      "evidence": [
+        "repository",
+        "external-evidence"
+      ],
+      "families": [
+        "supply-chain"
+      ],
+      "lenses": [
+        "infrastructure-release.artifacts"
+      ],
+      "providers": [
+        "container.iac"
+      ],
+      "rules": [
+        "governance"
+      ],
+      "scenarios": [
+        "infrastructure-release.artifacts.default"
+      ],
+      "decisionMode": "measured",
+      "missingEvidenceEffect": "unproven",
+      "claimLevels": [
+        "source",
+        "runtime",
+        "product",
+        "release"
+      ],
+      "remediationOwner": "code",
+      "sourceConcepts": [
+        "canonical:infrastructure-release:artifacts"
+      ],
+      "stopShip": false,
+      "benchmark": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "qualificationDigest": null
+      },
+      "provenance": {
+        "kind": "canonical",
+        "source": "nemesis:infrastructure-release",
+        "rights": "internal-contract",
+        "lineage": [
+          "canonical:infrastructure-release:artifacts"
+        ]
+      }
+    },
+    {
+      "id": "infrastructure-release.signing-provenance",
+      "version": "1.0.0",
+      "selector": {
+        "componentKinds": [
+          "infrastructure-dns",
+          "build-sign-release"
+        ]
+      },
+      "denominator": "signing-provenance-subjects",
+      "evidence": [
+        "repository",
+        "external-evidence"
+      ],
+      "families": [
+        "supply-chain"
+      ],
+      "lenses": [
+        "infrastructure-release.signing-provenance"
+      ],
+      "providers": [
+        "container.iac"
+      ],
+      "rules": [
+        "governance"
+      ],
+      "scenarios": [
+        "infrastructure-release.signing-provenance.default"
+      ],
+      "decisionMode": "measured",
+      "missingEvidenceEffect": "unproven",
+      "claimLevels": [
+        "source",
+        "runtime",
+        "product",
+        "release"
+      ],
+      "remediationOwner": "architecture",
+      "sourceConcepts": [
+        "canonical:infrastructure-release:signing-provenance"
+      ],
+      "stopShip": true,
+      "benchmark": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "qualificationDigest": null
+      },
+      "provenance": {
+        "kind": "canonical",
+        "source": "nemesis:infrastructure-release",
+        "rights": "internal-contract",
+        "lineage": [
+          "canonical:infrastructure-release:signing-provenance"
+        ]
+      }
+    },
+    {
+      "id": "infrastructure-release.promotion",
+      "version": "1.0.0",
+      "selector": {
+        "componentKinds": [
+          "infrastructure-dns",
+          "build-sign-release"
+        ]
+      },
+      "denominator": "promotion-subjects",
+      "evidence": [
+        "repository",
+        "external-evidence"
+      ],
+      "families": [
+        "supply-chain"
+      ],
+      "lenses": [
+        "infrastructure-release.promotion"
+      ],
+      "providers": [
+        "container.iac"
+      ],
+      "rules": [
+        "governance"
+      ],
+      "scenarios": [
+        "infrastructure-release.promotion.default"
+      ],
+      "decisionMode": "measured",
+      "missingEvidenceEffect": "unproven",
+      "claimLevels": [
+        "source",
+        "runtime",
+        "product",
+        "release"
+      ],
+      "remediationOwner": "code",
+      "sourceConcepts": [
+        "canonical:infrastructure-release:promotion"
+      ],
+      "stopShip": false,
+      "benchmark": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "qualificationDigest": null
+      },
+      "provenance": {
+        "kind": "canonical",
+        "source": "nemesis:infrastructure-release",
+        "rights": "internal-contract",
+        "lineage": [
+          "canonical:infrastructure-release:promotion"
+        ]
+      }
+    },
+    {
+      "id": "infrastructure-release.rollback",
+      "version": "1.0.0",
+      "selector": {
+        "componentKinds": [
+          "infrastructure-dns",
+          "build-sign-release"
+        ]
+      },
+      "denominator": "rollback-subjects",
+      "evidence": [
+        "repository",
+        "external-evidence"
+      ],
+      "families": [
+        "supply-chain"
+      ],
+      "lenses": [
+        "infrastructure-release.rollback"
+      ],
+      "providers": [
+        "container.iac"
+      ],
+      "rules": [
+        "governance"
+      ],
+      "scenarios": [
+        "infrastructure-release.rollback.default"
+      ],
+      "decisionMode": "measured",
+      "missingEvidenceEffect": "unproven",
+      "claimLevels": [
+        "source",
+        "runtime",
+        "product",
+        "release"
+      ],
+      "remediationOwner": "code",
+      "sourceConcepts": [
+        "canonical:infrastructure-release:rollback"
+      ],
+      "stopShip": false,
+      "benchmark": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "qualificationDigest": null
+      },
+      "provenance": {
+        "kind": "canonical",
+        "source": "nemesis:infrastructure-release",
+        "rights": "internal-contract",
+        "lineage": [
+          "canonical:infrastructure-release:rollback"
+        ]
+      }
+    },
+    {
+      "id": "infrastructure-release.backup-restore",
+      "version": "1.0.0",
+      "selector": {
+        "componentKinds": [
+          "infrastructure-dns",
+          "build-sign-release"
+        ]
+      },
+      "denominator": "backup-restore-subjects",
+      "evidence": [
+        "repository",
+        "external-evidence"
+      ],
+      "families": [
+        "supply-chain"
+      ],
+      "lenses": [
+        "infrastructure-release.backup-restore"
+      ],
+      "providers": [
+        "container.iac"
+      ],
+      "rules": [
+        "governance"
+      ],
+      "scenarios": [
+        "infrastructure-release.backup-restore.default"
+      ],
+      "decisionMode": "measured",
+      "missingEvidenceEffect": "unproven",
+      "claimLevels": [
+        "source",
+        "runtime",
+        "product",
+        "release"
+      ],
+      "remediationOwner": "architecture",
+      "sourceConcepts": [
+        "canonical:infrastructure-release:backup-restore"
+      ],
+      "stopShip": true,
+      "benchmark": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "qualificationDigest": null
+      },
+      "provenance": {
+        "kind": "canonical",
+        "source": "nemesis:infrastructure-release",
+        "rights": "internal-contract",
+        "lineage": [
+          "canonical:infrastructure-release:backup-restore"
+        ]
+      }
+    },
+    {
+      "id": "infrastructure-release.dr",
+      "version": "1.0.0",
+      "selector": {
+        "componentKinds": [
+          "infrastructure-dns",
+          "build-sign-release"
+        ]
+      },
+      "denominator": "dr-subjects",
+      "evidence": [
+        "repository",
+        "external-evidence"
+      ],
+      "families": [
+        "supply-chain"
+      ],
+      "lenses": [
+        "infrastructure-release.dr"
+      ],
+      "providers": [
+        "container.iac"
+      ],
+      "rules": [
+        "governance"
+      ],
+      "scenarios": [
+        "infrastructure-release.dr.default"
+      ],
+      "decisionMode": "measured",
+      "missingEvidenceEffect": "unproven",
+      "claimLevels": [
+        "source",
+        "runtime",
+        "product",
+        "release"
+      ],
+      "remediationOwner": "code",
+      "sourceConcepts": [
+        "canonical:infrastructure-release:dr"
+      ],
+      "stopShip": false,
+      "benchmark": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "qualificationDigest": null
+      },
+      "provenance": {
+        "kind": "canonical",
+        "source": "nemesis:infrastructure-release",
+        "rights": "internal-contract",
+        "lineage": [
+          "canonical:infrastructure-release:dr"
+        ]
+      }
+    },
+    {
+      "id": "infrastructure-release.observability",
+      "version": "1.0.0",
+      "selector": {
+        "componentKinds": [
+          "infrastructure-dns",
+          "build-sign-release"
+        ]
+      },
+      "denominator": "observability-subjects",
+      "evidence": [
+        "repository",
+        "external-evidence"
+      ],
+      "families": [
+        "supply-chain"
+      ],
+      "lenses": [
+        "infrastructure-release.observability"
+      ],
+      "providers": [
+        "container.iac"
+      ],
+      "rules": [
+        "governance"
+      ],
+      "scenarios": [
+        "infrastructure-release.observability.default"
+      ],
+      "decisionMode": "measured",
+      "missingEvidenceEffect": "unproven",
+      "claimLevels": [
+        "source",
+        "runtime",
+        "product",
+        "release"
+      ],
+      "remediationOwner": "code",
+      "sourceConcepts": [
+        "canonical:infrastructure-release:observability"
+      ],
+      "stopShip": false,
+      "benchmark": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "qualificationDigest": null
+      },
+      "provenance": {
+        "kind": "canonical",
+        "source": "nemesis:infrastructure-release",
+        "rights": "internal-contract",
+        "lineage": [
+          "canonical:infrastructure-release:observability"
+        ]
+      }
+    },
+    {
+      "id": "infrastructure-release.incidents-support",
+      "version": "1.0.0",
+      "selector": {
+        "componentKinds": [
+          "infrastructure-dns",
+          "build-sign-release"
+        ]
+      },
+      "denominator": "incidents-support-subjects",
+      "evidence": [
+        "repository",
+        "external-evidence"
+      ],
+      "families": [
+        "supply-chain"
+      ],
+      "lenses": [
+        "infrastructure-release.incidents-support"
+      ],
+      "providers": [
+        "container.iac"
+      ],
+      "rules": [
+        "governance"
+      ],
+      "scenarios": [
+        "infrastructure-release.incidents-support.default"
+      ],
+      "decisionMode": "measured",
+      "missingEvidenceEffect": "unproven",
+      "claimLevels": [
+        "source",
+        "runtime",
+        "product",
+        "release"
+      ],
+      "remediationOwner": "code",
+      "sourceConcepts": [
+        "canonical:infrastructure-release:incidents-support"
+      ],
+      "stopShip": false,
+      "benchmark": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "qualificationDigest": null
+      },
+      "provenance": {
+        "kind": "canonical",
+        "source": "nemesis:infrastructure-release",
+        "rights": "internal-contract",
+        "lineage": [
+          "canonical:infrastructure-release:incidents-support"
+        ]
+      }
+    },
+    {
+      "id": "infrastructure-release.quotas-cost",
+      "version": "1.0.0",
+      "selector": {
+        "componentKinds": [
+          "infrastructure-dns",
+          "build-sign-release"
+        ]
+      },
+      "denominator": "quotas-cost-subjects",
+      "evidence": [
+        "repository",
+        "external-evidence"
+      ],
+      "families": [
+        "supply-chain"
+      ],
+      "lenses": [
+        "infrastructure-release.quotas-cost"
+      ],
+      "providers": [
+        "container.iac"
+      ],
+      "rules": [
+        "governance"
+      ],
+      "scenarios": [
+        "infrastructure-release.quotas-cost.default"
+      ],
+      "decisionMode": "measured",
+      "missingEvidenceEffect": "unproven",
+      "claimLevels": [
+        "source",
+        "runtime",
+        "product",
+        "release"
+      ],
+      "remediationOwner": "code",
+      "sourceConcepts": [
+        "canonical:infrastructure-release:quotas-cost"
+      ],
+      "stopShip": false,
+      "benchmark": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "qualificationDigest": null
+      },
+      "provenance": {
+        "kind": "canonical",
+        "source": "nemesis:infrastructure-release",
+        "rights": "internal-contract",
+        "lineage": [
+          "canonical:infrastructure-release:quotas-cost"
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,35 @@
+{
+  "schemaVersion": 1,
+  "kind": "nemesis-coverage-qualification",
+  "recordId": "framework.frontend",
+  "corpusRoot": "bench/corpora/frameworks/frontend",
+  "corpusDigest": "sha256:0101ababffab66e20fe9e73f9220bec55cb757d558c6c73b37bfbc24305c9f11",
+  "artifactDigest": "sha256:6acf0b9129f22b02ac157b1f7048e26b423939a0adf6a220a4144affc05aa457",
+  "providerVersions": {
+    "framework.frontend": "1.0.0"
+  },
+  "casesRequired": [
+    "react.positive",
+    "react.unsupported",
+    "next.positive",
+    "next.unsupported",
+    "vue.positive",
+    "vue.unsupported",
+    "nuxt.positive",
+    "nuxt.unsupported",
+    "angular.positive",
+    "angular.unsupported",
+    "svelte.positive",
+    "svelte.unsupported",
+    "astro.positive",
+    "astro.unsupported",
+    "remix.positive",
+    "remix.unsupported"
+  ],
+  "command": [
+    "node",
+    "--test",
+    "tests/framework-suite.test.mjs"
+  ],
+  "decision": "source-measured-runtime-unproven"
+}

@@ -1,0 +1,433 @@
+✖ B2-001 target registry is versioned additive and unknown targets block clean claims (6.2943ms)
+✖ B2-002 hybrid target detection preserves desktop web API iOS and Android candidates (13.2572ms)
+✔ B2-003 classification review cannot delete observations or close material ambiguity (0.759ms)
+✖ B2-004 portfolio retains relations conflicts and unknown coverage deterministically (1.6258ms)
+✖ B2-005 component registry defines trust metadata and rejects folder-only graphs (3.0946ms)
+✖ B2-006 build deployment and runtime extractors keep installer updater and workers separate (1.4189ms)
+✖ B2-007 logical extractors emit distinct identity data integration and external components (1.1045ms)
+✖ B2-008 component graph preserves typed trust-boundary relations and coverage denominators (0.8791ms)
+✖ B2-009 stack catalogue has seven independent tiers and first-class external kinds (1.79ms)
+✖ B2-010 stack graph distinguishes declared ranges resolved versions and unknown stacks (1.3237ms)
+✔ B2-011 external discovery labels references without claiming production configuration (1.0086ms)
+✖ B2-012 release contract rejects host authority keys and canonicalizes equivalent declarations (0.8534ms)
+✖ B2-013 product context preserves observed and declared actors data and risk authority (0.4998ms)
+✖ B2-014 journeys retain origin recovery effects and stable target ownership (1.08ms)
+✖ B2-015 source ingestion requires rights and terminal disposition without importing execution authority (0.6808ms)
+✖ B2-016 creator ledger preserves 3 sources and 300 unresolved-rights excluded items (3.5266ms)
+✖ B2-017 platform ledgers pin three supplied digests and terminally disposition parsed hierarchy (0.9008ms)
+✔ B2-018 control contracts keep denominator independent from provider availability (0.8759ms)
+✖ B2-019 universal control catalogue carries selectors evidence and claim effects (0.5772ms)
+✖ B2-020 web control catalogue carries selectors evidence and claim effects (0.9361ms)
+✖ B2-021 desktop control catalogue carries selectors evidence and claim effects (0.4284ms)
+✖ B2-022 mobile control catalogue carries selectors evidence and claim effects (0.4449ms)
+✖ B2-023 service data control catalogue carries selectors evidence and claim effects (0.4487ms)
+✖ B2-024 developer tools control catalogue carries selectors evidence and claim effects (0.4695ms)
+✖ B2-025 infrastructure release control catalogue carries selectors evidence and claim effects (0.383ms)
+✖ B2-026 conditional control catalogue carries selectors evidence and claim effects (0.3575ms)
+✔ B2-027 baseline unions applicable packs and reproduces digest independent of pack order (1.6577ms)
+✖ B2-028 missing external capability produces deterministic target-scoped claim impacts (0.6693ms)
+✖ B2-029 pairwise compiler covers every value pair and preserves mandatory cases (0.773ms)
+✖ B2-030 product inspection integrates topology controls capabilities and scenario artifacts (1.8307ms)
+ℹ tests 30
+ℹ suites 0
+ℹ pass 4
+ℹ fail 26
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 122.0635
+
+✖ failing tests:
+
+test at tests\inventory\book-2-contracts.test.mjs:9:1
+✖ B2-001 target registry is versioned additive and unknown targets block clean claims (6.2943ms)
+  TypeError: validateTargetRegistry is not a function
+      at TestContext.<anonymous> (file:///D:/Claude/tools/skills/nemesis/tests/inventory/book-2-contracts.test.mjs:9:289)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3)
+
+test at tests\inventory\book-2-contracts.test.mjs:10:1
+✖ B2-002 hybrid target detection preserves desktop web API iOS and Android candidates (13.2572ms)
+  AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:
+  
+    assert.ok(targets.every(({ detectorVersion, evidencePaths }) => detectorVersion && evidencePaths.length))
+  
+      at TestContext.<anonymous> (file:///D:/Claude/tools/skills/nemesis/tests/inventory/book-2-contracts.test.mjs:10:504)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at tests\inventory\book-2-contracts.test.mjs:12:1
+✖ B2-004 portfolio retains relations conflicts and unknown coverage deterministically (1.6258ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  0 !== 1
+  
+      at TestContext.<anonymous> (file:///D:/Claude/tools/skills/nemesis/tests/inventory/book-2-contracts.test.mjs:12:480)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 0,
+    expected: 1,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests\inventory\book-2-contracts.test.mjs:13:1
+✖ B2-005 component registry defines trust metadata and rejects folder-only graphs (3.0946ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /folder containment/. Input:
+  
+  'TypeError: validateComponentGraph is not a function'
+  
+      at TestContext.<anonymous> (file:///D:/Claude/tools/skills/nemesis/tests/inventory/book-2-contracts.test.mjs:13:305)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: TypeError: validateComponentGraph is not a function
+        at file:///D:/Claude/tools/skills/nemesis/tests/inventory/book-2-contracts.test.mjs:13:316
+        at getActual (node:assert:580:5)
+        at strict.throws (node:assert:728:24)
+        at TestContext.<anonymous> (file:///D:/Claude/tools/skills/nemesis/tests/inventory/book-2-contracts.test.mjs:13:305)
+        at async Test.run (node:internal/test_runner/test:1389:7)
+        at async Test.processPendingSubtests (node:internal/test_runner/test:960:7),
+    expected: /folder containment/,
+    operator: 'throws',
+    diff: 'simple'
+  }
+
+test at tests\inventory\book-2-contracts.test.mjs:14:1
+✖ B2-006 build deployment and runtime extractors keep installer updater and workers separate (1.4189ms)
+  TypeError: extractPhysicalComponents is not a function
+      at TestContext.<anonymous> (file:///D:/Claude/tools/skills/nemesis/tests/inventory/book-2-contracts.test.mjs:14:229)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7)
+
+test at tests\inventory\book-2-contracts.test.mjs:15:1
+✖ B2-007 logical extractors emit distinct identity data integration and external components (1.1045ms)
+  AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:
+  
+    assert.ok(['identity','data','integration','api'].every((kind)=>result.some((item)=>item.kind===kind)))
+  
+      at TestContext.<anonymous> (file:///D:/Claude/tools/skills/nemesis/tests/inventory/book-2-contracts.test.mjs:15:388)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at tests\inventory\book-2-contracts.test.mjs:16:1
+✖ B2-008 component graph preserves typed trust-boundary relations and coverage denominators (0.8791ms)
+  TypeError: buildComponentGraph is not a function
+      at TestContext.<anonymous> (file:///D:/Claude/tools/skills/nemesis/tests/inventory/book-2-contracts.test.mjs:16:219)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7)
+
+test at tests\inventory\book-2-contracts.test.mjs:17:1
+✖ B2-009 stack catalogue has seven independent tiers and first-class external kinds (1.79ms)
+  TypeError: validateStackCatalogue is not a function
+      at TestContext.<anonymous> (file:///D:/Claude/tools/skills/nemesis/tests/inventory/book-2-contracts.test.mjs:17:270)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7)
+
+test at tests\inventory\book-2-contracts.test.mjs:18:1
+✖ B2-010 stack graph distinguishes declared ranges resolved versions and unknown stacks (1.3237ms)
+  TypeError: Cannot read properties of null (reading 'version')
+      at file:///D:/Claude/tools/skills/nemesis/lib/inventory/stacks/build-graph.mjs:3:342
+      at Array.map (<anonymous>)
+      at buildStackGraph (file:///D:/Claude/tools/skills/nemesis/lib/inventory/stacks/build-graph.mjs:3:214)
+      at TestContext.<anonymous> (file:///D:/Claude/tools/skills/nemesis/tests/inventory/book-2-contracts.test.mjs:18:207)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7)
+
+test at tests\inventory\book-2-contracts.test.mjs:20:1
+✖ B2-012 release contract rejects host authority keys and canonicalizes equivalent declarations (0.8534ms)
+  AssertionError [ERR_ASSERTION]: Missing expected exception.
+      at TestContext.<anonymous> (file:///D:/Claude/tools/skills/nemesis/tests/inventory/book-2-contracts.test.mjs:20:219)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: /host-owned/,
+    operator: 'throws',
+    diff: 'simple'
+  }
+
+test at tests\inventory\book-2-contracts.test.mjs:21:1
+✖ B2-013 product context preserves observed and declared actors data and risk authority (0.4998ms)
+  TypeError: buildProductContext is not a function
+      at TestContext.<anonymous> (file:///D:/Claude/tools/skills/nemesis/tests/inventory/book-2-contracts.test.mjs:21:217)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7)
+
+test at tests\inventory\book-2-contracts.test.mjs:22:1
+✖ B2-014 journeys retain origin recovery effects and stable target ownership (1.08ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+  + undefined
+  - [
+  -   'rollback'
+  - ]
+  
+      at TestContext.<anonymous> (file:///D:/Claude/tools/skills/nemesis/tests/inventory/book-2-contracts.test.mjs:22:385)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: [ 'rollback' ],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at tests\inventory\book-2-contracts.test.mjs:23:1
+✖ B2-015 source ingestion requires rights and terminal disposition without importing execution authority (0.6808ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /terminal disposition/. Input:
+  
+  'Error: source requires digest and license'
+  
+      at TestContext.<anonymous> (file:///D:/Claude/tools/skills/nemesis/tests/inventory/book-2-contracts.test.mjs:23:211)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: Error: source requires digest and license
+        at ingestSource (file:///D:/Claude/tools/skills/nemesis/lib/controls/sources/ingest.mjs:2:98)
+        at file:///D:/Claude/tools/skills/nemesis/tests/inventory/book-2-contracts.test.mjs:23:222
+        at getActual (node:assert:580:5)
+        at strict.throws (node:assert:728:24)
+        at TestContext.<anonymous> (file:///D:/Claude/tools/skills/nemesis/tests/inventory/book-2-contracts.test.mjs:23:211)
+        at async Test.run (node:internal/test_runner/test:1389:7)
+        at async Test.processPendingSubtests (node:internal/test_runner/test:960:7),
+    expected: /terminal disposition/,
+    operator: 'throws',
+    diff: 'simple'
+  }
+
+test at tests\inventory\book-2-contracts.test.mjs:24:1
+✖ B2-016 creator ledger preserves 3 sources and 300 unresolved-rights excluded items (3.5266ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  0 !== 3
+  
+      at TestContext.<anonymous> (file:///D:/Claude/tools/skills/nemesis/tests/inventory/book-2-contracts.test.mjs:24:190)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 0,
+    expected: 3,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests\inventory\book-2-contracts.test.mjs:25:1
+✖ B2-017 platform ledgers pin three supplied digests and terminally disposition parsed hierarchy (0.9008ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+  + []
+  - [
+  -   'desktop',
+  -   'mobile',
+  -   'web'
+  - ]
+  
+      at TestContext.<anonymous> (file:///D:/Claude/tools/skills/nemesis/tests/inventory/book-2-contracts.test.mjs:25:207)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [],
+    expected: [ 'desktop', 'mobile', 'web' ],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at tests\inventory\book-2-contracts.test.mjs:27:614
+✖ B2-019 universal control catalogue carries selectors evidence and claim effects (0.5772ms)
+  Error: ENOENT: no such file or directory, open 'D:\Claude\tools\skills\nemesis\registry\controls\controls\universal\core.json'
+      at async open (node:internal/fs/promises:1360:25)
+      at async readFile (node:internal/fs/promises:2149:14)
+      at async json (file:///D:/Claude/tools/skills/nemesis/tests/inventory/book-2-contracts.test.mjs:6:41)
+      at async TestContext.<anonymous> (file:///D:/Claude/tools/skills/nemesis/tests/inventory/book-2-contracts.test.mjs:27:723)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    errno: -4058,
+    code: 'ENOENT',
+    syscall: 'open',
+    path: 'D:\\Claude\\tools\\skills\\nemesis\\registry\\controls\\controls\\universal\\core.json'
+  }
+
+test at tests\inventory\book-2-contracts.test.mjs:27:614
+✖ B2-020 web control catalogue carries selectors evidence and claim effects (0.9361ms)
+  Error: ENOENT: no such file or directory, open 'D:\Claude\tools\skills\nemesis\registry\controls\controls\web\core.json'
+      at async open (node:internal/fs/promises:1360:25)
+      at async readFile (node:internal/fs/promises:2149:14)
+      at async json (file:///D:/Claude/tools/skills/nemesis/tests/inventory/book-2-contracts.test.mjs:6:41)
+      at async TestContext.<anonymous> (file:///D:/Claude/tools/skills/nemesis/tests/inventory/book-2-contracts.test.mjs:27:723)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    errno: -4058,
+    code: 'ENOENT',
+    syscall: 'open',
+    path: 'D:\\Claude\\tools\\skills\\nemesis\\registry\\controls\\controls\\web\\core.json'
+  }
+
+test at tests\inventory\book-2-contracts.test.mjs:27:614
+✖ B2-021 desktop control catalogue carries selectors evidence and claim effects (0.4284ms)
+  Error: ENOENT: no such file or directory, open 'D:\Claude\tools\skills\nemesis\registry\controls\controls\desktop\core.json'
+      at async open (node:internal/fs/promises:1360:25)
+      at async readFile (node:internal/fs/promises:2149:14)
+      at async json (file:///D:/Claude/tools/skills/nemesis/tests/inventory/book-2-contracts.test.mjs:6:41)
+      at async TestContext.<anonymous> (file:///D:/Claude/tools/skills/nemesis/tests/inventory/book-2-contracts.test.mjs:27:723)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    errno: -4058,
+    code: 'ENOENT',
+    syscall: 'open',
+    path: 'D:\\Claude\\tools\\skills\\nemesis\\registry\\controls\\controls\\desktop\\core.json'
+  }
+
+test at tests\inventory\book-2-contracts.test.mjs:27:614
+✖ B2-022 mobile control catalogue carries selectors evidence and claim effects (0.4449ms)
+  Error: ENOENT: no such file or directory, open 'D:\Claude\tools\skills\nemesis\registry\controls\controls\mobile\core.json'
+      at async open (node:internal/fs/promises:1360:25)
+      at async readFile (node:internal/fs/promises:2149:14)
+      at async json (file:///D:/Claude/tools/skills/nemesis/tests/inventory/book-2-contracts.test.mjs:6:41)
+      at async TestContext.<anonymous> (file:///D:/Claude/tools/skills/nemesis/tests/inventory/book-2-contracts.test.mjs:27:723)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    errno: -4058,
+    code: 'ENOENT',
+    syscall: 'open',
+    path: 'D:\\Claude\\tools\\skills\\nemesis\\registry\\controls\\controls\\mobile\\core.json'
+  }
+
+test at tests\inventory\book-2-contracts.test.mjs:27:614
+✖ B2-023 service data control catalogue carries selectors evidence and claim effects (0.4487ms)
+  Error: ENOENT: no such file or directory, open 'D:\Claude\tools\skills\nemesis\registry\controls\controls\service-data\core.json'
+      at async open (node:internal/fs/promises:1360:25)
+      at async readFile (node:internal/fs/promises:2149:14)
+      at async json (file:///D:/Claude/tools/skills/nemesis/tests/inventory/book-2-contracts.test.mjs:6:41)
+      at async TestContext.<anonymous> (file:///D:/Claude/tools/skills/nemesis/tests/inventory/book-2-contracts.test.mjs:27:723)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    errno: -4058,
+    code: 'ENOENT',
+    syscall: 'open',
+    path: 'D:\\Claude\\tools\\skills\\nemesis\\registry\\controls\\controls\\service-data\\core.json'
+  }
+
+test at tests\inventory\book-2-contracts.test.mjs:27:614
+✖ B2-024 developer tools control catalogue carries selectors evidence and claim effects (0.4695ms)
+  Error: ENOENT: no such file or directory, open 'D:\Claude\tools\skills\nemesis\registry\controls\controls\developer-tools\core.json'
+      at async open (node:internal/fs/promises:1360:25)
+      at async readFile (node:internal/fs/promises:2149:14)
+      at async json (file:///D:/Claude/tools/skills/nemesis/tests/inventory/book-2-contracts.test.mjs:6:41)
+      at async TestContext.<anonymous> (file:///D:/Claude/tools/skills/nemesis/tests/inventory/book-2-contracts.test.mjs:27:723)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    errno: -4058,
+    code: 'ENOENT',
+    syscall: 'open',
+    path: 'D:\\Claude\\tools\\skills\\nemesis\\registry\\controls\\controls\\developer-tools\\core.json'
+  }
+
+test at tests\inventory\book-2-contracts.test.mjs:27:614
+✖ B2-025 infrastructure release control catalogue carries selectors evidence and claim effects (0.383ms)
+  Error: ENOENT: no such file or directory, open 'D:\Claude\tools\skills\nemesis\registry\controls\controls\infrastructure-release\core.json'
+      at async open (node:internal/fs/promises:1360:25)
+      at async readFile (node:internal/fs/promises:2149:14)
+      at async json (file:///D:/Claude/tools/skills/nemesis/tests/inventory/book-2-contracts.test.mjs:6:41)
+      at async TestContext.<anonymous> (file:///D:/Claude/tools/skills/nemesis/tests/inventory/book-2-contracts.test.mjs:27:723)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    errno: -4058,
+    code: 'ENOENT',
+    syscall: 'open',
+    path: 'D:\\Claude\\tools\\skills\\nemesis\\registry\\controls\\controls\\infrastructure-release\\core.json'
+  }
+
+test at tests\inventory\book-2-contracts.test.mjs:27:614
+✖ B2-026 conditional control catalogue carries selectors evidence and claim effects (0.3575ms)
+  Error: ENOENT: no such file or directory, open 'D:\Claude\tools\skills\nemesis\registry\controls\controls\conditional\core.json'
+      at async open (node:internal/fs/promises:1360:25)
+      at async readFile (node:internal/fs/promises:2149:14)
+      at async json (file:///D:/Claude/tools/skills/nemesis/tests/inventory/book-2-contracts.test.mjs:6:41)
+      at async TestContext.<anonymous> (file:///D:/Claude/tools/skills/nemesis/tests/inventory/book-2-contracts.test.mjs:27:723)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    errno: -4058,
+    code: 'ENOENT',
+    syscall: 'open',
+    path: 'D:\\Claude\\tools\\skills\\nemesis\\registry\\controls\\controls\\conditional\\core.json'
+  }
+
+test at tests\inventory\book-2-contracts.test.mjs:29:1
+✖ B2-028 missing external capability produces deterministic target-scoped claim impacts (0.6693ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+  + undefined
+  - [
+  -   't'
+  - ]
+  
+      at TestContext.<anonymous> (file:///D:/Claude/tools/skills/nemesis/tests/inventory/book-2-contracts.test.mjs:29:329)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: [ 't' ],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at tests\inventory\book-2-contracts.test.mjs:30:1
+✖ B2-029 pairwise compiler covers every value pair and preserves mandatory cases (0.773ms)
+  AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:
+  
+    assert.ok(rows.some((row)=>row.os===a&&row.arch===b))
+  
+      at TestContext.<anonymous> (file:///D:/Claude/tools/skills/nemesis/tests/inventory/book-2-contracts.test.mjs:30:330)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at tests\inventory\book-2-contracts.test.mjs:31:1
+✖ B2-030 product inspection integrates topology controls capabilities and scenario artifacts (1.8307ms)
+  AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:
+  
+    assert.ok(result.baseline&&result.scenarios&&result.claimImpact)
+  
+      at TestContext.<anonymous> (file:///D:/Claude/tools/skills/nemesis/tests/inventory/book-2-contracts.test.mjs:31:356)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }

@@ -1,0 +1,24 @@
+✔ boundaries registry rule ids and the five packs' rule ids are in exact parity (2.403ms)
+✔ none of the five packs import a live network, filesystem, or process module (1.9228ms)
+✔ each of the five packs emits adjudication-only candidates for a representative hazard (12.9436ms)
+✔ each of the five packs emits zero candidates for a neutral source (1.1059ms)
+✔ every candidate names an exact file, line, sourceExpr, sinkApi, and controlObserved in detectorMetadata (1.4654ms)
+✔ boundary candidates preserve attack preconditions naming the attacker position (0.9336ms)
+✔ an observed request-schema-validation control downgrades the input-validation candidate instead of hiding it (1.7275ms)
+✔ an SSRF candidate with no egress-environment evidence is capped at medium and marked unproven (0.6922ms)
+✔ a deployment-evidenced egress environment lifts the medium cap on the SSRF candidate (0.5928ms)
+✔ an observed egress-allowlist control downgrades the SSRF candidate and references the control (1.4196ms)
+✔ a size-capped body parser produces no request.body-size-unbounded candidate (0.3514ms)
+✔ a normalized and confined path produces no file.path-traversal-unvalidated candidate at full severity (0.3451ms)
+✔ a yaml.load using a SafeLoader marker downgrades the unsafe-deserialization candidate (0.3086ms)
+✔ a content-type-checked upload handler produces no upload.content-type-unvalidated candidate (0.1659ms)
+✔ every rule in every pack declares a variantStrategy with rootCause and enumerate (0.2374ms)
+✔ variantStrategies.enumerate reports a denominator and CONFIRMED matches for a known hazard (0.7446ms)
+ℹ tests 16
+ℹ suites 0
+ℹ pass 16
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 187.7574

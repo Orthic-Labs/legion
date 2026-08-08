@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "family": "go",
+  "cases": [
+    {
+      "id": "positive",
+      "expected": "measured"
+    },
+    {
+      "id": "negative",
+      "expected": "measured"
+    },
+    {
+      "id": "missing-tool",
+      "expected": "unproven"
+    },
+    {
+      "id": "platform",
+      "expected": "measured"
+    }
+  ]
+}

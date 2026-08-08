@@ -1,0 +1,44 @@
+✖ B6-013 requires context, preserves technical near misses, and records feature vectors (1.308ms)
+✖ B6-013 emits deterministic findings only for explicit policy bans (0.1462ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 0
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 85.9935
+
+✖ failing tests:
+
+test at tests\content-l3.test.mjs:8:1
+✖ B6-013 requires context, preserves technical near misses, and records feature vectors (1.308ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + undefined
+  - 'copy.anti-slop'
+  
+      at TestContext.<anonymous> (file:///D:/Claude/tools/skills/nemesis/tests/content-l3.test.mjs:46:10)
+      at Test.runInAsyncScope (node:async_hooks:226:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.start (node:internal/test_runner/test:1242:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:387:17) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: 'copy.anti-slop',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests\content-l3.test.mjs:62:1
+✖ B6-013 emits deterministic findings only for explicit policy bans (0.1462ms)
+  TypeError: Cannot read properties of undefined (reading 'map')
+      at TestContext.<anonymous> (file:///D:/Claude/tools/skills/nemesis/tests/content-l3.test.mjs:78:36)
+      at Test.runInAsyncScope (node:async_hooks:226:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3)

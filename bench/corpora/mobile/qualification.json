@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "family": "mobile",
+  "cases": [
+    {
+      "id": "apple-safe",
+      "expected": "measured"
+    },
+    {
+      "id": "apple-unsafe",
+      "expected": "measured"
+    },
+    {
+      "id": "flutter-safe",
+      "expected": "measured"
+    },
+    {
+      "id": "flutter-unsafe",
+      "expected": "measured"
+    }
+  ]
+}

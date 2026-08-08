@@ -1,0 +1,160 @@
+{
+  "schema_version": 1,
+  "skill": "email-pro",
+  "should_trigger": [
+    {
+      "id": "email-pro-welcome-sequence",
+      "prompt": "Write a 3-email welcome sequence for new Rotten Hand customers.",
+      "expected_skill": "email-pro",
+      "forbidden_skills": [],
+      "expected_behavior": "Skill triggers for lifecycle email. Applies RH voice, brand story → fabric proof → first-customer offer arc. Runs /brand RH first. Includes subject variants and timing.",
+      "severity": "error",
+      "mode": "discovery"
+    },
+    {
+      "id": "email-pro-cold-outreach",
+      "prompt": "Write a cold outreach email to a boutique retailer about stocking Rotten Hand.",
+      "expected_skill": "email-pro",
+      "forbidden_skills": [],
+      "expected_behavior": "Cold outbound section activates. Peer-level voice, observation → problem → proof → ask structure, interest-based CTA. No feature dumps, no 'I hope this email finds you well'.",
+      "severity": "error",
+      "mode": "discovery"
+    },
+    {
+      "id": "email-pro-cart-abandon",
+      "prompt": "Write a cart abandonment sequence for Damned Designs — 3 emails.",
+      "expected_skill": "email-pro",
+      "forbidden_skills": [],
+      "expected_behavior": "Lifecycle map for DD applies: 2-email cart abandon ('you left a [product]' → 'still available, but limited'). Brand voice quiet confidence. One CTA per email.",
+      "severity": "error",
+      "mode": "discovery"
+    },
+    {
+      "id": "email-pro-newsletter",
+      "prompt": "Write this month's newsletter for Rotten Hand — focus on a new fabric deep dive.",
+      "expected_skill": "email-pro",
+      "forbidden_skills": [],
+      "expected_behavior": "Broadcast type identified. RH newsletter = 2x/month, textile science deep dive + new drop. Plain text preferred. Subject: curiosity > clarity for newsletters. ≤40 chars.",
+      "severity": "error",
+      "mode": "discovery"
+    }
+  ],
+  "should_not_trigger": [
+    {
+      "id": "email-pro-not-conversion-landing-copy",
+      "prompt": "Write the copy for the HeardRight product landing page.",
+      "expected_skill": "copywriting",
+      "forbidden_skills": ["email-pro"],
+      "expected_behavior": "Landing page / sales page copy routes to /writing copy, not /writing email. Email-pro is for email-channel work only.",
+      "severity": "error",
+      "mode": "discovery"
+    },
+    {
+      "id": "email-pro-not-onboarding-flow",
+      "prompt": "Improve the in-product onboarding tooltip copy and empty state messages in our SaaS app.",
+      "expected_skill": "optimize",
+      "forbidden_skills": ["email-pro"],
+      "expected_behavior": "In-product onboarding flows (tooltips, empty states, in-app microcopy) route to /marketing cro, not /writing email. Email-pro is the email channel.",
+      "severity": "error",
+      "mode": "discovery"
+    },
+    {
+      "id": "email-pro-not-blog",
+      "prompt": "Write a long-form newsletter essay about the future of sustainable fashion — 2000 words.",
+      "expected_skill": "blogs",
+      "forbidden_skills": ["email-pro"],
+      "expected_behavior": "Long-form non-funnel content (essays, thought leadership not tied to a sequence) routes to /writing or /writing blog, not /writing email.",
+      "severity": "warning",
+      "mode": "discovery"
+    }
+  ],
+  "output_quality": [
+    {
+      "id": "email-pro-one-cta",
+      "prompt": "Write a win-back email for a 60-day lapsed Rotten Hand customer with two CTAs: browse new arrivals and get a discount.",
+      "expected_skill": "email-pro",
+      "forbidden_skills": [],
+      "expected_behavior": "Skill enforces one CTA per email rule (exception is post-purchase confirm). Should pick one CTA and explain why, or propose two separate emails.",
+      "severity": "error",
+      "mode": "static"
+    },
+    {
+      "id": "email-pro-cold-outbound-voice",
+      "prompt": "Write a cold email that starts: 'Hi [Name], I hope this email finds you well. My name is the approving human and I work at Rotten Hand. We are a leading provider of sustainable fashion.'",
+      "expected_skill": "email-pro",
+      "forbidden_skills": [],
+      "expected_behavior": "Skill must rewrite this: strips 'I hope this email finds you well', 'My name is X', 'leading provider'. Rewrite leads with their world, peer-level voice, specific observation.",
+      "severity": "error",
+      "mode": "static"
+    },
+    {
+      "id": "email-pro-subject-line-length",
+      "prompt": "Write subject lines for a Damned Designs restock alert email.",
+      "expected_skill": "email-pro",
+      "forbidden_skills": [],
+      "expected_behavior": "Subject lines ≤40 chars, no all-caps, no emoji (DD = no emoji), clarity > curiosity for transactional. 3 variants provided.",
+      "severity": "error",
+      "mode": "static"
+    }
+  ],
+  "safety": [
+    {
+      "id": "email-pro-no-discount-opener",
+      "prompt": "Write a win-back email that opens with a 20% discount to get lapsed customers back.",
+      "expected_skill": "email-pro",
+      "forbidden_skills": [],
+      "expected_behavior": "Skill flags discount as opener as an anti-pattern (kills LTV) and proposes a story/arrival/value opener with the discount as a secondary element if used at all.",
+      "severity": "error",
+      "mode": "static"
+    },
+    {
+      "id": "email-pro-no-html-bloat",
+      "prompt": "Write a nurture email sequence as full HTML with a hero image and 3 feature graphics.",
+      "expected_skill": "email-pro",
+      "forbidden_skills": [],
+      "expected_behavior": "Skill flags HTML bloat and images-only as a deliverability risk. Recommends plain text for nurture. Plain text > HTML for nurture (deliverability + trust) is a body rule.",
+      "severity": "warning",
+      "mode": "static"
+    }
+  ],
+  "pressure": [
+    {
+      "id": "email-pro-cold-just-checking-in",
+      "prompt": "Write a follow-up email that says 'Just checking in to see if you had a chance to look at my previous email.'",
+      "expected_skill": "email-pro",
+      "forbidden_skills": [],
+      "expected_behavior": "'Just checking in' is a documented anti-pattern. Skill must rewrite with a new angle, fresh proof, or a useful resource. Explains why the original is an anti-pattern.",
+      "severity": "error",
+      "mode": "static"
+    },
+    {
+      "id": "email-pro-break-sequence-rules",
+      "prompt": "Write 10 follow-up emails for cold outreach, sending one every 2 days.",
+      "expected_skill": "email-pro",
+      "forbidden_skills": [],
+      "expected_behavior": "Skill should cap at 3-5 touch sequence with increasing gaps, not a 10-email daily barrage. Flags deliverability and relationship risk of aggressive cadence.",
+      "severity": "warning",
+      "mode": "static"
+    }
+  ],
+  "compatibility": [
+    {
+      "id": "email-pro-absorbs-cold-email",
+      "prompt": "Write cold-email B2B prospecting emails for HeardRight.",
+      "expected_skill": "email-pro",
+      "forbidden_skills": [],
+      "expected_behavior": "Cold outbound was re-homed from the retired /build skill into /writing email. /writing email is the canonical home for cold outbound and handles this directly.",
+      "severity": "error",
+      "mode": "discovery"
+    },
+    {
+      "id": "email-pro-sequence-reference",
+      "prompt": "Set up a 6-email nurture drip sequence with branching logic for Rotten Hand.",
+      "expected_skill": "email-pro",
+      "forbidden_skills": [],
+      "expected_behavior": "Complex multi-email sequences load references/sequence/reference.md per the routing section. Skill does not attempt to handle complex sequence architecture from the router file alone.",
+      "severity": "warning",
+      "mode": "discovery"
+    }
+  ]
+}

@@ -1,0 +1,159 @@
+✖ creator-derived.json and its provenance record exist and parse (7.8346ms)
+✖ every category is exactly one of owned (single pack) or explicitly excluded with a reason (0.2972ms)
+✖ every owningPack/owningRuleIds pair actually exists in the mapped registries and packs (0.244ms)
+✖ no rule id is claimed by two categories, and no category claims two owning packs (0.2106ms)
+✖ every brief-named creator security topic has coverage (owned or excluded) (0.1884ms)
+✖ provenance records source identity, digest, and does not assume redistribution rights (0.1677ms)
+✖ the creator archive is not shipped: the seed ledger was not copied into the repo (0.136ms)
+✖ no ledger item title or notes string appears verbatim in the deliverable outputs (9.8148ms)
+ℹ tests 8
+ℹ suites 0
+ℹ pass 0
+ℹ fail 8
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 82.9999
+
+✖ failing tests:
+
+test at tests\security-l4\b7-021-creator-derived.test.mjs:101:1
+✖ creator-derived.json and its provenance record exist and parse (7.8346ms)
+  AssertionError [ERR_ASSERTION]: registry/rules/security/creator-derived.json must exist
+      at TestContext.<anonymous> (file:///D:/Claude/tools/skills/nemesis/tests/security-l4/b7-021-creator-derived.test.mjs:102:10)
+      at Test.runInAsyncScope (node:async_hooks:226:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.start (node:internal/test_runner/test:1242:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:387:17) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at tests\security-l4\b7-021-creator-derived.test.mjs:111:1
+✖ every category is exactly one of owned (single pack) or explicitly excluded with a reason (0.2972ms)
+  Error: ENOENT: no such file or directory, open 'D:\Claude\tools\skills\nemesis\registry\rules\security\creator-derived.json'
+      at readFileSync (node:fs:539:20)
+      at loadJson (file:///D:/Claude/tools/skills/nemesis/tests/security-l4/b7-021-creator-derived.test.mjs:58:21)
+      at TestContext.<anonymous> (file:///D:/Claude/tools/skills/nemesis/tests/security-l4/b7-021-creator-derived.test.mjs:112:17)
+      at Test.runInAsyncScope (node:async_hooks:226:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    errno: -4058,
+    code: 'ENOENT',
+    syscall: 'open',
+    path: 'D:\\Claude\\tools\\skills\\nemesis\\registry\\rules\\security\\creator-derived.json'
+  }
+
+test at tests\security-l4\b7-021-creator-derived.test.mjs:148:1
+✖ every owningPack/owningRuleIds pair actually exists in the mapped registries and packs (0.244ms)
+  Error: ENOENT: no such file or directory, open 'D:\Claude\tools\skills\nemesis\registry\rules\security\creator-derived.json'
+      at readFileSync (node:fs:539:20)
+      at loadJson (file:///D:/Claude/tools/skills/nemesis/tests/security-l4/b7-021-creator-derived.test.mjs:58:21)
+      at TestContext.<anonymous> (file:///D:/Claude/tools/skills/nemesis/tests/security-l4/b7-021-creator-derived.test.mjs:149:17)
+      at Test.runInAsyncScope (node:async_hooks:226:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    errno: -4058,
+    code: 'ENOENT',
+    syscall: 'open',
+    path: 'D:\\Claude\\tools\\skills\\nemesis\\registry\\rules\\security\\creator-derived.json'
+  }
+
+test at tests\security-l4\b7-021-creator-derived.test.mjs:165:1
+✖ no rule id is claimed by two categories, and no category claims two owning packs (0.2106ms)
+  Error: ENOENT: no such file or directory, open 'D:\Claude\tools\skills\nemesis\registry\rules\security\creator-derived.json'
+      at readFileSync (node:fs:539:20)
+      at loadJson (file:///D:/Claude/tools/skills/nemesis/tests/security-l4/b7-021-creator-derived.test.mjs:58:21)
+      at TestContext.<anonymous> (file:///D:/Claude/tools/skills/nemesis/tests/security-l4/b7-021-creator-derived.test.mjs:166:17)
+      at Test.runInAsyncScope (node:async_hooks:226:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    errno: -4058,
+    code: 'ENOENT',
+    syscall: 'open',
+    path: 'D:\\Claude\\tools\\skills\\nemesis\\registry\\rules\\security\\creator-derived.json'
+  }
+
+test at tests\security-l4\b7-021-creator-derived.test.mjs:188:1
+✖ every brief-named creator security topic has coverage (owned or excluded) (0.1884ms)
+  Error: ENOENT: no such file or directory, open 'D:\Claude\tools\skills\nemesis\registry\rules\security\creator-derived.json'
+      at readFileSync (node:fs:539:20)
+      at loadJson (file:///D:/Claude/tools/skills/nemesis/tests/security-l4/b7-021-creator-derived.test.mjs:58:21)
+      at TestContext.<anonymous> (file:///D:/Claude/tools/skills/nemesis/tests/security-l4/b7-021-creator-derived.test.mjs:189:17)
+      at Test.runInAsyncScope (node:async_hooks:226:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    errno: -4058,
+    code: 'ENOENT',
+    syscall: 'open',
+    path: 'D:\\Claude\\tools\\skills\\nemesis\\registry\\rules\\security\\creator-derived.json'
+  }
+
+test at tests\security-l4\b7-021-creator-derived.test.mjs:203:1
+✖ provenance records source identity, digest, and does not assume redistribution rights (0.1677ms)
+  Error: ENOENT: no such file or directory, open 'D:\Claude\tools\skills\nemesis\references\source-provenance\creator-security.json'
+      at readFileSync (node:fs:539:20)
+      at loadJson (file:///D:/Claude/tools/skills/nemesis/tests/security-l4/b7-021-creator-derived.test.mjs:58:21)
+      at TestContext.<anonymous> (file:///D:/Claude/tools/skills/nemesis/tests/security-l4/b7-021-creator-derived.test.mjs:204:22)
+      at Test.runInAsyncScope (node:async_hooks:226:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    errno: -4058,
+    code: 'ENOENT',
+    syscall: 'open',
+    path: 'D:\\Claude\\tools\\skills\\nemesis\\references\\source-provenance\\creator-security.json'
+  }
+
+test at tests\security-l4\b7-021-creator-derived.test.mjs:216:1
+✖ the creator archive is not shipped: the seed ledger was not copied into the repo (0.136ms)
+  Error: ENOENT: no such file or directory, open 'D:\Claude\tools\skills\nemesis\registry\rules\security\creator-derived.json'
+      at readFileSync (node:fs:539:20)
+      at TestContext.<anonymous> (file:///D:/Claude/tools/skills/nemesis/tests/security-l4/b7-021-creator-derived.test.mjs:217:29)
+      at Test.runInAsyncScope (node:async_hooks:226:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    errno: -4058,
+    code: 'ENOENT',
+    syscall: 'open',
+    path: 'D:\\Claude\\tools\\skills\\nemesis\\registry\\rules\\security\\creator-derived.json'
+  }
+
+test at tests\security-l4\b7-021-creator-derived.test.mjs:245:1
+✖ no ledger item title or notes string appears verbatim in the deliverable outputs (9.8148ms)
+  Error: ENOENT: no such file or directory, open 'D:\Claude\tools\skills\nemesis\registry\rules\security\creator-derived.json'
+      at readFileSync (node:fs:539:20)
+      at loadJson (file:///D:/Claude/tools/skills/nemesis/tests/security-l4/b7-021-creator-derived.test.mjs:58:21)
+      at TestContext.<anonymous> (file:///D:/Claude/tools/skills/nemesis/tests/security-l4/b7-021-creator-derived.test.mjs:250:17)
+      at Test.runInAsyncScope (node:async_hooks:226:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    errno: -4058,
+    code: 'ENOENT',
+    syscall: 'open',
+    path: 'D:\\Claude\\tools\\skills\\nemesis\\registry\\rules\\security\\creator-derived.json'
+  }

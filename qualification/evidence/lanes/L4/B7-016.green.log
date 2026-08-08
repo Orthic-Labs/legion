@@ -1,0 +1,41 @@
+✔ registry rule ids and pack rule ids are in exact two-way parity across both packs (1.1948ms)
+✔ no rule id or registry claim string names a regulation as a compliance verdict (0.7203ms)
+✔ weak-hash in a security context is named, high severity, and layer=primitive (3.5389ms)
+✔ weak-hash used for a non-security purpose (cache key) is never high severity (0.6685ms)
+✔ weak-hash with an ambiguous context is medium, not high (0.342ms)
+✔ weak cipher algorithm/mode is named with primitive and layer=primitive (0.6991ms)
+✔ Math.random used for session/token material is flagged as insecure randomness (0.5757ms)
+✔ Math.random used with no security context nearby produces no insecure-randomness candidate (0.2312ms)
+✔ crypto.randomBytes for token generation produces no insecure-randomness candidate (0.2443ms)
+✔ hardcoded cipher key and hardcoded JWT secret are both flagged (0.7902ms)
+✔ encryption usage with no rotation/KMS marker anywhere flags key-rotation-absent repo-wide (0.3337ms)
+✔ encryption usage with a KMS/rotation marker present suppresses key-rotation-absent (0.1919ms)
+✔ password hashed directly with sha256 (no KDF) is flagged as unsalted-fast (0.2844ms)
+✔ bcrypt password hashing produces no candidates at all (0.1238ms)
+✔ argon2 password hashing produces no candidates at all (0.1171ms)
+✔ OAuth authorize URL without state is flagged; layer=protocol (0.3877ms)
+✔ OAuth authorize URL without PKCE code_challenge is flagged (0.2696ms)
+✔ OIDC authorize URL (scope=openid) without nonce is flagged (0.2217ms)
+✔ OAuth/OIDC authorize URL with state, PKCE, and nonce all present produces no protocol candidates (0.6959ms)
+✔ SAML response processed with signature validation explicitly disabled is flagged (0.5065ms)
+✔ SAML assertion parsed with no visible signature check at all is flagged (0.2491ms)
+✔ SAML response validated with a visible signature-check marker produces no candidate (0.1281ms)
+✔ token verification without audience/issuer options is flagged (0.8677ms)
+✔ token verification with audience and issuer options produces no candidate (0.1568ms)
+✔ primitive-layer and protocol-layer findings never conflate across a combined fixture (0.7645ms)
+✔ every data-privacy rule binds a dataClass and a valid lifecycleStage (4.8204ms)
+✔ redacted logging produces no privacy.log candidate (0.2123ms)
+✔ a high-impact privacy finding with no observed classification is capped at medium with explicit uncertainty (0.345ms)
+✔ a high-impact privacy finding with an observed model data-store classification is not capped (0.3266ms)
+✔ a high-impact privacy finding with an observed audit-facts classification is not capped (0.3045ms)
+✔ a marketing privacy claim contradicted by tracking code is flagged without a claim-proof artifact and records the gap as an uncertainty (0.3763ms)
+✔ a marketing privacy claim links to a claim-proof artifact when one is available (0.7635ms)
+✔ no candidates emitted for entirely neutral source across both packs (0.1648ms)
+ℹ tests 33
+ℹ suites 0
+ℹ pass 33
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 125.7741

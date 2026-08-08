@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 1,
+  "id": "narrative-chronology",
+  "rules": [
+    { "id": "narrative.chronology.false-sequence", "kind": "deterministic", "reasoningRequirement": "none" },
+    { "id": "narrative.chronology.missing-antecedent", "kind": "deterministic", "reasoningRequirement": "none" },
+    { "id": "narrative.chronology.missing-unit", "kind": "deterministic", "reasoningRequirement": "none" },
+    { "id": "narrative.chronology.repeated-step", "kind": "deterministic", "reasoningRequirement": "none" },
+    { "id": "narrative.chronology.unsupported-causality", "kind": "interpretive", "reasoningRequirement": "bounded-review" },
+    { "id": "narrative.chronology.sequence-uncertain", "kind": "interpretive", "reasoningRequirement": "bounded-review" },
+    { "id": "narrative.chronology.antecedent-uncertain", "kind": "interpretive", "reasoningRequirement": "bounded-review" },
+    { "id": "narrative.chronology.order-unproven", "kind": "interpretive", "reasoningRequirement": "bounded-review" }
+  ]
+}

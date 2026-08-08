@@ -1,0 +1,77 @@
+{
+  "lane": "L1b",
+  "tasks": [
+    {
+      "id": "B4-017",
+      "status": "implemented",
+      "test": { "path": "tests/platform/desktop/runner/runner.test.mjs", "assertion": "exact executable binding, component inventory, native-surface separation" },
+      "implementation": [{ "path": "providers/runtime/desktop/runner/index.mjs", "symbol": "collectDesktopRuntime" }],
+      "proof": { "red": "qualification/evidence/lanes/L1b/B4-017.red.log", "green": "qualification/evidence/lanes/L1b/B4-017.green.log" }
+    },
+    {
+      "id": "B4-018",
+      "status": "implemented",
+      "test": { "path": "tests/platform/desktop/ipc/ipc.test.mjs", "assertion": "actor/capability authorization, unknown caller denial, helper identity/lifecycle" },
+      "implementation": [{ "path": "providers/runtime/desktop/ipc/index.mjs", "symbol": "evaluateDesktopIpc" }],
+      "proof": { "red": "qualification/evidence/lanes/L1b/B4-018.red.log", "green": "qualification/evidence/lanes/L1b/B4-018.green.log" }
+    },
+    {
+      "id": "B4-019",
+      "status": "implemented",
+      "test": { "path": "tests/platform/desktop/files-storage/files-storage.test.mjs", "assertion": "hostile/recovery cases, migration source preservation, separated storage locations" },
+      "implementation": [{ "path": "providers/runtime/desktop/files/index.mjs", "symbol": "evaluateDesktopStorage" }],
+      "proof": { "red": "qualification/evidence/lanes/L1b/B4-019.red.log", "green": "qualification/evidence/lanes/L1b/B4-019.green.log" }
+    },
+    {
+      "id": "B4-020",
+      "status": "implemented",
+      "test": { "path": "tests/platform/desktop/os-integration/os-integration.test.mjs", "assertion": "native OS/version/architecture binding, accessibility journey, explicit unsupported state" },
+      "implementation": [{ "path": "providers/runtime/desktop/os-integration/index.mjs", "symbol": "compileDesktopOsMatrix" }],
+      "proof": { "red": "qualification/evidence/lanes/L1b/B4-020.red.log", "green": "qualification/evidence/lanes/L1b/B4-020.green.log" }
+    },
+    {
+      "id": "B4-021",
+      "status": "implemented",
+      "test": { "path": "tests/platform/desktop/performance/performance.test.mjs", "assertion": "release-artifact/environment/repeat binding & typed soak gap" },
+      "implementation": [{ "path": "providers/runtime/desktop/performance/index.mjs", "symbol": "evaluateDesktopPerformance" }],
+      "proof": { "red": "qualification/evidence/lanes/L1b/B4-021.red.log", "green": "qualification/evidence/lanes/L1b/B4-021.green.log" }
+    },
+    {
+      "id": "B4-022",
+      "status": "implemented",
+      "test": { "path": "tests/platform/desktop/installer/installer.test.mjs", "assertion": "typed clean-VM gap, rollback safety, isolated destructive target" },
+      "implementation": [{ "path": "providers/runtime/desktop/installer/index.mjs", "symbol": "evaluateInstallerLifecycle" }],
+      "proof": { "red": "qualification/evidence/lanes/L1b/B4-022.red.log", "green": "qualification/evidence/lanes/L1b/B4-022.green.log" }
+    },
+    {
+      "id": "B4-023",
+      "status": "implemented",
+      "test": { "path": "tests/platform/desktop/updater/updater.test.mjs", "assertion": "verification failure stop-ship & promotion equivalence" },
+      "implementation": [{ "path": "providers/runtime/desktop/updater/index.mjs", "symbol": "evaluateUpdaterEvidence" }],
+      "proof": { "red": "qualification/evidence/lanes/L1b/B4-023.red.log", "green": "qualification/evidence/lanes/L1b/B4-023.green.log" }
+    },
+    {
+      "id": "B4-024",
+      "status": "implemented",
+      "test": { "path": "tests/platform/desktop/os/os.test.mjs", "assertion": "OS-specific matrix isolation, final artifact facts, unavailable-host separation" },
+      "implementation": [
+        { "path": "providers/runtime/desktop/windows/index.mjs", "symbol": "evaluateWindowsPlatform" },
+        { "path": "providers/runtime/desktop/macos/index.mjs", "symbol": "evaluateMacosPlatform" },
+        { "path": "providers/runtime/desktop/linux/index.mjs", "symbol": "evaluateLinuxPlatform" }
+      ],
+      "proof": { "red": "qualification/evidence/lanes/L1b/B4-024.red.log", "green": "qualification/evidence/lanes/L1b/B4-024.green.log" }
+    },
+    {
+      "id": "B4-025",
+      "status": "implemented",
+      "test": { "path": "tests/platform/desktop/qualification.test.mjs", "assertion": "control/scenario reconciliation, source/release separation, visible platform gaps" },
+      "implementation": [
+        { "path": "providers/runtime/desktop/index.mjs", "symbol": "integrateDesktopEvidence" },
+        { "path": "qualification/platforms/desktop/fixtures.mjs", "symbol": "createDesktopQualificationFixtures" },
+        { "path": "qualification/platforms/desktop/qualification.mjs", "symbol": "qualifyDesktopPlatform" },
+        { "path": "scripts/qualify-desktop-platform.mjs", "symbol": "qualifyDesktopPlatformFile" }
+      ],
+      "proof": { "red": "qualification/evidence/lanes/L1b/B4-025.red.log", "green": "qualification/evidence/lanes/L1b/B4-025.green.log" }
+    }
+  ]
+}

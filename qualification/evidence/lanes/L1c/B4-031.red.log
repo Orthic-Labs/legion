@@ -1,0 +1,35 @@
+node:internal/modules/esm/resolve:272
+    throw new ERR_MODULE_NOT_FOUND(
+          ^
+
+Error [ERR_MODULE_NOT_FOUND]: Cannot find module 'D:\Claude\tools\skills\nemesis\providers\runtime\mobile\compatibility\index.mjs' imported from D:\Claude\tools\skills\nemesis\tests\platform\mobile\compatibility\book-4-mobile-compatibility.test.mjs
+    at finalizeResolution (node:internal/modules/esm/resolve:272:11)
+    at moduleResolve (node:internal/modules/esm/resolve:879:10)
+    at defaultResolve (node:internal/modules/esm/resolve:1006:11)
+    at #cachedDefaultResolve (node:internal/modules/esm/loader:708:20)
+    at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:728:38)
+    at ModuleLoader.resolveSync (node:internal/modules/esm/loader:766:56)
+    at #resolve (node:internal/modules/esm/loader:690:17)
+    at ModuleLoader.getOrCreateModuleJob (node:internal/modules/esm/loader:610:35)
+    at ModuleJob.syncLink (node:internal/modules/esm/module_job:277:33)
+    at ModuleJob.link (node:internal/modules/esm/module_job:389:17) {
+  code: 'ERR_MODULE_NOT_FOUND',
+  url: 'file:///D:/Claude/tools/skills/nemesis/providers/runtime/mobile/compatibility/index.mjs'
+}
+
+Node.js v26.5.0
+✖ tests\platform\mobile\compatibility\book-4-mobile-compatibility.test.mjs (366.6232ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 375.0957
+
+✖ failing tests:
+
+test at tests\platform\mobile\compatibility\book-4-mobile-compatibility.test.mjs:1:1
+✖ tests\platform\mobile\compatibility\book-4-mobile-compatibility.test.mjs (366.6232ms)
+  'test failed'

@@ -1,0 +1,25 @@
+✔ all 17 declared AI-quality metrics are covered by the aggregator (2.6807ms)
+✔ groundedness: grounded vs. ungrounded fixture (0.1916ms)
+✔ citation faithfulness: faithful vs. unfaithful fixture (0.1698ms)
+✔ tool selection: correct vs. incorrect fixture (0.1887ms)
+✔ uncertainty calibration: calibrated vs. overconfident fixture (0.1818ms)
+✔ refusal/fallback fixture (0.1455ms)
+✔ model/provider/version drift fixture (0.1899ms)
+✔ latency and cost fixtures (0.2092ms)
+✔ a clean control fixture set passes across representative metrics (0.2155ms)
+✔ subgroup fairness is unproven without a policy-selected subgroup set, and pass/fail once selected (0.2668ms)
+✔ every evaluation receipt binds the full required identity/denominator shape (0.3586ms)
+✔ a receipt is version-bound and denominator-bound: metricVersion, datasetVersion.version, and denominator are all present and required (0.2857ms)
+✔ an evaluation receipt is not and cannot substitute for a security verdict (0.5784ms)
+✔ no ai-quality module imports from providers/security/**, and no security pack imports from providers/ai-quality/** (3.5091ms)
+✔ no ai-quality module imports a network-capable node builtin, calls fetch, or imports an AI vendor SDK (1.3692ms)
+✔ committed schemas/ai-quality/evaluation-receipt-v1.schema.json is byte-identical to the code-owned builder (0.5401ms)
+✔ the generated schema enumerates all 17 metrics and the 4-member quality verdict vocabulary (0.1105ms)
+ℹ tests 17
+ℹ suites 0
+ℹ pass 17
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 84.7377

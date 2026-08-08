@@ -1,0 +1,8 @@
+✔ B4-021 binds measurements to release artifact, environment, repeats & soak
+✔ B4-021 executes required measurement/soak cases through host
+✔ B4-021 refuses source or debug build performance claims
+✔ B4-021 requires budgets, profiling artifacts, variance & long soak duration
+ℹ tests 4
+ℹ pass 4
+ℹ fail 0
+GREEN_EXIT=0

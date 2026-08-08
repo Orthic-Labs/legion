@@ -1,0 +1,3773 @@
+TAP version 13
+# Subtest: writeJson creates an atomic content-digested artifact
+ok 1 - writeJson creates an atomic content-digested artifact
+  ---
+  duration_ms: 47.2364
+  type: 'test'
+  ...
+# Subtest: writeBytes records bytes, digest, and size
+ok 2 - writeBytes records bytes, digest, and size
+  ---
+  duration_ms: 50.1928
+  type: 'test'
+  ...
+# Subtest: nested paths create parent directories
+ok 3 - nested paths create parent directories
+  ---
+  duration_ms: 119.689
+  type: 'test'
+  ...
+# Subtest: paths escaping the run root are rejected
+ok 4 - paths escaping the run root are rejected
+  ---
+  duration_ms: 14.6099
+  type: 'test'
+  ...
+# Subtest: records are sorted and stable
+ok 5 - records are sorted and stable
+  ---
+  duration_ms: 194.2964
+  type: 'test'
+  ...
+# Subtest: overwriting an artifact updates the record digest
+ok 6 - overwriting an artifact updates the record digest
+  ---
+  duration_ms: 55.164
+  type: 'test'
+  ...
+# Subtest: complete clean audit passes
+ok 7 - complete clean audit passes
+  ---
+  duration_ms: 3.6776
+  type: 'test'
+  ...
+# Subtest: plan coverage gaps remain incomplete
+ok 8 - plan coverage gaps remain incomplete
+  ---
+  duration_ms: 0.609
+  type: 'test'
+  ...
+# Subtest: provider degradation remains incomplete
+ok 9 - provider degradation remains incomplete
+  ---
+  duration_ms: 0.5682
+  type: 'test'
+  ...
+# Subtest: provider denominator mismatch remains incomplete
+ok 10 - provider denominator mismatch remains incomplete
+  ---
+  duration_ms: 0.4105
+  type: 'test'
+  ...
+# Subtest: raw facts incomplete flag cannot be overridden by an otherwise clean report
+ok 11 - raw facts incomplete flag cannot be overridden by an otherwise clean report
+  ---
+  duration_ms: 0.3857
+  type: 'test'
+  ...
+# Subtest: verified security finding blocks quality gate and maps evidence
+ok 12 - verified security finding blocks quality gate and maps evidence
+  ---
+  duration_ms: 0.5385
+  type: 'test'
+  ...
+# Subtest: unclosed adjudication is never clean
+ok 13 - unclosed adjudication is never clean
+  ---
+  duration_ms: 0.3164
+  type: 'test'
+  ...
+# Subtest: candidate provider emitting findings is a contract violation
+ok 14 - candidate provider emitting findings is a contract violation
+  ---
+  duration_ms: 0.6268
+  type: 'test'
+  ...
+# Subtest: candidate provider findings are never materialized as findings
+ok 15 - candidate provider findings are never materialized as findings
+  ---
+  duration_ms: 0.4506
+  type: 'test'
+  ...
+# Subtest: verifier fixture is frozen and valid
+ok 16 - verifier fixture is frozen and valid
+  ---
+  duration_ms: 7.6847
+  type: 'test'
+  ...
+# Subtest: semantic projection ignores timestamps and output paths
+ok 17 - semantic projection ignores timestamps and output paths
+  ---
+  duration_ms: 34.4018
+  type: 'test'
+  ...
+# Subtest: provider status mutation is detected
+ok 18 - provider status mutation is detected
+  ---
+  duration_ms: 3.7148
+  type: 'test'
+  ...
+# Subtest: finding fingerprint mutation is detected
+ok 19 - finding fingerprint mutation is detected
+  ---
+  duration_ms: 1.215
+  type: 'test'
+  ...
+# Subtest: denominator mutation is detected
+ok 20 - denominator mutation is detected
+  ---
+  duration_ms: 0.9798
+  type: 'test'
+  ...
+# Subtest: tool version mutation is detected
+ok 21 - tool version mutation is detected
+  ---
+  duration_ms: 1.0047
+  type: 'test'
+  ...
+# Subtest: plan seal mutation is detected
+ok 22 - plan seal mutation is detected
+  ---
+  duration_ms: 0.7876
+  type: 'test'
+  ...
+# Subtest: repository binding mutation is detected
+ok 23 - repository binding mutation is detected
+  ---
+  duration_ms: 0.7213
+  type: 'test'
+  ...
+# Subtest: unreplayable checks are classified, not merged into content drift
+ok 24 - unreplayable checks are classified, not merged into content drift
+  ---
+  duration_ms: 1.0441
+  type: 'test'
+  ...
+# Subtest: audit-verify.mjs executes end-to-end over a frozen fixture
+ok 25 - audit-verify.mjs executes end-to-end over a frozen fixture
+  ---
+  duration_ms: 5288.5335
+  type: 'test'
+  ...
+# Subtest: canonical qualifier includes source-completion contracts for Book 1
+ok 26 - canonical qualifier includes source-completion contracts for Book 1
+  ---
+  duration_ms: 60.588
+  type: 'test'
+  ...
+# Subtest: external process implementation has one canonical executor authority
+ok 27 - external process implementation has one canonical executor authority
+  ---
+  duration_ms: 5.9444
+  type: 'test'
+  ...
+# Subtest: Book 1 uses qualification v2 source accounting
+ok 28 - Book 1 uses qualification v2 source accounting
+  ---
+  duration_ms: 1.4064
+  type: 'test'
+  ...
+# Subtest: B1-001 has executable source plus task-level test evidence
+ok 29 - B1-001 has executable source plus task-level test evidence
+  ---
+  duration_ms: 1.8992
+  type: 'test'
+  ...
+# Subtest: B1-002 has executable source plus task-level test evidence
+ok 30 - B1-002 has executable source plus task-level test evidence
+  ---
+  duration_ms: 1.5488
+  type: 'test'
+  ...
+# Subtest: B1-003 has executable source plus task-level test evidence
+ok 31 - B1-003 has executable source plus task-level test evidence
+  ---
+  duration_ms: 2.132
+  type: 'test'
+  ...
+# Subtest: B1-004 has executable source plus task-level test evidence
+ok 32 - B1-004 has executable source plus task-level test evidence
+  ---
+  duration_ms: 1.6266
+  type: 'test'
+  ...
+# Subtest: B1-005 has executable source plus task-level test evidence
+ok 33 - B1-005 has executable source plus task-level test evidence
+  ---
+  duration_ms: 1.8662
+  type: 'test'
+  ...
+# Subtest: B1-006 has executable source plus task-level test evidence
+ok 34 - B1-006 has executable source plus task-level test evidence
+  ---
+  duration_ms: 2.7582
+  type: 'test'
+  ...
+# Subtest: B1-007 has executable source plus task-level test evidence
+ok 35 - B1-007 has executable source plus task-level test evidence
+  ---
+  duration_ms: 1.8466
+  type: 'test'
+  ...
+# Subtest: B1-008 has executable source plus task-level test evidence
+ok 36 - B1-008 has executable source plus task-level test evidence
+  ---
+  duration_ms: 2.6889
+  type: 'test'
+  ...
+# Subtest: B1-009 has executable source plus task-level test evidence
+ok 37 - B1-009 has executable source plus task-level test evidence
+  ---
+  duration_ms: 1.3424
+  type: 'test'
+  ...
+# Subtest: B1-010 has executable source plus task-level test evidence
+ok 38 - B1-010 has executable source plus task-level test evidence
+  ---
+  duration_ms: 1.601
+  type: 'test'
+  ...
+# Subtest: B1-011 has executable source plus task-level test evidence
+ok 39 - B1-011 has executable source plus task-level test evidence
+  ---
+  duration_ms: 2.3582
+  type: 'test'
+  ...
+# Subtest: B1-012 has executable source plus task-level test evidence
+ok 40 - B1-012 has executable source plus task-level test evidence
+  ---
+  duration_ms: 3.1971
+  type: 'test'
+  ...
+# Subtest: B1-013 has executable source plus task-level test evidence
+ok 41 - B1-013 has executable source plus task-level test evidence
+  ---
+  duration_ms: 2.3579
+  type: 'test'
+  ...
+# Subtest: B1-014 has executable source plus task-level test evidence
+ok 42 - B1-014 has executable source plus task-level test evidence
+  ---
+  duration_ms: 0.8734
+  type: 'test'
+  ...
+# Subtest: B1-015 has executable source plus task-level test evidence
+ok 43 - B1-015 has executable source plus task-level test evidence
+  ---
+  duration_ms: 1.3431
+  type: 'test'
+  ...
+# Subtest: B1-016 has executable source plus task-level test evidence
+ok 44 - B1-016 has executable source plus task-level test evidence
+  ---
+  duration_ms: 1.6817
+  type: 'test'
+  ...
+# Subtest: B1-017 has executable source plus task-level test evidence
+ok 45 - B1-017 has executable source plus task-level test evidence
+  ---
+  duration_ms: 1.1756
+  type: 'test'
+  ...
+# Subtest: B1-018 has executable source plus task-level test evidence
+ok 46 - B1-018 has executable source plus task-level test evidence
+  ---
+  duration_ms: 1.1092
+  type: 'test'
+  ...
+# Subtest: B1-019 has executable source plus task-level test evidence
+ok 47 - B1-019 has executable source plus task-level test evidence
+  ---
+  duration_ms: 1.2292
+  type: 'test'
+  ...
+# Subtest: B1-020 has executable source plus task-level test evidence
+ok 48 - B1-020 has executable source plus task-level test evidence
+  ---
+  duration_ms: 1.5025
+  type: 'test'
+  ...
+# Subtest: B1-021 has executable source plus task-level test evidence
+ok 49 - B1-021 has executable source plus task-level test evidence
+  ---
+  duration_ms: 1.7637
+  type: 'test'
+  ...
+# Subtest: B1-022 has executable source plus task-level test evidence
+ok 50 - B1-022 has executable source plus task-level test evidence
+  ---
+  duration_ms: 1.3463
+  type: 'test'
+  ...
+# Subtest: B1-023 has executable source plus task-level test evidence
+ok 51 - B1-023 has executable source plus task-level test evidence
+  ---
+  duration_ms: 2.421
+  type: 'test'
+  ...
+# Subtest: B1-024 has executable source plus task-level test evidence
+ok 52 - B1-024 has executable source plus task-level test evidence
+  ---
+  duration_ms: 13.2598
+  type: 'test'
+  ...
+# Subtest: B1-025 has executable source plus task-level test evidence
+ok 53 - B1-025 has executable source plus task-level test evidence
+  ---
+  duration_ms: 1.6368
+  type: 'test'
+  ...
+# Subtest: B1-026 has executable source plus task-level test evidence
+ok 54 - B1-026 has executable source plus task-level test evidence
+  ---
+  duration_ms: 4.1569
+  type: 'test'
+  ...
+# Subtest: B1-027 has executable source plus task-level test evidence
+ok 55 - B1-027 has executable source plus task-level test evidence
+  ---
+  duration_ms: 0.7927
+  type: 'test'
+  ...
+# Subtest: B1-028 has executable source plus task-level test evidence
+ok 56 - B1-028 has executable source plus task-level test evidence
+  ---
+  duration_ms: 0.9508
+  type: 'test'
+  ...
+# Subtest: Book 2 uses qualification v2 source accounting
+ok 57 - Book 2 uses qualification v2 source accounting
+  ---
+  duration_ms: 0.132
+  type: 'test'
+  ...
+# Subtest: B2-001 has executable source plus task-level test evidence
+ok 58 - B2-001 has executable source plus task-level test evidence
+  ---
+  duration_ms: 3.5021
+  type: 'test'
+  ...
+# Subtest: B2-002 has executable source plus task-level test evidence
+ok 59 - B2-002 has executable source plus task-level test evidence
+  ---
+  duration_ms: 3.3121
+  type: 'test'
+  ...
+# Subtest: B2-003 has executable source plus task-level test evidence
+ok 60 - B2-003 has executable source plus task-level test evidence
+  ---
+  duration_ms: 5.0474
+  type: 'test'
+  ...
+# Subtest: B2-004 has executable source plus task-level test evidence
+ok 61 - B2-004 has executable source plus task-level test evidence
+  ---
+  duration_ms: 2.8858
+  type: 'test'
+  ...
+# Subtest: B2-005 has executable source plus task-level test evidence
+ok 62 - B2-005 has executable source plus task-level test evidence
+  ---
+  duration_ms: 2.6641
+  type: 'test'
+  ...
+# Subtest: B2-006 has executable source plus task-level test evidence
+ok 63 - B2-006 has executable source plus task-level test evidence
+  ---
+  duration_ms: 3.4208
+  type: 'test'
+  ...
+# Subtest: B2-007 has executable source plus task-level test evidence
+ok 64 - B2-007 has executable source plus task-level test evidence
+  ---
+  duration_ms: 3.4996
+  type: 'test'
+  ...
+# Subtest: B2-008 has executable source plus task-level test evidence
+ok 65 - B2-008 has executable source plus task-level test evidence
+  ---
+  duration_ms: 8.8297
+  type: 'test'
+  ...
+# Subtest: B2-009 has executable source plus task-level test evidence
+ok 66 - B2-009 has executable source plus task-level test evidence
+  ---
+  duration_ms: 5.364
+  type: 'test'
+  ...
+# Subtest: B2-010 has executable source plus task-level test evidence
+ok 67 - B2-010 has executable source plus task-level test evidence
+  ---
+  duration_ms: 5.0414
+  type: 'test'
+  ...
+# Subtest: B2-011 has executable source plus task-level test evidence
+ok 68 - B2-011 has executable source plus task-level test evidence
+  ---
+  duration_ms: 2.4401
+  type: 'test'
+  ...
+# Subtest: B2-012 has executable source plus task-level test evidence
+ok 69 - B2-012 has executable source plus task-level test evidence
+  ---
+  duration_ms: 3.6115
+  type: 'test'
+  ...
+# Subtest: B2-013 has executable source plus task-level test evidence
+ok 70 - B2-013 has executable source plus task-level test evidence
+  ---
+  duration_ms: 3.0496
+  type: 'test'
+  ...
+# Subtest: B2-014 has executable source plus task-level test evidence
+ok 71 - B2-014 has executable source plus task-level test evidence
+  ---
+  duration_ms: 2.0343
+  type: 'test'
+  ...
+# Subtest: B2-015 has executable source plus task-level test evidence
+ok 72 - B2-015 has executable source plus task-level test evidence
+  ---
+  duration_ms: 6.4331
+  type: 'test'
+  ...
+# Subtest: B2-016 has executable source plus task-level test evidence
+ok 73 - B2-016 has executable source plus task-level test evidence
+  ---
+  duration_ms: 3.3888
+  type: 'test'
+  ...
+# Subtest: B2-017 has executable source plus task-level test evidence
+ok 74 - B2-017 has executable source plus task-level test evidence
+  ---
+  duration_ms: 37.1125
+  type: 'test'
+  ...
+# Subtest: B2-018 has executable source plus task-level test evidence
+ok 75 - B2-018 has executable source plus task-level test evidence
+  ---
+  duration_ms: 3.6963
+  type: 'test'
+  ...
+# Subtest: B2-019 has executable source plus task-level test evidence
+ok 76 - B2-019 has executable source plus task-level test evidence
+  ---
+  duration_ms: 1.4502
+  type: 'test'
+  ...
+# Subtest: B2-020 has executable source plus task-level test evidence
+ok 77 - B2-020 has executable source plus task-level test evidence
+  ---
+  duration_ms: 2.1755
+  type: 'test'
+  ...
+# Subtest: B2-021 has executable source plus task-level test evidence
+ok 78 - B2-021 has executable source plus task-level test evidence
+  ---
+  duration_ms: 1.6219
+  type: 'test'
+  ...
+# Subtest: B2-022 has executable source plus task-level test evidence
+ok 79 - B2-022 has executable source plus task-level test evidence
+  ---
+  duration_ms: 4.6575
+  type: 'test'
+  ...
+# Subtest: B2-023 has executable source plus task-level test evidence
+ok 80 - B2-023 has executable source plus task-level test evidence
+  ---
+  duration_ms: 1.6656
+  type: 'test'
+  ...
+# Subtest: B2-024 has executable source plus task-level test evidence
+ok 81 - B2-024 has executable source plus task-level test evidence
+  ---
+  duration_ms: 1.4868
+  type: 'test'
+  ...
+# Subtest: B2-025 has executable source plus task-level test evidence
+ok 82 - B2-025 has executable source plus task-level test evidence
+  ---
+  duration_ms: 1.418
+  type: 'test'
+  ...
+# Subtest: B2-026 has executable source plus task-level test evidence
+ok 83 - B2-026 has executable source plus task-level test evidence
+  ---
+  duration_ms: 1.1761
+  type: 'test'
+  ...
+# Subtest: B2-027 has executable source plus task-level test evidence
+ok 84 - B2-027 has executable source plus task-level test evidence
+  ---
+  duration_ms: 3.7039
+  type: 'test'
+  ...
+# Subtest: B2-028 has executable source plus task-level test evidence
+ok 85 - B2-028 has executable source plus task-level test evidence
+  ---
+  duration_ms: 4.3054
+  type: 'test'
+  ...
+# Subtest: B2-029 has executable source plus task-level test evidence
+ok 86 - B2-029 has executable source plus task-level test evidence
+  ---
+  duration_ms: 4.1786
+  type: 'test'
+  ...
+# Subtest: B2-030 has executable source plus task-level test evidence
+ok 87 - B2-030 has executable source plus task-level test evidence
+  ---
+  duration_ms: 18.1342
+  type: 'test'
+  ...
+# Subtest: Book 3 uses qualification v2 source accounting
+ok 88 - Book 3 uses qualification v2 source accounting
+  ---
+  duration_ms: 4.3851
+  type: 'test'
+  ...
+# Subtest: B3-001 has executable source plus task-level test evidence
+ok 89 - B3-001 has executable source plus task-level test evidence
+  ---
+  duration_ms: 16.4533
+  type: 'test'
+  ...
+# Subtest: B3-002 has executable source plus task-level test evidence
+ok 90 - B3-002 has executable source plus task-level test evidence
+  ---
+  duration_ms: 4.001
+  type: 'test'
+  ...
+# Subtest: B3-003 has executable source plus task-level test evidence
+ok 91 - B3-003 has executable source plus task-level test evidence
+  ---
+  duration_ms: 2.5359
+  type: 'test'
+  ...
+# Subtest: B3-004 has executable source plus task-level test evidence
+ok 92 - B3-004 has executable source plus task-level test evidence
+  ---
+  duration_ms: 2.5158
+  type: 'test'
+  ...
+# Subtest: B3-005 has executable source plus task-level test evidence
+ok 93 - B3-005 has executable source plus task-level test evidence
+  ---
+  duration_ms: 1.7265
+  type: 'test'
+  ...
+# Subtest: B3-006 has executable source plus task-level test evidence
+ok 94 - B3-006 has executable source plus task-level test evidence
+  ---
+  duration_ms: 2.1078
+  type: 'test'
+  ...
+# Subtest: B3-007 has executable source plus task-level test evidence
+ok 95 - B3-007 has executable source plus task-level test evidence
+  ---
+  duration_ms: 1.8176
+  type: 'test'
+  ...
+# Subtest: B3-008 has executable source plus task-level test evidence
+ok 96 - B3-008 has executable source plus task-level test evidence
+  ---
+  duration_ms: 4.6741
+  type: 'test'
+  ...
+# Subtest: B3-009 has executable source plus task-level test evidence
+ok 97 - B3-009 has executable source plus task-level test evidence
+  ---
+  duration_ms: 1.8403
+  type: 'test'
+  ...
+# Subtest: B3-010 has executable source plus task-level test evidence
+ok 98 - B3-010 has executable source plus task-level test evidence
+  ---
+  duration_ms: 1.725
+  type: 'test'
+  ...
+# Subtest: B3-011 has executable source plus task-level test evidence
+ok 99 - B3-011 has executable source plus task-level test evidence
+  ---
+  duration_ms: 2.6322
+  type: 'test'
+  ...
+# Subtest: B3-012 has executable source plus task-level test evidence
+ok 100 - B3-012 has executable source plus task-level test evidence
+  ---
+  duration_ms: 2.5291
+  type: 'test'
+  ...
+# Subtest: B3-013 has executable source plus task-level test evidence
+ok 101 - B3-013 has executable source plus task-level test evidence
+  ---
+  duration_ms: 1.9791
+  type: 'test'
+  ...
+# Subtest: B3-014 has executable source plus task-level test evidence
+ok 102 - B3-014 has executable source plus task-level test evidence
+  ---
+  duration_ms: 2.8163
+  type: 'test'
+  ...
+# Subtest: B3-015 has executable source plus task-level test evidence
+ok 103 - B3-015 has executable source plus task-level test evidence
+  ---
+  duration_ms: 1.919
+  type: 'test'
+  ...
+# Subtest: B3-016 has executable source plus task-level test evidence
+ok 104 - B3-016 has executable source plus task-level test evidence
+  ---
+  duration_ms: 4.562
+  type: 'test'
+  ...
+# Subtest: B3-017 has executable source plus task-level test evidence
+ok 105 - B3-017 has executable source plus task-level test evidence
+  ---
+  duration_ms: 2.1688
+  type: 'test'
+  ...
+# Subtest: B3-018 has executable source plus task-level test evidence
+ok 106 - B3-018 has executable source plus task-level test evidence
+  ---
+  duration_ms: 2.7788
+  type: 'test'
+  ...
+# Subtest: B3-019 has executable source plus task-level test evidence
+ok 107 - B3-019 has executable source plus task-level test evidence
+  ---
+  duration_ms: 3.3547
+  type: 'test'
+  ...
+# Subtest: B3-020 has executable source plus task-level test evidence
+ok 108 - B3-020 has executable source plus task-level test evidence
+  ---
+  duration_ms: 7.0132
+  type: 'test'
+  ...
+# Subtest: B3-021 has executable source plus task-level test evidence
+ok 109 - B3-021 has executable source plus task-level test evidence
+  ---
+  duration_ms: 2.8056
+  type: 'test'
+  ...
+# Subtest: B3-022 has executable source plus task-level test evidence
+ok 110 - B3-022 has executable source plus task-level test evidence
+  ---
+  duration_ms: 2.4026
+  type: 'test'
+  ...
+# Subtest: B3-023 has executable source plus task-level test evidence
+ok 111 - B3-023 has executable source plus task-level test evidence
+  ---
+  duration_ms: 11.5485
+  type: 'test'
+  ...
+# Subtest: B3-024 has executable source plus task-level test evidence
+ok 112 - B3-024 has executable source plus task-level test evidence
+  ---
+  duration_ms: 3.7854
+  type: 'test'
+  ...
+# Subtest: B3-025 has executable source plus task-level test evidence
+ok 113 - B3-025 has executable source plus task-level test evidence
+  ---
+  duration_ms: 5.914
+  type: 'test'
+  ...
+# Subtest: B3-026 has executable source plus task-level test evidence
+ok 114 - B3-026 has executable source plus task-level test evidence
+  ---
+  duration_ms: 3.5613
+  type: 'test'
+  ...
+# Subtest: B3-027 has executable source plus task-level test evidence
+ok 115 - B3-027 has executable source plus task-level test evidence
+  ---
+  duration_ms: 3.093
+  type: 'test'
+  ...
+# Subtest: B3-028 has executable source plus task-level test evidence
+ok 116 - B3-028 has executable source plus task-level test evidence
+  ---
+  duration_ms: 4.4892
+  type: 'test'
+  ...
+# Subtest: B3-029 has executable source plus task-level test evidence
+ok 117 - B3-029 has executable source plus task-level test evidence
+  ---
+  duration_ms: 10.267
+  type: 'test'
+  ...
+# Subtest: B3-030 has executable source plus task-level test evidence
+ok 118 - B3-030 has executable source plus task-level test evidence
+  ---
+  duration_ms: 0.9396
+  type: 'test'
+  ...
+# Subtest: --help prints usage and exits 0
+ok 119 - --help prints usage and exits 0
+  ---
+  duration_ms: 163.0968
+  type: 'test'
+  ...
+# Subtest: --version prints the canonical version
+ok 120 - --version prints the canonical version
+  ---
+  duration_ms: 272.1875
+  type: 'test'
+  ...
+# Subtest: no subcommand prints usage and exits 4
+ok 121 - no subcommand prints usage and exits 4
+  ---
+  duration_ms: 159.8121
+  type: 'test'
+  ...
+# Subtest: unknown subcommand exits 4
+ok 122 - unknown subcommand exits 4
+  ---
+  duration_ms: 284.4609
+  type: 'test'
+  ...
+# Subtest: providers --json emits machine JSON on stdout
+ok 123 - providers --json emits machine JSON on stdout
+  ---
+  duration_ms: 589.4938
+  type: 'test'
+  ...
+# Subtest: languages --json emits the coverage family surface
+ok 124 - languages --json emits the coverage family surface
+  ---
+  duration_ms: 215.2384
+  type: 'test'
+  ...
+# Subtest: plan --json seals a plan for the checkout root
+ok 125 - plan --json seals a plan for the checkout root
+  ---
+  duration_ms: 2762.3329
+  type: 'test'
+  ...
+# Subtest: report --format json renders a report
+ok 126 - report --format json renders a report
+  ---
+  duration_ms: 103.7771
+  type: 'test'
+  ...
+# Subtest: verify resolves a run directory to its facts artifact
+ok 127 - verify resolves a run directory to its facts artifact
+  ---
+  duration_ms: 771.5292
+  type: 'test'
+  ...
+# Subtest: verify preserves direct facts-file support
+ok 128 - verify preserves direct facts-file support
+  ---
+  duration_ms: 539.2327
+  type: 'test'
+  ...
+# Subtest: verify reports a typed missing-facts error for an invalid run directory
+ok 129 - verify reports a typed missing-facts error for an invalid run directory
+  ---
+  duration_ms: 86.47
+  type: 'test'
+  ...
+# Subtest: verify reports a typed missing-plan error for an incomplete run directory
+ok 130 - verify reports a typed missing-plan error for an incomplete run directory
+  ---
+  duration_ms: 88.4673
+  type: 'test'
+  ...
+# Subtest: exit taxonomy maps report states to codes
+ok 131 - exit taxonomy maps report states to codes
+  ---
+  duration_ms: 0.416
+  type: 'test'
+  ...
+# Subtest: runCli returns structured results with injected streams
+ok 132 - runCli returns structured results with injected streams
+  ---
+  duration_ms: 1.5982
+  type: 'test'
+  ...
+# Subtest: defaults are safe and versioned
+ok 133 - defaults are safe and versioned
+  ---
+  duration_ms: 2.8553
+  type: 'test'
+  ...
+# Subtest: profiles exist for fast, standard, full, release
+ok 134 - profiles exist for fast, standard, full, release
+  ---
+  duration_ms: 0.5446
+  type: 'test'
+  ...
+# Subtest: precedence: defaults < user < repository < cli < sealed plan
+ok 135 - precedence: defaults < user < repository < cli < sealed plan
+  ---
+  duration_ms: 0.866
+  type: 'test'
+  ...
+# Subtest: repository config cannot set host-owned keys
+ok 136 - repository config cannot set host-owned keys
+  ---
+  duration_ms: 0.9866
+  type: 'test'
+  ...
+# Subtest: unknown keys are rejected
+ok 137 - unknown keys are rejected
+  ---
+  duration_ms: 0.3048
+  type: 'test'
+  ...
+# Subtest: unknown profile is rejected
+ok 138 - unknown profile is rejected
+  ---
+  duration_ms: 0.2176
+  type: 'test'
+  ...
+# Subtest: future schema versions are rejected
+ok 139 - future schema versions are rejected
+  ---
+  duration_ms: 0.2896
+  type: 'test'
+  ...
+# Subtest: host-owned key set covers the frozen controls
+ok 140 - host-owned key set covers the frozen controls
+  ---
+  duration_ms: 0.2521
+  type: 'test'
+  ...
+# Subtest: loadRepositoryConfig reads nemesis.config.json
+ok 141 - loadRepositoryConfig reads nemesis.config.json
+  ---
+  duration_ms: 69.3459
+  type: 'test'
+  ...
+# Subtest: loadRepositoryConfig returns {} when absent
+ok 142 - loadRepositoryConfig returns {} when absent
+  ---
+  duration_ms: 3.636
+  type: 'test'
+  ...
+# Subtest: path normalization resolves absolute canonical paths
+ok 143 - path normalization resolves absolute canonical paths
+  ---
+  duration_ms: 0.5124
+  type: 'test'
+  ...
+# Subtest: buildPlan seals a deterministic plan with fixed host clock
+ok 144 - buildPlan seals a deterministic plan with fixed host clock
+  ---
+  duration_ms: 26.846
+  type: 'test'
+  ...
+# Subtest: executePlan produces one receipt per selected provider
+ok 145 - executePlan produces one receipt per selected provider
+  ---
+  duration_ms: 530.0795
+  type: 'test'
+  ...
+# Subtest: reconcileRun builds facts bound to the plan
+ok 146 - reconcileRun builds facts bound to the plan
+  ---
+  duration_ms: 1.2973
+  type: 'test'
+  ...
+# Subtest: finalizeRun produces a report with injected clock
+ok 147 - finalizeRun produces a report with injected clock
+  ---
+  duration_ms: 5.0016
+  type: 'test'
+  ...
+# Subtest: verifyRun produces a deterministic receipt
+ok 148 - verifyRun produces a deterministic receipt
+  ---
+  duration_ms: 1.1927
+  type: 'test'
+  ...
+# Subtest: run manifest is written from the artifact store records
+ok 149 - run manifest is written from the artifact store records
+  ---
+  duration_ms: 67.2471
+  type: 'test'
+  ...
+# Subtest: fixed host uuid sequence is deterministic
+ok 150 - fixed host uuid sequence is deterministic
+  ---
+  duration_ms: 0.9132
+  type: 'test'
+  ...
+# Subtest: default sealed planning retains fixed source claim stages and fails closed without denominators
+ok 151 - default sealed planning retains fixed source claim stages and fails closed without denominators
+  ---
+  duration_ms: 16.4988
+  type: 'test'
+  ...
+# Subtest: mutable partial stage lists cannot replace fixed planning order
+ok 152 - mutable partial stage lists cannot replace fixed planning order
+  ---
+  duration_ms: 1.106
+  type: 'test'
+  ...
+# Subtest: duplicate or malformed stages cannot create an ambiguous sealed plan
+ok 153 - duplicate or malformed stages cannot create an ambiguous sealed plan
+  ---
+  duration_ms: 0.7825
+  type: 'test'
+  ...
+# Subtest: book qualification discovers deterministic focused suites without running them
+ok 154 - book qualification discovers deterministic focused suites without running them
+  ---
+  duration_ms: 104.8495
+  type: 'test'
+  ...
+# Subtest: missing external source inputs remain explicit ledger states
+ok 155 - missing external source inputs remain explicit ledger states
+  ---
+  duration_ms: 34.336
+  type: 'test'
+  ...
+# Subtest: B1-001 package manifest exposes one public binary and later-book public paths
+ok 156 - B1-001 package manifest exposes one public binary and later-book public paths
+  ---
+  duration_ms: 43.0426
+  type: 'test'
+  ...
+# Subtest: B1-002 canonical enums reject unknown values and future schema versions
+ok 157 - B1-002 canonical enums reject unknown values and future schema versions
+  ---
+  duration_ms: 2.0915
+  type: 'test'
+  ...
+# Subtest: B1-003 command catalogue generates complete strict CLI help
+ok 158 - B1-003 command catalogue generates complete strict CLI help
+  ---
+  duration_ms: 4.4949
+  type: 'test'
+  ...
+# Subtest: B1-004 fixed host returns typed unavailable capability receipts
+ok 159 - B1-004 fixed host returns typed unavailable capability receipts
+  ---
+  duration_ms: 3.0687
+  type: 'test'
+  ...
+# Subtest: B1-005 artifact paths reject alternate separators and digests bind bytes
+ok 160 - B1-005 artifact paths reject alternate separators and digests bind bytes
+  ---
+  duration_ms: 7.367
+  type: 'test'
+  ...
+# Subtest: B1-006 run manifest rejects orphan and missing declared files
+ok 161 - B1-006 run manifest rejects orphan and missing declared files
+  ---
+  duration_ms: 4.08
+  type: 'test'
+  ...
+# Subtest: B1-007 trusted merge rejects repository attempts to grant host policy
+ok 162 - B1-007 trusted merge rejects repository attempts to grant host policy
+  ---
+  duration_ms: 2.12
+  type: 'test'
+  ...
+# Subtest: B1-008 sealed profiles expose resource, cache, cancellation, schedule, and reasoning policy
+ok 163 - B1-008 sealed profiles expose resource, cache, cancellation, schedule, and reasoning policy
+  ---
+  duration_ms: 3.2768
+  type: 'test'
+  ...
+# Subtest: B1-009 family and lens registries reject dependency cycles
+ok 164 - B1-009 family and lens registries reject dependency cycles
+  ---
+  duration_ms: 2.3682
+  type: 'test'
+  ...
+# Subtest: B1-010 provider v2 rejects candidate generators that emit findings
+ok 165 - B1-010 provider v2 rejects candidate generators that emit findings
+  ---
+  duration_ms: 2.2255
+  type: 'test'
+  ...
+# Subtest: B1-011 schedule compiler uses lexical waves and rejects impossible resources
+ok 166 - B1-011 schedule compiler uses lexical waves and rejects impossible resources
+  ---
+  duration_ms: 22.5652
+  type: 'test'
+  ...
+# Subtest: B1-012 reasoning runner prepares a packet without invoking a reviewer
+ok 167 - B1-012 reasoning runner prepares a packet without invoking a reviewer
+  ---
+  duration_ms: 5.456
+  type: 'test'
+  ...
+# Subtest: B1-013 precomputed Cortex projection rejects stale repository binding
+ok 168 - B1-013 precomputed Cortex projection rejects stale repository binding
+  ---
+  duration_ms: 1.2938
+  type: 'test'
+  ...
+# Subtest: B1-014 binding comparison is stable across path separators
+ok 169 - B1-014 binding comparison is stable across path separators
+  ---
+  duration_ms: 0.5903
+  type: 'test'
+  ...
+# Subtest: B1-015 planning stage registry is fixed and missing required stages are typed
+ok 170 - B1-015 planning stage registry is fixed and missing required stages are typed
+  ---
+  duration_ms: 16.849
+  type: 'test'
+  ...
+# Subtest: B1-016 scheduler preserves independent work when one dependency blocks
+ok 171 - B1-016 scheduler preserves independent work when one dependency blocks
+  ---
+  duration_ms: 2.3991
+  type: 'test'
+  ...
+# Subtest: B1-017 zero findings with a required gap is incomplete
+ok 172 - B1-017 zero findings with a required gap is incomplete
+  ---
+  duration_ms: 1.1417
+  type: 'test'
+  ...
+# Subtest: B1-018 reviewer policy rejects context reuse and self-adjudication
+ok 173 - B1-018 reviewer policy rejects context reuse and self-adjudication
+  ---
+  duration_ms: 1.1192
+  type: 'test'
+  ...
+# Subtest: B1-019 report model preserves topology, controls, and per-claim decisions without a score
+ok 174 - B1-019 report model preserves topology, controls, and per-claim decisions without a score
+  ---
+  duration_ms: 1.4466
+  type: 'test'
+  ...
+# Subtest: B1-020 semantic verification excludes time, paths, and presentation ordering
+ok 175 - B1-020 semantic verification excludes time, paths, and presentation ordering
+  ---
+  duration_ms: 1.6382
+  type: 'test'
+  ...
+# Subtest: B1-021 schedule command is a pure canonical renderer
+ok 176 - B1-021 schedule command is a pure canonical renderer
+  ---
+  duration_ms: 1.4748
+  type: 'test'
+  ...
+# Subtest: B1-022 skill bundle contract rejects absolute internal URIs and separates profiles
+ok 177 - B1-022 skill bundle contract rejects absolute internal URIs and separates profiles
+  ---
+  duration_ms: 1.4237
+  type: 'test'
+  ...
+# Subtest: B1-023 skill URI resolver and verifier are package-relative and digest-bound
+ok 178 - B1-023 skill URI resolver and verifier are package-relative and digest-bound
+  ---
+  duration_ms: 2.2273
+  type: 'test'
+  ...
+# Subtest: B1-024 skill transformation is deterministic, neutral, and strips audit mutation authority
+ok 179 - B1-024 skill transformation is deterministic, neutral, and strips audit mutation authority
+  ---
+  duration_ms: 2.7829
+  type: 'test'
+  ...
+# Subtest: B1-025 Designer bundle preserves audit authority boundaries
+ok 180 - B1-025 Designer bundle preserves audit authority boundaries
+  ---
+  duration_ms: 9.7669
+  type: 'test'
+  ...
+# Subtest: B1-026 Writing bundle makes proof and no-fabrication explicit
+ok 181 - B1-026 Writing bundle makes proof and no-fabrication explicit
+  ---
+  duration_ms: 1.3863
+  type: 'test'
+  ...
+# Subtest: B1-027 qualifier supports Books 1 through 6 and package smoke exercises library plus plan
+ok 182 - B1-027 qualifier supports Books 1 through 6 and package smoke exercises library plus plan
+  ---
+  duration_ms: 79.7774
+  type: 'test'
+  ...
+# Subtest: B1-028 qualification digest ignores duration and noisy test bytes
+ok 183 - B1-028 qualification digest ignores duration and noisy test bytes
+  ---
+  duration_ms: 0.7084
+  type: 'test'
+  ...
+# Subtest: B1 CLI rejects unknown options and every advertised command has live help
+ok 184 - B1 CLI rejects unknown options and every advertised command has live help
+  ---
+  duration_ms: 59.6155
+  type: 'test'
+  ...
+# Subtest: B1 selected unsupported runners remain incomplete and visible in checks
+ok 185 - B1 selected unsupported runners remain incomplete and visible in checks
+  ---
+  duration_ms: 21.4733
+  type: 'test'
+  ...
+# Subtest: B1 resource scheduler retains dependents and aggregate ceilings split waves
+ok 186 - B1 resource scheduler retains dependents and aggregate ceilings split waves
+  ---
+  duration_ms: 26.803
+  type: 'test'
+  ...
+# Subtest: B1 audit skill profile denies authoring tree and bundle links resolve once
+ok 187 - B1 audit skill profile denies authoring tree and bundle links resolve once
+  ---
+  duration_ms: 1840.3221
+  type: 'test'
+  ...
+# Subtest: B1 profiles are deeply immutable and digest bound
+ok 188 - B1 profiles are deeply immutable and digest bound
+  ---
+  duration_ms: 9.9282
+  type: 'test'
+  ...
+# Subtest: B1 fixed host exposes typed service and capability absence
+ok 189 - B1 fixed host exposes typed service and capability absence
+  ---
+  duration_ms: 0.5491
+  type: 'test'
+  ...
+# Subtest: B1 runtime module cannot invoke an arbitrary run export
+ok 190 - B1 runtime module cannot invoke an arbitrary run export
+  ---
+  duration_ms: 130.9956
+  type: 'test'
+  ...
+# Subtest: B1 reconciliation rejects duplicate unplanned and forged receipts
+ok 191 - B1 reconciliation rejects duplicate unplanned and forged receipts
+  ---
+  duration_ms: 4.3171
+  type: 'test'
+  ...
+# Subtest: B1 scheduler enforces canonical dependencies exclusive locks and blocked descendants
+ok 192 - B1 scheduler enforces canonical dependencies exclusive locks and blocked descendants
+  ---
+  duration_ms: 1.1276
+  type: 'test'
+  ...
+# Subtest: B1 semantic verification rejects binding-only replay and control drift
+ok 193 - B1 semantic verification rejects binding-only replay and control drift
+  ---
+  duration_ms: 4.2001
+  type: 'test'
+  ...
+# Subtest: B1 skill manifests never manufacture rights evidence and reject unsupported versions
+ok 194 - B1 skill manifests never manufacture rights evidence and reject unsupported versions
+  ---
+  duration_ms: 39.5027
+  type: 'test'
+  ...
+# Subtest: B1 executor runtime modules are sealed package files and never embedded callbacks
+ok 195 - B1 executor runtime modules are sealed package files and never embedded callbacks
+  ---
+  duration_ms: 69.6487
+  type: 'test'
+  ...
+# Subtest: B1 imported artifacts return bound terminal receipts not bare artifacts
+ok 196 - B1 imported artifacts return bound terminal receipts not bare artifacts
+  ---
+  duration_ms: 4.3856
+  type: 'test'
+  ...
+# Subtest: B1 audit CLI invokes public core pipeline once without legacy subprocess entrypoints
+ok 197 - B1 audit CLI invokes public core pipeline once without legacy subprocess entrypoints
+  ---
+  duration_ms: 3.407
+  type: 'test'
+  ...
+# Subtest: B1 skills and rules commands load packaged registries by default
+ok 198 - B1 skills and rules commands load packaged registries by default
+  ---
+  duration_ms: 92.0259
+  type: 'test'
+  ...
+# Subtest: B1 required adjudication without reviewer remains typed unproven
+ok 199 - B1 required adjudication without reviewer remains typed unproven
+  ---
+  duration_ms: 4.1812
+  type: 'test'
+  ...
+# Subtest: B1 report model fails closed on missing topology and control denominators
+ok 200 - B1 report model fails closed on missing topology and control denominators
+  ---
+  duration_ms: 1.4653
+  type: 'test'
+  ...
+# Subtest: B1 schedule consumes canonical plan bytes and fix validates sealed remediation digest
+ok 201 - B1 schedule consumes canonical plan bytes and fix validates sealed remediation digest
+  ---
+  duration_ms: 60.7682
+  type: 'test'
+  ...
+# Subtest: B1 packaged audit instructions and native providers expose no mutation or shell execution grants
+ok 202 - B1 packaged audit instructions and native providers expose no mutation or shell execution grants
+  ---
+  duration_ms: 660.8875
+  type: 'test'
+  ...
+# Subtest: B1 public audit binds repository honors filters planOnly and persists canonical plan
+ok 203 - B1 public audit binds repository honors filters planOnly and persists canonical plan
+  ---
+  duration_ms: 140.0019
+  type: 'test'
+  ...
+# Subtest: external mode requires a configured command
+ok 204 - external mode requires a configured command
+  ---
+  duration_ms: 2.4247
+  type: 'test'
+  ...
+# Subtest: bundled mode reports compatibility when bundled provider is present
+ok 205 - bundled mode reports compatibility when bundled provider is present
+  ---
+  duration_ms: 1.522
+  type: 'test'
+  ...
+# Subtest: precomputed mode verifies binding and reads the projection
+ok 206 - precomputed mode verifies binding and reads the projection
+  ---
+  duration_ms: 20.3374
+  type: 'test'
+  ...
+# Subtest: precomputed mode fails cleanly when the path is missing
+ok 207 - precomputed mode fails cleanly when the path is missing
+  ---
+  duration_ms: 0.4091
+  type: 'test'
+  ...
+# Subtest: verifyFreshness reports stale for non-ready projections
+ok 208 - verifyFreshness reports stale for non-ready projections
+  ---
+  duration_ms: 0.2977
+  type: 'test'
+  ...
+# Subtest: adapter never adds a parallel repository walker
+ok 209 - adapter never adds a parallel repository walker
+  ---
+  duration_ms: 0.5258
+  type: 'test'
+  ...
+# Subtest: package smoke covers public binary through semantic verification
+ok 210 - package smoke covers public binary through semantic verification
+  ---
+  duration_ms: 3.7625
+  type: 'test'
+  ...
+# Subtest: package smoke assembles only public files and executes every public core phase from copy
+ok 211 - package smoke assembles only public files and executes every public core phase from copy
+  ---
+  duration_ms: 20406.5125
+  type: 'test'
+  ...
+# Subtest: spawnStatus completed does not imply provider verdict pass
+ok 212 - spawnStatus completed does not imply provider verdict pass
+  ---
+  duration_ms: 3.8679
+  type: 'test'
+  ...
+# Subtest: missing tool produces a blocked execution receipt
+ok 213 - missing tool produces a blocked execution receipt
+  ---
+  duration_ms: 0.487
+  type: 'test'
+  ...
+# Subtest: unsealed legacy host result stays unproven
+ok 214 - unsealed legacy host result stays unproven
+  ---
+  duration_ms: 2.602
+  type: 'test'
+  ...
+# Subtest: unsealed timeout-shaped host result cannot claim timeout receipt authority
+ok 215 - unsealed timeout-shaped host result cannot claim timeout receipt authority
+  ---
+  duration_ms: 0.9877
+  type: 'test'
+  ...
+# Subtest: malformed output (runner throws) produces an error receipt
+ok 216 - malformed output (runner throws) produces an error receipt
+  ---
+  duration_ms: 0.9318
+  type: 'test'
+  ...
+# Subtest: selected provider with unsealed runtime module remains blocked
+ok 217 - selected provider with unsealed runtime module remains blocked
+  ---
+  duration_ms: 25.773
+  type: 'test'
+  ...
+# Subtest: reconcileRun marks incomplete when a terminal receipt is missing
+ok 218 - reconcileRun marks incomplete when a terminal receipt is missing
+  ---
+  duration_ms: 1.6149
+  type: 'test'
+  ...
+# Subtest: reconcileRun keeps blocked execution status visible
+ok 219 - reconcileRun keeps blocked execution status visible
+  ---
+  duration_ms: 0.6898
+  type: 'test'
+  ...
+# Subtest: exit taxonomy: incomplete is never pass, policy fail is 1
+ok 220 - exit taxonomy: incomplete is never pass, policy fail is 1
+  ---
+  duration_ms: 0.3808
+  type: 'test'
+  ...
+# Subtest: finalizeRun attaches the canonical exit code
+ok 221 - finalizeRun attaches the canonical exit code
+  ---
+  duration_ms: 4.138
+  type: 'test'
+  ...
+# Subtest: policy finding maps to exit 1
+ok 222 - policy finding maps to exit 1
+  ---
+  duration_ms: 1.0014
+  type: 'test'
+  ...
+# Subtest: package manifest version agrees with the CLI and schema versions
+ok 223 - package manifest version agrees with the CLI and schema versions
+  ---
+  duration_ms: 3.9684
+  type: 'test'
+  ...
+# Subtest: package files allowlist excludes internal state
+ok 224 - package files allowlist excludes internal state
+  ---
+  duration_ms: 0.919
+  type: 'test'
+  ...
+# Subtest: package smoke manifest is present and forbids internal content
+ok 225 - package smoke manifest is present and forbids internal content
+  ---
+  duration_ms: 0.788
+  type: 'test'
+  ...
+# Subtest: bin entry is executable and versioned
+ok 226 - bin entry is executable and versioned
+  ---
+  duration_ms: 211.2076
+  type: 'test'
+  ...
+# Subtest: registry is executable and generated manifest is derived from it
+ok 227 - registry is executable and generated manifest is derived from it
+  ---
+  duration_ms: 8.323
+  type: 'test'
+  ...
+# Subtest: Cortex projection pins one generation and extracts the file denominator
+ok 228 - Cortex projection pins one generation and extracts the file denominator
+  ---
+  duration_ms: 26.6798
+  type: 'test'
+  ...
+# Subtest: Cortex generation movement fails closed instead of narrowing discovery
+ok 229 - Cortex generation movement fails closed instead of narrowing discovery
+  ---
+  duration_ms: 4.8138
+  type: 'test'
+  ...
+# Subtest: mixed React, Rust, Tauri plan is additive, denominator-bound, and tamper-evident
+ok 230 - mixed React, Rust, Tauri plan is additive, denominator-bound, and tamper-evident
+  ---
+  duration_ms: 54.3414
+  type: 'test'
+  ...
+# Subtest: missing Cortex selects only explicitly safe universal providers and stays UNPROVEN
+ok 231 - missing Cortex selects only explicitly safe universal providers and stays UNPROVEN
+  ---
+  duration_ms: 3.3014
+  type: 'test'
+  ...
+# Subtest: dirty-tree binding changes when tracked or untracked content changes
+ok 232 - dirty-tree binding changes when tracked or untracked content changes
+  ---
+  duration_ms: 4008.2003
+  type: 'test'
+  ...
+# Subtest: binding verification includes Cortex source observation
+ok 233 - binding verification includes Cortex source observation
+  ---
+  duration_ms: 8.1592
+  type: 'test'
+  ...
+# Subtest: candidate generator cannot adjudicate itself or reuse its context
+ok 234 - candidate generator cannot adjudicate itself or reuse its context
+  ---
+  duration_ms: 1.7692
+  type: 'test'
+  ...
+# Subtest: precision/recall is reproducible over labeled positives and negatives
+ok 235 - precision/recall is reproducible over labeled positives and negatives
+  ---
+  duration_ms: 17.6394
+  type: 'test'
+  ...
+# Subtest: provider-selection corpus is labeled, reproducible, and includes negatives
+ok 236 - provider-selection corpus is labeled, reproducible, and includes negatives
+  ---
+  duration_ms: 7.2907
+  type: 'test'
+  ...
+# Subtest: report conversion emits dependency-free SARIF 2.1.0
+ok 237 - report conversion emits dependency-free SARIF 2.1.0
+  ---
+  duration_ms: 1.488
+  type: 'test'
+  ...
+# Subtest: selected facts provider that skips remains incomplete
+ok 238 - selected facts provider that skips remains incomplete
+  ---
+  duration_ms: 27.1099
+  type: 'test'
+  ...
+# Subtest: final reconciliation rejects missing or extra scanner results
+ok 239 - final reconciliation rejects missing or extra scanner results
+  ---
+  duration_ms: 16.0374
+  type: 'test'
+  ...
+# Subtest: data suite emits candidates with findings: [] and status candidates
+ok 240 - data suite emits candidates with findings: [] and status candidates
+  ---
+  duration_ms: 62.8362
+  type: 'test'
+  ...
+# Subtest: infrastructure suite emits candidates with findings: []
+ok 241 - infrastructure suite emits candidates with findings: []
+  ---
+  duration_ms: 24.8246
+  type: 'test'
+  ...
+# Subtest: framework family results are owned by the plan provider
+ok 242 - framework family results are owned by the plan provider
+  ---
+  duration_ms: 20.8644
+  type: 'test'
+  ...
+# Subtest: SARIF uses the canonical Orthic Labs Nemesis identity
+ok 243 - SARIF uses the canonical Orthic Labs Nemesis identity
+  ---
+  duration_ms: 1.2896
+  type: 'test'
+  ...
+# Subtest: SARIF results carry stable nemesisFinding partial fingerprints
+ok 244 - SARIF results carry stable nemesisFinding partial fingerprints
+  ---
+  duration_ms: 0.4546
+  type: 'test'
+  ...
+# Subtest: SARIF includes root-cause fingerprint when present
+ok 245 - SARIF includes root-cause fingerprint when present
+  ---
+  duration_ms: 0.3005
+  type: 'test'
+  ...
+# Subtest: provider status pass is accepted
+ok 246 - provider status pass is accepted
+  ---
+  duration_ms: 4.1535
+  type: 'test'
+  ...
+# Subtest: provider status fail is accepted
+ok 247 - provider status fail is accepted
+  ---
+  duration_ms: 0.2775
+  type: 'test'
+  ...
+# Subtest: provider status partial is accepted
+ok 248 - provider status partial is accepted
+  ---
+  duration_ms: 0.2283
+  type: 'test'
+  ...
+# Subtest: provider status unproven is accepted
+ok 249 - provider status unproven is accepted
+  ---
+  duration_ms: 0.2287
+  type: 'test'
+  ...
+# Subtest: provider status skipped is accepted
+ok 250 - provider status skipped is accepted
+  ---
+  duration_ms: 0.1789
+  type: 'test'
+  ...
+# Subtest: provider status error is accepted
+ok 251 - provider status error is accepted
+  ---
+  duration_ms: 0.1742
+  type: 'test'
+  ...
+# Subtest: provider status pending is accepted
+ok 252 - provider status pending is accepted
+  ---
+  duration_ms: 0.1965
+  type: 'test'
+  ...
+# Subtest: provider status missing is accepted
+ok 253 - provider status missing is accepted
+  ---
+  duration_ms: 0.1698
+  type: 'test'
+  ...
+# Subtest: provider status candidates is accepted
+ok 254 - provider status candidates is accepted
+  ---
+  duration_ms: 0.2279
+  type: 'test'
+  ...
+# Subtest: provider status blocked is accepted
+ok 255 - provider status blocked is accepted
+  ---
+  duration_ms: 0.3485
+  type: 'test'
+  ...
+# Subtest: provider result statuses match the committed schema enum
+ok 256 - provider result statuses match the committed schema enum
+  ---
+  duration_ms: 1.9451
+  type: 'test'
+  ...
+# Subtest: normalized arrays are never null
+ok 257 - normalized arrays are never null
+  ---
+  duration_ms: 1.1959
+  type: 'test'
+  ...
+# Subtest: required provider with unbound denominator is a validation gap
+ok 258 - required provider with unbound denominator is a validation gap
+  ---
+  duration_ms: 0.2372
+  type: 'test'
+  ...
+# Subtest: provider roles and phases are frozen and asserted
+ok 259 - provider roles and phases are frozen and asserted
+  ---
+  duration_ms: 0.3055
+  type: 'test'
+  ...
+# Subtest: security verdicts and evidence strength are canonical
+ok 260 - security verdicts and evidence strength are canonical
+  ---
+  duration_ms: 0.1742
+  type: 'test'
+  ...
+# Subtest: security binding helper rejects incomplete bindings
+ok 261 - security binding helper rejects incomplete bindings
+  ---
+  duration_ms: 0.7101
+  type: 'test'
+  ...
+# Subtest: stable IDs are deterministic and canonicalize is stable
+ok 262 - stable IDs are deterministic and canonicalize is stable
+  ---
+  duration_ms: 1.3061
+  type: 'test'
+  ...
+# Subtest: topological order respects dependencies
+ok 263 - topological order respects dependencies
+  ---
+  duration_ms: 6.4163
+  type: 'test'
+  ...
+# Subtest: unknown dependency is rejected
+ok 264 - unknown dependency is rejected
+  ---
+  duration_ms: 0.8573
+  type: 'test'
+  ...
+# Subtest: self-dependency is rejected
+ok 265 - self-dependency is rejected
+  ---
+  duration_ms: 0.3165
+  type: 'test'
+  ...
+# Subtest: dependency cycle is rejected
+ok 266 - dependency cycle is rejected
+  ---
+  duration_ms: 0.4412
+  type: 'test'
+  ...
+# Subtest: unproduced consumed artifact is rejected
+ok 267 - unproduced consumed artifact is rejected
+  ---
+  duration_ms: 6.419
+  type: 'test'
+  ...
+# Subtest: duplicate singleton producer is rejected
+ok 268 - duplicate singleton producer is rejected
+  ---
+  duration_ms: 0.4943
+  type: 'test'
+  ...
+# Subtest: role/output authority violations are rejected
+ok 269 - role/output authority violations are rejected
+  ---
+  duration_ms: 0.7646
+  type: 'test'
+  ...
+# Subtest: unknown role is rejected
+ok 270 - unknown role is rejected
+  ---
+  duration_ms: 0.4205
+  type: 'test'
+  ...
+# Subtest: valid DAG validates cleanly
+ok 271 - valid DAG validates cleanly
+  ---
+  duration_ms: 0.9226
+  type: 'test'
+  ...
+# Subtest: dependency and script selected providers bind Cortex implementation files, not only package.json
+ok 272 - dependency and script selected providers bind Cortex implementation files, not only package.json
+  ---
+  duration_ms: 20.1168
+  type: 'test'
+  ...
+# Subtest: signed plan verifies only with the matching key
+ok 273 - signed plan verifies only with the matching key
+  ---
+  duration_ms: 27.3551
+  type: 'test'
+  ...
+# Subtest: unsigned plan is integrity-valid but explicitly UNPROVEN
+ok 274 - unsigned plan is integrity-valid but explicitly UNPROVEN
+  ---
+  duration_ms: 7.2497
+  type: 'test'
+  ...
+# Subtest: external process runner blocks non-allowlisted executables
+ok 275 - external process runner blocks non-allowlisted executables
+  ---
+  duration_ms: 3.7612
+  type: 'test'
+  ...
+# Subtest: shell execution is forbidden
+ok 276 - shell execution is forbidden
+  ---
+  duration_ms: 1.4028
+  type: 'test'
+  ...
+# Subtest: external process runs with sanitized environment
+ok 277 - external process runs with sanitized environment
+  ---
+  duration_ms: 966.5581
+  type: 'test'
+  ...
+# Subtest: timeout aborts the child and reports timeout
+ok 278 - timeout aborts the child and reports timeout
+  ---
+  duration_ms: 563.1313
+  type: 'test'
+  ...
+# Subtest: output cap terminates the child
+ok 279 - output cap terminates the child
+  ---
+  duration_ms: 696.7473
+  type: 'test'
+  ...
+# Subtest: project-executing provider requires a network-sandbox receipt
+ok 280 - project-executing provider requires a network-sandbox receipt
+  ---
+  duration_ms: 1.0442
+  type: 'test'
+  ...
+# Subtest: non-project providers do not require a sandbox
+ok 281 - non-project providers do not require a sandbox
+  ---
+  duration_ms: 0.2893
+  type: 'test'
+  ...
+# Subtest: reasoning-contract providers remain unproven when reviewer is unavailable
+ok 282 - reasoning-contract providers remain unproven when reviewer is unavailable
+  ---
+  duration_ms: 0.8989
+  type: 'test'
+  ...
+# Subtest: imported-artifact provider requires its artifact
+ok 283 - imported-artifact provider requires its artifact
+  ---
+  duration_ms: 0.5817
+  type: 'test'
+  ...
+# Subtest: resolveRepositoryModule rejects absolute external paths
+ok 284 - resolveRepositoryModule rejects absolute external paths
+  ---
+  duration_ms: 0.899
+  type: 'test'
+  ...
+# Subtest: pickEnvironment only carries allowlisted keys
+ok 285 - pickEnvironment only carries allowlisted keys
+  ---
+  duration_ms: 0.4459
+  type: 'test'
+  ...
+# Subtest: blocked helper produces a canonical blocked receipt
+ok 286 - blocked helper produces a canonical blocked receipt
+  ---
+  duration_ms: 0.3794
+  type: 'test'
+  ...
+# Subtest: stableId is deterministic and canonical
+ok 287 - stableId is deterministic and canonical
+  ---
+  duration_ms: 2.549
+  type: 'test'
+  ...
+# Subtest: pathDenominator normalizes, dedupes, sorts, and digests
+ok 288 - pathDenominator normalizes, dedupes, sorts, and digests
+  ---
+  duration_ms: 1.6858
+  type: 'test'
+  ...
+# Subtest: validateProviderRecord checks the v2 minimum
+ok 289 - validateProviderRecord checks the v2 minimum
+  ---
+  duration_ms: 0.3403
+  type: 'test'
+  ...
+# Subtest: normalizeProviderResult is re-exported through the SDK
+ok 290 - normalizeProviderResult is re-exported through the SDK
+  ---
+  duration_ms: 0.6355
+  type: 'test'
+  ...
+# Subtest: topologicalProviders is exported through the SDK
+ok 291 - topologicalProviders is exported through the SDK
+  ---
+  duration_ms: 0.6484
+  type: 'test'
+  ...
+# Subtest: selected-but-not-activated provider emits an explicit incomplete blocked receipt
+ok 292 - selected-but-not-activated provider emits an explicit incomplete blocked receipt
+  ---
+  duration_ms: 0.7374
+  type: 'test'
+  ...
+# Subtest: B1 receipt binds every task to a behavioral assertion and owned implementation symbol
+not ok 293 - B1 receipt binds every task to a behavioral assertion and owned implementation symbol
+  ---
+  duration_ms: 785.296
+  type: 'test'
+  location: 'D:\\Claude\\tools\\skills\\nemesis\\tests\\qualification\\book-1-receipt.test.mjs:11:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly deep-equal:
+    + actual - expected
+    
+    + [
+    +   'source-revision-mismatch'
+    + ]
+    - []
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+  actual:
+    0: 'source-revision-mismatch'
+  operator: 'deepStrictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///D:/Claude/tools/skills/nemesis/tests/qualification/book-1-receipt.test.mjs:13:10)
+    Test.runInAsyncScope (node:async_hooks:226:14)
+    Test.run (node:internal/test_runner/test:1382:25)
+    Test.start (node:internal/test_runner/test:1242:17)
+    startSubtestAfterBootstrap (node:internal/test_runner/harness:387:17)
+  ...
+# Subtest: B1 receipt rejects stale revision, changed evidence bytes, and undeclared fields
+ok 294 - B1 receipt rejects stale revision, changed evidence bytes, and undeclared fields
+  ---
+  duration_ms: 1741.2225
+  type: 'test'
+  ...
+# Subtest: B1 receipt rejects dependency reordering and assertions absent from named test bytes
+ok 295 - B1 receipt rejects dependency reordering and assertions absent from named test bytes
+  ---
+  duration_ms: 811.3789
+  type: 'test'
+  ...
+# Subtest: generated provider-result schema deep-equals the committed schema
+ok 296 - generated provider-result schema deep-equals the committed schema
+  ---
+  duration_ms: 3.7673
+  type: 'test'
+  ...
+# Subtest: generated security-verdict schema deep-equals the committed schema
+ok 297 - generated security-verdict schema deep-equals the committed schema
+  ---
+  duration_ms: 4.4907
+  type: 'test'
+  ...
+# Subtest: schema enums match the code-owned contract enums
+ok 298 - schema enums match the code-owned contract enums
+  ---
+  duration_ms: 4.9648
+  type: 'test'
+  ...
+# Subtest: buildSchemas covers every committed schema
+ok 299 - buildSchemas covers every committed schema
+  ---
+  duration_ms: 0.9249
+  type: 'test'
+  ...
+# Subtest: schemas contain no legacy bogusyogi identity
+ok 300 - schemas contain no legacy bogusyogi identity
+  ---
+  duration_ms: 0.9855
+  type: 'test'
+  ...
+# Subtest: designer supplied bundle is complete and digest-bound
+ok 301 - designer supplied bundle is complete and digest-bound
+  ---
+  duration_ms: 24.874
+  type: 'test'
+  ...
+# Subtest: writing supplied bundle is complete and digest-bound
+ok 302 - writing supplied bundle is complete and digest-bound
+  ---
+  duration_ms: 3.9398
+  type: 'test'
+  ...
+# publication blocked: D:\\Claude\\tools\\skills\\nemesis\\release\\publication-policy.json is absent
+# SCHEMA DRIFT: schemas/provider-result-v1.schema.json is not up to date with the code-owned enums; run node scripts/generate-schemas.mjs
+# Subtest: public checkout contains no parent-workspace path dependency
+ok 303 - public checkout contains no parent-workspace path dependency
+  ---
+  duration_ms: 2.4255
+  type: 'test'
+  ...
+# Subtest: CI workflow is self-contained in this repository
+ok 304 - CI workflow is self-contained in this repository
+  ---
+  duration_ms: 0.7802
+  type: 'test'
+  ...
+# Subtest: publication guard exists and blocks public channels without a grant
+ok 305 - publication guard exists and blocks public channels without a grant
+  ---
+  duration_ms: 363.4808
+  type: 'test'
+  ...
+# Subtest: benchmark baseline is versioned and reproducible
+ok 306 - benchmark baseline is versioned and reproducible
+  ---
+  duration_ms: 0.7893
+  type: 'test'
+  ...
+# Subtest: license and third-party notices are present
+ok 307 - license and third-party notices are present
+  ---
+  duration_ms: 0.9524
+  type: 'test'
+  ...
+# Subtest: fresh standalone checkout runs self-test and schema check without parent files
+not ok 308 - fresh standalone checkout runs self-test and schema check without parent files
+  ---
+  duration_ms: 538.3066
+  type: 'test'
+  location: 'D:\\Claude\\tools\\skills\\nemesis\\tests\\standalone-checkout.test.mjs:58:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Command failed: C:\nvm4w\nodejs\node.exe scripts/generate-schemas.mjs --check
+    SCHEMA DRIFT: schemas/provider-result-v1.schema.json is not up to date with the code-owned enums; run node scripts/generate-schemas.mjs
+    
+  code: 'ERR_TEST_FAILURE'
+  stack: |-
+    genericNodeError (node:internal/errors:999:15)
+    wrappedFn (node:internal/errors:544:14)
+    checkExecSyncError (node:child_process:942:11)
+    execFileSync (node:child_process:978:15)
+    TestContext.<anonymous> (file:///D:/Claude/tools/skills/nemesis/tests/standalone-checkout.test.mjs:64:25)
+    Test.runInAsyncScope (node:async_hooks:226:14)
+    Test.run (node:internal/test_runner/test:1382:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+    Test.postRun (node:internal/test_runner/test:1522:19)
+    Test.run (node:internal/test_runner/test:1447:12)
+  ...
+# Subtest: Windows portability tests pass from a copied standalone checkout
+ok 309 - Windows portability tests pass from a copied standalone checkout
+  ---
+  duration_ms: 3716.6218
+  type: 'test'
+  ...
+1..309
+# tests 309
+# suites 0
+# pass 307
+# fail 2
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 20791.0709
+=== GREEN: exact parsed aggregate after recovery ===
+TAP version 13
+# Subtest: writeJson creates an atomic content-digested artifact
+ok 1 - writeJson creates an atomic content-digested artifact
+  ---
+  duration_ms: 16.4705
+  type: 'test'
+  ...
+# Subtest: writeBytes records bytes, digest, and size
+ok 2 - writeBytes records bytes, digest, and size
+  ---
+  duration_ms: 20.0555
+  type: 'test'
+  ...
+# Subtest: nested paths create parent directories
+ok 3 - nested paths create parent directories
+  ---
+  duration_ms: 25.1842
+  type: 'test'
+  ...
+# Subtest: paths escaping the run root are rejected
+ok 4 - paths escaping the run root are rejected
+  ---
+  duration_ms: 2.2047
+  type: 'test'
+  ...
+# Subtest: records are sorted and stable
+ok 5 - records are sorted and stable
+  ---
+  duration_ms: 36.1613
+  type: 'test'
+  ...
+# Subtest: overwriting an artifact updates the record digest
+ok 6 - overwriting an artifact updates the record digest
+  ---
+  duration_ms: 127.9769
+  type: 'test'
+  ...
+# Subtest: complete clean audit passes
+ok 7 - complete clean audit passes
+  ---
+  duration_ms: 2.4517
+  type: 'test'
+  ...
+# Subtest: plan coverage gaps remain incomplete
+ok 8 - plan coverage gaps remain incomplete
+  ---
+  duration_ms: 0.6369
+  type: 'test'
+  ...
+# Subtest: provider degradation remains incomplete
+ok 9 - provider degradation remains incomplete
+  ---
+  duration_ms: 0.3315
+  type: 'test'
+  ...
+# Subtest: provider denominator mismatch remains incomplete
+ok 10 - provider denominator mismatch remains incomplete
+  ---
+  duration_ms: 0.18
+  type: 'test'
+  ...
+# Subtest: raw facts incomplete flag cannot be overridden by an otherwise clean report
+ok 11 - raw facts incomplete flag cannot be overridden by an otherwise clean report
+  ---
+  duration_ms: 0.2184
+  type: 'test'
+  ...
+# Subtest: verified security finding blocks quality gate and maps evidence
+ok 12 - verified security finding blocks quality gate and maps evidence
+  ---
+  duration_ms: 0.3273
+  type: 'test'
+  ...
+# Subtest: unclosed adjudication is never clean
+ok 13 - unclosed adjudication is never clean
+  ---
+  duration_ms: 0.1765
+  type: 'test'
+  ...
+# Subtest: candidate provider emitting findings is a contract violation
+ok 14 - candidate provider emitting findings is a contract violation
+  ---
+  duration_ms: 0.5394
+  type: 'test'
+  ...
+# Subtest: candidate provider findings are never materialized as findings
+ok 15 - candidate provider findings are never materialized as findings
+  ---
+  duration_ms: 0.5145
+  type: 'test'
+  ...
+# Subtest: verifier fixture is frozen and valid
+ok 16 - verifier fixture is frozen and valid
+  ---
+  duration_ms: 2.2396
+  type: 'test'
+  ...
+# Subtest: semantic projection ignores timestamps and output paths
+ok 17 - semantic projection ignores timestamps and output paths
+  ---
+  duration_ms: 13.0141
+  type: 'test'
+  ...
+# Subtest: provider status mutation is detected
+ok 18 - provider status mutation is detected
+  ---
+  duration_ms: 0.8585
+  type: 'test'
+  ...
+# Subtest: finding fingerprint mutation is detected
+ok 19 - finding fingerprint mutation is detected
+  ---
+  duration_ms: 0.6125
+  type: 'test'
+  ...
+# Subtest: denominator mutation is detected
+ok 20 - denominator mutation is detected
+  ---
+  duration_ms: 0.6326
+  type: 'test'
+  ...
+# Subtest: tool version mutation is detected
+ok 21 - tool version mutation is detected
+  ---
+  duration_ms: 0.661
+  type: 'test'
+  ...
+# Subtest: plan seal mutation is detected
+ok 22 - plan seal mutation is detected
+  ---
+  duration_ms: 0.5051
+  type: 'test'
+  ...
+# Subtest: repository binding mutation is detected
+ok 23 - repository binding mutation is detected
+  ---
+  duration_ms: 0.5086
+  type: 'test'
+  ...
+# Subtest: unreplayable checks are classified, not merged into content drift
+ok 24 - unreplayable checks are classified, not merged into content drift
+  ---
+  duration_ms: 1.164
+  type: 'test'
+  ...
+# Subtest: audit-verify.mjs executes end-to-end over a frozen fixture
+ok 25 - audit-verify.mjs executes end-to-end over a frozen fixture
+  ---
+  duration_ms: 2856.1293
+  type: 'test'
+  ...
+# Subtest: canonical qualifier includes source-completion contracts for Book 1
+ok 26 - canonical qualifier includes source-completion contracts for Book 1
+  ---
+  duration_ms: 34.5485
+  type: 'test'
+  ...
+# Subtest: external process implementation has one canonical executor authority
+ok 27 - external process implementation has one canonical executor authority
+  ---
+  duration_ms: 4.9266
+  type: 'test'
+  ...
+# Subtest: Book 1 uses qualification v2 source accounting
+ok 28 - Book 1 uses qualification v2 source accounting
+  ---
+  duration_ms: 1.1785
+  type: 'test'
+  ...
+# Subtest: B1-001 has executable source plus task-level test evidence
+ok 29 - B1-001 has executable source plus task-level test evidence
+  ---
+  duration_ms: 1.3675
+  type: 'test'
+  ...
+# Subtest: B1-002 has executable source plus task-level test evidence
+ok 30 - B1-002 has executable source plus task-level test evidence
+  ---
+  duration_ms: 1.3811
+  type: 'test'
+  ...
+# Subtest: B1-003 has executable source plus task-level test evidence
+ok 31 - B1-003 has executable source plus task-level test evidence
+  ---
+  duration_ms: 1.3799
+  type: 'test'
+  ...
+# Subtest: B1-004 has executable source plus task-level test evidence
+ok 32 - B1-004 has executable source plus task-level test evidence
+  ---
+  duration_ms: 1.4319
+  type: 'test'
+  ...
+# Subtest: B1-005 has executable source plus task-level test evidence
+ok 33 - B1-005 has executable source plus task-level test evidence
+  ---
+  duration_ms: 1.3218
+  type: 'test'
+  ...
+# Subtest: B1-006 has executable source plus task-level test evidence
+ok 34 - B1-006 has executable source plus task-level test evidence
+  ---
+  duration_ms: 4.2834
+  type: 'test'
+  ...
+# Subtest: B1-007 has executable source plus task-level test evidence
+ok 35 - B1-007 has executable source plus task-level test evidence
+  ---
+  duration_ms: 1.8474
+  type: 'test'
+  ...
+# Subtest: B1-008 has executable source plus task-level test evidence
+ok 36 - B1-008 has executable source plus task-level test evidence
+  ---
+  duration_ms: 3.5801
+  type: 'test'
+  ...
+# Subtest: B1-009 has executable source plus task-level test evidence
+ok 37 - B1-009 has executable source plus task-level test evidence
+  ---
+  duration_ms: 3.2608
+  type: 'test'
+  ...
+# Subtest: B1-010 has executable source plus task-level test evidence
+ok 38 - B1-010 has executable source plus task-level test evidence
+  ---
+  duration_ms: 2.6433
+  type: 'test'
+  ...
+# Subtest: B1-011 has executable source plus task-level test evidence
+ok 39 - B1-011 has executable source plus task-level test evidence
+  ---
+  duration_ms: 1.8747
+  type: 'test'
+  ...
+# Subtest: B1-012 has executable source plus task-level test evidence
+ok 40 - B1-012 has executable source plus task-level test evidence
+  ---
+  duration_ms: 2.6796
+  type: 'test'
+  ...
+# Subtest: B1-013 has executable source plus task-level test evidence
+ok 41 - B1-013 has executable source plus task-level test evidence
+  ---
+  duration_ms: 1.3951
+  type: 'test'
+  ...
+# Subtest: B1-014 has executable source plus task-level test evidence
+ok 42 - B1-014 has executable source plus task-level test evidence
+  ---
+  duration_ms: 0.8669
+  type: 'test'
+  ...
+# Subtest: B1-015 has executable source plus task-level test evidence
+ok 43 - B1-015 has executable source plus task-level test evidence
+  ---
+  duration_ms: 1.1878
+  type: 'test'
+  ...
+# Subtest: B1-016 has executable source plus task-level test evidence
+ok 44 - B1-016 has executable source plus task-level test evidence
+  ---
+  duration_ms: 1.1489
+  type: 'test'
+  ...
+# Subtest: B1-017 has executable source plus task-level test evidence
+ok 45 - B1-017 has executable source plus task-level test evidence
+  ---
+  duration_ms: 1.0547
+  type: 'test'
+  ...
+# Subtest: B1-018 has executable source plus task-level test evidence
+ok 46 - B1-018 has executable source plus task-level test evidence
+  ---
+  duration_ms: 1.0687
+  type: 'test'
+  ...
+# Subtest: B1-019 has executable source plus task-level test evidence
+ok 47 - B1-019 has executable source plus task-level test evidence
+  ---
+  duration_ms: 1.5154
+  type: 'test'
+  ...
+# Subtest: B1-020 has executable source plus task-level test evidence
+ok 48 - B1-020 has executable source plus task-level test evidence
+  ---
+  duration_ms: 1.3199
+  type: 'test'
+  ...
+# Subtest: B1-021 has executable source plus task-level test evidence
+ok 49 - B1-021 has executable source plus task-level test evidence
+  ---
+  duration_ms: 1.3847
+  type: 'test'
+  ...
+# Subtest: B1-022 has executable source plus task-level test evidence
+ok 50 - B1-022 has executable source plus task-level test evidence
+  ---
+  duration_ms: 1.4946
+  type: 'test'
+  ...
+# Subtest: B1-023 has executable source plus task-level test evidence
+ok 51 - B1-023 has executable source plus task-level test evidence
+  ---
+  duration_ms: 1.2863
+  type: 'test'
+  ...
+# Subtest: B1-024 has executable source plus task-level test evidence
+ok 52 - B1-024 has executable source plus task-level test evidence
+  ---
+  duration_ms: 2.6601
+  type: 'test'
+  ...
+# Subtest: B1-025 has executable source plus task-level test evidence
+ok 53 - B1-025 has executable source plus task-level test evidence
+  ---
+  duration_ms: 1.1993
+  type: 'test'
+  ...
+# Subtest: B1-026 has executable source plus task-level test evidence
+ok 54 - B1-026 has executable source plus task-level test evidence
+  ---
+  duration_ms: 0.7738
+  type: 'test'
+  ...
+# Subtest: B1-027 has executable source plus task-level test evidence
+ok 55 - B1-027 has executable source plus task-level test evidence
+  ---
+  duration_ms: 0.4029
+  type: 'test'
+  ...
+# Subtest: B1-028 has executable source plus task-level test evidence
+ok 56 - B1-028 has executable source plus task-level test evidence
+  ---
+  duration_ms: 0.6339
+  type: 'test'
+  ...
+# Subtest: Book 2 uses qualification v2 source accounting
+ok 57 - Book 2 uses qualification v2 source accounting
+  ---
+  duration_ms: 0.1273
+  type: 'test'
+  ...
+# Subtest: B2-001 has executable source plus task-level test evidence
+ok 58 - B2-001 has executable source plus task-level test evidence
+  ---
+  duration_ms: 10.1634
+  type: 'test'
+  ...
+# Subtest: B2-002 has executable source plus task-level test evidence
+ok 59 - B2-002 has executable source plus task-level test evidence
+  ---
+  duration_ms: 2.0637
+  type: 'test'
+  ...
+# Subtest: B2-003 has executable source plus task-level test evidence
+ok 60 - B2-003 has executable source plus task-level test evidence
+  ---
+  duration_ms: 2.051
+  type: 'test'
+  ...
+# Subtest: B2-004 has executable source plus task-level test evidence
+ok 61 - B2-004 has executable source plus task-level test evidence
+  ---
+  duration_ms: 2.4448
+  type: 'test'
+  ...
+# Subtest: B2-005 has executable source plus task-level test evidence
+ok 62 - B2-005 has executable source plus task-level test evidence
+  ---
+  duration_ms: 2.4021
+  type: 'test'
+  ...
+# Subtest: B2-006 has executable source plus task-level test evidence
+ok 63 - B2-006 has executable source plus task-level test evidence
+  ---
+  duration_ms: 3.1362
+  type: 'test'
+  ...
+# Subtest: B2-007 has executable source plus task-level test evidence
+ok 64 - B2-007 has executable source plus task-level test evidence
+  ---
+  duration_ms: 3.4684
+  type: 'test'
+  ...
+# Subtest: B2-008 has executable source plus task-level test evidence
+ok 65 - B2-008 has executable source plus task-level test evidence
+  ---
+  duration_ms: 2.6109
+  type: 'test'
+  ...
+# Subtest: B2-009 has executable source plus task-level test evidence
+ok 66 - B2-009 has executable source plus task-level test evidence
+  ---
+  duration_ms: 2.7477
+  type: 'test'
+  ...
+# Subtest: B2-010 has executable source plus task-level test evidence
+ok 67 - B2-010 has executable source plus task-level test evidence
+  ---
+  duration_ms: 2.8891
+  type: 'test'
+  ...
+# Subtest: B2-011 has executable source plus task-level test evidence
+ok 68 - B2-011 has executable source plus task-level test evidence
+  ---
+  duration_ms: 2.2639
+  type: 'test'
+  ...
+# Subtest: B2-012 has executable source plus task-level test evidence
+ok 69 - B2-012 has executable source plus task-level test evidence
+  ---
+  duration_ms: 10.078
+  type: 'test'
+  ...
+# Subtest: B2-013 has executable source plus task-level test evidence
+ok 70 - B2-013 has executable source plus task-level test evidence
+  ---
+  duration_ms: 5.5367
+  type: 'test'
+  ...
+# Subtest: B2-014 has executable source plus task-level test evidence
+ok 71 - B2-014 has executable source plus task-level test evidence
+  ---
+  duration_ms: 3.66
+  type: 'test'
+  ...
+# Subtest: B2-015 has executable source plus task-level test evidence
+ok 72 - B2-015 has executable source plus task-level test evidence
+  ---
+  duration_ms: 5.3658
+  type: 'test'
+  ...
+# Subtest: B2-016 has executable source plus task-level test evidence
+ok 73 - B2-016 has executable source plus task-level test evidence
+  ---
+  duration_ms: 6.6325
+  type: 'test'
+  ...
+# Subtest: B2-017 has executable source plus task-level test evidence
+ok 74 - B2-017 has executable source plus task-level test evidence
+  ---
+  duration_ms: 33.4049
+  type: 'test'
+  ...
+# Subtest: B2-018 has executable source plus task-level test evidence
+ok 75 - B2-018 has executable source plus task-level test evidence
+  ---
+  duration_ms: 4.516
+  type: 'test'
+  ...
+# Subtest: B2-019 has executable source plus task-level test evidence
+ok 76 - B2-019 has executable source plus task-level test evidence
+  ---
+  duration_ms: 1.2625
+  type: 'test'
+  ...
+# Subtest: B2-020 has executable source plus task-level test evidence
+ok 77 - B2-020 has executable source plus task-level test evidence
+  ---
+  duration_ms: 1.6603
+  type: 'test'
+  ...
+# Subtest: B2-021 has executable source plus task-level test evidence
+ok 78 - B2-021 has executable source plus task-level test evidence
+  ---
+  duration_ms: 1.5543
+  type: 'test'
+  ...
+# Subtest: B2-022 has executable source plus task-level test evidence
+ok 79 - B2-022 has executable source plus task-level test evidence
+  ---
+  duration_ms: 1.5763
+  type: 'test'
+  ...
+# Subtest: B2-023 has executable source plus task-level test evidence
+ok 80 - B2-023 has executable source plus task-level test evidence
+  ---
+  duration_ms: 1.6417
+  type: 'test'
+  ...
+# Subtest: B2-024 has executable source plus task-level test evidence
+ok 81 - B2-024 has executable source plus task-level test evidence
+  ---
+  duration_ms: 1.4376
+  type: 'test'
+  ...
+# Subtest: B2-025 has executable source plus task-level test evidence
+ok 82 - B2-025 has executable source plus task-level test evidence
+  ---
+  duration_ms: 1.5728
+  type: 'test'
+  ...
+# Subtest: B2-026 has executable source plus task-level test evidence
+ok 83 - B2-026 has executable source plus task-level test evidence
+  ---
+  duration_ms: 1.5727
+  type: 'test'
+  ...
+# Subtest: B2-027 has executable source plus task-level test evidence
+ok 84 - B2-027 has executable source plus task-level test evidence
+  ---
+  duration_ms: 7.8837
+  type: 'test'
+  ...
+# Subtest: B2-028 has executable source plus task-level test evidence
+ok 85 - B2-028 has executable source plus task-level test evidence
+  ---
+  duration_ms: 3.9009
+  type: 'test'
+  ...
+# Subtest: B2-029 has executable source plus task-level test evidence
+ok 86 - B2-029 has executable source plus task-level test evidence
+  ---
+  duration_ms: 4.5233
+  type: 'test'
+  ...
+# Subtest: B2-030 has executable source plus task-level test evidence
+ok 87 - B2-030 has executable source plus task-level test evidence
+  ---
+  duration_ms: 21.123
+  type: 'test'
+  ...
+# Subtest: Book 3 uses qualification v2 source accounting
+ok 88 - Book 3 uses qualification v2 source accounting
+  ---
+  duration_ms: 0.1511
+  type: 'test'
+  ...
+# Subtest: B3-001 has executable source plus task-level test evidence
+ok 89 - B3-001 has executable source plus task-level test evidence
+  ---
+  duration_ms: 4.0806
+  type: 'test'
+  ...
+# Subtest: B3-002 has executable source plus task-level test evidence
+ok 90 - B3-002 has executable source plus task-level test evidence
+  ---
+  duration_ms: 1.707
+  type: 'test'
+  ...
+# Subtest: B3-003 has executable source plus task-level test evidence
+ok 91 - B3-003 has executable source plus task-level test evidence
+  ---
+  duration_ms: 10.6657
+  type: 'test'
+  ...
+# Subtest: B3-004 has executable source plus task-level test evidence
+ok 92 - B3-004 has executable source plus task-level test evidence
+  ---
+  duration_ms: 6.8351
+  type: 'test'
+  ...
+# Subtest: B3-005 has executable source plus task-level test evidence
+ok 93 - B3-005 has executable source plus task-level test evidence
+  ---
+  duration_ms: 6.1804
+  type: 'test'
+  ...
+# Subtest: B3-006 has executable source plus task-level test evidence
+ok 94 - B3-006 has executable source plus task-level test evidence
+  ---
+  duration_ms: 3.1062
+  type: 'test'
+  ...
+# Subtest: B3-007 has executable source plus task-level test evidence
+ok 95 - B3-007 has executable source plus task-level test evidence
+  ---
+  duration_ms: 7.63
+  type: 'test'
+  ...
+# Subtest: B3-008 has executable source plus task-level test evidence
+ok 96 - B3-008 has executable source plus task-level test evidence
+  ---
+  duration_ms: 3.8346
+  type: 'test'
+  ...
+# Subtest: B3-009 has executable source plus task-level test evidence
+ok 97 - B3-009 has executable source plus task-level test evidence
+  ---
+  duration_ms: 1.8503
+  type: 'test'
+  ...
+# Subtest: B3-010 has executable source plus task-level test evidence
+ok 98 - B3-010 has executable source plus task-level test evidence
+  ---
+  duration_ms: 1.6513
+  type: 'test'
+  ...
+# Subtest: B3-011 has executable source plus task-level test evidence
+ok 99 - B3-011 has executable source plus task-level test evidence
+  ---
+  duration_ms: 3.1722
+  type: 'test'
+  ...
+# Subtest: B3-012 has executable source plus task-level test evidence
+ok 100 - B3-012 has executable source plus task-level test evidence
+  ---
+  duration_ms: 3.4939
+  type: 'test'
+  ...
+# Subtest: B3-013 has executable source plus task-level test evidence
+ok 101 - B3-013 has executable source plus task-level test evidence
+  ---
+  duration_ms: 4.9281
+  type: 'test'
+  ...
+# Subtest: B3-014 has executable source plus task-level test evidence
+ok 102 - B3-014 has executable source plus task-level test evidence
+  ---
+  duration_ms: 6.1387
+  type: 'test'
+  ...
+# Subtest: B3-015 has executable source plus task-level test evidence
+ok 103 - B3-015 has executable source plus task-level test evidence
+  ---
+  duration_ms: 2.4956
+  type: 'test'
+  ...
+# Subtest: B3-016 has executable source plus task-level test evidence
+ok 104 - B3-016 has executable source plus task-level test evidence
+  ---
+  duration_ms: 13.5601
+  type: 'test'
+  ...
+# Subtest: B3-017 has executable source plus task-level test evidence
+ok 105 - B3-017 has executable source plus task-level test evidence
+  ---
+  duration_ms: 2.8886
+  type: 'test'
+  ...
+# Subtest: B3-018 has executable source plus task-level test evidence
+ok 106 - B3-018 has executable source plus task-level test evidence
+  ---
+  duration_ms: 4.1655
+  type: 'test'
+  ...
+# Subtest: B3-019 has executable source plus task-level test evidence
+ok 107 - B3-019 has executable source plus task-level test evidence
+  ---
+  duration_ms: 2.5872
+  type: 'test'
+  ...
+# Subtest: B3-020 has executable source plus task-level test evidence
+ok 108 - B3-020 has executable source plus task-level test evidence
+  ---
+  duration_ms: 9.0378
+  type: 'test'
+  ...
+# Subtest: B3-021 has executable source plus task-level test evidence
+ok 109 - B3-021 has executable source plus task-level test evidence
+  ---
+  duration_ms: 3.8376
+  type: 'test'
+  ...
+# Subtest: B3-022 has executable source plus task-level test evidence
+ok 110 - B3-022 has executable source plus task-level test evidence
+  ---
+  duration_ms: 4.037
+  type: 'test'
+  ...
+# Subtest: B3-023 has executable source plus task-level test evidence
+ok 111 - B3-023 has executable source plus task-level test evidence
+  ---
+  duration_ms: 2.4215
+  type: 'test'
+  ...
+# Subtest: B3-024 has executable source plus task-level test evidence
+ok 112 - B3-024 has executable source plus task-level test evidence
+  ---
+  duration_ms: 3.7801
+  type: 'test'
+  ...
+# Subtest: B3-025 has executable source plus task-level test evidence
+ok 113 - B3-025 has executable source plus task-level test evidence
+  ---
+  duration_ms: 2.4595
+  type: 'test'
+  ...
+# Subtest: B3-026 has executable source plus task-level test evidence
+ok 114 - B3-026 has executable source plus task-level test evidence
+  ---
+  duration_ms: 3.7076
+  type: 'test'
+  ...
+# Subtest: B3-027 has executable source plus task-level test evidence
+ok 115 - B3-027 has executable source plus task-level test evidence
+  ---
+  duration_ms: 3.5421
+  type: 'test'
+  ...
+# Subtest: B3-028 has executable source plus task-level test evidence
+ok 116 - B3-028 has executable source plus task-level test evidence
+  ---
+  duration_ms: 8.9304
+  type: 'test'
+  ...
+# Subtest: B3-029 has executable source plus task-level test evidence
+ok 117 - B3-029 has executable source plus task-level test evidence
+  ---
+  duration_ms: 14.9066
+  type: 'test'
+  ...
+# Subtest: B3-030 has executable source plus task-level test evidence
+ok 118 - B3-030 has executable source plus task-level test evidence
+  ---
+  duration_ms: 1.4658
+  type: 'test'
+  ...
+# Subtest: --help prints usage and exits 0
+ok 119 - --help prints usage and exits 0
+  ---
+  duration_ms: 122.6396
+  type: 'test'
+  ...
+# Subtest: --version prints the canonical version
+ok 120 - --version prints the canonical version
+  ---
+  duration_ms: 158.7408
+  type: 'test'
+  ...
+# Subtest: no subcommand prints usage and exits 4
+ok 121 - no subcommand prints usage and exits 4
+  ---
+  duration_ms: 160.9582
+  type: 'test'
+  ...
+# Subtest: unknown subcommand exits 4
+ok 122 - unknown subcommand exits 4
+  ---
+  duration_ms: 126.2367
+  type: 'test'
+  ...
+# Subtest: providers --json emits machine JSON on stdout
+ok 123 - providers --json emits machine JSON on stdout
+  ---
+  duration_ms: 154.4391
+  type: 'test'
+  ...
+# Subtest: languages --json emits the coverage family surface
+ok 124 - languages --json emits the coverage family surface
+  ---
+  duration_ms: 153.2799
+  type: 'test'
+  ...
+# Subtest: plan --json seals a plan for the checkout root
+ok 125 - plan --json seals a plan for the checkout root
+  ---
+  duration_ms: 840.4182
+  type: 'test'
+  ...
+# Subtest: report --format json renders a report
+ok 126 - report --format json renders a report
+  ---
+  duration_ms: 100.9566
+  type: 'test'
+  ...
+# Subtest: verify resolves a run directory to its facts artifact
+ok 127 - verify resolves a run directory to its facts artifact
+  ---
+  duration_ms: 614.5092
+  type: 'test'
+  ...
+# Subtest: verify preserves direct facts-file support
+ok 128 - verify preserves direct facts-file support
+  ---
+  duration_ms: 464.295
+  type: 'test'
+  ...
+# Subtest: verify reports a typed missing-facts error for an invalid run directory
+ok 129 - verify reports a typed missing-facts error for an invalid run directory
+  ---
+  duration_ms: 76.2988
+  type: 'test'
+  ...
+# Subtest: verify reports a typed missing-plan error for an incomplete run directory
+ok 130 - verify reports a typed missing-plan error for an incomplete run directory
+  ---
+  duration_ms: 76.5216
+  type: 'test'
+  ...
+# Subtest: exit taxonomy maps report states to codes
+ok 131 - exit taxonomy maps report states to codes
+  ---
+  duration_ms: 0.2677
+  type: 'test'
+  ...
+# Subtest: runCli returns structured results with injected streams
+ok 132 - runCli returns structured results with injected streams
+  ---
+  duration_ms: 2.3125
+  type: 'test'
+  ...
+# Subtest: defaults are safe and versioned
+ok 133 - defaults are safe and versioned
+  ---
+  duration_ms: 2.2735
+  type: 'test'
+  ...
+# Subtest: profiles exist for fast, standard, full, release
+ok 134 - profiles exist for fast, standard, full, release
+  ---
+  duration_ms: 0.389
+  type: 'test'
+  ...
+# Subtest: precedence: defaults < user < repository < cli < sealed plan
+ok 135 - precedence: defaults < user < repository < cli < sealed plan
+  ---
+  duration_ms: 0.5644
+  type: 'test'
+  ...
+# Subtest: repository config cannot set host-owned keys
+ok 136 - repository config cannot set host-owned keys
+  ---
+  duration_ms: 0.6607
+  type: 'test'
+  ...
+# Subtest: unknown keys are rejected
+ok 137 - unknown keys are rejected
+  ---
+  duration_ms: 0.2656
+  type: 'test'
+  ...
+# Subtest: unknown profile is rejected
+ok 138 - unknown profile is rejected
+  ---
+  duration_ms: 0.1893
+  type: 'test'
+  ...
+# Subtest: future schema versions are rejected
+ok 139 - future schema versions are rejected
+  ---
+  duration_ms: 0.2447
+  type: 'test'
+  ...
+# Subtest: host-owned key set covers the frozen controls
+ok 140 - host-owned key set covers the frozen controls
+  ---
+  duration_ms: 0.1919
+  type: 'test'
+  ...
+# Subtest: loadRepositoryConfig reads nemesis.config.json
+ok 141 - loadRepositoryConfig reads nemesis.config.json
+  ---
+  duration_ms: 17.5388
+  type: 'test'
+  ...
+# Subtest: loadRepositoryConfig returns {} when absent
+ok 142 - loadRepositoryConfig returns {} when absent
+  ---
+  duration_ms: 1.5873
+  type: 'test'
+  ...
+# Subtest: path normalization resolves absolute canonical paths
+ok 143 - path normalization resolves absolute canonical paths
+  ---
+  duration_ms: 0.4
+  type: 'test'
+  ...
+# Subtest: buildPlan seals a deterministic plan with fixed host clock
+ok 144 - buildPlan seals a deterministic plan with fixed host clock
+  ---
+  duration_ms: 16.3231
+  type: 'test'
+  ...
+# Subtest: executePlan produces one receipt per selected provider
+ok 145 - executePlan produces one receipt per selected provider
+  ---
+  duration_ms: 336.9269
+  type: 'test'
+  ...
+# Subtest: reconcileRun builds facts bound to the plan
+ok 146 - reconcileRun builds facts bound to the plan
+  ---
+  duration_ms: 1.0765
+  type: 'test'
+  ...
+# Subtest: finalizeRun produces a report with injected clock
+ok 147 - finalizeRun produces a report with injected clock
+  ---
+  duration_ms: 3.9039
+  type: 'test'
+  ...
+# Subtest: verifyRun produces a deterministic receipt
+ok 148 - verifyRun produces a deterministic receipt
+  ---
+  duration_ms: 1.1671
+  type: 'test'
+  ...
+# Subtest: run manifest is written from the artifact store records
+ok 149 - run manifest is written from the artifact store records
+  ---
+  duration_ms: 57.1458
+  type: 'test'
+  ...
+# Subtest: fixed host uuid sequence is deterministic
+ok 150 - fixed host uuid sequence is deterministic
+  ---
+  duration_ms: 0.8921
+  type: 'test'
+  ...
+# Subtest: default sealed planning retains fixed source claim stages and fails closed without denominators
+ok 151 - default sealed planning retains fixed source claim stages and fails closed without denominators
+  ---
+  duration_ms: 13.3366
+  type: 'test'
+  ...
+# Subtest: mutable partial stage lists cannot replace fixed planning order
+ok 152 - mutable partial stage lists cannot replace fixed planning order
+  ---
+  duration_ms: 1.2219
+  type: 'test'
+  ...
+# Subtest: duplicate or malformed stages cannot create an ambiguous sealed plan
+ok 153 - duplicate or malformed stages cannot create an ambiguous sealed plan
+  ---
+  duration_ms: 0.5968
+  type: 'test'
+  ...
+# Subtest: book qualification discovers deterministic focused suites without running them
+ok 154 - book qualification discovers deterministic focused suites without running them
+  ---
+  duration_ms: 54.1943
+  type: 'test'
+  ...
+# Subtest: missing external source inputs remain explicit ledger states
+ok 155 - missing external source inputs remain explicit ledger states
+  ---
+  duration_ms: 71.0215
+  type: 'test'
+  ...
+# Subtest: B1-001 package manifest exposes one public binary and later-book public paths
+ok 156 - B1-001 package manifest exposes one public binary and later-book public paths
+  ---
+  duration_ms: 17.8856
+  type: 'test'
+  ...
+# Subtest: B1-002 canonical enums reject unknown values and future schema versions
+ok 157 - B1-002 canonical enums reject unknown values and future schema versions
+  ---
+  duration_ms: 1.5953
+  type: 'test'
+  ...
+# Subtest: B1-003 command catalogue generates complete strict CLI help
+ok 158 - B1-003 command catalogue generates complete strict CLI help
+  ---
+  duration_ms: 8.5919
+  type: 'test'
+  ...
+# Subtest: B1-004 fixed host returns typed unavailable capability receipts
+ok 159 - B1-004 fixed host returns typed unavailable capability receipts
+  ---
+  duration_ms: 2.4328
+  type: 'test'
+  ...
+# Subtest: B1-005 artifact paths reject alternate separators and digests bind bytes
+ok 160 - B1-005 artifact paths reject alternate separators and digests bind bytes
+  ---
+  duration_ms: 3.5194
+  type: 'test'
+  ...
+# Subtest: B1-006 run manifest rejects orphan and missing declared files
+ok 161 - B1-006 run manifest rejects orphan and missing declared files
+  ---
+  duration_ms: 4.0827
+  type: 'test'
+  ...
+# Subtest: B1-007 trusted merge rejects repository attempts to grant host policy
+ok 162 - B1-007 trusted merge rejects repository attempts to grant host policy
+  ---
+  duration_ms: 3.1686
+  type: 'test'
+  ...
+# Subtest: B1-008 sealed profiles expose resource, cache, cancellation, schedule, and reasoning policy
+ok 163 - B1-008 sealed profiles expose resource, cache, cancellation, schedule, and reasoning policy
+  ---
+  duration_ms: 3.6422
+  type: 'test'
+  ...
+# Subtest: B1-009 family and lens registries reject dependency cycles
+ok 164 - B1-009 family and lens registries reject dependency cycles
+  ---
+  duration_ms: 2.9386
+  type: 'test'
+  ...
+# Subtest: B1-010 provider v2 rejects candidate generators that emit findings
+ok 165 - B1-010 provider v2 rejects candidate generators that emit findings
+  ---
+  duration_ms: 2.9059
+  type: 'test'
+  ...
+# Subtest: B1-011 schedule compiler uses lexical waves and rejects impossible resources
+ok 166 - B1-011 schedule compiler uses lexical waves and rejects impossible resources
+  ---
+  duration_ms: 22.323
+  type: 'test'
+  ...
+# Subtest: B1-012 reasoning runner prepares a packet without invoking a reviewer
+ok 167 - B1-012 reasoning runner prepares a packet without invoking a reviewer
+  ---
+  duration_ms: 5.4387
+  type: 'test'
+  ...
+# Subtest: B1-013 precomputed Cortex projection rejects stale repository binding
+ok 168 - B1-013 precomputed Cortex projection rejects stale repository binding
+  ---
+  duration_ms: 1.3773
+  type: 'test'
+  ...
+# Subtest: B1-014 binding comparison is stable across path separators
+ok 169 - B1-014 binding comparison is stable across path separators
+  ---
+  duration_ms: 0.5191
+  type: 'test'
+  ...
+# Subtest: B1-015 planning stage registry is fixed and missing required stages are typed
+ok 170 - B1-015 planning stage registry is fixed and missing required stages are typed
+  ---
+  duration_ms: 1.3765
+  type: 'test'
+  ...
+# Subtest: B1-016 scheduler preserves independent work when one dependency blocks
+ok 171 - B1-016 scheduler preserves independent work when one dependency blocks
+  ---
+  duration_ms: 3.5146
+  type: 'test'
+  ...
+# Subtest: B1-017 zero findings with a required gap is incomplete
+ok 172 - B1-017 zero findings with a required gap is incomplete
+  ---
+  duration_ms: 1.1054
+  type: 'test'
+  ...
+# Subtest: B1-018 reviewer policy rejects context reuse and self-adjudication
+ok 173 - B1-018 reviewer policy rejects context reuse and self-adjudication
+  ---
+  duration_ms: 1.0471
+  type: 'test'
+  ...
+# Subtest: B1-019 report model preserves topology, controls, and per-claim decisions without a score
+ok 174 - B1-019 report model preserves topology, controls, and per-claim decisions without a score
+  ---
+  duration_ms: 1.3553
+  type: 'test'
+  ...
+# Subtest: B1-020 semantic verification excludes time, paths, and presentation ordering
+ok 175 - B1-020 semantic verification excludes time, paths, and presentation ordering
+  ---
+  duration_ms: 1.5072
+  type: 'test'
+  ...
+# Subtest: B1-021 schedule command is a pure canonical renderer
+ok 176 - B1-021 schedule command is a pure canonical renderer
+  ---
+  duration_ms: 1.3521
+  type: 'test'
+  ...
+# Subtest: B1-022 skill bundle contract rejects absolute internal URIs and separates profiles
+ok 177 - B1-022 skill bundle contract rejects absolute internal URIs and separates profiles
+  ---
+  duration_ms: 1.2773
+  type: 'test'
+  ...
+# Subtest: B1-023 skill URI resolver and verifier are package-relative and digest-bound
+ok 178 - B1-023 skill URI resolver and verifier are package-relative and digest-bound
+  ---
+  duration_ms: 2.1085
+  type: 'test'
+  ...
+# Subtest: B1-024 skill transformation is deterministic, neutral, and strips audit mutation authority
+ok 179 - B1-024 skill transformation is deterministic, neutral, and strips audit mutation authority
+  ---
+  duration_ms: 13.7307
+  type: 'test'
+  ...
+# Subtest: B1-025 Designer bundle preserves audit authority boundaries
+ok 180 - B1-025 Designer bundle preserves audit authority boundaries
+  ---
+  duration_ms: 14.0928
+  type: 'test'
+  ...
+# Subtest: B1-026 Writing bundle makes proof and no-fabrication explicit
+ok 181 - B1-026 Writing bundle makes proof and no-fabrication explicit
+  ---
+  duration_ms: 2.8234
+  type: 'test'
+  ...
+# Subtest: B1-027 qualifier supports Books 1 through 6 and package smoke exercises library plus plan
+ok 182 - B1-027 qualifier supports Books 1 through 6 and package smoke exercises library plus plan
+  ---
+  duration_ms: 68.1607
+  type: 'test'
+  ...
+# Subtest: B1-028 qualification digest ignores duration and noisy test bytes
+ok 183 - B1-028 qualification digest ignores duration and noisy test bytes
+  ---
+  duration_ms: 0.6897
+  type: 'test'
+  ...
+# Subtest: B1 CLI rejects unknown options and every advertised command has live help
+ok 184 - B1 CLI rejects unknown options and every advertised command has live help
+  ---
+  duration_ms: 46.1315
+  type: 'test'
+  ...
+# Subtest: B1 selected unsupported runners remain incomplete and visible in checks
+ok 185 - B1 selected unsupported runners remain incomplete and visible in checks
+  ---
+  duration_ms: 15.7022
+  type: 'test'
+  ...
+# Subtest: B1 resource scheduler retains dependents and aggregate ceilings split waves
+ok 186 - B1 resource scheduler retains dependents and aggregate ceilings split waves
+  ---
+  duration_ms: 28.0871
+  type: 'test'
+  ...
+# Subtest: B1 audit skill profile denies authoring tree and bundle links resolve once
+ok 187 - B1 audit skill profile denies authoring tree and bundle links resolve once
+  ---
+  duration_ms: 420.1142
+  type: 'test'
+  ...
+# Subtest: B1 profiles are deeply immutable and digest bound
+ok 188 - B1 profiles are deeply immutable and digest bound
+  ---
+  duration_ms: 4.2326
+  type: 'test'
+  ...
+# Subtest: B1 fixed host exposes typed service and capability absence
+ok 189 - B1 fixed host exposes typed service and capability absence
+  ---
+  duration_ms: 0.4461
+  type: 'test'
+  ...
+# Subtest: B1 runtime module cannot invoke an arbitrary run export
+ok 190 - B1 runtime module cannot invoke an arbitrary run export
+  ---
+  duration_ms: 3.9658
+  type: 'test'
+  ...
+# Subtest: B1 reconciliation rejects duplicate unplanned and forged receipts
+ok 191 - B1 reconciliation rejects duplicate unplanned and forged receipts
+  ---
+  duration_ms: 1.3469
+  type: 'test'
+  ...
+# Subtest: B1 scheduler enforces canonical dependencies exclusive locks and blocked descendants
+ok 192 - B1 scheduler enforces canonical dependencies exclusive locks and blocked descendants
+  ---
+  duration_ms: 1.1019
+  type: 'test'
+  ...
+# Subtest: B1 semantic verification rejects binding-only replay and control drift
+ok 193 - B1 semantic verification rejects binding-only replay and control drift
+  ---
+  duration_ms: 3.6584
+  type: 'test'
+  ...
+# Subtest: B1 skill manifests never manufacture rights evidence and reject unsupported versions
+ok 194 - B1 skill manifests never manufacture rights evidence and reject unsupported versions
+  ---
+  duration_ms: 5.7373
+  type: 'test'
+  ...
+# Subtest: B1 executor runtime modules are sealed package files and never embedded callbacks
+ok 195 - B1 executor runtime modules are sealed package files and never embedded callbacks
+  ---
+  duration_ms: 2.8593
+  type: 'test'
+  ...
+# Subtest: B1 imported artifacts return bound terminal receipts not bare artifacts
+ok 196 - B1 imported artifacts return bound terminal receipts not bare artifacts
+  ---
+  duration_ms: 2.973
+  type: 'test'
+  ...
+# Subtest: B1 audit CLI invokes public core pipeline once without legacy subprocess entrypoints
+ok 197 - B1 audit CLI invokes public core pipeline once without legacy subprocess entrypoints
+  ---
+  duration_ms: 2.2371
+  type: 'test'
+  ...
+# Subtest: B1 skills and rules commands load packaged registries by default
+ok 198 - B1 skills and rules commands load packaged registries by default
+  ---
+  duration_ms: 17.8513
+  type: 'test'
+  ...
+# Subtest: B1 required adjudication without reviewer remains typed unproven
+ok 199 - B1 required adjudication without reviewer remains typed unproven
+  ---
+  duration_ms: 4.7411
+  type: 'test'
+  ...
+# Subtest: B1 report model fails closed on missing topology and control denominators
+ok 200 - B1 report model fails closed on missing topology and control denominators
+  ---
+  duration_ms: 1.6434
+  type: 'test'
+  ...
+# Subtest: B1 schedule consumes canonical plan bytes and fix validates sealed remediation digest
+ok 201 - B1 schedule consumes canonical plan bytes and fix validates sealed remediation digest
+  ---
+  duration_ms: 44.5332
+  type: 'test'
+  ...
+# Subtest: B1 packaged audit instructions and native providers expose no mutation or shell execution grants
+ok 202 - B1 packaged audit instructions and native providers expose no mutation or shell execution grants
+  ---
+  duration_ms: 178.837
+  type: 'test'
+  ...
+# Subtest: B1 public audit binds repository honors filters planOnly and persists canonical plan
+ok 203 - B1 public audit binds repository honors filters planOnly and persists canonical plan
+  ---
+  duration_ms: 156.8111
+  type: 'test'
+  ...
+# Subtest: external mode requires a configured command
+ok 204 - external mode requires a configured command
+  ---
+  duration_ms: 1.8099
+  type: 'test'
+  ...
+# Subtest: bundled mode reports compatibility when bundled provider is present
+ok 205 - bundled mode reports compatibility when bundled provider is present
+  ---
+  duration_ms: 0.273
+  type: 'test'
+  ...
+# Subtest: precomputed mode verifies binding and reads the projection
+ok 206 - precomputed mode verifies binding and reads the projection
+  ---
+  duration_ms: 22.1779
+  type: 'test'
+  ...
+# Subtest: precomputed mode fails cleanly when the path is missing
+ok 207 - precomputed mode fails cleanly when the path is missing
+  ---
+  duration_ms: 0.3722
+  type: 'test'
+  ...
+# Subtest: verifyFreshness reports stale for non-ready projections
+ok 208 - verifyFreshness reports stale for non-ready projections
+  ---
+  duration_ms: 0.2512
+  type: 'test'
+  ...
+# Subtest: adapter never adds a parallel repository walker
+ok 209 - adapter never adds a parallel repository walker
+  ---
+  duration_ms: 0.4223
+  type: 'test'
+  ...
+# Subtest: package smoke covers public binary through semantic verification
+ok 210 - package smoke covers public binary through semantic verification
+  ---
+  duration_ms: 4.2418
+  type: 'test'
+  ...
+# Subtest: package smoke assembles only public files and executes every public core phase from copy
+ok 211 - package smoke assembles only public files and executes every public core phase from copy
+  ---
+  duration_ms: 9977.3974
+  type: 'test'
+  ...
+# Subtest: spawnStatus completed does not imply provider verdict pass
+ok 212 - spawnStatus completed does not imply provider verdict pass
+  ---
+  duration_ms: 3.6777
+  type: 'test'
+  ...
+# Subtest: missing tool produces a blocked execution receipt
+ok 213 - missing tool produces a blocked execution receipt
+  ---
+  duration_ms: 0.5379
+  type: 'test'
+  ...
+# Subtest: unsealed legacy host result stays unproven
+ok 214 - unsealed legacy host result stays unproven
+  ---
+  duration_ms: 3.6799
+  type: 'test'
+  ...
+# Subtest: unsealed timeout-shaped host result cannot claim timeout receipt authority
+ok 215 - unsealed timeout-shaped host result cannot claim timeout receipt authority
+  ---
+  duration_ms: 2.0897
+  type: 'test'
+  ...
+# Subtest: malformed output (runner throws) produces an error receipt
+ok 216 - malformed output (runner throws) produces an error receipt
+  ---
+  duration_ms: 1.7024
+  type: 'test'
+  ...
+# Subtest: selected provider with unsealed runtime module remains blocked
+ok 217 - selected provider with unsealed runtime module remains blocked
+  ---
+  duration_ms: 20.9941
+  type: 'test'
+  ...
+# Subtest: reconcileRun marks incomplete when a terminal receipt is missing
+ok 218 - reconcileRun marks incomplete when a terminal receipt is missing
+  ---
+  duration_ms: 1.6789
+  type: 'test'
+  ...
+# Subtest: reconcileRun keeps blocked execution status visible
+ok 219 - reconcileRun keeps blocked execution status visible
+  ---
+  duration_ms: 0.8939
+  type: 'test'
+  ...
+# Subtest: exit taxonomy: incomplete is never pass, policy fail is 1
+ok 220 - exit taxonomy: incomplete is never pass, policy fail is 1
+  ---
+  duration_ms: 0.3711
+  type: 'test'
+  ...
+# Subtest: finalizeRun attaches the canonical exit code
+ok 221 - finalizeRun attaches the canonical exit code
+  ---
+  duration_ms: 5.1588
+  type: 'test'
+  ...
+# Subtest: policy finding maps to exit 1
+ok 222 - policy finding maps to exit 1
+  ---
+  duration_ms: 0.8926
+  type: 'test'
+  ...
+# Subtest: package manifest version agrees with the CLI and schema versions
+ok 223 - package manifest version agrees with the CLI and schema versions
+  ---
+  duration_ms: 3.4757
+  type: 'test'
+  ...
+# Subtest: package files allowlist excludes internal state
+ok 224 - package files allowlist excludes internal state
+  ---
+  duration_ms: 0.8796
+  type: 'test'
+  ...
+# Subtest: package smoke manifest is present and forbids internal content
+ok 225 - package smoke manifest is present and forbids internal content
+  ---
+  duration_ms: 0.7392
+  type: 'test'
+  ...
+# Subtest: bin entry is executable and versioned
+ok 226 - bin entry is executable and versioned
+  ---
+  duration_ms: 173.0088
+  type: 'test'
+  ...
+# Subtest: registry is executable and generated manifest is derived from it
+ok 227 - registry is executable and generated manifest is derived from it
+  ---
+  duration_ms: 18.2049
+  type: 'test'
+  ...
+# Subtest: Cortex projection pins one generation and extracts the file denominator
+ok 228 - Cortex projection pins one generation and extracts the file denominator
+  ---
+  duration_ms: 30.2634
+  type: 'test'
+  ...
+# Subtest: Cortex generation movement fails closed instead of narrowing discovery
+ok 229 - Cortex generation movement fails closed instead of narrowing discovery
+  ---
+  duration_ms: 4.2399
+  type: 'test'
+  ...
+# Subtest: mixed React, Rust, Tauri plan is additive, denominator-bound, and tamper-evident
+ok 230 - mixed React, Rust, Tauri plan is additive, denominator-bound, and tamper-evident
+  ---
+  duration_ms: 33.0942
+  type: 'test'
+  ...
+# Subtest: missing Cortex selects only explicitly safe universal providers and stays UNPROVEN
+ok 231 - missing Cortex selects only explicitly safe universal providers and stays UNPROVEN
+  ---
+  duration_ms: 3.3473
+  type: 'test'
+  ...
+# Subtest: dirty-tree binding changes when tracked or untracked content changes
+ok 232 - dirty-tree binding changes when tracked or untracked content changes
+  ---
+  duration_ms: 2258.0255
+  type: 'test'
+  ...
+# Subtest: binding verification includes Cortex source observation
+ok 233 - binding verification includes Cortex source observation
+  ---
+  duration_ms: 5.1041
+  type: 'test'
+  ...
+# Subtest: candidate generator cannot adjudicate itself or reuse its context
+ok 234 - candidate generator cannot adjudicate itself or reuse its context
+  ---
+  duration_ms: 1.1602
+  type: 'test'
+  ...
+# Subtest: precision/recall is reproducible over labeled positives and negatives
+ok 235 - precision/recall is reproducible over labeled positives and negatives
+  ---
+  duration_ms: 10.8995
+  type: 'test'
+  ...
+# Subtest: provider-selection corpus is labeled, reproducible, and includes negatives
+ok 236 - provider-selection corpus is labeled, reproducible, and includes negatives
+  ---
+  duration_ms: 4.6478
+  type: 'test'
+  ...
+# Subtest: report conversion emits dependency-free SARIF 2.1.0
+ok 237 - report conversion emits dependency-free SARIF 2.1.0
+  ---
+  duration_ms: 0.9938
+  type: 'test'
+  ...
+# Subtest: selected facts provider that skips remains incomplete
+ok 238 - selected facts provider that skips remains incomplete
+  ---
+  duration_ms: 8.0166
+  type: 'test'
+  ...
+# Subtest: final reconciliation rejects missing or extra scanner results
+ok 239 - final reconciliation rejects missing or extra scanner results
+  ---
+  duration_ms: 10.7261
+  type: 'test'
+  ...
+# Subtest: data suite emits candidates with findings: [] and status candidates
+ok 240 - data suite emits candidates with findings: [] and status candidates
+  ---
+  duration_ms: 38.3652
+  type: 'test'
+  ...
+# Subtest: infrastructure suite emits candidates with findings: []
+ok 241 - infrastructure suite emits candidates with findings: []
+  ---
+  duration_ms: 7.0669
+  type: 'test'
+  ...
+# Subtest: framework family results are owned by the plan provider
+ok 242 - framework family results are owned by the plan provider
+  ---
+  duration_ms: 6.3219
+  type: 'test'
+  ...
+# Subtest: SARIF uses the canonical Orthic Labs Nemesis identity
+ok 243 - SARIF uses the canonical Orthic Labs Nemesis identity
+  ---
+  duration_ms: 1.3753
+  type: 'test'
+  ...
+# Subtest: SARIF results carry stable nemesisFinding partial fingerprints
+ok 244 - SARIF results carry stable nemesisFinding partial fingerprints
+  ---
+  duration_ms: 0.5036
+  type: 'test'
+  ...
+# Subtest: SARIF includes root-cause fingerprint when present
+ok 245 - SARIF includes root-cause fingerprint when present
+  ---
+  duration_ms: 0.3344
+  type: 'test'
+  ...
+# Subtest: provider status pass is accepted
+ok 246 - provider status pass is accepted
+  ---
+  duration_ms: 2.0954
+  type: 'test'
+  ...
+# Subtest: provider status fail is accepted
+ok 247 - provider status fail is accepted
+  ---
+  duration_ms: 0.2763
+  type: 'test'
+  ...
+# Subtest: provider status partial is accepted
+ok 248 - provider status partial is accepted
+  ---
+  duration_ms: 0.238
+  type: 'test'
+  ...
+# Subtest: provider status unproven is accepted
+ok 249 - provider status unproven is accepted
+  ---
+  duration_ms: 0.2241
+  type: 'test'
+  ...
+# Subtest: provider status skipped is accepted
+ok 250 - provider status skipped is accepted
+  ---
+  duration_ms: 0.1908
+  type: 'test'
+  ...
+# Subtest: provider status error is accepted
+ok 251 - provider status error is accepted
+  ---
+  duration_ms: 0.2149
+  type: 'test'
+  ...
+# Subtest: provider status pending is accepted
+ok 252 - provider status pending is accepted
+  ---
+  duration_ms: 0.2077
+  type: 'test'
+  ...
+# Subtest: provider status missing is accepted
+ok 253 - provider status missing is accepted
+  ---
+  duration_ms: 0.1927
+  type: 'test'
+  ...
+# Subtest: provider status candidates is accepted
+ok 254 - provider status candidates is accepted
+  ---
+  duration_ms: 0.232
+  type: 'test'
+  ...
+# Subtest: provider status blocked is accepted
+ok 255 - provider status blocked is accepted
+  ---
+  duration_ms: 0.3019
+  type: 'test'
+  ...
+# Subtest: provider result statuses match the committed schema enum
+ok 256 - provider result statuses match the committed schema enum
+  ---
+  duration_ms: 9.778
+  type: 'test'
+  ...
+# Subtest: normalized arrays are never null
+ok 257 - normalized arrays are never null
+  ---
+  duration_ms: 1.8525
+  type: 'test'
+  ...
+# Subtest: required provider with unbound denominator is a validation gap
+ok 258 - required provider with unbound denominator is a validation gap
+  ---
+  duration_ms: 0.2287
+  type: 'test'
+  ...
+# Subtest: provider roles and phases are frozen and asserted
+ok 259 - provider roles and phases are frozen and asserted
+  ---
+  duration_ms: 0.333
+  type: 'test'
+  ...
+# Subtest: security verdicts and evidence strength are canonical
+ok 260 - security verdicts and evidence strength are canonical
+  ---
+  duration_ms: 0.1574
+  type: 'test'
+  ...
+# Subtest: security binding helper rejects incomplete bindings
+ok 261 - security binding helper rejects incomplete bindings
+  ---
+  duration_ms: 0.6794
+  type: 'test'
+  ...
+# Subtest: stable IDs are deterministic and canonicalize is stable
+ok 262 - stable IDs are deterministic and canonicalize is stable
+  ---
+  duration_ms: 1.2281
+  type: 'test'
+  ...
+# Subtest: topological order respects dependencies
+ok 263 - topological order respects dependencies
+  ---
+  duration_ms: 7.0746
+  type: 'test'
+  ...
+# Subtest: unknown dependency is rejected
+ok 264 - unknown dependency is rejected
+  ---
+  duration_ms: 0.8751
+  type: 'test'
+  ...
+# Subtest: self-dependency is rejected
+ok 265 - self-dependency is rejected
+  ---
+  duration_ms: 0.3377
+  type: 'test'
+  ...
+# Subtest: dependency cycle is rejected
+ok 266 - dependency cycle is rejected
+  ---
+  duration_ms: 0.4587
+  type: 'test'
+  ...
+# Subtest: unproduced consumed artifact is rejected
+ok 267 - unproduced consumed artifact is rejected
+  ---
+  duration_ms: 0.8425
+  type: 'test'
+  ...
+# Subtest: duplicate singleton producer is rejected
+ok 268 - duplicate singleton producer is rejected
+  ---
+  duration_ms: 0.3493
+  type: 'test'
+  ...
+# Subtest: role/output authority violations are rejected
+ok 269 - role/output authority violations are rejected
+  ---
+  duration_ms: 0.5273
+  type: 'test'
+  ...
+# Subtest: unknown role is rejected
+ok 270 - unknown role is rejected
+  ---
+  duration_ms: 0.3275
+  type: 'test'
+  ...
+# Subtest: valid DAG validates cleanly
+ok 271 - valid DAG validates cleanly
+  ---
+  duration_ms: 0.5059
+  type: 'test'
+  ...
+# Subtest: dependency and script selected providers bind Cortex implementation files, not only package.json
+ok 272 - dependency and script selected providers bind Cortex implementation files, not only package.json
+  ---
+  duration_ms: 28.1378
+  type: 'test'
+  ...
+# Subtest: signed plan verifies only with the matching key
+ok 273 - signed plan verifies only with the matching key
+  ---
+  duration_ms: 13.5412
+  type: 'test'
+  ...
+# Subtest: unsigned plan is integrity-valid but explicitly UNPROVEN
+ok 274 - unsigned plan is integrity-valid but explicitly UNPROVEN
+  ---
+  duration_ms: 8.7267
+  type: 'test'
+  ...
+# Subtest: external process runner blocks non-allowlisted executables
+ok 275 - external process runner blocks non-allowlisted executables
+  ---
+  duration_ms: 5.3955
+  type: 'test'
+  ...
+# Subtest: shell execution is forbidden
+ok 276 - shell execution is forbidden
+  ---
+  duration_ms: 1.0826
+  type: 'test'
+  ...
+# Subtest: external process runs with sanitized environment
+ok 277 - external process runs with sanitized environment
+  ---
+  duration_ms: 414.3919
+  type: 'test'
+  ...
+# Subtest: timeout aborts the child and reports timeout
+ok 278 - timeout aborts the child and reports timeout
+  ---
+  duration_ms: 451.7024
+  type: 'test'
+  ...
+# Subtest: output cap terminates the child
+ok 279 - output cap terminates the child
+  ---
+  duration_ms: 320.3654
+  type: 'test'
+  ...
+# Subtest: project-executing provider requires a network-sandbox receipt
+ok 280 - project-executing provider requires a network-sandbox receipt
+  ---
+  duration_ms: 1.06
+  type: 'test'
+  ...
+# Subtest: non-project providers do not require a sandbox
+ok 281 - non-project providers do not require a sandbox
+  ---
+  duration_ms: 0.4213
+  type: 'test'
+  ...
+# Subtest: reasoning-contract providers remain unproven when reviewer is unavailable
+ok 282 - reasoning-contract providers remain unproven when reviewer is unavailable
+  ---
+  duration_ms: 0.8107
+  type: 'test'
+  ...
+# Subtest: imported-artifact provider requires its artifact
+ok 283 - imported-artifact provider requires its artifact
+  ---
+  duration_ms: 0.3293
+  type: 'test'
+  ...
+# Subtest: resolveRepositoryModule rejects absolute external paths
+ok 284 - resolveRepositoryModule rejects absolute external paths
+  ---
+  duration_ms: 0.5943
+  type: 'test'
+  ...
+# Subtest: pickEnvironment only carries allowlisted keys
+ok 285 - pickEnvironment only carries allowlisted keys
+  ---
+  duration_ms: 0.2277
+  type: 'test'
+  ...
+# Subtest: blocked helper produces a canonical blocked receipt
+ok 286 - blocked helper produces a canonical blocked receipt
+  ---
+  duration_ms: 0.2081
+  type: 'test'
+  ...
+# Subtest: stableId is deterministic and canonical
+ok 287 - stableId is deterministic and canonical
+  ---
+  duration_ms: 3.3174
+  type: 'test'
+  ...
+# Subtest: pathDenominator normalizes, dedupes, sorts, and digests
+ok 288 - pathDenominator normalizes, dedupes, sorts, and digests
+  ---
+  duration_ms: 1.9683
+  type: 'test'
+  ...
+# Subtest: validateProviderRecord checks the v2 minimum
+ok 289 - validateProviderRecord checks the v2 minimum
+  ---
+  duration_ms: 0.4396
+  type: 'test'
+  ...
+# Subtest: normalizeProviderResult is re-exported through the SDK
+ok 290 - normalizeProviderResult is re-exported through the SDK
+  ---
+  duration_ms: 0.714
+  type: 'test'
+  ...
+# Subtest: topologicalProviders is exported through the SDK
+ok 291 - topologicalProviders is exported through the SDK
+  ---
+  duration_ms: 0.8058
+  type: 'test'
+  ...
+# Subtest: selected-but-not-activated provider emits an explicit incomplete blocked receipt
+ok 292 - selected-but-not-activated provider emits an explicit incomplete blocked receipt
+  ---
+  duration_ms: 1.6184
+  type: 'test'
+  ...
+# Subtest: B1 receipt binds every task to a behavioral assertion and owned implementation symbol
+ok 293 - B1 receipt binds every task to a behavioral assertion and owned implementation symbol
+  ---
+  duration_ms: 397.4739
+  type: 'test'
+  ...
+# Subtest: B1 receipt rejects stale revision, changed evidence bytes, and undeclared fields
+ok 294 - B1 receipt rejects stale revision, changed evidence bytes, and undeclared fields
+  ---
+  duration_ms: 895.7598
+  type: 'test'
+  ...
+# Subtest: B1 receipt rejects dependency reordering and assertions absent from named test bytes
+ok 295 - B1 receipt rejects dependency reordering and assertions absent from named test bytes
+  ---
+  duration_ms: 484.6851
+  type: 'test'
+  ...
+# Subtest: generated provider-result schema deep-equals the committed schema
+ok 296 - generated provider-result schema deep-equals the committed schema
+  ---
+  duration_ms: 4.5711
+  type: 'test'
+  ...
+# Subtest: generated security-verdict schema deep-equals the committed schema
+ok 297 - generated security-verdict schema deep-equals the committed schema
+  ---
+  duration_ms: 2.4666
+  type: 'test'
+  ...
+# Subtest: schema enums match the code-owned contract enums
+ok 298 - schema enums match the code-owned contract enums
+  ---
+  duration_ms: 0.3399
+  type: 'test'
+  ...
+# Subtest: buildSchemas covers every committed schema
+ok 299 - buildSchemas covers every committed schema
+  ---
+  duration_ms: 0.517
+  type: 'test'
+  ...
+# Subtest: schemas contain no legacy bogusyogi identity
+ok 300 - schemas contain no legacy bogusyogi identity
+  ---
+  duration_ms: 0.8349
+  type: 'test'
+  ...
+# Subtest: designer supplied bundle is complete and digest-bound
+ok 301 - designer supplied bundle is complete and digest-bound
+  ---
+  duration_ms: 26.5504
+  type: 'test'
+  ...
+# Subtest: writing supplied bundle is complete and digest-bound
+ok 302 - writing supplied bundle is complete and digest-bound
+  ---
+  duration_ms: 5.1868
+  type: 'test'
+  ...
+# publication blocked: D:\\Claude\\tools\\skills\\nemesis\\release\\publication-policy.json is absent
+# Subtest: public checkout contains no parent-workspace path dependency
+ok 303 - public checkout contains no parent-workspace path dependency
+  ---
+  duration_ms: 2.1581
+  type: 'test'
+  ...
+# Subtest: CI workflow is self-contained in this repository
+ok 304 - CI workflow is self-contained in this repository
+  ---
+  duration_ms: 0.7005
+  type: 'test'
+  ...
+# Subtest: publication guard exists and blocks public channels without a grant
+ok 305 - publication guard exists and blocks public channels without a grant
+  ---
+  duration_ms: 223.4546
+  type: 'test'
+  ...
+# Subtest: benchmark baseline is versioned and reproducible
+ok 306 - benchmark baseline is versioned and reproducible
+  ---
+  duration_ms: 0.7362
+  type: 'test'
+  ...
+# Subtest: license and third-party notices are present
+ok 307 - license and third-party notices are present
+  ---
+  duration_ms: 0.7894
+  type: 'test'
+  ...
+# Subtest: fresh standalone checkout runs self-test and schema check without parent files
+ok 308 - fresh standalone checkout runs self-test and schema check without parent files
+  ---
+  duration_ms: 2073.8322
+  type: 'test'
+  ...
+# Subtest: Windows portability tests pass from a copied standalone checkout
+ok 309 - Windows portability tests pass from a copied standalone checkout
+  ---
+  duration_ms: 1674.585
+  type: 'test'
+  ...
+1..309
+# tests 309
+# suites 0
+# pass 309
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 10222.0855

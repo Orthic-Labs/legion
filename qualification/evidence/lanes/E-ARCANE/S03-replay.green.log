@@ -1,0 +1,19 @@
+✔ scopeKey() is stable for the same scope and differs across scopes (1.3254ms)
+✔ accepts a fresh, unique, monotonic message (0.8329ms)
+✔ reject: replayed nonce -> ARC_REPLAY_NONCE_SEEN (0.1538ms)
+✔ reject: sequence regression -> ARC_REPLAY_SEQUENCE_REGRESSION (0.1554ms)
+✔ reject: sequence repeat (same sequence number twice) -> ARC_REPLAY_SEQUENCE_REGRESSION (0.142ms)
+✔ reject: timestamp older than the freshness window -> ARC_REPLAY_STALE (0.154ms)
+✔ reject: timestamp further in the future than maxSkewSeconds -> ARC_REPLAY_STALE (0.1114ms)
+✔ reject: unparseable timestamp -> ARC_REPLAY_STALE (never trusted by default) (0.0939ms)
+✔ scoping: the same nonce in a different scope is accepted (0.1781ms)
+✔ bounded memory: maxEntries evicts the oldest nonce on insert (0.4567ms)
+✔ prune() drops nonce entries outside the freshness window (0.1379ms)
+ℹ tests 11
+ℹ suites 0
+ℹ pass 11
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 73.2871

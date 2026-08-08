@@ -1,0 +1,18 @@
+Command: node --test packages/seer/tests/seer-facade.test.mjs
+Working directory: D:/Claude/tools/skills/nemesis
+Node: v26.5.0
+Exit code: 0
+
+PASS all five operations delegate to named canonical core APIs
+PASS audit findings are successful invocation plus domain output, never an error
+PASS claim boundary and denominator digest pass through verbatim
+PASS legacy fixture translates with exact findings, denominators, and claims parity
+PASS remediation proposals remain immutable artifacts and are never applied as effects
+PASS mutation-capable requests fail before core invocation
+PASS missing public core APIs produce typed blockers
+PASS default public core exposes inspect while explain stays typed-blocked
+PASS run identity and isolated working context are forwarded without mutation
+PASS result envelopes and artifact records contain every frozen-contract required field
+tests 10
+pass 10
+fail 0

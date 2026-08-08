@@ -77,3 +77,4 @@ export function capabilityReceipt({ executable, version, languages }) {
     languages: [...new Set(languages ?? [])].sort(),
   };
 }
+export function analyze({projection,artifacts}={}){const paths=(projection?.files??[]).map((file)=>file.path??file);const matches=artifacts?.structuralMatches??[];const unsupported=artifacts?.unsupportedGrammars??[];const gaps=[];if(!paths.length)gaps.push({kind:'structural-denominator-zero'});if(!artifacts?.astGrepTool)gaps.push({kind:'structural-tool-unqualified'});for(const grammar of unsupported)gaps.push({kind:'unsupported-grammar',grammar});return{status:gaps.length?'unproven':'pass',complete:gaps.length===0,denominator:{kind:'sealed-source-paths',expected:paths.length,examined:artifacts?.examinedPaths?.length??0},findings:[],candidates:matches,coverageGaps:gaps};}

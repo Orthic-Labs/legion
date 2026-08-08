@@ -1,0 +1,1 @@
+import {analyzeLanguage} from '../shared.mjs';export const language="ruby";export const extensions=["rb"];export const config={"id":"ruby","extensions":["rb"],"variants":{"ruby":["rb"]},"tools":["package","lint","type","test","security"]};export function analyze(input={}){return analyzeLanguage(config,input);}

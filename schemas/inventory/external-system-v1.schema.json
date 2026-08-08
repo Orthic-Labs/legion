@@ -1,1 +1,90 @@
-{"$schema":"https://json-schema.org/draft/2020-12/schema","type":"object","required":["id","kind","status"],"properties":{"id":{"type":"string"},"kind":{"type":"string"},"status":{"type":"string"}}}
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "nemesis-external-system-v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "kind",
+    "status",
+    "evidencePaths",
+    "targetIds",
+    "componentIds",
+    "dataClasses",
+    "environments",
+    "credentialsPolicy",
+    "freshnessRequirement",
+    "binding"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^external:"
+    },
+    "kind": {
+      "type": "string",
+      "minLength": 1
+    },
+    "status": {
+      "enum": [
+        "referenced",
+        "external-attested",
+        "unknown"
+      ]
+    },
+    "evidencePaths": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "uniqueItems": true
+    },
+    "targetIds": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "uniqueItems": true
+    },
+    "componentIds": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "uniqueItems": true
+    },
+    "dataClasses": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "uniqueItems": true
+    },
+    "environments": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "uniqueItems": true
+    },
+    "credentialsPolicy": {
+      "type": "string",
+      "minLength": 1
+    },
+    "freshnessRequirement": {
+      "type": "string",
+      "minLength": 1
+    },
+    "binding": {
+      "type": [
+        "object",
+        "null"
+      ]
+    }
+  }
+}

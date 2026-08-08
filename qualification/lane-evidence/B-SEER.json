@@ -1,0 +1,68 @@
+{
+  "lane": "B-SEER",
+  "tasks": [
+    {
+      "id": "B-SEER-01",
+      "status": "blocked",
+      "note": "Five operation surfaces exist; inspect/plan/audit/verify delegate live, while explain returns a typed blocker until its canonical public API exists.",
+      "test": {
+        "path": "packages/seer/tests/seer-facade.test.mjs",
+        "assertion": "all five operations delegate to named canonical core APIs; missing public core APIs produce typed blockers"
+      },
+      "implementation": [
+        { "path": "packages/seer/lib/facade.mjs", "symbol": "createSeer" },
+        { "path": "packages/seer/index.mjs", "symbol": "seer" }
+      ],
+      "proof": {
+        "red": "qualification/evidence/lanes/B-SEER/DISPATCH-13.red.log",
+        "green": "qualification/evidence/lanes/B-SEER/DISPATCH-13.green.log"
+      },
+      "blockers": [
+        "no canonical core explain API exists; explain is CLI-only translation in lib/cli/commands/explain.mjs"
+      ]
+    },
+    {
+      "id": "B-SEER-02",
+      "status": "implemented",
+      "note": "Core output is preserved as immutable artifact-v1 content with SHA-256 digest, bytes, denominator digest, and verbatim claim boundary.",
+      "test": { "path": "packages/seer/tests/seer-facade.test.mjs", "assertion": "claim boundary and denominator digest pass through verbatim" },
+      "implementation": [{ "path": "packages/seer/lib/artifact.mjs", "symbol": "wrapArtifact" }],
+      "proof": { "red": "qualification/evidence/lanes/B-SEER/DISPATCH-13.red.log", "green": "qualification/evidence/lanes/B-SEER/DISPATCH-13.green.log" }
+    },
+    {
+      "id": "B-SEER-03",
+      "status": "implemented",
+      "note": "Committed canonical verification facts translate without changing findings, denominators, or provider claim statuses.",
+      "test": { "path": "packages/seer/tests/seer-facade.test.mjs", "assertion": "legacy fixture translates with exact findings, denominators, and claims parity" },
+      "implementation": [
+        { "path": "packages/seer/lib/facade.mjs", "symbol": "translateLegacyReport" },
+        { "path": "packages/seer/fixtures/legacy-parity.json", "symbol": "seer-legacy-parity-fixture" }
+      ],
+      "proof": { "red": "qualification/evidence/lanes/B-SEER/DISPATCH-13.red.log", "green": "qualification/evidence/lanes/B-SEER/DISPATCH-13.green.log" }
+    },
+    {
+      "id": "B-SEER-04",
+      "status": "implemented",
+      "note": "Frozen run identity is forwarded and mutation-capable requests are rejected before any core call.",
+      "test": { "path": "packages/seer/tests/seer-facade.test.mjs", "assertion": "mutation-capable requests fail before core invocation" },
+      "implementation": [{ "path": "packages/seer/lib/facade.mjs", "symbol": "hasMutationCapability" }],
+      "proof": { "red": "qualification/evidence/lanes/B-SEER/DISPATCH-13.red.log", "green": "qualification/evidence/lanes/B-SEER/DISPATCH-13.green.log" }
+    },
+    {
+      "id": "B-SEER-05",
+      "status": "implemented",
+      "note": "Each result returns a cloned frozen run identity and separate working-context marker; facade exposes no mutation operation.",
+      "test": { "path": "packages/seer/tests/seer-facade.test.mjs", "assertion": "run identity and isolated working context are forwarded without mutation" },
+      "implementation": [{ "path": "packages/seer/lib/facade.mjs", "symbol": "forwardedContext" }],
+      "proof": { "red": "qualification/evidence/lanes/B-SEER/DISPATCH-13.red.log", "green": "qualification/evidence/lanes/B-SEER/DISPATCH-13.green.log" }
+    }
+  ],
+  "noUniqueLogicAttestation": {
+    "seer.inspect": "inspectProduct",
+    "seer.plan": "buildPlan",
+    "seer.audit": "audit",
+    "seer.verify": "verifyRun",
+    "seer.explain": "explain",
+    "statement": "Facade behavior is envelope validation, read-only capability rejection, canonical-core delegation, and lossless artifact translation only; it contains no audit decision logic."
+  }
+}

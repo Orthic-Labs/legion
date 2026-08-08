@@ -1,0 +1,133 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "nemesis-book-qualification-v2",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "kind", "book", "expectedTaskCount", "sourceRevision", "decision", "claimLevel", "sourceAccounting", "tasks", "checks", "blockers"],
+  "properties": {
+    "schemaVersion": { "const": 2 },
+    "kind": { "const": "nemesis-book-qualification" },
+    "book": { "type": "integer", "minimum": 1, "maximum": 8 },
+    "expectedTaskCount": { "type": "integer", "minimum": 1 },
+    "sourceRevision": { "type": "string", "pattern": "^[0-9a-f]{40}(?:\\+dirty\\.sha256:[0-9a-f]{64})?$" },
+    "decision": { "enum": ["SOURCE_IMPLEMENTED", "BLOCKED"] },
+    "claimLevel": { "const": "source" },
+    "sourceAccounting": {
+      "type": "object", "additionalProperties": false,
+      "required": ["implemented", "mapped", "sourceBlocked"],
+      "properties": {
+        "implemented": { "type": "integer", "minimum": 0 },
+        "mapped": { "type": "integer", "minimum": 0 },
+        "sourceBlocked": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "tasks": {
+      "type": "array", "minItems": 1,
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["id", "status", "dependsOn", "evidence"],
+        "properties": {
+          "id": { "type": "string", "pattern": "^B[1-8]-[0-9]{3}$" },
+          "status": { "enum": ["implemented", "mapped", "source-blocked"] },
+          "dependsOn": { "type": "array", "items": { "type": "string", "pattern": "^B[1-8]-[0-9]{3}$" } },
+          "evidence": {
+            "type": "object", "additionalProperties": false,
+            "required": ["test", "implementation", "proof"],
+            "properties": {
+              "test": { "$ref": "#/$defs/fileAssertion" },
+              "implementation": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/implementation" } },
+              "proof": {
+                "type": "object", "additionalProperties": false, "required": ["red", "green"],
+                "properties": {
+                  "red": { "$ref": "#/$defs/runProof" },
+                  "green": { "$ref": "#/$defs/runProof" }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "checks": {
+      "type": "array",
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["id", "command", "status", "log", "digest", "bytes", "counts"],
+        "properties": {
+          "id": { "type": "string", "minLength": 1 },
+          "command": { "type": "string", "minLength": 1 },
+          "status": { "enum": ["pass", "fail", "external-evidence-required"] },
+          "log": { "type": "string", "minLength": 1 },
+          "digest": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+          "bytes": { "type": "integer", "minimum": 0 },
+          "counts": { "$ref": "#/$defs/counts" }
+        }
+      }
+    },
+    "blockers": {
+      "type": "array",
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["id", "kind", "state", "affects", "detail"],
+        "properties": {
+          "id": { "type": "string", "minLength": 1 },
+          "kind": { "type": "string", "minLength": 1 },
+          "state": { "const": "external-evidence-required" },
+          "affects": { "type": "string", "minLength": 1 },
+          "detail": { "type": "string", "minLength": 1 }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "file": {
+      "type": "object", "additionalProperties": false,
+      "required": ["path", "digest", "bytes"],
+      "properties": {
+        "path": { "type": "string", "minLength": 1 },
+        "digest": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+        "bytes": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "fileAssertion": {
+      "type": "object", "additionalProperties": false,
+      "required": ["path", "assertion", "digest", "bytes"],
+      "properties": {
+        "path": { "type": "string", "minLength": 1 },
+        "assertion": { "type": "string", "minLength": 1 },
+        "digest": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+        "bytes": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "implementation": {
+      "type": "object", "additionalProperties": false,
+      "required": ["path", "symbol", "digest", "bytes"],
+      "properties": {
+        "path": { "type": "string", "minLength": 1 },
+        "symbol": { "type": "string", "minLength": 1 },
+        "digest": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+        "bytes": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "counts": {
+      "type": "object", "additionalProperties": false,
+      "required": ["total", "pass", "fail"],
+      "properties": {
+        "total": { "type": "integer", "minimum": 0 },
+        "pass": { "type": "integer", "minimum": 0 },
+        "fail": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "runProof": {
+      "type": "object", "additionalProperties": false,
+      "required": ["path", "command", "digest", "bytes", "counts"],
+      "properties": {
+        "path": { "type": "string", "minLength": 1 },
+        "command": { "type": "string", "minLength": 1 },
+        "digest": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+        "bytes": { "type": "integer", "minimum": 0 },
+        "counts": { "$ref": "#/$defs/counts" }
+      }
+    }
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "family": "c-family",
+  "cases": [
+    {
+      "id": "header",
+      "expected": "measured"
+    },
+    {
+      "id": "macro",
+      "expected": "measured"
+    },
+    {
+      "id": "compile-context",
+      "expected": "measured"
+    },
+    {
+      "id": "unsupported",
+      "expected": "unproven"
+    }
+  ]
+}

@@ -1,0 +1,71 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://orthic.dev/schemas/remediation/accepted-risk-v1.json",
+  "title": "RemediationAcceptedRiskV1",
+  "type": "object",
+  "required": [
+    "schemaVersion",
+    "kind",
+    "id",
+    "subjectKind",
+    "subjectId",
+    "acceptedBy",
+    "reason",
+    "acceptedAt",
+    "expiresAt",
+    "bindingDigest",
+    "truthUnchanged"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": 1
+    },
+    "kind": {
+      "const": "nemesis-accepted-risk"
+    },
+    "id": {
+      "type": "string",
+      "pattern": "^sha256:"
+    },
+    "subjectKind": {
+      "enum": [
+        "finding",
+        "attack-path",
+        "rule",
+        "family"
+      ]
+    },
+    "subjectId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "acceptedBy": {
+      "type": "string",
+      "minLength": 1
+    },
+    "reason": {
+      "type": "string",
+      "minLength": 1
+    },
+    "acceptedAt": {
+      "type": "string",
+      "minLength": 1
+    },
+    "expiresAt": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "bindingDigest": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "truthUnchanged": {
+      "const": true
+    }
+  },
+  "additionalProperties": false
+}

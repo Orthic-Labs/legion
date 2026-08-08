@@ -1,0 +1,16 @@
+✔ security contracts re-export core provider and evidence enums instead of duplicating them (1.6608ms)
+✔ entity, relation, and control vocabularies are code-owned and frozen (0.6837ms)
+✔ unknown future security schema versions are rejected (0.1954ms)
+✔ every security artifact requires binding and denominator digest (0.4378ms)
+✔ the canonical artifact store record carries binding and denominator digest (0.2912ms)
+✔ runtime enum vocabulary and the committed enum registry are identical (0.6579ms)
+✔ generated security schemas are committed byte-identically and are enum-closed (2.2556ms)
+✔ legacy top-level security schemas remain generated and unchanged (0.9376ms)
+ℹ tests 8
+ℹ suites 0
+ℹ pass 8
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 120.9905

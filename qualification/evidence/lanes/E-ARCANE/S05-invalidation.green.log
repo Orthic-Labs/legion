@@ -1,0 +1,17 @@
+✔ G11 cascade: source revision change stales A, cascades to B, unproves C, invalidates the claim, leaves D unaffected — exactly one event (1.6241ms)
+✔ changing a different dimension stales exactly the evidence bound to it and nothing else (0.8024ms)
+✔ historical preservation: the prior evidence record remains readable with its original digest after invalidation (0.2451ms)
+✔ an imported legacy record can never become qualifying evidence, even when linked to a criterion (0.6556ms)
+✔ a corrupt ledger entry blocks strong claims and reports the exact affected ids (0.244ms)
+✔ register/link/isStale reject an unknown evidenceId with ARC_DEPENDENCY_UNKNOWN (0.3857ms)
+✔ proofEligibility on a criterion with no linked evidence is insufficient (0.0911ms)
+✔ snapshot exposes evidence/criteria/claims/quarantined state consistently with individual accessors (0.239ms)
+✔ envelopeDigest can be used as the digest for an evidence dimension edge (0.2002ms)
+ℹ tests 9
+ℹ suites 0
+ℹ pass 9
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 82.0882

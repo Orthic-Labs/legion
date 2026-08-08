@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "kind": "nemesis-coverage-test-artifact",
+  "recordId": "language.dotnet",
+  "testPath": "tests/providers/dotnet/dotnet.test.mjs",
+  "status": "pass",
+  "rawLog": {
+    "path": "bench/qualifications/book-3/coverage/language.dotnet.test.log",
+    "digest": "sha256:bc446c4b36d96aa05cd2ecacdc420df2f45275692547b8b0cefa2af4875d908d",
+    "bytes": 627
+  },
+  "providerVersions": {
+    "code.dotnet": "1.0.0"
+  }
+}

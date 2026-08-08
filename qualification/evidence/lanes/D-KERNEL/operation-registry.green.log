@@ -1,0 +1,10 @@
+✔ operation registry validates envelopes and returns typed unknown-operation error (16.5196ms)
+✔ tests\registry.test.mjs (85.552ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 2
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 109.8423

@@ -1,0 +1,15 @@
+command: node --test tests/content-l3-b6-013.test.mjs tests/content-l3-b6-025.test.mjs tests/content-l3.test.mjs
+result: PASS
+tests: 16
+pass: 16
+fail: 0
+
+B6-013 focused corpus controls: pass 2/2
+B6-025 focused graph controls: pass 2/2
+Shared L3 regression set: pass 12/12
+
+Provider syntax checks:
+- providers/copy/anti-slop.mjs: pass
+- providers/copy/clarity.mjs: pass
+- providers/copy/documentation.mjs: pass
+- providers/narrative/chronology.mjs: pass

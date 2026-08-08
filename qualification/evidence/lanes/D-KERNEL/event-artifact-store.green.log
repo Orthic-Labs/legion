@@ -1,0 +1,11 @@
+✔ event and artifact stores preserve digest-bound append-only records (96.5067ms)
+✔ concurrent duplicate artifact writes preserve one typed immutable record (27.3693ms)
+✔ artifact retrieval detects blob corruption against bound digest (26.3735ms)
+ℹ tests 3
+ℹ suites 0
+ℹ pass 3
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 186.0185

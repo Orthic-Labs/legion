@@ -1,0 +1,5 @@
+Observed RED before public-surface fix:
+✖ B8-001 exposes one explicit versioned public surface
+AssertionError [ERR_ASSERTION]: true !== false
+  at tests/public-l5.test.mjs:17:10
+Failure: mutable registry-related export was present on public API.

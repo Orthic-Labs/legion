@@ -1,0 +1,35 @@
+✔ B4-025 reconciles control/scenario denominators without source-only release closure (1.5742ms)
+✔ B4-025 emits provisional fixture qualification with explicit host gaps (0.7645ms)
+✖ B4-025 does not account nonterminal receipts or pass empty qualification (1.0361ms)
+ℹ tests 3
+ℹ suites 0
+ℹ pass 2
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 107.5823
+
+✖ failing tests:
+
+test at tests\platform\desktop\qualification.test.mjs:28:1
+✖ B4-025 does not account nonterminal receipts or pass empty qualification (1.0361ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  1 !== 0
+  
+      at TestContext.<anonymous> (file:///D:/Claude/tools/skills/nemesis/tests/platform/desktop/qualification.test.mjs:30:10)
+      at Test.runInAsyncScope (node:async_hooks:226:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+RED_EXIT=1

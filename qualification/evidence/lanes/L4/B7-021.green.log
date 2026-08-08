@@ -1,0 +1,16 @@
+✔ creator-derived.json and its provenance record exist and parse (1.6245ms)
+✔ every category is exactly one of owned (single pack) or explicitly excluded with a reason (0.4957ms)
+✔ every owningPack/owningRuleIds pair actually exists in the mapped registries and packs (131.4874ms)
+✔ no rule id is claimed by two categories, and no category claims two owning packs (0.4243ms)
+✔ every brief-named creator security topic has coverage (owned or excluded) (0.2834ms)
+✔ provenance records source identity, digest, and does not assume redistribution rights (0.2193ms)
+✔ the creator archive is not shipped: the seed ledger was not copied into the repo (0.3029ms)
+✔ no ledger item title or notes string appears verbatim in the deliverable outputs (1.2448ms)
+ℹ tests 8
+ℹ suites 0
+ℹ pass 8
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 198.3579

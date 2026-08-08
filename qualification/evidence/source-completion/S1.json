@@ -1,0 +1,124 @@
+{
+  "schemaVersion": 2,
+  "kind": "nemesis-source-completion-evidence",
+  "route": {
+    "executor": "Terra subagent",
+    "deviation": "Authorized S1-only recovery plus three quality-fix passes after prior agent stopped."
+  },
+  "baseline": "97687c6952c3f20a8affee7da0502a61039e258e",
+  "current": "97687c6952c3f20a8affee7da0502a61039e258e",
+  "dirtyExclusions": ["architecture.md", "pnpm-lock.yaml"],
+  "legacyFixture": {
+    "path": "tests/legacy-parity.test.mjs",
+    "rootRepository": "D:\\Claude",
+    "tree": "52a90cf0^",
+    "rows": 135,
+    "fullBlobOids": true,
+    "exactlyMatchesGitLsTree": true,
+    "derivationCommand": "git -C D:\\Claude ls-tree -r 52a90cf0^ -- tools/skills/audit tools/skills/audit-fix tools/skills/audit-visual tools/skills/_audit"
+  },
+  "parity": { "total": 135, "missing": 0, "identical": 111, "changed": 24 },
+  "thirdQualityTdd": {
+    "red": {
+      "command": "node --test tests/windows-portability.test.mjs tests/provider-executor.test.mjs tests/cli.test.mjs",
+      "exitCode": 1,
+      "tests": 28,
+      "passed": 23,
+      "failed": 5,
+      "durationMs": 978.8503,
+      "failures": ["verify run directory", "verify missing facts", "canonical output-limit", "case-insensitive duplicate drive", "structured rerun"]
+    },
+    "focusedGreen": {
+      "command": "node --test --test-name-pattern=<four verify probes> tests/cli.test.mjs; node --test --test-name-pattern=output-cap tests/provider-executor.test.mjs; node --test --test-name-pattern=<rerun-or-drive> tests/windows-portability.test.mjs",
+      "exitCode": 0,
+      "verify": { "tests": 4, "passed": 4, "failed": 0, "durationMs": 799.7734 },
+      "outputCap": { "tests": 1, "passed": 1, "failed": 0, "durationMs": 149.864 },
+      "rerunAndDrive": { "tests": 2, "passed": 2, "failed": 0, "durationMs": 88.9514 }
+    }
+  },
+  "directChecks": {
+    "verifyRunDirectoryAndDirectFile": { "exitCode": 0, "tests": 4, "passed": 4, "failed": 0 },
+    "verifyCurrentDirectory": { "command": "node bin/nemesis.mjs verify .", "exitCode": 4, "typedError": "verify facts artifact missing", "eisdir": false },
+    "outputLimitCanonical": { "exitCode": 0, "tests": 1, "passed": 1, "failed": 0 },
+    "rerunInjectionAndDrive": { "exitCode": 0, "tests": 2, "passed": 2, "failed": 0 },
+    "schemas": { "command": "node scripts/generate-schemas.mjs --check", "exitCode": 0, "result": "schemas are in sync with contracts" }
+  },
+  "red": {
+    "command": "node --test tests/cli.test.mjs tests/doctor.test.mjs tests/init.test.mjs tests/native-equivalence.test.mjs tests/provider-executor.test.mjs tests/standalone-checkout.test.mjs tests/legacy-parity.test.mjs tests/windows-portability.test.mjs",
+    "nodeExecutable": "C:\\nvm4w\\nodejs\\node.exe",
+    "cwd": "C:\\Users\\adrds\\AppData\\Local\\Temp\\nemesis-s1-red-27d80ec95bdd4aa79d912fddff36a272\\checkout",
+    "cwdWasExplicitChildWorkingDirectory": true,
+    "reporterEnvironment": "NODE_OPTIONS=--test-reporter=tap",
+    "archive": {
+      "repository": "D:\\Claude\\tools\\skills\\nemesis",
+      "command": "git archive --format=tar HEAD -o <validated-os-temp>\\baseline.tar",
+      "head": "97687c6952c3f20a8affee7da0502a61039e258e",
+      "extractedIntoChildCwd": true,
+      "allEightFinalS1SelectorTestsOverlaid": true,
+      "temporaryPathsContainmentValidated": true,
+      "temporaryPathsRemovedAfterCapture": true
+    },
+    "overlaidTests": {
+      "tests/cli.test.mjs": "sha256:e304428d354bce87a68f364b7611c089e9b9593c3d19f8584e140ea5c8411cfe",
+      "tests/doctor.test.mjs": "sha256:f05695e67c4c7114340c4b9b94cd0a9a7c8690518c0e4f4abfd1ba88bbddc599",
+      "tests/init.test.mjs": "sha256:646ff336988d8e6c6a5e14e18a15ddece1d316301d352450455e955607d93f8a",
+      "tests/native-equivalence.test.mjs": "sha256:7006b518ebb1e4e56aa3fa3568b39007c3f8318038f88c3b94fec1bb3b0ea4e3",
+      "tests/provider-executor.test.mjs": "sha256:04aec1fe77444b4537a37c152f6d3b633b212569200ee92891b0295224901d80",
+      "tests/standalone-checkout.test.mjs": "sha256:ace14bfbb106f460845a2b9106f503d459b5f8bdbbe5ecad71f244f8df1be128",
+      "tests/legacy-parity.test.mjs": "sha256:24ebb851876fe616e6a61627f240eee5d40083b0c2aeaebda7542122f9227cae",
+      "tests/windows-portability.test.mjs": "sha256:492fcc91f410b5806c0236e92631ee695c22e5c2be6500fc938b3d1defe6fa45"
+    },
+    "exitCode": 1,
+    "tests": 52,
+    "passed": 40,
+    "failed": 12,
+    "durationMs": 8473.8182,
+    "stdoutBytes": 21026,
+    "stderrBytes": 0,
+    "combinedBytes": 21026,
+    "path": "qualification/evidence/source-completion/S1.red.log",
+    "sha256": "e8e8ec19d365ee66abaaf2e8eb54de7299c0468108500f888ae2e15db93d9306"
+  },
+  "green": {
+    "command": "node --test tests/cli.test.mjs tests/doctor.test.mjs tests/init.test.mjs tests/native-equivalence.test.mjs tests/provider-executor.test.mjs tests/standalone-checkout.test.mjs tests/legacy-parity.test.mjs tests/windows-portability.test.mjs",
+    "nodeExecutable": "C:\\nvm4w\\nodejs\\node.exe",
+    "cwd": "D:\\Claude\\tools\\skills\\nemesis",
+    "cwdWasExplicitChildWorkingDirectory": true,
+    "reporterEnvironment": "NODE_OPTIONS=--test-reporter=tap",
+    "exitCode": 0,
+    "tests": 52,
+    "passed": 52,
+    "failed": 0,
+    "durationMs": 12875.1777,
+    "stdoutBytes": 9041,
+    "stderrBytes": 0,
+    "combinedBytes": 9041,
+    "path": "qualification/evidence/source-completion/S1.green.log",
+    "sha256": "f2ff9145c59a04177a224b14b226be8a9bba24071db57813ca5b8acb5d9c2a64"
+  },
+  "changedFileCount": 20,
+  "changedFiles": {
+    "audit-finalize.mjs": "sha256:0ea8efb411ae048de473dc997de1123d444be702634a96989bab1f4265aa1a38",
+    "lib/cli/commands/audit.mjs": "sha256:c64f0e69cefe2a2638ba4ca73eba919714f25dcb4ee2eebb45df4d21d386c1a0",
+    "lib/cli/commands/doctor.mjs": "sha256:f6db6dba915101e48d948ed77dad9deff5c9e53d632bfaecad81651e9015e429",
+    "lib/cli/commands/verify.mjs": "sha256:537a9a4c3c0d6f402781fe4dc09752baa85ff7ed2a4c0c8aff2397b4f24ba0d9",
+    "lib/cli/run.mjs": "sha256:5c46f7f35205e41c0cced75978fed567ec2239cf7e5722f9a0fe57c4b1c1bcc2",
+    "lib/config/index.mjs": "sha256:408fde532bdb61e2d72f455cabf9f9061e6672f7ff49026e0d70b830b9bfa7a7",
+    "lib/core/execute-plan.mjs": "sha256:e30973e9b7d43392e4c6d554beb9b346964bffbcdad11d8f6d03bd0df41a87de",
+    "lib/core/execution-receipt.mjs": "sha256:7bb3940b16ebd8023d76a42a191823142fb18ccb065040ba1d106eb06f01130a",
+    "lib/host/index.mjs": "sha256:cbcdef30648db4a5f1e57bdd25e93a266ba18c6bef9c3720a66c85054e77abf9",
+    "lib/providers/external-process.mjs": "sha256:4f615ef41ffc731394c380bed62ef753acf6cc3e743bddb5a09e0154268206cd",
+    "lib/qualification/source-slice.mjs": "sha256:f90b32099fc150f4c3a792b4f452bf40abcb6f084b80384edfba1157958c34fe",
+    "schemas/execution-receipt-v1.schema.json": "sha256:35e1cd3b4d4d573d4e183be48a02cc00afd0e79d5b66ba483c745ebf72410b27",
+    "tests/cli.test.mjs": "sha256:e304428d354bce87a68f364b7611c089e9b9593c3d19f8584e140ea5c8411cfe",
+    "tests/doctor.test.mjs": "sha256:f05695e67c4c7114340c4b9b94cd0a9a7c8690518c0e4f4abfd1ba88bbddc599",
+    "tests/init.test.mjs": "sha256:646ff336988d8e6c6a5e14e18a15ddece1d316301d352450455e955607d93f8a",
+    "tests/legacy-parity.test.mjs": "sha256:24ebb851876fe616e6a61627f240eee5d40083b0c2aeaebda7542122f9227cae",
+    "tests/native-equivalence.test.mjs": "sha256:7006b518ebb1e4e56aa3fa3568b39007c3f8318038f88c3b94fec1bb3b0ea4e3",
+    "tests/provider-executor.test.mjs": "sha256:04aec1fe77444b4537a37c152f6d3b633b212569200ee92891b0295224901d80",
+    "tests/standalone-checkout.test.mjs": "sha256:ace14bfbb106f460845a2b9106f503d459b5f8bdbbe5ecad71f244f8df1be128",
+    "tests/windows-portability.test.mjs": "sha256:492fcc91f410b5806c0236e92631ee695c22e5c2be6500fc938b3d1defe6fa45"
+  },
+  "packetInitCorrection": "tests/init.test.mjs was added as minimal existing-init characterization because packet selector named an absent baseline path.",
+  "toolVersions": { "node": "v26.5.0", "git": "2.49.0.windows.1" }
+}

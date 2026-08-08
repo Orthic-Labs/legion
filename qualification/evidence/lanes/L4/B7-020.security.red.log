@@ -1,0 +1,75 @@
+✔ specialist.json registry and the four specialist packs are in exact rule-id parity (0.9174ms)
+✔ every specialist pack is frozen at the measured support tier (0.1179ms)
+✔ parser-presence-only fixtures (domain file type, zero risky pattern) do not raise the tier or emit a clean/certified claim (3.0307ms)
+✔ mobile pack flags a dangerous permission, deep link, exported component, backup, and cleartext from real extractor entities (2.5105ms)
+✔ mobile pack mitigation: stripped permission, verified app link, permission-gated component, allowlisted bridge, enforced backup produce no/downgraded candidates (0.6218ms)
+✔ mobile bench regression fixture (no exported=true) yields zero candidates (0.1928ms)
+✔ mobile pack flags insecure sensitive-data storage and debug signing in release, clean by default (0.8771ms)
+✔ smart-contract pack covers access-control, reentrancy, oracle, upgradeability, and signature/replay categories (1.19ms)
+✔ smart-contract pack emits nothing for a non-Solidity file even with a risky-looking pattern (0.1634ms)
+✖ embedded-iot pack covers firmware-update, debug-interface, credential, and identity categories (0.9447ms)
+✔ ics-ot pack covers authorization, segmentation, and update-policy categories (1.1846ms)
+✖ every specialist candidate states a non-empty static/runtime scope, hazards, assumptions, and authority limits (1.0789ms)
+✔ no specialist pack imports a live-probe-capable builtin, a serial/USB library, or calls fetch( (0.7732ms)
+✖ no rule, claim, or detectorMetadata string in any specialist pack asserts certification or regulatory compliance (0.3755ms)
+✔ every specialist pack declares a variantStrategy with rootCause/enumerate for every rule (0.1241ms)
+ℹ tests 15
+ℹ suites 0
+ℹ pass 12
+ℹ fail 3
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 113.2968
+
+✖ failing tests:
+
+test at tests\security-l4\b7-020-specialist-security.test.mjs:337:1
+✖ embedded-iot pack covers firmware-update, debug-interface, credential, and identity categories (0.9447ms)
+  AssertionError [ERR_ASSERTION]: embedded-iot.firmware.update-without-signature-verification did not fire on its positive fixture
+      at TestContext.<anonymous> (file:///D:/Claude/tools/skills/nemesis/tests/security-l4/b7-020-specialist-security.test.mjs:341:12)
+      at Test.runInAsyncScope (node:async_hooks:226:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at tests\security-l4\b7-020-specialist-security.test.mjs:395:1
+✖ every specialist candidate states a non-empty static/runtime scope, hazards, assumptions, and authority limits (1.0789ms)
+  Error: unsupported chain role credential-pivot
+      at createSecurityCandidateV2 (file:///D:/Claude/tools/skills/nemesis/providers/security/candidate-engine.mjs:101:44)
+      at file:///D:/Claude/tools/skills/nemesis/providers/security/candidate-engine.mjs:206:56
+      at Array.map (<anonymous>)
+      at runSecurityPack (file:///D:/Claude/tools/skills/nemesis/providers/security/candidate-engine.mjs:206:35)
+      at run (file:///D:/Claude/tools/skills/nemesis/tests/security-l4/b7-020-specialist-security.test.mjs:75:10)
+      at TestContext.<anonymous> (file:///D:/Claude/tools/skills/nemesis/tests/security-l4/b7-020-specialist-security.test.mjs:398:20)
+      at Test.runInAsyncScope (node:async_hooks:226:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+
+test at tests\security-l4\b7-020-specialist-security.test.mjs:429:1
+✖ no rule, claim, or detectorMetadata string in any specialist pack asserts certification or regulatory compliance (0.3755ms)
+  AssertionError [ERR_ASSERTION]: mobile.storage.insecure-sensitive-data metadata uses certification/compliance language: This lens does not certify app-store review outcomes, platform security posture, or regulatory adequacy for any standard.
+      at TestContext.<anonymous> (file:///D:/Claude/tools/skills/nemesis/tests/security-l4/b7-020-specialist-security.test.mjs:437:41)
+      at Test.runInAsyncScope (node:async_hooks:226:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }

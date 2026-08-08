@@ -1,1 +1,1077 @@
-{"id":"target.service","version":"1.0.0","class":"target","controls":[{"id":"service.runtime.readiness","version":"1.0.0","selector":{"targetKinds":["api-service","worker","serverless-function","data-pipeline"]},"denominator":"service-operations","evidence":["service-deployment","scenario"],"families":["reliability"],"claimLevels":["runtime","product","release"],"missingEvidenceEffect":"unproven"}]}
+{
+  "id": "target.service-data",
+  "version": "1.0.0",
+  "class": "target",
+  "dependencies": [
+    "universal.core"
+  ],
+  "source": {
+    "kind": "canonical",
+    "rights": "internal-contract"
+  },
+  "qualification": "source-tested",
+  "controls": [
+    {
+      "id": "service-data.api-contracts",
+      "version": "1.0.0",
+      "selector": {
+        "targetKinds": [
+          "api-service",
+          "worker",
+          "serverless-function",
+          "data-pipeline"
+        ]
+      },
+      "denominator": "api-contracts-subjects",
+      "evidence": [
+        "repository",
+        "external-evidence"
+      ],
+      "families": [
+        "data"
+      ],
+      "lenses": [
+        "service-data.api-contracts"
+      ],
+      "providers": [
+        "framework.backend"
+      ],
+      "rules": [
+        "data-integrity"
+      ],
+      "scenarios": [
+        "service-data.api-contracts.default"
+      ],
+      "decisionMode": "measured",
+      "missingEvidenceEffect": "unproven",
+      "claimLevels": [
+        "source",
+        "runtime",
+        "product",
+        "release"
+      ],
+      "remediationOwner": "code",
+      "sourceConcepts": [
+        "canonical:service-data:api-contracts"
+      ],
+      "stopShip": false,
+      "benchmark": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "qualificationDigest": null
+      },
+      "provenance": {
+        "kind": "canonical",
+        "source": "nemesis:service-data",
+        "rights": "internal-contract",
+        "lineage": [
+          "canonical:service-data:api-contracts"
+        ]
+      }
+    },
+    {
+      "id": "service-data.identity-authorization",
+      "version": "1.0.0",
+      "selector": {
+        "targetKinds": [
+          "api-service",
+          "worker",
+          "serverless-function",
+          "data-pipeline"
+        ]
+      },
+      "denominator": "identity-authorization-subjects",
+      "evidence": [
+        "repository",
+        "external-evidence"
+      ],
+      "families": [
+        "data"
+      ],
+      "lenses": [
+        "service-data.identity-authorization"
+      ],
+      "providers": [
+        "framework.backend"
+      ],
+      "rules": [
+        "data-integrity"
+      ],
+      "scenarios": [
+        "service-data.identity-authorization.default"
+      ],
+      "decisionMode": "measured",
+      "missingEvidenceEffect": "unproven",
+      "claimLevels": [
+        "source",
+        "runtime",
+        "product",
+        "release"
+      ],
+      "remediationOwner": "code",
+      "sourceConcepts": [
+        "canonical:service-data:identity-authorization"
+      ],
+      "stopShip": true,
+      "benchmark": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "qualificationDigest": null
+      },
+      "provenance": {
+        "kind": "canonical",
+        "source": "nemesis:service-data",
+        "rights": "internal-contract",
+        "lineage": [
+          "canonical:service-data:identity-authorization"
+        ]
+      }
+    },
+    {
+      "id": "service-data.validation",
+      "version": "1.0.0",
+      "selector": {
+        "targetKinds": [
+          "api-service",
+          "worker",
+          "serverless-function",
+          "data-pipeline"
+        ]
+      },
+      "denominator": "validation-subjects",
+      "evidence": [
+        "repository",
+        "external-evidence"
+      ],
+      "families": [
+        "data"
+      ],
+      "lenses": [
+        "service-data.validation"
+      ],
+      "providers": [
+        "framework.backend"
+      ],
+      "rules": [
+        "data-integrity"
+      ],
+      "scenarios": [
+        "service-data.validation.default"
+      ],
+      "decisionMode": "measured",
+      "missingEvidenceEffect": "unproven",
+      "claimLevels": [
+        "source",
+        "runtime",
+        "product",
+        "release"
+      ],
+      "remediationOwner": "code",
+      "sourceConcepts": [
+        "canonical:service-data:validation"
+      ],
+      "stopShip": false,
+      "benchmark": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "qualificationDigest": null
+      },
+      "provenance": {
+        "kind": "canonical",
+        "source": "nemesis:service-data",
+        "rights": "internal-contract",
+        "lineage": [
+          "canonical:service-data:validation"
+        ]
+      }
+    },
+    {
+      "id": "service-data.idempotency",
+      "version": "1.0.0",
+      "selector": {
+        "targetKinds": [
+          "api-service",
+          "worker",
+          "serverless-function",
+          "data-pipeline"
+        ]
+      },
+      "denominator": "idempotency-subjects",
+      "evidence": [
+        "repository",
+        "external-evidence"
+      ],
+      "families": [
+        "data"
+      ],
+      "lenses": [
+        "service-data.idempotency"
+      ],
+      "providers": [
+        "framework.backend"
+      ],
+      "rules": [
+        "data-integrity"
+      ],
+      "scenarios": [
+        "service-data.idempotency.default"
+      ],
+      "decisionMode": "measured",
+      "missingEvidenceEffect": "unproven",
+      "claimLevels": [
+        "source",
+        "runtime",
+        "product",
+        "release"
+      ],
+      "remediationOwner": "code",
+      "sourceConcepts": [
+        "canonical:service-data:idempotency"
+      ],
+      "stopShip": false,
+      "benchmark": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "qualificationDigest": null
+      },
+      "provenance": {
+        "kind": "canonical",
+        "source": "nemesis:service-data",
+        "rights": "internal-contract",
+        "lineage": [
+          "canonical:service-data:idempotency"
+        ]
+      }
+    },
+    {
+      "id": "service-data.transactions",
+      "version": "1.0.0",
+      "selector": {
+        "targetKinds": [
+          "api-service",
+          "worker",
+          "serverless-function",
+          "data-pipeline"
+        ]
+      },
+      "denominator": "transactions-subjects",
+      "evidence": [
+        "repository",
+        "external-evidence"
+      ],
+      "families": [
+        "data"
+      ],
+      "lenses": [
+        "service-data.transactions"
+      ],
+      "providers": [
+        "framework.backend"
+      ],
+      "rules": [
+        "data-integrity"
+      ],
+      "scenarios": [
+        "service-data.transactions.default"
+      ],
+      "decisionMode": "measured",
+      "missingEvidenceEffect": "unproven",
+      "claimLevels": [
+        "source",
+        "runtime",
+        "product",
+        "release"
+      ],
+      "remediationOwner": "code",
+      "sourceConcepts": [
+        "canonical:service-data:transactions"
+      ],
+      "stopShip": false,
+      "benchmark": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "qualificationDigest": null
+      },
+      "provenance": {
+        "kind": "canonical",
+        "source": "nemesis:service-data",
+        "rights": "internal-contract",
+        "lineage": [
+          "canonical:service-data:transactions"
+        ]
+      }
+    },
+    {
+      "id": "service-data.queues",
+      "version": "1.0.0",
+      "selector": {
+        "targetKinds": [
+          "api-service",
+          "worker",
+          "serverless-function",
+          "data-pipeline"
+        ]
+      },
+      "denominator": "queues-subjects",
+      "evidence": [
+        "repository",
+        "external-evidence"
+      ],
+      "families": [
+        "data"
+      ],
+      "lenses": [
+        "service-data.queues"
+      ],
+      "providers": [
+        "framework.backend"
+      ],
+      "rules": [
+        "data-integrity"
+      ],
+      "scenarios": [
+        "service-data.queues.default"
+      ],
+      "decisionMode": "measured",
+      "missingEvidenceEffect": "unproven",
+      "claimLevels": [
+        "source",
+        "runtime",
+        "product",
+        "release"
+      ],
+      "remediationOwner": "code",
+      "sourceConcepts": [
+        "canonical:service-data:queues"
+      ],
+      "stopShip": false,
+      "benchmark": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "qualificationDigest": null
+      },
+      "provenance": {
+        "kind": "canonical",
+        "source": "nemesis:service-data",
+        "rights": "internal-contract",
+        "lineage": [
+          "canonical:service-data:queues"
+        ]
+      }
+    },
+    {
+      "id": "service-data.schedules",
+      "version": "1.0.0",
+      "selector": {
+        "targetKinds": [
+          "api-service",
+          "worker",
+          "serverless-function",
+          "data-pipeline"
+        ]
+      },
+      "denominator": "schedules-subjects",
+      "evidence": [
+        "repository",
+        "external-evidence"
+      ],
+      "families": [
+        "data"
+      ],
+      "lenses": [
+        "service-data.schedules"
+      ],
+      "providers": [
+        "framework.backend"
+      ],
+      "rules": [
+        "data-integrity"
+      ],
+      "scenarios": [
+        "service-data.schedules.default"
+      ],
+      "decisionMode": "measured",
+      "missingEvidenceEffect": "unproven",
+      "claimLevels": [
+        "source",
+        "runtime",
+        "product",
+        "release"
+      ],
+      "remediationOwner": "code",
+      "sourceConcepts": [
+        "canonical:service-data:schedules"
+      ],
+      "stopShip": false,
+      "benchmark": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "qualificationDigest": null
+      },
+      "provenance": {
+        "kind": "canonical",
+        "source": "nemesis:service-data",
+        "rights": "internal-contract",
+        "lineage": [
+          "canonical:service-data:schedules"
+        ]
+      }
+    },
+    {
+      "id": "service-data.backpressure",
+      "version": "1.0.0",
+      "selector": {
+        "targetKinds": [
+          "api-service",
+          "worker",
+          "serverless-function",
+          "data-pipeline"
+        ]
+      },
+      "denominator": "backpressure-subjects",
+      "evidence": [
+        "repository",
+        "external-evidence"
+      ],
+      "families": [
+        "data"
+      ],
+      "lenses": [
+        "service-data.backpressure"
+      ],
+      "providers": [
+        "framework.backend"
+      ],
+      "rules": [
+        "data-integrity"
+      ],
+      "scenarios": [
+        "service-data.backpressure.default"
+      ],
+      "decisionMode": "measured",
+      "missingEvidenceEffect": "unproven",
+      "claimLevels": [
+        "source",
+        "runtime",
+        "product",
+        "release"
+      ],
+      "remediationOwner": "code",
+      "sourceConcepts": [
+        "canonical:service-data:backpressure"
+      ],
+      "stopShip": false,
+      "benchmark": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "qualificationDigest": null
+      },
+      "provenance": {
+        "kind": "canonical",
+        "source": "nemesis:service-data",
+        "rights": "internal-contract",
+        "lineage": [
+          "canonical:service-data:backpressure"
+        ]
+      }
+    },
+    {
+      "id": "service-data.timeouts-retries",
+      "version": "1.0.0",
+      "selector": {
+        "targetKinds": [
+          "api-service",
+          "worker",
+          "serverless-function",
+          "data-pipeline"
+        ]
+      },
+      "denominator": "timeouts-retries-subjects",
+      "evidence": [
+        "repository",
+        "external-evidence"
+      ],
+      "families": [
+        "data"
+      ],
+      "lenses": [
+        "service-data.timeouts-retries"
+      ],
+      "providers": [
+        "framework.backend"
+      ],
+      "rules": [
+        "data-integrity"
+      ],
+      "scenarios": [
+        "service-data.timeouts-retries.default"
+      ],
+      "decisionMode": "measured",
+      "missingEvidenceEffect": "unproven",
+      "claimLevels": [
+        "source",
+        "runtime",
+        "product",
+        "release"
+      ],
+      "remediationOwner": "code",
+      "sourceConcepts": [
+        "canonical:service-data:timeouts-retries"
+      ],
+      "stopShip": false,
+      "benchmark": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "qualificationDigest": null
+      },
+      "provenance": {
+        "kind": "canonical",
+        "source": "nemesis:service-data",
+        "rights": "internal-contract",
+        "lineage": [
+          "canonical:service-data:timeouts-retries"
+        ]
+      }
+    },
+    {
+      "id": "service-data.rate-cost",
+      "version": "1.0.0",
+      "selector": {
+        "targetKinds": [
+          "api-service",
+          "worker",
+          "serverless-function",
+          "data-pipeline"
+        ]
+      },
+      "denominator": "rate-cost-subjects",
+      "evidence": [
+        "repository",
+        "external-evidence"
+      ],
+      "families": [
+        "data"
+      ],
+      "lenses": [
+        "service-data.rate-cost"
+      ],
+      "providers": [
+        "framework.backend"
+      ],
+      "rules": [
+        "data-integrity"
+      ],
+      "scenarios": [
+        "service-data.rate-cost.default"
+      ],
+      "decisionMode": "measured",
+      "missingEvidenceEffect": "unproven",
+      "claimLevels": [
+        "source",
+        "runtime",
+        "product",
+        "release"
+      ],
+      "remediationOwner": "code",
+      "sourceConcepts": [
+        "canonical:service-data:rate-cost"
+      ],
+      "stopShip": false,
+      "benchmark": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "qualificationDigest": null
+      },
+      "provenance": {
+        "kind": "canonical",
+        "source": "nemesis:service-data",
+        "rights": "internal-contract",
+        "lineage": [
+          "canonical:service-data:rate-cost"
+        ]
+      }
+    },
+    {
+      "id": "service-data.shutdown-health",
+      "version": "1.0.0",
+      "selector": {
+        "targetKinds": [
+          "api-service",
+          "worker",
+          "serverless-function",
+          "data-pipeline"
+        ]
+      },
+      "denominator": "shutdown-health-subjects",
+      "evidence": [
+        "repository",
+        "external-evidence"
+      ],
+      "families": [
+        "data"
+      ],
+      "lenses": [
+        "service-data.shutdown-health"
+      ],
+      "providers": [
+        "framework.backend"
+      ],
+      "rules": [
+        "data-integrity"
+      ],
+      "scenarios": [
+        "service-data.shutdown-health.default"
+      ],
+      "decisionMode": "measured",
+      "missingEvidenceEffect": "unproven",
+      "claimLevels": [
+        "source",
+        "runtime",
+        "product",
+        "release"
+      ],
+      "remediationOwner": "code",
+      "sourceConcepts": [
+        "canonical:service-data:shutdown-health"
+      ],
+      "stopShip": false,
+      "benchmark": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "qualificationDigest": null
+      },
+      "provenance": {
+        "kind": "canonical",
+        "source": "nemesis:service-data",
+        "rights": "internal-contract",
+        "lineage": [
+          "canonical:service-data:shutdown-health"
+        ]
+      }
+    },
+    {
+      "id": "service-data.lineage",
+      "version": "1.0.0",
+      "selector": {
+        "targetKinds": [
+          "api-service",
+          "worker",
+          "serverless-function",
+          "data-pipeline"
+        ]
+      },
+      "denominator": "lineage-subjects",
+      "evidence": [
+        "repository",
+        "external-evidence"
+      ],
+      "families": [
+        "data"
+      ],
+      "lenses": [
+        "service-data.lineage"
+      ],
+      "providers": [
+        "framework.backend"
+      ],
+      "rules": [
+        "data-integrity"
+      ],
+      "scenarios": [
+        "service-data.lineage.default"
+      ],
+      "decisionMode": "measured",
+      "missingEvidenceEffect": "unproven",
+      "claimLevels": [
+        "source",
+        "runtime",
+        "product",
+        "release"
+      ],
+      "remediationOwner": "code",
+      "sourceConcepts": [
+        "canonical:service-data:lineage"
+      ],
+      "stopShip": false,
+      "benchmark": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "qualificationDigest": null
+      },
+      "provenance": {
+        "kind": "canonical",
+        "source": "nemesis:service-data",
+        "rights": "internal-contract",
+        "lineage": [
+          "canonical:service-data:lineage"
+        ]
+      }
+    },
+    {
+      "id": "service-data.migrations",
+      "version": "1.0.0",
+      "selector": {
+        "targetKinds": [
+          "api-service",
+          "worker",
+          "serverless-function",
+          "data-pipeline"
+        ]
+      },
+      "denominator": "migrations-subjects",
+      "evidence": [
+        "repository",
+        "external-evidence"
+      ],
+      "families": [
+        "data"
+      ],
+      "lenses": [
+        "service-data.migrations"
+      ],
+      "providers": [
+        "framework.backend"
+      ],
+      "rules": [
+        "data-integrity"
+      ],
+      "scenarios": [
+        "service-data.migrations.default"
+      ],
+      "decisionMode": "measured",
+      "missingEvidenceEffect": "unproven",
+      "claimLevels": [
+        "source",
+        "runtime",
+        "product",
+        "release"
+      ],
+      "remediationOwner": "code",
+      "sourceConcepts": [
+        "canonical:service-data:migrations"
+      ],
+      "stopShip": false,
+      "benchmark": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "qualificationDigest": null
+      },
+      "provenance": {
+        "kind": "canonical",
+        "source": "nemesis:service-data",
+        "rights": "internal-contract",
+        "lineage": [
+          "canonical:service-data:migrations"
+        ]
+      }
+    },
+    {
+      "id": "service-data.backup-restore",
+      "version": "1.0.0",
+      "selector": {
+        "targetKinds": [
+          "api-service",
+          "worker",
+          "serverless-function",
+          "data-pipeline"
+        ]
+      },
+      "denominator": "backup-restore-subjects",
+      "evidence": [
+        "repository",
+        "external-evidence"
+      ],
+      "families": [
+        "data"
+      ],
+      "lenses": [
+        "service-data.backup-restore"
+      ],
+      "providers": [
+        "framework.backend"
+      ],
+      "rules": [
+        "data-integrity"
+      ],
+      "scenarios": [
+        "service-data.backup-restore.default"
+      ],
+      "decisionMode": "measured",
+      "missingEvidenceEffect": "unproven",
+      "claimLevels": [
+        "source",
+        "runtime",
+        "product",
+        "release"
+      ],
+      "remediationOwner": "architecture",
+      "sourceConcepts": [
+        "canonical:service-data:backup-restore"
+      ],
+      "stopShip": true,
+      "benchmark": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "qualificationDigest": null
+      },
+      "provenance": {
+        "kind": "canonical",
+        "source": "nemesis:service-data",
+        "rights": "internal-contract",
+        "lineage": [
+          "canonical:service-data:backup-restore"
+        ]
+      }
+    },
+    {
+      "id": "service-data.capacity-deployment",
+      "version": "1.0.0",
+      "selector": {
+        "targetKinds": [
+          "api-service",
+          "worker",
+          "serverless-function",
+          "data-pipeline"
+        ]
+      },
+      "denominator": "capacity-deployment-subjects",
+      "evidence": [
+        "repository",
+        "external-evidence"
+      ],
+      "families": [
+        "data"
+      ],
+      "lenses": [
+        "service-data.capacity-deployment"
+      ],
+      "providers": [
+        "framework.backend"
+      ],
+      "rules": [
+        "data-integrity"
+      ],
+      "scenarios": [
+        "service-data.capacity-deployment.default"
+      ],
+      "decisionMode": "measured",
+      "missingEvidenceEffect": "unproven",
+      "claimLevels": [
+        "source",
+        "runtime",
+        "product",
+        "release"
+      ],
+      "remediationOwner": "code",
+      "sourceConcepts": [
+        "canonical:service-data:capacity-deployment"
+      ],
+      "stopShip": false,
+      "benchmark": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "qualificationDigest": null
+      },
+      "provenance": {
+        "kind": "canonical",
+        "source": "nemesis:service-data",
+        "rights": "internal-contract",
+        "lineage": [
+          "canonical:service-data:capacity-deployment"
+        ]
+      }
+    },
+    {
+      "id": "service-data.observability-incidents",
+      "version": "1.0.0",
+      "selector": {
+        "targetKinds": [
+          "api-service",
+          "worker",
+          "serverless-function",
+          "data-pipeline"
+        ]
+      },
+      "denominator": "observability-incidents-subjects",
+      "evidence": [
+        "repository",
+        "external-evidence"
+      ],
+      "families": [
+        "data"
+      ],
+      "lenses": [
+        "service-data.observability-incidents"
+      ],
+      "providers": [
+        "framework.backend"
+      ],
+      "rules": [
+        "data-integrity"
+      ],
+      "scenarios": [
+        "service-data.observability-incidents.default"
+      ],
+      "decisionMode": "measured",
+      "missingEvidenceEffect": "unproven",
+      "claimLevels": [
+        "source",
+        "runtime",
+        "product",
+        "release"
+      ],
+      "remediationOwner": "code",
+      "sourceConcepts": [
+        "canonical:service-data:observability-incidents"
+      ],
+      "stopShip": false,
+      "benchmark": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "qualificationDigest": null
+      },
+      "provenance": {
+        "kind": "canonical",
+        "source": "nemesis:service-data",
+        "rights": "internal-contract",
+        "lineage": [
+          "canonical:service-data:observability-incidents"
+        ]
+      }
+    },
+    {
+      "id": "service-data.compatibility-abuse",
+      "version": "1.0.0",
+      "selector": {
+        "targetKinds": [
+          "api-service",
+          "worker",
+          "serverless-function",
+          "data-pipeline"
+        ]
+      },
+      "denominator": "compatibility-abuse-subjects",
+      "evidence": [
+        "repository",
+        "external-evidence"
+      ],
+      "families": [
+        "data"
+      ],
+      "lenses": [
+        "service-data.compatibility-abuse"
+      ],
+      "providers": [
+        "framework.backend"
+      ],
+      "rules": [
+        "data-integrity"
+      ],
+      "scenarios": [
+        "service-data.compatibility-abuse.default"
+      ],
+      "decisionMode": "measured",
+      "missingEvidenceEffect": "unproven",
+      "claimLevels": [
+        "source",
+        "runtime",
+        "product",
+        "release"
+      ],
+      "remediationOwner": "code",
+      "sourceConcepts": [
+        "canonical:service-data:compatibility-abuse"
+      ],
+      "stopShip": false,
+      "benchmark": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "qualificationDigest": null
+      },
+      "provenance": {
+        "kind": "canonical",
+        "source": "nemesis:service-data",
+        "rights": "internal-contract",
+        "lineage": [
+          "canonical:service-data:compatibility-abuse"
+        ]
+      }
+    },
+    {
+      "id": "service-data.replay-correctness",
+      "version": "1.0.0",
+      "selector": {
+        "targetKinds": [
+          "api-service",
+          "worker",
+          "serverless-function",
+          "data-pipeline"
+        ]
+      },
+      "denominator": "replay-correctness-subjects",
+      "evidence": [
+        "repository",
+        "external-evidence"
+      ],
+      "families": [
+        "data"
+      ],
+      "lenses": [
+        "service-data.replay-correctness"
+      ],
+      "providers": [
+        "framework.backend"
+      ],
+      "rules": [
+        "data-integrity"
+      ],
+      "scenarios": [
+        "service-data.replay-correctness.default"
+      ],
+      "decisionMode": "measured",
+      "missingEvidenceEffect": "unproven",
+      "claimLevels": [
+        "source",
+        "runtime",
+        "product",
+        "release"
+      ],
+      "remediationOwner": "code",
+      "sourceConcepts": [
+        "canonical:service-data:replay-correctness"
+      ],
+      "stopShip": false,
+      "benchmark": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "qualificationDigest": null
+      },
+      "provenance": {
+        "kind": "canonical",
+        "source": "nemesis:service-data",
+        "rights": "internal-contract",
+        "lineage": [
+          "canonical:service-data:replay-correctness"
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,7 @@
+✔ B4-025 reconciles control/scenario denominators without source-only release closure
+✔ B4-025 emits provisional fixture qualification with explicit host gaps
+✔ B4-025 does not account nonterminal receipts or pass empty qualification
+ℹ tests 3
+ℹ pass 3
+ℹ fail 0
+GREEN_EXIT=0

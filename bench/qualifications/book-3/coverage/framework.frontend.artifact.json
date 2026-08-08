@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "kind": "nemesis-coverage-test-artifact",
+  "recordId": "framework.frontend",
+  "testPath": "tests/framework-suite.test.mjs",
+  "status": "pass",
+  "rawLog": {
+    "path": "bench/qualifications/book-3/coverage/framework.frontend.test.log",
+    "digest": "sha256:ebbf4da314a8eb90bfda05a454c172edc7fd5cceaeb790dc5e317e831a7e031c",
+    "bytes": 390
+  },
+  "providerVersions": {
+    "framework.frontend": "1.0.0"
+  }
+}

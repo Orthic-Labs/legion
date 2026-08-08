@@ -1,0 +1,10 @@
+{
+  "schemaVersion": 1,
+  "family": "maintainability",
+  "cases": [
+    "localized-change",
+    "duplicated-policy",
+    "test-seam",
+    "clean-near-miss"
+  ]
+}

@@ -1,0 +1,575 @@
+TAP version 13
+# Subtest: --help prints usage and exits 0
+ok 1 - --help prints usage and exits 0
+  ---
+  duration_ms: 79.4772
+  type: 'test'
+  ...
+# Subtest: --version prints the canonical version
+ok 2 - --version prints the canonical version
+  ---
+  duration_ms: 71.0233
+  type: 'test'
+  ...
+# Subtest: no subcommand prints usage and exits 4
+ok 3 - no subcommand prints usage and exits 4
+  ---
+  duration_ms: 69.4273
+  type: 'test'
+  ...
+# Subtest: unknown subcommand exits 4
+ok 4 - unknown subcommand exits 4
+  ---
+  duration_ms: 67.6424
+  type: 'test'
+  ...
+# Subtest: providers --json emits machine JSON on stdout
+ok 5 - providers --json emits machine JSON on stdout
+  ---
+  duration_ms: 142.5432
+  type: 'test'
+  ...
+# Subtest: languages --json emits the coverage family surface
+ok 6 - languages --json emits the coverage family surface
+  ---
+  duration_ms: 163.6909
+  type: 'test'
+  ...
+# Subtest: plan --json seals a plan for the checkout root
+ok 7 - plan --json seals a plan for the checkout root
+  ---
+  duration_ms: 258.3733
+  type: 'test'
+  ...
+# Subtest: report --format json renders a report
+ok 8 - report --format json renders a report
+  ---
+  duration_ms: 255.8881
+  type: 'test'
+  ...
+# Subtest: verify resolves a run directory to its facts artifact
+ok 9 - verify resolves a run directory to its facts artifact
+  ---
+  duration_ms: 111.2101
+  type: 'test'
+  ...
+# Subtest: verify preserves direct facts-file support
+ok 10 - verify preserves direct facts-file support
+  ---
+  duration_ms: 116.1858
+  type: 'test'
+  ...
+# Subtest: verify reports a typed missing-facts error for an invalid run directory
+not ok 11 - verify reports a typed missing-facts error for an invalid run directory
+  ---
+  duration_ms: 113.7179
+  type: 'test'
+  location: 'C:\\Users\\adrds\\AppData\\Local\\Temp\\nemesis-s1-red-27d80ec95bdd4aa79d912fddff36a272\\checkout\\tests\\cli.test.mjs:114:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    
+    1 !== 4
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 4
+  actual: 1
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///C:/Users/adrds/AppData/Local/Temp/nemesis-s1-red-27d80ec95bdd4aa79d912fddff36a272/checkout/tests/cli.test.mjs:118:12)
+    Test.runInAsyncScope (node:async_hooks:226:14)
+    Test.run (node:internal/test_runner/test:1382:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+    Test.postRun (node:internal/test_runner/test:1522:19)
+    Test.run (node:internal/test_runner/test:1447:12)
+    async Test.processPendingSubtests (node:internal/test_runner/test:960:7)
+  ...
+# Subtest: verify reports a typed missing-plan error for an incomplete run directory
+not ok 12 - verify reports a typed missing-plan error for an incomplete run directory
+  ---
+  duration_ms: 114.6896
+  type: 'test'
+  location: 'C:\\Users\\adrds\\AppData\\Local\\Temp\\nemesis-s1-red-27d80ec95bdd4aa79d912fddff36a272\\checkout\\tests\\cli.test.mjs:126:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    
+    1 !== 4
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 4
+  actual: 1
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///C:/Users/adrds/AppData/Local/Temp/nemesis-s1-red-27d80ec95bdd4aa79d912fddff36a272/checkout/tests/cli.test.mjs:131:12)
+    Test.runInAsyncScope (node:async_hooks:226:14)
+    Test.run (node:internal/test_runner/test:1382:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+    Test.postRun (node:internal/test_runner/test:1522:19)
+    Test.run (node:internal/test_runner/test:1447:12)
+    async Test.processPendingSubtests (node:internal/test_runner/test:960:7)
+  ...
+# Subtest: exit taxonomy maps report states to codes
+ok 13 - exit taxonomy maps report states to codes
+  ---
+  duration_ms: 0.6851
+  type: 'test'
+  ...
+# Subtest: runCli returns structured results with injected streams
+ok 14 - runCli returns structured results with injected streams
+  ---
+  duration_ms: 0.7021
+  type: 'test'
+  ...
+# Subtest: doctor --json emits the canonical shape
+ok 15 - doctor --json emits the canonical shape
+  ---
+  duration_ms: 155.8001
+  type: 'test'
+  ...
+# Subtest: doctor reflects the network guard environment
+ok 16 - doctor reflects the network guard environment
+  ---
+  duration_ms: 79.2509
+  type: 'test'
+  ...
+# Subtest: doctor reflects signing key presence
+ok 17 - doctor reflects signing key presence
+  ---
+  duration_ms: 66.7126
+  type: 'test'
+  ...
+# Subtest: init dry-run previews without writing
+ok 18 - init dry-run previews without writing
+  ---
+  duration_ms: 66.3483
+  type: 'test'
+  ...
+# Subtest: init --write creates config and ignore entries
+ok 19 - init --write creates config and ignore entries
+  ---
+  duration_ms: 91.6884
+  type: 'test'
+  ...
+# Subtest: init defaults to a no-write preview
+ok 20 - init defaults to a no-write preview
+  ---
+  duration_ms: 2.169
+  type: 'test'
+  ...
+# Subtest: all 135 legacy paths remain in standalone Nemesis
+ok 21 - all 135 legacy paths remain in standalone Nemesis
+  ---
+  duration_ms: 4736.1884
+  type: 'test'
+  ...
+# Subtest: source completion reports legacy mappings without source blockers
+not ok 22 - source completion reports legacy mappings without source blockers
+  ---
+  duration_ms: 3607.0256
+  type: 'test'
+  location: 'C:\\Users\\adrds\\AppData\\Local\\Temp\\nemesis-s1-red-27d80ec95bdd4aa79d912fddff36a272\\checkout\\tests\\legacy-parity.test.mjs:199:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly deep-equal:
+    + actual - expected
+    
+    + undefined
+    - {
+    -   blocked: 0,
+    -   mapped: 135,
+    -   missing: 0,
+    -   total: 135
+    - }
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+    total: 135
+    mapped: 135
+    blocked: 0
+    missing: 0
+  operator: 'deepStrictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///C:/Users/adrds/AppData/Local/Temp/nemesis-s1-red-27d80ec95bdd4aa79d912fddff36a272/checkout/tests/legacy-parity.test.mjs:207:10)
+    Test.runInAsyncScope (node:async_hooks:226:14)
+    Test.run (node:internal/test_runner/test:1382:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+    Test.postRun (node:internal/test_runner/test:1522:19)
+    Test.run (node:internal/test_runner/test:1447:12)
+    async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3)
+  ...
+# Subtest: source qualification fails closed for blocked tasks or source records
+not ok 23 - source qualification fails closed for blocked tasks or source records
+  ---
+  duration_ms: 0.6271
+  type: 'test'
+  location: 'C:\\Users\\adrds\\AppData\\Local\\Temp\\nemesis-s1-red-27d80ec95bdd4aa79d912fddff36a272\\checkout\\tests\\legacy-parity.test.mjs:210:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    + actual - expected
+    
+    + 'SOURCE_COMPLETE'
+    - 'BLOCKED'
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 'BLOCKED'
+  actual: 'SOURCE_COMPLETE'
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///C:/Users/adrds/AppData/Local/Temp/nemesis-s1-red-27d80ec95bdd4aa79d912fddff36a272/checkout/tests/legacy-parity.test.mjs:218:10)
+    Test.runInAsyncScope (node:async_hooks:226:14)
+    Test.run (node:internal/test_runner/test:1382:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+    Test.postRun (node:internal/test_runner/test:1522:19)
+    Test.run (node:internal/test_runner/test:1447:12)
+    async Test.processPendingSubtests (node:internal/test_runner/test:960:7)
+  ...
+# Subtest: source qualification rejects malformed, missing, mismatched, or escaping records
+not ok 24 - source qualification rejects malformed, missing, mismatched, or escaping records
+  ---
+  duration_ms: 2.664
+  type: 'test'
+  location: 'C:\\Users\\adrds\\AppData\\Local\\Temp\\nemesis-s1-red-27d80ec95bdd4aa79d912fddff36a272\\checkout\\tests\\legacy-parity.test.mjs:233:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    current-blob-oid-invalid
+    + actual - expected
+    
+    + 'SOURCE_COMPLETE'
+    - 'BLOCKED'
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 'BLOCKED'
+  actual: 'SOURCE_COMPLETE'
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///C:/Users/adrds/AppData/Local/Temp/nemesis-s1-red-27d80ec95bdd4aa79d912fddff36a272/checkout/tests/legacy-parity.test.mjs:253:14)
+    Test.runInAsyncScope (node:async_hooks:226:14)
+    Test.run (node:internal/test_runner/test:1382:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+    Test.postRun (node:internal/test_runner/test:1522:19)
+    Test.run (node:internal/test_runner/test:1447:12)
+    async Test.processPendingSubtests (node:internal/test_runner/test:960:7)
+  ...
+# Subtest: SEA config pins the entry, output, and disabled experimental warning
+ok 25 - SEA config pins the entry, output, and disabled experimental warning
+  ---
+  duration_ms: 11.6089
+  type: 'test'
+  ...
+# Subtest: exe suffix is platform-correct
+ok 26 - exe suffix is platform-correct
+  ---
+  duration_ms: 0.1684
+  type: 'test'
+  ...
+# Subtest: npm CLI and SEA surface must agree on version
+ok 27 - npm CLI and SEA surface must agree on version
+  ---
+  duration_ms: 69.2354
+  type: 'test'
+  ...
+# Subtest: native build manifest records toolchain and digests
+ok 28 - native build manifest records toolchain and digests
+  ---
+  duration_ms: 0.3646
+  type: 'test'
+  ...
+# Subtest: no Rust wrapper crate exists
+ok 29 - no Rust wrapper crate exists
+  ---
+  duration_ms: 0.3192
+  type: 'test'
+  ...
+# Subtest: external process runner blocks non-allowlisted executables
+ok 30 - external process runner blocks non-allowlisted executables
+  ---
+  duration_ms: 1.6737
+  type: 'test'
+  ...
+# Subtest: shell execution is forbidden
+ok 31 - shell execution is forbidden
+  ---
+  duration_ms: 0.5535
+  type: 'test'
+  ...
+# Subtest: external process runs with sanitized environment
+ok 32 - external process runs with sanitized environment
+  ---
+  duration_ms: 72.6724
+  type: 'test'
+  ...
+# Subtest: timeout aborts the child and reports timeout
+ok 33 - timeout aborts the child and reports timeout
+  ---
+  duration_ms: 223.185
+  type: 'test'
+  ...
+# Subtest: output cap terminates the child
+not ok 34 - output cap terminates the child
+  ---
+  duration_ms: 79.6036
+  type: 'test'
+  location: 'C:\\Users\\adrds\\AppData\\Local\\Temp\\nemesis-s1-red-27d80ec95bdd4aa79d912fddff36a272\\checkout\\tests\\provider-executor.test.mjs:55:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    
+    true !== false
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: false
+  actual: true
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///C:/Users/adrds/AppData/Local/Temp/nemesis-s1-red-27d80ec95bdd4aa79d912fddff36a272/checkout/tests/provider-executor.test.mjs:62:10)
+    process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    async Test.run (node:internal/test_runner/test:1389:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:960:7)
+  ...
+# Subtest: project-executing provider requires a network-sandbox receipt
+ok 35 - project-executing provider requires a network-sandbox receipt
+  ---
+  duration_ms: 1.3942
+  type: 'test'
+  ...
+# Subtest: non-project providers do not require a sandbox
+ok 36 - non-project providers do not require a sandbox
+  ---
+  duration_ms: 0.2764
+  type: 'test'
+  ...
+# Subtest: reasoning-contract providers are never invoked by the executor
+ok 37 - reasoning-contract providers are never invoked by the executor
+  ---
+  duration_ms: 0.3412
+  type: 'test'
+  ...
+# Subtest: imported-artifact provider requires its artifact
+ok 38 - imported-artifact provider requires its artifact
+  ---
+  duration_ms: 0.3095
+  type: 'test'
+  ...
+# Subtest: resolveRepositoryModule rejects absolute external paths
+ok 39 - resolveRepositoryModule rejects absolute external paths
+  ---
+  duration_ms: 0.5665
+  type: 'test'
+  ...
+# Subtest: pickEnvironment only carries allowlisted keys
+ok 40 - pickEnvironment only carries allowlisted keys
+  ---
+  duration_ms: 1.0964
+  type: 'test'
+  ...
+# Subtest: blocked helper produces a canonical blocked receipt
+ok 41 - blocked helper produces a canonical blocked receipt
+  ---
+  duration_ms: 0.1538
+  type: 'test'
+  ...
+# publication blocked: C:\\Users\\adrds\\AppData\\Local\\Temp\\nemesis-s1-red-27d80ec95bdd4aa79d912fddff36a272\\checkout\\release\\publication-policy.json is absent
+# SCHEMA DRIFT: schemas/provider-result-v1.schema.json is not up to date with the code-owned enums; run node scripts/generate-schemas.mjs
+# SCHEMA DRIFT: schemas/security-verdict-v1.schema.json is not up to date with the code-owned enums; run node scripts/generate-schemas.mjs
+# Subtest: public checkout contains no parent-workspace path dependency
+ok 42 - public checkout contains no parent-workspace path dependency
+  ---
+  duration_ms: 21.3903
+  type: 'test'
+  ...
+# Subtest: CI workflow is self-contained in this repository
+ok 43 - CI workflow is self-contained in this repository
+  ---
+  duration_ms: 12.8191
+  type: 'test'
+  ...
+# Subtest: publication guard exists and blocks public channels without a grant
+ok 44 - publication guard exists and blocks public channels without a grant
+  ---
+  duration_ms: 145.7899
+  type: 'test'
+  ...
+# Subtest: benchmark baseline is versioned and reproducible
+ok 45 - benchmark baseline is versioned and reproducible
+  ---
+  duration_ms: 8.6365
+  type: 'test'
+  ...
+# Subtest: license and third-party notices are present
+ok 46 - license and third-party notices are present
+  ---
+  duration_ms: 2.6525
+  type: 'test'
+  ...
+# Subtest: fresh standalone checkout runs self-test and schema check without parent files
+not ok 47 - fresh standalone checkout runs self-test and schema check without parent files
+  ---
+  duration_ms: 136.985
+  type: 'test'
+  location: 'C:\\Users\\adrds\\AppData\\Local\\Temp\\nemesis-s1-red-27d80ec95bdd4aa79d912fddff36a272\\checkout\\tests\\standalone-checkout.test.mjs:58:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Command failed: C:\nvm4w\nodejs\node.exe scripts/generate-schemas.mjs --check
+    SCHEMA DRIFT: schemas/provider-result-v1.schema.json is not up to date with the code-owned enums; run node scripts/generate-schemas.mjs
+    SCHEMA DRIFT: schemas/security-verdict-v1.schema.json is not up to date with the code-owned enums; run node scripts/generate-schemas.mjs
+    
+  code: 'ERR_TEST_FAILURE'
+  stack: |-
+    genericNodeError (node:internal/errors:999:15)
+    wrappedFn (node:internal/errors:544:14)
+    checkExecSyncError (node:child_process:942:11)
+    execFileSync (node:child_process:978:15)
+    TestContext.<anonymous> (file:///C:/Users/adrds/AppData/Local/Temp/nemesis-s1-red-27d80ec95bdd4aa79d912fddff36a272/checkout/tests/standalone-checkout.test.mjs:64:25)
+    Test.runInAsyncScope (node:async_hooks:226:14)
+    Test.run (node:internal/test_runner/test:1382:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+    Test.postRun (node:internal/test_runner/test:1522:19)
+    Test.run (node:internal/test_runner/test:1447:12)
+  ...
+# Subtest: Windows portability tests pass from a copied standalone checkout
+not ok 48 - Windows portability tests pass from a copied standalone checkout
+  ---
+  duration_ms: 1145.8494
+  type: 'test'
+  location: 'C:\\Users\\adrds\\AppData\\Local\\Temp\\nemesis-s1-red-27d80ec95bdd4aa79d912fddff36a272\\checkout\\tests\\standalone-checkout.test.mjs:81:1'
+  failureType: 'testCodeFailure'
+  error: 'Command failed: C:\\nvm4w\\nodejs\\node.exe --test tests/windows-portability.test.mjs'
+  code: 'ERR_TEST_FAILURE'
+  stack: |-
+    genericNodeError (node:internal/errors:999:15)
+    wrappedFn (node:internal/errors:544:14)
+    checkExecSyncError (node:child_process:942:11)
+    execFileSync (node:child_process:978:15)
+    TestContext.<anonymous> (file:///C:/Users/adrds/AppData/Local/Temp/nemesis-s1-red-27d80ec95bdd4aa79d912fddff36a272/checkout/tests/standalone-checkout.test.mjs:98:20)
+    Test.runInAsyncScope (node:async_hooks:226:14)
+    Test.run (node:internal/test_runner/test:1382:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+    Test.postRun (node:internal/test_runner/test:1522:19)
+    Test.run (node:internal/test_runner/test:1447:12)
+  ...
+# Subtest: Windows drive paths are normalized once
+not ok 49 - Windows drive paths are normalized once
+  ---
+  duration_ms: 1.9208
+  type: 'test'
+  location: 'C:\\Users\\adrds\\AppData\\Local\\Temp\\nemesis-s1-red-27d80ec95bdd4aa79d912fddff36a272\\checkout\\tests\\windows-portability.test.mjs:14:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    + actual - expected
+    
+    + 'D:\\D:\\work\\nemesis'
+    - 'D:\\work\\nemesis'
+           ^
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 'D:\\work\\nemesis'
+  actual: 'D:\\D:\\work\\nemesis'
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///C:/Users/adrds/AppData/Local/Temp/nemesis-s1-red-27d80ec95bdd4aa79d912fddff36a272/checkout/tests/windows-portability.test.mjs:15:10)
+    Test.runInAsyncScope (node:async_hooks:226:14)
+    Test.run (node:internal/test_runner/test:1382:25)
+    Test.start (node:internal/test_runner/test:1242:17)
+    startSubtestAfterBootstrap (node:internal/test_runner/harness:387:17)
+  ...
+# Subtest: doctor obtains toolchains from injected host capability
+not ok 50 - doctor obtains toolchains from injected host capability
+  ---
+  duration_ms: 5.4597
+  type: 'test'
+  location: 'C:\\Users\\adrds\\AppData\\Local\\Temp\\nemesis-s1-red-27d80ec95bdd4aa79d912fddff36a272\\checkout\\tests\\windows-portability.test.mjs:22:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly deep-equal:
+    + actual - expected
+    
+    + undefined
+    - {
+    -   state: 'ready',
+    -   tools: [
+    -     {
+    -       executable: 'node',
+    -       name: 'node',
+    -       version: '26.5.1'
+    -     }
+    -   ]
+    - }
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+    state: 'ready'
+    tools:
+      0:
+        name: 'node'
+        executable: 'node'
+        version: '26.5.1'
+  operator: 'deepStrictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///C:/Users/adrds/AppData/Local/Temp/nemesis-s1-red-27d80ec95bdd4aa79d912fddff36a272/checkout/tests/windows-portability.test.mjs:29:10)
+    async Test.run (node:internal/test_runner/test:1389:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:960:7)
+  ...
+# Subtest: external process receipt has a schema-valid provider result
+not ok 51 - external process receipt has a schema-valid provider result
+  ---
+  duration_ms: 72.9494
+  type: 'test'
+  location: 'C:\\Users\\adrds\\AppData\\Local\\Temp\\nemesis-s1-red-27d80ec95bdd4aa79d912fddff36a272\\checkout\\tests\\windows-portability.test.mjs:32:1'
+  failureType: 'testCodeFailure'
+  error: 'provider result validation: root: result must be a non-null object'
+  code: 'ERR_TEST_FAILURE'
+  name: 'ProviderResultValidationError'
+  stack: |-
+    validateProviderResult (file:///C:/Users/adrds/AppData/Local/Temp/nemesis-s1-red-27d80ec95bdd4aa79d912fddff36a272/checkout/scripts/normalize-provider-result.mjs:28:11)
+    TestContext.<anonymous> (file:///C:/Users/adrds/AppData/Local/Temp/nemesis-s1-red-27d80ec95bdd4aa79d912fddff36a272/checkout/tests/windows-portability.test.mjs:35:16)
+    process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    async Test.run (node:internal/test_runner/test:1389:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:960:7)
+  ...
+# Subtest: audit rerun commands preserve adversarial paths as non-shell argv data
+not ok 52 - audit rerun commands preserve adversarial paths as non-shell argv data
+  ---
+  duration_ms: 0.9587
+  type: 'test'
+  location: 'C:\\Users\\adrds\\AppData\\Local\\Temp\\nemesis-s1-red-27d80ec95bdd4aa79d912fddff36a272\\checkout\\tests\\windows-portability.test.mjs:38:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    
+    3 !== 4
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 4
+  actual: 3
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///C:/Users/adrds/AppData/Local/Temp/nemesis-s1-red-27d80ec95bdd4aa79d912fddff36a272/checkout/tests/windows-portability.test.mjs:48:10)
+    Test.runInAsyncScope (node:async_hooks:226:14)
+    Test.run (node:internal/test_runner/test:1382:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+    Test.postRun (node:internal/test_runner/test:1522:19)
+    Test.run (node:internal/test_runner/test:1447:12)
+    process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    async Test.processPendingSubtests (node:internal/test_runner/test:960:7)
+  ...
+1..52
+# tests 52
+# suites 0
+# pass 40
+# fail 12
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 8473.8182

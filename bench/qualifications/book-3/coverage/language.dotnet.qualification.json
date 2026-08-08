@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "kind": "nemesis-coverage-qualification",
+  "recordId": "language.dotnet",
+  "corpusRoot": "bench/corpora/dotnet",
+  "corpusDigest": "sha256:b4c613f512d2f00a37b9bc70fd9845845cbe0e2bd8aa65b0bc03d182ee462593",
+  "artifactDigest": "sha256:015313e60e10ea8bd4311427061ed56c67406ce41bb71bc1283f1a8b62a06047",
+  "providerVersions": {
+    "code.dotnet": "1.0.0"
+  },
+  "casesRequired": [
+    "csharp",
+    "fsharp",
+    "visual-basic",
+    "offline-packages"
+  ],
+  "command": [
+    "node",
+    "--test",
+    "tests/providers/dotnet/dotnet.test.mjs"
+  ],
+  "decision": "source-measured-runtime-unproven"
+}

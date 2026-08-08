@@ -1,0 +1,105 @@
+{
+  "lane": "L3",
+  "tasks": [
+    {
+      "id": "B6-007",
+      "status": "blocked",
+      "blockers": [
+        "dependency B5-022 is mapped, not implemented, in qualification/book-5.json",
+        "task requires schemas/content/rendered-content-map-v1.schema.json, but PROTOCOL.md reserves schemas/ for coordinator-level amendments"
+      ]
+    },
+    {
+      "id": "B6-013",
+      "status": "blocked",
+      "blockers": [
+        "provider behavior and focused corpus controls pass, but required anti-slop rule registrations are absent from sealed registry/rules/copy/anti-slop.json"
+      ]
+    },
+    {
+      "id": "B6-014",
+      "status": "blocked",
+      "blockers": [
+        "provider behavior and focused lane tests pass, but required clarity rule registrations are absent from sealed registry/rules/copy/clarity.json"
+      ]
+    },
+    {
+      "id": "B6-016",
+      "status": "blocked",
+      "blockers": [
+        "dependency B5-012 is mapped, not implemented, in qualification/book-5.json"
+      ]
+    },
+    {
+      "id": "B6-017",
+      "status": "blocked",
+      "blockers": [
+        "dependency B5-013 is mapped, not implemented, in qualification/book-5.json"
+      ]
+    },
+    {
+      "id": "B6-018",
+      "status": "blocked",
+      "blockers": [
+        "dependencies B5-014 and B5-016 are mapped, not implemented, in qualification/book-5.json"
+      ]
+    },
+    {
+      "id": "B6-019",
+      "status": "blocked",
+      "blockers": [
+        "dependencies B5-015 and B5-016 are mapped, not implemented, in qualification/book-5.json"
+      ]
+    },
+    {
+      "id": "B6-020",
+      "status": "blocked",
+      "blockers": [
+        "dependency B6-016 is blocked"
+      ]
+    },
+    {
+      "id": "B6-021",
+      "status": "implemented",
+      "test": {
+        "path": "tests/content-l3.test.mjs",
+        "assertion": "documentation findings bind current command contracts, separate factual drift from editorial polish, preserve authority notices, and distinguish planned from shipped behavior"
+      },
+      "implementation": [
+        {
+          "path": "providers/copy/documentation.mjs",
+          "symbol": "analyzeDocumentation"
+        },
+        {
+          "path": "registry/rules/copy/documentation.json",
+          "symbol": "copy-documentation"
+        }
+      ],
+      "proof": {
+        "red": "qualification/evidence/lanes/L3/B6-021.red.log",
+        "green": "qualification/evidence/lanes/L3/B6-021.green.log"
+      }
+    },
+    {
+      "id": "B6-024",
+      "status": "blocked",
+      "blockers": [
+        "dependency B6-016 is blocked"
+      ]
+    },
+    {
+      "id": "B6-025",
+      "status": "blocked",
+      "blockers": [
+        "provider behavior and focused graph tests pass, but required chronology and attribution rule registrations are absent from sealed registry/rules/narrative/chronology.json"
+      ]
+    },
+    {
+      "id": "B6-027",
+      "status": "blocked",
+      "blockers": [
+        "dependency B6-024 is blocked"
+      ]
+    }
+  ]
+}

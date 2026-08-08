@@ -1,0 +1,29 @@
+{
+  "id": "language.dotnet",
+  "kind": "language",
+  "aliases": [],
+  "extensions": [
+    "cs",
+    "fs",
+    "vb"
+  ],
+  "manifests": [],
+  "providers": [
+    "code.dotnet"
+  ],
+  "limitations": [
+    "runtime and remediation unproven"
+  ],
+  "qualificationVersion": "1.0.0",
+  "corpusDigest": "sha256:d0963f397cba6496ae2f4d3e5c03953319bb19fdb97c74a4943af846c49bedac",
+  "artifactDigest": "sha256:d0963f397cba6496ae2f4d3e5c03953319bb19fdb97c74a4943af846c49bedac",
+  "tiers": {
+    "inventory": 1,
+    "parser": 1,
+    "native": 1,
+    "cross-file": 0,
+    "measured-pack": 1,
+    "runtime": 0,
+    "remediation": 0
+  }
+}

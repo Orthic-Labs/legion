@@ -1,50 +1,1980 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "kind": "nemesis-book-qualification",
   "book": 2,
   "expectedTaskCount": 30,
-  "decision": "SOURCE_COMPLETE",
+  "sourceRevision": "97687c6952c3f20a8affee7da0502a61039e258e+dirty.sha256:3d3b503f089e81981f4565d5d69f87b5c75b4555bf46857976425f8887ccd5de",
+  "decision": "SOURCE_IMPLEMENTED",
+  "claimLevel": "source",
+  "sourceAccounting": {
+    "implemented": 30,
+    "mapped": 0,
+    "sourceBlocked": 0
+  },
   "tasks": [
-    { "id": "B2-001", "status": "mapped", "evidence": ["lib/inventory/product-targets/contracts.mjs", "registry/product-target-kinds.json"] },
-    { "id": "B2-002", "status": "mapped", "evidence": ["lib/inventory/product-targets/detectors/index.mjs"] },
-    { "id": "B2-003", "status": "mapped", "evidence": ["lib/inventory/product-targets/review.mjs"] },
-    { "id": "B2-004", "status": "mapped", "evidence": ["lib/inventory/product-targets/build-portfolio.mjs"] },
-    { "id": "B2-005", "status": "mapped", "evidence": ["lib/inventory/components/contracts.mjs", "registry/component-kinds.json"] },
-    { "id": "B2-006", "status": "mapped", "evidence": ["lib/inventory/components/extract-build.mjs", "lib/inventory/components/extract-runtime.mjs"] },
-    { "id": "B2-007", "status": "mapped", "evidence": ["lib/inventory/components/extract-logical.mjs", "lib/inventory/components/extract-data.mjs"] },
-    { "id": "B2-008", "status": "mapped", "evidence": ["lib/inventory/components/build-graph.mjs", "lib/inventory/components/trust-boundaries.mjs"] },
-    { "id": "B2-009", "status": "mapped", "evidence": ["lib/inventory/stacks/contracts.mjs", "lib/inventory/external-systems/contracts.mjs"] },
-    { "id": "B2-010", "status": "mapped", "evidence": ["lib/inventory/stacks/build-graph.mjs"] },
-    { "id": "B2-011", "status": "mapped", "evidence": ["lib/inventory/external-systems/discover.mjs"] },
-    { "id": "B2-012", "status": "mapped", "evidence": ["lib/inventory/release-contract/load.mjs", "lib/inventory/release-contract/merge.mjs"] },
-    { "id": "B2-013", "status": "mapped", "evidence": ["lib/inventory/product-context"] },
-    { "id": "B2-014", "status": "mapped", "evidence": ["lib/inventory/journeys/build.mjs"] },
-    { "id": "B2-015", "status": "mapped", "evidence": ["lib/controls/sources/ingest.mjs", "registry/controls/sources/catalogue.json"] },
-    { "id": "B2-016", "status": "mapped", "evidence": ["registry/controls/sources/creator-audits-v1.json"], "note": "Ledger records external source input as required; no creator content is invented." },
-    { "id": "B2-017", "status": "mapped", "evidence": ["registry/controls/sources/platform-checklists-v1.json"], "note": "Ledger records external source input as required; no checklist content is invented." },
-    { "id": "B2-018", "status": "mapped", "evidence": ["lib/controls/contracts.mjs", "schemas/controls/assurance-control-v1.schema.json"] },
-    { "id": "B2-019", "status": "mapped", "evidence": ["registry/controls/packs/universal/core.json"] },
-    { "id": "B2-020", "status": "mapped", "evidence": ["registry/controls/packs/targets/web/core.json"] },
-    { "id": "B2-021", "status": "mapped", "evidence": ["registry/controls/packs/targets/desktop/core.json"] },
-    { "id": "B2-022", "status": "mapped", "evidence": ["registry/controls/packs/targets/mobile/core.json"] },
-    { "id": "B2-023", "status": "mapped", "evidence": ["registry/controls/packs/targets/service/core.json"] },
-    { "id": "B2-024", "status": "mapped", "evidence": ["registry/controls/packs/targets/developer-tools/core.json"] },
-    { "id": "B2-025", "status": "mapped", "evidence": ["registry/controls/packs/components/infrastructure-release/core.json"] },
-    { "id": "B2-026", "status": "mapped", "evidence": ["registry/controls/packs/conditional/core.json"] },
-    { "id": "B2-027", "status": "mapped", "evidence": ["lib/controls/baseline/compile.mjs", "lib/core/plan-stages/control-baseline.mjs"] },
-    { "id": "B2-028", "status": "mapped", "evidence": ["lib/controls/evidence/capabilities.mjs", "lib/controls/evidence/impacts.mjs"] },
-    { "id": "B2-029", "status": "mapped", "evidence": ["lib/controls/scenarios/compile.mjs"] },
-    { "id": "B2-030", "status": "implemented", "evidence": ["scripts/qualify-book-2.mjs", "scripts/qualify-book.mjs", "tests/core-foundations.test.mjs"], "note": "Gate implementation is present; full topology execution is runtime evidence." }
+    {
+      "id": "B2-001",
+      "status": "implemented",
+      "dependsOn": [
+        "B1-028"
+      ],
+      "evidence": {
+        "test": {
+          "path": "tests/inventory/book-2-contracts.test.mjs",
+          "assertion": "B2-001 target registry is versioned additive and unknown targets block clean claims",
+          "digest": "sha256:6d71e3d79aa8b1026c7aa3e17b3249312e141fb6f6ed4f35b96f466767e5c957",
+          "bytes": 14246
+        },
+        "implementation": [
+          {
+            "path": "registry/product-target-kinds.json",
+            "symbol": "unknown-deliverable",
+            "digest": "sha256:633283129dda896248ac2abe452a5b655afda38a7a60265f0d5c587853496a2b",
+            "bytes": 5305
+          },
+          {
+            "path": "lib/inventory/product-targets/contracts.mjs",
+            "symbol": "validateTargetRegistry",
+            "digest": "sha256:9bee72f01dc2c564a9bf08aaf162aa07ce44440afd7317da551e7081f086556d",
+            "bytes": 3261
+          },
+          {
+            "path": "schemas/inventory/product-target-v1.schema.json",
+            "symbol": "nemesis-product-target-v1",
+            "digest": "sha256:c1b318da4d9e87bdb01403fd1d4f6fe55b5a856f4ede269025f905ca71a5bbb3",
+            "bytes": 2891
+          },
+          {
+            "path": "schemas/inventory/product-portfolio-v1.schema.json",
+            "symbol": "nemesis-product-portfolio-v1",
+            "digest": "sha256:0dcfac49f60d93bd27b602aeae5feb921731a5aee1e2d7c6577039c674536f41",
+            "bytes": 3975
+          }
+        ],
+        "proof": {
+          "red": {
+            "path": "qualification/evidence/source-completion/S2-book-2.behavior.red.log",
+            "command": "node --test tests/inventory/book-2-contracts.test.mjs",
+            "counts": {
+              "total": 30,
+              "pass": 4,
+              "fail": 26
+            },
+            "digest": "sha256:f6924f88c81acbfe813e0420b3377af44a64c01cacc679e19d757c9b02cf2233",
+            "bytes": 24041
+          },
+          "green": {
+            "path": "qualification/evidence/source-completion/S2-book-2.behavior.green.log",
+            "command": "node --test tests/inventory/book-2-contracts.test.mjs",
+            "counts": {
+              "total": 30,
+              "pass": 30,
+              "fail": 0
+            },
+            "digest": "sha256:ca7c739182aca3c4cb036b05fac556188cc622baf23d6fd2fe86a6eac57be916",
+            "bytes": 3117
+          }
+        }
+      }
+    },
+    {
+      "id": "B2-002",
+      "status": "implemented",
+      "dependsOn": [
+        "B2-001"
+      ],
+      "evidence": {
+        "test": {
+          "path": "tests/inventory/book-2-contracts.test.mjs",
+          "assertion": "B2-002 hybrid target detection preserves desktop web API iOS and Android candidates",
+          "digest": "sha256:6d71e3d79aa8b1026c7aa3e17b3249312e141fb6f6ed4f35b96f466767e5c957",
+          "bytes": 14246
+        },
+        "implementation": [
+          {
+            "path": "lib/inventory/product-targets/detectors/index.mjs",
+            "symbol": "discoverTargets",
+            "digest": "sha256:28ddba03bc549fc18da2855a116ef4f1781ae2be9c37e514709a3635c08921b8",
+            "bytes": 4560
+          },
+          {
+            "path": "registry/product-target-detectors.json",
+            "symbol": "evidenceOnly",
+            "digest": "sha256:f83a0659b289c842c5ecd3abaa11b83eaab102537b47ded6da1b77239e47b5aa",
+            "bytes": 3354
+          }
+        ],
+        "proof": {
+          "red": {
+            "path": "qualification/evidence/source-completion/S2-book-2.behavior.red.log",
+            "command": "node --test tests/inventory/book-2-contracts.test.mjs",
+            "counts": {
+              "total": 30,
+              "pass": 4,
+              "fail": 26
+            },
+            "digest": "sha256:f6924f88c81acbfe813e0420b3377af44a64c01cacc679e19d757c9b02cf2233",
+            "bytes": 24041
+          },
+          "green": {
+            "path": "qualification/evidence/source-completion/S2-book-2.behavior.green.log",
+            "command": "node --test tests/inventory/book-2-contracts.test.mjs",
+            "counts": {
+              "total": 30,
+              "pass": 30,
+              "fail": 0
+            },
+            "digest": "sha256:ca7c739182aca3c4cb036b05fac556188cc622baf23d6fd2fe86a6eac57be916",
+            "bytes": 3117
+          }
+        }
+      }
+    },
+    {
+      "id": "B2-003",
+      "status": "implemented",
+      "dependsOn": [
+        "B2-002"
+      ],
+      "evidence": {
+        "test": {
+          "path": "tests/inventory/book-2-contracts.test.mjs",
+          "assertion": "B2-003 classification review cannot delete observations or close material ambiguity",
+          "digest": "sha256:6d71e3d79aa8b1026c7aa3e17b3249312e141fb6f6ed4f35b96f466767e5c957",
+          "bytes": 14246
+        },
+        "implementation": [
+          {
+            "path": "lib/inventory/product-targets/review.mjs",
+            "symbol": "reviewClassification",
+            "digest": "sha256:30801aeadaf75c9412116a4167a36122dfb8c7eb70ee3065c1ac2dd64a0e82db",
+            "bytes": 2042
+          },
+          {
+            "path": "schemas/inventory/target-classification-review-v1.schema.json",
+            "symbol": "nemesis-target-classification-review-v1",
+            "digest": "sha256:8d2f15f2b81cb2337691a8bb647a24f2a07d326f6c9948a7bba7b59fe8b1b171",
+            "bytes": 310
+          },
+          {
+            "path": "registry/lenses/product-target-classification.json",
+            "symbol": "immutableEvidenceOnly",
+            "digest": "sha256:d6a9c52bac491a476565b9b0671b75296b671591e0f7b8f788ab9241942bec67",
+            "bytes": 188
+          }
+        ],
+        "proof": {
+          "red": {
+            "path": "qualification/evidence/source-completion/S2-book-2.behavior.red.correction.log",
+            "command": "node --test tests/inventory/book-2-contracts.test.mjs",
+            "counts": {
+              "total": 30,
+              "pass": 26,
+              "fail": 4
+            },
+            "digest": "sha256:ca47994417835145d8fcdfe2edd468a2a84357f00d1decef1a4ce2e2a0cb7391",
+            "bytes": 5867
+          },
+          "green": {
+            "path": "qualification/evidence/source-completion/S2-book-2.behavior.green.log",
+            "command": "node --test tests/inventory/book-2-contracts.test.mjs",
+            "counts": {
+              "total": 30,
+              "pass": 30,
+              "fail": 0
+            },
+            "digest": "sha256:ca7c739182aca3c4cb036b05fac556188cc622baf23d6fd2fe86a6eac57be916",
+            "bytes": 3117
+          }
+        }
+      }
+    },
+    {
+      "id": "B2-004",
+      "status": "implemented",
+      "dependsOn": [
+        "B2-003"
+      ],
+      "evidence": {
+        "test": {
+          "path": "tests/inventory/book-2-contracts.test.mjs",
+          "assertion": "B2-004 portfolio retains relations conflicts and unknown coverage deterministically",
+          "digest": "sha256:6d71e3d79aa8b1026c7aa3e17b3249312e141fb6f6ed4f35b96f466767e5c957",
+          "bytes": 14246
+        },
+        "implementation": [
+          {
+            "path": "lib/inventory/product-targets/build-portfolio.mjs",
+            "symbol": "buildPortfolio",
+            "digest": "sha256:955cf7cdb0b20064981ec92a7d24050185eac1b51caf8debde0a1a2f2c776148",
+            "bytes": 4288
+          },
+          {
+            "path": "lib/inventory/product-targets/relations.mjs",
+            "symbol": "targetRelation",
+            "digest": "sha256:b1126451d61d58e5dbe4b7b810d88ac2602f31b2c9250e883c8ebcc5695d0ced",
+            "bytes": 220
+          }
+        ],
+        "proof": {
+          "red": {
+            "path": "qualification/evidence/source-completion/S2-book-2.behavior.red.log",
+            "command": "node --test tests/inventory/book-2-contracts.test.mjs",
+            "counts": {
+              "total": 30,
+              "pass": 4,
+              "fail": 26
+            },
+            "digest": "sha256:f6924f88c81acbfe813e0420b3377af44a64c01cacc679e19d757c9b02cf2233",
+            "bytes": 24041
+          },
+          "green": {
+            "path": "qualification/evidence/source-completion/S2-book-2.behavior.green.log",
+            "command": "node --test tests/inventory/book-2-contracts.test.mjs",
+            "counts": {
+              "total": 30,
+              "pass": 30,
+              "fail": 0
+            },
+            "digest": "sha256:ca7c739182aca3c4cb036b05fac556188cc622baf23d6fd2fe86a6eac57be916",
+            "bytes": 3117
+          }
+        }
+      }
+    },
+    {
+      "id": "B2-005",
+      "status": "implemented",
+      "dependsOn": [
+        "B2-004"
+      ],
+      "evidence": {
+        "test": {
+          "path": "tests/inventory/book-2-contracts.test.mjs",
+          "assertion": "B2-005 component registry defines trust metadata and rejects folder-only graphs",
+          "digest": "sha256:6d71e3d79aa8b1026c7aa3e17b3249312e141fb6f6ed4f35b96f466767e5c957",
+          "bytes": 14246
+        },
+        "implementation": [
+          {
+            "path": "registry/component-kinds.json",
+            "symbol": "trustMetadata",
+            "digest": "sha256:a833179e451510b52879169cfc67beff255ed343d4247dffbdce52064ea963d4",
+            "bytes": 6895
+          },
+          {
+            "path": "lib/inventory/components/contracts.mjs",
+            "symbol": "validateComponentGraph",
+            "digest": "sha256:e2979e14de027bc3b96826d34de73d16b44d308b9d633b946eacf980963ff92d",
+            "bytes": 2269
+          },
+          {
+            "path": "schemas/inventory/component-v1.schema.json",
+            "symbol": "nemesis-component-v1",
+            "digest": "sha256:e436b28cdc177eb386d90e2d16f227b9852696c7c71a25150ba01baa0c158889",
+            "bytes": 1691
+          },
+          {
+            "path": "schemas/inventory/component-graph-v1.schema.json",
+            "symbol": "nemesis-component-graph-v1",
+            "digest": "sha256:0867f9a5c305c44256cd7a8af041f25e0cadd0650f7b740e4b74d3dde75248f1",
+            "bytes": 3129
+          }
+        ],
+        "proof": {
+          "red": {
+            "path": "qualification/evidence/source-completion/S2-book-2.behavior.red.log",
+            "command": "node --test tests/inventory/book-2-contracts.test.mjs",
+            "counts": {
+              "total": 30,
+              "pass": 4,
+              "fail": 26
+            },
+            "digest": "sha256:f6924f88c81acbfe813e0420b3377af44a64c01cacc679e19d757c9b02cf2233",
+            "bytes": 24041
+          },
+          "green": {
+            "path": "qualification/evidence/source-completion/S2-book-2.behavior.green.log",
+            "command": "node --test tests/inventory/book-2-contracts.test.mjs",
+            "counts": {
+              "total": 30,
+              "pass": 30,
+              "fail": 0
+            },
+            "digest": "sha256:ca7c739182aca3c4cb036b05fac556188cc622baf23d6fd2fe86a6eac57be916",
+            "bytes": 3117
+          }
+        }
+      }
+    },
+    {
+      "id": "B2-006",
+      "status": "implemented",
+      "dependsOn": [
+        "B2-005"
+      ],
+      "evidence": {
+        "test": {
+          "path": "tests/inventory/book-2-contracts.test.mjs",
+          "assertion": "B2-006 build deployment and runtime extractors keep installer updater and workers separate",
+          "digest": "sha256:6d71e3d79aa8b1026c7aa3e17b3249312e141fb6f6ed4f35b96f466767e5c957",
+          "bytes": 14246
+        },
+        "implementation": [
+          {
+            "path": "lib/inventory/components/extract-build.mjs",
+            "symbol": "extractPhysicalComponents",
+            "digest": "sha256:2e7da5284a51435e59a7a57ab64c6532d9e14b17a77894f3125296d620aff24a",
+            "bytes": 1099
+          },
+          {
+            "path": "lib/inventory/components/extract-deployment.mjs",
+            "symbol": "extractDeploymentComponents",
+            "digest": "sha256:0834cc1f5114c27e458ebe33820c2f3c2cd80e5604aa74ccbbd36a737b8cbf32",
+            "bytes": 501
+          },
+          {
+            "path": "lib/inventory/components/extract-runtime.mjs",
+            "symbol": "extractRuntimeComponents",
+            "digest": "sha256:7eb28f24a75ec8cb01bd1f71fdef9143411993c1d77e97c0393737cbc5ce0f4d",
+            "bytes": 767
+          }
+        ],
+        "proof": {
+          "red": {
+            "path": "qualification/evidence/source-completion/S2-book-2.behavior.red.log",
+            "command": "node --test tests/inventory/book-2-contracts.test.mjs",
+            "counts": {
+              "total": 30,
+              "pass": 4,
+              "fail": 26
+            },
+            "digest": "sha256:f6924f88c81acbfe813e0420b3377af44a64c01cacc679e19d757c9b02cf2233",
+            "bytes": 24041
+          },
+          "green": {
+            "path": "qualification/evidence/source-completion/S2-book-2.behavior.green.log",
+            "command": "node --test tests/inventory/book-2-contracts.test.mjs",
+            "counts": {
+              "total": 30,
+              "pass": 30,
+              "fail": 0
+            },
+            "digest": "sha256:ca7c739182aca3c4cb036b05fac556188cc622baf23d6fd2fe86a6eac57be916",
+            "bytes": 3117
+          }
+        }
+      }
+    },
+    {
+      "id": "B2-007",
+      "status": "implemented",
+      "dependsOn": [
+        "B2-006"
+      ],
+      "evidence": {
+        "test": {
+          "path": "tests/inventory/book-2-contracts.test.mjs",
+          "assertion": "B2-007 logical extractors emit distinct identity data integration and external components",
+          "digest": "sha256:6d71e3d79aa8b1026c7aa3e17b3249312e141fb6f6ed4f35b96f466767e5c957",
+          "bytes": 14246
+        },
+        "implementation": [
+          {
+            "path": "lib/inventory/components/extract-logical.mjs",
+            "symbol": "extractLogicalComponents",
+            "digest": "sha256:24f3a46de721ef27e1d78b4dbade91687cfee3eed6f15624f60e08af7fe86679",
+            "bytes": 1296
+          },
+          {
+            "path": "lib/inventory/components/extract-data.mjs",
+            "symbol": "extractDataComponents",
+            "digest": "sha256:2c71420e17da861a73d01ef8f7215f6c8d56ca0722d7952e765da461dd67927c",
+            "bytes": 225
+          },
+          {
+            "path": "lib/inventory/components/extract-external.mjs",
+            "symbol": "extractExternalComponents",
+            "digest": "sha256:a1f6877fe4cf2f20b22965743bcaafaba03f9045f3dc89d9c8e60b4a6680d108",
+            "bytes": 272
+          }
+        ],
+        "proof": {
+          "red": {
+            "path": "qualification/evidence/source-completion/S2-book-2.behavior.red.log",
+            "command": "node --test tests/inventory/book-2-contracts.test.mjs",
+            "counts": {
+              "total": 30,
+              "pass": 4,
+              "fail": 26
+            },
+            "digest": "sha256:f6924f88c81acbfe813e0420b3377af44a64c01cacc679e19d757c9b02cf2233",
+            "bytes": 24041
+          },
+          "green": {
+            "path": "qualification/evidence/source-completion/S2-book-2.behavior.green.log",
+            "command": "node --test tests/inventory/book-2-contracts.test.mjs",
+            "counts": {
+              "total": 30,
+              "pass": 30,
+              "fail": 0
+            },
+            "digest": "sha256:ca7c739182aca3c4cb036b05fac556188cc622baf23d6fd2fe86a6eac57be916",
+            "bytes": 3117
+          }
+        }
+      }
+    },
+    {
+      "id": "B2-008",
+      "status": "implemented",
+      "dependsOn": [
+        "B2-007"
+      ],
+      "evidence": {
+        "test": {
+          "path": "tests/inventory/book-2-contracts.test.mjs",
+          "assertion": "B2-008 component graph preserves typed trust-boundary relations and coverage denominators",
+          "digest": "sha256:6d71e3d79aa8b1026c7aa3e17b3249312e141fb6f6ed4f35b96f466767e5c957",
+          "bytes": 14246
+        },
+        "implementation": [
+          {
+            "path": "lib/inventory/components/build-graph.mjs",
+            "symbol": "buildComponentGraph",
+            "digest": "sha256:3e1d6f4c88edb03c538d1a55de5c53dfae65030f9ba09fadbc437cfa12adcfe1",
+            "bytes": 3183
+          },
+          {
+            "path": "lib/inventory/components/trust-boundaries.mjs",
+            "symbol": "trustBoundaries",
+            "digest": "sha256:a4bdf20825ebb6e17a24ddfff87ba34a0d1856aa7b4b06e82362502a668ecd12",
+            "bytes": 330
+          }
+        ],
+        "proof": {
+          "red": {
+            "path": "qualification/evidence/source-completion/S2-book-2.behavior.red.log",
+            "command": "node --test tests/inventory/book-2-contracts.test.mjs",
+            "counts": {
+              "total": 30,
+              "pass": 4,
+              "fail": 26
+            },
+            "digest": "sha256:f6924f88c81acbfe813e0420b3377af44a64c01cacc679e19d757c9b02cf2233",
+            "bytes": 24041
+          },
+          "green": {
+            "path": "qualification/evidence/source-completion/S2-book-2.behavior.green.log",
+            "command": "node --test tests/inventory/book-2-contracts.test.mjs",
+            "counts": {
+              "total": 30,
+              "pass": 30,
+              "fail": 0
+            },
+            "digest": "sha256:ca7c739182aca3c4cb036b05fac556188cc622baf23d6fd2fe86a6eac57be916",
+            "bytes": 3117
+          }
+        }
+      }
+    },
+    {
+      "id": "B2-009",
+      "status": "implemented",
+      "dependsOn": [
+        "B2-008"
+      ],
+      "evidence": {
+        "test": {
+          "path": "tests/inventory/book-2-contracts.test.mjs",
+          "assertion": "B2-009 stack catalogue has seven independent tiers and first-class external kinds",
+          "digest": "sha256:6d71e3d79aa8b1026c7aa3e17b3249312e141fb6f6ed4f35b96f466767e5c957",
+          "bytes": 14246
+        },
+        "implementation": [
+          {
+            "path": "registry/stack-catalogue.json",
+            "symbol": "measured-pack",
+            "digest": "sha256:3e572c911039478b4eca2e8f0d1a5ecd09bd79272acb888c8622bbf561d23344",
+            "bytes": 4279
+          },
+          {
+            "path": "registry/external-system-kinds.json",
+            "symbol": "other-processor",
+            "digest": "sha256:cdef4fab34440d425f691b5af79d9ac69bc10cbd291df38c3d6fbfc4049e3bf7",
+            "bytes": 143
+          },
+          {
+            "path": "lib/inventory/stacks/contracts.mjs",
+            "symbol": "validateStackCatalogue",
+            "digest": "sha256:e073d94e020419063ba6fcedc69e05e9bc51165d63f39f74e5b8d456c9d51b8d",
+            "bytes": 822
+          },
+          {
+            "path": "schemas/inventory/stack-record-v1.schema.json",
+            "symbol": "nemesis-stack-record-v1",
+            "digest": "sha256:4d4b4472ee59da5b18e67ccdde15d142234a44aef9eb607bec475609f270b7fc",
+            "bytes": 1381
+          },
+          {
+            "path": "schemas/inventory/stack-graph-v1.schema.json",
+            "symbol": "nemesis-stack-graph-v1",
+            "digest": "sha256:e8072155ea8beec126a08b60cf328123aca74a2328ff5ae6a55c669f046f0333",
+            "bytes": 1024
+          },
+          {
+            "path": "schemas/inventory/external-system-v1.schema.json",
+            "symbol": "nemesis-external-system-v1",
+            "digest": "sha256:23c15c8df468b959341b8e1d4ce39be786b2f4ad2fdd56488bfc633f9ae56d81",
+            "bytes": 1658
+          }
+        ],
+        "proof": {
+          "red": {
+            "path": "qualification/evidence/source-completion/S2-book-2.behavior.red.log",
+            "command": "node --test tests/inventory/book-2-contracts.test.mjs",
+            "counts": {
+              "total": 30,
+              "pass": 4,
+              "fail": 26
+            },
+            "digest": "sha256:f6924f88c81acbfe813e0420b3377af44a64c01cacc679e19d757c9b02cf2233",
+            "bytes": 24041
+          },
+          "green": {
+            "path": "qualification/evidence/source-completion/S2-book-2.behavior.green.log",
+            "command": "node --test tests/inventory/book-2-contracts.test.mjs",
+            "counts": {
+              "total": 30,
+              "pass": 30,
+              "fail": 0
+            },
+            "digest": "sha256:ca7c739182aca3c4cb036b05fac556188cc622baf23d6fd2fe86a6eac57be916",
+            "bytes": 3117
+          }
+        }
+      }
+    },
+    {
+      "id": "B2-010",
+      "status": "implemented",
+      "dependsOn": [
+        "B2-009"
+      ],
+      "evidence": {
+        "test": {
+          "path": "tests/inventory/book-2-contracts.test.mjs",
+          "assertion": "B2-010 stack graph distinguishes declared ranges resolved versions and unknown stacks",
+          "digest": "sha256:6d71e3d79aa8b1026c7aa3e17b3249312e141fb6f6ed4f35b96f466767e5c957",
+          "bytes": 14246
+        },
+        "implementation": [
+          {
+            "path": "lib/inventory/stacks/build-graph.mjs",
+            "symbol": "buildStackGraph",
+            "digest": "sha256:2bce1758ccb87305a426588d6b4764661e12e85b5f27ff5fc418780f3abfc06c",
+            "bytes": 2537
+          },
+          {
+            "path": "lib/inventory/stacks/versions.mjs",
+            "symbol": "classifyVersion",
+            "digest": "sha256:8a8545780b61cfe37e1e3dd130592490fa2a79e4d93fb2e1fdb7bbe5562d23c4",
+            "bytes": 193
+          },
+          {
+            "path": "lib/inventory/stacks/roles.mjs",
+            "symbol": "stackRole",
+            "digest": "sha256:cae602dd986ff6b5b46f6e18ae9b1c1ae093aa8e1a2bfc473e0f9f935910a00b",
+            "bytes": 73
+          }
+        ],
+        "proof": {
+          "red": {
+            "path": "qualification/evidence/source-completion/S2-book-2.behavior.red.log",
+            "command": "node --test tests/inventory/book-2-contracts.test.mjs",
+            "counts": {
+              "total": 30,
+              "pass": 4,
+              "fail": 26
+            },
+            "digest": "sha256:f6924f88c81acbfe813e0420b3377af44a64c01cacc679e19d757c9b02cf2233",
+            "bytes": 24041
+          },
+          "green": {
+            "path": "qualification/evidence/source-completion/S2-book-2.behavior.green.log",
+            "command": "node --test tests/inventory/book-2-contracts.test.mjs",
+            "counts": {
+              "total": 30,
+              "pass": 30,
+              "fail": 0
+            },
+            "digest": "sha256:ca7c739182aca3c4cb036b05fac556188cc622baf23d6fd2fe86a6eac57be916",
+            "bytes": 3117
+          }
+        }
+      }
+    },
+    {
+      "id": "B2-011",
+      "status": "implemented",
+      "dependsOn": [
+        "B2-010"
+      ],
+      "evidence": {
+        "test": {
+          "path": "tests/inventory/book-2-contracts.test.mjs",
+          "assertion": "B2-011 external discovery labels references without claiming production configuration",
+          "digest": "sha256:6d71e3d79aa8b1026c7aa3e17b3249312e141fb6f6ed4f35b96f466767e5c957",
+          "bytes": 14246
+        },
+        "implementation": [
+          {
+            "path": "lib/inventory/external-systems/discover.mjs",
+            "symbol": "discoverExternalSystems",
+            "digest": "sha256:0edca744385de2ee644597673489d8775ec281a84ef7d41cdc99b317990565f5",
+            "bytes": 2818
+          },
+          {
+            "path": "lib/inventory/external-systems/contracts.mjs",
+            "symbol": "externalSystem",
+            "digest": "sha256:3aafa7c868d5026b545541b2da5682170276ff3d8c145d04ea3467baecd60540",
+            "bytes": 171
+          }
+        ],
+        "proof": {
+          "red": {
+            "path": "qualification/evidence/source-completion/S2-book-2.behavior.red.correction.log",
+            "command": "node --test tests/inventory/book-2-contracts.test.mjs",
+            "counts": {
+              "total": 30,
+              "pass": 26,
+              "fail": 4
+            },
+            "digest": "sha256:ca47994417835145d8fcdfe2edd468a2a84357f00d1decef1a4ce2e2a0cb7391",
+            "bytes": 5867
+          },
+          "green": {
+            "path": "qualification/evidence/source-completion/S2-book-2.behavior.green.log",
+            "command": "node --test tests/inventory/book-2-contracts.test.mjs",
+            "counts": {
+              "total": 30,
+              "pass": 30,
+              "fail": 0
+            },
+            "digest": "sha256:ca7c739182aca3c4cb036b05fac556188cc622baf23d6fd2fe86a6eac57be916",
+            "bytes": 3117
+          }
+        }
+      }
+    },
+    {
+      "id": "B2-012",
+      "status": "implemented",
+      "dependsOn": [
+        "B2-011"
+      ],
+      "evidence": {
+        "test": {
+          "path": "tests/inventory/book-2-contracts.test.mjs",
+          "assertion": "B2-012 release contract rejects host authority keys and canonicalizes equivalent declarations",
+          "digest": "sha256:6d71e3d79aa8b1026c7aa3e17b3249312e141fb6f6ed4f35b96f466767e5c957",
+          "bytes": 14246
+        },
+        "implementation": [
+          {
+            "path": "lib/inventory/release-contract/load.mjs",
+            "symbol": "loadReleaseContract",
+            "digest": "sha256:f2219f60ddac1a8d64b50cf8cdb38585b24e56bb84037e979c9951c501de1b9d",
+            "bytes": 415
+          },
+          {
+            "path": "lib/inventory/release-contract/merge.mjs",
+            "symbol": "mergeReleaseContract",
+            "digest": "sha256:bf56ad2066f3abe83ba4f620d8a2230c7e1e689cdc0e53a550bb8563700616d0",
+            "bytes": 3222
+          },
+          {
+            "path": "lib/inventory/release-contract/conflicts.mjs",
+            "symbol": "contractConflicts",
+            "digest": "sha256:47dd3f051910e7d4a54ced43a498a5f1aec9da81d61e3b6088b0bc99c6f35cf5",
+            "bytes": 131
+          },
+          {
+            "path": "schemas/inventory/release-contract-v1.schema.json",
+            "symbol": "nemesis-release-contract-v1",
+            "digest": "sha256:e556ca028b24a1490e557e141a6be51f0301c33a59907b9be73e4aab6118bc18",
+            "bytes": 2533
+          }
+        ],
+        "proof": {
+          "red": {
+            "path": "qualification/evidence/source-completion/S2-book-2.behavior.red.log",
+            "command": "node --test tests/inventory/book-2-contracts.test.mjs",
+            "counts": {
+              "total": 30,
+              "pass": 4,
+              "fail": 26
+            },
+            "digest": "sha256:f6924f88c81acbfe813e0420b3377af44a64c01cacc679e19d757c9b02cf2233",
+            "bytes": 24041
+          },
+          "green": {
+            "path": "qualification/evidence/source-completion/S2-book-2.behavior.green.log",
+            "command": "node --test tests/inventory/book-2-contracts.test.mjs",
+            "counts": {
+              "total": 30,
+              "pass": 30,
+              "fail": 0
+            },
+            "digest": "sha256:ca7c739182aca3c4cb036b05fac556188cc622baf23d6fd2fe86a6eac57be916",
+            "bytes": 3117
+          }
+        }
+      }
+    },
+    {
+      "id": "B2-013",
+      "status": "implemented",
+      "dependsOn": [
+        "B2-012"
+      ],
+      "evidence": {
+        "test": {
+          "path": "tests/inventory/book-2-contracts.test.mjs",
+          "assertion": "B2-013 product context preserves observed and declared actors data and risk authority",
+          "digest": "sha256:6d71e3d79aa8b1026c7aa3e17b3249312e141fb6f6ed4f35b96f466767e5c957",
+          "bytes": 14246
+        },
+        "implementation": [
+          {
+            "path": "lib/inventory/product-context/actors.mjs",
+            "symbol": "buildProductContext",
+            "digest": "sha256:9c3e7dd929535da579b185cba29e8c1b20d07a06d656581cc47930429acf5376",
+            "bytes": 1497
+          },
+          {
+            "path": "lib/inventory/product-context/data.mjs",
+            "symbol": "extractDataContext",
+            "digest": "sha256:66af8f668590a1362c562925f9d4655427ca627a9d0463297c7fc052322a55cc",
+            "bytes": 230
+          },
+          {
+            "path": "lib/inventory/product-context/risk.mjs",
+            "symbol": "extractRiskContext",
+            "digest": "sha256:95551832f2521ac184488efd72ff40dc77a8a74f70df198ade2fa5517d8b0781",
+            "bytes": 185
+          },
+          {
+            "path": "schemas/inventory/product-context-v1.schema.json",
+            "symbol": "nemesis-product-context-v1",
+            "digest": "sha256:96c2eeff8cfb9bc5e5e2615029d09c8981efdcd86c7368a62a99a92f615ccd3a",
+            "bytes": 1921
+          }
+        ],
+        "proof": {
+          "red": {
+            "path": "qualification/evidence/source-completion/S2-book-2.behavior.red.log",
+            "command": "node --test tests/inventory/book-2-contracts.test.mjs",
+            "counts": {
+              "total": 30,
+              "pass": 4,
+              "fail": 26
+            },
+            "digest": "sha256:f6924f88c81acbfe813e0420b3377af44a64c01cacc679e19d757c9b02cf2233",
+            "bytes": 24041
+          },
+          "green": {
+            "path": "qualification/evidence/source-completion/S2-book-2.behavior.green.log",
+            "command": "node --test tests/inventory/book-2-contracts.test.mjs",
+            "counts": {
+              "total": 30,
+              "pass": 30,
+              "fail": 0
+            },
+            "digest": "sha256:ca7c739182aca3c4cb036b05fac556188cc622baf23d6fd2fe86a6eac57be916",
+            "bytes": 3117
+          }
+        }
+      }
+    },
+    {
+      "id": "B2-014",
+      "status": "implemented",
+      "dependsOn": [
+        "B2-013"
+      ],
+      "evidence": {
+        "test": {
+          "path": "tests/inventory/book-2-contracts.test.mjs",
+          "assertion": "B2-014 journeys retain origin recovery effects and stable target ownership",
+          "digest": "sha256:6d71e3d79aa8b1026c7aa3e17b3249312e141fb6f6ed4f35b96f466767e5c957",
+          "bytes": 14246
+        },
+        "implementation": [
+          {
+            "path": "lib/inventory/journeys/build.mjs",
+            "symbol": "buildJourneys",
+            "digest": "sha256:3f36c02f93aebd85d52335f342553fce258de6a76a1b08028eab0f225b78eeb8",
+            "bytes": 1042
+          },
+          {
+            "path": "registry/journey-templates.json",
+            "symbol": "primary-task",
+            "digest": "sha256:82d97f0c13c4a9f8d221b6d429bb398e68a695a46f9fca0e7c58ea323a891edb",
+            "bytes": 155
+          },
+          {
+            "path": "schemas/inventory/journey-v1.schema.json",
+            "symbol": "nemesis-journey-v1",
+            "digest": "sha256:29de875d8a86cf90a1e7d78c89d95a27952657e834530708a76f1ccd72e22464",
+            "bytes": 1115
+          }
+        ],
+        "proof": {
+          "red": {
+            "path": "qualification/evidence/source-completion/S2-book-2.behavior.red.log",
+            "command": "node --test tests/inventory/book-2-contracts.test.mjs",
+            "counts": {
+              "total": 30,
+              "pass": 4,
+              "fail": 26
+            },
+            "digest": "sha256:f6924f88c81acbfe813e0420b3377af44a64c01cacc679e19d757c9b02cf2233",
+            "bytes": 24041
+          },
+          "green": {
+            "path": "qualification/evidence/source-completion/S2-book-2.behavior.green.log",
+            "command": "node --test tests/inventory/book-2-contracts.test.mjs",
+            "counts": {
+              "total": 30,
+              "pass": 30,
+              "fail": 0
+            },
+            "digest": "sha256:ca7c739182aca3c4cb036b05fac556188cc622baf23d6fd2fe86a6eac57be916",
+            "bytes": 3117
+          }
+        }
+      }
+    },
+    {
+      "id": "B2-015",
+      "status": "implemented",
+      "dependsOn": [
+        "B2-014"
+      ],
+      "evidence": {
+        "test": {
+          "path": "tests/inventory/book-2-contracts.test.mjs",
+          "assertion": "B2-015 source ingestion requires rights and terminal disposition without importing execution authority",
+          "digest": "sha256:6d71e3d79aa8b1026c7aa3e17b3249312e141fb6f6ed4f35b96f466767e5c957",
+          "bytes": 14246
+        },
+        "implementation": [
+          {
+            "path": "registry/controls/sources/catalogue.json",
+            "symbol": "executionAuthority",
+            "digest": "sha256:72e9cde2572d68986126fba631c55c905a8c3d59e0292f7a2f68308e17f0d99f",
+            "bytes": 504524
+          },
+          {
+            "path": "lib/controls/sources/ingest.mjs",
+            "symbol": "ingestSource",
+            "digest": "sha256:150c564df55075a4c1fbe18ac7ad2b79cd8d579457a6cd82d1770a7e486669b9",
+            "bytes": 914
+          },
+          {
+            "path": "lib/controls/sources/deduplicate.mjs",
+            "symbol": "deduplicateSources",
+            "digest": "sha256:0551c4ec626ec85a5fbc075a2fe2c09368cbc240a6400e20531120448d6c997f",
+            "bytes": 324
+          },
+          {
+            "path": "schemas/controls/control-source-v1.schema.json",
+            "symbol": "nemesis-control-source-v1",
+            "digest": "sha256:fedaf1788fb77432d8706b70adb6bcb1690302a53088e43273d4deeee4e80817",
+            "bytes": 529
+          },
+          {
+            "path": "schemas/controls/source-item-v1.schema.json",
+            "symbol": "nemesis-source-item-v1",
+            "digest": "sha256:58f9df4abc637604997b58195de1e32dc0c866a71921495b2df4e50d638d86a6",
+            "bytes": 536
+          }
+        ],
+        "proof": {
+          "red": {
+            "path": "qualification/evidence/source-completion/S2-book-2.behavior.red.log",
+            "command": "node --test tests/inventory/book-2-contracts.test.mjs",
+            "counts": {
+              "total": 30,
+              "pass": 4,
+              "fail": 26
+            },
+            "digest": "sha256:f6924f88c81acbfe813e0420b3377af44a64c01cacc679e19d757c9b02cf2233",
+            "bytes": 24041
+          },
+          "green": {
+            "path": "qualification/evidence/source-completion/S2-book-2.behavior.green.log",
+            "command": "node --test tests/inventory/book-2-contracts.test.mjs",
+            "counts": {
+              "total": 30,
+              "pass": 30,
+              "fail": 0
+            },
+            "digest": "sha256:ca7c739182aca3c4cb036b05fac556188cc622baf23d6fd2fe86a6eac57be916",
+            "bytes": 3117
+          }
+        }
+      }
+    },
+    {
+      "id": "B2-016",
+      "status": "implemented",
+      "dependsOn": [
+        "B2-015"
+      ],
+      "evidence": {
+        "test": {
+          "path": "tests/inventory/book-2-contracts.test.mjs",
+          "assertion": "B2-016 creator ledger preserves 3 sources and 300 unresolved-rights excluded items",
+          "digest": "sha256:6d71e3d79aa8b1026c7aa3e17b3249312e141fb6f6ed4f35b96f466767e5c957",
+          "bytes": 14246
+        },
+        "implementation": [
+          {
+            "path": "internal/source-inputs/creator-audits/manifest.json",
+            "symbol": "rawDocumentsAvailable",
+            "digest": "sha256:f5d4485b5e7d8cb7700a7c30a5c3a488b5d5a2988088a13f88238ab96f569384",
+            "bytes": 1323
+          },
+          {
+            "path": "registry/controls/sources/creator-audits-v1.json",
+            "symbol": "expectedItemCount",
+            "digest": "sha256:e6b73685fdfc1494465d8f55179cfdc4e6d4e198f8399290996b4b455489b27c",
+            "bytes": 286309
+          },
+          {
+            "path": "qualification/source-absorption/creator-audits-v1.json",
+            "symbol": "derivedControlCount",
+            "digest": "sha256:4f28f0d49c50061a1dce6206ec790e729f2a74ce26c5bb867bacb810b8fda6b9",
+            "bytes": 245
+          }
+        ],
+        "proof": {
+          "red": {
+            "path": "qualification/evidence/source-completion/S2-book-2.behavior.red.log",
+            "command": "node --test tests/inventory/book-2-contracts.test.mjs",
+            "counts": {
+              "total": 30,
+              "pass": 4,
+              "fail": 26
+            },
+            "digest": "sha256:f6924f88c81acbfe813e0420b3377af44a64c01cacc679e19d757c9b02cf2233",
+            "bytes": 24041
+          },
+          "green": {
+            "path": "qualification/evidence/source-completion/S2-book-2.behavior.green.log",
+            "command": "node --test tests/inventory/book-2-contracts.test.mjs",
+            "counts": {
+              "total": 30,
+              "pass": 30,
+              "fail": 0
+            },
+            "digest": "sha256:ca7c739182aca3c4cb036b05fac556188cc622baf23d6fd2fe86a6eac57be916",
+            "bytes": 3117
+          }
+        }
+      }
+    },
+    {
+      "id": "B2-017",
+      "status": "implemented",
+      "dependsOn": [
+        "B2-015"
+      ],
+      "evidence": {
+        "test": {
+          "path": "tests/inventory/book-2-contracts.test.mjs",
+          "assertion": "B2-017 platform ledgers pin three supplied digests and terminally disposition parsed hierarchy",
+          "digest": "sha256:6d71e3d79aa8b1026c7aa3e17b3249312e141fb6f6ed4f35b96f466767e5c957",
+          "bytes": 14246
+        },
+        "implementation": [
+          {
+            "path": "internal/source-inputs/platform-checklists/manifest.json",
+            "symbol": "rawTextPackageDisposition",
+            "digest": "sha256:7f4040a0d66bc88215b5fd440a17e07d8fe32205e381fed2adc49dce1e102521",
+            "bytes": 1434
+          },
+          {
+            "path": "registry/controls/sources/platform-checklists-v1.json",
+            "symbol": "textDigest",
+            "digest": "sha256:875972643d8229fd8fc0028f8cb92b18cc59a4b48ac11b77e5783fae2bcfe5cb",
+            "bytes": 3345009
+          },
+          {
+            "path": "qualification/source-absorption/platform-checklists-v1.json",
+            "symbol": "derivedControlCount",
+            "digest": "sha256:e52f1dffecb5ec0bb7d0a0820fcae63d4105a772b0dcee9c55aa9b462804a7ad",
+            "bytes": 248
+          }
+        ],
+        "proof": {
+          "red": {
+            "path": "qualification/evidence/source-completion/S2-book-2.behavior.red.log",
+            "command": "node --test tests/inventory/book-2-contracts.test.mjs",
+            "counts": {
+              "total": 30,
+              "pass": 4,
+              "fail": 26
+            },
+            "digest": "sha256:f6924f88c81acbfe813e0420b3377af44a64c01cacc679e19d757c9b02cf2233",
+            "bytes": 24041
+          },
+          "green": {
+            "path": "qualification/evidence/source-completion/S2-book-2.behavior.green.log",
+            "command": "node --test tests/inventory/book-2-contracts.test.mjs",
+            "counts": {
+              "total": 30,
+              "pass": 30,
+              "fail": 0
+            },
+            "digest": "sha256:ca7c739182aca3c4cb036b05fac556188cc622baf23d6fd2fe86a6eac57be916",
+            "bytes": 3117
+          }
+        }
+      }
+    },
+    {
+      "id": "B2-018",
+      "status": "implemented",
+      "dependsOn": [
+        "B2-014"
+      ],
+      "evidence": {
+        "test": {
+          "path": "tests/inventory/book-2-contracts.test.mjs",
+          "assertion": "B2-018 control contracts keep denominator independent from provider availability",
+          "digest": "sha256:6d71e3d79aa8b1026c7aa3e17b3249312e141fb6f6ed4f35b96f466767e5c957",
+          "bytes": 14246
+        },
+        "implementation": [
+          {
+            "path": "lib/controls/contracts.mjs",
+            "symbol": "validateControl",
+            "digest": "sha256:ed79d74c1f712bcb241fd322351cc3194d9e0006499f1cdb9abb787cbf981e85",
+            "bytes": 3263
+          },
+          {
+            "path": "lib/controls/packs/registry.mjs",
+            "symbol": "loadControlPacks",
+            "digest": "sha256:22b99c0e82ed54d850e4821b092ba845d3cca3935e7a9ba9e1ed4ee3891153fc",
+            "bytes": 1134
+          },
+          {
+            "path": "schemas/controls/assurance-control-v1.schema.json",
+            "symbol": "nemesis-assurance-control-v1",
+            "digest": "sha256:902a665ebea366b566e2a19abf7cd3116a57b06edd19879a9c0bc2e6f81e40a1",
+            "bytes": 2447
+          },
+          {
+            "path": "schemas/controls/control-pack-v1.schema.json",
+            "symbol": "nemesis-control-pack-v1",
+            "digest": "sha256:41a5bef2e905e464a3eddb4d935b45badacd9a94a7b4685841d8a73b5599b28a",
+            "bytes": 995
+          },
+          {
+            "path": "registry/controls/packs/index.json",
+            "symbol": "universal/core.json",
+            "digest": "sha256:b29fcea27849b4025fffd256c894d09053c7fdfd1ddaf84916a00ff384a058a4",
+            "bytes": 458
+          }
+        ],
+        "proof": {
+          "red": {
+            "path": "qualification/evidence/source-completion/S2-book-2.behavior.red.correction.log",
+            "command": "node --test tests/inventory/book-2-contracts.test.mjs",
+            "counts": {
+              "total": 30,
+              "pass": 26,
+              "fail": 4
+            },
+            "digest": "sha256:ca47994417835145d8fcdfe2edd468a2a84357f00d1decef1a4ce2e2a0cb7391",
+            "bytes": 5867
+          },
+          "green": {
+            "path": "qualification/evidence/source-completion/S2-book-2.behavior.green.log",
+            "command": "node --test tests/inventory/book-2-contracts.test.mjs",
+            "counts": {
+              "total": 30,
+              "pass": 30,
+              "fail": 0
+            },
+            "digest": "sha256:ca7c739182aca3c4cb036b05fac556188cc622baf23d6fd2fe86a6eac57be916",
+            "bytes": 3117
+          }
+        }
+      }
+    },
+    {
+      "id": "B2-019",
+      "status": "implemented",
+      "dependsOn": [
+        "B2-018"
+      ],
+      "evidence": {
+        "test": {
+          "path": "tests/inventory/book-2-contracts.test.mjs",
+          "assertion": "B2-019 universal control catalogue carries selectors evidence and claim effects",
+          "digest": "sha256:6d71e3d79aa8b1026c7aa3e17b3249312e141fb6f6ed4f35b96f466767e5c957",
+          "bytes": 14246
+        },
+        "implementation": [
+          {
+            "path": "registry/controls/packs/universal/core.json",
+            "symbol": "universal.scope",
+            "digest": "sha256:b70b810afd61eb997da0ff674e2aea27cd806efc1d36d93510e2a6feb57f8e45",
+            "bytes": 21919
+          },
+          {
+            "path": "registry/controls/controls/universal/core.json",
+            "symbol": "universal.unknown-material",
+            "digest": "sha256:d2489ef460e03c2e29c7875e49ddd0be25c96569a767dd6f0d651983872f3fcb",
+            "bytes": 21758
+          }
+        ],
+        "proof": {
+          "red": {
+            "path": "qualification/evidence/source-completion/S2-book-2.behavior.red.log",
+            "command": "node --test tests/inventory/book-2-contracts.test.mjs",
+            "counts": {
+              "total": 30,
+              "pass": 4,
+              "fail": 26
+            },
+            "digest": "sha256:f6924f88c81acbfe813e0420b3377af44a64c01cacc679e19d757c9b02cf2233",
+            "bytes": 24041
+          },
+          "green": {
+            "path": "qualification/evidence/source-completion/S2-book-2.behavior.green.log",
+            "command": "node --test tests/inventory/book-2-contracts.test.mjs",
+            "counts": {
+              "total": 30,
+              "pass": 30,
+              "fail": 0
+            },
+            "digest": "sha256:ca7c739182aca3c4cb036b05fac556188cc622baf23d6fd2fe86a6eac57be916",
+            "bytes": 3117
+          }
+        }
+      }
+    },
+    {
+      "id": "B2-020",
+      "status": "implemented",
+      "dependsOn": [
+        "B2-018"
+      ],
+      "evidence": {
+        "test": {
+          "path": "tests/inventory/book-2-contracts.test.mjs",
+          "assertion": "B2-020 web control catalogue carries selectors evidence and claim effects",
+          "digest": "sha256:6d71e3d79aa8b1026c7aa3e17b3249312e141fb6f6ed4f35b96f466767e5c957",
+          "bytes": 14246
+        },
+        "implementation": [
+          {
+            "path": "registry/controls/packs/targets/web/core.json",
+            "symbol": "web.backup-dr",
+            "digest": "sha256:d41f247fdd1284d426f69373de77b392e8f2fed0295a1a09479a462a2dd7994b",
+            "bytes": 30116
+          },
+          {
+            "path": "registry/controls/controls/web/core.json",
+            "symbol": "web.http-security",
+            "digest": "sha256:d1b233ef53d8eb5fd620d43bcd846d714b409f13bb7770615166b213ab292535",
+            "bytes": 29932
+          },
+          {
+            "path": "registry/scenarios/web/core.json",
+            "symbol": "web.operations.default",
+            "digest": "sha256:134806f6b5f2f9988d3921448a54943657ea6c464e8aca01482a2d07b21b49d0",
+            "bytes": 8542
+          }
+        ],
+        "proof": {
+          "red": {
+            "path": "qualification/evidence/source-completion/S2-book-2.behavior.red.log",
+            "command": "node --test tests/inventory/book-2-contracts.test.mjs",
+            "counts": {
+              "total": 30,
+              "pass": 4,
+              "fail": 26
+            },
+            "digest": "sha256:f6924f88c81acbfe813e0420b3377af44a64c01cacc679e19d757c9b02cf2233",
+            "bytes": 24041
+          },
+          "green": {
+            "path": "qualification/evidence/source-completion/S2-book-2.behavior.green.log",
+            "command": "node --test tests/inventory/book-2-contracts.test.mjs",
+            "counts": {
+              "total": 30,
+              "pass": 30,
+              "fail": 0
+            },
+            "digest": "sha256:ca7c739182aca3c4cb036b05fac556188cc622baf23d6fd2fe86a6eac57be916",
+            "bytes": 3117
+          }
+        }
+      }
+    },
+    {
+      "id": "B2-021",
+      "status": "implemented",
+      "dependsOn": [
+        "B2-018"
+      ],
+      "evidence": {
+        "test": {
+          "path": "tests/inventory/book-2-contracts.test.mjs",
+          "assertion": "B2-021 desktop control catalogue carries selectors evidence and claim effects",
+          "digest": "sha256:6d71e3d79aa8b1026c7aa3e17b3249312e141fb6f6ed4f35b96f466767e5c957",
+          "bytes": 14246
+        },
+        "implementation": [
+          {
+            "path": "registry/controls/packs/targets/desktop/core.json",
+            "symbol": "desktop.installer",
+            "digest": "sha256:9d026fbc9178bcdcc9b84517cec079c7af9024fd0548e3a47db5dd4168c84124",
+            "bytes": 27886
+          },
+          {
+            "path": "registry/controls/controls/desktop/core.json",
+            "symbol": "desktop.updater-signing",
+            "digest": "sha256:d6f2c2cafb328e901719e09a5a859dfe492d9f78cc53d42d0bea0b4e0f2eb958",
+            "bytes": 27702
+          },
+          {
+            "path": "registry/scenarios/desktop/core.json",
+            "symbol": "desktop.installer.default",
+            "digest": "sha256:42ef4b3d231cbe8a9cfb716874a168e4a31ad1684537b449a7f990d762bb617a",
+            "bytes": 8044
+          }
+        ],
+        "proof": {
+          "red": {
+            "path": "qualification/evidence/source-completion/S2-book-2.behavior.red.log",
+            "command": "node --test tests/inventory/book-2-contracts.test.mjs",
+            "counts": {
+              "total": 30,
+              "pass": 4,
+              "fail": 26
+            },
+            "digest": "sha256:f6924f88c81acbfe813e0420b3377af44a64c01cacc679e19d757c9b02cf2233",
+            "bytes": 24041
+          },
+          "green": {
+            "path": "qualification/evidence/source-completion/S2-book-2.behavior.green.log",
+            "command": "node --test tests/inventory/book-2-contracts.test.mjs",
+            "counts": {
+              "total": 30,
+              "pass": 30,
+              "fail": 0
+            },
+            "digest": "sha256:ca7c739182aca3c4cb036b05fac556188cc622baf23d6fd2fe86a6eac57be916",
+            "bytes": 3117
+          }
+        }
+      }
+    },
+    {
+      "id": "B2-022",
+      "status": "implemented",
+      "dependsOn": [
+        "B2-018"
+      ],
+      "evidence": {
+        "test": {
+          "path": "tests/inventory/book-2-contracts.test.mjs",
+          "assertion": "B2-022 mobile control catalogue carries selectors evidence and claim effects",
+          "digest": "sha256:6d71e3d79aa8b1026c7aa3e17b3249312e141fb6f6ed4f35b96f466767e5c957",
+          "bytes": 14246
+        },
+        "implementation": [
+          {
+            "path": "registry/controls/packs/targets/mobile/core.json",
+            "symbol": "mobile.ios",
+            "digest": "sha256:eb863e5872f3deebf039a73c8a0f42c97fb19ab4551fec5ad937749fb8567b34",
+            "bytes": 31184
+          },
+          {
+            "path": "registry/controls/controls/mobile/core.json",
+            "symbol": "mobile.android",
+            "digest": "sha256:75a63d9c46a2df5bcf3f519305b5fb9022cd04ca76cf8888b87706039c51871e",
+            "bytes": 31000
+          },
+          {
+            "path": "registry/scenarios/mobile/core.json",
+            "symbol": "mobile.stores-rollout.default",
+            "digest": "sha256:b30aa2911ffae6fc3e1a8dc084864c0df595f67f8fc0ee32ddb45096a6a695da",
+            "bytes": 8720
+          }
+        ],
+        "proof": {
+          "red": {
+            "path": "qualification/evidence/source-completion/S2-book-2.behavior.red.log",
+            "command": "node --test tests/inventory/book-2-contracts.test.mjs",
+            "counts": {
+              "total": 30,
+              "pass": 4,
+              "fail": 26
+            },
+            "digest": "sha256:f6924f88c81acbfe813e0420b3377af44a64c01cacc679e19d757c9b02cf2233",
+            "bytes": 24041
+          },
+          "green": {
+            "path": "qualification/evidence/source-completion/S2-book-2.behavior.green.log",
+            "command": "node --test tests/inventory/book-2-contracts.test.mjs",
+            "counts": {
+              "total": 30,
+              "pass": 30,
+              "fail": 0
+            },
+            "digest": "sha256:ca7c739182aca3c4cb036b05fac556188cc622baf23d6fd2fe86a6eac57be916",
+            "bytes": 3117
+          }
+        }
+      }
+    },
+    {
+      "id": "B2-023",
+      "status": "implemented",
+      "dependsOn": [
+        "B2-018"
+      ],
+      "evidence": {
+        "test": {
+          "path": "tests/inventory/book-2-contracts.test.mjs",
+          "assertion": "B2-023 service data control catalogue carries selectors evidence and claim effects",
+          "digest": "sha256:6d71e3d79aa8b1026c7aa3e17b3249312e141fb6f6ed4f35b96f466767e5c957",
+          "bytes": 14246
+        },
+        "implementation": [
+          {
+            "path": "registry/controls/packs/targets/service/core.json",
+            "symbol": "service-data.api-contracts",
+            "digest": "sha256:f4c332995df0c0becf2d998d4737767b888aa1a9840153927b18cca13f569936",
+            "bytes": 24989
+          },
+          {
+            "path": "registry/controls/packs/components/service-data/core.json",
+            "symbol": "service-data.lineage",
+            "digest": "sha256:2d2171763f6ce7d2ec2d87ad7545126fbceb348d20fde74ef817277a975caada",
+            "bytes": 24995
+          },
+          {
+            "path": "registry/controls/controls/service-data/core.json",
+            "symbol": "service-data.replay-correctness",
+            "digest": "sha256:25d7576f2f779f653516a5ba3d7847c79d30f3f7757867febbe48b7c7b26c1ab",
+            "bytes": 24805
+          }
+        ],
+        "proof": {
+          "red": {
+            "path": "qualification/evidence/source-completion/S2-book-2.behavior.red.log",
+            "command": "node --test tests/inventory/book-2-contracts.test.mjs",
+            "counts": {
+              "total": 30,
+              "pass": 4,
+              "fail": 26
+            },
+            "digest": "sha256:f6924f88c81acbfe813e0420b3377af44a64c01cacc679e19d757c9b02cf2233",
+            "bytes": 24041
+          },
+          "green": {
+            "path": "qualification/evidence/source-completion/S2-book-2.behavior.green.log",
+            "command": "node --test tests/inventory/book-2-contracts.test.mjs",
+            "counts": {
+              "total": 30,
+              "pass": 30,
+              "fail": 0
+            },
+            "digest": "sha256:ca7c739182aca3c4cb036b05fac556188cc622baf23d6fd2fe86a6eac57be916",
+            "bytes": 3117
+          }
+        }
+      }
+    },
+    {
+      "id": "B2-024",
+      "status": "implemented",
+      "dependsOn": [
+        "B2-018"
+      ],
+      "evidence": {
+        "test": {
+          "path": "tests/inventory/book-2-contracts.test.mjs",
+          "assertion": "B2-024 developer tools control catalogue carries selectors evidence and claim effects",
+          "digest": "sha256:6d71e3d79aa8b1026c7aa3e17b3249312e141fb6f6ed4f35b96f466767e5c957",
+          "bytes": 14246
+        },
+        "implementation": [
+          {
+            "path": "registry/controls/packs/targets/developer-tools/core.json",
+            "symbol": "developer-tools.cli-contract",
+            "digest": "sha256:0cf338d6e4ae261ecaa1f50c069b6f71c3e895f1599f7531eb63793f9ee17857",
+            "bytes": 24700
+          },
+          {
+            "path": "registry/controls/controls/developer-tools/core.json",
+            "symbol": "developer-tools.workspace-trust",
+            "digest": "sha256:15b7c35d582f36f9c4a2d1e66bf4e741053d03e39f9d74cedaacadbdf6155f08",
+            "bytes": 24516
+          },
+          {
+            "path": "registry/scenarios/developer-tools/core.json",
+            "symbol": "developer-tools.plugin-isolation.default",
+            "digest": "sha256:90152a4448fcd10fb74d17a744eea1c8485d9b4b884d453ae0cabd54eea473a2",
+            "bytes": 6648
+          }
+        ],
+        "proof": {
+          "red": {
+            "path": "qualification/evidence/source-completion/S2-book-2.behavior.red.log",
+            "command": "node --test tests/inventory/book-2-contracts.test.mjs",
+            "counts": {
+              "total": 30,
+              "pass": 4,
+              "fail": 26
+            },
+            "digest": "sha256:f6924f88c81acbfe813e0420b3377af44a64c01cacc679e19d757c9b02cf2233",
+            "bytes": 24041
+          },
+          "green": {
+            "path": "qualification/evidence/source-completion/S2-book-2.behavior.green.log",
+            "command": "node --test tests/inventory/book-2-contracts.test.mjs",
+            "counts": {
+              "total": 30,
+              "pass": 30,
+              "fail": 0
+            },
+            "digest": "sha256:ca7c739182aca3c4cb036b05fac556188cc622baf23d6fd2fe86a6eac57be916",
+            "bytes": 3117
+          }
+        }
+      }
+    },
+    {
+      "id": "B2-025",
+      "status": "implemented",
+      "dependsOn": [
+        "B2-018"
+      ],
+      "evidence": {
+        "test": {
+          "path": "tests/inventory/book-2-contracts.test.mjs",
+          "assertion": "B2-025 infrastructure release control catalogue carries selectors evidence and claim effects",
+          "digest": "sha256:6d71e3d79aa8b1026c7aa3e17b3249312e141fb6f6ed4f35b96f466767e5c957",
+          "bytes": 14246
+        },
+        "implementation": [
+          {
+            "path": "registry/controls/packs/components/infrastructure-release/core.json",
+            "symbol": "infrastructure-release.rendered-resources",
+            "digest": "sha256:0c67f89c00e2fb8f2f79acfb8cb6e13430d1a75237e6de31a2bec43d983947ff",
+            "bytes": 26384
+          },
+          {
+            "path": "registry/controls/controls/infrastructure-release/core.json",
+            "symbol": "infrastructure-release.promotion",
+            "digest": "sha256:dcb8b7ce9dd700fbddb097bbcd17e45f0a5a4696f59718abe31892b8cae11d9f",
+            "bytes": 26197
+          },
+          {
+            "path": "registry/scenarios/infrastructure-release/core.json",
+            "symbol": "infrastructure-release.rollback.default",
+            "digest": "sha256:12b9a44e47eac7724402b5e951850e2cc05a2f5f5ab979348aec9572e4493e7d",
+            "bytes": 7492
+          }
+        ],
+        "proof": {
+          "red": {
+            "path": "qualification/evidence/source-completion/S2-book-2.behavior.red.log",
+            "command": "node --test tests/inventory/book-2-contracts.test.mjs",
+            "counts": {
+              "total": 30,
+              "pass": 4,
+              "fail": 26
+            },
+            "digest": "sha256:f6924f88c81acbfe813e0420b3377af44a64c01cacc679e19d757c9b02cf2233",
+            "bytes": 24041
+          },
+          "green": {
+            "path": "qualification/evidence/source-completion/S2-book-2.behavior.green.log",
+            "command": "node --test tests/inventory/book-2-contracts.test.mjs",
+            "counts": {
+              "total": 30,
+              "pass": 30,
+              "fail": 0
+            },
+            "digest": "sha256:ca7c739182aca3c4cb036b05fac556188cc622baf23d6fd2fe86a6eac57be916",
+            "bytes": 3117
+          }
+        }
+      }
+    },
+    {
+      "id": "B2-026",
+      "status": "implemented",
+      "dependsOn": [
+        "B2-018"
+      ],
+      "evidence": {
+        "test": {
+          "path": "tests/inventory/book-2-contracts.test.mjs",
+          "assertion": "B2-026 conditional control catalogue carries selectors evidence and claim effects",
+          "digest": "sha256:6d71e3d79aa8b1026c7aa3e17b3249312e141fb6f6ed4f35b96f466767e5c957",
+          "bytes": 14246
+        },
+        "implementation": [
+          {
+            "path": "registry/controls/packs/conditional/core.json",
+            "symbol": "conditional.commerce",
+            "digest": "sha256:68629b529841a6d791e77a8d519ecb69d4f2888cd1e90ea842f1c6ee5b4ec5db",
+            "bytes": 15474
+          },
+          {
+            "path": "registry/controls/controls/conditional/core.json",
+            "symbol": "conditional.human-policy",
+            "digest": "sha256:868eda1ecb5d6d179b73c4da84644730a8fdee03f47e07575673b8ef17262df6",
+            "bytes": 15285
+          },
+          {
+            "path": "registry/scenarios/conditional/core.json",
+            "symbol": "conditional.consent.default",
+            "digest": "sha256:293daf459bd4548fae1949be3f2e597cbcb873de4e0681c4a216f919ced8e479",
+            "bytes": 4506
+          }
+        ],
+        "proof": {
+          "red": {
+            "path": "qualification/evidence/source-completion/S2-book-2.behavior.red.log",
+            "command": "node --test tests/inventory/book-2-contracts.test.mjs",
+            "counts": {
+              "total": 30,
+              "pass": 4,
+              "fail": 26
+            },
+            "digest": "sha256:f6924f88c81acbfe813e0420b3377af44a64c01cacc679e19d757c9b02cf2233",
+            "bytes": 24041
+          },
+          "green": {
+            "path": "qualification/evidence/source-completion/S2-book-2.behavior.green.log",
+            "command": "node --test tests/inventory/book-2-contracts.test.mjs",
+            "counts": {
+              "total": 30,
+              "pass": 30,
+              "fail": 0
+            },
+            "digest": "sha256:ca7c739182aca3c4cb036b05fac556188cc622baf23d6fd2fe86a6eac57be916",
+            "bytes": 3117
+          }
+        }
+      }
+    },
+    {
+      "id": "B2-027",
+      "status": "implemented",
+      "dependsOn": [
+        "B2-016",
+        "B2-017",
+        "B2-019",
+        "B2-020",
+        "B2-021",
+        "B2-022",
+        "B2-023",
+        "B2-024",
+        "B2-025",
+        "B2-026"
+      ],
+      "evidence": {
+        "test": {
+          "path": "tests/inventory/book-2-contracts.test.mjs",
+          "assertion": "B2-027 baseline unions applicable packs and reproduces digest independent of pack order",
+          "digest": "sha256:6d71e3d79aa8b1026c7aa3e17b3249312e141fb6f6ed4f35b96f466767e5c957",
+          "bytes": 14246
+        },
+        "implementation": [
+          {
+            "path": "lib/controls/baseline/compile.mjs",
+            "symbol": "compileBaseline",
+            "digest": "sha256:7f4c0a7429f5285d3632f2e52d91374344d2af52ad574d8545b646677d84fb6b",
+            "bytes": 3483
+          },
+          {
+            "path": "lib/controls/baseline/selectors.mjs",
+            "symbol": "matchesSelector",
+            "digest": "sha256:ae00cfa5c2a98cab9ef090392b3e031304c20741436e6d2690a0709eacde21ad",
+            "bytes": 1101
+          },
+          {
+            "path": "lib/controls/baseline/trace.mjs",
+            "symbol": "selectionTrace",
+            "digest": "sha256:56e5e1a269f8e3dcd0349fb219fe163019287fccc021f3c73dae6759979e771b",
+            "bytes": 254
+          },
+          {
+            "path": "schemas/controls/control-baseline-v1.schema.json",
+            "symbol": "nemesis-control-baseline-v1",
+            "digest": "sha256:daf06b3ee8923de08c2547ccc3e7ba6304ba8ea91f73aee1d22df3ddaaf02ad0",
+            "bytes": 1090
+          }
+        ],
+        "proof": {
+          "red": {
+            "path": "qualification/evidence/source-completion/S2-book-2.behavior.red.correction.log",
+            "command": "node --test tests/inventory/book-2-contracts.test.mjs",
+            "counts": {
+              "total": 30,
+              "pass": 26,
+              "fail": 4
+            },
+            "digest": "sha256:ca47994417835145d8fcdfe2edd468a2a84357f00d1decef1a4ce2e2a0cb7391",
+            "bytes": 5867
+          },
+          "green": {
+            "path": "qualification/evidence/source-completion/S2-book-2.behavior.green.log",
+            "command": "node --test tests/inventory/book-2-contracts.test.mjs",
+            "counts": {
+              "total": 30,
+              "pass": 30,
+              "fail": 0
+            },
+            "digest": "sha256:ca7c739182aca3c4cb036b05fac556188cc622baf23d6fd2fe86a6eac57be916",
+            "bytes": 3117
+          }
+        }
+      }
+    },
+    {
+      "id": "B2-028",
+      "status": "implemented",
+      "dependsOn": [
+        "B2-027"
+      ],
+      "evidence": {
+        "test": {
+          "path": "tests/inventory/book-2-contracts.test.mjs",
+          "assertion": "B2-028 missing external capability produces deterministic target-scoped claim impacts",
+          "digest": "sha256:6d71e3d79aa8b1026c7aa3e17b3249312e141fb6f6ed4f35b96f466767e5c957",
+          "bytes": 14246
+        },
+        "implementation": [
+          {
+            "path": "lib/controls/evidence/capabilities.mjs",
+            "symbol": "evidenceCapabilities",
+            "digest": "sha256:c0a1a9e930f13ae3a356358279633ea747b8f0c4711fc78771e1070bd0b54fd9",
+            "bytes": 1679
+          },
+          {
+            "path": "lib/controls/evidence/external-manifest.mjs",
+            "symbol": "validateExternalEvidence",
+            "digest": "sha256:d826d3fa48a4bfaebed633461fd4f187b2493bdf241b4f8f1e9ac942d7fdc484",
+            "bytes": 1417
+          },
+          {
+            "path": "lib/controls/evidence/impacts.mjs",
+            "symbol": "capabilityImpacts",
+            "digest": "sha256:eeb3788519d5a148f96e0b97e5979281bbf9a69669966da0f98fb443d7817718",
+            "bytes": 486
+          },
+          {
+            "path": "schemas/controls/evidence-capability-v1.schema.json",
+            "symbol": "nemesis-evidence-capability-v1",
+            "digest": "sha256:f1a679b5e1973505a18614ad9d00e07018e7a8075f0442a13fa1e9d01a93137c",
+            "bytes": 590
+          },
+          {
+            "path": "schemas/controls/external-evidence-manifest-v1.schema.json",
+            "symbol": "nemesis-external-evidence-manifest-v1",
+            "digest": "sha256:9ff32d83c216ef687f7e6476fd623db75b78153b03be2486f14968e10fa38bd4",
+            "bytes": 1865
+          }
+        ],
+        "proof": {
+          "red": {
+            "path": "qualification/evidence/source-completion/S2-book-2.behavior.red.log",
+            "command": "node --test tests/inventory/book-2-contracts.test.mjs",
+            "counts": {
+              "total": 30,
+              "pass": 4,
+              "fail": 26
+            },
+            "digest": "sha256:f6924f88c81acbfe813e0420b3377af44a64c01cacc679e19d757c9b02cf2233",
+            "bytes": 24041
+          },
+          "green": {
+            "path": "qualification/evidence/source-completion/S2-book-2.behavior.green.log",
+            "command": "node --test tests/inventory/book-2-contracts.test.mjs",
+            "counts": {
+              "total": 30,
+              "pass": 30,
+              "fail": 0
+            },
+            "digest": "sha256:ca7c739182aca3c4cb036b05fac556188cc622baf23d6fd2fe86a6eac57be916",
+            "bytes": 3117
+          }
+        }
+      }
+    },
+    {
+      "id": "B2-029",
+      "status": "implemented",
+      "dependsOn": [
+        "B2-028"
+      ],
+      "evidence": {
+        "test": {
+          "path": "tests/inventory/book-2-contracts.test.mjs",
+          "assertion": "B2-029 pairwise compiler covers every value pair and preserves mandatory cases",
+          "digest": "sha256:6d71e3d79aa8b1026c7aa3e17b3249312e141fb6f6ed4f35b96f466767e5c957",
+          "bytes": 14246
+        },
+        "implementation": [
+          {
+            "path": "lib/controls/scenarios/compile.mjs",
+            "symbol": "compileScenarios",
+            "digest": "sha256:5df2c257ae3e48d5c63e8b8746c5521a7016fac13f3e4be7fe0f1e53616039e9",
+            "bytes": 2051
+          },
+          {
+            "path": "lib/controls/scenarios/pairwise.mjs",
+            "symbol": "pairwise",
+            "digest": "sha256:7c59389c6867f3464d71f04c20a2bb4b4e8679f2ed2743bfb27445b08069484a",
+            "bytes": 3220
+          },
+          {
+            "path": "lib/controls/scenarios/constraints.mjs",
+            "symbol": "applyConstraints",
+            "digest": "sha256:2d8ff9d41d36241355f9f2be19a836d7a781f36715a0b3cf4ace4bfe8aa4d5eb",
+            "bytes": 147
+          },
+          {
+            "path": "schemas/controls/scenario-template-v1.schema.json",
+            "symbol": "nemesis-scenario-template-v1",
+            "digest": "sha256:b1ab70b78650c7e915b6ad35b1569b25089b028298749b5af152602b53b21d14",
+            "bytes": 931
+          },
+          {
+            "path": "schemas/controls/scenario-matrix-v1.schema.json",
+            "symbol": "nemesis-scenario-matrix-v1",
+            "digest": "sha256:6e7bc306718840d38755d831490d1d3581ec26751a5201639d82ed19ccc977dd",
+            "bytes": 1739
+          }
+        ],
+        "proof": {
+          "red": {
+            "path": "qualification/evidence/source-completion/S2-book-2.behavior.red.log",
+            "command": "node --test tests/inventory/book-2-contracts.test.mjs",
+            "counts": {
+              "total": 30,
+              "pass": 4,
+              "fail": 26
+            },
+            "digest": "sha256:f6924f88c81acbfe813e0420b3377af44a64c01cacc679e19d757c9b02cf2233",
+            "bytes": 24041
+          },
+          "green": {
+            "path": "qualification/evidence/source-completion/S2-book-2.behavior.green.log",
+            "command": "node --test tests/inventory/book-2-contracts.test.mjs",
+            "counts": {
+              "total": 30,
+              "pass": 30,
+              "fail": 0
+            },
+            "digest": "sha256:ca7c739182aca3c4cb036b05fac556188cc622baf23d6fd2fe86a6eac57be916",
+            "bytes": 3117
+          }
+        }
+      }
+    },
+    {
+      "id": "B2-030",
+      "status": "implemented",
+      "dependsOn": [
+        "B2-029"
+      ],
+      "evidence": {
+        "test": {
+          "path": "tests/inventory/book-2-contracts.test.mjs",
+          "assertion": "B2-030 product inspection integrates topology controls capabilities and scenario artifacts",
+          "digest": "sha256:6d71e3d79aa8b1026c7aa3e17b3249312e141fb6f6ed4f35b96f466767e5c957",
+          "bytes": 14246
+        },
+        "implementation": [
+          {
+            "path": "lib/core/inspect-product.mjs",
+            "symbol": "inspectProduct",
+            "digest": "sha256:1bc88ad12d01e7093961ae63c9c60fe2381703a2d86cbbeb7fa36f0022482800",
+            "bytes": 4212
+          },
+          {
+            "path": "lib/core/plan-stages/product-topology.mjs",
+            "symbol": "productTopologyStage",
+            "digest": "sha256:eb9a65fbfe91c73f433615ba0f0a199cbf0847f313a1e26ea3dfa21f3d00399a",
+            "bytes": 1868
+          },
+          {
+            "path": "lib/core/plan-stages/control-baseline.mjs",
+            "symbol": "controlBaselineStage",
+            "digest": "sha256:8cee117d98356bcd4c8a969ff2e678445f2745c78f6605a868a770223efdc061",
+            "bytes": 1462
+          },
+          {
+            "path": "lib/cli/commands/inspect.mjs",
+            "symbol": "runInspect",
+            "digest": "sha256:488343cf7aa8e67c04ee811b1406e69f61b33d86160f0dee9f53c7263ad14d46",
+            "bytes": 1734
+          },
+          {
+            "path": "lib/cli/commands/targets.mjs",
+            "symbol": "runTargets",
+            "digest": "sha256:336b048ec46766ee53cf565a70fc73b993434bc457d4610015e86bbb527a5a07",
+            "bytes": 325
+          },
+          {
+            "path": "lib/cli/commands/components.mjs",
+            "symbol": "runComponents",
+            "digest": "sha256:9e8b33e2752adee16a5117311441534ada9707d9ef8923ef18d528c19a2b4d5a",
+            "bytes": 330
+          },
+          {
+            "path": "lib/cli/commands/stacks.mjs",
+            "symbol": "runStacks",
+            "digest": "sha256:468a2ada1c7d8b629670707dbb34c18575fac20ec2c4ca260a61c31f5afb7958",
+            "bytes": 318
+          },
+          {
+            "path": "lib/cli/commands/controls.mjs",
+            "symbol": "runControls",
+            "digest": "sha256:a1fbdd2a7e4da83d763d36023a43b5e618252993f79290098345ee81f5464b32",
+            "bytes": 330
+          },
+          {
+            "path": "scripts/qualify-book-2.mjs",
+            "symbol": "qualifyBook",
+            "digest": "sha256:d1e477d4b766915672ba931347ad59dfa050cb2f7a0a99fe7ec37b100af94aca",
+            "bytes": 223
+          }
+        ],
+        "proof": {
+          "red": {
+            "path": "qualification/evidence/source-completion/S2-book-2.behavior.red.log",
+            "command": "node --test tests/inventory/book-2-contracts.test.mjs",
+            "counts": {
+              "total": 30,
+              "pass": 4,
+              "fail": 26
+            },
+            "digest": "sha256:f6924f88c81acbfe813e0420b3377af44a64c01cacc679e19d757c9b02cf2233",
+            "bytes": 24041
+          },
+          "green": {
+            "path": "qualification/evidence/source-completion/S2-book-2.behavior.green.log",
+            "command": "node --test tests/inventory/book-2-contracts.test.mjs",
+            "counts": {
+              "total": 30,
+              "pass": 30,
+              "fail": 0
+            },
+            "digest": "sha256:ca7c739182aca3c4cb036b05fac556188cc622baf23d6fd2fe86a6eac57be916",
+            "bytes": 3117
+          }
+        }
+      }
+    }
   ],
   "checks": [
-    { "id": "core-foundations", "command": "node --test tests/core-foundations.test.mjs", "status": "pass", "evidence": "3 passed, 0 failed" },
-    { "id": "book-2-gate", "command": "node scripts/qualify-book-2.mjs", "status": "source-implemented", "evidence": "deterministic Book 2 dispatcher is present" },
-    { "id": "creator-source-ingestion", "status": "external-evidence-required", "evidence": "ledger awaits three canonical creator-audit documents" },
-    { "id": "platform-source-ingestion", "status": "external-evidence-required", "evidence": "ledger awaits canonical desktop, mobile, and web checklist documents" }
+    {
+      "id": "book-2-behavior-red",
+      "command": "node --test tests/inventory/book-2-contracts.test.mjs",
+      "status": "fail",
+      "log": "qualification/evidence/source-completion/S2-book-2.behavior.red.log",
+      "digest": "sha256:f6924f88c81acbfe813e0420b3377af44a64c01cacc679e19d757c9b02cf2233",
+      "bytes": 24041,
+      "counts": {
+        "total": 30,
+        "pass": 4,
+        "fail": 26
+      }
+    },
+    {
+      "id": "book-2-behavior-correction-red",
+      "command": "node --test tests/inventory/book-2-contracts.test.mjs",
+      "status": "fail",
+      "log": "qualification/evidence/source-completion/S2-book-2.behavior.red.correction.log",
+      "digest": "sha256:ca47994417835145d8fcdfe2edd468a2a84357f00d1decef1a4ce2e2a0cb7391",
+      "bytes": 5867,
+      "counts": {
+        "total": 30,
+        "pass": 26,
+        "fail": 4
+      }
+    },
+    {
+      "id": "book-2-behavior-green",
+      "command": "node --test tests/inventory/book-2-contracts.test.mjs",
+      "status": "pass",
+      "log": "qualification/evidence/source-completion/S2-book-2.behavior.green.log",
+      "digest": "sha256:ca7c739182aca3c4cb036b05fac556188cc622baf23d6fd2fe86a6eac57be916",
+      "bytes": 3117,
+      "counts": {
+        "total": 30,
+        "pass": 30,
+        "fail": 0
+      }
+    },
+    {
+      "id": "book-2-quality-final-review-red",
+      "command": "node --test tests/inventory/book-2-quality.test.mjs",
+      "status": "fail",
+      "log": "qualification/evidence/source-completion/S2-book-2.quality.red.final-review.log",
+      "digest": "sha256:87e7f0124b6f8e0cb1088765ac70d3e514716cb5b065c9992176c0294c77b4d1",
+      "bytes": 6005,
+      "counts": {
+        "total": 44,
+        "pass": 42,
+        "fail": 2
+      }
+    },
+    {
+      "id": "book-2-quality-green",
+      "command": "node --test tests/inventory/book-2-quality.test.mjs",
+      "status": "pass",
+      "log": "qualification/evidence/source-completion/S2-book-2.quality.green.log",
+      "digest": "sha256:407ce299fd203aa3fb58186b9b0eebaa5419964210843e55e536616bd734e2ea",
+      "bytes": 4054,
+      "counts": {
+        "total": 44,
+        "pass": 44,
+        "fail": 0
+      }
+    }
   ],
   "blockers": [
-    "Three canonical creator-audit documents with rights, digests, and item boundaries are required before B2-016 import qualification.",
-    "Canonical desktop, mobile, and web checklist documents with rights, digests, and item boundaries are required before B2-017 import qualification.",
-    "Hybrid portfolio, stale-binding, and package-exclusion results require an executed Book 2 gate."
+    {
+      "id": "creator-source-rights",
+      "kind": "source-rights",
+      "state": "external-evidence-required",
+      "affects": "source-derived controls and public distribution",
+      "detail": "Three creator source documents are absent; seed metadata preserves 300 items but rights remain unresolved and no controls were derived."
+    },
+    {
+      "id": "platform-checklist-rights",
+      "kind": "source-rights",
+      "state": "external-evidence-required",
+      "affects": "source-derived platform controls and public distribution",
+      "detail": "Supplied desktop, mobile, and web checklist bytes are digest-pinned internally; rights remain unresolved and no controls were derived."
+    }
   ]
 }

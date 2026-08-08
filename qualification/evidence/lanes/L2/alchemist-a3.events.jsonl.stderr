@@ -1,0 +1,3 @@
+(node:120292) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+OmniRoute is not reachable at http://localhost:20128. Start it with 'omniroute serve'.

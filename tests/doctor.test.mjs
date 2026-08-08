@@ -6,7 +6,7 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import test from 'node:test';
 
-const BIN = new URL('../bin/nemesis.mjs', import.meta.url).pathname;
+const BIN = fileURLToPath(new URL('../bin/nemesis.mjs', import.meta.url));
 const root = fileURLToPath(new URL('..', import.meta.url));
 
 function doctor(args = [], env = {}) {

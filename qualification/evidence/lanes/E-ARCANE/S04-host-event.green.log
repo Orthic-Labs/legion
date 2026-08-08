@@ -1,0 +1,19 @@
+✔ S04: HOST_EVENT_SCHEMA validates a well-formed host event (2.0691ms)
+✔ S04: HOST_EVENT_SCHEMA is closed — an unknown top-level field is ARC_HOST_EVENT_INVALID-worthy (mandatory test 3) (0.2871ms)
+✔ S04: the extensions object is the one open bag — arbitrary sub-fields inside it do not fail validation (0.1582ms)
+✔ S04: normalizeHostEvent throws ARC_HOST_EVENT_INVALID when the normalized result cannot satisfy the schema (0.6165ms)
+✔ S04: normalizeHostEvent maps real adapter hook names (PreToolUse) onto the canonical EVENT_TYPE (0.1664ms)
+✔ S04: EFFECT_OBSERVATION_CLASS is exactly the five named buckets (0.4534ms)
+✔ S04: an unknown command exiting 0 classifies as source-observation, never as a check candidate (mandatory test 6) (0.1855ms)
+✔ S04: a command exit-0 event WITH a host-observed declared-check correlation classifies as deterministic-check-candidate (0.1273ms)
+✔ S04: FILE_WRITE/FILE_MOVE/FILE_DELETE always classify as mutation-observation, never as proof (mandatory test 7) (0.1839ms)
+✔ S04: a failed effect classifies as failure regardless of effect class (0.182ms)
+✔ S04: a lifecycle event with no effect classifies as non-qualifying-telemetry (0.1298ms)
+ℹ tests 11
+ℹ suites 0
+ℹ pass 11
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 80.5093

@@ -1,10 +1,13 @@
 #!/usr/bin/env node
 import { readFileSync, writeFileSync } from 'node:fs';
-import { dirname, resolve } from 'node:path';
-import { pathToFileURL } from 'node:url';
+import { dirname, join, resolve } from 'node:path';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { reportToSarif } from './scripts/report-to-sarif.mjs';
 
 const SURVIVING = new Set(['TRUE_POSITIVE', 'LIKELY_TRUE_POSITIVE']);
+const AUDIT_RUN = fileURLToPath(new URL('./audit-run.mjs', import.meta.url));
+const AUDIT_VERIFY = fileURLToPath(new URL('./audit-verify.mjs', import.meta.url));
+function command(executable, args) { return { executable, args }; }
 
 function readJson(path) { return JSON.parse(readFileSync(resolve(path), 'utf8')); }
 function writeJson(path, value) { writeFileSync(resolve(path), `${JSON.stringify(value, null, 2)}\n`, 'utf8'); }
@@ -124,7 +127,7 @@ export function finalizeAudit({ facts, candidates, adjudication }) {
   const auditStatus = incomplete ? 'incomplete' : executionFailed ? 'fail' : findings.length ? 'fail' : 'pass';
   const qualityGate = incomplete ? 'unproven' : findings.some((finding) => ['critical', 'high'].includes(finding.severity)) ? 'blocked' : findings.length ? 'attention' : 'pass';
   return {
-    schemaVersion: 3,
+    schemaVersion: 4,
     kind: 'repository-audit-report',
     generated_at: new Date().toISOString(),
     workspace: facts.workspace,
@@ -150,8 +153,8 @@ export function finalizeAudit({ facts, candidates, adjudication }) {
       verdicts: adjudication?.verdicts ?? [],
     },
     rerun: {
-      audit: `node audit-run.mjs ${JSON.stringify(facts.workspace)}`,
-      verify: `node audit-verify.mjs --facts ${JSON.stringify(facts.out_dir + '/facts.json')}`,
+      audit: command(process.execPath, [AUDIT_RUN, facts.workspace]),
+      verify: command(process.execPath, [AUDIT_VERIFY, '--facts', join(facts.out_dir, 'facts.json')]),
     },
   };
 }

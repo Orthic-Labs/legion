@@ -1,0 +1,7 @@
+✔ B4-024 preserves exact OS matrices & final-artifact facts
+✔ B4-024 cannot transfer one OS pass to unavailable OS hosts
+✔ B4-024 cannot pass empty named behavior denominators
+ℹ tests 3
+ℹ pass 3
+ℹ fail 0
+GREEN_EXIT=0

@@ -1,0 +1,324 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://orthic.dev/schemas/platform/web-actor-fixture-v1.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "kind",
+    "status",
+    "complete",
+    "proof",
+    "terminal",
+    "binding",
+    "actors",
+    "denominator",
+    "coverageGaps",
+    "digest"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": 1
+    },
+    "kind": {
+      "const": "nemesis-web-actor-fixtures"
+    },
+    "status": {
+      "const": "pass"
+    },
+    "complete": {
+      "const": true
+    },
+    "proof": {
+      "const": true
+    },
+    "terminal": {
+      "const": true
+    },
+    "binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "targetId",
+        "environment",
+        "actorId",
+        "tenantId",
+        "browser",
+        "browserVersion",
+        "viewport",
+        "locale",
+        "sourceRevision",
+        "artifactDigest"
+      ],
+      "properties": {
+        "targetId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "environment": {
+          "type": "string",
+          "minLength": 1
+        },
+        "actorId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "tenantId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "browser": {
+          "type": "string",
+          "minLength": 1
+        },
+        "browserVersion": {
+          "type": "string",
+          "minLength": 1
+        },
+        "viewport": {
+          "type": "string",
+          "minLength": 1
+        },
+        "locale": {
+          "type": "string",
+          "minLength": 1
+        },
+        "sourceRevision": {
+          "type": "string",
+          "minLength": 1
+        },
+        "artifactDigest": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "actors": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/actor"
+      }
+    },
+    "denominator": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "total",
+        "accounted",
+        "receipts",
+        "omitted",
+        "missing",
+        "expectedIds"
+      ],
+      "properties": {
+        "total": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "accounted": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "receipts": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "omitted": {
+          "const": 0
+        },
+        "missing": {
+          "type": "array",
+          "maxItems": 0,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "expectedIds": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "coverageGaps": {
+      "type": "array",
+      "maxItems": 0,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "digest": {
+      "type": "string",
+      "pattern": "^sha256:[a-f0-9]{64}$"
+    }
+  },
+  "$defs": {
+    "credentialReference": {
+      "type": "object",
+      "required": [
+        "type",
+        "id"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "enum": [
+            "env",
+            "keychain",
+            "secret-manager",
+            "vault"
+          ]
+        },
+        "id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]*$"
+        }
+      }
+    },
+    "transitionCapability": {
+      "type": "object",
+      "required": [
+        "id",
+        "toActorId",
+        "fromTenantId",
+        "toTenantId",
+        "authorizationId"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "toActorId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "fromTenantId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "toTenantId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "authorizationId": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "actor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "identityId",
+        "credentialPolicyId",
+        "sessionPolicyId",
+        "role",
+        "tier",
+        "tenantId",
+        "accountState",
+        "credential",
+        "issuedAt",
+        "expiresAt",
+        "revokedAt",
+        "serverAuthorizations",
+        "uiVisibility",
+        "transitionCapabilities",
+        "concurrencyKey"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "identityId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "credentialPolicyId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "sessionPolicyId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "role": {
+          "type": "string",
+          "minLength": 1
+        },
+        "tier": {
+          "type": "string",
+          "minLength": 1
+        },
+        "tenantId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "accountState": {
+          "enum": [
+            "active",
+            "disabled",
+            "expired",
+            "locked",
+            "revoked"
+          ]
+        },
+        "credential": {
+          "$ref": "#/$defs/credentialReference"
+        },
+        "issuedAt": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "expiresAt": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "revokedAt": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "serverAuthorizations": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "uiVisibility": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "transitionCapabilities": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/transitionCapability"
+          }
+        },
+        "concurrencyKey": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    }
+  }
+}

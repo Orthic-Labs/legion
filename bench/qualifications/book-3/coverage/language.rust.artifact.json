@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "kind": "nemesis-coverage-test-artifact",
+  "recordId": "language.rust",
+  "testPath": "tests/providers/rust/rust.test.mjs",
+  "status": "pass",
+  "rawLog": {
+    "path": "bench/qualifications/book-3/coverage/language.rust.test.log",
+    "digest": "sha256:963138b68261b6be6e8dbf9a3a95330b0bc70462ac83ddf0e4dc57f5c6ba568a",
+    "bytes": 608
+  },
+  "providerVersions": {
+    "code.rust": "1.0.0"
+  }
+}

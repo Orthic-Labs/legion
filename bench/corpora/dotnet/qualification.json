@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "family": "dotnet",
+  "cases": [
+    {
+      "id": "csharp",
+      "expected": "measured"
+    },
+    {
+      "id": "fsharp",
+      "expected": "measured"
+    },
+    {
+      "id": "visual-basic",
+      "expected": "measured"
+    },
+    {
+      "id": "offline-packages",
+      "expected": "measured"
+    }
+  ]
+}

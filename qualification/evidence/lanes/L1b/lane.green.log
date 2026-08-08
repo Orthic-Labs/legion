@@ -1,0 +1,9 @@
+Focused lane command: node --test tests/platform/desktop/runner/runner.test.mjs tests/platform/desktop/ipc/ipc.test.mjs tests/platform/desktop/files-storage/files-storage.test.mjs tests/platform/desktop/os-integration/os-integration.test.mjs tests/platform/desktop/performance/performance.test.mjs tests/platform/desktop/installer/installer.test.mjs tests/platform/desktop/updater/updater.test.mjs tests/platform/desktop/os/os.test.mjs tests/platform/desktop/qualification.test.mjs
+ℹ tests 28
+ℹ suites 0
+ℹ pass 28
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+LANE_EXIT=0

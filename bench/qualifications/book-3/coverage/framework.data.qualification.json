@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1,
+  "kind": "nemesis-coverage-qualification",
+  "recordId": "framework.data",
+  "corpusRoot": "bench/corpora/frameworks/data",
+  "corpusDigest": "sha256:59d22b194047466e52a9c2c8f7ed5c660f91ee27a1ccc9266c5f36e5ea5ba3d5",
+  "artifactDigest": "sha256:f3ce99eedbaa2b7e339d564d57c60e81e4b08f4372a1b16b21167b43ae1fc4b7",
+  "providerVersions": {
+    "framework.data": "1.0.0"
+  },
+  "casesRequired": [
+    "orm.positive",
+    "orm.unsupported",
+    "migration.positive",
+    "migration.unsupported",
+    "integrity.positive",
+    "integrity.unsupported",
+    "privacy.positive",
+    "privacy.unsupported"
+  ],
+  "command": [
+    "node",
+    "--test",
+    "tests/generic-source-suite.test.mjs"
+  ],
+  "decision": "source-measured-runtime-unproven"
+}

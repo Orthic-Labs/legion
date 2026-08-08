@@ -1,0 +1,1 @@
+import {analyzeLanguage} from '../shared.mjs';export const language="dart";export const extensions=["dart"];export const config={"id":"dart","extensions":["dart"],"variants":{"dart":["dart"]},"tools":["analyzer","test","package"],"requiredContext":["platform"]};export function analyze(input={}){return analyzeLanguage(config,input);}

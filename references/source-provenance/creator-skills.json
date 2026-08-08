@@ -1,0 +1,35 @@
+{
+  "schemaVersion": 1,
+  "kind": "nemesis-creator-source-manifest",
+  "sources": [
+    {
+      "id": "designer",
+      "status": "reference-only",
+      "digest": "missing:creator-archive",
+      "outputDigest": "missing:final-transformation-manifest",
+      "shipped": false,
+      "redistributionGrant": false,
+      "userOwned": true,
+      "promptProseShipped": false,
+      "categoryMappings": [],
+      "originalRuleOwnership": "unverified",
+      "shippedOutputs": [],
+      "transformations": ["internal-uri-rewrite", "public-product-neutralization", "audit-profile-extraction"]
+    },
+    {
+      "id": "writing",
+      "status": "reference-only",
+      "digest": "missing:creator-archive",
+      "outputDigest": "missing:final-transformation-manifest",
+      "shipped": false,
+      "redistributionGrant": false,
+      "userOwned": true,
+      "promptProseShipped": false,
+      "categoryMappings": [],
+      "originalRuleOwnership": "unverified",
+      "shippedOutputs": [],
+      "transformations": ["internal-uri-rewrite", "public-product-neutralization", "audit-profile-extraction"]
+    }
+  ],
+  "knownGaps": ["creator archive bytes and owner-attested source-rights records are absent"]
+}

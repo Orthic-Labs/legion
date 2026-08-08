@@ -1,0 +1,22 @@
+✔ registry rule ids and pack rule ids are in exact parity (1.0464ms)
+✔ injection pack detects each required sink class as a pattern-only candidate (5.4276ms)
+✔ injection pack emits no candidates for a neutral source across every rule (0.1866ms)
+✔ a genuinely parameterized SQL query produces no injection.sql candidate (0.1362ms)
+✔ an observed sql-parameterization control downgrades the sql candidate instead of hiding it (0.7005ms)
+✔ injection pack consumes a SAST trace from the projection when present (0.2315ms)
+✔ injection pack declares variantStrategies with rootCause/enumerate for every rule (0.138ms)
+✔ injection pack keeps shell sink metadata and command-injection uncertainty (pinned) (0.3889ms)
+✔ output-handling pack names an explicit output context for every rule (2.4557ms)
+✔ output-handling pack emits no candidates for a neutral source (0.2204ms)
+✔ a sanitized HTML sink produces no output.html.body-unescaped candidate (0.1649ms)
+✔ a CRLF-stripped log sink produces no output.log.newline-injection candidate (0.1332ms)
+✔ output-handling pack keeps the pinned innerHTML fixture behaviour (0.2059ms)
+✔ output-handling pack declares variantStrategies with rootCause/enumerate for every rule (0.0875ms)
+ℹ tests 14
+ℹ suites 0
+ℹ pass 14
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 94.2115

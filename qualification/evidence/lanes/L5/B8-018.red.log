@@ -1,0 +1,28 @@
+✖ B8-018 release manifests bind final bytes and fail closed on empty SBOM or placeholder signature (18.7248ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 97.4713
+
+✖ failing tests:
+
+test at tests\public-l5.test.mjs:101:1
+✖ B8-018 release manifests bind final bytes and fail closed on empty SBOM or placeholder signature (18.7248ms)
+  AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:
+  
+    assert.ok(manifest.sboms[0].digest?.startsWith('sha256:'))
+  
+      at TestContext.<anonymous> (file:///D:/Claude/tools/skills/nemesis/tests/public-l5.test.mjs:111:10)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }

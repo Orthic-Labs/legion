@@ -1,0 +1,36 @@
+✔ B6-021 binds command examples to current contracts and separates factual drift (3.1492ms)
+✔ B6-021 keeps editorial polish separate and never suggests legal notice rewrites (0.3571ms)
+✖ B6-021 requires a command token boundary and protects authority case-insensitively (1.0777ms)
+ℹ tests 3
+ℹ suites 0
+ℹ pass 2
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 81.9168
+
+✖ failing tests:
+
+test at tests\content-l3.test.mjs:300:1
+✖ B6-021 requires a command token boundary and protects authority case-insensitively (1.0777ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  'bound' !== 'unbound'
+  
+      at TestContext.<anonymous> (file:///D:/Claude/tools/skills/nemesis/tests/content-l3.test.mjs:324:10)
+      at Test.runInAsyncScope (node:async_hooks:226:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at node:internal/test_runner/test:1285:31
+      at node:internal/process/task_queues:151:7
+      at AsyncResource.runInAsyncScope (node:async_hooks:226:14)
+      at AsyncResource.runMicrotask (node:internal/process/task_queues:148:8) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'bound',
+    expected: 'unbound',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

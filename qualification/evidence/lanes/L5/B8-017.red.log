@@ -1,0 +1,18 @@
+✖ B8-017 generates non-empty package SBOMs, shipped notices, and typed provenance blockers (4.1176ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 87.5719
+
+✖ failing tests:
+
+test at tests\public-l5.test.mjs:86:1
+✖ B8-017 generates non-empty package SBOMs, shipped notices, and typed provenance blockers (4.1176ms)
+  TypeError: inventoryRuntimeDependencies is not a function
+      at TestContext.<anonymous> (file:///D:/Claude/tools/skills/nemesis/tests/public-l5.test.mjs:97:28)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3)

@@ -1,1 +1,144 @@
-{"$schema":"https://json-schema.org/draft/2020-12/schema","type":"object","required":["id","kind","root"],"properties":{"id":{"type":"string"},"kind":{"type":"string"},"root":{"type":"string"}}}
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "nemesis-product-target-v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "kind",
+    "facets",
+    "root",
+    "entrypoints",
+    "buildOutputs",
+    "distributions",
+    "environments",
+    "componentIds",
+    "stackIds",
+    "relations",
+    "confidence",
+    "classificationBasis",
+    "detectorVersion",
+    "evidencePaths",
+    "conflicts",
+    "binding",
+    "digest"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^target:"
+    },
+    "kind": {
+      "enum": [
+        "website",
+        "web-app",
+        "api-service",
+        "worker",
+        "serverless-function",
+        "desktop-app",
+        "ios-app",
+        "android-app",
+        "mobile-extension",
+        "cli",
+        "library-sdk",
+        "browser-extension",
+        "editor-extension",
+        "plugin-system",
+        "data-pipeline",
+        "infrastructure",
+        "ai-agent-system",
+        "embedded-firmware",
+        "smart-contract",
+        "documentation-product",
+        "unknown-deliverable"
+      ]
+    },
+    "facets": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "uniqueItems": true
+    },
+    "root": {
+      "type": "string",
+      "minLength": 1
+    },
+    "entrypoints": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "uniqueItems": true
+    },
+    "buildOutputs": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "uniqueItems": true
+    },
+    "distributions": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "uniqueItems": true
+    },
+    "environments": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "uniqueItems": true
+    },
+    "componentIds": { "type": "array", "items": { "type": "string", "minLength": 1 }, "uniqueItems": true },
+    "stackIds": { "type": "array", "items": { "type": "string", "minLength": 1 }, "uniqueItems": true },
+    "relations": { "type": "array" },
+    "confidence": {
+      "enum": [
+        "high",
+        "medium",
+        "low"
+      ]
+    },
+    "classificationBasis": {
+      "enum": [
+        "observed",
+        "declared",
+        "inferred",
+        "reviewed"
+      ]
+    },
+    "detectorVersion": {
+      "type": "string",
+      "minLength": 1
+    },
+    "evidencePaths": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "uniqueItems": true
+    },
+    "conflicts": {
+      "type": "array"
+    },
+    "binding": {
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "digest": {
+      "type": "string",
+      "minLength": 1
+    }
+  }
+}

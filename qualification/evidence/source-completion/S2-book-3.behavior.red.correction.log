@@ -1,0 +1,116 @@
+✔ B3-001 provider v2 registry resolves aliases and rejects invented providers (12.2926ms)
+✔ B3-002 external execution records exact tool identity and non-null output digests (182.3277ms)
+✖ B3-003 structural fingerprints ignore presentation messages and rewrites stay previews (13.9627ms)
+✖ B3-004 OpenGrep emits candidates without final findings authority (13.0303ms)
+✔ B3-005 imported SARIF rejects wrong repository revision base URI and digest (0.6981ms)
+✖ B3-006 secret evidence separates history denominator and never persists secret bytes (11.5958ms)
+✔ B3-007 dependency reachability remains unknown without qualified graph evidence (0.6327ms)
+✔ B3-008 SBOM receipt reconciles package count and keeps provenance absence distinct (1.1379ms)
+✔ B3-009 infrastructure evidence keeps source and rendered denominators separate (0.5922ms)
+✖ B3-010 reachability never renders not-observed as safe (11.7578ms)
+✔ B3-011 coverage v2 prevents parser-only semantic promotion and accounts unknown formats (9.7909ms)
+✔ B3-012 javascript provider reports measured denominators and explicit gaps (1.085ms)
+✔ B3-013 python provider reports measured denominators and explicit gaps (0.701ms)
+✔ B3-014 rust and Tauri provider reports measured denominators and explicit gaps (0.5073ms)
+✔ B3-015 go provider reports measured denominators and explicit gaps (0.8639ms)
+✔ B3-016 JVM provider reports measured denominators and explicit gaps (0.5149ms)
+✔ B3-017 .NET provider reports measured denominators and explicit gaps (0.5845ms)
+✔ B3-018 C family provider reports measured denominators and explicit gaps (0.4844ms)
+✔ B3-019 PHP and Ruby provider reports measured denominators and explicit gaps (0.4856ms)
+✔ B3-020 mobile languages provider reports measured denominators and explicit gaps (0.5664ms)
+✔ B3-021 long-tail and custom grammar provider reports measured denominators and explicit gaps (0.4422ms)
+✔ B3-022 frontend framework providers expose distinct framework denominators (0.531ms)
+✔ B3-023 backend framework providers preserve unknown-auth routes (0.4886ms)
+✔ B3-024 data provider separates integrity privacy performance and reliability facts (0.4814ms)
+✔ B3-025 monorepo component identity depends on manifests not folder names (0.5159ms)
+✔ B3-026 architecture findings require exact paths scenario and affected consumers (0.5528ms)
+✔ B3-027 test-quality distinguishes missing coverage weak oracle and fake completion (0.6051ms)
+✔ B3-028 requirement and governance records retain authority owner expiry and disposition (0.451ms)
+✔ B3-029 family reports cannot mark clean while a required provider is incomplete (0.7622ms)
+✔ B3-030 catalogue generation and recursive qualification remain deterministic (15.0826ms)
+ℹ tests 30
+ℹ suites 0
+ℹ pass 26
+ℹ fail 4
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 351.1287
+
+✖ failing tests:
+
+test at tests\providers\book-3-contracts.test.mjs:5:1
+✖ B3-003 structural fingerprints ignore presentation messages and rewrites stay previews (13.9627ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + 'sha256:b37616e82be074e5f646815add654846f2fe65ce16b81d6227bb4194c568054e'
+  - 'sha256:43ba1bac83bd8597f057267c854aab1501b3cbcedf22e4c9be2547c76c3f873d'
+  
+      at TestContext.<anonymous> (file:///D:/Claude/tools/skills/nemesis/tests/providers/book-3-contracts.test.mjs:5:399)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'sha256:b37616e82be074e5f646815add654846f2fe65ce16b81d6227bb4194c568054e',
+    expected: 'sha256:43ba1bac83bd8597f057267c854aab1501b3cbcedf22e4c9be2547c76c3f873d',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests\providers\book-3-contracts.test.mjs:6:1
+✖ B3-004 OpenGrep emits candidates without final findings authority (13.0303ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  true !== false
+  
+      at TestContext.<anonymous> (file:///D:/Claude/tools/skills/nemesis/tests/providers/book-3-contracts.test.mjs:6:332)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: true,
+    expected: false,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests\providers\book-3-contracts.test.mjs:8:1
+✖ B3-006 secret evidence separates history denominator and never persists secret bytes (11.5958ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  true !== false
+  
+      at TestContext.<anonymous> (file:///D:/Claude/tools/skills/nemesis/tests/providers/book-3-contracts.test.mjs:8:286)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: true,
+    expected: false,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests\providers\book-3-contracts.test.mjs:12:1
+✖ B3-010 reachability never renders not-observed as safe (11.7578ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + 'not-reached-in-observed-graph'
+  - 'unknown'
+  
+      at TestContext.<anonymous> (file:///D:/Claude/tools/skills/nemesis/tests/providers/book-3-contracts.test.mjs:12:157)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'not-reached-in-observed-graph',
+    expected: 'unknown',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

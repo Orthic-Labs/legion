@@ -1,0 +1,17 @@
+✔ only low-risk, rule-specific producers are registered — never generic search-and-replace (1.4877ms)
+✔ the committed mechanical registry is version-bound and matches the producer modules (1.4482ms)
+✔ producer qualification is version-bound in both directions (0.4714ms)
+✔ producers run only inside a remediation sandbox (0.7587ms)
+✔ a structural preview is idempotent and leaves unrelated bytes untouched (0.2452ms)
+✔ a config preview sets an exact key and is idempotent (0.3675ms)
+✔ every mechanical proposal matches SNIP-16 and never carries an apply step (0.4023ms)
+✔ unsupported or ambiguous fixes become MANUAL proposals, not guesses (0.3028ms)
+✔ the pre-existing mechanical producer helpers still behave (0.4174ms)
+ℹ tests 9
+ℹ suites 0
+ℹ pass 9
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 101.8191

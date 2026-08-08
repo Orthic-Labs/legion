@@ -1,1 +1,152 @@
-{"schemaVersion":1,"detectors":["package-manifest","native-manifest","deployment-config","artifact-name"],"version":"1.0.0"}
+{
+  "schemaVersion": 1,
+  "detectors": [
+    {
+      "id": "target.website",
+      "version": "1.0.0",
+      "kind": "website",
+      "evidenceOnly": true,
+      "terminal": false
+    },
+    {
+      "id": "target.web-app",
+      "version": "1.0.0",
+      "kind": "web-app",
+      "evidenceOnly": true,
+      "terminal": false
+    },
+    {
+      "id": "target.api-service",
+      "version": "1.0.0",
+      "kind": "api-service",
+      "evidenceOnly": true,
+      "terminal": false
+    },
+    {
+      "id": "target.worker",
+      "version": "1.0.0",
+      "kind": "worker",
+      "evidenceOnly": true,
+      "terminal": false
+    },
+    {
+      "id": "target.serverless-function",
+      "version": "1.0.0",
+      "kind": "serverless-function",
+      "evidenceOnly": true,
+      "terminal": false
+    },
+    {
+      "id": "target.desktop-app",
+      "version": "1.0.0",
+      "kind": "desktop-app",
+      "evidenceOnly": true,
+      "terminal": false
+    },
+    {
+      "id": "target.ios-app",
+      "version": "1.0.0",
+      "kind": "ios-app",
+      "evidenceOnly": true,
+      "terminal": false
+    },
+    {
+      "id": "target.android-app",
+      "version": "1.0.0",
+      "kind": "android-app",
+      "evidenceOnly": true,
+      "terminal": false
+    },
+    {
+      "id": "target.mobile-extension",
+      "version": "1.0.0",
+      "kind": "mobile-extension",
+      "evidenceOnly": true,
+      "terminal": false
+    },
+    {
+      "id": "target.cli",
+      "version": "1.0.0",
+      "kind": "cli",
+      "evidenceOnly": true,
+      "terminal": false
+    },
+    {
+      "id": "target.library-sdk",
+      "version": "1.0.0",
+      "kind": "library-sdk",
+      "evidenceOnly": true,
+      "terminal": false
+    },
+    {
+      "id": "target.browser-extension",
+      "version": "1.0.0",
+      "kind": "browser-extension",
+      "evidenceOnly": true,
+      "terminal": false
+    },
+    {
+      "id": "target.editor-extension",
+      "version": "1.0.0",
+      "kind": "editor-extension",
+      "evidenceOnly": true,
+      "terminal": false
+    },
+    {
+      "id": "target.plugin-system",
+      "version": "1.0.0",
+      "kind": "plugin-system",
+      "evidenceOnly": true,
+      "terminal": false
+    },
+    {
+      "id": "target.data-pipeline",
+      "version": "1.0.0",
+      "kind": "data-pipeline",
+      "evidenceOnly": true,
+      "terminal": false
+    },
+    {
+      "id": "target.infrastructure",
+      "version": "1.0.0",
+      "kind": "infrastructure",
+      "evidenceOnly": true,
+      "terminal": false
+    },
+    {
+      "id": "target.ai-agent-system",
+      "version": "1.0.0",
+      "kind": "ai-agent-system",
+      "evidenceOnly": true,
+      "terminal": false
+    },
+    {
+      "id": "target.embedded-firmware",
+      "version": "1.0.0",
+      "kind": "embedded-firmware",
+      "evidenceOnly": true,
+      "terminal": false
+    },
+    {
+      "id": "target.smart-contract",
+      "version": "1.0.0",
+      "kind": "smart-contract",
+      "evidenceOnly": true,
+      "terminal": false
+    },
+    {
+      "id": "target.documentation-product",
+      "version": "1.0.0",
+      "kind": "documentation-product",
+      "evidenceOnly": true,
+      "terminal": false
+    },
+    {
+      "id": "target.unknown-deliverable",
+      "version": "1.0.0",
+      "kind": "unknown-deliverable",
+      "evidenceOnly": true,
+      "terminal": false
+    }
+  ]
+}

@@ -1,0 +1,32 @@
+[
+  {
+    "id": "fixture:generic",
+    "text": "In today's fast-paced world, our incredibly powerful platform delivers the best results.",
+    "surface": { "type": "paragraph" },
+    "audience": "engineering leaders",
+    "purpose": "explain product value",
+    "claimRefs": ["claim:best"],
+    "evidenceRefs": [],
+    "binding": { "repository": "sha256:fixture" }
+  },
+  {
+    "id": "fixture:technical-near-miss",
+    "text": "Select the best-fit algorithm for this data set.",
+    "surface": { "type": "documentation" },
+    "audience": "data engineers",
+    "purpose": "give a precise configuration instruction",
+    "constraints": { "technicalTerms": ["best-fit"] },
+    "evidenceRefs": ["evidence:algorithm-doc"],
+    "binding": { "repository": "sha256:fixture" }
+  },
+  {
+    "id": "fixture:bounded-comparison",
+    "text": "Unlike Datadog, traces remain on-device for 30 days.",
+    "surface": { "type": "paragraph" },
+    "audience": "security teams",
+    "purpose": "compare retention behavior",
+    "constraints": { "competitorNames": ["Datadog"] },
+    "evidenceRefs": ["evidence:retention-policy"],
+    "binding": { "repository": "sha256:fixture" }
+  }
+]

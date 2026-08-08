@@ -1,0 +1,17 @@
+✔ migrateLegacyEvidence imports well-formed records, registers them untrusted, and counts match (1.8503ms)
+✔ deterministic: two runs over identical input produce byte-identical receipts (1.0065ms)
+✔ rollback-safe: receipt names its rollback source and the original records are recoverable unchanged (0.5296ms)
+✔ old records never gain trust: imported evidence stays untrusted and the receipt trust tally is zero (0.3917ms)
+✔ corruption: a corrupt/unparseable record is quarantined by exact id, blocks strong claims, and does not abort the migration (0.4762ms)
+✔ a legacy record that claims authenticated:true is rejected (not merely quarantined) and never imported (0.3125ms)
+✔ parity: verifyMigration returns ok:true against unmodified records, and no volatile evidenceId leaks into the receipt (1.1759ms)
+✔ parity: a deliberately altered record makes verifyMigration return ok:false, naming that record (0.9601ms)
+✔ migrateLegacyEvidence rejects malformed input defensively (0.5634ms)
+ℹ tests 9
+ℹ suites 0
+ℹ pass 9
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 78.3222

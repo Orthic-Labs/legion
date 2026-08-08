@@ -1,1 +1,37 @@
-{"$schema":"https://json-schema.org/draft/2020-12/schema","type":"object","required":["id","available"],"properties":{"id":{"type":"string"},"available":{"type":"boolean"}}}
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "nemesis-evidence-capability-v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "available",
+    "owner",
+    "receipt",
+    "reason"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "available": {
+      "type": "boolean"
+    },
+    "owner": {
+      "const": "host"
+    },
+    "receipt": {
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "reason": {
+      "type": [
+        "string",
+        "null"
+      ]
+    }
+  }
+}

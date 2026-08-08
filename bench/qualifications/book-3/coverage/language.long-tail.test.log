@@ -1,0 +1,18 @@
+✔ lexical accounting reports unsupported extensions as gaps, never silent omission (1.173ms)
+✔ lexical fallback never claims AST support (0.6563ms)
+✔ custom grammar requires host-config source and pinned digest (0.3308ms)
+✔ repository config cannot introduce custom grammar path or digest (0.1946ms)
+✔ custom grammar id is stable (0.4049ms)
+✔ monorepo component identity is stable and manager-aware (0.2371ms)
+✔ package manager inference covers the primary ecosystems (0.1651ms)
+✔ component denominator is component-aware (0.2427ms)
+✔ one failing component cannot be hidden by aggregate success (0.2936ms)
+✔ coverage registry still accounts long-tail languages (0.6984ms)
+ℹ tests 10
+ℹ suites 0
+ℹ pass 10
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 78.6812

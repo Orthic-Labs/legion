@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "family": "javascript",
+  "cases": [
+    {
+      "id": "positive",
+      "expected": "measured"
+    },
+    {
+      "id": "negative",
+      "expected": "measured"
+    },
+    {
+      "id": "unsupported",
+      "expected": "unproven"
+    },
+    {
+      "id": "denominator-gap",
+      "expected": "unproven"
+    }
+  ]
+}

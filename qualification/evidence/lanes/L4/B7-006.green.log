@@ -1,0 +1,25 @@
+✔ the module performs no remote operation and reads no filesystem/network/process API (1.2198ms)
+✔ a fully-configured release workflow produces a complete, evidence-cited trust path with no unknown markers (11.1066ms)
+✔ an unresolved permission scope and identity remain explicitly visible, never defaulted (0.8465ms)
+✔ untrusted-content triggers are modeled as hostile data crossing a trust boundary (0.3843ms)
+✔ package manifest scripts, direct-URL dependencies, and a missing lockfile are all captured (0.9355ms)
+✔ a matching lockfile in the denominator suppresses the missing-lockfile gap and is itself modeled (0.8007ms)
+✔ an unparseable package manifest is recorded as a typed coverage gap, not silently skipped (0.2838ms)
+✔ a Jenkinsfile is recorded as an unparsed automation format while still surfacing credential references (0.3276ms)
+✔ scheduled dependency-update automation with automerge records the elevated capability and an unresolved scope gap (0.5324ms)
+✔ a release-tool config with no inline registry, credential, or permission info surfaces every unresolved dimension (0.4373ms)
+✔ an updater config with signature verification explicitly disabled records an absent control, not an unknown one (0.461ms)
+✔ an updater config with no signature information at all leaves the signature posture explicitly unknown (0.2877ms)
+✔ .npmrc with an auth token but no registry line leaves the publication target explicitly unresolved (0.2536ms)
+✔ .npmrc with an explicit registry line resolves the publication target (0.1358ms)
+✔ a Dockerfile with a remote install pipe and a recognizable registry models both flows (0.6604ms)
+✔ every produced kind belongs to the canonical security contracts vocabulary (1.2365ms)
+✔ extraction is deterministic: identical input yields deeply-equal output on repeated calls (1.8769ms)
+ℹ tests 17
+ℹ suites 0
+ℹ pass 17
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 111.8335

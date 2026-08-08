@@ -1,0 +1,1 @@
+import assert from 'node:assert/strict';import test from 'node:test';import value from '../../../../registry/controls/controls/infrastructure-release/core.json' with {type:'json'};test('infrastructure baseline distinguishes deployed evidence',()=>assert.ok(value.controls.some(({id})=>id.endsWith('promotion'))));

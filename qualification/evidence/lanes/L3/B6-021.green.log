@@ -1,0 +1,11 @@
+✔ B6-021 binds command examples to current contracts and separates factual drift (1.9903ms)
+✔ B6-021 keeps editorial polish separate and never suggests legal notice rewrites (0.2636ms)
+✔ B6-021 requires a command token boundary and protects authority case-insensitively (0.2353ms)
+ℹ tests 3
+ℹ suites 0
+ℹ pass 3
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 87.0367

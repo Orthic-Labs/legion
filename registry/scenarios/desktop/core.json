@@ -1,0 +1,335 @@
+{
+  "schemaVersion": 1,
+  "templates": [
+    {
+      "id": "desktop.processes.default",
+      "controlId": "desktop.processes",
+      "mandatory": true,
+      "requiredCapabilities": [
+        "repository",
+        "external-evidence"
+      ],
+      "destructive": false,
+      "isolation": "fresh",
+      "timeoutMs": 30000,
+      "invariants": [
+        "no-unaccounted-side-effects"
+      ]
+    },
+    {
+      "id": "desktop.ipc.default",
+      "controlId": "desktop.ipc",
+      "mandatory": true,
+      "requiredCapabilities": [
+        "repository",
+        "external-evidence"
+      ],
+      "destructive": false,
+      "isolation": "fresh",
+      "timeoutMs": 30000,
+      "invariants": [
+        "no-unaccounted-side-effects"
+      ]
+    },
+    {
+      "id": "desktop.files.default",
+      "controlId": "desktop.files",
+      "mandatory": true,
+      "requiredCapabilities": [
+        "repository",
+        "external-evidence"
+      ],
+      "destructive": false,
+      "isolation": "fresh",
+      "timeoutMs": 30000,
+      "invariants": [
+        "no-unaccounted-side-effects"
+      ]
+    },
+    {
+      "id": "desktop.local-data.default",
+      "controlId": "desktop.local-data",
+      "mandatory": true,
+      "requiredCapabilities": [
+        "repository",
+        "external-evidence"
+      ],
+      "destructive": false,
+      "isolation": "fresh",
+      "timeoutMs": 30000,
+      "invariants": [
+        "no-unaccounted-side-effects"
+      ]
+    },
+    {
+      "id": "desktop.remote-services.default",
+      "controlId": "desktop.remote-services",
+      "mandatory": true,
+      "requiredCapabilities": [
+        "repository",
+        "external-evidence"
+      ],
+      "destructive": false,
+      "isolation": "fresh",
+      "timeoutMs": 30000,
+      "invariants": [
+        "no-unaccounted-side-effects"
+      ]
+    },
+    {
+      "id": "desktop.os-integration.default",
+      "controlId": "desktop.os-integration",
+      "mandatory": true,
+      "requiredCapabilities": [
+        "repository",
+        "external-evidence"
+      ],
+      "destructive": false,
+      "isolation": "fresh",
+      "timeoutMs": 30000,
+      "invariants": [
+        "no-unaccounted-side-effects"
+      ]
+    },
+    {
+      "id": "desktop.windows-displays-input.default",
+      "controlId": "desktop.windows-displays-input",
+      "mandatory": true,
+      "requiredCapabilities": [
+        "repository",
+        "external-evidence"
+      ],
+      "destructive": false,
+      "isolation": "fresh",
+      "timeoutMs": 30000,
+      "invariants": [
+        "no-unaccounted-side-effects"
+      ]
+    },
+    {
+      "id": "desktop.resources-soak.default",
+      "controlId": "desktop.resources-soak",
+      "mandatory": true,
+      "requiredCapabilities": [
+        "repository",
+        "external-evidence"
+      ],
+      "destructive": false,
+      "isolation": "fresh",
+      "timeoutMs": 30000,
+      "invariants": [
+        "no-unaccounted-side-effects"
+      ]
+    },
+    {
+      "id": "desktop.fault-recovery.default",
+      "controlId": "desktop.fault-recovery",
+      "mandatory": true,
+      "requiredCapabilities": [
+        "repository",
+        "external-evidence"
+      ],
+      "destructive": false,
+      "isolation": "fresh",
+      "timeoutMs": 30000,
+      "invariants": [
+        "no-unaccounted-side-effects"
+      ]
+    },
+    {
+      "id": "desktop.installer.default",
+      "controlId": "desktop.installer",
+      "mandatory": true,
+      "requiredCapabilities": [
+        "repository",
+        "external-evidence"
+      ],
+      "destructive": false,
+      "isolation": "fresh",
+      "timeoutMs": 30000,
+      "invariants": [
+        "no-unaccounted-side-effects"
+      ]
+    },
+    {
+      "id": "desktop.updater-signing.default",
+      "controlId": "desktop.updater-signing",
+      "mandatory": true,
+      "requiredCapabilities": [
+        "repository",
+        "external-evidence"
+      ],
+      "destructive": false,
+      "isolation": "fresh",
+      "timeoutMs": 30000,
+      "invariants": [
+        "no-unaccounted-side-effects"
+      ]
+    },
+    {
+      "id": "desktop.windows.default",
+      "controlId": "desktop.windows",
+      "mandatory": true,
+      "requiredCapabilities": [
+        "repository",
+        "external-evidence"
+      ],
+      "destructive": false,
+      "isolation": "fresh",
+      "timeoutMs": 30000,
+      "invariants": [
+        "no-unaccounted-side-effects"
+      ]
+    },
+    {
+      "id": "desktop.macos.default",
+      "controlId": "desktop.macos",
+      "mandatory": true,
+      "requiredCapabilities": [
+        "repository",
+        "external-evidence"
+      ],
+      "destructive": false,
+      "isolation": "fresh",
+      "timeoutMs": 30000,
+      "invariants": [
+        "no-unaccounted-side-effects"
+      ]
+    },
+    {
+      "id": "desktop.linux.default",
+      "controlId": "desktop.linux",
+      "mandatory": true,
+      "requiredCapabilities": [
+        "repository",
+        "external-evidence"
+      ],
+      "destructive": false,
+      "isolation": "fresh",
+      "timeoutMs": 30000,
+      "invariants": [
+        "no-unaccounted-side-effects"
+      ]
+    },
+    {
+      "id": "desktop.accessibility-i18n.default",
+      "controlId": "desktop.accessibility-i18n",
+      "mandatory": true,
+      "requiredCapabilities": [
+        "repository",
+        "external-evidence"
+      ],
+      "destructive": false,
+      "isolation": "fresh",
+      "timeoutMs": 30000,
+      "invariants": [
+        "no-unaccounted-side-effects"
+      ]
+    },
+    {
+      "id": "desktop.compatibility.default",
+      "controlId": "desktop.compatibility",
+      "mandatory": true,
+      "requiredCapabilities": [
+        "repository",
+        "external-evidence"
+      ],
+      "destructive": false,
+      "isolation": "fresh",
+      "timeoutMs": 30000,
+      "invariants": [
+        "no-unaccounted-side-effects"
+      ]
+    },
+    {
+      "id": "desktop.tests.default",
+      "controlId": "desktop.tests",
+      "mandatory": true,
+      "requiredCapabilities": [
+        "repository",
+        "external-evidence"
+      ],
+      "destructive": false,
+      "isolation": "fresh",
+      "timeoutMs": 30000,
+      "invariants": [
+        "no-unaccounted-side-effects"
+      ]
+    },
+    {
+      "id": "desktop.observability-support.default",
+      "controlId": "desktop.observability-support",
+      "mandatory": true,
+      "requiredCapabilities": [
+        "repository",
+        "external-evidence"
+      ],
+      "destructive": false,
+      "isolation": "fresh",
+      "timeoutMs": 30000,
+      "invariants": [
+        "no-unaccounted-side-effects"
+      ]
+    },
+    {
+      "id": "desktop.supply-chain.default",
+      "controlId": "desktop.supply-chain",
+      "mandatory": true,
+      "requiredCapabilities": [
+        "repository",
+        "external-evidence"
+      ],
+      "destructive": false,
+      "isolation": "fresh",
+      "timeoutMs": 30000,
+      "invariants": [
+        "no-unaccounted-side-effects"
+      ]
+    },
+    {
+      "id": "desktop.licensing.default",
+      "controlId": "desktop.licensing",
+      "mandatory": true,
+      "requiredCapabilities": [
+        "repository",
+        "external-evidence"
+      ],
+      "destructive": false,
+      "isolation": "fresh",
+      "timeoutMs": 30000,
+      "invariants": [
+        "no-unaccounted-side-effects"
+      ]
+    },
+    {
+      "id": "desktop.legal-docs.default",
+      "controlId": "desktop.legal-docs",
+      "mandatory": true,
+      "requiredCapabilities": [
+        "repository",
+        "external-evidence"
+      ],
+      "destructive": false,
+      "isolation": "fresh",
+      "timeoutMs": 30000,
+      "invariants": [
+        "no-unaccounted-side-effects"
+      ]
+    },
+    {
+      "id": "desktop.ai.default",
+      "controlId": "desktop.ai",
+      "mandatory": true,
+      "requiredCapabilities": [
+        "repository",
+        "external-evidence"
+      ],
+      "destructive": false,
+      "isolation": "fresh",
+      "timeoutMs": 30000,
+      "invariants": [
+        "no-unaccounted-side-effects"
+      ]
+    }
+  ]
+}

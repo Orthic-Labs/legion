@@ -1,0 +1,127 @@
+{
+  "lane": "D-KERNEL",
+  "tasks": [
+    {
+      "id": "run/task identity",
+      "status": "implemented",
+      "test": {
+        "path": "packages/kernel/tests/kernel.test.mjs",
+        "assertion": "mints and validates frozen run_/ktask_ ULID grammar and binds run-identity-v1"
+      },
+      "implementation": [
+        { "path": "packages/kernel/lib/ids.mjs", "symbol": "mintId/validateId" },
+        { "path": "packages/kernel/lib/contracts.mjs", "symbol": "bindRunIdentity" }
+      ],
+      "proof": {
+        "red": "qualification/evidence/lanes/D-KERNEL/run-task-identity.red.log",
+        "green": "qualification/evidence/lanes/D-KERNEL/run-task-identity.green.log"
+      }
+    },
+    {
+      "id": "durable task lifecycle",
+      "status": "implemented",
+      "test": {
+        "path": "packages/kernel/tests/kernel.test.mjs",
+        "assertion": "reopens JSONL journal after simulated crash, resumes input-required/cancelled tasks, and rejects corrupt replay transitions"
+      },
+      "implementation": [
+        { "path": "packages/kernel/lib/journal.mjs", "symbol": "JsonlJournal" },
+        { "path": "packages/kernel/lib/lifecycle.mjs", "symbol": "TaskLifecycle" }
+      ],
+      "proof": {
+        "red": "qualification/evidence/lanes/D-KERNEL/durable-task-lifecycle.red.log",
+        "green": "qualification/evidence/lanes/D-KERNEL/durable-task-lifecycle.green.log"
+      }
+    },
+    {
+      "id": "operation registry",
+      "status": "implemented",
+      "test": {
+        "path": "packages/kernel/tests/registry.test.mjs",
+        "assertion": "validates operation-envelope-v1, resolves registered operations, deterministically normalizes capability negotiation, and types unknown-operation exit"
+      },
+      "implementation": [
+        { "path": "packages/kernel/lib/registry.mjs", "symbol": "OperationRegistry/negotiateCapabilities" },
+        { "path": "packages/kernel/lib/errors.mjs", "symbol": "KernelError/EXIT_CODES" }
+      ],
+      "proof": {
+        "red": "qualification/evidence/lanes/D-KERNEL/operation-registry.red.log",
+        "green": "qualification/evidence/lanes/D-KERNEL/operation-registry.green.log"
+      }
+    },
+    {
+      "id": "event + artifact reference store",
+      "status": "implemented",
+      "test": {
+        "path": "packages/kernel/tests/stores.test.mjs",
+        "assertion": "verifies append-only event digest chain, serialized duplicate handling, and write/read-time artifact-v1 digest binding"
+      },
+      "implementation": [
+        { "path": "packages/kernel/lib/stores.mjs", "symbol": "EventStore/ArtifactStore/digestContent" }
+      ],
+      "proof": {
+        "red": "qualification/evidence/lanes/D-KERNEL/event-artifact-store.red.log",
+        "green": "qualification/evidence/lanes/D-KERNEL/event-artifact-store.green.log"
+      }
+    },
+    {
+      "id": "lane scheduler primitive",
+      "status": "implemented",
+      "test": {
+        "path": "packages/kernel/tests/kernel.test.mjs",
+        "assertion": "proves serial and parallel result equivalence while respecting dependencies, concurrency keys, and --serial"
+      },
+      "implementation": [
+        { "path": "packages/kernel/lib/scheduler.mjs", "symbol": "LaneScheduler/schedulerOptionsFromArgv" }
+      ],
+      "proof": {
+        "red": "qualification/evidence/lanes/D-KERNEL/lane-scheduler.red.log",
+        "green": "qualification/evidence/lanes/D-KERNEL/lane-scheduler.green.log"
+      }
+    },
+    {
+      "id": "model-profile enforcement plumbing",
+      "status": "implemented",
+      "test": {
+        "path": "packages/kernel/tests/profiles.test.mjs",
+        "assertion": "validates complete strict/standard/advanced policies, denies case-insensitive model requests, and permits only policy-driven downgrade"
+      },
+      "implementation": [
+        { "path": "packages/kernel/lib/profiles.mjs", "symbol": "loadModelProfile/downgradeModelProfile" }
+      ],
+      "proof": {
+        "red": "qualification/evidence/lanes/D-KERNEL/model-profile-enforcement.red.log",
+        "green": "qualification/evidence/lanes/D-KERNEL/model-profile-enforcement.green.log"
+      }
+    },
+    {
+      "id": "kernelTaskId bridge decision",
+      "status": "implemented",
+      "test": {
+        "path": "packages/kernel/tests/kernel.test.mjs",
+        "assertion": "keeps T-#.# ExecutionTask identity distinct from ktask_<ulid> runtime identity"
+      },
+      "implementation": [
+        { "path": "packages/kernel/index.mjs", "symbol": "KERNEL_TASK_ID_BRIDGE_DECISION" }
+      ],
+      "decision": {
+        "value": "keep-bridge",
+        "rationale": "Frozen SEAL Q2 accepts the bridge; human-facing ExecutionTask IDs and opaque durable Kernel task handles serve distinct identity domains.",
+        "dispatchConflict": "DISPATCH-10 says task_<ulid>, but frozen ids.md and execution-task-v1 require ktask_<ulid>; frozen contract grammar controls."
+      },
+      "proof": {
+        "red": "qualification/evidence/lanes/D-KERNEL/kernel-task-id-bridge.red.log",
+        "green": "qualification/evidence/lanes/D-KERNEL/kernel-task-id-bridge.green.log"
+      }
+    }
+  ],
+  "s01Relevant": {
+    "readyForArcaneRuntimeBridge": [
+      "append-only fsynced JSONL journal",
+      "crash-resumable task lifecycle with input-required, cancellation, and resumption",
+      "digest-chained event store",
+      "artifact-v1 content-addressed immutable store",
+      "typed operation/capability boundary"
+    ]
+  }
+}

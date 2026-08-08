@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 1,
+  "records": [
+    {
+      "id": "long-tail.unknown",
+      "inventory": true,
+      "parser": false,
+      "semantic": false,
+      "cleanClaim": "never"
+    }
+  ]
+}

@@ -1,0 +1,38 @@
+✔ B3-001 provider v2 registry resolves aliases and rejects invented providers (25.9748ms)
+✔ B3-002 external execution records exact tool identity and non-null output digests (204.941ms)
+✔ B3-003 structural fingerprints ignore presentation messages and rewrites stay previews (1.3415ms)
+✔ B3-004 OpenGrep emits candidates without final findings authority (1.0383ms)
+✔ B3-005 imported SARIF rejects wrong repository revision base URI and digest (0.7283ms)
+✔ B3-006 secret evidence separates history denominator and never persists secret bytes (0.7626ms)
+✔ B3-007 dependency reachability remains unknown without qualified graph evidence (0.7059ms)
+✔ B3-008 SBOM receipt reconciles package count and keeps provenance absence distinct (1.1921ms)
+✔ B3-009 infrastructure evidence keeps source and rendered denominators separate (0.7051ms)
+✔ B3-010 reachability never renders not-observed as safe (0.7446ms)
+✔ B3-011 coverage v2 prevents parser-only semantic promotion and accounts unknown formats (15.5639ms)
+✔ B3-012 javascript provider reports measured denominators and explicit gaps (1.394ms)
+✔ B3-013 python provider reports measured denominators and explicit gaps (0.6709ms)
+✔ B3-014 rust and Tauri provider reports measured denominators and explicit gaps (0.9794ms)
+✔ B3-015 go provider reports measured denominators and explicit gaps (0.5832ms)
+✔ B3-016 JVM provider reports measured denominators and explicit gaps (0.6027ms)
+✔ B3-017 .NET provider reports measured denominators and explicit gaps (0.6171ms)
+✔ B3-018 C family provider reports measured denominators and explicit gaps (0.5537ms)
+✔ B3-019 PHP and Ruby provider reports measured denominators and explicit gaps (0.5225ms)
+✔ B3-020 mobile languages provider reports measured denominators and explicit gaps (0.525ms)
+✔ B3-021 long-tail and custom grammar provider reports measured denominators and explicit gaps (0.504ms)
+✔ B3-022 frontend framework providers expose distinct framework denominators (1.2149ms)
+✔ B3-023 backend framework providers preserve unknown-auth routes (0.8514ms)
+✔ B3-024 data provider separates integrity privacy performance and reliability facts (0.7052ms)
+✔ B3-025 monorepo component identity depends on manifests not folder names (0.6595ms)
+✔ B3-026 architecture findings require exact paths scenario and affected consumers (0.547ms)
+✔ B3-027 test-quality distinguishes missing coverage weak oracle and fake completion (0.5651ms)
+✔ B3-028 requirement and governance records retain authority owner expiry and disposition (0.658ms)
+✔ B3-029 family reports cannot mark clean while a required provider is incomplete (0.9656ms)
+✔ B3-030 catalogue generation and recursive qualification remain deterministic (19.4858ms)
+ℹ tests 30
+ℹ suites 0
+ℹ pass 30
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 377.3056

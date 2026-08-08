@@ -1,0 +1,10 @@
+✔ known parsed languages are fully accounted for (1.0067ms)
+✔ unknown parsed language remains UNPROVEN with a file denominator (0.1778ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 2
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 60.2543

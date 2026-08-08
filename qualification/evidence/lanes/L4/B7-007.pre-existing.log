@@ -1,0 +1,22 @@
+✔ bindingFromPlan derives the canonical security binding (1.442ms)
+✔ sameBinding compares canonical forms (0.2435ms)
+✔ assertArtifactBinding rejects cross-revision artifacts (0.5408ms)
+✔ model entity/relation/fact constructors produce deterministic ids (0.7056ms)
+✔ buildSecurityModel builds a bound model from a projection (12.1754ms)
+✔ model coverage digest is deterministic (0.6651ms)
+✔ evidence helpers bound excerpts and digest them (0.4608ms)
+✔ hostile evidence envelope escapes control characters and labels trust (0.4206ms)
+✔ escapeForReasoning escapes bidi and control chars (0.2265ms)
+✔ packet evidence is bounded with a coverage gap on omission (0.3906ms)
+✔ security schemas are generated from code-owned enums (2.06ms)
+✔ committed security schemas match the generators (1.0936ms)
+✔ security binding schema requires all binding fields (0.174ms)
+✔ no security schema references legacy identity (0.5667ms)
+ℹ tests 14
+ℹ suites 0
+ℹ pass 14
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 110.1943

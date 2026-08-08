@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "kind": "nemesis-coverage-qualification",
+  "recordId": "language.php-ruby",
+  "corpusRoot": "bench/corpora/php-ruby",
+  "corpusDigest": "sha256:2a29718199650f8c2d8dbbaca80e3e1718429391e009e54b556faf1885ec5180",
+  "artifactDigest": "sha256:87d529364263fc71c9042d673c8344a58cf0ea1adc696b62e851527d955bed83",
+  "providerVersions": {
+    "code.php-ruby": "1.0.0"
+  },
+  "casesRequired": [
+    "php",
+    "ruby",
+    "dynamic-limit",
+    "missing-package"
+  ],
+  "command": [
+    "node",
+    "--test",
+    "tests/providers/php-ruby/php-ruby.test.mjs"
+  ],
+  "decision": "source-measured-runtime-unproven"
+}

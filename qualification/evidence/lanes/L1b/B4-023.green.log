@@ -1,0 +1,7 @@
+✔ B4-023 stops execution after manifest/payload verification failure
+✔ B4-023 requires QA/update/distribution promotion equivalence
+✔ B4-023 cannot pass without promotion, negative cases, privileged revalidation & redacted logs
+ℹ tests 3
+ℹ pass 3
+ℹ fail 0
+GREEN_EXIT=0

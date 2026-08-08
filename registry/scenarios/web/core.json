@@ -1,0 +1,365 @@
+{
+  "schemaVersion": 1,
+  "templates": [
+    {
+      "id": "web.scope.default",
+      "controlId": "web.scope",
+      "mandatory": true,
+      "requiredCapabilities": [
+        "repository",
+        "external-evidence"
+      ],
+      "destructive": false,
+      "isolation": "fresh",
+      "timeoutMs": 30000,
+      "invariants": [
+        "no-unaccounted-side-effects"
+      ]
+    },
+    {
+      "id": "web.frontend.default",
+      "controlId": "web.frontend",
+      "mandatory": true,
+      "requiredCapabilities": [
+        "repository",
+        "external-evidence"
+      ],
+      "destructive": false,
+      "isolation": "fresh",
+      "timeoutMs": 30000,
+      "invariants": [
+        "no-unaccounted-side-effects"
+      ]
+    },
+    {
+      "id": "web.backend-api.default",
+      "controlId": "web.backend-api",
+      "mandatory": true,
+      "requiredCapabilities": [
+        "repository",
+        "external-evidence"
+      ],
+      "destructive": false,
+      "isolation": "fresh",
+      "timeoutMs": 30000,
+      "invariants": [
+        "no-unaccounted-side-effects"
+      ]
+    },
+    {
+      "id": "web.data.default",
+      "controlId": "web.data",
+      "mandatory": true,
+      "requiredCapabilities": [
+        "repository",
+        "external-evidence"
+      ],
+      "destructive": false,
+      "isolation": "fresh",
+      "timeoutMs": 30000,
+      "invariants": [
+        "no-unaccounted-side-effects"
+      ]
+    },
+    {
+      "id": "web.identity-tenant.default",
+      "controlId": "web.identity-tenant",
+      "mandatory": true,
+      "requiredCapabilities": [
+        "repository",
+        "external-evidence"
+      ],
+      "destructive": false,
+      "isolation": "fresh",
+      "timeoutMs": 30000,
+      "invariants": [
+        "no-unaccounted-side-effects"
+      ]
+    },
+    {
+      "id": "web.http-security.default",
+      "controlId": "web.http-security",
+      "mandatory": true,
+      "requiredCapabilities": [
+        "repository",
+        "external-evidence"
+      ],
+      "destructive": false,
+      "isolation": "fresh",
+      "timeoutMs": 30000,
+      "invariants": [
+        "no-unaccounted-side-effects"
+      ]
+    },
+    {
+      "id": "web.supply-chain.default",
+      "controlId": "web.supply-chain",
+      "mandatory": true,
+      "requiredCapabilities": [
+        "repository",
+        "external-evidence"
+      ],
+      "destructive": false,
+      "isolation": "fresh",
+      "timeoutMs": 30000,
+      "invariants": [
+        "no-unaccounted-side-effects"
+      ]
+    },
+    {
+      "id": "web.infrastructure.default",
+      "controlId": "web.infrastructure",
+      "mandatory": true,
+      "requiredCapabilities": [
+        "repository",
+        "external-evidence"
+      ],
+      "destructive": false,
+      "isolation": "fresh",
+      "timeoutMs": 30000,
+      "invariants": [
+        "no-unaccounted-side-effects"
+      ]
+    },
+    {
+      "id": "web.performance.default",
+      "controlId": "web.performance",
+      "mandatory": true,
+      "requiredCapabilities": [
+        "repository",
+        "external-evidence"
+      ],
+      "destructive": false,
+      "isolation": "fresh",
+      "timeoutMs": 30000,
+      "invariants": [
+        "no-unaccounted-side-effects"
+      ]
+    },
+    {
+      "id": "web.reliability.default",
+      "controlId": "web.reliability",
+      "mandatory": true,
+      "requiredCapabilities": [
+        "repository",
+        "external-evidence"
+      ],
+      "destructive": false,
+      "isolation": "fresh",
+      "timeoutMs": 30000,
+      "invariants": [
+        "no-unaccounted-side-effects"
+      ]
+    },
+    {
+      "id": "web.testing.default",
+      "controlId": "web.testing",
+      "mandatory": true,
+      "requiredCapabilities": [
+        "repository",
+        "external-evidence"
+      ],
+      "destructive": false,
+      "isolation": "fresh",
+      "timeoutMs": 30000,
+      "invariants": [
+        "no-unaccounted-side-effects"
+      ]
+    },
+    {
+      "id": "web.accessibility.default",
+      "controlId": "web.accessibility",
+      "mandatory": true,
+      "requiredCapabilities": [
+        "repository",
+        "external-evidence"
+      ],
+      "destructive": false,
+      "isolation": "fresh",
+      "timeoutMs": 30000,
+      "invariants": [
+        "no-unaccounted-side-effects"
+      ]
+    },
+    {
+      "id": "web.compatibility.default",
+      "controlId": "web.compatibility",
+      "mandatory": true,
+      "requiredCapabilities": [
+        "repository",
+        "external-evidence"
+      ],
+      "destructive": false,
+      "isolation": "fresh",
+      "timeoutMs": 30000,
+      "invariants": [
+        "no-unaccounted-side-effects"
+      ]
+    },
+    {
+      "id": "web.seo.default",
+      "controlId": "web.seo",
+      "mandatory": true,
+      "requiredCapabilities": [
+        "repository",
+        "external-evidence"
+      ],
+      "destructive": false,
+      "isolation": "fresh",
+      "timeoutMs": 30000,
+      "invariants": [
+        "no-unaccounted-side-effects"
+      ]
+    },
+    {
+      "id": "web.privacy.default",
+      "controlId": "web.privacy",
+      "mandatory": true,
+      "requiredCapabilities": [
+        "repository",
+        "external-evidence"
+      ],
+      "destructive": false,
+      "isolation": "fresh",
+      "timeoutMs": 30000,
+      "invariants": [
+        "no-unaccounted-side-effects"
+      ]
+    },
+    {
+      "id": "web.i18n.default",
+      "controlId": "web.i18n",
+      "mandatory": true,
+      "requiredCapabilities": [
+        "repository",
+        "external-evidence"
+      ],
+      "destructive": false,
+      "isolation": "fresh",
+      "timeoutMs": 30000,
+      "invariants": [
+        "no-unaccounted-side-effects"
+      ]
+    },
+    {
+      "id": "web.third-parties.default",
+      "controlId": "web.third-parties",
+      "mandatory": true,
+      "requiredCapabilities": [
+        "repository",
+        "external-evidence"
+      ],
+      "destructive": false,
+      "isolation": "fresh",
+      "timeoutMs": 30000,
+      "invariants": [
+        "no-unaccounted-side-effects"
+      ]
+    },
+    {
+      "id": "web.notifications.default",
+      "controlId": "web.notifications",
+      "mandatory": true,
+      "requiredCapabilities": [
+        "repository",
+        "external-evidence"
+      ],
+      "destructive": false,
+      "isolation": "fresh",
+      "timeoutMs": 30000,
+      "invariants": [
+        "no-unaccounted-side-effects"
+      ]
+    },
+    {
+      "id": "web.payments.default",
+      "controlId": "web.payments",
+      "mandatory": true,
+      "requiredCapabilities": [
+        "repository",
+        "external-evidence"
+      ],
+      "destructive": false,
+      "isolation": "fresh",
+      "timeoutMs": 30000,
+      "invariants": [
+        "no-unaccounted-side-effects"
+      ]
+    },
+    {
+      "id": "web.analytics.default",
+      "controlId": "web.analytics",
+      "mandatory": true,
+      "requiredCapabilities": [
+        "repository",
+        "external-evidence"
+      ],
+      "destructive": false,
+      "isolation": "fresh",
+      "timeoutMs": 30000,
+      "invariants": [
+        "no-unaccounted-side-effects"
+      ]
+    },
+    {
+      "id": "web.delivery.default",
+      "controlId": "web.delivery",
+      "mandatory": true,
+      "requiredCapabilities": [
+        "repository",
+        "external-evidence"
+      ],
+      "destructive": false,
+      "isolation": "fresh",
+      "timeoutMs": 30000,
+      "invariants": [
+        "no-unaccounted-side-effects"
+      ]
+    },
+    {
+      "id": "web.backup-dr.default",
+      "controlId": "web.backup-dr",
+      "mandatory": true,
+      "requiredCapabilities": [
+        "repository",
+        "external-evidence"
+      ],
+      "destructive": false,
+      "isolation": "fresh",
+      "timeoutMs": 30000,
+      "invariants": [
+        "no-unaccounted-side-effects"
+      ]
+    },
+    {
+      "id": "web.operations.default",
+      "controlId": "web.operations",
+      "mandatory": true,
+      "requiredCapabilities": [
+        "repository",
+        "external-evidence"
+      ],
+      "destructive": false,
+      "isolation": "fresh",
+      "timeoutMs": 30000,
+      "invariants": [
+        "no-unaccounted-side-effects"
+      ]
+    },
+    {
+      "id": "web.ai-pwa-ugc-realtime.default",
+      "controlId": "web.ai-pwa-ugc-realtime",
+      "mandatory": true,
+      "requiredCapabilities": [
+        "repository",
+        "external-evidence"
+      ],
+      "destructive": false,
+      "isolation": "fresh",
+      "timeoutMs": 30000,
+      "invariants": [
+        "no-unaccounted-side-effects"
+      ]
+    }
+  ]
+}

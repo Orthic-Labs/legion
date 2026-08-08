@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "nemesis-imported-sarif-v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "digest",
+    "baseUri",
+    "revision",
+    "toolIdentity"
+  ],
+  "properties": {
+    "digest": {
+      "type": "string"
+    },
+    "baseUri": {
+      "type": "string"
+    },
+    "revision": {
+      "type": "string"
+    },
+    "toolIdentity": {
+      "type": "object"
+    }
+  }
+}

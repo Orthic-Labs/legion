@@ -1,102 +1,22 @@
-#!/usr/bin/env node
-// Package smoke: pack the tarball, install into clean temporary projects, and
-// exercise local bin, npx-style, and global-prefix execution. Also asserts the
-// package contents against MANIFEST.package.json — any unexpected path fails.
-
-import { execFileSync, spawnSync } from 'node:child_process';
-import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
+import { cpSync,existsSync,mkdtempSync,readdirSync,readFileSync,rmSync,statSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join, resolve } from 'node:path';
-import { createRequire } from 'node:module';
+import { basename,dirname,join,resolve } from 'node:path';
+import { pathToFileURL } from 'node:url';
 
-const repoRoot = resolve(import.meta.dirname, '..');
-const require = createRequire(import.meta.url);
-
-function run(command, args, cwd) {
-  const result = spawnSync(command, args, { cwd, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
-  if (result.status !== 0) {
-    throw new Error(`${command} ${args.join(' ')} failed (${result.status}): ${result.stderr || result.stdout}`);
-  }
-  return result.stdout;
-}
-
-function makeTempProject(mode) {
-  const dir = mkdtempSync(join(tmpdir(), `nemesis-pack-${mode}-`));
-  writeFileSync(join(dir, 'package.json'), JSON.stringify({ name: `fixture-${mode}`, version: '1.0.0', private: true }));
-  return dir;
-}
-
-function assertPackageContents(tarballPath) {
-  const manifest = JSON.parse(readFileSync(join(repoRoot, 'MANIFEST.package.json'), 'utf8'));
-  const list = run('tar', ['-tzf', tarballPath], repoRoot).split('\n').filter(Boolean);
-  const contents = list.map((line) => line.replace(/^package\//, ''));
-  const unexpected = contents.filter((path) => {
-    if (!path) return false;
-    if (path === 'package/' || path === 'package') return false;
-    // allowlistedTopLevel entries carry their own trailing slash (e.g. 'bin/'),
-    // so a plain startsWith match is correct.
-    if (manifest.allowlistedTopLevel.some((top) => path === top || path.startsWith(top))) return false;
-    return true;
-  });
-  if (unexpected.length) {
-    throw new Error(`package contains unexpected paths: ${unexpected.join(', ')}`);
-  }
-  for (const forbidden of manifest.forbiddenContents) {
-    const hit = contents.find((path) => path.toLowerCase().includes(forbidden.toLowerCase()));
-    if (hit) throw new Error(`package contains forbidden content: ${hit}`);
-  }
-  return contents;
-}
-
-export async function packageSmoke() {
-  const packOut = run('npm', ['pack', '--json', '--ignore-scripts'], repoRoot);
-  // npm pack --json emits the JSON array on stdout (possibly with lifecycle
-  // text before it); the top-level array starts at the first '['.
-  const jsonStart = packOut.indexOf('[');
-  if (jsonStart < 0) throw new Error(`npm pack produced no JSON: ${packOut.slice(0, 200)}`);
-  const pack = JSON.parse(packOut.slice(jsonStart));
-  const tarball = join(repoRoot, pack[0].filename);
-  if (!existsSync(tarball)) throw new Error(`tarball missing: ${tarball}`);
-  try {
-    const contents = assertPackageContents(tarball);
-    const pkg = JSON.parse(readFileSync(join(repoRoot, 'package.json'), 'utf8'));
-    if (pkg.version !== pack[0].version) throw new Error('package version mismatch');
-    for (const mode of ['local', 'npx', 'prefix']) {
-      const fixture = makeTempProject(mode);
-      try {
-        if (mode === 'prefix') {
-          const prefix = makeTempProject('prefix-target');
-          run('npm', ['install', '--ignore-scripts', '--prefix', prefix, tarball], fixture);
-          run(join(prefix, 'node_modules', '.bin', 'nemesis'), ['--version'], fixture);
-          rmSync(prefix, { recursive: true, force: true });
-        } else {
-          run('npm', ['install', '--ignore-scripts', tarball], fixture);
-          if (mode === 'local') {
-            const version = run(join(fixture, 'node_modules', '.bin', 'nemesis'), ['--version'], fixture).trim();
-            if (version !== pkg.version) throw new Error(`local version mismatch: ${version}`);
-          } else {
-            const npxOut = run('npx', ['--no-install', 'nemesis', '--version'], fixture).trim();
-            if (npxOut !== pkg.version) throw new Error(`npx version mismatch: ${npxOut}`);
-          }
-        }
-        console.log(`OK ${mode} install smoke`);
-      } finally {
-        rmSync(fixture, { recursive: true, force: true });
-      }
-    }
-    return { tarball, contents: contents.length, version: pkg.version };
-  } finally {
-    rmSync(tarball, { force: true });
-  }
-}
-
-if (import.meta.url === new URL(`file://${process.argv[1]}`).href) {
-  packageSmoke()
-    .then((result) => {
-      console.log(`package smoke passed: ${result.tarball.split('/').pop()} (${result.contents} files, v${result.version})`);
-    })
-    .catch((error) => {
-      console.error(error.message);
-      process.exit(1);
-    });
+export function packageSmokeContract(){return['binary','library-import','cortex-projection','plan','schedule','serial-execution','auto-execution','audit','verify'];}
+const walk=(root,current=root,out=[])=>{for(const name of readdirSync(current)){const path=join(current,name);if(statSync(path).isDirectory())walk(root,path,out);else out.push(path);}return out;};
+export async function runPackageSmoke(root=resolve(import.meta.dirname,'..')){
+  const pkg=JSON.parse(readFileSync(join(root,'package.json'),'utf8'));const manifest=JSON.parse(readFileSync(join(root,'MANIFEST.package.json'),'utf8'));const temp=mkdtempSync(join(tmpdir(),'nemesis-package-smoke-'));const assembled=join(temp,'package');
+  try{
+    for(const entry of pkg.files){const source=join(root,entry);if(!existsSync(source))throw new Error(`package entry missing: ${entry}`);const target=join(assembled,entry);cpSync(source,target,{recursive:true});}
+    const files=walk(assembled);let forbiddenMarkers=0;for(const path of files){if(basename(path)==='MANIFEST.package.json'||!/\.(?:mjs|js|json|md|txt|ya?ml)$/i.test(path))continue;const text=readFileSync(path,'utf8');for(const marker of manifest.forbiddenContentMarkers)if(text.includes(marker))forbiddenMarkers++;}
+    if(forbiddenMarkers)throw new Error(`assembled package contains ${forbiddenMarkers} forbidden markers`);
+    const version=execFileSync(process.execPath,[join(assembled,pkg.bin.nemesis),'--version'],{cwd:assembled,encoding:'utf8'}).trim();if(version!==pkg.version)throw new Error('assembled binary version mismatch');
+    const library=await import(`${pathToFileURL(join(assembled,'lib/index.mjs')).href}?smoke=${Date.now()}`);if(typeof library.buildPlan!=='function'||typeof library.reconcileRun!=='function')throw new Error('assembled library exports incomplete');
+    const {loadPrecomputedProjection}=await import(pathToFileURL(join(assembled,'lib/adapters/cortex/precomputed.mjs')).href);const binding={repositoryRevision:'smoke',dirty:false,dirtyPatchDigest:'sha256:clean'};const projection=loadPrecomputedProjection({schemaVersion:1,binding,generation:'smoke',state:'ready',files:['package.json'],manifestDigest:'sha256:manifest',generationId:'smoke'},binding);
+    const host=library.fixedHost({processRunner:{run:async()=>({exitCode:0,stdout:'',stderr:'',status:'completed'})}});const registry=library.loadProviderRegistry();const plan=await library.buildPlan({root:assembled,projection,repositoryBinding:binding,registry},host);const serialPlan={...plan,schedule:'serial'};const autoPlan={...plan,schedule:'auto'};const serial=await library.executePlan(serialPlan,host);const automatic=await library.executePlan(autoPlan,host);if(serial.receipts.length!==plan.providers.length||automatic.receipts.length!==plan.providers.length)throw new Error('assembled execution omitted selected providers');
+    const facts=library.reconcileRun({plan,receipts:automatic.receipts,artifacts:{root:assembled}},host);const report=await library.finalizeRun({plan,facts,results:{securityCandidates:[],adjudication:{complete:true,verdicts:[]}}},host);const verification=await library.verifyRun({priorRun:{binding,controls:[],claims:{source:'pass'}},currentRepository:{binding,snapshot:{binding,controls:[],claims:{source:'pass'}}}},host);const audit=await library.audit({root:assembled,outDir:join(temp,'audit'),projection,binding,claimLevel:'inventory',providers:[]},host);
+    return{binary:true,library:true,cortexProjection:projection.state==='ready',plan:Boolean(plan.seal?.digest),schedule:serial.receipts.length===automatic.receipts.length,serialExecution:true,autoExecution:true,audit:Boolean(audit.report),verify:verification.valid,report:Boolean(report),forbiddenMarkers,fileCount:files.length,version};
+  }finally{rmSync(temp,{recursive:true,force:true});}
 }

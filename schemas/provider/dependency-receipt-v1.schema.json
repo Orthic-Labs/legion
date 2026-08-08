@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "nemesis-dependency-receipt-v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "package",
+    "advisory",
+    "reachability"
+  ],
+  "properties": {
+    "package": {
+      "type": "object"
+    },
+    "advisory": {
+      "type": "object"
+    },
+    "reachability": {
+      "type": "string"
+    }
+  }
+}

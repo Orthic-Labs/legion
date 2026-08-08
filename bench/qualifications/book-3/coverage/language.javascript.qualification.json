@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "kind": "nemesis-coverage-qualification",
+  "recordId": "language.javascript",
+  "corpusRoot": "bench/corpora/javascript",
+  "corpusDigest": "sha256:675a94299e418c2fd1c6b068256df5ab54f80e490ab3c0980686783d5dea6419",
+  "artifactDigest": "sha256:898bc8ea99db2a01e608e46f3765b5772012b9f3507fb10c51c182e62dbe8b15",
+  "providerVersions": {
+    "code.javascript": "1.0.0"
+  },
+  "casesRequired": [
+    "positive",
+    "negative",
+    "unsupported",
+    "denominator-gap"
+  ],
+  "command": [
+    "node",
+    "--test",
+    "tests/providers/javascript/javascript.test.mjs"
+  ],
+  "decision": "source-measured-runtime-unproven"
+}

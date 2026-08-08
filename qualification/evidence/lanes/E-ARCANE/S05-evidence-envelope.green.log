@@ -1,0 +1,18 @@
+✔ sealEvidence produces a receipt that satisfies evidence-capability-receipt-v1 (3.5175ms)
+✔ sealEvidence returns an envelope richer than the receipt, carrying the full dimension set losslessly (0.5866ms)
+✔ sealEvidence rejects an unknown dependency dimension (0.6212ms)
+✔ DEPENDENCY_DIMENSION carries the full §6.2 set including the evidence transitive-edge dimension (0.711ms)
+✔ every dependency dimension has a projection into the frozen dependsOn[].kind enum (0.2352ms)
+✔ envelopeDigest is deterministic and idempotent across re-attachment (0.4037ms)
+✔ envelopeDigest changes when envelope content changes (0.5864ms)
+✔ importLegacyEvidence accepts a legacy-envelope-v1-shaped record and marks it never-qualifying (0.2876ms)
+✔ importLegacyEvidence refuses a record that is not legacy-envelope-v1 shaped (0.208ms)
+✔ importLegacyEvidence refuses a record that claims authenticated: true (cannot exist under the frozen schema, but must not be trusted here either) (0.2799ms)
+ℹ tests 10
+ℹ suites 0
+ℹ pass 10
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 100.3257

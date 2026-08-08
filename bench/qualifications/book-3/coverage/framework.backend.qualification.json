@@ -1,0 +1,45 @@
+{
+  "schemaVersion": 1,
+  "kind": "nemesis-coverage-qualification",
+  "recordId": "framework.backend",
+  "corpusRoot": "bench/corpora/frameworks/backend",
+  "corpusDigest": "sha256:4e125215a9255573e8b15e3eedad978f1b4f08e8f3aa008ae9238a568929c61f",
+  "artifactDigest": "sha256:d878812cde6b99f06ad2634f56f198c3dc26aec5082dcf8af125393665fee522",
+  "providerVersions": {
+    "framework.backend": "1.0.0"
+  },
+  "casesRequired": [
+    "express.positive",
+    "express.unsupported",
+    "fastify.positive",
+    "fastify.unsupported",
+    "nest.positive",
+    "nest.unsupported",
+    "django.positive",
+    "django.unsupported",
+    "fastapi.positive",
+    "fastapi.unsupported",
+    "flask.positive",
+    "flask.unsupported",
+    "spring.positive",
+    "spring.unsupported",
+    "ktor.positive",
+    "ktor.unsupported",
+    "aspnet.positive",
+    "aspnet.unsupported",
+    "rails.positive",
+    "rails.unsupported",
+    "laravel.positive",
+    "laravel.unsupported",
+    "go-router.positive",
+    "go-router.unsupported",
+    "rust-web.positive",
+    "rust-web.unsupported"
+  ],
+  "command": [
+    "node",
+    "--test",
+    "tests/framework-suite.test.mjs"
+  ],
+  "decision": "source-measured-runtime-unproven"
+}

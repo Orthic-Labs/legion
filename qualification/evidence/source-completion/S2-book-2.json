@@ -1,0 +1,963 @@
+{
+  "schemaVersion": 3,
+  "kind": "nemesis-source-completion-book-evidence",
+  "routeStep": "R_INCREMENTAL_BOOK_GATES/S2",
+  "book": 2,
+  "sourceRevision": "97687c6952c3f20a8affee7da0502a61039e258e+dirty.sha256:afdfe0324810900ddd08ef6ed2d8bac20d4c9abcf62c2dad6aa54260411c661e",
+  "sourceAccounting": {
+    "implemented": 30,
+    "mapped": 0,
+    "sourceBlocked": 0
+  },
+  "decision": "PASS",
+  "commands": [
+    {
+      "command": "node --test tests/inventory/book-2-contracts.test.mjs",
+      "status": "fail",
+      "counts": {
+        "total": 30,
+        "pass": 4,
+        "fail": 26
+      },
+      "log": "qualification/evidence/source-completion/S2-book-2.behavior.red.log"
+    },
+    {
+      "command": "node --test tests/inventory/book-2-contracts.test.mjs",
+      "status": "pass",
+      "counts": {
+        "total": 30,
+        "pass": 30,
+        "fail": 0
+      },
+      "log": "qualification/evidence/source-completion/S2-book-2.behavior.green.log"
+    }
+  ],
+  "qualification": {
+    "command": "node scripts/qualify-book.mjs --book 2",
+    "status": "pass",
+    "outputDigest": "sha256:83a436ed77cea56d868f89ebc5c1b5f8b0874670eb94224508f2d2c64f1851a7",
+    "receipt": "qualification/book-2-artifacts/gate-result.json"
+  },
+  "taskMap": [
+    {
+      "task": "B2-001",
+      "dependsOn": [
+        "B1-028"
+      ],
+      "test": {
+        "path": "tests/inventory/book-2-contracts.test.mjs",
+        "assertion": "B2-001 target registry is versioned additive and unknown targets block clean claims"
+      },
+      "implementation": [
+        {
+          "path": "registry/product-target-kinds.json",
+          "symbol": "unknown-deliverable"
+        },
+        {
+          "path": "lib/inventory/product-targets/contracts.mjs",
+          "symbol": "validateTargetRegistry"
+        },
+        {
+          "path": "schemas/inventory/product-target-v1.schema.json",
+          "symbol": "nemesis-product-target-v1"
+        },
+        {
+          "path": "schemas/inventory/product-portfolio-v1.schema.json",
+          "symbol": "nemesis-product-portfolio-v1"
+        }
+      ],
+      "red": "qualification/evidence/source-completion/S2-book-2.behavior.red.log",
+      "green": "qualification/evidence/source-completion/S2-book-2.behavior.green.log"
+    },
+    {
+      "task": "B2-002",
+      "dependsOn": [
+        "B2-001"
+      ],
+      "test": {
+        "path": "tests/inventory/book-2-contracts.test.mjs",
+        "assertion": "B2-002 hybrid target detection preserves desktop web API iOS and Android candidates"
+      },
+      "implementation": [
+        {
+          "path": "lib/inventory/product-targets/detectors/index.mjs",
+          "symbol": "discoverTargets"
+        },
+        {
+          "path": "registry/product-target-detectors.json",
+          "symbol": "evidenceOnly"
+        }
+      ],
+      "red": "qualification/evidence/source-completion/S2-book-2.behavior.red.log",
+      "green": "qualification/evidence/source-completion/S2-book-2.behavior.green.log"
+    },
+    {
+      "task": "B2-003",
+      "dependsOn": [
+        "B2-002"
+      ],
+      "test": {
+        "path": "tests/inventory/book-2-contracts.test.mjs",
+        "assertion": "B2-003 classification review cannot delete observations or close material ambiguity"
+      },
+      "implementation": [
+        {
+          "path": "lib/inventory/product-targets/review.mjs",
+          "symbol": "reviewClassification"
+        },
+        {
+          "path": "schemas/inventory/target-classification-review-v1.schema.json",
+          "symbol": "nemesis-target-classification-review-v1"
+        },
+        {
+          "path": "registry/lenses/product-target-classification.json",
+          "symbol": "immutableEvidenceOnly"
+        }
+      ],
+      "red": "qualification/evidence/source-completion/S2-book-2.behavior.red.log",
+      "green": "qualification/evidence/source-completion/S2-book-2.behavior.green.log"
+    },
+    {
+      "task": "B2-004",
+      "dependsOn": [
+        "B2-003"
+      ],
+      "test": {
+        "path": "tests/inventory/book-2-contracts.test.mjs",
+        "assertion": "B2-004 portfolio retains relations conflicts and unknown coverage deterministically"
+      },
+      "implementation": [
+        {
+          "path": "lib/inventory/product-targets/build-portfolio.mjs",
+          "symbol": "buildPortfolio"
+        },
+        {
+          "path": "lib/inventory/product-targets/relations.mjs",
+          "symbol": "targetRelation"
+        }
+      ],
+      "red": "qualification/evidence/source-completion/S2-book-2.behavior.red.log",
+      "green": "qualification/evidence/source-completion/S2-book-2.behavior.green.log"
+    },
+    {
+      "task": "B2-005",
+      "dependsOn": [
+        "B2-004"
+      ],
+      "test": {
+        "path": "tests/inventory/book-2-contracts.test.mjs",
+        "assertion": "B2-005 component registry defines trust metadata and rejects folder-only graphs"
+      },
+      "implementation": [
+        {
+          "path": "registry/component-kinds.json",
+          "symbol": "trustMetadata"
+        },
+        {
+          "path": "lib/inventory/components/contracts.mjs",
+          "symbol": "validateComponentGraph"
+        },
+        {
+          "path": "schemas/inventory/component-v1.schema.json",
+          "symbol": "nemesis-component-v1"
+        },
+        {
+          "path": "schemas/inventory/component-graph-v1.schema.json",
+          "symbol": "nemesis-component-graph-v1"
+        }
+      ],
+      "red": "qualification/evidence/source-completion/S2-book-2.behavior.red.log",
+      "green": "qualification/evidence/source-completion/S2-book-2.behavior.green.log"
+    },
+    {
+      "task": "B2-006",
+      "dependsOn": [
+        "B2-005"
+      ],
+      "test": {
+        "path": "tests/inventory/book-2-contracts.test.mjs",
+        "assertion": "B2-006 build deployment and runtime extractors keep installer updater and workers separate"
+      },
+      "implementation": [
+        {
+          "path": "lib/inventory/components/extract-build.mjs",
+          "symbol": "extractPhysicalComponents"
+        },
+        {
+          "path": "lib/inventory/components/extract-deployment.mjs",
+          "symbol": "extractDeploymentComponents"
+        },
+        {
+          "path": "lib/inventory/components/extract-runtime.mjs",
+          "symbol": "extractRuntimeComponents"
+        }
+      ],
+      "red": "qualification/evidence/source-completion/S2-book-2.behavior.red.log",
+      "green": "qualification/evidence/source-completion/S2-book-2.behavior.green.log"
+    },
+    {
+      "task": "B2-007",
+      "dependsOn": [
+        "B2-006"
+      ],
+      "test": {
+        "path": "tests/inventory/book-2-contracts.test.mjs",
+        "assertion": "B2-007 logical extractors emit distinct identity data integration and external components"
+      },
+      "implementation": [
+        {
+          "path": "lib/inventory/components/extract-logical.mjs",
+          "symbol": "extractLogicalComponents"
+        },
+        {
+          "path": "lib/inventory/components/extract-data.mjs",
+          "symbol": "extractDataComponents"
+        },
+        {
+          "path": "lib/inventory/components/extract-external.mjs",
+          "symbol": "extractExternalComponents"
+        }
+      ],
+      "red": "qualification/evidence/source-completion/S2-book-2.behavior.red.log",
+      "green": "qualification/evidence/source-completion/S2-book-2.behavior.green.log"
+    },
+    {
+      "task": "B2-008",
+      "dependsOn": [
+        "B2-007"
+      ],
+      "test": {
+        "path": "tests/inventory/book-2-contracts.test.mjs",
+        "assertion": "B2-008 component graph preserves typed trust-boundary relations and coverage denominators"
+      },
+      "implementation": [
+        {
+          "path": "lib/inventory/components/build-graph.mjs",
+          "symbol": "buildComponentGraph"
+        },
+        {
+          "path": "lib/inventory/components/trust-boundaries.mjs",
+          "symbol": "trustBoundaries"
+        }
+      ],
+      "red": "qualification/evidence/source-completion/S2-book-2.behavior.red.log",
+      "green": "qualification/evidence/source-completion/S2-book-2.behavior.green.log"
+    },
+    {
+      "task": "B2-009",
+      "dependsOn": [
+        "B2-008"
+      ],
+      "test": {
+        "path": "tests/inventory/book-2-contracts.test.mjs",
+        "assertion": "B2-009 stack catalogue has seven independent tiers and first-class external kinds"
+      },
+      "implementation": [
+        {
+          "path": "registry/stack-catalogue.json",
+          "symbol": "measured-pack"
+        },
+        {
+          "path": "registry/external-system-kinds.json",
+          "symbol": "other-processor"
+        },
+        {
+          "path": "lib/inventory/stacks/contracts.mjs",
+          "symbol": "validateStackCatalogue"
+        },
+        {
+          "path": "schemas/inventory/stack-record-v1.schema.json",
+          "symbol": "nemesis-stack-record-v1"
+        },
+        {
+          "path": "schemas/inventory/stack-graph-v1.schema.json",
+          "symbol": "nemesis-stack-graph-v1"
+        },
+        {
+          "path": "schemas/inventory/external-system-v1.schema.json",
+          "symbol": "nemesis-external-system-v1"
+        }
+      ],
+      "red": "qualification/evidence/source-completion/S2-book-2.behavior.red.log",
+      "green": "qualification/evidence/source-completion/S2-book-2.behavior.green.log"
+    },
+    {
+      "task": "B2-010",
+      "dependsOn": [
+        "B2-009"
+      ],
+      "test": {
+        "path": "tests/inventory/book-2-contracts.test.mjs",
+        "assertion": "B2-010 stack graph distinguishes declared ranges resolved versions and unknown stacks"
+      },
+      "implementation": [
+        {
+          "path": "lib/inventory/stacks/build-graph.mjs",
+          "symbol": "buildStackGraph"
+        },
+        {
+          "path": "lib/inventory/stacks/versions.mjs",
+          "symbol": "classifyVersion"
+        },
+        {
+          "path": "lib/inventory/stacks/roles.mjs",
+          "symbol": "stackRole"
+        }
+      ],
+      "red": "qualification/evidence/source-completion/S2-book-2.behavior.red.log",
+      "green": "qualification/evidence/source-completion/S2-book-2.behavior.green.log"
+    },
+    {
+      "task": "B2-011",
+      "dependsOn": [
+        "B2-010"
+      ],
+      "test": {
+        "path": "tests/inventory/book-2-contracts.test.mjs",
+        "assertion": "B2-011 external discovery labels references without claiming production configuration"
+      },
+      "implementation": [
+        {
+          "path": "lib/inventory/external-systems/discover.mjs",
+          "symbol": "discoverExternalSystems"
+        },
+        {
+          "path": "lib/inventory/external-systems/contracts.mjs",
+          "symbol": "externalSystem"
+        }
+      ],
+      "red": "qualification/evidence/source-completion/S2-book-2.behavior.red.log",
+      "green": "qualification/evidence/source-completion/S2-book-2.behavior.green.log"
+    },
+    {
+      "task": "B2-012",
+      "dependsOn": [
+        "B2-011"
+      ],
+      "test": {
+        "path": "tests/inventory/book-2-contracts.test.mjs",
+        "assertion": "B2-012 release contract rejects host authority keys and canonicalizes equivalent declarations"
+      },
+      "implementation": [
+        {
+          "path": "lib/inventory/release-contract/load.mjs",
+          "symbol": "loadReleaseContract"
+        },
+        {
+          "path": "lib/inventory/release-contract/merge.mjs",
+          "symbol": "mergeReleaseContract"
+        },
+        {
+          "path": "lib/inventory/release-contract/conflicts.mjs",
+          "symbol": "contractConflicts"
+        },
+        {
+          "path": "schemas/inventory/release-contract-v1.schema.json",
+          "symbol": "nemesis-release-contract-v1"
+        }
+      ],
+      "red": "qualification/evidence/source-completion/S2-book-2.behavior.red.log",
+      "green": "qualification/evidence/source-completion/S2-book-2.behavior.green.log"
+    },
+    {
+      "task": "B2-013",
+      "dependsOn": [
+        "B2-012"
+      ],
+      "test": {
+        "path": "tests/inventory/book-2-contracts.test.mjs",
+        "assertion": "B2-013 product context preserves observed and declared actors data and risk authority"
+      },
+      "implementation": [
+        {
+          "path": "lib/inventory/product-context/actors.mjs",
+          "symbol": "buildProductContext"
+        },
+        {
+          "path": "lib/inventory/product-context/data.mjs",
+          "symbol": "extractDataContext"
+        },
+        {
+          "path": "lib/inventory/product-context/risk.mjs",
+          "symbol": "extractRiskContext"
+        },
+        {
+          "path": "schemas/inventory/product-context-v1.schema.json",
+          "symbol": "nemesis-product-context-v1"
+        }
+      ],
+      "red": "qualification/evidence/source-completion/S2-book-2.behavior.red.log",
+      "green": "qualification/evidence/source-completion/S2-book-2.behavior.green.log"
+    },
+    {
+      "task": "B2-014",
+      "dependsOn": [
+        "B2-013"
+      ],
+      "test": {
+        "path": "tests/inventory/book-2-contracts.test.mjs",
+        "assertion": "B2-014 journeys retain origin recovery effects and stable target ownership"
+      },
+      "implementation": [
+        {
+          "path": "lib/inventory/journeys/build.mjs",
+          "symbol": "buildJourneys"
+        },
+        {
+          "path": "registry/journey-templates.json",
+          "symbol": "primary-task"
+        },
+        {
+          "path": "schemas/inventory/journey-v1.schema.json",
+          "symbol": "nemesis-journey-v1"
+        }
+      ],
+      "red": "qualification/evidence/source-completion/S2-book-2.behavior.red.log",
+      "green": "qualification/evidence/source-completion/S2-book-2.behavior.green.log"
+    },
+    {
+      "task": "B2-015",
+      "dependsOn": [
+        "B2-014"
+      ],
+      "test": {
+        "path": "tests/inventory/book-2-contracts.test.mjs",
+        "assertion": "B2-015 source ingestion requires rights and terminal disposition without importing execution authority"
+      },
+      "implementation": [
+        {
+          "path": "registry/controls/sources/catalogue.json",
+          "symbol": "executionAuthority"
+        },
+        {
+          "path": "lib/controls/sources/ingest.mjs",
+          "symbol": "ingestSource"
+        },
+        {
+          "path": "lib/controls/sources/deduplicate.mjs",
+          "symbol": "deduplicateSources"
+        },
+        {
+          "path": "schemas/controls/control-source-v1.schema.json",
+          "symbol": "nemesis-control-source-v1"
+        },
+        {
+          "path": "schemas/controls/source-item-v1.schema.json",
+          "symbol": "nemesis-source-item-v1"
+        }
+      ],
+      "red": "qualification/evidence/source-completion/S2-book-2.behavior.red.log",
+      "green": "qualification/evidence/source-completion/S2-book-2.behavior.green.log"
+    },
+    {
+      "task": "B2-016",
+      "dependsOn": [
+        "B2-015"
+      ],
+      "test": {
+        "path": "tests/inventory/book-2-contracts.test.mjs",
+        "assertion": "B2-016 creator ledger preserves 3 sources and 300 unresolved-rights excluded items"
+      },
+      "implementation": [
+        {
+          "path": "internal/source-inputs/creator-audits/manifest.json",
+          "symbol": "rawDocumentsAvailable"
+        },
+        {
+          "path": "registry/controls/sources/creator-audits-v1.json",
+          "symbol": "expectedItemCount"
+        },
+        {
+          "path": "qualification/source-absorption/creator-audits-v1.json",
+          "symbol": "derivedControlCount"
+        }
+      ],
+      "red": "qualification/evidence/source-completion/S2-book-2.behavior.red.log",
+      "green": "qualification/evidence/source-completion/S2-book-2.behavior.green.log"
+    },
+    {
+      "task": "B2-017",
+      "dependsOn": [
+        "B2-015"
+      ],
+      "test": {
+        "path": "tests/inventory/book-2-contracts.test.mjs",
+        "assertion": "B2-017 platform ledgers pin three supplied digests and terminally disposition parsed hierarchy"
+      },
+      "implementation": [
+        {
+          "path": "internal/source-inputs/platform-checklists/manifest.json",
+          "symbol": "rawTextPackageDisposition"
+        },
+        {
+          "path": "registry/controls/sources/platform-checklists-v1.json",
+          "symbol": "textDigest"
+        },
+        {
+          "path": "qualification/source-absorption/platform-checklists-v1.json",
+          "symbol": "derivedControlCount"
+        }
+      ],
+      "red": "qualification/evidence/source-completion/S2-book-2.behavior.red.log",
+      "green": "qualification/evidence/source-completion/S2-book-2.behavior.green.log"
+    },
+    {
+      "task": "B2-018",
+      "dependsOn": [
+        "B2-014"
+      ],
+      "test": {
+        "path": "tests/inventory/book-2-contracts.test.mjs",
+        "assertion": "B2-018 control contracts keep denominator independent from provider availability"
+      },
+      "implementation": [
+        {
+          "path": "lib/controls/contracts.mjs",
+          "symbol": "validateControl"
+        },
+        {
+          "path": "lib/controls/packs/registry.mjs",
+          "symbol": "loadControlPacks"
+        },
+        {
+          "path": "schemas/controls/assurance-control-v1.schema.json",
+          "symbol": "nemesis-assurance-control-v1"
+        },
+        {
+          "path": "schemas/controls/control-pack-v1.schema.json",
+          "symbol": "nemesis-control-pack-v1"
+        },
+        {
+          "path": "registry/controls/packs/index.json",
+          "symbol": "universal/core.json"
+        }
+      ],
+      "red": "qualification/evidence/source-completion/S2-book-2.behavior.red.log",
+      "green": "qualification/evidence/source-completion/S2-book-2.behavior.green.log"
+    },
+    {
+      "task": "B2-019",
+      "dependsOn": [
+        "B2-018"
+      ],
+      "test": {
+        "path": "tests/inventory/book-2-contracts.test.mjs",
+        "assertion": "B2-019 universal control catalogue carries selectors evidence and claim effects"
+      },
+      "implementation": [
+        {
+          "path": "registry/controls/packs/universal/core.json",
+          "symbol": "universal.scope"
+        },
+        {
+          "path": "registry/controls/controls/universal/core.json",
+          "symbol": "universal.unknown-material"
+        }
+      ],
+      "red": "qualification/evidence/source-completion/S2-book-2.behavior.red.log",
+      "green": "qualification/evidence/source-completion/S2-book-2.behavior.green.log"
+    },
+    {
+      "task": "B2-020",
+      "dependsOn": [
+        "B2-018"
+      ],
+      "test": {
+        "path": "tests/inventory/book-2-contracts.test.mjs",
+        "assertion": "B2-020 web control catalogue carries selectors evidence and claim effects"
+      },
+      "implementation": [
+        {
+          "path": "registry/controls/packs/targets/web/core.json",
+          "symbol": "web.backup-dr"
+        },
+        {
+          "path": "registry/controls/controls/web/core.json",
+          "symbol": "web.http-security"
+        },
+        {
+          "path": "registry/scenarios/web/core.json",
+          "symbol": "web.operations.default"
+        }
+      ],
+      "red": "qualification/evidence/source-completion/S2-book-2.behavior.red.log",
+      "green": "qualification/evidence/source-completion/S2-book-2.behavior.green.log"
+    },
+    {
+      "task": "B2-021",
+      "dependsOn": [
+        "B2-018"
+      ],
+      "test": {
+        "path": "tests/inventory/book-2-contracts.test.mjs",
+        "assertion": "B2-021 desktop control catalogue carries selectors evidence and claim effects"
+      },
+      "implementation": [
+        {
+          "path": "registry/controls/packs/targets/desktop/core.json",
+          "symbol": "desktop.installer"
+        },
+        {
+          "path": "registry/controls/controls/desktop/core.json",
+          "symbol": "desktop.updater-signing"
+        },
+        {
+          "path": "registry/scenarios/desktop/core.json",
+          "symbol": "desktop.installer.default"
+        }
+      ],
+      "red": "qualification/evidence/source-completion/S2-book-2.behavior.red.log",
+      "green": "qualification/evidence/source-completion/S2-book-2.behavior.green.log"
+    },
+    {
+      "task": "B2-022",
+      "dependsOn": [
+        "B2-018"
+      ],
+      "test": {
+        "path": "tests/inventory/book-2-contracts.test.mjs",
+        "assertion": "B2-022 mobile control catalogue carries selectors evidence and claim effects"
+      },
+      "implementation": [
+        {
+          "path": "registry/controls/packs/targets/mobile/core.json",
+          "symbol": "mobile.ios"
+        },
+        {
+          "path": "registry/controls/controls/mobile/core.json",
+          "symbol": "mobile.android"
+        },
+        {
+          "path": "registry/scenarios/mobile/core.json",
+          "symbol": "mobile.stores-rollout.default"
+        }
+      ],
+      "red": "qualification/evidence/source-completion/S2-book-2.behavior.red.log",
+      "green": "qualification/evidence/source-completion/S2-book-2.behavior.green.log"
+    },
+    {
+      "task": "B2-023",
+      "dependsOn": [
+        "B2-018"
+      ],
+      "test": {
+        "path": "tests/inventory/book-2-contracts.test.mjs",
+        "assertion": "B2-023 service data control catalogue carries selectors evidence and claim effects"
+      },
+      "implementation": [
+        {
+          "path": "registry/controls/packs/targets/service/core.json",
+          "symbol": "service-data.api-contracts"
+        },
+        {
+          "path": "registry/controls/packs/components/service-data/core.json",
+          "symbol": "service-data.lineage"
+        },
+        {
+          "path": "registry/controls/controls/service-data/core.json",
+          "symbol": "service-data.replay-correctness"
+        }
+      ],
+      "red": "qualification/evidence/source-completion/S2-book-2.behavior.red.log",
+      "green": "qualification/evidence/source-completion/S2-book-2.behavior.green.log"
+    },
+    {
+      "task": "B2-024",
+      "dependsOn": [
+        "B2-018"
+      ],
+      "test": {
+        "path": "tests/inventory/book-2-contracts.test.mjs",
+        "assertion": "B2-024 developer tools control catalogue carries selectors evidence and claim effects"
+      },
+      "implementation": [
+        {
+          "path": "registry/controls/packs/targets/developer-tools/core.json",
+          "symbol": "developer-tools.cli-contract"
+        },
+        {
+          "path": "registry/controls/controls/developer-tools/core.json",
+          "symbol": "developer-tools.workspace-trust"
+        },
+        {
+          "path": "registry/scenarios/developer-tools/core.json",
+          "symbol": "developer-tools.plugin-isolation.default"
+        }
+      ],
+      "red": "qualification/evidence/source-completion/S2-book-2.behavior.red.log",
+      "green": "qualification/evidence/source-completion/S2-book-2.behavior.green.log"
+    },
+    {
+      "task": "B2-025",
+      "dependsOn": [
+        "B2-018"
+      ],
+      "test": {
+        "path": "tests/inventory/book-2-contracts.test.mjs",
+        "assertion": "B2-025 infrastructure release control catalogue carries selectors evidence and claim effects"
+      },
+      "implementation": [
+        {
+          "path": "registry/controls/packs/components/infrastructure-release/core.json",
+          "symbol": "infrastructure-release.rendered-resources"
+        },
+        {
+          "path": "registry/controls/controls/infrastructure-release/core.json",
+          "symbol": "infrastructure-release.promotion"
+        },
+        {
+          "path": "registry/scenarios/infrastructure-release/core.json",
+          "symbol": "infrastructure-release.rollback.default"
+        }
+      ],
+      "red": "qualification/evidence/source-completion/S2-book-2.behavior.red.log",
+      "green": "qualification/evidence/source-completion/S2-book-2.behavior.green.log"
+    },
+    {
+      "task": "B2-026",
+      "dependsOn": [
+        "B2-018"
+      ],
+      "test": {
+        "path": "tests/inventory/book-2-contracts.test.mjs",
+        "assertion": "B2-026 conditional control catalogue carries selectors evidence and claim effects"
+      },
+      "implementation": [
+        {
+          "path": "registry/controls/packs/conditional/core.json",
+          "symbol": "conditional.commerce"
+        },
+        {
+          "path": "registry/controls/controls/conditional/core.json",
+          "symbol": "conditional.human-policy"
+        },
+        {
+          "path": "registry/scenarios/conditional/core.json",
+          "symbol": "conditional.consent.default"
+        }
+      ],
+      "red": "qualification/evidence/source-completion/S2-book-2.behavior.red.log",
+      "green": "qualification/evidence/source-completion/S2-book-2.behavior.green.log"
+    },
+    {
+      "task": "B2-027",
+      "dependsOn": [
+        "B2-016",
+        "B2-017",
+        "B2-019",
+        "B2-020",
+        "B2-021",
+        "B2-022",
+        "B2-023",
+        "B2-024",
+        "B2-025",
+        "B2-026"
+      ],
+      "test": {
+        "path": "tests/inventory/book-2-contracts.test.mjs",
+        "assertion": "B2-027 baseline unions applicable packs and reproduces digest independent of pack order"
+      },
+      "implementation": [
+        {
+          "path": "lib/controls/baseline/compile.mjs",
+          "symbol": "compileBaseline"
+        },
+        {
+          "path": "lib/controls/baseline/selectors.mjs",
+          "symbol": "matchesSelector"
+        },
+        {
+          "path": "lib/controls/baseline/trace.mjs",
+          "symbol": "selectionTrace"
+        },
+        {
+          "path": "schemas/controls/control-baseline-v1.schema.json",
+          "symbol": "nemesis-control-baseline-v1"
+        }
+      ],
+      "red": "qualification/evidence/source-completion/S2-book-2.behavior.red.log",
+      "green": "qualification/evidence/source-completion/S2-book-2.behavior.green.log"
+    },
+    {
+      "task": "B2-028",
+      "dependsOn": [
+        "B2-027"
+      ],
+      "test": {
+        "path": "tests/inventory/book-2-contracts.test.mjs",
+        "assertion": "B2-028 missing external capability produces deterministic target-scoped claim impacts"
+      },
+      "implementation": [
+        {
+          "path": "lib/controls/evidence/capabilities.mjs",
+          "symbol": "evidenceCapabilities"
+        },
+        {
+          "path": "lib/controls/evidence/external-manifest.mjs",
+          "symbol": "validateExternalEvidence"
+        },
+        {
+          "path": "lib/controls/evidence/impacts.mjs",
+          "symbol": "capabilityImpacts"
+        },
+        {
+          "path": "schemas/controls/evidence-capability-v1.schema.json",
+          "symbol": "nemesis-evidence-capability-v1"
+        },
+        {
+          "path": "schemas/controls/external-evidence-manifest-v1.schema.json",
+          "symbol": "nemesis-external-evidence-manifest-v1"
+        }
+      ],
+      "red": "qualification/evidence/source-completion/S2-book-2.behavior.red.log",
+      "green": "qualification/evidence/source-completion/S2-book-2.behavior.green.log"
+    },
+    {
+      "task": "B2-029",
+      "dependsOn": [
+        "B2-028"
+      ],
+      "test": {
+        "path": "tests/inventory/book-2-contracts.test.mjs",
+        "assertion": "B2-029 pairwise compiler covers every value pair and preserves mandatory cases"
+      },
+      "implementation": [
+        {
+          "path": "lib/controls/scenarios/compile.mjs",
+          "symbol": "compileScenarios"
+        },
+        {
+          "path": "lib/controls/scenarios/pairwise.mjs",
+          "symbol": "pairwise"
+        },
+        {
+          "path": "lib/controls/scenarios/constraints.mjs",
+          "symbol": "applyConstraints"
+        },
+        {
+          "path": "schemas/controls/scenario-template-v1.schema.json",
+          "symbol": "nemesis-scenario-template-v1"
+        },
+        {
+          "path": "schemas/controls/scenario-matrix-v1.schema.json",
+          "symbol": "nemesis-scenario-matrix-v1"
+        }
+      ],
+      "red": "qualification/evidence/source-completion/S2-book-2.behavior.red.log",
+      "green": "qualification/evidence/source-completion/S2-book-2.behavior.green.log"
+    },
+    {
+      "task": "B2-030",
+      "dependsOn": [
+        "B2-029"
+      ],
+      "test": {
+        "path": "tests/inventory/book-2-contracts.test.mjs",
+        "assertion": "B2-030 product inspection integrates topology controls capabilities and scenario artifacts"
+      },
+      "implementation": [
+        {
+          "path": "lib/core/inspect-product.mjs",
+          "symbol": "inspectProduct"
+        },
+        {
+          "path": "lib/core/plan-stages/product-topology.mjs",
+          "symbol": "productTopologyStage"
+        },
+        {
+          "path": "lib/core/plan-stages/control-baseline.mjs",
+          "symbol": "controlBaselineStage"
+        },
+        {
+          "path": "lib/cli/commands/inspect.mjs",
+          "symbol": "runInspect"
+        },
+        {
+          "path": "lib/cli/commands/targets.mjs",
+          "symbol": "runTargets"
+        },
+        {
+          "path": "lib/cli/commands/components.mjs",
+          "symbol": "runComponents"
+        },
+        {
+          "path": "lib/cli/commands/stacks.mjs",
+          "symbol": "runStacks"
+        },
+        {
+          "path": "lib/cli/commands/controls.mjs",
+          "symbol": "runControls"
+        },
+        {
+          "path": "scripts/qualify-book-2.mjs",
+          "symbol": "qualifyBook"
+        }
+      ],
+      "red": "qualification/evidence/source-completion/S2-book-2.behavior.red.log",
+      "green": "qualification/evidence/source-completion/S2-book-2.behavior.green.log"
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "qualification/book-2.json",
+      "digest": "sha256:431e9c0858d37b341f981bb9f135782144df47f602a5b460d84e013cc1e85f9c",
+      "bytes": 72602
+    },
+    {
+      "path": "qualification/book-2-artifacts/gate-result.json",
+      "digest": "sha256:265a4f9357facae25c18d06fc78995133bcfb2a46af54fd620250f9e126db3fc",
+      "bytes": 4150
+    },
+    {
+      "path": "schemas/qualification/book-qualification-v2.schema.json",
+      "digest": "sha256:ee385dcd4fd6b83ba500123f7e5e1a13437ba2129ae29b9e8c104e4b247eb8f7",
+      "bytes": 5455
+    },
+    {
+      "path": "scripts/qualify-book.mjs",
+      "digest": "sha256:ae426c2d96d477ee176850e40eb4344737d50f657f7ecdea1d9fb77da23a4f2b",
+      "bytes": 4875
+    },
+    {
+      "path": "lib/qualification/book-receipt.mjs",
+      "digest": "sha256:a2a280b454f2b62d9207e16bf5fce66dcb9fa7901fd5d785107e8c6ec7b2510c",
+      "bytes": 5949
+    },
+    {
+      "path": "qualification/evidence/source-completion/S2-book-2.behavior.red.log",
+      "digest": "sha256:f6924f88c81acbfe813e0420b3377af44a64c01cacc679e19d757c9b02cf2233",
+      "bytes": 24041
+    },
+    {
+      "path": "qualification/evidence/source-completion/S2-book-2.behavior.green.log",
+      "digest": "sha256:fff10c30bd40d7648153b29eca6ec26d2d3570586bd00b39c89a7329a3f4245e",
+      "bytes": 3118
+    },
+    {
+      "path": "qualification/evidence/source-completion/S2-book-2.qualification.green.log",
+      "digest": "sha256:07e1ace388e42e29443113a38bb521ff991efab058306955a9cf4e499f7cc899",
+      "bytes": 287
+    },
+    {
+      "path": "qualification/evidence/source-completion/S2-book-2.gate.corrected.log",
+      "digest": "sha256:60befcb9b20e4166c54861a4c2f0eedcaac3f06bef3d9f8e930c1f28cc743d6b",
+      "bytes": 3845
+    }
+  ],
+  "externalBlockers": [
+    {
+      "id": "creator-source-rights",
+      "kind": "source-rights",
+      "state": "external-evidence-required",
+      "affects": "source-derived controls and public distribution",
+      "detail": "Three creator source documents are absent; seed metadata preserves 300 items but rights remain unresolved and no controls were derived."
+    },
+    {
+      "id": "platform-checklist-rights",
+      "kind": "source-rights",
+      "state": "external-evidence-required",
+      "affects": "source-derived platform controls and public distribution",
+      "detail": "Supplied desktop, mobile, and web checklist bytes are digest-pinned internally; rights remain unresolved and no controls were derived."
+    }
+  ]
+}

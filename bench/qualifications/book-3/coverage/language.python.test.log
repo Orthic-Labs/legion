@@ -1,0 +1,17 @@
+✔ python pack detects py extensions (0.6453ms)
+✔ python pack separates type-check from lint coverage (0.2674ms)
+✔ python pack normalizes and reports command failures as gaps (0.1298ms)
+✔ django pack flags debug and csrf bypass (0.3519ms)
+✔ django pack flags raw ORM SQL (0.1156ms)
+✔ django pack stays clean for safe code (0.4356ms)
+✔ fastapi pack flags open CORS and missing response model (0.3292ms)
+✔ flask pack flags debug and secret fallback (0.2986ms)
+✔ sqlalchemy pack flags raw SQL and missing tenant filter (0.2876ms)
+ℹ tests 9
+ℹ suites 0
+ℹ pass 9
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 70.5947

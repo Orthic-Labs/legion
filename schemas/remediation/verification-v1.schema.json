@@ -1,0 +1,119 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://orthic.dev/schemas/remediation/verification-v1.json",
+  "title": "RemediationVerificationV1",
+  "type": "object",
+  "required": [
+    "schemaVersion",
+    "kind",
+    "proposalId",
+    "patchDigest",
+    "effectGraphDigest",
+    "verifiedBy",
+    "verifier",
+    "producer",
+    "trustedProducerAssertions",
+    "providersChecked",
+    "gatesChecked",
+    "coverageGaps",
+    "valid",
+    "binding",
+    "digest"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": 1
+    },
+    "kind": {
+      "const": "nemesis-remediation-verification"
+    },
+    "proposalId": {
+      "type": "string"
+    },
+    "patchDigest": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "effectGraphDigest": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "verifiedBy": {
+      "const": "neutral-verification"
+    },
+    "verifier": {
+      "type": "object",
+      "required": [
+        "id",
+        "contextId"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "contextId": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "producer": {
+      "type": "object",
+      "required": [
+        "id",
+        "contextId"
+      ],
+      "properties": {
+        "id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "contextId": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "trustedProducerAssertions": {
+      "const": false
+    },
+    "providersChecked": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "gatesChecked": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "coverageGaps": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    },
+    "valid": {
+      "type": "boolean"
+    },
+    "binding": {
+      "type": "object"
+    },
+    "digest": {
+      "type": "string",
+      "pattern": "^sha256:"
+    }
+  },
+  "additionalProperties": false
+}

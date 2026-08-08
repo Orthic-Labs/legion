@@ -254,6 +254,7 @@ export function auditVisualArtifacts({ root, spec }) {
     ],
   };
 }
+export function analyze({root,artifacts}={}){const spec=artifacts?.visualSpec;if(!spec)return{status:'unproven',complete:false,denominator:{kind:'visual-artifacts',expected:0,examined:0},findings:[],coverageGaps:[{kind:'visual-spec-missing'}]};const result=auditVisualArtifacts({root,spec});return{status:result.status,complete:result.complete,denominator:{kind:'visual-artifacts',expected:result.coverage?.cases?.length??0,examined:result.captures?.length??0},findings:result.findings,coverageGaps:result.coverageGaps};}
 
 function main() {
   const [rootArg, specPath, outPath] = process.argv.slice(2);

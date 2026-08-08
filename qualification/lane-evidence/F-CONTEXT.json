@@ -1,0 +1,23 @@
+{
+  "lane": "F-CONTEXT",
+  "tasks": [
+    {
+      "id": "DISPATCH-12",
+      "status": "implemented",
+      "test": {
+        "path": "packages/context/tests/context.test.mjs",
+        "assertion": "Packet digest, frozen receipt shape, Cortex binding degradation, capability absence, and revision invalidation are observable."
+      },
+      "implementation": [
+        {
+          "path": "packages/context/lib/context.mjs",
+          "symbol": "assembleContextPacket/createContextReceipt/bindCortexProjection/createCapabilityReport"
+        }
+      ],
+      "proof": {
+        "red": "qualification/evidence/lanes/F-CONTEXT/DISPATCH-12.red.log",
+        "green": "qualification/evidence/lanes/F-CONTEXT/DISPATCH-12.green.log"
+      }
+    }
+  ]
+}

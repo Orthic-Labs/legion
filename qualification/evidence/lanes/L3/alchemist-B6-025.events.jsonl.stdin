@@ -1,0 +1,4 @@
+<task>Fix B6-025 graph validation in D:\Claude\tools\skills\nemesis\providers\narrative\chronology.mjs only.</task>
+<acceptance_criteria>Duplicate narrative unit IDs emit deterministic narrative.chronology.duplicate-unit-id findings. Evidence-backed attribution edges with different expectedSourceId and observedSourceId emit deterministic narrative.chronology.false-attribution findings and forbidden alternate-order evidence. Existing cold-open, chronology, antecedent, causality behavior stays green. Reviewer booleans remain ignored.</acceptance_criteria>
+<non_goals>Do not edit tests, registry, schemas, logs, lane evidence, or any other file. Preserve unrelated dirty work. Do not run git commands. No dependency changes.</non_goals>
+<verification>From D:\Claude\tools\skills\nemesis run: node --test --test-name-pattern="B6-025" tests/content-l3.test.mjs ; node --check providers/narrative/chronology.mjs</verification>

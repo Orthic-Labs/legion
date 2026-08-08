@@ -1,0 +1,34 @@
+✔ B4-022 records clean-machine capability gap without simulating installer success (0.8452ms)
+✔ B4-022 fails unsafe rollback & rejects non-isolated destructive targets (0.5971ms)
+✖ B4-022 cannot pass zero lifecycle scenarios or caller-only signing booleans (1.653ms)
+ℹ tests 3
+ℹ suites 0
+ℹ pass 2
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 103.7934
+
+✖ failing tests:
+
+test at tests\platform\desktop\installer\installer.test.mjs:20:1
+✖ B4-022 cannot pass zero lifecycle scenarios or caller-only signing booleans (1.653ms)
+  AssertionError [ERR_ASSERTION]: Expected "actual" to be strictly unequal to:
+  
+  'pass'
+      at TestContext.<anonymous> (file:///D:/Claude/tools/skills/nemesis/tests/platform/desktop/installer/installer.test.mjs:22:10)
+      at Test.runInAsyncScope (node:async_hooks:226:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'pass',
+    expected: 'pass',
+    operator: 'notStrictEqual',
+    diff: 'simple'
+  }
+RED_EXIT=1

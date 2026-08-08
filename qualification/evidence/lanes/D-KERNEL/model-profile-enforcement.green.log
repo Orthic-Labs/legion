@@ -1,0 +1,12 @@
+✔ model profile enforcement is data-driven and only downgrades (22.437ms)
+✔ profile policy requires complete coherent packet limits (4.0908ms)
+✔ model authority cannot request a profile change regardless of casing (0.6593ms)
+✔ policy downgrade is monotonic and preserves supplied policy limits (0.4537ms)
+ℹ tests 4
+ℹ suites 0
+ℹ pass 4
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 173.904

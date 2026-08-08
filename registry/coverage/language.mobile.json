@@ -1,0 +1,25 @@
+{
+  "id": "language.mobile",
+  "kind": "language",
+  "aliases": [],
+  "extensions": [],
+  "manifests": [],
+  "providers": [
+    "code.mobile"
+  ],
+  "limitations": [
+    "runtime and remediation unproven"
+  ],
+  "qualificationVersion": "1.0.0",
+  "corpusDigest": "sha256:d4b5bcdf77e377f4ce32c44fe46611aaa567155c71d18335e26111ce32fb9813",
+  "artifactDigest": "sha256:d4b5bcdf77e377f4ce32c44fe46611aaa567155c71d18335e26111ce32fb9813",
+  "tiers": {
+    "inventory": 1,
+    "parser": 1,
+    "native": 1,
+    "cross-file": 0,
+    "measured-pack": 1,
+    "runtime": 0,
+    "remediation": 0
+  }
+}

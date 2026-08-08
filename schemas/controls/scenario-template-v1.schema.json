@@ -1,1 +1,51 @@
-{"$schema":"https://json-schema.org/draft/2020-12/schema","type":"object","required":["id"],"properties":{"id":{"type":"string"}}}
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "nemesis-scenario-template-v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "controlId",
+    "mandatory",
+    "requiredCapabilities",
+    "destructive",
+    "isolation",
+    "timeoutMs",
+    "invariants"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "controlId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "mandatory": {
+      "type": "boolean"
+    },
+    "requiredCapabilities": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "uniqueItems": true
+    },
+    "destructive": {
+      "type": "boolean"
+    },
+    "isolation": {
+      "type": "string",
+      "minLength": 1
+    },
+    "timeoutMs": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "invariants": {
+      "type": "array"
+    }
+  }
+}

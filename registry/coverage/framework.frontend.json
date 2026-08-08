@@ -1,0 +1,25 @@
+{
+  "id": "framework.frontend",
+  "kind": "framework",
+  "aliases": [],
+  "extensions": [],
+  "manifests": [],
+  "providers": [
+    "framework.frontend"
+  ],
+  "limitations": [
+    "runtime unproven"
+  ],
+  "qualificationVersion": "1.0.0",
+  "corpusDigest": "sha256:35da212770c442fffbe58cd7d79cc50c596bdeff9784e93a71b4efd746006fde",
+  "artifactDigest": "sha256:35da212770c442fffbe58cd7d79cc50c596bdeff9784e93a71b4efd746006fde",
+  "tiers": {
+    "inventory": 1,
+    "parser": 1,
+    "native": 1,
+    "cross-file": 1,
+    "measured-pack": 1,
+    "runtime": 0,
+    "remediation": 0
+  }
+}

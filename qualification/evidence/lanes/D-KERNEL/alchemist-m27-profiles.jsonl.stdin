@@ -1,0 +1,4 @@
+<task>Complete DISPATCH-10 model-profile enforcement plumbing lane against current bytes.</task>
+<acceptance_criteria>Only frozen strict/standard/advanced profiles load; complete packet limits are validated and exposed as policy data; downgrade is monotonic, one-step, evidence/policy-driven, and strict remains strict; model-requested change fails typed authority error; malformed policy fails typed error; focused tests pass.</acceptance_criteria>
+<non_goals>OWN only packages/kernel/lib/profiles.mjs and optional packages/kernel/tests/profiles.test.mjs. Do not edit index, contracts, shared tests, evidence fragment/logs, docs, git, dependencies, or unrelated dirt.</non_goals>
+<verification>node --test D:\Claude\tools\skills\nemesis\packages\kernel\tests\profiles.test.mjs; node --check D:\Claude\tools\skills\nemesis\packages\kernel\lib\profiles.mjs</verification>

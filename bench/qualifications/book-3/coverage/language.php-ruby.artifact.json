@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "kind": "nemesis-coverage-test-artifact",
+  "recordId": "language.php-ruby",
+  "testPath": "tests/providers/php-ruby/php-ruby.test.mjs",
+  "status": "pass",
+  "rawLog": {
+    "path": "bench/qualifications/book-3/coverage/language.php-ruby.test.log",
+    "digest": "sha256:4cf76d0fe980475d74deebdbaff22da6fba06528d2bcec8173c824e0f5dd92a3",
+    "bytes": 606
+  },
+  "providerVersions": {
+    "code.php-ruby": "1.0.0"
+  }
+}

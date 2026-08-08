@@ -1,0 +1,34 @@
+NOTE: browser-client.mjs pre-existed this test (written before a tool-gate interruption); this is the first execution of the new test file against the full implementation, not a true red/no-implementation baseline.
+✔ registry rule ids match browser-client and http-protocol-cache pack rule ids exactly, in both directions (1.9792ms)
+✔ neither pack imports or references a live network module (1.1207ms)
+✔ browser-client flags a cookie-session state-changing route with no CSRF token check (3.4868ms)
+✔ browser-client stays clean when a CSRF token check is present (0.6798ms)
+✔ browser-client flags SameSite=None without Secure, and a session cookie with no SameSite at all (0.4208ms)
+✔ browser-client flags Access-Control-Allow-Origin: * combined with Access-Control-Allow-Credentials: true (0.3794ms)
+✔ browser-client flags a reflected Origin header with no allowlist check (0.3192ms)
+✔ browser-client flags missing frame protection and missing CSP as capped defense-in-depth without deployment evidence (0.4684ms)
+✔ browser-client is clean when X-Frame-Options and a strict CSP are both present (0.2913ms)
+✔ browser-client flags CSP unsafe-inline, unsafe-eval, and wildcard sources, all capped as defense-in-depth (0.6324ms)
+✔ browser-client flags an unvalidated redirect target and an unvalidated OAuth redirect_uri (0.3645ms)
+✔ browser-client stays clean when redirect and OAuth targets are allowlisted (0.3405ms)
+✔ http-protocol-cache flags a plain HTTP server with no HTTPS enforcement (1.4332ms)
+✔ http-protocol-cache keeps runtime and source disagreement visible instead of silently resolving it (0.5314ms)
+✔ http-protocol-cache is clean when the runtime header matches a compliant source header (0.1944ms)
+✔ http-protocol-cache proxy-trust candidates cite the exact file, line, and config key (0.3599ms)
+✔ http-protocol-cache flags a publicly cacheable authenticated route and stays clean with no-store (1.1643ms)
+✔ http-protocol-cache flags conflicting Content-Length/Transfer-Encoding as a request-smuggling precondition only (0.4184ms)
+✔ http-protocol-cache flags a naive first-hop split of a forwarded header as an ambiguous proxy chain (0.2727ms)
+✔ http-protocol-cache flags a text response Content-Type with no charset (0.2331ms)
+✔ http-protocol-cache: missing deployment evidence caps every deployment-aware candidate at medium and records an explicit assumption (0.526ms)
+✔ browser-client: missing deployment evidence never exceeds medium for header-based claims (0.1795ms)
+✔ both packs stay fully clean on a mitigated fixture: CSRF token, SameSite=Strict+Secure, strict CSP, frame protection, HSTS, nosniff, and no-store on an authenticated route (0.2242ms)
+✔ every candidate from both packs is adjudication-only, cites evidence, and never carries a final verdict (0.6604ms)
+✔ variantStrategies enumerate route and configuration variants for representative rules in both packs (0.3018ms)
+ℹ tests 25
+ℹ suites 0
+ℹ pass 25
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 125.8588

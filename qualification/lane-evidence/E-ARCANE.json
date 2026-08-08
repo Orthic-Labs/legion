@@ -1,0 +1,212 @@
+{
+  "lane": "E-ARCANE",
+  "dispatch": "docs/plans/legion/dispatches/DISPATCH-11-arcane.md",
+  "package": "tools/skills/nemesis/packages/arcane/",
+  "rerun": "node --test packages/arcane/tests/*.test.mjs",
+  "gate2": "LIVE",
+  "gate2Proof": "packages/arcane/tests/s07-gate2-integration.test.mjs",
+  "tasks": [
+    {
+      "id": "FOUNDATION",
+      "status": "implemented",
+      "note": "Shared primitives every other deliverable builds on. lib/validate.mjs deliberately REUSES the repo's existing lib/qualification/schema-validator.mjs (46 lines, zero deps) rather than adding a second JSON Schema walker; it adds only date-time format checking, $defs targeting, and typed errors.",
+      "implementation": [
+        { "path": "packages/arcane/lib/errors.mjs", "symbol": "ArcaneError, decision, ARCANE_ERROR_CODE, ENFORCEMENT_LEVEL" },
+        { "path": "packages/arcane/lib/canonical.mjs", "symbol": "canonicalJson, digest, digestValue, constantTimeEqual, projectBoundFields" },
+        { "path": "packages/arcane/lib/ids.mjs", "symbol": "ulid, mintId, isId, assertId, ID_PATTERN" },
+        { "path": "packages/arcane/lib/validate.mjs", "symbol": "loadSchema, validateAgainst, validateAgainstDef, assertValid" },
+        { "path": "packages/arcane/lib/kernel-binding.mjs", "symbol": "bindKernel, kernelStatus, mintId, appendEvent, readObject, putObject" },
+        { "path": "packages/arcane/index.mjs", "symbol": "package entry point" }
+      ],
+      "proof": { "red": null, "green": "covered transitively by every suite below; no standalone test file" }
+    },
+    {
+      "id": "S01",
+      "status": "implemented",
+      "summary": "Forge->Legion schema/operation mapping + runtime bridge over the real S00 fixtures.",
+      "test": {
+        "path": "packages/arcane/tests/s01-bridge.test.mjs",
+        "assertion": "17 tests: every S00 record type mapped; zero unresolved items; every trust-bearing field is canonical-with-target or rejected-with-sourced-reason; real fixture 08 bridges to valid legacy-envelope-v1 records with provenance.authenticated===false; payloads preserved byte-for-byte; reversible; deterministic; no private id allocator while the Kernel is unbound; the bridge holds no allow/deny logic."
+      },
+      "implementation": [
+        { "path": "packages/arcane/lib/legacy-bridge.mjs", "symbol": "envelopeFor, bridgeStoreSnapshot, bridgeOperationResponse, migrationDryRun, parityReport, reverseEnvelope" },
+        { "path": "packages/arcane/compatibility/forge/schema-map.json", "symbol": "the schema-map.json S00 deferred — 12 record types, 151 fields dispositioned, unresolved: []" },
+        { "path": "packages/arcane/compatibility/forge/operation-map.json", "symbol": "10 legacy operation surfaces -> canonical operation identity" },
+        { "path": "packages/arcane/compatibility/forge/parity-report.json", "symbol": "generated: canonical 50 / compatibility-only 84 / deprecated 1 / rejected 16" },
+        { "path": "packages/arcane/compatibility/forge/migration-dry-run.json", "symbol": "generated: 23 source records -> 23 envelopes, 0 authenticated, reversible" }
+      ],
+      "proof": {
+        "red": "qualification/evidence/lanes/E-ARCANE/S01-bridge.red.log",
+        "green": "qualification/evidence/lanes/E-ARCANE/S01-bridge.green.log"
+      },
+      "findingsClosed": ["S00 finding 1 (signature_or_mac rejected, never adapted)", "S00 finding 5 (checks.status / checks.receipt rejected on import)"]
+    },
+    {
+      "id": "S02",
+      "status": "implemented",
+      "summary": "Policy bundle + kernel-asserted authority boundary. Reconciles EFFECT_CLASS (SEAL Q4).",
+      "test": {
+        "path": "packages/arcane/tests/s02-policy.test.mjs",
+        "assertion": "26 tests: bundle covers every frozen EFFECT_CLASS; unknown field -> ARC_POLICY_UNKNOWN_FIELD failClosed; malformed -> ARC_POLICY_MALFORMED failClosed; editing the bundle flips runtime behavior with no code change; unruled effect refused by name rather than bucketed; model payload cannot set authority; connection-level trust cannot claim perMessage:true; adapters hold no divergent allow/deny logic."
+      },
+      "implementation": [
+        { "path": "packages/arcane/lib/policy.mjs", "symbol": "loadPolicy, PolicyEngine, failClosedEngine, policyDuplicationAudit, EFFECT_CLASS_RECONCILIATION" },
+        { "path": "packages/arcane/lib/authority.mjs", "symbol": "AuthorityLedger, requireAuthority, extractAuthorityFromPayload" },
+        { "path": "packages/arcane/policy/arcane-policy-v1.json", "symbol": "the shipped bundle" },
+        { "path": "packages/arcane/policy/policy-bundle-v1.schema.json", "symbol": "closed schema — additionalProperties:false throughout is the fail-closed mechanism" }
+      ],
+      "proof": {
+        "red": "qualification/evidence/lanes/E-ARCANE/S02-policy.red.log",
+        "green": "qualification/evidence/lanes/E-ARCANE/S02-policy.green.log"
+      }
+    },
+    {
+      "id": "S03",
+      "status": "implemented",
+      "summary": "Real authentication (HMAC-SHA256, host-held key), replay defense, append-only receipt store, capability store.",
+      "test": {
+        "path": "packages/arcane/tests/s03-keys.test.mjs + s03-receipt-auth.test.mjs + s03-replay.test.mjs + s03-receipt-store.test.mjs",
+        "assertion": "60 tests. Negative coverage: forged MAC, altered signed data, shrunken bound-field list re-signed, legacy signature_or_mac, missing key (failClosed), caller-selected authority, wrong run/session/workspace/operation binding, replayed nonce, sequence regression, stale + future-skew timestamps, expired/exhausted/revoked/unknown capability, tampered chain line, rewritten tail, truncated history."
+      },
+      "implementation": [
+        { "path": "packages/arcane/lib/keys.mjs", "symbol": "KeyRing, loadHostKeyRing, generateTestKeyRing" },
+        { "path": "packages/arcane/lib/receipt-auth.mjs", "symbol": "signRecord, verifyRecord, EFFECT_RECEIPT_BOUND_FIELDS, authenticationBlock, connectionTrustBlock" },
+        { "path": "packages/arcane/lib/replay.mjs", "symbol": "ReplayGuard, scopeKey" },
+        { "path": "packages/arcane/lib/receipt-store.mjs", "symbol": "ReceiptStore (append-only JSONL + prev-digest chain + head anchor + quarantine), CapabilityStore" },
+        { "path": "packages/arcane/KEY-CUSTODY.md", "symbol": "custody, rotation, revocation, same-user-shell threat model" }
+      ],
+      "proof": {
+        "red": "qualification/evidence/lanes/E-ARCANE/S03-{keys,receipt-auth,replay,receipt-store}.red.log",
+        "green": "qualification/evidence/lanes/E-ARCANE/S03-{keys,receipt-auth,replay,receipt-store}.green.log"
+      },
+      "findingsClosed": [
+        "S00 finding 1 — receipts now carry a real HMAC over an explicit, itself-authenticated bound-field list; the legacy self-hash is refused with ARC_AUTH_LEGACY_DIGEST rather than upgraded.",
+        "S00 finding 2 — per-message authentication exists (capability-signature, perMessage:true); connection-level trust is representable but structurally cannot claim perMessage:true.",
+        "S00 finding 3 — nonce + strictly monotonic per-scope sequence + freshness window + bounded skew, built greenfield since Forge had nothing to port."
+      ],
+      "reviewNotes": [
+        "TDD caveat, recorded honestly: replay.mjs and receipt-store.mjs were implemented before their tests in the subagent's pass. The red logs are genuine failing runs (implementation moved aside, real ERR_MODULE_NOT_FOUND captured) but do NOT demonstrate tests written blind to the implementation. keys.mjs and receipt-auth.mjs were strict test-first.",
+        "Lane-review finding (fixed): verifyChain() could not detect a rewritten tail entry or truncated history — a forward-only hash chain has nothing linking to its newest entry, so both attacks returned ok:true. Detailed plan §5.3 explicitly forbids truncating history for a green result, so this mattered. Added a head anchor (<root>/chain-head.json) written atomically on append and re-anchored on quarantine, plus three regression tests. HONEST LIMIT documented in code: the anchor shares the store's ownership, so it raises the bar against accidental truncation and careless tampering but is not a defence against the same-user adversary KEY-CUSTODY.md already places out of scope.",
+        "Documented limitation retained from the subagent: after quarantine(), verifyChain() does not re-validate chain continuity across the tombstone boundary (doing so would require rewriting appended history). It resumes strict verification immediately after the tombstone."
+      ]
+    },
+    {
+      "id": "S04",
+      "status": "implemented",
+      "summary": "Host-event ingestion: host-observed effects become receipts without model re-entry. Closes S00 finding 5.",
+      "test": {
+        "path": "packages/arcane/tests/s04-host-event.test.mjs + s04-ingest.test.mjs",
+        "assertion": "21 tests: closed host-event schema (unknown field -> ARC_HOST_EVENT_INVALID); model self-report -> ARC_MODEL_SELF_REPORT with nothing stored; the legacy attack (authority=host + non-empty receipt STRING) refused, a well-formed-but-forged envelope refused by verifyRecord, and a genuine receipt accepted as the positive control; idempotent duplicate delivery appends nothing; missing pre-effect correlation refused; unknown exit-0 command classifies as source-observation not check-candidate; file mutations classify as mutation-observation and never prove correctness; a trusted host check satisfies a criterion while the identical model-supplied payload cannot; observed mutation triggers invalidation; connection-level trust records host-connection-trust + perMessage:false."
+      },
+      "implementation": [
+        { "path": "packages/arcane/lib/host-event.mjs", "symbol": "HOST_EVENT_SCHEMA, validateHostEvent, normalizeHostEvent, classifyObservation, HOST_EVENT_BOUND_FIELDS" },
+        { "path": "packages/arcane/lib/ingest.mjs", "symbol": "HostIngestor" }
+      ],
+      "proof": {
+        "red": "qualification/evidence/lanes/E-ARCANE/S04-{host-event,ingest}.red.log",
+        "green": "qualification/evidence/lanes/E-ARCANE/S04-{host-event,ingest}.green.log"
+      },
+      "findingsClosed": [
+        "S00 finding 5 — authority='host' is necessary but never sufficient. A receipt must be a structurally valid S03 auth envelope AND verify under verifyRecord over HOST_EVENT_BOUND_FIELDS; the bare non-empty string Forge accepted is refused before verifyRecord is even reached. The only alternative path is an explicit connectionTrust assertion, which downgrades the receipt to host-connection-trust + perMessage:false rather than granting the strength it lacks."
+      ],
+      "reviewNotes": [
+        "Verified by MUTATION TESTING, not by reading the test: the lane owner reintroduced the exact legacy defect (accept any non-empty receipt string as trust) into #resolveHostTrust and confirmed the S00-finding-5 test goes red, then restored the file and re-confirmed 189/189. The test is not passing vacuously, and its positive control proves the negatives are not trivially satisfied.",
+        "Subagent-declared scaffolding, retained as stated: (a) HostIngestor accepts capabilityStore but does not deeply use it — capability expiry/consumption is enforced upstream at the pre-effect gate and is not re-checked here; (b) the 'policy does not recognize this effect class' classification branch is currently UNREACHABLE because the frozen 12-value EFFECT_CLASS is fully exhausted by the preceding branches — it activates only if the enum grows (e.g. the proposed FILE_READ); (c) dependencyLedger is an additive constructor parameter beyond the INTERFACES.md signature, needed to satisfy WP4 action 10; when omitted, invalidation is skipped rather than faked."
+      ]
+    },
+    {
+      "id": "S05",
+      "status": "implemented",
+      "summary": "Dependency-bound evidence envelope, transitive invalidation cascade (G11), batch migration receipt.",
+      "test": {
+        "path": "packages/arcane/tests/s05-evidence-envelope.test.mjs + s05-invalidation.test.mjs + s05-migration.test.mjs",
+        "assertion": "28 tests. Headline G11 cascade: changing a source revision stales A, cascades transitively to B, marks criterion unproven, invalidates claim eligibility, and lists unrelated evidence D as explicitly unaffected — with exactly one invalidation event emitted."
+      },
+      "implementation": [
+        { "path": "packages/arcane/lib/evidence-envelope.mjs", "symbol": "DEPENDENCY_DIMENSION (16), DEPENDENCY_KIND_PROJECTION, sealEvidence, importLegacyEvidence" },
+        { "path": "packages/arcane/lib/invalidation.mjs", "symbol": "DependencyLedger (register/link/observeChange/isStale/proofEligibility/markCorrupt)" },
+        { "path": "packages/arcane/lib/evidence-migration.mjs", "symbol": "migrateLegacyEvidence, verifyMigration" }
+      ],
+      "proof": {
+        "red": "qualification/evidence/lanes/E-ARCANE/S05-{evidence-envelope,invalidation,migration}.red.log",
+        "green": "qualification/evidence/lanes/E-ARCANE/S05-{evidence-envelope,invalidation,migration}.green.log"
+      },
+      "findingsClosed": [
+        "S00 finding 4 — lockfile/worktree/environment/method invalidation built as NEW work, not claimed as migrated. Forge had no cascade at all."
+      ],
+      "reviewNotes": [
+        "Independently re-verified by the lane owner beyond the subagent's own tests: cascade confirmed transitive at 3 levels (the shipped test proves 2); unaffected evidence correctly isolated; a legacy record asserting trust_class='tool'/attested=true is reduced to a payload digest, marked neverQualifying, and proofEligibility returns 'insufficient' for it; a legacy envelope claiming provenance.authenticated=true is refused with ARC_AUTH_LEGACY_DIGEST."
+      ]
+    },
+    {
+      "id": "D6",
+      "status": "implemented",
+      "summary": "The PRE-EFFECT GATE. Built by the lane owner, not a subagent, per dispatch.",
+      "test": {
+        "path": "packages/arcane/tests/s06-preeffect-gate.test.mjs",
+        "assertion": "26 tests: G2 (no contract -> ARC_NO_CONTRACT), G9 (open questions -> ARC_CONTRACT_NOT_EXECUTABLE), contract version + source-revision binding, path ownership incl. forbidden-beats-own and both paths of a FILE_MOVE, traversal cannot escape an owned prefix, effect-class authorization by contract then policy, EXACT/BOUNDED latitude against the contract's artifact units, capability failures, authority not asserted / model-claimed, and the §24a split: mutation fails closed while read-only continues with a recorded downgrade."
+      },
+      "implementation": [
+        { "path": "packages/arcane/lib/preeffect-gate.mjs", "symbol": "PreEffectGate, pathMatches, isMutating, MUTATING_EFFECT_CLASSES" }
+      ],
+      "proof": {
+        "red": "qualification/evidence/lanes/E-ARCANE/S06-preeffect-gate.red.log",
+        "green": "qualification/evidence/lanes/E-ARCANE/S06-preeffect-gate.green.log"
+      }
+    },
+    {
+      "id": "GATE-2",
+      "status": "implemented",
+      "summary": "Pre-effect gate + receipt store end-to-end. GATE 2 IS LIVE.",
+      "test": {
+        "path": "packages/arcane/tests/s07-gate2-integration.test.mjs",
+        "assertion": "11 tests using ONLY real modules (no test doubles): authority asserted -> policy-bound capability issued -> gate authorizes -> HMAC-signed receipt -> replay-checked -> appended -> chain independently verifies. Negative half: expired / exhausted / revoked / wrong-target capability, replayed nonce, tampered chain, model self-report, legacy signature_or_mac, and gate-down fail-closed with nothing written."
+      },
+      "implementation": [
+        { "path": "packages/arcane/tests/s07-gate2-integration.test.mjs", "symbol": "the Gate 2 proof itself" }
+      ],
+      "proof": {
+        "red": null,
+        "green": "qualification/evidence/lanes/E-ARCANE/S07-gate2-integration.green.log"
+      },
+      "reviewNotes": [
+        "No meaningful red log exists for this entry and none was fabricated: it is an integration test written over modules that were already green individually. Its first run did fail (a `require` in an ESM file), but that was an authoring bug in the test, not an absent implementation, so it is not TDD red evidence.",
+        "Integration bug found and fixed during this wiring: PreEffectGate passed `now` to CapabilityStore.check as epoch millis, while that method compares it against an ISO `expiresAt` with `>=`. A number-vs-string comparison is always false, so capability expiry silently never fired through the gate. Normalized at the seam and locked with a named regression test."
+      ]
+    }
+  ],
+  "blockers": [],
+  "proposedContractAmendments": [
+    {
+      "id": "AMD-E1",
+      "target": "packages/contracts/enums.mjs EFFECT_CLASS (SEAL Q4, assigned to this lane)",
+      "type": "additive",
+      "proposal": "Add FILE_READ, CREDENTIAL_WRITE, PROCESS_KILL.",
+      "rationale": "FILE_READ is the load-bearing one: ARCHITECTURE §24a says read-only operations may continue when the gate is unavailable, but with no read class 'read-only' is not representable in an effect request, so the gate cannot distinguish what may continue from what must fail closed, and execution-contract-v1.scope.read[] has no effect class to check against. CREDENTIAL_ACCESS conflates reading a secret with rotating/revoking one, which is why the shipped bundle must deny it wholesale. PROCESS_KILL mutates live system state and is not a PROCESS_SPAWN.",
+      "impact": "Additive only. No existing value changes meaning, so evidence bound to the current digest stays valid. effect-request-v1, effect-receipt-v1, and execution-contract-v1.authorizedEffectClasses all inline the same enum and inherit automatically.",
+      "detail": "packages/arcane/lib/policy.mjs EFFECT_CLASS_RECONCILIATION"
+    },
+    {
+      "id": "AMD-E2",
+      "target": "packages/contracts/schemas/evidence-capability-receipt-v1.schema.json dependsOn[].kind",
+      "type": "additive",
+      "proposal": "Add a 7th kind 'dimension-digest' with a sibling 'dimension' field drawn from the full DEPENDENCY_DIMENSION set.",
+      "rationale": "The detailed plan §6.2 requires 16 invalidation dimensions; the frozen enum has 6 buckets, and 9 of the 16 have no faithful projection (worktree-dirty, lockfile-version, schema-version, fixture-digest, environment, method-fingerprint, topology, approval-authority, upstream-contract-revision). The lossless triple is kept on the Arcane-side envelope today, but the receipt loses dimension precision.",
+      "impact": "Additive. Existing 6 kinds untouched for callers that do not need dimension-level precision.",
+      "detail": "packages/arcane/lib/evidence-envelope.mjs"
+    },
+    {
+      "id": "AMD-E3",
+      "target": "packages/contracts/enums.mjs AUTHENTICATION_METHOD (SEAL Q6, assigned to this lane)",
+      "type": "confirmation",
+      "proposal": "Keep the three reserved values as-is: host-connection-trust | capability-signature | unauthenticated.",
+      "rationale": "S03 designed and built the real authentication, and the three values turned out to be exactly the three states the implementation can actually be in: a verified per-message HMAC (capability-signature), inherited connection-level trust that structurally cannot claim perMessage:true (host-connection-trust), and everything legacy (unauthenticated, pinned by legacy-envelope-v1.provenance.authenticated const:false). No fourth state arose. FREEZE.md open question 6 asked for this to be treated as provisional until S03 existed — S03 now exists and confirms it.",
+      "impact": "None. This resolves a reserved slot rather than changing it."
+    }
+  ],
+  "kernelDependency": {
+    "status": "unlanded at time of writing",
+    "note": "packages/kernel/ does not exist. Per dispatch line 29 the S01 mapping was built statically and the store binding stubbed with a typed note. lib/kernel-binding.mjs is the single seam: with no Kernel bound, canonical writes fail closed with ARC_KERNEL_PRIMITIVE_UNAVAILABLE and minted ids are flagged provisional rather than being passed off as Kernel-issued. Arcane maintains no private ID allocator (S01 action 2). Only bindKernel() changes when Lane D lands.",
+    "arcaneReceiptStoreIsNotASecondAuthority": "packages/arcane/lib/receipt-store.mjs is the Arcane namespace's local journal, designed to be re-parented onto the Kernel event store by swapping the binding — not a competing state root (detailed plan §5.1)."
+  }
+}

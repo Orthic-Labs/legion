@@ -1,0 +1,130 @@
+node:internal/modules/esm/resolve:272
+    throw new ERR_MODULE_NOT_FOUND(
+          ^
+
+Error [ERR_MODULE_NOT_FOUND]: Cannot find module 'D:\Claude\tools\skills\nemesis\packages\context\lib\context.mjs' imported from D:\Claude\tools\skills\nemesis\packages\context\tests\context.test.mjs
+    at finalizeResolution (node:internal/modules/esm/resolve:272:11)
+    at moduleResolve (node:internal/modules/esm/resolve:879:10)
+    at defaultResolve (node:internal/modules/esm/resolve:1006:11)
+    at #cachedDefaultResolve (node:internal/modules/esm/loader:708:20)
+    at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:728:38)
+    at ModuleLoader.resolveSync (node:internal/modules/esm/loader:766:56)
+    at #resolve (node:internal/modules/esm/loader:690:17)
+    at ModuleLoader.getOrCreateModuleJob (node:internal/modules/esm/loader:610:35)
+    at ModuleJob.syncLink (node:internal/modules/esm/module_job:277:33)
+    at ModuleJob.link (node:internal/modules/esm/module_job:389:17) {
+  code: 'ERR_MODULE_NOT_FOUND',
+  url: 'file:///D:/Claude/tools/skills/nemesis/packages/context/lib/context.mjs'
+}
+
+Node.js v26.5.0
+✖ packages\context\tests\context.test.mjs (97.1259ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 106.4247
+
+✖ failing tests:
+
+test at packages\context\tests\context.test.mjs:1:1
+✖ packages\context\tests\context.test.mjs (97.1259ms)
+  'test failed'
+
+--- second RED: frozen receipt validator + typed Crypt absence ---
+file:///D:/Claude/tools/skills/nemesis/packages/context/tests/context.test.mjs:10
+  createUnavailableContextAdapter,
+  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+SyntaxError: The requested module '../lib/context.mjs' does not provide an export named 'createUnavailableContextAdapter'
+    at #asyncInstantiate (node:internal/modules/esm/module_job:463:21)
+    at async ModuleJob.run (node:internal/modules/esm/module_job:561:5)
+    at async node:internal/modules/esm/loader:650:26
+    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:101:5)
+
+Node.js v26.5.0
+✖ packages\context\tests\context.test.mjs (82.3633ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 88.8911
+
+✖ failing tests:
+
+test at packages\context\tests\context.test.mjs:1:1
+✖ packages\context\tests\context.test.mjs (82.3633ms)
+  'test failed'
+
+--- review RED: exact content digest + routed receipt consumer ---
+✖ assembles a structurally valid, digest-bound context packet (5.2471ms)
+✔ binds only a matching precomputed Cortex projection (6.2841ms)
+✔ revision change invalidates packet and evidence-capability receipt (2.4548ms)
+✔ reports capability degradation without silent upgrades (0.6603ms)
+✔ Crypt interface remains a typed absence without live access (0.7108ms)
+ℹ tests 5
+ℹ suites 0
+ℹ pass 4
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 178.5579
+
+✖ failing tests:
+
+test at packages\context\tests\context.test.mjs:39:1
+✖ assembles a structurally valid, digest-bound context packet (5.2471ms)
+  AssertionError [ERR_ASSERTION]: Missing expected exception.
+      at TestContext.<anonymous> (file:///D:/Claude/tools/skills/nemesis/packages/context/tests/context.test.mjs:47:10)
+      at Test.runInAsyncScope (node:async_hooks:226:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.start (node:internal/test_runner/test:1242:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:387:17) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: /consumer/,
+    operator: 'throws',
+    diff: 'simple'
+  }
+
+--- corrected review RED: exact content digest ---
+✖ assembles a structurally valid, digest-bound context packet (2.9025ms)
+✔ binds only a matching precomputed Cortex projection (5.9515ms)
+✔ revision change invalidates packet and evidence-capability receipt (2.2066ms)
+✔ reports capability degradation without silent upgrades (0.4259ms)
+✔ Crypt interface remains a typed absence without live access (0.3496ms)
+ℹ tests 5
+ℹ suites 0
+ℹ pass 4
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 120.1396
+
+✖ failing tests:
+
+test at packages\context\tests\context.test.mjs:39:1
+✖ assembles a structurally valid, digest-bound context packet (2.9025ms)
+  AssertionError [ERR_ASSERTION]: Expected "actual" to be strictly unequal to:
+  
+  'sha256:bf40ff17df080654b62c0d93d1d37207566eb59a30c5d08677a7b90e7067567c'
+      at TestContext.<anonymous> (file:///D:/Claude/tools/skills/nemesis/packages/context/tests/context.test.mjs:47:10)
+      at Test.runInAsyncScope (node:async_hooks:226:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.start (node:internal/test_runner/test:1242:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:387:17) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'sha256:bf40ff17df080654b62c0d93d1d37207566eb59a30c5d08677a7b90e7067567c',
+    expected: 'sha256:bf40ff17df080654b62c0d93d1d37207566eb59a30c5d08677a7b90e7067567c',
+    operator: 'notStrictEqual',
+    diff: 'simple'
+  }

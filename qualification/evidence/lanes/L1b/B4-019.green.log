@@ -1,0 +1,7 @@
+✔ B4-019 requires hostile/recovery file evidence & source-preserving migrations
+✔ B4-019 rejects empty denominators & executes required cases through host
+✔ B4-019 blocks migration failure that cannot prove source preservation
+ℹ tests 3
+ℹ pass 3
+ℹ fail 0
+GREEN_EXIT=0
