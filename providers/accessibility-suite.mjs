@@ -75,3 +75,4 @@ export function runAccessibilitySuite({ root, files }) {
     findings, receipts: [], coverageGaps: [], degradation: [],
   };
 }
+export function analyze({root,projection}={}){const result=runAccessibilitySuite({root,files:(projection?.files??[]).map((file)=>file.path??file)});const zero=result.coverage.expectedFiles===0;return{status:zero?'unproven':result.status,complete:!zero&&result.complete,denominator:{kind:'accessibility-source-files',expected:result.coverage.expectedFiles,examined:result.coverage.scannedFiles},findings:result.findings,coverageGaps:zero?[{kind:'accessibility-denominator-zero'}]:result.coverageGaps};}

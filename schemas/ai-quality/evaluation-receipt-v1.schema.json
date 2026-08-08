@@ -1,0 +1,313 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://orthic.dev/schemas/ai-quality/evaluation-receipt-v1.json",
+  "title": "AiQualityEvaluationReceiptV1",
+  "type": "object",
+  "required": [
+    "schemaVersion",
+    "kind",
+    "id",
+    "metric",
+    "metricVersion",
+    "verdict",
+    "modelIdentity",
+    "promptIdentity",
+    "datasetVersion",
+    "runConditions",
+    "judgeIdentity",
+    "denominator",
+    "measurement",
+    "limitations",
+    "uncertainty",
+    "evidenceRefs",
+    "binding"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": 1
+    },
+    "kind": {
+      "const": "ai-quality-evaluation-receipt"
+    },
+    "id": {
+      "type": "string",
+      "pattern": "^sha256:"
+    },
+    "metric": {
+      "enum": [
+        "declared-task-eval",
+        "groundedness",
+        "citation-faithfulness",
+        "retrieval-relevance",
+        "structured-output-validity",
+        "tool-selection-argument-correctness",
+        "uncertainty-abstention-calibration",
+        "refusal-fallback",
+        "context-truncation",
+        "prompt-robustness",
+        "model-provider-version-drift",
+        "reproducibility",
+        "latency",
+        "cost",
+        "human-override",
+        "feedback-loop",
+        "subgroup-fairness"
+      ]
+    },
+    "metricVersion": {
+      "type": "string"
+    },
+    "verdict": {
+      "enum": [
+        "pass",
+        "fail",
+        "review-required",
+        "unproven"
+      ]
+    },
+    "modelIdentity": {
+      "type": "object",
+      "required": [
+        "provider",
+        "model",
+        "version"
+      ],
+      "properties": {
+        "provider": {
+          "type": "string"
+        },
+        "model": {
+          "type": "string"
+        },
+        "version": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": true
+    },
+    "promptIdentity": {
+      "type": "object",
+      "required": [
+        "templateId",
+        "templateVersion",
+        "promptDigest"
+      ],
+      "properties": {
+        "templateId": {
+          "type": "string"
+        },
+        "templateVersion": {
+          "type": "string"
+        },
+        "promptDigest": {
+          "type": "string",
+          "pattern": "^sha256:"
+        }
+      },
+      "additionalProperties": true
+    },
+    "retrievalToolConfig": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "retrieverId": {
+              "type": "string"
+            },
+            "retrieverConfigDigest": {
+              "oneOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "type": "string",
+                  "pattern": "^sha256:"
+                }
+              ]
+            },
+            "toolsetId": {
+              "type": "string"
+            },
+            "toolsetConfigDigest": {
+              "oneOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "type": "string",
+                  "pattern": "^sha256:"
+                }
+              ]
+            }
+          },
+          "additionalProperties": true
+        }
+      ]
+    },
+    "datasetVersion": {
+      "type": "object",
+      "required": [
+        "datasetId",
+        "version",
+        "digest"
+      ],
+      "properties": {
+        "datasetId": {
+          "type": "string"
+        },
+        "version": {
+          "type": "string"
+        },
+        "digest": {
+          "type": "string",
+          "pattern": "^sha256:"
+        }
+      },
+      "additionalProperties": true
+    },
+    "runConditions": {
+      "type": "object",
+      "required": [
+        "runId",
+        "environment"
+      ],
+      "properties": {
+        "runId": {
+          "type": "string"
+        },
+        "environment": {
+          "type": "string"
+        },
+        "seed": {
+          "type": [
+            "string",
+            "number",
+            "null"
+          ]
+        }
+      },
+      "additionalProperties": true
+    },
+    "judgeIdentity": {
+      "type": "object",
+      "required": [
+        "kind",
+        "id"
+      ],
+      "properties": {
+        "kind": {
+          "enum": [
+            "human",
+            "automated-metric",
+            "llm-judge"
+          ]
+        },
+        "id": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": true
+    },
+    "denominator": {
+      "type": "object",
+      "required": [
+        "kind",
+        "expected",
+        "examined"
+      ],
+      "properties": {
+        "kind": {
+          "type": "string"
+        },
+        "expected": {
+          "type": "number"
+        },
+        "examined": {
+          "type": "number"
+        },
+        "digest": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "string",
+              "pattern": "^sha256:"
+            }
+          ]
+        }
+      },
+      "additionalProperties": true
+    },
+    "measurement": {
+      "type": "object"
+    },
+    "limitations": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "uncertainty": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "evidenceRefs": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "binding": {
+      "type": "object",
+      "required": [
+        "planDigest",
+        "repositoryRevision",
+        "dirtyPatchDigest",
+        "cortexGenerationId",
+        "cortexManifestDigest",
+        "registryDigest"
+      ],
+      "properties": {
+        "planDigest": {
+          "type": "string",
+          "pattern": "^sha256:"
+        },
+        "repositoryRevision": {
+          "type": "string",
+          "minLength": 1
+        },
+        "dirtyPatchDigest": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "string",
+              "pattern": "^sha256:"
+            }
+          ]
+        },
+        "cortexGenerationId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "cortexManifestDigest": {
+          "type": "string",
+          "pattern": "^sha256:"
+        },
+        "registryDigest": {
+          "type": "string",
+          "pattern": "^sha256:"
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

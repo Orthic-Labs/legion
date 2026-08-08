@@ -1,0 +1,30 @@
+{
+  "id": "language.javascript",
+  "kind": "language",
+  "aliases": [],
+  "extensions": [
+    "js",
+    "jsx",
+    "ts",
+    "tsx"
+  ],
+  "manifests": [],
+  "providers": [
+    "code.javascript"
+  ],
+  "limitations": [
+    "runtime and remediation unproven"
+  ],
+  "qualificationVersion": "1.0.0",
+  "corpusDigest": "sha256:4bb908e9b2a4e4d5a9f3fb9eeb86146d070d560648e6b285f2775521408fe599",
+  "artifactDigest": "sha256:4bb908e9b2a4e4d5a9f3fb9eeb86146d070d560648e6b285f2775521408fe599",
+  "tiers": {
+    "inventory": 1,
+    "parser": 1,
+    "native": 1,
+    "cross-file": 0,
+    "measured-pack": 1,
+    "runtime": 0,
+    "remediation": 0
+  }
+}

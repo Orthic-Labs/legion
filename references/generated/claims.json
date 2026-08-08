@@ -1,0 +1,7 @@
+{
+  "schemaVersion": 1,
+  "kind": "nemesis-generated-claims",
+  "qualificationIdentity": null,
+  "claims": [],
+  "knownGaps": ["exact qualification identity is absent"]
+}

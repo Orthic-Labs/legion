@@ -1,0 +1,302 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://orthic.dev/schemas/security/security-candidate-v2.json",
+  "title": "SecurityCandidateV2",
+  "type": "object",
+  "required": [
+    "schemaVersion",
+    "kind",
+    "id",
+    "provider",
+    "providerVersion",
+    "ruleId",
+    "candidateClass",
+    "claim",
+    "severityHint",
+    "effects",
+    "evidenceRefs",
+    "binding",
+    "denominatorDigest",
+    "verdict",
+    "adjudicationRequired"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": 2
+    },
+    "kind": {
+      "const": "security-candidate"
+    },
+    "id": {
+      "type": "string",
+      "pattern": "^sha256:"
+    },
+    "provider": {
+      "type": "string"
+    },
+    "providerVersion": {
+      "type": "string"
+    },
+    "ruleId": {
+      "type": "string"
+    },
+    "candidateClass": {
+      "type": "string"
+    },
+    "claim": {
+      "type": "string"
+    },
+    "severityHint": {
+      "enum": [
+        "critical",
+        "high",
+        "medium",
+        "low",
+        "info"
+      ]
+    },
+    "sources": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "sinks": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "attackerCapabilities": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "preconditions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "kind"
+        ],
+        "properties": {
+          "kind": {
+            "enum": [
+              "attacker-position",
+              "knowledge",
+              "capability",
+              "credential-possession",
+              "principal-access",
+              "network-reachability",
+              "data-access",
+              "object-access",
+              "code-execution",
+              "workflow-state",
+              "control-bypass",
+              "persistence",
+              "availability-impact",
+              "integrity-impact",
+              "confidentiality-impact"
+            ]
+          },
+          "subject": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "action": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "object": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "scope": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "environment": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "tenant": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "attributes": {
+            "type": "object"
+          },
+          "evidenceRefs": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "id": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": true
+      }
+    },
+    "effects": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": [
+          "kind"
+        ],
+        "properties": {
+          "kind": {
+            "enum": [
+              "attacker-position",
+              "knowledge",
+              "capability",
+              "credential-possession",
+              "principal-access",
+              "network-reachability",
+              "data-access",
+              "object-access",
+              "code-execution",
+              "workflow-state",
+              "control-bypass",
+              "persistence",
+              "availability-impact",
+              "integrity-impact",
+              "confidentiality-impact"
+            ]
+          },
+          "subject": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "action": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "object": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "scope": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "environment": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "tenant": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "attributes": {
+            "type": "object"
+          },
+          "evidenceRefs": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "id": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": true
+      }
+    },
+    "assets": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "trustBoundaryCrossings": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "requiredControls": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "observedControls": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "chainRoles": {
+      "type": "array",
+      "items": {
+        "enum": [
+          "starter",
+          "enabler",
+          "pivot",
+          "privilege-escalation",
+          "control-bypass",
+          "impact"
+        ]
+      }
+    },
+    "evidenceRefs": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "detectorMetadata": {
+      "type": "object"
+    },
+    "uncertainty": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "binding": {
+      "$ref": "security-binding-v1.schema.json"
+    },
+    "denominatorDigest": {
+      "type": "string",
+      "pattern": "^sha256:"
+    },
+    "verdict": {
+      "const": "UNADJUDICATED"
+    },
+    "adjudicationRequired": {
+      "const": true
+    }
+  },
+  "additionalProperties": false
+}

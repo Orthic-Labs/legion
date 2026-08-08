@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 1,
+  "rules": [
+    { "id": "request.unvalidated-input-to-sink", "version": "1.0.0", "pack": "security.request-boundaries", "class": "request-boundaries", "decisionMode": "evidence", "cleanClaim": "never-without-denominator", "requiredControls": ["request-schema-validation", "input-validation"], "applicability": ["backend"] },
+    { "id": "request.body-size-unbounded", "version": "1.0.0", "pack": "security.request-boundaries", "class": "request-boundaries", "decisionMode": "evidence", "cleanClaim": "never-without-denominator", "requiredControls": [], "applicability": ["backend"] },
+    { "id": "request.mass-assignment-unfiltered", "version": "1.0.0", "pack": "security.request-boundaries", "class": "request-boundaries", "decisionMode": "evidence", "cleanClaim": "never-without-denominator", "requiredControls": ["mass-assignment-allowlist", "field-allowlist"], "applicability": ["backend"] },
+    { "id": "request.header-injection", "version": "1.0.0", "pack": "security.request-boundaries", "class": "request-boundaries", "decisionMode": "evidence", "cleanClaim": "never-without-denominator", "requiredControls": ["header-sanitization"], "applicability": ["backend"] },
+
+    { "id": "ssrf.request-controlled-destination", "version": "1.0.0", "pack": "security.ssrf-egress", "class": "ssrf-egress", "decisionMode": "evidence", "cleanClaim": "never-without-denominator", "requiredControls": ["egress-allowlist", "url-allowlist", "ssrf-guard"], "applicability": ["backend"] },
+    { "id": "ssrf.redirect-following-unbounded", "version": "1.0.0", "pack": "security.ssrf-egress", "class": "ssrf-egress", "decisionMode": "evidence", "cleanClaim": "never-without-denominator", "requiredControls": ["egress-allowlist", "url-allowlist", "ssrf-guard"], "applicability": ["backend"] },
+    { "id": "ssrf.dns-rebinding-unprotected", "version": "1.0.0", "pack": "security.ssrf-egress", "class": "ssrf-egress", "decisionMode": "evidence", "cleanClaim": "never-without-denominator", "requiredControls": [], "applicability": ["backend"] },
+
+    { "id": "file.path-traversal-unvalidated", "version": "1.0.0", "pack": "security.file-boundaries", "class": "file-boundaries", "decisionMode": "evidence", "cleanClaim": "never-without-denominator", "requiredControls": ["path-traversal-containment", "path-normalization"], "applicability": ["backend"] },
+    { "id": "file.archive-zip-slip", "version": "1.0.0", "pack": "security.file-boundaries", "class": "file-boundaries", "decisionMode": "evidence", "cleanClaim": "never-without-denominator", "requiredControls": ["zip-slip-containment", "archive-path-validation"], "applicability": ["backend"] },
+    { "id": "file.symlink-unchecked", "version": "1.0.0", "pack": "security.file-boundaries", "class": "file-boundaries", "decisionMode": "evidence", "cleanClaim": "never-without-denominator", "requiredControls": ["symlink-containment-check"], "applicability": ["backend"] },
+
+    { "id": "parser.unsafe-deserialization", "version": "1.0.0", "pack": "security.parser-serialization", "class": "parser-serialization", "decisionMode": "evidence", "cleanClaim": "never-without-denominator", "requiredControls": ["safe-deserialization"], "applicability": ["backend"] },
+    { "id": "parser.xml-billion-laughs", "version": "1.0.0", "pack": "security.parser-serialization", "class": "parser-serialization", "decisionMode": "evidence", "cleanClaim": "never-without-denominator", "requiredControls": ["xml-entity-expansion-limit"], "applicability": ["backend"] },
+    { "id": "parser.decompression-bomb", "version": "1.0.0", "pack": "security.parser-serialization", "class": "parser-serialization", "decisionMode": "evidence", "cleanClaim": "never-without-denominator", "requiredControls": ["decompression-size-limit"], "applicability": ["backend"] },
+    { "id": "parser.unbounded-recursion", "version": "1.0.0", "pack": "security.parser-serialization", "class": "parser-serialization", "decisionMode": "evidence", "cleanClaim": "never-without-denominator", "requiredControls": ["recursion-depth-limit"], "applicability": ["backend"] },
+
+    { "id": "upload.content-type-unvalidated", "version": "1.0.0", "pack": "security.uploads", "class": "uploads", "decisionMode": "evidence", "cleanClaim": "never-without-denominator", "requiredControls": [], "applicability": ["backend"] },
+    { "id": "upload.size-unbounded", "version": "1.0.0", "pack": "security.uploads", "class": "uploads", "decisionMode": "evidence", "cleanClaim": "never-without-denominator", "requiredControls": [], "applicability": ["backend"] },
+    { "id": "upload.storage-in-webroot", "version": "1.0.0", "pack": "security.uploads", "class": "uploads", "decisionMode": "evidence", "cleanClaim": "never-without-denominator", "requiredControls": [], "applicability": ["backend"] },
+    { "id": "upload.filename-unsanitized", "version": "1.0.0", "pack": "security.uploads", "class": "uploads", "decisionMode": "evidence", "cleanClaim": "never-without-denominator", "requiredControls": ["filename-sanitization"], "applicability": ["backend"] },
+    { "id": "upload.executable-content-served", "version": "1.0.0", "pack": "security.uploads", "class": "uploads", "decisionMode": "evidence", "cleanClaim": "never-without-denominator", "requiredControls": ["content-disposition-attachment"], "applicability": ["backend"] }
+  ],
+  "source": "internal",
+  "license": "internal"
+}

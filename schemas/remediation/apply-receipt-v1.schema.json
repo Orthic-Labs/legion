@@ -1,0 +1,129 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://orthic.dev/schemas/remediation/apply-receipt-v1.json",
+  "title": "RemediationApplyReceiptV1",
+  "type": "object",
+  "required": [
+    "schemaVersion",
+    "kind",
+    "proposalId",
+    "findingIds",
+    "patchDigest",
+    "verificationDigest",
+    "appliedBy",
+    "applied",
+    "beforeFingerprint",
+    "afterFingerprint",
+    "observedFingerprint",
+    "reversePatchDigest",
+    "error",
+    "recoverable",
+    "recovery",
+    "rolledBack",
+    "binding",
+    "digest"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": 1
+    },
+    "kind": {
+      "const": "nemesis-remediation-apply-receipt"
+    },
+    "proposalId": {
+      "type": "string"
+    },
+    "findingIds": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "patchDigest": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "verificationDigest": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "appliedBy": {
+      "const": "host-mutator"
+    },
+    "applied": {
+      "type": "boolean"
+    },
+    "beforeFingerprint": {
+      "type": "string",
+      "pattern": "^sha256:"
+    },
+    "afterFingerprint": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "observedFingerprint": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "reversePatchDigest": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "error": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "recoverable": {
+      "type": "boolean"
+    },
+    "recovery": {
+      "type": "object",
+      "required": [
+        "command",
+        "description"
+      ],
+      "properties": {
+        "command": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          ]
+        },
+        "description": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "rolledBack": {
+      "type": "boolean"
+    },
+    "binding": {
+      "type": "object"
+    },
+    "digest": {
+      "type": "string",
+      "pattern": "^sha256:"
+    }
+  },
+  "additionalProperties": false
+}

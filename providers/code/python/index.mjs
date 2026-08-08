@@ -1,0 +1,1 @@
+import {analyzeLanguage} from '../shared.mjs';export const language="python";export const extensions=["py"];export const config={"id":"python","extensions":["py"],"variants":{"python":["py"]},"tools":["compile","lint","type","test","package"],"requiredContext":["packageRoots"]};export function analyze(input={}){return analyzeLanguage(config,input);}

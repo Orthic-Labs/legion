@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 1,
+  "id": "copy-documentation",
+  "rules": [
+    { "id": "copy.documentation.command-contract-missing", "kind": "deterministic", "reasoningRequirement": "none" },
+    { "id": "copy.documentation.command-contract-drift", "kind": "deterministic", "reasoningRequirement": "none" },
+    { "id": "copy.documentation.planned-as-shipped", "kind": "deterministic", "reasoningRequirement": "none" },
+    { "id": "copy.documentation.stale-term", "kind": "deterministic", "reasoningRequirement": "none" },
+    { "id": "copy.documentation.unsupported-claim", "kind": "deterministic", "reasoningRequirement": "none" },
+    { "id": "copy.documentation.editorial-density", "kind": "interpretive", "reasoningRequirement": "bounded-review" }
+  ]
+}

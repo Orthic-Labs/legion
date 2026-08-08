@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "nemesis-policy-evidence-v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "policy",
+    "owner",
+    "authority",
+    "status"
+  ],
+  "properties": {
+    "policy": {
+      "type": "string"
+    },
+    "owner": {
+      "type": "string"
+    },
+    "authority": {
+      "type": "string"
+    },
+    "status": {
+      "type": "string"
+    }
+  }
+}

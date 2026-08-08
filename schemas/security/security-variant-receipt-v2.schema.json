@@ -1,0 +1,78 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://orthic.dev/schemas/security/security-variant-receipt-v2.json",
+  "title": "SecurityVariantReceiptV2",
+  "type": "object",
+  "required": [
+    "schemaVersion",
+    "kind",
+    "rootCause",
+    "denominator",
+    "strategies",
+    "matches",
+    "complete",
+    "binding",
+    "denominatorDigest"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": 2
+    },
+    "kind": {
+      "const": "security-variant-receipt"
+    },
+    "rootCause": {
+      "type": "object",
+      "required": [
+        "class",
+        "semanticFeatures"
+      ],
+      "properties": {
+        "class": {
+          "type": "string"
+        },
+        "semanticFeatures": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "digest": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "string",
+              "pattern": "^sha256:"
+            }
+          ]
+        }
+      },
+      "additionalProperties": true
+    },
+    "denominator": {
+      "type": "object"
+    },
+    "strategies": {
+      "type": "array"
+    },
+    "matches": {
+      "type": "array"
+    },
+    "coverageGaps": {
+      "type": "array"
+    },
+    "complete": {
+      "type": "boolean"
+    },
+    "binding": {
+      "$ref": "security-binding-v1.schema.json"
+    },
+    "denominatorDigest": {
+      "type": "string",
+      "pattern": "^sha256:"
+    }
+  },
+  "additionalProperties": false
+}

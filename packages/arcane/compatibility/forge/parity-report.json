@@ -1,0 +1,202 @@
+{
+  "schema": "arcane.forge-parity-report.v1",
+  "deliverable": "S01",
+  "lane": "E-ARCANE",
+  "mappingVersion": "arcane.forge-schema-map.v1",
+  "baseline": {
+    "forgeCommit": "947d5b89a45049fe18ffb6ffdda085d19479431e",
+    "forgePackage": "@orthic-labs/forge@2.0.1",
+    "inventoryRef": "docs/plans/legion/s00-baseline/legacy-semantic-inventory.json",
+    "reportRef": "docs/plans/legion/s00-baseline/S00-REPORT.md",
+    "fixturesRef": "docs/plans/legion/s00-baseline/fixtures/",
+    "contractsFreezeRef": "tools/skills/nemesis/packages/contracts/FREEZE.md",
+    "contractsSealRef": "tools/skills/nemesis/packages/contracts/SEAL.md"
+  },
+  "unresolvedCount": 0,
+  "totals": {
+    "canonical": 50,
+    "compatibility-only": 84,
+    "deprecated": 1,
+    "rejected": 16
+  },
+  "recordTypes": [
+    {
+      "legacyKind": "runs",
+      "primaryCanonicalTarget": "legion-run-identity-v1 (+ legion-execution-contract-v1 for the acceptance/criteria half)",
+      "fieldCount": 26,
+      "counts": {
+        "canonical": 9,
+        "compatibility-only": 16,
+        "deprecated": 0,
+        "rejected": 1
+      },
+      "trustBearingRejected": [
+        "authority"
+      ]
+    },
+    {
+      "legacyKind": "claims",
+      "primaryCanonicalTarget": "legion-claim-v1",
+      "fieldCount": 9,
+      "counts": {
+        "canonical": 3,
+        "compatibility-only": 3,
+        "deprecated": 1,
+        "rejected": 2
+      },
+      "trustBearingRejected": [
+        "status",
+        "waiver"
+      ]
+    },
+    {
+      "legacyKind": "evidence",
+      "primaryCanonicalTarget": "legion-evidence-capability-receipt-v1 (via legacy-envelope-v1 — never directly)",
+      "fieldCount": 27,
+      "counts": {
+        "canonical": 10,
+        "compatibility-only": 15,
+        "deprecated": 0,
+        "rejected": 2
+      },
+      "trustBearingRejected": [
+        "trust_class",
+        "attested"
+      ]
+    },
+    {
+      "legacyKind": "checks",
+      "primaryCanonicalTarget": "legion-evidence-capability-receipt-v1",
+      "fieldCount": 16,
+      "counts": {
+        "canonical": 6,
+        "compatibility-only": 6,
+        "deprecated": 0,
+        "rejected": 4
+      },
+      "trustBearingRejected": [
+        "executor",
+        "authority",
+        "status",
+        "receipt"
+      ]
+    },
+    {
+      "legacyKind": "decisions",
+      "primaryCanonicalTarget": "legion-legacy-envelope-v1 only",
+      "fieldCount": 8,
+      "counts": {
+        "canonical": 2,
+        "compatibility-only": 5,
+        "deprecated": 0,
+        "rejected": 1
+      },
+      "trustBearingRejected": [
+        "authority"
+      ]
+    },
+    {
+      "legacyKind": "retry_budget",
+      "primaryCanonicalTarget": "legion-legacy-envelope-v1 only",
+      "fieldCount": 4,
+      "counts": {
+        "canonical": 0,
+        "compatibility-only": 3,
+        "deprecated": 0,
+        "rejected": 1
+      },
+      "trustBearingRejected": [
+        "fingerprint"
+      ]
+    },
+    {
+      "legacyKind": "failures",
+      "primaryCanonicalTarget": "legion-blocker-v1 (partial) + legacy-envelope-v1",
+      "fieldCount": 10,
+      "counts": {
+        "canonical": 2,
+        "compatibility-only": 7,
+        "deprecated": 0,
+        "rejected": 1
+      },
+      "trustBearingRejected": [
+        "error_fingerprint"
+      ]
+    },
+    {
+      "legacyKind": "session_bindings / task_bindings",
+      "primaryCanonicalTarget": "legion-run-identity-v1 (partial)",
+      "fieldCount": 6,
+      "counts": {
+        "canonical": 2,
+        "compatibility-only": 4,
+        "deprecated": 0,
+        "rejected": 0
+      },
+      "trustBearingRejected": []
+    },
+    {
+      "legacyKind": "rubrics",
+      "primaryCanonicalTarget": "legion-execution-contract-v1.acceptanceCriteria[] + .declaredChecks[]",
+      "fieldCount": 11,
+      "counts": {
+        "canonical": 4,
+        "compatibility-only": 7,
+        "deprecated": 0,
+        "rejected": 0
+      },
+      "trustBearingRejected": []
+    },
+    {
+      "legacyKind": "memory_candidates",
+      "primaryCanonicalTarget": "legion-legacy-envelope-v1 only",
+      "fieldCount": 4,
+      "counts": {
+        "canonical": 1,
+        "compatibility-only": 3,
+        "deprecated": 0,
+        "rejected": 0
+      },
+      "trustBearingRejected": []
+    },
+    {
+      "legacyKind": "orthic.tool-receipt.v1",
+      "primaryCanonicalTarget": "legion-effect-receipt-v1 (SHAPE only — never trust)",
+      "fieldCount": 16,
+      "counts": {
+        "canonical": 6,
+        "compatibility-only": 7,
+        "deprecated": 0,
+        "rejected": 3
+      },
+      "trustBearingRejected": [
+        "issuer_id",
+        "issuer_capability_digest",
+        "signature_or_mac"
+      ]
+    },
+    {
+      "legacyKind": "orthic.observable-event.v1",
+      "primaryCanonicalTarget": "Arcane host-event contract (S04) — via legacy-envelope-v1",
+      "fieldCount": 14,
+      "counts": {
+        "canonical": 5,
+        "compatibility-only": 8,
+        "deprecated": 0,
+        "rejected": 1
+      },
+      "trustBearingRejected": [
+        "origin"
+      ]
+    }
+  ],
+  "vocabularyMappings": 10,
+  "operationsMapped": 10,
+  "knownDefectsNotReproduced": [
+    "Dispatcher timeout bypass (lib/dispatcher.js:29-37): a handler exceeding its 1500ms slice is marked bypassed_delayed_verifier and the dispatcher CONTINUES. Arcane's pre-effect gate fails closed on unavailability instead (ARC_GATE_UNAVAILABLE, failClosed:true) — the legacy fail-open is not reproduced.",
+    "Unconditional trust from authority='host' + non-empty receipt string (lib/core.js:493-494,536-539). Closed by S04 ingestion, which requires structural validation plus S03 verification.",
+    "Caller-chosen retry/error fingerprints (lib/budget.js:46-51). Canonical fingerprints are derived host-side.",
+    "signature_or_mac self-hash presented as authentication (hooks/claude-code/tool-receipt.js:80). Rejected with ARC_AUTH_LEGACY_DIGEST.",
+    "README-vs-code invalidation gap (S00 finding 4): lockfile/worktree/external-revision invalidation was documented but never implemented. S05 builds it as new work; this map does not claim it as migrated."
+  ]
+}

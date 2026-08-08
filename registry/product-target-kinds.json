@@ -1,1 +1,223 @@
-{"schemaVersion":1,"kinds":["website","web-app","api-service","worker","serverless-function","desktop-app","ios-app","android-app","mobile-extension","cli","library-sdk","browser-extension","editor-extension","plugin-system","data-pipeline","infrastructure","ai-agent-system","embedded-firmware","smart-contract","documentation-product","unknown-deliverable"],"relations":["shares-component","depends-on","client-of","deploys-with","distributed-with"]}
+{
+  "schemaVersion": 1,
+  "additive": true,
+  "relations": [
+    "shares-component",
+    "depends-on",
+    "client-of",
+    "deploys-with",
+    "distributed-with"
+  ],
+  "kinds": [
+    {
+      "id": "website",
+      "version": "1.0.0",
+      "aliases": [],
+      "controlPacks": [
+        "target.website"
+      ],
+      "minimumClaimPolicy": "source-evidence-required",
+      "cleanClaim": "evidence-bound"
+    },
+    {
+      "id": "web-app",
+      "version": "1.0.0",
+      "aliases": [],
+      "controlPacks": [
+        "target.web-app"
+      ],
+      "minimumClaimPolicy": "source-evidence-required",
+      "cleanClaim": "evidence-bound"
+    },
+    {
+      "id": "api-service",
+      "version": "1.0.0",
+      "aliases": [],
+      "controlPacks": [
+        "target.api-service"
+      ],
+      "minimumClaimPolicy": "source-evidence-required",
+      "cleanClaim": "evidence-bound"
+    },
+    {
+      "id": "worker",
+      "version": "1.0.0",
+      "aliases": [],
+      "controlPacks": [
+        "target.worker"
+      ],
+      "minimumClaimPolicy": "source-evidence-required",
+      "cleanClaim": "evidence-bound"
+    },
+    {
+      "id": "serverless-function",
+      "version": "1.0.0",
+      "aliases": [],
+      "controlPacks": [
+        "target.serverless-function"
+      ],
+      "minimumClaimPolicy": "source-evidence-required",
+      "cleanClaim": "evidence-bound"
+    },
+    {
+      "id": "desktop-app",
+      "version": "1.0.0",
+      "aliases": [],
+      "controlPacks": [
+        "target.desktop-app"
+      ],
+      "minimumClaimPolicy": "source-evidence-required",
+      "cleanClaim": "evidence-bound"
+    },
+    {
+      "id": "ios-app",
+      "version": "1.0.0",
+      "aliases": [],
+      "controlPacks": [
+        "target.ios-app"
+      ],
+      "minimumClaimPolicy": "source-evidence-required",
+      "cleanClaim": "evidence-bound"
+    },
+    {
+      "id": "android-app",
+      "version": "1.0.0",
+      "aliases": [],
+      "controlPacks": [
+        "target.android-app"
+      ],
+      "minimumClaimPolicy": "source-evidence-required",
+      "cleanClaim": "evidence-bound"
+    },
+    {
+      "id": "mobile-extension",
+      "version": "1.0.0",
+      "aliases": [],
+      "controlPacks": [
+        "target.mobile-extension"
+      ],
+      "minimumClaimPolicy": "source-evidence-required",
+      "cleanClaim": "evidence-bound"
+    },
+    {
+      "id": "cli",
+      "version": "1.0.0",
+      "aliases": [],
+      "controlPacks": [
+        "target.cli"
+      ],
+      "minimumClaimPolicy": "source-evidence-required",
+      "cleanClaim": "evidence-bound"
+    },
+    {
+      "id": "library-sdk",
+      "version": "1.0.0",
+      "aliases": [],
+      "controlPacks": [
+        "target.library-sdk"
+      ],
+      "minimumClaimPolicy": "source-evidence-required",
+      "cleanClaim": "evidence-bound"
+    },
+    {
+      "id": "browser-extension",
+      "version": "1.0.0",
+      "aliases": [],
+      "controlPacks": [
+        "target.browser-extension"
+      ],
+      "minimumClaimPolicy": "source-evidence-required",
+      "cleanClaim": "evidence-bound"
+    },
+    {
+      "id": "editor-extension",
+      "version": "1.0.0",
+      "aliases": [],
+      "controlPacks": [
+        "target.editor-extension"
+      ],
+      "minimumClaimPolicy": "source-evidence-required",
+      "cleanClaim": "evidence-bound"
+    },
+    {
+      "id": "plugin-system",
+      "version": "1.0.0",
+      "aliases": [],
+      "controlPacks": [
+        "target.plugin-system"
+      ],
+      "minimumClaimPolicy": "source-evidence-required",
+      "cleanClaim": "evidence-bound"
+    },
+    {
+      "id": "data-pipeline",
+      "version": "1.0.0",
+      "aliases": [],
+      "controlPacks": [
+        "target.data-pipeline"
+      ],
+      "minimumClaimPolicy": "source-evidence-required",
+      "cleanClaim": "evidence-bound"
+    },
+    {
+      "id": "infrastructure",
+      "version": "1.0.0",
+      "aliases": [],
+      "controlPacks": [
+        "target.infrastructure"
+      ],
+      "minimumClaimPolicy": "source-evidence-required",
+      "cleanClaim": "evidence-bound"
+    },
+    {
+      "id": "ai-agent-system",
+      "version": "1.0.0",
+      "aliases": [],
+      "controlPacks": [
+        "target.ai-agent-system"
+      ],
+      "minimumClaimPolicy": "source-evidence-required",
+      "cleanClaim": "evidence-bound"
+    },
+    {
+      "id": "embedded-firmware",
+      "version": "1.0.0",
+      "aliases": [],
+      "controlPacks": [
+        "target.embedded-firmware"
+      ],
+      "minimumClaimPolicy": "source-evidence-required",
+      "cleanClaim": "evidence-bound"
+    },
+    {
+      "id": "smart-contract",
+      "version": "1.0.0",
+      "aliases": [],
+      "controlPacks": [
+        "target.smart-contract"
+      ],
+      "minimumClaimPolicy": "source-evidence-required",
+      "cleanClaim": "evidence-bound"
+    },
+    {
+      "id": "documentation-product",
+      "version": "1.0.0",
+      "aliases": [],
+      "controlPacks": [
+        "target.documentation-product"
+      ],
+      "minimumClaimPolicy": "source-evidence-required",
+      "cleanClaim": "evidence-bound"
+    },
+    {
+      "id": "unknown-deliverable",
+      "version": "1.0.0",
+      "aliases": [],
+      "controlPacks": [
+        "universal.core"
+      ],
+      "minimumClaimPolicy": "unproven",
+      "cleanClaim": "never"
+    }
+  ]
+}

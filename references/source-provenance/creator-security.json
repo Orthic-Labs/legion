@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "kind": "nemesis-security-rule-source-provenance",
+  "sourceLedger": {
+    "sourceDocumentId": "creator.security",
+    "description": "An externally authored, non-redistributed security review checklist used only as read-only category-taxonomy input; never copied into this repository.",
+    "sha256": "c9d728c8eda9df46c035e5d0b4ea81116dfa1b4f9c475b621fc4b220e9866a3a",
+    "itemCount": 100,
+    "areaCount": 11,
+    "seedSchemaVersion": 1,
+    "seedKind": "nemesis-creator-audit-source-ledger-seed"
+  },
+  "derivation": {
+    "relationship": "category-taxonomy-reference",
+    "method": "Reviewed the source ledger's category and item-title taxonomy to identify recurring security topic areas; each topic area was independently re-implemented as original detection rules and packs in this repository's registry/rules/security/*.json and providers/security/packs/*.mjs, or explicitly excluded when no deterministic code pattern could serve as sufficient evidence. No prompt text, item title, item notes, or other prose from the source ledger was copied into this repository.",
+    "traceabilityTable": "registry/rules/security/creator-derived.json"
+  },
+  "rights": {
+    "redistributionRightsAssumed": false,
+    "creatorArchiveShipped": false,
+    "statement": "This repository does not assume, claim, or exercise any redistribution right over the source ledger or the creator's original audit documents. The source ledger and any underlying creator archive are treated strictly as read-only external input for taxonomy discovery and are never copied, embedded, vendored, or shipped in this repository in whole or in part.",
+    "handling": "read-only-external-reference"
+  }
+}

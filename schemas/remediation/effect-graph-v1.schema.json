@@ -1,0 +1,154 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://orthic.dev/schemas/remediation/effect-graph-v1.json",
+  "title": "RemediationEffectGraphV1",
+  "type": "object",
+  "required": [
+    "schemaVersion",
+    "kind",
+    "proposalId",
+    "findingIds",
+    "patchDigest",
+    "changedFiles",
+    "changedSymbols",
+    "changedConfig",
+    "publicSurfaceChanges",
+    "unplannedPublicSurfaceChanges",
+    "contentItems",
+    "designStates",
+    "flows",
+    "affectedProviders",
+    "affectedFamilies",
+    "requiredProviders",
+    "requiredGates",
+    "runtimeSurfaces",
+    "securityPaths",
+    "residualRisks",
+    "complete",
+    "binding",
+    "digest"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": 1
+    },
+    "kind": {
+      "const": "nemesis-patch-effect-graph"
+    },
+    "proposalId": {
+      "type": "string"
+    },
+    "findingIds": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "patchDigest": {
+      "type": "string",
+      "pattern": "^sha256:"
+    },
+    "changedFiles": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "minItems": 1
+    },
+    "changedSymbols": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "changedConfig": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "publicSurfaceChanges": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "unplannedPublicSurfaceChanges": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "contentItems": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "designStates": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "flows": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "affectedProviders": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "affectedFamilies": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "requiredProviders": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "requiredGates": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "runtimeSurfaces": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "securityPaths": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "residualRisks": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "complete": {
+      "type": "boolean"
+    },
+    "binding": {
+      "type": "object"
+    },
+    "digest": {
+      "type": "string",
+      "pattern": "^sha256:"
+    }
+  },
+  "additionalProperties": false
+}

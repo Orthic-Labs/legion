@@ -1,1 +1,134 @@
-{"$schema":"https://json-schema.org/draft/2020-12/schema","type":"object","required":["id","version","selector","denominator","evidence","claimLevels"],"properties":{"id":{"type":"string"},"version":{"type":"string"},"selector":{"type":"object"},"denominator":{"type":"string"},"evidence":{"type":"array"},"claimLevels":{"type":"array"}}}
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "nemesis-assurance-control-v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "version",
+    "selector",
+    "denominator",
+    "evidence",
+    "families",
+    "lenses",
+    "providers",
+    "rules",
+    "scenarios",
+    "decisionMode",
+    "missingEvidenceEffect",
+    "claimLevels",
+    "remediationOwner",
+    "sourceConcepts",
+    "stopShip",
+    "benchmark",
+    "provenance"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "version": {
+      "type": "string",
+      "minLength": 1
+    },
+    "selector": {
+      "type": "object"
+    },
+    "denominator": {
+      "type": "string",
+      "minLength": 1
+    },
+    "evidence": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "uniqueItems": true
+    },
+    "families": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "uniqueItems": true
+    },
+    "lenses": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "uniqueItems": true
+    },
+    "providers": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "uniqueItems": true
+    },
+    "rules": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "uniqueItems": true
+    },
+    "scenarios": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "uniqueItems": true
+    },
+    "decisionMode": {
+      "type": "string",
+      "minLength": 1
+    },
+    "missingEvidenceEffect": {
+      "enum": [
+        "unproven",
+        "fail",
+        "not-applicable"
+      ]
+    },
+    "claimLevels": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "uniqueItems": true
+    },
+    "remediationOwner": {
+      "type": "string",
+      "minLength": 1
+    },
+    "sourceConcepts": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "uniqueItems": true
+    },
+    "stopShip": {
+      "type": "boolean"
+    },
+    "benchmark": {
+      "type": "object"
+    },
+    "provenance": {
+      "type": "object"
+    },
+    "unimplemented": {
+      "type": "boolean"
+    }
+  }
+}

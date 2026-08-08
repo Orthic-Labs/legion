@@ -1,1 +1,57 @@
-{"$schema":"https://json-schema.org/draft/2020-12/schema","type":"object","required":["id","version","controls"],"properties":{"id":{"type":"string"},"version":{"type":"string"},"controls":{"type":"array"}}}
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "nemesis-control-pack-v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "version",
+    "class",
+    "dependencies",
+    "source",
+    "qualification",
+    "controls"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "version": {
+      "type": "string",
+      "minLength": 1
+    },
+    "class": {
+      "enum": [
+        "universal",
+        "target",
+        "component",
+        "stack",
+        "environment",
+        "conditional",
+        "policy"
+      ]
+    },
+    "dependencies": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "uniqueItems": true
+    },
+    "source": {
+      "type": "object"
+    },
+    "qualification": {
+      "type": "string",
+      "minLength": 1
+    },
+    "controls": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    }
+  }
+}

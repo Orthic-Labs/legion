@@ -1,0 +1,302 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://orthic.dev/schemas/security/security-model-v1.json",
+  "title": "SecurityModelV1",
+  "type": "object",
+  "required": [
+    "schemaVersion",
+    "kind",
+    "provider",
+    "providerVersion",
+    "binding",
+    "denominatorDigest",
+    "complete",
+    "entities",
+    "relations",
+    "initialFacts",
+    "evidence",
+    "coverage",
+    "coverageGaps"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": 1
+    },
+    "kind": {
+      "const": "security-surface-model"
+    },
+    "provider": {
+      "const": "security.surface-model"
+    },
+    "providerVersion": {
+      "type": "string"
+    },
+    "binding": {
+      "$ref": "security-binding-v1.schema.json"
+    },
+    "denominatorDigest": {
+      "type": "string",
+      "pattern": "^sha256:"
+    },
+    "complete": {
+      "type": "boolean"
+    },
+    "entities": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "kind",
+          "name",
+          "attributes",
+          "assertion",
+          "evidenceStrength",
+          "evidenceRefs"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "actor",
+              "principal",
+              "identity",
+              "entrypoint",
+              "asset",
+              "crown-jewel",
+              "trust-boundary",
+              "control",
+              "source",
+              "sink",
+              "service",
+              "process",
+              "repository-artifact",
+              "data-store",
+              "tool-capability",
+              "permission-scope",
+              "deployment-context",
+              "workflow-state"
+            ]
+          },
+          "name": {
+            "type": "string"
+          },
+          "attributes": {
+            "type": "object"
+          },
+          "assertion": {
+            "enum": [
+              "observed",
+              "assumed",
+              "derived"
+            ]
+          },
+          "evidenceStrength": {
+            "enum": [
+              "possible",
+              "strong-inference",
+              "verified"
+            ]
+          },
+          "evidenceClass": {
+            "enum": [
+              "deterministic",
+              "measured",
+              "interpretive",
+              "external",
+              "human"
+            ]
+          },
+          "controlState": {
+            "enum": [
+              "enforced",
+              "present-unenforced",
+              "misconfigured",
+              "absent",
+              "unknown",
+              "not-applicable"
+            ]
+          },
+          "evidenceRefs": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "additionalProperties": true
+      }
+    },
+    "relations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "kind",
+          "from",
+          "to",
+          "assertion",
+          "evidenceStrength",
+          "evidenceRefs"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "assumes-role",
+              "authenticates-as",
+              "authorizes",
+              "calls",
+              "contains",
+              "crosses",
+              "delegates-to",
+              "derives-from",
+              "executes",
+              "exposes",
+              "flows-to",
+              "grants",
+              "loads",
+              "protects",
+              "publishes-to",
+              "reaches",
+              "reads",
+              "retrieves-from",
+              "runs-as",
+              "stores",
+              "trusts",
+              "validates",
+              "writes"
+            ]
+          },
+          "from": {
+            "type": "string"
+          },
+          "to": {
+            "type": "string"
+          },
+          "attributes": {
+            "type": "object"
+          },
+          "assertion": {
+            "enum": [
+              "observed",
+              "assumed",
+              "derived"
+            ]
+          },
+          "evidenceStrength": {
+            "enum": [
+              "possible",
+              "strong-inference",
+              "verified"
+            ]
+          },
+          "evidenceRefs": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "additionalProperties": true
+      }
+    },
+    "initialFacts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "kind"
+        ],
+        "properties": {
+          "kind": {
+            "enum": [
+              "attacker-position",
+              "knowledge",
+              "capability",
+              "credential-possession",
+              "principal-access",
+              "network-reachability",
+              "data-access",
+              "object-access",
+              "code-execution",
+              "workflow-state",
+              "control-bypass",
+              "persistence",
+              "availability-impact",
+              "integrity-impact",
+              "confidentiality-impact"
+            ]
+          },
+          "subject": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "action": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "object": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "scope": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "environment": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "tenant": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "attributes": {
+            "type": "object"
+          },
+          "evidenceRefs": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "id": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": true
+      }
+    },
+    "evidence": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    },
+    "coverage": {
+      "type": "object"
+    },
+    "coverageGaps": {
+      "type": "array"
+    }
+  },
+  "additionalProperties": false
+}

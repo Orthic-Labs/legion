@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "nemesis-sbom-receipt-v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "packageCount",
+    "artifacts"
+  ],
+  "properties": {
+    "packageCount": {
+      "type": "integer"
+    },
+    "artifacts": {
+      "type": "array"
+    }
+  }
+}

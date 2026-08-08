@@ -1,1 +1,1247 @@
-{"id":"target.desktop","version":"1.0.0","class":"target","controls":[{"id":"desktop.signed-artifact","version":"1.0.0","selector":{"targetKinds":["desktop-app"]},"denominator":"signed-artifacts","evidence":["native-surface","installer","signing"],"families":["release","security"],"claimLevels":["release"],"missingEvidenceEffect":"unproven"}]}
+{
+  "id": "target.desktop",
+  "version": "1.0.0",
+  "class": "target",
+  "dependencies": [
+    "universal.core"
+  ],
+  "source": {
+    "kind": "canonical",
+    "rights": "internal-contract"
+  },
+  "qualification": "source-tested",
+  "controls": [
+    {
+      "id": "desktop.processes",
+      "version": "1.0.0",
+      "selector": {
+        "targetKinds": [
+          "desktop-app"
+        ]
+      },
+      "denominator": "processes-subjects",
+      "evidence": [
+        "repository",
+        "external-evidence"
+      ],
+      "families": [
+        "compatibility"
+      ],
+      "lenses": [
+        "desktop.processes"
+      ],
+      "providers": [
+        "compatibility.core"
+      ],
+      "rules": [
+        "compatibility"
+      ],
+      "scenarios": [
+        "desktop.processes.default"
+      ],
+      "decisionMode": "measured",
+      "missingEvidenceEffect": "unproven",
+      "claimLevels": [
+        "source",
+        "runtime",
+        "product",
+        "release"
+      ],
+      "remediationOwner": "code",
+      "sourceConcepts": [
+        "canonical:desktop:processes"
+      ],
+      "stopShip": false,
+      "benchmark": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "qualificationDigest": null
+      },
+      "provenance": {
+        "kind": "canonical",
+        "source": "nemesis:desktop",
+        "rights": "internal-contract",
+        "lineage": [
+          "canonical:desktop:processes"
+        ]
+      }
+    },
+    {
+      "id": "desktop.ipc",
+      "version": "1.0.0",
+      "selector": {
+        "targetKinds": [
+          "desktop-app"
+        ]
+      },
+      "denominator": "ipc-subjects",
+      "evidence": [
+        "repository",
+        "external-evidence"
+      ],
+      "families": [
+        "compatibility"
+      ],
+      "lenses": [
+        "desktop.ipc"
+      ],
+      "providers": [
+        "compatibility.core"
+      ],
+      "rules": [
+        "compatibility"
+      ],
+      "scenarios": [
+        "desktop.ipc.default"
+      ],
+      "decisionMode": "measured",
+      "missingEvidenceEffect": "unproven",
+      "claimLevels": [
+        "source",
+        "runtime",
+        "product",
+        "release"
+      ],
+      "remediationOwner": "code",
+      "sourceConcepts": [
+        "canonical:desktop:ipc"
+      ],
+      "stopShip": false,
+      "benchmark": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "qualificationDigest": null
+      },
+      "provenance": {
+        "kind": "canonical",
+        "source": "nemesis:desktop",
+        "rights": "internal-contract",
+        "lineage": [
+          "canonical:desktop:ipc"
+        ]
+      }
+    },
+    {
+      "id": "desktop.files",
+      "version": "1.0.0",
+      "selector": {
+        "targetKinds": [
+          "desktop-app"
+        ]
+      },
+      "denominator": "files-subjects",
+      "evidence": [
+        "repository",
+        "external-evidence"
+      ],
+      "families": [
+        "compatibility"
+      ],
+      "lenses": [
+        "desktop.files"
+      ],
+      "providers": [
+        "compatibility.core"
+      ],
+      "rules": [
+        "compatibility"
+      ],
+      "scenarios": [
+        "desktop.files.default"
+      ],
+      "decisionMode": "measured",
+      "missingEvidenceEffect": "unproven",
+      "claimLevels": [
+        "source",
+        "runtime",
+        "product",
+        "release"
+      ],
+      "remediationOwner": "code",
+      "sourceConcepts": [
+        "canonical:desktop:files"
+      ],
+      "stopShip": false,
+      "benchmark": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "qualificationDigest": null
+      },
+      "provenance": {
+        "kind": "canonical",
+        "source": "nemesis:desktop",
+        "rights": "internal-contract",
+        "lineage": [
+          "canonical:desktop:files"
+        ]
+      }
+    },
+    {
+      "id": "desktop.local-data",
+      "version": "1.0.0",
+      "selector": {
+        "targetKinds": [
+          "desktop-app"
+        ]
+      },
+      "denominator": "local-data-subjects",
+      "evidence": [
+        "repository",
+        "external-evidence"
+      ],
+      "families": [
+        "compatibility"
+      ],
+      "lenses": [
+        "desktop.local-data"
+      ],
+      "providers": [
+        "compatibility.core"
+      ],
+      "rules": [
+        "compatibility"
+      ],
+      "scenarios": [
+        "desktop.local-data.default"
+      ],
+      "decisionMode": "measured",
+      "missingEvidenceEffect": "unproven",
+      "claimLevels": [
+        "source",
+        "runtime",
+        "product",
+        "release"
+      ],
+      "remediationOwner": "code",
+      "sourceConcepts": [
+        "canonical:desktop:local-data"
+      ],
+      "stopShip": false,
+      "benchmark": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "qualificationDigest": null
+      },
+      "provenance": {
+        "kind": "canonical",
+        "source": "nemesis:desktop",
+        "rights": "internal-contract",
+        "lineage": [
+          "canonical:desktop:local-data"
+        ]
+      }
+    },
+    {
+      "id": "desktop.remote-services",
+      "version": "1.0.0",
+      "selector": {
+        "targetKinds": [
+          "desktop-app"
+        ]
+      },
+      "denominator": "remote-services-subjects",
+      "evidence": [
+        "repository",
+        "external-evidence"
+      ],
+      "families": [
+        "compatibility"
+      ],
+      "lenses": [
+        "desktop.remote-services"
+      ],
+      "providers": [
+        "compatibility.core"
+      ],
+      "rules": [
+        "compatibility"
+      ],
+      "scenarios": [
+        "desktop.remote-services.default"
+      ],
+      "decisionMode": "measured",
+      "missingEvidenceEffect": "unproven",
+      "claimLevels": [
+        "source",
+        "runtime",
+        "product",
+        "release"
+      ],
+      "remediationOwner": "code",
+      "sourceConcepts": [
+        "canonical:desktop:remote-services"
+      ],
+      "stopShip": false,
+      "benchmark": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "qualificationDigest": null
+      },
+      "provenance": {
+        "kind": "canonical",
+        "source": "nemesis:desktop",
+        "rights": "internal-contract",
+        "lineage": [
+          "canonical:desktop:remote-services"
+        ]
+      }
+    },
+    {
+      "id": "desktop.os-integration",
+      "version": "1.0.0",
+      "selector": {
+        "targetKinds": [
+          "desktop-app"
+        ]
+      },
+      "denominator": "os-integration-subjects",
+      "evidence": [
+        "repository",
+        "external-evidence"
+      ],
+      "families": [
+        "compatibility"
+      ],
+      "lenses": [
+        "desktop.os-integration"
+      ],
+      "providers": [
+        "compatibility.core"
+      ],
+      "rules": [
+        "compatibility"
+      ],
+      "scenarios": [
+        "desktop.os-integration.default"
+      ],
+      "decisionMode": "measured",
+      "missingEvidenceEffect": "unproven",
+      "claimLevels": [
+        "source",
+        "runtime",
+        "product",
+        "release"
+      ],
+      "remediationOwner": "code",
+      "sourceConcepts": [
+        "canonical:desktop:os-integration"
+      ],
+      "stopShip": false,
+      "benchmark": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "qualificationDigest": null
+      },
+      "provenance": {
+        "kind": "canonical",
+        "source": "nemesis:desktop",
+        "rights": "internal-contract",
+        "lineage": [
+          "canonical:desktop:os-integration"
+        ]
+      }
+    },
+    {
+      "id": "desktop.windows-displays-input",
+      "version": "1.0.0",
+      "selector": {
+        "targetKinds": [
+          "desktop-app"
+        ]
+      },
+      "denominator": "windows-displays-input-subjects",
+      "evidence": [
+        "repository",
+        "external-evidence"
+      ],
+      "families": [
+        "compatibility"
+      ],
+      "lenses": [
+        "desktop.windows-displays-input"
+      ],
+      "providers": [
+        "compatibility.core"
+      ],
+      "rules": [
+        "compatibility"
+      ],
+      "scenarios": [
+        "desktop.windows-displays-input.default"
+      ],
+      "decisionMode": "measured",
+      "missingEvidenceEffect": "unproven",
+      "claimLevels": [
+        "source",
+        "runtime",
+        "product",
+        "release"
+      ],
+      "remediationOwner": "code",
+      "sourceConcepts": [
+        "canonical:desktop:windows-displays-input"
+      ],
+      "stopShip": false,
+      "benchmark": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "qualificationDigest": null
+      },
+      "provenance": {
+        "kind": "canonical",
+        "source": "nemesis:desktop",
+        "rights": "internal-contract",
+        "lineage": [
+          "canonical:desktop:windows-displays-input"
+        ]
+      }
+    },
+    {
+      "id": "desktop.resources-soak",
+      "version": "1.0.0",
+      "selector": {
+        "targetKinds": [
+          "desktop-app"
+        ]
+      },
+      "denominator": "resources-soak-subjects",
+      "evidence": [
+        "repository",
+        "external-evidence"
+      ],
+      "families": [
+        "compatibility"
+      ],
+      "lenses": [
+        "desktop.resources-soak"
+      ],
+      "providers": [
+        "compatibility.core"
+      ],
+      "rules": [
+        "compatibility"
+      ],
+      "scenarios": [
+        "desktop.resources-soak.default"
+      ],
+      "decisionMode": "measured",
+      "missingEvidenceEffect": "unproven",
+      "claimLevels": [
+        "source",
+        "runtime",
+        "product",
+        "release"
+      ],
+      "remediationOwner": "code",
+      "sourceConcepts": [
+        "canonical:desktop:resources-soak"
+      ],
+      "stopShip": false,
+      "benchmark": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "qualificationDigest": null
+      },
+      "provenance": {
+        "kind": "canonical",
+        "source": "nemesis:desktop",
+        "rights": "internal-contract",
+        "lineage": [
+          "canonical:desktop:resources-soak"
+        ]
+      }
+    },
+    {
+      "id": "desktop.fault-recovery",
+      "version": "1.0.0",
+      "selector": {
+        "targetKinds": [
+          "desktop-app"
+        ]
+      },
+      "denominator": "fault-recovery-subjects",
+      "evidence": [
+        "repository",
+        "external-evidence"
+      ],
+      "families": [
+        "compatibility"
+      ],
+      "lenses": [
+        "desktop.fault-recovery"
+      ],
+      "providers": [
+        "compatibility.core"
+      ],
+      "rules": [
+        "compatibility"
+      ],
+      "scenarios": [
+        "desktop.fault-recovery.default"
+      ],
+      "decisionMode": "measured",
+      "missingEvidenceEffect": "unproven",
+      "claimLevels": [
+        "source",
+        "runtime",
+        "product",
+        "release"
+      ],
+      "remediationOwner": "code",
+      "sourceConcepts": [
+        "canonical:desktop:fault-recovery"
+      ],
+      "stopShip": false,
+      "benchmark": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "qualificationDigest": null
+      },
+      "provenance": {
+        "kind": "canonical",
+        "source": "nemesis:desktop",
+        "rights": "internal-contract",
+        "lineage": [
+          "canonical:desktop:fault-recovery"
+        ]
+      }
+    },
+    {
+      "id": "desktop.installer",
+      "version": "1.0.0",
+      "selector": {
+        "targetKinds": [
+          "desktop-app"
+        ]
+      },
+      "denominator": "installer-subjects",
+      "evidence": [
+        "repository",
+        "external-evidence"
+      ],
+      "families": [
+        "compatibility"
+      ],
+      "lenses": [
+        "desktop.installer"
+      ],
+      "providers": [
+        "compatibility.core"
+      ],
+      "rules": [
+        "compatibility"
+      ],
+      "scenarios": [
+        "desktop.installer.default"
+      ],
+      "decisionMode": "measured",
+      "missingEvidenceEffect": "unproven",
+      "claimLevels": [
+        "source",
+        "runtime",
+        "product",
+        "release"
+      ],
+      "remediationOwner": "code",
+      "sourceConcepts": [
+        "canonical:desktop:installer"
+      ],
+      "stopShip": false,
+      "benchmark": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "qualificationDigest": null
+      },
+      "provenance": {
+        "kind": "canonical",
+        "source": "nemesis:desktop",
+        "rights": "internal-contract",
+        "lineage": [
+          "canonical:desktop:installer"
+        ]
+      }
+    },
+    {
+      "id": "desktop.updater-signing",
+      "version": "1.0.0",
+      "selector": {
+        "targetKinds": [
+          "desktop-app"
+        ]
+      },
+      "denominator": "updater-signing-subjects",
+      "evidence": [
+        "repository",
+        "external-evidence"
+      ],
+      "families": [
+        "compatibility"
+      ],
+      "lenses": [
+        "desktop.updater-signing"
+      ],
+      "providers": [
+        "compatibility.core"
+      ],
+      "rules": [
+        "compatibility"
+      ],
+      "scenarios": [
+        "desktop.updater-signing.default"
+      ],
+      "decisionMode": "measured",
+      "missingEvidenceEffect": "unproven",
+      "claimLevels": [
+        "source",
+        "runtime",
+        "product",
+        "release"
+      ],
+      "remediationOwner": "architecture",
+      "sourceConcepts": [
+        "canonical:desktop:updater-signing"
+      ],
+      "stopShip": true,
+      "benchmark": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "qualificationDigest": null
+      },
+      "provenance": {
+        "kind": "canonical",
+        "source": "nemesis:desktop",
+        "rights": "internal-contract",
+        "lineage": [
+          "canonical:desktop:updater-signing"
+        ]
+      }
+    },
+    {
+      "id": "desktop.windows",
+      "version": "1.0.0",
+      "selector": {
+        "targetKinds": [
+          "desktop-app"
+        ]
+      },
+      "denominator": "windows-subjects",
+      "evidence": [
+        "repository",
+        "external-evidence"
+      ],
+      "families": [
+        "compatibility"
+      ],
+      "lenses": [
+        "desktop.windows"
+      ],
+      "providers": [
+        "compatibility.core"
+      ],
+      "rules": [
+        "compatibility"
+      ],
+      "scenarios": [
+        "desktop.windows.default"
+      ],
+      "decisionMode": "measured",
+      "missingEvidenceEffect": "unproven",
+      "claimLevels": [
+        "source",
+        "runtime",
+        "product",
+        "release"
+      ],
+      "remediationOwner": "code",
+      "sourceConcepts": [
+        "canonical:desktop:windows"
+      ],
+      "stopShip": false,
+      "benchmark": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "qualificationDigest": null
+      },
+      "provenance": {
+        "kind": "canonical",
+        "source": "nemesis:desktop",
+        "rights": "internal-contract",
+        "lineage": [
+          "canonical:desktop:windows"
+        ]
+      }
+    },
+    {
+      "id": "desktop.macos",
+      "version": "1.0.0",
+      "selector": {
+        "targetKinds": [
+          "desktop-app"
+        ]
+      },
+      "denominator": "macos-subjects",
+      "evidence": [
+        "repository",
+        "external-evidence"
+      ],
+      "families": [
+        "compatibility"
+      ],
+      "lenses": [
+        "desktop.macos"
+      ],
+      "providers": [
+        "compatibility.core"
+      ],
+      "rules": [
+        "compatibility"
+      ],
+      "scenarios": [
+        "desktop.macos.default"
+      ],
+      "decisionMode": "measured",
+      "missingEvidenceEffect": "unproven",
+      "claimLevels": [
+        "source",
+        "runtime",
+        "product",
+        "release"
+      ],
+      "remediationOwner": "code",
+      "sourceConcepts": [
+        "canonical:desktop:macos"
+      ],
+      "stopShip": false,
+      "benchmark": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "qualificationDigest": null
+      },
+      "provenance": {
+        "kind": "canonical",
+        "source": "nemesis:desktop",
+        "rights": "internal-contract",
+        "lineage": [
+          "canonical:desktop:macos"
+        ]
+      }
+    },
+    {
+      "id": "desktop.linux",
+      "version": "1.0.0",
+      "selector": {
+        "targetKinds": [
+          "desktop-app"
+        ]
+      },
+      "denominator": "linux-subjects",
+      "evidence": [
+        "repository",
+        "external-evidence"
+      ],
+      "families": [
+        "compatibility"
+      ],
+      "lenses": [
+        "desktop.linux"
+      ],
+      "providers": [
+        "compatibility.core"
+      ],
+      "rules": [
+        "compatibility"
+      ],
+      "scenarios": [
+        "desktop.linux.default"
+      ],
+      "decisionMode": "measured",
+      "missingEvidenceEffect": "unproven",
+      "claimLevels": [
+        "source",
+        "runtime",
+        "product",
+        "release"
+      ],
+      "remediationOwner": "code",
+      "sourceConcepts": [
+        "canonical:desktop:linux"
+      ],
+      "stopShip": false,
+      "benchmark": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "qualificationDigest": null
+      },
+      "provenance": {
+        "kind": "canonical",
+        "source": "nemesis:desktop",
+        "rights": "internal-contract",
+        "lineage": [
+          "canonical:desktop:linux"
+        ]
+      }
+    },
+    {
+      "id": "desktop.accessibility-i18n",
+      "version": "1.0.0",
+      "selector": {
+        "targetKinds": [
+          "desktop-app"
+        ]
+      },
+      "denominator": "accessibility-i18n-subjects",
+      "evidence": [
+        "repository",
+        "external-evidence"
+      ],
+      "families": [
+        "compatibility"
+      ],
+      "lenses": [
+        "desktop.accessibility-i18n"
+      ],
+      "providers": [
+        "compatibility.core"
+      ],
+      "rules": [
+        "compatibility"
+      ],
+      "scenarios": [
+        "desktop.accessibility-i18n.default"
+      ],
+      "decisionMode": "measured",
+      "missingEvidenceEffect": "unproven",
+      "claimLevels": [
+        "source",
+        "runtime",
+        "product",
+        "release"
+      ],
+      "remediationOwner": "code",
+      "sourceConcepts": [
+        "canonical:desktop:accessibility-i18n"
+      ],
+      "stopShip": false,
+      "benchmark": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "qualificationDigest": null
+      },
+      "provenance": {
+        "kind": "canonical",
+        "source": "nemesis:desktop",
+        "rights": "internal-contract",
+        "lineage": [
+          "canonical:desktop:accessibility-i18n"
+        ]
+      }
+    },
+    {
+      "id": "desktop.compatibility",
+      "version": "1.0.0",
+      "selector": {
+        "targetKinds": [
+          "desktop-app"
+        ]
+      },
+      "denominator": "compatibility-subjects",
+      "evidence": [
+        "repository",
+        "external-evidence"
+      ],
+      "families": [
+        "compatibility"
+      ],
+      "lenses": [
+        "desktop.compatibility"
+      ],
+      "providers": [
+        "compatibility.core"
+      ],
+      "rules": [
+        "compatibility"
+      ],
+      "scenarios": [
+        "desktop.compatibility.default"
+      ],
+      "decisionMode": "measured",
+      "missingEvidenceEffect": "unproven",
+      "claimLevels": [
+        "source",
+        "runtime",
+        "product",
+        "release"
+      ],
+      "remediationOwner": "code",
+      "sourceConcepts": [
+        "canonical:desktop:compatibility"
+      ],
+      "stopShip": false,
+      "benchmark": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "qualificationDigest": null
+      },
+      "provenance": {
+        "kind": "canonical",
+        "source": "nemesis:desktop",
+        "rights": "internal-contract",
+        "lineage": [
+          "canonical:desktop:compatibility"
+        ]
+      }
+    },
+    {
+      "id": "desktop.tests",
+      "version": "1.0.0",
+      "selector": {
+        "targetKinds": [
+          "desktop-app"
+        ]
+      },
+      "denominator": "tests-subjects",
+      "evidence": [
+        "repository",
+        "external-evidence"
+      ],
+      "families": [
+        "compatibility"
+      ],
+      "lenses": [
+        "desktop.tests"
+      ],
+      "providers": [
+        "compatibility.core"
+      ],
+      "rules": [
+        "compatibility"
+      ],
+      "scenarios": [
+        "desktop.tests.default"
+      ],
+      "decisionMode": "measured",
+      "missingEvidenceEffect": "unproven",
+      "claimLevels": [
+        "source",
+        "runtime",
+        "product",
+        "release"
+      ],
+      "remediationOwner": "code",
+      "sourceConcepts": [
+        "canonical:desktop:tests"
+      ],
+      "stopShip": false,
+      "benchmark": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "qualificationDigest": null
+      },
+      "provenance": {
+        "kind": "canonical",
+        "source": "nemesis:desktop",
+        "rights": "internal-contract",
+        "lineage": [
+          "canonical:desktop:tests"
+        ]
+      }
+    },
+    {
+      "id": "desktop.observability-support",
+      "version": "1.0.0",
+      "selector": {
+        "targetKinds": [
+          "desktop-app"
+        ]
+      },
+      "denominator": "observability-support-subjects",
+      "evidence": [
+        "repository",
+        "external-evidence"
+      ],
+      "families": [
+        "compatibility"
+      ],
+      "lenses": [
+        "desktop.observability-support"
+      ],
+      "providers": [
+        "compatibility.core"
+      ],
+      "rules": [
+        "compatibility"
+      ],
+      "scenarios": [
+        "desktop.observability-support.default"
+      ],
+      "decisionMode": "measured",
+      "missingEvidenceEffect": "unproven",
+      "claimLevels": [
+        "source",
+        "runtime",
+        "product",
+        "release"
+      ],
+      "remediationOwner": "code",
+      "sourceConcepts": [
+        "canonical:desktop:observability-support"
+      ],
+      "stopShip": false,
+      "benchmark": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "qualificationDigest": null
+      },
+      "provenance": {
+        "kind": "canonical",
+        "source": "nemesis:desktop",
+        "rights": "internal-contract",
+        "lineage": [
+          "canonical:desktop:observability-support"
+        ]
+      }
+    },
+    {
+      "id": "desktop.supply-chain",
+      "version": "1.0.0",
+      "selector": {
+        "targetKinds": [
+          "desktop-app"
+        ]
+      },
+      "denominator": "supply-chain-subjects",
+      "evidence": [
+        "repository",
+        "external-evidence"
+      ],
+      "families": [
+        "compatibility"
+      ],
+      "lenses": [
+        "desktop.supply-chain"
+      ],
+      "providers": [
+        "compatibility.core"
+      ],
+      "rules": [
+        "compatibility"
+      ],
+      "scenarios": [
+        "desktop.supply-chain.default"
+      ],
+      "decisionMode": "measured",
+      "missingEvidenceEffect": "unproven",
+      "claimLevels": [
+        "source",
+        "runtime",
+        "product",
+        "release"
+      ],
+      "remediationOwner": "code",
+      "sourceConcepts": [
+        "canonical:desktop:supply-chain"
+      ],
+      "stopShip": false,
+      "benchmark": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "qualificationDigest": null
+      },
+      "provenance": {
+        "kind": "canonical",
+        "source": "nemesis:desktop",
+        "rights": "internal-contract",
+        "lineage": [
+          "canonical:desktop:supply-chain"
+        ]
+      }
+    },
+    {
+      "id": "desktop.licensing",
+      "version": "1.0.0",
+      "selector": {
+        "targetKinds": [
+          "desktop-app"
+        ]
+      },
+      "denominator": "licensing-subjects",
+      "evidence": [
+        "repository",
+        "external-evidence"
+      ],
+      "families": [
+        "compatibility"
+      ],
+      "lenses": [
+        "desktop.licensing"
+      ],
+      "providers": [
+        "compatibility.core"
+      ],
+      "rules": [
+        "compatibility"
+      ],
+      "scenarios": [
+        "desktop.licensing.default"
+      ],
+      "decisionMode": "measured",
+      "missingEvidenceEffect": "unproven",
+      "claimLevels": [
+        "source",
+        "runtime",
+        "product",
+        "release"
+      ],
+      "remediationOwner": "code",
+      "sourceConcepts": [
+        "canonical:desktop:licensing"
+      ],
+      "stopShip": false,
+      "benchmark": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "qualificationDigest": null
+      },
+      "provenance": {
+        "kind": "canonical",
+        "source": "nemesis:desktop",
+        "rights": "internal-contract",
+        "lineage": [
+          "canonical:desktop:licensing"
+        ]
+      }
+    },
+    {
+      "id": "desktop.legal-docs",
+      "version": "1.0.0",
+      "selector": {
+        "targetKinds": [
+          "desktop-app"
+        ]
+      },
+      "denominator": "legal-docs-subjects",
+      "evidence": [
+        "repository",
+        "external-evidence"
+      ],
+      "families": [
+        "compatibility"
+      ],
+      "lenses": [
+        "desktop.legal-docs"
+      ],
+      "providers": [
+        "compatibility.core"
+      ],
+      "rules": [
+        "compatibility"
+      ],
+      "scenarios": [
+        "desktop.legal-docs.default"
+      ],
+      "decisionMode": "measured",
+      "missingEvidenceEffect": "unproven",
+      "claimLevels": [
+        "source",
+        "runtime",
+        "product",
+        "release"
+      ],
+      "remediationOwner": "writing",
+      "sourceConcepts": [
+        "canonical:desktop:legal-docs"
+      ],
+      "stopShip": false,
+      "benchmark": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "qualificationDigest": null
+      },
+      "provenance": {
+        "kind": "canonical",
+        "source": "nemesis:desktop",
+        "rights": "internal-contract",
+        "lineage": [
+          "canonical:desktop:legal-docs"
+        ]
+      }
+    },
+    {
+      "id": "desktop.ai",
+      "version": "1.0.0",
+      "selector": {
+        "targetKinds": [
+          "desktop-app"
+        ]
+      },
+      "denominator": "ai-subjects",
+      "evidence": [
+        "repository",
+        "external-evidence"
+      ],
+      "families": [
+        "compatibility"
+      ],
+      "lenses": [
+        "desktop.ai"
+      ],
+      "providers": [
+        "compatibility.core"
+      ],
+      "rules": [
+        "compatibility"
+      ],
+      "scenarios": [
+        "desktop.ai.default"
+      ],
+      "decisionMode": "measured",
+      "missingEvidenceEffect": "unproven",
+      "claimLevels": [
+        "source",
+        "runtime",
+        "product",
+        "release"
+      ],
+      "remediationOwner": "code",
+      "sourceConcepts": [
+        "canonical:desktop:ai"
+      ],
+      "stopShip": false,
+      "benchmark": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "qualificationDigest": null
+      },
+      "provenance": {
+        "kind": "canonical",
+        "source": "nemesis:desktop",
+        "rights": "internal-contract",
+        "lineage": [
+          "canonical:desktop:ai"
+        ]
+      }
+    }
+  ]
+}

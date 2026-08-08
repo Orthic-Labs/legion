@@ -1,0 +1,144 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://orthic.dev/schemas/remediation/sandbox-receipt-v1.json",
+  "title": "RemediationSandboxReceiptV1",
+  "type": "object",
+  "required": [
+    "schemaVersion",
+    "kind",
+    "runId",
+    "sandboxPath",
+    "baseRevision",
+    "baseIdentity",
+    "inputOverlayPolicy",
+    "processPolicy",
+    "networkPolicy",
+    "createdPaths",
+    "cleanup",
+    "primaryRepositoryMutated",
+    "binding",
+    "findingRunDigest",
+    "digest"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": 1
+    },
+    "kind": {
+      "const": "nemesis-remediation-sandbox"
+    },
+    "runId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "sandboxPath": {
+      "type": "string",
+      "minLength": 1
+    },
+    "baseRevision": {
+      "type": "string",
+      "minLength": 1
+    },
+    "baseIdentity": {
+      "type": "object",
+      "required": [
+        "repositoryRevision",
+        "dirtyPatchDigest",
+        "planDigest"
+      ],
+      "properties": {
+        "repositoryRevision": {
+          "type": "string",
+          "minLength": 1
+        },
+        "dirtyPatchDigest": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "planDigest": {
+          "type": "string",
+          "pattern": "^sha256:"
+        }
+      },
+      "additionalProperties": false
+    },
+    "inputOverlayPolicy": {
+      "enum": [
+        "bound-base-revision-only",
+        "bound-base-revision-plus-dirty-overlay"
+      ]
+    },
+    "processPolicy": {
+      "type": "object"
+    },
+    "networkPolicy": {
+      "type": "object",
+      "required": [
+        "allowed",
+        "reason"
+      ],
+      "properties": {
+        "allowed": {
+          "const": false
+        },
+        "reason": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "createdPaths": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "cleanup": {
+      "type": "object",
+      "required": [
+        "command",
+        "cwd",
+        "description"
+      ],
+      "properties": {
+        "command": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1
+        },
+        "cwd": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "primaryRepositoryMutated": {
+      "const": false
+    },
+    "createdAt": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "binding": {
+      "type": "object"
+    },
+    "findingRunDigest": {
+      "type": "string",
+      "pattern": "^sha256:"
+    },
+    "digest": {
+      "type": "string",
+      "pattern": "^sha256:"
+    }
+  },
+  "additionalProperties": false
+}

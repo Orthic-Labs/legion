@@ -1,0 +1,1 @@
+import {analyzeLanguage} from '../shared.mjs';export const language="php";export const extensions=["php"];export const config={"id":"php","extensions":["php"],"variants":{"php":["php"]},"tools":["package","lint","type","test","security"]};export function analyze(input={}){return analyzeLanguage(config,input);}

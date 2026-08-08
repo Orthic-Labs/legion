@@ -1,0 +1,185 @@
+{
+  "schemaVersion": 1,
+  "templates": [
+    {
+      "id": "conditional.commerce.default",
+      "controlId": "conditional.commerce",
+      "mandatory": true,
+      "requiredCapabilities": [
+        "repository",
+        "external-evidence"
+      ],
+      "destructive": false,
+      "isolation": "fresh",
+      "timeoutMs": 30000,
+      "invariants": [
+        "no-unaccounted-side-effects"
+      ]
+    },
+    {
+      "id": "conditional.ugc.default",
+      "controlId": "conditional.ugc",
+      "mandatory": true,
+      "requiredCapabilities": [
+        "repository",
+        "external-evidence"
+      ],
+      "destructive": false,
+      "isolation": "fresh",
+      "timeoutMs": 30000,
+      "invariants": [
+        "no-unaccounted-side-effects"
+      ]
+    },
+    {
+      "id": "conditional.ai-tools.default",
+      "controlId": "conditional.ai-tools",
+      "mandatory": true,
+      "requiredCapabilities": [
+        "repository",
+        "external-evidence"
+      ],
+      "destructive": false,
+      "isolation": "fresh",
+      "timeoutMs": 30000,
+      "invariants": [
+        "no-unaccounted-side-effects"
+      ]
+    },
+    {
+      "id": "conditional.pwa-offline.default",
+      "controlId": "conditional.pwa-offline",
+      "mandatory": true,
+      "requiredCapabilities": [
+        "repository",
+        "external-evidence"
+      ],
+      "destructive": false,
+      "isolation": "fresh",
+      "timeoutMs": 30000,
+      "invariants": [
+        "no-unaccounted-side-effects"
+      ]
+    },
+    {
+      "id": "conditional.realtime.default",
+      "controlId": "conditional.realtime",
+      "mandatory": true,
+      "requiredCapabilities": [
+        "repository",
+        "external-evidence"
+      ],
+      "destructive": false,
+      "isolation": "fresh",
+      "timeoutMs": 30000,
+      "invariants": [
+        "no-unaccounted-side-effects"
+      ]
+    },
+    {
+      "id": "conditional.hardware-sensors.default",
+      "controlId": "conditional.hardware-sensors",
+      "mandatory": true,
+      "requiredCapabilities": [
+        "repository",
+        "external-evidence"
+      ],
+      "destructive": false,
+      "isolation": "fresh",
+      "timeoutMs": 30000,
+      "invariants": [
+        "no-unaccounted-side-effects"
+      ]
+    },
+    {
+      "id": "conditional.multi-tenant.default",
+      "controlId": "conditional.multi-tenant",
+      "mandatory": true,
+      "requiredCapabilities": [
+        "repository",
+        "external-evidence"
+      ],
+      "destructive": false,
+      "isolation": "fresh",
+      "timeoutMs": 30000,
+      "invariants": [
+        "no-unaccounted-side-effects"
+      ]
+    },
+    {
+      "id": "conditional.regulated-data.default",
+      "controlId": "conditional.regulated-data",
+      "mandatory": true,
+      "requiredCapabilities": [
+        "repository",
+        "external-evidence"
+      ],
+      "destructive": false,
+      "isolation": "fresh",
+      "timeoutMs": 30000,
+      "invariants": [
+        "no-unaccounted-side-effects"
+      ]
+    },
+    {
+      "id": "conditional.high-consequence.default",
+      "controlId": "conditional.high-consequence",
+      "mandatory": true,
+      "requiredCapabilities": [
+        "repository",
+        "external-evidence"
+      ],
+      "destructive": false,
+      "isolation": "fresh",
+      "timeoutMs": 30000,
+      "invariants": [
+        "no-unaccounted-side-effects"
+      ]
+    },
+    {
+      "id": "conditional.children-safety.default",
+      "controlId": "conditional.children-safety",
+      "mandatory": true,
+      "requiredCapabilities": [
+        "repository",
+        "external-evidence"
+      ],
+      "destructive": false,
+      "isolation": "fresh",
+      "timeoutMs": 30000,
+      "invariants": [
+        "no-unaccounted-side-effects"
+      ]
+    },
+    {
+      "id": "conditional.consent.default",
+      "controlId": "conditional.consent",
+      "mandatory": true,
+      "requiredCapabilities": [
+        "repository",
+        "external-evidence"
+      ],
+      "destructive": false,
+      "isolation": "fresh",
+      "timeoutMs": 30000,
+      "invariants": [
+        "no-unaccounted-side-effects"
+      ]
+    },
+    {
+      "id": "conditional.human-policy.default",
+      "controlId": "conditional.human-policy",
+      "mandatory": true,
+      "requiredCapabilities": [
+        "repository",
+        "external-evidence"
+      ],
+      "destructive": false,
+      "isolation": "fresh",
+      "timeoutMs": 30000,
+      "invariants": [
+        "no-unaccounted-side-effects"
+      ]
+    }
+  ]
+}

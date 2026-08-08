@@ -1,0 +1,43 @@
+{
+  "schemaVersion": 1,
+  "seedDigest": "sha256:5d1263f382041fce9f8d1d02dd620a843d26e190d69eeae25dc04dc25b7dfd7a",
+  "rawDocumentsAvailable": false,
+  "sources": [
+    {
+      "id": "creator.performance",
+      "digest": "sha256:249a4a99f4fed1daf61e99387dcb03bfd66ce4c780833f0241d81939c104464a",
+      "itemCount": 100,
+      "rawAvailable": false,
+      "rightsStatus": "unresolved",
+      "publicPackageDisposition": "exclude-until-rights-resolved",
+      "duplicateFiles": [
+        "performance-audit(1).md",
+        "SKILL copy 2.md"
+      ]
+    },
+    {
+      "id": "creator.security",
+      "digest": "sha256:c9d728c8eda9df46c035e5d0b4ea81116dfa1b4f9c475b621fc4b220e9866a3a",
+      "itemCount": 100,
+      "rawAvailable": false,
+      "rightsStatus": "unresolved",
+      "publicPackageDisposition": "exclude-until-rights-resolved",
+      "duplicateFiles": [
+        "security-audit(1).md",
+        "SKILL copy.md"
+      ]
+    },
+    {
+      "id": "creator.ui",
+      "digest": "sha256:92ebd4e8c5f3467ce30b246b562fd0e97377c8c6f3fece944d655dbd1b91cd17",
+      "itemCount": 100,
+      "rawAvailable": false,
+      "rightsStatus": "unresolved",
+      "publicPackageDisposition": "exclude-until-rights-resolved",
+      "duplicateFiles": [
+        "ui-audit(1).md",
+        "SKILL(20260806-142639).md"
+      ]
+    }
+  ]
+}

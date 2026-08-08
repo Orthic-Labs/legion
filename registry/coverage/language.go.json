@@ -1,0 +1,27 @@
+{
+  "id": "language.go",
+  "kind": "language",
+  "aliases": [],
+  "extensions": [
+    "go"
+  ],
+  "manifests": [],
+  "providers": [
+    "code.go"
+  ],
+  "limitations": [
+    "runtime and remediation unproven"
+  ],
+  "qualificationVersion": "1.0.0",
+  "corpusDigest": "sha256:b5ac9ce370542a642e9429869496fa20002d459f55704614c23b4b1157feedc9",
+  "artifactDigest": "sha256:b5ac9ce370542a642e9429869496fa20002d459f55704614c23b4b1157feedc9",
+  "tiers": {
+    "inventory": 1,
+    "parser": 1,
+    "native": 1,
+    "cross-file": 0,
+    "measured-pack": 1,
+    "runtime": 0,
+    "remediation": 0
+  }
+}

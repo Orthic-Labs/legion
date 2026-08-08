@@ -1,1 +1,222 @@
-{"schemaVersion":1,"tiers":["inventory","parser","native","cross-file","measured-pack","runtime","remediation"],"technologies":[]}
+{
+  "schemaVersion": 1,
+  "tiers": [
+    "inventory",
+    "parser",
+    "native",
+    "cross-file",
+    "measured-pack",
+    "runtime",
+    "remediation"
+  ],
+  "technologies": [
+    {
+      "id": "javascript",
+      "category": "language",
+      "aliases": [],
+      "roles": [
+        "dependency",
+        "runtime",
+        "build",
+        "platform"
+      ],
+      "knownLimitations": [],
+      "qualificationDigest": null
+    },
+    {
+      "id": "python",
+      "category": "language",
+      "aliases": [],
+      "roles": [
+        "dependency",
+        "runtime",
+        "build",
+        "platform"
+      ],
+      "knownLimitations": [],
+      "qualificationDigest": null
+    },
+    {
+      "id": "rust",
+      "category": "language",
+      "aliases": [],
+      "roles": [
+        "dependency",
+        "runtime",
+        "build",
+        "platform"
+      ],
+      "knownLimitations": [],
+      "qualificationDigest": null
+    },
+    {
+      "id": "node",
+      "category": "runtime",
+      "aliases": [],
+      "roles": [
+        "dependency",
+        "runtime",
+        "build",
+        "platform"
+      ],
+      "knownLimitations": [],
+      "qualificationDigest": null
+    },
+    {
+      "id": "react",
+      "category": "framework",
+      "aliases": [],
+      "roles": [
+        "dependency",
+        "runtime",
+        "build",
+        "platform"
+      ],
+      "knownLimitations": [],
+      "qualificationDigest": null
+    },
+    {
+      "id": "tauri",
+      "category": "framework",
+      "aliases": [],
+      "roles": [
+        "dependency",
+        "runtime",
+        "build",
+        "platform"
+      ],
+      "knownLimitations": [],
+      "qualificationDigest": null
+    },
+    {
+      "id": "pnpm",
+      "category": "package-system",
+      "aliases": [],
+      "roles": [
+        "dependency",
+        "runtime",
+        "build",
+        "platform"
+      ],
+      "knownLimitations": [],
+      "qualificationDigest": null
+    },
+    {
+      "id": "postgres",
+      "category": "data-system",
+      "aliases": [],
+      "roles": [
+        "dependency",
+        "runtime",
+        "build",
+        "platform"
+      ],
+      "knownLimitations": [],
+      "qualificationDigest": null
+    },
+    {
+      "id": "http",
+      "category": "protocol",
+      "aliases": [],
+      "roles": [
+        "dependency",
+        "runtime",
+        "build",
+        "platform"
+      ],
+      "knownLimitations": [],
+      "qualificationDigest": null
+    },
+    {
+      "id": "windows",
+      "category": "operating-system",
+      "aliases": [],
+      "roles": [
+        "dependency",
+        "runtime",
+        "build",
+        "platform"
+      ],
+      "knownLimitations": [],
+      "qualificationDigest": null
+    },
+    {
+      "id": "chromium",
+      "category": "browser",
+      "aliases": [],
+      "roles": [
+        "dependency",
+        "runtime",
+        "build",
+        "platform"
+      ],
+      "knownLimitations": [],
+      "qualificationDigest": null
+    },
+    {
+      "id": "ios",
+      "category": "device-platform",
+      "aliases": [],
+      "roles": [
+        "dependency",
+        "runtime",
+        "build",
+        "platform"
+      ],
+      "knownLimitations": [],
+      "qualificationDigest": null
+    },
+    {
+      "id": "aws",
+      "category": "cloud-platform",
+      "aliases": [],
+      "roles": [
+        "dependency",
+        "runtime",
+        "build",
+        "platform"
+      ],
+      "knownLimitations": [],
+      "qualificationDigest": null
+    },
+    {
+      "id": "app-store",
+      "category": "store",
+      "aliases": [],
+      "roles": [
+        "dependency",
+        "runtime",
+        "build",
+        "platform"
+      ],
+      "knownLimitations": [],
+      "qualificationDigest": null
+    },
+    {
+      "id": "authenticode",
+      "category": "signing-system",
+      "aliases": [],
+      "roles": [
+        "dependency",
+        "runtime",
+        "build",
+        "platform"
+      ],
+      "knownLimitations": [],
+      "qualificationDigest": null
+    },
+    {
+      "id": "stripe",
+      "category": "third-party-provider",
+      "aliases": [],
+      "roles": [
+        "dependency",
+        "runtime",
+        "build",
+        "platform"
+      ],
+      "knownLimitations": [],
+      "qualificationDigest": null
+    }
+  ]
+}

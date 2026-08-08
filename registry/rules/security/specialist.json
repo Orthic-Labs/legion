@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 1,
+  "rules": [
+    { "id": "mobile.permission.dangerous-declared", "version": "2.0.0", "pack": "security.mobile", "tier": "measured", "decisionMode": "evidence", "cleanClaim": "never-without-denominator", "requiredControls": [], "applicability": ["mobile"] },
+    { "id": "mobile.deep-link.entrypoint-unvalidated", "version": "2.0.0", "pack": "security.mobile", "tier": "measured", "decisionMode": "evidence", "cleanClaim": "never-without-denominator", "requiredControls": [], "applicability": ["mobile"] },
+    { "id": "mobile.exported-component.no-permission-gate", "version": "2.0.0", "pack": "security.mobile", "tier": "measured", "decisionMode": "evidence", "cleanClaim": "never-without-denominator", "requiredControls": [], "applicability": ["mobile"] },
+    { "id": "mobile.webview.js-bridge-exposed", "version": "2.0.0", "pack": "security.mobile", "tier": "measured", "decisionMode": "evidence", "cleanClaim": "never-without-denominator", "requiredControls": [], "applicability": ["mobile"] },
+    { "id": "mobile.storage.insecure-sensitive-data", "version": "2.0.0", "pack": "security.mobile", "tier": "measured", "decisionMode": "evidence", "cleanClaim": "never-without-denominator", "requiredControls": ["secure-storage"], "applicability": ["mobile"] },
+    { "id": "mobile.backup.enabled-without-exclusion", "version": "2.0.0", "pack": "security.mobile", "tier": "measured", "decisionMode": "evidence", "cleanClaim": "never-without-denominator", "requiredControls": ["backup-exclusion"], "applicability": ["mobile"] },
+    { "id": "mobile.transport.cleartext-allowed", "version": "2.0.0", "pack": "security.mobile", "tier": "measured", "decisionMode": "evidence", "cleanClaim": "never-without-denominator", "requiredControls": ["transport-security"], "applicability": ["mobile"] },
+    { "id": "mobile.signing.debug-config-in-release", "version": "2.0.0", "pack": "security.mobile", "tier": "measured", "decisionMode": "evidence", "cleanClaim": "never-without-denominator", "requiredControls": ["release-signing-config"], "applicability": ["mobile"] },
+
+    { "id": "smart-contract.access-control.tx-origin-authorization", "version": "1.0.0", "pack": "security.smart-contract", "tier": "measured", "decisionMode": "evidence", "cleanClaim": "never-without-denominator", "requiredControls": [], "applicability": ["smart-contract"] },
+    { "id": "smart-contract.access-control.privileged-function-unprotected", "version": "1.0.0", "pack": "security.smart-contract", "tier": "measured", "decisionMode": "evidence", "cleanClaim": "never-without-denominator", "requiredControls": ["access-control-modifier"], "applicability": ["smart-contract"] },
+    { "id": "smart-contract.reentrancy.external-call-before-guard", "version": "1.0.0", "pack": "security.smart-contract", "tier": "measured", "decisionMode": "evidence", "cleanClaim": "never-without-denominator", "requiredControls": ["reentrancy-guard"], "applicability": ["smart-contract"] },
+    { "id": "smart-contract.oracle.single-source-price-trust", "version": "1.0.0", "pack": "security.smart-contract", "tier": "measured", "decisionMode": "evidence", "cleanClaim": "never-without-denominator", "requiredControls": ["oracle-staleness-check"], "applicability": ["smart-contract"] },
+    { "id": "smart-contract.upgradeability.unprotected-upgrade-authorization", "version": "1.0.0", "pack": "security.smart-contract", "tier": "measured", "decisionMode": "evidence", "cleanClaim": "never-without-denominator", "requiredControls": ["access-control-modifier"], "applicability": ["smart-contract"] },
+    { "id": "smart-contract.signature.replay-missing-nonce", "version": "1.0.0", "pack": "security.smart-contract", "tier": "measured", "decisionMode": "evidence", "cleanClaim": "never-without-denominator", "requiredControls": ["nonce-or-deadline-binding"], "applicability": ["smart-contract"] },
+
+    { "id": "embedded-iot.firmware.update-without-signature-verification", "version": "1.0.0", "pack": "security.embedded-iot", "tier": "measured", "decisionMode": "evidence", "cleanClaim": "never-without-denominator", "requiredControls": ["firmware-signature-verification"], "applicability": ["embedded-iot"] },
+    { "id": "embedded-iot.debug-interface.enabled-in-production-build", "version": "1.0.0", "pack": "security.embedded-iot", "tier": "measured", "decisionMode": "evidence", "cleanClaim": "never-without-denominator", "requiredControls": ["debug-interface-guard"], "applicability": ["embedded-iot"] },
+    { "id": "embedded-iot.credentials.hardcoded-secret", "version": "1.0.0", "pack": "security.embedded-iot", "tier": "measured", "decisionMode": "evidence", "cleanClaim": "never-without-denominator", "requiredControls": [], "applicability": ["embedded-iot"] },
+    { "id": "embedded-iot.identity.shared-static-device-key", "version": "1.0.0", "pack": "security.embedded-iot", "tier": "measured", "decisionMode": "evidence", "cleanClaim": "never-without-denominator", "requiredControls": ["per-device-provisioning"], "applicability": ["embedded-iot"] },
+
+    { "id": "ics-ot.authorization.unauthenticated-write-command", "version": "1.0.0", "pack": "security.ics-ot", "tier": "measured", "decisionMode": "evidence", "cleanClaim": "never-without-denominator", "requiredControls": ["operator-authentication"], "applicability": ["ics-ot"] },
+    { "id": "ics-ot.segmentation.ot-bridged-to-corporate-network", "version": "1.0.0", "pack": "security.ics-ot", "tier": "measured", "decisionMode": "evidence", "cleanClaim": "never-without-denominator", "requiredControls": ["network-segmentation"], "applicability": ["ics-ot"] },
+    { "id": "ics-ot.update-policy.unsigned-plc-firmware-push", "version": "1.0.0", "pack": "security.ics-ot", "tier": "measured", "decisionMode": "evidence", "cleanClaim": "never-without-denominator", "requiredControls": ["logic-signature-verification"], "applicability": ["ics-ot"] }
+  ],
+  "source": "internal",
+  "license": "internal"
+}

@@ -1,1 +1,22 @@
-{"$schema":"https://json-schema.org/draft/2020-12/schema","type":"object","required":["scenarios","omitted"],"properties":{"scenarios":{"type":"array"},"omitted":{"type":"array"}}}
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "nemesis-scenario-matrix-v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "kind", "axes", "scenarios", "omitted", "binding", "complete", "digest"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "kind": { "const": "nemesis-scenario-matrix" },
+    "axes": { "type": "object" },
+    "scenarios": { "type": "array", "items": { "$ref": "#/$defs/scenario" } },
+    "omitted": { "type": "array", "items": { "$ref": "#/$defs/omission" } },
+    "binding": { "type": ["object", "null"] },
+    "complete": { "type": "boolean" },
+    "digest": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" }
+  },
+  "$defs": {
+    "strings": { "type": "array", "items": { "type": "string", "minLength": 1 }, "uniqueItems": true },
+    "scenario": { "type": "object", "additionalProperties": false, "required": ["id", "templateId", "controlId", "journeyId", "combination", "providers", "requiredCapabilities", "mandatory", "destructive", "isolation", "timeoutMs", "invariants", "claimLevels"], "properties": { "id": {"type":"string","minLength":1}, "templateId":{"type":"string","minLength":1}, "controlId":{"type":"string","minLength":1}, "journeyId":{"type":["string","null"]}, "combination":{"type":"object"}, "providers":{"$ref":"#/$defs/strings"}, "requiredCapabilities":{"$ref":"#/$defs/strings"}, "mandatory":{"type":"boolean"}, "destructive":{"type":"boolean"}, "isolation":{"type":"string","minLength":1}, "timeoutMs":{"type":"integer","minimum":1}, "invariants":{"type":"array"}, "claimLevels":{"$ref":"#/$defs/strings"} } },
+    "omission": { "type": "object", "required": ["mandatory", "reason", "coverageEffect"] }
+  }
+}

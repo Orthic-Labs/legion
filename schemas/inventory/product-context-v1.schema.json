@@ -1,1 +1,23 @@
-{"$schema":"https://json-schema.org/draft/2020-12/schema","type":"object","properties":{"roles":{"type":"array"},"dataClasses":{"type":"array"}}}
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "nemesis-product-context-v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["roles", "tenants", "actors", "accounts", "permissions", "bindings", "gaps", "plans", "entitlements", "dataClasses", "assets", "riskCandidates", "riskAuthority"],
+  "properties": {
+    "roles": { "$ref": "#/$defs/strings" },
+    "tenants": { "$ref": "#/$defs/strings" },
+    "actors": { "type": "array", "items": { "type": "object", "additionalProperties": false, "required": ["id", "source", "accountIds", "permissionIds"], "properties": { "id": { "type": "string", "minLength": 1 }, "source": { "type": "string", "minLength": 1 }, "accountIds": { "$ref": "#/$defs/strings" }, "permissionIds": { "$ref": "#/$defs/strings" } } } },
+    "accounts": { "type": "array", "items": { "type": "object", "additionalProperties": false, "required": ["id", "roleIds", "evidenceRefs"], "properties": { "id": { "type": "string", "minLength": 1 }, "roleIds": { "$ref": "#/$defs/strings" }, "evidenceRefs": { "$ref": "#/$defs/strings" } } } },
+    "permissions": { "type": "array", "items": { "type": "object", "additionalProperties": false, "required": ["id", "roleIds", "scope", "evidenceRefs"], "properties": { "id": { "type": "string", "minLength": 1 }, "roleIds": { "$ref": "#/$defs/strings" }, "scope": { "type": "string", "minLength": 1 }, "evidenceRefs": { "$ref": "#/$defs/strings" } } } },
+    "plans": { "$ref": "#/$defs/strings" },
+    "entitlements": { "$ref": "#/$defs/strings" },
+    "dataClasses": { "$ref": "#/$defs/strings" },
+    "assets": { "type": "array" },
+    "riskCandidates": { "type": "array" },
+    "riskAuthority": { "type": ["string", "null"] },
+    "bindings": { "type": "array" },
+    "gaps": { "type": "array" }
+  },
+  "$defs": { "strings": { "type": "array", "items": { "type": "string", "minLength": 1 }, "uniqueItems": true } }
+}

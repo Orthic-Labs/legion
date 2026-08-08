@@ -1,0 +1,27 @@
+{
+  "id": "language.rust",
+  "kind": "language",
+  "aliases": [],
+  "extensions": [
+    "rs"
+  ],
+  "manifests": [],
+  "providers": [
+    "code.rust"
+  ],
+  "limitations": [
+    "runtime and remediation unproven"
+  ],
+  "qualificationVersion": "1.0.0",
+  "corpusDigest": "sha256:5aedb0095e3668b8cc43567387946e199e73349321b7fa733ecafc5815d64176",
+  "artifactDigest": "sha256:5aedb0095e3668b8cc43567387946e199e73349321b7fa733ecafc5815d64176",
+  "tiers": {
+    "inventory": 1,
+    "parser": 1,
+    "native": 1,
+    "cross-file": 0,
+    "measured-pack": 1,
+    "runtime": 0,
+    "remediation": 0
+  }
+}

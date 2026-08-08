@@ -1,0 +1,97 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://orthic.dev/schemas/security/security-chain-verdict-v1.json",
+  "title": "SecurityChainVerdictV1",
+  "type": "object",
+  "required": [
+    "schemaVersion",
+    "kind",
+    "hypothesisId",
+    "adjudicatorProvider",
+    "adjudicatorContextId",
+    "status",
+    "evidenceStrength",
+    "binding",
+    "denominatorDigest"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": 1
+    },
+    "kind": {
+      "const": "security-chain-verdict"
+    },
+    "hypothesisId": {
+      "type": "string"
+    },
+    "adjudicatorProvider": {
+      "type": "string"
+    },
+    "adjudicatorContextId": {
+      "type": "string"
+    },
+    "status": {
+      "enum": [
+        "PROPOSED",
+        "PARTIALLY_SUPPORTED",
+        "PROVEN",
+        "REFUTED",
+        "BLOCKED",
+        "UNPROVEN"
+      ]
+    },
+    "priority": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "enum": [
+        "DIRECT_CROWN_JEWEL",
+        "PRIVILEGE_ESCALATION",
+        "CROSS_TENANT",
+        "CREDENTIAL_PIVOT",
+        "LATERAL_PIVOT",
+        "CONTROL_BYPASS",
+        "PERSISTENT_COMPROMISE",
+        "DATA_EXFILTRATION",
+        "INTEGRITY_DESTRUCTION",
+        "AVAILABILITY_FAILURE",
+        "PARTIAL_PATH",
+        null
+      ]
+    },
+    "evidenceStrength": {
+      "enum": [
+        "possible",
+        "strong-inference",
+        "verified"
+      ]
+    },
+    "refutedSteps": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "counterargument": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "uncertainty": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "binding": {
+      "$ref": "security-binding-v1.schema.json"
+    },
+    "denominatorDigest": {
+      "type": "string",
+      "pattern": "^sha256:"
+    }
+  },
+  "additionalProperties": false
+}

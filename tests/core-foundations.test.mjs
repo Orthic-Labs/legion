@@ -6,7 +6,7 @@ import { buildSealedPlan } from '../lib/core/build-plan.mjs';
 import { fixedHost } from '../lib/host/fixed-host.mjs';
 import { discoverBookTests, qualifyBook } from '../scripts/qualify-book.mjs';
 
-test('default sealed planning retains Book 2 topology and control gates', async () => {
+test('default sealed planning retains fixed source claim stages and fails closed without denominators', async () => {
   const plan = await buildSealedPlan({
     root: '/repo',
     projection: { files: [] },
@@ -15,20 +15,14 @@ test('default sealed planning retains Book 2 topology and control gates', async 
     claimLevel: 'source',
   }, fixedHost());
 
-  assert.deepEqual(plan.requiredStageIds, ['product-topology', 'control-baseline']);
-  assert.equal(plan.completeForRequestedClaim, true);
-  assert.ok(plan.artifacts['product-topology']);
-  assert.ok(plan.artifacts['control-baseline']);
+  assert.equal(plan.requiredStageIds.length,9);
+  assert.equal(plan.completeForRequestedClaim, false);
+  assert.ok(plan.artifacts['product-portfolio']);
+  assert.ok(plan.claimGaps.some(({stage})=>stage==='control-baseline'));
 });
 
-test('incomplete required stage remains a typed claim gap', async () => {
-  const plan = await buildSealedPlan({
-    root: '/repo', claimLevel: 'source',
-    stages: [{ id: 'control-baseline', requiredFor: 'source', async run() { return { complete: false, status: 'missing', detail: 'fixture-missing' }; } }],
-  }, fixedHost());
-
-  assert.equal(plan.completeForRequestedClaim, false);
-  assert.deepEqual(plan.claimGaps, [{ stage: 'control-baseline', status: 'missing', detail: 'fixture-missing' }]);
+test('mutable partial stage lists cannot replace fixed planning order', async () => {
+  await assert.rejects(()=>buildSealedPlan({root:'/repo',claimLevel:'source',stages:[{id:'control-baseline',requiredFor:'source',async run(){return{complete:false};}}]},fixedHost()),/fixed 12-stage order/);
 });
 
 test('duplicate or malformed stages cannot create an ambiguous sealed plan', async () => {
@@ -39,7 +33,10 @@ test('duplicate or malformed stages cannot create an ambiguous sealed plan', asy
 
 test('book qualification discovers deterministic focused suites without running them', async () => {
   const tests = await discoverBookTests(2);
-  assert.deepEqual(tests.map((path) => path.split('/').pop()), ['core-foundations.test.mjs', 'foundations.test.mjs']);
+  assert.deepEqual(tests, [...tests].sort((left, right) => left.localeCompare(right)));
+  assert.ok(tests.some((path) => path.endsWith('book-2-contracts.test.mjs')));
+  assert.ok(tests.some((path) => path.endsWith('book-2-receipt.test.mjs')));
+  assert.equal(tests.some((path) => path.endsWith('book-source-completion.test.mjs')), true);
   const receipt = await qualifyBook(1, { execute: false });
   assert.equal(receipt.status, 'planned');
   assert.ok(receipt.tests.includes('tests/core-foundations.test.mjs'));
@@ -48,8 +45,9 @@ test('book qualification discovers deterministic focused suites without running 
 test('missing external source inputs remain explicit ledger states', async () => {
   for (const path of ['creator-audits-v1.json', 'platform-checklists-v1.json']) {
     const ledger = JSON.parse(await readFile(new URL(`../registry/controls/sources/${path}`, import.meta.url)));
-    assert.equal(ledger.status, 'external-input-required');
-    assert.deepEqual(ledger.items, []);
+    assert.equal(ledger.status, 'external-evidence-required');
+    assert.ok(ledger.items.length > 0);
+    assert.ok(ledger.items.every(({ rightsStatus }) => rightsStatus === 'unresolved'));
     assert.equal(ledger.nextEvidence.length, 1);
   }
 });

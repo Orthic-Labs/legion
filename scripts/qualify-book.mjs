@@ -9,7 +9,28 @@ import { spawnSync } from 'node:child_process';
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const BOOK_TEST_ROOTS = Object.freeze({
   1: ['tests'],
-  2: ['tests', 'tests/platform'],
+  2: ['tests'],
+  3: ['tests'],
+  4: ['tests'],
+  5: ['tests'],
+  6: ['tests'],
+});
+
+const BOOK_TEST_PREFIXES = Object.freeze({
+  1: [
+    'artifact-', 'audit-finalize.', 'audit-verify.', 'cli.', 'config.', 'core-', 'cortex-adapter.',
+    'execution-semantics.', 'package-install.', 'provider-', 'schema-',
+    'standalone-checkout.', 'book-source-completion.', 'core/', 'skills/', 'distribution/package/', 'qualification/book-1-',
+  ],
+  2: ['core-foundations.', 'book-source-completion.', 'platform/', 'inventory/', 'controls/', 'qualification/book-2-'],
+  3: [
+    'coverage-', 'framework-suite.',
+    'generic-source-suite.', 'native-family-runner.', 'provider-', 'providers/',
+    'reachability.', 'book-source-completion.', 'coverage/', 'qualification/book-3-',
+  ],
+  4: ['book-source-completion.', 'platform/'],
+  5: ['book-source-completion.', 'content-', 'design-', 'visual-'],
+  6: ['book-source-completion.', 'report-', 'browser-', 'distribution-'],
 });
 
 async function files(root) {
@@ -26,16 +47,20 @@ async function files(root) {
 export async function discoverBookTests(book, root = ROOT) {
   if (!BOOK_TEST_ROOTS[book]) throw new Error(`unsupported book: ${book}`);
   const candidates = (await Promise.all(BOOK_TEST_ROOTS[book].map((path) => files(join(root, path))))).flat();
-  const prefixes = book === 1
-    ? ['core-', 'artifact-', 'config.', 'provider-', 'schema-', 'cli.']
-    : ['core-foundations.', 'platform/'];
-  return [...new Set(candidates.filter((path) => prefixes.some((prefix) => relative(join(root, 'tests'), path).startsWith(prefix))))]
+  const prefixes = BOOK_TEST_PREFIXES[book];
+  return [...new Set(candidates.filter((path) => {
+    const testPath = relative(join(root, 'tests'), path).replaceAll('\\', '/');
+    return prefixes.some((prefix) => testPath.startsWith(prefix));
+  }))]
     .sort((left, right) => left.localeCompare(right));
 }
 
 function digest(value) {
   return `sha256:${createHash('sha256').update(value).digest('hex')}`;
 }
+
+function semanticTestResults(output) { return String(output).split(/\r?\n/).flatMap((line) => { const value=line.trim(); const tap=/^(not ok|ok) \d+ - (.+?)(?: #.*)?$/.exec(value); if(tap)return[{name:tap[2].replace(/ \(.*\)$/,''),status:tap[1]==='ok'?'pass':'fail'}]; const spec=/^([✔✖])\s+(.+?)\s+\([^)]*\)$/.exec(value); return spec?[{name:spec[2],status:spec[1]==='✔'?'pass':'fail'}]:[]; }).sort((a, b) => a.name.localeCompare(b.name)); }
+export function qualificationDigest(result) { const semantic = { status: result.status, tests: (result.tests ?? []).map(({ name, status }) => ({ name, status })).sort((a, b) => a.name.localeCompare(b.name)) }; return digest(JSON.stringify(semantic)); }
 
 export async function qualifyBook(book, { root = ROOT, execute = true } = {}) {
   const tests = await discoverBookTests(book, root);
@@ -48,7 +73,7 @@ export async function qualifyBook(book, { root = ROOT, execute = true } = {}) {
     tests: tests.map((path) => relative(root, path).replaceAll('\\', '/')),
     command: command.map((part) => part === process.execPath ? 'node' : part),
     status: execute ? (result.status === 0 ? 'pass' : 'fail') : 'planned',
-    outputDigest: execute ? digest(`${result.stdout}\n${result.stderr}`) : null,
+    outputDigest: execute ? qualificationDigest({ status: result.status === 0 ? 'pass' : 'fail', tests: semanticTestResults(`${result.stdout}\n${result.stderr}`) }) : null,
   };
   if (execute) {
     const path = join(root, 'qualification', `book-${book}-artifacts`, 'gate-result.json');
@@ -61,7 +86,7 @@ export async function qualifyBook(book, { root = ROOT, execute = true } = {}) {
 async function main() {
   const index = process.argv.indexOf('--book');
   const book = index === -1 ? NaN : Number(process.argv[index + 1]);
-  if (!Number.isInteger(book) || !BOOK_TEST_ROOTS[book]) throw new Error('usage: qualify-book.mjs --book 1|2');
+  if (!Number.isInteger(book) || !BOOK_TEST_ROOTS[book]) throw new Error('usage: qualify-book.mjs --book 1|2|3|4|5|6');
   const receipt = await qualifyBook(book);
   process.stdout.write(`${JSON.stringify(receipt)}\n`);
   process.exitCode = receipt.status === 'pass' ? 0 : 1;

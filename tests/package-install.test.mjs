@@ -37,7 +37,7 @@ test('package smoke manifest is present and forbids internal content', () => {
 });
 
 test('bin entry is executable and versioned', () => {
-  const bin = new URL('../bin/nemesis.mjs', import.meta.url).pathname;
+  const bin = fileURLToPath(new URL('../bin/nemesis.mjs', import.meta.url));
   const out = execFileSync(process.execPath, [bin, '--version'], { cwd: root, encoding: 'utf8' });
   assert.equal(out.trim(), NEMESIS_VERSION);
 });

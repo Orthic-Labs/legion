@@ -1,0 +1,1 @@
+import assert from 'node:assert/strict';import test from 'node:test';import value from '../../../../registry/controls/controls/service-data/core.json' with {type:'json'};test('service baseline includes reliability and lineage',()=>assert.ok(value.controls.some(({id})=>id.endsWith('replay-correctness'))));

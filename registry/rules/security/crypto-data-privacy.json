@@ -1,0 +1,328 @@
+{
+  "schemaVersion": 1,
+  "rules": [
+    {
+      "id": "crypto.primitive.weak-hash-security-context",
+      "version": "1.0.0",
+      "pack": "security.crypto-identity-protocols",
+      "class": "crypto-identity-protocols",
+      "layer": "primitive",
+      "decisionMode": "evidence",
+      "cleanClaim": "never-without-denominator",
+      "requiredControls": [
+        "password-hashing-kdf"
+      ],
+      "applicability": [
+        "backend",
+        "frontend"
+      ]
+    },
+    {
+      "id": "crypto.primitive.weak-cipher-algorithm",
+      "version": "1.0.0",
+      "pack": "security.crypto-identity-protocols",
+      "class": "crypto-identity-protocols",
+      "layer": "primitive",
+      "decisionMode": "evidence",
+      "cleanClaim": "never-without-denominator",
+      "requiredControls": [
+        "approved-cipher-suite"
+      ],
+      "applicability": [
+        "backend"
+      ]
+    },
+    {
+      "id": "crypto.primitive.insecure-randomness",
+      "version": "1.0.0",
+      "pack": "security.crypto-identity-protocols",
+      "class": "crypto-identity-protocols",
+      "layer": "primitive",
+      "decisionMode": "evidence",
+      "cleanClaim": "never-without-denominator",
+      "requiredControls": [
+        "csprng"
+      ],
+      "applicability": [
+        "backend",
+        "frontend"
+      ]
+    },
+    {
+      "id": "crypto.primitive.hardcoded-encryption-key",
+      "version": "1.0.0",
+      "pack": "security.crypto-identity-protocols",
+      "class": "crypto-identity-protocols",
+      "layer": "primitive",
+      "decisionMode": "evidence",
+      "cleanClaim": "never-without-denominator",
+      "requiredControls": [
+        "key-management-service"
+      ],
+      "applicability": [
+        "backend"
+      ]
+    },
+    {
+      "id": "crypto.primitive.key-rotation-absent",
+      "version": "1.0.0",
+      "pack": "security.crypto-identity-protocols",
+      "class": "crypto-identity-protocols",
+      "layer": "primitive",
+      "decisionMode": "evidence",
+      "cleanClaim": "never-without-denominator",
+      "requiredControls": [
+        "key-rotation-policy"
+      ],
+      "applicability": [
+        "backend"
+      ]
+    },
+    {
+      "id": "crypto.primitive.password-hash-unsalted-fast",
+      "version": "1.0.0",
+      "pack": "security.crypto-identity-protocols",
+      "class": "crypto-identity-protocols",
+      "layer": "primitive",
+      "decisionMode": "evidence",
+      "cleanClaim": "never-without-denominator",
+      "requiredControls": [
+        "password-hashing-kdf"
+      ],
+      "applicability": [
+        "backend"
+      ]
+    },
+    {
+      "id": "crypto.protocol.oauth-missing-state",
+      "version": "1.0.0",
+      "pack": "security.crypto-identity-protocols",
+      "class": "crypto-identity-protocols",
+      "layer": "protocol",
+      "decisionMode": "evidence",
+      "cleanClaim": "never-without-denominator",
+      "requiredControls": [
+        "oauth-state-parameter"
+      ],
+      "applicability": [
+        "backend",
+        "frontend"
+      ]
+    },
+    {
+      "id": "crypto.protocol.oauth-missing-pkce",
+      "version": "1.0.0",
+      "pack": "security.crypto-identity-protocols",
+      "class": "crypto-identity-protocols",
+      "layer": "protocol",
+      "decisionMode": "evidence",
+      "cleanClaim": "never-without-denominator",
+      "requiredControls": [
+        "oauth-pkce"
+      ],
+      "applicability": [
+        "backend",
+        "frontend"
+      ]
+    },
+    {
+      "id": "crypto.protocol.oidc-missing-nonce",
+      "version": "1.0.0",
+      "pack": "security.crypto-identity-protocols",
+      "class": "crypto-identity-protocols",
+      "layer": "protocol",
+      "decisionMode": "evidence",
+      "cleanClaim": "never-without-denominator",
+      "requiredControls": [
+        "oidc-nonce"
+      ],
+      "applicability": [
+        "backend",
+        "frontend"
+      ]
+    },
+    {
+      "id": "crypto.protocol.saml-assertion-signature-unvalidated",
+      "version": "1.0.0",
+      "pack": "security.crypto-identity-protocols",
+      "class": "crypto-identity-protocols",
+      "layer": "protocol",
+      "decisionMode": "evidence",
+      "cleanClaim": "never-without-denominator",
+      "requiredControls": [
+        "saml-signature-validation"
+      ],
+      "applicability": [
+        "backend"
+      ]
+    },
+    {
+      "id": "crypto.protocol.oidc-missing-audience-issuer-check",
+      "version": "1.0.0",
+      "pack": "security.crypto-identity-protocols",
+      "class": "crypto-identity-protocols",
+      "layer": "protocol",
+      "decisionMode": "evidence",
+      "cleanClaim": "never-without-denominator",
+      "requiredControls": [
+        "oidc-audience-issuer-validation"
+      ],
+      "applicability": [
+        "backend"
+      ]
+    },
+    {
+      "id": "privacy.log.sensitive-data-unredacted",
+      "version": "1.0.0",
+      "pack": "security.data-privacy",
+      "class": "data-privacy",
+      "layer": "lifecycle",
+      "decisionMode": "evidence",
+      "cleanClaim": "never-without-denominator",
+      "requiredControls": [
+        "log-redaction"
+      ],
+      "applicability": [
+        "backend"
+      ]
+    },
+    {
+      "id": "privacy.collect.pii-without-consent",
+      "version": "1.0.0",
+      "pack": "security.data-privacy",
+      "class": "data-privacy",
+      "layer": "lifecycle",
+      "decisionMode": "evidence",
+      "cleanClaim": "never-without-denominator",
+      "requiredControls": [
+        "consent-capture"
+      ],
+      "applicability": [
+        "backend"
+      ]
+    },
+    {
+      "id": "privacy.store.unencrypted-pii",
+      "version": "1.0.0",
+      "pack": "security.data-privacy",
+      "class": "data-privacy",
+      "layer": "lifecycle",
+      "decisionMode": "evidence",
+      "cleanClaim": "never-without-denominator",
+      "requiredControls": [
+        "field-level-encryption"
+      ],
+      "applicability": [
+        "backend"
+      ]
+    },
+    {
+      "id": "privacy.transmit.unencrypted-channel",
+      "version": "1.0.0",
+      "pack": "security.data-privacy",
+      "class": "data-privacy",
+      "layer": "lifecycle",
+      "decisionMode": "evidence",
+      "cleanClaim": "never-without-denominator",
+      "requiredControls": [
+        "tls-transport"
+      ],
+      "applicability": [
+        "backend",
+        "frontend"
+      ]
+    },
+    {
+      "id": "privacy.retain.unbounded-retention",
+      "version": "1.0.0",
+      "pack": "security.data-privacy",
+      "class": "data-privacy",
+      "layer": "lifecycle",
+      "decisionMode": "evidence",
+      "cleanClaim": "never-without-denominator",
+      "requiredControls": [
+        "retention-policy"
+      ],
+      "applicability": [
+        "backend"
+      ]
+    },
+    {
+      "id": "privacy.retain.backup-unencrypted",
+      "version": "1.0.0",
+      "pack": "security.data-privacy",
+      "class": "data-privacy",
+      "layer": "lifecycle",
+      "decisionMode": "evidence",
+      "cleanClaim": "never-without-denominator",
+      "requiredControls": [
+        "backup-encryption"
+      ],
+      "applicability": [
+        "backend"
+      ]
+    },
+    {
+      "id": "privacy.export.unrestricted-data-export",
+      "version": "1.0.0",
+      "pack": "security.data-privacy",
+      "class": "data-privacy",
+      "layer": "lifecycle",
+      "decisionMode": "evidence",
+      "cleanClaim": "never-without-denominator",
+      "requiredControls": [
+        "export-authorization",
+        "export-redaction"
+      ],
+      "applicability": [
+        "backend"
+      ]
+    },
+    {
+      "id": "privacy.delete.no-erasure-path",
+      "version": "1.0.0",
+      "pack": "security.data-privacy",
+      "class": "data-privacy",
+      "layer": "lifecycle",
+      "decisionMode": "evidence",
+      "cleanClaim": "never-without-denominator",
+      "requiredControls": [
+        "data-erasure-path"
+      ],
+      "applicability": [
+        "backend"
+      ]
+    },
+    {
+      "id": "privacy.process.tenant-data-crossover",
+      "version": "1.0.0",
+      "pack": "security.data-privacy",
+      "class": "data-privacy",
+      "layer": "lifecycle",
+      "decisionMode": "evidence",
+      "cleanClaim": "never-without-denominator",
+      "requiredControls": [
+        "tenant-scoping-filter"
+      ],
+      "applicability": [
+        "backend"
+      ]
+    },
+    {
+      "id": "privacy.claim.marketing-mismatch",
+      "version": "1.0.0",
+      "pack": "security.data-privacy",
+      "class": "data-privacy",
+      "layer": "lifecycle",
+      "decisionMode": "evidence",
+      "cleanClaim": "never-without-denominator",
+      "requiredControls": [],
+      "applicability": [
+        "docs",
+        "backend"
+      ]
+    }
+  ],
+  "source": "internal",
+  "license": "internal"
+}

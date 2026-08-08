@@ -1,0 +1,960 @@
+{
+  "schemaVersion": 1,
+  "family": "universal",
+  "controls": [
+    {
+      "id": "universal.scope",
+      "version": "1.0.0",
+      "selector": {
+        "op": "always"
+      },
+      "denominator": "scope-subjects",
+      "evidence": [
+        "repository"
+      ],
+      "families": [
+        "requirements"
+      ],
+      "lenses": [
+        "universal.scope"
+      ],
+      "providers": [
+        "requirements.traceability"
+      ],
+      "rules": [
+        "requirements"
+      ],
+      "scenarios": [
+        "universal.scope.default"
+      ],
+      "decisionMode": "deterministic",
+      "missingEvidenceEffect": "unproven",
+      "claimLevels": [
+        "source",
+        "runtime",
+        "product",
+        "release"
+      ],
+      "remediationOwner": "code",
+      "sourceConcepts": [
+        "canonical:universal:scope"
+      ],
+      "stopShip": false,
+      "benchmark": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "qualificationDigest": null
+      },
+      "provenance": {
+        "kind": "canonical",
+        "source": "nemesis:universal",
+        "rights": "internal-contract",
+        "lineage": [
+          "canonical:universal:scope"
+        ]
+      }
+    },
+    {
+      "id": "universal.requirements",
+      "version": "1.0.0",
+      "selector": {
+        "op": "always"
+      },
+      "denominator": "requirements-subjects",
+      "evidence": [
+        "repository"
+      ],
+      "families": [
+        "requirements"
+      ],
+      "lenses": [
+        "universal.requirements"
+      ],
+      "providers": [
+        "requirements.traceability"
+      ],
+      "rules": [
+        "requirements"
+      ],
+      "scenarios": [
+        "universal.requirements.default"
+      ],
+      "decisionMode": "deterministic",
+      "missingEvidenceEffect": "unproven",
+      "claimLevels": [
+        "source",
+        "runtime",
+        "product",
+        "release"
+      ],
+      "remediationOwner": "code",
+      "sourceConcepts": [
+        "canonical:universal:requirements"
+      ],
+      "stopShip": false,
+      "benchmark": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "qualificationDigest": null
+      },
+      "provenance": {
+        "kind": "canonical",
+        "source": "nemesis:universal",
+        "rights": "internal-contract",
+        "lineage": [
+          "canonical:universal:requirements"
+        ]
+      }
+    },
+    {
+      "id": "universal.journeys",
+      "version": "1.0.0",
+      "selector": {
+        "op": "always"
+      },
+      "denominator": "journeys-subjects",
+      "evidence": [
+        "repository"
+      ],
+      "families": [
+        "requirements"
+      ],
+      "lenses": [
+        "universal.journeys"
+      ],
+      "providers": [
+        "requirements.traceability"
+      ],
+      "rules": [
+        "requirements"
+      ],
+      "scenarios": [
+        "universal.journeys.default"
+      ],
+      "decisionMode": "deterministic",
+      "missingEvidenceEffect": "unproven",
+      "claimLevels": [
+        "source",
+        "runtime",
+        "product",
+        "release"
+      ],
+      "remediationOwner": "code",
+      "sourceConcepts": [
+        "canonical:universal:journeys"
+      ],
+      "stopShip": false,
+      "benchmark": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "qualificationDigest": null
+      },
+      "provenance": {
+        "kind": "canonical",
+        "source": "nemesis:universal",
+        "rights": "internal-contract",
+        "lineage": [
+          "canonical:universal:journeys"
+        ]
+      }
+    },
+    {
+      "id": "universal.architecture",
+      "version": "1.0.0",
+      "selector": {
+        "op": "always"
+      },
+      "denominator": "architecture-subjects",
+      "evidence": [
+        "repository"
+      ],
+      "families": [
+        "requirements"
+      ],
+      "lenses": [
+        "universal.architecture"
+      ],
+      "providers": [
+        "requirements.traceability"
+      ],
+      "rules": [
+        "requirements"
+      ],
+      "scenarios": [
+        "universal.architecture.default"
+      ],
+      "decisionMode": "deterministic",
+      "missingEvidenceEffect": "unproven",
+      "claimLevels": [
+        "source",
+        "runtime",
+        "product",
+        "release"
+      ],
+      "remediationOwner": "architecture",
+      "sourceConcepts": [
+        "canonical:universal:architecture"
+      ],
+      "stopShip": false,
+      "benchmark": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "qualificationDigest": null
+      },
+      "provenance": {
+        "kind": "canonical",
+        "source": "nemesis:universal",
+        "rights": "internal-contract",
+        "lineage": [
+          "canonical:universal:architecture"
+        ]
+      }
+    },
+    {
+      "id": "universal.code",
+      "version": "1.0.0",
+      "selector": {
+        "op": "always"
+      },
+      "denominator": "code-subjects",
+      "evidence": [
+        "repository"
+      ],
+      "families": [
+        "requirements"
+      ],
+      "lenses": [
+        "universal.code"
+      ],
+      "providers": [
+        "requirements.traceability"
+      ],
+      "rules": [
+        "requirements"
+      ],
+      "scenarios": [
+        "universal.code.default"
+      ],
+      "decisionMode": "deterministic",
+      "missingEvidenceEffect": "unproven",
+      "claimLevels": [
+        "source",
+        "runtime",
+        "product",
+        "release"
+      ],
+      "remediationOwner": "code",
+      "sourceConcepts": [
+        "canonical:universal:code"
+      ],
+      "stopShip": false,
+      "benchmark": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "qualificationDigest": null
+      },
+      "provenance": {
+        "kind": "canonical",
+        "source": "nemesis:universal",
+        "rights": "internal-contract",
+        "lineage": [
+          "canonical:universal:code"
+        ]
+      }
+    },
+    {
+      "id": "universal.tests",
+      "version": "1.0.0",
+      "selector": {
+        "op": "always"
+      },
+      "denominator": "tests-subjects",
+      "evidence": [
+        "repository"
+      ],
+      "families": [
+        "requirements"
+      ],
+      "lenses": [
+        "universal.tests"
+      ],
+      "providers": [
+        "requirements.traceability"
+      ],
+      "rules": [
+        "requirements"
+      ],
+      "scenarios": [
+        "universal.tests.default"
+      ],
+      "decisionMode": "deterministic",
+      "missingEvidenceEffect": "unproven",
+      "claimLevels": [
+        "source",
+        "runtime",
+        "product",
+        "release"
+      ],
+      "remediationOwner": "code",
+      "sourceConcepts": [
+        "canonical:universal:tests"
+      ],
+      "stopShip": false,
+      "benchmark": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "qualificationDigest": null
+      },
+      "provenance": {
+        "kind": "canonical",
+        "source": "nemesis:universal",
+        "rights": "internal-contract",
+        "lineage": [
+          "canonical:universal:tests"
+        ]
+      }
+    },
+    {
+      "id": "universal.errors",
+      "version": "1.0.0",
+      "selector": {
+        "op": "always"
+      },
+      "denominator": "errors-subjects",
+      "evidence": [
+        "repository"
+      ],
+      "families": [
+        "requirements"
+      ],
+      "lenses": [
+        "universal.errors"
+      ],
+      "providers": [
+        "requirements.traceability"
+      ],
+      "rules": [
+        "requirements"
+      ],
+      "scenarios": [
+        "universal.errors.default"
+      ],
+      "decisionMode": "deterministic",
+      "missingEvidenceEffect": "unproven",
+      "claimLevels": [
+        "source",
+        "runtime",
+        "product",
+        "release"
+      ],
+      "remediationOwner": "code",
+      "sourceConcepts": [
+        "canonical:universal:errors"
+      ],
+      "stopShip": false,
+      "benchmark": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "qualificationDigest": null
+      },
+      "provenance": {
+        "kind": "canonical",
+        "source": "nemesis:universal",
+        "rights": "internal-contract",
+        "lineage": [
+          "canonical:universal:errors"
+        ]
+      }
+    },
+    {
+      "id": "universal.security",
+      "version": "1.0.0",
+      "selector": {
+        "op": "always"
+      },
+      "denominator": "security-subjects",
+      "evidence": [
+        "repository"
+      ],
+      "families": [
+        "requirements"
+      ],
+      "lenses": [
+        "universal.security"
+      ],
+      "providers": [
+        "requirements.traceability"
+      ],
+      "rules": [
+        "requirements"
+      ],
+      "scenarios": [
+        "universal.security.default"
+      ],
+      "decisionMode": "deterministic",
+      "missingEvidenceEffect": "unproven",
+      "claimLevels": [
+        "source",
+        "runtime",
+        "product",
+        "release"
+      ],
+      "remediationOwner": "code",
+      "sourceConcepts": [
+        "canonical:universal:security"
+      ],
+      "stopShip": true,
+      "benchmark": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "qualificationDigest": null
+      },
+      "provenance": {
+        "kind": "canonical",
+        "source": "nemesis:universal",
+        "rights": "internal-contract",
+        "lineage": [
+          "canonical:universal:security"
+        ]
+      }
+    },
+    {
+      "id": "universal.privacy",
+      "version": "1.0.0",
+      "selector": {
+        "op": "always"
+      },
+      "denominator": "privacy-subjects",
+      "evidence": [
+        "repository"
+      ],
+      "families": [
+        "requirements"
+      ],
+      "lenses": [
+        "universal.privacy"
+      ],
+      "providers": [
+        "requirements.traceability"
+      ],
+      "rules": [
+        "requirements"
+      ],
+      "scenarios": [
+        "universal.privacy.default"
+      ],
+      "decisionMode": "deterministic",
+      "missingEvidenceEffect": "unproven",
+      "claimLevels": [
+        "source",
+        "runtime",
+        "product",
+        "release"
+      ],
+      "remediationOwner": "code",
+      "sourceConcepts": [
+        "canonical:universal:privacy"
+      ],
+      "stopShip": true,
+      "benchmark": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "qualificationDigest": null
+      },
+      "provenance": {
+        "kind": "canonical",
+        "source": "nemesis:universal",
+        "rights": "internal-contract",
+        "lineage": [
+          "canonical:universal:privacy"
+        ]
+      }
+    },
+    {
+      "id": "universal.supply-chain",
+      "version": "1.0.0",
+      "selector": {
+        "op": "always"
+      },
+      "denominator": "supply-chain-subjects",
+      "evidence": [
+        "repository"
+      ],
+      "families": [
+        "requirements"
+      ],
+      "lenses": [
+        "universal.supply-chain"
+      ],
+      "providers": [
+        "requirements.traceability"
+      ],
+      "rules": [
+        "requirements"
+      ],
+      "scenarios": [
+        "universal.supply-chain.default"
+      ],
+      "decisionMode": "deterministic",
+      "missingEvidenceEffect": "unproven",
+      "claimLevels": [
+        "source",
+        "runtime",
+        "product",
+        "release"
+      ],
+      "remediationOwner": "code",
+      "sourceConcepts": [
+        "canonical:universal:supply-chain"
+      ],
+      "stopShip": false,
+      "benchmark": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "qualificationDigest": null
+      },
+      "provenance": {
+        "kind": "canonical",
+        "source": "nemesis:universal",
+        "rights": "internal-contract",
+        "lineage": [
+          "canonical:universal:supply-chain"
+        ]
+      }
+    },
+    {
+      "id": "universal.data",
+      "version": "1.0.0",
+      "selector": {
+        "op": "always"
+      },
+      "denominator": "data-subjects",
+      "evidence": [
+        "repository"
+      ],
+      "families": [
+        "requirements"
+      ],
+      "lenses": [
+        "universal.data"
+      ],
+      "providers": [
+        "requirements.traceability"
+      ],
+      "rules": [
+        "requirements"
+      ],
+      "scenarios": [
+        "universal.data.default"
+      ],
+      "decisionMode": "deterministic",
+      "missingEvidenceEffect": "unproven",
+      "claimLevels": [
+        "source",
+        "runtime",
+        "product",
+        "release"
+      ],
+      "remediationOwner": "code",
+      "sourceConcepts": [
+        "canonical:universal:data"
+      ],
+      "stopShip": false,
+      "benchmark": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "qualificationDigest": null
+      },
+      "provenance": {
+        "kind": "canonical",
+        "source": "nemesis:universal",
+        "rights": "internal-contract",
+        "lineage": [
+          "canonical:universal:data"
+        ]
+      }
+    },
+    {
+      "id": "universal.reliability",
+      "version": "1.0.0",
+      "selector": {
+        "op": "always"
+      },
+      "denominator": "reliability-subjects",
+      "evidence": [
+        "repository"
+      ],
+      "families": [
+        "requirements"
+      ],
+      "lenses": [
+        "universal.reliability"
+      ],
+      "providers": [
+        "requirements.traceability"
+      ],
+      "rules": [
+        "requirements"
+      ],
+      "scenarios": [
+        "universal.reliability.default"
+      ],
+      "decisionMode": "deterministic",
+      "missingEvidenceEffect": "unproven",
+      "claimLevels": [
+        "source",
+        "runtime",
+        "product",
+        "release"
+      ],
+      "remediationOwner": "code",
+      "sourceConcepts": [
+        "canonical:universal:reliability"
+      ],
+      "stopShip": false,
+      "benchmark": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "qualificationDigest": null
+      },
+      "provenance": {
+        "kind": "canonical",
+        "source": "nemesis:universal",
+        "rights": "internal-contract",
+        "lineage": [
+          "canonical:universal:reliability"
+        ]
+      }
+    },
+    {
+      "id": "universal.observability",
+      "version": "1.0.0",
+      "selector": {
+        "op": "always"
+      },
+      "denominator": "observability-subjects",
+      "evidence": [
+        "repository"
+      ],
+      "families": [
+        "requirements"
+      ],
+      "lenses": [
+        "universal.observability"
+      ],
+      "providers": [
+        "requirements.traceability"
+      ],
+      "rules": [
+        "requirements"
+      ],
+      "scenarios": [
+        "universal.observability.default"
+      ],
+      "decisionMode": "deterministic",
+      "missingEvidenceEffect": "unproven",
+      "claimLevels": [
+        "source",
+        "runtime",
+        "product",
+        "release"
+      ],
+      "remediationOwner": "code",
+      "sourceConcepts": [
+        "canonical:universal:observability"
+      ],
+      "stopShip": false,
+      "benchmark": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "qualificationDigest": null
+      },
+      "provenance": {
+        "kind": "canonical",
+        "source": "nemesis:universal",
+        "rights": "internal-contract",
+        "lineage": [
+          "canonical:universal:observability"
+        ]
+      }
+    },
+    {
+      "id": "universal.ownership",
+      "version": "1.0.0",
+      "selector": {
+        "op": "always"
+      },
+      "denominator": "ownership-subjects",
+      "evidence": [
+        "repository"
+      ],
+      "families": [
+        "requirements"
+      ],
+      "lenses": [
+        "universal.ownership"
+      ],
+      "providers": [
+        "requirements.traceability"
+      ],
+      "rules": [
+        "requirements"
+      ],
+      "scenarios": [
+        "universal.ownership.default"
+      ],
+      "decisionMode": "deterministic",
+      "missingEvidenceEffect": "unproven",
+      "claimLevels": [
+        "source",
+        "runtime",
+        "product",
+        "release"
+      ],
+      "remediationOwner": "code",
+      "sourceConcepts": [
+        "canonical:universal:ownership"
+      ],
+      "stopShip": false,
+      "benchmark": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "qualificationDigest": null
+      },
+      "provenance": {
+        "kind": "canonical",
+        "source": "nemesis:universal",
+        "rights": "internal-contract",
+        "lineage": [
+          "canonical:universal:ownership"
+        ]
+      }
+    },
+    {
+      "id": "universal.documentation",
+      "version": "1.0.0",
+      "selector": {
+        "op": "always"
+      },
+      "denominator": "documentation-subjects",
+      "evidence": [
+        "repository"
+      ],
+      "families": [
+        "requirements"
+      ],
+      "lenses": [
+        "universal.documentation"
+      ],
+      "providers": [
+        "requirements.traceability"
+      ],
+      "rules": [
+        "requirements"
+      ],
+      "scenarios": [
+        "universal.documentation.default"
+      ],
+      "decisionMode": "deterministic",
+      "missingEvidenceEffect": "unproven",
+      "claimLevels": [
+        "source",
+        "runtime",
+        "product",
+        "release"
+      ],
+      "remediationOwner": "writing",
+      "sourceConcepts": [
+        "canonical:universal:documentation"
+      ],
+      "stopShip": false,
+      "benchmark": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "qualificationDigest": null
+      },
+      "provenance": {
+        "kind": "canonical",
+        "source": "nemesis:universal",
+        "rights": "internal-contract",
+        "lineage": [
+          "canonical:universal:documentation"
+        ]
+      }
+    },
+    {
+      "id": "universal.release-identity",
+      "version": "1.0.0",
+      "selector": {
+        "op": "always"
+      },
+      "denominator": "release-identity-subjects",
+      "evidence": [
+        "repository"
+      ],
+      "families": [
+        "requirements"
+      ],
+      "lenses": [
+        "universal.release-identity"
+      ],
+      "providers": [
+        "requirements.traceability"
+      ],
+      "rules": [
+        "requirements"
+      ],
+      "scenarios": [
+        "universal.release-identity.default"
+      ],
+      "decisionMode": "deterministic",
+      "missingEvidenceEffect": "unproven",
+      "claimLevels": [
+        "source",
+        "runtime",
+        "product",
+        "release"
+      ],
+      "remediationOwner": "architecture",
+      "sourceConcepts": [
+        "canonical:universal:release-identity"
+      ],
+      "stopShip": true,
+      "benchmark": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "qualificationDigest": null
+      },
+      "provenance": {
+        "kind": "canonical",
+        "source": "nemesis:universal",
+        "rights": "internal-contract",
+        "lineage": [
+          "canonical:universal:release-identity"
+        ]
+      }
+    },
+    {
+      "id": "universal.support",
+      "version": "1.0.0",
+      "selector": {
+        "op": "always"
+      },
+      "denominator": "support-subjects",
+      "evidence": [
+        "repository"
+      ],
+      "families": [
+        "requirements"
+      ],
+      "lenses": [
+        "universal.support"
+      ],
+      "providers": [
+        "requirements.traceability"
+      ],
+      "rules": [
+        "requirements"
+      ],
+      "scenarios": [
+        "universal.support.default"
+      ],
+      "decisionMode": "deterministic",
+      "missingEvidenceEffect": "unproven",
+      "claimLevels": [
+        "source",
+        "runtime",
+        "product",
+        "release"
+      ],
+      "remediationOwner": "code",
+      "sourceConcepts": [
+        "canonical:universal:support"
+      ],
+      "stopShip": false,
+      "benchmark": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "qualificationDigest": null
+      },
+      "provenance": {
+        "kind": "canonical",
+        "source": "nemesis:universal",
+        "rights": "internal-contract",
+        "lineage": [
+          "canonical:universal:support"
+        ]
+      }
+    },
+    {
+      "id": "universal.unknown-material",
+      "version": "1.0.0",
+      "selector": {
+        "op": "always"
+      },
+      "denominator": "unknown-material-subjects",
+      "evidence": [
+        "repository"
+      ],
+      "families": [
+        "requirements"
+      ],
+      "lenses": [
+        "universal.unknown-material"
+      ],
+      "providers": [
+        "requirements.traceability"
+      ],
+      "rules": [
+        "requirements"
+      ],
+      "scenarios": [
+        "universal.unknown-material.default"
+      ],
+      "decisionMode": "deterministic",
+      "missingEvidenceEffect": "unproven",
+      "claimLevels": [
+        "source",
+        "runtime",
+        "product",
+        "release"
+      ],
+      "remediationOwner": "code",
+      "sourceConcepts": [
+        "canonical:universal:unknown-material"
+      ],
+      "stopShip": false,
+      "benchmark": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "qualificationDigest": null
+      },
+      "provenance": {
+        "kind": "canonical",
+        "source": "nemesis:universal",
+        "rights": "internal-contract",
+        "lineage": [
+          "canonical:universal:unknown-material"
+        ]
+      }
+    }
+  ]
+}

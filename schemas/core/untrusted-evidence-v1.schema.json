@@ -1,0 +1,144 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://orthic.dev/schemas/core/untrusted-evidence-v1.json",
+  "title": "UntrustedEvidenceV1",
+  "type": "object",
+  "required": [
+    "schemaVersion",
+    "kind",
+    "trusted",
+    "evidenceKind",
+    "sourcePath",
+    "sourceDigest",
+    "artifactRef",
+    "encoding",
+    "text",
+    "originalBytes",
+    "includedBytes",
+    "truncated",
+    "normalizations",
+    "omissions",
+    "digest"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": 1
+    },
+    "kind": {
+      "const": "nemesis-untrusted-evidence"
+    },
+    "trusted": {
+      "const": false
+    },
+    "evidenceKind": {
+      "enum": [
+        "source",
+        "docs",
+        "comment",
+        "skill",
+        "configuration",
+        "retrieved-content",
+        "runtime-text"
+      ]
+    },
+    "label": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "sourcePath": {
+      "type": "string",
+      "minLength": 1
+    },
+    "sourceDigest": {
+      "type": "string",
+      "pattern": "^sha256:"
+    },
+    "artifactRef": {
+      "type": "object",
+      "required": [
+        "path",
+        "digest"
+      ],
+      "properties": {
+        "path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "digest": {
+          "type": "string",
+          "pattern": "^sha256:"
+        }
+      },
+      "additionalProperties": false
+    },
+    "locator": {
+      "type": [
+        "object",
+        "string",
+        "null"
+      ]
+    },
+    "encoding": {
+      "const": "escaped-utf8"
+    },
+    "text": {
+      "type": "string"
+    },
+    "originalBytes": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "includedBytes": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "truncated": {
+      "type": "boolean"
+    },
+    "normalizations": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "omissions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "reason",
+          "omittedBytes",
+          "fromOffset"
+        ],
+        "properties": {
+          "reason": {
+            "enum": [
+              "byte-cap",
+              "policy-redaction",
+              "binary-content"
+            ]
+          },
+          "omittedBytes": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "fromOffset": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "artifactRef": {
+            "type": "object"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "digest": {
+      "type": "string",
+      "pattern": "^sha256:"
+    }
+  },
+  "additionalProperties": false
+}

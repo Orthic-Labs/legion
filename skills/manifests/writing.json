@@ -1,0 +1,399 @@
+{
+  "schemaVersion": 1,
+  "id": "writing",
+  "version": "1.0.0",
+  "entry": "SKILL.md",
+  "rootUri": "nemesis-skill://writing/",
+  "provenance": "workspace-supplied-writing",
+  "licenseState": "unresolved",
+  "profiles": {
+    "audit": {
+      "mutation": false,
+      "publish": false
+    },
+    "authoring": {
+      "mutation": true,
+      "publish": false,
+      "externalOnly": true
+    }
+  },
+  "noFabrication": true,
+  "approvedWordsRequireRevision": true,
+  "files": [
+    {
+      "path": "SKILL.md",
+      "uri": "nemesis-skill://writing/SKILL.md",
+      "sourceDigest": "sha256:791698496bc02a105c1f77229d1ca21dd670ff82d976f5f7caaf6e5774caf631",
+      "outputDigest": "sha256:791698496bc02a105c1f77229d1ca21dd670ff82d976f5f7caaf6e5774caf631",
+      "transformations": [
+        "approving-human",
+        "package-relative-links",
+        "audit-capability-strip"
+      ]
+    },
+    {
+      "path": "evals/evals.json",
+      "uri": "nemesis-skill://writing/evals/evals.json",
+      "sourceDigest": "sha256:137d29d10b3e7fba4fa4b98e1d2343ca3222445e5d2f3f30f4ce4b06b75f6bff",
+      "outputDigest": "sha256:137d29d10b3e7fba4fa4b98e1d2343ca3222445e5d2f3f30f4ce4b06b75f6bff",
+      "transformations": [
+        "approving-human",
+        "package-relative-links",
+        "audit-capability-strip"
+      ]
+    },
+    {
+      "path": "references/content-repurposer/reference.md",
+      "uri": "nemesis-skill://writing/references/content-repurposer/reference.md",
+      "sourceDigest": "sha256:3750955542d8d2df31b66485c60db7ee80815e51bcd5ad352e3d38c9cf6b5817",
+      "outputDigest": "sha256:3750955542d8d2df31b66485c60db7ee80815e51bcd5ad352e3d38c9cf6b5817",
+      "transformations": [
+        "approving-human",
+        "package-relative-links",
+        "audit-capability-strip"
+      ]
+    },
+    {
+      "path": "references/manual.md",
+      "uri": "nemesis-skill://writing/references/manual.md",
+      "sourceDigest": "sha256:2c81dbca2278c7a50ac17a3f9a60f705de68d9a01fba066daae54a3874a9f1b8",
+      "outputDigest": "sha256:2c81dbca2278c7a50ac17a3f9a60f705de68d9a01fba066daae54a3874a9f1b8",
+      "transformations": [
+        "approving-human",
+        "package-relative-links",
+        "audit-capability-strip"
+      ]
+    },
+    {
+      "path": "references/repurpose-content/reference.md",
+      "uri": "nemesis-skill://writing/references/repurpose-content/reference.md",
+      "sourceDigest": "sha256:d95aa4cc9ca709e4cc96554faf7a90c621635d0d15d33c3cdd4e02b7807b423b",
+      "outputDigest": "sha256:233e7ac748e997b08191fb88ccf760ff845bcfc097ff00197259d4e3e0f684e3",
+      "transformations": [
+        "approving-human",
+        "package-relative-links",
+        "audit-capability-strip"
+      ]
+    },
+    {
+      "path": "references/research-article.md",
+      "uri": "nemesis-skill://writing/references/research-article.md",
+      "sourceDigest": "sha256:3537cacac8f061944204927b498c660c8ed8108ff59055cc81da7370fdbf5493",
+      "outputDigest": "sha256:09f9126557a0a911bfeca3c569e26d7eede65b21a6a105610002fcd03dbd5b01",
+      "transformations": [
+        "approving-human",
+        "package-relative-links",
+        "audit-capability-strip"
+      ]
+    },
+    {
+      "path": "references/script.md",
+      "uri": "nemesis-skill://writing/references/script.md",
+      "sourceDigest": "sha256:aac53784f5c381d6ae653d059301be75a02b350f47c196f74989d1f974f9b4de",
+      "outputDigest": "sha256:aa58d8296d569885923a17889f9206315f8a29ce3f6608836747f1644084d5bb",
+      "transformations": [
+        "approving-human",
+        "package-relative-links",
+        "audit-capability-strip"
+      ]
+    },
+    {
+      "path": "specialists/blogs/GUIDE.md",
+      "uri": "nemesis-skill://writing/specialists/blogs/GUIDE.md",
+      "sourceDigest": "sha256:77914a2c99834d741f80ba02eb0d6d5fe3466d6b9765031c1cc1020069175ebd",
+      "outputDigest": "sha256:1537f335a71253f8fb3ac7b5d31272fff6f78ba489e2ac5fc5cf7189a0e1c625",
+      "transformations": [
+        "approving-human",
+        "package-relative-links",
+        "audit-capability-strip"
+      ]
+    },
+    {
+      "path": "specialists/blogs/evals/evals.json",
+      "uri": "nemesis-skill://writing/specialists/blogs/evals/evals.json",
+      "sourceDigest": "sha256:dfccfbbb32be35ccab1f2277ce11668757bd15e51113663f4a3316b4ee0b2f48",
+      "outputDigest": "sha256:dfccfbbb32be35ccab1f2277ce11668757bd15e51113663f4a3316b4ee0b2f48",
+      "transformations": [
+        "approving-human",
+        "package-relative-links",
+        "audit-capability-strip"
+      ]
+    },
+    {
+      "path": "specialists/blogs/references/writing-research.md",
+      "uri": "nemesis-skill://writing/specialists/blogs/references/writing-research.md",
+      "sourceDigest": "sha256:df8fd16d4796cd4066c21a3826cac42065a014543e7fe2b52f901aefd08a2c83",
+      "outputDigest": "sha256:df8fd16d4796cd4066c21a3826cac42065a014543e7fe2b52f901aefd08a2c83",
+      "transformations": [
+        "approving-human",
+        "package-relative-links",
+        "audit-capability-strip"
+      ]
+    },
+    {
+      "path": "specialists/changelog/GUIDE.md",
+      "uri": "nemesis-skill://writing/specialists/changelog/GUIDE.md",
+      "sourceDigest": "sha256:f5cec3101f3bca357fcfa8e3d24a194dfc91a4089fbf62877f52c2d7a5136d15",
+      "outputDigest": "sha256:5fdf77529031a5802fdc8d5a7d7e8ca24241a6d12b5de48bbda2e3d148fb1acf",
+      "transformations": [
+        "approving-human",
+        "package-relative-links",
+        "audit-capability-strip"
+      ]
+    },
+    {
+      "path": "specialists/changelog/evals/evals.json",
+      "uri": "nemesis-skill://writing/specialists/changelog/evals/evals.json",
+      "sourceDigest": "sha256:1946876b620e98eb46f50c0f4939b73d5a96671b4060027e0c797dc57a63ca47",
+      "outputDigest": "sha256:1946876b620e98eb46f50c0f4939b73d5a96671b4060027e0c797dc57a63ca47",
+      "transformations": [
+        "approving-human",
+        "package-relative-links",
+        "audit-capability-strip"
+      ]
+    },
+    {
+      "path": "specialists/copywriting/GUIDE.md",
+      "uri": "nemesis-skill://writing/specialists/copywriting/GUIDE.md",
+      "sourceDigest": "sha256:b15082cdb97648049fc64ab394682092027e53c32605fdb45adbc05565b46a3c",
+      "outputDigest": "sha256:b15082cdb97648049fc64ab394682092027e53c32605fdb45adbc05565b46a3c",
+      "transformations": [
+        "approving-human",
+        "package-relative-links",
+        "audit-capability-strip"
+      ]
+    },
+    {
+      "path": "specialists/copywriting/evals/evals.json",
+      "uri": "nemesis-skill://writing/specialists/copywriting/evals/evals.json",
+      "sourceDigest": "sha256:254248b75bb218fe20f789397b477feac42776e64790b61bb9b66cb5561b078e",
+      "outputDigest": "sha256:254248b75bb218fe20f789397b477feac42776e64790b61bb9b66cb5561b078e",
+      "transformations": [
+        "approving-human",
+        "package-relative-links",
+        "audit-capability-strip"
+      ]
+    },
+    {
+      "path": "specialists/copywriting/references/ad-assets/generative-tools.md",
+      "uri": "nemesis-skill://writing/specialists/copywriting/references/ad-assets/generative-tools.md",
+      "sourceDigest": "sha256:42a2ed2a85109e346f8ef8469a69cec471d7e19d1b6704cf8be18c8ba2bfb4e2",
+      "outputDigest": "sha256:879b8b727ed5916e3ec0abcb16cd7e3ed92cd72b0317a5e577ed24cd8c9b757c",
+      "transformations": [
+        "approving-human",
+        "package-relative-links",
+        "audit-capability-strip"
+      ]
+    },
+    {
+      "path": "specialists/copywriting/references/ad-assets/platform-specs.md",
+      "uri": "nemesis-skill://writing/specialists/copywriting/references/ad-assets/platform-specs.md",
+      "sourceDigest": "sha256:2926db9b4ed0f2c2d4db2bd235fcf687b977e8aa42b3e84b26468d07bea71d18",
+      "outputDigest": "sha256:de69753161071a8d3e4d244280562810a6c4d6ae2696c5a21940f983abd0aa8e",
+      "transformations": [
+        "approving-human",
+        "package-relative-links",
+        "audit-capability-strip"
+      ]
+    },
+    {
+      "path": "specialists/copywriting/references/ad.md",
+      "uri": "nemesis-skill://writing/specialists/copywriting/references/ad.md",
+      "sourceDigest": "sha256:28f68dff8cfb4466436110ae3e8cef35cd5dac635e38ce4d10f47969383f9179",
+      "outputDigest": "sha256:95e4385ca3f48cae46704410b74e4b3d59d75bdc5e6a49c99070a307b8ccb32d",
+      "transformations": [
+        "approving-human",
+        "package-relative-links",
+        "audit-capability-strip"
+      ]
+    },
+    {
+      "path": "specialists/copywriting/references/craft-research.md",
+      "uri": "nemesis-skill://writing/specialists/copywriting/references/craft-research.md",
+      "sourceDigest": "sha256:f03e865103c2142b252fdbf3d1f0e3f8ab61b390dfc936157a07ebc3fe59fb1f",
+      "outputDigest": "sha256:f03e865103c2142b252fdbf3d1f0e3f8ab61b390dfc936157a07ebc3fe59fb1f",
+      "transformations": [
+        "approving-human",
+        "package-relative-links",
+        "audit-capability-strip"
+      ]
+    },
+    {
+      "path": "specialists/copywriting/references/hook.md",
+      "uri": "nemesis-skill://writing/specialists/copywriting/references/hook.md",
+      "sourceDigest": "sha256:9fa42758d49f3fd2c75ad4b4b1950af1aa7f1250b4c99d360c4c811546dea495",
+      "outputDigest": "sha256:61e817a06caf3bb469bd8111f5e8665e739c41de3066d01b1a4fa4d55c27b972",
+      "transformations": [
+        "approving-human",
+        "package-relative-links",
+        "audit-capability-strip"
+      ]
+    },
+    {
+      "path": "specialists/editorial/GUIDE.md",
+      "uri": "nemesis-skill://writing/specialists/editorial/GUIDE.md",
+      "sourceDigest": "sha256:bcf6138beedb015cb1f652e6983c92e5e09e9f1fb14d1a656cdcd3729b1fff81",
+      "outputDigest": "sha256:2d385c894086457a9e29e3a7f661da9ab4437ecbaceb265f515c92b97977c8aa",
+      "transformations": [
+        "approving-human",
+        "package-relative-links",
+        "audit-capability-strip"
+      ]
+    },
+    {
+      "path": "specialists/email/GUIDE.md",
+      "uri": "nemesis-skill://writing/specialists/email/GUIDE.md",
+      "sourceDigest": "sha256:634b9b5fd4830ff466dd2e339fab51b12d047a0344a3dfe81065bf7a4bee7579",
+      "outputDigest": "sha256:99ff1a83a3193158391582a1fb3e305d60df5ec07e328bef0624c86bc6950b19",
+      "transformations": [
+        "approving-human",
+        "package-relative-links",
+        "audit-capability-strip"
+      ]
+    },
+    {
+      "path": "specialists/email/evals/evals.json",
+      "uri": "nemesis-skill://writing/specialists/email/evals/evals.json",
+      "sourceDigest": "sha256:c1bf8ecbe0a19caeb810b8d61e0026e0841ca5a6b93dcacced36ba6ecbc0abf9",
+      "outputDigest": "sha256:d26afaa748bf12242986c7929d189ae10b8f66b7892d364a9e3aad7517ac9da5",
+      "transformations": [
+        "approving-human",
+        "package-relative-links",
+        "audit-capability-strip"
+      ]
+    },
+    {
+      "path": "specialists/email/references/cold-outbound/benchmarks.md",
+      "uri": "nemesis-skill://writing/specialists/email/references/cold-outbound/benchmarks.md",
+      "sourceDigest": "sha256:8c89d8fb0dbbe87654573b42fab7dfd7bd10531b641a3e8fe967911a1ff527c0",
+      "outputDigest": "sha256:3dc1d38a2d1f4fbb2706be7ca3d40156b66a3d7078c183a930ff373c3bb04c09",
+      "transformations": [
+        "approving-human",
+        "package-relative-links",
+        "audit-capability-strip"
+      ]
+    },
+    {
+      "path": "specialists/email/references/cold-outbound/follow-up-sequences.md",
+      "uri": "nemesis-skill://writing/specialists/email/references/cold-outbound/follow-up-sequences.md",
+      "sourceDigest": "sha256:e4a1807630dded1013caf7f58970d6cc35d68cf3a395f9d3a1b8591bd9a17302",
+      "outputDigest": "sha256:87e14749104b0c5bcd865e55d33513a161edb8e6773b2a2d9802b5460f2f7369",
+      "transformations": [
+        "approving-human",
+        "package-relative-links",
+        "audit-capability-strip"
+      ]
+    },
+    {
+      "path": "specialists/email/references/cold-outbound/frameworks.md",
+      "uri": "nemesis-skill://writing/specialists/email/references/cold-outbound/frameworks.md",
+      "sourceDigest": "sha256:fa6c3b8512835164d7e3bc28c42e1542a58db6d725e99914a03dcbae35273f34",
+      "outputDigest": "sha256:b29fb89922f96ae1c6911675a7e173a8f7c6a40999c9a18b14ac7f357b5f5a03",
+      "transformations": [
+        "approving-human",
+        "package-relative-links",
+        "audit-capability-strip"
+      ]
+    },
+    {
+      "path": "specialists/email/references/cold-outbound/personalization.md",
+      "uri": "nemesis-skill://writing/specialists/email/references/cold-outbound/personalization.md",
+      "sourceDigest": "sha256:a4975a013ed75c57011d6c733f731c89d8b5ae589d65668f4bb45215f1d99e86",
+      "outputDigest": "sha256:08f18652938e14143402786fbdb8e1a6269650bb5eef9106898f1cdf31e47e36",
+      "transformations": [
+        "approving-human",
+        "package-relative-links",
+        "audit-capability-strip"
+      ]
+    },
+    {
+      "path": "specialists/email/references/cold-outbound/subject-lines.md",
+      "uri": "nemesis-skill://writing/specialists/email/references/cold-outbound/subject-lines.md",
+      "sourceDigest": "sha256:3f85ad2d02e69b6aaaf2423d4e977e666758743496a9d3ce23b8c212dd0636d3",
+      "outputDigest": "sha256:f71f31b1151d972bb19ff03791ffb9d24941a8ccea8b913e5a5c7aca439b45ce",
+      "transformations": [
+        "approving-human",
+        "package-relative-links",
+        "audit-capability-strip"
+      ]
+    },
+    {
+      "path": "specialists/email/references/sequence/evals/evals.json",
+      "uri": "nemesis-skill://writing/specialists/email/references/sequence/evals/evals.json",
+      "sourceDigest": "sha256:d3dbca6dd758243d3d8c4602b1068c76f38b598031fb1dfb01d9ed6598a5602c",
+      "outputDigest": "sha256:d3dbca6dd758243d3d8c4602b1068c76f38b598031fb1dfb01d9ed6598a5602c",
+      "transformations": [
+        "approving-human",
+        "package-relative-links",
+        "audit-capability-strip"
+      ]
+    },
+    {
+      "path": "specialists/email/references/sequence/reference.md",
+      "uri": "nemesis-skill://writing/specialists/email/references/sequence/reference.md",
+      "sourceDigest": "sha256:f5005a427754e3e8c46401adeb1f961e7e7b6984ea49cdd7c871ac91fd32aae0",
+      "outputDigest": "sha256:8d55af99023af7d948724dda964c9d148873ef38a4d238453fca9235a637bbf4",
+      "transformations": [
+        "approving-human",
+        "package-relative-links",
+        "audit-capability-strip"
+      ]
+    },
+    {
+      "path": "specialists/email/references/sequence/references/copy-guidelines.md",
+      "uri": "nemesis-skill://writing/specialists/email/references/sequence/references/copy-guidelines.md",
+      "sourceDigest": "sha256:7eccc8b04502d8b2e627e14f3438c2d5287f154d9e8c2c39fff9891d3afae84f",
+      "outputDigest": "sha256:02f08897e4aa99ecc4ec1893d61d0c26d0c5e62e09af26f175087455e9b68e01",
+      "transformations": [
+        "approving-human",
+        "package-relative-links",
+        "audit-capability-strip"
+      ]
+    },
+    {
+      "path": "specialists/email/references/sequence/references/email-types.md",
+      "uri": "nemesis-skill://writing/specialists/email/references/sequence/references/email-types.md",
+      "sourceDigest": "sha256:9ec9c5cf465715f37a08cfc992bf30f65ac3bb2f573c135f11ee83227e63f6e2",
+      "outputDigest": "sha256:a5dd4f0555a7b21d2ff426948d15657825b9d16265652563f5e272d2e1879bfd",
+      "transformations": [
+        "approving-human",
+        "package-relative-links",
+        "audit-capability-strip"
+      ]
+    },
+    {
+      "path": "specialists/email/references/sequence/references/sequence-templates.md",
+      "uri": "nemesis-skill://writing/specialists/email/references/sequence/references/sequence-templates.md",
+      "sourceDigest": "sha256:7f3f29cc28e2bfc7491a9bd3f19647153af4c555acc5bfe42dd3739c98e07d12",
+      "outputDigest": "sha256:d47b12e263ad52b72ab741c490bbc98d8bf8034d61faccc50b7dbb2650a9fba0",
+      "transformations": [
+        "approving-human",
+        "package-relative-links",
+        "audit-capability-strip"
+      ]
+    },
+    {
+      "path": "specialists/profile-copy/GUIDE.md",
+      "uri": "nemesis-skill://writing/specialists/profile-copy/GUIDE.md",
+      "sourceDigest": "sha256:e9b9844af709dcae10e9700094e552051a09d50da756a713e4dee45569d9f04d",
+      "outputDigest": "sha256:65fc3b8608b15e4f22f5596b96898d35ed0edc457b1c9dea06c9e085d40f3e39",
+      "transformations": [
+        "approving-human",
+        "package-relative-links",
+        "audit-capability-strip"
+      ]
+    },
+    {
+      "path": "specialists/profile-copy/evals/evals.json",
+      "uri": "nemesis-skill://writing/specialists/profile-copy/evals/evals.json",
+      "sourceDigest": "sha256:04a5a94d6d3dc003deab5c7de25f934f79d3686eba05516cc58ef57435ab9b73",
+      "outputDigest": "sha256:04a5a94d6d3dc003deab5c7de25f934f79d3686eba05516cc58ef57435ab9b73",
+      "transformations": [
+        "approving-human",
+        "package-relative-links",
+        "audit-capability-strip"
+      ]
+    }
+  ],
+  "rightsReceipt": null
+}

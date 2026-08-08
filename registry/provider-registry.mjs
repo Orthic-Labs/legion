@@ -163,8 +163,55 @@ export function extendRegistryWithNativeFamilies(registry, extension = loadProvi
   }
   return merged;
 }
+function adaptProviderV2Registry(raw) {
+  const providers = raw.providers
+    .filter((provider) => provider.selectable !== false)
+    .map((provider) => {
+      const canonicalId = provider.id;
+      const id = provider.id.startsWith('legacy.') ? provider.id.slice('legacy.'.length) : provider.id;
+      const runner = provider.runner;
+      const candidate = provider.role === 'candidate-generator';
+      return {
+        id,
+        canonicalId,
+        providerVersion: provider.providerVersion,
+        role: provider.role,
+        phase: provider.phase === 'source' ? 'facts' : provider.phase,
+        selector: provider.selector,
+        allowWithoutCortex: id === 'core.repo',
+        runner: runner.kind === 'legacy-check'
+          ? { kind: 'legacy-check', check: runner.check }
+          : runner,
+        ...(runner.kind === 'legacy-check' ? { manifest: {
+          check: runner.check,
+          tool: runner.tool,
+          required_when: runner.requiredWhen,
+          applies: runner.applies,
+          parallel: runner.parallel !== false,
+          backs: runner.backs ?? provider.lensIds ?? [],
+          ...(provider.phase === 'runtime' ? { phase: 'P2' } : {})
+        } } : {}),
+        benchmark: { ...(typeof provider.benchmark === 'object' ? provider.benchmark : { status: provider.benchmark }), requiredForCleanClaim: true },
+        producesSecurityCandidates: candidate,
+        mayCloseOwnCandidates: candidate ? false : true,
+        ...(provider.role === 'adjudicator' ? { freshContextRequired: true } : {})
+      };
+    });
+  const ids = new Set(providers.map(({ id }) => id));
+  const coverageFamilies = [
+    { id: 'framework.react', kind: 'framework', qualification: 'unproven', selector: { op: 'anyDependency', names: ['react','react-dom'] }, providers: ['react.hooks-config'].filter((id) => ids.has(id)) },
+    { id: 'framework.tauri', kind: 'framework', qualification: 'unproven', selector: { op: 'anyPath', patterns: ['src-tauri/**'] }, providers: ['tauri.contract-mirror','tauri.capabilities'].filter((id) => ids.has(id)) }
+  ];
+  return { schemaVersion: 1, kind: 'audit-provider-registry', discoveryOwner: 'cortex', planSeal: 'sha256', concurrency: 'min(cpus-1,4)', candidateAdjudication: 'separate-context', providers, coverageFamilies };
+}
 export function loadProviderRegistry(path = DEFAULT_REGISTRY, extensionPath = DEFAULT_EXTENSION) {
-  let registry = expandProviderRegistry(JSON.parse(readFileSync(path, 'utf8')));
+  const raw = JSON.parse(readFileSync(path, 'utf8'));
+  if (raw?.schemaVersion === 2 && raw?.kind === 'nemesis-provider-registry') {
+    const registry = adaptProviderV2Registry(raw);
+    validateProviderRegistry(registry);
+    return registry;
+  }
+  let registry = expandProviderRegistry(raw);
   if (extensionPath && existsSync(extensionPath)) registry = extendRegistryWithNativeFamilies(registry, loadProviderRegistryExtension(extensionPath));
   validateProviderRegistry(registry); return registry;
 }

@@ -1,1 +1,1035 @@
-{"id":"target.developer-tools","version":"1.0.0","class":"target","controls":[{"id":"developer.package.contract","version":"1.0.0","selector":{"targetKinds":["cli","library-sdk","browser-extension","editor-extension","plugin-system"]},"denominator":"package-contract","evidence":["package","runtime"],"families":["compatibility"],"claimLevels":["source","runtime","release"],"missingEvidenceEffect":"unproven"}]}
+{
+  "id": "target.developer-tools",
+  "version": "1.0.0",
+  "class": "target",
+  "dependencies": [
+    "universal.core"
+  ],
+  "source": {
+    "kind": "canonical",
+    "rights": "internal-contract"
+  },
+  "qualification": "source-tested",
+  "controls": [
+    {
+      "id": "developer-tools.cli-contract",
+      "version": "1.0.0",
+      "selector": {
+        "targetKinds": [
+          "cli",
+          "library-sdk",
+          "browser-extension",
+          "editor-extension",
+          "plugin-system"
+        ]
+      },
+      "denominator": "cli-contract-subjects",
+      "evidence": [
+        "repository",
+        "external-evidence"
+      ],
+      "families": [
+        "test-quality"
+      ],
+      "lenses": [
+        "developer-tools.cli-contract"
+      ],
+      "providers": [
+        "test-quality.core"
+      ],
+      "rules": [
+        "code.test-quality"
+      ],
+      "scenarios": [
+        "developer-tools.cli-contract.default"
+      ],
+      "decisionMode": "measured",
+      "missingEvidenceEffect": "unproven",
+      "claimLevels": [
+        "source",
+        "runtime",
+        "product",
+        "release"
+      ],
+      "remediationOwner": "code",
+      "sourceConcepts": [
+        "canonical:developer-tools:cli-contract"
+      ],
+      "stopShip": false,
+      "benchmark": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "qualificationDigest": null
+      },
+      "provenance": {
+        "kind": "canonical",
+        "source": "nemesis:developer-tools",
+        "rights": "internal-contract",
+        "lineage": [
+          "canonical:developer-tools:cli-contract"
+        ]
+      }
+    },
+    {
+      "id": "developer-tools.streams-exit",
+      "version": "1.0.0",
+      "selector": {
+        "targetKinds": [
+          "cli",
+          "library-sdk",
+          "browser-extension",
+          "editor-extension",
+          "plugin-system"
+        ]
+      },
+      "denominator": "streams-exit-subjects",
+      "evidence": [
+        "repository",
+        "external-evidence"
+      ],
+      "families": [
+        "test-quality"
+      ],
+      "lenses": [
+        "developer-tools.streams-exit"
+      ],
+      "providers": [
+        "test-quality.core"
+      ],
+      "rules": [
+        "code.test-quality"
+      ],
+      "scenarios": [
+        "developer-tools.streams-exit.default"
+      ],
+      "decisionMode": "measured",
+      "missingEvidenceEffect": "unproven",
+      "claimLevels": [
+        "source",
+        "runtime",
+        "product",
+        "release"
+      ],
+      "remediationOwner": "code",
+      "sourceConcepts": [
+        "canonical:developer-tools:streams-exit"
+      ],
+      "stopShip": false,
+      "benchmark": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "qualificationDigest": null
+      },
+      "provenance": {
+        "kind": "canonical",
+        "source": "nemesis:developer-tools",
+        "rights": "internal-contract",
+        "lineage": [
+          "canonical:developer-tools:streams-exit"
+        ]
+      }
+    },
+    {
+      "id": "developer-tools.signals-shells",
+      "version": "1.0.0",
+      "selector": {
+        "targetKinds": [
+          "cli",
+          "library-sdk",
+          "browser-extension",
+          "editor-extension",
+          "plugin-system"
+        ]
+      },
+      "denominator": "signals-shells-subjects",
+      "evidence": [
+        "repository",
+        "external-evidence"
+      ],
+      "families": [
+        "test-quality"
+      ],
+      "lenses": [
+        "developer-tools.signals-shells"
+      ],
+      "providers": [
+        "test-quality.core"
+      ],
+      "rules": [
+        "code.test-quality"
+      ],
+      "scenarios": [
+        "developer-tools.signals-shells.default"
+      ],
+      "decisionMode": "measured",
+      "missingEvidenceEffect": "unproven",
+      "claimLevels": [
+        "source",
+        "runtime",
+        "product",
+        "release"
+      ],
+      "remediationOwner": "code",
+      "sourceConcepts": [
+        "canonical:developer-tools:signals-shells"
+      ],
+      "stopShip": false,
+      "benchmark": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "qualificationDigest": null
+      },
+      "provenance": {
+        "kind": "canonical",
+        "source": "nemesis:developer-tools",
+        "rights": "internal-contract",
+        "lineage": [
+          "canonical:developer-tools:signals-shells"
+        ]
+      }
+    },
+    {
+      "id": "developer-tools.paths-config",
+      "version": "1.0.0",
+      "selector": {
+        "targetKinds": [
+          "cli",
+          "library-sdk",
+          "browser-extension",
+          "editor-extension",
+          "plugin-system"
+        ]
+      },
+      "denominator": "paths-config-subjects",
+      "evidence": [
+        "repository",
+        "external-evidence"
+      ],
+      "families": [
+        "test-quality"
+      ],
+      "lenses": [
+        "developer-tools.paths-config"
+      ],
+      "providers": [
+        "test-quality.core"
+      ],
+      "rules": [
+        "code.test-quality"
+      ],
+      "scenarios": [
+        "developer-tools.paths-config.default"
+      ],
+      "decisionMode": "measured",
+      "missingEvidenceEffect": "unproven",
+      "claimLevels": [
+        "source",
+        "runtime",
+        "product",
+        "release"
+      ],
+      "remediationOwner": "code",
+      "sourceConcepts": [
+        "canonical:developer-tools:paths-config"
+      ],
+      "stopShip": false,
+      "benchmark": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "qualificationDigest": null
+      },
+      "provenance": {
+        "kind": "canonical",
+        "source": "nemesis:developer-tools",
+        "rights": "internal-contract",
+        "lineage": [
+          "canonical:developer-tools:paths-config"
+        ]
+      }
+    },
+    {
+      "id": "developer-tools.destructive-actions",
+      "version": "1.0.0",
+      "selector": {
+        "targetKinds": [
+          "cli",
+          "library-sdk",
+          "browser-extension",
+          "editor-extension",
+          "plugin-system"
+        ]
+      },
+      "denominator": "destructive-actions-subjects",
+      "evidence": [
+        "repository",
+        "external-evidence"
+      ],
+      "families": [
+        "test-quality"
+      ],
+      "lenses": [
+        "developer-tools.destructive-actions"
+      ],
+      "providers": [
+        "test-quality.core"
+      ],
+      "rules": [
+        "code.test-quality"
+      ],
+      "scenarios": [
+        "developer-tools.destructive-actions.default"
+      ],
+      "decisionMode": "measured",
+      "missingEvidenceEffect": "unproven",
+      "claimLevels": [
+        "source",
+        "runtime",
+        "product",
+        "release"
+      ],
+      "remediationOwner": "code",
+      "sourceConcepts": [
+        "canonical:developer-tools:destructive-actions"
+      ],
+      "stopShip": false,
+      "benchmark": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "qualificationDigest": null
+      },
+      "provenance": {
+        "kind": "canonical",
+        "source": "nemesis:developer-tools",
+        "rights": "internal-contract",
+        "lineage": [
+          "canonical:developer-tools:destructive-actions"
+        ]
+      }
+    },
+    {
+      "id": "developer-tools.credentials",
+      "version": "1.0.0",
+      "selector": {
+        "targetKinds": [
+          "cli",
+          "library-sdk",
+          "browser-extension",
+          "editor-extension",
+          "plugin-system"
+        ]
+      },
+      "denominator": "credentials-subjects",
+      "evidence": [
+        "repository",
+        "external-evidence"
+      ],
+      "families": [
+        "test-quality"
+      ],
+      "lenses": [
+        "developer-tools.credentials"
+      ],
+      "providers": [
+        "test-quality.core"
+      ],
+      "rules": [
+        "code.test-quality"
+      ],
+      "scenarios": [
+        "developer-tools.credentials.default"
+      ],
+      "decisionMode": "measured",
+      "missingEvidenceEffect": "unproven",
+      "claimLevels": [
+        "source",
+        "runtime",
+        "product",
+        "release"
+      ],
+      "remediationOwner": "code",
+      "sourceConcepts": [
+        "canonical:developer-tools:credentials"
+      ],
+      "stopShip": false,
+      "benchmark": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "qualificationDigest": null
+      },
+      "provenance": {
+        "kind": "canonical",
+        "source": "nemesis:developer-tools",
+        "rights": "internal-contract",
+        "lineage": [
+          "canonical:developer-tools:credentials"
+        ]
+      }
+    },
+    {
+      "id": "developer-tools.distribution",
+      "version": "1.0.0",
+      "selector": {
+        "targetKinds": [
+          "cli",
+          "library-sdk",
+          "browser-extension",
+          "editor-extension",
+          "plugin-system"
+        ]
+      },
+      "denominator": "distribution-subjects",
+      "evidence": [
+        "repository",
+        "external-evidence"
+      ],
+      "families": [
+        "test-quality"
+      ],
+      "lenses": [
+        "developer-tools.distribution"
+      ],
+      "providers": [
+        "test-quality.core"
+      ],
+      "rules": [
+        "code.test-quality"
+      ],
+      "scenarios": [
+        "developer-tools.distribution.default"
+      ],
+      "decisionMode": "measured",
+      "missingEvidenceEffect": "unproven",
+      "claimLevels": [
+        "source",
+        "runtime",
+        "product",
+        "release"
+      ],
+      "remediationOwner": "code",
+      "sourceConcepts": [
+        "canonical:developer-tools:distribution"
+      ],
+      "stopShip": false,
+      "benchmark": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "qualificationDigest": null
+      },
+      "provenance": {
+        "kind": "canonical",
+        "source": "nemesis:developer-tools",
+        "rights": "internal-contract",
+        "lineage": [
+          "canonical:developer-tools:distribution"
+        ]
+      }
+    },
+    {
+      "id": "developer-tools.sdk-api-abi",
+      "version": "1.0.0",
+      "selector": {
+        "targetKinds": [
+          "cli",
+          "library-sdk",
+          "browser-extension",
+          "editor-extension",
+          "plugin-system"
+        ]
+      },
+      "denominator": "sdk-api-abi-subjects",
+      "evidence": [
+        "repository",
+        "external-evidence"
+      ],
+      "families": [
+        "test-quality"
+      ],
+      "lenses": [
+        "developer-tools.sdk-api-abi"
+      ],
+      "providers": [
+        "test-quality.core"
+      ],
+      "rules": [
+        "code.test-quality"
+      ],
+      "scenarios": [
+        "developer-tools.sdk-api-abi.default"
+      ],
+      "decisionMode": "measured",
+      "missingEvidenceEffect": "unproven",
+      "claimLevels": [
+        "source",
+        "runtime",
+        "product",
+        "release"
+      ],
+      "remediationOwner": "code",
+      "sourceConcepts": [
+        "canonical:developer-tools:sdk-api-abi"
+      ],
+      "stopShip": false,
+      "benchmark": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "qualificationDigest": null
+      },
+      "provenance": {
+        "kind": "canonical",
+        "source": "nemesis:developer-tools",
+        "rights": "internal-contract",
+        "lineage": [
+          "canonical:developer-tools:sdk-api-abi"
+        ]
+      }
+    },
+    {
+      "id": "developer-tools.sdk-versions",
+      "version": "1.0.0",
+      "selector": {
+        "targetKinds": [
+          "cli",
+          "library-sdk",
+          "browser-extension",
+          "editor-extension",
+          "plugin-system"
+        ]
+      },
+      "denominator": "sdk-versions-subjects",
+      "evidence": [
+        "repository",
+        "external-evidence"
+      ],
+      "families": [
+        "test-quality"
+      ],
+      "lenses": [
+        "developer-tools.sdk-versions"
+      ],
+      "providers": [
+        "test-quality.core"
+      ],
+      "rules": [
+        "code.test-quality"
+      ],
+      "scenarios": [
+        "developer-tools.sdk-versions.default"
+      ],
+      "decisionMode": "measured",
+      "missingEvidenceEffect": "unproven",
+      "claimLevels": [
+        "source",
+        "runtime",
+        "product",
+        "release"
+      ],
+      "remediationOwner": "code",
+      "sourceConcepts": [
+        "canonical:developer-tools:sdk-versions"
+      ],
+      "stopShip": false,
+      "benchmark": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "qualificationDigest": null
+      },
+      "provenance": {
+        "kind": "canonical",
+        "source": "nemesis:developer-tools",
+        "rights": "internal-contract",
+        "lineage": [
+          "canonical:developer-tools:sdk-versions"
+        ]
+      }
+    },
+    {
+      "id": "developer-tools.package-contents",
+      "version": "1.0.0",
+      "selector": {
+        "targetKinds": [
+          "cli",
+          "library-sdk",
+          "browser-extension",
+          "editor-extension",
+          "plugin-system"
+        ]
+      },
+      "denominator": "package-contents-subjects",
+      "evidence": [
+        "repository",
+        "external-evidence"
+      ],
+      "families": [
+        "test-quality"
+      ],
+      "lenses": [
+        "developer-tools.package-contents"
+      ],
+      "providers": [
+        "test-quality.core"
+      ],
+      "rules": [
+        "code.test-quality"
+      ],
+      "scenarios": [
+        "developer-tools.package-contents.default"
+      ],
+      "decisionMode": "measured",
+      "missingEvidenceEffect": "unproven",
+      "claimLevels": [
+        "source",
+        "runtime",
+        "product",
+        "release"
+      ],
+      "remediationOwner": "writing",
+      "sourceConcepts": [
+        "canonical:developer-tools:package-contents"
+      ],
+      "stopShip": false,
+      "benchmark": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "qualificationDigest": null
+      },
+      "provenance": {
+        "kind": "canonical",
+        "source": "nemesis:developer-tools",
+        "rights": "internal-contract",
+        "lineage": [
+          "canonical:developer-tools:package-contents"
+        ]
+      }
+    },
+    {
+      "id": "developer-tools.errors-concurrency",
+      "version": "1.0.0",
+      "selector": {
+        "targetKinds": [
+          "cli",
+          "library-sdk",
+          "browser-extension",
+          "editor-extension",
+          "plugin-system"
+        ]
+      },
+      "denominator": "errors-concurrency-subjects",
+      "evidence": [
+        "repository",
+        "external-evidence"
+      ],
+      "families": [
+        "test-quality"
+      ],
+      "lenses": [
+        "developer-tools.errors-concurrency"
+      ],
+      "providers": [
+        "test-quality.core"
+      ],
+      "rules": [
+        "code.test-quality"
+      ],
+      "scenarios": [
+        "developer-tools.errors-concurrency.default"
+      ],
+      "decisionMode": "measured",
+      "missingEvidenceEffect": "unproven",
+      "claimLevels": [
+        "source",
+        "runtime",
+        "product",
+        "release"
+      ],
+      "remediationOwner": "code",
+      "sourceConcepts": [
+        "canonical:developer-tools:errors-concurrency"
+      ],
+      "stopShip": false,
+      "benchmark": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "qualificationDigest": null
+      },
+      "provenance": {
+        "kind": "canonical",
+        "source": "nemesis:developer-tools",
+        "rights": "internal-contract",
+        "lineage": [
+          "canonical:developer-tools:errors-concurrency"
+        ]
+      }
+    },
+    {
+      "id": "developer-tools.runtime-support",
+      "version": "1.0.0",
+      "selector": {
+        "targetKinds": [
+          "cli",
+          "library-sdk",
+          "browser-extension",
+          "editor-extension",
+          "plugin-system"
+        ]
+      },
+      "denominator": "runtime-support-subjects",
+      "evidence": [
+        "repository",
+        "external-evidence"
+      ],
+      "families": [
+        "test-quality"
+      ],
+      "lenses": [
+        "developer-tools.runtime-support"
+      ],
+      "providers": [
+        "test-quality.core"
+      ],
+      "rules": [
+        "code.test-quality"
+      ],
+      "scenarios": [
+        "developer-tools.runtime-support.default"
+      ],
+      "decisionMode": "measured",
+      "missingEvidenceEffect": "unproven",
+      "claimLevels": [
+        "source",
+        "runtime",
+        "product",
+        "release"
+      ],
+      "remediationOwner": "code",
+      "sourceConcepts": [
+        "canonical:developer-tools:runtime-support"
+      ],
+      "stopShip": false,
+      "benchmark": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "qualificationDigest": null
+      },
+      "provenance": {
+        "kind": "canonical",
+        "source": "nemesis:developer-tools",
+        "rights": "internal-contract",
+        "lineage": [
+          "canonical:developer-tools:runtime-support"
+        ]
+      }
+    },
+    {
+      "id": "developer-tools.migration-deprecation",
+      "version": "1.0.0",
+      "selector": {
+        "targetKinds": [
+          "cli",
+          "library-sdk",
+          "browser-extension",
+          "editor-extension",
+          "plugin-system"
+        ]
+      },
+      "denominator": "migration-deprecation-subjects",
+      "evidence": [
+        "repository",
+        "external-evidence"
+      ],
+      "families": [
+        "test-quality"
+      ],
+      "lenses": [
+        "developer-tools.migration-deprecation"
+      ],
+      "providers": [
+        "test-quality.core"
+      ],
+      "rules": [
+        "code.test-quality"
+      ],
+      "scenarios": [
+        "developer-tools.migration-deprecation.default"
+      ],
+      "decisionMode": "measured",
+      "missingEvidenceEffect": "unproven",
+      "claimLevels": [
+        "source",
+        "runtime",
+        "product",
+        "release"
+      ],
+      "remediationOwner": "code",
+      "sourceConcepts": [
+        "canonical:developer-tools:migration-deprecation"
+      ],
+      "stopShip": false,
+      "benchmark": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "qualificationDigest": null
+      },
+      "provenance": {
+        "kind": "canonical",
+        "source": "nemesis:developer-tools",
+        "rights": "internal-contract",
+        "lineage": [
+          "canonical:developer-tools:migration-deprecation"
+        ]
+      }
+    },
+    {
+      "id": "developer-tools.extension-permissions",
+      "version": "1.0.0",
+      "selector": {
+        "targetKinds": [
+          "cli",
+          "library-sdk",
+          "browser-extension",
+          "editor-extension",
+          "plugin-system"
+        ]
+      },
+      "denominator": "extension-permissions-subjects",
+      "evidence": [
+        "repository",
+        "external-evidence"
+      ],
+      "families": [
+        "test-quality"
+      ],
+      "lenses": [
+        "developer-tools.extension-permissions"
+      ],
+      "providers": [
+        "test-quality.core"
+      ],
+      "rules": [
+        "code.test-quality"
+      ],
+      "scenarios": [
+        "developer-tools.extension-permissions.default"
+      ],
+      "decisionMode": "measured",
+      "missingEvidenceEffect": "unproven",
+      "claimLevels": [
+        "source",
+        "runtime",
+        "product",
+        "release"
+      ],
+      "remediationOwner": "code",
+      "sourceConcepts": [
+        "canonical:developer-tools:extension-permissions"
+      ],
+      "stopShip": false,
+      "benchmark": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "qualificationDigest": null
+      },
+      "provenance": {
+        "kind": "canonical",
+        "source": "nemesis:developer-tools",
+        "rights": "internal-contract",
+        "lineage": [
+          "canonical:developer-tools:extension-permissions"
+        ]
+      }
+    },
+    {
+      "id": "developer-tools.workspace-trust",
+      "version": "1.0.0",
+      "selector": {
+        "targetKinds": [
+          "cli",
+          "library-sdk",
+          "browser-extension",
+          "editor-extension",
+          "plugin-system"
+        ]
+      },
+      "denominator": "workspace-trust-subjects",
+      "evidence": [
+        "repository",
+        "external-evidence"
+      ],
+      "families": [
+        "test-quality"
+      ],
+      "lenses": [
+        "developer-tools.workspace-trust"
+      ],
+      "providers": [
+        "test-quality.core"
+      ],
+      "rules": [
+        "code.test-quality"
+      ],
+      "scenarios": [
+        "developer-tools.workspace-trust.default"
+      ],
+      "decisionMode": "measured",
+      "missingEvidenceEffect": "unproven",
+      "claimLevels": [
+        "source",
+        "runtime",
+        "product",
+        "release"
+      ],
+      "remediationOwner": "code",
+      "sourceConcepts": [
+        "canonical:developer-tools:workspace-trust"
+      ],
+      "stopShip": false,
+      "benchmark": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "qualificationDigest": null
+      },
+      "provenance": {
+        "kind": "canonical",
+        "source": "nemesis:developer-tools",
+        "rights": "internal-contract",
+        "lineage": [
+          "canonical:developer-tools:workspace-trust"
+        ]
+      }
+    },
+    {
+      "id": "developer-tools.plugin-isolation",
+      "version": "1.0.0",
+      "selector": {
+        "targetKinds": [
+          "cli",
+          "library-sdk",
+          "browser-extension",
+          "editor-extension",
+          "plugin-system"
+        ]
+      },
+      "denominator": "plugin-isolation-subjects",
+      "evidence": [
+        "repository",
+        "external-evidence"
+      ],
+      "families": [
+        "test-quality"
+      ],
+      "lenses": [
+        "developer-tools.plugin-isolation"
+      ],
+      "providers": [
+        "test-quality.core"
+      ],
+      "rules": [
+        "code.test-quality"
+      ],
+      "scenarios": [
+        "developer-tools.plugin-isolation.default"
+      ],
+      "decisionMode": "measured",
+      "missingEvidenceEffect": "unproven",
+      "claimLevels": [
+        "source",
+        "runtime",
+        "product",
+        "release"
+      ],
+      "remediationOwner": "code",
+      "sourceConcepts": [
+        "canonical:developer-tools:plugin-isolation"
+      ],
+      "stopShip": false,
+      "benchmark": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "qualificationDigest": null
+      },
+      "provenance": {
+        "kind": "canonical",
+        "source": "nemesis:developer-tools",
+        "rights": "internal-contract",
+        "lineage": [
+          "canonical:developer-tools:plugin-isolation"
+        ]
+      }
+    },
+    {
+      "id": "developer-tools.plugin-signing-update",
+      "version": "1.0.0",
+      "selector": {
+        "targetKinds": [
+          "cli",
+          "library-sdk",
+          "browser-extension",
+          "editor-extension",
+          "plugin-system"
+        ]
+      },
+      "denominator": "plugin-signing-update-subjects",
+      "evidence": [
+        "repository",
+        "external-evidence"
+      ],
+      "families": [
+        "test-quality"
+      ],
+      "lenses": [
+        "developer-tools.plugin-signing-update"
+      ],
+      "providers": [
+        "test-quality.core"
+      ],
+      "rules": [
+        "code.test-quality"
+      ],
+      "scenarios": [
+        "developer-tools.plugin-signing-update.default"
+      ],
+      "decisionMode": "measured",
+      "missingEvidenceEffect": "unproven",
+      "claimLevels": [
+        "source",
+        "runtime",
+        "product",
+        "release"
+      ],
+      "remediationOwner": "architecture",
+      "sourceConcepts": [
+        "canonical:developer-tools:plugin-signing-update"
+      ],
+      "stopShip": true,
+      "benchmark": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "qualificationDigest": null
+      },
+      "provenance": {
+        "kind": "canonical",
+        "source": "nemesis:developer-tools",
+        "rights": "internal-contract",
+        "lineage": [
+          "canonical:developer-tools:plugin-signing-update"
+        ]
+      }
+    }
+  ]
+}

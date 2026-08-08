@@ -1,0 +1,231 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://orthic.dev/schemas/safety/hazard-model-v1.json",
+  "title": "SafetyHazardV1",
+  "type": "object",
+  "required": [
+    "schemaVersion",
+    "kind",
+    "id",
+    "domain",
+    "outcomeClass",
+    "ruleId",
+    "claim",
+    "severityHint",
+    "scope",
+    "hazards",
+    "assumptions",
+    "authorityLimits",
+    "disposition",
+    "reasoningRequirement",
+    "certifiable",
+    "regulatoryClaim",
+    "status",
+    "evidenceRefs",
+    "misuseScenarios"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": 1
+    },
+    "kind": {
+      "const": "safety-hazard"
+    },
+    "id": {
+      "type": "string",
+      "pattern": "^sha256:"
+    },
+    "domain": {
+      "type": "string",
+      "minLength": 1
+    },
+    "outcomeClass": {
+      "enum": [
+        "physical",
+        "medical",
+        "financial",
+        "child-facing",
+        "operational",
+        "irreversible",
+        "catastrophic-data-loss"
+      ]
+    },
+    "ruleId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "claim": {
+      "type": "string",
+      "minLength": 1
+    },
+    "severityHint": {
+      "enum": [
+        "critical",
+        "high",
+        "medium",
+        "low",
+        "info"
+      ]
+    },
+    "scope": {
+      "type": "object",
+      "required": [
+        "static",
+        "runtime",
+        "description"
+      ],
+      "properties": {
+        "static": {
+          "type": "boolean"
+        },
+        "runtime": {
+          "type": "boolean"
+        },
+        "description": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "additionalProperties": false
+    },
+    "hazards": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "minItems": 1
+    },
+    "assumptions": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "minItems": 1
+    },
+    "authorityLimits": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "minItems": 1
+    },
+    "disposition": {
+      "enum": [
+        "positive",
+        "mitigated",
+        "blocked",
+        "unsafe-degraded",
+        "missing-interlock",
+        "human-override",
+        "clean"
+      ]
+    },
+    "unsafeStates": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "interlock": {
+      "enum": [
+        "present",
+        "missing",
+        "not-applicable"
+      ]
+    },
+    "failsafeDefault": {
+      "enum": [
+        "safe",
+        "unsafe",
+        "unknown"
+      ]
+    },
+    "degradedMode": {
+      "enum": [
+        "safe",
+        "unsafe",
+        "unknown",
+        "not-applicable"
+      ]
+    },
+    "emergencyStop": {
+      "enum": [
+        "present",
+        "absent",
+        "not-applicable"
+      ]
+    },
+    "humanOverride": {
+      "enum": [
+        "present",
+        "absent",
+        "required-and-present",
+        "required-and-absent",
+        "not-applicable"
+      ]
+    },
+    "confirmation": {
+      "enum": [
+        "present",
+        "absent",
+        "not-applicable"
+      ]
+    },
+    "misuseScenarios": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "minItems": 1
+    },
+    "recoveryPath": {
+      "enum": [
+        "defined",
+        "absent",
+        "not-applicable"
+      ]
+    },
+    "incidentControls": {
+      "enum": [
+        "defined",
+        "absent",
+        "not-applicable"
+      ]
+    },
+    "reasoningRequirement": {
+      "const": "human-decision"
+    },
+    "certifiable": {
+      "const": false
+    },
+    "regulatoryClaim": {
+      "const": null
+    },
+    "status": {
+      "enum": [
+        "review-required",
+        "unproven"
+      ]
+    },
+    "evidenceRefs": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "minItems": 1
+    },
+    "detectorMetadata": {
+      "type": "object"
+    },
+    "uncertainty": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "closed": {
+      "type": "boolean"
+    }
+  },
+  "additionalProperties": false
+}

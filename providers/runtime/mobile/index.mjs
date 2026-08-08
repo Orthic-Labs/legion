@@ -1,0 +1,9 @@
+export { planMobileHosts } from './host/index.mjs';
+export { createMobileDeviceAdapter } from './devices/index.mjs';
+export { planMobileLifecycle } from './lifecycle/index.mjs';
+export { planMobilePlatformSurfaces } from './platform-surfaces/index.mjs';
+export { planMobileDataNetwork } from './network/index.mjs';
+export { assessMobilePerformance } from './performance/index.mjs';
+export { compileMobileCompatibility } from './compatibility/index.mjs';
+export { verifyMobileRelease } from './release/index.mjs';
+export { verifyMobileCommerceOperations } from './commerce/index.mjs';

@@ -1,0 +1,1398 @@
+{
+  "schemaVersion": 1,
+  "family": "mobile",
+  "controls": [
+    {
+      "id": "mobile.ios",
+      "version": "1.0.0",
+      "selector": {
+        "targetKinds": [
+          "ios-app",
+          "android-app",
+          "mobile-extension"
+        ]
+      },
+      "denominator": "ios-subjects",
+      "evidence": [
+        "repository",
+        "external-evidence"
+      ],
+      "families": [
+        "code"
+      ],
+      "lenses": [
+        "mobile.ios"
+      ],
+      "providers": [
+        "code.mobile"
+      ],
+      "rules": [
+        "code.architecture"
+      ],
+      "scenarios": [
+        "mobile.ios.default"
+      ],
+      "decisionMode": "measured",
+      "missingEvidenceEffect": "unproven",
+      "claimLevels": [
+        "source",
+        "runtime",
+        "product",
+        "release"
+      ],
+      "remediationOwner": "code",
+      "sourceConcepts": [
+        "canonical:mobile:ios"
+      ],
+      "stopShip": false,
+      "benchmark": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "qualificationDigest": null
+      },
+      "provenance": {
+        "kind": "canonical",
+        "source": "nemesis:mobile",
+        "rights": "internal-contract",
+        "lineage": [
+          "canonical:mobile:ios"
+        ]
+      }
+    },
+    {
+      "id": "mobile.android",
+      "version": "1.0.0",
+      "selector": {
+        "targetKinds": [
+          "ios-app",
+          "android-app",
+          "mobile-extension"
+        ]
+      },
+      "denominator": "android-subjects",
+      "evidence": [
+        "repository",
+        "external-evidence"
+      ],
+      "families": [
+        "code"
+      ],
+      "lenses": [
+        "mobile.android"
+      ],
+      "providers": [
+        "code.mobile"
+      ],
+      "rules": [
+        "code.architecture"
+      ],
+      "scenarios": [
+        "mobile.android.default"
+      ],
+      "decisionMode": "measured",
+      "missingEvidenceEffect": "unproven",
+      "claimLevels": [
+        "source",
+        "runtime",
+        "product",
+        "release"
+      ],
+      "remediationOwner": "code",
+      "sourceConcepts": [
+        "canonical:mobile:android"
+      ],
+      "stopShip": false,
+      "benchmark": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "qualificationDigest": null
+      },
+      "provenance": {
+        "kind": "canonical",
+        "source": "nemesis:mobile",
+        "rights": "internal-contract",
+        "lineage": [
+          "canonical:mobile:android"
+        ]
+      }
+    },
+    {
+      "id": "mobile.extensions",
+      "version": "1.0.0",
+      "selector": {
+        "targetKinds": [
+          "ios-app",
+          "android-app",
+          "mobile-extension"
+        ]
+      },
+      "denominator": "extensions-subjects",
+      "evidence": [
+        "repository",
+        "external-evidence"
+      ],
+      "families": [
+        "code"
+      ],
+      "lenses": [
+        "mobile.extensions"
+      ],
+      "providers": [
+        "code.mobile"
+      ],
+      "rules": [
+        "code.architecture"
+      ],
+      "scenarios": [
+        "mobile.extensions.default"
+      ],
+      "decisionMode": "measured",
+      "missingEvidenceEffect": "unproven",
+      "claimLevels": [
+        "source",
+        "runtime",
+        "product",
+        "release"
+      ],
+      "remediationOwner": "code",
+      "sourceConcepts": [
+        "canonical:mobile:extensions"
+      ],
+      "stopShip": false,
+      "benchmark": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "qualificationDigest": null
+      },
+      "provenance": {
+        "kind": "canonical",
+        "source": "nemesis:mobile",
+        "rights": "internal-contract",
+        "lineage": [
+          "canonical:mobile:extensions"
+        ]
+      }
+    },
+    {
+      "id": "mobile.product-readiness",
+      "version": "1.0.0",
+      "selector": {
+        "targetKinds": [
+          "ios-app",
+          "android-app",
+          "mobile-extension"
+        ]
+      },
+      "denominator": "product-readiness-subjects",
+      "evidence": [
+        "repository",
+        "external-evidence"
+      ],
+      "families": [
+        "code"
+      ],
+      "lenses": [
+        "mobile.product-readiness"
+      ],
+      "providers": [
+        "code.mobile"
+      ],
+      "rules": [
+        "code.architecture"
+      ],
+      "scenarios": [
+        "mobile.product-readiness.default"
+      ],
+      "decisionMode": "measured",
+      "missingEvidenceEffect": "unproven",
+      "claimLevels": [
+        "source",
+        "runtime",
+        "product",
+        "release"
+      ],
+      "remediationOwner": "code",
+      "sourceConcepts": [
+        "canonical:mobile:product-readiness"
+      ],
+      "stopShip": false,
+      "benchmark": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "qualificationDigest": null
+      },
+      "provenance": {
+        "kind": "canonical",
+        "source": "nemesis:mobile",
+        "rights": "internal-contract",
+        "lineage": [
+          "canonical:mobile:product-readiness"
+        ]
+      }
+    },
+    {
+      "id": "mobile.architecture",
+      "version": "1.0.0",
+      "selector": {
+        "targetKinds": [
+          "ios-app",
+          "android-app",
+          "mobile-extension"
+        ]
+      },
+      "denominator": "architecture-subjects",
+      "evidence": [
+        "repository",
+        "external-evidence"
+      ],
+      "families": [
+        "code"
+      ],
+      "lenses": [
+        "mobile.architecture"
+      ],
+      "providers": [
+        "code.mobile"
+      ],
+      "rules": [
+        "code.architecture"
+      ],
+      "scenarios": [
+        "mobile.architecture.default"
+      ],
+      "decisionMode": "measured",
+      "missingEvidenceEffect": "unproven",
+      "claimLevels": [
+        "source",
+        "runtime",
+        "product",
+        "release"
+      ],
+      "remediationOwner": "architecture",
+      "sourceConcepts": [
+        "canonical:mobile:architecture"
+      ],
+      "stopShip": false,
+      "benchmark": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "qualificationDigest": null
+      },
+      "provenance": {
+        "kind": "canonical",
+        "source": "nemesis:mobile",
+        "rights": "internal-contract",
+        "lineage": [
+          "canonical:mobile:architecture"
+        ]
+      }
+    },
+    {
+      "id": "mobile.dependencies",
+      "version": "1.0.0",
+      "selector": {
+        "targetKinds": [
+          "ios-app",
+          "android-app",
+          "mobile-extension"
+        ]
+      },
+      "denominator": "dependencies-subjects",
+      "evidence": [
+        "repository",
+        "external-evidence"
+      ],
+      "families": [
+        "code"
+      ],
+      "lenses": [
+        "mobile.dependencies"
+      ],
+      "providers": [
+        "code.mobile"
+      ],
+      "rules": [
+        "code.architecture"
+      ],
+      "scenarios": [
+        "mobile.dependencies.default"
+      ],
+      "decisionMode": "measured",
+      "missingEvidenceEffect": "unproven",
+      "claimLevels": [
+        "source",
+        "runtime",
+        "product",
+        "release"
+      ],
+      "remediationOwner": "code",
+      "sourceConcepts": [
+        "canonical:mobile:dependencies"
+      ],
+      "stopShip": false,
+      "benchmark": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "qualificationDigest": null
+      },
+      "provenance": {
+        "kind": "canonical",
+        "source": "nemesis:mobile",
+        "rights": "internal-contract",
+        "lineage": [
+          "canonical:mobile:dependencies"
+        ]
+      }
+    },
+    {
+      "id": "mobile.code",
+      "version": "1.0.0",
+      "selector": {
+        "targetKinds": [
+          "ios-app",
+          "android-app",
+          "mobile-extension"
+        ]
+      },
+      "denominator": "code-subjects",
+      "evidence": [
+        "repository",
+        "external-evidence"
+      ],
+      "families": [
+        "code"
+      ],
+      "lenses": [
+        "mobile.code"
+      ],
+      "providers": [
+        "code.mobile"
+      ],
+      "rules": [
+        "code.architecture"
+      ],
+      "scenarios": [
+        "mobile.code.default"
+      ],
+      "decisionMode": "measured",
+      "missingEvidenceEffect": "unproven",
+      "claimLevels": [
+        "source",
+        "runtime",
+        "product",
+        "release"
+      ],
+      "remediationOwner": "code",
+      "sourceConcepts": [
+        "canonical:mobile:code"
+      ],
+      "stopShip": false,
+      "benchmark": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "qualificationDigest": null
+      },
+      "provenance": {
+        "kind": "canonical",
+        "source": "nemesis:mobile",
+        "rights": "internal-contract",
+        "lineage": [
+          "canonical:mobile:code"
+        ]
+      }
+    },
+    {
+      "id": "mobile.security",
+      "version": "1.0.0",
+      "selector": {
+        "targetKinds": [
+          "ios-app",
+          "android-app",
+          "mobile-extension"
+        ]
+      },
+      "denominator": "security-subjects",
+      "evidence": [
+        "repository",
+        "external-evidence"
+      ],
+      "families": [
+        "code"
+      ],
+      "lenses": [
+        "mobile.security"
+      ],
+      "providers": [
+        "code.mobile"
+      ],
+      "rules": [
+        "code.architecture"
+      ],
+      "scenarios": [
+        "mobile.security.default"
+      ],
+      "decisionMode": "measured",
+      "missingEvidenceEffect": "unproven",
+      "claimLevels": [
+        "source",
+        "runtime",
+        "product",
+        "release"
+      ],
+      "remediationOwner": "code",
+      "sourceConcepts": [
+        "canonical:mobile:security"
+      ],
+      "stopShip": true,
+      "benchmark": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "qualificationDigest": null
+      },
+      "provenance": {
+        "kind": "canonical",
+        "source": "nemesis:mobile",
+        "rights": "internal-contract",
+        "lineage": [
+          "canonical:mobile:security"
+        ]
+      }
+    },
+    {
+      "id": "mobile.privacy-permissions",
+      "version": "1.0.0",
+      "selector": {
+        "targetKinds": [
+          "ios-app",
+          "android-app",
+          "mobile-extension"
+        ]
+      },
+      "denominator": "privacy-permissions-subjects",
+      "evidence": [
+        "repository",
+        "external-evidence"
+      ],
+      "families": [
+        "code"
+      ],
+      "lenses": [
+        "mobile.privacy-permissions"
+      ],
+      "providers": [
+        "code.mobile"
+      ],
+      "rules": [
+        "code.architecture"
+      ],
+      "scenarios": [
+        "mobile.privacy-permissions.default"
+      ],
+      "decisionMode": "measured",
+      "missingEvidenceEffect": "unproven",
+      "claimLevels": [
+        "source",
+        "runtime",
+        "product",
+        "release"
+      ],
+      "remediationOwner": "code",
+      "sourceConcepts": [
+        "canonical:mobile:privacy-permissions"
+      ],
+      "stopShip": true,
+      "benchmark": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "qualificationDigest": null
+      },
+      "provenance": {
+        "kind": "canonical",
+        "source": "nemesis:mobile",
+        "rights": "internal-contract",
+        "lineage": [
+          "canonical:mobile:privacy-permissions"
+        ]
+      }
+    },
+    {
+      "id": "mobile.identity",
+      "version": "1.0.0",
+      "selector": {
+        "targetKinds": [
+          "ios-app",
+          "android-app",
+          "mobile-extension"
+        ]
+      },
+      "denominator": "identity-subjects",
+      "evidence": [
+        "repository",
+        "external-evidence"
+      ],
+      "families": [
+        "code"
+      ],
+      "lenses": [
+        "mobile.identity"
+      ],
+      "providers": [
+        "code.mobile"
+      ],
+      "rules": [
+        "code.architecture"
+      ],
+      "scenarios": [
+        "mobile.identity.default"
+      ],
+      "decisionMode": "measured",
+      "missingEvidenceEffect": "unproven",
+      "claimLevels": [
+        "source",
+        "runtime",
+        "product",
+        "release"
+      ],
+      "remediationOwner": "code",
+      "sourceConcepts": [
+        "canonical:mobile:identity"
+      ],
+      "stopShip": true,
+      "benchmark": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "qualificationDigest": null
+      },
+      "provenance": {
+        "kind": "canonical",
+        "source": "nemesis:mobile",
+        "rights": "internal-contract",
+        "lineage": [
+          "canonical:mobile:identity"
+        ]
+      }
+    },
+    {
+      "id": "mobile.backend-cloud",
+      "version": "1.0.0",
+      "selector": {
+        "targetKinds": [
+          "ios-app",
+          "android-app",
+          "mobile-extension"
+        ]
+      },
+      "denominator": "backend-cloud-subjects",
+      "evidence": [
+        "repository",
+        "external-evidence"
+      ],
+      "families": [
+        "code"
+      ],
+      "lenses": [
+        "mobile.backend-cloud"
+      ],
+      "providers": [
+        "code.mobile"
+      ],
+      "rules": [
+        "code.architecture"
+      ],
+      "scenarios": [
+        "mobile.backend-cloud.default"
+      ],
+      "decisionMode": "measured",
+      "missingEvidenceEffect": "unproven",
+      "claimLevels": [
+        "source",
+        "runtime",
+        "product",
+        "release"
+      ],
+      "remediationOwner": "code",
+      "sourceConcepts": [
+        "canonical:mobile:backend-cloud"
+      ],
+      "stopShip": false,
+      "benchmark": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "qualificationDigest": null
+      },
+      "provenance": {
+        "kind": "canonical",
+        "source": "nemesis:mobile",
+        "rights": "internal-contract",
+        "lineage": [
+          "canonical:mobile:backend-cloud"
+        ]
+      }
+    },
+    {
+      "id": "mobile.data-offline-sync",
+      "version": "1.0.0",
+      "selector": {
+        "targetKinds": [
+          "ios-app",
+          "android-app",
+          "mobile-extension"
+        ]
+      },
+      "denominator": "data-offline-sync-subjects",
+      "evidence": [
+        "repository",
+        "external-evidence"
+      ],
+      "families": [
+        "code"
+      ],
+      "lenses": [
+        "mobile.data-offline-sync"
+      ],
+      "providers": [
+        "code.mobile"
+      ],
+      "rules": [
+        "code.architecture"
+      ],
+      "scenarios": [
+        "mobile.data-offline-sync.default"
+      ],
+      "decisionMode": "measured",
+      "missingEvidenceEffect": "unproven",
+      "claimLevels": [
+        "source",
+        "runtime",
+        "product",
+        "release"
+      ],
+      "remediationOwner": "code",
+      "sourceConcepts": [
+        "canonical:mobile:data-offline-sync"
+      ],
+      "stopShip": false,
+      "benchmark": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "qualificationDigest": null
+      },
+      "provenance": {
+        "kind": "canonical",
+        "source": "nemesis:mobile",
+        "rights": "internal-contract",
+        "lineage": [
+          "canonical:mobile:data-offline-sync"
+        ]
+      }
+    },
+    {
+      "id": "mobile.performance-resource",
+      "version": "1.0.0",
+      "selector": {
+        "targetKinds": [
+          "ios-app",
+          "android-app",
+          "mobile-extension"
+        ]
+      },
+      "denominator": "performance-resource-subjects",
+      "evidence": [
+        "repository",
+        "external-evidence"
+      ],
+      "families": [
+        "code"
+      ],
+      "lenses": [
+        "mobile.performance-resource"
+      ],
+      "providers": [
+        "code.mobile"
+      ],
+      "rules": [
+        "code.architecture"
+      ],
+      "scenarios": [
+        "mobile.performance-resource.default"
+      ],
+      "decisionMode": "measured",
+      "missingEvidenceEffect": "unproven",
+      "claimLevels": [
+        "source",
+        "runtime",
+        "product",
+        "release"
+      ],
+      "remediationOwner": "code",
+      "sourceConcepts": [
+        "canonical:mobile:performance-resource"
+      ],
+      "stopShip": false,
+      "benchmark": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "qualificationDigest": null
+      },
+      "provenance": {
+        "kind": "canonical",
+        "source": "nemesis:mobile",
+        "rights": "internal-contract",
+        "lineage": [
+          "canonical:mobile:performance-resource"
+        ]
+      }
+    },
+    {
+      "id": "mobile.lifecycle",
+      "version": "1.0.0",
+      "selector": {
+        "targetKinds": [
+          "ios-app",
+          "android-app",
+          "mobile-extension"
+        ]
+      },
+      "denominator": "lifecycle-subjects",
+      "evidence": [
+        "repository",
+        "external-evidence"
+      ],
+      "families": [
+        "code"
+      ],
+      "lenses": [
+        "mobile.lifecycle"
+      ],
+      "providers": [
+        "code.mobile"
+      ],
+      "rules": [
+        "code.architecture"
+      ],
+      "scenarios": [
+        "mobile.lifecycle.default"
+      ],
+      "decisionMode": "measured",
+      "missingEvidenceEffect": "unproven",
+      "claimLevels": [
+        "source",
+        "runtime",
+        "product",
+        "release"
+      ],
+      "remediationOwner": "code",
+      "sourceConcepts": [
+        "canonical:mobile:lifecycle"
+      ],
+      "stopShip": false,
+      "benchmark": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "qualificationDigest": null
+      },
+      "provenance": {
+        "kind": "canonical",
+        "source": "nemesis:mobile",
+        "rights": "internal-contract",
+        "lineage": [
+          "canonical:mobile:lifecycle"
+        ]
+      }
+    },
+    {
+      "id": "mobile.ux-a11y-i18n",
+      "version": "1.0.0",
+      "selector": {
+        "targetKinds": [
+          "ios-app",
+          "android-app",
+          "mobile-extension"
+        ]
+      },
+      "denominator": "ux-a11y-i18n-subjects",
+      "evidence": [
+        "repository",
+        "external-evidence"
+      ],
+      "families": [
+        "code"
+      ],
+      "lenses": [
+        "mobile.ux-a11y-i18n"
+      ],
+      "providers": [
+        "code.mobile"
+      ],
+      "rules": [
+        "code.architecture"
+      ],
+      "scenarios": [
+        "mobile.ux-a11y-i18n.default"
+      ],
+      "decisionMode": "measured",
+      "missingEvidenceEffect": "unproven",
+      "claimLevels": [
+        "source",
+        "runtime",
+        "product",
+        "release"
+      ],
+      "remediationOwner": "code",
+      "sourceConcepts": [
+        "canonical:mobile:ux-a11y-i18n"
+      ],
+      "stopShip": false,
+      "benchmark": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "qualificationDigest": null
+      },
+      "provenance": {
+        "kind": "canonical",
+        "source": "nemesis:mobile",
+        "rights": "internal-contract",
+        "lineage": [
+          "canonical:mobile:ux-a11y-i18n"
+        ]
+      }
+    },
+    {
+      "id": "mobile.device-os",
+      "version": "1.0.0",
+      "selector": {
+        "targetKinds": [
+          "ios-app",
+          "android-app",
+          "mobile-extension"
+        ]
+      },
+      "denominator": "device-os-subjects",
+      "evidence": [
+        "repository",
+        "external-evidence"
+      ],
+      "families": [
+        "code"
+      ],
+      "lenses": [
+        "mobile.device-os"
+      ],
+      "providers": [
+        "code.mobile"
+      ],
+      "rules": [
+        "code.architecture"
+      ],
+      "scenarios": [
+        "mobile.device-os.default"
+      ],
+      "decisionMode": "measured",
+      "missingEvidenceEffect": "unproven",
+      "claimLevels": [
+        "source",
+        "runtime",
+        "product",
+        "release"
+      ],
+      "remediationOwner": "code",
+      "sourceConcepts": [
+        "canonical:mobile:device-os"
+      ],
+      "stopShip": false,
+      "benchmark": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "qualificationDigest": null
+      },
+      "provenance": {
+        "kind": "canonical",
+        "source": "nemesis:mobile",
+        "rights": "internal-contract",
+        "lineage": [
+          "canonical:mobile:device-os"
+        ]
+      }
+    },
+    {
+      "id": "mobile.signing-manifests",
+      "version": "1.0.0",
+      "selector": {
+        "targetKinds": [
+          "ios-app",
+          "android-app",
+          "mobile-extension"
+        ]
+      },
+      "denominator": "signing-manifests-subjects",
+      "evidence": [
+        "repository",
+        "external-evidence"
+      ],
+      "families": [
+        "code"
+      ],
+      "lenses": [
+        "mobile.signing-manifests"
+      ],
+      "providers": [
+        "code.mobile"
+      ],
+      "rules": [
+        "code.architecture"
+      ],
+      "scenarios": [
+        "mobile.signing-manifests.default"
+      ],
+      "decisionMode": "measured",
+      "missingEvidenceEffect": "unproven",
+      "claimLevels": [
+        "source",
+        "runtime",
+        "product",
+        "release"
+      ],
+      "remediationOwner": "architecture",
+      "sourceConcepts": [
+        "canonical:mobile:signing-manifests"
+      ],
+      "stopShip": true,
+      "benchmark": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "qualificationDigest": null
+      },
+      "provenance": {
+        "kind": "canonical",
+        "source": "nemesis:mobile",
+        "rights": "internal-contract",
+        "lineage": [
+          "canonical:mobile:signing-manifests"
+        ]
+      }
+    },
+    {
+      "id": "mobile.tests",
+      "version": "1.0.0",
+      "selector": {
+        "targetKinds": [
+          "ios-app",
+          "android-app",
+          "mobile-extension"
+        ]
+      },
+      "denominator": "tests-subjects",
+      "evidence": [
+        "repository",
+        "external-evidence"
+      ],
+      "families": [
+        "code"
+      ],
+      "lenses": [
+        "mobile.tests"
+      ],
+      "providers": [
+        "code.mobile"
+      ],
+      "rules": [
+        "code.architecture"
+      ],
+      "scenarios": [
+        "mobile.tests.default"
+      ],
+      "decisionMode": "measured",
+      "missingEvidenceEffect": "unproven",
+      "claimLevels": [
+        "source",
+        "runtime",
+        "product",
+        "release"
+      ],
+      "remediationOwner": "code",
+      "sourceConcepts": [
+        "canonical:mobile:tests"
+      ],
+      "stopShip": false,
+      "benchmark": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "qualificationDigest": null
+      },
+      "provenance": {
+        "kind": "canonical",
+        "source": "nemesis:mobile",
+        "rights": "internal-contract",
+        "lineage": [
+          "canonical:mobile:tests"
+        ]
+      }
+    },
+    {
+      "id": "mobile.build-ci",
+      "version": "1.0.0",
+      "selector": {
+        "targetKinds": [
+          "ios-app",
+          "android-app",
+          "mobile-extension"
+        ]
+      },
+      "denominator": "build-ci-subjects",
+      "evidence": [
+        "repository",
+        "external-evidence"
+      ],
+      "families": [
+        "code"
+      ],
+      "lenses": [
+        "mobile.build-ci"
+      ],
+      "providers": [
+        "code.mobile"
+      ],
+      "rules": [
+        "code.architecture"
+      ],
+      "scenarios": [
+        "mobile.build-ci.default"
+      ],
+      "decisionMode": "measured",
+      "missingEvidenceEffect": "unproven",
+      "claimLevels": [
+        "source",
+        "runtime",
+        "product",
+        "release"
+      ],
+      "remediationOwner": "code",
+      "sourceConcepts": [
+        "canonical:mobile:build-ci"
+      ],
+      "stopShip": false,
+      "benchmark": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "qualificationDigest": null
+      },
+      "provenance": {
+        "kind": "canonical",
+        "source": "nemesis:mobile",
+        "rights": "internal-contract",
+        "lineage": [
+          "canonical:mobile:build-ci"
+        ]
+      }
+    },
+    {
+      "id": "mobile.stores-rollout",
+      "version": "1.0.0",
+      "selector": {
+        "targetKinds": [
+          "ios-app",
+          "android-app",
+          "mobile-extension"
+        ]
+      },
+      "denominator": "stores-rollout-subjects",
+      "evidence": [
+        "repository",
+        "external-evidence"
+      ],
+      "families": [
+        "code"
+      ],
+      "lenses": [
+        "mobile.stores-rollout"
+      ],
+      "providers": [
+        "code.mobile"
+      ],
+      "rules": [
+        "code.architecture"
+      ],
+      "scenarios": [
+        "mobile.stores-rollout.default"
+      ],
+      "decisionMode": "measured",
+      "missingEvidenceEffect": "unproven",
+      "claimLevels": [
+        "source",
+        "runtime",
+        "product",
+        "release"
+      ],
+      "remediationOwner": "code",
+      "sourceConcepts": [
+        "canonical:mobile:stores-rollout"
+      ],
+      "stopShip": false,
+      "benchmark": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "qualificationDigest": null
+      },
+      "provenance": {
+        "kind": "canonical",
+        "source": "nemesis:mobile",
+        "rights": "internal-contract",
+        "lineage": [
+          "canonical:mobile:stores-rollout"
+        ]
+      }
+    },
+    {
+      "id": "mobile.operations",
+      "version": "1.0.0",
+      "selector": {
+        "targetKinds": [
+          "ios-app",
+          "android-app",
+          "mobile-extension"
+        ]
+      },
+      "denominator": "operations-subjects",
+      "evidence": [
+        "repository",
+        "external-evidence"
+      ],
+      "families": [
+        "code"
+      ],
+      "lenses": [
+        "mobile.operations"
+      ],
+      "providers": [
+        "code.mobile"
+      ],
+      "rules": [
+        "code.architecture"
+      ],
+      "scenarios": [
+        "mobile.operations.default"
+      ],
+      "decisionMode": "measured",
+      "missingEvidenceEffect": "unproven",
+      "claimLevels": [
+        "source",
+        "runtime",
+        "product",
+        "release"
+      ],
+      "remediationOwner": "code",
+      "sourceConcepts": [
+        "canonical:mobile:operations"
+      ],
+      "stopShip": false,
+      "benchmark": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "qualificationDigest": null
+      },
+      "provenance": {
+        "kind": "canonical",
+        "source": "nemesis:mobile",
+        "rights": "internal-contract",
+        "lineage": [
+          "canonical:mobile:operations"
+        ]
+      }
+    },
+    {
+      "id": "mobile.monetization",
+      "version": "1.0.0",
+      "selector": {
+        "targetKinds": [
+          "ios-app",
+          "android-app",
+          "mobile-extension"
+        ]
+      },
+      "denominator": "monetization-subjects",
+      "evidence": [
+        "repository",
+        "external-evidence"
+      ],
+      "families": [
+        "code"
+      ],
+      "lenses": [
+        "mobile.monetization"
+      ],
+      "providers": [
+        "code.mobile"
+      ],
+      "rules": [
+        "code.architecture"
+      ],
+      "scenarios": [
+        "mobile.monetization.default"
+      ],
+      "decisionMode": "measured",
+      "missingEvidenceEffect": "unproven",
+      "claimLevels": [
+        "source",
+        "runtime",
+        "product",
+        "release"
+      ],
+      "remediationOwner": "code",
+      "sourceConcepts": [
+        "canonical:mobile:monetization"
+      ],
+      "stopShip": false,
+      "benchmark": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "qualificationDigest": null
+      },
+      "provenance": {
+        "kind": "canonical",
+        "source": "nemesis:mobile",
+        "rights": "internal-contract",
+        "lineage": [
+          "canonical:mobile:monetization"
+        ]
+      }
+    },
+    {
+      "id": "mobile.legal",
+      "version": "1.0.0",
+      "selector": {
+        "targetKinds": [
+          "ios-app",
+          "android-app",
+          "mobile-extension"
+        ]
+      },
+      "denominator": "legal-subjects",
+      "evidence": [
+        "repository",
+        "external-evidence"
+      ],
+      "families": [
+        "code"
+      ],
+      "lenses": [
+        "mobile.legal"
+      ],
+      "providers": [
+        "code.mobile"
+      ],
+      "rules": [
+        "code.architecture"
+      ],
+      "scenarios": [
+        "mobile.legal.default"
+      ],
+      "decisionMode": "measured",
+      "missingEvidenceEffect": "unproven",
+      "claimLevels": [
+        "source",
+        "runtime",
+        "product",
+        "release"
+      ],
+      "remediationOwner": "writing",
+      "sourceConcepts": [
+        "canonical:mobile:legal"
+      ],
+      "stopShip": false,
+      "benchmark": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "qualificationDigest": null
+      },
+      "provenance": {
+        "kind": "canonical",
+        "source": "nemesis:mobile",
+        "rights": "internal-contract",
+        "lineage": [
+          "canonical:mobile:legal"
+        ]
+      }
+    },
+    {
+      "id": "mobile.ugc-ai",
+      "version": "1.0.0",
+      "selector": {
+        "targetKinds": [
+          "ios-app",
+          "android-app",
+          "mobile-extension"
+        ]
+      },
+      "denominator": "ugc-ai-subjects",
+      "evidence": [
+        "repository",
+        "external-evidence"
+      ],
+      "families": [
+        "code"
+      ],
+      "lenses": [
+        "mobile.ugc-ai"
+      ],
+      "providers": [
+        "code.mobile"
+      ],
+      "rules": [
+        "code.architecture"
+      ],
+      "scenarios": [
+        "mobile.ugc-ai.default"
+      ],
+      "decisionMode": "measured",
+      "missingEvidenceEffect": "unproven",
+      "claimLevels": [
+        "source",
+        "runtime",
+        "product",
+        "release"
+      ],
+      "remediationOwner": "code",
+      "sourceConcepts": [
+        "canonical:mobile:ugc-ai"
+      ],
+      "stopShip": false,
+      "benchmark": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "qualificationDigest": null
+      },
+      "provenance": {
+        "kind": "canonical",
+        "source": "nemesis:mobile",
+        "rights": "internal-contract",
+        "lineage": [
+          "canonical:mobile:ugc-ai"
+        ]
+      }
+    }
+  ]
+}

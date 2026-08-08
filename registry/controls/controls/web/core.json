@@ -1,0 +1,1374 @@
+{
+  "schemaVersion": 1,
+  "family": "web",
+  "controls": [
+    {
+      "id": "web.scope",
+      "version": "1.0.0",
+      "selector": {
+        "targetKinds": [
+          "website",
+          "web-app"
+        ]
+      },
+      "denominator": "scope-subjects",
+      "evidence": [
+        "repository",
+        "external-evidence"
+      ],
+      "families": [
+        "framework"
+      ],
+      "lenses": [
+        "web.scope"
+      ],
+      "providers": [
+        "framework.frontend"
+      ],
+      "rules": [
+        "code.architecture"
+      ],
+      "scenarios": [
+        "web.scope.default"
+      ],
+      "decisionMode": "measured",
+      "missingEvidenceEffect": "unproven",
+      "claimLevels": [
+        "source",
+        "runtime",
+        "product",
+        "release"
+      ],
+      "remediationOwner": "code",
+      "sourceConcepts": [
+        "canonical:web:scope"
+      ],
+      "stopShip": false,
+      "benchmark": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "qualificationDigest": null
+      },
+      "provenance": {
+        "kind": "canonical",
+        "source": "nemesis:web",
+        "rights": "internal-contract",
+        "lineage": [
+          "canonical:web:scope"
+        ]
+      }
+    },
+    {
+      "id": "web.frontend",
+      "version": "1.0.0",
+      "selector": {
+        "targetKinds": [
+          "website",
+          "web-app"
+        ]
+      },
+      "denominator": "frontend-subjects",
+      "evidence": [
+        "repository",
+        "external-evidence"
+      ],
+      "families": [
+        "framework"
+      ],
+      "lenses": [
+        "web.frontend"
+      ],
+      "providers": [
+        "framework.frontend"
+      ],
+      "rules": [
+        "code.architecture"
+      ],
+      "scenarios": [
+        "web.frontend.default"
+      ],
+      "decisionMode": "measured",
+      "missingEvidenceEffect": "unproven",
+      "claimLevels": [
+        "source",
+        "runtime",
+        "product",
+        "release"
+      ],
+      "remediationOwner": "code",
+      "sourceConcepts": [
+        "canonical:web:frontend"
+      ],
+      "stopShip": false,
+      "benchmark": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "qualificationDigest": null
+      },
+      "provenance": {
+        "kind": "canonical",
+        "source": "nemesis:web",
+        "rights": "internal-contract",
+        "lineage": [
+          "canonical:web:frontend"
+        ]
+      }
+    },
+    {
+      "id": "web.backend-api",
+      "version": "1.0.0",
+      "selector": {
+        "targetKinds": [
+          "website",
+          "web-app"
+        ]
+      },
+      "denominator": "backend-api-subjects",
+      "evidence": [
+        "repository",
+        "external-evidence"
+      ],
+      "families": [
+        "framework"
+      ],
+      "lenses": [
+        "web.backend-api"
+      ],
+      "providers": [
+        "framework.frontend"
+      ],
+      "rules": [
+        "code.architecture"
+      ],
+      "scenarios": [
+        "web.backend-api.default"
+      ],
+      "decisionMode": "measured",
+      "missingEvidenceEffect": "unproven",
+      "claimLevels": [
+        "source",
+        "runtime",
+        "product",
+        "release"
+      ],
+      "remediationOwner": "code",
+      "sourceConcepts": [
+        "canonical:web:backend-api"
+      ],
+      "stopShip": false,
+      "benchmark": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "qualificationDigest": null
+      },
+      "provenance": {
+        "kind": "canonical",
+        "source": "nemesis:web",
+        "rights": "internal-contract",
+        "lineage": [
+          "canonical:web:backend-api"
+        ]
+      }
+    },
+    {
+      "id": "web.data",
+      "version": "1.0.0",
+      "selector": {
+        "targetKinds": [
+          "website",
+          "web-app"
+        ]
+      },
+      "denominator": "data-subjects",
+      "evidence": [
+        "repository",
+        "external-evidence"
+      ],
+      "families": [
+        "framework"
+      ],
+      "lenses": [
+        "web.data"
+      ],
+      "providers": [
+        "framework.frontend"
+      ],
+      "rules": [
+        "code.architecture"
+      ],
+      "scenarios": [
+        "web.data.default"
+      ],
+      "decisionMode": "measured",
+      "missingEvidenceEffect": "unproven",
+      "claimLevels": [
+        "source",
+        "runtime",
+        "product",
+        "release"
+      ],
+      "remediationOwner": "code",
+      "sourceConcepts": [
+        "canonical:web:data"
+      ],
+      "stopShip": false,
+      "benchmark": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "qualificationDigest": null
+      },
+      "provenance": {
+        "kind": "canonical",
+        "source": "nemesis:web",
+        "rights": "internal-contract",
+        "lineage": [
+          "canonical:web:data"
+        ]
+      }
+    },
+    {
+      "id": "web.identity-tenant",
+      "version": "1.0.0",
+      "selector": {
+        "targetKinds": [
+          "website",
+          "web-app"
+        ]
+      },
+      "denominator": "identity-tenant-subjects",
+      "evidence": [
+        "repository",
+        "external-evidence"
+      ],
+      "families": [
+        "framework"
+      ],
+      "lenses": [
+        "web.identity-tenant"
+      ],
+      "providers": [
+        "framework.frontend"
+      ],
+      "rules": [
+        "code.architecture"
+      ],
+      "scenarios": [
+        "web.identity-tenant.default"
+      ],
+      "decisionMode": "measured",
+      "missingEvidenceEffect": "unproven",
+      "claimLevels": [
+        "source",
+        "runtime",
+        "product",
+        "release"
+      ],
+      "remediationOwner": "code",
+      "sourceConcepts": [
+        "canonical:web:identity-tenant"
+      ],
+      "stopShip": true,
+      "benchmark": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "qualificationDigest": null
+      },
+      "provenance": {
+        "kind": "canonical",
+        "source": "nemesis:web",
+        "rights": "internal-contract",
+        "lineage": [
+          "canonical:web:identity-tenant"
+        ]
+      }
+    },
+    {
+      "id": "web.http-security",
+      "version": "1.0.0",
+      "selector": {
+        "targetKinds": [
+          "website",
+          "web-app"
+        ]
+      },
+      "denominator": "http-security-subjects",
+      "evidence": [
+        "repository",
+        "external-evidence"
+      ],
+      "families": [
+        "framework"
+      ],
+      "lenses": [
+        "web.http-security"
+      ],
+      "providers": [
+        "framework.frontend"
+      ],
+      "rules": [
+        "code.architecture"
+      ],
+      "scenarios": [
+        "web.http-security.default"
+      ],
+      "decisionMode": "measured",
+      "missingEvidenceEffect": "unproven",
+      "claimLevels": [
+        "source",
+        "runtime",
+        "product",
+        "release"
+      ],
+      "remediationOwner": "code",
+      "sourceConcepts": [
+        "canonical:web:http-security"
+      ],
+      "stopShip": true,
+      "benchmark": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "qualificationDigest": null
+      },
+      "provenance": {
+        "kind": "canonical",
+        "source": "nemesis:web",
+        "rights": "internal-contract",
+        "lineage": [
+          "canonical:web:http-security"
+        ]
+      }
+    },
+    {
+      "id": "web.supply-chain",
+      "version": "1.0.0",
+      "selector": {
+        "targetKinds": [
+          "website",
+          "web-app"
+        ]
+      },
+      "denominator": "supply-chain-subjects",
+      "evidence": [
+        "repository",
+        "external-evidence"
+      ],
+      "families": [
+        "framework"
+      ],
+      "lenses": [
+        "web.supply-chain"
+      ],
+      "providers": [
+        "framework.frontend"
+      ],
+      "rules": [
+        "code.architecture"
+      ],
+      "scenarios": [
+        "web.supply-chain.default"
+      ],
+      "decisionMode": "measured",
+      "missingEvidenceEffect": "unproven",
+      "claimLevels": [
+        "source",
+        "runtime",
+        "product",
+        "release"
+      ],
+      "remediationOwner": "code",
+      "sourceConcepts": [
+        "canonical:web:supply-chain"
+      ],
+      "stopShip": false,
+      "benchmark": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "qualificationDigest": null
+      },
+      "provenance": {
+        "kind": "canonical",
+        "source": "nemesis:web",
+        "rights": "internal-contract",
+        "lineage": [
+          "canonical:web:supply-chain"
+        ]
+      }
+    },
+    {
+      "id": "web.infrastructure",
+      "version": "1.0.0",
+      "selector": {
+        "targetKinds": [
+          "website",
+          "web-app"
+        ]
+      },
+      "denominator": "infrastructure-subjects",
+      "evidence": [
+        "repository",
+        "external-evidence"
+      ],
+      "families": [
+        "framework"
+      ],
+      "lenses": [
+        "web.infrastructure"
+      ],
+      "providers": [
+        "framework.frontend"
+      ],
+      "rules": [
+        "code.architecture"
+      ],
+      "scenarios": [
+        "web.infrastructure.default"
+      ],
+      "decisionMode": "measured",
+      "missingEvidenceEffect": "unproven",
+      "claimLevels": [
+        "source",
+        "runtime",
+        "product",
+        "release"
+      ],
+      "remediationOwner": "architecture",
+      "sourceConcepts": [
+        "canonical:web:infrastructure"
+      ],
+      "stopShip": false,
+      "benchmark": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "qualificationDigest": null
+      },
+      "provenance": {
+        "kind": "canonical",
+        "source": "nemesis:web",
+        "rights": "internal-contract",
+        "lineage": [
+          "canonical:web:infrastructure"
+        ]
+      }
+    },
+    {
+      "id": "web.performance",
+      "version": "1.0.0",
+      "selector": {
+        "targetKinds": [
+          "website",
+          "web-app"
+        ]
+      },
+      "denominator": "performance-subjects",
+      "evidence": [
+        "repository",
+        "external-evidence"
+      ],
+      "families": [
+        "framework"
+      ],
+      "lenses": [
+        "web.performance"
+      ],
+      "providers": [
+        "framework.frontend"
+      ],
+      "rules": [
+        "code.architecture"
+      ],
+      "scenarios": [
+        "web.performance.default"
+      ],
+      "decisionMode": "measured",
+      "missingEvidenceEffect": "unproven",
+      "claimLevels": [
+        "source",
+        "runtime",
+        "product",
+        "release"
+      ],
+      "remediationOwner": "code",
+      "sourceConcepts": [
+        "canonical:web:performance"
+      ],
+      "stopShip": false,
+      "benchmark": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "qualificationDigest": null
+      },
+      "provenance": {
+        "kind": "canonical",
+        "source": "nemesis:web",
+        "rights": "internal-contract",
+        "lineage": [
+          "canonical:web:performance"
+        ]
+      }
+    },
+    {
+      "id": "web.reliability",
+      "version": "1.0.0",
+      "selector": {
+        "targetKinds": [
+          "website",
+          "web-app"
+        ]
+      },
+      "denominator": "reliability-subjects",
+      "evidence": [
+        "repository",
+        "external-evidence"
+      ],
+      "families": [
+        "framework"
+      ],
+      "lenses": [
+        "web.reliability"
+      ],
+      "providers": [
+        "framework.frontend"
+      ],
+      "rules": [
+        "code.architecture"
+      ],
+      "scenarios": [
+        "web.reliability.default"
+      ],
+      "decisionMode": "measured",
+      "missingEvidenceEffect": "unproven",
+      "claimLevels": [
+        "source",
+        "runtime",
+        "product",
+        "release"
+      ],
+      "remediationOwner": "code",
+      "sourceConcepts": [
+        "canonical:web:reliability"
+      ],
+      "stopShip": false,
+      "benchmark": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "qualificationDigest": null
+      },
+      "provenance": {
+        "kind": "canonical",
+        "source": "nemesis:web",
+        "rights": "internal-contract",
+        "lineage": [
+          "canonical:web:reliability"
+        ]
+      }
+    },
+    {
+      "id": "web.testing",
+      "version": "1.0.0",
+      "selector": {
+        "targetKinds": [
+          "website",
+          "web-app"
+        ]
+      },
+      "denominator": "testing-subjects",
+      "evidence": [
+        "repository",
+        "external-evidence"
+      ],
+      "families": [
+        "framework"
+      ],
+      "lenses": [
+        "web.testing"
+      ],
+      "providers": [
+        "framework.frontend"
+      ],
+      "rules": [
+        "code.architecture"
+      ],
+      "scenarios": [
+        "web.testing.default"
+      ],
+      "decisionMode": "measured",
+      "missingEvidenceEffect": "unproven",
+      "claimLevels": [
+        "source",
+        "runtime",
+        "product",
+        "release"
+      ],
+      "remediationOwner": "code",
+      "sourceConcepts": [
+        "canonical:web:testing"
+      ],
+      "stopShip": false,
+      "benchmark": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "qualificationDigest": null
+      },
+      "provenance": {
+        "kind": "canonical",
+        "source": "nemesis:web",
+        "rights": "internal-contract",
+        "lineage": [
+          "canonical:web:testing"
+        ]
+      }
+    },
+    {
+      "id": "web.accessibility",
+      "version": "1.0.0",
+      "selector": {
+        "targetKinds": [
+          "website",
+          "web-app"
+        ]
+      },
+      "denominator": "accessibility-subjects",
+      "evidence": [
+        "repository",
+        "external-evidence"
+      ],
+      "families": [
+        "framework"
+      ],
+      "lenses": [
+        "web.accessibility"
+      ],
+      "providers": [
+        "framework.frontend"
+      ],
+      "rules": [
+        "code.architecture"
+      ],
+      "scenarios": [
+        "web.accessibility.default"
+      ],
+      "decisionMode": "measured",
+      "missingEvidenceEffect": "unproven",
+      "claimLevels": [
+        "source",
+        "runtime",
+        "product",
+        "release"
+      ],
+      "remediationOwner": "code",
+      "sourceConcepts": [
+        "canonical:web:accessibility"
+      ],
+      "stopShip": false,
+      "benchmark": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "qualificationDigest": null
+      },
+      "provenance": {
+        "kind": "canonical",
+        "source": "nemesis:web",
+        "rights": "internal-contract",
+        "lineage": [
+          "canonical:web:accessibility"
+        ]
+      }
+    },
+    {
+      "id": "web.compatibility",
+      "version": "1.0.0",
+      "selector": {
+        "targetKinds": [
+          "website",
+          "web-app"
+        ]
+      },
+      "denominator": "compatibility-subjects",
+      "evidence": [
+        "repository",
+        "external-evidence"
+      ],
+      "families": [
+        "framework"
+      ],
+      "lenses": [
+        "web.compatibility"
+      ],
+      "providers": [
+        "framework.frontend"
+      ],
+      "rules": [
+        "code.architecture"
+      ],
+      "scenarios": [
+        "web.compatibility.default"
+      ],
+      "decisionMode": "measured",
+      "missingEvidenceEffect": "unproven",
+      "claimLevels": [
+        "source",
+        "runtime",
+        "product",
+        "release"
+      ],
+      "remediationOwner": "code",
+      "sourceConcepts": [
+        "canonical:web:compatibility"
+      ],
+      "stopShip": false,
+      "benchmark": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "qualificationDigest": null
+      },
+      "provenance": {
+        "kind": "canonical",
+        "source": "nemesis:web",
+        "rights": "internal-contract",
+        "lineage": [
+          "canonical:web:compatibility"
+        ]
+      }
+    },
+    {
+      "id": "web.seo",
+      "version": "1.0.0",
+      "selector": {
+        "targetKinds": [
+          "website",
+          "web-app"
+        ]
+      },
+      "denominator": "seo-subjects",
+      "evidence": [
+        "repository",
+        "external-evidence"
+      ],
+      "families": [
+        "framework"
+      ],
+      "lenses": [
+        "web.seo"
+      ],
+      "providers": [
+        "framework.frontend"
+      ],
+      "rules": [
+        "code.architecture"
+      ],
+      "scenarios": [
+        "web.seo.default"
+      ],
+      "decisionMode": "measured",
+      "missingEvidenceEffect": "unproven",
+      "claimLevels": [
+        "source",
+        "runtime",
+        "product",
+        "release"
+      ],
+      "remediationOwner": "code",
+      "sourceConcepts": [
+        "canonical:web:seo"
+      ],
+      "stopShip": false,
+      "benchmark": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "qualificationDigest": null
+      },
+      "provenance": {
+        "kind": "canonical",
+        "source": "nemesis:web",
+        "rights": "internal-contract",
+        "lineage": [
+          "canonical:web:seo"
+        ]
+      }
+    },
+    {
+      "id": "web.privacy",
+      "version": "1.0.0",
+      "selector": {
+        "targetKinds": [
+          "website",
+          "web-app"
+        ]
+      },
+      "denominator": "privacy-subjects",
+      "evidence": [
+        "repository",
+        "external-evidence"
+      ],
+      "families": [
+        "framework"
+      ],
+      "lenses": [
+        "web.privacy"
+      ],
+      "providers": [
+        "framework.frontend"
+      ],
+      "rules": [
+        "code.architecture"
+      ],
+      "scenarios": [
+        "web.privacy.default"
+      ],
+      "decisionMode": "measured",
+      "missingEvidenceEffect": "unproven",
+      "claimLevels": [
+        "source",
+        "runtime",
+        "product",
+        "release"
+      ],
+      "remediationOwner": "code",
+      "sourceConcepts": [
+        "canonical:web:privacy"
+      ],
+      "stopShip": true,
+      "benchmark": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "qualificationDigest": null
+      },
+      "provenance": {
+        "kind": "canonical",
+        "source": "nemesis:web",
+        "rights": "internal-contract",
+        "lineage": [
+          "canonical:web:privacy"
+        ]
+      }
+    },
+    {
+      "id": "web.i18n",
+      "version": "1.0.0",
+      "selector": {
+        "targetKinds": [
+          "website",
+          "web-app"
+        ]
+      },
+      "denominator": "i18n-subjects",
+      "evidence": [
+        "repository",
+        "external-evidence"
+      ],
+      "families": [
+        "framework"
+      ],
+      "lenses": [
+        "web.i18n"
+      ],
+      "providers": [
+        "framework.frontend"
+      ],
+      "rules": [
+        "code.architecture"
+      ],
+      "scenarios": [
+        "web.i18n.default"
+      ],
+      "decisionMode": "measured",
+      "missingEvidenceEffect": "unproven",
+      "claimLevels": [
+        "source",
+        "runtime",
+        "product",
+        "release"
+      ],
+      "remediationOwner": "code",
+      "sourceConcepts": [
+        "canonical:web:i18n"
+      ],
+      "stopShip": false,
+      "benchmark": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "qualificationDigest": null
+      },
+      "provenance": {
+        "kind": "canonical",
+        "source": "nemesis:web",
+        "rights": "internal-contract",
+        "lineage": [
+          "canonical:web:i18n"
+        ]
+      }
+    },
+    {
+      "id": "web.third-parties",
+      "version": "1.0.0",
+      "selector": {
+        "targetKinds": [
+          "website",
+          "web-app"
+        ]
+      },
+      "denominator": "third-parties-subjects",
+      "evidence": [
+        "repository",
+        "external-evidence"
+      ],
+      "families": [
+        "framework"
+      ],
+      "lenses": [
+        "web.third-parties"
+      ],
+      "providers": [
+        "framework.frontend"
+      ],
+      "rules": [
+        "code.architecture"
+      ],
+      "scenarios": [
+        "web.third-parties.default"
+      ],
+      "decisionMode": "measured",
+      "missingEvidenceEffect": "unproven",
+      "claimLevels": [
+        "source",
+        "runtime",
+        "product",
+        "release"
+      ],
+      "remediationOwner": "code",
+      "sourceConcepts": [
+        "canonical:web:third-parties"
+      ],
+      "stopShip": false,
+      "benchmark": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "qualificationDigest": null
+      },
+      "provenance": {
+        "kind": "canonical",
+        "source": "nemesis:web",
+        "rights": "internal-contract",
+        "lineage": [
+          "canonical:web:third-parties"
+        ]
+      }
+    },
+    {
+      "id": "web.notifications",
+      "version": "1.0.0",
+      "selector": {
+        "targetKinds": [
+          "website",
+          "web-app"
+        ]
+      },
+      "denominator": "notifications-subjects",
+      "evidence": [
+        "repository",
+        "external-evidence"
+      ],
+      "families": [
+        "framework"
+      ],
+      "lenses": [
+        "web.notifications"
+      ],
+      "providers": [
+        "framework.frontend"
+      ],
+      "rules": [
+        "code.architecture"
+      ],
+      "scenarios": [
+        "web.notifications.default"
+      ],
+      "decisionMode": "measured",
+      "missingEvidenceEffect": "unproven",
+      "claimLevels": [
+        "source",
+        "runtime",
+        "product",
+        "release"
+      ],
+      "remediationOwner": "code",
+      "sourceConcepts": [
+        "canonical:web:notifications"
+      ],
+      "stopShip": false,
+      "benchmark": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "qualificationDigest": null
+      },
+      "provenance": {
+        "kind": "canonical",
+        "source": "nemesis:web",
+        "rights": "internal-contract",
+        "lineage": [
+          "canonical:web:notifications"
+        ]
+      }
+    },
+    {
+      "id": "web.payments",
+      "version": "1.0.0",
+      "selector": {
+        "targetKinds": [
+          "website",
+          "web-app"
+        ]
+      },
+      "denominator": "payments-subjects",
+      "evidence": [
+        "repository",
+        "external-evidence"
+      ],
+      "families": [
+        "framework"
+      ],
+      "lenses": [
+        "web.payments"
+      ],
+      "providers": [
+        "framework.frontend"
+      ],
+      "rules": [
+        "code.architecture"
+      ],
+      "scenarios": [
+        "web.payments.default"
+      ],
+      "decisionMode": "measured",
+      "missingEvidenceEffect": "unproven",
+      "claimLevels": [
+        "source",
+        "runtime",
+        "product",
+        "release"
+      ],
+      "remediationOwner": "code",
+      "sourceConcepts": [
+        "canonical:web:payments"
+      ],
+      "stopShip": false,
+      "benchmark": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "qualificationDigest": null
+      },
+      "provenance": {
+        "kind": "canonical",
+        "source": "nemesis:web",
+        "rights": "internal-contract",
+        "lineage": [
+          "canonical:web:payments"
+        ]
+      }
+    },
+    {
+      "id": "web.analytics",
+      "version": "1.0.0",
+      "selector": {
+        "targetKinds": [
+          "website",
+          "web-app"
+        ]
+      },
+      "denominator": "analytics-subjects",
+      "evidence": [
+        "repository",
+        "external-evidence"
+      ],
+      "families": [
+        "framework"
+      ],
+      "lenses": [
+        "web.analytics"
+      ],
+      "providers": [
+        "framework.frontend"
+      ],
+      "rules": [
+        "code.architecture"
+      ],
+      "scenarios": [
+        "web.analytics.default"
+      ],
+      "decisionMode": "measured",
+      "missingEvidenceEffect": "unproven",
+      "claimLevels": [
+        "source",
+        "runtime",
+        "product",
+        "release"
+      ],
+      "remediationOwner": "code",
+      "sourceConcepts": [
+        "canonical:web:analytics"
+      ],
+      "stopShip": false,
+      "benchmark": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "qualificationDigest": null
+      },
+      "provenance": {
+        "kind": "canonical",
+        "source": "nemesis:web",
+        "rights": "internal-contract",
+        "lineage": [
+          "canonical:web:analytics"
+        ]
+      }
+    },
+    {
+      "id": "web.delivery",
+      "version": "1.0.0",
+      "selector": {
+        "targetKinds": [
+          "website",
+          "web-app"
+        ]
+      },
+      "denominator": "delivery-subjects",
+      "evidence": [
+        "repository",
+        "external-evidence"
+      ],
+      "families": [
+        "framework"
+      ],
+      "lenses": [
+        "web.delivery"
+      ],
+      "providers": [
+        "framework.frontend"
+      ],
+      "rules": [
+        "code.architecture"
+      ],
+      "scenarios": [
+        "web.delivery.default"
+      ],
+      "decisionMode": "measured",
+      "missingEvidenceEffect": "unproven",
+      "claimLevels": [
+        "source",
+        "runtime",
+        "product",
+        "release"
+      ],
+      "remediationOwner": "code",
+      "sourceConcepts": [
+        "canonical:web:delivery"
+      ],
+      "stopShip": false,
+      "benchmark": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "qualificationDigest": null
+      },
+      "provenance": {
+        "kind": "canonical",
+        "source": "nemesis:web",
+        "rights": "internal-contract",
+        "lineage": [
+          "canonical:web:delivery"
+        ]
+      }
+    },
+    {
+      "id": "web.backup-dr",
+      "version": "1.0.0",
+      "selector": {
+        "targetKinds": [
+          "website",
+          "web-app"
+        ]
+      },
+      "denominator": "backup-dr-subjects",
+      "evidence": [
+        "repository",
+        "external-evidence"
+      ],
+      "families": [
+        "framework"
+      ],
+      "lenses": [
+        "web.backup-dr"
+      ],
+      "providers": [
+        "framework.frontend"
+      ],
+      "rules": [
+        "code.architecture"
+      ],
+      "scenarios": [
+        "web.backup-dr.default"
+      ],
+      "decisionMode": "measured",
+      "missingEvidenceEffect": "unproven",
+      "claimLevels": [
+        "source",
+        "runtime",
+        "product",
+        "release"
+      ],
+      "remediationOwner": "architecture",
+      "sourceConcepts": [
+        "canonical:web:backup-dr"
+      ],
+      "stopShip": true,
+      "benchmark": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "qualificationDigest": null
+      },
+      "provenance": {
+        "kind": "canonical",
+        "source": "nemesis:web",
+        "rights": "internal-contract",
+        "lineage": [
+          "canonical:web:backup-dr"
+        ]
+      }
+    },
+    {
+      "id": "web.operations",
+      "version": "1.0.0",
+      "selector": {
+        "targetKinds": [
+          "website",
+          "web-app"
+        ]
+      },
+      "denominator": "operations-subjects",
+      "evidence": [
+        "repository",
+        "external-evidence"
+      ],
+      "families": [
+        "framework"
+      ],
+      "lenses": [
+        "web.operations"
+      ],
+      "providers": [
+        "framework.frontend"
+      ],
+      "rules": [
+        "code.architecture"
+      ],
+      "scenarios": [
+        "web.operations.default"
+      ],
+      "decisionMode": "measured",
+      "missingEvidenceEffect": "unproven",
+      "claimLevels": [
+        "source",
+        "runtime",
+        "product",
+        "release"
+      ],
+      "remediationOwner": "code",
+      "sourceConcepts": [
+        "canonical:web:operations"
+      ],
+      "stopShip": false,
+      "benchmark": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "qualificationDigest": null
+      },
+      "provenance": {
+        "kind": "canonical",
+        "source": "nemesis:web",
+        "rights": "internal-contract",
+        "lineage": [
+          "canonical:web:operations"
+        ]
+      }
+    },
+    {
+      "id": "web.ai-pwa-ugc-realtime",
+      "version": "1.0.0",
+      "selector": {
+        "targetKinds": [
+          "website",
+          "web-app"
+        ]
+      },
+      "denominator": "ai-pwa-ugc-realtime-subjects",
+      "evidence": [
+        "repository",
+        "external-evidence"
+      ],
+      "families": [
+        "framework"
+      ],
+      "lenses": [
+        "web.ai-pwa-ugc-realtime"
+      ],
+      "providers": [
+        "framework.frontend"
+      ],
+      "rules": [
+        "code.architecture"
+      ],
+      "scenarios": [
+        "web.ai-pwa-ugc-realtime.default"
+      ],
+      "decisionMode": "measured",
+      "missingEvidenceEffect": "unproven",
+      "claimLevels": [
+        "source",
+        "runtime",
+        "product",
+        "release"
+      ],
+      "remediationOwner": "code",
+      "sourceConcepts": [
+        "canonical:web:ai-pwa-ugc-realtime"
+      ],
+      "stopShip": false,
+      "benchmark": {
+        "status": "unproven",
+        "providerVersion": null,
+        "corpusDigest": null,
+        "qualificationDigest": null
+      },
+      "provenance": {
+        "kind": "canonical",
+        "source": "nemesis:web",
+        "rights": "internal-contract",
+        "lineage": [
+          "canonical:web:ai-pwa-ugc-realtime"
+        ]
+      }
+    }
+  ]
+}

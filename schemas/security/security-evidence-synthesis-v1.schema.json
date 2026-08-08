@@ -1,0 +1,57 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://orthic.dev/schemas/security/security-evidence-synthesis-v1.json",
+  "title": "SecurityEvidenceSynthesisV1",
+  "type": "object",
+  "required": [
+    "schemaVersion",
+    "kind",
+    "findings",
+    "coverage",
+    "providerStatus",
+    "binding",
+    "denominatorDigest"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": 1
+    },
+    "kind": {
+      "const": "security-evidence-synthesis"
+    },
+    "findings": {
+      "type": "array"
+    },
+    "coverage": {
+      "type": "object"
+    },
+    "coverageGaps": {
+      "type": "array"
+    },
+    "providerStatus": {
+      "enum": [
+        "pass",
+        "fail",
+        "partial",
+        "unproven",
+        "skipped",
+        "error",
+        "pending",
+        "missing",
+        "candidates",
+        "blocked"
+      ]
+    },
+    "residualRisk": {
+      "type": "array"
+    },
+    "binding": {
+      "$ref": "security-binding-v1.schema.json"
+    },
+    "denominatorDigest": {
+      "type": "string",
+      "pattern": "^sha256:"
+    }
+  },
+  "additionalProperties": false
+}

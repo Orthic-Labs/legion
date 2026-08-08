@@ -1,0 +1,1 @@
+import {analyzeLanguage} from '../shared.mjs';export const language="go";export const extensions=["go"];export const config={"id":"go","extensions":["go"],"variants":{"go":["go"]},"tools":["module","format","vet","test","vulnerability"],"requiredContext":["modules","buildTags"]};export function analyze(input={}){return analyzeLanguage(config,input);}

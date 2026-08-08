@@ -21,9 +21,9 @@ export function buildProviderResultSchema() {
   return {
     $schema: 'https://json-schema.org/draft/2020-12/schema',
     $id: 'https://orthic.dev/schemas/audit-provider-result-v1.json',
-    title: 'AuditProviderResultV1',
     type: 'object',
-    required: ['schemaVersion', 'provider', 'applicable', 'required', 'status', 'complete', 'coverage', 'candidates', 'findings', 'coverageGaps', 'degradation'],
+    additionalProperties: false,
+    required: ['schemaVersion', 'provider', 'applicable', 'required', 'status', 'complete', 'coverage', 'candidates', 'findings', 'coverageGaps', 'degradation', 'details'],
     properties: {
       schemaVersion: { const: 1 },
       provider: { type: 'string', minLength: 1 },
@@ -33,37 +33,20 @@ export function buildProviderResultSchema() {
       complete: { type: 'boolean' },
       coverage: {
         type: 'object',
-        required: ['denominatorDigest'],
+        additionalProperties: false,
+        required: ['denominatorDigest','expected','examined'],
         properties: {
-          denominatorDigest: { type: 'string', pattern: '^sha256:' },
+          denominatorDigest: { type: 'string', pattern: '^sha256:[a-f0-9]{64}$' },
           expected: { type: 'integer', minimum: 0 },
           examined: { type: 'integer', minimum: 0 },
-          unexamined: { type: 'array', items: { type: 'string' } },
         },
-        additionalProperties: true,
       },
-      commands: { type: 'array', items: { type: 'object' } },
-      receipts: { type: 'array', items: { type: 'object' } },
-      inventory: { type: 'array' },
       candidates: { type: 'array' },
       findings: { type: 'array' },
       coverageGaps: { type: 'array' },
-      inputArtifacts: { type: 'array', items: { type: 'string' } },
-      artifacts: {
-        type: 'array',
-        items: {
-          type: 'object',
-          required: ['kind', 'path', 'digest'],
-          properties: {
-            kind: { type: 'string' },
-            path: { type: 'string' },
-            digest: { type: 'string', pattern: '^sha256:' },
-          },
-        },
-      },
       degradation: { type: 'array' },
+      details:{type:'object',additionalProperties:false,required:['family','componentIds','limitations','rawArtifacts'],properties:{family:{type:'string',minLength:1},componentIds:{type:'array',items:{type:'string'}},limitations:{type:'array'},rawArtifacts:{type:'array'}}},
     },
-    additionalProperties: true,
   };
 }
 
@@ -97,10 +80,85 @@ export function buildSecurityVerdictSchema() {
   };
 }
 
+export function buildWebActorFixtureSchema() {
+  const nonempty = { type: 'string', minLength: 1 };
+  const bindingKeys = ['targetId', 'environment', 'actorId', 'tenantId', 'browser', 'browserVersion', 'viewport', 'locale', 'sourceRevision', 'artifactDigest'];
+  return {
+    $schema: 'https://json-schema.org/draft/2020-12/schema',
+    $id: 'https://orthic.dev/schemas/platform/web-actor-fixture-v1.json',
+    type: 'object',
+    additionalProperties: false,
+    required: ['schemaVersion', 'kind', 'status', 'complete', 'proof', 'terminal', 'binding', 'actors', 'denominator', 'coverageGaps', 'digest'],
+    properties: {
+      schemaVersion: { const: 1 },
+      kind: { const: 'nemesis-web-actor-fixtures' },
+      status: { const: 'pass' },
+      complete: { const: true },
+      proof: { const: true },
+      terminal: { const: true },
+      binding: { type: 'object', additionalProperties: false, required: bindingKeys, properties: Object.fromEntries(bindingKeys.map((key) => [key, nonempty])) },
+      actors: { type: 'array', minItems: 1, items: { $ref: '#/$defs/actor' } },
+      denominator: {
+        type: 'object',
+        additionalProperties: false,
+        required: ['total', 'accounted', 'receipts', 'omitted', 'missing', 'expectedIds'],
+        properties: {
+          total: { type: 'integer', minimum: 1 },
+          accounted: { type: 'integer', minimum: 1 },
+          receipts: { type: 'integer', minimum: 1 },
+          omitted: { const: 0 },
+          missing: { type: 'array', maxItems: 0, items: nonempty },
+          expectedIds: { type: 'array', minItems: 1, items: nonempty },
+        },
+      },
+      coverageGaps: { type: 'array', maxItems: 0, items: nonempty },
+      digest: { type: 'string', pattern: '^sha256:[a-f0-9]{64}$' },
+    },
+    $defs: {
+      credentialReference: {
+        type: 'object',
+        required: ['type', 'id'],
+        additionalProperties: false,
+        properties: { type: { enum: ['env', 'keychain', 'secret-manager', 'vault'] }, id: { type: 'string', pattern: '^[A-Za-z0-9][A-Za-z0-9._:/-]*$' } },
+      },
+      transitionCapability: {
+        type: 'object',
+        required: ['id', 'toActorId', 'fromTenantId', 'toTenantId', 'authorizationId'],
+        additionalProperties: false,
+        properties: { id: nonempty, toActorId: nonempty, fromTenantId: nonempty, toTenantId: nonempty, authorizationId: nonempty },
+      },
+      actor: {
+        type: 'object',
+        additionalProperties: false,
+        required: ['id', 'identityId', 'credentialPolicyId', 'sessionPolicyId', 'role', 'tier', 'tenantId', 'accountState', 'credential', 'issuedAt', 'expiresAt', 'revokedAt', 'serverAuthorizations', 'uiVisibility', 'transitionCapabilities', 'concurrencyKey'],
+        properties: {
+          id: nonempty,
+          identityId: nonempty,
+          credentialPolicyId: nonempty,
+          sessionPolicyId: nonempty,
+          role: nonempty,
+          tier: nonempty,
+          tenantId: nonempty,
+          accountState: { enum: ['active', 'disabled', 'expired', 'locked', 'revoked'] },
+          credential: { $ref: '#/$defs/credentialReference' },
+          issuedAt: { type: ['string', 'null'] },
+          expiresAt: { type: ['string', 'null'] },
+          revokedAt: { type: ['string', 'null'] },
+          serverAuthorizations: { type: 'array', items: nonempty },
+          uiVisibility: { type: 'array', items: nonempty },
+          transitionCapabilities: { type: 'array', items: { $ref: '#/$defs/transitionCapability' } },
+          concurrencyKey: nonempty,
+        },
+      },
+    },
+  };
+}
+
 export function buildSchemas() {
   return {
     'schemas/provider-result-v1.schema.json': buildProviderResultSchema(),
     'schemas/security-verdict-v1.schema.json': buildSecurityVerdictSchema(),
+    'schemas/platform/web-actor-fixture-v1.schema.json': buildWebActorFixtureSchema(),
   };
 }
 

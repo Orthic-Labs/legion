@@ -1,1 +1,343 @@
-{"schemaVersion":1,"kinds":["ui","domain","api","identity","data","cache-search","queue-job","sync-offline","file-media","integration","notification","commerce","telemetry","admin-support","native-bridge-ipc","helper-sidecar","installer","updater","build-sign-release","infrastructure-dns","privacy","content-community","ai","documentation-legal","unknown-material-component"]}
+{
+  "schemaVersion": 1,
+  "relationKinds": [
+    "calls",
+    "reads",
+    "writes",
+    "queues",
+    "invokes",
+    "installs",
+    "updates",
+    "authenticates-through",
+    "observes",
+    "controls",
+    "crosses-trust-boundary"
+  ],
+  "kinds": [
+    {
+      "id": "ui",
+      "version": "1.0.0",
+      "controlPacks": [
+        "component.ui"
+      ],
+      "minimumEvidence": [
+        "path",
+        "target"
+      ],
+      "trustMetadata": true,
+      "cleanClaim": "evidence-bound"
+    },
+    {
+      "id": "domain",
+      "version": "1.0.0",
+      "controlPacks": [
+        "component.domain"
+      ],
+      "minimumEvidence": [
+        "path",
+        "target"
+      ],
+      "trustMetadata": true,
+      "cleanClaim": "evidence-bound"
+    },
+    {
+      "id": "api",
+      "version": "1.0.0",
+      "controlPacks": [
+        "component.api"
+      ],
+      "minimumEvidence": [
+        "path",
+        "target"
+      ],
+      "trustMetadata": true,
+      "cleanClaim": "evidence-bound"
+    },
+    {
+      "id": "identity",
+      "version": "1.0.0",
+      "controlPacks": [
+        "component.identity"
+      ],
+      "minimumEvidence": [
+        "path",
+        "target"
+      ],
+      "trustMetadata": true,
+      "cleanClaim": "evidence-bound"
+    },
+    {
+      "id": "data",
+      "version": "1.0.0",
+      "controlPacks": [
+        "component.data"
+      ],
+      "minimumEvidence": [
+        "path",
+        "target"
+      ],
+      "trustMetadata": true,
+      "cleanClaim": "evidence-bound"
+    },
+    {
+      "id": "cache-search",
+      "version": "1.0.0",
+      "controlPacks": [
+        "component.cache-search"
+      ],
+      "minimumEvidence": [
+        "path",
+        "target"
+      ],
+      "trustMetadata": true,
+      "cleanClaim": "evidence-bound"
+    },
+    {
+      "id": "queue-job",
+      "version": "1.0.0",
+      "controlPacks": [
+        "component.queue-job"
+      ],
+      "minimumEvidence": [
+        "path",
+        "target"
+      ],
+      "trustMetadata": true,
+      "cleanClaim": "evidence-bound"
+    },
+    {
+      "id": "sync-offline",
+      "version": "1.0.0",
+      "controlPacks": [
+        "component.sync-offline"
+      ],
+      "minimumEvidence": [
+        "path",
+        "target"
+      ],
+      "trustMetadata": true,
+      "cleanClaim": "evidence-bound"
+    },
+    {
+      "id": "file-media",
+      "version": "1.0.0",
+      "controlPacks": [
+        "component.file-media"
+      ],
+      "minimumEvidence": [
+        "path",
+        "target"
+      ],
+      "trustMetadata": true,
+      "cleanClaim": "evidence-bound"
+    },
+    {
+      "id": "integration",
+      "version": "1.0.0",
+      "controlPacks": [
+        "component.integration"
+      ],
+      "minimumEvidence": [
+        "path",
+        "target"
+      ],
+      "trustMetadata": true,
+      "cleanClaim": "evidence-bound"
+    },
+    {
+      "id": "notification",
+      "version": "1.0.0",
+      "controlPacks": [
+        "component.notification"
+      ],
+      "minimumEvidence": [
+        "path",
+        "target"
+      ],
+      "trustMetadata": true,
+      "cleanClaim": "evidence-bound"
+    },
+    {
+      "id": "commerce",
+      "version": "1.0.0",
+      "controlPacks": [
+        "component.commerce"
+      ],
+      "minimumEvidence": [
+        "path",
+        "target"
+      ],
+      "trustMetadata": true,
+      "cleanClaim": "evidence-bound"
+    },
+    {
+      "id": "telemetry",
+      "version": "1.0.0",
+      "controlPacks": [
+        "component.telemetry"
+      ],
+      "minimumEvidence": [
+        "path",
+        "target"
+      ],
+      "trustMetadata": true,
+      "cleanClaim": "evidence-bound"
+    },
+    {
+      "id": "admin-support",
+      "version": "1.0.0",
+      "controlPacks": [
+        "component.admin-support"
+      ],
+      "minimumEvidence": [
+        "path",
+        "target"
+      ],
+      "trustMetadata": true,
+      "cleanClaim": "evidence-bound"
+    },
+    {
+      "id": "native-bridge-ipc",
+      "version": "1.0.0",
+      "controlPacks": [
+        "component.native-bridge-ipc"
+      ],
+      "minimumEvidence": [
+        "path",
+        "target"
+      ],
+      "trustMetadata": true,
+      "cleanClaim": "evidence-bound"
+    },
+    {
+      "id": "helper-sidecar",
+      "version": "1.0.0",
+      "controlPacks": [
+        "component.helper-sidecar"
+      ],
+      "minimumEvidence": [
+        "path",
+        "target"
+      ],
+      "trustMetadata": true,
+      "cleanClaim": "evidence-bound"
+    },
+    {
+      "id": "installer",
+      "version": "1.0.0",
+      "controlPacks": [
+        "component.installer"
+      ],
+      "minimumEvidence": [
+        "path",
+        "target"
+      ],
+      "trustMetadata": true,
+      "cleanClaim": "evidence-bound"
+    },
+    {
+      "id": "updater",
+      "version": "1.0.0",
+      "controlPacks": [
+        "component.updater"
+      ],
+      "minimumEvidence": [
+        "path",
+        "target"
+      ],
+      "trustMetadata": true,
+      "cleanClaim": "evidence-bound"
+    },
+    {
+      "id": "build-sign-release",
+      "version": "1.0.0",
+      "controlPacks": [
+        "component.build-sign-release"
+      ],
+      "minimumEvidence": [
+        "path",
+        "target"
+      ],
+      "trustMetadata": true,
+      "cleanClaim": "evidence-bound"
+    },
+    {
+      "id": "infrastructure-dns",
+      "version": "1.0.0",
+      "controlPacks": [
+        "component.infrastructure-dns"
+      ],
+      "minimumEvidence": [
+        "path",
+        "target"
+      ],
+      "trustMetadata": true,
+      "cleanClaim": "evidence-bound"
+    },
+    {
+      "id": "privacy",
+      "version": "1.0.0",
+      "controlPacks": [
+        "component.privacy"
+      ],
+      "minimumEvidence": [
+        "path",
+        "target"
+      ],
+      "trustMetadata": true,
+      "cleanClaim": "evidence-bound"
+    },
+    {
+      "id": "content-community",
+      "version": "1.0.0",
+      "controlPacks": [
+        "component.content-community"
+      ],
+      "minimumEvidence": [
+        "path",
+        "target"
+      ],
+      "trustMetadata": true,
+      "cleanClaim": "evidence-bound"
+    },
+    {
+      "id": "ai",
+      "version": "1.0.0",
+      "controlPacks": [
+        "component.ai"
+      ],
+      "minimumEvidence": [
+        "path",
+        "target"
+      ],
+      "trustMetadata": true,
+      "cleanClaim": "evidence-bound"
+    },
+    {
+      "id": "documentation-legal",
+      "version": "1.0.0",
+      "controlPacks": [
+        "component.documentation-legal"
+      ],
+      "minimumEvidence": [
+        "path",
+        "target"
+      ],
+      "trustMetadata": true,
+      "cleanClaim": "evidence-bound"
+    },
+    {
+      "id": "unknown-material-component",
+      "version": "1.0.0",
+      "controlPacks": [
+        "component.unknown-material-component"
+      ],
+      "minimumEvidence": [
+        "path",
+        "target"
+      ],
+      "trustMetadata": true,
+      "cleanClaim": "never"
+    }
+  ]
+}

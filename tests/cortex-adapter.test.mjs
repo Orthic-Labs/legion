@@ -24,7 +24,7 @@ test('precomputed mode verifies binding and reads the projection', async () => {
   try {
     const path = join(dir, 'projection.json');
     writeFileSync(path, JSON.stringify({
-      state: 'ready', generationId: 'gen-p', manifestDigest: 'sha256:m',
+      schemaVersion:1,state: 'ready', generationId: 'gen-p', manifestDigest: 'sha256:m',
       files: ['a.ts'], fileSetDigest: 'sha256:f', parsedExtensions: ['ts'],
     }));
     const adapter = new CortexAdapter({ mode: 'precomputed', precomputedPath: path });

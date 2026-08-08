@@ -1,0 +1,25 @@
+{
+  "id": "language.long-tail",
+  "kind": "language",
+  "aliases": [],
+  "extensions": [],
+  "manifests": [],
+  "providers": [
+    "code.long-tail"
+  ],
+  "limitations": [
+    "runtime and remediation unproven"
+  ],
+  "qualificationVersion": "1.0.0",
+  "corpusDigest": "sha256:0bd7936977760968776396448b8a036f629eb0a1fc5ab9ba8b6d173046f9d900",
+  "artifactDigest": "sha256:0bd7936977760968776396448b8a036f629eb0a1fc5ab9ba8b6d173046f9d900",
+  "tiers": {
+    "inventory": 1,
+    "parser": 1,
+    "native": 1,
+    "cross-file": 0,
+    "measured-pack": 1,
+    "runtime": 0,
+    "remediation": 0
+  }
+}

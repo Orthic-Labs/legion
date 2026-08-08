@@ -1,0 +1,549 @@
+{
+  "schemaVersion": 1,
+  "kind": "security-creator-derived-taxonomy",
+  "sourceDocumentId": "creator.security",
+  "sourceDigest": "sha256:c9d728c8eda9df46c035e5d0b4ea81116dfa1b4f9c475b621fc4b220e9866a3a",
+  "provenanceRef": "references/source-provenance/creator-security.json",
+  "categories": [
+    {
+      "id": "passwords",
+      "intent": "Whether login credentials are stored using a modern, sufficiently slow, salted hashing algorithm rather than a fast general-purpose hash.",
+      "sourceAreas": [
+        "Authentication"
+      ],
+      "sourceDigest": "sha256:c9d728c8eda9df46c035e5d0b4ea81116dfa1b4f9c475b621fc4b220e9866a3a",
+      "relationshipToSource": "Restates and re-implements the security concern raised under the listed creator.security ledger area(s) as original detection logic; does not reproduce any ledger item's title or notes text.",
+      "status": "owned",
+      "owningPack": "security.crypto-identity-protocols",
+      "owningRuleIds": [
+        "crypto.primitive.password-hash-unsalted-fast"
+      ],
+      "fixtureRequirement": "A fixture handler that hashes a password-named value with a fast/unsalted primitive must trigger the rule; a paired fixture using a slow salted KDF (bcrypt/argon2/scrypt) must not.",
+      "applicability": [
+        "backend"
+      ],
+      "evidenceRequirement": "detector-evidenced (decisionMode: evidence, cleanClaim: never-without-denominator per registry/rules/security/crypto-data-privacy.json); produces an UNADJUDICATED candidate requiring independent adjudication before any verdict."
+    },
+    {
+      "id": "sessions",
+      "intent": "Whether session cookies are issued with the browser protections (Secure, HttpOnly, SameSite) needed to resist theft and cross-site misuse.",
+      "sourceAreas": [
+        "Sessions, Cookies & Tokens"
+      ],
+      "sourceDigest": "sha256:c9d728c8eda9df46c035e5d0b4ea81116dfa1b4f9c475b621fc4b220e9866a3a",
+      "relationshipToSource": "Restates and re-implements the security concern raised under the listed creator.security ledger area(s) as original detection logic; does not reproduce any ledger item's title or notes text.",
+      "status": "owned",
+      "owningPack": "security.authentication-session",
+      "owningRuleIds": [
+        "auth.session-cookie-weak"
+      ],
+      "fixtureRequirement": "A fixture that sets a session/auth cookie option object with secure:false, httpOnly:false, or sameSite:'none' must trigger the rule; a fixture setting all three protections must not.",
+      "applicability": [
+        "backend"
+      ],
+      "evidenceRequirement": "detector-evidenced; providers/security/packs/authentication-session.mjs pattern pack producing an UNADJUDICATED candidate."
+    },
+    {
+      "id": "tokens",
+      "intent": "Whether bearer tokens such as JWTs are verified before their claims are trusted, and whether recovery/reset tokens are ever written to logs.",
+      "sourceAreas": [
+        "Sessions, Cookies & Tokens",
+        "Authentication"
+      ],
+      "sourceDigest": "sha256:c9d728c8eda9df46c035e5d0b4ea81116dfa1b4f9c475b621fc4b220e9866a3a",
+      "relationshipToSource": "Restates and re-implements the security concern raised under the listed creator.security ledger area(s) as original detection logic; does not reproduce any ledger item's title or notes text.",
+      "status": "owned",
+      "owningPack": "security.authentication-session",
+      "owningRuleIds": [
+        "auth.jwt-without-verification",
+        "auth.reset-token-log"
+      ],
+      "fixtureRequirement": "A fixture calling a JWT decode function with no accompanying verify call must trigger auth.jwt-without-verification; a fixture logging a reset/magic-link token value must trigger auth.reset-token-log; paired clean fixtures must not trigger either.",
+      "applicability": [
+        "backend"
+      ],
+      "evidenceRequirement": "detector-evidenced; pattern pack producing UNADJUDICATED candidates."
+    },
+    {
+      "id": "authorization",
+      "intent": "Whether object-level and function-level access checks are present on write/read/privileged operations, and whether request bodies are trusted for field assignment without an allowlist.",
+      "sourceAreas": [
+        "Authorization & Access Control"
+      ],
+      "sourceDigest": "sha256:c9d728c8eda9df46c035e5d0b4ea81116dfa1b4f9c475b621fc4b220e9866a3a",
+      "relationshipToSource": "Restates and re-implements the security concern raised under the listed creator.security ledger area(s) as original detection logic; does not reproduce any ledger item's title or notes text.",
+      "status": "owned",
+      "owningPack": "security.authorization-tenant",
+      "owningRuleIds": [
+        "authorization.object-write.missing-owner-check",
+        "authorization.object-read.missing-owner-check",
+        "authorization.privileged-function.missing-role-check",
+        "authorization.mass-assignment"
+      ],
+      "fixtureRequirement": "A fixture updating an object keyed by a request-derived id with no owner/tenant/authorize check in scope must trigger the object-write rule; a fixture defining a delete/promote/admin function with no role check must trigger the privileged-function rule; paired fixtures with a visible ownership/role check must not trigger.",
+      "applicability": [
+        "backend"
+      ],
+      "evidenceRequirement": "detector-evidenced; providers/security/packs/authorization-tenant.mjs produces UNADJUDICATED candidates."
+    },
+    {
+      "id": "injection",
+      "intent": "Whether untrusted input reaches SQL, NoSQL, ORM, shell, LDAP, template, regex, prototype-key, XML-entity, or spreadsheet-formula sinks without the sink-appropriate safe construction.",
+      "sourceAreas": [
+        "Injection & Query Safety"
+      ],
+      "sourceDigest": "sha256:c9d728c8eda9df46c035e5d0b4ea81116dfa1b4f9c475b621fc4b220e9866a3a",
+      "relationshipToSource": "Restates and re-implements the security concern raised under the listed creator.security ledger area(s) as original detection logic; does not reproduce any ledger item's title or notes text.",
+      "status": "owned",
+      "owningPack": "security.injection",
+      "owningRuleIds": [
+        "injection.sql.dynamic-query",
+        "injection.nosql.operator-injection",
+        "injection.orm.raw-query-with-input",
+        "injection.command.shell-exec",
+        "injection.ldap.filter-injection",
+        "injection.template.server-side-template-injection",
+        "injection.regex.redos",
+        "injection.prototype-pollution.unsafe-key-assignment",
+        "injection.xxe.external-entity-enabled",
+        "injection.formula.csv-export-unescaped"
+      ],
+      "fixtureRequirement": "One paired fixture per sink class proving the detector fires on the unsafe (concatenated/dynamic) form and not on the safe (parameterized/escaped) form.",
+      "applicability": [
+        "backend",
+        "frontend"
+      ],
+      "evidenceRequirement": "detector-evidenced (decisionMode: evidence, cleanClaim: never-without-denominator per registry/rules/security/injection-output.json)."
+    },
+    {
+      "id": "output-encoding",
+      "intent": "Whether values are rendered into HTML, JS, CSS, URL, shell, SQL, log, or email-header output contexts without the encoding appropriate to that context.",
+      "sourceAreas": [
+        "Cross-Site Scripting & Output Encoding"
+      ],
+      "sourceDigest": "sha256:c9d728c8eda9df46c035e5d0b4ea81116dfa1b4f9c475b621fc4b220e9866a3a",
+      "relationshipToSource": "Restates and re-implements the security concern raised under the listed creator.security ledger area(s) as original detection logic; does not reproduce any ledger item's title or notes text.",
+      "status": "owned",
+      "owningPack": "security.output-handling",
+      "owningRuleIds": [
+        "output.html.body-unescaped",
+        "output.html.attribute-unescaped",
+        "output.js.inline-script-unescaped",
+        "output.url.open-redirect",
+        "output.css.style-unescaped",
+        "output.shell.command-template",
+        "output.sql.stored-content-interpolation",
+        "output.log.newline-injection",
+        "output.stored.unescaped-render",
+        "output.email.header-injection",
+        "output.model.unsanitized-render"
+      ],
+      "fixtureRequirement": "One paired fixture per output context proving the detector fires when a value reaches the sink unescaped and not when a context-appropriate encoder/sanitizer wraps it.",
+      "applicability": [
+        "backend",
+        "frontend"
+      ],
+      "evidenceRequirement": "detector-evidenced (decisionMode: evidence, cleanClaim: never-without-denominator per registry/rules/security/injection-output.json)."
+    },
+    {
+      "id": "browser",
+      "intent": "Whether state-changing routes, cross-origin responses, frame embedding, redirect targets, OAuth redirect URIs, and the Content-Security-Policy are configured to resist CSRF, cross-origin data leakage, clickjacking, and open-redirect abuse.",
+      "sourceAreas": [
+        "Cross-Origin & Request Forgery"
+      ],
+      "sourceDigest": "sha256:c9d728c8eda9df46c035e5d0b4ea81116dfa1b4f9c475b621fc4b220e9866a3a",
+      "relationshipToSource": "Restates and re-implements the security concern raised under the listed creator.security ledger area(s) as original detection logic; does not reproduce any ledger item's title or notes text.",
+      "status": "owned",
+      "owningPack": "security.browser-client",
+      "owningRuleIds": [
+        "csrf.state-changing-route.missing-token",
+        "csrf.samesite-none-without-secure",
+        "csrf.samesite-missing",
+        "cors.wildcard-origin-with-credentials",
+        "cors.reflected-origin-without-allowlist",
+        "clickjacking.missing-frame-protection",
+        "open-redirect.unvalidated-target",
+        "oauth.redirect-uri.unvalidated",
+        "csp.missing",
+        "csp.unsafe-inline",
+        "csp.unsafe-eval",
+        "csp.wildcard-source"
+      ],
+      "fixtureRequirement": "Paired fixtures per rule (e.g. a state-changing route with and without a CSRF token; a CORS handler reflecting Origin with and without an allowlist; a response with and without a frame-protection header).",
+      "applicability": [
+        "cookie-session-state-changing-routes",
+        "session-cookies",
+        "cors-response-headers",
+        "html-serving-applications",
+        "redirect-handlers",
+        "oauth-clients",
+        "content-security-policy"
+      ],
+      "evidenceRequirement": "detector-evidenced (decisionMode: evidence, cleanClaim: never-without-denominator per registry/rules/security/browser-http.json)."
+    },
+    {
+      "id": "request-validation",
+      "intent": "Whether request bodies are validated and size-bounded before use, whether unexpected fields are rejected instead of mass-assigned, and whether request-derived values reach HTTP headers unescaped.",
+      "sourceAreas": [
+        "Input Validation & Request Handling"
+      ],
+      "sourceDigest": "sha256:c9d728c8eda9df46c035e5d0b4ea81116dfa1b4f9c475b621fc4b220e9866a3a",
+      "relationshipToSource": "Restates and re-implements the security concern raised under the listed creator.security ledger area(s) as original detection logic; does not reproduce any ledger item's title or notes text.",
+      "status": "owned",
+      "owningPack": "security.request-boundaries",
+      "owningRuleIds": [
+        "request.unvalidated-input-to-sink",
+        "request.body-size-unbounded",
+        "request.mass-assignment-unfiltered",
+        "request.header-injection"
+      ],
+      "fixtureRequirement": "A fixture handler passing a request field directly to a sensitive sink with no validation call must trigger request.unvalidated-input-to-sink; a paired fixture validating the field first must not.",
+      "applicability": [
+        "backend"
+      ],
+      "evidenceRequirement": "detector-evidenced (decisionMode: evidence, cleanClaim: never-without-denominator per registry/rules/security/boundaries.json)."
+    },
+    {
+      "id": "ssrf",
+      "intent": "Whether outbound requests to a destination derived from request input are constrained by an allowlist, bounded redirect-following, and DNS-rebinding protection.",
+      "sourceAreas": [
+        "Input Validation & Request Handling"
+      ],
+      "sourceDigest": "sha256:c9d728c8eda9df46c035e5d0b4ea81116dfa1b4f9c475b621fc4b220e9866a3a",
+      "relationshipToSource": "Restates and re-implements the security concern raised under the listed creator.security ledger area(s) as original detection logic; does not reproduce any ledger item's title or notes text.",
+      "status": "owned",
+      "owningPack": "security.ssrf-egress",
+      "owningRuleIds": [
+        "ssrf.request-controlled-destination",
+        "ssrf.redirect-following-unbounded",
+        "ssrf.dns-rebinding-unprotected"
+      ],
+      "fixtureRequirement": "A fixture issuing an outbound HTTP call whose host/URL is built from a request field with no allowlist check must trigger ssrf.request-controlled-destination; a paired fixture checking the destination against an allowlist must not.",
+      "applicability": [
+        "backend"
+      ],
+      "evidenceRequirement": "detector-evidenced (decisionMode: evidence, cleanClaim: never-without-denominator per registry/rules/security/boundaries.json)."
+    },
+    {
+      "id": "file-path-handling",
+      "intent": "Whether file paths, archive-extraction targets, and symlink targets derived from request input are constrained to an intended directory.",
+      "sourceAreas": [
+        "Input Validation & Request Handling"
+      ],
+      "sourceDigest": "sha256:c9d728c8eda9df46c035e5d0b4ea81116dfa1b4f9c475b621fc4b220e9866a3a",
+      "relationshipToSource": "Restates and re-implements the security concern raised under the listed creator.security ledger area(s) as original detection logic; does not reproduce any ledger item's title or notes text.",
+      "status": "owned",
+      "owningPack": "security.file-boundaries",
+      "owningRuleIds": [
+        "file.path-traversal-unvalidated",
+        "file.archive-zip-slip",
+        "file.symlink-unchecked"
+      ],
+      "fixtureRequirement": "A fixture joining a request-derived filename onto a base path with no traversal check must trigger file.path-traversal-unvalidated; a paired fixture resolving and validating the path against the base directory must not.",
+      "applicability": [
+        "backend"
+      ],
+      "evidenceRequirement": "detector-evidenced (decisionMode: evidence, cleanClaim: never-without-denominator per registry/rules/security/boundaries.json)."
+    },
+    {
+      "id": "uploads",
+      "intent": "Whether uploaded-file content-type, size, storage location, filename, and executability are constrained so an uploaded file cannot be served as executable content from within the web root.",
+      "sourceAreas": [
+        "File Uploads"
+      ],
+      "sourceDigest": "sha256:c9d728c8eda9df46c035e5d0b4ea81116dfa1b4f9c475b621fc4b220e9866a3a",
+      "relationshipToSource": "Restates and re-implements the security concern raised under the listed creator.security ledger area(s) as original detection logic; does not reproduce any ledger item's title or notes text.",
+      "status": "owned",
+      "owningPack": "security.uploads",
+      "owningRuleIds": [
+        "upload.content-type-unvalidated",
+        "upload.size-unbounded",
+        "upload.storage-in-webroot",
+        "upload.filename-unsanitized",
+        "upload.executable-content-served"
+      ],
+      "fixtureRequirement": "A fixture upload handler with no content-type check, no size cap, storage under a web-served directory, or an unsanitized stored filename must trigger the corresponding rule; a paired hardened handler must not.",
+      "applicability": [
+        "backend"
+      ],
+      "evidenceRequirement": "detector-evidenced (decisionMode: evidence, cleanClaim: never-without-denominator per registry/rules/security/boundaries.json)."
+    },
+    {
+      "id": "secrets",
+      "intent": "Whether credential-shaped literals, private-key material, or named secret assignments with literal values appear in repository artifacts instead of being sourced from environment/secret-manager configuration.",
+      "sourceAreas": [
+        "Secrets & Configuration"
+      ],
+      "sourceDigest": "sha256:c9d728c8eda9df46c035e5d0b4ea81116dfa1b4f9c475b621fc4b220e9866a3a",
+      "relationshipToSource": "Restates and re-implements the security concern raised under the listed creator.security ledger area(s) as original detection logic; does not reproduce any ledger item's title or notes text.",
+      "status": "owned",
+      "owningPack": "security.credentials",
+      "owningRuleIds": [
+        "credentials.format",
+        "credentials.assignment",
+        "credentials.private-key"
+      ],
+      "fixtureRequirement": "A fixture file containing a credential-shaped literal token, a password-style literal assignment, or a PEM private-key block must trigger the corresponding rule; a fixture reading the same value from process.env must not.",
+      "applicability": [
+        "backend",
+        "frontend",
+        "repository"
+      ],
+      "evidenceRequirement": "detector-evidenced; providers/security/packs/credentials.mjs pattern set producing an UNADJUDICATED candidate."
+    },
+    {
+      "id": "production-hardening",
+      "intent": "Whether deployed responses enforce transport security (HTTPS/HSTS), carry the response headers that prevent MIME-sniffing and stale caching of sensitive content, and whether reverse-proxy trust and request framing are configured to resist request smuggling.",
+      "sourceAreas": [
+        "Secrets & Configuration",
+        "Cryptography & Data Protection"
+      ],
+      "sourceDigest": "sha256:c9d728c8eda9df46c035e5d0b4ea81116dfa1b4f9c475b621fc4b220e9866a3a",
+      "relationshipToSource": "Restates and re-implements the security concern raised under the listed creator.security ledger area(s) as original detection logic; does not reproduce any ledger item's title or notes text.",
+      "status": "owned",
+      "owningPack": "security.http-protocol-cache",
+      "owningRuleIds": [
+        "hsts.missing",
+        "https.not-enforced",
+        "headers.missing-content-type-options",
+        "headers.content-type-missing-charset",
+        "cache.sensitive-content-cacheable",
+        "proxy.trust-misconfigured",
+        "smuggling.conflicting-content-length-transfer-encoding",
+        "smuggling.ambiguous-proxy-chain"
+      ],
+      "fixtureRequirement": "A fixture server configuration missing HSTS/HTTPS enforcement, missing X-Content-Type-Options, marking an authenticated route publicly cacheable, trusting a forwarded-proto header without validation, or leaving Content-Length/Transfer-Encoding ambiguous must trigger the corresponding rule; a hardened paired fixture must not.",
+      "applicability": [
+        "https-deployments",
+        "server-transport-config",
+        "http-response-headers",
+        "text-responses",
+        "authenticated-routes",
+        "reverse-proxy-deployments",
+        "raw-http-handling",
+        "forwarded-header-parsing"
+      ],
+      "evidenceRequirement": "detector-evidenced (decisionMode: evidence, cleanClaim: never-without-denominator per registry/rules/security/browser-http.json)."
+    },
+    {
+      "id": "crypto",
+      "intent": "Whether non-password cryptographic primitives in use (hash algorithm choice, cipher algorithm, random-number source, encryption key material, key-rotation posture) meet a currently accepted strength bar.",
+      "sourceAreas": [
+        "Cryptography & Data Protection"
+      ],
+      "sourceDigest": "sha256:c9d728c8eda9df46c035e5d0b4ea81116dfa1b4f9c475b621fc4b220e9866a3a",
+      "relationshipToSource": "Restates and re-implements the security concern raised under the listed creator.security ledger area(s) as original detection logic; does not reproduce any ledger item's title or notes text.",
+      "status": "owned",
+      "owningPack": "security.crypto-identity-protocols",
+      "owningRuleIds": [
+        "crypto.primitive.weak-hash-security-context",
+        "crypto.primitive.weak-cipher-algorithm",
+        "crypto.primitive.insecure-randomness",
+        "crypto.primitive.hardcoded-encryption-key",
+        "crypto.primitive.key-rotation-absent"
+      ],
+      "fixtureRequirement": "A fixture using MD5/SHA1 in a security context, a broken cipher, Math.random() for a security-relevant value, or a literal encryption key must trigger the corresponding rule; paired fixtures using accepted primitives must not.",
+      "applicability": [
+        "backend",
+        "frontend"
+      ],
+      "evidenceRequirement": "detector-evidenced (decisionMode: evidence, cleanClaim: never-without-denominator per registry/rules/security/crypto-data-privacy.json)."
+    },
+    {
+      "id": "data",
+      "intent": "Whether personal or sensitive data is logged, collected, stored, transmitted, retained, exported, deleted, or shared across tenants in a way that violates a privacy-protective default.",
+      "sourceAreas": [
+        "Cryptography & Data Protection",
+        "Authorization & Access Control"
+      ],
+      "sourceDigest": "sha256:c9d728c8eda9df46c035e5d0b4ea81116dfa1b4f9c475b621fc4b220e9866a3a",
+      "relationshipToSource": "Restates and re-implements the security concern raised under the listed creator.security ledger area(s) as original detection logic; does not reproduce any ledger item's title or notes text.",
+      "status": "owned",
+      "owningPack": "security.data-privacy",
+      "owningRuleIds": [
+        "privacy.log.sensitive-data-unredacted",
+        "privacy.collect.pii-without-consent",
+        "privacy.store.unencrypted-pii",
+        "privacy.transmit.unencrypted-channel",
+        "privacy.retain.unbounded-retention",
+        "privacy.retain.backup-unencrypted",
+        "privacy.export.unrestricted-data-export",
+        "privacy.delete.no-erasure-path",
+        "privacy.process.tenant-data-crossover",
+        "privacy.claim.marketing-mismatch"
+      ],
+      "fixtureRequirement": "One paired fixture per rule proving the detector fires on the unprotected pattern (e.g. logging an unredacted PII field, storing PII without an encryption call in scope, a query missing a tenant filter) and not on the protected pattern.",
+      "applicability": [
+        "backend",
+        "frontend",
+        "docs"
+      ],
+      "evidenceRequirement": "detector-evidenced (decisionMode: evidence, cleanClaim: never-without-denominator per registry/rules/security/crypto-data-privacy.json)."
+    },
+    {
+      "id": "api-abuse",
+      "intent": "Whether an API is bounded against automated abuse: global and per-operation rate limits, GraphQL depth/cost/introspection limits, pagination caps, field-exposure limits, webhook signature verification, mutation idempotency, and resource-exhaustion/circuit-breaker protection.",
+      "sourceAreas": [
+        "API & Rate Limiting"
+      ],
+      "sourceDigest": "sha256:c9d728c8eda9df46c035e5d0b4ea81116dfa1b4f9c475b621fc4b220e9866a3a",
+      "relationshipToSource": "Restates and re-implements the security concern raised under the listed creator.security ledger area(s) as original detection logic; does not reproduce any ledger item's title or notes text.",
+      "status": "owned",
+      "owningPack": "security.abuse-resilience",
+      "owningRuleIds": [
+        "abuse.rate-limit.global-missing",
+        "abuse.rate-limit.operation-missing",
+        "abuse.graphql.depth-unbounded",
+        "abuse.graphql.cost-unbounded",
+        "abuse.graphql.introspection-enabled",
+        "abuse.pagination.unbounded",
+        "abuse.data.over-exposed-fields",
+        "abuse.webhook.signature-missing",
+        "abuse.webhook.signature-verified-after-use",
+        "abuse.mutation.idempotency-key-missing",
+        "abuse.resource.exhaustion-unbounded-input",
+        "abuse.resilience.circuit-breaker-absent"
+      ],
+      "fixtureRequirement": "One paired fixture per rule proving the detector fires on the unbounded pattern (e.g. a route with no rate limiter, a GraphQL resolver with no depth limit, a webhook handler that runs before signature verification) and not on the bounded pattern.",
+      "applicability": [
+        "backend",
+        "graphql-endpoints",
+        "list-endpoints",
+        "response-serialization",
+        "webhook-receivers",
+        "payment-mutations",
+        "order-mutations",
+        "downstream-dependency-calls",
+        "identity-operations"
+      ],
+      "evidenceRequirement": "detector-evidenced (decisionMode: evidence, cleanClaim: never-without-denominator per registry/rules/security/abuse-observability.json)."
+    },
+    {
+      "id": "dependencies",
+      "intent": "Whether third-party dependencies are pinned to a lockfile with integrity hashes, sourced from a trusted registry, free of install-time script execution and unpinned remote plugins, and whether build output/caches avoid becoming a supply-chain injection point.",
+      "sourceAreas": [
+        "Dependencies, Logging & Monitoring"
+      ],
+      "sourceDigest": "sha256:c9d728c8eda9df46c035e5d0b4ea81116dfa1b4f9c475b621fc4b220e9866a3a",
+      "relationshipToSource": "Restates and re-implements the security concern raised under the listed creator.security ledger area(s) as original detection logic; does not reproduce any ledger item's title or notes text.",
+      "status": "owned",
+      "owningPack": "security.supply-chain",
+      "owningRuleIds": [
+        "supply-chain.dependency.non-registry-source",
+        "supply-chain.lockfile.missing",
+        "supply-chain.lockfile.integrity-hash-absent",
+        "supply-chain.package-script.install-time-execution",
+        "supply-chain.plugin.unpinned-remote-plugin",
+        "supply-chain.artifact.committed-build-output",
+        "supply-chain.cache.poisoning-surface"
+      ],
+      "fixtureRequirement": "A fixture manifest referencing a non-registry dependency source, a missing lockfile, or an install-time lifecycle script must trigger the corresponding rule; a paired clean manifest/lockfile must not. Note: supply-chain.package-script.install-time-execution carries cleanClaim never-without-sandbox-receipt rather than the family default, so its clean claim additionally requires a recorded sandbox execution receipt.",
+      "applicability": [
+        "backend",
+        "frontend",
+        "developer-machine",
+        "ci"
+      ],
+      "evidenceRequirement": "detector-evidenced (decisionMode: evidence per registry/rules/security/supply-developer-machine.json; cleanClaim is never-without-denominator for six rules and never-without-sandbox-receipt for supply-chain.package-script.install-time-execution)."
+    },
+    {
+      "id": "logging",
+      "intent": "Whether security-relevant events (authentication success/failure, privilege change, bulk data export) are actually logged, whether logged output can leak sensitive data, and whether log input is escaped against log-injection/forgery.",
+      "sourceAreas": [
+        "Dependencies, Logging & Monitoring"
+      ],
+      "sourceDigest": "sha256:c9d728c8eda9df46c035e5d0b4ea81116dfa1b4f9c475b621fc4b220e9866a3a",
+      "relationshipToSource": "Restates and re-implements the security concern raised under the listed creator.security ledger area(s) as original detection logic; does not reproduce any ledger item's title or notes text.",
+      "status": "owned",
+      "owningPack": "security.observability-forensics",
+      "owningRuleIds": [
+        "observability.error.sensitive-data-in-output",
+        "observability.events.missing-auth-success",
+        "observability.events.missing-auth-failure",
+        "observability.events.missing-privilege-change",
+        "observability.events.missing-data-export",
+        "observability.log.injection"
+      ],
+      "fixtureRequirement": "A fixture authentication/authorization/export path with no corresponding log-event call must trigger the matching missing-event rule; a fixture writing unescaped request-derived text into a log line must trigger observability.log.injection; paired instrumented/escaped fixtures must not.",
+      "applicability": [
+        "backend",
+        "authentication-paths",
+        "authorization-mutations",
+        "bulk-export-paths"
+      ],
+      "evidenceRequirement": "detector-evidenced (decisionMode: evidence, cleanClaim: never-without-denominator per registry/rules/security/abuse-observability.json)."
+    },
+    {
+      "id": "credential-policy-and-hardening",
+      "intent": "Password-strength policy, account-lockout thresholds, multi-factor enforcement, username/email enumeration resistance, constant-time credential comparison, remember-me hardening, and bot/automation protection on authentication forms.",
+      "sourceAreas": [
+        "Authentication"
+      ],
+      "sourceDigest": "sha256:c9d728c8eda9df46c035e5d0b4ea81116dfa1b4f9c475b621fc4b220e9866a3a",
+      "relationshipToSource": "Restates the security concern raised under the listed creator.security ledger area(s) as an original classification decision; does not reproduce any ledger item's title or notes text.",
+      "status": "excluded",
+      "exclusion": {
+        "reason": "These are policy-threshold and product-feature decisions (what complexity to require, whether to add MFA, how to throttle enumeration, whether to add a CAPTCHA) rather than a fixed code pattern; a static detector cannot tell an acceptable threshold from an unacceptable one without organization-specific policy input, and constant-time comparison requires semantic data-flow reasoning beyond a pattern match. Recorded as an architecture/policy backlog item, not smuggled into an existing rule's ownership."
+      },
+      "fixtureRequirement": null,
+      "applicability": [
+        "backend"
+      ],
+      "evidenceRequirement": "policy-input-required: no static pattern can serve as sufficient evidence; any suggestion here must terminate in a human/product-owner decision, never a model verdict."
+    },
+    {
+      "id": "session-and-token-lifecycle-policy",
+      "intent": "Session idle/absolute timeout duration, full session invalidation on logout, JWT claim-by-claim validation and algorithm-confusion resistance, short-lived access-token issuance, refresh-token rotation, and token-revocation mechanisms.",
+      "sourceAreas": [
+        "Sessions, Cookies & Tokens"
+      ],
+      "sourceDigest": "sha256:c9d728c8eda9df46c035e5d0b4ea81116dfa1b4f9c475b621fc4b220e9866a3a",
+      "relationshipToSource": "Restates the security concern raised under the listed creator.security ledger area(s) as an original classification decision; does not reproduce any ledger item's title or notes text.",
+      "status": "excluded",
+      "exclusion": {
+        "reason": "Timeout durations and rotation cadence are policy choices with no universal correct value; full-invalidation-on-logout and revocation-mechanism existence require runtime/integration verification rather than a source-level pattern; JWT algorithm-confusion resistance requires verifying the specific verification-call configuration, which the tokens category's auth.jwt-without-verification rule already partially covers for the narrower no-verification-at-all case. The broader claim-level and lifecycle items remain an architecture backlog rather than being folded into the tokens category's ownership."
+      },
+      "fixtureRequirement": null,
+      "applicability": [
+        "backend"
+      ],
+      "evidenceRequirement": "policy-input-required for timeout/rotation cadence; the concrete missing-verification instance is already covered by the tokens category, avoiding duplicate ownership."
+    },
+    {
+      "id": "authorization-architecture-policy",
+      "intent": "Choice of an RBAC access-control model, adoption of a default-deny authorization posture, and re-verification of authorization on every request rather than trusting a cached decision.",
+      "sourceAreas": [
+        "Authorization & Access Control"
+      ],
+      "sourceDigest": "sha256:c9d728c8eda9df46c035e5d0b4ea81116dfa1b4f9c475b621fc4b220e9866a3a",
+      "relationshipToSource": "Restates the security concern raised under the listed creator.security ledger area(s) as an original classification decision; does not reproduce any ledger item's title or notes text.",
+      "status": "excluded",
+      "exclusion": {
+        "reason": "These are whole-system architecture decisions (which access-control model to adopt, whether the framework's authorization middleware runs on every route) rather than a single detectable code pattern; a repository-local rule cannot certify a system-wide default-deny posture from source patterns alone. Concrete missing-check instances remain covered by the authorization category's four owned rules."
+      },
+      "fixtureRequirement": null,
+      "applicability": [
+        "backend"
+      ],
+      "evidenceRequirement": "policy-input-required / architecture-decision-required."
+    },
+    {
+      "id": "framework-default-hardening",
+      "intent": "Suppressing stack-trace disclosure in production error responses, removing response headers that reveal server/framework identity, disabling directory listing, and turning off insecure default settings shipped by a web framework.",
+      "sourceAreas": [
+        "Secrets & Configuration"
+      ],
+      "sourceDigest": "sha256:c9d728c8eda9df46c035e5d0b4ea81116dfa1b4f9c475b621fc4b220e9866a3a",
+      "relationshipToSource": "Restates the security concern raised under the listed creator.security ledger area(s) as an original classification decision; does not reproduce any ledger item's title or notes text.",
+      "status": "excluded",
+      "exclusion": {
+        "reason": "Coverage depends on the specific framework/server product in use (each has its own debug-flag name, its own default header set, its own directory-listing switch); a framework-specific insecure-defaults detector is not yet built as an original rule within the registries and packs this task maps onto. Recorded as a backlog gap rather than force-fit into production-hardening's http-protocol-cache ownership, which covers transport/header/cache/proxy controls that are not framework-default-specific."
+      },
+      "fixtureRequirement": null,
+      "applicability": [
+        "backend"
+      ],
+      "evidenceRequirement": "policy-input-required / detector-not-yet-built: recorded as a coverage gap, not a false clean claim."
+    }
+  ]
+}

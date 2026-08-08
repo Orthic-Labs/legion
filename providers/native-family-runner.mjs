@@ -270,8 +270,8 @@ function finding(ruleId, level, message, file = null, line = 1) {
 }
 
 function commandExists(command) {
-  const probe = spawnSync(command, ['--version'], { encoding: 'utf8', shell: process.platform === 'win32', timeout: 10000 });
-  return !probe.error && probe.status !== 127 && probe.status !== 9009;
+  const probe = spawnSync(command, ['--version'], { encoding: 'utf8', shell: false, windowsHide: true, timeout: 10000 });
+  return !probe.error && probe.status === 0;
 }
 
 function runCommand(root, spec) {
@@ -281,7 +281,8 @@ function runCommand(root, spec) {
   const result = spawnSync(spec.command, spec.args, {
     cwd: root,
     encoding: 'utf8',
-    shell: process.platform === 'win32',
+    shell: false,
+    windowsHide: true,
     timeout: spec.timeoutMs ?? 180000,
     maxBuffer: 16 * 1024 * 1024,
   });

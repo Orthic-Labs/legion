@@ -1,34 +1,17 @@
 {
-  "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://orthic.dev/schemas/execution-receipt-v1.json",
-  "title": "ExecutionReceiptV1",
-  "type": "object",
-  "required": ["schemaVersion", "kind", "provider", "spawnStatus"],
-  "properties": {
-    "schemaVersion": { "const": 1 },
-    "kind": { "const": "nemesis-execution-result" },
-    "provider": { "type": "string" },
-    "command": {
-      "type": ["object", "null"],
-      "properties": {
-        "executable": { "type": ["string", "null"] },
-        "args": { "type": "array", "items": { "type": "string" } },
-        "cwd": { "type": ["string", "null"] }
-      }
-    },
-    "startedAt": { "type": ["string", "null"] },
-    "completedAt": { "type": ["string", "null"] },
-    "durationMs": { "type": ["integer", "null"] },
-    "spawnStatus": { "enum": ["completed", "missing", "timeout", "signaled", "error", "blocked"] },
-    "exitCode": { "type": ["integer", "null"] },
-    "signal": { "type": ["string", "null"] },
-    "timedOut": { "type": "boolean" },
-    "stdoutArtifact": { "type": ["object", "null"] },
-    "stderrArtifact": { "type": ["object", "null"] },
-    "environmentKeys": { "type": "array", "items": { "type": "string" } },
-    "sandboxReceipt": { "type": ["object", "null"] },
-    "tool": { "type": ["object", "null"] },
-    "providerResult": { "type": ["object", "null"] }
+  "$schema":"https://json-schema.org/draft/2020-12/schema","$id":"https://orthic.dev/schemas/execution-receipt-v1.json","type":"object","additionalProperties":false,
+  "required":["schemaVersion","kind","provider","complete","command","spawnStatus","exitCode","signal","timedOut","stdoutArtifact","stderrArtifact","environmentKeys","tool","providerResult"],
+  "properties":{
+    "schemaVersion":{"const":1},"kind":{"const":"nemesis-execution-result"},"provider":{"type":["string","null"]},"binding":{"type":["object","null"]},"denominatorDigest":{"type":["string","null"]},"complete":{"type":"boolean"},
+    "command":{"type":"object","additionalProperties":false,"required":["executable","args","cwd"],"properties":{"executable":{"type":["string","null"]},"args":{"type":"array","items":{"type":"string"}},"cwd":{"type":["string","null"]}}},
+    "startedAt":{"type":["number","null"]},"completedAt":{"type":["number","null"]},"durationMs":{"type":["number","null"],"minimum":0},
+    "spawnStatus":{"enum":["completed","missing-executable","timeout","output-limit","signal","failed-exit","malformed-output","spawn-error","probe-error","unsealed-executable","blocked"]},
+    "exitCode":{"type":["integer","null"]},"signal":{"type":["string","null"]},"timedOut":{"type":"boolean"},
+    "stdoutArtifact":{"$ref":"#/$defs/artifact"},"stderrArtifact":{"$ref":"#/$defs/artifact"},"environmentKeys":{"type":"array","items":{"type":"string"}},
+    "sandboxReceipt":{"type":["object","null"]},"processTreeReceipt":{"type":["object","null"]},"tool":{"$ref":"#/$defs/tool"},"parsed":{},"providerResult":{"type":"object"}
   },
-  "additionalProperties": true
+  "$defs":{
+    "artifact":{"type":"object","additionalProperties":false,"required":["path","digest","bytes","immutable","storageReceipt","redaction"],"properties":{"path":{"type":"string","minLength":1},"digest":{"type":"string","pattern":"^sha256:[a-f0-9]{64}$"},"bytes":{"type":"integer","minimum":0},"immutable":{"type":"boolean"},"storageReceipt":{"type":["object","null"]},"redaction":{"type":"object","additionalProperties":false,"required":["applied","metadata"],"properties":{"applied":{"type":"boolean"},"metadata":{"type":"array"}}}}},
+    "tool":{"type":"object","additionalProperties":false,"required":["status","name","version","probe","executableDigest"],"properties":{"status":{"enum":["available","missing-executable","probe-error","timeout","not-applicable"]},"name":{"type":["string","null"]},"version":{"type":["string","null"]},"probe":{"type":["object","null"]},"executableDigest":{"type":["string","null"],"pattern":"^sha256:[a-f0-9]{64}$"},"error":{"type":["string","null"]}}}
+  }
 }

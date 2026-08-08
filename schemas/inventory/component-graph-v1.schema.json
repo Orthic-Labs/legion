@@ -1,1 +1,63 @@
-{"$schema":"https://json-schema.org/draft/2020-12/schema","type":"object","required":["components","relations"],"properties":{"components":{"type":"array"},"relations":{"type":"array"}}}
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "nemesis-component-graph-v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "kind",
+    "components",
+    "relations",
+    "coverage",
+    "binding",
+    "digest"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": 1
+    },
+    "kind": {
+      "const": "nemesis-component-graph"
+    },
+    "components": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/component"
+      }
+    },
+    "relations": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/relation"
+      }
+    },
+    "coverage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["expectedTargets","coveredTargets","expectedEntrypoints","expectedOutputs","expectedStores","expectedExternalSystems","expectedReleaseMechanisms","coveredStores","coveredExternalSystems","coveredReleaseMechanisms","unknownComponents","relationConfidence"],
+      "properties": {
+        "expectedTargets":{"type":"integer","minimum":0},"coveredTargets":{"type":"integer","minimum":0},"expectedEntrypoints":{"type":"integer","minimum":0},"expectedOutputs":{"type":"integer","minimum":0},"expectedStores":{"type":"integer","minimum":0},"expectedExternalSystems":{"type":"integer","minimum":0},"expectedReleaseMechanisms":{"type":"integer","minimum":0},"coveredStores":{"type":"integer","minimum":0},"coveredExternalSystems":{"type":"integer","minimum":0},"coveredReleaseMechanisms":{"type":"integer","minimum":0},"unknownComponents":{"type":"array","items":{"type":"string"}},"relationConfidence":{"type":"array","items":{"type":"string"}}
+      }
+    },
+    "binding": {
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "digest": {
+      "type": "string",
+      "minLength": 1
+    }
+  },
+  "$defs": {
+    "component": {
+      "type":"object","additionalProperties":true,
+      "required":["id","kind","targetIds","rootPaths","evidencePaths","classificationBasis","runtimeBoundary","privilege","identity","dataClassIds","stackIds","external","trustBoundaries"],
+      "properties":{"id":{"type":"string","pattern":"^component:"},"kind":{"type":"string"},"targetIds":{"type":"array","items":{"type":"string"}},"rootPaths":{"type":"array","items":{"type":"string"}},"evidencePaths":{"type":"array","items":{"type":"string"}},"classificationBasis":{"enum":["observed","declared","inferred","unknown"]},"runtimeBoundary":{"type":["string","null"]},"privilege":{"type":["string","null"]},"identity":{"type":["string","null"]},"dataClassIds":{"type":"array","items":{"type":"string"}},"stackIds":{"type":"array","items":{"type":"string"}},"external":{"type":"boolean"},"trustBoundaries":{"type":"array"}}
+    },
+    "relation": {
+      "type":"object","additionalProperties":true,"required":["kind","from","to"],"properties":{"kind":{"type":"string"},"from":{"type":"string"},"to":{"type":"string"},"environment":{"type":["string","null"]},"identity":{"type":["string","null"]},"tenant":{"type":["string","null"]},"evidenceRefs":{"type":"array","items":{"type":"string"}}}
+    }
+  }
+}

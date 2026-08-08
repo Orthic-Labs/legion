@@ -1,0 +1,1 @@
+{"$schema":"https://json-schema.org/draft/2020-12/schema","type":"object","required":["schemaVersion","binding","generation","manifestDigest","files"],"properties":{"schemaVersion":{"const":1},"binding":{"type":"object"},"generation":{"type":"string"},"manifestDigest":{"type":"string"},"files":{"type":"array"}},"additionalProperties":false}

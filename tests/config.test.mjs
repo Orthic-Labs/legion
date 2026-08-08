@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { join, resolve } from 'node:path';
 import test from 'node:test';
 import {
   CONFIG_SCHEMA_VERSION,
@@ -96,7 +96,7 @@ test('loadRepositoryConfig returns {} when absent', () => {
 
 test('path normalization resolves absolute canonical paths', () => {
   const cwd = '/tmp';
-  assert.equal(normalizePath('a/b', cwd), '/tmp/a/b');
-  assert.equal(normalizePath('/abs/path', cwd), '/abs/path');
-  assert.equal(normalizePath('', cwd), '/tmp');
+  assert.equal(normalizePath('a/b', cwd), resolve(cwd, 'a/b'));
+  assert.equal(normalizePath('/abs/path', cwd), resolve('/abs/path'));
+  assert.equal(normalizePath('', cwd), resolve(cwd));
 });

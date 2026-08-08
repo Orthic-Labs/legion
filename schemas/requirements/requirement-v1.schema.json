@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "nemesis-requirement-v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "authority",
+    "owner",
+    "status"
+  ],
+  "properties": {
+    "id": {
+      "type": "string"
+    },
+    "authority": {
+      "type": "string"
+    },
+    "owner": {
+      "type": "string"
+    },
+    "status": {
+      "type": "string"
+    }
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 1,
+  "id": "copy-anti-slop",
+  "rules": [
+    { "id": "copy.anti-slop.generic-opener", "kind": "interpretive", "reasoningRequirement": "bounded-review" },
+    { "id": "copy.anti-slop.empty-intensifier", "kind": "interpretive", "reasoningRequirement": "bounded-review" },
+    { "id": "copy.anti-slop.fake-personalization", "kind": "interpretive", "reasoningRequirement": "bounded-review" },
+    { "id": "copy.anti-slop.vague-transformation", "kind": "interpretive", "reasoningRequirement": "bounded-review" },
+    { "id": "copy.anti-slop.unsupported-superlative", "kind": "interpretive", "reasoningRequirement": "bounded-review" }
+  ]
+}

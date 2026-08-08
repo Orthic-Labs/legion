@@ -1,0 +1,31 @@
+{
+  "id": "language.c-family",
+  "kind": "language",
+  "aliases": [],
+  "extensions": [
+    "c",
+    "cc",
+    "cpp",
+    "h",
+    "hpp"
+  ],
+  "manifests": [],
+  "providers": [
+    "code.c-family"
+  ],
+  "limitations": [
+    "runtime and remediation unproven"
+  ],
+  "qualificationVersion": "1.0.0",
+  "corpusDigest": "sha256:4e165efbd57a190a5899e2f9765913a823e499c24b2408c1ba87e671e8657cb9",
+  "artifactDigest": "sha256:4e165efbd57a190a5899e2f9765913a823e499c24b2408c1ba87e671e8657cb9",
+  "tiers": {
+    "inventory": 1,
+    "parser": 1,
+    "native": 1,
+    "cross-file": 0,
+    "measured-pack": 1,
+    "runtime": 0,
+    "remediation": 0
+  }
+}

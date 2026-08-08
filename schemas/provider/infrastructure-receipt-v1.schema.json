@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "nemesis-infrastructure-receipt-v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "source",
+    "rendered",
+    "gaps"
+  ],
+  "properties": {
+    "source": {
+      "type": "array"
+    },
+    "rendered": {
+      "type": "array"
+    },
+    "gaps": {
+      "type": "array"
+    }
+  }
+}
