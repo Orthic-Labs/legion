@@ -1,0 +1,50 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "legion-amendment-v1",
+  "title": "Amendment",
+  "description": "Canonical Amendment (ARCHITECTURE.md §15, §33: 'EC-44 v1 -> Amendment A-2 -> EC-44 v2'; G10: 'A blocker changes a sealed contract only through an amendment.'). Sage-authored and Sage-sealed only.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion", "kind", "amendmentId", "contractId", "fromVersion", "toVersion",
+    "rationale", "changedDecisions", "invalidatedEvidenceRefs", "invalidatedArtifactRefs",
+    "sealedBy", "sourceRevision"
+  ],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "kind": { "const": "legion-amendment" },
+
+    "amendmentId": { "type": "string", "pattern": "^A-\\d+$" },
+    "contractId": { "type": "string", "pattern": "^EC-\\d+$" },
+    "fromVersion": { "type": "integer", "minimum": 1 },
+    "toVersion": { "type": "integer", "minimum": 2 },
+
+    "blockerId": { "type": ["string", "null"], "pattern": "^B-\\d+$" },
+    "covenantRecordId": { "type": ["string", "null"], "pattern": "^CV-\\d+$" },
+
+    "rationale": { "type": "string", "minLength": 1 },
+    "changedDecisions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "before", "after"],
+        "properties": {
+          "id": { "type": "string", "pattern": "^D-\\d+$" },
+          "before": { "type": ["string", "null"] },
+          "after": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "invalidatedEvidenceRefs": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "ARCHITECTURE §34: dependent evidence invalidated by this amendment."
+    },
+    "invalidatedArtifactRefs": { "type": "array", "items": { "type": "string" } },
+
+    "sealedBy": { "const": "sage", "description": "ARCHITECTURE §15: 'Sage produces a versioned amendment.'" },
+    "sealedAt": { "type": ["string", "null"], "format": "date-time" },
+    "sourceRevision": { "type": "string", "minLength": 7 }
+  }
+}

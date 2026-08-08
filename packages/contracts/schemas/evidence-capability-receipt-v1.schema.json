@@ -1,0 +1,87 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "legion-evidence-capability-receipt-v1",
+  "title": "EvidenceCapabilityReceipt",
+  "description": "Canonical evidence-capability receipt (IMPLEMENTATION-PLAN.md §7.10: 'a reusable, consumer-independent observation that may be evaluated by Sage acceptance, [Arcane, the archive's evidence/enforcement authority under its canonical name] proof, and Seer controls without transferring authority'). Distinct from the existing nemesis schemas/controls/evidence-capability-v1.schema.json, which models capability *availability* (id/available/owner/reason); this object models the *observation itself*, produced after execution, and is dependency-bound per ARCHITECTURE §34 (evidence goes stale when a decision it depends on changes).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion", "kind", "evidenceId", "runId", "taskId", "contractId",
+    "producerAuthority", "capability", "observation", "evidenceClass", "authentication", "replayDefense",
+    "sourceRevision", "dependsOn", "stale", "observedAt"
+  ],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "kind": { "const": "legion-evidence-capability-receipt" },
+
+    "evidenceId": { "type": "string", "pattern": "^ev_[0-9A-HJKMNP-TV-Z]{26}$" },
+    "runId": { "type": "string", "pattern": "^run_[0-9A-HJKMNP-TV-Z]{26}$" },
+    "taskId": { "type": ["string", "null"], "pattern": "^T-\\d+(\\.\\d+)*$" },
+    "contractId": { "type": ["string", "null"], "pattern": "^EC-\\d+$" },
+
+    "producerAuthority": { "enum": ["legion", "sage", "alchemist", "seer", "arcane", "covenant", "kernel"] },
+    "capability": {
+      "type": "string",
+      "minLength": 1,
+      "description": "What was observed, e.g. 'test-run', 'diagnostic-probe', 'lint-check', 'reproduction'. Free string by design; not a closed enum in source docs."
+    },
+    "observation": {
+      "type": "object",
+      "description": "Producer-specific structured observation payload (command/exit-code/artifact refs, or a structural finding). Deliberately opaque here: the shape varies per capability and is not specified by ARCHITECTURE/IMPLEMENTATION-PLAN beyond 'reusable, consumer-independent'."
+    },
+
+    "evidenceClass": {
+      "enum": ["deterministic", "measured", "interpretive", "external", "human"],
+      "description": "Values match the existing nemesis EVIDENCE_CLASS convention (lib/contracts, providers/security/contracts.mjs) by deliberate alignment, duplicated inline rather than imported to avoid a runtime dependency from this package on nemesis's internal provider pipeline. Judgment call, see FREEZE.md J-5."
+    },
+
+    "authentication": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["issuerIdentity", "verificationMethod", "perMessage"],
+      "properties": {
+        "issuerIdentity": { "type": "string", "minLength": 1 },
+        "verificationMethod": { "enum": ["host-connection-trust", "capability-signature", "unauthenticated"] },
+        "perMessage": { "type": "boolean" },
+        "verifiedAt": { "type": ["string", "null"], "format": "date-time" }
+      },
+      "description": "Same shape and rationale as legion-effect-receipt-v1's authentication field (S00 Forge baseline finding: no receipt in the legacy system carries real authentication, only a self-hash)."
+    },
+    "replayDefense": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["nonce", "sequence", "freshnessWindowSeconds"],
+      "properties": {
+        "nonce": { "type": ["string", "null"] },
+        "sequence": { "type": ["integer", "null"], "minimum": 0 },
+        "freshnessWindowSeconds": { "type": ["integer", "null"], "minimum": 0 },
+        "freshAt": { "type": ["string", "null"], "format": "date-time" }
+      },
+      "description": "Same shape and rationale as legion-effect-receipt-v1's replayDefense field (S00 Forge baseline finding: no nonce/sequence/freshness field exists anywhere in legacy Forge records)."
+    },
+
+    "sourceRevision": { "type": "string", "minLength": 7 },
+    "dependsOn": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["kind", "ref"],
+        "properties": {
+          "kind": { "enum": ["decision", "source-revision", "config-digest", "tool-digest", "policy-digest", "evidence"] },
+          "ref": { "type": "string", "minLength": 1 }
+        }
+      },
+      "description": "ARCHITECTURE §34: dependency-aware invalidation. When any dependsOn entry changes, this receipt becomes stale."
+    },
+    "stale": { "type": "boolean", "default": false },
+
+    "consumers": {
+      "type": "array",
+      "items": { "enum": ["sage-acceptance", "arcane-proof", "seer-control"] },
+      "description": "IMPLEMENTATION-PLAN §7.10: which of the three consumer classes may evaluate this receipt."
+    },
+
+    "observedAt": { "type": "string", "format": "date-time" }
+  }
+}

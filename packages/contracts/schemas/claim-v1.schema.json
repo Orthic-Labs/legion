@@ -1,0 +1,69 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "legion-claim-v1",
+  "title": "Claim",
+  "description": "Canonical Claim (ARCHITECTURE.md §26, §33). Claims are authority-scoped: Sage/Alchemist/Seer each own a fixed claim vocabulary; 'Arcane does not invent these claims. It validates whether their prerequisites and evidence bindings are satisfied and controls their release.' The (claimingAuthority, name) pair is constrained: name must be a member of that authority's claim vocabulary (see enums.mjs CLAIMS_BY_AUTHORITY). This cross-field constraint is expressed below via oneOf rather than JSON Schema's if/then, for readability; smoke.test.mjs checks the three branches' enum sets against enums.mjs.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion", "kind", "claimId", "claimingAuthority", "name",
+    "subjectType", "subjectId", "evidenceRefs", "prerequisites", "status", "sourceRevision"
+  ],
+  "oneOf": [
+    {
+      "properties": {
+        "claimingAuthority": { "const": "sage" },
+        "name": { "enum": ["ROOT_CAUSE_ESTABLISHED", "DECISION_MADE", "ARCHITECTURE_SEALED", "CONTRACT_SEALED", "IMPLEMENTATION_SPEC_COMPLETE"] }
+      }
+    },
+    {
+      "properties": {
+        "claimingAuthority": { "const": "alchemist" },
+        "name": { "enum": ["EFFECT_APPLIED", "TASK_COMPLETED", "DECLARED_CHECKS_PASSED", "IMPLEMENTATION_MATCHES_CONTRACT", "LOCAL_EXECUTION_VERIFIED"] }
+      }
+    },
+    {
+      "properties": {
+        "claimingAuthority": { "const": "seer" },
+        "name": { "enum": ["FINDING_CONFIRMED", "CONTROL_PASS", "CONTROL_FAIL", "UNKNOWN", "NOT_APPLICABLE", "EVIDENCE_INSUFFICIENT", "CLEAN_WITHIN_DECLARED_SCOPE"] }
+      }
+    }
+  ],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "kind": { "const": "legion-claim" },
+
+    "claimId": { "type": "string", "pattern": "^clm_[0-9A-HJKMNP-TV-Z]{26}$" },
+    "claimingAuthority": { "enum": ["sage", "alchemist", "seer"] },
+    "name": {
+      "enum": [
+        "ROOT_CAUSE_ESTABLISHED", "DECISION_MADE", "ARCHITECTURE_SEALED", "CONTRACT_SEALED", "IMPLEMENTATION_SPEC_COMPLETE",
+        "EFFECT_APPLIED", "TASK_COMPLETED", "DECLARED_CHECKS_PASSED", "IMPLEMENTATION_MATCHES_CONTRACT", "LOCAL_EXECUTION_VERIFIED",
+        "FINDING_CONFIRMED", "CONTROL_PASS", "CONTROL_FAIL", "UNKNOWN", "NOT_APPLICABLE", "EVIDENCE_INSUFFICIENT", "CLEAN_WITHIN_DECLARED_SCOPE"
+      ]
+    },
+
+    "subjectType": { "type": "string", "minLength": 1, "description": "e.g. 'execution-contract', 'execution-task', 'audit-control'." },
+    "subjectId": { "type": "string", "minLength": 1 },
+    "subjectVersion": { "type": ["integer", "null"], "minimum": 1 },
+
+    "evidenceRefs": { "type": "array", "items": { "type": "string" } },
+    "prerequisites": { "type": "array", "items": { "type": "string" }, "description": "Prerequisite claim/evidence ids that must hold before Arcane may validate this claim." },
+
+    "status": {
+      "enum": ["PENDING", "VALIDATED", "REJECTED"],
+      "description": "PENDING until Arcane validates prerequisites/evidence bindings; ARCHITECTURE §26."
+    },
+    "arcaneValidation": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "properties": {
+        "validatedAt": { "type": "string", "format": "date-time" },
+        "receiptRef": { "type": ["string", "null"] },
+        "reason": { "type": ["string", "null"] }
+      }
+    },
+
+    "sourceRevision": { "type": "string", "minLength": 7 }
+  }
+}

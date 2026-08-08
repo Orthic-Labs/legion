@@ -1,0 +1,59 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "legion-run-identity-v1",
+  "title": "RunIdentity",
+  "description": "Workspace/repo/revision/dirty-digest binding for a Legion run. Grounded in IMPLEMENTATION-PLAN.md §7.1 'Source identity' (workspace, repository, revision, dirty digest, release candidate, Cortex generation, policy, timestamp) and aligned in field intent with the existing nemesis schemas/core/binding-v1.schema.json (repository, revision, dirtyOverlayDigest, registryDigests) without importing or modifying it.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "kind", "runId", "workspace", "repository", "revision", "dirtyDigest", "capturedAt"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "kind": { "const": "legion-run-identity" },
+    "runId": {
+      "type": "string",
+      "pattern": "^run_[0-9A-HJKMNP-TV-Z]{26}$",
+      "description": "Kernel-issued opaque run handle. See ids.md."
+    },
+    "workspace": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Workspace identity/root the run executed against."
+    },
+    "repository": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Repository identity (name or path), matching nemesis binding-v1's 'repository' field intent."
+    },
+    "revision": {
+      "type": "string",
+      "minLength": 7,
+      "description": "Source revision (commit SHA or equivalent)."
+    },
+    "dirtyDigest": {
+      "type": ["string", "null"],
+      "description": "Digest of the uncommitted-overlay state, or null when the tree was clean. Equivalent in intent to nemesis binding-v1's 'dirtyOverlayDigest'.",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    },
+    "releaseCandidate": {
+      "type": ["string", "null"],
+      "description": "Release-candidate label bound to this run, when applicable (IMPLEMENTATION-PLAN §7.1)."
+    },
+    "cortexGeneration": {
+      "type": ["string", "null"],
+      "description": "Cortex generation identifier the run's context bound to (IMPLEMENTATION-PLAN §7.1, Workstream F)."
+    },
+    "policyDigest": {
+      "type": ["string", "null"],
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "description": "Digest of the effective policy bundle at capture time."
+    },
+    "registryDigests": {
+      "type": "object",
+      "description": "Operation-registry / schema-bundle digests bound at capture time (aligned with nemesis binding-v1's 'registryDigests')."
+    },
+    "capturedAt": {
+      "type": "string",
+      "format": "date-time"
+    }
+  }
+}

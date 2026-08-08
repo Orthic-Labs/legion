@@ -1,0 +1,68 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "legion-result-v1",
+  "title": "LegionResult",
+  "description": "Canonical top-level Legion result (IMPLEMENTATION-PLAN.md §7.12: 'Contains invocation state, domain outcome, claim boundary, artifacts, warnings, next actions, and typed error.'). Run/request-level aggregate returned to the caller across possibly-many operations; distinct from legion-operation-envelope-v1's per-operation OperationResult, which this may aggregate over (resultOf). Shares the invocationState/domainOutcome/claimBoundary triad by explicit WP2 instruction and I-09 orthogonality.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion", "kind", "resultId", "runId", "requestId",
+    "invocationState", "domainOutcome", "claimBoundary",
+    "authoritiesInvolved", "artifacts", "warnings", "nextActions", "error", "sourceRevision"
+  ],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "kind": { "const": "legion-result" },
+
+    "resultId": { "type": "string", "minLength": 1 },
+    "runId": { "type": "string", "pattern": "^run_[0-9A-HJKMNP-TV-Z]{26}$" },
+    "requestId": { "type": "string", "pattern": "^req_[0-9A-HJKMNP-TV-Z]{26}$" },
+    "resultOf": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "requestId references of the OperationResult(s) this LegionResult aggregates, when it aggregates more than one."
+    },
+
+    "invocationState": { "enum": ["ACCEPTED", "RUNNING", "INPUT_REQUIRED", "CANCELLED", "EXPIRED", "FAILED_INVOCATION", "COMPLETED"] },
+    "domainOutcome": { "enum": ["REPAIR", "BLOCKED_DECISION", "NEEDS_AMENDMENT", "OUT_OF_SCOPE", "BUDGET_STOP", "FAILED_CONTRACT", "COMPLETE"] },
+    "claimBoundary": { "enum": ["CLEAN_WITHIN_DECLARED_SCOPE", "PARTIALLY_PROVEN", "UNPROVEN", "EVIDENCE_INSUFFICIENT", "NOT_APPLICABLE"] },
+
+    "authoritiesInvolved": {
+      "type": "array",
+      "items": { "enum": ["legion", "sage", "alchemist", "seer", "arcane", "covenant", "kernel"] }
+    },
+
+    "artifacts": { "type": "array", "items": { "type": "string" } },
+    "warnings": { "type": "array", "items": { "type": "string" } },
+    "nextActions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["action"],
+        "properties": {
+          "action": { "type": "string", "minLength": 1 },
+          "reason": { "type": ["string", "null"] },
+          "owner": { "type": ["string", "null"] }
+        }
+      }
+    },
+    "error": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "required": ["code", "message"],
+      "properties": {
+        "code": { "type": "string", "minLength": 1 },
+        "message": { "type": "string", "minLength": 1 },
+        "remediation": { "type": ["string", "null"] },
+        "retriable": { "type": "boolean", "default": false }
+      }
+    },
+
+    "evidenceRefs": { "type": "array", "items": { "type": "string" } },
+    "receiptRefs": { "type": "array", "items": { "type": "string" } },
+
+    "sourceRevision": { "type": "string", "minLength": 7 },
+    "completedAt": { "type": ["string", "null"], "format": "date-time" }
+  }
+}

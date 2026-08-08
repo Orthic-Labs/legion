@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "legion-blocker-v1",
+  "title": "Blocker",
+  "description": "Canonical Blocker (ARCHITECTURE.md §15 'BLOCKER B-12' example, §33 shared-state list, §38 flow). Raised by Alchemist when execution discovers a semantic obstacle; the contract does not mutate silently (§15).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion", "kind", "blockerId", "contractId", "taskId",
+    "expected", "observed", "affectedDecisions", "completedWork", "safeCurrentState",
+    "questionRequiringAuthority", "classification", "status", "raisedBy", "raisedAt", "sourceRevision"
+  ],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "kind": { "const": "legion-blocker" },
+
+    "blockerId": { "type": "string", "pattern": "^B-\\d+$" },
+    "contractId": { "type": "string", "pattern": "^EC-\\d+$" },
+    "taskId": { "type": "string", "pattern": "^T-\\d+(\\.\\d+)*$" },
+
+    "expected": { "type": "string", "minLength": 1 },
+    "observed": { "type": "string", "minLength": 1 },
+    "evidenceRefs": { "type": "array", "items": { "type": "string" } },
+    "affectedDecisions": { "type": "array", "items": { "type": "string", "pattern": "^D-\\d+$" } },
+    "completedWork": { "type": "string" },
+    "safeCurrentState": { "type": "string" },
+    "questionRequiringAuthority": { "type": "string", "minLength": 1 },
+
+    "classification": {
+      "enum": ["CLEARLY_SEMANTIC", "POSSIBLY_CONTRACT_SAFE"],
+      "description": "ARCHITECTURE §15/§38: routes directly to Sage amendment (CLEARLY_SEMANTIC) or through Covenant BLOCKER_CONSULT first (POSSIBLY_CONTRACT_SAFE)."
+    },
+    "status": { "enum": ["OPEN", "COVENANT_CONSULTED", "AMENDED", "RESOLVED"] },
+    "covenantRequestId": { "type": ["string", "null"], "pattern": "^req_[0-9A-HJKMNP-TV-Z]{26}$" },
+    "covenantRecordId": { "type": ["string", "null"], "pattern": "^CV-\\d+$" },
+    "amendmentId": { "type": ["string", "null"], "pattern": "^A-\\d+$" },
+
+    "raisedBy": { "const": "alchemist", "description": "ARCHITECTURE §15/§29: Alchemist is the only normal raiser of a Blocker." },
+    "raisedAt": { "type": "string", "format": "date-time" },
+    "sourceRevision": { "type": "string", "minLength": 7 }
+  }
+}
