@@ -604,7 +604,7 @@
       "runner": {
         "kind": "runtime-script",
         "module": "providers/compatibility/index.mjs",
-        "moduleDigest": "sha256:74513251d2d5cc75ad50a273a3e1a016f0a9316d84be0015f9acb242d572576d"
+        "moduleDigest": "sha256:dac3ea4264d7b51cc5cb4bc7e72d5cccb58fb106bdbcbbafb0602a5ef28072cf"
       },
       "benchmark_status": "unproven",
       "required_for_clean_claim": true,
@@ -748,7 +748,7 @@
       "runner": {
         "kind": "runtime-script",
         "module": "providers/accessibility-suite.mjs",
-        "moduleDigest": "sha256:7a00294039ed49aeeeda8f5a6a62401c17a2edbf34fae97df133d2cb89b67d64"
+        "moduleDigest": "sha256:3dab6c35b0b3aa5b325873e693cb4e42dd4179e1895cafbee50b69a8b713bd1a"
       },
       "benchmark_status": "unproven",
       "required_for_clean_claim": true,
@@ -809,7 +809,7 @@
       "runner": {
         "kind": "runtime-script",
         "module": "providers/framework-suite.mjs",
-        "moduleDigest": "sha256:2fa0c921cca66a57ed9b1a28471ff52bfe573391fba21d52eeb332e188e5ee90"
+        "moduleDigest": "sha256:5cf92722585788ae41f22ec9d1ee7c8c1ccef3c32340fab77b29a6fe202d155c"
       },
       "benchmark_status": "unproven",
       "required_for_clean_claim": true,
