@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
+  "name": "legion",
+  "displayName": "Legion",
+  "description": "The Legion authority system: Legion orchestrates, Sage decides, Alchemist transforms, Seer assures, Arcane gates every effect. Installs the full-fidelity Claude Code binding — agents, the /covenant skill, Arcane's pre/post-tool hooks, and the legion MCP server.",
+  "author": {
+    "name": "Orthic Labs",
+    "url": "https://github.com/Orthic-Labs"
+  },
+  "homepage": "https://github.com/Orthic-Labs/legion",
+  "repository": "https://github.com/Orthic-Labs/legion",
+  "license": "SEE LICENSE IN LICENSE",
+  "keywords": [
+    "legion",
+    "audit",
+    "authority",
+    "sage",
+    "alchemist",
+    "seer",
+    "arcane",
+    "covenant",
+    "code-review",
+    "static-analysis",
+    "sarif"
+  ]
+}
