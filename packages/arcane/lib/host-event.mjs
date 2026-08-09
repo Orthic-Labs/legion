@@ -45,7 +45,9 @@ const DIGEST_RE = DIGEST_PATTERN.source;
  */
 export const EVENT_TYPE = Object.freeze([
   'session-start', // SessionStart — bind authority identity for the turn
+  'subagent-start', // SubagentStart — bind subagent identity for the turn
   'user-prompt-submit', // UserPromptSubmit
+  'post-compact', // PostCompact — context compaction boundary
   'pre-effect', // PreToolUse
   'post-effect', // PostToolUse
   'post-effect-failure', // PostToolUseFailure
@@ -56,12 +58,17 @@ export const EVENT_TYPE = Object.freeze([
 /** Real host hook event names -> canonical EVENT_TYPE (§7.2, hook_enforcement_points). */
 export const LEGACY_HOST_EVENT_TYPE = Object.freeze({
   SessionStart: 'session-start',
+  SubagentStart: 'subagent-start',
   UserPromptSubmit: 'user-prompt-submit',
+  PostCompact: 'post-compact',
   PreToolUse: 'pre-effect',
   PostToolUse: 'post-effect',
   PostToolUseFailure: 'post-effect-failure',
   Stop: 'stop',
 });
+
+/** Lifecycle telemetry with no effect class — never a check candidate, never a mutation. */
+export const LIFECYCLE_TELEMETRY_EVENT_TYPES = Object.freeze(['session-start', 'user-prompt-submit', 'stop', 'ci-boundary', 'subagent-start', 'post-compact']);
 
 /** effectClass/target/operation — the proposed effect (pre-effect events) or the observed effect (post-effect events). */
 const EFFECT_IDENTITY_SCHEMA = Object.freeze({
@@ -328,8 +335,6 @@ const OTHER_MUTATING_CLASSES = Object.freeze([
   'VCS_COMMIT', 'VCS_PUSH', 'PUBLISH', 'EXTERNAL_SIDE_EFFECT',
 ]);
 
-const NON_QUALIFYING_EVENT_TYPES = Object.freeze(['session-start', 'user-prompt-submit', 'stop', 'ci-boundary']);
-
 /**
  * Classify a completed observation. Purely structural over the host event's
  * own fields — it never decides trust (HostIngestor does that) and never
@@ -381,7 +386,7 @@ export function classifyObservation(event, { policy } = {}) {
     return event.checkCorrelation?.declaredCheckId ? 'deterministic-check-candidate' : 'source-observation';
   }
   if (!effectClass) {
-    return NON_QUALIFYING_EVENT_TYPES.includes(event.eventType) ? 'non-qualifying-telemetry' : 'source-observation';
+    return LIFECYCLE_TELEMETRY_EVENT_TYPES.includes(event.eventType) ? 'non-qualifying-telemetry' : 'source-observation';
   }
   if (policy && typeof policy.effectRule === 'function' && !policy.effectRule(effectClass)) {
     return 'non-qualifying-telemetry';
