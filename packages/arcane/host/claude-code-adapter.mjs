@@ -19,14 +19,34 @@
 // Fields intentionally left null (no Claude Code source, and schema allows
 // null): runId, taskId, requestId, contractId, sourceRevision, subject,
 // pathMeta, networkMeta, priorCorrelation, checkCorrelation, replaySequence.
-// `effect` (the proposed/observed effect identity) is also left null: Claude
-// Code's `tool_name` (e.g. "Write", "Bash", "Read") has no documented,
-// exact 1:1 mapping onto Arcane's 12-value EFFECT_CLASS enum, and guessing
-// one per tool is exactly the kind of new engineering decision this module
-// must not make silently — it is recorded below as an open item for Sage,
-// not invented here. Without an effect class, `classifyObservation` cannot
-// call an event a mutation-observation, which is the safe direction (no
-// unearned mutation claim), never the dangerous one.
+//
+// `effect` (the proposed/observed effect identity) is populated ONLY on
+// post-effect events (PostToolUse / PostToolUseFailure), and only for the
+// small set of tools below where the mapping from Claude Code's `tool_name`
+// to Arcane's EFFECT_CLASS enum is direct and honest — an observation of
+// what already happened, never a pre-execution claim. `effect` stays null on
+// PreToolUse unconditionally (invariant I-1): a pre-effect event describing
+// what the model merely *proposed* is exactly the kind of ungrounded
+// mutation claim this adapter must not manufacture.
+//
+// For everything NOT in EFFECT_TOOL_MAP below, `effect` stays null — this is
+// deliberate, not an omission, and is pinned by regression tests:
+//   - Bash: a command string is not a path. Any parser could be defeated by
+//     a command shaped to look benign, so parsing is refused on purpose.
+//     Named consequence: shell-driven mutations (rm, mv, >, sed -i) are
+//     invisible to locked-domain enforcement through this adapter.
+//   - MultiEdit: the frozen EFFECT_IDENTITY_SCHEMA takes a SINGLE `target`
+//     string, not an array. Picking one path out of MultiEdit's multiple
+//     edits and dropping the rest would look partially fixed while silently
+//     missing files — worse than an honest null.
+//   - Read/Grep/Glob: the frozen EFFECT_CLASS enum has no read class, and
+//     PreEffectGate doctrine forbids inferring read effects from a tool
+//     name.
+//   - mcp__*/unrecognized tools: side-effect shape is unknown; guessing one
+//     is the exact invention this module has always refused to do.
+// Without an effect class, `classifyObservation` cannot call an event a
+// mutation-observation, which is the safe direction (no unearned mutation
+// claim), never the dangerous one.
 //
 // Degraded mode (mandatory, honest): if the KeyRing cannot produce an active
 // key (`ARC_AUTH_KEY_UNAVAILABLE`), this module never falls back to signing
@@ -64,6 +84,27 @@ const POST_TOOL_HOOK_EVENTS = Object.freeze(['PostToolUse', 'PostToolUseFailure'
 const SUPPORTED_HOOK_EVENTS = Object.freeze([
   'SessionStart', 'UserPromptSubmit', 'PreToolUse', 'PostToolUse', 'PostToolUseFailure', 'Stop',
 ]);
+
+/**
+ * Direct, honest tool_name -> effect mappings for POST-EFFECT events only
+ * (see module header). `targetField` names the `tool_input` property that
+ * carries the observed target; a missing/empty value degrades the whole
+ * event to `effect: null` (EFFECT_IDENTITY_SCHEMA requires non-empty
+ * `target` — never substitute an empty string or a placeholder like
+ * "unknown").
+ *
+ * NOTE: WebSearch's `target` (`tool_input.query`) is a search query string,
+ * NOT a filesystem path. It is structurally inert against locked-domain glob
+ * matching (harmless), but must never be "fixed" into a fake path by a
+ * future reader.
+ */
+const EFFECT_TOOL_MAP = Object.freeze({
+  Write: { effectClass: 'FILE_WRITE', targetField: 'file_path' },
+  Edit: { effectClass: 'FILE_WRITE', targetField: 'file_path' },
+  NotebookEdit: { effectClass: 'FILE_WRITE', targetField: 'file_path' },
+  WebFetch: { effectClass: 'NETWORK_EGRESS', targetField: 'url' },
+  WebSearch: { effectClass: 'NETWORK_EGRESS', targetField: 'query' },
+});
 
 /**
  * Build the pre-normalization `raw` object `normalizeHostEvent` expects, from
@@ -156,6 +197,20 @@ export function buildRawHostEvent(hookPayload) {
         ? digest(canonicalJson(hookPayload.tool_response))
         : null,
     };
+
+    // See EFFECT_TOOL_MAP above and the module header: only the mapped
+    // tools get a populated `effect`; everything else (Bash, MultiEdit,
+    // Task/Agent, Read/Grep/Glob, mcp__*, unrecognized) stays null on
+    // purpose.
+    const mapping = typeof hookPayload.tool_name === 'string' ? EFFECT_TOOL_MAP[hookPayload.tool_name] : undefined;
+    if (mapping) {
+      const target = hookPayload.tool_input?.[mapping.targetField];
+      raw.effect = typeof target === 'string' && target.length > 0
+        ? { effectClass: mapping.effectClass, target, operation: hookPayload.tool_name }
+        : null; // missing/empty source field degrades to null, never "" or "unknown".
+    } else {
+      raw.effect = null;
+    }
   }
 
   return raw;
