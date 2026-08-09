@@ -207,7 +207,8 @@ function adaptProviderV2Registry(raw) {
 export function loadProviderRegistry(path = DEFAULT_REGISTRY, extensionPath = DEFAULT_EXTENSION) {
   const raw = JSON.parse(readFileSync(path, 'utf8'));
   if (raw?.schemaVersion === 2 && raw?.kind === 'nemesis-provider-registry') {
-    const registry = adaptProviderV2Registry(raw);
+    let registry = adaptProviderV2Registry(raw);
+    if (extensionPath && existsSync(extensionPath)) registry = extendRegistryWithNativeFamilies(registry, loadProviderRegistryExtension(extensionPath));
     validateProviderRegistry(registry);
     return registry;
   }
