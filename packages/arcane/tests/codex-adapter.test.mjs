@@ -108,6 +108,8 @@ test('EC-B: shell_command tool with NESTED tool_input.command is also read (Clau
 
 test('EC-B: sessionId falls back to CODEX_SESSION_ID env var when session_id/sessionId are absent', () => {
   const prior = process.env.CODEX_SESSION_ID;
+  const priorThread = process.env.CODEX_THREAD_ID;
+  delete process.env.CODEX_THREAD_ID;
   process.env.CODEX_SESSION_ID = 'env-session-123';
   try {
     const raw = buildRawCodexEvent({ hook_event_name: 'SessionStart', cwd: '/tmp/ws' });
@@ -115,12 +117,35 @@ test('EC-B: sessionId falls back to CODEX_SESSION_ID env var when session_id/ses
   } finally {
     if (prior === undefined) delete process.env.CODEX_SESSION_ID;
     else process.env.CODEX_SESSION_ID = prior;
+    if (priorThread === undefined) delete process.env.CODEX_THREAD_ID;
+    else process.env.CODEX_THREAD_ID = priorThread;
+  }
+});
+
+test('EC-B: Codex thread identity completes SubagentStart authority binding', () => {
+  const prior = process.env.CODEX_THREAD_ID;
+  process.env.CODEX_THREAD_ID = 'thread-019fe6fe';
+  try {
+    const payload = { hook_event_name: 'SubagentStart', cwd: '/tmp/ws', agent_id: 'agent-1', agent_type: 'sage' };
+    const hostEvent = normalizeCodexEvent(payload);
+    assert.equal(hostEvent.sessionId, 'thread-019fe6fe');
+    assert.deepEqual(observeCodexIdentity(payload, { hostEvent }), {
+      sessionId: 'thread-019fe6fe',
+      agentId: 'agent-1',
+      agentType: 'sage',
+      eventId: hostEvent.eventId,
+    });
+  } finally {
+    if (prior === undefined) delete process.env.CODEX_THREAD_ID;
+    else process.env.CODEX_THREAD_ID = prior;
   }
 });
 
 test('EC-B: sessionId falls back to CLAUDE_SESSION_ID env var when session_id/sessionId/CODEX_SESSION_ID are absent', () => {
   const priorCodex = process.env.CODEX_SESSION_ID;
   const priorClaude = process.env.CLAUDE_SESSION_ID;
+  const priorThread = process.env.CODEX_THREAD_ID;
+  delete process.env.CODEX_THREAD_ID;
   delete process.env.CODEX_SESSION_ID;
   process.env.CLAUDE_SESSION_ID = 'env-claude-session-456';
   try {
@@ -129,6 +154,7 @@ test('EC-B: sessionId falls back to CLAUDE_SESSION_ID env var when session_id/se
   } finally {
     if (priorCodex === undefined) delete process.env.CODEX_SESSION_ID; else process.env.CODEX_SESSION_ID = priorCodex;
     if (priorClaude === undefined) delete process.env.CLAUDE_SESSION_ID; else process.env.CLAUDE_SESSION_ID = priorClaude;
+    if (priorThread === undefined) delete process.env.CODEX_THREAD_ID; else process.env.CODEX_THREAD_ID = priorThread;
   }
 });
 
