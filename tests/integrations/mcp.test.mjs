@@ -14,8 +14,8 @@ test('tools are read-only and cover the required surface', () => {
   const names = tools.map((tool) => tool.name).sort();
   assert.deepEqual(names, [
     'nemesis_audit', 'nemesis_doctor', 'nemesis_explain', 'nemesis_get_finding',
-    'nemesis_get_run', 'nemesis_list_languages', 'nemesis_list_providers',
-    'nemesis_plan', 'nemesis_verify',
+    'nemesis_get_run', 'nemesis_list_families', 'nemesis_list_languages',
+    'nemesis_list_providers', 'nemesis_list_skills', 'nemesis_plan', 'nemesis_verify',
   ]);
   // No mutation tools.
   assert.ok(!tools.some((tool) => /apply|fix|write|delete/.test(tool.name)));
@@ -34,7 +34,7 @@ test('tools/list and tools/call work over stdio', () => {
   assert.equal(initialize.result.serverInfo.name, 'nemesis');
   assert.ok(initialize.result.capabilities.tools);
   const list = lines.find((line) => line.id === 2);
-  assert.equal(list.result.tools.length, 9);
+  assert.equal(list.result.tools.length, 11);
   const call = lines.find((line) => line.id === 3);
   assert.equal(call.result.isError, false);
   assert.ok(JSON.parse(call.result.content[0].text).providers.length > 0);
