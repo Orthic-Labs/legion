@@ -2,10 +2,11 @@ import { createHash } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { BOOK_TASKS } from './qualification-task-map.mjs';
 import {currentSourceRevision}from '../lib/qualification/source-revision.mjs';
 
-const root = resolve(new URL('..', import.meta.url).pathname.replace(/^\/(?:[A-Za-z]:)/, (value) => value.slice(1)));
+const root = resolve(fileURLToPath(new URL('..', import.meta.url)));
 const book = Number(process.argv[process.argv.indexOf('--book') + 1]);
 if (!BOOK_TASKS[book]) throw new Error(`No task map for Book ${book}`);
 const sha256 = (bytes) => `sha256:${createHash('sha256').update(bytes).digest('hex')}`;

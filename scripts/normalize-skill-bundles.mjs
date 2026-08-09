@@ -1,9 +1,10 @@
 import { readFileSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { transformSkillText } from '../lib/skills/transform.mjs';
 import { digestBytes } from '../lib/artifacts/digests.mjs';
 
-const root=resolve(new URL('..',import.meta.url).pathname.replace(/^\/(?:[A-Za-z]:)/,(value)=>value.slice(1)));
+const root=resolve(fileURLToPath(new URL('..',import.meta.url)));
 for(const bundle of ['designer','writing']){
   const manifestPath=resolve(root,'skills/manifests',`${bundle}.json`);const manifest=JSON.parse(readFileSync(manifestPath,'utf8'));
   manifest.licenseState='unresolved';manifest.rightsReceipt=null;
