@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "kind": "nemesis-profiles",
+  "kind": "legion-profiles",
   "profiles": {
     "fast": {
       "profile": "fast",

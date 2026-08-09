@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 300" role="img" aria-label="Nemesis — Every angle attacked. Every claim proven.">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 300" role="img" aria-label="Legion — Every angle attacked. Every claim proven.">
   <rect width="1200" height="300" fill="#111318"/>
   <rect width="1200" height="6" fill="#df6428"/>
   <g stroke="#df6428" stroke-opacity="0.12" stroke-width="1">
@@ -23,6 +23,6 @@
   </g>
   <circle cx="1010" cy="148" r="5" fill="#df6428"/>
   <text x="64" y="108" font-family="Inter,-apple-system,'Segoe UI',sans-serif" font-size="15" font-weight="800" letter-spacing="4" fill="#df6428">ORTHIC LABS</text>
-  <text x="64" y="196" font-family="Inter,-apple-system,'Segoe UI',sans-serif" font-size="96" font-weight="800" letter-spacing="6" fill="#f7f7f4">NEMESIS</text>
+  <text x="64" y="196" font-family="Inter,-apple-system,'Segoe UI',sans-serif" font-size="96" font-weight="800" letter-spacing="6" fill="#f7f7f4">LEGION</text>
   <text x="64" y="242" font-family="Inter,-apple-system,'Segoe UI',sans-serif" font-size="24" fill="#9aa3af">Every angle attacked. Every claim proven.</text>
 </svg>

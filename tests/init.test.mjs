@@ -6,7 +6,7 @@ import test from 'node:test';
 import { runInit } from '../lib/cli/commands/init.mjs';
 
 test('init defaults to a no-write preview', () => {
-  const root = mkdtempSync(join(tmpdir(), 'nemesis-init-characterization-'));
+  const root = mkdtempSync(join(tmpdir(), 'legion-init-characterization-'));
   let output = '';
   try {
     const result = runInit([], { stdout: { write(value) { output += value; } }, stderr: { write() {} }, cwd: root });

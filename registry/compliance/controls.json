@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "kind": "nemesis-compliance-registry",
+  "kind": "legion-compliance-registry",
   "controls": [
     {
       "id": "control.secret-management",

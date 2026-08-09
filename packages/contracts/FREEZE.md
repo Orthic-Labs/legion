@@ -1,6 +1,6 @@
 # WP2 Freeze Record — Legion Shared Contracts
 
-**Scope:** `D:/workspace/tools/skills/nemesis/packages/contracts/` only. Nothing outside
+**Scope:** `D:/workspace/tools/skills/legion/packages/contracts/` only. Nothing outside
 this directory was created, edited, or deleted by this work. Naming throughout is
 canonical per `docs/plans/legion/00-CANON.md`: Sage, Alchemist, Seer, Arcane,
 Covenant, Legion, Kernel. The archive's `Sorcerer`/`Sentinel` names do not appear
@@ -12,8 +12,8 @@ from that specific scan).
 `docs/plans/legion/ARCHITECTURE.md` (Part III, §33, §6a, §24a, Part XI-A),
 `docs/plans/legion/COVENANT.md` (§10, §11, §12), the archive's
 `02-FINAL-IMPLEMENTATION-PLAN.md` Workstream C / §7 / §8 / §9, and the existing
-sealed schema substrate under `tools/skills/nemesis/schemas/` and
-`tools/skills/nemesis/lib/contracts/` (read-only; not modified).
+sealed schema substrate under `tools/skills/legion/schemas/` and
+`tools/skills/legion/lib/contracts/` (read-only; not modified).
 
 **Mid-freeze update incorporated:** the S00 Forge semantic baseline completed
 concurrently and is cited where it changed contract design — see "S00 baseline
@@ -79,7 +79,7 @@ grammar in `ids.md` is exercised by at least one schema, `enums.mjs`'s
 schema or `index.mjs` contains the superseded archive naming.
 
 No ajv or other JSON Schema validation library was added (none exists in the
-nemesis repo and the task brief explicitly forbids new dependencies); checks
+legion repo and the task brief explicitly forbids new dependencies); checks
 are structural (JSON parse, `$defs`/`properties`/`enum`/`required`/`const`
 presence and set-equality against `enums.mjs`), consistent with the task
 brief's "structural JSON validity + required-key presence checks are
@@ -90,7 +90,7 @@ sufficient."
 ### J-0 — camelCase field naming (global)
 
 ARCHITECTURE.md's prose examples use `snake_case` (`contract_id`,
-`source_revision`, `open_questions`). Every existing nemesis JSON Schema
+`source_revision`, `open_questions`). Every existing legion JSON Schema
 inspected (`schemas/core/artifact-record-v1.schema.json`,
 `schemas/execution-receipt-v1.schema.json`,
 `schemas/qualification/release-manifest-v1.schema.json`, etc.) uses
@@ -154,12 +154,12 @@ authority initiated itself. `convenedBy` is `const: "legion"` when present,
 
 `evidence-capability-receipt-v1.evidenceClass` and its enum values
 (`deterministic/measured/interpretive/external/human`) are copied from
-nemesis's existing `EVIDENCE_CLASS` convention
-(`tools/skills/nemesis/lib/contracts/index.mjs` re-exporting from
+legion's existing `EVIDENCE_CLASS` convention
+(`tools/skills/legion/lib/contracts/index.mjs` re-exporting from
 `providers/security/contracts.mjs`, and mirrored in
 `schemas/core/status-enums.schema.json`). Did not `import` that module from
 `packages/contracts/enums.mjs` to avoid this new package taking a runtime
-dependency on nemesis's internal provider/audit pipeline (a heavier,
+dependency on legion's internal provider/audit pipeline (a heavier,
 differently-versioned module graph) for the sake of five string literals.
 This is a deliberate alignment, not an accidental duplication — flagged per
 the "reuse its conventions" instruction, since literal `import` was judged

@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "nemesis-book-qualification-v2",
+  "$id": "legion-book-qualification-v2",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -21,7 +21,7 @@
       "const": 2
     },
     "kind": {
-      "const": "nemesis-book-qualification"
+      "const": "legion-book-qualification"
     },
     "book": {
       "type": "integer",

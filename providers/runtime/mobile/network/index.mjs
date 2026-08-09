@@ -10,6 +10,6 @@ export function planMobileDataNetwork({ actorId = null, supportedSchemaVersions 
     { id: 'pressure:low-disk-memory', family: 'pressure', actorId, invariants: ['preserve-user-data', 'orphan-cleanup', 'bounded-streaming'], status: 'unproven' },
     { id: 'cache:unchanged-content', family: 'cache', actorId, invariants: ['reuse-validated-content', 'bounded-growth'], status: 'unproven' },
   ];
-  return { schemaVersion: 1, kind: 'nemesis-mobile-data-network-plan', status: 'unproven', terminal: true, actorId, scenarios,
+  return { schemaVersion: 1, kind: 'legion-mobile-data-network-plan', status: 'unproven', terminal: true, actorId, scenarios,
     denominator: { total: scenarios.length, accounted: scenarios.length }, coverageGaps: scenarios.map((item) => `${item.id}:device-execution-missing`) };
 }

@@ -1,5 +1,5 @@
 rules:
-  - id: nemesis-command-injection-shell
+  - id: legion-command-injection-shell
     languages: [python, javascript, typescript]
     message: Request-controlled data may reach a shell execution sink.
     severity: WARNING
@@ -11,7 +11,7 @@ rules:
       - pattern: os.system(...)
       - pattern: exec(...)
       - pattern: child_process.exec(...)
-  - id: nemesis-sql-interpolation
+  - id: legion-sql-interpolation
     languages: [python, javascript, typescript]
     message: SQL text appears to interpolate variable input.
     severity: WARNING

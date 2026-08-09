@@ -91,7 +91,7 @@ export function buildWebActorFixtureSchema() {
     required: ['schemaVersion', 'kind', 'status', 'complete', 'proof', 'terminal', 'binding', 'actors', 'denominator', 'coverageGaps', 'digest'],
     properties: {
       schemaVersion: { const: 1 },
-      kind: { const: 'nemesis-web-actor-fixtures' },
+      kind: { const: 'legion-web-actor-fixtures' },
       status: { const: 'pass' },
       complete: { const: true },
       proof: { const: true },

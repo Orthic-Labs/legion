@@ -27,7 +27,7 @@ export function evaluateDesktopIpc({ commands = [], attempts = [], helpers = [],
   for (const key of INVENTORY) if (!Array.isArray(inventory[key])) gaps.push(`inventory-missing:${key}`);
   for (const key of BOUNDARIES) if (boundaries[key] !== true) gaps.push(`boundary-unproven:${key}`);
   if (evidence.source !== 'native-host' || evidence.terminal !== true) gaps.push('native-ipc-receipt-missing');
-  return { schemaVersion: 1, kind: 'nemesis-desktop-ipc', status: gaps.length ? 'unproven' : 'pass', terminal: true,
+  return { schemaVersion: 1, kind: 'legion-desktop-ipc', status: gaps.length ? 'unproven' : 'pass', terminal: true,
     commands: commands.map(({ id, actors = [], capabilities = [] }) => ({ id, actors, capabilities })), receipts, helpers, inventory, boundaries, evidence, coverageGaps: [...new Set(gaps)].sort() };
 }
 

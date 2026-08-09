@@ -14,7 +14,7 @@ export function planMobileLifecycle({ targetId = null, journeyId = null, deviceC
   const available = deviceCapability.status === 'available';
   const scenarios = CASES.map(([id, expectedOutcome]) => ({ id, targetId, journeyId, expectedOutcome,
     status: available ? 'unproven' : 'blocked', terminal: true, binding, captures: ['crash', 'hang', 'visible-state', 'backend-effects', 'recovery'] }));
-  return { schemaVersion: 1, kind: 'nemesis-mobile-lifecycle-plan', targetId, journeyId,
+  return { schemaVersion: 1, kind: 'legion-mobile-lifecycle-plan', targetId, journeyId,
     status: available ? 'unproven' : 'blocked', terminal: true, scenarios,
     coverageGaps: available ? ['device-execution-not-run'] : [`device-capability-${deviceCapability.status ?? 'missing'}`] };
 }

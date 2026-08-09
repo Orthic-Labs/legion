@@ -62,7 +62,7 @@ function buildImportGraph(files) {
     const imports = new Set();
 
     // ES imports: import ... from '...' and import '...'
-    const esRe = /import\s+(?:[\s\S]*?from\s+)?['"](nemesis-skill://designer/engine/scripts/detector/node/[^'"]+)['"]/g;
+    const esRe = /import\s+(?:[\s\S]*?from\s+)?['"](legion-skill://designer/engine/scripts/detector/node/[^'"]+)['"]/g;
     let m;
     while ((m = esRe.exec(content)) !== null) {
       const resolved = resolveImport(m[1], dir, fileSet);
@@ -77,7 +77,7 @@ function buildImportGraph(files) {
     }
 
     // SCSS @use / @forward
-    const scssRe = /@(?:use|forward)\s+['"](nemesis-skill://designer/engine/scripts/detector/node/[^'"]+)['"]/g;
+    const scssRe = /@(?:use|forward)\s+['"](legion-skill://designer/engine/scripts/detector/node/[^'"]+)['"]/g;
     while ((m = scssRe.exec(content)) !== null) {
       const resolved = resolveImport(m[1], dir, fileSet);
       if (resolved) imports.add(resolved);

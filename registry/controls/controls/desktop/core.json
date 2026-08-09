@@ -51,7 +51,7 @@
       },
       "provenance": {
         "kind": "canonical",
-        "source": "nemesis:desktop",
+        "source": "legion:desktop",
         "rights": "internal-contract",
         "lineage": [
           "canonical:desktop:processes"
@@ -107,7 +107,7 @@
       },
       "provenance": {
         "kind": "canonical",
-        "source": "nemesis:desktop",
+        "source": "legion:desktop",
         "rights": "internal-contract",
         "lineage": [
           "canonical:desktop:ipc"
@@ -163,7 +163,7 @@
       },
       "provenance": {
         "kind": "canonical",
-        "source": "nemesis:desktop",
+        "source": "legion:desktop",
         "rights": "internal-contract",
         "lineage": [
           "canonical:desktop:files"
@@ -219,7 +219,7 @@
       },
       "provenance": {
         "kind": "canonical",
-        "source": "nemesis:desktop",
+        "source": "legion:desktop",
         "rights": "internal-contract",
         "lineage": [
           "canonical:desktop:local-data"
@@ -275,7 +275,7 @@
       },
       "provenance": {
         "kind": "canonical",
-        "source": "nemesis:desktop",
+        "source": "legion:desktop",
         "rights": "internal-contract",
         "lineage": [
           "canonical:desktop:remote-services"
@@ -331,7 +331,7 @@
       },
       "provenance": {
         "kind": "canonical",
-        "source": "nemesis:desktop",
+        "source": "legion:desktop",
         "rights": "internal-contract",
         "lineage": [
           "canonical:desktop:os-integration"
@@ -387,7 +387,7 @@
       },
       "provenance": {
         "kind": "canonical",
-        "source": "nemesis:desktop",
+        "source": "legion:desktop",
         "rights": "internal-contract",
         "lineage": [
           "canonical:desktop:windows-displays-input"
@@ -443,7 +443,7 @@
       },
       "provenance": {
         "kind": "canonical",
-        "source": "nemesis:desktop",
+        "source": "legion:desktop",
         "rights": "internal-contract",
         "lineage": [
           "canonical:desktop:resources-soak"
@@ -499,7 +499,7 @@
       },
       "provenance": {
         "kind": "canonical",
-        "source": "nemesis:desktop",
+        "source": "legion:desktop",
         "rights": "internal-contract",
         "lineage": [
           "canonical:desktop:fault-recovery"
@@ -555,7 +555,7 @@
       },
       "provenance": {
         "kind": "canonical",
-        "source": "nemesis:desktop",
+        "source": "legion:desktop",
         "rights": "internal-contract",
         "lineage": [
           "canonical:desktop:installer"
@@ -611,7 +611,7 @@
       },
       "provenance": {
         "kind": "canonical",
-        "source": "nemesis:desktop",
+        "source": "legion:desktop",
         "rights": "internal-contract",
         "lineage": [
           "canonical:desktop:updater-signing"
@@ -667,7 +667,7 @@
       },
       "provenance": {
         "kind": "canonical",
-        "source": "nemesis:desktop",
+        "source": "legion:desktop",
         "rights": "internal-contract",
         "lineage": [
           "canonical:desktop:windows"
@@ -723,7 +723,7 @@
       },
       "provenance": {
         "kind": "canonical",
-        "source": "nemesis:desktop",
+        "source": "legion:desktop",
         "rights": "internal-contract",
         "lineage": [
           "canonical:desktop:macos"
@@ -779,7 +779,7 @@
       },
       "provenance": {
         "kind": "canonical",
-        "source": "nemesis:desktop",
+        "source": "legion:desktop",
         "rights": "internal-contract",
         "lineage": [
           "canonical:desktop:linux"
@@ -835,7 +835,7 @@
       },
       "provenance": {
         "kind": "canonical",
-        "source": "nemesis:desktop",
+        "source": "legion:desktop",
         "rights": "internal-contract",
         "lineage": [
           "canonical:desktop:accessibility-i18n"
@@ -891,7 +891,7 @@
       },
       "provenance": {
         "kind": "canonical",
-        "source": "nemesis:desktop",
+        "source": "legion:desktop",
         "rights": "internal-contract",
         "lineage": [
           "canonical:desktop:compatibility"
@@ -947,7 +947,7 @@
       },
       "provenance": {
         "kind": "canonical",
-        "source": "nemesis:desktop",
+        "source": "legion:desktop",
         "rights": "internal-contract",
         "lineage": [
           "canonical:desktop:tests"
@@ -1003,7 +1003,7 @@
       },
       "provenance": {
         "kind": "canonical",
-        "source": "nemesis:desktop",
+        "source": "legion:desktop",
         "rights": "internal-contract",
         "lineage": [
           "canonical:desktop:observability-support"
@@ -1059,7 +1059,7 @@
       },
       "provenance": {
         "kind": "canonical",
-        "source": "nemesis:desktop",
+        "source": "legion:desktop",
         "rights": "internal-contract",
         "lineage": [
           "canonical:desktop:supply-chain"
@@ -1115,7 +1115,7 @@
       },
       "provenance": {
         "kind": "canonical",
-        "source": "nemesis:desktop",
+        "source": "legion:desktop",
         "rights": "internal-contract",
         "lineage": [
           "canonical:desktop:licensing"
@@ -1171,7 +1171,7 @@
       },
       "provenance": {
         "kind": "canonical",
-        "source": "nemesis:desktop",
+        "source": "legion:desktop",
         "rights": "internal-contract",
         "lineage": [
           "canonical:desktop:legal-docs"
@@ -1227,7 +1227,7 @@
       },
       "provenance": {
         "kind": "canonical",
-        "source": "nemesis:desktop",
+        "source": "legion:desktop",
         "rights": "internal-contract",
         "lineage": [
           "canonical:desktop:ai"

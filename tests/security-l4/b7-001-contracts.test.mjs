@@ -86,7 +86,7 @@ test('the canonical artifact store record carries binding and denominator digest
     binding,
     denominatorDigest: 'sha256:denom',
   });
-  assert.equal(record.kind, 'nemesis-artifact-record');
+  assert.equal(record.kind, 'legion-artifact-record');
   assert.equal(record.mediaType, 'application/json');
   assert.deepEqual(record.binding, binding);
   assert.equal(record.denominatorDigest, 'sha256:denom');

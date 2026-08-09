@@ -35,9 +35,9 @@ test('B4-025 does not account nonterminal receipts or pass empty qualification',
 
 test('B4-025 joins every required desktop evidence family', () => {
   const kinds = [
-    'nemesis-desktop-runtime', 'nemesis-desktop-ipc', 'nemesis-desktop-files-storage',
-    'nemesis-desktop-os-matrix', 'nemesis-desktop-performance',
-    'nemesis-desktop-installer-lifecycle', 'nemesis-desktop-updater', 'nemesis-desktop-windows',
+    'legion-desktop-runtime', 'legion-desktop-ipc', 'legion-desktop-files-storage',
+    'legion-desktop-os-matrix', 'legion-desktop-performance',
+    'legion-desktop-installer-lifecycle', 'legion-desktop-updater', 'legion-desktop-windows',
   ];
   const receipts = kinds.map((kind, index) => ({ kind, targetId: 'app', controlId: `c${index}`, scenarioId: `s${index}`, claimLevel: 'runtime', status: 'pass', terminal: true }));
   const result = integrateDesktopEvidence({

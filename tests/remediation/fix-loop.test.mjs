@@ -12,7 +12,7 @@ test('fix proposal binds finding, root cause, patch, and validation commands', (
     targetPaths: ['a.ts'], preconditions: ['p'], patch: { path: 'patches/fix.patch', digest: 'sha256:d' },
     expectedBehavior: ['b'], risks: ['r'], validationCommands: ['v'], tier: 'MECHANICAL',
   });
-  assert.equal(proposal.kind, 'nemesis-fix-proposal');
+  assert.equal(proposal.kind, 'legion-fix-proposal');
   assert.equal(proposal.findingId, 'f1');
   assert.equal(proposal.tier, 'MECHANICAL');
   assert.ok(proposal.id.startsWith('sha256:'));

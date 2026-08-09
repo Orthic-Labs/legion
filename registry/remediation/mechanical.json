@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "kind": "nemesis-mechanical-remediation-registry",
+  "kind": "legion-mechanical-remediation-registry",
   "source": "lib/remediation/producers/",
   "generator": "lib/remediation/mechanical.mjs",
   "producers": [

@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "nemesis-external-evidence-manifest-v1",
+  "$id": "legion-external-evidence-manifest-v1",
   "type": "object",
   "additionalProperties": false,
   "required": [

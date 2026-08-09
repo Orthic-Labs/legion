@@ -26,7 +26,7 @@ export function verifySourceProvenance(manifest, { verifyFiles = true } = {}) {
     if (verifyFiles && source.path && fileDigest(resolve(root, source.path)) !== source.digest) blockers.push({ kind: 'source-digest-mismatch', source: source.id });
   }
   if (!sources.length) blockers.push({ kind: 'source-provenance-absent' });
-  return { schemaVersion: 1, kind: 'nemesis-source-provenance-qualification', decision: blockers.length ? 'BLOCKED' : 'QUALIFIED', blockers, sources: sources.map(({ path, ...source }) => source) };
+  return { schemaVersion: 1, kind: 'legion-source-provenance-qualification', decision: blockers.length ? 'BLOCKED' : 'QUALIFIED', blockers, sources: sources.map(({ path, ...source }) => source) };
 }
 
 export function writeSourceProvenanceQualification(manifest, outputPath, options = {}) {

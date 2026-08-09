@@ -6,7 +6,7 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import test from 'node:test';
 
-const BIN = fileURLToPath(new URL('../bin/nemesis.mjs', import.meta.url));
+const BIN = fileURLToPath(new URL('../bin/legion.mjs', import.meta.url));
 const root = fileURLToPath(new URL('..', import.meta.url));
 
 function doctor(args = [], env = {}) {
@@ -20,7 +20,7 @@ test('doctor --json emits the canonical shape', () => {
   assert.equal(result.status, 0);
   const report = JSON.parse(result.stdout);
   assert.equal(report.schemaVersion, 1);
-  assert.equal(report.kind, 'nemesis-doctor');
+  assert.equal(report.kind, 'legion-doctor');
   assert.ok(report.repository.root);
   assert.ok(['ready', 'stale', 'missing', 'incompatible', 'corrupt'].includes(report.cortex.state));
   assert.ok(['bundled', 'external', 'precomputed'].includes(report.cortex.mode));
@@ -45,31 +45,31 @@ test('doctor reflects signing key presence', () => {
 });
 
 test('init dry-run previews without writing', () => {
-  const dir = mkdtempSync(join(tmpdir(), 'nemesis-init-'));
+  const dir = mkdtempSync(join(tmpdir(), 'legion-init-'));
   try {
     const init = spawnSync(process.execPath, [BIN, 'init', dir, '--dry-run'], {
       cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'],
     });
     assert.equal(init.status, 0);
     const preview = JSON.parse(init.stdout);
-    assert.equal(preview.kind, 'nemesis-init-preview');
+    assert.equal(preview.kind, 'legion-init-preview');
     assert.equal(preview.dryRun, true);
-    assert.ok(!existsSync(join(dir, 'nemesis.config.json')), 'dry run must not write config');
+    assert.ok(!existsSync(join(dir, 'legion.config.json')), 'dry run must not write config');
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
 });
 
 test('init --write creates config and ignore entries', () => {
-  const dir = mkdtempSync(join(tmpdir(), 'nemesis-init-'));
+  const dir = mkdtempSync(join(tmpdir(), 'legion-init-'));
   try {
     const init = spawnSync(process.execPath, [BIN, 'init', dir, '--write'], {
       cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'],
     });
     assert.equal(init.status, 0);
-    assert.ok(existsSync(join(dir, 'nemesis.config.json')), 'config written');
+    assert.ok(existsSync(join(dir, 'legion.config.json')), 'config written');
     assert.ok(existsSync(join(dir, '.gitignore')), 'gitignore written');
-    assert.ok(readFileSync(join(dir, '.gitignore'), 'utf8').includes('.nemesis/'));
+    assert.ok(readFileSync(join(dir, '.gitignore'), 'utf8').includes('.legion/'));
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }

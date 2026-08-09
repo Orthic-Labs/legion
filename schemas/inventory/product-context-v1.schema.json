@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "nemesis-product-context-v1",
+  "$id": "legion-product-context-v1",
   "type": "object",
   "additionalProperties": false,
   "required": ["roles", "tenants", "actors", "accounts", "permissions", "bindings", "gaps", "plans", "entitlements", "dataClasses", "assets", "riskCandidates", "riskAuthority"],

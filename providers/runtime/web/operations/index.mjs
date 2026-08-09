@@ -32,9 +32,9 @@ function unwrap(envelope, trustedProducers) {
 }
 
 export function verifyOperationsExercise({ binding = {}, exercises = [], trustedProducers = [], now = null, maxAgeMs = null } = {}) {
-  if (!Array.isArray(exercises) || !Array.isArray(trustedProducers) || exercises.some((item) => !item || typeof item !== 'object') || trustedProducers.some((item) => !item || typeof item !== 'object')) return finalize('nemesis-web-operations-exercise', { status: 'error', terminal: true, binding, denominator: denominator([], []), receipts: [], coverageGaps: ['operations-collections-invalid'] });
+  if (!Array.isArray(exercises) || !Array.isArray(trustedProducers) || exercises.some((item) => !item || typeof item !== 'object') || trustedProducers.some((item) => !item || typeof item !== 'object')) return finalize('legion-web-operations-exercise', { status: 'error', terminal: true, binding, denominator: denominator([], []), receipts: [], coverageGaps: ['operations-collections-invalid'] });
   const identifiers = [...exercises.flatMap((item) => [item.id, item.producer].filter((value) => value !== undefined)), ...trustedProducers.map((item) => item.id)];
-  if (identifiers.some((id) => typeof id !== 'string' || !SAFE_IDENTIFIER.test(id))) return finalize('nemesis-web-operations-exercise', { status: 'error', terminal: true, binding, denominator: denominator([], []), receipts: [], coverageGaps: ['operations-identifiers-invalid'] });
+  if (identifiers.some((id) => typeof id !== 'string' || !SAFE_IDENTIFIER.test(id))) return finalize('legion-web-operations-exercise', { status: 'error', terminal: true, binding, denominator: denominator([], []), receipts: [], coverageGaps: ['operations-identifiers-invalid'] });
   const verified = sortById(exercises.map((item) => unwrap(item, trustedProducers)));
   const grouped = new Map();
   for (const item of verified) { if (!grouped.has(item.id)) grouped.set(item.id, []); grouped.get(item.id).push(item); }
@@ -78,5 +78,5 @@ export function verifyOperationsExercise({ binding = {}, exercises = [], trusted
   if (exercises.length === 0) gaps.push('operations-denominator-empty');
   const terminalStatuses = receipts.map((item) => item.status);
   const status = ['error', 'fail', 'blocked', 'partial', 'unproven'].find((candidate) => terminalStatuses.includes(candidate)) ?? (gaps.length ? 'unproven' : 'pass');
-  return finalize('nemesis-web-operations-exercise', { status, terminal: true, claimLevel: 'external', suppliedOnly: true, networkAttempted: false, binding, denominator: counts, receipts, coverageGaps: [...new Set(gaps)].sort() });
+  return finalize('legion-web-operations-exercise', { status, terminal: true, claimLevel: 'external', suppliedOnly: true, networkAttempted: false, binding, denominator: counts, receipts, coverageGaps: [...new Set(gaps)].sort() });
 }

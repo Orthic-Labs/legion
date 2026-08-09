@@ -1,7 +1,7 @@
 {
   "kind": "audit-facts",
-  "workspace": "/tmp/nemesis-verify-fixture",
-  "out_dir": "/tmp/nemesis-verify-fixture/.audit/20260806T000000Z",
+  "workspace": "/tmp/legion-verify-fixture",
+  "out_dir": "/tmp/legion-verify-fixture/.audit/20260806T000000Z",
   "generated_at": "2026-08-06T00:00:00.000Z",
   "stack": { "node": true, "ts": true, "py": false, "rust": false, "swift": false, "tauri": false, "pkgMgr": "npm", "git": true },
   "concurrency": 4,

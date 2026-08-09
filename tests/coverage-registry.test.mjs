@@ -37,10 +37,10 @@ test('no language may disappear because it is unsupported', () => {
 
 test('support matrix is generated from the registry only', () => {
   const matrix = buildSupportMatrix();
-  assert.equal(matrix.kind, 'nemesis-support-matrix');
+  assert.equal(matrix.kind, 'legion-support-matrix');
   assert.equal(matrix.rows.length, 85);
   const markdown = renderMarkdown(matrix);
-  assert.match(markdown, /# Nemesis language support matrix/);
+  assert.match(markdown, /# Legion language support matrix/);
   assert.ok(markdown.includes('| language.javascript |'));
 });
 
@@ -48,7 +48,7 @@ test('generated support matrix is committed and in sync', () => {
   const generated = readFileSync(new URL('../references/support-matrix.generated.md', import.meta.url), 'utf8');
   assert.ok(generated.includes('| language.javascript |'));
   assert.ok(generated.includes('| format.github-actions |'));
-  assert.match(generated, /# Nemesis language support matrix/);
+  assert.match(generated, /# Legion language support matrix/);
 });
 
 test('native provider matrix covers Wave-0 families', () => {

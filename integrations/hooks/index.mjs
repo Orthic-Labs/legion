@@ -5,17 +5,17 @@ import { existsSync, mkdirSync, readFileSync, unlinkSync, writeFileSync } from '
 import { join } from 'node:path';
 
 export const PRE_COMMIT_HOOK = `#!/bin/sh
-exec npx --no-install @orthic-labs/nemesis audit . \\
+exec npx --no-install @orthic-labs/legion audit . \\
   --profile fast \\
   --type uncommitted \\
-  --baseline .nemesis/baseline.json
+  --baseline .legion/baseline.json
 `;
 
 export const PRE_PUSH_HOOK = `#!/bin/sh
-exec npx --no-install @orthic-labs/nemesis audit . \\
+exec npx --no-install @orthic-labs/legion audit . \\
   --profile standard \\
   --type local \\
-  --baseline .nemesis/baseline.json
+  --baseline .legion/baseline.json
 `;
 
 export function installHook({ root, type, hooksDir = '.git/hooks' }) {
@@ -43,5 +43,5 @@ export function hookInstalled({ root, type, hooksDir = '.git/hooks' }) {
   const path = join(root, hooksDir, name);
   if (!existsSync(path)) return false;
   const content = readFileSync(path, 'utf8');
-  return content.includes('nemesis');
+  return content.includes('legion');
 }

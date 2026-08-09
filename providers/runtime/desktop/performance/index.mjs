@@ -52,7 +52,7 @@ export function evaluateDesktopPerformance({ artifact = {}, environment = {}, me
   const coverageGaps = [...new Set(gaps)].sort();
   return {
     schemaVersion: 1,
-    kind: 'nemesis-desktop-performance',
+    kind: 'legion-desktop-performance',
     status: coverageGaps.length ? (coverageGaps.every((gap) => gap.startsWith('soak-')) ? 'partial' : 'unproven') : 'pass',
     terminal: true,
     artifact,

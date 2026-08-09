@@ -15,7 +15,7 @@ export function evaluateDesktopStorage({ cases = [], migrations = [], locations 
   if (!migrations.length) gaps.push('migration-denominator-empty');
   if (evidence.source !== 'native-host' || evidence.terminal !== true) gaps.push('native-storage-receipt-missing');
   const status = gaps.some((gap) => gap.startsWith('migration-source-not-preserved')) ? 'fail' : gaps.length ? 'unproven' : 'pass';
-  return { schemaVersion: 1, kind: 'nemesis-desktop-files-storage', status, terminal: true, locations, receipts, evidence,
+  return { schemaVersion: 1, kind: 'legion-desktop-files-storage', status, terminal: true, locations, receipts, evidence,
     denominator: { total: receipts.length, accounted: receipts.filter((item) => item.id && item.terminal === true && TERMINAL.has(item.status)).length }, coverageGaps: gaps.sort() };
 }
 

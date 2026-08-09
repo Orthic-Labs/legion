@@ -1,1 +1,1 @@
-{"schemaVersion":1,"kind":"nemesis-designer-audit-profile","sourceUri":"nemesis-skill://designer/","rules":[],"exclusions":[],"status":"unproven","coverageGaps":["designer-skill-bundle-missing"]}
+{"schemaVersion":1,"kind":"legion-designer-audit-profile","sourceUri":"legion-skill://designer/","rules":[],"exclusions":[],"status":"unproven","coverageGaps":["designer-skill-bundle-missing"]}

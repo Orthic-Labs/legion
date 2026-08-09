@@ -29,7 +29,7 @@ export function qualificationBundle({
     : decision;
   return {
     schemaVersion: 1,
-    kind: 'nemesis-release-qualification',
+    kind: 'legion-release-qualification',
     sourceCommit,
     dispatchDigest,
     evidence,
@@ -85,7 +85,7 @@ export function runQualification({ base = root, sourceCommit = sourceRevision(),
 }
 
 if (import.meta.url === new URL(`file://${process.argv[1]}`).href) {
-  const result = runQualification({ dispatchDigest: process.env.NEMESIS_DISPATCH_DIGEST ?? null });
+  const result = runQualification({ dispatchDigest: process.env.LEGION_DISPATCH_DIGEST ?? null });
   console.log(`qualification: ${result.decision}`);
   console.log(`bundle: ${result.path}`);
   process.exit(result.decision === 'BLOCKED' ? 1 : 0);

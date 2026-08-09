@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "nemesis-sbom-receipt-v1",
+  "$id": "legion-sbom-receipt-v1",
   "type": "object",
   "additionalProperties": false,
   "required": [

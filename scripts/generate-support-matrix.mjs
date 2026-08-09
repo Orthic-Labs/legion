@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Generates support claims (README fragments, nemesis languages tables) from
+// Generates support claims (README fragments, legion languages tables) from
 // the coverage registry only. Fails with --check when generated output drifts.
 
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
@@ -16,7 +16,7 @@ export function buildSupportMatrix(registryPath = 'registry/coverage/coverage-re
   })).sort((a, b) => a.id.localeCompare(b.id));
   return {
     schemaVersion: 2,
-    kind: 'nemesis-support-matrix',
+    kind: 'legion-support-matrix',
     source: 'coverage-registry',
     generatedAt: 'GENERATED', // normalized; timestamps are non-semantic
     rows,
@@ -25,7 +25,7 @@ export function buildSupportMatrix(registryPath = 'registry/coverage/coverage-re
 }
 
 export function renderMarkdown(matrix) {
-  const lines = ['# Nemesis language support matrix', '', '| Language | Inventory | Parser | Native | Dataflow | Measured | Runtime | Remediation |', '|---|:---:|:---:|:---:|:---:|:---:|:---:|:---:|'];
+  const lines = ['# Legion language support matrix', '', '| Language | Inventory | Parser | Native | Dataflow | Measured | Runtime | Remediation |', '|---|:---:|:---:|:---:|:---:|:---:|:---:|:---:|'];
   for (const row of matrix.rows) {
     const t = row.tiers;
     lines.push(`| ${row.id} | ${t.inventory} | ${t.parser} | ${t.nativeSemantics} | ${t.crossFileDataflow} | ${t.measuredPack} | ${t.runtime} | ${t.remediation} |`);

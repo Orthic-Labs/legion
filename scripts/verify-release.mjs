@@ -33,8 +33,8 @@ export function verifyReleaseManifest(manifestPath, { distDir = null } = {}) {
 }
 
 export function verifyReleaseManifestObject(manifest, { root, manifestPath = null } = {}) {
-  if (manifest.schemaVersion !== 1 || manifest.kind !== 'nemesis-release-manifest') {
-    throw new Error('release manifest must be nemesis-release-manifest schemaVersion=1');
+  if (manifest.schemaVersion !== 1 || manifest.kind !== 'legion-release-manifest') {
+    throw new Error('release manifest must be legion-release-manifest schemaVersion=1');
   }
   const dir = resolve(root);
   const issues = [];
@@ -77,7 +77,7 @@ export function verifyReleaseManifestObject(manifest, { root, manifestPath = nul
   if (!manifest.version || !manifest.sourceRevision) issues.push({ artifact: 'manifest', issue: 'identity-missing' });
   return {
     schemaVersion: 1,
-    kind: 'nemesis-release-verification',
+    kind: 'legion-release-verification',
     manifest: manifestPath ? resolve(manifestPath) : null,
     valid: issues.length === 0,
     issues,

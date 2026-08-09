@@ -163,7 +163,7 @@ Key emails:
 6. Advanced tip (day 10-12)
 7. Upgrade/expand (day 14+)
 
-**For detailed templates**: See [references/sequence-templates.md](nemesis-skill://writing/specialists/email/references/sequence/references/sequence-templates.md)
+**For detailed templates**: See [references/sequence-templates.md](legion-skill://writing/specialists/email/references/sequence/references/sequence-templates.md)
 
 ---
 
@@ -206,7 +206,7 @@ Key emails:
 - Industry news roundup
 - Pricing updates
 
-**For detailed email type reference**: See [references/email-types.md](nemesis-skill://writing/specialists/email/references/sequence/references/email-types.md)
+**For detailed email type reference**: See [references/email-types.md](legion-skill://writing/specialists/email/references/sequence/references/email-types.md)
 
 ---
 
@@ -243,7 +243,7 @@ Key emails:
 - One clear primary CTA per email
 - Button text: Action + outcome
 
-**For detailed copy, personalization, and testing guidelines**: See [references/copy-guidelines.md](nemesis-skill://writing/specialists/email/references/sequence/references/copy-guidelines.md)
+**For detailed copy, personalization, and testing guidelines**: See [references/copy-guidelines.md](legion-skill://writing/specialists/email/references/sequence/references/copy-guidelines.md)
 
 ---
 
@@ -287,16 +287,16 @@ What to measure and benchmarks
 
 ## Tool Integrations
 
-For implementation, see the [tools registry](nemesis-skill://writing/specialists/email/tools/REGISTRY.md). Key email tools:
+For implementation, see the [tools registry](legion-skill://writing/specialists/email/tools/REGISTRY.md). Key email tools:
 
 | Tool | Best For | MCP | Guide |
 |------|----------|:---:|-------|
-| **Customer.io** | Behavior-based automation | - | [customer-io.md](nemesis-skill://writing/specialists/email/tools/integrations/customer-io.md) |
-| **Mailchimp** | SMB email marketing | ✓ | [mailchimp.md](nemesis-skill://writing/specialists/email/tools/integrations/mailchimp.md) |
-| **Nitrosend** | AI-native email (sequences via prompts) | ✓ | [nitrosend.md](nemesis-skill://writing/specialists/email/tools/integrations/nitrosend.md) |
-| **Resend** | Developer-friendly transactional | ✓ | [resend.md](nemesis-skill://writing/specialists/email/tools/integrations/resend.md) |
-| **SendGrid** | Transactional email at scale | - | [sendgrid.md](nemesis-skill://writing/specialists/email/tools/integrations/sendgrid.md) |
-| **Kit** | Creator/newsletter focused | - | [kit.md](nemesis-skill://writing/specialists/email/tools/integrations/kit.md) |
+| **Customer.io** | Behavior-based automation | - | [customer-io.md](legion-skill://writing/specialists/email/tools/integrations/customer-io.md) |
+| **Mailchimp** | SMB email marketing | ✓ | [mailchimp.md](legion-skill://writing/specialists/email/tools/integrations/mailchimp.md) |
+| **Nitrosend** | AI-native email (sequences via prompts) | ✓ | [nitrosend.md](legion-skill://writing/specialists/email/tools/integrations/nitrosend.md) |
+| **Resend** | Developer-friendly transactional | ✓ | [resend.md](legion-skill://writing/specialists/email/tools/integrations/resend.md) |
+| **SendGrid** | Transactional email at scale | - | [sendgrid.md](legion-skill://writing/specialists/email/tools/integrations/sendgrid.md) |
+| **Kit** | Creator/newsletter focused | - | [kit.md](legion-skill://writing/specialists/email/tools/integrations/kit.md) |
 
 ---
 

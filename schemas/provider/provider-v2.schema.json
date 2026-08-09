@@ -1,6 +1,6 @@
 {
   "$schema":"https://json-schema.org/draft/2020-12/schema",
-  "$id":"nemesis-provider-v2",
+  "$id":"legion-provider-v2",
   "type":"object",
   "additionalProperties":false,
   "required":["schemaVersion","id","providerVersion","family","lensIds","role","phase","dependsOn","consumes","produces","selector","denominatorKind","runner","hostCapabilities","execution","reasoning","benchmark","cleanClaim","controlIds","scopes","selectable"],

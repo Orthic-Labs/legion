@@ -24,7 +24,7 @@ test('actor schema validates complete runtime proof and rejects forged sparse pa
   const schema = JSON.parse(readFileSync(new URL('../../../schemas/platform/web-actor-fixture-v1.schema.json', import.meta.url), 'utf8'));
   const receipt = buildActorFixtures({ binding, now: '2026-08-08T00:00:00.000Z', required: [{ role: 'editor', tier: 'pro', tenantId: 'tenant-a', accountState: 'active' }], actors: [{ id: 'editor', identityId: 'identity-1', credentialPolicyId: 'sso-1', sessionPolicyId: 'bounded-1', role: 'editor', tier: 'pro', tenantId: 'tenant-a', accountState: 'active', secretRef: 'vault://actors/editor', expiresAt: '2026-08-09T00:00:00.000Z', serverAuthorizations: ['write'], uiVisibility: ['save'], transitionCapabilities: [] }] });
   assert.deepEqual(validateSchema(schema, receipt), []);
-  const forged = { schemaVersion: 1, kind: 'nemesis-web-actor-fixtures', status: 'pass', terminal: true, binding: {}, actors: [], denominator: { total: 0, accounted: 0, missing: [] }, coverageGaps: [], digest: `sha256:${'a'.repeat(64)}` };
+  const forged = { schemaVersion: 1, kind: 'legion-web-actor-fixtures', status: 'pass', terminal: true, binding: {}, actors: [], denominator: { total: 0, accounted: 0, missing: [] }, coverageGaps: [], digest: `sha256:${'a'.repeat(64)}` };
   assert.ok(validateSchema(schema, forged).length > 0);
 });
 

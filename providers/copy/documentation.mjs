@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 
 const PROVIDER = 'copy.documentation';
-const MEDIA_TYPE = 'application/vnd.nemesis.documentation-analysis+json';
+const MEDIA_TYPE = 'application/vnd.legion.documentation-analysis+json';
 
 function digest(value) {
   return `sha256:${createHash('sha256').update(JSON.stringify(value)).digest('hex')}`;
@@ -41,7 +41,7 @@ function finding(item, ruleId, claim, evidenceRefs, binding, details = {}) {
 function editorialCandidate(item, span, denominatorDigest, binding) {
   const base = {
     schemaVersion: 1,
-    kind: 'nemesis-copy-candidate',
+    kind: 'legion-copy-candidate',
     producer: PROVIDER,
     provider: PROVIDER,
     providerVersion: '1.0.0',

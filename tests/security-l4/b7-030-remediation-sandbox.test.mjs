@@ -74,7 +74,7 @@ test('a sandbox is an isolated copy of the bound base revision, outside the prim
   const result = await sandbox({ processRunner });
   assert.equal(result.receipt.baseRevision, 'abc123');
   assert.equal(result.receipt.baseIdentity.repositoryRevision, binding.repositoryRevision);
-  assert.equal(result.path, join('/repo/.git', 'nemesis-sandboxes', 'run-1'));
+  assert.equal(result.path, join('/repo/.git', 'legion-sandboxes', 'run-1'));
   assert.notEqual(result.path, repo.root);
   assert.equal(assertPrimaryRepositoryUntouched(result.receipt, repo), true);
   assert.throws(
@@ -91,7 +91,7 @@ test('a sandbox is an isolated copy of the bound base revision, outside the prim
 test('the sandbox receipt records identity, policy, files, cleanup, and the finding run it belongs to', async () => {
   const result = await sandbox();
   const receipt = result.receipt;
-  assert.equal(receipt.kind, 'nemesis-remediation-sandbox');
+  assert.equal(receipt.kind, 'legion-remediation-sandbox');
   assert.equal(receipt.schemaVersion, 1);
   assert.equal(receipt.findingRunDigest, 'sha256:findingrun');
   assert.deepEqual(receipt.binding, binding);
@@ -132,7 +132,7 @@ test('failed cleanup leaves exact recovery data and is never reported as removed
   assert.equal(failed.error, 'in-use');
   assert.deepEqual(failed.residualPaths, [result.receipt.sandboxPath]);
   assert.deepEqual(failed.recoveryCommand, ['git', 'worktree', 'remove', '--force', result.receipt.sandboxPath]);
-  assert.equal(failed.kind, 'nemesis-remediation-cleanup');
+  assert.equal(failed.kind, 'legion-remediation-cleanup');
   const cleaned = await cleanupSandbox({ sandbox: result.receipt, processRunner: runner() });
   assert.equal(cleaned.removed, true);
   assert.deepEqual(cleaned.residualPaths, []);

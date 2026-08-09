@@ -26,7 +26,7 @@ const qualificationLogs = [
 
 const evidence = {
   schemaVersion: 3,
-  kind: 'nemesis-source-completion-book-evidence',
+  kind: 'legion-source-completion-book-evidence',
   routeStep: 'R_INCREMENTAL_BOOK_GATES/S2',
   book,
   sourceRevision: currentSourceRevision(root),

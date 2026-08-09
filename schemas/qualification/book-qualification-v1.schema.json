@@ -1,11 +1,11 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "nemesis-book-qualification-v1",
+  "$id": "legion-book-qualification-v1",
   "type": "object",
   "required": ["schemaVersion", "kind", "book", "expectedTaskCount", "decision", "tasks", "checks", "blockers"],
   "properties": {
     "schemaVersion": { "const": 1 },
-    "kind": { "const": "nemesis-book-qualification" },
+    "kind": { "const": "legion-book-qualification" },
     "book": { "type": "integer", "minimum": 1, "maximum": 8 },
     "expectedTaskCount": { "type": "integer", "minimum": 1 },
     "decision": { "enum": ["QUALIFIED", "SOURCE_COMPLETE", "BLOCKED"] },

@@ -12,7 +12,7 @@ export function createMobileDeviceAdapter({ id, tier, platform = null, exclusive
     async execute({ target = {}, scenarioId = null, physicalOnly = false } = {}) {
       const binding = { deviceId: id, targetId: target.id ?? null, artifactDigest: target.artifactDigest ?? null,
         backendEnvironment: target.backendEnvironment ?? null, testAccountId: target.testAccountId ?? null };
-      if (physicalOnly && tier !== 'physical') return { schemaVersion: 1, kind: 'nemesis-mobile-device-execution', status: 'blocked', terminal: true,
+      if (physicalOnly && tier !== 'physical') return { schemaVersion: 1, kind: 'legion-mobile-device-execution', status: 'blocked', terminal: true,
         tier, platform, binding, cleanup: {}, coverageGaps: [`physical-device-required:${scenarioId ?? 'unknown'}`] };
       const context = { id, tier, platform, exclusiveKey, target, scenarioId, binding };
       let status = 'pass'; let evidence = null; let error = null;
@@ -29,7 +29,7 @@ export function createMobileDeviceAdapter({ id, tier, platform = null, exclusive
         cleanup.release = await cleanupStep(operations.release, context);
         if (Object.values(cleanup).includes('error') && status === 'pass') status = 'partial';
       }
-      return { schemaVersion: 1, kind: 'nemesis-mobile-device-execution', status, terminal: true, tier, platform,
+      return { schemaVersion: 1, kind: 'legion-mobile-device-execution', status, terminal: true, tier, platform,
         simulated: tier === 'simulator' || tier === 'emulator', exclusiveKey, binding, evidence, error, cleanup,
         coverageGaps: status === 'pass' ? [] : [`device-execution-${status}:${scenarioId ?? 'unknown'}`] };
     },

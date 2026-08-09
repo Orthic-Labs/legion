@@ -305,7 +305,7 @@ export function securityArtifactRecord({
   requireString(denominatorDigest, 'artifact.denominatorDigest');
   return {
     schemaVersion: 1,
-    kind: 'nemesis-artifact-record',
+    kind: 'legion-artifact-record',
     path,
     digest: contentDigest,
     bytes,

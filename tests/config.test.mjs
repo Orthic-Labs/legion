@@ -74,10 +74,10 @@ test('host-owned key set covers the frozen controls', () => {
   }
 });
 
-test('loadRepositoryConfig reads nemesis.config.json', () => {
-  const dir = mkdtempSync(join(tmpdir(), 'nemesis-config-'));
+test('loadRepositoryConfig reads legion.config.json', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'legion-config-'));
   try {
-    writeFileSync(join(dir, 'nemesis.config.json'), JSON.stringify({ schemaVersion: 1, profile: 'fast' }));
+    writeFileSync(join(dir, 'legion.config.json'), JSON.stringify({ schemaVersion: 1, profile: 'fast' }));
     const config = loadRepositoryConfig(dir);
     assert.equal(config.profile, 'fast');
   } finally {
@@ -86,7 +86,7 @@ test('loadRepositoryConfig reads nemesis.config.json', () => {
 });
 
 test('loadRepositoryConfig returns {} when absent', () => {
-  const dir = mkdtempSync(join(tmpdir(), 'nemesis-config-'));
+  const dir = mkdtempSync(join(tmpdir(), 'legion-config-'));
   try {
     assert.deepEqual(loadRepositoryConfig(dir), {});
   } finally {

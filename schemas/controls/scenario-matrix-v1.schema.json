@@ -1,12 +1,12 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "nemesis-scenario-matrix-v1",
+  "$id": "legion-scenario-matrix-v1",
   "type": "object",
   "additionalProperties": false,
   "required": ["schemaVersion", "kind", "axes", "scenarios", "omitted", "binding", "complete", "digest"],
   "properties": {
     "schemaVersion": { "const": 1 },
-    "kind": { "const": "nemesis-scenario-matrix" },
+    "kind": { "const": "legion-scenario-matrix" },
     "axes": { "type": "object" },
     "scenarios": { "type": "array", "items": { "$ref": "#/$defs/scenario" } },
     "omitted": { "type": "array", "items": { "$ref": "#/$defs/omission" } },

@@ -54,7 +54,7 @@ test('run/task identity mints contract IDs and binds run-identity-v1', async () 
   const identity = api.bindRunIdentity({
     runId,
     workspace: 'D:/workspace',
-    repository: 'nemesis',
+    repository: 'legion',
     revision: '1234567',
     dirtyDigest: null,
     capturedAt: '2026-08-08T00:00:00.000Z',
@@ -64,7 +64,7 @@ test('run/task identity mints contract IDs and binds run-identity-v1', async () 
     kind: 'legion-run-identity',
     runId,
     workspace: 'D:/workspace',
-    repository: 'nemesis',
+    repository: 'legion',
     revision: '1234567',
     dirtyDigest: null,
     capturedAt: '2026-08-08T00:00:00.000Z',

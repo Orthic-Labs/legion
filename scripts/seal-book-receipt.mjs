@@ -52,7 +52,7 @@ const tasks = BOOK_TASKS[book].map(([id, dependsOn, assertion, implementationSpe
 
 const receipt = {
   schemaVersion: 2,
-  kind: 'nemesis-book-qualification',
+  kind: 'legion-book-qualification',
   book,
   expectedTaskCount: tasks.length,
   sourceRevision,

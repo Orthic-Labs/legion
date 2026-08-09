@@ -98,5 +98,5 @@ export async function verifyDataExercise({ binding = {}, dataset, schemaVersion,
   gaps.push(...counts.missing.map((id) => `data-case-missing:${id}`));
   const statuses = new Set([adapterStatus, cleanup.status, ...receipts.map((item) => item.status)]);
   const status = statuses.has('error') ? 'error' : statuses.has('fail') ? 'fail' : statuses.has('blocked') ? 'blocked' : statuses.has('partial') ? 'partial' : gaps.length || statuses.has('unproven') ? 'unproven' : 'pass';
-  return finalize('nemesis-web-data-exercise', { status, terminal: true, binding, dataset, schemaVersion, caseDefinitions: definitions, denominator: counts, receipts, cleanup, coverageGaps: [...new Set(gaps)].sort() });
+  return finalize('legion-web-data-exercise', { status, terminal: true, binding, dataset, schemaVersion, caseDefinitions: definitions, denominator: counts, receipts, cleanup, coverageGaps: [...new Set(gaps)].sort() });
 }

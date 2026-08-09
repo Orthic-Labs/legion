@@ -44,12 +44,12 @@ function serverAuthorizationGaps(value, binding, controlId) {
 }
 
 export async function runWebScenario({ binding = {}, adapter = {}, controls = [], protocols = [], expectedState = {} } = {}) {
-  if (!Array.isArray(controls) || !Array.isArray(protocols) || protocols.some((item) => !item || typeof item !== 'object')) return finalize('nemesis-web-scenario', { status: 'error', terminal: true, binding, denominator: denominator([], []), receipts: [], coverageGaps: ['scenario-collections-invalid'] });
-  if (controls.some((id) => typeof id !== 'string' || !SAFE_IDENTIFIER.test(id)) || protocols.some((item) => typeof item.name !== 'string' || !SAFE_IDENTIFIER.test(item.name) || Object.hasOwn(item, 'id') && (typeof item.id !== 'string' || !SAFE_IDENTIFIER.test(item.id)))) return finalize('nemesis-web-scenario', { status: 'error', terminal: true, binding, denominator: denominator([], []), receipts: [], coverageGaps: ['scenario-identifiers-invalid'] });
+  if (!Array.isArray(controls) || !Array.isArray(protocols) || protocols.some((item) => !item || typeof item !== 'object')) return finalize('legion-web-scenario', { status: 'error', terminal: true, binding, denominator: denominator([], []), receipts: [], coverageGaps: ['scenario-collections-invalid'] });
+  if (controls.some((id) => typeof id !== 'string' || !SAFE_IDENTIFIER.test(id)) || protocols.some((item) => typeof item.name !== 'string' || !SAFE_IDENTIFIER.test(item.name) || Object.hasOwn(item, 'id') && (typeof item.id !== 'string' || !SAFE_IDENTIFIER.test(item.id)))) return finalize('legion-web-scenario', { status: 'error', terminal: true, binding, denominator: denominator([], []), receipts: [], coverageGaps: ['scenario-identifiers-invalid'] });
   const suppliedControls = [...controls];
   const ids = [...REQUIRED_JOURNEYS.map((row) => row.id), ...WEB_PROTOCOLS.map((row) => row.id)].sort();
   const bindingGaps = exactBinding(binding).gaps;
-  if (binding.environment === 'production') return finalize('nemesis-web-scenario', { status: 'blocked', terminal: true, binding, denominator: denominator(ids, ids.map((id) => ({ id }))), receipts: ids.map((id) => ({ id, status: 'blocked', terminal: true, reason: 'production-effect-forbidden' })), coverageGaps: ['production-effect-forbidden'] });
+  if (binding.environment === 'production') return finalize('legion-web-scenario', { status: 'blocked', terminal: true, binding, denominator: denominator(ids, ids.map((id) => ({ id }))), receipts: ids.map((id) => ({ id, status: 'blocked', terminal: true, reason: 'production-effect-forbidden' })), coverageGaps: ['production-effect-forbidden'] });
 
   const receipts = [];
   const unrecognizedGaps = [];
@@ -145,5 +145,5 @@ export async function runWebScenario({ binding = {}, adapter = {}, controls = []
   gaps.push(...duplicateIds.map((id) => `scenario-id-duplicate:${id}`));
   gaps.push(...receipts.flatMap((item) => (item.coverageGaps ?? []).map((gap) => `${item.id}:${gap}`)), ...receipts.filter((item) => !['pass', 'unsupported'].includes(item.status) && !(item.coverageGaps?.length)).map((item) => `control-${item.status}:${item.id}`), ...counts.missing.map((id) => `receipt-missing:${id}`));
   const status = ['error', 'fail', 'blocked', 'partial', 'unproven'].find((candidate) => receipts.some((item) => item.status === candidate)) ?? (gaps.length ? 'partial' : 'pass');
-  return finalize('nemesis-web-scenario', { status, terminal: true, binding, planId: 'web', denominator: counts, receipts, coverageGaps: [...new Set(gaps)].sort() });
+  return finalize('legion-web-scenario', { status, terminal: true, binding, planId: 'web', denominator: counts, receipts, coverageGaps: [...new Set(gaps)].sort() });
 }

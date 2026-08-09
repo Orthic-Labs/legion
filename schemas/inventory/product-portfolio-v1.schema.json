@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "nemesis-product-portfolio-v1",
+  "$id": "legion-product-portfolio-v1",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -18,7 +18,7 @@
       "const": 1
     },
     "kind": {
-      "const": "nemesis-product-portfolio"
+      "const": "legion-product-portfolio"
     },
     "targets": {
       "type": "array",

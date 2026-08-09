@@ -2,11 +2,11 @@ import { readFileSync } from 'node:fs';
 import { resolve, relative, sep } from 'node:path';
 
 export function listResources() {
-  return [{ uri: 'nemesis://run/report', name: 'Nemesis canonical report', mimeType: 'application/json' }];
+  return [{ uri: 'legion://run/report', name: 'Legion canonical report', mimeType: 'application/json' }];
 }
 
 export function readResource({ uri, run }, { root = process.cwd(), maxBytes = 1_000_000 } = {}) {
-  if (uri !== 'nemesis://run/report') throw new Error(`unknown resource: ${uri}`);
+  if (uri !== 'legion://run/report') throw new Error(`unknown resource: ${uri}`);
   const base = resolve(root);
   const path = resolve(base, run ?? '', 'report.json');
   const rel = relative(base, path);

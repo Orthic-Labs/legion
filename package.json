@@ -1,5 +1,5 @@
 {
-  "name": "@orthic-labs/nemesis",
+  "name": "@orthic-labs/legion",
   "version": "0.1.0-dev.0",
   "description": "Evidence-governed whole-repository audit engine.",
   "license": "SEE LICENSE IN LICENSE",
@@ -8,7 +8,7 @@
     "node": ">=22.13"
   },
   "bin": {
-    "nemesis": "./bin/nemesis.mjs"
+    "legion": "./bin/legion.mjs"
   },
   "exports": {
     ".": "./lib/index.mjs",

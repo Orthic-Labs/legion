@@ -27,7 +27,7 @@ const normalizeArtifacts = (values) => {
 };
 
 export function integrateWebEvidence({ binding = {}, applicableControls = [], receipts = [] } = {}) {
-  if (!Array.isArray(applicableControls) || !Array.isArray(receipts) || receipts.some((item) => !item || typeof item !== 'object')) return finalize('nemesis-web-integrated-evidence', { status: 'error', terminal: true, provisional: true, claimLevel: 'source', binding, denominator: denominator([], []), receipts: [], rawArtifacts: [], coverageGaps: ['integration-collections-invalid'] });
+  if (!Array.isArray(applicableControls) || !Array.isArray(receipts) || receipts.some((item) => !item || typeof item !== 'object')) return finalize('legion-web-integrated-evidence', { status: 'error', terminal: true, provisional: true, claimLevel: 'source', binding, denominator: denominator([], []), receipts: [], rawArtifacts: [], coverageGaps: ['integration-collections-invalid'] });
   const expected = [...new Set(applicableControls)].sort();
   for (const receipt of receipts) if (receipt.targetId !== binding.targetId) throw new Error(`cross-target evidence rejected: ${receipt.controlId}`);
   const byControl = new Map();
@@ -65,5 +65,5 @@ export function integrateWebEvidence({ binding = {}, applicableControls = [], re
   gaps.push(...[...new Set(duplicateArtifactKeys)].sort().map((key) => `artifact-identity-duplicate:${key}`));
   const statuses = new Set(terminal.map((item) => item.status));
   const status = statuses.size === 1 && statuses.has('pass') && gaps.length === 0 ? 'pass' : statuses.has('error') ? 'error' : statuses.has('fail') ? 'partial' : 'partial';
-  return finalize('nemesis-web-integrated-evidence', { status: gaps.length && status === 'pass' ? 'partial' : status, terminal: true, provisional: true, claimLevel: 'source', binding, denominator: counts, receipts: terminal, rawArtifacts: aggregateArtifacts.artifacts, coverageGaps: gaps.sort() });
+  return finalize('legion-web-integrated-evidence', { status: gaps.length && status === 'pass' ? 'partial' : status, terminal: true, provisional: true, claimLevel: 'source', binding, denominator: counts, receipts: terminal, rawArtifacts: aggregateArtifacts.artifacts, coverageGaps: gaps.sort() });
 }

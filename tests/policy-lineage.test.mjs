@@ -5,7 +5,7 @@ import { acceptedRisk, evaluateRisk } from '../lib/policy/accepted-risk.mjs';
 
 test('baseline record binds revision and finding fingerprints', () => {
   const record = baselineRecord({ id: 'base-1', revision: 'rev1', findings: [{ id: 'f1', fingerprint: 'sha256:f' }], createdAt: '2026-01-01' });
-  assert.equal(record.kind, 'nemesis-baseline');
+  assert.equal(record.kind, 'legion-baseline');
   assert.deepEqual(record.findingIds, ['f1']);
   assert.deepEqual(record.findingFingerprints, ['sha256:f']);
 });

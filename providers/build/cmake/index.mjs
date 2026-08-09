@@ -4,7 +4,7 @@
 export function cmakePresetReceipt({ root, presetPresent, presetName, buildDir }) {
   return {
     schemaVersion: 1,
-    kind: 'nemesis-cmake-preset',
+    kind: 'legion-cmake-preset',
     root,
     presetPresent: Boolean(presetPresent),
     presetName: presetName ?? null,

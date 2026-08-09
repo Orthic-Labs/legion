@@ -13,9 +13,9 @@ test('tools are read-only and cover the required surface', () => {
   const tools = listTools();
   const names = tools.map((tool) => tool.name).sort();
   assert.deepEqual(names, [
-    'nemesis_audit', 'nemesis_doctor', 'nemesis_explain', 'nemesis_get_finding',
-    'nemesis_get_run', 'nemesis_list_families', 'nemesis_list_languages',
-    'nemesis_list_providers', 'nemesis_list_skills', 'nemesis_plan', 'nemesis_verify',
+    'legion_audit', 'legion_doctor', 'legion_explain', 'legion_get_finding',
+    'legion_get_run', 'legion_list_families', 'legion_list_languages',
+    'legion_list_providers', 'legion_list_skills', 'legion_plan', 'legion_verify',
   ]);
   // No mutation tools.
   assert.ok(!tools.some((tool) => /apply|fix|write|delete/.test(tool.name)));
@@ -25,13 +25,13 @@ test('tools/list and tools/call work over stdio', () => {
   const input = [
     { jsonrpc: '2.0', id: 1, method: 'initialize', params: { protocolVersion: '2024-11-05', capabilities: {}, clientInfo: { name: 'test', version: '1' } } },
     { jsonrpc: '2.0', id: 2, method: 'tools/list', params: {} },
-    { jsonrpc: '2.0', id: 3, method: 'tools/call', params: { name: 'nemesis_list_providers', arguments: {} } },
+    { jsonrpc: '2.0', id: 3, method: 'tools/call', params: { name: 'legion_list_providers', arguments: {} } },
   ].map((line) => JSON.stringify(line)).join('\n');
   const result = spawnSync(process.execPath, [SERVER], { input, encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'] });
   assert.equal(result.status, 0);
   const lines = result.stdout.trim().split('\n').map((line) => JSON.parse(line));
   const initialize = lines.find((line) => line.id === 1);
-  assert.equal(initialize.result.serverInfo.name, 'nemesis');
+  assert.equal(initialize.result.serverInfo.name, 'legion');
   assert.ok(initialize.result.capabilities.tools);
   const list = lines.find((line) => line.id === 2);
   assert.equal(list.result.tools.length, 11);
@@ -41,7 +41,7 @@ test('tools/list and tools/call work over stdio', () => {
 });
 
 test('unknown tool returns an error result, never a crash', () => {
-  const input = `${JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name: 'nemesis_apply', arguments: {} } })}\n`;
+  const input = `${JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name: 'legion_apply', arguments: {} } })}\n`;
   const result = spawnSync(process.execPath, [SERVER], { input, encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'] });
   const response = JSON.parse(result.stdout.trim());
   assert.equal(response.result.isError, true);
@@ -57,13 +57,13 @@ test('stdout carries protocol frames only', () => {
   }
 });
 
-test('nemesis_get_run and nemesis_get_finding read run artifacts', async () => {
-  const dir = mkdtempSync(join(process.cwd(), '.nemesis-mcp-'));
+test('legion_get_run and legion_get_finding read run artifacts', async () => {
+  const dir = mkdtempSync(join(process.cwd(), '.legion-mcp-'));
   try {
     writeFileSync(join(dir, 'report.json'), JSON.stringify({ findings: [{ id: 'f1', ruleId: 'r', severity: 'high' }] }));
-    const run = await callTool({ name: 'nemesis_get_run', arguments: { run: dir, artifact: 'report.json' } });
+    const run = await callTool({ name: 'legion_get_run', arguments: { run: dir, artifact: 'report.json' } });
     assert.equal(run.isError, false);
-    const finding = await callTool({ name: 'nemesis_get_finding', arguments: { run: dir, findingId: 'f1' } });
+    const finding = await callTool({ name: 'legion_get_finding', arguments: { run: dir, findingId: 'f1' } });
     assert.equal(finding.isError, false);
     assert.equal(JSON.parse(finding.content[0].text).finding.id, 'f1');
   } finally {
@@ -73,7 +73,7 @@ test('nemesis_get_run and nemesis_get_finding read run artifacts', async () => {
 
 test('installer prints config but never edits client config without preview', () => {
   const config = mcpInstallConfig();
-  assert.equal(config.mcpServers.nemesis.command, 'nemesis');
+  assert.equal(config.mcpServers.legion.command, 'legion');
   const preview = installPreview({ host: 'claude', config });
   assert.equal(preview.dryRun, true);
 });

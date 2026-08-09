@@ -1,4 +1,4 @@
-# Nemesis language support matrix
+# Legion language support matrix
 
 | Language | Inventory | Parser | Native | Dataflow | Measured | Runtime | Remediation |
 |---|:---:|:---:|:---:|:---:|:---:|:---:|:---:|

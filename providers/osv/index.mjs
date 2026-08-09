@@ -18,7 +18,7 @@ export function normalizeVulnerability(vuln, { provider = 'osv.scanner', provide
   const source = vuln.related ?? vuln.aliases ?? [];
   return {
     schemaVersion: 1,
-    kind: 'nemesis-osv-vulnerability',
+    kind: 'legion-osv-vulnerability',
     provider,
     providerVersion,
     id: vuln.id ?? vuln.ghsa_id ?? null,
@@ -51,7 +51,7 @@ export function normalizeScanResult(raw, { provider = 'osv.scanner', providerVer
   }
   return {
     schemaVersion: 1,
-    kind: 'nemesis-osv-result',
+    kind: 'legion-osv-result',
     provider,
     providerVersion,
     offline: Boolean(offlineDb),

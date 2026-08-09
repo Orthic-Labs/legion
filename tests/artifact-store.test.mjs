@@ -6,7 +6,7 @@ import test from 'node:test';
 import { RunArtifactStore } from '../lib/artifacts/run-store.mjs';
 
 function tempStore() {
-  const dir = mkdtempSync(join(tmpdir(), 'nemesis-store-'));
+  const dir = mkdtempSync(join(tmpdir(), 'legion-store-'));
   return { dir, store: new RunArtifactStore(dir) };
 }
 
@@ -15,11 +15,11 @@ test('writeJson creates an atomic content-digested artifact', async () => {
   try {
     await store.init();
     const record = await store.writeJson({
-      path: 'plan.json', kind: 'audit-plan', producer: 'nemesis.core', schemaVersion: 1,
+      path: 'plan.json', kind: 'audit-plan', producer: 'legion.core', schemaVersion: 1,
       binding: { planDigest: 'sha256:p' }, value: { kind: 'audit-provider-plan', sealed: true },
     });
     assert.equal(record.kind, 'audit-plan');
-    assert.equal(record.producer, 'nemesis.core');
+    assert.equal(record.producer, 'legion.core');
     assert.equal(record.schemaVersion, 1);
     assert.equal(record.mediaType, 'application/json');
     assert.ok(record.digest.startsWith('sha256:'));

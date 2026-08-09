@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "kind": "nemesis-coverage-registry",
+  "kind": "legion-coverage-registry",
   "tierNames": [
     "inventory",
     "parser",

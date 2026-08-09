@@ -55,7 +55,7 @@
       },
       "provenance": {
         "kind": "canonical",
-        "source": "nemesis:universal",
+        "source": "legion:universal",
         "rights": "internal-contract",
         "lineage": [
           "canonical:universal:scope"
@@ -108,7 +108,7 @@
       },
       "provenance": {
         "kind": "canonical",
-        "source": "nemesis:universal",
+        "source": "legion:universal",
         "rights": "internal-contract",
         "lineage": [
           "canonical:universal:requirements"
@@ -161,7 +161,7 @@
       },
       "provenance": {
         "kind": "canonical",
-        "source": "nemesis:universal",
+        "source": "legion:universal",
         "rights": "internal-contract",
         "lineage": [
           "canonical:universal:journeys"
@@ -214,7 +214,7 @@
       },
       "provenance": {
         "kind": "canonical",
-        "source": "nemesis:universal",
+        "source": "legion:universal",
         "rights": "internal-contract",
         "lineage": [
           "canonical:universal:architecture"
@@ -267,7 +267,7 @@
       },
       "provenance": {
         "kind": "canonical",
-        "source": "nemesis:universal",
+        "source": "legion:universal",
         "rights": "internal-contract",
         "lineage": [
           "canonical:universal:code"
@@ -320,7 +320,7 @@
       },
       "provenance": {
         "kind": "canonical",
-        "source": "nemesis:universal",
+        "source": "legion:universal",
         "rights": "internal-contract",
         "lineage": [
           "canonical:universal:tests"
@@ -373,7 +373,7 @@
       },
       "provenance": {
         "kind": "canonical",
-        "source": "nemesis:universal",
+        "source": "legion:universal",
         "rights": "internal-contract",
         "lineage": [
           "canonical:universal:errors"
@@ -426,7 +426,7 @@
       },
       "provenance": {
         "kind": "canonical",
-        "source": "nemesis:universal",
+        "source": "legion:universal",
         "rights": "internal-contract",
         "lineage": [
           "canonical:universal:security"
@@ -479,7 +479,7 @@
       },
       "provenance": {
         "kind": "canonical",
-        "source": "nemesis:universal",
+        "source": "legion:universal",
         "rights": "internal-contract",
         "lineage": [
           "canonical:universal:privacy"
@@ -532,7 +532,7 @@
       },
       "provenance": {
         "kind": "canonical",
-        "source": "nemesis:universal",
+        "source": "legion:universal",
         "rights": "internal-contract",
         "lineage": [
           "canonical:universal:supply-chain"
@@ -585,7 +585,7 @@
       },
       "provenance": {
         "kind": "canonical",
-        "source": "nemesis:universal",
+        "source": "legion:universal",
         "rights": "internal-contract",
         "lineage": [
           "canonical:universal:data"
@@ -638,7 +638,7 @@
       },
       "provenance": {
         "kind": "canonical",
-        "source": "nemesis:universal",
+        "source": "legion:universal",
         "rights": "internal-contract",
         "lineage": [
           "canonical:universal:reliability"
@@ -691,7 +691,7 @@
       },
       "provenance": {
         "kind": "canonical",
-        "source": "nemesis:universal",
+        "source": "legion:universal",
         "rights": "internal-contract",
         "lineage": [
           "canonical:universal:observability"
@@ -744,7 +744,7 @@
       },
       "provenance": {
         "kind": "canonical",
-        "source": "nemesis:universal",
+        "source": "legion:universal",
         "rights": "internal-contract",
         "lineage": [
           "canonical:universal:ownership"
@@ -797,7 +797,7 @@
       },
       "provenance": {
         "kind": "canonical",
-        "source": "nemesis:universal",
+        "source": "legion:universal",
         "rights": "internal-contract",
         "lineage": [
           "canonical:universal:documentation"
@@ -850,7 +850,7 @@
       },
       "provenance": {
         "kind": "canonical",
-        "source": "nemesis:universal",
+        "source": "legion:universal",
         "rights": "internal-contract",
         "lineage": [
           "canonical:universal:release-identity"
@@ -903,7 +903,7 @@
       },
       "provenance": {
         "kind": "canonical",
-        "source": "nemesis:universal",
+        "source": "legion:universal",
         "rights": "internal-contract",
         "lineage": [
           "canonical:universal:support"
@@ -956,7 +956,7 @@
       },
       "provenance": {
         "kind": "canonical",
-        "source": "nemesis:universal",
+        "source": "legion:universal",
         "rights": "internal-contract",
         "lineage": [
           "canonical:universal:unknown-material"

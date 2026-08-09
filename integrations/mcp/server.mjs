@@ -4,7 +4,7 @@
 // tools/call JSON-RPC methods over stdio without a network listener.
 
 import { listTools, callTool } from './tools.mjs';
-import { NEMESIS_VERSION } from '../../lib/version.mjs';
+import { LEGION_VERSION } from '../../lib/version.mjs';
 
 const PROTOCOL_VERSION = '2024-11-05';
 
@@ -20,7 +20,7 @@ function handleRequest(request) {
       result: {
         protocolVersion: PROTOCOL_VERSION,
         capabilities: { tools: {} },
-        serverInfo: { name: 'nemesis', version: NEMESIS_VERSION },
+        serverInfo: { name: 'legion', version: LEGION_VERSION },
       },
     });
     return;

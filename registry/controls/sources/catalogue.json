@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "kind": "nemesis-control-source-catalogue",
+  "kind": "legion-control-source-catalogue",
   "sources": [
     {
       "id": "creator.performance",

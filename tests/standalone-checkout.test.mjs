@@ -59,7 +59,7 @@ test('fresh standalone checkout runs self-test and schema check without parent f
   // Simulate a clean checkout: run the two self-contained validation commands
   // from the repository root with an isolated HOME so no parent-workspace state
   // can leak in.
-  const tempHome = mkdtempSync(join(tmpdir(), 'nemesis-standalone-'));
+  const tempHome = mkdtempSync(join(tmpdir(), 'legion-standalone-'));
   try {
     const schemaCheck = execFileSync(process.execPath, ['scripts/generate-schemas.mjs', '--check'], {
       cwd: root, encoding: 'utf8', env: { ...process.env, HOME: tempHome },
@@ -79,8 +79,8 @@ test('fresh standalone checkout runs self-test and schema check without parent f
 });
 
 test('Windows portability tests pass from a copied standalone checkout', () => {
-  const temp = mkdtempSync(join(tmpdir(), 'nemesis-portable-copy-'));
-  const checkout = join(temp, 'nemesis-copy');
+  const temp = mkdtempSync(join(tmpdir(), 'legion-portable-copy-'));
+  const checkout = join(temp, 'legion-copy');
   try {
     cpSync(root, checkout, {
       recursive: true,

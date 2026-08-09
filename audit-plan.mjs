@@ -26,7 +26,7 @@ export function assertSupportedSchemaVersion(version, label) {
   const supported = SCHEMA_VERSIONS[label];
   if (supported === undefined) throw new Error(`unknown schema label ${label}`);
   if (version > supported) {
-    throw new Error(`${label} schemaVersion ${version} is newer than this Nemesis build supports (${supported}); refusing to execute`);
+    throw new Error(`${label} schemaVersion ${version} is newer than this Legion build supports (${supported}); refusing to execute`);
   }
   return version;
 }

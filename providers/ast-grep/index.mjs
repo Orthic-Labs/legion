@@ -54,7 +54,7 @@ export function rewritePreview({ ruleId, file, edits }) {
   // Preview-only patch artifact; application requires PR35–PR37 controls.
   return {
     schemaVersion: 1,
-    kind: 'nemesis-ast-grep-rewrite-preview',
+    kind: 'legion-ast-grep-rewrite-preview',
     ruleId,
     file,
     edits: (edits ?? []).map((edit) => ({
@@ -71,7 +71,7 @@ export function rewritePreview({ ruleId, file, edits }) {
 export function capabilityReceipt({ executable, version, languages }) {
   return {
     schemaVersion: 1,
-    kind: 'nemesis-ast-grep-capability',
+    kind: 'legion-ast-grep-capability',
     executable,
     version: version ?? null,
     languages: [...new Set(languages ?? [])].sort(),

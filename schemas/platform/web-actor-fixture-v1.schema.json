@@ -21,7 +21,7 @@
       "const": 1
     },
     "kind": {
-      "const": "nemesis-web-actor-fixtures"
+      "const": "legion-web-actor-fixtures"
     },
     "status": {
       "const": "pass"

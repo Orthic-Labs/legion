@@ -55,7 +55,7 @@ export function reconcileComponents(components, results) {
   }
   return {
     schemaVersion: 1,
-    kind: 'nemesis-component-reconciliation',
+    kind: 'legion-component-reconciliation',
     componentCount: components.length,
     complete: incomplete.length === 0,
     incomplete,

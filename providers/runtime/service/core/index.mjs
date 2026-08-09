@@ -14,7 +14,7 @@ export async function assessServiceRuntime({ target = {}, adapter = {}, producti
   const externalGaps = productionControls.map((id) => `production-external-evidence-missing:${id}`);
   const failures = receipts.filter((item) => item.status === 'fail' || item.status === 'error');
   const missing = receipts.filter((item) => !['pass', 'fail'].includes(item.status));
-  return { schemaVersion: 1, kind: 'nemesis-service-worker-runtime-evidence', status: failures.length ? 'fail' : missing.length || externalGaps.length ? 'partial' : 'pass', terminal: true,
+  return { schemaVersion: 1, kind: 'legion-service-worker-runtime-evidence', status: failures.length ? 'fail' : missing.length || externalGaps.length ? 'partial' : 'pass', terminal: true,
     binding, receipts, claims: { runtime: failures.length ? 'failed' : missing.length ? 'partial' : 'evidenced', source: 'unaffected' },
     coverageGaps: [...externalGaps, ...missing.map((item) => `${item.id}:runtime-execution-missing`)].sort() };
 }

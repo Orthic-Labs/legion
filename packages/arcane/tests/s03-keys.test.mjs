@@ -108,7 +108,7 @@ test('generateTestKeyRing() mints usable, distinct random keys for fixtures', ()
 });
 
 test('loadHostKeyRing() fails closed with ARC_AUTH_KEY_UNAVAILABLE when the directory is absent', () => {
-  const dir = join(tmpdir(), 'nemesis-arcane-s03-keys-missing-' + Date.now());
+  const dir = join(tmpdir(), 'legion-arcane-s03-keys-missing-' + Date.now());
   assert.throws(() => loadHostKeyRing({ dir }), (err) => {
     assert.ok(err instanceof ArcaneError);
     assert.equal(err.code, 'ARC_AUTH_KEY_UNAVAILABLE');
@@ -118,7 +118,7 @@ test('loadHostKeyRing() fails closed with ARC_AUTH_KEY_UNAVAILABLE when the dire
 });
 
 test('loadHostKeyRing() fails closed with ARC_AUTH_KEY_UNAVAILABLE when the directory has no key files', () => {
-  const dir = mkdtempSync(join(tmpdir(), 'nemesis-arcane-s03-keys-empty-'));
+  const dir = mkdtempSync(join(tmpdir(), 'legion-arcane-s03-keys-empty-'));
   try {
     assert.throws(() => loadHostKeyRing({ dir }), (err) => {
       assert.equal(err.code, 'ARC_AUTH_KEY_UNAVAILABLE');
@@ -130,7 +130,7 @@ test('loadHostKeyRing() fails closed with ARC_AUTH_KEY_UNAVAILABLE when the dire
 });
 
 test('loadHostKeyRing() loads host-held key material and metadata from disk', () => {
-  const dir = mkdtempSync(join(tmpdir(), 'nemesis-arcane-s03-keys-host-'));
+  const dir = mkdtempSync(join(tmpdir(), 'legion-arcane-s03-keys-host-'));
   try {
     writeFileSync(join(dir, 'hostkey1.key'), '11'.repeat(32), 'utf8');
     writeFileSync(join(dir, 'hostkey1.json'), JSON.stringify({ custody: 'host-file:hostkey1.key', status: 'active' }), 'utf8');
@@ -145,7 +145,7 @@ test('loadHostKeyRing() loads host-held key material and metadata from disk', ()
 });
 
 test('loadHostKeyRing() never surfaces key material through KeyRing.list()', () => {
-  const dir = mkdtempSync(join(tmpdir(), 'nemesis-arcane-s03-keys-host2-'));
+  const dir = mkdtempSync(join(tmpdir(), 'legion-arcane-s03-keys-host2-'));
   try {
     writeFileSync(join(dir, 'hostkey2.key'), '22'.repeat(32), 'utf8');
     const ring = loadHostKeyRing({ dir });

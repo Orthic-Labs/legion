@@ -24,7 +24,7 @@ export function evaluateInstallerLifecycle({ package: pkg = {}, capability = {},
   }
   for (const id of INSTALLER_CASES) if (!scenarios.some((item) => item.id === id && item.terminal === true)) gaps.push(`lifecycle-case-missing:${id}`);
   const unsafe = gaps.includes('rollback-newer-data-unsafe');
-  return { schemaVersion: 1, kind: 'nemesis-desktop-installer-lifecycle', status: unsafe ? 'fail' : gaps.length ? 'partial' : 'pass', terminal: true,
+  return { schemaVersion: 1, kind: 'legion-desktop-installer-lifecycle', status: unsafe ? 'fail' : gaps.length ? 'partial' : 'pass', terminal: true,
     package: pkg, capability, scenarios, releaseClaim: !gaps.length,
     denominator: { total: INSTALLER_CASES.length, required: INSTALLER_CASES.length, accounted: scenarios.filter((s) => s.terminal === true).length, negativeCases: scenarios.filter((s) => NEGATIVE_CASES.has(s.id) && s.status === 'fail').length },
     coverageGaps: gaps.sort() };

@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "nemesis-evidence-capability-v1",
+  "$id": "legion-evidence-capability-v1",
   "type": "object",
   "additionalProperties": false,
   "required": [

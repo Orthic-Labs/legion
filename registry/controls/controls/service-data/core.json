@@ -54,7 +54,7 @@
       },
       "provenance": {
         "kind": "canonical",
-        "source": "nemesis:service-data",
+        "source": "legion:service-data",
         "rights": "internal-contract",
         "lineage": [
           "canonical:service-data:api-contracts"
@@ -113,7 +113,7 @@
       },
       "provenance": {
         "kind": "canonical",
-        "source": "nemesis:service-data",
+        "source": "legion:service-data",
         "rights": "internal-contract",
         "lineage": [
           "canonical:service-data:identity-authorization"
@@ -172,7 +172,7 @@
       },
       "provenance": {
         "kind": "canonical",
-        "source": "nemesis:service-data",
+        "source": "legion:service-data",
         "rights": "internal-contract",
         "lineage": [
           "canonical:service-data:validation"
@@ -231,7 +231,7 @@
       },
       "provenance": {
         "kind": "canonical",
-        "source": "nemesis:service-data",
+        "source": "legion:service-data",
         "rights": "internal-contract",
         "lineage": [
           "canonical:service-data:idempotency"
@@ -290,7 +290,7 @@
       },
       "provenance": {
         "kind": "canonical",
-        "source": "nemesis:service-data",
+        "source": "legion:service-data",
         "rights": "internal-contract",
         "lineage": [
           "canonical:service-data:transactions"
@@ -349,7 +349,7 @@
       },
       "provenance": {
         "kind": "canonical",
-        "source": "nemesis:service-data",
+        "source": "legion:service-data",
         "rights": "internal-contract",
         "lineage": [
           "canonical:service-data:queues"
@@ -408,7 +408,7 @@
       },
       "provenance": {
         "kind": "canonical",
-        "source": "nemesis:service-data",
+        "source": "legion:service-data",
         "rights": "internal-contract",
         "lineage": [
           "canonical:service-data:schedules"
@@ -467,7 +467,7 @@
       },
       "provenance": {
         "kind": "canonical",
-        "source": "nemesis:service-data",
+        "source": "legion:service-data",
         "rights": "internal-contract",
         "lineage": [
           "canonical:service-data:backpressure"
@@ -526,7 +526,7 @@
       },
       "provenance": {
         "kind": "canonical",
-        "source": "nemesis:service-data",
+        "source": "legion:service-data",
         "rights": "internal-contract",
         "lineage": [
           "canonical:service-data:timeouts-retries"
@@ -585,7 +585,7 @@
       },
       "provenance": {
         "kind": "canonical",
-        "source": "nemesis:service-data",
+        "source": "legion:service-data",
         "rights": "internal-contract",
         "lineage": [
           "canonical:service-data:rate-cost"
@@ -644,7 +644,7 @@
       },
       "provenance": {
         "kind": "canonical",
-        "source": "nemesis:service-data",
+        "source": "legion:service-data",
         "rights": "internal-contract",
         "lineage": [
           "canonical:service-data:shutdown-health"
@@ -703,7 +703,7 @@
       },
       "provenance": {
         "kind": "canonical",
-        "source": "nemesis:service-data",
+        "source": "legion:service-data",
         "rights": "internal-contract",
         "lineage": [
           "canonical:service-data:lineage"
@@ -762,7 +762,7 @@
       },
       "provenance": {
         "kind": "canonical",
-        "source": "nemesis:service-data",
+        "source": "legion:service-data",
         "rights": "internal-contract",
         "lineage": [
           "canonical:service-data:migrations"
@@ -821,7 +821,7 @@
       },
       "provenance": {
         "kind": "canonical",
-        "source": "nemesis:service-data",
+        "source": "legion:service-data",
         "rights": "internal-contract",
         "lineage": [
           "canonical:service-data:backup-restore"
@@ -880,7 +880,7 @@
       },
       "provenance": {
         "kind": "canonical",
-        "source": "nemesis:service-data",
+        "source": "legion:service-data",
         "rights": "internal-contract",
         "lineage": [
           "canonical:service-data:capacity-deployment"
@@ -939,7 +939,7 @@
       },
       "provenance": {
         "kind": "canonical",
-        "source": "nemesis:service-data",
+        "source": "legion:service-data",
         "rights": "internal-contract",
         "lineage": [
           "canonical:service-data:observability-incidents"
@@ -998,7 +998,7 @@
       },
       "provenance": {
         "kind": "canonical",
-        "source": "nemesis:service-data",
+        "source": "legion:service-data",
         "rights": "internal-contract",
         "lineage": [
           "canonical:service-data:compatibility-abuse"
@@ -1057,7 +1057,7 @@
       },
       "provenance": {
         "kind": "canonical",
-        "source": "nemesis:service-data",
+        "source": "legion:service-data",
         "rights": "internal-contract",
         "lineage": [
           "canonical:service-data:replay-correctness"

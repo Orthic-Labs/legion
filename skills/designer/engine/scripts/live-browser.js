@@ -11088,7 +11088,7 @@ void main() {
     let s = escapeHtml(text);
     // Code spans
     s = s.replace(/`([^`]+)`/g, (_, code) => `<code>${code}</code>`);
-    // Links [text](nemesis-skill://designer/engine/scripts/url)
+    // Links [text](legion-skill://designer/engine/scripts/url)
     s = s.replace(/\[([^\]]+)\]\(([^)]+)\)/g, (_, t, u) => `<a href="${u}" target="_blank" rel="noopener noreferrer">${t}</a>`);
     // Bold
     s = s.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');

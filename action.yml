@@ -1,4 +1,4 @@
-name: Nemesis Audit
+name: Legion Audit
 description: Evidence-governed repository audit
 inputs:
   profile:
@@ -16,4 +16,4 @@ runs:
     - shell: bash
       run: npm install --global "${{ github.action_path }}"
     - shell: bash
-      run: nemesis audit "$GITHUB_WORKSPACE" --profile "${{ inputs.profile }}" --out "$RUNNER_TEMP/nemesis"
+      run: legion audit "$GITHUB_WORKSPACE" --profile "${{ inputs.profile }}" --out "$RUNNER_TEMP/legion"

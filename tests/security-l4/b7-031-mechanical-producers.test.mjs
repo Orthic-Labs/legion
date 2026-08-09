@@ -28,8 +28,8 @@ const binding = {
 
 const sandbox = {
   schemaVersion: 1,
-  kind: 'nemesis-remediation-sandbox',
-  sandboxPath: '/repo/.git/nemesis-sandboxes/run-1',
+  kind: 'legion-remediation-sandbox',
+  sandboxPath: '/repo/.git/legion-sandboxes/run-1',
   primaryRepositoryMutated: false,
   binding,
   findingRunDigest: 'sha256:findingrun',
@@ -142,7 +142,7 @@ test('every mechanical proposal matches SNIP-16 and never carries an apply step'
   ]) {
     assert.ok(key in proposal, `SNIP-16 proposal missing ${key}`);
   }
-  assert.equal(proposal.kind, 'nemesis-remediation-proposal');
+  assert.equal(proposal.kind, 'legion-remediation-proposal');
   assert.equal(proposal.tier, 'MECHANICAL');
   assert.equal(proposal.owner, 'code');
   assert.match(proposal.patch.digest, /^sha256:/);

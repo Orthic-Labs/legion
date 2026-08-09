@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://orthic.dev/schemas/nemesis-config-v1.json",
-  "title": "NemesisConfigV1",
+  "$id": "https://orthic.dev/schemas/legion-config-v1.json",
+  "title": "LegionConfigV1",
   "type": "object",
   "required": ["schemaVersion", "profile", "providers", "limits", "policy", "outputs"],
   "properties": {

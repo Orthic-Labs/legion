@@ -12,18 +12,18 @@ export function buildActorFixtures({ binding = {}, actors = [], required = [], n
   if (!Array.isArray(actors) || !Array.isArray(required)
     || actors.some((item) => !item || typeof item !== 'object' || Array.isArray(item)
       || (Array.isArray(item.transitionCapabilities) && item.transitionCapabilities.some((transition) => !transition || typeof transition !== 'object' || Array.isArray(transition))))
-    || required.some((item) => !item || typeof item !== 'object' || Array.isArray(item))) return freeze(finalize('nemesis-web-actor-fixtures', { status: 'error', complete: false, proof: false, terminal: true, binding, actors: [], denominator: denominator([], []), coverageGaps: ['actor-collections-invalid'] }));
+    || required.some((item) => !item || typeof item !== 'object' || Array.isArray(item))) return freeze(finalize('legion-web-actor-fixtures', { status: 'error', complete: false, proof: false, terminal: true, binding, actors: [], denominator: denominator([], []), coverageGaps: ['actor-collections-invalid'] }));
   const hostileIdentifier = (value) => ['symbol', 'bigint', 'function'].includes(typeof value) || typeof value === 'string' && value.length > 0 && !SAFE_IDENTIFIER.test(value);
   const identifiersHostile = actors.some((actor) => hostileIdentifier(actor.id) || ['identityId', 'credentialPolicyId', 'sessionPolicyId', 'role', 'tier', 'tenantId'].some((key) => hostileIdentifier(actor[key]))
     || Array.isArray(actor.serverAuthorizations) && actor.serverAuthorizations.some(hostileIdentifier)
     || Array.isArray(actor.uiVisibility) && actor.uiVisibility.some(hostileIdentifier)
     || Array.isArray(actor.transitionCapabilities) && actor.transitionCapabilities.some((item) => ['id', 'toActorId', 'fromTenantId', 'toTenantId', 'authorizationId'].some((key) => hostileIdentifier(item[key]))))
     || required.some((item) => REQUIRED.some((key) => hostileIdentifier(item[key])));
-  if (identifiersHostile) return freeze(finalize('nemesis-web-actor-fixtures', { status: 'error', complete: false, proof: false, terminal: true, binding, actors: [], denominator: denominator([], []), coverageGaps: ['actor-identifiers-invalid'] }));
+  if (identifiersHostile) return freeze(finalize('legion-web-actor-fixtures', { status: 'error', complete: false, proof: false, terminal: true, binding, actors: [], denominator: denominator([], []), coverageGaps: ['actor-identifiers-invalid'] }));
   const blocked = [];
   if (identityCapability?.status !== 'available') blocked.push(`identity-capability-${identityCapability?.status ?? 'missing'}`);
   if (environmentCapability?.status !== 'available') blocked.push(`environment-capability-${environmentCapability?.status ?? 'missing'}`);
-  if (blocked.length) return freeze(finalize('nemesis-web-actor-fixtures', { status: 'blocked', complete: false, proof: false, terminal: true, binding, actors: [], denominator: denominator(required.map((item) => REQUIRED.map((key) => item[key]).join(':')), []), coverageGaps: blocked.sort() }));
+  if (blocked.length) return freeze(finalize('legion-web-actor-fixtures', { status: 'blocked', complete: false, proof: false, terminal: true, binding, actors: [], denominator: denominator(required.map((item) => REQUIRED.map((key) => item[key]).join(':')), []), coverageGaps: blocked.sort() }));
   const sortedActors = sortById(actors);
   const normalized = sortedActors.map((actor) => ({
     id: actor.id, identityId: actor.identityId ?? null, credentialPolicyId: actor.credentialPolicyId ?? null, sessionPolicyId: actor.sessionPolicyId ?? null, role: actor.role, tier: actor.tier, tenantId: actor.tenantId, accountState: actor.accountState,
@@ -70,7 +70,7 @@ export function buildActorFixtures({ binding = {}, actors = [], required = [], n
   const counts = denominator(expected, receipts);
   gaps.push(...counts.missing.map((id) => `actor-fixture-missing:${id}`));
   const status = gaps.length ? 'unproven' : 'pass';
-  return freeze(finalize('nemesis-web-actor-fixtures', { status, complete: status === 'pass', proof: status === 'pass', terminal: true, binding, actors: normalized, denominator: counts, coverageGaps: [...new Set(gaps)].sort() }));
+  return freeze(finalize('legion-web-actor-fixtures', { status, complete: status === 'pass', proof: status === 'pass', terminal: true, binding, actors: normalized, denominator: counts, coverageGaps: [...new Set(gaps)].sort() }));
 }
 
 export function switchActor({ receipt, from, to, currentActorId, sessionBinding = {}, concurrentActorIds = [], transitionCapabilityId = null, serverAuthorization = null } = {}) {

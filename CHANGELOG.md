@@ -1,6 +1,6 @@
 # Changelog
 
-All notable changes to Nemesis are recorded here.
+All notable changes to Legion are recorded here.
 
 ## [0.1.0-dev.0] — PR44 (full qualification)
 
@@ -18,8 +18,8 @@ All notable changes to Nemesis are recorded here.
 
 ## [0.1.0-dev.0] — PR05
 
-- Added canonical `@orthic-labs/nemesis` package manifest with `nemesis` binary.
-- Added `bin/nemesis.mjs` CLI entrypoint with subcommands `init`, `doctor`,
+- Added canonical `@orthic-labs/legion` package manifest with `legion` binary.
+- Added `bin/legion.mjs` CLI entrypoint with subcommands `init`, `doctor`,
   `languages`, `providers`, `plan`, `audit`, `verify`, `explain`, `report`,
   `hooks`, `mcp`.
 - Added stable exit taxonomy (0 pass, 1 policy fail, 2 incomplete, 3 internal,
@@ -35,6 +35,6 @@ All notable changes to Nemesis are recorded here.
   instead of raw `facts.json` bytes (`PR01`).
 - Centralized provider/security contracts and generated schemas (`PR02`).
 - Enforced candidate-provider authority from the frozen plan record and
-  replaced legacy prototype identity with Orthic Labs Nemesis (`PR03`).
+  replaced legacy prototype identity with Orthic Labs Legion (`PR03`).
 - Added self-contained CI, publication guards, benchmark baseline, and
   standalone-checkout tests (`PR04`).

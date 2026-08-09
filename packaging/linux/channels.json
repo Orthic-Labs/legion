@@ -6,7 +6,7 @@ channels:
     format: tar.gz
     targets: [x64, arm64]
     contents:
-      - dist/nemesis
+      - dist/legion
       - dist/SHA256SUMS
       - dist/*.sbom.json
     notes:

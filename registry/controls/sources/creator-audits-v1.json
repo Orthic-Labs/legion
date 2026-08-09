@@ -1,12 +1,12 @@
 {
   "schemaVersion": 1,
-  "kind": "nemesis-control-source-ledger",
+  "kind": "legion-control-source-ledger",
   "sourceFamily": "creator-audits",
   "expectedSourceCount": 3,
   "expectedItemCount": 300,
   "status": "external-evidence-required",
   "seed": {
-    "path": "docs/plans/nemesis/creator-audits-source-ledger.seed.json",
+    "path": "docs/plans/legion/creator-audits-source-ledger.seed.json",
     "digest": "sha256:5d1263f382041fce9f8d1d02dd620a843d26e190d69eeae25dc04dc25b7dfd7a"
   },
   "sources": [

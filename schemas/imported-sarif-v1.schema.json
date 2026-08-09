@@ -6,7 +6,7 @@
   "required": ["schemaVersion", "kind", "provider", "providerVersion", "sourceArtifact", "repositoryBinding", "tool", "capabilities", "complete"],
   "properties": {
     "schemaVersion": { "const": 1 },
-    "kind": { "const": "nemesis-imported-sarif" },
+    "kind": { "const": "legion-imported-sarif" },
     "provider": { "type": "string" },
     "providerVersion": { "type": "string" },
     "sourceArtifact": {

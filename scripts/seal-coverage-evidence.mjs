@@ -32,8 +32,8 @@ for(const record of registry.records){
   const providerVersions=Object.fromEntries(record.providers.map((id)=>{const provider=providers.find((item)=>item.id===id);if(!provider)throw new Error(`${record.id} references unknown provider ${id}`);return[id,provider.providerVersion];}));
   const qualificationPath=`bench/qualifications/book-3/coverage/${stem}.qualification.json`;
   const artifactPath=`bench/qualifications/book-3/coverage/${stem}.artifact.json`;
-  const artifact=Buffer.from(`${JSON.stringify({schemaVersion:1,kind:'nemesis-coverage-test-artifact',recordId:record.id,testPath,status:'pass',rawLog:{path:logPath,digest:sha(raw),bytes:raw.byteLength},providerVersions},null,2)}\n`);
-  const qualification=Buffer.from(`${JSON.stringify({schemaVersion:1,kind:'nemesis-coverage-qualification',recordId:record.id,corpusRoot,corpusDigest,artifactDigest:sha(artifact),providerVersions,casesRequired,command:['node','--test',testPath],decision:'source-measured-runtime-unproven'},null,2)}\n`);
+  const artifact=Buffer.from(`${JSON.stringify({schemaVersion:1,kind:'legion-coverage-test-artifact',recordId:record.id,testPath,status:'pass',rawLog:{path:logPath,digest:sha(raw),bytes:raw.byteLength},providerVersions},null,2)}\n`);
+  const qualification=Buffer.from(`${JSON.stringify({schemaVersion:1,kind:'legion-coverage-qualification',recordId:record.id,corpusRoot,corpusDigest,artifactDigest:sha(artifact),providerVersions,casesRequired,command:['node','--test',testPath],decision:'source-measured-runtime-unproven'},null,2)}\n`);
   for(const [path,bytes]of [[qualificationPath,qualification],[artifactPath,artifact]])writeFileSync(join(root,path),bytes);
   Object.assign(record,{corpusPath,corpusRoot,corpusDigest,providerVersions,qualificationPath,qualificationDigest:sha(qualification),artifactPath,artifactDigest:sha(artifact)});
 }

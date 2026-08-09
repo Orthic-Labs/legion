@@ -21,7 +21,7 @@
       "const": 1
     },
     "kind": {
-      "const": "nemesis-accepted-risk"
+      "const": "legion-accepted-risk"
     },
     "id": {
       "type": "string",

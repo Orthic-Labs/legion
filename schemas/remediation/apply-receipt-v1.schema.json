@@ -28,7 +28,7 @@
       "const": 1
     },
     "kind": {
-      "const": "nemesis-remediation-apply-receipt"
+      "const": "legion-remediation-apply-receipt"
     },
     "proposalId": {
       "type": "string"

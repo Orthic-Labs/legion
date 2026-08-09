@@ -18,7 +18,7 @@ export function buildLensCatalog(registryPath = 'registry/security-lenses.json')
 
 export function renderCatalog(rows) {
   const lines = [
-    '# Nemesis security lens catalogue',
+    '# Legion security lens catalogue',
     '',
     'Generated from `registry/security-lenses.json`.',
     '',

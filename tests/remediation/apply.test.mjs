@@ -13,7 +13,7 @@ test('patch effect graph maps finding to patch to affected surfaces', () => {
     affectedProviders: ['language.javascript'], requiredTests: ['test/update.test.ts'],
     runtimeSurfaces: [], securityPaths: ['authorization.object-write'], residualRisks: ['behavior change'],
   });
-  assert.equal(graph.kind, 'nemesis-patch-effect-graph');
+  assert.equal(graph.kind, 'legion-patch-effect-graph');
   assert.equal(graph.patchDigest, 'sha256:p');
 });
 

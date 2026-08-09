@@ -13,7 +13,7 @@ test('editor diagnostics map findings to stable diagnostics', () => {
     },
   });
   assert.equal(diagnostics.length, 2);
-  assert.equal(diagnostics[0].kind, 'nemesis-editor-diagnostic');
+  assert.equal(diagnostics[0].kind, 'legion-editor-diagnostic');
   assert.equal(diagnostics[0].severity, 1);
   assert.equal(diagnostics[1].severity, 2);
   assert.equal(diagnostics[0].file, 'a.ts');

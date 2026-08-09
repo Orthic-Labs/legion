@@ -1,12 +1,12 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "nemesis-release-contract-v1",
+  "$id": "legion-release-contract-v1",
   "type": "object",
   "additionalProperties": false,
   "required": ["schemaVersion", "kind", "observed", "declared", "policy", "externalEvidence", "conflicts", "missing", "claimLevel", "requestedClaimLevel", "targetIds", "supportedPlatforms", "supportedVersions", "architectures", "browsers", "devices", "installationModes", "environments", "roles", "tenants", "plansAndEntitlements", "criticalJourneyIds", "dataClasses", "crownJewelAssets", "budgets", "unsupportedScenarios", "acceptedRiskAuthority", "releaseCandidates", "observedDeclaredConflicts", "missingDeclarations", "binding", "digest"],
   "properties": {
     "schemaVersion": { "const": 1 },
-    "kind": { "const": "nemesis-release-contract" },
+    "kind": { "const": "legion-release-contract" },
     "observed": { "type": "object" },
     "declared": { "type": "object" },
     "policy": { "type": "object" },

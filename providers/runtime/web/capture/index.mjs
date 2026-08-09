@@ -8,9 +8,9 @@ const PERFORMANCE_REQUIRED = ['longTasks', 'layoutShifts', 'paints', 'memory', '
 const nonnegativeMetric = (value) => typeof value === 'number' ? Number.isFinite(value) && value >= 0 : Array.isArray(value) && value.length > 0 && value.every((item) => typeof item === 'number' && Number.isFinite(item) && item >= 0);
 
 export function captureWebEvidence({ binding = {}, surface = {}, tool = {}, captures = [] } = {}) {
-  if (!surface || typeof surface !== 'object' || Array.isArray(surface)) return finalize('nemesis-web-capture-evidence', { status: 'error', terminal: true, verdict: 'unproven', binding, captures: [], coverageGaps: ['capture-surface-invalid'] });
-  if (!tool || typeof tool !== 'object' || Array.isArray(tool)) return finalize('nemesis-web-capture-evidence', { status: 'error', terminal: true, verdict: 'unproven', binding, captures: [], coverageGaps: ['capture-tool-invalid'] });
-  if (!Array.isArray(captures) || captures.some((item) => !item || typeof item !== 'object')) return finalize('nemesis-web-capture-evidence', { status: 'error', terminal: true, verdict: 'unproven', binding, captures: [], coverageGaps: ['capture-collection-invalid'] });
+  if (!surface || typeof surface !== 'object' || Array.isArray(surface)) return finalize('legion-web-capture-evidence', { status: 'error', terminal: true, verdict: 'unproven', binding, captures: [], coverageGaps: ['capture-surface-invalid'] });
+  if (!tool || typeof tool !== 'object' || Array.isArray(tool)) return finalize('legion-web-capture-evidence', { status: 'error', terminal: true, verdict: 'unproven', binding, captures: [], coverageGaps: ['capture-tool-invalid'] });
+  if (!Array.isArray(captures) || captures.some((item) => !item || typeof item !== 'object')) return finalize('legion-web-capture-evidence', { status: 'error', terminal: true, verdict: 'unproven', binding, captures: [], coverageGaps: ['capture-collection-invalid'] });
   const ordered = sortById(captures.map((item) => ({ id: String(item.repeat), ...item })));
   const gaps = exactBinding(binding).gaps.map((key) => `binding-missing:${key}`);
   const sanitized = sanitizeSensitiveValue({ binding, surface, tool, captures: ordered });
@@ -48,5 +48,5 @@ export function captureWebEvidence({ binding = {}, surface = {}, tool = {}, capt
   const p75 = p75Inputs.length ? p75Inputs[Math.ceil(p75Inputs.length * 0.75) - 1] : null;
   const variance = p75Inputs.length ? Math.max(...p75Inputs) - Math.min(...p75Inputs) : null;
   if (p75 === null) gaps.push('capture-performance-p75-missing');
-  return finalize('nemesis-web-capture-evidence', { status: gaps.length ? 'partial' : 'pass', terminal: true, verdict: 'unproven', binding: sanitized.value.binding, captureBinding: { route: sanitized.value.surface.route ?? null, stateId: sanitized.value.surface.stateId ?? null, matrixCombinationId: sanitized.value.surface.matrixCombinationId ?? null }, surface: sanitized.value.surface, tool: sanitized.value.tool, captures: sanitized.value.captures, performance: { p75Inputs, p75, variance }, coverageGaps: [...new Set(gaps)].sort() });
+  return finalize('legion-web-capture-evidence', { status: gaps.length ? 'partial' : 'pass', terminal: true, verdict: 'unproven', binding: sanitized.value.binding, captureBinding: { route: sanitized.value.surface.route ?? null, stateId: sanitized.value.surface.stateId ?? null, matrixCombinationId: sanitized.value.surface.matrixCombinationId ?? null }, surface: sanitized.value.surface, tool: sanitized.value.tool, captures: sanitized.value.captures, performance: { p75Inputs, p75, variance }, coverageGaps: [...new Set(gaps)].sort() });
 }

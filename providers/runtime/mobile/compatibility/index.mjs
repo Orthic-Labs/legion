@@ -28,6 +28,6 @@ export function compileMobileCompatibility({ criticalJourneys = [], executed = [
   const iosAccounted = accounted('ios', iosExpected);
   const androidAccounted = accounted('android', androidExpected);
   const gaps = criticalJourneys.filter((journeyId) => !executed.some((item) => item.dimension === 'accessibility' && item.journeyId === journeyId && item.status === 'pass')).map((journeyId) => `accessibility-journey-missing:${journeyId}`);
-  return { schemaVersion: 1, kind: 'nemesis-mobile-compatibility-matrix', status: omitted.length ? 'partial' : 'pass', terminal: true,
+  return { schemaVersion: 1, kind: 'legion-mobile-compatibility-matrix', status: omitted.length ? 'partial' : 'pass', terminal: true,
     executed, omitted, denominator: { total: expected.length, accounted: iosAccounted + androidAccounted, ios: { total: iosExpected.length, accounted: iosAccounted }, android: { total: androidExpected.length, accounted: androidAccounted } }, coverageGaps: gaps };
 }

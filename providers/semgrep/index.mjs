@@ -6,7 +6,7 @@
 export function semgrepCapability({ mode = 'ce', accountRequired = false, networkRequired = false, ruleset = null, version = null }) {
   return {
     schemaVersion: 1,
-    kind: 'nemesis-semgrep-capability',
+    kind: 'legion-semgrep-capability',
     mode, // ce | local | platform
     accountRequired,
     networkRequired,

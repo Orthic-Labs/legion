@@ -18,7 +18,7 @@ const LEGACY_PATHS = [
 ];
 
 // Frozen from root commit 52a90cf0^ after translating audit skill paths into
-// the standalone Nemesis checkout. This keeps legacy parity testable offline.
+// the standalone Legion checkout. This keeps legacy parity testable offline.
 const LEGACY_BLOBS = [
   ['_audit/capability-aliases.json', '12649b2258e87d7d3d0db37526cc81c0774b4a53'],
   ['_audit/compatibility-matrix.json', 'aae0fcf603dfa72d1a8dad2dce24dacbe646ba02'],
@@ -184,7 +184,7 @@ function legacyRecords() {
   });
 }
 
-test('all 135 legacy paths remain in standalone Nemesis', () => {
+test('all 135 legacy paths remain in standalone Legion', () => {
   if (existsSync(join(legacySourceRoot, '.git'))) {
     assert.deepEqual(LEGACY_BLOBS, derivedLegacyBlobs(), 'embedded legacy mappings must match 52a90cf0^');
   }
@@ -231,7 +231,7 @@ test('source qualification fails closed for blocked tasks or source records', ()
 });
 
 test('source qualification rejects malformed, missing, mismatched, or escaping records', () => {
-  const repositoryRoot = mkdtempSync(join(tmpdir(), 'nemesis-source-records-'));
+  const repositoryRoot = mkdtempSync(join(tmpdir(), 'legion-source-records-'));
   const externalBlocker = { id: 'hardware-proof', kind: 'external-hardware' };
   writeFileSync(join(repositoryRoot, 'claimed.mjs'), 'export const claimed = true;\n');
   const cases = [
