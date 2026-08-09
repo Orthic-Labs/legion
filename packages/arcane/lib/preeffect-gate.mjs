@@ -34,6 +34,7 @@
 import { decision } from './errors.mjs';
 import { validateAgainst } from './validate.mjs';
 import { requireAuthority } from './authority.mjs';
+import { ulid } from './ids.mjs';
 
 /**
  * Every value in the frozen EFFECT_CLASS enum either mutates product state or
@@ -103,17 +104,28 @@ export class PreEffectGate {
 
   #clock;
 
+  #enforcementMode;
+
   /**
    * @param {object} deps
    * @param {object} deps.policy a PolicyEngine, or failClosedEngine(...)
    * @param {object|null} deps.capabilityStore S03's CapabilityStore
    * @param {object} deps.authorityLedger
+   * @param {'enforcing'|'advisory'} [deps.enforcementMode] governs `authorize()`
+   *   only — `evaluate()` is unaffected and always enforces. Default
+   *   'enforcing' so nothing changes for existing callers. In 'advisory',
+   *   `authorize()` still runs every real check and still mints a capability,
+   *   but a check that would deny is not enforced — the denial is instead
+   *   carried verbatim under `detail.wouldHaveDenied` and the response is
+   *   `enforcementHealth: 'advisory'`, which ARC's enforcement ranking makes
+   *   structurally unable to satisfy any claim level requiring read_only+.
    */
-  constructor({ policy, capabilityStore, authorityLedger, clock = () => Date.now() }) {
+  constructor({ policy, capabilityStore, authorityLedger, clock = () => Date.now(), enforcementMode = 'enforcing' }) {
     this.#policy = policy;
     this.#capabilityStore = capabilityStore ?? null;
     this.#authority = authorityLedger;
     this.#clock = clock;
+    this.#enforcementMode = enforcementMode;
   }
 
   /** True when the gate can actually enforce. */
@@ -135,155 +147,12 @@ export class PreEffectGate {
    * @returns {object} decision
    */
   evaluate(effectRequest, ctx) {
-    const {
-      contract = null,
-      turnId,
-      capabilityId = null,
-      approvalDigest = null,
-      destination = null,
-      expectedContractVersion = null,
-    } = ctx ?? {};
+    const { capabilityId = null } = ctx ?? {};
 
-    // 1. Structure. A malformed request is refused before any policy is read —
-    //    there is no point asking whether an unparseable thing is authorized.
-    const structural = validateAgainst('effect-request-v1', effectRequest);
-    if (!structural.valid) {
-      return decision({
-        allowed: false,
-        code: 'ARC_SCHEMA_INVALID',
-        message: 'effect request does not satisfy effect-request-v1',
-        detail: { issues: structural.issues },
-      });
-    }
-
-    // 2. Enforcement availability. Mutation-bearing work fails closed.
-    if (!this.available()) {
-      return decision({
-        allowed: false,
-        code: 'ARC_GATE_UNAVAILABLE',
-        message: 'pre-effect gate unavailable; mutation-bearing operations fail closed (ARCHITECTURE §24a)',
-        detail: {
-          policy: Boolean(this.#policy && !this.#policy.failClosed),
-          capabilityStore: Boolean(this.#capabilityStore),
-          authorityLedger: Boolean(this.#authority),
-          effectClass: effectRequest.effectClass,
-        },
-        enforcementHealth: 'unsupported',
-      });
-    }
-
-    // 3. Authority — kernel-asserted for this turn, and the request's own
-    //    `requestedBy` must agree with it rather than replace it.
-    const auth = requireAuthority(this.#authority, turnId, ['alchemist', 'sage', 'seer', 'legion'], {
-      claimedAuthority: effectRequest.requestedBy,
-      requirePerMessage: true,
-    });
-    if (!auth.allowed) return auth;
-
-    // 4. G2 — no mutation without a contract.
-    if (!contract) {
-      return decision({
-        allowed: false,
-        code: 'ARC_NO_CONTRACT',
-        message: 'mutation requested with no execution contract (G2)',
-        detail: { contractId: effectRequest.contractId, effectClass: effectRequest.effectClass },
-      });
-    }
-
-    // 5. Contract identity, version, and revision binding.
-    if (contract.contractId !== effectRequest.contractId) {
-      return decision({
-        allowed: false,
-        code: 'ARC_CONTRACT_VERSION_MISMATCH',
-        message: 'effect request names a different contract than the one supplied',
-        detail: { requested: effectRequest.contractId, supplied: contract.contractId },
-      });
-    }
-    if (expectedContractVersion !== null && contract.version !== expectedContractVersion) {
-      return decision({
-        allowed: false,
-        code: 'ARC_CONTRACT_VERSION_MISMATCH',
-        message: 'contract version does not match the version this effect was authorized against',
-        detail: { expected: expectedContractVersion, actual: contract.version },
-      });
-    }
-    if (contract.sourceRevision !== effectRequest.sourceRevision) {
-      return decision({
-        allowed: false,
-        code: 'ARC_CONTRACT_VERSION_MISMATCH',
-        message: 'effect request source revision does not match the contract it cites',
-        detail: { request: effectRequest.sourceRevision, contract: contract.sourceRevision },
-      });
-    }
-
-    // 6. G9 — open questions make a contract non-executable.
-    if (Array.isArray(contract.openQuestions) && contract.openQuestions.length > 0) {
-      return decision({
-        allowed: false,
-        code: 'ARC_CONTRACT_NOT_EXECUTABLE',
-        message: `contract ${contract.contractId} has ${contract.openQuestions.length} open question(s) (G9)`,
-        detail: { openQuestions: contract.openQuestions.map((q) => q.id) },
-      });
-    }
-
-    // 7. Path ownership. Forbidden is checked first and wins outright — an
-    //    overlapping own[] pattern must never be able to re-open a forbidden
-    //    path.
-    const paths = [{ which: 'target', value: effectRequest.target }];
-    if (TWO_PATH_EFFECTS.includes(effectRequest.effectClass) && destination) {
-      paths.push({ which: 'destination', value: destination });
-    }
-    for (const { which, value } of paths) {
-      if (matchesAny(contract.scope.forbidden, value)) {
-        return decision({
-          allowed: false,
-          code: 'ARC_PATH_FORBIDDEN',
-          message: `${which} path is in the contract's forbidden scope`,
-          detail: { which, path: value, forbidden: [...contract.scope.forbidden] },
-        });
-      }
-      if (!matchesAny(contract.scope.own, value)) {
-        return decision({
-          allowed: false,
-          code: 'ARC_PATH_NOT_OWNED',
-          message: `${which} path is not inside the contract's own[] scope`,
-          detail: { which, path: value, own: [...contract.scope.own] },
-        });
-      }
-    }
-
-    // 8. Effect-class authorization — the contract first (it is the narrower,
-    //    task-specific grant), then policy (the global ceiling).
-    if (!contract.authorizedEffectClasses.includes(effectRequest.effectClass)) {
-      return decision({
-        allowed: false,
-        code: 'ARC_EFFECT_CLASS_UNAUTHORIZED',
-        message: `contract ${contract.contractId} does not authorize ${effectRequest.effectClass}`,
-        detail: {
-          deniedBy: 'contract',
-          effectClass: effectRequest.effectClass,
-          authorized: [...contract.authorizedEffectClasses],
-        },
-      });
-    }
-    const policyCall = this.#policy.effectDecision(effectRequest.effectClass, { approvalDigest });
-    if (!policyCall.allowed) {
-      return decision({
-        allowed: false,
-        code: policyCall.code,
-        message: policyCall.message,
-        detail: { ...policyCall.detail, deniedBy: 'policy' },
-        enforcementHealth: policyCall.enforcementHealth,
-      });
-    }
-
-    // 9. Latitude. The request's declared latitude must match the artifact unit
-    //    the contract actually defines for that path. A path the contract owns
-    //    but never named as an artifact can only be touched at BOUNDED
-    //    latitude — claiming EXACT means claiming the contract fully determined
-    //    content it never mentioned.
-    const latitudeCall = this.#checkLatitude(contract, effectRequest);
-    if (!latitudeCall.allowed) return latitudeCall;
+    const chk = this.#runChecks(effectRequest, ctx);
+    if (chk.hardFail) return chk.decision;
+    if (chk.deny) return chk.deny;
+    const { contract } = chk;
 
     // 10. Capability.
     if (!capabilityId) {
@@ -300,6 +169,7 @@ export class PreEffectGate {
       target: effectRequest.target,
       runId: effectRequest.runId,
       taskId: effectRequest.taskId,
+      workspace: ctx?.workspace,
       // CapabilityStore compares `now` against an ISO `expiresAt` with `>=`.
       // Passing the raw epoch millis from #clock() would compare a number to a
       // string, which is always false — expiry would silently never fire.
@@ -323,6 +193,307 @@ export class PreEffectGate {
       },
       enforcementHealth: 'strong',
     });
+  }
+
+  /**
+   * CONTRACT A — the capability mint authority. Runs the identical checks
+   * `evaluate()` runs (steps 1-9, via `#runChecks`), then — where `evaluate()`
+   * requires a capability to already exist — mints one itself, scoped to
+   * exactly the validated fields, and immediately self-checks it through the
+   * same `CapabilityStore.check()` a real effect would go through. This is
+   * additive: `evaluate()` is untouched and remains the way to authorize an
+   * effect against an already-issued capability.
+   *
+   * @returns {object} decision. On success, `detail.capabilityId` names a
+   *   capability nobody supplied — Arcane minted it because the request
+   *   passed every check.
+   */
+  authorize(effectRequest, ctx) {
+    const chk = this.#runChecks(effectRequest, ctx);
+    if (chk.hardFail) return chk.decision;
+    if (chk.deny && this.#enforcementMode !== 'advisory') return chk.deny;
+
+    const workspace = ctx?.workspace ?? null;
+    const destination = ctx?.destination ?? null;
+    const targets = [effectRequest.target];
+    if (TWO_PATH_EFFECTS.includes(effectRequest.effectClass) && destination) targets.push(destination);
+
+    const limits = this.#policy.capabilityLimits();
+    const nowMs = this.#clock();
+    const nowIso = new Date(nowMs).toISOString();
+    const expiresAt = limits.ttlSeconds ? new Date(nowMs + limits.ttlSeconds * 1000).toISOString() : null;
+    const capabilityId = `cap_${ulid(nowMs)}`;
+
+    this.#capabilityStore.issue({
+      capabilityId,
+      runId: effectRequest.runId,
+      taskId: effectRequest.taskId,
+      workspace,
+      operation: effectRequest.operation,
+      effectClass: effectRequest.effectClass,
+      targets,
+      policyDigest: this.#policy.digest,
+      expiresAt,
+      maxUses: limits.maxUses ?? null,
+    });
+
+    // Self-check: a capability this method just minted must itself pass the
+    // same binding checks a real effect would be held to. If it doesn't, the
+    // mint is worthless and the decision must fail closed rather than hand
+    // back a capability nobody could actually use.
+    const selfCheck = this.#capabilityStore.check(capabilityId, {
+      operation: effectRequest.operation,
+      effectClass: effectRequest.effectClass,
+      target: effectRequest.target,
+      runId: effectRequest.runId,
+      taskId: effectRequest.taskId,
+      workspace,
+      now: nowIso,
+    });
+    if (!selfCheck.allowed) {
+      return decision({
+        allowed: false,
+        code: selfCheck.code,
+        message: `minted capability failed its own self-check: ${selfCheck.message}`,
+        detail: { ...selfCheck.detail, capabilityId },
+        enforcementHealth: 'unsupported',
+      });
+    }
+
+    const detail = {
+      contractId: chk.contract ? chk.contract.contractId : null,
+      contractVersion: chk.contract ? chk.contract.version : null,
+      effectClass: effectRequest.effectClass,
+      target: effectRequest.target,
+      latitude: effectRequest.latitude,
+      capabilityId,
+      policyId: this.#policy.policyId,
+      policyDigest: this.#policy.digest,
+    };
+
+    if (chk.deny) {
+      // Advisory mode: the real decision would have denied, but advisory
+      // enforcement skips ENFORCING the deny, not the minting. The denial is
+      // carried verbatim so nothing about it is silently lost.
+      return decision({
+        allowed: true,
+        message: 'authorized under advisory enforcement; the underlying check would have denied',
+        detail: {
+          ...detail,
+          wouldHaveDenied: { code: chk.deny.code, message: chk.deny.message, detail: chk.deny.detail },
+        },
+        enforcementHealth: 'advisory',
+      });
+    }
+
+    return decision({ allowed: true, message: 'authorized', detail, enforcementHealth: 'strong' });
+  }
+
+  /**
+   * Steps 1-9 of the pre-effect decision, shared by `evaluate()` and
+   * `authorize()`. Mechanical extraction — no behavioural change to the
+   * checks themselves.
+   *
+   * @returns {{hardFail:true, decision:object}} when enforcement could not
+   *   even run (structural failure or gate unavailability) — never
+   *   advisory-overridable, because there is nothing valid to mint from.
+   * @returns {{hardFail:false, deny:object|null, contract:object|null}} when
+   *   the checks ran to completion; `deny` is the first failing decision, or
+   *   null when every check passed.
+   */
+  #runChecks(effectRequest, ctx) {
+    const {
+      contract = null,
+      turnId,
+      approvalDigest = null,
+      destination = null,
+      expectedContractVersion = null,
+    } = ctx ?? {};
+
+    // 1. Structure. A malformed request is refused before any policy is read —
+    //    there is no point asking whether an unparseable thing is authorized.
+    const structural = validateAgainst('effect-request-v1', effectRequest);
+    if (!structural.valid) {
+      return {
+        hardFail: true,
+        decision: decision({
+          allowed: false,
+          code: 'ARC_SCHEMA_INVALID',
+          message: 'effect request does not satisfy effect-request-v1',
+          detail: { issues: structural.issues },
+        }),
+      };
+    }
+
+    // 2. Enforcement availability. Mutation-bearing work fails closed.
+    if (!this.available()) {
+      return {
+        hardFail: true,
+        decision: decision({
+          allowed: false,
+          code: 'ARC_GATE_UNAVAILABLE',
+          message: 'pre-effect gate unavailable; mutation-bearing operations fail closed (ARCHITECTURE §24a)',
+          detail: {
+            policy: Boolean(this.#policy && !this.#policy.failClosed),
+            capabilityStore: Boolean(this.#capabilityStore),
+            authorityLedger: Boolean(this.#authority),
+            effectClass: effectRequest.effectClass,
+          },
+          enforcementHealth: 'unsupported',
+        }),
+      };
+    }
+
+    // 3. Authority — kernel-asserted for this turn, and the request's own
+    //    `requestedBy` must agree with it rather than replace it.
+    const auth = requireAuthority(this.#authority, turnId, ['alchemist', 'sage', 'seer', 'legion'], {
+      claimedAuthority: effectRequest.requestedBy,
+      requirePerMessage: true,
+    });
+    if (!auth.allowed) return { hardFail: false, deny: auth, contract };
+
+    // 4. G2 — no mutation without a contract.
+    if (!contract) {
+      return {
+        hardFail: false,
+        deny: decision({
+          allowed: false,
+          code: 'ARC_NO_CONTRACT',
+          message: 'mutation requested with no execution contract (G2)',
+          detail: { contractId: effectRequest.contractId, effectClass: effectRequest.effectClass },
+        }),
+        contract,
+      };
+    }
+
+    // 5. Contract identity, version, and revision binding.
+    if (contract.contractId !== effectRequest.contractId) {
+      return {
+        hardFail: false,
+        deny: decision({
+          allowed: false,
+          code: 'ARC_CONTRACT_VERSION_MISMATCH',
+          message: 'effect request names a different contract than the one supplied',
+          detail: { requested: effectRequest.contractId, supplied: contract.contractId },
+        }),
+        contract,
+      };
+    }
+    if (expectedContractVersion !== null && contract.version !== expectedContractVersion) {
+      return {
+        hardFail: false,
+        deny: decision({
+          allowed: false,
+          code: 'ARC_CONTRACT_VERSION_MISMATCH',
+          message: 'contract version does not match the version this effect was authorized against',
+          detail: { expected: expectedContractVersion, actual: contract.version },
+        }),
+        contract,
+      };
+    }
+    if (contract.sourceRevision !== effectRequest.sourceRevision) {
+      return {
+        hardFail: false,
+        deny: decision({
+          allowed: false,
+          code: 'ARC_CONTRACT_VERSION_MISMATCH',
+          message: 'effect request source revision does not match the contract it cites',
+          detail: { request: effectRequest.sourceRevision, contract: contract.sourceRevision },
+        }),
+        contract,
+      };
+    }
+
+    // 6. G9 — open questions make a contract non-executable.
+    if (Array.isArray(contract.openQuestions) && contract.openQuestions.length > 0) {
+      return {
+        hardFail: false,
+        deny: decision({
+          allowed: false,
+          code: 'ARC_CONTRACT_NOT_EXECUTABLE',
+          message: `contract ${contract.contractId} has ${contract.openQuestions.length} open question(s) (G9)`,
+          detail: { openQuestions: contract.openQuestions.map((q) => q.id) },
+        }),
+        contract,
+      };
+    }
+
+    // 7. Path ownership. Forbidden is checked first and wins outright — an
+    //    overlapping own[] pattern must never be able to re-open a forbidden
+    //    path.
+    const paths = [{ which: 'target', value: effectRequest.target }];
+    if (TWO_PATH_EFFECTS.includes(effectRequest.effectClass) && destination) {
+      paths.push({ which: 'destination', value: destination });
+    }
+    for (const { which, value } of paths) {
+      if (matchesAny(contract.scope.forbidden, value)) {
+        return {
+          hardFail: false,
+          deny: decision({
+            allowed: false,
+            code: 'ARC_PATH_FORBIDDEN',
+            message: `${which} path is in the contract's forbidden scope`,
+            detail: { which, path: value, forbidden: [...contract.scope.forbidden] },
+          }),
+          contract,
+        };
+      }
+      if (!matchesAny(contract.scope.own, value)) {
+        return {
+          hardFail: false,
+          deny: decision({
+            allowed: false,
+            code: 'ARC_PATH_NOT_OWNED',
+            message: `${which} path is not inside the contract's own[] scope`,
+            detail: { which, path: value, own: [...contract.scope.own] },
+          }),
+          contract,
+        };
+      }
+    }
+
+    // 8. Effect-class authorization — the contract first (it is the narrower,
+    //    task-specific grant), then policy (the global ceiling).
+    if (!contract.authorizedEffectClasses.includes(effectRequest.effectClass)) {
+      return {
+        hardFail: false,
+        deny: decision({
+          allowed: false,
+          code: 'ARC_EFFECT_CLASS_UNAUTHORIZED',
+          message: `contract ${contract.contractId} does not authorize ${effectRequest.effectClass}`,
+          detail: {
+            deniedBy: 'contract',
+            effectClass: effectRequest.effectClass,
+            authorized: [...contract.authorizedEffectClasses],
+          },
+        }),
+        contract,
+      };
+    }
+    const policyCall = this.#policy.effectDecision(effectRequest.effectClass, { approvalDigest });
+    if (!policyCall.allowed) {
+      return {
+        hardFail: false,
+        deny: decision({
+          allowed: false,
+          code: policyCall.code,
+          message: policyCall.message,
+          detail: { ...policyCall.detail, deniedBy: 'policy' },
+          enforcementHealth: policyCall.enforcementHealth,
+        }),
+        contract,
+      };
+    }
+
+    // 9. Latitude. The request's declared latitude must match the artifact unit
+    //    the contract actually defines for that path. A path the contract owns
+    //    but never named as an artifact can only be touched at BOUNDED
+    //    latitude — claiming EXACT means claiming the contract fully determined
+    //    content it never mentioned.
+    const latitudeCall = this.#checkLatitude(contract, effectRequest);
+    if (!latitudeCall.allowed) return { hardFail: false, deny: latitudeCall, contract };
+
+    return { hardFail: false, deny: null, contract };
   }
 
   #checkLatitude(contract, effectRequest) {

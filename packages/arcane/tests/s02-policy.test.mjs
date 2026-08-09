@@ -9,7 +9,7 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -20,6 +20,7 @@ import {
   failClosedEngine,
   DEFAULT_POLICY_PATH,
   policyDuplicationAudit,
+  capabilityIssuanceAudit,
   EFFECT_CLASS_RECONCILIATION,
 } from '../lib/policy.mjs';
 import { AuthorityLedger, extractAuthorityFromPayload, requireAuthority } from '../lib/authority.mjs';
@@ -296,6 +297,15 @@ test('S02: no adapter duplicates policy — the bridge holds no allow/deny logic
   ]);
   assert.equal(audit.violations.length, 0, JSON.stringify(audit.violations));
   assert.ok(audit.scanned.length >= 2);
+});
+
+test('S02: no module outside preeffect-gate.mjs / receipt-store.mjs mints a capability', () => {
+  const files = readdirSync(libDir)
+    .filter((name) => name.endsWith('.mjs'))
+    .map((name) => path.join(libDir, name));
+  const audit = capabilityIssuanceAudit(files);
+  assert.equal(audit.violations.length, 0, JSON.stringify(audit.violations));
+  assert.ok(audit.scanned.length >= 10);
 });
 
 test('S02: the policy engine is the only module that reads effectRules', () => {

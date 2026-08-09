@@ -125,4 +125,4 @@ export function decision({ allowed, code = null, message = '', detail = {}, enfo
 }
 
 /** Enforcement levels Arcane may honestly report (detailed plan §7.3). */
-export const ENFORCEMENT_LEVEL = Object.freeze(['strong', 'observed', 'read_only', 'unsupported']);
+export const ENFORCEMENT_LEVEL = Object.freeze(['strong', 'observed', 'read_only', 'advisory', 'unsupported']);

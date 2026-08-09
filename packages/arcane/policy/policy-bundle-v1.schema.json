@@ -147,6 +147,21 @@
         "storePayloads": { "type": "boolean" },
         "note": { "type": "string" }
       }
+    },
+
+    "lockedDomains": {
+      "type": "array",
+      "description": "Paths whose completion claims force extra claim-level prerequisites, evaluated by lib/completion-gate.mjs. Which paths are locked is a product decision left to the bundle author; the safe default is an empty array.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["pattern", "claimLevel"],
+        "properties": {
+          "pattern": { "type": "string", "minLength": 1 },
+          "claimLevel": { "enum": ["signoff", "highRisk", "release"] },
+          "note": { "type": "string" }
+        }
+      }
     }
   },
 
