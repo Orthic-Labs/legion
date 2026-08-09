@@ -1,1 +1,412 @@
-{"schemaVersion":1,"kind":"nemesis-book-qualification","book":5,"expectedTaskCount":32,"decision":"SOURCE_COMPLETE","claimLevel":"source","tasks":[{"id":"B5-001","status":"implemented","mapping":"lib/design/skill-compiler.mjs"},{"id":"B5-002","status":"implemented","mapping":"lib/design/context.mjs;brand-context.mjs"},{"id":"B5-003","status":"implemented","mapping":"lib/design/surfaces.mjs;providers/ux/surface-inventory.mjs"},{"id":"B5-004","status":"implemented","mapping":"lib/design/runtime-spec.mjs"},{"id":"B5-005","status":"implemented","mapping":"providers/visual/tokens.mjs"},{"id":"B5-006","status":"implemented","mapping":"providers/visual/color.mjs;providers/accessibility/contrast.mjs"},{"id":"B5-007","status":"mapped","mapping":"design surface geometry evidence"},{"id":"B5-008","status":"mapped","mapping":"content inventory + design surface context"},{"id":"B5-009","status":"mapped","mapping":"surface inventory + designer profile"},{"id":"B5-010","status":"mapped","mapping":"runtime specs & viewport matrix"},{"id":"B5-011","status":"mapped","mapping":"surface controls & runtime specs"},{"id":"B5-012","status":"mapped","mapping":"journey state machine & surface inventory"},{"id":"B5-013","status":"mapped","mapping":"surface routes & journey evidence"},{"id":"B5-014","status":"mapped","mapping":"journey assertions & content inventory"},{"id":"B5-015","status":"mapped","mapping":"runtime surface state specifications"},{"id":"B5-016","status":"mapped","mapping":"journey recovery & lifecycle receipts"},{"id":"B5-017","status":"mapped","mapping":"surface controls & runtime specs"},{"id":"B5-018","status":"mapped","mapping":"designer profile + content context"},{"id":"B5-019","status":"implemented","mapping":"providers/accessibility/contrast.mjs"},{"id":"B5-020","status":"mapped","mapping":"runtime accessibility evidence contract"},{"id":"B5-021","status":"mapped","mapping":"platform terminal scenario receipt"},{"id":"B5-022","status":"mapped","mapping":"browser runtime screenshot receipt"},{"id":"B5-023","status":"mapped","mapping":"design surface geometry evidence"},{"id":"B5-024","status":"mapped","mapping":"browser runtime screenshots"},{"id":"B5-025","status":"mapped","mapping":"designer audit profile"},{"id":"B5-026","status":"mapped","mapping":"runtime state/measurement evidence"},{"id":"B5-027","status":"implemented","mapping":"providers/performance/frontend/core.mjs"},{"id":"B5-028","status":"mapped","mapping":"browser runtime performance observations"},{"id":"B5-029","status":"implemented","mapping":"providers/reliability/runtime/core.mjs"},{"id":"B5-030","status":"implemented","mapping":"registry/rules/visual;registry/rules/ux"},{"id":"B5-031","status":"mapped","mapping":"bound source evidence contracts"},{"id":"B5-032","status":"implemented","mapping":"qualification/book-5.json"}],"checks":["platform-foundations:test","task-accounting:32","source-vs-rendered-separation"],"blockers":[{"id":"designer-skill-bundle","kind":"content-approval","affects":"designer-derived rules"},{"id":"rendered-surface-capture","kind":"external-hardware","affects":"runtime/product/release"},{"id":"qualified-a11y-performance-evidence","kind":"external-hardware","affects":"runtime/product/release"}]}
+{
+  "schemaVersion": 1,
+  "kind": "nemesis-book-qualification",
+  "book": 5,
+  "expectedTaskCount": 32,
+  "decision": "SOURCE_COMPLETE",
+  "claimLevel": "source",
+  "tasks": [
+    {
+      "id": "B5-001",
+      "status": "implemented",
+      "mapping": "lib/design/skill-compiler.mjs"
+    },
+    {
+      "id": "B5-002",
+      "status": "implemented",
+      "mapping": "lib/design/context.mjs;brand-context.mjs"
+    },
+    {
+      "id": "B5-003",
+      "status": "implemented",
+      "mapping": "lib/design/surfaces.mjs;providers/ux/surface-inventory.mjs"
+    },
+    {
+      "id": "B5-004",
+      "status": "implemented",
+      "mapping": "lib/design/runtime-spec.mjs"
+    },
+    {
+      "id": "B5-005",
+      "status": "implemented",
+      "mapping": "providers/visual/tokens.mjs"
+    },
+    {
+      "id": "B5-006",
+      "status": "implemented",
+      "mapping": "providers/visual/color.mjs;providers/accessibility/contrast.mjs"
+    },
+    {
+      "id": "B5-007",
+      "status": "implemented",
+      "mapping": "providers/visual/geometry-tokens.mjs",
+      "evidence": {
+        "lane": "L2",
+        "proof": {
+          "red": "qualification/evidence/lanes/L2/B5-007.red.log",
+          "green": "qualification/evidence/lanes/L2/B5-007.green.log"
+        },
+        "test": {
+          "path": "tests/design-l2.test.mjs",
+          "assertion": "geometry tokens preserve denominators, affected instances, source/rendered classes, and avoid invented standards"
+        }
+      }
+    },
+    {
+      "id": "B5-008",
+      "status": "implemented",
+      "mapping": "providers/visual/typography.mjs",
+      "evidence": {
+        "lane": "L2",
+        "proof": {
+          "red": "qualification/evidence/lanes/L2/B5-008.red.log",
+          "green": "qualification/evidence/lanes/L2/B5-008.green.log"
+        },
+        "test": {
+          "path": "tests/design-l2.test.mjs",
+          "assertion": "typography findings bind role, surface, viewport, locale, and missing font evidence"
+        }
+      }
+    },
+    {
+      "id": "B5-009",
+      "status": "implemented",
+      "mapping": "providers/visual/hierarchy-static.mjs",
+      "evidence": {
+        "lane": "L2",
+        "proof": {
+          "red": "qualification/evidence/lanes/L2/B5-009.red.log",
+          "green": "qualification/evidence/lanes/L2/B5-009.green.log"
+        },
+        "test": {
+          "path": "tests/design-l2.test.mjs",
+          "assertion": "static hierarchy separates deterministic semantic mismatch from source-limited interpretation"
+        }
+      }
+    },
+    {
+      "id": "B5-010",
+      "status": "implemented",
+      "mapping": "providers/visual/responsive.mjs;providers/visual/stacking.mjs",
+      "evidence": {
+        "lane": "L2",
+        "proof": {
+          "red": "qualification/evidence/lanes/L2/B5-010.red.log",
+          "green": "qualification/evidence/lanes/L2/B5-010.green.log"
+        },
+        "test": {
+          "path": "tests/design-l2.test.mjs",
+          "assertion": "responsive and stacking analysis keeps viewport and safe-area coverage explicit"
+        }
+      }
+    },
+    {
+      "id": "B5-011",
+      "status": "implemented",
+      "mapping": "providers/ux/control-states.mjs",
+      "evidence": {
+        "lane": "L2",
+        "proof": {
+          "red": "qualification/evidence/lanes/L2/B5-011.red.log",
+          "green": "qualification/evidence/lanes/L2/B5-011.green.log"
+        },
+        "test": {
+          "path": "tests/design-l2.test.mjs",
+          "assertion": "control applicability matrices expose missing state evidence without false pass"
+        }
+      }
+    },
+    {
+      "id": "B5-012",
+      "status": "implemented",
+      "mapping": "lib/design/ux-flow.mjs;providers/ux/flow-model.mjs",
+      "evidence": {
+        "lane": "L2",
+        "proof": {
+          "red": "qualification/evidence/lanes/L2/B5-012.red.log",
+          "green": "qualification/evidence/lanes/L2/B5-012.green.log"
+        },
+        "test": {
+          "path": "tests/design-l2.test.mjs",
+          "assertion": "UX flows preserve cohort, alternate paths, measurements, inferred goals, and behavior-backed success"
+        }
+      }
+    },
+    {
+      "id": "B5-013",
+      "status": "implemented",
+      "mapping": "providers/ux/navigation.mjs",
+      "evidence": {
+        "lane": "L2",
+        "proof": {
+          "red": "qualification/evidence/lanes/L2/B5-013.red.log",
+          "green": "qualification/evidence/lanes/L2/B5-013.green.log"
+        },
+        "test": {
+          "path": "tests/design-l2.test.mjs",
+          "assertion": "navigation findings cite exact route and flow evidence without inventing features"
+        }
+      }
+    },
+    {
+      "id": "B5-014",
+      "status": "implemented",
+      "mapping": "providers/ux/forms.mjs",
+      "evidence": {
+        "lane": "L2",
+        "proof": {
+          "red": "qualification/evidence/lanes/L2/B5-014.red.log",
+          "green": "qualification/evidence/lanes/L2/B5-014.green.log"
+        },
+        "test": {
+          "path": "tests/design-l2.test.mjs",
+          "assertion": "forms bind field denominator and keep client validation separate from server security"
+        }
+      }
+    },
+    {
+      "id": "B5-015",
+      "status": "implemented",
+      "mapping": "providers/ux/system-states.mjs",
+      "evidence": {
+        "lane": "L2",
+        "proof": {
+          "red": "qualification/evidence/lanes/L2/B5-015.red.log",
+          "green": "qualification/evidence/lanes/L2/B5-015.green.log"
+        },
+        "test": {
+          "path": "tests/design-l2.test.mjs",
+          "assertion": "system-state coverage separates absent implementation from untested state"
+        }
+      }
+    },
+    {
+      "id": "B5-016",
+      "status": "implemented",
+      "mapping": "providers/ux/recovery.mjs",
+      "evidence": {
+        "lane": "L2",
+        "proof": {
+          "red": "qualification/evidence/lanes/L2/B5-016.red.log",
+          "green": "qualification/evidence/lanes/L2/B5-016.green.log"
+        },
+        "test": {
+          "path": "tests/design-l2.test.mjs",
+          "assertion": "recovery analysis requires side-effect evidence before irreversible classification"
+        }
+      }
+    },
+    {
+      "id": "B5-017",
+      "status": "implemented",
+      "mapping": "providers/ux/data-interaction.mjs",
+      "evidence": {
+        "lane": "L2",
+        "proof": {
+          "red": "qualification/evidence/lanes/L2/B5-017.red.log",
+          "green": "qualification/evidence/lanes/L2/B5-017.green.log"
+        },
+        "test": {
+          "path": "tests/design-l2.test.mjs",
+          "assertion": "data interactions bind dataset and action while keeping scale and chart interpretation unproven"
+        }
+      }
+    },
+    {
+      "id": "B5-018",
+      "status": "implemented",
+      "mapping": "providers/ux/friction.mjs;providers/trust-safety/deceptive-design.mjs",
+      "evidence": {
+        "lane": "L2",
+        "proof": {
+          "red": "qualification/evidence/lanes/L2/B5-018.red.log",
+          "green": "qualification/evidence/lanes/L2/B5-018.green.log"
+        },
+        "test": {
+          "path": "tests/design-l2.test.mjs",
+          "assertion": "friction and deceptive-design evidence separates deterministic behavior from interpretive judgment"
+        }
+      }
+    },
+    {
+      "id": "B5-019",
+      "status": "implemented",
+      "mapping": "providers/accessibility/contrast.mjs"
+    },
+    {
+      "id": "B5-020",
+      "status": "implemented",
+      "mapping": "providers/accessibility/runtime/core.mjs",
+      "evidence": {
+        "lane": "L2",
+        "proof": {
+          "red": "qualification/evidence/lanes/L2/B5-020.red.log",
+          "green": "qualification/evidence/lanes/L2/B5-020.green.log"
+        },
+        "test": {
+          "path": "tests/design-l2.test.mjs",
+          "assertion": "runtime accessibility names engine, surfaces, states, exercises, and never passes missing capability"
+        }
+      }
+    },
+    {
+      "id": "B5-021",
+      "status": "implemented",
+      "mapping": "providers/runtime/browser/adapter.mjs;providers/runtime/native-surface/adapter.mjs",
+      "evidence": {
+        "lane": "L2",
+        "proof": {
+          "red": "qualification/evidence/lanes/L2/B5-021.red.log",
+          "green": "qualification/evidence/lanes/L2/B5-021.green.log"
+        },
+        "test": {
+          "path": "tests/design-l2.test.mjs",
+          "assertion": "browser and native adapters enforce declared actions/destinations, redact secrets, and type shallow runs"
+        }
+      }
+    },
+    {
+      "id": "B5-022",
+      "status": "implemented",
+      "mapping": "providers/visual/capture.mjs;lib/design/geometry.mjs",
+      "evidence": {
+        "lane": "L2",
+        "proof": {
+          "red": "qualification/evidence/lanes/L2/B5-022.red.log",
+          "green": "qualification/evidence/lanes/L2/B5-022.green.log"
+        },
+        "test": {
+          "path": "tests/design-l2.test.mjs",
+          "assertion": "visual capture validates real PNG bytes, binds digests, separates raw/normalized evidence, and redacts secrets"
+        }
+      }
+    },
+    {
+      "id": "B5-023",
+      "status": "implemented",
+      "mapping": "providers/visual/geometry.mjs",
+      "evidence": {
+        "lane": "L2",
+        "proof": {
+          "red": "qualification/evidence/lanes/L2/B5-023.red.log",
+          "green": "qualification/evidence/lanes/L2/B5-023.green.log"
+        },
+        "test": {
+          "path": "tests/design-l2.test.mjs",
+          "assertion": "geometry findings use exact bounds and preserve unsupported primitive gaps"
+        }
+      }
+    },
+    {
+      "id": "B5-024",
+      "status": "implemented",
+      "mapping": "providers/visual/diff.mjs;lib/design/baselines.mjs",
+      "evidence": {
+        "lane": "L2",
+        "proof": {
+          "red": "qualification/evidence/lanes/L2/B5-024.red.log",
+          "green": "qualification/evidence/lanes/L2/B5-024.green.log"
+        },
+        "test": {
+          "path": "tests/design-l2.test.mjs",
+          "assertion": "visual diff rejects mismatched identities and never auto-accepts baselines"
+        }
+      }
+    },
+    {
+      "id": "B5-025",
+      "status": "implemented",
+      "mapping": "providers/visual/reviewer.mjs",
+      "evidence": {
+        "lane": "L2",
+        "proof": {
+          "red": "qualification/evidence/lanes/L2/B5-025.red.log",
+          "green": "qualification/evidence/lanes/L2/B5-025.green.log"
+        },
+        "test": {
+          "path": "tests/design-l2.test.mjs",
+          "assertion": "review packets require fresh independent identity, exact evidence, counterargument, uncertainty, and brand limits"
+        }
+      }
+    },
+    {
+      "id": "B5-026",
+      "status": "implemented",
+      "mapping": "providers/visual/motion.mjs",
+      "evidence": {
+        "lane": "L2",
+        "proof": {
+          "red": "qualification/evidence/lanes/L2/B5-026.red.log",
+          "green": "qualification/evidence/lanes/L2/B5-026.green.log"
+        },
+        "test": {
+          "path": "tests/design-l2.test.mjs",
+          "assertion": "motion findings bind transitions and timing while missing reduced-motion exercise remains unproven"
+        }
+      }
+    },
+    {
+      "id": "B5-027",
+      "status": "implemented",
+      "mapping": "providers/performance/frontend/core.mjs"
+    },
+    {
+      "id": "B5-028",
+      "status": "implemented",
+      "mapping": "providers/performance/bundle/core.mjs;providers/performance/network/core.mjs;providers/performance/cache/core.mjs",
+      "evidence": {
+        "lane": "L2",
+        "proof": {
+          "red": "qualification/evidence/lanes/L2/B5-028.red.log",
+          "green": "qualification/evidence/lanes/L2/B5-028.green.log"
+        },
+        "test": {
+          "path": "tests/design-l2.test.mjs",
+          "assertion": "bundle identity, request evidence, and cache correctness/invalidation requirements stay explicit"
+        }
+      }
+    },
+    {
+      "id": "B5-029",
+      "status": "implemented",
+      "mapping": "providers/reliability/runtime/core.mjs"
+    },
+    {
+      "id": "B5-030",
+      "status": "implemented",
+      "mapping": "registry/rules/visual;registry/rules/ux"
+    },
+    {
+      "id": "B5-031",
+      "status": "mapped",
+      "mapping": "bound source evidence contracts"
+    },
+    {
+      "id": "B5-032",
+      "status": "implemented",
+      "mapping": "qualification/book-5.json"
+    }
+  ],
+  "checks": [
+    "platform-foundations:test",
+    "task-accounting:32",
+    "source-vs-rendered-separation"
+  ],
+  "blockers": [
+    {
+      "id": "designer-skill-bundle",
+      "kind": "content-approval",
+      "affects": "designer-derived rules"
+    },
+    {
+      "id": "rendered-surface-capture",
+      "kind": "external-hardware",
+      "affects": "runtime/product/release"
+    },
+    {
+      "id": "qualified-a11y-performance-evidence",
+      "kind": "external-hardware",
+      "affects": "runtime/product/release"
+    }
+  ]
+}
