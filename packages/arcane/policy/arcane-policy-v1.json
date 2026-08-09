@@ -98,5 +98,7 @@
     "excerptMaxBytes": 4096,
     "storePayloads": false,
     "note": "Digests are preserved even when payload retention is limited (detailed plan §6.1)."
-  }
+  },
+
+  "lockedDomains": []
 }

@@ -26,6 +26,7 @@ import { fileURLToPath } from 'node:url';
 import { ArcaneError, decision } from './errors.mjs';
 import { digestValue } from './canonical.mjs';
 import { validateSchema } from '../../../lib/qualification/schema-validator.mjs';
+import { pathMatches } from './preeffect-gate.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const policyDir = path.join(path.dirname(here), 'policy');
@@ -186,6 +187,25 @@ export class PolicyEngine {
     return this.#bundle.claimLevels[name] ?? null;
   }
 
+  /**
+   * S02 (locked domains) — pure lookup of which claim levels a set of touched
+   * paths force, per the bundle's `lockedDomains`. Reuses `pathMatches` from
+   * the pre-effect gate rather than reimplementing glob matching, which is
+   * exactly the duplication `policyDuplicationAudit` now also guards against.
+   */
+  lockedDomainsFor(paths) {
+    const locked = this.#bundle.lockedDomains ?? [];
+    const matches = [];
+    for (const p of paths ?? []) {
+      for (const entry of locked) {
+        if (pathMatches(entry.pattern, p)) {
+          matches.push({ path: p, pattern: entry.pattern, claimLevel: entry.claimLevel, note: entry.note ?? null });
+        }
+      }
+    }
+    return matches;
+  }
+
   /** 'fail-closed' | 'downgrade'. Never 'allow' — not a representable value. */
   degradation(capability) {
     return this.#bundle.degradation[capability] ?? 'fail-closed';
@@ -301,7 +321,10 @@ export class PolicyEngine {
   }
 }
 
-const ENFORCEMENT_RANK = Object.freeze({ unsupported: 0, read_only: 1, observed: 2, strong: 3 });
+// Single source of truth for enforcement ordering. Exported so no other module
+// re-declares it: a divergent copy would silently let 'advisory' satisfy claim
+// levels it must never satisfy.
+export const ENFORCEMENT_RANK = Object.freeze({ unsupported: 0, advisory: 1, read_only: 2, observed: 3, strong: 4 });
 
 function enforcementAtLeast(actual, required) {
   return (ENFORCEMENT_RANK[actual] ?? 0) >= (ENFORCEMENT_RANK[required] ?? 0);
@@ -332,6 +355,7 @@ export function failClosedEngine(reason) {
     trustMinima: () => ({ mutation: 'capability-signature', readOnly: 'capability-signature', claimRelease: 'capability-signature', legacyImport: 'unauthenticated' }),
     hostEnforcement: () => ({ requiredForMutation: 'strong', requiredForReadOnly: 'strong' }),
     claimLevel: () => null,
+    lockedDomainsFor: () => [],
     degradation: () => 'fail-closed',
     evidencePolicy: () => ({ freshnessSeconds: 0, unlinkedCandidateExpirySeconds: 0, requireDependencyBinding: true }),
     retentionPolicy: () => ({ excerptMaxBytes: 0, storePayloads: false }),
@@ -352,6 +376,8 @@ export function policyDuplicationAudit(files) {
     { pattern: /\beffectRules\b/, why: 'reads the policy rule table directly' },
     { pattern: /\bwaiverAuthority\b/, why: 'reimplements waiver authority' },
     { pattern: /\bclaimLevels\b/, why: 'reimplements claim-level policy' },
+    { pattern: /\blockedDomains\b/, why: 'reimplements locked-domain policy' },
+    { pattern: /ENFORCEMENT_RANK\s*=/, why: 're-declares the enforcement ordering instead of importing it' },
   ];
   const violations = [];
   const scanned = [];
@@ -364,6 +390,32 @@ export function policyDuplicationAudit(files) {
   }
   return { scanned, violations };
 }
+
+/**
+ * Drift/conformance check that only the two modules trusted to mint
+ * capabilities (the pre-effect gate that authorizes them, and the capability
+ * store that records them) ever mint one via `issue(...)`. Anything else calling it
+ * would be minting a capability outside the authorization path — exactly the
+ * defect CONTRACT A's `authorize()` closes structurally; this audit closes it
+ * conformance-wise.
+ */
+export function capabilityIssuanceAudit(files) {
+  const ALLOWED_BASENAMES = new Set(['preeffect-gate.mjs', 'receipt-store.mjs']);
+  const PATTERN = /\.issue\(/;
+  const violations = [];
+  const scanned = [];
+  for (const file of files) {
+    const src = readFileSync(file, 'utf8');
+    scanned.push(file);
+    const basename = path.basename(file);
+    if (ALLOWED_BASENAMES.has(basename)) continue;
+    if (PATTERN.test(src)) {
+      violations.push({ file, pattern: String(PATTERN), why: 'mints a capability outside lib/preeffect-gate.mjs and lib/receipt-store.mjs' });
+    }
+  }
+  return { scanned, violations };
+}
+
 
 /**
  * SEAL Q4 — EFFECT_CLASS reconciliation, owned by this lane.
