@@ -148,3 +148,209 @@ test('runCli returns structured results with injected streams', async () => {
   const result = await runCli(['--version'], { stdout, stderr, env: process.env, cwd: root });
   assert.equal(result.exitCode, EXIT.PASS);
 });
+
+// ────────────────────────────────────────────────────── EC-5 item 3: `run open|close`
+//
+// Every test here supplies its OWN `env` object (never `process.env`) so the
+// session-id resolution path is fully deterministic regardless of what
+// happens to be set in whatever environment actually runs this suite, and
+// its own temp `cwd` so `.audit/arcane/session-bindings/` never collides
+// across tests or leaks into the real checkout.
+
+function captureStream() {
+  const stream = { buf: '', write(chunk) { stream.buf += chunk; } };
+  return stream;
+}
+
+function runDir() {
+  const dir = mkdtempSync(join(tmpdir(), 'legion-run-cli-'));
+  return { dir, cleanup: () => rmSync(dir, { recursive: true, force: true }) };
+}
+
+test('run open mints a fresh binding and stamps contract/task', async () => {
+  const { dir, cleanup } = runDir();
+  try {
+    const stdout = captureStream();
+    const stderr = captureStream();
+    const result = await runCli(
+      ['run', 'open', '--contract', 'EC-5', '--task', 'T-1', '--session', 'sess-open-1'],
+      { stdout, stderr, env: {}, cwd: dir },
+    );
+    assert.equal(result.exitCode, EXIT.PASS, stderr.buf);
+    const parsed = JSON.parse(stdout.buf.trim());
+    assert.equal(parsed.kind, 'legion-run-binding');
+    assert.equal(parsed.sessionId, 'sess-open-1');
+    assert.match(parsed.runId, /^run_[0-9A-HJKMNP-TV-Z]{26}$/);
+    assert.equal(parsed.taskId, 'T-1');
+    assert.equal(parsed.contractId, 'EC-5');
+  } finally {
+    cleanup();
+  }
+});
+
+test('run open is idempotent on runId — a repeat open for the same session upgrades contract/task but keeps runId', async () => {
+  const { dir, cleanup } = runDir();
+  try {
+    const firstOut = captureStream();
+    const first = await runCli(
+      ['run', 'open', '--contract', 'EC-5', '--session', 'sess-repeat'],
+      { stdout: firstOut, stderr: captureStream(), env: {}, cwd: dir },
+    );
+    assert.equal(first.exitCode, EXIT.PASS);
+    const firstBinding = JSON.parse(firstOut.buf.trim());
+
+    const secondOut = captureStream();
+    const second = await runCli(
+      ['run', 'open', '--contract', 'EC-6', '--task', 'T-2', '--session', 'sess-repeat'],
+      { stdout: secondOut, stderr: captureStream(), env: {}, cwd: dir },
+    );
+    assert.equal(second.exitCode, EXIT.PASS);
+    const secondBinding = JSON.parse(secondOut.buf.trim());
+
+    assert.equal(secondBinding.runId, firstBinding.runId, 'repeat open never mints a second runId');
+    assert.equal(secondBinding.contractId, 'EC-6', 'contract/task upgrade applied');
+    assert.equal(secondBinding.taskId, 'T-2');
+  } finally {
+    cleanup();
+  }
+});
+
+test('run close clears contractId/taskId but keeps runId (reverts to ambient, run continues)', async () => {
+  const { dir, cleanup } = runDir();
+  try {
+    const openOut = captureStream();
+    await runCli(
+      ['run', 'open', '--contract', 'EC-5', '--task', 'T-1', '--session', 'sess-close-1'],
+      { stdout: openOut, stderr: captureStream(), env: {}, cwd: dir },
+    );
+    const opened = JSON.parse(openOut.buf.trim());
+
+    const closeOut = captureStream();
+    const closeResult = await runCli(
+      ['run', 'close', '--session', 'sess-close-1'],
+      { stdout: closeOut, stderr: captureStream(), env: {}, cwd: dir },
+    );
+    assert.equal(closeResult.exitCode, EXIT.PASS);
+    const closed = JSON.parse(closeOut.buf.trim());
+    assert.equal(closed.runId, opened.runId, 'close keeps the runId — the run continues');
+    assert.equal(closed.taskId, null);
+    assert.equal(closed.contractId, null);
+  } finally {
+    cleanup();
+  }
+});
+
+test('run close with no prior binding fails USAGE, never mints one', async () => {
+  const { dir, cleanup } = runDir();
+  try {
+    const stderr = captureStream();
+    const result = await runCli(
+      ['run', 'close', '--session', 'sess-never-opened'],
+      { stdout: captureStream(), stderr, env: {}, cwd: dir },
+    );
+    assert.equal(result.exitCode, EXIT.USAGE);
+    assert.match(stderr.buf, /no binding exists for this session/);
+  } finally {
+    cleanup();
+  }
+});
+
+test('run open rejects a malformed --contract id as USAGE', async () => {
+  const { dir, cleanup } = runDir();
+  try {
+    const stderr = captureStream();
+    const result = await runCli(
+      ['run', 'open', '--contract', 'not-an-ec-id', '--session', 'sess-bad-contract'],
+      { stdout: captureStream(), stderr, env: {}, cwd: dir },
+    );
+    assert.equal(result.exitCode, EXIT.USAGE);
+    assert.match(stderr.buf, /--contract/);
+  } finally {
+    cleanup();
+  }
+});
+
+test('run open rejects a malformed --task id as USAGE', async () => {
+  const { dir, cleanup } = runDir();
+  try {
+    const stderr = captureStream();
+    const result = await runCli(
+      ['run', 'open', '--contract', 'EC-5', '--task', 'not-a-task-id', '--session', 'sess-bad-task'],
+      { stdout: captureStream(), stderr, env: {}, cwd: dir },
+    );
+    assert.equal(result.exitCode, EXIT.USAGE);
+    assert.match(stderr.buf, /--task/);
+  } finally {
+    cleanup();
+  }
+});
+
+test('run open with no --session and no session env var anywhere fails ARC_SESSION_UNKNOWN, never guesses', async () => {
+  const { dir, cleanup } = runDir();
+  try {
+    const stderr = captureStream();
+    const result = await runCli(
+      ['run', 'open', '--contract', 'EC-5'],
+      { stdout: captureStream(), stderr, env: {}, cwd: dir }, // env deliberately empty
+    );
+    assert.equal(result.exitCode, EXIT.USAGE);
+    assert.match(stderr.buf, /ARC_SESSION_UNKNOWN/);
+  } finally {
+    cleanup();
+  }
+});
+
+test('run open resolves the session id from CLAUDE_CODE_SESSION_ID when --session is not given (the verified real name)', async () => {
+  const { dir, cleanup } = runDir();
+  try {
+    const stdout = captureStream();
+    const result = await runCli(
+      ['run', 'open', '--contract', 'EC-5'],
+      { stdout, stderr: captureStream(), env: { CLAUDE_CODE_SESSION_ID: 'env-sess-1' }, cwd: dir },
+    );
+    assert.equal(result.exitCode, EXIT.PASS);
+    assert.equal(JSON.parse(stdout.buf.trim()).sessionId, 'env-sess-1');
+  } finally {
+    cleanup();
+  }
+});
+
+test('run open falls back to CLAUDE_SESSION_ID then CODEX_SESSION_ID when CLAUDE_CODE_SESSION_ID is absent', async () => {
+  const { dir, cleanup } = runDir();
+  try {
+    const stdoutA = captureStream();
+    const a = await runCli(
+      ['run', 'open', '--contract', 'EC-5', '--session', ''], // empty string is not a real override
+      { stdout: stdoutA, stderr: captureStream(), env: { CLAUDE_SESSION_ID: 'env-sess-claude' }, cwd: dir },
+    );
+    assert.equal(a.exitCode, EXIT.PASS);
+    assert.equal(JSON.parse(stdoutA.buf.trim()).sessionId, 'env-sess-claude');
+
+    const { dir: dir2, cleanup: cleanup2 } = runDir();
+    try {
+      const stdoutB = captureStream();
+      const b = await runCli(
+        ['run', 'open', '--contract', 'EC-5'],
+        { stdout: stdoutB, stderr: captureStream(), env: { CODEX_SESSION_ID: 'env-sess-codex' }, cwd: dir2 },
+      );
+      assert.equal(b.exitCode, EXIT.PASS);
+      assert.equal(JSON.parse(stdoutB.buf.trim()).sessionId, 'env-sess-codex');
+    } finally {
+      cleanup2();
+    }
+  } finally {
+    cleanup();
+  }
+});
+
+test('run with an unknown subcommand fails USAGE', async () => {
+  const { dir, cleanup } = runDir();
+  try {
+    const stderr = captureStream();
+    const result = await runCli(['run', 'frobnicate'], { stdout: captureStream(), stderr, env: {}, cwd: dir });
+    assert.equal(result.exitCode, EXIT.USAGE);
+    assert.match(stderr.buf, /run requires a subcommand/);
+  } finally {
+    cleanup();
+  }
+});
