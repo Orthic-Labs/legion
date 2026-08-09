@@ -7,15 +7,10 @@
 // does — see that file and ./hook-adapter-core.mjs for the parts common to
 // every host.
 //
-// Field-mapping evidence (forge/hooks/generic/hook.js, the ONE place in this
-// tree that reads both hosts' hook JSON defensively):
-//   const sessionId = event.session_id ?? event.sessionId ?? process.env.CODEX_SESSION_ID ?? process.env.CLAUDE_SESSION_ID;
-//   const command    = String(event.command ?? event.tool_input?.command ?? '');
-// This establishes: Codex puts a tool's command at TOP-LEVEL `event.command`
-// (Claude Code nests it at `tool_input.command`), and Codex's session id has
-// no on-payload guarantee beyond `session_id`/`sessionId` plus an
-// environment-variable fallback (`CODEX_SESSION_ID`). Copied verbatim below —
-// this is the proven shape, not a guess.
+// Codex hook stdin supplies session_id plus agent_id/agent_type on subagent
+// events. Desktop also exposes the durable thread identity as CODEX_THREAD_ID;
+// use it when a hook omits session_id so every event in one thread shares the
+// same Arcane session binding.
 //
 // `hook_event_name` and `tool_name`/`tool_input.file_path` (for Write/Edit)
 // are shared field names between the two hosts per forge/hooks/codex/hooks.json
@@ -127,10 +122,11 @@ export function buildRawCodexEvent(hookPayload) {
   const isToolEvent = TOOL_HOOK_EVENTS.includes(eventType);
   const isPostTool = POST_TOOL_HOOK_EVENTS.includes(eventType);
 
-  // Session id: the full `??` chain from forge/hooks/generic/hook.js,
-  // including its env-var fallbacks — copied verbatim, not reinvented.
+  // Session id: prefer host payload, then Codex's durable thread identity.
   const sessionId = hookPayload.session_id ?? hookPayload.sessionId
-    ?? process.env.CODEX_SESSION_ID ?? process.env.CLAUDE_SESSION_ID ?? null;
+    ?? hookPayload.thread_id ?? hookPayload.threadId
+    ?? process.env.CODEX_THREAD_ID ?? process.env.CODEX_SESSION_ID
+    ?? process.env.CLAUDE_SESSION_ID ?? null;
 
   const raw = {
     eventType,
@@ -217,7 +213,9 @@ export function handleCodexHookEvent(hookPayload, deps) {
 
 export function observeCodexIdentity(hookPayload, { hostEvent } = {}) {
   if (['authority', 'callerAuthority', 'assertedAuthority', 'trust_class', 'trustClass', 'executor'].some((key) => Object.hasOwn(hookPayload ?? {}, key))) return { modelClaimed: true };
-  const sessionId = hookPayload?.session_id ?? hookPayload?.sessionId ?? null;
+  const sessionId = hostEvent?.sessionId ?? hookPayload?.session_id ?? hookPayload?.sessionId
+    ?? hookPayload?.thread_id ?? hookPayload?.threadId ?? process.env.CODEX_THREAD_ID
+    ?? process.env.CODEX_SESSION_ID ?? process.env.CLAUDE_SESSION_ID ?? null;
   const agentId = hookPayload?.agent_id ?? hookPayload?.agentId ?? null;
   const agentType = hookPayload?.agent_type ?? hookPayload?.agentType ?? null;
   return sessionId && agentId && agentType ? { sessionId, agentId, agentType, eventId: hostEvent?.eventId } : null;
