@@ -44,6 +44,18 @@ test('doctor reflects signing key presence', () => {
   assert.equal(report.hostCapabilities.signing, true);
 });
 
+test('doctor binding.receiptPresent is false with no .legion/binding.json', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'legion-doctor-binding-'));
+  try {
+    const result = doctor([dir]);
+    const report = JSON.parse(result.stdout);
+    assert.equal(report.binding.receiptPresent, false);
+    assert.deepEqual(report.binding.harnesses, []);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 test('init dry-run previews without writing', () => {
   const dir = mkdtempSync(join(tmpdir(), 'legion-init-'));
   try {
