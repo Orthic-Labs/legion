@@ -3,7 +3,7 @@
   "kind": "nemesis-book-qualification",
   "book": 1,
   "expectedTaskCount": 28,
-  "sourceRevision": "97687c6952c3f20a8affee7da0502a61039e258e+dirty.sha256:b001db47faeb04d0ac100d87c0a6db691c87a291b999f49a6883b0861d8d41ca",
+  "sourceRevision": "53aaf7890558fa6a3ecf2be61b6da9cb348fd60f",
   "decision": "SOURCE_IMPLEMENTED",
   "claimLevel": "source",
   "sourceAccounting": {
@@ -74,8 +74,8 @@
           {
             "path": "lib/contracts/enums.mjs",
             "symbol": "PROVIDER_STATUS",
-            "digest": "sha256:eb2274c3fd14fb1139fc19b526f310c382d75b47bd756b3abb58e873e1ff721e",
-            "bytes": 843
+            "digest": "sha256:71aae113462d1707805f84d4da5b0b61ed271f3e67f3c6f4b3e0636b47ba09f7",
+            "bytes": 976
           }
         ],
         "proof": {

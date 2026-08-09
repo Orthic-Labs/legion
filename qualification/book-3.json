@@ -3,7 +3,7 @@
   "kind": "nemesis-book-qualification",
   "book": 3,
   "expectedTaskCount": 30,
-  "sourceRevision": "97687c6952c3f20a8affee7da0502a61039e258e+dirty.sha256:3d3b503f089e81981f4565d5d69f87b5c75b4555bf46857976425f8887ccd5de",
+  "sourceRevision": "53aaf7890558fa6a3ecf2be61b6da9cb348fd60f",
   "decision": "SOURCE_IMPLEMENTED",
   "claimLevel": "source",
   "sourceAccounting": {
@@ -29,7 +29,7 @@
           {
             "path": "registry/providers.json",
             "symbol": "nemesis-provider-registry",
-            "digest": "sha256:8bcfbfea6cbd15d9686a2f27ebe88178a8c85f7ef41932240b6b64dec3e2c5f0",
+            "digest": "sha256:85e0551208d5b0c4e81239b0cb93f791c5f34526d7a4ef6c067c5cc6c74fae87",
             "bytes": 123149
           },
           {
@@ -88,8 +88,8 @@
           {
             "path": "lib/providers/executor/external-process.mjs",
             "symbol": "runExternal",
-            "digest": "sha256:69508b1025d26885a660f91fff4d8707a4b3da224c89dc64c797b58d5a2b0a63",
-            "bytes": 6619
+            "digest": "sha256:ba9c4769548171b4736bfa24084d4598a7125c0f6f4c21af81e9165d26ef8449",
+            "bytes": 6698
           },
           {
             "path": "lib/providers/executor/tool-identity.mjs",
@@ -1601,8 +1601,8 @@
           {
             "path": "providers/compatibility/index.mjs",
             "symbol": "compatibilityFinding",
-            "digest": "sha256:74513251d2d5cc75ad50a273a3e1a016f0a9316d84be0015f9acb242d572576d",
-            "bytes": 1437
+            "digest": "sha256:dac3ea4264d7b51cc5cb4bc7e72d5cccb58fb106bdbcbbafb0602a5ef28072cf",
+            "bytes": 1446
           },
           {
             "path": "registry/rules/code/architecture/core.json",
