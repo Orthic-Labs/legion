@@ -58,21 +58,22 @@
 // in that state — there is no partial-trust path in HostIngestor to hand
 // them to.
 
-import { existsSync, readFileSync } from 'node:fs';
 import { homedir, platform, release } from 'node:os';
 import { join } from 'node:path';
 
-import { ArcaneError, decision } from '../lib/errors.mjs';
-import {
-  normalizeHostEvent,
-  classifyObservation,
-  HOST_EVENT_BOUND_FIELDS,
-} from '../lib/host-event.mjs';
+import { ArcaneError } from '../lib/errors.mjs';
+import { normalizeHostEvent } from '../lib/host-event.mjs';
 import { canonicalJson, digest } from '../lib/canonical.mjs';
-import { signRecord } from '../lib/receipt-auth.mjs';
-import { HostIngestor } from '../lib/ingest.mjs';
-import { loadHostKeyRing } from '../lib/keys.mjs';
-import { evaluateCompletion } from '../lib/completion-gate.mjs';
+import {
+  signHostEvent as signClaudeCodeEvent,
+  handleHookEvent,
+  deriveTouchedPaths,
+  evaluateHostStop as evaluateClaudeCodeStop,
+  hostStopHookOutput as claudeCodeStopHookOutput,
+  runHookMain,
+} from './hook-adapter-core.mjs';
+
+export { signClaudeCodeEvent, deriveTouchedPaths, evaluateClaudeCodeStop, claudeCodeStopHookOutput };
 
 export const ADAPTER_NAME = 'claude-code';
 export const ADAPTER_VERSION = process.env.CLAUDE_CODE_VERSION || 'unknown';
@@ -222,33 +223,20 @@ export function normalizeClaudeCodeEvent(hookPayload) {
   return normalizeHostEvent(raw, { adapter: { name: ADAPTER_NAME, version: ADAPTER_VERSION } });
 }
 
-/**
- * Sign `hostEvent` with `keyRing`. Never throws on an unavailable key —
- * returns the degraded state instead, so callers cannot accidentally let a
- * fail-closed condition escape as an uncaught exception.
- *
- * @returns {{authorityAssertion: object|null, enforcementHealth: 'strong'|'degraded', signError: ArcaneError|null}}
- */
-export function signClaudeCodeEvent(hostEvent, keyRing) {
-  if (!keyRing) {
-    return { authorityAssertion: null, enforcementHealth: 'degraded', signError: null };
-  }
-  try {
-    const keyId = keyRing.activeKeyId();
-    const receipt = signRecord(hostEvent, { keyRing, keyId, boundFields: HOST_EVENT_BOUND_FIELDS });
-    return { authorityAssertion: { assertedBy: 'host', receipt }, enforcementHealth: 'strong', signError: null };
-  } catch (err) {
-    if (err instanceof ArcaneError && err.code === 'ARC_AUTH_KEY_UNAVAILABLE') {
-      return { authorityAssertion: null, enforcementHealth: 'degraded', signError: err };
-    }
-    throw err;
-  }
-}
+// signClaudeCodeEvent, deriveTouchedPaths, evaluateClaudeCodeStop, and
+// claudeCodeStopHookOutput are fully host-agnostic and re-exported verbatim
+// (under their existing names) from ./hook-adapter-core.mjs above — see the
+// EC-B header comment. Only the two functions below need Claude-Code-specific
+// glue: handleClaudeCodeHookEvent supplies normalizeClaudeCodeEvent as the
+// core pipeline's `normalize` callback, and main() supplies it to the shared
+// stdin loop.
 
 /**
  * Full pipeline for a single Claude Code hook invocation: normalize,
  * classify, sign, and (when signing succeeded, or the observation does not
- * bear a mutation) ingest via `HostIngestor`.
+ * bear a mutation) ingest via `HostIngestor`. Thin Claude-Code-specific
+ * wrapper over the shared `handleHookEvent` (./hook-adapter-core.mjs), which
+ * owns everything downstream of normalization.
  *
  * @param {object} hookPayload parsed Claude Code hook stdin JSON
  * @param {object} deps
@@ -263,139 +251,19 @@ export function signClaudeCodeEvent(hostEvent, keyRing) {
  *   accepted: boolean, receipt: object|null, decision: object}}
  */
 export function handleClaudeCodeHookEvent(hookPayload, deps) {
-  const { keyRing, receiptStore, replayGuard, policy, capabilityStore = null, dependencyLedger = null, clock = () => Date.now() } = deps;
-
-  const hostEvent = normalizeClaudeCodeEvent(hookPayload);
-  const observationClass = classifyObservation(hostEvent, { policy });
-  const { authorityAssertion, enforcementHealth, signError } = signClaudeCodeEvent(hostEvent, keyRing);
-
-  if (!authorityAssertion) {
-    // Degraded: never sign with a fallback key, never silently skip signing
-    // and pretend success. Mutation-bearing observations fail closed
-    // (ARCHITECTURE §24a); non-mutating observations are honestly reported
-    // as unsigned/un-ingested rather than forced through HostIngestor with
-    // no real trust material.
-    return {
-      hostEvent,
-      observationClass,
-      enforcementHealth,
-      accepted: false,
-      receipt: null,
-      decision: decision({
-        allowed: false,
-        code: 'ARC_AUTH_KEY_UNAVAILABLE',
-        message: signError ? signError.message : 'no key ring available to sign the host event',
-        detail: { eventId: hostEvent.eventId, observationClass },
-        enforcementHealth: 'degraded',
-      }),
-    };
-  }
-
-  const ingestor = new HostIngestor({ receiptStore, capabilityStore, replayGuard, keyRing, policy, clock, dependencyLedger });
-  const result = ingestor.ingest(hostEvent, { authorityAssertion });
-  return { hostEvent, observationClass, enforcementHealth, ...result };
-}
-
-// ---------------------------------------------------------------------------
-// Stop -> completion gate wiring.
-// ---------------------------------------------------------------------------
-
-/**
- * `touchedPaths` for a completion claim must come from what Arcane actually
- * recorded for the run — never from the Stop event payload itself, which a
- * completing agent could understate. Derived from `receiptStore.list({runId})`'s
- * `observed.target` on every effect receipt for the run.
- */
-export function deriveTouchedPaths(receiptStore, runId) {
-  if (!runId) return [];
-  const records = receiptStore.list({ runId });
-  const paths = new Set();
-  for (const record of records) {
-    const target = record?.observed?.target ?? null;
-    if (typeof target === 'string' && target.length > 0) paths.add(target);
-  }
-  return [...paths];
-}
-
-/**
- * Evaluate a Claude Code `Stop` event against Arcane's completion gate
- * (../lib/completion-gate.mjs). Claude Code's hook JSON carries no notion of
- * a claimed completion level, so `claimedLevel` defaults to `'signoff'` —
- * the policy bundle's weakest defined level (deterministic evidence, strong
- * enforcement, no Covenant/narrative fields) — as the honest floor every
- * Stop implicitly asserts ("this turn is done"); a caller with more context
- * (e.g. Legion/Alchemist declaring `highRisk`/`release`) may pass a
- * different `claimedLevel` explicitly. `lockedDomainsFor(touchedPaths)` may
- * still force a higher level regardless of what is claimed.
- *
- * `hostEvent.runId` has no Claude Code source (see module header) and is
- * therefore null for a bare hook-driven Stop; `evaluateCompletion` then sees
- * no receipts for that run and fails closed (`enforcementHealth: 'unsupported'`)
- * rather than granting an ungrounded pass. A caller that has a real runId
- * (from its own session/task binding) should normalize the event with that
- * runId set for a meaningful result.
- *
- * @returns {object} the completion-gate decision (see completion-gate.mjs)
- */
-export function evaluateClaudeCodeStop(hostEvent, { policy, receiptStore, claimedLevel = 'signoff' }) {
-  const touchedPaths = deriveTouchedPaths(receiptStore, hostEvent.runId);
-  return evaluateCompletion(
-    { runId: hostEvent.runId, taskId: hostEvent.taskId, claimedLevel, touchedPaths },
-    { policy, receiptStore },
-  );
-}
-
-/**
- * Render a completion-gate decision as Claude Code's documented Stop-blocking
- * shape, mirroring how `forge/hooks/adapter.js` blocks on `Stop`
- * (`{decision:'block', reason}` on stdout; nothing printed means allow —
- * Claude Code lets the turn end).
- *
- * @returns {{decision:'block', reason:string}|null} null when the gate allowed the claim.
- */
-export function claudeCodeStopHookOutput(completionDecision) {
-  if (completionDecision.allowed) return null;
-  const label = completionDecision.code ? `${completionDecision.code}: ` : '';
-  const reason = `${label}${completionDecision.message || 'completion claim denied by Arcane completion gate'}`.slice(0, 500);
-  return { decision: 'block', reason };
+  return handleHookEvent(hookPayload, { ...deps, normalize: normalizeClaudeCodeEvent });
 }
 
 // ---------------------------------------------------------------------------
 // CLI entry point — reads one hook payload from stdin, ingests it, and (for
 // Stop) writes the block/allow response Claude Code expects on stdout. Kept
 // separate from the functions above so tests exercise the pure functions
-// directly without touching stdio or the real key directory.
+// directly without touching stdio or the real key directory. Delegates to
+// the shared `runHookMain` (./hook-adapter-core.mjs).
 // ---------------------------------------------------------------------------
 
-function readStdinJson() {
-  const raw = readFileSync(0, 'utf8');
-  return JSON.parse(raw);
-}
-
 export function main({ keyDir = DEFAULT_KEY_DIR, receiptStore, replayGuard, policy, capabilityStore = null, dependencyLedger = null } = {}) {
-  let hookPayload;
-  try {
-    hookPayload = readStdinJson();
-  } catch {
-    return; // malformed/absent stdin: nothing this adapter can safely act on.
-  }
-
-  let keyRing = null;
-  if (existsSync(keyDir)) {
-    try {
-      keyRing = loadHostKeyRing({ dir: keyDir });
-    } catch {
-      keyRing = null; // ARC_AUTH_KEY_UNAVAILABLE -> handleClaudeCodeHookEvent's degraded path.
-    }
-  }
-
-  const outcome = handleClaudeCodeHookEvent(hookPayload, { keyRing, receiptStore, replayGuard, policy, capabilityStore, dependencyLedger });
-
-  if (outcome.hostEvent.eventType === 'stop') {
-    const completionDecision = evaluateClaudeCodeStop(outcome.hostEvent, { policy, receiptStore });
-    const output = claudeCodeStopHookOutput(completionDecision);
-    if (output) process.stdout.write(`${JSON.stringify(output)}\n`);
-  }
+  return runHookMain({ normalize: normalizeClaudeCodeEvent, keyDir, receiptStore, replayGuard, policy, capabilityStore, dependencyLedger });
 }
 
 const isMainModule = typeof process !== 'undefined' && process.argv[1]
