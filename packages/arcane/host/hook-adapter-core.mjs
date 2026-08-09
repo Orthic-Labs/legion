@@ -63,14 +63,41 @@ export function signHostEvent(hostEvent, keyRing) {
  * @param {object|null} [deps.capabilityStore]
  * @param {object|null} [deps.dependencyLedger]
  * @param {() => number} [deps.clock]
+ * @param {object|null} [deps.sessionBinding] EC-5 item 1's `SessionBindingStore`
+ *   (../lib/session-binding.mjs). Optional and defaulted to `null` so every
+ *   existing caller that does not pass one gets EXACTLY today's behaviour —
+ *   see the ambient-binding block below.
  * @returns {{hostEvent: object, observationClass: string, enforcementHealth: 'strong'|'degraded',
  *   accepted: boolean, receipt: object|null, decision: object}}
  */
 export function handleHookEvent(hookPayload, deps) {
-  const { normalize, keyRing, receiptStore, replayGuard, policy, capabilityStore = null, dependencyLedger = null, clock = () => Date.now() } = deps;
+  const {
+    normalize, keyRing, receiptStore, replayGuard, policy,
+    capabilityStore = null, dependencyLedger = null, clock = () => Date.now(),
+    sessionBinding = null,
+  } = deps;
 
   const hostEvent = normalize(hookPayload);
   const observationClass = classifyObservation(hostEvent, { policy });
+
+  // EC-5 items 2+4 — ambient run/task/contract binding. Host-neutral on
+  // purpose: both adapters normalize `sessionId` identically, so this lives
+  // once, here, rather than duplicated per adapter. `session-start` mints or
+  // self-heals the binding (H-11's missing writer); every other event only
+  // reads whatever is already bound. A session with no binding at all (no
+  // `sessionBinding` deps, or `hostEvent.sessionId` null) leaves `runId`/
+  // `taskId`/`contractId` exactly as `normalize()` set them — today's
+  // already-supported null case, unchanged.
+  if (sessionBinding && hostEvent.sessionId) {
+    const binding = hostEvent.eventType === 'session-start'
+      ? sessionBinding.ensureBinding(hostEvent.sessionId)
+      : sessionBinding.getBinding(hostEvent.sessionId);
+    if (binding) {
+      hostEvent.runId = binding.runId;
+      hostEvent.taskId = binding.taskId;
+      hostEvent.contractId = binding.contractId;
+    }
+  }
   const { authorityAssertion, enforcementHealth, signError } = signHostEvent(hostEvent, keyRing);
 
   if (!authorityAssertion) {
@@ -188,8 +215,9 @@ export function readStdinJson() {
  * @param {object} opts.policy
  * @param {object|null} [opts.capabilityStore]
  * @param {object|null} [opts.dependencyLedger]
+ * @param {object|null} [opts.sessionBinding] EC-5 item 1's `SessionBindingStore`; see `handleHookEvent`.
  */
-export function runHookMain({ normalize, keyDir, receiptStore, replayGuard, policy, capabilityStore = null, dependencyLedger = null }) {
+export function runHookMain({ normalize, keyDir, receiptStore, replayGuard, policy, capabilityStore = null, dependencyLedger = null, sessionBinding = null }) {
   let hookPayload;
   try {
     hookPayload = readStdinJson();
@@ -206,7 +234,7 @@ export function runHookMain({ normalize, keyDir, receiptStore, replayGuard, poli
     }
   }
 
-  const outcome = handleHookEvent(hookPayload, { normalize, keyRing, receiptStore, replayGuard, policy, capabilityStore, dependencyLedger });
+  const outcome = handleHookEvent(hookPayload, { normalize, keyRing, receiptStore, replayGuard, policy, capabilityStore, dependencyLedger, sessionBinding });
 
   if (outcome.hostEvent.eventType === 'stop') {
     const completionDecision = evaluateHostStop(outcome.hostEvent, { policy, receiptStore });
