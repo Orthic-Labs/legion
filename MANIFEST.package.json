@@ -1,6 +1,7 @@
 {
   "name": "@orthic-labs/legion",
   "allowlistedTopLevel": [
+    ".claude-plugin/",
     "bin/",
     "audit-complete.mjs",
     "audit-finalize.mjs",

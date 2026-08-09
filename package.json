@@ -1,8 +1,35 @@
 {
   "name": "@orthic-labs/legion",
   "version": "0.1.0-dev.0",
-  "description": "Evidence-governed whole-repository audit engine.",
+  "description": "Legion — the authority system for AI-assisted engineering. Orchestrates Sage (decisions), Alchemist (transformation), Seer (assurance), and Arcane (the deterministic gate), plus the evidence-governed whole-repository audit engine that backs Seer.",
   "license": "SEE LICENSE IN LICENSE",
+  "author": {
+    "name": "Orthic Labs",
+    "url": "https://github.com/Orthic-Labs"
+  },
+  "homepage": "https://github.com/Orthic-Labs/legion#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Orthic-Labs/legion.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Orthic-Labs/legion/issues"
+  },
+  "keywords": [
+    "legion",
+    "audit",
+    "authority",
+    "sage",
+    "alchemist",
+    "seer",
+    "arcane",
+    "covenant",
+    "claude-code",
+    "mcp",
+    "code-review",
+    "static-analysis",
+    "sarif"
+  ],
   "type": "module",
   "engines": {
     "node": ">=22.13"
@@ -17,6 +44,7 @@
     "./schemas/*": "./schemas/*"
   },
   "files": [
+    ".claude-plugin/",
     "bin/",
     "audit-complete.mjs",
     "audit-finalize.mjs",

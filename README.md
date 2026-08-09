@@ -1,17 +1,66 @@
 <img src=".github/banner.svg" alt="Legion — Every angle attacked. Every claim proven." width="100%">
 
-**Legion audits a whole repository from a plan it commits to before it looks at the results. It reads the file inventory from [Cortex](https://github.com/Orthic-Labs/Cortex), selects checks deterministically from a declarative registry, seals the selection into a signed `plan.json`, executes exactly that, and emits `report.json` + SARIF. Anything it could not prove — a missing scanner, a stale graph, an unsandboxed build, an unadjudicated security candidate — is recorded as `UNPROVEN` and blocks a clean verdict. Zero findings is not a pass unless coverage was complete.**
+**Legion is the authority system for AI-assisted engineering.** It is not one tool — it's four roles with fixed relationships:
+
+- **Legion** (this repo, plus the doctrine it ships) — the always-on orchestrator. Routes work, parallelizes, never mutates state itself.
+- **Sage** — engineering decision authority. Diagnoses, chooses architecture, compiles a settled decision into an executable contract.
+- **Alchemist** — transformation authority. Executes a bounded contract against the repository; escalates any new decision back to Sage.
+- **Seer** — independent assurance authority. Audits what actually exists and never certifies its own fix. This is the evidence-governed whole-repository audit engine described below.
+- **Arcane** — the deterministic gate. No model. Hooks that block effects, record receipts, and invalidate stale evidence, on every harness that supports pre-tool hooks.
+
+One package, one version, three layers (kernel → doctrine → per-harness binding). A binding never forks the doctrine or the kernel — it only projects them into a harness's native slots. See [`docs/plans/legion/ARCHITECTURE.md`](https://github.com/Orthic-Labs/legion) in the workspace for the full authority model.
 
 ![license](https://img.shields.io/badge/license-source--available-df6428?style=flat-square&labelColor=111318)
 ![execution](https://img.shields.io/badge/execution-offline--first-df6428?style=flat-square&labelColor=111318)
 ![output](https://img.shields.io/badge/output-JSON%20·%20SARIF%20·%20Markdown-df6428?style=flat-square&labelColor=111318)
 
+## Install
+
 ```sh
-node audit-run.mjs .                                   # audit this repo
+npx @orthic-labs/legion init
+```
+
+Detects the harnesses present in your repo (`.claude/`, `~/.codex` + `AGENTS.md`, other AGENTS.md readers) and writes each binding idempotently — re-running repairs drift instead of duplicating. Pass `--harness <name>` to force one binding, or `--check` for doctor mode (reports binding state, writes nothing, nonzero exit on drift).
+
+**Claude Code**, alternatively, installs the same artifact through the plugin flow:
+
+```text
+/plugin marketplace add orthic-labs/legion
+/plugin install legion
+```
+
+The plugin's install step runs the same `init` under the hood — the plugin form and the npx form are the same artifact reached two ways, never two products.
+
+Once installed, run the engine directly:
+
+```sh
+node audit-run.mjs .                                   # audit this repo (what Seer runs)
 node audit-verify.mjs --facts .audit/<ts>/facts.json   # re-prove that run out-of-band
 ```
 
-Node ≥ 18, zero runtime dependencies, no install step, no daemon, no network.
+Node ≥ 22.13, zero runtime dependencies beyond what ships in the package, no daemon, no network beyond the npm install that delivered it.
+
+## Fidelity by harness
+
+A binding **reports** its enforcement tier and never overstates it. A session on a lower-fidelity harness claiming hook-level gating is a false clean.
+
+| Capability | Claude Code | Codex | AGENTS.md-only |
+|---|---|---|---|
+| Context-isolated authorities (native agents) | native | `codex exec` child processes | same-session modes |
+| Per-authority model assignment | frontmatter | profiles on child spawn | session model only |
+| Arcane pre-effect blocking | hooks | boundary-gated only | boundary-gated only |
+| Effect receipts | hook-emitted | only via `legion`-gated commands | only via `legion`-gated commands |
+| Covenant seat isolation | yes | yes (engine-owned) | yes (engine-owned) |
+| Seer audit engine | yes | yes | yes |
+| Cheap-worker offload | via scripts | native profiles | if OmniRoute present |
+
+Claude Code is the reference binding: agents (`sage`, `alchemist`, `seer`, `covenant-seat`), the `/covenant` skill, Arcane's pre-prompt/pre-effect/post-effect hooks in `settings.json`, and the `legion` MCP server. Codex and AGENTS.md-only harnesses get the doctrine and the kernel but no native subagents and no pre-tool interception — Arcane's enforcement shifts to the MCP/CLI boundary plus post-hoc Seer audit. Never claim otherwise; run `legion doctor` to print the fidelity table for your active binding.
+
+---
+
+## The audit engine (what backs Seer)
+
+**Legion audits a whole repository from a plan it commits to before it looks at the results. It reads the file inventory from [Cortex](https://github.com/Orthic-Labs/Cortex), selects checks deterministically from a declarative registry, seals the selection into a signed `plan.json`, executes exactly that, and emits `report.json` + SARIF. Anything it could not prove — a missing scanner, a stale graph, an unsandboxed build, an unadjudicated security candidate — is recorded as `UNPROVEN` and blocks a clean verdict. Zero findings is not a pass unless coverage was complete.**
 
 ## Three entry points
 
@@ -187,7 +236,7 @@ node bench/run-bench.mjs --real                        # detector recall vs prod
 
 ## Repository posture
 
-This checkout is the internal home of the workspace's audit skill — an engine coupled to the Orthic Labs workspace, not a standalone public product. It is source-available, not open source (see [LICENSE](LICENSE)). **Legion** is the public name; inside the workspace the skill registers as `audit`, with `audit-fix` and `audit-visual` as bounded companions.
+This checkout is the canonical home of Legion: the kernel (this package), the doctrine it ships, and the per-harness bindings `legion init` writes. It is source-available, not open source (see [LICENSE](LICENSE)). Inside the Orthic Labs workspace the audit engine also registers as the `audit` skill, with `audit-fix` and `audit-visual` as bounded companions — same engine, same report contract, workspace-local invocation names.
 
 ---
 
