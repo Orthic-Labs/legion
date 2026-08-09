@@ -19,7 +19,7 @@
 //
 // `hook_event_name` and `tool_name`/`tool_input.file_path` (for Write/Edit)
 // are shared field names between the two hosts per forge/hooks/codex/hooks.json
-// (registers the same eight lifecycle events as Claude Code) and
+// (registers all eight Codex lifecycle events; Claude Code registers the six shared events) and
 // forge/hooks/codex/hook.js + forge/hooks/claude-code/hook.js (both just
 // `require('../adapter')` — one shared Forge core keyed by these same field
 // names across hosts). Nothing here invents a Codex-specific spelling of a
