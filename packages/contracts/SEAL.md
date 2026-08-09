@@ -17,3 +17,30 @@
 ## Binding rule for Wave-2 lanes
 
 Reserved items above are *shape-stable, value-provisional*: build code that treats the field as required and the enum as replaceable. An amendment to this package updates `FREEZE.md` digests and this seal; stale digests invalidate dependent lane evidence (G11).
+
+## Amendment A-ER-1 — 2026-08-09, coordinator (Legion)
+
+`effect-receipt-v1.contractId` and `.taskId` relaxed from required non-nullable
+strings to `["string","null"]`, patterns retained (a pattern constrains only the
+string case). Mirrors `evidence-capability-receipt-v1`'s pre-existing nullable
+shape for the same two fields exactly — the nullability precedent already
+shipped in this same freeze, proving it deliberate design, not oversight.
+
+**Meaning of null:** an *ambient* observation — a host-observed effect in a
+session bound to a run (real, host-minted `runId`) but not to a contract.
+**Rationale (EC-5, disposed by the operator):** evidence ≠ authorization. Recording an
+uncontracted mutation is never a false clean; refusing to record it is itself a
+coverage hole. Contracts gate *authorization* (the pre-effect gate); observation
+must be universal or locked-domain completion gating cannot see ad-hoc work.
+**Still refused, unchanged:** any post-effect event carrying no `runId` at all —
+ambient is a typed tier, never a silent default.
+**Additive:** no existing receipt changes meaning or validity; `schemaVersion`
+stays 1. Verified: `smoke.test.mjs` 42/42 after amendment.
+**Rejected alternative:** routing ambient mutations through
+`evidence-capability-receipt-v1` (already nullable) — that schema models
+verification evidence, and an unverified file write must never satisfy an
+evidence-class prerequisite.
+
+FREEZE.md digest for `effect-receipt-v1.schema.json` updated in place. Per G11,
+lane evidence that pinned the old digest is invalidated by this amendment and
+must reseal against the new one.
