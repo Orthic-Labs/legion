@@ -19,15 +19,19 @@ import {
   evaluateClaudeCodeStop,
   claudeCodeStopHookOutput,
   deriveTouchedPaths,
+  ADAPTER_NAME,
+  ADAPTER_VERSION,
 } from '../host/claude-code-adapter.mjs';
-import { validateHostEvent } from '../lib/host-event.mjs';
+import { validateHostEvent, normalizeHostEvent } from '../lib/host-event.mjs';
 import { generateTestKeyRing } from '../lib/keys.mjs';
 import { HostIngestor } from '../lib/ingest.mjs';
 import { ReplayGuard } from '../lib/replay.mjs';
 import { ReceiptStore } from '../lib/receipt-store.mjs';
-import { loadPolicy, PolicyEngine, DEFAULT_POLICY_PATH } from '../lib/policy.mjs';
+import { loadPolicy, PolicyEngine, DEFAULT_POLICY_PATH, policyDuplicationAudit } from '../lib/policy.mjs';
 import { signRecord } from '../lib/receipt-auth.mjs';
 import { HOST_EVENT_BOUND_FIELDS } from '../lib/host-event.mjs';
+import { evaluateCompletion } from '../lib/completion-gate.mjs';
+import { fileURLToPath } from 'node:url';
 
 const RUN_ID = 'run_01ARZ3NDEKTSV4RRFFQ69G5FAV';
 
@@ -276,6 +280,190 @@ test('EC-2: Stop passes through (no block output) when completion prerequisites 
 
     const output = claudeCodeStopHookOutput(completionDecision);
     assert.equal(output, null);
+  } finally {
+    cleanup();
+  }
+});
+
+// ───────────────────────────────────────────── R-1/R-2/R-3 — raw.effect mapping
+
+test('EC-2: PostToolUse Write maps to effect {FILE_WRITE, tool_input.file_path}', () => {
+  const raw = buildRawHostEvent({
+    hook_event_name: 'PostToolUse', session_id: 's1', cwd: '/tmp/ws',
+    tool_name: 'Write', tool_input: { file_path: 'a.txt' }, tool_response: { ok: true }, tool_use_id: 'tu1',
+  });
+  assert.deepEqual(raw.effect, { effectClass: 'FILE_WRITE', target: 'a.txt', operation: 'Write' });
+});
+
+test('EC-2: PostToolUse Edit maps to effect {FILE_WRITE, tool_input.file_path}', () => {
+  const raw = buildRawHostEvent({
+    hook_event_name: 'PostToolUse', session_id: 's1', cwd: '/tmp/ws',
+    tool_name: 'Edit', tool_input: { file_path: 'b.txt' }, tool_response: { ok: true }, tool_use_id: 'tu1',
+  });
+  assert.deepEqual(raw.effect, { effectClass: 'FILE_WRITE', target: 'b.txt', operation: 'Edit' });
+});
+
+test('EC-2: PostToolUse NotebookEdit maps to effect {FILE_WRITE, tool_input.file_path}', () => {
+  const raw = buildRawHostEvent({
+    hook_event_name: 'PostToolUse', session_id: 's1', cwd: '/tmp/ws',
+    tool_name: 'NotebookEdit', tool_input: { file_path: 'c.ipynb' }, tool_response: { ok: true }, tool_use_id: 'tu1',
+  });
+  assert.deepEqual(raw.effect, { effectClass: 'FILE_WRITE', target: 'c.ipynb', operation: 'NotebookEdit' });
+});
+
+test('EC-2: PostToolUse WebFetch maps to effect {NETWORK_EGRESS, tool_input.url}', () => {
+  const raw = buildRawHostEvent({
+    hook_event_name: 'PostToolUse', session_id: 's1', cwd: '/tmp/ws',
+    tool_name: 'WebFetch', tool_input: { url: 'https://example.com' }, tool_response: { ok: true }, tool_use_id: 'tu1',
+  });
+  assert.deepEqual(raw.effect, { effectClass: 'NETWORK_EGRESS', target: 'https://example.com', operation: 'WebFetch' });
+});
+
+test('EC-2: PostToolUse WebSearch maps to effect {NETWORK_EGRESS, tool_input.query} — query is not a path', () => {
+  const raw = buildRawHostEvent({
+    hook_event_name: 'PostToolUse', session_id: 's1', cwd: '/tmp/ws',
+    tool_name: 'WebSearch', tool_input: { query: 'legion arcane effect map' }, tool_response: { ok: true }, tool_use_id: 'tu1',
+  });
+  assert.deepEqual(raw.effect, { effectClass: 'NETWORK_EGRESS', target: 'legion arcane effect map', operation: 'WebSearch' });
+});
+
+test('EC-2 regression (deliberate non-fix): PostToolUse Bash stays effect:null — a command string is not a path', () => {
+  const raw = buildRawHostEvent({
+    hook_event_name: 'PostToolUse', session_id: 's1', cwd: '/tmp/ws',
+    tool_name: 'Bash', tool_input: { command: 'rm -rf /tmp/x' }, tool_response: { ok: true }, tool_use_id: 'tu1',
+  });
+  assert.equal(raw.effect, null);
+});
+
+test('EC-2 regression (deliberate non-fix): PostToolUse MultiEdit stays effect:null — schema target is a single string, not an array', () => {
+  const raw = buildRawHostEvent({
+    hook_event_name: 'PostToolUse', session_id: 's1', cwd: '/tmp/ws',
+    tool_name: 'MultiEdit', tool_input: { file_path: 'd.txt', edits: [{}, {}] }, tool_response: { ok: true }, tool_use_id: 'tu1',
+  });
+  assert.equal(raw.effect, null);
+});
+
+test('EC-2 regression (deliberate non-fix): PostToolUse mcp__* tool stays effect:null — side-effect shape unknown', () => {
+  const raw = buildRawHostEvent({
+    hook_event_name: 'PostToolUse', session_id: 's1', cwd: '/tmp/ws',
+    tool_name: 'mcp__example__do_thing', tool_input: { anything: true }, tool_response: { ok: true }, tool_use_id: 'tu1',
+  });
+  assert.equal(raw.effect, null);
+});
+
+test('EC-2 regression (deliberate non-fix): PostToolUse unrecognized tool stays effect:null', () => {
+  const raw = buildRawHostEvent({
+    hook_event_name: 'PostToolUse', session_id: 's1', cwd: '/tmp/ws',
+    tool_name: 'SomeFutureTool', tool_input: { anything: true }, tool_response: { ok: true }, tool_use_id: 'tu1',
+  });
+  assert.equal(raw.effect, null);
+});
+
+test('EC-2: PostToolUse Write with a MISSING file_path degrades to effect:null, never "" or "unknown"', () => {
+  const raw = buildRawHostEvent({
+    hook_event_name: 'PostToolUse', session_id: 's1', cwd: '/tmp/ws',
+    tool_name: 'Write', tool_input: {}, tool_response: { ok: true }, tool_use_id: 'tu1',
+  });
+  assert.equal(raw.effect, null);
+});
+
+test('EC-2 invariant I-1: PreToolUse Write NEVER gets an effect — a pre-execution claim is never an observation', () => {
+  const raw = buildRawHostEvent({
+    hook_event_name: 'PreToolUse', session_id: 's1', cwd: '/tmp/ws',
+    tool_name: 'Write', tool_input: { file_path: 'a.txt' }, tool_use_id: 'tu1',
+  });
+  assert.equal(raw.effect, undefined);
+  const normalized = normalizeClaudeCodeEvent({
+    hook_event_name: 'PreToolUse', session_id: 's1', cwd: '/tmp/ws',
+    tool_name: 'Write', tool_input: { file_path: 'a.txt' }, tool_use_id: 'tu1',
+  });
+  assert.equal(normalized.effect, null);
+});
+
+test('EC-4: policyDuplicationAudit finds zero violations in the modified adapter', () => {
+  const adapterPath = fileURLToPath(new URL('../host/claude-code-adapter.mjs', import.meta.url));
+  const audit = policyDuplicationAudit([adapterPath]);
+  assert.equal(audit.violations.length, 0, JSON.stringify(audit.violations));
+  assert.ok(audit.scanned.length >= 1);
+});
+
+// ───────────────────────────────────── AC-3 — end-to-end: mapped effect -> locked-domain block
+
+test('EC-2 AC-3: a PostToolUse Write event built via buildRawHostEvent, once bound to a run/task/contract and ingested, is visible to deriveTouchedPaths/evaluateCompletion and blocks completion on a locked domain', () => {
+  // WHY THIS TEST STAMPS runId/taskId/contractId/sourceRevision/priorCorrelation.requestId
+  // BY HAND (mirroring the pattern at claude-code-adapter.test.mjs:171-175/
+  // ingestOneFileWrite above): buildRawHostEvent/normalizeClaudeCodeEvent
+  // CANNOT derive run/task/contract binding from bare Claude Code hook JSON
+  // — that JSON carries no such fields (see the adapter's module header).
+  // ingest.mjs (~line 165) refuses to accept an unbound post-effect event
+  // (HostIngestor.ingest() requires a real runId/taskId/contractId/
+  // sourceRevision/priorCorrelation binding before it will mint a receipt).
+  // This test therefore proves the chain WORKS GIVEN a binding — it does
+  // NOT prove the binding gap itself is closed. Closing that gap (wiring a
+  // real session/task/contract binding into the live Claude Code hook path)
+  // is out of scope for this contract and remains open.
+  const { root, cleanup } = tempRoot();
+  try {
+    const ring = generateTestKeyRing(['k1']);
+    const receiptStore = new ReceiptStore({ root });
+    const replayGuard = new ReplayGuard({});
+
+    const loaded = loadPolicy({ path: DEFAULT_POLICY_PATH });
+    const bundle = {
+      ...loaded.bundle,
+      lockedDomains: [
+        { pattern: 'src/locked/**', claimLevel: 'highRisk', note: 'AC-3 fixture: forces highRisk on this path.' },
+      ],
+    };
+    const policy = new PolicyEngine({ ...loaded, bundle });
+
+    // (a) build a PostToolUse Write event via buildRawHostEvent.
+    const raw = buildRawHostEvent({
+      hook_event_name: 'PostToolUse', session_id: 's1', cwd: '/tmp/ws',
+      tool_name: 'Write', tool_input: { file_path: 'src/locked/secret.ts' },
+      tool_response: { ok: true }, tool_use_id: 'tu-ac3',
+    });
+    const hostEvent = normalizeHostEvent(raw, { adapter: { name: ADAPTER_NAME, version: ADAPTER_VERSION } });
+    assert.deepEqual(hostEvent.effect, { effectClass: 'FILE_WRITE', target: 'src/locked/secret.ts', operation: 'Write' });
+
+    // (b) manually stamp runId/taskId/contractId/sourceRevision/priorCorrelation.requestId.
+    hostEvent.runId = RUN_ID;
+    hostEvent.taskId = 'T-3';
+    hostEvent.contractId = 'EC-3';
+    hostEvent.sourceRevision = '0123abcdef';
+    hostEvent.priorCorrelation = {
+      requestId: 'req_01ARZ3NDEKTSV4RRFFQ69G5FAV',
+      capabilityId: 'cap_ac3',
+      priorReceiptId: null,
+      requestedEffect: hostEvent.effect,
+      authorizedEffect: hostEvent.effect,
+    };
+
+    // (c) run it through HostIngestor.ingest() against the lockedDomains bundle.
+    const ingestor = new HostIngestor({ receiptStore, replayGuard, keyRing: ring, policy });
+    const keyId = ring.activeKeyId();
+    const receipt = signRecord(hostEvent, { keyRing: ring, keyId, boundFields: HOST_EVENT_BOUND_FIELDS });
+    const ingestResult = ingestor.ingest(hostEvent, { authorityAssertion: { assertedBy: 'host', receipt } });
+    assert.equal(ingestResult.accepted, true, JSON.stringify(ingestResult.decision));
+
+    // (d) call deriveTouchedPaths + evaluateCompletion.
+    const touchedPaths = deriveTouchedPaths(receiptStore, RUN_ID);
+    assert.deepEqual(touchedPaths, ['src/locked/secret.ts']);
+
+    const completionDecision = evaluateCompletion(
+      { runId: RUN_ID, taskId: 'T-3', claimedLevel: 'signoff', touchedPaths },
+      { policy, receiptStore },
+    );
+
+    // (e) assert allowed:false with the locked-domain level in the detail.
+    // No evidence-capability receipt was ingested for this run (only the
+    // effect receipt from step (c)), so the union of levels {signoff,
+    // highRisk} fails at whichever level evaluateCompletion checks first;
+    // what AC-3 requires is that the locked-domain match itself (forcing
+    // 'highRisk' for this path) shows up in the decision detail.
+    assert.equal(completionDecision.allowed, false);
+    assert.ok(['signoff', 'highRisk'].includes(completionDecision.detail.level));
+    assert.ok(completionDecision.detail.lockedDomainMatches.some((m) => m.claimLevel === 'highRisk' && m.path === 'src/locked/secret.ts'));
   } finally {
     cleanup();
   }
