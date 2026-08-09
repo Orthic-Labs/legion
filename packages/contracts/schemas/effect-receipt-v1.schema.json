@@ -17,8 +17,8 @@
     "receiptId": { "type": "string", "pattern": "^eff_[0-9A-HJKMNP-TV-Z]{26}$" },
     "requestId": { "type": "string", "pattern": "^req_[0-9A-HJKMNP-TV-Z]{26}$" },
     "runId": { "type": "string", "pattern": "^run_[0-9A-HJKMNP-TV-Z]{26}$" },
-    "contractId": { "type": "string", "pattern": "^EC-\\d+$" },
-    "taskId": { "type": "string", "pattern": "^T-\\d+(\\.\\d+)*$" },
+    "contractId": { "type": ["string", "null"], "pattern": "^EC-\\d+$", "description": "Amendment A-ER-1 (2026-08-09): null = ambient observation — a host-observed effect in a session bound to a run but not to a contract. Mirrors evidence-capability-receipt-v1's pre-existing nullable pattern. Rationale: evidence != authorization; recording an uncontracted mutation is never a false clean, refusing to record it is a coverage hole. A post-effect event with no runId at all is STILL refused." },
+    "taskId": { "type": ["string", "null"], "pattern": "^T-\\d+(\\.\\d+)*$", "description": "Amendment A-ER-1 (2026-08-09): null = ambient observation (see contractId)." },
 
     "requested": { "$ref": "#/$defs/effectIdentity" },
     "authorized": { "$ref": "#/$defs/effectIdentity" },
