@@ -9,6 +9,9 @@
     { "id": "narrative.chronology.unsupported-causality", "kind": "interpretive", "reasoningRequirement": "bounded-review" },
     { "id": "narrative.chronology.sequence-uncertain", "kind": "interpretive", "reasoningRequirement": "bounded-review" },
     { "id": "narrative.chronology.antecedent-uncertain", "kind": "interpretive", "reasoningRequirement": "bounded-review" },
-    { "id": "narrative.chronology.order-unproven", "kind": "interpretive", "reasoningRequirement": "bounded-review" }
+    { "id": "narrative.chronology.order-unproven", "kind": "interpretive", "reasoningRequirement": "bounded-review" },
+    { "id": "narrative.chronology.duplicate-unit-id", "kind": "deterministic", "reasoningRequirement": "none" },
+    { "id": "narrative.chronology.false-attribution", "kind": "deterministic", "reasoningRequirement": "none" },
+    { "id": "narrative.chronology.unsupported-attribution", "kind": "interpretive", "reasoningRequirement": "bounded-review" }
   ]
 }
