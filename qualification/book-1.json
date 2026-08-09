@@ -3,7 +3,7 @@
   "kind": "legion-book-qualification",
   "book": 1,
   "expectedTaskCount": 28,
-  "sourceRevision": "content.sha256:45b8df997cabab98e540e75778e0e4fc9f4f155ef18aaa0032a907d6fe781304",
+  "sourceRevision": "content.sha256:2607c1083bbeb36803e88a23791d4be4eff4526583332ff65252ab194d84cce1",
   "decision": "SOURCE_IMPLEMENTED",
   "claimLevel": "source",
   "sourceAccounting": {
@@ -121,8 +121,8 @@
           {
             "path": "lib/cli/help.mjs",
             "symbol": "COMMANDS",
-            "digest": "sha256:b4ca1859b767ae7f363bd602212de5daf4f8e42005fa0e4816c59e430122b00b",
-            "bytes": 971
+            "digest": "sha256:a06464eb073aef22565f6f7b5feffdf659717393f687a4a592011a944338d41b",
+            "bytes": 977
           }
         ],
         "proof": {
