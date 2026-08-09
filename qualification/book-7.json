@@ -9,17 +9,19 @@
     {
       "id": "B7-001",
       "status": "implemented",
-      "evidence": {
-        "lane": "L4",
-        "proof": {
-          "red": "qualification/evidence/lanes/L4/B7-001.red.log",
-          "green": "qualification/evidence/lanes/L4/B7-001.green.log"
-        },
-        "test": {
-          "path": "tests/security-l4/b7-001-contracts.test.mjs",
-          "assertion": "Security contracts re-export core provider/evidence/judgment enums, expose frozen entity/relation/control/fact vocabularies, reject unknown and future schema versions, require binding plus denominator digest on every security artifact and artifact-store record; the committed enum registry and every schema under schemas/security/ are byte-identical to their generators, and the legacy top-level security schemas still generate unchanged."
+      "evidence": [
+        {
+          "lane": "L4",
+          "proof": {
+            "red": "qualification/evidence/lanes/L4/B7-001.red.log",
+            "green": "qualification/evidence/lanes/L4/B7-001.green.log"
+          },
+          "test": {
+            "path": "tests/security-l4/b7-001-contracts.test.mjs",
+            "assertion": "Security contracts re-export core provider/evidence/judgment enums, expose frozen entity/relation/control/fact vocabularies, reject unknown and future schema versions, require binding plus denominator digest on every security artifact and artifact-store record; the committed enum registry and every schema under schemas/security/ are byte-identical to their generators, and the legacy top-level security schemas still generate unchanged."
+          }
         }
-      },
+      ],
       "mapping": "providers/security/contracts.mjs;scripts/generate-security-schemas.mjs;schemas/security/security-binding-v1.schema.json;schemas/security/security-model-v1.schema.json;schemas/security/security-candidate-v2.schema.json;schemas/security/security-verdict-v1.schema.json;schemas/security/attack-path-hypothesis-v1.schema.json;schemas/security/security-chain-verdict-v1.schema.json;schemas/security/security-variant-receipt-v2.schema.json;schemas/security/security-evidence-synthesis-v1.schema.json;registry/rules/security/enums.json"
     },
     {
@@ -54,33 +56,37 @@
     {
       "id": "B7-006",
       "status": "implemented",
-      "evidence": {
-        "lane": "L4",
-        "proof": {
-          "red": "qualification/evidence/lanes/L4/B7-006.red.log",
-          "green": "qualification/evidence/lanes/L4/B7-006.green.log"
-        },
-        "test": {
-          "path": "tests/security-l4/b7-006-automation-extractor.test.mjs",
-          "assertion": "Synthetic CI-workflow, package.json, Jenkinsfile, renovate, release-config, electron-builder, .npmrc and Dockerfile text produce an evidence-cited trigger to sink to identity to published-artifact release chain; unresolved permission scope, identity and publication target carry explicit unknown markers plus typed coverage gaps instead of silent defaults; pull_request_target-style triggers become an attacker-position fact crossing a trust boundary; the module imports no child_process, http, https, net or fs; every produced kind is within ENTITY_KINDS, RELATION_KINDS and FACT_KINDS; and two calls on identical input are deeply equal."
+      "evidence": [
+        {
+          "lane": "L4",
+          "proof": {
+            "red": "qualification/evidence/lanes/L4/B7-006.red.log",
+            "green": "qualification/evidence/lanes/L4/B7-006.green.log"
+          },
+          "test": {
+            "path": "tests/security-l4/b7-006-automation-extractor.test.mjs",
+            "assertion": "Synthetic CI-workflow, package.json, Jenkinsfile, renovate, release-config, electron-builder, .npmrc and Dockerfile text produce an evidence-cited trigger to sink to identity to published-artifact release chain; unresolved permission scope, identity and publication target carry explicit unknown markers plus typed coverage gaps instead of silent defaults; pull_request_target-style triggers become an attacker-position fact crossing a trust boundary; the module imports no child_process, http, https, net or fs; every produced kind is within ENTITY_KINDS, RELATION_KINDS and FACT_KINDS; and two calls on identical input are deeply equal."
+          }
         }
-      },
+      ],
       "mapping": "providers/security/model-extractors/automation.mjs"
     },
     {
       "id": "B7-007",
       "status": "implemented",
-      "evidence": {
-        "lane": "L4",
-        "proof": {
-          "red": "qualification/evidence/lanes/L4/B7-007.red.log",
-          "green": "qualification/evidence/lanes/L4/B7-007.green.log"
-        },
-        "test": {
-          "path": "tests/security-l4/b7-007-specialist-extractors.test.mjs",
-          "assertion": "Cloud, mobile, developer-machine and AI-agent extractors return the same entity/relation/evidence/fact/gap contract with only registered kinds and stableId-derived ids; each domain produces its expected entities and facts from realistic fixtures; agent tool-capability and model-output entities and facts have disjoint ids and never reference each other, keeping tool authority separate from model output; missing rendered text and absent domain signal each yield a typed coverage gap rather than a silent pass; repeated runs are deeply equal; and none of the four modules import child_process, http, https, net, dgram or fs."
+      "evidence": [
+        {
+          "lane": "L4",
+          "proof": {
+            "red": "qualification/evidence/lanes/L4/B7-007.red.log",
+            "green": "qualification/evidence/lanes/L4/B7-007.green.log"
+          },
+          "test": {
+            "path": "tests/security-l4/b7-007-specialist-extractors.test.mjs",
+            "assertion": "Cloud, mobile, developer-machine and AI-agent extractors return the same entity/relation/evidence/fact/gap contract with only registered kinds and stableId-derived ids; each domain produces its expected entities and facts from realistic fixtures; agent tool-capability and model-output entities and facts have disjoint ids and never reference each other, keeping tool authority separate from model output; missing rendered text and absent domain signal each yield a typed coverage gap rather than a silent pass; repeated runs are deeply equal; and none of the four modules import child_process, http, https, net, dgram or fs."
+          }
         }
-      },
+      ],
       "mapping": "providers/security/model-extractors/cloud.mjs;providers/security/model-extractors/mobile.mjs;providers/security/model-extractors/developer-machine.mjs;providers/security/model-extractors/ai-agent.mjs"
     },
     {
@@ -124,147 +130,165 @@
     {
       "id": "B7-013",
       "status": "implemented",
-      "evidence": {
-        "lane": "L4",
-        "proof": {
-          "red": "qualification/evidence/lanes/L4/B7-013.red.log",
-          "green": "qualification/evidence/lanes/L4/B7-013.green.log"
-        },
-        "test": {
-          "path": "tests/security-l4/b7-013-injection-output.test.mjs",
-          "assertion": "Ten injection sink classes and all eight required output-handling contexts produce UNADJUDICATED, evidence-bearing, lexically-marked candidates that never surface as findings; a parameterized query and a sanitized or CRLF-stripped sink produce no candidate while an observed control entity downgrades severity and populates observedControls instead of hiding the candidate; a projection injectionTraces entry flips detectionMethod from lexical-pattern to sast-trace; and both packs are in exact two-way rule-id parity with the committed registry."
+      "evidence": [
+        {
+          "lane": "L4",
+          "proof": {
+            "red": "qualification/evidence/lanes/L4/B7-013.red.log",
+            "green": "qualification/evidence/lanes/L4/B7-013.green.log"
+          },
+          "test": {
+            "path": "tests/security-l4/b7-013-injection-output.test.mjs",
+            "assertion": "Ten injection sink classes and all eight required output-handling contexts produce UNADJUDICATED, evidence-bearing, lexically-marked candidates that never surface as findings; a parameterized query and a sanitized or CRLF-stripped sink produce no candidate while an observed control entity downgrades severity and populates observedControls instead of hiding the candidate; a projection injectionTraces entry flips detectionMethod from lexical-pattern to sast-trace; and both packs are in exact two-way rule-id parity with the committed registry."
+          }
         }
-      },
+      ],
       "mapping": "providers/security/packs/injection.mjs;providers/security/packs/output-handling.mjs;registry/rules/security/injection-output.json"
     },
     {
       "id": "B7-014",
       "status": "implemented",
-      "evidence": {
-        "lane": "L4",
-        "proof": {
-          "red": "qualification/evidence/lanes/L4/B7-014.red.log",
-          "green": "qualification/evidence/lanes/L4/B7-014.green.log"
-        },
-        "test": {
-          "path": "tests/security-l4/b7-014-browser-http.test.mjs",
-          "assertion": "CSRF, CORS, SameSite, clickjacking, CSP, open-redirect, OAuth, HSTS, HTTPS, header, cache, proxy-trust and smuggling-precondition rules cite the exact header or configuration with file and line; absent runtime or deployment evidence caps severity at medium and attaches an explicit deployment assumption; source-versus-runtime conflicts are recorded as a disagreement carrying both values rather than silently resolved; defence-in-depth gaps never exceed low; a fully mitigated fixture yields zero candidates from both packs; and registry and pack rule ids match in both directions."
+      "evidence": [
+        {
+          "lane": "L4",
+          "proof": {
+            "red": "qualification/evidence/lanes/L4/B7-014.red.log",
+            "green": "qualification/evidence/lanes/L4/B7-014.green.log"
+          },
+          "test": {
+            "path": "tests/security-l4/b7-014-browser-http.test.mjs",
+            "assertion": "CSRF, CORS, SameSite, clickjacking, CSP, open-redirect, OAuth, HSTS, HTTPS, header, cache, proxy-trust and smuggling-precondition rules cite the exact header or configuration with file and line; absent runtime or deployment evidence caps severity at medium and attaches an explicit deployment assumption; source-versus-runtime conflicts are recorded as a disagreement carrying both values rather than silently resolved; defence-in-depth gaps never exceed low; a fully mitigated fixture yields zero candidates from both packs; and registry and pack rule ids match in both directions."
+          }
         }
-      },
+      ],
       "mapping": "providers/security/packs/browser-client.mjs;providers/security/packs/http-protocol-cache.mjs;registry/rules/security/browser-http.json"
     },
     {
       "id": "B7-015",
       "status": "implemented",
-      "evidence": {
-        "lane": "L4",
-        "proof": {
-          "red": "qualification/evidence/lanes/L4/B7-015.red.log",
-          "green": "qualification/evidence/lanes/L4/B7-015.green.log"
-        },
-        "test": {
-          "path": "tests/security-l4/b7-015-boundaries.test.mjs",
-          "assertion": "The five boundary packs are in exact two-way rule-id parity with the committed registry and import no live network, filesystem or process module; every candidate is adjudication-only with non-empty evidence refs and names an exact file, line, source expression, sink API and observed control; attack preconditions naming the attacker position are preserved; observed controls \u2014 schema validation, egress allowlist, path containment, safe parser options, upload filters and size limits \u2014 downgrade candidates and reference the control rather than hiding them; and an unknown egress environment caps severity at medium with an explicit uncertainty that deployment evidence lifts."
+      "evidence": [
+        {
+          "lane": "L4",
+          "proof": {
+            "red": "qualification/evidence/lanes/L4/B7-015.red.log",
+            "green": "qualification/evidence/lanes/L4/B7-015.green.log"
+          },
+          "test": {
+            "path": "tests/security-l4/b7-015-boundaries.test.mjs",
+            "assertion": "The five boundary packs are in exact two-way rule-id parity with the committed registry and import no live network, filesystem or process module; every candidate is adjudication-only with non-empty evidence refs and names an exact file, line, source expression, sink API and observed control; attack preconditions naming the attacker position are preserved; observed controls \u2014 schema validation, egress allowlist, path containment, safe parser options, upload filters and size limits \u2014 downgrade candidates and reference the control rather than hiding them; and an unknown egress environment caps severity at medium with an explicit uncertainty that deployment evidence lifts."
+          }
         }
-      },
+      ],
       "mapping": "providers/security/packs/request-boundaries.mjs;providers/security/packs/ssrf-egress.mjs;providers/security/packs/file-boundaries.mjs;providers/security/packs/parser-serialization.mjs;providers/security/packs/uploads.mjs;registry/rules/security/boundaries.json"
     },
     {
       "id": "B7-016",
       "status": "implemented",
-      "evidence": {
-        "lane": "L4",
-        "proof": {
-          "red": "qualification/evidence/lanes/L4/B7-016.red.log",
-          "green": "qualification/evidence/lanes/L4/B7-016.green.log"
-        },
-        "test": {
-          "path": "tests/security-l4/b7-016-crypto-privacy.test.mjs",
-          "assertion": "Both packs are in exact two-way rule-id parity with the committed registry and no rule id, claim or source text asserts GDPR, CCPA or HIPAA compliance; every crypto candidate names its primitive, use context and observed control, and a weak hash used for a cache key never reaches high severity; primitive-layer and protocol-layer claims never conflate vocabulary; every privacy candidate binds a data class and one of the seven lifecycle stages; high-impact privacy claims are capped at medium with an explicit uncertainty unless an observed classification is found via either the model entity or the audit-facts path; marketing-claim rules attach claim references when a claim-proof artifact exists and record the gap when it does not; and mitigated fixtures across password hashing, token randomness, PKCE plus state plus nonce, redacted logging, key rotation, SAML signature checking and audience-plus-issuer validation each produce zero candidates."
+      "evidence": [
+        {
+          "lane": "L4",
+          "proof": {
+            "red": "qualification/evidence/lanes/L4/B7-016.red.log",
+            "green": "qualification/evidence/lanes/L4/B7-016.green.log"
+          },
+          "test": {
+            "path": "tests/security-l4/b7-016-crypto-privacy.test.mjs",
+            "assertion": "Both packs are in exact two-way rule-id parity with the committed registry and no rule id, claim or source text asserts GDPR, CCPA or HIPAA compliance; every crypto candidate names its primitive, use context and observed control, and a weak hash used for a cache key never reaches high severity; primitive-layer and protocol-layer claims never conflate vocabulary; every privacy candidate binds a data class and one of the seven lifecycle stages; high-impact privacy claims are capped at medium with an explicit uncertainty unless an observed classification is found via either the model entity or the audit-facts path; marketing-claim rules attach claim references when a claim-proof artifact exists and record the gap when it does not; and mitigated fixtures across password hashing, token randomness, PKCE plus state plus nonce, redacted logging, key rotation, SAML signature checking and audience-plus-issuer validation each produce zero candidates."
+          }
         }
-      },
+      ],
       "mapping": "providers/security/packs/crypto-identity-protocols.mjs;providers/security/packs/data-privacy.mjs;registry/rules/security/crypto-data-privacy.json"
     },
     {
       "id": "B7-017",
       "status": "implemented",
-      "evidence": {
-        "lane": "L4",
-        "proof": {
-          "red": "qualification/evidence/lanes/L4/B7-017.red.log",
-          "green": "qualification/evidence/lanes/L4/B7-017.green.log"
-        },
-        "test": {
-          "path": "tests/security-l4/b7-017-abuse-observability.test.mjs",
-          "assertion": "Both packs are in exact two-way rule-id parity with the committed registry and import no http, https, net, dgram, child_process or worker_threads module; every abuse candidate names its resource and attacker-controlled input with non-empty attacker capabilities; every design-recommendation candidate is capped at low while cost evidence from performance traces upgrades a claim to proven-primitive; webhook handling is behaviour-aware, distinguishing signature verified before body use from verified after and from absent; no observability claim or uncertainty text demands logging credentials, tokens, PII or full request bodies, and each missing-event rule names the event it expects; and a fully mitigated fixture produces zero candidates from either pack."
+      "evidence": [
+        {
+          "lane": "L4",
+          "proof": {
+            "red": "qualification/evidence/lanes/L4/B7-017.red.log",
+            "green": "qualification/evidence/lanes/L4/B7-017.green.log"
+          },
+          "test": {
+            "path": "tests/security-l4/b7-017-abuse-observability.test.mjs",
+            "assertion": "Both packs are in exact two-way rule-id parity with the committed registry and import no http, https, net, dgram, child_process or worker_threads module; every abuse candidate names its resource and attacker-controlled input with non-empty attacker capabilities; every design-recommendation candidate is capped at low while cost evidence from performance traces upgrades a claim to proven-primitive; webhook handling is behaviour-aware, distinguishing signature verified before body use from verified after and from absent; no observability claim or uncertainty text demands logging credentials, tokens, PII or full request bodies, and each missing-event rule names the event it expects; and a fully mitigated fixture produces zero candidates from either pack."
+          }
         }
-      },
+      ],
       "mapping": "providers/security/packs/abuse-resilience.mjs;providers/security/packs/observability-forensics.mjs;registry/rules/security/abuse-observability.json"
     },
     {
       "id": "B7-018",
       "status": "implemented",
-      "evidence": {
-        "lane": "L4",
-        "proof": {
-          "red": "qualification/evidence/lanes/L4/B7-018.red.log",
-          "green": "qualification/evidence/lanes/L4/B7-018.green.log"
-        },
-        "test": {
-          "path": "tests/security-l4/b7-018-supply-developer.test.mjs",
-          "assertion": "Every candidate across the four packs carries a repository-content-as-hostile precondition naming actor:repository-content and a detectorMetadata authority plus execution path; execution-chain rules covering install scripts, local and agent execution, privileged hostile-trigger automation and auto-loaded repository hooks always set requiresSandboxReceipt with an explicit blocked or unproven uncertainty when no external sandbox receipt is present, and never upgrade to a clean or proven verdict even when one is; mitigated fixtures with a pinned integrity-hashed lockfile, ignore-scripts enabled, a signed and verified release and no sensitive material produce zero candidates; the four modules import none of child_process, fs, http, https or net; and the four packs are in exact two-way rule-id parity with the committed registry."
+      "evidence": [
+        {
+          "lane": "L4",
+          "proof": {
+            "red": "qualification/evidence/lanes/L4/B7-018.red.log",
+            "green": "qualification/evidence/lanes/L4/B7-018.green.log"
+          },
+          "test": {
+            "path": "tests/security-l4/b7-018-supply-developer.test.mjs",
+            "assertion": "Every candidate across the four packs carries a repository-content-as-hostile precondition naming actor:repository-content and a detectorMetadata authority plus execution path; execution-chain rules covering install scripts, local and agent execution, privileged hostile-trigger automation and auto-loaded repository hooks always set requiresSandboxReceipt with an explicit blocked or unproven uncertainty when no external sandbox receipt is present, and never upgrade to a clean or proven verdict even when one is; mitigated fixtures with a pinned integrity-hashed lockfile, ignore-scripts enabled, a signed and verified release and no sensitive material produce zero candidates; the four modules import none of child_process, fs, http, https or net; and the four packs are in exact two-way rule-id parity with the committed registry."
+          }
         }
-      },
+      ],
       "mapping": "providers/security/packs/supply-chain.mjs;providers/security/packs/developer-machine.mjs;providers/security/packs/automation.mjs;providers/security/packs/repository-footprint.mjs;registry/rules/security/supply-developer-machine.json"
     },
     {
       "id": "B7-019",
       "status": "implemented",
-      "evidence": {
-        "lane": "L4",
-        "proof": {
-          "red": "qualification/evidence/lanes/L4/B7-019.red.log",
-          "green": "qualification/evidence/lanes/L4/B7-019.green.log"
-        },
-        "test": {
-          "path": "tests/security-l4/b7-019-ai-security.test.mjs, tests/security-l4/b7-019-ai-quality.test.mjs",
-          "assertion": "AI security: the five packs are in two-way rule-id parity with the committed registry, a bare mention of prompt or llm produces no candidate, every candidate binds typed source, effect, control, identity, tenant and environment to real model entity ids, model output reaching a sink with an observed validator is suppressed while an unvalidated sink is not, the prompt-injection-to-sensitive-action fixture and its blocked-control counterpart behave as a pair, and missing agent-framework evidence yields unproven rather than clean. AI quality: all seventeen declared metrics return unproven with no evidence and score correctly on grounded/ungrounded, faithful/unfaithful, correct/incorrect tool, calibrated/overconfident, refusal, drift, latency and cost fixtures; every receipt binds model and provider identity, prompt template, retrieval and tool configuration, dataset version, run conditions, judge identity, denominator and limitations; the committed schema is byte-identical to its code-owned builder; and quality and security neither cross-import nor substitute for one another."
+      "evidence": [
+        {
+          "lane": "L4",
+          "proof": {
+            "red": "qualification/evidence/lanes/L4/B7-019.red.log",
+            "green": "qualification/evidence/lanes/L4/B7-019.green.log"
+          },
+          "test": {
+            "path": "tests/security-l4/b7-019-ai-security.test.mjs, tests/security-l4/b7-019-ai-quality.test.mjs",
+            "assertion": "AI security: the five packs are in two-way rule-id parity with the committed registry, a bare mention of prompt or llm produces no candidate, every candidate binds typed source, effect, control, identity, tenant and environment to real model entity ids, model output reaching a sink with an observed validator is suppressed while an unvalidated sink is not, the prompt-injection-to-sensitive-action fixture and its blocked-control counterpart behave as a pair, and missing agent-framework evidence yields unproven rather than clean. AI quality: all seventeen declared metrics return unproven with no evidence and score correctly on grounded/ungrounded, faithful/unfaithful, correct/incorrect tool, calibrated/overconfident, refusal, drift, latency and cost fixtures; every receipt binds model and provider identity, prompt template, retrieval and tool configuration, dataset version, run conditions, judge identity, denominator and limitations; the committed schema is byte-identical to its code-owned builder; and quality and security neither cross-import nor substitute for one another."
+          }
         }
-      },
+      ],
       "mapping": "providers/security/packs/ai-prompt-injection.mjs;providers/security/packs/ai-output-handling.mjs;providers/security/packs/ai-excessive-agency.mjs;providers/security/packs/ai-poisoning-rag.mjs;providers/security/packs/ai-model-abuse.mjs;registry/rules/security/ai.json;providers/ai-quality/contracts.mjs;providers/ai-quality/receipt.mjs;providers/ai-quality/index.mjs;providers/ai-quality/evaluators/;providers/ai-quality/schema-builder.mjs;schemas/ai-quality/evaluation-receipt-v1.schema.json"
     },
     {
       "id": "B7-020",
       "status": "implemented",
-      "evidence": {
-        "lane": "L4",
-        "proof": {
-          "red": "qualification/evidence/lanes/L4/B7-020.security.red.log",
-          "green": "qualification/evidence/lanes/L4/B7-020.security.green.log",
-          "redSafety": "qualification/evidence/lanes/L4/B7-020.safety.red.log",
-          "greenSafety": "qualification/evidence/lanes/L4/B7-020.safety.green.log"
-        },
-        "test": {
-          "path": "tests/security-l4/b7-020-specialist-security.test.mjs, tests/security-l4/b7-020-safety.test.mjs",
-          "assertion": "Specialist security: the four packs are in two-way rule-id parity with the committed registry, support tier stays frozen at measured even on parser-presence-only fixtures so a parser can never mark a domain supported, every candidate states a non-empty static/runtime scope plus hazards, assumptions and authority limits, each rule has positive, mitigated and clean fixtures, and no rule id, claim or metadata string asserts certification or regulatory compliance. Safety: the scanner is in parity with its registry, covers all seven outcome classes and produces all seven required dispositions per domain, every hazard is unconditionally reasoningRequirement human-decision with certifiable false and no regulatory claim, closeHazard rejects model-verdict and automated-verdict closure and accepts only human-decision, the committed hazard-model schema is byte-identical to its code-owned builder, and output is deterministic with no timestamp fields."
+      "evidence": [
+        {
+          "lane": "L4",
+          "proof": {
+            "red": "qualification/evidence/lanes/L4/B7-020.security.red.log",
+            "green": "qualification/evidence/lanes/L4/B7-020.security.green.log",
+            "redSafety": "qualification/evidence/lanes/L4/B7-020.safety.red.log",
+            "greenSafety": "qualification/evidence/lanes/L4/B7-020.safety.green.log"
+          },
+          "test": {
+            "path": "tests/security-l4/b7-020-specialist-security.test.mjs, tests/security-l4/b7-020-safety.test.mjs",
+            "assertion": "Specialist security: the four packs are in two-way rule-id parity with the committed registry, support tier stays frozen at measured even on parser-presence-only fixtures so a parser can never mark a domain supported, every candidate states a non-empty static/runtime scope plus hazards, assumptions and authority limits, each rule has positive, mitigated and clean fixtures, and no rule id, claim or metadata string asserts certification or regulatory compliance. Safety: the scanner is in parity with its registry, covers all seven outcome classes and produces all seven required dispositions per domain, every hazard is unconditionally reasoningRequirement human-decision with certifiable false and no regulatory claim, closeHazard rejects model-verdict and automated-verdict closure and accepts only human-decision, the committed hazard-model schema is byte-identical to its code-owned builder, and output is deterministic with no timestamp fields."
+          }
         }
-      },
+      ],
       "mapping": "providers/security/packs/mobile.mjs;providers/security/packs/smart-contract.mjs;providers/security/packs/embedded-iot.mjs;providers/security/packs/ics-ot.mjs;registry/rules/security/specialist.json;providers/safety/contracts.mjs;providers/safety/hazard-model.mjs;providers/safety/scanner.mjs;providers/safety/schema-builder.mjs;registry/rules/safety/hazards.json;schemas/safety/hazard-model-v1.schema.json"
     },
     {
       "id": "B7-021",
       "status": "implemented",
-      "evidence": {
-        "lane": "L4",
-        "proof": {
-          "red": "qualification/evidence/lanes/L4/B7-021.red.log",
-          "green": "qualification/evidence/lanes/L4/B7-021.green.log"
-        },
-        "test": {
-          "path": "tests/security-l4/b7-021-creator-derived.test.mjs",
-          "assertion": "Every creator-security category has exactly one owning pack or an explicit reasoned exclusion \u2014 never both, neither, nor duplicated; every owning rule id genuinely exists in the eight security rule registries and the three standalone credential/authentication/authorization packs, so the table cannot rot into fiction; and the provenance record carries a real source digest, does not assume redistribution rights, and ships no verbatim ledger prose or copy of the creator archive."
+      "evidence": [
+        {
+          "lane": "L4",
+          "proof": {
+            "red": "qualification/evidence/lanes/L4/B7-021.red.log",
+            "green": "qualification/evidence/lanes/L4/B7-021.green.log"
+          },
+          "test": {
+            "path": "tests/security-l4/b7-021-creator-derived.test.mjs",
+            "assertion": "Every creator-security category has exactly one owning pack or an explicit reasoned exclusion \u2014 never both, neither, nor duplicated; every owning rule id genuinely exists in the eight security rule registries and the three standalone credential/authentication/authorization packs, so the table cannot rot into fiction; and the provenance record carries a real source digest, does not assume redistribution rights, and ships no verbatim ledger prose or copy of the creator archive."
+          }
         }
-      },
+      ],
       "note": "Original lens backlog is retained; raw creator text remains excluded pending rights resolution.",
       "mapping": "registry/rules/security/creator-derived.json;references/source-provenance/creator-security.json"
     },
@@ -326,97 +350,109 @@
     {
       "id": "B7-029",
       "status": "implemented",
-      "evidence": {
-        "lane": "L4",
-        "proof": {
-          "red": "qualification/evidence/lanes/L4/B7-029.red.log",
-          "green": "qualification/evidence/lanes/L4/B7-029.green.log"
-        },
-        "test": {
-          "path": "tests/security-l4/b7-029-untrusted-evidence-envelope.test.mjs",
-          "assertion": "Source, docs, comment, skill, configuration, retrieved-content and runtime text wrap into untrusted-evidence records with control/bidi/zero-width characters escaped, NFC normalization declared, byte caps truncating visibly with listed omissions, source digest preserved and raw bytes reachable only through a bound artifact reference; review packets for security, copy, narrative, UX and visual keep trusted instructions structurally separate from untrusted evidence, refuse untrusted interpolation into instructions, and record repository attempts to change provider, role, context, schema, tools, policy or verdict as never-applied injection attempts."
+      "evidence": [
+        {
+          "lane": "L4",
+          "proof": {
+            "red": "qualification/evidence/lanes/L4/B7-029.red.log",
+            "green": "qualification/evidence/lanes/L4/B7-029.green.log"
+          },
+          "test": {
+            "path": "tests/security-l4/b7-029-untrusted-evidence-envelope.test.mjs",
+            "assertion": "Source, docs, comment, skill, configuration, retrieved-content and runtime text wrap into untrusted-evidence records with control/bidi/zero-width characters escaped, NFC normalization declared, byte caps truncating visibly with listed omissions, source digest preserved and raw bytes reachable only through a bound artifact reference; review packets for security, copy, narrative, UX and visual keep trusted instructions structurally separate from untrusted evidence, refuse untrusted interpolation into instructions, and record repository attempts to change provider, role, context, schema, tools, policy or verdict as never-applied injection attempts."
+          }
         }
-      },
+      ],
       "mapping": "lib/review/untrusted-evidence-envelope.mjs;schemas/core/untrusted-evidence-v1.schema.json"
     },
     {
       "id": "B7-030",
       "status": "implemented",
-      "evidence": {
-        "lane": "L4",
-        "proof": {
-          "red": "qualification/evidence/lanes/L4/B7-030.red.log",
-          "green": "qualification/evidence/lanes/L4/B7-030.green.log"
-        },
-        "test": {
-          "path": "tests/security-l4/b7-030-remediation-sandbox.test.mjs",
-          "assertion": "Sandbox creation requires an explicit host mutation capability, refuses a base revision that does not match the bound run, refuses unbounded input-overlay policies, and lands outside the primary working tree; the receipt records base identity, overlay policy, offline network policy, allowlist process policy, created paths, cleanup command, the finding-run digest and the run binding, and is deterministic; checkpoint restore and sandbox cleanup surface failure with exact residual paths and recovery commands instead of reporting success."
+      "evidence": [
+        {
+          "lane": "L4",
+          "proof": {
+            "red": "qualification/evidence/lanes/L4/B7-030.red.log",
+            "green": "qualification/evidence/lanes/L4/B7-030.green.log"
+          },
+          "test": {
+            "path": "tests/security-l4/b7-030-remediation-sandbox.test.mjs",
+            "assertion": "Sandbox creation requires an explicit host mutation capability, refuses a base revision that does not match the bound run, refuses unbounded input-overlay policies, and lands outside the primary working tree; the receipt records base identity, overlay policy, offline network policy, allowlist process policy, created paths, cleanup command, the finding-run digest and the run binding, and is deterministic; checkpoint restore and sandbox cleanup surface failure with exact residual paths and recovery commands instead of reporting success."
+          }
         }
-      },
+      ],
       "mapping": "lib/remediation/sandbox.mjs;lib/remediation/cleanup.mjs;lib/remediation/checkpoint.mjs;schemas/remediation/sandbox-receipt-v1.schema.json"
     },
     {
       "id": "B7-031",
       "status": "implemented",
-      "evidence": {
-        "lane": "L4",
-        "proof": {
-          "red": "qualification/evidence/lanes/L4/B7-031.red.log",
-          "green": "qualification/evidence/lanes/L4/B7-031.green.log"
-        },
-        "test": {
-          "path": "tests/security-l4/b7-031-mechanical-producers.test.mjs",
-          "assertion": "Only low-risk rule-specific producers are registered \u2014 each naming its rule ids, exposing a preview function and no apply path, and writing to no filesystem API; the committed registry is byte-identical to the code-owned catalogue and qualification is version-bound in both directions; producers refuse to run outside a remediation sandbox or against a sandbox reporting the primary repository mutated; structural and config previews are idempotent and leave unrelated bytes and keys untouched; every mechanical proposal carries the full SNIP-16 shape with no applied or verified flag; and unsupported or ambiguous targets become MANUAL proposals with a stated reason rather than a guess."
+      "evidence": [
+        {
+          "lane": "L4",
+          "proof": {
+            "red": "qualification/evidence/lanes/L4/B7-031.red.log",
+            "green": "qualification/evidence/lanes/L4/B7-031.green.log"
+          },
+          "test": {
+            "path": "tests/security-l4/b7-031-mechanical-producers.test.mjs",
+            "assertion": "Only low-risk rule-specific producers are registered \u2014 each naming its rule ids, exposing a preview function and no apply path, and writing to no filesystem API; the committed registry is byte-identical to the code-owned catalogue and qualification is version-bound in both directions; producers refuse to run outside a remediation sandbox or against a sandbox reporting the primary repository mutated; structural and config previews are idempotent and leave unrelated bytes and keys untouched; every mechanical proposal carries the full SNIP-16 shape with no applied or verified flag; and unsupported or ambiguous targets become MANUAL proposals with a stated reason rather than a guess."
+          }
         }
-      },
+      ],
       "mapping": "lib/remediation/mechanical.mjs;lib/remediation/producers/structural.mjs;lib/remediation/producers/config.mjs;registry/remediation/mechanical.json"
     },
     {
       "id": "B7-032",
       "status": "implemented",
-      "evidence": {
-        "lane": "L4",
-        "proof": {
-          "red": "qualification/evidence/lanes/L4/B7-032.red.log",
-          "green": "qualification/evidence/lanes/L4/B7-032.green.log"
-        },
-        "test": {
-          "path": "tests/security-l4/b7-032-reasoning-packets.test.mjs",
-          "assertion": "Proposal owners are a closed vocabulary; a packet carries only its findings, root causes, proof, scope, protected surfaces and stop conditions, requires a producer identity, envelopes all repository text as untrusted evidence, records override attempts as never-applied, and stays byte-bounded with visible truncation; writing may change words only, designer may change layout and style only while every declared approved-text digest returns unchanged, and code may change bounded source only inside scope and outside protected surfaces; mixed change sets split into single-owner proposals with an explicit dependency order rather than merging; a producer can never verify its own proposal by id or by context; and none of the four modules reach a model or the network."
+      "evidence": [
+        {
+          "lane": "L4",
+          "proof": {
+            "red": "qualification/evidence/lanes/L4/B7-032.red.log",
+            "green": "qualification/evidence/lanes/L4/B7-032.green.log"
+          },
+          "test": {
+            "path": "tests/security-l4/b7-032-reasoning-packets.test.mjs",
+            "assertion": "Proposal owners are a closed vocabulary; a packet carries only its findings, root causes, proof, scope, protected surfaces and stop conditions, requires a producer identity, envelopes all repository text as untrusted evidence, records override attempts as never-applied, and stays byte-bounded with visible truncation; writing may change words only, designer may change layout and style only while every declared approved-text digest returns unchanged, and code may change bounded source only inside scope and outside protected surfaces; mixed change sets split into single-owner proposals with an explicit dependency order rather than merging; a producer can never verify its own proposal by id or by context; and none of the four modules reach a model or the network."
+          }
         }
-      },
+      ],
       "mapping": "lib/remediation/reasoning-packets.mjs;lib/remediation/writing-proposal.mjs;lib/remediation/design-proposal.mjs;lib/remediation/code-proposal.mjs"
     },
     {
       "id": "B7-033",
       "status": "implemented",
-      "evidence": {
-        "lane": "L4",
-        "proof": {
-          "red": "qualification/evidence/lanes/L4/B7-033.red.log",
-          "green": "qualification/evidence/lanes/L4/B7-033.green.log"
-        },
-        "test": {
-          "path": "tests/security-l4/b7-033-effect-graph-verification.test.mjs",
-          "assertion": "A proposal maps deterministically to changed files, symbols, configuration, public surfaces, content items, design states, flows, runtime surfaces, security paths and residual risk; the affected provider and family closure is transitive over the plan graph and excludes providers whose paths were untouched; public-surface changes nobody declared block application; verification refuses a verifier sharing the producer's id or context, discards producer-supplied pass booleans in favour of independent provider and gate evidence, fails on any missing, incomplete or failing required provider or gate, and rejects as vacuous a verification supplying no evidence while the effect graph shows real effects."
+      "evidence": [
+        {
+          "lane": "L4",
+          "proof": {
+            "red": "qualification/evidence/lanes/L4/B7-033.red.log",
+            "green": "qualification/evidence/lanes/L4/B7-033.green.log"
+          },
+          "test": {
+            "path": "tests/security-l4/b7-033-effect-graph-verification.test.mjs",
+            "assertion": "A proposal maps deterministically to changed files, symbols, configuration, public surfaces, content items, design states, flows, runtime surfaces, security paths and residual risk; the affected provider and family closure is transitive over the plan graph and excludes providers whose paths were untouched; public-surface changes nobody declared block application; verification refuses a verifier sharing the producer's id or context, discards producer-supplied pass booleans in favour of independent provider and gate evidence, fails on any missing, incomplete or failing required provider or gate, and rejects as vacuous a verification supplying no evidence while the effect graph shows real effects."
+          }
         }
-      },
+      ],
       "mapping": "lib/remediation/effect-graph.mjs;lib/remediation/verify-proposal.mjs;schemas/remediation/effect-graph-v1.schema.json;schemas/remediation/verification-v1.schema.json"
     },
     {
       "id": "B7-034",
       "status": "implemented",
-      "evidence": {
-        "lane": "L4",
-        "proof": {
-          "red": "qualification/evidence/lanes/L4/B7-034.red.log",
-          "green": "qualification/evidence/lanes/L4/B7-034.green.log"
-        },
-        "test": {
-          "path": "tests/security-l4/b7-034-apply-lineage.test.mjs",
-          "assertion": "Application requires an explicit mutation capability, a valid neutral verification bound to the proposal and a verifier distinct from the producer, and refuses to proceed on a changed target fingerprint \u2014 attempting any of these makes zero mutation calls; the engine delegates the mutation to a host mutator and imports no filesystem API; a failed application stops recoverable, is never reported applied, and carries exact recovery data, as does a failed rollback; lineage classifies new, unchanged, resolved, reopened, accepted, expired and superseded from a line-independent semantic fingerprint; and accepted risk changes workflow state only, leaving severity and evidence strength untouched while expiry, identity change and a higher-impact path each reopen it."
+      "evidence": [
+        {
+          "lane": "L4",
+          "proof": {
+            "red": "qualification/evidence/lanes/L4/B7-034.red.log",
+            "green": "qualification/evidence/lanes/L4/B7-034.green.log"
+          },
+          "test": {
+            "path": "tests/security-l4/b7-034-apply-lineage.test.mjs",
+            "assertion": "Application requires an explicit mutation capability, a valid neutral verification bound to the proposal and a verifier distinct from the producer, and refuses to proceed on a changed target fingerprint \u2014 attempting any of these makes zero mutation calls; the engine delegates the mutation to a host mutator and imports no filesystem API; a failed application stops recoverable, is never reported applied, and carries exact recovery data, as does a failed rollback; lineage classifies new, unchanged, resolved, reopened, accepted, expired and superseded from a line-independent semantic fingerprint; and accepted risk changes workflow state only, leaving severity and evidence strength untouched while expiry, identity change and a higher-impact path each reopen it."
+          }
         }
-      },
+      ],
       "mapping": "lib/remediation/apply.mjs;lib/remediation/rollback.mjs;lib/policy/lineage.mjs;lib/policy/baseline.mjs;lib/policy/accepted-risk.mjs;schemas/remediation/apply-receipt-v1.schema.json;schemas/remediation/accepted-risk-v1.schema.json"
     },
     {
