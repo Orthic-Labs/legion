@@ -19,7 +19,7 @@
 //
 // `hook_event_name` and `tool_name`/`tool_input.file_path` (for Write/Edit)
 // are shared field names between the two hosts per forge/hooks/codex/hooks.json
-// (registers the same six lifecycle events as Claude Code) and
+// (registers the same eight lifecycle events as Claude Code) and
 // forge/hooks/codex/hook.js + forge/hooks/claude-code/hook.js (both just
 // `require('../adapter')` — one shared Forge core keyed by these same field
 // names across hosts). Nothing here invents a Codex-specific spelling of a
@@ -57,7 +57,8 @@ export const DEFAULT_KEY_DIR = join(homedir(), '.codex', 'arcane-keys');
 const TOOL_HOOK_EVENTS = Object.freeze(['PreToolUse', 'PostToolUse', 'PostToolUseFailure']);
 const POST_TOOL_HOOK_EVENTS = Object.freeze(['PostToolUse', 'PostToolUseFailure']);
 const SUPPORTED_HOOK_EVENTS = Object.freeze([
-  'SessionStart', 'UserPromptSubmit', 'PreToolUse', 'PostToolUse', 'PostToolUseFailure', 'Stop',
+  'SessionStart', 'SubagentStart', 'UserPromptSubmit', 'PostCompact',
+  'PreToolUse', 'PostToolUse', 'PostToolUseFailure', 'Stop',
 ]);
 
 /**
@@ -105,7 +106,7 @@ const EFFECT_TOOL_MAP = Object.freeze({
  *
  * @param {object} hookPayload parsed Codex hook stdin JSON
  * @throws {ArcaneError} ARC_HOST_EVENT_INVALID if `hook_event_name` is not
- *   one of the six documented lifecycle events (forge/hooks/codex/hooks.json).
+ *   one of the eight documented lifecycle events (forge/hooks/codex/hooks.json).
  */
 export function buildRawCodexEvent(hookPayload) {
   const eventType = hookPayload?.hook_event_name;
