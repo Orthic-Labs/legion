@@ -3,10 +3,11 @@ import { spawnSync } from 'node:child_process';
 import { writeFileSync, mkdtempSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import test from 'node:test';
+import { fileURLToPath } from 'node:url';
 import { listTools, callTool } from '../../integrations/mcp/tools.mjs';
 import { mcpInstallConfig, installPreview } from '../../integrations/mcp/install.mjs';
 
-const SERVER = new URL('../../integrations/mcp/server.mjs', import.meta.url).pathname;
+const SERVER = fileURLToPath(new URL('../../integrations/mcp/server.mjs', import.meta.url));
 
 test('tools are read-only and cover the required surface', () => {
   const tools = listTools();
