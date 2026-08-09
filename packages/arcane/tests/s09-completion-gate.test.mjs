@@ -161,3 +161,99 @@ test('S09: enforcementHealth is derived from receipts, never from a caller-asser
     cleanup();
   }
 });
+
+// The shipped bundle's real `lockedDomains` — until now this was only ever
+// exercised with an empty array (`lockedPolicy()` above swaps in a synthetic
+// one). These tests run the ACTUAL policy/arcane-policy-v1.json end-to-end
+// through evaluateCompletion, so populating lockedDomains is proven to bite.
+
+function realPolicy() {
+  const loaded = loadPolicy({ path: DEFAULT_POLICY_PATH });
+  return new PolicyEngine(loaded);
+}
+
+test('S09 (real bundle): a completion claim touching the enforcement plane without evidence is refused', () => {
+  const { root, cleanup } = tempRoot();
+  try {
+    const policy = realPolicy();
+    const receiptStore = new ReceiptStore({ root });
+    // No receipts at all for this run.
+    const d = evaluateCompletion(
+      // Claim a level the locked domain does NOT require, so the union's
+      // extra member (highRisk, forced by the locked path) is what's under
+      // test, not the claimed level itself. signoff is checked first in
+      // iteration order and would also fail on zero evidence, so claim
+      // 'release' here and assert the locked highRisk match is present.
+      { runId: RUN_ID, taskId: 'T-1', claimedLevel: 'release', touchedPaths: ['tools/rhook/hook.js'] },
+      { policy, receiptStore },
+    );
+    assert.equal(d.allowed, false);
+    assert.equal(d.detail.lockedDomainMatches.length, 1);
+    assert.equal(d.detail.lockedDomainMatches[0].pattern, 'tools/rhook/**');
+    assert.equal(d.detail.lockedDomainMatches[0].claimLevel, 'highRisk');
+    assert.ok(['release', 'highRisk'].includes(d.detail.level));
+  } finally {
+    cleanup();
+  }
+});
+
+test('S09 (real bundle): a completion claim touching the arcane package without evidence is refused', () => {
+  const { root, cleanup } = tempRoot();
+  try {
+    const policy = realPolicy();
+    const receiptStore = new ReceiptStore({ root });
+    const d = evaluateCompletion(
+      { runId: RUN_ID, taskId: 'T-1', claimedLevel: 'release', touchedPaths: ['tools/skills/legion/packages/arcane/lib/policy.mjs'] },
+      { policy, receiptStore },
+    );
+    assert.equal(d.allowed, false);
+    assert.equal(d.detail.lockedDomainMatches[0].pattern, 'tools/skills/legion/packages/arcane/**');
+    assert.equal(d.detail.lockedDomainMatches[0].claimLevel, 'highRisk');
+  } finally {
+    cleanup();
+  }
+});
+
+test('S09 (real bundle): a completion claim touching sealed qualification evidence without a receipt is refused, and with proper receipts passes', () => {
+  const { root, cleanup } = tempRoot();
+  try {
+    const policy = realPolicy();
+    const receiptStore = new ReceiptStore({ root });
+
+    const denied = evaluateCompletion(
+      { runId: RUN_ID, taskId: 'T-1', claimedLevel: 'signoff', touchedPaths: ['tools/skills/legion/qualification/book-1.json'] },
+      { policy, receiptStore },
+    );
+    assert.equal(denied.allowed, false);
+    assert.equal(denied.code, 'ARC_EVIDENCE_INSUFFICIENT');
+    assert.equal(denied.detail.level, 'signoff');
+    assert.equal(denied.detail.lockedDomainMatches[0].pattern, 'tools/skills/legion/qualification/**');
+
+    receiptStore.append(evidenceRecord({ evidenceClass: 'deterministic', strong: true }));
+    const allowed = evaluateCompletion(
+      { runId: RUN_ID, taskId: 'T-1', claimedLevel: 'signoff', touchedPaths: ['tools/skills/legion/qualification/book-1.json'] },
+      { policy, receiptStore },
+    );
+    assert.equal(allowed.allowed, true, allowed.message);
+    assert.equal(allowed.enforcementHealth, 'strong');
+  } finally {
+    cleanup();
+  }
+});
+
+test('S09 (real bundle): an unrelated path (e.g. a docs file) forces no locked-domain prerequisite', () => {
+  const { root, cleanup } = tempRoot();
+  try {
+    const policy = realPolicy();
+    const receiptStore = new ReceiptStore({ root });
+    const d = evaluateCompletion(
+      { runId: RUN_ID, taskId: 'T-1', claimedLevel: 'signoff', touchedPaths: ['docs/README.md'] },
+      { policy, receiptStore },
+    );
+    // No locked-domain match at all; still fails on signoff itself (no
+    // evidence recorded), but for the ordinary reason, not a locked one.
+    assert.equal(d.detail.lockedDomainMatches.length, 0);
+  } finally {
+    cleanup();
+  }
+});
