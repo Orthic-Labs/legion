@@ -85,7 +85,12 @@ function deriveFromReceipts(records) {
  */
 export function evaluateCompletion({ runId, taskId = null, claimedLevel, touchedPaths = [] }, { policy, receiptStore }) {
   const lockedMatches = policy.lockedDomainsFor(touchedPaths);
-  const levels = new Set([claimedLevel, ...lockedMatches.map((m) => m.claimLevel)]);
+  // `claimedLevel` may be null: a bare host Stop asserts no completion level of
+  // its own (see hook-adapter-core.evaluateHostStop). Only the levels the
+  // touched paths actually force are then evaluated, so a turn that touched no
+  // locked domain has nothing to certify and is not refused. A caller that DOES
+  // claim a level still has that level checked exactly as before.
+  const levels = new Set([...(claimedLevel ? [claimedLevel] : []), ...lockedMatches.map((m) => m.claimLevel)]);
 
   const records = receiptStore.list({ runId });
   const { evidenceClasses, staleEvidenceCount, enforcementHealth } = deriveFromReceipts(records);

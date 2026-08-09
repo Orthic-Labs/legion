@@ -1407,7 +1407,7 @@
       "runner": {
         "kind": "runtime-script",
         "module": "providers/accessibility-suite.mjs",
-        "moduleDigest": "sha256:3dab6c35b0b3aa5b325873e693cb4e42dd4179e1895cafbee50b69a8b713bd1a"
+        "moduleDigest": "sha256:098dffe7ed2a16c66821f64cc4d9fe70907d5f026e0943d59fb192448d5e6f9f"
       },
       "hostCapabilities": [],
       "execution": {
@@ -1735,7 +1735,7 @@
       "runner": {
         "kind": "runtime-script",
         "module": "providers/framework-suite.mjs",
-        "moduleDigest": "sha256:5cf92722585788ae41f22ec9d1ee7c8c1ccef3c32340fab77b29a6fe202d155c"
+        "moduleDigest": "sha256:fb82b60da43f0e27b8254b50b5c28996a1cdecee1abbb619b9c7f3e5fe999674"
       },
       "hostCapabilities": [],
       "execution": {
@@ -4313,7 +4313,7 @@
       "runner": {
         "kind": "runtime-script",
         "module": "providers/visual-core.mjs",
-        "moduleDigest": "sha256:dfc9123279e008a37e098e2369d037395549844cb3aa0376c3ea3599368f3fdf"
+        "moduleDigest": "sha256:d1f87c2da211b009bb80c69bed990d3bb9447932e629003e5ea46491bce12766"
       },
       "hostCapabilities": [],
       "execution": {

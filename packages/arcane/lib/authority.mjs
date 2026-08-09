@@ -184,3 +184,10 @@ export function requireAuthority(ledger, turnId, allowed, opts = {}) {
   }
   return decision({ allowed: true, detail: { turnId, authority: assertion.authority } });
 }
+
+export function assertHostAuthorityForTurn(bindingStore, input) {
+  if (!bindingStore || typeof bindingStore.assertForTurn !== 'function') {
+    throw new ArcaneError('ARC_AUTHORITY_NOT_ASSERTED', 'host authority binding store is required', {});
+  }
+  return bindingStore.assertForTurn(input);
+}

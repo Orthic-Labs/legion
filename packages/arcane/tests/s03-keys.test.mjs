@@ -11,7 +11,7 @@ import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
-import { KeyRing, loadHostKeyRing, generateTestKeyRing } from '../lib/keys.mjs';
+import { KeyRing, loadHostKeyRing, loadVerificationKeyRing, generateTestKeyRing } from '../lib/keys.mjs';
 import { ArcaneError } from '../lib/errors.mjs';
 
 test('KeyRing.add + get round-trips key material', () => {
@@ -153,5 +153,20 @@ test('loadHostKeyRing() never surfaces key material through KeyRing.list()', () 
     assert.ok(!serialized.includes('22'.repeat(32)));
   } finally {
     rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('verification keyring loads an N-harness directory set without changing signer selection', () => {
+  const first = mkdtempSync(join(tmpdir(), 'legion-arcane-s03-verify-claude-'));
+  const second = mkdtempSync(join(tmpdir(), 'legion-arcane-s03-verify-codex-'));
+  try {
+    writeFileSync(join(first, 'claude-key.key'), '01'.repeat(32), 'utf8');
+    writeFileSync(join(second, 'codex-key.key'), '02'.repeat(32), 'utf8');
+    const ring = loadVerificationKeyRing({ dirs: [first, second] });
+    assert.equal(ring.has('claude-key'), true);
+    assert.equal(ring.has('codex-key'), true);
+  } finally {
+    rmSync(first, { recursive: true, force: true });
+    rmSync(second, { recursive: true, force: true });
   }
 });

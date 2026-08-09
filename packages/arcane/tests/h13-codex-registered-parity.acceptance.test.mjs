@@ -9,10 +9,7 @@ import {
 } from '../host/codex-adapter.mjs';
 import { classifyObservation } from '../lib/host-event.mjs';
 
-const registrationPath = resolve(
-  process.cwd(), '..', '..', 'codex-brief-plugin',
-  'plugins', 'forge', 'hooks', 'hooks.json',
-);
+const registrationPath = resolve(process.cwd(), 'hooks', 'hooks.json');
 const hooks = JSON.parse(readFileSync(registrationPath, 'utf8')).hooks;
 const registeredEvents = [
   'SessionStart',
@@ -29,7 +26,7 @@ function matcher(eventName) {
   return new Set(hooks[eventName][0].matcher.split('|'));
 }
 
-test('H-13 oracle: adapter covers exactly the eight Forge-plugin registrations', () => {
+test('H-13 oracle: adapter covers exactly the eight Arcane plugin registrations', () => {
   assert.deepEqual(Object.keys(hooks), registeredEvents);
 
   const expected = {
@@ -74,7 +71,7 @@ test('H-13 oracle: matcher coverage stays honest', () => {
   assert.ok(matcher('PreToolUse').has('shell_command'));
   assert.ok(matcher('PreToolUse').has('apply_patch'));
   assert.ok(matcher('PostToolUse').has('shell_command'));
-  assert.equal(matcher('PostToolUse').has('apply_patch'), false);
+  assert.ok(matcher('PostToolUse').has('apply_patch'));
   assert.ok(matcher('PostToolUseFailure').has('shell_command'));
   assert.ok(matcher('PostToolUseFailure').has('apply_patch'));
 

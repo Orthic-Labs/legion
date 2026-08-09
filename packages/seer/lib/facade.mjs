@@ -1,4 +1,8 @@
-import { clone, deepFreeze, wrapArtifact } from './artifact.mjs';
+import { canonicalJson, clone, deepFreeze, wrapArtifact } from './artifact.mjs';
+import { createHash } from 'node:crypto';
+import { resolve } from 'node:path';
+import { buildJudgmentPacket } from '../../../lib/core/judgment-packets.mjs';
+import { traceDiffBlastRadius } from './cortex-impact.mjs';
 
 const API = Object.freeze({
   inspect: 'inspectProduct',
@@ -9,15 +13,15 @@ const API = Object.freeze({
 });
 const MUTATION = /(?:source[._-]?(?:write|mutat)|apply[._-]?(?:effect|patch)|effect[._-]?request)/i;
 
-export function createSeer({ core, clock = { now: () => new Date() } }) {
+export function createSeer({ core, clock = { now: () => new Date() }, receiptStore = null, traceDiff = traceDiffBlastRadius }) {
   const facade = {};
   for (const [operation, api] of Object.entries(API)) {
-    facade[operation] = async (request, { host } = {}) => invoke({ request, operation, api, core, host, clock });
+    facade[operation] = async (request, { host } = {}) => invoke({ request, operation, api, core, host, clock, receiptStore: host?.receiptStore ?? receiptStore, traceDiff });
   }
   return Object.freeze(facade);
 }
 
-async function invoke({ request, operation, api, core, host, clock }) {
+async function invoke({ request, operation, api, core, host, clock, receiptStore, traceDiff }) {
   validateRequest(request, operation);
   const context = forwardedContext(request);
   if (hasMutationCapability(request.input)) {
@@ -35,8 +39,10 @@ async function invoke({ request, operation, api, core, host, clock }) {
     });
   }
   try {
-    const output = await core[api](forwardedInput(request, context), host);
-    return completedPair(request, context, output, clock, `seer.${operation}.core-output`);
+    const blastRadius = await diffBlastRadius(request, operation, traceDiff);
+    const output = await core[api](forwardedInput(request, context, blastRadius), host);
+    const pair = completedPair(request, context, output, clock, `seer.${operation}.core-output`, blastRadius);
+    return attachFeedback(pair, output, receiptStore);
   } catch (error) {
     return failedPair(request, context, clock, {
       code: 'SEER_CORE_INVOCATION_FAILED',
@@ -59,19 +65,23 @@ export function translateLegacyReport(request, legacyReport, { clock = { now: ()
   return completedPair(request, context, legacyReport, clock, 'seer.audit.legacy-output');
 }
 
-function completedPair(request, context, output, clock, artifactKind) {
+function completedPair(request, context, output, clock, artifactKind, blastRadius = null) {
   const completedAt = clock.now().toISOString();
   const artifact = wrapArtifact({ value: output, artifactKind, sourceRevision: request.sourceRevision, createdAt: completedAt });
-  const claimBoundary = output?.claimBoundary ?? output?.report?.claimBoundary ?? output?.report?.claim_boundary ?? 'UNPROVEN';
+  const observedBoundary = output?.claimBoundary ?? output?.report?.claimBoundary ?? output?.report?.claim_boundary ?? 'UNPROVEN';
+  const claimBoundary = blastRadius?.state === 'unproven' ? 'UNPROVEN' : observedBoundary;
+  const warnings = Array.isArray(output?.warnings) ? [...output.warnings] : [];
+  if (blastRadius?.state === 'unproven') warnings.push('cortex-blast-radius-unproven');
   return Object.freeze({
     request,
     ...context,
+    ...(blastRadius ? { blastRadius } : {}),
     result: resultEnvelope(request, {
       invocationState: 'COMPLETED',
       domainOutcome: output?.domainOutcome ?? 'COMPLETE',
       claimBoundary,
       artifacts: [artifact.record.artifactId],
-      warnings: Array.isArray(output?.warnings) ? [...output.warnings] : [],
+      warnings,
       nextActions: Array.isArray(output?.nextActions) ? clone(output.nextActions) : [],
       error: null,
       completedAt,
@@ -121,13 +131,71 @@ function forwardedContext(request) {
   };
 }
 
-function forwardedInput(request, context) {
+function forwardedInput(request, context, blastRadius = null) {
   const options = request.input?.options;
+  const lens = needsLens(request.operationId) ? sealedLens(request.input?.lens) : null;
   return Object.freeze({
     ...((options && typeof options === 'object' && !Array.isArray(options)) ? clone(options) : {}),
     runIdentity: context.runIdentity,
     workingContext: context.workingContext,
+    ...(lens ? { lens, judgmentPacket: buildJudgmentPacket({ subject: { id: request.requestId }, reviewerRole: 'seer', budget: null, lens }) } : {}),
+    ...(blastRadius ? { blastRadius } : {}),
   });
+}
+
+async function diffBlastRadius(request, operation, traceDiff) {
+  if (!needsLens(request.operationId) || !['audit', 'verify'].includes(operation)) return null;
+  const changedPaths = request.input?.diff?.changedPaths;
+  if (!Array.isArray(changedPaths) || !changedPaths.length) return null;
+  const identity = request.input.runIdentity;
+  const repoRoot = resolve(identity.workspace, identity.repository ?? '.');
+  return deepFreeze(await traceDiff({ repoRoot, changedPaths }));
+}
+
+function findingOutcomes(output) {
+  const lists = [output?.findings, output?.report?.findings];
+  for (const provider of output?.provider_reconciliation?.providerResults ?? output?.report?.provider_reconciliation?.providerResults ?? []) lists.push(provider.findings);
+  const seen = new Set(); const outcomes = [];
+  for (const finding of lists.flatMap((value) => Array.isArray(value) ? value : [])) {
+    const findingId = finding.id ?? finding.findingId ?? finding.ruleId ?? null;
+    const verdict = finding.verdict ?? finding.claim ?? finding.status ?? 'unproven';
+    const key = canonicalJson({ findingId, verdict, ruleId: finding.ruleId ?? null });
+    if (seen.has(key)) continue;
+    seen.add(key);
+    outcomes.push({ findingId, ruleId: finding.ruleId ?? null, verdict, severity: finding.severity ?? null });
+  }
+  return outcomes;
+}
+
+function attachFeedback(pair, output, receiptStore) {
+  if (!receiptStore) return Object.freeze({ ...pair, feedbackReceipt: null });
+  const recordBase = {
+    schemaVersion: 1,
+    kind: 'seer-verdict-outcome-receipt',
+    runId: pair.result.runId,
+    requestId: pair.result.requestId,
+    operationId: pair.result.operationId,
+    sourceRevision: pair.result.sourceRevision,
+    invocationState: pair.result.invocationState,
+    domainOutcome: pair.result.domainOutcome,
+    claimBoundary: pair.result.claimBoundary,
+    artifactIds: [...pair.result.artifacts],
+    outcomes: findingOutcomes(output),
+    blastRadiusDigest: pair.blastRadius?.digest ?? null,
+    recordedAt: pair.result.completedAt,
+  };
+  const id = `seer_${createHash('sha256').update(canonicalJson(recordBase)).digest('hex').slice(0, 26)}`;
+  const record = deepFreeze({ ...recordBase, id });
+  const stored = receiptStore.append(record);
+  return Object.freeze({ ...pair, feedbackReceipt: deepFreeze({ record, ...stored }) });
+}
+
+function needsLens(operationId) { return operationId === 'seer.audit' || operationId === 'seer.verify'; }
+function sealedLens(lens) {
+  if (!lens?.id || !lens.digest || typeof lens.content !== 'string') throw new TypeError('audit and verify require sealed lens content');
+  const digest = `sha256:${createHash('sha256').update(lens.content).digest('hex')}`;
+  if (lens.digest !== digest) throw new TypeError('lens digest mismatch');
+  return deepFreeze({ id: lens.id, digest: lens.digest, content: lens.content });
 }
 
 function validateRequest(request, operation) {

@@ -2,6 +2,7 @@ import * as canonicalCore from '../../lib/index.mjs';
 
 export { translateLegacyReport } from './lib/facade.mjs';
 export { canonicalJson, wrapArtifact } from './lib/artifact.mjs';
+export { traceDiffBlastRadius } from './lib/cortex-impact.mjs';
 
 import { createSeer as createFacade } from './lib/facade.mjs';
 

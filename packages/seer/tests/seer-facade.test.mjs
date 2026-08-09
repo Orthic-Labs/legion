@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
+import { createHash } from 'node:crypto';
 import test from 'node:test';
 
 import { canonicalJson, createSeer, seer as publicSeer, translateLegacyReport } from '../index.mjs';
@@ -10,6 +11,7 @@ const REVISION = '4e82122e713341f9a27545207a00ba45645d8e8f';
 const NOW = '2026-08-08T00:00:00.000Z';
 
 function request(operation, options = {}, input = {}) {
+  const lensContent = 'sealed audit lens';
   return {
     schemaVersion: 1,
     kind: 'legion-operation-envelope',
@@ -37,6 +39,7 @@ function request(operation, options = {}, input = {}) {
         capturedAt: NOW,
       },
       workingContext: { marker: 'seer-isolated-01' },
+      ...(['audit', 'verify'].includes(operation) ? { lens: { id: 'seer-audit', digest: `sha256:${createHash('sha256').update(lensContent).digest('hex')}`, content: lensContent } } : {}),
       ...input,
     },
     idempotencyKey: null,
@@ -76,6 +79,21 @@ test('all five operations delegate to named canonical core APIs', async () => {
   assert.deepEqual(calls.map(({ api }) => api), ['inspectProduct', 'buildPlan', 'audit', 'verifyRun', 'explain']);
   assert.deepEqual(calls.map(({ options }) => options.token), ['inspect', 'plan', 'audit', 'verify', 'explain']);
   assert.ok(calls.every((entry) => entry.host === host));
+});
+
+test('audit and verify deny absent or tampered lenses before core, then forward sealed lens', async () => {
+  let invoked = false; let forwarded;
+  const seer = createSeer({ core: { audit: async (value) => (invoked = true, forwarded = value, {}) }, clock });
+  const absent = await seer.audit(request('audit', {}, { lens: undefined }));
+  assert.equal(absent.result.error.code, 'SEER_CORE_INVOCATION_FAILED');
+  assert.equal(invoked, false);
+  const tampered = await seer.audit(request('audit', {}, { lens: { id: 'x', digest: `sha256:${'0'.repeat(64)}`, content: 'x' } }));
+  assert.equal(tampered.result.error.code, 'SEER_CORE_INVOCATION_FAILED');
+  const pair = await seer.audit(request('audit'));
+  assert.equal(pair.result.invocationState, 'COMPLETED');
+  assert.deepEqual(forwarded.lens, { id: 'seer-audit', digest: forwarded.lens.digest, content: 'sealed audit lens' });
+  assert.equal(forwarded.judgmentPacket.lens.content, 'sealed audit lens');
+  assert.ok(Object.isFrozen(forwarded.lens));
 });
 
 test('audit findings are successful invocation plus domain output, never an error', async () => {

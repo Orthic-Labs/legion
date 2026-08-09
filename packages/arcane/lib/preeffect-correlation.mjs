@@ -50,11 +50,11 @@ function keyFileName(toolUseId) {
   return `${createHash('sha256').update(toolUseId, 'utf8').digest('hex')}.json`;
 }
 
-function readRequestId(path) {
+function readRequest(path) {
   try {
     if (!existsSync(path)) return null;
     const parsed = JSON.parse(readFileSync(path, 'utf8'));
-    return parsed && typeof parsed.requestId === 'string' ? parsed.requestId : null;
+    return parsed && typeof parsed.requestId === 'string' ? parsed : null;
   } catch {
     return null; // corrupt/unreadable -> honest null, never a thrown parse error
   }
@@ -78,34 +78,44 @@ export class PreEffectCorrelationStore {
   getRequestId(toolUseId) {
     if (typeof toolUseId !== 'string' || toolUseId.length === 0) return null;
     try {
-      return readRequestId(this.#pathFor(toolUseId));
+      return readRequest(this.#pathFor(toolUseId))?.requestId ?? null;
     } catch {
       return null;
     }
   }
 
-  /**
-   * Get-or-mint, race-safe (see module header). Called at PreToolUse.
-   * @returns {string|null} the requestId, or `null` only when every avenue
-   *   (existing read, mint+create, EEXIST readback) failed.
-   */
-  ensureRequestId(toolUseId) {
+  /** Reserve a tool-use id before authorization; repeat delivery never mints again. */
+  reserve(toolUseId) {
     if (typeof toolUseId !== 'string' || toolUseId.length === 0) return null;
 
     const existing = this.getRequestId(toolUseId);
-    if (existing) return existing;
+    if (existing) return { requestId: existing, created: false };
 
     const requestId = mintId('request');
     const path = this.#pathFor(toolUseId);
     try {
       mkdirSync(this.#root, { recursive: true });
       writeFileSync(path, JSON.stringify({ requestId }), { encoding: 'utf8', flag: 'wx' });
-      return requestId;
+      return { requestId, created: true };
     } catch (err) {
       if (err && err.code === 'EEXIST') {
-        return this.getRequestId(toolUseId); // lost the race — read back the winner
+        const winner = this.getRequestId(toolUseId);
+        return winner ? { requestId: winner, created: false } : null;
       }
       return null;
     }
   }
+
+  /** Compatibility projection of `reserve()`. */
+  ensureRequestId(toolUseId) {
+    return this.reserve(toolUseId)?.requestId ?? null;
+  }
+
+  record(toolUseId, { requestId = mintId('request'), capabilityId = null, requestedEffect = null, authorizedEffect = null } = {}) {
+    if (typeof toolUseId !== 'string' || !toolUseId) return null;
+    const path = this.#pathFor(toolUseId); const record = { requestId, capabilityId, requestedEffect, authorizedEffect };
+    try { mkdirSync(this.#root, { recursive: true }); writeFileSync(path, JSON.stringify(record), { encoding: 'utf8', flag: 'wx' }); return record; }
+    catch (error) { if (error.code === 'EEXIST') return readRequest(path); return null; }
+  }
+  get(toolUseId) { return typeof toolUseId === 'string' ? readRequest(this.#pathFor(toolUseId)) : null; }
 }

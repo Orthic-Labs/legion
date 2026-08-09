@@ -10,6 +10,8 @@ import path from 'node:path';
 
 export * from './enums.mjs';
 
+export { validateExecutableContract } from './executable.mjs';
+
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const schemasDir = path.join(__dirname, 'schemas');
 
@@ -31,6 +33,7 @@ export const SCHEMA_PATHS = Object.freeze({
   'legion-result-v1': path.join(schemasDir, 'legion-result-v1.schema.json'),
   'run-identity-v1': path.join(schemasDir, 'run-identity-v1.schema.json'),
   'legacy-envelope-v1': path.join(schemasDir, 'legacy-envelope-v1.schema.json'),
+  'authority-dispatch-v1': path.join(schemasDir, 'authority-dispatch-v1.schema.json'),
 });
 
 export const SCHEMA_NAMES = Object.freeze(Object.keys(SCHEMA_PATHS));

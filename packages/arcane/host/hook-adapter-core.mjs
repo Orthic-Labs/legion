@@ -75,6 +75,13 @@ export function signHostEvent(hostEvent, keyRing) {
   }
 }
 
+const DESTRUCTIVE_COMMAND = /(?:^|[;&|]\s*)(?:rm\s+(?:-[^\s]*r|--recursive)|remove-item\b[^\n]*-recurse|git\s+clean\b|dropdb\b|git\s+push\b[^\n]*(?:--force(?:-with-lease)?\b|-f\b)|terraform\s+(?:apply|destroy)\b|curl\b[^\n|]*\|\s*(?:sh|bash)\b)/i;
+
+export function isDestructiveCommand(hookPayload) {
+  const command = hookPayload?.command ?? hookPayload?.tool_input?.command;
+  return typeof command === 'string' && DESTRUCTIVE_COMMAND.test(command);
+}
+
 /**
  * Full pipeline for a single host hook invocation: normalize (via the
  * host-supplied `deps.normalize`), classify, sign, and (when signing
@@ -103,13 +110,26 @@ export function signHostEvent(hostEvent, keyRing) {
  */
 export function handleHookEvent(hookPayload, deps) {
   const {
-    normalize, keyRing, receiptStore, replayGuard, policy,
+    normalize, keyRing, verificationKeyRing = keyRing, receiptStore, replayGuard, policy,
     capabilityStore = null, dependencyLedger = null, clock = () => Date.now(),
     sessionBinding = null, preEffectCorrelation = null,
   } = deps;
 
   const hostEvent = normalize(hookPayload);
   const observationClass = classifyObservation(hostEvent, { policy });
+
+  if (hostEvent.eventType === 'pre-effect' && isDestructiveCommand(hookPayload)) {
+    return {
+      hostEvent, observationClass, enforcementHealth: 'strong', accepted: false, receipt: null,
+      decision: decision({
+        allowed: false,
+        code: 'ARC_EFFECT_CLASS_UNAUTHORIZED',
+        message: 'destructive command class is blocked; use a bounded, reversible alternative',
+        detail: {},
+        enforcementHealth: 'strong',
+      }),
+    };
+  }
 
   // EC-5 items 2+4 — ambient run/task/contract binding. Host-neutral on
   // purpose: both adapters normalize `sessionId` identically, so this lives
@@ -185,7 +205,7 @@ export function handleHookEvent(hookPayload, deps) {
     };
   }
 
-  const ingestor = new HostIngestor({ receiptStore, capabilityStore, replayGuard, keyRing, policy, clock, dependencyLedger });
+  const ingestor = new HostIngestor({ receiptStore, capabilityStore, replayGuard, keyRing: verificationKeyRing, policy, clock, dependencyLedger });
   const result = ingestor.ingest(hostEvent, { authorityAssertion });
   return { hostEvent, observationClass, enforcementHealth, ...result };
 }
@@ -214,13 +234,18 @@ export function deriveTouchedPaths(receiptStore, runId) {
 /**
  * Evaluate a host `Stop` event against Arcane's completion gate
  * (../lib/completion-gate.mjs). No host's hook JSON carries a notion of a
- * claimed completion level, so `claimedLevel` defaults to `'signoff'` — the
- * policy bundle's weakest defined level (deterministic evidence, strong
- * enforcement, no Covenant/narrative fields) — as the honest floor every Stop
- * implicitly asserts ("this turn is done"); a caller with more context (e.g.
- * Legion/Alchemist declaring `highRisk`/`release`) may pass a different
- * `claimedLevel` explicitly. `lockedDomainsFor(touchedPaths)` may still force
- * a higher level regardless of what is claimed.
+ * claimed completion level, so `claimedLevel` defaults to `null`: a bare Stop
+ * asserts no level of its own. Only the levels `lockedDomainsFor(touchedPaths)`
+ * forces are evaluated, so a turn that touched a locked domain must still earn
+ * that domain's level, while an ordinary turn has nothing to certify and is not
+ * refused. A caller with more context (e.g. Legion/Alchemist declaring
+ * `signoff`/`highRisk`/`release`) passes `claimedLevel` explicitly and that
+ * level is checked exactly as before.
+ *
+ * The prior default was `'signoff'`, which required evidence class
+ * `deterministic`. Hook-emitted receipts are effect receipts and carry no
+ * `evidenceClass` at all, so that default could never be satisfied by any
+ * hook-driven session — contracted or not — and blocked every turn.
  *
  * `hostEvent.runId` has no source in a bare host hook payload (see each
  * adapter's module header) and is therefore null for a bare hook-driven
@@ -232,7 +257,7 @@ export function deriveTouchedPaths(receiptStore, runId) {
  *
  * @returns {object} the completion-gate decision (see completion-gate.mjs)
  */
-export function evaluateHostStop(hostEvent, { policy, receiptStore, claimedLevel = 'signoff' }) {
+export function evaluateHostStop(hostEvent, { policy, receiptStore, claimedLevel = null }) {
   const touchedPaths = deriveTouchedPaths(receiptStore, hostEvent.runId);
   return evaluateCompletion(
     { runId: hostEvent.runId, taskId: hostEvent.taskId, claimedLevel, touchedPaths },
@@ -276,6 +301,7 @@ export function readStdinJson() {
   const raw = readFileSync(0, 'utf8');
   return JSON.parse(raw);
 }
+
 
 /**
  * Shared stdin-driven main loop for every host adapter's CLI entry point.

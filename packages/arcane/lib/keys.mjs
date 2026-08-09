@@ -99,7 +99,7 @@ export class KeyRing {
  * status}`. Absence of the directory or of any `.key` file is
  * ARC_AUTH_KEY_UNAVAILABLE — never a fabricated key.
  */
-export function loadHostKeyRing({ dir }) {
+function loadDirectoryInto(ring, dir) {
   if (!dir || !existsSync(dir)) {
     throw new ArcaneError('ARC_AUTH_KEY_UNAVAILABLE', `host key directory not found: ${dir}`, { dir });
   }
@@ -107,7 +107,6 @@ export function loadHostKeyRing({ dir }) {
   if (files.length === 0) {
     throw new ArcaneError('ARC_AUTH_KEY_UNAVAILABLE', `no host key material found in ${dir}`, { dir });
   }
-  const ring = new KeyRing();
   for (const file of files) {
     const keyId = file.slice(0, -'.key'.length);
     const hex = readFileSync(join(dir, file), 'utf8').trim();
@@ -125,8 +124,29 @@ export function loadHostKeyRing({ dir }) {
     if (existsSync(metaPath)) {
       meta = { ...meta, ...JSON.parse(readFileSync(metaPath, 'utf8')) };
     }
+    if (ring.has(keyId)) {
+      const existing = ring.get(keyId);
+      if (!existing.key.equals(keyMaterial)) {
+        throw new ArcaneError('ARC_AUTH_KEY_UNAVAILABLE', `conflicting host key id across verification directories: ${keyId}`, { keyId });
+      }
+      continue;
+    }
     ring.add(keyId, keyMaterial, meta);
   }
+}
+
+export function loadHostKeyRing({ dir }) {
+  const ring = new KeyRing();
+  loadDirectoryInto(ring, dir);
+  return ring;
+}
+
+export function loadVerificationKeyRing({ dirs }) {
+  if (!Array.isArray(dirs) || dirs.length === 0) {
+    throw new ArcaneError('ARC_AUTH_KEY_UNAVAILABLE', 'verification requires at least one host key directory', {});
+  }
+  const ring = new KeyRing();
+  for (const dir of [...new Set(dirs)]) loadDirectoryInto(ring, dir);
   return ring;
 }
 

@@ -48,10 +48,12 @@ import { generateTestKeyRing } from '../lib/keys.mjs';
 import { ReceiptStore } from '../lib/receipt-store.mjs';
 import { ReplayGuard } from '../lib/replay.mjs';
 import { loadPolicy, PolicyEngine, DEFAULT_POLICY_PATH } from '../lib/policy.mjs';
+import { EC5_DIGEST } from './fixtures/runtime-binding-contract.mjs';
 
 const LOCKED_PATH = 'docs/legal/terms.md';
 const SESSION_ID = 'e2e-session-1';
 const TOOL_USE_ID = 'e2e-tool-use-1';
+const CONTRACT_VERSION = 1;
 
 function tempDir(prefix) {
   const root = mkdtempSync(path.join(tmpdir(), prefix));
@@ -112,7 +114,7 @@ test('EC-5 item 7 (acceptance): SessionStart mints ambient -> PostToolUse Write 
     assert.match(runId, /^run_[0-9A-HJKMNP-TV-Z]{26}$/);
     assert.equal(sessionStart.hostEvent.contractId, null);
     assert.equal(sessionStart.hostEvent.taskId, null);
-    assert.deepEqual(sessionBinding.getBinding(SESSION_ID), { runId, taskId: null, contractId: null });
+    assert.deepEqual(sessionBinding.getBinding(SESSION_ID), { runId, taskId: null, contractId: null, contractVersion: null, contractDigest: null });
 
     // ── 2. PreToolUse then PostToolUse Write on the locked path ──────────
     const preToolUse = handleClaudeCodeHookEvent(
@@ -154,11 +156,11 @@ test('EC-5 item 7 (acceptance): SessionStart mints ambient -> PostToolUse Write 
     assert.ok(blockOutput, 'Stop is actually blocked, not silently allowed');
     assert.equal(blockOutput.decision, 'block');
 
-    // ── 4. Simulate `legion run open --contract EC-5 --task T-1` ─────────
+    // ── 4. Simulate `legion run open --contract EC-5 --version 1 --task T-1` ─────────
     // Exactly what lib/cli/commands/run.mjs's runOpen() does: putBinding
     // with the SAME runId ensureBinding already minted, never a new one.
-    const opened = sessionBinding.putBinding(SESSION_ID, { runId, taskId: 'T-1', contractId: 'EC-5' });
-    assert.deepEqual(opened, { runId, taskId: 'T-1', contractId: 'EC-5' });
+    const opened = sessionBinding.putBinding(SESSION_ID, { runId, taskId: 'T-1', contractId: 'EC-5', contractVersion: CONTRACT_VERSION, contractDigest: EC5_DIGEST });
+    assert.deepEqual(opened, { runId, taskId: 'T-1', contractId: 'EC-5', contractVersion: CONTRACT_VERSION, contractDigest: EC5_DIGEST });
 
     // Mint a proper verification receipt for the same runId (same pattern
     // as s09-completion-gate.test.mjs / claude-code-adapter.test.mjs's own

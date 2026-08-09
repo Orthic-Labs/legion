@@ -21,11 +21,21 @@ import {
   deriveTouchedPaths,
   ADAPTER_NAME,
   ADAPTER_VERSION,
+  observeClaudeCodeIdentity,
+  mapClaudeCodePreEffect,
 } from '../host/claude-code-adapter.mjs';
 import { validateHostEvent, normalizeHostEvent } from '../lib/host-event.mjs';
 import { generateTestKeyRing } from '../lib/keys.mjs';
 import { HostIngestor } from '../lib/ingest.mjs';
 import { ReplayGuard } from '../lib/replay.mjs';
+
+test('B7 Claude identity & pre-effect tables are host-derived and closed', () => {
+  const payload = { hook_event_name: 'PreToolUse', session_id: 'session', agent_id: 'agent', agent_type: 'alchemist', tool_name: 'Write', tool_input: { file_path: 'src/a.mjs' }, tool_use_id: 'tool' };
+  assert.deepEqual(observeClaudeCodeIdentity(payload, { hostEvent: { eventId: 'hev_0123456789ABCDEFGHJKMNPQ' } }), { sessionId: 'session', agentId: 'agent', agentType: 'alchemist', eventId: 'hev_0123456789ABCDEFGHJKMNPQ' });
+  assert.deepEqual(mapClaudeCodePreEffect(payload), { effectClass: 'FILE_WRITE', target: 'src/a.mjs', operation: 'Write', toolUseId: 'tool' });
+  assert.deepEqual(observeClaudeCodeIdentity({ ...payload, authority: 'sage' }), { modelClaimed: true });
+  assert.equal(mapClaudeCodePreEffect({ ...payload, tool_name: 'Bash' }), null);
+});
 import { ReceiptStore } from '../lib/receipt-store.mjs';
 import { loadPolicy, PolicyEngine, DEFAULT_POLICY_PATH, policyDuplicationAudit } from '../lib/policy.mjs';
 import { signRecord } from '../lib/receipt-auth.mjs';
@@ -226,7 +236,10 @@ test('EC-2: Stop is blocked with the gate\'s own reason when completion prerequi
     const stopEvent = normalizeClaudeCodeEvent({ hook_event_name: 'Stop', session_id: 's1', cwd: '/tmp/ws' });
     stopEvent.runId = RUN_ID; // a real caller sets this from its own session/task binding
 
-    const completionDecision = evaluateClaudeCodeStop(stopEvent, { policy, receiptStore });
+    // An explicitly CLAIMED level is what the gate evaluates. A bare Stop
+    // claims nothing (see the ambient test below); this caller claims signoff
+    // and has no evidence for it, which is the case this test pins.
+    const completionDecision = evaluateClaudeCodeStop(stopEvent, { policy, receiptStore, claimedLevel: 'signoff' });
     assert.equal(completionDecision.allowed, false);
 
     const output = claudeCodeStopHookOutput(completionDecision);
@@ -235,6 +248,22 @@ test('EC-2: Stop is blocked with the gate\'s own reason when completion prerequi
     // The reason must carry the gate's actual code/message, not a generic string.
     assert.match(output.reason, new RegExp(completionDecision.code));
     assert.notEqual(output.reason, 'completion claim denied by Arcane completion gate');
+  } finally {
+    cleanup();
+  }
+});
+
+test('ambient Stop claims no level, so a turn touching no locked domain is not refused', () => {
+  const { root, cleanup } = tempRoot();
+  try {
+    const policy = testPolicy();
+    const receiptStore = new ReceiptStore({ root }); // no evidence for RUN_ID at all
+    const stopEvent = normalizeClaudeCodeEvent({ hook_event_name: 'Stop', session_id: 's1', cwd: '/tmp/ws' });
+    stopEvent.runId = RUN_ID;
+
+    const completionDecision = evaluateClaudeCodeStop(stopEvent, { policy, receiptStore });
+    assert.equal(completionDecision.allowed, true);
+    assert.equal(claudeCodeStopHookOutput(completionDecision), null);
   } finally {
     cleanup();
   }

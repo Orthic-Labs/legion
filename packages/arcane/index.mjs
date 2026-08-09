@@ -67,6 +67,15 @@ export * from './lib/receipt-store.mjs';
 // S04 — host-event ingestion
 export * from './lib/host-event.mjs';
 export * from './lib/ingest.mjs';
+export * from './lib/runtime-schema.mjs';
+export * from './lib/state-paths.mjs';
+export * from './lib/capability-store.mjs';
+export * from './lib/contract-seal-store.mjs';
+export * from './lib/authority-binding-store.mjs';
+export * from './lib/session-binding.mjs';
+export * from './lib/preeffect-correlation.mjs';
+export * from './host/host-runtime-output.mjs';
+export * from './host/host-runtime.mjs';
 
 // S05 — evidence envelope, invalidation cascade, migration
 export * from './lib/evidence-envelope.mjs';

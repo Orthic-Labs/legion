@@ -172,7 +172,19 @@ export class HostIngestor {
     // run but not to a contract) and is accepted, not refused. A runId is
     // still mandatory: ambient is a typed tier, never a silent default, and
     // there is nothing to bucket the observation under without one.
-    if (!hostEvent.effect || !hostEvent.sourceRevision || !hostEvent.runId) {
+    // A post-effect event with NO observed effect is not a malformed event: each
+    // adapter's EFFECT_TOOL_MAP deliberately leaves `effect` null for every tool
+    // whose side-effect shape Arcane refuses to guess (Bash, MultiEdit, Read/
+    // Grep/Glob, mcp__*). Those are not mutation-observations, so they are
+    // accepted and classified with no receipt minted — the same treatment
+    // lifecycle events get above. Refusing them as ARC_HOST_EVENT_INVALID
+    // mislabelled a documented, deliberate null as a broken event, and because
+    // Bash is the most common tool it kept the receipt log permanently empty.
+    if (!hostEvent.effect) {
+      return { accepted: true, receipt: null, observationClass, decision: decision({ allowed: true, detail: { eventType: hostEvent.eventType, effect: null } }) };
+    }
+
+    if (!hostEvent.sourceRevision || !hostEvent.runId) {
       return this.#refuse(observationClass, decision({
         allowed: false,
         code: 'ARC_HOST_EVENT_INVALID',
