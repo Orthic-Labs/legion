@@ -3,7 +3,7 @@
   "kind": "legion-book-qualification",
   "book": 3,
   "expectedTaskCount": 30,
-  "sourceRevision": "content.sha256:e1f2664b1bc79d91591f34f90c001e409e31192df8b96f1843d6ba067c095d1c",
+  "sourceRevision": "content.sha256:1c9705fb479e81dd33cdc82ce788bb4ef1c77ed4cb7ba50655924eac95a14116+dirty",
   "decision": "SOURCE_IMPLEMENTED",
   "claimLevel": "source",
   "sourceAccounting": {
@@ -54,8 +54,8 @@
               "pass": 4,
               "fail": 26
             },
-            "digest": "sha256:7a7187163f4a9a8b76f8cd65ecbfe16d7b8f8b2f3f4df31c55516732d035be44",
-            "bytes": 33012
+            "digest": "sha256:5e7a45d5a215c747ecb09eb2fd4be4e8bc3018b551ec650ef74cc8712d8ad0db",
+            "bytes": 32541
           },
           "green": {
             "path": "qualification/evidence/source-completion/S2-book-3.behavior.green.log",
@@ -119,8 +119,8 @@
               "pass": 4,
               "fail": 26
             },
-            "digest": "sha256:7a7187163f4a9a8b76f8cd65ecbfe16d7b8f8b2f3f4df31c55516732d035be44",
-            "bytes": 33012
+            "digest": "sha256:5e7a45d5a215c747ecb09eb2fd4be4e8bc3018b551ec650ef74cc8712d8ad0db",
+            "bytes": 32541
           },
           "green": {
             "path": "qualification/evidence/source-completion/S2-book-3.behavior.green.log",
@@ -290,8 +290,8 @@
               "pass": 4,
               "fail": 26
             },
-            "digest": "sha256:7a7187163f4a9a8b76f8cd65ecbfe16d7b8f8b2f3f4df31c55516732d035be44",
-            "bytes": 33012
+            "digest": "sha256:5e7a45d5a215c747ecb09eb2fd4be4e8bc3018b551ec650ef74cc8712d8ad0db",
+            "bytes": 32541
           },
           "green": {
             "path": "qualification/evidence/source-completion/S2-book-3.behavior.green.log",
@@ -396,8 +396,8 @@
               "pass": 4,
               "fail": 26
             },
-            "digest": "sha256:7a7187163f4a9a8b76f8cd65ecbfe16d7b8f8b2f3f4df31c55516732d035be44",
-            "bytes": 33012
+            "digest": "sha256:5e7a45d5a215c747ecb09eb2fd4be4e8bc3018b551ec650ef74cc8712d8ad0db",
+            "bytes": 32541
           },
           "green": {
             "path": "qualification/evidence/source-completion/S2-book-3.behavior.green.log",
@@ -461,8 +461,8 @@
               "pass": 4,
               "fail": 26
             },
-            "digest": "sha256:7a7187163f4a9a8b76f8cd65ecbfe16d7b8f8b2f3f4df31c55516732d035be44",
-            "bytes": 33012
+            "digest": "sha256:5e7a45d5a215c747ecb09eb2fd4be4e8bc3018b551ec650ef74cc8712d8ad0db",
+            "bytes": 32541
           },
           "green": {
             "path": "qualification/evidence/source-completion/S2-book-3.behavior.green.log",
@@ -514,8 +514,8 @@
               "pass": 4,
               "fail": 26
             },
-            "digest": "sha256:7a7187163f4a9a8b76f8cd65ecbfe16d7b8f8b2f3f4df31c55516732d035be44",
-            "bytes": 33012
+            "digest": "sha256:5e7a45d5a215c747ecb09eb2fd4be4e8bc3018b551ec650ef74cc8712d8ad0db",
+            "bytes": 32541
           },
           "green": {
             "path": "qualification/evidence/source-completion/S2-book-3.behavior.green.log",
@@ -551,8 +551,8 @@
           {
             "path": "lib/analysis/reachability.mjs",
             "symbol": "joinReachability",
-            "digest": "sha256:5f495dafecb5a248fb2bc5a9f70c4a984cdfc6f2bad8066dd5847005ada3fbeb",
-            "bytes": 1888
+            "digest": "sha256:0f06a60060ad5f70a9a52ac1e839f12ec3e9918895e120cb0ed6259254c2b299",
+            "bytes": 1861
           },
           {
             "path": "schemas/provider/reachability-v1.schema.json",
@@ -635,8 +635,8 @@
               "pass": 4,
               "fail": 26
             },
-            "digest": "sha256:7a7187163f4a9a8b76f8cd65ecbfe16d7b8f8b2f3f4df31c55516732d035be44",
-            "bytes": 33012
+            "digest": "sha256:5e7a45d5a215c747ecb09eb2fd4be4e8bc3018b551ec650ef74cc8712d8ad0db",
+            "bytes": 32541
           },
           "green": {
             "path": "qualification/evidence/source-completion/S2-book-3.behavior.green.log",
@@ -696,8 +696,8 @@
               "pass": 4,
               "fail": 26
             },
-            "digest": "sha256:7a7187163f4a9a8b76f8cd65ecbfe16d7b8f8b2f3f4df31c55516732d035be44",
-            "bytes": 33012
+            "digest": "sha256:5e7a45d5a215c747ecb09eb2fd4be4e8bc3018b551ec650ef74cc8712d8ad0db",
+            "bytes": 32541
           },
           "green": {
             "path": "qualification/evidence/source-completion/S2-book-3.behavior.green.log",
@@ -757,8 +757,8 @@
               "pass": 4,
               "fail": 26
             },
-            "digest": "sha256:7a7187163f4a9a8b76f8cd65ecbfe16d7b8f8b2f3f4df31c55516732d035be44",
-            "bytes": 33012
+            "digest": "sha256:5e7a45d5a215c747ecb09eb2fd4be4e8bc3018b551ec650ef74cc8712d8ad0db",
+            "bytes": 32541
           },
           "green": {
             "path": "qualification/evidence/source-completion/S2-book-3.behavior.green.log",
@@ -799,8 +799,8 @@
           {
             "path": "providers/frameworks/tauri/index.mjs",
             "symbol": "analyze",
-            "digest": "sha256:0e8325a183fbb483b8aba06584fa1cf00e3164e64ecf57369031a4b4f589bf1f",
-            "bytes": 2213
+            "digest": "sha256:6e5be087d9be61394dbd76e5165f5ccc20f9d785f67868615611e876a673be61",
+            "bytes": 2173
           },
           {
             "path": "registry/coverage/language.rust.json",
@@ -824,8 +824,8 @@
               "pass": 4,
               "fail": 26
             },
-            "digest": "sha256:7a7187163f4a9a8b76f8cd65ecbfe16d7b8f8b2f3f4df31c55516732d035be44",
-            "bytes": 33012
+            "digest": "sha256:5e7a45d5a215c747ecb09eb2fd4be4e8bc3018b551ec650ef74cc8712d8ad0db",
+            "bytes": 32541
           },
           "green": {
             "path": "qualification/evidence/source-completion/S2-book-3.behavior.green.log",
@@ -885,8 +885,8 @@
               "pass": 4,
               "fail": 26
             },
-            "digest": "sha256:7a7187163f4a9a8b76f8cd65ecbfe16d7b8f8b2f3f4df31c55516732d035be44",
-            "bytes": 33012
+            "digest": "sha256:5e7a45d5a215c747ecb09eb2fd4be4e8bc3018b551ec650ef74cc8712d8ad0db",
+            "bytes": 32541
           },
           "green": {
             "path": "qualification/evidence/source-completion/S2-book-3.behavior.green.log",
@@ -958,8 +958,8 @@
               "pass": 4,
               "fail": 26
             },
-            "digest": "sha256:7a7187163f4a9a8b76f8cd65ecbfe16d7b8f8b2f3f4df31c55516732d035be44",
-            "bytes": 33012
+            "digest": "sha256:5e7a45d5a215c747ecb09eb2fd4be4e8bc3018b551ec650ef74cc8712d8ad0db",
+            "bytes": 32541
           },
           "green": {
             "path": "qualification/evidence/source-completion/S2-book-3.behavior.green.log",
@@ -1019,8 +1019,8 @@
               "pass": 4,
               "fail": 26
             },
-            "digest": "sha256:7a7187163f4a9a8b76f8cd65ecbfe16d7b8f8b2f3f4df31c55516732d035be44",
-            "bytes": 33012
+            "digest": "sha256:5e7a45d5a215c747ecb09eb2fd4be4e8bc3018b551ec650ef74cc8712d8ad0db",
+            "bytes": 32541
           },
           "green": {
             "path": "qualification/evidence/source-completion/S2-book-3.behavior.green.log",
@@ -1086,8 +1086,8 @@
               "pass": 4,
               "fail": 26
             },
-            "digest": "sha256:7a7187163f4a9a8b76f8cd65ecbfe16d7b8f8b2f3f4df31c55516732d035be44",
-            "bytes": 33012
+            "digest": "sha256:5e7a45d5a215c747ecb09eb2fd4be4e8bc3018b551ec650ef74cc8712d8ad0db",
+            "bytes": 32541
           },
           "green": {
             "path": "qualification/evidence/source-completion/S2-book-3.behavior.green.log",
@@ -1153,8 +1153,8 @@
               "pass": 4,
               "fail": 26
             },
-            "digest": "sha256:7a7187163f4a9a8b76f8cd65ecbfe16d7b8f8b2f3f4df31c55516732d035be44",
-            "bytes": 33012
+            "digest": "sha256:5e7a45d5a215c747ecb09eb2fd4be4e8bc3018b551ec650ef74cc8712d8ad0db",
+            "bytes": 32541
           },
           "green": {
             "path": "qualification/evidence/source-completion/S2-book-3.behavior.green.log",
@@ -1201,20 +1201,20 @@
           {
             "path": "providers/frameworks/apple/index.mjs",
             "symbol": "analyze",
-            "digest": "sha256:c5cb57e2aaf032f1d8f948f06bc94b7144c94857ebbc0f2db746b8b7c087dcb0",
-            "bytes": 1843
+            "digest": "sha256:083c1cc8cfd5be40266e3d8afb61c05330e9996cd20ad0ec15df3eb224b37db0",
+            "bytes": 1809
           },
           {
             "path": "providers/frameworks/flutter/index.mjs",
             "symbol": "analyze",
-            "digest": "sha256:d2e6165275f40e2e73e83ce33553fb4ad96febb19393876447e2d4ec55045a0d",
-            "bytes": 1627
+            "digest": "sha256:66e9b54d190545e0fc034dcbf4d06feff9a7bb425f5e061250c56ce3960c66b6",
+            "bytes": 1595
           },
           {
             "path": "providers/frameworks/react-native/index.mjs",
             "symbol": "analyze",
-            "digest": "sha256:fd3fa392d561ceb055a8dedc1f27645eec7b9e73a414214670d2e64bda989063",
-            "bytes": 1390
+            "digest": "sha256:7cb8f810625e4cebdf4d38de5d50d190b47a576d168a704d5542a777914a1180",
+            "bytes": 1363
           },
           {
             "path": "registry/coverage/language.mobile.json",
@@ -1238,8 +1238,8 @@
               "pass": 4,
               "fail": 26
             },
-            "digest": "sha256:7a7187163f4a9a8b76f8cd65ecbfe16d7b8f8b2f3f4df31c55516732d035be44",
-            "bytes": 33012
+            "digest": "sha256:5e7a45d5a215c747ecb09eb2fd4be4e8bc3018b551ec650ef74cc8712d8ad0db",
+            "bytes": 32541
           },
           "green": {
             "path": "qualification/evidence/source-completion/S2-book-3.behavior.green.log",
@@ -1303,8 +1303,8 @@
               "pass": 4,
               "fail": 26
             },
-            "digest": "sha256:7a7187163f4a9a8b76f8cd65ecbfe16d7b8f8b2f3f4df31c55516732d035be44",
-            "bytes": 33012
+            "digest": "sha256:5e7a45d5a215c747ecb09eb2fd4be4e8bc3018b551ec650ef74cc8712d8ad0db",
+            "bytes": 32541
           },
           "green": {
             "path": "qualification/evidence/source-completion/S2-book-3.behavior.green.log",
@@ -1362,8 +1362,8 @@
               "pass": 4,
               "fail": 26
             },
-            "digest": "sha256:7a7187163f4a9a8b76f8cd65ecbfe16d7b8f8b2f3f4df31c55516732d035be44",
-            "bytes": 33012
+            "digest": "sha256:5e7a45d5a215c747ecb09eb2fd4be4e8bc3018b551ec650ef74cc8712d8ad0db",
+            "bytes": 32541
           },
           "green": {
             "path": "qualification/evidence/source-completion/S2-book-3.behavior.green.log",
@@ -1425,8 +1425,8 @@
               "pass": 4,
               "fail": 26
             },
-            "digest": "sha256:7a7187163f4a9a8b76f8cd65ecbfe16d7b8f8b2f3f4df31c55516732d035be44",
-            "bytes": 33012
+            "digest": "sha256:5e7a45d5a215c747ecb09eb2fd4be4e8bc3018b551ec650ef74cc8712d8ad0db",
+            "bytes": 32541
           },
           "green": {
             "path": "qualification/evidence/source-completion/S2-book-3.behavior.green.log",
@@ -1501,8 +1501,8 @@
               "pass": 4,
               "fail": 26
             },
-            "digest": "sha256:7a7187163f4a9a8b76f8cd65ecbfe16d7b8f8b2f3f4df31c55516732d035be44",
-            "bytes": 33012
+            "digest": "sha256:5e7a45d5a215c747ecb09eb2fd4be4e8bc3018b551ec650ef74cc8712d8ad0db",
+            "bytes": 32541
           },
           "green": {
             "path": "qualification/evidence/source-completion/S2-book-3.behavior.green.log",
@@ -1560,8 +1560,8 @@
               "pass": 4,
               "fail": 26
             },
-            "digest": "sha256:7a7187163f4a9a8b76f8cd65ecbfe16d7b8f8b2f3f4df31c55516732d035be44",
-            "bytes": 33012
+            "digest": "sha256:5e7a45d5a215c747ecb09eb2fd4be4e8bc3018b551ec650ef74cc8712d8ad0db",
+            "bytes": 32541
           },
           "green": {
             "path": "qualification/evidence/source-completion/S2-book-3.behavior.green.log",
@@ -1632,8 +1632,8 @@
               "pass": 4,
               "fail": 26
             },
-            "digest": "sha256:7a7187163f4a9a8b76f8cd65ecbfe16d7b8f8b2f3f4df31c55516732d035be44",
-            "bytes": 33012
+            "digest": "sha256:5e7a45d5a215c747ecb09eb2fd4be4e8bc3018b551ec650ef74cc8712d8ad0db",
+            "bytes": 32541
           },
           "green": {
             "path": "qualification/evidence/source-completion/S2-book-3.behavior.green.log",
@@ -1717,8 +1717,8 @@
               "pass": 4,
               "fail": 26
             },
-            "digest": "sha256:7a7187163f4a9a8b76f8cd65ecbfe16d7b8f8b2f3f4df31c55516732d035be44",
-            "bytes": 33012
+            "digest": "sha256:5e7a45d5a215c747ecb09eb2fd4be4e8bc3018b551ec650ef74cc8712d8ad0db",
+            "bytes": 32541
           },
           "green": {
             "path": "qualification/evidence/source-completion/S2-book-3.behavior.green.log",
@@ -1801,8 +1801,8 @@
               "pass": 4,
               "fail": 26
             },
-            "digest": "sha256:7a7187163f4a9a8b76f8cd65ecbfe16d7b8f8b2f3f4df31c55516732d035be44",
-            "bytes": 33012
+            "digest": "sha256:5e7a45d5a215c747ecb09eb2fd4be4e8bc3018b551ec650ef74cc8712d8ad0db",
+            "bytes": 32541
           },
           "green": {
             "path": "qualification/evidence/source-completion/S2-book-3.behavior.green.log",
@@ -1923,8 +1923,8 @@
               "pass": 4,
               "fail": 26
             },
-            "digest": "sha256:7a7187163f4a9a8b76f8cd65ecbfe16d7b8f8b2f3f4df31c55516732d035be44",
-            "bytes": 33012
+            "digest": "sha256:5e7a45d5a215c747ecb09eb2fd4be4e8bc3018b551ec650ef74cc8712d8ad0db",
+            "bytes": 32541
           },
           "green": {
             "path": "qualification/evidence/source-completion/S2-book-3.behavior.green.log",
@@ -1982,8 +1982,8 @@
               "pass": 4,
               "fail": 26
             },
-            "digest": "sha256:7a7187163f4a9a8b76f8cd65ecbfe16d7b8f8b2f3f4df31c55516732d035be44",
-            "bytes": 33012
+            "digest": "sha256:5e7a45d5a215c747ecb09eb2fd4be4e8bc3018b551ec650ef74cc8712d8ad0db",
+            "bytes": 32541
           },
           "green": {
             "path": "qualification/evidence/source-completion/S2-book-3.behavior.green.log",
@@ -2006,8 +2006,8 @@
       "command": "node --test tests/providers/book-3-contracts.test.mjs",
       "status": "fail",
       "log": "qualification/evidence/source-completion/S2-book-3.behavior.red.log",
-      "digest": "sha256:7a7187163f4a9a8b76f8cd65ecbfe16d7b8f8b2f3f4df31c55516732d035be44",
-      "bytes": 33012,
+      "digest": "sha256:5e7a45d5a215c747ecb09eb2fd4be4e8bc3018b551ec650ef74cc8712d8ad0db",
+      "bytes": 32541,
       "counts": {
         "total": 30,
         "pass": 4,
