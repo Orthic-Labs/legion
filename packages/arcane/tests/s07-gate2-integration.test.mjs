@@ -265,7 +265,6 @@ test('GATE 2: a single-use capability cannot authorize a second effect', () => {
     const w = wire({ root });
     const first = w.gate.evaluate(request(), { contract: contract(), turnId: 'turn-1', capabilityId: w.capabilityId });
     assert.equal(first.allowed, true);
-    w.capabilityStore.consume(w.capabilityId, { now: ISO() });
     const second = w.gate.evaluate(request(), { contract: contract(), turnId: 'turn-1', capabilityId: w.capabilityId });
     assert.equal(second.allowed, false);
     assert.equal(second.code, 'ARC_CAPABILITY_EXHAUSTED');

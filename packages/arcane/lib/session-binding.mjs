@@ -67,10 +67,14 @@ function readBinding(path) {
     if (!existsSync(path)) return null;
     const parsed = JSON.parse(readFileSync(path, 'utf8'));
     if (!parsed || typeof parsed !== 'object' || typeof parsed.runId !== 'string') return null;
+    const trio = ['contractId', 'contractVersion', 'contractDigest'];
+    if (!trio.every((key) => parsed[key] == null) && !trio.every((key) => parsed[key] != null)) return null;
     return {
       runId: parsed.runId,
       taskId: typeof parsed.taskId === 'string' ? parsed.taskId : null,
       contractId: typeof parsed.contractId === 'string' ? parsed.contractId : null,
+      contractVersion: Number.isInteger(parsed.contractVersion) ? parsed.contractVersion : null,
+      contractDigest: typeof parsed.contractDigest === 'string' ? parsed.contractDigest : null,
     };
   } catch {
     return null; // corrupt/unreadable file -> honest null, never a thrown parse error
@@ -113,7 +117,7 @@ export class SessionBindingStore {
     const existing = this.getBinding(sessionId);
     if (existing) return existing;
 
-    const record = { runId: mintId('run'), taskId: null, contractId: null };
+    const record = { runId: mintId('run'), taskId: null, contractId: null, contractVersion: null, contractDigest: null };
     const path = this.#pathFor(sessionId);
     try {
       mkdirSync(this.#root, { recursive: true });
@@ -137,11 +141,13 @@ export class SessionBindingStore {
    * @returns {{runId:string, taskId:string|null, contractId:string|null}|null}
    *   the record written, or `null` on any I/O failure (degrade, never throw).
    */
-  putBinding(sessionId, { runId, taskId = null, contractId = null }) {
+  putBinding(sessionId, { runId, taskId = null, contractId = null, contractVersion = null, contractDigest = null }) {
     if (typeof sessionId !== 'string' || sessionId.length === 0) return null;
     if (typeof runId !== 'string' || runId.length === 0) return null;
 
-    const record = { runId, taskId, contractId };
+    const trio = [contractId, contractVersion, contractDigest];
+    if (!trio.every((value) => value == null) && !trio.every((value) => value != null)) return null;
+    const record = { runId, taskId, contractId, contractVersion, contractDigest };
     const path = this.#pathFor(sessionId);
     try {
       mkdirSync(this.#root, { recursive: true });

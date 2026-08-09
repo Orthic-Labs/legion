@@ -39,11 +39,14 @@
 
 import { homedir, platform, release } from 'node:os';
 import { join } from 'node:path';
+import { pathToFileURL } from 'node:url';
 
 import { ArcaneError } from '../lib/errors.mjs';
 import { normalizeHostEvent } from '../lib/host-event.mjs';
 import { canonicalJson, digest } from '../lib/canonical.mjs';
-import { handleHookEvent, runHookMain } from './hook-adapter-core.mjs';
+import { handleHookEvent, runHookMain, readStdinJson } from './hook-adapter-core.mjs';
+import { createHostRuntime } from './host-runtime.mjs';
+import { serializeHostRuntimeOutput } from './host-runtime-output.mjs';
 
 export const ADAPTER_NAME = 'codex';
 export const ADAPTER_VERSION = process.env.CODEX_VERSION || 'unknown';
@@ -60,6 +63,11 @@ const SUPPORTED_HOOK_EVENTS = Object.freeze([
   'SessionStart', 'SubagentStart', 'UserPromptSubmit', 'PostCompact',
   'PreToolUse', 'PostToolUse', 'PostToolUseFailure', 'Stop',
 ]);
+
+const PRE_EFFECT_TOOL_MAP = Object.freeze({
+  Write: { effectClass: 'FILE_WRITE', targetField: 'file_path' },
+  Edit: { effectClass: 'FILE_WRITE', targetField: 'file_path' },
+});
 
 /**
  * Direct, honest tool_name -> effect mappings for POST-EFFECT events only
@@ -207,17 +215,44 @@ export function handleCodexHookEvent(hookPayload, deps) {
   return handleHookEvent(hookPayload, { ...deps, normalize: normalizeCodexEvent });
 }
 
+export function observeCodexIdentity(hookPayload, { hostEvent } = {}) {
+  if (['authority', 'callerAuthority', 'assertedAuthority', 'trust_class', 'trustClass', 'executor'].some((key) => Object.hasOwn(hookPayload ?? {}, key))) return { modelClaimed: true };
+  const sessionId = hookPayload?.session_id ?? hookPayload?.sessionId ?? null;
+  const agentId = hookPayload?.agent_id ?? hookPayload?.agentId ?? null;
+  const agentType = hookPayload?.agent_type ?? hookPayload?.agentType ?? null;
+  return sessionId && agentId && agentType ? { sessionId, agentId, agentType, eventId: hostEvent?.eventId } : null;
+}
+
+export function mapCodexPreEffect(hookPayload) {
+  const mapping = PRE_EFFECT_TOOL_MAP[hookPayload?.tool_name];
+  const target = mapping ? hookPayload?.tool_input?.[mapping.targetField] : null;
+  if (!mapping || typeof target !== 'string' || target.length === 0 || typeof hookPayload?.tool_use_id !== 'string' || hookPayload.tool_use_id.length === 0) return null;
+  return { effectClass: mapping.effectClass, target, operation: hookPayload.tool_name, toolUseId: hookPayload.tool_use_id };
+}
+
+export const codexHostAdapter = Object.freeze({ name: ADAPTER_NAME, normalize: normalizeCodexEvent, observeIdentity: observeCodexIdentity, mapPreEffect: mapCodexPreEffect });
+
 // ---------------------------------------------------------------------------
 // CLI entry point — mirrors claude-code-adapter.mjs's main(). Delegates to
 // the shared `runHookMain` (./hook-adapter-core.mjs).
 // ---------------------------------------------------------------------------
 
-export function main({ keyDir = DEFAULT_KEY_DIR, receiptStore, replayGuard, policy, capabilityStore = null, dependencyLedger = null, sessionBinding = null, preEffectCorrelation = null } = {}) {
+export function main({ keyDir, verificationKeyDirs, workspace, stateRoot, receiptStore, replayGuard, policy, capabilityStore = null, dependencyLedger = null, sessionBinding = null, preEffectCorrelation = null } = {}) {
+  if (!receiptStore || !replayGuard || !policy) {
+    let payload;
+    try { payload = readStdinJson(); } catch { process.stderr.write('ARC_HOST_EVENT_INVALID\n'); process.exitCode = 2; return null; }
+    const configuredKeyDir = keyDir ?? process.env.ARCANE_KEY_DIR ?? DEFAULT_KEY_DIR;
+    const verifyDirs = verificationKeyDirs ?? (keyDir || process.env.ARCANE_KEY_DIR ? [configuredKeyDir] : [join(homedir(), '.claude', 'arcane-keys'), join(homedir(), '.codex', 'arcane-keys')]);
+    const runtime = createHostRuntime({ adapter: codexHostAdapter, workspace: workspace ?? process.env.ARCANE_WORKSPACE ?? process.cwd(), keyDir: configuredKeyDir, verificationKeyDirs: verifyDirs, ...(stateRoot ?? process.env.ARCANE_STATE_ROOT ? { stateRoot: stateRoot ?? process.env.ARCANE_STATE_ROOT } : {}) });
+    const result = runtime.handle(payload);
+    process.stdout.write(serializeHostRuntimeOutput(result.stdout));
+    return result;
+  }
   return runHookMain({ normalize: normalizeCodexEvent, keyDir, receiptStore, replayGuard, policy, capabilityStore, dependencyLedger, sessionBinding, preEffectCorrelation });
 }
 
 const isMainModule = typeof process !== 'undefined' && process.argv[1]
-  && import.meta.url === `file://${process.argv[1].replaceAll('\\', '/')}`;
+  && import.meta.url === pathToFileURL(process.argv[1]).href;
 if (isMainModule) {
   // Real host-config wiring (receiptStore/replayGuard/policy instances) is
   // deliberately out of scope for this task (no settings.json / live

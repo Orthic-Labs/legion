@@ -86,3 +86,20 @@ test('bind --write is idempotent across two runs', () => {
     rmSync(dir, { recursive: true, force: true });
   }
 });
+
+test('codex bind writes managed agent pointers and is idempotent', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'legion-codex-bind-'));
+  try {
+    mkdirSync(join(dir, '.codex'), { recursive: true });
+    assert.equal(bind(['--write', '--harness', 'codex', dir]).status, 0);
+    const config = readFileSync(join(dir, '.codex', 'config.toml'), 'utf8');
+    assert.match(config, /# >>> legion:managed-block v1 >>>/);
+    assert.match(config, /config_file = "agents\/sage.toml"/);
+    const sage = readFileSync(join(dir, '.codex', 'agents', 'sage.toml'), 'utf8');
+    assert.match(sage, /\nmodel = "gpt-5\.6-sol"/);
+    assert.match(sage, /\nmodel_reasoning_effort = "high"/);
+    assert.doesNotMatch(sage, /\ndescription = /);
+    assert.equal(bind(['--write', '--harness', 'codex', dir]).status, 0);
+    assert.equal(readFileSync(join(dir, '.codex', 'config.toml'), 'utf8'), config);
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});

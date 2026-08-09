@@ -15,6 +15,7 @@ import path from 'node:path';
 
 import * as Enums from './enums.mjs';
 import { SCHEMA_PATHS, SCHEMA_NAMES } from './index.mjs';
+import { validateExecutableContract } from './executable.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const schemasDir = path.join(__dirname, 'schemas');
@@ -60,6 +61,62 @@ test('every schema declares draft 2020-12 and a unique $id', () => {
   }
 });
 
+test('execution contract executable validation rejects unresolved and under-specified work', () => {
+  const contract = {
+    schemaVersion: 1, kind: 'legion-execution-contract', contractId: 'EC-1', version: 1, sourceRevision: 'abcdef0', objective: 'x', currentState: 'x', desiredState: 'x', requirements: [], decisions: [], invariants: [], nonGoals: [], scope: { own: [], read: [], forbidden: [] }, artifacts: { exact: [{ id: 'a', path: 'x', latitude: 'EXACT', content: 'x' }], bounded: [{ id: 'b', path: 'y', latitude: 'BOUNDED', locked: ['x'], freedom: ['y'] }] }, tasks: ['T-1'], dependencies: [], acceptanceCriteria: [], declaredChecks: [], evidenceRequirements: [], authorizedEffectClasses: [], repairLatitude: [], stopConditions: [], escalationConditions: [], rollback: [], openQuestions: []
+  };
+  assert.equal(validateExecutableContract(contract), contract);
+  assert.throws(() => validateExecutableContract({ ...contract, openQuestions: [{ id: 'Q-1', question: 'x' }] }), /open questions/);
+  assert.throws(() => validateExecutableContract({ ...contract, tasks: ['T-1', 'T-1'] }), /unique/);
+});
+
+
+test('EC-C sealed behavior: EXACT artifacts reject null content, BOUNDED rejects empty locked/freedom, shared-mutable-resource edges require resourceKey, IDs are globally unique', () => {
+  const baseContract = {
+    schemaVersion: 1, kind: 'legion-execution-contract', contractId: 'EC-44', version: 1, sourceRevision: 'abcdef0', objective: 'o', currentState: 'c', desiredState: 'd',
+    requirements: [{ id: 'R-1', statement: 'r' }], decisions: [{ id: 'D-1', statement: 'd' }], invariants: [{ id: 'I-1', statement: 'i' }], nonGoals: [{ id: 'NG-1', statement: 'n' }],
+    scope: { own: [], read: [], forbidden: [] },
+    artifacts: {
+      exact: [{ id: 'A-exact', path: 'p', latitude: 'EXACT', content: 'data' }],
+      bounded: [{ id: 'A-bound', path: 'q', latitude: 'BOUNDED', locked: ['L1'], freedom: ['F1'] }],
+    },
+    tasks: ['T-1'],
+    dependencies: [],
+    acceptanceCriteria: [{ id: 'AC-1', statement: 'a' }],
+    declaredChecks: [], evidenceRequirements: [], authorizedEffectClasses: ['FILE_WRITE'], repairLatitude: [],
+    stopConditions: [], escalationConditions: [], rollback: [], openQuestions: [],
+  };
+  assert.equal(validateExecutableContract(baseContract), baseContract);
+
+  const exactNull = JSON.parse(JSON.stringify(baseContract));
+  exactNull.artifacts.exact[0].content = null;
+  assert.throws(() => validateExecutableContract(exactNull), /EXACT artifact .* requires content/);
+
+  const boundedEmptyLocked = JSON.parse(JSON.stringify(baseContract));
+  boundedEmptyLocked.artifacts.bounded[0].locked = [];
+  assert.throws(() => validateExecutableContract(boundedEmptyLocked), /requires locked and freedom/);
+
+  const boundedEmptyFreedom = JSON.parse(JSON.stringify(baseContract));
+  boundedEmptyFreedom.artifacts.bounded[0].freedom = [];
+  assert.throws(() => validateExecutableContract(boundedEmptyFreedom), /requires locked and freedom/);
+
+  const sharedWithoutKey = JSON.parse(JSON.stringify(baseContract));
+  sharedWithoutKey.dependencies = [{ from: 'T-1', to: 'T-2', reason: 'shared-mutable-resource' }];
+  assert.throws(() => validateExecutableContract(sharedWithoutKey), /resourceKey/);
+
+  const sharedWithKey = JSON.parse(JSON.stringify(baseContract));
+  sharedWithKey.tasks = ['T-1', 'T-2'];
+  sharedWithKey.dependencies = [{ from: 'T-1', to: 'T-2', reason: 'shared-mutable-resource', resourceKey: 'src/shared.lock' }];
+  assert.equal(validateExecutableContract(sharedWithKey), sharedWithKey);
+
+  const duplicateDecision = JSON.parse(JSON.stringify(baseContract));
+  duplicateDecision.decisions = [{ id: 'D-1', statement: 'first' }, { id: 'D-1', statement: 'dup' }];
+  assert.throws(() => validateExecutableContract(duplicateDecision), /unique/);
+
+  const crossSectionDuplicate = JSON.parse(JSON.stringify(baseContract));
+  crossSectionDuplicate.requirements = [{ id: 'D-1', statement: 'collides with decision D-1' }];
+  assert.throws(() => validateExecutableContract(crossSectionDuplicate), /unique/);
+});
 // operation-envelope-v1 is the one true discriminated union: it has no
 // top-level "properties" at all, only "oneOf" refs into "$defs" (each $def
 // is a complete, independent object shape). Every other schema either has
@@ -71,9 +128,18 @@ function isDiscriminatedEnvelope(schema) {
   return Boolean(schema.oneOf) && !schema.properties;
 }
 
+function isComposedAuthorityDispatch(schema) {
+  return schema.$id === 'legion-authority-dispatch-v1';
+}
+
 test('every schema declares schemaVersion const 1 and a kind const', () => {
   for (const name of SCHEMA_NAMES) {
     const schema = loadSchema(name);
+    if (isComposedAuthorityDispatch(schema)) {
+      assert.deepEqual(schema.$defs.base.properties.schemaVersion, { const: 1 });
+      assert.equal(schema.$defs.base.properties.kind.const, 'legion-authority-dispatch');
+      continue;
+    }
     if (isDiscriminatedEnvelope(schema)) {
       for (const branch of schema.oneOf) {
         const def = schema.$defs[branch.$ref.replace('#/$defs/', '')];
@@ -90,6 +156,10 @@ test('every schema declares schemaVersion const 1 and a kind const', () => {
 test('every schema sets additionalProperties: false at its top level (or, for a discriminated envelope, on every branch)', () => {
   for (const name of SCHEMA_NAMES) {
     const schema = loadSchema(name);
+    if (isComposedAuthorityDispatch(schema)) {
+      assert.equal(schema.$defs.base.additionalProperties, false, `${name}: base allows additionalProperties`);
+      continue;
+    }
     if (isDiscriminatedEnvelope(schema)) {
       for (const branch of schema.oneOf) {
         const def = schema.$defs[branch.$ref.replace('#/$defs/', '')];
@@ -101,6 +171,78 @@ test('every schema sets additionalProperties: false at its top level (or, for a 
   }
 });
 
+
+test('authority-dispatch-v1: schema declares all four authority variants with required routing and sealed references', () => {
+  const schema = loadSchema('authority-dispatch-v1');
+  assert.ok(schema.oneOf, 'authority-dispatch-v1 must be a discriminated union');
+  const branches = schema.oneOf.map((branch) => branch.$ref.replace('#/$defs/', ''));
+  assert.deepEqual(branches.sort(), ['alchemist', 'sage', 'seer', 'worker']);
+  function resolveProps(branchName) {
+    const def = schema.$defs[branchName];
+    const allOf = Array.isArray(def.allOf) ? def.allOf : [def];
+    const props = {};
+    const required = [];
+    for (const entry of allOf) {
+      if (!entry) continue;
+      if (entry['$ref'] === '#/$defs/base') {
+        Object.assign(props, schema.$defs.base.properties ?? {});
+        if (Array.isArray(schema.$defs.base.required)) required.push(...schema.$defs.base.required);
+        continue;
+      }
+      if (entry.properties) Object.assign(props, entry.properties);
+      if (Array.isArray(entry.required)) required.push(...entry.required);
+    }
+    return { props, required: new Set(required) };
+  }
+  function resolveRef(value) {
+    if (!value || typeof value !== 'object') return value;
+    if (typeof value['$ref'] === 'string' && value['$ref'].startsWith('#/$defs/')) {
+      return schema.$defs[value['$ref'].replace('#/$defs/', '')];
+    }
+    if (value.allOf) {
+      const merged = { properties: {}, required: [] };
+      for (const entry of value.allOf) {
+        const resolved = resolveRef(entry);
+        if (resolved?.properties) Object.assign(merged.properties, resolved.properties);
+        if (Array.isArray(resolved?.required)) merged.required.push(...resolved.required);
+      }
+      return merged;
+    }
+    return value;
+  }
+  for (const branch of branches) {
+    const { props, required } = resolveProps(branch);
+    assert.equal(props.packetType?.const, branch, `${branch} must pin packetType`);
+    assert.ok(required.has('sourceRevision'), `${branch} must bind sourceRevision`);
+    assert.ok(required.has('promptDigest'), `${branch} must bind promptDigest`);
+    assert.ok(required.has('modelRouting'), `${branch} must bind modelRouting`);
+    const routing = resolveRef(props.modelRouting);
+    assert.ok(routing?.properties?.modelTier, `${branch} modelRouting must name modelTier`);
+    assert.ok(routing?.properties?.workerProfile, `${branch} modelRouting must name workerProfile`);
+    assert.ok(routing?.properties?.routingRationale, `${branch} modelRouting must name routingRationale`);
+  }
+  const sage = resolveProps('sage');
+  assert.ok(sage.required.has('routeBundle'), 'sage must require routeBundle');
+  assert.ok(sage.props.routeBundle, 'sage must expose routeBundle property');
+  const seer = resolveProps('seer');
+  assert.ok(seer.required.has('lens'), 'seer must require lens');
+  assert.ok(seer.required.has('scope'), 'seer must require scope');
+  assert.ok(seer.required.has('oracle'), 'seer must require oracle');
+  assert.ok(!seer.props.scope?.properties?.own, 'seer scope must be read-only (no own[])');
+  assert.ok(seer.props.scope?.properties?.read, 'seer scope must carry read[]');
+  assert.ok(seer.props.scope?.properties?.forbidden, 'seer scope must carry forbidden[]');
+  const alchemist = resolveProps('alchemist');
+  assert.ok(alchemist.required.has('executionContract'), 'alchemist must require executionContract');
+  assert.equal(alchemist.props.executionContract?.properties?.sealed?.const, true);
+  assert.equal(alchemist.props.executionContract?.properties?.executable?.const, true);
+  assert.ok(alchemist.required.has('scope'), 'alchemist must require OWN-subset scope');
+  assert.ok(alchemist.props.scope?.properties?.contractOwn, 'alchemist scope must carry contractOwn[]');
+  const worker = resolveProps('worker');
+  assert.ok(worker.required.has('workerCapsule'), 'worker must require workerCapsule');
+  assert.ok(worker.required.has('taskProjection'), 'worker must require taskProjection');
+  assert.ok(worker.required.has('artifactProjection'), 'worker must require artifactProjection');
+  assert.ok(worker.required.has('oracle'), 'worker must require oracle');
+});
 // --- 3. enums.mjs <-> schema enum agreement --------------------------------
 
 test('artifact-v1: producerAuthority matches AUTHORITY_ID', () => {

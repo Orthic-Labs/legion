@@ -23,6 +23,7 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { SessionBindingStore } from '../lib/session-binding.mjs';
+import { EC5_DIGEST } from './fixtures/runtime-binding-contract.mjs';
 
 const RACE_WORKER = fileURLToPath(new URL('./fixtures/session-binding-race-worker.mjs', import.meta.url));
 
@@ -47,10 +48,12 @@ test('SessionBindingStore: round-trip — ensureBinding mints, getBinding reads 
   assert.match(minted.runId, /^run_[0-9A-HJKMNP-TV-Z]{26}$/);
   assert.equal(minted.taskId, null);
   assert.equal(minted.contractId, null);
+  assert.equal(minted.contractVersion, null);
+  assert.equal(minted.contractDigest, null);
   assert.deepEqual(store.getBinding('sess-1'), minted);
 
-  const upgraded = store.putBinding('sess-1', { runId: minted.runId, taskId: 'T-1', contractId: 'EC-5' });
-  assert.deepEqual(upgraded, { runId: minted.runId, taskId: 'T-1', contractId: 'EC-5' });
+  const upgraded = store.putBinding('sess-1', { runId: minted.runId, taskId: 'T-1', contractId: 'EC-5', contractVersion: 1, contractDigest: EC5_DIGEST });
+  assert.deepEqual(upgraded, { runId: minted.runId, taskId: 'T-1', contractId: 'EC-5', contractVersion: 1, contractDigest: EC5_DIGEST });
   assert.deepEqual(store.getBinding('sess-1'), upgraded, 'getBinding reflects the putBinding upgrade');
 });
 
@@ -124,6 +127,7 @@ test('SessionBindingStore: getBinding/ensureBinding/putBinding degrade to null o
     assert.doesNotThrow(() => assert.equal(store.ensureBinding(bad), null));
   }
   assert.doesNotThrow(() => assert.equal(store.putBinding('', { runId: 'run_x' }), null));
+  assert.equal(store.putBinding('sess-1', { runId: 'run_x', contractId: 'EC-5' }), null, 'contract binding fields are an all-null or all-present trio');
 });
 
 test('SessionBindingStore: constructor requires a root path, matching ReceiptStore\'s constructor-time validation shape', () => {

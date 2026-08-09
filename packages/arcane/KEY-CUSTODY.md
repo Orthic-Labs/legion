@@ -28,6 +28,11 @@ primitive with its own story (S00 baseline finding 2), not a key at all.
 
 ## Who can read it
 
+- Signing identity is scoped per `(host, harness)`. A verifier loads a set of
+  keyring directories, so adding a harness adds one directory instead of a
+  hard-coded pair. Repeated key IDs must carry identical bytes across every
+  directory; conflicting bytes fail closed as `ARC_AUTH_KEY_UNAVAILABLE`.
+
 - Whoever can read the host key directory can read key material — the same
   filesystem-permission boundary as any other host secret. `loadHostKeyRing`
   does not add its own access control layer; it trusts the OS to have

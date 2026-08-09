@@ -45,6 +45,12 @@
   },
   "files": [
     ".claude-plugin/",
+    ".codex-plugin/",
+    "agents/",
+    "hooks/",
+    "doctrine/",
+    "packages/arcane/",
+    "packages/contracts/",
     "bin/",
     "audit-complete.mjs",
     "audit-finalize.mjs",

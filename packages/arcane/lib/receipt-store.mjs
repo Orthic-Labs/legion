@@ -325,7 +325,7 @@ export class ReceiptStore {
  * are recorded on the capability but this store does not itself interpret a
  * policy bundle (that is S02's job) — `policyDigest` is carried opaquely.
  */
-export class CapabilityStore {
+class LegacyCapabilityStore {
   #caps = new Map();
 
   #require(capabilityId) {
@@ -455,3 +455,5 @@ export class CapabilityStore {
     rec.revokedReason = reason;
   }
 }
+
+export { CapabilityStore } from './capability-store.mjs';

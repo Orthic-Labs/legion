@@ -257,3 +257,36 @@ test('S09 (real bundle): an unrelated path (e.g. a docs file) forces no locked-d
     cleanup();
   }
 });
+
+test('S09: with no claimed level, a locked-domain touch still forces that domain\'s level', () => {
+  const { root, cleanup } = tempRoot();
+  try {
+    const policy = lockedPolicy();
+    const receiptStore = new ReceiptStore({ root }); // no evidence at all
+    const d = evaluateCompletion(
+      { runId: RUN_ID, taskId: 'T-1', claimedLevel: null, touchedPaths: ['docs/legal/terms.md'] },
+      { policy, receiptStore },
+    );
+    assert.equal(d.allowed, false);
+    assert.equal(d.detail.level, 'signoff');
+    assert.equal(d.detail.lockedDomainMatches.length, 1);
+  } finally {
+    cleanup();
+  }
+});
+
+test('S09: with no claimed level and no locked-domain touch, there is nothing to certify', () => {
+  const { root, cleanup } = tempRoot();
+  try {
+    const policy = lockedPolicy();
+    const receiptStore = new ReceiptStore({ root });
+    const d = evaluateCompletion(
+      { runId: RUN_ID, taskId: 'T-1', claimedLevel: null, touchedPaths: ['src/app.mjs'] },
+      { policy, receiptStore },
+    );
+    assert.equal(d.allowed, true);
+    assert.deepEqual(d.detail.levelsChecked, []);
+  } finally {
+    cleanup();
+  }
+});

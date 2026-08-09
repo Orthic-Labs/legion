@@ -170,6 +170,12 @@ export class PreEffectGate {
       runId: effectRequest.runId,
       taskId: effectRequest.taskId,
       workspace: ctx?.workspace,
+      contractId: effectRequest.contractId,
+      contractVersion: ctx?.expectedContractVersion ?? contract.version,
+      contractDigest: ctx?.contractDigest,
+      sourceRevision: effectRequest.sourceRevision,
+      authority: this.#authority.current(ctx?.turnId)?.authority,
+      turnId: ctx?.turnId,
       // CapabilityStore compares `now` against an ISO `expiresAt` with `>=`.
       // Passing the raw epoch millis from #clock() would compare a number to a
       // string, which is always false — expiry would silently never fire.
@@ -178,6 +184,11 @@ export class PreEffectGate {
     });
     if (!capCall.allowed) return capCall;
 
+    try {
+      this.#capabilityStore.consume(capabilityId, { requestId: ctx?.requestId ?? null, now: new Date(this.#clock()).toISOString() });
+    } catch (error) {
+      return decision({ allowed: false, code: error.code ?? 'ARC_CAPABILITY_EXHAUSTED', message: error.message, detail: { capabilityId }, enforcementHealth: 'strong' });
+    }
     return decision({
       allowed: true,
       message: 'authorized',
@@ -212,6 +223,7 @@ export class PreEffectGate {
     const chk = this.#runChecks(effectRequest, ctx);
     if (chk.hardFail) return chk.decision;
     if (chk.deny && this.#enforcementMode !== 'advisory') return chk.deny;
+    const { contract } = chk;
 
     const workspace = ctx?.workspace ?? null;
     const destination = ctx?.destination ?? null;
@@ -229,10 +241,19 @@ export class PreEffectGate {
       runId: effectRequest.runId,
       taskId: effectRequest.taskId,
       workspace,
+      contractId: effectRequest.contractId,
+      contractVersion: contract.version,
+      contractDigest: ctx?.contractDigest,
+      sourceRevision: effectRequest.sourceRevision,
+      authority: this.#authority.current(ctx?.turnId)?.authority,
+      turnId: ctx?.turnId,
       operation: effectRequest.operation,
       effectClass: effectRequest.effectClass,
       targets,
       policyDigest: this.#policy.digest,
+      policyId: this.#policy.policyId,
+      policyVersion: this.#policy.version,
+      issuedAt: nowIso,
       expiresAt,
       maxUses: limits.maxUses ?? null,
     });
@@ -248,6 +269,12 @@ export class PreEffectGate {
       runId: effectRequest.runId,
       taskId: effectRequest.taskId,
       workspace,
+      contractId: effectRequest.contractId,
+      contractVersion: contract.version,
+      contractDigest: ctx?.contractDigest,
+      sourceRevision: effectRequest.sourceRevision,
+      authority: this.#authority.current(ctx?.turnId)?.authority,
+      turnId: ctx?.turnId,
       now: nowIso,
     });
     if (!selfCheck.allowed) {

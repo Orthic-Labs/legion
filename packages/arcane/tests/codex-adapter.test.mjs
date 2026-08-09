@@ -16,10 +16,20 @@ import {
   normalizeCodexEvent,
   handleCodexHookEvent,
   ADAPTER_NAME,
+  observeCodexIdentity,
+  mapCodexPreEffect,
 } from '../host/codex-adapter.mjs';
 import { validateHostEvent } from '../lib/host-event.mjs';
 import { generateTestKeyRing } from '../lib/keys.mjs';
 import { ReplayGuard } from '../lib/replay.mjs';
+
+test('B7 Codex identity & pre-effect tables are host-derived and closed', () => {
+  const payload = { hook_event_name: 'PreToolUse', sessionId: 'session', agentId: 'agent', agentType: 'alchemist', tool_name: 'Edit', tool_input: { file_path: 'src/a.mjs' }, tool_use_id: 'tool' };
+  assert.deepEqual(observeCodexIdentity(payload, { hostEvent: { eventId: 'hev_0123456789ABCDEFGHJKMNPQ' } }), { sessionId: 'session', agentId: 'agent', agentType: 'alchemist', eventId: 'hev_0123456789ABCDEFGHJKMNPQ' });
+  assert.deepEqual(mapCodexPreEffect(payload), { effectClass: 'FILE_WRITE', target: 'src/a.mjs', operation: 'Edit', toolUseId: 'tool' });
+  assert.deepEqual(observeCodexIdentity({ ...payload, authority: 'sage' }), { modelClaimed: true });
+  assert.equal(mapCodexPreEffect({ ...payload, tool_name: 'shell' }), null);
+});
 import { ReceiptStore } from '../lib/receipt-store.mjs';
 import { loadPolicy, PolicyEngine, DEFAULT_POLICY_PATH } from '../lib/policy.mjs';
 import { mkdtempSync, rmSync } from 'node:fs';

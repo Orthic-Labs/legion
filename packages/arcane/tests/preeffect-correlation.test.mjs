@@ -48,6 +48,16 @@ test('PreEffectCorrelationStore: ensureRequestId is idempotent on repeat calls',
   assert.equal(first, second);
 });
 
+test('PreEffectCorrelationStore: reserve returns exactly one winner & compatibility keeps its id', () => {
+  const store = new PreEffectCorrelationStore({ root: freshRoot() });
+  const first = store.reserve('tu-reserve');
+  const duplicate = store.reserve('tu-reserve');
+  assert.equal(first.created, true);
+  assert.equal(duplicate.created, false);
+  assert.equal(first.requestId, duplicate.requestId);
+  assert.equal(store.ensureRequestId('tu-reserve'), first.requestId);
+});
+
 test('PreEffectCorrelationStore: two different tool_use_ids never share a requestId', () => {
   const store = new PreEffectCorrelationStore({ root: freshRoot() });
   const a = store.ensureRequestId('tu-a');
