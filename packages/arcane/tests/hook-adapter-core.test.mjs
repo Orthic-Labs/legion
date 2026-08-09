@@ -17,13 +17,15 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, rmSync } from 'node:fs';
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
-import { handleHookEvent } from '../host/hook-adapter-core.mjs';
+import { handleHookEvent, hostStopHookOutput } from '../host/hook-adapter-core.mjs';
 import { normalizeHostEvent } from '../lib/host-event.mjs';
 import { SessionBindingStore } from '../lib/session-binding.mjs';
+import { PreEffectCorrelationStore } from '../lib/preeffect-correlation.mjs';
 import { generateTestKeyRing } from '../lib/keys.mjs';
 import { ReceiptStore } from '../lib/receipt-store.mjs';
 import { ReplayGuard } from '../lib/replay.mjs';
@@ -54,6 +56,40 @@ function fakeNormalize(eventType) {
       time: new Date().toISOString(),
       client: { name: 'test-host', version: '1' },
       host: { platform: 'test', version: '1' },
+    },
+    { adapter: { name: 'test-host', version: '1' } },
+  );
+}
+
+/** A real, throwaway git repo — needed to prove sourceRevision is computed
+ * honestly from `git rev-parse HEAD`, never a placeholder. */
+function gitRepo() {
+  const { root, cleanup } = tempDir('arcane-hac-gitrepo-');
+  const git = (args) => execFileSync('git', args, { cwd: root, encoding: 'utf8' });
+  git(['init', '-q']);
+  git(['config', 'user.email', 'test@example.com']);
+  git(['config', 'user.name', 'test']);
+  writeFileSync(path.join(root, 'f.txt'), 'x');
+  git(['add', 'f.txt']);
+  git(['commit', '-q', '-m', 'init']);
+  const headRevision = git(['rev-parse', 'HEAD']).trim();
+  return { root, headRevision, cleanup };
+}
+
+/** Full-control fake `normalize`, for tests that need workspace/idempotencyKey/
+ * effect/sourceRevision fields fakeNormalize()'s minimal version doesn't expose. */
+function fakeNormalizeEvent({
+  eventType, sessionId = null, workspace = 'ws-main', idempotencyKey = null,
+  effect = null, runId = null, sourceRevision,
+}) {
+  return () => normalizeHostEvent(
+    {
+      eventType, sessionId, workspace, idempotencyKey, effect, runId,
+      time: new Date().toISOString(),
+      client: { name: 'test-host', version: '1' },
+      host: { platform: 'test', version: '1' },
+      result: effect ? { outcome: 'success', exitCode: 0, terminal: true, observedDigest: null } : null,
+      ...(sourceRevision !== undefined ? { sourceRevision } : {}),
     },
     { adapter: { name: 'test-host', version: '1' } },
   );
@@ -169,4 +205,144 @@ test('EC-5 item 2+4: a session-start event with no sessionId at all is left alon
   } finally {
     h.cleanup();
   }
+});
+
+// ──────────────────────────────────────────── EC-5 item 5: honest sourceRevision
+
+test('EC-5 item 5: sourceRevision resolves honestly from git rev-parse HEAD scoped to hostEvent.workspace', () => {
+  const repo = gitRepo();
+  const h = harness();
+  try {
+    const outcome = handleHookEvent(
+      {},
+      { normalize: fakeNormalizeEvent({ eventType: 'session-start', sessionId: 's1', workspace: repo.root }), keyRing: h.keyRing, receiptStore: h.receiptStore, replayGuard: h.replayGuard, policy: h.policy },
+    );
+    assert.equal(outcome.hostEvent.sourceRevision, repo.headRevision);
+  } finally {
+    h.cleanup();
+    repo.cleanup();
+  }
+});
+
+test('EC-5 item 5: sourceRevision stays null (never a placeholder) when the workspace is not a git repo', () => {
+  const notRepo = tempDir('arcane-hac-notrepo-');
+  const h = harness();
+  try {
+    const outcome = handleHookEvent(
+      {},
+      { normalize: fakeNormalizeEvent({ eventType: 'session-start', sessionId: 's1', workspace: notRepo.root }), keyRing: h.keyRing, receiptStore: h.receiptStore, replayGuard: h.replayGuard, policy: h.policy },
+    );
+    assert.equal(outcome.hostEvent.sourceRevision, null);
+  } finally {
+    h.cleanup();
+    notRepo.cleanup();
+  }
+});
+
+test('EC-5 item 5: sourceRevision never overwrites a value normalize() already supplied', () => {
+  const repo = gitRepo();
+  const h = harness();
+  try {
+    const outcome = handleHookEvent(
+      {},
+      { normalize: fakeNormalizeEvent({ eventType: 'session-start', sessionId: 's1', workspace: repo.root, sourceRevision: 'deadbeefcafe' }), keyRing: h.keyRing, receiptStore: h.receiptStore, replayGuard: h.replayGuard, policy: h.policy },
+    );
+    assert.equal(outcome.hostEvent.sourceRevision, 'deadbeefcafe');
+  } finally {
+    h.cleanup();
+    repo.cleanup();
+  }
+});
+
+// ────────────────────────────────────── EC-5 item 5: pre/post-effect correlation
+
+test('EC-5 item 5 (I-1): PreEffectCorrelationStore mints a requestId at pre-effect and hands it to the matching post-effect, which then ingests as an ambient receipt', () => {
+  const repo = gitRepo();
+  const h = harness();
+  const correlationDir = tempDir('arcane-hac-correlation-');
+  const preEffectCorrelation = new PreEffectCorrelationStore({ root: correlationDir.root });
+  const RUN_ID = 'run_01ARZ3NDEKTSV4RRFFQ69G5FAV';
+  try {
+    const pre = handleHookEvent(
+      {},
+      {
+        normalize: fakeNormalizeEvent({ eventType: 'pre-effect', sessionId: 's1', workspace: repo.root, idempotencyKey: 'tu-1' }),
+        keyRing: h.keyRing, receiptStore: h.receiptStore, replayGuard: h.replayGuard, policy: h.policy, preEffectCorrelation,
+      },
+    );
+    // I-1 (this contract's own numbering): pre-effect never carries a
+    // proposed effect (EC-2's separate I-1) and this store adds no such
+    // field either — it only minted a requestId, invisibly to this event.
+    assert.equal(pre.hostEvent.priorCorrelation, null);
+    assert.ok(preEffectCorrelation.getRequestId('tu-1'), 'the mint actually persisted');
+
+    const post = handleHookEvent(
+      {},
+      {
+        normalize: fakeNormalizeEvent({
+          eventType: 'post-effect', sessionId: 's1', workspace: repo.root, idempotencyKey: 'tu-1', runId: RUN_ID,
+          effect: { effectClass: 'FILE_WRITE', target: 'a.txt', operation: 'write' },
+        }),
+        keyRing: h.keyRing, receiptStore: h.receiptStore, replayGuard: h.replayGuard, policy: h.policy, preEffectCorrelation,
+      },
+    );
+
+    assert.equal(post.hostEvent.priorCorrelation.requestId, preEffectCorrelation.getRequestId('tu-1'), 'post-effect retrieved the SAME requestId pre-effect minted');
+    assert.equal(post.accepted, true, JSON.stringify(post.decision));
+    assert.ok(post.receipt, 'amendment A-ER-1 (item 5): a real runId + null contractId/taskId is accepted as an ambient receipt, not refused');
+    assert.equal(post.receipt.runId, RUN_ID);
+    assert.equal(post.receipt.contractId, null);
+    assert.equal(post.receipt.taskId, null);
+    assert.equal(post.receipt.match, true);
+    assert.equal(post.receipt.sourceRevision, repo.headRevision, 'the honestly-computed sourceRevision made it onto the receipt');
+  } finally {
+    h.cleanup();
+    repo.cleanup();
+    correlationDir.cleanup();
+  }
+});
+
+test('EC-5 item 5: a post-effect event with a real runId but no idempotencyKey/no preEffectCorrelation dep has no priorCorrelation and is refused for missing correlation (unchanged prior behaviour)', () => {
+  const repo = gitRepo();
+  const h = harness();
+  const RUN_ID = 'run_01ARZ3NDEKTSV4RRFFQ69G5FAV';
+  try {
+    const post = handleHookEvent(
+      {},
+      {
+        normalize: fakeNormalizeEvent({
+          eventType: 'post-effect', sessionId: 's1', workspace: repo.root, runId: RUN_ID,
+          effect: { effectClass: 'FILE_WRITE', target: 'a.txt', operation: 'write' },
+        }),
+        keyRing: h.keyRing, receiptStore: h.receiptStore, replayGuard: h.replayGuard, policy: h.policy,
+        // preEffectCorrelation intentionally omitted
+      },
+    );
+    assert.equal(post.accepted, false);
+    assert.equal(post.decision.code, 'ARC_INGEST_CORRELATION_MISSING');
+  } finally {
+    h.cleanup();
+    repo.cleanup();
+  }
+});
+
+// ───────────────────────────────────────────────── EC-5 item 6: Stop guidance
+
+test('EC-5 item 6: hostStopHookOutput appends the "legion run open" guidance when enforcementHealth is unsupported', () => {
+  const output = hostStopHookOutput({ allowed: false, code: 'ARC_EVIDENCE_INSUFFICIENT', message: 'no evidence at all', enforcementHealth: 'unsupported' });
+  assert.ok(output);
+  assert.equal(output.decision, 'block');
+  assert.match(output.reason, /ARC_EVIDENCE_INSUFFICIENT/);
+  assert.match(output.reason, /legion run open --contract <id> \[--task <id>\]/);
+});
+
+test('EC-5 item 6: hostStopHookOutput does NOT append the guidance when enforcementHealth is anything other than unsupported', () => {
+  for (const enforcementHealth of ['strong', 'observed', 'read_only', 'advisory']) {
+    const output = hostStopHookOutput({ allowed: false, code: 'ARC_EVIDENCE_INSUFFICIENT', message: 'missing evidence', enforcementHealth });
+    assert.doesNotMatch(output.reason, /legion run open/, `enforcementHealth=${enforcementHealth} must not trigger the guidance`);
+  }
+});
+
+test('EC-5 item 6: an allowed completion decision still returns null regardless of enforcementHealth', () => {
+  assert.equal(hostStopHookOutput({ allowed: true, enforcementHealth: 'unsupported' }), null);
 });

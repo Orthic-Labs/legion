@@ -16,13 +16,41 @@
 // entirely in each host's own `build-raw-*`/`normalize-*` functions.
 
 import { existsSync, readFileSync } from 'node:fs';
+import { spawnSync } from 'node:child_process';
 
 import { ArcaneError, decision } from '../lib/errors.mjs';
 import { classifyObservation, HOST_EVENT_BOUND_FIELDS } from '../lib/host-event.mjs';
 import { signRecord } from '../lib/receipt-auth.mjs';
-import { HostIngestor } from '../lib/ingest.mjs';
+import { HostIngestor, POST_EFFECT_TYPES } from '../lib/ingest.mjs';
 import { loadHostKeyRing } from '../lib/keys.mjs';
 import { evaluateCompletion } from '../lib/completion-gate.mjs';
+
+/**
+ * EC-5 item 5 — honest `sourceRevision`. Neither adapter's `buildRaw*Event`
+ * has ever set this field (see each adapter's own header: "no Claude Code
+ * source ... stays null"), which meant `HostIngestor#ingest`'s post-effect
+ * gate (`!hostEvent.sourceRevision` -> refused) silently refused EVERY
+ * post-effect event in production — there was no path that ever set it.
+ * Computed here, once, host-neutral, from `git rev-parse HEAD` scoped to the
+ * event's own `workspace` (already normalized by the time this runs). Never
+ * a placeholder: a missing/failed git (not a repo, git not on PATH, detached
+ * weirdness, timeout) leaves `sourceRevision` at whatever `normalize()` set
+ * (`null`), so the event stays honestly refused by the existing gate rather
+ * than being stamped with a fabricated revision.
+ *
+ * @returns {string|null}
+ */
+export function resolveSourceRevision(workspace) {
+  if (typeof workspace !== 'string' || workspace.length === 0) return null;
+  try {
+    const result = spawnSync('git', ['rev-parse', 'HEAD'], { cwd: workspace, encoding: 'utf8', windowsHide: true, timeout: 5000 });
+    if (result.error || result.status !== 0 || typeof result.stdout !== 'string') return null;
+    const rev = result.stdout.trim();
+    return rev.length > 0 ? rev : null;
+  } catch {
+    return null; // git unavailable/unspawnable -> honest null, never a placeholder
+  }
+}
 
 /**
  * Sign `hostEvent` with `keyRing`. Never throws on an unavailable key —
@@ -67,6 +95,9 @@ export function signHostEvent(hostEvent, keyRing) {
  *   (../lib/session-binding.mjs). Optional and defaulted to `null` so every
  *   existing caller that does not pass one gets EXACTLY today's behaviour —
  *   see the ambient-binding block below.
+ * @param {object|null} [deps.preEffectCorrelation] EC-5 item 5's
+ *   `PreEffectCorrelationStore` (../lib/preeffect-correlation.mjs). Optional,
+ *   defaulted to `null` — see the correlation-minting block below.
  * @returns {{hostEvent: object, observationClass: string, enforcementHealth: 'strong'|'degraded',
  *   accepted: boolean, receipt: object|null, decision: object}}
  */
@@ -74,7 +105,7 @@ export function handleHookEvent(hookPayload, deps) {
   const {
     normalize, keyRing, receiptStore, replayGuard, policy,
     capabilityStore = null, dependencyLedger = null, clock = () => Date.now(),
-    sessionBinding = null,
+    sessionBinding = null, preEffectCorrelation = null,
   } = deps;
 
   const hostEvent = normalize(hookPayload);
@@ -98,6 +129,38 @@ export function handleHookEvent(hookPayload, deps) {
       hostEvent.contractId = binding.contractId;
     }
   }
+
+  // EC-5 item 5 — honest sourceRevision. Only fills a gap `normalize()` left
+  // null; never overwrites a value an adapter/normalize already supplied.
+  if (!hostEvent.sourceRevision) {
+    hostEvent.sourceRevision = resolveSourceRevision(hostEvent.workspace);
+  }
+
+  // EC-5 item 5 — pre-effect/post-effect correlation (see
+  // lib/preeffect-correlation.mjs's header for the full argument). Keyed on
+  // `idempotencyKey`, which both adapters already set to the host's
+  // tool_use_id for every tool-carrying event — session-level events
+  // (SessionStart/UserPromptSubmit/Stop) carry none and are untouched here.
+  // `pre-effect` mints (or self-heals); every post-effect type only reads,
+  // and never overwrites a `priorCorrelation.requestId` a normalize() already
+  // supplied.
+  if (preEffectCorrelation && hostEvent.idempotencyKey) {
+    if (hostEvent.eventType === 'pre-effect') {
+      preEffectCorrelation.ensureRequestId(hostEvent.idempotencyKey);
+    } else if (POST_EFFECT_TYPES.includes(hostEvent.eventType) && !hostEvent.priorCorrelation?.requestId) {
+      const requestId = preEffectCorrelation.getRequestId(hostEvent.idempotencyKey);
+      if (requestId) {
+        hostEvent.priorCorrelation = {
+          requestId,
+          capabilityId: hostEvent.priorCorrelation?.capabilityId ?? null,
+          priorReceiptId: hostEvent.priorCorrelation?.priorReceiptId ?? null,
+          requestedEffect: hostEvent.priorCorrelation?.requestedEffect ?? null,
+          authorizedEffect: hostEvent.priorCorrelation?.authorizedEffect ?? null,
+        };
+      }
+    }
+  }
+
   const { authorityAssertion, enforcementHealth, signError } = signHostEvent(hostEvent, keyRing);
 
   if (!authorityAssertion) {
@@ -177,6 +240,13 @@ export function evaluateHostStop(hostEvent, { policy, receiptStore, claimedLevel
   );
 }
 
+// EC-5 item 6 — surfaced when a Stop is refused for having no earnable path
+// at all (`enforcementHealth: 'unsupported'` — completion-gate.mjs derives
+// this from zero receipts for the run, e.g. a session that was never bound
+// to a contract). Points at the item 3 CLI command that is the actual fix,
+// rather than leaving the agent to rediscover `legion run open` on its own.
+const UNSUPPORTED_RUN_GUIDANCE = "Run 'legion run open --contract <id> [--task <id>]' to bind this session to a contract, then produce the required evidence before Stop.";
+
 /**
  * Render a completion-gate decision as the documented Stop-blocking shape
  * shared by every host adapter, mirroring how `forge/hooks/generic/hook.js`
@@ -188,8 +258,11 @@ export function evaluateHostStop(hostEvent, { policy, receiptStore, claimedLevel
 export function hostStopHookOutput(completionDecision) {
   if (completionDecision.allowed) return null;
   const label = completionDecision.code ? `${completionDecision.code}: ` : '';
-  const reason = `${label}${completionDecision.message || 'completion claim denied by Arcane completion gate'}`.slice(0, 500);
-  return { decision: 'block', reason };
+  let reason = `${label}${completionDecision.message || 'completion claim denied by Arcane completion gate'}`;
+  if (completionDecision.enforcementHealth === 'unsupported') {
+    reason = `${reason} ${UNSUPPORTED_RUN_GUIDANCE}`;
+  }
+  return { decision: 'block', reason: reason.slice(0, 500) };
 }
 
 // ---------------------------------------------------------------------------
@@ -216,8 +289,9 @@ export function readStdinJson() {
  * @param {object|null} [opts.capabilityStore]
  * @param {object|null} [opts.dependencyLedger]
  * @param {object|null} [opts.sessionBinding] EC-5 item 1's `SessionBindingStore`; see `handleHookEvent`.
+ * @param {object|null} [opts.preEffectCorrelation] EC-5 item 5's `PreEffectCorrelationStore`; see `handleHookEvent`.
  */
-export function runHookMain({ normalize, keyDir, receiptStore, replayGuard, policy, capabilityStore = null, dependencyLedger = null, sessionBinding = null }) {
+export function runHookMain({ normalize, keyDir, receiptStore, replayGuard, policy, capabilityStore = null, dependencyLedger = null, sessionBinding = null, preEffectCorrelation = null }) {
   let hookPayload;
   try {
     hookPayload = readStdinJson();
@@ -234,7 +308,7 @@ export function runHookMain({ normalize, keyDir, receiptStore, replayGuard, poli
     }
   }
 
-  const outcome = handleHookEvent(hookPayload, { normalize, keyRing, receiptStore, replayGuard, policy, capabilityStore, dependencyLedger, sessionBinding });
+  const outcome = handleHookEvent(hookPayload, { normalize, keyRing, receiptStore, replayGuard, policy, capabilityStore, dependencyLedger, sessionBinding, preEffectCorrelation });
 
   if (outcome.hostEvent.eventType === 'stop') {
     const completionDecision = evaluateHostStop(outcome.hostEvent, { policy, receiptStore });
