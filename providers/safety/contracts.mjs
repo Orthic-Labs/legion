@@ -18,12 +18,7 @@
 
 import { createHash } from 'node:crypto';
 
-export const REASONING_REQUIREMENT = Object.freeze([
-  'none',
-  'bounded-review',
-  'independent-adjudication',
-  'human-decision',
-]);
+export { REASONING_REQUIREMENT } from '../../lib/contracts/enums.mjs';
 
 // Every outcome class this hazard model addresses is, by definition,
 // high-consequence (physical, medical, financial, child-facing,
