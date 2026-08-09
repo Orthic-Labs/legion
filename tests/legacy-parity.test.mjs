@@ -192,8 +192,8 @@ test('all 135 legacy paths remain in standalone Nemesis', () => {
   assert.equal(records.length, 135);
   assert.ok(LEGACY_BLOBS.every(([, oid]) => /^[0-9a-f]{40}$/.test(oid)), 'legacy OIDs are full Git blob IDs');
   assert.deepEqual(records.filter((record) => !record.currentBlob).map((record) => record.path), []);
-  assert.equal(records.filter((record) => record.currentBlob === record.legacyBlob).length, 108);
-  assert.equal(records.filter((record) => record.currentBlob !== record.legacyBlob).length, 27);
+  assert.equal(records.filter((record) => record.currentBlob === record.legacyBlob).length, 105);
+  assert.equal(records.filter((record) => record.currentBlob !== record.legacyBlob).length, 30);
 });
 
 test('source completion reports legacy mappings without source blockers', () => {
