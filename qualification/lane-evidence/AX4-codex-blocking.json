@@ -1,0 +1,40 @@
+{
+  "schemaVersion": 1,
+  "kind": "rightax-harness-capability-receipt",
+  "axRef": "AX-4",
+  "bindingId": "codex-windows",
+  "recordedAt": "2026-08-10",
+  "decision": {
+    "text": "AX-4 per-binding deny probe; Codex must block before effect; configured interception order is binding-local; runner timeout is degraded, not passing health.",
+    "sha256": "7fbc21d0e209808f1ab1c73347cda9e66655646cd64c5e0e3c441f2573ba4fea",
+    "minimizePolicy": "developer.MINIMIZE"
+  },
+  "binding": {
+    "harness": "codex",
+    "harnessVersion": "0.145.0",
+    "plugin": "arcane@local-brief",
+    "pluginVersion": "0.1.0",
+    "forgePluginInstalled": false,
+    "forgePluginEnabled": false,
+    "configuredInterceptionOrder": ["brief@local-brief", "minimize@local-brief", "arcane@local-brief", "bounded@bounded-local"],
+    "orderEvidence": "C:/Users/adrds/.codex/config.toml",
+    "orderObservedAtRuntime": "plugin identities were not emitted by the probe"
+  },
+  "probes": [
+    { "name": "arcane-source-before-install", "pluginLoaded": false, "targetCreated": true, "blocked": false, "verdict": "fail" },
+    { "name": "arcane-installed-deny", "pluginLoaded": true, "targetCreated": false, "blocked": true, "runnerTimedOut": true, "timeoutSeconds": 124, "processPresentAfterProbe": false, "verdict": "pass" }
+  ],
+  "result": {
+    "capability": "pre-effect-block",
+    "verdict": "pass",
+    "runnerHealth": "degraded",
+    "reason": "Denied effect did not occur, but nested Codex runner did not exit within 124 seconds."
+  },
+  "sourceDigests": {
+    "arcaneCoreSha256": "3f2c5b3f56c6dfefef42f018e3ba475ee100a2d8106d4d175637b26161fea44c",
+    "pluginManifestSha256": "2ddaffde421dc0601ec379e7e7536b8a39cc33029f5d46532e186b0044a2cd0a",
+    "pluginHooksSha256": "bc96531a080443f5306f08645727fb0ce152024583444c889ad1dc4994e5ee61",
+    "codexConfigSha256": "cba87b1ac8168e1926765d4d070f10d5e86337d842005f2fa3e39d4ce1397949",
+    "rightAxConformanceSha256": "962a23071670039196284772bd788539322989377e13a06504560c718828e9be"
+  }
+}

@@ -3,7 +3,7 @@
   "kind": "legion-book-qualification",
   "book": 3,
   "expectedTaskCount": 30,
-  "sourceRevision": "content.sha256:400c1db9cd949040ae3cfabf0b65bb76ecb9ccd5ed8c04ee44c618f96083624a",
+  "sourceRevision": "content.sha256:2ef5fbdb38bceab8a845eda4e7c6180922672c4fd63770c838dae8f5ecbfa9e0",
   "decision": "SOURCE_IMPLEMENTED",
   "claimLevel": "source",
   "sourceAccounting": {
@@ -29,7 +29,7 @@
           {
             "path": "registry/providers.json",
             "symbol": "legion-provider-registry",
-            "digest": "sha256:af113858f65d30cbedbf540b13b0c6ea32657cd7c7144703e403b7d9e0ec5d34",
+            "digest": "sha256:8c25df2ef0a6f962953290ff45dabd04526778ab4b93dfd0a6ceca70f4638c66",
             "bytes": 123148
           },
           {

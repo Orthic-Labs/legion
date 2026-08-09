@@ -1,9 +1,9 @@
 {
   "schemaVersion": 3,
-  "kind": "nemesis-source-completion-book-evidence",
+  "kind": "legion-source-completion-book-evidence",
   "routeStep": "R_INCREMENTAL_BOOK_GATES/S2",
   "book": 1,
-  "sourceRevision": "97687c6952c3f20a8affee7da0502a61039e258e+dirty.sha256:b001db47faeb04d0ac100d87c0a6db691c87a291b999f49a6883b0861d8d41ca",
+  "sourceRevision": "content.sha256:2ef5fbdb38bceab8a845eda4e7c6180922672c4fd63770c838dae8f5ecbfa9e0",
   "sourceAccounting": {
     "implemented": 28,
     "mapped": 0,
@@ -65,7 +65,7 @@
   "qualification": {
     "command": "node scripts/qualify-book.mjs --book 1",
     "status": "pass",
-    "outputDigest": "sha256:6a3a3a4c596b97d7312f1ec10cc6c44fa973781492ef80a5f710eafbb83cdfd3",
+    "outputDigest": "sha256:6d0fc5703511ca2e40f0781b1b080f4142c508222705c75411669139bb2e100a",
     "receipt": "qualification/book-1-artifacts/gate-result.json"
   },
   "taskMap": [
@@ -79,7 +79,7 @@
       "implementation": [
         {
           "path": "package.json",
-          "symbol": "@orthic-labs/nemesis"
+          "symbol": "@orthic-labs/legion"
         }
       ],
       "red": "qualification/evidence/source-completion/S2-book-1.behavior.red.log",
@@ -579,33 +579,33 @@
   "artifacts": [
     {
       "path": "qualification/book-1.json",
-      "digest": "sha256:55df93ebd7abc09b1bdac09c2ee36135190391c18956d116ceea9d4e71d6e610",
-      "bytes": 48583
+      "digest": "sha256:6a56e500bf719e0c6e5701fdbf4bc3dfc686cef905922245efa30faeb8a0272f",
+      "bytes": 48542
     },
     {
       "path": "qualification/book-1-artifacts/gate-result.json",
-      "digest": "sha256:206a46915f9a9cbabacece143dcd21de9dcb6055205d5cd8305f2c20999b871b",
-      "bytes": 3191
+      "digest": "sha256:e220f7c1cbabc846b5dc70fc4628e09c60d2943c82aa63daa5809b34a25715eb",
+      "bytes": 3165
     },
     {
       "path": "schemas/qualification/book-qualification-v2.schema.json",
-      "digest": "sha256:ee385dcd4fd6b83ba500123f7e5e1a13437ba2129ae29b9e8c104e4b247eb8f7",
-      "bytes": 5455
+      "digest": "sha256:8d4804cf2a587eeca1071862f0f61d79710d6745a1e9e8568ec7725559ad2c2b",
+      "bytes": 7722
     },
     {
       "path": "scripts/qualify-book.mjs",
-      "digest": "sha256:ae426c2d96d477ee176850e40eb4344737d50f657f7ecdea1d9fb77da23a4f2b",
-      "bytes": 4875
+      "digest": "sha256:d54868eaaa2cb245463b75b9dfe6ce00dcde0a7de4617807e7d45fdab11e6c29",
+      "bytes": 4816
     },
     {
       "path": "lib/qualification/book-receipt.mjs",
-      "digest": "sha256:23d28742f7f3c3df356cd4eee3a61dd808b29d640e84dfca85109dbd9ab6c1b8",
-      "bytes": 6541
+      "digest": "sha256:ccfa2a4a01a8b3f78515186630024951b72489898296c2d3e35396e011cc4a2d",
+      "bytes": 6540
     },
     {
       "path": "qualification/evidence/source-completion/S2-book-1.behavior.red.log",
-      "digest": "sha256:5763859b6253b3f9929adb6c55288c39e0bc51f5d797ddc5dd1e2101853d44fe",
-      "bytes": 30122
+      "digest": "sha256:6872a1a0f8247f7403aa56db0eb9558420e6cddc3fb90c8bac03b6d0b0a7a8a0",
+      "bytes": 29645
     },
     {
       "path": "qualification/evidence/source-completion/S2-book-1.behavior.red.correction.log",
@@ -629,13 +629,13 @@
     },
     {
       "path": "qualification/evidence/source-completion/S2-book-1.qualification.red.log",
-      "digest": "sha256:710fc68c9cd8d2ab7642bf3473d5fcf895b527a262d4147fa0b731652d174168",
-      "bytes": 3260
+      "digest": "sha256:9307e11affcb064666ff7e76c9d99741deb6dce115f5a3a60843ac52b59c96ed",
+      "bytes": 3194
     },
     {
       "path": "qualification/evidence/source-completion/S2-book-1.qualification.green.log",
-      "digest": "sha256:7a9a6ad8b3dd2206ae5cce8efc10799e932d9d2ee79fee5c9b9161a5f03942fe",
-      "bytes": 422
+      "digest": "sha256:5aa0ee212e293c7160d6d0f1f8675562c3db6948272515b0f456607e374b6469",
+      "bytes": 411
     },
     {
       "path": "qualification/evidence/source-completion/S2-book-1.gate.corrected.log",

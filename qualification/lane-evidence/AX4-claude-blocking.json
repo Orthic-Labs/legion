@@ -1,0 +1,36 @@
+{
+  "schemaVersion": 1,
+  "kind": "rightax-harness-capability-receipt",
+  "axRef": "AX-4",
+  "bindingId": "claude-windows",
+  "recordedAt": "2026-08-10",
+  "decision": {
+    "text": "AX-4 per-binding deny probe; Claude plugin must block before effect; rhook remains the earlier fast path; direct duplicate Arcane hooks are forbidden.",
+    "sha256": "8c383d7211458f5d2aceab19ea143044f881f25e35c97329f2287b96afc9e42e",
+    "minimizePolicy": "developer.MINIMIZE"
+  },
+  "binding": {
+    "harness": "claude",
+    "plugin": "legion@skills-dir",
+    "pluginVersion": "0.1.0-dev.0",
+    "pluginStatus": "loaded",
+    "arcaneHookCount": 8,
+    "mcpServerCount": 0,
+    "directArcaneHookRefs": 0,
+    "forgeSentinelRefs": 0,
+    "configuredInterceptionOrder": ["settings:rhook", "plugin:legion/arcane"],
+    "orderObservedAtRuntime": "hook identities were not emitted; both layers independently returned deny"
+  },
+  "probes": [
+    { "name": "rhook-live-destructive", "commandClass": "terraform destroy", "blocked": true, "permissionDecision": "deny", "verdict": "pass" },
+    { "name": "legion-plugin-arcane", "commandClass": "terraform destroy", "blocked": true, "permissionDecision": "deny", "code": "ARC_EFFECT_CLASS_UNAUTHORIZED", "verdict": "pass" }
+  ],
+  "result": { "capability": "pre-effect-block", "verdict": "pass", "runnerHealth": "strong" },
+  "sourceDigests": {
+    "pluginManifestSha256": "e607bea7365dc88365b3cdacd8c5eb7e30b9045bb014e33b515bd17556491148",
+    "pluginHooksSha256": "7ec88ff1eb288efc2b362b952f9c26c4eb5b4479ee3fc71e83b94b14cee0c8b1",
+    "claudeSettingsSha256": "7bb01baf74f1c4498616256802578f3c345483501379a93650015332fdffce48",
+    "rhookSha256": "2beffdfed4aa5050b8d277568849d27c59b6e5eed5b343d750a3d351589d2eb5",
+    "arcaneCoreSha256": "3f2c5b3f56c6dfefef42f018e3ba475ee100a2d8106d4d175637b26161fea44c"
+  }
+}

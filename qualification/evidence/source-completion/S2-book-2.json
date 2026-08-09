@@ -1,9 +1,9 @@
 {
   "schemaVersion": 3,
-  "kind": "nemesis-source-completion-book-evidence",
+  "kind": "legion-source-completion-book-evidence",
   "routeStep": "R_INCREMENTAL_BOOK_GATES/S2",
   "book": 2,
-  "sourceRevision": "97687c6952c3f20a8affee7da0502a61039e258e+dirty.sha256:afdfe0324810900ddd08ef6ed2d8bac20d4c9abcf62c2dad6aa54260411c661e",
+  "sourceRevision": "content.sha256:2ef5fbdb38bceab8a845eda4e7c6180922672c4fd63770c838dae8f5ecbfa9e0",
   "sourceAccounting": {
     "implemented": 30,
     "mapped": 0,
@@ -23,6 +23,16 @@
     },
     {
       "command": "node --test tests/inventory/book-2-contracts.test.mjs",
+      "status": "fail",
+      "counts": {
+        "total": 30,
+        "pass": 26,
+        "fail": 4
+      },
+      "log": "qualification/evidence/source-completion/S2-book-2.behavior.red.correction.log"
+    },
+    {
+      "command": "node --test tests/inventory/book-2-contracts.test.mjs",
       "status": "pass",
       "counts": {
         "total": 30,
@@ -30,12 +40,32 @@
         "fail": 0
       },
       "log": "qualification/evidence/source-completion/S2-book-2.behavior.green.log"
+    },
+    {
+      "command": "node --test tests/inventory/book-2-quality.test.mjs",
+      "status": "fail",
+      "counts": {
+        "total": 44,
+        "pass": 42,
+        "fail": 2
+      },
+      "log": "qualification/evidence/source-completion/S2-book-2.quality.red.final-review.log"
+    },
+    {
+      "command": "node --test tests/inventory/book-2-quality.test.mjs",
+      "status": "pass",
+      "counts": {
+        "total": 44,
+        "pass": 44,
+        "fail": 0
+      },
+      "log": "qualification/evidence/source-completion/S2-book-2.quality.green.log"
     }
   ],
   "qualification": {
     "command": "node scripts/qualify-book.mjs --book 2",
     "status": "pass",
-    "outputDigest": "sha256:83a436ed77cea56d868f89ebc5c1b5f8b0874670eb94224508f2d2c64f1851a7",
+    "outputDigest": "sha256:f2abb70e97cc97501ac135c7193018379be43b07013e8ec3be5119eb8658d26a",
     "receipt": "qualification/book-2-artifacts/gate-result.json"
   },
   "taskMap": [
@@ -59,11 +89,11 @@
         },
         {
           "path": "schemas/inventory/product-target-v1.schema.json",
-          "symbol": "nemesis-product-target-v1"
+          "symbol": "legion-product-target-v1"
         },
         {
           "path": "schemas/inventory/product-portfolio-v1.schema.json",
-          "symbol": "nemesis-product-portfolio-v1"
+          "symbol": "legion-product-portfolio-v1"
         }
       ],
       "red": "qualification/evidence/source-completion/S2-book-2.behavior.red.log",
@@ -107,14 +137,14 @@
         },
         {
           "path": "schemas/inventory/target-classification-review-v1.schema.json",
-          "symbol": "nemesis-target-classification-review-v1"
+          "symbol": "legion-target-classification-review-v1"
         },
         {
           "path": "registry/lenses/product-target-classification.json",
           "symbol": "immutableEvidenceOnly"
         }
       ],
-      "red": "qualification/evidence/source-completion/S2-book-2.behavior.red.log",
+      "red": "qualification/evidence/source-completion/S2-book-2.behavior.red.correction.log",
       "green": "qualification/evidence/source-completion/S2-book-2.behavior.green.log"
     },
     {
@@ -159,11 +189,11 @@
         },
         {
           "path": "schemas/inventory/component-v1.schema.json",
-          "symbol": "nemesis-component-v1"
+          "symbol": "legion-component-v1"
         },
         {
           "path": "schemas/inventory/component-graph-v1.schema.json",
-          "symbol": "nemesis-component-graph-v1"
+          "symbol": "legion-component-graph-v1"
         }
       ],
       "red": "qualification/evidence/source-completion/S2-book-2.behavior.red.log",
@@ -267,15 +297,15 @@
         },
         {
           "path": "schemas/inventory/stack-record-v1.schema.json",
-          "symbol": "nemesis-stack-record-v1"
+          "symbol": "legion-stack-record-v1"
         },
         {
           "path": "schemas/inventory/stack-graph-v1.schema.json",
-          "symbol": "nemesis-stack-graph-v1"
+          "symbol": "legion-stack-graph-v1"
         },
         {
           "path": "schemas/inventory/external-system-v1.schema.json",
-          "symbol": "nemesis-external-system-v1"
+          "symbol": "legion-external-system-v1"
         }
       ],
       "red": "qualification/evidence/source-completion/S2-book-2.behavior.red.log",
@@ -326,7 +356,7 @@
           "symbol": "externalSystem"
         }
       ],
-      "red": "qualification/evidence/source-completion/S2-book-2.behavior.red.log",
+      "red": "qualification/evidence/source-completion/S2-book-2.behavior.red.correction.log",
       "green": "qualification/evidence/source-completion/S2-book-2.behavior.green.log"
     },
     {
@@ -353,7 +383,7 @@
         },
         {
           "path": "schemas/inventory/release-contract-v1.schema.json",
-          "symbol": "nemesis-release-contract-v1"
+          "symbol": "legion-release-contract-v1"
         }
       ],
       "red": "qualification/evidence/source-completion/S2-book-2.behavior.red.log",
@@ -383,7 +413,7 @@
         },
         {
           "path": "schemas/inventory/product-context-v1.schema.json",
-          "symbol": "nemesis-product-context-v1"
+          "symbol": "legion-product-context-v1"
         }
       ],
       "red": "qualification/evidence/source-completion/S2-book-2.behavior.red.log",
@@ -409,7 +439,7 @@
         },
         {
           "path": "schemas/inventory/journey-v1.schema.json",
-          "symbol": "nemesis-journey-v1"
+          "symbol": "legion-journey-v1"
         }
       ],
       "red": "qualification/evidence/source-completion/S2-book-2.behavior.red.log",
@@ -439,11 +469,11 @@
         },
         {
           "path": "schemas/controls/control-source-v1.schema.json",
-          "symbol": "nemesis-control-source-v1"
+          "symbol": "legion-control-source-v1"
         },
         {
           "path": "schemas/controls/source-item-v1.schema.json",
-          "symbol": "nemesis-source-item-v1"
+          "symbol": "legion-source-item-v1"
         }
       ],
       "red": "qualification/evidence/source-completion/S2-book-2.behavior.red.log",
@@ -521,18 +551,18 @@
         },
         {
           "path": "schemas/controls/assurance-control-v1.schema.json",
-          "symbol": "nemesis-assurance-control-v1"
+          "symbol": "legion-assurance-control-v1"
         },
         {
           "path": "schemas/controls/control-pack-v1.schema.json",
-          "symbol": "nemesis-control-pack-v1"
+          "symbol": "legion-control-pack-v1"
         },
         {
           "path": "registry/controls/packs/index.json",
           "symbol": "universal/core.json"
         }
       ],
-      "red": "qualification/evidence/source-completion/S2-book-2.behavior.red.log",
+      "red": "qualification/evidence/source-completion/S2-book-2.behavior.red.correction.log",
       "green": "qualification/evidence/source-completion/S2-book-2.behavior.green.log"
     },
     {
@@ -772,10 +802,10 @@
         },
         {
           "path": "schemas/controls/control-baseline-v1.schema.json",
-          "symbol": "nemesis-control-baseline-v1"
+          "symbol": "legion-control-baseline-v1"
         }
       ],
-      "red": "qualification/evidence/source-completion/S2-book-2.behavior.red.log",
+      "red": "qualification/evidence/source-completion/S2-book-2.behavior.red.correction.log",
       "green": "qualification/evidence/source-completion/S2-book-2.behavior.green.log"
     },
     {
@@ -802,11 +832,11 @@
         },
         {
           "path": "schemas/controls/evidence-capability-v1.schema.json",
-          "symbol": "nemesis-evidence-capability-v1"
+          "symbol": "legion-evidence-capability-v1"
         },
         {
           "path": "schemas/controls/external-evidence-manifest-v1.schema.json",
-          "symbol": "nemesis-external-evidence-manifest-v1"
+          "symbol": "legion-external-evidence-manifest-v1"
         }
       ],
       "red": "qualification/evidence/source-completion/S2-book-2.behavior.red.log",
@@ -836,11 +866,11 @@
         },
         {
           "path": "schemas/controls/scenario-template-v1.schema.json",
-          "symbol": "nemesis-scenario-template-v1"
+          "symbol": "legion-scenario-template-v1"
         },
         {
           "path": "schemas/controls/scenario-matrix-v1.schema.json",
-          "symbol": "nemesis-scenario-matrix-v1"
+          "symbol": "legion-scenario-matrix-v1"
         }
       ],
       "red": "qualification/evidence/source-completion/S2-book-2.behavior.red.log",
@@ -900,47 +930,62 @@
   "artifacts": [
     {
       "path": "qualification/book-2.json",
-      "digest": "sha256:431e9c0858d37b341f981bb9f135782144df47f602a5b460d84e013cc1e85f9c",
-      "bytes": 72602
+      "digest": "sha256:ed500118becd59c042e8e3c32c7e66f0f912f5cea917f405b6911301c217e818",
+      "bytes": 73921
     },
     {
       "path": "qualification/book-2-artifacts/gate-result.json",
-      "digest": "sha256:265a4f9357facae25c18d06fc78995133bcfb2a46af54fd620250f9e126db3fc",
-      "bytes": 4150
+      "digest": "sha256:c937d2f7dc7b57709e6eb879e98c87e1d210a238457586190dca594e7eec5a73",
+      "bytes": 8877
     },
     {
       "path": "schemas/qualification/book-qualification-v2.schema.json",
-      "digest": "sha256:ee385dcd4fd6b83ba500123f7e5e1a13437ba2129ae29b9e8c104e4b247eb8f7",
-      "bytes": 5455
+      "digest": "sha256:8d4804cf2a587eeca1071862f0f61d79710d6745a1e9e8568ec7725559ad2c2b",
+      "bytes": 7722
     },
     {
       "path": "scripts/qualify-book.mjs",
-      "digest": "sha256:ae426c2d96d477ee176850e40eb4344737d50f657f7ecdea1d9fb77da23a4f2b",
-      "bytes": 4875
+      "digest": "sha256:d54868eaaa2cb245463b75b9dfe6ce00dcde0a7de4617807e7d45fdab11e6c29",
+      "bytes": 4816
     },
     {
       "path": "lib/qualification/book-receipt.mjs",
-      "digest": "sha256:a2a280b454f2b62d9207e16bf5fce66dcb9fa7901fd5d785107e8c6ec7b2510c",
-      "bytes": 5949
+      "digest": "sha256:ccfa2a4a01a8b3f78515186630024951b72489898296c2d3e35396e011cc4a2d",
+      "bytes": 6540
     },
     {
       "path": "qualification/evidence/source-completion/S2-book-2.behavior.red.log",
-      "digest": "sha256:f6924f88c81acbfe813e0420b3377af44a64c01cacc679e19d757c9b02cf2233",
-      "bytes": 24041
+      "digest": "sha256:bbea577eef44178ff36ecf258e3b93fce40f38a8b632ba6e91d074356f33775f",
+      "bytes": 23608
+    },
+    {
+      "path": "qualification/evidence/source-completion/S2-book-2.behavior.red.correction.log",
+      "digest": "sha256:ca47994417835145d8fcdfe2edd468a2a84357f00d1decef1a4ce2e2a0cb7391",
+      "bytes": 5867
     },
     {
       "path": "qualification/evidence/source-completion/S2-book-2.behavior.green.log",
-      "digest": "sha256:fff10c30bd40d7648153b29eca6ec26d2d3570586bd00b39c89a7329a3f4245e",
-      "bytes": 3118
+      "digest": "sha256:ca7c739182aca3c4cb036b05fac556188cc622baf23d6fd2fe86a6eac57be916",
+      "bytes": 3117
+    },
+    {
+      "path": "qualification/evidence/source-completion/S2-book-2.quality.red.final-review.log",
+      "digest": "sha256:87e7f0124b6f8e0cb1088765ac70d3e514716cb5b065c9992176c0294c77b4d1",
+      "bytes": 6005
+    },
+    {
+      "path": "qualification/evidence/source-completion/S2-book-2.quality.green.log",
+      "digest": "sha256:407ce299fd203aa3fb58186b9b0eebaa5419964210843e55e536616bd734e2ea",
+      "bytes": 4054
     },
     {
       "path": "qualification/evidence/source-completion/S2-book-2.qualification.green.log",
-      "digest": "sha256:07e1ace388e42e29443113a38bb521ff991efab058306955a9cf4e499f7cc899",
-      "bytes": 287
+      "digest": "sha256:5b9df8a40671e78d968541c7748fc2fa41af3d0e533993e0cb528ddb63d22944",
+      "bytes": 277
     },
     {
       "path": "qualification/evidence/source-completion/S2-book-2.gate.corrected.log",
-      "digest": "sha256:60befcb9b20e4166c54861a4c2f0eedcaac3f06bef3d9f8e930c1f28cc743d6b",
+      "digest": "sha256:38550715e49ff458a715bfc1ab1d25a16610e4ae7a1ce994a91838ba98e18c45",
       "bytes": 3845
     }
   ],
