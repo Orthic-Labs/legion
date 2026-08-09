@@ -9,17 +9,9 @@
       "id": "B8-001",
       "status": "implemented",
       "evidence": [
-        {
-          "lane": "L5",
-          "proof": {
-            "red": "qualification/evidence/lanes/L5/B8-001.red.log",
-            "green": "qualification/evidence/lanes/L5/B8-001.green.log"
-          },
-          "test": {
-            "path": "tests/public-l5.test.mjs",
-            "assertion": "Public API exports canonical core, report, skill, SDK, version, and deprecation surfaces without exporting mutable registries."
-          }
-        }
+        "tests/public-l5.test.mjs",
+        "qualification/evidence/lanes/L5/B8-001.red.log",
+        "qualification/evidence/lanes/L5/B8-001.green.log"
       ],
       "mapping": "lib/index.mjs"
     },
@@ -34,17 +26,9 @@
       "id": "B8-003",
       "status": "implemented",
       "evidence": [
-        {
-          "lane": "L5",
-          "proof": {
-            "red": "qualification/evidence/lanes/L5/B8-003.red.log",
-            "green": "qualification/evidence/lanes/L5/B8-003.green.log"
-          },
-          "test": {
-            "path": "tests/public-l5.test.mjs",
-            "assertion": "All eleven advertised read-only MCP tools execute through injected or canonical core operations with bounded repository paths and outputs."
-          }
-        }
+        "tests/public-l5.test.mjs",
+        "qualification/evidence/lanes/L5/B8-003.red.log",
+        "qualification/evidence/lanes/L5/B8-003.green.log"
       ],
       "mapping": "integrations/mcp/tools.mjs;integrations/mcp/resources.mjs"
     },
@@ -76,17 +60,9 @@
       "id": "B8-007",
       "status": "implemented",
       "evidence": [
-        {
-          "lane": "L5",
-          "proof": {
-            "red": "qualification/evidence/lanes/L5/B8-007.red.log",
-            "green": "qualification/evidence/lanes/L5/B8-007.green.log"
-          },
-          "test": {
-            "path": "tests/public-l5.test.mjs",
-            "assertion": "Offline HTML escapes repository content, uses a computed CSP hash, supports search, and links aggregate coverage to canonical evidence."
-          }
-        }
+        "tests/public-l5.test.mjs",
+        "qualification/evidence/lanes/L5/B8-007.red.log",
+        "qualification/evidence/lanes/L5/B8-007.green.log"
       ],
       "mapping": "lib/report/html/index.mjs"
     },
@@ -94,17 +70,9 @@
       "id": "B8-008",
       "status": "implemented",
       "evidence": [
-        {
-          "lane": "L5",
-          "proof": {
-            "red": "qualification/evidence/lanes/L5/B8-008.red.log",
-            "green": "qualification/evidence/lanes/L5/B8-008.green.log"
-          },
-          "test": {
-            "path": "tests/public-l5.test.mjs",
-            "assertion": "Diagnostics preserve canonical IDs, exact ranges, lineage, family and evidence fields, incomplete coverage, and preview-only remediation actions."
-          }
-        }
+        "tests/public-l5.test.mjs",
+        "qualification/evidence/lanes/L5/B8-008.red.log",
+        "qualification/evidence/lanes/L5/B8-008.green.log"
       ],
       "mapping": "lib/report/editor/index.mjs"
     },
@@ -169,17 +137,9 @@
       "id": "B8-017",
       "status": "implemented",
       "evidence": [
-        {
-          "lane": "L5",
-          "proof": {
-            "red": "qualification/evidence/lanes/L5/B8-017.red.log",
-            "green": "qualification/evidence/lanes/L5/B8-017.green.log"
-          },
-          "test": {
-            "path": "tests/public-l5.test.mjs",
-            "assertion": "CycloneDX, SPDX, shipped-notice, and rights-aware provenance generators reject empty or unresolved distributable inventories."
-          }
-        }
+        "tests/public-l5.test.mjs",
+        "qualification/evidence/lanes/L5/B8-017.red.log",
+        "qualification/evidence/lanes/L5/B8-017.green.log"
       ],
       "mapping": "lib/distribution/sbom.mjs;lib/distribution/notices.mjs;references/source-provenance/creator-skills.json"
     },
@@ -187,17 +147,9 @@
       "id": "B8-018",
       "status": "implemented",
       "evidence": [
-        {
-          "lane": "L5",
-          "proof": {
-            "red": "qualification/evidence/lanes/L5/B8-018.red.log",
-            "green": "qualification/evidence/lanes/L5/B8-018.green.log"
-          },
-          "test": {
-            "path": "tests/public-l5.test.mjs",
-            "assertion": "Release manifests bind final bytes and verification rejects empty SBOMs, placeholder signatures, missing identity, platform gaps, and semantic-equivalence failures."
-          }
-        }
+        "tests/public-l5.test.mjs",
+        "qualification/evidence/lanes/L5/B8-018.red.log",
+        "qualification/evidence/lanes/L5/B8-018.green.log"
       ],
       "mapping": "lib/distribution/release-manifest.mjs;scripts/verify-release.mjs"
     },
@@ -240,17 +192,9 @@
       "id": "B8-024",
       "status": "implemented",
       "evidence": [
-        {
-          "lane": "L5",
-          "proof": {
-            "red": "qualification/evidence/lanes/L5/B8-024.red.log",
-            "green": "qualification/evidence/lanes/L5/B8-024.green.log"
-          },
-          "test": {
-            "path": "tests/public-l5.test.mjs",
-            "assertion": "Claims retain limits and constraints, qualify only on exact digest identity, and downgrade mismatches to unproven."
-          }
-        }
+        "tests/public-l5.test.mjs",
+        "qualification/evidence/lanes/L5/B8-024.red.log",
+        "qualification/evidence/lanes/L5/B8-024.green.log"
       ],
       "mapping": "lib/distribution/claims.mjs;references/generated/claims.json;references/generated/support.md"
     },
@@ -258,17 +202,9 @@
       "id": "B8-025",
       "status": "implemented",
       "evidence": [
-        {
-          "lane": "L5",
-          "proof": {
-            "red": "qualification/evidence/lanes/L5/B8-025.red.log",
-            "green": "qualification/evidence/lanes/L5/B8-025.green.log"
-          },
-          "test": {
-            "path": "tests/public-l5.test.mjs",
-            "assertion": "Creator provenance verification checks source/output identities, transformation manifests, shipped prompt prose, user ownership, and redistribution grants fail closed."
-          }
-        }
+        "tests/public-l5.test.mjs",
+        "qualification/evidence/lanes/L5/B8-025.red.log",
+        "qualification/evidence/lanes/L5/B8-025.green.log"
       ],
       "mapping": "scripts/verify-source-provenance.mjs;references/source-provenance/creator-skills.json"
     },

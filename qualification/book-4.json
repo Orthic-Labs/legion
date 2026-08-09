@@ -41,17 +41,9 @@
       "status": "implemented",
       "mapping": "providers/runtime/web/actors/index.mjs;schemas/platform/web-actor-fixture-v1.schema.json",
       "evidence": [
-        {
-          "lane": "L1a",
-          "proof": {
-            "red": "qualification/evidence/lanes/L1a/B4-007.red.log",
-            "green": "qualification/evidence/lanes/L1a/B4-007.green.log"
-          },
-          "test": {
-            "path": "tests/platform/web/book-4-web-contracts.test.mjs",
-            "assertion": "Actor fixtures bind isolated secret references, explicit role/tenant/account state coverage, typed capability gaps, session transitions, and server authorization distinct from UI visibility."
-          }
-        }
+        "tests/platform/web/book-4-web-contracts.test.mjs",
+        "qualification/evidence/lanes/L1a/B4-007.red.log",
+        "qualification/evidence/lanes/L1a/B4-007.green.log"
       ]
     },
     {
@@ -64,17 +56,9 @@
       "status": "implemented",
       "mapping": "providers/runtime/web/runner/index.mjs;providers/runtime/web/protocols/index.mjs;providers/runtime/web/scenario/index.mjs",
       "evidence": [
-        {
-          "lane": "L1a",
-          "proof": {
-            "red": "qualification/evidence/lanes/L1a/B4-009.red.log",
-            "green": "qualification/evidence/lanes/L1a/B4-009.green.log"
-          },
-          "test": {
-            "path": "tests/platform/web/book-4-web-contracts.test.mjs",
-            "assertion": "Runtime scenarios preserve expected, observed, durable, terminal, browser diagnostic, server authorization, protocol applicability, route/state/action denominator, omission, and production-effect gating evidence."
-          }
-        }
+        "tests/platform/web/book-4-web-contracts.test.mjs",
+        "qualification/evidence/lanes/L1a/B4-009.red.log",
+        "qualification/evidence/lanes/L1a/B4-009.green.log"
       ]
     },
     {
@@ -82,17 +66,9 @@
       "status": "implemented",
       "mapping": "providers/runtime/web/capture/index.mjs;providers/runtime/web/performance/index.mjs;providers/runtime/web/accessibility/index.mjs",
       "evidence": [
-        {
-          "lane": "L1a",
-          "proof": {
-            "red": "qualification/evidence/lanes/L1a/B4-010.red.log",
-            "green": "qualification/evidence/lanes/L1a/B4-010.green.log"
-          },
-          "test": {
-            "path": "tests/platform/web/book-4-web-contracts.test.mjs",
-            "assertion": "Capture binds surface, route, state, actor, browser, viewport, locale, target, tool identity, repeats, variance, p75 inputs, runtime accessibility, and performance without interpretive verdict elevation."
-          }
-        }
+        "tests/platform/web/book-4-web-contracts.test.mjs",
+        "qualification/evidence/lanes/L1a/B4-010.red.log",
+        "qualification/evidence/lanes/L1a/B4-010.green.log"
       ]
     },
     {
@@ -100,17 +76,9 @@
       "status": "implemented",
       "mapping": "providers/runtime/web/backend/index.mjs;providers/runtime/web/api/index.mjs;providers/runtime/service/api/index.mjs",
       "evidence": [
-        {
-          "lane": "L1a",
-          "proof": {
-            "red": "qualification/evidence/lanes/L1a/B4-011.red.log",
-            "green": "qualification/evidence/lanes/L1a/B4-011.green.log"
-          },
-          "test": {
-            "path": "tests/platform/web/book-4-web-contracts.test.mjs",
-            "assertion": "API evidence validates actor/tenant/data scope, exact present and absent values, durable effects, resilience, protocol packs, redacted raw request/response artifacts, and external-only production controls."
-          }
-        }
+        "tests/platform/web/book-4-web-contracts.test.mjs",
+        "qualification/evidence/lanes/L1a/B4-011.red.log",
+        "qualification/evidence/lanes/L1a/B4-011.green.log"
       ]
     },
     {
@@ -118,17 +86,9 @@
       "status": "implemented",
       "mapping": "providers/runtime/web/data/index.mjs;providers/runtime/service/data/index.mjs",
       "evidence": [
-        {
-          "lane": "L1a",
-          "proof": {
-            "red": "qualification/evidence/lanes/L1a/B4-012.red.log",
-            "green": "qualification/evidence/lanes/L1a/B4-012.green.log"
-          },
-          "test": {
-            "path": "tests/platform/web/book-4-web-contracts.test.mjs",
-            "assertion": "Data exercises bind representative dataset/schema identity, lifecycle cases, durable evidence, isolation, cleanup, and primary plus cleanup failure receipts."
-          }
-        }
+        "tests/platform/web/book-4-web-contracts.test.mjs",
+        "qualification/evidence/lanes/L1a/B4-012.red.log",
+        "qualification/evidence/lanes/L1a/B4-012.green.log"
       ]
     },
     {
@@ -136,17 +96,9 @@
       "status": "implemented",
       "mapping": "providers/runtime/web/infrastructure/index.mjs;providers/runtime/external/cloud/index.mjs;providers/runtime/external/dns/index.mjs",
       "evidence": [
-        {
-          "lane": "L1a",
-          "proof": {
-            "red": "qualification/evidence/lanes/L1a/B4-013.red.log",
-            "green": "qualification/evidence/lanes/L1a/B4-013.green.log"
-          },
-          "test": {
-            "path": "tests/platform/web/book-4-web-contracts.test.mjs",
-            "assertion": "Infrastructure evidence distinguishes repository intent from deployed state, verifies signed bound exercises, records drift, and refuses inferred DNS, certificate, rollback, or regional proof."
-          }
-        }
+        "tests/platform/web/book-4-web-contracts.test.mjs",
+        "qualification/evidence/lanes/L1a/B4-013.red.log",
+        "qualification/evidence/lanes/L1a/B4-013.green.log"
       ]
     },
     {
@@ -154,17 +106,9 @@
       "status": "implemented",
       "mapping": "providers/runtime/web/third-party/index.mjs;providers/runtime/external/email/index.mjs;providers/runtime/external/commerce/index.mjs;providers/runtime/external/analytics/index.mjs;providers/runtime/external/third-party/index.mjs",
       "evidence": [
-        {
-          "lane": "L1a",
-          "proof": {
-            "red": "qualification/evidence/lanes/L1a/B4-014.red.log",
-            "green": "qualification/evidence/lanes/L1a/B4-014.green.log"
-          },
-          "test": {
-            "path": "tests/platform/web/book-4-web-contracts.test.mjs",
-            "assertion": "External provider evidence remains sandboxed, signed, fresh, actor/tenant bound, privacy aware, and reconciled across client, backend, provider, and user-visible state."
-          }
-        }
+        "tests/platform/web/book-4-web-contracts.test.mjs",
+        "qualification/evidence/lanes/L1a/B4-014.red.log",
+        "qualification/evidence/lanes/L1a/B4-014.green.log"
       ]
     },
     {
@@ -172,17 +116,9 @@
       "status": "implemented",
       "mapping": "providers/runtime/web/operations/index.mjs;providers/runtime/external/backup/index.mjs;providers/runtime/external/incidents/index.mjs",
       "evidence": [
-        {
-          "lane": "L1a",
-          "proof": {
-            "red": "qualification/evidence/lanes/L1a/B4-015.red.log",
-            "green": "qualification/evidence/lanes/L1a/B4-015.green.log"
-          },
-          "test": {
-            "path": "tests/platform/web/book-4-web-contracts.test.mjs",
-            "assertion": "Operations evidence requires current exercised recovery, alert delivery/action, capacity workload, release/environment binding, signed artifacts, and exact omissions instead of configuration-only claims."
-          }
-        }
+        "tests/platform/web/book-4-web-contracts.test.mjs",
+        "qualification/evidence/lanes/L1a/B4-015.red.log",
+        "qualification/evidence/lanes/L1a/B4-015.green.log"
       ]
     },
     {
@@ -190,17 +126,9 @@
       "status": "implemented",
       "mapping": "providers/runtime/web/integration/index.mjs;providers/runtime/web/index.mjs;qualification/platforms/web/fixtures.mjs;qualification/platforms/web/qualification.mjs;scripts/qualify-web-platform.mjs",
       "evidence": [
-        {
-          "lane": "L1a",
-          "proof": {
-            "red": "qualification/evidence/lanes/L1a/B4-016.red.log",
-            "green": "qualification/evidence/lanes/L1a/B4-016.green.log"
-          },
-          "test": {
-            "path": "tests/platform/web/book-4-web-contracts.test.mjs",
-            "assertion": "Web integration emits one terminal receipt per applicable control, reconciles denominators and artifacts deterministically, rejects cross-target or repository-only release proof, and qualifies six provisional fixtures."
-          }
-        }
+        "tests/platform/web/book-4-web-contracts.test.mjs",
+        "qualification/evidence/lanes/L1a/B4-016.red.log",
+        "qualification/evidence/lanes/L1a/B4-016.green.log"
       ]
     },
     {
@@ -208,17 +136,9 @@
       "status": "implemented",
       "mapping": "providers/runtime/desktop/runner/index.mjs",
       "evidence": [
-        {
-          "lane": "L1b",
-          "proof": {
-            "red": "qualification/evidence/lanes/L1b/B4-017.red.log",
-            "green": "qualification/evidence/lanes/L1b/B4-017.green.log"
-          },
-          "test": {
-            "path": "tests/platform/desktop/runner/runner.test.mjs",
-            "assertion": "exact executable binding, component inventory, native-surface separation"
-          }
-        }
+        "tests/platform/desktop/runner/runner.test.mjs",
+        "qualification/evidence/lanes/L1b/B4-017.red.log",
+        "qualification/evidence/lanes/L1b/B4-017.green.log"
       ]
     },
     {
@@ -226,17 +146,9 @@
       "status": "implemented",
       "mapping": "providers/runtime/desktop/ipc/index.mjs",
       "evidence": [
-        {
-          "lane": "L1b",
-          "proof": {
-            "red": "qualification/evidence/lanes/L1b/B4-018.red.log",
-            "green": "qualification/evidence/lanes/L1b/B4-018.green.log"
-          },
-          "test": {
-            "path": "tests/platform/desktop/ipc/ipc.test.mjs",
-            "assertion": "actor/capability authorization, unknown caller denial, helper identity/lifecycle"
-          }
-        }
+        "tests/platform/desktop/ipc/ipc.test.mjs",
+        "qualification/evidence/lanes/L1b/B4-018.red.log",
+        "qualification/evidence/lanes/L1b/B4-018.green.log"
       ]
     },
     {
@@ -244,17 +156,9 @@
       "status": "implemented",
       "mapping": "providers/runtime/desktop/files/index.mjs",
       "evidence": [
-        {
-          "lane": "L1b",
-          "proof": {
-            "red": "qualification/evidence/lanes/L1b/B4-019.red.log",
-            "green": "qualification/evidence/lanes/L1b/B4-019.green.log"
-          },
-          "test": {
-            "path": "tests/platform/desktop/files-storage/files-storage.test.mjs",
-            "assertion": "hostile/recovery cases, migration source preservation, separated storage locations"
-          }
-        }
+        "tests/platform/desktop/files-storage/files-storage.test.mjs",
+        "qualification/evidence/lanes/L1b/B4-019.red.log",
+        "qualification/evidence/lanes/L1b/B4-019.green.log"
       ]
     },
     {
@@ -262,17 +166,9 @@
       "status": "implemented",
       "mapping": "providers/runtime/desktop/os-integration/index.mjs",
       "evidence": [
-        {
-          "lane": "L1b",
-          "proof": {
-            "red": "qualification/evidence/lanes/L1b/B4-020.red.log",
-            "green": "qualification/evidence/lanes/L1b/B4-020.green.log"
-          },
-          "test": {
-            "path": "tests/platform/desktop/os-integration/os-integration.test.mjs",
-            "assertion": "native OS/version/architecture binding, accessibility journey, explicit unsupported state"
-          }
-        }
+        "tests/platform/desktop/os-integration/os-integration.test.mjs",
+        "qualification/evidence/lanes/L1b/B4-020.red.log",
+        "qualification/evidence/lanes/L1b/B4-020.green.log"
       ]
     },
     {
@@ -280,17 +176,9 @@
       "status": "implemented",
       "mapping": "providers/runtime/desktop/performance/index.mjs",
       "evidence": [
-        {
-          "lane": "L1b",
-          "proof": {
-            "red": "qualification/evidence/lanes/L1b/B4-021.red.log",
-            "green": "qualification/evidence/lanes/L1b/B4-021.green.log"
-          },
-          "test": {
-            "path": "tests/platform/desktop/performance/performance.test.mjs",
-            "assertion": "release-artifact/environment/repeat binding & typed soak gap"
-          }
-        }
+        "tests/platform/desktop/performance/performance.test.mjs",
+        "qualification/evidence/lanes/L1b/B4-021.red.log",
+        "qualification/evidence/lanes/L1b/B4-021.green.log"
       ]
     },
     {
@@ -298,17 +186,9 @@
       "status": "implemented",
       "mapping": "providers/runtime/desktop/installer/index.mjs",
       "evidence": [
-        {
-          "lane": "L1b",
-          "proof": {
-            "red": "qualification/evidence/lanes/L1b/B4-022.red.log",
-            "green": "qualification/evidence/lanes/L1b/B4-022.green.log"
-          },
-          "test": {
-            "path": "tests/platform/desktop/installer/installer.test.mjs",
-            "assertion": "typed clean-VM gap, rollback safety, isolated destructive target"
-          }
-        }
+        "tests/platform/desktop/installer/installer.test.mjs",
+        "qualification/evidence/lanes/L1b/B4-022.red.log",
+        "qualification/evidence/lanes/L1b/B4-022.green.log"
       ]
     },
     {
@@ -316,17 +196,9 @@
       "status": "implemented",
       "mapping": "providers/runtime/desktop/updater/index.mjs",
       "evidence": [
-        {
-          "lane": "L1b",
-          "proof": {
-            "red": "qualification/evidence/lanes/L1b/B4-023.red.log",
-            "green": "qualification/evidence/lanes/L1b/B4-023.green.log"
-          },
-          "test": {
-            "path": "tests/platform/desktop/updater/updater.test.mjs",
-            "assertion": "verification failure stop-ship & promotion equivalence"
-          }
-        }
+        "tests/platform/desktop/updater/updater.test.mjs",
+        "qualification/evidence/lanes/L1b/B4-023.red.log",
+        "qualification/evidence/lanes/L1b/B4-023.green.log"
       ]
     },
     {
@@ -334,17 +206,9 @@
       "status": "implemented",
       "mapping": "providers/runtime/desktop/windows/index.mjs;providers/runtime/desktop/macos/index.mjs;providers/runtime/desktop/linux/index.mjs",
       "evidence": [
-        {
-          "lane": "L1b",
-          "proof": {
-            "red": "qualification/evidence/lanes/L1b/B4-024.red.log",
-            "green": "qualification/evidence/lanes/L1b/B4-024.green.log"
-          },
-          "test": {
-            "path": "tests/platform/desktop/os/os.test.mjs",
-            "assertion": "OS-specific matrix isolation, final artifact facts, unavailable-host separation"
-          }
-        }
+        "tests/platform/desktop/os/os.test.mjs",
+        "qualification/evidence/lanes/L1b/B4-024.red.log",
+        "qualification/evidence/lanes/L1b/B4-024.green.log"
       ]
     },
     {
@@ -352,17 +216,9 @@
       "status": "implemented",
       "mapping": "providers/runtime/desktop/index.mjs;qualification/platforms/desktop/fixtures.mjs;qualification/platforms/desktop/qualification.mjs;scripts/qualify-desktop-platform.mjs",
       "evidence": [
-        {
-          "lane": "L1b",
-          "proof": {
-            "red": "qualification/evidence/lanes/L1b/B4-025.red.log",
-            "green": "qualification/evidence/lanes/L1b/B4-025.green.log"
-          },
-          "test": {
-            "path": "tests/platform/desktop/qualification.test.mjs",
-            "assertion": "control/scenario reconciliation, source/release separation, visible platform gaps"
-          }
-        }
+        "tests/platform/desktop/qualification.test.mjs",
+        "qualification/evidence/lanes/L1b/B4-025.red.log",
+        "qualification/evidence/lanes/L1b/B4-025.green.log"
       ]
     },
     {
@@ -370,17 +226,9 @@
       "status": "implemented",
       "mapping": "providers/runtime/mobile/host/index.mjs;providers/runtime/mobile/devices/index.mjs",
       "evidence": [
-        {
-          "lane": "L1c",
-          "proof": {
-            "red": "qualification/evidence/lanes/L1c/B4-026.red.log",
-            "green": "qualification/evidence/lanes/L1c/B4-026.green.log"
-          },
-          "test": {
-            "path": "tests/platform/mobile/host/book-4-mobile-host.test.mjs",
-            "assertion": "simulator and physical evidence stay distinct and unavailable devices are typed gaps"
-          }
-        }
+        "tests/platform/mobile/host/book-4-mobile-host.test.mjs",
+        "qualification/evidence/lanes/L1c/B4-026.red.log",
+        "qualification/evidence/lanes/L1c/B4-026.green.log"
       ]
     },
     {
@@ -388,17 +236,9 @@
       "status": "implemented",
       "mapping": "providers/runtime/mobile/lifecycle/index.mjs",
       "evidence": [
-        {
-          "lane": "L1c",
-          "proof": {
-            "red": "qualification/evidence/lanes/L1c/B4-027.red.log",
-            "green": "qualification/evidence/lanes/L1c/B4-027.green.log"
-          },
-          "test": {
-            "path": "tests/platform/mobile/lifecycle/book-4-mobile-lifecycle.test.mjs",
-            "assertion": "process death and cold entry have explicit blocked outcomes without device execution"
-          }
-        }
+        "tests/platform/mobile/lifecycle/book-4-mobile-lifecycle.test.mjs",
+        "qualification/evidence/lanes/L1c/B4-027.red.log",
+        "qualification/evidence/lanes/L1c/B4-027.green.log"
       ]
     },
     {
@@ -406,17 +246,9 @@
       "status": "implemented",
       "mapping": "providers/runtime/mobile/platform-surfaces/index.mjs",
       "evidence": [
-        {
-          "lane": "L1c",
-          "proof": {
-            "red": "qualification/evidence/lanes/L1c/B4-028.red.log",
-            "green": "qualification/evidence/lanes/L1c/B4-028.green.log"
-          },
-          "test": {
-            "path": "tests/platform/mobile/platform-surfaces/book-4-mobile-surfaces.test.mjs",
-            "assertion": "permission denial, link authorization, and untrusted push or IPC payload contracts are planned"
-          }
-        }
+        "tests/platform/mobile/platform-surfaces/book-4-mobile-surfaces.test.mjs",
+        "qualification/evidence/lanes/L1c/B4-028.red.log",
+        "qualification/evidence/lanes/L1c/B4-028.green.log"
       ]
     },
     {
@@ -424,17 +256,9 @@
       "status": "implemented",
       "mapping": "providers/runtime/mobile/network/index.mjs",
       "evidence": [
-        {
-          "lane": "L1c",
-          "proof": {
-            "red": "qualification/evidence/lanes/L1c/B4-029.red.log",
-            "green": "qualification/evidence/lanes/L1c/B4-029.green.log"
-          },
-          "test": {
-            "path": "tests/platform/mobile/data-network/book-4-mobile-data-network.test.mjs",
-            "assertion": "offline replay is actor-scoped and migration preserves user data"
-          }
-        }
+        "tests/platform/mobile/data-network/book-4-mobile-data-network.test.mjs",
+        "qualification/evidence/lanes/L1c/B4-029.red.log",
+        "qualification/evidence/lanes/L1c/B4-029.green.log"
       ]
     },
     {
@@ -442,17 +266,9 @@
       "status": "implemented",
       "mapping": "providers/runtime/mobile/performance/index.mjs",
       "evidence": [
-        {
-          "lane": "L1c",
-          "proof": {
-            "red": "qualification/evidence/lanes/L1c/B4-030.red.log",
-            "green": "qualification/evidence/lanes/L1c/B4-030.green.log"
-          },
-          "test": {
-            "path": "tests/platform/mobile/performance/book-4-mobile-performance.test.mjs",
-            "assertion": "battery and thermal claims remain unproven without physical release measurements"
-          }
-        }
+        "tests/platform/mobile/performance/book-4-mobile-performance.test.mjs",
+        "qualification/evidence/lanes/L1c/B4-030.red.log",
+        "qualification/evidence/lanes/L1c/B4-030.green.log"
       ]
     },
     {
@@ -460,17 +276,9 @@
       "status": "implemented",
       "mapping": "providers/runtime/mobile/compatibility/index.mjs",
       "evidence": [
-        {
-          "lane": "L1c",
-          "proof": {
-            "red": "qualification/evidence/lanes/L1c/B4-031.red.log",
-            "green": "qualification/evidence/lanes/L1c/B4-031.green.log"
-          },
-          "test": {
-            "path": "tests/platform/mobile/compatibility/book-4-mobile-compatibility.test.mjs",
-            "assertion": "accessibility journey and device or OEM omissions reconcile explicitly"
-          }
-        }
+        "tests/platform/mobile/compatibility/book-4-mobile-compatibility.test.mjs",
+        "qualification/evidence/lanes/L1c/B4-031.red.log",
+        "qualification/evidence/lanes/L1c/B4-031.green.log"
       ]
     },
     {
@@ -478,17 +286,9 @@
       "status": "implemented",
       "mapping": "providers/runtime/mobile/release/index.mjs",
       "evidence": [
-        {
-          "lane": "L1c",
-          "proof": {
-            "red": "qualification/evidence/lanes/L1c/B4-032.red.log",
-            "green": "qualification/evidence/lanes/L1c/B4-032.green.log"
-          },
-          "test": {
-            "path": "tests/platform/mobile/release/book-4-mobile-release.test.mjs",
-            "assertion": "privacy declaration mismatch blocks release and exact artifact identity remains bound"
-          }
-        }
+        "tests/platform/mobile/release/book-4-mobile-release.test.mjs",
+        "qualification/evidence/lanes/L1c/B4-032.red.log",
+        "qualification/evidence/lanes/L1c/B4-032.green.log"
       ]
     },
     {
@@ -496,17 +296,9 @@
       "status": "implemented",
       "mapping": "providers/runtime/mobile/commerce/index.mjs",
       "evidence": [
-        {
-          "lane": "L1c",
-          "proof": {
-            "red": "qualification/evidence/lanes/L1c/B4-033.red.log",
-            "green": "qualification/evidence/lanes/L1c/B4-033.green.log"
-          },
-          "test": {
-            "path": "tests/platform/mobile/commerce-ops/book-4-mobile-commerce-ops.test.mjs",
-            "assertion": "client-only entitlement, push privacy, analytics consent, and operations gaps cannot pass"
-          }
-        }
+        "tests/platform/mobile/commerce-ops/book-4-mobile-commerce-ops.test.mjs",
+        "qualification/evidence/lanes/L1c/B4-033.red.log",
+        "qualification/evidence/lanes/L1c/B4-033.green.log"
       ]
     },
     {
@@ -514,17 +306,9 @@
       "status": "implemented",
       "mapping": "providers/runtime/mobile/index.mjs;qualification/platforms/mobile/fixtures.mjs;qualification/platforms/mobile/qualification.mjs;scripts/qualify-mobile-platform.mjs",
       "evidence": [
-        {
-          "lane": "L1c",
-          "proof": {
-            "red": "qualification/evidence/lanes/L1c/B4-034.red.log",
-            "green": "qualification/evidence/lanes/L1c/B4-034.green.log"
-          },
-          "test": {
-            "path": "tests/platform/mobile/book-4-mobile-pack.test.mjs",
-            "assertion": "mobile denominators reconcile and simulator receipts cannot satisfy physical controls"
-          }
-        }
+        "tests/platform/mobile/book-4-mobile-pack.test.mjs",
+        "qualification/evidence/lanes/L1c/B4-034.red.log",
+        "qualification/evidence/lanes/L1c/B4-034.green.log"
       ]
     },
     {
@@ -532,17 +316,9 @@
       "status": "implemented",
       "mapping": "providers/runtime/service/core/index.mjs;providers/runtime/service/faults/index.mjs;providers/runtime/worker/index.mjs;qualification/platforms/service/fixtures.mjs;qualification/platforms/service/qualification.mjs",
       "evidence": [
-        {
-          "lane": "L1c",
-          "proof": {
-            "red": "qualification/evidence/lanes/L1c/B4-035.red.log",
-            "green": "qualification/evidence/lanes/L1c/B4-035.green.log"
-          },
-          "test": {
-            "path": "tests/platform/service/book-4-service-runtime.test.mjs",
-            "assertion": "service and worker runtime failures plus production-only evidence gaps remain typed"
-          }
-        }
+        "tests/platform/service/book-4-service-runtime.test.mjs",
+        "qualification/evidence/lanes/L1c/B4-035.red.log",
+        "qualification/evidence/lanes/L1c/B4-035.green.log"
       ]
     },
     {

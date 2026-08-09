@@ -136,17 +136,9 @@
       "status": "implemented",
       "mapping": "providers/copy/documentation.mjs;registry/rules/copy/documentation.json",
       "evidence": [
-        {
-          "lane": "L3",
-          "proof": {
-            "red": "qualification/evidence/lanes/L3/B6-021.red.log",
-            "green": "qualification/evidence/lanes/L3/B6-021.green.log"
-          },
-          "test": {
-            "path": "tests/content-l3.test.mjs",
-            "assertion": "documentation findings bind current command contracts, separate factual drift from editorial polish, preserve authority notices, and distinguish planned from shipped behavior"
-          }
-        }
+        "tests/content-l3.test.mjs",
+        "qualification/evidence/lanes/L3/B6-021.red.log",
+        "qualification/evidence/lanes/L3/B6-021.green.log"
       ]
     },
     {

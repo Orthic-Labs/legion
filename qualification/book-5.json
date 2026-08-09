@@ -41,17 +41,9 @@
       "status": "implemented",
       "mapping": "providers/visual/geometry-tokens.mjs",
       "evidence": [
-        {
-          "lane": "L2",
-          "proof": {
-            "red": "qualification/evidence/lanes/L2/B5-007.red.log",
-            "green": "qualification/evidence/lanes/L2/B5-007.green.log"
-          },
-          "test": {
-            "path": "tests/design-l2.test.mjs",
-            "assertion": "geometry tokens preserve denominators, affected instances, source/rendered classes, and avoid invented standards"
-          }
-        }
+        "tests/design-l2.test.mjs",
+        "qualification/evidence/lanes/L2/B5-007.red.log",
+        "qualification/evidence/lanes/L2/B5-007.green.log"
       ]
     },
     {
@@ -59,17 +51,9 @@
       "status": "implemented",
       "mapping": "providers/visual/typography.mjs",
       "evidence": [
-        {
-          "lane": "L2",
-          "proof": {
-            "red": "qualification/evidence/lanes/L2/B5-008.red.log",
-            "green": "qualification/evidence/lanes/L2/B5-008.green.log"
-          },
-          "test": {
-            "path": "tests/design-l2.test.mjs",
-            "assertion": "typography findings bind role, surface, viewport, locale, and missing font evidence"
-          }
-        }
+        "tests/design-l2.test.mjs",
+        "qualification/evidence/lanes/L2/B5-008.red.log",
+        "qualification/evidence/lanes/L2/B5-008.green.log"
       ]
     },
     {
@@ -77,17 +61,9 @@
       "status": "implemented",
       "mapping": "providers/visual/hierarchy-static.mjs",
       "evidence": [
-        {
-          "lane": "L2",
-          "proof": {
-            "red": "qualification/evidence/lanes/L2/B5-009.red.log",
-            "green": "qualification/evidence/lanes/L2/B5-009.green.log"
-          },
-          "test": {
-            "path": "tests/design-l2.test.mjs",
-            "assertion": "static hierarchy separates deterministic semantic mismatch from source-limited interpretation"
-          }
-        }
+        "tests/design-l2.test.mjs",
+        "qualification/evidence/lanes/L2/B5-009.red.log",
+        "qualification/evidence/lanes/L2/B5-009.green.log"
       ]
     },
     {
@@ -95,17 +71,9 @@
       "status": "implemented",
       "mapping": "providers/visual/responsive.mjs;providers/visual/stacking.mjs",
       "evidence": [
-        {
-          "lane": "L2",
-          "proof": {
-            "red": "qualification/evidence/lanes/L2/B5-010.red.log",
-            "green": "qualification/evidence/lanes/L2/B5-010.green.log"
-          },
-          "test": {
-            "path": "tests/design-l2.test.mjs",
-            "assertion": "responsive and stacking analysis keeps viewport and safe-area coverage explicit"
-          }
-        }
+        "tests/design-l2.test.mjs",
+        "qualification/evidence/lanes/L2/B5-010.red.log",
+        "qualification/evidence/lanes/L2/B5-010.green.log"
       ]
     },
     {
@@ -113,17 +81,9 @@
       "status": "implemented",
       "mapping": "providers/ux/control-states.mjs",
       "evidence": [
-        {
-          "lane": "L2",
-          "proof": {
-            "red": "qualification/evidence/lanes/L2/B5-011.red.log",
-            "green": "qualification/evidence/lanes/L2/B5-011.green.log"
-          },
-          "test": {
-            "path": "tests/design-l2.test.mjs",
-            "assertion": "control applicability matrices expose missing state evidence without false pass"
-          }
-        }
+        "tests/design-l2.test.mjs",
+        "qualification/evidence/lanes/L2/B5-011.red.log",
+        "qualification/evidence/lanes/L2/B5-011.green.log"
       ]
     },
     {
@@ -131,17 +91,9 @@
       "status": "implemented",
       "mapping": "lib/design/ux-flow.mjs;providers/ux/flow-model.mjs",
       "evidence": [
-        {
-          "lane": "L2",
-          "proof": {
-            "red": "qualification/evidence/lanes/L2/B5-012.red.log",
-            "green": "qualification/evidence/lanes/L2/B5-012.green.log"
-          },
-          "test": {
-            "path": "tests/design-l2.test.mjs",
-            "assertion": "UX flows preserve cohort, alternate paths, measurements, inferred goals, and behavior-backed success"
-          }
-        }
+        "tests/design-l2.test.mjs",
+        "qualification/evidence/lanes/L2/B5-012.red.log",
+        "qualification/evidence/lanes/L2/B5-012.green.log"
       ]
     },
     {
@@ -149,17 +101,9 @@
       "status": "implemented",
       "mapping": "providers/ux/navigation.mjs",
       "evidence": [
-        {
-          "lane": "L2",
-          "proof": {
-            "red": "qualification/evidence/lanes/L2/B5-013.red.log",
-            "green": "qualification/evidence/lanes/L2/B5-013.green.log"
-          },
-          "test": {
-            "path": "tests/design-l2.test.mjs",
-            "assertion": "navigation findings cite exact route and flow evidence without inventing features"
-          }
-        }
+        "tests/design-l2.test.mjs",
+        "qualification/evidence/lanes/L2/B5-013.red.log",
+        "qualification/evidence/lanes/L2/B5-013.green.log"
       ]
     },
     {
@@ -167,17 +111,9 @@
       "status": "implemented",
       "mapping": "providers/ux/forms.mjs",
       "evidence": [
-        {
-          "lane": "L2",
-          "proof": {
-            "red": "qualification/evidence/lanes/L2/B5-014.red.log",
-            "green": "qualification/evidence/lanes/L2/B5-014.green.log"
-          },
-          "test": {
-            "path": "tests/design-l2.test.mjs",
-            "assertion": "forms bind field denominator and keep client validation separate from server security"
-          }
-        }
+        "tests/design-l2.test.mjs",
+        "qualification/evidence/lanes/L2/B5-014.red.log",
+        "qualification/evidence/lanes/L2/B5-014.green.log"
       ]
     },
     {
@@ -185,17 +121,9 @@
       "status": "implemented",
       "mapping": "providers/ux/system-states.mjs",
       "evidence": [
-        {
-          "lane": "L2",
-          "proof": {
-            "red": "qualification/evidence/lanes/L2/B5-015.red.log",
-            "green": "qualification/evidence/lanes/L2/B5-015.green.log"
-          },
-          "test": {
-            "path": "tests/design-l2.test.mjs",
-            "assertion": "system-state coverage separates absent implementation from untested state"
-          }
-        }
+        "tests/design-l2.test.mjs",
+        "qualification/evidence/lanes/L2/B5-015.red.log",
+        "qualification/evidence/lanes/L2/B5-015.green.log"
       ]
     },
     {
@@ -203,17 +131,9 @@
       "status": "implemented",
       "mapping": "providers/ux/recovery.mjs",
       "evidence": [
-        {
-          "lane": "L2",
-          "proof": {
-            "red": "qualification/evidence/lanes/L2/B5-016.red.log",
-            "green": "qualification/evidence/lanes/L2/B5-016.green.log"
-          },
-          "test": {
-            "path": "tests/design-l2.test.mjs",
-            "assertion": "recovery analysis requires side-effect evidence before irreversible classification"
-          }
-        }
+        "tests/design-l2.test.mjs",
+        "qualification/evidence/lanes/L2/B5-016.red.log",
+        "qualification/evidence/lanes/L2/B5-016.green.log"
       ]
     },
     {
@@ -221,17 +141,9 @@
       "status": "implemented",
       "mapping": "providers/ux/data-interaction.mjs",
       "evidence": [
-        {
-          "lane": "L2",
-          "proof": {
-            "red": "qualification/evidence/lanes/L2/B5-017.red.log",
-            "green": "qualification/evidence/lanes/L2/B5-017.green.log"
-          },
-          "test": {
-            "path": "tests/design-l2.test.mjs",
-            "assertion": "data interactions bind dataset and action while keeping scale and chart interpretation unproven"
-          }
-        }
+        "tests/design-l2.test.mjs",
+        "qualification/evidence/lanes/L2/B5-017.red.log",
+        "qualification/evidence/lanes/L2/B5-017.green.log"
       ]
     },
     {
@@ -239,17 +151,9 @@
       "status": "implemented",
       "mapping": "providers/ux/friction.mjs;providers/trust-safety/deceptive-design.mjs",
       "evidence": [
-        {
-          "lane": "L2",
-          "proof": {
-            "red": "qualification/evidence/lanes/L2/B5-018.red.log",
-            "green": "qualification/evidence/lanes/L2/B5-018.green.log"
-          },
-          "test": {
-            "path": "tests/design-l2.test.mjs",
-            "assertion": "friction and deceptive-design evidence separates deterministic behavior from interpretive judgment"
-          }
-        }
+        "tests/design-l2.test.mjs",
+        "qualification/evidence/lanes/L2/B5-018.red.log",
+        "qualification/evidence/lanes/L2/B5-018.green.log"
       ]
     },
     {
@@ -262,17 +166,9 @@
       "status": "implemented",
       "mapping": "providers/accessibility/runtime/core.mjs",
       "evidence": [
-        {
-          "lane": "L2",
-          "proof": {
-            "red": "qualification/evidence/lanes/L2/B5-020.red.log",
-            "green": "qualification/evidence/lanes/L2/B5-020.green.log"
-          },
-          "test": {
-            "path": "tests/design-l2.test.mjs",
-            "assertion": "runtime accessibility names engine, surfaces, states, exercises, and never passes missing capability"
-          }
-        }
+        "tests/design-l2.test.mjs",
+        "qualification/evidence/lanes/L2/B5-020.red.log",
+        "qualification/evidence/lanes/L2/B5-020.green.log"
       ]
     },
     {
@@ -280,17 +176,9 @@
       "status": "implemented",
       "mapping": "providers/runtime/browser/adapter.mjs;providers/runtime/native-surface/adapter.mjs",
       "evidence": [
-        {
-          "lane": "L2",
-          "proof": {
-            "red": "qualification/evidence/lanes/L2/B5-021.red.log",
-            "green": "qualification/evidence/lanes/L2/B5-021.green.log"
-          },
-          "test": {
-            "path": "tests/design-l2.test.mjs",
-            "assertion": "browser and native adapters enforce declared actions/destinations, redact secrets, and type shallow runs"
-          }
-        }
+        "tests/design-l2.test.mjs",
+        "qualification/evidence/lanes/L2/B5-021.red.log",
+        "qualification/evidence/lanes/L2/B5-021.green.log"
       ]
     },
     {
@@ -298,17 +186,9 @@
       "status": "implemented",
       "mapping": "providers/visual/capture.mjs;lib/design/geometry.mjs",
       "evidence": [
-        {
-          "lane": "L2",
-          "proof": {
-            "red": "qualification/evidence/lanes/L2/B5-022.red.log",
-            "green": "qualification/evidence/lanes/L2/B5-022.green.log"
-          },
-          "test": {
-            "path": "tests/design-l2.test.mjs",
-            "assertion": "visual capture validates real PNG bytes, binds digests, separates raw/normalized evidence, and redacts secrets"
-          }
-        }
+        "tests/design-l2.test.mjs",
+        "qualification/evidence/lanes/L2/B5-022.red.log",
+        "qualification/evidence/lanes/L2/B5-022.green.log"
       ]
     },
     {
@@ -316,17 +196,9 @@
       "status": "implemented",
       "mapping": "providers/visual/geometry.mjs",
       "evidence": [
-        {
-          "lane": "L2",
-          "proof": {
-            "red": "qualification/evidence/lanes/L2/B5-023.red.log",
-            "green": "qualification/evidence/lanes/L2/B5-023.green.log"
-          },
-          "test": {
-            "path": "tests/design-l2.test.mjs",
-            "assertion": "geometry findings use exact bounds and preserve unsupported primitive gaps"
-          }
-        }
+        "tests/design-l2.test.mjs",
+        "qualification/evidence/lanes/L2/B5-023.red.log",
+        "qualification/evidence/lanes/L2/B5-023.green.log"
       ]
     },
     {
@@ -334,17 +206,9 @@
       "status": "implemented",
       "mapping": "providers/visual/diff.mjs;lib/design/baselines.mjs",
       "evidence": [
-        {
-          "lane": "L2",
-          "proof": {
-            "red": "qualification/evidence/lanes/L2/B5-024.red.log",
-            "green": "qualification/evidence/lanes/L2/B5-024.green.log"
-          },
-          "test": {
-            "path": "tests/design-l2.test.mjs",
-            "assertion": "visual diff rejects mismatched identities and never auto-accepts baselines"
-          }
-        }
+        "tests/design-l2.test.mjs",
+        "qualification/evidence/lanes/L2/B5-024.red.log",
+        "qualification/evidence/lanes/L2/B5-024.green.log"
       ]
     },
     {
@@ -352,17 +216,9 @@
       "status": "implemented",
       "mapping": "providers/visual/reviewer.mjs",
       "evidence": [
-        {
-          "lane": "L2",
-          "proof": {
-            "red": "qualification/evidence/lanes/L2/B5-025.red.log",
-            "green": "qualification/evidence/lanes/L2/B5-025.green.log"
-          },
-          "test": {
-            "path": "tests/design-l2.test.mjs",
-            "assertion": "review packets require fresh independent identity, exact evidence, counterargument, uncertainty, and brand limits"
-          }
-        }
+        "tests/design-l2.test.mjs",
+        "qualification/evidence/lanes/L2/B5-025.red.log",
+        "qualification/evidence/lanes/L2/B5-025.green.log"
       ]
     },
     {
@@ -370,17 +226,9 @@
       "status": "implemented",
       "mapping": "providers/visual/motion.mjs",
       "evidence": [
-        {
-          "lane": "L2",
-          "proof": {
-            "red": "qualification/evidence/lanes/L2/B5-026.red.log",
-            "green": "qualification/evidence/lanes/L2/B5-026.green.log"
-          },
-          "test": {
-            "path": "tests/design-l2.test.mjs",
-            "assertion": "motion findings bind transitions and timing while missing reduced-motion exercise remains unproven"
-          }
-        }
+        "tests/design-l2.test.mjs",
+        "qualification/evidence/lanes/L2/B5-026.red.log",
+        "qualification/evidence/lanes/L2/B5-026.green.log"
       ]
     },
     {
@@ -393,17 +241,9 @@
       "status": "implemented",
       "mapping": "providers/performance/bundle/core.mjs;providers/performance/network/core.mjs;providers/performance/cache/core.mjs",
       "evidence": [
-        {
-          "lane": "L2",
-          "proof": {
-            "red": "qualification/evidence/lanes/L2/B5-028.red.log",
-            "green": "qualification/evidence/lanes/L2/B5-028.green.log"
-          },
-          "test": {
-            "path": "tests/design-l2.test.mjs",
-            "assertion": "bundle identity, request evidence, and cache correctness/invalidation requirements stay explicit"
-          }
-        }
+        "tests/design-l2.test.mjs",
+        "qualification/evidence/lanes/L2/B5-028.red.log",
+        "qualification/evidence/lanes/L2/B5-028.green.log"
       ]
     },
     {
