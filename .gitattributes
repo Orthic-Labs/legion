@@ -1,0 +1,8 @@
+# Legion is an audit engine: sealed receipts and qualification books hash file
+# BYTES. Any platform-dependent line-ending conversion changes those digests and
+# makes evidence unverifiable off the machine that sealed it (observed: books
+# sealed on Windows failed digest checks on Linux/macOS CI).
+#
+# Therefore: git performs NO eol conversion anywhere in this repo. Worktree bytes
+# always equal blob bytes, on every platform.
+* -text
