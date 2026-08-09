@@ -28,7 +28,11 @@ import { assertValid } from './validate.mjs';
 import { mintId } from './ids.mjs';
 import { payloadClaimsAuthority } from './authority.mjs';
 
-const POST_EFFECT_TYPES = Object.freeze(['post-effect', 'post-effect-failure']);
+// Exported so hook-adapter-core.mjs's pre-effect/post-effect correlation
+// minting (EC-5 item 5) can key off the identical set without re-declaring
+// it — a divergent local copy would silently drift from what this module
+// actually gates on.
+export const POST_EFFECT_TYPES = Object.freeze(['post-effect', 'post-effect-failure']);
 
 /** hostEvent.result.outcome -> effect-receipt-v1's `result` enum. */
 const RESULT_OUTCOME_MAP = Object.freeze({
@@ -162,11 +166,17 @@ export class HostIngestor {
       return { accepted: true, receipt: null, observationClass, decision: decision({ allowed: true, detail: { eventType: hostEvent.eventType } }) };
     }
 
-    if (!hostEvent.effect || !hostEvent.sourceRevision || !hostEvent.runId || !hostEvent.contractId || !hostEvent.taskId) {
+    // EC-5, amendment A-ER-1 (2026-08-09): contractId/taskId are now nullable
+    // on effect-receipt-v1 — a "real runId, null contractId/taskId" event is
+    // an AMBIENT observation (a host-observed effect in a session bound to a
+    // run but not to a contract) and is accepted, not refused. A runId is
+    // still mandatory: ambient is a typed tier, never a silent default, and
+    // there is nothing to bucket the observation under without one.
+    if (!hostEvent.effect || !hostEvent.sourceRevision || !hostEvent.runId) {
       return this.#refuse(observationClass, decision({
         allowed: false,
         code: 'ARC_HOST_EVENT_INVALID',
-        message: 'a post-effect event must carry an observed effect, sourceRevision, and run/contract/task binding',
+        message: 'a post-effect event must carry an observed effect, sourceRevision, and a run binding (contractId/taskId may be null — ambient tier, amendment A-ER-1)',
         detail: { eventId: hostEvent.eventId },
       }));
     }
