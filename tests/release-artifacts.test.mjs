@@ -10,7 +10,7 @@ function readFile(path) {
   return readFileSync(fileURLToPath(path), 'utf8');
 }
 
-test('verifyReleaseManifest accepts a complete manifest', () => {
+test('verifyReleaseManifest rejects an unsigned manifest (no false clean)', () => {
   const dir = mkdtempSync(join(tmpdir(), 'nemesis-rel-'));
   try {
     writeFileSync(join(dir, 'nemesis'), 'binary');
@@ -28,7 +28,12 @@ test('verifyReleaseManifest accepts a complete manifest', () => {
     };
     writeFileSync(join(dir, 'release-manifest.json'), JSON.stringify(manifest));
     const result = verifyReleaseManifest(join(dir, 'release-manifest.json'), { distDir: dir });
-    assert.equal(result.valid, true);
+    // An unsigned, un-notarized manifest is NOT a valid release — asserting
+    // valid:true here encoded a false clean. The verifier correctly demands
+    // signatures, notarization, qualification artifacts, and per-entry digests.
+    assert.equal(result.valid, false);
+    const kinds = result.issues.map((issue) => issue.issue).sort();
+    assert.ok(kinds.includes('missing'), 'unsigned manifest must report missing signature/notarization');
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
