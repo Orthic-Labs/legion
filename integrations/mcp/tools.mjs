@@ -26,8 +26,6 @@ export function listTools() {
     { name: 'nemesis_explain', description: 'Explain a finding or gap.', inputSchema: closedInput({ id: { type: 'string', minLength: 1 }, run: { type: 'string' } }, ['id']) },
     { name: 'nemesis_list_providers', description: 'List providers.', inputSchema: closedInput() },
     { name: 'nemesis_list_languages', description: 'List languages.', inputSchema: closedInput() },
-    { name: 'nemesis_list_families', description: 'List audit families.', inputSchema: closedInput() },
-    { name: 'nemesis_list_skills', description: 'List bundled skills.', inputSchema: closedInput() },
   ];
 }
 
