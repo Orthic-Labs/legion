@@ -22,7 +22,6 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node }}
-          cache: npm
       - run: npm ci --ignore-scripts
         if: ${{ hashFiles('package-lock.json') != '' }}
       - run: node scripts/generate-schemas.mjs --check
