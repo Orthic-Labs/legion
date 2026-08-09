@@ -3,7 +3,7 @@
   "kind": "nemesis-book-qualification",
   "book": 3,
   "expectedTaskCount": 30,
-  "sourceRevision": "content.sha256:5dc428ade6f0b77c8488186f72cc945abfa4670c17b3f8e4e1bb21e82374996e",
+  "sourceRevision": "content.sha256:911d5f4dc02795874af426e2fa70c8add982e08c2e8afd4c7efb74768140649f",
   "decision": "SOURCE_IMPLEMENTED",
   "claimLevel": "source",
   "sourceAccounting": {
