@@ -6,6 +6,11 @@
     { "id": "copy.anti-slop.empty-intensifier", "kind": "interpretive", "reasoningRequirement": "bounded-review" },
     { "id": "copy.anti-slop.fake-personalization", "kind": "interpretive", "reasoningRequirement": "bounded-review" },
     { "id": "copy.anti-slop.vague-transformation", "kind": "interpretive", "reasoningRequirement": "bounded-review" },
+    { "id": "copy.anti-slop.interchangeable-competitor-copy", "kind": "interpretive", "reasoningRequirement": "bounded-review" },
+    { "id": "copy.anti-slop.passive-unspecific-cta", "kind": "interpretive", "reasoningRequirement": "bounded-review" },
+    { "id": "copy.anti-slop.abstract-benefit-stacking", "kind": "interpretive", "reasoningRequirement": "bounded-review" },
+    { "id": "copy.anti-slop.template-repetition", "kind": "interpretive", "reasoningRequirement": "bounded-review" },
+    { "id": "copy.anti-slop.informational-filler", "kind": "interpretive", "reasoningRequirement": "bounded-review" },
     { "id": "copy.anti-slop.unsupported-superlative", "kind": "interpretive", "reasoningRequirement": "bounded-review" }
   ]
 }

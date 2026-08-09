@@ -72,18 +72,22 @@
     },
     {
       "id": "B6-013",
-      "status": "blocked",
-      "mapping": "content inventory + claim-proof ledger",
-      "blockers": [
-        "provider behavior and focused corpus controls pass, but required anti-slop rule registrations are absent from sealed registry/rules/copy/anti-slop.json"
+      "status": "implemented",
+      "mapping": "providers/copy/anti-slop.mjs;registry/rules/copy/anti-slop.json",
+      "evidence": [
+        "providers/copy/anti-slop.mjs",
+        "registry/rules/copy/anti-slop.json",
+        "tests/content-l3-b6-013.test.mjs"
       ]
     },
     {
       "id": "B6-014",
-      "status": "blocked",
-      "mapping": "copy facts & content brief",
-      "blockers": [
-        "provider behavior and focused lane tests pass, but required clarity rule registrations are absent from sealed registry/rules/copy/clarity.json"
+      "status": "implemented",
+      "mapping": "providers/copy/clarity.mjs;registry/rules/copy/clarity.json",
+      "evidence": [
+        "providers/copy/clarity.mjs",
+        "registry/rules/copy/clarity.json",
+        "tests/content-l3.test.mjs"
       ]
     },
     {
@@ -161,10 +165,12 @@
     },
     {
       "id": "B6-025",
-      "status": "blocked",
-      "mapping": "narrative model + claim proof ledger",
-      "blockers": [
-        "provider behavior and focused graph tests pass, but required chronology and attribution rule registrations are absent from sealed registry/rules/narrative/chronology.json"
+      "status": "implemented",
+      "mapping": "providers/narrative/chronology.mjs;registry/rules/narrative/chronology.json",
+      "evidence": [
+        "providers/narrative/chronology.mjs",
+        "registry/rules/narrative/chronology.json",
+        "tests/content-l3-b6-025.test.mjs"
       ]
     },
     {

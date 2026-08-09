@@ -6,6 +6,12 @@
     { "id": "copy.clarity.repeated-hedge", "kind": "interpretive", "reasoningRequirement": "bounded-review" },
     { "id": "copy.clarity.nominalization", "kind": "interpretive", "reasoningRequirement": "bounded-review" },
     { "id": "copy.clarity.unexplained-jargon", "kind": "interpretive", "reasoningRequirement": "bounded-review" },
-    { "id": "copy.clarity.control-label-contradiction", "kind": "deterministic", "reasoningRequirement": "none" }
+    { "id": "copy.clarity.control-label-contradiction", "kind": "deterministic", "reasoningRequirement": "none" },
+    { "id": "copy.clarity.control-label-vague", "kind": "deterministic", "reasoningRequirement": "none" },
+    { "id": "copy.clarity.hedging", "kind": "interpretive", "reasoningRequirement": "bounded-review" },
+    { "id": "copy.clarity.buried-instruction", "kind": "interpretive", "reasoningRequirement": "bounded-review" },
+    { "id": "copy.clarity.nested-clause", "kind": "interpretive", "reasoningRequirement": "bounded-review" },
+    { "id": "copy.clarity.non-specific-language", "kind": "interpretive", "reasoningRequirement": "bounded-review" },
+    { "id": "copy.clarity.subject-action", "kind": "interpretive", "reasoningRequirement": "bounded-review" }
   ]
 }
