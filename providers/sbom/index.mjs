@@ -20,7 +20,7 @@ export function syftCommand({ resolvedSyft, cycloneDxPath, spdxPath, repositoryR
 export function sbomReceipt({ providerVersion, packageCount, sourceScope, syftVersion, cycloneDxDigest, spdxDigest, cycloneDxPath, spdxPath }) {
   return {
     schemaVersion: 1,
-    kind: 'nemesis-sbom-receipt',
+    kind: 'legion-sbom-receipt',
     provider: 'sbom.syft',
     providerVersion,
     packageCount,

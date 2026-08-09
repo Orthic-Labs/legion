@@ -28,7 +28,7 @@ if (!existsSync(policyPath)) {
 }
 
 const policy = JSON.parse(readFileSync(policyPath, 'utf8'));
-if (policy.schemaVersion !== 1 || policy.kind !== 'nemesis-publication-policy') {
+if (policy.schemaVersion !== 1 || policy.kind !== 'legion-publication-policy') {
   console.error('publication blocked: invalid policy');
   process.exit(5);
 }

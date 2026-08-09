@@ -45,7 +45,7 @@ const rejectedMetadata = (artifact) => { const { content: _content, bytesBase64:
 
 export function qualifyWebPlatform({ binding = {}, fixtures = [] } = {}) {
   binding = safeIdentifierFields(binding);
-  if (!Array.isArray(fixtures) || fixtures.some((item) => !item || typeof item !== 'object')) return finalize('nemesis-web-platform-qualification', { status: 'error', terminal: true, provisional: true, claimLevel: 'source', binding, denominator: denominator([], []), receipts: [], rawArtifacts: [], rejectedArtifacts: [], coverageGaps: ['qualification-fixtures-invalid'] });
+  if (!Array.isArray(fixtures) || fixtures.some((item) => !item || typeof item !== 'object')) return finalize('legion-web-platform-qualification', { status: 'error', terminal: true, provisional: true, claimLevel: 'source', binding, denominator: denominator([], []), receipts: [], rawArtifacts: [], rejectedArtifacts: [], coverageGaps: ['qualification-fixtures-invalid'] });
   const receipts = [];
   const rawArtifacts = new Map();
   const rejectedArtifacts = [];
@@ -82,5 +82,5 @@ export function qualifyWebPlatform({ binding = {}, fixtures = [] } = {}) {
   }
   const counts = denominator([...fixtureGroups.keys()], receipts);
   const gaps = [...qualificationGaps, ...counts.missing.map((id) => `fixture-missing:${safeIdentifier(id)}`), ...receipts.flatMap((item) => item.coverageGaps.map((gap) => `${safeIdentifier(item.id)}:${safeGap(gap)}`))];
-  return finalize('nemesis-web-platform-qualification', { status: receipts.some((item) => item.status === 'error') ? 'error' : gaps.length ? 'partial' : 'pass', terminal: true, provisional: true, claimLevel: 'source', binding, denominator: counts, receipts, rawArtifacts: [...rawArtifacts.entries()].sort(([left], [right]) => left.localeCompare(right)).map(([, artifact]) => artifact), rejectedArtifacts: sortById(rejectedArtifacts.map((artifact) => ({ id: `${artifact.family ?? 'unknown'}:${artifact.path ?? 'unknown'}`, artifact }))).map((item) => item.artifact), coverageGaps: gaps.sort() });
+  return finalize('legion-web-platform-qualification', { status: receipts.some((item) => item.status === 'error') ? 'error' : gaps.length ? 'partial' : 'pass', terminal: true, provisional: true, claimLevel: 'source', binding, denominator: counts, receipts, rawArtifacts: [...rawArtifacts.entries()].sort(([left], [right]) => left.localeCompare(right)).map(([, artifact]) => artifact), rejectedArtifacts: sortById(rejectedArtifacts.map((artifact) => ({ id: `${artifact.family ?? 'unknown'}:${artifact.path ?? 'unknown'}`, artifact }))).map((item) => item.artifact), coverageGaps: gaps.sort() });
 }

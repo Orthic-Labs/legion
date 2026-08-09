@@ -44,7 +44,7 @@ test('sbom receipt records package count and artifact digests', () => {
     syftVersion: '1.5.0', cycloneDxDigest: 'sha256:c', spdxDigest: 'sha256:s',
     cycloneDxPath: 'raw/c.json', spdxPath: 'raw/s.json',
   });
-  assert.equal(receipt.kind, 'nemesis-sbom-receipt');
+  assert.equal(receipt.kind, 'legion-sbom-receipt');
   assert.equal(receipt.packageCount, 42);
   assert.equal(receipt.artifacts.length, 2);
 });

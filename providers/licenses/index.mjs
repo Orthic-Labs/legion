@@ -4,7 +4,7 @@
 export function normalizeLicense({ name, version, detected, declared, path }) {
   return {
     schemaVersion: 1,
-    kind: 'nemesis-license-record',
+    kind: 'legion-license-record',
     package: { name, version },
     detected: detected ?? null,
     declared: declared ?? null,
@@ -19,7 +19,7 @@ export function policyResult({ records, policy }) {
     (policy?.allow ?? []).length && !policy.allow.includes(record.detected ?? record.declared));
   return {
     schemaVersion: 1,
-    kind: 'nemesis-license-policy-result',
+    kind: 'legion-license-policy-result',
     total: records.length,
     known: records.length - unknown.length,
     unknown,

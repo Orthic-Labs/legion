@@ -52,7 +52,7 @@ const EXPECTED_SOURCE_DOCUMENT_ID = 'creator.security';
 // Absolute path to the read-only external source ledger. Present in this
 // lane's environment; guarded with existsSync so the verbatim-prose check
 // degrades to a skip (not a false pass) if the external doc is unavailable.
-const EXTERNAL_LEDGER_PATH = 'D:/Claude/docs/plans/nemesis/creator-audits-source-ledger.seed.json';
+const EXTERNAL_LEDGER_PATH = 'D:/Claude/docs/plans/legion/creator-audits-source-ledger.seed.json';
 
 function loadJson(path) {
   return JSON.parse(readFileSync(path, 'utf8'));
@@ -220,7 +220,7 @@ test('the creator archive is not shipped: the seed ledger was not copied into th
   // The ledger's own self-identifying "kind" marker and its full item list
   // shape ("allowedTerminalDispositions") must never appear verbatim here --
   // if they do, the seed was pasted in wholesale rather than referenced.
-  assert.ok(!creatorDerivedRaw.includes('nemesis-creator-audit-source-ledger-seed') || creatorDerivedRaw.includes('"seedKind"') === false,
+  assert.ok(!creatorDerivedRaw.includes('legion-creator-audit-source-ledger-seed') || creatorDerivedRaw.includes('"seedKind"') === false,
     'creator-derived.json must not embed the raw ledger kind marker as ledger content');
   assert.ok(!creatorDerivedRaw.includes('allowedTerminalDispositions'),
     'creator-derived.json must not embed the ledger\'s internal schema fields');
@@ -237,7 +237,7 @@ test('the creator archive is not shipped: the seed ledger was not copied into th
   // No file matching the ledger's own filename pattern should exist inside
   // the implementation repo (it is read-only external input, never shipped).
   assert.ok(!existsSync(`${REPO_ROOT}/creator-audits-source-ledger.seed.json`),
-    'the source ledger seed must not be copied into the nemesis repo root');
+    'the source ledger seed must not be copied into the legion repo root');
   assert.ok(!existsSync(`${REPO_ROOT}/registry/rules/security/creator-audits-source-ledger.seed.json`),
     'the source ledger seed must not be copied into the security registry directory');
 });

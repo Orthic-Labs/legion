@@ -10,7 +10,7 @@ export function evaluateWindowsPlatform(input = {}) {
     if (['authenticode', 'installer'].includes(check.id) && (artifact.final !== true || check.artifactDigest !== artifact.digest)) gaps.push(`windows-final-artifact-unproven:${check.id}`);
   }
   for (const id of WINDOWS_CASES) if (!checks.some((item) => item.id === id && item.terminal === true)) gaps.push(`windows-case-missing:${id}`);
-  return { schemaVersion: 1, kind: 'nemesis-desktop-windows', status: gaps.length ? 'unproven' : 'pass', terminal: true, matrix: boundMatrix, artifact, receipts: checks, coverageGaps: gaps.sort() };
+  return { schemaVersion: 1, kind: 'legion-desktop-windows', status: gaps.length ? 'unproven' : 'pass', terminal: true, matrix: boundMatrix, artifact, receipts: checks, coverageGaps: gaps.sort() };
 }
 
 export async function executeWindowsPlatform({ host, ...input } = {}) { if (!host?.check) return evaluateWindowsPlatform(input); const checks = []; for (const id of WINDOWS_CASES) checks.push(await host.check({ os: 'windows', id, artifact: input.artifact })); return evaluateWindowsPlatform({ ...input, checks }); }

@@ -56,19 +56,19 @@ If the harness has native image generation (Codex), a compact shape's "confirm o
 
 Based on the design brief's "Recommended References" section, consult the relevant impeccable reference files. At minimum, always consult:
 
-- [layout.md](nemesis-skill://designer/engine/reference/layout.md) for layout, spacing, grid, container queries, optical adjustments
-- [typeset.md](nemesis-skill://designer/engine/reference/typeset.md) for type hierarchy, font selection, web font loading, OpenType features (Reference Material section)
+- [layout.md](legion-skill://designer/engine/reference/layout.md) for layout, spacing, grid, container queries, optical adjustments
+- [typeset.md](legion-skill://designer/engine/reference/typeset.md) for type hierarchy, font selection, web font loading, OpenType features (Reference Material section)
 
 Then add references based on the brief's needs:
-- Complex interactions or forms? Consult [interaction-design.md](nemesis-skill://designer/engine/reference/interaction-design.md)
-- Animation or transitions? Consult [animate.md](nemesis-skill://designer/engine/reference/animate.md) (Reference Material covers motion materials, durations, easing, perceived performance)
-- Color-heavy or themed? Consult [colorize.md](nemesis-skill://designer/engine/reference/colorize.md) (Reference Material covers OKLCH, palette structure, dark mode, contrast)
-- Responsive requirements? Consult [morph.md](nemesis-skill://designer/engine/reference/morph.md) (Reference Material covers breakpoints, input methods, safe areas, responsive images)
-- Heavy on copy, labels, or errors? Consult [clarify.md](nemesis-skill://designer/engine/reference/clarify.md) (Reference Material covers button labels, error formula, voice/tone, translation)
+- Complex interactions or forms? Consult [interaction-design.md](legion-skill://designer/engine/reference/interaction-design.md)
+- Animation or transitions? Consult [animate.md](legion-skill://designer/engine/reference/animate.md) (Reference Material covers motion materials, durations, easing, perceived performance)
+- Color-heavy or themed? Consult [colorize.md](legion-skill://designer/engine/reference/colorize.md) (Reference Material covers OKLCH, palette structure, dark mode, contrast)
+- Responsive requirements? Consult [morph.md](legion-skill://designer/engine/reference/morph.md) (Reference Material covers breakpoints, input methods, safe areas, responsive images)
+- Heavy on copy, labels, or errors? Consult [clarify.md](legion-skill://designer/engine/reference/clarify.md) (Reference Material covers button labels, error formula, voice/tone, translation)
 
 ## Step 3: Visual Direction & Assets (Harness-Gated)
 
-If the harness has **native image generation** (currently Codex via `image_gen`), this step is mandatory. **Stop and load [codex.md](nemesis-skill://designer/engine/reference/codex.md)**. It covers palette generation, mock exploration, the approval loop, mock-fidelity inventory, and asset slicing via the `impeccable_asset_producer` subagent. Follow Steps A-F in that file, then return here for Step 4.
+If the harness has **native image generation** (currently Codex via `image_gen`), this step is mandatory. **Stop and load [codex.md](legion-skill://designer/engine/reference/codex.md)**. It covers palette generation, mock exploration, the approval loop, mock-fidelity inventory, and asset slicing via the `impeccable_asset_producer` subagent. Follow Steps A-F in that file, then return here for Step 4.
 
 If the harness lacks native image generation, **state in one line that the visual-direction-by-generation step is being skipped because the harness lacks native image generation, then proceed**. The one-line announcement is required; it forces a conscious decision instead of letting the step quietly evaporate. The brief is your only visual reference. Implement directly from it, treating any named anchor references and the brief's "Design Direction" as the contract.
 

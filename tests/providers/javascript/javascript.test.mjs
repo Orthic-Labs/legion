@@ -98,6 +98,6 @@ test('performance observation flags long tasks and slow interactions', () => {
 
 test('console error observation is structured', () => {
   const error = consoleErrorObservation({ file: 'app.ts', message: 'TypeError', surface: 'home' });
-  assert.equal(error.kind, 'nemesis-console-error');
+  assert.equal(error.kind, 'legion-console-error');
   assert.equal(error.message, 'TypeError');
 });

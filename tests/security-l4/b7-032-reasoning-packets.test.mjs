@@ -25,8 +25,8 @@ const binding = {
 
 const sandbox = {
   schemaVersion: 1,
-  kind: 'nemesis-remediation-sandbox',
-  sandboxPath: '/repo/.git/nemesis-sandboxes/run-1',
+  kind: 'legion-remediation-sandbox',
+  sandboxPath: '/repo/.git/legion-sandboxes/run-1',
   primaryRepositoryMutated: false,
   binding,
   findingRunDigest: 'sha256:findingrun',
@@ -72,7 +72,7 @@ test('proposal owners are a closed, single-authority vocabulary', () => {
 
 test('a packet carries only relevant findings, root causes, proof, scope, protected surfaces, and stop conditions', () => {
   const built = packet();
-  assert.equal(built.kind, 'nemesis-remediation-packet');
+  assert.equal(built.kind, 'legion-remediation-packet');
   assert.equal(built.owner, 'writing');
   assert.deepEqual(built.findingIds, [finding.id]);
   assert.deepEqual(built.scope, ['content/home.md']);
@@ -89,7 +89,7 @@ test('a packet carries only relevant findings, root causes, proof, scope, protec
 test('packets are hostile-input-safe: repository text is enveloped, never instruction', () => {
   const built = packet();
   const [evidence] = built.context;
-  assert.equal(evidence.kind, 'nemesis-untrusted-evidence');
+  assert.equal(evidence.kind, 'legion-untrusted-evidence');
   assert.equal(evidence.trusted, false);
   assert.equal(evidence.sourceDigest, 'sha256:home');
   // The override attempt is recorded, and no packet authority field moved.
@@ -132,7 +132,7 @@ test('a writing proposal changes words only and stays inside its scope', () => {
     changes: [{ kind: 'text', path: 'content/home.md', contentItemId: 'sha256:item', before: 'the #1 fastest platform', after: 'a fast platform' }],
     binding,
   });
-  assert.equal(proposal.kind, 'nemesis-remediation-proposal');
+  assert.equal(proposal.kind, 'legion-remediation-proposal');
   assert.equal(proposal.owner, 'writing');
   assert.equal(proposal.tier, 'WRITING');
   assert.deepEqual(proposal.targetPaths, ['content/home.md']);

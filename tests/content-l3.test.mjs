@@ -53,7 +53,7 @@ test('B6-013 requires context, preserves technical near misses, and records feat
   assert.equal(result.candidates.some(({ contentItemIds }) => contentItemIds.includes('copy:technical')), false);
   assert.equal(result.candidates.some(({ contentItemIds }) => contentItemIds.includes('copy:single-word')), false);
   for (const candidate of result.candidates) {
-    assert.equal(candidate.kind, 'nemesis-copy-candidate');
+    assert.equal(candidate.kind, 'legion-copy-candidate');
     assert.equal(candidate.verdict, 'UNADJUDICATED');
     assert.equal(candidate.detectorKind, 'interpretive');
     assert.ok(candidate.featureVector.context);
@@ -145,27 +145,27 @@ test('B6-021 binds command examples to current contracts and separates factual d
   const result = analyzeDocumentation([
     {
       id: 'docs:command-current',
-      text: 'Run `nemesis scan --dry-run` after creating nemesis.json.',
+      text: 'Run `legion scan --dry-run` after creating legion.json.',
       kind: 'command-help',
       commandId: 'scan',
-      examples: ['nemesis scan --dry-run'],
-      prerequisiteRefs: ['config:nemesis'],
+      examples: ['legion scan --dry-run'],
+      prerequisiteRefs: ['config:legion'],
       audience: 'operators',
       evidenceRefs: ['contract:scan'],
       binding,
     },
     {
       id: 'docs:command-stale',
-      text: 'Run `nemesis scan --legacy`.',
+      text: 'Run `legion scan --legacy`.',
       kind: 'command-help',
       commandId: 'scan',
-      examples: ['nemesis scan --legacy'],
+      examples: ['legion scan --legacy'],
       audience: 'operators',
       binding,
     },
     {
       id: 'docs:release-planned',
-      text: 'Nemesis now ships remote mutation.',
+      text: 'Legion now ships remote mutation.',
       kind: 'release-note',
       releaseState: 'planned',
       claimsShipped: true,
@@ -175,16 +175,16 @@ test('B6-021 binds command examples to current contracts and separates factual d
   ], {
     commandContracts: [{
       id: 'scan',
-      command: 'nemesis scan',
+      command: 'legion scan',
       options: ['--dry-run'],
-      prerequisites: ['config:nemesis'],
+      prerequisites: ['config:legion'],
       evidenceRefs: ['contract:scan'],
     }],
     binding,
   });
 
   assert.equal(result.commandBindings[0].status, 'bound');
-  assert.deepEqual(result.commandBindings[0].examples, ['nemesis scan --dry-run']);
+  assert.deepEqual(result.commandBindings[0].examples, ['legion scan --dry-run']);
   assert.ok(result.findings.some(({ ruleId, contentItemIds }) =>
     ruleId === 'copy.documentation.command-contract-drift' && contentItemIds.includes('docs:command-stale')));
   assert.ok(result.findings.some(({ ruleId, contentItemIds }) =>
@@ -220,7 +220,7 @@ test('B6-021 keeps editorial polish separate and never suggests legal notice rew
 test('B6-025 blocks evidence-backed false sequence and ignores reviewer booleans', () => {
   const model = {
     schemaVersion: 1,
-    kind: 'nemesis-narrative-model',
+    kind: 'legion-narrative-model',
     units: [
       { id: 'unit:hook', role: 'hook', sourceOrder: 0, coldOpen: true, contentItemIds: ['copy:hook'] },
       { id: 'unit:setup', role: 'setup', sourceOrder: 1, contentItemIds: ['copy:setup'] },
@@ -248,7 +248,7 @@ test('B6-025 blocks evidence-backed false sequence and ignores reviewer booleans
 test('B6-025 preserves truthful cold opens and keeps uncertain reordering review-required', () => {
   const result = assessChronology({
     schemaVersion: 1,
-    kind: 'nemesis-narrative-model',
+    kind: 'legion-narrative-model',
     units: [
       { id: 'unit:hook', role: 'hook', sourceOrder: 0, coldOpen: true, contentItemIds: ['copy:hook'] },
       { id: 'unit:setup', role: 'setup', sourceOrder: 1, contentItemIds: ['copy:setup'] },
@@ -301,9 +301,9 @@ test('B6-021 requires a command token boundary and protects authority case-insen
   const result = analyzeDocumentation([
     {
       id: 'docs:prefix-collision',
-      text: 'Run `nemesis scanner`.',
+      text: 'Run `legion scanner`.',
       kind: 'command-help',
-      examples: ['nemesis scanner'],
+      examples: ['legion scanner'],
       audience: 'operators',
       binding,
     },
@@ -316,7 +316,7 @@ test('B6-021 requires a command token boundary and protects authority case-insen
       binding,
     },
   ], {
-    commandContracts: [{ id: 'scan', command: 'nemesis scan', options: [] }],
+    commandContracts: [{ id: 'scan', command: 'legion scan', options: [] }],
     binding,
   });
 
@@ -329,7 +329,7 @@ test('B6-021 requires a command token boundary and protects authority case-insen
 test('B6-025 blocks duplicate unit identities and evidence-backed false attribution', () => {
   const result = assessChronology({
     schemaVersion: 1,
-    kind: 'nemesis-narrative-model',
+    kind: 'legion-narrative-model',
     units: [
       { id: 'unit:source-a', role: 'proof', sourceOrder: 0 },
       { id: 'unit:source-a', role: 'proof', sourceOrder: 1 },

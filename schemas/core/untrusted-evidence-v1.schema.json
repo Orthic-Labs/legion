@@ -25,7 +25,7 @@
       "const": 1
     },
     "kind": {
-      "const": "nemesis-untrusted-evidence"
+      "const": "legion-untrusted-evidence"
     },
     "trusted": {
       "const": false

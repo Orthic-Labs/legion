@@ -29,7 +29,7 @@
 2. **观众会暂停看吗？**（可能截图、做 X 海报、做封面、慢速 review）—— 是 → 每帧要耐看
 3. **客户/用户有「我希望像 XXX 那样」的参照？**（Apple / Anthropic / Nike / Penguin / 某导演）—— 是 → 必须明确视觉语境
 
-任一为「是」就走流程。三个都「否」就跳过，直接用 [animations.md](nemesis-skill://designer/engine/huashu/references/animations.md) 的标准流程。
+任一为「是」就走流程。三个都「否」就跳过，直接用 [animations.md](legion-skill://designer/engine/huashu/references/animations.md) 的标准流程。
 
 ---
 

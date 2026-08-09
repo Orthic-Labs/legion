@@ -82,7 +82,7 @@ test('B8-008 editor diagnostics: canonical ranges, lineage, gaps, preview bindin
   // Legacy single-position findings map onto a canonical range.
   assert.deepEqual(legacy.range, { start: { line: 9, column: 0 }, end: { line: 12, column: 0 } });
   assert.equal(gap.coverageIncomplete, true);
-  assert.equal(gap.code, 'nemesis.coverage-gap');
+  assert.equal(gap.code, 'legion.coverage-gap');
   assert.equal(gap.lineage.state, 'current');
   // Unqualified or unbound remediation never surfaces a preview action.
   const unbound = editorDiagnostics({ report: { findings: [{ id: 'f', ruleId: 'r', remediation: { id: 'p', qualified: true, findingIds: ['other'], patch: { digest: 'sha256:p' } } }] } });

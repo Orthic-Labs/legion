@@ -60,7 +60,7 @@
       },
       "provenance": {
         "kind": "canonical",
-        "source": "nemesis:conditional",
+        "source": "legion:conditional",
         "rights": "internal-contract",
         "lineage": [
           "canonical:conditional:commerce"
@@ -116,7 +116,7 @@
       },
       "provenance": {
         "kind": "canonical",
-        "source": "nemesis:conditional",
+        "source": "legion:conditional",
         "rights": "internal-contract",
         "lineage": [
           "canonical:conditional:ugc"
@@ -172,7 +172,7 @@
       },
       "provenance": {
         "kind": "canonical",
-        "source": "nemesis:conditional",
+        "source": "legion:conditional",
         "rights": "internal-contract",
         "lineage": [
           "canonical:conditional:ai-tools"
@@ -228,7 +228,7 @@
       },
       "provenance": {
         "kind": "canonical",
-        "source": "nemesis:conditional",
+        "source": "legion:conditional",
         "rights": "internal-contract",
         "lineage": [
           "canonical:conditional:pwa-offline"
@@ -284,7 +284,7 @@
       },
       "provenance": {
         "kind": "canonical",
-        "source": "nemesis:conditional",
+        "source": "legion:conditional",
         "rights": "internal-contract",
         "lineage": [
           "canonical:conditional:realtime"
@@ -340,7 +340,7 @@
       },
       "provenance": {
         "kind": "canonical",
-        "source": "nemesis:conditional",
+        "source": "legion:conditional",
         "rights": "internal-contract",
         "lineage": [
           "canonical:conditional:hardware-sensors"
@@ -396,7 +396,7 @@
       },
       "provenance": {
         "kind": "canonical",
-        "source": "nemesis:conditional",
+        "source": "legion:conditional",
         "rights": "internal-contract",
         "lineage": [
           "canonical:conditional:multi-tenant"
@@ -452,7 +452,7 @@
       },
       "provenance": {
         "kind": "canonical",
-        "source": "nemesis:conditional",
+        "source": "legion:conditional",
         "rights": "internal-contract",
         "lineage": [
           "canonical:conditional:regulated-data"
@@ -508,7 +508,7 @@
       },
       "provenance": {
         "kind": "canonical",
-        "source": "nemesis:conditional",
+        "source": "legion:conditional",
         "rights": "internal-contract",
         "lineage": [
           "canonical:conditional:high-consequence"
@@ -564,7 +564,7 @@
       },
       "provenance": {
         "kind": "canonical",
-        "source": "nemesis:conditional",
+        "source": "legion:conditional",
         "rights": "internal-contract",
         "lineage": [
           "canonical:conditional:children-safety"
@@ -620,7 +620,7 @@
       },
       "provenance": {
         "kind": "canonical",
-        "source": "nemesis:conditional",
+        "source": "legion:conditional",
         "rights": "internal-contract",
         "lineage": [
           "canonical:conditional:consent"
@@ -676,7 +676,7 @@
       },
       "provenance": {
         "kind": "canonical",
-        "source": "nemesis:conditional",
+        "source": "legion:conditional",
         "rights": "internal-contract",
         "lineage": [
           "canonical:conditional:human-policy"

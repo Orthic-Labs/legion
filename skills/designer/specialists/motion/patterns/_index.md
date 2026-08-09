@@ -12,15 +12,15 @@ Read `_index.md` (this file) to find the right pattern. Then load only the relev
 
 | File | Patterns | Use for |
 |---|---|---|
-| [`entrance.md`](nemesis-skill://designer/specialists/motion/patterns/entrance.md) | fade-in, slide-up, scale-up, stagger-children, mask-reveal, type-on | Elements appearing |
-| [`exit.md`](nemesis-skill://designer/specialists/motion/patterns/exit.md) | fade-out, slide-down-exit, scale-down, mask-collapse | Elements leaving |
-| [`spatial.md`](nemesis-skill://designer/specialists/motion/patterns/spatial.md) | parallax-scroll, scroll-progress, pinned-section, scrubbed-timeline, pinned-storytelling | Scroll-linked, scroll-driven, scroll-locked |
-| [`attention.md`](nemesis-skill://designer/specialists/motion/patterns/attention.md) | pulse, glow, count-up, badge-ping | Drawing focus |
-| [`layout.md`](nemesis-skill://designer/specialists/motion/patterns/layout.md) | shared-layout-morph, list-reorder, accordion-height, tabs-indicator | Position/size changes, shared transitions |
-| [`gesture.md`](nemesis-skill://designer/specialists/motion/patterns/gesture.md) | drag, swipe, magnetic-cursor, hover-lift, pinch | User-driven motion |
-| [`state.md`](nemesis-skill://designer/specialists/motion/patterns/state.md) | modal-open, drawer-slide, toggle-flip, popover-origin, toast-slide | UI state transitions |
-| [`continuous.md`](nemesis-skill://designer/specialists/motion/patterns/continuous.md) | spinner, marquee, skeleton-shimmer | Loops and loading states |
-| [`showpiece.md`](nemesis-skill://designer/specialists/motion/patterns/showpiece.md) | pin-and-scrub, parallax-layers, horizontal-scroll-section, scroll-scrub-text-fill, load-choreography, smooth-scroll, magnetic-hover, marquee | **Showpiece register ONLY** (SKILL.md §Registers) — immersive marketing/campaign surfaces |
+| [`entrance.md`](legion-skill://designer/specialists/motion/patterns/entrance.md) | fade-in, slide-up, scale-up, stagger-children, mask-reveal, type-on | Elements appearing |
+| [`exit.md`](legion-skill://designer/specialists/motion/patterns/exit.md) | fade-out, slide-down-exit, scale-down, mask-collapse | Elements leaving |
+| [`spatial.md`](legion-skill://designer/specialists/motion/patterns/spatial.md) | parallax-scroll, scroll-progress, pinned-section, scrubbed-timeline, pinned-storytelling | Scroll-linked, scroll-driven, scroll-locked |
+| [`attention.md`](legion-skill://designer/specialists/motion/patterns/attention.md) | pulse, glow, count-up, badge-ping | Drawing focus |
+| [`layout.md`](legion-skill://designer/specialists/motion/patterns/layout.md) | shared-layout-morph, list-reorder, accordion-height, tabs-indicator | Position/size changes, shared transitions |
+| [`gesture.md`](legion-skill://designer/specialists/motion/patterns/gesture.md) | drag, swipe, magnetic-cursor, hover-lift, pinch | User-driven motion |
+| [`state.md`](legion-skill://designer/specialists/motion/patterns/state.md) | modal-open, drawer-slide, toggle-flip, popover-origin, toast-slide | UI state transitions |
+| [`continuous.md`](legion-skill://designer/specialists/motion/patterns/continuous.md) | spinner, marquee, skeleton-shimmer | Loops and loading states |
+| [`showpiece.md`](legion-skill://designer/specialists/motion/patterns/showpiece.md) | pin-and-scrub, parallax-layers, horizontal-scroll-section, scroll-scrub-text-fill, load-choreography, smooth-scroll, magnetic-hover, marquee | **Showpiece register ONLY** (SKILL.md §Registers) — immersive marketing/campaign surfaces |
 
 ## Picking a pattern
 

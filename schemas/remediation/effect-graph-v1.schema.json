@@ -33,7 +33,7 @@
       "const": 1
     },
     "kind": {
-      "const": "nemesis-patch-effect-graph"
+      "const": "legion-patch-effect-graph"
     },
     "proposalId": {
       "type": "string"

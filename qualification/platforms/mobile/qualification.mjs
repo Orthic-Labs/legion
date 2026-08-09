@@ -12,7 +12,7 @@ export function qualifyMobilePlatform({ targetId = null, platform = null, fixtur
     }
   }
   const platformStatus = (name) => { const rows = receipts.filter((item) => item.platform === name); return rows.length && rows.every((item) => item.status === 'pass') ? 'pass' : rows.some((item) => item.status === 'pass') ? 'partial' : 'unproven'; };
-  return { schemaVersion: 1, kind: 'nemesis-mobile-platform-qualification', targetId, platform, status: coverageGaps.length ? 'partial' : 'pass', terminal: true, provisional: true, claimLevel: 'source',
+  return { schemaVersion: 1, kind: 'legion-mobile-platform-qualification', targetId, platform, status: coverageGaps.length ? 'partial' : 'pass', terminal: true, provisional: true, claimLevel: 'source',
     targets: { ios: { status: platformStatus('ios') }, android: { status: platformStatus('android') } }, receipts,
     denominator: { total, accounted: receipts.length }, coverageGaps: [...new Set(coverageGaps)].sort() };
 }

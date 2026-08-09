@@ -14,7 +14,7 @@ test('markdown is a deterministic escaped report projection', () => {
 });
 
 test('release qualification reads evidence from supplied base', () => {
-  const base = mkdtempSync(join(tmpdir(), 'nemesis-qualification-'));
+  const base = mkdtempSync(join(tmpdir(), 'legion-qualification-'));
   const outDir = join(base, 'out');
   try {
     writeFileSync(join(base, 'release-manifest.json'), '{}');

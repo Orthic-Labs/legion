@@ -55,7 +55,7 @@ test('commandContract uses the pinned executable and frozen paths', () => {
 
 test('rewritePreview is preview-only and never applied', () => {
   const preview = rewritePreview({ ruleId: 'no-inner-html', file: 'src/a.ts', edits: [{ startLine: 3, endLine: 3, replacement: 'safeRender($VALUE)' }] });
-  assert.equal(preview.kind, 'nemesis-ast-grep-rewrite-preview');
+  assert.equal(preview.kind, 'legion-ast-grep-rewrite-preview');
   assert.equal(preview.applied, false);
   assert.ok(preview.edits[0].digest.startsWith('sha256:'));
 });

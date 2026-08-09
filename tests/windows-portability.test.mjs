@@ -12,10 +12,10 @@ import { finalizeAudit } from '../audit-finalize.mjs';
 const root = fileURLToPath(new URL('..', import.meta.url));
 
 test('Windows drive paths are normalized once', () => {
-  assert.equal(normalizePath('D:\\D:\\work\\nemesis', 'D:\\work'), 'D:\\work\\nemesis');
-  assert.equal(normalizePath('d:\\D:\\work\\nemesis', 'D:\\work'), 'd:\\work\\nemesis');
-  assert.equal(normalizePath('D:\\d:\\work\\nemesis', 'D:\\work'), 'D:\\work\\nemesis');
-  assert.equal(normalizePath('d:/D:\\work/nemesis', 'D:\\work'), 'd:\\work\\nemesis');
+  assert.equal(normalizePath('D:\\D:\\work\\legion', 'D:\\work'), 'D:\\work\\legion');
+  assert.equal(normalizePath('d:\\D:\\work\\legion', 'D:\\work'), 'd:\\work\\legion');
+  assert.equal(normalizePath('D:\\d:\\work\\legion', 'D:\\work'), 'D:\\work\\legion');
+  assert.equal(normalizePath('d:/D:\\work/legion', 'D:\\work'), 'd:\\work\\legion');
   assert.equal(normalizePath('/tmp/d:/D:/work', '/repo'), resolve('/repo', '/tmp/d:/D:/work'));
 });
 

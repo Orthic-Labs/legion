@@ -122,5 +122,5 @@ test('pickEnvironment only carries allowlisted keys', () => {
 test('blocked helper produces a canonical blocked receipt', () => {
   const receipt = blocked({ provider: 'x', executable: 'tool', args: [], cwd: '/tmp' }, 'reason');
   assert.equal(receipt.spawnStatus, 'blocked');
-  assert.equal(receipt.kind, 'nemesis-execution-result');
+  assert.equal(receipt.kind, 'legion-execution-result');
 });

@@ -21,7 +21,7 @@ export function planMobileHosts({ target = {}, devices = [], requirements = [], 
       cleanup: device ? ['uninstall', 'reset-device-state', 'release-exclusive-key'] : [] };
   });
   const gaps = planned.filter((item) => item.status !== 'available');
-  return { schemaVersion: 1, kind: 'nemesis-mobile-host-plan', status: gaps.length ? 'partial' : 'pass', claimLevel: 'runtime', checkedAt,
+  return { schemaVersion: 1, kind: 'legion-mobile-host-plan', status: gaps.length ? 'partial' : 'pass', claimLevel: 'runtime', checkedAt,
     target, devices: normalizedDevices, requirements: planned,
     exclusiveDeviceKeys: [...new Set(normalizedDevices.filter((item) => item.status === 'available').map((item) => item.exclusiveKey).filter(Boolean))].sort(),
     denominator: { total: planned.length, accounted: planned.length, available: planned.length - gaps.length, gaps: gaps.length },

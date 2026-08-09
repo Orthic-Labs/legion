@@ -26,7 +26,7 @@ export function gitleaksCommand({ resolvedGitleaks, repositoryRoot, mode = 'curr
 export function normalizeFinding(finding, { provider = 'secrets.gitleaks', providerVersion = '8.18.0', mode = 'current' } = {}) {
   return {
     schemaVersion: 1,
-    kind: 'nemesis-secret-finding',
+    kind: 'legion-secret-finding',
     provider,
     providerVersion,
     ruleId: finding.RuleID ?? finding.ruleId ?? 'secret.unknown',
@@ -48,7 +48,7 @@ export function normalizeFinding(finding, { provider = 'secrets.gitleaks', provi
 export function denominatorReceipt({ mode, trackedFiles, untrackedFiles, ignoredFiles, generatedFiles, releaseArtifacts, historyRefs }) {
   return {
     schemaVersion: 1,
-    kind: 'nemesis-secret-denominator',
+    kind: 'legion-secret-denominator',
     mode,
     trackedFiles: trackedFiles ?? 0,
     untrackedFiles: untrackedFiles ?? 0,

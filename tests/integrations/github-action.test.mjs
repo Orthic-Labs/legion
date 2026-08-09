@@ -10,7 +10,7 @@ import { changedFiles, classifyFinding, prScopeResult, stableCommentId } from '.
 test('pre-commit hook uses the fast profile with uncommitted scope', () => {
   assert.match(PRE_COMMIT_HOOK, /--profile fast/);
   assert.match(PRE_COMMIT_HOOK, /--type uncommitted/);
-  assert.match(PRE_COMMIT_HOOK, /npx --no-install @orthic-labs\/nemesis/);
+  assert.match(PRE_COMMIT_HOOK, /npx --no-install @orthic-labs\/legion/);
 });
 
 test('pre-push hook uses the standard profile with local scope', () => {
@@ -19,7 +19,7 @@ test('pre-push hook uses the standard profile with local scope', () => {
 });
 
 test('hook install and uninstall are idempotent', () => {
-  const dir = mkdtempSync(join(tmpdir(), 'nemesis-hooks-'));
+  const dir = mkdtempSync(join(tmpdir(), 'legion-hooks-'));
   try {
     installHook({ root: dir, type: 'pre-commit' });
     assert.equal(hookInstalled({ root: dir, type: 'pre-commit' }), true);
@@ -38,7 +38,7 @@ test('action.yml is composite and installs the package', () => {
   const action = readFileSync(new URL('../../action.yml', import.meta.url), 'utf8');
   assert.match(action, /using: composite/);
   assert.match(action, /npm install --global/);
-  assert.match(action, /nemesis audit/);
+  assert.match(action, /legion audit/);
 });
 
 test('changed-scope classifies introduced vs existing findings', () => {

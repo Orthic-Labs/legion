@@ -103,39 +103,39 @@ If someone could look at this interface and say "AI made that" without doubt, it
 **Category-reflex check.** Run at two altitudes; the second one catches what the first one misses.
 
 - **First-order:** if someone could guess the theme + palette from the category alone, it's the first training-data reflex. Rework the scene sentence and color strategy until the answer isn't obvious from the domain.
-- **Second-order:** if someone could guess the aesthetic family from category-plus-anti-references ("AI workflow tool that's not SaaS-cream → editorial-typographic", "fintech that's not navy-and-gold → terminal-native dark mode"), it's the trap one tier deeper. The first reflex was avoided; the second wasn't. Rework until both answers are not obvious. The brand register's [reflex-reject aesthetic lanes](nemesis-skill://designer/engine/reference/brand.md) list catches the currently-saturated families.
+- **Second-order:** if someone could guess the aesthetic family from category-plus-anti-references ("AI workflow tool that's not SaaS-cream → editorial-typographic", "fintech that's not navy-and-gold → terminal-native dark mode"), it's the trap one tier deeper. The first reflex was avoided; the second wasn't. Rework until both answers are not obvious. The brand register's [reflex-reject aesthetic lanes](legion-skill://designer/engine/reference/brand.md) list catches the currently-saturated families.
 
 ## Commands
 
 | Command | Category | Description | Reference |
 |---|---|---|---|
-| `craft [feature]` | Build | Shape, then build a feature end-to-end | [reference/craft.md](nemesis-skill://designer/engine/reference/craft.md) |
-| `shape [feature]` | Build | Plan UX/UI before writing code | [reference/shape.md](nemesis-skill://designer/engine/reference/shape.md) |
-| `init` | Build | Set up project context: PRODUCT.md, DESIGN.md, live config, next steps | [reference/init.md](nemesis-skill://designer/engine/reference/init.md) |
-| `document` | Build | Generate DESIGN.md from existing project code | [reference/document.md](nemesis-skill://designer/engine/reference/document.md) |
-| `extract [target]` | Build | Pull reusable tokens and components into design system | [reference/extract.md](nemesis-skill://designer/engine/reference/extract.md) |
-| `critique [target]` | Evaluate | UX design review with heuristic scoring | [reference/critique.md](nemesis-skill://designer/engine/reference/critique.md) |
-| `audit [target]` | Evaluate | Technical quality checks (a11y, perf, responsive) | [reference/audit.md](nemesis-skill://designer/engine/reference/audit.md) |
-| `polish [target]` | Refine | Final quality pass before shipping | [reference/polish.md](nemesis-skill://designer/engine/reference/polish.md) |
-| `bolder [target]` | Refine | Amplify safe or bland designs | [reference/bolder.md](nemesis-skill://designer/engine/reference/bolder.md) |
-| `quieter [target]` | Refine | Tone down aggressive or overstimulating designs | [reference/quieter.md](nemesis-skill://designer/engine/reference/quieter.md) |
-| `distill [target]` | Refine | Strip to essence, remove complexity | [reference/distill.md](nemesis-skill://designer/engine/reference/distill.md) |
-| `harden [target]` | Refine | Production-ready: errors, i18n, edge cases | [reference/harden.md](nemesis-skill://designer/engine/reference/harden.md) |
-| `onboard [target]` | Refine | Design first-run flows, empty states, activation | [reference/onboard.md](nemesis-skill://designer/engine/reference/onboard.md) |
-| `animate [target]` | Enhance | Add purposeful animations and motion | [reference/animate.md](nemesis-skill://designer/engine/reference/animate.md) |
-| `colorize [target]` | Enhance | Add strategic color to monochromatic UIs | [reference/colorize.md](nemesis-skill://designer/engine/reference/colorize.md) |
-| `typeset [target]` | Enhance | Improve typography hierarchy and fonts | [reference/typeset.md](nemesis-skill://designer/engine/reference/typeset.md) |
-| `layout [target]` | Enhance | Fix spacing, rhythm, and visual hierarchy | [reference/layout.md](nemesis-skill://designer/engine/reference/layout.md) |
-| `delight [target]` | Enhance | Add personality and memorable touches | [reference/delight.md](nemesis-skill://designer/engine/reference/delight.md) |
-| `overdrive [target]` | Enhance | Push past conventional limits | [reference/overdrive.md](nemesis-skill://designer/engine/reference/overdrive.md) |
-| `clarify [target]` | Fix | Improve UX copy, labels, and error messages | [reference/clarify.md](nemesis-skill://designer/engine/reference/clarify.md) |
-| `morph [target]` | Fix | Morph for different devices and screen sizes | [reference/morph.md](nemesis-skill://designer/engine/reference/morph.md) |
-| `optimize [target]` | Fix | Diagnose and fix UI performance | [reference/optimize.md](nemesis-skill://designer/engine/reference/optimize.md) |
-| `live` | Iterate | Visual variant mode: pick elements in the browser, generate alternatives | [reference/live.md](nemesis-skill://designer/engine/reference/live.md) |
-| `deck [topic]` | Deliverable | HTML slide deck → editable PPTX / PDF (huashu) | [huashu/references/slide-decks.md](nemesis-skill://designer/engine/huashu/references/slide-decks.md) |
-| `motion [target]` | Deliverable | Stage+Sprite motion sequences at 60fps (huashu) | [huashu/references/animations.md](nemesis-skill://designer/engine/huashu/references/animations.md) |
-| `video [target]` | Deliverable | Render motion to MP4 / GIF (huashu) | [huashu/references/video-export.md](nemesis-skill://designer/engine/huashu/references/video-export.md) |
-| `voiceover [target]` | Deliverable | AI voiceover + audio mix (huashu) | [huashu/references/voiceover-pipeline.md](nemesis-skill://designer/engine/huashu/references/voiceover-pipeline.md) |
+| `craft [feature]` | Build | Shape, then build a feature end-to-end | [reference/craft.md](legion-skill://designer/engine/reference/craft.md) |
+| `shape [feature]` | Build | Plan UX/UI before writing code | [reference/shape.md](legion-skill://designer/engine/reference/shape.md) |
+| `init` | Build | Set up project context: PRODUCT.md, DESIGN.md, live config, next steps | [reference/init.md](legion-skill://designer/engine/reference/init.md) |
+| `document` | Build | Generate DESIGN.md from existing project code | [reference/document.md](legion-skill://designer/engine/reference/document.md) |
+| `extract [target]` | Build | Pull reusable tokens and components into design system | [reference/extract.md](legion-skill://designer/engine/reference/extract.md) |
+| `critique [target]` | Evaluate | UX design review with heuristic scoring | [reference/critique.md](legion-skill://designer/engine/reference/critique.md) |
+| `audit [target]` | Evaluate | Technical quality checks (a11y, perf, responsive) | [reference/audit.md](legion-skill://designer/engine/reference/audit.md) |
+| `polish [target]` | Refine | Final quality pass before shipping | [reference/polish.md](legion-skill://designer/engine/reference/polish.md) |
+| `bolder [target]` | Refine | Amplify safe or bland designs | [reference/bolder.md](legion-skill://designer/engine/reference/bolder.md) |
+| `quieter [target]` | Refine | Tone down aggressive or overstimulating designs | [reference/quieter.md](legion-skill://designer/engine/reference/quieter.md) |
+| `distill [target]` | Refine | Strip to essence, remove complexity | [reference/distill.md](legion-skill://designer/engine/reference/distill.md) |
+| `harden [target]` | Refine | Production-ready: errors, i18n, edge cases | [reference/harden.md](legion-skill://designer/engine/reference/harden.md) |
+| `onboard [target]` | Refine | Design first-run flows, empty states, activation | [reference/onboard.md](legion-skill://designer/engine/reference/onboard.md) |
+| `animate [target]` | Enhance | Add purposeful animations and motion | [reference/animate.md](legion-skill://designer/engine/reference/animate.md) |
+| `colorize [target]` | Enhance | Add strategic color to monochromatic UIs | [reference/colorize.md](legion-skill://designer/engine/reference/colorize.md) |
+| `typeset [target]` | Enhance | Improve typography hierarchy and fonts | [reference/typeset.md](legion-skill://designer/engine/reference/typeset.md) |
+| `layout [target]` | Enhance | Fix spacing, rhythm, and visual hierarchy | [reference/layout.md](legion-skill://designer/engine/reference/layout.md) |
+| `delight [target]` | Enhance | Add personality and memorable touches | [reference/delight.md](legion-skill://designer/engine/reference/delight.md) |
+| `overdrive [target]` | Enhance | Push past conventional limits | [reference/overdrive.md](legion-skill://designer/engine/reference/overdrive.md) |
+| `clarify [target]` | Fix | Improve UX copy, labels, and error messages | [reference/clarify.md](legion-skill://designer/engine/reference/clarify.md) |
+| `morph [target]` | Fix | Morph for different devices and screen sizes | [reference/morph.md](legion-skill://designer/engine/reference/morph.md) |
+| `optimize [target]` | Fix | Diagnose and fix UI performance | [reference/optimize.md](legion-skill://designer/engine/reference/optimize.md) |
+| `live` | Iterate | Visual variant mode: pick elements in the browser, generate alternatives | [reference/live.md](legion-skill://designer/engine/reference/live.md) |
+| `deck [topic]` | Deliverable | HTML slide deck → editable PPTX / PDF (huashu) | [huashu/references/slide-decks.md](legion-skill://designer/engine/huashu/references/slide-decks.md) |
+| `motion [target]` | Deliverable | Stage+Sprite motion sequences at 60fps (huashu) | [huashu/references/animations.md](legion-skill://designer/engine/huashu/references/animations.md) |
+| `video [target]` | Deliverable | Render motion to MP4 / GIF (huashu) | [huashu/references/video-export.md](legion-skill://designer/engine/huashu/references/video-export.md) |
+| `voiceover [target]` | Deliverable | AI voiceover + audio mix (huashu) | [huashu/references/voiceover-pipeline.md](legion-skill://designer/engine/huashu/references/voiceover-pipeline.md) |
 
 The `hooks <on|off|status|...>` management command is detailed below. Standalone shortcut generation is disabled so the engine cannot recreate top-level command clutter.
 
@@ -164,10 +164,10 @@ The `deck` / `motion` / `video` / `voiceover` commands route into the folded-in 
 
 Setup (context gathering, register) is already loaded by then; sub-commands don't re-invoke `/designer`.
 
-If the first word is `craft`, setup still runs first, but [reference/craft.md](nemesis-skill://designer/engine/reference/craft.md) owns the rest of the flow. If setup invokes `init` as a blocker, finish init, refresh context, then resume the original command and target.
+If the first word is `craft`, setup still runs first, but [reference/craft.md](legion-skill://designer/engine/reference/craft.md) owns the rest of the flow. If setup invokes `init` as a blocker, finish init, refresh context, then resume the original command and target.
 
-`teach` is a deprecated alias for `init`: if the user types it, load [reference/init.md](nemesis-skill://designer/engine/reference/init.md) and proceed as if they ran `init`.
+`teach` is a deprecated alias for `init`: if the user types it, load [reference/init.md](legion-skill://designer/engine/reference/init.md) and proceed as if they ran `init`.
 
 ## Hooks
 
-`/designer hooks <on|off|status|ignore-rule|ignore-file|ignore-value|reset>` manages the design detector hook for this project. The hook auto-runs the detector after direct UI file edits and surfaces findings as system reminders. Full flow is in [reference/hooks.md](nemesis-skill://designer/engine/reference/hooks.md); load it when the user invokes `/designer hooks` with any argument.
+`/designer hooks <on|off|status|ignore-rule|ignore-file|ignore-value|reset>` manages the design detector hook for this project. The hook auto-runs the detector after direct UI file edits and surfaces findings as system reminders. Full flow is in [reference/hooks.md](legion-skill://designer/engine/reference/hooks.md); load it when the user invokes `/designer hooks` with any argument.

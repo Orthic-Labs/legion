@@ -1,9 +1,9 @@
 {
   "schemaVersion": 2,
-  "kind": "nemesis-book-qualification",
+  "kind": "legion-book-qualification",
   "book": 3,
   "expectedTaskCount": 30,
-  "sourceRevision": "content.sha256:e4570114e50219ad5a2b4701fe2da08892e626e686962174b468594f3692872b",
+  "sourceRevision": "content.sha256:3591c84a76068f4049ea44fa8c41251d29d512f7d72871b093bd21340f35c937+dirty",
   "decision": "SOURCE_IMPLEMENTED",
   "claimLevel": "source",
   "sourceAccounting": {
@@ -28,9 +28,9 @@
         "implementation": [
           {
             "path": "registry/providers.json",
-            "symbol": "nemesis-provider-registry",
-            "digest": "sha256:85e0551208d5b0c4e81239b0cb93f791c5f34526d7a4ef6c067c5cc6c74fae87",
-            "bytes": 123149
+            "symbol": "legion-provider-registry",
+            "digest": "sha256:af113858f65d30cbedbf540b13b0c6ea32657cd7c7144703e403b7d9e0ec5d34",
+            "bytes": 123148
           },
           {
             "path": "registry/provider-aliases.json",
@@ -88,8 +88,8 @@
           {
             "path": "lib/providers/executor/external-process.mjs",
             "symbol": "runExternal",
-            "digest": "sha256:ba9c4769548171b4736bfa24084d4598a7125c0f6f4c21af81e9165d26ef8449",
-            "bytes": 6698
+            "digest": "sha256:2697fc8b20a2f0b01b2e184d9890030129d70fba4113d1eb9471474ab2220a2b",
+            "bytes": 6696
           },
           {
             "path": "lib/providers/executor/tool-identity.mjs",
@@ -105,9 +105,9 @@
           },
           {
             "path": "schemas/provider/tool-receipt-v1.schema.json",
-            "symbol": "nemesis-tool-receipt-v1",
-            "digest": "sha256:277c496791bba17bd2d1d94b960a5eeab9c70190610c5c8c3b91e2932c8fabbf",
-            "bytes": 798
+            "symbol": "legion-tool-receipt-v1",
+            "digest": "sha256:15cb80dbd1ec4ba9aa407a733581d5b6294ea1c772d7b76e48dadca7cb69f5f8",
+            "bytes": 797
           }
         ],
         "proof": {
@@ -153,8 +153,8 @@
           {
             "path": "providers/ast-grep/index.mjs",
             "symbol": "stableFingerprint",
-            "digest": "sha256:c96709eafbfbddc9df0582d197698a84c21e03d63fdeea7346ee8ddb538948b1",
-            "bytes": 3689
+            "digest": "sha256:4d22181207d40a08e2ceddc877a360090078f611d9e3a05cdab610a4672817f3",
+            "bytes": 3612
           },
           {
             "path": "registry/rules/code/ast-grep/core.json",
@@ -164,9 +164,9 @@
           },
           {
             "path": "schemas/provider/structural-match-v1.schema.json",
-            "symbol": "nemesis-structural-match-v1",
-            "digest": "sha256:a884bf2a3b3f72b0e58fee6741607c0ad946a53fcae2075e35f417459897af8d",
-            "bytes": 443
+            "symbol": "legion-structural-match-v1",
+            "digest": "sha256:390f00dce68874c1dae8403aa31df22c362e5c0fd535f259bb5acc5a4bf903e1",
+            "bytes": 442
           }
         ],
         "proof": {
@@ -212,8 +212,8 @@
           {
             "path": "providers/opengrep/index.mjs",
             "symbol": "toCandidate",
-            "digest": "sha256:3fffecd982f6f449e98f854bc93da0b757e0c186b9142c8e30f21b214c170a0b",
-            "bytes": 6191
+            "digest": "sha256:621eaf260aee5bfb12e7f38615c65d062804eee842895d8783a53917034c3dbe",
+            "bytes": 6078
           },
           {
             "path": "registry/rules/security/opengrep/core.json",
@@ -223,9 +223,9 @@
           },
           {
             "path": "schemas/provider/sast-candidate-v1.schema.json",
-            "symbol": "nemesis-sast-candidate-v1",
-            "digest": "sha256:ebc13bbd3ebbf070aaa23b2af18615690cba8d2a7f181addd26a0ebff8e61b1e",
-            "bytes": 383
+            "symbol": "legion-sast-candidate-v1",
+            "digest": "sha256:46790eb5197dd8e928cfbebebbccfa03f88f6f302e8c8eb5f708c0c660a43efd",
+            "bytes": 382
           }
         ],
         "proof": {
@@ -276,9 +276,9 @@
           },
           {
             "path": "schemas/provider/imported-sarif-v1.schema.json",
-            "symbol": "nemesis-imported-sarif-v1",
-            "digest": "sha256:adc06a85866c4e40b109e4a4dbbf9477adcc06f47e429d3abe49fafec4d0a74f",
-            "bytes": 455
+            "symbol": "legion-imported-sarif-v1",
+            "digest": "sha256:f7f8d9b1d498a73e9eeb2c75871060c0f18c1b958b13e3d5438d95269fa331b4",
+            "bytes": 454
           }
         ],
         "proof": {
@@ -324,14 +324,14 @@
           {
             "path": "providers/secrets/index.mjs",
             "symbol": "denominatorReceipt",
-            "digest": "sha256:ef6066a25704c1c9b71f6b7e31eda0892aa4c6a52fdb220e3017cbb2e624a146",
-            "bytes": 3614
+            "digest": "sha256:254568a3b0db75c1eb00f89962d59a291863083a6b1a0f878779d3401aaa8673",
+            "bytes": 3569
           },
           {
             "path": "schemas/provider/secret-receipt-v1.schema.json",
-            "symbol": "nemesis-secret-receipt-v1",
-            "digest": "sha256:8ea9f985c4992808748498e17b7e992e54615e0e1b3189c09495f89bf6c0bd84",
-            "bytes": 397
+            "symbol": "legion-secret-receipt-v1",
+            "digest": "sha256:72146b07875dc0824935446d5b7cf55f00350928a37647e9993954120fd3b8c9",
+            "bytes": 396
           }
         ],
         "proof": {
@@ -382,9 +382,9 @@
           },
           {
             "path": "schemas/provider/dependency-receipt-v1.schema.json",
-            "symbol": "nemesis-dependency-receipt-v1",
-            "digest": "sha256:382da6775e045efe572e09c27cc8d20b49cad78e85fc8f931c137f1d7d21b24a",
-            "bytes": 399
+            "symbol": "legion-dependency-receipt-v1",
+            "digest": "sha256:07054ce729efb4ddfb3c5a5ff0a1a30eb63beb625b22704b2f81b5d1c20b0eac",
+            "bytes": 398
           }
         ],
         "proof": {
@@ -430,14 +430,14 @@
           {
             "path": "providers/licenses/index.mjs",
             "symbol": "normalizeLicense",
-            "digest": "sha256:b4cd0773c517718c1cdb01b73df5fbdfb4b76ac1b7b789cc320a2770cd095a29",
-            "bytes": 1031
+            "digest": "sha256:b9193983604f75d9d93d8e4b19bba3f2a481e440cd5ba4aa03236ae34d0bfffe",
+            "bytes": 1000
           },
           {
             "path": "providers/sbom/index.mjs",
             "symbol": "sbomReceipt",
-            "digest": "sha256:795123f5d9c0ee54f4abea4fb2f9e3a3d2ec5fd98ac4c8a1a0601bb2e9213a41",
-            "bytes": 1202
+            "digest": "sha256:20b3c031d06e96aa35e89f2db7c5140d861b3ed82cfffb5548834ec612fb678f",
+            "bytes": 1167
           },
           {
             "path": "providers/provenance/index.mjs",
@@ -447,9 +447,9 @@
           },
           {
             "path": "schemas/provider/sbom-receipt-v1.schema.json",
-            "symbol": "nemesis-sbom-receipt-v1",
-            "digest": "sha256:8ee5e526480dcd5d50a8eca51f6a6c76b9e2dda0e0deb41f1991894c92943e89",
-            "bytes": 333
+            "symbol": "legion-sbom-receipt-v1",
+            "digest": "sha256:3616ab3354dc0740b1166350c13e93f940750042a1c5d3b616a987d817bd36d5",
+            "bytes": 332
           }
         ],
         "proof": {
@@ -495,14 +495,14 @@
           {
             "path": "providers/container-iac/index.mjs",
             "symbol": "infrastructureDenominator",
-            "digest": "sha256:03635b9770102589ab69766d26cf9792d182cf1f0aca9e03244df7e3dbf7efd3",
-            "bytes": 2991
+            "digest": "sha256:9ad4415c1cdc0e8b08df28ed39b4d9a621da3e80cd38d5112d42ee3a65ec7bb7",
+            "bytes": 2951
           },
           {
             "path": "schemas/provider/infrastructure-receipt-v1.schema.json",
-            "symbol": "nemesis-infrastructure-receipt-v1",
-            "digest": "sha256:c1c2db8ef0e327130aa2db527b0936200b569f09008b0855ad14a4f25134fae9",
-            "bytes": 382
+            "symbol": "legion-infrastructure-receipt-v1",
+            "digest": "sha256:dd3191f23db4476e90d81d2c80056576b779f25b48894f2797eef75a50bf2a19",
+            "bytes": 381
           }
         ],
         "proof": {
@@ -556,9 +556,9 @@
           },
           {
             "path": "schemas/provider/reachability-v1.schema.json",
-            "symbol": "nemesis-reachability-v1",
-            "digest": "sha256:44e23af34be163274457b6150839afc0c096a611e94db1c161a8e4af9fe0a7c1",
-            "bytes": 338
+            "symbol": "legion-reachability-v1",
+            "digest": "sha256:c82d70ed6f84ccea2043652775c37e9c36c88eb4dd546fd0cd464ae01a83ec55",
+            "bytes": 337
           }
         ],
         "proof": {
@@ -603,15 +603,15 @@
         "implementation": [
           {
             "path": "registry/coverage/index.json",
-            "symbol": "nemesis-coverage-registry",
-            "digest": "sha256:d0862d2dbd9b06ffb7196bb3fd0ce4348b379fc6f0c263a70773334c69ec4ddb",
-            "bytes": 15736
+            "symbol": "legion-coverage-registry",
+            "digest": "sha256:53a455e5e9df6ab0534336c4ce6b68f64736c4b6ff3e7a5742436faa66706388",
+            "bytes": 15735
           },
           {
             "path": "schemas/provider/coverage-v2.schema.json",
-            "symbol": "nemesis-coverage-v2",
-            "digest": "sha256:e0221709b8290d2f12105c71f83391b11a258a0805fa36424690f24cc313462c",
-            "bytes": 1767
+            "symbol": "legion-coverage-v2",
+            "digest": "sha256:99315d588347f70a00956a0c718960275eb5c3850499792ea463e9a47a11a4fb",
+            "bytes": 1766
           },
           {
             "path": "lib/coverage/index.mjs",
@@ -927,14 +927,14 @@
           {
             "path": "providers/build/maven/index.mjs",
             "symbol": "mavenCommand",
-            "digest": "sha256:5d118150811981e9272397149484728fa098a3a35b8cdf24e36715e62d50dedb",
-            "bytes": 735
+            "digest": "sha256:d63392e057ad7463b89ccf8fc470848f3c591bf7f696bd80f1d6c52ec34ae9c7",
+            "bytes": 711
           },
           {
             "path": "providers/build/gradle/index.mjs",
             "symbol": "gradleCommand",
-            "digest": "sha256:d69df3f731338724bb2e35a2a23a3f28c28f9f1e85f098b7886dfb3b4b1feaa8",
-            "bytes": 835
+            "digest": "sha256:e0872996c2891e7a7f0577d591dacc1ae270deb9c47f33d01839a755b07a09e7",
+            "bytes": 810
           },
           {
             "path": "registry/coverage/language.jvm.json",
@@ -1061,8 +1061,8 @@
           {
             "path": "providers/build/cmake/index.mjs",
             "symbol": "cmakeCommand",
-            "digest": "sha256:72034eeeadb069e683485efc709010869ceaa62e2d3955cef90c66847626fa46",
-            "bytes": 751
+            "digest": "sha256:ee1963a8f285fc24eb6eee1f8be271fa7307d250c7e3de6de8e09f829bd0686c",
+            "bytes": 729
           },
           {
             "path": "registry/coverage/language.c-family.json",
@@ -1546,9 +1546,9 @@
           },
           {
             "path": "schemas/provider/component-v1.schema.json",
-            "symbol": "nemesis-provider-component-v1",
-            "digest": "sha256:81a0b7983a41d78dc058fd92325288bc7eab3a4f07cc8a03b0452920b605fe9d",
-            "bytes": 373
+            "symbol": "legion-provider-component-v1",
+            "digest": "sha256:eaf1509a895c9d5f4a932332008193d5b1626c3148d464e840590caffb8fcd8c",
+            "bytes": 372
           }
         ],
         "proof": {
@@ -1618,9 +1618,9 @@
           },
           {
             "path": "schemas/provider/architecture-finding-v1.schema.json",
-            "symbol": "nemesis-architecture-finding-v1",
-            "digest": "sha256:e9bc885da0123c57d270b5a044fa80034c0b6d1845d344cf22fa8a75828f691f",
-            "bytes": 483
+            "symbol": "legion-architecture-finding-v1",
+            "digest": "sha256:3b8ea453bc4c61964aefe9acdcfe6a3f6ef960549cec4c8091b1392578453be0",
+            "bytes": 482
           }
         ],
         "proof": {
@@ -1769,27 +1769,27 @@
           },
           {
             "path": "schemas/requirements/requirement-v1.schema.json",
-            "symbol": "nemesis-requirement-v1",
-            "digest": "sha256:3dbfd8310c1ab9de1dd9ee00e0ce4cc8710074f64c8c23233527a8f4b6ea21bc",
-            "bytes": 430
+            "symbol": "legion-requirement-v1",
+            "digest": "sha256:3dcd799e7818242a95d29947b76ba30aefd2515a557065d4d7f187ff9c425656",
+            "bytes": 429
           },
           {
             "path": "schemas/requirements/traceability-v1.schema.json",
-            "symbol": "nemesis-traceability-v1",
-            "digest": "sha256:de1106b21b45b15d472e3c1fb6f52e919b496d7f59d401ed08b36c0b12b26f90",
-            "bytes": 323
+            "symbol": "legion-traceability-v1",
+            "digest": "sha256:6d3aba6469ad28ee6794f6887b756a8a8edfd05724b22209b26da116fefedd7d",
+            "bytes": 322
           },
           {
             "path": "schemas/governance/policy-evidence-v1.schema.json",
-            "symbol": "nemesis-policy-evidence-v1",
-            "digest": "sha256:a3b8940516fcd78210d5e891a5b388f70b0a2c81a8d96eb79997ba11fbb73f19",
-            "bytes": 442
+            "symbol": "legion-policy-evidence-v1",
+            "digest": "sha256:dfa655fd8dcd2ad2eb367bedc6e8719f76e60f560a95e85d755a62d3906a90c7",
+            "bytes": 441
           },
           {
             "path": "schemas/provider/doc-claim-v1.schema.json",
-            "symbol": "nemesis-doc-claim-v1",
-            "digest": "sha256:d1aa3a9c827ddda5ce69510403b80b669221982e7e623777ad41ba1f0e51401b",
-            "bytes": 439
+            "symbol": "legion-doc-claim-v1",
+            "digest": "sha256:2674e30a8ce53714c2d56f6932d61449d5bed3d0d5bd77053b2a871da139f229",
+            "bytes": 438
           }
         ],
         "proof": {
@@ -1963,8 +1963,8 @@
           {
             "path": "scripts/qualify-book.mjs",
             "symbol": "discoverBookTests",
-            "digest": "sha256:ae426c2d96d477ee176850e40eb4344737d50f657f7ecdea1d9fb77da23a4f2b",
-            "bytes": 4875
+            "digest": "sha256:d54868eaaa2cb245463b75b9dfe6ce00dcde0a7de4617807e7d45fdab11e6c29",
+            "bytes": 4816
           },
           {
             "path": "scripts/generate-catalogs.mjs",

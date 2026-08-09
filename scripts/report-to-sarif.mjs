@@ -13,10 +13,10 @@ const LEVEL = {
 // One canonical product identity for every machine output. No legacy
 // Legacy prototype naming may survive in imported artifacts.
 const TOOL = Object.freeze({
-  name: 'Nemesis',
-  fullName: 'Orthic Labs Nemesis',
+  name: 'Legion',
+  fullName: 'Orthic Labs Legion',
   organization: 'Orthic Labs',
-  informationUri: 'https://github.com/Orthic-Labs/nemesis',
+  informationUri: 'https://github.com/Orthic-Labs/legion',
 });
 
 function locationFor(finding) {
@@ -70,9 +70,9 @@ export function reportToSarif(report) {
       // Stable semantic fingerprint, never presentation text. Based on the
       // finding's semantic identity so line moves do not create new findings.
       partialFingerprints: {
-        'nemesisFinding/v1': String(finding.id ?? finding.candidateId ?? finding.ruleId),
+        'legionFinding/v1': String(finding.id ?? finding.candidateId ?? finding.ruleId),
         ...(finding.rootCauseDigest || finding.rootCauseSignature
-          ? { 'nemesisRootCause/v1': String(finding.rootCauseDigest ?? finding.rootCauseSignature) }
+          ? { 'legionRootCause/v1': String(finding.rootCauseDigest ?? finding.rootCauseSignature) }
           : {}),
       },
       properties,
@@ -103,7 +103,7 @@ export function reportToSarif(report) {
       message: { text: `Proven attack path: ${path.objective?.id ?? ''} (${path.severity ?? 'unknown'})` },
       locations: threadFlow[0]?.location ? [threadFlow[0].location] : [],
       partialFingerprints: {
-        'nemesisPath/v1': String(path.id ?? path.pathId),
+        'legionPath/v1': String(path.id ?? path.pathId),
       },
       codeFlows: threadFlow.length
         ? [{ threadFlows: [{ id: `path-${path.id ?? path.pathId}`, locations: threadFlow }] }]
@@ -124,7 +124,7 @@ export function reportToSarif(report) {
       tool: {
         driver: {
           ...TOOL,
-          semanticVersion: report?.tool?.version ?? report?.nemesisVersion ?? '0.0.0-dev',
+          semanticVersion: report?.tool?.version ?? report?.legionVersion ?? '0.0.0-dev',
           rules: [...rules.values()].sort((left, right) => left.id.localeCompare(right.id)),
         },
       },

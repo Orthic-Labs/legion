@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "legion-run-identity-v1",
   "title": "RunIdentity",
-  "description": "Workspace/repo/revision/dirty-digest binding for a Legion run. Grounded in IMPLEMENTATION-PLAN.md §7.1 'Source identity' (workspace, repository, revision, dirty digest, release candidate, Cortex generation, policy, timestamp) and aligned in field intent with the existing nemesis schemas/core/binding-v1.schema.json (repository, revision, dirtyOverlayDigest, registryDigests) without importing or modifying it.",
+  "description": "Workspace/repo/revision/dirty-digest binding for a Legion run. Grounded in IMPLEMENTATION-PLAN.md §7.1 'Source identity' (workspace, repository, revision, dirty digest, release candidate, Cortex generation, policy, timestamp) and aligned in field intent with the existing legion schemas/core/binding-v1.schema.json (repository, revision, dirtyOverlayDigest, registryDigests) without importing or modifying it.",
   "type": "object",
   "additionalProperties": false,
   "required": ["schemaVersion", "kind", "runId", "workspace", "repository", "revision", "dirtyDigest", "capturedAt"],
@@ -22,7 +22,7 @@
     "repository": {
       "type": "string",
       "minLength": 1,
-      "description": "Repository identity (name or path), matching nemesis binding-v1's 'repository' field intent."
+      "description": "Repository identity (name or path), matching legion binding-v1's 'repository' field intent."
     },
     "revision": {
       "type": "string",
@@ -31,7 +31,7 @@
     },
     "dirtyDigest": {
       "type": ["string", "null"],
-      "description": "Digest of the uncommitted-overlay state, or null when the tree was clean. Equivalent in intent to nemesis binding-v1's 'dirtyOverlayDigest'.",
+      "description": "Digest of the uncommitted-overlay state, or null when the tree was clean. Equivalent in intent to legion binding-v1's 'dirtyOverlayDigest'.",
       "pattern": "^sha256:[0-9a-f]{64}$"
     },
     "releaseCandidate": {
@@ -49,7 +49,7 @@
     },
     "registryDigests": {
       "type": "object",
-      "description": "Operation-registry / schema-bundle digests bound at capture time (aligned with nemesis binding-v1's 'registryDigests')."
+      "description": "Operation-registry / schema-bundle digests bound at capture time (aligned with legion binding-v1's 'registryDigests')."
     },
     "capturedAt": {
       "type": "string",

@@ -19,30 +19,30 @@ test('B8-001 exposes one explicit versioned public surface', async () => {
 
 test('B8-003 wires every advertised read-only MCP tool to bounded operations', async () => {
   const { listTools, callTool } = await import('../integrations/mcp/tools.mjs');
-  const expected = ['nemesis_doctor', 'nemesis_plan', 'nemesis_audit', 'nemesis_verify', 'nemesis_get_run', 'nemesis_get_finding', 'nemesis_explain', 'nemesis_list_providers', 'nemesis_list_languages', 'nemesis_list_families', 'nemesis_list_skills'];
+  const expected = ['legion_doctor', 'legion_plan', 'legion_audit', 'legion_verify', 'legion_get_run', 'legion_get_finding', 'legion_explain', 'legion_list_providers', 'legion_list_languages', 'legion_list_families', 'legion_list_skills'];
   assert.deepEqual(listTools().map(({ name }) => name), expected);
   assert.ok(listTools().every(({ inputSchema }) => inputSchema.additionalProperties === false));
   const calls = [];
   const core = {
     doctor: async (options) => (calls.push(['doctor', options]), { status: 'pass', gapIds: [] }),
-    plan: async (options) => (calls.push(['plan', options]), { kind: 'nemesis-sealed-plan', planDigest: 'sha256:p' }),
+    plan: async (options) => (calls.push(['plan', options]), { kind: 'legion-sealed-plan', planDigest: 'sha256:p' }),
     audit: async (options) => (calls.push(['audit', options]), { report: { id: 'run-1' }, artifacts: { runDir: '.audit/run-1' } }),
     verify: async (options) => (calls.push(['verify', options]), { valid: true }),
     providers: () => ['p1'], languages: () => ['js'], families: () => ['security'], skills: () => ['designer'],
     getRun: async (options) => (calls.push(['getRun', options]), { run: options.run, artifact: 'report.json', content: { findings: [] } }),
     getFinding: async (options) => (calls.push(['getFinding', options]), { run: options.run, findingId: options.findingId, finding: null }),
-    explain: async (options) => (calls.push(['explain', options]), { kind: 'nemesis-explain', id: options.id, found: false }),
+    explain: async (options) => (calls.push(['explain', options]), { kind: 'legion-explain', id: options.id, found: false }),
   };
   for (const name of expected.slice(0, 4)) {
     const result = await callTool({ name, arguments: { root: '.' } }, { root: process.cwd(), core, maxOutputBytes: 4096 });
     assert.equal(result.isError, false, `${name} must execute`);
   }
   assert.deepEqual(calls.map(([name]) => name), ['doctor', 'plan', 'audit', 'verify']);
-  const escaped = await callTool({ name: 'nemesis_doctor', arguments: { root: '..' } }, { root: process.cwd(), core });
+  const escaped = await callTool({ name: 'legion_doctor', arguments: { root: '..' } }, { root: process.cwd(), core });
   assert.equal(escaped.isError, true);
-  assert.equal((await callTool({ name: 'nemesis_doctor', arguments: {} }, { root: process.cwd(), core })).isError, true);
-  assert.equal((await callTool({ name: 'nemesis_list_skills', arguments: { extra: true } }, { root: process.cwd(), core })).isError, true);
-  for (const [name, args] of [['nemesis_get_run', { run: 'run-1' }], ['nemesis_get_finding', { run: 'run-1', findingId: 'f-1' }], ['nemesis_explain', { id: 'f-1', run: 'run-1' }]]) {
+  assert.equal((await callTool({ name: 'legion_doctor', arguments: {} }, { root: process.cwd(), core })).isError, true);
+  assert.equal((await callTool({ name: 'legion_list_skills', arguments: { extra: true } }, { root: process.cwd(), core })).isError, true);
+  for (const [name, args] of [['legion_get_run', { run: 'run-1' }], ['legion_get_finding', { run: 'run-1', findingId: 'f-1' }], ['legion_explain', { id: 'f-1', run: 'run-1' }]]) {
     const result = await callTool({ name, arguments: args }, { root: process.cwd(), core });
     assert.equal(result.isError, false, `${name} must call injected core`);
   }
@@ -98,13 +98,13 @@ test('B8-008 preserves canonical fingerprints, ranges, lineage, gaps, and previe
 test('B8-017 generates non-empty package SBOMs, shipped notices, and typed provenance blockers', async () => {
   const { generateSboms, inventoryRuntimeDependencies, inventoryDistribution, reconcileDistributionContents } = await import('../lib/distribution/sbom.mjs');
   const { buildNoticeInventory, renderNotices } = await import('../lib/distribution/notices.mjs');
-  const components = [{ name: 'nemesis', version: '1.0.0', license: 'SEE LICENSE', source: 'local', shipped: true, distributionStatus: 'integrated' }];
-  const sboms = generateSboms({ name: 'nemesis', components });
+  const components = [{ name: 'legion', version: '1.0.0', license: 'SEE LICENSE', source: 'local', shipped: true, distributionStatus: 'integrated' }];
+  const sboms = generateSboms({ name: 'legion', components });
   assert.equal(sboms.cyclonedx.components.length, 1);
   assert.equal(sboms.spdx.packages.length, 1);
   const inventory = buildNoticeInventory(components);
   assert.equal(inventory.blockers.length, 0);
-  assert.match(renderNotices(inventory.components), /nemesis/);
+  assert.match(renderNotices(inventory.components), /legion/);
   assert.deepEqual(buildNoticeInventory([{ name: 'creator', shipped: true, source: 'external', license: null }]).blockers[0].kind, 'redistribution-rights-unresolved');
   const runtimeInventory = inventoryRuntimeDependencies({ packageManifest: { dependencies: { alpha: '1.2.3' } }, provenance: { alpha: { source: 'registry', digest: 'sha256:a', license: 'MIT' } } });
   assert.deepEqual(runtimeInventory[0], { type: 'library', name: 'alpha', version: '1.2.3', source: 'registry', digest: 'sha256:a', license: 'MIT', shipped: true, distributionStatus: 'integrated' });
@@ -115,10 +115,10 @@ test('B8-017 generates non-empty package SBOMs, shipped notices, and typed prove
 });
 
 test('B8-018 release manifests bind final bytes and fail closed on empty SBOM or placeholder signature', async () => {
-  const root = mkdtempSync(join(tmpdir(), 'nemesis-release-'));
+  const root = mkdtempSync(join(tmpdir(), 'legion-release-'));
   mkdirSync(join(root, 'dist'));
   writeFileSync(join(root, 'dist', 'pkg.tgz'), 'final-bytes');
-  writeFileSync(join(root, 'sbom.json'), JSON.stringify({ components: [{ name: 'nemesis' }] }));
+  writeFileSync(join(root, 'sbom.json'), JSON.stringify({ components: [{ name: 'legion' }] }));
   writeFileSync(join(root, 'NOTICE.md'), 'notice');
   writeFileSync(join(root, 'SHA256SUMS'), 'sum');
   const { buildReleaseManifest } = await import('../lib/distribution/release-manifest.mjs');
@@ -157,7 +157,7 @@ test('B8-025 verifies creator archives, transformations, rights, and shipped pro
   const digest = `sha256:${'a'.repeat(64)}`;
   const qualified = verifySourceProvenance({ sources: [{ id: 'designer', status: 'transformed', digest, outputDigest: digest, shipped: false, redistributionGrant: false, transformations: ['rewrite'], promptProseShipped: false, userOwned: true, categoryMappings: ['design'], originalRuleOwnership: 'repository-original', shippedOutputs: [] }] }, { verifyFiles: false });
   assert.equal(qualified.decision, 'QUALIFIED');
-  const output = join(mkdtempSync(join(tmpdir(), 'nemesis-provenance-')), 'qualification.json');
+  const output = join(mkdtempSync(join(tmpdir(), 'legion-provenance-')), 'qualification.json');
   assert.equal(writeSourceProvenanceQualification({ sources: [] }, output, { verifyFiles: false }).decision, 'BLOCKED');
   assert.equal(existsSync(output), true);
 });

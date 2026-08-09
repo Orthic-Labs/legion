@@ -14,7 +14,7 @@ export function candidateId({ provider, ruleId, file, line, traceDigest }) {
 export function rulesetIdentity({ path, digest, license, source, version }) {
   return {
     schemaVersion: 1,
-    kind: 'nemesis-opengrep-ruleset',
+    kind: 'legion-opengrep-ruleset',
     path,
     digest: digest ?? null,
     license: license ?? null,
@@ -32,7 +32,7 @@ export function normalizeFinding(finding, { provider = 'opengrep.sast', provider
     : 'pattern';
   return {
     schemaVersion: 1,
-    kind: 'nemesis-opengrep-finding',
+    kind: 'legion-opengrep-finding',
     provider,
     providerVersion,
     ruleset,

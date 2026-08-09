@@ -15,7 +15,7 @@ export function lexicalAccounting({ files, parsedExtensions }) {
     .sort();
   return {
     schemaVersion: 1,
-    kind: 'nemesis-lexical-accounting',
+    kind: 'legion-lexical-accounting',
     fileCount: (files ?? []).length,
     parsedExtensions: [...parsed].sort(),
     unsupportedExtensions: unsupported,

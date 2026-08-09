@@ -64,7 +64,7 @@
       },
       "provenance": {
         "kind": "canonical",
-        "source": "nemesis:developer-tools",
+        "source": "legion:developer-tools",
         "rights": "internal-contract",
         "lineage": [
           "canonical:developer-tools:cli-contract"
@@ -124,7 +124,7 @@
       },
       "provenance": {
         "kind": "canonical",
-        "source": "nemesis:developer-tools",
+        "source": "legion:developer-tools",
         "rights": "internal-contract",
         "lineage": [
           "canonical:developer-tools:streams-exit"
@@ -184,7 +184,7 @@
       },
       "provenance": {
         "kind": "canonical",
-        "source": "nemesis:developer-tools",
+        "source": "legion:developer-tools",
         "rights": "internal-contract",
         "lineage": [
           "canonical:developer-tools:signals-shells"
@@ -244,7 +244,7 @@
       },
       "provenance": {
         "kind": "canonical",
-        "source": "nemesis:developer-tools",
+        "source": "legion:developer-tools",
         "rights": "internal-contract",
         "lineage": [
           "canonical:developer-tools:paths-config"
@@ -304,7 +304,7 @@
       },
       "provenance": {
         "kind": "canonical",
-        "source": "nemesis:developer-tools",
+        "source": "legion:developer-tools",
         "rights": "internal-contract",
         "lineage": [
           "canonical:developer-tools:destructive-actions"
@@ -364,7 +364,7 @@
       },
       "provenance": {
         "kind": "canonical",
-        "source": "nemesis:developer-tools",
+        "source": "legion:developer-tools",
         "rights": "internal-contract",
         "lineage": [
           "canonical:developer-tools:credentials"
@@ -424,7 +424,7 @@
       },
       "provenance": {
         "kind": "canonical",
-        "source": "nemesis:developer-tools",
+        "source": "legion:developer-tools",
         "rights": "internal-contract",
         "lineage": [
           "canonical:developer-tools:distribution"
@@ -484,7 +484,7 @@
       },
       "provenance": {
         "kind": "canonical",
-        "source": "nemesis:developer-tools",
+        "source": "legion:developer-tools",
         "rights": "internal-contract",
         "lineage": [
           "canonical:developer-tools:sdk-api-abi"
@@ -544,7 +544,7 @@
       },
       "provenance": {
         "kind": "canonical",
-        "source": "nemesis:developer-tools",
+        "source": "legion:developer-tools",
         "rights": "internal-contract",
         "lineage": [
           "canonical:developer-tools:sdk-versions"
@@ -604,7 +604,7 @@
       },
       "provenance": {
         "kind": "canonical",
-        "source": "nemesis:developer-tools",
+        "source": "legion:developer-tools",
         "rights": "internal-contract",
         "lineage": [
           "canonical:developer-tools:package-contents"
@@ -664,7 +664,7 @@
       },
       "provenance": {
         "kind": "canonical",
-        "source": "nemesis:developer-tools",
+        "source": "legion:developer-tools",
         "rights": "internal-contract",
         "lineage": [
           "canonical:developer-tools:errors-concurrency"
@@ -724,7 +724,7 @@
       },
       "provenance": {
         "kind": "canonical",
-        "source": "nemesis:developer-tools",
+        "source": "legion:developer-tools",
         "rights": "internal-contract",
         "lineage": [
           "canonical:developer-tools:runtime-support"
@@ -784,7 +784,7 @@
       },
       "provenance": {
         "kind": "canonical",
-        "source": "nemesis:developer-tools",
+        "source": "legion:developer-tools",
         "rights": "internal-contract",
         "lineage": [
           "canonical:developer-tools:migration-deprecation"
@@ -844,7 +844,7 @@
       },
       "provenance": {
         "kind": "canonical",
-        "source": "nemesis:developer-tools",
+        "source": "legion:developer-tools",
         "rights": "internal-contract",
         "lineage": [
           "canonical:developer-tools:extension-permissions"
@@ -904,7 +904,7 @@
       },
       "provenance": {
         "kind": "canonical",
-        "source": "nemesis:developer-tools",
+        "source": "legion:developer-tools",
         "rights": "internal-contract",
         "lineage": [
           "canonical:developer-tools:workspace-trust"
@@ -964,7 +964,7 @@
       },
       "provenance": {
         "kind": "canonical",
-        "source": "nemesis:developer-tools",
+        "source": "legion:developer-tools",
         "rights": "internal-contract",
         "lineage": [
           "canonical:developer-tools:plugin-isolation"
@@ -1024,7 +1024,7 @@
       },
       "provenance": {
         "kind": "canonical",
-        "source": "nemesis:developer-tools",
+        "source": "legion:developer-tools",
         "rights": "internal-contract",
         "lineage": [
           "canonical:developer-tools:plugin-signing-update"

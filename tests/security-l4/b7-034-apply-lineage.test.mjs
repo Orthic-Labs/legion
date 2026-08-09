@@ -38,7 +38,7 @@ const proposal = {
 };
 
 const verification = {
-  kind: 'nemesis-remediation-verification',
+  kind: 'legion-remediation-verification',
   proposalId: 'sha256:proposal',
   verifiedBy: 'neutral-verification',
   verifier: { id: 'verify.neutral', contextId: 'ctx-verifier' },
@@ -168,7 +168,7 @@ test('the lineage ledger is keyed on stable fingerprints, not line numbers', () 
     now: '2026-08-08',
     binding,
   });
-  assert.equal(ledger.kind, 'nemesis-finding-lineage');
+  assert.equal(ledger.kind, 'legion-finding-lineage');
   assert.equal(ledger.entries.length, 1);
   assert.equal(ledger.entries[0].state, 'unchanged');
   assert.equal(ledger.entries[0].fingerprint, findingFingerprint(currentFinding));

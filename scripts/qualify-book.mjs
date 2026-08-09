@@ -68,7 +68,7 @@ export async function qualifyBook(book, { root = ROOT, execute = true } = {}) {
   const result = execute ? spawnSync(command[0], command.slice(1), { cwd: root, encoding: 'utf8' }) : { status: null, stdout: '', stderr: '' };
   const receipt = {
     schemaVersion: 1,
-    kind: 'nemesis-book-gate-receipt',
+    kind: 'legion-book-gate-receipt',
     book,
     tests: tests.map((path) => relative(root, path).replaceAll('\\', '/')),
     command: command.map((part) => part === process.execPath ? 'node' : part),

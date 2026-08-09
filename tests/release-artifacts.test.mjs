@@ -11,19 +11,19 @@ function readFile(path) {
 }
 
 test('verifyReleaseManifest rejects an unsigned manifest (no false clean)', () => {
-  const dir = mkdtempSync(join(tmpdir(), 'nemesis-rel-'));
+  const dir = mkdtempSync(join(tmpdir(), 'legion-rel-'));
   try {
-    writeFileSync(join(dir, 'nemesis'), 'binary');
+    writeFileSync(join(dir, 'legion'), 'binary');
     writeFileSync(join(dir, 'SHA256SUMS'), 'sums');
-    writeFileSync(join(dir, 'nemesis.sbom.json'), '{}');
+    writeFileSync(join(dir, 'legion.sbom.json'), '{}');
     writeFileSync(join(dir, 'THIRD_PARTY_NOTICES.md'), 'notices');
     writeFileSync(join(dir, 'attestation.jsonl'), '{"predicateType":"test"}\n');
-    const digest = sha256File(join(dir, 'nemesis'));
+    const digest = sha256File(join(dir, 'legion'));
     const manifest = {
-      schemaVersion: 1, kind: 'nemesis-release-manifest',
+      schemaVersion: 1, kind: 'legion-release-manifest',
       version: '0.0.0-test', sourceRevision: '0123456789abcdef',
-      artifacts: [{ path: 'nemesis', digest }],
-      checksums: ['SHA256SUMS'], sboms: ['nemesis.sbom.json'],
+      artifacts: [{ path: 'legion', digest }],
+      checksums: ['SHA256SUMS'], sboms: ['legion.sbom.json'],
       notices: ['THIRD_PARTY_NOTICES.md'], attestations: ['attestation.jsonl'],
     };
     writeFileSync(join(dir, 'release-manifest.json'), JSON.stringify(manifest));
@@ -40,12 +40,12 @@ test('verifyReleaseManifest rejects an unsigned manifest (no false clean)', () =
 });
 
 test('verifyReleaseManifest rejects digest mismatch', () => {
-  const dir = mkdtempSync(join(tmpdir(), 'nemesis-rel-'));
+  const dir = mkdtempSync(join(tmpdir(), 'legion-rel-'));
   try {
-    writeFileSync(join(dir, 'nemesis'), 'changed');
+    writeFileSync(join(dir, 'legion'), 'changed');
     const manifest = {
-      schemaVersion: 1, kind: 'nemesis-release-manifest',
-      artifacts: [{ path: 'nemesis', digest: 'sha256:wrong' }],
+      schemaVersion: 1, kind: 'legion-release-manifest',
+      artifacts: [{ path: 'legion', digest: 'sha256:wrong' }],
       checksums: ['SHA256SUMS'], sboms: ['s.json'], notices: ['n.md'], attestations: ['a.jsonl'],
     };
     writeFileSync(join(dir, 'release-manifest.json'), JSON.stringify(manifest));
@@ -58,10 +58,10 @@ test('verifyReleaseManifest rejects digest mismatch', () => {
 });
 
 test('verifyReleaseManifest rejects missing required artifacts', () => {
-  const dir = mkdtempSync(join(tmpdir(), 'nemesis-rel-'));
+  const dir = mkdtempSync(join(tmpdir(), 'legion-rel-'));
   try {
     const manifest = {
-      schemaVersion: 1, kind: 'nemesis-release-manifest',
+      schemaVersion: 1, kind: 'legion-release-manifest',
       artifacts: [], checksums: [], sboms: [], notices: [], attestations: [],
     };
     writeFileSync(join(dir, 'release-manifest.json'), JSON.stringify(manifest));

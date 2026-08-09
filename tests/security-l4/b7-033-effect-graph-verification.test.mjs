@@ -40,7 +40,7 @@ const planGraph = {
 
 const proposal = {
   schemaVersion: 1,
-  kind: 'nemesis-remediation-proposal',
+  kind: 'legion-remediation-proposal',
   id: 'sha256:proposal',
   findingIds: ['sha256:finding'],
   owner: 'code',
@@ -63,7 +63,7 @@ function graph(overrides = {}) {
 
 test('a proposal maps to its full effect surface', () => {
   const effect = graph();
-  assert.equal(effect.kind, 'nemesis-patch-effect-graph');
+  assert.equal(effect.kind, 'legion-patch-effect-graph');
   assert.equal(effect.schemaVersion, 1);
   assert.equal(effect.proposalId, proposal.id);
   assert.equal(effect.patchDigest, 'sha256:patch');
@@ -200,6 +200,6 @@ test('the pre-existing patchEffectGraph helper still behaves', () => {
     requiredTests: ['test/update.test.ts'], runtimeSurfaces: [], securityPaths: ['authorization.object-write'],
     residualRisks: ['behavior change'],
   });
-  assert.equal(legacy.kind, 'nemesis-patch-effect-graph');
+  assert.equal(legacy.kind, 'legion-patch-effect-graph');
   assert.equal(blocksAutoApply(legacy), true);
 });

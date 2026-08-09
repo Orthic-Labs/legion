@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "kind": "nemesis-creator-source-manifest",
+  "kind": "legion-creator-source-manifest",
   "sources": [
     {
       "id": "designer",

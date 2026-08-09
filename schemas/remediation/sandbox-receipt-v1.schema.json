@@ -25,7 +25,7 @@
       "const": 1
     },
     "kind": {
-      "const": "nemesis-remediation-sandbox"
+      "const": "legion-remediation-sandbox"
     },
     "runId": {
       "type": "string",

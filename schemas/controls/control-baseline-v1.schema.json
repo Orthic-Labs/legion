@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "nemesis-control-baseline-v1",
+  "$id": "legion-control-baseline-v1",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -18,7 +18,7 @@
       "const": 1
     },
     "kind": {
-      "const": "nemesis-control-baseline"
+      "const": "legion-control-baseline"
     },
     "controls": {
       "type": "array",

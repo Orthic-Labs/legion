@@ -6,7 +6,7 @@
   "required": ["schemaVersion", "kind", "subjectKind", "subjectId", "acceptedBy", "reason", "acceptedAt", "expiresAt", "bindingDigest"],
   "properties": {
     "schemaVersion": { "const": 1 },
-    "kind": { "const": "nemesis-accepted-risk" },
+    "kind": { "const": "legion-accepted-risk" },
     "subjectKind": { "enum": ["finding", "attack-path", "systemic-root-cause"] },
     "subjectId": { "type": "string" },
     "acceptedBy": { "type": "string" },

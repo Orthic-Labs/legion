@@ -2,7 +2,7 @@
 
 > 从 huashu-design hero 动画 v9（25 秒，8 场景）里提炼出的**一种可复用的视觉编排结构**。
 > 不是动画制作流水线，是**什么场景下这种编排是"对的"**。
-> 实战参考：[demos/hero-animation-v9.mp4](nemesis-skill://designer/engine/huashu/demos/hero-animation-v9.mp4) · [https://www.huasheng.ai/huashu-design-hero/](https://www.huasheng.ai/huashu-design-hero/)
+> 实战参考：[demos/hero-animation-v9.mp4](legion-skill://designer/engine/huashu/demos/hero-animation-v9.mp4) · [https://www.huasheng.ai/huashu-design-hero/](https://www.huasheng.ai/huashu-design-hero/)
 
 ## 一句话先行
 
@@ -243,8 +243,8 @@ Gallery 阶段左上角有个 `HUASHU · DESIGN` 小标识，16% opacity 色值�
 
 ## 相关 Reference
 
-- 完整技术流程：[references/animations.md](nemesis-skill://designer/engine/huashu/references/animations.md) · [references/animation-best-practices.md](nemesis-skill://designer/engine/huashu/references/animation-best-practices.md)
-- 动画导出流水线：[references/video-export.md](nemesis-skill://designer/engine/huashu/references/video-export.md)
-- 音频配置（BGM + SFX 双轨）：[references/audio-design-rules.md](nemesis-skill://designer/engine/huashu/references/audio-design-rules.md)
-- Apple 画廊风格的横向参考：[references/apple-gallery-showcase.md](nemesis-skill://designer/engine/huashu/references/apple-gallery-showcase.md)
+- 完整技术流程：[references/animations.md](legion-skill://designer/engine/huashu/references/animations.md) · [references/animation-best-practices.md](legion-skill://designer/engine/huashu/references/animation-best-practices.md)
+- 动画导出流水线：[references/video-export.md](legion-skill://designer/engine/huashu/references/video-export.md)
+- 音频配置（BGM + SFX 双轨）：[references/audio-design-rules.md](legion-skill://designer/engine/huashu/references/audio-design-rules.md)
+- Apple 画廊风格的横向参考：[references/apple-gallery-showcase.md](legion-skill://designer/engine/huashu/references/apple-gallery-showcase.md)
 - 源 HTML（v6 + 音频集成版）：`www.huasheng.ai/huashu-design-hero/index.html`

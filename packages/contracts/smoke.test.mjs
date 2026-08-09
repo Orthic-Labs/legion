@@ -1,6 +1,6 @@
 // Legion shared-contract smoke test — WP2 freeze.
 //
-// Nemesis has no ajv dependency and this task adds none. These are
+// Legion has no ajv dependency and this task adds none. These are
 // structural checks: every schema file is valid JSON, has the required
 // scaffold ($schema draft 2020-12, $id, type/oneOf, required-key presence),
 // and every enum-bearing property in every schema is set-equal (or a

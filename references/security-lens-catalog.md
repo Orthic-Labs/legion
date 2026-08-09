@@ -1,4 +1,4 @@
-# Nemesis security lens catalogue
+# Legion security lens catalogue
 
 Generated from `registry/security-lenses.json`.
 

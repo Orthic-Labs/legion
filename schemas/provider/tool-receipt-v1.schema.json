@@ -1,5 +1,5 @@
 {
-  "$schema":"https://json-schema.org/draft/2020-12/schema","$id":"nemesis-tool-receipt-v1","type":"object","additionalProperties":false,
+  "$schema":"https://json-schema.org/draft/2020-12/schema","$id":"legion-tool-receipt-v1","type":"object","additionalProperties":false,
   "required":["status","name","version","probe","executableDigest"],
   "properties":{"status":{"enum":["available","missing-executable","probe-error","timeout"]},"name":{"type":"string","minLength":1},"version":{"type":["string","null"]},"probe":{"type":"object","additionalProperties":false,"required":["command","outputDigest"],"properties":{"command":{"type":"array","items":{"type":"string"}},"outputDigest":{"type":"string","pattern":"^sha256:[a-f0-9]{64}$"},"exitCode":{"type":["integer","null"]},"signal":{"type":["string","null"]}}},"executableDigest":{"type":["string","null"],"pattern":"^sha256:[a-f0-9]{64}$"},"error":{"type":["string","null"]}}
 }

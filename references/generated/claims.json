@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "kind": "nemesis-generated-claims",
+  "kind": "legion-generated-claims",
   "qualificationIdentity": null,
   "claims": [],
   "knownGaps": ["exact qualification identity is absent"]

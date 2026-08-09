@@ -11,7 +11,7 @@ test('qualification bundle captures the full release evidence set', () => {
     benchmarks: [{ name: 'bench', ok: true }], coverageRegistryDigest: 'sha256:c',
     securityQualificationDigest: 'sha256:s', knownGaps: [], publicationPolicy: {}, decision: 'INTERNAL_ONLY',
   });
-  assert.equal(bundle.kind, 'nemesis-release-qualification');
+  assert.equal(bundle.kind, 'legion-release-qualification');
   assert.equal(bundle.sourceCommit, 'abc');
   assert.equal(bundle.decision, 'INTERNAL_ONLY');
   assert.ok(bundle.testRuns.length >= 1);

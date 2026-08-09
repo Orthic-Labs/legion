@@ -594,7 +594,7 @@ test('cycle-safe redaction prevents API RangeError and raw recursive leaks', () 
 
 test('web API runner preserves runtime web provider identity across service delegation', async () => {
   const receipt = await runWebControl({ binding, family: 'api', input: { cases: [] } });
-  assert.equal(receipt.provider, 'runtime.web'); assert.equal(receipt.delegatedProvider, 'runtime.service.api'); assert.notEqual(receipt.kind, 'nemesis-service-api-provider');
+  assert.equal(receipt.provider, 'runtime.web'); assert.equal(receipt.delegatedProvider, 'runtime.service.api'); assert.notEqual(receipt.kind, 'legion-service-api-provider');
 });
 
 test('third-party operations and actors reject hostile identifiers before sorting or interpolation', () => {

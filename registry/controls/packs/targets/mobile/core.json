@@ -62,7 +62,7 @@
       },
       "provenance": {
         "kind": "canonical",
-        "source": "nemesis:mobile",
+        "source": "legion:mobile",
         "rights": "internal-contract",
         "lineage": [
           "canonical:mobile:ios"
@@ -120,7 +120,7 @@
       },
       "provenance": {
         "kind": "canonical",
-        "source": "nemesis:mobile",
+        "source": "legion:mobile",
         "rights": "internal-contract",
         "lineage": [
           "canonical:mobile:android"
@@ -178,7 +178,7 @@
       },
       "provenance": {
         "kind": "canonical",
-        "source": "nemesis:mobile",
+        "source": "legion:mobile",
         "rights": "internal-contract",
         "lineage": [
           "canonical:mobile:extensions"
@@ -236,7 +236,7 @@
       },
       "provenance": {
         "kind": "canonical",
-        "source": "nemesis:mobile",
+        "source": "legion:mobile",
         "rights": "internal-contract",
         "lineage": [
           "canonical:mobile:product-readiness"
@@ -294,7 +294,7 @@
       },
       "provenance": {
         "kind": "canonical",
-        "source": "nemesis:mobile",
+        "source": "legion:mobile",
         "rights": "internal-contract",
         "lineage": [
           "canonical:mobile:architecture"
@@ -352,7 +352,7 @@
       },
       "provenance": {
         "kind": "canonical",
-        "source": "nemesis:mobile",
+        "source": "legion:mobile",
         "rights": "internal-contract",
         "lineage": [
           "canonical:mobile:dependencies"
@@ -410,7 +410,7 @@
       },
       "provenance": {
         "kind": "canonical",
-        "source": "nemesis:mobile",
+        "source": "legion:mobile",
         "rights": "internal-contract",
         "lineage": [
           "canonical:mobile:code"
@@ -468,7 +468,7 @@
       },
       "provenance": {
         "kind": "canonical",
-        "source": "nemesis:mobile",
+        "source": "legion:mobile",
         "rights": "internal-contract",
         "lineage": [
           "canonical:mobile:security"
@@ -526,7 +526,7 @@
       },
       "provenance": {
         "kind": "canonical",
-        "source": "nemesis:mobile",
+        "source": "legion:mobile",
         "rights": "internal-contract",
         "lineage": [
           "canonical:mobile:privacy-permissions"
@@ -584,7 +584,7 @@
       },
       "provenance": {
         "kind": "canonical",
-        "source": "nemesis:mobile",
+        "source": "legion:mobile",
         "rights": "internal-contract",
         "lineage": [
           "canonical:mobile:identity"
@@ -642,7 +642,7 @@
       },
       "provenance": {
         "kind": "canonical",
-        "source": "nemesis:mobile",
+        "source": "legion:mobile",
         "rights": "internal-contract",
         "lineage": [
           "canonical:mobile:backend-cloud"
@@ -700,7 +700,7 @@
       },
       "provenance": {
         "kind": "canonical",
-        "source": "nemesis:mobile",
+        "source": "legion:mobile",
         "rights": "internal-contract",
         "lineage": [
           "canonical:mobile:data-offline-sync"
@@ -758,7 +758,7 @@
       },
       "provenance": {
         "kind": "canonical",
-        "source": "nemesis:mobile",
+        "source": "legion:mobile",
         "rights": "internal-contract",
         "lineage": [
           "canonical:mobile:performance-resource"
@@ -816,7 +816,7 @@
       },
       "provenance": {
         "kind": "canonical",
-        "source": "nemesis:mobile",
+        "source": "legion:mobile",
         "rights": "internal-contract",
         "lineage": [
           "canonical:mobile:lifecycle"
@@ -874,7 +874,7 @@
       },
       "provenance": {
         "kind": "canonical",
-        "source": "nemesis:mobile",
+        "source": "legion:mobile",
         "rights": "internal-contract",
         "lineage": [
           "canonical:mobile:ux-a11y-i18n"
@@ -932,7 +932,7 @@
       },
       "provenance": {
         "kind": "canonical",
-        "source": "nemesis:mobile",
+        "source": "legion:mobile",
         "rights": "internal-contract",
         "lineage": [
           "canonical:mobile:device-os"
@@ -990,7 +990,7 @@
       },
       "provenance": {
         "kind": "canonical",
-        "source": "nemesis:mobile",
+        "source": "legion:mobile",
         "rights": "internal-contract",
         "lineage": [
           "canonical:mobile:signing-manifests"
@@ -1048,7 +1048,7 @@
       },
       "provenance": {
         "kind": "canonical",
-        "source": "nemesis:mobile",
+        "source": "legion:mobile",
         "rights": "internal-contract",
         "lineage": [
           "canonical:mobile:tests"
@@ -1106,7 +1106,7 @@
       },
       "provenance": {
         "kind": "canonical",
-        "source": "nemesis:mobile",
+        "source": "legion:mobile",
         "rights": "internal-contract",
         "lineage": [
           "canonical:mobile:build-ci"
@@ -1164,7 +1164,7 @@
       },
       "provenance": {
         "kind": "canonical",
-        "source": "nemesis:mobile",
+        "source": "legion:mobile",
         "rights": "internal-contract",
         "lineage": [
           "canonical:mobile:stores-rollout"
@@ -1222,7 +1222,7 @@
       },
       "provenance": {
         "kind": "canonical",
-        "source": "nemesis:mobile",
+        "source": "legion:mobile",
         "rights": "internal-contract",
         "lineage": [
           "canonical:mobile:operations"
@@ -1280,7 +1280,7 @@
       },
       "provenance": {
         "kind": "canonical",
-        "source": "nemesis:mobile",
+        "source": "legion:mobile",
         "rights": "internal-contract",
         "lineage": [
           "canonical:mobile:monetization"
@@ -1338,7 +1338,7 @@
       },
       "provenance": {
         "kind": "canonical",
-        "source": "nemesis:mobile",
+        "source": "legion:mobile",
         "rights": "internal-contract",
         "lineage": [
           "canonical:mobile:legal"
@@ -1396,7 +1396,7 @@
       },
       "provenance": {
         "kind": "canonical",
-        "source": "nemesis:mobile",
+        "source": "legion:mobile",
         "rights": "internal-contract",
         "lineage": [
           "canonical:mobile:ugc-ai"

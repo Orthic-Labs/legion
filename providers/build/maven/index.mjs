@@ -4,7 +4,7 @@
 export function mavenWrapperReceipt({ root, wrapperPresent, wrapperSha256 }) {
   return {
     schemaVersion: 1,
-    kind: 'nemesis-maven-wrapper',
+    kind: 'legion-maven-wrapper',
     root,
     wrapperPresent: Boolean(wrapperPresent),
     wrapperSha256: wrapperSha256 ?? null,

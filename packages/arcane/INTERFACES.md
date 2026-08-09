@@ -206,7 +206,7 @@ export class DependencyLedger {
 ## Test + evidence conventions (PROTOCOL)
 
 - Test files: `tests/s03-*.test.mjs`, `tests/s04-*.test.mjs`, `tests/s05-*.test.mjs`.
-- Run from the nemesis repo root: `node --test packages/arcane/tests/<file>`.
+- Run from the legion repo root: `node --test packages/arcane/tests/<file>`.
 - Red log: `qualification/evidence/lanes/E-ARCANE/<ID>.red.log`
   (test written, implementation absent/failing).
 - Green log: `qualification/evidence/lanes/E-ARCANE/<ID>.green.log`.

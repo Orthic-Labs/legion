@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "kind": "nemesis-task-path-mappings",
+  "kind": "legion-task-path-mappings",
   "book": 8,
   "mappings": [
     { "task": "B8-002", "paths": ["integrations/mcp/server.mjs"], "state": "implemented" },

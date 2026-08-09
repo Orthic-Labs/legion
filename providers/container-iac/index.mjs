@@ -16,7 +16,7 @@ export function trivyCommand({ resolvedTrivy, repositoryRoot, policy, outputPath
 export function normalizeIaCFinding(finding, { provider = 'container-iac.trivy', providerVersion = '0.50.0' } = {}) {
   return {
     schemaVersion: 1,
-    kind: 'nemesis-iac-finding',
+    kind: 'legion-iac-finding',
     provider,
     providerVersion,
     ruleId: finding.rule_id ?? finding.ID ?? finding.id ?? null,
@@ -32,7 +32,7 @@ export function normalizeIaCFinding(finding, { provider = 'container-iac.trivy',
 export function offlineState({ offline, databaseDigest, databaseVersion }) {
   return {
     schemaVersion: 1,
-    kind: 'nemesis-iac-offline-state',
+    kind: 'legion-iac-offline-state',
     offline,
     databaseDigest: databaseDigest ?? null,
     databaseVersion: databaseVersion ?? null,

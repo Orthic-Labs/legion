@@ -31,7 +31,7 @@ function request(operation, options = {}, input = {}) {
         kind: 'legion-run-identity',
         runId: RUN,
         workspace: 'D:/Claude',
-        repository: 'tools/skills/nemesis',
+        repository: 'tools/skills/legion',
         revision: REVISION,
         dirtyDigest: null,
         capturedAt: NOW,
@@ -57,7 +57,7 @@ test('all five operations delegate to named canonical core APIs', async () => {
     ['explain', 'explain'],
   ].map(([api, operation]) => [api, async (options, host) => {
     calls.push({ api, options, host });
-    return { kind: `nemesis-${operation}`, claimBoundary: 'PARTIALLY_PROVEN' };
+    return { kind: `legion-${operation}`, claimBoundary: 'PARTIALLY_PROVEN' };
   }]));
   const seer = createSeer({ core, clock });
   const host = { identity: 'fixed-host' };
@@ -71,7 +71,7 @@ test('all five operations delegate to named canonical core APIs', async () => {
     assert.equal(pair.result.error, null);
     assert.equal(pair.artifacts.length, 1);
     assert.match(pair.artifacts[0].record.digest, /^sha256:[0-9a-f]{64}$/);
-    assert.deepEqual(pair.artifacts[0].value, { kind: `nemesis-${operation}`, claimBoundary: 'PARTIALLY_PROVEN' });
+    assert.deepEqual(pair.artifacts[0].value, { kind: `legion-${operation}`, claimBoundary: 'PARTIALLY_PROVEN' });
   }
   assert.deepEqual(calls.map(({ api }) => api), ['inspectProduct', 'buildPlan', 'audit', 'verifyRun', 'explain']);
   assert.deepEqual(calls.map(({ options }) => options.token), ['inspect', 'plan', 'audit', 'verify', 'explain']);

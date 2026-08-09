@@ -9,7 +9,7 @@ export function customGrammarRecord({ languageId, grammarPath, grammarDigest, so
   if (source !== 'host-config') throw new Error(`custom grammar source must be host-config; got ${source}`);
   return {
     schemaVersion: 1,
-    kind: 'nemesis-custom-grammar',
+    kind: 'legion-custom-grammar',
     languageId,
     grammarPath,
     grammarDigest,

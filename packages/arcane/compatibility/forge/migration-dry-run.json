@@ -10,8 +10,8 @@
     "inventoryRef": "docs/plans/legion/s00-baseline/legacy-semantic-inventory.json",
     "reportRef": "docs/plans/legion/s00-baseline/S00-REPORT.md",
     "fixturesRef": "docs/plans/legion/s00-baseline/fixtures/",
-    "contractsFreezeRef": "tools/skills/nemesis/packages/contracts/FREEZE.md",
-    "contractsSealRef": "tools/skills/nemesis/packages/contracts/SEAL.md"
+    "contractsFreezeRef": "tools/skills/legion/packages/contracts/FREEZE.md",
+    "contractsSealRef": "tools/skills/legion/packages/contracts/SEAL.md"
   },
   "capturedAt": "2026-08-06T02:31:10.000Z",
   "source": {

@@ -6,7 +6,7 @@
   "required": ["schemaVersion", "kind", "provider", "packageCount", "sourceScope", "artifacts"],
   "properties": {
     "schemaVersion": { "const": 1 },
-    "kind": { "const": "nemesis-sbom-receipt" },
+    "kind": { "const": "legion-sbom-receipt" },
     "provider": { "const": "sbom.syft" },
     "providerVersion": { "type": "string" },
     "packageCount": { "type": "integer", "minimum": 0 },

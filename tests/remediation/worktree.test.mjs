@@ -23,7 +23,7 @@ test('createRemediationWorktree uses an isolated detached path', async () => {
     repo: { root: '/repo', gitCommonDir: '/repo/.git' },
     baseCommit: 'abc123', runId: 'run-1', processRunner: runner,
   });
-  assert.equal(result.path, join('/repo/.git', 'nemesis-worktrees', 'run-1'));
+  assert.equal(result.path, join('/repo/.git', 'legion-worktrees', 'run-1'));
   assert.equal(result.baseCommit, 'abc123');
   assert.deepEqual(result.cleanup, ['git', 'worktree', 'remove', '--force', result.path]);
 });
@@ -44,7 +44,7 @@ test('removeRemediationWorktree reports failure with recovery', async () => {
 test('worktree receipt declares primary worktree untouched', () => {
   const receipt = worktreeReceipt({ path: '/w', baseCommit: 'a', runId: 'r', cleanup: ['git', 'worktree', 'remove', '--force', '/w'] });
   assert.equal(receipt.primaryWorktreeUntouched, true);
-  assert.equal(receipt.kind, 'nemesis-remediation-worktree');
+  assert.equal(receipt.kind, 'legion-remediation-worktree');
 });
 
 test('checkpoint digest is deterministic and restore plan is a reverse', () => {
@@ -52,7 +52,7 @@ test('checkpoint digest is deterministic and restore plan is a reverse', () => {
   const again = createCheckpoint({ worktreePath: '/w', baseCommit: 'abc', files: ['b.ts', 'a.ts'] });
   assert.equal(checkpoint.digest, again.digest);
   const restore = restorePlan(checkpoint);
-  assert.equal(restore.kind, 'nemesis-checkpoint-restore');
+  assert.equal(restore.kind, 'legion-checkpoint-restore');
   assert.equal(restore.steps.length, 2);
   assert.match(restore.recoveryCommand, /git -C \/w checkout/);
 });
@@ -69,7 +69,7 @@ test('change passport signs content digests with HMAC', () => {
     commands: ['git apply patch'], verificationArtifacts: ['verify.json'], createdAt: '2026-08-06T00:00:00Z',
     signingKey: 'local-key',
   });
-  assert.equal(passport.kind, 'nemesis-change-passport');
+  assert.equal(passport.kind, 'legion-change-passport');
   assert.equal(passport.signature.algorithm, 'HMAC-SHA256');
   assert.ok(passport.passportDigest.startsWith('sha256:'));
   assert.equal(verifyPassport(passport, 'local-key'), true);
@@ -86,7 +86,7 @@ test('unsigned passport has a null signature and verifies false', () => {
 });
 
 test('signPassport and verifyPassport round-trip', () => {
-  const body = { schemaVersion: 1, kind: 'nemesis-change-passport', baseCommit: 'a', patchDigest: 'sha256:p', findingIds: [], producer: {}, commands: [], verificationArtifacts: [], createdAt: 't' };
+  const body = { schemaVersion: 1, kind: 'legion-change-passport', baseCommit: 'a', patchDigest: 'sha256:p', findingIds: [], producer: {}, commands: [], verificationArtifacts: [], createdAt: 't' };
   const signed = signPassport(body, 'key');
   assert.equal(verifyPassport(signed, 'key'), true);
   // Tampering breaks the signature.
@@ -95,7 +95,7 @@ test('signPassport and verifyPassport round-trip', () => {
 });
 
 test('real git worktree lifecycle works end-to-end', async () => {
-  const dir = mkdtempSync(join(tmpdir(), 'nemesis-wt-'));
+  const dir = mkdtempSync(join(tmpdir(), 'legion-wt-'));
   try {
     spawnSync('git', ['init', '-q', dir], { stdio: 'ignore' });
     spawnSync('git', ['-C', dir, 'config', 'user.email', 't@t'], { stdio: 'ignore' });

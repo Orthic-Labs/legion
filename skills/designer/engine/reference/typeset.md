@@ -4,7 +4,7 @@ Typography carries most of the information on the page. Replace generic defaults
 
 ## Register
 
-Brand: run the font selection procedure in [brand.md](nemesis-skill://designer/engine/reference/brand.md). Fluid `clamp()` scale, ≥1.25 ratio between steps.
+Brand: run the font selection procedure in [brand.md](legion-skill://designer/engine/reference/brand.md). Fluid `clamp()` scale, ≥1.25 ratio between steps.
 
 Product: system fonts and familiar sans stacks are legitimate here. One well-tuned family typically carries the whole UI. Fixed `rem` scale, 1.125–1.2 ratio between more closely-spaced steps.
 
@@ -162,7 +162,7 @@ Use `ch` units for character-based measure (`max-width: 65ch`). Line-height scal
 
 #### Font Selection & Pairing
 
-The tactical selection procedure and the reflex-reject list live in [reference/brand.md](nemesis-skill://designer/engine/reference/brand.md) under **Font selection procedure** and **Reflex-reject list** (loaded for brand-register tasks). The rest of this section covers the adjacent knowledge: anti-reflex corrections, system font use, and pairing rules.
+The tactical selection procedure and the reflex-reject list live in [reference/brand.md](legion-skill://designer/engine/reference/brand.md) under **Font selection procedure** and **Reflex-reject list** (loaded for brand-register tasks). The rest of this section covers the adjacent knowledge: anti-reflex corrections, system font use, and pairing rules.
 
 ##### Anti-reflexes worth defending against
 

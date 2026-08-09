@@ -112,11 +112,11 @@ test('audit-verify.mjs executes end-to-end over a frozen fixture', () => {
   // per-field drift instead of crashing or exiting 0.
   const factsSource = fixtureFacts();
   const planSource = JSON.parse(readFileSync(new URL('./fixtures/verify/plan.json', import.meta.url), 'utf8'));
-  const temp = mkdtempSync(join(tmpdir(), 'nemesis-verify-e2e-'));
+  const temp = mkdtempSync(join(tmpdir(), 'legion-verify-e2e-'));
   try {
     execFileSync('git', ['init', '-q', temp], { stdio: 'ignore' });
-    execFileSync('git', ['-C', temp, 'config', 'user.email', 'verify@nemesis.test'], { stdio: 'ignore' });
-    execFileSync('git', ['-C', temp, 'config', 'user.name', 'Nemesis Verify'], { stdio: 'ignore' });
+    execFileSync('git', ['-C', temp, 'config', 'user.email', 'verify@legion.test'], { stdio: 'ignore' });
+    execFileSync('git', ['-C', temp, 'config', 'user.name', 'Legion Verify'], { stdio: 'ignore' });
     execFileSync('git', ['-C', temp, 'commit', '-q', '--allow-empty', '-m', 'verify fixture baseline'], { stdio: 'ignore' });
 
     const revision = execFileSync('git', ['-C', temp, 'rev-parse', 'HEAD'], { encoding: 'utf8' }).trim();

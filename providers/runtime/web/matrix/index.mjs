@@ -71,7 +71,7 @@ export function compileWebMatrix({ binding = {}, policy = {}, capabilities = [] 
   const collectionsValid = policyValid && Array.isArray(capabilities) && capabilities.every((item) => item && typeof item === 'object' && !Array.isArray(item))
     && (policy.combinations === undefined || Array.isArray(policy.combinations) && policy.combinations.every((item) => typedPolicyItem(item)))
     && (policy.omitted === undefined || Array.isArray(policy.omitted) && policy.omitted.every((item) => typedPolicyItem(item, true)));
-  if (!collectionsValid) return finalize('nemesis-web-runtime-matrix', { binding, terminal: true, complete: false, status: 'error', combinations: [], omitted: [], denominator: denominator([], []), vitalsDenominators: {}, vitalsByDeviceClass: {}, coverageGaps: [...exactBinding(binding).gaps.map((key) => `binding-missing:${key}`), ...(!policyValid ? ['matrix-policy-invalid'] : []), 'matrix-collections-invalid'].sort() });
+  if (!collectionsValid) return finalize('legion-web-runtime-matrix', { binding, terminal: true, complete: false, status: 'error', combinations: [], omitted: [], denominator: denominator([], []), vitalsDenominators: {}, vitalsByDeviceClass: {}, coverageGaps: [...exactBinding(binding).gaps.map((key) => `binding-missing:${key}`), ...(!policyValid ? ['matrix-policy-invalid'] : []), 'matrix-collections-invalid'].sort() });
   const supplied = sortById(policy.combinations ?? []);
   const omitted = sortById(policy.omitted ?? []);
   const suppliedGroups = new Map();
@@ -154,5 +154,5 @@ export function compileWebMatrix({ binding = {}, policy = {}, capabilities = [] 
   const vitalsDenominators = Object.fromEntries(Object.entries(REGISTRY.vitalsDenominators).filter(([, value]) => value && typeof value === 'object').map(([deviceClass, value]) => { const observedIds = (vitalsByDeviceClass[deviceClass] ?? []).map((item) => item.id).sort(); return [deviceClass, { id: value.id, expectedIds: [...value.combinationIds], observedIds, missingIds: value.combinationIds.filter((id) => !observedIds.includes(id)) }]; }));
   const terminalStatuses = supplied.filter((item) => item.terminal === true).map((item) => item.status);
   const worstStatus = ['error', 'fail', 'blocked', 'partial', 'unproven'].find((status) => terminalStatuses.includes(status));
-  return finalize('nemesis-web-runtime-matrix', { binding, registryPolicyId: REGISTRY.id, terminal: true, combinations, omitted, denominator: counts, vitalsDenominators, vitalsByDeviceClass, complete: gaps.length === 0, status: worstStatus ?? (gaps.length ? 'partial' : 'pass'), coverageGaps: [...new Set(gaps)].sort() });
+  return finalize('legion-web-runtime-matrix', { binding, registryPolicyId: REGISTRY.id, terminal: true, combinations, omitted, denominator: counts, vitalsDenominators, vitalsByDeviceClass, complete: gaps.length === 0, status: worstStatus ?? (gaps.length ? 'partial' : 'pass'), coverageGaps: [...new Set(gaps)].sort() });
 }

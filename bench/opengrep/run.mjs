@@ -4,25 +4,25 @@ import { normalizeFinding, toCandidate } from '../../providers/opengrep/index.mj
 
 const CORPUS = [
   {
-    check_id: 'nemesis-command-injection-shell', path: 'src/app.py',
+    check_id: 'legion-command-injection-shell', path: 'src/app.py',
     start: { line: 12, col: 4 }, end: { line: 12, col: 40 },
     extra: { severity: 'WARNING', message: 'shell sink' },
     dataflow_trace: { source: [['src/views.py', 3]], sink: [['src/app.py', 12]] },
   },
   {
-    check_id: 'nemesis-sql-interpolation', path: 'src/db.ts',
+    check_id: 'legion-sql-interpolation', path: 'src/db.ts',
     start: { line: 5, col: 0 }, end: { line: 5, col: 30 },
     extra: { severity: 'WARNING', message: 'sql' },
     dataflow_trace: { source: [['src/routes.ts', 2]], sink: [['src/db.ts', 5]], intermediate_vars: [['src/db.ts', 4]] },
   },
   {
-    check_id: 'nemesis-command-injection-shell', path: 'src/clean.py',
+    check_id: 'legion-command-injection-shell', path: 'src/clean.py',
     start: { line: 1, col: 0 }, end: { line: 1, col: 10 },
     extra: { severity: 'INFO', message: 'benign' },
   },
 ];
 
-const findings = CORPUS.map((raw) => normalizeFinding(raw, { ruleset: 'nemesis-core' }));
+const findings = CORPUS.map((raw) => normalizeFinding(raw, { ruleset: 'legion-core' }));
 const candidates = findings.map((f) => toCandidate(f, { denominatorDigest: 'sha256:bench' }));
 const ids = new Set(candidates.map((c) => c.id));
 

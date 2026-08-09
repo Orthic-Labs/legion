@@ -6,7 +6,7 @@
 export function runtimeReceipt({ surfacesFound, surfacesTested, consoleErrors, longTasks, screenshots, shallow }) {
   return {
     schemaVersion: 1,
-    kind: 'nemesis-browser-runtime',
+    kind: 'legion-browser-runtime',
     surfacesFound: surfacesFound ?? 0,
     surfacesTested: surfacesTested ?? 0,
     consoleErrors: consoleErrors ?? 0,
@@ -21,7 +21,7 @@ export function runtimeReceipt({ surfacesFound, surfacesTested, consoleErrors, l
 export function consoleErrorObservation({ file, message, surface }) {
   return {
     schemaVersion: 1,
-    kind: 'nemesis-console-error',
+    kind: 'legion-console-error',
     file: file ?? null,
     message: message ?? null,
     surface: surface ?? null,
@@ -31,7 +31,7 @@ export function consoleErrorObservation({ file, message, surface }) {
 export function performanceObservation({ surface, longTasks, interactionLatencyMs, thresholdMs }) {
   return {
     schemaVersion: 1,
-    kind: 'nemesis-performance-observation',
+    kind: 'legion-performance-observation',
     surface,
     longTasks,
     interactionLatencyMs,

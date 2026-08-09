@@ -5,7 +5,7 @@
 export function actionSummary({ report, scoped, runDir }) {
   return {
     schemaVersion: 1,
-    kind: 'nemesis-github-action-summary',
+    kind: 'legion-github-action-summary',
     runDir,
     auditStatus: report?.audit_status ?? null,
     qualityGate: report?.quality_gate ?? null,

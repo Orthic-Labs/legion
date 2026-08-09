@@ -29,7 +29,7 @@ export function collectDesktopRuntime({ target = {}, artifact = {}, capability =
     webviews: observations.webviews ?? [], gpuProcesses: observations.gpuProcesses ?? [],
   };
   const status = gaps.includes('executable-binding-mismatch') ? 'unproven' : gaps.length ? 'partial' : 'pass';
-  return { schemaVersion: 1, kind: 'nemesis-desktop-runtime', status, terminal: true,
+  return { schemaVersion: 1, kind: 'legion-desktop-runtime', status, terminal: true,
     binding: { targetId: target.id ?? null, artifactPath: artifact.path ?? null, artifactDigest: artifact.digest ?? null, framework: target.framework ?? null },
     components, lifecycle: { startup: observations.startup ?? null, firstUsable: observations.firstUsable ?? null, shutdown: observations.shutdown ?? null, crashes: observations.crashes ?? [], orphans: observations.orphans ?? [] },
     environment: observations.environment ?? null, logs: observations.logs ?? [], coverageGaps: [...new Set(gaps)].sort() };

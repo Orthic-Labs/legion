@@ -33,7 +33,7 @@ test('SARIF emits an ordered code flow for a proven path', () => {
   });
   const pathResult = sarif.runs[0].results.find((result) => result.ruleId.startsWith('security.attack-path'));
   assert.ok(pathResult, 'path result present');
-  assert.equal(pathResult.partialFingerprints['nemesisPath/v1'], 'path-1');
+  assert.equal(pathResult.partialFingerprints['legionPath/v1'], 'path-1');
   assert.equal(pathResult.codeFlows[0].threadFlows[0].locations.length, 2);
   assert.equal(pathResult.codeFlows[0].threadFlows[0].locations[0].order, 0);
 });
@@ -65,7 +65,7 @@ test('path identity is stable across line shifts', () => {
   });
   const a = make(3).runs[0].results.find((r) => r.ruleId.startsWith('security.attack-path'));
   const b = make(40).runs[0].results.find((r) => r.ruleId.startsWith('security.attack-path'));
-  assert.equal(a.partialFingerprints['nemesisPath/v1'], b.partialFingerprints['nemesisPath/v1']);
+  assert.equal(a.partialFingerprints['legionPath/v1'], b.partialFingerprints['legionPath/v1']);
 });
 
 test('no double-counted vulnerability total: paths and primitives counted separately', () => {
@@ -87,5 +87,5 @@ test('no double-counted vulnerability total: paths and primitives counted separa
   assert.equal(paths.length, 1);
   // Distinct rule IDs and fingerprints — never merged into one vulnerability.
   assert.notEqual(primitive[0].ruleId, paths[0].ruleId);
-  assert.notEqual(primitive[0].partialFingerprints['nemesisFinding/v1'], paths[0].partialFingerprints['nemesisPath/v1']);
+  assert.notEqual(primitive[0].partialFingerprints['legionFinding/v1'], paths[0].partialFingerprints['legionPath/v1']);
 });

@@ -2,14 +2,14 @@
 # allows the winget channel and a signed stable Windows binary exists.
 
 manifest:
-  Id: OrthicLabs.Nemesis
-  Name: Nemesis
+  Id: OrthicLabs.Legion
+  Name: Legion
   Version: <VER>
   Publisher: Orthic Labs
   InstallerType: portable
   Installers:
     - Architecture: x64
-      InstallerUrl: https://github.com/Orthic-Labs/nemesis/releases/download/v<VER>/nemesis-windows-x64.exe
+      InstallerUrl: https://github.com/Orthic-Labs/legion/releases/download/v<VER>/legion-windows-x64.exe
       InstallerSha256: <SHA256>
       SignatureSha256: <SIGNED_DIGEST>
 

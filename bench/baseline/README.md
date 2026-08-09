@@ -1,4 +1,4 @@
-# Nemesis benchmark baseline
+# Legion benchmark baseline
 
 Captured at PR04 from the frozen starting commit `4e82122e713341f9a27545207a00ba45645d8e8f`.
 

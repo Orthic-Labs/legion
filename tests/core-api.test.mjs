@@ -99,23 +99,23 @@ test('verifyRun produces a deterministic receipt', async () => {
     fs: { readFile: async () => JSON.stringify({ kind: 'audit-facts', binding: { repositoryRevision: 'abc' }, checks: [], plan: { seal: { digest: 'sha256:x' } } }) },
   });
   const receipt = await verifyRun({ priorRun: '/tmp/run/facts.json', currentRepository: { repositoryRevision: 'abc' } }, host);
-  assert.equal(receipt.kind, 'nemesis-verification-receipt');
+  assert.equal(receipt.kind, 'legion-verification-receipt');
   assert.ok(receipt.priorDigest.startsWith('sha256:'));
   assert.equal(receipt.valid, false);
   assert.ok(receipt.gaps.some(({ kind }) => kind === 'semantic-replay-unavailable'));
 });
 
 test('run manifest is written from the artifact store records', async () => {
-  const dir = mkdtempSync(join(tmpdir(), 'nemesis-core-'));
+  const dir = mkdtempSync(join(tmpdir(), 'legion-core-'));
   try {
     const store = new RunArtifactStore(dir);
     await store.init();
     await store.writeJson({
-      path: 'plan.json', kind: 'audit-plan', producer: 'nemesis.core', schemaVersion: 1,
+      path: 'plan.json', kind: 'audit-plan', producer: 'legion.core', schemaVersion: 1,
       binding: { planDigest: 'sha256:p' }, value: { kind: 'audit-provider-plan' },
     });
     const manifest = await writeRunManifest(store, { binding: { planDigest: 'sha256:p' } });
-    assert.equal(manifest.kind, 'nemesis-run-manifest');
+    assert.equal(manifest.kind, 'legion-run-manifest');
     assert.equal(manifest.artifacts.length, 1);
     assert.equal(manifest.artifacts[0].kind, 'audit-plan');
     assert.ok(manifest.artifacts[0].digest.startsWith('sha256:'));

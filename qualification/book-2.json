@@ -1,9 +1,9 @@
 {
   "schemaVersion": 2,
-  "kind": "nemesis-book-qualification",
+  "kind": "legion-book-qualification",
   "book": 2,
   "expectedTaskCount": 30,
-  "sourceRevision": "content.sha256:e4570114e50219ad5a2b4701fe2da08892e626e686962174b468594f3692872b",
+  "sourceRevision": "content.sha256:3591c84a76068f4049ea44fa8c41251d29d512f7d72871b093bd21340f35c937+dirty",
   "decision": "SOURCE_IMPLEMENTED",
   "claimLevel": "source",
   "sourceAccounting": {
@@ -40,15 +40,15 @@
           },
           {
             "path": "schemas/inventory/product-target-v1.schema.json",
-            "symbol": "nemesis-product-target-v1",
-            "digest": "sha256:c1b318da4d9e87bdb01403fd1d4f6fe55b5a856f4ede269025f905ca71a5bbb3",
-            "bytes": 2891
+            "symbol": "legion-product-target-v1",
+            "digest": "sha256:07de1975cc79420728565f70527b5432731957c1aeefdd6a411f6b5ab05869d2",
+            "bytes": 2890
           },
           {
             "path": "schemas/inventory/product-portfolio-v1.schema.json",
-            "symbol": "nemesis-product-portfolio-v1",
-            "digest": "sha256:0dcfac49f60d93bd27b602aeae5feb921731a5aee1e2d7c6577039c674536f41",
-            "bytes": 3975
+            "symbol": "legion-product-portfolio-v1",
+            "digest": "sha256:a054e5cf084edbfd48319bf11b71251fe9f14bdee0da099e094f52feaca6f143",
+            "bytes": 3973
           }
         ],
         "proof": {
@@ -152,9 +152,9 @@
           },
           {
             "path": "schemas/inventory/target-classification-review-v1.schema.json",
-            "symbol": "nemesis-target-classification-review-v1",
-            "digest": "sha256:8d2f15f2b81cb2337691a8bb647a24f2a07d326f6c9948a7bba7b59fe8b1b171",
-            "bytes": 310
+            "symbol": "legion-target-classification-review-v1",
+            "digest": "sha256:4c394afc9435833841f054e263ef88d35de5b63b8167d7d1d902831e229a993c",
+            "bytes": 309
           },
           {
             "path": "registry/lenses/product-target-classification.json",
@@ -206,8 +206,8 @@
           {
             "path": "lib/inventory/product-targets/build-portfolio.mjs",
             "symbol": "buildPortfolio",
-            "digest": "sha256:955cf7cdb0b20064981ec92a7d24050185eac1b51caf8debde0a1a2f2c776148",
-            "bytes": 4288
+            "digest": "sha256:b9ae67161e2bb88f2112d5c309c94cc465ade865ad0d8aa5f2e571450f57beb5",
+            "bytes": 4283
           },
           {
             "path": "lib/inventory/product-targets/relations.mjs",
@@ -270,15 +270,15 @@
           },
           {
             "path": "schemas/inventory/component-v1.schema.json",
-            "symbol": "nemesis-component-v1",
-            "digest": "sha256:e436b28cdc177eb386d90e2d16f227b9852696c7c71a25150ba01baa0c158889",
-            "bytes": 1691
+            "symbol": "legion-component-v1",
+            "digest": "sha256:63e03483c2c583a178dee5eaf7d839cf4289c0fd9f01f791ddce48c265777cdb",
+            "bytes": 1690
           },
           {
             "path": "schemas/inventory/component-graph-v1.schema.json",
-            "symbol": "nemesis-component-graph-v1",
-            "digest": "sha256:0867f9a5c305c44256cd7a8af041f25e0cadd0650f7b740e4b74d3dde75248f1",
-            "bytes": 3129
+            "symbol": "legion-component-graph-v1",
+            "digest": "sha256:d01da9345a92d070dfca8911e3845ea5c60241943d6790d82031e9fa886b9422",
+            "bytes": 3127
           }
         ],
         "proof": {
@@ -442,8 +442,8 @@
           {
             "path": "lib/inventory/components/build-graph.mjs",
             "symbol": "buildComponentGraph",
-            "digest": "sha256:3e1d6f4c88edb03c538d1a55de5c53dfae65030f9ba09fadbc437cfa12adcfe1",
-            "bytes": 3183
+            "digest": "sha256:1a07944f367d43d2de809663fba71068a3da32964d5fa3b46cd763e8b9668bf4",
+            "bytes": 3182
           },
           {
             "path": "lib/inventory/components/trust-boundaries.mjs",
@@ -512,21 +512,21 @@
           },
           {
             "path": "schemas/inventory/stack-record-v1.schema.json",
-            "symbol": "nemesis-stack-record-v1",
-            "digest": "sha256:4d4b4472ee59da5b18e67ccdde15d142234a44aef9eb607bec475609f270b7fc",
-            "bytes": 1381
+            "symbol": "legion-stack-record-v1",
+            "digest": "sha256:d11aa917696b3afb5ca054687546f392fbad471267b191a24013d5c94469a863",
+            "bytes": 1380
           },
           {
             "path": "schemas/inventory/stack-graph-v1.schema.json",
-            "symbol": "nemesis-stack-graph-v1",
-            "digest": "sha256:e8072155ea8beec126a08b60cf328123aca74a2328ff5ae6a55c669f046f0333",
-            "bytes": 1024
+            "symbol": "legion-stack-graph-v1",
+            "digest": "sha256:d1edf7ce693d3dfb49a2d748ae66ad67846434e10466f9470c7a4780189ddb21",
+            "bytes": 1022
           },
           {
             "path": "schemas/inventory/external-system-v1.schema.json",
-            "symbol": "nemesis-external-system-v1",
-            "digest": "sha256:23c15c8df468b959341b8e1d4ce39be786b2f4ad2fdd56488bfc633f9ae56d81",
-            "bytes": 1658
+            "symbol": "legion-external-system-v1",
+            "digest": "sha256:2665fcb3bfdee724d7b4c59517fc3fbc9c90c2e6d1f145832db6d3ac708e7aad",
+            "bytes": 1657
           }
         ],
         "proof": {
@@ -572,8 +572,8 @@
           {
             "path": "lib/inventory/stacks/build-graph.mjs",
             "symbol": "buildStackGraph",
-            "digest": "sha256:2bce1758ccb87305a426588d6b4764661e12e85b5f27ff5fc418780f3abfc06c",
-            "bytes": 2537
+            "digest": "sha256:df209f6ec032d7536d669dba14b9cc2dbe4f5335d205508cd20e3b49147d5e0d",
+            "bytes": 2535
           },
           {
             "path": "lib/inventory/stacks/versions.mjs",
@@ -631,8 +631,8 @@
           {
             "path": "lib/inventory/external-systems/discover.mjs",
             "symbol": "discoverExternalSystems",
-            "digest": "sha256:0edca744385de2ee644597673489d8775ec281a84ef7d41cdc99b317990565f5",
-            "bytes": 2818
+            "digest": "sha256:c64474ec411ac4130992f932b7993a8ecd965261599a78b8df23b00bf72db92b",
+            "bytes": 2817
           },
           {
             "path": "lib/inventory/external-systems/contracts.mjs",
@@ -690,8 +690,8 @@
           {
             "path": "lib/inventory/release-contract/merge.mjs",
             "symbol": "mergeReleaseContract",
-            "digest": "sha256:bf56ad2066f3abe83ba4f620d8a2230c7e1e689cdc0e53a550bb8563700616d0",
-            "bytes": 3222
+            "digest": "sha256:00b6d75241c5fb33439d1a7b3476dbf240c89750dee800b6240f52c99144f6ef",
+            "bytes": 3221
           },
           {
             "path": "lib/inventory/release-contract/conflicts.mjs",
@@ -701,9 +701,9 @@
           },
           {
             "path": "schemas/inventory/release-contract-v1.schema.json",
-            "symbol": "nemesis-release-contract-v1",
-            "digest": "sha256:e556ca028b24a1490e557e141a6be51f0301c33a59907b9be73e4aab6118bc18",
-            "bytes": 2533
+            "symbol": "legion-release-contract-v1",
+            "digest": "sha256:9145aaeee3480399f55ee9f663e090251496f6c6eded8afac79eedd97c254aaf",
+            "bytes": 2531
           }
         ],
         "proof": {
@@ -766,9 +766,9 @@
           },
           {
             "path": "schemas/inventory/product-context-v1.schema.json",
-            "symbol": "nemesis-product-context-v1",
-            "digest": "sha256:96c2eeff8cfb9bc5e5e2615029d09c8981efdcd86c7368a62a99a92f615ccd3a",
-            "bytes": 1921
+            "symbol": "legion-product-context-v1",
+            "digest": "sha256:8f57069d5458dabb466c26a048ce1fbea24037274bcb701dea8fe2e3c67a4dcb",
+            "bytes": 1920
           }
         ],
         "proof": {
@@ -814,8 +814,8 @@
           {
             "path": "lib/inventory/journeys/build.mjs",
             "symbol": "buildJourneys",
-            "digest": "sha256:3f36c02f93aebd85d52335f342553fce258de6a76a1b08028eab0f225b78eeb8",
-            "bytes": 1042
+            "digest": "sha256:56cf78457e60851adc38c4fbb11773903df10103507a659cb8631eb561c1c258",
+            "bytes": 1040
           },
           {
             "path": "registry/journey-templates.json",
@@ -825,9 +825,9 @@
           },
           {
             "path": "schemas/inventory/journey-v1.schema.json",
-            "symbol": "nemesis-journey-v1",
-            "digest": "sha256:29de875d8a86cf90a1e7d78c89d95a27952657e834530708a76f1ccd72e22464",
-            "bytes": 1115
+            "symbol": "legion-journey-v1",
+            "digest": "sha256:5ae9a40bb1839d96506fde267b5d7c94c0ebc6a4b99761ae42824bced2e45c46",
+            "bytes": 1114
           }
         ],
         "proof": {
@@ -873,8 +873,8 @@
           {
             "path": "registry/controls/sources/catalogue.json",
             "symbol": "executionAuthority",
-            "digest": "sha256:72e9cde2572d68986126fba631c55c905a8c3d59e0292f7a2f68308e17f0d99f",
-            "bytes": 504524
+            "digest": "sha256:4e12e9684b79a594c710b7f5adb83a1515a1089fa200aba7e7d322f09b953477",
+            "bytes": 504523
           },
           {
             "path": "lib/controls/sources/ingest.mjs",
@@ -890,15 +890,15 @@
           },
           {
             "path": "schemas/controls/control-source-v1.schema.json",
-            "symbol": "nemesis-control-source-v1",
-            "digest": "sha256:fedaf1788fb77432d8706b70adb6bcb1690302a53088e43273d4deeee4e80817",
-            "bytes": 529
+            "symbol": "legion-control-source-v1",
+            "digest": "sha256:16ba641d5eef6e357e71e0a20162bada7ace2323746b155bef00b4ff0efa3562",
+            "bytes": 528
           },
           {
             "path": "schemas/controls/source-item-v1.schema.json",
-            "symbol": "nemesis-source-item-v1",
-            "digest": "sha256:58f9df4abc637604997b58195de1e32dc0c866a71921495b2df4e50d638d86a6",
-            "bytes": 536
+            "symbol": "legion-source-item-v1",
+            "digest": "sha256:bf7106490f8efe680418ba1486a03fca1eaed7572afc80afedfc9ca1b150c981",
+            "bytes": 535
           }
         ],
         "proof": {
@@ -950,8 +950,8 @@
           {
             "path": "registry/controls/sources/creator-audits-v1.json",
             "symbol": "expectedItemCount",
-            "digest": "sha256:e6b73685fdfc1494465d8f55179cfdc4e6d4e198f8399290996b4b455489b27c",
-            "bytes": 286309
+            "digest": "sha256:176080976ff82b26f95ce9a8adb7788c70f79f67911a79fbe91e2bb903a4f601",
+            "bytes": 286307
           },
           {
             "path": "qualification/source-absorption/creator-audits-v1.json",
@@ -1009,8 +1009,8 @@
           {
             "path": "registry/controls/sources/platform-checklists-v1.json",
             "symbol": "textDigest",
-            "digest": "sha256:875972643d8229fd8fc0028f8cb92b18cc59a4b48ac11b77e5783fae2bcfe5cb",
-            "bytes": 3345009
+            "digest": "sha256:654afeaf305b6f5ca8ac7681dd30b1f634ddc07418d0f2e33f490910071fe343",
+            "bytes": 3345008
           },
           {
             "path": "qualification/source-absorption/platform-checklists-v1.json",
@@ -1073,15 +1073,15 @@
           },
           {
             "path": "schemas/controls/assurance-control-v1.schema.json",
-            "symbol": "nemesis-assurance-control-v1",
-            "digest": "sha256:902a665ebea366b566e2a19abf7cd3116a57b06edd19879a9c0bc2e6f81e40a1",
-            "bytes": 2447
+            "symbol": "legion-assurance-control-v1",
+            "digest": "sha256:6d3bf206c85cf237077a4bb86bd7c7bea850e2a2926042206eca4255f53bcc3b",
+            "bytes": 2446
           },
           {
             "path": "schemas/controls/control-pack-v1.schema.json",
-            "symbol": "nemesis-control-pack-v1",
-            "digest": "sha256:41a5bef2e905e464a3eddb4d935b45badacd9a94a7b4685841d8a73b5599b28a",
-            "bytes": 995
+            "symbol": "legion-control-pack-v1",
+            "digest": "sha256:3f2bf1ac372d672be71a1137a8eccb9c1428a0129ae0a7bb0b6b18c83cab8318",
+            "bytes": 994
           },
           {
             "path": "registry/controls/packs/index.json",
@@ -1133,14 +1133,14 @@
           {
             "path": "registry/controls/packs/universal/core.json",
             "symbol": "universal.scope",
-            "digest": "sha256:b70b810afd61eb997da0ff674e2aea27cd806efc1d36d93510e2a6feb57f8e45",
-            "bytes": 21919
+            "digest": "sha256:90d650f5e0b3167a578f55958738e94bafa7279ff9258a64b817cf1d117c5da7",
+            "bytes": 21901
           },
           {
             "path": "registry/controls/controls/universal/core.json",
             "symbol": "universal.unknown-material",
-            "digest": "sha256:d2489ef460e03c2e29c7875e49ddd0be25c96569a767dd6f0d651983872f3fcb",
-            "bytes": 21758
+            "digest": "sha256:bca072dfcab9578895df1b9dab5132e0a512eba33ebbafcaebb7aa05313924bb",
+            "bytes": 21740
           }
         ],
         "proof": {
@@ -1186,14 +1186,14 @@
           {
             "path": "registry/controls/packs/targets/web/core.json",
             "symbol": "web.backup-dr",
-            "digest": "sha256:d41f247fdd1284d426f69373de77b392e8f2fed0295a1a09479a462a2dd7994b",
-            "bytes": 30116
+            "digest": "sha256:61baad5c05205c70c8f53977bbf8dd7602cf4dfaba264c30f19ae8f68803e76d",
+            "bytes": 30092
           },
           {
             "path": "registry/controls/controls/web/core.json",
             "symbol": "web.http-security",
-            "digest": "sha256:d1b233ef53d8eb5fd620d43bcd846d714b409f13bb7770615166b213ab292535",
-            "bytes": 29932
+            "digest": "sha256:e23533415459c2d3f74324e75bcb1b039c93200e8b19ee8e345cee26782698c1",
+            "bytes": 29908
           },
           {
             "path": "registry/scenarios/web/core.json",
@@ -1245,14 +1245,14 @@
           {
             "path": "registry/controls/packs/targets/desktop/core.json",
             "symbol": "desktop.installer",
-            "digest": "sha256:9d026fbc9178bcdcc9b84517cec079c7af9024fd0548e3a47db5dd4168c84124",
-            "bytes": 27886
+            "digest": "sha256:ed8b07527d504e8382167ffe32f8dfb579755383d94282707b80056ee3b1dc30",
+            "bytes": 27864
           },
           {
             "path": "registry/controls/controls/desktop/core.json",
             "symbol": "desktop.updater-signing",
-            "digest": "sha256:d6f2c2cafb328e901719e09a5a859dfe492d9f78cc53d42d0bea0b4e0f2eb958",
-            "bytes": 27702
+            "digest": "sha256:0e5dd518ad202b6a3a3bdb852734b1497f121b2eac94a34653d740d125131184",
+            "bytes": 27680
           },
           {
             "path": "registry/scenarios/desktop/core.json",
@@ -1304,14 +1304,14 @@
           {
             "path": "registry/controls/packs/targets/mobile/core.json",
             "symbol": "mobile.ios",
-            "digest": "sha256:eb863e5872f3deebf039a73c8a0f42c97fb19ab4551fec5ad937749fb8567b34",
-            "bytes": 31184
+            "digest": "sha256:c1fc787a0cab635c8d164b01d877aa91bab24c7890ae9fe3550aede6a8353b5e",
+            "bytes": 31160
           },
           {
             "path": "registry/controls/controls/mobile/core.json",
             "symbol": "mobile.android",
-            "digest": "sha256:75a63d9c46a2df5bcf3f519305b5fb9022cd04ca76cf8888b87706039c51871e",
-            "bytes": 31000
+            "digest": "sha256:d6867105a18f2e3521f73cd701402c7c961682c2f4b0b6911b8812059d6fccd3",
+            "bytes": 30976
           },
           {
             "path": "registry/scenarios/mobile/core.json",
@@ -1363,20 +1363,20 @@
           {
             "path": "registry/controls/packs/targets/service/core.json",
             "symbol": "service-data.api-contracts",
-            "digest": "sha256:f4c332995df0c0becf2d998d4737767b888aa1a9840153927b18cca13f569936",
-            "bytes": 24989
+            "digest": "sha256:6bac6f16cb00164c99990ab200a5f6ede7c0205504074a2d4e1487ba28d1dd81",
+            "bytes": 24971
           },
           {
             "path": "registry/controls/packs/components/service-data/core.json",
             "symbol": "service-data.lineage",
-            "digest": "sha256:2d2171763f6ce7d2ec2d87ad7545126fbceb348d20fde74ef817277a975caada",
-            "bytes": 24995
+            "digest": "sha256:c899ea9983d0b8e16a40c585f956efd37d6e5a5607fa5825bd3d21caa5f6903b",
+            "bytes": 24977
           },
           {
             "path": "registry/controls/controls/service-data/core.json",
             "symbol": "service-data.replay-correctness",
-            "digest": "sha256:25d7576f2f779f653516a5ba3d7847c79d30f3f7757867febbe48b7c7b26c1ab",
-            "bytes": 24805
+            "digest": "sha256:623d5c8f91af05bc601d8d204ec5ad6187b990e25a08218a57c2e443d21a35db",
+            "bytes": 24787
           }
         ],
         "proof": {
@@ -1422,14 +1422,14 @@
           {
             "path": "registry/controls/packs/targets/developer-tools/core.json",
             "symbol": "developer-tools.cli-contract",
-            "digest": "sha256:0cf338d6e4ae261ecaa1f50c069b6f71c3e895f1599f7531eb63793f9ee17857",
-            "bytes": 24700
+            "digest": "sha256:4af9527e06d6f562bde4c6a6002c88273b569e2b3e5d0f68f87ef78941ed3578",
+            "bytes": 24683
           },
           {
             "path": "registry/controls/controls/developer-tools/core.json",
             "symbol": "developer-tools.workspace-trust",
-            "digest": "sha256:15b7c35d582f36f9c4a2d1e66bf4e741053d03e39f9d74cedaacadbdf6155f08",
-            "bytes": 24516
+            "digest": "sha256:a9cef8924878bdac7b55b3eff36a2950276f960579d6cf15cbd8ebba11ac4ea4",
+            "bytes": 24499
           },
           {
             "path": "registry/scenarios/developer-tools/core.json",
@@ -1481,14 +1481,14 @@
           {
             "path": "registry/controls/packs/components/infrastructure-release/core.json",
             "symbol": "infrastructure-release.rendered-resources",
-            "digest": "sha256:0c67f89c00e2fb8f2f79acfb8cb6e13430d1a75237e6de31a2bec43d983947ff",
-            "bytes": 26384
+            "digest": "sha256:1377862b6f498d9619beda5a31e07791f9fcbcdc87eeb54666b89ade6808f17b",
+            "bytes": 26365
           },
           {
             "path": "registry/controls/controls/infrastructure-release/core.json",
             "symbol": "infrastructure-release.promotion",
-            "digest": "sha256:dcb8b7ce9dd700fbddb097bbcd17e45f0a5a4696f59718abe31892b8cae11d9f",
-            "bytes": 26197
+            "digest": "sha256:08868e50fc49f8f54eba219a841ed78c0ec0351fd2bd6b0a18bce94e3b248380",
+            "bytes": 26178
           },
           {
             "path": "registry/scenarios/infrastructure-release/core.json",
@@ -1540,14 +1540,14 @@
           {
             "path": "registry/controls/packs/conditional/core.json",
             "symbol": "conditional.commerce",
-            "digest": "sha256:68629b529841a6d791e77a8d519ecb69d4f2888cd1e90ea842f1c6ee5b4ec5db",
-            "bytes": 15474
+            "digest": "sha256:37196e5013a2e62cbd760d6b50270f30bd307ad1df8d95c507ced95ee411c1e8",
+            "bytes": 15462
           },
           {
             "path": "registry/controls/controls/conditional/core.json",
             "symbol": "conditional.human-policy",
-            "digest": "sha256:868eda1ecb5d6d179b73c4da84644730a8fdee03f47e07575673b8ef17262df6",
-            "bytes": 15285
+            "digest": "sha256:cfde06b08552cb115dd74463d4ab61a77ea8da6badf8617f5cb7fff3b75b2d46",
+            "bytes": 15273
           },
           {
             "path": "registry/scenarios/conditional/core.json",
@@ -1608,8 +1608,8 @@
           {
             "path": "lib/controls/baseline/compile.mjs",
             "symbol": "compileBaseline",
-            "digest": "sha256:7f4c0a7429f5285d3632f2e52d91374344d2af52ad574d8545b646677d84fb6b",
-            "bytes": 3483
+            "digest": "sha256:85fe2d62e98418c05e9f15c7a850ee8c30229f74f9258ce82119e0961f170117",
+            "bytes": 3482
           },
           {
             "path": "lib/controls/baseline/selectors.mjs",
@@ -1625,9 +1625,9 @@
           },
           {
             "path": "schemas/controls/control-baseline-v1.schema.json",
-            "symbol": "nemesis-control-baseline-v1",
-            "digest": "sha256:daf06b3ee8923de08c2547ccc3e7ba6304ba8ea91f73aee1d22df3ddaaf02ad0",
-            "bytes": 1090
+            "symbol": "legion-control-baseline-v1",
+            "digest": "sha256:c4f9bfae4c0809ff89bb932650664c62a37e490652425357ce455bd6c8a26e78",
+            "bytes": 1088
           }
         ],
         "proof": {
@@ -1690,15 +1690,15 @@
           },
           {
             "path": "schemas/controls/evidence-capability-v1.schema.json",
-            "symbol": "nemesis-evidence-capability-v1",
-            "digest": "sha256:f1a679b5e1973505a18614ad9d00e07018e7a8075f0442a13fa1e9d01a93137c",
-            "bytes": 590
+            "symbol": "legion-evidence-capability-v1",
+            "digest": "sha256:5fc801e98598338a273b7e1fb765de1d78b53db326806ac5b3e5ad5ed2b6666a",
+            "bytes": 589
           },
           {
             "path": "schemas/controls/external-evidence-manifest-v1.schema.json",
-            "symbol": "nemesis-external-evidence-manifest-v1",
-            "digest": "sha256:9ff32d83c216ef687f7e6476fd623db75b78153b03be2486f14968e10fa38bd4",
-            "bytes": 1865
+            "symbol": "legion-external-evidence-manifest-v1",
+            "digest": "sha256:ba96ecad79057df2481a3b80ce223e6df2e1e70a3f8480758c83aad79d745d29",
+            "bytes": 1864
           }
         ],
         "proof": {
@@ -1744,8 +1744,8 @@
           {
             "path": "lib/controls/scenarios/compile.mjs",
             "symbol": "compileScenarios",
-            "digest": "sha256:5df2c257ae3e48d5c63e8b8746c5521a7016fac13f3e4be7fe0f1e53616039e9",
-            "bytes": 2051
+            "digest": "sha256:a4d213bf3e592ef5f54edab1f9810399ddb6c17d7ab7b820d21a3ecf1602e070",
+            "bytes": 2050
           },
           {
             "path": "lib/controls/scenarios/pairwise.mjs",
@@ -1761,15 +1761,15 @@
           },
           {
             "path": "schemas/controls/scenario-template-v1.schema.json",
-            "symbol": "nemesis-scenario-template-v1",
-            "digest": "sha256:b1ab70b78650c7e915b6ad35b1569b25089b028298749b5af152602b53b21d14",
-            "bytes": 931
+            "symbol": "legion-scenario-template-v1",
+            "digest": "sha256:95027e222b08dcefa6046067ea0f2d0a8a18b8790b0975f46aa32f521dfaad60",
+            "bytes": 930
           },
           {
             "path": "schemas/controls/scenario-matrix-v1.schema.json",
-            "symbol": "nemesis-scenario-matrix-v1",
-            "digest": "sha256:6e7bc306718840d38755d831490d1d3581ec26751a5201639d82ed19ccc977dd",
-            "bytes": 1739
+            "symbol": "legion-scenario-matrix-v1",
+            "digest": "sha256:27fe070d97cc1832f4d3d510eea84722ea0acf0d8e528ffdaa4b3d54c7ed23ba",
+            "bytes": 1737
           }
         ],
         "proof": {
@@ -1815,8 +1815,8 @@
           {
             "path": "lib/core/inspect-product.mjs",
             "symbol": "inspectProduct",
-            "digest": "sha256:1bc88ad12d01e7093961ae63c9c60fe2381703a2d86cbbeb7fa36f0022482800",
-            "bytes": 4212
+            "digest": "sha256:4bd012d0b745f388de7eb10dfaeb89127e47fc00237e01eddff8c3a8310887c6",
+            "bytes": 4203
           },
           {
             "path": "lib/core/plan-stages/product-topology.mjs",

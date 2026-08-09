@@ -61,7 +61,7 @@
       },
       "provenance": {
         "kind": "canonical",
-        "source": "nemesis:infrastructure-release",
+        "source": "legion:infrastructure-release",
         "rights": "internal-contract",
         "lineage": [
           "canonical:infrastructure-release:rendered-resources"
@@ -118,7 +118,7 @@
       },
       "provenance": {
         "kind": "canonical",
-        "source": "nemesis:infrastructure-release",
+        "source": "legion:infrastructure-release",
         "rights": "internal-contract",
         "lineage": [
           "canonical:infrastructure-release:iam"
@@ -175,7 +175,7 @@
       },
       "provenance": {
         "kind": "canonical",
-        "source": "nemesis:infrastructure-release",
+        "source": "legion:infrastructure-release",
         "rights": "internal-contract",
         "lineage": [
           "canonical:infrastructure-release:network"
@@ -232,7 +232,7 @@
       },
       "provenance": {
         "kind": "canonical",
-        "source": "nemesis:infrastructure-release",
+        "source": "legion:infrastructure-release",
         "rights": "internal-contract",
         "lineage": [
           "canonical:infrastructure-release:containers"
@@ -289,7 +289,7 @@
       },
       "provenance": {
         "kind": "canonical",
-        "source": "nemesis:infrastructure-release",
+        "source": "legion:infrastructure-release",
         "rights": "internal-contract",
         "lineage": [
           "canonical:infrastructure-release:serverless"
@@ -346,7 +346,7 @@
       },
       "provenance": {
         "kind": "canonical",
-        "source": "nemesis:infrastructure-release",
+        "source": "legion:infrastructure-release",
         "rights": "internal-contract",
         "lineage": [
           "canonical:infrastructure-release:storage"
@@ -403,7 +403,7 @@
       },
       "provenance": {
         "kind": "canonical",
-        "source": "nemesis:infrastructure-release",
+        "source": "legion:infrastructure-release",
         "rights": "internal-contract",
         "lineage": [
           "canonical:infrastructure-release:secrets"
@@ -460,7 +460,7 @@
       },
       "provenance": {
         "kind": "canonical",
-        "source": "nemesis:infrastructure-release",
+        "source": "legion:infrastructure-release",
         "rights": "internal-contract",
         "lineage": [
           "canonical:infrastructure-release:regions"
@@ -517,7 +517,7 @@
       },
       "provenance": {
         "kind": "canonical",
-        "source": "nemesis:infrastructure-release",
+        "source": "legion:infrastructure-release",
         "rights": "internal-contract",
         "lineage": [
           "canonical:infrastructure-release:dns-cdn-tls"
@@ -574,7 +574,7 @@
       },
       "provenance": {
         "kind": "canonical",
-        "source": "nemesis:infrastructure-release",
+        "source": "legion:infrastructure-release",
         "rights": "internal-contract",
         "lineage": [
           "canonical:infrastructure-release:delivery"
@@ -631,7 +631,7 @@
       },
       "provenance": {
         "kind": "canonical",
-        "source": "nemesis:infrastructure-release",
+        "source": "legion:infrastructure-release",
         "rights": "internal-contract",
         "lineage": [
           "canonical:infrastructure-release:artifacts"
@@ -688,7 +688,7 @@
       },
       "provenance": {
         "kind": "canonical",
-        "source": "nemesis:infrastructure-release",
+        "source": "legion:infrastructure-release",
         "rights": "internal-contract",
         "lineage": [
           "canonical:infrastructure-release:signing-provenance"
@@ -745,7 +745,7 @@
       },
       "provenance": {
         "kind": "canonical",
-        "source": "nemesis:infrastructure-release",
+        "source": "legion:infrastructure-release",
         "rights": "internal-contract",
         "lineage": [
           "canonical:infrastructure-release:promotion"
@@ -802,7 +802,7 @@
       },
       "provenance": {
         "kind": "canonical",
-        "source": "nemesis:infrastructure-release",
+        "source": "legion:infrastructure-release",
         "rights": "internal-contract",
         "lineage": [
           "canonical:infrastructure-release:rollback"
@@ -859,7 +859,7 @@
       },
       "provenance": {
         "kind": "canonical",
-        "source": "nemesis:infrastructure-release",
+        "source": "legion:infrastructure-release",
         "rights": "internal-contract",
         "lineage": [
           "canonical:infrastructure-release:backup-restore"
@@ -916,7 +916,7 @@
       },
       "provenance": {
         "kind": "canonical",
-        "source": "nemesis:infrastructure-release",
+        "source": "legion:infrastructure-release",
         "rights": "internal-contract",
         "lineage": [
           "canonical:infrastructure-release:dr"
@@ -973,7 +973,7 @@
       },
       "provenance": {
         "kind": "canonical",
-        "source": "nemesis:infrastructure-release",
+        "source": "legion:infrastructure-release",
         "rights": "internal-contract",
         "lineage": [
           "canonical:infrastructure-release:observability"
@@ -1030,7 +1030,7 @@
       },
       "provenance": {
         "kind": "canonical",
-        "source": "nemesis:infrastructure-release",
+        "source": "legion:infrastructure-release",
         "rights": "internal-contract",
         "lineage": [
           "canonical:infrastructure-release:incidents-support"
@@ -1087,7 +1087,7 @@
       },
       "provenance": {
         "kind": "canonical",
-        "source": "nemesis:infrastructure-release",
+        "source": "legion:infrastructure-release",
         "rights": "internal-contract",
         "lineage": [
           "canonical:infrastructure-release:quotas-cost"

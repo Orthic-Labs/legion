@@ -1,12 +1,12 @@
 // MCP host installer per SNIP-MCP-01. Prints the host installer config but
 // never edits client config without an explicit command/preview.
 
-import { NEMESIS_PACKAGE } from '../../lib/version.mjs';
+import { LEGION_PACKAGE } from '../../lib/version.mjs';
 
-export function mcpInstallConfig({ command = 'nemesis', args = ['mcp', 'server'] } = {}) {
+export function mcpInstallConfig({ command = 'legion', args = ['mcp', 'server'] } = {}) {
   return {
     mcpServers: {
-      nemesis: { command, args },
+      legion: { command, args },
     },
   };
 }
@@ -14,7 +14,7 @@ export function mcpInstallConfig({ command = 'nemesis', args = ['mcp', 'server']
 export function installPreview({ host, config }) {
   return {
     schemaVersion: 1,
-    kind: 'nemesis-mcp-install-preview',
+    kind: 'legion-mcp-install-preview',
     host,
     wouldWrite: `${host} MCP client config`,
     config,

@@ -6,11 +6,11 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import test from 'node:test';
 import { EXIT, exitCodeForReport } from '../lib/errors.mjs';
-import { NEMESIS_VERSION } from '../lib/version.mjs';
+import { LEGION_VERSION } from '../lib/version.mjs';
 import { runCli } from '../lib/cli/run.mjs';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
-const BIN = fileURLToPath(new URL('../bin/nemesis.mjs', import.meta.url));
+const BIN = fileURLToPath(new URL('../bin/legion.mjs', import.meta.url));
 
 function capture(args) {
   const result = spawnSync(process.execPath, [BIN, ...args], {
@@ -25,20 +25,20 @@ function capture(args) {
 test('--help prints usage and exits 0', () => {
   const { exitCode, stdout } = capture(['--help']);
   assert.equal(exitCode, EXIT.PASS);
-  assert.match(stdout, /nemesis <command>/);
+  assert.match(stdout, /legion <command>/);
   assert.match(stdout, /Commands:/);
 });
 
 test('--version prints the canonical version', () => {
   const { exitCode, stdout } = capture(['--version']);
   assert.equal(exitCode, EXIT.PASS);
-  assert.equal(stdout.trim(), NEMESIS_VERSION);
+  assert.equal(stdout.trim(), LEGION_VERSION);
 });
 
 test('no subcommand prints usage and exits 4', () => {
   const { exitCode, stdout } = capture([]);
   assert.equal(exitCode, EXIT.USAGE);
-  assert.match(stdout, /nemesis <command>/);
+  assert.match(stdout, /legion <command>/);
 });
 
 test('unknown subcommand exits 4', () => {
@@ -51,7 +51,7 @@ test('providers --json emits machine JSON on stdout', () => {
   const { exitCode, stdout } = capture(['providers', '--json']);
   assert.equal(exitCode, EXIT.PASS);
   const parsed = JSON.parse(stdout);
-  assert.equal(parsed.kind, 'nemesis-providers');
+  assert.equal(parsed.kind, 'legion-providers');
   assert.ok(Array.isArray(parsed.providers));
   assert.ok(parsed.providers.some((provider) => provider.id === 'framework.major-suite'));
 });
@@ -60,7 +60,7 @@ test('languages --json emits the coverage family surface', () => {
   const { exitCode, stdout } = capture(['languages', '--json']);
   assert.equal(exitCode, EXIT.PASS);
   const parsed = JSON.parse(stdout);
-  assert.equal(parsed.kind, 'nemesis-languages');
+  assert.equal(parsed.kind, 'legion-languages');
   assert.ok(Array.isArray(parsed.languages));
 });
 
@@ -73,7 +73,7 @@ test('plan --json seals a plan for the checkout root', () => {
 });
 
 test('report --format json renders a report', () => {
-  const dir = mkdtempSync(join(tmpdir(), 'nemesis-report-'));
+  const dir = mkdtempSync(join(tmpdir(), 'legion-report-'));
   const reportPath = join(dir, 'report.json');
   writeFileSync(reportPath, JSON.stringify({
     kind: 'repository-audit-report', audit_status: 'pass', findings: [], coverage_gaps: [],
@@ -88,7 +88,7 @@ test('report --format json renders a report', () => {
 });
 
 test('verify resolves a run directory to its facts artifact', () => {
-  const dir = mkdtempSync(join(tmpdir(), 'nemesis-verify-run-'));
+  const dir = mkdtempSync(join(tmpdir(), 'legion-verify-run-'));
   writeFileSync(join(dir, 'facts.json'), '{}');
   writeFileSync(join(dir, 'plan.json'), '{}');
   try {
@@ -100,7 +100,7 @@ test('verify resolves a run directory to its facts artifact', () => {
 });
 
 test('verify preserves direct facts-file support', () => {
-  const dir = mkdtempSync(join(tmpdir(), 'nemesis-verify-file-'));
+  const dir = mkdtempSync(join(tmpdir(), 'legion-verify-file-'));
   const facts = join(dir, 'facts.json');
   writeFileSync(facts, '{}');
   try {
@@ -112,7 +112,7 @@ test('verify preserves direct facts-file support', () => {
 });
 
 test('verify reports a typed missing-facts error for an invalid run directory', () => {
-  const dir = mkdtempSync(join(tmpdir(), 'nemesis-verify-missing-'));
+  const dir = mkdtempSync(join(tmpdir(), 'legion-verify-missing-'));
   try {
     const { exitCode, stderr } = capture(['verify', dir]);
     assert.equal(exitCode, EXIT.USAGE);
@@ -124,7 +124,7 @@ test('verify reports a typed missing-facts error for an invalid run directory', 
 });
 
 test('verify reports a typed missing-plan error for an incomplete run directory', () => {
-  const dir = mkdtempSync(join(tmpdir(), 'nemesis-verify-plan-'));
+  const dir = mkdtempSync(join(tmpdir(), 'legion-verify-plan-'));
   writeFileSync(join(dir, 'facts.json'), '{}');
   try {
     const { exitCode, stderr } = capture(['verify', dir]);

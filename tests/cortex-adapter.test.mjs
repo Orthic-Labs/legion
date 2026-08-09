@@ -20,7 +20,7 @@ test('bundled mode reports compatibility when bundled provider is present', asyn
 });
 
 test('precomputed mode verifies binding and reads the projection', async () => {
-  const dir = mkdtempSync(join(tmpdir(), 'nemesis-cortex-'));
+  const dir = mkdtempSync(join(tmpdir(), 'legion-cortex-'));
   try {
     const path = join(dir, 'projection.json');
     writeFileSync(path, JSON.stringify({

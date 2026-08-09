@@ -54,27 +54,27 @@ test('framework family results are owned by the plan provider', () => {
   } finally { rmSync(root, { recursive: true, force: true }); }
 });
 
-test('SARIF uses the canonical Orthic Labs Nemesis identity', () => {
+test('SARIF uses the canonical Orthic Labs Legion identity', () => {
   const sarif = reportToSarif({ findings: [{ id: 'f1', ruleId: 'security.command', severity: 'high', title: 'Command injection', file: 'src/a.ts', line: 3 }] });
   const driver = sarif.runs[0].tool.driver;
-  assert.equal(driver.name, 'Nemesis');
-  assert.equal(driver.fullName, 'Orthic Labs Nemesis');
+  assert.equal(driver.name, 'Legion');
+  assert.equal(driver.fullName, 'Orthic Labs Legion');
   assert.equal(driver.organization, 'Orthic Labs');
-  assert.equal(driver.informationUri, 'https://github.com/Orthic-Labs/nemesis');
+  assert.equal(driver.informationUri, 'https://github.com/Orthic-Labs/legion');
   assert.equal(sarif.version, '2.1.0');
   assert.ok(!JSON.stringify(sarif).includes('bogusyogi'));
 });
 
-test('SARIF results carry stable nemesisFinding partial fingerprints', () => {
+test('SARIF results carry stable legionFinding partial fingerprints', () => {
   const sarif = reportToSarif({ findings: [{ id: 'f1', ruleId: 'security.command', severity: 'high', title: 'Command injection', file: 'src/a.ts', line: 3 }] });
   const result = sarif.runs[0].results[0];
-  assert.equal(result.partialFingerprints['nemesisFinding/v1'], 'f1');
+  assert.equal(result.partialFingerprints['legionFinding/v1'], 'f1');
   // Line-number shifts must not change the semantic finding fingerprint.
   const moved = reportToSarif({ findings: [{ id: 'f1', ruleId: 'security.command', severity: 'high', title: 'Command injection', file: 'src/a.ts', line: 40 }] });
-  assert.equal(moved.runs[0].results[0].partialFingerprints['nemesisFinding/v1'], 'f1');
+  assert.equal(moved.runs[0].results[0].partialFingerprints['legionFinding/v1'], 'f1');
 });
 
 test('SARIF includes root-cause fingerprint when present', () => {
   const sarif = reportToSarif({ findings: [{ id: 'f1', ruleId: 'security.command', severity: 'high', title: 'Command injection', file: 'src/a.ts', line: 3, rootCauseDigest: 'sha256:abc' }] });
-  assert.equal(sarif.runs[0].results[0].partialFingerprints['nemesisRootCause/v1'], 'sha256:abc');
+  assert.equal(sarif.runs[0].results[0].partialFingerprints['legionRootCause/v1'], 'sha256:abc');
 });

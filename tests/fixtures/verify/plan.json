@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "kind": "audit-provider-plan",
-  "root": "/tmp/nemesis-verify-fixture",
+  "root": "/tmp/legion-verify-fixture",
   "scope": { "mode": "whole-repo", "type": "all" },
   "filters": { "only": [], "skip": [] },
   "seal": {

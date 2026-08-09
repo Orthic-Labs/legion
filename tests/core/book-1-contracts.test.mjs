@@ -9,7 +9,7 @@ const sha256 = (value) => `sha256:${createHash('sha256').update(value).digest('h
 test('B1-001 package manifest exposes one public binary and later-book public paths', async () => {
   const pkg = await json('package.json');
   const manifest = await json('MANIFEST.package.json');
-  assert.deepEqual(pkg.bin, { nemesis: './bin/nemesis.mjs' });
+  assert.deepEqual(pkg.bin, { legion: './bin/legion.mjs' });
   assert.ok(pkg.files.includes('integrations/') && pkg.files.includes('skills/'));
   assert.ok(manifest.forbiddenContentMarkers.includes('C:\\Users\\'));
 });
@@ -40,7 +40,7 @@ test('B1-005 artifact paths reject alternate separators and digests bind bytes',
   const { safeArtifactPath } = await import('../../lib/artifacts/paths.mjs');
   const { digestBytes } = await import('../../lib/artifacts/digests.mjs');
   assert.throws(() => safeArtifactPath('C:/run', '..\\escape.json'), /escape/);
-  assert.equal(digestBytes(Buffer.from('nemesis')), sha256('nemesis'));
+  assert.equal(digestBytes(Buffer.from('legion')), sha256('legion'));
 });
 
 test('B1-006 run manifest rejects orphan and missing declared files', async () => {
@@ -154,14 +154,14 @@ test('B1-021 schedule command is a pure canonical renderer', async () => {
 test('B1-022 skill bundle contract rejects absolute internal URIs and separates profiles', async () => {
   const { validateSkillBundle } = await import('../../lib/skills/contracts.mjs');
   const base={schemaVersion:1,id:'x',version:'1',entry:'SKILL.md',provenance:'test',licenseState:'unresolved',rightsReceipt:null,files:[]};
-  assert.throws(() => validateSkillBundle({ ...base, rootUri: 'C:/skills', profiles: {} }), /nemesis-skill/);
-  assert.throws(() => validateSkillBundle({ ...base, rootUri: 'nemesis-skill://x/', profiles: { audit: {} } }), /authoring/);
+  assert.throws(() => validateSkillBundle({ ...base, rootUri: 'C:/skills', profiles: {} }), /legion-skill/);
+  assert.throws(() => validateSkillBundle({ ...base, rootUri: 'legion-skill://x/', profiles: { audit: {} } }), /authoring/);
 });
 
 test('B1-023 skill URI resolver and verifier are package-relative and digest-bound', async () => {
   const { parseSkillUri } = await import('../../lib/skills/uri.mjs');
   const { verifySkillBytes } = await import('../../lib/skills/verify.mjs');
-  assert.deepEqual(parseSkillUri('nemesis-skill://designer/SKILL.md'), { bundle: 'designer', path: 'SKILL.md' });
+  assert.deepEqual(parseSkillUri('legion-skill://designer/SKILL.md'), { bundle: 'designer', path: 'SKILL.md' });
   assert.throws(() => parseSkillUri('file:///tmp/x'), /unsupported/);
   assert.equal(verifySkillBytes('text', sha256('text')).ok, true);
 });
@@ -172,7 +172,7 @@ test('B1-024 skill transformation is deterministic, neutral, and strips audit mu
   const value = transformSkillText('allowed-tools: Write\nAsk Adrian\n[ref](./guide.md)', { bundle: 'designer', profile: 'audit', rules });
   assert.equal(value.includes('allowed-tools'), false);
   assert.match(value, /the approving human/);
-  assert.match(value, /nemesis-skill:\/\/designer\/guide.md/);
+  assert.match(value, /legion-skill:\/\/designer\/guide.md/);
 });
 
 test('B1-025 Designer bundle preserves audit authority boundaries', async () => {

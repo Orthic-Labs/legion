@@ -7,10 +7,10 @@
       "reason": "Existing public skill name differs from the local folder name."
     },
     {
-      "folder": "nemesis",
+      "folder": "legion",
       "frontmatter_name": "audit",
       "public_invocations": ["audit", "/audit", "/audit-fix"],
-      "reason": "Audit engine repo/folder is named nemesis; public skill invocation is /audit."
+      "reason": "Audit engine repo/folder is named legion; public skill invocation is /audit."
     }
   ],
   "pending_migrations": [

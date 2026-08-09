@@ -17,6 +17,6 @@ export function assessMobilePerformance({ targetId = null, artifactDigest = null
   for (const profile of REQUIRED_PROFILES) if (!profiles.includes(profile)) gaps.push(`profile-missing:${profile}`);
   for (const check of REQUIRED_ARTIFACT_INSPECTIONS) if (artifactInspection[check] !== true) gaps.push(`artifact-inspection-missing:${check}`);
   const metrics = Object.fromEntries([...new Set(valid.map((item) => item.metric))].sort().map((metric) => { const values = valid.filter((item) => item.metric === metric).map((item) => item.value); const worst = budgets[metric]?.direction === 'higher-is-better' ? Math.min(...values) : Math.max(...values); return [metric, { repeats: values.length, p50: percentile(values, .5), p95: percentile(values, .95), worst, budget: budgets[metric] ?? null }]; }));
-  return { schemaVersion: 1, kind: 'nemesis-mobile-performance-evidence', targetId, artifactDigest, status: gaps.length ? 'partial' : 'pass', terminal: true,
+  return { schemaVersion: 1, kind: 'legion-mobile-performance-evidence', targetId, artifactDigest, status: gaps.length ? 'partial' : 'pass', terminal: true,
     metrics, claims: { battery: gaps.includes('battery-measurement-missing') ? 'unproven' : 'measured', thermal: gaps.includes('thermal-measurement-missing') ? 'unproven' : 'measured', releaseArtifact: artifactDigest && release.length ? 'measured' : 'unproven' }, coverageGaps: gaps.sort() };
 }

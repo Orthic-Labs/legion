@@ -1,7 +1,7 @@
 # Windows signing pipeline per SNIP-WIN-SIGN-01.
 # Uses Microsoft Artifact Signing/SignTool with RFC3161 timestamping.
 
-name: Nemesis Windows signing
+name: Legion Windows signing
 
 steps:
   - name: Sign
@@ -13,9 +13,9 @@ steps:
         /td SHA256 `
         /dlib "$env:ARTIFACT_SIGNING_DLIB" `
         /dmdf "$env:ARTIFACT_SIGNING_METADATA" `
-        "dist\nemesis.exe"
+        "dist\legion.exe"
   - name: Verify
-    run: signtool.exe verify /pa /all /v "dist\nemesis.exe"
+    run: signtool.exe verify /pa /all /v "dist\legion.exe"
 
 documentation:
   - "The release job must use the current Microsoft Artifact Signing integration metadata."

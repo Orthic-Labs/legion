@@ -243,9 +243,9 @@ export const CLAIM_STATUS = Object.freeze(['PENDING', 'VALIDATED', 'REJECTED']);
 
 /**
  * Evidence class for an evidence-capability receipt. Values are duplicated
- * inline (not imported) from nemesis's existing EVIDENCE_CLASS convention
+ * inline (not imported) from legion's existing EVIDENCE_CLASS convention
  * (lib/contracts, providers/security/contracts.mjs) to avoid this package
- * taking a runtime dependency on nemesis's internal provider pipeline.
+ * taking a runtime dependency on legion's internal provider pipeline.
  * Judgment call J-5, see FREEZE.md.
  */
 export const EVIDENCE_CLASS = Object.freeze(['deterministic', 'measured', 'interpretive', 'external', 'human']);

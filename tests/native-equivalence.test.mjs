@@ -4,7 +4,7 @@ import { readFileSync, existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import test from 'node:test';
 import { exeSuffix, seaConfig } from '../scripts/build-native.mjs';
-import { NEMESIS_VERSION } from '../lib/version.mjs';
+import { LEGION_VERSION } from '../lib/version.mjs';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
 
@@ -23,13 +23,13 @@ test('exe suffix is platform-correct', () => {
 });
 
 test('npm CLI and SEA surface must agree on version', () => {
-  const cliOut = execFileSync(process.execPath, [fileURLToPath(new URL('../bin/nemesis.mjs', import.meta.url)), '--version'], { encoding: 'utf8' }).trim();
-  assert.equal(cliOut, NEMESIS_VERSION);
+  const cliOut = execFileSync(process.execPath, [fileURLToPath(new URL('../bin/legion.mjs', import.meta.url)), '--version'], { encoding: 'utf8' }).trim();
+  assert.equal(cliOut, LEGION_VERSION);
   // A native build (if present) must match the npm CLI output exactly.
-  const native = fileURLToPath(new URL('../dist/nemesis', import.meta.url));
+  const native = fileURLToPath(new URL('../dist/legion', import.meta.url));
   if (existsSync(native)) {
     const nativeOut = execFileSync(native, ['--version'], { encoding: 'utf8' }).trim();
-    assert.equal(nativeOut, NEMESIS_VERSION);
+    assert.equal(nativeOut, LEGION_VERSION);
   }
 });
 
@@ -37,7 +37,7 @@ test('native build manifest records toolchain and digests', () => {
   const manifestPath = fileURLToPath(new URL('../dist/native-build-manifest.json', import.meta.url));
   if (!existsSync(manifestPath)) return; // manifest only after a build
   const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'));
-  assert.equal(manifest.kind, 'nemesis-native-build');
+  assert.equal(manifest.kind, 'legion-native-build');
   assert.equal(manifest.rustCrate, false);
   assert.ok(manifest.nodeVersion);
   assert.ok(manifest.seaConfigDigest?.startsWith('sha256:'));

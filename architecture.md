@@ -1,4 +1,4 @@
-# Nemesis Architecture
+# Legion Architecture
 
 ## Canonical audit flow
 
@@ -70,7 +70,7 @@ Detection narrows execution, never obligation. An applicable control without usa
 
 ## Dispatch relationship
 
-Validated `nemesis-source-completion-20260808` dispatch completes Books 1–8 machinery: core contracts, topology, controls, providers, runtime, visual, security, reporting, CLI/MCP, qualification, parity, tests, & delivery.
+Validated `legion-source-completion-20260808` dispatch completes Books 1–8 machinery: core contracts, topology, controls, providers, runtime, visual, security, reporting, CLI/MCP, qualification, parity, tests, & delivery.
 
 This architecture supplies final operating shape: it makes topology → stack graph → applicable controls → provider plan mandatory, ingests desktop/mobile/web checklist sources, selects only relevant audit work, & reconciles every applicable control without false clean results.
 
@@ -78,4 +78,4 @@ Follow-on implementation must add explicit source-backed controls & fixtures for
 
 Both parts are required. Dispatch completion alone does not create this final connected flow.
 
-Detailed workspace decision: `D:/Claude/docs/plans/2026-08-08-nemesis-product-aware-audit-architecture.md`.
+Detailed workspace decision: `D:/Claude/docs/plans/2026-08-08-legion-product-aware-audit-architecture.md`.

@@ -13,6 +13,6 @@ export function planMobilePlatformSurfaces({ permissions = [], links = [], chann
     ...IPC_CASES.map((id) => ({ id: `ipc:${id}`, family: 'ipc', payloadAuthority: false, requirements: ['schema-validation', 'authorization-recheck', 'non-exported-by-default'], status: 'unproven' })),
     ...extensions.map((extension) => ({ id: `extension:${extension}`, family: 'extension', sharedContainerAuthority: false, status: 'unproven' })),
   ];
-  return { schemaVersion: 1, kind: 'nemesis-mobile-platform-surface-plan', status: 'unproven', terminal: true, scenarios,
+  return { schemaVersion: 1, kind: 'legion-mobile-platform-surface-plan', status: 'unproven', terminal: true, scenarios,
     denominator: { total: scenarios.length, accounted: scenarios.length }, coverageGaps: scenarios.map((item) => `${item.id}:device-execution-missing`) };
 }

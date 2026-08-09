@@ -425,7 +425,7 @@ export function buildSecuritySchemas({ includeLegacy = false } = {}) {
 export function buildSecurityEnumRegistry() {
   return {
     schemaVersion: 1,
-    kind: 'nemesis-security-enum-registry',
+    kind: 'legion-security-enum-registry',
     source: 'providers/security/contracts.mjs',
     generator: 'scripts/generate-security-schemas.mjs',
     license: 'internal',

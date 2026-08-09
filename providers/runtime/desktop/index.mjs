@@ -10,16 +10,16 @@ const familiesFor = (receipt) => {
   if (Array.isArray(receipt.evidenceFamilies)) return receipt.evidenceFamilies;
   if (receipt.evidenceFamily) return [receipt.evidenceFamily];
   return {
-    'nemesis-desktop-runtime': ['process'],
-    'nemesis-desktop-ipc': ['ipc'],
-    'nemesis-desktop-files-storage': ['files', 'storage'],
-    'nemesis-desktop-os-matrix': ['os'],
-    'nemesis-desktop-performance': ['performance'],
-    'nemesis-desktop-installer-lifecycle': ['installer'],
-    'nemesis-desktop-updater': ['updater'],
-    'nemesis-desktop-windows': ['platform'],
-    'nemesis-desktop-macos': ['platform'],
-    'nemesis-desktop-linux': ['platform'],
+    'legion-desktop-runtime': ['process'],
+    'legion-desktop-ipc': ['ipc'],
+    'legion-desktop-files-storage': ['files', 'storage'],
+    'legion-desktop-os-matrix': ['os'],
+    'legion-desktop-performance': ['performance'],
+    'legion-desktop-installer-lifecycle': ['installer'],
+    'legion-desktop-updater': ['updater'],
+    'legion-desktop-windows': ['platform'],
+    'legion-desktop-macos': ['platform'],
+    'legion-desktop-linux': ['platform'],
   }[receipt.kind] ?? [];
 };
 
@@ -41,6 +41,6 @@ export function integrateDesktopEvidence({ targetId, controls = [], scenarios = 
   gaps.push(...evidenceFamilies.missing.map((id) => `evidence-family-missing:${id}`));
   for (const matrix of platformMatrices) if (!matrix.os || !['pass', 'unsupported', 'unproven', 'partial', 'fail'].includes(matrix.status)) gaps.push(`platform-matrix-invalid:${matrix.os ?? 'unknown'}`);
   const stopShip = gaps.some((gap) => /nonterminal|binding-mismatch|native-release/.test(gap)) || admitted.some((item) => ['fail', 'error', 'blocked'].includes(item.status));
-  return { schemaVersion: 1, kind: 'nemesis-desktop-platform-pack', status: stopShip ? 'fail' : gaps.length ? 'partial' : 'pass', terminal: true, provisional: true, stopShip, incomplete: gaps.length > 0, targetId,
+  return { schemaVersion: 1, kind: 'legion-desktop-platform-pack', status: stopShip ? 'fail' : gaps.length ? 'partial' : 'pass', terminal: true, provisional: true, stopShip, incomplete: gaps.length > 0, targetId,
     denominator: { controls: controlCounts, scenarios: scenarioCounts, evidenceFamilies }, receipts: admitted, platformMatrices, coverageGaps: [...new Set(gaps)].sort() };
 }

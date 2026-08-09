@@ -40,7 +40,7 @@ function infrastructureFactGaps(payload, binding) {
 }
 
 export function verifyInfrastructureExercise({ binding = {}, evidence = null, trustedProducers = [], now = null, maxAgeMs = null } = {}) {
-  if (!Array.isArray(trustedProducers) || trustedProducers.some((item) => !item || typeof item !== 'object' || Array.isArray(item) || typeof item.id !== 'string' || !item.id || !item.publicKey)) return finalize('nemesis-web-infrastructure-exercise', { status: 'error', terminal: true, claimLevel: 'external', suppliedOnly: true, networkAttempted: false, binding, producer: evidence?.producer ?? null, payload: null, evidenceDigest: null, coverageGaps: [...exactBinding(binding).gaps.map((key) => `binding-missing:${key}`), 'trusted-producers-invalid'].sort() });
+  if (!Array.isArray(trustedProducers) || trustedProducers.some((item) => !item || typeof item !== 'object' || Array.isArray(item) || typeof item.id !== 'string' || !item.id || !item.publicKey)) return finalize('legion-web-infrastructure-exercise', { status: 'error', terminal: true, claimLevel: 'external', suppliedOnly: true, networkAttempted: false, binding, producer: evidence?.producer ?? null, payload: null, evidenceDigest: null, coverageGaps: [...exactBinding(binding).gaps.map((key) => `binding-missing:${key}`), 'trusted-producers-invalid'].sort() });
   const gaps = exactBinding(binding).gaps.map((key) => `binding-missing:${key}`);
   let payload = null;
   const producer = trustedProducers.find((item) => item.id === evidence?.producer);
@@ -76,5 +76,5 @@ export function verifyInfrastructureExercise({ binding = {}, evidence = null, tr
     payload = { ...sanitized.value, controlFacts: safeControlFacts, exerciseReceipt: payload.exerciseReceipt ? { ...sanitized.value.exerciseReceipt, artifacts: sanitizeArtifacts(payload.exerciseReceipt.artifacts) } : sanitized.value.exerciseReceipt };
     if (sanitized.sensitive) gaps.push('infrastructure-sensitive-data');
   }
-  return finalize('nemesis-web-infrastructure-exercise', { status: gaps.length ? 'unproven' : 'pass', terminal: true, claimLevel: 'external', suppliedOnly: true, networkAttempted: false, binding, producer: evidence?.producer ?? null, payload, evidenceDigest: evidence?.signedContent ? `sha256:${createHash('sha256').update(evidence.signedContent).digest('hex')}` : null, coverageGaps: [...new Set(gaps)].sort() });
+  return finalize('legion-web-infrastructure-exercise', { status: gaps.length ? 'unproven' : 'pass', terminal: true, claimLevel: 'external', suppliedOnly: true, networkAttempted: false, binding, producer: evidence?.producer ?? null, payload, evidenceDigest: evidence?.signedContent ? `sha256:${createHash('sha256').update(evidence.signedContent).digest('hex')}` : null, coverageGaps: [...new Set(gaps)].sort() });
 }

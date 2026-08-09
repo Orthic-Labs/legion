@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 
 const PROVIDER = 'copy.clarity';
-const MEDIA_TYPE = 'application/vnd.nemesis.copy-analysis+json';
+const MEDIA_TYPE = 'application/vnd.legion.copy-analysis+json';
 
 function digest(value) {
   return `sha256:${createHash('sha256').update(JSON.stringify(value)).digest('hex')}`;
@@ -35,7 +35,7 @@ function technicalTerm(item, term) {
 function clarityCandidate(item, ruleId, span, claim, suggestion, denominatorDigest, binding) {
   const base = {
     schemaVersion: 1,
-    kind: 'nemesis-copy-candidate',
+    kind: 'legion-copy-candidate',
     producer: PROVIDER,
     provider: PROVIDER,
     providerVersion: '1.0.0',
@@ -89,7 +89,7 @@ const BURIED_INSTRUCTION = /\b(?:when|if|after|before|once|while)\b[^.!?;]{4,},\
 function deterministicLabelFinding(item, ruleId, span, control, binding) {
   return {
     schemaVersion: 1,
-    kind: 'nemesis-copy-finding',
+    kind: 'legion-copy-finding',
     producer: PROVIDER,
     provider: PROVIDER,
     ruleId,

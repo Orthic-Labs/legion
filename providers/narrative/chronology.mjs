@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 
 const PROVIDER = 'narrative.chronology';
-const MEDIA_TYPE = 'application/vnd.nemesis.narrative-analysis+json';
+const MEDIA_TYPE = 'application/vnd.legion.narrative-analysis+json';
 
 function digest(value) {
   return `sha256:${createHash('sha256').update(JSON.stringify(value)).digest('hex')}`;
@@ -267,7 +267,7 @@ export function assessChronology(model = {}) {
     provider: PROVIDER,
     status: findings.length ? 'findings' : candidates.length ? 'candidates' : coverageGaps.length ? 'unproven' : 'pass',
     subject: {
-      kind: model.kind ?? 'nemesis-narrative-model',
+      kind: model.kind ?? 'legion-narrative-model',
       denominatorDigest: model.denominatorDigest ?? null,
     },
     denominator: { kind: 'narrative-edges', expected: edges.length, examined: edges.length },

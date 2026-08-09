@@ -55,7 +55,7 @@ test('imported SARIF receipt carries the source artifact and binding', () => {
     repositoryBinding: { repositoryRevision: 'rev1' },
     tool: { name: 'CodeQL' }, capabilities: { languages: ['javascript'] },
   });
-  assert.equal(receipt.kind, 'nemesis-imported-sarif');
+  assert.equal(receipt.kind, 'legion-imported-sarif');
   assert.equal(receipt.complete, true);
 });
 

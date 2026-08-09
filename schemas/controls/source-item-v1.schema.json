@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "nemesis-source-item-v1",
+  "$id": "legion-source-item-v1",
   "type": "object",
   "additionalProperties": false,
   "required": [

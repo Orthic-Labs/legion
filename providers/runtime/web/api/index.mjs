@@ -69,20 +69,20 @@ const SAFE_IDENTIFIER = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$/;
 const sensitiveFieldsValid = (value) => value === undefined || Array.isArray(value) && value.every((field) => typeof field === 'string' ? SENSITIVE_PATH.test(field) : field && typeof field === 'object' && !Array.isArray(field) && SENSITIVE_PATH.test(field.path ?? '') && ['email', 'phone', 'ssn', 'string'].includes(field.type));
 
 export function verifyApiExercise({ binding = {}, cases = [], applicability = null } = {}) {
-  if (!Array.isArray(cases) || cases.some((item) => !item || typeof item !== 'object' || Array.isArray(item))) return finalize('nemesis-web-api-exercise', { status: 'error', applicable: null, terminal: true, binding, denominator: denominator([], []), receipts: [], coverageGaps: [...exactBinding(binding).gaps.map((key) => `binding-missing:${key}`), 'api-cases-invalid'].sort() });
+  if (!Array.isArray(cases) || cases.some((item) => !item || typeof item !== 'object' || Array.isArray(item))) return finalize('legion-web-api-exercise', { status: 'error', applicable: null, terminal: true, binding, denominator: denominator([], []), receipts: [], coverageGaps: [...exactBinding(binding).gaps.map((key) => `binding-missing:${key}`), 'api-cases-invalid'].sort() });
   if (cases.some((item) => typeof item.id !== 'string' || !SAFE_IDENTIFIER.test(item.id))) {
     const safeCases = cases.filter((item) => typeof item.id === 'string' && SAFE_IDENTIFIER.test(item.id));
     const safeIds = safeCases.map((item) => item.id), gaps = ['api-case-id-invalid'];
     if (cases.some((item) => item.id === undefined || item.id === null || item.id === '')) gaps.push('api-case-id-missing');
     for (const id of new Set(safeIds)) if (safeIds.filter((value) => value === id).length > 1) gaps.push(`api-case-id-duplicate:${id}`);
     for (const item of safeCases) { if (item.actorId !== binding.actorId) gaps.push(`${item.id}:actor-binding-mismatch`); if (item.tenantId !== binding.tenantId) gaps.push(`${item.id}:tenant-binding-mismatch`); }
-    return finalize('nemesis-web-api-exercise', { status: 'error', applicable: null, terminal: true, binding, denominator: denominator(safeIds, []), receipts: [], coverageGaps: [...new Set(gaps)].sort() });
+    return finalize('legion-web-api-exercise', { status: 'error', applicable: null, terminal: true, binding, denominator: denominator(safeIds, []), receipts: [], coverageGaps: [...new Set(gaps)].sort() });
   }
   if (cases.length === 0) {
     const source = applicability?.source;
     const valid = applicability?.status === 'not-applicable' && typeof applicability.reason === 'string' && applicability.reason.length > 0 && source?.kind === 'configured' && typeof source.id === 'string' && /^sha256:[a-f0-9]{64}$/.test(source.digest ?? '') && sameBinding(binding, source.binding ?? {});
     const gaps = [...exactBinding(binding).gaps.map((key) => `binding-missing:${key}`), ...(valid ? [] : ['api-case-denominator-empty', 'applicability-source-unproven'])];
-    return finalize('nemesis-web-api-exercise', { status: gaps.length ? 'unproven' : 'pass', applicable: valid ? false : null, terminal: true, binding, applicability, denominator: denominator([], []), receipts: [], coverageGaps: gaps.sort() });
+    return finalize('legion-web-api-exercise', { status: gaps.length ? 'unproven' : 'pass', applicable: valid ? false : null, terminal: true, binding, applicability, denominator: denominator([], []), receipts: [], coverageGaps: gaps.sort() });
   }
   const receipts = sortById(cases).map((item) => {
     const gaps = [];
@@ -142,5 +142,5 @@ export function verifyApiExercise({ binding = {}, cases = [], applicability = nu
   const ids = cases.map((item) => item.id);
   if (ids.some((id) => typeof id !== 'string' || id.length === 0)) gaps.push('api-case-id-missing');
   for (const id of new Set(ids.filter((value) => typeof value === 'string'))) if (ids.filter((value) => value === id).length > 1) gaps.push(`api-case-id-duplicate:${id}`);
-  return finalize('nemesis-web-api-exercise', { status: receipts.some((item) => item.status === 'error') ? 'error' : gaps.length ? 'unproven' : 'pass', applicable: true, terminal: true, binding, denominator: counts, receipts, coverageGaps: gaps.sort() });
+  return finalize('legion-web-api-exercise', { status: receipts.some((item) => item.status === 'error') ? 'error' : gaps.length ? 'unproven' : 'pass', applicable: true, terminal: true, binding, denominator: counts, receipts, coverageGaps: gaps.sort() });
 }

@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "kind": "nemesis-security-rule-source-provenance",
+  "kind": "legion-security-rule-source-provenance",
   "sourceLedger": {
     "sourceDocumentId": "creator.security",
     "description": "An externally authored, non-redistributed security review checklist used only as read-only category-taxonomy input; never copied into this repository.",
@@ -8,7 +8,7 @@
     "itemCount": 100,
     "areaCount": 11,
     "seedSchemaVersion": 1,
-    "seedKind": "nemesis-creator-audit-source-ledger-seed"
+    "seedKind": "legion-creator-audit-source-ledger-seed"
   },
   "derivation": {
     "relationship": "category-taxonomy-reference",

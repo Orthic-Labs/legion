@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "kind": "nemesis-provider-registry",
+  "kind": "legion-provider-registry",
   "providers": [
     {
       "schemaVersion": 2,
@@ -852,7 +852,7 @@
       "runner": {
         "kind": "runtime-script",
         "module": "providers/container-iac/index.mjs",
-        "moduleDigest": "sha256:03635b9770102589ab69766d26cf9792d182cf1f0aca9e03244df7e3dbf7efd3"
+        "moduleDigest": "sha256:9ad4415c1cdc0e8b08df28ed39b4d9a621da3e80cd38d5112d42ee3a65ec7bb7"
       },
       "hostCapabilities": [],
       "execution": {
@@ -4451,7 +4451,7 @@
       "runner": {
         "kind": "runtime-script",
         "module": "providers/secrets/index.mjs",
-        "moduleDigest": "sha256:ef6066a25704c1c9b71f6b7e31eda0892aa4c6a52fdb220e3017cbb2e624a146"
+        "moduleDigest": "sha256:254568a3b0db75c1eb00f89962d59a291863083a6b1a0f878779d3401aaa8673"
       },
       "hostCapabilities": [],
       "execution": {
@@ -4520,7 +4520,7 @@
       "runner": {
         "kind": "runtime-script",
         "module": "providers/opengrep/index.mjs",
-        "moduleDigest": "sha256:3fffecd982f6f449e98f854bc93da0b757e0c186b9142c8e30f21b214c170a0b"
+        "moduleDigest": "sha256:621eaf260aee5bfb12e7f38615c65d062804eee842895d8783a53917034c3dbe"
       },
       "hostCapabilities": [],
       "execution": {
@@ -4589,7 +4589,7 @@
       "runner": {
         "kind": "runtime-script",
         "module": "providers/ast-grep/index.mjs",
-        "moduleDigest": "sha256:c96709eafbfbddc9df0582d197698a84c21e03d63fdeea7346ee8ddb538948b1"
+        "moduleDigest": "sha256:4d22181207d40a08e2ceddc877a360090078f611d9e3a05cdab610a4672817f3"
       },
       "hostCapabilities": [],
       "execution": {

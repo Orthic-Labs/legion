@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "kind": "nemesis-book-qualification",
+  "kind": "legion-book-qualification",
   "book": 5,
   "expectedTaskCount": 32,
   "decision": "SOURCE_COMPLETE",

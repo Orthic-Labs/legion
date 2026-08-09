@@ -1,5 +1,5 @@
 {
-  "name": "@orthic-labs/nemesis",
+  "name": "@orthic-labs/legion",
   "allowlistedTopLevel": [
     "bin/",
     "audit-complete.mjs",
@@ -37,13 +37,13 @@
     "C:\\Users\\",
     "/Users/",
     "D:\\Claude\\docs\\plans\\",
-    "NEMESIS-MASTER-IMPLEMENTATION-DISPATCH",
-    "nemesis-dispatch",
+    "LEGION-MASTER-IMPLEMENTATION-DISPATCH",
+    "legion-dispatch",
     "bogusyogi"
   ],
   "forbiddenContents": [
-    "NEMESIS-MASTER-IMPLEMENTATION-DISPATCH",
-    "nemesis-dispatch",
+    "LEGION-MASTER-IMPLEMENTATION-DISPATCH",
+    "legion-dispatch",
     "bogusyogi"
   ]
 }

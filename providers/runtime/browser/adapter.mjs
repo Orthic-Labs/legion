@@ -13,7 +13,7 @@ export function buildBrowserSurfaceReceipt(spec = {}, observation = {}) {
   const shallow = observation.reachedMeaningfulState !== true;
   const blocked = undeclaredActions.length > 0 || undeclaredDestinations.length > 0 || observation.failedLaunch || observation.credentialsMissing;
   const status = blocked ? 'blocked' : observation.ready !== true || shallow ? 'unproven' : 'pass';
-  return { schemaVersion: 1, kind: 'nemesis-runtime-receipt', provider: 'runtime.browser', surfaceId: spec.surfaceId, route: spec.route ?? null,
+  return { schemaVersion: 1, kind: 'legion-runtime-receipt', provider: 'runtime.browser', surfaceId: spec.surfaceId, route: spec.route ?? null,
     state: observation.state ?? 'default', viewport: observation.viewport ?? null, locale: observation.locale ?? null, direction: observation.direction ?? null,
     status, complete: status === 'pass', shallow, undeclaredActions, undeclaredDestinations,
     console: redactValue(observation.console ?? []), requests: (observation.requests ?? []).map((request) => redactValue(request)),

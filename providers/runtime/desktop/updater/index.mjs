@@ -26,7 +26,7 @@ export function evaluateUpdaterEvidence({ artifact = {}, verification = {}, atte
   if ((promotion.logs ?? []).some(sensitive)) gaps.push('updater-log-sensitive');
   const verificationFailed = CHECKS.some((check) => verification[check]?.status === 'fail');
   const hasForgedCaller = gaps.some((gap) => gap.startsWith('forged-caller-boolean:'));
-  return { schemaVersion: 1, kind: 'nemesis-desktop-updater', status: (verificationFailed || bypass || hasForgedCaller) ? 'fail' : gaps.length ? 'unproven' : 'pass', terminal: true,
+  return { schemaVersion: 1, kind: 'legion-desktop-updater', status: (verificationFailed || bypass || hasForgedCaller) ? 'fail' : gaps.length ? 'unproven' : 'pass', terminal: true,
     artifact, verification, attempts, promotionEquivalent, stopShip: verificationFailed || bypass || hasForgedCaller, coverageGaps: gaps.sort() };
 }
 

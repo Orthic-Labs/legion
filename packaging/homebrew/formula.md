@@ -2,16 +2,16 @@
 # the homebrew channel. Formula points to signed, checksummed releases.
 
 formula:
-  name: nemesis
-  tap: orthic-labs/homebrew-nemesis
+  name: legion
+  tap: orthic-labs/homebrew-legion
   desc: Evidence-governed whole-repository audit engine
-  homepage: https://github.com/Orthic-Labs/nemesis
+  homepage: https://github.com/Orthic-Labs/legion
   license: SEE LICENSE IN LICENSE
   on_macos:
-    - url: https://github.com/Orthic-Labs/nemesis/releases/download/v<VER>/nemesis-macos.zip
+    - url: https://github.com/Orthic-Labs/legion/releases/download/v<VER>/legion-macos.zip
       sha256: <SHA256>
   on_linux:
-    - url: https://github.com/Orthic-Labs/nemesis/releases/download/v<VER>/nemesis-linux-<ARCH>.tar.gz
+    - url: https://github.com/Orthic-Labs/legion/releases/download/v<VER>/legion-linux-<ARCH>.tar.gz
       sha256: <SHA256>
 
 gates:

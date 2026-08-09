@@ -8,7 +8,7 @@ import { createHash } from 'node:crypto';
 export function importedSarifReceipt({ provider, providerVersion, sourceArtifact, repositoryBinding, tool, capabilities }) {
   return {
     schemaVersion: 1,
-    kind: 'nemesis-imported-sarif',
+    kind: 'legion-imported-sarif',
     provider,
     providerVersion,
     sourceArtifact,

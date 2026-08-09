@@ -12,7 +12,7 @@ const DENOM = 'sha256:denominator';
 
 test('normalizeFinding maps JSON output to the normalized contract', () => {
   const raw = {
-    check_id: 'nemesis-command-injection-shell',
+    check_id: 'legion-command-injection-shell',
     path: 'src/app.py',
     start: { line: 12, col: 4 },
     end: { line: 12, col: 40 },
@@ -23,8 +23,8 @@ test('normalizeFinding maps JSON output to the normalized contract', () => {
       intermediate_vars: [['src/app.py', 9]],
     },
   };
-  const finding = normalizeFinding(raw, { ruleset: 'nemesis-core' });
-  assert.equal(finding.ruleId, 'nemesis-command-injection-shell');
+  const finding = normalizeFinding(raw, { ruleset: 'legion-core' });
+  assert.equal(finding.ruleId, 'legion-command-injection-shell');
   assert.equal(finding.file, 'src/app.py');
   assert.equal(finding.capability, 'intrafile');
   assert.equal(finding.source.file, 'src/views.py');
@@ -38,11 +38,11 @@ test('pattern-only findings report the pattern capability', () => {
 
 test('toCandidate produces candidates only, never findings', () => {
   const raw = {
-    check_id: 'nemesis-sql-interpolation', path: 'src/db.ts', start: { line: 5, col: 0 }, end: { line: 5, col: 30 },
+    check_id: 'legion-sql-interpolation', path: 'src/db.ts', start: { line: 5, col: 0 }, end: { line: 5, col: 30 },
     extra: { severity: 'WARNING', message: 'sql' },
     dataflow_trace: { source: [['src/routes.ts', 2]], sink: [['src/db.ts', 5]] },
   };
-  const finding = normalizeFinding(raw, { ruleset: 'nemesis-core' });
+  const finding = normalizeFinding(raw, { ruleset: 'legion-core' });
   const candidate = toCandidate(finding, { denominatorDigest: DENOM });
   assert.equal(candidate.kind, 'security-candidate');
   assert.equal(candidate.verdict, 'UNADJUDICATED');
@@ -63,7 +63,7 @@ test('candidate id is stable for identical traces', () => {
 
 test('ruleset identity records provenance', () => {
   const identity = rulesetIdentity({ path: '/rules.yml', digest: 'sha256:r', license: 'LGPL-2.1', source: 'opengrep', version: '1.2' });
-  assert.equal(identity.kind, 'nemesis-opengrep-ruleset');
+  assert.equal(identity.kind, 'legion-opengrep-ruleset');
   assert.equal(identity.license, 'LGPL-2.1');
 });
 

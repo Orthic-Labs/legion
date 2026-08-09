@@ -2,7 +2,7 @@
 // remain absent until separately authorized after v1. Repository instructions
 // can never alter the tool schema.
 
-import { NEMESIS_VERSION } from '../../lib/version.mjs';
+import { LEGION_VERSION } from '../../lib/version.mjs';
 import { readFileSync, statSync } from 'node:fs';
 import { resolve, relative, sep } from 'node:path';
 
@@ -17,17 +17,17 @@ export function listTools() {
   const rootInput = (properties = {}) => ({ type: 'object', required: ['root'], additionalProperties: false, properties: { root: { type: 'string', minLength: 1 }, ...properties } });
   const closedInput = (properties = {}, required = []) => ({ type: 'object', required, additionalProperties: false, properties });
   return [
-    { name: 'nemesis_doctor', description: 'Run nemesis doctor on a repository.', inputSchema: rootInput() },
-    { name: 'nemesis_plan', description: 'Build and seal an audit plan.', inputSchema: rootInput({ profile: { type: 'string', enum: ['fast', 'standard', 'full', 'release'] } }) },
-    { name: 'nemesis_audit', description: 'Run a complete audit.', inputSchema: rootInput({ profile: { type: 'string', enum: ['fast', 'standard', 'full', 'release'] } }) },
-    { name: 'nemesis_verify', description: 'Verify a prior run out of band.', inputSchema: rootInput({ priorRun: {} }) },
-    { name: 'nemesis_get_run', description: 'Read a run artifact.', inputSchema: closedInput({ run: { type: 'string', minLength: 1 }, artifact: { type: 'string' } }, ['run']) },
-    { name: 'nemesis_get_finding', description: 'Read a finding from a run.', inputSchema: closedInput({ run: { type: 'string', minLength: 1 }, findingId: { type: 'string', minLength: 1 } }, ['run', 'findingId']) },
-    { name: 'nemesis_explain', description: 'Explain a finding or gap.', inputSchema: closedInput({ id: { type: 'string', minLength: 1 }, run: { type: 'string' } }, ['id']) },
-    { name: 'nemesis_list_providers', description: 'List providers.', inputSchema: closedInput() },
-    { name: 'nemesis_list_languages', description: 'List languages.', inputSchema: closedInput() },
-    { name: 'nemesis_list_families', description: 'List audit families.', inputSchema: closedInput() },
-    { name: 'nemesis_list_skills', description: 'List bundled skills.', inputSchema: closedInput() },
+    { name: 'legion_doctor', description: 'Run legion doctor on a repository.', inputSchema: rootInput() },
+    { name: 'legion_plan', description: 'Build and seal an audit plan.', inputSchema: rootInput({ profile: { type: 'string', enum: ['fast', 'standard', 'full', 'release'] } }) },
+    { name: 'legion_audit', description: 'Run a complete audit.', inputSchema: rootInput({ profile: { type: 'string', enum: ['fast', 'standard', 'full', 'release'] } }) },
+    { name: 'legion_verify', description: 'Verify a prior run out of band.', inputSchema: rootInput({ priorRun: {} }) },
+    { name: 'legion_get_run', description: 'Read a run artifact.', inputSchema: closedInput({ run: { type: 'string', minLength: 1 }, artifact: { type: 'string' } }, ['run']) },
+    { name: 'legion_get_finding', description: 'Read a finding from a run.', inputSchema: closedInput({ run: { type: 'string', minLength: 1 }, findingId: { type: 'string', minLength: 1 } }, ['run', 'findingId']) },
+    { name: 'legion_explain', description: 'Explain a finding or gap.', inputSchema: closedInput({ id: { type: 'string', minLength: 1 }, run: { type: 'string' } }, ['id']) },
+    { name: 'legion_list_providers', description: 'List providers.', inputSchema: closedInput() },
+    { name: 'legion_list_languages', description: 'List languages.', inputSchema: closedInput() },
+    { name: 'legion_list_families', description: 'List audit families.', inputSchema: closedInput() },
+    { name: 'legion_list_skills', description: 'List bundled skills.', inputSchema: closedInput() },
   ];
 }
 
@@ -53,25 +53,25 @@ async function invoke(name, args, context) {
   const hostRoot = resolve(context.root ?? process.cwd());
   const core = context.core ?? await defaultCore(context.host);
   switch (name) {
-    case 'nemesis_doctor':
-    case 'nemesis_plan':
-    case 'nemesis_audit':
-    case 'nemesis_verify': {
+    case 'legion_doctor':
+    case 'legion_plan':
+    case 'legion_audit':
+    case 'legion_verify': {
       const root = safeRoot(hostRoot, args.root ?? '.');
-      const operation = name.slice('nemesis_'.length);
+      const operation = name.slice('legion_'.length);
       return core[operation]({ ...args, root });
     }
-    case 'nemesis_list_providers': {
-      return { providers: core.providers(), version: NEMESIS_VERSION };
+    case 'legion_list_providers': {
+      return { providers: core.providers(), version: LEGION_VERSION };
     }
-    case 'nemesis_list_languages': {
-      return { languages: core.languages(), version: NEMESIS_VERSION };
+    case 'legion_list_languages': {
+      return { languages: core.languages(), version: LEGION_VERSION };
     }
-    case 'nemesis_list_families': return { families: core.families(), version: NEMESIS_VERSION };
-    case 'nemesis_list_skills': return { skills: core.skills(), version: NEMESIS_VERSION };
-    case 'nemesis_explain': return core.explain({ ...args, root: hostRoot });
-    case 'nemesis_get_run': return core.getRun({ ...args, root: hostRoot });
-    case 'nemesis_get_finding': return core.getFinding({ ...args, root: hostRoot });
+    case 'legion_list_families': return { families: core.families(), version: LEGION_VERSION };
+    case 'legion_list_skills': return { skills: core.skills(), version: LEGION_VERSION };
+    case 'legion_explain': return core.explain({ ...args, root: hostRoot });
+    case 'legion_get_run': return core.getRun({ ...args, root: hostRoot });
+    case 'legion_get_finding': return core.getFinding({ ...args, root: hostRoot });
     default:
       throw new Error(`tool ${name} requires a host-granted root and is not invoked in stdio tests`);
   }
@@ -135,7 +135,7 @@ async function defaultCore(hostOverride) {
       const report = run ? getRun({ root, run }).content : {};
       const finding = (report.findings ?? []).find((item) => item.id === id || item.ruleId === id) ?? null;
       const gap = (report.coverage_gaps ?? []).find((item) => item.id === id || item.kind === id) ?? null;
-      return { schemaVersion: 1, kind: 'nemesis-explain', run: run ?? null, id, found: Boolean(finding || gap), finding, gap };
+      return { schemaVersion: 1, kind: 'legion-explain', run: run ?? null, id, found: Boolean(finding || gap), finding, gap };
     },
   };
 }

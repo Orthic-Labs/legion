@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "legion-evidence-capability-receipt-v1",
   "title": "EvidenceCapabilityReceipt",
-  "description": "Canonical evidence-capability receipt (IMPLEMENTATION-PLAN.md §7.10: 'a reusable, consumer-independent observation that may be evaluated by Sage acceptance, [Arcane, the archive's evidence/enforcement authority under its canonical name] proof, and Seer controls without transferring authority'). Distinct from the existing nemesis schemas/controls/evidence-capability-v1.schema.json, which models capability *availability* (id/available/owner/reason); this object models the *observation itself*, produced after execution, and is dependency-bound per ARCHITECTURE §34 (evidence goes stale when a decision it depends on changes).",
+  "description": "Canonical evidence-capability receipt (IMPLEMENTATION-PLAN.md §7.10: 'a reusable, consumer-independent observation that may be evaluated by Sage acceptance, [Arcane, the archive's evidence/enforcement authority under its canonical name] proof, and Seer controls without transferring authority'). Distinct from the existing legion schemas/controls/evidence-capability-v1.schema.json, which models capability *availability* (id/available/owner/reason); this object models the *observation itself*, produced after execution, and is dependency-bound per ARCHITECTURE §34 (evidence goes stale when a decision it depends on changes).",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -32,7 +32,7 @@
 
     "evidenceClass": {
       "enum": ["deterministic", "measured", "interpretive", "external", "human"],
-      "description": "Values match the existing nemesis EVIDENCE_CLASS convention (lib/contracts, providers/security/contracts.mjs) by deliberate alignment, duplicated inline rather than imported to avoid a runtime dependency from this package on nemesis's internal provider pipeline. Judgment call, see FREEZE.md J-5."
+      "description": "Values match the existing legion EVIDENCE_CLASS convention (lib/contracts, providers/security/contracts.mjs) by deliberate alignment, duplicated inline rather than imported to avoid a runtime dependency from this package on legion's internal provider pipeline. Judgment call, see FREEZE.md J-5."
     },
 
     "authentication": {

@@ -52,7 +52,7 @@
       },
       "provenance": {
         "kind": "canonical",
-        "source": "nemesis:web",
+        "source": "legion:web",
         "rights": "internal-contract",
         "lineage": [
           "canonical:web:scope"
@@ -109,7 +109,7 @@
       },
       "provenance": {
         "kind": "canonical",
-        "source": "nemesis:web",
+        "source": "legion:web",
         "rights": "internal-contract",
         "lineage": [
           "canonical:web:frontend"
@@ -166,7 +166,7 @@
       },
       "provenance": {
         "kind": "canonical",
-        "source": "nemesis:web",
+        "source": "legion:web",
         "rights": "internal-contract",
         "lineage": [
           "canonical:web:backend-api"
@@ -223,7 +223,7 @@
       },
       "provenance": {
         "kind": "canonical",
-        "source": "nemesis:web",
+        "source": "legion:web",
         "rights": "internal-contract",
         "lineage": [
           "canonical:web:data"
@@ -280,7 +280,7 @@
       },
       "provenance": {
         "kind": "canonical",
-        "source": "nemesis:web",
+        "source": "legion:web",
         "rights": "internal-contract",
         "lineage": [
           "canonical:web:identity-tenant"
@@ -337,7 +337,7 @@
       },
       "provenance": {
         "kind": "canonical",
-        "source": "nemesis:web",
+        "source": "legion:web",
         "rights": "internal-contract",
         "lineage": [
           "canonical:web:http-security"
@@ -394,7 +394,7 @@
       },
       "provenance": {
         "kind": "canonical",
-        "source": "nemesis:web",
+        "source": "legion:web",
         "rights": "internal-contract",
         "lineage": [
           "canonical:web:supply-chain"
@@ -451,7 +451,7 @@
       },
       "provenance": {
         "kind": "canonical",
-        "source": "nemesis:web",
+        "source": "legion:web",
         "rights": "internal-contract",
         "lineage": [
           "canonical:web:infrastructure"
@@ -508,7 +508,7 @@
       },
       "provenance": {
         "kind": "canonical",
-        "source": "nemesis:web",
+        "source": "legion:web",
         "rights": "internal-contract",
         "lineage": [
           "canonical:web:performance"
@@ -565,7 +565,7 @@
       },
       "provenance": {
         "kind": "canonical",
-        "source": "nemesis:web",
+        "source": "legion:web",
         "rights": "internal-contract",
         "lineage": [
           "canonical:web:reliability"
@@ -622,7 +622,7 @@
       },
       "provenance": {
         "kind": "canonical",
-        "source": "nemesis:web",
+        "source": "legion:web",
         "rights": "internal-contract",
         "lineage": [
           "canonical:web:testing"
@@ -679,7 +679,7 @@
       },
       "provenance": {
         "kind": "canonical",
-        "source": "nemesis:web",
+        "source": "legion:web",
         "rights": "internal-contract",
         "lineage": [
           "canonical:web:accessibility"
@@ -736,7 +736,7 @@
       },
       "provenance": {
         "kind": "canonical",
-        "source": "nemesis:web",
+        "source": "legion:web",
         "rights": "internal-contract",
         "lineage": [
           "canonical:web:compatibility"
@@ -793,7 +793,7 @@
       },
       "provenance": {
         "kind": "canonical",
-        "source": "nemesis:web",
+        "source": "legion:web",
         "rights": "internal-contract",
         "lineage": [
           "canonical:web:seo"
@@ -850,7 +850,7 @@
       },
       "provenance": {
         "kind": "canonical",
-        "source": "nemesis:web",
+        "source": "legion:web",
         "rights": "internal-contract",
         "lineage": [
           "canonical:web:privacy"
@@ -907,7 +907,7 @@
       },
       "provenance": {
         "kind": "canonical",
-        "source": "nemesis:web",
+        "source": "legion:web",
         "rights": "internal-contract",
         "lineage": [
           "canonical:web:i18n"
@@ -964,7 +964,7 @@
       },
       "provenance": {
         "kind": "canonical",
-        "source": "nemesis:web",
+        "source": "legion:web",
         "rights": "internal-contract",
         "lineage": [
           "canonical:web:third-parties"
@@ -1021,7 +1021,7 @@
       },
       "provenance": {
         "kind": "canonical",
-        "source": "nemesis:web",
+        "source": "legion:web",
         "rights": "internal-contract",
         "lineage": [
           "canonical:web:notifications"
@@ -1078,7 +1078,7 @@
       },
       "provenance": {
         "kind": "canonical",
-        "source": "nemesis:web",
+        "source": "legion:web",
         "rights": "internal-contract",
         "lineage": [
           "canonical:web:payments"
@@ -1135,7 +1135,7 @@
       },
       "provenance": {
         "kind": "canonical",
-        "source": "nemesis:web",
+        "source": "legion:web",
         "rights": "internal-contract",
         "lineage": [
           "canonical:web:analytics"
@@ -1192,7 +1192,7 @@
       },
       "provenance": {
         "kind": "canonical",
-        "source": "nemesis:web",
+        "source": "legion:web",
         "rights": "internal-contract",
         "lineage": [
           "canonical:web:delivery"
@@ -1249,7 +1249,7 @@
       },
       "provenance": {
         "kind": "canonical",
-        "source": "nemesis:web",
+        "source": "legion:web",
         "rights": "internal-contract",
         "lineage": [
           "canonical:web:backup-dr"
@@ -1306,7 +1306,7 @@
       },
       "provenance": {
         "kind": "canonical",
-        "source": "nemesis:web",
+        "source": "legion:web",
         "rights": "internal-contract",
         "lineage": [
           "canonical:web:operations"
@@ -1363,7 +1363,7 @@
       },
       "provenance": {
         "kind": "canonical",
-        "source": "nemesis:web",
+        "source": "legion:web",
         "rights": "internal-contract",
         "lineage": [
           "canonical:web:ai-pwa-ugc-realtime"

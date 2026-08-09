@@ -15,6 +15,6 @@ export function verifyMobileRelease({ targetId = null, version = null, artifact 
   if (!promotion.rolloutCriteria || !promotion.rollbackCriteria || !promotion.monitoring) gaps.push('rollout-readiness-unproven');
   if (promotion.testedDigest && promotion.promotedDigest && promotion.testedDigest !== promotion.promotedDigest) gaps.push('promotion-artifact-mismatch');
   const blocking = gaps.some((gap) => gap.startsWith('privacy-declaration-mismatch:') || gap === 'promotion-artifact-mismatch');
-  return { schemaVersion: 1, kind: 'nemesis-mobile-release-evidence', status: blocking ? 'fail' : gaps.length ? 'partial' : 'pass', terminal: true, releaseBlocked: blocking,
+  return { schemaVersion: 1, kind: 'legion-mobile-release-evidence', status: blocking ? 'fail' : gaps.length ? 'partial' : 'pass', terminal: true, releaseBlocked: blocking,
     identity: { targetId, version, artifactDigest: artifact.digest ?? null }, artifact, build, store, symbols, promotion, coverageGaps: gaps.sort() };
 }

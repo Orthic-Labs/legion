@@ -25,7 +25,7 @@ export function compileDesktopOsMatrix({ required = DESKTOP_OS_CASES, cases = []
     }
     if (item.synthesized) gaps.push(`matrix-case-missing:${item.id}`);
   }
-  return { schemaVersion: 1, kind: 'nemesis-desktop-os-matrix', status: gaps.length ? 'unproven' : 'pass', terminal: true, receipts,
+  return { schemaVersion: 1, kind: 'legion-desktop-os-matrix', status: gaps.length ? 'unproven' : 'pass', terminal: true, receipts,
     denominator: { total: requested.length, required: requested.length, accounted: receipts.filter((item) => !item.synthesized && item.terminal === true && ALLOWED.has(item.status)).length, synthesized: receipts.filter((item) => item.synthesized).length }, coverageGaps: gaps.sort() };
 }
 

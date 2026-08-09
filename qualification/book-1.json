@@ -1,9 +1,9 @@
 {
   "schemaVersion": 2,
-  "kind": "nemesis-book-qualification",
+  "kind": "legion-book-qualification",
   "book": 1,
   "expectedTaskCount": 28,
-  "sourceRevision": "content.sha256:e4570114e50219ad5a2b4701fe2da08892e626e686962174b468594f3692872b",
+  "sourceRevision": "content.sha256:3591c84a76068f4049ea44fa8c41251d29d512f7d72871b093bd21340f35c937+dirty",
   "decision": "SOURCE_IMPLEMENTED",
   "claimLevel": "source",
   "sourceAccounting": {
@@ -20,15 +20,15 @@
         "test": {
           "path": "tests/core/book-1-contracts.test.mjs",
           "assertion": "B1-001 package manifest exposes one public binary and later-book public paths",
-          "digest": "sha256:dda42c110a8b63f72f94ed538ad3f52378a3845cce18cc4f7526272c6cc008d6",
-          "bytes": 14098
+          "digest": "sha256:59384ef1b33346071ba5e9a3bf443ee679e913e511d2e6afec0dcc3af6684543",
+          "bytes": 14090
         },
         "implementation": [
           {
             "path": "package.json",
-            "symbol": "@orthic-labs/nemesis",
-            "digest": "sha256:d4eeb0ddf4bdb79060da1f12a83a1874e18066f502f986676658288b81a001ad",
-            "bytes": 1646
+            "symbol": "@orthic-labs/legion",
+            "digest": "sha256:289b1fd12dd2ac042c0d78e388ac7a493106a97a8281e603aae47b89ad197d69",
+            "bytes": 1612
           }
         ],
         "proof": {
@@ -67,8 +67,8 @@
         "test": {
           "path": "tests/core/book-1-contracts.test.mjs",
           "assertion": "B1-002 canonical enums reject unknown values and future schema versions",
-          "digest": "sha256:dda42c110a8b63f72f94ed538ad3f52378a3845cce18cc4f7526272c6cc008d6",
-          "bytes": 14098
+          "digest": "sha256:59384ef1b33346071ba5e9a3bf443ee679e913e511d2e6afec0dcc3af6684543",
+          "bytes": 14090
         },
         "implementation": [
           {
@@ -114,15 +114,15 @@
         "test": {
           "path": "tests/core/book-1-contracts.test.mjs",
           "assertion": "B1-003 command catalogue generates complete strict CLI help",
-          "digest": "sha256:dda42c110a8b63f72f94ed538ad3f52378a3845cce18cc4f7526272c6cc008d6",
-          "bytes": 14098
+          "digest": "sha256:59384ef1b33346071ba5e9a3bf443ee679e913e511d2e6afec0dcc3af6684543",
+          "bytes": 14090
         },
         "implementation": [
           {
             "path": "lib/cli/help.mjs",
             "symbol": "COMMANDS",
-            "digest": "sha256:19f2b686a08263131f0c33ff55b16e4d79c7abfb48efd5d9b4415b58aea3feab",
-            "bytes": 965
+            "digest": "sha256:704ae824d916b996befc2c6a14f3309f7a8a52effe8284817a3780bf15368ba7",
+            "bytes": 964
           }
         ],
         "proof": {
@@ -161,8 +161,8 @@
         "test": {
           "path": "tests/core/book-1-contracts.test.mjs",
           "assertion": "B1-004 fixed host returns typed unavailable capability receipts",
-          "digest": "sha256:dda42c110a8b63f72f94ed538ad3f52378a3845cce18cc4f7526272c6cc008d6",
-          "bytes": 14098
+          "digest": "sha256:59384ef1b33346071ba5e9a3bf443ee679e913e511d2e6afec0dcc3af6684543",
+          "bytes": 14090
         },
         "implementation": [
           {
@@ -208,8 +208,8 @@
         "test": {
           "path": "tests/core/book-1-contracts.test.mjs",
           "assertion": "B1-005 artifact paths reject alternate separators and digests bind bytes",
-          "digest": "sha256:dda42c110a8b63f72f94ed538ad3f52378a3845cce18cc4f7526272c6cc008d6",
-          "bytes": 14098
+          "digest": "sha256:59384ef1b33346071ba5e9a3bf443ee679e913e511d2e6afec0dcc3af6684543",
+          "bytes": 14090
         },
         "implementation": [
           {
@@ -255,15 +255,15 @@
         "test": {
           "path": "tests/core/book-1-contracts.test.mjs",
           "assertion": "B1-006 run manifest rejects orphan and missing declared files",
-          "digest": "sha256:dda42c110a8b63f72f94ed538ad3f52378a3845cce18cc4f7526272c6cc008d6",
-          "bytes": 14098
+          "digest": "sha256:59384ef1b33346071ba5e9a3bf443ee679e913e511d2e6afec0dcc3af6684543",
+          "bytes": 14090
         },
         "implementation": [
           {
             "path": "lib/core/run-manifest.mjs",
             "symbol": "validateRunManifest",
-            "digest": "sha256:a5afad1330a22c0deddfe9a532a74c1ccdf3aeb307f71f159b290514a419697e",
-            "bytes": 1710
+            "digest": "sha256:4d90f5902bf82a1e86ea979efcd30325f052c89c50c8e85c90684bfa362245f8",
+            "bytes": 1705
           }
         ],
         "proof": {
@@ -302,8 +302,8 @@
         "test": {
           "path": "tests/core/book-1-contracts.test.mjs",
           "assertion": "B1-007 trusted merge rejects repository attempts to grant host policy",
-          "digest": "sha256:dda42c110a8b63f72f94ed538ad3f52378a3845cce18cc4f7526272c6cc008d6",
-          "bytes": 14098
+          "digest": "sha256:59384ef1b33346071ba5e9a3bf443ee679e913e511d2e6afec0dcc3af6684543",
+          "bytes": 14090
         },
         "implementation": [
           {
@@ -349,8 +349,8 @@
         "test": {
           "path": "tests/core/book-1-contracts.test.mjs",
           "assertion": "B1-008 sealed profiles expose resource, cache, cancellation, schedule, and reasoning policy",
-          "digest": "sha256:dda42c110a8b63f72f94ed538ad3f52378a3845cce18cc4f7526272c6cc008d6",
-          "bytes": 14098
+          "digest": "sha256:59384ef1b33346071ba5e9a3bf443ee679e913e511d2e6afec0dcc3af6684543",
+          "bytes": 14090
         },
         "implementation": [
           {
@@ -396,8 +396,8 @@
         "test": {
           "path": "tests/core/book-1-contracts.test.mjs",
           "assertion": "B1-009 family and lens registries reject dependency cycles",
-          "digest": "sha256:dda42c110a8b63f72f94ed538ad3f52378a3845cce18cc4f7526272c6cc008d6",
-          "bytes": 14098
+          "digest": "sha256:59384ef1b33346071ba5e9a3bf443ee679e913e511d2e6afec0dcc3af6684543",
+          "bytes": 14090
         },
         "implementation": [
           {
@@ -443,8 +443,8 @@
         "test": {
           "path": "tests/core/book-1-contracts.test.mjs",
           "assertion": "B1-010 provider v2 rejects candidate generators that emit findings",
-          "digest": "sha256:dda42c110a8b63f72f94ed538ad3f52378a3845cce18cc4f7526272c6cc008d6",
-          "bytes": 14098
+          "digest": "sha256:59384ef1b33346071ba5e9a3bf443ee679e913e511d2e6afec0dcc3af6684543",
+          "bytes": 14090
         },
         "implementation": [
           {
@@ -490,8 +490,8 @@
         "test": {
           "path": "tests/core/book-1-contracts.test.mjs",
           "assertion": "B1-011 schedule compiler uses lexical waves and rejects impossible resources",
-          "digest": "sha256:dda42c110a8b63f72f94ed538ad3f52378a3845cce18cc4f7526272c6cc008d6",
-          "bytes": 14098
+          "digest": "sha256:59384ef1b33346071ba5e9a3bf443ee679e913e511d2e6afec0dcc3af6684543",
+          "bytes": 14090
         },
         "implementation": [
           {
@@ -537,8 +537,8 @@
         "test": {
           "path": "tests/core/book-1-contracts.test.mjs",
           "assertion": "B1-012 reasoning runner prepares a packet without invoking a reviewer",
-          "digest": "sha256:dda42c110a8b63f72f94ed538ad3f52378a3845cce18cc4f7526272c6cc008d6",
-          "bytes": 14098
+          "digest": "sha256:59384ef1b33346071ba5e9a3bf443ee679e913e511d2e6afec0dcc3af6684543",
+          "bytes": 14090
         },
         "implementation": [
           {
@@ -584,8 +584,8 @@
         "test": {
           "path": "tests/core/book-1-contracts.test.mjs",
           "assertion": "B1-013 precomputed Cortex projection rejects stale repository binding",
-          "digest": "sha256:dda42c110a8b63f72f94ed538ad3f52378a3845cce18cc4f7526272c6cc008d6",
-          "bytes": 14098
+          "digest": "sha256:59384ef1b33346071ba5e9a3bf443ee679e913e511d2e6afec0dcc3af6684543",
+          "bytes": 14090
         },
         "implementation": [
           {
@@ -631,8 +631,8 @@
         "test": {
           "path": "tests/core/book-1-contracts.test.mjs",
           "assertion": "B1-014 binding comparison is stable across path separators",
-          "digest": "sha256:dda42c110a8b63f72f94ed538ad3f52378a3845cce18cc4f7526272c6cc008d6",
-          "bytes": 14098
+          "digest": "sha256:59384ef1b33346071ba5e9a3bf443ee679e913e511d2e6afec0dcc3af6684543",
+          "bytes": 14090
         },
         "implementation": [
           {
@@ -678,8 +678,8 @@
         "test": {
           "path": "tests/core/book-1-contracts.test.mjs",
           "assertion": "B1-015 planning stage registry is fixed and missing required stages are typed",
-          "digest": "sha256:dda42c110a8b63f72f94ed538ad3f52378a3845cce18cc4f7526272c6cc008d6",
-          "bytes": 14098
+          "digest": "sha256:59384ef1b33346071ba5e9a3bf443ee679e913e511d2e6afec0dcc3af6684543",
+          "bytes": 14090
         },
         "implementation": [
           {
@@ -725,8 +725,8 @@
         "test": {
           "path": "tests/core/book-1-contracts.test.mjs",
           "assertion": "B1-016 scheduler preserves independent work when one dependency blocks",
-          "digest": "sha256:dda42c110a8b63f72f94ed538ad3f52378a3845cce18cc4f7526272c6cc008d6",
-          "bytes": 14098
+          "digest": "sha256:59384ef1b33346071ba5e9a3bf443ee679e913e511d2e6afec0dcc3af6684543",
+          "bytes": 14090
         },
         "implementation": [
           {
@@ -772,8 +772,8 @@
         "test": {
           "path": "tests/core/book-1-contracts.test.mjs",
           "assertion": "B1-017 zero findings with a required gap is incomplete",
-          "digest": "sha256:dda42c110a8b63f72f94ed538ad3f52378a3845cce18cc4f7526272c6cc008d6",
-          "bytes": 14098
+          "digest": "sha256:59384ef1b33346071ba5e9a3bf443ee679e913e511d2e6afec0dcc3af6684543",
+          "bytes": 14090
         },
         "implementation": [
           {
@@ -819,8 +819,8 @@
         "test": {
           "path": "tests/core/book-1-contracts.test.mjs",
           "assertion": "B1-018 reviewer policy rejects context reuse and self-adjudication",
-          "digest": "sha256:dda42c110a8b63f72f94ed538ad3f52378a3845cce18cc4f7526272c6cc008d6",
-          "bytes": 14098
+          "digest": "sha256:59384ef1b33346071ba5e9a3bf443ee679e913e511d2e6afec0dcc3af6684543",
+          "bytes": 14090
         },
         "implementation": [
           {
@@ -866,15 +866,15 @@
         "test": {
           "path": "tests/core/book-1-contracts.test.mjs",
           "assertion": "B1-019 report model preserves topology, controls, and per-claim decisions without a score",
-          "digest": "sha256:dda42c110a8b63f72f94ed538ad3f52378a3845cce18cc4f7526272c6cc008d6",
-          "bytes": 14098
+          "digest": "sha256:59384ef1b33346071ba5e9a3bf443ee679e913e511d2e6afec0dcc3af6684543",
+          "bytes": 14090
         },
         "implementation": [
           {
             "path": "lib/report/model.mjs",
             "symbol": "buildReportModel",
-            "digest": "sha256:c61d868522d8e8f453d1c0a78861d991a26e768d697ea756ba4980906acf79cf",
-            "bytes": 1622
+            "digest": "sha256:bd116dc0c863770577f4e787694d8a53cd614ede841f3c9be50c8acdbde500cc",
+            "bytes": 1621
           }
         ],
         "proof": {
@@ -913,8 +913,8 @@
         "test": {
           "path": "tests/core/book-1-contracts.test.mjs",
           "assertion": "B1-020 semantic verification excludes time, paths, and presentation ordering",
-          "digest": "sha256:dda42c110a8b63f72f94ed538ad3f52378a3845cce18cc4f7526272c6cc008d6",
-          "bytes": 14098
+          "digest": "sha256:59384ef1b33346071ba5e9a3bf443ee679e913e511d2e6afec0dcc3af6684543",
+          "bytes": 14090
         },
         "implementation": [
           {
@@ -960,15 +960,15 @@
         "test": {
           "path": "tests/core/book-1-contracts.test.mjs",
           "assertion": "B1-021 schedule command is a pure canonical renderer",
-          "digest": "sha256:dda42c110a8b63f72f94ed538ad3f52378a3845cce18cc4f7526272c6cc008d6",
-          "bytes": 14098
+          "digest": "sha256:59384ef1b33346071ba5e9a3bf443ee679e913e511d2e6afec0dcc3af6684543",
+          "bytes": 14090
         },
         "implementation": [
           {
             "path": "lib/cli/commands/schedule.mjs",
             "symbol": "renderSchedule",
-            "digest": "sha256:ec05ff8ca71dde1c499e4a5ba5ce3d352b9c07e34142a2b029405429ec76b342",
-            "bytes": 1778
+            "digest": "sha256:bbc5cb2870c22d46decf1b850f47d9b280360cddfa96ef3b32df8ec3266b4fc0",
+            "bytes": 1777
           }
         ],
         "proof": {
@@ -1007,15 +1007,15 @@
         "test": {
           "path": "tests/core/book-1-contracts.test.mjs",
           "assertion": "B1-022 skill bundle contract rejects absolute internal URIs and separates profiles",
-          "digest": "sha256:dda42c110a8b63f72f94ed538ad3f52378a3845cce18cc4f7526272c6cc008d6",
-          "bytes": 14098
+          "digest": "sha256:59384ef1b33346071ba5e9a3bf443ee679e913e511d2e6afec0dcc3af6684543",
+          "bytes": 14090
         },
         "implementation": [
           {
             "path": "lib/skills/contracts.mjs",
             "symbol": "validateSkillBundle",
-            "digest": "sha256:a7813439201c67a9dadc62db1a187026a6c2a4dcf2f433eeb225910bde72d793",
-            "bytes": 2209
+            "digest": "sha256:11679cf690e729a2280702d7c04b9658e0ada82caed5ccaf5429318f102c3ee6",
+            "bytes": 2206
           }
         ],
         "proof": {
@@ -1054,15 +1054,15 @@
         "test": {
           "path": "tests/core/book-1-contracts.test.mjs",
           "assertion": "B1-023 skill URI resolver and verifier are package-relative and digest-bound",
-          "digest": "sha256:dda42c110a8b63f72f94ed538ad3f52378a3845cce18cc4f7526272c6cc008d6",
-          "bytes": 14098
+          "digest": "sha256:59384ef1b33346071ba5e9a3bf443ee679e913e511d2e6afec0dcc3af6684543",
+          "bytes": 14090
         },
         "implementation": [
           {
             "path": "lib/skills/uri.mjs",
             "symbol": "parseSkillUri",
-            "digest": "sha256:1598ffc100ce34a3e1f843f36e4f687fe23b76bf26512bbfb5c416b1aba5629a",
-            "bytes": 508
+            "digest": "sha256:e817b784e448583e2a904bb44d1a297f39e6eb54c394220d18cedf9ed82c9011",
+            "bytes": 506
           }
         ],
         "proof": {
@@ -1101,15 +1101,15 @@
         "test": {
           "path": "tests/core/book-1-contracts.test.mjs",
           "assertion": "B1-024 skill transformation is deterministic, neutral, and strips audit mutation authority",
-          "digest": "sha256:dda42c110a8b63f72f94ed538ad3f52378a3845cce18cc4f7526272c6cc008d6",
-          "bytes": 14098
+          "digest": "sha256:59384ef1b33346071ba5e9a3bf443ee679e913e511d2e6afec0dcc3af6684543",
+          "bytes": 14090
         },
         "implementation": [
           {
             "path": "lib/skills/transform.mjs",
             "symbol": "transformSkillText",
-            "digest": "sha256:6c1cb0cf2f64b2166124734839b1ef793f116675b3cd082fe542fe3158a1b328",
-            "bytes": 1261
+            "digest": "sha256:a5fc66c38b63310076b7851805790729a0a217025092be2c53ea7dfa047a2edd",
+            "bytes": 1260
           }
         ],
         "proof": {
@@ -1149,15 +1149,15 @@
         "test": {
           "path": "tests/core/book-1-contracts.test.mjs",
           "assertion": "B1-025 Designer bundle preserves audit authority boundaries",
-          "digest": "sha256:dda42c110a8b63f72f94ed538ad3f52378a3845cce18cc4f7526272c6cc008d6",
-          "bytes": 14098
+          "digest": "sha256:59384ef1b33346071ba5e9a3bf443ee679e913e511d2e6afec0dcc3af6684543",
+          "bytes": 14090
         },
         "implementation": [
           {
             "path": "skills/manifests/designer.json",
             "symbol": "protectedActions",
-            "digest": "sha256:9615122e939cf2275c4152c25f38a820cb9e7ce67ab04a627f5b80c66a4a578d",
-            "bytes": 97449
+            "digest": "sha256:cf8a96dee491417c86bf7d4d735e16dcd67afd0dd97892c159b2bbd7c19e1628",
+            "bytes": 97242
           }
         ],
         "proof": {
@@ -1197,15 +1197,15 @@
         "test": {
           "path": "tests/core/book-1-contracts.test.mjs",
           "assertion": "B1-026 Writing bundle makes proof and no-fabrication explicit",
-          "digest": "sha256:dda42c110a8b63f72f94ed538ad3f52378a3845cce18cc4f7526272c6cc008d6",
-          "bytes": 14098
+          "digest": "sha256:59384ef1b33346071ba5e9a3bf443ee679e913e511d2e6afec0dcc3af6684543",
+          "bytes": 14090
         },
         "implementation": [
           {
             "path": "skills/manifests/writing.json",
             "symbol": "noFabrication",
-            "digest": "sha256:23c0868f1d8f7da28ae9aec2e05586388c39f2de87c820f9aac2969fbc8ebf15",
-            "bytes": 16836
+            "digest": "sha256:28f8da521be9e716cd0970d785aabe2398e6833771476ad1f8117fedda0c6581",
+            "bytes": 16801
           }
         ],
         "proof": {
@@ -1246,15 +1246,15 @@
         "test": {
           "path": "tests/core/book-1-contracts.test.mjs",
           "assertion": "B1-027 qualifier supports Books 1 through 6 and package smoke exercises library plus plan",
-          "digest": "sha256:dda42c110a8b63f72f94ed538ad3f52378a3845cce18cc4f7526272c6cc008d6",
-          "bytes": 14098
+          "digest": "sha256:59384ef1b33346071ba5e9a3bf443ee679e913e511d2e6afec0dcc3af6684543",
+          "bytes": 14090
         },
         "implementation": [
           {
             "path": "scripts/qualify-book.mjs",
             "symbol": "discoverBookTests",
-            "digest": "sha256:ae426c2d96d477ee176850e40eb4344737d50f657f7ecdea1d9fb77da23a4f2b",
-            "bytes": 4875
+            "digest": "sha256:d54868eaaa2cb245463b75b9dfe6ce00dcde0a7de4617807e7d45fdab11e6c29",
+            "bytes": 4816
           }
         ],
         "proof": {
@@ -1293,15 +1293,15 @@
         "test": {
           "path": "tests/core/book-1-contracts.test.mjs",
           "assertion": "B1-028 qualification digest ignores duration and noisy test bytes",
-          "digest": "sha256:dda42c110a8b63f72f94ed538ad3f52378a3845cce18cc4f7526272c6cc008d6",
-          "bytes": 14098
+          "digest": "sha256:59384ef1b33346071ba5e9a3bf443ee679e913e511d2e6afec0dcc3af6684543",
+          "bytes": 14090
         },
         "implementation": [
           {
             "path": "scripts/qualify-book.mjs",
             "symbol": "qualificationDigest",
-            "digest": "sha256:ae426c2d96d477ee176850e40eb4344737d50f657f7ecdea1d9fb77da23a4f2b",
-            "bytes": 4875
+            "digest": "sha256:d54868eaaa2cb245463b75b9dfe6ce00dcde0a7de4617807e7d45fdab11e6c29",
+            "bytes": 4816
           }
         ],
         "proof": {

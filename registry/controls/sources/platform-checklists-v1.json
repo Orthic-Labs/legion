@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "kind": "nemesis-control-source-ledger",
+  "kind": "legion-control-source-ledger",
   "sourceFamily": "platform-checklists",
   "status": "external-evidence-required",
   "sources": [

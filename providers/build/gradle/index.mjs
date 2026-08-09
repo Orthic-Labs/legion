@@ -4,7 +4,7 @@
 export function gradleWrapperReceipt({ root, wrapperPresent, wrapperSha256, distributionSha256 }) {
   return {
     schemaVersion: 1,
-    kind: 'nemesis-gradle-wrapper',
+    kind: 'legion-gradle-wrapper',
     root,
     wrapperPresent: Boolean(wrapperPresent),
     wrapperSha256: wrapperSha256 ?? null,

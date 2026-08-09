@@ -9,7 +9,7 @@ import { privacyDataDictionary, privacyReceipt } from '../../lib/privacy/index.m
 test('gitlab adapter calls the canonical CLI with identical output contracts', () => {
   const adapter = gitlabCiAdapter({ profile: 'standard' });
   assert.equal(adapter.canonicalCli, true);
-  assert.ok(adapter.script.some((line) => line.includes('nemesis audit .')));
+  assert.ok(adapter.script.some((line) => line.includes('legion audit .')));
   assert.ok(adapter.artifacts.reports.sarif.includes('report.sarif'));
 });
 
@@ -18,7 +18,7 @@ test('bitbucket and azure adapters use the same CLI', () => {
   assert.equal(bitbucket.canonicalCli, true);
   const azure = azureDevopsAdapter();
   assert.equal(azure.canonicalCli, true);
-  assert.ok(JSON.stringify(azure.steps).includes('nemesis audit'));
+  assert.ok(JSON.stringify(azure.steps).includes('legion audit'));
 });
 
 test('organization policy is signed and versioned with rollout modes', () => {
@@ -26,7 +26,7 @@ test('organization policy is signed and versioned with rollout modes', () => {
     id: 'org.example.security', version: '1.0.0', digest: 'sha256:d', signature: { alg: 'ed25519', value: 'sig' },
     rollout: 'blocking', requiredProviders: ['security.credentials'], thresholds: {}, suppressionPolicy: {}, complianceMappings: [],
   });
-  assert.equal(policy.kind, 'nemesis-organization-policy');
+  assert.equal(policy.kind, 'legion-organization-policy');
   assert.equal(policy.rollout, 'blocking');
   assert.ok(policy.signature.value);
 });

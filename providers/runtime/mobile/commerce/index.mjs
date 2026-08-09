@@ -10,6 +10,6 @@ export function verifyMobileCommerceOperations({ entitlement = {}, push = {}, an
   if (!analytics.releaseSegmented || !analytics.schemaValidated) gaps.push('analytics-operational-evidence-missing');
   if (!operations.runbook || !operations.alerting || !operations.restoreEvidence || !operations.owner) gaps.push('operations-readiness-missing');
   if (provider.required && !provider.sandboxReceipt) gaps.push(`provider-evidence-missing:${provider.id ?? 'unknown'}`);
-  return { schemaVersion: 1, kind: 'nemesis-mobile-commerce-operations-evidence', status: gaps.some((gap) => gap.startsWith('entitlement-') || gap.startsWith('push-') || gap.startsWith('analytics-')) ? 'fail' : gaps.length ? 'partial' : 'pass', terminal: true,
+  return { schemaVersion: 1, kind: 'legion-mobile-commerce-operations-evidence', status: gaps.some((gap) => gap.startsWith('entitlement-') || gap.startsWith('push-') || gap.startsWith('analytics-')) ? 'fail' : gaps.length ? 'partial' : 'pass', terminal: true,
     entitlement: { serverVerified: entitlement.serverVerified === true, testedStates: entitlement.testedStates ?? [] }, push: { accountBound: push.accountBound === true, privacySafe: push.privacySafe === true, testedStates: push.testedStates ?? [] }, analytics: { consentBound: analytics.consentBound === true, schemaValidated: analytics.schemaValidated === true }, operations, provider, coverageGaps: gaps.sort() };
 }

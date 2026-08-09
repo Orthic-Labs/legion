@@ -12,13 +12,13 @@ import { join } from 'node:path';
 test('B8-017 generates non-empty package SBOMs, shipped notices, and typed provenance blockers', async () => {
   const { generateSboms, inventoryRuntimeDependencies, inventoryDistribution, reconcileDistributionContents } = await import('../lib/distribution/sbom.mjs');
   const { buildNoticeInventory, renderNotices } = await import('../lib/distribution/notices.mjs');
-  const components = [{ name: 'nemesis', version: '1.0.0', license: 'SEE LICENSE', source: 'local', shipped: true, distributionStatus: 'integrated' }];
-  const sboms = generateSboms({ name: 'nemesis', components });
+  const components = [{ name: 'legion', version: '1.0.0', license: 'SEE LICENSE', source: 'local', shipped: true, distributionStatus: 'integrated' }];
+  const sboms = generateSboms({ name: 'legion', components });
   assert.equal(sboms.cyclonedx.components.length, 1);
   assert.equal(sboms.spdx.packages.length, 1);
   const inventory = buildNoticeInventory(components);
   assert.equal(inventory.blockers.length, 0);
-  assert.match(renderNotices(inventory.components), /nemesis/);
+  assert.match(renderNotices(inventory.components), /legion/);
   assert.deepEqual(buildNoticeInventory([{ name: 'creator', shipped: true, source: 'external', license: null }]).blockers[0].kind, 'redistribution-rights-unresolved');
   const runtimeInventory = inventoryRuntimeDependencies({ packageManifest: { dependencies: { alpha: '1.2.3' } }, provenance: { alpha: { source: 'registry', digest: 'sha256:a', license: 'MIT' } } });
   assert.deepEqual(runtimeInventory[0], { type: 'library', name: 'alpha', version: '1.2.3', source: 'registry', digest: 'sha256:a', license: 'MIT', shipped: true, distributionStatus: 'integrated' });
@@ -29,10 +29,10 @@ test('B8-017 generates non-empty package SBOMs, shipped notices, and typed prove
 });
 
 test('B8-018 release manifests bind final bytes and fail closed on empty SBOM or placeholder signature', async () => {
-  const root = mkdtempSync(join(tmpdir(), 'nemesis-release-'));
+  const root = mkdtempSync(join(tmpdir(), 'legion-release-'));
   mkdirSync(join(root, 'dist'));
   writeFileSync(join(root, 'dist', 'pkg.tgz'), 'final-bytes');
-  writeFileSync(join(root, 'sbom.json'), JSON.stringify({ components: [{ name: 'nemesis' }] }));
+  writeFileSync(join(root, 'sbom.json'), JSON.stringify({ components: [{ name: 'legion' }] }));
   writeFileSync(join(root, 'NOTICE.md'), 'notice');
   writeFileSync(join(root, 'SHA256SUMS'), 'sum');
   const { buildReleaseManifest } = await import('../lib/distribution/release-manifest.mjs');
@@ -71,7 +71,7 @@ test('B8-025 verifies creator archives, transformations, rights, and shipped pro
   const digest = `sha256:${'a'.repeat(64)}`;
   const qualified = verifySourceProvenance({ sources: [{ id: 'designer', status: 'transformed', digest, outputDigest: digest, shipped: false, redistributionGrant: false, transformations: ['rewrite'], promptProseShipped: false, userOwned: true, categoryMappings: ['design'], originalRuleOwnership: 'repository-original', shippedOutputs: [] }] }, { verifyFiles: false });
   assert.equal(qualified.decision, 'QUALIFIED');
-  const output = join(mkdtempSync(join(tmpdir(), 'nemesis-provenance-')), 'qualification.json');
+  const output = join(mkdtempSync(join(tmpdir(), 'legion-provenance-')), 'qualification.json');
   assert.equal(writeSourceProvenanceQualification({ sources: [] }, output, { verifyFiles: false }).decision, 'BLOCKED');
   assert.equal(existsSync(output), true);
 });

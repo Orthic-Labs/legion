@@ -25,7 +25,7 @@
       "const": 1
     },
     "kind": {
-      "const": "nemesis-remediation-verification"
+      "const": "legion-remediation-verification"
     },
     "proposalId": {
       "type": "string"

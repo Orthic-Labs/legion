@@ -32,7 +32,7 @@ export function buildNative({ nodeBinary = process.execPath, outDir = join(root,
 
   // SEA starts a CJS file. Dynamic import preserves the canonical ESM CLI.
   const entry = join(prepDir, 'sea-entry.cjs');
-  writeFileSync(entry, `void import('../bin/nemesis.mjs');\n`);
+  writeFileSync(entry, `void import('../bin/legion.mjs');\n`);
   const output = join(prepDir, 'sea-preparation.blob');
 
   // SEA assets must contain real shipped material; empty placeholders are a
@@ -48,7 +48,7 @@ export function buildNative({ nodeBinary = process.execPath, outDir = join(root,
 
   execFileSync(nodeBinary, ['--build-sea', join(root, 'packaging', 'sea', 'sea-config.json')], { cwd: root, stdio: 'inherit' });
 
-  const target = join(outDir, `nemesis${suffix}`);
+  const target = join(outDir, `legion${suffix}`);
   if (existsSync(join(root, 'node_modules', 'postject', 'postject.js'))) {
     execFileSync('cp', [nodeBinary, target], { stdio: 'inherit' });
     execFileSync(process.execPath, [
