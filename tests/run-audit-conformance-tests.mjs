@@ -7,9 +7,9 @@ import { createHash } from 'node:crypto';
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
-import { pathToFileURL } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
-const AUDIT_ROOT = new URL('../', import.meta.url).pathname;
+const AUDIT_ROOT = fileURLToPath(new URL('../', import.meta.url));
 let passed = 0;
 let failed = 0;
 
@@ -36,6 +36,7 @@ function test_security_routing() {
   const { finalizeAudit } = await_import(join(AUDIT_ROOT, 'audit-finalize.mjs'));
   const facts = {
     incomplete: false,
+    out_dir: join(tmpdir(), 'legion-audit-conformance'),
     checks: [{ check: 'test', status: 'ran', execution_status: 'ran', verdict: 'pass' }],
     provider_reconciliation: {
       providerResults: [
@@ -62,6 +63,7 @@ function test_execution_status() {
   const { finalizeAudit } = await_import(join(AUDIT_ROOT, 'audit-finalize.mjs'));
   const facts = {
     incomplete: false,
+    out_dir: join(tmpdir(), 'legion-audit-conformance'),
     checks: [
       { check: 'types', status: 'ran', execution_status: 'ran', verdict: 'pass' },
       { check: 'lint', status: 'ran', execution_status: 'ran', verdict: 'fail', exit_code: 1 },
@@ -169,6 +171,7 @@ function test_adjudication_rigor() {
   const { finalizeAudit } = await_import(join(AUDIT_ROOT, 'audit-finalize.mjs'));
   const facts = {
     incomplete: false,
+    out_dir: join(tmpdir(), 'legion-audit-conformance'),
     checks: [{ check: 'test', status: 'ran', execution_status: 'ran', verdict: 'pass' }],
     provider_reconciliation: {
       providerResults: [],
@@ -265,8 +268,8 @@ function _loadValidator(path) {
 // --- Main ---
 async function main() {
   // Import modules dynamically
-  const finalizeMod = await import(join(AUDIT_ROOT, 'audit-finalize.mjs'));
-  const validatorMod = await import(join(AUDIT_ROOT, 'scripts/normalize-provider-result.mjs'));
+  const finalizeMod = await import(pathToFileURL(join(AUDIT_ROOT, 'audit-finalize.mjs')).href);
+  const validatorMod = await import(pathToFileURL(join(AUDIT_ROOT, 'scripts/normalize-provider-result.mjs')).href);
 
   // Override the helper to use real imports
   const origImport = await_import;
@@ -291,6 +294,7 @@ async function main() {
 function test_security_routing_real(mod) {
   const facts = {
     incomplete: false,
+    out_dir: join(tmpdir(), 'legion-audit-conformance'),
     checks: [{ check: 'test', status: 'ran', execution_status: 'ran', verdict: 'pass' }],
     provider_reconciliation: {
       providerResults: [
@@ -314,6 +318,7 @@ function test_security_routing_real(mod) {
 function test_execution_status_real(mod) {
   const facts = {
     incomplete: false,
+    out_dir: join(tmpdir(), 'legion-audit-conformance'),
     checks: [
       { check: 'types', status: 'ran', execution_status: 'ran', verdict: 'pass' },
       { check: 'lint', status: 'ran', execution_status: 'ran', verdict: 'fail', exit_code: 1 },
@@ -347,6 +352,7 @@ function test_result_contract_real(mod) {
 function test_adjudication_rigor_real(mod) {
   const facts = {
     incomplete: false,
+    out_dir: join(tmpdir(), 'legion-audit-conformance'),
     checks: [{ check: 'test', status: 'ran', execution_status: 'ran', verdict: 'pass' }],
     provider_reconciliation: {
       providerResults: [],
