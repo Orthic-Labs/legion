@@ -262,8 +262,8 @@ export function handleClaudeCodeHookEvent(hookPayload, deps) {
 // the shared `runHookMain` (./hook-adapter-core.mjs).
 // ---------------------------------------------------------------------------
 
-export function main({ keyDir = DEFAULT_KEY_DIR, receiptStore, replayGuard, policy, capabilityStore = null, dependencyLedger = null } = {}) {
-  return runHookMain({ normalize: normalizeClaudeCodeEvent, keyDir, receiptStore, replayGuard, policy, capabilityStore, dependencyLedger });
+export function main({ keyDir = DEFAULT_KEY_DIR, receiptStore, replayGuard, policy, capabilityStore = null, dependencyLedger = null, sessionBinding = null } = {}) {
+  return runHookMain({ normalize: normalizeClaudeCodeEvent, keyDir, receiptStore, replayGuard, policy, capabilityStore, dependencyLedger, sessionBinding });
 }
 
 const isMainModule = typeof process !== 'undefined' && process.argv[1]
