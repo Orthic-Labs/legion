@@ -72,22 +72,18 @@
     },
     {
       "id": "B6-013",
-      "status": "implemented",
+      "status": "blocked",
       "mapping": "providers/copy/anti-slop.mjs;registry/rules/copy/anti-slop.json",
-      "evidence": [
-        "providers/copy/anti-slop.mjs",
-        "registry/rules/copy/anti-slop.json",
-        "tests/content-l3-b6-013.test.mjs"
+      "blockers": [
+        "registrations for the missing rule ids exist and were verified correct, but committing them to registry/rules/ (a tracked file outside qualification/) changes lib/qualification/source-revision.mjs's currentSourceRevision() hash of the tracked tree, which invalidates the sourceRevision pinned in the sealed v2 receipts for books 1-3 (tests/qualification/book-{1,2,3}-receipt.test.mjs + book-qualification.test.mjs fail with source-revision-mismatch) — reproduced twice; reverting the registry edit restores 1748/1748. Resolving requires resealing books 1-3's sourceRevision, which this task explicitly forbids touching. Needs a coordinator-level reseal of books 1-3 alongside the registry commit."
       ]
     },
     {
       "id": "B6-014",
-      "status": "implemented",
+      "status": "blocked",
       "mapping": "providers/copy/clarity.mjs;registry/rules/copy/clarity.json",
-      "evidence": [
-        "providers/copy/clarity.mjs",
-        "registry/rules/copy/clarity.json",
-        "tests/content-l3.test.mjs"
+      "blockers": [
+        "registrations for the missing rule ids exist and were verified correct, but committing them to registry/rules/ (a tracked file outside qualification/) changes lib/qualification/source-revision.mjs's currentSourceRevision() hash of the tracked tree, which invalidates the sourceRevision pinned in the sealed v2 receipts for books 1-3 (tests/qualification/book-{1,2,3}-receipt.test.mjs + book-qualification.test.mjs fail with source-revision-mismatch) — reproduced twice; reverting the registry edit restores 1748/1748. Resolving requires resealing books 1-3's sourceRevision, which this task explicitly forbids touching. Needs a coordinator-level reseal of books 1-3 alongside the registry commit."
       ]
     },
     {
@@ -165,12 +161,10 @@
     },
     {
       "id": "B6-025",
-      "status": "implemented",
+      "status": "blocked",
       "mapping": "providers/narrative/chronology.mjs;registry/rules/narrative/chronology.json",
-      "evidence": [
-        "providers/narrative/chronology.mjs",
-        "registry/rules/narrative/chronology.json",
-        "tests/content-l3-b6-025.test.mjs"
+      "blockers": [
+        "registrations for the missing rule ids exist and were verified correct, but committing them to registry/rules/ (a tracked file outside qualification/) changes lib/qualification/source-revision.mjs's currentSourceRevision() hash of the tracked tree, which invalidates the sourceRevision pinned in the sealed v2 receipts for books 1-3 (tests/qualification/book-{1,2,3}-receipt.test.mjs + book-qualification.test.mjs fail with source-revision-mismatch) — reproduced twice; reverting the registry edit restores 1748/1748. Resolving requires resealing books 1-3's sourceRevision, which this task explicitly forbids touching. Needs a coordinator-level reseal of books 1-3 alongside the registry commit."
       ]
     },
     {
