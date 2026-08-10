@@ -75,11 +75,47 @@ export function signHostEvent(hostEvent, keyRing) {
   }
 }
 
-const DESTRUCTIVE_COMMAND = /(?:^|[;&|]\s*)(?:rm\s+(?:-[^\s]*r|--recursive)|remove-item\b[^\n]*-recurse|git\s+clean\b|dropdb\b|git\s+push\b[^\n]*(?:--force(?:-with-lease)?\b|-f\b)|terraform\s+(?:apply|destroy)\b|curl\b[^\n|]*\|\s*(?:sh|bash)\b)/i;
+// Unconditionally blocked: no approval path, by design. These destroy state that
+// no later step can reconstruct, so there is nothing an approval could make safe.
+const DESTRUCTIVE_COMMAND = /(?:^|[;&|]\s*)(?:rm\s+(?:-[^\s]*r|--recursive)|remove-item\b[^\n]*-recurse|git\s+clean\b|dropdb\b|terraform\s+(?:apply|destroy)\b|curl\b[^\n|]*\|\s*(?:sh|bash)\b)/i;
 
 export function isDestructiveCommand(hookPayload) {
   const command = hookPayload?.command ?? hookPayload?.tool_input?.command;
   return typeof command === 'string' && DESTRUCTIVE_COMMAND.test(command);
+}
+
+// Git history rewrite was in the list above, which made it unappealable: Adrian
+// could ask for a force-push, and nothing — not a contract, not a policy change,
+// not his own instruction — could authorize it, because this branch returns
+// before any of them are consulted. That is a dead end rather than enforcement.
+// It is separated here so it can carry a TARGET-BOUND approval instead: an
+// approval for origin/main must never authorize a push to a different ref.
+const VCS_PUSH_RE = /git\s+push\s+([^\n;&|]*)/i;
+const VCS_FORCE_FLAG = /(?:--force(?:-with-lease)?\b|(?:^|\s)-f\b)/;
+const VCS_DELETE_FLAG = /(?:--delete\b|(?:^|\s)-d\b)/;
+
+/**
+ * `{operation, rewrite, remote, ref}` for a `git push`, or null when the command
+ * is not one. `rewrite` marks the history-destroying forms. When a rewrite flag
+ * is present but the target cannot be isolated, `remote`/`ref` stay null and the
+ * caller must refuse — an approval is never bound to a guessed target.
+ */
+export function classifyVcsPush(command) {
+  const match = typeof command === 'string' ? command.match(VCS_PUSH_RE) : null;
+  if (!match) return null;
+  const tail = match[1];
+  const isForce = VCS_FORCE_FLAG.test(tail);
+  const isDelete = VCS_DELETE_FLAG.test(tail);
+  if (!isForce && !isDelete) return { operation: 'git-push', rewrite: false, remote: null, ref: null };
+  const operands = tail.split(/\s+/).filter((token) => token && !token.startsWith('-'));
+  const [remote = null, ref = null] = operands;
+  return { operation: isForce ? 'git-push-force' : 'git-push-delete', rewrite: true, remote, ref };
+}
+
+/** The approval-store key a rewrite must present. Null when the target is ambiguous. */
+export function vcsRewriteApprovalKey(sessionId, pushInfo) {
+  if (!pushInfo?.rewrite || !pushInfo.remote || !pushInfo.ref || !sessionId) return null;
+  return `${sessionId}|VCS_PUSH|${pushInfo.remote}/${pushInfo.ref}`;
 }
 
 /**
@@ -113,6 +149,9 @@ export function handleHookEvent(hookPayload, deps) {
     normalize, keyRing, verificationKeyRing = keyRing, receiptStore, replayGuard, policy,
     capabilityStore = null, dependencyLedger = null, clock = () => Date.now(),
     sessionBinding = null, preEffectCorrelation = null,
+    // Optional and default-null: a host that has not wired an approval store
+    // refuses every rewrite, which is exactly today's behaviour.
+    approvalStore = null,
   } = deps;
 
   const hostEvent = normalize(hookPayload);
@@ -129,6 +168,31 @@ export function handleHookEvent(hookPayload, deps) {
         enforcementHealth: 'strong',
       }),
     };
+  }
+
+  // History rewrite: appealable, but only against a specific target. Without a
+  // store the behaviour is identical to before this change — refused — so a host
+  // that has not wired one up loses nothing and gains no silent permission.
+  if (hostEvent.eventType === 'pre-effect') {
+    const push = classifyVcsPush(hookPayload?.command ?? hookPayload?.tool_input?.command);
+    if (push?.rewrite) {
+      const key = vcsRewriteApprovalKey(hostEvent.sessionId, push);
+      const approved = key && approvalStore ? approvalStore.consume(key) : null;
+      if (!approved) {
+        return {
+          hostEvent, observationClass, enforcementHealth: 'strong', accepted: false, receipt: null,
+          decision: decision({
+            allowed: false,
+            code: 'ARC_APPROVAL_REQUIRED',
+            message: key
+              ? `${push.operation} rewrites published history on ${push.remote}/${push.ref} and needs a target-bound approval`
+              : `${push.operation} rewrites published history, and its remote/ref could not be isolated from the command; an approval is never bound to a guessed target`,
+            detail: { operation: push.operation, remote: push.remote, ref: push.ref, approvalKey: key },
+            enforcementHealth: 'strong',
+          }),
+        };
+      }
+    }
   }
 
   // EC-5 items 2+4 — ambient run/task/contract binding. Host-neutral on

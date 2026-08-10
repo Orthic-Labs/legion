@@ -5,7 +5,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { evaluateStopShape, recordedThisTurn, reservedCategories } from '../hooks/stop-shape.mjs';
+import { escalatedThisSession, evaluateStopShape, recordedThisTurn, reservedCategories } from '../hooks/stop-shape.mjs';
 
 test('permission questions block', () => {
   for (const ending of [
@@ -31,6 +31,8 @@ test('completed work passes', () => {
 test('a reserved blocker is a legal terminal state in ANY format', () => {
   // Format-grinding regression (Codex final-gate, 2026-08-10): ten valid
   // packets rejected over layout. Every one of these must pass.
+  // `escalated` is set because the ladder is a SUBSTANTIVE precondition,
+  // orthogonal to layout — this test pins that format is never judged.
   for (const ending of [
     'Deploy staged. HARD BLOCKER: the Cloudflare token only Adrian can supply.',
     'BLOCKED-ON-APPROVAL: publish @rightkit/ax@0.1.1 (publication/production mutation)',
@@ -38,7 +40,7 @@ test('a reserved blocker is a legal terminal state in ANY format', () => {
     'Work verified.\nBLOCKED-ON-APPROVAL\n  category: destruction\n  action: drop the legacy table',
     'BLOCKED-ON-APPROVAL:\n{\n  "reserved_category": "reserved_decision"\n}',
   ]) {
-    assert.equal(evaluateStopShape(ending).block, false, ending);
+    assert.equal(evaluateStopShape(ending, { escalated: true }).block, false, ending);
   }
 });
 
@@ -167,7 +169,7 @@ test('a reserved blocker still wins over a deferral marker', () => {
   // The blocker must name a REAL category to win. "reserved to Adrian per
   // <doc>" is not a sixth category — that laundering is pinned separately.
   const text = 'Worth flagging for later: the deploy is a separate cleanup.\n\nBLOCKED-ON-APPROVAL: publishing @rightkit/ax@0.1.1 (publication).';
-  assert.equal(evaluateStopShape(text).block, false);
+  assert.equal(evaluateStopShape(text, { escalated: true }).block, false);
 });
 
 test('the push cap releases a deferral block too', () => {
@@ -184,6 +186,7 @@ test('an invented reserved category does not launder a stop-short', () => {
 });
 
 test('genuine reserved categories still pass', () => {
+  // Escalated: this test pins CATEGORY validity, not the ladder.
   for (const ending of [
     'BLOCKED-ON-APPROVAL: publish @rightkit/ax@0.1.1 (publication)',
     'BLOCKED-ON-APPROVAL: the Hetzner upgrade is new spend on your card',
@@ -192,11 +195,68 @@ test('genuine reserved categories still pass', () => {
     'BLOCKED-ON-APPROVAL: needs your 2FA code (private input)',
     'HARD BLOCKER: the Cloudflare token only Adrian can supply.',
   ]) {
-    assert.equal(evaluateStopShape(ending).block, false, ending);
+    assert.equal(evaluateStopShape(ending, { escalated: true }).block, false, ending);
   }
 });
 
 test('reservedCategories identifies the canonical five', () => {
   assert.deepEqual(reservedCategories('this needs new spend of $40'), ['new-spend']);
   assert.deepEqual(reservedCategories('per HANDOFF this is reserved to Adrian'), []);
+});
+
+// Naming a real category is necessary but not sufficient. The regression this
+// pins: a packet claimed "reserved decision" for a question committed doctrine
+// had already answered, matched the category word, and passed — twice in one
+// session. The token was an unconditional exit, so emitting it was cheaper than
+// working. Doctrine's ladder is resolve -> Sage -> Covenant -> block, so a
+// blocker must show the ladder was actually walked.
+test('a blocker with a real category but no escalation blocks', () => {
+  const packet = 'BLOCKED-ON-APPROVAL: flipping VCS_PUSH from deny to allow — reserved decision, it changes what the enforcement plane permits globally.';
+  const verdict = evaluateStopShape(packet, { escalated: false });
+  assert.equal(verdict.block, true);
+  assert.equal(verdict.shape, 'unescalated-blocker');
+});
+
+test('the same blocker passes once Sage was actually dispatched', () => {
+  const packet = 'BLOCKED-ON-APPROVAL: flipping VCS_PUSH from deny to allow — reserved decision, it changes what the enforcement plane permits globally.';
+  assert.equal(evaluateStopShape(packet, { escalated: true }).block, false);
+});
+
+test('HARD BLOCKER never requires escalation — a missing input cannot be escalated around', () => {
+  const packet = 'HARD BLOCKER: the Azure signing profile name, which is not in any config I can read.';
+  assert.equal(evaluateStopShape(packet, { escalated: false }).block, false);
+});
+
+test('an invented category still blocks even with escalation', () => {
+  const packet = 'BLOCKED-ON-APPROVAL: deploying the binary — reserved to Adrian per HANDOFF.';
+  const verdict = evaluateStopShape(packet, { escalated: true });
+  assert.equal(verdict.block, true);
+  assert.equal(verdict.shape, 'unreserved-blocker');
+});
+
+test('escalation evidence comes from real dispatches, not prose claims', () => {
+  assert.equal(escalatedThisSession('I considered dispatching Sage about this.'), false);
+  assert.equal(escalatedThisSession('{"subagent_type":"sage","prompt":"..."}'), true);
+  assert.equal(escalatedThisSession('{"subagent_type":"legion:covenant-seat"}'), true);
+});
+
+// The incident this closes: Adrian said "Go on, fix it", and the turn still
+// ended with BLOCKED-ON-APPROVAL asking him to choose a scope. The approval was
+// in the transcript; nothing mechanical could read it, so it became a question.
+test('a blocker is refused when Adrian already said proceed', () => {
+  const packet = 'BLOCKED-ON-APPROVAL: flipping VCS_PUSH to allow — reserved decision.';
+  const verdict = evaluateStopShape(packet, { escalated: true, authorized: true, authorizedEvidence: 'Go on, fix it.' });
+  assert.equal(verdict.block, true);
+  assert.equal(verdict.shape, 'already-authorized');
+  assert.match(verdict.instruction, /Go on, fix it/);
+});
+
+test('HARD BLOCKER outranks an authorization — a missing input is still missing', () => {
+  const packet = 'HARD BLOCKER: the Cloudflare token only Adrian can supply.';
+  assert.equal(evaluateStopShape(packet, { authorized: true }).block, false);
+});
+
+test('without an authorization the ordinary blocker rules still apply', () => {
+  const packet = 'BLOCKED-ON-APPROVAL: destruction — drop the legacy table.';
+  assert.equal(evaluateStopShape(packet, { escalated: true, authorized: false }).block, false);
 });

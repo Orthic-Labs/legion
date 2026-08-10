@@ -28,6 +28,7 @@
 
 import { readFileSync, mkdirSync, writeFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
+import { userIntent } from './user-intent.mjs';
 
 const MAX_PUSHES = 2;
 
@@ -180,6 +181,17 @@ export function recordedThisTurn(transcriptText) {
   return typeof transcriptText === 'string' && RECORD_TARGETS.test(transcriptText);
 }
 
+// Evidence that the escalation ladder was actually walked before blocking: a
+// Sage or Covenant dispatch somewhere in this session. Matched against the raw
+// transcript (which carries tool-call JSON), so it sees a real dispatch rather
+// than the agent's prose claim of one — the same reason receipts beat sentences
+// everywhere else in this system.
+const ESCALATION_EVIDENCE = /"subagent_type"\s*:\s*"(?:legion:)?(?:sage|covenant-seat)"|\/covenant\b|(?:^|\s)@sage\b/i;
+
+export function escalatedThisSession(transcriptText) {
+  return typeof transcriptText === 'string' && ESCALATION_EVIDENCE.test(transcriptText);
+}
+
 // The escalation ladder (doctrine: resolve → Sage → Covenant → best call →
 // stop). Each push instructs the NEXT rung and never repeats the last one: a
 // gate that repeats itself teaches reformatting, not progress.
@@ -209,7 +221,7 @@ function pushCount(stateFile) {
   try { return JSON.parse(readFileSync(stateFile, 'utf8')).pushes ?? 0; } catch { return 0; }
 }
 
-export function evaluateStopShape(finalText, { pushes = 0, recorded = false } = {}) {
+export function evaluateStopShape(finalText, { pushes = 0, recorded = false, escalated = false, authorized = false, authorizedEvidence = null } = {}) {
   if (typeof finalText !== 'string' || finalText.length === 0) return { block: false, reason: 'no-final-text' };
   if (pushes >= MAX_PUSHES) return { block: false, reason: 'push-cap' };
   if (HARD_BLOCKER.test(finalText)) {
@@ -217,8 +229,42 @@ export function evaluateStopShape(finalText, { pushes = 0, recorded = false } = 
     // (missing input only Adrian can supply) is self-describing and always
     // passes; `BLOCKED-ON-APPROVAL` must land in the canonical five, or it is a
     // stop-short wearing the right token.
-    if (/\bHARD BLOCKER\b/i.test(finalText) || reservedCategories(finalText).length > 0) {
-      return { block: false, reason: 'reserved-blocker-stated' };
+    // `HARD BLOCKER` is self-describing — a missing input cannot be escalated
+    // around, so it passes on its own.
+    if (/\bHARD BLOCKER\b/i.test(finalText)) return { block: false, reason: 'hard-blocker-stated' };
+    // Adrian's own recent words outrank any packet. The authorization is sitting
+    // in the transcript; before this, nothing mechanical could read it, so it got
+    // converted back into a question — twice in one session for things he had
+    // explicitly asked for. `authorized` comes from an admitted user turn only
+    // (hooks/user-intent.mjs), never from assistant text or tool output.
+    if (authorized) {
+      return {
+        block: true,
+        shape: 'already-authorized',
+        instruction: `Adrian already told you to proceed in a recent turn${authorizedEvidence ? ` ("${authorizedEvidence.replace(/\s+/g, ' ').slice(0, 120)}")` : ''}. That IS the approval — asking again is the stop-short. Do the work and report the receipt. If a later instruction held you back, or the effect is genuinely outside what he asked for, say which and name it precisely.`,
+      };
+    }
+    if (reservedCategories(finalText).length > 0) {
+      // Naming a real category is necessary but NOT sufficient. Category
+      // validation alone still let a settled question through: a packet claimed
+      // "reserved decision" for something committed doctrine already answered,
+      // matched the word, and passed. The token was an unconditional exit, so
+      // emitting it was cheaper than doing the work — the gate taught the very
+      // laundering it existed to stop.
+      //
+      // Doctrine's ladder is resolve -> Sage -> Covenant -> block. So a blocker
+      // must SHOW the ladder was walked. This is not a format check: it looks
+      // for an actual Sage/Covenant dispatch in the session transcript. If the
+      // question was genuinely undecided, that dispatch already happened; if it
+      // was already answered, Sage says so and no blocker is needed. Either way
+      // blocking is now more expensive than resolving, which is the correct
+      // gradient.
+      if (escalated) return { block: false, reason: 'reserved-blocker-escalated' };
+      return {
+        block: true,
+        shape: 'unescalated-blocker',
+        instruction: 'Your blocker names a real category but shows no escalation. The ladder is: resolve it yourself, then dispatch Sage, then convene Covenant, and only then block. Nothing in this session shows Sage or Covenant was consulted. If Adrian asked for it, intended it, or it is obvious, it is not a reserved decision — do it. If it is genuinely ambiguous, dispatch Sage now and block only if Sage cannot settle it.',
+      };
     }
     return {
       block: true,
@@ -280,7 +326,14 @@ function main() {
   // `recorded` is read from the WHOLE transcript, not this turn alone: a gotcha
   // written earlier in the session is already durable, and re-blocking for it
   // would be the grind this gate exists to avoid.
-  const verdict = evaluateStopShape(finalText, { pushes, recorded: recordedThisTurn(raw) });
+  const intent = userIntent(raw);
+  const verdict = evaluateStopShape(finalText, {
+    pushes,
+    recorded: recordedThisTurn(raw),
+    escalated: escalatedThisSession(raw),
+    authorized: intent.intent === 'proceed',
+    authorizedEvidence: intent.evidence,
+  });
   if (!verdict.block) return;
 
   try {
