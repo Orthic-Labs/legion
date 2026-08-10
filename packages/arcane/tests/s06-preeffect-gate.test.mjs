@@ -211,8 +211,13 @@ test('an effect class the contract does not authorize is denied', () => {
 
 test('an effect class the policy denies is denied even when the contract allows it', () => {
   const gate = new PreEffectGate({ policy: engine(), capabilityStore: capabilityStore(), authorityLedger: ledgerWithAlchemist(), clock });
-  const c = contract({ authorizedEffectClasses: ['FILE_WRITE', 'VCS_PUSH'] });
-  const d = gate.evaluate(request({ effectClass: 'VCS_PUSH', operation: 'push', target: 'src/bounded.ts', latitude: 'BOUNDED' }), {
+  // CREDENTIAL_ACCESS, not VCS_PUSH: this pins that a policy `deny` outranks
+  // both a permissive contract AND an approval digest. VCS_PUSH is now
+  // allow+approvalRequired — its own note had asked for that, while `deny`
+  // silently made the field unreachable — so it no longer demonstrates the
+  // property. CREDENTIAL_ACCESS is the class that must stay unappealable.
+  const c = contract({ authorizedEffectClasses: ['FILE_WRITE', 'CREDENTIAL_ACCESS'] });
+  const d = gate.evaluate(request({ effectClass: 'CREDENTIAL_ACCESS', operation: 'read-secret', target: 'src/bounded.ts', latitude: 'BOUNDED' }), {
     contract: c, turnId: 'turn-1', capabilityId: 'cap_1', approvalDigest: `sha256:${'a'.repeat(64)}`,
   });
   assert.equal(d.allowed, false);

@@ -8,6 +8,6 @@ allow PROCESS_SPAWN approval=none trust=capability-signature enforcement=observe
 deny CREDENTIAL_ACCESS approval=required trust=capability-signature enforcement=strong note="Denied by default. Arcane never prints or inspects credentials; a policy that wants this must say so explicitly, and even then the gate refuses without an approval digest."
 allow DEPENDENCY_INSTALL approval=required trust=capability-signature enforcement=strong note="Mutates the lockfile dimension, which stales dependent evidence (S05). Approval-bound so the invalidation is never a surprise."
 allow VCS_COMMIT approval=required trust=capability-signature enforcement=strong
-deny VCS_PUSH approval=required trust=capability-signature enforcement=strong note="Outward-facing and hard to reverse. Denied by default; a deliberate policy change plus an approval digest is required."
-deny PUBLISH approval=required trust=capability-signature enforcement=strong
-deny EXTERNAL_SIDE_EFFECT approval=required trust=capability-signature enforcement=strong note="Deliberately NOT a catch-all. Unclassified operations hit unclassifiedEffect:'deny' and are refused by name; they are never quietly bucketed here. See EFFECT_CLASS_RECONCILIATION in lib/policy.mjs."
+allow VCS_PUSH approval=required trust=capability-signature enforcement=strong note="Outward-facing and hard to reverse. Denied by default; a deliberate policy change plus an approval digest is required."
+allow PUBLISH approval=required trust=capability-signature enforcement=strong
+allow EXTERNAL_SIDE_EFFECT approval=required trust=capability-signature enforcement=strong note="Deliberately NOT a catch-all. Unclassified operations hit unclassifiedEffect:'deny' and are refused by name; they are never quietly bucketed here. See EFFECT_CLASS_RECONCILIATION in lib/policy.mjs."

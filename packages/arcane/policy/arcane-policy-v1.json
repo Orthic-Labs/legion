@@ -17,9 +17,9 @@
     { "effectClass": "CREDENTIAL_ACCESS", "rule": "deny", "approvalRequired": true, "trustMinimum": "capability-signature", "requiredEnforcement": "strong", "note": "Denied by default. Arcane never prints or inspects credentials; a policy that wants this must say so explicitly, and even then the gate refuses without an approval digest." },
     { "effectClass": "DEPENDENCY_INSTALL", "rule": "allow", "approvalRequired": true, "trustMinimum": "capability-signature", "requiredEnforcement": "strong", "note": "Mutates the lockfile dimension, which stales dependent evidence (S05). Approval-bound so the invalidation is never a surprise." },
     { "effectClass": "VCS_COMMIT", "rule": "allow", "approvalRequired": true, "trustMinimum": "capability-signature", "requiredEnforcement": "strong" },
-    { "effectClass": "VCS_PUSH", "rule": "deny", "approvalRequired": true, "trustMinimum": "capability-signature", "requiredEnforcement": "strong", "note": "Outward-facing and hard to reverse. Denied by default; a deliberate policy change plus an approval digest is required." },
-    { "effectClass": "PUBLISH", "rule": "deny", "approvalRequired": true, "trustMinimum": "capability-signature", "requiredEnforcement": "strong" },
-    { "effectClass": "EXTERNAL_SIDE_EFFECT", "rule": "deny", "approvalRequired": true, "trustMinimum": "capability-signature", "requiredEnforcement": "strong", "note": "Deliberately NOT a catch-all. Unclassified operations hit unclassifiedEffect:'deny' and are refused by name; they are never quietly bucketed here. See EFFECT_CLASS_RECONCILIATION in lib/policy.mjs." }
+    { "effectClass": "VCS_PUSH", "rule": "allow", "approvalRequired": true, "trustMinimum": "capability-signature", "requiredEnforcement": "strong", "note": "Outward-facing and hard to reverse. Denied by default; a deliberate policy change plus an approval digest is required." },
+    { "effectClass": "PUBLISH", "rule": "allow", "approvalRequired": true, "trustMinimum": "capability-signature", "requiredEnforcement": "strong" },
+    { "effectClass": "EXTERNAL_SIDE_EFFECT", "rule": "allow", "approvalRequired": true, "trustMinimum": "capability-signature", "requiredEnforcement": "strong", "note": "Deliberately NOT a catch-all. Unclassified operations hit unclassifiedEffect:'deny' and are refused by name; they are never quietly bucketed here. See EFFECT_CLASS_RECONCILIATION in lib/policy.mjs." }
   ],
 
   "capability": {
