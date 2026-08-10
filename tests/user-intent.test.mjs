@@ -12,6 +12,7 @@ import {
   admitsAuthority,
   alreadyAuthorized,
   classifyContentOriginHint,
+  explicitDirective,
   recentUserInstructions,
   userIntent,
 } from '../hooks/user-intent.mjs';
@@ -114,4 +115,26 @@ test('an unreadable transcript authorizes nothing', () => {
   assert.equal(alreadyAuthorized(null), false);
   assert.equal(alreadyAuthorized('not json at all'), false);
   assert.deepEqual(recentUserInstructions(undefined), []);
+});
+
+// B-2: explicitDirective() ported from detect_explicit_directive.py. Separate
+// set from DIRECTIVE/HOLD above — it detects Adrian's no-deferral tone, and
+// must never itself pre-authorize an effect.
+test('explicitDirective detects no-deferral phrasing', () => {
+  assert.deepEqual(explicitDirective('ordinary research request'), []);
+  assert.deepEqual(explicitDirective('go ahead and research this'), []);
+  assert.deepEqual(explicitDirective('do all eight'), ['do all']);
+  const both = explicitDirective("if I asked for 8, don't defer");
+  assert.equal(both.length, 2);
+  assert.match(both[0], /if i asked for 8/i);
+  assert.match(both[1], /don'?t defer/i);
+});
+
+test('explicitDirective is advisory evidence only, never a boolean pre-authorization', () => {
+  // A generic "just do it" must not, by itself, feed alreadyAuthorized() for
+  // an unrelated later effect — the already-authorized path still requires a
+  // specific matching instruction, which explicitDirective() never supplies.
+  const matches = explicitDirective('Just do it, no deferring.');
+  assert.ok(matches.length > 0);
+  assert.equal(Array.isArray(matches), true);
 });
