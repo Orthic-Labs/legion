@@ -24,6 +24,7 @@ import { signRecord } from '../lib/receipt-auth.mjs';
 import { HostIngestor, POST_EFFECT_TYPES } from '../lib/ingest.mjs';
 import { loadHostKeyRing } from '../lib/keys.mjs';
 import { evaluateCompletion } from '../lib/completion-gate.mjs';
+import { evaluateCodexEscalation } from '../lib/codex-escalation.mjs';
 
 /**
  * EC-5 item 5 — honest `sourceRevision`. Neither adapter's `buildRaw*Event`
@@ -168,6 +169,30 @@ export function handleHookEvent(hookPayload, deps) {
         enforcementHealth: 'strong',
       }),
     };
+  }
+
+  // Escalation ladder (absorbed from gate_codex_escalation.py): dispatching to
+  // `codex exec` is the "then dispatch" half of resolve-it-yourself-then-
+  // dispatch, so the prompt must carry two attempts and what each one hit.
+  // Refusable by fixing the prompt, so no approval path is needed — unlike the
+  // destructive class above, nothing here is unreconstructable.
+  if (hostEvent.eventType === 'pre-effect') {
+    const command = hookPayload?.command ?? hookPayload?.tool_input?.command;
+    const escalation = evaluateCodexEscalation(command ?? '', (path) => {
+      try { return path ? readFileSync(path, 'utf8') : null; } catch { return null; }
+    });
+    if (!escalation.allowed) {
+      return {
+        hostEvent, observationClass, enforcementHealth: 'strong', accepted: false, receipt: null,
+        decision: decision({
+          allowed: false,
+          code: 'ARC_ESCALATION_UNEVIDENCED',
+          message: escalation.reason,
+          detail: { evidence: escalation.evidence ?? 0, required: 2 },
+          enforcementHealth: 'strong',
+        }),
+      };
+    }
   }
 
   // History rewrite: appealable, but only against a specific target. Without a

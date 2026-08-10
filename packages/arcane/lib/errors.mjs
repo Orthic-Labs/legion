@@ -60,6 +60,9 @@ export const ARCANE_ERROR_CODE = Object.freeze([
 
   // kernel dependency (Wave-2 sequencing)
   'ARC_KERNEL_PRIMITIVE_UNAVAILABLE', // Lane D primitive not landed yet
+
+  // escalation ladder (absorbed from gate_codex_escalation.py)
+  'ARC_ESCALATION_UNEVIDENCED', // dispatch attempted without two documented self-attempts
 ]);
 
 const CODES = new Set(ARCANE_ERROR_CODE);
