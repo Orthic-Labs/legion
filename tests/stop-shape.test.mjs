@@ -5,7 +5,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { evaluateStopShape } from '../hooks/stop-shape.mjs';
+import { evaluateStopShape, recordedThisTurn } from '../hooks/stop-shape.mjs';
 
 test('permission questions block', () => {
   for (const ending of [
@@ -85,4 +85,33 @@ test('a genuine Adrian-only next action still passes', () => {
   ]) {
     assert.equal(evaluateStopShape(ending).block, false, ending);
   }
+});
+
+test('a finding announced only in chat is blocked as unrecorded', () => {
+  const v = evaluateStopShape('Fixed and verified. Worth noting for the pattern file: hooks are additive, so a duplicate registration denies every Write.', { recorded: false });
+  assert.equal(v.block, true);
+  assert.equal(v.shape, 'unrecorded-finding');
+  assert.match(v.instruction, /GOTCHAS\.md/);
+});
+
+test('the same finding passes once it was written down', () => {
+  const text = 'Fixed and verified. Worth noting for the pattern file: hooks are additive.';
+  assert.equal(evaluateStopShape(text, { recorded: true }).block, false);
+});
+
+test('ordinary work reports do not trip the finding check', () => {
+  for (const ending of [
+    'Fixed the parser, 12/12 tests, committed abc123.',
+    'Wired both machines and verified: 0 duplicates, exit 0.',
+    'Note: the suite takes about 40 seconds.',
+  ]) {
+    assert.equal(evaluateStopShape(ending, { recorded: false }).block, false, ending);
+  }
+});
+
+test('recordedThisTurn recognises the durable destinations', () => {
+  assert.equal(recordedThisTurn('{"name":"Write","input":{"file_path":"D:/Claude/docs/GOTCHAS.md"}}'), true);
+  assert.equal(recordedThisTurn('memright put arcane-key-bootstrap --scope claude'), true);
+  assert.equal(recordedThisTurn('docs/plans/legion/HANDOFF.md'), true);
+  assert.equal(recordedThisTurn('{"name":"Write","input":{"file_path":"src/app.mjs"}}'), false);
 });
