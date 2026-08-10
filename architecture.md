@@ -1,5 +1,11 @@
 # Legion Architecture
 
+## Roster vocabulary
+
+Sage, Alchemist, & Seer are Legion's **champions**. Together they form Legion's **roster**. A harness may instantiate a champion as an agent, but `agent` names the runtime mechanism rather than the champion's product identity.
+
+Arcane is Legion's deterministic control plane, not a champion. Covenant is Legion's challenge chamber, not a champion; its isolated seats review frozen evidence without joining the roster.
+
 ## Canonical audit flow
 
 1. **Freeze audit target**
