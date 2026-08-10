@@ -73,6 +73,26 @@ const SHAPES = [
   },
 ];
 
+// Finding language: the turn is reporting something a future agent would need,
+// in a place no future agent can read. Chat is not memory — a gotcha stated in
+// a session and not written down is gone when the context rolls. Narrow on
+// purpose: only phrasings that explicitly frame a durable lesson, never mere
+// description of work done.
+const FINDING_LANGUAGE = /\b(worth (noting|knowing|recording|your attention)|for (the )?(pattern file|future reference|posterity)|note for (the )?(future|next)|lesson (here|learned)|gotcha|trap for|bit(es|) us|cost (me|us) (an hour|hours|time)|next agent (should|will|needs)|remember (this|that) for)\b/i;
+
+// Paths that count as recording a finding durably.
+const RECORD_TARGETS = /(GOTCHAS?\.md|HANDOFF\.md|memright\b|\bmemory\/[\w-]+\.md)/i;
+
+/**
+ * Did this turn actually record something durable? Reads the transcript for a
+ * tool call that wrote to a recognised destination. Deliberately generous: any
+ * write to GOTCHAS.md / HANDOFF.md / a memright put counts, because the goal is
+ * "it left the chat", not a particular format.
+ */
+export function recordedThisTurn(transcriptText) {
+  return typeof transcriptText === 'string' && RECORD_TARGETS.test(transcriptText);
+}
+
 // The escalation ladder (doctrine: resolve → Sage → Covenant → best call →
 // stop). Each push instructs the NEXT rung and never repeats the last one: a
 // gate that repeats itself teaches reformatting, not progress.
@@ -81,8 +101,8 @@ const ESCALATION = [
   'Sage did not settle it: convene Covenant, or make the best decision yourself and record the reasoning. Re-verify the blocker against CURRENT state before re-asserting it — a blocker observed earlier in a session is often already stale.',
 ];
 
-function lastAssistantText(transcriptPath) {
-  const lines = readFileSync(transcriptPath, 'utf8').split('\n').filter(Boolean);
+function lastAssistantText(raw) {
+  const lines = raw.split('\n').filter(Boolean);
   for (let i = lines.length - 1; i >= 0; i -= 1) {
     let entry;
     try { entry = JSON.parse(lines[i]); } catch { continue; }
@@ -102,7 +122,7 @@ function pushCount(stateFile) {
   try { return JSON.parse(readFileSync(stateFile, 'utf8')).pushes ?? 0; } catch { return 0; }
 }
 
-export function evaluateStopShape(finalText, { pushes = 0 } = {}) {
+export function evaluateStopShape(finalText, { pushes = 0, recorded = false } = {}) {
   if (typeof finalText !== 'string' || finalText.length === 0) return { block: false, reason: 'no-final-text' };
   if (pushes >= MAX_PUSHES) return { block: false, reason: 'push-cap' };
   if (HARD_BLOCKER.test(finalText)) return { block: false, reason: 'reserved-blocker-stated' };
@@ -118,6 +138,15 @@ export function evaluateStopShape(finalText, { pushes = 0 } = {}) {
       };
     }
   }
+  // A finding announced only in chat is a finding lost. Checked against the
+  // WHOLE message, not the tail: the lesson is often stated mid-report.
+  if (!recorded && FINDING_LANGUAGE.test(finalText)) {
+    return {
+      block: true,
+      shape: 'unrecorded-finding',
+      instruction: 'You reported something a future agent needs, but only in chat — nothing here survives this session. Append it to docs/GOTCHAS.md (symptom, cause, fix), or to the relevant HANDOFF, or save it with memright.',
+    };
+  }
   return { block: false, reason: 'clean-ending' };
 }
 
@@ -131,13 +160,17 @@ function main() {
   const cwd = payload.cwd ?? process.cwd();
   if (typeof transcriptPath !== 'string' || transcriptPath.length === 0) return; // unverified harness shape -> fail open
 
-  let finalText = null;
-  try { finalText = lastAssistantText(transcriptPath); } catch { return; } // unreadable transcript -> fail open
+  let raw = null;
+  try { raw = readFileSync(transcriptPath, 'utf8'); } catch { return; } // unreadable transcript -> fail open
+  const finalText = lastAssistantText(raw);
 
   const stateFile = join(cwd, '.audit', 'legion', 'stop-shape', `${sessionId}.json`);
   const pushes = payload.stop_hook_active ? pushCount(stateFile) : 0;
 
-  const verdict = evaluateStopShape(finalText, { pushes });
+  // `recorded` is read from the WHOLE transcript, not this turn alone: a gotcha
+  // written earlier in the session is already durable, and re-blocking for it
+  // would be the grind this gate exists to avoid.
+  const verdict = evaluateStopShape(finalText, { pushes, recorded: recordedThisTurn(raw) });
   if (!verdict.block) return;
 
   try {
