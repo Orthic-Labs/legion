@@ -38,6 +38,37 @@ const MAX_PUSHES = 2;
 // Content may follow on the same line or the next one; both pass.
 const HARD_BLOCKER = /\b(?:HARD BLOCKER|BLOCKED-ON-APPROVAL)\b\s*:?\s*(?:\S|(?:\r?\n\s*)+\S)/i;
 
+// The FIVE canonical reserved categories (workspace rules: "Ask only for
+// missing private input, new spend, unrequested publication or production
+// mutation, destruction, or a reserved decision"). Everything else Adrian asks
+// for is pre-authorized.
+//
+// Why this validation exists: the token alone used to be an unconditional pass,
+// so any rule invented anywhere ("reserved to Adrian per HANDOFF") laundered a
+// stop-short into a legitimate ending. Two agents did exactly that in one day
+// while nothing was functionally blocked. A packet must now name a category
+// that actually exists, which forces the claim to be checked against the list
+// rather than against a habit.
+//
+// Still deliberately loose on FORMAT (failure mode 1): any phrasing carrying a
+// category word passes. This validates the claim's SUBSTANCE, never its layout.
+const RESERVED_CATEGORIES = [
+  ['private-input', /\b(private|missing)\s+(input|credential|token|password|secret)\b|\bcredentials?\b|\b2fa\b|\bapi key\b/i],
+  ['new-spend', /\bnew spend\b|\bspend\b|\bpurchase\b|\bpaid\b|\bbilling\b|\bcost(s|ing)?\s+(money|\$)|\$\d/i],
+  ['publication', /\bpublicat\w+\b|\bpublish\w*\b|\bproduction mutation\b|\brelease\b|\bdeploy(ing|ment)?\s+to\s+prod\w*|\bnpm publish\b/i],
+  ['destruction', /\bdestruct\w+\b|\bdelete\b|\bdrop\b|\bhard[- ]?reset\b|\bforce[- ]?push\b|\birreversible\b/i],
+  // Separator-agnostic: packets arrive as prose, YAML and JSON, so
+  // "reserved decision", "reserved_decision" and "reserved-decision" are one
+  // claim. Format is never what this validation judges.
+  ['reserved-decision', /\breserved[ _-]decision\b|\bpolicy[ _-](change|decision)\b|\bwho may\b|\bdelegat\w+ authority\b|\bchange the rule\b/i],
+];
+
+/** Which canonical reserved categories a blocker packet actually names. */
+export function reservedCategories(text) {
+  if (typeof text !== 'string') return [];
+  return RESERVED_CATEGORIES.filter(([, pattern]) => pattern.test(text)).map(([name]) => name);
+}
+
 // Stop-short shapes. Deliberately narrow: a false block burns a turn, while a
 // miss is bounded by the next turn's gate. Each names the failure it catches so
 // the block reason can instruct precisely rather than generically.
@@ -72,6 +103,62 @@ const SHAPES = [
     pattern: /\bblocked on (your )?(approval|a decision|sign-?off|confirmation)\b/i,
   },
 ];
+
+// Deferred-defect shapes: the turn FOUND a real, in-scope, actionable defect and
+// handed it back in prose instead of fixing it ("worth flagging for later",
+// "that's a separate cleanup whenever you want it"). Adrian's standing rule is
+// that found issues get resolved in the turn that found them.
+//
+// This table is the single source of stop-policy CONTENT. The rhook fast path
+// (tools/rhook, Rust) and Codex's final-gate carry a GENERATED copy of it — a
+// fourth hand-written stop gate is how a rule ends up protecting one harness on
+// one machine, which is the shape behind every parity outage this cycle.
+//
+// Deliberately excluded as markers: "whenever you want", "you may want to".
+// They are said constantly about ordinary optional scope that was never a found
+// defect, and regex cannot tell those apart; including them would trade a small
+// false-negative gain for a large false-positive cost.
+export const DEFERRED_DEFECT_MARKERS = [
+  ['worth-flagging', /\bworth\s+(?:flagging|mentioning)\b/i],
+  ['worth-doing-later', /\bworth\s+doing\s+(?:at\s+some\s+point|later|some\s*time)\b/i],
+  ['leave-for-later', /\bi(?:'|’)?ll\s+leave\s+(?:that|this|it)\s+for\s+(?:a\s+)?(?:later|follow-?up|another\s+time)\b/i],
+  ['someone-should', /\bsomeone\s+should\s+(?:clean|fix|address|look\s+at|handle|sync)\b/i],
+  ['out-of-scope-for-now', /\bout\s+of\s+scope\s+for\s+now\b/i],
+  ['todo-fix-later', /\bTODO:?\s*(?:fix|address|clean\s*up|sync)\s+(?:this\s+)?later\b/i],
+  ['separate-cleanup', /\b(?:a\s+)?separate\s+cleanup\b/i],
+  ['note-for-later', /\bnote\s+for\s+later\b/i],
+];
+
+// Legitimate deferral. Honoured only in the SAME paragraph as the marker, so an
+// unrelated "already fixed X" elsewhere in a long report cannot launder a real
+// deferred defect.
+export const DEFERRED_DEFECT_CARVE_OUTS = [
+  /\b(?:another|a\s+separate|the\s+other)\s+agent\b|\b(?:sage|alchemist|seer|covenant)\s+(?:is|will\s+be|has|already)\b|\bnot\s+(?:your|my)\s+lane\b/i,
+  /\bneeds?\s+(?:your|adrian'?s|the\s+user'?s)\s+(?:input|decision|credentials|approval|confirmation|call|access)\b|\bblocked\s+on\s+(?:your|adrian'?s|the\s+user'?s)\b|\bADRIAN[- ]ONLY\b|\breserved\s+(?:to|for)\s+(?:you|adrian)\b/i,
+  /\bwant\s+me\s+to\s+also\b|\bhappy\s+to\s+also\b/i,
+  /\b(?:already|also)\s+(?:fixed|resolved|patched|corrected|addressed|recorded)\b/i,
+  /\bspawn_task\b|\bspawned\s+a\s+(?:background\s+)?task\b|\bfiled\s+(?:as|a)\s+(?:background\s+)?task\b/i,
+];
+
+// The honest escape hatch: regex cannot judge intent in the residual cases.
+export const DEFERRED_OK_TAG = /\[deferred-ok(?::[^\]]{0,200})?\]/i;
+
+/**
+ * Which deferred-defect markers fire, after dropping carved-out paragraphs and
+ * respecting the override tag. Pure — this is the function the generated rhook
+ * and Codex copies must reproduce.
+ */
+export function deferredDefectCodes(text) {
+  if (typeof text !== 'string' || DEFERRED_OK_TAG.test(text)) return [];
+  const codes = new Set();
+  for (const paragraph of text.split(/\n\s*\n/).map((part) => part.trim()).filter(Boolean)) {
+    if (DEFERRED_DEFECT_CARVE_OUTS.some((carveOut) => carveOut.test(paragraph))) continue;
+    for (const [code, pattern] of DEFERRED_DEFECT_MARKERS) {
+      if (pattern.test(paragraph)) codes.add(code);
+    }
+  }
+  return [...codes].sort();
+}
 
 // Finding language: the turn is reporting something a future agent would need,
 // in a place no future agent can read. Chat is not memory — a gotcha stated in
@@ -125,7 +212,20 @@ function pushCount(stateFile) {
 export function evaluateStopShape(finalText, { pushes = 0, recorded = false } = {}) {
   if (typeof finalText !== 'string' || finalText.length === 0) return { block: false, reason: 'no-final-text' };
   if (pushes >= MAX_PUSHES) return { block: false, reason: 'push-cap' };
-  if (HARD_BLOCKER.test(finalText)) return { block: false, reason: 'reserved-blocker-stated' };
+  if (HARD_BLOCKER.test(finalText)) {
+    // A blocker packet must name a category that actually exists. `HARD BLOCKER`
+    // (missing input only Adrian can supply) is self-describing and always
+    // passes; `BLOCKED-ON-APPROVAL` must land in the canonical five, or it is a
+    // stop-short wearing the right token.
+    if (/\bHARD BLOCKER\b/i.test(finalText) || reservedCategories(finalText).length > 0) {
+      return { block: false, reason: 'reserved-blocker-stated' };
+    }
+    return {
+      block: true,
+      shape: 'unreserved-blocker',
+      instruction: 'Your BLOCKED-ON-APPROVAL names no canonical reserved category. Only five exist: missing private input, new spend, unrequested publication or production mutation, destruction, or a reserved decision. A rule found in a doc is not a sixth category — if the work is reversible and in scope, Adrian already authorized it. Do it.',
+    };
+  }
   // Judge the ENDING, not the whole turn: a caveat raised mid-report and then
   // resolved must not block. Take the last ~1200 characters.
   const tail = finalText.slice(-1200);
@@ -137,6 +237,16 @@ export function evaluateStopShape(finalText, { pushes = 0, recorded = false } = 
         instruction: `${shape.instruction} ${ESCALATION[Math.min(pushes, ESCALATION.length - 1)]}`,
       };
     }
+  }
+  // Checked against the WHOLE message with paragraph-scoped carve-outs: a defect
+  // is usually deferred mid-report, not in the closing line.
+  const deferred = deferredDefectCodes(finalText);
+  if (deferred.length > 0) {
+    return {
+      block: true,
+      shape: 'deferred-defect',
+      instruction: `You deferred a found issue instead of resolving it (matched: ${deferred.join(', ')}). Standing rule: found issues get fixed in the turn that found them. If it is fixable now, fix it and report the fixed state. If it genuinely is not yours, say which agent owns it, what input only Adrian can supply, or that you filed it as a background task. If deferring is still correct, tag the reply [deferred-ok: <reason>].`,
+    };
   }
   // A finding announced only in chat is a finding lost. Checked against the
   // WHOLE message, not the tail: the lesson is often stated mid-report.
