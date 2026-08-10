@@ -42,6 +42,11 @@ export const PUBLIC_REASON = Object.freeze({
   ARC_LATITUDE_VIOLATION: 'Requested latitude is not allowed.',
   ARC_APPROVAL_REQUIRED: 'Required approval evidence is missing.',
   ARC_KERNEL_PRIMITIVE_UNAVAILABLE: 'Required Kernel primitive is unavailable.',
+  // Unlike the codes above, this one states the remedy. The reasons here are
+  // deliberately generic so internals never leak, but nothing about the
+  // escalation bar is internal — and a refusal that does not say what would
+  // satisfy it just gets retried verbatim.
+  ARC_ESCALATION_UNEVIDENCED: 'Escalation needs two documented self-attempts and the error each one hit, in the prompt body.',
 });
 
 export function publicReason(code) {
