@@ -16,14 +16,18 @@ function readFileOrNull(path) {
 }
 
 // policy.toml WINS when readable (I-4); brief-policy.md is the fallback.
+// BRIEF_MODE_OFF=1 is the operator kill switch the Python hook carried.
 function briefContent(workspace) {
+  if (process.env.BRIEF_MODE_OFF === '1') return null;
   const toml = readFileOrNull(join(workspace, POLICY_TOML_REL));
   const match = toml && toml.match(/\[brief\][\s\S]*?\bcontent\s*=\s*"""\n?([\s\S]*?)"""/);
   if (match && match[1].trim()) return match[1].trim();
   return readFileOrNull(BRIEF_FALLBACK)?.trim() ?? null;
 }
 
+// CCX_GATEWAY_MODE_OFF=1 is the operator kill switch the Python hook carried.
 function ccxDirective() {
+  if (process.env.CCX_GATEWAY_MODE_OFF === '1') return null;
   const base = process.env.ANTHROPIC_BASE_URL || '';
   if (!base.includes('127.0.0.1:8801') && !base.includes('localhost:8801')) return null;
   return readFileOrNull(CCX_DIRECTIVE)?.trim() ?? null;

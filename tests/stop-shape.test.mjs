@@ -270,6 +270,51 @@ test('without an authorization the ordinary blocker rules still apply', () => {
   assert.equal(evaluateStopShape(packet, { escalated: true, authorized: false }).block, false);
 });
 
+// AC-3 completion: the five selftest cases Oracle found unported, recovered
+// from the retired enforce_work_left_guard.py.
+test('the recovered closing-caveat selftest cases block after a done-claim', () => {
+  for (const ending of [
+    'All 9 repos pushed and verified. One thing that isn\'t in git: the runtime DB, because it is not a repository.',
+    'The fix is in and green. That said, the hook is only pattern matching.',
+    'Shipped. Keep in mind the Mac picks this up on next pull.',
+  ]) {
+    assert.equal(evaluateStopShape(ending, {}).block, true, ending);
+  }
+});
+
+test('the recovered deferral-offer selftest cases block', () => {
+  for (const ending of [
+    'Let me know and I\'ll rebuild it.',
+    'I can trace it if you want.',
+  ]) {
+    assert.equal(evaluateStopShape(ending, {}).block, true, ending);
+  }
+});
+
+test('a closing-caveat phrase without a done-claim does not block', () => {
+  // The Python guard required a completion claim; keeping that precondition is
+  // what stops "keep in mind" in an ordinary answer from tripping the gate.
+  const ending = 'The tradeoff differs per repo. Keep in mind pnpm resolves peers differently.';
+  assert.equal(evaluateStopShape(ending, {}).block, false);
+});
+
+// The documentation-quote exemption (strip_code_spans in the Python guard):
+// a turn REPORTING on the gate's own trigger phrases is not committing them.
+test('quoted or fenced trigger phrases do not block the turn', () => {
+  for (const ending of [
+    'Triggers now include `shall I proceed`, `awaiting your approval`, `say go`.',
+    'The hook blocks `say the word and I\'ll trace it`; verified and synced.',
+    'Verified both ways: a plain "Shall I proceed with the commit?" still blocks, while the documented form passes.',
+    'The guard now catches "do you want me to continue" as well; all suites pass.',
+  ]) {
+    assert.equal(evaluateStopShape(ending, {}).block, false, ending);
+  }
+});
+
+test('the same trigger phrase unquoted still blocks', () => {
+  assert.equal(evaluateStopShape('Everything is staged. Shall I proceed with the commit?', {}).block, true);
+});
+
 // D-1: push-gate-laundering (2026-07-26 incident fix). An ordinary git push
 // must not satisfy destruction/publication merely by using "irreversible".
 test('an ordinary git push worded as reserved is not a reserved blocker', () => {
