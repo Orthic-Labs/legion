@@ -28,7 +28,7 @@
         "runId": { "type": "string", "pattern": "^run_[0-9A-HJKMNP-TV-Z]{26}$" },
         "taskId": { "type": ["string", "null"], "pattern": "^ktask_[0-9A-HJKMNP-TV-Z]{26}$" },
 
-        "callerAuthority": { "enum": ["legion", "sage", "alchemist", "seer", "arcane", "covenant", "kernel"] },
+        "callerAuthority": { "enum": ["legion", "sage", "alchemist", "oracle", "arcane", "covenant", "kernel"] },
         "authorityAssertion": {
           "type": "object",
           "additionalProperties": false,

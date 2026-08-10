@@ -38,7 +38,7 @@
       "description": "IMPLEMENTATION-PLAN §9.2: content-addressed immutable artifacts."
     },
     "producerAuthority": {
-      "enum": ["legion", "sage", "alchemist", "seer", "arcane", "covenant", "kernel"]
+      "enum": ["legion", "sage", "alchemist", "oracle", "arcane", "covenant", "kernel"]
     },
     "producerVersion": {
       "type": ["string", "null"]
@@ -49,7 +49,7 @@
     },
     "denominatorDigest": {
       "type": ["string", "null"],
-      "description": "Present when the artifact is bound to a Seer denominator (target/control/provider set), matching the legion artifact-record-v1 'denominatorDigest' field intent."
+      "description": "Present when the artifact is bound to an Oracle denominator (target/control/provider set), matching the legion artifact-record-v1 'denominatorDigest' field intent."
     },
     "sensitivity": {
       "type": "string",

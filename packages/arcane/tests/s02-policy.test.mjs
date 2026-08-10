@@ -221,7 +221,7 @@ test('S02: a model/API payload cannot set trusted authority', () => {
   assert.throws(
     () => ledger.assertForTurn({
       turnId: 't1',
-      authority: 'seer',
+      authority: 'oracle',
       assertedBy: 'model',
       verificationMethod: 'capability-signature',
       perMessage: true,

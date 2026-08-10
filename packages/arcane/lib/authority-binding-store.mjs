@@ -2,7 +2,7 @@ import { mkdirSync, openSync, readFileSync, closeSync, fsyncSync, writeSync } fr
 import { join } from 'node:path';
 import { digestValue } from './canonical.mjs';
 import { ArcaneError } from './errors.mjs';
-const MAP={sage:'sage',alchemist:'alchemist',seer:'seer','covenant-seat':'covenant'};
+const MAP={sage:'sage',alchemist:'alchemist',oracle:'oracle','covenant-seat':'covenant'};
 const dig=(domain,values)=>digestValue({domain,values});
 export class AuthorityBindingStore {
   constructor({root,clock=()=>new Date().toISOString()}){this.root=root;this.clock=clock;}

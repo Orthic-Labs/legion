@@ -19,7 +19,7 @@
     "taskId": { "type": ["string", "null"], "pattern": "^T-\\d+(\\.\\d+)*$" },
     "contractId": { "type": ["string", "null"], "pattern": "^EC-\\d+$" },
 
-    "producerAuthority": { "enum": ["legion", "sage", "alchemist", "seer", "arcane", "covenant", "kernel"] },
+    "producerAuthority": { "enum": ["legion", "sage", "alchemist", "oracle", "arcane", "covenant", "kernel"] },
     "capability": {
       "type": "string",
       "minLength": 1,
@@ -78,7 +78,7 @@
 
     "consumers": {
       "type": "array",
-      "items": { "enum": ["sage-acceptance", "arcane-proof", "seer-control"] },
+      "items": { "enum": ["sage-acceptance", "arcane-proof", "oracle-control"] },
       "description": "IMPLEMENTATION-PLAN §7.10: which of the three consumer classes may evaluate this receipt."
     },
 

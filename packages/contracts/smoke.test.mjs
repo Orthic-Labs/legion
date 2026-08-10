@@ -176,7 +176,7 @@ test('authority-dispatch-v1: schema declares all four authority variants with re
   const schema = loadSchema('authority-dispatch-v1');
   assert.ok(schema.oneOf, 'authority-dispatch-v1 must be a discriminated union');
   const branches = schema.oneOf.map((branch) => branch.$ref.replace('#/$defs/', ''));
-  assert.deepEqual(branches.sort(), ['alchemist', 'sage', 'seer', 'worker']);
+  assert.deepEqual(branches.sort(), ['alchemist', 'oracle', 'sage', 'worker']);
   function resolveProps(branchName) {
     const def = schema.$defs[branchName];
     const allOf = Array.isArray(def.allOf) ? def.allOf : [def];
@@ -224,13 +224,13 @@ test('authority-dispatch-v1: schema declares all four authority variants with re
   const sage = resolveProps('sage');
   assert.ok(sage.required.has('routeBundle'), 'sage must require routeBundle');
   assert.ok(sage.props.routeBundle, 'sage must expose routeBundle property');
-  const seer = resolveProps('seer');
-  assert.ok(seer.required.has('lens'), 'seer must require lens');
-  assert.ok(seer.required.has('scope'), 'seer must require scope');
-  assert.ok(seer.required.has('oracle'), 'seer must require oracle');
-  assert.ok(!seer.props.scope?.properties?.own, 'seer scope must be read-only (no own[])');
-  assert.ok(seer.props.scope?.properties?.read, 'seer scope must carry read[]');
-  assert.ok(seer.props.scope?.properties?.forbidden, 'seer scope must carry forbidden[]');
+  const oracle = resolveProps('oracle');
+  assert.ok(oracle.required.has('lens'), 'oracle must require lens');
+  assert.ok(oracle.required.has('scope'), 'oracle must require scope');
+  assert.ok(oracle.required.has('oracle'), 'oracle must require oracle');
+  assert.ok(!oracle.props.scope?.properties?.own, 'oracle scope must be read-only (no own[])');
+  assert.ok(oracle.props.scope?.properties?.read, 'oracle scope must carry read[]');
+  assert.ok(oracle.props.scope?.properties?.forbidden, 'oracle scope must carry forbidden[]');
   const alchemist = resolveProps('alchemist');
   assert.ok(alchemist.required.has('executionContract'), 'alchemist must require executionContract');
   assert.equal(alchemist.props.executionContract?.properties?.sealed?.const, true);
@@ -335,7 +335,7 @@ test('amendment-v1: sealedBy is sage-only', () => {
 test('claim-v1: claimingAuthority is a subset of AUTHORITY_ID; name matches CLAIM_NAME; per-authority oneOf branches match CLAIMS_BY_AUTHORITY', () => {
   const s = loadSchema('claim-v1');
   assert.ok(s.properties.claimingAuthority.enum.every((v) => Enums.AUTHORITY_ID.includes(v)));
-  assert.ok(eq(s.properties.claimingAuthority.enum, ['sage', 'alchemist', 'seer']));
+  assert.ok(eq(s.properties.claimingAuthority.enum, ['sage', 'alchemist', 'oracle']));
   assert.ok(eq(s.properties.name.enum, Enums.CLAIM_NAME));
 
   const byAuthority = {};
@@ -345,7 +345,7 @@ test('claim-v1: claimingAuthority is a subset of AUTHORITY_ID; name matches CLAI
   }
   assert.ok(eq(byAuthority.sage, Enums.CLAIMS_BY_AUTHORITY.sage));
   assert.ok(eq(byAuthority.alchemist, Enums.CLAIMS_BY_AUTHORITY.alchemist));
-  assert.ok(eq(byAuthority.seer, Enums.CLAIMS_BY_AUTHORITY.seer));
+  assert.ok(eq(byAuthority.oracle, Enums.CLAIMS_BY_AUTHORITY.oracle));
 });
 
 test('covenant-request-v1: callerAuthority matches CALLER_AUTHORITY; mode matches COVENANT_MODE', () => {

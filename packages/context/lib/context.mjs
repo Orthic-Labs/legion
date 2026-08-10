@@ -2,9 +2,9 @@ import { createHash } from 'node:crypto';
 
 const TRUST_CLASSES = new Set(['repository-fact', 'derived', 'external']);
 const CAPABILITY_STATES = new Set(['available', 'degraded', 'absent']);
-const CONSUMERS = new Set(['sage', 'seer', 'arcane']);
-const AUTHORITIES = new Set(['legion', 'sage', 'alchemist', 'seer', 'arcane', 'covenant', 'kernel']);
-const RECEIPT_CONSUMERS = new Set(['sage-acceptance', 'arcane-proof', 'seer-control']);
+const CONSUMERS = new Set(['sage', 'oracle', 'arcane']);
+const AUTHORITIES = new Set(['legion', 'sage', 'alchemist', 'oracle', 'arcane', 'covenant', 'kernel']);
+const RECEIPT_CONSUMERS = new Set(['sage-acceptance', 'arcane-proof', 'oracle-control']);
 const DEPENDENCY_KINDS = new Set(['decision', 'source-revision', 'config-digest', 'tool-digest', 'policy-digest', 'evidence']);
 const DIGEST_PATTERN = /^sha256:[0-9a-f]{64}$/;
 const OPAQUE_ID_PATTERN = /^(?:ev|run)_[0-9A-HJKMNP-TV-Z]{26}$/;
@@ -132,7 +132,7 @@ export function assessPacketFreshness(packet, currentState) {
 const RECEIPT_CONSUMER = {
   sage: 'sage-acceptance',
   arcane: 'arcane-proof',
-  seer: 'seer-control',
+  oracle: 'oracle-control',
 };
 
 export function validateContextReceipt(receipt) {

@@ -104,7 +104,7 @@
 
     "waiverAuthority": {
       "type": "array",
-      "items": { "enum": ["legion", "sage", "alchemist", "seer", "arcane", "covenant", "kernel"] },
+      "items": { "enum": ["legion", "sage", "alchemist", "oracle", "arcane", "covenant", "kernel"] },
       "description": "Which authorities may waive a claim prerequisite. Arcane validates; it does not invent claims (ARCHITECTURE §26)."
     },
 
