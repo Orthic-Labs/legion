@@ -270,3 +270,33 @@ Do not say a UI is fine just because automation can click it. Functional QA prov
 > with Seer's current four-state verdict, not a bare priority label — and remember the
 > non-negotiable underneath it: missing evidence never becomes a pass, so an unrun `qa:functional`
 > check is `unknown`, not a silent skip.
+
+## Machine-State Boundary (added 2026-08-10 after the HeardRight route-contamination escape)
+
+**Green tests plus clean source do not certify machine state.** A production defect
+escaped a Seer audit because the audit inspected final source and fresh test behavior
+while the actual poison lived in persistent machine state outside the repo: an
+intermediate test had written a fake `two/cpu_only` route into the app's real
+`recognition-route.json` under the production app-data directory, and the shipped
+build then loaded CPU instead of DML. Source passed; the machine was poisoned.
+Neither layer could see it structurally: Seer never diffed app-data, and Arcane maps
+subprocess file writes to `effect: null` by design (a command string is not a path).
+
+Therefore, when auditing any change whose tests can touch runtime-loaded state:
+
+1. **Enumerate the state surface first.** Before judging tests, list every path the
+   product reads at runtime outside the repo — app-data directories, config files,
+   caches, registries, env-pointed dirs (`HR_APP_DATA_DIR` and kin). The product's
+   own config-loading code is the authority for this list, not the test suite.
+2. **Diff production state across the test run.** Snapshot those paths (or their
+   hashes) before tests, compare after. ANY delta under a production path caused by
+   a test run is a finding — `fail`, not a note — regardless of whether the final
+   test code uses mocks. The contaminating test may no longer exist; its residue does.
+3. **Isolation is proven, not read.** "The committed test uses a mock persister" is
+   evidence about source, not about the machine. If the audit cannot observe the
+   state surface (no snapshot exists, paths unknown), the verdict for state safety
+   is `unknown` — never `pass` inferred from mock usage in final source.
+4. **Treat synthetic entries in production logs/stores as boundary-breach evidence.**
+   A calibration log or route store containing values only a test would produce
+   (`one`, `two`, fixture ids) is proof a test crossed the boundary at some point,
+   even if the current suite is clean.
