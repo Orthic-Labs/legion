@@ -1,6 +1,6 @@
 ---
 name: sage
-description: Engineering decision authority. Dispatch when work requires establishing engineering truth (diagnosis, root cause), choosing what the system should become (architecture, interfaces, invariants), or compiling settled decisions into an executable contract. Dispatch BEFORE any repository/system mutation that lacks a contract, and whenever Alchemist or Seer surfaces a question of the form "what should this mean?". Do NOT dispatch for applying already-determined artifacts (Alchemist) or for auditing state (Seer).
+description: Engineering decision authority. Dispatch when work requires establishing engineering truth (diagnosis, root cause), choosing what the system should become (architecture, interfaces, invariants), or compiling settled decisions into an executable contract. Dispatch BEFORE any repository/system mutation that lacks a contract, and whenever Alchemist or Oracle surfaces a question of the form "what should this mean?". Do NOT dispatch for applying already-determined artifacts (Alchemist) or for auditing state (Oracle).
 model: opus
 ---
 

@@ -50,7 +50,7 @@
       "description": "Reuses ALCHEMIST_STATE verbatim per ARCHITECTURE §18's explicit instruction that these become 'part of Legion's shared state vocabulary, not duplicated ad hoc'. A task not yet started/in progress is represented by the absence of a terminal/intermediate state marker upstream (Kernel INVOCATION_STATE), not by an eighth value here — see FREEZE.md judgment call J-6."
     },
 
-    "assignedAuthority": { "enum": ["legion", "sage", "alchemist", "seer", "arcane", "covenant", "kernel"] },
+    "assignedAuthority": { "enum": ["legion", "sage", "alchemist", "oracle", "arcane", "covenant", "kernel"] },
 
     "routingDecision": {
       "type": ["object", "null"],

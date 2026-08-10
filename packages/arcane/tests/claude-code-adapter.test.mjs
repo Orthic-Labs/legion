@@ -286,7 +286,7 @@ test('EC-2: Stop passes through (no block output) when completion prerequisites 
       runId: RUN_ID,
       taskId: 'T-1',
       contractId: 'EC-2',
-      producerAuthority: 'seer',
+      producerAuthority: 'oracle',
       capability: 'test-run',
       observation: { exitCode: 0 },
       evidenceClass: 'deterministic',

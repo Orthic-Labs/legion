@@ -373,7 +373,7 @@ export class PreEffectGate {
 
     // 3. Authority — kernel-asserted for this turn, and the request's own
     //    `requestedBy` must agree with it rather than replace it.
-    const auth = requireAuthority(this.#authority, turnId, ['alchemist', 'sage', 'seer', 'legion'], {
+    const auth = requireAuthority(this.#authority, turnId, ['alchemist', 'sage', 'oracle', 'legion'], {
       claimedAuthority: effectRequest.requestedBy,
       requirePerMessage: true,
     });

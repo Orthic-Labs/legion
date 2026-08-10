@@ -41,7 +41,7 @@ function evidenceRecord({ runId = RUN_ID, evidenceClass = 'deterministic', stale
     runId,
     taskId: 'T-1',
     contractId: 'EC-44',
-    producerAuthority: 'seer',
+    producerAuthority: 'oracle',
     capability: 'test-run',
     observation: { exitCode: 0 },
     evidenceClass,

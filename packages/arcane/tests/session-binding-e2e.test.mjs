@@ -26,7 +26,7 @@
 //      proper verification/evidence receipt is minted for the same runId
 //      (mirrors the identical pattern already established in
 //      s09-completion-gate.test.mjs and claude-code-adapter.test.mjs's own
-//      "Stop passes" test — there is no Seer/evidence-producer pipeline in
+//      "Stop passes" test — there is no Oracle/evidence-producer pipeline in
 //      scope to drive this any more "realistically" than that).
 //   5. Stop -> passes.
 
@@ -164,7 +164,7 @@ test('EC-5 item 7 (acceptance): SessionStart mints ambient -> PostToolUse Write 
 
     // Mint a proper verification receipt for the same runId (same pattern
     // as s09-completion-gate.test.mjs / claude-code-adapter.test.mjs's own
-    // "Stop passes" test — no Seer/evidence-producer pipeline is in scope
+    // "Stop passes" test — no Oracle/evidence-producer pipeline is in scope
     // here to drive this any other way).
     receiptStore.append({
       schemaVersion: 1,
@@ -173,7 +173,7 @@ test('EC-5 item 7 (acceptance): SessionStart mints ambient -> PostToolUse Write 
       runId,
       taskId: 'T-1',
       contractId: 'EC-5',
-      producerAuthority: 'seer',
+      producerAuthority: 'oracle',
       capability: 'test-run',
       observation: { exitCode: 0 },
       evidenceClass: 'deterministic',

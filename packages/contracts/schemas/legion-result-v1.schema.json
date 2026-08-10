@@ -29,7 +29,7 @@
 
     "authoritiesInvolved": {
       "type": "array",
-      "items": { "enum": ["legion", "sage", "alchemist", "seer", "arcane", "covenant", "kernel"] }
+      "items": { "enum": ["legion", "sage", "alchemist", "oracle", "arcane", "covenant", "kernel"] }
     },
 
     "artifacts": { "type": "array", "items": { "type": "string" } },

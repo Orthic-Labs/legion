@@ -18,7 +18,7 @@
     "contractId": { "type": "string", "pattern": "^EC-\\d+$" },
     "taskId": { "type": "string", "pattern": "^T-\\d+(\\.\\d+)*$" },
 
-    "requestedBy": { "enum": ["legion", "sage", "alchemist", "seer", "arcane", "covenant", "kernel"] },
+    "requestedBy": { "enum": ["legion", "sage", "alchemist", "oracle", "arcane", "covenant", "kernel"] },
     "effectClass": { "enum": ["FILE_WRITE", "FILE_DELETE", "FILE_MOVE", "COMMAND_EXEC", "NETWORK_EGRESS", "PROCESS_SPAWN", "CREDENTIAL_ACCESS", "DEPENDENCY_INSTALL", "VCS_COMMIT", "VCS_PUSH", "PUBLISH", "EXTERNAL_SIDE_EFFECT"] },
 
     "target": { "type": "string", "minLength": 1, "description": "Path or resource identity the effect applies to." },

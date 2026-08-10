@@ -37,6 +37,19 @@ function ledgerWithAlchemist(turnId = 'turn-1') {
   return l;
 }
 
+function ledgerWithOracle(turnId = 'turn-1') {
+  const l = new AuthorityLedger({ clock });
+  l.assertForTurn({
+    turnId,
+    authority: 'oracle',
+    assertedBy: 'kernel:proc-1',
+    verificationMethod: 'capability-signature',
+    perMessage: true,
+    source: 'kernel',
+  });
+  return l;
+}
+
 function contract(overrides = {}) {
   return {
     schemaVersion: 1,
@@ -121,6 +134,12 @@ test('a BOUNDED write against a bounded artifact is authorized', () => {
   const d = gate.evaluate(request({ target: 'src/bounded.ts', latitude: 'BOUNDED' }), {
     contract: contract(), turnId: 'turn-1', capabilityId: 'cap_1',
   });
+  assert.equal(d.allowed, true, d.message);
+});
+
+test('oracle is accepted as assurance authority by the pre-effect gate', () => {
+  const gate = new PreEffectGate({ policy: engine(), capabilityStore: capabilityStore(), authorityLedger: ledgerWithOracle(), clock });
+  const d = gate.evaluate(request({ requestedBy: 'oracle' }), { contract: contract(), turnId: 'turn-1', capabilityId: 'cap_1' });
   assert.equal(d.allowed, true, d.message);
 });
 

@@ -9,15 +9,15 @@
 // new enum-bearing field was added.
 //
 // Naming is canonical per docs/plans/legion/00-CANON.md: Sage, Alchemist,
-// Seer, Arcane, Covenant, Legion, Kernel. The archive's "Sorcerer" and
-// "Sentinel" are superseded and must never appear here.
+// Oracle, Arcane, Covenant, Legion, Kernel. The archive's "Sorcerer",
+// "Sentinel", and "Seer" are superseded and must never appear here.
 
 /** Legion authority identities (ARCHITECTURE.md Part I-VI, VI-A). */
 export const AUTHORITY_ID = Object.freeze([
   'legion', // orchestrator — routes, never decides (ARCHITECTURE §3a, G21)
   'sage', // engineering decision authority
   'alchemist', // transformation authority
-  'seer', // independent assurance authority
+  'oracle', // independent assurance authority
   'arcane', // control/evidence/claim authority (no model — ARCHITECTURE Part XI-A)
   'covenant', // deliberation subsystem, not a peer authority
   'kernel', // deterministic substrate under Legion
@@ -69,8 +69,8 @@ export const INVOCATION_STATE = Object.freeze([
  * Claim boundary — what the result is actually licensed to claim, distinct
  * from whether the operation ran (INVOCATION_STATE) and whether the
  * engineering outcome succeeded (DOMAIN_OUTCOME). Grounded in
- * IMPLEMENTATION-PLAN §7.11 Seer report ("safe/prohibited claims"), I-12
- * ("no false clean"), and ARCHITECTURE §26 Seer claims. No literal enum is
+ * IMPLEMENTATION-PLAN §7.11 Oracle report ("safe/prohibited claims"), I-12
+ * ("no false clean"), and ARCHITECTURE §26 Oracle claims. No literal enum is
  * given in source docs for this specific axis — judgment call J-7.
  */
 export const CLAIM_BOUNDARY = Object.freeze([
@@ -99,8 +99,8 @@ export const ALCHEMIST_CLAIM = Object.freeze([
   'LOCAL_EXECUTION_VERIFIED',
 ]);
 
-/** Seer-owned claims (ARCHITECTURE §26). */
-export const SEER_CLAIM = Object.freeze([
+/** Oracle-owned claims (ARCHITECTURE §26). */
+export const ORACLE_CLAIM = Object.freeze([
   'FINDING_CONFIRMED',
   'CONTROL_PASS',
   'CONTROL_FAIL',
@@ -111,13 +111,13 @@ export const SEER_CLAIM = Object.freeze([
 ]);
 
 /** Every claim name across all authorities — Arcane validates, does not invent, these (ARCHITECTURE §26). */
-export const CLAIM_NAME = Object.freeze([...SAGE_CLAIM, ...ALCHEMIST_CLAIM, ...SEER_CLAIM]);
+export const CLAIM_NAME = Object.freeze([...SAGE_CLAIM, ...ALCHEMIST_CLAIM, ...ORACLE_CLAIM]);
 
 /** Which claim names a given authority is permitted to assert (ARCHITECTURE §26). */
 export const CLAIMS_BY_AUTHORITY = Object.freeze({
   sage: SAGE_CLAIM,
   alchemist: ALCHEMIST_CLAIM,
-  seer: SEER_CLAIM,
+  oracle: ORACLE_CLAIM,
 });
 
 /** Covenant caller authority (COVENANT.md §11). */
@@ -126,7 +126,7 @@ export const CALLER_AUTHORITY = Object.freeze(['SAGE', 'ALCHEMIST', 'USER_OVERRI
 /**
  * Covenant modes (COVENANT.md Part III + §9). DISPUTE_REVIEW is the
  * exceptional mode (§9) — included because CovenantRequest.mode must be
- * able to express it, not because it is a routine Seer route.
+ * able to express it, not because it is a routine Oracle route.
  */
 export const COVENANT_MODE = Object.freeze([
   'DECISION_CHALLENGE',

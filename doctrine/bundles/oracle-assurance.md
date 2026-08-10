@@ -1,14 +1,14 @@
-# Seer — assurance method bundle
+# Oracle — assurance method bundle
 
-**What this is:** the recovered method manual for Seer's browser/app QA craft — how to stand up a
+**What this is:** the recovered method manual for Oracle's browser/app QA craft — how to stand up a
 hidden QA browser, drive functional interaction, capture visual evidence, and report findings.
 Recovered verbatim from git history — deleted at workspace commit `d810d827` (claimed "absorbed"
 into the new agent definitions; it was not). Source:
-`git show d810d827^:tools/skills/qa/references/manual.md` (242 lines). Loaded by: Seer, when the
+`git show d810d827^:tools/skills/qa/references/manual.md` (242 lines). Loaded by: Oracle, when the
 audit surface is a running app/UI and the check requires functional interaction or visual capture
 rather than static code inspection.
 
-**Read `doctrine/seer.md` first.** This bundle is the craft underneath that constitution, not a
+**Read `doctrine/oracle.md` first.** This bundle is the craft underneath that constitution, not a
 replacement for it. Where this manual's routing language conflicts with current doctrine, a
 `> **Superseded:**` note marks the change inline; everything else is preserved as originally
 written, including its own internal skill name (`qa`) and file paths from its era.
@@ -264,22 +264,22 @@ Lead with findings:
 
 Do not say a UI is fine just because automation can click it. Functional QA proves mechanics; visual QA still requires screenshot review.
 
-> **Superseded:** this manual's classification labels (P1/P2, "Findings") predate Seer's current
-> **pass / fail / unknown / not-applicable** classification (`doctrine/seer.md` "No false clean").
+> **Superseded:** this manual's classification labels (P1/P2, "Findings") predate Oracle's current
+> **pass / fail / unknown / not-applicable** classification (`doctrine/oracle.md` "No false clean").
 > Use this report format's structure (Findings / Evidence / Verification) but classify each finding
-> with Seer's current four-state verdict, not a bare priority label — and remember the
+> with Oracle's current four-state verdict, not a bare priority label — and remember the
 > non-negotiable underneath it: missing evidence never becomes a pass, so an unrun `qa:functional`
 > check is `unknown`, not a silent skip.
 
 ## Machine-State Boundary (added 2026-08-10 after the HeardRight route-contamination escape)
 
 **Green tests plus clean source do not certify machine state.** A production defect
-escaped a Seer audit because the audit inspected final source and fresh test behavior
+escaped an Oracle audit because the audit inspected final source and fresh test behavior
 while the actual poison lived in persistent machine state outside the repo: an
 intermediate test had written a fake `two/cpu_only` route into the app's real
 `recognition-route.json` under the production app-data directory, and the shipped
 build then loaded CPU instead of DML. Source passed; the machine was poisoned.
-Neither layer could see it structurally: Seer never diffed app-data, and Arcane maps
+Neither layer could see it structurally: Oracle never diffed app-data, and Arcane maps
 subprocess file writes to `effect: null` by design (a command string is not a path).
 
 Therefore, when auditing any change whose tests can touch runtime-loaded state:
