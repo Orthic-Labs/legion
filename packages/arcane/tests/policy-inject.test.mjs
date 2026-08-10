@@ -60,3 +60,31 @@ test('ccx directive is present only when ANTHROPIC_BASE_URL targets the local ga
     rmSync(workspace, { recursive: true, force: true });
   }
 });
+
+// The two operator kill switches the Python hooks carried. Dropping them in the
+// port would have removed the only way to silence an injector without editing
+// the harness config.
+test('BRIEF_MODE_OFF=1 silences the Brief injection but not Minimize', () => {
+  const prior = process.env.BRIEF_MODE_OFF;
+  try {
+    process.env.BRIEF_MODE_OFF = '1';
+    const out = buildPolicyInjection({ workspace: process.cwd() });
+    assert.doesNotMatch(out.additionalContext, /Brief is default/);
+    assert.equal(out.systemMessage, 'MINIMIZE:ON');
+  } finally {
+    if (prior === undefined) delete process.env.BRIEF_MODE_OFF; else process.env.BRIEF_MODE_OFF = prior;
+  }
+});
+
+test('CCX_GATEWAY_MODE_OFF=1 silences the gateway directive even on the gateway', () => {
+  const priorOff = process.env.CCX_GATEWAY_MODE_OFF;
+  const priorUrl = process.env.ANTHROPIC_BASE_URL;
+  try {
+    process.env.CCX_GATEWAY_MODE_OFF = '1';
+    process.env.ANTHROPIC_BASE_URL = 'http://127.0.0.1:8801';
+    assert.doesNotMatch(buildPolicyInjection({ workspace: process.cwd() }).additionalContext, /ccx-mode/);
+  } finally {
+    if (priorOff === undefined) delete process.env.CCX_GATEWAY_MODE_OFF; else process.env.CCX_GATEWAY_MODE_OFF = priorOff;
+    if (priorUrl === undefined) delete process.env.ANTHROPIC_BASE_URL; else process.env.ANTHROPIC_BASE_URL = priorUrl;
+  }
+});

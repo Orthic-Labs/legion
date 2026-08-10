@@ -109,12 +109,26 @@ const SHAPES = [
     // the precise command it would run has no reason not to run it.
     name: 'deferral-offer',
     instruction: 'You named the exact action — perform it now instead of offering it.',
-    pattern: /\b(or )?tell me( to)?,?( and)? i(['’])?ll (do|apply|add|set|handle|wire|edit) (it|this|that)\b|\bor i can (do|add|apply|set|make|wire|edit|write|install|update)\b|\bif you (want|like|prefer),? i can\b/i,
+    // The last two alternations are ported from enforce_work_left_guard.py's
+    // APPROVAL_ASK_PATTERNS: "Let me know and I'll rebuild it.", "I can trace
+    // it if you want." — offers of future work phrased as courtesy.
+    pattern: /\b(or )?tell me( to)?,?( and)? i(['’])?ll (do|apply|add|set|handle|wire|edit) (it|this|that)\b|\bor i can (do|add|apply|set|make|wire|edit|write|install|update)\b|\bif you (want|like|prefer),? i can\b|\blet me know (if|whether|when|and)\b|\bi can [a-z]+ (it|this|that)\b[^\n]{0,30}\bif you (want|like)\b/i,
   },
   {
     name: 'unresolved-caveat',
     instruction: 'Resolve the caveat yourself rather than reporting it.',
-    pattern: /\b(one caveat|a caveat|with the caveat|caveats?:)\b/i,
+    // The closing-caveat family ("one thing that isn't...", "that said,",
+    // "keep in mind") is ported from enforce_work_left_guard.py. Its original
+    // rule holds: either the thing is fixed or it is the blocker.
+    // "worth flagging/noting/mentioning" is deliberately NOT here: that family
+    // belongs to the unrecorded-finding shape, which has its own carve-outs for
+    // legitimate deferral. Duplicating it there would block those.
+    pattern: /\b(one caveat|a caveat|with the caveat|caveats?:)\b|\bone thing (that )?(isn'?t|is not|to note|to flag|to be aware)\b|\bwhat (isn'?t|is not) (fixed|covered|handled|done)\b|\bjust (be aware|so you know)\b|\b(keep|bear) in mind\b|\bthat said,|\bone last (thing|note)\b/i,
+    // The closing-caveat phrasings only count against a turn that claims the
+    // work is done (the Python guard's _DONE_CLAIM_RE precondition); without
+    // it, any answer mentioning "keep in mind" would block, which is more
+    // eager than the hook this replaces.
+    requires: /\b(done|fixed|shipped|pushed|landed|complete|completed|resolved)\b|\bverified\b|\ball (tests? )?pass(ing|es|ed)?\b|\b\d+\/\d+ (tests? )?pass\w*\b|\bworks? now\b|\bis (in and )?green\b/i,
     // D-2: a caveat IS the outcome when it is reporting a real failure or a
     // hard blocker — that is an answer, not a hedge to resolve.
     carveOut: /\btests? (?:fail|failed|are failing)\b|\bfailing\b|\berror(?:ed)?\b|\bhard blocker\b|\bcould not be (?:fixed|resolved)\b|\bneeds? your (?:input|decision)\b|\bBLOCKED-ON-APPROVAL\b/i,
@@ -293,9 +307,27 @@ function pushCount(stateFile) {
   try { return JSON.parse(readFileSync(stateFile, 'utf8')).pushes ?? 0; } catch { return 0; }
 }
 
+// A turn that DISCUSSES a trigger phrase must not trip the gate that enforces
+// it: "the hook blocks `shall I proceed`" is a report, not an approval-ask.
+// Ported from completion_evidence.strip_code_spans — fenced blocks, inline
+// code, then short double-quoted spans, in that order. The deliberate
+// tradeoff is unchanged from the Python guard: a phrase hidden in quotes can
+// slip one turn, and the next turn's gate bounds the miss, whereas a false
+// block on every status report about the gate burns turns forever.
+export function stripCodeSpans(text) {
+  return text
+    .replace(/```[\s\S]*?```|~~~[\s\S]*?~~~/g, ' ')
+    .replace(/`[^`\n]*`/g, ' ')
+    .replace(/["“][^"“”\n]{0,300}["”]/g, ' ');
+}
+
 export function evaluateStopShape(finalText, { pushes = 0, recorded = false, escalated = false, authorized = false, authorizedEvidence = null, explicitDirectiveEvidence = [] } = {}) {
   if (typeof finalText !== 'string' || finalText.length === 0) return { block: false, reason: 'no-final-text' };
   if (pushes >= MAX_PUSHES) return { block: false, reason: 'push-cap' };
+  // Packet parsing stays on the RAW text: structured blockers legitimately
+  // carry quoted JSON keys ("reserved_category": ...), and stripping them
+  // would misread a valid packet as category-less. Only the prose heuristics
+  // below use the stripped view.
   if (HARD_BLOCKER.test(finalText)) {
     // D-1: an ordinary push worded to sound reserved is not a reserved
     // blocker — checked before authorization/category logic so it cannot be
@@ -354,12 +386,16 @@ export function evaluateStopShape(finalText, { pushes = 0, recorded = false, esc
       instruction: 'Your BLOCKED-ON-APPROVAL names no canonical reserved category. Only five exist: missing private input, new spend, unrequested publication or production mutation, destruction, or a reserved decision. A rule found in a doc is not a sixth category — if the work is reversible and in scope, the operator already authorized it. Do it.',
     };
   }
+  // Prose heuristics run on the stripped view: a turn that quotes or fences a
+  // trigger phrase is reporting on the gate, not committing the failure.
+  const prose = stripCodeSpans(finalText);
   // Judge the ENDING, not the whole turn: a caveat raised mid-report and then
   // resolved must not block. Take the last ~1200 characters.
-  const tail = finalText.slice(-1200);
+  const tail = prose.slice(-1200);
   for (const shape of SHAPES) {
     if (shape.pattern.test(tail)) {
-      if (shape.carveOut && shape.carveOut.test(finalText)) continue;
+      if (shape.requires && !shape.requires.test(prose)) continue;
+      if (shape.carveOut && shape.carveOut.test(prose)) continue;
       return {
         block: true,
         shape: shape.name,
@@ -369,7 +405,7 @@ export function evaluateStopShape(finalText, { pushes = 0, recorded = false, esc
   }
   // D-4: a tool claimed missing without verification. Checked against the
   // whole message, since the denial is often stated mid-report.
-  const toolDenial = toolDenialMatch(finalText);
+  const toolDenial = toolDenialMatch(prose);
   if (toolDenial) {
     return {
       block: true,
@@ -379,7 +415,7 @@ export function evaluateStopShape(finalText, { pushes = 0, recorded = false, esc
   }
   // D-5: a scope cut proposed after the operator explicitly said not to defer.
   if (explicitDirectiveEvidence.length > 0) {
-    const scopeCut = scopeCutMatch(finalText);
+    const scopeCut = scopeCutMatch(prose);
     if (scopeCut) {
       return {
         block: true,
@@ -390,7 +426,7 @@ export function evaluateStopShape(finalText, { pushes = 0, recorded = false, esc
   }
   // D-3: unfinished work with no corrective action taken and no genuine
   // done/blocked carve-out.
-  if (workLeftStuck(finalText)) {
+  if (workLeftStuck(prose)) {
     return {
       block: true,
       shape: 'work-left-stuck',

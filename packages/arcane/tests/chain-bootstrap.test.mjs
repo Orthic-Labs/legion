@@ -112,3 +112,18 @@ test('traversal survives relativization and is still rejected downstream', () =>
   // workspaceRelative preserves the '..' segment; pathMatches is what refuses it.
   assert.ok(workspaceRelative('D:/workspace/tools/../../etc/passwd', 'D:/workspace').includes('..'));
 });
+
+// The declared caps in host-runtime-output-v1 were documentation until the
+// shared validator learned maxLength: every over-long string validated clean.
+test('maxLength is enforced, so the schema caps are a gate and not a comment', async () => {
+  const { RuntimeSchemaSet } = await import('../lib/runtime-schema.mjs');
+  const schema = new RuntimeSchemaSet();
+  const output = (context) => ({
+    hookSpecificOutput: { hookEventName: 'SessionStart', additionalContext: context },
+  });
+  assert.deepEqual(schema.validate('arcane-host-runtime-output-v1', output('x'.repeat(4000))), []);
+  // The schema is a oneOf, so an over-long string surfaces as "no branch
+  // matched" rather than a max-length issue. What matters is that it now fails
+  // at all — before the validator learned maxLength, 4001 chars validated clean.
+  assert.notDeepEqual(schema.validate('arcane-host-runtime-output-v1', output('x'.repeat(4001))), []);
+});
