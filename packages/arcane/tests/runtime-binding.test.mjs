@@ -40,8 +40,17 @@ test('B7 native Codex subprocess reserves once, consumes one durable capability 
     const env = { ...process.env, ARCANE_WORKSPACE: workspace, ARCANE_STATE_ROOT: stateRoot, ARCANE_KEY_DIR: keyDir };
     const run = (payload) => execFileSync(process.execPath, ['packages/arcane/host/codex-adapter.mjs'], { cwd: process.cwd(), env, input: JSON.stringify(payload), encoding: 'utf8' });
     const base = { session_id: sessionId, agent_id: 'agent', agent_type: 'alchemist', cwd: workspace };
-    assert.equal(run({ ...base, hook_event_name: 'SessionStart' }), '');
-    assert.equal(run({ ...base, hook_event_name: 'SubagentStart' }), '');
+    // Allowed SessionStart/SubagentStart now carry the absorbed policy
+    // injection (brief + minimize; ccx only under the local gateway), since
+    // renderHostRuntimeOutput returns null on allowed and that gap is exactly
+    // why the standalone Python injectors existed (D-6/D-3 in EC-501).
+    const sessionStartOut = run({ ...base, hook_event_name: 'SessionStart' });
+    assert.match(sessionStartOut, /"additionalContext"/);
+    assert.match(sessionStartOut, /Brief is default/);
+    assert.match(sessionStartOut, /MINIMIZE:ON/);
+    const subagentStartOut = run({ ...base, hook_event_name: 'SubagentStart' });
+    assert.match(subagentStartOut, /"additionalContext"/);
+    assert.match(subagentStartOut, /Brief is default/);
     assert.equal(run({ ...base, hook_event_name: 'PreToolUse', tool_name: 'Write', tool_input: { file_path: 'src/a.mjs' }, tool_use_id: 'tool-1' }), '');
     assert.match(run({ ...base, hook_event_name: 'PreToolUse', tool_name: 'Write', tool_input: { file_path: 'src/a.mjs' }, tool_use_id: 'tool-1' }), /ARC_REPLAY_NONCE_SEEN/);
     assert.equal(run({ ...base, hook_event_name: 'PostToolUse', tool_name: 'Write', tool_input: { file_path: 'src/a.mjs' }, tool_response: { ok: true }, tool_use_id: 'tool-1' }), '');

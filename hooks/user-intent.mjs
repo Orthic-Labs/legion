@@ -142,3 +142,28 @@ export function userIntent(transcriptText, { limit = 5 } = {}) {
 export function alreadyAuthorized(transcriptText, { limit = 5 } = {}) {
   return userIntent(transcriptText, { limit }).intent === 'proceed';
 }
+
+// --- explicit-execution directive (ported from detect_explicit_directive.py) -
+// Separate set, NOT authorization: detects the operator's no-deferral tone ("no
+// deferring", "do all 8") but must never itself feed alreadyAuthorized() or
+// let a generic phrase like "just do it" pre-authorize an unrelated effect —
+// the already-authorized path above still requires a specific matching
+// instruction; this set changes nothing about that.
+const EXPLICIT_DIRECTIVE_PATTERNS = [
+  "\\bno deferring\\b", "\\bdon'?t defer\\b", "\\bno deferral\\b",
+  "\\ball (?:of them|\\d+|four|five|six|seven|eight|nine|ten)\\b", "\\bdo all\\b",
+  "\\bif i ask(?:ed)? for (?:\\d+|all|both)\\b", "\\bi want \\d+\\b",
+  "\\bdo as i (?:said|told)\\b", "\\bfight (?:through|it|that)\\b", "\\bjust do it\\b",
+  "\\bdon'?t (?:drop|skip|punt|table|defer)\\b", "\\bstop deferring\\b", "\\byou disobeyed\\b",
+  "\\byou (?:keep|kept) (?:doing|asking|deferring)\\b",
+  "\\bwithout (?:my|your|the user'?s) say(?:[- ]?so)?\\b", "\\bget ?it ?done\\b",
+];
+// One alternation + matchAll, mirroring Python's re.finditer, so overlapping
+// alternatives ("do all eight") yield one leftmost match, not one per pattern.
+const EXPLICIT_DIRECTIVE = new RegExp(EXPLICIT_DIRECTIVE_PATTERNS.join('|'), 'gi');
+
+/** Matched no-deferral phrases in `text` — evidence, never a boolean pre-auth. */
+export function explicitDirective(text) {
+  const body = typeof text === 'string' ? text : '';
+  return [...body.matchAll(EXPLICIT_DIRECTIVE)].map((match) => match[0]);
+}

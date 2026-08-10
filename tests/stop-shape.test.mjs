@@ -5,7 +5,16 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { escalatedThisSession, evaluateStopShape, recordedThisTurn, reservedCategories } from '../hooks/stop-shape.mjs';
+import {
+  escalatedThisSession,
+  evaluateStopShape,
+  isPushGateLaundering,
+  recordedThisTurn,
+  reservedCategories,
+  scopeCutMatch,
+  toolDenialMatch,
+  workLeftStuck,
+} from '../hooks/stop-shape.mjs';
 
 test('permission questions block', () => {
   for (const ending of [
@@ -259,4 +268,120 @@ test('HARD BLOCKER outranks an authorization — a missing input is still missin
 test('without an authorization the ordinary blocker rules still apply', () => {
   const packet = 'BLOCKED-ON-APPROVAL: destruction — drop the legacy table.';
   assert.equal(evaluateStopShape(packet, { escalated: true, authorized: false }).block, false);
+});
+
+// D-1: push-gate-laundering (2026-07-26 incident fix). An ordinary git push
+// must not satisfy destruction/publication merely by using "irreversible".
+test('an ordinary git push worded as reserved is not a reserved blocker', () => {
+  const packet = 'BLOCKED-ON-APPROVAL:\nGate: git push origin main in membrane (3 commits)\n'
+    + 'Reserved-reason: pushing publishes to Orthic-Labs/Membrane; outward-facing and irreversible-in-effect\n'
+    + 'Done: 4 commits made and verified locally\nRemaining: push both repos\nNo-ungated-work: true';
+  const verdict = evaluateStopShape(packet, { escalated: true });
+  assert.equal(verdict.block, true);
+  assert.equal(verdict.shape, 'unreserved-blocker');
+  assert.equal(isPushGateLaundering(packet), true);
+});
+
+test('a real publication is not laundered away by the ordinary-push exemption', () => {
+  // "push" and "publish" co-occur here, but the reserved act is distribution.
+  for (const gate of [
+    'Gate: npm publish @rightkit/git 0.2.0, then push the tag to origin',
+    'Gate: pushing the release upload to the npm registry',
+    'Gate: push to origin and deploy to production',
+  ]) {
+    assert.equal(isPushGateLaundering(`BLOCKED-ON-APPROVAL:\n${gate}`), false, gate);
+  }
+});
+
+test('a force-push history rewrite stays genuinely reserved', () => {
+  const packet = 'BLOCKED-ON-APPROVAL:\nGate: git push --force to rewrite shared main history\n'
+    + 'Reserved-reason: destructive history rewrite on a shared branch\n'
+    + 'Done: local branch rebased and tested\nRemaining: the force push only\nNo-ungated-work: true';
+  assert.equal(isPushGateLaundering(packet), false);
+  assert.equal(evaluateStopShape(packet, { escalated: true }).block, false);
+});
+
+test('an authorized push-gate-laundering packet still clears via already-authorized', () => {
+  const packet = 'BLOCKED-ON-APPROVAL: git push origin main — irreversible-in-effect publication.';
+  const verdict = evaluateStopShape(packet, { authorized: true, authorizedEvidence: 'push it' });
+  assert.equal(verdict.block, true);
+  assert.equal(verdict.shape, 'already-authorized');
+});
+
+// D-2: CAVEAT_LEGITIMATE_PATTERNS carve-out on unresolved-caveat.
+test('a caveat reporting a real failure or hard blocker is not a hedge', () => {
+  for (const ending of [
+    'One caveat: the integration tests are failing on main.',
+    'One caveat: I hit an error connecting to the staging DB.',
+    'One caveat: this needs your input before I can continue — HARD BLOCKER.',
+  ]) {
+    assert.equal(evaluateStopShape(ending).block, false, ending);
+  }
+});
+
+test('an ordinary hedge caveat still blocks', () => {
+  const v = evaluateStopShape('Fixed. One caveat: the cache is stale.');
+  assert.equal(v.block, true);
+  assert.equal(v.shape, 'unresolved-caveat');
+});
+
+// D-3: work-left-stuck, generic patterns only — GPU/clips/checkpoint jargon
+// deliberately dropped (media-pipeline vocabulary, not this workspace's).
+test('generic stuck/queued/pending work with no corrective action blocks', () => {
+  for (const ending of [
+    'The render is still queued and not running.',
+    'The job is stuck; remaining: 12 items.',
+    "I have not found the script that produces the export. That's the next thing to pin down.",
+  ]) {
+    const v = evaluateStopShape(ending);
+    assert.equal(v.block, true, ending);
+    assert.equal(v.shape, 'work-left-stuck', ending);
+  }
+});
+
+test('work-left-stuck language with a done-negation or action-taken carve-out passes', () => {
+  for (const ending of [
+    'All done, nothing pending.',
+    'Everything is complete; nothing left to do.',
+    'I restarted the workers; verified now running.',
+    'Blocked because credentials are missing; ran /review-self.',
+  ]) {
+    assert.equal(evaluateStopShape(ending).block, false, ending);
+  }
+});
+
+test('workLeftStuck is a pure function usable directly', () => {
+  assert.equal(workLeftStuck('The render is still queued and not running.'), true);
+  assert.equal(workLeftStuck('gstack is a third-party skill bundle.'), false);
+  assert.equal(workLeftStuck('All done, nothing pending.'), false);
+});
+
+// D-4: TOOL_DENIAL_PATTERNS, now enforced rather than an inert advisory.
+test('claiming a tool is missing without verifying it blocks', () => {
+  const v = evaluateStopShape("I don't have webfetch in this session, so I can't check the URL.");
+  assert.equal(v.block, true);
+  assert.equal(v.shape, 'tool-denial');
+  assert.match(toolDenialMatch("I don't have web search."), /don'?t have/i);
+});
+
+// D-5: scope-cut-after-explicit-directive, reusing recentUserInstructions()
+// and explicitDirective(). Only fires when the operator's own recent words carried
+// the no-deferral directive — never on the phrase alone.
+test('a scope cut after an explicit no-deferral directive blocks', () => {
+  const v = evaluateStopShape('Given the time, I will drop the legacy models and ship 5 of 8 tonight.', {
+    explicitDirectiveEvidence: ['no deferring, do all 8'],
+  });
+  assert.equal(v.block, true);
+  assert.equal(v.shape, 'scope-cut');
+  assert.match(v.instruction, /no deferring, do all 8/);
+});
+
+test('the same scope-cut language without an explicit directive does not trip D-5', () => {
+  const v = evaluateStopShape('Given the time, I will drop the legacy models and ship 5 of 8 tonight.');
+  assert.notEqual(v.shape, 'scope-cut');
+});
+
+test('scopeCutMatch is a pure function usable directly', () => {
+  assert.match(scopeCutMatch('I will drop the models.'), /drop/);
+  assert.equal(scopeCutMatch('Nothing scope-related here.'), null);
 });

@@ -28,7 +28,7 @@
 
 import { readFileSync, mkdirSync, writeFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
-import { userIntent } from './user-intent.mjs';
+import { userIntent, recentUserInstructions, explicitDirective } from './user-intent.mjs';
 
 const MAX_PUSHES = 2;
 
@@ -70,6 +70,29 @@ export function reservedCategories(text) {
   return RESERVED_CATEGORIES.filter(([, pattern]) => pattern.test(text)).map(([name]) => name);
 }
 
+// D-1: push-gate-laundering pre-check (2026-07-26 incident: an ordinary `git
+// push` to the operator's own remotes was worded "irreversible-in-effect" and passed
+// the destruction/publication keyword match). A normal push of requested work
+// is pre-approved; only a force-push or history rewrite on a shared branch is
+// genuinely reserved.
+const PUSH_GATE_PATTERN = /\bgit\s+push\b|\bpush(?:ing|es)?\b[^\n]{0,100}\b(?:publish\w*|origin|remotes?|repos?|repositor\w+|github|branch\w*|upstream|main)\b/i;
+const FORCE_PUSH_PATTERN = /--force(?:-with-lease)?\b|\bforce[- ]push\w*|\bhistory rewrite\w*|\brewrit\w+[^\n]{0,40}\bhistory\b/i;
+
+// The exemption must not swallow a real publication. `PUSH_GATE_PATTERN` looks
+// for "publish" near "push" so it can recognise a push DESCRIBED as publishing —
+// but that same wording appears when the reserved act genuinely is distribution
+// (npm publish, a release upload, a production deploy). Those stay reserved, on
+// the same footing as a force-push: naming one suppresses the exemption.
+const RESERVED_PUBLICATION_PATTERN = /\b(?:npm|pnpm|yarn|cargo|twine)\s+publish\b|\bpublish\w*\b[^\n]{0,40}\b(?:npm|registry|crates|pypi|marketplace|app store|production|customers?|publicly)\b|\brelease\b[^\n]{0,40}\b(?:upload|publish\w*|production)\b|\bdeploy\w*\b[^\n]{0,40}\bproduction\b/i;
+
+/** An ordinary push worded to sound reserved is not a reserved blocker. */
+export function isPushGateLaundering(text) {
+  return typeof text === 'string'
+    && PUSH_GATE_PATTERN.test(text)
+    && !FORCE_PUSH_PATTERN.test(text)
+    && !RESERVED_PUBLICATION_PATTERN.test(text);
+}
+
 // Stop-short shapes. Deliberately narrow: a false block burns a turn, while a
 // miss is bounded by the next turn's gate. Each names the failure it catches so
 // the block reason can instruct precisely rather than generically.
@@ -92,6 +115,9 @@ const SHAPES = [
     name: 'unresolved-caveat',
     instruction: 'Resolve the caveat yourself rather than reporting it.',
     pattern: /\b(one caveat|a caveat|with the caveat|caveats?:)\b/i,
+    // D-2: a caveat IS the outcome when it is reporting a real failure or a
+    // hard blocker — that is an answer, not a hedge to resolve.
+    carveOut: /\btests? (?:fail|failed|are failing)\b|\bfailing\b|\berror(?:ed)?\b|\bhard blocker\b|\bcould not be (?:fixed|resolved)\b|\bneeds? your (?:input|decision)\b|\bBLOCKED-ON-APPROVAL\b/i,
   },
   {
     name: 'deferred-work-promise',
@@ -104,6 +130,52 @@ const SHAPES = [
     pattern: /\bblocked on (your )?(approval|a decision|sign-?off|confirmation)\b/i,
   },
 ];
+
+// D-3: work-left-stuck. Ported from enforce_work_left_guard.py's GENERIC
+// WORK_LEFT_PATTERNS only — GPU-percent, clips-per-sec and checkpoint jargon
+// are media-pipeline vocabulary and are deliberately dropped.
+const WORK_LEFT_PATTERN = /\bqueued\b|\bpending\b|\bnot (?:started|running|done|fixed|complete)\b|\bstill (?:waiting|stuck|pending|queued|not)\b|\b(?:stuck|wedged|blocked)\b|\bwill (?:start|rerun|continue|resume|fix)\b|\b(?:should|need to|needs to) (?:start|restart|fix|rerun|continue|resume|launch)\b|\bI (?:did not|didn't|haven't|have not) (?:touch|start|restart|fix|launch|change|kill)\b|\bI (?:have not|haven't|did not|didn't|could not|couldn't) (?:found|find|locate|identif\w+|trace)\b|\bthat'?s the next thing\b|\bnext (?:thing|step) (?:to|is to) (?:pin|find|trace|figure|determine)\b|\b(?:remaining|left):?\s+\d+\b/i;
+const WORK_LEFT_NONSTATUS = /\b[\w./-]*pending[\w./-]*\.(?:md|json|ya?ml|txt|py|js|mjs|toml)\b|\bpending\s+(?:doc|document|note|plan|adr|spec|queue)s?\b/i;
+const WORK_LEFT_DONE_NEGATION = /\b(?:nothing|none|no(?:t anything)?)\s+(?:is\s+)?(?:still\s+)?(?:left|pending|queued|remaining|outstanding|stuck|blocked|waiting|further)\b|\bno\s+(?:remaining|further|outstanding|pending)\s+(?:work|tasks?|steps?|actions?|items?)\b|\b(?:all|everything)\s+(?:is\s+)?(?:done|complete|completed|finished|verified|passing|green|shipped)\b|\bnothing (?:left|remains|remaining|further|else)\b/i;
+const WORK_LEFT_ACTION_TAKEN = /\bI (?:fixed|patched|started|restarted|launched|killed|stopped|resumed|continued)\b|\b(?:fixed|patched|restarted|launched|resumed|continued) (?:it|them|the|all|workers?|jobs?|runs?|processes?)\b|\b(?:workers?|jobs?|runs?|processes?) (?:are|were) (?:fixed|patched|started|restarted|launched|resumed|continued)\b|\bnow running\b|\bverified\b|\bconfirmed\b|\bprogress(?:ing)? again\b|\bno safe corrective action\b|\bleft (?:it|them) untouched because\b/i;
+const WORK_LEFT_HARD_BLOCKER_MENTION = /\bhard blocker\b|\bblocked because\b|\bneeds user input\b|\bneed(?:s)? (?:your|user) (?:input|approval|credentials|decision|confirmation)\b/i;
+const WORK_LEFT_REVIEW_SELF = /\breview-self\b|\bself-review\b|\breviewed alternatives\b/i;
+
+/** Unfinished-work language with no corrective action taken and no genuine done/blocked carve-out. */
+export function workLeftStuck(text) {
+  if (typeof text !== 'string') return false;
+  const cleaned = text.replace(WORK_LEFT_NONSTATUS, ' ');
+  if (!WORK_LEFT_PATTERN.test(cleaned)) return false;
+  if (WORK_LEFT_DONE_NEGATION.test(cleaned)) return false;
+  if (WORK_LEFT_ACTION_TAKEN.test(cleaned)) return false;
+  if (WORK_LEFT_HARD_BLOCKER_MENTION.test(cleaned) && WORK_LEFT_REVIEW_SELF.test(cleaned)) return false;
+  return true;
+}
+
+// D-4: tool-denial. Ported from detect_scope_cut.py's TOOL_DENIAL_PATTERNS,
+// upgraded from an inert Python advisory to an enforced SHAPE.
+const TOOL_DENIAL_PATTERN = /\bI don'?t have (?:web ?search|webfetch|web_search|web_fetch)\b|\bI don'?t have access to (?:web ?search|webfetch|the (?:web|internet))\b|\bI can'?t (?:search the web|use web ?search|use webfetch|browse the web|fetch URLs?)\b|\bno (?:web ?search|webfetch) (?:available|access) (?:in this|for this) session\b|\bI (?:cannot|can'?t) access (?:web ?search|webfetch|the (?:internet|web))\b/i;
+
+/** The specific matched phrase claiming a tool is missing, or null. */
+export function toolDenialMatch(text) {
+  if (typeof text !== 'string') return null;
+  const match = text.match(TOOL_DENIAL_PATTERN);
+  return match ? match[0] : null;
+}
+
+// D-5: scope-cut-after-explicit-directive. Ported from detect_scope_cut.py's
+// SCOPE_CUT_PATTERNS. Only fires when the CURRENT reply proposes a scope cut
+// AND the operator issued an explicit no-deferral directive in a recent turn
+// (explicitDirective(), reusing recentUserInstructions() for authenticity) —
+// mirroring the Python advisory's own precondition, now enforced.
+const SCOPE_CUT_PATTERN = /\b(?:5|four|five|six) (?:of|out of) (?:8|seven|eight|nine|ten)\b|\bskip(?:ping)? the (?:3|three|four|five) (?:NeMo |models?|options?)|\b(?:defer|punt|table) (?:these|them|the|this|that|it)\b|\bdrop(?:ping)? (?:the |these |\d+ )?(?:models?|options?|features?)\b|\bship (?:5 )?tonight\b|\bthis (?:is a |would be a |feels like a )?(?:tar pit|rabbit hole|deep hole)\b|\bno way forward\b|\b(?:will|would) take \d+(?:-\d+)? hours? to (?:fully )?(?:fix|sort|resolve)\b|\binstead of (?:all |the )?\d+\b|\bnot worth (?:saving|the time)\b|\bdo (?:bake-?off|test|run) with (?:5|fewer|just )\b/i;
+
+/** The specific matched scope-cut phrase, or null. */
+export function scopeCutMatch(text) {
+  if (typeof text !== 'string') return null;
+  const match = text.match(SCOPE_CUT_PATTERN);
+  return match ? match[0] : null;
+}
 
 // Deferred-defect shapes: the turn FOUND a real, in-scope, actionable defect and
 // handed it back in prose instead of fixing it ("worth flagging for later",
@@ -221,10 +293,20 @@ function pushCount(stateFile) {
   try { return JSON.parse(readFileSync(stateFile, 'utf8')).pushes ?? 0; } catch { return 0; }
 }
 
-export function evaluateStopShape(finalText, { pushes = 0, recorded = false, escalated = false, authorized = false, authorizedEvidence = null } = {}) {
+export function evaluateStopShape(finalText, { pushes = 0, recorded = false, escalated = false, authorized = false, authorizedEvidence = null, explicitDirectiveEvidence = [] } = {}) {
   if (typeof finalText !== 'string' || finalText.length === 0) return { block: false, reason: 'no-final-text' };
   if (pushes >= MAX_PUSHES) return { block: false, reason: 'push-cap' };
   if (HARD_BLOCKER.test(finalText)) {
+    // D-1: an ordinary push worded to sound reserved is not a reserved
+    // blocker — checked before authorization/category logic so it cannot be
+    // laundered through either path.
+    if (!authorized && isPushGateLaundering(finalText)) {
+      return {
+        block: true,
+        shape: 'unreserved-blocker',
+        instruction: 'Your blocker gate is an ordinary git push, worded as reserved. A normal push of requested work to the operator\'s own remotes is pre-approved: using the word "irreversible" does not make it publication or destruction. Only a --force push or a history rewrite on a shared branch is genuinely reserved. Push it and report the receipt.',
+      };
+    }
     // A blocker packet must name a category that actually exists. `HARD BLOCKER`
     // (missing input only the operator can supply) is self-describing and always
     // passes; `BLOCKED-ON-APPROVAL` must land in the canonical five, or it is a
@@ -277,12 +359,43 @@ export function evaluateStopShape(finalText, { pushes = 0, recorded = false, esc
   const tail = finalText.slice(-1200);
   for (const shape of SHAPES) {
     if (shape.pattern.test(tail)) {
+      if (shape.carveOut && shape.carveOut.test(finalText)) continue;
       return {
         block: true,
         shape: shape.name,
         instruction: `${shape.instruction} ${ESCALATION[Math.min(pushes, ESCALATION.length - 1)]}`,
       };
     }
+  }
+  // D-4: a tool claimed missing without verification. Checked against the
+  // whole message, since the denial is often stated mid-report.
+  const toolDenial = toolDenialMatch(finalText);
+  if (toolDenial) {
+    return {
+      block: true,
+      shape: 'tool-denial',
+      instruction: `You claimed a tool is missing without verifying it against this session's tools list (detected: "${toolDenial}"). Check the available-tools list before claiming absence; if it is genuinely unavailable, say so precisely instead of "I don't have X".`,
+    };
+  }
+  // D-5: a scope cut proposed after the operator explicitly said not to defer.
+  if (explicitDirectiveEvidence.length > 0) {
+    const scopeCut = scopeCutMatch(finalText);
+    if (scopeCut) {
+      return {
+        block: true,
+        shape: 'scope-cut',
+        instruction: `the operator issued an explicit no-deferral directive ("${explicitDirectiveEvidence[0].slice(0, 80)}") and this reply proposes a scope cut or deferral (detected: "${scopeCut}"). Execute the literal request. If genuinely blocked, report "tried [X]: [error]. trying [Y]." and keep moving — do not fork or defer.`,
+      };
+    }
+  }
+  // D-3: unfinished work with no corrective action taken and no genuine
+  // done/blocked carve-out.
+  if (workLeftStuck(finalText)) {
+    return {
+      block: true,
+      shape: 'work-left-stuck',
+      instruction: 'You reported unfinished work (stuck/queued/pending/no corrective action) without a hard blocker. Do NOT stop to ask whether to continue — keep working now, or state a HARD BLOCKER with the exact missing input.',
+    };
   }
   // Checked against the WHOLE message with paragraph-scoped carve-outs: a defect
   // is usually deferred mid-report, not in the closing line.
@@ -327,12 +440,16 @@ function main() {
   // written earlier in the session is already durable, and re-blocking for it
   // would be the grind this gate exists to avoid.
   const intent = userIntent(raw);
+  // D-5: recent explicit no-deferral directives, from admitted user turns only.
+  const explicitDirectiveEvidence = recentUserInstructions(raw, { limit: 6 })
+    .flatMap((text) => explicitDirective(text));
   const verdict = evaluateStopShape(finalText, {
     pushes,
     recorded: recordedThisTurn(raw),
     escalated: escalatedThisSession(raw),
     authorized: intent.intent === 'proceed',
     authorizedEvidence: intent.evidence,
+    explicitDirectiveEvidence,
   });
   if (!verdict.block) return;
 

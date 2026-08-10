@@ -1,4 +1,4 @@
-import { mkdirSync, openSync, readFileSync, closeSync, fsyncSync, writeSync } from 'node:fs';
+import { mkdirSync, openSync, readFileSync, readdirSync, closeSync, fsyncSync, writeSync } from 'node:fs';
 import { join } from 'node:path';
 import { digestValue } from './canonical.mjs';
 import { ArcaneError } from './errors.mjs';
@@ -16,5 +16,23 @@ export class AuthorityBindingStore {
     catch(error){if(error.code!=='EEXIST')throw error; const existing=this.get({adapter,sessionId,agentId}); if(!existing)throw new ArcaneError('ARC_STORE_CORRUPT','binding record corrupt'); if(['adapter','sessionIdDigest','agentIdDigest','agentType','authority'].some(k=>existing[k]!==record[k]))throw new ArcaneError('ARC_BINDING_MISMATCH','binding identity conflict'); return {bound:true,created:false,record:existing};}
   }
   get({adapter,sessionId,agentId=null}){try{const r=JSON.parse(readFileSync(this.path(adapter,sessionId,agentId),'utf8'));return r?.kind==='arcane-authority-binding'?r:null;}catch(e){if(e.code==='ENOENT')return null;throw new ArcaneError('ARC_STORE_CORRUPT','binding record corrupt');}}
-  assertForTurn({adapter,sessionId,agentId,turnId,authorityLedger,keyId,authority}){if(authority)throw new ArcaneError('ARC_AUTHORITY_MODEL_CLAIMED','caller authority forbidden');if(!keyId)throw new ArcaneError('ARC_AUTH_KEY_UNAVAILABLE','key required');const record=this.get({adapter,sessionId,agentId});if(!record)throw new ArcaneError('ARC_AUTHORITY_NOT_ASSERTED','binding missing');return authorityLedger.assertForTurn({turnId,authority:record.authority,source:'host',assertedBy:`${adapter}:${record.agentIdDigest}`,verificationMethod:'capability-signature',perMessage:true,keyId});}
+  // Resolve a binding without knowing the raw agentId. `path()` hashes the raw
+  // id, and only the digest is ever stored, so an agent cannot look up its own
+  // binding — which left `contract seal` unrunnable by anyone. Scanning by the
+  // session digest (derivable from the sessionId the caller already has) is the
+  // supported way back in. It never widens authority: only bindings a real
+  // SubagentStart wrote are visible, and the requested authority must match.
+  findLatest({adapter,sessionId,authority}){
+    const want=dig('arcane.authority.session.v1',[adapter,sessionId]); let best=null;
+    let names; try{names=readdirSync(this.root);}catch(e){if(e.code==='ENOENT')return null;throw e;}
+    for(const name of names){
+      if(!name.endsWith('.json'))continue; let r;
+      try{r=JSON.parse(readFileSync(join(this.root,name),'utf8'));}catch{continue;}
+      if(r?.kind!=='arcane-authority-binding'||r.adapter!==adapter||r.sessionIdDigest!==want)continue;
+      if(authority&&r.authority!==authority)continue;
+      if(!best||String(r.observedAt)>String(best.observedAt))best=r;
+    }
+    return best;
+  }
+  assertForTurn({adapter,sessionId,agentId,turnId,authorityLedger,keyId,authority,record=null}){if(authority)throw new ArcaneError('ARC_AUTHORITY_MODEL_CLAIMED','caller authority forbidden');if(!keyId)throw new ArcaneError('ARC_AUTH_KEY_UNAVAILABLE','key required');if(record&&(record.adapter!==adapter||record.sessionIdDigest!==dig('arcane.authority.session.v1',[adapter,sessionId])))throw new ArcaneError('ARC_BINDING_MISMATCH','binding identity conflict');const rec=record??this.get({adapter,sessionId,agentId});if(!rec)throw new ArcaneError('ARC_AUTHORITY_NOT_ASSERTED','binding missing');return authorityLedger.assertForTurn({turnId,authority:rec.authority,source:'host',assertedBy:`${adapter}:${rec.agentIdDigest}`,verificationMethod:'capability-signature',perMessage:true,keyId});}
 }

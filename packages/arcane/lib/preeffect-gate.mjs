@@ -95,6 +95,30 @@ function matchesAny(patterns, target) {
   return (patterns ?? []).some((p) => pathMatches(p, target));
 }
 
+/**
+ * Bring a host-supplied path into the same frame as `scope.own`.
+ *
+ * Contracts are authored with workspace-relative paths, but Write/Edit always
+ * report an absolute `file_path`. Comparing the two directly made every owned
+ * path look unowned, so `ARC_PATH_NOT_OWNED` denied every FILE_WRITE under
+ * every sealed contract — the gate was closed against all work, not merely
+ * against unauthorized work.
+ *
+ * A path outside the workspace is returned unchanged, so it still fails to
+ * match `own[]` and is still denied. Traversal is unaffected: `pathMatches`
+ * rejects any `..` segment after this runs.
+ */
+export function workspaceRelative(target, workspace) {
+  const t = normalizePath(target);
+  if (!workspace) return t;
+  const root = normalizePath(workspace).replace(/\/$/, '');
+  if (!root) return t;
+  const prefix = `${root}/`;
+  // Drive-letter case differs between the host payload and the contract.
+  const same = t.slice(0, prefix.length).toLowerCase() === prefix.toLowerCase();
+  return same ? t.slice(prefix.length) : t;
+}
+
 export class PreEffectGate {
   #policy;
 
@@ -448,9 +472,10 @@ export class PreEffectGate {
     // 7. Path ownership. Forbidden is checked first and wins outright — an
     //    overlapping own[] pattern must never be able to re-open a forbidden
     //    path.
-    const paths = [{ which: 'target', value: effectRequest.target }];
+    const root = ctx?.workspace ?? null;
+    const paths = [{ which: 'target', value: workspaceRelative(effectRequest.target, root) }];
     if (TWO_PATH_EFFECTS.includes(effectRequest.effectClass) && destination) {
-      paths.push({ which: 'destination', value: destination });
+      paths.push({ which: 'destination', value: workspaceRelative(destination, root) });
     }
     for (const { which, value } of paths) {
       if (matchesAny(contract.scope.forbidden, value)) {

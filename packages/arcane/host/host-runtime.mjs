@@ -15,6 +15,9 @@ import { PreEffectGate } from '../lib/preeffect-gate.mjs';
 import { handleHookEvent, evaluateHostStop } from './hook-adapter-core.mjs';
 import { RuntimeSchemaSet } from '../lib/runtime-schema.mjs';
 import { renderHostRuntimeOutput } from './host-runtime-output.mjs';
+import { buildPolicyInjection } from './policy-inject.mjs';
+
+const POLICY_INJECT_EVENTS = new Set(['SessionStart', 'SubagentStart']);
 
 const schema = new RuntimeSchemaSet();
 const EVENT_TYPES = new Set(['SessionStart', 'SubagentStart', 'UserPromptSubmit', 'PostCompact', 'PreToolUse', 'PostToolUse', 'PostToolUseFailure', 'Stop']);
@@ -154,7 +157,21 @@ export function createHostRuntime({ adapter, workspace, keyDir, verificationKeyD
         const stopped = evaluateHostStop(outcome.hostEvent, { policy, receiptStore: stores.receiptStore });
         if (!stopped.allowed) outcome.decision = stopped;
       }
-      return runtimeResult(eventType, outcome);
+      const result = runtimeResult(eventType, outcome);
+      // renderHostRuntimeOutput returns null when allowed, which is exactly why
+      // the standalone Python injectors (brief/minimize/ccx) existed. Fire the
+      // same injection here, independent of the allow/deny branch above, so it
+      // reaches allowed SessionStart/SubagentStart without a parallel path.
+      if (result.allowed && result.stdout === null && POLICY_INJECT_EVENTS.has(eventType)) {
+        const injection = buildPolicyInjection({ workspace });
+        if (injection) {
+          const stdout = { hookSpecificOutput: { hookEventName: eventType, additionalContext: injection.additionalContext } };
+          if (injection.systemMessage) stdout.systemMessage = injection.systemMessage;
+          schema.assert('arcane-host-runtime-output-v1', stdout);
+          result.stdout = stdout;
+        }
+      }
+      return result;
     } catch (error) {
       return runtimeResult(eventType, { decision: denial(codeOf(error), 'runtime failure'), enforcementHealth: 'unsupported' });
     }
