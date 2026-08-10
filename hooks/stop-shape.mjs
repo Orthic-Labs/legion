@@ -93,6 +93,34 @@ export function isPushGateLaundering(text) {
     && !RESERVED_PUBLICATION_PATTERN.test(text);
 }
 
+// Ported from enforce_continue_intent.py: the operator phrases corrections as
+// questions ("can't we make this a hook?", "why is X still there?"). Those are
+// instructions, not invitations to explain and stop. The user-turn patterns
+// detect that intent; the reply-side patterns separate "I acted" from "I would
+// act". Advisory in Python, enforced here — same upgrade as the other shapes.
+const CONTINUE_INTENT_RE = new RegExp([
+  /\bcan(?:'t|not)?\s+we\b.*\b(?:make|create|add|turn|implement|fix|remove|delete|run|scan|update|incorporate|absorb|enforce|wire|hook)\b/,
+  /\bwhy\s+don'?t\s+we\b.*\b(?:make|create|add|turn|implement|fix|remove|delete|run|scan|update|incorporate|absorb|enforce|wire|hook)\b/,
+  /\bshould\s+we\b.*\b(?:install|incorporate|remove|fix|scan|create|make|turn|hook|enforce)\b/,
+  /\bcan\s+you\b.*\b(?:make|create|add|turn|implement|fix|remove|delete|run|scan|update|incorporate|absorb|enforce|wire|hook)\b/,
+  /\bplease\b.*\b(?:make|create|add|turn|implement|fix|remove|delete|run|scan|update|incorporate|absorb|enforce|wire|hook)\b/,
+  /\b(?:i\s+asked|asked\s+multiple\s+times|repeatedly\s+asked)\b.*\b(?:remove|delete|fix|stop|avoid|enforce)\b/,
+  /\bwhy\s+is\b.*\bstill\s+(?:there|enabled|active|present|happening|broken|failing)\b/,
+  /\bover\s+and\s+over\b.*\b(?:failure|fails?|problem|still)\b/,
+  /\bclearly\s+the\s+intention\b.*\b(?:continue|act|finish|get\s+you\s+to\s+continue)\b/,
+  /\b(?:do|fix|remove|scan|run|add|make|create|implement|wire)\s+it\b/,
+].map((r) => r.source).join('|'), 'is');
+const ACTION_DONE_RE = /\bI (?:added|updated|created|implemented|wired|registered|patched|fixed|removed|deleted|disabled|enabled|ran|scanned|verified|changed|installed|moved)\b|\b(?:added|updated|created|implemented|wired|registered|patched|fixed|removed|deleted|disabled|enabled|ran|scanned|verified|changed|installed|moved)\b.*\b(?:now|already|successfully|in|to|from)\b|\b(?:done|completed|finished)\b|\bverification\b.*\b(?:passed|clean|green|ok)\b|\bI'?m (?:continuing|working|doing it|on it)\b/is;
+const STOP_ONLY_RE = /\b(?:I|we) (?:can|could|should)\b|\b(?:I'?ll|I will|we'?ll|we will)\b|\b(?:recommend|proposal|propose|would be|next step)\b|\bthat'?s (?:a )?good idea\b|\byes\b.*\b(?:can|should|would)\b/is;
+const CONTINUE_BLOCKER_RE = /\bhard blocker\b|\bblocked because\b|\bneeds user input\b|\bneed(?:s)? (?:your|user) (?:input|approval|credentials|decision|confirmation)\b|\bI cannot proceed\b.*\bwithout\b|\bmissing (?:secret|credential|file|input|approval)\b/is;
+
+/** The latest genuine user turn's continuation-intent evidence, if any. */
+export function continueIntent(userText) {
+  if (typeof userText !== 'string') return null;
+  const match = CONTINUE_INTENT_RE.exec(userText.replace(/[’‘]/g, "'").replace(/[“”]/g, '"'));
+  return match ? match[0].slice(0, 120) : null;
+}
+
 // Stop-short shapes. Deliberately narrow: a false block burns a turn, while a
 // miss is bounded by the next turn's gate. Each names the failure it catches so
 // the block reason can instruct precisely rather than generically.
@@ -307,6 +335,31 @@ function pushCount(stateFile) {
   try { return JSON.parse(readFileSync(stateFile, 'utf8')).pushes ?? 0; } catch { return 0; }
 }
 
+/** Was any tool used after the last genuine (non-tool-result) user turn? */
+export function toolUseAfterLastUser(transcriptText) {
+  if (typeof transcriptText !== 'string') return false;
+  const lines = transcriptText.split('\n').filter(Boolean);
+  let lastUser = -1;
+  for (let i = lines.length - 1; i >= 0; i -= 1) {
+    let entry;
+    try { entry = JSON.parse(lines[i]); } catch { continue; }
+    if (entry?.type !== 'user' || !entry?.message) continue;
+    const content = entry.message.content;
+    const blocks = Array.isArray(content) ? content : [];
+    if (blocks.some((b) => b?.type === 'tool_result')) continue; // harness echo, not the operator
+    lastUser = i;
+    break;
+  }
+  if (lastUser < 0) return false;
+  for (let i = lastUser + 1; i < lines.length; i += 1) {
+    let entry;
+    try { entry = JSON.parse(lines[i]); } catch { continue; }
+    const content = entry?.message?.content;
+    if (Array.isArray(content) && content.some((b) => b?.type === 'tool_use')) return true;
+  }
+  return false;
+}
+
 // A turn that DISCUSSES a trigger phrase must not trip the gate that enforces
 // it: "the hook blocks `shall I proceed`" is a report, not an approval-ask.
 // Ported from completion_evidence.strip_code_spans — fenced blocks, inline
@@ -321,7 +374,7 @@ export function stripCodeSpans(text) {
     .replace(/["“][^"“”\n]{0,300}["”]/g, ' ');
 }
 
-export function evaluateStopShape(finalText, { pushes = 0, recorded = false, escalated = false, authorized = false, authorizedEvidence = null, explicitDirectiveEvidence = [] } = {}) {
+export function evaluateStopShape(finalText, { pushes = 0, recorded = false, escalated = false, authorized = false, authorizedEvidence = null, explicitDirectiveEvidence = [], continueIntentEvidence = null, continueToolsUsed = false } = {}) {
   if (typeof finalText !== 'string' || finalText.length === 0) return { block: false, reason: 'no-final-text' };
   if (pushes >= MAX_PUSHES) return { block: false, reason: 'push-cap' };
   // Packet parsing stays on the RAW text: structured blockers legitimately
@@ -424,6 +477,19 @@ export function evaluateStopShape(finalText, { pushes = 0, recorded = false, esc
       };
     }
   }
+  // Continue-intent (from enforce_continue_intent.py): the latest user turn
+  // was a correction phrased as a question, and this reply only proposes or
+  // acknowledges. An action marker or hard blocker clears it; tool use after
+  // the user turn clears it too unless the ending is still "I can/should/
+  // I'll" — acting and then handing back is the same stop-short.
+  if (continueIntentEvidence && !ACTION_DONE_RE.test(prose) && !CONTINUE_BLOCKER_RE.test(prose)
+    && (!continueToolsUsed || STOP_ONLY_RE.test(prose))) {
+    return {
+      block: true,
+      shape: 'continue-intent',
+      instruction: `the operator's latest message ("${continueIntentEvidence}") is an instruction, not an invitation to explain and stop. Do the work now, or state a hard blocker with the exact missing input. Do not end on "we can/should/I will" when the missing work is safe to do.`,
+    };
+  }
   // D-3: unfinished work with no corrective action taken and no genuine
   // done/blocked carve-out.
   if (workLeftStuck(prose)) {
@@ -479,6 +545,9 @@ function main() {
   // D-5: recent explicit no-deferral directives, from admitted user turns only.
   const explicitDirectiveEvidence = recentUserInstructions(raw, { limit: 6 })
     .flatMap((text) => explicitDirective(text));
+  // Continue-intent reads only the LATEST genuine user turn: a correction
+  // phrased as a question three turns ago was already answered or superseded.
+  const [latestInstruction] = recentUserInstructions(raw, { limit: 1 });
   const verdict = evaluateStopShape(finalText, {
     pushes,
     recorded: recordedThisTurn(raw),
@@ -486,6 +555,8 @@ function main() {
     authorized: intent.intent === 'proceed',
     authorizedEvidence: intent.evidence,
     explicitDirectiveEvidence,
+    continueIntentEvidence: continueIntent(latestInstruction ?? ''),
+    continueToolsUsed: toolUseAfterLastUser(raw),
   });
   if (!verdict.block) return;
 

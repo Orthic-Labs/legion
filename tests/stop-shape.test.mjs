@@ -6,6 +6,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import {
+  continueIntent,
   escalatedThisSession,
   evaluateStopShape,
   isPushGateLaundering,
@@ -13,6 +14,7 @@ import {
   reservedCategories,
   scopeCutMatch,
   toolDenialMatch,
+  toolUseAfterLastUser,
   workLeftStuck,
 } from '../hooks/stop-shape.mjs';
 
@@ -429,4 +431,58 @@ test('the same scope-cut language without an explicit directive does not trip D-
 test('scopeCutMatch is a pure function usable directly', () => {
   assert.match(scopeCutMatch('I will drop the models.'), /drop/);
   assert.equal(scopeCutMatch('Nothing scope-related here.'), null);
+});
+
+// Continue-intent (from the retired enforce_continue_intent.py). Its three
+// selftest cases, ported: a question-phrased correction answered with a
+// proposal blocks; acting first passes; a plain question answered passes.
+test('a question-phrased correction answered with only a proposal blocks', () => {
+  const evidence = continueIntent("Can't we make this a hook and include it in brief?");
+  assert.ok(evidence);
+  const v = evaluateStopShape('Yes, we can do that. I would add a Stop hook.', {
+    continueIntentEvidence: evidence,
+    continueToolsUsed: false,
+  });
+  assert.equal(v.block, true);
+  assert.equal(v.shape, 'continue-intent');
+});
+
+test('acting on the correction passes', () => {
+  const v = evaluateStopShape('I added the hook and verified it.', {
+    continueIntentEvidence: continueIntent("Can't we make this a hook?"),
+    continueToolsUsed: true,
+  });
+  assert.equal(v.block, false);
+});
+
+test('a plain informational question carries no continuation intent', () => {
+  assert.equal(continueIntent('What is gstack?'), null);
+});
+
+test('tool use clears it unless the ending still hands the work back', () => {
+  const opts = { continueIntentEvidence: continueIntent('why is the old hook still there?') };
+  assert.equal(evaluateStopShape('Removed the stale registration; receipts attached.', { ...opts, continueToolsUsed: true }).block, false);
+  const v = evaluateStopShape('I looked into it. I can remove the old registration next.', { ...opts, continueToolsUsed: true });
+  assert.equal(v.block, true, 'acting and then handing back is the same stop-short');
+});
+
+test('a hard blocker clears continue-intent', () => {
+  // The prose form "blocked because ..." is itself a stop-short (work-left-stuck
+  // catches it, correctly — a real blocker carries the token). The sanctioned
+  // form must pass even when the user turn carried continuation intent.
+  const v = evaluateStopShape('HARD BLOCKER: rotating the signing key needs your 2FA code.', {
+    continueIntentEvidence: continueIntent('can you fix the signing setup?'),
+    continueToolsUsed: false,
+  });
+  assert.equal(v.block, false);
+});
+
+test('toolUseAfterLastUser reads the transcript shape correctly', () => {
+  const lines = [
+    JSON.stringify({ type: 'user', message: { content: [{ type: 'text', text: 'fix it' }] } }),
+    JSON.stringify({ type: 'assistant', message: { content: [{ type: 'tool_use', name: 'Edit' }] } }),
+  ].join('\n');
+  assert.equal(toolUseAfterLastUser(lines), true);
+  const noTools = JSON.stringify({ type: 'user', message: { content: [{ type: 'text', text: 'fix it' }] } });
+  assert.equal(toolUseAfterLastUser(noTools), false);
 });
