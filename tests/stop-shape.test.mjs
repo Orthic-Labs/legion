@@ -62,3 +62,27 @@ test('the push cap ends the loop rather than winning by attrition', () => {
   assert.equal(evaluateStopShape('Say go and I execute.', { pushes: 1 }).block, true);
   assert.equal(evaluateStopShape('Say go and I execute.', { pushes: 2 }).block, false);
 });
+
+test('the deferral offer is caught — the exact Mac escape 2026-08-10', () => {
+  const escaped = 'Next action: add export RIGHT_RELEASE_CACHE_ROOT=/Volumes/D/rightsuite-cache/release to your ~/.zshenv, or tell me to and I\'ll do it.';
+  const verdict = evaluateStopShape(escaped);
+  assert.equal(verdict.block, true);
+  assert.equal(verdict.shape, 'deferral-offer');
+  for (const variant of [
+    'Or I can add it for you.',
+    'If you want, I can wire that in.',
+    'Tell me to and I\'ll do it.',
+  ]) {
+    assert.equal(evaluateStopShape(variant).block, true, variant);
+  }
+});
+
+test('a genuine the operator-only next action still passes', () => {
+  // Actions only the operator can perform must remain a legal ending.
+  for (const ending of [
+    'Done and verified. Next action for you: approve the $40/mo Hetzner upgrade in the console.',
+    'Complete. You will need to enter the 2FA code on your phone to finish enrollment.',
+  ]) {
+    assert.equal(evaluateStopShape(ending).block, false, ending);
+  }
+});
