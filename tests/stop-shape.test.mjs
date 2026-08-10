@@ -5,7 +5,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { evaluateStopShape, recordedThisTurn } from '../hooks/stop-shape.mjs';
+import { evaluateStopShape, recordedThisTurn, reservedCategories } from '../hooks/stop-shape.mjs';
 
 test('permission questions block', () => {
   for (const ending of [
@@ -114,4 +114,89 @@ test('recordedThisTurn recognises the durable destinations', () => {
   assert.equal(recordedThisTurn('memright put arcane-key-bootstrap --scope claude'), true);
   assert.equal(recordedThisTurn('docs/plans/legion/HANDOFF.md'), true);
   assert.equal(recordedThisTurn('{"name":"Write","input":{"file_path":"src/app.mjs"}}'), false);
+});
+
+// Deferred-defect shape. The incident: a turn found sampleapp's committed
+// AGENTS.md was stale doctrine and handed it back as "worth flagging for later
+// / a separate cleanup whenever you want it" instead of fixing it. This table is
+// the single source of stop-policy content; the rhook and Codex lanes carry a
+// generated copy, so these cases pin all three.
+test('deferring a found defect blocks', () => {
+  for (const ending of [
+    "Worth flagging for later: sampleapp's committed AGENTS.md is still stale doctrine on origin. That's a separate cleanup whenever you want it.",
+    "I'll leave that for a follow-up.",
+    'Someone should clean this up eventually.',
+    'Out of scope for now, but note that the retry logic is flaky.',
+    'TODO: fix later.',
+    'Note for later: the cache eviction logic looks fragile.',
+    'The duplicate config is worth doing at some point.',
+  ]) {
+    const verdict = evaluateStopShape(ending);
+    assert.equal(verdict.block, true, ending);
+    assert.equal(verdict.shape, 'deferred-defect', ending);
+  }
+});
+
+test('legitimate deferral passes', () => {
+  for (const ending of [
+    'Worth flagging: the stale AGENTS.md — another agent is already working on that cleanup.',
+    'Worth mentioning: the key rotation is overdue, but it needs your credentials to proceed.',
+    'Worth mentioning: the broken link — already fixed it while I was in there.',
+    "Worth flagging: sampleapp's AGENTS.md is stale — filed as a background task via spawn_task.",
+    'Deploying the binary is a separate cleanup, and it is OPERATOR-ONLY per HANDOFF.',
+  ]) {
+    assert.equal(evaluateStopShape(ending).block, false, ending);
+  }
+});
+
+test('carve-outs are paragraph-scoped, not whole-message', () => {
+  const laundered = [
+    'Fixed the parser and already fixed the lint config too.',
+    '',
+    "Worth flagging for later: the release lane still double-signs. That's a separate cleanup.",
+  ].join('\n');
+  assert.equal(evaluateStopShape(laundered).block, true, 'an unrelated carve-out must not launder a real deferral');
+});
+
+test('the override tag is honoured', () => {
+  const text = 'Worth flagging for later: this is a separate cleanup. [deferred-ok: the operator owns this call]';
+  assert.equal(evaluateStopShape(text).block, false);
+});
+
+test('a reserved blocker still wins over a deferral marker', () => {
+  // The blocker must name a REAL category to win. "reserved to the operator per
+  // <doc>" is not a sixth category — that laundering is pinned separately.
+  const text = 'Worth flagging for later: the deploy is a separate cleanup.\n\nBLOCKED-ON-APPROVAL: publishing @rightkit/ax@0.1.1 (publication).';
+  assert.equal(evaluateStopShape(text).block, false);
+});
+
+test('the push cap releases a deferral block too', () => {
+  const text = "Worth flagging for later: that's a separate cleanup.";
+  assert.equal(evaluateStopShape(text, { pushes: 2 }).block, false);
+});
+
+test('an invented reserved category does not launder a stop-short', () => {
+  // Verbatim shape both agents used on 2026-08-10 while nothing was blocked.
+  const v = evaluateStopShape('BLOCKED-ON-APPROVAL: installing ~/.claude/bin/rhook.exe for the fast-path twin — reserved to the operator per HANDOFF.');
+  assert.equal(v.block, true);
+  assert.equal(v.shape, 'unreserved-blocker');
+  assert.match(v.instruction, /five/i);
+});
+
+test('genuine reserved categories still pass', () => {
+  for (const ending of [
+    'BLOCKED-ON-APPROVAL: publish @rightkit/ax@0.1.1 (publication)',
+    'BLOCKED-ON-APPROVAL: the Hetzner upgrade is new spend on your card',
+    'BLOCKED-ON-APPROVAL: destruction — drop the legacy table',
+    'BLOCKED-ON-APPROVAL: reserved decision — who may change the enforcement rules',
+    'BLOCKED-ON-APPROVAL: needs your 2FA code (private input)',
+    'HARD BLOCKER: the Cloudflare token only the operator can supply.',
+  ]) {
+    assert.equal(evaluateStopShape(ending).block, false, ending);
+  }
+});
+
+test('reservedCategories identifies the canonical five', () => {
+  assert.deepEqual(reservedCategories('this needs new spend of $40'), ['new-spend']);
+  assert.deepEqual(reservedCategories('per HANDOFF this is reserved to the operator'), []);
 });
