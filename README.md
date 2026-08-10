@@ -1,12 +1,14 @@
 <img src=".github/banner.svg" alt="Legion — Every angle attacked. Every claim proven." width="100%">
 
-**Legion is the authority system for AI-assisted engineering.** It is not one tool — it's four roles with fixed relationships:
+**Legion is the orchestration system for AI-assisted engineering.** Its model-backed specialists are champions; together they form Legion's roster. Harnesses may instantiate champions as agents, but `agent` describes runtime plumbing, not their product identity.
 
 - **Legion** (this repo, plus the doctrine it ships) — the always-on orchestrator. Routes work, parallelizes, never mutates state itself.
-- **Sage** — engineering decision authority. Diagnoses, chooses architecture, compiles a settled decision into an executable contract.
-- **Alchemist** — transformation authority. Executes a bounded contract against the repository; escalates any new decision back to Sage.
-- **Seer** — independent assurance authority. Audits what actually exists and never certifies its own fix. This is the evidence-governed whole-repository audit engine described below.
-- **Arcane** — the deterministic gate. No model. Hooks that block effects, record receipts, and invalidate stale evidence, on every harness that supports pre-tool hooks.
+- **Sage** — decision champion. Diagnoses, chooses architecture, compiles a settled decision into an executable contract.
+- **Alchemist** — transformation champion. Executes a bounded contract against the repository; escalates any new decision back to Sage.
+- **Seer** — assurance champion. Audits what actually exists and never certifies its own fix. This is the evidence-governed whole-repository audit engine described below.
+- **Arcane** — the deterministic control plane, not a champion. No model. Hooks block effects, record receipts, and invalidate stale evidence on every harness that supports pre-tool hooks.
+
+**Covenant** is Legion's challenge chamber, not a champion: isolated review seats deliberate over frozen evidence without joining the roster.
 
 One package, one version, three layers (kernel → doctrine → per-harness binding). A binding never forks the doctrine or the kernel — it only projects them into a harness's native slots. See [`docs/plans/legion/ARCHITECTURE.md`](https://github.com/Orthic-Labs/legion) in the workspace for the full authority model.
 
