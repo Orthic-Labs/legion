@@ -288,8 +288,9 @@ Therefore, when auditing any change whose tests can touch runtime-loaded state:
    product reads at runtime outside the repo — app-data directories, config files,
    caches, registries, env-pointed dirs (`HR_APP_DATA_DIR` and kin). The product's
    own config-loading code is the authority for this list, not the test suite.
-2. **Diff production state across the test run.** Snapshot those paths (or their
-   hashes) before tests, compare after. ANY delta under a production path caused by
+2. **Diff production state across the test run.** Mechanical: `legion state
+   snapshot --path <app-data> --out before.json` before tests, `legion state
+   verify --snapshot before.json` after — nonzero exit names every delta. ANY delta under a production path caused by
    a test run is a finding — `fail`, not a note — regardless of whether the final
    test code uses mocks. The contaminating test may no longer exist; its residue does.
 3. **Isolation is proven, not read.** "The committed test uses a mock persister" is
