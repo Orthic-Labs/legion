@@ -45,7 +45,16 @@ const SHAPES = [
   {
     name: 'permission-question',
     instruction: 'Adrian pre-authorized in-scope reversible work; do it now instead of asking.',
-    pattern: /\b(say (the word|go|yes)|shall i|want me to (proceed|continue|do|build|fix|run)|should i (proceed|continue|go ahead)|do you want me to|awaiting (your )?(approval|confirmation|go)|give me the go)\b/i,
+    pattern: /\b(say (the word|go|yes)|shall i|want me to (proceed|continue|do|build|fix|run|add|set|apply|install|update|wire|write|edit|change|make)|should i (proceed|continue|go ahead)|do you want me to|awaiting (your )?(approval|confirmation|go)|give me the go)\b/i,
+  },
+  {
+    // The deferral offer: the agent names the exact action, then hands it back
+    // ("...or tell me to and I'll do it", "or I can add it for you"). Escaped
+    // the first pattern set on the Mac 2026-08-10 — an agent that can state
+    // the precise command it would run has no reason not to run it.
+    name: 'deferral-offer',
+    instruction: 'You named the exact action — perform it now instead of offering it.',
+    pattern: /\b(or )?tell me( to)?,?( and)? i(['’])?ll (do|apply|add|set|handle|wire|edit) (it|this|that)\b|\bor i can (do|add|apply|set|make|wire|edit|write|install|update)\b|\bif you (want|like|prefer),? i can\b/i,
   },
   {
     name: 'unresolved-caveat',
