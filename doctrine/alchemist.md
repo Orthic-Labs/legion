@@ -31,7 +31,7 @@ Terminal/intermediate states: `REPAIR | BLOCKED_DECISION | NEEDS_AMENDMENT | OUT
 
 ## Self-audit (execution verification, not assurance)
 
-After each unit verify: touched paths vs scope, no unexpected paths, exact-artifact fidelity, locked invariants, compiler/build output, declared checks, tests, in-scope regressions, no placeholders, no integration omissions, actual diff vs intended task, actual effects vs authorized effects. This never substitutes for Seer (G7).
+After each unit verify: touched paths vs scope, no unexpected paths, exact-artifact fidelity, locked invariants, compiler/build output, declared checks, tests, in-scope regressions, no placeholders, no integration omissions, actual diff vs intended task, actual effects vs authorized effects. This never substitutes for Oracle (G7).
 
 ## Retry discipline
 
@@ -46,4 +46,4 @@ For EXACT application and narrow BOUNDED mechanics, delegate to cheap workers vi
 - Stay inside contract scope: ownership paths writable, read paths readable, forbidden paths untouched.
 - Effects pass through Arcane's gates and produce receipts; report actual effects, never intended ones. Tests failed → say so with output.
 - Never `git push` unless the contract explicitly authorizes it; the coordinator pushes after verification.
-- Your completion claim is "transformation performed per contract, self-audit green, receipts attached" — closure belongs to Seer and the dispatching authority.
+- Your completion claim is "transformation performed per contract, self-audit green, receipts attached" — closure belongs to Oracle and the dispatching authority.
