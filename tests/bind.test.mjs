@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { mkdtempSync, rmSync, mkdirSync, existsSync, readFileSync } from 'node:fs';
+import { mkdtempSync, rmSync, mkdirSync, existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -66,6 +66,7 @@ test('bind --write is idempotent across two runs', () => {
     assert.equal(first.status, 0, first.stderr);
     const firstReport = JSON.parse(first.stdout);
     const firstWrote = firstReport.harnesses.flatMap((h) => h.wrote ?? []).sort();
+    const firstReceipt = readFileSync(join(dir, '.legion', 'binding.json'), 'utf8');
 
     const claudeMdPath = join(dir, 'CLAUDE.md');
     const firstLength = existsSync(claudeMdPath) ? readFileSync(claudeMdPath, 'utf8').length : null;
@@ -76,6 +77,7 @@ test('bind --write is idempotent across two runs', () => {
     const secondWrote = secondReport.harnesses.flatMap((h) => h.wrote ?? []).sort();
 
     assert.deepEqual(secondWrote, firstWrote, 'wrote list must be identical across runs');
+    assert.equal(readFileSync(join(dir, '.legion', 'binding.json'), 'utf8'), firstReceipt, 'receipt is deterministic across unchanged writes');
 
     if (firstLength !== null) {
       const secondLength = readFileSync(claudeMdPath, 'utf8').length;
@@ -101,8 +103,9 @@ test('codex bind writes managed agent pointers and is idempotent', () => {
     assert.doesNotMatch(config, /\/lib\/integrations\//);
     const sage = readFileSync(join(dir, '.codex', 'agents', 'sage.toml'), 'utf8');
     assert.match(sage, /\nname = "sage"/);
-    assert.match(sage, /\nmodel = "gpt-5\.6-sol"/);
-    assert.match(sage, /\nmodel_reasoning_effort = "high"/);
+    assert.doesNotMatch(sage, /\nmodel = /);
+    assert.match(sage, /frontier-judgment/);
+    assert.doesNotMatch(sage, /gpt-5\.6-sol/);
     assert.doesNotMatch(sage, /\ndescription = /);
     for (const name of ['alchemist', 'oracle', 'covenant-seat']) {
       const agent = readFileSync(join(dir, '.codex', 'agents', `${name}.toml`), 'utf8');
@@ -110,5 +113,41 @@ test('codex bind writes managed agent pointers and is idempotent', () => {
     }
     assert.equal(bind(['--write', '--harness', 'codex', dir]).status, 0);
     assert.equal(readFileSync(join(dir, '.codex', 'config.toml'), 'utf8'), config);
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+
+test('gemini bind emits native role commands, context, MCP, and byte-bound receipt', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'legion-gemini-bind-'));
+  try {
+    mkdirSync(join(dir, '.gemini'), { recursive: true });
+    assert.equal(bind(['--write', '--harness', 'gemini', dir]).status, 0);
+    const context = readFileSync(join(dir, 'GEMINI.md'), 'utf8');
+    const sage = readFileSync(join(dir, '.gemini', 'commands', 'legion', 'sage.toml'), 'utf8');
+    const settings = JSON.parse(readFileSync(join(dir, '.gemini', 'settings.json'), 'utf8'));
+    const receipt = JSON.parse(readFileSync(join(dir, '.legion', 'binding.json'), 'utf8'));
+    assert.match(context, /frontier-judgment/);
+    assert.match(sage, /prompt = /);
+    assert.equal(settings.mcpServers.legion.command, 'legion');
+    assert.deepEqual(settings.mcpServers.legion.args, ['mcp', 'server']);
+    assert.equal(receipt.schemaVersion, 2);
+    assert.ok(receipt.harnesses[0].files.every((file) => !file.path.includes(':') && typeof file.bytes === 'number' && /^sha256:/.test(file.digest)));
+    assert.equal(bind(['--check', '--harness', 'gemini', dir]).status, 0);
+    writeFileSync(join(dir, '.gemini', 'commands', 'legion', 'sage.toml'), 'tampered\n');
+    const checked = bind(['--check', '--harness', 'gemini', dir]);
+    assert.notEqual(checked.status, 0);
+    assert.equal(JSON.parse(checked.stdout).harnesses[0].drift[0].kind, 'modified');
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+
+test('agents-md bind remains a low-fidelity roster projection', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'legion-agents-bind-'));
+  try {
+    writeFileSync(join(dir, 'AGENTS.md'), '# Project instructions\n');
+    assert.equal(bind(['--write', '--harness', 'agents-md', dir]).status, 0);
+    const agents = readFileSync(join(dir, 'AGENTS.md'), 'utf8');
+    assert.match(agents, /frontier-judgment/);
+    assert.match(agents, /balanced-executor/);
+    assert.doesNotMatch(agents, /## Purpose/);
+    assert.equal(bind(['--check', '--harness', 'agents-md', dir]).status, 0);
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });
