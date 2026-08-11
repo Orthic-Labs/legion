@@ -8,9 +8,9 @@
 // every host.
 //
 // Codex hook stdin supplies session_id plus agent_id/agent_type on subagent
-// events. Desktop also exposes the durable thread identity as CODEX_THREAD_ID;
-// use it when a hook omits session_id so every event in one thread shares the
-// same Arcane session binding.
+// events. Desktop exposes the durable thread identity as CODEX_THREAD_ID. It
+// is authoritative over transient payload session ids; a supplied thread id
+// must match it or the event fails closed.
 //
 // `hook_event_name` and `tool_name`/`tool_input.file_path` (for Write/Edit)
 // are shared field names between the two hosts per forge/hooks/codex/hooks.json
@@ -34,6 +34,7 @@
 
 import { homedir, platform, release } from 'node:os';
 import { join } from 'node:path';
+import { createHash } from 'node:crypto';
 import { pathToFileURL } from 'node:url';
 
 import { ArcaneError } from '../lib/errors.mjs';
@@ -64,6 +65,29 @@ const PRE_EFFECT_TOOL_MAP = Object.freeze({
   Edit: { effectClass: 'FILE_WRITE', targetField: 'file_path' },
 });
 
+function payloadThreadId(hookPayload) {
+  const snake = hookPayload?.thread_id;
+  const camel = hookPayload?.threadId;
+  if (snake !== undefined && camel !== undefined && snake !== camel) {
+    throw new ArcaneError('ARC_BINDING_MISMATCH', 'conflicting Codex payload thread identities');
+  }
+  return snake ?? camel ?? null;
+}
+
+/** Resolve Codex identity without allowing a transient hook session to split a durable thread binding. */
+export function resolveCodexSessionId(hookPayload, env = process.env) {
+  const durableThreadId = env.CODEX_THREAD_ID ?? null;
+  const threadId = payloadThreadId(hookPayload);
+  if (durableThreadId) {
+    if (threadId !== null && threadId !== durableThreadId) {
+      throw new ArcaneError('ARC_BINDING_MISMATCH', 'Codex payload thread identity conflicts with CODEX_THREAD_ID');
+    }
+    return durableThreadId;
+  }
+  return hookPayload?.session_id ?? hookPayload?.sessionId ?? threadId
+    ?? env.CODEX_SESSION_ID ?? env.CLAUDE_SESSION_ID ?? null;
+}
+
 /**
  * Direct, honest tool_name -> effect mappings for POST-EFFECT events only
  * (see module header). `targetField` names the property (top-level or under
@@ -86,16 +110,9 @@ const PRE_EFFECT_TOOL_MAP = Object.freeze({
  * claude-code-adapter.mjs: a command string is not a path, and any parser
  * is defeatable by a command shaped to look benign.
  *
- * `apply_patch` — Codex's own file-edit tool, no Claude Code equivalent — is
- * DELIBERATELY excluded here too. This tree gives no evidence of its payload
- * shape: forge/hooks/codex/hooks.json lists it only as a PreToolUse/
- * PostToolUseFailure matcher string, and no file anywhere in forge/ or
- * packages/ reads an `apply_patch`-specific field (grepped; only the matcher
- * glob itself matches). Guessing whether it carries a single `file_path`
- * (FILE_WRITE-shaped) or a multi-file diff blob (MultiEdit-shaped) would be
- * exactly the invention this module has always refused to do — so it stays
- * `effect: null`, same as any other unrecognized tool, until real evidence
- * of its payload shape exists.
+ * `apply_patch` is expanded by the runtime from its exact
+ * `tool_input.command` patch text. It remains absent here because this closed
+ * single-effect event schema cannot represent its ordered plural receipt set.
  */
 const EFFECT_TOOL_MAP = Object.freeze({
   Write: { effectClass: 'FILE_WRITE', targetField: 'file_path' },
@@ -122,11 +139,7 @@ export function buildRawCodexEvent(hookPayload) {
   const isToolEvent = TOOL_HOOK_EVENTS.includes(eventType);
   const isPostTool = POST_TOOL_HOOK_EVENTS.includes(eventType);
 
-  // Session id: prefer host payload, then Codex's durable thread identity.
-  const sessionId = hookPayload.session_id ?? hookPayload.sessionId
-    ?? hookPayload.thread_id ?? hookPayload.threadId
-    ?? process.env.CODEX_THREAD_ID ?? process.env.CODEX_SESSION_ID
-    ?? process.env.CLAUDE_SESSION_ID ?? null;
+  const sessionId = resolveCodexSessionId(hookPayload);
 
   const raw = {
     eventType,
@@ -213,15 +226,74 @@ export function handleCodexHookEvent(hookPayload, deps) {
 
 export function observeCodexIdentity(hookPayload, { hostEvent } = {}) {
   if (['authority', 'callerAuthority', 'assertedAuthority', 'trust_class', 'trustClass', 'executor'].some((key) => Object.hasOwn(hookPayload ?? {}, key))) return { modelClaimed: true };
-  const sessionId = hostEvent?.sessionId ?? hookPayload?.session_id ?? hookPayload?.sessionId
-    ?? hookPayload?.thread_id ?? hookPayload?.threadId ?? process.env.CODEX_THREAD_ID
-    ?? process.env.CODEX_SESSION_ID ?? process.env.CLAUDE_SESSION_ID ?? null;
-  const agentId = hookPayload?.agent_id ?? hookPayload?.agentId ?? null;
-  const agentType = hookPayload?.agent_type ?? hookPayload?.agentType ?? null;
+  const sessionId = hostEvent?.sessionId ?? resolveCodexSessionId(hookPayload);
+  const agentId = hookPayload?.agent_id ?? hookPayload?.agentId ?? hookPayload?.subagent?.agent_id ?? hookPayload?.subagent?.agentId ?? null;
+  const agentType = hookPayload?.agent_type ?? hookPayload?.agentType ?? hookPayload?.subagent?.agent_type ?? hookPayload?.subagent?.agentType ?? null;
   return sessionId && agentId && agentType ? { sessionId, agentId, agentType, eventId: hostEvent?.eventId } : null;
 }
 
-export function mapCodexPreEffect(hookPayload) {
+const PATCH_LIMIT_BYTES = 1024 * 1024;
+const PATCH_LIMIT_EFFECTS = 256;
+
+function patchPath(path, workspace) {
+  if (typeof path !== 'string' || path.length === 0 || path !== path.trim() || /[\\\0\r\n]/.test(path)
+    || path.startsWith('/') || path.startsWith('//') || /^[A-Za-z]:/.test(path)
+    || path.split('/').some((part) => part === '' || part === '.' || part === '..')) return null;
+  if (workspace && typeof workspace === 'string') {
+    const root = workspace.replaceAll('\\', '/').replace(/\/$/, '');
+    const resolved = join(root, path).replaceAll('\\', '/');
+    if (!resolved.startsWith(`${root}/`)) return null;
+  }
+  return path;
+}
+
+/** Parse only Codex's exact `tool_input.command` patch text, never a model projection. */
+export function parseCodexApplyPatch(command, { workspace } = {}) {
+  if (typeof command !== 'string' || Buffer.byteLength(command, 'utf8') > PATCH_LIMIT_BYTES) return null;
+  const lines = command.split(/\r?\n/);
+  if (lines.at(-1) === '') lines.pop();
+  if (lines.length < 3 || lines[0] !== '*** Begin Patch' || lines.at(-1) !== '*** End Patch') return null;
+  const effects = [];
+  const seen = new Set();
+  for (let i = 1; i < lines.length - 1;) {
+    const header = /^\*\*\* (Add|Update|Delete) File: (.+)$/.exec(lines[i]);
+    if (!header) return null;
+    const [, action, rawTarget] = header;
+    const target = patchPath(rawTarget, workspace);
+    if (!target) return null;
+    i += 1;
+    let destination = null;
+    if (action === 'Update' && i < lines.length - 1) {
+      const move = /^\*\*\* Move to: (.+)$/.exec(lines[i]);
+      if (move) { destination = patchPath(move[1], workspace); if (!destination) return null; i += 1; }
+    }
+    while (i < lines.length - 1 && !lines[i].startsWith('*** ')) i += 1;
+    if (i < lines.length - 1 && !/^\*\*\* (Add|Update|Delete) File: /.test(lines[i])) return null;
+    const add = (effectClass, value) => {
+      if (seen.has(value) || effects.length >= PATCH_LIMIT_EFFECTS) return false;
+      seen.add(value); effects.push({ effectClass, target: value, operation: 'apply_patch' }); return true;
+    };
+    if (destination) {
+      if (destination === target || !add('FILE_DELETE', target) || !add('FILE_WRITE', destination)) return null;
+    } else if (!add(action === 'Delete' ? 'FILE_DELETE' : 'FILE_WRITE', target)) return null;
+  }
+  return effects.length > 0 ? effects : null;
+}
+
+function derivedPatchToolId(hostToolId, patchDigest, index, effect) {
+  return createHash('sha256').update(`${hostToolId}\n${patchDigest}\n${index}\n${canonicalJson(effect)}`, 'utf8').digest('hex');
+}
+
+function mapCodexApplyPatch(command, toolUseId, workspace) {
+  if (typeof toolUseId !== 'string' || toolUseId.length === 0) return null;
+  const effects = parseCodexApplyPatch(command, { workspace });
+  if (!effects) return null;
+  const patchDigest = digest(command);
+  return { operation: 'apply_patch', toolUseId, patchDigest, effects: effects.map((effect, index) => ({ ...effect, toolUseId: derivedPatchToolId(toolUseId, patchDigest, index, effect) })) };
+}
+
+export function mapCodexPreEffect(hookPayload, { workspace } = {}) {
+  if (hookPayload?.tool_name === 'apply_patch') return mapCodexApplyPatch(hookPayload?.tool_input?.command, hookPayload?.tool_use_id, workspace);
   const mapping = PRE_EFFECT_TOOL_MAP[hookPayload?.tool_name];
   const target = mapping ? hookPayload?.tool_input?.[mapping.targetField] : null;
   if (!mapping || typeof target !== 'string' || target.length === 0 || typeof hookPayload?.tool_use_id !== 'string' || hookPayload.tool_use_id.length === 0) return null;

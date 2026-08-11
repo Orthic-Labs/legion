@@ -75,11 +75,22 @@ const SYSTEM_INJECTED = [
   /\[SYSTEM NOTIFICATION - NOT USER INPUT\]/i,
   /<task-notification>/i,
   /^Stop hook feedback:/im,
+  /^\[non-authoritative stop feedback\]/im,
   /^Caveat: The messages below were generated/im,
 ];
 
 function isSystemInjected(text) {
   return SYSTEM_INJECTED.some((pattern) => pattern.test(text));
+}
+
+function entryText(entry) {
+  const content = entry?.message?.content;
+  return typeof content === 'string'
+    ? content
+    : (Array.isArray(content) ? content : [])
+      .filter((block) => block?.type === 'text' && typeof block.text === 'string')
+      .map((block) => block.text)
+      .join('\n');
 }
 
 /**
@@ -95,29 +106,66 @@ export function recentUserInstructions(transcriptText, { limit = 5 } = {}) {
     let entry;
     try { entry = JSON.parse(lines[index]); } catch { continue; }
     if (entry?.type !== 'user' || !entry?.message) continue;
-    const content = entry.message.content;
-    const text = typeof content === 'string'
-      ? content
-      : (Array.isArray(content) ? content : [])
-        .filter((block) => block?.type === 'text' && typeof block.text === 'string')
-        .map((block) => block.text)
-        .join('\n');
+    const text = entryText(entry);
     if (!text.trim() || isSystemInjected(text) || !admitsAuthority(text)) continue;
     found.push(text);
   }
   return found;
 }
 
+/**
+ * Latest structurally external user turn. Unlike legacy admission, lexical
+ * tool/repo echoes do not erase a real current revocation or scope narrowing.
+ */
+export function latestExternalUserTurn(transcriptText) {
+  if (typeof transcriptText !== 'string') return null;
+  const lines = transcriptText.split('\n').filter(Boolean);
+  for (let index = lines.length - 1; index >= 0; index -= 1) {
+    let entry;
+    try { entry = JSON.parse(lines[index]); } catch { continue; }
+    if (entry?.type !== 'user' || !entry?.message) continue;
+    const text = entryText(entry);
+    if (!text.trim() || isSystemInjected(text)) continue;
+    return text;
+  }
+  return null;
+}
+
 // --- intent ------------------------------------------------------------------
 
 // Adrian telling the agent to act. Narrow on purpose: this CLEARS a block, so a
 // false positive lets an agent proceed on something never asked for.
-const DIRECTIVE = /\b(?:go on|go ahead|do it|fix it|fix everything|make it so|proceed|carry on|continue|ship it|just do it|yes,? do|please do|get it done|handle it|sort it out|deploy it|push it|publish it)\b/i;
+const EXECUTE = /^(?:please\s+|go ahead(?:\s+and)?\s+)?(?:fix|implement|create|add|remove|delete|update|wire|write|edit|change|build|run|scan|install|move|deploy|push|publish)\b/i;
+const CONTINUE = /^(?:(?:ok,?\s+)?(?:go on|go ahead|do (?:it|that|this)|make it so|handle it|sort it out|get it done|ship it)\b|why (?:is|isn't|not) .+ still|can(?:'t|not)? (?:we|you) .*\b(?:fix|make|add|remove|update|wire|run))\b/i;
+const PLAN = /\b(?:plan|design|architect(?:ure)?|proposal|propose|review|status|report|explain|answer|analyse|analy[sz]e)\b/i;
 
 // Adrian telling the agent to STOP. Must outrank a directive: "Don't make any
 // changes" after "fix it" is a hold, and reading only the older turn would
 // override an explicit stop.
-const HOLD = /\b(?:don'?t|do not)\s+(?:make|change|apply|touch|do|push|commit|deploy|publish)\b|\bno changes\b|\bhold off\b|\bstop\b|\bwait\b/i;
+const REVOKE = /\b(?:stop|hold off|wait|cancel|make no changes|no changes)\b|\b(?:don'?t|do not)\s+(?:make|change|apply|touch|do)\s+(?:anything|any changes?)\b/i;
+const SCOPE_NARROW = /\b(?:only|except|exclude|without)\b|\b(?:don'?t|do not)\b/i;
+
+/** Quoted, fenced, and inline-code directives are evidence, never authority. */
+export function stripNonAuthoritativeDirectiveText(text) {
+  return typeof text === 'string' ? text
+    .replace(/```[\s\S]*?```|~~~[\s\S]*?~~~/g, ' ')
+    .replace(/`[^`\n]*`/g, ' ')
+    .replace(/["“][^"“”\n]{0,300}["”]/g, ' ') : '';
+}
+
+/** Classify exactly one admitted external turn; negative clauses dominate. */
+export function classifyLatestUserIntent(transcriptText) {
+  const text = latestExternalUserTurn(transcriptText);
+  if (!text) return { intent: 'UNKNOWN', evidence: null };
+  const directiveText = stripNonAuthoritativeDirectiveText(text);
+  if (REVOKE.test(directiveText)) return { intent: 'REVOKE', evidence: text.slice(0, 300) };
+  if (SCOPE_NARROW.test(directiveText)) return { intent: 'SCOPE_NARROW', evidence: text.slice(0, 300) };
+  if (PLAN.test(directiveText)) return { intent: 'PLAN', evidence: text.slice(0, 300) };
+  if (CONTINUE.test(directiveText)) return { intent: 'CONTINUE', evidence: text.slice(0, 300) };
+  if (EXECUTE.test(directiveText)) return { intent: 'EXECUTE', evidence: text.slice(0, 300) };
+  if (/\?$/.test(directiveText.trim())) return { intent: 'QUESTION', evidence: text.slice(0, 300) };
+  return { intent: 'UNKNOWN', evidence: text.slice(0, 300) };
+}
 
 /**
  * Did Adrian, within the recent window, tell the agent to act — and not since
@@ -125,13 +173,10 @@ const HOLD = /\b(?:don'?t|do not)\s+(?:make|change|apply|touch|do|push|commit|de
  * later one, never averaged with it.
  */
 export function userIntent(transcriptText, { limit = 5 } = {}) {
-  const instructions = recentUserInstructions(transcriptText, { limit });
-  for (const text of instructions) {
-    // Check HOLD first within a turn: "fix it, but don't push" is a hold on pushing.
-    if (HOLD.test(text)) return { intent: 'hold', evidence: text.slice(0, 300) };
-    if (DIRECTIVE.test(text)) return { intent: 'proceed', evidence: text.slice(0, 300) };
-  }
-  return { intent: 'none', evidence: null };
+  const latest = classifyLatestUserIntent(transcriptText);
+  const intent = latest.intent === 'EXECUTE' || latest.intent === 'CONTINUE' ? 'proceed'
+    : latest.intent === 'REVOKE' || latest.intent === 'SCOPE_NARROW' ? 'hold' : 'none';
+  return { intent, evidence: latest.evidence };
 }
 
 /**

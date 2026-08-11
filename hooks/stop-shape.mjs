@@ -28,7 +28,7 @@
 
 import { readFileSync, mkdirSync, writeFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
-import { userIntent, recentUserInstructions, explicitDirective } from './user-intent.mjs';
+import { classifyLatestUserIntent, latestExternalUserTurn } from './user-intent.mjs';
 
 const MAX_PUSHES = 2;
 
@@ -314,7 +314,7 @@ const ESCALATION = [
   'Sage did not settle it: convene Covenant, or make the best decision yourself and record the reasoning. Re-verify the blocker against CURRENT state before re-asserting it — a blocker observed earlier in a session is often already stale.',
 ];
 
-function lastAssistantText(raw) {
+export function lastAssistantText(raw) {
   const lines = raw.split('\n').filter(Boolean);
   for (let i = lines.length - 1; i >= 0; i -= 1) {
     let entry;
@@ -374,8 +374,9 @@ export function stripCodeSpans(text) {
     .replace(/["“][^"“”\n]{0,300}["”]/g, ' ');
 }
 
-export function evaluateStopShape(finalText, { pushes = 0, recorded = false, escalated = false, authorized = false, authorizedEvidence = null, explicitDirectiveEvidence = [], continueIntentEvidence = null, continueToolsUsed = false } = {}) {
+export function evaluateStopShape(finalText, { intent = 'EXECUTE', pushes = 0, recorded = false, escalated = false, authorized = false, authorizedEvidence = null, explicitDirectiveEvidence = [], continueIntentEvidence = null, continueToolsUsed = false } = {}) {
   if (typeof finalText !== 'string' || finalText.length === 0) return { block: false, reason: 'no-final-text' };
+  if (intent !== 'EXECUTE' && intent !== 'CONTINUE') return { block: false, reason: 'non-compelling-intent' };
   if (pushes >= MAX_PUSHES) return { block: false, reason: 'push-cap' };
   // Packet parsing stays on the RAW text: structured blockers legitimately
   // carry quoted JSON keys ("reserved_category": ...), and stripping them
@@ -521,49 +522,45 @@ export function evaluateStopShape(finalText, { pushes = 0, recorded = false, esc
   return { block: false, reason: 'clean-ending' };
 }
 
+/** Evaluate one Stop payload from its transcript, preserving standalone state semantics. */
+export function evaluateTranscriptStop(payload) {
+  const transcriptPath = payload?.transcript_path;
+  if (typeof transcriptPath !== 'string' || transcriptPath.length === 0) return { block: false, reason: 'transcript-unavailable' };
+  let raw;
+  try { raw = readFileSync(transcriptPath, 'utf8'); } catch { return { block: false, reason: 'transcript-unreadable' }; }
+  const sessionId = payload.session_id ?? 'unknown';
+  const cwd = payload.cwd ?? process.cwd();
+  const stateFile = join(cwd, '.audit', 'legion', 'stop-shape', `${sessionId}.json`);
+  const pushes = payload.stop_hook_active ? pushCount(stateFile) : 0;
+  const intent = classifyLatestUserIntent(raw);
+  const latestInstruction = latestExternalUserTurn(raw);
+  const verdict = evaluateStopShape(lastAssistantText(raw), {
+    pushes,
+    intent: intent.intent,
+    recorded: recordedThisTurn(raw),
+    escalated: escalatedThisSession(raw),
+    authorized: intent.intent === 'EXECUTE' || intent.intent === 'CONTINUE',
+    authorizedEvidence: intent.evidence,
+    explicitDirectiveEvidence: [],
+    continueIntentEvidence: continueIntent(latestInstruction ?? ''),
+    continueToolsUsed: toolUseAfterLastUser(raw),
+  });
+  if (verdict.block) {
+    try {
+      mkdirSync(dirname(stateFile), { recursive: true });
+      writeFileSync(stateFile, `${JSON.stringify({ pushes: pushes + 1, lastShape: verdict.shape, at: new Date().toISOString() })}\n`);
+    } catch { /* state loss weakens the cap by one turn; never block on it */ }
+  }
+  return verdict;
+}
+
 function main() {
   let payload;
   try { payload = JSON.parse(readFileSync(0, 'utf8')); } catch { return; }
   if (payload?.hook_event_name !== 'Stop') return;
 
-  const transcriptPath = payload.transcript_path;
-  const sessionId = payload.session_id ?? 'unknown';
-  const cwd = payload.cwd ?? process.cwd();
-  if (typeof transcriptPath !== 'string' || transcriptPath.length === 0) return; // unverified harness shape -> fail open
-
-  let raw = null;
-  try { raw = readFileSync(transcriptPath, 'utf8'); } catch { return; } // unreadable transcript -> fail open
-  const finalText = lastAssistantText(raw);
-
-  const stateFile = join(cwd, '.audit', 'legion', 'stop-shape', `${sessionId}.json`);
-  const pushes = payload.stop_hook_active ? pushCount(stateFile) : 0;
-
-  // `recorded` is read from the WHOLE transcript, not this turn alone: a gotcha
-  // written earlier in the session is already durable, and re-blocking for it
-  // would be the grind this gate exists to avoid.
-  const intent = userIntent(raw);
-  // D-5: recent explicit no-deferral directives, from admitted user turns only.
-  const explicitDirectiveEvidence = recentUserInstructions(raw, { limit: 6 })
-    .flatMap((text) => explicitDirective(text));
-  // Continue-intent reads only the LATEST genuine user turn: a correction
-  // phrased as a question three turns ago was already answered or superseded.
-  const [latestInstruction] = recentUserInstructions(raw, { limit: 1 });
-  const verdict = evaluateStopShape(finalText, {
-    pushes,
-    recorded: recordedThisTurn(raw),
-    escalated: escalatedThisSession(raw),
-    authorized: intent.intent === 'proceed',
-    authorizedEvidence: intent.evidence,
-    explicitDirectiveEvidence,
-    continueIntentEvidence: continueIntent(latestInstruction ?? ''),
-    continueToolsUsed: toolUseAfterLastUser(raw),
-  });
+  const verdict = evaluateTranscriptStop(payload);
   if (!verdict.block) return;
-
-  try {
-    mkdirSync(dirname(stateFile), { recursive: true });
-    writeFileSync(stateFile, `${JSON.stringify({ pushes: pushes + 1, lastShape: verdict.shape, at: new Date().toISOString() })}\n`);
-  } catch { /* state loss weakens the cap by one turn; never block on it */ }
 
   process.stdout.write(`${JSON.stringify({
     decision: 'block',

@@ -8,8 +8,9 @@
 // (Bash/shell family, MultiEdit, and apply_patch — see codex-adapter.mjs's
 // EFFECT_TOOL_MAP comment for why each is null).
 
-import { test } from 'node:test';
+import { test, after } from 'node:test';
 import assert from 'node:assert/strict';
+import { execFileSync } from 'node:child_process';
 
 import {
   buildRawCodexEvent,
@@ -18,10 +19,21 @@ import {
   ADAPTER_NAME,
   observeCodexIdentity,
   mapCodexPreEffect,
+  parseCodexApplyPatch,
+  resolveCodexSessionId,
 } from '../host/codex-adapter.mjs';
 import { validateHostEvent } from '../lib/host-event.mjs';
 import { generateTestKeyRing } from '../lib/keys.mjs';
 import { ReplayGuard } from '../lib/replay.mjs';
+
+// Host test runs may carry this process's real durable thread. Baseline
+// fixtures model payload-only events, so isolate them from that ambient state.
+const inheritedCodexThreadId = process.env.CODEX_THREAD_ID;
+delete process.env.CODEX_THREAD_ID;
+after(() => {
+  if (inheritedCodexThreadId === undefined) delete process.env.CODEX_THREAD_ID;
+  else process.env.CODEX_THREAD_ID = inheritedCodexThreadId;
+});
 
 test('B7 Codex identity & pre-effect tables are host-derived and closed', () => {
   const payload = { hook_event_name: 'PreToolUse', sessionId: 'session', agentId: 'agent', agentType: 'alchemist', tool_name: 'Edit', tool_input: { file_path: 'src/a.mjs' }, tool_use_id: 'tool' };
@@ -29,6 +41,25 @@ test('B7 Codex identity & pre-effect tables are host-derived and closed', () => 
   assert.deepEqual(mapCodexPreEffect(payload), { effectClass: 'FILE_WRITE', target: 'src/a.mjs', operation: 'Edit', toolUseId: 'tool' });
   assert.deepEqual(observeCodexIdentity({ ...payload, authority: 'sage' }), { modelClaimed: true });
   assert.equal(mapCodexPreEffect({ ...payload, tool_name: 'shell' }), null);
+});
+
+test('EC-503 v2: apply_patch expands ordered add, delete & move effects with stable derived ids', () => {
+  const command = ['*** Begin Patch', '*** Add File: src/a.mjs', '+a', '*** Update File: src/b.mjs', '*** Move to: src/c.mjs', '@@', '-b', '+c', '*** Delete File: src/d.mjs', '*** End Patch'].join('\n');
+  const mapped = mapCodexPreEffect({ tool_name: 'apply_patch', tool_input: { command }, tool_use_id: 'host-tool' }, { workspace: '/work' });
+  assert.deepEqual(mapped.effects.map(({ effectClass, target }) => ({ effectClass, target })), [
+    { effectClass: 'FILE_WRITE', target: 'src/a.mjs' }, { effectClass: 'FILE_DELETE', target: 'src/b.mjs' },
+    { effectClass: 'FILE_WRITE', target: 'src/c.mjs' }, { effectClass: 'FILE_DELETE', target: 'src/d.mjs' },
+  ]);
+  assert.equal(mapped.effects.every((effect) => /^[a-f0-9]{64}$/.test(effect.toolUseId)), true);
+  assert.equal(parseCodexApplyPatch(command, { workspace: '/work' }).length, 4);
+});
+
+test('EC-503 v2: apply_patch rejects traversal, duplicate targets, malformed input & oversized effect sets', () => {
+  assert.equal(parseCodexApplyPatch('*** Begin Patch\n*** Add File: ../x\n+x\n*** End Patch'), null);
+  assert.equal(parseCodexApplyPatch('*** Begin Patch\n*** Add File: x\n+x\n*** Add File: x\n+x\n*** End Patch'), null);
+  assert.equal(parseCodexApplyPatch('not a patch'), null);
+  const sections = Array.from({ length: 257 }, (_, index) => `*** Add File: src/${index}.mjs\n+x`).join('\n');
+  assert.equal(parseCodexApplyPatch(`*** Begin Patch\n${sections}\n*** End Patch`), null);
 });
 import { ReceiptStore } from '../lib/receipt-store.mjs';
 import { loadPolicy, PolicyEngine, DEFAULT_POLICY_PATH } from '../lib/policy.mjs';
@@ -135,6 +166,30 @@ test('EC-B: Codex thread identity completes SubagentStart authority binding', ()
       agentType: 'sage',
       eventId: hostEvent.eventId,
     });
+  } finally {
+    if (prior === undefined) delete process.env.CODEX_THREAD_ID;
+    else process.env.CODEX_THREAD_ID = prior;
+  }
+});
+
+test('EC-503 v6: fresh Codex process gives durable thread identity precedence over transient session id', () => {
+  const adapter = new URL('../host/codex-adapter.mjs', import.meta.url).href;
+  const script = `import { buildRawCodexEvent } from ${JSON.stringify(adapter)}; console.log(buildRawCodexEvent({ hook_event_name: 'SessionStart', session_id: 'transient-session', thread_id: 'durable-thread' }).sessionId);`;
+  const output = execFileSync(process.execPath, ['--input-type=module', '--eval', script], {
+    encoding: 'utf8', env: { ...process.env, CODEX_THREAD_ID: 'durable-thread' },
+  });
+  assert.equal(output.trim(), 'durable-thread');
+});
+
+test('EC-503 v6: matching payload thread is accepted & conflicting identity fails closed', () => {
+  const prior = process.env.CODEX_THREAD_ID;
+  process.env.CODEX_THREAD_ID = 'durable-thread';
+  try {
+    assert.equal(resolveCodexSessionId({ session_id: 'transient-session', thread_id: 'durable-thread' }), 'durable-thread');
+    assert.throws(
+      () => resolveCodexSessionId({ session_id: 'transient-session', thread_id: 'conflicting-thread' }),
+      /ARC_BINDING_MISMATCH|conflicts/,
+    );
   } finally {
     if (prior === undefined) delete process.env.CODEX_THREAD_ID;
     else process.env.CODEX_THREAD_ID = prior;

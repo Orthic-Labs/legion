@@ -95,10 +95,19 @@ test('codex bind writes managed agent pointers and is idempotent', () => {
     const config = readFileSync(join(dir, '.codex', 'config.toml'), 'utf8');
     assert.match(config, /# >>> legion:managed-block v1 >>>/);
     assert.match(config, /config_file = "agents\/sage.toml"/);
+    const server = join(root, 'integrations', 'mcp', 'server.mjs').replace(/\\/g, '/');
+    assert.ok(existsSync(server), 'generated Legion MCP server must exist at package root');
+    assert.match(config, new RegExp(`args = \["${server.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}"\]`));
+    assert.doesNotMatch(config, /\/lib\/integrations\//);
     const sage = readFileSync(join(dir, '.codex', 'agents', 'sage.toml'), 'utf8');
+    assert.match(sage, /\nname = "sage"/);
     assert.match(sage, /\nmodel = "gpt-5\.6-sol"/);
     assert.match(sage, /\nmodel_reasoning_effort = "high"/);
     assert.doesNotMatch(sage, /\ndescription = /);
+    for (const name of ['alchemist', 'oracle', 'covenant-seat']) {
+      const agent = readFileSync(join(dir, '.codex', 'agents', `${name}.toml`), 'utf8');
+      assert.match(agent, new RegExp(`\\nname = "${name}"`));
+    }
     assert.equal(bind(['--write', '--harness', 'codex', dir]).status, 0);
     assert.equal(readFileSync(join(dir, '.codex', 'config.toml'), 'utf8'), config);
   } finally { rmSync(dir, { recursive: true, force: true }); }

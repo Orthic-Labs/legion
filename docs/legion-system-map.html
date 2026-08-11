@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Legion system map</title>
+  <style>
+    :root { color-scheme: dark light; --bg:#11151d; --panel:#191f2a; --line:#415069; --text:#e9edf5; --muted:#a8b4c7; --intent:#f2b84b; --eng:#65d5c5; --commercial:#af8cf4; --control:#ff8ba7; --delivery:#8cc8ff; }
+    @media (prefers-color-scheme: light) { :root { --bg:#f7f9fc; --panel:#fff; --line:#b5c1d4; --text:#172033; --muted:#536078; } }
+    * { box-sizing:border-box; }
+    body { margin:0; background:var(--bg); color:var(--text); font:16px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif; }
+    main { max-width:1180px; margin:auto; padding:32px 20px 54px; }
+    h1 { font-size:clamp(2rem,4vw,3.5rem); margin:0; letter-spacing:-.04em; }
+    h2 { margin:0 0 10px; font-size:1.1rem; }
+    p { margin:10px 0; }
+    .lede { max-width:780px; font-size:1.12rem; color:var(--muted); }
+    .key { display:flex; flex-wrap:wrap; gap:8px 16px; margin:24px 0 18px; color:var(--muted); }
+    .key span::before { content:""; display:inline-block; width:.75rem; height:.75rem; margin-right:.45rem; border-radius:50%; background:var(--c); vertical-align:-.05rem; }
+    .filters { display:flex; flex-wrap:wrap; gap:8px; margin:20px 0 28px; }
+    button { border:1px solid var(--line); border-radius:999px; background:transparent; color:var(--text); cursor:pointer; font:inherit; padding:7px 12px; }
+    button[aria-pressed="true"] { background:var(--text); color:var(--bg); }
+    button:focus-visible, summary:focus-visible { outline:3px solid var(--intent); outline-offset:3px; }
+    .flow { display:grid; gap:18px; }
+    .row { display:grid; grid-template-columns:180px 34px 1fr; align-items:stretch; gap:12px; }
+    .arrow { display:grid; place-items:center; color:var(--muted); font-size:1.5rem; }
+    .node, .group { border:1px solid var(--line); border-radius:10px; padding:16px; background:var(--panel); }
+    .node { border-left:5px solid var(--tone); }
+    .group { display:grid; gap:12px; }
+    .group > header { display:flex; align-items:baseline; justify-content:space-between; gap:10px; }
+    .group > header span { color:var(--muted); font-size:.9rem; }
+    .cards { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:10px; }
+    .card { border:1px solid var(--line); border-left:4px solid var(--tone); border-radius:7px; padding:12px; }
+    .card h3 { margin:0 0 4px; font-size:1rem; }
+    .card p { color:var(--muted); font-size:.91rem; margin:0; }
+    .intent { --tone:var(--intent); }
+    .engineering { --tone:var(--eng); }
+    .commercial { --tone:var(--commercial); }
+    .control { --tone:var(--control); }
+    .delivery { --tone:var(--delivery); }
+    .is-muted { opacity:.2; filter:grayscale(.6); }
+    details { margin-top:28px; border-top:1px solid var(--line); padding-top:18px; }
+    summary { cursor:pointer; font-weight:650; }
+    .rules { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:10px; margin-top:14px; }
+    .rule { border-left:3px solid var(--line); padding-left:12px; color:var(--muted); }
+    @media (max-width:680px) { main { padding:22px 14px 40px; } .row { grid-template-columns:1fr; } .arrow { transform:rotate(90deg); height:20px; } .cards { grid-template-columns:1fr; } }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <h1>Legion system map</h1>
+      <p class="lede">One coordination layer routes work across engineering, commercial, research, editorial, & design capability; host bindings project the same doctrine into Claude Code, Codex, or other <code>AGENTS.md</code> readers.</p>
+    </header>
+    <div class="key" aria-label="Map legend"><span style="--c:var(--intent)">intent</span><span style="--c:var(--eng)">engineering</span><span style="--c:var(--commercial)">routed lenses</span><span style="--c:var(--control)">deterministic control</span><span style="--c:var(--delivery)">delivery</span></div>
+    <div class="filters" aria-label="Highlight map layers">
+      <button type="button" data-filter="all" aria-pressed="true">All layers</button>
+      <button type="button" data-filter="engineering" aria-pressed="false">Engineering</button>
+      <button type="button" data-filter="commercial" aria-pressed="false">Routed lenses</button>
+      <button type="button" data-filter="control" aria-pressed="false">Control & evidence</button>
+    </div>
+    <section class="flow" aria-label="Legion flow from intent to delivery">
+      <div class="row layer intent"><section class="node"><h2>1. Current user intent</h2><p>Question, plan, pause, change, or delivery request. Live explicit intent defines scope. Hooks & assistant prose cannot create consent.</p></section><div class="arrow" aria-hidden="true">→</div><section class="node"><h2>2. Legion</h2><p>Classifies depth, routes capability, runs independent lanes in parallel, & reports local, verified, committed, pushed, & deployed state separately.</p></section></div>
+      <div class="row layer engineering"><section class="group"><header><h2>Engineering cohort</h2><span>authority system</span></header><div class="cards"><article class="card"><h3>Sage</h3><p>Diagnosis, architecture, invariants, executable contract.</p></article><article class="card"><h3>Alchemist</h3><p>Bounded transformations, mechanical repair, focused verification.</p></article><article class="card"><h3>Oracle</h3><p>Independent audit; outcome & safety findings block delivery.</p></article><article class="card control"><h3>Arcane</h3><p>Deterministic effect gates, receipts, stale-evidence invalidation.</p></article><article class="card"><h3>Covenant</h3><p>Isolated challenge seats over frozen evidence; advisory only.</p></article></div></section><div class="arrow" aria-hidden="true">+</div><section class="group commercial"><header><h2>Routed lenses</h2><span>reusable methods</span></header><div class="cards"><article class="card"><h3>Commercial</h3><p>Marketing, ads, social, SEO.</p></article><article class="card"><h3>Research</h3><p>General, scientific, market evidence.</p></article><article class="card"><h3>Editorial</h3><p>Writing & editorial deliverables.</p></article><article class="card"><h3>Design</h3><p>Interface, visual, brand identity.</p></article></div></section></div>
+      <div class="row layer delivery"><section class="node"><h2>3. Evidence & delivery</h2><p>Receipts bind effects to work. Audit freezes scope before execution; unproven coverage stays visible. Delivery claims name exact proven state.</p></section><div class="arrow" aria-hidden="true">→</div><section class="node"><h2>4. Harness projections</h2><p>Claude Code & Codex receive native agents or hooks where their hosts support them. Other <code>AGENTS.md</code> readers receive the same doctrine with fidelity reported honestly at the available CLI or boundary.</p></section></div>
+    </section>
+    <details><summary>Operating boundaries</summary><div class="rules"><p class="rule"><strong>Questions stay questions.</strong><br>Plans, pauses, stops, revocations, & scope narrowing authorize no effect.</p><p class="rule"><strong>Authority is separated.</strong><br>Sage decides, Alchemist changes, Oracle verifies independently; Arcane is a no-model control plane.</p><p class="rule"><strong>Workflow follows risk.</strong><br>Small reversible work stays ambient; locked domains, dispatched work, or explicit contracts use the contract chain.</p><p class="rule"><strong>Proof beats narration.</strong><br>Completion claims require concrete artifact or behavior evidence, never recap prose.</p></div></details>
+  </main>
+  <script>
+    const filters = document.querySelectorAll('[data-filter]');
+    const layers = document.querySelectorAll('.layer');
+    filters.forEach((button) => button.addEventListener('click', () => {
+      const selected = button.dataset.filter;
+      filters.forEach((item) => item.setAttribute('aria-pressed', String(item === button)));
+      layers.forEach((layer) => layer.classList.toggle('is-muted', selected !== 'all' && !layer.classList.contains(selected) && !(selected === 'control' && layer.querySelector('.control'))));
+    }));
+  </script>
+</body>
+</html>

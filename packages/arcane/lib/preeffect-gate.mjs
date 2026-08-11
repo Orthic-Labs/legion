@@ -130,6 +130,8 @@ export class PreEffectGate {
 
   #enforcementMode;
 
+  #approvalAuthority;
+
   /**
    * @param {object} deps
    * @param {object} deps.policy a PolicyEngine, or failClosedEngine(...)
@@ -144,12 +146,13 @@ export class PreEffectGate {
    *   `enforcementHealth: 'advisory'`, which ARC's enforcement ranking makes
    *   structurally unable to satisfy any claim level requiring read_only+.
    */
-  constructor({ policy, capabilityStore, authorityLedger, clock = () => Date.now(), enforcementMode = 'enforcing' }) {
+  constructor({ policy, capabilityStore, authorityLedger, approvalAuthority = null, clock = () => Date.now(), enforcementMode = 'enforcing' }) {
     this.#policy = policy;
     this.#capabilityStore = capabilityStore ?? null;
     this.#authority = authorityLedger;
     this.#clock = clock;
     this.#enforcementMode = enforcementMode;
+    this.#approvalAuthority = approvalAuthority;
   }
 
   /** True when the gate can actually enforce. */
@@ -277,6 +280,7 @@ export class PreEffectGate {
       policyDigest: this.#policy.digest,
       policyId: this.#policy.policyId,
       policyVersion: this.#policy.version,
+      approvalEvidence: chk.approvalEvidence,
       issuedAt: nowIso,
       expiresAt,
       maxUses: limits.maxUses ?? null,
@@ -522,7 +526,16 @@ export class PreEffectGate {
         contract,
       };
     }
-    const policyCall = this.#policy.effectDecision(effectRequest.effectClass, { approvalDigest });
+    // Approval is host-derived only. Ignore any digest carried by the caller;
+    // only the injected host authority can mint & immediately consume evidence.
+    let derivedApprovalDigest = null; let approvalEvidence = null;
+    if (this.#policy.effectDecision(effectRequest.effectClass).code === 'ARC_APPROVAL_REQUIRED') {
+      const approval = this.#approvalAuthority?.derive(effectRequest, ctx);
+      if (!approval?.allowed) return { hardFail: false, deny: approval ?? decision({ allowed: false, code: 'ARC_APPROVAL_REQUIRED', message: 'required approval authority unavailable', detail: {} }), contract };
+      derivedApprovalDigest = approval.detail.approvalDigest;
+      approvalEvidence = approval.detail.evidence;
+    }
+    const policyCall = this.#policy.effectDecision(effectRequest.effectClass, { approvalDigest: derivedApprovalDigest });
     if (!policyCall.allowed) {
       return {
         hardFail: false,
@@ -545,7 +558,7 @@ export class PreEffectGate {
     const latitudeCall = this.#checkLatitude(contract, effectRequest);
     if (!latitudeCall.allowed) return { hardFail: false, deny: latitudeCall, contract };
 
-    return { hardFail: false, deny: null, contract };
+    return { hardFail: false, deny: null, contract, approvalEvidence };
   }
 
   #checkLatitude(contract, effectRequest) {

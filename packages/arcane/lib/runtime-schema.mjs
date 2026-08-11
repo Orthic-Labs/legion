@@ -5,7 +5,7 @@ import { validateSchema } from '../../../lib/qualification/schema-validator.mjs'
 import { ArcaneError } from './errors.mjs';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..', 'schemas');
-const FILES = Object.freeze(['contract-seal-v1.schema.json', 'authority-binding-v1.schema.json', 'capability-grant-v1.schema.json', 'capability-transition-v1.schema.json', 'host-runtime-output-v1.schema.json', 'host-runtime-result-v1.schema.json']);
+const FILES = Object.freeze(['contract-seal-v1.schema.json', 'authority-binding-v1.schema.json', 'capability-grant-v1.schema.json', 'capability-transition-v1.schema.json', 'user-approval-v1.schema.json', 'host-runtime-output-v1.schema.json', 'host-runtime-result-v1.schema.json']);
 export class RuntimeSchemaSet {
   #schemas;
   constructor() { this.#schemas = new Map(FILES.map((file) => { const schema = JSON.parse(readFileSync(join(root, file), 'utf8')); return [schema.$id, schema]; })); }

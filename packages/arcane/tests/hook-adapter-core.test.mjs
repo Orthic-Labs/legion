@@ -80,11 +80,11 @@ function gitRepo() {
  * effect/sourceRevision fields fakeNormalize()'s minimal version doesn't expose. */
 function fakeNormalizeEvent({
   eventType, sessionId = null, workspace = 'ws-main', idempotencyKey = null,
-  effect = null, runId = null, sourceRevision,
+  effect = null, runId = null, contractId = null, sourceRevision,
 }) {
   return () => normalizeHostEvent(
     {
-      eventType, sessionId, workspace, idempotencyKey, effect, runId,
+      eventType, sessionId, workspace, idempotencyKey, effect, runId, contractId,
       time: new Date().toISOString(),
       client: { name: 'test-host', version: '1' },
       host: { platform: 'test', version: '1' },
@@ -278,43 +278,47 @@ test('EC-5 item 5: sourceRevision never overwrites a value normalize() already s
 
 // ────────────────────────────────────── EC-5 item 5: pre/post-effect correlation
 
-test('EC-5 item 5 (I-1): PreEffectCorrelationStore mints a requestId at pre-effect and hands it to the matching post-effect, which then ingests as an ambient receipt', () => {
+test('EC-503 v11: ambient post-effect accepts reservation-only; contracted needs finalization', () => {
   const repo = gitRepo();
   const h = harness();
   const correlationDir = tempDir('arcane-hac-correlation-');
   const preEffectCorrelation = new PreEffectCorrelationStore({ root: correlationDir.root });
   const RUN_ID = 'run_01ARZ3NDEKTSV4RRFFQ69G5FAV';
   try {
-    const pre = handleHookEvent(
-      {},
-      {
-        normalize: fakeNormalizeEvent({ eventType: 'pre-effect', sessionId: 's1', workspace: repo.root, idempotencyKey: 'tu-1' }),
-        keyRing: h.keyRing, receiptStore: h.receiptStore, replayGuard: h.replayGuard, policy: h.policy, preEffectCorrelation,
-      },
-    );
-    // I-1 (this contract's own numbering): pre-effect never carries a
-    // proposed effect (EC-2's separate I-1) and this store adds no such
-    // field either — it only minted a requestId, invisibly to this event.
-    assert.equal(pre.hostEvent.priorCorrelation, null);
-    assert.ok(preEffectCorrelation.getRequestId('tu-1'), 'the mint actually persisted');
+    const depsFor = (id, contractId = null) => ({
+      normalize: fakeNormalizeEvent({ eventType: 'post-effect', sessionId: `s-${id}`, workspace: repo.root, idempotencyKey: id, runId: RUN_ID, contractId,
+        effect: { effectClass: 'FILE_WRITE', target: 'a.txt', operation: 'write' } }),
+      keyRing: h.keyRing, receiptStore: h.receiptStore, replayGuard: h.replayGuard, policy: h.policy, preEffectCorrelation,
+    });
+    for (const id of ['tu-ambient', 'tu-contracted', 'tu-finalized']) {
+      handleHookEvent({}, { ...depsFor(id), normalize: fakeNormalizeEvent({ eventType: 'pre-effect', sessionId: `s-${id}`, workspace: repo.root, idempotencyKey: id }) });
+    }
 
-    const post = handleHookEvent(
-      {},
-      {
-        normalize: fakeNormalizeEvent({
-          eventType: 'post-effect', sessionId: 's1', workspace: repo.root, idempotencyKey: 'tu-1', runId: RUN_ID,
-          effect: { effectClass: 'FILE_WRITE', target: 'a.txt', operation: 'write' },
-        }),
-        keyRing: h.keyRing, receiptStore: h.receiptStore, replayGuard: h.replayGuard, policy: h.policy, preEffectCorrelation,
-      },
-    );
+    const ambient = handleHookEvent({}, depsFor('tu-ambient'));
+    assert.equal(ambient.accepted, true, JSON.stringify(ambient.decision));
+    assert.equal(ambient.hostEvent.priorCorrelation.requestId, preEffectCorrelation.getRequestId('tu-ambient'));
+    assert.equal(ambient.hostEvent.priorCorrelation.capabilityId, null);
 
-    assert.equal(post.hostEvent.priorCorrelation.requestId, preEffectCorrelation.getRequestId('tu-1'), 'post-effect retrieved the SAME requestId pre-effect minted');
+    const contracted = handleHookEvent({}, depsFor('tu-contracted', 'EC-503'));
+    assert.equal(contracted.accepted, false);
+    assert.equal(contracted.decision.code, 'ARC_INGEST_CORRELATION_MISSING');
+
+    const requestId = preEffectCorrelation.getRequestId('tu-finalized');
+    assert.ok(preEffectCorrelation.finalize('tu-finalized', {
+      requestId, capabilityId: 'cap-ambient',
+      requestedEffect: { effectClass: 'FILE_WRITE', target: 'a.txt', operation: 'write' },
+      authorizedEffect: { effectClass: 'FILE_WRITE', target: 'a.txt', operation: 'write' },
+    }));
+    const post = handleHookEvent({}, depsFor('tu-finalized', 'EC-503'));
+
+    assert.equal(post.hostEvent.priorCorrelation.requestId, requestId);
+    assert.equal(post.hostEvent.priorCorrelation.capabilityId, 'cap-ambient');
     assert.equal(post.accepted, true, JSON.stringify(post.decision));
     assert.ok(post.receipt, 'amendment A-ER-1 (item 5): a real runId + null contractId/taskId is accepted as an ambient receipt, not refused');
     assert.equal(post.receipt.runId, RUN_ID);
-    assert.equal(post.receipt.contractId, null);
+    assert.equal(post.receipt.contractId, 'EC-503');
     assert.equal(post.receipt.taskId, null);
+    assert.equal(post.receipt.authorized.capabilityId, 'cap-ambient');
     assert.equal(post.receipt.match, true);
     assert.equal(post.receipt.sourceRevision, repo.headRevision, 'the honestly-computed sourceRevision made it onto the receipt');
   } finally {
