@@ -1,4 +1,5 @@
-import { mkdirSync, openSync, readFileSync, readdirSync, closeSync, fsyncSync, writeSync } from 'node:fs';
+import { mkdirSync, openSync, readFileSync, readdirSync, closeSync, fsyncSync, writeSync, existsSync, renameSync } from 'node:fs';
+import { randomBytes } from 'node:crypto';
 import { join } from 'node:path';
 import { digestValue } from './canonical.mjs';
 import { ArcaneError } from './errors.mjs';
@@ -16,6 +17,10 @@ export class AuthorityBindingStore {
     catch(error){if(error.code!=='EEXIST')throw error; const existing=this.get({adapter,sessionId,agentId}); if(!existing)throw new ArcaneError('ARC_STORE_CORRUPT','binding record corrupt'); if(['adapter','sessionIdDigest','agentIdDigest','agentType','authority'].some(k=>existing[k]!==record[k]))throw new ArcaneError('ARC_BINDING_MISMATCH','binding identity conflict'); return {bound:true,created:false,record:existing};}
   }
   get({adapter,sessionId,agentId=null}){try{const r=JSON.parse(readFileSync(this.path(adapter,sessionId,agentId),'utf8'));return r?.kind==='arcane-authority-binding'?r:null;}catch(e){if(e.code==='ENOENT')return null;throw new ArcaneError('ARC_STORE_CORRUPT','binding record corrupt');}}
+  // A binding is routing metadata, never authority. On a read-only Stop it is
+  // safe to quarantine one unreadable binding: this removes a bad lookup but
+  // cannot mint an authority assertion or widen a later mutation.
+  recover({adapter,sessionId,agentId=null}){const path=this.path(adapter,sessionId,agentId);if(!existsSync(path))return false;try{renameSync(path,`${path}.corrupt-${randomBytes(6).toString('hex')}`);return true;}catch{return false;}}
   // Resolve a binding without knowing the raw agentId. `path()` hashes the raw
   // id, and only the digest is ever stored, so an agent cannot look up its own
   // binding — which left `contract seal` unrunnable by anyone. Scanning by the

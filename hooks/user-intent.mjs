@@ -142,7 +142,7 @@ const PLAN = /\b(?:plan|design|architect(?:ure)?|proposal|propose|review|status|
 // Adrian telling the agent to STOP. Must outrank a directive: "Don't make any
 // changes" after "fix it" is a hold, and reading only the older turn would
 // override an explicit stop.
-const REVOKE = /\b(?:stop|hold off|wait|cancel|make no changes|no changes)\b|\b(?:don'?t|do not)\s+(?:make|change|apply|touch|do)\s+(?:anything|any changes?)\b/i;
+const REVOKE = /\b(?:stop|pause|suspend|hold off|wait|cancel|make no changes|no changes)\b|\b(?:don'?t|do not)\s+(?:make|change|apply|touch|do)\s+(?:anything|any changes?)\b/i;
 const SCOPE_NARROW = /\b(?:only|except|exclude|without)\b|\b(?:don'?t|do not)\b/i;
 
 /** Quoted, fenced, and inline-code directives are evidence, never authority. */

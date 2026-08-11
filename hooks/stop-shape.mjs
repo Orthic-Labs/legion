@@ -26,7 +26,7 @@
 // unverified), the gate allows. Blocking blind is the theatre this system
 // exists to remove.
 
-import { readFileSync, mkdirSync, writeFileSync } from 'node:fs';
+import { readFileSync, mkdirSync, writeFileSync, renameSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { classifyLatestUserIntent, latestExternalUserTurn } from './user-intent.mjs';
 
@@ -331,8 +331,21 @@ export function lastAssistantText(raw) {
   return null;
 }
 
-function pushCount(stateFile) {
-  try { return JSON.parse(readFileSync(stateFile, 'utf8')).pushes ?? 0; } catch { return 0; }
+function circuitState(stateFile) {
+  try {
+    const state = JSON.parse(readFileSync(stateFile, 'utf8'));
+    return {
+      blockedCloses: Number.isInteger(state.blockedCloses) ? state.blockedCloses : (state.pushes ?? 0),
+      reopenings: Number.isInteger(state.reopenings) ? state.reopenings : 0,
+    };
+  } catch (error) {
+    if (error?.code === 'ENOENT') return { blockedCloses: 0, reopenings: 0 };
+    // A broken self-maintenance file must never recreate an infinite Stop
+    // loop. Its one bounded recovery is to quarantine it; failure opens this
+    // advisory breaker rather than blocking blind.
+    try { renameSync(stateFile, `${stateFile}.corrupt-${Date.now()}`); } catch { return { blockedCloses: MAX_PUSHES, reopenings: MAX_PUSHES }; }
+    return { blockedCloses: 0, reopenings: 0 };
+  }
 }
 
 /** Was any tool used after the last genuine (non-tool-result) user turn? */
@@ -374,10 +387,10 @@ export function stripCodeSpans(text) {
     .replace(/["“][^"“”\n]{0,300}["”]/g, ' ');
 }
 
-export function evaluateStopShape(finalText, { intent = 'EXECUTE', pushes = 0, recorded = false, escalated = false, authorized = false, authorizedEvidence = null, explicitDirectiveEvidence = [], continueIntentEvidence = null, continueToolsUsed = false } = {}) {
+export function evaluateStopShape(finalText, { intent = 'EXECUTE', pushes = 0, reopenings = 0, recorded = false, escalated = false, authorized = false, authorizedEvidence = null, explicitDirectiveEvidence = [], continueIntentEvidence = null, continueToolsUsed = false } = {}) {
   if (typeof finalText !== 'string' || finalText.length === 0) return { block: false, reason: 'no-final-text' };
   if (intent !== 'EXECUTE' && intent !== 'CONTINUE') return { block: false, reason: 'non-compelling-intent' };
-  if (pushes >= MAX_PUSHES) return { block: false, reason: 'push-cap' };
+  if (pushes >= MAX_PUSHES || reopenings >= MAX_PUSHES) return { block: false, reason: 'stop-circuit-open' };
   // Packet parsing stays on the RAW text: structured blockers legitimately
   // carry quoted JSON keys ("reserved_category": ...), and stripping them
   // would misread a valid packet as category-less. Only the prose heuristics
@@ -531,11 +544,13 @@ export function evaluateTranscriptStop(payload) {
   const sessionId = payload.session_id ?? 'unknown';
   const cwd = payload.cwd ?? process.cwd();
   const stateFile = join(cwd, '.audit', 'legion', 'stop-shape', `${sessionId}.json`);
-  const pushes = payload.stop_hook_active ? pushCount(stateFile) : 0;
+  const circuit = circuitState(stateFile);
+  const pushes = circuit.blockedCloses;
+  const reopenings = payload.stop_hook_active ? circuit.reopenings : 0;
   const intent = classifyLatestUserIntent(raw);
   const latestInstruction = latestExternalUserTurn(raw);
   const verdict = evaluateStopShape(lastAssistantText(raw), {
-    pushes,
+    pushes, reopenings,
     intent: intent.intent,
     recorded: recordedThisTurn(raw),
     escalated: escalatedThisSession(raw),
@@ -548,7 +563,7 @@ export function evaluateTranscriptStop(payload) {
   if (verdict.block) {
     try {
       mkdirSync(dirname(stateFile), { recursive: true });
-      writeFileSync(stateFile, `${JSON.stringify({ pushes: pushes + 1, lastShape: verdict.shape, at: new Date().toISOString() })}\n`);
+      writeFileSync(stateFile, `${JSON.stringify({ pushes: pushes + 1, blockedCloses: pushes + 1, reopenings: reopenings + 1, lastShape: verdict.shape, at: new Date().toISOString() })}\n`);
     } catch { /* state loss weakens the cap by one turn; never block on it */ }
   }
   return verdict;
