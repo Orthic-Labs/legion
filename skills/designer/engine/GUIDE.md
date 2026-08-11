@@ -129,7 +129,7 @@ If someone could look at this interface and say "AI made that" without doubt, it
 | `delight [target]` | Enhance | Add personality and memorable touches | [reference/delight.md](legion-skill://designer/engine/reference/delight.md) |
 | `overdrive [target]` | Enhance | Push past conventional limits | [reference/overdrive.md](legion-skill://designer/engine/reference/overdrive.md) |
 | `clarify [target]` | Fix | Improve UX copy, labels, and error messages | [reference/clarify.md](legion-skill://designer/engine/reference/clarify.md) |
-| `morph [target]` | Fix | Morph for different devices and screen sizes | [reference/morph.md](legion-skill://designer/engine/reference/morph.md) |
+| `morph [target]` | Fix | Morph for different devices and screen sizes | reference/morph.md (<external-reference>) |
 | `optimize [target]` | Fix | Diagnose and fix UI performance | [reference/optimize.md](legion-skill://designer/engine/reference/optimize.md) |
 | `live` | Iterate | Visual variant mode: pick elements in the browser, generate alternatives | [reference/live.md](legion-skill://designer/engine/reference/live.md) |
 | `deck [topic]` | Deliverable | HTML slide deck → editable PPTX / PDF (huashu) | [huashu/references/slide-decks.md](legion-skill://designer/engine/huashu/references/slide-decks.md) |

@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "domains": [
+    {
+      "id": "engineering",
+      "kind": "router",
+      "children": [
+        { "id": "sage", "kind": "capability", "targetType": "agent-dispatch", "targetRef": "roster/sage.md" },
+        { "id": "alchemist", "kind": "capability", "targetType": "agent-dispatch", "targetRef": "roster/alchemist.md" },
+        { "id": "oracle", "kind": "capability", "targetType": "agent-dispatch", "targetRef": "roster/oracle.md" }
+      ]
+    },
+    { "id": "commercial", "kind": "router", "availability": "unavailable" },
+    { "id": "research", "kind": "router", "availability": "unavailable" },
+    { "id": "editorial", "kind": "router", "availability": "unavailable" },
+    { "id": "design", "kind": "router", "availability": "unavailable" }
+  ]
+}

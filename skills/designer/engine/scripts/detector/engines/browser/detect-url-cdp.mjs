@@ -3,7 +3,7 @@
  *
  * Launches an installed Chrome/Edge headless with a DevTools port, injects the
  * same detect-antipatterns-browser.js bundle, and collects serialized findings
- * through raw CDP (WebSocket client adapted from tools/skills/qa/scripts/qa.mjs).
+ * through raw CDP (WebSocket client adapted from tools/lib/qa-engine/qa.mjs).
  * Used automatically by detect-url.mjs when `import('puppeteer')` fails, so a
  * machine without puppeteer still gets real rendered-geometry checks instead of
  * silently degrading to static scanning.
@@ -33,10 +33,10 @@ function findBrowserExecutable() {
   const home = process.env.HOME || process.env.USERPROFILE || '';
   const candidates = process.platform === 'win32'
     ? [
-        path.join(process.env.ProgramFiles || '<local-path> Files', 'Google\\Chrome\\Application\\chrome.exe'),
-        path.join(process.env['ProgramFiles(x86)'] || '<local-path> Files (x86)', 'Google\\Chrome\\Application\\chrome.exe'),
-        path.join(process.env.ProgramFiles || '<local-path> Files', 'Microsoft\\Edge\\Application\\msedge.exe'),
-        path.join(process.env['ProgramFiles(x86)'] || '<local-path> Files (x86)', 'Microsoft\\Edge\\Application\\msedge.exe'),
+        path.join(process.env.ProgramFiles || 'C:\\Program Files', 'Google\\Chrome\\Application\\chrome.exe'),
+        path.join(process.env['ProgramFiles(x86)'] || 'C:\\Program Files (x86)', 'Google\\Chrome\\Application\\chrome.exe'),
+        path.join(process.env.ProgramFiles || 'C:\\Program Files', 'Microsoft\\Edge\\Application\\msedge.exe'),
+        path.join(process.env['ProgramFiles(x86)'] || 'C:\\Program Files (x86)', 'Microsoft\\Edge\\Application\\msedge.exe'),
       ]
     : [
         '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',

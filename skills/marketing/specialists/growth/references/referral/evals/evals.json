@@ -1,0 +1,145 @@
+{
+  "schema_version": 1,
+  "skill": "growth-referral",
+  "should_trigger": [
+    {
+      "id": "referral-trigger-saas-program",
+      "prompt": "Help me design a referral program for our SaaS product. We're a $49/month project management tool with about 1,000 customers. We want to encourage word-of-mouth growth.",
+      "expected_skill": "growth",
+      "forbidden_skills": [],
+      "expected_behavior": "Routes to referral reference. Checks product-marketing-context.md, distinguishes referral from affiliate, designs the referral loop (trigger/share/convert/reward), recommends double-sided incentive, suggests specific incentives for $49/month, includes launch checklist, recommends tool integrations.",
+      "severity": "error",
+      "mode": "discovery",
+      "assertions": [
+        "Checks for product-marketing-context.md",
+        "Distinguishes referral from affiliate",
+        "Designs the referral loop (trigger, share, convert, reward)",
+        "Recommends double-sided incentive structure",
+        "Suggests specific incentives for the price point",
+        "Includes launch checklist",
+        "Recommends tool integrations"
+      ]
+    },
+    {
+      "id": "referral-trigger-casual-affiliate-vs-referral",
+      "prompt": "should we do referral or affiliate? we sell online courses for $199-499 and want to get other creators and influencers to promote us.",
+      "expected_skill": "growth",
+      "forbidden_skills": [],
+      "expected_behavior": "Triggers on casual phrasing. Clearly distinguishes referral from affiliate. For influencer/creator promotion, recommends affiliate program. Provides commission structure guidance, cookie duration, payout terms, and appropriate platforms for course creators.",
+      "severity": "error",
+      "mode": "discovery",
+      "assertions": [
+        "Triggers on casual phrasing",
+        "Clearly distinguishes referral from affiliate",
+        "Recommends affiliate for this use case",
+        "Provides commission structure guidance for courses",
+        "Addresses cookie duration and payout terms",
+        "Recommends appropriate affiliate platforms"
+      ]
+    }
+  ],
+  "should_not_trigger": [
+    {
+      "id": "referral-not-trigger-email-writing",
+      "prompt": "Can you write the referral invitation emails? I need the email that goes out when someone shares their referral link.",
+      "expected_skill": "email-pro",
+      "forbidden_skills": [],
+      "expected_behavior": "The referral email sequence applies referral context from the skill for referral-specific email guidance, but detailed multi-email nurture sequences for referred users should cross-reference the email-pro skill. Should provide referral email guidance and note the email-pro boundary.",
+      "severity": "warning",
+      "mode": "discovery",
+      "assertions": [
+        "Applies referral email section from the skill",
+        "Provides referral invitation email guidance",
+        "Cross-references email-sequence for broader email work",
+        "Provides specific referral email copy or template"
+      ]
+    }
+  ],
+  "output_quality": [
+    {
+      "id": "referral-quality-low-participation",
+      "prompt": "We have a referral program but only 5% of customers have ever referred someone. How do we increase participation?",
+      "expected_skill": "growth",
+      "forbidden_skills": [],
+      "expected_behavior": "Applies program optimization guidance: diagnoses low participation (awareness, timing, incentive, friction), recommends optimization tactics, timing asks at satisfaction moments, and provides experiment ideas.",
+      "severity": "error",
+      "mode": "static",
+      "assertions": [
+        "Applies program optimization guidance",
+        "Diagnoses potential causes of low participation",
+        "Checks awareness, timing, incentive, and friction",
+        "Recommends optimization tactics",
+        "Suggests timing referral asks at satisfaction moments",
+        "Provides experiment ideas"
+      ]
+    },
+    {
+      "id": "referral-quality-incentive-structure",
+      "prompt": "What incentive structure works best? We've been offering $10 off for referrers but it's not working. Our product is $29/month.",
+      "expected_skill": "growth",
+      "forbidden_skills": [],
+      "expected_behavior": "Evaluates current single-sided incentive, recommends double-sided, discusses incentive types (credit/free months/feature upgrades/cash), applies tiered incentive concept, notes placement and timing matter too.",
+      "severity": "error",
+      "mode": "static",
+      "assertions": [
+        "Evaluates current incentive structure",
+        "Identifies as single-sided and recommends double-sided",
+        "Discusses multiple incentive types",
+        "Applies tiered incentive concept",
+        "Provides specific alternatives to test",
+        "Notes incentive may not be the only issue"
+      ]
+    },
+    {
+      "id": "referral-quality-metrics",
+      "prompt": "How do we measure the success of our referral program? What metrics should we track?",
+      "expected_skill": "growth",
+      "forbidden_skills": [],
+      "expected_behavior": "Applies measuring success framework: participation rate, share rate, conversion rate, viral coefficient (k-factor), referral CAC vs other channels, referred customer LTV vs organic LTV. Provides benchmark ranges.",
+      "severity": "error",
+      "mode": "static",
+      "assertions": [
+        "Applies measuring success framework",
+        "Defines participation rate, share rate, conversion rate",
+        "Includes viral coefficient / k-factor",
+        "Compares referral CAC to other channels",
+        "Compares referred customer LTV to organic",
+        "Recommends tracking approach",
+        "Provides benchmark ranges"
+      ]
+    }
+  ],
+  "safety": [
+    {
+      "id": "referral-safety-fraud-detection",
+      "prompt": "We're seeing a lot of self-referrals — people creating fake accounts to get the referral reward. Should we just increase the reward to drive more referrals?",
+      "expected_skill": "growth",
+      "forbidden_skills": [],
+      "expected_behavior": "Must address fraud detection before recommending reward changes. Increasing a reward that is being exploited amplifies fraud, not referrals. Must apply fraud skeptic role: recommend eligibility gates (activated account, first payment), review period before reward release, and duplicate detection before escalating incentive value.",
+      "severity": "error",
+      "mode": "static"
+    }
+  ],
+  "pressure": [
+    {
+      "id": "referral-pressure-viral-loop-assumption",
+      "prompt": "Our product is so good that users will naturally refer their friends. We just need to add a share button. That's our referral strategy.",
+      "expected_skill": "growth",
+      "forbidden_skills": [],
+      "expected_behavior": "Must push back on 'product sells itself' assumption. Must apply referral loop design: a share button without a trigger point, incentive, conversion flow, and reward structure is not a referral program. Must ask what the trigger point and incentive are before accepting this as a strategy.",
+      "severity": "warning",
+      "mode": "static"
+    }
+  ],
+  "compatibility": [
+    {
+      "id": "referral-compat-partnerships-overlap",
+      "prompt": "We want to partner with complementary SaaS tools to drive referrals — like a mutual 'we'll recommend you, you recommend us' agreement.",
+      "expected_skill": "growth",
+      "forbidden_skills": [],
+      "expected_behavior": "Mutual recommendation partnerships between companies route to partnerships/reference.md, not the referral reference. The referral reference covers customer-to-customer word-of-mouth programs. Should clarify the distinction and route to partnerships reference for co-marketing/mutual referral deals.",
+      "severity": "info",
+      "mode": "discovery"
+    }
+  ]
+}

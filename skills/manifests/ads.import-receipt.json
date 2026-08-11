@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "kind": "legion-skill-import-receipt",
+  "bundle": "ads",
+  "version": "1.0.0",
+  "sourceInventoryFileCount": 60,
+  "sourceFileCount": 60,
+  "excludedGeneratedFileCount": 0,
+  "excludedGeneratedPatterns": [
+    ".venv/**",
+    "**/__pycache__/**",
+    "**/*.pyc"
+  ],
+  "sourceDigest": "sha256:93e822a4bc36f21a9d3876b789c24b5c9e92bc3a37d9c31994db43fe8e5c99c3",
+  "outputDigest": "sha256:c7c96762726fce806bcce5758c59a5c4be3060bcef2c61eb30ebe0f70369308d",
+  "manifestPath": "D:\\Claude\\tools\\skills\\legion\\skills\\manifests\\ads.json",
+  "provenance": "workspace-supplied-ads",
+  "licenseState": "unresolved",
+  "rightsReceipt": null
+}

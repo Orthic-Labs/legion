@@ -65,7 +65,7 @@ export const SENSITIVE_PATH = new RegExp([
 ].join('|'), 'i');
 
 // Hard-skip regex for generated, lock, minified, and build-output paths.
-export const GENERATED_PATH = /(?:\.generated\.[a-z]+$|\.d\.ts$|\.min\.[a-z]+$|[/\\]node_modules[/\\]|[/\\](legion-skill://designer/engine/scripts/?:dist|build|out|/.next|/.cache|coverage)[/\\]|[/\\]?[^/\\]+\.lock(?:\.json)?$)/i;
+export const GENERATED_PATH = /(?:\.generated\.[a-z]+$|\.d\.ts$|\.min\.[a-z]+$|[/\\]node_modules[/\\]|[/\\](?:dist|build|out|\.next|\.cache|coverage)[/\\]|[/\\]?[^/\\]+\.lock(?:\.json)?$)/i;
 
 export const TRUTHY = /^(1|true|yes|on)$/i;
 
@@ -524,7 +524,7 @@ function resolveGitDir(dotGit, worktreeDir) {
   if (!stat.isFile()) return null;
 
   const body = fs.readFileSync(dotGit, 'utf-8').trim();
-  const match = body.match(/^gitdi<local-path>)$/i);
+  const match = body.match(/^gitdir:\s*(.+)$/i);
   if (!match) return null;
   return path.isAbsolute(match[1]) ? match[1] : path.resolve(worktreeDir, match[1]);
 }
@@ -678,7 +678,7 @@ function extractFindingIgnoreValueRaw(finding, rule = normalizeIgnoreRule(findin
       continue;
     }
 
-    const primary = text.match(/Primary fon<local-path>)\n;]+)/i);
+    const primary = text.match(/Primary font:\s*([^()\n;]+)/i);
     if (primary) return cleanIgnoreValueDisplay(primary[1]);
 
     const family = text.match(/font-family\s*:\s*["']?([^'",;\n]+)/i);
@@ -1108,7 +1108,7 @@ const CO_SCAN_STYLE_NAMES = [
 ];
 const MAX_SCAN_TARGETS = 6;
 
-const STATIC_STYLE_IMPORT_RE = /import\s+(?:[\w*{}\s,$]+\s+from\s+)?['"](legion-skill://designer/engine/scripts/[^'"]+/.(?:css|scss|sass|less))['"]/gi;
+const STATIC_STYLE_IMPORT_RE = /import\s+(?:[\w*{}\s,$]+\s+from\s+)?['"]([^'"]+\.(?:css|scss|sass|less))['"]/gi;
 
 function hasPathTraversal(filePath) {
   return typeof filePath === 'string' && filePath.includes('..');

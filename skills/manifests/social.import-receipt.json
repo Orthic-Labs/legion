@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "kind": "legion-skill-import-receipt",
+  "bundle": "social",
+  "version": "1.0.0",
+  "sourceInventoryFileCount": 12,
+  "sourceFileCount": 12,
+  "excludedGeneratedFileCount": 0,
+  "excludedGeneratedPatterns": [
+    ".venv/**",
+    "**/__pycache__/**",
+    "**/*.pyc"
+  ],
+  "sourceDigest": "sha256:d7b890a44fbf18bb11981b313b5459bb86f060f29e34dc97514172ee36e3893c",
+  "outputDigest": "sha256:612611f90fd7cf8acdef2bc0d49fdd2913f46d5d2580babd27117f38ff15f15f",
+  "manifestPath": "D:\\Claude\\tools\\skills\\legion\\skills\\manifests\\social.json",
+  "provenance": "workspace-supplied-social",
+  "licenseState": "unresolved",
+  "rightsReceipt": null
+}

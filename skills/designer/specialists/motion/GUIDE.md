@@ -183,7 +183,7 @@ Every motion task produces (consumed by `/designer` + `/audit-visual`'s motion l
    failure: verdict said pass, the page had zero working motion. Plans don't animate; prototypes do.
 3. **Implementation** — code in repo with comments explaining each animation's purpose.
 4. **`lighthouse.json`, `axe.json`, `bundle-delta.json`** — performance evidence.
-5. **Browser/device matrix** — `/qa` screenshots at 5 breakpoints (375, 414, 768, 1024, 1440).
+5. **Browser/device matrix** — qa-engine screenshots at 5 breakpoints (375, 414, 768, 1024, 1440).
 6. **`reduced-variant.png`** — the `prefers-reduced-motion: reduce` state captured.
 
 Without `motion-plan.md` and `motion-gate.json` (verdict: pass), the build cannot advance.

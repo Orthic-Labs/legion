@@ -124,6 +124,7 @@ const HOOK_MANIFEST_TARGETS = [
           {
             type: 'command',
             matcher: 'edit|create|apply_patch',
+            bash: 'node "$(git rev-parse --show-toplevel)/.github/skills/designer/engine/scripts/hook.mjs"',
             timeoutSec: TIMEOUT_SECONDS,
           },
         ],

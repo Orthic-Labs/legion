@@ -1157,7 +1157,7 @@ async function html2pptx(htmlFile, pres, options = {}) {
     if (validationErrors.length > 0) {
       const errorMessage = validationErrors.length === 1
         ? validationErrors[0]
-        : `Multiple validation errors foun<local-path> i) => `  ${i + 1}. ${e}`).join('\n')}`;
+        : `Multiple validation errors found:\n${validationErrors.map((e, i) => `  ${i + 1}. ${e}`).join('\n')}`;
       throw new Error(errorMessage);
     }
 

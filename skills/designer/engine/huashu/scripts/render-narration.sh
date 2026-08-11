@@ -139,6 +139,8 @@ MIX_ARGS=("$SILENT_MP4" "--voiceover=$VOICEOVER" "--out=$OUT")
 [ -n "$BGM_MOOD$BGM" ] && MIX_ARGS+=("--bgm-volume=$BGM_VOLUME")
 [ -n "$NO_DUCKING" ] && MIX_ARGS+=("$NO_DUCKING")
 
+bash "$SCRIPT_DIR/mix-voiceover.sh" "${MIX_ARGS[@]}"
+
 # 清理中间产物
 if [ -z "$KEEP_SILENT" ]; then
   rm -f "$SILENT_MP4"

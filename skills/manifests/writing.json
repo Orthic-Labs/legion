@@ -72,7 +72,8 @@
       "transformations": [
         "approving-human",
         "package-relative-links",
-        "audit-capability-strip"
+        "audit-capability-strip",
+        "intentional-legion-fork"
       ]
     },
     {
@@ -83,7 +84,8 @@
       "transformations": [
         "approving-human",
         "package-relative-links",
-        "audit-capability-strip"
+        "audit-capability-strip",
+        "intentional-legion-fork"
       ]
     },
     {
@@ -94,7 +96,8 @@
       "transformations": [
         "approving-human",
         "package-relative-links",
-        "audit-capability-strip"
+        "audit-capability-strip",
+        "intentional-legion-fork"
       ]
     },
     {
@@ -204,7 +207,8 @@
       "transformations": [
         "approving-human",
         "package-relative-links",
-        "audit-capability-strip"
+        "audit-capability-strip",
+        "intentional-legion-fork"
       ]
     },
     {
@@ -237,7 +241,8 @@
       "transformations": [
         "approving-human",
         "package-relative-links",
-        "audit-capability-strip"
+        "audit-capability-strip",
+        "intentional-legion-fork"
       ]
     },
     {
@@ -248,7 +253,8 @@
       "transformations": [
         "approving-human",
         "package-relative-links",
-        "audit-capability-strip"
+        "audit-capability-strip",
+        "intentional-legion-fork"
       ]
     },
     {
@@ -259,7 +265,8 @@
       "transformations": [
         "approving-human",
         "package-relative-links",
-        "audit-capability-strip"
+        "audit-capability-strip",
+        "intentional-legion-fork"
       ]
     },
     {
@@ -332,7 +339,7 @@
       "path": "specialists/email/references/sequence/reference.md",
       "uri": "legion-skill://writing/specialists/email/references/sequence/reference.md",
       "sourceDigest": "sha256:f5005a427754e3e8c46401adeb1f961e7e7b6984ea49cdd7c871ac91fd32aae0",
-      "outputDigest": "sha256:8d55af99023af7d948724dda964c9d148873ef38a4d238453fca9235a637bbf4",
+      "outputDigest": "sha256:f6149a536eeb97c006df9d2914e70a0173c77317eeac4a6e30bdbcee6b49ca37",
       "transformations": [
         "approving-human",
         "package-relative-links",
@@ -380,7 +387,8 @@
       "transformations": [
         "approving-human",
         "package-relative-links",
-        "audit-capability-strip"
+        "audit-capability-strip",
+        "intentional-legion-fork"
       ]
     },
     {

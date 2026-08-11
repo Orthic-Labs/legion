@@ -1,0 +1,66 @@
+{
+  "domains": {
+    "legal": [
+      "tools/skills/research/references/domains/legal/GUIDE.md"
+    ],
+    "medical": [
+      "tools/skills/research/references/domains/medical/GUIDE.md"
+    ]
+  },
+  "methods": {
+    "audience": [
+      "tools/skills/research/references/methods/audience.md"
+    ],
+    "authority": [
+      "tools/skills/research/references/methods/authority.md"
+    ],
+    "competitor": [
+      "tools/skills/research/references/methods/competitors.md"
+    ],
+    "document": [
+      "tools/skills/research/references/methods/document.md"
+    ],
+    "reddit": [
+      "tools/skills/research/references/methods/reddit.md"
+    ],
+    "scholarly": [
+      "tools/skills/research/references/methods/scholarly.md"
+    ],
+    "trends": [
+      "tools/skills/research/references/methods/trends.md"
+    ],
+    "web": [
+      "tools/skills/research/references/methods/search-discipline.md"
+    ]
+  },
+  "providers": {
+    "browser": [
+      "tools/research-core/providers/command_bridge.py",
+      "tools/research-core/providers/search_open_find.py"
+    ],
+    "domain-default": [
+      "tools/research-core/providers/search_open_find.py",
+      "tools/research-core/providers/scholarly.py",
+      "tools/research-core/providers/command_bridge.py",
+      "tools/skills/research/references/methods/authority.md"
+    ],
+    "local-corpus": [
+      "tools/research-core/providers/local_corpus.py"
+    ],
+    "notebooklm": [
+      "tools/research-core/providers/notebooklm.py",
+      "tools/skills/research/references/providers/notebooklm.md"
+    ]
+  },
+  "schema_version": 1,
+  "workflows": {
+    "india-consumer-commission": [
+      "tools/skills/research/references/domains/legal/india/consumer/GUIDE.md",
+      "tools/research-core/workflows/legal/india/consumer/scripts/generate_pack.py",
+      "tools/research-core/workflows/legal/india/consumer/scripts/case-template.yaml"
+    ],
+    "india-criminal": [
+      "tools/research-core/workflows/legal/india/criminal/GUIDE.md"
+    ]
+  }
+}

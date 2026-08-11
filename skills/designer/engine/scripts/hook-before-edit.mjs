@@ -202,7 +202,7 @@ function shellPythonWriteDestination(command) {
     if (candidate) return candidate;
   }
 
-  return firstMatch(command, /\bopen\(\s*(["'])(.*?)\1\s*,\s*(["'])[wax](legion-skill://designer/engine/scripts/?:/+)?b?\3/);
+  return firstMatch(command, /\bopen\(\s*(["'])(.*?)\1\s*,\s*(["'])[wax](?:\+)?b?\3/);
 }
 
 function firstMatch(value, re) {

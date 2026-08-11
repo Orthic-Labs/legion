@@ -72,7 +72,7 @@ tests.
 | 3 | Surface-specific guard (differentiation registry · IA/state model · SEO surface) | auto **HARD GATE** |
 | 4 | Build (with continuous verification — runtime enforces) | auto |
 | 5 | QA: multi-gate (5a audit-visual · 5b /seo · 5c judge [deferred] · 5d design-gate.mjs) | auto **HARD GATE** — fail -> fix -> re-run |
-| 6 | Human eyes — the approving human's taste gate | render screenshots, then **PARK** |
+| 6 | Human eyes — approving human's taste gate | render screenshots, then **PARK** |
 | 7 | Handoff (docs, tokens, registry row for websites) | auto |
 
 ### Phase 0 — Truth + brand load (HARD GATE)
@@ -158,12 +158,12 @@ accessible contrast. Default pale blue, generic SaaS blue, purple-blue gradients
 palettes are rejected unless product-truth demands them.
 
 **QA gate (phase 5).** Run `/audit-visual` — its lenses, floors, coverage matrix, and detector scan
-are canonical; do not restate them. Route pixel evidence through `/qa` (project `qa:browser`
-contract, `qa-shot.mjs`, `qa-functional.mjs`); never foreground desktop screenshots for routine QA.
+are canonical; do not restate them. Route pixel evidence through the qa-engine (project `qa:browser`
+contract, `tools/lib/qa-engine/qa-shot.mjs`, `tools/lib/qa-engine/qa-functional.mjs`); never foreground desktop screenshots for routine QA.
 Pass surface context to the audit: website = first-impression + conversion weighting; app =
 repeated-use weighting (action count, keyboard/focus, state completeness over drama).
 
-**Human eyes (phase 6).** the approving human approves with his eyes before final. Open what he should review
+**Human eyes (phase 6).** The approving human approves with their eyes before final. Open what they should review
 via `node tools/lib/open-for-review.mjs <path>`.
 
 ## Craft rules (absorbed from Anthropic's frontend-design — apply while building)
@@ -222,5 +222,5 @@ via `node tools/lib/open-for-review.mjs <path>`.
 - Three directions/registers explored for major work; divergence gate passed; user picked.
 - Surface guard passed (registry diff for websites; IA/state model for apps).
 - Built with the craft rules; all states designed (apps: the hard-stop state list in `../../references/app.md`).
-- `/audit-visual` passed with pixel evidence via `/qa`.
+- `/audit-visual` passed with pixel evidence via the qa-engine.
 - Human eyes approved. Registry/docs updated (websites: `../../references/portfolio-registry.md`).
