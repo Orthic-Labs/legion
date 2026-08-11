@@ -486,3 +486,28 @@ test('toolUseAfterLastUser reads the transcript shape correctly', () => {
   const noTools = JSON.stringify({ type: 'user', message: { content: [{ type: 'text', text: 'fix it' }] } });
   assert.equal(toolUseAfterLastUser(noTools), false);
 });
+
+test('EC-503 non-compelling latest intent permits receipt-free plan & question terminals', () => {
+  for (const intent of ['PLAN', 'QUESTION', 'REVOKE', 'SCOPE_NARROW', 'UNKNOWN']) {
+    assert.equal(evaluateStopShape('Plan is ready; implementation remains pending. Say go to execute.', { intent }).block, false, intent);
+  }
+});
+
+test('EC-503 paused host goal cannot turn an answered user question into a completion claim', () => {
+  const answer = [
+    'Microsoft login was for Azure Artifact Signing, not Windows access.',
+    'No Microsoft login completed, no Windows binary was signed, & no artifact was uploaded.',
+  ].join('\n');
+  assert.equal(evaluateStopShape(answer, {
+    intent: 'QUESTION',
+    hostGoal: { status: 'paused' },
+    hookFeedback: '[codex-final-gate] An active goal is not complete or closed.',
+  }).block, false);
+});
+
+test('EC-503 execute & continue retain anti-stall enforcement', () => {
+  assert.equal(evaluateStopShape('Implementation is ready. Say go and I execute.', { intent: 'EXECUTE' }).block, true);
+  assert.equal(evaluateStopShape('Yes, we can do that. I would add a Stop hook.', {
+    intent: 'CONTINUE', continueIntentEvidence: 'Can you fix the hook?', continueToolsUsed: false,
+  }).block, true);
+});

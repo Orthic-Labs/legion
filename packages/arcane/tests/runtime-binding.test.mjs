@@ -1,15 +1,43 @@
 import assert from 'node:assert/strict';
-import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import test from 'node:test';
+import test, { after } from 'node:test';
+import { fileURLToPath } from 'node:url';
 
-import { createHostRuntime } from '../host/host-runtime.mjs';
-import { normalizeCodexEvent } from '../host/codex-adapter.mjs';
+import { createHostRuntime, evaluateLatestStopShape } from '../host/host-runtime.mjs';
+import { normalizeCodexEvent, mapCodexPreEffect, observeCodexIdentity } from '../host/codex-adapter.mjs';
 import { claudeCodeHostAdapter } from '../host/claude-code-adapter.mjs';
 import { b5Contract, seedStore } from './fixtures/runtime-binding-contract.mjs';
 import { SessionBindingStore } from '../lib/session-binding.mjs';
+import { AuthorityBindingStore } from '../lib/authority-binding-store.mjs';
+
+const CODEX_ADAPTER = fileURLToPath(new URL('../host/codex-adapter.mjs', import.meta.url));
+
+const inheritedCodexThreadId = process.env.CODEX_THREAD_ID;
+delete process.env.CODEX_THREAD_ID;
+after(() => {
+  if (inheritedCodexThreadId === undefined) delete process.env.CODEX_THREAD_ID;
+  else process.env.CODEX_THREAD_ID = inheritedCodexThreadId;
+});
+
+test('EC-503 v6: fresh adapter process binds SubagentStart only to durable thread & rejects conflict', () => {
+  const root = mkdtempSync(join(tmpdir(), 'arcane-thread-binding-'));
+  const workspace = join(root, 'workspace'); const stateRoot = join(root, 'state'); const keyDir = join(root, 'keys');
+  try {
+    mkdirSync(workspace, { recursive: true }); mkdirSync(keyDir, { recursive: true }); writeFileSync(join(keyDir, 'k1.key'), 'a'.repeat(64));
+    const env = { ...process.env, ARCANE_WORKSPACE: workspace, ARCANE_STATE_ROOT: stateRoot, ARCANE_KEY_DIR: keyDir, CODEX_THREAD_ID: 'durable-thread' };
+    const run = (payload) => execFileSync(process.execPath, [CODEX_ADAPTER], { cwd: process.cwd(), env, input: JSON.stringify(payload), encoding: 'utf8' });
+    run({ hook_event_name: 'SubagentStart', cwd: workspace, session_id: 'transient-session', thread_id: 'durable-thread', agent_id: 'agent-1', agent_type: 'alchemist' });
+    const bindings = new AuthorityBindingStore({ root: join(stateRoot, 'authority-bindings') });
+    assert.equal(bindings.findLatest({ adapter: 'codex', sessionId: 'durable-thread', authority: 'alchemist' })?.authority, 'alchemist');
+    assert.equal(bindings.findLatest({ adapter: 'codex', sessionId: 'transient-session', authority: 'alchemist' }), null);
+    const output = run({ hook_event_name: 'SubagentStart', cwd: workspace, thread_id: 'conflicting-thread', agent_id: 'agent-2', agent_type: 'alchemist' });
+    assert.match(output, /ARC_BINDING_MISMATCH/);
+    assert.equal(bindings.findLatest({ adapter: 'codex', sessionId: 'conflicting-thread', authority: 'alchemist' }), null);
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
 
 test('B6 runtime composes stores & returns a closed refusal without throwing', () => {
   const workspace = mkdtempSync(join(tmpdir(), 'arcane-runtime-'));
@@ -38,7 +66,7 @@ test('B7 native Codex subprocess reserves once, consumes one durable capability 
     const sealed = seedStore(stateRoot, contract).record;
     new SessionBindingStore({ root: join(stateRoot, 'session-bindings') }).putBinding(sessionId, { runId, taskId: 'T-1', contractId: contract.contractId, contractVersion: contract.version, contractDigest: sealed.contractDigest });
     const env = { ...process.env, ARCANE_WORKSPACE: workspace, ARCANE_STATE_ROOT: stateRoot, ARCANE_KEY_DIR: keyDir };
-    const run = (payload) => execFileSync(process.execPath, ['packages/arcane/host/codex-adapter.mjs'], { cwd: process.cwd(), env, input: JSON.stringify(payload), encoding: 'utf8' });
+    const run = (payload) => execFileSync(process.execPath, [CODEX_ADAPTER], { cwd: process.cwd(), env, input: JSON.stringify(payload), encoding: 'utf8' });
     const base = { session_id: sessionId, agent_id: 'agent', agent_type: 'alchemist', cwd: workspace };
     // Allowed SessionStart/SubagentStart now carry the absorbed policy
     // injection (brief + minimize; ccx only under the local gateway), since
@@ -64,6 +92,37 @@ test('B7 native Codex subprocess reserves once, consumes one durable capability 
   } finally { rmSync(root, { recursive: true, force: true }); }
 });
 
+test('EC-503 v2: sealed apply_patch pre-authorizes all effects; unchanged post emits receipts & changed patch fails correlation', () => {
+  const root = mkdtempSync(join(tmpdir(), 'arcane-patch-runtime-'));
+  const workspace = join(root, 'workspace'); const stateRoot = join(root, 'state'); const keyDir = join(root, 'keys'); const sessionId = 'patch-session';
+  try {
+    mkdirSync(workspace, { recursive: true }); mkdirSync(keyDir, { recursive: true }); writeFileSync(join(keyDir, 'k1.key'), 'a'.repeat(64)); writeFileSync(join(workspace, 'README.md'), 'fixture\n');
+    for (const args of [['init', '-q'], ['config', 'user.email', 'test@example.com'], ['config', 'user.name', 'test'], ['add', 'README.md'], ['commit', '-qm', 'init']]) execFileSync('git', args, { cwd: workspace });
+    const contract = b5Contract(); contract.sourceRevision = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: workspace, encoding: 'utf8' }).trim();
+    contract.scope.own = ['src/**']; contract.artifacts.exact = [{ id: 'a', path: 'src/a.mjs', latitude: 'EXACT', content: 'x' }, { id: 'b', path: 'src/b.mjs', latitude: 'EXACT', content: 'x' }]; contract.authorizedEffectClasses = ['FILE_WRITE'];
+    const sealed = seedStore(stateRoot, contract).record;
+    new SessionBindingStore({ root: join(stateRoot, 'session-bindings') }).putBinding(sessionId, { runId: 'run_01ARZ3NDEKTSV4RRFFQ69G5FAV', taskId: 'T-1', contractId: contract.contractId, contractVersion: contract.version, contractDigest: sealed.contractDigest });
+    const runtime = createHostRuntime({ adapter: { name: 'codex', normalize: normalizeCodexEvent, observeIdentity: observeCodexIdentity, mapPreEffect: mapCodexPreEffect }, workspace, keyDir, stateRoot });
+    const command = '*** Begin Patch\n*** Update File: src/a.mjs\n@@\n-a\n+b\n*** Add File: src/b.mjs\n+b\n*** End Patch';
+    const base = { session_id: sessionId, agent_id: 'agent', agent_type: 'alchemist', cwd: workspace, tool_name: 'apply_patch', tool_use_id: 'patch-1', tool_input: { command } };
+    const pre = runtime.handle({ ...base, hook_event_name: 'PreToolUse' }); assert.equal(pre.allowed, true, pre.code);
+    const post = runtime.handle({ ...base, hook_event_name: 'PostToolUse', tool_response: { ok: true } }); assert.equal(post.allowed, true, post.code);
+    const receipts = runtime.stores.receiptStore.list({ runId: 'run_01ARZ3NDEKTSV4RRFFQ69G5FAV' });
+    assert.equal(receipts.length, 2);
+    const effects = mapCodexPreEffect(base, { workspace }).effects;
+    for (const receipt of receipts) {
+      const effect = effects.find(({ target }) => target === receipt.observed.target);
+      const finalized = runtime.stores.preEffectCorrelation.getFinalized(effect?.toolUseId);
+      assert.ok(receipt.authorized.capabilityId);
+      assert.equal(receipt.requestId, finalized?.requestId);
+      assert.equal(receipt.authorized.capabilityId, finalized?.capabilityId);
+    }
+    const changed = command.replace('src/b.mjs', 'src/c.mjs');
+    const rejected = runtime.handle({ ...base, hook_event_name: 'PostToolUse', tool_input: { command: changed }, tool_response: { ok: true } });
+    assert.equal(rejected.allowed, false); assert.equal(rejected.code, 'ARC_INGEST_CORRELATION_MISSING');
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
 test('ambient tier: an uncontracted Write outside every locked domain is observed, not denied', () => {
   const workspace = mkdtempSync(join(tmpdir(), 'arcane-ambient-'));
   const keyDir = join(workspace, 'keys');
@@ -86,4 +145,39 @@ test('ambient tier: an uncontracted Write INSIDE a locked domain still fails clo
     assert.equal(result.allowed, false);
     assert.equal(result.code, 'ARC_NO_CONTRACT');
   } finally { rmSync(workspace, { recursive: true, force: true }); }
+});
+
+test('EC-503 host Stop authority uses latest admitted user turn only', () => {
+  const root = mkdtempSync(join(tmpdir(), 'arcane-stop-intent-'));
+  const transcript = join(root, 'transcript.jsonl');
+  try {
+    writeFileSync(transcript, [
+      JSON.stringify({ type: 'user', message: { content: [{ type: 'text', text: 'Fix it now.' }] } }),
+      JSON.stringify({ type: 'assistant', message: { content: [{ type: 'text', text: 'Implementation is ready. Say go and I execute.' }] } }),
+      JSON.stringify({ type: 'user', message: { content: [{ type: 'text', text: 'Plan only; make no changes.' }] } }),
+    ].join('\n'));
+    assert.equal(evaluateLatestStopShape({ transcript_path: transcript }).block, false);
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
+test('EC-503 host Stop preserves recorded findings, push cap & current authorization', () => {
+  const root = mkdtempSync(join(tmpdir(), 'arcane-stop-state-'));
+  const transcript = join(root, 'transcript.jsonl');
+  const write = (entries) => writeFileSync(transcript, entries.map((entry) => JSON.stringify(entry)).join('\n'));
+  const text = (type, value) => ({ type, message: { content: [{ type: 'text', text: value }] } });
+  try {
+    write([
+      text('user', 'Fix the hook.'),
+      text('assistant', 'Wrote docs/GOTCHAS.md.'),
+      text('assistant', 'Worth noting for future reference: this is now recorded.'),
+    ]);
+    assert.equal(evaluateLatestStopShape({ transcript_path: transcript, cwd: root, session_id: 'recorded' }).block, false);
+
+    write([text('user', 'Fix the hook.'), text('assistant', 'Implementation is ready. Say go and I execute.')]);
+    const payload = { transcript_path: transcript, cwd: root, session_id: 'pushes', stop_hook_active: true };
+    assert.equal(evaluateLatestStopShape(payload).block, true);
+    assert.equal(evaluateLatestStopShape(payload).block, true);
+    assert.equal(evaluateLatestStopShape(payload).block, false);
+    assert.doesNotMatch(readFileSync(new URL('../../../hooks/stop-shape.mjs', import.meta.url), 'utf8'), /intent\.intent === 'proceed'/);
+  } finally { rmSync(root, { recursive: true, force: true }); }
 });

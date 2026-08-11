@@ -9,7 +9,7 @@ import { keyHex, stateFile, statePaths } from '../lib/state-paths.mjs';
 
 const schemas = new RuntimeSchemaSet();
 const schemaDir = join(import.meta.dirname, '..', 'schemas');
-const ids = ['arcane-contract-seal-v1', 'arcane-authority-binding-v1', 'arcane-capability-grant-v1', 'arcane-capability-transition-v1', 'arcane-host-runtime-output-v1', 'arcane-host-runtime-result-v1'];
+const ids = ['arcane-contract-seal-v1', 'arcane-authority-binding-v1', 'arcane-capability-grant-v1', 'arcane-capability-transition-v1', 'arcane-user-approval-v1', 'arcane-host-runtime-output-v1', 'arcane-host-runtime-result-v1'];
 const digest = 'sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa';
 const capabilityId = 'cap_0123456789ABCDEFGHJKMNPQRS';
 const eventId = 'hev_0123456789ABCDEFGHJKMNPQRS';
@@ -18,7 +18,8 @@ const now = '2026-08-09T12:00:00Z';
 const samples = {
   'arcane-contract-seal-v1': { schemaVersion: 1, kind: 'arcane-contract-seal', contractId: 'EC-1', version: 1, sourceRevision: 'abcdef0', contractDigest: digest, dispatchDigest: null, sealedBy: { authority: 'sage', assertedBy: 'host', verificationMethod: 'capability-signature', perMessage: true }, sealedAt: now, contract: {} },
   'arcane-authority-binding-v1': { schemaVersion: 1, kind: 'arcane-authority-binding', adapter: 'codex', sessionIdDigest: digest, agentIdDigest: digest, agentType: 'sage', authority: 'sage', observedEventId: eventId, observedAt: now },
-  'arcane-capability-grant-v1': { schemaVersion: 1, kind: 'arcane-capability-grant', capabilityId, runId: 'run_0123456789ABCDEFGHJKMNPQRS', taskId: 'T-1', workspace: '/repo', contractId: 'EC-1', contractVersion: 1, contractDigest: digest, sourceRevision: 'abcdef0', authority: 'alchemist', turnId: 'turn', operation: 'write', effectClass: 'FILE_WRITE', targets: ['/repo/a'], policyId: 'policy', policyVersion: 1, policyDigest: digest, issuedAt: now, expiresAt: now, ttlSeconds: 900, maxUses: 1, delegable: false, status: 'active', usedCount: 0 },
+  'arcane-capability-grant-v1': { schemaVersion: 1, kind: 'arcane-capability-grant', capabilityId, runId: 'run_0123456789ABCDEFGHJKMNPQRS', taskId: 'T-1', workspace: '/repo', contractId: 'EC-1', contractVersion: 1, contractDigest: digest, sourceRevision: 'abcdef0', authority: 'alchemist', turnId: 'turn', operation: 'write', effectClass: 'FILE_WRITE', targets: ['/repo/a'], policyId: 'policy', policyVersion: 1, policyDigest: digest, approvalEvidence: null, issuedAt: now, expiresAt: now, ttlSeconds: 900, maxUses: 1, delegable: false, status: 'active', usedCount: 0 },
+  'arcane-user-approval-v1': { schemaVersion: 1, kind: 'arcane-user-approval', keyId: 'host', sessionDigest: digest, runId: 'run_0123456789ABCDEFGHJKMNPQRS', taskId: 'T-1', contractId: 'EC-1', contractVersion: 1, contractDigest: digest, effectClass: 'FILE_DELETE', targetDigest: digest, userTurnDigest: digest, issuedAt: now, expiresAt: '2026-08-09T12:15:00Z', mac: 'a'.repeat(64) },
   'arcane-capability-transition-v1': { schemaVersion: 1, kind: 'arcane-capability-transition', capabilityId, state: 'consumed', at: now, requestId: 'req_0123456789ABCDEFGHJKMNPQRS' },
   'arcane-host-runtime-output-v1': null,
   'arcane-host-runtime-result-v1': { schemaVersion: 1, kind: 'arcane-host-runtime-result', eventType: 'PreToolUse', allowed: false, code: 'ARC_DENY', enforcementHealth: 'strong', receiptId: null, capabilityId: null, stdout: null },

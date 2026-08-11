@@ -7,6 +7,7 @@ import { RuntimeSchemaSet } from '../lib/runtime-schema.mjs';
 
 test('B6 renders only schema-closed host output with exact public reasons', () => {
   assert.equal(publicReason('ARC_GATE_UNAVAILABLE'), 'ARC_GATE_UNAVAILABLE: Pre-effect gate is unavailable.');
+  assert.match(publicReason('ARC_STOP_SHAPE'), /non-authoritative stop feedback/);
   assert.equal(publicReason('not-a-code'), 'ARC_SCHEMA_INVALID: Arcane rejected invalid structured input.');
   assert.deepEqual(renderHostRuntimeOutput({ eventType: 'PreToolUse', allowed: false, code: 'ARC_GATE_UNAVAILABLE' }), { hookSpecificOutput: { hookEventName: 'PreToolUse', permissionDecision: 'deny', permissionDecisionReason: 'ARC_GATE_UNAVAILABLE: Pre-effect gate is unavailable.' } });
   assert.deepEqual(renderHostRuntimeOutput({ eventType: 'Stop', allowed: false, code: 'ARC_NO_CONTRACT' }), { decision: 'block', reason: 'ARC_NO_CONTRACT: No sealed execution contract is bound.' });

@@ -58,6 +58,28 @@ test('PreEffectCorrelationStore: reserve returns exactly one winner & compatibil
   assert.equal(store.ensureRequestId('tu-reserve'), first.requestId);
 });
 
+test('PreEffectCorrelationStore: finalization is immutable & idempotent', () => {
+  const store = new PreEffectCorrelationStore({ root: freshRoot() });
+  const reservation = store.reserve('tu-final');
+  const record = { requestId: reservation.requestId, capabilityId: 'cap-1', requestedEffect: { effectClass: 'FILE_WRITE', target: 'a.mjs', operation: 'write' }, authorizedEffect: { effectClass: 'FILE_WRITE', target: 'a.mjs', operation: 'write' } };
+  assert.deepEqual(store.finalize('tu-final', record), record);
+  assert.deepEqual(store.finalize('tu-final', record), record);
+  assert.equal(store.finalize('tu-final', { ...record, capabilityId: 'cap-2' }), null);
+  assert.deepEqual(store.getFinalized('tu-final'), record);
+});
+
+test('PreEffectCorrelationStore: corrupt & reservation-mismatched finalization fail closed', () => {
+  const root = freshRoot();
+  const store = new PreEffectCorrelationStore({ root });
+  const reservation = store.reserve('tu-finalized-corrupt');
+  const record = { requestId: reservation.requestId, capabilityId: 'cap-1', requestedEffect: { effectClass: 'FILE_WRITE', target: 'a.mjs', operation: 'write' }, authorizedEffect: { effectClass: 'FILE_WRITE', target: 'a.mjs', operation: 'write' } };
+  assert.equal(store.finalize('tu-finalized-corrupt', { ...record, requestId: 'req_wrong' }), null);
+  assert.deepEqual(store.finalize('tu-finalized-corrupt', record), record);
+  const file = join(root, `${createHash('sha256').update('tu-finalized-corrupt', 'utf8').digest('hex')}.finalized.json`);
+  writeFileSync(file, '{not valid json', 'utf8');
+  assert.equal(store.getFinalized('tu-finalized-corrupt'), null);
+});
+
 test('PreEffectCorrelationStore: two different tool_use_ids never share a requestId', () => {
   const store = new PreEffectCorrelationStore({ root: freshRoot() });
   const a = store.ensureRequestId('tu-a');

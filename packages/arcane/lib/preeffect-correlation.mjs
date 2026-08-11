@@ -50,6 +50,10 @@ function keyFileName(toolUseId) {
   return `${createHash('sha256').update(toolUseId, 'utf8').digest('hex')}.json`;
 }
 
+function finalizedFileName(toolUseId) {
+  return `${createHash('sha256').update(toolUseId, 'utf8').digest('hex')}.finalized.json`;
+}
+
 function readRequest(path) {
   try {
     if (!existsSync(path)) return null;
@@ -58,6 +62,10 @@ function readRequest(path) {
   } catch {
     return null; // corrupt/unreadable -> honest null, never a thrown parse error
   }
+}
+
+function same(value, expected) {
+  return JSON.stringify(value) === JSON.stringify(expected);
 }
 
 export class PreEffectCorrelationStore {
@@ -72,6 +80,10 @@ export class PreEffectCorrelationStore {
 
   #pathFor(toolUseId) {
     return join(this.#root, keyFileName(toolUseId));
+  }
+
+  #finalizedPathFor(toolUseId) {
+    return join(this.#root, finalizedFileName(toolUseId));
   }
 
   /** @returns {string|null} the requestId minted for this tool_use_id, or null if none. */
@@ -109,6 +121,24 @@ export class PreEffectCorrelationStore {
   /** Compatibility projection of `reserve()`. */
   ensureRequestId(toolUseId) {
     return this.reserve(toolUseId)?.requestId ?? null;
+  }
+
+  finalize(toolUseId, { requestId, capabilityId, requestedEffect, authorizedEffect } = {}) {
+    if (typeof toolUseId !== 'string' || !toolUseId || typeof requestId !== 'string' || !requestId || typeof capabilityId !== 'string' || !capabilityId || !requestedEffect || !authorizedEffect) return null;
+    const reservation = readRequest(this.#pathFor(toolUseId));
+    if (!reservation || !same(reservation, { requestId })) return null;
+    const record = { requestId, capabilityId, requestedEffect, authorizedEffect };
+    const path = this.#finalizedPathFor(toolUseId);
+    try { mkdirSync(this.#root, { recursive: true }); writeFileSync(path, JSON.stringify(record), { encoding: 'utf8', flag: 'wx' }); return record; }
+    catch (error) { if (error?.code !== 'EEXIST') return null; const winner = this.getFinalized(toolUseId); return winner && same(winner, record) ? winner : null; }
+  }
+
+  getFinalized(toolUseId) {
+    if (typeof toolUseId !== 'string' || !toolUseId) return null;
+    const record = readRequest(this.#finalizedPathFor(toolUseId));
+    if (!record || typeof record.capabilityId !== 'string' || !record.requestedEffect || !record.authorizedEffect) return null;
+    const reservation = readRequest(this.#pathFor(toolUseId));
+    return reservation && same(reservation, { requestId: record.requestId }) ? record : null;
   }
 
   record(toolUseId, { requestId = mintId('request'), capabilityId = null, requestedEffect = null, authorizedEffect = null } = {}) {

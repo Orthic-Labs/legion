@@ -25,6 +25,7 @@ import { HostIngestor, POST_EFFECT_TYPES } from '../lib/ingest.mjs';
 import { loadHostKeyRing } from '../lib/keys.mjs';
 import { evaluateCompletion } from '../lib/completion-gate.mjs';
 import { evaluateCodexEscalation } from '../lib/codex-escalation.mjs';
+import { auditSuccessfulCommit, preEffectDiscipline } from '../lib/discipline-controls.mjs';
 
 /**
  * EC-5 item 5 — honest `sourceRevision`. Neither adapter's `buildRaw*Event`
@@ -158,6 +159,16 @@ export function handleHookEvent(hookPayload, deps) {
   const hostEvent = normalize(hookPayload);
   const observationClass = classifyObservation(hostEvent, { policy });
 
+  if (hostEvent.eventType === 'pre-effect') {
+    const control = preEffectDiscipline(hookPayload, { workspace: hostEvent.workspace });
+    if (control) {
+      return {
+        hostEvent, observationClass, enforcementHealth: 'strong', accepted: false, receipt: null,
+        decision: decision({ allowed: false, code: control.code, message: control.message, detail: {}, enforcementHealth: 'strong' }),
+      };
+    }
+  }
+
   if (hostEvent.eventType === 'pre-effect' && isDestructiveCommand(hookPayload)) {
     return {
       hostEvent, observationClass, enforcementHealth: 'strong', accepted: false, receipt: null,
@@ -250,23 +261,20 @@ export function handleHookEvent(hookPayload, deps) {
   // `idempotencyKey`, which both adapters already set to the host's
   // tool_use_id for every tool-carrying event — session-level events
   // (SessionStart/UserPromptSubmit/Stop) carry none and are untouched here.
-  // `pre-effect` mints (or self-heals); every post-effect type only reads,
-  // and never overwrites a `priorCorrelation.requestId` a normalize() already
-  // supplied.
+  // `pre-effect` reserves; post-effect prefers a completed finalization.
+  // Ambient effects have no capability to finalize, so they may cite their
+  // immutable reservation only. Contracted effects stay fail-closed.
   if (preEffectCorrelation && hostEvent.idempotencyKey) {
     if (hostEvent.eventType === 'pre-effect') {
       preEffectCorrelation.ensureRequestId(hostEvent.idempotencyKey);
-    } else if (POST_EFFECT_TYPES.includes(hostEvent.eventType) && !hostEvent.priorCorrelation?.requestId) {
-      const requestId = preEffectCorrelation.getRequestId(hostEvent.idempotencyKey);
-      if (requestId) {
-        hostEvent.priorCorrelation = {
-          requestId,
-          capabilityId: hostEvent.priorCorrelation?.capabilityId ?? null,
-          priorReceiptId: hostEvent.priorCorrelation?.priorReceiptId ?? null,
-          requestedEffect: hostEvent.priorCorrelation?.requestedEffect ?? null,
-          authorizedEffect: hostEvent.priorCorrelation?.authorizedEffect ?? null,
-        };
-      }
+    } else if (POST_EFFECT_TYPES.includes(hostEvent.eventType)) {
+      const finalized = preEffectCorrelation.getFinalized(hostEvent.idempotencyKey);
+      const requestId = finalized ? null : preEffectCorrelation.getRequestId(hostEvent.idempotencyKey);
+      hostEvent.priorCorrelation = finalized
+        ? { ...finalized, priorReceiptId: null }
+        : requestId && hostEvent.contractId === null
+          ? { requestId, capabilityId: null, requestedEffect: null, authorizedEffect: null, priorReceiptId: null }
+          : null;
     }
   }
 
@@ -296,6 +304,7 @@ export function handleHookEvent(hookPayload, deps) {
 
   const ingestor = new HostIngestor({ receiptStore, capabilityStore, replayGuard, keyRing: verificationKeyRing, policy, clock, dependencyLedger });
   const result = ingestor.ingest(hostEvent, { authorityAssertion });
+  if (result.decision.allowed) auditSuccessfulCommit(hookPayload, hostEvent, { workspace: hostEvent.workspace });
   return { hostEvent, observationClass, enforcementHealth, ...result };
 }
 

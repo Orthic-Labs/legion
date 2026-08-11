@@ -12,18 +12,25 @@ import { AuthorityLedger } from '../lib/authority.mjs';
 import { SessionBindingStore } from '../lib/session-binding.mjs';
 import { PreEffectCorrelationStore } from '../lib/preeffect-correlation.mjs';
 import { PreEffectGate } from '../lib/preeffect-gate.mjs';
+import { UserApprovalAuthority } from '../lib/user-approval.mjs';
 import { handleHookEvent, evaluateHostStop } from './hook-adapter-core.mjs';
 import { RuntimeSchemaSet } from '../lib/runtime-schema.mjs';
 import { renderHostRuntimeOutput } from './host-runtime-output.mjs';
 import { buildPolicyInjection } from './policy-inject.mjs';
+import { preEffectDiscipline } from '../lib/discipline-controls.mjs';
+import { evaluateTranscriptStop } from '../../../hooks/stop-shape.mjs';
 
-const POLICY_INJECT_EVENTS = new Set(['SessionStart', 'SubagentStart']);
+const POLICY_INJECT_EVENTS = new Set(['SessionStart', 'SubagentStart', 'PostCompact']);
 
 const schema = new RuntimeSchemaSet();
 const EVENT_TYPES = new Set(['SessionStart', 'SubagentStart', 'UserPromptSubmit', 'PostCompact', 'PreToolUse', 'PostToolUse', 'PostToolUseFailure', 'Stop']);
 const isoClock = (clock) => () => new Date(clock()).toISOString();
 const denial = (code, message, enforcementHealth = 'strong') => decision({ allowed: false, code, message, detail: {}, enforcementHealth });
 const latitudeFor = (contract, target) => contract.artifacts.exact.some((artifact) => artifact.path === target) ? 'EXACT' : 'BOUNDED';
+
+export function evaluateLatestStopShape(hookPayload) {
+  return evaluateTranscriptStop(hookPayload);
+}
 
 function codeOf(error) {
   return error instanceof ArcaneError ? error.code : 'ARC_STORE_CORRUPT';
@@ -79,13 +86,19 @@ export function createHostRuntime({ adapter, workspace, keyDir, verificationKeyD
     sessionBinding: new SessionBindingStore({ root: paths.sessions }),
     preEffectCorrelation: new PreEffectCorrelationStore({ root: paths.correlations }),
   };
-  const gate = new PreEffectGate({ policy, capabilityStore: stores.capabilityStore, authorityLedger: stores.authorityLedger, clock });
-  Object.assign(stores, { policy, keyRing, verificationKeyRing, gate });
+  const userApproval = new UserApprovalAuthority({ keyRing, clock });
+  const gate = new PreEffectGate({ policy, capabilityStore: stores.capabilityStore, authorityLedger: stores.authorityLedger, approvalAuthority: userApproval, clock });
+  Object.assign(stores, { policy, keyRing, verificationKeyRing, userApproval, gate });
+  let receiptSequence = 0;
 
   const handle = (hookPayload) => {
     const eventType = hookPayload?.hook_event_name;
     if (!EVENT_TYPES.has(eventType)) {
       return runtimeResult('PreToolUse', { decision: denial('ARC_HOST_EVENT_INVALID', 'invalid host event'), enforcementHealth: 'strong' });
+    }
+    if (eventType === 'PreToolUse') {
+      const control = preEffectDiscipline(hookPayload, { workspace });
+      if (control) return runtimeResult(eventType, { decision: denial(control.code, control.message), enforcementHealth: 'strong' });
     }
     try {
       const hostEvent = adapter.normalize(hookPayload);
@@ -109,6 +122,15 @@ export function createHostRuntime({ adapter, workspace, keyDir, verificationKeyD
       let observed = typeof adapter.mapPreEffect === 'function' && eventType === 'PreToolUse'
         ? adapter.mapPreEffect(hookPayload, { hostEvent, binding, workspace }) : null;
 
+      // `apply_patch` is one host call with ordered singular effects. Its exact
+      // command is parsed here on both sides of execution; no payload-provided
+      // target or authority claim can widen that list.
+      const patch = typeof adapter.mapPreEffect === 'function' && hookPayload?.tool_name === 'apply_patch'
+        ? adapter.mapPreEffect(hookPayload, { hostEvent, binding, workspace }) : null;
+      if (hookPayload?.tool_name === 'apply_patch' && !patch) {
+        return runtimeResult(eventType, { decision: denial('ARC_HOST_EVENT_INVALID', 'malformed apply_patch payload'), enforcementHealth: 'strong' });
+      }
+
       // Ambient tier (canon A-ER-1: evidence is not authorization). A session
       // with no sealed contract still observes its effects and earns receipts;
       // it authorizes nothing, so there is no capability to mint and the gated
@@ -118,36 +140,49 @@ export function createHostRuntime({ adapter, workspace, keyDir, verificationKeyD
       // effect instead (the prior behaviour) made ordinary user-requested work
       // impossible on every harness while protecting nothing the locked-domain
       // check does not already protect.
-      if (observed && !contracted) {
-        if (policy.lockedDomainsFor([observed.target]).length > 0) {
+      const observedEffects = patch?.effects ?? (observed ? [observed] : []);
+      if (eventType === 'PreToolUse' && observedEffects.length > 0 && !contracted) {
+        if (policy.lockedDomainsFor(observedEffects.map((effect) => effect.target)).length > 0) {
           return runtimeResult(eventType, { decision: denial('ARC_NO_CONTRACT', 'locked-domain effect requires a sealed contract'), enforcementHealth: 'strong' });
         }
         observed = null;
       }
 
-      if (observed) {
-        const reservation = stores.preEffectCorrelation.reserve(observed.toolUseId);
-        if (!reservation) return runtimeResult(eventType, { decision: denial('ARC_STORE_CORRUPT', 'pre-effect correlation unavailable'), enforcementHealth: 'unsupported' });
-        if (!reservation.created) return runtimeResult(eventType, { decision: denial('ARC_REPLAY_NONCE_SEEN', 'pre-effect delivery already reserved'), enforcementHealth: 'strong' });
+      if (eventType === 'PreToolUse' && observedEffects.length > 0 && contracted) {
         const seal = boundSeal;
-        const authority = identity?.sessionId && identity?.agentId
-          ? stores.authorityBinding.assertForTurn({ adapter: adapter.name, sessionId: identity.sessionId, agentId: identity.agentId, turnId: reservation.requestId, authorityLedger: stores.authorityLedger, keyId: keyRing?.activeKeyId() }) : null;
-        if (!authority) {
-          return runtimeResult(eventType, { decision: denial('ARC_NO_CONTRACT', 'sealed contract unavailable'), enforcementHealth: 'strong' });
+        const prepared = [];
+        for (const effect of observedEffects) {
+          const reservation = stores.preEffectCorrelation.reserve(effect.toolUseId);
+          if (!reservation) return runtimeResult(eventType, { decision: denial('ARC_STORE_CORRUPT', 'pre-effect correlation unavailable'), enforcementHealth: 'unsupported' });
+          if (!reservation.created) return runtimeResult(eventType, { decision: denial('ARC_REPLAY_NONCE_SEEN', 'pre-effect delivery already reserved'), enforcementHealth: 'strong' });
+          const authority = identity?.sessionId && identity?.agentId
+            ? stores.authorityBinding.assertForTurn({ adapter: adapter.name, sessionId: identity.sessionId, agentId: identity.agentId, turnId: reservation.requestId, authorityLedger: stores.authorityLedger, keyId: keyRing?.activeKeyId() }) : null;
+          if (!authority) return runtimeResult(eventType, { decision: denial('ARC_NO_CONTRACT', 'sealed contract unavailable'), enforcementHealth: 'strong' });
+          const request = { schemaVersion: 1, kind: 'legion-effect-request', requestId: reservation.requestId, runId: binding.runId, contractId: seal.contractId, taskId: binding.taskId, requestedBy: authority.authority, effectClass: effect.effectClass, target: effect.target, operation: effect.operation, latitude: latitudeFor(seal.contract, effect.target), sourceRevision: seal.contract.sourceRevision, requestedAt: new Date(clock()).toISOString() };
+          const context = { contract: seal.contract, contractDigest: seal.contractDigest, turnId: reservation.requestId, workspace, expectedContractVersion: seal.version, requestId: reservation.requestId, sessionId: hostEvent.sessionId, transcriptPath: hookPayload?.transcript_path };
+          const authorized = gate.authorize(request, context);
+          if (!authorized.allowed) return runtimeResult(eventType, { decision: authorized, enforcementHealth: authorized.enforcementHealth });
+          prepared.push({ request, context, capabilityId: authorized.detail.capabilityId, toolUseId: effect.toolUseId });
         }
-        const request = {
-          schemaVersion: 1, kind: 'legion-effect-request', requestId: reservation.requestId,
-          runId: binding.runId, contractId: seal.contractId, taskId: binding.taskId,
-          requestedBy: authority.authority, effectClass: observed.effectClass, target: observed.target,
-          operation: observed.operation, latitude: latitudeFor(seal.contract, observed.target),
-          sourceRevision: seal.contract.sourceRevision, requestedAt: new Date(clock()).toISOString(),
-        };
-        const context = { contract: seal.contract, contractDigest: seal.contractDigest, turnId: reservation.requestId, workspace, expectedContractVersion: seal.version, requestId: reservation.requestId };
-        const authorized = gate.authorize(request, context);
-        if (!authorized.allowed) return runtimeResult(eventType, { decision: authorized, enforcementHealth: authorized.enforcementHealth });
-        const consumed = gate.evaluate(request, { ...context, capabilityId: authorized.detail.capabilityId });
-        if (!consumed.allowed) return runtimeResult(eventType, { decision: consumed, enforcementHealth: consumed.enforcementHealth });
-        return runtimeResult(eventType, { decision: consumed, capabilityId: authorized.detail.capabilityId });
+        for (const item of prepared) {
+          const consumed = gate.evaluate(item.request, { ...item.context, capabilityId: item.capabilityId });
+          if (!consumed.allowed) return runtimeResult(eventType, { decision: consumed, enforcementHealth: consumed.enforcementHealth });
+          const requestedEffect = { effectClass: item.request.effectClass, target: item.request.target, operation: item.request.operation };
+          const authorizedEffect = { effectClass: item.request.effectClass, target: item.request.target, operation: item.request.operation };
+          const finalized = stores.preEffectCorrelation.finalize(item.toolUseId, { requestId: item.request.requestId, capabilityId: item.capabilityId, requestedEffect, authorizedEffect });
+          if (!finalized) return runtimeResult(eventType, { decision: denial('ARC_STORE_CORRUPT', 'pre-effect correlation finalization failed'), enforcementHealth: 'strong' });
+        }
+        return runtimeResult(eventType, { decision: { allowed: true, code: null, message: 'authorized', detail: {}, enforcementHealth: 'strong' }, capabilityId: prepared[0]?.capabilityId ?? null });
+      }
+      if (patch?.effects?.length && eventType !== 'PreToolUse') {
+        const outcomes = patch.effects.map((effect) => handleHookEvent(hookPayload, {
+          normalize: (payload) => ({ ...adapter.normalize(payload), effect: { effectClass: effect.effectClass, target: effect.target, operation: effect.operation }, idempotencyKey: effect.toolUseId, replayNonce: effect.toolUseId, replaySequence: ++receiptSequence }),
+          keyRing, verificationKeyRing, receiptStore: stores.receiptStore, replayGuard: stores.replayGuard, policy,
+          capabilityStore: stores.capabilityStore, clock, sessionBinding: stores.sessionBinding, preEffectCorrelation: stores.preEffectCorrelation,
+        }));
+        const failed = outcomes.find((outcome) => !outcome.decision.allowed);
+        const outcome = failed ?? outcomes.at(-1);
+        return runtimeResult(eventType, { decision: outcome.decision, receipt: outcome.receipt, enforcementHealth: outcome.enforcementHealth });
       }
       const outcome = handleHookEvent(hookPayload, {
         normalize: adapter.normalize, keyRing, verificationKeyRing, receiptStore: stores.receiptStore, replayGuard: stores.replayGuard, policy,
@@ -156,6 +191,10 @@ export function createHostRuntime({ adapter, workspace, keyDir, verificationKeyD
       if (eventType === 'Stop' && outcome.decision.allowed) {
         const stopped = evaluateHostStop(outcome.hostEvent, { policy, receiptStore: stores.receiptStore });
         if (!stopped.allowed) outcome.decision = stopped;
+        if (outcome.decision.allowed) {
+          const shaped = evaluateLatestStopShape(hookPayload);
+          if (shaped.block) outcome.decision = denial('ARC_STOP_SHAPE', shaped.instruction, 'advisory');
+        }
       }
       const result = runtimeResult(eventType, outcome);
       // renderHostRuntimeOutput returns null when allowed, which is exactly why

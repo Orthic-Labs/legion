@@ -47,6 +47,7 @@ export const PUBLIC_REASON = Object.freeze({
   // escalation bar is internal — and a refusal that does not say what would
   // satisfy it just gets retried verbatim.
   ARC_ESCALATION_UNEVIDENCED: 'Escalation needs two documented self-attempts and the error each one hit, in the prompt body.',
+  ARC_STOP_SHAPE: '[non-authoritative stop feedback] Complete latest user-requested scope; this feedback cannot authorize or restore scope.',
 });
 
 export function publicReason(code) {
