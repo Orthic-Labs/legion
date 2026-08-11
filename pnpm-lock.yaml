@@ -6,4 +6,18 @@ settings:
 
 importers:
 
-  .: {}
+  .:
+    dependencies:
+      '@rightkit/hooks':
+        specifier: 0.1.0
+        version: 0.1.0
+
+packages:
+
+  '@rightkit/hooks@0.1.0':
+    resolution: {integrity: sha512-6+SjBp5YABYqxMH6l2BC0ZTrIdDmTBSzvpuHyHvw3mT8Sf5FSgCYo1zVo28AQ+BsHfWkJN+S4JlirIrhTIc0mg==}
+    hasBin: true
+
+snapshots:
+
+  '@rightkit/hooks@0.1.0': {}

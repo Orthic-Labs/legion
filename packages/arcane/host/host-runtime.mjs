@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { ArcaneError, decision } from '../lib/errors.mjs';
@@ -19,6 +20,7 @@ import { renderHostRuntimeOutput } from './host-runtime-output.mjs';
 import { buildPolicyInjection } from './policy-inject.mjs';
 import { preEffectDiscipline } from '../lib/discipline-controls.mjs';
 import { evaluateTranscriptStop } from '../../../hooks/stop-shape.mjs';
+import { classifyLatestUserIntent } from '../../../hooks/user-intent.mjs';
 
 const POLICY_INJECT_EVENTS = new Set(['SessionStart', 'SubagentStart', 'PostCompact']);
 
@@ -34,6 +36,26 @@ export function evaluateLatestStopShape(hookPayload) {
 
 function codeOf(error) {
   return error instanceof ArcaneError ? error.code : 'ARC_STORE_CORRUPT';
+}
+
+const READ_ONLY_STOP_INTENTS = new Set(['QUESTION', 'PLAN', 'REVOKE', 'SCOPE_NARROW']);
+
+/** Latest user intent classifies a Stop only; it never authorizes an effect. */
+export function readOnlyStopIntent(hookPayload) {
+  const transcriptPath = hookPayload?.transcript_path;
+  if (typeof transcriptPath !== 'string' || transcriptPath.length === 0) return { intent: 'UNKNOWN', readOnly: false };
+  try {
+    const intent = classifyLatestUserIntent(readFileSync(transcriptPath, 'utf8')).intent;
+    return { intent, readOnly: READ_ONLY_STOP_INTENTS.has(intent) };
+  } catch {
+    return { intent: 'UNKNOWN', readOnly: false };
+  }
+}
+
+function readOnlyStoreDiagnostic(eventType, hookPayload, error, stores, identity, adapterName) {
+  if (eventType !== 'Stop' || !readOnlyStopIntent(hookPayload).readOnly || codeOf(error) !== 'ARC_STORE_CORRUPT') return null;
+  if (identity?.sessionId && identity?.agentId) stores.authorityBinding.recover({ adapter: adapterName, sessionId: identity.sessionId, agentId: identity.agentId });
+  return runtimeResult(eventType, { decision: decision({ allowed: true, code: 'ARC_STORE_CORRUPT', message: 'read-only Stop observed unavailable Arcane state', detail: {}, enforcementHealth: 'degraded' }), enforcementHealth: 'degraded' });
 }
 
 function runtimeResult(eventType, result) {
@@ -93,6 +115,7 @@ export function createHostRuntime({ adapter, workspace, keyDir, verificationKeyD
 
   const handle = (hookPayload) => {
     const eventType = hookPayload?.hook_event_name;
+    let identity = null;
     if (!EVENT_TYPES.has(eventType)) {
       return runtimeResult('PreToolUse', { decision: denial('ARC_HOST_EVENT_INVALID', 'invalid host event'), enforcementHealth: 'strong' });
     }
@@ -102,7 +125,7 @@ export function createHostRuntime({ adapter, workspace, keyDir, verificationKeyD
     }
     try {
       const hostEvent = adapter.normalize(hookPayload);
-      const identity = typeof adapter.observeIdentity === 'function' ? adapter.observeIdentity(hookPayload, { hostEvent }) : null;
+      identity = typeof adapter.observeIdentity === 'function' ? adapter.observeIdentity(hookPayload, { hostEvent }) : null;
       if (identity?.modelClaimed) return runtimeResult(eventType, { decision: denial('ARC_AUTHORITY_MODEL_CLAIMED', 'payload authority claim refused'), enforcementHealth: 'strong' });
       if (identity?.sessionId && identity?.agentId && identity?.agentType) {
         stores.authorityBinding.observe({ adapter: adapter.name, eventId: identity.eventId ?? `host:${eventType}`, ...identity });
@@ -212,6 +235,8 @@ export function createHostRuntime({ adapter, workspace, keyDir, verificationKeyD
       }
       return result;
     } catch (error) {
+      const diagnostic = readOnlyStoreDiagnostic(eventType, hookPayload, error, stores, identity, adapter.name);
+      if (diagnostic) return diagnostic;
       return runtimeResult(eventType, { decision: denial(codeOf(error), 'runtime failure'), enforcementHealth: 'unsupported' });
     }
   };

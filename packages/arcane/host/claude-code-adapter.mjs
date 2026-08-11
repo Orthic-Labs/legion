@@ -61,6 +61,7 @@
 import { homedir, platform, release } from 'node:os';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
+import { normalizeHookEvent } from '@rightkit/hooks';
 
 import { ArcaneError } from '../lib/errors.mjs';
 import { normalizeHostEvent } from '../lib/host-event.mjs';
@@ -126,6 +127,7 @@ const EFFECT_TOOL_MAP = Object.freeze({
  *   one of the six documented Claude Code hook events.
  */
 export function buildRawHostEvent(hookPayload) {
+  try { hookPayload = normalizeHookEvent(hookPayload).payload; } catch { throw new ArcaneError('ARC_HOST_EVENT_INVALID', 'invalid HookHost payload'); }
   const eventType = hookPayload?.hook_event_name;
   if (typeof eventType !== 'string' || !SUPPORTED_HOOK_EVENTS.includes(eventType)) {
     throw new ArcaneError('ARC_HOST_EVENT_INVALID', `unsupported or missing Claude Code hook_event_name: ${eventType}`, {

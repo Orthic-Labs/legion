@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -9,6 +9,7 @@ import { fileURLToPath } from 'node:url';
 import { createHostRuntime, evaluateLatestStopShape } from '../host/host-runtime.mjs';
 import { normalizeCodexEvent, mapCodexPreEffect, observeCodexIdentity } from '../host/codex-adapter.mjs';
 import { claudeCodeHostAdapter } from '../host/claude-code-adapter.mjs';
+import { evaluateStopShape } from '../../../hooks/stop-shape.mjs';
 import { b5Contract, seedStore } from './fixtures/runtime-binding-contract.mjs';
 import { SessionBindingStore } from '../lib/session-binding.mjs';
 import { AuthorityBindingStore } from '../lib/authority-binding-store.mjs';
@@ -180,4 +181,37 @@ test('EC-503 host Stop preserves recorded findings, push cap & current authoriza
     assert.equal(evaluateLatestStopShape(payload).block, false);
     assert.doesNotMatch(readFileSync(new URL('../../../hooks/stop-shape.mjs', import.meta.url), 'utf8'), /intent\.intent === 'proceed'/);
   } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
+test('Wave 1: corrupt authority state is diagnostic-only for question, plan, & pause Stops, never a completion claim', () => {
+  const root = mkdtempSync(join(tmpdir(), 'arcane-read-only-stop-'));
+  const workspace = join(root, 'workspace'); const stateRoot = join(root, 'state'); const keyDir = join(root, 'keys'); const transcript = join(root, 'transcript.jsonl');
+  const entry = (type, text) => JSON.stringify({ type, message: { content: [{ type: 'text', text }] } });
+  try {
+    mkdirSync(workspace, { recursive: true }); mkdirSync(keyDir, { recursive: true }); writeFileSync(join(keyDir, 'k1.key'), 'a'.repeat(64));
+    const runtime = createHostRuntime({ adapter: { name: 'codex', normalize: normalizeCodexEvent, observeIdentity: observeCodexIdentity }, workspace, keyDir, stateRoot });
+    const payload = { hook_event_name: 'Stop', cwd: workspace, session_id: 'read-only-session', agent_id: 'agent', agent_type: 'alchemist', transcript_path: transcript };
+    const corrupt = () => {
+      const path = runtime.stores.authorityBinding.path('codex', 'read-only-session', 'agent');
+      mkdirSync(join(stateRoot, 'authority-bindings'), { recursive: true }); writeFileSync(path, '{'); return path;
+    };
+    for (const userText of ['What is current status?', 'Plan only; make no changes.', 'Pause this work.']) {
+      writeFileSync(transcript, [entry('user', userText), entry('assistant', 'Here is requested answer.')].join('\n'));
+      const path = corrupt(); const result = runtime.handle(payload);
+      assert.equal(result.allowed, true, userText); assert.equal(result.code, 'ARC_STORE_CORRUPT'); assert.equal(result.enforcementHealth, 'degraded'); assert.equal(result.stdout, null);
+      assert.equal(existsSync(path), false, 'corrupt routing record is quarantined, not reused');
+    }
+    writeFileSync(transcript, [entry('user', 'Fix it now.'), entry('assistant', 'Completed.')].join('\n'));
+    corrupt(); const completion = runtime.handle(payload);
+    assert.equal(completion.allowed, false); assert.equal(completion.code, 'ARC_STORE_CORRUPT');
+    const mutation = runtime.handle({ ...payload, hook_event_name: 'PreToolUse', tool_name: 'Write', tool_input: { file_path: 'src/a.mjs' }, tool_use_id: 'wave-1-mutation' });
+    assert.equal(mutation.allowed, false); assert.equal(mutation.code, 'ARC_STORE_CORRUPT');
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
+test('Wave 1: two reopenings or two blocked closes opens Stop circuit', () => {
+  const finalText = 'Implementation is ready. Say go and I execute.';
+  assert.equal(evaluateLatestStopShape({}).block, false, 'missing transcript remains fail-open');
+  assert.equal(evaluateStopShape(finalText, { intent: 'EXECUTE', authorized: true, pushes: 2 }).reason, 'stop-circuit-open');
+  assert.equal(evaluateStopShape(finalText, { intent: 'EXECUTE', authorized: true, reopenings: 2 }).reason, 'stop-circuit-open');
 });

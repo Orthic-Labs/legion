@@ -88,5 +88,8 @@
     "self-test": "node scripts/self-test.mjs",
     "schemas:check": "node scripts/generate-schemas.mjs --check",
     "prepack": "node scripts/check-publication-policy.mjs --channel internal-pack && node scripts/generate-schemas.mjs --check && node --test --test-concurrency=1 tests/*.test.mjs"
+  },
+  "dependencies": {
+    "@rightkit/hooks": "0.1.0"
   }
 }
