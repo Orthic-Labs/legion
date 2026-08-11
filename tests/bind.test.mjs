@@ -116,6 +116,47 @@ test('codex bind writes managed agent pointers and is idempotent', () => {
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });
 
+test('codex bind migrates the prior Seer-era unmanaged tables without touching user config', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'legion-codex-legacy-bind-'));
+  try {
+    mkdirSync(join(dir, '.codex'), { recursive: true });
+    writeFileSync(join(dir, '.codex', 'config.toml'), [
+      'model = "gpt"', '',
+      '[agents.sage]', 'description = "old"', 'config_file = "agents/sage.toml"', '',
+      '[agents.seer]', 'description = "old"', 'config_file = "agents/seer.toml"', '',
+      '[mcp_servers.legion]', 'command = "node"', 'args = ["old.mjs"]', '',
+      '[history]', 'persistence = "save-all"', '',
+    ].join('\n'));
+    const written = bind(['--write', '--harness', 'codex', dir]);
+    assert.equal(written.status, 0, written.stderr);
+    const config = readFileSync(join(dir, '.codex', 'config.toml'), 'utf8');
+    assert.match(config, /model = "gpt"/);
+    assert.match(config, /\[history\]\npersistence = "save-all"/);
+    assert.match(config, /# >>> legion:managed-block v1 >>>/);
+    assert.match(config, /\[agents\.oracle\]/);
+    assert.doesNotMatch(config, /\[agents\.seer\]|agents\/seer\.toml|old\.mjs/);
+    assert.equal(bind(['--write', '--harness', 'codex', dir]).status, 0);
+    assert.equal(readFileSync(join(dir, '.codex', 'config.toml'), 'utf8'), config);
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+
+test('codex bind removes a duplicate legacy MCP table outside its managed block', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'legion-codex-duplicate-mcp-'));
+  try {
+    mkdirSync(join(dir, '.codex'), { recursive: true });
+    assert.equal(bind(['--write', '--harness', 'codex', dir]).status, 0);
+    const path = join(dir, '.codex', 'config.toml');
+    const managed = readFileSync(path, 'utf8');
+    writeFileSync(path, `${managed}\n[mcp_servers.legion]\ncommand = "node"\nargs = ["old.mjs"]\n`);
+    assert.equal(bind(['--write', '--harness', 'codex', dir]).status, 0);
+    const repaired = readFileSync(path, 'utf8');
+    assert.equal((repaired.match(/^\[mcp_servers\.legion\]$/gm) ?? []).length, 1);
+    assert.doesNotMatch(repaired, /old\.mjs/);
+    assert.equal(bind(['--write', '--harness', 'codex', dir]).status, 0);
+    assert.equal(readFileSync(path, 'utf8'), repaired);
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+
 test('gemini bind emits native role commands, context, MCP, and byte-bound receipt', () => {
   const dir = mkdtempSync(join(tmpdir(), 'legion-gemini-bind-'));
   try {
