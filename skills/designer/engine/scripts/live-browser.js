@@ -177,6 +177,7 @@
           window.scrollTo(0, savedY);
         }
       };
+      apply();
       if (document.fonts?.ready) document.fonts.ready.then(apply).catch(() => {});
       window.addEventListener('load', apply, { once: true });
     }
@@ -3647,7 +3648,7 @@
       console.error('[impeccable] manual edit stash failed:', err);
       const detail = String(err?.message || '');
       if (detail.includes('newText cannot contain') || detail.includes('newText cannot be empty')) {
-        showToast('Save rejected: ' + detail.replace(/^manual_edit<local-path> ''), 5500);
+        showToast('Save rejected: ' + detail.replace(/^manual_edits:\s*/, ''), 5500);
       } else {
         showToast('Save failed - retry or cancel', 4000);
       }
@@ -11088,7 +11089,7 @@ void main() {
     let s = escapeHtml(text);
     // Code spans
     s = s.replace(/`([^`]+)`/g, (_, code) => `<code>${code}</code>`);
-    // Links [text](legion-skill://designer/engine/scripts/url)
+    // Links [text](url)
     s = s.replace(/\[([^\]]+)\]\(([^)]+)\)/g, (_, t, u) => `<a href="${u}" target="_blank" rel="noopener noreferrer">${t}</a>`);
     // Bold
     s = s.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');

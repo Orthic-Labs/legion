@@ -552,13 +552,13 @@ function readPnpmWorkspaces(repoRoot) {
     for (const line of body.split(/\r?\n/)) {
       const trimmed = stripYamlInlineComment(line).trim();
       if (!trimmed || trimmed.startsWith('#')) continue;
-      const flowMatch = trimmed.match(/^package<local-path>)\]\s*$/);
+      const flowMatch = trimmed.match(/^packages:\s*\[(.*)\]\s*$/);
       if (flowMatch) {
         patterns.push(...parseYamlFlowList(flowMatch[1]));
         inPackages = false;
         continue;
       }
-      if (/^package<local-path>)) {
+      if (/^packages:\s*$/.test(trimmed)) {
         inPackages = true;
         continue;
       }
@@ -723,7 +723,7 @@ function readLocalSkillVersion() {
     const here = path.dirname(fileURLToPath(import.meta.url));
     const skillMd = path.join(here, '..', 'SKILL.md');
     const content = fs.readFileSync(skillMd, 'utf-8');
-    const match = content.match(/^versio<local-path>)$/m);
+    const match = content.match(/^version:\s*(.+)$/m);
     return match ? match[1].trim().replace(/^["']|["']$/g, '') : null;
   } catch {
     return null;
@@ -903,7 +903,7 @@ function pathExistsForTarget(cwd, targetPath) {
 
 function buildResolvedContextDirective(ctx, options, { targetExists = null } = {}) {
   const targetPath = hasTargetOption(options) ? options.targetPath : null;
-  return `RESOLVED_CONTEX<local-path>
+  return `RESOLVED_CONTEXT:\n${JSON.stringify({
     targetPath,
     ...(targetPath ? { targetExists } : {}),
     projectRoot: ctx.projectRoot,
@@ -935,7 +935,7 @@ function buildMissingTargetDirective() {
 
 function buildTargetSelectionDirective(selection) {
   return (
-    `TARGET_SELECTION_REQUIRE<local-path> null, 2)}\n\n` +
+    `TARGET_SELECTION_REQUIRED:\n${JSON.stringify(selection, null, 2)}\n\n` +
     'Show each app with its productStatus/productPath and designStatus/designPath so the user can see child overrides, inherited root files, fallback files, or missing files before choosing. ' +
     'Ask the user which app Impeccable should use, then rerun Impeccable helper commands from that child app cwd using this same scripts directory. ' +
     'Use `--target <path>` only as a fallback when changing cwd is not possible, or when the user explicitly named a file/path.'

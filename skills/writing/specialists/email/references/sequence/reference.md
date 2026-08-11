@@ -287,16 +287,16 @@ What to measure and benchmarks
 
 ## Tool Integrations
 
-For implementation, see the [tools registry](legion-skill://writing/specialists/email/tools/REGISTRY.md). Key email tools:
+For implementation, see the tools registry (<external-reference>). Key email tools:
 
 | Tool | Best For | MCP | Guide |
 |------|----------|:---:|-------|
-| **Customer.io** | Behavior-based automation | - | [customer-io.md](legion-skill://writing/specialists/email/tools/integrations/customer-io.md) |
-| **Mailchimp** | SMB email marketing | ✓ | [mailchimp.md](legion-skill://writing/specialists/email/tools/integrations/mailchimp.md) |
-| **Nitrosend** | AI-native email (sequences via prompts) | ✓ | [nitrosend.md](legion-skill://writing/specialists/email/tools/integrations/nitrosend.md) |
-| **Resend** | Developer-friendly transactional | ✓ | [resend.md](legion-skill://writing/specialists/email/tools/integrations/resend.md) |
-| **SendGrid** | Transactional email at scale | - | [sendgrid.md](legion-skill://writing/specialists/email/tools/integrations/sendgrid.md) |
-| **Kit** | Creator/newsletter focused | - | [kit.md](legion-skill://writing/specialists/email/tools/integrations/kit.md) |
+| **Customer.io** | Behavior-based automation | - | customer-io.md (<external-reference>) |
+| **Mailchimp** | SMB email marketing | ✓ | mailchimp.md (<external-reference>) |
+| **Nitrosend** | AI-native email (sequences via prompts) | ✓ | nitrosend.md (<external-reference>) |
+| **Resend** | Developer-friendly transactional | ✓ | resend.md (<external-reference>) |
+| **SendGrid** | Transactional email at scale | - | sendgrid.md (<external-reference>) |
+| **Kit** | Creator/newsletter focused | - | kit.md (<external-reference>) |
 
 ---
 

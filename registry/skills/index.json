@@ -1,1 +1,13 @@
-{"schemaVersion":1,"bundles":[{"id":"designer","manifest":"skills/manifests/designer.json"},{"id":"writing","manifest":"skills/manifests/writing.json"}]}
+{
+  "schemaVersion": 1,
+  "bundles": [
+    { "id": "designer", "manifest": "skills/manifests/designer.json" },
+    { "id": "writing", "manifest": "skills/manifests/writing.json" },
+    { "id": "research", "manifest": "skills/manifests/research.json" },
+    { "id": "seo", "manifest": "skills/manifests/seo.json" },
+    { "id": "ads", "manifest": "skills/manifests/ads.json" },
+    { "id": "marketing", "manifest": "skills/manifests/marketing.json" },
+    { "id": "social", "manifest": "skills/manifests/social.json" },
+    { "id": "brand-identity", "manifest": "skills/manifests/brand-identity.json" }
+  ]
+}

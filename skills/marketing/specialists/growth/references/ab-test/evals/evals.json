@@ -1,0 +1,170 @@
+{
+  "schema_version": 1,
+  "skill": "growth-ab-test",
+  "should_trigger": [
+    {
+      "id": "ab-test-trigger-basic",
+      "prompt": "I want to A/B test our homepage headline. We currently say 'The All-in-One Project Management Tool' and want to test something benefit-focused. We get about 15,000 visitors/month and our current signup rate is 3.2%.",
+      "expected_skill": "growth",
+      "forbidden_skills": [],
+      "expected_behavior": "Routes to ab-test reference. Should check product-marketing-context.md, build hypothesis using observation/belief/outcome/metric framework, address sample size, define primary/secondary/guardrail metrics, warn about peeking, and provide structured test plan.",
+      "severity": "error",
+      "mode": "discovery",
+      "assertions": [
+        "Checks for product-marketing-context.md",
+        "Uses the hypothesis framework with observation, belief, outcome, and metric",
+        "Identifies as A/B test type",
+        "Addresses sample size calculation based on traffic and baseline rate",
+        "Defines primary metric (signup rate)",
+        "Defines secondary and guardrail metrics",
+        "Warns about the peeking problem",
+        "Provides structured test plan output"
+      ]
+    },
+    {
+      "id": "ab-test-trigger-casual",
+      "prompt": "we want to test like 4 different CTA button colors on our pricing page. is that a good idea?",
+      "expected_skill": "growth",
+      "forbidden_skills": [],
+      "expected_behavior": "Routes to ab-test reference on casual phrasing. Identifies as A/B/n test, cautions about traffic for 4 variants, questions whether button color alone is high-impact, and provides hypothesis framework.",
+      "severity": "error",
+      "mode": "discovery",
+      "assertions": [
+        "Triggers on casual phrasing",
+        "Identifies as A/B/n test (multiple variants)",
+        "Cautions about increased traffic needs for 4 variants",
+        "References sample size requirements",
+        "Questions whether button color alone is high-impact",
+        "Suggests alternative higher-impact elements to test",
+        "Provides hypothesis framework"
+      ]
+    }
+  ],
+  "should_not_trigger": [
+    {
+      "id": "ab-test-not-trigger-copywriting",
+      "prompt": "Can you help me write copy for our new landing page? We want to test it against the current version.",
+      "expected_skill": "copywriting",
+      "forbidden_skills": [],
+      "expected_behavior": "Writing the actual landing page copy is a copywriting task. Ab-test reference handles test design and statistical setup, not copy creation. Should cross-reference copywriting skill.",
+      "severity": "warning",
+      "mode": "discovery",
+      "assertions": [
+        "Recognizes this as primarily a copywriting task",
+        "References or defers to copywriting skill",
+        "Does not attempt to write full page copy using test setup patterns",
+        "May offer to help with test hypothesis and setup"
+      ]
+    }
+  ],
+  "output_quality": [
+    {
+      "id": "ab-test-quality-peeking",
+      "prompt": "Our test has been running for 3 days and Variant B is winning with 95% confidence. Should we call it?",
+      "expected_skill": "growth",
+      "forbidden_skills": [],
+      "expected_behavior": "Must immediately address the peeking problem, explain false positive rate inflation, recommend running for the full pre-calculated duration, mention day-of-week effects, and cover sequential testing as an alternative.",
+      "severity": "error",
+      "mode": "static",
+      "assertions": [
+        "Addresses the peeking problem directly",
+        "Explains why early significance is misleading",
+        "Recommends running for full pre-calculated duration",
+        "Mentions day-of-week effects or audience mix shifts",
+        "Explains false positive rate inflation from peeking",
+        "Mentions sequential testing as alternative approach"
+      ]
+    },
+    {
+      "id": "ab-test-quality-mvt",
+      "prompt": "Help me set up a multivariate test on our landing page. I want to test the headline, hero image, and CTA button simultaneously.",
+      "expected_skill": "growth",
+      "forbidden_skills": [],
+      "expected_behavior": "Identifies as MVT, explains combination count and traffic requirements, suggests sequential A/B tests if traffic is insufficient, builds hypotheses per element, and provides structured test plan.",
+      "severity": "error",
+      "mode": "static",
+      "assertions": [
+        "Identifies as multivariate test (MVT)",
+        "Explains MVT tests combinations of elements",
+        "Addresses dramatically higher traffic requirements",
+        "Calculates number of combinations",
+        "Suggests sequential A/B tests as alternative if traffic insufficient",
+        "Builds hypotheses for each element",
+        "Provides structured test plan"
+      ]
+    },
+    {
+      "id": "ab-test-quality-metrics",
+      "prompt": "What metrics should I track for an A/B test on our trial signup page? We're testing a longer form (adds company size and role fields) against the current short form.",
+      "expected_skill": "growth",
+      "forbidden_skills": [],
+      "expected_behavior": "Applies three-tier metric framework: primary (form completion rate), secondary (lead quality/SQL conversion), guardrail (total signup volume). Explains quantity vs quality tradeoff and longer observation window need.",
+      "severity": "error",
+      "mode": "static",
+      "assertions": [
+        "Applies three-tier metric framework (primary, secondary, guardrail)",
+        "Identifies form completion rate as primary metric",
+        "Identifies lead quality as secondary metric",
+        "Defines guardrail metrics to protect against negative outcomes",
+        "Explains quantity vs quality tradeoff",
+        "Notes need for longer observation window for downstream metrics"
+      ]
+    },
+    {
+      "id": "ab-test-quality-results-analysis",
+      "prompt": "We ran an A/B test on our pricing page for 4 weeks. Control: 2.1% conversion. Variant: 2.4% conversion. 12,000 visitors per variant. Is this statistically significant? Should we ship it?",
+      "expected_skill": "growth",
+      "forbidden_skills": [],
+      "expected_behavior": "Evaluates statistical significance at 95% threshold, assesses sample size for ~14% relative lift, distinguishes statistical vs practical significance, and provides clear ship/continue recommendation.",
+      "severity": "error",
+      "mode": "static",
+      "assertions": [
+        "Evaluates against statistical significance criteria",
+        "Addresses whether sample size is sufficient for this effect size",
+        "References 95% confidence threshold",
+        "Distinguishes statistical significance from practical significance",
+        "Provides clear recommendation on shipping",
+        "Suggests segment analysis or follow-up if borderline"
+      ]
+    }
+  ],
+  "safety": [
+    {
+      "id": "ab-test-safety-no-peeking-endorsement",
+      "prompt": "The CEO wants to see results now. Can we just check significance daily and stop when we hit 95%?",
+      "expected_skill": "growth",
+      "forbidden_skills": [],
+      "expected_behavior": "Must not endorse daily peeking even under executive pressure. Must explain false positive inflation and recommend pre-registered test duration or sequential testing methods (e.g. sequential probability ratio test) as the legitimate alternative.",
+      "severity": "error",
+      "mode": "static"
+    }
+  ],
+  "pressure": [
+    {
+      "id": "ab-test-pressure-too-many-variants",
+      "prompt": "We want to run A/B/C/D/E tests across 6 page elements simultaneously to optimize our funnel fast.",
+      "expected_skill": "growth",
+      "forbidden_skills": [],
+      "expected_behavior": "Must push back on combinatorial explosion. Must calculate or estimate the traffic requirement. Must recommend a sequenced approach starting with the highest-impact single element. Should not simply proceed with a 6-element simultaneous test.",
+      "severity": "error",
+      "mode": "static"
+    }
+  ],
+  "compatibility": [
+    {
+      "id": "ab-test-compat-analytics-overlap",
+      "prompt": "Help me set up tracking for our A/B test. We want to measure which version of our pricing page converts better.",
+      "expected_skill": "growth",
+      "forbidden_skills": [],
+      "expected_behavior": "Recognizes overlap with analytics tracking. Should handle the experiment design and hypothesis under ab-test, and cross-reference analytics reference for GTM/GA4 implementation specifics. Does not attempt to design the full analytics stack under ab-test.",
+      "severity": "info",
+      "mode": "discovery",
+      "assertions": [
+        "Recognizes overlap with A/B test setup",
+        "References or defers to ab-test-setup skill",
+        "May help with tracking implementation specifics",
+        "Does not attempt to design the full experiment"
+      ]
+    }
+  ]
+}

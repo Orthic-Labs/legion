@@ -1,0 +1,154 @@
+{
+  "schema_version": 1,
+  "skill": "daily-mvp",
+  "should_trigger": [
+    {
+      "id": "daily-mvp-explicit",
+      "prompt": "/marketing mvp",
+      "expected_skill": "daily-mvp",
+      "forbidden_skills": [],
+      "expected_behavior": "Invoke the daily-mvp skill: Rapid idea-to-MVP validation loop — domain, landing page, teaser, deploy.",
+      "assertions": [
+        {
+          "type": "expected_skill",
+          "value": "daily-mvp"
+        }
+      ],
+      "severity": "error",
+      "mode": "discovery"
+    },
+    {
+      "id": "daily-mvp-natural",
+      "prompt": "I want to validate this idea with a landing page today.",
+      "expected_skill": "daily-mvp",
+      "forbidden_skills": [],
+      "expected_behavior": "Recognize a natural-language trigger for daily-mvp. Begins with idea brief and research quick-scan before any building.",
+      "assertions": [
+        {
+          "type": "expected_skill",
+          "value": "daily-mvp"
+        }
+      ],
+      "severity": "error",
+      "mode": "discovery"
+    }
+  ],
+  "should_not_trigger": [
+    {
+      "id": "daily-mvp-not-full-website",
+      "prompt": "Build out our full e-commerce site with product pages, checkout, and member accounts.",
+      "expected_skill": "website",
+      "forbidden_skills": ["daily-mvp"],
+      "expected_behavior": "Full production web builds route to /website. /marketing mvp is for single-page, email-capture MVPs with no auth, no database, no custom backend — not production sites.",
+      "assertions": [
+        {
+          "type": "forbidden_skill",
+          "value": "daily-mvp"
+        }
+      ],
+      "severity": "error",
+      "mode": "discovery"
+    },
+    {
+      "id": "daily-mvp-not-ideation-only",
+      "prompt": "Give me 20 startup ideas in the health-tech space.",
+      "expected_skill": "ideas",
+      "forbidden_skills": ["daily-mvp"],
+      "expected_behavior": "Pure ideation (no build intent) routes to /marketing ideas. /marketing mvp is an execution loop that starts with a single idea the user already wants to validate and ship.",
+      "assertions": [
+        {
+          "type": "forbidden_skill",
+          "value": "daily-mvp"
+        }
+      ],
+      "severity": "error",
+      "mode": "discovery"
+    },
+    {
+      "id": "daily-mvp-not-ss-commercial",
+      "prompt": "Use this for Willow and Pine growth, SEO, ads, or monetization.",
+      "expected_skill": null,
+      "forbidden_skills": ["daily-mvp"],
+      "expected_behavior": "Do not apply commercial/growth tooling to Willow and Pine.",
+      "assertions": [
+        {
+          "type": "forbidden_skill",
+          "value": "daily-mvp"
+        }
+      ],
+      "severity": "error",
+      "mode": "discovery"
+    }
+  ],
+  "output_quality": [
+    {
+      "id": "daily-mvp-phases-present",
+      "prompt": "I have a new idea for a tool that helps freelancers track billable hours via voice. Validate and ship a landing page today.",
+      "expected_skill": "daily-mvp",
+      "forbidden_skills": [],
+      "expected_behavior": "Output covers all 4 phases: Phase 1 (idea brief + /research quick-scan + verdict gate + domain candidates via /marketing ideas), Phase 2 (brand + landing page + copy + OG image + llms.txt), Phase 3 (deploy to Vercel + email capture), Phase 4 (tease). Does not build before validation passes. Scopes to ONE primary action only.",
+      "assertions": [
+        {
+          "type": "expected_skill",
+          "value": "daily-mvp"
+        },
+        {
+          "type": "required_text",
+          "value": "verdict"
+        },
+        {
+          "type": "forbidden_text",
+          "value": "domain-name-brainstormer"
+        }
+      ],
+      "severity": "error",
+      "mode": "static"
+    }
+  ],
+  "safety": [
+    {
+      "id": "daily-mvp-no-skip-validation",
+      "prompt": "Use /marketing mvp but skip the research phase and go straight to building the landing page.",
+      "expected_skill": "daily-mvp",
+      "forbidden_skills": [],
+      "expected_behavior": "The skill holds Phase 1 (validate + verdict gate) as a hard gate before Phase 2 build. Skipping validation violates the scope discipline rule and the anti-pattern list. Skill must run the research quick-scan first.",
+      "assertions": [
+        {
+          "type": "required_text",
+          "value": "research"
+        }
+      ],
+      "severity": "error",
+      "mode": "static"
+    }
+  ],
+  "pressure": [
+    {
+      "id": "daily-mvp-no-scope-creep",
+      "prompt": "While building the landing page MVP, also add user authentication, a paid Stripe integration, and a backend admin panel.",
+      "expected_skill": "daily-mvp",
+      "forbidden_skills": [],
+      "expected_behavior": "Skill must enforce scope discipline: ONE primary action, no auth, no database, no custom backend. Rejects the scope additions and redirects to the minimal MVP structure.",
+      "assertions": [],
+      "severity": "error",
+      "mode": "static"
+    }
+  ],
+  "compatibility": [
+    {
+      "id": "daily-mvp-compat-public-name",
+      "prompt": "/marketing mvp",
+      "expected_skill": "daily-mvp",
+      "forbidden_skills": [],
+      "expected_behavior": "Public invocation remains stable.",
+      "assertions": [
+        {
+          "type": "expected_skill",
+          "value": "daily-mvp"
+        }
+      ],
+      "severity": "error",
+      "mode": "discovery"
+    }
+  ]
+}

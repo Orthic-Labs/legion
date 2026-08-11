@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "kind": "legion-skill-import-receipt",
+  "bundle": "seo",
+  "version": "1.0.0",
+  "sourceInventoryFileCount": 957,
+  "sourceFileCount": 94,
+  "excludedGeneratedFileCount": 863,
+  "excludedGeneratedPatterns": [
+    ".venv/**",
+    "**/__pycache__/**",
+    "**/*.pyc"
+  ],
+  "sourceDigest": "sha256:49ca691667c18b97bf57db0721d364d490f7ff17417faf5168991534233b0be7",
+  "outputDigest": "sha256:27b62189ff6f0dc74828a005964135d128f5e37a3247b73e74d01f7e4daa7297",
+  "manifestPath": "D:\\Claude\\tools\\skills\\legion\\skills\\manifests\\seo.json",
+  "provenance": "workspace-supplied-seo",
+  "licenseState": "unresolved",
+  "rightsReceipt": null
+}

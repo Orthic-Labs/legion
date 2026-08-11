@@ -223,7 +223,7 @@ function resolveGitInfoExcludePath(cwd) {
   if (!stat.isFile()) return null;
 
   const body = fs.readFileSync(dotGit, 'utf-8').trim();
-  const match = body.match(/^gitdi<local-path>)$/i);
+  const match = body.match(/^gitdir:\s*(.+)$/i);
   if (!match) return null;
   const gitDir = path.isAbsolute(match[1]) ? match[1] : path.resolve(cwd, match[1]);
   return path.join(gitDir, 'info', 'exclude');

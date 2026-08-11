@@ -73,7 +73,7 @@ const REGEX_MATCHERS = [
   { id: 'side-tab', regex: /border-inline-(?:start|end)-width\s*:\s*(\d+)px/gi,
     test: (m, line) => !isSafeElement(line) && +m[1] >= 3,
     fmt: (m) => m[0] },
-  { id: 'side-tab', regex: /border(?:Left|Right)\s*[:=]\s*["'`](legion-skill://designer/engine/scripts/detector/engines/regex/d+)px\s+solid/g,
+  { id: 'side-tab', regex: /border(?:Left|Right)\s*[:=]\s*["'`](\d+)px\s+solid/g,
     test: (m) => +m[1] >= 3,
     fmt: (m) => m[0] },
   // --- Border accent on rounded ---

@@ -278,7 +278,7 @@ console.log(`  output: ${MP4_OUT}`);
   ], { stdio: ['ignore', 'ignore', 'pipe'] });
 
   if (ffmpeg.status !== 0) {
-    console.error('✗ ffmpeg faile<local-path>' + ffmpeg.stderr.toString().slice(-2000));
+    console.error('✗ ffmpeg failed:\n' + ffmpeg.stderr.toString().slice(-2000));
     process.exit(1);
   }
 

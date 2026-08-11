@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "kind": "legion-skill-import-receipt",
+  "bundle": "brand-identity",
+  "version": "1.0.0",
+  "sourceInventoryFileCount": 6,
+  "sourceFileCount": 6,
+  "excludedGeneratedFileCount": 0,
+  "excludedGeneratedPatterns": [
+    ".venv/**",
+    "**/__pycache__/**",
+    "**/*.pyc"
+  ],
+  "sourceDigest": "sha256:58aaaf69b18cca004fb31702db05cfbd10e9367bb8945cd4508c1d52861f24b5",
+  "outputDigest": "sha256:414cb66404ba226a8d274054da0a141cbda02084876942b7ff3d4dcae67af8b9",
+  "manifestPath": "D:\\Claude\\tools\\skills\\legion\\skills\\manifests\\brand-identity.json",
+  "provenance": "workspace-supplied-brand-identity",
+  "licenseState": "unresolved",
+  "rightsReceipt": null
+}

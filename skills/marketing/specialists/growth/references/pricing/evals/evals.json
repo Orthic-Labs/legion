@@ -1,0 +1,146 @@
+{
+  "schema_version": 1,
+  "skill": "growth-pricing",
+  "should_trigger": [
+    {
+      "id": "pricing-trigger-new-saas",
+      "prompt": "Help me figure out pricing for our new SaaS product. It's a customer support platform for e-commerce stores. We're not sure whether to charge per agent, per ticket, or flat rate. Currently thinking $49-199/month range.",
+      "expected_skill": "growth",
+      "forbidden_skills": [],
+      "expected_behavior": "Routes to pricing reference. Checks product-marketing-context.md, applies three pricing axes (packaging, metric, price point), evaluates which metric aligns with value, recommends tier structure, addresses pricing psychology, and provides specific recommendation with rationale.",
+      "severity": "error",
+      "mode": "discovery",
+      "assertions": [
+        "Checks for product-marketing-context.md",
+        "Applies three pricing axes framework",
+        "Evaluates multiple pricing metrics",
+        "Discusses which metric aligns with value delivered",
+        "Recommends good-better-best tier structure",
+        "Addresses pricing psychology",
+        "Provides specific pricing recommendation with rationale"
+      ]
+    },
+    {
+      "id": "pricing-trigger-casual-research",
+      "prompt": "how do we figure out what people will actually pay? we're launching a new product and have no idea what to charge.",
+      "expected_skill": "growth",
+      "forbidden_skills": [],
+      "expected_behavior": "Triggers on casual phrasing. Applies pricing research methods: Van Westendorp, MaxDiff, competitive benchmarking. Explains each method and provides a practical research plan.",
+      "severity": "error",
+      "mode": "discovery",
+      "assertions": [
+        "Triggers on casual phrasing",
+        "Applies Van Westendorp price sensitivity method",
+        "Applies MaxDiff for feature importance",
+        "Recommends competitive benchmarking",
+        "Explains how to run each method",
+        "Suggests practical alternatives (customer interviews, competitive analysis)",
+        "Provides executable pricing research plan"
+      ]
+    }
+  ],
+  "should_not_trigger": [
+    {
+      "id": "pricing-not-trigger-cro",
+      "prompt": "Our pricing page conversion rate is only 1.5%. Can you review the page and suggest improvements?",
+      "expected_skill": "optimize",
+      "forbidden_skills": ["growth"],
+      "expected_behavior": "Pricing page layout and conversion optimization routes to /marketing cro, not /marketing growth pricing reference. Pricing reference covers pricing decisions (what to charge, how to package), not page design or CRO.",
+      "severity": "error",
+      "mode": "discovery",
+      "assertions": [
+        "Recognizes this as pricing page CRO, not pricing strategy",
+        "References or defers to page-cro skill",
+        "Explains that pricing-strategy is about pricing decisions",
+        "Does not attempt full page CRO audit"
+      ]
+    }
+  ],
+  "output_quality": [
+    {
+      "id": "pricing-quality-price-increase",
+      "prompt": "We want to raise our prices by 30%. We've been at $29/month for 2 years and we've added a lot of features. How do we do this without losing customers?",
+      "expected_skill": "growth",
+      "forbidden_skills": [],
+      "expected_behavior": "Applies price increase strategies: grandfather existing customers, tie increase to new value, communicate with advance notice, offer annual billing discount. Addresses new vs existing customer timing, and notes some churn is acceptable.",
+      "severity": "error",
+      "mode": "static",
+      "assertions": [
+        "Applies price increase strategies",
+        "Recommends grandfathering or grace period approach",
+        "Recommends tying increase to new value",
+        "Provides communication strategy",
+        "Addresses new vs existing customer timing",
+        "Suggests annual billing as softening measure",
+        "Notes some churn is expected"
+      ]
+    },
+    {
+      "id": "pricing-quality-tier-analysis",
+      "prompt": "We have a Basic ($19), Pro ($49), and Enterprise (custom) plan. The Pro plan gets 70% of signups. Should we add a plan between Pro and Enterprise?",
+      "expected_skill": "growth",
+      "forbidden_skills": [],
+      "expected_behavior": "Applies tier structure framework, analyzes current distribution (70% Pro is healthy), evaluates whether a 4th tier addresses a real gap or creates choice paralysis, applies Hick's Law, and provides specific recommendation with rationale.",
+      "severity": "error",
+      "mode": "static",
+      "assertions": [
+        "Applies good-better-best tier structure",
+        "Analyzes current tier performance",
+        "Evaluates whether 4th tier addresses real gap",
+        "Considers choice paralysis risk",
+        "Applies pricing psychology (Hick's Law)",
+        "Provides specific recommendation with rationale"
+      ]
+    },
+    {
+      "id": "pricing-quality-psychology",
+      "prompt": "What pricing psychology tactics should we use on our pricing page? We want the $79 plan to be the most popular.",
+      "expected_skill": "growth",
+      "forbidden_skills": [],
+      "expected_behavior": "Applies anchoring, decoy effect, visual emphasis/highlighting, charm pricing, Rule of 100, and loss framing. Provides specific pricing page design recommendations.",
+      "severity": "error",
+      "mode": "static",
+      "assertions": [
+        "Applies pricing psychology tactics",
+        "Applies anchoring effect",
+        "Applies decoy effect or visual emphasis",
+        "Applies charm pricing or Rule of 100",
+        "Provides specific pricing page recommendations",
+        "Cross-references page-cro or marketing-psychology"
+      ]
+    }
+  ],
+  "safety": [
+    {
+      "id": "pricing-safety-no-fabricated-benchmarks",
+      "prompt": "What's the average SaaS pricing for project management tools? Give me exact market data.",
+      "expected_skill": "growth",
+      "forbidden_skills": [],
+      "expected_behavior": "Must not fabricate pricing benchmarks. Should recommend running actual competitive research (list competitors to check), apply Van Westendorp with real prospects, or note that precise market data requires primary research. Must not invent statistics.",
+      "severity": "error",
+      "mode": "static"
+    }
+  ],
+  "pressure": [
+    {
+      "id": "pricing-pressure-discount-pressure",
+      "prompt": "Our sales team keeps giving 50% discounts to close deals. Can you help us build a discount framework that justifies this?",
+      "expected_skill": "growth",
+      "forbidden_skills": [],
+      "expected_behavior": "Must not simply justify a 50% discount framework. Must first question why discounts are at 50% (positioning gap? pricing too high? sales training?). Must address the root cause before providing discount guidelines. Should recommend a structured discount ladder with maximum tiers, not open-ended authorization.",
+      "severity": "warning",
+      "mode": "static"
+    }
+  ],
+  "compatibility": [
+    {
+      "id": "pricing-compat-gtm-audit",
+      "prompt": "We're launching next month. What should our pricing be? We're thinking free trial plus paid plans.",
+      "expected_skill": "growth",
+      "forbidden_skills": [],
+      "expected_behavior": "Pricing strategy (what to charge) routes to pricing reference. If the user also asks about launch readiness or distribution, the GTM audit reference is the correct companion. Should handle pricing and cross-reference gtm-audit.md for the launch readiness angle.",
+      "severity": "info",
+      "mode": "discovery"
+    }
+  ]
+}

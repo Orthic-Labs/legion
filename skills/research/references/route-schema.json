@@ -1,0 +1,50 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://workspace.local/research/route-schema.v2.json",
+  "title": "ResearchRoute",
+  "description": "Frozen before any sensitive read, external request, provider mutation, or output write. The public provider axis is intentionally small; domain-default dispatches to internal scholarly or authority providers after the route freezes.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "route_version",
+    "domain",
+    "operation",
+    "methods",
+    "provider",
+    "assurance",
+    "scale",
+    "subject",
+    "sensitivity",
+    "decision",
+    "output",
+    "allowed_effects",
+    "human_gates",
+    "forbidden_resources"
+  ],
+  "properties": {
+    "route_version": {"const": 2},
+    "domain": {"type": "string", "enum": ["general", "market", "technical", "scientific", "medical", "legal"]},
+    "operation": {"type": "string", "enum": ["discover", "compare", "verify", "analyze", "advise", "review", "draft", "procedure", "manage-corpus", "generate-artifact"]},
+    "methods": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"type": "string", "enum": ["web", "competitor", "reddit", "audience", "trends", "scholarly", "document", "authority"]}},
+    "provider": {"type": "string", "enum": ["browser", "local-corpus", "notebooklm", "domain-default"]},
+    "assurance": {"type": "string", "enum": ["quick", "standard", "verified"]},
+    "scale": {"type": "string", "enum": ["focused", "broad", "dossier"]},
+    "subject": {"type": "object", "additionalProperties": true},
+    "sensitivity": {"type": "string", "enum": ["public", "private", "highly-sensitive"]},
+    "decision": {"type": "string", "minLength": 1},
+    "output": {"type": "string", "minLength": 1},
+    "allowed_effects": {"type": "array", "uniqueItems": true, "items": {"type": "string", "enum": ["read-local", "read-sensitive", "load-medical-history", "search", "fetch", "extract", "synthesize", "citecheck", "retraction-check", "upload-notebooklm", "create-artifact", "write-output", "patch-sourced-draft", "spawn-worker"]}},
+    "human_gates": {"type": "array", "uniqueItems": true, "items": {"type": "string", "enum": ["confirm-personal-medical-route", "approve-notebooklm-upload", "approve-notebooklm-publish", "confirm-jurisdiction", "confirm-legal-area", "confirm-legal-issue", "confirm-consumer-filing-facts", "confirm-anonymous-vs-identified", "approve-send-sign-file"]}},
+    "forbidden_resources": {"type": "array", "uniqueItems": true, "items": {"type": "string"}}
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"domain": {"const": "medical"}}, "required": ["domain"]},
+      "then": {"properties": {"subject": {"type": "object", "required": ["patient", "issue"], "properties": {"patient": {"type": "object", "required": ["kind"], "properties": {"kind": {"enum": ["anonymous", "self", "other-identified"]}, "history_available": {"type": "boolean"}, "history_source": {"type": ["string", "null"]}}, "additionalProperties": true}, "issue": {"type": "string", "minLength": 1}}, "additionalProperties": true}}}
+    },
+    {
+      "if": {"properties": {"domain": {"const": "legal"}}, "required": ["domain"]},
+      "then": {"properties": {"subject": {"type": "object", "required": ["country", "area", "issue"], "properties": {"country": {"type": ["string", "null"], "pattern": "^[A-Z]{2}$"}, "area": {"type": ["string", "null"], "enum": ["consumer", "criminal", "civil", "contract", "employment", "corporate", "tax", "ip", "privacy", "family", "immigration", "regulatory", "other", null]}, "issue": {"type": "string", "minLength": 1}}, "additionalProperties": true}}}
+    }
+  ]
+}

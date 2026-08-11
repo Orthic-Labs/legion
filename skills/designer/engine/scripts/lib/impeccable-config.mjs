@@ -509,7 +509,7 @@ function extractFindingIgnoreValueRaw(finding, rule = normalizeIgnoreRule(findin
       continue;
     }
 
-    const primary = text.match(/Primary fon<local-path>)\n;]+)/i);
+    const primary = text.match(/Primary font:\s*([^()\n;]+)/i);
     if (primary) return cleanIgnoreValueDisplay(primary[1]);
 
     const family = text.match(/font-family\s*:\s*["']?([^'",;\n]+)/i);
@@ -622,7 +622,7 @@ function resolveGitDir(root) {
   try {
     if (statSync(dotGit).isDirectory()) return dotGit;
     // A `.git` file (worktree/submodule) points elsewhere: "gitdir: <path>".
-    const match = readFileSync(dotGit, 'utf-8').match(/gitdi<local-path>)/);
+    const match = readFileSync(dotGit, 'utf-8').match(/gitdir:\s*(.+)/);
     if (match) {
       const resolved = match[1].trim();
       return isAbsolute(resolved) ? resolved : join(root, resolved);

@@ -108,8 +108,8 @@ sets · tabs only for sibling views · stable dimensions for repeated controls.
 - Advanced operational controls use progressive disclosure; the default pane is a task-oriented
   summary, not a permanent wall of raw inputs.
 
-Use `/qa` for hidden/background QA (project `qa:browser` contract, `qa-functional.mjs` for
-hover/click/type/key/assert, `qa-shot.mjs` for app-viewport screenshots). No foreground native
+Use the qa-engine for hidden/background QA (project `qa:browser` contract, `tools/lib/qa-engine/qa-functional.mjs` for
+hover/click/type/key/assert, `tools/lib/qa-engine/qa-shot.mjs` for app-viewport screenshots). No foreground native
 windows or desktop screenshots by default.
 
 ## Phase 6 — audit-visual gate

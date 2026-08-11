@@ -12,10 +12,10 @@ const RADIUS_TOLERANCE_PX = 0.5;
 
 const CSS_COLOR_RE = /#[0-9a-f]{3,8}\b|rgba?\([^)]+\)|oklch\([^)]+\)|hsla?\([^)]+\)/gi;
 const FONT_DECL_RE = /font-family\s*:\s*([^;}\n]+)/gi;
-const FONT_JS_RE = /fontFamily\s*[:=]\s*["'`](legion-skill://designer/engine/scripts/detector/[^"'`]+)["'`]/g;
+const FONT_JS_RE = /fontFamily\s*[:=]\s*["'`]([^"'`]+)["'`]/g;
 const GOOGLE_FONT_RE = /fonts\.googleapis\.com\/css2?\?[^"'\s)<>]*/gi;
 const BORDER_RADIUS_RE = /border-radius\s*:\s*([^;}\n]+)/gi;
-const BORDER_RADIUS_JS_RE = /borderRadius\s*[:=]\s*["'`](legion-skill://designer/engine/scripts/detector/[^"'`]+)["'`]/g;
+const BORDER_RADIUS_JS_RE = /borderRadius\s*[:=]\s*["'`]([^"'`]+)["'`]/g;
 const STATIC_DESIGN_SKIP_TAGS = new Set(['head', 'title', 'meta', 'link', 'style', 'script', 'noscript', 'template', 'source']);
 
 function firstExisting(dir, names) {

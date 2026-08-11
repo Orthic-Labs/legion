@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "kind": "legion-skill-import-receipt",
+  "bundle": "research",
+  "version": "1.0.0",
+  "sourceInventoryFileCount": 30,
+  "sourceFileCount": 30,
+  "excludedGeneratedFileCount": 0,
+  "excludedGeneratedPatterns": [
+    ".venv/**",
+    "**/__pycache__/**",
+    "**/*.pyc"
+  ],
+  "sourceDigest": "sha256:196f7815d1b277a12b42a1d03dfc4091357aac6edcb46dfe42f5441ccc9a2b36",
+  "outputDigest": "sha256:67a03a8d0f4523a1dff033ebef8c0a03ec5480ad04bcbf9b6661fc1df955cd6b",
+  "manifestPath": "D:\\Claude\\tools\\skills\\legion\\skills\\manifests\\research.json",
+  "provenance": "workspace-supplied-research",
+  "licenseState": "unresolved",
+  "rightsReceipt": null
+}

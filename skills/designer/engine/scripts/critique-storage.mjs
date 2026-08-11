@@ -7,6 +7,7 @@
  * with a small YAML frontmatter carrying the score + P0/P1 counts.
  *
  * /designer polish reads the latest matching snapshot at start as its
+ * fix backlog. No other skill auto-reads critique output.
  *
  * The slug is derived mechanically from the *resolved* primary artifact
  * (file path or URL), never from the user's natural-language phrasing.
@@ -89,6 +90,7 @@ export function nowFilenameStamp(date = new Date()) {
 }
 
 /**
+ * Write a snapshot for `slug`. `meta` carries the small structured frontmatter
  * keys read back by readTrend(). `body` is the human-readable critique
  * report (everything below the frontmatter).
  *

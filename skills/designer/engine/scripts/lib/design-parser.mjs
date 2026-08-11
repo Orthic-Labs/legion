@@ -131,7 +131,7 @@ function parseScalar(raw) {
 const HEX_RE = /#[0-9a-fA-F]{3,8}\b/g;
 const OKLCH_RE = /oklch\([^)]+\)/gi;
 const RGBA_RE = /rgba?\([^)]+\)/gi;
-const BOX_SHADOW_RE = /(?:box-shado<local-path>)?((?:-?\d[\w\d\s\-.,/()#%]*)+)/;
+const BOX_SHADOW_RE = /(?:box-shadow:\s*)?((?:-?\d[\w\d\s\-.,/()#%]*)+)/;
 const NAMED_RULE_RE = /\*\*(The [^*]+?Rule)\.\*\*\s*(.+)/;
 
 // ---------- Section splitting ----------
@@ -329,9 +329,9 @@ function extractNamedRules(lines) {
 function extractOverview(section) {
   if (!section) return null;
   const text = section.lines.join('\n');
-  const northStar = text.match(/\*\*Creative North Sta<local-path>"([^"]+)"\*\*/);
+  const northStar = text.match(/\*\*Creative North Star:\s*"([^"]+)"\*\*/);
   const keyChars = [];
-  const keyCharMatch = text.match(/\*\*Key Characteristic<local-path>)(?:\n##|\n###|$)/);
+  const keyCharMatch = text.match(/\*\*Key Characteristics:\*\*\s*\n([\s\S]+?)(?:\n##|\n###|$)/);
   if (keyCharMatch) {
     for (const line of keyCharMatch[1].split('\n')) {
       const m = line.match(/^\s*[-*]\s+(.+)$/);
@@ -521,7 +521,7 @@ function extractTypography(section) {
 
   const fonts = {};
   // Pattern A: **Display Font:** Family (with fallback)
-  const fontLineRe = /\*\*([\w\s/]+?)Fon<local-path>)(?:\s*\(with\s+([^)]+)\))?\s*$/gm;
+  const fontLineRe = /\*\*([\w\s/]+?)Font:\*\*\s*([^\n(]+?)(?:\s*\(with\s+([^)]+)\))?\s*$/gm;
   let fm;
   while ((fm = fontLineRe.exec(text)) !== null) {
     const rawRole = fm[1].trim().toLowerCase().replace(/\s+/g, '-');
@@ -549,7 +549,7 @@ function extractTypography(section) {
 
   // Character paragraph — either a **Character:** label, or fall back to the
   // first free paragraph under the section header (Stitch style).
-  const characterMatch = text.match(/\*\*Characte<local-path>)*?)(?=\n\n|\n###|\n##|$)/);
+  const characterMatch = text.match(/\*\*Character:\*\*\s*([^\n]+(?:\n[^\n]+)*?)(?=\n\n|\n###|\n##|$)/);
   let character = characterMatch ? characterMatch[1].replace(/\n/g, ' ').trim() : null;
   if (!character) {
     const paragraphs = collectParagraphs(section.lines).filter(
@@ -679,7 +679,7 @@ function parseShadowBullet(bullet) {
   // rem, rgba, or box-shadow). This filters out `**Rule Name:**` bullets.
   const m = bullet.match(/^\*\*(.+?)\*\*\s*\(`?([^`]+?)`?\):\s*(.*)$/);
   if (!m) return null;
-  const rawValue = m[2].replace(/^box-shado<local-path> '').trim();
+  const rawValue = m[2].replace(/^box-shadow:\s*/i, '').trim();
   const looksLikeShadow =
     /box-shadow|rgba?\(|\bpx\b|\brem\b|^-?\d+\s/i.test(rawValue) &&
     /\d/.test(rawValue);
