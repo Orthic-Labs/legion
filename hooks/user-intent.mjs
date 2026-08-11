@@ -16,15 +16,15 @@
 // does not lexically echo tool output, repo files, or assistant prose. The
 // injection risk lives in the content, not the label.
 //
-// This is a SELF-CONTAINED implementation, deliberately. Morph independently
-// arrived at the same admission rule for durable preference authority, but morph
+// This is a SELF-CONTAINED implementation, deliberately. Adapt independently
+// arrived at the same admission rule for durable preference authority, but adapt
 // is a standalone, portable product: nothing here may import from it, and it may
-// not import from here. A shared module would make morph non-portable and put a
+// not import from here. A shared module would make adapt non-portable and put a
 // cross-repo (and cross-language) dependency on the critical path of every Stop.
 // The rule is small and well understood; two independent implementations are the
 // correct cost. The tests below pin this one on its own terms.
 
-// --- ported from morph/authority.py -----------------------------------------
+// --- ported from adapt/authority.py -----------------------------------------
 
 const TOOL_OUTPUT_ECHO = [
   /"tool_use_id"\s*:/,
@@ -96,7 +96,7 @@ function entryText(entry) {
 /**
  * The most recent `limit` genuine user instructions, newest first. A turn is
  * genuine when the harness labelled it `user`, it is not a system injection,
- * and morph's admission accepts its content.
+ * and adapt's admission accepts its content.
  */
 export function recentUserInstructions(transcriptText, { limit = 5 } = {}) {
   if (typeof transcriptText !== 'string') return [];

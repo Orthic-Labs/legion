@@ -256,7 +256,7 @@ approach**, not an escalation trigger and not permission to stop. The escalation
 ### Post-mortem — learning extraction (for a non-obvious bug)
 When the root cause was a genuine gotcha a future agent would hit again (an API that needs null-handling
 under load, a framework footgun, an env-specific trap), capture it as a durable rule via
-Use `python3 morph/morph.py --add-rule "<the gotcha → what to do>" --category <cat> --apply` so Crypt recall prevents the repeat.
+Use `python3 adapt/adapt.py --add-rule "<the gotcha → what to do>" --category <cat> --apply` so Crypt recall prevents the repeat.
 The bar is "a standing trap worth remembering," not a log of this one fix. **State the scope** —
 language, layer, or condition it applies to — so one incident does not become an unconditional law.
 
