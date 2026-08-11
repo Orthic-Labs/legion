@@ -26,7 +26,7 @@
 // unverified), the gate allows. Blocking blind is the theatre this system
 // exists to remove.
 
-import { readFileSync, mkdirSync, writeFileSync, renameSync } from 'node:fs';
+import { appendFileSync, readFileSync, mkdirSync, writeFileSync, renameSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { classifyLatestUserIntent, latestExternalUserTurn } from './user-intent.mjs';
 
@@ -284,6 +284,55 @@ const FINDING_LANGUAGE = /\b(worth (noting|knowing|recording|your attention)|for
 
 // Paths that count as recording a finding durably.
 const RECORD_TARGETS = /(GOTCHAS?\.md|HANDOFF\.md|memright\b|\bmemory\/[\w-]+\.md)/i;
+const DURABLE_WRITE_TOOLS = new Set(['Write', 'Edit', 'MultiEdit', 'NotebookEdit', 'apply_patch']);
+const COMMAND_TOOLS = new Set(['Bash', 'PowerShell', 'shell', 'shell_command']);
+
+function transcriptEntries(raw) {
+  if (typeof raw !== 'string') return [];
+  return raw.split('\n').filter(Boolean).flatMap((line) => {
+    try { return [JSON.parse(line)]; } catch { return []; }
+  });
+}
+
+function contentBlocks(entry) {
+  const content = entry?.message?.content ?? entry?.content;
+  if (Array.isArray(content)) return content;
+  const payload = entry?.type === 'response_item' ? entry.payload : null;
+  if (payload?.type === 'message') return (payload.content ?? []).map((block) => ({ ...block, type: ['input_text', 'output_text'].includes(block?.type) ? 'text' : block.type }));
+  if (['custom_tool_call', 'function_call'].includes(payload?.type)) {
+    return [{ type: 'tool_use', id: payload.call_id ?? payload.id, name: payload.name, input: payload.input ?? payload.arguments }];
+  }
+  if (['custom_tool_call_output', 'function_call_output'].includes(payload?.type)) {
+    const output = JSON.stringify(payload.output ?? '');
+    return [{ type: 'tool_result', tool_use_id: payload.call_id, is_error: /Script failed|"isError"\s*:\s*true|Exit code:\s*[1-9]/i.test(output) }];
+  }
+  return [];
+}
+
+function entryRole(entry) {
+  if (entry?.message) return entry.type;
+  return entry?.type === 'response_item' && entry?.payload?.type === 'message' ? entry.payload.role : null;
+}
+
+function latestExternalUserIndex(entries) {
+  for (let i = entries.length - 1; i >= 0; i -= 1) {
+    if (entryRole(entries[i]) !== 'user') continue;
+    if (contentBlocks(entries[i]).some((block) => block?.type === 'tool_result')) continue;
+    return i;
+  }
+  return -1;
+}
+
+function durableWriteUse(block) {
+  if (block?.type !== 'tool_use') return false;
+  const name = block.name ?? block.tool_name;
+  const input = block.input ?? block.tool_input ?? {};
+  if (DURABLE_WRITE_TOOLS.has(name)) return RECORD_TARGETS.test(JSON.stringify(input));
+  if (name === 'exec' && typeof input === 'string' && /tools\.apply_patch\s*\(/.test(input)) return RECORD_TARGETS.test(input);
+  if (!COMMAND_TOOLS.has(name)) return false;
+  const command = typeof input === 'string' ? input : input.command;
+  return typeof command === 'string' && /\bmemright\s+put\b/i.test(command);
+}
 
 /**
  * Did this turn actually record something durable? Reads the transcript for a
@@ -292,7 +341,17 @@ const RECORD_TARGETS = /(GOTCHAS?\.md|HANDOFF\.md|memright\b|\bmemory\/[\w-]+\.m
  * "it left the chat", not a particular format.
  */
 export function recordedThisTurn(transcriptText) {
-  return typeof transcriptText === 'string' && RECORD_TARGETS.test(transcriptText);
+  const entries = transcriptEntries(transcriptText);
+  const lastUser = latestExternalUserIndex(entries);
+  if (lastUser < 0) return false;
+  const pending = new Set();
+  for (const entry of entries.slice(lastUser + 1)) {
+    for (const block of contentBlocks(entry)) {
+      if (durableWriteUse(block) && typeof block.id === 'string') pending.add(block.id);
+      if (block?.type === 'tool_result' && pending.has(block.tool_use_id) && block.is_error !== true) return true;
+    }
+  }
+  return false;
 }
 
 // Evidence that the escalation ladder was actually walked before blocking: a
@@ -319,9 +378,8 @@ export function lastAssistantText(raw) {
   for (let i = lines.length - 1; i >= 0; i -= 1) {
     let entry;
     try { entry = JSON.parse(lines[i]); } catch { continue; }
-    const message = entry?.message;
-    if (entry?.type !== 'assistant' || !message) continue;
-    const content = Array.isArray(message.content) ? message.content : [];
+    if (entryRole(entry) !== 'assistant') continue;
+    const content = contentBlocks(entry);
     const text = content
       .filter((block) => block?.type === 'text' && typeof block.text === 'string')
       .map((block) => block.text)
@@ -350,25 +408,11 @@ function circuitState(stateFile) {
 
 /** Was any tool used after the last genuine (non-tool-result) user turn? */
 export function toolUseAfterLastUser(transcriptText) {
-  if (typeof transcriptText !== 'string') return false;
-  const lines = transcriptText.split('\n').filter(Boolean);
-  let lastUser = -1;
-  for (let i = lines.length - 1; i >= 0; i -= 1) {
-    let entry;
-    try { entry = JSON.parse(lines[i]); } catch { continue; }
-    if (entry?.type !== 'user' || !entry?.message) continue;
-    const content = entry.message.content;
-    const blocks = Array.isArray(content) ? content : [];
-    if (blocks.some((b) => b?.type === 'tool_result')) continue; // harness echo, not the operator
-    lastUser = i;
-    break;
-  }
+  const entries = transcriptEntries(transcriptText);
+  const lastUser = latestExternalUserIndex(entries);
   if (lastUser < 0) return false;
-  for (let i = lastUser + 1; i < lines.length; i += 1) {
-    let entry;
-    try { entry = JSON.parse(lines[i]); } catch { continue; }
-    const content = entry?.message?.content;
-    if (Array.isArray(content) && content.some((b) => b?.type === 'tool_use')) return true;
+  for (const entry of entries.slice(lastUser + 1)) {
+    if (contentBlocks(entry).some((block) => block?.type === 'tool_use')) return true;
   }
   return false;
 }
@@ -390,7 +434,15 @@ export function stripCodeSpans(text) {
 export function evaluateStopShape(finalText, { intent = 'EXECUTE', pushes = 0, reopenings = 0, recorded = false, escalated = false, authorized = false, authorizedEvidence = null, explicitDirectiveEvidence = [], continueIntentEvidence = null, continueToolsUsed = false } = {}) {
   if (typeof finalText !== 'string' || finalText.length === 0) return { block: false, reason: 'no-final-text' };
   if (intent !== 'EXECUTE' && intent !== 'CONTINUE') return { block: false, reason: 'non-compelling-intent' };
-  if (pushes >= MAX_PUSHES || reopenings >= MAX_PUSHES) return { block: false, reason: 'stop-circuit-open' };
+  if (pushes >= MAX_PUSHES || reopenings >= MAX_PUSHES) {
+    return {
+      block: false,
+      reason: 'stop-circuit-open',
+      advisory: !recorded && FINDING_LANGUAGE.test(finalText)
+        ? 'A durable finding was reported but no successful post-user write to GOTCHAS.md, HANDOFF.md, memory, or memright was observed.'
+        : null,
+    };
+  }
   // Packet parsing stays on the RAW text: structured blockers legitimately
   // carry quoted JSON keys ("reserved_category": ...), and stripping them
   // would misread a valid packet as category-less. Only the prose heuristics
@@ -560,6 +612,12 @@ export function evaluateTranscriptStop(payload) {
     continueIntentEvidence: continueIntent(latestInstruction ?? ''),
     continueToolsUsed: toolUseAfterLastUser(raw),
   });
+  if (!verdict.block && verdict.advisory) {
+    try {
+      mkdirSync(dirname(stateFile), { recursive: true });
+      appendFileSync(join(dirname(stateFile), 'advisories.jsonl'), `${JSON.stringify({ kind: 'legion-stop-advisory', sessionId, reason: verdict.reason, advisory: verdict.advisory, at: new Date().toISOString() })}\n`, 'utf8');
+    } catch { /* an advisory must never reopen the Stop circuit */ }
+  }
   if (verdict.block) {
     try {
       mkdirSync(dirname(stateFile), { recursive: true });

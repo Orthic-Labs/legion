@@ -10,6 +10,8 @@ const BRIEF_FALLBACK = join(here, '..', 'policy', 'inject', 'brief-policy.md');
 const MINIMIZE_POLICY = join(here, '..', 'policy', 'minimize-policy.md');
 const CCX_DIRECTIVE = join(here, '..', 'policy', 'inject', 'ccx-gateway-directive.md');
 const POLICY_TOML_REL = join('tools', 'lib', 'policy.toml');
+const GOTCHAS_REL = join('docs', 'GOTCHAS.md');
+const GOTCHA_LIMIT = 2;
 
 function readFileOrNull(path) {
   try { return readFileSync(path, 'utf8'); } catch { return null; }
@@ -33,11 +35,36 @@ function ccxDirective() {
   return readFileOrNull(CCX_DIRECTIVE)?.trim() ?? null;
 }
 
-export function buildPolicyInjection({ workspace }) {
+function words(value) {
+  return new Set(String(value ?? '').toLowerCase().match(/[a-z0-9][a-z0-9_-]{2,}/g) ?? []);
+}
+
+function gotchaReminder(workspace, prompt) {
+  const promptWords = words(prompt);
+  if (promptWords.size === 0) return null;
+  const markdown = readFileOrNull(join(workspace, GOTCHAS_REL));
+  if (!markdown) return null;
+  const matches = [];
+  for (const section of markdown.split(/^### /m).slice(1)) {
+    const [heading = '', ...bodyLines] = section.split(/\r?\n/);
+    const keysLine = bodyLines.find((line) => /^\*\*Keys:\*\*/i.test(line));
+    if (!keysLine) continue;
+    const keys = keysLine.replace(/^\*\*Keys:\*\*\s*/i, '').split(',').map((key) => key.trim()).filter(Boolean);
+    if (!keys.some((key) => [...words(key)].every((word) => promptWords.has(word)))) continue;
+    const fix = bodyLines.find((line) => /^\*\*Fix:\*\*/.test(line)) ?? '';
+    matches.push(`- ${heading.trim()}${fix ? ` — ${fix.replace(/^\*\*Fix:\*\*\s*/, '')}` : ''}`);
+    if (matches.length === GOTCHA_LIMIT) break;
+  }
+  if (matches.length === 0) return null;
+  return `Relevant workspace gotchas — apply before acting:\n${matches.join('\n')}`;
+}
+
+export function buildPolicyInjection({ workspace, prompt = null, gotchasOnly = false }) {
   const minimize = readFileOrNull(MINIMIZE_POLICY)?.trim() ?? null;
-  const parts = [briefContent(workspace), minimize, ccxDirective()].filter(Boolean);
+  const gotcha = gotchaReminder(workspace, prompt);
+  const parts = gotchasOnly ? [gotcha].filter(Boolean) : [briefContent(workspace), minimize, ccxDirective(), gotcha].filter(Boolean);
   if (parts.length === 0) return null;
   const result = { additionalContext: parts.join('\n\n---\n\n') };
-  if (minimize) result.systemMessage = 'MINIMIZE:ON';
+  if (!gotchasOnly && minimize) result.systemMessage = 'MINIMIZE:ON';
   return result;
 }

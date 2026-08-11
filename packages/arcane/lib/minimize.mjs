@@ -62,6 +62,12 @@ function git(...args) {
   return result.stdout.trim();
 }
 
+function gitAt(cwd, ...args) {
+  const result = spawnSync('git', ['-C', cwd, ...args], { encoding: 'utf8', windowsHide: true, maxBuffer: 64 * 1024 * 1024 });
+  if (result.status !== 0) throw new MinimizeError((result.stderr || '').trim() || `git ${args.join(' ')} failed`);
+  return result.stdout;
+}
+
 /** git that tolerates the "no match" exit status (git grep returns 1). */
 function gitOptional(...args) {
   const result = spawnSync('git', args, { encoding: 'utf8', windowsHide: true, maxBuffer: 64 * 1024 * 1024 });
@@ -72,12 +78,38 @@ export function stagedTree() {
   return git('write-tree');
 }
 
-export function stagedFiles(env = process.env) {
+export function stagedChanges(env = process.env, cwd = process.cwd()) {
   const base = env.MINIMIZE_BASE_REF;
   const args = ['diff', '--cached'];
   if (base) args.push(base);
-  args.push('--name-only', '--diff-filter=ACMR');
-  return git(...args).split('\n').filter(Boolean);
+  args.push('-M', '--name-status', '-z', '--diff-filter=ACMRD');
+  const fields = gitAt(cwd, ...args).split('\0');
+  if (fields.at(-1) === '') fields.pop();
+  const changes = [];
+  for (let i = 0; i < fields.length;) {
+    const status = fields[i++];
+    const kind = status?.[0];
+    if (!kind) throw new MinimizeError('git diff returned an invalid staged change record');
+    if (kind === 'R' || kind === 'C') {
+      const source = fields[i++];
+      const path = fields[i++];
+      if (!source || !path) throw new MinimizeError('git diff returned an incomplete rename record');
+      changes.push({ kind, status, source, path });
+    } else {
+      const path = fields[i++];
+      if (!path) throw new MinimizeError('git diff returned an incomplete staged change record');
+      changes.push({ kind, status, source: null, path });
+    }
+  }
+  return changes;
+}
+
+export function repositoryRoot(cwd = process.cwd()) {
+  return gitAt(cwd, 'rev-parse', '--show-toplevel').trim();
+}
+
+export function stagedFiles(env = process.env, cwd = process.cwd()) {
+  return stagedChanges(env, cwd).filter(({ kind }) => kind !== 'D').map(({ path }) => path);
 }
 
 export function stagedAddedFiles() {
@@ -132,7 +164,9 @@ function escapeRegex(value) {
 
 /** Symbols this commit declares that HEAD already declared somewhere else. */
 export function reuseFindings() {
-  const changed = stagedFiles().filter((name) => SOURCE_SUFFIXES.has(suffixOf(name)));
+  const changed = stagedChanges()
+    .filter(({ kind, path }) => kind !== 'R' && kind !== 'C' && kind !== 'D' && SOURCE_SUFFIXES.has(suffixOf(path)))
+    .map(({ path }) => path);
   const findings = [];
   const seen = new Set();
   for (const path of changed) {

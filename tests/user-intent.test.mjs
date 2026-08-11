@@ -26,6 +26,17 @@ function transcript(entries) {
     .join('\n');
 }
 
+function codexTranscript(role, text) {
+  return JSON.stringify({ type: 'response_item', payload: { type: 'message', role, content: [{ type: role === 'assistant' ? 'output_text' : 'input_text', text }] } });
+}
+
+test('Codex response_item user turns retain authority & intent', () => {
+  const raw = [codexTranscript('user', 'Fix the hook now.'), codexTranscript('assistant', 'Working.')].join('\n');
+  assert.equal(latestExternalUserTurn(raw), 'Fix the hook now.');
+  assert.deepEqual(recentUserInstructions(raw), ['Fix the hook now.']);
+  assert.equal(classifyLatestUserIntent(raw).intent, 'EXECUTE');
+});
+
 test('hand-typed user text carries authority', () => {
   assert.equal(admitsAuthority('Go on, fix it.'), true);
   assert.equal(classifyContentOriginHint('Go on, fix it.'), null);

@@ -22,7 +22,7 @@ import { preEffectDiscipline } from '../lib/discipline-controls.mjs';
 import { evaluateTranscriptStop } from '../../../hooks/stop-shape.mjs';
 import { classifyLatestUserIntent } from '../../../hooks/user-intent.mjs';
 
-const POLICY_INJECT_EVENTS = new Set(['SessionStart', 'SubagentStart', 'PostCompact']);
+const POLICY_INJECT_EVENTS = new Set(['SessionStart', 'SubagentStart', 'UserPromptSubmit', 'PostCompact']);
 
 const schema = new RuntimeSchemaSet();
 const EVENT_TYPES = new Set(['SessionStart', 'SubagentStart', 'UserPromptSubmit', 'PostCompact', 'PreToolUse', 'PostToolUse', 'PostToolUseFailure', 'Stop']);
@@ -120,7 +120,7 @@ export function createHostRuntime({ adapter, workspace, keyDir, verificationKeyD
       return runtimeResult('PreToolUse', { decision: denial('ARC_HOST_EVENT_INVALID', 'invalid host event'), enforcementHealth: 'strong' });
     }
     if (eventType === 'PreToolUse') {
-      const control = preEffectDiscipline(hookPayload, { workspace });
+      const control = preEffectDiscipline(hookPayload, { workspace, policy, checkCommit: false });
       if (control) return runtimeResult(eventType, { decision: denial(control.code, control.message), enforcementHealth: 'strong' });
     }
     try {
@@ -225,7 +225,7 @@ export function createHostRuntime({ adapter, workspace, keyDir, verificationKeyD
       // same injection here, independent of the allow/deny branch above, so it
       // reaches allowed SessionStart/SubagentStart without a parallel path.
       if (result.allowed && result.stdout === null && POLICY_INJECT_EVENTS.has(eventType)) {
-        const injection = buildPolicyInjection({ workspace });
+        const injection = buildPolicyInjection({ workspace, prompt: hookPayload?.prompt ?? hookPayload?.user_prompt ?? null, gotchasOnly: eventType === 'UserPromptSubmit' });
         if (injection) {
           const stdout = { hookSpecificOutput: { hookEventName: eventType, additionalContext: injection.additionalContext } };
           if (injection.systemMessage) stdout.systemMessage = injection.systemMessage;

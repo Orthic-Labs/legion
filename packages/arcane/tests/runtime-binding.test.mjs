@@ -59,7 +59,8 @@ test('B7 native Codex subprocess reserves once, consumes one durable capability 
   const sessionId = 'session'; const runId = 'run_01ARZ3NDEKTSV4RRFFQ69G5FAV';
   const contract = b5Contract();
   try {
-    mkdirSync(workspace, { recursive: true }); mkdirSync(keyDir, { recursive: true }); writeFileSync(join(keyDir, 'k1.key'), 'a'.repeat(64));
+    mkdirSync(workspace, { recursive: true }); mkdirSync(join(workspace, 'docs'), { recursive: true }); mkdirSync(keyDir, { recursive: true }); writeFileSync(join(keyDir, 'k1.key'), 'a'.repeat(64));
+    writeFileSync(join(workspace, 'docs', 'GOTCHAS.md'), '### Archive safely\n**Keys:** task archive\n**Fix:** prove reachability.\n');
     writeFileSync(join(workspace, 'README.md'), 'fixture\n');
     for (const args of [['init', '-q'], ['config', 'user.email', 'test@example.com'], ['config', 'user.name', 'test'], ['add', 'README.md'], ['commit', '-qm', 'init']]) execFileSync('git', args, { cwd: workspace });
     contract.sourceRevision = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: workspace, encoding: 'utf8' }).trim();
@@ -80,6 +81,9 @@ test('B7 native Codex subprocess reserves once, consumes one durable capability 
     const subagentStartOut = run({ ...base, hook_event_name: 'SubagentStart' });
     assert.match(subagentStartOut, /"additionalContext"/);
     assert.match(subagentStartOut, /Brief is default/);
+    const promptOut = run({ ...base, hook_event_name: 'UserPromptSubmit', prompt: 'task archive' });
+    assert.match(promptOut, /Archive safely/);
+    assert.doesNotMatch(promptOut, /Brief is default|MINIMIZE:ON/);
     assert.equal(run({ ...base, hook_event_name: 'PreToolUse', tool_name: 'Write', tool_input: { file_path: 'src/a.mjs' }, tool_use_id: 'tool-1' }), '');
     assert.match(run({ ...base, hook_event_name: 'PreToolUse', tool_name: 'Write', tool_input: { file_path: 'src/a.mjs' }, tool_use_id: 'tool-1' }), /ARC_REPLAY_NONCE_SEEN/);
     assert.equal(run({ ...base, hook_event_name: 'PostToolUse', tool_name: 'Write', tool_input: { file_path: 'src/a.mjs' }, tool_response: { ok: true }, tool_use_id: 'tool-1' }), '');
@@ -169,7 +173,8 @@ test('EC-503 host Stop preserves recorded findings, push cap & current authoriza
   try {
     write([
       text('user', 'Fix the hook.'),
-      text('assistant', 'Wrote docs/GOTCHAS.md.'),
+      { type: 'assistant', message: { content: [{ type: 'tool_use', id: 'write-gotcha', name: 'Write', input: { file_path: 'docs/GOTCHAS.md' } }] } },
+      { type: 'user', message: { content: [{ type: 'tool_result', tool_use_id: 'write-gotcha', content: 'ok' }] } },
       text('assistant', 'Worth noting for future reference: this is now recorded.'),
     ]);
     assert.equal(evaluateLatestStopShape({ transcript_path: transcript, cwd: root, session_id: 'recorded' }).block, false);

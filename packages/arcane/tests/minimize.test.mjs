@@ -14,6 +14,7 @@ import {
   buildReview,
   languageFamily,
   ownerRoot,
+  stagedChanges,
   validateReview,
   verifyReceipt,
   writeJson,
@@ -68,6 +69,17 @@ test('the same name in another package is not a duplicate anyone could have reus
   writeFileSync(join(root, 'pkg-b/src/dup.mjs'), 'export function computeChecksum(z) { return z; }\n');
   git(root, 'add', 'pkg-b/src/dup.mjs');
   assert.deepEqual(inRepo(root, buildReview).findings, []);
+});
+
+test('pure rename pairs are identified once & skipped by duplicate scanning', () => {
+  const root = fixture();
+  git(root, 'mv', 'pkg-a/src/one.mjs', 'pkg-a/src/renamed.mjs');
+  inRepo(root, () => {
+    assert.deepEqual(stagedChanges().map(({ kind, source, path }) => ({ kind, source, path })), [
+      { kind: 'R', source: 'pkg-a/src/one.mjs', path: 'pkg-a/src/renamed.mjs' },
+    ]);
+    assert.deepEqual(buildReview().findings, []);
+  });
 });
 
 test('a Python def and a JS function sharing a name are never compared', () => {

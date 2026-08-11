@@ -88,3 +88,47 @@ test('CCX_GATEWAY_MODE_OFF=1 silences the gateway directive even on the gateway'
     if (priorUrl === undefined) delete process.env.ANTHROPIC_BASE_URL; else process.env.ANTHROPIC_BASE_URL = priorUrl;
   }
 });
+
+test('prompt keys inject only matching capped GOTCHAS reminders', () => {
+  const workspace = mkdtempSync(join(tmpdir(), 'arcane-policy-inject-gotchas-'));
+  try {
+    mkdirSync(join(workspace, 'docs'), { recursive: true });
+    writeFileSync(join(workspace, 'docs', 'GOTCHAS.md'), [
+      '# Gotchas',
+      '### Archive safely',
+      '**Keys:** task archive, worktree',
+      '**Fix:** prove commit reachability first.',
+      '### Commit serially',
+      '**Keys:** parallel commit, isolated index',
+      '**Fix:** use one integration owner.',
+      '### Unrelated',
+      '**Keys:** signing certificate',
+      '**Fix:** use release tooling.',
+    ].join('\n'));
+    const out = buildPolicyInjection({ workspace, prompt: 'Archive this task worktree after its commit is reachable.' });
+    assert.match(out.additionalContext, /Archive safely/);
+    assert.match(out.additionalContext, /prove commit reachability first/);
+    assert.doesNotMatch(out.additionalContext, /Commit serially|Unrelated/);
+  } finally { rmSync(workspace, { recursive: true, force: true }); }
+});
+
+test('ordinary prompts do not inject GOTCHAS content', () => {
+  const workspace = mkdtempSync(join(tmpdir(), 'arcane-policy-inject-no-gotcha-'));
+  try {
+    mkdirSync(join(workspace, 'docs'), { recursive: true });
+    writeFileSync(join(workspace, 'docs', 'GOTCHAS.md'), '### Archive safely\n**Keys:** task archive\n**Fix:** prove reachability.\n');
+    assert.doesNotMatch(buildPolicyInjection({ workspace, prompt: 'Explain this function.' }).additionalContext, /Archive safely/);
+  } finally { rmSync(workspace, { recursive: true, force: true }); }
+});
+
+test('UserPromptSubmit mode injects only its keyed GOTCHAS reminder', () => {
+  const workspace = mkdtempSync(join(tmpdir(), 'arcane-policy-inject-prompt-only-'));
+  try {
+    mkdirSync(join(workspace, 'docs'), { recursive: true });
+    writeFileSync(join(workspace, 'docs', 'GOTCHAS.md'), '### Archive safely\n**Keys:** task archive\n**Fix:** prove reachability.\n');
+    const out = buildPolicyInjection({ workspace, prompt: 'task archive', gotchasOnly: true });
+    assert.match(out.additionalContext, /Archive safely/);
+    assert.doesNotMatch(out.additionalContext, /Brief is default|MINIMIZE|ccx-mode/);
+    assert.equal(out.systemMessage, undefined);
+  } finally { rmSync(workspace, { recursive: true, force: true }); }
+});
