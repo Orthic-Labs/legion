@@ -122,11 +122,57 @@ test('ordinary work reports do not trip the finding check', () => {
   }
 });
 
-test('recordedThisTurn recognises the durable destinations', () => {
-  assert.equal(recordedThisTurn('{"name":"Write","input":{"file_path":"D:/Claude/docs/GOTCHAS.md"}}'), true);
-  assert.equal(recordedThisTurn('memright put arcane-key-bootstrap --scope claude'), true);
-  assert.equal(recordedThisTurn('docs/plans/legion/HANDOFF.md'), true);
-  assert.equal(recordedThisTurn('{"name":"Write","input":{"file_path":"src/app.mjs"}}'), false);
+function transcriptAfterUser(...blocks) {
+  return [
+    JSON.stringify({ type: 'user', message: { content: [{ type: 'text', text: 'record it' }] } }),
+    ...blocks.map((block) => JSON.stringify(block)),
+  ].join('\n');
+}
+
+test('recordedThisTurn requires a paired successful durable write after the latest user turn', () => {
+  const write = { type: 'assistant', message: { content: [{ type: 'tool_use', id: 'w1', name: 'Write', input: { file_path: 'D:/Claude/docs/GOTCHAS.md' } }] } };
+  const ok = { type: 'user', message: { content: [{ type: 'tool_result', tool_use_id: 'w1', content: 'ok' }] } };
+  const failed = { type: 'user', message: { content: [{ type: 'tool_result', tool_use_id: 'w1', is_error: true, content: 'failed' }] } };
+  assert.equal(recordedThisTurn(transcriptAfterUser(write, ok)), true);
+  assert.equal(recordedThisTurn(transcriptAfterUser(write)), false, 'an attempted write is not a receipt');
+  assert.equal(recordedThisTurn(transcriptAfterUser(write, failed)), false);
+  assert.equal(recordedThisTurn(transcriptAfterUser({ type: 'assistant', message: { content: [{ type: 'tool_use', id: 'r1', name: 'Read', input: { file_path: 'D:/Claude/docs/GOTCHAS.md' } }] } }, { type: 'user', message: { content: [{ type: 'tool_result', tool_use_id: 'r1' }] } })), false);
+  assert.equal(recordedThisTurn(transcriptAfterUser({ type: 'assistant', message: { content: [{ type: 'text', text: 'docs/plans/legion/HANDOFF.md' }] } })), false);
+});
+
+test('recordedThisTurn accepts successful apply_patch & memright writes only', () => {
+  const patchUse = { type: 'assistant', message: { content: [{ type: 'tool_use', id: 'p1', name: 'apply_patch', input: '*** Update File: docs/GOTCHAS.md' }] } };
+  const patchResult = { type: 'user', message: { content: [{ type: 'tool_result', tool_use_id: 'p1' }] } };
+  assert.equal(recordedThisTurn(transcriptAfterUser(patchUse, patchResult)), true);
+  const memoryUse = { type: 'assistant', message: { content: [{ type: 'tool_use', id: 'm1', name: 'Bash', input: { command: 'memright put hook-lesson --scope claude' } }] } };
+  const memoryResult = { type: 'user', message: { content: [{ type: 'tool_result', tool_use_id: 'm1' }] } };
+  assert.equal(recordedThisTurn(transcriptAfterUser(memoryUse, memoryResult)), true);
+});
+
+test('Codex response_item calls prove successful durable writes only', () => {
+  const user = JSON.stringify({ type: 'response_item', payload: { type: 'message', role: 'user', content: [{ type: 'input_text', text: 'record it' }] } });
+  const call = JSON.stringify({ type: 'response_item', payload: { type: 'custom_tool_call', call_id: 'c1', name: 'exec', input: 'text(await tools.apply_patch("*** Update File: D:/Claude/docs/GOTCHAS.md"));' } });
+  const ok = JSON.stringify({ type: 'response_item', payload: { type: 'custom_tool_call_output', call_id: 'c1', output: [{ type: 'input_text', text: 'Script completed\\nOutput: {}' }] } });
+  const failed = JSON.stringify({ type: 'response_item', payload: { type: 'custom_tool_call_output', call_id: 'c1', output: [{ type: 'input_text', text: 'Script failed\\nExit code: 1' }] } });
+  assert.equal(recordedThisTurn([user, call, ok].join('\n')), true);
+  assert.equal(recordedThisTurn([user, call, failed].join('\n')), false);
+  assert.equal(toolUseAfterLastUser([user, call].join('\n')), true);
+});
+
+test('recordedThisTurn ignores durable writes from an earlier user turn', () => {
+  const earlier = transcriptAfterUser(
+    { type: 'assistant', message: { content: [{ type: 'tool_use', id: 'w1', name: 'Write', input: { file_path: 'docs/GOTCHAS.md' } }] } },
+    { type: 'user', message: { content: [{ type: 'tool_result', tool_use_id: 'w1' }] } },
+  );
+  const latest = JSON.stringify({ type: 'user', message: { content: [{ type: 'text', text: 'new question' }] } });
+  assert.equal(recordedThisTurn(`${earlier}\n${latest}`), false);
+});
+
+test('an open circuit makes missing durability advisory instead of blocking again', () => {
+  const verdict = evaluateStopShape('Fixed it. Worth noting for future reference: rename scans can explode.', { pushes: 2, recorded: false });
+  assert.equal(verdict.block, false);
+  assert.equal(verdict.reason, 'stop-circuit-open');
+  assert.match(verdict.advisory, /no successful post-user write/i);
 });
 
 // Deferred-defect shape. The incident: a turn found viewright's committed

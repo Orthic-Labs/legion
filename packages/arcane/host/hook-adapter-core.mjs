@@ -159,16 +159,6 @@ export function handleHookEvent(hookPayload, deps) {
   const hostEvent = normalize(hookPayload);
   const observationClass = classifyObservation(hostEvent, { policy });
 
-  if (hostEvent.eventType === 'pre-effect') {
-    const control = preEffectDiscipline(hookPayload, { workspace: hostEvent.workspace });
-    if (control) {
-      return {
-        hostEvent, observationClass, enforcementHealth: 'strong', accepted: false, receipt: null,
-        decision: decision({ allowed: false, code: control.code, message: control.message, detail: {}, enforcementHealth: 'strong' }),
-      };
-    }
-  }
-
   if (hostEvent.eventType === 'pre-effect' && isDestructiveCommand(hookPayload)) {
     return {
       hostEvent, observationClass, enforcementHealth: 'strong', accepted: false, receipt: null,
@@ -247,6 +237,20 @@ export function handleHookEvent(hookPayload, deps) {
       hostEvent.runId = binding.runId;
       hostEvent.taskId = binding.taskId;
       hostEvent.contractId = binding.contractId;
+    }
+  }
+
+  if (hostEvent.eventType === 'pre-effect') {
+    const control = preEffectDiscipline(hookPayload, {
+      workspace: hostEvent.workspace,
+      policy,
+      contracted: hostEvent.contractId !== null,
+    });
+    if (control) {
+      return {
+        hostEvent, observationClass, enforcementHealth: 'strong', accepted: false, receipt: null,
+        decision: decision({ allowed: false, code: control.code, message: control.message, detail: {}, enforcementHealth: 'strong' }),
+      };
     }
   }
 

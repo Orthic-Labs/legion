@@ -1,11 +1,24 @@
 import { appendFileSync, existsSync, mkdirSync } from 'node:fs';
-import { join } from 'node:path';
+import { join, relative, resolve } from 'node:path';
 
-import { readJson, verifyReceipt } from './minimize.mjs';
+import { readJson, repositoryRoot, stagedChanges, verifyReceipt } from './minimize.mjs';
 
-const COMMIT = /\bgit\s+commit\b/i;
-const NO_VERIFY = /\bgit\s+commit\b[^\n;&|]*\s--no-verify\b/i;
+const COMMIT = /\bgit(?:\s+-C\s+(?:"[^"]+"|'[^']+'|[^\s;&|]+))?\s+commit\b/i;
+const NO_VERIFY = /\bgit(?:\s+-C\s+(?:"[^"]+"|'[^']+'|[^\s;&|]+))?\s+commit\b[^\n;&|]*\s--no-verify\b/i;
 const GENERATED_LOCK = /(?:^|[\\/])generated-lock\.json$/i;
+
+function unquote(value) {
+  const text = String(value ?? '').trim();
+  return (/^(["']).*\1$/.test(text)) ? text.slice(1, -1) : text;
+}
+
+export function commitRepository(payload, workspace) {
+  const input = payload?.tool_input ?? payload ?? {};
+  const command = extractDisciplineShellCommand(payload);
+  const base = resolve(workspace, input.workdir ?? input.cwd ?? payload?.cwd ?? '.');
+  const gitC = command.match(/\bgit\s+-C\s+("[^"]+"|'[^']+'|[^\s;&|]+)/i);
+  return gitC ? resolve(base, unquote(gitC[1])) : base;
+}
 
 export function extractDisciplineShellCommand(payload) {
   const command = payload?.command ?? payload?.tool_input?.command;
@@ -23,12 +36,45 @@ export function generatedLockTargets(payload) {
   return targets.filter((target) => GENERATED_LOCK.test(target));
 }
 
-export function preEffectDiscipline(payload, { workspace }) {
+function recordCommitAdvisory(workspace, message) {
+  try {
+    const audit = join(workspace, '.audit', 'arcane');
+    mkdirSync(audit, { recursive: true });
+    appendFileSync(join(audit, 'commit-discipline-advisories.jsonl'), `${JSON.stringify({ kind: 'arcane-commit-discipline-advisory', message, observedAt: new Date().toISOString() })}\n`, { encoding: 'utf8' });
+  } catch { /* an advisory must never become a commit blocker */ }
+}
+
+export function commitReceiptRequirement({ workspace, repository = workspace, policy, contracted = false }) {
+  if (contracted) return { required: true, reason: 'contracted-work', paths: [] };
+  if (!policy || policy.failClosed || typeof policy.lockedDomainsFor !== 'function') {
+    return { required: false, reason: 'policy-unavailable', paths: [], advisory: 'commit tier could not be classified; ambient commit allowed with advisory' };
+  }
+  let paths;
+  try {
+    const root = repositoryRoot(repository);
+    const repositoryPaths = stagedChanges(process.env, repository)
+      .flatMap(({ source, path }) => source ? [source, path] : [path]);
+    paths = [...new Set(repositoryPaths.map((path) => relative(workspace, resolve(root, path)).replaceAll('\\', '/')))];
+  } catch (error) {
+    return { required: false, reason: 'staged-paths-unavailable', paths: [], advisory: `staged paths could not be classified: ${error.message}` };
+  }
+  const locked = policy.lockedDomainsFor(paths);
+  return locked.length > 0
+    ? { required: true, reason: 'locked-domain', paths, locked }
+    : { required: false, reason: 'ambient', paths };
+}
+
+export function preEffectDiscipline(payload, { workspace, policy = null, contracted = false, checkCommit = true }) {
   const command = extractDisciplineShellCommand(payload);
   if (NO_VERIFY.test(command)) return { code: 'ARC_EFFECT_CLASS_UNAUTHORIZED', message: 'git commit --no-verify is blocked' };
   const locks = generatedLockTargets(payload);
   if (locks.length > 0) return { code: 'ARC_EFFECT_CLASS_UNAUTHORIZED', message: `generated-lock is write-protected: ${locks[0]}` };
-  if (!COMMIT.test(command)) return null;
+  if (!COMMIT.test(command) || !checkCommit) return null;
+  const requirement = commitReceiptRequirement({ workspace, repository: commitRepository(payload, workspace), policy, contracted });
+  if (!requirement.required) {
+    if (requirement.advisory) recordCommitAdvisory(workspace, requirement.advisory);
+    return null;
+  }
   const receiptPath = join(workspace, '.audit', 'minimize', 'commit-receipt.json');
   const policyPath = join(workspace, 'tools', 'skills', 'legion', 'packages', 'arcane', 'policy', 'minimize-policy.md');
   const validatorPath = join(workspace, 'tools', 'skills', 'legion', 'packages', 'arcane', 'lib', 'minimize.mjs');
@@ -37,7 +83,7 @@ export function preEffectDiscipline(payload, { workspace }) {
     verifyReceipt(readJson(receiptPath), { policyPath, validatorPath });
     return null;
   } catch (error) {
-    return { code: 'ARC_EFFECT_CLASS_UNAUTHORIZED', message: error.message };
+    return { code: 'ARC_CLAIM_PREREQUISITE_UNMET', message: error.message };
   }
 }
 

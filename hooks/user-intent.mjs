@@ -24,7 +24,7 @@
 // The rule is small and well understood; two independent implementations are the
 // correct cost. The tests below pin this one on its own terms.
 
-// --- ported from adapt/authority.py -----------------------------------------
+// --- ported from adapt/src/adapt/authority.py -------------------------------
 
 const TOOL_OUTPUT_ECHO = [
   /"tool_use_id"\s*:/,
@@ -83,12 +83,18 @@ function isSystemInjected(text) {
   return SYSTEM_INJECTED.some((pattern) => pattern.test(text));
 }
 
+function entryMessage(entry) {
+  if (entry?.message) return { role: entry.type, content: entry.message.content };
+  if (entry?.type === 'response_item' && entry?.payload?.type === 'message') return { role: entry.payload.role, content: entry.payload.content };
+  return null;
+}
+
 function entryText(entry) {
-  const content = entry?.message?.content;
+  const content = entryMessage(entry)?.content;
   return typeof content === 'string'
     ? content
     : (Array.isArray(content) ? content : [])
-      .filter((block) => block?.type === 'text' && typeof block.text === 'string')
+      .filter((block) => ['text', 'input_text', 'output_text'].includes(block?.type) && typeof block.text === 'string')
       .map((block) => block.text)
       .join('\n');
 }
@@ -105,7 +111,7 @@ export function recentUserInstructions(transcriptText, { limit = 5 } = {}) {
   for (let index = lines.length - 1; index >= 0 && found.length < limit; index -= 1) {
     let entry;
     try { entry = JSON.parse(lines[index]); } catch { continue; }
-    if (entry?.type !== 'user' || !entry?.message) continue;
+    if (entryMessage(entry)?.role !== 'user') continue;
     const text = entryText(entry);
     if (!text.trim() || isSystemInjected(text) || !admitsAuthority(text)) continue;
     found.push(text);
@@ -123,7 +129,7 @@ export function latestExternalUserTurn(transcriptText) {
   for (let index = lines.length - 1; index >= 0; index -= 1) {
     let entry;
     try { entry = JSON.parse(lines[index]); } catch { continue; }
-    if (entry?.type !== 'user' || !entry?.message) continue;
+    if (entryMessage(entry)?.role !== 'user') continue;
     const text = entryText(entry);
     if (!text.trim() || isSystemInjected(text)) continue;
     return text;
