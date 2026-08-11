@@ -49,6 +49,7 @@
     "agents/",
     "hooks/",
     "doctrine/",
+    "roster/",
     "packages/arcane/",
     "packages/contracts/",
     "bin/",
