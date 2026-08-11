@@ -110,7 +110,7 @@ test('a hold inside the same turn as a directive still holds', () => {
 test('ordinary conversation authorizes nothing', () => {
   const raw = transcript([
     { type: 'user', text: 'Why did that happen?' },
-    { type: 'user', text: 'How about the deterministic scanner in morph?' },
+    { type: 'user', text: 'How about the deterministic scanner in adapt?' },
   ]);
   assert.equal(userIntent(raw).intent, 'none');
   assert.equal(alreadyAuthorized(raw), false);
