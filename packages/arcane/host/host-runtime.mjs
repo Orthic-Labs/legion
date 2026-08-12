@@ -217,7 +217,8 @@ export function createHostRuntime({ adapter, workspace, keyDir, verificationKeyD
             return finish(eventType, { decision: denial('ARC_BINDING_MISMATCH', 'task budget differs from session contract'), enforcementHealth: 'strong' }, { binding, hostEvent, hookPayload });
           }
           if (taskBudget) {
-            const runBudget = stores.budgetGovernance.begin({ contractId: binding.contractId, version: binding.contractVersion, taskId: binding.taskId, runId: binding.runId, activeTimeCapMs: taskBudget.activeTimeCapMs, progressDeadlineMs: taskBudget.progressDeadlineMs });
+            const authorityRole = identity?.agentType === 'sage' ? 'sage' : identity?.agentType ? null : 'legion';
+            const runBudget = stores.budgetGovernance.begin({ contractId: binding.contractId, version: binding.contractVersion, taskId: binding.taskId, authorityRole, runId: binding.runId, activeTimeCapMs: taskBudget.activeTimeCapMs, progressDeadlineMs: taskBudget.progressDeadlineMs });
             const observedBudget = stores.budgetGovernance.observe(runBudget, { progress: hostProgress(eventType), retry: hostRetry(hookPayload, eventType) });
             if (observedBudget.kind === 'BUDGET_STOP') {
               return finish(eventType, { decision: denial(observedBudget.code, 'task budget stopped further effects'), enforcementHealth: 'strong' }, { binding, hostEvent, hookPayload });

@@ -10,7 +10,7 @@ import { createHostRuntime } from '../host/host-runtime.mjs';
 import { preEffectDiscipline } from './discipline-controls.mjs';
 import { HostEventLedger } from './host-event-ledger.mjs';
 import { generateTestKeyRing } from './keys.mjs';
-import { BudgetGovernanceStore, BUDGET_BOUND_FIELDS } from './budget-governance-store.mjs';
+import { AMENDED_BUDGET_BOUND_FIELDS, BudgetGovernanceStore, BUDGET_AMENDMENT_BOUND_FIELDS, BUDGET_BOUND_FIELDS, BUDGET_SCOPE_EXPANSION_BOUND_FIELDS } from './budget-governance-store.mjs';
 import { TaskBudgetSealStore } from './task-budget-seal-store.mjs';
 import { signRecord } from './receipt-auth.mjs';
 import { digestValue } from './canonical.mjs';
@@ -28,6 +28,8 @@ const PROBES = Object.freeze([
   'budget_binding_exactness',
   'budget_monotonicity',
   'budget_stop_enforcement',
+  'budget_role_cap_enforcement',
+  'budget_amendment_authority',
 ]);
 
 function fail(message) { throw new Error(message); }
@@ -49,7 +51,7 @@ function adapter() {
 }
 
 function signedBudget(ring, contractId = 'EC-604') {
-  const budget = { schemaVersion: 1, kind: 'arcane-budget-governance', contractId, version: 1, contractDigest: digestValue({ contractId, version: 1 }), objectiveLineageId: 'budget-semantic', objectiveDigest: digestValue('budget semantic'), legionBlastMapCapMs: 100, sagePlanningCapMs: 100, maxContractVersions: 2, resumeEvidence: null };
+  const budget = { schemaVersion: 1, kind: 'arcane-budget-governance', contractId, version: 1, contractDigest: digestValue({ contractId, version: 1 }), objectiveLineageId: 'budget-semantic', objectiveDigest: digestValue('budget semantic'), legionBlastMapCapMs: 100, sagePlanningCapMs: 100, maxContractVersions: 2, resumeEvidence: null, amendmentEvidence: null, userScopeExpansionEvidence: null };
   budget.authentication = signRecord(budget, { keyRing: ring, keyId: ring.activeKeyId(), boundFields: BUDGET_BOUND_FIELDS, macDomain: 'arcane-budget-governance-v1' });
   return budget;
 }
@@ -128,6 +130,28 @@ const probe = {
       const store = new BudgetGovernanceStore({ root, keyRing: ring, monotonicNow: () => tick });
       store.seal(signedBudget(ring)); const run = store.begin({ contractId: 'EC-604', version: 1, taskId: 'T-2', runId: 'semantic-stop', activeTimeCapMs: 1, progressDeadlineMs: 10 });
       tick = 2; if (store.observe(run).code !== 'ACTIVE_CAP' || store.observe(run).kind !== 'BUDGET_STOP') fail('budget stop did not remain terminal');
+    });
+  },
+  'budget_role_cap_enforcement'() {
+    fixture('budget-role-cap', (root) => {
+      const ring = generateTestKeyRing(['k1']); const store = new BudgetGovernanceStore({ root, keyRing: ring });
+      store.seal(signedBudget(ring));
+      try { store.begin({ contractId: 'EC-604', version: 1, taskId: 'T-1', authorityRole: 'sage', activeTimeCapMs: 101, progressDeadlineMs: 10 }); fail('Sage role cap was not enforced'); }
+      catch (error) { if (error.code !== 'ARC_BINDING_MISMATCH') throw error; }
+    });
+  },
+  'budget_amendment_authority'() {
+    fixture('budget-amendment', (root) => {
+      const ring = generateTestKeyRing(['k1']); const store = new BudgetGovernanceStore({ root, keyRing: ring }); const first = signedBudget(ring); store.seal(first);
+      const second = { ...signedBudget(ring), version: 2, contractDigest: digestValue({ contractId: 'EC-604', version: 2 }), legionBlastMapCapMs: 101 };
+      second.amendmentEvidence = { schemaVersion: 1, kind: 'arcane-budget-amendment', priorContractDigest: first.contractDigest, newContractDigest: second.contractDigest, priorLegionBlastMapCapMs: 100, newLegionBlastMapCapMs: 101, priorSagePlanningCapMs: 100, newSagePlanningCapMs: 100, scopeExpanded: true, sageAuthority: 'sage', observedAt: '2026-08-12T00:00:00.000Z' };
+      second.amendmentEvidence.authentication = signRecord(second.amendmentEvidence, { keyRing: ring, keyId: 'k1', boundFields: BUDGET_AMENDMENT_BOUND_FIELDS, macDomain: 'arcane-budget-amendment-v1' });
+      second.authentication = signRecord(second, { keyRing: ring, keyId: 'k1', boundFields: AMENDED_BUDGET_BOUND_FIELDS, macDomain: 'arcane-budget-governance-v1' });
+      try { store.seal(second); fail('scope expansion lacked user evidence'); } catch (error) { if (error.code !== 'ARC_AUTHORITY_NOT_ASSERTED') throw error; }
+      second.userScopeExpansionEvidence = { schemaVersion: 1, kind: 'arcane-budget-scope-expansion-evidence', priorContractDigest: first.contractDigest, newContractDigest: second.contractDigest, userTurnDigest: digestValue('explicit user expansion'), sessionId: 'semantic-user', observedAt: '2026-08-12T00:00:00.000Z' };
+      second.userScopeExpansionEvidence.authentication = signRecord(second.userScopeExpansionEvidence, { keyRing: ring, keyId: 'k1', boundFields: BUDGET_SCOPE_EXPANSION_BOUND_FIELDS, macDomain: 'arcane-budget-scope-expansion-v1' });
+      second.authentication = signRecord(second, { keyRing: ring, keyId: 'k1', boundFields: AMENDED_BUDGET_BOUND_FIELDS, macDomain: 'arcane-budget-governance-v1' });
+      if (store.seal(second).version !== 2) fail('authenticated amendment did not seal');
     });
   },
 };
