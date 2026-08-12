@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -9,6 +9,7 @@ import { normalizeCodexEvent } from '../host/codex-adapter.mjs';
 import { createHostRuntime } from '../host/host-runtime.mjs';
 import { preEffectDiscipline } from './discipline-controls.mjs';
 import { HostEventLedger } from './host-event-ledger.mjs';
+import { AuthorityInvocationProofIssuer } from './authority-invocation-proof.mjs';
 import { generateTestKeyRing } from './keys.mjs';
 import { AMENDED_BUDGET_BOUND_FIELDS, BudgetGovernanceStore, BUDGET_AMENDMENT_BOUND_FIELDS, BUDGET_BOUND_FIELDS, BUDGET_SCOPE_EXPANSION_BOUND_FIELDS } from './budget-governance-store.mjs';
 import { TaskBudgetSealStore } from './task-budget-seal-store.mjs';
@@ -103,6 +104,8 @@ const probe = {
       const store = new BudgetGovernanceStore({ root, keyRing: ring });
       store.seal(signedBudget(ring));
       if (store.require('EC-604', 1).contractId !== 'EC-604') fail('budget store did not return sealed binding');
+      const file = readdirSync(root).find((name) => name.endsWith('.json')); const changed = JSON.parse(readFileSync(join(root, file), 'utf8')); changed.sagePlanningCapMs += 1; writeFileSync(join(root, file), JSON.stringify(changed));
+      try { store.require('EC-604', 1); fail('tampered stored budget passed authentication'); } catch (error) { if (error.code !== 'ARC_STORE_CORRUPT') throw error; }
     });
   },
   'budget_binding_exactness'() {
@@ -142,13 +145,13 @@ const probe = {
   },
   'budget_amendment_authority'() {
     fixture('budget-amendment', (root) => {
-      const ring = generateTestKeyRing(['k1']); const store = new BudgetGovernanceStore({ root, keyRing: ring }); const first = signedBudget(ring); store.seal(first);
+      const ring = generateTestKeyRing(['k1']); const first = signedBudget(ring); const binding = { runId: 'semantic-budget-run', taskId: 'T-1', contractId: first.contractId, contractVersion: 1, contractDigest: first.contractDigest }; const ledger = new HostEventLedger({ root: join(root, 'host-events'), keyRing: ring, keyId: 'k1', clock: () => '2026-08-12T00:00:00.000Z' }); const sageEvent = ledger.append({ eventId: 'semantic-sage-amendment', adapter: 'codex', eventType: 'SubagentStart', sessionId: 'semantic-sage', binding, observedAuthority: 'sage', payload: { purpose: 'budget amendment' } }); const issuer = new AuthorityInvocationProofIssuer({ root: join(root, 'authority-proofs'), keyRing: ring, keyId: 'k1', ledgerStore: ledger, clock: () => '2026-08-12T00:00:00.000Z' }); const proof = issuer.issue({ ledger: sageEvent, binding: { ...binding, sessionId: 'semantic-sage' }, purpose: 'budget-amendment', role: 'sage' }).proof; const userEvent = ledger.append({ eventId: 'semantic-user-expansion', adapter: 'codex', eventType: 'UserPromptSubmit', sessionId: 'semantic-user', binding, observedAuthority: null, payload: { prompt: 'expand scope' } }); const store = new BudgetGovernanceStore({ root, keyRing: ring, proofIssuer: issuer, hostEventLedger: ledger }); store.seal(first);
       const second = { ...signedBudget(ring), version: 2, contractDigest: digestValue({ contractId: 'EC-604', version: 2 }), legionBlastMapCapMs: 101 };
-      second.amendmentEvidence = { schemaVersion: 1, kind: 'arcane-budget-amendment', priorContractDigest: first.contractDigest, newContractDigest: second.contractDigest, priorLegionBlastMapCapMs: 100, newLegionBlastMapCapMs: 101, priorSagePlanningCapMs: 100, newSagePlanningCapMs: 100, scopeExpanded: true, sageAuthority: 'sage', observedAt: '2026-08-12T00:00:00.000Z' };
+      second.amendmentEvidence = { schemaVersion: 1, kind: 'arcane-budget-amendment', priorContractDigest: first.contractDigest, newContractDigest: second.contractDigest, priorLegionBlastMapCapMs: 100, newLegionBlastMapCapMs: 101, priorSagePlanningCapMs: 100, newSagePlanningCapMs: 100, scopeExpanded: true, invocationProofDigest: digestValue(proof), observedAt: '2026-08-12T00:00:00.000Z' };
       second.amendmentEvidence.authentication = signRecord(second.amendmentEvidence, { keyRing: ring, keyId: 'k1', boundFields: BUDGET_AMENDMENT_BOUND_FIELDS, macDomain: 'arcane-budget-amendment-v1' });
       second.authentication = signRecord(second, { keyRing: ring, keyId: 'k1', boundFields: AMENDED_BUDGET_BOUND_FIELDS, macDomain: 'arcane-budget-governance-v1' });
       try { store.seal(second); fail('scope expansion lacked user evidence'); } catch (error) { if (error.code !== 'ARC_AUTHORITY_NOT_ASSERTED') throw error; }
-      second.userScopeExpansionEvidence = { schemaVersion: 1, kind: 'arcane-budget-scope-expansion-evidence', priorContractDigest: first.contractDigest, newContractDigest: second.contractDigest, userTurnDigest: digestValue('explicit user expansion'), sessionId: 'semantic-user', observedAt: '2026-08-12T00:00:00.000Z' };
+      second.userScopeExpansionEvidence = { schemaVersion: 1, kind: 'arcane-budget-scope-expansion-evidence', priorContractDigest: first.contractDigest, newContractDigest: second.contractDigest, userTurnDigest: userEvent.payloadDigest, hostEventDigest: digestValue(userEvent), sessionId: userEvent.sessionId, observedAt: '2026-08-12T00:00:00.000Z' };
       second.userScopeExpansionEvidence.authentication = signRecord(second.userScopeExpansionEvidence, { keyRing: ring, keyId: 'k1', boundFields: BUDGET_SCOPE_EXPANSION_BOUND_FIELDS, macDomain: 'arcane-budget-scope-expansion-v1' });
       second.authentication = signRecord(second, { keyRing: ring, keyId: 'k1', boundFields: AMENDED_BUDGET_BOUND_FIELDS, macDomain: 'arcane-budget-governance-v1' });
       if (store.seal(second).version !== 2) fail('authenticated amendment did not seal');

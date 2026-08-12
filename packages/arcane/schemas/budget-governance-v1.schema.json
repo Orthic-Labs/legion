@@ -30,13 +30,13 @@
     },
     "amendment": {
       "type": "object", "additionalProperties": false,
-      "required": ["schemaVersion", "kind", "priorContractDigest", "newContractDigest", "priorLegionBlastMapCapMs", "newLegionBlastMapCapMs", "priorSagePlanningCapMs", "newSagePlanningCapMs", "scopeExpanded", "sageAuthority", "observedAt", "authentication"],
-      "properties": {"schemaVersion": {"const": 1}, "kind": {"const": "arcane-budget-amendment"}, "priorContractDigest": {"$ref": "#/$defs/digest"}, "newContractDigest": {"$ref": "#/$defs/digest"}, "priorLegionBlastMapCapMs": {"type": "integer", "minimum": 1}, "newLegionBlastMapCapMs": {"type": "integer", "minimum": 1}, "priorSagePlanningCapMs": {"type": "integer", "minimum": 1}, "newSagePlanningCapMs": {"type": "integer", "minimum": 1}, "scopeExpanded": {"type": "boolean"}, "sageAuthority": {"const": "sage"}, "observedAt": {"type": "string", "format": "date-time"}, "authentication": {"$ref": "#/$defs/auth"}}
+      "required": ["schemaVersion", "kind", "priorContractDigest", "newContractDigest", "priorLegionBlastMapCapMs", "newLegionBlastMapCapMs", "priorSagePlanningCapMs", "newSagePlanningCapMs", "scopeExpanded", "invocationProofDigest", "observedAt", "authentication"],
+      "properties": {"schemaVersion": {"const": 1}, "kind": {"const": "arcane-budget-amendment"}, "priorContractDigest": {"$ref": "#/$defs/digest"}, "newContractDigest": {"$ref": "#/$defs/digest"}, "priorLegionBlastMapCapMs": {"type": "integer", "minimum": 1}, "newLegionBlastMapCapMs": {"type": "integer", "minimum": 1}, "priorSagePlanningCapMs": {"type": "integer", "minimum": 1}, "newSagePlanningCapMs": {"type": "integer", "minimum": 1}, "scopeExpanded": {"type": "boolean"}, "invocationProofDigest": {"$ref": "#/$defs/digest"}, "observedAt": {"type": "string", "format": "date-time"}, "authentication": {"$ref": "#/$defs/auth"}}
     },
     "scopeExpansion": {
       "type": "object", "additionalProperties": false,
-      "required": ["schemaVersion", "kind", "priorContractDigest", "newContractDigest", "userTurnDigest", "sessionId", "observedAt", "authentication"],
-      "properties": {"schemaVersion": {"const": 1}, "kind": {"const": "arcane-budget-scope-expansion-evidence"}, "priorContractDigest": {"$ref": "#/$defs/digest"}, "newContractDigest": {"$ref": "#/$defs/digest"}, "userTurnDigest": {"$ref": "#/$defs/digest"}, "sessionId": {"type": "string", "minLength": 1}, "observedAt": {"type": "string", "format": "date-time"}, "authentication": {"$ref": "#/$defs/auth"}}
+      "required": ["schemaVersion", "kind", "priorContractDigest", "newContractDigest", "userTurnDigest", "hostEventDigest", "sessionId", "observedAt", "authentication"],
+      "properties": {"schemaVersion": {"const": 1}, "kind": {"const": "arcane-budget-scope-expansion-evidence"}, "priorContractDigest": {"$ref": "#/$defs/digest"}, "newContractDigest": {"$ref": "#/$defs/digest"}, "userTurnDigest": {"$ref": "#/$defs/digest"}, "hostEventDigest": {"$ref": "#/$defs/digest"}, "sessionId": {"type": "string", "minLength": 1}, "observedAt": {"type": "string", "format": "date-time"}, "authentication": {"$ref": "#/$defs/auth"}}
     }
   }
 }

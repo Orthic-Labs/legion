@@ -7,7 +7,7 @@ import { decision } from './errors.mjs';
 import { HOST_EVENT_LEDGER_FIELDS } from './host-event-ledger.mjs';
 
 export const AUTHORITY_PROOF_FIELDS = Object.freeze(['schemaVersion','kind','invocationId','eventDigest','eventSequence','purpose','role','sessionId','runId','taskId','contractId','contractVersion','contractDigest','sourceRevision','turnCorrelationDigest','stopOrdinal','domain','issuedAt','expiresAt','nonce']);
-const PURPOSES = new Set(['completion-claim','assurance-request','assurance-countersign']);
+const PURPOSES = new Set(['completion-claim','assurance-request','assurance-countersign','budget-amendment']);
 const ROLES = new Set(['legion','alchemist','sage','covenant']);
 const read = (file) => JSON.parse(readFileSync(file, 'utf8'));
 const deny = (code, message) => decision({ allowed: false, code, message, detail: {} });
