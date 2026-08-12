@@ -3,11 +3,11 @@
 
 **Status:** canonical Legion improvement set (final shape)
 **Date:** 12 August 2026
-**Supersedes:** the *Legion Final Improvement Book* and the *Legion Sage Architecture Doctrine* as separate recommendations; absorbs `docs/research/2026-08-12-convergence-doctrine-gap-analysis.md` (CV-1…CV-12) as its convergence layer.
+**Supersedes:** the *Legion Final Improvement Book*, the *Legion Sage Architecture Doctrine*, and the *Convergence Doctrine Gap Analysis* (CV-1…CV-12, absorbed into the `G-A*` rules; its diagnosis is Appendix A). This file is the single source of truth for Legion's end-to-end architecture design — doctrine and rationale in one place.
 **Source inputs:**
 
 1. current Legion doctrine and authority model (`doctrine/*.md`, `doctrine/bundles/*.md`);
-2. the Convergence Doctrine gap analysis and its CV-1…CV-12 rules, including the Adapt Insights incident evidence (17 failure cards; seven-revision contract churn; pre-seal vs post-seal loop distinction);
+2. the Convergence Doctrine gap analysis and its CV-1…CV-12 rules, plus the Adapt Insights incident record — both folded in whole (rules into Part III, evidence into Appendix A);
 3. the Legion Sage Architecture Doctrine (the architecture reasoning manual);
 4. the Legion Final Improvement Book (the architecture operating system);
 5. the Canonical Evidence-Driven Software Architecture Framework and its standards/research corpus.
@@ -1627,8 +1627,98 @@ BUDGET EXHAUSTION → TERMINAL STATE
 
 ---
 
+# Appendix A — The diagnosis this doctrine answers
+
+*The evidence base for Part I's two problems and for the whole convergence layer. Kept here so
+the doctrine and its rationale are one document (G-A15: decisions record their drivers).*
+
+## A.1 Verdict
+
+Legion's anti-loop doctrine was strong **everywhere except where the looping happened.**
+
+- **Diagnose** converges by construction: hypotheses get disconfirmed, the 3-failed-fixes rule forces a structural change, time budgets are advisory signals, the fast path "earns the ceremony."
+- **Alchemist** converges: failure fingerprints ("same fingerprint twice → stop and report, never loop"), typed terminal states including `BUDGET_STOP`.
+- **Oracle** is explicitly forbidden recursion (G14: "recursive assurance has no stopping boundary").
+- **The Architect route had none of this.** No revision counter, no cap, no satisficing bar, no finding-severity floor, no scoped re-review, no reopening protocol for settled decisions, no paper-vs-execution escalation. Worse, several of its mandatory gates were **churn amplifiers** (A.3). Design is also the one route with no external falsifier — a failing test ends a debugging loop; nothing ends a design loop except doctrine, and the doctrine wasn't there.
+
+Every escalation path pointed *into* more design (Diagnose → Architect route, Alchemist blocker → Sage, Oracle finding → Sage, Covenant → revision). No bounded path led *out*. That asymmetry is the whole failure mode, and G-A7 exists to break it.
+
+**Live confirmation — 2026-08-12 Adapt Insights.** The failure mode is measured, not hypothetical. Adapt's analysis of the hook-stall and skills-migration tasks emitted 17 `FailureCardV1` cards — 7 visible-frustration and 7 explicit-rejection, aimed squarely at ceremony, passive waits, and unclear completion — and one task expanded through **seven contract revisions** with repeated Alchemist/Oracle loops while coordination displaced implementation (heuristic aggregate score: 0). Two refinements from that record are load-bearing here:
+
+1. **Caps existed mechanically — but only after sealing, and only for governed runs.** The budget-governance validation confirmed sealed time caps (`sagePlanningCapMs`, per-task `activeTimeCapMs`/`progressDeadlineMs`, Sage-sealed only), terminal `BUDGET_STOP` on `ACTIVE_CAP` / `PROGRESS_DEADLINE` / `IDENTICAL_RETRY`, and `maxContractVersions` pinned to 2 with a third version failing seal. The loop this doctrine targets happens **before any contract seals** — inside the Architect route, in ADR/option/plan revisions the runtime never sees. Hence Part 0 §0.4's pre-seal/post-seal split: two caps, two loops, both needed.
+2. **Controls were admission-optional.** Enforcement lived in the `if (contracted)` branch only; ambient sessions, dispatched subagents that never bind a contract, and legacy bindings without a task-budget seal all escaped governance — the same admission gap the completion-control validation found ("completion controls exist, but admission to them is optional"). A cap that work can avoid entering is not a cap; the corpus's harnesses (SWE-agent, SWE-AF) bind budgets to every episode by construction. Hence **budgets bind at dispatch, not at seal** (G-A7, adoption stage 3).
+
+## A.2 What Legion already had (not re-invented, only extended)
+
+| Mechanism | Where | Status at diagnosis |
+|---|---|---|
+| Attempt cap with forced structural change | `sage-diagnose.md`: "3+ attempted fixes fail → stop, you are in a local minimum" → Architect route or Covenant differential diagnosis | ✅ Diagnose only — **G-A7 extends the pattern to design** |
+| Retry fingerprint / no identical retries | `alchemist.md`: same fingerprint twice → stop | ✅ Alchemist only — **G-A6/§30 generalize it** |
+| No recursive assurance | `oracle.md` G14 | ✅ |
+| Ceremony proportional to request | `legion.md` tiers; G17 "output depth follows user intent"; "a small change that takes twenty minutes of process is a system failure" | ✅ at routing; not inside Sage — **G-A2 + Part IV fix this** |
+| Fast path ("earn the ceremony") | `sage-diagnose.md` Phase 0 | ✅ Diagnose only — **D0/D1 + the door rule are the Architect equivalent** |
+| Bounded options | `sage-architect.md`: "2–3 approaches when meaningful trade-offs exist"; lead with a recommendation | ✅ partial |
+| Decision lifecycle states | `proposed → accepted → implemented → superseded` | ⚠️ states existed; **no rules governed reopening** — G-A8 + dual status (§47) |
+| Advisory time budgets | `sage-diagnose.md` | ✅ Diagnose only |
+| Explicit amendments | G10: `EC-N v1 → A-k → EC-N v2`, never silent | ⚠️ contracts only; design artifacts invalidated from root — **G-A9** |
+| Runtime budget ledger | sealed time caps, `BUDGET_STOP`, `maxContractVersions = 2`, `legion run open` hard-requires the seal | ✅ mechanically, **governed runs only** (post-seal lineage) |
+| Reopening freeze | doctrine: freeze after two reopenings; runtime: stop on 4th identical attempt | ⚠️ doctrine/runtime drift — **aligned in Part 0 §0.4** |
+
+## A.3 Churn amplifiers — present rules that *generated* revision cycles
+
+**A1 — Invalidate-from-root.** The minimize gate ("Any semantic correction, undeclared file/dependency, or changed policy invalidates decision plus all downstream route work") and GoalRoute ("Semantic correction or changed constraints invalidate route from root and require a new receipt"). One nit → full re-ceremony → the re-ceremony surfaces new nits → no fixed point. Contracts got amendment semantics (G10); design artifacts got demolition semantics. Superpowers' post-mortem of the identical bug: "fresh full reviews each round are the churn engine." → **Answered by G-A9 (cause + scope, smallest cone).**
+
+**A2 — Maximizing mandates.** "Never downgrade; name the ceiling," best-in-class comparison duty, and the best-shape truth gate set the bar at *best* — not checkable, therefore never satisfied. No counterweight stated that the normal bar is *acceptance criteria met*. → **Answered by the `SUFFICIENT` default objective (Part IV), G-A11 (ceiling informational), G-A18 (satisficing).**
+
+**A3 — Unbounded mandatory search.** Step 0 required 2–3 credible external approaches **per material mechanism class** with ≥2 primary sources each, no timebox, no coverage cap. → **Answered by objective-gated search: broad search requires `BEST_SHAPE`; `OPTIMIZE` scopes to the named axis; Part IV §7 timeboxes.**
+
+**A4 — Unscoped re-review.** Nothing restricted a revision round to the previous round's findings. Every pass was a fresh full review; a reviewer asked to find gaps always finds some (Anthropic best-practices: "a reviewer prompted to find gaps will usually report some, even when the work is sound"). The criticism set never shrank. → **Answered by G-A13 (consumptive review, severity floor, scoped re-review) and one-challenge-per-packet-version.**
+
+**A5 — Nothing counted design revisions.** No pre-seal revision counter existed, so no rule *could* trigger on one. → **Answered by `architecture_state.convergence` + Arcane machine state.**
+
+**A6 — Unsound seals forced amendment churn.** The incident showed contracts sealing with unreachable evidence paths: omitted Minimize paths, high-risk evidence fields unavailable to the completion gate, missing producer commands, stale source revisions, close operations blocked by the same contract. Defects surfaced at delivery, forcing amendments and repeated assurance cycles — the seven-revision churn was partly *mechanically forced rework from an unsound seal*, not disagreement about the design. Doctrine treated revision as a decision problem; here it was a compilation problem. → **Answered by pre-seal totality (the "contract compiler": every required evidence class proves a reachable producer, owned output path, consumer, and close route before seal), which removes a class of forced reopenings no revision cap should have to absorb.**
+
+**A7 — Milestone-as-completion reopened finished work.** Migration commits were reported as delivered progress while approved requirements (L4 authorization, L5 certification) remained unfinished — completion measured against the latest packet, not the full approved plan. Every premature "done" manufactures a later reopening, and each reopening re-enters design. → **Answered by the completion state machine: `CANDIDATE | BLOCKED` as the implementer's only terminal states (§26); `COMPLETE` unmintable without the acceptance ledger and an Oracle receipt.**
+
+## A.4 Corpus matrix — what the strongest external systems converge on
+
+Mechanisms ranked by how many independent systems carry them, with the canonical home each now has here:
+
+| # | Mechanism | Strongest sources | Home |
+|---|---|---|---|
+| M1 | Revision cap + forced structural change at the cap | superpowers (3 fixes / 5 rounds), addy doubt-driven (3 cycles → "don't grind a fourth alone"), gstack (escalate after 3 failed attempts), NeoLab (max 3 + model ladder → "escalate to the user, never loop"), SWE-AF (5/2/2 nested caps) | G-A7 |
+| M2 | Satisficing bar / bounded discretion | NeoLab Iteration Discretion Rule ("burning iterations on nitpicks so the task never completes → the task is failed"; ≤1 nitpick iteration), addy ("perfect code doesn't exist"), Google-style default-approve | G-A18 + `SUFFICIENT` |
+| M3 | Severity/confidence floor on findings that may reopen design | claude-code reviewer (report only ≥80 confidence), SWE-AF (blocking = security/crash/data-loss/wrong-algorithm only), coderabbit (stop at info-level), trailofbits (dismissal-first brocards) | G-A13 |
+| M4 | Scoped re-review (criticism set shrinks monotonically) | superpowers SDD ("new observations go to the ledger as deferred minors — they never extend the loop") | G-A13 |
+| M5 | Decide-with-debt terminal state | SWE-AF `COMPLETED_WITH_DEBT` ("prevents stalling when the reviewer keeps requesting minor polish"), SWE-agent forced autosubmit at cost cap | G-A7 `DECIDE_WITH_DEBT`; `debt_ledger` |
+| M6 | Decision finality + governed reopening | gstack `decisions.jsonl` ("do not silently re-litigate"), mattpocock ADRs ("record rejections so someone doesn't suggest GraphQL again in six months"), NeoLab decay (Refresh/Deprecate/Waive) | G-A8 |
+| M7 | Reversibility-scaled ceremony (one-way/two-way doors) | mattpocock ADR test #1 ("if easy to reverse, skip it"), gstack door types, addy ("anything you can't undo with `git revert`") | Part IV interaction rules |
+| M8 | Paper-iteration limit → spike | mattpocock prototype skill, addy risk-first slicing | G-A12 |
+| M9 | Scoped amendment, not invalidate-from-root | NeoLab `--refine` ("Architecture section changed → re-run from Phase 3 onwards"), G10 | G-A9 |
+| M10 | Loop self-detection + rationalization table | superpowers red-flag tables, gstack Context Health ("looping on the same diagnostic → STOP"), SWE-AF `_detect_stuck_loop`, addy ("re-spawning fresh context on an unchanged artifact — you're stalling") | G-A6, §30–31 |
+| M11 | Bounded divergence (option/search/word/question budgets) | addy idea-refine (3–5 questions, 5–8 variations), superpowers (200–300 words per design section), mattpocock grilling (frontier empty), addy interview-me (95%-confidence stop) | Part IV §7 |
+| M12 | Decisiveness at the gate | claude-code code-architect ("pick one approach and commit"), superpowers ("approve unless there are serious gaps"), mattpocock ("be opinionated — the user wants a strong read, not a menu") | G-A13, G-A18 |
+
+Universal corpus consensus, stated plainly and adopted verbatim in G-A7: **when the loop budget feels insufficient, the artifact is too big — decompose it. Never raise the budget.**
+
+## A.5 Source notes
+
+- **NeoLab Iteration Discretion Rule** — `context-engineering-kit/skills/plan-task/SKILL.md` (also `do-and-judge`, `do-in-parallel`): numeric quality floor, discretion band, ≤1 nitpick iteration, severity override, mandatory cost reasoning before re-launch.
+- **Superpowers SDD fix-loop redesign** — `docs/superpowers/specs/2026-07-15-sdd-fix-loop-redesign-design.md` + `skills/subagent-driven-development/SKILL.md`: 5-round cap, rounds 4–5 model escalation, breaker adjudication with mandatory ledger entries, scoped re-review.
+- **SWE-AF stuck-loop machinery** — `swe_af/execution/coding_loop.py` (`_detect_stuck_loop`), `swe_af/prompts/qa_synthesizer.py` ("same test failing 3+ times; oscillating between two approaches"), `COMPLETED_WITH_DEBT`.
+- **gstack decision memory** — `CLAUDE.md` cross-session decisions (`decisions.jsonl`, `--supersede`), Context Health preamble, one-way/two-way door confirmation gates.
+- **mattpocock ADR + out-of-scope stores** — `skills/engineering/domain-modeling/ADR-FORMAT.md` (3-part record-worthiness test), `skills/engineering/triage/OUT-OF-SCOPE.md` (concept-keyed rejection store), `grilling` frontier convergence.
+- **instructa ownership finality** — `skills/architecture-ownership/SKILL.md` (runtime vs first-fix vs canonical owner — fix now, record direction, don't re-architect mid-task), `hard-cut` (one canonical codepath; delete the losing owner).
+- **claude-code feature-dev** — `plugins/feature-dev/agents/code-reviewer.md` (confidence ≥ 80 floor, clean-exit path), `code-architect.md` ("pick one approach and commit"), phase gates where divergence is parallel and one-shot, convergence is a human decision.
+- **SWE-agent** — `sweagent/agent/agents.py`: forced autosubmission at every budget cap with labeled exit statuses; retries spend a shared envelope.
+- **trailofbits** — `vulnerability-triage-brocards` (dismissal-first triage), `fp-check` ("LLMs are biased toward seeing bugs and overrating severity"), pervasive "When NOT to Use" sections.
+- **Anthropic best-practices** — over-review warning; two-strikes-then-reset; "if you could describe the diff in one sentence, skip the plan"; Stop-hook override after 8 consecutive blocks.
+- **Internal: Adapt Insights — Legion hook stall & skills migration (2026-08-12)** — 17 failure cards (ceremony/waits dominant), seven-revision contract churn, unsound-seal evidence gaps, budget-governance validation, completion state machine with its scope-boundary refinement, and the seven-step implementation order.
+
+---
+
 # Selected evidence spine
 
 The Canonical Evidence-Driven Software Architecture Framework remains the architecture-method source; its standards and methods live in a separate bibliography/status module and are rechecked before regulated or contractual use. Key families: ISO/IEC/IEEE 42010 (architecture descriptions), 42020 (processes), 42030 (evaluation); ISO/IEC 25010/25019/25030/25002/25040/25012 (quality and data quality); ISO/IEC/IEEE 29148 (requirements); SEI QAW, ADD, ATAM, CBAM; NIST security/resilience/privacy/secure-development guidance; NASA decision-analysis guidance; foundational work on modularity and information hiding (Parnas), architecture descriptions and multiple views, architecture decisions, the end-to-end argument, and CAP/consistency trade-offs; socio-technical, uncertainty, architecture-debt, and architecture-evolution research.
 
-Agent-skill repositories remain operational research sources — routing, retry discipline, progressive disclosure, templates, execution-loop controls — not the architecture canon. The convergence layer's empirical grounding is internal: the 2026-08-12 Adapt Insights record (17 failure cards; ceremony-dominant harm; seven-revision contract churn) and the convergence doctrine gap analysis (`docs/research/2026-08-12-convergence-doctrine-gap-analysis.md`).
+Agent-skill repositories remain operational research sources — routing, retry discipline, progressive disclosure, templates, execution-loop controls — not the architecture canon. The convergence layer's empirical grounding is internal and recorded in Appendix A: the 2026-08-12 Adapt Insights record (17 failure cards; ceremony-dominant harm; seven-revision contract churn) and the corpus study behind the M1–M12 matrix.
