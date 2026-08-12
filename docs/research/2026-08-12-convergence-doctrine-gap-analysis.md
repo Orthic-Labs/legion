@@ -1,5 +1,34 @@
 # Convergence doctrine — gap analysis
 
+> **SUPERSEDED as a rule set — retained as the diagnostic record.**
+>
+> The proposed rules in §5 (CV-1…CV-12) and the adoption map in §6 are superseded by
+> **`2026-08-12-legion-architecture-book-final.md`**, which is the single canonical owner of
+> Legion's architecture and convergence doctrine. Do not adopt CV-numbered rules from this
+> document — adopt the `G-A*` rules from the book, which absorb all twelve.
+>
+> **What is still canonical here:** the diagnosis. §1 (verdict + live Adapt Insights
+> confirmation), §2 (what Legion already has), §3 (churn amplifiers A1–A7), §4 (corpus matrix),
+> and §7 (source notes) are the evidence base the book's convergence layer rests on, and are
+> not restated there.
+>
+> **CV → G-A mapping:**
+>
+> | This document | Canonical home in the book |
+> |---|---|
+> | CV-1 revision counter | `architecture_state.convergence` (Part V) + Arcane machine state (§29) |
+> | CV-2 three-revision cap | G-A7 Bounded Deliberation — absolute ceiling + forced `DECIDE_WITH_DEBT \| SPIKE \| ESCALATE` |
+> | CV-3 satisficing default | G-A18 + the `SUFFICIENT \| OPTIMIZE \| BEST_SHAPE` objective axis (Part IV) |
+> | CV-4 finding severity floor | G-A13 — finding kind × severity; only `BLOCKER`/`REQUIRED_THIS_SLICE` reopen |
+> | CV-5 scoped re-review | G-A13, final paragraph; Covenant one-challenge-per-packet-version (§28) |
+> | CV-6 scoped amendment | G-A9 — invalidation is cause + scope; smallest dependent cone |
+> | CV-7 decision finality | G-A8 — `FROZEN`, admissible reopen triggers, durable rejection reasons |
+> | CV-8 door rule | Part IV interaction rules — reversibility as an effort governor |
+> | CV-9 analysis budget | Part IV §7 budgets + G-A12 (two candidates that don't separate → spike) |
+> | CV-10 design red flags | G-A7 ("one more revision will converge" is a red flag) + Part XVIII |
+> | CV-11 lead tripwire | G-A7 final paragraph + the `doctrine/legion.md` block (§59) |
+> | CV-12 done checklist, run once | Part VII §23 readiness predicate + Phase 8 Gate ("runs once") |
+
 **Question answered:** agents dispatched into architecture work cycle for hours — revision after
 revision — instead of converging. What doctrine is Legion missing, judged against the strongest
 external skill/harness corpus?
