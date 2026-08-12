@@ -120,6 +120,16 @@ test('maxLength is enforced, so the schema caps are a gate and not a comment', a
   const schema = new RuntimeSchemaSet();
   const output = (context) => ({
     hookSpecificOutput: { hookEventName: 'SessionStart', additionalContext: context },
+    code: null,
+    publicReason: 'Allowed',
+    enforcementHealth: 'strong',
+    retrySignature: null,
+    termination: 'continue',
+    certification: 'not_claimed',
+    missingClasses: [],
+    responsibleProducer: null,
+    remediationRoutes: [],
+    missingEvidence: [],
   });
   assert.deepEqual(schema.validate('arcane-host-runtime-output-v1', output('x'.repeat(4000))), []);
   // The schema is a oneOf, so an over-long string surfaces as "no branch

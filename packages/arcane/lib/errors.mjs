@@ -52,6 +52,8 @@ export const ARCANE_ERROR_CODE = Object.freeze([
   'ARC_NO_CONTRACT', // mutation without an execution contract (G2)
   'ARC_CONTRACT_NOT_EXECUTABLE', // openQuestions non-empty (G9)
   'ARC_CONTRACT_VERSION_MISMATCH',
+  'ARC_PROFILE_BINDING_MISMATCH',
+  'ARC_PROFILE_EFFECT_FORBIDDEN',
   'ARC_PATH_NOT_OWNED',
   'ARC_PATH_FORBIDDEN',
   'ARC_EFFECT_CLASS_UNAUTHORIZED',

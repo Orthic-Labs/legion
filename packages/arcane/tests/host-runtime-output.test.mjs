@@ -3,17 +3,19 @@ import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
 import { publicReason, renderHostRuntimeOutput, serializeHostRuntimeOutput } from '../host/host-runtime-output.mjs';
+import { actionableMissingEvidence, createDecisionEnvelope } from '../lib/decision-envelope.mjs';
 import { RuntimeSchemaSet } from '../lib/runtime-schema.mjs';
 
 test('B6 renders only schema-closed host output with exact public reasons', () => {
   assert.equal(publicReason('ARC_GATE_UNAVAILABLE'), 'ARC_GATE_UNAVAILABLE: Pre-effect gate is unavailable.');
   assert.match(publicReason('ARC_STOP_SHAPE'), /non-authoritative stop feedback/);
   assert.equal(publicReason('not-a-code'), 'ARC_SCHEMA_INVALID: Arcane rejected invalid structured input.');
-  assert.deepEqual(renderHostRuntimeOutput({ eventType: 'PreToolUse', allowed: false, code: 'ARC_GATE_UNAVAILABLE' }), { hookSpecificOutput: { hookEventName: 'PreToolUse', permissionDecision: 'deny', permissionDecisionReason: 'ARC_GATE_UNAVAILABLE: Pre-effect gate is unavailable.' } });
-  assert.deepEqual(renderHostRuntimeOutput({ eventType: 'Stop', allowed: false, code: 'ARC_NO_CONTRACT' }), { decision: 'block', reason: 'ARC_NO_CONTRACT: No sealed execution contract is bound.' });
-  assert.deepEqual(renderHostRuntimeOutput({ eventType: 'PostToolUse', allowed: false, code: 'ARC_CAPABILITY_UNKNOWN' }), { hookSpecificOutput: { hookEventName: 'PostToolUse', additionalContext: 'Arcane: ARC_CAPABILITY_UNKNOWN: Capability is missing.' } });
+  assert.deepEqual(renderHostRuntimeOutput({ eventType: 'PreToolUse', allowed: false, code: 'ARC_GATE_UNAVAILABLE' }).hookSpecificOutput, { hookEventName: 'PreToolUse', permissionDecision: 'deny', permissionDecisionReason: 'ARC_GATE_UNAVAILABLE: Pre-effect gate is unavailable.' });
+  assert.deepEqual(renderHostRuntimeOutput({ eventType: 'Stop', allowed: false, code: 'ARC_NO_CONTRACT' }).decision, 'block');
+  assert.deepEqual(renderHostRuntimeOutput({ eventType: 'PostToolUse', allowed: false, code: 'ARC_CAPABILITY_UNKNOWN' }).hookSpecificOutput, { hookEventName: 'PostToolUse', additionalContext: 'Arcane: ARC_CAPABILITY_UNKNOWN: Capability is missing.' });
   assert.equal(serializeHostRuntimeOutput(null), '');
-  assert.equal(serializeHostRuntimeOutput({ decision: 'block', reason: 'ARC_NO_CONTRACT: No sealed execution contract is bound.' }), '{"decision":"block","reason":"ARC_NO_CONTRACT: No sealed execution contract is bound."}\n');
+  const stopped = renderHostRuntimeOutput({ eventType: 'Stop', allowed: false, code: 'ARC_NO_CONTRACT' });
+  assert.equal(serializeHostRuntimeOutput(stopped), `${JSON.stringify(stopped)}\n`);
 });
 
 test('AC-5 additionalContext branch declares maxLength 4000; PreToolUse/Stop branches stay declared at 500', () => {
@@ -34,10 +36,13 @@ test('AC-5 additionalContext branch declares maxLength 4000; PreToolUse/Stop bra
   assert.equal(contextBranch.additionalProperties, false);
 
   const runtimeSchema = new RuntimeSchemaSet();
-  const sessionStart = (len) => ({ hookSpecificOutput: { hookEventName: 'SessionStart', additionalContext: 'x'.repeat(len) } });
+  const typed = { code: 'ARC_NO_CONTRACT', publicReason: publicReason('ARC_NO_CONTRACT'), enforcementHealth: 'strong', retrySignature: null, termination: 'continue', certification: 'rejected', missingClasses: [], responsibleProducer: null, remediationRoutes: [], missingEvidence: [] };
+  const sessionStart = (len) => ({ hookSpecificOutput: { hookEventName: 'SessionStart', additionalContext: 'x'.repeat(len) }, ...typed });
   assert.equal(runtimeSchema.validate('arcane-host-runtime-output-v1', sessionStart(1200)).length, 0);
   assert.equal(runtimeSchema.validate('arcane-host-runtime-output-v1', sessionStart(4000)).length, 0);
 
-  const withSystemMessage = { hookSpecificOutput: { hookEventName: 'SessionStart', additionalContext: 'ok' }, systemMessage: 'MINIMIZE:ON' };
+  const withSystemMessage = { hookSpecificOutput: { hookEventName: 'SessionStart', additionalContext: 'ok' }, systemMessage: 'MINIMIZE:ON', ...typed };
   assert.equal(runtimeSchema.validate('arcane-host-runtime-output-v1', withSystemMessage).length, 0);
 });
+
+test('EC603 decision envelope sanitizes actionable provenance & preserves typed projections', () => { const envelope=createDecisionEnvelope({allowed:false,code:'ARC_CLAIM_PREREQUISITE_UNMET',detail:{missingClasses:['terminal-operation-claim'],responsibleProducer:'forged producer',remediationRoutes:['internal://secret'],retrySignature:'sha256:retry',termination:{allowed:true},certification:'not_claimed'},enforcementHealth:'degraded'}); assert.deepEqual(envelope.missingEvidence,[{missingClass:'terminal-operation-claim',responsibleProducer:'legion completion claim',remediationRoutes:['legion completion claim --help']}]); assert.equal(envelope.termination,'terminate'); assert.equal(envelope.certification,'not_claimed'); const output=renderHostRuntimeOutput({eventType:'Stop',allowed:false,code:envelope.code,detail:{missingClasses:['terminal-operation-claim'],retrySignature:envelope.retrySignature,termination:{allowed:true},certification:'not_claimed'},enforcementHealth:envelope.enforcementHealth}); assert.equal(output.responsibleProducer,'legion completion claim'); assert.deepEqual(output.remediationRoutes,['legion completion claim --help']); assert.equal(output.retrySignature,'sha256:retry'); assert.equal(output.termination,'terminate'); assert.equal(output.certification,'not_claimed'); assert.throws(()=>actionableMissingEvidence(['unmapped-class']),/missing evidence class/); });

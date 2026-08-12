@@ -17,7 +17,10 @@ test('discipline rejects no-verify before any commit receipt lookup', () => {
 test('runtime applies commit discipline before contracted pre-effect authorization', () => {
   const workspace = mkdtempSync(join(tmpdir(), 'arcane-commit-runtime-'));
   try {
-    const runtime = createHostRuntime({ adapter: claudeCodeHostAdapter, workspace, keyDir: join(workspace, 'keys') });
+    const keyDir = join(workspace, 'keys');
+    mkdirSync(keyDir);
+    writeFileSync(join(keyDir, 'test.key'), '11'.repeat(32));
+    const runtime = createHostRuntime({ adapter: claudeCodeHostAdapter, workspace, keyDir });
     const result = runtime.handle({ hook_event_name: 'PreToolUse', session_id: 's', cwd: workspace, tool_name: 'Bash', tool_use_id: 'u', tool_input: { command: 'git commit --no-verify -m x' } });
     assert.equal(result.code, 'ARC_EFFECT_CLASS_UNAUTHORIZED');
   } finally { rmSync(workspace, { recursive: true, force: true }); }

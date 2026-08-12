@@ -20,7 +20,17 @@ import { renderHostRuntimeOutput } from './host-runtime-output.mjs';
 import { buildPolicyInjection } from './policy-inject.mjs';
 import { preEffectDiscipline } from '../lib/discipline-controls.mjs';
 import { evaluateTranscriptStop } from '../../../hooks/stop-shape.mjs';
+import { stopOutcome } from '../lib/stop-disposition.mjs';
 import { classifyLatestUserIntent } from '../../../hooks/user-intent.mjs';
+import { HostEventLedger } from '../lib/host-event-ledger.mjs';
+import { PendingTerminalOperationStore } from '../lib/pending-terminal-operation-store.mjs';
+import { digestValue } from '../lib/canonical.mjs';
+import { HighRiskAssuranceStore } from '../lib/high-risk-assurance-store.mjs';
+import { AuthorityInvocationProofIssuer } from '../lib/authority-invocation-proof.mjs';
+import { createDecisionEnvelope } from '../lib/decision-envelope.mjs';
+import { DenialCircuit, applyDenialCircuit } from '../lib/denial-circuit.mjs';
+import { BudgetGovernanceStore } from '../lib/budget-governance-store.mjs';
+import { TaskBudgetSealStore } from '../lib/task-budget-seal-store.mjs';
 
 const POLICY_INJECT_EVENTS = new Set(['SessionStart', 'SubagentStart', 'UserPromptSubmit', 'PostCompact']);
 
@@ -29,6 +39,17 @@ const EVENT_TYPES = new Set(['SessionStart', 'SubagentStart', 'UserPromptSubmit'
 const isoClock = (clock) => () => new Date(clock()).toISOString();
 const denial = (code, message, enforcementHealth = 'strong') => decision({ allowed: false, code, message, detail: {}, enforcementHealth });
 const latitudeFor = (contract, target) => contract.artifacts.exact.some((artifact) => artifact.path === target) ? 'EXACT' : 'BOUNDED';
+
+function hostRetry(hookPayload, eventType) {
+  if (eventType !== 'PostToolUseFailure') return null;
+  return {
+    method: String(hookPayload?.tool_name ?? 'unknown'),
+    inputState: digestValue(hookPayload?.tool_input ?? null),
+    error: digestValue(hookPayload?.tool_response ?? hookPayload?.error ?? null),
+  };
+}
+
+function hostProgress(eventType) { return eventType === 'PostToolUse'; }
 
 export function evaluateLatestStopShape(hookPayload) {
   return evaluateTranscriptStop(hookPayload);
@@ -59,16 +80,26 @@ function readOnlyStoreDiagnostic(eventType, hookPayload, error, stores, identity
 }
 
 function runtimeResult(eventType, result) {
+  const detail = result.decision.detail ?? {};
+  const envelope = createDecisionEnvelope({ allowed: result.decision.allowed, code: result.decision.code, detail, enforcementHealth: result.enforcementHealth ?? result.decision.enforcementHealth ?? 'strong' });
   const value = {
     schemaVersion: 1,
     kind: 'arcane-host-runtime-result',
     eventType,
-    allowed: result.decision.allowed,
-    code: result.decision.code,
-    enforcementHealth: result.enforcementHealth ?? result.decision.enforcementHealth ?? 'strong',
+    allowed: envelope.allowed,
+    code: envelope.code,
+    publicReason: envelope.publicReason,
+    enforcementHealth: envelope.enforcementHealth,
     receiptId: result.receipt?.receiptId ?? null,
     capabilityId: result.capabilityId ?? null,
-    stdout: renderHostRuntimeOutput({ eventType, allowed: result.decision.allowed, code: result.decision.code }),
+    retrySignature: envelope.retrySignature,
+    termination: envelope.termination,
+    certification: envelope.certification,
+    missingClasses: envelope.missingClasses,
+    responsibleProducer: envelope.responsibleProducer,
+    remediationRoutes: envelope.remediationRoutes,
+    missingEvidence: envelope.missingEvidence,
+    stdout: renderHostRuntimeOutput({ eventType, allowed: result.decision.allowed, code: result.decision.code, detail, enforcementHealth: envelope.enforcementHealth }),
   };
   schema.assert('arcane-host-runtime-result-v1', value);
   return value;
@@ -97,7 +128,15 @@ export function createHostRuntime({ adapter, workspace, keyDir, verificationKeyD
     authority: join(stateRoot, 'authority-bindings'),
     sessions: join(stateRoot, 'session-bindings'),
     correlations: join(stateRoot, 'pre-effect-correlations'),
+    events: join(stateRoot, 'host-events'),
+    terminalOperations: join(stateRoot, 'terminal-operations'),
+    assurance: join(stateRoot, 'high-risk-assurance'),
+    authorityInvocations: join(stateRoot, 'authority-invocations'),
+    denialCircuit: join(stateRoot, 'denial-circuit'),
+    budgets: join(stateRoot, 'budget-governance'),
+    taskBudgets: join(stateRoot, 'task-budget-seals'),
   };
+  const denialCircuit = keyRing ? new DenialCircuit({ root: paths.denialCircuit, keyRing, keyId: keyRing.activeKeyId(), clock: isoClock(clock) }) : null;
   const stores = {
     receiptStore: new ReceiptStore({ root: paths.receipts }),
     replayGuard: new ReplayGuard({ ...policy.replayLimits(), clock }),
@@ -107,21 +146,36 @@ export function createHostRuntime({ adapter, workspace, keyDir, verificationKeyD
     authorityLedger: new AuthorityLedger({ clock }),
     sessionBinding: new SessionBindingStore({ root: paths.sessions }),
     preEffectCorrelation: new PreEffectCorrelationStore({ root: paths.correlations }),
+    highRiskAssurance: new HighRiskAssuranceStore({ root: paths.assurance, clock: isoClock(clock) }),
+    budgetGovernance: keyRing ? new BudgetGovernanceStore({ root: paths.budgets, keyRing, monotonicNow: () => Number(process.hrtime.bigint() / 1000000n) }) : null,
+    taskBudgetSeals: keyRing ? new TaskBudgetSealStore({ root: paths.taskBudgets, keyRing, keyId: keyRing.activeKeyId(), clock: isoClock(clock) }) : null,
   };
-  const userApproval = new UserApprovalAuthority({ keyRing, clock });
+  const userApproval = new UserApprovalAuthority({ keyRing, policy, clock });
   const gate = new PreEffectGate({ policy, capabilityStore: stores.capabilityStore, authorityLedger: stores.authorityLedger, approvalAuthority: userApproval, clock });
-  Object.assign(stores, { policy, keyRing, verificationKeyRing, userApproval, gate });
+  Object.assign(stores, { policy, keyRing, verificationKeyRing, userApproval, gate, denialCircuit });
   let receiptSequence = 0;
+
+  // This is the sole runtime circuit projection. Every path returns through
+  // `finish` once host binding exists; it cannot change allowed/effect state.
+  const finish = (eventType, result, { binding = null, hostEvent = null, hookPayload = null, target = null } = {}) => {
+    if (!result.decision.allowed && denialCircuit && binding?.runId && binding?.taskId && hostEvent?.sessionId) {
+      try {
+        result = { ...result, decision: applyDenialCircuit(result.decision, denialCircuit, {
+          eventType, sessionId: hostEvent.sessionId, runId: binding.runId, taskId: binding.taskId,
+          target: target ?? hostEvent.effect?.target ?? hookPayload?.tool_input?.file_path ?? hookPayload?.tool_name ?? null,
+        }) };
+      } catch (error) {
+        result = { ...result, decision: denial(codeOf(error), 'authenticated denial circuit unavailable', 'unsupported'), enforcementHealth: 'unsupported' };
+      }
+    }
+    return runtimeResult(eventType, result);
+  };
 
   const handle = (hookPayload) => {
     const eventType = hookPayload?.hook_event_name;
     let identity = null;
     if (!EVENT_TYPES.has(eventType)) {
       return runtimeResult('PreToolUse', { decision: denial('ARC_HOST_EVENT_INVALID', 'invalid host event'), enforcementHealth: 'strong' });
-    }
-    if (eventType === 'PreToolUse') {
-      const control = preEffectDiscipline(hookPayload, { workspace, policy, checkCommit: false });
-      if (control) return runtimeResult(eventType, { decision: denial(control.code, control.message), enforcementHealth: 'strong' });
     }
     try {
       const hostEvent = adapter.normalize(hookPayload);
@@ -133,15 +187,48 @@ export function createHostRuntime({ adapter, workspace, keyDir, verificationKeyD
       const binding = hostEvent.sessionId ? stores.sessionBinding.getBinding(hostEvent.sessionId) : null;
       if (binding?.contractId) {
         if (hostEvent.contractId && hostEvent.contractId !== binding.contractId) {
-          return runtimeResult(eventType, { decision: denial('ARC_CONTRACT_VERSION_MISMATCH', 'session contract differs'), enforcementHealth: 'strong' });
+          return finish(eventType, { decision: denial('ARC_CONTRACT_VERSION_MISMATCH', 'session contract differs'), enforcementHealth: 'strong' }, { binding, hostEvent, hookPayload });
         }
         const seal = stores.sealStore.get(binding.contractId, binding.contractVersion);
         if (!seal || seal.contractDigest !== binding.contractDigest) {
-          return runtimeResult(eventType, { decision: denial('ARC_CONTRACT_VERSION_MISMATCH', 'sealed session contract differs'), enforcementHealth: 'strong' });
+          return finish(eventType, { decision: denial('ARC_CONTRACT_VERSION_MISMATCH', 'sealed session contract differs'), enforcementHealth: 'strong' }, { binding, hostEvent, hookPayload });
         }
       }
       const boundSeal = binding?.contractId ? stores.sealStore.get(binding.contractId, binding.contractVersion) : null;
       const contracted = Boolean(boundSeal && boundSeal.contractDigest === binding.contractDigest);
+      // Host-derived ledger metadata is persisted before any policy dispatch;
+      // adapters never supply sequence, correlation, or Stop ordinal fields.
+      if (!keyRing) return runtimeResult(eventType, { decision: denial('ARC_AUTH_KEY_UNAVAILABLE', 'authenticated event ledger unavailable'), enforcementHealth: 'unsupported' });
+      try {
+        const ledger = new HostEventLedger({ root: paths.events, keyRing, keyId: keyRing.activeKeyId(), clock: isoClock(clock) });
+        const continuity = ledger.verify();
+        if (!continuity.allowed) return runtimeResult(eventType, { decision: continuity, enforcementHealth: 'unsupported' });
+        hostEvent.ledger = ledger.append({ eventId: identity?.eventId ?? hostEvent.eventId, adapter: adapter.name, eventType, sessionId: hostEvent.sessionId, binding, sourceRevision: boundSeal?.sourceRevision ?? null, observedAuthority: identity?.agentType ?? null, payload: hookPayload });
+      } catch (error) { return runtimeResult(eventType, { decision: denial(codeOf(error), 'authenticated event ledger unavailable'), enforcementHealth: 'unsupported' }); }
+      if (contracted) {
+        try {
+          let taskBudget = null;
+          try { taskBudget = stores.taskBudgetSeals.require(binding.contractId, binding.taskId); } catch {}
+          // Legacy direct bindings have no task-budget seal. `run open` is
+          // now exact-budget-gated, so every new governed run has one; retain
+          // receipt-only compatibility for existing sealed runtime fixtures.
+          if (!taskBudget) taskBudget = null;
+          else if (taskBudget.contractVersion !== binding.contractVersion || taskBudget.contractDigest !== binding.contractDigest) {
+            return finish(eventType, { decision: denial('ARC_BINDING_MISMATCH', 'task budget differs from session contract'), enforcementHealth: 'strong' }, { binding, hostEvent, hookPayload });
+          }
+          if (taskBudget) {
+            const runBudget = stores.budgetGovernance.begin({ contractId: binding.contractId, version: binding.contractVersion, taskId: binding.taskId, runId: binding.runId, activeTimeCapMs: taskBudget.activeTimeCapMs, progressDeadlineMs: taskBudget.progressDeadlineMs });
+            const observedBudget = stores.budgetGovernance.observe(runBudget, { progress: hostProgress(eventType), retry: hostRetry(hookPayload, eventType) });
+            if (observedBudget.kind === 'BUDGET_STOP') {
+              return finish(eventType, { decision: denial(observedBudget.code, 'task budget stopped further effects'), enforcementHealth: 'strong' }, { binding, hostEvent, hookPayload });
+            }
+          }
+        } catch (error) { return finish(eventType, { decision: denial(codeOf(error), 'authenticated task budget unavailable'), enforcementHealth: 'unsupported' }, { binding, hostEvent, hookPayload }); }
+      }
+      if (eventType === 'PreToolUse') {
+        const control = preEffectDiscipline(hookPayload, { workspace, policy, checkCommit: false });
+        if (control) return finish(eventType, { decision: denial(control.code, control.message), enforcementHealth: 'strong' }, { binding, hostEvent, hookPayload });
+      }
       let observed = typeof adapter.mapPreEffect === 'function' && eventType === 'PreToolUse'
         ? adapter.mapPreEffect(hookPayload, { hostEvent, binding, workspace }) : null;
 
@@ -166,7 +253,7 @@ export function createHostRuntime({ adapter, workspace, keyDir, verificationKeyD
       const observedEffects = patch?.effects ?? (observed ? [observed] : []);
       if (eventType === 'PreToolUse' && observedEffects.length > 0 && !contracted) {
         if (policy.lockedDomainsFor(observedEffects.map((effect) => effect.target)).length > 0) {
-          return runtimeResult(eventType, { decision: denial('ARC_NO_CONTRACT', 'locked-domain effect requires a sealed contract'), enforcementHealth: 'strong' });
+          return finish(eventType, { decision: denial('ARC_NO_CONTRACT', 'locked-domain effect requires a sealed contract'), enforcementHealth: 'strong' }, { binding, hostEvent, hookPayload });
         }
         observed = null;
       }
@@ -176,24 +263,24 @@ export function createHostRuntime({ adapter, workspace, keyDir, verificationKeyD
         const prepared = [];
         for (const effect of observedEffects) {
           const reservation = stores.preEffectCorrelation.reserve(effect.toolUseId);
-          if (!reservation) return runtimeResult(eventType, { decision: denial('ARC_STORE_CORRUPT', 'pre-effect correlation unavailable'), enforcementHealth: 'unsupported' });
-          if (!reservation.created) return runtimeResult(eventType, { decision: denial('ARC_REPLAY_NONCE_SEEN', 'pre-effect delivery already reserved'), enforcementHealth: 'strong' });
+          if (!reservation) return finish(eventType, { decision: denial('ARC_STORE_CORRUPT', 'pre-effect correlation unavailable'), enforcementHealth: 'unsupported' }, { binding, hostEvent, hookPayload, target: effect.target });
+          if (!reservation.created) return finish(eventType, { decision: denial('ARC_REPLAY_NONCE_SEEN', 'pre-effect delivery already reserved'), enforcementHealth: 'strong' }, { binding, hostEvent, hookPayload, target: effect.target });
           const authority = identity?.sessionId && identity?.agentId
             ? stores.authorityBinding.assertForTurn({ adapter: adapter.name, sessionId: identity.sessionId, agentId: identity.agentId, turnId: reservation.requestId, authorityLedger: stores.authorityLedger, keyId: keyRing?.activeKeyId() }) : null;
-          if (!authority) return runtimeResult(eventType, { decision: denial('ARC_NO_CONTRACT', 'sealed contract unavailable'), enforcementHealth: 'strong' });
+          if (!authority) return finish(eventType, { decision: denial('ARC_NO_CONTRACT', 'sealed contract unavailable'), enforcementHealth: 'strong' }, { binding, hostEvent, hookPayload, target: effect.target });
           const request = { schemaVersion: 1, kind: 'legion-effect-request', requestId: reservation.requestId, runId: binding.runId, contractId: seal.contractId, taskId: binding.taskId, requestedBy: authority.authority, effectClass: effect.effectClass, target: effect.target, operation: effect.operation, latitude: latitudeFor(seal.contract, effect.target), sourceRevision: seal.contract.sourceRevision, requestedAt: new Date(clock()).toISOString() };
           const context = { contract: seal.contract, contractDigest: seal.contractDigest, turnId: reservation.requestId, workspace, expectedContractVersion: seal.version, requestId: reservation.requestId, sessionId: hostEvent.sessionId, transcriptPath: hookPayload?.transcript_path };
           const authorized = gate.authorize(request, context);
-          if (!authorized.allowed) return runtimeResult(eventType, { decision: authorized, enforcementHealth: authorized.enforcementHealth });
+          if (!authorized.allowed) return finish(eventType, { decision: authorized, enforcementHealth: authorized.enforcementHealth }, { binding, hostEvent, hookPayload, target: effect.target });
           prepared.push({ request, context, capabilityId: authorized.detail.capabilityId, toolUseId: effect.toolUseId });
         }
         for (const item of prepared) {
           const consumed = gate.evaluate(item.request, { ...item.context, capabilityId: item.capabilityId });
-          if (!consumed.allowed) return runtimeResult(eventType, { decision: consumed, enforcementHealth: consumed.enforcementHealth });
+          if (!consumed.allowed) return finish(eventType, { decision: consumed, enforcementHealth: consumed.enforcementHealth }, { binding, hostEvent, hookPayload, target: effect.target });
           const requestedEffect = { effectClass: item.request.effectClass, target: item.request.target, operation: item.request.operation };
           const authorizedEffect = { effectClass: item.request.effectClass, target: item.request.target, operation: item.request.operation };
           const finalized = stores.preEffectCorrelation.finalize(item.toolUseId, { requestId: item.request.requestId, capabilityId: item.capabilityId, requestedEffect, authorizedEffect });
-          if (!finalized) return runtimeResult(eventType, { decision: denial('ARC_STORE_CORRUPT', 'pre-effect correlation finalization failed'), enforcementHealth: 'strong' });
+          if (!finalized) return finish(eventType, { decision: denial('ARC_STORE_CORRUPT', 'pre-effect correlation finalization failed'), enforcementHealth: 'strong' }, { binding, hostEvent, hookPayload, target: effect.target });
         }
         return runtimeResult(eventType, { decision: { allowed: true, code: null, message: 'authorized', detail: {}, enforcementHealth: 'strong' }, capabilityId: prepared[0]?.capabilityId ?? null });
       }
@@ -205,21 +292,32 @@ export function createHostRuntime({ adapter, workspace, keyDir, verificationKeyD
         }));
         const failed = outcomes.find((outcome) => !outcome.decision.allowed);
         const outcome = failed ?? outcomes.at(-1);
-        return runtimeResult(eventType, { decision: outcome.decision, receipt: outcome.receipt, enforcementHealth: outcome.enforcementHealth });
+        return finish(eventType, { decision: outcome.decision, receipt: outcome.receipt, enforcementHealth: outcome.enforcementHealth }, { binding, hostEvent, hookPayload });
       }
       const outcome = handleHookEvent(hookPayload, {
         normalize: adapter.normalize, keyRing, verificationKeyRing, receiptStore: stores.receiptStore, replayGuard: stores.replayGuard, policy,
         capabilityStore: stores.capabilityStore, clock, sessionBinding: stores.sessionBinding, preEffectCorrelation: stores.preEffectCorrelation,
       });
       if (eventType === 'Stop' && outcome.decision.allowed) {
-        const stopped = evaluateHostStop(outcome.hostEvent, { policy, receiptStore: stores.receiptStore });
-        if (!stopped.allowed) outcome.decision = stopped;
+        const terminalStore = new PendingTerminalOperationStore({ root: paths.terminalOperations, keyRing, keyId: keyRing.activeKeyId(), clock: isoClock(clock) });
+        const stopIntent=readOnlyStopIntent(hookPayload).intent;
+        const claim = terminalStore.matching({ turnCorrelationDigest: hostEvent.ledger?.turnCorrelationDigest, stopOrdinal: hostEvent.ledger?.stopOrdinal });
+        const terminal=!['QUESTION','PLAN','PAUSE','REVOKE','SCOPE_NARROW'].includes(stopIntent);
+        const consumed = claim ? terminalStore.resolve({ claimId: claim.claimId, stopEventDigest: digestValue(hostEvent.ledger), turnCorrelationDigest: hostEvent.ledger.turnCorrelationDigest, stopOrdinal: hostEvent.ledger.stopOrdinal, terminal }) : null;
+        const stop = stopOutcome({ intent: stopIntent, authenticatedClaim: Boolean(consumed?.allowed&&terminal) });
+        // A host Stop without an explicit completion claim always terminates;
+        // failed certification is reported independently and cannot trap it.
+        const issuer = new AuthorityInvocationProofIssuer({ root: paths.authorityInvocations, keyRing, keyId: keyRing.activeKeyId(), ledgerStore: new HostEventLedger({ root: paths.events, keyRing, keyId: keyRing.activeKeyId(), clock: isoClock(clock) }) });
+        const currentProof = claim ? issuer.findByDigest(claim.invocationProofDigest) : null;
+        const execution = boundSeal ? { runId: binding.runId, taskId: binding.taskId, contractId: binding.contractId, contractVersion: binding.contractVersion, contractDigest: binding.contractDigest, sourceRevision: boundSeal.sourceRevision } : null;
+        const stopped = evaluateHostStop(outcome.hostEvent, { policy, receiptStore: stores.receiptStore, assuranceStore: stores.highRiskAssurance, keyRing, authorityBindingStore: stores.authorityBinding, currentProof, binding: binding ? { ...binding, sessionId: hostEvent.sessionId } : null, execution, completionClaim: claim, now: new Date(clock()), disposition: stop.disposition, intent: stopIntent, authenticatedClaim: Boolean(consumed?.allowed && consumed.detail?.certification === 'genuine') });
+        if (stop.certification === 'genuine' && !stopped.allowed) outcome.decision = stopped;
         if (outcome.decision.allowed) {
           const shaped = evaluateLatestStopShape(hookPayload);
           if (shaped.block) outcome.decision = denial('ARC_STOP_SHAPE', shaped.instruction, 'advisory');
         }
       }
-      const result = runtimeResult(eventType, outcome);
+      const result = finish(eventType, outcome, { binding, hostEvent, hookPayload });
       // renderHostRuntimeOutput returns null when allowed, which is exactly why
       // the standalone Python injectors (brief/minimize/ccx) existed. Fire the
       // same injection here, independent of the allow/deny branch above, so it
@@ -227,7 +325,8 @@ export function createHostRuntime({ adapter, workspace, keyDir, verificationKeyD
       if (result.allowed && result.stdout === null && POLICY_INJECT_EVENTS.has(eventType)) {
         const injection = buildPolicyInjection({ workspace, prompt: hookPayload?.prompt ?? hookPayload?.user_prompt ?? null, gotchasOnly: eventType === 'UserPromptSubmit' });
         if (injection) {
-          const stdout = { hookSpecificOutput: { hookEventName: eventType, additionalContext: injection.additionalContext } };
+          const envelope = createDecisionEnvelope({ allowed: true, code: null });
+          const stdout = { hookSpecificOutput: { hookEventName: eventType, additionalContext: injection.additionalContext }, code: envelope.code, publicReason: envelope.publicReason, enforcementHealth: envelope.enforcementHealth, retrySignature: envelope.retrySignature, termination: envelope.termination, certification: envelope.certification, missingClasses: envelope.missingClasses, responsibleProducer: envelope.responsibleProducer, remediationRoutes: envelope.remediationRoutes, missingEvidence: envelope.missingEvidence };
           if (injection.systemMessage) stdout.systemMessage = injection.systemMessage;
           schema.assert('arcane-host-runtime-output-v1', stdout);
           result.stdout = stdout;
@@ -241,4 +340,10 @@ export function createHostRuntime({ adapter, workspace, keyDir, verificationKeyD
     }
   };
   return { handle, stores, stateRoot };
+}
+
+/** Single authenticated ingress used by every adapter and legacy hook entrypoint. */
+export function dispatchHookInvocation(hookPayload, { adapter, workspace, keyDir, verificationKeyDirs = [keyDir], stateRoot, clock = () => Date.now(), runtime = null } = {}) {
+  const hostRuntime = runtime ?? createHostRuntime({ adapter, workspace, keyDir, verificationKeyDirs, ...(stateRoot ? { stateRoot } : {}), clock });
+  return hostRuntime.handle(hookPayload);
 }

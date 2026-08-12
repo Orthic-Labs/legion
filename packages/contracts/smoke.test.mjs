@@ -63,17 +63,29 @@ test('every schema declares draft 2020-12 and a unique $id', () => {
 
 test('execution contract executable validation rejects unresolved and under-specified work', () => {
   const contract = {
-    schemaVersion: 1, kind: 'legion-execution-contract', contractId: 'EC-1', version: 1, sourceRevision: 'abcdef0', objective: 'x', currentState: 'x', desiredState: 'x', requirements: [], decisions: [], invariants: [], nonGoals: [], scope: { own: [], read: [], forbidden: [] }, artifacts: { exact: [{ id: 'a', path: 'x', latitude: 'EXACT', content: 'x' }], bounded: [{ id: 'b', path: 'y', latitude: 'BOUNDED', locked: ['x'], freedom: ['y'] }] }, tasks: ['T-1'], dependencies: [], acceptanceCriteria: [], declaredChecks: [], evidenceRequirements: [], authorizedEffectClasses: [], repairLatitude: [], stopConditions: [], escalationConditions: [], rollback: [], openQuestions: []
+    schemaVersion: 1, kind: 'legion-execution-contract', contractId: 'EC-1', version: 1, sourceRevision: 'abcdef0', budget: { objectiveLineageId: 'L-1', objectiveDigest: `sha256:${'a'.repeat(64)}`, legionBlastMapCapMs: 1, sagePlanningCapMs: 1, maxContractVersions: 2 }, objective: 'x', currentState: 'x', desiredState: 'x', requirements: [], decisions: [], invariants: [], nonGoals: [], scope: { own: [], read: [], forbidden: [] }, artifacts: { exact: [{ id: 'a', path: 'x', latitude: 'EXACT', content: 'x' }], bounded: [{ id: 'b', path: 'y', latitude: 'BOUNDED', locked: ['x'], freedom: ['y'] }] }, tasks: ['T-1'], dependencies: [], acceptanceCriteria: [], declaredChecks: [], evidenceRequirements: [], authorizedEffectClasses: [], repairLatitude: [], stopConditions: [], escalationConditions: [], rollback: [], openQuestions: []
   };
   assert.equal(validateExecutableContract(contract), contract);
   assert.throws(() => validateExecutableContract({ ...contract, openQuestions: [{ id: 'Q-1', question: 'x' }] }), /open questions/);
   assert.throws(() => validateExecutableContract({ ...contract, tasks: ['T-1', 'T-1'] }), /unique/);
 });
 
+test('execution contract accepts only a closed advisory profile binding', () => {
+  const contract = {
+    schemaVersion: 1, kind: 'legion-execution-contract', contractId: 'EC-2', version: 1, sourceRevision: 'abcdef0',
+    advisoryProfile: { schemaVersion: 1, kind: 'arcane-advisory-profile-binding', bundleId: 'research', bundleVersion: '1.0.0', profileId: 'audit', manifestDigest: `sha256:${'a'.repeat(64)}`, profileDigest: `sha256:${'b'.repeat(64)}`, mutationAllowed: false, publishAllowed: false, externalOnly: false }, budget: { objectiveLineageId: 'L-2', objectiveDigest: `sha256:${'a'.repeat(64)}`, legionBlastMapCapMs: 1, sagePlanningCapMs: 1, maxContractVersions: 2 },
+    objective: 'x', currentState: 'x', desiredState: 'x', requirements: [], decisions: [], invariants: [], nonGoals: [], scope: { own: [], read: [], forbidden: [] }, artifacts: { exact: [{ id: 'a', path: 'x', latitude: 'EXACT', content: 'x' }], bounded: [{ id: 'b', path: 'y', latitude: 'BOUNDED', locked: ['x'], freedom: ['y'] }] }, tasks: ['T-1'], dependencies: [], acceptanceCriteria: [], declaredChecks: [], evidenceRequirements: [], authorizedEffectClasses: [], repairLatitude: [], stopConditions: [], escalationConditions: [], rollback: [], openQuestions: [],
+  };
+  assert.equal(validateExecutableContract(contract), contract);
+  assert.throws(() => validateExecutableContract({ ...contract, advisoryProfile: { ...contract.advisoryProfile, callerManifestPath: 'x' } }), /additional-property/);
+  const missing = JSON.parse(JSON.stringify(contract)); delete missing.advisoryProfile.profileDigest;
+  assert.throws(() => validateExecutableContract(missing), /required/);
+});
+
 
 test('EC-C sealed behavior: EXACT artifacts reject null content, BOUNDED rejects empty locked/freedom, shared-mutable-resource edges require resourceKey, IDs are globally unique', () => {
   const baseContract = {
-    schemaVersion: 1, kind: 'legion-execution-contract', contractId: 'EC-44', version: 1, sourceRevision: 'abcdef0', objective: 'o', currentState: 'c', desiredState: 'd',
+    schemaVersion: 1, kind: 'legion-execution-contract', contractId: 'EC-44', version: 1, sourceRevision: 'abcdef0', budget: { objectiveLineageId: 'L-44', objectiveDigest: `sha256:${'a'.repeat(64)}`, legionBlastMapCapMs: 1, sagePlanningCapMs: 1, maxContractVersions: 2 }, objective: 'o', currentState: 'c', desiredState: 'd',
     requirements: [{ id: 'R-1', statement: 'r' }], decisions: [{ id: 'D-1', statement: 'd' }], invariants: [{ id: 'I-1', statement: 'i' }], nonGoals: [{ id: 'NG-1', statement: 'n' }],
     scope: { own: [], read: [], forbidden: [] },
     artifacts: {

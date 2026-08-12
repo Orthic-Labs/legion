@@ -42,12 +42,13 @@
 // never a corrupt or partially-written file (rename is atomic; there is no
 // interleaving of two writers' bytes).
 
-import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
+import { closeSync, existsSync, mkdirSync, openSync, readFileSync, renameSync, unlinkSync, writeFileSync } from 'node:fs';
 import { createHash, randomBytes } from 'node:crypto';
 import { join } from 'node:path';
 
 import { mintId } from './ids.mjs';
 import { ArcaneError } from './errors.mjs';
+import { canonicalJson } from './canonical.mjs';
 
 /**
  * sha256 hex of the raw session id — never the session id itself. Session
@@ -70,6 +71,10 @@ function readBinding(path) {
     const trio = ['contractId', 'contractVersion', 'contractDigest'];
     if (!trio.every((key) => parsed[key] == null) && !trio.every((key) => parsed[key] != null)) return null;
     if (parsed.delivery != null && (!parsed.delivery || !Array.isArray(parsed.delivery.repositories) || parsed.delivery.repositories.some((repo) => !repo || typeof repo.root !== 'string' || typeof repo.commonDir !== 'string' || typeof repo.primaryRoot !== 'string' || typeof repo.canonicalRef !== 'string' || typeof repo.head !== 'string' || typeof repo.snapshotTree !== 'string' || !['write', 'read-only'].includes(repo.mode) || typeof repo.leaseToken !== 'string' || (repo.mode === 'read-only' && typeof repo.acquisitionKey !== 'string')))) return null;
+    const optional = {};
+    if (parsed.lifecycle != null && (!parsed.lifecycle || typeof parsed.lifecycle !== 'object' || Array.isArray(parsed.lifecycle) || !['active', 'suspended'].includes(parsed.lifecycle.state) || typeof parsed.lifecycle.transactionId !== 'string')) return null;
+    if (Object.prototype.hasOwnProperty.call(parsed, 'work')) optional.work = parsed.work;
+    if (parsed.lifecycle != null) optional.lifecycle = parsed.lifecycle;
     return {
       runId: parsed.runId,
       taskId: typeof parsed.taskId === 'string' ? parsed.taskId : null,
@@ -77,6 +82,7 @@ function readBinding(path) {
       contractVersion: Number.isInteger(parsed.contractVersion) ? parsed.contractVersion : null,
       contractDigest: typeof parsed.contractDigest === 'string' ? parsed.contractDigest : null,
       ...(parsed.delivery ? { delivery: parsed.delivery } : {}),
+      ...optional,
     };
   } catch {
     return null; // corrupt/unreadable file -> honest null, never a thrown parse error
@@ -96,6 +102,8 @@ export class SessionBindingStore {
   #pathFor(sessionId) {
     return join(this.#root, bindingFileName(sessionId));
   }
+
+  #lockPathFor(sessionId) { return `${this.#pathFor(sessionId)}.cas-lock`; }
 
   /** @returns {{runId:string, taskId:string|null, contractId:string|null}|null} */
   getBinding(sessionId) {
@@ -143,14 +151,19 @@ export class SessionBindingStore {
    * @returns {{runId:string, taskId:string|null, contractId:string|null}|null}
    *   the record written, or `null` on any I/O failure (degrade, never throw).
    */
-  putBinding(sessionId, { runId, taskId = null, contractId = null, contractVersion = null, contractDigest = null, delivery = null }) {
+  putBinding(sessionId, { runId, taskId = null, contractId = null, contractVersion = null, contractDigest = null, delivery = null, work = undefined, lifecycle = undefined }) {
     if (typeof sessionId !== 'string' || sessionId.length === 0) return null;
     if (typeof runId !== 'string' || runId.length === 0) return null;
 
     const trio = [contractId, contractVersion, contractDigest];
     if (!trio.every((value) => value == null) && !trio.every((value) => value != null)) return null;
     if (delivery != null && (!delivery || !Array.isArray(delivery.repositories) || delivery.repositories.some((repo) => !repo || typeof repo.root !== 'string' || typeof repo.commonDir !== 'string' || typeof repo.primaryRoot !== 'string' || typeof repo.canonicalRef !== 'string' || typeof repo.head !== 'string' || typeof repo.snapshotTree !== 'string' || !['write', 'read-only'].includes(repo.mode) || typeof repo.leaseToken !== 'string' || (repo.mode === 'read-only' && typeof repo.acquisitionKey !== 'string')))) return null;
-    const record = { runId, taskId, contractId, contractVersion, contractDigest, ...(delivery ? { delivery } : {}) };
+    const previous = this.getBinding(sessionId);
+    const resolvedWork = work === undefined ? previous?.work : work;
+    const resolvedLifecycle = lifecycle === undefined ? previous?.lifecycle : lifecycle;
+    try { if (resolvedWork !== undefined) canonicalJson(resolvedWork); } catch { return null; }
+    if (resolvedLifecycle != null && (!resolvedLifecycle || typeof resolvedLifecycle !== 'object' || Array.isArray(resolvedLifecycle) || !['active', 'suspended'].includes(resolvedLifecycle.state) || typeof resolvedLifecycle.transactionId !== 'string')) return null;
+    const record = { runId, taskId, contractId, contractVersion, contractDigest, ...(delivery ? { delivery } : {}), ...(resolvedWork !== undefined ? { work: resolvedWork } : {}), ...(resolvedLifecycle != null ? { lifecycle: resolvedLifecycle } : {}) };
     const path = this.#pathFor(sessionId);
     try {
       mkdirSync(this.#root, { recursive: true });
@@ -160,6 +173,35 @@ export class SessionBindingStore {
       return record;
     } catch {
       return null;
+    }
+  }
+
+  /**
+   * Locked compare-and-swap for recovery transactions.  `putBinding` stays
+   * last-writer-wins for ordinary open/close; lifecycle recovery must never
+   * overwrite a concurrent binding.  A lock is released in finally, while
+   * predecessor/successor bytes are each written by atomic rename.
+   */
+  compareAndSwap(sessionId, { expected, next }) {
+    if (typeof sessionId !== 'string' || sessionId.length === 0 || !expected || !next) return { ok: false, code: 'ARC_BINDING_MISMATCH' };
+    const lockPath = this.#lockPathFor(sessionId);
+    let fd;
+    try {
+      mkdirSync(this.#root, { recursive: true });
+      fd = openSync(lockPath, 'wx', 0o600);
+      const current = this.getBinding(sessionId);
+      if (canonicalJson(current) !== canonicalJson(expected)) return { ok: false, code: 'ARC_BINDING_MISMATCH', current };
+      const path = this.#pathFor(sessionId);
+      const tmp = join(this.#root, `.tmp-${randomBytes(8).toString('hex')}`);
+      writeFileSync(tmp, JSON.stringify(next), 'utf8');
+      renameSync(tmp, path);
+      return { ok: true, current: next };
+    } catch (error) {
+      if (error?.code === 'EEXIST') return { ok: false, code: 'ARC_REPLAY_SEQUENCE_REGRESSION', current: this.getBinding(sessionId) };
+      return { ok: false, code: 'ARC_STORE_CORRUPT' };
+    } finally {
+      if (fd !== undefined) closeSync(fd);
+      try { if (fd !== undefined) unlinkSync(lockPath); } catch {}
     }
   }
 }

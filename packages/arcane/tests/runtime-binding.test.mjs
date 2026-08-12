@@ -49,8 +49,26 @@ test('B6 runtime composes stores & returns a closed refusal without throwing', (
     assert.equal(result.kind, 'arcane-host-runtime-result');
     assert.equal(result.allowed, false);
     assert.equal(result.code, 'ARC_AUTH_KEY_UNAVAILABLE');
-    assert.deepEqual(result.stdout, { hookSpecificOutput: { hookEventName: 'PreToolUse', permissionDecision: 'deny', permissionDecisionReason: 'ARC_AUTH_KEY_UNAVAILABLE: Host authentication key is unavailable.' } });
+    assert.deepEqual(result.stdout, {
+      hookSpecificOutput: { hookEventName: 'PreToolUse', permissionDecision: 'deny', permissionDecisionReason: 'ARC_AUTH_KEY_UNAVAILABLE: Host authentication key is unavailable.' },
+      code: 'ARC_AUTH_KEY_UNAVAILABLE', publicReason: 'ARC_AUTH_KEY_UNAVAILABLE: Host authentication key is unavailable.', enforcementHealth: 'unsupported', retrySignature: null,
+      termination: 'continue', certification: 'rejected', missingClasses: [], responsibleProducer: null, remediationRoutes: [], missingEvidence: [],
+    });
   } finally { rmSync(workspace, { recursive: true, force: true }); }
+});
+
+test('EC-603 v7: fresh authenticated ingress accepts & creates a ledger record without self-asserted authority', () => {
+  const root = mkdtempSync(join(tmpdir(), 'arcane-host-event-ledger-'));
+  const workspace = join(root, 'workspace'); const stateRoot = join(root, 'state'); const keyDir = join(root, 'keys');
+  try {
+    mkdirSync(workspace, { recursive: true }); mkdirSync(keyDir, { recursive: true }); writeFileSync(join(keyDir, 'k1.key'), 'a'.repeat(64));
+    const runtime = createHostRuntime({ adapter: { name: 'codex', normalize: normalizeCodexEvent, observeIdentity: observeCodexIdentity }, workspace, keyDir, stateRoot });
+    const result = runtime.handle({ hook_event_name: 'SessionStart', cwd: workspace, session_id: 'fresh-session', agent_id: 'agent', agent_type: 'alchemist' });
+    const ledger = JSON.parse(readFileSync(join(stateRoot, 'host-events', '0000000000000001.json'), 'utf8'));
+    assert.equal(result.allowed, true, result.code);
+    assert.equal(ledger.observedAuthority, 'alchemist');
+    assert.equal(Object.hasOwn(ledger, 'authority'), false);
+  } finally { rmSync(root, { recursive: true, force: true }); }
 });
 
 test('B7 native Codex subprocess reserves once, consumes one durable capability & emits exact stdout', () => {
@@ -165,7 +183,7 @@ test('EC-503 host Stop authority uses latest admitted user turn only', () => {
   } finally { rmSync(root, { recursive: true, force: true }); }
 });
 
-test('EC-503 host Stop preserves recorded findings, push cap & current authorization', () => {
+test('EC-603 T-4: standalone Stop shape keeps no unauthenticated local retry circuit', () => {
   const root = mkdtempSync(join(tmpdir(), 'arcane-stop-state-'));
   const transcript = join(root, 'transcript.jsonl');
   const write = (entries) => writeFileSync(transcript, entries.map((entry) => JSON.stringify(entry)).join('\n'));
@@ -183,7 +201,8 @@ test('EC-503 host Stop preserves recorded findings, push cap & current authoriza
     const payload = { transcript_path: transcript, cwd: root, session_id: 'pushes', stop_hook_active: true };
     assert.equal(evaluateLatestStopShape(payload).block, true);
     assert.equal(evaluateLatestStopShape(payload).block, true);
-    assert.equal(evaluateLatestStopShape(payload).block, false);
+    assert.equal(evaluateLatestStopShape(payload).block, true);
+    assert.equal(existsSync(join(root, '.audit', 'legion', 'stop-shape', 'pushes.json')), false);
     assert.doesNotMatch(readFileSync(new URL('../../../hooks/stop-shape.mjs', import.meta.url), 'utf8'), /intent\.intent === 'proceed'/);
   } finally { rmSync(root, { recursive: true, force: true }); }
 });

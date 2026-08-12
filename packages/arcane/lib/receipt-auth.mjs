@@ -106,11 +106,16 @@ function digestOfBoundFieldList(boundFields) {
   return digest(canonicalJson([...boundFields]));
 }
 
-function macOver(key, record, boundFields) {
+function macOver(key, record, boundFields, macDomain = null) {
   const projected = projectBoundFields(record, boundFields);
-  const message = canonicalJson({
+  const message = canonicalJson(macDomain === null ? {
     alg: MAC_ALGORITHM,
     boundFields: [...boundFields],
+    subject: projected,
+  } : {
+    alg: MAC_ALGORITHM,
+    boundFields: [...boundFields],
+    macDomain,
     subject: projected,
   });
   return createHmac('sha256', key).update(message, 'utf8').digest('hex');
@@ -121,7 +126,7 @@ function macOver(key, record, boundFields) {
  * @returns {{alg: string, keyId: string, mac: string, boundFieldsDigest: string}}
  * @throws {ArcaneError} ARC_AUTH_KEY_UNAVAILABLE (failClosed) when the key is absent.
  */
-export function signRecord(record, { keyRing, keyId, boundFields }) {
+export function signRecord(record, { keyRing, keyId, boundFields, macDomain = null }) {
   if (!Array.isArray(boundFields) || boundFields.length === 0) {
     throw new ArcaneError('ARC_CANONICALIZATION_FAILED', 'signRecord requires a non-empty boundFields list', {});
   }
@@ -129,7 +134,8 @@ export function signRecord(record, { keyRing, keyId, boundFields }) {
   return {
     alg: MAC_ALGORITHM,
     keyId: entry.keyId,
-    mac: macOver(entry.key, record, boundFields),
+    mac: macOver(entry.key, record, boundFields, macDomain),
+    ...(macDomain === null ? {} : { macDomain }),
     boundFieldsDigest: digestOfBoundFieldList(boundFields),
   };
 }
@@ -145,7 +151,7 @@ export function signRecord(record, { keyRing, keyId, boundFields }) {
  * @param {object|null} auth
  * @param {{keyRing: object, boundFields: string[], expectedBinding?: object}} ctx
  */
-export function verifyRecord(record, auth, { keyRing, boundFields, expectedBinding = {} }) {
+export function verifyRecord(record, auth, { keyRing, boundFields, expectedBinding = {}, macDomain = undefined }) {
   // 1. Legacy self-hash — checked FIRST, so a record cannot smuggle one past
   //    the verifier by also carrying a well-formed `mac`. S03 action 11:
   //    imported only as unauthenticated legacy metadata, never as proof.
@@ -178,6 +184,15 @@ export function verifyRecord(record, auth, { keyRing, boundFields, expectedBindi
     });
   }
 
+  if (macDomain !== undefined && auth.macDomain !== macDomain) {
+    return decision({
+      allowed: false,
+      code: 'ARC_AUTH_FORGED',
+      message: 'MAC domain does not match verifier requirement',
+      detail: { expectedMacDomain: macDomain, presented: auth.macDomain ?? null },
+    });
+  }
+
   // 3. The covered field list must be exactly the one the verifier demands.
   //    Compared before the MAC so a shrunken-and-re-signed record fails here
   //    rather than appearing to verify over a narrower message.
@@ -206,7 +221,7 @@ export function verifyRecord(record, auth, { keyRing, boundFields, expectedBindi
   //    ARC_CANONICALIZATION_FAILED rather than hashing an implicit null.
   let expectedMac;
   try {
-    expectedMac = macOver(entry.key, record, boundFields);
+    expectedMac = macOver(entry.key, record, boundFields, macDomain === undefined ? (auth.macDomain ?? null) : macDomain);
   } catch (err) {
     if (err instanceof ArcaneError && err.code === 'ARC_CANONICALIZATION_FAILED') {
       return decision({

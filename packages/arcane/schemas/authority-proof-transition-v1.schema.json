@@ -1,0 +1,1 @@
+{"$schema":"https://json-schema.org/draft/2020-12/schema","$id":"arcane-authority-proof-transition-v1","type":"object","additionalProperties":false,"required":["state","proofDigest","at"],"properties":{"state":{"type":"string","minLength":1},"proofDigest":{"type":"string","minLength":1},"at":{"type":"string","minLength":1}}}
