@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, rmSync, unlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -8,8 +9,10 @@ import test from 'node:test';
 import { EXIT, exitCodeForReport } from '../lib/errors.mjs';
 import { LEGION_VERSION } from '../lib/version.mjs';
 import { runCli } from '../lib/cli/run.mjs';
+import { runRun } from '../lib/cli/commands/run.mjs';
 import { b5Contract, EC5_DIGEST, EC6_DIGEST, seedStore } from '../packages/arcane/tests/fixtures/runtime-binding-contract.mjs';
 import { ReceiptStore } from '../packages/arcane/lib/receipt-store.mjs';
+import { SessionBindingStore } from '../packages/arcane/lib/session-binding.mjs';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
 const BIN = fileURLToPath(new URL('../bin/legion.mjs', import.meta.url));
@@ -180,9 +183,43 @@ function captureStream() {
   return stream;
 }
 
+function failingReceiptStoreFactory(kind) {
+  let failed = false;
+  return ({ root }) => {
+    const store = new ReceiptStore({ root });
+    return {
+      list: (...args) => store.list(...args),
+      append(record) {
+        if (!failed && record.kind === kind) { failed = true; throw new Error(`${kind} append failed`); }
+        return store.append(record);
+      },
+    };
+  };
+}
+
 function runDir() {
   const dir = mkdtempSync(join(tmpdir(), 'legion-run-cli-'));
+  spawnSync('git', ['init', '--initial-branch=main'], { cwd: dir });
+  spawnSync('git', ['config', 'user.email', 'test@example.test'], { cwd: dir });
+  spawnSync('git', ['config', 'user.name', 'Test'], { cwd: dir });
+  writeFileSync(join(dir, 'tracked.txt'), 'base\n');
+  spawnSync('git', ['add', '.'], { cwd: dir });
+  spawnSync('git', ['commit', '-m', 'base'], { cwd: dir });
   return { dir, cleanup: () => rmSync(dir, { recursive: true, force: true }) };
+}
+
+function deliveryManifestPath(dir, sessionId, binding) {
+  const token = createHash('sha256').update(`${sessionId}\0${binding.runId}\0${binding.taskId}`).digest('hex');
+  return join(dir, '.audit', 'arcane', 'delivery', 'manifests', `${token}.json`);
+}
+
+function appendMatchingArchiveCloseReceipt(dir, sessionId, binding) {
+  new ReceiptStore({ root: join(dir, '.audit', 'arcane', 'receipts') }).append({
+    schemaVersion: 1, kind: 'legion-run-close-receipt', sessionId, runId: binding.runId, taskId: binding.taskId,
+    contractId: binding.contractId, contractVersion: binding.contractVersion, contractDigest: binding.contractDigest,
+    finalClaimState: 'passed', completionCode: 'ARC_ARCHIVE', enforcementHealth: 'not-applicable', deliveryDisposition: 'archive',
+    deliveryEvidence: binding.delivery.repositories.map((repo) => ({ repository: repo.root, baselineTree: repo.snapshotTree, leaseToken: repo.leaseToken ?? null })),
+  });
 }
 
 test('run open mints a fresh binding and stamps contract/task', async () => {
@@ -216,33 +253,61 @@ test('run open is idempotent on runId — a repeat open for the same session upg
     seedStore(join(dir, '.audit', 'arcane'), b5Contract('EC-6'));
     const firstOut = captureStream();
     const first = await runCli(
-      ['run', 'open', '--contract', 'EC-5', '--version', '1', '--session', 'sess-repeat'],
+      ['run', 'open', '--contract', 'EC-5', '--version', '1', '--task', 'T-1', '--session', 'sess-repeat'],
       { stdout: firstOut, stderr: captureStream(), env: {}, cwd: dir },
     );
     assert.equal(first.exitCode, EXIT.PASS);
     const firstBinding = JSON.parse(firstOut.buf.trim());
+    writeFileSync(join(dir, 'after-open.txt'), 'must remain task output\n');
 
     const secondOut = captureStream();
     const second = await runCli(
-      ['run', 'open', '--contract', 'EC-6', '--version', '1', '--task', 'T-2', '--session', 'sess-repeat'],
+      ['run', 'open', '--contract', 'EC-5', '--version', '1', '--task', 'T-1', '--session', 'sess-repeat'],
       { stdout: secondOut, stderr: captureStream(), env: {}, cwd: dir },
     );
     assert.equal(second.exitCode, EXIT.PASS);
     const secondBinding = JSON.parse(secondOut.buf.trim());
 
     assert.equal(secondBinding.runId, firstBinding.runId, 'repeat open never mints a second runId');
-    assert.equal(secondBinding.contractId, 'EC-6', 'contract/task upgrade applied');
-    assert.equal(secondBinding.taskId, 'T-2');
+    assert.equal(secondBinding.contractId, 'EC-5', 'exact repeat remains on original contract');
+    assert.equal(secondBinding.taskId, 'T-1');
     assert.equal(firstBinding.contractVersion, 1);
     assert.equal(firstBinding.contractDigest, EC5_DIGEST);
     assert.equal(secondBinding.contractVersion, 1);
-    assert.equal(secondBinding.contractDigest, EC6_DIGEST);
+    assert.equal(secondBinding.contractDigest, EC5_DIGEST);
+    assert.equal(secondBinding.delivery.repositories[0].snapshotTree, firstBinding.delivery.repositories[0].snapshotTree, 'same-owner reopen retains original baseline');
   } finally {
     cleanup();
   }
 });
 
-test('run close clears contractId/taskId but keeps runId (reverts to ambient, run continues)', async () => {
+test('run open rejects active delivery contract/task change without replacing its lease or binding', async () => {
+  const { dir, cleanup } = runDir();
+  try {
+    seedStore(join(dir, '.audit', 'arcane')); seedStore(join(dir, '.audit', 'arcane'), b5Contract('EC-6'));
+    await runCli(['run', 'open', '--contract', 'EC-5', '--version', '1', '--task', 'T-1', '--session', 'sess-active'], { stdout: captureStream(), stderr: captureStream(), env: {}, cwd: dir });
+    const stderr = captureStream();
+    const result = await runCli(['run', 'open', '--contract', 'EC-6', '--version', '1', '--task', 'T-2', '--session', 'sess-active'], { stdout: captureStream(), stderr, env: {}, cwd: dir });
+    assert.equal(result.exitCode, EXIT.INCOMPLETE); assert.match(stderr.buf, /ARC_INTEGRATION_OWNER_CONFLICT/);
+    assert.equal(JSON.parse(readFileSync(join(dir, '.audit', 'arcane', 'delivery', 'lease.json'), 'utf8')).taskId, 'T-1');
+    const binding = new SessionBindingStore({ root: join(dir, '.audit', 'arcane', 'session-bindings') }).getBinding('sess-active');
+    assert.equal(binding.contractId, 'EC-5'); assert.equal(binding.taskId, 'T-1');
+  } finally { cleanup(); }
+});
+
+test('run open rejects active delivery repository or mode changes without new lease', async () => {
+  const a = runDir(), b = runDir();
+  try {
+    seedStore(join(a.dir, '.audit', 'arcane'));
+    await runCli(['run', 'open', '--contract', 'EC-5', '--version', '1', '--task', 'T-1', '--session', 'sess-repos', '--repo', a.dir], { stdout: captureStream(), stderr: captureStream(), env: {}, cwd: a.dir });
+    const other = await runCli(['run', 'open', '--contract', 'EC-5', '--version', '1', '--task', 'T-1', '--session', 'sess-repos', '--repo', b.dir], { stdout: captureStream(), stderr: captureStream(), env: {}, cwd: a.dir });
+    const mode = await runCli(['run', 'open', '--contract', 'EC-5', '--version', '1', '--task', 'T-1', '--session', 'sess-repos', '--repo', a.dir, '--read-only'], { stdout: captureStream(), stderr: captureStream(), env: {}, cwd: a.dir });
+    assert.equal(other.exitCode, EXIT.INCOMPLETE); assert.equal(mode.exitCode, EXIT.INCOMPLETE);
+    assert.equal(existsSync(join(a.dir, '.audit', 'arcane', 'delivery', 'lease.json')), true); assert.equal(existsSync(join(b.dir, '.audit', 'arcane', 'delivery', 'lease.json')), false);
+  } finally { a.cleanup(); b.cleanup(); }
+});
+
+test('run close retains its binding when completion evidence blocks', async () => {
   const { dir, cleanup } = runDir();
   try {
     seedStore(join(dir, '.audit', 'arcane'));
@@ -258,24 +323,229 @@ test('run close clears contractId/taskId but keeps runId (reverts to ambient, ru
       ['run', 'close', '--session', 'sess-close-1'],
       { stdout: closeOut, stderr: captureStream(), env: {}, cwd: dir },
     );
-    assert.equal(closeResult.exitCode, EXIT.PASS);
-    const closed = JSON.parse(closeOut.buf.trim());
-    assert.equal(closed.runId, opened.runId, 'close keeps the runId — the run continues');
-    assert.equal(closed.taskId, null);
-    assert.equal(closed.contractId, null);
-    assert.equal(closed.contractVersion, null);
-    assert.equal(closed.contractDigest, null);
-    assert.equal(closed.closeReceipt.kind, 'legion-run-close-receipt');
-    assert.equal(closed.closeReceipt.runId, opened.runId);
-    assert.equal(closed.closeReceipt.contractId, 'EC-5');
-    assert.equal(closed.closeReceipt.finalClaimState, 'blocked');
-    assert.equal(closed.closeReceipt.completionCode, 'ARC_EVIDENCE_INSUFFICIENT');
+    assert.equal(closeResult.exitCode, EXIT.INCOMPLETE);
+    assert.equal(closeOut.buf, '');
     const receipts = new ReceiptStore({ root: join(dir, '.audit', 'arcane', 'receipts') }).list({ runId: opened.runId });
-    assert.equal(receipts.length, 1);
-    assert.equal(receipts[0].kind, 'legion-run-close-receipt');
+    assert.equal(receipts.length, 0);
   } finally {
     cleanup();
   }
+});
+
+test('run close archive succeeds without signoff & clears delivery lease', async () => {
+  const { dir, cleanup } = runDir();
+  try {
+    seedStore(join(dir, '.audit', 'arcane'));
+    const openOut = captureStream();
+    await runCli(['run', 'open', '--contract', 'EC-5', '--version', '1', '--task', 'T-1', '--session', 'sess-archive'], { stdout: openOut, stderr: captureStream(), env: {}, cwd: dir });
+    const opened = JSON.parse(openOut.buf);
+    writeFileSync(join(dir, 'tracked.txt'), 'changed\n');
+    const closeOut = captureStream();
+    const result = await runCli(['run', 'close', '--session', 'sess-archive', '--disposition', 'archive'], { stdout: closeOut, stderr: captureStream(), env: {}, cwd: dir });
+    assert.equal(result.exitCode, EXIT.PASS);
+    assert.equal(JSON.parse(closeOut.buf).closeReceipt.deliveryDisposition, 'archive');
+    assert.equal(existsSync(join(dir, '.audit', 'arcane', 'delivery', 'lease.json')), false);
+    const manifest = createHash('sha256').update(`sess-archive\0${opened.runId}\0T-1`).digest('hex');
+    assert.equal(existsSync(join(dir, '.audit', 'arcane', 'delivery', 'manifests', `${manifest}.json`)), false);
+  } finally { cleanup(); }
+});
+
+test('delivery receipt append failure retains authority, binding, & manifest', async () => {
+  const { dir, cleanup } = runDir();
+  try {
+    seedStore(join(dir, '.audit', 'arcane')); const openedOut = captureStream();
+    await runCli(['run', 'open', '--contract', 'EC-5', '--version', '1', '--task', 'T-1', '--session', 'sess-delivery-append'], { stdout: openedOut, stderr: captureStream(), env: {}, cwd: dir }); const opened = JSON.parse(openedOut.buf);
+    writeFileSync(join(dir, 'tracked.txt'), 'changed\n'); const out = captureStream();
+    await assert.rejects(() => runRun(['close', '--session', 'sess-delivery-append', '--disposition', 'archive'], { stdout: out, stderr: captureStream(), env: {}, cwd: dir, receiptStoreFactory: failingReceiptStoreFactory('arcane-delivery-receipt') }), { code: 'ARC_DELIVERY_RECEIPT_FAILED' });
+    assert.equal(out.buf, ''); assert.equal(new ReceiptStore({ root: join(dir, '.audit', 'arcane', 'receipts') }).list({ runId: opened.runId }).length, 0); assert.equal(existsSync(join(dir, '.audit', 'arcane', 'delivery', 'lease.json')), true); assert.equal(new SessionBindingStore({ root: join(dir, '.audit', 'arcane', 'session-bindings') }).getBinding('sess-delivery-append').contractId, 'EC-5');
+  } finally { cleanup(); }
+});
+
+test('terminal receipt append retry dedupes delivery evidence before release', async () => {
+  const { dir, cleanup } = runDir();
+  try {
+    seedStore(join(dir, '.audit', 'arcane')); const openedOut = captureStream();
+    await runCli(['run', 'open', '--contract', 'EC-5', '--version', '1', '--task', 'T-1', '--session', 'sess-terminal-append'], { stdout: openedOut, stderr: captureStream(), env: {}, cwd: dir }); const opened = JSON.parse(openedOut.buf);
+    writeFileSync(join(dir, 'tracked.txt'), 'changed\n'); const failedOut = captureStream();
+    await assert.rejects(() => runRun(['close', '--session', 'sess-terminal-append', '--disposition', 'archive'], { stdout: failedOut, stderr: captureStream(), env: {}, cwd: dir, receiptStoreFactory: failingReceiptStoreFactory('legion-run-close-receipt') }), { code: 'ARC_DELIVERY_RECEIPT_FAILED' });
+    const store = new ReceiptStore({ root: join(dir, '.audit', 'arcane', 'receipts') }); assert.equal(failedOut.buf, ''); assert.equal(store.list({ runId: opened.runId }).filter((record) => record.kind === 'arcane-delivery-receipt').length, 1); assert.equal(existsSync(join(dir, '.audit', 'arcane', 'delivery', 'lease.json')), true);
+    const retry = captureStream(); const result = await runRun(['close', '--session', 'sess-terminal-append', '--disposition', 'archive'], { stdout: retry, stderr: captureStream(), env: {}, cwd: dir });
+    assert.equal(result.exitCode, EXIT.PASS); assert.equal(store.list({ runId: opened.runId }).filter((record) => record.kind === 'arcane-delivery-receipt').length, 1); assert.equal(existsSync(join(dir, '.audit', 'arcane', 'delivery', 'lease.json')), false); assert.equal(new SessionBindingStore({ root: join(dir, '.audit', 'arcane', 'session-bindings') }).getBinding('sess-terminal-append').contractId, null);
+  } finally { cleanup(); }
+});
+
+test('archive close excludes unignored Arcane control state from task snapshot', async () => {
+  const { dir, cleanup } = runDir();
+  try {
+    spawnSync('git', ['rm', '.gitignore'], { cwd: dir }); spawnSync('git', ['commit', '-m', 'unignore audit'], { cwd: dir });
+    seedStore(join(dir, '.audit', 'arcane')); const beforeIndex = readFileSync(join(dir, '.git', 'index')); const beforeStatus = spawnSync('git', ['status', '--porcelain=v1'], { cwd: dir, encoding: 'utf8' }).stdout;
+    await runCli(['run', 'open', '--contract', 'EC-5', '--version', '1', '--task', 'T-1', '--session', 'sess-control-clean'], { stdout: captureStream(), stderr: captureStream(), env: {}, cwd: dir });
+    const result = await runCli(['run', 'close', '--session', 'sess-control-clean', '--disposition', 'archive'], { stdout: captureStream(), stderr: captureStream(), env: {}, cwd: dir });
+    assert.equal(result.exitCode, EXIT.PASS);
+    const delivery = new ReceiptStore({ root: join(dir, '.audit', 'arcane', 'receipts') }).list().find((receipt) => receipt.kind === 'arcane-delivery-receipt');
+    assert.equal(delivery.state, 'clean'); assert.equal(delivery.patch, null); assert.deepEqual(readFileSync(join(dir, '.git', 'index')), beforeIndex); assert.equal(spawnSync('git', ['status', '--porcelain=v1'], { cwd: dir, encoding: 'utf8' }).stdout, beforeStatus);
+  } finally { cleanup(); }
+});
+
+test('unrelated synthetic same-run receipt cannot recover but normal archive close proceeds', async () => {
+  const { dir, cleanup } = runDir();
+  try {
+    seedStore(join(dir, '.audit', 'arcane'));
+    const openOut = captureStream();
+    await runCli(['run', 'open', '--contract', 'EC-5', '--version', '1', '--task', 'T-1', '--session', 'sess-recovery'], { stdout: openOut, stderr: captureStream(), env: {}, cwd: dir });
+    const opened = JSON.parse(openOut.buf);
+    const receipts = new ReceiptStore({ root: join(dir, '.audit', 'arcane', 'receipts') });
+    receipts.append({ kind: 'legion-run-close-receipt', runId: opened.runId, deliveryDisposition: 'archive', finalClaimState: 'passed' });
+    const result = await runCli(['run', 'close', '--session', 'sess-recovery', '--disposition', 'archive'], { stdout: captureStream(), stderr: captureStream(), env: {}, cwd: dir });
+    assert.equal(result.exitCode, EXIT.PASS);
+    assert.equal(receipts.list({ runId: opened.runId }).filter((receipt) => receipt.kind === 'legion-run-close-receipt').length, 2);
+    assert.equal(existsSync(join(dir, '.audit', 'arcane', 'delivery', 'lease.json')), false);
+    const binding = JSON.parse(readFileSync(join(dir, '.audit', 'arcane', 'session-bindings', `${createHash('sha256').update('sess-recovery').digest('hex')}.json`), 'utf8'));
+    assert.equal(binding.contractId, null);
+  } finally { cleanup(); }
+});
+
+test('contracted binding without delivery metadata fails closed without receipt or clear', async () => {
+  const { dir, cleanup } = runDir();
+  try {
+    seedStore(join(dir, '.audit', 'arcane'));
+    const bindings = new SessionBindingStore({ root: join(dir, '.audit', 'arcane', 'session-bindings') });
+    bindings.putBinding('sess-no-delivery', { runId: 'run_no_delivery', taskId: 'T-1', contractId: 'EC-5', contractVersion: 1, contractDigest: EC5_DIGEST });
+    const stderr = captureStream();
+    const result = await runCli(['run', 'close', '--session', 'sess-no-delivery'], { stdout: captureStream(), stderr, env: {}, cwd: dir });
+    assert.equal(result.exitCode, EXIT.INCOMPLETE); assert.match(stderr.buf, /ARC_DELIVERY_METADATA_MISSING/);
+    assert.equal(new ReceiptStore({ root: join(dir, '.audit', 'arcane', 'receipts') }).list({ runId: 'run_no_delivery' }).length, 0);
+    assert.equal(bindings.getBinding('sess-no-delivery').contractId, 'EC-5');
+  } finally { cleanup(); }
+});
+
+test('sequential archive contracts share runId without stale-receipt mismatch', async () => {
+  const { dir, cleanup } = runDir();
+  try {
+    seedStore(join(dir, '.audit', 'arcane')); seedStore(join(dir, '.audit', 'arcane'), b5Contract('EC-6'));
+    const first = captureStream();
+    await runCli(['run', 'open', '--contract', 'EC-5', '--version', '1', '--session', 'sess-sequential'], { stdout: first, stderr: captureStream(), env: {}, cwd: dir });
+    const runId = JSON.parse(first.buf).runId;
+    assert.equal((await runCli(['run', 'close', '--session', 'sess-sequential', '--disposition', 'archive'], { stdout: captureStream(), stderr: captureStream(), env: {}, cwd: dir })).exitCode, EXIT.PASS);
+    await runCli(['run', 'open', '--contract', 'EC-6', '--version', '1', '--session', 'sess-sequential'], { stdout: captureStream(), stderr: captureStream(), env: {}, cwd: dir });
+    assert.equal((await runCli(['run', 'close', '--session', 'sess-sequential', '--disposition', 'archive'], { stdout: captureStream(), stderr: captureStream(), env: {}, cwd: dir })).exitCode, EXIT.PASS);
+    assert.equal(new SessionBindingStore({ root: join(dir, '.audit', 'arcane', 'session-bindings') }).getBinding('sess-sequential').runId, runId);
+    const receipts = new ReceiptStore({ root: join(dir, '.audit', 'arcane', 'receipts') }).list({ runId });
+    assert.equal(receipts.filter((receipt) => receipt.kind === 'legion-run-close-receipt').length, 2);
+    const deliveries = receipts.filter((receipt) => receipt.kind === 'arcane-delivery-receipt');
+    assert.equal(deliveries.length, 2); assert.deepEqual(new Set(deliveries.map((receipt) => receipt.contractId)), new Set(['EC-5', 'EC-6']));
+  } finally { cleanup(); }
+});
+
+test('forged current-binding delivery receipt mismatch blocks archive close', async () => {
+  const { dir, cleanup } = runDir();
+  try {
+    seedStore(join(dir, '.audit', 'arcane')); const openedOut = captureStream();
+    await runCli(['run', 'open', '--contract', 'EC-5', '--version', '1', '--task', 'T-1', '--session', 'sess-forged'], { stdout: openedOut, stderr: captureStream(), env: {}, cwd: dir });
+    const opened = JSON.parse(openedOut.buf); const delivery = opened.delivery.repositories[0];
+    new ReceiptStore({ root: join(dir, '.audit', 'arcane', 'receipts') }).append({ kind: 'legion-run-close-receipt', sessionId: 'sess-forged', runId: opened.runId, contractId: 'EC-5', contractVersion: 1, contractDigest: EC5_DIGEST, deliveryDisposition: 'archive', deliveryEvidence: [{ repository: delivery.root, baselineTree: 'forged', leaseToken: delivery.leaseToken }] });
+    const result = await runCli(['run', 'close', '--session', 'sess-forged', '--disposition', 'archive'], { stdout: captureStream(), stderr: captureStream(), env: {}, cwd: dir });
+    assert.equal(result.exitCode, EXIT.INCOMPLETE); assert.equal(existsSync(join(dir, '.audit', 'arcane', 'delivery', 'lease.json')), true);
+    assert.equal(new SessionBindingStore({ root: join(dir, '.audit', 'arcane', 'session-bindings') }).getBinding('sess-forged').contractId, 'EC-5');
+  } finally { cleanup(); }
+});
+
+test('matching close receipt recovers only after authority & manifest have both released', async () => {
+  const { dir, cleanup } = runDir();
+  try {
+    seedStore(join(dir, '.audit', 'arcane')); const out = captureStream(); const sessionId = 'sess-manifest-recover';
+    await runCli(['run', 'open', '--contract', 'EC-5', '--version', '1', '--task', 'T-1', '--session', sessionId], { stdout: out, stderr: captureStream(), env: {}, cwd: dir });
+    const opened = JSON.parse(out.buf); appendMatchingArchiveCloseReceipt(dir, sessionId, opened);
+    unlinkSync(join(dir, '.audit', 'arcane', 'delivery', 'lease.json')); unlinkSync(deliveryManifestPath(dir, sessionId, opened));
+    const result = await runCli(['run', 'close', '--session', sessionId, '--disposition', 'archive'], { stdout: captureStream(), stderr: captureStream(), env: {}, cwd: dir });
+    assert.equal(result.exitCode, EXIT.PASS);
+    assert.equal(new SessionBindingStore({ root: join(dir, '.audit', 'arcane', 'session-bindings') }).getBinding(sessionId).contractId, null);
+  } finally { cleanup(); }
+});
+
+test('missing manifest with remaining authority blocks recovery & retains binding', async () => {
+  const { dir, cleanup } = runDir();
+  try {
+    seedStore(join(dir, '.audit', 'arcane')); const out = captureStream(); const sessionId = 'sess-manifest-missing';
+    await runCli(['run', 'open', '--contract', 'EC-5', '--version', '1', '--task', 'T-1', '--session', sessionId], { stdout: out, stderr: captureStream(), env: {}, cwd: dir });
+    const opened = JSON.parse(out.buf); appendMatchingArchiveCloseReceipt(dir, sessionId, opened); unlinkSync(deliveryManifestPath(dir, sessionId, opened));
+    const stderr = captureStream(); const result = await runCli(['run', 'close', '--session', sessionId, '--disposition', 'archive'], { stdout: captureStream(), stderr, env: {}, cwd: dir });
+    assert.equal(result.exitCode, EXIT.INCOMPLETE); assert.match(stderr.buf, /manifest is missing/);
+    assert.equal(existsSync(join(dir, '.audit', 'arcane', 'delivery', 'lease.json')), true);
+    assert.equal(new SessionBindingStore({ root: join(dir, '.audit', 'arcane', 'session-bindings') }).getBinding(sessionId).contractId, 'EC-5');
+  } finally { cleanup(); }
+});
+
+test('present mismatched manifest blocks recovery & retains binding', async () => {
+  const { dir, cleanup } = runDir();
+  try {
+    seedStore(join(dir, '.audit', 'arcane')); const out = captureStream(); const sessionId = 'sess-manifest-forged';
+    await runCli(['run', 'open', '--contract', 'EC-5', '--version', '1', '--task', 'T-1', '--session', sessionId], { stdout: out, stderr: captureStream(), env: {}, cwd: dir });
+    const opened = JSON.parse(out.buf); appendMatchingArchiveCloseReceipt(dir, sessionId, opened);
+    const path = deliveryManifestPath(dir, sessionId, opened); const forged = JSON.parse(readFileSync(path, 'utf8')); forged.token = 'forged'; writeFileSync(path, JSON.stringify(forged));
+    const stderr = captureStream(); const result = await runCli(['run', 'close', '--session', sessionId, '--disposition', 'archive'], { stdout: captureStream(), stderr, env: {}, cwd: dir });
+    assert.equal(result.exitCode, EXIT.INCOMPLETE); assert.match(stderr.buf, /manifest differs/);
+    assert.equal(existsSync(join(dir, '.audit', 'arcane', 'delivery', 'lease.json')), true);
+    assert.equal(new SessionBindingStore({ root: join(dir, '.audit', 'arcane', 'session-bindings') }).getBinding(sessionId).contractId, 'EC-5');
+  } finally { cleanup(); }
+});
+
+test('tampered write delivery binding cannot mint clean close', async () => {
+  const { dir, cleanup } = runDir();
+  try {
+    seedStore(join(dir, '.audit', 'arcane')); await runCli(['run', 'open', '--contract', 'EC-5', '--version', '1', '--task', 'T-1', '--session', 'sess-tamper-write'], { stdout: captureStream(), stderr: captureStream(), env: {}, cwd: dir });
+    const path = join(dir, '.audit', 'arcane', 'session-bindings', `${createHash('sha256').update('sess-tamper-write').digest('hex')}.json`); const binding = JSON.parse(readFileSync(path, 'utf8')); binding.delivery.repositories[0].snapshotTree = '0'.repeat(40); writeFileSync(path, JSON.stringify(binding));
+    const result = await runCli(['run', 'close', '--session', 'sess-tamper-write', '--disposition', 'archive'], { stdout: captureStream(), stderr: captureStream(), env: {}, cwd: dir });
+    assert.equal(result.exitCode, EXIT.INCOMPLETE); assert.equal(existsSync(join(dir, '.audit', 'arcane', 'delivery', 'lease.json')), true);
+  } finally { cleanup(); }
+});
+
+test('dropped repository array cannot bypass workspace delivery manifest', async () => {
+  const { dir, cleanup } = runDir();
+  try {
+    seedStore(join(dir, '.audit', 'arcane')); await runCli(['run', 'open', '--contract', 'EC-5', '--version', '1', '--task', 'T-1', '--session', 'sess-drop'], { stdout: captureStream(), stderr: captureStream(), env: {}, cwd: dir });
+    const path = join(dir, '.audit', 'arcane', 'session-bindings', `${createHash('sha256').update('sess-drop').digest('hex')}.json`); const binding = JSON.parse(readFileSync(path, 'utf8')); binding.delivery.repositories = []; writeFileSync(path, JSON.stringify(binding));
+    const result = await runCli(['run', 'close', '--session', 'sess-drop', '--disposition', 'archive'], { stdout: captureStream(), stderr: captureStream(), env: {}, cwd: dir });
+    assert.equal(result.exitCode, EXIT.INCOMPLETE); assert.equal(existsSync(join(dir, '.audit', 'arcane', 'delivery', 'lease.json')), true);
+  } finally { cleanup(); }
+});
+
+test('copied delivery binding under another session cannot use manifest authority', async () => {
+  const { dir, cleanup } = runDir();
+  try {
+    seedStore(join(dir, '.audit', 'arcane')); await runCli(['run', 'open', '--contract', 'EC-5', '--version', '1', '--task', 'T-1', '--session', 'sess-source'], { stdout: captureStream(), stderr: captureStream(), env: {}, cwd: dir });
+    const source = join(dir, '.audit', 'arcane', 'session-bindings', `${createHash('sha256').update('sess-source').digest('hex')}.json`); const copy = join(dir, '.audit', 'arcane', 'session-bindings', `${createHash('sha256').update('sess-copy').digest('hex')}.json`); writeFileSync(copy, readFileSync(source));
+    const result = await runCli(['run', 'close', '--session', 'sess-copy', '--disposition', 'archive'], { stdout: captureStream(), stderr: captureStream(), env: {}, cwd: dir });
+    assert.equal(result.exitCode, EXIT.INCOMPLETE); assert.equal(existsSync(join(dir, '.audit', 'arcane', 'delivery', 'lease.json')), true);
+  } finally { cleanup(); }
+});
+
+test('forged current-session manifest cannot steal another owner delivery authority', async () => {
+  const { dir, cleanup } = runDir();
+  try {
+    seedStore(join(dir, '.audit', 'arcane')); const sourceSession = 'sess-owner-one', copiedSession = 'sess-owner-two';
+    await runCli(['run', 'open', '--contract', 'EC-5', '--version', '1', '--task', 'T-1', '--session', sourceSession], { stdout: captureStream(), stderr: captureStream(), env: {}, cwd: dir });
+    const bindings = new SessionBindingStore({ root: join(dir, '.audit', 'arcane', 'session-bindings') }); const copied = bindings.getBinding(sourceSession);
+    const owner = { sessionId: copiedSession, runId: copied.runId, taskId: copied.taskId };
+    const repositories = copied.delivery.repositories.map(({ reused, ...repo }) => repo).sort((a, b) => a.commonDir.localeCompare(b.commonDir));
+    const manifest = { owner, repositories, token: 'forged-owner-two-manifest' };
+    copied.delivery.manifest = { token: manifest.token, digest: createHash('sha256').update(JSON.stringify(manifest)).digest('hex') };
+    bindings.putBinding(copiedSession, copied); writeFileSync(deliveryManifestPath(dir, copiedSession, copied), JSON.stringify(manifest));
+    const stderr = captureStream(); const result = await runCli(['run', 'close', '--session', copiedSession, '--disposition', 'archive'], { stdout: captureStream(), stderr, env: {}, cwd: dir });
+    assert.equal(result.exitCode, EXIT.INCOMPLETE); assert.match(stderr.buf, /authority owner differs/);
+    assert.equal(JSON.parse(readFileSync(join(dir, '.audit', 'arcane', 'delivery', 'lease.json'), 'utf8')).sessionId, sourceSession);
+    assert.equal(bindings.getBinding(copiedSession).contractId, 'EC-5');
+  } finally { cleanup(); }
+});
+
+test('tampered read-only delivery binding blocks & retains acquisition', async () => {
+  const { dir, cleanup } = runDir();
+  try {
+    seedStore(join(dir, '.audit', 'arcane')); const out = captureStream(); await runCli(['run', 'open', '--contract', 'EC-5', '--version', '1', '--task', 'T-1', '--session', 'sess-tamper-read', '--read-only'], { stdout: out, stderr: captureStream(), env: {}, cwd: dir });
+    const opened = JSON.parse(out.buf); const key = opened.delivery.repositories[0].acquisitionKey; const path = join(dir, '.audit', 'arcane', 'session-bindings', `${createHash('sha256').update('sess-tamper-read').digest('hex')}.json`); const binding = JSON.parse(readFileSync(path, 'utf8')); binding.delivery.repositories[0].snapshotTree = '0'.repeat(40); writeFileSync(path, JSON.stringify(binding));
+    const result = await runCli(['run', 'close', '--session', 'sess-tamper-read', '--disposition', 'archive'], { stdout: captureStream(), stderr: captureStream(), env: {}, cwd: dir });
+    assert.equal(result.exitCode, EXIT.INCOMPLETE); assert.equal(existsSync(join(dir, '.audit', 'arcane', 'delivery', 'acquisitions', `${key}.json`)), true);
+  } finally { cleanup(); }
 });
 
 test('run close with no prior binding fails USAGE, never mints one', async () => {
