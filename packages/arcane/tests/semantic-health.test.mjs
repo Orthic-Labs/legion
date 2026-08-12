@@ -9,6 +9,7 @@ test('EC-603 semantic health runs fresh behavior probes', () => {
     'generated-input-rejection', 'effect-denial', 'uncertified-stop-exit',
     'two-denial-release', 'recovery-preservation', 'adapter-parity',
     'budget_store_integrity', 'budget_binding_exactness', 'budget_monotonicity', 'budget_stop_enforcement',
+    'budget_role_cap_enforcement', 'budget_amendment_authority',
   ]);
 });
 
