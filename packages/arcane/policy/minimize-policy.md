@@ -12,7 +12,7 @@ Minimize is internal engineering policy, not user-visible mode.
 5. Preserve understanding, trust boundaries, security, data-loss prevention, accessibility, hardware calibration & explicit user scope.
 6. Declare every new file & dependency before mutation. Undeclared scope is forbidden.
 7. Bind decision receipts to exact decision bytes & this policy.
-8. Bind commit receipts to exact staged Git tree, exact review bytes & this validator.
+8. Bind required commit receipts to exact staged Git tree, exact review bytes & this validator.
 9. Any material correction invalidates downstream decisions; re-derive globally from latest user intent.
 10. Never represent structural completeness as semantic correctness.
 
@@ -22,4 +22,4 @@ Before code creation or modification, emit `MINIMIZE:CHECK` with selected rung, 
 
 ## Commit check
 
-Every code commit requires clean Minimize review plus receipt matching current staged tree. Missing, invalid or stale receipt blocks commit.
+Code commits touching locked domains or contracted work require clean Minimize review plus receipt matching current staged tree. Ambient commits receive focused `/commit` review without a Minimize receipt. Missing, invalid or stale required receipts block commit.

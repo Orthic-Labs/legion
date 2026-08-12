@@ -66,6 +66,11 @@ test('SessionBindingStore: ensureBinding is idempotent on repeat calls', () => {
   assert.equal(second.runId, third.runId);
 });
 
+test('SessionBindingStore rejects incomplete delivery metadata', () => {
+  const store = new SessionBindingStore({ root: freshRoot() }); const minted = store.ensureBinding('delivery-invalid');
+  assert.equal(store.putBinding('delivery-invalid', { runId: minted.runId, delivery: { repositories: [{ root: 'x', commonDir: 'x', primaryRoot: 'x', canonicalRef: 'refs/heads/main', head: 'x', snapshotTree: 'x', mode: 'write' }] } }), null);
+});
+
 test('SessionBindingStore: two sessions on the same store never share a runId', () => {
   const store = new SessionBindingStore({ root: freshRoot() });
   const a = store.ensureBinding('sess-a');
