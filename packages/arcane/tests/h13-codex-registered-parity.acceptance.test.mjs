@@ -17,6 +17,7 @@ const registeredEvents = [
   'PostCompact',
   'PreToolUse',
   'PostToolUse',
+  'PostToolUseFailure',
   'Stop',
 ];
 
@@ -24,7 +25,7 @@ function matcher(eventName) {
   return new Set(hooks[eventName][0].matcher.split('|'));
 }
 
-test('H-13 oracle: adapter covers exactly the seven Arcane plugin registrations', () => {
+test('H-13 oracle: adapter covers exactly the eight Arcane plugin registrations', () => {
   assert.deepEqual(Object.keys(hooks), registeredEvents);
 
   const expected = {
@@ -79,8 +80,7 @@ test('H-13 oracle: matcher coverage stays honest', () => {
   assert.equal(pre.operation.toolId, 'apply_patch');
   assert.equal(pre.effect, undefined);
 
-  // PostToolUseFailure remains an adapter/Claude compatibility event, but is
-  // intentionally not a visible Codex manifest registration.
+  // PostToolUseFailure is registered on Codex for lifecycle parity.
   const failure = buildRawCodexEvent({
     hook_event_name: 'PostToolUseFailure',
     tool_name: 'apply_patch',

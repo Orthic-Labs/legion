@@ -203,6 +203,7 @@ export class PreEffectGate {
       sourceRevision: effectRequest.sourceRevision,
       authority: this.#authority.current(ctx?.turnId)?.authority,
       turnId: ctx?.turnId,
+      advisoryProfile: contract.advisoryProfile ?? null,
       // CapabilityStore compares `now` against an ISO `expiresAt` with `>=`.
       // Passing the raw epoch millis from #clock() would compare a number to a
       // string, which is always false — expiry would silently never fire.
@@ -280,6 +281,7 @@ export class PreEffectGate {
       policyDigest: this.#policy.digest,
       policyId: this.#policy.policyId,
       policyVersion: this.#policy.version,
+      advisoryProfile: contract.advisoryProfile ?? null,
       approvalEvidence: chk.approvalEvidence,
       issuedAt: nowIso,
       expiresAt,
@@ -303,6 +305,7 @@ export class PreEffectGate {
       sourceRevision: effectRequest.sourceRevision,
       authority: this.#authority.current(ctx?.turnId)?.authority,
       turnId: ctx?.turnId,
+      advisoryProfile: contract.advisoryProfile ?? null,
       now: nowIso,
     });
     if (!selfCheck.allowed) {
@@ -522,6 +525,24 @@ export class PreEffectGate {
             effectClass: effectRequest.effectClass,
             authorized: [...contract.authorizedEffectClasses],
           },
+        }),
+        contract,
+      };
+    }
+    const advisoryProfile = contract.advisoryProfile ?? null;
+    const deniedProfileField = advisoryProfile && effectRequest.effectClass === 'PUBLISH' && !advisoryProfile.publishAllowed
+      ? 'publishAllowed'
+      : advisoryProfile && isMutating(effectRequest.effectClass) && !advisoryProfile.mutationAllowed
+        ? 'mutationAllowed'
+        : null;
+    if (deniedProfileField) {
+      return {
+        hardFail: false,
+        deny: decision({
+          allowed: false,
+          code: 'ARC_PROFILE_EFFECT_FORBIDDEN',
+          message: `advisory profile ${advisoryProfile.bundleId}/${advisoryProfile.profileId} forbids ${effectRequest.effectClass}`,
+          detail: { deniedBy: 'advisory-profile', effectClass: effectRequest.effectClass, profileDigest: advisoryProfile.profileDigest, restriction: deniedProfileField },
         }),
         contract,
       };

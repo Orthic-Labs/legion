@@ -8,13 +8,18 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { writeFileSync, rmSync } from 'node:fs';
+import { mkdtempSync, writeFileSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { PreEffectGate } from '../lib/preeffect-gate.mjs';
 import { loadPolicy, PolicyEngine, DEFAULT_POLICY_PATH, capabilityIssuanceAudit } from '../lib/policy.mjs';
 import { AuthorityLedger } from '../lib/authority.mjs';
 import { CapabilityStore } from '../lib/receipt-store.mjs';
+import { compileAdvisoryProfile } from '../lib/advisory-profile.mjs';
+import { generateTestKeyRing } from '../lib/keys.mjs';
+import { UserApprovalAuthority } from '../lib/user-approval.mjs';
 
 const NOW = Date.parse('2026-08-08T12:00:00.000Z');
 const ISO = (ms = NOW) => new Date(ms).toISOString();
@@ -74,7 +79,7 @@ function request(overrides = {}) {
   };
 }
 
-function wire({ now = NOW, enforcementMode = 'enforcing' } = {}) {
+function wire({ now = NOW, enforcementMode = 'enforcing', approvalAuthority = null } = {}) {
   const policy = new PolicyEngine(loadPolicy({ path: DEFAULT_POLICY_PATH }));
   const capabilityStore = new CapabilityStore();
   const authorityLedger = new AuthorityLedger({ clock: () => now });
@@ -86,7 +91,7 @@ function wire({ now = NOW, enforcementMode = 'enforcing' } = {}) {
     perMessage: true,
     source: 'kernel',
   });
-  const gate = new PreEffectGate({ policy, capabilityStore, authorityLedger, clock: () => now, enforcementMode });
+  const gate = new PreEffectGate({ policy, capabilityStore, authorityLedger, approvalAuthority, clock: () => now, enforcementMode });
   return { policy, capabilityStore, authorityLedger, gate };
 }
 
@@ -141,6 +146,48 @@ test('S08(a): evaluate() is unchanged — it still requires a pre-existing capab
   const d = w.gate.evaluate(request(), { contract: contract(), turnId: 'turn-1' });
   assert.equal(d.allowed, false);
   assert.equal(d.code, 'ARC_CAPABILITY_UNKNOWN');
+});
+
+test('S08(a): advisory profiles narrow effects and bind exact capability bytes', () => {
+  const audit = compileAdvisoryProfile({ bundleId: 'research', profileId: 'audit' });
+  const authoring = compileAdvisoryProfile({ bundleId: 'research', profileId: 'authoring' });
+
+  const deniedMutation = wire().gate.authorize(request(), { contract: contract({ advisoryProfile: audit }), turnId: 'turn-1' });
+  assert.equal(deniedMutation.allowed, false);
+  assert.equal(deniedMutation.code, 'ARC_PROFILE_EFFECT_FORBIDDEN');
+  assert.equal(deniedMutation.detail.restriction, 'mutationAllowed');
+
+  const publishContract = contract({ advisoryProfile: authoring, authorizedEffectClasses: ['PUBLISH'] });
+  const deniedPublish = wire().gate.authorize(request({ effectClass: 'PUBLISH', operation: 'publish' }), { contract: publishContract, turnId: 'turn-1' });
+  assert.equal(deniedPublish.allowed, false);
+  assert.equal(deniedPublish.code, 'ARC_PROFILE_EFFECT_FORBIDDEN');
+  assert.equal(deniedPublish.detail.restriction, 'publishAllowed');
+
+  const w = wire();
+  const allowed = w.gate.authorize(request(), { contract: contract({ advisoryProfile: authoring }), turnId: 'turn-1' });
+  assert.equal(allowed.allowed, true, allowed.message);
+  assert.deepEqual(w.capabilityStore.get(allowed.detail.capabilityId).advisoryProfile, authoring);
+  assert.equal(w.capabilityStore.check(allowed.detail.capabilityId, { effectClass: 'FILE_WRITE', target: 'src/exact.ts', now: ISO() }).code, 'ARC_BINDING_MISMATCH');
+  assert.equal(w.capabilityStore.check(allowed.detail.capabilityId, { effectClass: 'FILE_WRITE', target: 'src/exact.ts', advisoryProfile: audit, now: ISO() }).code, 'ARC_BINDING_MISMATCH');
+  assert.equal(w.capabilityStore.check(allowed.detail.capabilityId, { effectClass: 'FILE_WRITE', target: 'src/exact.ts', advisoryProfile: authoring, now: ISO() }).allowed, true);
+});
+
+test('S08(a): target-bound PUBLISH approval authorizes exactly once', () => {
+  const root = mkdtempSync(join(tmpdir(), 'arcane-publish-approval-'));
+  try {
+    const transcriptPath = join(root, 'transcript.jsonl');
+    writeFileSync(transcriptPath, `${JSON.stringify({ type: 'user', message: { content: 'Publish src/exact.ts now.' } })}\n`);
+    const policy = new PolicyEngine(loadPolicy({ path: DEFAULT_POLICY_PATH }));
+    const approvalAuthority = new UserApprovalAuthority({ keyRing: generateTestKeyRing(), policy, clock: () => NOW });
+    const w = wire({ approvalAuthority });
+    const publishRequest = request({ effectClass: 'PUBLISH', operation: 'publish' });
+    const publishContract = contract({ authorizedEffectClasses: ['PUBLISH'] });
+    const ctx = { contract: publishContract, turnId: 'turn-1', transcriptPath, sessionId: 'session-1', expectedContractVersion: 2, contractDigest: `sha256:${'a'.repeat(64)}` };
+    const allowed = w.gate.authorize(publishRequest, ctx);
+    assert.equal(allowed.allowed, true, allowed.message);
+    assert.equal(w.capabilityStore.get(allowed.detail.capabilityId).approvalEvidence.effectClass, 'PUBLISH');
+    assert.equal(w.gate.authorize(publishRequest, ctx).code, 'ARC_REPLAY_NONCE_SEEN');
+  } finally { rmSync(root, { recursive: true, force: true }); }
 });
 
 // -------------------------------------------------------------- (b) audit

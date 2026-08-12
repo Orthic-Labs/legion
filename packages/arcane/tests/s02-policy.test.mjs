@@ -125,6 +125,16 @@ test('S02: approval-required effects surface ARC_APPROVAL_REQUIRED when no appro
   assert.equal(ok.allowed, true);
 });
 
+test('S02: approval-required classes are one frozen projection of validated policy', () => {
+  const loaded = loadPolicy({ path: DEFAULT_POLICY_PATH });
+  const engine = new PolicyEngine(loaded);
+  const expected = loaded.bundle.effectRules.filter(({ approvalRequired }) => approvalRequired).map(({ effectClass }) => effectClass);
+  const actual = engine.approvalRequiredEffectClasses();
+  assert.equal(Object.isFrozen(actual), true);
+  assert.deepEqual(actual, expected);
+  assert.throws(() => actual.push('FILE_WRITE'), TypeError);
+});
+
 test('S02: policy id/version/digest bind into every capability and receipt', () => {
   const loaded = loadPolicy({ path: DEFAULT_POLICY_PATH });
   const engine = new PolicyEngine(loaded);

@@ -31,11 +31,16 @@
 //                            be stronger than its least-authenticated evidence.
 
 import { decision } from './errors.mjs';
+import { digestValue } from './canonical.mjs';
+import { verifyRecord } from './receipt-auth.mjs';
+import { AUTHORITY_PROOF_FIELDS } from './authority-invocation-proof.mjs';
 
 // Imported, never re-declared — policy.mjs owns the ordering (policyDuplicationAudit
 // enforces this). A divergent local copy would silently let 'advisory' satisfy claim
 // levels it must never satisfy.
 import { ENFORCEMENT_RANK } from './policy.mjs';
+import { verifyAssurance } from './high-risk-assurance.mjs';
+import { findCurrentAdvisoryCertification } from './advisory-certification.mjs';
 
 function healthOfRecord(record) {
   const auth = record?.authentication;
@@ -83,7 +88,13 @@ function deriveFromReceipts(records) {
  *   the union failed; on success, `detail.levelsChecked` lists every level
  *   the union required.
  */
-export function evaluateCompletion({ runId, taskId = null, claimedLevel, touchedPaths = [] }, { policy, receiptStore }) {
+export function evaluateCompletion({ runId, taskId = null, claimedLevel, touchedPaths = [], contractId = null, contractVersion = null, contractDigest = null, sourceRevision = null, completionClaim = null }, { policy, receiptStore, budgetStore = null, assuranceStore = null, keyRing = null, authorityBindingStore = null, currentProof = null, binding = null, execution = null, now = new Date() }) {
+  // Budget state comes only from Arcane's persisted projection. Completion
+  // never accepts a caller-authored elapsed time or retry fingerprint.
+  if (budgetStore && contractId && Number.isInteger(contractVersion) && taskId && typeof budgetStore.inspect === 'function') {
+    const budget = budgetStore.inspect({ contractId, version: contractVersion, taskId, runId });
+    if (!budget?.allowed || budget?.stopped) return decision({ allowed: false, code: budget?.code ?? budget?.stopped?.code ?? 'BUDGET_STOP', message: 'completion requires a non-stopped budget projection', detail: { runId, taskId, budget } });
+  }
   const lockedMatches = policy.lockedDomainsFor(touchedPaths);
   // `claimedLevel` may be null: a bare host Stop asserts no completion level of
   // its own (see hook-adapter-core.evaluateHostStop). Only the levels the
@@ -95,12 +106,67 @@ export function evaluateCompletion({ runId, taskId = null, claimedLevel, touched
   const records = receiptStore.list({ runId });
   const { evidenceClasses, staleEvidenceCount, enforcementHealth } = deriveFromReceipts(records);
 
+  let advisoryCertification = null;
+  if (completionClaim?.advisoryClaim?.required === true) {
+    const advisoryClaim = completionClaim.advisoryClaim;
+    advisoryCertification = findCurrentAdvisoryCertification({
+      receiptStore,
+      artifactDigest: advisoryClaim.artifactDigest,
+      expected: {
+        artifactDigest: advisoryClaim.artifactDigest,
+        briefDigest: advisoryClaim.briefDigest,
+        bundleId: advisoryClaim.bundleId,
+        bundleVersion: advisoryClaim.bundleVersion,
+        profileId: advisoryClaim.profileId,
+        manifestDigest: advisoryClaim.manifestDigest,
+        profileDigest: advisoryClaim.profileDigest,
+        runId,
+        taskId,
+        contractId,
+        contractVersion,
+        contractDigest,
+        sourceRevision,
+      },
+    }, { keyRing, authorityBindingStore, now, freshnessMs: policy.evidencePolicy().freshnessSeconds * 1000 });
+    if (!advisoryCertification.allowed) return decision({
+      allowed: false,
+      code: advisoryCertification.code,
+      message: advisoryCertification.message,
+      detail: { ...advisoryCertification.detail, missingEvidence: ['independent-advisory-certification'] },
+      enforcementHealth: 'strong',
+    });
+  }
+
   const levelsChecked = [];
   for (const levelName of levels) {
+    const level = policy.claimLevel(levelName);
+    let assurance = { allowed: true, detail: { covenantVerdict: null, fields: {} } };
+    if (level?.requiresCovenant) {
+      const expected = { runId, taskId, contractId, contractVersion, contractDigest, sourceRevision };
+      const persisted = assuranceStore?.findForExecution(expected);
+      const macDomain = currentProof ? `arcane-authority-proof:v1:${currentProof.role}:${currentProof.purpose}` : null;
+      const proofValid = Boolean(currentProof && completionClaim && binding && execution
+        && currentProof.role === completionClaim.producerAuthority
+        && currentProof.purpose === 'completion-claim'
+        && digestValue(currentProof) === completionClaim.invocationProofDigest
+        && currentProof.sessionId === binding.sessionId
+        && ['runId','taskId','contractId','contractVersion','contractDigest','sourceRevision'].every((field) => currentProof[field] === execution[field])
+        && verifyRecord(currentProof, currentProof.authentication, { keyRing, boundFields: AUTHORITY_PROOF_FIELDS, macDomain }).allowed);
+      assurance = persisted && proofValid
+        ? verifyAssurance({ request: persisted.request, receipt: persisted.receipt, expected }, { keyRing, authorityBindingStore, now, freshnessMs: policy.evidencePolicy().freshnessSeconds * 1000 })
+        : decision({ allowed: false, code: 'ARC_CLAIM_PREREQUISITE_UNMET', message: 'dedicated assurance or current completion proof is unavailable', detail: {} });
+      if (assurance.allowed) {
+        const consumption = assuranceStore.consume({ receiptDigest: persisted.receiptDigest, completionClaimDigest: completionClaim.claimId });
+        if (!consumption.allowed) assurance = consumption;
+      }
+    }
+    if (!assurance.allowed) return decision({ allowed: false, code: assurance.code, message: assurance.message, detail: { ...assurance.detail, level: levelName, runId, taskId, lockedDomainMatches: lockedMatches, missingEvidence: ['high-risk-assurance'] } });
     const result = policy.evaluateClaimPrerequisites(levelName, {
       evidenceClasses,
       staleEvidenceCount,
       enforcementHealth,
+      covenantVerdict: assurance.detail.covenantVerdict,
+      fields: assurance.detail.fields,
     });
     levelsChecked.push(levelName);
     if (!result.allowed) {
@@ -117,7 +183,7 @@ export function evaluateCompletion({ runId, taskId = null, claimedLevel, touched
   return decision({
     allowed: true,
     message: 'completion claim satisfies every prerequisite the touched paths and claimed level require',
-    detail: { runId, taskId, claimedLevel, levelsChecked, lockedDomainMatches: lockedMatches, evidenceClasses, staleEvidenceCount },
+    detail: { runId, taskId, claimedLevel, levelsChecked, lockedDomainMatches: lockedMatches, evidenceClasses, staleEvidenceCount, advisoryCertification: advisoryCertification?.detail ?? null },
     enforcementHealth,
   });
 }

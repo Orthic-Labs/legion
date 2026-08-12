@@ -24,8 +24,10 @@ import { signRecord } from '../lib/receipt-auth.mjs';
 import { HostIngestor, POST_EFFECT_TYPES } from '../lib/ingest.mjs';
 import { loadHostKeyRing } from '../lib/keys.mjs';
 import { evaluateCompletion } from '../lib/completion-gate.mjs';
+import { stopOutcome } from '../lib/stop-disposition.mjs';
 import { evaluateCodexEscalation } from '../lib/codex-escalation.mjs';
 import { auditSuccessfulCommit, preEffectDiscipline } from '../lib/discipline-controls.mjs';
+import { serializeHostRuntimeOutput } from './host-runtime-output.mjs';
 
 /**
  * EC-5 item 5 — honest `sourceRevision`. Neither adapter's `buildRaw*Event`
@@ -359,12 +361,17 @@ export function deriveTouchedPaths(receiptStore, runId) {
  *
  * @returns {object} the completion-gate decision (see completion-gate.mjs)
  */
-export function evaluateHostStop(hostEvent, { policy, receiptStore, claimedLevel = null }) {
+export function evaluateHostStop(hostEvent, { policy, receiptStore, assuranceStore = null, keyRing = null, authorityBindingStore = null, currentProof = null, binding = null, execution = null, completionClaim = null, now = new Date(), claimedLevel = null, disposition = null, intent = 'UNKNOWN', authenticatedClaim = false }) {
+  // Direct callers with an explicit legacy claimedLevel retain gate semantics;
+  // authenticated host dispatch always supplies disposition and remains disposition-first.
+  const terminal = disposition === null && claimedLevel !== null ? null : stopOutcome({ disposition, claimedLevel, intent, authenticatedClaim });
+  if (terminal?.certification === 'not_claimed') return { allowed: true, code: null, message: 'Stop does not claim completion', detail: { ...terminal }, enforcementHealth: 'strong' };
   const touchedPaths = deriveTouchedPaths(receiptStore, hostEvent.runId);
-  return evaluateCompletion(
-    { runId: hostEvent.runId, taskId: hostEvent.taskId, claimedLevel, touchedPaths },
-    { policy, receiptStore },
+  const certification = evaluateCompletion(
+    { runId: hostEvent.runId, taskId: hostEvent.taskId, claimedLevel, touchedPaths, contractId: execution?.contractId ?? hostEvent.contractId ?? null, contractVersion: execution?.contractVersion ?? hostEvent.contractVersion ?? null, contractDigest: execution?.contractDigest ?? hostEvent.contractDigest ?? null, sourceRevision: execution?.sourceRevision ?? null, completionClaim },
+    { policy, receiptStore, assuranceStore, keyRing, authorityBindingStore, currentProof, binding, execution, now },
   );
+  return { ...certification, detail: { ...certification.detail, ...(terminal ? { termination: terminal.termination, certification: certification.allowed ? 'certified' : 'rejected', disposition: terminal.disposition } : {}) } };
 }
 
 // EC-5 item 6 — surfaced when a Stop is refused for having no earnable path
@@ -419,7 +426,8 @@ export function readStdinJson() {
  * @param {object|null} [opts.sessionBinding] EC-5 item 1's `SessionBindingStore`; see `handleHookEvent`.
  * @param {object|null} [opts.preEffectCorrelation] EC-5 item 5's `PreEffectCorrelationStore`; see `handleHookEvent`.
  */
-export function runHookMain({ normalize, keyDir, receiptStore, replayGuard, policy, capabilityStore = null, dependencyLedger = null, sessionBinding = null, preEffectCorrelation = null }) {
+export function runHookMain({ dispatchHookInvocation }) {
+  if (typeof dispatchHookInvocation !== 'function') throw new TypeError('runHookMain requires dispatchHookInvocation');
   let hookPayload;
   try {
     hookPayload = readStdinJson();
@@ -427,20 +435,7 @@ export function runHookMain({ normalize, keyDir, receiptStore, replayGuard, poli
     return; // malformed/absent stdin: nothing this adapter can safely act on.
   }
 
-  let keyRing = null;
-  if (existsSync(keyDir)) {
-    try {
-      keyRing = loadHostKeyRing({ dir: keyDir });
-    } catch {
-      keyRing = null; // ARC_AUTH_KEY_UNAVAILABLE -> handleHookEvent's degraded path.
-    }
-  }
-
-  const outcome = handleHookEvent(hookPayload, { normalize, keyRing, receiptStore, replayGuard, policy, capabilityStore, dependencyLedger, sessionBinding, preEffectCorrelation });
-
-  if (outcome.hostEvent.eventType === 'stop') {
-    const completionDecision = evaluateHostStop(outcome.hostEvent, { policy, receiptStore });
-    const output = hostStopHookOutput(completionDecision);
-    if (output) process.stdout.write(`${JSON.stringify(output)}\n`);
-  }
+  const result = dispatchHookInvocation(hookPayload);
+  if (result && Object.hasOwn(result, 'stdout')) process.stdout.write(serializeHostRuntimeOutput(result.stdout));
+  return result;
 }

@@ -85,6 +85,8 @@ export class PolicyEngine {
 
   #rules;
 
+  #approvalRequired;
+
   policyId;
 
   version;
@@ -111,6 +113,7 @@ export class PolicyEngine {
     }
     this.#bundle = bundle;
     this.#rules = new Map(bundle.effectRules.map((r) => [r.effectClass, r]));
+    this.#approvalRequired = Object.freeze(bundle.effectRules.filter((rule) => rule.approvalRequired).map((rule) => rule.effectClass));
     this.policyId = policyId;
     this.version = version;
     this.digest = digest;
@@ -123,6 +126,10 @@ export class PolicyEngine {
   /** The rule for an effect class, or null when the bundle does not name it. */
   effectRule(effectClass) {
     return this.#rules.get(effectClass) ?? null;
+  }
+
+  approvalRequiredEffectClasses() {
+    return this.#approvalRequired;
   }
 
   /**
@@ -345,6 +352,7 @@ export function failClosedEngine(reason) {
     failClosed: true,
     reason,
     effectRule: () => null,
+    approvalRequiredEffectClasses: () => Object.freeze([]),
     effectDecision: (effectClass) => deny(`no policy available to authorize ${effectClass}`),
     evaluateClaimPrerequisites: (levelName) => deny(`no policy available to evaluate claim '${levelName}'`),
     mayWaive: () => deny('no policy available to name a waiver authority'),

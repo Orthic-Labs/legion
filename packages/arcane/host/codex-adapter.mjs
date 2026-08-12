@@ -42,7 +42,7 @@ import { ArcaneError } from '../lib/errors.mjs';
 import { normalizeHostEvent } from '../lib/host-event.mjs';
 import { canonicalJson, digest } from '../lib/canonical.mjs';
 import { handleHookEvent, runHookMain, readStdinJson } from './hook-adapter-core.mjs';
-import { createHostRuntime } from './host-runtime.mjs';
+import { dispatchHookInvocation } from './host-runtime.mjs';
 import { serializeHostRuntimeOutput } from './host-runtime-output.mjs';
 
 export const ADAPTER_NAME = 'codex';
@@ -310,17 +310,10 @@ export const codexHostAdapter = Object.freeze({ name: ADAPTER_NAME, normalize: n
 // ---------------------------------------------------------------------------
 
 export function main({ keyDir, verificationKeyDirs, workspace, stateRoot, receiptStore, replayGuard, policy, capabilityStore = null, dependencyLedger = null, sessionBinding = null, preEffectCorrelation = null } = {}) {
-  if (!receiptStore || !replayGuard || !policy) {
-    let payload;
-    try { payload = readStdinJson(); } catch { process.stderr.write('ARC_HOST_EVENT_INVALID\n'); process.exitCode = 2; return null; }
-    const configuredKeyDir = keyDir ?? process.env.ARCANE_KEY_DIR ?? DEFAULT_KEY_DIR;
-    const verifyDirs = verificationKeyDirs ?? (keyDir || process.env.ARCANE_KEY_DIR ? [configuredKeyDir] : [join(homedir(), '.claude', 'arcane-keys'), join(homedir(), '.codex', 'arcane-keys')]);
-    const runtime = createHostRuntime({ adapter: codexHostAdapter, workspace: workspace ?? process.env.ARCANE_WORKSPACE ?? process.cwd(), keyDir: configuredKeyDir, verificationKeyDirs: verifyDirs, ...(stateRoot ?? process.env.ARCANE_STATE_ROOT ? { stateRoot: stateRoot ?? process.env.ARCANE_STATE_ROOT } : {}) });
-    const result = runtime.handle(payload);
-    process.stdout.write(serializeHostRuntimeOutput(result.stdout));
-    return result;
-  }
-  return runHookMain({ normalize: normalizeCodexEvent, keyDir, receiptStore, replayGuard, policy, capabilityStore, dependencyLedger, sessionBinding, preEffectCorrelation });
+  const configuredKeyDir = keyDir ?? process.env.ARCANE_KEY_DIR ?? DEFAULT_KEY_DIR;
+  const configuredWorkspace = workspace ?? process.env.ARCANE_WORKSPACE ?? process.cwd();
+  const verifyDirs = verificationKeyDirs ?? (keyDir || process.env.ARCANE_KEY_DIR ? [configuredKeyDir] : [join(homedir(), '.claude', 'arcane-keys'), join(homedir(), '.codex', 'arcane-keys')]);
+  return runHookMain({ dispatchHookInvocation: (payload) => dispatchHookInvocation(payload, { adapter: codexHostAdapter, workspace: configuredWorkspace, keyDir: configuredKeyDir, verificationKeyDirs: verifyDirs, stateRoot: stateRoot ?? process.env.ARCANE_STATE_ROOT }) });
 }
 
 const isMainModule = typeof process !== 'undefined' && process.argv[1]

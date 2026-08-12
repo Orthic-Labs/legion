@@ -13,18 +13,29 @@ const approvalDenial = (code, message) => decision({ allowed: false, code, messa
 
 /** Host-held, transcript-derived approval authority. No model payload can mint one. */
 export class UserApprovalAuthority {
-  #keyRing; #clock; #used = new Set();
-  constructor({ keyRing, clock = () => Date.now() } = {}) { this.#keyRing = keyRing ?? null; this.#clock = clock; }
+  #keyRing; #clock; #used = new Set(); #approvalRequired;
+  constructor({ keyRing, policy, clock = () => Date.now() } = {}) {
+    this.#keyRing = keyRing ?? null;
+    this.#clock = clock;
+    this.#approvalRequired = new Set(policy?.approvalRequiredEffectClasses?.() ?? []);
+  }
 
-  deriveRecord({ transcriptPath, sessionId, runId, taskId, contractId, contractVersion, contractDigest, effectClass, target }) {
-    if (effectClass !== 'FILE_DELETE') return null;
+  #requiresApproval(effectClass) { return this.#approvalRequired.has(effectClass); }
+
+  #latestApprovedTurn(transcriptPath) {
     if (typeof transcriptPath !== 'string' || transcriptPath.length === 0) return null;
-    if (![sessionId, runId, taskId, contractId, contractDigest, target].every((value) => typeof value === 'string' && value.length > 0) || !Number.isInteger(contractVersion) || contractVersion < 1) return null;
     let transcript;
     try { transcript = readFileSync(transcriptPath, 'utf8'); } catch { return null; }
     const intent = classifyLatestUserIntent(transcript);
     const turn = latestExternalUserTurn(transcript);
-    if (!turn || !['EXECUTE', 'CONTINUE'].includes(intent.intent)) return null;
+    return turn && ['EXECUTE', 'CONTINUE'].includes(intent.intent) ? turn : null;
+  }
+
+  deriveRecord({ transcriptPath, sessionId, runId, taskId, contractId, contractVersion, contractDigest, effectClass, target }) {
+    if (!this.#requiresApproval(effectClass)) return null;
+    if (![sessionId, runId, taskId, contractId, contractDigest, target].every((value) => typeof value === 'string' && value.length > 0) || !Number.isInteger(contractVersion) || contractVersion < 1) return null;
+    const turn = this.#latestApprovedTurn(transcriptPath);
+    if (!turn) return null;
     try {
       const now = this.#clock(); const issuedAt = new Date(now).toISOString(); const expiresAt = new Date(now + TTL_SECONDS * 1000).toISOString();
       const keyId = this.#keyRing?.activeKeyId(); const key = this.#keyRing?.get(keyId).key;
@@ -42,15 +53,18 @@ export class UserApprovalAuthority {
 
   consume(record, expected) {
     if (!record || typeof record !== 'object') return approvalDenial('ARC_APPROVAL_REQUIRED', 'required user approval is missing');
-    const fields = ['sessionId', 'runId', 'taskId', 'contractId', 'contractVersion', 'contractDigest', 'effectClass', 'target'];
+    const fields = ['transcriptPath', 'sessionId', 'runId', 'taskId', 'contractId', 'contractVersion', 'contractDigest', 'effectClass', 'target'];
     if (!fields.every((field) => Object.hasOwn(expected, field))) return approvalDenial('ARC_APPROVAL_REQUIRED', 'required user approval binding is incomplete');
-    if (![expected.sessionId, expected.runId, expected.taskId, expected.contractId, expected.contractDigest, expected.target].every((value) => typeof value === 'string' && value.length > 0) || !Number.isInteger(expected.contractVersion) || expected.contractVersion < 1 || expected.effectClass !== 'FILE_DELETE') return approvalDenial('ARC_APPROVAL_REQUIRED', 'required user approval binding is invalid');
+    if (![expected.sessionId, expected.runId, expected.taskId, expected.contractId, expected.contractDigest, expected.target].every((value) => typeof value === 'string' && value.length > 0) || !Number.isInteger(expected.contractVersion) || expected.contractVersion < 1 || !this.#requiresApproval(expected.effectClass)) return approvalDenial('ARC_APPROVAL_REQUIRED', 'required user approval binding is invalid');
+    const turn = this.#latestApprovedTurn(expected.transcriptPath);
+    if (!turn) return approvalDenial('ARC_APPROVAL_REQUIRED', 'latest external user turn does not approve this effect');
     const now = this.#clock(); const issued = Date.parse(record.issuedAt); const expires = Date.parse(record.expiresAt);
     if (!Number.isFinite(issued) || !Number.isFinite(expires) || expires - issued > TTL_SECONDS * 1000 || expires <= issued || now < issued || now >= expires) return approvalDenial('ARC_APPROVAL_REQUIRED', 'required user approval is expired or unreadable');
     const bound = {
       sessionDigest: digestValue({ domain: 'arcane.user-approval.session.v1', values: [expected.sessionId] }),
       runId: expected.runId, taskId: expected.taskId, contractId: expected.contractId, contractVersion: expected.contractVersion, contractDigest: expected.contractDigest,
       effectClass: expected.effectClass, targetDigest: digestValue({ domain: 'arcane.user-approval.target.v1', values: [expected.target] }),
+      userTurnDigest: digestValue({ domain: 'arcane.user-approval.turn.v1', values: [turn] }),
     };
     if (Object.entries(bound).some(([field, value]) => record[field] !== value)) return approvalDenial('ARC_BINDING_MISMATCH', 'user approval binding differs');
     let key;
@@ -63,9 +77,9 @@ export class UserApprovalAuthority {
   }
 
   derive(effectRequest, ctx) {
-    if (effectRequest.effectClass !== 'FILE_DELETE') return decision({ allowed: true, detail: { approvalDigest: null, evidence: null } });
+    if (!this.#requiresApproval(effectRequest.effectClass)) return decision({ allowed: true, detail: { approvalDigest: null, evidence: null } });
     const record = this.deriveRecord({ transcriptPath: ctx?.transcriptPath, sessionId: ctx?.sessionId, runId: effectRequest.runId, taskId: effectRequest.taskId, contractId: effectRequest.contractId, contractVersion: ctx?.expectedContractVersion, contractDigest: ctx?.contractDigest, effectClass: effectRequest.effectClass, target: effectRequest.target });
-    return this.consume(record, { sessionId: ctx?.sessionId, runId: effectRequest.runId, taskId: effectRequest.taskId, contractId: effectRequest.contractId, contractVersion: ctx?.expectedContractVersion, contractDigest: ctx?.contractDigest, effectClass: effectRequest.effectClass, target: effectRequest.target });
+    return this.consume(record, { transcriptPath: ctx?.transcriptPath, sessionId: ctx?.sessionId, runId: effectRequest.runId, taskId: effectRequest.taskId, contractId: effectRequest.contractId, contractVersion: ctx?.expectedContractVersion, contractDigest: ctx?.contractDigest, effectClass: effectRequest.effectClass, target: effectRequest.target });
   }
 }
 

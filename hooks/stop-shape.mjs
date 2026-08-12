@@ -26,8 +26,7 @@
 // unverified), the gate allows. Blocking blind is the theatre this system
 // exists to remove.
 
-import { appendFileSync, readFileSync, mkdirSync, writeFileSync, renameSync } from 'node:fs';
-import { join, dirname } from 'node:path';
+import { readFileSync } from 'node:fs';
 import { classifyLatestUserIntent, latestExternalUserTurn } from './user-intent.mjs';
 
 const MAX_PUSHES = 2;
@@ -389,23 +388,6 @@ export function lastAssistantText(raw) {
   return null;
 }
 
-function circuitState(stateFile) {
-  try {
-    const state = JSON.parse(readFileSync(stateFile, 'utf8'));
-    return {
-      blockedCloses: Number.isInteger(state.blockedCloses) ? state.blockedCloses : (state.pushes ?? 0),
-      reopenings: Number.isInteger(state.reopenings) ? state.reopenings : 0,
-    };
-  } catch (error) {
-    if (error?.code === 'ENOENT') return { blockedCloses: 0, reopenings: 0 };
-    // A broken self-maintenance file must never recreate an infinite Stop
-    // loop. Its one bounded recovery is to quarantine it; failure opens this
-    // advisory breaker rather than blocking blind.
-    try { renameSync(stateFile, `${stateFile}.corrupt-${Date.now()}`); } catch { return { blockedCloses: MAX_PUSHES, reopenings: MAX_PUSHES }; }
-    return { blockedCloses: 0, reopenings: 0 };
-  }
-}
-
 /** Was any tool used after the last genuine (non-tool-result) user turn? */
 export function toolUseAfterLastUser(transcriptText) {
   const entries = transcriptEntries(transcriptText);
@@ -587,22 +569,15 @@ export function evaluateStopShape(finalText, { intent = 'EXECUTE', pushes = 0, r
   return { block: false, reason: 'clean-ending' };
 }
 
-/** Evaluate one Stop payload from its transcript, preserving standalone state semantics. */
+/** Evaluate Stop shape only. Retry state belongs to authenticated Arcane runtime. */
 export function evaluateTranscriptStop(payload) {
   const transcriptPath = payload?.transcript_path;
   if (typeof transcriptPath !== 'string' || transcriptPath.length === 0) return { block: false, reason: 'transcript-unavailable' };
   let raw;
   try { raw = readFileSync(transcriptPath, 'utf8'); } catch { return { block: false, reason: 'transcript-unreadable' }; }
-  const sessionId = payload.session_id ?? 'unknown';
-  const cwd = payload.cwd ?? process.cwd();
-  const stateFile = join(cwd, '.audit', 'legion', 'stop-shape', `${sessionId}.json`);
-  const circuit = circuitState(stateFile);
-  const pushes = circuit.blockedCloses;
-  const reopenings = payload.stop_hook_active ? circuit.reopenings : 0;
   const intent = classifyLatestUserIntent(raw);
   const latestInstruction = latestExternalUserTurn(raw);
   const verdict = evaluateStopShape(lastAssistantText(raw), {
-    pushes, reopenings,
     intent: intent.intent,
     recorded: recordedThisTurn(raw),
     escalated: escalatedThisSession(raw),
@@ -612,18 +587,6 @@ export function evaluateTranscriptStop(payload) {
     continueIntentEvidence: continueIntent(latestInstruction ?? ''),
     continueToolsUsed: toolUseAfterLastUser(raw),
   });
-  if (!verdict.block && verdict.advisory) {
-    try {
-      mkdirSync(dirname(stateFile), { recursive: true });
-      appendFileSync(join(dirname(stateFile), 'advisories.jsonl'), `${JSON.stringify({ kind: 'legion-stop-advisory', sessionId, reason: verdict.reason, advisory: verdict.advisory, at: new Date().toISOString() })}\n`, 'utf8');
-    } catch { /* an advisory must never reopen the Stop circuit */ }
-  }
-  if (verdict.block) {
-    try {
-      mkdirSync(dirname(stateFile), { recursive: true });
-      writeFileSync(stateFile, `${JSON.stringify({ pushes: pushes + 1, blockedCloses: pushes + 1, reopenings: reopenings + 1, lastShape: verdict.shape, at: new Date().toISOString() })}\n`);
-    } catch { /* state loss weakens the cap by one turn; never block on it */ }
-  }
   return verdict;
 }
 

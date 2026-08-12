@@ -33,7 +33,7 @@ Computed via `sha256sum` over the final state of every file in this package
 694e47a95d9e8fe56eb1e1fb422931c1f0b6aeedf38d7d2b0d9bb223ee93c7c0  enums.mjs
 e5c54d550171f039dced506ac3e036080227424812b4e6ba7ee8d1e3e7baa39d  ids.md
 5e14227b6499fc6c8a85f7299851a9fc63239d5621ed812f543120d4e1cb7aaf  index.mjs
-d139fe8105e65fc63ceb28ecd3139e29fd43842546009a194ccc70eca766fad7  smoke.test.mjs
+ea03733f69a874aa18ef185b4d38923884b392a3a1f9600c91b62321e392704f  smoke.test.mjs
 ddfe6382c01367589841a90763a99e4e96570884f3598741f880794dad7f3596  schemas/amendment-v1.schema.json
 eb1c847abb73acf195b0b18a8f71737603c6f3ce722855c594cb57ca2db8d820  schemas/artifact-v1.schema.json
 1b762011320ef14c3fbb88fa04be1a7b38d6b2e870e1a1951c293ce1f6642798  schemas/blocker-v1.schema.json
@@ -43,7 +43,7 @@ d20c19b62a4cd9d4d6c96c2aa6f02484111895264e75bcb9ea1a3b2e22a05aae  schemas/covena
 5b0cd86369913048b61e7c5e498a5a74427d617af349c93ef0b175679ab063eb  schemas/effect-receipt-v1.schema.json
 f169ea1f54648ed07bb34ef34637a73ce4ead691055a11c79064c95c72890676  schemas/effect-request-v1.schema.json
 a5d4103a8ca5250cc4cbb6d03a3716324345b517fd7d64ff33ca3bb800fb272d  schemas/evidence-capability-receipt-v1.schema.json
-38d4a5842eb20604d731ba0944208a4f60e69ab196a230afb71fa7a3d476d86c  schemas/execution-contract-v1.schema.json
+893164ef22bbc34a8d2bf70fe9b4e26ed30ae0031d48d63076a2f252aca604cd  schemas/execution-contract-v1.schema.json
 a676c8b8d859bf7baae13db7381e1c0dc1fa43003a4271a2e1d42cf7418fb24f  schemas/execution-task-v1.schema.json
 3c80ed9c32f6defe9ba9bfcfb02783c0bb61a23387bdfa3d41407728361be898  schemas/legacy-envelope-v1.schema.json
 5197eea6541a12926ea9dbba8d31222cafb28f3c302e4f391ad3ffaedf20c711  schemas/legion-result-v1.schema.json
@@ -54,6 +54,11 @@ a27f2ca9ffd4146f5e52e70c8f40842c44b15c71aeac05b7e2bfe33f95bc8905  schemas/worker
 
 16 schema files (15 named object types + the `legacy-envelope-v1` extension
 point) + `enums.mjs` + `ids.md` + `index.mjs` + `smoke.test.mjs` = 20 files.
+
+**EC-602 amendment (2026-08-12):** `execution-contract-v1` now admits one optional,
+closed `advisoryProfile` binding compiled from a package-owned validated skill manifest.
+It only narrows authority; callers cannot supply manifest paths, bytes, booleans, or digests.
+No schema version or effect-class vocabulary changed. Digests above bind this amendment.
 
 ## 2. Test run result
 

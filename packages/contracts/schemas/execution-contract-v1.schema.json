@@ -23,6 +23,23 @@
     "contractId": { "type": "string", "pattern": "^EC-\\d+$" },
     "version": { "type": "integer", "minimum": 1, "description": "ARCHITECTURE §15: 'EC-44 v1 -> Amendment A-2 -> EC-44 v2'." },
     "sourceRevision": { "type": "string", "minLength": 7 },
+    "advisoryProfile": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "required": ["schemaVersion", "kind", "bundleId", "bundleVersion", "profileId", "manifestDigest", "profileDigest", "mutationAllowed", "publishAllowed", "externalOnly"],
+      "properties": {
+        "schemaVersion": { "const": 1 },
+        "kind": { "const": "arcane-advisory-profile-binding" },
+        "bundleId": { "type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$" },
+        "bundleVersion": { "type": "string", "minLength": 1 },
+        "profileId": { "type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$" },
+        "manifestDigest": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+        "profileDigest": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+        "mutationAllowed": { "type": "boolean" },
+        "publishAllowed": { "type": "boolean" },
+        "externalOnly": { "type": "boolean" }
+      }
+    },
 
     "objective": { "type": "string", "minLength": 1 },
     "currentState": { "type": "string", "minLength": 1 },
@@ -111,6 +128,7 @@
       "items": { "$ref": "#/$defs/openQuestion" },
       "description": "ARCHITECTURE §11, G9: MUST be empty for the contract to be executable. Non-empty is a valid (non-executable, draft) contract state."
     }
+    ,"budget": { "$ref": "#/$defs/contractBudget" }
   },
 
   "$defs": {
@@ -197,5 +215,6 @@
         "blocksArtifacts": { "type": "array", "items": { "type": "string" } }
       }
     }
+    ,"contractBudget": {"type":"object","additionalProperties":false,"required":["objectiveLineageId","objectiveDigest","legionBlastMapCapMs","sagePlanningCapMs","maxContractVersions"],"properties":{"objectiveLineageId":{"type":"string","minLength":1},"objectiveDigest":{"type":"string","pattern":"^sha256:[0-9a-f]{64}$"},"legionBlastMapCapMs":{"type":"integer","minimum":1},"sagePlanningCapMs":{"type":"integer","minimum":1},"maxContractVersions":{"const":2}}}
   }
 }

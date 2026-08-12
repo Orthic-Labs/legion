@@ -5,12 +5,28 @@ import path from 'node:path';
 import { spawn } from 'node:child_process';
 import test from 'node:test';
 import { ContractSealStore } from '../lib/contract-seal-store.mjs';
+import { compileAdvisoryProfile } from '../lib/advisory-profile.mjs';
 
-const contract = () => ({ schemaVersion: 1, kind: 'legion-execution-contract', contractId: 'EC-1', version: 1, sourceRevision: 'abcdef0', objective: 'x', currentState: 'x', desiredState: 'x', requirements: [], decisions: [], invariants: [], nonGoals: [], scope: { own: [], read: [], forbidden: [] }, artifacts: { exact: [{ id: 'a', path: 'x', latitude: 'EXACT', content: 'x' }], bounded: [{ id: 'b', path: 'y', latitude: 'BOUNDED', locked: ['x'], freedom: ['y'] }] }, tasks: ['T-1'], dependencies: [], acceptanceCriteria: [], declaredChecks: [], evidenceRequirements: [], authorizedEffectClasses: [], repairLatitude: [], stopConditions: [], escalationConditions: [], rollback: [], openQuestions: [] });
+const contract = () => ({ schemaVersion: 1, kind: 'legion-execution-contract', contractId: 'EC-1', version: 1, sourceRevision: 'abcdef0', objective: 'x', currentState: 'x', desiredState: 'x', requirements: [], decisions: [], invariants: [], nonGoals: [], scope: { own: [], read: [], forbidden: [] }, artifacts: { exact: [{ id: 'a', path: 'x', latitude: 'EXACT', content: 'x' }], bounded: [{ id: 'b', path: 'y', latitude: 'BOUNDED', locked: ['x'], freedom: ['y'] }] }, tasks: ['T-1'], dependencies: [], acceptanceCriteria: [], declaredChecks: [], evidenceRequirements: [], authorizedEffectClasses: [], repairLatitude: [], stopConditions: [], escalationConditions: [], rollback: [], openQuestions: [], budget: { objectiveLineageId: 'objective-1', objectiveDigest: `sha256:${'a'.repeat(64)}`, legionBlastMapCapMs: 1, sagePlanningCapMs: 1, maxContractVersions: 2 } });
 const assertion = { authority: 'sage', assertedBy: 'host', verificationMethod: 'capability-signature', perMessage: true };
 test('B2 seals immutably, returns idempotently, and detects changed desired state', () => {
   const root = mkdtempSync(path.join(os.tmpdir(), 'seal-')); const store = new ContractSealStore({ root, clock: () => '2026-08-09T12:00:00Z' }); const first = store.seal({ contract: contract(), authorityAssertion: assertion }); const second = store.seal({ contract: contract(), authorityAssertion: { ...assertion, assertedBy: 'other' } });
   assert.equal(first.created, true); assert.equal(second.created, false); assert.equal(store.require(contract()).contractDigest, first.record.contractDigest); const changed = contract(); changed.desiredState = 'changed'; assert.throws(() => store.seal({ contract: changed, authorityAssertion: assertion }), /immutable version/); assert.deepEqual(store.verify('EC-1', 1), { ok: true, code: null, issues: [] });
+});
+
+test('advisory profile is canonical before seal persistence', () => {
+  const root = mkdtempSync(path.join(os.tmpdir(), 'seal-profile-'));
+  const store = new ContractSealStore({ root, clock: () => '2026-08-09T12:00:00Z' });
+  const canonical = contract();
+  canonical.advisoryProfile = compileAdvisoryProfile({ bundleId: 'research', profileId: 'audit' });
+  assert.equal(store.seal({ contract: canonical, authorityAssertion: assertion }).created, true);
+  assert.deepEqual(store.require(canonical).contract.advisoryProfile, canonical.advisoryProfile);
+
+  const forgedRoot = mkdtempSync(path.join(os.tmpdir(), 'seal-profile-forged-'));
+  const forged = contract();
+  forged.advisoryProfile = { ...canonical.advisoryProfile, mutationAllowed: true };
+  assert.throws(() => new ContractSealStore({ root: forgedRoot }).seal({ contract: forged, authorityAssertion: assertion }), (error) => error.code === 'ARC_PROFILE_BINDING_MISMATCH');
+  assert.equal(readdirSync(forgedRoot).length, 0);
 });
 
 test('B2 32-child barrier creates once, converges, and preserves conflict bytes', async () => {

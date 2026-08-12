@@ -74,6 +74,7 @@ const SYSTEM_INJECTED = [
   /<cross-session-message\b/i,
   /\[SYSTEM NOTIFICATION - NOT USER INPUT\]/i,
   /<task-notification>/i,
+  /<hook_prompt\b/i,
   /^Stop hook feedback:/im,
   /^\[non-authoritative stop feedback\]/im,
   /^Caveat: The messages below were generated/im,

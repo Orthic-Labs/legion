@@ -147,7 +147,7 @@ test('EC-5 item 7 (acceptance): SessionStart mints ambient -> PostToolUse Write 
     const stopOne = handleClaudeCodeHookEvent(stopPayload, deps);
     assert.equal(stopOne.hostEvent.runId, runId, 'Stop reads the same ambient binding — no putBinding upgrade has happened yet');
 
-    const completionOne = evaluateClaudeCodeStop(stopOne.hostEvent, { policy, receiptStore });
+    const completionOne = evaluateClaudeCodeStop(stopOne.hostEvent, { policy, receiptStore, claimedLevel: 'signoff' });
     assert.equal(completionOne.allowed, false, 'signoff requires evidence this run does not have yet');
     assert.equal(completionOne.detail.lockedDomainMatches.length, 1, 'the locked test path forced signoff prerequisite evaluation');
     assert.equal(completionOne.detail.lockedDomainMatches[0].pattern, 'docs/legal/**');
@@ -194,7 +194,7 @@ test('EC-5 item 7 (acceptance): SessionStart mints ambient -> PostToolUse Write 
     assert.equal(stopTwo.hostEvent.contractId, 'EC-5', 'the run-open upgrade is now visible on freshly-observed hostEvents too');
     assert.equal(stopTwo.hostEvent.taskId, 'T-1');
 
-    const completionTwo = evaluateClaudeCodeStop(stopTwo.hostEvent, { policy, receiptStore });
+    const completionTwo = evaluateClaudeCodeStop(stopTwo.hostEvent, { policy, receiptStore, claimedLevel: 'signoff' });
     assert.equal(completionTwo.allowed, true, completionTwo.message);
     assert.equal(completionTwo.enforcementHealth, 'strong');
 
