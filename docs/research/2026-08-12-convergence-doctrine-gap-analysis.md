@@ -30,6 +30,28 @@ Every escalation path in current doctrine points *into* more design (Diagnose �
 Alchemist blocker → Sage, Oracle finding → Sage, Covenant → revision). No bounded path leads *out*.
 That asymmetry is the whole failure mode.
 
+**Live confirmation — 2026-08-12 Adapt Insights.** The failure mode is measured, not
+hypothetical. Adapt's analysis of the hook-stall and skills-migration tasks emitted 17
+`FailureCardV1` cards — 7 visible-frustration and 7 explicit-rejection, aimed squarely at
+ceremony, passive waits, and unclear completion — and one task expanded through **seven contract
+revisions** with repeated Alchemist/Oracle loops while coordination displaced implementation
+(heuristic aggregate score: 0). The same analysis carries two refinements this document must
+absorb:
+
+1. **Caps now exist mechanically — but only after sealing, and only for governed runs.** The
+   budget-governance validation (2026-08-12) confirmed sealed time caps (`sagePlanningCapMs`,
+   per-task `activeTimeCapMs`/`progressDeadlineMs`, Sage-sealed only), terminal `BUDGET_STOP` on
+   `ACTIVE_CAP` / `PROGRESS_DEADLINE` / `IDENTICAL_RETRY`, and `maxContractVersions` pinned to 2
+   with a third version failing seal. The loop this document targets happens **before any
+   contract seals** — inside the Architect route, in ADR/option/plan revisions the runtime never
+   sees. The runtime cap and the doctrine cap govern different loops; both are needed.
+2. **Controls are admission-optional.** Enforcement lives in the `if (contracted)` branch only;
+   ambient sessions, dispatched subagents that never bind a contract, and legacy bindings without
+   a task-budget seal all escape governance — the same admission gap the completion-control
+   validation found ("completion controls exist, but admission to them is optional"). A cap that
+   work can avoid entering is not a cap; the corpus's harnesses (SWE-agent, SWE-AF) bind budgets
+   to every episode by construction.
+
 ---
 
 ## 2. What Legion already has (do not re-invent)
@@ -45,6 +67,8 @@ That asymmetry is the whole failure mode.
 | Decision lifecycle states | `proposed → accepted → implemented → superseded` in the typed decision store | ⚠️ states exist; **no rules govern reopening** |
 | Advisory time budgets | `sage-diagnose.md` | ✅ Diagnose only |
 | Explicit amendments | G10: `EC-N v1 → A-k → EC-N v2`, never silent | ⚠️ contracts only; design artifacts invalidate from root instead |
+| Runtime budget ledger | budget-governance / task-budget seals: sealed time caps, `BUDGET_STOP` (active cap, progress deadline, 4th identical attempt), `maxContractVersions = 2`, `legion run open` hard-requires the seal | ✅ mechanically, **governed runs only** — post-seal contract lineage; design-phase revisions, ambient sessions, uncontracted dispatched work, and legacy bindings all escape |
+| Reopening freeze | Doctrine: freeze after two reopenings or blocked closes; two reopenings open the Stop circuit | ⚠️ doctrine/runtime drift: doctrine says two retries, runtime stops on the 4th identical attempt — align the constant |
 
 ---
 
@@ -75,8 +99,28 @@ find gaps always finds some (Anthropic best-practices: "a reviewer prompted to f
 usually report some, even when the work is sound — chasing every finding leads to
 over-engineering"). The criticism set never shrinks, so the loop never converges.
 
-**A5 — Nothing counts revisions.** No revision counter exists, so no rule *can* trigger on one.
-Diagnose counts failed fixes; Architect counts nothing.
+**A5 — Nothing counts design revisions.** No pre-seal revision counter exists, so no rule *can*
+trigger on one. Diagnose counts failed fixes; the runtime now counts sealed contract versions;
+the Architect route counts nothing.
+
+**A6 — Unsound seals force amendment churn.** The 2026-08-12 incident showed contracts sealing
+with unreachable evidence paths: omitted Minimize paths, high-risk evidence fields unavailable to
+the completion gate, missing producer commands, stale source revisions, close operations blocked
+by the same contract. Defects then surfaced at delivery, forcing amendments and repeated
+assurance cycles — the seven-revision churn was partly *mechanically forced rework from an
+unsound seal*, not disagreement about the design. Doctrine treats revision as a decision problem;
+here it was a compilation problem. The fix is pre-seal totality (the "contract compiler": every
+required evidence class proves a reachable producer, owned output path, consumer, and close route
+before seal), which removes an entire class of forced reopenings that no revision cap should have
+to absorb.
+
+**A7 — Milestone-as-completion reopens finished work.** Migration commits were reported as
+delivered progress while approved requirements (L4 authorization, L5 certification) remained
+unfinished — completion measured against the latest packet, not the full approved plan. Every
+premature "done" manufactures a later reopening, and each reopening re-enters design. The
+completion-state-machine work (CANDIDATE/BLOCKED as the implementer's only terminal states;
+`COMPLETE` unmintable without the acceptance ledger and an Oracle receipt) closes this from the
+mechanical side; CV-12 is its doctrine-side counterpart.
 
 ---
 
@@ -231,7 +275,50 @@ as progress.
 A design/plan is done when: every `R-*` maps to a task or an explicit `NG-*`; no placeholders; no
 `OPEN` questions in an artifact claimed executable (G9); names/signatures consistent; blocking
 findings resolved or spiked. Self-review runs **once** — fix inline, no re-review of the review.
-Anything past the checklist is debt, not work.
+Anything past the checklist is debt, not work. The mechanical completion side is the
+CANDIDATE/COMPLETE split: an implementer's terminal states are `CANDIDATE | BLOCKED`, never
+`COMPLETE`; milestones update the acceptance ledger but cannot close the task.
+
+### Where the CV-rules meet the shipped budget governance (2026-08-12)
+
+The budget-governance validation changes what CV-1/CV-2 are for. Three consequences:
+
+1. **They are not redundant — they govern a different loop.** The runtime counts **sealed
+   contract versions** (`maxContractVersions = 2`; a second version requires a one-time Sage
+   amendment proof; scope expansion requires an authenticated user turn; only the operator's resume
+   resets lineage). The architecture loop burns its hours **before the first seal**, in
+   ADR/option/plan revisions the ledger never sees. CV-1/CV-2 are the pre-seal counterpart the
+   runtime cannot observe; the sealed-lineage cap is the post-seal backstop. Both sides of the
+   seam are needed, and the seam itself is the admission gap.
+2. **Bind the CV-rules at dispatch, not at seal.** The incident's core lesson is that
+   admission-optional controls get bypassed: enforcement lives in the contracted branch only,
+   legacy bindings silently skip it, and ambient/dispatched work never enters. Adopted CV
+   doctrine must state that the revision counter starts when Legion routes an Architect
+   engagement — not when a contract seals — and CV-11's tripwire is the lead-side enforcement
+   until the runtime can see pre-seal revisions.
+3. **Align the constants — one story everywhere.** Doctrine says freeze after two reopenings;
+   the runtime stops on the 4th identical attempt; CV-2 proposes three design revisions.
+   Recommended reconciliation: 3 design revisions pre-seal (CV-2, matching the corpus and the
+   Diagnose 3-fix rule), 2 sealed reopenings post-seal (already pinned), identical-attempt stop
+   aligned to doctrine's number. The exact numbers matter less than doctrine and runtime telling
+   the same story.
+
+Two further incident lessons reinforce rules above:
+
+- **The proportionality boundary is load-bearing (supports CV-3, CV-8).** The completion-pipeline
+  addendum's required refinement — the full chain binds only to contract-chain work and to
+  mutations carrying `full / final / best shape` certification language, because applying it
+  universally "would recreate systemic failure 4 (ceremony displacing implementation)" — is the
+  same law as CV-8. And auto-escalating `best shape` language into the certified chain is CV-3's
+  contrapositive: *best* is a special claim with a real price, so it is neither made nor chased
+  casually. The Adapt cards are the receipt for what happens otherwise: the dominant measured
+  harm was ceremony and waits, not wrong designs.
+- **CV-11 needs sensors (supports CV-11).** Adapt's current detectors are symptom-heavy — they
+  caught frustration and repeated asks but could not classify contract-revision churn, repeated
+  unchanged waits, ceremony displacement, stale task state, or premature completion. The proposed
+  detector set (Adapt fix 10) is CV-11's measurement counterpart: the lead can only interrupt
+  churn it can see. Sequencing note from the addendum stands: detectors land **last**, so they
+  measure the reformed system rather than police one whose core defect is still open.
 
 ---
 
@@ -250,6 +337,15 @@ Anything past the checklist is debt, not work.
 The existing Diagnose and Alchemist rules need no change — they are the house pattern these rules
 extend to the one route that lacked them.
 
+**Sequencing with the completion-control work.** The 2026-08-12 addendum's implementation order
+(disposition-first Stop + recovery lane → completion state machine → contract-compiler totality →
+budget-ledger admission gaps → acceptance ledger + canonical gates → lifecycle/routing authority →
+new Adapt detectors) already sequences the mechanical side, and its rationale applies here too:
+totality (step 3) removes A6's forced reopenings, the state machine (step 2) removes A7's
+premature-completion reopenings, and the admission-gap closure (step 4) is where CV-1/CV-2's
+"bind at dispatch" lands. The CV-rules themselves are prose — they cost nothing to adopt now and
+give the lead a doctrine to enforce while the mechanical steps land in order.
+
 ---
 
 ## 7. Source notes
@@ -266,3 +362,4 @@ Strongest single artifacts per mechanism, for deeper reading:
 - **SWE-agent** — `sweagent/agent/agents.py`: forced autosubmission at every budget cap with labeled exit statuses; retries spend a shared envelope and stop at the acceptance score.
 - **trailofbits** — `vulnerability-triage-brocards` (dismissal-first triage), `fp-check` ("LLMs are biased toward seeing bugs and overrating severity"), pervasive "When NOT to Use" sections.
 - **Anthropic best-practices** — over-review warning; two-strikes-then-reset; "if you could describe the diff in one sentence, skip the plan"; Stop-hook override after 8 consecutive blocks.
+- **Internal: Adapt Insights — Legion hook stall & skills migration (2026-08-12)** — the live incident record this analysis absorbs: 17 failure cards (ceremony/waits dominant), seven-revision contract churn, unsound-seal evidence gaps, budget-governance validation (`maxContractVersions = 2`, `BUDGET_STOP`, admission gaps), completion state machine (CANDIDATE/COMPLETE split) with its scope-boundary refinement, and the seven-step implementation order.
