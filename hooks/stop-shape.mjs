@@ -283,7 +283,7 @@ export function deferredDefectCodes(text) {
 const FINDING_LANGUAGE = /\b(worth (noting|knowing|recording|your attention)|for (the )?(pattern file|future reference|posterity)|note for (the )?(future|next)|lesson (here|learned)|gotcha|trap for|bit(es|) us|cost (me|us) (an hour|hours|time)|next agent (should|will|needs)|remember (this|that) for)\b/i;
 
 // Paths that count as recording a finding durably.
-const RECORD_TARGETS = /(GOTCHAS?\.md|HANDOFF\.md|memright\b|\bmemory\/[\w-]+\.md)/i;
+const RECORD_TARGETS = /(GOTCHAS?\.md|HANDOFF\.md|crypt\b|\bmemory\/[\w-]+\.md)/i;
 const DURABLE_WRITE_TOOLS = new Set(['Write', 'Edit', 'MultiEdit', 'NotebookEdit', 'apply_patch']);
 const COMMAND_TOOLS = new Set(['Bash', 'PowerShell', 'shell', 'shell_command']);
 
@@ -331,13 +331,13 @@ function durableWriteUse(block) {
   if (name === 'exec' && typeof input === 'string' && /tools\.apply_patch\s*\(/.test(input)) return RECORD_TARGETS.test(input);
   if (!COMMAND_TOOLS.has(name)) return false;
   const command = typeof input === 'string' ? input : input.command;
-  return typeof command === 'string' && /\bmemright\s+put\b/i.test(command);
+  return typeof command === 'string' && /\bcrypt\s+put\b/i.test(command);
 }
 
 /**
  * Did this turn actually record something durable? Reads the transcript for a
  * tool call that wrote to a recognised destination. Deliberately generous: any
- * write to GOTCHAS.md / HANDOFF.md / a memright put counts, because the goal is
+ * write to GOTCHAS.md / HANDOFF.md / a crypt put counts, because the goal is
  * "it left the chat", not a particular format.
  */
 export function recordedThisTurn(transcriptText) {
@@ -439,7 +439,7 @@ export function evaluateStopShape(finalText, { intent = 'EXECUTE', pushes = 0, r
       block: false,
       reason: 'stop-circuit-open',
       advisory: !recorded && FINDING_LANGUAGE.test(finalText)
-        ? 'A durable finding was reported but no successful post-user write to GOTCHAS.md, HANDOFF.md, memory, or memright was observed.'
+        ? 'A durable finding was reported but no successful post-user write to GOTCHAS.md, HANDOFF.md, memory, or crypt was observed.'
         : null,
     };
   }
@@ -581,7 +581,7 @@ export function evaluateStopShape(finalText, { intent = 'EXECUTE', pushes = 0, r
     return {
       block: true,
       shape: 'unrecorded-finding',
-      instruction: 'You reported something a future agent needs, but only in chat — nothing here survives this session. Append it to docs/GOTCHAS.md (symptom, cause, fix), or to the relevant HANDOFF, or save it with memright.',
+      instruction: 'You reported something a future agent needs, but only in chat — nothing here survives this session. Append it to docs/GOTCHAS.md (symptom, cause, fix), or to the relevant HANDOFF, or save it with crypt.',
     };
   }
   return { block: false, reason: 'clean-ending' };

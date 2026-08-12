@@ -140,13 +140,16 @@ test('recordedThisTurn requires a paired successful durable write after the late
   assert.equal(recordedThisTurn(transcriptAfterUser({ type: 'assistant', message: { content: [{ type: 'text', text: 'docs/plans/legion/HANDOFF.md' }] } })), false);
 });
 
-test('recordedThisTurn accepts successful apply_patch & memright writes only', () => {
+test('recordedThisTurn accepts successful apply_patch & crypt writes only', () => {
   const patchUse = { type: 'assistant', message: { content: [{ type: 'tool_use', id: 'p1', name: 'apply_patch', input: '*** Update File: docs/GOTCHAS.md' }] } };
   const patchResult = { type: 'user', message: { content: [{ type: 'tool_result', tool_use_id: 'p1' }] } };
   assert.equal(recordedThisTurn(transcriptAfterUser(patchUse, patchResult)), true);
-  const memoryUse = { type: 'assistant', message: { content: [{ type: 'tool_use', id: 'm1', name: 'Bash', input: { command: 'memright put hook-lesson --scope claude' } }] } };
+  const memoryUse = { type: 'assistant', message: { content: [{ type: 'tool_use', id: 'm1', name: 'Bash', input: { command: 'crypt put hook-lesson --scope claude' } }] } };
   const memoryResult = { type: 'user', message: { content: [{ type: 'tool_result', tool_use_id: 'm1' }] } };
   assert.equal(recordedThisTurn(transcriptAfterUser(memoryUse, memoryResult)), true);
+  const retiredUse = { type: 'assistant', message: { content: [{ type: 'tool_use', id: 'm2', name: 'Bash', input: { command: 'memright put hook-lesson --scope claude' } }] } };
+  const retiredResult = { type: 'user', message: { content: [{ type: 'tool_result', tool_use_id: 'm2' }] } };
+  assert.equal(recordedThisTurn(transcriptAfterUser(retiredUse, retiredResult)), false);
 });
 
 test('Codex response_item calls prove successful durable writes only', () => {
