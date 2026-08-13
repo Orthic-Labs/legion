@@ -23,6 +23,16 @@ executor — as now **forbidden** by G22: a dispatch packet must carry the full 
 needs, verbatim, not a compressed digest of it. Flagged inline below at the exact passages
 affected, per instruction, rather than silently dropped.
 
+## S10 handoff override
+
+Every relay carries Sage's frozen acceptance IDs, ownership, cutover obligations, event/checkpoint
+bindings, forward tests, & deficit route. Build the execution DAG from artifacts/files a task
+actually consumes; launch its maximal ready antichain. Never serialize work by copying stage DAG
+order: a dependency blocks only its consumers. Independent authoring/tests start early; only
+shared-contract writes, integration, commits, pins, & pushes serialize. Alchemist returns only
+`CANDIDATE | BLOCKED`; Oracle receives an independent sealed packet & can close findings only on
+fresh exact-state evidence. Covenant is one-shot advisory.
+
 ---
 
 # Dispatch advanced manual
