@@ -1,0 +1,11 @@
+{
+  "$schema":"https://json-schema.org/draft/2020-12/schema", "$id":"review-module-contract.v1", "title":"Review Module Admission Contract", "type":"object", "additionalProperties":false,
+  "required":["schema","module_id","module_version","when_to_use","when_not_to_use","configured_scope","eligibility_filter","admission_gates","first_failed_gate_dismisses","claim_language_policy","remediation_proportionality_check","clean_claim","calibration_table_version"],
+  "properties": {
+    "schema":{"const":"review-module-contract.v1"}, "module_id":{"type":"string","minLength":1}, "module_version":{"type":"string","minLength":1},
+    "when_to_use":{"$ref":"#/$defs/strings"}, "when_not_to_use":{"$ref":"#/$defs/strings"}, "configured_scope":{"type":"string","minLength":1}, "eligibility_filter":{"type":"string","minLength":1},
+    "admission_gates":{"type":"array","minItems":7,"maxItems":7,"uniqueItems":true,"prefixItems":[{"const":"process"},{"const":"reachability"},{"const":"control"},{"const":"real_impact"},{"const":"reproduction"},{"const":"bounds"},{"const":"environment"}],"items":false}, "first_failed_gate_dismisses":{"const":true},
+    "claim_language_policy":{"type":"string","minLength":1}, "remediation_proportionality_check":{"type":"string","minLength":1}, "calibration_table_version":{"type":"string","minLength":1},
+    "clean_claim":{"type":"object","additionalProperties":false,"required":["meaning","scope_binding","state_binding","freshness_binding"],"properties":{"meaning":{"const":"configured_gates_passed"},"scope_binding":{"type":"string","minLength":1},"state_binding":{"type":"string","minLength":1},"freshness_binding":{"type":"string","minLength":1}}}
+  }, "$defs":{"strings":{"type":"array","minItems":1,"items":{"type":"string","minLength":1}}}
+}
