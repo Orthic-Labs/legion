@@ -1,0 +1,4 @@
+{
+  "admit_once": ["qaw", "add", "atam", "cbam", "decision-analysis", "assurance-case", "technology-selection"],
+  "reject": ["auto-all", "universal QAW", "ADD pre-drivers", "ATAM routine D1", "CBAM no economics", "assurance no consequence", "tech pre-requirements", "broad research under SUFFICIENT"]
+}

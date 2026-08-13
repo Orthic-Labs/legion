@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "execution-checkpoint.v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "objective_lineage_id", "intent_epoch", "continuation_epoch", "repository_state", "acceptance", "producer_versions", "event_sequence", "event_digest", "completed_effect_ids", "created_at", "checkpoint_digest"],
+  "properties": {
+    "schema": {"const": "execution-checkpoint.v1"},
+    "objective_lineage_id": {"type": "string", "minLength": 1},
+    "intent_epoch": {"type": "integer", "minimum": 1},
+    "continuation_epoch": {"type": "integer", "minimum": 1},
+    "repository_state": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "acceptance": {
+      "type": "object", "additionalProperties": false,
+      "required": ["contract_fingerprint", "acceptance_manifest_fingerprint", "schedule_fingerprint"],
+      "properties": {
+        "contract_fingerprint": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+        "acceptance_manifest_fingerprint": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+        "schedule_fingerprint": {"type": ["string", "null"], "pattern": "^sha256:[0-9a-f]{64}$"}
+      }
+    },
+    "producer_versions": {"type": "object", "additionalProperties": {"type": "string", "minLength": 1}},
+    "event_sequence": {"type": "integer", "minimum": 0},
+    "event_digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "completed_effect_ids": {"type": "array", "items": {"type": "string", "minLength": 1}, "uniqueItems": true},
+    "created_at": {"type": "string", "format": "date-time"},
+    "checkpoint_digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"}
+  }
+}

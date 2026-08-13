@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "rehydration-envelope.v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "source", "trust", "payload", "content_digest", "captured_at"],
+  "properties": {
+    "schema": {"const": "rehydration-envelope.v1"},
+    "source": {"enum": ["repository", "tool", "test", "receipt", "summary", "memory", "checkpoint"]},
+    "trust": {"const": "UNTRUSTED_DATA"},
+    "payload": {},
+    "content_digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "captured_at": {"type": "string", "format": "date-time"}
+  }
+}
