@@ -15,7 +15,8 @@ export class ContractSealStore {
   constructor({ root, clock = () => new Date().toISOString(), manifestRoot } = {}) { this.#root = root; this.#clock = clock; this.#manifestRoot = manifestRoot; }
   #path(contractId, version) { return stateFile(this.#root, 'arcane.contract-seal.key.v1', [contractId, version]); }
   #read(path) { try { const record = JSON.parse(readFileSync(path, 'utf8')); if (schema.validate('arcane-contract-seal-v1', record).length) fail('ARC_STORE_CORRUPT', 'invalid stored contract seal'); return record; } catch (e) { if (e instanceof ArcaneError) throw e; fail('ARC_STORE_CORRUPT', 'unreadable contract seal'); } }
-  seal({ contract, authorityAssertion, dispatchDigest = null }) {
+  seal({ contract, authorityAssertion, dispatchDigest = null, evidenceReachability = null }) {
+    if (evidenceReachability && evidenceReachability.allowed !== true) fail('ARC_UNSOUND_SEAL', 'contract cannot seal without reachable evidence lifecycle', evidenceReachability.detail ?? {});
     try { requireCanonicalAdvisoryProfile(contract?.advisoryProfile, { manifestRoot: this.#manifestRoot }); } catch (error) { fail(error.code ?? 'ARC_PROFILE_BINDING_MISMATCH', error.message, error.detail); }
     const errors = collectExecutableContractErrors(contract); if (errors.length) fail(errors.some((e) => e.code === 'G9_OPEN_QUESTIONS_NONEMPTY' || e.code.startsWith('EXEC_')) ? 'ARC_CONTRACT_NOT_EXECUTABLE' : 'ARC_SCHEMA_INVALID', errors[0].message);
     try { validateExecutableContract(contract); } catch { fail('ARC_CONTRACT_NOT_EXECUTABLE', 'contract is not executable'); }
