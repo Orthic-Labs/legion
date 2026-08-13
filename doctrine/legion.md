@@ -9,3 +9,11 @@
 **Related map:** `doctrine/architecture/canon-map.md` — concept → source_owner, generated_consumers, runtime_producer, conformance_checks.
 
 > **Historical:** prior version of this file duplicated the constitution verbatim — archived via this reference to eliminate dual ownership (Stage 1 S01-04).
+
+## Handoff reference
+
+Legion routes a frozen Sage handoff to Alchemist, then an independent Oracle packet; Covenant is
+only a one-shot advisory escalation. It derives a file/artifact task DAG from actual consumption,
+launches the maximal ready antichain, & never copies a stage DAG into execution. Only shared
+contract writes, integration, commits, pins, & pushes serialize. Constitution, authority, scope,
+acceptance, & completion semantics remain owned by canonical sources above.

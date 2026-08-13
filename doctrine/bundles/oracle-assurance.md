@@ -13,6 +13,12 @@ replacement for it. Where this manual's routing language conflicts with current 
 `> **Superseded:**` note marks the change inline; everything else is preserved as originally
 written, including its own internal skill name (`qa`) and file paths from its era.
 
+**S10 handoff override:** consume only a sealed independent packet with frozen acceptance IDs,
+exact state, prior findings, effect receipts, checkpoints, scope, & evidence references. Preserve
+findings; dismiss at first failed configured gate; never expand review scope. Close a mapped
+finding only with fresh exact-state evidence after remediation. A candidate or implementer claim
+is not closure; no material delta means return current verdict, never loop.
+
 ---
 
 # QA

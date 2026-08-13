@@ -1,0 +1,25 @@
+{
+  "acceptance_ids": ["AC-auth", "AC-test"],
+  "terminal_outcomes": ["CANDIDATE", "BLOCKED"],
+  "task_dag": [
+    { "id": "author-a", "consumes": [] },
+    { "id": "author-b", "consumes": [] },
+    { "id": "test-a", "consumes": ["author-a"] },
+    { "id": "test-b", "consumes": ["author-b"] },
+    { "id": "integrate", "consumes": ["author-a", "author-b", "test-a", "test-b"], "serialized": true }
+  ],
+  "required_phrases": {
+    "doctrine/sage.md": ["freeze a handoff record", "immutable acceptance IDs", "cutover obligations", "file/artifact consumption", "maximal ready antichain", "shared-contract writes, integration, commits, pins, & pushes"],
+    "doctrine/alchemist.md": ["Advance only acceptance IDs frozen", "event & checkpoint", "delivery deficit", "Diagnose only when Sage's contract explicitly triggers", "Forward-test", "CANDIDATE | BLOCKED"],
+    "doctrine/oracle.md": ["sealed independent packet", "Preserve every finding", "First apply dismissal gates", "cannot expand acceptance", "fresh evidence from the resulting exact state", "material resulting-state/evidence delta"],
+    "doctrine/covenant-seat.md": ["one-shot advisory review", "no authority", "neither dispatches a successor nor opens"],
+    "doctrine/legion.md": ["sole source", "references the constitution", "never copies a stage DAG", "maximal ready antichain"],
+    "doctrine/bundles/sage-architect.md": ["event/checkpoint bindings", "cutover obligations", "file/artifact consumption DAG"],
+    "doctrine/bundles/sage-diagnose.md": ["S10 handoff override", "explicit diagnosis trigger", "file/artifact consumption"],
+    "doctrine/bundles/legion-worker-capsule.md": ["S10 handoff override", "maximal ready antichain", "a dependency blocks only its consumers"],
+    "doctrine/bundles/oracle-assurance.md": ["S10 handoff override", "sealed independent packet", "dismiss at first failed configured gate"]
+  },
+  "forbidden_phrases": {
+    "doctrine/legion.md": ["## What Legion does", "## The scope rule", "## Invariants Legion never breaks"]
+  }
+}

@@ -13,6 +13,12 @@ replacement for it. Where this manual's routing language conflicts with current 
 `> **Superseded:**` note marks the change inline; everything else is preserved as originally
 written, including its own internal skill name (`debugger`) and file paths from its era.
 
+**S10 handoff override:** Diagnose produces frozen evidence, decisions, & a Sage handoff; it never
+performs product effects. The handoff binds acceptance IDs, ownership, cutover obligations,
+event/checkpoint requirements, deficits, & an explicit diagnosis trigger. Alchemist does not
+continue diagnosis unless that trigger fires; otherwise it returns `BLOCKED` with observed
+evidence. Execution DAGs follow actual file/artifact consumption, not stage order.
+
 ---
 
 # /debugger — Hypothesis-Driven Debugging
