@@ -259,9 +259,10 @@ store `<repo>/.audit/architect/decisions.jsonl`), never `docs/plans/`; audit-fix
 Architect engagement may write `docs/plans/` as usual. LOC reduction is not a design goal and cannot
 justify a boundary.
 
-> **Superseded:** "`/audit`" now means Seer's audit route (the `legion` CLI-backed assurance pass).
-> "Audit-fix" means Seer routing a deterministic finding to remediation per its own doctrine
-> (`doctrine/seer.md` §Audit-fix routing) rather than a separate skill.
+> **Superseded:** "`/audit`" now means Oracle's audit route (the `legion` CLI-backed assurance pass).
+> "Audit-fix" means Oracle routing a deterministic finding to remediation per its own doctrine
+> (`doctrine/oracle.md` §Audit-fix routing) rather than a separate skill.
+> **Superseded:** original history used `Seer`; current authority is `Oracle`.
 
 **Tasks:** derive task order from selected GoalRoute DAG, then use bite-sized
 **red-green-refactor TDD** per behavior change:

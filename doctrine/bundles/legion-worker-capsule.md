@@ -5,8 +5,10 @@ coordinator) constructs a dispatch packet to any executor — a native subagent,
 worker, or a human handoff. Recovered verbatim from git history — deleted at workspace commit
 `d810d827` (claimed "absorbed" into the new agent definitions; it was not). Source:
 `git show d810d827^:tools/skills/dispatch/references/manual.md` (505 lines). Loaded by: Legion
-(the coordinator), and by Sage/Alchemist/Seer when any of them constructs a sub-dispatch — a
+(the coordinator), and by Sage/Alchemist/Oracle when any of them constructs a sub-dispatch — a
 packet to a cheap worker, a fan-out lane, or a handoff — during their own execution.
+
+> **Superseded:** original `Seer` is now `Oracle` (independent assurance authority).
 
 **Read `doctrine/legion.md` first.** This bundle is the craft underneath that constitution, not a
 replacement for it. Where this manual's routing language conflicts with current doctrine, a
@@ -58,13 +60,10 @@ NO AGENT TASK SHIPS UNTIL:
 
 Clear prose is not executable. A referenced plan is not transferred context. A command without cwd, expected result, failure branch, & evidence path is incomplete.
 
-> **Superseded:** items 5–6 name the retired `dispatch` skill's own preflight/validator scripts
-> (`tools/skills/dispatch/scripts/validate-dispatch.py`, `tools/skills/execution-preflight` tooling
-> era). `docs/rules/execution-preflight.md` is confirmed still live and should still gate any
-> script-bearing worker capsule. The standalone `validate-dispatch.py` no longer exists under
-> `tools/skills/dispatch/` (the skill was retired); this is the structural gap J-2 exists to close —
-> until then, apply this manual's checklist by hand rather than treating "validator PASS" as a
-> literal command that currently runs.
+> **Superseded:** retired paths were `tools/skills/dispatch/scripts/validate-dispatch.py` and
+> `tools/skills/execution-preflight`. Current live owners are
+> `$WORKSPACE/tools/lib/dispatch-validator/validate-dispatch.py` and
+> `$WORKSPACE/docs/rules/execution-preflight.md`; use them for items 5–6.
 
 ## Step 0 — Decide whether dispatch should exist
 
@@ -96,17 +95,13 @@ Read:
 5. current scoped Git status for edit tasks;
 6. live launcher, model, tool, API, or environment config when routing can drift.
 
-In `D:\Claude`, read `tools/skills/dispatch/references/agent-routing.md` before dispatching. Preserve its primary-checkout, model-tier, structured-prompt, parallel-safety, anti-hang, & integration rules.
+In `$WORKSPACE`, read `docs/agent-rules/legion.md` and `docs/agent-rules/workspace.md` before dispatching. Preserve their primary-checkout, model-tier, structured-prompt, parallel-safety, anti-hang, & integration rules.
 
 Never write "use existing context," "as discussed," "follow plan," or equivalent. Cite exact accessible paths + required sections. Embed essential facts which exist only in chat.
 
-> **Superseded:** `tools/skills/dispatch/references/agent-routing.md` no longer exists (the
-> `dispatch` skill was retired). Its primary-checkout / model-tier / structured-prompt /
-> parallel-safety / anti-hang / integration rules have no confirmed current home — treat this as a
-> content gap rather than a live pointer. The nearest living equivalents are `docs/agent-rules/*.md`
-> (workspace + legion routing rules) and the per-role model selection referenced in
-> `docs/plans/legion/BRIEFING-LAYER.md` §5 ("Knobs that exist"). "Embed essential facts which exist
-> only in chat" is the literal G22 lossless-relay requirement — never paraphrase this away.
+> **Superseded provenance:** `tools/skills/dispatch/references/agent-routing.md` was the retired
+> owner. Current routing rules are the two workspace constitution sources named above; per-role
+> model detail remains in `$WORKSPACE/docs/plans/legion/BRIEFING-LAYER.md` §5.
 
 ## Step 1A — Freeze decision semantics before adding evidence
 
@@ -520,13 +515,13 @@ for Windows or Windows-absolute authority for Mac.
 Windows:
 
 ```powershell
-py -3.11 D:/Claude/tools/skills/dispatch/scripts/validate-dispatch.py <dispatch.md> --write-receipt <dispatch.receipt.json>
+py -3.11 D:/Claude/tools/lib/dispatch-validator/validate-dispatch.py <dispatch.md> --write-receipt <dispatch.receipt.json>
 ```
 
 macOS:
 
 ```bash
-python3 /Volumes/D/claude/tools/skills/dispatch/scripts/validate-dispatch.py <dispatch.md> --write-receipt <dispatch.receipt.json>
+python3 /Volumes/D/claude/tools/lib/dispatch-validator/validate-dispatch.py <dispatch.md> --write-receipt <dispatch.receipt.json>
 ```
 
 Do not spawn/send or call dispatch/derived handoff ready, executable, or zero-context until exit code is `0`, output begins `PASS:`, & adjacent receipt exists. Validator checks structure, producer/provenance/lifecycle contract, required failure classes, step contracts, checked author gate, placeholders, bypass language, durable paths, & raw-byte digest. Fix every error, rerun, then send exact dispatch + receipt together. Any derived handoff must independently pass `/handoff`.
@@ -534,16 +529,15 @@ Do not spawn/send or call dispatch/derived handoff ready, executable, or zero-co
 Receiver recomputes digest before execution:
 
 ```powershell
-py -3.11 D:/Claude/tools/skills/dispatch/scripts/validate-dispatch.py <dispatch.md> --verify-receipt <dispatch.receipt.json>
+py -3.11 D:/Claude/tools/lib/dispatch-validator/validate-dispatch.py <dispatch.md> --verify-receipt <dispatch.receipt.json>
 ```
 
 Embedded self-hash is forbidden because changing document to add its hash changes hash. Sidecar binds exact bytes without circularity.
 
-> **Superseded:** `validate-dispatch.py` and `/handoff` as invoked here no longer exist as live
-> commands — this is exactly the machinery J-2 (adapt the preserved dispatch validator to agent
-> dispatches) is scoped to rebuild. `tools/lib/dispatch-validator/` was deliberately preserved for
-> this purpose per `docs/plans/legion/BRIEFING-LAYER.md` §7 item J-2. Until J-2 lands, apply this
-> step's checklist by hand: write the packet to a durable path, reconstruct the checks below
+> **Superseded:** retired validator locations above are replaced by
+> `$WORKSPACE/tools/lib/dispatch-validator/validate-dispatch.py`. `/handoff` remains unavailable;
+> derived handoffs must use the workspace's current handoff protocol. Write the packet to a durable
+> path, then run the live validator and the checks below
 > manually, and do not claim "validator PASS" as a literal executed command.
 
 ## Executor return & integration contract

@@ -1,6 +1,6 @@
 # Legion Shared-Contract ID Grammar (WP2 freeze)
 
-Canonical naming per `docs/plans/legion/00-CANON.md`: Sage, Alchemist, Seer, Arcane,
+Canonical naming per `docs/plans/legion/00-CANON.md`: Sage, Alchemist, Oracle, Arcane,
 Covenant, Legion, Kernel. Never `Sorcerer`/`Sentinel`.
 
 This file is the single source of truth for ID *shape*. Schemas reference these
@@ -27,7 +27,7 @@ patterns; they do not redefine them. Two families exist:
 | AcceptanceCriterion | `AC-` | `^AC-\d+$` | `AC-8` | ARCHITECTURE §33 |
 | ExecutionContract | `EC-` | `^EC-\d+$` | `EC-4`, `EC-44` | ARCHITECTURE §33, §15 |
 | ExecutionTask | `T-` | `^T-\d+(\.\d+)*$` | `T-4.2`, `T-3` | ARCHITECTURE §33, §15 (both `T-3` and `T-4.2` forms appear in source text; regex accepts both) |
-| Finding (Covenant/Seer) | `F-` | `^F-\d+$` | `F-31`, `F-12` | ARCHITECTURE §33, §22 |
+| Finding (Covenant/Oracle) | `F-` | `^F-\d+$` | `F-31`, `F-12` | ARCHITECTURE §33, §22 |
 | Blocker | `B-` | `^B-\d+$` | `B-5`, `B-12` | ARCHITECTURE §33, §15 |
 | Amendment | `A-` | `^A-\d+$` | `A-2` | ARCHITECTURE §33, §15 |
 | CovenantRequest / CovenantRecord | `CV-` | `^CV-\d+$` | `CV-7`, `CV-9` | ARCHITECTURE §33, §19 |
@@ -46,7 +46,7 @@ any of these need to become first-class before other lanes build on them.
 | `RA-12` | remediation artifact | none reserved |
 | `E-88` | Alchemist actual-effect receipt | none reserved |
 | `P-92` | tests/proof evidence | none reserved |
-| `AR-12` | fresh Seer re-audit record | none reserved |
+| `AR-12` | fresh Oracle re-audit record | none reserved |
 
 ## Opaque runtime handles (judgment call J-10)
 
