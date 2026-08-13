@@ -89,6 +89,20 @@ test('bind --write is idempotent across two runs', () => {
   }
 });
 
+test('Claude Code bind migrates only owned legacy assurance MCP binding', () => {
+  const dir = makeClaudeCodeDir();
+  try {
+    const owned = { command: 'python3', args: ['-m', 'legion_kernel.adapters.mcp_server'] };
+    writeFileSync(join(dir, '.mcp.json'), `${JSON.stringify({ mcpServers: { seer: owned, private: { command: 'private-server' } } }, null, 2)}\n`);
+    assert.equal(bind(['--write', '--harness', 'claude-code', dir]).status, 0);
+    const config = JSON.parse(readFileSync(join(dir, '.mcp.json'), 'utf8'));
+    assert.equal(config.mcpServers.seer, undefined);
+    assert.deepEqual(config.mcpServers.private, { command: 'private-server' });
+    assert.deepEqual(config.mcpServers.oracle, owned);
+    assert.ok(config.mcpServers.legion);
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+
 test('codex bind writes managed agent pointers and is idempotent', () => {
   const dir = mkdtempSync(join(tmpdir(), 'legion-codex-bind-'));
   try {
