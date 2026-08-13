@@ -194,7 +194,7 @@ condition of planning or execution. Stop only for a hard blocker.
 ### Minimize decision gate
 
 Before GoalRoute or task decomposition, compile a sibling `minimize-decision.v1` sidecar through
-`tools/lib/minimize/minimize_gate.py`. Test rungs in canonical order, select first safe rung, record
+`$LEGION/bin/legion.mjs minimize decision`. Test rungs in canonical order, select first safe rung, record
 evidence rejecting every earlier rung, declare allowed new files/dependencies, and write exact-byte
 receipt. Keep this internal authority out of user-facing plan prose. Any semantic correction,
 undeclared file/dependency, or changed policy invalidates decision plus all downstream route work.

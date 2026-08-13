@@ -170,7 +170,7 @@ Local clause patching is forbidden. A corrected dispatch must not preserve an in
 ### Universal goal route & critical path
 
 Before GoalRoute, compile `<dispatch-stem>.minimize.json` plus
-`<dispatch-stem>.minimize.receipt.json` with `tools/lib/minimize/minimize_gate.py`. Select first safe
+`<dispatch-stem>.minimize.receipt.json` through `$LEGION/bin/legion.mjs minimize decision`. Select first safe
 canonical rung, reject every earlier rung with evidence, and declare every new file/dependency.
 These are internal sidecars, never user-visible dispatch sections. `validate-dispatch.py` fail-closes
 when either sidecar is missing, invalid, stale, or policy-bound to different bytes.
