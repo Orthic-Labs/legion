@@ -1,0 +1,1 @@
+{"schema":"architecture-eval-case.v1","id":"AE-AUTHORITY-001","family":"authority","polarity":"negative","execution":"runtime","status":"pending","scenario":"Material residual risk has no named accepting authority.","expect":{"outcome":"Block awaiting acceptance; agent cannot close.","must_include":["BLOCKED","acceptance authority"],"must_not_include":["close"]}}
