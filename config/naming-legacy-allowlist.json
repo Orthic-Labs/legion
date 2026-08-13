@@ -7,6 +7,7 @@
     { "path": "lib/cli/commands/bind/codex.mjs", "tokens": ["seer"], "class": "R3", "reason": "owned prior Codex binding migration" },
     { "path": "lib/cli/commands/doctor.mjs", "tokens": ["forge", "seer", "sentinel", "sorcerer"], "class": "R3", "reason": "reports legacy MCP bindings without rewriting unowned configuration" },
     { "path": "tests/bind.test.mjs", "tokens": ["seer"], "class": "R5", "reason": "prior binding migration fixture" },
+    { "path": "tests/doctor.test.mjs", "tokens": ["seer"], "class": "R5", "reason": "legacy binding diagnosis fixture" },
     { "path": "tests/naming-contract.test.mjs", "tokens": ["nemesis", "forge", "seer", "sentinel", "sorcerer"], "class": "R5", "reason": "compatibility contract fixtures" },
     { "pathPrefix": "packages/arcane/compatibility/forge/", "tokens": ["forge", "sentinel"], "class": "R5", "reason": "frozen predecessor mapping evidence" },
     { "path": "packages/arcane/lib/legacy-bridge.mjs", "tokens": ["forge", "sentinel"], "class": "R3", "reason": "predecessor state reader" },

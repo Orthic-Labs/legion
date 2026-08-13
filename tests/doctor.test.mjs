@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { mkdtempSync, rmSync, existsSync, readFileSync } from 'node:fs';
+import { mkdtempSync, rmSync, existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -54,6 +54,16 @@ test('doctor binding.receiptPresent is false with no .legion/binding.json', () =
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
+});
+
+test('doctor reports pending Claude Code legacy MCP migration', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'legion-doctor-naming-'));
+  try {
+    writeFileSync(join(dir, '.mcp.json'), `${JSON.stringify({ mcpServers: { seer: { command: 'python3', args: ['-m', 'legion_kernel.adapters.mcp_server'] } } })}\n`);
+    const report = JSON.parse(doctor([dir]).stdout);
+    assert.equal(report.naming.bindings.claudeCode.status, 'legacy-present');
+    assert.ok(report.gaps.some(({ kind }) => kind === 'naming-migration-pending'));
+  } finally { rmSync(dir, { recursive: true, force: true }); }
 });
 
 test('init dry-run previews without writing', () => {
