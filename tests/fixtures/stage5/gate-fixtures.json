@@ -1,0 +1,6 @@
+{
+  "knownGood": { "id": "good", "expected": "PASS" },
+  "knownBad": { "id": "bad", "expected": "FAIL" },
+  "empty": { "id": "empty", "expected": "FAIL" },
+  "malformed": { "id": "malformed", "expected": "FAIL" }
+}

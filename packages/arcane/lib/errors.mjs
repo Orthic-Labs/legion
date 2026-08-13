@@ -44,6 +44,9 @@ export const ARCANE_ERROR_CODE = Object.freeze([
   // evidence / invalidation (S05)
   'ARC_EVIDENCE_STALE',
   'ARC_EVIDENCE_INSUFFICIENT',
+  'ARC_UNSOUND_SEAL', // a required evidence lifecycle has no reachable close path
+  'ARC_GATE_INVALID', // a blocking check has not passed its required self-test
+  'ARC_SELF_CERTIFICATION', // producer attempted to certify its own outcome
   'ARC_DEPENDENCY_UNKNOWN',
   'ARC_STORE_CORRUPT', // digest chain broken -> quarantine, block strong claims
 

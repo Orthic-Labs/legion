@@ -88,7 +88,7 @@ function deriveFromReceipts(records) {
  *   the union failed; on success, `detail.levelsChecked` lists every level
  *   the union required.
  */
-export function evaluateCompletion({ runId, taskId = null, claimedLevel, touchedPaths = [], contractId = null, contractVersion = null, contractDigest = null, sourceRevision = null, completionClaim = null }, { policy, receiptStore, budgetStore = null, assuranceStore = null, keyRing = null, authorityBindingStore = null, currentProof = null, binding = null, execution = null, now = new Date() }) {
+export function evaluateCompletion({ runId, taskId = null, claimedLevel, touchedPaths = [], contractId = null, contractVersion = null, contractDigest = null, sourceRevision = null, completionClaim = null }, { policy, receiptStore, budgetStore = null, assuranceStore = null, keyRing = null, authorityBindingStore = null, currentProof = null, binding = null, execution = null, evidenceRegistry = null, acceptanceProofs = [], integratedState = null, latestMaterialChange = null, now = new Date() }) {
   // Budget state comes only from Arcane's persisted projection. Completion
   // never accepts a caller-authored elapsed time or retry fingerprint.
   if (budgetStore && contractId && Number.isInteger(contractVersion) && taskId && typeof budgetStore.inspect === 'function') {
@@ -105,6 +105,13 @@ export function evaluateCompletion({ runId, taskId = null, claimedLevel, touched
 
   const records = receiptStore.list({ runId });
   const { evidenceClasses, staleEvidenceCount, enforcementHealth } = deriveFromReceipts(records);
+
+  if (evidenceRegistry) {
+    for (const proof of acceptanceProofs) {
+      const current = evidenceRegistry.verify(proof.acceptanceId, proof, { integratedState, latestMaterialChange, now });
+      if (!current.allowed) return current;
+    }
+  }
 
   let advisoryCertification = null;
   if (completionClaim?.advisoryClaim?.required === true) {
