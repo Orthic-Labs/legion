@@ -1,0 +1,7 @@
+{
+  "objective_lineage_id": "OL-S03-CONFORMANCE",
+  "execution_id": "exec-s03",
+  "architecture": {"event_type": "ARCHITECTURE_TRANSITIONED", "payload": {"from": "UNROUTED", "to": "TAILORED"}},
+  "episode": {"event_type": "EXECUTION_EPISODE_TRANSITIONED", "payload": {"from": "PENDING", "to": "QUEUED"}},
+  "invalid_payload": {"event_type": "ARCHITECTURE_TRANSITIONED", "payload": {"from": "UNROUTED", "to": "FROZEN"}}
+}
