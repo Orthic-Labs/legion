@@ -48,11 +48,14 @@
     ".codex-plugin/",
     "agents/",
     "hooks/",
+    "config/naming-registry.json",
+    "config/naming-legacy-allowlist.json",
     "doctrine/",
     "evals/architecture/",
     "roster/",
     "packages/arcane/",
     "packages/contracts/",
+    "packages/oracle/",
     "bin/",
     "audit-complete.mjs",
     "audit-finalize.mjs",
@@ -75,6 +78,7 @@
     "scripts/generate-schemas.mjs",
     "scripts/package-smoke.mjs",
     "scripts/check-publication-policy.mjs",
+    "scripts/check-canonical-names.mjs",
     "scripts/qualify-book.mjs",
     "scripts/report-to-sarif.mjs",
     "scripts/run-architecture-evals.mjs",
@@ -90,8 +94,10 @@
     "test": "node --test --test-concurrency=1 \"tests/*.test.mjs\"",
     "architecture-evals": "node scripts/run-architecture-evals.mjs --json",
     "self-test": "node scripts/self-test.mjs",
+    "naming:check": "node scripts/check-canonical-names.mjs",
+    "legion:check": "node scripts/check-canonical-names.mjs && node scripts/generate-schemas.mjs --check",
     "schemas:check": "node scripts/generate-schemas.mjs --check",
-    "prepack": "node scripts/check-publication-policy.mjs --channel internal-pack && node scripts/generate-schemas.mjs --check && node --test --test-concurrency=1 tests/*.test.mjs"
+    "prepack": "node scripts/check-publication-policy.mjs --channel internal-pack && node scripts/check-canonical-names.mjs && node scripts/generate-schemas.mjs --check && node --test --test-concurrency=1 tests/*.test.mjs"
   },
   "dependencies": {
     "@rightkit/hooks": "0.1.0"

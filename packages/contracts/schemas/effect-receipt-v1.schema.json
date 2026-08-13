@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "legion-effect-receipt-v1",
   "title": "EffectReceipt",
-  "description": "POST-EFFECT RECEIPT (ARCHITECTURE.md §24a): 'requested vs authorized vs observed effect, actual diff, host-observed evidence, replay protection.' A model's statement that it edited/tested/deployed something is never an effect receipt (§24a, I-07); only host-observed events are. requested/authorized/observed effect identity are kept as three separate objects by design, per the WP2 task instruction and archive §7.9. `authentication` and `replayDefense` were added mid-freeze per the S00 Forge semantic baseline (docs/plans/legion/s00-baseline/legacy-semantic-inventory.json): Forge's `signature_or_mac` on `orthic.tool-receipt.v1` is a self-hash, not authentication, and no nonce/sequence/freshness field exists anywhere in legacy Forge records — this schema does not repeat that gap.",
+  "description": "POST-EFFECT RECEIPT (ARCHITECTURE.md §24a): 'requested vs authorized vs observed effect, actual diff, host-observed evidence, replay protection.' A model's statement that it edited/tested/deployed something is never an effect receipt (§24a, I-07); only host-observed events are. requested/authorized/observed effect identity are kept as three separate objects by design, per the WP2 task instruction and archive §7.9. `authentication` and `replayDefense` were added mid-freeze per the S00 predecessor semantic baseline (docs/plans/legion/s00-baseline/legacy-semantic-inventory.json): predecessor's `signature_or_mac` on `orthic.tool-receipt.v1` is a self-hash, not authentication, and no nonce/sequence/freshness field exists anywhere in legacy predecessor records — this schema does not repeat that gap.",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -37,15 +37,15 @@
       "additionalProperties": false,
       "required": ["issuerIdentity", "verificationMethod", "perMessage"],
       "properties": {
-        "issuerIdentity": { "type": "string", "minLength": 1, "description": "Who/what asserted this effect (process/capability/user identity). Real identity, not a self-hash — S00 finding: Forge's signature_or_mac authenticates nothing." },
+        "issuerIdentity": { "type": "string", "minLength": 1, "description": "Who/what asserted this effect (process/capability/user identity). Real identity, not a self-hash — S00 finding: predecessor's signature_or_mac authenticates nothing." },
         "verificationMethod": { "enum": ["host-connection-trust", "capability-signature", "unauthenticated"] },
         "perMessage": {
           "type": "boolean",
-          "description": "S00 finding: Forge's one real trust primitive (lib/host.js process-identity/code-signing check) authenticates a connection once at MCP startup, not each message. false means this receipt's authentication is inherited from connection-level trust only; true means Arcane verified this specific effect."
+          "description": "S00 finding: predecessor's one real trust primitive (lib/host.js process-identity/code-signing check) authenticates a connection once at MCP startup, not each message. false means this receipt's authentication is inherited from connection-level trust only; true means Arcane verified this specific effect."
         },
         "verifiedAt": { "type": ["string", "null"], "format": "date-time" }
       },
-      "description": "Distinct from effectIdentity.capabilityId: capabilityId names which grant authorized the effect; authentication states how strongly we know who is asserting requested/observed. Added at coordinator direction from the S00 Forge baseline."
+      "description": "Distinct from effectIdentity.capabilityId: capabilityId names which grant authorized the effect; authentication states how strongly we know who is asserting requested/observed. Added at coordinator direction from the S00 predecessor baseline."
     },
     "replayDefense": {
       "type": "object",
@@ -57,7 +57,7 @@
         "freshnessWindowSeconds": { "type": ["integer", "null"], "minimum": 0 },
         "freshAt": { "type": ["string", "null"], "format": "date-time" }
       },
-      "description": "S00 finding: no nonce/sequence/freshness field exists anywhere in legacy Forge records; consumeRetry fingerprinting solves duplicate-retry bounding, not adversarial replay. This is greenfield scaffolding for S03, not a migrated mechanism — all fields nullable until S03 defines the real semantics."
+      "description": "S00 finding: no nonce/sequence/freshness field exists anywhere in legacy predecessor records; consumeRetry fingerprinting solves duplicate-retry bounding, not adversarial replay. This is greenfield scaffolding for S03, not a migrated mechanism — all fields nullable until S03 defines the real semantics."
     },
 
     "sourceRevision": { "type": "string", "minLength": 7 },

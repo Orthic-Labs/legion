@@ -3,10 +3,8 @@
 **Scope:** `D:/Claude/tools/skills/legion/packages/contracts/` only. Nothing outside
 this directory was created, edited, or deleted by this work. Naming throughout is
 canonical per `docs/plans/legion/00-CANON.md`: Sage, Alchemist, Oracle, Arcane,
-Covenant, Legion, Kernel. The archive's `Sorcerer`/`Sentinel` names do not appear
-anywhere in the produced contract surface (enforced by `smoke.test.mjs`'s naming
-guard test; see judgment-call J-0 below for why `enums.mjs`/`ids.md` are excluded
-from that specific scan).
+Covenant, Legion, Kernel. Superseded identities do not appear anywhere in produced
+canonical contract surfaces; repository naming checks enforce this boundary.
 
 **Read, in order, before this freeze:** `docs/plans/legion/00-CANON.md`,
 `docs/plans/legion/ARCHITECTURE.md` (Part III, §33, §6a, §24a, Part XI-A),
@@ -15,7 +13,7 @@ from that specific scan).
 sealed schema substrate under `tools/skills/legion/schemas/` and
 `tools/skills/legion/lib/contracts/` (read-only; not modified).
 
-**Mid-freeze update incorporated:** the S00 Forge semantic baseline completed
+**Mid-freeze update incorporated:** the S00 predecessor semantic baseline completed
 concurrently and is cited where it changed contract design — see "S00 baseline
 facts incorporated" below. Its output lives at
 `docs/plans/legion/s00-baseline/legacy-semantic-inventory.json` and
@@ -238,23 +236,23 @@ scope warrants. Left open by design, not by oversight.
 
 ## 4. S00 baseline facts incorporated (mid-freeze course correction)
 
-The coordinator's S00 Forge baseline (`docs/plans/legion/s00-baseline/`)
+The coordinator's S00 predecessor baseline (`docs/plans/legion/s00-baseline/`)
 completed while this freeze was in progress and required three additions,
 made after the initial schema draft:
 
 1. **`effect-receipt-v1.authentication` and
    `evidence-capability-receipt-v1.authentication`** — S00's report found
-   Forge's `signature_or_mac` field (`orthic.tool-receipt.v1`,
+   predecessor's `signature_or_mac` field (`orthic.tool-receipt.v1`,
    `hooks/claude-code/tool-receipt.js:80` per the inventory) is a self-hash
    by the same untrusted process that built the receipt: no secret key, no
    MAC, no signature. Both receipt schemas now require an `authentication`
    object (`issuerIdentity`, `verificationMethod`, `perMessage`,
    `verifiedAt`) so a receipt can state honestly how it knows who is
-   asserting it, instead of silently inheriting Forge's self-hash-as-trust
+   asserting it, instead of silently inheriting predecessor's self-hash-as-trust
    pattern. `verificationMethod` uses the new `AUTHENTICATION_METHOD` enum
    (`host-connection-trust | capability-signature | unauthenticated`).
 2. **`replayDefense` on both receipt schemas** — S00 found no nonce,
-   sequence number, or freshness window anywhere in legacy Forge records
+   sequence number, or freshness window anywhere in legacy predecessor records
    (`consumeRetry` fingerprinting bounds duplicate agent retries, a different
    problem, not adversarial replay). Added a nullable-fields `replayDefense`
    object (`nonce`, `sequence`, `freshnessWindowSeconds`, `freshAt`) as
@@ -283,7 +281,7 @@ made after the initial schema draft:
    receipt is ever authenticated in the sense `effect-receipt-v1`/
    `evidence-capability-receipt-v1` now require).
 
-None of these four additions re-model any Forge/legacy record shape; per the
+None of these four additions re-model any predecessor/legacy record shape; per the
 task brief and S00's own report ("no canonical target mapping was produced...
 mark mapping as deferred to S01"), that mapping work stays out of this
 freeze. `AUTHENTICATION_METHOD` is a new judgment-call enum (effectively

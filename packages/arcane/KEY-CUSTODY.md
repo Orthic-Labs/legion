@@ -3,7 +3,7 @@
 This document is the custody, rotation, revocation, and threat-model story
 `lib/keys.mjs` points to. It covers the HMAC keys `KeyRing` holds and that
 `lib/receipt-auth.mjs` signs/verifies receipts with. It does not cover
-process-identity/code-signing host trust (`lib/host.js` in legacy Forge,
+process-identity/code-signing host trust (`lib/host.js` in legacy predecessor,
 carried forward as `verificationMethod: 'host-connection-trust'` on a
 receipt's `authentication` block) — that is a different, connection-level
 primitive with its own story (S00 baseline finding 2), not a key at all.

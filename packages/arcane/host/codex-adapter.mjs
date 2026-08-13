@@ -13,10 +13,10 @@
 // must match it or the event fails closed.
 //
 // `hook_event_name` and `tool_name`/`tool_input.file_path` (for Write/Edit)
-// are shared field names between the two hosts per forge/hooks/codex/hooks.json
+// are shared field names between the two hosts per predecessor/hooks/codex/hooks.json
 // (registers all eight Codex lifecycle events; Claude Code registers the six shared events) and
-// forge/hooks/codex/hook.js + forge/hooks/claude-code/hook.js (both just
-// `require('../adapter')` — one shared Forge core keyed by these same field
+// predecessor/hooks/codex/hook.js + predecessor/hooks/claude-code/hook.js (both just
+// `require('../adapter')` — one shared predecessor core keyed by these same field
 // names across hosts). Nothing here invents a Codex-specific spelling of a
 // field this tree gives no evidence for.
 //
@@ -49,7 +49,7 @@ export const ADAPTER_NAME = 'codex';
 export const ADAPTER_VERSION = process.env.CODEX_VERSION || 'unknown';
 // Mirrors claude-code-adapter.mjs's DEFAULT_KEY_DIR shape (homedir()-relative
 // per-host key directory); this tree carries no evidence of a Codex-specific
-// home-directory env var (grepped forge/ — no CODEX_HOME reference exists),
+// home-directory env var (grepped predecessor/ — no CODEX_HOME reference exists),
 // so this follows the same pattern rather than inventing one.
 export const DEFAULT_KEY_DIR = join(homedir(), '.codex', 'arcane-keys');
 
@@ -106,7 +106,7 @@ export function resolveCodexSessionId(hookPayload, env = process.env) {
  * missing files.
  *
  * `shell`/`shell_command`/`Bash`/`PowerShell` are Codex's command-execution
- * tools (per forge/hooks/codex/hooks.json's matcher list) and are excluded
+ * tools (per predecessor/hooks/codex/hooks.json's matcher list) and are excluded
  * from this map for the same reason Claude Code's Bash is excluded in
  * claude-code-adapter.mjs: a command string is not a path, and any parser
  * is defeatable by a command shaped to look benign.
@@ -127,7 +127,7 @@ const EFFECT_TOOL_MAP = Object.freeze({
  *
  * @param {object} hookPayload parsed Codex hook stdin JSON
  * @throws {ArcaneError} ARC_HOST_EVENT_INVALID if `hook_event_name` is not
- *   one of the eight documented lifecycle events (forge/hooks/codex/hooks.json).
+ *   one of the eight documented lifecycle events (predecessor/hooks/codex/hooks.json).
  */
 export function buildRawCodexEvent(hookPayload) {
   try { hookPayload = normalizeHookEvent(hookPayload).payload; } catch { throw new ArcaneError('ARC_HOST_EVENT_INVALID', 'invalid HookHost payload'); }
@@ -163,7 +163,7 @@ export function buildRawCodexEvent(hookPayload) {
     processMeta: { pid: process.pid, parentPid: process.ppid ?? null, executablePath: process.execPath ?? null },
 
     // Codex documents no per-invocation id distinct from tool_use_id in the
-    // evidence this tree carries (forge/hooks/generic/hook.js never reads
+    // evidence this tree carries (predecessor/hooks/generic/hook.js never reads
     // one); reuse the same field name as Claude Code on the chance Codex's
     // hook JSON supplies it, else null (schema allows it) rather than
     // inventing a synthetic key.
@@ -194,10 +194,10 @@ export function buildRawCodexEvent(hookPayload) {
     const mapping = typeof hookPayload.tool_name === 'string' ? EFFECT_TOOL_MAP[hookPayload.tool_name] : undefined;
     if (mapping) {
       // Only `command` has tree evidence of a top-level/tool_input dual
-      // shape (forge/hooks/generic/hook.js's `event.command ?? event.tool_input?.command`).
+      // shape (predecessor/hooks/generic/hook.js's `event.command ?? event.tool_input?.command`).
       // Write/Edit's target has no such evidence — Codex registers the same
-      // tool names as Claude Code (forge/hooks/codex/hooks.json) through the
-      // same shared Forge core, so `tool_input.file_path` is read exactly as
+      // tool names as Claude Code (predecessor/hooks/codex/hooks.json) through the
+      // same shared predecessor core, so `tool_input.file_path` is read exactly as
       // claude-code-adapter.mjs reads it, with no invented top-level fallback.
       const target = hookPayload.tool_input?.[mapping.targetField];
       raw.effect = typeof target === 'string' && target.length > 0

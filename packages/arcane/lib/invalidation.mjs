@@ -2,7 +2,7 @@
 // ARCHITECTURE.md §1786) and detailed plan §6.3.
 //
 // S00 finding (legacy-semantic-inventory.json, dependency_invalidation_mechanics):
-// Forge's own invalidation is caller-driven string-equality plus a
+// predecessor's own invalidation is caller-driven string-equality plus a
 // locator-file re-hash, and explicitly has NO cascade — invalidating one
 // evidence/claim row never propagates to anything that depended on it
 // indirectly. This module is new work, not a port: it builds a real

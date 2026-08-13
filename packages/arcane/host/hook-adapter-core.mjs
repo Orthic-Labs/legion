@@ -383,7 +383,7 @@ const UNSUPPORTED_RUN_GUIDANCE = "Run 'legion run open --contract <id> [--task <
 
 /**
  * Render a completion-gate decision as the documented Stop-blocking shape
- * shared by every host adapter, mirroring how `forge/hooks/generic/hook.js`
+ * shared by every host adapter, mirroring how `predecessor/hooks/generic/hook.js`
  * blocks on `Stop` (`{decision:'block', reason}` on stdout; nothing printed
  * means allow — the host lets the turn end).
  *

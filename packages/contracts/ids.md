@@ -1,7 +1,7 @@
 # Legion Shared-Contract ID Grammar (WP2 freeze)
 
 Canonical naming per `docs/plans/legion/00-CANON.md`: Sage, Alchemist, Oracle, Arcane,
-Covenant, Legion, Kernel. Never `Sorcerer`/`Sentinel`.
+Covenant, Legion, Kernel. Never use superseded identities.
 
 This file is the single source of truth for ID *shape*. Schemas reference these
 patterns; they do not redefine them. Two families exist:

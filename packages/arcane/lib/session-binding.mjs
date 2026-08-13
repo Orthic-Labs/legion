@@ -22,7 +22,7 @@
 // Race discipline (the load-bearing part of this file): two hosts can each
 // spawn a fresh hook subprocess for the SAME session's SessionStart at
 // close to the same instant (Claude Code and Codex both spawn one process
-// per hook invocation — see `forge/hooks/dispatcher.js`'s `spawnSync` per
+// per hook invocation — see `predecessor/hooks/dispatcher.js`'s `spawnSync` per
 // event). Both processes may observe "no binding yet" before either has
 // written one. `ensureBinding` closes that window with the filesystem's own
 // atomic exclusive-create (`flag: 'wx'`, POSIX O_EXCL / Windows

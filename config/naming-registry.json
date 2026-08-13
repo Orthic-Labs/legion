@@ -1,0 +1,39 @@
+{
+  "schemaVersion": 1,
+  "product": {
+    "id": "legion",
+    "displayName": "Legion",
+    "legacyIds": [
+      { "id": "nemesis", "status": "migration_only", "read": true, "write": false }
+    ]
+  },
+  "authorities": {
+    "sage": { "displayName": "Sage", "aliases": [] },
+    "alchemist": {
+      "displayName": "Alchemist",
+      "aliases": [
+        { "id": "forge", "status": "read_only_alias", "read": true, "write": false, "removalEarliest": "3.0.0" },
+        { "id": "sorcerer", "status": "read_only_alias", "read": true, "write": false, "removalEarliest": "3.0.0" }
+      ]
+    },
+    "oracle": {
+      "displayName": "Oracle",
+      "aliases": [
+        { "id": "seer", "status": "read_only_alias", "read": true, "write": false, "removalEarliest": "3.0.0" }
+      ]
+    },
+    "arcane": {
+      "displayName": "Arcane",
+      "aliases": [
+        { "id": "sentinel", "status": "read_only_alias", "read": true, "write": false, "removalEarliest": "3.0.0" }
+      ]
+    }
+  },
+  "actors": {
+    "legion": { "displayName": "Legion" },
+    "kernel": { "displayName": "Kernel" }
+  },
+  "seats": {
+    "covenant": { "displayName": "Covenant", "authority": false }
+  }
+}

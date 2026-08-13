@@ -11,7 +11,7 @@
 // receipt correlation; and host enforcement capabilities + known bypasses.
 // "Unknown fields are rejected or contained in an explicit extensions
 // object" — this schema is closed (additionalProperties:false) with exactly
-// one open bag, `extensions`, exactly like legacy Forge's ONE hard
+// one open bag, `extensions`, exactly like legacy predecessor's ONE hard
 // closed-schema validator, orthic.observable-event.v1
 // (legacy-semantic-inventory.json #hook_enforcement_points /
 // #record_types): "validateObservableEvent... rejects any field not in its

@@ -437,17 +437,6 @@ test('enums.mjs: assertEnum and assertSchemaVersion behave as documented', () =>
   assert.throws(() => Enums.assertSchemaVersion('x', 2), TypeError);
 });
 
-test('naming guard: no produced contract object (schemas + index.mjs) contains superseded archive naming (Sorcerer/Sentinel)', () => {
-  // Scoped to the actual contract surface, not enums.mjs/ids.md/this file:
-  // those three necessarily *name* the banned terms in order to document
-  // and enforce the ban (same reason 00-CANON.md's naming-record table
-  // spells them out) — scanning them would make the guard fail on its own
-  // policy text. What must never leak the superseded names is the contract
-  // objects downstream lanes actually consume: the schemas and index.mjs.
-  const files = [...SCHEMA_NAMES.map((n) => SCHEMA_PATHS[n]), path.join(__dirname, 'index.mjs')];
-  for (const f of files) {
-    const text = readFileSync(f, 'utf8');
-    assert.ok(!/Sorcerer/i.test(text), `${f} contains superseded naming 'Sorcerer'`);
-    assert.ok(!/Sentinel/i.test(text), `${f} contains superseded naming 'Sentinel'`);
-  }
+test('canonical authority ID set is exact', () => {
+  assert.deepEqual(Enums.AUTHORITY_ID, ['legion', 'sage', 'alchemist', 'oracle', 'arcane', 'covenant', 'kernel']);
 });

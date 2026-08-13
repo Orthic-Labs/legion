@@ -74,7 +74,7 @@ export function wrapArtifact({ value, artifactKind, sourceRevision, createdAt })
       bytes: Buffer.byteLength(content),
       mediaType: 'application/json',
       immutable: true,
-      producerAuthority: 'seer',
+      producerAuthority: 'oracle',
       producerVersion: '1.0.0',
       sourceRevision,
       denominatorDigest: denominatorDigest(snapshot),

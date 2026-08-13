@@ -13,7 +13,7 @@ const API = Object.freeze({
 });
 const MUTATION = /(?:source[._-]?(?:write|mutat)|apply[._-]?(?:effect|patch)|effect[._-]?request)/i;
 
-export function createSeer({ core, clock = { now: () => new Date() }, receiptStore = null, traceDiff = traceDiffBlastRadius }) {
+export function createOracle({ core, clock = { now: () => new Date() }, receiptStore = null, traceDiff = traceDiffBlastRadius }) {
   const facade = {};
   for (const [operation, api] of Object.entries(API)) {
     facade[operation] = async (request, { host } = {}) => invoke({ request, operation, api, core, host, clock, receiptStore: host?.receiptStore ?? receiptStore, traceDiff });
@@ -26,14 +26,14 @@ async function invoke({ request, operation, api, core, host, clock, receiptStore
   const context = forwardedContext(request);
   if (hasMutationCapability(request.input)) {
     return failedPair(request, context, clock, {
-      code: 'SEER_MUTATION_CAPABILITY_REJECTED',
-      message: 'Seer accepts frozen read-only audit inputs; source mutation capability is forbidden',
+      code: 'ORACLE_MUTATION_CAPABILITY_REJECTED',
+      message: 'Oracle accepts frozen read-only audit inputs; source mutation capability is forbidden',
       remediation: 'Submit remediation as an artifact for a separate mutation authority',
     });
   }
   if (typeof core?.[api] !== 'function') {
     return failedPair(request, context, clock, {
-      code: 'SEER_CORE_API_UNAVAILABLE',
+      code: 'ORACLE_CORE_API_UNAVAILABLE',
       message: `canonical core API ${api} is unavailable through the supplied public core surface`,
       remediation: `Coordinator must expose ${api}; facade core changes are forbidden`,
     });
@@ -41,11 +41,11 @@ async function invoke({ request, operation, api, core, host, clock, receiptStore
   try {
     const blastRadius = await diffBlastRadius(request, operation, traceDiff);
     const output = await core[api](forwardedInput(request, context, blastRadius), host);
-    const pair = completedPair(request, context, output, clock, `seer.${operation}.core-output`, blastRadius);
+    const pair = completedPair(request, context, output, clock, `oracle.${operation}.core-output`, blastRadius);
     return attachFeedback(pair, output, receiptStore);
   } catch (error) {
     return failedPair(request, context, clock, {
-      code: 'SEER_CORE_INVOCATION_FAILED',
+      code: 'ORACLE_CORE_INVOCATION_FAILED',
       message: error?.message ?? String(error),
       remediation: null,
     });
@@ -57,12 +57,12 @@ export function translateLegacyReport(request, legacyReport, { clock = { now: ()
   const context = forwardedContext(request);
   if (hasMutationCapability(request.input)) {
     return failedPair(request, context, clock, {
-      code: 'SEER_MUTATION_CAPABILITY_REJECTED',
-      message: 'Seer accepts frozen read-only audit inputs; source mutation capability is forbidden',
+      code: 'ORACLE_MUTATION_CAPABILITY_REJECTED',
+      message: 'Oracle accepts frozen read-only audit inputs; source mutation capability is forbidden',
       remediation: 'Submit remediation as an artifact for a separate mutation authority',
     });
   }
-  return completedPair(request, context, legacyReport, clock, 'seer.audit.legacy-output');
+  return completedPair(request, context, legacyReport, clock, 'oracle.audit.legacy-output');
 }
 
 function completedPair(request, context, output, clock, artifactKind, blastRadius = null) {
@@ -138,7 +138,7 @@ function forwardedInput(request, context, blastRadius = null) {
     ...((options && typeof options === 'object' && !Array.isArray(options)) ? clone(options) : {}),
     runIdentity: context.runIdentity,
     workingContext: context.workingContext,
-    ...(lens ? { lens, judgmentPacket: buildJudgmentPacket({ subject: { id: request.requestId }, reviewerRole: 'seer', budget: null, lens }) } : {}),
+    ...(lens ? { lens, judgmentPacket: buildJudgmentPacket({ subject: { id: request.requestId }, reviewerRole: 'oracle', budget: null, lens }) } : {}),
     ...(blastRadius ? { blastRadius } : {}),
   });
 }
@@ -171,7 +171,7 @@ function attachFeedback(pair, output, receiptStore) {
   if (!receiptStore) return Object.freeze({ ...pair, feedbackReceipt: null });
   const recordBase = {
     schemaVersion: 1,
-    kind: 'seer-verdict-outcome-receipt',
+    kind: 'oracle-verdict-outcome-receipt',
     runId: pair.result.runId,
     requestId: pair.result.requestId,
     operationId: pair.result.operationId,
@@ -184,13 +184,13 @@ function attachFeedback(pair, output, receiptStore) {
     blastRadiusDigest: pair.blastRadius?.digest ?? null,
     recordedAt: pair.result.completedAt,
   };
-  const id = `seer_${createHash('sha256').update(canonicalJson(recordBase)).digest('hex').slice(0, 26)}`;
+  const id = `oracle_${createHash('sha256').update(canonicalJson(recordBase)).digest('hex').slice(0, 26)}`;
   const record = deepFreeze({ ...recordBase, id });
   const stored = receiptStore.append(record);
   return Object.freeze({ ...pair, feedbackReceipt: deepFreeze({ record, ...stored }) });
 }
 
-function needsLens(operationId) { return operationId === 'seer.audit' || operationId === 'seer.verify'; }
+function needsLens(operationId) { return operationId === 'oracle.audit' || operationId === 'oracle.verify'; }
 function sealedLens(lens) {
   if (!lens?.id || !lens.digest || typeof lens.content !== 'string') throw new TypeError('audit and verify require sealed lens content');
   const digest = `sha256:${createHash('sha256').update(lens.content).digest('hex')}`;
@@ -200,7 +200,7 @@ function sealedLens(lens) {
 
 function validateRequest(request, operation) {
   if (request?.schemaVersion !== 1 || request?.kind !== 'legion-operation-envelope' || request?.envelopeKind !== 'request') throw new TypeError('operation-envelope-v1 request required');
-  if (request.operationId !== `seer.${operation}`) throw new TypeError(`expected seer.${operation} request`);
+  if (request.operationId !== `oracle.${operation}`) throw new TypeError(`expected oracle.${operation} request`);
   if (!request.requestId || !request.runId || !request.sourceRevision) throw new TypeError('request identity is incomplete');
   if (request.input?.runIdentity?.runId !== request.runId || request.input.runIdentity.revision !== request.sourceRevision) throw new TypeError('frozen run identity does not match request');
   if (!request.input?.workingContext?.marker) throw new TypeError('separate working context marker required');

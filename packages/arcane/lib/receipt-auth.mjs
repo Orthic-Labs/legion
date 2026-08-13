@@ -1,6 +1,6 @@
 // S03 — authenticated receipts: HMAC over an explicit bound-field list.
 //
-// This replaces, rather than upgrades, Forge's `signature_or_mac`. S00 finding 1:
+// This replaces, rather than upgrades, predecessor's `signature_or_mac`. S00 finding 1:
 // that field is `hook:${sha256(receipt)}` computed by the same untrusted process
 // that built the receipt — no secret key, no MAC, no signature. Nothing here
 // derives from it, and presenting one is an explicit refusal
@@ -160,7 +160,7 @@ export function verifyRecord(record, auth, { keyRing, boundFields, expectedBindi
       allowed: false,
       code: 'ARC_AUTH_LEGACY_DIGEST',
       message:
-        'legacy Forge signature_or_mac is a self-hash by the producing process, not authentication (S00 finding 1)',
+        'legacy predecessor signature_or_mac is a self-hash by the producing process, not authentication (S00 finding 1)',
       detail: { field: 'signature_or_mac' },
     });
   }

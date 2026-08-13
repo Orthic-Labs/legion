@@ -15,7 +15,7 @@
 //
 // Note the shape of `degradation`: its schema admits only 'fail-closed' and
 // 'downgrade'. There is no representable value meaning "allow". That is the
-// deliberate divergence from Forge, whose dispatcher continued past a
+// deliberate divergence from predecessor, whose dispatcher continued past a
 // timed-out verifier (S00: lib/dispatcher.js:29-37) — enforcement skipped on a
 // stopwatch.
 
