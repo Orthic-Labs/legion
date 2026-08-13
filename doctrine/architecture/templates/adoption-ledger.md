@@ -1,7 +1,7 @@
 # Adoption ledger
 
 ```yaml
-schema: architecture-adoption-ledger.v2
+schema: architecture-adoption-ledger.v3
 ledger_version: 1
 acceptance_fingerprint: sha256:<64-lowercase-hex>
 frozen_at: <RFC3339 timestamp>

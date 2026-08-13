@@ -1,5 +1,6 @@
 // S05 seal compiler: no requirement reaches a seal without its executable lifecycle.
 import { decision } from './errors.mjs';
+import { verifyExternalProviderCapability } from './provider-capability.mjs';
 
 const REQUIRED_STEPS = ['producer', 'durableStore', 'authenticatedPersistence', 'verifier', 'completionConsumer', 'closePath'];
 export function compileSealReachability({ requirements = [], providerCapabilities = [], recoveryPaths = [] } = {}) {
@@ -13,7 +14,8 @@ export function compileSealReachability({ requirements = [], providerCapabilitie
     }
     if (requirement.externalProvider) {
       const cap = capabilities.get(requirement.externalProvider);
-      if (!cap || cap.machineReadable !== true || cap.gateable !== true || cap.downloadable !== true || cap.trajectoryBindable !== true || cap.trustedRetrieval !== true) {
+      const capability = verifyExternalProviderCapability(cap, { providerId: requirement.externalProvider });
+      if (!capability.allowed) {
         failures.push({ requirementId: requirement.id, reason: 'external-provider-capability-unreachable', providerId: requirement.externalProvider }); continue;
       }
     }
