@@ -37,8 +37,9 @@ const completionAdmitted = ({ actor, requiredFreshProof }) => actor === 'accepta
 
 const fingerprint = 'sha256:' + 'a'.repeat(64);
 const requiredLedger = () => ({
-  schema: 'acceptance-ledger.v1', ledger_version: 1, intent_epoch: 1, acceptance_fingerprint: fingerprint,
-  frozen_at: '2026-08-13T00:00:00Z', items: [{ id: 'AC-1', disposition: 'REQUIRED', source: 'user', requirement: 'deliver', observable_acceptance_surface: 'visible result', verification_method: 'node --test', owner: 'owner', dependencies: [], result: 'OPEN', evidence: [] }],
+  schema: 'acceptance-ledger.v2', ledger_version: 1, intent_epoch: 1, acceptance_manifest_fingerprint: fingerprint,
+  schedule_fingerprint: fingerprint, schedule: { schedule_version: 1, waves: [['AC-1']] },
+  frozen_at: '2026-08-13T00:00:00Z', items: [{ id: 'AC-1', disposition: 'REQUIRED', source: 'user', requirement: 'deliver', observable_acceptance_surface: 'visible result', verification_method: 'node --test', owner: 'owner', dependencies: [], item_fingerprint: fingerprint, result: 'OPEN', evidence: [] }],
 });
 const budgetFixture = () => ({
   objective_lineage_id: 'OL-1', intent_epoch: 1, parent_budget_ref: 'parent-1', wall_clock_budget_ms: 1, active_time_budget_ms: 1, design_round_budget: 1, review_budget: 1, contract_version_budget: 1,
@@ -53,9 +54,9 @@ test('S02-01 frozen acceptance ledger admits valid fixture & rejects unauthorize
   assert.equal(requiredItemAdmitted(requiredLedger().items[0]), true);
   assert.equal(requiredItemAdmitted(invalid.items[0]), false);
   const body = text('controls/acceptance-ledger.md');
-  has(body, ['REQUIRED', 'DEFERRED', 'OUT_OF_SCOPE', 'immutable', 'acceptance_fingerprint', 'later explicit user intent', 'unauthorized required mutation is rejected']);
+  has(body, ['REQUIRED', 'DEFERRED', 'OUT_OF_SCOPE', 'immutable', 'item_fingerprint', 'acceptance_manifest_fingerprint', 'schedule_fingerprint', 'schedule-only change invalidates no acceptance evidence', 'later explicit user intent', 'unauthorized required mutation is rejected']);
   noLaterStageClaims(body);
-  has(text('templates/acceptance-ledger.md'), ['ledger_version', 'intent_epoch', 'acceptance_fingerprint', 'observable_acceptance_surface', 'verification_method']);
+  has(text('templates/acceptance-ledger.md'), ['ledger_version', 'intent_epoch', 'acceptance_manifest_fingerprint', 'schedule_fingerprint', 'item_fingerprint', 'observable_acceptance_surface', 'verification_method']);
 });
 
 test('S02-02 reviewer non-expansion admits scoped finding/CLEAN & rejects scope expansion or overbroad CLEAN', () => {
