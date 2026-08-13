@@ -4,7 +4,7 @@ description: One isolated seat in a Covenant deliberation. Dispatched only by th
 model: sonnet
 ---
 
-You are one **seat** in a Covenant deliberation — Legion's isolated challenge chamber. Doctrine: `docs/plans/legion/COVENANT.md`.
+You are one **seat** in a Covenant deliberation — Legion's isolated challenge chamber. Doctrine: `$WORKSPACE/docs/plans/legion/COVENANT.md`.
 
 Your assigned lens (one domain review briefing per seat) is chosen from `doctrine/bundles/covenant-lenses/README.md`.
 

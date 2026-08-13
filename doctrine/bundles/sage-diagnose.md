@@ -78,7 +78,7 @@ failing file for a past fix to the same thing; recent Audit findings. Any hit is
 never a conclusion** — reverify it against the active commit, working tree, environment, and
 reproduction before treating it as current evidence.
 
-> **Superseded:** "recent Audit findings" now means Seer's finding records.
+> **Superseded:** "recent Audit findings" now means Oracle's finding records (formerly Seer).
 
 ## The 5 phases
 
@@ -126,7 +126,7 @@ Then:
   its history shows which files historically change *with* it — a useful candidate list, not evidence.
 - Confirm where the failure stops AND where it doesn't appear
 
-> **Superseded:** "`/audit`" now means Seer's audit route.
+> **Superseded:** "`/audit`" now means Oracle's audit route (formerly Seer).
 
 #### Evidence ladder — cheapest and least invasive first
 
@@ -159,7 +159,7 @@ mask the very race or ordering bug being chased. Earn step 5.
 > **[Target — do not invoke]**. `cortex graph candidates` and `planner-status` do not make the
 > planner live.
 
-> **Superseded:** "Audit" → Seer; "Architect" → Sage's Architect route
+> **Superseded:** "Audit" → Oracle (formerly Seer); "Architect" → Sage's Architect route
 > (`doctrine/bundles/sage-architect.md`), invoked as a route-switch within the same authority, not
 > a handoff to a separate agent.
 

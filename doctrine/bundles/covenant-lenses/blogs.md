@@ -7,13 +7,13 @@ the Sage manuals recovered in J-1). Source: `git show d810d827^:tools/skills/cou
 `doctrine/covenant-seat.md` §"lens index" — this file IS the specialization a seat reads once
 assigned.
 
-**Read `doctrine/covenant-seat.md` and `COVENANT.md` first.** This bundle is domain craft under
+**Read `doctrine/covenant-seat.md` and `$WORKSPACE/docs/plans/legion/COVENANT.md` first.** This bundle is domain craft under
 that constitution, not a replacement for it. Everything below is preserved verbatim from Council
 except where a `> **Superseded:**` note marks a doctrine conflict.
 
 > **Superseded:** every "Veto power" line below is retained verbatim as the original review
 > craft's framing of severity/blocking judgment. Under Covenant doctrine (C-invariants), no seat
-> decides or disposes — a seat is advisory only (`docs/plans/legion/COVENANT.md`). What reads as
+> decides or disposes — a seat is advisory only (`$WORKSPACE/docs/plans/legion/COVENANT.md`). What reads as
 > "blocks" here is the analogue of a maximum-severity finding handed to the caller (Sage or
 > Alchemist) for disposition, never a seat-authored block.
 

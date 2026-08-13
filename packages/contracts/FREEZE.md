@@ -2,7 +2,7 @@
 
 **Scope:** `D:/workspace/tools/skills/legion/packages/contracts/` only. Nothing outside
 this directory was created, edited, or deleted by this work. Naming throughout is
-canonical per `docs/plans/legion/00-CANON.md`: Sage, Alchemist, Seer, Arcane,
+canonical per `docs/plans/legion/00-CANON.md`: Sage, Alchemist, Oracle, Arcane,
 Covenant, Legion, Kernel. The archive's `Sorcerer`/`Sentinel` names do not appear
 anywhere in the produced contract surface (enforced by `smoke.test.mjs`'s naming
 guard test; see judgment-call J-0 below for why `enums.mjs`/`ids.md` are excluded
@@ -120,7 +120,7 @@ field plus §5.2's illustrative id, even though §33 never formally registers
 ### J-2 — `RA-#`/`E-#`/`P-#`/`AR-#` recorded in `ids.md` but not bound to any schema
 
 §22's evidence-chain diagram uses `RA-12` (remediation artifact), `E-88`
-(effect receipt), `P-92` (proof/test evidence), and `AR-12` (fresh Seer
+(effect receipt), `P-92` (proof/test evidence), and `AR-12` (fresh Oracle
 re-audit) — none of which recur elsewhere or appear in the §33 canonical
 list, and none of which are in the WP2 task's required schema list. Documented
 their existence and meaning in `ids.md` so a future author does not silently
@@ -129,7 +129,7 @@ them. **Reviewer should confirm** whether any of the five downstream lanes
 this freeze unlocks actually need `RA-#`/`P-#`/`AR-#` as first-class ids (my
 current read: `RA-#` collapses into `artifact-v1` + `Blocker.evidenceRefs`,
 `P-#` collapses into `evidence-capability-receipt-v1`, and `AR-#` is just
-another `covenant-record-v1`/Seer-owned re-audit artifact reference — but this
+another `covenant-record-v1`/Oracle-owned re-audit artifact reference — but this
 is inference, not sourced).
 
 ### J-3 — OPEN-latitude artifacts live in `openQuestions[]`, not a third `artifacts.open[]` bucket
@@ -193,7 +193,7 @@ axes orthogonal to domain outcome (I-09; archive §7.12; I-12 "no false
 clean"). Synthesized both from the vocabulary those sections already use:
 `INVOCATION_STATE` from Workstream D's "cancellation, resumption, expiry,
 input-required handling" and Phase 9's durable terminal states;
-`CLAIM_BOUNDARY` from Seer's claim vocabulary (§26) and archive §7.11's
+`CLAIM_BOUNDARY` from Oracle's claim vocabulary (§26) and archive §7.11's
 "safe/prohibited claims." **This is the freeze's largest single invention** —
 the WP2 task brief explicitly required "invocation state vs domain outcome vs
 claim boundary as SEPARATE fields," which is unambiguous about the *shape*
@@ -232,7 +232,7 @@ where model-visible path not required." Fully invented; see `ids.md`.
 `operation` (effect-request/receipt), `subjectType` (claim-v1,
 covenant-request-v1) are free strings, not enums. None of the source
 documents give closed vocabularies for these, and inventing one risked
-silently constraining a downstream lane (e.g. Seer's audit-control naming,
+silently constraining a downstream lane (e.g. Oracle's audit-control naming,
 which this freeze must not duplicate per the task brief) more than the WP2
 scope warrants. Left open by design, not by oversight.
 

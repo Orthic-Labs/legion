@@ -7,7 +7,7 @@ the Sage manuals recovered in J-1). Source: `git show d810d827^:tools/skills/cou
 `doctrine/covenant-seat.md` §"lens index" — this file IS the specialization a seat reads once
 assigned.
 
-**Read `doctrine/covenant-seat.md` and `COVENANT.md` first.** This bundle is domain craft under
+**Read `doctrine/covenant-seat.md` and `$WORKSPACE/docs/plans/legion/COVENANT.md` first.** This bundle is domain craft under
 that constitution, not a replacement for it. Everything below is preserved verbatim from Council
 except where a `> **Superseded:**` note marks a doctrine conflict.
 

@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "legion-evidence-capability-receipt-v1",
   "title": "EvidenceCapabilityReceipt",
-  "description": "Canonical evidence-capability receipt (IMPLEMENTATION-PLAN.md §7.10: 'a reusable, consumer-independent observation that may be evaluated by Sage acceptance, [Arcane, the archive's evidence/enforcement authority under its canonical name] proof, and Seer controls without transferring authority'). Distinct from the existing legion schemas/controls/evidence-capability-v1.schema.json, which models capability *availability* (id/available/owner/reason); this object models the *observation itself*, produced after execution, and is dependency-bound per ARCHITECTURE §34 (evidence goes stale when a decision it depends on changes).",
+  "description": "Canonical evidence-capability receipt (IMPLEMENTATION-PLAN.md §7.10: a reusable, consumer-independent observation evaluated by Sage acceptance, Arcane proof, and Oracle controls without transferring authority; the source archive used the superseded name Seer). Distinct from the existing legion schemas/controls/evidence-capability-v1.schema.json, which models capability *availability* (id/available/owner/reason); this object models the *observation itself*, produced after execution, and is dependency-bound per ARCHITECTURE §34 (evidence goes stale when a decision it depends on changes).",
   "type": "object",
   "additionalProperties": false,
   "required": [
