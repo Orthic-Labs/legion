@@ -1,15 +1,15 @@
 // S03 — append-only receipt store + capability store.
 //
-// Detailed plan §5.1: "Use the Legion workspace store with Sentinel namespace
+// Detailed plan §5.1: "Use the Legion workspace store with predecessor namespace
 // and shared immutable object pool. Do not create an unrelated
-// Forge/Sentinel state root as the new authority." Lane D (Kernel) has not
+// predecessor/predecessor state root as the new authority." Lane D (Kernel) has not
 // landed at the time this module was written (see lib/kernel-binding.mjs),
 // so `ReceiptStore` is Arcane's own local journal under its namespace root —
 // designed, per kernel-binding.mjs, to be re-parented onto the Kernel event
 // store later by swapping that binding, not a second permanent authority.
 // That is a recorded, typed condition, not a design claim of finality.
 //
-// Store properties preserved from what was worth keeping in Forge (§5.1):
+// Store properties preserved from what was worth keeping in predecessor (§5.1):
 // append-only logical event history, atomic write/rename, owner-only
 // permissions where the platform supports them, and an independent
 // verification operation. §5.2 tamper evidence: canonical event

@@ -4,10 +4,10 @@
 // not claimed by the model in text." That single sentence is the whole design
 // constraint here, and it has a sharp consequence the legacy system missed:
 //
-//   S00 finding — Forge stored `authority` as a caller-supplied string on the
+//   S00 finding — predecessor stored `authority` as a caller-supplied string on the
 //   run/check/evidence rows (lib/core.js:55, :527-533). Anything that could
 //   call the API could name its own authority. Worse, two of the four legal
-//   values ('hook', 'operator') were never minted by any Forge code path at
+//   values ('hook', 'operator') were never minted by any predecessor code path at
 //   all, so their presence in the enum implied a capability that did not exist.
 //
 // Therefore: authority never travels inside a payload. It is asserted out of
@@ -64,7 +64,7 @@ export class AuthorityLedger {
     }
     if (!AUTHORITY_ID.includes(authority)) {
       // Catches the legacy 'operator'/'hook' values, which are not Legion
-      // authorities and were never actually mintable in Forge either.
+      // authorities and were never actually mintable in predecessor either.
       throw new ArcaneError(
         'ARC_AUTHORITY_MODEL_CLAIMED',
         `'${authority}' is not a canonical Legion authority`,

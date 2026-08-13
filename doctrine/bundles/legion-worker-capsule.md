@@ -8,7 +8,7 @@ worker, or a human handoff. Recovered verbatim from git history — deleted at w
 (the coordinator), and by Sage/Alchemist/Oracle when any of them constructs a sub-dispatch — a
 packet to a cheap worker, a fan-out lane, or a handoff — during their own execution.
 
-> **Superseded:** original `Seer` is now `Oracle` (independent assurance authority).
+> **Superseded:** independent assurance authority is `Oracle`.
 
 **Read `doctrine/legion.md` first.** This bundle is the craft underneath that constitution, not a
 replacement for it. Where this manual's routing language conflicts with current doctrine, a
@@ -200,14 +200,14 @@ Required route contract:
 7. delete work that does not advance B; defer downstream work until dependency gate passes;
 8. bind each execution step to one selected route step & observable B-state delta;
 9. order steps by dependencies, never source-document order;
-10. validate durable route artifact + receipt and freeze it in Forge for non-routine work.
+10. validate durable route artifact + receipt and freeze it through Arcane for non-routine work.
 
 Route comparison is not permission to add speculative alternatives. Search only bounded feasible space. A route which is faster but unsafe or outside authority is `FAIL` under hard constraints, not valid shortcut.
 
 Validator rejects generic A/B, invalid/missing GoalRoute receipt, unproven singleton, selected
 constraint failure, lower-expected-time passing route, equal-time dominance, unresolved duration,
 unjustified serialization, unbound step, non-advancing work, dependency disorder, or mismatched
-Forge/route binding.
+Arcane/route binding.
 
 ### Experiment topology & workload economics
 
@@ -254,28 +254,25 @@ Expand workload before release. For each stage record numeric factors, `MAX_JOBS
 
 Full matrix is valid only when topology is `FULL_COMPARATIVE_DATASET`, packet attributes authorization to user request or exact authoritative spec, all fixtures are intentionally shared/owned, formula sum is explicit, & deliverable needs every row. Dispatcher, "fairness," or structural completeness cannot self-authorize it. Otherwise flattened matrix is dispatch defect.
 
-### Mandatory Forge semantics gate
+### Mandatory Arcane semantics gate
 
-Use Forge for `EXPERIMENT`, `BENCHMARK`, `PERFORMANCE`, `MODEL`, `RESEARCH`, & `REPEATED_FAILURE` dispatches:
+Use Arcane for `EXPERIMENT`, `BENCHMARK`, `PERFORMANCE`, `MODEL`, `RESEARCH`, & `REPEATED_FAILURE` dispatches:
 
 1. `assess` before authoring with user question, authority order, correction state, decision rule, acceptance-only metrics, inherited-instruction disposition, typed stage records, diagnostics, forbidden scope, fixture roles, & ground-truth policy;
-2. record returned `run_id` + `forge://run/<run_id>/state`;
+2. record returned `run_id` + authenticated Arcane receipt;
 3. `checkpoint` after requirement-to-decision trace, inherited-instruction disposition, typed stage records, & model/tool relevance table;
 4. resolve every critical semantic claim, then `verify` before release;
 5. write `VERIFIED_NO_CRITICAL_OPEN` only when verification has no critical open claim;
 6. checkpoint executor readback before any model/tool load, batch, paid call, or scope change;
 7. let trusted host hook/operator close run only after acceptance is independently integrated.
 
-Model must never spoof `FORGE_TRUSTED_CALLER`, operator authority, passing-check attestation, or close around signoff deficit. When trusted host cannot attest/close, retain actual MCP `verify` decision + unresolved list, then rely on dispatch validator, receipt, decision trace, & integration checks as hard release gates.
+Model must never spoof host authority, passing-check attestation, or close around signoff deficit. When trusted host cannot attest/close, retain actual verification decision + unresolved list, then rely on dispatch validator, receipt, decision trace, & integration checks as hard release gates.
 
-Forge claims must use typed stage fields, not freeform plan prose. Forge records & challenges scope traceability; it does not decide experiment meaning or replace deterministic validator. Dispatcher remains responsible for correct questions, classifications, & source binding. Routine bounded work may use `NOT_REQUIRED: <exact reason>`.
+Arcane records must use typed stage fields, not freeform plan prose. Arcane records & challenges scope traceability; it does not decide experiment meaning or replace deterministic validator. Dispatcher remains responsible for correct questions, classifications, & source binding. Routine bounded work may use `NOT_REQUIRED: <exact reason>`.
 
 Executor first output must read back decision questions, acceptance metrics, diagnostics, forbidden scope, fixture roles, & exact first action. Orchestrator rejects wrong readback before execution. Declare numeric supervision cadence plus mandatory checkpoint before new model/tool/dependency, batch, cost, or recovery-induced scope change.
 
-> **Superseded:** "Forge" here means the workspace's Forge assess/checkpoint/verify system named in
-> `docs/agent-rules/workspace.md` ("Mandatory systems") — still live, unrelated to `packages/sentinel`
-> or the `forge` repo name collision noted in this task's own instructions. No rename needed; this
-> usage was already correct.
+> **Superseded:** current workspace law uses `legion run open|close` with authenticated Arcane receipts.
 
 ## Step 2 — Design ownership & dependency graph
 
@@ -578,7 +575,7 @@ NEXT: <integration action or exact resume command>
 - Selection work uses staged elimination with explicit survivor artifacts, fixture ownership, numeric workload ceilings, actual-count reconciliation, & downstream prohibitions; full matrix requires explicit comparative-dataset authorization.
 - Every stage has typed provider/dataset/mode/admission/pass/exclusion/run/wall-time record; offline mode forbids physical sleep & unresolved estimates block launch.
 - No model, tool, dependency, label, transcript, or analysis is allowed unless it produces a named acceptance metric or required safety evidence through locked route.
-- Forge is mandatory for experiment, benchmark, performance, model, research, & repeated-failure dispatches; executor readback is checked before execution.
+- Arcane is mandatory for experiment, benchmark, performance, model, research, & repeated-failure dispatches; executor readback is checked before execution.
 - Required producer, provenance, ordered lifecycle, existing-work disposition, & substitution policy are explicit & acceptance-tested.
 - Dispatch is self-contained relative to executor-accessible workspace, not dispatcher memory.
 - User request supplies authority for requested steps; dispatch records it explicitly.

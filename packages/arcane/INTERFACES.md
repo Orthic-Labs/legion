@@ -61,7 +61,7 @@ export function verifyRecord(record, auth, { keyRing, boundFields, expectedBindi
 - Verification is constant-time (`constantTimeEqual`).
 - `boundFieldsDigest` binds the *field list itself*, so an attacker cannot
   shrink the covered set and re-sign.
-- A record whose only authentication material is a legacy Forge
+- A record whose only authentication material is a legacy predecessor
   `signature_or_mac` string is rejected with `ARC_AUTH_LEGACY_DIGEST` — never
   upgraded, never treated as authenticated (S00 finding 1).
 
@@ -196,7 +196,7 @@ export class DependencyLedger {
 `observeChange` emits **one** structured invalidation event:
 `{ eventId, at, changed: {dimension, ref, from, to}, staledEvidence: [], cascadedEvidence: [], affectedCriteria: [], affectedClaims: [], unaffected: [] }`.
 
-- Cascade is transitive through `dimension: 'evidence'` edges (S00 finding: Forge
+- Cascade is transitive through `dimension: 'evidence'` edges (S00 finding: predecessor
   had **no** cascade at all — this is new work, not a port).
 - Historical evidence is preserved; staleness is a new fact appended, never a
   silent refresh (detailed plan §6.3 rule 7).

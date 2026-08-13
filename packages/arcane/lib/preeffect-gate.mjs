@@ -15,7 +15,7 @@
 // Two decisions worth stating, because both are places the legacy system got
 // it wrong:
 //
-//   1. **Unavailability is not permission.** Forge's dispatcher marked a
+//   1. **Unavailability is not permission.** predecessor's dispatcher marked a
 //      verifier that blew its 1500ms budget as `bypassed_delayed_verifier` and
 //      then CONTINUED (S00: lib/dispatcher.js:29-37). Enforcement was skipped
 //      on a stopwatch. Here, an unavailable gate denies every mutation, and

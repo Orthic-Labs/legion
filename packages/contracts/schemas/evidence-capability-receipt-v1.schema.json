@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "legion-evidence-capability-receipt-v1",
   "title": "EvidenceCapabilityReceipt",
-  "description": "Canonical evidence-capability receipt (IMPLEMENTATION-PLAN.md §7.10: a reusable, consumer-independent observation evaluated by Sage acceptance, Arcane proof, and Oracle controls without transferring authority; the source archive used the superseded name Seer). Distinct from the existing legion schemas/controls/evidence-capability-v1.schema.json, which models capability *availability* (id/available/owner/reason); this object models the *observation itself*, produced after execution, and is dependency-bound per ARCHITECTURE §34 (evidence goes stale when a decision it depends on changes).",
+  "description": "Canonical evidence-capability receipt (IMPLEMENTATION-PLAN.md §7.10: a reusable, consumer-independent observation evaluated by Sage acceptance, Arcane proof, and Oracle controls without transferring authority). Distinct from the existing legion schemas/controls/evidence-capability-v1.schema.json, which models capability *availability* (id/available/owner/reason); this object models the *observation itself*, produced after execution, and is dependency-bound per ARCHITECTURE §34 (evidence goes stale when a decision it depends on changes).",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -45,7 +45,7 @@
         "perMessage": { "type": "boolean" },
         "verifiedAt": { "type": ["string", "null"], "format": "date-time" }
       },
-      "description": "Same shape and rationale as legion-effect-receipt-v1's authentication field (S00 Forge baseline finding: no receipt in the legacy system carries real authentication, only a self-hash)."
+      "description": "Same shape and rationale as legion-effect-receipt-v1's authentication field (S00 predecessor baseline finding: no receipt in the legacy system carries real authentication, only a self-hash)."
     },
     "replayDefense": {
       "type": "object",
@@ -57,7 +57,7 @@
         "freshnessWindowSeconds": { "type": ["integer", "null"], "minimum": 0 },
         "freshAt": { "type": ["string", "null"], "format": "date-time" }
       },
-      "description": "Same shape and rationale as legion-effect-receipt-v1's replayDefense field (S00 Forge baseline finding: no nonce/sequence/freshness field exists anywhere in legacy Forge records)."
+      "description": "Same shape and rationale as legion-effect-receipt-v1's replayDefense field (S00 predecessor baseline finding: no nonce/sequence/freshness field exists anywhere in predecessor records)."
     },
 
     "sourceRevision": { "type": "string", "minLength": 7 },

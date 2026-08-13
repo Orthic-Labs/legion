@@ -34,7 +34,7 @@
     "maxSkewSeconds": 60,
     "nonceRequired": true,
     "sequenceRequired": true,
-    "note": "Greenfield — S00 finding 3 confirmed Forge has no nonce, sequence, or freshness window anywhere to port."
+    "note": "Greenfield — S00 finding 3 confirmed predecessor has no nonce, sequence, or freshness window anywhere to port."
   },
 
   "trustMinima": {
@@ -65,7 +65,7 @@
       "requiresCovenant": true,
       "allowStaleEvidence": false,
       "requiredFields": ["intentRestatement", "blastRadius", "whySafe"],
-      "note": "Preserves Forge's high_risk gate triple (S01 schema-map: runs.intent_restatement / blast_radius / why_safe), which was genuinely load-bearing and is carried forward as a policy requirement rather than as inherited code."
+      "note": "Preserves predecessor's high_risk gate triple (S01 schema-map: runs.intent_restatement / blast_radius / why_safe), which was genuinely load-bearing and is carried forward as a policy requirement rather than as inherited code."
     },
     "release": {
       "requiredEvidenceClasses": ["deterministic"],
@@ -85,7 +85,7 @@
     "receiptStoreUnavailable": "fail-closed",
     "kernelUnavailable": "fail-closed",
     "policyUnavailable": "fail-closed",
-    "note": "ARCHITECTURE §24a: if the pre-effect gate is unavailable, mutation-bearing operations fail closed; read-only operations may continue with a recorded enforcement-health downgrade. This is also the deliberate divergence from Forge's dispatcher, which continued past a timed-out verifier (S00: lib/dispatcher.js:29-37)."
+    "note": "ARCHITECTURE §24a: if the pre-effect gate is unavailable, mutation-bearing operations fail closed; read-only operations may continue with a recorded enforcement-health downgrade. This is also the deliberate divergence from predecessor's dispatcher, which continued past a timed-out verifier (S00: lib/dispatcher.js:29-37)."
   },
 
   "evidence": {

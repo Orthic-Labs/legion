@@ -58,7 +58,7 @@ Path roots are explicit:
 
 - One row per concept, one `source_owner` per row, & one active source path set per active concept.
 - Generated files are consumers only. Edit `$WORKSPACE/docs/agent-rules/{legion,workspace}.md`, then run `manage.py sync` & `manage.py check`.
-- `$WORKSPACE/docs/plans/legion/ARCHITECTURE.md` is archived evidence. Its historical `Seer` routing is non-authoritative.
-- Superseded bundle notes may preserve `Seer` only when their line is explicitly marked `> **Superseded:**`; live routing uses Oracle.
+- `$WORKSPACE/docs/plans/legion/ARCHITECTURE.md` is archived evidence. Its historical routing is non-authoritative.
+- Superseded bundle notes preserve provenance only; live routing uses Oracle.
 - Runtime retry drift is later-stage work: doctrine says second identical fingerprint stops; `$LEGION/packages/arcane/lib/budget-governance-store.mjs` currently stops only after `attempts > 3`. Stage 1 records this mismatch without changing runtime.
 - A planned row becomes active only through its declared adoption stage with existing source paths, real producers/consumers, & fresh checks.

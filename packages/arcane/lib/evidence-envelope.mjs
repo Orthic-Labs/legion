@@ -226,7 +226,7 @@ export function envelopeDigest(envelope) {
 
 /**
  * Import a legacy-envelope-v1-shaped record as an Arcane evidence envelope
- * that can never gain trust. S00 finding: every legacy Forge
+ * that can never gain trust. S00 finding: every legacy predecessor
  * `signature_or_mac` is a self-hash with no secret key — a legacy envelope's
  * `provenance.authenticated` is structurally `false` (the frozen
  * legacy-envelope-v1 schema enforces this with `const: false`). Migration

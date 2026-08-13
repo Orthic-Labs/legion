@@ -37,7 +37,7 @@
             "assertedBy": { "type": "string", "minLength": 1, "description": "Concrete identity asserting callerAuthority for this specific message (process/capability/session identity)." },
             "perMessage": {
               "type": "boolean",
-              "description": "S00 Forge baseline finding (docs/plans/legion/s00-baseline/legacy-semantic-inventory.json): legacy Forge trust (lib/host.js process-identity/code-signing) is connection-level, asserted once at MCP startup, never re-checked per message. This field forces every operation request to say explicitly whether its authority was actually re-asserted for this message (true) or merely inherited from the connection (false) — the gap must be visible, not silently inherited."
+              "description": "S00 predecessor baseline finding (docs/plans/legion/s00-baseline/legacy-semantic-inventory.json): legacy predecessor trust (lib/host.js process-identity/code-signing) is connection-level, asserted once at MCP startup, never re-checked per message. This field forces every operation request to say explicitly whether its authority was actually re-asserted for this message (true) or merely inherited from the connection (false) — the gap must be visible, not silently inherited."
             },
             "verificationMethod": { "enum": ["host-connection-trust", "capability-signature", "unauthenticated"] }
           },

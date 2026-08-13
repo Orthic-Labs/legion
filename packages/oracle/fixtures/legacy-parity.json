@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "kind": "seer-legacy-parity-fixture",
+  "kind": "oracle-legacy-parity-fixture",
   "source": "../../../tests/fixtures/verify/facts.json",
   "assertion": "facade artifact value is byte-semantic JSON parity with canonical legacy facts; findings, denominators, and claims remain unchanged",
   "expected": {

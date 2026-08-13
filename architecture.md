@@ -84,4 +84,4 @@ Follow-on implementation must add explicit source-backed controls & fixtures for
 
 Both parts are required. Dispatch completion alone does not create this final connected flow.
 
-Detailed workspace decision: `$WORKSPACE/docs/plans/2026-08-08-nemesis-product-aware-audit-architecture.md`.
+Detailed workspace decision: `$WORKSPACE/docs/plans/legion/ARCHITECTURE.md`.

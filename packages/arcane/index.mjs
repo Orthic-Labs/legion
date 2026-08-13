@@ -11,7 +11,7 @@
 //   POST-EFFECT RECEIPT host-observed effect -> lib/ingest.mjs + lib/receipt-store.mjs
 //
 // Deliverable map:
-//   S01 legacy mapping + runtime bridge   lib/legacy-bridge.mjs, compatibility/forge/
+//   S01 legacy mapping + runtime bridge   lib/legacy-bridge.mjs + captured compatibility maps
 //   S02 policy + authority boundary       lib/policy.mjs, lib/authority.mjs, policy/
 //   S03 authenticated receipts            lib/keys.mjs, lib/receipt-auth.mjs,
 //                                         lib/replay.mjs, lib/receipt-store.mjs
@@ -51,7 +51,7 @@ export {
   ARCANE_NAMESPACE,
 } from './lib/kernel-binding.mjs';
 
-// S01 — Forge compatibility
+// S01 — predecessor compatibility
 export * from './lib/legacy-bridge.mjs';
 
 // S02 — policy and authority

@@ -9,8 +9,8 @@
 // new enum-bearing field was added.
 //
 // Naming is canonical per docs/plans/legion/00-CANON.md: Sage, Alchemist,
-// Oracle, Arcane, Covenant, Legion, Kernel. The archive's "Sorcerer",
-// "Sentinel", and "Seer" are superseded and must never appear here.
+// Oracle, Arcane, Covenant, Legion, Kernel. Superseded identities must never
+// appear here.
 
 /** Legion authority identities (ARCHITECTURE.md Part I-VI, VI-A). */
 export const AUTHORITY_ID = Object.freeze([
@@ -199,10 +199,10 @@ export const MODEL_TIER = Object.freeze(['FRONTIER', 'MID', 'CHEAP_STRICT', 'NON
 export const WORKER_PROFILE = Object.freeze(['strict', 'standard', 'advanced']);
 
 /**
- * Effect/evidence authentication method. Grounded in the S00 Forge semantic
+ * Effect/evidence authentication method. Grounded in the S00 predecessor semantic
  * baseline (docs/plans/legion/s00-baseline/legacy-semantic-inventory.json,
  * report §"What S03/S04/S05 will need to preserve or must NOT inherit as-is"
- * findings 1-2): Forge's `signature_or_mac` field
+ * findings 1-2): predecessor `signature_or_mac` field
  * (hooks/claude-code/tool-receipt.js:80) is a self-hash by the same
  * untrusted process that built the receipt, not real authentication; the one
  * genuine trust primitive found is `lib/host.js`'s process-identity /

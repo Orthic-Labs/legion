@@ -63,7 +63,7 @@ export async function traceDiffBlastRadius({ repoRoot, changedPaths, outDir = '.
   }
   const payload = {
     schemaVersion: 1,
-    kind: 'seer-cortex-diff-blast-radius',
+    kind: 'oracle-cortex-diff-blast-radius',
     state: traces.every(({ state }) => state === 'ready') ? 'ready' : 'unproven',
     changedPaths: paths,
     traces,

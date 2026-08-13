@@ -3,7 +3,7 @@
 // `HostIngestor#ingest` refuses a post-effect event that cannot name the
 // pre-effect request it completes (`ARC_INGEST_CORRELATION_MISSING`,
 // ingest.mjs). Real hook hosts run PreToolUse and PostToolUse as two
-// SEPARATE subprocess invocations (see `forge/hooks/dispatcher.js`'s
+// SEPARATE subprocess invocations (see `predecessor/hooks/dispatcher.js`'s
 // `spawnSync` per event) with no shared memory between them, so something
 // has to carry `priorCorrelation.requestId` from the first invocation to the
 // second. `PreEffectCorrelationStore` is that carrier: it mints a real

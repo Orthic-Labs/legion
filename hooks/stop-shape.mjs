@@ -247,7 +247,7 @@ export const DEFERRED_DEFECT_MARKERS = [
 // unrelated "already fixed X" elsewhere in a long report cannot launder a real
 // deferred defect.
 export const DEFERRED_DEFECT_CARVE_OUTS = [
-  /\b(?:another|a\s+separate|the\s+other)\s+agent\b|\b(?:sage|alchemist|seer|covenant)\s+(?:is|will\s+be|has|already)\b|\bnot\s+(?:your|my)\s+lane\b/i,
+  /\b(?:another|a\s+separate|the\s+other)\s+agent\b|\b(?:sage|alchemist|oracle|covenant)\s+(?:is|will\s+be|has|already)\b|\bnot\s+(?:your|my)\s+lane\b/i,
   /\bneeds?\s+(?:your|operator'?s|the\s+user'?s)\s+(?:input|decision|credentials|approval|confirmation|call|access)\b|\bblocked\s+on\s+(?:your|operator'?s|the\s+user'?s)\b|\bOPERATOR[- ]ONLY\b|\breserved\s+(?:to|for)\s+(?:you|operator)\b/i,
   /\bwant\s+me\s+to\s+also\b|\bhappy\s+to\s+also\b/i,
   /\b(?:already|also)\s+(?:fixed|resolved|patched|corrected|addressed|recorded)\b/i,
