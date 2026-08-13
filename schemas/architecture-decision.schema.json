@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "architecture-decision.v1",
+  "title": "Architecture Decision Record",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "decision_id", "record_worthiness", "decision_status", "realization_status", "date", "owner", "decision_authority", "decision_question", "alternatives", "decision", "rationale", "evidence_refs", "consequences", "residual_risks", "reversibility_and_exit", "review_triggers", "dependents", "related_decisions"],
+  "properties": {
+    "schema": {"const": "architecture-decision.v1"},
+    "decision_id": {"type": "string", "pattern": "^ADR-[A-Za-z0-9][A-Za-z0-9._-]*$"},
+    "record_worthiness": {"type": "object", "additionalProperties": false, "required": ["hard_to_reverse", "surprising_without_context", "real_trade_off"], "properties": {"hard_to_reverse": {"const": true}, "surprising_without_context": {"const": true}, "real_trade_off": {"const": true}}},
+    "decision_status": {"enum": ["proposed", "accepted", "frozen", "superseded", "deprecated"]},
+    "realization_status": {"enum": ["not_started", "implementing", "implemented", "diverged"]},
+    "date": {"type": "string", "format": "date-time"}, "owner": {"type": "string", "minLength": 1}, "decision_authority": {"type": "string", "minLength": 1},
+    "decision_question": {"type": "string", "minLength": 1}, "alternatives": {"type": "array", "minItems": 2, "items": {"type": "object", "additionalProperties": false, "required": ["id", "description", "disposition"], "properties": {"id": {"type": "string", "minLength": 1}, "description": {"type": "string", "minLength": 1}, "disposition": {"enum": ["selected", "rejected", "deferred"]}, "rejection_reason": {"type": "string"}}}},
+    "decision": {"type": "string", "minLength": 1}, "rationale": {"type": "string", "minLength": 1}, "evidence_refs": {"type": "array", "items": {"type": "string", "minLength": 1}}, "consequences": {"type": "array", "items": {"type": "string", "minLength": 1}}, "residual_risks": {"type": "array", "items": {"type": "string", "minLength": 1}}, "reversibility_and_exit": {"type": "string", "minLength": 1}, "review_triggers": {"type": "array", "items": {"type": "string", "minLength": 1}}, "dependents": {"type": "array", "items": {"type": "string", "minLength": 1}}, "related_decisions": {"type": "array", "items": {"type": "string", "minLength": 1}}
+  }
+}
