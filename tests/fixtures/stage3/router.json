@@ -1,0 +1,4 @@
+{
+  "insignificant": {"objective": "sufficient", "significance": {"quality_or_mission": false, "responsibility_boundary": false, "data_authority_boundary": false, "trust_or_risk_boundary": false, "failure_or_deployment_boundary": false, "durable_contract": false, "broad_impact": false, "hard_to_reverse": false, "durable_governance": false, "material_loss": false}, "effect": {"declared_type": "reversible"}},
+  "significant": {"objective": "optimize", "optimize_axis": "cold_start", "significance": {"quality_or_mission": true, "responsibility_boundary": false, "data_authority_boundary": false, "trust_or_risk_boundary": false, "failure_or_deployment_boundary": false, "durable_contract": false, "broad_impact": false, "hard_to_reverse": false, "durable_governance": false, "material_loss": false}, "effect": {"declared_type": "one_way"}}
+}
