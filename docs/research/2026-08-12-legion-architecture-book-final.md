@@ -63,7 +63,7 @@ These had been dropped or demoted in the Final Book and are re-absorbed as norma
 
 ## 0.3 What the chassis contributed (kept without change in substance)
 
-Depth × rigor separation; the ten-condition significance test (G-A1); evidence provenance typing (G-A4); the five-class authority model and `ACCEPTED_RISK` requiring a named accepting authority (G-A14); the canonical persisted `architecture_state` and resume semantics (Part V); the five terminal states (Part VII); tightened budget-exhaustion behavior for irreversible work; typed review findings with severity-gated reopening (G-A13); one Covenant challenge per objective lineage; Arcane's hard guards (Part IX); lifecycle governance including ownership, migration, exit, expiry, supersession (G-A15); progressive disclosure and one-canonical-owner-per-concept (Part X); the repository structure (Part XI); metrics (Part XV); and the twelve-stage adoption sequence (Part XVI).
+Depth × rigor separation; the ten-condition significance test (G-A1); evidence provenance typing (G-A4); the five-class authority model and `ACCEPTED_RISK` requiring a named accepting authority (G-A14); the canonical persisted `architecture_state` and resume semantics (Part V); the five terminal states (Part VII); tightened budget-exhaustion behavior for irreversible work; typed review findings with severity-gated reopening (G-A13); one Covenant challenge per objective lineage; Arcane's hard guards (Part IX); lifecycle governance including ownership, migration, exit, expiry, supersession (G-A15); progressive disclosure and one-canonical-owner-per-concept (Part X); the repository structure (Part XI); metrics (Part XV); and the twelve-stage adoption DAG (Part XVI).
 
 ## 0.4 Constants alignment (from the Adapt Insights reconciliation)
 
@@ -2740,24 +2740,26 @@ The goal is not merely fewer architecture passes. The goal is **fewer non-inform
 
 ---
 
-# Part XVI — Adoption sequence
+# Part XVI — Adoption DAG and waves
 
-This sequence is governed by the §58D adoption ledger. Each stage has one accountable owner, explicit dependencies, observable exits, and fresh evidence bound to the integrated state. A later stage may overlap only when its declared dependencies are `VERIFIED`; prose status and standing Definition of Done never close a stage.
+This DAG is governed by the §58D adoption ledger. Each stage has one accountable owner, explicit semantic dependencies, observable exits, and fresh evidence bound to integrated state. A current acceptance fingerprint is a prerequisite for `VERIFIED`; stage numbers create no implicit edges. Stages in one wave may overlap, but shared state and integration remain serialized; prose status and standing Definition of Done never close a stage.
 
-| Stage | Default owner | Observable exit |
-|---|---|---|
-| 1 | Legion integration owner | canon map passes; generated outputs sync; dual owners and live `Seer` references are absent |
-| 2 | Legion + Arcane owners | convergence, admission, clarification, ADR, budget, and retirement rules have positive and negative conformance tests |
-| 3 | Arcane state owner | schemas validate; accepted-event replay reconstructs the same state and fingerprint |
-| 4 | Arcane continuity owner | cancellation, quiescence, rehydration, checkpoint, and duplicate-effect tests pass |
-| 5 | Arcane + Oracle owners | seals and gates prove producer-to-close reachability, self-validity, freshness, and scoped review admission |
-| 6 | Sage method owner | workflow modules encode the bounded method and pass representative fixtures |
-| 7 | Sage schema owner | templates and schemas validate, including adoption and ADR admission fields |
-| 8 | Alchemist integration owner | one live workload reaches fresh exact-state acceptance evidence with ownership and migration closure |
-| 9 | Arcane guard owner | guards deny every declared negative case without blocking sanctioned delivery paths |
-| 10 | Role-doctrine owners | role handoffs conform without duplicated canon or authority drift |
-| 11 | Oracle eval owner | all eval families run and record reproducible results |
-| 12 | Legion adoption owner | live-history calibration records outcome/cost deltas and retires or accepts every net-harmful control |
+| Stage | Dependencies | Wave | Default owner | Observable exit |
+|---|---|---|---|---|
+| 1 | — | Base | Legion integration owner | canon map passes; generated outputs sync; dual owners and live `Seer` references are absent |
+| 2 | 1 | Base | Legion + Arcane owners | convergence, admission, clarification, ADR, budget, and retirement rules have positive and negative conformance tests |
+| 3 | 2 | Base | Arcane state owner | schemas validate; accepted-event replay reconstructs the same state and fingerprint |
+| 4 | 3 | 1 | Arcane continuity owner | cancellation, quiescence, rehydration, checkpoint, and duplicate-effect tests pass |
+| 5 | 4 | 2 | Arcane + Oracle owners | seals and gates prove producer-to-close reachability, self-validity, freshness, and scoped review admission |
+| 6 | 2 | 1 | Sage method owner | workflow modules encode the bounded method and pass representative fixtures |
+| 7 | 6 | 2 | Sage schema owner | templates and schemas validate, including adoption and ADR admission fields |
+| 8 | 5, 7 | 3 | Alchemist integration owner | one live workload reaches fresh exact-state acceptance evidence with ownership and migration closure |
+| 9 | 8 | 4 | Arcane guard owner | guards deny every declared negative case without blocking sanctioned delivery paths |
+| 10 | 8 | 4 | Role-doctrine owners | role handoffs conform without duplicated canon or authority drift |
+| 11 | 9, 10 | 5 | Oracle eval owner | all eval families run and record reproducible results |
+| 12 | 11 | 6 | Legion adoption owner | live-history calibration records outcome/cost deltas and retires or accepts every net-harmful control |
+
+The Base wave is stages 1 → 2 → 3. Subsequent waves are [4, 6], [5, 7], [8], [9, 10], [11], and [12]. A lane starts only after its declared semantic dependencies are `VERIFIED`; overlapping lanes may advance independently until they require shared state or an integration write, which remains serialized.
 
 1. **Freeze canon and terminology.** Build §37A's concept-level canon map. `docs/agent-rules/legion.md` and `workspace.md` retain constitutional ownership; `doctrine/architecture/**` owns architecture method; role doctrine and bundles reference those sources; generated outputs change only through source sync/check. Normalize Sage/Alchemist/Oracle/Arcane/Covenant; remove stale `Seer`, historical routing text, dual ownership, and broken references.
 2. **Add scope and convergence doctrine first.** Frozen acceptance and adoption ledgers; reviewer non-expansion, operational admission, and scoped `CLEAN`; latest-intent precedence; Progress Invariant and bounded clarification; ADR admission; canonical retry taxonomy; finite timeout/cancellation; objective-lineage and control-plane budgets; ownership disposition; outcome/freshness closure; debt acknowledgement; seal reachability; gate-validity isolation; control lifecycle/retirement; terminal states. *These land before the larger method so the framework cannot amplify the loop it exists to end.*
@@ -2770,9 +2772,9 @@ This sequence is governed by the §58D adoption ledger. Each stage has one accou
 9. **Enforce in Arcane** — scope/epoch cancellation, process-group quiescence, accepted-event continuity/replay, legal transitions, effect classification, checkpoint verification, lineage and control-plane budgets, retry/behavioral-loop denial, evidence freshness, deficit acknowledgement, finding/security admission, ownership leases/dispositions, gate self-validity, seal compilation, adoption-stage proof, canon drift, controlled retirement, acceptance closure, machinery isolation, terminal receipts v4, and freeze guards. Detectors land after producers exist.
 10. **Update handoffs** — Sage freezes acceptance/ownership/cutover obligations; Alchemist advances required items, emits accepted events/checkpoints, returns typed deficits/acknowledgements, diagnoses only when triggered, forward-tests, and terminates `CANDIDATE | BLOCKED`; Oracle consumes independent packets, preserves finding identity, applies dismiss-first/security calibration, and verifies fresh acceptance evidence; Covenant stays one-shot advisory.
 11. **Add evals before expanding features** — existing suites plus canon drift, adoption governance, ADR admission, clarification convergence, control-plane budgets, control retirement, review admission, gate validity, transition/replay, rehydration injection, effect classification, process quiescence, behavioral loops, freshness, diagnosis triggers, debt acknowledgement, assurance independence, ownership disposition, and negative triggers.
-12. **Calibrate on real Legion history, a minimal ambient baseline, and one live governed workload.** Replay prior architecture revisions and incidents, then compare one bounded current workflow against the cheapest ambient path before further hardening. Keep runtime thresholds in a versioned capability/calibration table. Retire controls whose measurable coordination/tool/token cost lacks demonstrated risk or outcome benefit through §37A's proof path. Optimize for observed acceptance, quiescence after stop, delivery time, and zero duplicated effects — never document similarity or control count.
+12. **Calibrate on real Legion history, a minimal ambient baseline, and one live governed workload.** Replay prior architecture revisions and incidents, then compare one bounded current workflow against the cheapest ambient path before further hardening. Keep runtime thresholds in a versioned capability/calibration table. Retire controls whose measurable coordination/tool/token cost lacks demonstrated risk or outcome benefit through §37A's proof path. Legion may prepare evidence and proposals, but current user alone decides `RETIRE | ACCEPT` unless that judgment is explicitly delegated; missing judgment blocks `VERIFIED`. Optimize for observed acceptance, quiescence after stop, delivery time, and zero duplicated effects — never document similarity or control count.
 
-Adoption is complete only when all twelve ledger stages are `VERIFIED` against one current acceptance fingerprint, all declared blockers are closed, and the representative governed workload closes at its user-visible acceptance surface. Until then, this book remains an implementation plan, not evidence of operational adoption.
+Adoption is complete only when all twelve ledger stages are `VERIFIED` against one current acceptance fingerprint, all declared blockers are closed, the representative governed workload closes at its user-visible acceptance surface, and each required Stage 12 user judgment is recorded. Until then, this book remains an implementation plan, not evidence of operational adoption.
 
 ---
 
