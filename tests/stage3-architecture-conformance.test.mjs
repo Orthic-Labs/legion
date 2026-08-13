@@ -59,6 +59,10 @@ test('S03-02 state v4 requires full projection domains, counters, fingerprints &
   assert.deepEqual(patched.decision.items.map((item) => item.id), ['D-1', 'D-2']);
   patched = applyArchitectureEvent(patched, { event_type: 'FINGERPRINTS_RECORDED', payload: { decision: [architectureDecisionFingerprint({ id: 'D-1' })], evidence: [architectureEvidenceFingerprint({ id: 'E-1' })], finding: [architectureFindingFingerprint({ id: 'F-1' })], retry: [architectureRetryFingerprint({ id: 'R-1' })] } });
   assert.equal(patched.decision.fingerprints.length, 1); assert.equal(patched.evidence.fingerprints.length, 1); assert.equal(patched.assurance.fingerprints.length, 1); assert.equal(patched.execution.retry.fingerprints.length, 1);
+  patched = applyArchitectureEvent(patched, { event_type: 'BUDGET_SNAPSHOT_RECORDED', payload: { id: 'budget-observation-1', budget_ref: 'arcane-budget-run:run-s03', budget_digest: digest('b'), observed_counters: { active_time_ms: 10, excluded_wait_ms: 0, retry_count: 1, event_count: 2 } } });
+  assert.deepEqual(patched.execution.budget_snapshots[0].observed_counters, { active_time_ms: 10, excluded_wait_ms: 0, retry_count: 1, event_count: 2 });
+  assert.throws(() => applyArchitectureEvent(patched, { event_type: 'BUDGET_SNAPSHOT_RECORDED', payload: { id: 'budget-duplicate', budget_ref: 'budget-s03', budget_digest: digest('b'), observed_counters: { active_time_ms: 0, excluded_wait_ms: 0, retry_count: 0, event_count: 0 }, legionBlastMapCapMs: 999999999 } }));
+  assert.equal(validateArchitectureState(patched).valid, true);
 });
 
 test('S03-03 five closed schemas reject unknown fields & event payload mismatches', () => {
@@ -73,6 +77,10 @@ test('S03-03 five closed schemas reject unknown fields & event payload mismatche
       assert.deepEqual(validateSchema(schema(name), value), [], name);
       const bad = clone(value); bad.extra = true; assert.ok(validateSchema(schema(name), bad).length, `${name} closed`);
     }
+    const withBudget = applyArchitectureEvent(initial, { event_type: 'BUDGET_SNAPSHOT_RECORDED', payload: { id: 'budget-observation-schema', budget_ref: 'arcane-budget-run:run-s03', budget_digest: digest('b'), observed_counters: { active_time_ms: 1, excluded_wait_ms: 0, retry_count: 0, event_count: 1 } } });
+    assert.deepEqual(validateSchema(schema('architecture-state'), withBudget), []);
+    const authorityDuplicate = clone(withBudget); authorityDuplicate.execution.budget_snapshots[0].maxContractVersions = 99;
+    assert.ok(validateSchema(schema('architecture-state'), authorityDuplicate).length, 'budget authority duplication rejected by state schema');
     assert.equal(h.store.accept(proposal(events.invalid_payload), { expected_state_fingerprint: accepted.state_fingerprint }).accepted, false);
   } finally { rmSync(h.root, { recursive: true, force: true }); }
 });
@@ -89,6 +97,7 @@ test('S03-04 authenticated acceptance has exact lineage/sequence/predecessor & r
     const before = canonicalJson(history);
     assert.equal(h.store.accept({ ...proposal(), event_id: 'caller-owned' }, { expected_state_fingerprint: first.state_fingerprint }).accepted, false);
     assert.equal(h.store.accept(proposal(), { expected_state_fingerprint: initial.state_fingerprint }).accepted, false);
+    assert.equal(h.store.accept(proposal({ event_type: 'BUDGET_SNAPSHOT_RECORDED', payload: { id: 'budget-duplicate', objectiveLineageId: events.objective_lineage_id, legionBlastMapCapMs: 999999999, sagePlanningCapMs: 999999999, maxContractVersions: 99 } }), { expected_state_fingerprint: first.state_fingerprint }).accepted, false);
     assert.equal(h.store.accept(proposal({ event_type: 'EFFECT_DENIED', payload: { id: 'effect-denied' } }), { expected_state_fingerprint: first.state_fingerprint }).accepted, false);
     assert.equal(h.store.accept(proposal({ event_type: 'RECOVERY_RECORDED', payload: { id: 'recovery-s04' } }), { expected_state_fingerprint: first.state_fingerprint }).accepted, false);
     assert.equal(canonicalJson(h.store.events({ objective_lineage_id: events.objective_lineage_id })), before);
