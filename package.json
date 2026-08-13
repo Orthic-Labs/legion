@@ -49,6 +49,7 @@
     "agents/",
     "hooks/",
     "doctrine/",
+    "evals/architecture/",
     "roster/",
     "packages/arcane/",
     "packages/contracts/",
@@ -76,6 +77,7 @@
     "scripts/check-publication-policy.mjs",
     "scripts/qualify-book.mjs",
     "scripts/report-to-sarif.mjs",
+    "scripts/run-architecture-evals.mjs",
     "references/",
     "MANIFEST.package.json",
     "README.md",
@@ -86,6 +88,7 @@
   ],
   "scripts": {
     "test": "node --test --test-concurrency=1 \"tests/*.test.mjs\"",
+    "architecture-evals": "node scripts/run-architecture-evals.mjs --json",
     "self-test": "node scripts/self-test.mjs",
     "schemas:check": "node scripts/generate-schemas.mjs --check",
     "prepack": "node scripts/check-publication-policy.mjs --channel internal-pack && node scripts/generate-schemas.mjs --check && node --test --test-concurrency=1 tests/*.test.mjs"
