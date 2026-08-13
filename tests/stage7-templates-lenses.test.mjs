@@ -36,7 +36,10 @@ test('S07-01 schemas reject closed-shape & critical negative instances', () => {
 
 test('S07-01 anti-serialization binds consumption to artifacts & acceptance IDs', () => {
   const ledger = fixtures['adoption-ledger'];
-  assert.deepEqual(validateSchema(json('schemas/adoption-ledger.schema.json'), ledger), []);
+  const ledgerSchema = json('schemas/adoption-ledger.schema.json');
+  assert.equal(ledgerSchema.$id, 'architecture-adoption-ledger.v3');
+  assert.deepEqual(validateSchema(ledgerSchema, ledger), []);
+  assert.ok(validateSchema(ledgerSchema, { ...structuredClone(ledger), schema: 'architecture-adoption-ledger.v2' }).length, 'live v2 ledger cannot collide with v3 template schema');
   assert.ok(ledger.stages.every((stage) => stage.produce_readiness && stage.integrate_readiness && stage.activate_readiness));
   assert.ok(ledger.consumption_dependencies.every((edge) => edge.consumed_artifact_id && edge.producer_acceptance_id && edge.consumer_acceptance_id && edge.required_verification));
   const wholeStage = structuredClone(ledger); wholeStage.stages[1].dependencies = ['S-1'];

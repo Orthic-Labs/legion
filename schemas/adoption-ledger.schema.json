@@ -1,12 +1,12 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "architecture-adoption-ledger.v2",
+  "$id": "architecture-adoption-ledger.v3",
   "title": "Architecture Adoption Ledger",
   "type": "object",
   "additionalProperties": false,
   "required": ["schema", "ledger_version", "acceptance_fingerprint", "frozen_at", "stages", "consumption_dependencies"],
   "properties": {
-    "schema": {"const": "architecture-adoption-ledger.v2"}, "ledger_version": {"type": "integer", "minimum": 1}, "acceptance_fingerprint": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"}, "frozen_at": {"type": "string", "format": "date-time"},
+    "schema": {"const": "architecture-adoption-ledger.v3"}, "ledger_version": {"type": "integer", "minimum": 1}, "acceptance_fingerprint": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"}, "frozen_at": {"type": "string", "format": "date-time"},
     "stages": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/stage"}}, "consumption_dependencies": {"type": "array", "items": {"$ref": "#/$defs/consumptionDependency"}}
   },
   "$defs": {

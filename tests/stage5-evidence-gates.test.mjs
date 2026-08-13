@@ -31,7 +31,7 @@ test('S05 positive lifecycle compiles fresh exact-state evidence, valid gate, in
   const validity = validateGate({ contract: gate, fixtures, execute: (fixture) => ({ status: fixture.expected }) });
   assert.equal(validity.allowed, true);
   assert.equal(executeValidatedGate({ contract: gate, validity, inspected: ['src/a.mjs'] }).allowed, true);
-  const packet = buildAssurancePacket({ frozenContract: contract(), artifacts: [artifact], producerAuthority: 'alchemist', reviewerAuthority: 'oracle', integratedState: state });
+  const packet = buildAssurancePacket({ frozenContract: contract(), artifacts: [artifact], evidenceRegistry: registry, producerAuthority: 'alchemist', reviewerAuthority: 'oracle', integratedState: state });
   assert.equal(packet.allowed, true);
   const root = mkdtempSync(join(tmpdir(), 's05-seal-'));
   try { assert.equal(new ContractSealStore({ root }).seal({ contract: contract(), authorityAssertion: assertion, evidenceReachability: reachability }).created, true); } finally { rmSync(root, { recursive: true, force: true }); }
@@ -49,10 +49,18 @@ test('S05 rejects substitution, replay, stale evidence, unsound seals, invalid g
   assert.equal(unsound.code, 'ARC_UNSOUND_SEAL');
   assert.equal(compileSealReachability({ requirements: [requirement], providerCapabilities: [capability], recoveryPaths: [] }).code, 'ARC_UNSOUND_SEAL');
   const root = mkdtempSync(join(tmpdir(), 's05-unsound-'));
-  try { assert.throws(() => new ContractSealStore({ root }).seal({ contract: contract(), authorityAssertion: assertion, evidenceReachability: unsound }), (error) => error.code === 'ARC_UNSOUND_SEAL'); } finally { rmSync(root, { recursive: true, force: true }); }
+  try {
+    assert.throws(() => new ContractSealStore({ root }).seal({ contract: contract(), authorityAssertion: assertion, evidenceReachability: unsound }), (error) => error.code === 'ARC_UNSOUND_SEAL');
+    assert.throws(() => new ContractSealStore({ root }).seal({ contract: { ...contract(), evidenceRequirements: ['closure-grade acceptance proof'] }, authorityAssertion: assertion }), (error) => error.code === 'ARC_UNSOUND_SEAL');
+  } finally { rmSync(root, { recursive: true, force: true }); }
   const gate = { id: 'gate-1', inspectedScope: 'src/**', discoveryBreadth: 'full', blockingFilter: 'rule-x', threshold: 'zero', gates: true, authority: 'arcane', failureSemantics: 'fail' };
   const invalid = validateGate({ contract: gate, fixtures: { knownGood: { id: 'good' }, knownBad: { id: 'bad' }, empty: { id: 'empty' }, malformed: { id: 'malformed' } }, execute: () => ({ status: 'PASS' }) });
   assert.equal(invalid.code, 'ARC_GATE_INVALID');
   assert.equal(executeValidatedGate({ contract: gate, validity: invalid, inspected: ['src/a'] }).code, 'ARC_GATE_INVALID');
-  assert.equal(buildAssurancePacket({ frozenContract: contract(), artifacts: [artifact], producerAuthority: 'oracle', reviewerAuthority: 'oracle', integratedState: state }).code, 'ARC_SELF_CERTIFICATION');
+  const valid = validateGate({ contract: gate, fixtures: JSON.parse(readFileSync(new URL('./fixtures/stage5/gate-fixtures.json', import.meta.url), 'utf8')), execute: (fixture) => ({ status: fixture.expected }) });
+  assert.equal(executeValidatedGate({ contract: { ...gate, id: 'gate-2' }, validity: valid, inspected: ['src/a'] }).code, 'ARC_GATE_INVALID');
+  assert.equal(executeValidatedGate({ contract: gate, validity: { ...valid }, inspected: ['src/a'] }).code, 'ARC_GATE_INVALID');
+  assert.equal(compileSealReachability({ requirements: [requirement], providerCapabilities: [{ ...capability, sensitivity: undefined, retention: undefined, deletionOwner: undefined }], recoveryPaths: [{ requirementId: 'acceptance-1', authenticated: true, closePath: true }] }).code, 'ARC_UNSOUND_SEAL');
+  assert.equal(buildAssurancePacket({ frozenContract: contract(), artifacts: [artifact], evidenceRegistry: registry, producerAuthority: 'oracle', reviewerAuthority: 'oracle', integratedState: state }).code, 'ARC_SELF_CERTIFICATION');
+  assert.equal(buildAssurancePacket({ frozenContract: contract(), artifacts: [{ ...artifact, producer: 'oracle', verifier: 'oracle' }], evidenceRegistry: registry, producerAuthority: 'alchemist', reviewerAuthority: 'oracle', integratedState: state }).code, 'ARC_BINDING_MISMATCH');
 });
