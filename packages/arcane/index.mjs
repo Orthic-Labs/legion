@@ -76,6 +76,7 @@ export * from './lib/task-budget-seal-store.mjs';
 export * from './lib/architecture-router.mjs';
 export * from './lib/architecture-state.mjs';
 export * from './lib/architecture-fingerprints.mjs';
+export * from './lib/scoped-acceptance.mjs';
 export * from './lib/architecture-event-store.mjs';
 export * from './lib/authority-binding-store.mjs';
 export * from './lib/session-binding.mjs';

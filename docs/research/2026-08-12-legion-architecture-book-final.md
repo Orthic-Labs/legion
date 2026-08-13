@@ -530,7 +530,9 @@ DEFERRED       valid work not required now; owner + revisit trigger required
 OUT_OF_SCOPE   unauthorized or unnecessary for current delivery
 ```
 
-Each `REQUIRED` item records source, observable acceptance surface, verification method, owner, dependencies, and current result. The ledger records `ledger_version`, `intent_epoch`, and `acceptance_fingerprint`. Review packets, contracts, milestones, and completion claims bind to that fingerprint. Agents may clarify or reduce scope without changing required semantics; only a later explicit user instruction may add a required item or move an item into scope. Safety may deny an effect, but it does not create product scope.
+Each `REQUIRED` item records source, observable acceptance surface, verification method, owner, dependencies, current result, and an immutable `item_fingerprint`. A stage fingerprint covers its semantic contract plus item fingerprints. `acceptance_manifest_fingerprint` indexes the current contract set; it is not a blanket invalidation key. Evidence binds the smallest owning item or stage fingerprint. A semantic change invalidates only the changed IDs and their dependency descendants.
+
+Execution scheduling is a separate projection with `schedule_version` and `schedule_fingerprint`. Waves, ordering, concurrency, integration batching, or budgets may change without acceptance invalidation when item/stage semantics and dependencies remain unchanged. Agents may clarify or reduce scope without changing required semantics; only a later explicit user instruction may add a required item or move an item into scope. Safety may deny an effect, but it does not create product scope.
 
 ## G-A20 — Review Cannot Create Requirements
 
@@ -1355,7 +1357,7 @@ Control-plane failures receive a separate machinery-defect record and sanctioned
 
 Every durable handoff appends an authenticated trajectory event binding objective lineage, intent epoch, execution parentage, phase, acceptance/decision/finding IDs, input fingerprint, output refs, cost delta, retry class, and terminal reason where applicable. Raw logs remain diagnostic; the trajectory is the lifecycle source for `inspect`, `timeline`, `why-stopped`, `acceptance-progress`, `retry-history`, and `replay-plan` projections.
 
-Phase barriers, accepted patches, integration mutations, and acceptance-result updates create checkpoints. Resume verifies intent, lineage, repository state, acceptance fingerprint, producer versions, and event continuity; it invalidates the smallest changed cone and never repeats a completed effect without explicit invalidation. Partial outputs survive as unverified recovery candidates.
+Phase barriers, accepted patches, integration mutations, and acceptance-result updates create checkpoints. Resume verifies intent, lineage, repository state, applicable item/stage fingerprints, schedule fingerprint, producer versions, and event continuity. A schedule-only change preserves acceptance evidence. A semantic change invalidates the smallest dependency cone and never repeats an unaffected completed effect. Partial outputs survive as unverified recovery candidates.
 
 Alchemist returns typed delivery deficits with downstream claim ceilings. Sage and Legion preserve them across handoffs; Oracle may verify or refute their evidence but cannot silently convert a required failure into debt.
 
@@ -2742,7 +2744,7 @@ The goal is not merely fewer architecture passes. The goal is **fewer non-inform
 
 # Part XVI — Adoption DAG and waves
 
-This DAG is governed by the §58D adoption ledger. Each stage has one accountable owner, explicit semantic dependencies, observable exits, and fresh evidence bound to integrated state. A current acceptance fingerprint is a prerequisite for `VERIFIED`; stage numbers create no implicit edges. Stages in one wave may overlap, but shared state and integration remain serialized; prose status and standing Definition of Done never close a stage.
+This DAG is governed by the §58D adoption ledger. Each stage has one accountable owner, explicit semantic dependencies, observable exits, and fresh evidence bound to integrated state plus its stage fingerprint. Stage numbers create no implicit edges. Schedule identity is separate from acceptance identity: changing waves or execution order without changing semantic dependencies invalidates no completed stage. Stages in one wave may overlap, but shared state and integration remain serialized; prose status and standing Definition of Done never close a stage.
 
 | Stage | Dependencies | Wave | Default owner | Observable exit |
 |---|---|---|---|---|

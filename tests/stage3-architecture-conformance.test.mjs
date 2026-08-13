@@ -10,7 +10,7 @@ import { ReceiptStore } from '../packages/arcane/lib/receipt-store.mjs';
 import { generateTestKeyRing } from '../packages/arcane/lib/keys.mjs';
 import { validateSchema } from '../lib/qualification/schema-validator.mjs';
 import { classifyEffect, routeArchitecture } from '../packages/arcane/lib/architecture-router.mjs';
-import { applyArchitectureEvent, createArchitectureState, validateArchitectureState } from '../packages/arcane/lib/architecture-state.mjs';
+import { applyArchitectureEvent, createArchitectureState, stateFingerprint, validateArchitectureState } from '../packages/arcane/lib/architecture-state.mjs';
 import { ArchitectureEventStore } from '../packages/arcane/lib/architecture-event-store.mjs';
 import { architectureDecisionFingerprint, architectureEvidenceFingerprint, architectureFindingFingerprint, architectureRetryFingerprint } from '../packages/arcane/lib/architecture-fingerprints.mjs';
 
@@ -140,4 +140,23 @@ test('S03-07 legal/illegal transitions & invalidation remain separate axes', () 
   assert.equal(applyArchitectureEvent(state, { event_type: 'EXECUTION_EPISODE_TRANSITIONED', payload: events.episode.payload }).execution.episode_state, 'QUEUED');
   assert.throws(() => applyArchitectureEvent(state, events.invalid_payload));
   assert.throws(() => applyArchitectureEvent(state, { event_type: 'INVALIDATION_RECORDED', payload: { scope: 'ROOT' } }));
+});
+
+test('architecture state accepts scoped acceptance v2 while preserving v1 replay compatibility', () => {
+  const legacy = fullState();
+  assert.equal(validateArchitectureState(legacy).valid, true);
+  const scoped = structuredClone(legacy);
+  scoped.acceptance_ledger = {
+    schema: 'acceptance-ledger.v2',
+    ledger_version: 2,
+    intent_epoch: 1,
+    acceptance_manifest_fingerprint: digest('b'),
+    schedule_fingerprint: digest('c'),
+    schedule: { schedule_version: 1, waves: [['AC-1']] },
+    frozen_at: '2026-08-13T00:00:00Z',
+    items: [{ ...legacy.acceptance_ledger.items[0], item_fingerprint: digest('d') }],
+  };
+  scoped.state_fingerprint = stateFingerprint(scoped);
+  assert.equal(validateArchitectureState(scoped).valid, true);
+  assert.deepEqual(validateSchema(JSON.parse(readFileSync(join(import.meta.dirname, '..', 'doctrine', 'architecture', 'schemas', 'architecture-state.schema.json'), 'utf8')), scoped), []);
 });
