@@ -152,7 +152,67 @@ def authority_packet_errors(packet: object, artifact: Path) -> tuple[list[str], 
         path = digest_path(value, artifact, label, errors)
         if path and isinstance(value, dict): references.append({"path": canonical_locator(path), "sha256": value["digest"]})
         return path
-    if packet_type == "sage":
+    if packet_type == "direct":
+        objective = packet.get("objective")
+        integration_owner = packet.get("integrationOwner")
+        authority = packet.get("authority")
+        workers = packet.get("workers")
+        recovery = packet.get("recovery")
+        if not isinstance(objective, str) or not objective.strip(): errors.append("direct packet requires objective")
+        if not isinstance(integration_owner, str) or not integration_owner.strip(): errors.append("direct packet requires integration owner")
+        if not isinstance(authority, list) or not authority or any(not isinstance(value, str) or not value.strip() for value in authority): errors.append("direct packet requires authority sources")
+        if not isinstance(workers, list) or not workers:
+            errors.append("direct packet requires at least one worker")
+        else:
+            worker_ids: set[str] = set()
+            owned_paths: dict[str, str] = {}
+            for index, worker in enumerate(workers):
+                label = f"direct worker {index + 1}"
+                if not isinstance(worker, dict):
+                    errors.append(f"{label} must be an object")
+                    continue
+                worker_id = worker.get("id")
+                executor = worker.get("executor")
+                own = worker.get("own")
+                read = worker.get("read")
+                forbidden = worker.get("forbidden")
+                checks = worker.get("checks")
+                dependencies = worker.get("dependencies", [])
+                if not isinstance(worker_id, str) or not worker_id.strip():
+                    errors.append(f"{label} requires id")
+                    worker_id = f"#{index + 1}"
+                elif worker_id in worker_ids:
+                    errors.append(f"direct worker id is duplicated: {worker_id}")
+                else:
+                    worker_ids.add(worker_id)
+                if not isinstance(executor, str) or not executor.strip(): errors.append(f"{label} requires executor")
+                scopes = (("OWN", own, True), ("READ", read, False), ("FORBIDDEN", forbidden, False))
+                normalized: dict[str, set[str]] = {}
+                for scope_name, values, required_scope in scopes:
+                    if not isinstance(values, list) or (required_scope and not values) or any(not isinstance(value, str) or not value.strip() for value in values):
+                        errors.append(f"{label} requires valid {scope_name} paths")
+                        normalized[scope_name] = set()
+                    else:
+                        normalized[scope_name] = set(values)
+                        if len(normalized[scope_name]) != len(values): errors.append(f"{label} contains duplicate {scope_name} paths")
+                if normalized["OWN"] & normalized["FORBIDDEN"]: errors.append(f"{label} OWN overlaps FORBIDDEN")
+                if normalized["READ"] & normalized["FORBIDDEN"]: errors.append(f"{label} READ overlaps FORBIDDEN")
+                for path in normalized["OWN"]:
+                    previous = owned_paths.get(path)
+                    if previous is not None: errors.append(f"direct OWN collision: {path} belongs to {previous} and {worker_id}")
+                    else: owned_paths[path] = worker_id
+                if not isinstance(checks, list) or not checks or any(not isinstance(value, str) or not value.strip() for value in checks): errors.append(f"{label} requires acceptance checks")
+                if not isinstance(dependencies, list) or any(not isinstance(value, str) or not value.strip() for value in dependencies): errors.append(f"{label} dependencies must be worker ids")
+            known_ids = {worker.get("id") for worker in workers if isinstance(worker, dict) and isinstance(worker.get("id"), str)}
+            for worker in workers:
+                if not isinstance(worker, dict): continue
+                worker_id = worker.get("id")
+                for dependency in worker.get("dependencies", []) if isinstance(worker.get("dependencies", []), list) else []:
+                    if dependency == worker_id: errors.append(f"direct worker {worker_id} cannot depend on itself")
+                    elif dependency not in known_ids: errors.append(f"direct worker {worker_id} has unknown dependency: {dependency}")
+        if not isinstance(recovery, dict) or not isinstance(recovery.get("maxRetries"), int) or not 0 <= recovery["maxRetries"] <= 2 or not isinstance(recovery.get("stopConditions"), list) or not recovery["stopConditions"] or not isinstance(recovery.get("returnFields"), list) or not recovery["returnFields"]:
+            errors.append("direct packet requires bounded recovery and return contract")
+    elif packet_type == "sage":
         route = packet.get("routeBundle")
         if not isinstance(route, dict) or not re.search(r"sage-(architect|diagnose)", str(route.get("path", ""))): errors.append("Sage packet requires sage-architect or sage-diagnose route bundle")
         else: reference(route, "Sage route bundle")
@@ -176,7 +236,7 @@ def authority_packet_errors(packet: object, artifact: Path) -> tuple[list[str], 
             reference(packet.get("taskProjection"), "Worker task projection")
             reference(packet.get("artifactProjection"), "Worker artifact projection")
         reference(packet.get("oracle"), "Worker oracle")
-    else: errors.append("authority packet type must be sage, seer, alchemist, or worker")
+    else: errors.append("authority packet type must be direct, sage, seer, alchemist, or worker")
     return errors, references
 
 

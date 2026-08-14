@@ -14,7 +14,8 @@ from pathlib import Path
 
 
 HERE = Path(__file__).resolve().parent
-SKILL_DIR = HERE.parent
+PACKAGE_ROOT = HERE.parents[1]
+SKILL_DIR = PACKAGE_ROOT / "skills" / "dispatch"
 VALIDATOR = HERE / "validate-dispatch.py"
 TEMPLATE = SKILL_DIR / "assets" / "dispatch-template.md"
 EXAMPLES = SKILL_DIR / "examples"
@@ -22,9 +23,7 @@ CASES = EXAMPLES / "cases"
 ROUTE_FIXTURE = EXAMPLES / "dispatch-route-fixture.json"
 ROUTE_FIXTURE_RECEIPT = EXAMPLES / "dispatch-route-fixture.receipt.json"
 MINIMIZE_FIXTURE = EXAMPLES / "validated-forward-test.minimize.json"
-# Minimize moved into Arcane; the receipt binds the validator's hash, so the
-# test must mint with the same validator the gate verifies with.
-LEGION_CLI = SKILL_DIR.parent / "skills" / "legion" / "bin" / "legion.mjs"
+MINIMIZE_VALIDATOR = PACKAGE_ROOT / "lib" / "minimize" / "minimize_gate.py"
 
 
 def bind_paths(
@@ -82,9 +81,8 @@ def run(
         minimize.write_bytes(MINIMIZE_FIXTURE.read_bytes())
         subprocess.run(
             [
-                "node",
-                str(LEGION_CLI),
-                "minimize",
+                sys.executable,
+                str(MINIMIZE_VALIDATOR),
                 "decision",
                 "receipt",
                 str(minimize),
@@ -1311,9 +1309,8 @@ def main() -> int:
         minimize.write_bytes(MINIMIZE_FIXTURE.read_bytes())
         subprocess.run(
             [
-                "node",
-                str(LEGION_CLI),
-                "minimize",
+                sys.executable,
+                str(MINIMIZE_VALIDATOR),
                 "decision",
                 "receipt",
                 str(minimize),
@@ -1559,6 +1556,76 @@ def main() -> int:
         wrong_kind["kind"] = "legion-wrong-kind"
         errors, _ = validator_module.authority_packet_errors(wrong_kind, worker_packet_path)
         assert any("authority packet base shape is invalid" in err for err in errors), errors
+
+    with tempfile.TemporaryDirectory() as directory:
+        root = Path(directory)
+        counts = (4, 45, 24, 13, 35, 28, 26)
+        worker_ids = ("OR-SUPERVISOR", "MB-IO", "MB-RETRIEVAL", "MB-PLANNER", "MB-LIFECYCLE", "CX-HARDEN", "CX-STATE")
+        cursor = 0
+        workers = []
+        for worker_id, count in zip(worker_ids, counts):
+            own = [f"owned/path-{value:03d}" for value in range(cursor, cursor + count)]
+            cursor += count
+            workers.append({
+                "id": worker_id,
+                "executor": "deepseek",
+                "own": own,
+                "read": ["AGENTS.md", "tasks/plan.md"],
+                "forbidden": [".git", "secrets"],
+                "checks": [f"verify {worker_id} focused suite"],
+                "dependencies": [],
+            })
+        direct_packet = {
+            "schemaVersion": 1,
+            "kind": "legion-authority-dispatch",
+            "packetType": "direct",
+            "sourceRevision": "abcdef0",
+            "promptDigest": "sha256:" + "0" * 64,
+            "modelRouting": {"modelTier": "MID", "workerProfile": "parallel", "routingRationale": "seven independent owners"},
+            "objective": "Complete Phase A through seven frozen owners.",
+            "authority": ["AGENTS.md", "tasks/plan.md", "path-ownership-ledger.json"],
+            "integrationOwner": "codex",
+            "workers": workers,
+            "recovery": {
+                "maxRetries": 2,
+                "stopConditions": ["owned path is already dirty"],
+                "returnFields": ["changedPaths", "checks", "blockers", "baselineRevision", "patchDigest"],
+            },
+        }
+        assert cursor == 175
+        direct_path = root / "orthic-suite-phase-a.json"
+        direct_receipt = root / "orthic-suite-phase-a.receipt.json"
+        direct_path.write_text(json.dumps(direct_packet), encoding="utf-8")
+        direct_result = subprocess.run(
+            [sys.executable, str(VALIDATOR), str(direct_path), "--packet-type", "authority", "--write-receipt", str(direct_receipt)],
+            check=False, capture_output=True, text=True,
+        )
+        assert direct_result.returncode == 0, direct_result.stdout + direct_result.stderr
+        direct_receipt_value = json.loads(direct_receipt.read_text(encoding="utf-8"))
+        assert direct_receipt_value["referenced_artifacts"] == []
+        assert direct_receipt_value["sha256"] == hashlib.sha256(direct_path.read_bytes()).hexdigest()
+
+        collision = json.loads(json.dumps(direct_packet))
+        collision["workers"][1]["own"].append(collision["workers"][0]["own"][0])
+        errors, _ = validator_module.authority_packet_errors(collision, direct_path)
+        assert any("direct OWN collision" in error for error in errors), errors
+
+        overlap = json.loads(json.dumps(direct_packet))
+        overlap["workers"][0]["forbidden"].append(overlap["workers"][0]["own"][0])
+        errors, _ = validator_module.authority_packet_errors(overlap, direct_path)
+        assert any("OWN overlaps FORBIDDEN" in error for error in errors), errors
+
+        unknown_dependency = json.loads(json.dumps(direct_packet))
+        unknown_dependency["workers"][0]["dependencies"] = ["MISSING"]
+        errors, _ = validator_module.authority_packet_errors(unknown_dependency, direct_path)
+        assert any("unknown dependency" in error for error in errors), errors
+
+        default_asset = json.loads((SKILL_DIR / "assets" / "direct-packet.json").read_text(encoding="utf-8"))
+        errors, _ = validator_module.authority_packet_errors(default_asset, SKILL_DIR / "assets" / "direct-packet.json")
+        assert not errors, errors
+        skill_text = (SKILL_DIR / "SKILL.md").read_text(encoding="utf-8")
+        assert "assets/direct-packet.json" in skill_text
+        assert "--packet-type legacy` only for explicit legacy compatibility" in skill_text
     print("PASS: dispatch validator accepts durable packet + rejects structural, semantic, status, script, path, temporary-storage, receipt, and typed-authority bypasses")
     return 0
 

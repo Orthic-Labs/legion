@@ -1,0 +1,34 @@
+{
+  "schemaVersion": 1,
+  "kind": "legion-authority-dispatch",
+  "packetType": "direct",
+  "sourceRevision": "HEAD",
+  "promptDigest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+  "modelRouting": {
+    "modelTier": "MID",
+    "workerProfile": "standard",
+    "routingRationale": "Bounded independent implementation"
+  },
+  "objective": "Complete declared work within exact worker scopes.",
+  "authority": [
+    "AGENTS.md",
+    "task-specific source"
+  ],
+  "integrationOwner": "current orchestrator",
+  "workers": [
+    {
+      "id": "worker-1",
+      "executor": "configured worker",
+      "own": ["src/example.ts"],
+      "read": ["tests/example.test.ts"],
+      "forbidden": [".git", "secrets"],
+      "checks": ["run focused test"],
+      "dependencies": []
+    }
+  ],
+  "recovery": {
+    "maxRetries": 2,
+    "stopConditions": ["owned path is already dirty", "required private input is missing"],
+    "returnFields": ["changedPaths", "checks", "blockers", "baselineRevision", "patchDigest"]
+  }
+}
