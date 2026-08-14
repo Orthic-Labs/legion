@@ -19,7 +19,7 @@ This book contains only unfinished implementation or acceptance work. Existing m
 | S10 role-doctrine implementation | `CANDIDATE` | Merged from `a71bfa4`; current handoff conformance tests pass 5/5. |
 | S11 corpus and runner | `IN_PROGRESS` | Merged from `90beed4` and `a4c36d4`; 41/103 static cases pass, 62 await runtime execution. |
 | Canonical naming and eval-gate repair | complete remediation | Integrated through Legion `b9dfab6`; parent pin `31d338cc9`; both match `origin/main`. |
-| R1 packaged skill migration | `VERIFIED` | Integrated through Legion `f450326`; 25 public entrypoints resolve through digest-bound manifests, all 110 retired evals execute, 87 retired artifacts retain byte parity, advisory domains resolve, and clean assembled-package proof passes on Mac and Windows. |
+| R1 packaged skill migration | `VERIFIED` | Closure recorded at Legion `2b1523b`; 25 public entrypoints resolve through digest-bound manifests, all 110 retired evals execute, 87 retired artifacts retain byte parity, advisory domains resolve, and clean assembled-package proof passes on Mac and Windows. |
 
 Do not re-author, re-dispatch, or replace these artifacts unless a remaining acceptance check finds a concrete defect.
 
