@@ -2,7 +2,7 @@
 
 ## Finish adoption without rebuilding completed work
 
-**Status:** active execution book
+**Status:** final certification in progress
 **Date:** 14 August 2026
 **Source design:** [`2026-08-12-legion-architecture-book-final.md`](2026-08-12-legion-architecture-book-final.md)
 **State authority:** [`$WORKSPACE/docs/plans/legion/adoption-ledger.json`](../../../../../docs/plans/legion/adoption-ledger.json)
@@ -19,8 +19,9 @@ This book contains only unfinished implementation or acceptance work. Existing m
 | S08 live execution closure | `VERIFIED` | Representative assembled-package workload passed 3/3 at `d95e4846`; independent receipt `sha256:7aa837db95b974854fbe11e1dcc9384811dc006b205d421f15e88df4e5ccb386`. |
 | S09 Arcane guards | `VERIFIED` | 43/43 focused checks and 9/9 runtime fixtures pass; EC-609 v2 sealed, opened, and closed with strong authenticated evidence. |
 | S10 role-doctrine implementation | `VERIFIED` | Handoff conformance, R1 parity, canonical naming, and authority-boundary checks pass on current integrated state. |
-| S11 corpus and runner | `IN_PROGRESS` | Merged from `90beed4` and `a4c36d4`; 41/103 static cases pass, 62 await runtime execution. |
-| Dispatch production usability | `NOT_STARTED` | Default still copies a 421-line legacy template whose GoalRoute, timing, Minimize, author-gate, and validator ceremony rejected a valid seven-owner packet with 115 unrelated defects. |
+| S11 corpus and runner | `DONE` | Legion `c39a27d`: 62/62 runtime cases and 103/103 total cases pass twice identically; changed-expectation falsification and independent Oracle checks pass. Ledger promotion waits only for R7 parent pin. |
+| S12 calibration and retirement | `COMPLETE` | Legion `1df0c12`: real history, direct ambient baseline, and S08 governed workload are replayed; all cost dimensions are recorded and legacy Dispatch default has current-user `RETIRE` disposition. |
+| Dispatch production usability | `DONE` | Legion `2c1caee`: typed direct packet is default; legacy 421-line ceremony is explicit compatibility only; seven-owner/175-path/collision regression passes. |
 | Canonical naming and eval-gate repair | complete remediation | Integrated through Legion `b9dfab6`; parent pin `31d338cc9`; both match `origin/main`. |
 | R1 packaged skill migration | `VERIFIED` | Closure recorded at Legion `2b1523b`; 25 public entrypoints resolve through digest-bound manifests, all 110 retired evals execute, 87 retired artifacts retain byte parity, advisory domains resolve, and clean assembled-package proof passes on Mac and Windows. |
 
@@ -82,23 +83,17 @@ Completed: host-observed Sage binding sealed EC-609 v2, opened `run_01KZZR82AN6R
 
 Completed: exact-state handoff conformance, packaged-install parity, canonical naming, and duplicate-canon/authority-drift checks pass independently.
 
-### R4A — Simplify Dispatch production path
+### R4A — Simplify Dispatch production path (`DONE`)
 
-- Make existing typed authority/worker JSON packet the default for bounded delegation; keep 421-line Markdown only as explicit legacy compatibility.
-- Require GoalRoute, critical-path timing, Minimize authority, and 15-point author gate only when locked, contracted, or explicitly requested.
-- Add quoted seven-owner, 175-unique-path, zero-collision DeepSeek packet as regression proof; validator must accept it without legacy schema ceremony.
+Completed: typed direct packet is default; legacy Markdown is explicit compatibility; GoalRoute/timing/Minimize/author-gate ceremony is limited to locked, contracted, or explicit use; seven-owner/175-path/collision regression passes.
 
-### R5 — Finish S11 runtime evaluation
+### R5 — Finish S11 runtime evaluation (`DONE`)
 
-- Execute 62 currently pending runtime cases through S09's authenticated executor.
-- Repair concrete failures and rerun the smallest affected families.
-- Require 103/103 reproducible results and independent S11 verification.
+Completed: 62/62 runtime cases execute through S09 guard substrate; 103/103 total cases pass twice identically; changed expectations fail; independent Oracle verification passes on exact owned scope.
 
-### R6 — Complete S12 calibration and retirement
+### R6 — Complete S12 calibration and retirement (`DONE`)
 
-- Replay real Legion history, a minimal ambient baseline, and the S08 governed workload.
-- Measure outcome, coordination, tool, token, delivery-time, quiescence, and duplicate-effect deltas.
-- Present each net-harmful control for current-user `RETIRE | ACCEPT` judgment and record every disposition.
+Completed: real failed Dispatch history, typed ambient baseline, and S08 governed Handoff workload replay successfully. Calibration records outcome, coordination, tool, token, delivery-time, quiescence, and duplicate-effect deltas. Legacy Dispatch default is retired under current-user judgment; no net-harmful control lacks disposition.
 
 ### R7 — Finalize delivery
 
@@ -113,7 +108,7 @@ R1 ─> R2 ─┬─> R3 ─> R5 ─> R6 ─> R7
           └─> R4 ────────────────┘
 ```
 
-R1 through R4 are closed. R4A and R5 are next, followed by R6 and final R7 certification. One owner serializes ledger writes, nested commits, parent pins, and pushes.
+R1 through R6 are closed. Only R7 exact-state certification, ledger promotion, parent pin, push, and Windows pull validation remain. One owner serializes those writes.
 
 ## Completion rule
 
