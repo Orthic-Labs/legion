@@ -256,4 +256,4 @@ async function main() {
   console.log(JSON.stringify({ kind: 'audit-complete-run', outDir: result.outDir, plan: result.planPath, facts: result.facts ? join(result.outDir, 'facts.json') : null, incomplete: result.facts?.incomplete ?? true, securityCandidates: result.securityResult?.candidates?.length ?? 0 }, null, 2));
   if (result.facts?.incomplete) process.exitCode = 2;
 }
-if (import.meta.url === pathToFileURL(process.argv[1]).href) main().catch((error) => { console.error(error.stack ?? error.message); process.exit(1); });
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) main().catch((error) => { console.error(error.stack ?? error.message); process.exit(1); });

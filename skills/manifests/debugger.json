@@ -1,0 +1,44 @@
+{
+  "schemaVersion": 1,
+  "id": "debugger",
+  "version": "1.0.0",
+  "entry": "SKILL.md",
+  "rootUri": "legion-skill://debugger/",
+  "provenance": "workspace-authored-wrapper",
+  "licenseState": "unresolved",
+  "rightsReceipt": null,
+  "profiles": {
+    "audit": {
+      "mutation": false,
+      "publish": false
+    },
+    "authoring": {
+      "mutation": true,
+      "publish": false,
+      "externalOnly": true
+    }
+  },
+  "files": [
+    {
+      "path": "SKILL.md",
+      "uri": "legion-skill://debugger/SKILL.md",
+      "sourceDigest": "sha256:9433baadb61b37daa90f106a216aa36e8e9d27a2330ab0fd5042dca3ae92ac75",
+      "outputDigest": "sha256:9433baadb61b37daa90f106a216aa36e8e9d27a2330ab0fd5042dca3ae92ac75",
+      "transformations": []
+    },
+    {
+      "path": "evals/evals.json",
+      "uri": "legion-skill://debugger/evals/evals.json",
+      "sourceDigest": "sha256:f5b39e351b4caad38a7bb7d845e66c0dbf2290416d7a1daa78cd4f5d4c8420be",
+      "outputDigest": "sha256:f5b39e351b4caad38a7bb7d845e66c0dbf2290416d7a1daa78cd4f5d4c8420be",
+      "transformations": []
+    },
+    {
+      "path": "references/manual.md",
+      "uri": "legion-skill://debugger/references/manual.md",
+      "sourceDigest": "sha256:4be585b78dd9dab7226a99d6a66a0b9a0dcb86d36f494c26556b3963a37c2358",
+      "outputDigest": "sha256:4be585b78dd9dab7226a99d6a66a0b9a0dcb86d36f494c26556b3963a37c2358",
+      "transformations": []
+    }
+  ]
+}

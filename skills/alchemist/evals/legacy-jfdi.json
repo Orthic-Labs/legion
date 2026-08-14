@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "skill": "alchemist",
+  "legacy_skill": "jfdi",
+  "should_trigger": [
+    {
+      "id": "jfdi-explicit",
+      "prompt": "/jfdi make the exact requested change and stop when named checks pass.",
+      "expected_behavior": "Resolve the JFDI compatibility command to Alchemist and freeze literal scope, paths, checks, and budgets.",
+      "assertions": [{"type": "expected_skill", "value": "alchemist"}]
+    },
+    {
+      "id": "jfdi-natural",
+      "prompt": "Just fucking do it. No tangents; run only the checks I named.",
+      "expected_behavior": "Select Alchemist execution mode and execute within frozen bounds.",
+      "assertions": [{"type": "expected_skill", "value": "alchemist"}]
+    }
+  ],
+  "should_not_trigger": [
+    {
+      "id": "jfdi-not-normal",
+      "prompt": "Please explain why this test fails.",
+      "expected_behavior": "Do not select Alchemist without an execution-mode signal.",
+      "assertions": [{"type": "forbidden_skill", "value": "alchemist"}]
+    }
+  ],
+  "output_quality": [],
+  "safety": [],
+  "pressure": [],
+  "compatibility": []
+}

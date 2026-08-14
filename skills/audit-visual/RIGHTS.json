@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 1,
+  "bundle": "audit-visual",
+  "provenance": "legion-authored-public-router",
+  "licenseState": "unresolved",
+  "rightsReceipt": null,
+  "publish": false,
+  "redistributionStatus": "blocked-rights-review",
+  "sourceDisposition": "Existing Audit Visual documentation remains outside this wrapper pending provenance and rights review.",
+  "includedContent": "Only this generic public router is included."
+}

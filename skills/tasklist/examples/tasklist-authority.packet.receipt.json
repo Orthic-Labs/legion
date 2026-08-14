@@ -1,0 +1,10 @@
+{
+  "schema_version": 3,
+  "sha256": "09c515ed91b1c001abe8b05593b341ea0711c8f668a087332497d7f8d8cb6c77",
+  "referenced_artifacts": [
+    {
+      "path": "skills/tasklist/examples/sage-architect.route.json",
+      "sha256": "sha256:ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356"
+    }
+  ]
+}

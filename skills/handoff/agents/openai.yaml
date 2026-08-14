@@ -1,0 +1,4 @@
+interface:
+  display_name: "Handoff"
+  short_description: "Transfer chat state through bound transcripts"
+  default_prompt: "Use $handoff to emit this source task's bound transcript pointer; target chat compiles it into a validated cold-start packet."

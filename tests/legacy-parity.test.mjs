@@ -192,11 +192,11 @@ test('all 135 legacy paths remain in standalone Legion', () => {
   assert.equal(records.length, 135);
   assert.ok(LEGACY_BLOBS.every(([, oid]) => /^[0-9a-f]{40}$/.test(oid)), 'legacy OIDs are full Git blob IDs');
   assert.deepEqual(records.filter((record) => !record.currentBlob).map((record) => record.path), []);
-  // Re-baselined 2026-08-09 (105/30 -> 104/31): `_audit/capability-aliases.json` legitimately
-  // evolved when the retired skills it aliased were removed (/justdoit -> /alchemist,
-  // /test-author -> /audit contract-tests). Every path still exists; only byte-parity moved.
-  assert.equal(records.filter((record) => record.currentBlob === record.legacyBlob).length, 104);
-  assert.equal(records.filter((record) => record.currentBlob !== record.legacyBlob).length, 31);
+  // Re-baselined 2026-08-14 (104/31 -> 96/39): public entrypoint packaging, semantic aliases,
+  // and import-safe script guards intentionally changed eight mapped files. Every path remains;
+  // only byte parity moved.
+  assert.equal(records.filter((record) => record.currentBlob === record.legacyBlob).length, 96);
+  assert.equal(records.filter((record) => record.currentBlob !== record.legacyBlob).length, 39);
 });
 
 test('source completion reports legacy mappings without source blockers', () => {

@@ -1,0 +1,4 @@
+interface:
+  display_name: Dispatch
+  short_description: Build validated zero-context executor packets
+  default_prompt: Create a bounded, receipt-validated dispatch packet for this work.

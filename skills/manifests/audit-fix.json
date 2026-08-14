@@ -1,0 +1,5 @@
+{
+  "schemaVersion": 1, "id": "audit-fix", "version": "1.0.0", "entry": "SKILL.md", "rootUri": "legion-skill://audit-fix/", "provenance": "legion-authored-public-router", "licenseState": "unresolved", "rightsReceipt": null,
+  "profiles": { "audit": { "mutation": false, "publish": false }, "authoring": { "mutation": true, "publish": false, "externalOnly": true } },
+  "files": [{ "path": "SKILL.md", "uri": "legion-skill://audit-fix/SKILL.md", "sourceDigest": "sha256:869c06f7ca32f1d35e10eec3003dc267f65318dbbeabdcec953f29b6cdff5f1f", "outputDigest": "sha256:869c06f7ca32f1d35e10eec3003dc267f65318dbbeabdcec953f29b6cdff5f1f", "transformations": [] }, { "path": "RIGHTS.json", "uri": "legion-skill://audit-fix/RIGHTS.json", "sourceDigest": "sha256:90939d416bc917e60bbaad3da2a0fa27e9a96ffca56a5526ef1ac996700a0484", "outputDigest": "sha256:90939d416bc917e60bbaad3da2a0fa27e9a96ffca56a5526ef1ac996700a0484", "transformations": [] }]
+}

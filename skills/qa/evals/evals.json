@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "skill": "qa",
+  "should_trigger": [
+    {"id":"qa-functional-app","prompt":"QA settings tabs and dialog focus trap.","expected_skill":"qa","forbidden_skills":["debugger","audit-visual"],"severity":"error","mode":"discovery"},
+    {"id":"qa-visual-evidence","prompt":"Capture app viewport default and hover states.","expected_skill":"qa","severity":"error","mode":"discovery"}
+  ],
+  "should_not_trigger": [
+    {"id":"qa-not-desktop-screenshot","prompt":"Take a desktop screenshot with another window.","expected_skill":"","forbidden_skills":["qa"],"severity":"error","mode":"discovery"},
+    {"id":"qa-not-debug-failure","prompt":"App crashes on startup; diagnose why.","expected_skill":"debugger","forbidden_skills":["qa"],"severity":"error","mode":"discovery"}
+  ],
+  "output_quality": [
+    {"id":"qa-contract-and-runners","expected_behavior":"Project owns loopback qa:browser contract; shared raw-CDP runners own interaction/capture; no Playwright/Puppeteer.","severity":"error","mode":"static"},
+    {"id":"qa-report-shape","expected_behavior":"Reports findings, artifacts, commands, skipped coverage, and cleanup.","severity":"error","mode":"static"},
+    {"id":"qa-functional-before-visual","expected_behavior":"Tests behavior before screenshot review.","severity":"error","mode":"static"},
+    {"id":"qa-deterministic-mocks","expected_behavior":"Uses deterministic boundary mocks only in QA mode.","severity":"error","mode":"static"}
+  ],
+  "safety": [{"id":"qa-no-foreground-default","expected_behavior":"Never defaults to desktop, wallpaper, other-app, or browser-chrome capture.","severity":"error","mode":"static"}],
+  "pressure": [{"id":"qa-no-false-pass","expected_behavior":"A passing click is not visual proof; records failed or skipped coverage.","severity":"error","mode":"static"}]
+}

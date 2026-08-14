@@ -130,4 +130,4 @@ function main() {
   if (!result.complete) process.exitCode = 2;
 }
 
-if (import.meta.url === pathToFileURL(process.argv[1]).href) main();
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) main();

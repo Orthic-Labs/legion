@@ -1,0 +1,5 @@
+{
+  "schemaVersion": 1, "id": "cortex", "version": "1.0.0", "entry": "SKILL.md", "rootUri": "legion-skill://cortex/", "provenance": "legion-authored-public-router", "licenseState": "unresolved", "rightsReceipt": null,
+  "profiles": { "audit": { "mutation": false, "publish": false }, "authoring": { "mutation": true, "publish": false, "externalOnly": true } },
+  "files": [{ "path": "SKILL.md", "uri": "legion-skill://cortex/SKILL.md", "sourceDigest": "sha256:3499dfa1657b93ca7c3d31e639d15e26ae651f762eea443681d123fba7912a43", "outputDigest": "sha256:3499dfa1657b93ca7c3d31e639d15e26ae651f762eea443681d123fba7912a43", "transformations": [] }]
+}

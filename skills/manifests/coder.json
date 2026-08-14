@@ -1,0 +1,72 @@
+{
+  "schemaVersion": 1,
+  "id": "coder",
+  "version": "1.0.0",
+  "entry": "SKILL.md",
+  "rootUri": "legion-skill://coder/",
+  "provenance": "workspace-authored-wrapper",
+  "licenseState": "unresolved",
+  "rightsReceipt": null,
+  "profiles": {
+    "audit": {
+      "mutation": false,
+      "publish": false
+    },
+    "authoring": {
+      "mutation": true,
+      "publish": false,
+      "externalOnly": true
+    }
+  },
+  "files": [
+    {
+      "path": "SKILL.md",
+      "uri": "legion-skill://coder/SKILL.md",
+      "sourceDigest": "sha256:0a999c694e9bcd2f8f0b0e769d164771b87fb7038019c8ac5b11a56eb915c844",
+      "outputDigest": "sha256:0a999c694e9bcd2f8f0b0e769d164771b87fb7038019c8ac5b11a56eb915c844",
+      "transformations": []
+    },
+    {
+      "path": "agents/openai.yaml",
+      "uri": "legion-skill://coder/agents/openai.yaml",
+      "sourceDigest": "sha256:28152e6a0dd882a013d5d2731b4082be2d8f6aa601397909a045f3bc82e7e945",
+      "outputDigest": "sha256:28152e6a0dd882a013d5d2731b4082be2d8f6aa601397909a045f3bc82e7e945",
+      "transformations": []
+    },
+    {
+      "path": "evals/evals.json",
+      "uri": "legion-skill://coder/evals/evals.json",
+      "sourceDigest": "sha256:a519b0cb1dd57e23019f7a23d9f53bcc61d778a44877c8ccd884992cb3d6d1f5",
+      "outputDigest": "sha256:a519b0cb1dd57e23019f7a23d9f53bcc61d778a44877c8ccd884992cb3d6d1f5",
+      "transformations": []
+    },
+    {
+      "path": "hooks/hooks.json",
+      "uri": "legion-skill://coder/hooks/hooks.json",
+      "sourceDigest": "sha256:37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570",
+      "outputDigest": "sha256:37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570",
+      "transformations": []
+    },
+    {
+      "path": "references/provider-runbook.md",
+      "uri": "legion-skill://coder/references/provider-runbook.md",
+      "sourceDigest": "sha256:8e008fefcac1c1e63f7d4efd0ec77e658ded9522de15c7122dff07784390d7d7",
+      "outputDigest": "sha256:8e008fefcac1c1e63f7d4efd0ec77e658ded9522de15c7122dff07784390d7d7",
+      "transformations": []
+    },
+    {
+      "path": "scripts/api-worker.py",
+      "uri": "legion-skill://coder/scripts/api-worker.py",
+      "sourceDigest": "sha256:bc8f19615894b67fe865d7a7b1e702a87c0ab08e9e6dedf687650c4d8ee0e3d5",
+      "outputDigest": "sha256:bc8f19615894b67fe865d7a7b1e702a87c0ab08e9e6dedf687650c4d8ee0e3d5",
+      "transformations": []
+    },
+    {
+      "path": "tests/coder-entrypoint.test.py",
+      "uri": "legion-skill://coder/tests/coder-entrypoint.test.py",
+      "sourceDigest": "sha256:2474212935230c6997671a464cf344c4703a8c7335027f08a193b011b599d6a6",
+      "outputDigest": "sha256:2474212935230c6997671a464cf344c4703a8c7335027f08a193b011b599d6a6",
+      "transformations": []
+    }
+  ]
+}

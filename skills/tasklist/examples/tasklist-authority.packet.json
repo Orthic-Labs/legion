@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "kind": "legion-authority-dispatch",
+  "packetType": "sage",
+  "sourceRevision": "adb742c",
+  "promptDigest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+  "modelRouting": {
+    "modelTier": "FRONTIER",
+    "workerProfile": "strict",
+    "routingRationale": "tasklist durable route"
+  },
+  "routeBundle": {
+    "path": "skills/tasklist/examples/sage-architect.route.json",
+    "digest": "sha256:ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356"
+  }
+}

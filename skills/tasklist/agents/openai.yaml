@@ -1,0 +1,4 @@
+interface:
+  display_name: "Task List"
+  short_description: "Shortest reliable same-agent execution list"
+  default_prompt: "Use $tasklist to create an executable same-agent task list for this goal."

@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 1,
+  "bundle": "brand",
+  "provenance": "legion-authored-public-router",
+  "licenseState": "unresolved",
+  "rightsReceipt": null,
+  "publish": false,
+  "redistributionStatus": "blocked-rights-review",
+  "sourceDisposition": "Legacy brand corpus is private-overlay material and is intentionally excluded from this package.",
+  "includedContent": "Only this generic router and its generic resolver evals are included."
+}
