@@ -79,6 +79,7 @@ export * from './lib/architecture-fingerprints.mjs';
 export * from './lib/scoped-acceptance.mjs';
 export * from './lib/continuity.mjs';
 export * from './lib/architecture-event-store.mjs';
+export * from './lib/s09-runtime-executor.mjs';
 export * from './lib/authority-binding-store.mjs';
 export * from './lib/session-binding.mjs';
 export * from './lib/host-event-ledger.mjs';
