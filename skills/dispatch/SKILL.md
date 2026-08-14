@@ -17,8 +17,8 @@ MAY_CALL_SKILLS: NONE
 TERMINAL: Packet has scope, checks, recovery, ownership, & receipt-backed evidence.
 
 1. Freeze objective, authority, exact OWN/READ/FORBIDDEN paths, dependencies, integration owner, acceptance checks, & bounded recovery.
-2. Copy `assets/dispatch-template.md` to declared packet path; replace every placeholder.
-3. Validate with `python3 tools/skills/legion/skills/dispatch/scripts/validate-dispatch.py <packet> --write-receipt <receipt>`.
-4. Return packet path, receipt, executor, integration owner, & `TRUE_BLOCKER` only after recovery evidence.
+2. Copy `assets/direct-packet.json` to declared packet path, then add one worker object per independent owner. Never add GoalRoute, timing, Minimize, or author-gate ceremony unless work is locked, contracted, or Adrian explicitly requests it.
+3. Validate with `python3 tools/skills/legion/skills/dispatch/scripts/validate-dispatch.py <packet> --packet-type authority --write-receipt <receipt>`.
+4. Return packet path, receipt, executors, integration owner, & `TRUE_BLOCKER` only after bounded recovery evidence.
 
-Read `references/manual.md` for multi-agent, experiment, correction, or lifecycle work. Read `references/agent-routing.md` for authority routing. Never rely on unseen chat or delegate user-reserved decisions.
+Use `assets/dispatch-template.md` with `--packet-type legacy` only for explicit legacy compatibility. Read `references/manual.md` for experiment, correction, or lifecycle work. Read `references/agent-routing.md` for authority routing. Never rely on unseen chat or delegate user-reserved decisions.
