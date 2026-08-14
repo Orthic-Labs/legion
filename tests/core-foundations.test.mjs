@@ -39,6 +39,7 @@ test('book qualification discovers deterministic focused suites without running 
   assert.equal(tests.some((path) => path.endsWith('book-source-completion.test.mjs')), true);
   const receipt = await qualifyBook(1, { execute: false });
   assert.equal(receipt.status, 'planned');
+  assert.deepEqual(receipt.command.slice(0, 3), ['node', '--test', '--test-concurrency=1']);
   assert.ok(receipt.tests.includes('tests/core-foundations.test.mjs'));
 });
 
