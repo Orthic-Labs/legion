@@ -59,6 +59,7 @@ function namingFixture() {
     'config/naming-registry.json', 'config/naming-legacy-allowlist.json', 'README.md', 'package.json', 'MANIFEST.package.json',
     '.claude-plugin/plugin.json', '.codex-plugin/plugin.json', 'packages/oracle/index.mjs', 'lib/roster/index.mjs', 'lib/cli/commands/doctor.mjs',
     'packages/context/lib/context.mjs', 'packages/arcane/lib/architecture-event-store.mjs', 'packages/arcane/lib/authority-binding-store.mjs',
+    'providers/security/packs/output-handling.mjs',
   ];
   for (const path of files) {
     mkdirSync(dirname(join(fixture, path)), { recursive: true });
@@ -87,6 +88,20 @@ test('naming checker rejects unclassified active filenames, NUL source, and miss
     assert.ok(report.unclassified.some(({ path, reason }) => path === 'neutral-nul.mjs' && reason === 'active source cannot be decoded for naming scan'));
     assert.ok(report.unclassified.some(({ path, reason }) => path === 'lib/cli/commands/doctor.mjs' && reason.includes('occurrence count differs')));
     assert.ok(report.unclassified.some(({ path, reason }) => path === 'MANIFEST.package.json' && reason.includes('omits canonical Oracle package')));
+  } finally { rmSync(fixture, { recursive: true, force: true }); }
+});
+
+test('naming checker rejects security-pack prefix and occurrence bypasses', () => {
+  const fixture = namingFixture();
+  try {
+    const allowedPath = join(fixture, 'providers', 'security', 'packs', 'output-handling.mjs');
+    writeFileSync(allowedPath, `${readFileSync(allowedPath, 'utf8')}\nexport const currentAuthority = 'forge';\n`);
+    const injectedPath = join(fixture, 'providers', 'security', 'packs', 'injected.mjs');
+    writeFileSync(injectedPath, "export const currentAuthority = 'forge';\n");
+    const report = checkCanonicalNames({ root: fixture });
+    assert.equal(report.status, 'fail');
+    assert.ok(report.unclassified.some(({ path, reason }) => path === 'providers/security/packs/output-handling.mjs' && reason.includes('occurrence count differs')));
+    assert.ok(report.unclassified.some(({ path, reason }) => path === 'providers/security/packs/injected.mjs' && reason === 'unclassified legacy token'));
   } finally { rmSync(fixture, { recursive: true, force: true }); }
 });
 
