@@ -1,5 +1,44 @@
 {
-  "schemaVersion": 1, "id": "brand", "version": "1.0.0", "entry": "SKILL.md", "rootUri": "legion-skill://brand/", "provenance": "legion-authored-public-router", "licenseState": "unresolved", "rightsReceipt": null,
-  "profiles": { "audit": { "mutation": false, "publish": false }, "authoring": { "mutation": true, "publish": false, "externalOnly": true } },
-  "files": [{ "path": "SKILL.md", "uri": "legion-skill://brand/SKILL.md", "sourceDigest": "sha256:f640bf6eba85fb452cd72a267b3fb86a264dc016b5d2c3f58fae96979a1f05fb", "outputDigest": "sha256:f640bf6eba85fb452cd72a267b3fb86a264dc016b5d2c3f58fae96979a1f05fb", "transformations": [] }, { "path": "RIGHTS.json", "uri": "legion-skill://brand/RIGHTS.json", "sourceDigest": "sha256:9d9991ae16d758bc69b1267c8b10e9370b68fcfec8228001d9e3b8e3fcc7ae31", "outputDigest": "sha256:9d9991ae16d758bc69b1267c8b10e9370b68fcfec8228001d9e3b8e3fcc7ae31", "transformations": [] }, { "path": "evals/evals.json", "uri": "legion-skill://brand/evals/evals.json", "sourceDigest": "sha256:3ae4f59583982826ae9e399df3751ec6d08c7e65b2eb0f1e914e3c9c60f429cb", "outputDigest": "sha256:3ae4f59583982826ae9e399df3751ec6d08c7e65b2eb0f1e914e3c9c60f429cb", "transformations": [] }]
+  "schemaVersion": 1,
+  "id": "brand",
+  "version": "1.0.0",
+  "entry": "SKILL.md",
+  "rootUri": "legion-skill://brand/",
+  "provenance": "legion-authored-public-router",
+  "licenseState": "unresolved",
+  "rightsReceipt": null,
+  "profiles": {
+    "audit": {
+      "mutation": false,
+      "publish": false
+    },
+    "authoring": {
+      "mutation": true,
+      "publish": false,
+      "externalOnly": true
+    }
+  },
+  "files": [
+    {
+      "path": "RIGHTS.json",
+      "uri": "legion-skill://brand/RIGHTS.json",
+      "sourceDigest": "sha256:9d9991ae16d758bc69b1267c8b10e9370b68fcfec8228001d9e3b8e3fcc7ae31",
+      "outputDigest": "sha256:9d9991ae16d758bc69b1267c8b10e9370b68fcfec8228001d9e3b8e3fcc7ae31",
+      "transformations": []
+    },
+    {
+      "path": "SKILL.md",
+      "uri": "legion-skill://brand/SKILL.md",
+      "sourceDigest": "sha256:f640bf6eba85fb452cd72a267b3fb86a264dc016b5d2c3f58fae96979a1f05fb",
+      "outputDigest": "sha256:f640bf6eba85fb452cd72a267b3fb86a264dc016b5d2c3f58fae96979a1f05fb",
+      "transformations": []
+    },
+    {
+      "path": "evals/evals.json",
+      "uri": "legion-skill://brand/evals/evals.json",
+      "sourceDigest": "sha256:9ae88419e08d5031ff829586d288ed0a5821c2e838bf50a62fc774ad31d4c518",
+      "outputDigest": "sha256:9ae88419e08d5031ff829586d288ed0a5821c2e838bf50a62fc774ad31d4c518",
+      "transformations": []
+    }
+  ]
 }

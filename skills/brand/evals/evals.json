@@ -17,7 +17,9 @@
       "id": "brand-not-identity-creation",
       "prompt": "Create a new logo, visual system, and brand guidelines for a new company.",
       "expected_skill": "brand-identity",
-      "forbidden_skills": ["brand"],
+      "forbidden_skills": [
+        "brand"
+      ],
       "expected_behavior": "New identity creation routes to brand-identity.",
       "severity": "error",
       "mode": "discovery"
@@ -33,5 +35,8 @@
       "severity": "error",
       "mode": "static"
     }
-  ]
+  ],
+  "output_quality": [],
+  "pressure": [],
+  "compatibility": []
 }

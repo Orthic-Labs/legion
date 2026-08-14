@@ -41,7 +41,7 @@ note rather than silently rewritten:
   severity framing, but under Covenant doctrine (C-invariants) a seat is advisory only — never
   decides or disposes. What reads as "blocks" here is a maximum-severity finding for the caller
   (Sage or Alchemist) to weigh.
-- `seo.md`: a note explaining the retired `/council seo` command and retired
+- `seo.md`: a note explaining the retired Council SEO command and retired
   `tools/review/dual_review.py` CLI do not exist in Covenant; the rubric content is preserved, the
   delivery mechanism is not.
 

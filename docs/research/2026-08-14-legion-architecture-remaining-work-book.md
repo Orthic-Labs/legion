@@ -36,8 +36,8 @@ Commit `c1c7e818` retired nine engineering skill entrypoints together before par
 | `qa` | 10 | QA engine modules parse | Callable entrypoint, browser reference/manual, resolved runner binding |
 | `architect` | 14 | Sage Architect doctrine | Callable intent entrypoint and trigger parity |
 | `debugger` | 9 | Sage Diagnose doctrine | Callable intent entrypoint and trigger parity |
-| `jfdi` | 3 | `/justdoit → /alchemist` alias | Natural-language and compatibility trigger boundary |
-| `council` | 14 | Covenant capability | `/council → /covenant` compatibility boundary and legacy packet parity |
+| `jfdi` | 3 | retired alias → `/alchemist` | Natural-language and compatibility trigger boundary |
+| `council` | 14 | Covenant capability | retired alias → `/covenant` compatibility boundary and legacy packet parity |
 
 Baseline checks before R1 began confirmed:
 

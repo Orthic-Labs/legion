@@ -1,5 +1,30 @@
 {
-  "schemaVersion": 1, "id": "compshop", "version": "1.0.0", "entry": "SKILL.md", "rootUri": "legion-skill://compshop/", "provenance": "legion-authored-public-router", "licenseState": "unresolved", "rightsReceipt": null,
-  "profiles": { "audit": { "mutation": false, "publish": false }, "authoring": { "mutation": true, "publish": false, "externalOnly": true } },
-  "files": [{ "path": "SKILL.md", "uri": "legion-skill://compshop/SKILL.md", "sourceDigest": "sha256:e59c6865e859374c8b51cc8bdb7120596eb0aa0d822b4e49c84f243f5a336b1b", "outputDigest": "sha256:e59c6865e859374c8b51cc8bdb7120596eb0aa0d822b4e49c84f243f5a336b1b", "transformations": [] }]
+  "schemaVersion": 1,
+  "id": "compshop",
+  "version": "1.0.0",
+  "entry": "SKILL.md",
+  "rootUri": "legion-skill://compshop/",
+  "provenance": "legion-authored-public-router",
+  "licenseState": "unresolved",
+  "rightsReceipt": null,
+  "profiles": {
+    "audit": {
+      "mutation": false,
+      "publish": false
+    },
+    "authoring": {
+      "mutation": true,
+      "publish": false,
+      "externalOnly": true
+    }
+  },
+  "files": [
+    {
+      "path": "SKILL.md",
+      "uri": "legion-skill://compshop/SKILL.md",
+      "sourceDigest": "sha256:6b19c3231ca4ceaee82a47d7ff582e0dd338fab1f778b468d8eea5d62f39681c",
+      "outputDigest": "sha256:6b19c3231ca4ceaee82a47d7ff582e0dd338fab1f778b468d8eea5d62f39681c",
+      "transformations": []
+    }
+  ]
 }

@@ -1,5 +1,37 @@
 {
-  "schemaVersion": 1, "id": "audit-visual", "version": "1.0.0", "entry": "SKILL.md", "rootUri": "legion-skill://audit-visual/", "provenance": "legion-authored-public-router", "licenseState": "unresolved", "rightsReceipt": null,
-  "profiles": { "audit": { "mutation": false, "publish": false }, "authoring": { "mutation": true, "publish": false, "externalOnly": true } },
-  "files": [{ "path": "SKILL.md", "uri": "legion-skill://audit-visual/SKILL.md", "sourceDigest": "sha256:d69d93d420d0dfb5d7f1d244f1994f631ef3c70d0d1b7c7401e75138263a71cd", "outputDigest": "sha256:d69d93d420d0dfb5d7f1d244f1994f631ef3c70d0d1b7c7401e75138263a71cd", "transformations": [] }, { "path": "RIGHTS.json", "uri": "legion-skill://audit-visual/RIGHTS.json", "sourceDigest": "sha256:ce88d259715c2c9d4b174d26e48ab08f01c5136d84d42c57ce8be0f6f0d11722", "outputDigest": "sha256:ce88d259715c2c9d4b174d26e48ab08f01c5136d84d42c57ce8be0f6f0d11722", "transformations": [] }]
+  "schemaVersion": 1,
+  "id": "audit-visual",
+  "version": "1.0.0",
+  "entry": "SKILL.md",
+  "rootUri": "legion-skill://audit-visual/",
+  "provenance": "legion-authored-public-router",
+  "licenseState": "unresolved",
+  "rightsReceipt": null,
+  "profiles": {
+    "audit": {
+      "mutation": false,
+      "publish": false
+    },
+    "authoring": {
+      "mutation": true,
+      "publish": false,
+      "externalOnly": true
+    }
+  },
+  "files": [
+    {
+      "path": "RIGHTS.json",
+      "uri": "legion-skill://audit-visual/RIGHTS.json",
+      "sourceDigest": "sha256:ce88d259715c2c9d4b174d26e48ab08f01c5136d84d42c57ce8be0f6f0d11722",
+      "outputDigest": "sha256:ce88d259715c2c9d4b174d26e48ab08f01c5136d84d42c57ce8be0f6f0d11722",
+      "transformations": []
+    },
+    {
+      "path": "SKILL.md",
+      "uri": "legion-skill://audit-visual/SKILL.md",
+      "sourceDigest": "sha256:d69d93d420d0dfb5d7f1d244f1994f631ef3c70d0d1b7c7401e75138263a71cd",
+      "outputDigest": "sha256:d69d93d420d0dfb5d7f1d244f1994f631ef3c70d0d1b7c7401e75138263a71cd",
+      "transformations": []
+    }
+  ]
 }

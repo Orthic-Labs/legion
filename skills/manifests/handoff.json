@@ -57,8 +57,8 @@
     {
       "path": "references/manual.md",
       "uri": "legion-skill://handoff/references/manual.md",
-      "sourceDigest": "sha256:6214432a72278167c409fb65b2a439409f11d2ec95cf80fb1f46513d3e063565",
-      "outputDigest": "sha256:6214432a72278167c409fb65b2a439409f11d2ec95cf80fb1f46513d3e063565",
+      "sourceDigest": "sha256:276f465cefc362c3ce31c07e037dda0b59db4db0e85ce8297073c18492bfcae0",
+      "outputDigest": "sha256:276f465cefc362c3ce31c07e037dda0b59db4db0e85ce8297073c18492bfcae0",
       "transformations": []
     }
   ]

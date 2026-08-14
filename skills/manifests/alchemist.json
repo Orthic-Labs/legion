@@ -22,15 +22,15 @@
     {
       "path": "SKILL.md",
       "uri": "legion-skill://alchemist/SKILL.md",
-      "sourceDigest": "sha256:348144a448950cadd5cff7df8aceaa69347ed4dc7de133d06b9fef74834f3a69",
-      "outputDigest": "sha256:348144a448950cadd5cff7df8aceaa69347ed4dc7de133d06b9fef74834f3a69",
+      "sourceDigest": "sha256:f80a7b6f145811187bccdc99f104bfc0bce985338c74ddbc92af8e954d2c6ca5",
+      "outputDigest": "sha256:f80a7b6f145811187bccdc99f104bfc0bce985338c74ddbc92af8e954d2c6ca5",
       "transformations": []
     },
     {
       "path": "evals/legacy-jfdi.json",
       "uri": "legion-skill://alchemist/evals/legacy-jfdi.json",
-      "sourceDigest": "sha256:96a7b7ed7d6c853438da8f94f8449502af9463ced4fb69665e2d76d6bd1b0a47",
-      "outputDigest": "sha256:96a7b7ed7d6c853438da8f94f8449502af9463ced4fb69665e2d76d6bd1b0a47",
+      "sourceDigest": "sha256:473df0302e99ad22000b67813954549d67878aa9517d774843266bdde80c3026",
+      "outputDigest": "sha256:473df0302e99ad22000b67813954549d67878aa9517d774843266bdde80c3026",
       "transformations": []
     }
   ]

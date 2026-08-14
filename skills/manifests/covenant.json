@@ -22,15 +22,15 @@
     {
       "path": "SKILL.md",
       "uri": "legion-skill://covenant/SKILL.md",
-      "sourceDigest": "sha256:8d6e412ec500c82fddba5170947adec48de196efcbe321a61c9f7fe320b8a3e9",
-      "outputDigest": "sha256:8d6e412ec500c82fddba5170947adec48de196efcbe321a61c9f7fe320b8a3e9",
+      "sourceDigest": "sha256:916631068449d6675bec0f16c7339d2ecbd6e887c86408c455b4d368ae8ba56b",
+      "outputDigest": "sha256:916631068449d6675bec0f16c7339d2ecbd6e887c86408c455b4d368ae8ba56b",
       "transformations": []
     },
     {
       "path": "evals/legacy-council.json",
       "uri": "legion-skill://covenant/evals/legacy-council.json",
-      "sourceDigest": "sha256:5eee114d217af7e2819ced6a926cc58f64d2154e0b4c521e4888d32464b0dc71",
-      "outputDigest": "sha256:5eee114d217af7e2819ced6a926cc58f64d2154e0b4c521e4888d32464b0dc71",
+      "sourceDigest": "sha256:0f0b116943c1c59070c978ea66ee5420e6eb5c5216dad9a0d8013c4c3d7bbf9a",
+      "outputDigest": "sha256:0f0b116943c1c59070c978ea66ee5420e6eb5c5216dad9a0d8013c4c3d7bbf9a",
       "transformations": []
     }
   ]
