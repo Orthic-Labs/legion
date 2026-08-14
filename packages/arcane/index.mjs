@@ -89,6 +89,7 @@ export * from './lib/high-risk-assurance.mjs';
 export * from './lib/high-risk-assurance-store.mjs';
 export * from './lib/advisory-profile.mjs';
 export * from './lib/advisory-certification.mjs';
+export * from './lib/advisory-judgment.mjs';
 export * from './lib/preeffect-correlation.mjs';
 export * from './host/host-runtime-output.mjs';
 export * from './host/host-runtime.mjs';

@@ -60,6 +60,20 @@ function sameOwner(record, owner, mode) {
   const actual = mode === 'read-only' ? record?.owner : record;
   return actual?.sessionId === owner?.sessionId && actual?.runId === owner?.runId && actual?.taskId === owner?.taskId;
 }
+
+// A first-fix owner may repair local implementation under a canonical owner's
+// standing ownership. This is a disposition only; it neither changes leases nor
+// rewrites the canonical owner.
+export function admitLocalRepair({ firstFixOwner, canonicalOwner, requester, repairScope = [] } = {}) {
+  const scope = Array.isArray(repairScope) ? repairScope : [];
+  if (!firstFixOwner || !canonicalOwner || !requester) {
+    return Object.freeze({ outcome: 'LOCAL_REPAIR_DENIED', code: 'ARC_OWNERSHIP_DISPOSITION_INVALID', canonicalOwner: canonicalOwner ?? null, repairScope: Object.freeze(scope) });
+  }
+  if (requester !== firstFixOwner && requester !== canonicalOwner) {
+    return Object.freeze({ outcome: 'LOCAL_REPAIR_DENIED', code: 'ARC_FIRST_FIX_OWNER_REQUIRED', canonicalOwner, repairScope: Object.freeze(scope) });
+  }
+  return Object.freeze({ outcome: 'LOCAL_REPAIR_PERMITTED', firstFixOwner, canonicalOwner, requester, repairScope: Object.freeze(scope), canonicalOwnershipRewrite: false });
+}
 function release(repo, owner, recovery = false) {
   if (repo.mode === 'read-only') { const path = acquisitionPath(repo); if (!existsSync(path)) { if (recovery) return; refuse('ARC_DELIVERY_ACQUISITION_MISSING', 'read-only acquisition is missing'); } const acquisition = JSON.parse(readFileSync(path, 'utf8')); if (!sameOwner(acquisition, owner, repo.mode) || acquisition.token !== repo.leaseToken) refuse('ARC_DELIVERY_OWNER_MISMATCH', 'delivery acquisition owner differs'); unlinkSync(path); return; }
   const path = leasePath(repo);

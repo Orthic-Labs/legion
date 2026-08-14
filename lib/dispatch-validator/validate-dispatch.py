@@ -8,7 +8,9 @@ import hashlib
 import importlib.util
 import json
 import os
+import posixpath
 import re
+import subprocess
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -138,13 +140,128 @@ def digest_path(value: object, packet: Path, label: str, errors: list[str]) -> P
     return candidate
 
 
+def direct_scope_path(value: str) -> str | None:
+    """Return one stable key for a direct-packet scope path.
+
+    Direct packets are portable JSON, so scope comparison cannot depend on
+    host filesystem resolution.  Separator and dot-segment aliases still name
+    one path, however, and must not create two apparent owners.
+    """
+    path = value.strip().replace("\\", "/")
+    if not path or "\x00" in path or is_absolute_path(path):
+        return None
+    normalized = posixpath.normpath(path)
+    if normalized in {".", ".."} or normalized.startswith("../"):
+        return None
+    return normalized.casefold() if os.name == "nt" else normalized
+
+
+def scope_static_prefix(value: str) -> str:
+    parts = value.split("/")
+    concrete: list[str] = []
+    for part in parts:
+        if any(token in part for token in "*?["):
+            break
+        concrete.append(part)
+    return "/".join(concrete)
+
+
+def scopes_overlap(left: str, right: str) -> bool:
+    """Conservatively reject direct OWN scopes with a shared reachable path."""
+    if left == right:
+        return True
+    left_prefix = scope_static_prefix(left)
+    right_prefix = scope_static_prefix(right)
+    if not left_prefix or not right_prefix:
+        return True
+    return (
+        left_prefix == right_prefix
+        or left_prefix.startswith(right_prefix + "/")
+        or right_prefix.startswith(left_prefix + "/")
+    )
+
+
+def packet_repository_root(packet: dict, artifact: Path, errors: list[str]) -> Path | None:
+    declared = packet.get("repositoryRoot")
+    root = resolve_declared_path(declared, artifact) if isinstance(declared, str) else repository_root(artifact)
+    if root is None or not root.is_dir() or not (root / ".git").exists():
+        errors.append("authority packet requires an existing repository root")
+        return None
+    return root
+
+
+def content_reference(
+    value: object,
+    packet: Path,
+    label: str,
+    errors: list[str],
+    references: list[dict[str, str]],
+) -> Path | None:
+    if not isinstance(value, str) or not value.strip():
+        errors.append(f"{label} requires an artifact path")
+        return None
+    path = resolve_declared_path(value, packet)
+    try:
+        digest = f"sha256:{hashlib.sha256(path.read_bytes()).hexdigest()}"
+    except OSError:
+        errors.append(f"{label} artifact is missing")
+        return None
+    references.append({"path": canonical_locator(path), "sha256": digest})
+    return path
+
+
 def authority_packet_errors(packet: object, artifact: Path) -> tuple[list[str], list[dict[str, str]]]:
     errors: list[str] = []
     references: list[dict[str, str]] = []
     if not isinstance(packet, dict): return ["authority packet must be an object"], references
     required = ("schemaVersion", "kind", "packetType", "sourceRevision", "promptDigest", "modelRouting")
     if any(key not in packet for key in required) or packet.get("schemaVersion") != 1 or packet.get("kind") != "legion-authority-dispatch": errors.append("authority packet base shape is invalid")
-    if not re.fullmatch(r"sha256:[0-9a-f]{64}", str(packet.get("promptDigest", ""))): errors.append("authority packet prompt digest is invalid")
+    source_revision = packet.get("sourceRevision")
+    source_digest = (
+        source_revision.removeprefix("git:").removeprefix("sha256:")
+        if isinstance(source_revision, str)
+        else ""
+    )
+    if (
+        not isinstance(source_revision, str)
+        or not re.fullmatch(r"(?:git:)?[0-9a-f]{40}|sha256:[0-9a-f]{64}", source_revision)
+        or len(set(source_digest)) == 1
+    ):
+        errors.append(
+            "authority packet source revision must be an immutable git SHA or content digest"
+        )
+    prompt_digest = str(packet.get("promptDigest", ""))
+    if not re.fullmatch(r"sha256:[0-9a-f]{64}", prompt_digest) or len(
+        set(prompt_digest.removeprefix("sha256:"))
+    ) == 1:
+        errors.append("authority packet prompt digest must be a non-placeholder sha256 digest")
+    root = packet_repository_root(packet, artifact, errors)
+    if isinstance(source_revision, str) and root is not None:
+        if source_revision.startswith("sha256:"):
+            source_path = content_reference(
+                packet.get("sourceArtifact"), artifact, "authority packet source", errors, references
+            )
+            if source_path is not None:
+                actual_source_digest = f"sha256:{hashlib.sha256(source_path.read_bytes()).hexdigest()}"
+                if source_revision != actual_source_digest:
+                    errors.append("authority packet source revision does not bind source artifact bytes")
+        elif re.fullmatch(r"(?:git:)?[0-9a-f]{40}", source_revision):
+            revision = source_revision.removeprefix("git:")
+            resolved = subprocess.run(
+                ["git", "-C", str(root), "rev-parse", "--verify", f"{revision}^{{commit}}"],
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            if resolved.returncode != 0 or resolved.stdout.strip() != revision:
+                errors.append("authority packet source revision does not resolve to repository commit")
+    prompt_path = content_reference(
+        packet.get("promptArtifact"), artifact, "authority packet prompt", errors, references
+    )
+    if prompt_path is not None:
+        actual_prompt_digest = f"sha256:{hashlib.sha256(prompt_path.read_bytes()).hexdigest()}"
+        if prompt_digest != actual_prompt_digest:
+            errors.append("authority packet prompt digest does not bind prompt artifact bytes")
     routing = packet.get("modelRouting")
     if not isinstance(routing, dict) or any(not isinstance(routing.get(key), str) or not routing[key] for key in ("modelTier", "workerProfile", "routingRationale")): errors.append("authority packet requires modelTier, workerProfile, routingRationale")
     packet_type = packet.get("packetType")
@@ -160,7 +277,13 @@ def authority_packet_errors(packet: object, artifact: Path) -> tuple[list[str], 
         recovery = packet.get("recovery")
         if not isinstance(objective, str) or not objective.strip(): errors.append("direct packet requires objective")
         if not isinstance(integration_owner, str) or not integration_owner.strip(): errors.append("direct packet requires integration owner")
-        if not isinstance(authority, list) or not authority or any(not isinstance(value, str) or not value.strip() for value in authority): errors.append("direct packet requires authority sources")
+        if not isinstance(authority, list) or not authority:
+            errors.append("direct packet requires authority sources")
+        else:
+            for index, authority_path in enumerate(authority, start=1):
+                content_reference(
+                    authority_path, artifact, f"direct authority {index}", errors, references
+                )
         if not isinstance(workers, list) or not workers:
             errors.append("direct packet requires at least one worker")
         else:
@@ -193,16 +316,26 @@ def authority_packet_errors(packet: object, artifact: Path) -> tuple[list[str], 
                         errors.append(f"{label} requires valid {scope_name} paths")
                         normalized[scope_name] = set()
                     else:
-                        normalized[scope_name] = set(values)
+                        path_values = [direct_scope_path(value) for value in values]
+                        if any(value is None for value in path_values):
+                            errors.append(f"{label} contains invalid {scope_name} path")
+                        normalized[scope_name] = {value for value in path_values if value is not None}
                         if len(normalized[scope_name]) != len(values): errors.append(f"{label} contains duplicate {scope_name} paths")
                 if normalized["OWN"] & normalized["FORBIDDEN"]: errors.append(f"{label} OWN overlaps FORBIDDEN")
                 if normalized["READ"] & normalized["FORBIDDEN"]: errors.append(f"{label} READ overlaps FORBIDDEN")
                 for path in normalized["OWN"]:
-                    previous = owned_paths.get(path)
-                    if previous is not None: errors.append(f"direct OWN collision: {path} belongs to {previous} and {worker_id}")
-                    else: owned_paths[path] = worker_id
+                    collisions = [
+                        (owned_path, owner)
+                        for owned_path, owner in owned_paths.items()
+                        if scopes_overlap(path, owned_path)
+                    ]
+                    if collisions:
+                        for owned_path, owner in collisions:
+                            errors.append(f"direct OWN collision: {path} overlaps {owned_path} owned by {owner} and {worker_id}")
+                    else:
+                        owned_paths[path] = worker_id
                 if not isinstance(checks, list) or not checks or any(not isinstance(value, str) or not value.strip() for value in checks): errors.append(f"{label} requires acceptance checks")
-                if not isinstance(dependencies, list) or any(not isinstance(value, str) or not value.strip() for value in dependencies): errors.append(f"{label} dependencies must be worker ids")
+                if not isinstance(dependencies, list) or any(not isinstance(value, str) or not value.strip() for value in dependencies) or len(set(dependencies)) != len(dependencies): errors.append(f"{label} dependencies must be unique worker ids")
             known_ids = {worker.get("id") for worker in workers if isinstance(worker, dict) and isinstance(worker.get("id"), str)}
             for worker in workers:
                 if not isinstance(worker, dict): continue
@@ -210,7 +343,7 @@ def authority_packet_errors(packet: object, artifact: Path) -> tuple[list[str], 
                 for dependency in worker.get("dependencies", []) if isinstance(worker.get("dependencies", []), list) else []:
                     if dependency == worker_id: errors.append(f"direct worker {worker_id} cannot depend on itself")
                     elif dependency not in known_ids: errors.append(f"direct worker {worker_id} has unknown dependency: {dependency}")
-        if not isinstance(recovery, dict) or not isinstance(recovery.get("maxRetries"), int) or not 0 <= recovery["maxRetries"] <= 2 or not isinstance(recovery.get("stopConditions"), list) or not recovery["stopConditions"] or not isinstance(recovery.get("returnFields"), list) or not recovery["returnFields"]:
+        if not isinstance(recovery, dict) or not isinstance(recovery.get("maxRetries"), int) or not 0 <= recovery["maxRetries"] <= 2 or not isinstance(recovery.get("stopConditions"), list) or not recovery["stopConditions"] or any(not isinstance(value, str) or not value.strip() for value in recovery.get("stopConditions", [])) or not isinstance(recovery.get("returnFields"), list) or not recovery["returnFields"] or any(not isinstance(value, str) or not value.strip() for value in recovery.get("returnFields", [])):
             errors.append("direct packet requires bounded recovery and return contract")
     elif packet_type == "sage":
         route = packet.get("routeBundle")
@@ -237,6 +370,8 @@ def authority_packet_errors(packet: object, artifact: Path) -> tuple[list[str], 
             reference(packet.get("artifactProjection"), "Worker artifact projection")
         reference(packet.get("oracle"), "Worker oracle")
     else: errors.append("authority packet type must be direct, sage, seer, alchemist, or worker")
+    if not references:
+        errors.append("authority packet requires at least one content-bound artifact")
     return errors, references
 
 
@@ -458,6 +593,80 @@ ACTION_RE = re.compile(
 )
 PATH_RE = re.compile(r"(?:[A-Za-z]:[\\/]|/)[^\s`|]+")
 BOUND_RE = re.compile(r"\b\d+\b")
+MANAGED_RUST_TOOL_RE = re.compile(r"(?<![\w.-])(cargo|rustc|rustdoc)(?![\w.-])", re.I)
+
+
+def managed_rust_route_errors(
+    text: str,
+    artifact_path: Path | None = None,
+    route_document: object | None = None,
+) -> list[str]:
+    """Reject executable Rust tool routes that bypass RightKit.
+
+    Packets are copied verbatim into executor shells.  Treat command-bearing
+    Markdown as executable input, not illustrative prose, before a receipt can
+    bind it.
+    """
+    errors: list[str] = []
+    seen: set[tuple[str, str]] = set()
+
+    def check(value: str, source: str) -> None:
+        for match in MANAGED_RUST_TOOL_RE.finditer(value):
+            tool = match.group(1).lower()
+            prefix = value[:match.start()]
+            if re.search(
+                r"(?:^|[\s;&|])rightkit\s+(?:build\s+)?$", prefix, re.I
+            ):
+                continue
+            key = (source, tool)
+            if key not in seen:
+                seen.add(key)
+                errors.append(
+                    f"managed Rust route violation in {source}: direct {tool} invocation "
+                    f"must use rightkit {tool}"
+                )
+
+    # Fenced blocks include explicit command contracts plus stage bindings.
+    for index, match in enumerate(
+        re.finditer(r"```[^\n]*\n(.*?)\n```", text, re.DOTALL), start=1
+    ):
+        check(match.group(1), f"fenced block {index}")
+
+    # Inline code is often used for exact commands in source/acceptance prose.
+    for index, match in enumerate(re.finditer(r"`([^`\n]+)`", text), start=1):
+        check(match.group(1), f"inline code {index}")
+
+    # Markdown table cells & list-label values are executable contract fields.
+    for line_number, line in enumerate(text.splitlines(), start=1):
+        if line.startswith("|"):
+            for cell_number, cell in enumerate(
+                line.strip().strip("|").split("|"), start=1
+            ):
+                check(cell.strip(), f"table cell {line_number}:{cell_number}")
+        label_match = re.match(r"^-\s+\*\*[^*]+:\*\*\s*(.*)$", line)
+        if label_match:
+            check(label_match.group(1), f"label value {line_number}")
+
+    if route_document is None and artifact_path is not None:
+        route_value = label_value(text, "**Goal route artifact:**") or ""
+        if route_value:
+            try:
+                route_document = json.loads(
+                    resolve_declared_path(route_value, artifact_path).read_text(
+                        encoding="utf-8"
+                    )
+                )
+            except (OSError, UnicodeDecodeError, json.JSONDecodeError):
+                # GoalRoute validation reports unreadable or malformed routes.
+                route_document = None
+    if isinstance(route_document, dict):
+        state_b = route_document.get("state_b")
+        proofs = state_b.get("proof") if isinstance(state_b, dict) else None
+        if isinstance(proofs, list):
+            for index, proof in enumerate(proofs, start=1):
+                if isinstance(proof, dict) and isinstance(proof.get("command"), str):
+                    check(proof["command"], f"GoalRoute state_b.proof[{index}].command")
+    return errors
 
 
 def ordered_heading_errors(text: str) -> list[str]:
@@ -2655,6 +2864,9 @@ def validate(
         if not PATH_RE.search(root_cwd):
             errors.append("dispatch working directory is not an explicit path")
 
+        # Must run before receipt generation binds this dispatch's executable text.
+        errors.extend(managed_rust_route_errors(text, artifact_path))
+
     errors.extend(step_errors(text, allow_template))
     errors.extend(table_errors(text, allow_template))
     errors.extend(execution_identity_errors(text, allow_template))
@@ -2876,12 +3088,22 @@ def main() -> int:
             for error in errors: print(f"- {error}")
             return 1
         digest = hashlib.sha256(raw_bytes).hexdigest()
+        authority_binding = {
+            "packet_sha256": digest,
+            "source_revision": packet["sourceRevision"],
+            "prompt_digest": packet["promptDigest"],
+        }
         if args.verify_receipt:
             try: receipt = json.loads(args.verify_receipt.read_text(encoding="utf-8"))
             except (OSError, json.JSONDecodeError) as exc: print(f"FAIL: invalid receipt: {exc}"); return 1
-            if receipt.get("sha256") != digest or receipt.get("referenced_artifacts") != references: print("FAIL: packet or referenced artifacts do not match receipt"); return 1
+            if (
+                receipt.get("sha256") != digest
+                or receipt.get("referenced_artifacts") != references
+                or receipt.get("authority_binding") != authority_binding
+            ):
+                print("FAIL: packet, source/prompt binding, or referenced artifacts do not match receipt"); return 1
         if args.write_receipt:
-            args.write_receipt.write_text(json.dumps({"schema_version": 3, "sha256": digest, "referenced_artifacts": references}, indent=2) + "\n", encoding="utf-8")
+            args.write_receipt.write_text(json.dumps({"schema_version": 4, "sha256": digest, "referenced_artifacts": references, "authority_binding": authority_binding}, indent=2) + "\n", encoding="utf-8")
         print(f"PASS: {args.packet_type} packet is structurally complete (sha256={digest})")
         return 0
     try:

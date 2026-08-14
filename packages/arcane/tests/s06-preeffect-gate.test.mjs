@@ -206,6 +206,7 @@ test('FILE_MOVE checks BOTH source and destination ownership', () => {
 
 test('pathMatches: ** spans depth, * stays in one segment, exact is exact', () => {
   assert.equal(pathMatches('src/**', 'src/a/b/c.ts'), true);
+  assert.equal(pathMatches('**/*.mjs', 'top.mjs'), true, '**/ also spans zero directories');
   assert.equal(pathMatches('src/*', 'src/a/b.ts'), false);
   assert.equal(pathMatches('src/*', 'src/a.ts'), true);
   assert.equal(pathMatches('src/a.ts', 'src/a.ts'), true);

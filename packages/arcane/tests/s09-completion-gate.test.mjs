@@ -12,9 +12,17 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 
 import { evaluateCompletion } from '../lib/completion-gate.mjs';
+import { evaluateHostStop } from '../host/hook-adapter-core.mjs';
 import { loadPolicy, PolicyEngine, DEFAULT_POLICY_PATH } from '../lib/policy.mjs';
 import { ReceiptStore } from '../lib/receipt-store.mjs';
 import { mintId } from '../lib/ids.mjs';
+import { digestValue } from '../lib/canonical.mjs';
+import { AcceptanceEvidenceRegistry } from '../lib/evidence-registry.mjs';
+import { loadCompletionEvidence } from '../lib/completion-evidence.mjs';
+import { generateTestKeyRing } from '../lib/keys.mjs';
+import { signRecord, EVIDENCE_RECEIPT_BOUND_FIELDS } from '../lib/receipt-auth.mjs';
+import { HostEventLedger } from '../lib/host-event-ledger.mjs';
+import { AuthorityInvocationProofIssuer } from '../lib/authority-invocation-proof.mjs';
 
 const RUN_ID = 'run_01ARZ3NDEKTSV4RRFFQ69G5FAV';
 
@@ -58,6 +66,76 @@ function evidenceRecord({ runId = RUN_ID, evidenceClass = 'deterministic', stale
     observedAt: new Date().toISOString(),
   };
 }
+
+function acceptanceFixture() {
+  const integratedState = { revision: 'integrated-1', tree: 'tree-1' };
+  const registry = new AcceptanceEvidenceRegistry();
+  registry.register({ acceptanceId: 'AC-1', claimType: 'acceptance-surface', producer: 'ci', durableStore: 'receipt-store', verifier: 'oracle', completionConsumer: 'legion', integratedStateBinding: 'git+tree', validityPolicy: 'until-material-change' });
+  return {
+    registry,
+    integratedState,
+    latestMaterialChange: '2026-08-14T11:00:00.000Z',
+    acceptanceProofs: [{ acceptanceId: 'AC-1', producer: 'ci', verifier: 'oracle', completionConsumer: 'legion', authenticated: true, integratedState, observedAt: '2026-08-14T12:00:00.000Z', validUntil: '2026-08-15T12:00:00.000Z' }],
+  };
+}
+
+test('S09: strict completion rejects caller-built acceptance registry/proofs', () => {
+  const { root, cleanup } = tempRoot();
+  try {
+    const policy = lockedPolicy();
+    const receiptStore = new ReceiptStore({ root });
+    receiptStore.append(evidenceRecord());
+    const missing = evaluateCompletion({ runId: RUN_ID, taskId: 'T-1', claimedLevel: 'signoff' }, { policy, receiptStore, requireAcceptanceEvidence: true });
+    assert.equal(missing.code, 'ARC_EVIDENCE_INSUFFICIENT');
+    const evidence = acceptanceFixture();
+    const forged = evaluateCompletion({ runId: RUN_ID, taskId: 'T-1', claimedLevel: 'signoff' }, { policy, receiptStore, evidenceRegistry: evidence.registry, ...evidence, requireAcceptanceEvidence: true, now: new Date('2026-08-14T12:30:00.000Z') });
+    assert.equal(forged.code, 'ARC_EVIDENCE_INSUFFICIENT');
+  } finally { cleanup(); }
+});
+
+test('S09: genuine unlocked Stop requires acceptance evidence; bare non-completion Stop does not', () => {
+  const policy = { lockedDomainsFor: () => [], claimLevel: () => null, evaluateClaimPrerequisites: () => ({ allowed: true, detail: {} }) };
+  const receiptStore = { list: () => [] };
+  const hostEvent = { runId: RUN_ID, taskId: 'T-1' };
+
+  const bare = evaluateHostStop(hostEvent, { policy, receiptStore, authenticatedClaim: false, intent: 'UNKNOWN' });
+  assert.equal(bare.allowed, true);
+  assert.equal(bare.detail.certification, 'not_claimed');
+
+  const missing = evaluateHostStop(hostEvent, { policy, receiptStore, authenticatedClaim: true, intent: 'UNKNOWN' });
+  assert.equal(missing.allowed, false);
+  assert.equal(missing.code, 'ARC_EVIDENCE_INSUFFICIENT');
+
+  const evidence = acceptanceFixture();
+  const forged = evaluateHostStop(hostEvent, { policy, receiptStore, authenticatedClaim: true, intent: 'UNKNOWN', evidenceRegistry: evidence.registry, ...evidence, now: new Date('2026-08-14T12:30:00.000Z') });
+  assert.equal(forged.code, 'ARC_EVIDENCE_INSUFFICIENT');
+});
+
+test('S09: persisted Oracle evidence admits only current exact-state acceptance proof', () => {
+  const { root, cleanup } = tempRoot();
+  try {
+    const receiptStore = new ReceiptStore({ root }); const keyRing = generateTestKeyRing(['k1']);
+    const execution = { runId: RUN_ID, taskId: 'T-1', contractId: 'EC-44', contractVersion: 1, contractDigest: 'sha256:contract-v1', sourceRevision: '0123abcdef', acceptanceCriteria: [{ id: 'AC-1', statement: 'works' }] };
+    const ledger = new HostEventLedger({ root: path.join(root, 'events'), keyRing, keyId: 'k1', clock: () => '2026-08-14T12:00:00.000Z' });
+    const event = ledger.append({ eventId: 'oracle-proof', adapter: 'codex', eventType: 'UserPromptSubmit', sessionId: 'oracle-session', binding: execution, sourceRevision: execution.sourceRevision, observedAuthority: 'oracle', payload: {} });
+    const issuer = new AuthorityInvocationProofIssuer({ root: path.join(root, 'proofs'), keyRing, keyId: 'k1', ledgerStore: ledger, clock: () => '2026-08-14T12:00:00.000Z' });
+    const authorityProof = issuer.issue({ ledger: event, binding: { ...execution, sessionId: 'oracle-session' }, purpose: 'completion-claim', role: 'oracle' }).proof;
+    const integratedState = 'git:tree-1'; const latestMaterialChange = '2026-08-14T11:00:00.000Z';
+    const record = evidenceRecord({});
+    record.producerAuthority = 'oracle'; record.contractId = execution.contractId; record.observedAt = '2026-08-14T12:00:00.000Z';
+    record.observation = { acceptanceId: 'AC-1', requirementId: 'R-1', productionSymbol: 'src/live.mjs#run', liveConsumer: 'cli close', acceptanceSurface: 'node test', integratedState, latestMaterialChange, contractVersion: execution.contractVersion, contractDigest: execution.contractDigest, sourceRevision: execution.sourceRevision, authorityProofDigest: digestValue(authorityProof), validUntil: '2026-08-15T12:00:00.000Z' };
+    record.authentication = signRecord(record, { keyRing, keyId: 'k1', boundFields: EVIDENCE_RECEIPT_BOUND_FIELDS }); receiptStore.append(record);
+    const evidence = loadCompletionEvidence({ receiptStore, keyRing, authorityProofIssuer: issuer, execution, integratedState, latestMaterialChange, now: new Date('2026-08-14T12:01:00.000Z') });
+    assert.equal(evidence.acceptanceProofs.length, 1);
+    const stale = loadCompletionEvidence({ receiptStore, keyRing, authorityProofIssuer: issuer, execution, integratedState, latestMaterialChange: '2026-08-14T13:00:00.000Z' });
+    assert.equal(stale.acceptanceProofs.length, 0, 'material change invalidates old proof');
+    assert.equal(loadCompletionEvidence({ receiptStore, keyRing, authorityProofIssuer: issuer, execution: { ...execution, contractId: 'EC-45' }, integratedState, latestMaterialChange }).acceptanceProofs.length, 0, 'bound receipt cannot be replayed into another contract');
+    assert.equal(loadCompletionEvidence({ receiptStore, keyRing, authorityProofIssuer: issuer, execution: { ...execution, contractVersion: 99, contractDigest: 'sha256:contract-v99' }, integratedState, latestMaterialChange }).acceptanceProofs.length, 0, 'v1 evidence cannot replay into v99');
+    record.observation.authorityProofDigest = 'sha256:' + '0'.repeat(64); record.authentication = signRecord(record, { keyRing, keyId: 'k1', boundFields: EVIDENCE_RECEIPT_BOUND_FIELDS });
+    const forgedStore = new ReceiptStore({ root: path.join(root, 'forged') }); forgedStore.append(record);
+    assert.equal(loadCompletionEvidence({ receiptStore: forgedStore, keyRing, authorityProofIssuer: issuer, execution, integratedState, latestMaterialChange }).acceptanceProofs.length, 0, 'valid receipt MAC cannot substitute a nonexistent Oracle proof');
+  } finally { cleanup(); }
+});
 
 test('S09: an unlocked path is unaffected — only the claimed level is checked', () => {
   const { root, cleanup } = tempRoot();

@@ -361,7 +361,7 @@ export function deriveTouchedPaths(receiptStore, runId) {
  *
  * @returns {object} the completion-gate decision (see completion-gate.mjs)
  */
-export function evaluateHostStop(hostEvent, { policy, receiptStore, assuranceStore = null, keyRing = null, authorityBindingStore = null, currentProof = null, binding = null, execution = null, completionClaim = null, now = new Date(), claimedLevel = null, disposition = null, intent = 'UNKNOWN', authenticatedClaim = false }) {
+export function evaluateHostStop(hostEvent, { policy, receiptStore, assuranceStore = null, keyRing = null, authorityBindingStore = null, currentProof = null, binding = null, execution = null, completionClaim = null, authorityProofIssuer = null, integratedState = null, latestMaterialChange = null, now = new Date(), claimedLevel = null, disposition = null, intent = 'UNKNOWN', authenticatedClaim = false }) {
   // Direct callers with an explicit legacy claimedLevel retain gate semantics;
   // authenticated host dispatch always supplies disposition and remains disposition-first.
   const terminal = disposition === null && claimedLevel !== null ? null : stopOutcome({ disposition, claimedLevel, intent, authenticatedClaim });
@@ -369,7 +369,7 @@ export function evaluateHostStop(hostEvent, { policy, receiptStore, assuranceSto
   const touchedPaths = deriveTouchedPaths(receiptStore, hostEvent.runId);
   const certification = evaluateCompletion(
     { runId: hostEvent.runId, taskId: hostEvent.taskId, claimedLevel, touchedPaths, contractId: execution?.contractId ?? hostEvent.contractId ?? null, contractVersion: execution?.contractVersion ?? hostEvent.contractVersion ?? null, contractDigest: execution?.contractDigest ?? hostEvent.contractDigest ?? null, sourceRevision: execution?.sourceRevision ?? null, completionClaim },
-    { policy, receiptStore, assuranceStore, keyRing, authorityBindingStore, currentProof, binding, execution, now },
+    { policy, receiptStore, assuranceStore, keyRing, authorityBindingStore, currentProof, binding, execution, authorityProofIssuer, integratedState, latestMaterialChange, requireAcceptanceEvidence: terminal?.certification === 'genuine', now },
   );
   return { ...certification, detail: { ...certification.detail, ...(terminal ? { termination: terminal.termination, certification: certification.allowed ? 'certified' : 'rejected', disposition: terminal.disposition } : {}) } };
 }

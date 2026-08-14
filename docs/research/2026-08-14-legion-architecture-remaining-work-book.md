@@ -1,118 +1,58 @@
 # Legion Architecture Remaining Work Book
 
-## Finish adoption without rebuilding completed work
+## Finish adoption without rebuilding candidate work
 
-**Status:** complete
-**Date:** 14 August 2026
+**Status:** active
+
+**Reconciled:** 15 August 2026
+
 **Source design:** [`2026-08-12-legion-architecture-book-final.md`](2026-08-12-legion-architecture-book-final.md)
+
 **State authority:** [`$WORKSPACE/docs/plans/legion/adoption-ledger.json`](../../../../../docs/plans/legion/adoption-ledger.json)
 
-This book contains only unfinished implementation or acceptance work. Existing merged artifacts are inputs, not tasks to recreate.
+This book tracks only unfinished integration, authority, admission, and delivery work. Historical commits, test totals, and narrative task reports are provenance; none closes a stage.
 
-## Closed baseline
+## Current baseline
 
-| Scope | State | Evidence boundary |
+| Scope | Current state | Reusable implementation |
 |---|---|---|
-| S01–S04 and S06 | `VERIFIED` | Adoption ledger contains exact integrated-state evidence and independent PASS history. |
-| S05 | `VERIFIED` | Fresh independent exact-state checks passed 28/28 focused authorization/evidence cases at `b05bafae`. |
-| S07 | `VERIFIED` | Fresh independent exact-state checks passed 4/4 template/lens cases at `b05bafae`. |
-| S08 live execution closure | `VERIFIED` | Representative assembled-package workload passed 3/3 at `d95e4846`; independent receipt `sha256:7aa837db95b974854fbe11e1dcc9384811dc006b205d421f15e88df4e5ccb386`. |
-| S09 Arcane guards | `VERIFIED` | 43/43 focused checks and 9/9 runtime fixtures pass; EC-609 v2 sealed, opened, and closed with strong authenticated evidence. |
-| S10 role-doctrine implementation | `VERIFIED` | Handoff conformance, R1 parity, canonical naming, and authority-boundary checks pass on current integrated state. |
-| S11 corpus and runner | `VERIFIED` | 62/62 runtime cases and 103/103 total cases pass; changed-expectation falsification, clean 722/722 exact-HEAD suite, and independent Oracle checks pass at final certified state. |
-| S12 calibration and retirement | `VERIFIED` | Raw history, receipt-backed direct packet, ambient baseline, and S08 governed workload replay pass; all cost dimensions are recorded, legacy Dispatch default has current-user `RETIRE`, and Windows portability validation passes at Legion `5db4cce`. |
-| Dispatch production usability | `DONE` | Legion `2c1caee`: typed direct packet is default; legacy 421-line ceremony is explicit compatibility only; seven-owner/175-path/collision regression passes. |
-| Canonical naming and eval-gate repair | complete remediation | Integrated through Legion `b9dfab6`; parent pin `31d338cc9`; both match `origin/main`. |
-| R1 packaged skill migration | `VERIFIED` | Closure recorded at Legion `2b1523b`; 25 public entrypoints resolve through digest-bound manifests, all 110 retired evals execute, 87 retired artifacts retain byte parity, advisory domains resolve, and clean assembled-package proof passes on Mac and Windows. |
+| S01–S07 | `CANDIDATE` | Canon, doctrine, state, continuity, evidence, method, schema, and authenticated adoption primitives exist. Prior VERIFIED claims are stale under current source and ledger revisions. |
+| S08 | `CANDIDATE` | Package-local migration, Handoff paths, delivery ownership, workload forwarding, recovery, and cutover controls exist. |
+| S09 | `CANDIDATE` | Guard fixtures, completion evidence, replay denial, exact multi-repository state, and adoption status/transition controls exist. |
+| S10 | `CANDIDATE` | Role handoffs, package-local engines, consumer migration, and public skill compatibility exist. |
+| S11 | `CANDIDATE` | Architecture runner reports 69 PASS, 34 PENDING, and zero failures. Runtime controls are live; advisory-owned rows wait for externally authenticated Sage and Oracle judgments instead of synthetic receipts. |
+| S12 | `CANDIDATE` | Calibration exists; retirement is `UNPROVEN`/`PENDING` because no authenticated current-user ingress or retirement judgment exists. |
+| Dispatch direct path | `CANDIDATE` | Direct packets bind immutable source, prompt bytes, authority artifacts, ownership, and overlap checks; focused validator regressions pass. |
+| Packaged skill migration | `CANDIDATE` | Recovered Handoff, Tasklist, Dispatch, Coder, QA, Architect, Debugger, JFDI, and Council surfaces are reusable. Fresh package qualification and integrated-state admission remain open. |
 
-Do not re-author, re-dispatch, or replace these artifacts unless a remaining acceptance check finds a concrete defect.
-
-## Validated skill-migration gap — closed 14 August 2026
-
-Commit `c1c7e818` retired nine engineering skill entrypoints together before parity. A no-rename diff confirms 15,202 deleted source lines across those nine directories, correcting the previously reported 16,201. Their removed eval manifests contain exactly 110 cases:
-
-| Retired entrypoint | Removed eval cases | Recovered local surface | Local state |
-|---|---:|---|---|
-| `handoff` | 10 | Entrypoint, validator, validator suite, template, compiler/bootstrap workflow, manual, examples, semantic routing, and shared Orthic transcript tests | `DONE` |
-| `tasklist` | 8 | Callable entrypoint, validation semantics, template, durable workflow, examples, and semantic routing | `DONE` |
-| `dispatch` | 36 | Callable workflow, validator, manual/agent routing, artifact set, receipts, and semantic routing | `DONE` |
-| `coder` | 6 | Callable opt-in entrypoint, API-worker adapter, provider runbook, hooks, and eval parity | `DONE` |
-| `qa` | 10 | Callable entrypoint, browser reference/manual, QA-engine adapters, and resolved runners | `DONE` |
-| `architect` | 14 | Callable Sage Architect entrypoint and trigger parity | `DONE` |
-| `debugger` | 9 | Callable Sage Diagnose entrypoint and trigger parity | `DONE` |
-| `jfdi` | 3 | Natural-language compatibility plus retired alias resolution to `/alchemist` | `DONE` |
-| `council` | 14 | Covenant entrypoint, compatibility resolution, and legacy packet parity | `DONE` |
-
-Historical baseline before R1 began, retained as provenance rather than pending work:
-
-- Legion's registry exposed only eight advisory packs.
-- Commercial, research, editorial, and design routing nodes were `unavailable`; engineering exposed only Sage, Alchemist, and Oracle dispatch.
-- Discovery coverage was presence-only and did not execute semantic resolution.
-- Alias registry lacked Handoff, Tasklist, Dispatch, Coder, QA, Architect, Debugger, JFDI, and Council compatibility routes.
-- Package allowlist omitted root `SKILL.md`, `audit-fix/`, and `audit-visual/`.
-- Advisory manifests already enforced unresolved rights, null receipts, and `publish: false`; that non-publication boundary remains intentional.
-- Compatibility entrypoints remained top-level after the earlier engineering-only migration; verified package-local consumers now permit their deletion.
-- `docs/SKILL-ARCHITECTURE.md` used a retired assurance-role name; integration corrected it to Oracle.
-
-Public skill entrypoints may route into Sage, Alchemist, Oracle, Covenant, Cortex, or existing engines without moving authority or infrastructure into skill-shaped owners. Private brand and venture overlays remain excluded from Legion packages.
+No stage currently has a valid `VERIFIED` admission. Workspace ledger keeps all S01–S12 stages `CANDIDATE` and all 33 acceptance items `OPEN` until Arcane records authenticated, current-state evidence.
 
 ## Remaining work
 
-### R1 — Close packaged-install parity (`DONE`)
+### R1 — Close governance caller-proof paths (`DONE`)
 
-Completed:
+- Caller JSON is diagnostic-only unless a private host capability supplies observation, expectation, durable state, and authority.
+- Caller-built recovery, retirement, finding closure, deficit acknowledgement, outcome closure, and command verification are non-consumable.
+- Finding lifecycle and crash-durable packet replay state persist across CLI processes.
 
-- 25 public entrypoints, package-local engines, full Handoff/Dispatch/Tasklist callable behavior, Brand/Content routing, and JFDI/Council compatibility.
-- All 110 retired evals execute through the resolver; 87 retired artifacts retain byte-for-byte parity under canonical entrypoints.
-- Canonical and legacy resolution, digest binding, nested `--skill` filtering, package discovery, and assembled-package execution pass on Mac and Windows.
-- Codex, Claude Code, Gemini, and agents-md binding artifacts are present in the clean assembled package.
-- Obsolete top-level compatibility entrypoints and shared-engine roots are removed after consumer migration.
-- Rights-restricted packs remain non-publishable with null receipts.
+### R2 — Reconcile focused Dispatch verification (`DONE`)
 
-### R2 — Implement S08 live execution closure (`DONE`)
+- Source, prompt, authority bytes, immutable revision, and overlapping ownership are verified.
+- Receipt v4 and content-bound artifact regressions pass.
 
-Completed: assembled-package Handoff workload reached fresh S05/S07-backed acceptance; one integration owner/shared writer, ownership disposition, hard cut, exact state, and independent Oracle verification are recorded.
+### R3 — Record external judgments (`BLOCKED_EXTERNAL_AUTHORITY`)
 
-### R3 — Implement S09 Arcane guards (`DONE`)
+- Connect a genuine authenticated host producer for current-user prompt provenance; raw hook stdin and in-process imports cannot mint it.
+- Obtain an authenticated current-user judgment bound exactly to `dispatch-legacy-default`.
+- Obtain externally authenticated Sage and independent Oracle judgments for the 34 advisory-owned S11 rows.
+- Until that receipt exists, keep disposition `UNPROVEN`, retirement `PENDING`, and `all_net_harmful_controls_disposed` false.
 
-Implemented: canonical fixtures cover epochs/cancellation, replay, terminal budgets, freshness/reachability, gate validity/machinery isolation, writer ownership, untrusted rehydration, authenticated host ingress, sanctioned ambient delivery, exact-state acceptance, and delivery deficits. Stage 9 evidence inventories but does not falsely complete 62 Stage 11 cases.
+### R4 — Final integration and admission (`OPEN`)
 
-Completed: host-observed Sage binding sealed EC-609 v2, opened `run_01KZZR82AN6RPQ5S2MQB4YN4CP`, bound deterministic Oracle evidence, and closed with strong enforcement and complete delivery disposition.
-
-### R4 — Close S10 (`DONE`)
-
-Completed: exact-state handoff conformance, packaged-install parity, canonical naming, and duplicate-canon/authority-drift checks pass independently.
-
-### R4A — Simplify Dispatch production path (`DONE`)
-
-Completed: typed direct packet is default; legacy Markdown is explicit compatibility; GoalRoute/timing/Minimize/author-gate ceremony is limited to locked, contracted, or explicit use; seven-owner/175-path/collision regression passes.
-
-### R5 — Finish S11 runtime evaluation (`DONE`)
-
-Completed: 62/62 runtime cases execute through S09 guard substrate; 103/103 total cases pass twice identically; changed expectations fail; independent Oracle verification passes on exact owned scope.
-
-### R6 — Complete S12 calibration and retirement (`DONE`)
-
-Completed: real failed Dispatch history, typed ambient baseline, and S08 governed Handoff workload replay successfully. Calibration records outcome, coordination, tool, token, delivery-time, quiescence, and duplicate-effect deltas. Legacy Dispatch default is retired under current-user judgment; no net-harmful control lacks disposition.
-
-### R7 — Finalize delivery (`DONE`)
-
-Completed:
-
-- Final independent Oracle audit passed all twelve stages with no implementation blocker.
-- S01–S12 are `VERIFIED`; architecture is 103/103, clean exact-HEAD suite is 722/722, S09 runtime is 9/9, and all 110 retired skill evals pass.
-- Raw failed-Dispatch history, direct packet digest, validator receipt, seven workers, 175 owned/unique paths, zero collisions, and retirement judgment were reproduced independently.
-- Legion and parent were committed and pushed; Windows fetched exact remote state without overwriting its dirty checkout and passed 12/12 detached package, S09, S11, and S12 checks.
-
-## Execution order
-
-```text
-R1 ─> R2 ─┬─> R3 ─> R5 ─> R6 ─> R7
-          └─> R4 ────────────────┘
-```
-
-R1 through R7 are closed. No work remains in this book.
+- Complete fresh code-first Oracle review after current remediation.
+- Commit and push Legion, regenerate current qualification evidence, then pin and push the workspace parent.
+- Transition stages only through authenticated Arcane admission against final exact multi-repository state.
 
 ## Completion rule
 
-This book closes only when S01–S12 are `VERIFIED` against current integrated state, all public entrypoints pass semantic and packaged-install parity across declared harnesses and hosts, all 110 retired skill eval cases and 103 architecture eval cases pass, the representative workload reaches its acceptance surface, advisory publication rights are explicitly resolved or kept non-publishable, and every required S12 judgment is recorded.
+This book closes only when no caller can manufacture completion, every required live consumer is durable and authority-bound, S12 has exact current-user disposition, final Legion and parent refs are pushed and pinned, and the workspace ledger reports authenticated current-state admissions. Test totals alone never close it.

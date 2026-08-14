@@ -75,10 +75,9 @@ for (const row of cases) {
   if (seen.has(row.id)) issue(`${row.source}:${row.line}: duplicate id ${row.id}`);
   seen.add(row.id);
 }
-const runtimeResults = new Map(executeArchitectureRuntimeCases(cases.filter((row) => row.execution === 'runtime')).map((row) => [row.id, row]));
-const results = cases.sort((left, right) => left.id.localeCompare(right.id)).map((row) => row.execution === 'runtime'
-  ? runtimeResults.get(row.id) ?? { id: row.id, family: row.family, status: 'FAIL', reason: 'runtime result missing' }
-  : { id: row.id, family: row.family, status: 'PASS', reason: 'static corpus contract validated' });
+const caseResults = new Map((await executeArchitectureRuntimeCases(cases)).map((row) => [row.id, row]));
+const results = cases.sort((left, right) => left.id.localeCompare(right.id)).map((row) =>
+  caseResults.get(row.id) ?? { id: row.id, family: row.family, status: 'FAIL', reason: 'case result missing' });
 const summaries = expectedFamilies.map((family) => {
   const rows = results.filter((row) => row.family === family);
   return { family, case_count: rows.length, passed: rows.filter((row) => row.status === 'PASS').length, failed: rows.filter((row) => row.status === 'FAIL').length, pending: rows.filter((row) => row.status === 'PENDING').length };

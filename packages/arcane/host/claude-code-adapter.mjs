@@ -266,6 +266,9 @@ export function handleClaudeCodeHookEvent(hookPayload, deps) {
 }
 
 export function observeClaudeCodeIdentity(hookPayload, { hostEvent } = {}) {
+  // UserPromptSubmit has no agent identity; runtime records it untrusted until
+  // an external authenticated host bridge exists.
+  if (hostEvent?.eventType === 'user-prompt-submit') return { sessionId: hostEvent.sessionId, eventId: hostEvent.eventId, currentUserPrompt: true };
   if (['authority', 'callerAuthority', 'assertedAuthority', 'trust_class', 'trustClass', 'executor'].some((key) => Object.hasOwn(hookPayload ?? {}, key))) return { modelClaimed: true };
   const sessionId = hookPayload?.session_id ?? hookPayload?.sessionId ?? null;
   const agentId = hookPayload?.agent_id ?? hookPayload?.agentId ?? null;

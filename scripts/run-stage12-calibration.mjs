@@ -75,9 +75,6 @@ function replayHistory(rows) {
   const finish = rows.find((row) => row.type === 'event_msg' && row.payload?.type === 'task_complete' && messageOf(row).includes('DeepSeek Phase A dispatch'));
   const failure = rows.find((row) => row.type === 'event_msg' && row.payload?.type === 'agent_message' && messageOf(row).includes('115 schema defects'));
   if (!start || !directStart || !finish || !failure) throw new Error('history lacks required Dispatch incident markers');
-  for (const token of ['500-line template packet', 'GoalRoute JSON', 'Minimize authority receipt', '15-point author gate', '115 schema defects', 'direct 140-line DeepSeek packet', '7 owners', '175 unique paths', 'zero collisions']) {
-    if (!messageOf(failure).includes(token)) throw new Error(`history lacks incident fact: ${token}`);
-  }
   const window = rows.filter((row) => within(row, start.timestamp, finish.timestamp));
   const directWindow = rows.filter((row) => within(row, directStart.timestamp, finish.timestamp));
   const toolCalls = (slice) => slice.filter((row) => row.type === 'response_item' && ['custom_tool_call', 'function_call'].includes(row.payload?.type)).length;
@@ -101,8 +98,8 @@ function replayHistory(rows) {
     tokens: subtractTokens(tokenSamples[0], tokenSamples.at(-1)),
     direct_recovery_tokens: subtractTokens(directTokenSamples[0], directTokenSamples.at(-1)),
     outcome: {
-      legacy_validator: 'FAIL_115_FORMAT_DEFECTS',
-      direct_packet: 'PASS_7_OWNERS_175_UNIQUE_PATHS_ZERO_COLLISIONS',
+      legacy_validator: 'UNPROVEN',
+      direct_packet: 'UNPROVEN',
     },
     quiescent_after_completion: true,
     duplicate_effects: 0,
@@ -156,14 +153,16 @@ export function calibrateStage12({ historyText, directPacketText, directPacketPa
   if (governed?.result?.status !== 'PASS' || governed.observed_failures?.length !== 0) throw new Error('S08 governed workload is not a clean PASS');
   const legacyStats = textStats(legacyTemplateText);
   const directStats = textStats(directPacketText);
+  // This history is not an authenticated disposition source.  Do not turn an
+  // agent report or caller-supplied transcript identity into user authority.
   const controls = [{
     control_id: 'dispatch-legacy-default',
-    lifecycle: 'RETIRED',
+    lifecycle: 'PENDING',
     net_harmful: true,
-    disposition: 'RETIRE',
-    disposition_authority: 'current-user',
-    judgment_source: 'thread 019fff83-ae1f-7630-ba4c-3521ff46dd5f: finish Legion end to end after exact Dispatch failure was presented',
-    rationale: 'Legacy default rejected implementable work on 115 format defects while adding 26 minutes, 51 tool calls, and millions of session tokens; typed direct default preserved exact ownership and collision checks.',
+    disposition: 'UNPROVEN',
+    disposition_authority: null,
+    judgment_source: null,
+    rationale: 'Historical transcript and local validator observations do not authenticate a retirement authority or disposition.',
     replacement: 'skills/dispatch/assets/direct-packet.json + packetType=direct validator',
     compatibility: 'legacy Markdown remains explicit opt-in only',
   }];
@@ -191,12 +190,23 @@ export function calibrateStage12({ historyText, directPacketText, directPacketPa
       history_to_ambient_tool_calls: direct.tool_calls - history.tool_calls,
       history_to_ambient_effective_tokens: direct.model_tokens - history.tokens.effective_uncached_plus_output,
       history_to_ambient_delivery_time_ms: Math.round(direct.delivery_time_ms - history.delivery_time_ms),
-      outcome: 'FAIL_TO_PASS',
+      outcome: 'UNPROVEN',
       quiescence: 'PRESERVED',
       duplicate_effects: 0,
     },
     controls,
     all_net_harmful_controls_disposed: controls.filter((control) => control.net_harmful).every((control) => ['RETIRE', 'ACCEPT'].includes(control.disposition)),
+  };
+}
+
+/** Fields durable calibration evidence may claim without a separate authority receipt. */
+export function stage12TruthSemantics(calibration) {
+  return {
+    history_outcome: calibration.scenarios?.real_legion_history?.outcome,
+    delta_outcome: calibration.deltas?.outcome,
+    controls: (calibration.controls ?? []).map(({ control_id, lifecycle, net_harmful, disposition, disposition_authority, judgment_source }) =>
+      ({ control_id, lifecycle, net_harmful, disposition, disposition_authority, judgment_source })),
+    all_net_harmful_controls_disposed: calibration.all_net_harmful_controls_disposed,
   };
 }
 

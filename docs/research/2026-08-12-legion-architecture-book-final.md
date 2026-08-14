@@ -2747,24 +2747,24 @@ The goal is not merely fewer architecture passes. The goal is **fewer non-inform
 
 This DAG is governed by the §58D adoption ledger. Each stage has one accountable owner, explicit semantic dependencies, observable exits, and fresh evidence bound to integrated state plus its stage fingerprint. Stage numbers create no implicit edges. Schedule identity is separate from acceptance identity: changing waves or execution order without changing semantic dependencies invalidates no completed stage. Stages in one wave may overlap, but shared state and integration remain serialized; prose status and standing Definition of Done never close a stage.
 
-## Implementation record — 14 August 2026
+## Implementation record — 15 August 2026
 
 | Stage | Recorded state | Reuse boundary |
 |---|---|---|
-| S01 | `VERIFIED` | Canon, ownership, provenance, and generated-output work is complete. |
-| S02 | `VERIFIED` | Scope, convergence, admission, budget, and lifecycle doctrine is complete. |
-| S03 | `VERIFIED` | Router state, trajectory, replay, and fingerprints are complete. |
-| S04 | `VERIFIED` | Rehydration, cancellation, quiescence, and checkpoint work is complete. |
-| S05 | `VERIFIED` | Fresh independent exact-state validation passed 28/28 focused authorization/evidence cases at nested `b05bafae`, with no scoped source drift. |
-| S06 | `VERIFIED` | EDAF workflow and method modules are complete. |
-| S07 | `VERIFIED` | Fresh independent exact-state validation passed 4/4 template/lens cases at nested `b05bafae`, with no scoped source drift. |
-| S08 | `NOT_STARTED` | Moved to remaining-work book. |
-| S09 | `NOT_STARTED` | Moved to remaining-work book. |
-| S10 | `CANDIDATE` | Role-doctrine handoffs and local callable skill parity are merged and pass focused tests; S08 closure, R1 cross-host packaged-install parity, and fresh independent verification remain. |
-| S11 | `IN_PROGRESS` | Corpus and deterministic runner are merged; 41 static cases pass and 62 runtime cases await S09. |
-| S12 | `NOT_STARTED` | Moved to remaining-work book. |
+| S01 | `CANDIDATE` | Canon, ownership, provenance, and generated outputs exist; prior VERIFIED admission was invalidated by current source and ledger revisions. |
+| S02 | `CANDIDATE` | Scope, convergence, admission, budget, and lifecycle doctrine exists; fresh exact-state admission remains required. |
+| S03 | `CANDIDATE` | Router state, trajectory, replay, fingerprints, and live host lifecycle consumption exist; fresh exact-state admission remains required. |
+| S04 | `CANDIDATE` | Rehydration, cancellation, quiescence, checkpoint, recovery, and migration controls exist; fresh exact-state admission remains required. |
+| S05 | `CANDIDATE` | Completion now derives authenticated Oracle evidence, binds exact multi-repository state, rejects replay, and exposes authenticated adoption status; final independent admission remains required. |
+| S06 | `CANDIDATE` | EDAF workflow and method modules exist with live structured governance ingress; fresh exact-state admission remains required. |
+| S07 | `CANDIDATE` | Templates and schemas reject unauthenticated or forged VERIFIED claims; final authenticated admission remains required. |
+| S08 | `CANDIDATE` | Package-local migration, Handoff paths, delivery ownership, workload forwarding, and cutover controls exist; final independent admission remains required. |
+| S09 | `CANDIDATE` | Guard fixtures and completion trust paths are implemented; final independent admission remains required. |
+| S10 | `CANDIDATE` | Role-doctrine handoffs, package-local engines, consumer migration, and callable skill parity are implemented; final independent admission remains required. |
+| S11 | `CANDIDATE` | Deterministic architecture runner reports 69 PASS, 34 PENDING, and zero failures; advisory rows require externally authenticated Sage and independent Oracle judgments. |
+| S12 | `CANDIDATE` | Calibration is implemented, but retirement remains `UNPROVEN`/`PENDING` until genuine authenticated current-user ingress and an exact retirement judgment exist. |
 
-Stages marked `VERIFIED` are closed. `CANDIDATE` means implementation is done and must be reused, while required independent or dependency-bound closure remains. `IN_PROGRESS` means the authored portion is done and only the named runtime portion remains. The active execution plan is the remaining-work book, not the full sequence below.
+No stage currently carries a valid `VERIFIED` admission. `CANDIDATE` means implementation exists and must be reused, while current authenticated exact-state admission remains open. The workspace adoption ledger is the status authority; this table is only its readable implementation summary.
 
 | Stage | Dependencies | Wave | Default owner | Observable exit |
 |---|---|---|---|---|

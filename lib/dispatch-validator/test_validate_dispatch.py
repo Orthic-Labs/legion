@@ -24,6 +24,29 @@ ROUTE_FIXTURE = EXAMPLES / "dispatch-route-fixture.json"
 ROUTE_FIXTURE_RECEIPT = EXAMPLES / "dispatch-route-fixture.receipt.json"
 MINIMIZE_FIXTURE = EXAMPLES / "validated-forward-test.minimize.json"
 MINIMIZE_VALIDATOR = PACKAGE_ROOT / "lib" / "minimize" / "minimize_gate.py"
+CONCRETE_GIT_SHA = "0123456789abcdef0123456789abcdef01234567"
+REAL_PROMPT_DIGEST = "sha256:" + hashlib.sha256(
+    b"exact captured dispatch prompt"
+).hexdigest()
+
+
+def authority_context(root: Path) -> dict[str, str]:
+    subprocess.run(["git", "init", "-q"], cwd=root, check=True)
+    subprocess.run(["git", "config", "user.email", "dispatch-test@example.test"], cwd=root, check=True)
+    subprocess.run(["git", "config", "user.name", "Dispatch Test"], cwd=root, check=True)
+    prompt = root / "captured-prompt.txt"
+    prompt.write_text("exact captured dispatch prompt", encoding="utf-8")
+    subprocess.run(["git", "add", "."], cwd=root, check=True)
+    subprocess.run(["git", "commit", "-qm", "fixture source"], cwd=root, check=True)
+    revision = subprocess.run(
+        ["git", "rev-parse", "HEAD"], cwd=root, check=True, capture_output=True, text=True
+    ).stdout.strip()
+    return {
+        "repositoryRoot": str(root),
+        "sourceRevision": revision,
+        "promptArtifact": str(prompt),
+        "promptDigest": "sha256:" + hashlib.sha256(prompt.read_bytes()).hexdigest(),
+    }
 
 
 def bind_paths(
@@ -564,6 +587,62 @@ def main() -> int:
     result = run(good)
     assert result.returncode == 0, result.stdout + result.stderr
     assert "sha256=" in result.stdout
+
+    managed_routes = (
+        "```sh\n"
+        "rightkit cargo test --workspace\n"
+        "rightkit rustc --version\n"
+        "rightkit rustdoc --version\n"
+        "rightkit build cargo -- test --workspace\n"
+        "```\n"
+    )
+    assert not validator_module.managed_rust_route_errors(managed_routes)
+    for bypass in (
+        "cargo test --workspace",
+        "/usr/local/bin/cargo test",
+        "rustup run stable cargo test",
+        "command cargo test",
+        "env CARGO_TARGET_DIR=/tmp cargo test",
+        "$cargo test",
+        "alias c='cargo test'",
+        "rustc --version",
+        "rustdoc --version",
+    ):
+        route_errors = validator_module.managed_rust_route_errors(
+            f"```sh\n{bypass}\n```"
+        )
+        assert route_errors, bypass
+        assert "managed Rust route violation" in route_errors[0]
+
+    fenced_direct_cargo = run(re.sub(
+        r"(- \*\*Exact action / command:\*\*\s*```[^\n]*\n).*?(\n```)",
+        r"\1cargo test --workspace\2",
+        good,
+        count=1,
+        flags=re.S,
+    ))
+    assert fenced_direct_cargo.returncode == 1
+    assert "managed Rust route violation in fenced block" in fenced_direct_cargo.stdout
+
+    inline_direct_cargo = validator_module.managed_rust_route_errors(
+        "Use `cargo test --workspace` before delivery."
+    )
+    assert any("inline code" in error for error in inline_direct_cargo)
+    table_direct_cargo = validator_module.managed_rust_route_errors(
+        "| command | cargo test --workspace |"
+    )
+    assert any("table cell" in error for error in table_direct_cargo)
+    label_direct_cargo = validator_module.managed_rust_route_errors(
+        "- **Final verification command:** cargo test --workspace"
+    )
+    assert any("label value" in error for error in label_direct_cargo)
+
+    route_document = json.loads(ROUTE_FIXTURE.read_text(encoding="utf-8"))
+    route_document["state_b"]["proof"][0]["command"] = "cargo test --workspace"
+    route_direct_cargo = validator_module.managed_rust_route_errors(
+        good, route_document=route_document
+    )
+    assert any("GoalRoute state_b.proof[1].command" in error for error in route_direct_cargo)
 
     route_mirror_tamper = run(
         good.replace(
@@ -1421,15 +1500,19 @@ def main() -> int:
         root = Path(directory)
         lens = root / "lens.md"; lens.write_text("sealed lens", encoding="utf-8")
         oracle = root / "oracle.json"; oracle.write_text("{}", encoding="utf-8")
+        context = authority_context(root)
         digest = lambda path: "sha256:" + hashlib.sha256(path.read_bytes()).hexdigest()
         packet = {
             "schemaVersion": 1, "kind": "legion-authority-dispatch", "packetType": "seer",
-            "sourceRevision": "abcdef0", "promptDigest": "sha256:" + "0" * 64,
+            "sourceRevision": CONCRETE_GIT_SHA, "promptDigest": REAL_PROMPT_DIGEST,
             "modelRouting": {"modelTier": "MID", "workerProfile": "standard", "routingRationale": "sealed"},
             "lens": {"id": "audit", "path": str(lens), "digest": digest(lens)},
             "scope": {"read": ["src"], "forbidden": ["secrets"]},
             "oracle": {"path": str(oracle), "digest": digest(oracle)},
         }
+        errors, _ = validator_module.authority_packet_errors(packet, root / "packet.json")
+        assert any("source revision does not resolve" in error for error in errors), errors
+        packet.update(context)
         errors, _ = validator_module.authority_packet_errors(packet, root / "packet.json")
         assert not errors, errors
         packet["scope"]["forbidden"] = ["src"]
@@ -1456,15 +1539,17 @@ def main() -> int:
         oracle.write_text("{}", encoding="utf-8")
         sage_route = artifacts_dir / "sage-architect.json"
         sage_route.write_text("{}", encoding="utf-8")
+        context = authority_context(root)
         sha = lambda path: "sha256:" + hashlib.sha256(path.read_bytes()).hexdigest()
 
         sage_packet = {
             "schemaVersion": 1, "kind": "legion-authority-dispatch", "packetType": "sage",
-            "sourceRevision": "abcdef0", "promptDigest": "sha256:" + "0" * 64,
+            "sourceRevision": CONCRETE_GIT_SHA, "promptDigest": REAL_PROMPT_DIGEST,
             "modelRouting": {"modelTier": "FRONTIER", "workerProfile": "strict", "routingRationale": "architect"},
             "routeBundle": {"path": str(sage_route), "digest": sha(sage_route)},
         }
         sage_packet_path = artifacts_dir / "sage-packet.json"
+        sage_packet.update(context)
         sage_packet_path.write_text(json.dumps(sage_packet), encoding="utf-8")
         sage_receipt = sage_packet_path.with_suffix(".receipt.json")
         sage_result = subprocess.run(
@@ -1475,17 +1560,23 @@ def main() -> int:
         assert sage_result.returncode == 0, sage_result.stdout + sage_result.stderr
         sage_receipt_value = json.loads(sage_receipt.read_text(encoding="utf-8"))
         assert sage_receipt_value["sha256"] == hashlib.sha256(sage_packet_path.read_bytes()).hexdigest()
+        assert sage_receipt_value["authority_binding"] == {
+            "packet_sha256": sage_receipt_value["sha256"],
+            "source_revision": context["sourceRevision"],
+            "prompt_digest": context["promptDigest"],
+        }
         assert any(entry["sha256"] == sha(sage_route) for entry in sage_receipt_value["referenced_artifacts"])
 
         alchemist_packet = {
             "schemaVersion": 1, "kind": "legion-authority-dispatch", "packetType": "alchemist",
-            "sourceRevision": "abcdef0", "promptDigest": "sha256:" + "0" * 64,
+            "sourceRevision": CONCRETE_GIT_SHA, "promptDigest": REAL_PROMPT_DIGEST,
             "modelRouting": {"modelTier": "MID", "workerProfile": "standard", "routingRationale": "transform"},
             "executionContract": {"id": "EC-44", "path": str(contract), "digest": sha(contract),
                                   "sealed": True, "executable": True},
             "scope": {"own": ["src/foo.js"], "contractOwn": ["src/foo.js", "src/bar.js"]},
         }
         alchemist_packet_path = artifacts_dir / "alchemist-packet.json"
+        alchemist_packet.update(context)
         alchemist_packet_path.write_text(json.dumps(alchemist_packet), encoding="utf-8")
         alchemist_receipt = alchemist_packet_path.with_suffix(".receipt.json")
         alchemist_result = subprocess.run(
@@ -1505,7 +1596,7 @@ def main() -> int:
 
         worker_packet = {
             "schemaVersion": 1, "kind": "legion-authority-dispatch", "packetType": "worker",
-            "sourceRevision": "abcdef0", "promptDigest": "sha256:" + "0" * 64,
+            "sourceRevision": CONCRETE_GIT_SHA, "promptDigest": REAL_PROMPT_DIGEST,
             "modelRouting": {"modelTier": "CHEAP_STRICT", "workerProfile": "strict", "routingRationale": "execute"},
             "workerCapsule": {"path": str(capsule), "digest": sha(capsule)},
             "taskProjection": {"path": str(task_proj), "digest": sha(task_proj)},
@@ -1513,6 +1604,7 @@ def main() -> int:
             "oracle": {"path": str(oracle), "digest": sha(oracle)},
         }
         worker_packet_path = artifacts_dir / "worker-packet.json"
+        worker_packet.update(context)
         worker_packet_path.write_text(json.dumps(worker_packet), encoding="utf-8")
         worker_receipt = worker_packet_path.with_suffix(".receipt.json")
         worker_result = subprocess.run(
@@ -1535,7 +1627,7 @@ def main() -> int:
             check=False, capture_output=True, text=True,
         )
         assert tamper_result.returncode == 1
-        assert "do not match receipt" in tamper_result.stdout
+        assert "source revision must be an immutable" in tamper_result.stdout
 
         missing_routing = json.loads(json.dumps(worker_packet))
         del missing_routing["modelRouting"]["routingRationale"]
@@ -1545,7 +1637,7 @@ def main() -> int:
         missing_prompt_digest = json.loads(json.dumps(worker_packet))
         missing_prompt_digest["promptDigest"] = "not-a-digest"
         errors, _ = validator_module.authority_packet_errors(missing_prompt_digest, worker_packet_path)
-        assert any("prompt digest is invalid" in err for err in errors), errors
+        assert any("prompt digest must be a non-placeholder" in err for err in errors), errors
 
         unknown_type = json.loads(json.dumps(worker_packet))
         unknown_type["packetType"] = "unknown-authority"
@@ -1559,6 +1651,11 @@ def main() -> int:
 
     with tempfile.TemporaryDirectory() as directory:
         root = Path(directory)
+        (root / "AGENTS.md").write_text("authority", encoding="utf-8")
+        (root / "tasks").mkdir()
+        (root / "tasks" / "plan.md").write_text("plan", encoding="utf-8")
+        (root / "path-ownership-ledger.json").write_text("{}", encoding="utf-8")
+        context = authority_context(root)
         counts = (4, 45, 24, 13, 35, 28, 26)
         worker_ids = ("OR-SUPERVISOR", "MB-IO", "MB-RETRIEVAL", "MB-PLANNER", "MB-LIFECYCLE", "CX-HARDEN", "CX-STATE")
         cursor = 0
@@ -1579,8 +1676,8 @@ def main() -> int:
             "schemaVersion": 1,
             "kind": "legion-authority-dispatch",
             "packetType": "direct",
-            "sourceRevision": "abcdef0",
-            "promptDigest": "sha256:" + "0" * 64,
+            "sourceRevision": CONCRETE_GIT_SHA,
+            "promptDigest": REAL_PROMPT_DIGEST,
             "modelRouting": {"modelTier": "MID", "workerProfile": "parallel", "routingRationale": "seven independent owners"},
             "objective": "Complete Phase A through seven frozen owners.",
             "authority": ["AGENTS.md", "tasks/plan.md", "path-ownership-ledger.json"],
@@ -1595,6 +1692,7 @@ def main() -> int:
         assert cursor == 175
         direct_path = root / "orthic-suite-phase-a.json"
         direct_receipt = root / "orthic-suite-phase-a.receipt.json"
+        direct_packet.update(context)
         direct_path.write_text(json.dumps(direct_packet), encoding="utf-8")
         direct_result = subprocess.run(
             [sys.executable, str(VALIDATOR), str(direct_path), "--packet-type", "authority", "--write-receipt", str(direct_receipt)],
@@ -1602,13 +1700,75 @@ def main() -> int:
         )
         assert direct_result.returncode == 0, direct_result.stdout + direct_result.stderr
         direct_receipt_value = json.loads(direct_receipt.read_text(encoding="utf-8"))
-        assert direct_receipt_value["referenced_artifacts"] == []
+        assert len(direct_receipt_value["referenced_artifacts"]) == 4
+        assert {entry["path"] for entry in direct_receipt_value["referenced_artifacts"]} == {
+            "captured-prompt.txt",
+            "AGENTS.md",
+            "tasks/plan.md",
+            "path-ownership-ledger.json",
+        }
         assert direct_receipt_value["sha256"] == hashlib.sha256(direct_path.read_bytes()).hexdigest()
+        assert direct_receipt_value["authority_binding"] == {
+            "packet_sha256": direct_receipt_value["sha256"],
+            "source_revision": context["sourceRevision"],
+            "prompt_digest": context["promptDigest"],
+        }
+
+        forged_binding = json.loads(json.dumps(direct_receipt_value))
+        forged_binding["authority_binding"]["prompt_digest"] = "sha256:" + "f" * 64
+        direct_receipt.write_text(json.dumps(forged_binding), encoding="utf-8")
+        replay_result = subprocess.run(
+            [sys.executable, str(VALIDATOR), str(direct_path), "--packet-type", "authority", "--verify-receipt", str(direct_receipt)],
+            check=False, capture_output=True, text=True,
+        )
+        assert replay_result.returncode == 1
+        assert "source/prompt binding" in replay_result.stdout
+        direct_receipt.write_text(json.dumps(direct_receipt_value), encoding="utf-8")
+
+        (root / "AGENTS.md").write_text("tampered authority", encoding="utf-8")
+        authority_replay = subprocess.run(
+            [sys.executable, str(VALIDATOR), str(direct_path), "--packet-type", "authority", "--verify-receipt", str(direct_receipt)],
+            check=False, capture_output=True, text=True,
+        )
+        assert authority_replay.returncode == 1
+        assert "referenced artifacts" in authority_replay.stdout
+        (root / "AGENTS.md").write_text("authority", encoding="utf-8")
+
+        (root / "captured-prompt.txt").write_text("tampered prompt", encoding="utf-8")
+        prompt_replay = subprocess.run(
+            [sys.executable, str(VALIDATOR), str(direct_path), "--packet-type", "authority", "--verify-receipt", str(direct_receipt)],
+            check=False, capture_output=True, text=True,
+        )
+        assert prompt_replay.returncode == 1
+        assert "prompt digest does not bind prompt artifact bytes" in prompt_replay.stdout
+        (root / "captured-prompt.txt").write_text("exact captured dispatch prompt", encoding="utf-8")
 
         collision = json.loads(json.dumps(direct_packet))
         collision["workers"][1]["own"].append(collision["workers"][0]["own"][0])
         errors, _ = validator_module.authority_packet_errors(collision, direct_path)
         assert any("direct OWN collision" in error for error in errors), errors
+
+        ancestor_collision = json.loads(json.dumps(direct_packet))
+        ancestor_collision["workers"][1]["own"] = ["owned"]
+        errors, _ = validator_module.authority_packet_errors(ancestor_collision, direct_path)
+        assert any("direct OWN collision" in error for error in errors), errors
+
+        glob_collision = json.loads(json.dumps(direct_packet))
+        glob_collision["workers"][1]["own"] = ["owned/**"]
+        errors, _ = validator_module.authority_packet_errors(glob_collision, direct_path)
+        assert any("direct OWN collision" in error for error in errors), errors
+
+        alias_collision = json.loads(json.dumps(direct_packet))
+        alias_collision["workers"][1]["own"].append(
+            "owned\\path-000/../path-000"
+        )
+        errors, _ = validator_module.authority_packet_errors(alias_collision, direct_path)
+        assert any("direct OWN collision" in error for error in errors), errors
+
+        invalid_scope = json.loads(json.dumps(direct_packet))
+        invalid_scope["workers"][0]["own"] = ["../outside-repository"]
+        errors, _ = validator_module.authority_packet_errors(invalid_scope, direct_path)
+        assert any("invalid OWN path" in error for error in errors), errors
 
         overlap = json.loads(json.dumps(direct_packet))
         overlap["workers"][0]["forbidden"].append(overlap["workers"][0]["own"][0])
@@ -1620,9 +1780,29 @@ def main() -> int:
         errors, _ = validator_module.authority_packet_errors(unknown_dependency, direct_path)
         assert any("unknown dependency" in error for error in errors), errors
 
+        for invalid_revision in ("", "HEAD", "main", "latest", "0" * 40, "REPLACE_WITH_IMMUTABLE_GIT_SHA"):
+            invalid_source = json.loads(json.dumps(direct_packet))
+            invalid_source["sourceRevision"] = invalid_revision
+            errors, _ = validator_module.authority_packet_errors(invalid_source, direct_path)
+            assert any("source revision must be an immutable" in error for error in errors), errors
+
+        invalid_prompt = json.loads(json.dumps(direct_packet))
+        invalid_prompt["promptDigest"] = "sha256:" + "0" * 64
+        errors, _ = validator_module.authority_packet_errors(invalid_prompt, direct_path)
+        assert any("prompt digest must be a non-placeholder" in error for error in errors), errors
+
+        content_bound_source = json.loads(json.dumps(direct_packet))
+        content_bound_source["sourceArtifact"] = "AGENTS.md"
+        content_bound_source["sourceRevision"] = "sha256:" + hashlib.sha256(
+            (root / "AGENTS.md").read_bytes()
+        ).hexdigest()
+        errors, _ = validator_module.authority_packet_errors(content_bound_source, direct_path)
+        assert not errors, errors
+
         default_asset = json.loads((SKILL_DIR / "assets" / "direct-packet.json").read_text(encoding="utf-8"))
         errors, _ = validator_module.authority_packet_errors(default_asset, SKILL_DIR / "assets" / "direct-packet.json")
-        assert not errors, errors
+        assert any("source revision must be an immutable" in error for error in errors), errors
+        assert any("prompt digest must be a non-placeholder" in error for error in errors), errors
         skill_text = (SKILL_DIR / "SKILL.md").read_text(encoding="utf-8")
         assert "assets/direct-packet.json" in skill_text
         assert "--packet-type legacy` only for explicit legacy compatibility" in skill_text
