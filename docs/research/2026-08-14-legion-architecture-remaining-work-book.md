@@ -2,7 +2,7 @@
 
 ## Finish adoption without rebuilding completed work
 
-**Status:** final certification in progress
+**Status:** complete
 **Date:** 14 August 2026
 **Source design:** [`2026-08-12-legion-architecture-book-final.md`](2026-08-12-legion-architecture-book-final.md)
 **State authority:** [`$WORKSPACE/docs/plans/legion/adoption-ledger.json`](../../../../../docs/plans/legion/adoption-ledger.json)
@@ -19,8 +19,8 @@ This book contains only unfinished implementation or acceptance work. Existing m
 | S08 live execution closure | `VERIFIED` | Representative assembled-package workload passed 3/3 at `d95e4846`; independent receipt `sha256:7aa837db95b974854fbe11e1dcc9384811dc006b205d421f15e88df4e5ccb386`. |
 | S09 Arcane guards | `VERIFIED` | 43/43 focused checks and 9/9 runtime fixtures pass; EC-609 v2 sealed, opened, and closed with strong authenticated evidence. |
 | S10 role-doctrine implementation | `VERIFIED` | Handoff conformance, R1 parity, canonical naming, and authority-boundary checks pass on current integrated state. |
-| S11 corpus and runner | `DONE` | Legion `c39a27d`: 62/62 runtime cases and 103/103 total cases pass twice identically; changed-expectation falsification and independent Oracle checks pass. Ledger promotion waits only for R7 parent pin. |
-| S12 calibration and retirement | `COMPLETE` | Legion `1df0c12`: real history, direct ambient baseline, and S08 governed workload are replayed; all cost dimensions are recorded and legacy Dispatch default has current-user `RETIRE` disposition. |
+| S11 corpus and runner | `VERIFIED` | 62/62 runtime cases and 103/103 total cases pass; changed-expectation falsification, clean 722/722 exact-HEAD suite, and independent Oracle checks pass at final certified state. |
+| S12 calibration and retirement | `VERIFIED` | Raw history, receipt-backed direct packet, ambient baseline, and S08 governed workload replay pass; all cost dimensions are recorded, legacy Dispatch default has current-user `RETIRE`, and Windows portability validation passes at Legion `5db4cce`. |
 | Dispatch production usability | `DONE` | Legion `2c1caee`: typed direct packet is default; legacy 421-line ceremony is explicit compatibility only; seven-owner/175-path/collision regression passes. |
 | Canonical naming and eval-gate repair | complete remediation | Integrated through Legion `b9dfab6`; parent pin `31d338cc9`; both match `origin/main`. |
 | R1 packaged skill migration | `VERIFIED` | Closure recorded at Legion `2b1523b`; 25 public entrypoints resolve through digest-bound manifests, all 110 retired evals execute, 87 retired artifacts retain byte parity, advisory domains resolve, and clean assembled-package proof passes on Mac and Windows. |
@@ -95,11 +95,14 @@ Completed: 62/62 runtime cases execute through S09 guard substrate; 103/103 tota
 
 Completed: real failed Dispatch history, typed ambient baseline, and S08 governed Handoff workload replay successfully. Calibration records outcome, coordination, tool, token, delivery-time, quiescence, and duplicate-effect deltas. Legacy Dispatch default is retired under current-user judgment; no net-harmful control lacks disposition.
 
-### R7 — Finalize delivery
+### R7 — Finalize delivery (`DONE`)
 
-- Run one exact-state independent audit across all twelve stages.
-- Require every stage `VERIFIED`, no open blocker, 103/103 evals, observed workload acceptance, and all S12 judgments.
-- Commit and push Legion, pin and push parent, then pull and validate Windows without overwriting local changes.
+Completed:
+
+- Final independent Oracle audit passed all twelve stages with no implementation blocker.
+- S01–S12 are `VERIFIED`; architecture is 103/103, clean exact-HEAD suite is 722/722, S09 runtime is 9/9, and all 110 retired skill evals pass.
+- Raw failed-Dispatch history, direct packet digest, validator receipt, seven workers, 175 owned/unique paths, zero collisions, and retirement judgment were reproduced independently.
+- Legion and parent were committed and pushed; Windows fetched exact remote state without overwriting its dirty checkout and passed 12/12 detached package, S09, S11, and S12 checks.
 
 ## Execution order
 
@@ -108,7 +111,7 @@ R1 ─> R2 ─┬─> R3 ─> R5 ─> R6 ─> R7
           └─> R4 ────────────────┘
 ```
 
-R1 through R6 are closed. Only R7 exact-state certification, ledger promotion, parent pin, push, and Windows pull validation remain. One owner serializes those writes.
+R1 through R7 are closed. No work remains in this book.
 
 ## Completion rule
 
