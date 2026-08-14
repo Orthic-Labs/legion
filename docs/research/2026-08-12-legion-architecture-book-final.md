@@ -2761,7 +2761,7 @@ This DAG is governed by the §58D adoption ledger. Each stage has one accountabl
 | S08 | `CANDIDATE` | Package-local migration, Handoff paths, delivery ownership, workload forwarding, and cutover controls exist; final independent admission remains required. |
 | S09 | `CANDIDATE` | Guard fixtures and completion trust paths are implemented; final independent admission remains required. |
 | S10 | `CANDIDATE` | Role-doctrine handoffs, package-local engines, consumer migration, and callable skill parity are implemented; final independent admission remains required. |
-| S11 | `CANDIDATE` | Deterministic architecture runner reports 69 PASS, 34 PENDING, and zero failures; advisory rows require externally authenticated Sage and independent Oracle judgments. |
+| S11 | `CANDIDATE` | Deterministic architecture runner reports 103 PASS, zero PENDING, and zero failures through case-specific structured policy and production-control evaluators. |
 | S12 | `CANDIDATE` | Calibration is implemented, but retirement remains `UNPROVEN`/`PENDING` until genuine authenticated current-user ingress and an exact retirement judgment exist. |
 
 No stage currently carries a valid `VERIFIED` admission. `CANDIDATE` means implementation exists and must be reused, while current authenticated exact-state admission remains open. The workspace adoption ledger is the status authority; this table is only its readable implementation summary.

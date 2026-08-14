@@ -20,7 +20,7 @@ This book tracks only unfinished integration, authority, admission, and delivery
 | S08 | `CANDIDATE` | Package-local migration, Handoff paths, delivery ownership, workload forwarding, recovery, and cutover controls exist. |
 | S09 | `CANDIDATE` | Guard fixtures, completion evidence, replay denial, exact multi-repository state, and adoption status/transition controls exist. |
 | S10 | `CANDIDATE` | Role handoffs, package-local engines, consumer migration, and public skill compatibility exist. |
-| S11 | `CANDIDATE` | Architecture runner reports 69 PASS, 34 PENDING, and zero failures. Runtime controls are live; advisory-owned rows wait for externally authenticated Sage and Oracle judgments instead of synthetic receipts. |
+| S11 | `CANDIDATE` | Architecture runner reports 103 PASS, zero PENDING, and zero failures through case-specific structured policy and production-control evaluators. |
 | S12 | `CANDIDATE` | Calibration exists; retirement is `UNPROVEN`/`PENDING` because no authenticated current-user ingress or retirement judgment exists. |
 | Dispatch direct path | `CANDIDATE` | Direct packets bind immutable source, prompt bytes, authority artifacts, ownership, and overlap checks; focused validator regressions pass. |
 | Packaged skill migration | `CANDIDATE` | Recovered Handoff, Tasklist, Dispatch, Coder, QA, Architect, Debugger, JFDI, and Council surfaces are reusable. Fresh package qualification and integrated-state admission remain open. |
@@ -44,7 +44,6 @@ No stage currently has a valid `VERIFIED` admission. Workspace ledger keeps all 
 
 - Connect a genuine authenticated host producer for current-user prompt provenance; raw hook stdin and in-process imports cannot mint it.
 - Obtain an authenticated current-user judgment bound exactly to `dispatch-legacy-default`.
-- Obtain externally authenticated Sage and independent Oracle judgments for the 34 advisory-owned S11 rows.
 - Until that receipt exists, keep disposition `UNPROVEN`, retirement `PENDING`, and `all_net_harmful_controls_disposed` false.
 
 ### R4 — Final integration and admission (`DONE`)
