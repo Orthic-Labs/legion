@@ -1,0 +1,4 @@
+interface:
+  display_name: "Content Creation"
+  short_description: "Routes images, motion, avatars, and article art"
+  default_prompt: "Use $contentcreation to choose the right image or video workflow for this content asset."

@@ -18,12 +18,58 @@
       "externalOnly": true
     }
   },
+  "parity": {
+    "frozenAt": "2026-08-14",
+    "triggers": [
+      "/cortex",
+      "Build a current, source-grounded repository map with Cortex. Use /cortex or /blueprint before inheriting, changing, auditing, or judging unfamiliar code."
+    ],
+    "outputs": [
+      "references/legacy-workspace-skill.md",
+      "references/manual.md"
+    ],
+    "scripts": [],
+    "templates": [],
+    "schemas": [],
+    "receipts": [],
+    "evals": [
+      "evals/evals.json"
+    ],
+    "consumers": [
+      "registry/skills/index.json",
+      "lib/skills/resolver.mjs",
+      "registry/routing/domains.json"
+    ],
+    "legacyRef": null,
+    "legacyArtifacts": []
+  },
   "files": [
     {
       "path": "SKILL.md",
       "uri": "legion-skill://cortex/SKILL.md",
       "sourceDigest": "sha256:078bc81901a2fbfdbda0f57468cf146028f37cf012f1d3a31922293085f262d9",
       "outputDigest": "sha256:078bc81901a2fbfdbda0f57468cf146028f37cf012f1d3a31922293085f262d9",
+      "transformations": []
+    },
+    {
+      "path": "evals/evals.json",
+      "uri": "legion-skill://cortex/evals/evals.json",
+      "sourceDigest": "sha256:578865ee679e87e406f9b5822e8494504c7d826057d70f935ce4c1b5ab28e3b1",
+      "outputDigest": "sha256:578865ee679e87e406f9b5822e8494504c7d826057d70f935ce4c1b5ab28e3b1",
+      "transformations": []
+    },
+    {
+      "path": "references/legacy-workspace-skill.md",
+      "uri": "legion-skill://cortex/references/legacy-workspace-skill.md",
+      "sourceDigest": "sha256:7c3a24aab5c3d1af0ccb7ceff69cca06a4da8e612873253b228ac4a532a12562",
+      "outputDigest": "sha256:7c3a24aab5c3d1af0ccb7ceff69cca06a4da8e612873253b228ac4a532a12562",
+      "transformations": []
+    },
+    {
+      "path": "references/manual.md",
+      "uri": "legion-skill://cortex/references/manual.md",
+      "sourceDigest": "sha256:274f353cc1b3db580bb86060b111ebfb3587f9f3d14fbd22da7b575d6aaf9830",
+      "outputDigest": "sha256:274f353cc1b3db580bb86060b111ebfb3587f9f3d14fbd22da7b575d6aaf9830",
       "transformations": []
     }
   ]

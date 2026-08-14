@@ -18,6 +18,26 @@
       "externalOnly": true
     }
   },
+  "parity": {
+    "frozenAt": "2026-08-14",
+    "triggers": [
+      "/audit-visual",
+      "\"Review rendered UI through Legion's shared Audit visual provider. Use for /audit-visual, visual regressions, screenshot baselines, or rendered-state coverage.\""
+    ],
+    "outputs": [],
+    "scripts": [],
+    "templates": [],
+    "schemas": [],
+    "receipts": [],
+    "evals": [],
+    "consumers": [
+      "registry/skills/index.json",
+      "lib/skills/resolver.mjs",
+      "registry/routing/domains.json"
+    ],
+    "legacyRef": null,
+    "legacyArtifacts": []
+  },
   "files": [
     {
       "path": "RIGHTS.json",

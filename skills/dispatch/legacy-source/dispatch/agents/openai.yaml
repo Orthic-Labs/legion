@@ -1,0 +1,4 @@
+interface:
+  display_name: "Dispatch"
+  short_description: "Create shortest-path executable dispatches"
+  default_prompt: "Use $dispatch to select shortest valid A-to-B route & create a validated zero-context executor packet."

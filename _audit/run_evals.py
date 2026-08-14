@@ -148,18 +148,29 @@ def validate_eval_manifest(manifest: dict[str, Any]) -> list[str]:
     return errors
 
 
+def skill_roots(root: Path) -> list[Path]:
+    """Return supported workspace & packaged Legion skill roots."""
+    candidates = [root / SKILL_ROOT, root / "skills"]
+    return [candidate for candidate in candidates if candidate.exists()]
+
+
 def eval_files(root: Path, skill: str | None = None) -> list[Path]:
-    skill_root = root / SKILL_ROOT
-    if not skill_root.exists():
+    roots = skill_roots(root)
+    if not roots:
         return []
     if skill:
-        path = skill_root / skill / "evals" / "evals.json"
-        return [path] if path.exists() else []
-    candidates = sorted(skill_root.rglob("evals/evals.json"))
-    return [
-        path for path in candidates
-        if not any(path.relative_to(skill_root).parts[:len(prefix)] == prefix for prefix in EXCLUDED_EVAL_PREFIXES)
-    ]
+        return [
+            path
+            for skill_root in roots
+            if (path := skill_root / skill / "evals" / "evals.json").exists()
+        ]
+    candidates: list[Path] = []
+    for skill_root in roots:
+        candidates.extend(
+            path for path in skill_root.rglob("evals/evals.json")
+            if not any(path.relative_to(skill_root).parts[:len(prefix)] == prefix for prefix in EXCLUDED_EVAL_PREFIXES)
+        )
+    return sorted(set(candidates))
 
 
 def run_schema_checks(
@@ -175,7 +186,7 @@ def run_schema_checks(
             issue(
                 "MISSING_EVALS",
                 "error",
-                root / SKILL_ROOT / skill / "evals" / "evals.json",
+                root / "skills" / skill / "evals" / "evals.json",
                 "No evals/evals.json for requested skill.",
             )
         )

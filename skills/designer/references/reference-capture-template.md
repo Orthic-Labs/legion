@@ -8,7 +8,7 @@ The capture methodology is ours. The format is open. We use it natively.
 
 ## Per-site capture pipeline
 
-1. **Visit URL, capture at 5 breakpoints** via the qa-engine: `tools/lib/qa-engine/qa-shot.mjs --url <url> --breakpoints 375,414,768,1024,1440 --out <dir>/screenshots/`
+1. **Visit URL, capture at 5 breakpoints** via the qa-engine: `lib/qa-engine/qa-shot.mjs --url <url> --breakpoints 375,414,768,1024,1440 --out <dir>/screenshots/`
 2. **Extract tokens** by inspecting the live DOM (computed styles via DevTools or Playwright). Output to `<dir>/design.md`.
 3. **Extract copy samples** by curling the rendered HTML or via /content transcribe. 5-10 real blocks. Output to `<dir>/copy-samples.md`.
 4. **Map sitemap** by crawling or reading navigation. Output to `<dir>/sitemap.md`.

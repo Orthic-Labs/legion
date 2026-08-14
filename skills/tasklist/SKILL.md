@@ -5,7 +5,7 @@ description: Create an executable same-agent task list. Use `/tasklist`; keep it
 
 # Tasklist
 
-This public entrypoint routes durable validation to existing `tools/lib/dispatch-validator`; it owns no second validator.
+This public entrypoint routes durable validation to package-local `lib/dispatch-validator`; it owns no second validator.
 
 1. Freeze current state, target state, scope, constraints, & completion proof.
 2. For inline work, give elapsed-clock spans, action, done check, expected result, & recovery. Parallelize independent steps. Start step 1 when execution was requested.

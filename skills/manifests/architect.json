@@ -18,6 +18,47 @@
       "externalOnly": true
     }
   },
+  "parity": {
+    "frozenAt": "2026-08-14",
+    "triggers": [
+      "/architect",
+      "Route engineering design, ADR, interface, invariant, or implementation-plan requests to Sage Architect. Do not use for current-state mapping, diagnosis, or execution."
+    ],
+    "outputs": [
+      "references/manual.md"
+    ],
+    "scripts": [],
+    "templates": [],
+    "schemas": [],
+    "receipts": [],
+    "evals": [
+      "evals/evals.json",
+      "legacy-source/architect/evals/evals.json"
+    ],
+    "consumers": [
+      "registry/skills/index.json",
+      "lib/skills/resolver.mjs",
+      "registry/routing/domains.json"
+    ],
+    "legacyRef": "workspace:c1c7e818^",
+    "legacyArtifacts": [
+      {
+        "sourcePath": "tools/skills/architect/SKILL.md",
+        "migratedPath": "legacy-source/architect/SKILL.md",
+        "digest": "sha256:4209bd8a8a5290eaa601353f91cc0ccb5f21bb4a112bee68c1a13c124c84e80e"
+      },
+      {
+        "sourcePath": "tools/skills/architect/evals/evals.json",
+        "migratedPath": "legacy-source/architect/evals/evals.json",
+        "digest": "sha256:fa410acf809c46a0ad068dc5d617f8a08889cff533cccff5f6b83bd19b9148a7"
+      },
+      {
+        "sourcePath": "tools/skills/architect/references/manual.md",
+        "migratedPath": "legacy-source/architect/references/manual.md",
+        "digest": "sha256:346a24c481c5ba405756059acc4b3d0e67461b92fad464752cd90bae2cc8a99a"
+      }
+    ]
+  },
   "files": [
     {
       "path": "SKILL.md",
@@ -31,6 +72,27 @@
       "uri": "legion-skill://architect/evals/evals.json",
       "sourceDigest": "sha256:70cf990e249ff86df23be06f3b3f211818ea19bd6606331c17b784e2f4788a2b",
       "outputDigest": "sha256:70cf990e249ff86df23be06f3b3f211818ea19bd6606331c17b784e2f4788a2b",
+      "transformations": []
+    },
+    {
+      "path": "legacy-source/architect/SKILL.md",
+      "uri": "legion-skill://architect/legacy-source/architect/SKILL.md",
+      "sourceDigest": "sha256:4209bd8a8a5290eaa601353f91cc0ccb5f21bb4a112bee68c1a13c124c84e80e",
+      "outputDigest": "sha256:4209bd8a8a5290eaa601353f91cc0ccb5f21bb4a112bee68c1a13c124c84e80e",
+      "transformations": []
+    },
+    {
+      "path": "legacy-source/architect/evals/evals.json",
+      "uri": "legion-skill://architect/legacy-source/architect/evals/evals.json",
+      "sourceDigest": "sha256:fa410acf809c46a0ad068dc5d617f8a08889cff533cccff5f6b83bd19b9148a7",
+      "outputDigest": "sha256:fa410acf809c46a0ad068dc5d617f8a08889cff533cccff5f6b83bd19b9148a7",
+      "transformations": []
+    },
+    {
+      "path": "legacy-source/architect/references/manual.md",
+      "uri": "legion-skill://architect/legacy-source/architect/references/manual.md",
+      "sourceDigest": "sha256:346a24c481c5ba405756059acc4b3d0e67461b92fad464752cd90bae2cc8a99a",
+      "outputDigest": "sha256:346a24c481c5ba405756059acc4b3d0e67461b92fad464752cd90bae2cc8a99a",
       "transformations": []
     },
     {

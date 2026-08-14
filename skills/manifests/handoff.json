@@ -18,6 +18,101 @@
       "externalOnly": true
     }
   },
+  "parity": {
+    "frozenAt": "2026-08-14",
+    "triggers": [
+      "/handoff",
+      "\"Transfer an ongoing task into a fresh chat through a hash-bound transcript pointer and a validated cold-start continuation packet. Use for fresh-thread continuity, context rollover, or transfer of decisions, state, failures, and landmines; never use for bounded executor delegation.\""
+    ],
+    "outputs": [
+      "assets/handoff-template.md",
+      "examples/validated-forward-test.md",
+      "examples/validated-forward-test.receipt.json",
+      "references/manual.md"
+    ],
+    "scripts": [
+      "scripts/test_transcript_handoff.py",
+      "scripts/test_validate_handoff.py",
+      "scripts/transcript-handoff.py",
+      "scripts/validate-handoff.py"
+    ],
+    "templates": [
+      "assets/handoff-template.md",
+      "legacy-source/handoff/assets/handoff-template.md"
+    ],
+    "schemas": [],
+    "receipts": [
+      "examples/validated-forward-test.receipt.json",
+      "legacy-source/handoff/examples/validated-forward-test.receipt.json"
+    ],
+    "evals": [
+      "evals/evals.json",
+      "legacy-source/handoff/evals/evals.json"
+    ],
+    "consumers": [
+      "registry/skills/index.json",
+      "lib/skills/resolver.mjs",
+      "registry/routing/domains.json"
+    ],
+    "legacyRef": "workspace:c1c7e818^",
+    "legacyArtifacts": [
+      {
+        "sourcePath": "tools/skills/handoff/SKILL.md",
+        "migratedPath": "legacy-source/handoff/SKILL.md",
+        "digest": "sha256:73e465481fa8b3444afed464c769206d6a60ac68000e67cc1adb2c8c5a7090db"
+      },
+      {
+        "sourcePath": "tools/skills/handoff/agents/openai.yaml",
+        "migratedPath": "legacy-source/handoff/agents/openai.yaml",
+        "digest": "sha256:5fb7ba387ef32bbd630d780b5987525b0afc9c4eefa84b7432916a9c126d7d48"
+      },
+      {
+        "sourcePath": "tools/skills/handoff/assets/handoff-template.md",
+        "migratedPath": "legacy-source/handoff/assets/handoff-template.md",
+        "digest": "sha256:361542814835dd1359bdf62d6a7b90bab8bbed41e6435847f67dbdab03786542"
+      },
+      {
+        "sourcePath": "tools/skills/handoff/evals/evals.json",
+        "migratedPath": "legacy-source/handoff/evals/evals.json",
+        "digest": "sha256:b7ecaf5bf8a9d5c1712fed155042b3c20eeb5488f3c0460df2a86a85aacae61f"
+      },
+      {
+        "sourcePath": "tools/skills/handoff/examples/validated-forward-test.md",
+        "migratedPath": "legacy-source/handoff/examples/validated-forward-test.md",
+        "digest": "sha256:627378156f8ec1140a6cf8e267758a762c665793c4b9a69832d9d86b70e33d9c"
+      },
+      {
+        "sourcePath": "tools/skills/handoff/examples/validated-forward-test.receipt.json",
+        "migratedPath": "legacy-source/handoff/examples/validated-forward-test.receipt.json",
+        "digest": "sha256:15225346e50adbb97793170b18b1cb6b426efc644ae3fb8d8aeb868d81ae1a7f"
+      },
+      {
+        "sourcePath": "tools/skills/handoff/references/manual.md",
+        "migratedPath": "legacy-source/handoff/references/manual.md",
+        "digest": "sha256:a788c0e9c963c6e5c53c1d8d16a3232aac53a98b51d3ea65ba7c03f083ad9647"
+      },
+      {
+        "sourcePath": "tools/skills/handoff/scripts/test_transcript_handoff.py",
+        "migratedPath": "legacy-source/handoff/scripts/test_transcript_handoff.py",
+        "digest": "sha256:989aeaffe44366b89afc166350bba19ded4defb072167d626f7bfb51faa22387"
+      },
+      {
+        "sourcePath": "tools/skills/handoff/scripts/test_validate_handoff.py",
+        "migratedPath": "legacy-source/handoff/scripts/test_validate_handoff.py",
+        "digest": "sha256:6f08a31c2f7e2f655796efc4216d3565fa618e09622ea49f9096961bf819eaae"
+      },
+      {
+        "sourcePath": "tools/skills/handoff/scripts/transcript-handoff.py",
+        "migratedPath": "legacy-source/handoff/scripts/transcript-handoff.py",
+        "digest": "sha256:d211cbafde90b4076a826f61efc9a2039146b5d58190755d81696a213ac7bbc5"
+      },
+      {
+        "sourcePath": "tools/skills/handoff/scripts/validate-handoff.py",
+        "migratedPath": "legacy-source/handoff/scripts/validate-handoff.py",
+        "digest": "sha256:361147871eb50972bb3ec92465b1267cb38c468faa6073dd07bae4fdfd4d40dd"
+      }
+    ]
+  },
   "files": [
     {
       "path": "SKILL.md",
@@ -41,6 +136,13 @@
       "transformations": []
     },
     {
+      "path": "evals/evals.json",
+      "uri": "legion-skill://handoff/evals/evals.json",
+      "sourceDigest": "sha256:b7ecaf5bf8a9d5c1712fed155042b3c20eeb5488f3c0460df2a86a85aacae61f",
+      "outputDigest": "sha256:b7ecaf5bf8a9d5c1712fed155042b3c20eeb5488f3c0460df2a86a85aacae61f",
+      "transformations": []
+    },
+    {
       "path": "examples/validated-forward-test.md",
       "uri": "legion-skill://handoff/examples/validated-forward-test.md",
       "sourceDigest": "sha256:38172512c6ab16969f6ee919a852372d7445be09b052168fac841e06f2b2e70c",
@@ -55,10 +157,115 @@
       "transformations": []
     },
     {
+      "path": "legacy-source/handoff/SKILL.md",
+      "uri": "legion-skill://handoff/legacy-source/handoff/SKILL.md",
+      "sourceDigest": "sha256:73e465481fa8b3444afed464c769206d6a60ac68000e67cc1adb2c8c5a7090db",
+      "outputDigest": "sha256:73e465481fa8b3444afed464c769206d6a60ac68000e67cc1adb2c8c5a7090db",
+      "transformations": []
+    },
+    {
+      "path": "legacy-source/handoff/agents/openai.yaml",
+      "uri": "legion-skill://handoff/legacy-source/handoff/agents/openai.yaml",
+      "sourceDigest": "sha256:5fb7ba387ef32bbd630d780b5987525b0afc9c4eefa84b7432916a9c126d7d48",
+      "outputDigest": "sha256:5fb7ba387ef32bbd630d780b5987525b0afc9c4eefa84b7432916a9c126d7d48",
+      "transformations": []
+    },
+    {
+      "path": "legacy-source/handoff/assets/handoff-template.md",
+      "uri": "legion-skill://handoff/legacy-source/handoff/assets/handoff-template.md",
+      "sourceDigest": "sha256:361542814835dd1359bdf62d6a7b90bab8bbed41e6435847f67dbdab03786542",
+      "outputDigest": "sha256:361542814835dd1359bdf62d6a7b90bab8bbed41e6435847f67dbdab03786542",
+      "transformations": []
+    },
+    {
+      "path": "legacy-source/handoff/evals/evals.json",
+      "uri": "legion-skill://handoff/legacy-source/handoff/evals/evals.json",
+      "sourceDigest": "sha256:b7ecaf5bf8a9d5c1712fed155042b3c20eeb5488f3c0460df2a86a85aacae61f",
+      "outputDigest": "sha256:b7ecaf5bf8a9d5c1712fed155042b3c20eeb5488f3c0460df2a86a85aacae61f",
+      "transformations": []
+    },
+    {
+      "path": "legacy-source/handoff/examples/validated-forward-test.md",
+      "uri": "legion-skill://handoff/legacy-source/handoff/examples/validated-forward-test.md",
+      "sourceDigest": "sha256:627378156f8ec1140a6cf8e267758a762c665793c4b9a69832d9d86b70e33d9c",
+      "outputDigest": "sha256:627378156f8ec1140a6cf8e267758a762c665793c4b9a69832d9d86b70e33d9c",
+      "transformations": []
+    },
+    {
+      "path": "legacy-source/handoff/examples/validated-forward-test.receipt.json",
+      "uri": "legion-skill://handoff/legacy-source/handoff/examples/validated-forward-test.receipt.json",
+      "sourceDigest": "sha256:15225346e50adbb97793170b18b1cb6b426efc644ae3fb8d8aeb868d81ae1a7f",
+      "outputDigest": "sha256:15225346e50adbb97793170b18b1cb6b426efc644ae3fb8d8aeb868d81ae1a7f",
+      "transformations": []
+    },
+    {
+      "path": "legacy-source/handoff/references/manual.md",
+      "uri": "legion-skill://handoff/legacy-source/handoff/references/manual.md",
+      "sourceDigest": "sha256:a788c0e9c963c6e5c53c1d8d16a3232aac53a98b51d3ea65ba7c03f083ad9647",
+      "outputDigest": "sha256:a788c0e9c963c6e5c53c1d8d16a3232aac53a98b51d3ea65ba7c03f083ad9647",
+      "transformations": []
+    },
+    {
+      "path": "legacy-source/handoff/scripts/test_transcript_handoff.py",
+      "uri": "legion-skill://handoff/legacy-source/handoff/scripts/test_transcript_handoff.py",
+      "sourceDigest": "sha256:989aeaffe44366b89afc166350bba19ded4defb072167d626f7bfb51faa22387",
+      "outputDigest": "sha256:989aeaffe44366b89afc166350bba19ded4defb072167d626f7bfb51faa22387",
+      "transformations": []
+    },
+    {
+      "path": "legacy-source/handoff/scripts/test_validate_handoff.py",
+      "uri": "legion-skill://handoff/legacy-source/handoff/scripts/test_validate_handoff.py",
+      "sourceDigest": "sha256:6f08a31c2f7e2f655796efc4216d3565fa618e09622ea49f9096961bf819eaae",
+      "outputDigest": "sha256:6f08a31c2f7e2f655796efc4216d3565fa618e09622ea49f9096961bf819eaae",
+      "transformations": []
+    },
+    {
+      "path": "legacy-source/handoff/scripts/transcript-handoff.py",
+      "uri": "legion-skill://handoff/legacy-source/handoff/scripts/transcript-handoff.py",
+      "sourceDigest": "sha256:d211cbafde90b4076a826f61efc9a2039146b5d58190755d81696a213ac7bbc5",
+      "outputDigest": "sha256:d211cbafde90b4076a826f61efc9a2039146b5d58190755d81696a213ac7bbc5",
+      "transformations": []
+    },
+    {
+      "path": "legacy-source/handoff/scripts/validate-handoff.py",
+      "uri": "legion-skill://handoff/legacy-source/handoff/scripts/validate-handoff.py",
+      "sourceDigest": "sha256:361147871eb50972bb3ec92465b1267cb38c468faa6073dd07bae4fdfd4d40dd",
+      "outputDigest": "sha256:361147871eb50972bb3ec92465b1267cb38c468faa6073dd07bae4fdfd4d40dd",
+      "transformations": []
+    },
+    {
       "path": "references/manual.md",
       "uri": "legion-skill://handoff/references/manual.md",
       "sourceDigest": "sha256:276f465cefc362c3ce31c07e037dda0b59db4db0e85ce8297073c18492bfcae0",
       "outputDigest": "sha256:276f465cefc362c3ce31c07e037dda0b59db4db0e85ce8297073c18492bfcae0",
+      "transformations": []
+    },
+    {
+      "path": "scripts/test_transcript_handoff.py",
+      "uri": "legion-skill://handoff/scripts/test_transcript_handoff.py",
+      "sourceDigest": "sha256:eb2c89fd32d65db7e504319f5f641e9dba475ba6512d106005e6cf3aee1ae433",
+      "outputDigest": "sha256:eb2c89fd32d65db7e504319f5f641e9dba475ba6512d106005e6cf3aee1ae433",
+      "transformations": []
+    },
+    {
+      "path": "scripts/test_validate_handoff.py",
+      "uri": "legion-skill://handoff/scripts/test_validate_handoff.py",
+      "sourceDigest": "sha256:6f08a31c2f7e2f655796efc4216d3565fa618e09622ea49f9096961bf819eaae",
+      "outputDigest": "sha256:6f08a31c2f7e2f655796efc4216d3565fa618e09622ea49f9096961bf819eaae",
+      "transformations": []
+    },
+    {
+      "path": "scripts/transcript-handoff.py",
+      "uri": "legion-skill://handoff/scripts/transcript-handoff.py",
+      "sourceDigest": "sha256:6974b940fe835e469cef386caa39e8a774816d14e4a5d825de0e2ab72956609b",
+      "outputDigest": "sha256:6974b940fe835e469cef386caa39e8a774816d14e4a5d825de0e2ab72956609b",
+      "transformations": []
+    },
+    {
+      "path": "scripts/validate-handoff.py",
+      "uri": "legion-skill://handoff/scripts/validate-handoff.py",
+      "sourceDigest": "sha256:c4810fc710e7c66f04c93022cf244961ade79c06d618048c109e3a8367e4f9fd",
+      "outputDigest": "sha256:c4810fc710e7c66f04c93022cf244961ade79c06d618048c109e3a8367e4f9fd",
       "transformations": []
     }
   ]

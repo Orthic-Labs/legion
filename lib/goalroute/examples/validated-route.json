@@ -1,0 +1,149 @@
+{
+  "schema": "goal-route.v2",
+  "route_id": "example-shortest-reliable-route",
+  "purpose": "DELIVERY",
+  "routine": false,
+  "comparison_mode": "COMPARE",
+  "state_a": {
+    "description": "Current workflow selects routes using nominal wall time only.",
+    "evidence": [
+      {
+        "locator": "D:/Claude/.claude/agents/sage.md",
+        "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "check": "Read route contract and observed nominal minimum-wall selection."
+      }
+    ]
+  },
+  "state_b": {
+    "description": "Shared route validator selects minimum expected time to verified completion.",
+    "proof": [
+      {
+        "command": "py -3.11 D:/Claude/tools/lib/goalroute/scripts/test_validate_route.py",
+        "expected": "Exit 0 and output begins PASS: GoalRoute v2.",
+        "evidence_path": "D:/Claude/.audit/goal-route-v2/test-output.txt"
+      }
+    ]
+  },
+  "constraints": {
+    "authority": {
+      "rule": "Change only shared route and named skill contracts.",
+      "evidence_locator": "forge://run/e523178d-a8f3-4804-a1c5-1f86ed90bdbc/state"
+    },
+    "safety": {
+      "rule": "Preserve unrelated dirty work and avoid production mutation.",
+      "evidence_locator": "D:/Claude/AGENTS.md"
+    },
+    "scope": {
+      "rule": "Update route-producing and route-consuming skills only.",
+      "evidence_locator": "D:/Claude/tools/lib/goalroute/GOALROUTE.md"
+    },
+    "quality": {
+      "rule": "Adversarial validator tests and exact-byte receipt replay must pass.",
+      "evidence_locator": "D:/Claude/tools/lib/goalroute/scripts/test_validate_route.py"
+    },
+    "cost": {
+      "rule": "Use local standard-library validation with zero paid calls.",
+      "evidence_locator": "D:/Claude/tools/lib/goalroute/scripts/validate-route.py"
+    }
+  },
+  "candidates": [
+    {
+      "id": "R_NOMINAL",
+      "constraint_status": "PASS",
+      "constraint_evidence": "D:/Claude/.audit/goal-route-v2/r-nominal.json",
+      "steps": [
+        {
+          "id": "R_NOMINAL/S1",
+          "operation": "Select smallest nominal critical path.",
+          "depends_on": [],
+          "min_wall_ms": 600000,
+          "kind": "ADVANCE_B",
+          "b_state_delta": "Nominal route selection is produced."
+        }
+      ],
+      "probabilities_bps": {
+        "retry": 0,
+        "terminal_failure": 5000
+      },
+      "retry_cost_ms": 0,
+      "rework_cost_ms": 1800000,
+      "nominal_critical_path_ms": 600000,
+      "expected_time_to_verified_b_ms": 1500000,
+      "cost_units": 1,
+      "risk_units": 8,
+      "rework_units": 9,
+      "status": "REJECTED",
+      "dominance_reason": "R_RELIABLE has lower expected time after failure rework.",
+      "evidence": [
+        "D:/Claude/.audit/goal-route-v2/r-nominal.json"
+      ]
+    },
+    {
+      "id": "R_RELIABLE",
+      "constraint_status": "PASS",
+      "constraint_evidence": "D:/Claude/.audit/goal-route-v2/r-reliable.json",
+      "steps": [
+        {
+          "id": "R_RELIABLE/S1",
+          "operation": "Validate expected-time route contract and exact receipt.",
+          "depends_on": [],
+          "min_wall_ms": 720000,
+          "kind": "ADVANCE_B",
+          "b_state_delta": "Expected-time route and receipt pass adversarial validation."
+        }
+      ],
+      "probabilities_bps": {
+        "retry": 0,
+        "terminal_failure": 100
+      },
+      "retry_cost_ms": 0,
+      "rework_cost_ms": 1800000,
+      "nominal_critical_path_ms": 720000,
+      "expected_time_to_verified_b_ms": 738000,
+      "cost_units": 2,
+      "risk_units": 1,
+      "rework_units": 1,
+      "status": "SELECTED",
+      "dominance_reason": "Minimum expected time to verified B.",
+      "evidence": [
+        "D:/Claude/.audit/goal-route-v2/r-reliable.json"
+      ]
+    }
+  ],
+  "selected_route_id": "R_RELIABLE",
+  "selected_critical_path": [
+    "R_RELIABLE/S1"
+  ],
+  "parallel_lanes": [],
+  "bottleneck": {
+    "step_id": "R_RELIABLE/S1",
+    "bound_ms": 720000,
+    "resource": "validator and adversarial test execution"
+  },
+  "deleted_work": [
+    {
+      "item": "Nominal-only route winner",
+      "reason": "Nominal wall time ignores failure and rework."
+    }
+  ],
+  "deferred_work": [
+    {
+      "item": "Downstream skill execution",
+      "until": "GoalRoute receipt verifies exact bytes."
+    }
+  ],
+  "single_feasible_evidence": [],
+  "invalidation": {
+    "revision": 1,
+    "semantic_correction": "NONE",
+    "invalidates": [],
+    "source_fingerprint_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+  },
+  "forge": {
+    "required": true,
+    "run_id": "e523178d-a8f3-4804-a1c5-1f86ed90bdbc",
+    "state_ref": "forge://run/e523178d-a8f3-4804-a1c5-1f86ed90bdbc/state",
+    "checkpoint": "GOAL_ROUTE_V2",
+    "reason": "Shared non-routine skill architecture change."
+  }
+}

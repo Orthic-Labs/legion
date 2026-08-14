@@ -1,0 +1,8 @@
+{
+  "schema_version": 1,
+  "artifact_name": "validated-forward-test.md",
+  "artifact_path": "D:\\Claude\\tools\\skills\\dispatch\\examples\\validated-forward-test.md",
+  "sha256": "01f0d679ee74acb067039cb382420bc721c752ec7cb1155fcf125014c52cec31",
+  "validated_at": "2026-07-28T17:00:16.317454+00:00",
+  "validator": "dispatch/validate-dispatch.py"
+}

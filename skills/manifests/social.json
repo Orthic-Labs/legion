@@ -70,6 +70,42 @@
       "id": "whitespace-normalization"
     }
   ],
+  "parity": {
+    "frozenAt": "2026-08-14",
+    "triggers": [
+      "/social",
+      "\"Route Instagram, Pinterest, YouTube, Twitter or X, LinkedIn, Reels, Shorts, pins, threads, calendars, distribution, analytics, and social growth. Use /social or when social strategy or content is the deliverable.\""
+    ],
+    "outputs": [
+      "references/content/evals/evals.json",
+      "references/content/reference.md",
+      "references/content/references/platforms.md",
+      "references/content/references/post-templates.md",
+      "references/content/references/reverse-engineering.md",
+      "references/instagram/reference.md",
+      "references/manual.md",
+      "references/pinterest/reference.md",
+      "references/twitter/reference.md",
+      "references/youtube/reference.md"
+    ],
+    "scripts": [],
+    "templates": [
+      "references/content/references/post-templates.md"
+    ],
+    "schemas": [],
+    "receipts": [],
+    "evals": [
+      "evals/evals.json",
+      "references/content/evals/evals.json"
+    ],
+    "consumers": [
+      "registry/skills/index.json",
+      "lib/skills/resolver.mjs",
+      "registry/routing/domains.json"
+    ],
+    "legacyRef": null,
+    "legacyArtifacts": []
+  },
   "files": [
     {
       "path": "SKILL.md",
@@ -113,7 +149,7 @@
     {
       "path": "references/content/reference.md",
       "uri": "legion-skill://social/references/content/reference.md",
-      "sourceDigest": "sha256:fb886cabb9968f540f957a1d7e36789c11e4ada282b5f2732a7c74c2432790a9",
+      "sourceDigest": "sha256:355c1aaf20e3d13253ed89ece38af411ac285f4cf02b8d57097aea43d6ef6fd4",
       "outputDigest": "sha256:355c1aaf20e3d13253ed89ece38af411ac285f4cf02b8d57097aea43d6ef6fd4",
       "transformations": [
         "identity-genericization",
@@ -126,7 +162,7 @@
     {
       "path": "references/content/references/platforms.md",
       "uri": "legion-skill://social/references/content/references/platforms.md",
-      "sourceDigest": "sha256:5119453c33a1b3549673d719388ab3e10049e8118867fa2db91c199c896dac76",
+      "sourceDigest": "sha256:3c4e1b15717a3bcd4ed0cf29dc167dac28aa88bbf01723fde53815122396090f",
       "outputDigest": "sha256:3c4e1b15717a3bcd4ed0cf29dc167dac28aa88bbf01723fde53815122396090f",
       "transformations": [
         "identity-genericization",
@@ -139,7 +175,7 @@
     {
       "path": "references/content/references/post-templates.md",
       "uri": "legion-skill://social/references/content/references/post-templates.md",
-      "sourceDigest": "sha256:425187776b757774e5beba2fe2446629a33e6b2efbc889d95495537256bd0ead",
+      "sourceDigest": "sha256:db6525e51a690b61faf97a0acf51a2a57526de90da01c6bb37679d056c18c7f4",
       "outputDigest": "sha256:db6525e51a690b61faf97a0acf51a2a57526de90da01c6bb37679d056c18c7f4",
       "transformations": [
         "identity-genericization",
@@ -152,7 +188,7 @@
     {
       "path": "references/content/references/reverse-engineering.md",
       "uri": "legion-skill://social/references/content/references/reverse-engineering.md",
-      "sourceDigest": "sha256:8d2a8637deecaa41baf6d3d529868289c58b544bab1fd3247412cb6607e63959",
+      "sourceDigest": "sha256:70f114f636e0e2b1dae8168cef3bf350a1201c475ce694410b364fa621c4a0f1",
       "outputDigest": "sha256:70f114f636e0e2b1dae8168cef3bf350a1201c475ce694410b364fa621c4a0f1",
       "transformations": [
         "identity-genericization",
@@ -165,7 +201,7 @@
     {
       "path": "references/instagram/reference.md",
       "uri": "legion-skill://social/references/instagram/reference.md",
-      "sourceDigest": "sha256:80edd73ae94722c4c029779c6330a30f1eb1cd3d84084f2bb58ed7c597234411",
+      "sourceDigest": "sha256:1f46cfa8252cfd9586c6ce8d570c7c7e1871fb524c9af0cc1b868742cb254b73",
       "outputDigest": "sha256:1f46cfa8252cfd9586c6ce8d570c7c7e1871fb524c9af0cc1b868742cb254b73",
       "transformations": [
         "identity-genericization",
@@ -178,7 +214,7 @@
     {
       "path": "references/manual.md",
       "uri": "legion-skill://social/references/manual.md",
-      "sourceDigest": "sha256:20de1a2da9ab3f9b7196572417bb2af8e865d92bc960c2162f50165236012805",
+      "sourceDigest": "sha256:36a22feb3573e94ec2430f2f0857cef40d70279d71fdb3dcf23a7dca093b6f82",
       "outputDigest": "sha256:36a22feb3573e94ec2430f2f0857cef40d70279d71fdb3dcf23a7dca093b6f82",
       "transformations": [
         "identity-genericization",
@@ -204,7 +240,7 @@
     {
       "path": "references/twitter/reference.md",
       "uri": "legion-skill://social/references/twitter/reference.md",
-      "sourceDigest": "sha256:52867568c421dc3ea4f9560e9cba8721d9bf0bbc927b7dd849a574eccf51d582",
+      "sourceDigest": "sha256:ea7b235808c9814c0bd62c76123e981601fb118f972aeaa699be40b201ad8d72",
       "outputDigest": "sha256:ea7b235808c9814c0bd62c76123e981601fb118f972aeaa699be40b201ad8d72",
       "transformations": [
         "identity-genericization",

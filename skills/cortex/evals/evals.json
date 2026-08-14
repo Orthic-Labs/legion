@@ -1,0 +1,24 @@
+{
+  "schema_version": 1,
+  "skill": "cortex",
+  "should_trigger": [
+    {
+      "id": "cortex-full",
+      "prompt": "Run Cortex on this repository so I understand its current architecture and gaps.",
+      "expected_behavior": "Select cortex and run the full mapped, verified, synthesized, and sealed workflow.",
+      "assertions": [{"type": "expected_skill", "value": "cortex"}]
+    }
+  ],
+  "should_not_trigger": [
+    {
+      "id": "cortex-not-audit",
+      "prompt": "Audit this repository for security and dependency problems.",
+      "expected_behavior": "Select audit, not cortex.",
+      "assertions": [{"type": "forbidden_skill", "value": "cortex"}]
+    }
+  ],
+  "output_quality": [],
+  "safety": [],
+  "pressure": [],
+  "compatibility": []
+}

@@ -18,6 +18,72 @@
       "externalOnly": true
     }
   },
+  "parity": {
+    "frozenAt": "2026-08-14",
+    "triggers": [
+      "/qa",
+      "Add, run, or audit local web or Tauri app QA: hidden servers, deterministic mocks, functional assertions, viewport captures, visual evidence, & contract-test authoring."
+    ],
+    "outputs": [
+      "references/browser-automation.md",
+      "references/manual.md"
+    ],
+    "scripts": [
+      "scripts/qa-functional.mjs",
+      "scripts/qa-shot.mjs",
+      "scripts/qa.mjs"
+    ],
+    "templates": [],
+    "schemas": [],
+    "receipts": [],
+    "evals": [
+      "evals/evals.json",
+      "legacy-source/qa/evals/evals.json"
+    ],
+    "consumers": [
+      "registry/skills/index.json",
+      "lib/skills/resolver.mjs",
+      "registry/routing/domains.json"
+    ],
+    "legacyRef": "workspace:c1c7e818^",
+    "legacyArtifacts": [
+      {
+        "sourcePath": "tools/skills/qa/SKILL.md",
+        "migratedPath": "legacy-source/qa/SKILL.md",
+        "digest": "sha256:6da8a07afdea2ec0bec09660093f7ffe6738af20e96849a9b2330a9abffe2d5e"
+      },
+      {
+        "sourcePath": "tools/skills/qa/evals/evals.json",
+        "migratedPath": "legacy-source/qa/evals/evals.json",
+        "digest": "sha256:4d22c7ceb3cc749818f47409e85e809410a809bd9f76067438ff64115aae09bc"
+      },
+      {
+        "sourcePath": "tools/skills/qa/references/browser-automation.md",
+        "migratedPath": "legacy-source/qa/references/browser-automation.md",
+        "digest": "sha256:e812249583f9e41c554c1f1e41b50602572667acf2277bf5e957ff008951577b"
+      },
+      {
+        "sourcePath": "tools/skills/qa/references/manual.md",
+        "migratedPath": "legacy-source/qa/references/manual.md",
+        "digest": "sha256:a01f93a92ec40d1afbf977914e3a53a26c474d236c49e45c2f34b834309e0660"
+      },
+      {
+        "sourcePath": "tools/skills/qa/scripts/qa-functional.mjs",
+        "migratedPath": "legacy-source/qa/scripts/qa-functional.mjs",
+        "digest": "sha256:9d82b3db8a72d267c8558dbb593be642b33ef7787dcd71b9d672efceaaa6b62a"
+      },
+      {
+        "sourcePath": "tools/skills/qa/scripts/qa-shot.mjs",
+        "migratedPath": "legacy-source/qa/scripts/qa-shot.mjs",
+        "digest": "sha256:757b8c8a20474ee217a3fc0730de1ed89d450983eddfd683a7ace726a4bd2f92"
+      },
+      {
+        "sourcePath": "tools/skills/qa/scripts/qa.mjs",
+        "migratedPath": "legacy-source/qa/scripts/qa.mjs",
+        "digest": "sha256:dc857291d50048d76adf10bce53a2cf4259ea2a9d4ae72a806dbfce709c59730"
+      }
+    ]
+  },
   "files": [
     {
       "path": "SKILL.md",
@@ -31,6 +97,55 @@
       "uri": "legion-skill://qa/evals/evals.json",
       "sourceDigest": "sha256:e9090dc954ba1b7187ba95d03c346596623bc59975b813689150652002923608",
       "outputDigest": "sha256:e9090dc954ba1b7187ba95d03c346596623bc59975b813689150652002923608",
+      "transformations": []
+    },
+    {
+      "path": "legacy-source/qa/SKILL.md",
+      "uri": "legion-skill://qa/legacy-source/qa/SKILL.md",
+      "sourceDigest": "sha256:6da8a07afdea2ec0bec09660093f7ffe6738af20e96849a9b2330a9abffe2d5e",
+      "outputDigest": "sha256:6da8a07afdea2ec0bec09660093f7ffe6738af20e96849a9b2330a9abffe2d5e",
+      "transformations": []
+    },
+    {
+      "path": "legacy-source/qa/evals/evals.json",
+      "uri": "legion-skill://qa/legacy-source/qa/evals/evals.json",
+      "sourceDigest": "sha256:4d22c7ceb3cc749818f47409e85e809410a809bd9f76067438ff64115aae09bc",
+      "outputDigest": "sha256:4d22c7ceb3cc749818f47409e85e809410a809bd9f76067438ff64115aae09bc",
+      "transformations": []
+    },
+    {
+      "path": "legacy-source/qa/references/browser-automation.md",
+      "uri": "legion-skill://qa/legacy-source/qa/references/browser-automation.md",
+      "sourceDigest": "sha256:e812249583f9e41c554c1f1e41b50602572667acf2277bf5e957ff008951577b",
+      "outputDigest": "sha256:e812249583f9e41c554c1f1e41b50602572667acf2277bf5e957ff008951577b",
+      "transformations": []
+    },
+    {
+      "path": "legacy-source/qa/references/manual.md",
+      "uri": "legion-skill://qa/legacy-source/qa/references/manual.md",
+      "sourceDigest": "sha256:a01f93a92ec40d1afbf977914e3a53a26c474d236c49e45c2f34b834309e0660",
+      "outputDigest": "sha256:a01f93a92ec40d1afbf977914e3a53a26c474d236c49e45c2f34b834309e0660",
+      "transformations": []
+    },
+    {
+      "path": "legacy-source/qa/scripts/qa-functional.mjs",
+      "uri": "legion-skill://qa/legacy-source/qa/scripts/qa-functional.mjs",
+      "sourceDigest": "sha256:9d82b3db8a72d267c8558dbb593be642b33ef7787dcd71b9d672efceaaa6b62a",
+      "outputDigest": "sha256:9d82b3db8a72d267c8558dbb593be642b33ef7787dcd71b9d672efceaaa6b62a",
+      "transformations": []
+    },
+    {
+      "path": "legacy-source/qa/scripts/qa-shot.mjs",
+      "uri": "legion-skill://qa/legacy-source/qa/scripts/qa-shot.mjs",
+      "sourceDigest": "sha256:757b8c8a20474ee217a3fc0730de1ed89d450983eddfd683a7ace726a4bd2f92",
+      "outputDigest": "sha256:757b8c8a20474ee217a3fc0730de1ed89d450983eddfd683a7ace726a4bd2f92",
+      "transformations": []
+    },
+    {
+      "path": "legacy-source/qa/scripts/qa.mjs",
+      "uri": "legion-skill://qa/legacy-source/qa/scripts/qa.mjs",
+      "sourceDigest": "sha256:dc857291d50048d76adf10bce53a2cf4259ea2a9d4ae72a806dbfce709c59730",
+      "outputDigest": "sha256:dc857291d50048d76adf10bce53a2cf4259ea2a9d4ae72a806dbfce709c59730",
       "transformations": []
     },
     {
@@ -50,22 +165,22 @@
     {
       "path": "scripts/qa-functional.mjs",
       "uri": "legion-skill://qa/scripts/qa-functional.mjs",
-      "sourceDigest": "sha256:55803507ae0b0b079c25b551e0f274988b254a791d680aa53dd210e5ff0c9b23",
-      "outputDigest": "sha256:55803507ae0b0b079c25b551e0f274988b254a791d680aa53dd210e5ff0c9b23",
+      "sourceDigest": "sha256:cd1e6fb6ec803a21f29d8bf90ed27587fb5eb167905ef4c87e3676892ad43abb",
+      "outputDigest": "sha256:cd1e6fb6ec803a21f29d8bf90ed27587fb5eb167905ef4c87e3676892ad43abb",
       "transformations": []
     },
     {
       "path": "scripts/qa-shot.mjs",
       "uri": "legion-skill://qa/scripts/qa-shot.mjs",
-      "sourceDigest": "sha256:52804dacbf25f0de7c7bb16319d13728ffdfea0738b6a2c1b3c007c8477f90f2",
-      "outputDigest": "sha256:52804dacbf25f0de7c7bb16319d13728ffdfea0738b6a2c1b3c007c8477f90f2",
+      "sourceDigest": "sha256:9644eb82f300b59c758e5e00d25a4d18f5dd70e9823391c32e5d621330bc9287",
+      "outputDigest": "sha256:9644eb82f300b59c758e5e00d25a4d18f5dd70e9823391c32e5d621330bc9287",
       "transformations": []
     },
     {
       "path": "scripts/qa.mjs",
       "uri": "legion-skill://qa/scripts/qa.mjs",
-      "sourceDigest": "sha256:dc328755970961d9126a35fc2c5d8e3a7870a6c56c6fee63f36fdf122cba9298",
-      "outputDigest": "sha256:dc328755970961d9126a35fc2c5d8e3a7870a6c56c6fee63f36fdf122cba9298",
+      "sourceDigest": "sha256:1a18d19ee338eea71f26bad61fb1df3ecea3f114d94018ede17aa9502939430e",
+      "outputDigest": "sha256:1a18d19ee338eea71f26bad61fb1df3ecea3f114d94018ede17aa9502939430e",
       "transformations": []
     }
   ]

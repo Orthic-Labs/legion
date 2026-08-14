@@ -18,6 +18,56 @@
       "externalOnly": true
     }
   },
+  "parity": {
+    "frozenAt": "2026-08-14",
+    "triggers": [
+      "/alchemist",
+      "Execute a settled, bounded change through Legion's Alchemist authority. Use /alchemist after scope, ownership, checks, and acceptance are decided."
+    ],
+    "outputs": [
+      "references/legacy-workspace-skill.md",
+      "references/manual.md"
+    ],
+    "scripts": [
+      "scripts/parse_events.py",
+      "scripts/run-worker.ps1",
+      "scripts/run-worker.sh",
+      "scripts/start-stack.vbs",
+      "scripts/tray.ps1",
+      "scripts/viewer.py"
+    ],
+    "templates": [],
+    "schemas": [],
+    "receipts": [],
+    "evals": [
+      "evals/evals.json",
+      "evals/legacy-jfdi.json",
+      "legacy-source/jfdi/evals/evals.json"
+    ],
+    "consumers": [
+      "registry/skills/index.json",
+      "lib/skills/resolver.mjs",
+      "registry/routing/domains.json"
+    ],
+    "legacyRef": "workspace:c1c7e818^",
+    "legacyArtifacts": [
+      {
+        "sourcePath": "tools/skills/jfdi/SKILL.md",
+        "migratedPath": "legacy-source/jfdi/SKILL.md",
+        "digest": "sha256:5f078b3da8956191a1edb258c4223bd97999a7db1b0e69142eadf18bd8748c36"
+      },
+      {
+        "sourcePath": "tools/skills/jfdi/agents/openai.yaml",
+        "migratedPath": "legacy-source/jfdi/agents/openai.yaml",
+        "digest": "sha256:8b6ef87f19fd93ad8d19f690071a53bdc8fbf7c1c3503cfc0848a2c01a999e65"
+      },
+      {
+        "sourcePath": "tools/skills/jfdi/evals/evals.json",
+        "migratedPath": "legacy-source/jfdi/evals/evals.json",
+        "digest": "sha256:b8d695ffb32c0d54c3d99113c210c69b01ae8e789a1256c51f5caeb41e1c0cd8"
+      }
+    ]
+  },
   "files": [
     {
       "path": "SKILL.md",
@@ -27,10 +77,108 @@
       "transformations": []
     },
     {
+      "path": "evals/evals.json",
+      "uri": "legion-skill://alchemist/evals/evals.json",
+      "sourceDigest": "sha256:ecb06ec2214dac4e7ff4dc06b7a18c3834f47610b73c8cde649f21f03071b9f7",
+      "outputDigest": "sha256:ecb06ec2214dac4e7ff4dc06b7a18c3834f47610b73c8cde649f21f03071b9f7",
+      "transformations": []
+    },
+    {
       "path": "evals/legacy-jfdi.json",
       "uri": "legion-skill://alchemist/evals/legacy-jfdi.json",
       "sourceDigest": "sha256:473df0302e99ad22000b67813954549d67878aa9517d774843266bdde80c3026",
       "outputDigest": "sha256:473df0302e99ad22000b67813954549d67878aa9517d774843266bdde80c3026",
+      "transformations": []
+    },
+    {
+      "path": "legacy-source/jfdi/SKILL.md",
+      "uri": "legion-skill://alchemist/legacy-source/jfdi/SKILL.md",
+      "sourceDigest": "sha256:5f078b3da8956191a1edb258c4223bd97999a7db1b0e69142eadf18bd8748c36",
+      "outputDigest": "sha256:5f078b3da8956191a1edb258c4223bd97999a7db1b0e69142eadf18bd8748c36",
+      "transformations": []
+    },
+    {
+      "path": "legacy-source/jfdi/agents/openai.yaml",
+      "uri": "legion-skill://alchemist/legacy-source/jfdi/agents/openai.yaml",
+      "sourceDigest": "sha256:8b6ef87f19fd93ad8d19f690071a53bdc8fbf7c1c3503cfc0848a2c01a999e65",
+      "outputDigest": "sha256:8b6ef87f19fd93ad8d19f690071a53bdc8fbf7c1c3503cfc0848a2c01a999e65",
+      "transformations": []
+    },
+    {
+      "path": "legacy-source/jfdi/evals/evals.json",
+      "uri": "legion-skill://alchemist/legacy-source/jfdi/evals/evals.json",
+      "sourceDigest": "sha256:b8d695ffb32c0d54c3d99113c210c69b01ae8e789a1256c51f5caeb41e1c0cd8",
+      "outputDigest": "sha256:b8d695ffb32c0d54c3d99113c210c69b01ae8e789a1256c51f5caeb41e1c0cd8",
+      "transformations": []
+    },
+    {
+      "path": "model-catalog.json",
+      "uri": "legion-skill://alchemist/model-catalog.json",
+      "sourceDigest": "sha256:02d3b77ae6f0a4f3a34da9b056b5378f5a48e8f3594bfd69b362e373b9649976",
+      "outputDigest": "sha256:02d3b77ae6f0a4f3a34da9b056b5378f5a48e8f3594bfd69b362e373b9649976",
+      "transformations": []
+    },
+    {
+      "path": "references/legacy-workspace-skill.md",
+      "uri": "legion-skill://alchemist/references/legacy-workspace-skill.md",
+      "sourceDigest": "sha256:775934f4524750b9135947291f5d251c1b296b4ba4d43aa7f2901ce5bbec10a6",
+      "outputDigest": "sha256:775934f4524750b9135947291f5d251c1b296b4ba4d43aa7f2901ce5bbec10a6",
+      "transformations": []
+    },
+    {
+      "path": "references/manual.md",
+      "uri": "legion-skill://alchemist/references/manual.md",
+      "sourceDigest": "sha256:826c834aae9ae09bcafa7cc9ceaa44db36d0512479e2484604499f2181347df6",
+      "outputDigest": "sha256:826c834aae9ae09bcafa7cc9ceaa44db36d0512479e2484604499f2181347df6",
+      "transformations": []
+    },
+    {
+      "path": "scripts/parse_events.py",
+      "uri": "legion-skill://alchemist/scripts/parse_events.py",
+      "sourceDigest": "sha256:e47ef5cdd7a6b833ca7914c3889f9ed0f365a998099938c7c06f86fe4193fd87",
+      "outputDigest": "sha256:e47ef5cdd7a6b833ca7914c3889f9ed0f365a998099938c7c06f86fe4193fd87",
+      "transformations": []
+    },
+    {
+      "path": "scripts/run-worker.ps1",
+      "uri": "legion-skill://alchemist/scripts/run-worker.ps1",
+      "sourceDigest": "sha256:72e3cec3d3281dae86580ebc7ca4efc96e218777125e48465c271e731215a16d",
+      "outputDigest": "sha256:72e3cec3d3281dae86580ebc7ca4efc96e218777125e48465c271e731215a16d",
+      "transformations": []
+    },
+    {
+      "path": "scripts/run-worker.sh",
+      "uri": "legion-skill://alchemist/scripts/run-worker.sh",
+      "sourceDigest": "sha256:5dc3251204d7c1eccc4c5589998ae550d83742d56b658ffea23b2833138bf8a5",
+      "outputDigest": "sha256:5dc3251204d7c1eccc4c5589998ae550d83742d56b658ffea23b2833138bf8a5",
+      "transformations": []
+    },
+    {
+      "path": "scripts/start-stack.vbs",
+      "uri": "legion-skill://alchemist/scripts/start-stack.vbs",
+      "sourceDigest": "sha256:77e61515afd3334a511f808332e4092b64ee82eedce3ad7471c231ff269679cb",
+      "outputDigest": "sha256:77e61515afd3334a511f808332e4092b64ee82eedce3ad7471c231ff269679cb",
+      "transformations": []
+    },
+    {
+      "path": "scripts/tray.ps1",
+      "uri": "legion-skill://alchemist/scripts/tray.ps1",
+      "sourceDigest": "sha256:1422da5033deee60c04e7720ed9fd70188dbbe07eaeed8b4c6d3c0d74dbf5842",
+      "outputDigest": "sha256:1422da5033deee60c04e7720ed9fd70188dbbe07eaeed8b4c6d3c0d74dbf5842",
+      "transformations": []
+    },
+    {
+      "path": "scripts/viewer.py",
+      "uri": "legion-skill://alchemist/scripts/viewer.py",
+      "sourceDigest": "sha256:559c94923167abb7e153f7345e6a0d48587858b0d9f635b227c0c920cff31be0",
+      "outputDigest": "sha256:559c94923167abb7e153f7345e6a0d48587858b0d9f635b227c0c920cff31be0",
+      "transformations": []
+    },
+    {
+      "path": "tests/test_windows_runner.py",
+      "uri": "legion-skill://alchemist/tests/test_windows_runner.py",
+      "sourceDigest": "sha256:02cafbe339e572b7bed284733f823341f3aaa86c3185e2ce8bcca7386e956591",
+      "outputDigest": "sha256:02cafbe339e572b7bed284733f823341f3aaa86c3185e2ce8bcca7386e956591",
       "transformations": []
     }
   ]

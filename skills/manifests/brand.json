@@ -18,6 +18,28 @@
       "externalOnly": true
     }
   },
+  "parity": {
+    "frozenAt": "2026-08-14",
+    "triggers": [
+      "/brand",
+      "\"Load a source-bound brand card before branded content, design, marketing, social, or media work. Use /brand when a named brand or approved identity source governs an output.\""
+    ],
+    "outputs": [],
+    "scripts": [],
+    "templates": [],
+    "schemas": [],
+    "receipts": [],
+    "evals": [
+      "evals/evals.json"
+    ],
+    "consumers": [
+      "registry/skills/index.json",
+      "lib/skills/resolver.mjs",
+      "registry/routing/domains.json"
+    ],
+    "legacyRef": null,
+    "legacyArtifacts": []
+  },
   "files": [
     {
       "path": "RIGHTS.json",

@@ -1,1 +1,1 @@
-{"id":"commercial","availability":"unavailable","privateOverlay":{"state":"not-bound","fields":[]}}
+{"id":"commercial","availability":"available","targetType":"content","targetRef":"registry/routing/domains.json","privateOverlay":{"state":"optional","fields":[]}}

@@ -1,0 +1,148 @@
+{
+  "schema": "goal-route.v2",
+  "route_id": "dispatch-validated-forward-test",
+  "purpose": "DELIVERY",
+  "routine": true,
+  "comparison_mode": "SINGLE_FEASIBLE",
+  "state_a": {
+    "description": "Handoff independence evidence has not been compiled into owned report.",
+    "evidence": [
+      {
+        "locator": "D:/Claude/tools/skills/dispatch/examples/validated-forward-test.md",
+        "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "check": "Read mission and observed report evidence remains uncompiled."
+      }
+    ]
+  },
+  "state_b": {
+    "description": "Owned report contains all passing handoff independence evidence.",
+    "proof": [
+      {
+        "command": "py -3.11 D:/Claude/tools/skills/handoff/scripts/test_validate_handoff.py",
+        "expected": "Exit 0 and report contains every named passing check.",
+        "evidence_path": "D:/Claude/tools/review/.council-runs/dispatch-handoff-final/forward/handoff-independence-report.md"
+      }
+    ]
+  },
+  "constraints": {
+    "authority": {
+      "rule": "Read-only validation with no source or Git mutation.",
+      "evidence_locator": "D:/Claude/tools/skills/dispatch/examples/validated-forward-test.md"
+    },
+    "safety": {
+      "rule": "No network, production, destructive, or paid action.",
+      "evidence_locator": "D:/Claude/tools/skills/dispatch/examples/validated-forward-test.md"
+    },
+    "scope": {
+      "rule": "One owned report plus named local validation inputs.",
+      "evidence_locator": "D:/Claude/tools/skills/dispatch/examples/validated-forward-test.md"
+    },
+    "quality": {
+      "rule": "All four named validation checks must pass.",
+      "evidence_locator": "D:/Claude/tools/skills/dispatch/examples/validated-forward-test.md"
+    },
+    "cost": {
+      "rule": "Zero paid or network cost.",
+      "evidence_locator": "D:/Claude/tools/skills/dispatch/examples/validated-forward-test.md"
+    }
+  },
+  "candidates": [
+    {
+      "id": "R_VALIDATE",
+      "constraint_status": "PASS",
+      "constraint_evidence": "D:/Claude/tools/review/.council-runs/dispatch-handoff-final/forward/route-proof.json",
+      "steps": [
+        {
+          "id": "R_VALIDATE/S1",
+          "operation": "Run handoff syntax compilation check.",
+          "depends_on": [],
+          "min_wall_ms": 1,
+          "kind": "ADVANCE_B",
+          "b_state_delta": "Syntax evidence is appended to owned report."
+        },
+        {
+          "id": "R_VALIDATE/S2",
+          "operation": "Run handoff adversarial validator tests.",
+          "depends_on": [
+            "R_VALIDATE/S1"
+          ],
+          "min_wall_ms": 1,
+          "kind": "ADVANCE_B",
+          "b_state_delta": "Adversarial evidence is appended to owned report."
+        },
+        {
+          "id": "R_VALIDATE/S3",
+          "operation": "Run template and evaluation validation.",
+          "depends_on": [
+            "R_VALIDATE/S2"
+          ],
+          "min_wall_ms": 1,
+          "kind": "ADVANCE_B",
+          "b_state_delta": "Template and evaluation evidence is appended."
+        },
+        {
+          "id": "R_VALIDATE/S4",
+          "operation": "Verify non-mutation and finalize report hashes.",
+          "depends_on": [
+            "R_VALIDATE/S3"
+          ],
+          "min_wall_ms": 1,
+          "kind": "ADVANCE_B",
+          "b_state_delta": "Owned report reaches verified complete state."
+        }
+      ],
+      "probabilities_bps": {
+        "retry": 0,
+        "terminal_failure": 0
+      },
+      "retry_cost_ms": 0,
+      "rework_cost_ms": 0,
+      "nominal_critical_path_ms": 4,
+      "expected_time_to_verified_b_ms": 4,
+      "cost_units": 0,
+      "risk_units": 0,
+      "rework_units": 0,
+      "status": "SELECTED",
+      "dominance_reason": "Only authority-compliant complete validation path.",
+      "evidence": [
+        "D:/Claude/tools/review/.council-runs/dispatch-handoff-final/forward/route-proof.json"
+      ]
+    }
+  ],
+  "selected_route_id": "R_VALIDATE",
+  "selected_critical_path": [
+    "R_VALIDATE/S1",
+    "R_VALIDATE/S2",
+    "R_VALIDATE/S3",
+    "R_VALIDATE/S4"
+  ],
+  "parallel_lanes": [],
+  "bottleneck": {
+    "step_id": "R_VALIDATE/S3",
+    "bound_ms": 1,
+    "resource": "validator and template execution"
+  },
+  "deleted_work": [
+    {
+      "item": "External model review and duplicate validation",
+      "reason": "They cannot change acceptance decision."
+    }
+  ],
+  "deferred_work": [],
+  "single_feasible_evidence": [
+    "D:/Claude/tools/review/.council-runs/dispatch-handoff-final/forward/route-proof.json"
+  ],
+  "invalidation": {
+    "revision": 1,
+    "semantic_correction": "NONE",
+    "invalidates": [],
+    "source_fingerprint_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+  },
+  "forge": {
+    "required": false,
+    "run_id": "",
+    "state_ref": "",
+    "checkpoint": "",
+    "reason": "Routine bounded static validation with one feasible route."
+  }
+}

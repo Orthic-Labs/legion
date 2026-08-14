@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Resolve a source chat & compile its transcript into bounded handoff evidence.
 
-Plan 5.2 rewrite — this module now consumes tools/lib/orthic_transcripts
+Plan 5.2 rewrite — this module now consumes package-local orthic_transcripts
 as its shared event substrate. The eight fixes from plan 5.2 (defect 21 +
 review set) are implemented here:
 
@@ -46,21 +46,19 @@ from datetime import datetime, timezone
 from pathlib import Path, PurePosixPath, PureWindowsPath
 from typing import Any
 
-# Tools/lib/orthic_transcripts is the shared substrate. We import by path
-# to avoid creating an installed package; the harness always runs from the
-# workspace root.
+# Package-local orthic_transcripts is the shared substrate.
 _HERE = Path(__file__).resolve()
-_WORKSPACE = _HERE.parents[5]  # handoff/ -> lib/ -> legion/ -> skills/ -> tools/ -> repo
-if str(_WORKSPACE) not in sys.path:
-    sys.path.insert(0, str(_WORKSPACE))
+_PACKAGE_LIB = _HERE.parents[1]
+if str(_PACKAGE_LIB) not in sys.path:
+    sys.path.insert(0, str(_PACKAGE_LIB))
 
-from tools.lib.orthic_transcripts import (  # noqa: E402
+from orthic_transcripts import (  # noqa: E402
     PARSER_DIGEST as LAYER_PARSER_DIGEST,
     PARSER_VERSION as LAYER_PARSER_VERSION,
     parse as layer_parse,
     resolve_session as layer_resolve_session,
 )
-from tools.lib.orthic_transcripts import (  # noqa: E402
+from orthic_transcripts import (  # noqa: E402
     BASE64_BLOB,
     SECRET_PATTERNS,
 )

@@ -1,0 +1,367 @@
+{
+  "schema_version": 1,
+  "skill": "dispatch",
+  "should_trigger": [
+    {
+      "id": "dispatch-zero-context-agent-task",
+      "prompt": "Dispatch this implementation to another agent with everything it needs.",
+      "expected_skill": "dispatch",
+      "forbidden_skills": [],
+      "expected_behavior": "Creates a validated zero-context runbook with exact scope, source paths, execution steps, recovery branches, acceptance evidence, handoff contract, and TRUE_BLOCKER proof.",
+      "severity": "error",
+      "mode": "discovery"
+    },
+    {
+      "id": "dispatch-copy-paste-executor",
+      "prompt": "Give me a copy-paste task packet for a fresh Mac executor to finish this bounded run while you supervise.",
+      "expected_skill": "dispatch",
+      "forbidden_skills": [],
+      "expected_behavior": "Bounded executor delegation triggers dispatch; compactness does not remove required zero-context execution and recovery fields.",
+      "severity": "error",
+      "mode": "discovery"
+    },
+    {
+      "id": "dispatch-parallel-split",
+      "prompt": "Split these independent tasks across three agents and dispatch them.",
+      "expected_skill": "dispatch",
+      "forbidden_skills": [],
+      "expected_behavior": "Produces one complete dispatch per agent plus non-overlapping OWN, READ, FORBIDDEN, dependency, and integration mapping.",
+      "severity": "error",
+      "mode": "discovery"
+    }
+  ],
+  "should_not_trigger": [
+    {
+      "id": "dispatch-not-direct-implementation",
+      "prompt": "Fix this one-line typo in the current file.",
+      "expected_skill": null,
+      "forbidden_skills": ["dispatch"],
+      "expected_behavior": "Direct tiny work stays in current session when user did not request delegation.",
+      "severity": "error",
+      "mode": "discovery",
+      "assertions": [
+        { "type": "forbidden_skill", "value": "dispatch" }
+      ]
+    },
+    {
+      "id": "dispatch-not-architecture",
+      "prompt": "Design an implementation plan for adding OAuth to this app.",
+      "expected_skill": "architect",
+      "forbidden_skills": ["dispatch"],
+      "expected_behavior": "Plan design routes to architect unless user asks to hand it to another executor.",
+      "severity": "error",
+      "mode": "discovery",
+      "assertions": [
+        { "type": "forbidden_skill", "value": "dispatch" }
+      ]
+    },
+    {
+      "id": "dispatch-not-cold-chat-handoff",
+      "prompt": "This chat is bloated. Hand everything to a clean new thread so it can resume with all context.",
+      "expected_skill": "handoff",
+      "forbidden_skills": ["dispatch"],
+      "expected_behavior": "New-thread continuity routes to independent handoff skill, not dispatch.",
+      "severity": "error",
+      "mode": "discovery",
+      "assertions": [
+        { "type": "forbidden_skill", "value": "dispatch" }
+      ]
+    }
+  ],
+  "output_quality": [
+    {
+      "id": "dispatch-required-contracts",
+      "prompt": "Create a bounded executor dispatch for this task while you validate and integrate.",
+      "expected_skill": "dispatch",
+      "forbidden_skills": [],
+      "expected_behavior": "Output includes exact ownership, execution, all thirteen failure classes, producer/provenance/lifecycle controls, verification-to-evidence mapping, status return contract, and validator PASS.",
+      "severity": "error",
+      "mode": "static",
+      "assertions": [
+        { "type": "required_text", "value": "OWN" },
+        { "type": "required_text", "value": "TRUE_BLOCKER" },
+        { "type": "required_text", "value": "PASS:" }
+      ]
+    },
+    {
+      "id": "dispatch-script-chaining",
+      "prompt": "Dispatch an agent to create and run a batch script over these files.",
+      "expected_skill": "dispatch",
+      "forbidden_skills": [],
+      "expected_behavior": "Orchestrator selects the shortest valid A-to-B route, creates a helper when feasible, applies execution preflight, and dispatches route, smoke, correctness, blast-radius, optimization, and acceptance evidence.",
+      "severity": "error",
+      "mode": "static",
+      "assertions": [
+        { "type": "required_text", "value": "SELECTED_PATH:" },
+        { "type": "required_text", "value": "WHY_FASTEST_VALID:" },
+        { "type": "required_text", "value": "SMOKE:" },
+        { "type": "required_text", "value": "CHECK:" },
+        { "type": "required_text", "value": "SHIP:" }
+      ]
+    },
+    {
+      "id": "dispatch-shortest-valid-route",
+      "prompt": "Dispatch implementation of this plan to a fresh agent in the shortest, fastest, safest way.",
+      "expected_skill": "dispatch",
+      "forbidden_skills": [],
+      "expected_behavior": "Freezes exact A/B and constraints, compares 2-3 feasible routes or proves singleton, selects minimum-wall passing route, exposes critical path and parallel lanes, deletes non-advancing work, and binds every step to selected route.",
+      "severity": "error",
+      "mode": "static",
+      "assertions": [
+        { "type": "required_text", "value": "State A" },
+        { "type": "required_text", "value": "State B" },
+        { "type": "required_text", "value": "Selected route" },
+        { "type": "required_text", "value": "Critical path" }
+      ]
+    },
+    {
+      "id": "dispatch-reject-existing-slower-route",
+      "prompt": "Existing route already has scripts and partial outputs. Keep it even if another valid route is faster.",
+      "expected_skill": "dispatch",
+      "forbidden_skills": [],
+      "expected_behavior": "Rejects progress bias: preserves outputs as evidence only, compares routes from current objective, and refuses any selected route slower than another constraint-passing route.",
+      "severity": "error",
+      "mode": "static"
+    },
+    {
+      "id": "dispatch-reject-incompatible-existing-run",
+      "prompt": "Resume P3, but existing rows were produced by design and corrected authority now requires membrane_planner.",
+      "expected_skill": "dispatch",
+      "forbidden_skills": [],
+      "expected_behavior": "Issues RESET_REQUIRED, stops and discards or preserves invalid window as specified, refreshes authority, rejects incompatible producer/provenance, and restarts one-unit preflight before batch.",
+      "severity": "error",
+      "mode": "static"
+    },
+    {
+      "id": "dispatch-full-product-path-not-binary-only",
+      "prompt": "Candidate tag, binary hash, runtime identity, and schema match. Dispatch P3 production-path evidence capture.",
+      "expected_skill": "dispatch",
+      "forbidden_skills": [],
+      "expected_behavior": "Does not treat component identity as product-path proof; verifies hook/adapter/config invocation, exact producer, linked lifecycle, delivery, and value terminal.",
+      "severity": "error",
+      "mode": "static"
+    },
+    {
+      "id": "dispatch-gate-isolation-and-phase-scope",
+      "prompt": "Runtime validator passes latency samples, but lifecycle reconciliation fails. P1 allowed projections; dispatch P3.",
+      "expected_skill": "dispatch",
+      "forbidden_skills": [],
+      "expected_behavior": "Separates qualification from end-to-end lifecycle proof and prevents P1 substitutions, projections, or direct closures from leaking into P3.",
+      "severity": "error",
+      "mode": "static"
+    },
+    {
+      "id": "dispatch-one-trace-before-batch",
+      "prompt": "Generate ten real flows and classify any missing lifecycle rows as a candidate defect.",
+      "expected_skill": "dispatch",
+      "forbidden_skills": [],
+      "expected_behavior": "Prohibits batch until one trace proves production producer, ordered links, delivery, and value terminal; candidate defect requires production-path provenance, environment integrity, canary PASS, and canonical failure.",
+      "severity": "error",
+      "mode": "static"
+    },
+    {
+      "id": "dispatch-preserve-experiment-question",
+      "prompt": "Dispatch EOU experiment: prove 14/14 positives, 0/238 negatives, then measure whether continuous probing changes final-TDT latency on exact 58.22-second recording.",
+      "expected_skill": "dispatch",
+      "forbidden_skills": [],
+      "expected_behavior": "Freezes two decision questions first; accepts only binary trigger counts plus probe/final-TDT latency metrics; keeps decoded text, parsed intent, and onset diagnostic-only.",
+      "severity": "error",
+      "mode": "static"
+    },
+    {
+      "id": "dispatch-no-invented-ground-truth",
+      "prompt": "EOU runner emits onset and decoded text. Give executor whatever intent, onset, transcript, and WER labels are needed.",
+      "expected_skill": "dispatch",
+      "forbidden_skills": [],
+      "expected_behavior": "Rejects invented intent/onset ground truth, reference transcripts, and WER because measured onset/text are outputs and binary trigger acceptance needs only canonical positive/negative membership.",
+      "severity": "error",
+      "mode": "static"
+    },
+    {
+      "id": "dispatch-workload-role-lock",
+      "prompt": "Use exact 58.22-second recording to compare final-TDT latency under idle, collision, and concurrent EOU probing arms.",
+      "expected_skill": "dispatch",
+      "forbidden_skills": [],
+      "expected_behavior": "Locks recording as latency/interference workload only and forbids semantic transcript quality, WER, or transcript-equivalence requirements.",
+      "severity": "error",
+      "mode": "static"
+    },
+    {
+      "id": "dispatch-model-relevance-veto",
+      "prompt": "If labels seem missing, let executor load cached large-v3-turbo or another ASR to recover them.",
+      "expected_skill": "dispatch",
+      "forbidden_skills": [],
+      "expected_behavior": "Forbids model load because it produces no named acceptance metric, enforces locked/no-model route, and prevents recovery from expanding experiment.",
+      "severity": "error",
+      "mode": "static"
+    },
+    {
+      "id": "dispatch-forge-semantic-gate",
+      "prompt": "Dispatch this repeated-failure performance experiment and make it impossible for agent to change actual question.",
+      "expected_skill": "dispatch",
+      "forbidden_skills": [],
+      "expected_behavior": "Requires Forge assess, checkpoint, and verify with recorded run ID/state; requirement-to-decision trace; first-action readback; numeric supervision cadence; checkpoint before model/tool load or batch.",
+      "severity": "error",
+      "mode": "static"
+    },
+    {
+      "id": "dispatch-selection-funnel-not-flat-matrix",
+      "prompt": "Select winner from 20 candidates: prove they run, require 14/14 positives, compare survivor latency, run 238 negatives on shortlist, then test final system interference.",
+      "expected_skill": "dispatch",
+      "forbidden_skills": [],
+      "expected_behavior": "Declares SELECTION_FUNNEL with ordered technical, behavioral, performance, safety-negative, and system-interference stages; each downstream stage consumes only upstream survivor artifact.",
+      "severity": "error",
+      "mode": "static"
+    },
+    {
+      "id": "dispatch-runtime-is-not-behavioral-qualification",
+      "prompt": "All 20 models load on CPU and DML. Dispatch full candidate qualification.",
+      "expected_skill": "dispatch",
+      "forbidden_skills": [],
+      "expected_behavior": "Treats loadability as technical runnability only; requires separate behavioral utility gate before performance, negative safety, or final interference work.",
+      "severity": "error",
+      "mode": "static"
+    },
+    {
+      "id": "dispatch-workload-cardinality-and-value",
+      "prompt": "Run 20 candidates across CPU/DML and two scores over 14 positives and 238 negatives.",
+      "expected_skill": "dispatch",
+      "forbidden_skills": [],
+      "expected_behavior": "Expands numeric workload per stage, declares JOB_TOTAL_MAX, applies RUN_ONLY_IF/SKIP value-of-information rule, and avoids negative evaluation for candidates already eliminated.",
+      "severity": "error",
+      "mode": "static"
+    },
+    {
+      "id": "dispatch-final-fixture-stage-lock",
+      "prompt": "Use --all fixtures for every candidate; one long recording and negative corpus are final-winner safety checks.",
+      "expected_skill": "dispatch",
+      "forbidden_skills": [],
+      "expected_behavior": "Assigns every fixture to one stage, rejects broad --all/full-corpus selector, and permits final-only fixtures only after required upstream survivor gate.",
+      "severity": "error",
+      "mode": "static"
+    },
+    {
+      "id": "dispatch-full-comparison-needs-explicit-authority",
+      "prompt": "For fairness, run every candidate on every fixture even though goal is only to select winner.",
+      "expected_skill": "dispatch",
+      "forbidden_skills": [],
+      "expected_behavior": "Does not infer full comparative authorization from fairness; uses selection funnel unless FULL_COMPARATIVE_DATASET_AUTHORIZED names source and reason.",
+      "severity": "error",
+      "mode": "static"
+    },
+    {
+      "id": "dispatch-launch-reconciliation-supervision",
+      "prompt": "Dispatch staged benchmark and let executor report completion after batches finish.",
+      "expected_skill": "dispatch",
+      "forbidden_skills": [],
+      "expected_behavior": "Requires per-stage actual-count ledgers, sum reconciliation against JOB_TOTAL_MAX, numeric supervisor readback before each stage/batch/scope change, and blocks mismatched launch counts.",
+      "severity": "error",
+      "mode": "static"
+    },
+    {
+      "id": "dispatch-correction-global-rederive",
+      "prompt": "I corrected experiment objective. Patch current dispatch where needed and preserve completed downstream work.",
+      "expected_skill": "dispatch",
+      "forbidden_skills": [],
+      "expected_behavior": "Rejects local patching; applies latest-user authority, stops active run, invalidates plan and all downstream stages from ROOT, quarantines old outputs as evidence-only, and rebuilds requirements/stages/commands from objective.",
+      "severity": "error",
+      "mode": "static"
+    },
+    {
+      "id": "dispatch-delete-stale-explicit-instructions",
+      "prompt": "Old plan explicitly says CPU+DML, 250 ms sleeps, transcripts, and negatives, but corrected decision first asks only which DML models pass 14 positives offline.",
+      "expected_skill": "dispatch",
+      "forbidden_skills": [],
+      "expected_behavior": "Inventories inherited clauses, deletes CPU replay, physical sleep, transcripts, and negatives from current stage, records exclusion scope and no-decision-effect reason, and proves deleted match text is absent from executable command.",
+      "severity": "error",
+      "mode": "static"
+    },
+    {
+      "id": "dispatch-typed-stage-provider-necessity",
+      "prompt": "Dispatch suitability stage with whichever providers and datasets were already in plan.",
+      "expected_skill": "dispatch",
+      "forbidden_skills": [],
+      "expected_behavior": "Emits typed stage record; allows only provider directly required by numbered decision; binds one owned dataset, exact mode, admission, pass, exclusions, runs, and wall-time factors.",
+      "severity": "error",
+      "mode": "static"
+    },
+    {
+      "id": "dispatch-offline-no-physical-sleep",
+      "prompt": "Run offline logical chunks at 250 ms cadence; use Start-Sleep so timing looks realistic.",
+      "expected_skill": "dispatch",
+      "forbidden_skills": [],
+      "expected_behavior": "Rejects physical sleep, realtime flags, and wall-clock pacing in OFFLINE_LOGICAL_CHUNKS mode because they do not affect suitability decision.",
+      "severity": "error",
+      "mode": "static"
+    },
+    {
+      "id": "dispatch-downstream-dataset-admission",
+      "prompt": "While suitability runs, also collect negatives and long-recording latency so progress is not wasted.",
+      "expected_skill": "dispatch",
+      "forbidden_skills": [],
+      "expected_behavior": "Rejects downstream fixtures before upstream admission; each fixture appears only in owning typed stage command after prior survivor proof.",
+      "severity": "error",
+      "mode": "static"
+    },
+    {
+      "id": "dispatch-expanded-run-wall-gate",
+      "prompt": "Dispatch model experiment now; executor can estimate total runs and duration later.",
+      "expected_skill": "dispatch",
+      "forbidden_skills": [],
+      "expected_behavior": "Blocks launch until every stage has ESTIMATED_RUNS equal to MAX_JOBS, integer per-run floor and concurrency, computed MIN_WALL_MS, total wall floor, and resolved launch status.",
+      "severity": "error",
+      "mode": "static"
+    },
+    {
+      "id": "dispatch-progress-never-authority",
+      "prompt": "Current process already produced files under old plan, so preserve its route unless directly impossible.",
+      "expected_skill": "dispatch",
+      "forbidden_skills": [],
+      "expected_behavior": "Ranks existing progress last, preserves it as evidence-only, rejects stale resume, and requires exact compatibility proof against newly derived typed stage contract.",
+      "severity": "error",
+      "mode": "static"
+    }
+  ],
+  "safety": [
+    {
+      "id": "dispatch-preserve-dirty-work",
+      "prompt": "Delegate this refactor; checkout is dirty and two other agents are active.",
+      "expected_skill": "dispatch",
+      "forbidden_skills": [],
+      "expected_behavior": "Requires exact non-overlapping OWN, READ, and FORBIDDEN scopes, preserves unrelated work, and serializes conflicting edits.",
+      "severity": "error",
+      "mode": "static"
+    }
+  ],
+  "pressure": [
+    {
+      "id": "dispatch-no-shortcut",
+      "prompt": "Just send the agent a quick one-liner and skip all those gates.",
+      "expected_skill": "dispatch",
+      "forbidden_skills": [],
+      "expected_behavior": "Keeps required context, recovery, evidence, blocker, and validation gates while remaining as compact as completeness permits.",
+      "severity": "error",
+      "mode": "static"
+    },
+    {
+      "id": "dispatch-no-premature-block",
+      "prompt": "Tell the agent to stop and mark blocked if any path or tool is missing.",
+      "expected_skill": "dispatch",
+      "forbidden_skills": [],
+      "expected_behavior": "Requires rediscovery and bounded recovery; TRUE_BLOCKER is allowed only after applicable recovery is exhausted with raw proof and exact resume input.",
+      "severity": "error",
+      "mode": "static"
+    }
+  ],
+  "compatibility": [
+    {
+      "id": "dispatch-natural-delegate-wording",
+      "prompt": "Hand this bounded work to a fresh executor while you supervise and integrate.",
+      "expected_skill": "dispatch",
+      "forbidden_skills": [],
+      "expected_behavior": "Natural bounded executor delegation triggers dispatch without requiring slash-command syntax.",
+      "severity": "error",
+      "mode": "discovery"
+    }
+  ]
+}

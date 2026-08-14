@@ -1,0 +1,46 @@
+{
+  "models": [
+    {
+      "slug": "opencode-go/deepseek-v4-flash",
+      "display_name": "DeepSeek V4 Flash",
+      "description": "DeepSeek coding model routed through OmniRoute.",
+      "default_reasoning_level": "high",
+      "supported_reasoning_levels": [
+        {
+          "effort": "high",
+          "description": "High reasoning depth"
+        }
+      ],
+      "shell_type": "shell_command",
+      "visibility": "list",
+      "supported_in_api": true,
+      "priority": 1,
+      "upgrade": null,
+      "base_instructions": "You are a coding agent powered by DeepSeek V4 Flash. Work directly in the assigned repository, use tools carefully, use apply_patch for file edits, and report results precisely.",
+      "include_skills_usage_instructions": false,
+      "default_reasoning_summary": "none",
+      "support_verbosity": false,
+      "default_verbosity": null,
+      "apply_patch_tool_type": "freeform",
+      "web_search_tool_type": "text",
+      "truncation_policy": {
+        "mode": "tokens",
+        "limit": 10000
+      },
+      "supports_parallel_tool_calls": true,
+      "supports_image_detail_original": false,
+      "context_window": 1000000,
+      "max_context_window": 1000000,
+      "auto_compact_token_limit": 900000,
+      "effective_context_window_percent": 95,
+      "experimental_supported_tools": [],
+      "input_modalities": [
+        "text"
+      ],
+      "used_fallback_model_metadata": false,
+      "supports_search_tool": false,
+      "comp_hash": "alchemist-deepseek-v4-flash",
+      "availability_nux": null
+    }
+  ]
+}

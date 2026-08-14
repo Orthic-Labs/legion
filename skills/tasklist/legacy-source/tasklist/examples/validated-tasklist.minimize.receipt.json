@@ -1,0 +1,9 @@
+{
+  "decision": "D:\\Claude\\tools\\skills\\tasklist\\examples\\validated-tasklist.minimize.json",
+  "decision_id": "tasklist-validated-example",
+  "decision_sha256": "478a4cf30fc30fcb91d0b81147cc68590c2948e7b85a666d556ab06c0467cb32",
+  "policy_sha256": "1f941eb00ec6974705bc299e4cae2a01c031c51fb699fff310882f86f1c321f7",
+  "schema": "minimize-decision-receipt.v1",
+  "selected_rung": "STDLIB",
+  "validator_sha256": "fa29f0f8a8e7d4f9e368e753f190e2ad386a2e07603bec6cb5005a6cf1098f8d"
+}

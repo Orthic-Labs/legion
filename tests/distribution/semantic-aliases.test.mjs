@@ -5,7 +5,7 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import test from 'node:test';
 import { loadSkill } from '../../lib/skills/loader.mjs';
-import { resolveSkillInvocation } from '../../lib/skills/resolver.mjs';
+import { resolveSkillInvocation, resolveSkillPrompt } from '../../lib/skills/resolver.mjs';
 
 const ROOT = fileURLToPath(new URL('../..', import.meta.url));
 const aliases = JSON.parse(readFileSync(join(ROOT, '_audit', 'capability-aliases.json'), 'utf8')).aliases;
@@ -94,4 +94,33 @@ test('all 110 retired eval cases are retained under canonical entrypoints', () =
       .reduce((sum, [, rows]) => sum + rows.length, 0);
   }, 0);
   assert.equal(count, 110);
+});
+
+test('all 110 retired eval cases execute through resolver with declared route boundaries', () => {
+  const evalPaths = [
+    'tests/fixtures/handoff/legacy-evals.json',
+    'skills/architect/evals/evals.json',
+    'skills/debugger/evals/evals.json',
+    'skills/tasklist/evals/evals.json',
+    'skills/dispatch/evals/evals.json',
+    'skills/coder/evals/evals.json',
+    'skills/qa/evals/evals.json',
+    'skills/alchemist/evals/legacy-jfdi.json',
+    'skills/covenant/evals/legacy-council.json',
+  ];
+  const rows = evalPaths.flatMap((path) => Object.entries(JSON.parse(readFileSync(join(ROOT, path), 'utf8')))
+    .filter(([key, value]) => !['schema_version', 'skill', 'legacy_skill'].includes(key) && Array.isArray(value))
+    .flatMap(([, value]) => value));
+  assert.equal(rows.length, 110);
+  for (const row of rows) {
+    const resolved = resolveSkillPrompt(row.prompt, { root: ROOT });
+    assert.notEqual(resolved.status, 'invalid', row.id);
+    const assertedExpected = (row.assertions ?? []).find(({ type }) => type === 'expected_skill')?.value;
+    const expected = row.expected_skill ?? assertedExpected;
+    if (expected !== undefined && expected !== null) assert.equal(resolved.canonical ?? '', expected, row.id);
+    for (const forbidden of row.forbidden_skills ?? []) assert.notEqual(resolved.canonical, forbidden, row.id);
+    for (const assertion of row.assertions ?? []) {
+      if (assertion.type === 'forbidden_skill') assert.notEqual(resolved.canonical, assertion.value, row.id);
+    }
+  }
 });

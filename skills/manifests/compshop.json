@@ -18,12 +18,57 @@
       "externalOnly": true
     }
   },
+  "parity": {
+    "frozenAt": "2026-08-14",
+    "triggers": [
+      "/compshop",
+      "Compare repositories from source through independent inventory, consolidation, and reconciliation passes. Use /compshop for a function-first comparison matrix."
+    ],
+    "outputs": [
+      "references/legacy-workspace-skill.md"
+    ],
+    "scripts": [],
+    "templates": [],
+    "schemas": [],
+    "receipts": [],
+    "evals": [
+      "evals/evals.json"
+    ],
+    "consumers": [
+      "registry/skills/index.json",
+      "lib/skills/resolver.mjs",
+      "registry/routing/domains.json"
+    ],
+    "legacyRef": null,
+    "legacyArtifacts": []
+  },
   "files": [
     {
       "path": "SKILL.md",
       "uri": "legion-skill://compshop/SKILL.md",
       "sourceDigest": "sha256:6b19c3231ca4ceaee82a47d7ff582e0dd338fab1f778b468d8eea5d62f39681c",
       "outputDigest": "sha256:6b19c3231ca4ceaee82a47d7ff582e0dd338fab1f778b468d8eea5d62f39681c",
+      "transformations": []
+    },
+    {
+      "path": "agents/openai.yaml",
+      "uri": "legion-skill://compshop/agents/openai.yaml",
+      "sourceDigest": "sha256:86ec99653920541997dc1fc9af30effd3527cd7085fb6163d184594bfc6645a0",
+      "outputDigest": "sha256:86ec99653920541997dc1fc9af30effd3527cd7085fb6163d184594bfc6645a0",
+      "transformations": []
+    },
+    {
+      "path": "evals/evals.json",
+      "uri": "legion-skill://compshop/evals/evals.json",
+      "sourceDigest": "sha256:2e63af9a3d5af957ea4b09859e74d39e512273a1f8d34333b797b006d3a38b92",
+      "outputDigest": "sha256:2e63af9a3d5af957ea4b09859e74d39e512273a1f8d34333b797b006d3a38b92",
+      "transformations": []
+    },
+    {
+      "path": "references/legacy-workspace-skill.md",
+      "uri": "legion-skill://compshop/references/legacy-workspace-skill.md",
+      "sourceDigest": "sha256:640c51cf34b67d45081d4711d7c22e70d1ac151bf2146d11c2f77d38e4b5b7b6",
+      "outputDigest": "sha256:640c51cf34b67d45081d4711d7c22e70d1ac151bf2146d11c2f77d38e4b5b7b6",
       "transformations": []
     }
   ]
