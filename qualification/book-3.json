@@ -3,7 +3,7 @@
   "kind": "legion-book-qualification",
   "book": 3,
   "expectedTaskCount": 30,
-  "sourceRevision": "content.sha256:9887504c05f57f2bb7611884a5a29ea0a13230f6e2ba9b8bed8de584312334ad",
+  "sourceRevision": "content.sha256:4be7f8b7cabf3b8c98afa7c3c7e4df314c255396a85c1e8f3b154fb55f0e6f32+dirty",
   "decision": "SOURCE_IMPLEMENTED",
   "claimLevel": "source",
   "sourceAccounting": {
