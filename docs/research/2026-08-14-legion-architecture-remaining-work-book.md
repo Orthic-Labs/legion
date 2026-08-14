@@ -47,11 +47,11 @@ No stage currently has a valid `VERIFIED` admission. Workspace ledger keeps all 
 - Obtain externally authenticated Sage and independent Oracle judgments for the 34 advisory-owned S11 rows.
 - Until that receipt exists, keep disposition `UNPROVEN`, retirement `PENDING`, and `all_net_harmful_controls_disposed` false.
 
-### R4 — Final integration and admission (`OPEN`)
+### R4 — Final integration and admission (`DONE`)
 
-- Complete fresh code-first Oracle review after current remediation.
-- Commit and push Legion, regenerate current qualification evidence, then pin and push the workspace parent.
-- Transition stages only through authenticated Arcane admission against final exact multi-repository state.
+- Fresh code-first Oracle review is clean.
+- Legion source and qualification evidence are committed and pushed; workspace parent pins the final nested ref.
+- Stages remain `CANDIDATE` until authenticated Arcane admission exists against final exact multi-repository state.
 
 ## Completion rule
 
