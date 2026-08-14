@@ -64,7 +64,7 @@ export function qualificationDigest(result) { const semantic = { status: result.
 
 export async function qualifyBook(book, { root = ROOT, execute = true } = {}) {
   const tests = await discoverBookTests(book, root);
-  const command = [process.execPath, '--test', ...tests];
+  const command = [process.execPath, '--test', '--test-concurrency=1', ...tests];
   const result = execute ? spawnSync(command[0], command.slice(1), { cwd: root, encoding: 'utf8' }) : { status: null, stdout: '', stderr: '' };
   const receipt = {
     schemaVersion: 1,
