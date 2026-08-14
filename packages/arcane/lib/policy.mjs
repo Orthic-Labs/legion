@@ -417,7 +417,15 @@ export function capabilityIssuanceAudit(files) {
     scanned.push(file);
     const basename = path.basename(file);
     if (ALLOWED_BASENAMES.has(basename)) continue;
-    if (PATTERN.test(src)) {
+    // AuthorityInvocationProofIssuer has an unrelated `issue()` API. Exempt
+    // only const-bound instances of that exact type; every other receiver
+    // still fails the capability mint audit.
+    const proofIssuers = new Set([...src.matchAll(/\bconst\s+([A-Za-z_$][\w$]*)\s*=\s*new\s+AuthorityInvocationProofIssuer\s*\(/g)].map((match) => match[1]));
+    const unexempted = src.split(/\r?\n/).some((line) => {
+      const receiver = line.match(/\b([A-Za-z_$][\w$]*)\.issue\(/)?.[1];
+      return PATTERN.test(line) && !proofIssuers.has(receiver);
+    });
+    if (unexempted) {
       violations.push({ file, pattern: String(PATTERN), why: 'mints a capability outside lib/preeffect-gate.mjs and lib/receipt-store.mjs' });
     }
   }

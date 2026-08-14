@@ -99,6 +99,7 @@
   "scripts": {
     "test": "node --test --test-concurrency=1 \"tests/*.test.mjs\"",
     "architecture-evals": "node scripts/run-architecture-evals.mjs --json",
+    "stage9-runtime-evals": "node scripts/run-stage9-runtime-evals.mjs",
     "self-test": "node scripts/self-test.mjs",
     "naming:check": "node scripts/check-canonical-names.mjs",
     "legion:check": "node scripts/check-canonical-names.mjs && node scripts/generate-schemas.mjs --check",
