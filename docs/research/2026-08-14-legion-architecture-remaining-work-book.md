@@ -17,7 +17,7 @@ This book contains only unfinished implementation or acceptance work. Existing m
 | S05 | `VERIFIED` | Fresh independent exact-state checks passed 28/28 focused authorization/evidence cases at `b05bafae`. |
 | S07 | `VERIFIED` | Fresh independent exact-state checks passed 4/4 template/lens cases at `b05bafae`. |
 | S08 live execution closure | `VERIFIED` | Representative assembled-package workload passed 3/3 at `d95e4846`; independent receipt `sha256:7aa837db95b974854fbe11e1dcc9384811dc006b205d421f15e88df4e5ccb386`. |
-| S09 Arcane guards | `CANDIDATE` | Implementation passes at `5a7329c`; authenticated Sage binding is absent, so seal/open/close receipt remains blocked. |
+| S09 Arcane guards | `VERIFIED` | 43/43 focused checks and 9/9 runtime fixtures pass; EC-609 v2 sealed, opened, and closed with strong authenticated evidence. |
 | S10 role-doctrine implementation | `VERIFIED` | Handoff conformance, R1 parity, canonical naming, and authority-boundary checks pass on current integrated state. |
 | S11 corpus and runner | `IN_PROGRESS` | Merged from `90beed4` and `a4c36d4`; 41/103 static cases pass, 62 await runtime execution. |
 | Canonical naming and eval-gate repair | complete remediation | Integrated through Legion `b9dfab6`; parent pin `31d338cc9`; both match `origin/main`. |
@@ -71,11 +71,11 @@ Completed:
 
 Completed: assembled-package Handoff workload reached fresh S05/S07-backed acceptance; one integration owner/shared writer, ownership disposition, hard cut, exact state, and independent Oracle verification are recorded.
 
-### R3 — Implement S09 Arcane guards (`CANDIDATE`)
+### R3 — Implement S09 Arcane guards (`DONE`)
 
 Implemented: canonical fixtures cover epochs/cancellation, replay, terminal budgets, freshness/reachability, gate validity/machinery isolation, writer ownership, untrusted rehydration, authenticated host ingress, sanctioned ambient delivery, exact-state acceptance, and delivery deficits. Stage 9 evidence inventories but does not falsely complete 62 Stage 11 cases.
 
-Remaining: ingest a real host-observed Sage binding, then issue exact EC-609 seal/open/close receipts. Current host event and authority-proof stores are empty, so self-assertion is correctly refused.
+Completed: host-observed Sage binding sealed EC-609 v2, opened `run_01KZZR82AN6RPQ5S2MQB4YN4CP`, bound deterministic Oracle evidence, and closed with strong enforcement and complete delivery disposition.
 
 ### R4 — Close S10 (`DONE`)
 
@@ -106,7 +106,7 @@ R1 ─> R2 ─┬─> R3 ─> R5 ─> R6 ─> R7
           └─> R4 ────────────────┘
 ```
 
-R1, R2, and R4 are closed. R3 needs only authenticated lifecycle receipts; R5 remains the next implementation stage, followed by R6 and final R7 certification. One owner serializes ledger writes, nested commits, parent pins, and pushes.
+R1 through R4 are closed. R5 remains the next implementation stage, followed by R6 and final R7 certification. One owner serializes ledger writes, nested commits, parent pins, and pushes.
 
 ## Completion rule
 
