@@ -19,25 +19,25 @@ This book contains only unfinished implementation or acceptance work. Existing m
 | S10 role-doctrine implementation | `CANDIDATE` | Merged from `a71bfa4`; current handoff conformance tests pass 5/5. |
 | S11 corpus and runner | `IN_PROGRESS` | Merged from `90beed4` and `a4c36d4`; 41/103 static cases pass, 62 await runtime execution. |
 | Canonical naming and eval-gate repair | complete remediation | Integrated through Legion `b9dfab6`; parent pin `31d338cc9`; both match `origin/main`. |
-| R1 local skill migration | implementation complete | Integrated through Legion `b9dfab6`; 17 public entrypoints resolve through digest-bound manifests, all 110 retired evals are retained, advisory domains resolve, and package smoke passes locally. |
+| R1 packaged skill migration | `VERIFIED` | Integrated through Legion `f450326`; 25 public entrypoints resolve through digest-bound manifests, all 110 retired evals execute, 87 retired artifacts retain byte parity, advisory domains resolve, and clean assembled-package proof passes on Mac and Windows. |
 
 Do not re-author, re-dispatch, or replace these artifacts unless a remaining acceptance check finds a concrete defect.
 
-## Validated skill-migration gap — closed locally 14 August 2026
+## Validated skill-migration gap — closed 14 August 2026
 
 Commit `c1c7e818` retired nine engineering skill entrypoints together before parity. A no-rename diff confirms 15,202 deleted source lines across those nine directories, correcting the previously reported 16,201. Their removed eval manifests contain exactly 110 cases:
 
 | Retired entrypoint | Removed eval cases | Recovered local surface | Local state |
 |---|---:|---|---|
-| `handoff` | 10 | Entrypoint, validator, validator suite, template, compiler/bootstrap workflow, manual, examples, semantic routing, and shared Orthic transcript tests | `DONE_LOCAL` |
-| `tasklist` | 8 | Callable entrypoint, validation semantics, template, durable workflow, examples, and semantic routing | `DONE_LOCAL` |
-| `dispatch` | 36 | Callable workflow, validator, manual/agent routing, artifact set, receipts, and semantic routing | `DONE_LOCAL` |
-| `coder` | 6 | Callable opt-in entrypoint, API-worker adapter, provider runbook, hooks, and eval parity | `DONE_LOCAL` |
-| `qa` | 10 | Callable entrypoint, browser reference/manual, QA-engine adapters, and resolved runners | `DONE_LOCAL` |
-| `architect` | 14 | Callable Sage Architect entrypoint and trigger parity | `DONE_LOCAL` |
-| `debugger` | 9 | Callable Sage Diagnose entrypoint and trigger parity | `DONE_LOCAL` |
-| `jfdi` | 3 | Natural-language compatibility plus retired alias resolution to `/alchemist` | `DONE_LOCAL` |
-| `council` | 14 | Covenant entrypoint, compatibility resolution, and legacy packet parity | `DONE_LOCAL` |
+| `handoff` | 10 | Entrypoint, validator, validator suite, template, compiler/bootstrap workflow, manual, examples, semantic routing, and shared Orthic transcript tests | `DONE` |
+| `tasklist` | 8 | Callable entrypoint, validation semantics, template, durable workflow, examples, and semantic routing | `DONE` |
+| `dispatch` | 36 | Callable workflow, validator, manual/agent routing, artifact set, receipts, and semantic routing | `DONE` |
+| `coder` | 6 | Callable opt-in entrypoint, API-worker adapter, provider runbook, hooks, and eval parity | `DONE` |
+| `qa` | 10 | Callable entrypoint, browser reference/manual, QA-engine adapters, and resolved runners | `DONE` |
+| `architect` | 14 | Callable Sage Architect entrypoint and trigger parity | `DONE` |
+| `debugger` | 9 | Callable Sage Diagnose entrypoint and trigger parity | `DONE` |
+| `jfdi` | 3 | Natural-language compatibility plus retired alias resolution to `/alchemist` | `DONE` |
+| `council` | 14 | Covenant entrypoint, compatibility resolution, and legacy packet parity | `DONE` |
 
 Historical baseline before R1 began, retained as provenance rather than pending work:
 
@@ -47,23 +47,23 @@ Historical baseline before R1 began, retained as provenance rather than pending 
 - Alias registry lacked Handoff, Tasklist, Dispatch, Coder, QA, Architect, Debugger, JFDI, and Council compatibility routes.
 - Package allowlist omitted root `SKILL.md`, `audit-fix/`, and `audit-visual/`.
 - Advisory manifests already enforced unresolved rights, null receipts, and `publish: false`; that non-publication boundary remains intentional.
-- Compatibility entrypoints remained top-level after the earlier engineering-only migration; cross-host acceptance now gates their deletion.
+- Compatibility entrypoints remained top-level after the earlier engineering-only migration; verified package-local consumers now permit their deletion.
 - `docs/SKILL-ARCHITECTURE.md` used a retired assurance-role name; integration corrected it to Oracle.
 
 Public skill entrypoints may route into Sage, Alchemist, Oracle, Covenant, Cortex, or existing engines without moving authority or infrastructure into skill-shaped owners. Private brand and venture overlays remain excluded from Legion packages.
 
 ## Remaining work
 
-### R1 — Close packaged-install parity (`LOCAL DONE`; `CROSS_HOST OPEN`)
+### R1 — Close packaged-install parity (`DONE`)
 
-`DONE_LOCAL`: parity manifests, Handoff, 17 public entrypoints, Brand/Content routing, JFDI/Council compatibility, all 110 retired evals, canonical/legacy resolver tests, digest binding, non-publishable rights state, and package smoke pass.
+Completed:
 
-`OPEN_CROSS_HOST`:
-
-- Prove clean packaged-install discovery and behavior in Codex, Claude Code, Gemini, and agents-md on Mac and Windows.
-- Repair only reproduced harness or host failures.
-- Keep unresolved-rights packs non-publishable unless explicit rights receipts land.
-- Delete remaining top-level compatibility entrypoints only after both-host acceptance passes.
+- 25 public entrypoints, package-local engines, full Handoff/Dispatch/Tasklist callable behavior, Brand/Content routing, and JFDI/Council compatibility.
+- All 110 retired evals execute through the resolver; 87 retired artifacts retain byte-for-byte parity under canonical entrypoints.
+- Canonical and legacy resolution, digest binding, nested `--skill` filtering, package discovery, and assembled-package execution pass on Mac and Windows.
+- Codex, Claude Code, Gemini, and agents-md binding artifacts are present in the clean assembled package.
+- Obsolete top-level compatibility entrypoints and shared-engine roots are removed after consumer migration.
+- Rights-restricted packs remain non-publishable with null receipts.
 
 ### R2 — Implement S08 live execution closure
 
@@ -80,7 +80,7 @@ Public skill entrypoints may route into Sage, Alchemist, Oracle, Covenant, Corte
 ### R4 — Close S10
 
 - After S08, rerun existing role-handoff conformance against exact integrated state.
-- Confirm R1 cross-host packaged-install parity and absence of duplicate canon or authority drift.
+- Confirm completed R1 packaged-install parity and absence of duplicate canon or authority drift.
 - Move S10 from `CANDIDATE` to `VERIFIED`.
 
 ### R5 — Finish S11 runtime evaluation
@@ -108,7 +108,7 @@ R1 ─> R2 ─┬─> R3 ─> R5 ─> R6 ─> R7
           └─> R4 ────────────────┘
 ```
 
-R1 closes packaged-install parity before R2. R2 is the live integration gate. After R2, R3 and R4 may overlap until shared wiring or integration. R7 waits for both paths. One owner serializes ledger writes, nested commits, parent pins, and pushes.
+R1 is closed. R2 is the live integration gate. After R2, R3 and R4 may overlap until shared wiring or integration. R7 waits for both paths. One owner serializes ledger writes, nested commits, parent pins, and pushes.
 
 ## Completion rule
 
