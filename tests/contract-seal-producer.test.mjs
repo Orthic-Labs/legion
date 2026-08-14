@@ -14,6 +14,11 @@ import test from 'node:test';
 
 import { runContract } from '../lib/cli/commands/contract.mjs';
 import { AuthorityBindingStore } from '../packages/arcane/lib/authority-binding-store.mjs';
+import { BUDGET_BOUND_FIELDS, BudgetGovernanceStore } from '../packages/arcane/lib/budget-governance-store.mjs';
+import { digestValue } from '../packages/arcane/lib/canonical.mjs';
+import { loadHostKeyRing } from '../packages/arcane/lib/keys.mjs';
+import { signRecord } from '../packages/arcane/lib/receipt-auth.mjs';
+import { TaskBudgetSealStore } from '../packages/arcane/lib/task-budget-seal-store.mjs';
 import { b5Contract } from '../packages/arcane/tests/fixtures/runtime-binding-contract.mjs';
 
 const SESSION = 'session-seal';
@@ -131,6 +136,44 @@ test('sealed contract + run open lets the gate authorize a locked-domain write',
     writeFileSync(s.contractPath, JSON.stringify(contract));
 
     await runContract(['seal', '--file', s.contractPath, '--agent', 'agent-1', '--session', SESSION], s.ctx);
+    const keyRing = loadHostKeyRing({ dir: s.ctx.env.ARCANE_KEY_DIR });
+    const contractDigest = digestValue(contract);
+    const budget = {
+      schemaVersion: 1,
+      kind: 'arcane-budget-governance',
+      contractId: contract.contractId,
+      version: contract.version,
+      contractDigest,
+      objectiveLineageId: 'contract-seal-e2e',
+      objectiveDigest: digestValue('contract-seal-e2e'),
+      legionBlastMapCapMs: 900000,
+      sagePlanningCapMs: 900000,
+      maxContractVersions: 2,
+      resumeEvidence: null,
+    };
+    budget.authentication = signRecord(budget, {
+      keyRing,
+      keyId: keyRing.activeKeyId(),
+      boundFields: BUDGET_BOUND_FIELDS,
+      macDomain: 'arcane-budget-governance-v1',
+    });
+    new BudgetGovernanceStore({ root: join(s.root, '.audit', 'arcane', 'budget-governance'), keyRing }).seal(budget);
+    const task = { taskId: 'T-1', ownScope: ['tools/rhook/**'] };
+    task.budgetSeal = {
+      contractId: contract.contractId,
+      contractVersion: contract.version,
+      contractDigest,
+      taskDigest: digestValue(task),
+      scopeDigest: digestValue(task.ownScope),
+      activeTimeCapMs: 900000,
+      progressDeadlineMs: 900000,
+      evidenceReferences: ['fixture:contract-seal-e2e'],
+    };
+    new TaskBudgetSealStore({ root: join(s.root, '.audit', 'arcane', 'task-budget-seals'), keyRing }).seal({
+      contract,
+      task,
+      authorityAssertion: { authority: 'sage', assertedBy: 'agent-1', verificationMethod: 'capability-signature', perMessage: true },
+    });
     await runRun(['open', '--contract', 'EC-9', '--version', '1', '--task', 'T-1', '--session', SESSION], s.ctx);
 
     const runtime = createHostRuntime({ adapter: claudeCodeHostAdapter, workspace: s.root, keyDir: join(s.root, 'keys') });

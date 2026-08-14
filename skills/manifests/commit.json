@@ -55,8 +55,8 @@
     {
       "path": "SKILL.md",
       "uri": "legion-skill://commit/SKILL.md",
-      "sourceDigest": "sha256:70885e51ca8d3ba22cde6e53fad297e33f49a0b1a6f52cd169fcfaaee5c0543b",
-      "outputDigest": "sha256:70885e51ca8d3ba22cde6e53fad297e33f49a0b1a6f52cd169fcfaaee5c0543b",
+      "sourceDigest": "sha256:b40cc8f076af7c20a740ea5c94505bdb345cc1da61324919e283f1b14bf3ca30",
+      "outputDigest": "sha256:b40cc8f076af7c20a740ea5c94505bdb345cc1da61324919e283f1b14bf3ca30",
       "transformations": []
     },
     {

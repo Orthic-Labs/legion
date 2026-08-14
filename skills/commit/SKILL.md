@@ -11,9 +11,8 @@ metadata:
 
 # Commit
 
-Route one frozen diff to the workspace's guarded Commit workflow at
-`../../../commit/SKILL.md`. This entrypoint does not recreate review lenses, test gates, or
-Git effects.
+Route one frozen diff through packaged `references/manual.md`. This entrypoint does not recreate
+review lenses, test gates, or Git effects.
 
 1. Confirm primary checkout, branch, overlay, remote, worktree ownership, & exact frozen scope.
 2. Preserve unrelated edits; run shared secret, conflict, schema, generated-file, minimize, &
