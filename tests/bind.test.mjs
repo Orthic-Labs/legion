@@ -171,6 +171,37 @@ test('codex bind removes a duplicate legacy MCP table outside its managed block'
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });
 
+test('codex bind migrates owned legacy assurance MCP & rejects unowned or conflicting entries', () => {
+  const ownedDir = mkdtempSync(join(tmpdir(), 'legion-codex-owned-assurance-'));
+  const unownedDir = mkdtempSync(join(tmpdir(), 'legion-codex-unowned-assurance-'));
+  const conflictDir = mkdtempSync(join(tmpdir(), 'legion-codex-conflicting-assurance-'));
+  try {
+    for (const dir of [ownedDir, unownedDir, conflictDir]) mkdirSync(join(dir, '.codex'), { recursive: true });
+    writeFileSync(join(ownedDir, '.codex', 'config.toml'), '[mcp_servers.seer]\nargs = ["-m", "legion_kernel.adapters.mcp_server"]\ncommand = "python3"\n');
+    const ownedResult = bind(['--write', '--harness', 'codex', ownedDir]);
+    assert.equal(ownedResult.status, 0, ownedResult.stderr);
+    const migrated = readFileSync(join(ownedDir, '.codex', 'config.toml'), 'utf8');
+    assert.doesNotMatch(migrated, /mcp_servers\.seer/);
+    assert.match(migrated, /mcp_servers\.legion/);
+
+    writeFileSync(join(unownedDir, '.codex', 'config.toml'), '[mcp_servers.seer]\ncommand = "private-server"\nargs = []\n');
+    const unownedBefore = readFileSync(join(unownedDir, '.codex', 'config.toml'), 'utf8');
+    const unownedResult = bind(['--write', '--harness', 'codex', unownedDir]);
+    assert.notEqual(unownedResult.status, 0);
+    assert.equal(readFileSync(join(unownedDir, '.codex', 'config.toml'), 'utf8'), unownedBefore);
+    assert.equal(JSON.parse(unownedResult.stdout).harnesses[0].managedConflicts[0].conflicts[0].kind, 'legacy_assurance_binding_not_legion_owned');
+
+    writeFileSync(join(conflictDir, '.codex', 'config.toml'), '[mcp_servers.seer]\ncommand = "python3"\nargs = ["-m", "legion_kernel.adapters.mcp_server"]\n\n[mcp_servers.legion]\ncommand = "private-server"\nargs = []\n');
+    const conflictBefore = readFileSync(join(conflictDir, '.codex', 'config.toml'), 'utf8');
+    const conflictResult = bind(['--write', '--harness', 'codex', conflictDir]);
+    assert.notEqual(conflictResult.status, 0);
+    assert.equal(readFileSync(join(conflictDir, '.codex', 'config.toml'), 'utf8'), conflictBefore);
+    assert.ok(JSON.parse(conflictResult.stdout).harnesses[0].managedConflicts.length > 0);
+  } finally {
+    for (const dir of [ownedDir, unownedDir, conflictDir]) rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 test('gemini bind emits native role commands, context, MCP, and byte-bound receipt', () => {
   const dir = mkdtempSync(join(tmpdir(), 'legion-gemini-bind-'));
   try {
