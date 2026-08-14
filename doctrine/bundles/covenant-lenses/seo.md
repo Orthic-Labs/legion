@@ -11,7 +11,7 @@ assigned.
 that constitution, not a replacement for it. Everything below is preserved verbatim from Council
 except where a `> **Superseded:**` note marks a doctrine conflict.
 
-> **Superseded:** the frontmatter and body below describe the retired `/council seo` slash command
+> **Superseded:** the frontmatter and body below describe the retired Council SEO slash command
 > and the retired `tools/review/dual_review.py` CLI (multi-provider jury, `jury.verdict.json`,
 > SHIP/REVISE/REJECT gate). That machinery does not exist in Covenant — Covenant convenes seats
 > from `covenant-seat.md`, disposition belongs to the caller (Sage/Alchemist), and there is no
@@ -30,12 +30,12 @@ description: >
   against 2026 search reality (fundamentals + E-E-A-T first, AI-search a thin layer, schema/llms.txt
   = hygiene not ranking levers). Scores technical foundation, on-page, answer-first/AEO, E-E-A-T,
   GEO/presence, schema hygiene, off-page (white-hat only — black-hat = auto REJECT), keyword
-  targeting. Verdict SHIP / REVISE / REJECT. Use when user says "/council seo", "review my SEO",
+  targeting. Verdict SHIP / REVISE / REJECT. Use when user says "/covenant seo", "review my SEO",
   "is this page SEO-ready", "jury my audit", "SEO verdict". Distinct from the blogs review (draft
   voice/hook) — this is the SEO/GEO gate. Pairs with the /seo skill (which produces the analysis)
   and the SEO Field Manual playbook.
 ---
-# /council seo
+# /covenant seo
 
 Real multi-LLM API jury for SEO/GEO. Feed it a page's content, a blog draft, or a `/seo audit`
 report (`FULL-AUDIT-REPORT.md` / `ACTION-PLAN.md`). Add brand + target keyword as context if known.

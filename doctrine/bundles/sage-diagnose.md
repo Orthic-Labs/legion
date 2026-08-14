@@ -247,7 +247,7 @@ Then:
 
 > **Superseded:** "hand to `/architect`" → switch to Sage's own Architect route
 > (`doctrine/bundles/sage-architect.md`) — same authority, different internal route, not a handoff.
-> "`/council code`" → `/covenant`.
+> Retired Council code route → `/covenant`.
 
 **Then ship it: hand the verified fix to `/commit`.** This skill ends at a proven fix; `/commit` is the
 diff-scoped gate that gets it out. Do not push from here.

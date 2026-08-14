@@ -28,7 +28,7 @@ Do **not** use for single-file or single-PR review (use code review) or to map t
 architecture (use `cortex`). **Out of scope, route elsewhere:** commercial/product-strategy gaps
 → `/marketing`; engineering design gaps → `/architect`; competitive/absorption analysis →
 `/research` (never emit uncited competitor claims); explicitly requested multi-model launch
-verdicts → `/council launch` (the report's `triage_top` + critical count already IS the blocker
+verdicts → `/covenant launch` (the report's `triage_top` + critical count already IS the blocker
 list — don't restate it as a verdict).
 
 **Repository versus deployed-surface boundary.** Repository Audit covers the files under the selected
@@ -475,7 +475,7 @@ worked examples in `references/coverage-and-trajectory.md`:
   unresolvable, render ONE finding with `status: disputed`, never both sides as fact.
 - **INCOMPLETE is honest.** A skipped *required applicable* check stamps the report INCOMPLETE.
 - **Secrets stay redacted.** Logs are written by `collect-facts.mjs` with secrets redacted.
-- **Decompose/architecture findings route to `architect`** (its full `/council` workflow is the
+- **Decompose/architecture findings route to `architect`** (its full `/covenant` workflow is the
   external design gate) — the loop drives the refactor autonomously, it does not hand `/architect` back to the operator.
   The eyes-gate stays the human VISUAL checkpoint; Council is not a separate manual step here.
 - **CLEAN ≠ best shape.** Never promote the scanner/lens health verdict into an architectural
@@ -607,12 +607,12 @@ behavior contracts determine the work and its completion.
 When audit-fix is user-requested, the GOAL is to take the app to the best architecture on its own, not
 to flag the work. For any `architecture` / `decompose` / `mechanical-split` finding, route to
 **`architect`**: it designs the split (2-3 options → ADR decision → file map → TDD steps) and runs
-the full `/council` workflow as its OWN external gate, and it is built to proceed without waiting for the operator.
+the full `/covenant` workflow as its OWN external gate, and it is built to proceed without waiting for the operator.
 Apply Architect's plan slice-by-slice and re-audit after each slice until the confirmed mixed
 responsibilities have moved to their target components, dependency direction matches the plan, and
 behavior-preservation tests pass. A shallow `include!`/part split is NOT a fix; it changes file size
 without implementing the designed boundaries.
-Do not hand `/architect`+`/council` back to the operator to run manually; that hand-off was the old stall.
+Do not hand `/architect`+`/covenant` back to the operator to run manually; that hand-off was the old stall.
 When the request says best shape/architecture rather than only decomposition, Architect must also run
 its external solution-space gate and record `adopt|morph|reject|defer` for every material Cortex
 coverage gap; internal refactoring alone cannot close an unsearched architectural gap.

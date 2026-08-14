@@ -1,5 +1,37 @@
 {
-  "schemaVersion": 1, "id": "commit", "version": "1.0.0", "entry": "SKILL.md", "rootUri": "legion-skill://commit/", "provenance": "legion-authored-public-router", "licenseState": "unresolved", "rightsReceipt": null,
-  "profiles": { "audit": { "mutation": false, "publish": false }, "authoring": { "mutation": true, "publish": false, "externalOnly": true } },
-  "files": [{ "path": "SKILL.md", "uri": "legion-skill://commit/SKILL.md", "sourceDigest": "sha256:70885e51ca8d3ba22cde6e53fad297e33f49a0b1a6f52cd169fcfaaee5c0543b", "outputDigest": "sha256:70885e51ca8d3ba22cde6e53fad297e33f49a0b1a6f52cd169fcfaaee5c0543b", "transformations": [] }, { "path": "RIGHTS.json", "uri": "legion-skill://commit/RIGHTS.json", "sourceDigest": "sha256:1f844f7214466b153887c794ca06183116dabc98de430c728417c4ba31f3daeb", "outputDigest": "sha256:1f844f7214466b153887c794ca06183116dabc98de430c728417c4ba31f3daeb", "transformations": [] }]
+  "schemaVersion": 1,
+  "id": "commit",
+  "version": "1.0.0",
+  "entry": "SKILL.md",
+  "rootUri": "legion-skill://commit/",
+  "provenance": "legion-authored-public-router",
+  "licenseState": "unresolved",
+  "rightsReceipt": null,
+  "profiles": {
+    "audit": {
+      "mutation": false,
+      "publish": false
+    },
+    "authoring": {
+      "mutation": true,
+      "publish": false,
+      "externalOnly": true
+    }
+  },
+  "files": [
+    {
+      "path": "RIGHTS.json",
+      "uri": "legion-skill://commit/RIGHTS.json",
+      "sourceDigest": "sha256:1f844f7214466b153887c794ca06183116dabc98de430c728417c4ba31f3daeb",
+      "outputDigest": "sha256:1f844f7214466b153887c794ca06183116dabc98de430c728417c4ba31f3daeb",
+      "transformations": []
+    },
+    {
+      "path": "SKILL.md",
+      "uri": "legion-skill://commit/SKILL.md",
+      "sourceDigest": "sha256:70885e51ca8d3ba22cde6e53fad297e33f49a0b1a6f52cd169fcfaaee5c0543b",
+      "outputDigest": "sha256:70885e51ca8d3ba22cde6e53fad297e33f49a0b1a6f52cd169fcfaaee5c0543b",
+      "transformations": []
+    }
+  ]
 }

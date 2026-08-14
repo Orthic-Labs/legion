@@ -26,7 +26,9 @@
       "id": "content-not-ui",
       "prompt": "Redesign dashboard navigation and implement it in React.",
       "expected_skill": "designer",
-      "forbidden_skills": ["content"],
+      "forbidden_skills": [
+        "content"
+      ],
       "expected_behavior": "Interactive interface work routes to Designer.",
       "severity": "error",
       "mode": "discovery"
@@ -35,7 +37,9 @@
       "id": "content-not-prose",
       "prompt": "Write a launch email sequence and landing-page copy.",
       "expected_skill": "writing",
-      "forbidden_skills": ["content"],
+      "forbidden_skills": [
+        "content"
+      ],
       "expected_behavior": "Words-first work routes to Writing.",
       "severity": "error",
       "mode": "discovery"
@@ -51,5 +55,8 @@
       "severity": "error",
       "mode": "static"
     }
-  ]
+  ],
+  "output_quality": [],
+  "pressure": [],
+  "compatibility": []
 }

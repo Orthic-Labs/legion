@@ -5,7 +5,7 @@
   "should_trigger": [
     {
       "id": "jfdi-explicit",
-      "prompt": "/jfdi make the exact requested change and stop when named checks pass.",
+      "prompt": "/alchemist make the exact requested change and stop when named checks pass.",
       "expected_behavior": "Resolve the JFDI compatibility command to Alchemist and freeze literal scope, paths, checks, and budgets.",
       "assertions": [{"type": "expected_skill", "value": "alchemist"}]
     },

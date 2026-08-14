@@ -43,8 +43,8 @@
     {
       "path": "evals/evals.json",
       "uri": "legion-skill://dispatch/evals/evals.json",
-      "sourceDigest": "sha256:5705fa191efcacfc7b99ca2ae6e17a9974b7771a808032c977dd349bf527d787",
-      "outputDigest": "sha256:5705fa191efcacfc7b99ca2ae6e17a9974b7771a808032c977dd349bf527d787",
+      "sourceDigest": "sha256:10807ded75da16aff7204d200db83eb1a19f00972d93e8d26d9853e250c9ad86",
+      "outputDigest": "sha256:10807ded75da16aff7204d200db83eb1a19f00972d93e8d26d9853e250c9ad86",
       "transformations": []
     },
     {
