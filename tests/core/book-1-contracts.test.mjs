@@ -23,7 +23,7 @@ test('B1-002 canonical enums reject unknown values and future schema versions', 
 
 test('B1-003 command catalogue generates complete strict CLI help', async () => {
   const { COMMANDS, parseRootArguments, renderHelp } = await import('../../lib/cli/help.mjs');
-  assert.deepEqual(COMMANDS.map(({ name }) => name), ['init','doctor','bind','inspect','targets','components','stacks','controls','skills','languages','providers','rules','schedule','plan','audit','verify','explain','report','fix','hooks','mcp','run']);
+  assert.deepEqual(COMMANDS.map(({ name }) => name), ['init','doctor','bind','inspect','targets','components','stacks','controls','skills','languages','providers','rules','schedule','plan','audit','verify','explain','report','fix','hooks','mcp','run','budget','contract','assurance','completion','host','authority','state','minimize']);
   assert.throws(() => parseRootArguments(['audit', '--mystery']), /unknown option/);
   assert.match(renderHelp(), /controls/);
 });
@@ -192,7 +192,7 @@ test('B1-027 qualifier supports Books 1 through 6 and package smoke exercises li
   const { discoverBookTests } = await import('../../scripts/qualify-book.mjs');
   const { packageSmokeContract } = await import('../../scripts/package-smoke.mjs');
   for (const book of [1, 2, 3, 4, 5, 6]) assert.ok((await discoverBookTests(book)).length > 0);
-  assert.deepEqual(packageSmokeContract(), ['binary', 'library-import', 'cortex-projection', 'plan', 'schedule', 'serial-execution', 'auto-execution', 'audit', 'verify']);
+  assert.deepEqual(packageSmokeContract(), ['binary', 'library-import', 'cortex-projection', 'plan', 'schedule', 'serial-execution', 'auto-execution', 'audit', 'verify', 'tasklist', 'dispatch', 'coder', 'qa', 'handoff', 'transcripts', 'decisions']);
 });
 
 test('B1-028 qualification digest ignores duration and noisy test bytes', async () => {
