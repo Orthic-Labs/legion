@@ -4,7 +4,7 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { BOOK_TASKS } from './qualification-task-map.mjs';
-import {currentSourceRevision}from '../lib/qualification/source-revision.mjs';
+import {committedSourceRevision}from '../lib/qualification/source-revision.mjs';
 
 const root = resolve(fileURLToPath(new URL('..', import.meta.url)));
 const book = Number(process.argv[process.argv.indexOf('--book') + 1]);
@@ -29,7 +29,7 @@ const correctionRedCounts = book === 1 ? counts(28,27,1) : [2,3].includes(book) 
 const greenCounts = counts(BOOK_TASKS[book].length, BOOK_TASKS[book].length, 0);
 const qualityCounts = [1,2,3].includes(book) ? tapCounts(qualityGreenLog) : null;
 const command = `node --test ${behaviorTest}`;
-const sourceRevision = currentSourceRevision(root);
+const sourceRevision = committedSourceRevision(root);
 const correctedRedTasks = new Set(book===1?['B1-004']:book===2?['B2-003','B2-011','B2-018','B2-027']:book===3?['B3-003','B3-004','B3-006','B3-010']:[]);
 
 const tasks = BOOK_TASKS[book].map(([id, dependsOn, assertion, implementationSpec, fifth, sixth]) => {

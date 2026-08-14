@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { performance } from 'node:perf_hooks';
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -5,6 +6,7 @@ import { join, resolve } from 'node:path';
 import { spawnSync } from 'node:child_process';
 
 const legionRoot = resolve(import.meta.dirname, '..');
+const sha256 = (bytes) => `sha256:${createHash('sha256').update(bytes).digest('hex')}`;
 
 function argumentsOf(argv) {
   const values = {};
@@ -120,12 +122,31 @@ function validateDirectPacket(path) {
     ], { cwd: legionRoot, encoding: 'utf8' });
     const durationMs = Math.max(0, Math.round((performance.now() - started) * 1000) / 1000);
     if (result.status !== 0) throw new Error(`direct validator failed: ${(result.stdout + result.stderr).trim()}`);
-    return { outcome: 'PASS', tool_calls: 1, model_tokens: 0, delivery_time_ms: durationMs, quiescent_after_completion: true, duplicate_effects: 0 };
+    const packet = JSON.parse(readFileSync(path, 'utf8'));
+    const receiptBytes = readFileSync(receipt);
+    const receiptValue = JSON.parse(receiptBytes);
+    const owned = packet.workers.flatMap((worker) => worker.own);
+    if (packet.workers.length !== 7 || owned.length !== 175 || new Set(owned).size !== 175) {
+      throw new Error('direct packet must bind seven owners to 175 unique paths');
+    }
+    return {
+      outcome: 'PASS', tool_calls: 1, model_tokens: 0, delivery_time_ms: durationMs,
+      quiescent_after_completion: true, duplicate_effects: 0,
+      worker_count: packet.workers.length, owned_path_count: owned.length,
+      unique_path_count: new Set(owned).size,
+      packet_digest: `sha256:${receiptValue.sha256}`,
+      validator_receipt_digest: sha256(receiptBytes),
+    };
   } finally { rmSync(temporary, { recursive: true, force: true }); }
 }
 
 export function calibrateStage12({ historyText, directPacketText, directPacketPath, legacyTemplateText, s08Receipt }) {
   const history = replayHistory(historyRows(historyText));
+  history.source = {
+    transcript_id: history.source_thread_id,
+    digest: sha256(historyText),
+    bytes: Buffer.byteLength(historyText),
+  };
   const direct = validateDirectPacket(directPacketPath);
   const governed = s08Receipt.workload;
   if (governed?.result?.status !== 'PASS' || governed.observed_failures?.length !== 0) throw new Error('S08 governed workload is not a clean PASS');
