@@ -19,6 +19,18 @@ import { executeGovernanceStateBinding, governanceStateBindingIds } from './s11-
 import { executeM1M6Binding, m1M6BindingIds } from './s11-bindings/m1-m6-production.mjs';
 import { executeM7Binding, m7BindingIds } from './s11-bindings/m7-production.mjs';
 import { advisoryJudgmentBindings, advisoryJudgmentRuntimeIds, validateAdvisoryJudgmentObservation } from './s11-bindings/advisory-judgment.mjs';
+import { adrCanonClarifyBindingIds, executeAdrCanonClarifyBinding, validateAdrCanonClarifyObservation } from './s11-bindings/eval-adr-canon-clarify.mjs';
+import { adversarialBindingIds, executeAdversarialBinding, validateAdversarialObservation } from './s11-bindings/eval-adversarial.mjs';
+import { candidateQualityBindingIds, executeCandidateQualityCase, validateCandidateQualityObservation } from './s11-bindings/eval-candidate-quality.mjs';
+import { concurrencyConvergenceBindingIds, executeConcurrencyConvergenceCase, validateConcurrencyConvergenceObservation } from './s11-bindings/eval-concurrency-convergence.mjs';
+import { handoffNegativeBindingIds, executeHandoffNegativeCase, validateHandoffNegativeObservation } from './s11-bindings/eval-handoff-negative.mjs';
+import { reviewSecurityRuntimeIds, executeReviewSecurityBinding, reviewSecurityBlockers, validateReviewSecurityObservation } from './s11-bindings/eval-review-security.mjs';
+import { adversarialProportionalityBindingIds, executeAdversarialProportionalityCase, validateAdversarialProportionalityObservation } from './adversarial-proportionality.mjs';
+import { adversarialMigrationDistributedBindingIds, executeAdversarialMigrationDistributedCase, validateAdversarialMigrationDistributedObservation } from './adversarial-migration-distributed.mjs';
+import { adversarialOwnershipEconomicsBindingIds, executeAdversarialOwnershipEconomicsCase, validateAdversarialOwnershipEconomicsObservation } from './adversarial-ownership-economics.mjs';
+import { AI_RECONSTRUCTION_BINDING_IDS, executeAdversarialAiReconstructionCase, validateAdversarialAiReconstructionObservation } from './adversarial-ai-reconstruction.mjs';
+import { evaluateCalibrationConvergenceCase, validateCalibrationConvergenceObservation } from './calibration-convergence-policy.mjs';
+import { evaluateReviewDispositionCase, reviewDispositionPolicyIds, validateReviewDispositionDecision } from './review-disposition-policy.mjs';
 import { completionIntegratedState } from './completion-state.mjs';
 
 // One scenario has one runtime owner. Newer M1-M7 production consumers replace
@@ -34,6 +46,19 @@ const CURRENT_USER_SET = new Set(CURRENT_USER_IDS);
 const COMMAND_VERIFIER_IDS = Object.freeze(['AE-REVIEW-VERDICT-SECURITY-001']);
 const EVIDENCE_AUTHORITY_IDS = Object.freeze(['AE-EVIDENCE-001', 'AE-EVIDENCE-002']);
 const EVIDENCE_AUTHORITY_SET = new Set(EVIDENCE_AUTHORITY_IDS);
+const CASE_EVALUATOR_IDS = Object.freeze([
+  ...adrCanonClarifyBindingIds(), ...adversarialBindingIds(), ...candidateQualityBindingIds(),
+  ...concurrencyConvergenceBindingIds(), ...handoffNegativeBindingIds(), ...reviewSecurityRuntimeIds(),
+]);
+const CASE_EVALUATOR_SET = new Set(CASE_EVALUATOR_IDS);
+const ADVERSARIAL_CAPABILITY_IDS = Object.freeze([
+  ...adversarialProportionalityBindingIds(), ...adversarialMigrationDistributedBindingIds(),
+  ...adversarialOwnershipEconomicsBindingIds(), ...AI_RECONSTRUCTION_BINDING_IDS,
+]);
+const ADVERSARIAL_CAPABILITY_SET = new Set(ADVERSARIAL_CAPABILITY_IDS);
+const CALIBRATION_CONVERGENCE_IDS = Object.freeze(['AE-CONTROL-PLANE-BUDGETS-002', 'AE-CONVERGENCE-001', 'AE-CONVERGENCE-003']);
+const CALIBRATION_CONVERGENCE_SET = new Set(CALIBRATION_CONVERGENCE_IDS);
+const REVIEW_DISPOSITION_SET = new Set(reviewDispositionPolicyIds);
 const SOURCE_SCOPE = Object.freeze(['packages/arcane/**', 'scripts/**', 'evals/architecture/**']);
 
 function bindingOwners() {
@@ -45,7 +70,16 @@ function bindingOwners() {
     ['current-user-authority', CURRENT_USER_IDS],
     ['command-verifier', COMMAND_VERIFIER_IDS],
     ['evidence-authority', EVIDENCE_AUTHORITY_IDS],
-    ['advisory-judgment', advisoryJudgmentRuntimeIds().filter((id) => !CURRENT_USER_SET.has(id))],
+    ['eval-adr-canon-clarify', adrCanonClarifyBindingIds()],
+    ['adversarial-capability', ADVERSARIAL_CAPABILITY_IDS],
+    ['calibration-convergence-policy', CALIBRATION_CONVERGENCE_IDS],
+    ['review-disposition-policy', reviewDispositionPolicyIds],
+    ['eval-adversarial', adversarialBindingIds().filter((id) => !ADVERSARIAL_CAPABILITY_SET.has(id))],
+    ['eval-candidate-quality', candidateQualityBindingIds()],
+    ['eval-concurrency-convergence', concurrencyConvergenceBindingIds().filter((id) => !CALIBRATION_CONVERGENCE_SET.has(id))],
+    ['eval-handoff-negative', handoffNegativeBindingIds().filter((id) => !REVIEW_DISPOSITION_SET.has(id))],
+    ['eval-review-security', reviewSecurityRuntimeIds().filter((id) => !REVIEW_DISPOSITION_SET.has(id))],
+    ['advisory-judgment', advisoryJudgmentRuntimeIds().filter((id) => !CURRENT_USER_SET.has(id) && !CASE_EVALUATOR_SET.has(id))],
     ['authority-review', Object.keys(authorityReviewBindings)],
     ['delivery-continuity', deliveryContinuityBindings().filter((id) => !M1_M6_SET.has(id))],
     ['evidence-closure', evidenceClosureRuntimePolicyIds().filter((id) => !M1_M6_SET.has(id) && !EVIDENCE_AUTHORITY_SET.has(id))],
@@ -260,6 +294,70 @@ async function execute(row) {
       ? value.value?.detail?.disposition === 'AUTHORITY_REQUEST'
       : value.value?.detail?.classification === 'PREFERENCE';
     return hasLiveObservation(value) && valid ? pass(row, owner, value) : pending(row, `evidence-authority observation does not cover ${row.id} semantics`);
+  }
+  if (owner === 'eval-adr-canon-clarify') {
+    const value = executeAdrCanonClarifyBinding(row.id);
+    if (value?.status === 'PENDING') return pending(row, value.missingProducer ?? `missing evaluator input for ${row.id}`);
+    return validateAdrCanonClarifyObservation(row.id, value) ? pass(row, owner, value) : pending(row, `ADR/canon/clarification observation does not cover ${row.id} semantics`);
+  }
+  if (owner === 'adversarial-capability') {
+    let value;
+    if (adversarialProportionalityBindingIds().includes(row.id)) value = executeAdversarialProportionalityCase(row);
+    else if (adversarialMigrationDistributedBindingIds().includes(row.id)) value = executeAdversarialMigrationDistributedCase(row);
+    else if (adversarialOwnershipEconomicsBindingIds().includes(row.id)) value = executeAdversarialOwnershipEconomicsCase(row);
+    else {
+      const input = row.id === 'AE-ADVERSARIAL-009'
+        ? { systemId: 'assistant-routing', provenance: [{ sourceRef: 'registry:model-v4', digest: 'sha256:model-v4' }], evaluation: { status: 'PASS', reportRef: 'eval:s11', evaluatedAt: '2026-08-15T00:00:00.000Z', metrics: { safety: 1 } }, fallback: { mode: 'deterministic-rules', owner: 'ops', testedAt: '2026-08-15T00:00:00.000Z' }, humanAuthority: { role: 'risk-owner', authorityRef: 'authority:risk-owner', approvedAt: '2026-08-15T00:00:00.000Z' } }
+        : { asOf: '2026-08-15T00:00:00.000Z', evidence: [{ scope: 'topology', sourceRef: 'cortex:topology', observedAt: '2026-08-10T00:00:00.000Z', expiresAt: '2026-09-01T00:00:00.000Z' }, { scope: 'runtime', sourceRef: 'runtime:stale', observedAt: '2026-07-01T00:00:00.000Z', expiresAt: '2026-07-02T00:00:00.000Z' }, { scope: 'ownership', sourceRef: 'owners:map', observedAt: '2026-08-10T00:00:00.000Z', expiresAt: '2026-09-01T00:00:00.000Z' }] };
+      value = executeAdversarialAiReconstructionCase(row.id, input);
+    }
+    const observed = value?.observed ?? value;
+    const valid = adversarialProportionalityBindingIds().includes(row.id) ? validateAdversarialProportionalityObservation(row.id, observed)
+      : adversarialMigrationDistributedBindingIds().includes(row.id) ? validateAdversarialMigrationDistributedObservation(row.id, observed)
+      : adversarialOwnershipEconomicsBindingIds().includes(row.id) ? validateAdversarialOwnershipEconomicsObservation(row.id, observed)
+      : validateAdversarialAiReconstructionObservation(row.id, observed);
+    if (value?.status === 'FAIL') return failed(row, owner, new Error(value.reason));
+    return valid ? pass(row, owner, observed) : pending(row, `adversarial capability observation does not cover ${row.id} semantics`);
+  }
+  if (owner === 'calibration-convergence-policy') {
+    const value = evaluateCalibrationConvergenceCase(row.id);
+    return validateCalibrationConvergenceObservation(row.id, value) ? pass(row, owner, value) : pending(row, `calibration/convergence observation does not cover ${row.id} semantics`);
+  }
+  if (owner === 'review-disposition-policy') {
+    const evidence = row.id === 'AE-HANDOFF-004'
+      ? { irreversible: true, uncertainty: true, reviewBudget: { exhausted: true }, externalBlock: false, budgetStop: false }
+      : row.id === 'AE-REVIEW-VERDICT-SECURITY-002'
+        ? { nodes: ['entry', 'sink'], links: [{ from: 'entry', to: 'sink', demonstrated: false, evidenceId: '' }], coverage: { claimedAreas: ['entry', 'sink', 'auth'], inspectedAreas: ['entry', 'sink'] } }
+        : { reviewClosed: true, findings: [{ id: 'style-note', blocking: false, disposition: 'ADVISORY' }] };
+    const value = evaluateReviewDispositionCase(row.id, evidence);
+    return validateReviewDispositionDecision(row.id, value) ? pass(row, owner, value) : pending(row, `review disposition observation does not cover ${row.id} semantics`);
+  }
+  if (owner === 'eval-adversarial') {
+    const value = executeAdversarialBinding(row.id);
+    if (value?.status === 'PENDING') return pending(row, value.reason);
+    return validateAdversarialObservation(row.id, value) ? pass(row, owner, value) : pending(row, `adversarial observation does not cover ${row.id} semantics`);
+  }
+  if (owner === 'eval-candidate-quality') {
+    const value = executeCandidateQualityCase(row);
+    if (value?.status === 'FAIL') return failed(row, owner, new Error(value.reason));
+    return value?.status === 'PASS' && validateCandidateQualityObservation(row.id, value.observed) ? pass(row, owner, value.observed) : pending(row, `candidate-quality observation does not cover ${row.id} semantics`);
+  }
+  if (owner === 'eval-concurrency-convergence') {
+    const value = executeConcurrencyConvergenceCase(row);
+    if (value?.status === 'PENDING') return pending(row, value.reason);
+    if (value?.status === 'FAIL') return failed(row, owner, new Error(value.reason));
+    return value?.status === 'PASS' && validateConcurrencyConvergenceObservation(row.id, value.observed) ? pass(row, owner, value.observed) : pending(row, `concurrency/convergence observation does not cover ${row.id} semantics`);
+  }
+  if (owner === 'eval-handoff-negative') {
+    const value = executeHandoffNegativeCase(row);
+    if (value?.status === 'PENDING') return pending(row, value.reason);
+    if (value?.status === 'FAIL') return failed(row, owner, new Error(value.reason));
+    return value?.status === 'PASS' && validateHandoffNegativeObservation(row.id, value.observed) ? pass(row, owner, value.observed) : pending(row, `handoff/negative-trigger observation does not cover ${row.id} semantics`);
+  }
+  if (owner === 'eval-review-security') {
+    const value = executeReviewSecurityBinding(row.id);
+    if (value?.value?.status === 'PENDING') return pending(row, reviewSecurityBlockers[row.id] ?? value.value.reason);
+    return validateReviewSecurityObservation(row.id, value) ? pass(row, owner, value) : pending(row, `review/security observation does not cover ${row.id} semantics`);
   }
   if (owner === 'advisory-judgment') {
     const value = advisoryJudgmentBindings[row.id](row);
