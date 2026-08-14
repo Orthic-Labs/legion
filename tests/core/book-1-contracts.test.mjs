@@ -23,7 +23,7 @@ test('B1-002 canonical enums reject unknown values and future schema versions', 
 
 test('B1-003 command catalogue generates complete strict CLI help', async () => {
   const { COMMANDS, parseRootArguments, renderHelp } = await import('../../lib/cli/help.mjs');
-  assert.deepEqual(COMMANDS.map(({ name }) => name), ['init','doctor','bind','inspect','targets','components','stacks','controls','skills','languages','providers','rules','schedule','plan','audit','verify','explain','report','fix','hooks','mcp','run','budget','contract','assurance','completion','host','authority','state','minimize']);
+  assert.deepEqual(COMMANDS.map(({ name }) => name), ['init','doctor','bind','inspect','targets','components','stacks','controls','governance','skills','languages','providers','rules','schedule','plan','audit','verify','explain','report','fix','hooks','mcp','run','budget','adoption','contract','assurance','completion','host','authority','state','minimize']);
   assert.throws(() => parseRootArguments(['audit', '--mystery']), /unknown option/);
   assert.match(renderHelp(), /controls/);
 });
