@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import { cpSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join, relative } from 'node:path';
+import { dirname, join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import test from 'node:test';
 import { createRequire } from 'node:module';
@@ -93,6 +93,9 @@ test('Windows portability tests pass from a copied standalone checkout', () => {
           && path !== 'pnpm-lock.yaml';
       },
     });
+    const require = createRequire(import.meta.url);
+    const hookRuntime = require.resolve('@rightkit/hooks');
+    cpSync(dirname(dirname(hookRuntime)), join(checkout, 'node_modules', '@rightkit', 'hooks'), { recursive: true });
     const env = { ...process.env };
     delete env.NODE_TEST_CONTEXT;
     const output = execFileSync(process.execPath, ['--test', 'tests/windows-portability.test.mjs'], {

@@ -41,6 +41,14 @@ test('canonical & legacy commands resolve through packaged manifests with negati
   assert.equal(resolveSkillInvocation('Please explain why this test fails.', { root: ROOT }).status, 'not-found');
 });
 
+test('public entrypoints do not route into deleted workspace skill roots', () => {
+  for (const id of PUBLIC_ENTRYPOINTS) {
+    const body = readFileSync(join(ROOT, 'skills', id, 'SKILL.md'), 'utf8');
+    assert.doesNotMatch(body, /\.\.\/\.\.\/\.\.\/[^\s`]+\/SKILL\.md/, id);
+  }
+  assert.match(readFileSync(join(ROOT, 'skills', 'commit', 'SKILL.md'), 'utf8'), /references\/manual\.md/);
+});
+
 test('public entrypoint registry resolves digest-bound, non-publishable bundles', async () => {
   const index = JSON.parse(readFileSync(join(ROOT, 'registry', 'skills', 'index.json'), 'utf8'));
   const manifests = new Map(index.bundles.map(({ id, manifest }) => [id, manifest]));

@@ -157,8 +157,8 @@
     {
       "path": "SKILL.md",
       "uri": "legion-skill://dispatch/SKILL.md",
-      "sourceDigest": "sha256:c655799a53fd7368ad677f2b2a5c37729233907ba91ccb34f1557b609d2e41d5",
-      "outputDigest": "sha256:c655799a53fd7368ad677f2b2a5c37729233907ba91ccb34f1557b609d2e41d5",
+      "sourceDigest": "sha256:827fd350aabcf9f4d33b3bfab4d43b33bafdb91175d3a3185f35f17ba61c8b6c",
+      "outputDigest": "sha256:827fd350aabcf9f4d33b3bfab4d43b33bafdb91175d3a3185f35f17ba61c8b6c",
       "transformations": []
     },
     {
@@ -166,6 +166,13 @@
       "uri": "legion-skill://dispatch/agents/openai.yaml",
       "sourceDigest": "sha256:f4d0517fc3f1fe915d26bab8532aa1290dc15f14a3b22d71698b099c2e437c79",
       "outputDigest": "sha256:f4d0517fc3f1fe915d26bab8532aa1290dc15f14a3b22d71698b099c2e437c79",
+      "transformations": []
+    },
+    {
+      "path": "assets/direct-packet.json",
+      "uri": "legion-skill://dispatch/assets/direct-packet.json",
+      "sourceDigest": "sha256:8ed0668cf29e64b86112e3ce4e7aabd8d8db4101b2aaeb76fdcba2d5aa2fee0d",
+      "outputDigest": "sha256:8ed0668cf29e64b86112e3ce4e7aabd8d8db4101b2aaeb76fdcba2d5aa2fee0d",
       "transformations": []
     },
     {
@@ -381,8 +388,8 @@
     {
       "path": "references/manual.md",
       "uri": "legion-skill://dispatch/references/manual.md",
-      "sourceDigest": "sha256:123c69ffd18e7ebe1001c349137b6b1571d1dd87abb7f84e39769cdf9769109d",
-      "outputDigest": "sha256:123c69ffd18e7ebe1001c349137b6b1571d1dd87abb7f84e39769cdf9769109d",
+      "sourceDigest": "sha256:f2798a7658e98a3a75b5c8bb1a7a4f983f7fb66cf27ba7f5295f88a41cf33eb7",
+      "outputDigest": "sha256:f2798a7658e98a3a75b5c8bb1a7a4f983f7fb66cf27ba7f5295f88a41cf33eb7",
       "transformations": []
     },
     {
