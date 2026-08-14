@@ -3,7 +3,7 @@
   "kind": "legion-book-qualification",
   "book": 1,
   "expectedTaskCount": 28,
-  "sourceRevision": "content.sha256:2ef5fbdb38bceab8a845eda4e7c6180922672c4fd63770c838dae8f5ecbfa9e0",
+  "sourceRevision": "content.sha256:228f89670206ac9f6ec1ebcaa7c708f0584feb38664da87ecf3ab0a53a11dada",
   "decision": "SOURCE_IMPLEMENTED",
   "claimLevel": "source",
   "sourceAccounting": {
@@ -27,8 +27,8 @@
           {
             "path": "package.json",
             "symbol": "@orthic-labs/legion",
-            "digest": "sha256:d7c918d209f04b11bb1a5eaec724c57c920b5f663da60af25a3b10a87ffc2524",
-            "bytes": 2502
+            "digest": "sha256:1ac574e326c471909903b097367900ecb9823cf95cd3ba47931c0f020cf88723",
+            "bytes": 3018
           }
         ],
         "proof": {
@@ -121,8 +121,8 @@
           {
             "path": "lib/cli/help.mjs",
             "symbol": "COMMANDS",
-            "digest": "sha256:a06464eb073aef22565f6f7b5feffdf659717393f687a4a592011a944338d41b",
-            "bytes": 977
+            "digest": "sha256:eb536bbca3f9402e7ca18e9fa330ada5cb1d7a1235d13b68f87e7765ed076a38",
+            "bytes": 1443
           }
         ],
         "proof": {
@@ -1108,8 +1108,8 @@
           {
             "path": "lib/skills/transform.mjs",
             "symbol": "transformSkillText",
-            "digest": "sha256:a5fc66c38b63310076b7851805790729a0a217025092be2c53ea7dfa047a2edd",
-            "bytes": 1260
+            "digest": "sha256:37b9209df17a72b63f5dfc8e5e18462fe4a2e8cc3465d1e3c05f65391a151f28",
+            "bytes": 1697
           }
         ],
         "proof": {
@@ -1156,8 +1156,8 @@
           {
             "path": "skills/manifests/designer.json",
             "symbol": "protectedActions",
-            "digest": "sha256:cf8a96dee491417c86bf7d4d735e16dcd67afd0dd97892c159b2bbd7c19e1628",
-            "bytes": 97242
+            "digest": "sha256:48cab4659c450f3eb1c501ce827e5851036d622afc6b919ae19f190e06e8dc5f",
+            "bytes": 97557
           }
         ],
         "proof": {
@@ -1204,8 +1204,8 @@
           {
             "path": "skills/manifests/writing.json",
             "symbol": "noFabrication",
-            "digest": "sha256:28f8da521be9e716cd0970d785aabe2398e6833771476ad1f8117fedda0c6581",
-            "bytes": 16801
+            "digest": "sha256:5b6df1f03f959333ddcceb1b5fdc9c1a7d2fbaa2cbb2d248d368eec7af8dc834",
+            "bytes": 17081
           }
         ],
         "proof": {
