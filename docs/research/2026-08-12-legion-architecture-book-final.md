@@ -2760,7 +2760,7 @@ This DAG is governed by the §58D adoption ledger. Each stage has one accountabl
 | S07 | `VERIFIED` | Fresh independent exact-state validation passed 4/4 template/lens cases at nested `b05bafae`, with no scoped source drift. |
 | S08 | `NOT_STARTED` | Moved to remaining-work book. |
 | S09 | `NOT_STARTED` | Moved to remaining-work book. |
-| S10 | `CANDIDATE` | Role-doctrine handoffs are merged and pass focused tests; dependency closure and remaining-work R1 callable skill migration parity remain. |
+| S10 | `CANDIDATE` | Role-doctrine handoffs and local callable skill parity are merged and pass focused tests; S08 closure, R1 cross-host packaged-install parity, and fresh independent verification remain. |
 | S11 | `IN_PROGRESS` | Corpus and deterministic runner are merged; 41 static cases pass and 62 runtime cases await S09. |
 | S12 | `NOT_STARTED` | Moved to remaining-work book. |
 
