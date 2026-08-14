@@ -3,7 +3,7 @@
   "kind": "legion-source-completion-book-evidence",
   "routeStep": "R_INCREMENTAL_BOOK_GATES/S2",
   "book": 3,
-  "sourceRevision": "content.sha256:2ef5fbdb38bceab8a845eda4e7c6180922672c4fd63770c838dae8f5ecbfa9e0",
+  "sourceRevision": "content.sha256:f499ecd01a7acad8d7bfa8d931d10dc98f64e6615ac44e60b4928b4a517b245f+dirty",
   "sourceAccounting": {
     "implemented": 30,
     "mapped": 0,
@@ -1018,13 +1018,13 @@
   "artifacts": [
     {
       "path": "qualification/book-3.json",
-      "digest": "sha256:9b96c9dc259c575a1e06c7b68bc5cd952ce0476cb8f3e7912de43148cbefb97b",
-      "bytes": 75424
+      "digest": "sha256:c4aad31af6beb20f06ea22d9adffd53d3533105dd042215da0e21ff2f317ebbc",
+      "bytes": 75430
     },
     {
       "path": "qualification/book-3-artifacts/gate-result.json",
-      "digest": "sha256:4ee34347ac92b0ae37f8e8463dd74f9eca267bef7625763b0e3a4db004e54e93",
-      "bytes": 4346
+      "digest": "sha256:8679c053a761c1941862bf9131a9375777bc2cca204b2b2bbe5cb486bb74e074",
+      "bytes": 4407
     },
     {
       "path": "schemas/qualification/book-qualification-v2.schema.json",
@@ -1033,8 +1033,8 @@
     },
     {
       "path": "scripts/qualify-book.mjs",
-      "digest": "sha256:d54868eaaa2cb245463b75b9dfe6ce00dcde0a7de4617807e7d45fdab11e6c29",
-      "bytes": 4816
+      "digest": "sha256:4c665efb64735bc4c6e0296ffd6be15994923fa381568ad8fb26c9c3a14c24f9",
+      "bytes": 4840
     },
     {
       "path": "lib/qualification/book-receipt.mjs",
