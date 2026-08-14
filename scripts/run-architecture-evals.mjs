@@ -1,11 +1,11 @@
 #!/usr/bin/env node
-/** Deterministically validates Architecture Book Part XIV JSONL corpus metadata.
- * Runtime-dependent scenarios remain PENDING until S09 provides an authenticated executor.
- */
+/** Deterministically validates and executes Architecture Book Part XIV corpus. */
 import { createHash } from 'node:crypto';
 import { readFileSync, readdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+
+import { executeArchitectureRuntimeCases } from '../packages/arcane/lib/s11-runtime-executor.mjs';
 
 const root = dirname(dirname(fileURLToPath(import.meta.url)));
 const corpusRoot = join(root, 'evals', 'architecture');
@@ -42,7 +42,7 @@ function validateCase(value, family, source, line) {
   if (!['static', 'runtime'].includes(value.execution)) issue(`${location}: invalid execution`);
   if (!['ready', 'pending'].includes(value.status)) issue(`${location}: invalid status`);
   if (value.execution === 'static' && value.status !== 'ready') issue(`${location}: static cases must be ready`);
-  if (value.execution === 'runtime' && value.status !== 'pending') issue(`${location}: runtime cases must remain pending until S09`);
+  if (value.execution === 'runtime' && value.status !== 'ready') issue(`${location}: runtime cases must be ready after S09 verification`);
   if (!requiredString(value.scenario)) issue(`${location}: scenario`);
   const expect = value.expect;
   if (!expect || typeof expect !== 'object' || Array.isArray(expect)) issue(`${location}: expect`);
@@ -75,13 +75,16 @@ for (const row of cases) {
   if (seen.has(row.id)) issue(`${row.source}:${row.line}: duplicate id ${row.id}`);
   seen.add(row.id);
 }
+const runtimeResults = new Map(executeArchitectureRuntimeCases(cases.filter((row) => row.execution === 'runtime')).map((row) => [row.id, row]));
+const results = cases.sort((left, right) => left.id.localeCompare(right.id)).map((row) => row.execution === 'runtime'
+  ? runtimeResults.get(row.id) ?? { id: row.id, family: row.family, status: 'FAIL', reason: 'runtime result missing' }
+  : { id: row.id, family: row.family, status: 'PASS', reason: 'static corpus contract validated' });
 const summaries = expectedFamilies.map((family) => {
-  const rows = cases.filter((row) => row.family === family);
-  return { family, case_count: rows.length, passed: rows.filter((row) => row.status === 'ready').length, failed: 0, pending: rows.filter((row) => row.status === 'pending').length };
+  const rows = results.filter((row) => row.family === family);
+  return { family, case_count: rows.length, passed: rows.filter((row) => row.status === 'PASS').length, failed: rows.filter((row) => row.status === 'FAIL').length, pending: rows.filter((row) => row.status === 'PENDING').length };
 });
 for (const summary of summaries) if (summary.case_count === 0) issue(`family ${summary.family}: no cases`);
-const results = cases.sort((left, right) => left.id.localeCompare(right.id)).map((row) => ({ id: row.id, family: row.family, status: row.status === 'pending' ? 'PENDING' : 'PASS', reason: row.status === 'pending' ? 'runtime executor unavailable until S09' : 'static corpus contract validated' }));
-const failed = issues.length;
+const failed = issues.length + results.filter((row) => row.status === 'FAIL').length;
 const pending = results.filter((row) => row.status === 'PENDING').length;
 const passed = results.filter((row) => row.status === 'PASS').length;
 const payload = { schema: 'architecture-eval-result.v1', state: failed ? 'FAIL' : pending ? 'PASS_WITH_PENDING' : 'PASS', corpus_fingerprint: `sha256:${digest.digest('hex')}`, families: summaries, total_cases: results.length, passed, failed, pending, results, issues: issues.sort() };

@@ -19,7 +19,7 @@ test('S11 corpus JSONL parses with stable unique identifiers & positive/negative
       assert.equal(ids.has(row.id), false, row.id); ids.add(row.id);
       assert.ok(row.expect.outcome && row.expect.must_include.length && Array.isArray(row.expect.must_not_include));
       if (row.polarity === 'positive') positives += 1; else if (row.polarity === 'negative') negatives += 1;
-      if (row.execution === 'runtime') assert.equal(row.status, 'pending');
+      if (row.execution === 'runtime') assert.equal(row.status, 'ready');
     }
   }
   assert.ok(ids.size >= 96); assert.ok(positives && negatives);
@@ -29,6 +29,6 @@ test('S11 runner is deterministic & emits schema-valid machine result', () => {
   const first = run(); const second = run();
   assert.deepEqual(first, second);
   assert.deepEqual(validateSchema(JSON.parse(readFileSync(join(root, 'doctrine/architecture/schemas/architecture-eval-result.schema.json'), 'utf8')), first), []);
-  assert.equal(first.failed, 0); assert.equal(first.total_cases, first.passed + first.pending);
-  assert.equal(first.families.length, 37); assert.equal(first.state, 'PASS_WITH_PENDING');
+  assert.equal(first.failed, 0); assert.equal(first.pending, 0); assert.equal(first.total_cases, first.passed);
+  assert.equal(first.families.length, 37); assert.equal(first.state, 'PASS'); assert.equal(first.passed, 103);
 });

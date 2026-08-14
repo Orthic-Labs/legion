@@ -17,7 +17,7 @@ function runtimeRows() {
   );
 }
 
-test('S09 executor maps every pending architecture runtime case to one canonical Arcane guard', () => {
+test('S09 executor maps every architecture runtime case to one canonical Arcane guard', () => {
   const rows = runtimeRows();
   assert.equal(rows.length, 62);
   for (const row of rows) assert.ok(stage9ProbeFor(row.family), row.id);
@@ -38,7 +38,7 @@ test('S09 fixtures reject cancelled/replayed/stale/invalid/competing states whil
   assert.equal(first.some((result) => result.reason.includes('ingress')), true);
 });
 
-test('S09 executor emits deterministic machine-readable runtime evidence without changing S11 corpus state', () => {
+test('S09 executor emits deterministic machine-readable guard evidence for S11 corpus', () => {
   const run = () => JSON.parse(execFileSync(process.execPath, ['scripts/run-stage9-runtime-evals.mjs'], { cwd: root, encoding: 'utf8' }));
   const first = run(); const second = run();
   assert.deepEqual(first, second);
