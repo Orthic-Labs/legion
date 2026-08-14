@@ -16,7 +16,8 @@ py -3.11 D:/Claude/tools/skills/_audit/security_scan_skills.py
 
 ## Scope
 
-- Validates direct non-router skills under `D:/Claude/tools/skills`.
+- Validates owned direct non-router skills under `D:/Claude/tools/skills`; downloaded upstream
+  sources under `tools/skills/legion/repos/` remain outside workspace eval gates.
 - Uses `D:/Claude/docs/SKILL-ARCHITECTURE.md` as the router/direct source of truth (the merged
   catalogue that replaced the separate per-agent Claude and Codex rule indexes on 2026-08-04).
 - Preserves local Windows paths; it reports missing local paths instead of rewriting them.

@@ -19,6 +19,7 @@ from typing import Any
 
 REPO_ROOT = Path("D:/Claude")
 SKILL_ROOT = Path("tools/skills")
+EXCLUDED_EVAL_PREFIXES = (("legion", "repos"),)
 CATEGORIES = [
     "should_trigger",
     "should_not_trigger",
@@ -154,7 +155,11 @@ def eval_files(root: Path, skill: str | None = None) -> list[Path]:
     if skill:
         path = skill_root / skill / "evals" / "evals.json"
         return [path] if path.exists() else []
-    return sorted(skill_root.rglob("evals/evals.json"))
+    candidates = sorted(skill_root.rglob("evals/evals.json"))
+    return [
+        path for path in candidates
+        if not any(path.relative_to(skill_root).parts[:len(prefix)] == prefix for prefix in EXCLUDED_EVAL_PREFIXES)
+    ]
 
 
 def run_schema_checks(
@@ -187,7 +192,7 @@ def run_schema_checks(
             issues.append(issue("EVAL_SCHEMA_ERROR", "error", path, error_text))
 
         normalized = normalize_manifest(manifest)
-        if discovery and "schema_version" in manifest:
+        if discovery:
             if not normalized.get("should_trigger"):
                 issues.append(issue("NO_SHOULD_TRIGGER_CASES", "error", path, "No should-trigger cases."))
             if not normalized.get("should_not_trigger"):

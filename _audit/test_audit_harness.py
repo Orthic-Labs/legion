@@ -15,39 +15,31 @@ class AuditHarnessTests(unittest.TestCase):
     def setUp(self):
         self.tmp = Path(tempfile.mkdtemp(prefix="skill-audit-test-"))
         (self.tmp / "tools" / "skills").mkdir(parents=True)
-        (self.tmp / ".claude" / "rules").mkdir(parents=True)
-        (self.tmp / ".codex" / "rules").mkdir(parents=True)
-        (self.tmp / ".claude" / "rules" / "skills.md").write_text(
+        (self.tmp / "docs").mkdir(parents=True)
+        (self.tmp / "docs" / "SKILL-ARCHITECTURE.md").write_text(
             """# Skills
 
-## Top-Level Router Skills
+**Top-level router skills**
 
 | Skill | Use For |
 |---|---|
 | `/router-one` | routes work |
 
-## Direct Top-Level Skills
+**Direct top-level skills**
 
 | Skill | Use For |
 |---|---|
 | `/good-skill` | good fixture |
 | `/alias-public` | public alias fixture |
 
-## Council Pipeline
+### Council pipeline
 """,
             encoding="utf-8",
         )
-        (self.tmp / ".codex" / "rules" / "skills.md").write_text(
-            """# Codex Skill Compatibility
-
-## Router Skills
-
-- `router-one` routes to `router-one/references/*.md`
-
-## Translation
-
-Shared skills stay canonical.
-""",
+        audit_dir = self.tmp / "tools" / "skills" / "legion" / "_audit"
+        audit_dir.mkdir(parents=True)
+        (audit_dir / "capability-aliases.json").write_text(
+            json.dumps({"aliases": {"alias-public": "alias-folder"}}),
             encoding="utf-8",
         )
 
@@ -108,8 +100,7 @@ Shared skills stay canonical.
 
     def test_compatibility_matrix_allows_documented_name_mismatch(self):
         self.write_skill("alias-folder", name="alias-public", evals=self.valid_evals("alias-public"))
-        matrix = self.tmp / "tools" / "skills" / "_audit" / "compatibility-matrix.json"
-        matrix.parent.mkdir(exist_ok=True)
+        matrix = self.tmp / "tools" / "skills" / "legion" / "_audit" / "compatibility-matrix.json"
         matrix.write_text(
             json.dumps(
                 {
@@ -208,27 +199,18 @@ Shared skills stay canonical.
         self.assertIn("NO_SHOULD_TRIGGER_CASES", codes)
         self.assertIn("NO_SHOULD_NOT_TRIGGER_CASES", codes)
 
-    def test_discovery_accepts_legacy_manifest_with_migration_warning(self):
-        self.write_skill(
-            "good-skill",
-            evals={
-                "skill_name": "good-skill",
-                "evals": [
-                    {
-                        "id": 0,
-                        "prompt": "use the good skill",
-                        "expected_output": "select the skill",
-                        "expectations": ["uses good-skill"],
-                    }
-                ],
-            },
+    def test_external_legion_source_repo_evals_are_out_of_scope(self):
+        external = self.tmp / "tools" / "skills" / "legion" / "repos" / "upstream" / "skill" / "evals"
+        external.mkdir(parents=True)
+        (external / "evals.json").write_text(
+            json.dumps({"skill_name": "upstream", "evals": []}),
+            encoding="utf-8",
         )
 
         result = run_evals.run_schema_checks(self.tmp, discovery=True)
-        codes = {issue["code"] for issue in result["issues"]}
 
+        self.assertEqual(result["eval_file_count"], 0)
         self.assertEqual(result["error_count"], 0)
-        self.assertIn("LEGACY_EVAL_SCHEMA", codes)
 
     def test_parse_model_judge_response_extracts_fenced_json(self):
         parsed = run_evals.parse_model_judge_response(
