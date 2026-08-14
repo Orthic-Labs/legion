@@ -347,7 +347,7 @@ def validate_capability_aliases(root: Path, indexes: dict[str, set[str]]) -> lis
         if not candidate.is_file() or candidate.suffix.lower() not in {".md", ".json"}:
             continue
         relative = candidate.relative_to(skill_root)
-        if any(part in {".agent", "examples", "snapshots", "golden", "model-eval-runs"} for part in relative.parts):
+        if any(part in {".agent", "examples", "snapshots", "golden", "model-eval-runs", "legacy-source"} for part in relative.parts):
             continue
         if candidate == path:
             continue
