@@ -16,7 +16,9 @@ This book contains only unfinished implementation or acceptance work. Existing m
 | S01–S04 and S06 | `VERIFIED` | Adoption ledger contains exact integrated-state evidence and independent PASS history. |
 | S05 | `VERIFIED` | Fresh independent exact-state checks passed 28/28 focused authorization/evidence cases at `b05bafae`. |
 | S07 | `VERIFIED` | Fresh independent exact-state checks passed 4/4 template/lens cases at `b05bafae`. |
-| S10 role-doctrine implementation | `CANDIDATE` | Merged from `a71bfa4`; current handoff conformance tests pass 5/5. |
+| S08 live execution closure | `VERIFIED` | Representative assembled-package workload passed 3/3 at `d95e4846`; independent receipt `sha256:7aa837db95b974854fbe11e1dcc9384811dc006b205d421f15e88df4e5ccb386`. |
+| S09 Arcane guards | `CANDIDATE` | Implementation passes at `5a7329c`; authenticated Sage binding is absent, so seal/open/close receipt remains blocked. |
+| S10 role-doctrine implementation | `VERIFIED` | Handoff conformance, R1 parity, canonical naming, and authority-boundary checks pass on current integrated state. |
 | S11 corpus and runner | `IN_PROGRESS` | Merged from `90beed4` and `a4c36d4`; 41/103 static cases pass, 62 await runtime execution. |
 | Canonical naming and eval-gate repair | complete remediation | Integrated through Legion `b9dfab6`; parent pin `31d338cc9`; both match `origin/main`. |
 | R1 packaged skill migration | `VERIFIED` | Closure recorded at Legion `2b1523b`; 25 public entrypoints resolve through digest-bound manifests, all 110 retired evals execute, 87 retired artifacts retain byte parity, advisory domains resolve, and clean assembled-package proof passes on Mac and Windows. |
@@ -65,23 +67,19 @@ Completed:
 - Obsolete top-level compatibility entrypoints and shared-engine roots are removed after consumer migration.
 - Rights-restricted packs remain non-publishable with null receipts.
 
-### R2 — Implement S08 live execution closure
+### R2 — Implement S08 live execution closure (`DONE`)
 
-- Run one representative governed workload through existing S05 and S07 producers.
-- Prove one integration owner, ownership disposition, migration/cutover closure, exact integrated-state identity, and observed user-visible acceptance.
-- Record fresh evidence and independently verify S08.
+Completed: assembled-package Handoff workload reached fresh S05/S07-backed acceptance; one integration owner/shared writer, ownership disposition, hard cut, exact state, and independent Oracle verification are recorded.
 
-### R3 — Implement S09 Arcane guards
+### R3 — Implement S09 Arcane guards (`CANDIDATE`)
 
-- Wire authenticated runtime execution for all declared negative and sanctioned-path cases.
-- Enforce epochs, cancellation, replay, budgets, evidence freshness, gate validity, ownership, deficit acknowledgement, adoption proof, acceptance closure, and machinery isolation.
-- Prove denials do not block valid delivery paths, then independently verify S09.
+Implemented: canonical fixtures cover epochs/cancellation, replay, terminal budgets, freshness/reachability, gate validity/machinery isolation, writer ownership, untrusted rehydration, authenticated host ingress, sanctioned ambient delivery, exact-state acceptance, and delivery deficits. Stage 9 evidence inventories but does not falsely complete 62 Stage 11 cases.
 
-### R4 — Close S10
+Remaining: ingest a real host-observed Sage binding, then issue exact EC-609 seal/open/close receipts. Current host event and authority-proof stores are empty, so self-assertion is correctly refused.
 
-- After S08, rerun existing role-handoff conformance against exact integrated state.
-- Confirm completed R1 packaged-install parity and absence of duplicate canon or authority drift.
-- Move S10 from `CANDIDATE` to `VERIFIED`.
+### R4 — Close S10 (`DONE`)
+
+Completed: exact-state handoff conformance, packaged-install parity, canonical naming, and duplicate-canon/authority-drift checks pass independently.
 
 ### R5 — Finish S11 runtime evaluation
 
@@ -108,7 +106,7 @@ R1 ─> R2 ─┬─> R3 ─> R5 ─> R6 ─> R7
           └─> R4 ────────────────┘
 ```
 
-R1 is closed. R2 is the live integration gate. After R2, R3 and R4 may overlap until shared wiring or integration. R7 waits for both paths. One owner serializes ledger writes, nested commits, parent pins, and pushes.
+R1, R2, and R4 are closed. R3 needs only authenticated lifecycle receipts; R5 remains the next implementation stage, followed by R6 and final R7 certification. One owner serializes ledger writes, nested commits, parent pins, and pushes.
 
 ## Completion rule
 
