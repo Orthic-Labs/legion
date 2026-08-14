@@ -1735,7 +1735,7 @@
       "runner": {
         "kind": "runtime-script",
         "module": "providers/framework-suite.mjs",
-        "moduleDigest": "sha256:fb82b60da43f0e27b8254b50b5c28996a1cdecee1abbb619b9c7f3e5fe999674"
+        "moduleDigest": "sha256:6d16ba8f29aa5e343f645b981f2c0f58d1846dff2f7b5b586b61ae2934914e9e"
       },
       "hostCapabilities": [],
       "execution": {
@@ -4313,7 +4313,7 @@
       "runner": {
         "kind": "runtime-script",
         "module": "providers/visual-core.mjs",
-        "moduleDigest": "sha256:d1f87c2da211b009bb80c69bed990d3bb9447932e629003e5ea46491bce12766"
+        "moduleDigest": "sha256:89f4697375a8ac325e673a41e90d20a36590bad65a78f584afd58d4e91c6fa07"
       },
       "hostCapabilities": [],
       "execution": {
