@@ -8,6 +8,9 @@ import test from 'node:test';
 const root = dirname(dirname(fileURLToPath(import.meta.url)));
 const fixturePath = join(root, 'tests', 'fixtures', 'handoff', 'legacy-evals.json');
 const read = (path) => readFileSync(join(root, path), 'utf8');
+const python = (args, options) => process.platform === 'win32'
+  ? execFileSync('py', ['-3.11', ...args], options)
+  : execFileSync('python3', args, options);
 const cases = Object.values(JSON.parse(readFileSync(fixturePath, 'utf8')))
   .filter(Array.isArray)
   .flat();
@@ -46,7 +49,7 @@ test('legacy source-bootstrap, target-ingest, safety, & pressure contracts bind 
 });
 
 test('Handoff continues to use shared Orthic transcript selftests', () => {
-  const output = execFileSync('python3', ['lib/orthic_transcripts/selftest.py'], {
+  const output = python(['lib/orthic_transcripts/selftest.py'], {
     cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'],
   });
   assert.equal(output, '');
