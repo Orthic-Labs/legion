@@ -1,0 +1,57 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "migration-cutover.v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "mode", "runtime_owner", "first_fix_owner", "canonical_owner", "integration_owner", "hard_cut", "bounded_coexistence", "verdict"],
+  "properties": {
+    "schema": {"const": "migration-cutover.v1"},
+    "mode": {"enum": ["HARD_CUT", "BOUNDED_COEXISTENCE"]},
+    "runtime_owner": {"type": "string", "minLength": 1},
+    "first_fix_owner": {"type": "string", "minLength": 1},
+    "canonical_owner": {"type": "string", "minLength": 1},
+    "integration_owner": {"type": "string", "minLength": 1},
+    "hard_cut": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "required": ["external_compatibility_obligation", "absence_checks"],
+      "properties": {
+        "external_compatibility_obligation": {"type": ["string", "null"]},
+        "absence_checks": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["imports", "routes", "runtime_registrations", "configuration_keys", "dependencies", "tests", "documentation", "emitted_protocol_variants"],
+          "properties": {
+            "imports": {"type": "array", "items": {"type": "string"}},
+            "routes": {"type": "array", "items": {"type": "string"}},
+            "runtime_registrations": {"type": "array", "items": {"type": "string"}},
+            "configuration_keys": {"type": "array", "items": {"type": "string"}},
+            "dependencies": {"type": "array", "items": {"type": "string"}},
+            "tests": {"type": "array", "items": {"type": "string"}},
+            "documentation": {"type": "array", "items": {"type": "string"}},
+            "emitted_protocol_variants": {"type": "array", "items": {"type": "string"}}
+          }
+        }
+      }
+    },
+    "bounded_coexistence": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "required": ["exact_boundary", "traffic_split", "reconciliation_invariant", "telemetry", "expiry", "rollback", "cutover_trigger"],
+      "properties": {
+        "exact_boundary": {"type": "string", "minLength": 1},
+        "traffic_split": {"type": "string", "minLength": 1},
+        "reconciliation_invariant": {"type": "string", "minLength": 1},
+        "telemetry": {"type": "string", "minLength": 1},
+        "expiry": {"type": "string", "minLength": 1},
+        "rollback": {"type": "string", "minLength": 1},
+        "cutover_trigger": {"type": "string", "minLength": 1}
+      }
+    },
+    "verdict": {"enum": ["READY", "INCOMPLETE", "FAILED"]}
+  },
+  "allOf": [
+    {"if": {"properties": {"mode": {"const": "HARD_CUT"}}}, "then": {"properties": {"hard_cut": {"type": "object"}, "bounded_coexistence": {"type": "null"}}}},
+    {"if": {"properties": {"mode": {"const": "BOUNDED_COEXISTENCE"}}}, "then": {"properties": {"hard_cut": {"type": "null"}, "bounded_coexistence": {"type": "object"}}}}
+  ]
+}
