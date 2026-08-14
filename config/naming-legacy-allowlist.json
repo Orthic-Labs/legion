@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
   "rules": [
-    { "path": "config/naming-registry.json", "tokens": ["nemesis", "forge", "seer", "sentinel", "sorcerer"], "class": "R2", "reason": "single compatibility alias source" },
-    { "path": "config/naming-legacy-allowlist.json", "tokens": ["nemesis", "forge", "seer", "sentinel", "sorcerer"], "class": "R2", "reason": "legacy-token classification source" },
-    { "pathPrefix": "lib/naming/", "tokens": ["nemesis", "forge", "seer", "sentinel", "sorcerer"], "class": "R2/R3", "reason": "central read-old/write-new resolver and migrations" },
+    { "path": "config/naming-registry.json", "tokens": ["nemesis", "forge", "seer", "sentinel", "sorcerer"], "occurrences": { "nemesis": 1, "forge": 1, "seer": 1, "sentinel": 1, "sorcerer": 1 }, "class": "R2", "reason": "single compatibility alias source" },
+    { "path": "config/naming-legacy-allowlist.json", "tokens": ["nemesis", "forge", "seer", "sentinel", "sorcerer"], "occurrences": { "nemesis": 11, "forge": 32, "seer": 17, "sentinel": 18, "sorcerer": 12 }, "class": "R2", "reason": "legacy-token classification source" },
+    { "path": "lib/naming/check.mjs", "tokens": ["nemesis", "forge", "seer", "sentinel", "sorcerer"], "occurrences": { "nemesis": 3, "forge": 1, "seer": 5, "sentinel": 1, "sorcerer": 1 }, "class": "R2", "reason": "legacy-token detector and exact prohibited path checks" },
     { "path": "lib/cli/commands/bind/codex.mjs", "tokens": ["seer"], "class": "R3", "reason": "owned prior Codex binding migration" },
     { "path": "lib/cli/commands/doctor.mjs", "tokens": ["forge", "seer", "sentinel", "sorcerer"], "class": "R3", "reason": "reports legacy MCP bindings without rewriting unowned configuration" },
     { "path": "tests/bind.test.mjs", "tokens": ["seer"], "class": "R5", "reason": "prior binding migration fixture" },
