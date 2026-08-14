@@ -20,6 +20,7 @@ This book contains only unfinished implementation or acceptance work. Existing m
 | S09 Arcane guards | `VERIFIED` | 43/43 focused checks and 9/9 runtime fixtures pass; EC-609 v2 sealed, opened, and closed with strong authenticated evidence. |
 | S10 role-doctrine implementation | `VERIFIED` | Handoff conformance, R1 parity, canonical naming, and authority-boundary checks pass on current integrated state. |
 | S11 corpus and runner | `IN_PROGRESS` | Merged from `90beed4` and `a4c36d4`; 41/103 static cases pass, 62 await runtime execution. |
+| Dispatch production usability | `NOT_STARTED` | Default still copies a 421-line legacy template whose GoalRoute, timing, Minimize, author-gate, and validator ceremony rejected a valid seven-owner packet with 115 unrelated defects. |
 | Canonical naming and eval-gate repair | complete remediation | Integrated through Legion `b9dfab6`; parent pin `31d338cc9`; both match `origin/main`. |
 | R1 packaged skill migration | `VERIFIED` | Closure recorded at Legion `2b1523b`; 25 public entrypoints resolve through digest-bound manifests, all 110 retired evals execute, 87 retired artifacts retain byte parity, advisory domains resolve, and clean assembled-package proof passes on Mac and Windows. |
 
@@ -81,6 +82,12 @@ Completed: host-observed Sage binding sealed EC-609 v2, opened `run_01KZZR82AN6R
 
 Completed: exact-state handoff conformance, packaged-install parity, canonical naming, and duplicate-canon/authority-drift checks pass independently.
 
+### R4A — Simplify Dispatch production path
+
+- Make existing typed authority/worker JSON packet the default for bounded delegation; keep 421-line Markdown only as explicit legacy compatibility.
+- Require GoalRoute, critical-path timing, Minimize authority, and 15-point author gate only when locked, contracted, or explicitly requested.
+- Add quoted seven-owner, 175-unique-path, zero-collision DeepSeek packet as regression proof; validator must accept it without legacy schema ceremony.
+
 ### R5 — Finish S11 runtime evaluation
 
 - Execute 62 currently pending runtime cases through S09's authenticated executor.
@@ -106,7 +113,7 @@ R1 ─> R2 ─┬─> R3 ─> R5 ─> R6 ─> R7
           └─> R4 ────────────────┘
 ```
 
-R1 through R4 are closed. R5 remains the next implementation stage, followed by R6 and final R7 certification. One owner serializes ledger writes, nested commits, parent pins, and pushes.
+R1 through R4 are closed. R4A and R5 are next, followed by R6 and final R7 certification. One owner serializes ledger writes, nested commits, parent pins, and pushes.
 
 ## Completion rule
 
