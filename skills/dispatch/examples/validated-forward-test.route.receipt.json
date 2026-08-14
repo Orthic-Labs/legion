@@ -1,0 +1,11 @@
+{
+  "created_at": "2026-07-28T17:00:15.867589+00:00",
+  "expected_time_to_verified_b_ms": 4,
+  "route_path": "D:\\Claude\\tools\\skills\\dispatch\\examples\\validated-forward-test.route.json",
+  "route_revision": 1,
+  "route_sha256": "1d59f721569f0f5adc7ced463bd13d46c5867fe5ece47f406ce7327037eb6869",
+  "schema": "goal-route.receipt.v2",
+  "selected_route_id": "R_VALIDATE",
+  "validator_sha256": "f9fe48eeaf52bea870151fef0df812fb21524d123378532eb20c0734ebf0e413",
+  "validator_version": "2.0.0"
+}

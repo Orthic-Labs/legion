@@ -39,7 +39,7 @@ Track a failure fingerprint (task, method, input state, error, evidence, contrac
 
 ## Cheap-worker delegation
 
-For EXACT application and narrow BOUNDED mechanics, delegate to cheap workers via the OmniRoute scripts — `tools/skills/alchemist/scripts/run-worker.sh` (Mac) / `run-worker.ps1` (Windows) with profile `mimo-2.5`, `deepseek-v4-flash`, or `minimax-m3` and the brief on stdin. Native subagents cannot reach the gateway; only the shell path works. **Worker output is untrusted until you verify it locally** (G16): re-run the declared checks yourself before claiming the unit done. Log every worker attempt and failure verbatim.
+For EXACT application and narrow BOUNDED mechanics, delegate to cheap workers via package-local `skills/alchemist/scripts/run-worker.sh` (Mac) / `run-worker.ps1` (Windows) with profile `mimo-2.5`, `deepseek-v4-flash`, or `minimax-m3` and the brief on stdin. Native subagents cannot reach the gateway; only the shell path works. **Worker output is untrusted until you verify it locally** (G16): re-run the declared checks yourself before claiming the unit done. Log every worker attempt and failure verbatim.
 
 ## Boundaries
 

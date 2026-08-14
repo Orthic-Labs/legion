@@ -2,6 +2,8 @@
 """Compatibility entrypoint delegating Coder jobs to shared API worker engine."""
 from pathlib import Path
 import runpy
+import sys
 
-WORKSPACE = Path(__file__).resolve().parents[6]
-runpy.run_path(str(WORKSPACE / "tools/lib/coder-api-worker/api-worker.py"), run_name="__main__")
+PACKAGE_ROOT = Path(__file__).resolve().parents[3]
+sys.path.insert(0, str(PACKAGE_ROOT / "lib"))
+runpy.run_path(str(PACKAGE_ROOT / "lib/coder-api-worker/api-worker.py"), run_name="__main__")

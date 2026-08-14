@@ -12,7 +12,7 @@ can be green while every touched symbol is uncovered. §2A reports coverage **pe
 boolean.
 
 **Input shape** — supplied on `report.coverage` when the run is diff-scoped (matches the schema locked
-with `/commit`, `tools/skills/commit/SKILL.md` "Coverage on the change"):
+with `/commit`, `skills/commit/SKILL.md` "Coverage on the change"):
 
 ```json
 {

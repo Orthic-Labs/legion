@@ -1,0 +1,4 @@
+interface:
+  display_name: "Task List"
+  short_description: "Shortest reliable path as an executable task list"
+  default_prompt: "Use $tasklist to create a durable executable task list for this goal."

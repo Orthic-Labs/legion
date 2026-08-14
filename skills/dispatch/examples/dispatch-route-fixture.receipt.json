@@ -1,0 +1,11 @@
+{
+  "created_at": "2026-08-14T12:02:52.231131+00:00",
+  "expected_time_to_verified_b_ms": 900,
+  "route_path": "skills/dispatch/examples/dispatch-route-fixture.json",
+  "route_revision": 1,
+  "route_sha256": "1e1c756cf1b0a7f5184050cc1ea764f8d30b037c7b005ff1622a9c941222d910",
+  "schema": "goal-route.receipt.v2",
+  "selected_route_id": "R_FAST",
+  "validator_sha256": "2ca6dacbc8fdde8091bdf9a90d6f5eb1c9e656271f4630d06ea10d1ed546dae1",
+  "validator_version": "2.1.0"
+}

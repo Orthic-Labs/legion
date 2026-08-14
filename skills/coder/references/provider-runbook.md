@@ -1,6 +1,6 @@
 # Coder Provider Runbook
 
-`/coder` is explicit opt-in only. It delegates to `tools/lib/coder-api-worker/api-worker.py` for a single bounded, read-only worker job or batch.
+`/coder` is explicit opt-in only. It delegates to package-local `lib/coder-api-worker/api-worker.py` for a single bounded, read-only worker job or batch.
 
 - Use `--help` as source of truth for providers & flags.
 - Prefer worker fallback selection unless user names a provider/model.

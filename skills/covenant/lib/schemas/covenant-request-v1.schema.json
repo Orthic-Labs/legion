@@ -1,0 +1,76 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "legion-covenant-request-v1",
+  "title": "CovenantRequest",
+  "description": "Canonical CovenantRequest (COVENANT.md §10-11). caller_authority = SAGE | ALCHEMIST | USER_OVERRIDE, per §11. Legion's orchestrator may convene Covenant but is never callerAuthority (ARCHITECTURE §3a, COVENANT §11: 'Legion may convene; Legion never disposes.') — convenedBy captures that distinct fact. Judgment-call addition, see FREEZE.md J-4.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion", "kind", "requestId", "runId", "callerAuthority", "mode",
+    "subjectType", "subjectId", "subjectVersion", "sourceRevision", "packetDigest",
+    "userIntent", "question", "constraints", "invariants", "nonGoals",
+    "evidenceRefs", "embeddedEvidence", "knownUnknowns", "knownWeaknesses",
+    "alternativesConsidered", "requestedOutcome", "seatPolicy", "riskClass"
+  ],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "kind": { "const": "legion-covenant-request" },
+
+    "requestId": { "type": "string", "pattern": "^req_[0-9A-HJKMNP-TV-Z]{26}$" },
+    "runId": { "type": "string", "pattern": "^run_[0-9A-HJKMNP-TV-Z]{26}$" },
+    "callerAuthority": { "enum": ["SAGE", "ALCHEMIST", "USER_OVERRIDE"] },
+    "convenedBy": {
+      "type": ["string", "null"],
+      "const": "legion",
+      "description": "Present only when the Legion orchestrator convened this request on user/policy request (COVENANT §11). Never equals callerAuthority; the orchestrator never becomes the caller of record."
+    },
+    "mode": { "enum": ["DECISION_CHALLENGE", "BLOCKER_CONSULT", "PACKET_ONLY", "DISPUTE_REVIEW"] },
+
+    "subjectType": { "type": "string", "minLength": 1, "description": "e.g. 'execution-contract', 'blocker', 'audit-finding' (DISPUTE_REVIEW only)." },
+    "subjectId": { "type": "string", "minLength": 1 },
+    "subjectVersion": { "type": ["string", "integer", "null"] },
+    "sourceRevision": { "type": "string", "minLength": 7 },
+
+    "packetDigest": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+
+    "userIntent": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["verbatim", "interpretedSuccessCriteria"],
+      "properties": {
+        "verbatim": { "type": "string", "minLength": 1, "description": "COVENANT §2.2/C13: the user's exact request, never replaced by the author's interpretation." },
+        "interpretedSuccessCriteria": { "type": "string", "minLength": 1 }
+      }
+    },
+
+    "question": { "type": "string", "minLength": 1 },
+    "constraints": { "type": "array", "items": { "type": "string" } },
+    "invariants": { "type": "array", "items": { "type": "string" } },
+    "nonGoals": { "type": "array", "items": { "type": "string" } },
+
+    "evidenceRefs": { "type": "array", "items": { "type": "string" } },
+    "embeddedEvidence": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "COVENANT §2.5/C12: real diff/file content or real screenshots, not only prose summary — 'no evidence, no verdict'."
+    },
+
+    "knownUnknowns": { "type": "array", "items": { "type": "string" } },
+    "knownWeaknesses": { "type": "array", "items": { "type": "string" } },
+    "alternativesConsidered": { "type": "array", "items": { "type": "string" } },
+
+    "requestedOutcome": { "type": "string", "minLength": 1 },
+    "seatPolicy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["seatCount"],
+      "properties": {
+        "seatCount": { "type": "integer", "minimum": 1 },
+        "lensRequirements": { "type": "array", "items": { "type": "string" } },
+        "requireFreshVerdict": { "type": "boolean", "default": false }
+      },
+      "description": "COVENANT §20: Covenant requests seats/lenses/isolation; provider selection is the orchestration layer's concern, not Covenant's."
+    },
+    "riskClass": { "type": "string", "minLength": 1 }
+  }
+}

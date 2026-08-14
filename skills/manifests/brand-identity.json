@@ -70,6 +70,34 @@
       "id": "whitespace-normalization"
     }
   ],
+  "parity": {
+    "frozenAt": "2026-08-14",
+    "triggers": [
+      "/brand-identity",
+      "\"Create, audit, evolve, or apply brand identities, systems, guidelines, visual identity, voice, naming, logo direction, brand books, rebrands, website or app identity, pitch decks, or social kits.\""
+    ],
+    "outputs": [
+      "references/brand-registry.md",
+      "references/manual.md",
+      "references/visual-reference-libraries.md"
+    ],
+    "scripts": [
+      "scripts/color-check.mjs"
+    ],
+    "templates": [],
+    "schemas": [],
+    "receipts": [],
+    "evals": [
+      "evals/evals.json"
+    ],
+    "consumers": [
+      "registry/skills/index.json",
+      "lib/skills/resolver.mjs",
+      "registry/routing/domains.json"
+    ],
+    "legacyRef": null,
+    "legacyArtifacts": []
+  },
   "files": [
     {
       "path": "SKILL.md",
@@ -100,7 +128,7 @@
     {
       "path": "references/brand-registry.md",
       "uri": "legion-skill://brand-identity/references/brand-registry.md",
-      "sourceDigest": "sha256:9ac983ff99d87c6e6e21c628308a770381c9d909f1a9ed238aa43f50f601b4d7",
+      "sourceDigest": "sha256:8b186e21756fa959f03ba365bcaa42305148f7677ac7362ceb7ad6d621436f04",
       "outputDigest": "sha256:8b186e21756fa959f03ba365bcaa42305148f7677ac7362ceb7ad6d621436f04",
       "transformations": [
         "identity-genericization",
@@ -113,7 +141,7 @@
     {
       "path": "references/manual.md",
       "uri": "legion-skill://brand-identity/references/manual.md",
-      "sourceDigest": "sha256:9a15c8a28b65fdac2c08c921defcdab79db235e7a088c37b1e65c2f9b114ed15",
+      "sourceDigest": "sha256:8dac46f72f069456dedcc5c109673615d8a1bf4ef5c3b9e8188a187073806142",
       "outputDigest": "sha256:8dac46f72f069456dedcc5c109673615d8a1bf4ef5c3b9e8188a187073806142",
       "transformations": [
         "identity-genericization",
@@ -126,7 +154,7 @@
     {
       "path": "references/visual-reference-libraries.md",
       "uri": "legion-skill://brand-identity/references/visual-reference-libraries.md",
-      "sourceDigest": "sha256:67e21029a6e2c34f915765fd7eb6be48dc097fb2fe435c9f2944172fe256fd1d",
+      "sourceDigest": "sha256:6ec214fece17ab5feadf590159ec5716303573cb83d60bec31583a4fc607acf7",
       "outputDigest": "sha256:6ec214fece17ab5feadf590159ec5716303573cb83d60bec31583a4fc607acf7",
       "transformations": [
         "identity-genericization",

@@ -1,0 +1,9 @@
+{
+  "decision": "skills/dispatch/examples/validated-forward-test.minimize.json",
+  "decision_id": "dispatch-validated-forward-test",
+  "decision_sha256": "cfc3986ed3273d940febf2eb36e3f0c93ca5e0e6e13f8a766cfabaa94a836135",
+  "policy_sha256": "4a279bda3f468472e9845f8080602c0940cfdee84f59fecd8aaadfef21daa545",
+  "schema": "minimize-decision-receipt.v1",
+  "selected_rung": "STDLIB",
+  "validator_sha256": "8c69a5a4005b61f73d08706c7bf5bed6962cc42338e6f501b175329866e3527d"
+}

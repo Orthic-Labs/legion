@@ -1,0 +1,57 @@
+{
+  "schema_version": 1,
+  "skill": "compshop",
+  "should_trigger": [
+    {
+      "id": "compshop-inventory",
+      "prompt": "Inspect these repositories from source and produce a function-first semantic comparison report.",
+      "expected_behavior": "Select compshop and run an independent source-code Inventory.",
+      "assertions": [{"type": "expected_skill", "value": "compshop"}]
+    },
+    {
+      "id": "compshop-consolidate",
+      "prompt": "Consolidate these independent repository comparison reports and preserve genuine conflicts separately.",
+      "expected_behavior": "Select compshop and run semantic Consolidate.",
+      "assertions": [{"type": "expected_skill", "value": "compshop"}]
+    },
+    {
+      "id": "compshop-reconcile",
+      "prompt": "Resolve dirty conflicts in this consolidated repository comparison against source.",
+      "expected_behavior": "Select compshop and run targeted Reconcile.",
+      "assertions": [{"type": "expected_skill", "value": "compshop"}]
+    }
+  ],
+  "should_not_trigger": [
+    {
+      "id": "compshop-not-market-research",
+      "prompt": "Research current competitor pricing and market positioning.",
+      "expected_behavior": "Use research, not source-code repository comparison.",
+      "assertions": [{"type": "forbidden_skill", "value": "compshop"}]
+    }
+  ],
+  "output_quality": [
+    {
+      "id": "compshop-inventory-bounded-completion",
+      "prompt": "Run one independent Inventory pass across these repositories, correct your own mistakes, and report where you wrote it.",
+      "expected_behavior": "Creates exactly one function-first Markdown matrix, performs one adversarial self-review, corrects known defects in place, and reports bounded Stage 1 completion without claiming exhaustive recall.",
+      "severity": "error",
+      "mode": "static",
+      "assertions": [
+        {"type": "required_text", "value": "Stage 1 complete"}
+      ]
+    },
+    {
+      "id": "compshop-consolidate-preserves-minority",
+      "prompt": "Consolidate these independent CompShop inventories. One model found a credible capability that no other model mentioned.",
+      "expected_behavior": "Preserves the unique credible finding in the semantic union, accounts for every material input finding, and uses dirty.md only for genuine unresolved conflicts rather than majority voting.",
+      "severity": "error",
+      "mode": "static",
+      "assertions": [
+        {"type": "required_text", "value": "dirty.md"}
+      ]
+    }
+  ],
+  "safety": [],
+  "pressure": [],
+  "compatibility": []
+}

@@ -18,12 +18,83 @@
       "externalOnly": true
     }
   },
+  "parity": {
+    "frozenAt": "2026-08-14",
+    "triggers": [
+      "/coder",
+      "Explicit opt-in router for scoped read-only code analysis through external API models. Use only for `/coder`, explicit outsourced API analysis, or a named API provider/model."
+    ],
+    "outputs": [
+      "references/provider-runbook.md"
+    ],
+    "scripts": [
+      "hooks/enforce_cheap_review_routing.py",
+      "hooks/hooks.json",
+      "hooks/install.py",
+      "scripts/api-worker.py"
+    ],
+    "templates": [],
+    "schemas": [],
+    "receipts": [],
+    "evals": [
+      "evals/evals.json",
+      "legacy-source/coder/evals/evals.json"
+    ],
+    "consumers": [
+      "registry/skills/index.json",
+      "lib/skills/resolver.mjs",
+      "registry/routing/domains.json"
+    ],
+    "legacyRef": "workspace:c1c7e818^",
+    "legacyArtifacts": [
+      {
+        "sourcePath": "tools/skills/coder/SKILL.md",
+        "migratedPath": "legacy-source/coder/SKILL.md",
+        "digest": "sha256:da19e9af92ebcaafca08b73a0c06e1b20b44f32a3a187407285c1bc8aab4b87e"
+      },
+      {
+        "sourcePath": "tools/skills/coder/agents/openai.yaml",
+        "migratedPath": "legacy-source/coder/agents/openai.yaml",
+        "digest": "sha256:0110eae9409a94a5ed2c2290eb77ae484e295306f6e42de4f489c0209b6a4568"
+      },
+      {
+        "sourcePath": "tools/skills/coder/evals/evals.json",
+        "migratedPath": "legacy-source/coder/evals/evals.json",
+        "digest": "sha256:0d20d424a3cc40a5708b156a62ced24907985115b93bbcd951f4128fa1bdd5e8"
+      },
+      {
+        "sourcePath": "tools/skills/coder/hooks/enforce_cheap_review_routing.py",
+        "migratedPath": "legacy-source/coder/hooks/enforce_cheap_review_routing.py",
+        "digest": "sha256:baa4eda1a48ca437b2b9e1f0739fa3763f47945f2d3cc9c3d2a2c1594e9756ac"
+      },
+      {
+        "sourcePath": "tools/skills/coder/hooks/hooks.json",
+        "migratedPath": "legacy-source/coder/hooks/hooks.json",
+        "digest": "sha256:37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+      },
+      {
+        "sourcePath": "tools/skills/coder/hooks/install.py",
+        "migratedPath": "legacy-source/coder/hooks/install.py",
+        "digest": "sha256:e4c396e2bf40bd856e03e02044dd38a6b4b4e30f23c8b10170b1baa6281c46a2"
+      },
+      {
+        "sourcePath": "tools/skills/coder/references/provider-runbook.md",
+        "migratedPath": "legacy-source/coder/references/provider-runbook.md",
+        "digest": "sha256:edc7b4fc3cce0d87d81f571e5d80aee01e55453682d2c07a689a1dddf78a705b"
+      },
+      {
+        "sourcePath": "tools/skills/coder/scripts/api-worker.py",
+        "migratedPath": "legacy-source/coder/scripts/api-worker.py",
+        "digest": "sha256:adee00e6ed25104636ddb92f421b1bf53b25f8fcfb12693e8396db51e0619456"
+      }
+    ]
+  },
   "files": [
     {
       "path": "SKILL.md",
       "uri": "legion-skill://coder/SKILL.md",
-      "sourceDigest": "sha256:0a999c694e9bcd2f8f0b0e769d164771b87fb7038019c8ac5b11a56eb915c844",
-      "outputDigest": "sha256:0a999c694e9bcd2f8f0b0e769d164771b87fb7038019c8ac5b11a56eb915c844",
+      "sourceDigest": "sha256:8d49f8f3b62cd2b8a69595239d781f25fc8d8f413e72dd0ea69f22228c2df2e9",
+      "outputDigest": "sha256:8d49f8f3b62cd2b8a69595239d781f25fc8d8f413e72dd0ea69f22228c2df2e9",
       "transformations": []
     },
     {
@@ -41,6 +112,13 @@
       "transformations": []
     },
     {
+      "path": "hooks/enforce_cheap_review_routing.py",
+      "uri": "legion-skill://coder/hooks/enforce_cheap_review_routing.py",
+      "sourceDigest": "sha256:baa4eda1a48ca437b2b9e1f0739fa3763f47945f2d3cc9c3d2a2c1594e9756ac",
+      "outputDigest": "sha256:baa4eda1a48ca437b2b9e1f0739fa3763f47945f2d3cc9c3d2a2c1594e9756ac",
+      "transformations": []
+    },
+    {
       "path": "hooks/hooks.json",
       "uri": "legion-skill://coder/hooks/hooks.json",
       "sourceDigest": "sha256:37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570",
@@ -48,17 +126,80 @@
       "transformations": []
     },
     {
+      "path": "hooks/install.py",
+      "uri": "legion-skill://coder/hooks/install.py",
+      "sourceDigest": "sha256:e4c396e2bf40bd856e03e02044dd38a6b4b4e30f23c8b10170b1baa6281c46a2",
+      "outputDigest": "sha256:e4c396e2bf40bd856e03e02044dd38a6b4b4e30f23c8b10170b1baa6281c46a2",
+      "transformations": []
+    },
+    {
+      "path": "legacy-source/coder/SKILL.md",
+      "uri": "legion-skill://coder/legacy-source/coder/SKILL.md",
+      "sourceDigest": "sha256:da19e9af92ebcaafca08b73a0c06e1b20b44f32a3a187407285c1bc8aab4b87e",
+      "outputDigest": "sha256:da19e9af92ebcaafca08b73a0c06e1b20b44f32a3a187407285c1bc8aab4b87e",
+      "transformations": []
+    },
+    {
+      "path": "legacy-source/coder/agents/openai.yaml",
+      "uri": "legion-skill://coder/legacy-source/coder/agents/openai.yaml",
+      "sourceDigest": "sha256:0110eae9409a94a5ed2c2290eb77ae484e295306f6e42de4f489c0209b6a4568",
+      "outputDigest": "sha256:0110eae9409a94a5ed2c2290eb77ae484e295306f6e42de4f489c0209b6a4568",
+      "transformations": []
+    },
+    {
+      "path": "legacy-source/coder/evals/evals.json",
+      "uri": "legion-skill://coder/legacy-source/coder/evals/evals.json",
+      "sourceDigest": "sha256:0d20d424a3cc40a5708b156a62ced24907985115b93bbcd951f4128fa1bdd5e8",
+      "outputDigest": "sha256:0d20d424a3cc40a5708b156a62ced24907985115b93bbcd951f4128fa1bdd5e8",
+      "transformations": []
+    },
+    {
+      "path": "legacy-source/coder/hooks/enforce_cheap_review_routing.py",
+      "uri": "legion-skill://coder/legacy-source/coder/hooks/enforce_cheap_review_routing.py",
+      "sourceDigest": "sha256:baa4eda1a48ca437b2b9e1f0739fa3763f47945f2d3cc9c3d2a2c1594e9756ac",
+      "outputDigest": "sha256:baa4eda1a48ca437b2b9e1f0739fa3763f47945f2d3cc9c3d2a2c1594e9756ac",
+      "transformations": []
+    },
+    {
+      "path": "legacy-source/coder/hooks/hooks.json",
+      "uri": "legion-skill://coder/legacy-source/coder/hooks/hooks.json",
+      "sourceDigest": "sha256:37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570",
+      "outputDigest": "sha256:37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570",
+      "transformations": []
+    },
+    {
+      "path": "legacy-source/coder/hooks/install.py",
+      "uri": "legion-skill://coder/legacy-source/coder/hooks/install.py",
+      "sourceDigest": "sha256:e4c396e2bf40bd856e03e02044dd38a6b4b4e30f23c8b10170b1baa6281c46a2",
+      "outputDigest": "sha256:e4c396e2bf40bd856e03e02044dd38a6b4b4e30f23c8b10170b1baa6281c46a2",
+      "transformations": []
+    },
+    {
+      "path": "legacy-source/coder/references/provider-runbook.md",
+      "uri": "legion-skill://coder/legacy-source/coder/references/provider-runbook.md",
+      "sourceDigest": "sha256:edc7b4fc3cce0d87d81f571e5d80aee01e55453682d2c07a689a1dddf78a705b",
+      "outputDigest": "sha256:edc7b4fc3cce0d87d81f571e5d80aee01e55453682d2c07a689a1dddf78a705b",
+      "transformations": []
+    },
+    {
+      "path": "legacy-source/coder/scripts/api-worker.py",
+      "uri": "legion-skill://coder/legacy-source/coder/scripts/api-worker.py",
+      "sourceDigest": "sha256:adee00e6ed25104636ddb92f421b1bf53b25f8fcfb12693e8396db51e0619456",
+      "outputDigest": "sha256:adee00e6ed25104636ddb92f421b1bf53b25f8fcfb12693e8396db51e0619456",
+      "transformations": []
+    },
+    {
       "path": "references/provider-runbook.md",
       "uri": "legion-skill://coder/references/provider-runbook.md",
-      "sourceDigest": "sha256:8e008fefcac1c1e63f7d4efd0ec77e658ded9522de15c7122dff07784390d7d7",
-      "outputDigest": "sha256:8e008fefcac1c1e63f7d4efd0ec77e658ded9522de15c7122dff07784390d7d7",
+      "sourceDigest": "sha256:e7de6988381fc043a36ef3004cf700453cc067d653da21e4ad4f00309d8d4068",
+      "outputDigest": "sha256:e7de6988381fc043a36ef3004cf700453cc067d653da21e4ad4f00309d8d4068",
       "transformations": []
     },
     {
       "path": "scripts/api-worker.py",
       "uri": "legion-skill://coder/scripts/api-worker.py",
-      "sourceDigest": "sha256:bc8f19615894b67fe865d7a7b1e702a87c0ab08e9e6dedf687650c4d8ee0e3d5",
-      "outputDigest": "sha256:bc8f19615894b67fe865d7a7b1e702a87c0ab08e9e6dedf687650c4d8ee0e3d5",
+      "sourceDigest": "sha256:3b98523f124ee04a93ae247d3c61744fe99bf296206bcfa2a4a4c3bc847ad454",
+      "outputDigest": "sha256:3b98523f124ee04a93ae247d3c61744fe99bf296206bcfa2a4a4c3bc847ad454",
       "transformations": []
     },
     {

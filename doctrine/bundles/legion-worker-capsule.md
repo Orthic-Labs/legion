@@ -72,7 +72,7 @@ Clear prose is not executable. A referenced plan is not transferred context. A c
 
 > **Superseded:** retired paths were `tools/skills/dispatch/scripts/validate-dispatch.py` and
 > `tools/skills/execution-preflight`. Current live owners are
-> `$WORKSPACE/tools/lib/dispatch-validator/validate-dispatch.py` and
+> `$WORKSPACE/tools/skills/legion/lib/dispatch-validator/validate-dispatch.py` and
 > `$WORKSPACE/docs/rules/execution-preflight.md`; use them for items 5–6.
 
 ## Step 0 — Decide whether dispatch should exist
@@ -92,7 +92,7 @@ Before validation or spawn, create permanent packet under:
 Receipt lives beside packet as `<dispatch-id>.receipt.json`. Never use OS Temp, `.cache`, `.council-runs`, scratch, or disposable validation path as canonical artifact. Include packet + receipt in scoped commit when task operates in tracked repo & packet has no sensitive content.
 
 > **Superseded:** `.council-runs` → the current Covenant engine's run directory under
-> `tools/skills/covenant/`; verify the live path before reuse rather than assuming the old name.
+> `tools/skills/legion/skills/covenant/`; verify the live path before reuse rather than assuming the old name.
 
 ## Step 1 — Ground task before writing
 
@@ -522,13 +522,13 @@ for Windows or Windows-absolute authority for Mac.
 Windows:
 
 ```powershell
-py -3.11 D:/workspace/tools/lib/dispatch-validator/validate-dispatch.py <dispatch.md> --write-receipt <dispatch.receipt.json>
+py -3.11 D:/workspace/tools/skills/legion/lib/dispatch-validator/validate-dispatch.py <dispatch.md> --write-receipt <dispatch.receipt.json>
 ```
 
 macOS:
 
 ```bash
-python3 /workspace/tools/lib/dispatch-validator/validate-dispatch.py <dispatch.md> --write-receipt <dispatch.receipt.json>
+python3 /workspace/tools/skills/legion/lib/dispatch-validator/validate-dispatch.py <dispatch.md> --write-receipt <dispatch.receipt.json>
 ```
 
 Do not spawn/send or call dispatch/derived handoff ready, executable, or zero-context until exit code is `0`, output begins `PASS:`, & adjacent receipt exists. Validator checks structure, producer/provenance/lifecycle contract, required failure classes, step contracts, checked author gate, placeholders, bypass language, durable paths, & raw-byte digest. Fix every error, rerun, then send exact dispatch + receipt together. Any derived handoff must independently pass `/handoff`.
@@ -536,16 +536,14 @@ Do not spawn/send or call dispatch/derived handoff ready, executable, or zero-co
 Receiver recomputes digest before execution:
 
 ```powershell
-py -3.11 D:/workspace/tools/lib/dispatch-validator/validate-dispatch.py <dispatch.md> --verify-receipt <dispatch.receipt.json>
+py -3.11 D:/workspace/tools/skills/legion/lib/dispatch-validator/validate-dispatch.py <dispatch.md> --verify-receipt <dispatch.receipt.json>
 ```
 
 Embedded self-hash is forbidden because changing document to add its hash changes hash. Sidecar binds exact bytes without circularity.
 
 > **Superseded:** retired validator locations above are replaced by
-> `$WORKSPACE/tools/lib/dispatch-validator/validate-dispatch.py`. `/handoff` remains unavailable;
-> derived handoffs must use the workspace's current handoff protocol. Write the packet to a durable
-> path, then run the live validator and the checks below
-> manually, and do not claim "validator PASS" as a literal executed command.
+> `$WORKSPACE/tools/skills/legion/lib/dispatch-validator/validate-dispatch.py`. `/handoff` is packaged
+> & available; derived handoffs must pass its packaged validator before delivery.
 
 ## Executor return & integration contract
 

@@ -46,8 +46,8 @@ test('legacy source-bootstrap, target-ingest, safety, & pressure contracts bind 
 });
 
 test('Handoff continues to use shared Orthic transcript selftests', () => {
-  const output = execFileSync('python3', ['tools/lib/orthic_transcripts/selftest.py'], {
-    cwd: join(root, '..', '..', '..'), encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'],
+  const output = execFileSync('python3', ['lib/orthic_transcripts/selftest.py'], {
+    cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'],
   });
   assert.equal(output, '');
 });

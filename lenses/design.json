@@ -1,1 +1,1 @@
-{"id":"design","availability":"unavailable","privateOverlay":{"state":"not-bound","fields":[]}}
+{"id":"design","availability":"available","targetType":"content","targetRef":"registry/routing/domains.json","privateOverlay":{"state":"optional","fields":[]}}

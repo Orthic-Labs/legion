@@ -159,7 +159,7 @@ palettes are rejected unless product-truth demands them.
 
 **QA gate (phase 5).** Run `/audit-visual` — its lenses, floors, coverage matrix, and detector scan
 are canonical; do not restate them. Route pixel evidence through the qa-engine (project `qa:browser`
-contract, `tools/lib/qa-engine/qa-shot.mjs`, `tools/lib/qa-engine/qa-functional.mjs`); never foreground desktop screenshots for routine QA.
+contract, `lib/qa-engine/qa-shot.mjs`, `lib/qa-engine/qa-functional.mjs`); never foreground desktop screenshots for routine QA.
 Pass surface context to the audit: website = first-impression + conversion weighting; app =
 repeated-use weighting (action count, keyboard/focus, state completeness over drama).
 

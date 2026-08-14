@@ -1,0 +1,120 @@
+{
+  "schema": "goal-route.v2",
+  "route_id": "{{ROUTE_ARTIFACT_ID}}",
+  "purpose": "{{DELIVERY_OR_DIAGNOSTIC}}",
+  "routine": false,
+  "comparison_mode": "{{COMPARE_OR_SINGLE_FEASIBLE}}",
+  "state_a": {
+    "description": "{{EXACT_CURRENT_STATE}}",
+    "evidence": [
+      {
+        "locator": "{{PATH_OR_FORGE_URI}}",
+        "sha256": "{{64_HEX_SHA256}}",
+        "check": "{{EXACT_CHECK_AND_OBSERVED_RESULT}}"
+      }
+    ]
+  },
+  "state_b": {
+    "description": "{{EXACT_TARGET_STATE}}",
+    "proof": [
+      {
+        "command": "{{EXACT_COMMAND_OR_TOOL_ACTION}}",
+        "expected": "{{EXACT_PASS_RESULT}}",
+        "evidence_path": "{{DURABLE_OUTPUT_PATH}}"
+      }
+    ]
+  },
+  "constraints": {
+    "authority": {
+      "rule": "{{AUTHORIZED_SCOPE}}",
+      "evidence_locator": "{{PATH_OR_FORGE_URI}}"
+    },
+    "safety": {
+      "rule": "{{SAFETY_BOUNDARY}}",
+      "evidence_locator": "{{PATH_OR_FORGE_URI}}"
+    },
+    "scope": {
+      "rule": "{{IN_AND_OUT_OF_SCOPE}}",
+      "evidence_locator": "{{PATH_OR_FORGE_URI}}"
+    },
+    "quality": {
+      "rule": "{{NON_NEGOTIABLE_SUCCESS_QUALITY}}",
+      "evidence_locator": "{{PATH_OR_FORGE_URI}}"
+    },
+    "cost": {
+      "rule": "{{COST_LIMIT}}",
+      "evidence_locator": "{{PATH_OR_FORGE_URI}}"
+    }
+  },
+  "candidates": [
+    {
+      "id": "{{ROUTE_ID}}",
+      "constraint_status": "PASS",
+      "constraint_evidence": "{{PATH_OR_FORGE_URI}}",
+      "steps": [
+        {
+          "id": "{{STEP_ID}}",
+          "operation": "{{EXACT_OPERATION}}",
+          "depends_on": [],
+          "min_wall_ms": 1,
+          "kind": "ADVANCE_B",
+          "b_state_delta": "{{OBSERVABLE_PROGRESS_TOWARD_B}}"
+        }
+      ],
+      "probabilities_bps": {
+        "retry": 0,
+        "terminal_failure": 0
+      },
+      "retry_cost_ms": 0,
+      "rework_cost_ms": 0,
+      "nominal_critical_path_ms": 1,
+      "expected_time_to_verified_b_ms": 1,
+      "cost_units": 0,
+      "risk_units": 0,
+      "rework_units": 0,
+      "status": "SELECTED",
+      "dominance_reason": "minimum expected time to verified B",
+      "evidence": [
+        "{{PATH_OR_FORGE_URI}}"
+      ]
+    }
+  ],
+  "selected_route_id": "{{ROUTE_ID}}",
+  "selected_critical_path": [
+    "{{STEP_ID}}"
+  ],
+  "parallel_lanes": [],
+  "bottleneck": {
+    "step_id": "{{STEP_ID}}",
+    "bound_ms": 1,
+    "resource": "{{RESOURCE_OR_DEPENDENCY}}"
+  },
+  "deleted_work": [
+    {
+      "item": "{{NON_ADVANCING_WORK_OR_NONE}}",
+      "reason": "{{WHY_DELETED}}"
+    }
+  ],
+  "deferred_work": [
+    {
+      "item": "{{DOWNSTREAM_WORK_OR_NONE}}",
+      "until": "{{EXACT_GATE}}"
+    }
+  ],
+  "single_feasible_evidence": [
+    "{{REQUIRED_ONLY_FOR_SINGLE_FEASIBLE}}"
+  ],
+  "invalidation": {
+    "revision": 1,
+    "semantic_correction": "NONE",
+    "invalidates": [],
+    "source_fingerprint_sha256": "{{64_HEX_SHA256}}"
+  },
+  "forge": {
+    "required": true,
+    "run_id": "{{UUID}}",
+    "state_ref": "forge://run/{{UUID}}/state",
+    "checkpoint": "GOAL_ROUTE_V2",
+    "reason": "{{WHY_FORGE_REQUIRED_OR_NOT_REQUIRED}}"
+  }
+}

@@ -1,0 +1,115 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "legion-covenant-record-v1",
+  "title": "CovenantRecord",
+  "description": "Canonical CovenantRecord (COVENANT.md §12). Digest- and source-bound (C2, C3); Arcane treats verdicts as evidence, not sovereign authority (C10). A record about an old source revision must not satisfy a gate for a newer contract (COVENANT §18).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion", "kind", "recordId", "requestId", "mode", "packetDigest", "sourceRevision",
+    "seatRecords", "synthesis", "findings", "disagreements", "missingEvidence", "risks",
+    "outcome", "callerDispositions", "lane", "providerMetadata", "integrity"
+  ],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "kind": { "const": "legion-covenant-record" },
+
+    "recordId": { "type": "string", "pattern": "^CV-\\d+$" },
+    "requestId": { "type": "string", "pattern": "^req_[0-9A-HJKMNP-TV-Z]{26}$" },
+    "mode": { "enum": ["DECISION_CHALLENGE", "BLOCKER_CONSULT", "PACKET_ONLY", "DISPUTE_REVIEW"] },
+    "packetDigest": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+    "sourceRevision": { "type": "string", "minLength": 7 },
+
+    "seatRecords": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["seatId", "lens", "isolated", "position"],
+        "properties": {
+          "seatId": { "type": "string", "minLength": 1 },
+          "lens": { "type": "string", "minLength": 1 },
+          "isolated": { "type": "boolean", "description": "COVENANT §21/§21a independence contract: no cross-seat priming." },
+          "providerId": { "type": ["string", "null"] },
+          "reusedModel": { "type": "boolean", "default": false, "description": "COVENANT C14: record explicitly when the same model is reused rather than hiding degraded independence." },
+          "position": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "synthesis": { "type": ["string", "null"] },
+
+    "findings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["findingId", "lens", "statement", "severity", "classification"],
+        "properties": {
+          "findingId": { "type": "string", "pattern": "^F-\\d+$" },
+          "lens": { "type": "string", "minLength": 1 },
+          "statement": { "type": "string", "minLength": 1 },
+          "severity": { "type": "string", "minLength": 1 },
+          "evidenceRefs": { "type": "array", "items": { "type": "string" } },
+          "affectedDecisions": { "type": "array", "items": { "type": "string", "pattern": "^D-\\d+$" } },
+          "affectedAcceptance": { "type": "array", "items": { "type": "string", "pattern": "^AC-\\d+$" } },
+          "failurePath": { "type": ["string", "null"] },
+          "recommendedAction": { "type": ["string", "null"] },
+          "confidence": { "type": ["number", "null"], "minimum": 0, "maximum": 1 },
+          "classification": { "enum": ["IN_SCOPE_DEFECT", "LATER_PHASE", "OUT_OF_SCOPE", "MISSING_EVIDENCE", "OPTIONAL_VALUE"] }
+        }
+      },
+      "description": "COVENANT §13."
+    },
+    "disagreements": { "type": "array", "items": { "type": "string" } },
+    "missingEvidence": { "type": "array", "items": { "type": "string" } },
+    "risks": { "type": "array", "items": { "type": "string" } },
+
+    "outcome": {
+      "enum": ["SUPPORTED", "REVISE", "UNRESOLVED", "CONTRACT_SAFE", "AMENDMENT_REQUIRED", "INSUFFICIENT_EVIDENCE"],
+      "description": "COVENANT §12/§15/§17: DECISION_CHALLENGE uses {SUPPORTED,REVISE,UNRESOLVED}; BLOCKER_CONSULT uses {CONTRACT_SAFE,AMENDMENT_REQUIRED,INSUFFICIENT_EVIDENCE}; PACKET_ONLY produces no outcome and no record at all (C15) so this field is not applicable to that mode."
+    },
+
+    "callerDispositions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["findingId", "disposition"],
+        "properties": {
+          "findingId": { "type": "string", "pattern": "^F-\\d+$" },
+          "disposition": { "enum": ["ACCEPT", "REJECT", "DEFER_TO_PHASE", "NEEDS_EVIDENCE", "SUPERSEDED"] },
+          "rationale": { "type": ["string", "null"], "description": "COVENANT §14: a REJECT must contain rationale (not enforced structurally, see FREEZE.md open questions)." },
+          "owningPhase": { "type": ["string", "null"], "description": "Required in practice when disposition == DEFER_TO_PHASE (§14)." }
+        }
+      }
+    },
+
+    "revisionSubjectId": { "type": ["string", "null"] },
+    "revisionDigest": { "type": ["string", "null"], "pattern": "^sha256:[0-9a-f]{64}$" },
+    "freshVerdictRecordId": {
+      "type": ["string", "null"],
+      "pattern": "^CV-\\d+$",
+      "description": "COVENANT §15: reference to the fresh-verdict CovenantRecord, kept as a sibling record (own recordId) rather than nested inline, so the fresh verdict is itself digest/source bound independently."
+    },
+
+    "lane": { "type": ["string", "null"] },
+    "providerMetadata": { "type": "object" },
+    "timing": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "properties": {
+        "startedAt": { "type": ["string", "null"], "format": "date-time" },
+        "completedAt": { "type": ["string", "null"], "format": "date-time" }
+      }
+    },
+    "integrity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["digestVerified"],
+      "properties": {
+        "digestVerified": { "type": "boolean" },
+        "mutationDetected": { "type": "boolean", "default": false, "description": "COVENANT C7/§5: any seat mutating the subject under review invalidates that review." }
+      }
+    }
+  }
+}

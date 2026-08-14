@@ -1,0 +1,57 @@
+{
+  "name": "phase-6.7-evidence-gauntlet",
+  "purpose": "Three diff-scoped mechanical checks (mutation, changed-lines coverage, test-order independence) wired into /commit as a host-issued Forge check.",
+  "rerunnable_command": "node tools/gauntlet/gauntlet.mjs --base HEAD",
+  "forge_mapping": {
+    "kind": "gauntlet",
+    "executor": "host",
+    "authority": "host",
+    "status_field": "passed_when_exit_0",
+    "receipt_field": "orthic.tool-receipt.v1",
+    "trust_class": "tool",
+    "where_to_pass": "checks[] in checkpoint or verify",
+    "issuer_derived_fields": ["status", "executor", "exit_code"],
+    "corejs_reference": "forge/lib/core.js:normalizeCheck lines 515-544"
+  },
+  "layers": [
+    {
+      "name": "mutation",
+      "what": "Inject a fault per added line; rerun the test command; report survived vs killed.",
+      "ok_when": "no mutant survived",
+      "fail_signal": "tests-that-cannot-fail",
+      "engine": "tools/gauntlet/lib/mutation.mjs"
+    },
+    {
+      "name": "coverage",
+      "what": "NODE_V8_COVERAGE driven test run; report fraction of added lines executed.",
+      "ok_when": "all added lines executed at least once",
+      "fail_signal": "untested_changed_lines",
+      "engine": "tools/gauntlet/lib/coverage.mjs"
+    },
+    {
+      "name": "order",
+      "what": "Seed Fisher-Yates shuffle over test files; rerun N times; every run must pass.",
+      "ok_when": "every run exited 0",
+      "fail_signal": "order_dependent_failure",
+      "engine": "tools/gauntlet/lib/order.mjs"
+    }
+  ],
+  "anti_gaming": [
+    "Never weaken a test to make the gauntlet pass.",
+    "Never report an unrun check as passed.",
+    "Mutators that don't match the line's syntactic shape are reported as skipped, never silently ignored.",
+    "Coverage filters to the diff's added lines only; whole-repo coverage is discarded."
+  ],
+  "evidence_shape": {
+    "id": "uuid",
+    "kind": "gauntlet",
+    "specification": "phase-6.7 evidence gauntlet: mutation + changed-lines coverage + test-order independence",
+    "command": "exact rerunnable command",
+    "output": "JSON dump of per-layer results",
+    "status": "passed|failed",
+    "exit_code": 0,
+    "executor": "host",
+    "authority": "host",
+    "receipt": "JSON {schema:orthic.tool-receipt.v1, exit_status, started_at, completed_at, summary:{mutation,coverage,order}}"
+  }
+}

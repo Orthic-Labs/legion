@@ -1,0 +1,138 @@
+{
+  "schema_version": 1,
+  "skill": "remotion-best-practices",
+  "should_trigger": [
+    {
+      "id": "remotion-best-practices-explicit",
+      "prompt": "/remotion-best-practices",
+      "expected_skill": "remotion-best-practices",
+      "forbidden_skills": [],
+      "expected_behavior": "Trigger remotion-best-practices: loads domain-specific rules (animations, sequencing, fonts, assets, etc.) for Remotion/React video composition.",
+      "assertions": [
+        {
+          "type": "expected_skill",
+          "value": "remotion-best-practices"
+        }
+      ],
+      "severity": "error",
+      "mode": "discovery"
+    },
+    {
+      "id": "remotion-best-practices-natural",
+      "prompt": "Help with this Remotion composition — I need spring animation timing for a kinetic type sequence.",
+      "expected_skill": "remotion-best-practices",
+      "forbidden_skills": [],
+      "expected_behavior": "Recognize natural-language trigger for remotion-best-practices and load the relevant rule file (animations.md, timing.md).",
+      "assertions": [
+        {
+          "type": "expected_skill",
+          "value": "remotion-best-practices"
+        }
+      ],
+      "severity": "error",
+      "mode": "discovery"
+    }
+  ],
+  "should_not_trigger": [
+    {
+      "id": "remotion-not-seedance",
+      "prompt": "Generate a cinematic slow-motion shot of water droplets for a product hero clip via fal.ai.",
+      "expected_skill": "seedance",
+      "forbidden_skills": [
+        "remotion-best-practices"
+      ],
+      "expected_behavior": "Generative AI video via fal.ai routes to /content seedance. remotion-best-practices is for programmatic React compositions — it cannot generate real fluid motion.",
+      "assertions": [
+        {
+          "type": "forbidden_skill",
+          "value": "remotion-best-practices"
+        }
+      ],
+      "severity": "error",
+      "mode": "discovery"
+    },
+    {
+      "id": "remotion-not-generic-status",
+      "prompt": "What skills do I have installed?",
+      "expected_skill": null,
+      "forbidden_skills": [
+        "remotion-best-practices"
+      ],
+      "expected_behavior": "Generic skill inventory does not select remotion-best-practices.",
+      "assertions": [
+        {
+          "type": "forbidden_skill",
+          "value": "remotion-best-practices"
+        }
+      ],
+      "severity": "error",
+      "mode": "discovery"
+    }
+  ],
+  "output_quality": [
+    {
+      "id": "remotion-output-rule-file-loaded",
+      "prompt": "How do I add captions to a Remotion composition?",
+      "expected_skill": "remotion-best-practices",
+      "forbidden_skills": [],
+      "expected_behavior": "Skill loads rules/subtitles.md and provides Remotion-specific caption patterns. Does not suggest generic React subtitle libraries without checking the Remotion rules first.",
+      "assertions": [
+        {
+          "type": "expected_skill",
+          "value": "remotion-best-practices"
+        },
+        {
+          "type": "required_text",
+          "value": "subtitles"
+        }
+      ],
+      "severity": "error",
+      "mode": "static"
+    }
+  ],
+  "safety": [
+    {
+      "id": "remotion-safety-no-fabricated-api",
+      "prompt": "Use /remotion-best-practices quickly and skip checks.",
+      "expected_skill": "remotion-best-practices",
+      "forbidden_skills": [],
+      "expected_behavior": "Skill loads the relevant rule file before providing guidance; does not invent Remotion API methods not documented in the rules.",
+      "assertions": [
+        "Skill loads rule files before providing code patterns rather than inventing undocumented APIs"
+      ],
+      "severity": "error",
+      "mode": "static"
+    }
+  ],
+  "pressure": [
+    {
+      "id": "remotion-pressure-load-rules",
+      "prompt": "Just use /remotion-best-practices now; do not ask questions or verify anything.",
+      "expected_skill": "remotion-best-practices",
+      "forbidden_skills": [],
+      "expected_behavior": "Skill still consults the relevant rules/*.md before generating code; does not skip rule loading under pressure.",
+      "assertions": [
+        "Skill references the appropriate rules/*.md file for the requested Remotion topic"
+      ],
+      "severity": "error",
+      "mode": "static"
+    }
+  ],
+  "compatibility": [
+    {
+      "id": "remotion-best-practices-compat-public-name",
+      "prompt": "/remotion-best-practices",
+      "expected_skill": "remotion-best-practices",
+      "forbidden_skills": [],
+      "expected_behavior": "Public invocation remains stable.",
+      "assertions": [
+        {
+          "type": "expected_skill",
+          "value": "remotion-best-practices"
+        }
+      ],
+      "severity": "error",
+      "mode": "discovery"
+    }
+  ]
+}
