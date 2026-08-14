@@ -114,14 +114,18 @@ function validateDirectPacket(path) {
   const receipt = join(temporary, 'direct-packet.receipt.json');
   const started = performance.now();
   try {
-    const result = spawnSync('python3', [
+    const python = process.env.ORTHIC_PYTHON || (process.platform === 'win32' ? 'py' : 'python3');
+    const pythonArgs = process.platform === 'win32' && !process.env.ORTHIC_PYTHON ? ['-3.11'] : [];
+    const result = spawnSync(python, [...pythonArgs,
       'lib/dispatch-validator/validate-dispatch.py',
       path,
       '--packet-type', 'authority',
       '--write-receipt', receipt,
     ], { cwd: legionRoot, encoding: 'utf8' });
     const durationMs = Math.max(0, Math.round((performance.now() - started) * 1000) / 1000);
-    if (result.status !== 0) throw new Error(`direct validator failed: ${(result.stdout + result.stderr).trim()}`);
+    const output = `${result.stdout || ''}${result.stderr || ''}`.trim();
+    if (result.error) throw new Error(`direct validator failed: ${result.error.message}`);
+    if (result.status !== 0) throw new Error(`direct validator failed: ${output}`);
     const packet = JSON.parse(readFileSync(path, 'utf8'));
     const receiptBytes = readFileSync(receipt);
     const receiptValue = JSON.parse(receiptBytes);
