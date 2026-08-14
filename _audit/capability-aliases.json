@@ -7,9 +7,11 @@
     "/hormozi": "/marketing offer",
     "/illustrate": "/content illustration",
     "/justdoit": "/alchemist",
+    "/jfdi": "/alchemist",
     "/adapt": "tool:adapt",
     "/motion": "/designer motion",
     "/script": "tool:execution-preflight",
-    "/test-author": "/audit contract-tests"
+    "/test-author": "/audit contract-tests",
+    "/council": "/covenant"
   }
 }

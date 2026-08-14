@@ -1,0 +1,100 @@
+{
+  "schemaVersion": 1,
+  "id": "tasklist",
+  "version": "1.0.0",
+  "entry": "SKILL.md",
+  "rootUri": "legion-skill://tasklist/",
+  "provenance": "workspace-authored-wrapper",
+  "licenseState": "unresolved",
+  "rightsReceipt": null,
+  "profiles": {
+    "audit": {
+      "mutation": false,
+      "publish": false
+    },
+    "authoring": {
+      "mutation": true,
+      "publish": false,
+      "externalOnly": true
+    }
+  },
+  "files": [
+    {
+      "path": "SKILL.md",
+      "uri": "legion-skill://tasklist/SKILL.md",
+      "sourceDigest": "sha256:b036db6164587945d951bcdbee172055ebf09f9f99f20ef011052975fb7ade99",
+      "outputDigest": "sha256:b036db6164587945d951bcdbee172055ebf09f9f99f20ef011052975fb7ade99",
+      "transformations": []
+    },
+    {
+      "path": "agents/openai.yaml",
+      "uri": "legion-skill://tasklist/agents/openai.yaml",
+      "sourceDigest": "sha256:aeaa2ef474aff969e3ce7890eb6e957206a89aae0d8043686ad525e4c270cf7d",
+      "outputDigest": "sha256:aeaa2ef474aff969e3ce7890eb6e957206a89aae0d8043686ad525e4c270cf7d",
+      "transformations": []
+    },
+    {
+      "path": "assets/tasklist-template.md",
+      "uri": "legion-skill://tasklist/assets/tasklist-template.md",
+      "sourceDigest": "sha256:b0fb24e7ebdf537119b3f5b78a57f42dce013a182d034be8baa5a426426f4d52",
+      "outputDigest": "sha256:b0fb24e7ebdf537119b3f5b78a57f42dce013a182d034be8baa5a426426f4d52",
+      "transformations": []
+    },
+    {
+      "path": "evals/evals.json",
+      "uri": "legion-skill://tasklist/evals/evals.json",
+      "sourceDigest": "sha256:fb59714d562cf29615b91bcd267902ad8ed9ac76f0f8329731030507d9900cd2",
+      "outputDigest": "sha256:fb59714d562cf29615b91bcd267902ad8ed9ac76f0f8329731030507d9900cd2",
+      "transformations": []
+    },
+    {
+      "path": "examples/sage-architect.route.json",
+      "uri": "legion-skill://tasklist/examples/sage-architect.route.json",
+      "sourceDigest": "sha256:ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356",
+      "outputDigest": "sha256:ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356",
+      "transformations": []
+    },
+    {
+      "path": "examples/tasklist-authority.packet.json",
+      "uri": "legion-skill://tasklist/examples/tasklist-authority.packet.json",
+      "sourceDigest": "sha256:09c515ed91b1c001abe8b05593b341ea0711c8f668a087332497d7f8d8cb6c77",
+      "outputDigest": "sha256:09c515ed91b1c001abe8b05593b341ea0711c8f668a087332497d7f8d8cb6c77",
+      "transformations": []
+    },
+    {
+      "path": "examples/tasklist-authority.packet.receipt.json",
+      "uri": "legion-skill://tasklist/examples/tasklist-authority.packet.receipt.json",
+      "sourceDigest": "sha256:85105cbcfd5a0a3645367359e5e3a5564f4eb8c6bd464aef34268e39cddcde53",
+      "outputDigest": "sha256:85105cbcfd5a0a3645367359e5e3a5564f4eb8c6bd464aef34268e39cddcde53",
+      "transformations": []
+    },
+    {
+      "path": "references/durable-workflow.md",
+      "uri": "legion-skill://tasklist/references/durable-workflow.md",
+      "sourceDigest": "sha256:25b4d2aa554bb6edc7b3b9d266d3b241f8d890d990d3c0c75c8075ce3e9451b2",
+      "outputDigest": "sha256:25b4d2aa554bb6edc7b3b9d266d3b241f8d890d990d3c0c75c8075ce3e9451b2",
+      "transformations": []
+    },
+    {
+      "path": "references/legacy-durable-workflow.md",
+      "uri": "legion-skill://tasklist/references/legacy-durable-workflow.md",
+      "sourceDigest": "sha256:a3978a389925dc1fcbf449837865595c1af5c16c4cd7026a9e05ab7eb2852a79",
+      "outputDigest": "sha256:a3978a389925dc1fcbf449837865595c1af5c16c4cd7026a9e05ab7eb2852a79",
+      "transformations": []
+    },
+    {
+      "path": "scripts/validate-tasklist.py",
+      "uri": "legion-skill://tasklist/scripts/validate-tasklist.py",
+      "sourceDigest": "sha256:badda5e968948281cef2f1e95383ca876d0f31b358bd1b5b1d3528980265e3e8",
+      "outputDigest": "sha256:badda5e968948281cef2f1e95383ca876d0f31b358bd1b5b1d3528980265e3e8",
+      "transformations": []
+    },
+    {
+      "path": "tests/tasklist-entrypoint.test.py",
+      "uri": "legion-skill://tasklist/tests/tasklist-entrypoint.test.py",
+      "sourceDigest": "sha256:d07aafc3caff698984ae908787d95a3c299218cf3eb2d56aeb4976509bf84932",
+      "outputDigest": "sha256:d07aafc3caff698984ae908787d95a3c299218cf3eb2d56aeb4976509bf84932",
+      "transformations": []
+    }
+  ]
+}

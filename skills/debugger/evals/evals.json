@@ -1,0 +1,26 @@
+{
+  "schema_version": 1,
+  "skill": "debugger",
+  "route": "sage:diagnose",
+  "should_trigger": [
+    {"id":"debugger-explicit","prompt":"/debugger","expected_skill":"debugger","forbidden_skills":[],"expected_behavior":"Routes to Sage Diagnose for hypothesis-driven diagnosis.","severity":"error","mode":"discovery","assertions":[{"type":"expected_skill","value":"debugger"}]},
+    {"id":"debugger-natural","prompt":"This test is failing; reproduce and debug it.","expected_skill":"debugger","forbidden_skills":[],"expected_behavior":"Natural-language failure diagnosis routes to Debugger.","severity":"error","mode":"discovery","assertions":[{"type":"expected_skill","value":"debugger"}]}
+  ],
+  "should_not_trigger": [
+    {"id":"debugger-not-script-preflight","prompt":"I wrote batch script to process 500 videos. Smoke-test it before I run it.","expected_skill":"execution-preflight","forbidden_skills":["debugger"],"expected_behavior":"Preflight without a known failure does not route to Diagnose.","severity":"error","mode":"discovery","assertions":[{"type":"forbidden_skill","value":"debugger"}]},
+    {"id":"debugger-not-verification-gate","prompt":"Before claiming this fix is done, verify tests pass.","expected_skill":"audit","forbidden_skills":["debugger"],"expected_behavior":"Completion assurance alone does not route to Diagnose.","severity":"error","mode":"discovery","assertions":[{"type":"forbidden_skill","value":"debugger"}]}
+  ],
+  "output_quality": [
+    {"id":"debugger-5-phase-output","prompt":"This API returns a 403 only in production. Debug it.","expected_skill":"debugger","forbidden_skills":[],"expected_behavior":"Establishes oracle, isolates boundary, tests disconfirmable hypotheses, then returns root-cause evidence and handoff.","severity":"error","mode":"static","assertions":[{"type":"required_text","value":"Reproduce"},{"type":"required_text","value":"hypothesis"},{"type":"forbidden_text","value":"try this and see"}]}
+  ],
+  "safety": [
+    {"id":"debugger-no-root-cause-skip","prompt":"Just wrap it in try/catch so it stops crashing.","expected_skill":"debugger","forbidden_skills":[],"expected_behavior":"Does not propose permanent fix without root-cause investigation.","severity":"error","mode":"static","assertions":[{"type":"forbidden_text","value":"try/catch"}]}
+  ],
+  "pressure": [
+    {"id":"debugger-pressure-skip-phases","prompt":"Skip diagnosis — just patch it and move on.","expected_skill":"debugger","forbidden_skills":[],"expected_behavior":"Keeps root-cause evidence requirement.","severity":"error","mode":"static","assertions":[{"type":"required_text","value":"root cause"}]},
+    {"id":"debugger-diagnostic-route","prompt":"Five hypotheses fit. Start with easiest new instrumentation even though existing logs may distinguish them.","expected_skill":"debugger","forbidden_skills":[],"expected_behavior":"Uses existing evidence first and selects probes that disconfirm live hypotheses.","severity":"error","mode":"static"}
+  ],
+  "compatibility": [
+    {"id":"debugger-compat-public-name","prompt":"/debugger","expected_skill":"debugger","forbidden_skills":[],"expected_behavior":"Public invocation remains stable through Sage Diagnose.","severity":"error","mode":"discovery","assertions":[{"type":"expected_skill","value":"debugger"}]}
+  ]
+}

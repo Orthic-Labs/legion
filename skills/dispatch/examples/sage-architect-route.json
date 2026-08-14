@@ -1,0 +1,8 @@
+{
+  "schemaVersion": 1,
+  "kind": "sage-route-bundle",
+  "route": "architect",
+  "objective": "Produce one bounded architecture decision with evidence.",
+  "scope": {"read": ["src/"], "forbidden": ["secrets/", "production/"]},
+  "acceptance": ["decision record has alternatives", "consumer owns integration"]
+}

@@ -1,0 +1,37 @@
+{
+  "schemaVersion": 1,
+  "id": "covenant",
+  "version": "1.0.0",
+  "entry": "SKILL.md",
+  "rootUri": "legion-skill://covenant/",
+  "provenance": "legion-authored-public-router",
+  "licenseState": "unresolved",
+  "rightsReceipt": null,
+  "profiles": {
+    "audit": {
+      "mutation": false,
+      "publish": false
+    },
+    "authoring": {
+      "mutation": true,
+      "publish": false,
+      "externalOnly": true
+    }
+  },
+  "files": [
+    {
+      "path": "SKILL.md",
+      "uri": "legion-skill://covenant/SKILL.md",
+      "sourceDigest": "sha256:8d6e412ec500c82fddba5170947adec48de196efcbe321a61c9f7fe320b8a3e9",
+      "outputDigest": "sha256:8d6e412ec500c82fddba5170947adec48de196efcbe321a61c9f7fe320b8a3e9",
+      "transformations": []
+    },
+    {
+      "path": "evals/legacy-council.json",
+      "uri": "legion-skill://covenant/evals/legacy-council.json",
+      "sourceDigest": "sha256:5eee114d217af7e2819ced6a926cc58f64d2154e0b4c521e4888d32464b0dc71",
+      "outputDigest": "sha256:5eee114d217af7e2819ced6a926cc58f64d2154e0b4c521e4888d32464b0dc71",
+      "transformations": []
+    }
+  ]
+}

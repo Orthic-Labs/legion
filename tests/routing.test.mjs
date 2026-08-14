@@ -7,11 +7,12 @@ import { validateCommercialLenses } from '../lib/lenses/routing.mjs';
 
 const ROOT = resolve(import.meta.dirname, '..');
 
-test('five canonical domains resolve with typed unavailable advisory routes', () => {
+test('five canonical domains resolve through dispatch or packaged content', () => {
   const results = ['engineering', 'commercial', 'research', 'editorial', 'design'].map((id) => resolveDomain(ROOT, id));
   assert.equal(results[0].status, 'resolved');
-  assert.deepEqual(results.slice(1).map(({ status }) => status), ['unavailable', 'unavailable', 'unavailable', 'unavailable']);
+  assert.deepEqual(results.slice(1).map(({ status }) => status), ['resolved', 'resolved', 'resolved', 'resolved']);
   assert.deepEqual(results[0].capabilities.map(({ targetType }) => targetType), ['agent-dispatch', 'agent-dispatch', 'agent-dispatch']);
+  assert.ok(results.slice(1).every(({ capabilities }) => capabilities.length > 0));
 });
 
 test('routing projection keeps engineering dispatch-only and advisory content-only', () => {

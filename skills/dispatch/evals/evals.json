@@ -1,0 +1,48 @@
+{
+  "schema_version": 1,
+  "skill": "dispatch",
+  "should_trigger": [
+    {"id":"dispatch-zero-context-agent-task","prompt":"Dispatch this implementation to another agent with everything it needs.","expected_skill":"dispatch","severity":"error","mode":"discovery"},
+    {"id":"dispatch-copy-paste-executor","prompt":"Give me a copy-paste task packet for a fresh executor.","expected_skill":"dispatch","severity":"error","mode":"discovery"},
+    {"id":"dispatch-parallel-split","prompt":"Split independent tasks across three agents and dispatch them.","expected_skill":"dispatch","severity":"error","mode":"discovery"}
+  ],
+  "should_not_trigger": [
+    {"id":"dispatch-not-direct-implementation","prompt":"Fix this one-line typo.","expected_skill":null,"forbidden_skills":["dispatch"],"severity":"error","mode":"discovery"},
+    {"id":"dispatch-not-architecture","prompt":"Design an OAuth implementation plan.","expected_skill":"architect","forbidden_skills":["dispatch"],"severity":"error","mode":"discovery"},
+    {"id":"dispatch-not-cold-chat-handoff","prompt":"Hand this chat to a clean new thread.","expected_skill":"handoff","forbidden_skills":["dispatch"],"severity":"error","mode":"discovery"}
+  ],
+  "output_quality": [
+    {"id":"dispatch-required-contracts","expected_behavior":"Requires OWN, TRUE_BLOCKER, recovery, evidence, receipt, and validator PASS.","severity":"error","mode":"static"},
+    {"id":"dispatch-script-chaining","expected_behavior":"Binds selected path, smoke, check, blast, and ship evidence.","severity":"error","mode":"static"},
+    {"id":"dispatch-shortest-valid-route","expected_behavior":"Freezes State A/B, selects fastest valid route, and exposes critical path.","severity":"error","mode":"static"},
+    {"id":"dispatch-reject-existing-slower-route","expected_behavior":"Preserves old output as evidence only and rejects dominated route.","severity":"error","mode":"static"},
+    {"id":"dispatch-reject-incompatible-existing-run","expected_behavior":"Requires reset for incompatible authority or producer.","severity":"error","mode":"static"},
+    {"id":"dispatch-full-product-path-not-binary-only","expected_behavior":"Proves producer, lifecycle, delivery, and acceptance path.","severity":"error","mode":"static"},
+    {"id":"dispatch-gate-isolation-and-phase-scope","expected_behavior":"Separates qualification from end-to-end proof.","severity":"error","mode":"static"},
+    {"id":"dispatch-one-trace-before-batch","expected_behavior":"Requires one canonical trace before batch work.","severity":"error","mode":"static"},
+    {"id":"dispatch-preserve-experiment-question","expected_behavior":"Freezes named decision metrics before experiment.","severity":"error","mode":"static"},
+    {"id":"dispatch-no-invented-ground-truth","expected_behavior":"Rejects invented labels and unrelated metrics.","severity":"error","mode":"static"},
+    {"id":"dispatch-workload-role-lock","expected_behavior":"Locks fixture to its stated decision role.","severity":"error","mode":"static"},
+    {"id":"dispatch-model-relevance-veto","expected_behavior":"Forbids tools with no named acceptance metric.","severity":"error","mode":"static"},
+    {"id":"dispatch-forge-semantic-gate","expected_behavior":"Requires checkpointed requirement-to-decision trace.","severity":"error","mode":"static"},
+    {"id":"dispatch-selection-funnel-not-flat-matrix","expected_behavior":"Uses ordered survivor stages.","severity":"error","mode":"static"},
+    {"id":"dispatch-runtime-is-not-behavioral-qualification","expected_behavior":"Treats loadability as runnability only.","severity":"error","mode":"static"},
+    {"id":"dispatch-workload-cardinality-and-value","expected_behavior":"Declares job ceiling and value-of-information rule.","severity":"error","mode":"static"},
+    {"id":"dispatch-final-fixture-stage-lock","expected_behavior":"Assigns every fixture to one stage.","severity":"error","mode":"static"},
+    {"id":"dispatch-full-comparison-needs-explicit-authority","expected_behavior":"Requires explicit full-comparison authority.","severity":"error","mode":"static"},
+    {"id":"dispatch-launch-reconciliation-supervision","expected_behavior":"Reconciles actual launch count against ceiling.","severity":"error","mode":"static"},
+    {"id":"dispatch-correction-global-rederive","expected_behavior":"Stops affected run and globally re-derives from current authority.","severity":"error","mode":"static"},
+    {"id":"dispatch-delete-stale-explicit-instructions","expected_behavior":"Deletes inherited clauses without decision effect.","severity":"error","mode":"static"},
+    {"id":"dispatch-typed-stage-provider-necessity","expected_behavior":"Binds necessary provider, dataset, mode, admission, pass, exclusions, and workload.","severity":"error","mode":"static"},
+    {"id":"dispatch-offline-no-physical-sleep","expected_behavior":"Rejects physical sleep in offline logical work.","severity":"error","mode":"static"},
+    {"id":"dispatch-downstream-dataset-admission","expected_behavior":"Rejects downstream fixtures before admission.","severity":"error","mode":"static"},
+    {"id":"dispatch-expanded-run-wall-gate","expected_behavior":"Blocks launch without run and wall-time ceiling.","severity":"error","mode":"static"},
+    {"id":"dispatch-progress-never-authority","expected_behavior":"Ranks old progress below current authority.","severity":"error","mode":"static"}
+  ],
+  "safety": [{"id":"dispatch-preserve-dirty-work","expected_behavior":"Requires non-overlapping OWN, READ, FORBIDDEN scopes.","severity":"error","mode":"static"}],
+  "pressure": [
+    {"id":"dispatch-no-shortcut","expected_behavior":"Retains contract, recovery, evidence, & validation gates.","severity":"error","mode":"static"},
+    {"id":"dispatch-no-premature-block","expected_behavior":"Requires bounded recovery before TRUE_BLOCKER.","severity":"error","mode":"static"}
+  ],
+  "compatibility": [{"id":"dispatch-natural-delegate-wording","prompt":"Hand bounded work to a fresh executor while you supervise.","expected_skill":"dispatch","severity":"error","mode":"discovery"}]
+}

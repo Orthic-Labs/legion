@@ -1,8 +1,9 @@
 # The Legion Architecture Book
 ## Evidence-driven architecture, bounded convergence, and governed commitment — final synthesis
 
-**Status:** canonical Legion improvement set — final shape, frozen after 13 August finalization amendment
+**Status:** canonical Legion architecture design and completed implementation baseline — final shape, frozen after 13 August finalization amendment
 **Date:** 12 August 2026
+**Implementation split:** 14 August 2026 — verified and implemented work is recorded in Part XVI. Remaining execution and closure work moved to [`2026-08-14-legion-architecture-remaining-work-book.md`](2026-08-14-legion-architecture-remaining-work-book.md); completed implementation must not be rebuilt.
 **Control-closure amendment:** 13 August 2026 — frozen acceptance, reviewer non-expansion, forward workload, stop precedence, lineage budgets, integration ownership, acceptance-surface completion, seal reachability, machinery-defect isolation, and matching evals absorbed as G-A19…G-A27.
 **External-practices amendment:** 13 August 2026 — correlated execution trajectory, verified checkpoints, typed delivery deficits, stable finding identity, ownership-role and migration-cutover contracts, evidence-artifact envelopes, confidence/applicability fields, attention-budgeted concurrency, normalized retry semantics, and matching schemas/evals absorbed as extensions to existing controls.
 **Control-integrity amendment:** 13 August 2026 — Kimi/Muse gate self-validity, persistence-enforced transitions and replay, rehydration/injection defense, deterministic effect classification, process-group timeout/cancellation, behavioral loop detection, freshness lifecycle, conditional diagnosis, debt acknowledgement, dismiss-first/security triage, independent assurance packets, enforcement typing, evidence registry, negative-trigger evals, and ownership disposition absorbed as extensions to existing controls.
@@ -2746,6 +2747,25 @@ The goal is not merely fewer architecture passes. The goal is **fewer non-inform
 
 This DAG is governed by the §58D adoption ledger. Each stage has one accountable owner, explicit semantic dependencies, observable exits, and fresh evidence bound to integrated state plus its stage fingerprint. Stage numbers create no implicit edges. Schedule identity is separate from acceptance identity: changing waves or execution order without changing semantic dependencies invalidates no completed stage. Stages in one wave may overlap, but shared state and integration remain serialized; prose status and standing Definition of Done never close a stage.
 
+## Implementation record — 14 August 2026
+
+| Stage | Recorded state | Reuse boundary |
+|---|---|---|
+| S01 | `VERIFIED` | Canon, ownership, provenance, and generated-output work is complete. |
+| S02 | `VERIFIED` | Scope, convergence, admission, budget, and lifecycle doctrine is complete. |
+| S03 | `VERIFIED` | Router state, trajectory, replay, and fingerprints are complete. |
+| S04 | `VERIFIED` | Rehydration, cancellation, quiescence, and checkpoint work is complete. |
+| S05 | `VERIFIED` | Fresh independent exact-state validation passed 28/28 focused authorization/evidence cases at nested `b05bafae`, with no scoped source drift. |
+| S06 | `VERIFIED` | EDAF workflow and method modules are complete. |
+| S07 | `VERIFIED` | Fresh independent exact-state validation passed 4/4 template/lens cases at nested `b05bafae`, with no scoped source drift. |
+| S08 | `NOT_STARTED` | Moved to remaining-work book. |
+| S09 | `NOT_STARTED` | Moved to remaining-work book. |
+| S10 | `CANDIDATE` | Role-doctrine handoffs are merged and pass focused tests; dependency closure and remaining-work R1 callable skill migration parity remain. |
+| S11 | `IN_PROGRESS` | Corpus and deterministic runner are merged; 41 static cases pass and 62 runtime cases await S09. |
+| S12 | `NOT_STARTED` | Moved to remaining-work book. |
+
+Stages marked `VERIFIED` are closed. `CANDIDATE` means implementation is done and must be reused, while required independent or dependency-bound closure remains. `IN_PROGRESS` means the authored portion is done and only the named runtime portion remains. The active execution plan is the remaining-work book, not the full sequence below.
+
 | Stage | Dependencies | Wave | Default owner | Observable exit |
 |---|---|---|---|---|
 | 1 | — | Base | Legion integration owner | canon map passes; generated outputs sync; dual owners and live `Seer` references are absent |
@@ -2776,7 +2796,7 @@ The Base wave is stages 1 → 2 → 3. Subsequent waves are [4, 6], [5, 7], [8],
 11. **Add evals before expanding features** — existing suites plus canon drift, adoption governance, ADR admission, clarification convergence, control-plane budgets, control retirement, review admission, gate validity, transition/replay, rehydration injection, effect classification, process quiescence, behavioral loops, freshness, diagnosis triggers, debt acknowledgement, assurance independence, ownership disposition, and negative triggers.
 12. **Calibrate on real Legion history, a minimal ambient baseline, and one live governed workload.** Replay prior architecture revisions and incidents, then compare one bounded current workflow against the cheapest ambient path before further hardening. Keep runtime thresholds in a versioned capability/calibration table. Retire controls whose measurable coordination/tool/token cost lacks demonstrated risk or outcome benefit through §37A's proof path. Legion may prepare evidence and proposals, but current user alone decides `RETIRE | ACCEPT` unless that judgment is explicitly delegated; missing judgment blocks `VERIFIED`. Optimize for observed acceptance, quiescence after stop, delivery time, and zero duplicated effects — never document similarity or control count.
 
-Adoption is complete only when all twelve ledger stages are `VERIFIED` against one current acceptance fingerprint, all declared blockers are closed, the representative governed workload closes at its user-visible acceptance surface, and each required Stage 12 user judgment is recorded. Until then, this book remains an implementation plan, not evidence of operational adoption.
+Adoption is complete only when all twelve ledger stages are `VERIFIED` against one current acceptance fingerprint, all declared blockers are closed, the representative governed workload closes at its user-visible acceptance surface, and each required Stage 12 user judgment is recorded. Until then, adoption remains incomplete; active execution is tracked only in [`2026-08-14-legion-architecture-remaining-work-book.md`](2026-08-14-legion-architecture-remaining-work-book.md), while this book remains canonical design and completed implementation baseline.
 
 ---
 

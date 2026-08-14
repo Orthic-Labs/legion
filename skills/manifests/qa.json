@@ -1,0 +1,72 @@
+{
+  "schemaVersion": 1,
+  "id": "qa",
+  "version": "1.0.0",
+  "entry": "SKILL.md",
+  "rootUri": "legion-skill://qa/",
+  "provenance": "workspace-authored-wrapper",
+  "licenseState": "unresolved",
+  "rightsReceipt": null,
+  "profiles": {
+    "audit": {
+      "mutation": false,
+      "publish": false
+    },
+    "authoring": {
+      "mutation": true,
+      "publish": false,
+      "externalOnly": true
+    }
+  },
+  "files": [
+    {
+      "path": "SKILL.md",
+      "uri": "legion-skill://qa/SKILL.md",
+      "sourceDigest": "sha256:8937afe4bc3ea163373ec8076c50c843f493bfda236a50cbd57afa0486e2893f",
+      "outputDigest": "sha256:8937afe4bc3ea163373ec8076c50c843f493bfda236a50cbd57afa0486e2893f",
+      "transformations": []
+    },
+    {
+      "path": "evals/evals.json",
+      "uri": "legion-skill://qa/evals/evals.json",
+      "sourceDigest": "sha256:50b341c189a53ec2f285bd9a25d6ea23fc8fe95b3110ac1b3cc06f28ea704788",
+      "outputDigest": "sha256:50b341c189a53ec2f285bd9a25d6ea23fc8fe95b3110ac1b3cc06f28ea704788",
+      "transformations": []
+    },
+    {
+      "path": "references/browser-automation.md",
+      "uri": "legion-skill://qa/references/browser-automation.md",
+      "sourceDigest": "sha256:ce876da3e9f604f296351fb7e4bf43830ffc72e0ca8887b4f39f508eb69a443a",
+      "outputDigest": "sha256:ce876da3e9f604f296351fb7e4bf43830ffc72e0ca8887b4f39f508eb69a443a",
+      "transformations": []
+    },
+    {
+      "path": "references/manual.md",
+      "uri": "legion-skill://qa/references/manual.md",
+      "sourceDigest": "sha256:01be4752fc4d7debe0809fe274753ab2785824716c52a371a9d49cc0ff0ce7b7",
+      "outputDigest": "sha256:01be4752fc4d7debe0809fe274753ab2785824716c52a371a9d49cc0ff0ce7b7",
+      "transformations": []
+    },
+    {
+      "path": "scripts/qa-functional.mjs",
+      "uri": "legion-skill://qa/scripts/qa-functional.mjs",
+      "sourceDigest": "sha256:55803507ae0b0b079c25b551e0f274988b254a791d680aa53dd210e5ff0c9b23",
+      "outputDigest": "sha256:55803507ae0b0b079c25b551e0f274988b254a791d680aa53dd210e5ff0c9b23",
+      "transformations": []
+    },
+    {
+      "path": "scripts/qa-shot.mjs",
+      "uri": "legion-skill://qa/scripts/qa-shot.mjs",
+      "sourceDigest": "sha256:52804dacbf25f0de7c7bb16319d13728ffdfea0738b6a2c1b3c007c8477f90f2",
+      "outputDigest": "sha256:52804dacbf25f0de7c7bb16319d13728ffdfea0738b6a2c1b3c007c8477f90f2",
+      "transformations": []
+    },
+    {
+      "path": "scripts/qa.mjs",
+      "uri": "legion-skill://qa/scripts/qa.mjs",
+      "sourceDigest": "sha256:dc328755970961d9126a35fc2c5d8e3a7870a6c56c6fee63f36fdf122cba9298",
+      "outputDigest": "sha256:dc328755970961d9126a35fc2c5d8e3a7870a6c56c6fee63f36fdf122cba9298",
+      "transformations": []
+    }
+  ]
+}
