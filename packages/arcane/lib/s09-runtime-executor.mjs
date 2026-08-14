@@ -154,9 +154,13 @@ const FAMILY_PROBE = Object.freeze({
 
 export function stage9ProbeFor(family) { return FAMILY_PROBE[family] ?? null; }
 
+export function executeStage9Probe(id) {
+  const probe = PROBES[id];
+  if (!probe) throw new Error(`unknown S09 probe: ${id}`);
+  probe();
+  return Object.freeze({ id, status: 'PASS', reason: `S09 canonical ${id} fixture passed` });
+}
+
 export function executeStage9Fixtures() {
-  return Object.freeze(Object.keys(PROBES).sort().map((id) => {
-    PROBES[id]();
-    return Object.freeze({ id, status: 'PASS', reason: `S09 canonical ${id} fixture passed` });
-  }));
+  return Object.freeze(Object.keys(PROBES).sort().map(executeStage9Probe));
 }
