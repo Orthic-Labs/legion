@@ -57,7 +57,7 @@ function namingFixture() {
   const fixture = mkdtempSync(join(tmpdir(), 'legion-naming-adversarial-'));
   const files = [
     'config/naming-registry.json', 'config/naming-legacy-allowlist.json', 'README.md', 'package.json', 'MANIFEST.package.json',
-    '.claude-plugin/plugin.json', '.codex-plugin/plugin.json', 'packages/oracle/index.mjs', 'lib/roster/index.mjs',
+    '.claude-plugin/plugin.json', '.codex-plugin/plugin.json', 'packages/oracle/index.mjs', 'lib/roster/index.mjs', 'lib/cli/commands/doctor.mjs',
     'packages/context/lib/context.mjs', 'packages/arcane/lib/architecture-event-store.mjs', 'packages/arcane/lib/authority-binding-store.mjs',
   ];
   for (const path of files) {
@@ -73,6 +73,9 @@ test('naming checker rejects unclassified active filenames, NUL source, and miss
     mkdirSync(join(fixture, 'lib', 'naming'), { recursive: true });
     writeFileSync(join(fixture, 'lib', 'naming', 'seer-runtime.mjs'), 'export const active = true;\n');
     writeFileSync(join(fixture, 'active.mjs'), Buffer.from('export const value = "\0seer";\n'));
+    writeFileSync(join(fixture, 'neutral-nul.mjs'), Buffer.from('export const value = "\0neutral";\n'));
+    const doctorPath = join(fixture, 'lib', 'cli', 'commands', 'doctor.mjs');
+    writeFileSync(doctorPath, `${readFileSync(doctorPath, 'utf8')}\n// seer\n`);
     const manifestPath = join(fixture, 'MANIFEST.package.json');
     const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'));
     manifest.allowlistedTopLevel = manifest.allowlistedTopLevel.filter((path) => path !== 'packages/oracle/');
@@ -81,6 +84,8 @@ test('naming checker rejects unclassified active filenames, NUL source, and miss
     assert.equal(report.status, 'fail');
     assert.ok(report.unclassified.some(({ path, reason }) => path === 'lib/naming/seer-runtime.mjs' && reason === 'unclassified legacy filename'));
     assert.ok(report.unclassified.some(({ path }) => path === 'active.mjs'));
+    assert.ok(report.unclassified.some(({ path, reason }) => path === 'neutral-nul.mjs' && reason === 'active source cannot be decoded for naming scan'));
+    assert.ok(report.unclassified.some(({ path, reason }) => path === 'lib/cli/commands/doctor.mjs' && reason.includes('occurrence count differs')));
     assert.ok(report.unclassified.some(({ path, reason }) => path === 'MANIFEST.package.json' && reason.includes('omits canonical Oracle package')));
   } finally { rmSync(fixture, { recursive: true, force: true }); }
 });
