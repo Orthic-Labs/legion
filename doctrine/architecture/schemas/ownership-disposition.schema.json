@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "ownership-disposition.v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "capability", "roles", "mismatch", "disposition", "trigger", "acceptance_proof"],
+  "properties": {
+    "schema": {"const": "ownership-disposition.v1"},
+    "capability": {"type": "string", "minLength": 1},
+    "roles": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["runtime_owner", "first_fix_owner", "canonical_owner", "integration_owner", "shared_state_writer", "evidence_producer"],
+      "properties": {
+        "runtime_owner": {"type": "string", "minLength": 1},
+        "first_fix_owner": {"type": "string", "minLength": 1},
+        "canonical_owner": {"type": "string", "minLength": 1},
+        "integration_owner": {"type": "string", "minLength": 1},
+        "shared_state_writer": {"type": "string", "minLength": 1},
+        "evidence_producer": {"type": "string", "minLength": 1}
+      }
+    },
+    "mismatch": {"type": ["string", "null"]},
+    "disposition": {"enum": ["KEEP", "TRANSFER", "DELETE", "DEFER"]},
+    "trigger": {"type": "string", "minLength": 1},
+    "acceptance_proof": {"type": "string", "minLength": 1}
+  }
+}
