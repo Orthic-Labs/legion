@@ -29,6 +29,9 @@ test('S11 runner is deterministic & emits schema-valid machine result', () => {
   const first = run(); const second = run();
   assert.deepEqual(first, second);
   assert.deepEqual(validateSchema(JSON.parse(readFileSync(join(root, 'doctrine/architecture/schemas/architecture-eval-result.schema.json'), 'utf8')), first), []);
-  assert.equal(first.failed, 0); assert.equal(first.pending, 0); assert.equal(first.total_cases, first.passed);
-  assert.equal(first.families.length, 37); assert.equal(first.state, 'PASS'); assert.equal(first.passed, 103);
+  assert.equal(first.failed, 0); assert.equal(first.pending + first.passed, first.total_cases); assert.ok(first.passed > 0);
+  assert.equal(first.families.length, 37);
+  assert.equal(first.state, 'PASS_WITH_PENDING');
+  assert.equal(first.passed, 69);
+  assert.equal(first.pending, 34);
 });

@@ -41,6 +41,8 @@ import { AUTHORITY_PROOF_FIELDS } from './authority-invocation-proof.mjs';
 import { ENFORCEMENT_RANK } from './policy.mjs';
 import { verifyAssurance } from './high-risk-assurance.mjs';
 import { findCurrentAdvisoryCertification } from './advisory-certification.mjs';
+import { consumeCurrentUserRiskAcceptance, verifyCurrentUserRiskAcceptance } from './current-user-risk-acceptance.mjs';
+import { loadCompletionEvidence } from './completion-evidence.mjs';
 
 function healthOfRecord(record) {
   const auth = record?.authentication;
@@ -75,6 +77,43 @@ function deriveFromReceipts(records) {
   };
 }
 
+function verifyRequiredAcceptanceEvidence({ evidenceRegistry, acceptanceProofs, integratedState, latestMaterialChange, now }) {
+  if (!evidenceRegistry || typeof evidenceRegistry.entries !== 'function' || typeof evidenceRegistry.verify !== 'function') {
+    return decision({ allowed: false, code: 'ARC_EVIDENCE_INSUFFICIENT', message: 'completion requires Arcane-owned acceptance evidence registry', detail: { missingEvidence: ['acceptance-evidence-registry'] } });
+  }
+  if (integratedState === null || integratedState === undefined) {
+    return decision({ allowed: false, code: 'ARC_EVIDENCE_INSUFFICIENT', message: 'completion requires exact integrated-state identity', detail: { missingEvidence: ['integrated-state-identity'] } });
+  }
+  if (!latestMaterialChange || !Number.isFinite(Date.parse(latestMaterialChange))) {
+    return decision({ allowed: false, code: 'ARC_EVIDENCE_INSUFFICIENT', message: 'completion requires latest material-change identity for freshness validation', detail: { missingEvidence: ['latest-material-change'] } });
+  }
+  const entries = evidenceRegistry.entries();
+  if (!entries.length) {
+    return decision({ allowed: false, code: 'ARC_EVIDENCE_INSUFFICIENT', message: 'completion requires registered acceptance evidence', detail: { missingEvidence: ['acceptance-proof'] } });
+  }
+  if (!Array.isArray(acceptanceProofs) || acceptanceProofs.length === 0) {
+    return decision({ allowed: false, code: 'ARC_EVIDENCE_INSUFFICIENT', message: 'completion requires fresh acceptance proofs', detail: { missingEvidence: entries.map((entry) => entry.acceptanceId) } });
+  }
+  const proofs = new Map();
+  for (const proof of acceptanceProofs) {
+    if (!proof?.acceptanceId || proofs.has(proof.acceptanceId)) {
+      return decision({ allowed: false, code: 'ARC_BINDING_MISMATCH', message: 'completion acceptance proofs must contain one proof per acceptance id', detail: { acceptanceId: proof?.acceptanceId ?? null } });
+    }
+    proofs.set(proof.acceptanceId, proof);
+  }
+  const requiredIds = new Set(entries.map((entry) => entry.acceptanceId));
+  const missing = [...requiredIds].filter((id) => !proofs.has(id));
+  const unexpected = [...proofs.keys()].filter((id) => !requiredIds.has(id));
+  if (missing.length || unexpected.length) {
+    return decision({ allowed: false, code: 'ARC_EVIDENCE_INSUFFICIENT', message: 'completion proofs must exactly cover registered acceptance evidence', detail: { missing, unexpected } });
+  }
+  for (const [acceptanceId, proof] of proofs) {
+    const current = evidenceRegistry.verify(acceptanceId, proof, { integratedState, latestMaterialChange, now });
+    if (!current.allowed) return current;
+  }
+  return decision({ allowed: true, message: 'registered acceptance evidence is fresh for exact integrated state', detail: { acceptanceIds: [...requiredIds] } });
+}
+
 /**
  * @param {object} args
  * @param {string} args.runId
@@ -88,7 +127,7 @@ function deriveFromReceipts(records) {
  *   the union failed; on success, `detail.levelsChecked` lists every level
  *   the union required.
  */
-export function evaluateCompletion({ runId, taskId = null, claimedLevel, touchedPaths = [], contractId = null, contractVersion = null, contractDigest = null, sourceRevision = null, completionClaim = null }, { policy, receiptStore, budgetStore = null, assuranceStore = null, keyRing = null, authorityBindingStore = null, currentProof = null, binding = null, execution = null, evidenceRegistry = null, acceptanceProofs = [], integratedState = null, latestMaterialChange = null, now = new Date() }) {
+export function evaluateCompletion({ runId, taskId = null, claimedLevel, touchedPaths = [], contractId = null, contractVersion = null, contractDigest = null, sourceRevision = null, completionClaim = null }, { policy, receiptStore, ledgerStore = null, budgetStore = null, assuranceStore = null, keyRing = null, authorityBindingStore = null, currentProof = null, binding = null, execution = null, authorityProofIssuer = null, integratedState = null, latestMaterialChange = null, requireAcceptanceEvidence = false, now = new Date() }) {
   // Budget state comes only from Arcane's persisted projection. Completion
   // never accepts a caller-authored elapsed time or retry fingerprint.
   if (budgetStore && contractId && Number.isInteger(contractVersion) && taskId && typeof budgetStore.inspect === 'function') {
@@ -106,11 +145,43 @@ export function evaluateCompletion({ runId, taskId = null, claimedLevel, touched
   const records = receiptStore.list({ runId });
   const { evidenceClasses, staleEvidenceCount, enforcementHealth } = deriveFromReceipts(records);
 
-  if (evidenceRegistry) {
-    for (const proof of acceptanceProofs) {
-      const current = evidenceRegistry.verify(proof.acceptanceId, proof, { integratedState, latestMaterialChange, now });
-      if (!current.allowed) return current;
-    }
+  // Receipt totals prove only that checks ran. Every completion level is
+  // additionally bound to the registered acceptance surface & current exact
+  // integrated state; callers cannot omit this packet to downgrade review.
+  // A genuine completion is still a completion when it claims no policy
+  // level (and therefore has no `levels` entries).  Its acceptance surface
+  // must be current all the same; only a non-completion Stop avoids this
+  // path by never requesting acceptance enforcement.
+  if (requireAcceptanceEvidence) {
+    // Never accept a caller-built registry/proof list. Reconstruct it from
+    // authenticated Oracle receipts using this exact execution binding.
+    const trustedExecution = execution && execution.runId === runId && execution.taskId === taskId
+      && execution.contractId === contractId && execution.contractVersion === contractVersion
+      && execution.contractDigest === contractDigest && execution.sourceRevision === sourceRevision
+      ? execution : null;
+    const trusted = trustedExecution && keyRing
+      ? loadCompletionEvidence({ receiptStore, keyRing, authorityProofIssuer, execution: trustedExecution, integratedState, latestMaterialChange, now })
+      : null;
+    const acceptance = trusted
+      ? verifyRequiredAcceptanceEvidence({ ...trusted, now })
+      : decision({ allowed: false, code: 'ARC_EVIDENCE_INSUFFICIENT', message: 'completion requires authenticated execution-bound Oracle evidence', detail: { missingEvidence: ['trusted-completion-evidence'] } });
+    if (!acceptance.allowed) return acceptance;
+  }
+
+  // A material risk is explicit: ordinary completion claims retain existing
+  // acceptance-evidence behavior. Verify here; consume only after all gates.
+  const materialRiskExpected = completionClaim && Object.hasOwn(completionClaim, 'riskDigest') ? {
+    riskId: completionClaim.riskId,
+    riskDigest: completionClaim.riskDigest,
+    acceptanceLedgerFingerprint: completionClaim.acceptanceLedgerFingerprint,
+    integratedStateIdentity: completionClaim.integratedStateIdentity,
+    sourceSetDigest: completionClaim.sourceSetDigest,
+    userPromptEventDigest: completionClaim.userPromptEventDigest,
+    challengeToken: completionClaim.challengeToken,
+  } : null;
+  if (materialRiskExpected) {
+    const acceptance = verifyCurrentUserRiskAcceptance(materialRiskExpected, { ledgerStore, receiptStore, keyRing, now });
+    if (!acceptance.allowed) return acceptance;
   }
 
   let advisoryCertification = null;
@@ -185,6 +256,11 @@ export function evaluateCompletion({ runId, taskId = null, claimedLevel, touched
         enforcementHealth: result.enforcementHealth ?? enforcementHealth,
       });
     }
+  }
+
+  if (materialRiskExpected) {
+    const consumed = consumeCurrentUserRiskAcceptance(materialRiskExpected, { ledgerStore, receiptStore, keyRing, now });
+    if (!consumed.allowed) return consumed;
   }
 
   return decision({

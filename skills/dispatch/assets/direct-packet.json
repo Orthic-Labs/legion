@@ -2,14 +2,17 @@
   "schemaVersion": 1,
   "kind": "legion-authority-dispatch",
   "packetType": "direct",
-  "sourceRevision": "HEAD",
-  "promptDigest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+  "repositoryRoot": "REPLACE_WITH_EXISTING_REPOSITORY_ROOT",
+  "sourceRevision": "REPLACE_WITH_IMMUTABLE_GIT_SHA",
+  "sourceArtifact": "REPLACE_WITH_SOURCE_ARTIFACT_IF_USING_CONTENT_DIGEST",
+  "promptArtifact": "REPLACE_WITH_CAPTURED_PROMPT_ARTIFACT",
+  "promptDigest": "sha256:REPLACE_WITH_REAL_PROMPT_SHA256",
   "modelRouting": {
     "modelTier": "MID",
     "workerProfile": "standard",
     "routingRationale": "Bounded independent implementation"
   },
-  "objective": "Complete declared work within exact worker scopes.",
+  "objective": "Non-authoritative template: replace every example value before validation.",
   "authority": [
     "AGENTS.md",
     "task-specific source"

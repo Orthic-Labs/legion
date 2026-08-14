@@ -24,7 +24,9 @@ export const ARCHITECTURE_EVENT_TYPES = Object.freeze([
   'DOWNSTREAM_ACKNOWLEDGEMENT_RECORDED', 'OWNERSHIP_DISPOSITION_RECORDED',
   'MIGRATION_CUTOVER_RECORDED', 'ARTIFACT_ENVELOPE_RECORDED',
   'EVIDENCE_LIFECYCLE_RECORDED', 'EFFECT_RECORDED', 'EFFECT_DENIED',
-  'TERMINAL_STATE_RECORDED', 'RECOVERY_RECORDED', 'SUPERSESSION_RECORDED',
+  'CANCEL_RECORDED', 'TERMINAL_STATE_RECORDED', 'RECOVERY_RECORDED',
+  'SUPERSESSION_RECORDED', 'ARCHITECTURE_REVISION_RECORDED',
+  'CONVERGENCE_REVISION_RECORDED',
 ]);
 
 const PROPOSAL_FIELDS = new Set(['objective_lineage_id', 'intent_epoch', 'execution_id', 'repository_id', 'actor_role', 'phase', 'event_type', 'payload', 'acceptance_ids', 'decision_ids', 'finding_ids', 'input_fingerprint', 'output_refs', 'checkpoint_ref', 'cost_delta', 'retry_class', 'terminal_reason', 'privacy_class']);
@@ -59,8 +61,6 @@ function validateProposal(proposal) {
   for (const field of ['objective_lineage_id', 'execution_id', 'repository_id', 'event_type']) nonEmpty(proposal[field], field);
   if (!Number.isInteger(proposal.intent_epoch) || proposal.intent_epoch < 1) fail('ARC_SCHEMA_INVALID', 'intent_epoch must be a positive integer');
   if (!ARCHITECTURE_EVENT_TYPES.includes(proposal.event_type) || !ACTOR_ROLES.has(proposal.actor_role) || !PHASES.has(proposal.phase) || !RETRY_CLASSES.has(proposal.retry_class) || !PRIVACY_CLASSES.has(proposal.privacy_class)) fail('ARC_SCHEMA_INVALID', 'event proposal contains an illegal closed value');
-  if (proposal.event_type === 'EFFECT_DENIED') fail('ARC_EFFECT_CLASS_UNAUTHORIZED', 'denied effects do not enter accepted history');
-  if (proposal.event_type === 'RECOVERY_RECORDED') fail('ARC_SCHEMA_INVALID', 'recovery runtime is outside Stage 3');
   if (!proposal.payload || typeof proposal.payload !== 'object' || Array.isArray(proposal.payload)) fail('ARC_SCHEMA_INVALID', 'payload must be an object');
   for (const field of ['acceptance_ids', 'decision_ids', 'finding_ids', 'output_refs']) if (!Array.isArray(proposal[field])) fail('ARC_SCHEMA_INVALID', `${field} must be an array`);
   if (!proposal.cost_delta || typeof proposal.cost_delta !== 'object' || Array.isArray(proposal.cost_delta)) fail('ARC_SCHEMA_INVALID', 'cost_delta must be an object');
@@ -103,7 +103,7 @@ export class ArchitectureEventStore {
     const events = acceptedEvents(this.#receiptStore, objective_lineage_id);
     const { state, predecessor } = replayEvents(events, initial_state, this.#keyRing);
     this.#initialStates.set(objective_lineage_id, clone(initial_state));
-    return Object.freeze({ schema: 'architecture-replay-result.v1', state, state_fingerprint: state.state_fingerprint, last_sequence: events.length, last_event_digest: predecessor, event_count: events.length });
+    return Object.freeze({ schema: 'architecture-replay-result.v1', state, state_fingerprint: state.state_fingerprint, last_sequence: events.length, last_event_digest: predecessor, event_count: events.length, authority_minted: false });
   }
   accept(proposal, { expected_state_fingerprint } = {}) {
     try {

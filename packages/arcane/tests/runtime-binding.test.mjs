@@ -13,6 +13,8 @@ import { evaluateStopShape } from '../../../hooks/stop-shape.mjs';
 import { b5Contract, seedStore } from './fixtures/runtime-binding-contract.mjs';
 import { SessionBindingStore } from '../lib/session-binding.mjs';
 import { AuthorityBindingStore } from '../lib/authority-binding-store.mjs';
+import { ArchitectureEventStore } from '../lib/architecture-event-store.mjs';
+import { createHostArchitectureState } from '../lib/continuity.mjs';
 
 const CODEX_ADAPTER = fileURLToPath(new URL('../host/codex-adapter.mjs', import.meta.url));
 
@@ -68,6 +70,26 @@ test('EC-603 v7: fresh authenticated ingress accepts & creates a ledger record w
     assert.equal(result.allowed, true, result.code);
     assert.equal(ledger.observedAuthority, 'alchemist');
     assert.equal(Object.hasOwn(ledger, 'authority'), false);
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
+test('host ingress routes, stores, replays, & consumes an ambient lifecycle without injected architecture state', () => {
+  const root = mkdtempSync(join(tmpdir(), 'arcane-host-architecture-'));
+  const workspace = join(root, 'workspace'); const stateRoot = join(root, 'state'); const keyDir = join(root, 'keys'); const sessionId = 'architecture-session';
+  try {
+    mkdirSync(workspace, { recursive: true }); mkdirSync(keyDir, { recursive: true }); writeFileSync(join(keyDir, 'k1.key'), 'a'.repeat(64));
+    const runtime = createHostRuntime({ adapter: { name: 'codex', normalize: normalizeCodexEvent, mapPreEffect: mapCodexPreEffect }, workspace, keyDir, stateRoot });
+    const base = { cwd: workspace, session_id: sessionId };
+    assert.equal(runtime.handle({ ...base, hook_event_name: 'SessionStart' }).allowed, true);
+    assert.equal(runtime.handle({ ...base, hook_event_name: 'PreToolUse', tool_name: 'Write', tool_input: { file_path: 'src/app.mjs' }, tool_use_id: 'architecture-tool' }).allowed, true);
+    assert.equal(runtime.handle({ ...base, hook_event_name: 'Stop' }).allowed, true);
+    const store = new ArchitectureEventStore({ receiptStore: runtime.stores.receiptStore, keyRing: runtime.stores.keyRing, keyId: runtime.stores.keyRing.activeKeyId() });
+    const initial = createHostArchitectureState({ workspace, sessionId });
+    const replay = store.replay({ objective_lineage_id: initial.task.objective_lineage_id, initial_state: initial });
+    assert.equal(replay.state.context.route.depth, 'D0');
+    assert.equal(replay.state.task.architecture_status, 'TAILORED');
+    assert.equal(replay.state.execution.episode_state, 'SUCCEEDED', JSON.stringify(store.events({ objective_lineage_id: initial.task.objective_lineage_id }).map((event) => event.event_type)));
+    assert.equal(replay.event_count, 5);
   } finally { rmSync(root, { recursive: true, force: true }); }
 });
 

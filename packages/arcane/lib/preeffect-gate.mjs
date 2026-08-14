@@ -79,15 +79,12 @@ export function pathMatches(pattern, target) {
   if (t.split('/').includes('..')) return false;
   let p = normalizePath(pattern);
   if (p.endsWith('/')) p = `${p}**`;
-
-  const rx = p
-    .split(/(\*\*|\*)/)
-    .map((part) => {
-      if (part === '**') return '.*';
-      if (part === '*') return '[^/]*';
-      return part.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    })
-    .join('');
+  const segments = p.split('/');
+  const rx = segments.map((segment, index) => {
+    const separator = index && segments[index - 1] !== '**' ? '/' : '';
+    if (segment === '**') return `${separator}${index === segments.length - 1 ? '.*' : '(?:[^/]+/)*'}`;
+    return `${separator}${segment.split(/(\*)/).map((part) => part === '*' ? '[^/]*' : part.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('')}`;
+  }).join('');
   return new RegExp(`^${rx}$`).test(t);
 }
 

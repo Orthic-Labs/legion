@@ -15,9 +15,16 @@ import { ReceiptStore } from '../packages/arcane/lib/receipt-store.mjs';
 import { SessionBindingStore } from '../packages/arcane/lib/session-binding.mjs';
 import { loadHostKeyRing } from '../packages/arcane/lib/keys.mjs';
 import { digestValue } from '../packages/arcane/lib/canonical.mjs';
-import { signRecord } from '../packages/arcane/lib/receipt-auth.mjs';
+import { signRecord, EVIDENCE_RECEIPT_BOUND_FIELDS } from '../packages/arcane/lib/receipt-auth.mjs';
 import { BudgetGovernanceStore, BUDGET_BOUND_FIELDS } from '../packages/arcane/lib/budget-governance-store.mjs';
 import { TaskBudgetSealStore } from '../packages/arcane/lib/task-budget-seal-store.mjs';
+import { mintId } from '../packages/arcane/lib/ids.mjs';
+import { completionIntegratedStateForRepositories, latestScopedMaterialChange } from '../packages/arcane/lib/completion-state.mjs';
+import { loadCompletionEvidence } from '../packages/arcane/lib/completion-evidence.mjs';
+import { evaluateCompletion } from '../packages/arcane/lib/completion-gate.mjs';
+import { loadPolicy, PolicyEngine } from '../packages/arcane/lib/policy.mjs';
+import { HostEventLedger } from '../packages/arcane/lib/host-event-ledger.mjs';
+import { AuthorityInvocationProofIssuer } from '../packages/arcane/lib/authority-invocation-proof.mjs';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
 const BIN = fileURLToPath(new URL('../bin/legion.mjs', import.meta.url));
@@ -212,6 +219,7 @@ function runDir() {
   spawnSync('git', ['config', 'user.email', 'test@example.test'], { cwd: dir });
   spawnSync('git', ['config', 'user.name', 'Test'], { cwd: dir });
   writeFileSync(join(dir, 'tracked.txt'), 'base\n');
+  writeFileSync(join(dir, '.gitignore'), '.audit/\n');
   spawnSync('git', ['add', '.'], { cwd: dir });
   spawnSync('git', ['commit', '-m', 'base'], { cwd: dir });
   mkdirSync(testKeyDir(dir), { recursive: true });
@@ -261,6 +269,25 @@ function appendMatchingArchiveCloseReceipt(dir, sessionId, binding) {
     finalClaimState: 'passed', completionCode: 'ARC_ARCHIVE', enforcementHealth: 'not-applicable', deliveryDisposition: 'archive',
     deliveryEvidence: binding.delivery.repositories.map((repo) => ({ repository: repo.root, baselineTree: repo.snapshotTree, leaseToken: repo.leaseToken ?? null })),
   });
+}
+
+function appendCurrentOracleAcceptanceEvidence(dir, binding, contract, receipts = new ReceiptStore({ root: join(dir, '.audit', 'arcane', 'receipts') })) {
+  const keys = loadHostKeyRing({ dir: testKeyDir(dir) });
+  const ledger = new HostEventLedger({ root: join(dir, '.audit', 'arcane', 'host-events'), keyRing: keys, keyId: keys.activeKeyId() });
+  const event = ledger.append({ eventId: `oracle-evidence-${binding.runId}`, adapter: 'codex', eventType: 'UserPromptSubmit', sessionId: 'oracle-evidence-session', binding, sourceRevision: contract.sourceRevision, observedAuthority: 'oracle', payload: {} });
+  const issuer = new AuthorityInvocationProofIssuer({ root: join(dir, '.audit', 'arcane', 'authority-invocations'), keyRing: keys, keyId: keys.activeKeyId(), ledgerStore: ledger });
+  const authorityProof = issuer.issue({ ledger: event, binding: { ...binding, sessionId: 'oracle-evidence-session' }, purpose: 'completion-claim', role: 'oracle' }).proof;
+  const repositories = (binding.delivery?.repositories?.map((repo) => ({ cwd: repo.root, scope: contract.scope.own })) ?? [{ cwd: dir, scope: contract.scope.own }]);
+  const latestMaterialChange = repositories.map(({ cwd, scope }) => latestScopedMaterialChange(receipts, binding.runId, scope, cwd)).filter(Boolean).sort().at(-1) ?? null;
+  const record = {
+    schemaVersion: 1, kind: 'legion-evidence-capability-receipt', evidenceId: mintId('evidenceReceipt'), runId: binding.runId, taskId: binding.taskId, contractId: binding.contractId,
+    producerAuthority: 'oracle', capability: 'oracle-acceptance-observation',
+    observation: { acceptanceId: 'AC-1', requirementId: 'R-1', productionSymbol: 'tracked.txt#live', liveConsumer: 'run close', acceptanceSurface: 'node --test', integratedState: completionIntegratedStateForRepositories(repositories), latestMaterialChange, contractVersion: binding.contractVersion, contractDigest: binding.contractDigest, sourceRevision: contract.sourceRevision, authorityProofDigest: digestValue(authorityProof), validUntil: '2099-01-01T00:00:00.000Z' },
+    evidenceClass: 'deterministic', authentication: null, replayDefense: { nonce: `evidence-${binding.runId}`, sequence: 1, freshnessWindowSeconds: 3600, freshAt: new Date().toISOString() }, sourceRevision: contract.sourceRevision, dependsOn: [], stale: false, observedAt: new Date().toISOString(),
+  };
+  record.authentication = { ...signRecord(record, { keyRing: keys, keyId: keys.activeKeyId(), boundFields: EVIDENCE_RECEIPT_BOUND_FIELDS }), verificationMethod: 'capability-signature', perMessage: true };
+  receipts.append(record);
+  return receipts;
 }
 
 test('run open mints a fresh binding and stamps contract/task', async () => {
@@ -346,6 +373,62 @@ test('run open rejects active delivery repository or mode changes without new le
     assert.equal(other.exitCode, EXIT.INCOMPLETE); assert.equal(mode.exitCode, EXIT.INCOMPLETE);
     assert.equal(existsSync(join(a.dir, '.audit', 'arcane', 'delivery', 'lease.json')), true); assert.equal(existsSync(join(b.dir, '.audit', 'arcane', 'delivery', 'lease.json')), false);
   } finally { a.cleanup(); b.cleanup(); }
+});
+
+test('completion evidence command persists a reloadable Oracle proof that permits run close', async () => {
+  const { dir, cleanup } = runDir();
+  const remote = mkdtempSync(join(tmpdir(), 'legion-run-remote-'));
+  try {
+    const contract = b5Contract(); contract.scope.own = ['tracked.txt']; contract.acceptanceCriteria = [{ id: 'AC-1', statement: 'live behavior' }];
+    spawnSync('git', ['init', '--bare'], { cwd: remote });
+    spawnSync('git', ['remote', 'add', 'origin', remote], { cwd: dir });
+    spawnSync('git', ['push', '-u', 'origin', 'main'], { cwd: dir });
+    seedCurrent(dir, contract);
+    await runCli(['run', 'open', '--contract', 'EC-5', '--version', '1', '--task', 'T-1', '--session', 'oracle-session'], { stdout: captureStream(), stderr: captureStream(), env: {}, cwd: dir });
+    const binding = new SessionBindingStore({ root: join(dir, '.audit', 'arcane', 'session-bindings') }).getBinding('oracle-session');
+    const receipts = new ReceiptStore({ root: join(dir, '.audit', 'arcane', 'receipts') });
+    receipts.append({ schemaVersion: 1, kind: 'legion-effect-receipt', receiptId: 'effect-1', runId: binding.runId, taskId: 'T-1', contractId: 'EC-5', observed: { target: 'tracked.txt' }, observedAt: '2026-08-14T11:00:00.000Z', authentication: { verificationMethod: 'capability-signature', perMessage: true } });
+    const keys = loadHostKeyRing({ dir: testKeyDir(dir) });
+    const ledger = new HostEventLedger({ root: join(dir, '.audit', 'arcane', 'host-events'), keyRing: keys, keyId: keys.activeKeyId() });
+    ledger.append({ eventId: `oracle-command-${binding.runId}`, adapter: 'codex', eventType: 'UserPromptSubmit', sessionId: 'oracle-session', binding, sourceRevision: contract.sourceRevision, observedAuthority: 'oracle', payload: {} });
+    const evidenceFile = join(dir, 'oracle-evidence.json');
+    writeFileSync(evidenceFile, JSON.stringify({ evidence: { acceptanceId: 'AC-1', requirementId: 'R-1', productionSymbol: 'tracked.txt#live', liveConsumer: 'run close', acceptanceSurface: 'node --test', validUntil: '2099-01-01T00:00:00.000Z' } }));
+    const evidenceResult = await runCli(['completion', 'evidence', '--file', evidenceFile, '--session', 'oracle-session'], { stdout: captureStream(), stderr: captureStream(), env: {}, cwd: dir });
+    assert.equal(evidenceResult.exitCode, EXIT.PASS);
+    const replay = await runCli(['completion', 'evidence', '--file', evidenceFile, '--session', 'oracle-session'], { stdout: captureStream(), stderr: captureStream(), env: {}, cwd: dir });
+    assert.equal(replay.exitCode, EXIT.INCOMPLETE, 'an Oracle completion proof is one-use');
+    unlinkSync(evidenceFile);
+    const execution = { runId: binding.runId, taskId: binding.taskId, contractId: binding.contractId, contractVersion: binding.contractVersion, contractDigest: binding.contractDigest, sourceRevision: contract.sourceRevision, acceptanceCriteria: contract.acceptanceCriteria };
+    const repositories = binding.delivery.repositories.map((repo) => ({ cwd: repo.root, scope: contract.scope.own }));
+    const latest = repositories.map(({ cwd, scope }) => latestScopedMaterialChange(receipts, binding.runId, scope, cwd)).filter(Boolean).sort().at(-1) ?? null;
+    const reloadedKeys = loadHostKeyRing({ dir: testKeyDir(dir) }); const reloadedLedger = new HostEventLedger({ root: join(dir, '.audit', 'arcane', 'host-events'), keyRing: reloadedKeys, keyId: reloadedKeys.activeKeyId() }); const authorityProofIssuer = new AuthorityInvocationProofIssuer({ root: join(dir, '.audit', 'arcane', 'authority-invocations'), keyRing: reloadedKeys, keyId: reloadedKeys.activeKeyId(), ledgerStore: reloadedLedger });
+    const loadedEvidence = loadCompletionEvidence({ receiptStore: receipts, keyRing: reloadedKeys, authorityProofIssuer, execution, integratedState: completionIntegratedStateForRepositories(repositories), latestMaterialChange: latest });
+    assert.equal(loadedEvidence.acceptanceProofs.length, 1);
+    const directCompletion = evaluateCompletion({ runId: binding.runId, taskId: binding.taskId, claimedLevel: 'signoff', touchedPaths: [], contractId: binding.contractId, contractVersion: binding.contractVersion, contractDigest: binding.contractDigest, sourceRevision: contract.sourceRevision }, { policy: new PolicyEngine(loadPolicy()), receiptStore: receipts, keyRing: reloadedKeys, authorityProofIssuer, execution, requireAcceptanceEvidence: true, integratedState: loadedEvidence.integratedState, latestMaterialChange: loadedEvidence.latestMaterialChange });
+    assert.equal(directCompletion.allowed, true, JSON.stringify(directCompletion));
+    const closeErr = captureStream(); const close = await runCli(['run', 'close', '--session', 'oracle-session'], { stdout: captureStream(), stderr: closeErr, env: {}, cwd: dir }); assert.equal(close.exitCode, EXIT.PASS, closeErr.buf);
+  } finally { cleanup(); rmSync(remote, { recursive: true, force: true }); }
+});
+
+test('run close recovery revalidates changed completion state before replaying a terminal receipt', async () => {
+  const { dir, cleanup } = runDir();
+  try {
+    const contract = b5Contract(); contract.scope.own = ['tracked.txt']; contract.acceptanceCriteria = [{ id: 'AC-1', statement: 'live behavior' }];
+    seedCurrent(dir, contract);
+    await runCli(['run', 'open', '--contract', 'EC-5', '--version', '1', '--task', 'T-1', '--session', 'stale-recovery'], { stdout: captureStream(), stderr: captureStream(), env: {}, cwd: dir });
+    const binding = new SessionBindingStore({ root: join(dir, '.audit', 'arcane', 'session-bindings') }).getBinding('stale-recovery');
+    const receipts = new ReceiptStore({ root: join(dir, '.audit', 'arcane', 'receipts') });
+    receipts.append({ schemaVersion: 1, kind: 'legion-effect-receipt', receiptId: 'stale-effect', runId: binding.runId, taskId: 'T-1', contractId: 'EC-5', observed: { target: 'tracked.txt' }, observedAt: '2026-08-14T11:00:00.000Z', authentication: { verificationMethod: 'capability-signature', perMessage: true } });
+    appendCurrentOracleAcceptanceEvidence(dir, binding, contract, receipts);
+    receipts.append({ schemaVersion: 1, kind: 'legion-run-close-receipt', sessionId: 'stale-recovery', runId: binding.runId, taskId: binding.taskId, contractId: binding.contractId, contractVersion: binding.contractVersion, contractDigest: binding.contractDigest, finalClaimState: 'passed', completionCode: null, enforcementHealth: 'strong', deliveryDisposition: 'complete', deliveryEvidence: binding.delivery.repositories.map((repo) => ({ repository: repo.root, baselineTree: repo.snapshotTree, leaseToken: repo.leaseToken ?? null })) });
+    writeFileSync(join(dir, 'tracked.txt'), 'changed after acceptance evidence\n');
+    const stderr = captureStream();
+    const result = await runCli(['run', 'close', '--session', 'stale-recovery'], { stdout: captureStream(), stderr, env: {}, cwd: dir });
+    assert.equal(result.exitCode, EXIT.INCOMPLETE);
+    assert.match(stderr.buf, /ARC_EVIDENCE_/);
+    assert.equal(new SessionBindingStore({ root: join(dir, '.audit', 'arcane', 'session-bindings') }).getBinding('stale-recovery').contractId, 'EC-5');
+    assert.equal(existsSync(join(dir, '.audit', 'arcane', 'delivery', 'lease.json')), true);
+  } finally { cleanup(); }
 });
 
 test('run close retains its binding when completion evidence blocks', async () => {

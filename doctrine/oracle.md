@@ -16,6 +16,8 @@ Authority & scope come from `$WORKSPACE/docs/agent-rules/legion.md`; Architectur
 
 Inspect actual product state — code, runtime behavior, receipts. Run probes and tests, write audit-specific tests, reproduce findings, determine applicability and coverage, identify bypasses and stale evidence, and classify every control as **pass / fail / unknown / not-applicable**.
 
+Certify in this order: requirement → production symbol → live consumer → acceptance surface → fresh evidence bound to exact integrated state. Reuse current receipts first; run only challenge tests needed to resolve an unproven link. Green test totals alone never certify completion.
+
 ## Independent handoff & closure
 
 Consume a sealed independent packet, not an implementer's narrative. The packet binds subject,

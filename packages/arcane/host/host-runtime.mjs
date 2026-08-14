@@ -31,11 +31,15 @@ import { createDecisionEnvelope } from '../lib/decision-envelope.mjs';
 import { DenialCircuit, applyDenialCircuit } from '../lib/denial-circuit.mjs';
 import { BudgetGovernanceStore } from '../lib/budget-governance-store.mjs';
 import { TaskBudgetSealStore } from '../lib/task-budget-seal-store.mjs';
+import { ArchitectureEventStore } from '../lib/architecture-event-store.mjs';
+import { consumeHostArchitectureLifecycle } from '../lib/continuity.mjs';
+import { completionIntegratedStateForRepositories, latestScopedMaterialChange } from '../lib/completion-state.mjs';
 
 const POLICY_INJECT_EVENTS = new Set(['SessionStart', 'SubagentStart', 'UserPromptSubmit', 'PostCompact']);
 
 const schema = new RuntimeSchemaSet();
 const EVENT_TYPES = new Set(['SessionStart', 'SubagentStart', 'UserPromptSubmit', 'PostCompact', 'PreToolUse', 'PostToolUse', 'PostToolUseFailure', 'Stop']);
+const OBSERVED_AGENT_AUTHORITIES = new Set(['sage', 'alchemist', 'oracle', 'covenant-seat']);
 const isoClock = (clock) => () => new Date(clock()).toISOString();
 const denial = (code, message, enforcementHealth = 'strong') => decision({ allowed: false, code, message, detail: {}, enforcementHealth });
 const latitudeFor = (contract, target) => contract.artifacts.exact.some((artifact) => artifact.path === target) ? 'EXACT' : 'BOUNDED';
@@ -50,6 +54,14 @@ function hostRetry(hookPayload, eventType) {
 }
 
 function hostProgress(eventType) { return eventType === 'PostToolUse'; }
+
+// No authenticated host bridge exists in this runtime. UserPromptSubmit is
+// recorded as untrusted observation until one supplies independently verified
+// provenance; caller payload, adapter name, & in-process imports never do.
+function observedAuthorityFor(eventType, identity) {
+  if (eventType === 'UserPromptSubmit') return null;
+  return OBSERVED_AGENT_AUTHORITIES.has(identity?.agentType) ? identity.agentType : null;
+}
 
 export function evaluateLatestStopShape(hookPayload) {
   return evaluateTranscriptStop(hookPayload);
@@ -150,6 +162,7 @@ export function createHostRuntime({ adapter, workspace, keyDir, verificationKeyD
     budgetGovernance: keyRing ? new BudgetGovernanceStore({ root: paths.budgets, keyRing, monotonicNow: () => Number(process.hrtime.bigint() / 1000000n) }) : null,
     taskBudgetSeals: keyRing ? new TaskBudgetSealStore({ root: paths.taskBudgets, keyRing, keyId: keyRing.activeKeyId(), clock: isoClock(clock) }) : null,
   };
+  const architectureEvents = keyRing ? new ArchitectureEventStore({ receiptStore: stores.receiptStore, keyRing, keyId: keyRing.activeKeyId(), clock: isoClock(clock) }) : null;
   const userApproval = new UserApprovalAuthority({ keyRing, policy, clock });
   const gate = new PreEffectGate({ policy, capabilityStore: stores.capabilityStore, authorityLedger: stores.authorityLedger, approvalAuthority: userApproval, clock });
   Object.assign(stores, { policy, keyRing, verificationKeyRing, userApproval, gate, denialCircuit });
@@ -166,6 +179,16 @@ export function createHostRuntime({ adapter, workspace, keyDir, verificationKeyD
         }) };
       } catch (error) {
         result = { ...result, decision: denial(codeOf(error), 'authenticated denial circuit unavailable', 'unsupported'), enforcementHealth: 'unsupported' };
+      }
+    }
+    // Persist & verify host-observed lifecycle after ingress has been
+    // authenticated. This is telemetry/control-plane continuity only; it
+    // never upgrades an effect decision or consumes model-supplied state.
+    if (architectureEvents && hostEvent && (eventType !== 'PreToolUse' || result.decision.allowed)) {
+      try {
+        consumeHostArchitectureLifecycle({ eventStore: architectureEvents, hostEvent, binding, workspace, stopIntent: eventType === 'Stop' ? readOnlyStopIntent(hookPayload).intent : 'UNKNOWN' });
+      } catch (error) {
+        result = { ...result, decision: denial(codeOf(error), 'architecture lifecycle unavailable', 'unsupported'), enforcementHealth: 'unsupported' };
       }
     }
     return runtimeResult(eventType, result);
@@ -203,7 +226,7 @@ export function createHostRuntime({ adapter, workspace, keyDir, verificationKeyD
         const ledger = new HostEventLedger({ root: paths.events, keyRing, keyId: keyRing.activeKeyId(), clock: isoClock(clock) });
         const continuity = ledger.verify();
         if (!continuity.allowed) return runtimeResult(eventType, { decision: continuity, enforcementHealth: 'unsupported' });
-        hostEvent.ledger = ledger.append({ eventId: identity?.eventId ?? hostEvent.eventId, adapter: adapter.name, eventType, sessionId: hostEvent.sessionId, binding, sourceRevision: boundSeal?.sourceRevision ?? null, observedAuthority: identity?.agentType ?? null, payload: hookPayload });
+        hostEvent.ledger = ledger.append({ eventId: identity?.eventId ?? hostEvent.eventId, adapter: adapter.name, eventType, sessionId: hostEvent.sessionId, binding, sourceRevision: boundSeal?.sourceRevision ?? null, observedAuthority: observedAuthorityFor(eventType, identity), payload: hookPayload });
       } catch (error) { return runtimeResult(eventType, { decision: denial(codeOf(error), 'authenticated event ledger unavailable'), enforcementHealth: 'unsupported' }); }
       if (contracted) {
         try {
@@ -282,7 +305,7 @@ export function createHostRuntime({ adapter, workspace, keyDir, verificationKeyD
           const finalized = stores.preEffectCorrelation.finalize(item.toolUseId, { requestId: item.request.requestId, capabilityId: item.capabilityId, requestedEffect, authorizedEffect });
           if (!finalized) return finish(eventType, { decision: denial('ARC_STORE_CORRUPT', 'pre-effect correlation finalization failed'), enforcementHealth: 'strong' }, { binding, hostEvent, hookPayload, target: effect.target });
         }
-        return runtimeResult(eventType, { decision: { allowed: true, code: null, message: 'authorized', detail: {}, enforcementHealth: 'strong' }, capabilityId: prepared[0]?.capabilityId ?? null });
+        return finish(eventType, { decision: { allowed: true, code: null, message: 'authorized', detail: {}, enforcementHealth: 'strong' }, capabilityId: prepared[0]?.capabilityId ?? null }, { binding, hostEvent, hookPayload });
       }
       if (patch?.effects?.length && eventType !== 'PreToolUse') {
         const outcomes = patch.effects.map((effect) => handleHookEvent(hookPayload, {
@@ -309,8 +332,10 @@ export function createHostRuntime({ adapter, workspace, keyDir, verificationKeyD
         // failed certification is reported independently and cannot trap it.
         const issuer = new AuthorityInvocationProofIssuer({ root: paths.authorityInvocations, keyRing, keyId: keyRing.activeKeyId(), ledgerStore: new HostEventLedger({ root: paths.events, keyRing, keyId: keyRing.activeKeyId(), clock: isoClock(clock) }) });
         const currentProof = claim ? issuer.findByDigest(claim.invocationProofDigest) : null;
-        const execution = boundSeal ? { runId: binding.runId, taskId: binding.taskId, contractId: binding.contractId, contractVersion: binding.contractVersion, contractDigest: binding.contractDigest, sourceRevision: boundSeal.sourceRevision } : null;
-        const stopped = evaluateHostStop(outcome.hostEvent, { policy, receiptStore: stores.receiptStore, assuranceStore: stores.highRiskAssurance, keyRing, authorityBindingStore: stores.authorityBinding, currentProof, binding: binding ? { ...binding, sessionId: hostEvent.sessionId } : null, execution, completionClaim: claim, now: new Date(clock()), disposition: stop.disposition, intent: stopIntent, authenticatedClaim: Boolean(consumed?.allowed && consumed.detail?.certification === 'genuine') });
+        const execution = boundSeal ? { runId: binding.runId, taskId: binding.taskId, contractId: binding.contractId, contractVersion: binding.contractVersion, contractDigest: binding.contractDigest, sourceRevision: boundSeal.sourceRevision, acceptanceCriteria: boundSeal.contract.acceptanceCriteria } : null;
+        const completionRepos = execution ? (binding?.delivery?.repositories?.length ? binding.delivery.repositories.map((repo) => ({ cwd: repo.root, scope: boundSeal.contract.scope.own })) : [{ cwd: workspace, scope: boundSeal.contract.scope.own }]) : [];
+        const latestCompletionChange = completionRepos.map(({ cwd, scope }) => latestScopedMaterialChange(stores.receiptStore, execution.runId, scope, cwd)).filter(Boolean).sort().at(-1) ?? null;
+        const stopped = evaluateHostStop(outcome.hostEvent, { policy, receiptStore: stores.receiptStore, assuranceStore: stores.highRiskAssurance, keyRing, authorityBindingStore: stores.authorityBinding, currentProof, binding: binding ? { ...binding, sessionId: hostEvent.sessionId } : null, execution, completionClaim: claim, authorityProofIssuer: issuer, integratedState: execution ? completionIntegratedStateForRepositories(completionRepos) : null, latestMaterialChange: latestCompletionChange, now: new Date(clock()), disposition: stop.disposition, intent: stopIntent, authenticatedClaim: Boolean(consumed?.allowed && consumed.detail?.certification === 'genuine') });
         if (stop.certification === 'genuine' && !stopped.allowed) outcome.decision = stopped;
         if (outcome.decision.allowed) {
           const shaped = evaluateLatestStopShape(hookPayload);

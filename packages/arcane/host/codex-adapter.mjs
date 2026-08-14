@@ -227,6 +227,9 @@ export function handleCodexHookEvent(hookPayload, deps) {
 }
 
 export function observeCodexIdentity(hookPayload, { hostEvent } = {}) {
+  // UserPromptSubmit has no agent identity; runtime records it untrusted until
+  // an external authenticated host bridge exists.
+  if (hostEvent?.eventType === 'user-prompt-submit') return { sessionId: hostEvent.sessionId, eventId: hostEvent.eventId, currentUserPrompt: true };
   if (['authority', 'callerAuthority', 'assertedAuthority', 'trust_class', 'trustClass', 'executor'].some((key) => Object.hasOwn(hookPayload ?? {}, key))) return { modelClaimed: true };
   const sessionId = hostEvent?.sessionId ?? resolveCodexSessionId(hookPayload);
   const agentId = hookPayload?.agent_id ?? hookPayload?.agentId ?? hookPayload?.subagent?.agent_id ?? hookPayload?.subagent?.agentId ?? null;
