@@ -169,6 +169,24 @@ Shared skills stay canonical.
 
         self.assertNotIn("should_trigger[0] missing field: expected_behavior", errors)
 
+    def test_legacy_eval_zero_id_is_supported(self):
+        legacy = {
+            "skill_name": "brief",
+            "evals": [
+                {
+                    "id": 0,
+                    "prompt": "/brief explain hooks",
+                    "expected_output": "Short accurate answer",
+                    "expectations": ["No filler"],
+                }
+            ],
+        }
+
+        errors = run_evals.validate_eval_manifest(legacy)
+
+        self.assertNotIn("should_trigger[0] missing field: id", errors)
+        self.assertNotIn("output_quality[0] missing field: id", errors)
+
     def test_discovery_dry_run_requires_trigger_and_non_trigger(self):
         self.write_skill(
             "good-skill",
@@ -189,6 +207,28 @@ Shared skills stay canonical.
 
         self.assertIn("NO_SHOULD_TRIGGER_CASES", codes)
         self.assertIn("NO_SHOULD_NOT_TRIGGER_CASES", codes)
+
+    def test_discovery_accepts_legacy_manifest_with_migration_warning(self):
+        self.write_skill(
+            "good-skill",
+            evals={
+                "skill_name": "good-skill",
+                "evals": [
+                    {
+                        "id": 0,
+                        "prompt": "use the good skill",
+                        "expected_output": "select the skill",
+                        "expectations": ["uses good-skill"],
+                    }
+                ],
+            },
+        )
+
+        result = run_evals.run_schema_checks(self.tmp, discovery=True)
+        codes = {issue["code"] for issue in result["issues"]}
+
+        self.assertEqual(result["error_count"], 0)
+        self.assertIn("LEGACY_EVAL_SCHEMA", codes)
 
     def test_parse_model_judge_response_extracts_fenced_json(self):
         parsed = run_evals.parse_model_judge_response(

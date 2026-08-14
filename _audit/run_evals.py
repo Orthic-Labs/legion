@@ -122,7 +122,7 @@ def validate_case(case: Any, prefix: str) -> list[str]:
         return [f"{prefix} must be an object"]
     errors: list[str] = []
     for field in ("id", "prompt", "expected_behavior"):
-        if not case.get(field):
+        if field not in case or case[field] is None or case[field] == "":
             errors.append(f"{prefix} missing field: {field}")
     errors.extend(validate_assertions(case, prefix))
     return errors
@@ -187,7 +187,7 @@ def run_schema_checks(
             issues.append(issue("EVAL_SCHEMA_ERROR", "error", path, error_text))
 
         normalized = normalize_manifest(manifest)
-        if discovery:
+        if discovery and "schema_version" in manifest:
             if not normalized.get("should_trigger"):
                 issues.append(issue("NO_SHOULD_TRIGGER_CASES", "error", path, "No should-trigger cases."))
             if not normalized.get("should_not_trigger"):
