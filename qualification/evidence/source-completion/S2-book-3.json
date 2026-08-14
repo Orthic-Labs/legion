@@ -3,7 +3,7 @@
   "kind": "legion-source-completion-book-evidence",
   "routeStep": "R_INCREMENTAL_BOOK_GATES/S2",
   "book": 3,
-  "sourceRevision": "content.sha256:f499ecd01a7acad8d7bfa8d931d10dc98f64e6615ac44e60b4928b4a517b245f+dirty",
+  "sourceRevision": "content.sha256:39f00165d26cfb7a65ee1a7dbf198f19e13114362ad0b34c1368ea35d1fe547d+dirty",
   "sourceAccounting": {
     "implemented": 30,
     "mapped": 0,
@@ -1018,8 +1018,8 @@
   "artifacts": [
     {
       "path": "qualification/book-3.json",
-      "digest": "sha256:c4aad31af6beb20f06ea22d9adffd53d3533105dd042215da0e21ff2f317ebbc",
-      "bytes": 75430
+      "digest": "sha256:0ba9b0716b013223499d3baec85d662906dd6ca85560b49759656c3dd228047a",
+      "bytes": 75424
     },
     {
       "path": "qualification/book-3-artifacts/gate-result.json",
