@@ -2,3 +2,5 @@ dist/
 node_modules/
 .audit/
 .legion/
+__pycache__/
+*.pyc
