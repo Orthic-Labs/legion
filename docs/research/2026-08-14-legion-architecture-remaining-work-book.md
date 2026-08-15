@@ -24,6 +24,7 @@ This book records completed migration, governance, evaluation, retirement, integ
 | S12 | `COMPLETE` | Current user retired `dispatch-legacy-default`; direct packets remain default, while Git history preserves recovery. |
 | Dispatch direct path | `ACTIVE` | Direct packets bind immutable source, prompt bytes, authority artifacts, ownership, and overlap checks; focused validator regressions pass. |
 | Packaged skill migration | `COMPLETE` | Recovered Handoff, Tasklist, Dispatch, Coder, QA, Architect, Debugger, JFDI, and Council surfaces are integrated and qualified. |
+| Package hard cut | `COMPLETE` | `/legion` is the sole live Legion owner; duplicate package-root skills and retired `legacy-source` entrypoints are removed; Git history preserves recovery. |
 
 Implementation work is complete. Formal Arcane admission remains `CANDIDATE`; this does not reopen migration or retirement work.
 

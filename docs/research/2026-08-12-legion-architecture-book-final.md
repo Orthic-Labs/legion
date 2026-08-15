@@ -2766,6 +2766,8 @@ This DAG is governed by the §58D adoption ledger. Each stage has one accountabl
 
 All implementation stages are complete. Formal Arcane `VERIFIED` admission is not claimed; current exact-state admission remains a separate ledger concern.
 
+The package hard cut is complete: `/legion` is the sole live Legion owner, retired `legacy-source` entrypoints and duplicate package-root skills are removed, and recovery remains available through Git history.
+
 | Stage | Dependencies | Wave | Default owner | Observable exit |
 |---|---|---|---|---|
 | 1 | — | Base | Legion integration owner | canon map passes; generated outputs sync; dual owners and live `Seer` references are absent |
