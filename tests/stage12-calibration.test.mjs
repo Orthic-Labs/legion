@@ -6,7 +6,7 @@ import { join, resolve } from 'node:path';
 import { tmpdir } from 'node:os';
 import test from 'node:test';
 
-import { calibrateStage12, stage12TruthSemantics } from '../scripts/run-stage12-calibration.mjs';
+import { applyRetirementDecision, calibrateStage12, stage12TruthSemantics, validateRetirementDecisionRecord } from '../scripts/run-stage12-calibration.mjs';
 
 const root = resolve(import.meta.dirname, '..');
 const sha256 = (bytes) => `sha256:${createHash('sha256').update(bytes).digest('hex')}`;
@@ -93,17 +93,24 @@ test('S12 replays real Dispatch history, ambient baseline, & governed workload',
   assert.equal(result.all_net_harmful_controls_disposed, false);
 });
 
-test('durable S12 evidence cannot claim a stronger retirement state than runner', () => {
+test('durable S12 evidence binds explicit current-user retirement decision', () => {
   const temporary = mkdtempSync(join(tmpdir(), 'legion-s12-drift-'));
   const { directPacketPath, directPacketText } = authorityFixture(temporary);
   const runner = calibrateStage12({ historyText: fixtureHistory(), directPacketText, directPacketPath,
     legacyTemplateText: readFileSync(join(root, 'skills/dispatch/assets/dispatch-template.md'), 'utf8'),
     s08Receipt: { workload: { actual_acceptance_surface: 'assembled package Handoff', artifact: { digest: `sha256:${'a'.repeat(64)}` }, result: { status: 'PASS' }, observed_failures: [] } } });
   rmSync(temporary, { recursive: true, force: true });
+  const decisionPath = resolve(root, '../../..', 'docs/plans/legion/evidence/2026-08-15-dispatch-retirement-user-decision.json');
+  const decisionBytes = readFileSync(decisionPath);
+  const decision = JSON.parse(decisionBytes);
+  const applied = applyRetirementDecision(runner, decision, {
+    sourcePath: 'docs/plans/legion/evidence/2026-08-15-dispatch-retirement-user-decision.json',
+    sourceDigest: sha256(decisionBytes),
+  });
   const durable = JSON.parse(readFileSync(resolve(root, '../../..', 'docs/plans/legion/evidence/2026-08-14-s12-calibration-retirement.json'), 'utf8'));
-  assert.deepEqual(stage12TruthSemantics(durable), stage12TruthSemantics(runner));
-  assert.deepEqual(durable.missing_receipts, [
-    'authenticated external host provenance for current-user prompt authority',
-    'authenticated current-user retirement judgment bound to dispatch-legacy-default',
-  ]);
+  assert.equal(validateRetirementDecisionRecord(decision), true);
+  assert.deepEqual(stage12TruthSemantics(durable), stage12TruthSemantics(applied));
+  assert.deepEqual(durable.missing_receipts, []);
+  assert.equal(durable.all_net_harmful_controls_disposed, true);
+  assert.throws(() => applyRetirementDecision(runner, { ...decision, authority: 'agent' }, { sourcePath: 'x', sourceDigest: sha256(decisionBytes) }), /invalid current-user/);
 });
