@@ -5,7 +5,7 @@ import { join } from 'node:path';
 import test from 'node:test';
 
 import { validateSchema } from '../lib/qualification/schema-validator.mjs';
-import { admitVerifiedStage, readAdoptionStage, readVerifiedStageFile, transitionVerifiedStage, transitionVerifiedStageFile, verifyVerifiedStageAdmission } from '../packages/arcane/lib/adoption-ledger.mjs';
+import { admitVerifiedStage, readAdoptionStage, readVerifiedStageFile, transitionVerifiedStage, transitionVerifiedStageFile, validateAdoptionDependencyGraph, verifyVerifiedStageAdmission } from '../packages/arcane/lib/adoption-ledger.mjs';
 import { AcceptanceEvidenceRegistry } from '../packages/arcane/lib/evidence-registry.mjs';
 import { ReceiptStore } from '../packages/arcane/lib/receipt-store.mjs';
 import { generateTestKeyRing } from '../packages/arcane/lib/keys.mjs';
@@ -55,6 +55,12 @@ test('S07-01 anti-serialization binds consumption to artifacts & acceptance IDs'
   assert.ok(validateSchema(json('schemas/adoption-ledger.schema.json'), wholeStage).length, 'whole-stage dependency rejects');
   const missingArtifact = structuredClone(ledger); delete missingArtifact.consumption_dependencies[0].consumed_artifact_id;
   assert.ok(validateSchema(json('schemas/adoption-ledger.schema.json'), missingArtifact).length, 'artifact binding required');
+  const emptyDag = structuredClone(ledger); emptyDag.consumption_dependencies = [];
+  assert.ok(validateSchema(ledgerSchema, emptyDag).length, 'adoption ledger requires an explicit dependency graph');
+  const missingStage = structuredClone(ledger); missingStage.consumption_dependencies[0].producer_stage_id = 'S-missing';
+  assert.equal(validateAdoptionDependencyGraph(missingStage).allowed, false, 'dependency graph rejects absent stages');
+  const cycle = structuredClone(ledger); cycle.consumption_dependencies.push({ consumer_stage_id: 'S-1', consumer_acceptance_id: 'S-1-01', producer_stage_id: 'S-2', producer_acceptance_id: 'S-2-01', consumed_artifact_id: 'cycle.json', consumption: 'INTEGRATE', required_verification: true });
+  assert.equal(validateAdoptionDependencyGraph(cycle).allowed, false, 'dependency graph rejects cycles');
   const falseVerified = structuredClone(ledger); falseVerified.stages[0].done_state = 'VERIFIED';
   assert.ok(validateSchema(ledgerSchema, falseVerified).length, 'VERIFIED requires exact integrated state & passed acceptance items');
   const verifiedOpen = structuredClone(ledger); verifiedOpen.stages[0].done_state = 'VERIFIED'; verifiedOpen.stages[0].integrated_state_identity = 'git:abc'; verifiedOpen.stages[0].required_items[0].evidence = ['receipt:1'];
@@ -104,6 +110,9 @@ test('S07-01 Arcane, not a stage author, admits VERIFIED only from fresh exact-s
     const forgedProofStore = new ReceiptStore({ root: join(root, 'forged-proof-receipts') }); forgedProofStore.append(forgedProofReceipt);
     assert.equal(admitVerifiedStage(ledger, 'S-1', { receiptStore: forgedProofStore, keyRing, authorityProofIssuer, execution, integratedState, latestMaterialChange, now: new Date('2026-08-14T14:00:00Z') }).code, 'ARC_EVIDENCE_INSUFFICIENT', 'forged Oracle authority proof reference denies admission');
     assert.equal(admitVerifiedStage(ledger, 'S-1', { receiptStore, keyRing, authorityProofIssuer, execution, integratedState, latestMaterialChange, now: new Date('2026-08-14T14:00:00Z') }).allowed, true);
+    const blockedSuccessor = structuredClone(ledger); const successor = blockedSuccessor.stages[1]; successor.done_state = 'CANDIDATE'; successor.integrated_state_identity = integratedState; successor.required_items[0].result = 'PASS'; successor.required_items[0].evidence = ['receipt:oracle-2'];
+    const successorExecution = { ...execution, acceptanceCriteria: [{ id: 'S-2-01' }] };
+    assert.equal(admitVerifiedStage(blockedSuccessor, 'S-2', { receiptStore, keyRing, authorityProofIssuer, execution: successorExecution, integratedState, latestMaterialChange, now: new Date('2026-08-14T14:00:00Z') }).code, 'ARC_CLAIM_PREREQUISITE_UNMET', 'successor cannot verify before predecessor');
     const transitioned = transitionVerifiedStage(ledger, 'S-1', { receiptStore, keyRing, authorityProofIssuer, execution, integratedState, latestMaterialChange, now: new Date('2026-08-14T14:00:00Z') });
     assert.equal(transitioned.allowed, true);
     assert.equal(verifyVerifiedStageAdmission(ledger, 'S-1', { keyRing, integratedState }).allowed, true, 'consumer accepts only Arcane-authenticated transition');

@@ -19,6 +19,45 @@ const stageFingerprint = (stage) => {
   return digestValue(unsigned);
 };
 
+export function validateAdoptionDependencyGraph(ledger) {
+  const stages = ledger?.stages ?? [];
+  if (stages.length > 1 && !(ledger?.consumption_dependencies?.length > 0)) return deny('ARC_BINDING_MISMATCH', 'multi-stage adoption ledger requires an explicit dependency graph');
+  const stageById = new Map(stages.map((stage) => [stage.stage_id, stage]));
+  if (stageById.size !== stages.length) return deny('ARC_BINDING_MISMATCH', 'adoption ledger stage identifiers must be unique');
+  const incoming = new Map(stages.map((stage) => [stage.stage_id, []]));
+  for (const edge of ledger?.consumption_dependencies ?? []) {
+    const producer = stageById.get(edge.producer_stage_id);
+    const consumer = stageById.get(edge.consumer_stage_id);
+    if (!producer || !consumer || producer.stage_id === consumer.stage_id) return deny('ARC_BINDING_MISMATCH', 'adoption dependency references an absent or identical stage', { edge });
+    if (!producer.required_items?.some((item) => item.acceptance_id === edge.producer_acceptance_id) || !consumer.required_items?.some((item) => item.acceptance_id === edge.consumer_acceptance_id)) return deny('ARC_BINDING_MISMATCH', 'adoption dependency references an absent acceptance item', { edge });
+    incoming.get(consumer.stage_id).push(producer.stage_id);
+  }
+  const visiting = new Set();
+  const visited = new Set();
+  const visit = (stageId) => {
+    if (visiting.has(stageId)) return false;
+    if (visited.has(stageId)) return true;
+    visiting.add(stageId);
+    for (const predecessor of incoming.get(stageId) ?? []) if (!visit(predecessor)) return false;
+    visiting.delete(stageId);
+    visited.add(stageId);
+    return true;
+  };
+  if (!stages.every((stage) => visit(stage.stage_id))) return deny('ARC_BINDING_MISMATCH', 'adoption dependency graph contains a cycle');
+  return decision({ allowed: true, message: 'Arcane validated adoption dependency graph' });
+}
+
+function verifyStageDependencies(ledger, stageId) {
+  const graph = validateAdoptionDependencyGraph(ledger);
+  if (!graph.allowed) return graph;
+  for (const edge of (ledger.consumption_dependencies ?? []).filter((candidate) => candidate.consumer_stage_id === stageId && candidate.required_verification)) {
+    const producer = ledger.stages.find((stage) => stage.stage_id === edge.producer_stage_id);
+    const item = producer?.required_items?.find((candidate) => candidate.acceptance_id === edge.producer_acceptance_id);
+    if (producer?.done_state !== 'VERIFIED' || item?.result !== 'PASS' || !item.evidence?.length) return deny('ARC_CLAIM_PREREQUISITE_UNMET', 'adoption stage requires every declared predecessor to be VERIFIED with evidence', { stageId, producerStageId: edge.producer_stage_id, producerAcceptanceId: edge.producer_acceptance_id });
+  }
+  return decision({ allowed: true, message: 'Arcane verified adoption predecessors' });
+}
+
 // Candidate is durable progress, never a substitute for verified evidence.
 // Keep this separate from verified admission so candidate transitions cannot
 // weaken its receipt-backed requirements.
@@ -44,11 +83,15 @@ export function readAdoptionStage(ledger, stageId, verification = {}) {
 // registry or proofs: those are reconstructed from Arcane-authenticated Oracle
 // receipts, bound to the live run/task/contract & current integrated state.
 export function admitVerifiedStage(ledger, stageId, { receiptStore, keyRing, authorityProofIssuer, execution, integratedState = null, latestMaterialChange = null, now = new Date() } = {}) {
+  const schemaIssues = validateSchema(ADOPTION_LEDGER_SCHEMA, ledger);
+  if (schemaIssues.length) return deny('ARC_SCHEMA_INVALID', 'VERIFIED transition requires a valid adoption ledger', { stageId, issues: schemaIssues });
   const stage = ledger?.stages?.find((candidate) => candidate.stage_id === stageId);
   if (!stage) return deny('ARC_BINDING_MISMATCH', 'adoption stage is absent from ledger', { stageId });
   if (!receiptStore?.list || !keyRing || !authorityProofIssuer || !execution?.runId || !execution?.taskId || !execution?.contractId) return deny('ARC_EVIDENCE_INSUFFICIENT', 'VERIFIED transition requires Arcane-authenticated Oracle proof & receipt-store evidence', { stageId });
   if (integratedState === null || integratedState === undefined || !stage.integrated_state_identity || stage.integrated_state_identity !== integratedState) return deny('ARC_EVIDENCE_INSUFFICIENT', 'VERIFIED transition requires the stage identity to exactly match current integrated state', { stageId });
   if (!latestMaterialChange || !Number.isFinite(Date.parse(latestMaterialChange))) return deny('ARC_EVIDENCE_INSUFFICIENT', 'VERIFIED transition requires latest material-change identity', { stageId });
+  const dependencies = verifyStageDependencies(ledger, stageId);
+  if (!dependencies.allowed) return dependencies;
   const required = stage.required_items ?? [];
   if (!required.length || required.some((item) => item.result !== 'PASS')) return deny('ARC_EVIDENCE_INSUFFICIENT', 'VERIFIED transition requires every stage acceptance item to pass', { stageId, openAcceptanceIds: required.filter((item) => item.result !== 'PASS').map((item) => item.acceptance_id) });
   const requiredIds = required.map((item) => item.acceptance_id);

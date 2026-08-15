@@ -2,7 +2,7 @@
 
 ## Finish adoption without rebuilding candidate work
 
-**Status:** complete
+**Status:** implementation complete; formal adoption open
 
 **Reconciled:** 15 August 2026
 
@@ -10,7 +10,7 @@
 
 **State authority:** [`$WORKSPACE/docs/plans/legion/adoption-ledger.json`](../../../../../docs/plans/legion/adoption-ledger.json)
 
-This book records completed migration, governance, evaluation, retirement, integration, and delivery work. Formal Arcane `VERIFIED` admissions remain separate from implementation completion.
+This book records completed migration, governance, evaluation, retirement, integration, and delivery work. Formal adoption is incomplete until all stages receive current authenticated Arcane `VERIFIED` admissions in dependency order.
 
 ## Current baseline
 
@@ -26,7 +26,7 @@ This book records completed migration, governance, evaluation, retirement, integ
 | Packaged skill migration | `COMPLETE` | Recovered Handoff, Tasklist, Dispatch, Coder, QA, Architect, Debugger, JFDI, and Council surfaces are integrated and qualified. |
 | Package hard cut | `COMPLETE` | `/legion` is the sole live Legion owner; duplicate package-root skills and retired `legacy-source` entrypoints are removed; Git history preserves recovery. |
 
-Implementation work is complete. Formal Arcane admission remains `CANDIDATE`; this does not reopen migration or retirement work.
+Implementation work is complete. Formal Arcane admission remains `CANDIDATE`; S12 cannot activate as adopted before S11 & every declared predecessor verify.
 
 ## Remaining work
 
@@ -47,12 +47,18 @@ Implementation work is complete. Formal Arcane admission remains `CANDIDATE`; th
 - Decision is bound to `docs/plans/legion/evidence/2026-08-15-dispatch-retirement-user-decision.json`.
 - Direct source-bound packets remain active; legacy implementation stays recoverable from Git history.
 
-### R4 — Final integration and admission (`DONE`)
+### R4 — Final integration (`DONE`)
 
 - Fresh code-first Oracle review is clean.
 - Legion source and qualification evidence are committed and pushed; workspace parent pins the final nested ref.
-- Stages remain `CANDIDATE` until authenticated Arcane admission exists against final exact multi-repository state.
+- Source, parent pin, retirement evidence, & migration are integrated.
+
+### R5 — Formal Arcane admission (`OPEN`)
+
+- Verify each declared dependency edge before its consumer stage activates.
+- Record fresh Oracle evidence after final source commits, bind one exact multi-repository state, then admit S01–S12 in DAG order.
+- Keep every stage `CANDIDATE` until its signed admission verifies through the production status consumer.
 
 ## Completion rule
 
-All scoped work in this book is complete: caller-built completion is denied, live consumers are durable, S12 has an explicit current-user `RETIRE` disposition, and final Legion plus parent refs are integrated. Formal `VERIFIED` admission is not claimed.
+Migration implementation is complete. Adoption is complete only after R5 closes with twelve authenticated `VERIFIED` stages.

@@ -69,6 +69,33 @@ test('a Sage-observed agent mints a contract seal', async () => {
   } finally { s.cleanup(); }
 });
 
+test('nonempty evidence requirements seal only through exact reachable lifecycle input', async () => {
+  const s = scenario();
+  try {
+    const contract = b5Contract('EC-10');
+    contract.evidenceRequirements = ['independent acceptance proof'];
+    writeFileSync(s.contractPath, JSON.stringify(contract));
+    await assert.rejects(runContract(['seal', '--file', s.contractPath, '--agent', 'agent-1', '--session', SESSION], s.ctx), /ARC_UNSOUND_SEAL/);
+    const reachability = join(s.root, 'reachability.json');
+    writeFileSync(reachability, JSON.stringify({ requirements: [{ id: 'E-1', contractRequirement: 'independent acceptance proof', producer: 'oracle', durableStore: true, authenticatedPersistence: true, verifier: 'arcane', completionConsumer: 'legion', closePath: true }], recoveryPaths: [{ requirementId: 'E-1', authenticated: true, closePath: true }] }));
+    const result = await runContract(['seal', '--file', s.contractPath, '--reachability', reachability, '--agent', 'agent-1', '--session', SESSION], s.ctx);
+    assert.equal(result.exitCode, 0);
+  } finally { s.cleanup(); }
+});
+
+test('Sage seal command creates exact contract & task budget bindings', async () => {
+  const s = scenario();
+  try {
+    const contract = b5Contract('EC-11'); contract.budget = { objectiveLineageId: 'EC-11-lineage', objectiveDigest: digestValue('EC-11'), legionBlastMapCapMs: 900000, sagePlanningCapMs: 900000, maxContractVersions: 2 }; writeFileSync(s.contractPath, JSON.stringify(contract));
+    const budgets = join(s.root, 'task-budgets.json');
+    writeFileSync(budgets, JSON.stringify({ tasks: [{ taskId: 'T-1', ownScope: ['x'], activeTimeCapMs: 900000, progressDeadlineMs: 600000, evidenceReferences: ['AC-1'] }] }));
+    await runContract(['seal', '--file', s.contractPath, '--task-budgets', budgets, '--agent', 'agent-1', '--session', SESSION], s.ctx);
+    const keys = loadHostKeyRing({ dir: s.ctx.env.ARCANE_KEY_DIR });
+    assert.equal(new BudgetGovernanceStore({ root: join(s.root, '.audit', 'arcane', 'budget-governance'), keyRing: keys }).require('EC-11', 1).contractDigest, digestValue(contract));
+    assert.equal(new TaskBudgetSealStore({ root: join(s.root, '.audit', 'arcane', 'task-budget-seals'), keyRing: keys }).require('EC-11', 'T-1').activeTimeCapMs, 900000);
+  } finally { s.cleanup(); }
+});
+
 test('a non-Sage authority cannot mint a contract seal', async () => {
   const s = scenario({ agentType: 'alchemist' });
   try {
