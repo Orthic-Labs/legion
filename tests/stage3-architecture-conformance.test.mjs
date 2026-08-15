@@ -98,8 +98,8 @@ test('S03-04 authenticated acceptance has exact lineage/sequence/predecessor & r
     assert.equal(h.store.accept({ ...proposal(), event_id: 'caller-owned' }, { expected_state_fingerprint: first.state_fingerprint }).accepted, false);
     assert.equal(h.store.accept(proposal(), { expected_state_fingerprint: initial.state_fingerprint }).accepted, false);
     assert.equal(h.store.accept(proposal({ event_type: 'BUDGET_SNAPSHOT_RECORDED', payload: { id: 'budget-duplicate', objectiveLineageId: events.objective_lineage_id, legionBlastMapCapMs: 999999999, sagePlanningCapMs: 999999999, maxContractVersions: 99 } }), { expected_state_fingerprint: first.state_fingerprint }).accepted, false);
-    assert.equal(h.store.accept(proposal({ event_type: 'EFFECT_DENIED', payload: { id: 'effect-denied' } }), { expected_state_fingerprint: first.state_fingerprint }).accepted, false);
-    assert.equal(h.store.accept(proposal({ event_type: 'RECOVERY_RECORDED', payload: { id: 'recovery-s04' } }), { expected_state_fingerprint: first.state_fingerprint }).accepted, false);
+    assert.equal(h.store.accept(proposal({ event_type: 'EFFECT_DENIED', payload: { id: 'effect-denied', authority: 'root' } }), { expected_state_fingerprint: first.state_fingerprint }).accepted, false);
+    assert.equal(h.store.accept(proposal({ event_type: 'RECOVERY_RECORDED', payload: { id: 'recovery-s04', authority: 'root' } }), { expected_state_fingerprint: first.state_fingerprint }).accepted, false);
     assert.equal(canonicalJson(h.store.events({ objective_lineage_id: events.objective_lineage_id })), before);
   } finally { rmSync(h.root, { recursive: true, force: true }); }
 });
@@ -112,7 +112,7 @@ test('S03-05 exact replay twice/reopen & no duplicate authority store', () => {
     const two = h.store.replay({ objective_lineage_id: events.objective_lineage_id, initial_state: initial });
     assert.equal(canonicalJson(one), canonicalJson(two));
     assert.equal(one.last_sequence, 1); assert.equal(one.state.execution.trajectory.last_sequence, 1); assert.equal(one.state_fingerprint, accepted.state_fingerprint);
-    assert.deepEqual(Object.keys(one).sort(), ['event_count', 'last_event_digest', 'last_sequence', 'schema', 'state', 'state_fingerprint']);
+    assert.deepEqual(Object.keys(one).sort(), ['authority_minted', 'event_count', 'last_event_digest', 'last_sequence', 'schema', 'state', 'state_fingerprint']);
     const reopened = new ArchitectureEventStore({ receiptStore: h.receiptStore, keyRing: h.keyRing, keyId: 's03', clock: () => '2026-08-13T00:00:00.000Z' });
     assert.equal(canonicalJson(reopened.replay({ objective_lineage_id: events.objective_lineage_id, initial_state: initial })), canonicalJson(one));
     assert.equal(Object.hasOwn(accepted.state, 'receipt_store'), false); assert.equal(Object.hasOwn(accepted.state, 'budget_store'), false);
