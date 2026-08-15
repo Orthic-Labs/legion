@@ -210,6 +210,36 @@ export function stage12TruthSemantics(calibration) {
   };
 }
 
+export function validateRetirementDecisionRecord(record) {
+  return record?.schema === 'legion-current-user-disposition.v1'
+    && record.control_id === 'dispatch-legacy-default'
+    && record.disposition === 'RETIRE'
+    && record.authority === 'current-user'
+    && typeof record.source_thread_id === 'string' && record.source_thread_id.length > 0
+    && typeof record.user_message === 'string' && /\bretire\b/i.test(record.user_message)
+    && record.restore_strategy === 'git-history'
+    && /^\d{4}-\d{2}-\d{2}$/.test(record.recorded_on ?? '');
+}
+
+export function applyRetirementDecision(calibration, record, { sourcePath, sourceDigest } = {}) {
+  if (!validateRetirementDecisionRecord(record)) throw new Error('invalid current-user retirement decision record');
+  if (typeof sourcePath !== 'string' || !sourcePath || !/^sha256:[a-f0-9]{64}$/.test(sourceDigest ?? '')) throw new Error('retirement decision source binding is required');
+  const controls = calibration.controls.map((control) => control.control_id === record.control_id ? {
+    ...control,
+    lifecycle: 'RETIRED',
+    disposition: 'RETIRE',
+    disposition_authority: 'current-user',
+    judgment_source: { path: sourcePath, digest: sourceDigest, source_thread_id: record.source_thread_id },
+    rationale: 'Current user explicitly retired legacy Dispatch because Git history preserves recovery.',
+  } : control);
+  return {
+    ...calibration,
+    controls,
+    all_net_harmful_controls_disposed: controls.filter((control) => control.net_harmful).every((control) => ['RETIRE', 'ACCEPT'].includes(control.disposition)),
+    missing_receipts: [],
+  };
+}
+
 if (import.meta.url === `file://${process.argv[1]}`) {
   try {
     const args = argumentsOf(process.argv.slice(2));

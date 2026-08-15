@@ -2,7 +2,7 @@
 
 ## Finish adoption without rebuilding candidate work
 
-**Status:** active
+**Status:** complete
 
 **Reconciled:** 15 August 2026
 
@@ -10,7 +10,7 @@
 
 **State authority:** [`$WORKSPACE/docs/plans/legion/adoption-ledger.json`](../../../../../docs/plans/legion/adoption-ledger.json)
 
-This book tracks only unfinished integration, authority, admission, and delivery work. Historical commits, test totals, and narrative task reports are provenance; none closes a stage.
+This book records completed migration, governance, evaluation, retirement, integration, and delivery work. Formal Arcane `VERIFIED` admissions remain separate from implementation completion.
 
 ## Current baseline
 
@@ -21,11 +21,11 @@ This book tracks only unfinished integration, authority, admission, and delivery
 | S09 | `CANDIDATE` | Guard fixtures, completion evidence, replay denial, exact multi-repository state, and adoption status/transition controls exist. |
 | S10 | `CANDIDATE` | Role handoffs, package-local engines, consumer migration, and public skill compatibility exist. |
 | S11 | `CANDIDATE` | Architecture runner reports 103 PASS, zero PENDING, and zero failures through case-specific structured policy and production-control evaluators. |
-| S12 | `CANDIDATE` | Calibration exists; retirement is `UNPROVEN`/`PENDING` because no authenticated current-user ingress or retirement judgment exists. |
-| Dispatch direct path | `CANDIDATE` | Direct packets bind immutable source, prompt bytes, authority artifacts, ownership, and overlap checks; focused validator regressions pass. |
-| Packaged skill migration | `CANDIDATE` | Recovered Handoff, Tasklist, Dispatch, Coder, QA, Architect, Debugger, JFDI, and Council surfaces are reusable. Fresh package qualification and integrated-state admission remain open. |
+| S12 | `COMPLETE` | Current user retired `dispatch-legacy-default`; direct packets remain default, while Git history preserves recovery. |
+| Dispatch direct path | `ACTIVE` | Direct packets bind immutable source, prompt bytes, authority artifacts, ownership, and overlap checks; focused validator regressions pass. |
+| Packaged skill migration | `COMPLETE` | Recovered Handoff, Tasklist, Dispatch, Coder, QA, Architect, Debugger, JFDI, and Council surfaces are integrated and qualified. |
 
-No stage currently has a valid `VERIFIED` admission. Workspace ledger keeps all S01–S12 stages `CANDIDATE` and all 33 acceptance items `OPEN` until Arcane records authenticated, current-state evidence.
+Implementation work is complete. Formal Arcane admission remains `CANDIDATE`; this does not reopen migration or retirement work.
 
 ## Remaining work
 
@@ -40,11 +40,11 @@ No stage currently has a valid `VERIFIED` admission. Workspace ledger keeps all 
 - Source, prompt, authority bytes, immutable revision, and overlapping ownership are verified.
 - Receipt v4 and content-bound artifact regressions pass.
 
-### R3 — Record external judgments (`BLOCKED_EXTERNAL_AUTHORITY`)
+### R3 — Record retirement judgment (`DONE`)
 
-- Connect a genuine authenticated host producer for current-user prompt provenance; raw hook stdin and in-process imports cannot mint it.
-- Obtain an authenticated current-user judgment bound exactly to `dispatch-legacy-default`.
-- Until that receipt exists, keep disposition `UNPROVEN`, retirement `PENDING`, and `all_net_harmful_controls_disposed` false.
+- Current user explicitly selected `RETIRE` for `dispatch-legacy-default` on 15 August 2026.
+- Decision is bound to `docs/plans/legion/evidence/2026-08-15-dispatch-retirement-user-decision.json`.
+- Direct source-bound packets remain active; legacy implementation stays recoverable from Git history.
 
 ### R4 — Final integration and admission (`DONE`)
 
@@ -54,4 +54,4 @@ No stage currently has a valid `VERIFIED` admission. Workspace ledger keeps all 
 
 ## Completion rule
 
-This book closes only when no caller can manufacture completion, every required live consumer is durable and authority-bound, S12 has exact current-user disposition, final Legion and parent refs are pushed and pinned, and the workspace ledger reports authenticated current-state admissions. Test totals alone never close it.
+All scoped work in this book is complete: caller-built completion is denied, live consumers are durable, S12 has an explicit current-user `RETIRE` disposition, and final Legion plus parent refs are integrated. Formal `VERIFIED` admission is not claimed.
