@@ -3,7 +3,7 @@
   "kind": "legion-book-qualification",
   "book": 1,
   "expectedTaskCount": 28,
-  "sourceRevision": "content.sha256:c641adab79bb8488fc2df285e378c94c646c30299ec9bc21543606bf641070bb",
+  "sourceRevision": "content.sha256:f5336a23e28b045ee2823b640c3cbabe4ac9515907b650bd42098442ae355552",
   "decision": "SOURCE_IMPLEMENTED",
   "claimLevel": "source",
   "sourceAccounting": {
@@ -27,8 +27,8 @@
           {
             "path": "package.json",
             "symbol": "@orthic-labs/legion",
-            "digest": "sha256:2ab6c30ca6578b5cc806ad958f382ace80b45e118da7dcde0965a3d0e27cab89",
-            "bytes": 3212
+            "digest": "sha256:fbc3934a2398325240fdbfaaf95a110381a52e87c4ea12bd542e51bf7565a9fa",
+            "bytes": 3117
           }
         ],
         "proof": {
@@ -1156,8 +1156,8 @@
           {
             "path": "skills/manifests/designer.json",
             "symbol": "protectedActions",
-            "digest": "sha256:637be10ac8a6e54de7f1b3a8768f7aba75fa287212476f3f5d38f023dfb2a3da",
-            "bytes": 101073
+            "digest": "sha256:c75fb8e368835f2a5c796b3109245b13cbe41529a5be55a92c30362f44b617c9",
+            "bytes": 101023
           }
         ],
         "proof": {
@@ -1204,8 +1204,8 @@
           {
             "path": "skills/manifests/writing.json",
             "symbol": "noFabrication",
-            "digest": "sha256:c6add5196d136b8a51261713564b33a562d3e13699e4d47af5a482a3ead13fcb",
-            "bytes": 19857
+            "digest": "sha256:610f2142f93cf61ded64852b92c49fca84390e96b3a0a0615e2d192c40ed976c",
+            "bytes": 19807
           }
         ],
         "proof": {
