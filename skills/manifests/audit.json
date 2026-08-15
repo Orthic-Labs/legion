@@ -34,9 +34,7 @@
       "registry/skills/index.json",
       "lib/skills/resolver.mjs",
       "registry/routing/domains.json"
-    ],
-    "legacyRef": null,
-    "legacyArtifacts": []
+    ]
   },
   "files": [
     {
@@ -49,8 +47,8 @@
     {
       "path": "SKILL.md",
       "uri": "legion-skill://audit/SKILL.md",
-      "sourceDigest": "sha256:455821931c319e390ee5d907c90f6891412d1913e647d0cc5a74a7f450ad5f32",
-      "outputDigest": "sha256:455821931c319e390ee5d907c90f6891412d1913e647d0cc5a74a7f450ad5f32",
+      "sourceDigest": "sha256:4d2f519199b76034bdefabdb350c589dca0a5d464aca653ebf8bf8409d697580",
+      "outputDigest": "sha256:4d2f519199b76034bdefabdb350c589dca0a5d464aca653ebf8bf8409d697580",
       "transformations": []
     }
   ]

@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "artifact_name": "validated-forward-test.md",
-  "artifact_path": "/Volumes/D/claude/tools/skills/legion/skills/handoff/examples/validated-forward-test.md",
+  "artifact_path": "/Volumes/D/claude/legion/skills/handoff/examples/validated-forward-test.md",
   "sha256": "38172512c6ab16969f6ee919a852372d7445be09b052168fac841e06f2b2e70c",
   "validated_at": "2026-08-14T10:05:40.784705+00:00",
   "validator": "legion/lib/handoff/validate-handoff.py"

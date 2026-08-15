@@ -24,10 +24,10 @@ Plain `/handoff` in source chat emits only a bound pointer. Do not summarize, in
 or synthesize a packet there. Run bootstrap with current platform, exact task/session ID, & workspace:
 
 ```bash
-python3 tools/skills/legion/lib/handoff/transcript-handoff.py bootstrap --platform codex --session-id "<TASK_ID>" --workspace "<WORKSPACE>"
+python3 legion/lib/handoff/transcript-handoff.py bootstrap --platform codex --session-id "<TASK_ID>" --workspace "<WORKSPACE>"
 ```
 
-On Windows, use `py -3.11 tools/skills/legion/lib/handoff/transcript-handoff.py ...`. Return its
+On Windows, use `py -3.11 legion/lib/handoff/transcript-handoff.py ...`. Return its
 generated paste block only. If runtime exposes no ID, omit `--session-id`; resolver must declare
 its selection method. Source output is a pointer, not a permanent handoff packet.
 
@@ -41,8 +41,8 @@ its selection method. Source output is a pointer, not a permanent handoff packet
 5. Validate packet, verify receipt, return required `READBACK`, then proceed under packet mode.
 
 ```bash
-python3 tools/skills/legion/lib/handoff/validate-handoff.py <handoff.md> --write-receipt <handoff.receipt.json>
-python3 tools/skills/legion/lib/handoff/validate-handoff.py <handoff.md> --verify-receipt <handoff.receipt.json>
+python3 legion/lib/handoff/validate-handoff.py <handoff.md> --write-receipt <handoff.receipt.json>
+python3 legion/lib/handoff/validate-handoff.py <handoff.md> --verify-receipt <handoff.receipt.json>
 ```
 
 Preserve exact intent, decisions, failures, boundaries, active work, gaps, first resume action, &

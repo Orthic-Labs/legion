@@ -281,11 +281,11 @@ test('S09 (real bundle): a completion claim touching the arcane package without 
     const policy = realPolicy();
     const receiptStore = new ReceiptStore({ root });
     const d = evaluateCompletion(
-      { runId: RUN_ID, taskId: 'T-1', claimedLevel: 'release', touchedPaths: ['tools/skills/legion/packages/arcane/lib/policy.mjs'] },
+      { runId: RUN_ID, taskId: 'T-1', claimedLevel: 'release', touchedPaths: ['legion/packages/arcane/lib/policy.mjs'] },
       { policy, receiptStore },
     );
     assert.equal(d.allowed, false);
-    assert.equal(d.detail.lockedDomainMatches[0].pattern, 'tools/skills/legion/packages/arcane/**');
+    assert.equal(d.detail.lockedDomainMatches[0].pattern, 'legion/packages/arcane/**');
     assert.equal(d.detail.lockedDomainMatches[0].claimLevel, 'highRisk');
   } finally {
     cleanup();
@@ -299,17 +299,17 @@ test('S09 (real bundle): a completion claim touching sealed qualification eviden
     const receiptStore = new ReceiptStore({ root });
 
     const denied = evaluateCompletion(
-      { runId: RUN_ID, taskId: 'T-1', claimedLevel: 'signoff', touchedPaths: ['tools/skills/legion/qualification/book-1.json'] },
+      { runId: RUN_ID, taskId: 'T-1', claimedLevel: 'signoff', touchedPaths: ['legion/qualification/book-1.json'] },
       { policy, receiptStore },
     );
     assert.equal(denied.allowed, false);
     assert.equal(denied.code, 'ARC_EVIDENCE_INSUFFICIENT');
     assert.equal(denied.detail.level, 'signoff');
-    assert.equal(denied.detail.lockedDomainMatches[0].pattern, 'tools/skills/legion/qualification/**');
+    assert.equal(denied.detail.lockedDomainMatches[0].pattern, 'legion/qualification/**');
 
     receiptStore.append(evidenceRecord({ evidenceClass: 'deterministic', strong: true }));
     const allowed = evaluateCompletion(
-      { runId: RUN_ID, taskId: 'T-1', claimedLevel: 'signoff', touchedPaths: ['tools/skills/legion/qualification/book-1.json'] },
+      { runId: RUN_ID, taskId: 'T-1', claimedLevel: 'signoff', touchedPaths: ['legion/qualification/book-1.json'] },
       { policy, receiptStore },
     );
     assert.equal(allowed.allowed, true, allowed.message);

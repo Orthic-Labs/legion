@@ -115,9 +115,7 @@
       "registry/skills/index.json",
       "lib/skills/resolver.mjs",
       "registry/routing/domains.json"
-    ],
-    "legacyRef": null,
-    "legacyArtifacts": []
+    ]
   },
   "files": [
     {

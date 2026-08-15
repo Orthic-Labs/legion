@@ -1,4 +1,0 @@
-interface:
-  display_name: "JFDI"
-  short_description: "Execute exact work within frozen bounds"
-  default_prompt: "Use $jfdi to execute this exact task, run only named checks, and stop when green."

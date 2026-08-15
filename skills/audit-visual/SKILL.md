@@ -11,15 +11,29 @@ metadata:
 
 # Audit Visual
 
-Route rendered-state diagnosis to Legion's shared visual Audit workflow at
-`../../audit-visual/SKILL.md`. This entrypoint owns no visual engine, capture matrix, or
-incompatible report format.
+```text
+MODE: DIAGNOSE
+PRIMARY_DELIVERABLE: Shared-provider visual findings with exact evidence.
+DISCOVERY_PROFILE: D1_SCOPED_SOURCE
+EFFECT_PROFILES: audit_engine
+SPECIALIST_REFS_MAX: 0
+CHILD_AGENTS_MAX: 0
+EXTERNAL_REQUESTS_MAX: 0
+MAY_ADD_TASKS: NO
+MAY_CALL_SKILLS: NONE
+TERMINAL: visual.core reconciles its frozen matrix or reports typed UNPROVEN coverage.
+```
 
-1. Freeze target routes or screens, states, viewports, themes, locales, platforms, interactions,
-   references, & acceptance criteria.
-2. Execute `audit-run.mjs` through shared `/audit` with its visual specification & evidence.
-3. Keep missing captures, baselines, matrix cases, unreadable artifacts, & runtime omissions as
-   `UNPROVEN`; zero pixel findings alone is not a pass.
-4. Route visual creation or implementation to `/designer`; full repository health to `/audit`.
+`/audit-visual` is a thin entrypoint over `../../providers/visual-core.mjs` & shared frozen plan.
 
-This package wrapper is unpublished: its source rights are unresolved & it has no rights receipt.
+1. Freeze repository, Cortex generation, routes/screens, viewports, states, themes, locales,
+   platforms, interactions, references, & acceptance criteria.
+2. Create an explicit visual specification with expected matrix & capture artifacts; never invent evidence.
+3. Run `node ../../audit-run.mjs <root> --visual-spec <visual-spec.json>`. For runtime captures,
+   also supply `--url`, `--surfaces`, & optional `--visual-baselines`.
+4. Read frozen `plan.json` before `visual.json`; `visual.core` must be selected before execution.
+5. Missing captures, baselines, matrix cases, readable PNGs, runtime states, or required review are
+   `UNPROVEN`; zero pixel findings is not a pass without complete coverage.
+6. Finalize through shared report & SARIF pipeline. Do not emit an incompatible report shape.
+
+Use `/designer` for implementation & `/audit` for full repository provider set.

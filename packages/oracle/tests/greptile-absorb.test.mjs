@@ -23,7 +23,7 @@ function auditRequest(changedPaths = ['src/a.mjs']) {
     sourceRevision: REVISION,
     requestedAt: NOW,
     input: {
-      runIdentity: { runId: 'run_01J8Z3K9QG7X6M2N4P5R8S0T1V', workspace: 'D:/Claude', repository: 'tools/skills/legion', revision: REVISION },
+      runIdentity: { runId: 'run_01J8Z3K9QG7X6M2N4P5R8S0T1V', workspace: 'D:/Claude', repository: 'legion', revision: REVISION },
       workingContext: { marker: 'isolated' },
       lens: { id: 'correctness', content: 'sealed lens', digest: `sha256:${createHash('sha256').update('sealed lens').digest('hex')}` },
       diff: { changedPaths },

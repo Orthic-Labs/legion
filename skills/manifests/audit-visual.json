@@ -34,9 +34,7 @@
       "registry/skills/index.json",
       "lib/skills/resolver.mjs",
       "registry/routing/domains.json"
-    ],
-    "legacyRef": null,
-    "legacyArtifacts": []
+    ]
   },
   "files": [
     {
@@ -49,8 +47,113 @@
     {
       "path": "SKILL.md",
       "uri": "legion-skill://audit-visual/SKILL.md",
-      "sourceDigest": "sha256:d69d93d420d0dfb5d7f1d244f1994f631ef3c70d0d1b7c7401e75138263a71cd",
-      "outputDigest": "sha256:d69d93d420d0dfb5d7f1d244f1994f631ef3c70d0d1b7c7401e75138263a71cd",
+      "sourceDigest": "sha256:959ef21eb9f28ae7352bfd17ddd6e02aafb42dad36a28073ddff4ed39d3b2432",
+      "outputDigest": "sha256:959ef21eb9f28ae7352bfd17ddd6e02aafb42dad36a28073ddff4ed39d3b2432",
+      "transformations": []
+    },
+    {
+      "path": "evals/evals.json",
+      "uri": "legion-skill://audit-visual/evals/evals.json",
+      "sourceDigest": "sha256:95dd2ce5afcced3564c89e1e5af743ff7cded5aab115aac7aab7abec7e2418f2",
+      "outputDigest": "sha256:95dd2ce5afcced3564c89e1e5af743ff7cded5aab115aac7aab7abec7e2418f2",
+      "transformations": []
+    },
+    {
+      "path": "references/craft-tests.md",
+      "uri": "legion-skill://audit-visual/references/craft-tests.md",
+      "sourceDigest": "sha256:a2bd28e6aa6ac8f36632edef71c30fc3c4d73c9e2075d9792b4281bac82824c2",
+      "outputDigest": "sha256:a2bd28e6aa6ac8f36632edef71c30fc3c4d73c9e2075d9792b4281bac82824c2",
+      "transformations": []
+    },
+    {
+      "path": "references/design-slop.md",
+      "uri": "legion-skill://audit-visual/references/design-slop.md",
+      "sourceDigest": "sha256:fcf9d40f3decdc6000b317502cbd37023720e2ddfde6fde80349fe16b773e6a2",
+      "outputDigest": "sha256:fcf9d40f3decdc6000b317502cbd37023720e2ddfde6fde80349fe16b773e6a2",
+      "transformations": []
+    },
+    {
+      "path": "references/manual.md",
+      "uri": "legion-skill://audit-visual/references/manual.md",
+      "sourceDigest": "sha256:d535d07ab7c29948dc9c08f1be933406f16ddec6a7a15351c724bfa4a2d409c6",
+      "outputDigest": "sha256:d535d07ab7c29948dc9c08f1be933406f16ddec6a7a15351c724bfa4a2d409c6",
+      "transformations": []
+    },
+    {
+      "path": "references/motion-standards.md",
+      "uri": "legion-skill://audit-visual/references/motion-standards.md",
+      "sourceDigest": "sha256:9233f265123b67a4dbd643a55bc5407b73923dda1199870ec84d50ce90da9b1c",
+      "outputDigest": "sha256:9233f265123b67a4dbd643a55bc5407b73923dda1199870ec84d50ce90da9b1c",
+      "transformations": []
+    },
+    {
+      "path": "references/native-feedback.md",
+      "uri": "legion-skill://audit-visual/references/native-feedback.md",
+      "sourceDigest": "sha256:df4c574e1a1f47a1df4547617ecb000a51d93b6892e04034cae403c6d0f9e076",
+      "outputDigest": "sha256:df4c574e1a1f47a1df4547617ecb000a51d93b6892e04034cae403c6d0f9e076",
+      "transformations": []
+    },
+    {
+      "path": "references/performance.md",
+      "uri": "legion-skill://audit-visual/references/performance.md",
+      "sourceDigest": "sha256:917da1447eb5c86a803f2f005143979fa214ce48e5ba41ee988e6d195e76c232",
+      "outputDigest": "sha256:917da1447eb5c86a803f2f005143979fa214ce48e5ba41ee988e6d195e76c232",
+      "transformations": []
+    },
+    {
+      "path": "references/platform-fidelity.md",
+      "uri": "legion-skill://audit-visual/references/platform-fidelity.md",
+      "sourceDigest": "sha256:3ec6cd55db6033b9e62023fcaca2eac074d09c6d08b10e3199232022fc8a2fde",
+      "outputDigest": "sha256:3ec6cd55db6033b9e62023fcaca2eac074d09c6d08b10e3199232022fc8a2fde",
+      "transformations": []
+    },
+    {
+      "path": "references/specialist-lenses.md",
+      "uri": "legion-skill://audit-visual/references/specialist-lenses.md",
+      "sourceDigest": "sha256:55c9d997501ad5488e0d432ecc57ee79d890f80e01aabc5bba814df23309c203",
+      "outputDigest": "sha256:55c9d997501ad5488e0d432ecc57ee79d890f80e01aabc5bba814df23309c203",
+      "transformations": []
+    },
+    {
+      "path": "references/surfaces.md",
+      "uri": "legion-skill://audit-visual/references/surfaces.md",
+      "sourceDigest": "sha256:a3be910d22bd39595c157071ce359958e186b1d71b84f1729a36d898800f704d",
+      "outputDigest": "sha256:a3be910d22bd39595c157071ce359958e186b1d71b84f1729a36d898800f704d",
+      "transformations": []
+    },
+    {
+      "path": "references/typography.md",
+      "uri": "legion-skill://audit-visual/references/typography.md",
+      "sourceDigest": "sha256:adcd567ea7ac7a8369e27964b8b0144a1505def8cea172fdcc0d974ccfe4548e",
+      "outputDigest": "sha256:adcd567ea7ac7a8369e27964b8b0144a1505def8cea172fdcc0d974ccfe4548e",
+      "transformations": []
+    },
+    {
+      "path": "references/ui-ux-checklist.md",
+      "uri": "legion-skill://audit-visual/references/ui-ux-checklist.md",
+      "sourceDigest": "sha256:8b256620920778dcd56e4a4b833f12dc1d399a759ceb4a8d3e344ea4553cb25e",
+      "outputDigest": "sha256:8b256620920778dcd56e4a4b833f12dc1d399a759ceb4a8d3e344ea4553cb25e",
+      "transformations": []
+    },
+    {
+      "path": "references/visual-qa-capture.md",
+      "uri": "legion-skill://audit-visual/references/visual-qa-capture.md",
+      "sourceDigest": "sha256:514133f1751fffb07b3d957f5f60eb3d363efc766f1982bb6bf62f9171680519",
+      "outputDigest": "sha256:514133f1751fffb07b3d957f5f60eb3d363efc766f1982bb6bf62f9171680519",
+      "transformations": []
+    },
+    {
+      "path": "references/website-conversion-standards.md",
+      "uri": "legion-skill://audit-visual/references/website-conversion-standards.md",
+      "sourceDigest": "sha256:fdeb9860a09c28061b9e3878974b1e4358f1bef16613099a9a049cd58b2fb2a5",
+      "outputDigest": "sha256:fdeb9860a09c28061b9e3878974b1e4358f1bef16613099a9a049cd58b2fb2a5",
+      "transformations": []
+    },
+    {
+      "path": "references/website-regression-gotchas.md",
+      "uri": "legion-skill://audit-visual/references/website-regression-gotchas.md",
+      "sourceDigest": "sha256:4d93b5e20671129f6e27ce1576b02f3bf908315b85bdb6b141854118cb5d2a19",
+      "outputDigest": "sha256:4d93b5e20671129f6e27ce1576b02f3bf908315b85bdb6b141854118cb5d2a19",
       "transformations": []
     }
   ]

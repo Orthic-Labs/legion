@@ -34,7 +34,7 @@ SKILL_ROOT = Path("tools/skills")
 # longer a separate Claude/Codex split: the two former per-agent rule indexes
 # were merged into this single catalogue.
 CLAUDE_INDEX = Path("docs/SKILL-ARCHITECTURE.md")
-AUDIT_DIR = Path("tools/skills/legion/_audit")
+AUDIT_DIR = Path("legion/_audit")
 COMPATIBILITY_MATRIX = AUDIT_DIR / "compatibility-matrix.json"
 CAPABILITY_ALIASES = AUDIT_DIR / "capability-aliases.json"
 DESCRIPTION_TOKEN_LIMIT = 60

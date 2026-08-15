@@ -83,14 +83,14 @@ test('nested repository paths are framed from workspace root before locked-domai
     execFileSync('git', ['commit', '-qm', 'base'], { cwd: repository, windowsHide: true });
     writeFileSync(join(repository, 'packages', 'arcane', 'gate.mjs'), 'export const gate = true;\n');
     execFileSync('git', ['add', 'packages/arcane/gate.mjs'], { cwd: repository, windowsHide: true });
-    const policy = { lockedDomainsFor: (paths) => paths.filter((path) => path.startsWith('tools/skills/legion/packages/arcane/')).map((path) => ({ path })) };
+    const policy = { lockedDomainsFor: (paths) => paths.filter((path) => path.startsWith('legion/packages/arcane/')).map((path) => ({ path })) };
     const requirement = commitReceiptRequirement({ workspace, repository, policy });
     assert.equal(requirement.required, true);
-    assert.deepEqual(requirement.paths, ['tools/skills/legion/packages/arcane/gate.mjs']);
+    assert.deepEqual(requirement.paths, ['legion/packages/arcane/gate.mjs']);
     assert.equal(commitRepository({ tool_input: { command: 'git commit -m nested', workdir: repository } }, workspace), repository);
-    assert.equal(commitRepository({ tool_input: { command: 'git -C tools/skills/legion commit -m nested' } }, workspace), repository);
+    assert.equal(commitRepository({ tool_input: { command: 'git -C legion commit -m nested' } }, workspace), repository);
     assert.equal(preEffectDiscipline({ tool_input: { command: 'git commit -m nested', workdir: repository } }, { workspace, policy }).code, 'ARC_CLAIM_PREREQUISITE_UNMET');
-    assert.equal(preEffectDiscipline({ tool_input: { command: 'git -C tools/skills/legion commit -m nested' } }, { workspace, policy }).code, 'ARC_CLAIM_PREREQUISITE_UNMET');
+    assert.equal(preEffectDiscipline({ tool_input: { command: 'git -C legion commit -m nested' } }, { workspace, policy }).code, 'ARC_CLAIM_PREREQUISITE_UNMET');
   } finally { rmSync(workspace, { recursive: true, force: true }); }
 });
 
