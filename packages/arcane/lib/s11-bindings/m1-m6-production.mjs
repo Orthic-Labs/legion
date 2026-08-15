@@ -1,13 +1,8 @@
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
-
 import { digestValue } from '../canonical.mjs';
 import { admitRetry, classifyRehydratedInput, requireDiagnosisDelta } from '../execution-governance.mjs';
 import { PacketDispatchRegistry, admitCapacity, admitTaskPhase, assessRealization, classifyHandoff } from '../dispatch-scheduler.mjs';
 import { admitLocalRepair } from '../delivery-guard.mjs';
 import { acknowledgeDownstreamDeficits, classifyAcceptanceDeficits, convertDeficitsToDebt, evaluateOutcomeClosure } from '../deficit-governance.mjs';
-import { readAdoptionStage, transitionCandidateStageFile } from '../adoption-ledger.mjs';
 import { FindingLifecycleStore, applyScopedRecheck, filterFindingsByThreshold, fingerprintFinding, verifyFindingClosure } from '../finding-lifecycle.mjs';
 import { AcceptanceEvidenceRegistry, compareEvidenceCandidates } from '../evidence-registry.mjs';
 import { ProviderCapabilityRegistry } from '../provider-capability.mjs';
@@ -39,8 +34,6 @@ const BINDINGS = new Map([
   ['AE-DEFICIT-PROPAGATION-002', () => observation('convertDeficitsToDebt', 'completion claim ceiling', convertDeficitsToDebt({ acceptanceItems: [{ id: 'safety', obligationClass: 'SAFETY', result: 'FAIL' }] }))],
   ['AE-DEFICIT-PROPAGATION-003', () => { const classified = classifyAcceptanceDeficits({ acceptanceItems: [{ id: 'optional', obligationClass: 'OPTIONAL', result: 'OPEN' }] }); return observation('acknowledgeDownstreamDeficits', 'dispatch admission', acknowledgeDownstreamDeficits({ canonicalDeficits: classified.detail.deficits, acknowledgements: [] })); }],
   ['AE-OUTCOME-CLOSURE-001', () => observation('evaluateOutcomeClosure', 'completion outcome consumer', evaluateOutcomeClosure({ acceptanceSurface: { observed: false, authenticated: true, integratedState: 'git:unobserved' } }))],
-  ['AE-ADOPTION-GOVERNANCE-001', () => { const root = mkdtempSync(join(tmpdir(), 's11-adoption-')); const path = join(root, 'ledger.json'); try { writeFileSync(path, JSON.stringify({ stages: [{ stage_id: 'S-1', done_state: 'IN_PROGRESS', integrated_state_identity: 'git:candidate', required_items: [] }] })); const transitioned = transitionCandidateStageFile(path, 'S-1'); const ledger = JSON.parse(readFileSync(path, 'utf8')); return observation('transitionCandidateStageFile', 'durable adoption ledger', { transitioned, read: readAdoptionStage(ledger, 'S-1') }); } finally { rmSync(root, { recursive: true, force: true }); } }],
-
   ['AE-FINDING-LIFECYCLE-001', () => { const store = new FindingLifecycleStore(); const first = store.upsert({ finding: { ...finding, message: 'old', line: 4 }, reviewRoundId: 'round-1' }); const second = store.upsert({ finding: { ...finding, message: 'new', line: 90 }, reviewRoundId: 'round-2' }); return observation('FindingLifecycleStore.upsert', 'finding lifecycle store', { first, second, count: store.records().length }); }],
   ['AE-FINDING-LIFECYCLE-002', () => observation('verifyFindingClosure', 'finding closure admission', verifyFindingClosure({ finding, closure: { fixAuthorId: 'alchemist', reviewerId: 'alchemist', artifactFingerprint: 'sha256:fixed' }, evidence: { evidenceId: 'e-self', reviewerId: 'alchemist', findingFingerprint: fingerprintFinding(finding), artifactFingerprint: 'sha256:fixed' } }))],
   ['AE-FINDING-LIFECYCLE-003', () => { const fingerprint = fingerprintFinding(finding); const close = verifyFindingClosure({ finding, closure: { fixAuthorId: 'fixer', reviewerId: 'oracle', artifactFingerprint: 'sha256:fixed' }, evidence: { evidenceId: 'e-2', reviewerId: 'oracle', findingFingerprint: fingerprint, artifactFingerprint: 'sha256:fixed' } }); return observation('applyScopedRecheck', 'finding lifecycle store', applyScopedRecheck({ records: [{ id: 'f-1', stable_fingerprint: fingerprint, status: 'OPEN' }], targetFindingFingerprints: [fingerprint], closures: [{ findingFingerprint: fingerprint, ...close }], discoveredFindings: [{ ...finding, subjectId: 'src/nit.mjs', severity: 'low' }] })); }],

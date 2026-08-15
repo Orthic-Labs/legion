@@ -44,6 +44,17 @@ test('M7 third revision is terminal & a fourth comparison is rejected', () => {
   assert.throws(() => applyArchitectureEvent(current, { event_type:'ARCHITECTURE_REVISION_RECORDED', payload:{ id:'revision-4', decision_id:'D-2', revision:4, live_candidate_ids:['a','b'], terminal_disposition:null } }), /tripwire/);
 });
 
+test('M7 accepted design invalidations count revisions automatically', () => {
+  let current = applyArchitectureEvent(state(), { event_type:'DECISION_RECORDED', payload:{ id:'D-2' } });
+  current = applyArchitectureEvent(current, { event_type:'INVALIDATION_RECORDED', payload:{ scope:'DESIGN', cause:'new evidence', root_evidence:null, decision_ids:['D-2'] } });
+  current = applyArchitectureEvent(current, { event_type:'INVALIDATION_RECORDED', payload:{ scope:'DESIGN', cause:'failed check', root_evidence:null, decision_ids:['D-2'] } });
+  assert.deepEqual(current.convergence.revisions.map(({ decision_id, revision }) => ({ decision_id, revision })), [{ decision_id:'D-2', revision:1 }, { decision_id:'D-2', revision:2 }]);
+  assert.throws(() => applyArchitectureEvent(current, { event_type:'INVALIDATION_RECORDED', payload:{ scope:'DESIGN', cause:'third pass without disposition', root_evidence:null, decision_ids:['D-2'] } }), /third revision requires/);
+  current = applyArchitectureEvent(current, { event_type:'INVALIDATION_RECORDED', payload:{ scope:'DESIGN', cause:'terminal pass', root_evidence:null, decision_ids:['D-2'], terminal_disposition:'SPIKE' } });
+  assert.equal(current.convergence.terminal_disposition, 'SPIKE');
+  assert.throws(() => applyArchitectureEvent(current, { event_type:'INVALIDATION_RECORDED', payload:{ scope:'DESIGN', cause:'fourth pass', root_evidence:null, decision_ids:['D-2'] } }), /tripwire/);
+});
+
 test('M7 epoch mismatch keeps checkpoint candidates unverified & cannot authorize resume', () => {
   const initial = state();
   const checkpoint = createExecutionCheckpoint({ state:initial, contract_fingerprint:digestValue({ contract:1 }), repository_state:digestValue({ repository:1 }), producer_versions:{ arcane:'m7' }, event_sequence:0, event_digest:digestValue({ event:0 }), preserved_candidate_ids:['candidate-1'], created_at:'2026-08-15T00:00:00.000Z' });

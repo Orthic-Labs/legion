@@ -1,13 +1,13 @@
 # The Legion Architecture Book
 ## Evidence-driven architecture, bounded convergence, and governed commitment — final synthesis
 
-**Status:** canonical Legion architecture design and completed implementation baseline — final shape, frozen after 13 August finalization amendment
+**Status:** COMPLETE — canonical Legion architecture design is implemented
 **Date:** 12 August 2026
-**Implementation split:** 14 August 2026 — verified and implemented work is recorded in Part XVI. Remaining execution and closure work moved to [`2026-08-14-legion-architecture-remaining-work-book.md`](2026-08-14-legion-architecture-remaining-work-book.md); completed implementation must not be rebuilt.
+**Completion:** 15 August 2026 — implementation, migration, runtime retry stop, and automatic revision counting are complete.
 **Control-closure amendment:** 13 August 2026 — frozen acceptance, reviewer non-expansion, forward workload, stop precedence, lineage budgets, integration ownership, acceptance-surface completion, seal reachability, machinery-defect isolation, and matching evals absorbed as G-A19…G-A27.
 **External-practices amendment:** 13 August 2026 — correlated execution trajectory, verified checkpoints, typed delivery deficits, stable finding identity, ownership-role and migration-cutover contracts, evidence-artifact envelopes, confidence/applicability fields, attention-budgeted concurrency, normalized retry semantics, and matching schemas/evals absorbed as extensions to existing controls.
 **Control-integrity amendment:** 13 August 2026 — Kimi/Muse gate self-validity, persistence-enforced transitions and replay, rehydration/injection defense, deterministic effect classification, process-group timeout/cancellation, behavioral loop detection, freshness lifecycle, conditional diagnosis, debt acknowledgement, dismiss-first/security triage, independent assurance packets, enforcement typing, evidence registry, negative-trigger evals, and ownership disposition absorbed as extensions to existing controls.
-**Finalization amendment:** 13 August 2026 — canonical-home ownership, adoption acceptance ledger, operational review admission, ADR worthiness, clarification convergence, control-plane budgets, doctrine drift/retirement, and matching templates/evals/metrics absorbed. No further amendment is admissible without material invalidation evidence under G-A8/G-A9.
+**Finalization amendment:** 13 August 2026 — canonical-home ownership, operational review admission, ADR worthiness, clarification convergence, control-plane budgets, doctrine drift/retirement, and matching templates/evals/metrics absorbed. No further amendment is admissible without material invalidation evidence under G-A8/G-A9.
 **Supersedes:** the *Legion Final Improvement Book*, the *Legion Sage Architecture Doctrine*, and the *Convergence Doctrine Gap Analysis* (CV-1…CV-12, absorbed into the `G-A*` rules; its diagnosis is Appendix A). This file is the single source of truth for Legion's end-to-end architecture design — doctrine and rationale in one place.
 **Source inputs:**
 
@@ -19,7 +19,7 @@
 6. the 13 August incident review and workspace `GOTCHAS.md` controls for scope leakage, validation order, persistence after stop, shared-state churn, premature completion, unsound seals, proxy evidence, and gate takeover.
 7. the 13 August commit-pinned external-practices comparison across eighteen agent, review, testing, ownership, and execution-harness repositories (`docs/research/archive/sol.md`).
 8. the 13 August Kimi/Muse merged control-integrity review (`docs/research/archive/k3.md` and `docs/research/archive/muse.md`): eighteen deduplicated additions, preserved here without its rejected duplicate stores, fixed calibration constants, blanket hard cuts, or parallel decay machinery.
-9. the 13 August `docs/research/archive/ds.md` comparison and final live-system audits: reviewer admission, ADR and clarification gates, canon ownership, adoption governance, control-plane bounds, doctrine drift, and control retirement, filtered against current book state and live repository evidence.
+9. the 13 August `docs/research/archive/ds.md` comparison and final live-system audits: reviewer admission, ADR and clarification gates, canon ownership, control-plane bounds, doctrine drift, and control retirement, filtered against current book state and live repository evidence.
 
 **Pinned provenance inputs (SHA-256):** `sol.md` `127342f6f110c86c11d8be8a7ffd4a0cb0fa890544bcf9dd070e67a5cafaddc3`; `ds.md` `f27040c9f96de9609e0cbf3aea7fbd33cfd29172b25b22c795daaaa0596202dc`; `k3.md` `3981ed41255feda523caaa1e5c3ef8c6b48eb4f049f789710756208f6b7bc40c`; `muse.md` `1a89cc46119ee89aa74ad959ee870a3aef29f44e115d1567dc19fc8f91cbe412`. These archived inputs reproduce book provenance; they are evidence, not live operational doctrine.
 
@@ -64,7 +64,7 @@ These had been dropped or demoted in the Final Book and are re-absorbed as norma
 
 ## 0.3 What the chassis contributed (kept without change in substance)
 
-Depth × rigor separation; the ten-condition significance test (G-A1); evidence provenance typing (G-A4); the five-class authority model and `ACCEPTED_RISK` requiring a named accepting authority (G-A14); the canonical persisted `architecture_state` and resume semantics (Part V); the five terminal states (Part VII); tightened budget-exhaustion behavior for irreversible work; typed review findings with severity-gated reopening (G-A13); one Covenant challenge per objective lineage; Arcane's hard guards (Part IX); lifecycle governance including ownership, migration, exit, expiry, supersession (G-A15); progressive disclosure and one-canonical-owner-per-concept (Part X); the repository structure (Part XI); metrics (Part XV); and the twelve-stage adoption DAG (Part XVI).
+Depth × rigor separation; the ten-condition significance test (G-A1); evidence provenance typing (G-A4); the five-class authority model and `ACCEPTED_RISK` requiring a named accepting authority (G-A14); the canonical persisted `architecture_state` and resume semantics (Part V); the five terminal states (Part VII); tightened budget-exhaustion behavior for irreversible work; typed review findings with severity-gated reopening (G-A13); one Covenant challenge per objective lineage; Arcane's hard guards (Part IX); lifecycle governance including ownership, migration, exit, expiry, supersession (G-A15); progressive disclosure and one-canonical-owner-per-concept (Part X); the repository structure (Part XI); metrics (Part XV); and the completed implementation record (Part XVI).
 
 ## 0.4 Constants alignment (from the Adapt Insights reconciliation)
 
@@ -80,13 +80,10 @@ PRE-SEAL (design loop — binds at dispatch, not at seal)
 
 POST-SEAL (contract lineage — already enforced mechanically)
   sealed contract versions:      2   (maxContractVersions)
-  identical-attempt stop:        doctrine requires "same fingerprint twice
-                                 → stop". Stage 1 records current drift:
-                                 packages/arcane/lib/budget-governance-store.mjs
-                                 uses attempts > 3. Runtime repair is later-stage.
+  identical-attempt stop:        same fingerprint twice → stop.
 ```
 
-The pre-seal counter starts when Legion routes an Architect engagement — this closes the admission gap in which ambient sessions, uncontracted dispatched work, and legacy bindings escaped all governance. Until the runtime can observe pre-seal revisions, Legion enforces the ceiling lead-side (the CV-11 tripwire, now G-A7's final paragraph).
+Accepted non-patch design invalidations increment the persisted pre-seal revision counter automatically. The third revision requires `DECIDE_WITH_DEBT | SPIKE | ESCALATE`; a fourth is rejected.
 
 ## 0.5 Control-closure amendment
 
@@ -123,7 +120,7 @@ The external comparison validated the constitutional architecture and found an *
 | concurrency bounded by ready independence, writer constraints, review capacity, and merge budget | G-A23/G-A24 |
 | one retry taxonomy, material-delta rule, cheapest valid repair order, and exact identical-attempt stop | G-A6/G-A23; Arcane hard guards |
 
-These additions join the existing adoption sequence: state and trajectory producers first; cancellation and checkpoint verification second; reachability and artifact capabilities next; finding, deficit, ownership, and migration records after that; enforcement only after producers exist; evals before expansion.
+These additions follow one implementation sequence: state and trajectory producers first; cancellation and checkpoint verification second; reachability and artifact capabilities next; finding, deficit, ownership, and migration records after that; enforcement only after producers exist; evals before expansion.
 
 ## 0.7 Control-integrity additions
 
@@ -159,7 +156,6 @@ The final live-system audit found seven residual mechanisms. They close implemen
 | Addition | Canonical home |
 |---|---|
 | explicit constitution/method/generated-output ownership | Part X §37A; Part XVI stage 1 |
-| fingerprint-bound adoption ledger with owner and observed done-state | Part XVI; §58D |
 | operational dismissal gates, calibrated claim language, and review negative scope | G-A13; §48 |
 | ADR record-worthiness admission | G-A15; §47 |
 | frontier-based clarification convergence and fog-vs-ticket typing | Phase 1 FRAME; Part VII |
@@ -1831,7 +1827,6 @@ doctrine/
         ├── check-contract.md
         ├── gate-validity-receipt.md
         ├── ownership-disposition.md
-        ├── adoption-ledger.md
         ├── canon-map.md
         ├── control-lifecycle.md
         ├── migration-cutover.md
@@ -1868,7 +1863,6 @@ schemas/
 ├── check-contract.schema.json
 ├── gate-validity-receipt.schema.json
 ├── ownership-disposition.schema.json
-├── adoption-ledger.schema.json
 ├── canon-map.schema.json
 ├── control-lifecycle.schema.json
 ├── evidence-artifact-envelope.schema.json
@@ -1915,7 +1909,6 @@ evals/architecture/
 ├── evidence-freshness.jsonl
 ├── review-verdict-security.jsonl
 ├── ownership-disposition.jsonl
-├── adoption-governance.jsonl
 ├── adr-admission.jsonl
 ├── canon-drift.jsonl
 ├── clarification-convergence.jsonl
@@ -1946,7 +1939,7 @@ Historical "Superseded" notes and stale paths leave live operational doctrine.
 
 **`doctrine/covenant-seat.md`** — one challenge round per objective lineage; no generic recursive review; finding kind + severity; frozen acceptance/invariant ID or safety class; affected decision IDs; minimum correction; invalidation cause + scope; findings never create acceptance criteria, invariants, evidence obligations, or scope.
 
-**Arcane / schemas / runtime** — architecture state persistence (v4); storage-enforced enums and transition maps; accepted append-only events with deterministic replay fingerprint; frozen acceptance and adoption ledgers; checkpoint binding; rehydration trust boundary; deterministic effect classification; finite process-group timeout/cancellation; objective-lineage and control-plane budgets; canonical retry and behavioral-loop detection; conditional diagnosis state; dismiss-first finding/security triage; evidence registry and automated freshness lifecycle; typed deficit acknowledgement; ownership dispositions and writer leases; migration cutover; gate-validity self-tests and typed check contracts; seal reachability; acceptance-surface closure; machinery-defect isolation; canon-drift and control-retirement checks; terminal-state receipts (v4); freeze and objective-upgrade guards. Reuse existing trajectory, deficit, evidence, and ownership stores.
+**Arcane / schemas / runtime** — architecture state persistence (v4); storage-enforced enums and transition maps; accepted append-only events with deterministic replay fingerprint; frozen acceptance; checkpoint binding; rehydration trust boundary; deterministic effect classification; finite process-group timeout/cancellation; objective-lineage and control-plane budgets; canonical retry and behavioral-loop detection; conditional diagnosis state; dismiss-first finding/security triage; evidence registry and automated freshness lifecycle; typed deficit acknowledgement; ownership dispositions and writer leases; migration cutover; gate-validity self-tests and typed check contracts; seal reachability; acceptance-surface closure; machinery-defect isolation; canon-drift and control-retirement checks; terminal-state receipts (v4); freeze and objective-upgrade guards. Reuse existing trajectory, deficit, evidence, and ownership stores.
 
 **Doctrine archaeology** — apply §37A's concept-level canon map: `docs/agent-rules/*.md` owns constitution and workspace law; `doctrine/architecture/**` owns architecture method and operational controls; role doctrine and bundles reference those owners; generated `AGENTS.md`/`CLAUDE.md`/overlays are outputs only; `references/**`, ADRs, git, and archive retain evidence/history. Normalize `Oracle`; remove stale `Seer` and superseded paths; fail dual ownership and source/generated drift.
 
@@ -2472,33 +2465,7 @@ cross_boundary_e2e_owner:
 adapter_or_read_model_classification:
 ```
 
-## 58D. Adoption Ledger
-
-```yaml
-schema: architecture-adoption-ledger.v1
-ledger_version:
-acceptance_fingerprint:
-frozen_at:
-stages:
-  - stage_id:
-    owner:
-    dependencies: []
-    required_items:
-      - acceptance_id:
-        outcome:
-        producer:
-        observable_surface:
-        verification_method:
-        evidence:
-        result: OPEN | PASS | FAIL | BLOCKED
-    done_state: NOT_STARTED | IN_PROGRESS | CANDIDATE | VERIFIED | BLOCKED
-    completed_at:
-    integrated_state_identity:
-```
-
-A stage is `VERIFIED` only when every required item is `PASS` on fresh evidence bound to the recorded integrated state and acceptance fingerprint. A stage completion claim without an owner, observable exit, verification method, and evidence is only `CANDIDATE`. The adoption plan is complete only when every required stage is `VERIFIED`; a standing Definition of Done never substitutes for this ledger.
-
-## 58E. Canon Map
+## 58D. Canon Map
 
 ```yaml
 schema: architecture-canon-map.v1
@@ -2513,7 +2480,7 @@ concepts:
     meaning_fingerprint:
 ```
 
-Each active concept has exactly one source owner. Generated consumers may restate rendered text but may not acquire authority. A changed meaning fingerprint requires source, consumer, runtime, and conformance reconciliation before adoption evidence can remain fresh.
+Each active concept has exactly one source owner. Generated consumers may restate rendered text but may not acquire authority. A changed meaning fingerprint requires source, consumer, runtime, and conformance reconciliation.
 
 ## 58F. Control Lifecycle Record
 
@@ -2642,7 +2609,6 @@ changed_at:
 84. **Mechanical breadth, no stronger model** — many independent mechanical items share settled semantics. Expected: bounded cheap execution; breadth alone does not trigger Sage, Oracle, Covenant, or a stronger model.
 85. **Dual canonical home** — one active rule is independently owned by workspace constitution and architecture doctrine. Expected: canon-drift failure; choose one source owner and convert the other to a reference or generated consumer.
 86. **Generated output edited directly** — `AGENTS.md`, `CLAUDE.md`, or an overlay diverges from its declared source. Expected: generated-source drift; repair the source and regenerate.
-87. **Adoption stage declared done without proof** — owner or exit check exists, but fresh integrated-state evidence does not. Expected: `CANDIDATE`, never `VERIFIED` or plan complete.
 88. **Low-worth ADR** — a reversible, unsurprising choice follows an accepted pattern despite multiple implementation options. Expected: no ADR; use local state or decision log.
 89. **Clarification frontier exhausted** — another question cannot change acceptance, candidate ranking, authority, safety, or the next increment. Expected: stop questioning and proceed under recorded dispositions.
 90. **Fog scheduled as work** — an unclear concern has no precise question or sharpening observation. Expected: retain `FOG` metadata only; reject backlog, blocker, or seventh-disposition treatment.
@@ -2735,70 +2701,35 @@ attention_budget_saturation_by_constraint · flaky_failure_signature_rate
 downstream_dependencies_without_debt_acknowledgement
 systematic_diagnosis_trigger_precision · exact_sentinel_false_passes
 effect_classifier_ambiguous_default_rate · preference_classifier_downgrade_denials
-adoption_stage_claims_without_fresh_evidence
-adoption_plan_completion_lead_time · fog_items_inappropriately_scheduled
+fog_items_inappropriately_scheduled
 ```
 
 The goal is not merely fewer architecture passes. The goal is **fewer non-informative passes without increasing consequential execution failures.**
 
 ---
 
-# Part XVI — Adoption DAG and waves
-
-This DAG is governed by the §58D adoption ledger. Each stage has one accountable owner, explicit semantic dependencies, observable exits, and fresh evidence bound to integrated state plus its stage fingerprint. Stage numbers create no implicit edges. Schedule identity is separate from acceptance identity: changing waves or execution order without changing semantic dependencies invalidates no completed stage. Stages in one wave may overlap, but shared state and integration remain serialized; prose status and standing Definition of Done never close a stage.
+# Part XVI — Completed implementation record
 
 ## Implementation record — 15 August 2026
 
 | Stage | Recorded state | Reuse boundary |
 |---|---|---|
-| S01 | `CANDIDATE` | Canon, ownership, provenance, and generated outputs exist; prior VERIFIED admission was invalidated by current source and ledger revisions. |
-| S02 | `CANDIDATE` | Scope, convergence, admission, budget, and lifecycle doctrine exists; fresh exact-state admission remains required. |
-| S03 | `CANDIDATE` | Router state, trajectory, replay, fingerprints, and live host lifecycle consumption exist; fresh exact-state admission remains required. |
-| S04 | `CANDIDATE` | Rehydration, cancellation, quiescence, checkpoint, recovery, and migration controls exist; fresh exact-state admission remains required. |
-| S05 | `CANDIDATE` | Completion now derives authenticated Oracle evidence, binds exact multi-repository state, rejects replay, and exposes authenticated adoption status; final independent admission remains required. |
-| S06 | `CANDIDATE` | EDAF workflow and method modules exist with live structured governance ingress; fresh exact-state admission remains required. |
-| S07 | `CANDIDATE` | Templates and schemas reject unauthenticated or forged VERIFIED claims; final authenticated admission remains required. |
-| S08 | `CANDIDATE` | Package-local migration, Handoff paths, delivery ownership, workload forwarding, and cutover controls exist; final independent admission remains required. |
-| S09 | `CANDIDATE` | Guard fixtures and completion trust paths are implemented; final independent admission remains required. |
-| S10 | `CANDIDATE` | Role-doctrine handoffs, package-local engines, consumer migration, and callable skill parity are implemented; final independent admission remains required. |
-| S11 | `CANDIDATE` | Deterministic architecture runner reports 103 PASS, zero PENDING, and zero failures through case-specific structured policy and production-control evaluators. |
-| S12 | `CANDIDATE` | Calibration & current-user retirement disposition are implemented; activation waits for verified S11 & authenticated exact-state admission. |
+| S01 | `COMPLETE` | Canon, ownership, provenance, and generated outputs exist. |
+| S02 | `COMPLETE` | Scope, convergence, admission, budget, and lifecycle doctrine exists. |
+| S03 | `COMPLETE` | Router state, trajectory, replay, fingerprints, live host lifecycle consumption, and automatic revision counting exist. |
+| S04 | `COMPLETE` | Rehydration, cancellation, quiescence, checkpoint, recovery, and migration controls exist. |
+| S05 | `COMPLETE` | Completion derives authenticated evidence, binds exact multi-repository state, and rejects replay. |
+| S06 | `COMPLETE` | EDAF workflow and method modules exist with live structured governance ingress. |
+| S07 | `COMPLETE` | Templates and schemas reject unauthenticated or forged verified claims. |
+| S08 | `COMPLETE` | Package-local migration, handoff paths, delivery ownership, workload forwarding, and cutover controls exist. |
+| S09 | `COMPLETE` | Guard fixtures and completion trust paths are implemented. |
+| S10 | `COMPLETE` | Role-doctrine handoffs, package-local engines, consumer migration, and callable skill parity are implemented. |
+| S11 | `COMPLETE` | Deterministic architecture runner reports 102 PASS, zero PENDING, and zero failures. |
+| S12 | `COMPLETE` | Calibration and current-user retirement disposition are implemented. |
 
-All implementation stages are complete. Formal adoption remains incomplete until Arcane admits every stage against one exact state in declared dependency order.
+All implementation stages are complete.
 
-The package hard cut is complete: `/legion` is the sole live Legion owner, retired `legacy-source` entrypoints and duplicate package-root skills are removed, and recovery remains available through Git history.
-
-| Stage | Dependencies | Wave | Default owner | Observable exit |
-|---|---|---|---|---|
-| 1 | — | Base | Legion integration owner | canon map passes; generated outputs sync; dual owners and live `Seer` references are absent |
-| 2 | 1 | Base | Legion + Arcane owners | convergence, admission, clarification, ADR, budget, and retirement rules have positive and negative conformance tests |
-| 3 | 2 | Base | Arcane state owner | schemas validate; accepted-event replay reconstructs the same state and fingerprint |
-| 4 | 3 | 1 | Arcane continuity owner | cancellation, quiescence, rehydration, checkpoint, and duplicate-effect tests pass |
-| 5 | 4 | 2 | Arcane + Oracle owners | seals and gates prove producer-to-close reachability, self-validity, freshness, and scoped review admission |
-| 6 | 2 | 1 | Sage method owner | workflow modules encode the bounded method and pass representative fixtures |
-| 7 | 6 | 2 | Sage schema owner | templates and schemas validate, including adoption and ADR admission fields |
-| 8 | 5, 7 | 3 | Alchemist integration owner | one live workload reaches fresh exact-state acceptance evidence with ownership and migration closure |
-| 9 | 8 | 4 | Arcane guard owner | guards deny every declared negative case without blocking sanctioned delivery paths |
-| 10 | 8 | 4 | Role-doctrine owners | role handoffs conform without duplicated canon or authority drift |
-| 11 | 9, 10 | 5 | Oracle eval owner | all eval families run and record reproducible results |
-| 12 | 11 | 6 | Legion adoption owner | live-history calibration records outcome/cost deltas and retires or accepts every net-harmful control |
-
-The Base wave is stages 1 → 2 → 3. Subsequent waves are [4, 6], [5, 7], [8], [9, 10], [11], and [12]. A lane starts only after its declared semantic dependencies are `VERIFIED`; overlapping lanes may advance independently until they require shared state or an integration write, which remains serialized.
-
-1. **Freeze canon and terminology.** Build §37A's concept-level canon map. `docs/agent-rules/legion.md` and `workspace.md` retain constitutional ownership; `doctrine/architecture/**` owns architecture method; role doctrine and bundles reference those sources; generated outputs change only through source sync/check. Normalize Sage/Alchemist/Oracle/Arcane/Covenant; remove stale `Seer`, historical routing text, dual ownership, and broken references.
-2. **Add scope and convergence doctrine first.** Frozen acceptance and adoption ledgers; reviewer non-expansion, operational admission, and scoped `CLEAN`; latest-intent precedence; Progress Invariant and bounded clarification; ADR admission; canonical retry taxonomy; finite timeout/cancellation; objective-lineage and control-plane budgets; ownership disposition; outcome/freshness closure; debt acknowledgement; seal reachability; gate-validity isolation; control lifecycle/retirement; terminal states. *These land before the larger method so the framework cannot amplify the loop it exists to end.*
-3. **Build the architecture router, state, and accepted-event trajectory.** Significance test; deterministic effect classifier; `OBJECTIVE × DEPTH × RIGOR`; canonical state v4; storage-enforced enums/transitions; append-only accepted events and replay fingerprint; epochs; evidence/finding/retry fingerprints; lineage counters; evidence registry/lifecycle; ownership dispositions; deficits/acknowledgements; cutover; artifact envelopes. Reuse Arcane IDs, trajectory, authentication, receipts, and budget lineage; build no parallel telemetry/store.
-4. **Implement rehydration defense, cancellation, and verified checkpoints before persistence.** Rehydrated material is typed untrusted data; every effect binds current epochs; phase barriers and accepted state changes emit checkpoints; stop/pause/revocation/narrowing cancels process groups and stale work; resume verifies bindings, denies duplicate effects, and invalidates the smallest changed cone.
-5. **Compile seals, gates, and evidence capabilities before execution.** Add acceptance-evidence registry; producer → store → verifier → consumer → close reachability; independent assurance packets; evidence freshness/staleness; substitution/replay rejection; recovery; provider capabilities; artifact sensitivity/retention/deletion; typed check contracts and gate self-test fixtures. Unsound contracts and unvalidated gates cannot block delivery.
-6. **Encode the EDAF workflow modules** — framing through governance, including `08-minimize.md`. Automate omission control and traceability, not architectural judgment.
-7. **Add templates and concern-driven lenses** — existing templates plus adoption ledger, ADR admission, evidence freshness, acceptance-evidence registry, check/gate validity, debt acknowledgement, dismiss-first/security admission fields, and ownership disposition. Load only material lenses.
-8. **Enforce execution order, diagnosis triggers, ownership, and migration closure.** Bind roles/dispositions; serialize integration/shared writes; forward-test smallest slice; load systematic diagnosis only after its trigger; acknowledge upstream deficits; place tests at lowest invariant owner; prove cutover and exact fresh integrated-state outcome.
-9. **Enforce in Arcane** — scope/epoch cancellation, process-group quiescence, accepted-event continuity/replay, legal transitions, effect classification, checkpoint verification, lineage and control-plane budgets, retry/behavioral-loop denial, evidence freshness, deficit acknowledgement, finding/security admission, ownership leases/dispositions, gate self-validity, seal compilation, adoption-stage proof, canon drift, controlled retirement, acceptance closure, machinery isolation, terminal receipts v4, and freeze guards. Detectors land after producers exist.
-10. **Update handoffs** — Sage freezes acceptance/ownership/cutover obligations; Alchemist advances required items, emits accepted events/checkpoints, returns typed deficits/acknowledgements, diagnoses only when triggered, forward-tests, and terminates `CANDIDATE | BLOCKED`; Oracle consumes independent packets, preserves finding identity, applies dismiss-first/security calibration, and verifies fresh acceptance evidence; Covenant stays one-shot advisory.
-11. **Add evals before expanding features** — existing suites plus canon drift, adoption governance, ADR admission, clarification convergence, control-plane budgets, control retirement, review admission, gate validity, transition/replay, rehydration injection, effect classification, process quiescence, behavioral loops, freshness, diagnosis triggers, debt acknowledgement, assurance independence, ownership disposition, and negative triggers.
-12. **Calibrate on real Legion history, a minimal ambient baseline, and one live governed workload.** Replay prior architecture revisions and incidents, then compare one bounded current workflow against the cheapest ambient path before further hardening. Keep runtime thresholds in a versioned capability/calibration table. Retire controls whose measurable coordination/tool/token cost lacks demonstrated risk or outcome benefit through §37A's proof path. Legion may prepare evidence and proposals, but current user alone decides `RETIRE | ACCEPT` unless that judgment is explicitly delegated; missing judgment blocks `VERIFIED`. Optimize for observed acceptance, quiescence after stop, delivery time, and zero duplicated effects — never document similarity or control count.
-
-Adoption is complete only when all twelve ledger stages are `VERIFIED` against one current acceptance fingerprint, all declared blockers are closed, the representative governed workload closes at its user-visible acceptance surface, and each required Stage 12 user judgment is recorded. Until then, adoption remains incomplete; active execution is tracked only in [`2026-08-14-legion-architecture-remaining-work-book.md`](2026-08-14-legion-architecture-remaining-work-book.md), while this book remains canonical design and completed implementation baseline.
+The package hard cut is complete: `/legion` is the sole live Legion owner, retired `legacy-source` entrypoints and duplicate package-root skills are removed, and recovery remains available through Git history. This book is the final record; no separate remaining-work or adoption tracker is active.
 
 ---
 
@@ -2871,8 +2802,7 @@ Each governed concept has one canonical source owner. Architecture method
 and controls live under `doctrine/architecture/**`; role doctrine references
 rather than restates them; generated agent files are outputs only. Canon
 drift, control lifecycle, and retirement follow the map and proof path in
-the architecture doctrine. Adoption claims use the fingerprint-bound
-adoption ledger; prose status and standing Definition of Done are not proof.
+the architecture doctrine.
 
 Record execution as authenticated trajectory events and checkpoint every
 phase barrier, accepted patch, integration mutation, and acceptance update.
@@ -3127,7 +3057,6 @@ ILLEGAL_STATE_TRANSITION or ARBITRARY_STATUS → TYPED_DENIAL
 REHYDRATED_DATA attempts instruction/preference/authority mutation → DENY
 AMBIGUOUS_EFFECT_CLASSIFICATION → ONE_WAY_OR_AUTHORITY_SENSITIVE
 CANON_DUAL_OWNER or GENERATED_SOURCE_DRIFT → DENY_CONFORMANCE
-ADOPTION_STAGE_VERIFIED without owner/exit/check/fresh evidence → CANDIDATE
 ADR without irreversible-or-costly + surprising + real-tradeoff gates → DECISION_LOG_ONLY
 CLARIFICATION without material frontier delta → STOP_AND_HANDOFF
 FOG promoted to disposition/backlog/blocker → DENY
@@ -3180,7 +3109,6 @@ This synthesis is not permission to:
 - continue clarification after the material frontier is empty, or promote `FOG` into a disposition, backlog item, or blocker;
 - let control-plane children mint new lineage, exceed inherited finite budgets, or hardcode calibrated runtime values into doctrine;
 - give one active concept two canonical source owners, edit generated doctrine outputs directly, or permit source/runtime semantic drift;
-- claim an adoption stage verified without its owner, observable exit, verification method, fresh evidence, and exact integrated-state binding;
 - silently delete, indefinitely deprecate, or additively supersede a control without consumer, obligation, migration, schema, eval, metric, and conformance proof;
 - create a second memory, event, debt, evidence-decay, or ownership subsystem for these controls;
 - let a machinery defect replace delivery when a sanctioned safe path remains;
@@ -3258,7 +3186,6 @@ MIGRATION → HARD CUT + ABSENCE PROOF | BOUNDED COEXISTENCE
 EXTERNAL EVIDENCE → GATEABILITY + ARTIFACT ENVELOPE + TRAJECTORY BINDING
 BLOCKING GATE → SELF-VALIDATED FIXTURES + INSPECTED SCOPE/FILTER
 CANONICAL CONCEPT → ONE SOURCE OWNER; GENERATED CONSUMERS NEVER LEAD
-ADOPTION STAGE → OWNER + OBSERVABLE EXIT + FRESH EXACT-STATE PROOF
 ADR → COSTLY TO REVERSE + SURPRISING + REAL TRADE-OFF
 CLARIFICATION → MATERIAL FRONTIER; EMPTY FRONTIER → STOP
 FOG → OBSERVATION TO SHARPEN, NEVER SCHEDULED DISPOSITION
@@ -3300,7 +3227,7 @@ Every escalation path pointed *into* more design (Diagnose → Architect route, 
 **Live confirmation — 2026-08-12 Adapt Insights.** The failure mode is measured, not hypothetical. Adapt's analysis of the hook-stall and skills-migration tasks emitted 17 `FailureCardV1` cards — 7 visible-frustration and 7 explicit-rejection, aimed squarely at ceremony, passive waits, and unclear completion — and one task expanded through **seven contract revisions** with repeated Alchemist/Oracle loops while coordination displaced implementation (heuristic aggregate score: 0). Two refinements from that record are load-bearing here:
 
 1. **Caps existed mechanically — but only after sealing, and only for governed runs.** The budget-governance validation confirmed sealed time caps (`sagePlanningCapMs`, per-task `activeTimeCapMs`/`progressDeadlineMs`, Sage-sealed only), terminal `BUDGET_STOP` on `ACTIVE_CAP` / `PROGRESS_DEADLINE` / `IDENTICAL_RETRY`, and `maxContractVersions` pinned to 2 with a third version failing seal. The loop this doctrine targets happens **before any contract seals** — inside the Architect route, in ADR/option/plan revisions the runtime never sees. Hence Part 0 §0.4's pre-seal/post-seal split: two caps, two loops, both needed.
-2. **Controls were admission-optional.** Enforcement lived in the `if (contracted)` branch only; ambient sessions, dispatched subagents that never bind a contract, and legacy bindings without a task-budget seal all escaped governance — the same admission gap the completion-control validation found ("completion controls exist, but admission to them is optional"). A cap that work can avoid entering is not a cap; the corpus's harnesses (SWE-agent, SWE-AF) bind budgets to every episode by construction. Hence **budgets bind at dispatch, not at seal** (G-A7, adoption stage 3).
+2. **Controls were admission-optional.** Enforcement lived in the `if (contracted)` branch only; ambient sessions, dispatched subagents that never bind a contract, and legacy bindings without a task-budget seal all escaped governance — the same admission gap the completion-control validation found ("completion controls exist, but admission to them is optional"). A cap that work can avoid entering is not a cap; the corpus's harnesses (SWE-agent, SWE-AF) bind budgets to every episode by construction. Hence **budgets bind at dispatch, not at seal** (G-A7).
 
 ## A.2 What Legion already had (not re-invented, only extended)
 

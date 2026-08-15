@@ -13,6 +13,11 @@ replacement for it. Where this manual's routing language conflicts with current 
 `> **Superseded:**` note marks the change inline; everything else is preserved as originally
 written, including its own internal skill name (`qa`) and file paths from its era.
 
+**Completion Validation override:** do not load or execute this QA manual for ordinary completion
+validation. Completion Validation is semantic source inspection only: no tests, probes, browser
+work, receipts, or durable artifacts. This bundle applies only when user explicitly requests
+broader runtime/UI audit described below.
+
 **S10 handoff override:** consume only a sealed independent packet with frozen acceptance IDs,
 exact state, prior findings, effect receipts, checkpoints, scope, & evidence references. Preserve
 findings; dismiss at first failed configured gate; never expand review scope. Close a mapped

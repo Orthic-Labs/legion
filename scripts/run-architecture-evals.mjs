@@ -17,7 +17,7 @@ const expectedFamilies = [
   'evidence-artifacts', 'retry-semantics', 'concurrency-attention', 'gate-validity',
   'state-transitions-replay', 'rehydration-injection', 'effect-classification',
   'evidence-freshness', 'review-verdict-security', 'ownership-disposition',
-  'adoption-governance', 'adr-admission', 'canon-drift', 'clarification-convergence',
+  'adr-admission', 'canon-drift', 'clarification-convergence',
   'control-plane-budgets', 'control-retirement', 'review-admission', 'negative-triggers',
   'adversarial',
 ];

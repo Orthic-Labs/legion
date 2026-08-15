@@ -36,8 +36,10 @@ test('S10-02 Alchemist advances only frozen IDs, emits handoff evidence, & never
 });
 
 test('S10-03 Oracle packet, dismissal-first scope, preserved findings, & fresh closure reject authority drift', async () => {
-  const oracle = await read('doctrine/oracle.md');
-  for (const phrase of fixture.required_phrases['doctrine/oracle.md']) assert.match(oracle, phrasePattern(phrase));
+  for (const path of ['doctrine/oracle.md', 'roster/oracle.md']) {
+    const oracle = await read(path);
+    for (const phrase of fixture.required_phrases[path]) assert.match(oracle, phrasePattern(phrase));
+  }
   assert.equal(closeFinding({ mapped: true, fresh: true, exactState: true }), 'CLOSED');
   assert.equal(closeFinding({ mapped: true, fresh: false, exactState: true }), 'OPEN');
   assert.equal(closeFinding({ mapped: false, fresh: true, exactState: true }), 'OPEN');

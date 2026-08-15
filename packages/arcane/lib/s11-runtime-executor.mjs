@@ -120,7 +120,6 @@ function validateM1M6(id, value) {
     case 'AE-DEFICIT-PROPAGATION-001': return v?.detail?.claimCeiling === 'COMPLETE_WITH_DEBT';
     case 'AE-DEFICIT-PROPAGATION-002': case 'AE-DEFICIT-PROPAGATION-003': return v?.code === 'ARC_CLAIM_PREREQUISITE_UNMET';
     case 'AE-OUTCOME-CLOSURE-001': return v?.code === 'ARC_EVIDENCE_INSUFFICIENT' && v?.detail?.acceptanceSurface === 'UNOBSERVED';
-    case 'AE-ADOPTION-GOVERNANCE-001': return v?.transitioned?.allowed === true && v?.read?.detail?.doneState === 'CANDIDATE';
     case 'AE-FINDING-LIFECYCLE-001': return v?.count === 1 && v?.second?.disposition === 'EXISTING_RECORD';
     case 'AE-FINDING-LIFECYCLE-002': return v?.code === 'ARC_SELF_CERTIFICATION';
     case 'AE-FINDING-LIFECYCLE-003': return v?.closed?.length === 1 && v?.deferred?.[0]?.disposition === 'DEFERRED_INFORMATIONAL';

@@ -19,6 +19,7 @@ import { digestValue } from '../packages/arcane/lib/canonical.mjs';
 import { loadHostKeyRing } from '../packages/arcane/lib/keys.mjs';
 import { signRecord } from '../packages/arcane/lib/receipt-auth.mjs';
 import { TaskBudgetSealStore } from '../packages/arcane/lib/task-budget-seal-store.mjs';
+import { HostEventLedger } from '../packages/arcane/lib/host-event-ledger.mjs';
 import { b5Contract } from '../packages/arcane/tests/fixtures/runtime-binding-contract.mjs';
 
 const SESSION = 'session-seal';
@@ -93,6 +94,25 @@ test('Sage seal command creates exact contract & task budget bindings', async ()
     const keys = loadHostKeyRing({ dir: s.ctx.env.ARCANE_KEY_DIR });
     assert.equal(new BudgetGovernanceStore({ root: join(s.root, '.audit', 'arcane', 'budget-governance'), keyRing: keys }).require('EC-11', 1).contractDigest, digestValue(contract));
     assert.equal(new TaskBudgetSealStore({ root: join(s.root, '.audit', 'arcane', 'task-budget-seals'), keyRing: keys }).require('EC-11', 'T-1').activeTimeCapMs, 900000);
+  } finally { s.cleanup(); }
+});
+
+test('Sage seal command authenticates one bounded v1 → v2 budget amendment', async () => {
+  const s = scenario();
+  try {
+    const budgets = join(s.root, 'task-budgets.json');
+    writeFileSync(budgets, JSON.stringify({ tasks: [{ taskId: 'T-1', ownScope: ['x'], activeTimeCapMs: 900000, progressDeadlineMs: 600000, evidenceReferences: ['AC-1'] }] }));
+    const first = b5Contract('EC-12'); first.budget = { objectiveLineageId: 'EC-12-lineage', objectiveDigest: digestValue('EC-12'), legionBlastMapCapMs: 900000, sagePlanningCapMs: 900000, maxContractVersions: 2 }; writeFileSync(s.contractPath, JSON.stringify(first));
+    await runContract(['seal', '--file', s.contractPath, '--task-budgets', budgets, '--agent', 'agent-1', '--session', SESSION], s.ctx);
+    const keys = loadHostKeyRing({ dir: s.ctx.env.ARCANE_KEY_DIR });
+    new HostEventLedger({ root: join(s.root, '.audit', 'arcane', 'host-events'), keyRing: keys, keyId: keys.activeKeyId() }).append({ eventId: 'sage-v2-amendment', adapter: ADAPTER, eventType: 'SubagentStart', sessionId: SESSION, binding: { runId: 'run-v1', taskId: 'T-1', contractId: first.contractId, contractVersion: 1, contractDigest: digestValue(first) }, sourceRevision: first.sourceRevision, observedAuthority: 'sage', payload: {} });
+    const second = structuredClone(first); second.version = 2; writeFileSync(s.contractPath, JSON.stringify(second)); s.out.length = 0;
+    const result = await runContract(['seal', '--file', s.contractPath, '--task-budgets', budgets, '--agent', 'agent-1', '--session', SESSION], s.ctx);
+    assert.equal(result.exitCode, 0);
+    const stored = new BudgetGovernanceStore({ root: join(s.root, '.audit', 'arcane', 'budget-governance'), keyRing: keys }).require('EC-12', 2);
+    assert.equal(stored.amendmentEvidence.priorContractDigest, digestValue(first));
+    assert.equal(stored.amendmentEvidence.newContractDigest, digestValue(second));
+    assert.equal(stored.amendmentEvidence.scopeExpanded, false);
   } finally { s.cleanup(); }
 });
 

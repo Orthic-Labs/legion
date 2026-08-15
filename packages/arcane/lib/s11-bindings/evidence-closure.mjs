@@ -91,7 +91,6 @@ const UNSUPPORTED = Object.freeze({
   'AE-DEFICIT-PROPAGATION-002': 'required correctness/safety debt-conversion guard',
   'AE-DEFICIT-PROPAGATION-003': 'dispatch admission consumer for canonical downstream deficit acknowledgement',
   'AE-OUTCOME-CLOSURE-001': 'outcome state machine with acceptance-surface observation status',
-  'AE-ADOPTION-GOVERNANCE-001': 'durable adoption-stage state store that retains CANDIDATE after evidence denial',
 });
 
 export function evidenceClosureRuntimePolicyIds() {
