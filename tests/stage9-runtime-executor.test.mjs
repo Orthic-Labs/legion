@@ -17,10 +17,12 @@ function runtimeRows() {
   );
 }
 
-test('S09 executor maps every architecture runtime case to one canonical Arcane guard', () => {
+test('S09 executor maps every guard-governed runtime case to one canonical Arcane guard', () => {
   const rows = runtimeRows();
-  assert.equal(rows.length, 62);
-  for (const row of rows) assert.ok(stage9ProbeFor(row.family), row.id);
+  assert.equal(rows.length, 96);
+  const guarded = rows.filter((row) => stage9ProbeFor(row.family));
+  assert.equal(guarded.length, 84);
+  for (const row of guarded) assert.ok(stage9ProbeFor(row.family), row.id);
 });
 
 test('S09 fixtures reject cancelled/replayed/stale/invalid/competing states while sanctioned paths remain executable', () => {
@@ -46,7 +48,7 @@ test('S09 executor emits deterministic machine-readable guard evidence for S11 c
   assert.ok(first.fixtureCount >= 9);
   assert.equal(first.passedFixtures, first.fixtureCount);
   assert.equal(first.failed, 0);
-  assert.equal(first.coverageInventory.length, 62);
+  assert.equal(first.coverageInventory.length, 96);
 });
 
 test('S09 capability audit exempts only const-bound authority-proof issuers', () => {
