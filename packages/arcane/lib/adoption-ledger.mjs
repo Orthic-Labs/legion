@@ -84,7 +84,7 @@ function validateManifestShape(ledger, manifest, { execution, integratedState, n
   const ids = ledgerAcceptanceIds(ledger);
   const items = manifestItems(manifest);
   const itemIds = items.map((item) => item?.acceptanceId);
-  const expectedKeys = ['acceptanceId', 'acceptanceSurface', 'evidenceId', 'liveConsumer', 'observedAt', 'productionSymbol', 'requirementId', 'verdict'];
+  const expectedKeys = ['acceptanceId', 'acceptanceSurface', 'evidence', 'evidenceId', 'liveConsumer', 'observedAt', 'productionSymbol', 'requirementId', 'verdict'];
   if (manifest?.schemaVersion !== 1 || manifest?.kind !== 'legion-adoption-oracle-manifest'
       || manifest.runId !== execution.runId || manifest.taskId !== execution.taskId || manifest.contractId !== execution.contractId
       || manifest.contractVersion !== execution.contractVersion || manifest.contractDigest !== execution.contractDigest
@@ -93,7 +93,9 @@ function validateManifestShape(ledger, manifest, { execution, integratedState, n
       || Date.parse(manifest.observedAt) > now.getTime()) return deny('ARC_BINDING_MISMATCH', 'Oracle adoption manifest does not bind current execution, acceptance, state, or time');
   if (ids.length !== items.length || new Set(itemIds).size !== itemIds.length || !ids.every((id) => itemIds.includes(id))) return deny('ARC_EVIDENCE_INSUFFICIENT', 'Oracle adoption manifest must cover every ledger item exactly once', { expected: ids.length, actual: items.length });
   for (const item of items) {
-    if (!same(Object.keys(item).sort(), expectedKeys) || item.verdict !== 'PASS' || !item.acceptanceId || !item.requirementId || !item.productionSymbol || !item.liveConsumer || !item.acceptanceSurface || !/^sha256:[0-9a-f]{64}$/.test(item.evidenceId ?? '') || !Number.isFinite(Date.parse(item.observedAt)) || Date.parse(item.observedAt) > Date.parse(manifest.observedAt)) return deny('ARC_EVIDENCE_INSUFFICIENT', 'Oracle adoption manifest contains an invalid or non-PASS item', { acceptanceId: item?.acceptanceId ?? null });
+    const evidence = item?.evidence;
+    const evidenceValid = evidence && typeof evidence === 'object' && !Array.isArray(evidence) && evidence.kind === 'oracle-adoption-item-evidence' && Array.isArray(evidence.sources) && evidence.sources.length > 0 && evidence.sources.every((source) => source && typeof source.path === 'string' && source.path && /^sha256:[0-9a-f]{64}$/.test(source.digest ?? '')) && Array.isArray(evidence.checks) && evidence.checks.length > 0 && evidence.checks.every((check) => typeof check === 'string' && check);
+    if (!same(Object.keys(item).sort(), expectedKeys) || item.verdict !== 'PASS' || !item.acceptanceId || !item.requirementId || !item.productionSymbol || !item.liveConsumer || !item.acceptanceSurface || !evidenceValid || item.evidenceId !== digestValue(evidence) || !Number.isFinite(Date.parse(item.observedAt)) || Date.parse(item.observedAt) > Date.parse(manifest.observedAt)) return deny('ARC_EVIDENCE_INSUFFICIENT', 'Oracle adoption manifest contains invalid, unbound, or non-PASS item evidence', { acceptanceId: item?.acceptanceId ?? null });
   }
   return decision({ allowed: true, message: 'Arcane validated exact Oracle adoption manifest', detail: { itemCount: items.length, itemSetDigest: digestValue([...itemIds].sort()) } });
 }
