@@ -3,7 +3,7 @@
   "$id": "execution-checkpoint.v1",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schema", "objective_lineage_id", "intent_epoch", "continuation_epoch", "repository_state", "acceptance", "producer_versions", "event_sequence", "event_digest", "completed_effect_ids", "created_at", "checkpoint_digest"],
+  "required": ["schema", "objective_lineage_id", "intent_epoch", "continuation_epoch", "repository_state", "acceptance", "producer_versions", "event_sequence", "event_digest", "completed_effect_ids", "preserved_candidate_ids", "created_at", "checkpoint_digest"],
   "properties": {
     "schema": {"const": "execution-checkpoint.v1"},
     "objective_lineage_id": {"type": "string", "minLength": 1},
@@ -23,6 +23,7 @@
     "event_sequence": {"type": "integer", "minimum": 0},
     "event_digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
     "completed_effect_ids": {"type": "array", "items": {"type": "string", "minLength": 1}, "uniqueItems": true},
+    "preserved_candidate_ids": {"type": "array", "items": {"type": "string", "minLength": 1}, "uniqueItems": true},
     "created_at": {"type": "string", "format": "date-time"},
     "checkpoint_digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"}
   }

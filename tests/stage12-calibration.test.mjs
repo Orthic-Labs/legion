@@ -9,6 +9,7 @@ import test from 'node:test';
 import { applyRetirementDecision, calibrateStage12, stage12TruthSemantics, validateRetirementDecisionRecord } from '../scripts/run-stage12-calibration.mjs';
 
 const root = resolve(import.meta.dirname, '..');
+const workspaceRoot = resolve(root, '..');
 const sha256 = (bytes) => `sha256:${createHash('sha256').update(bytes).digest('hex')}`;
 
 function directPacket(authority) {
@@ -100,14 +101,14 @@ test('durable S12 evidence binds explicit current-user retirement decision', () 
     legacyTemplateText: readFileSync(join(root, 'skills/dispatch/assets/dispatch-template.md'), 'utf8'),
     s08Receipt: { workload: { actual_acceptance_surface: 'assembled package Handoff', artifact: { digest: `sha256:${'a'.repeat(64)}` }, result: { status: 'PASS' }, observed_failures: [] } } });
   rmSync(temporary, { recursive: true, force: true });
-  const decisionPath = resolve(root, '../../..', 'docs/plans/legion/evidence/2026-08-15-dispatch-retirement-user-decision.json');
+  const decisionPath = resolve(workspaceRoot, 'docs/plans/legion/evidence/2026-08-15-dispatch-retirement-user-decision.json');
   const decisionBytes = readFileSync(decisionPath);
   const decision = JSON.parse(decisionBytes);
   const applied = applyRetirementDecision(runner, decision, {
     sourcePath: 'docs/plans/legion/evidence/2026-08-15-dispatch-retirement-user-decision.json',
     sourceDigest: sha256(decisionBytes),
   });
-  const durable = JSON.parse(readFileSync(resolve(root, '../../..', 'docs/plans/legion/evidence/2026-08-14-s12-calibration-retirement.json'), 'utf8'));
+  const durable = JSON.parse(readFileSync(resolve(workspaceRoot, 'docs/plans/legion/evidence/2026-08-14-s12-calibration-retirement.json'), 'utf8'));
   assert.equal(validateRetirementDecisionRecord(decision), true);
   assert.deepEqual(stage12TruthSemantics(durable), stage12TruthSemantics(applied));
   assert.deepEqual(durable.missing_receipts, []);
