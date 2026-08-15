@@ -1,4 +1,0 @@
-interface:
-  display_name: "Coder"
-  short_description: "Route code/review subagent work to free API models"
-  default_prompt: "Use /coder to delegate a scoped code analysis or patch plan to free API model workers."

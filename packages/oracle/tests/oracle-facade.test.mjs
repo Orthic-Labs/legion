@@ -33,7 +33,7 @@ function request(operation, options = {}, input = {}) {
         kind: 'legion-run-identity',
         runId: RUN,
         workspace: 'D:/workspace',
-        repository: 'tools/skills/legion',
+        repository: 'legion',
         revision: REVISION,
         dirtyDigest: null,
         capturedAt: NOW,

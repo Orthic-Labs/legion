@@ -30,7 +30,7 @@ Plain `/handoff` in current source chat means:
 Windows:
 
 ```powershell
-py -3.11 D:/workspace/tools/skills/legion/lib/handoff/transcript-handoff.py bootstrap --platform codex --session-id "<CURRENT_TASK_ID>" --workspace "<CURRENT_WORKSPACE>"
+py -3.11 D:/workspace/legion/lib/handoff/transcript-handoff.py bootstrap --platform codex --session-id "<CURRENT_TASK_ID>" --workspace "<CURRENT_WORKSPACE>"
 ```
 
 Use `--platform claude` for Claude Code. If runtime exposes no ID, omit `--session-id`; resolver selects newest transcript whose embedded cwd exactly matches workspace & declares `selection_method=newest_workspace_match`. Never ask old chat to summarize itself.
@@ -38,7 +38,7 @@ Use `--platform claude` for Claude Code. If runtime exposes no ID, omit `--sessi
 macOS:
 
 ```bash
-python3 /workspace/tools/skills/legion/lib/handoff/transcript-handoff.py bootstrap --platform claude --session-id "<CURRENT_TASK_ID>" --workspace "/workspace"
+python3 /workspace/legion/lib/handoff/transcript-handoff.py bootstrap --platform claude --session-id "<CURRENT_TASK_ID>" --workspace "/workspace"
 ```
 
 Source output is pointer, not handoff, so permanent packet/receipt gate does not apply yet.
@@ -257,15 +257,15 @@ Any missing answer means revise.
 Windows:
 
 ```powershell
-py -3.11 D:/workspace/tools/skills/legion/lib/handoff/validate-handoff.py <handoff.md> --write-receipt <handoff.receipt.json>
-py -3.11 D:/workspace/tools/skills/legion/lib/handoff/validate-handoff.py <handoff.md> --verify-receipt <handoff.receipt.json>
+py -3.11 D:/workspace/legion/lib/handoff/validate-handoff.py <handoff.md> --write-receipt <handoff.receipt.json>
+py -3.11 D:/workspace/legion/lib/handoff/validate-handoff.py <handoff.md> --verify-receipt <handoff.receipt.json>
 ```
 
 macOS:
 
 ```bash
-python3 /workspace/tools/skills/legion/lib/handoff/validate-handoff.py <handoff.md> --write-receipt <handoff.receipt.json>
-python3 /workspace/tools/skills/legion/lib/handoff/validate-handoff.py <handoff.md> --verify-receipt <handoff.receipt.json>
+python3 /workspace/legion/lib/handoff/validate-handoff.py <handoff.md> --write-receipt <handoff.receipt.json>
+python3 /workspace/legion/lib/handoff/validate-handoff.py <handoff.md> --verify-receipt <handoff.receipt.json>
 ```
 
 Write handoff to durable, named `.md` artifact before validation. Temporary-only & inline-only handoffs are forbidden. File remains canonical audit & resume source. Send packet + receipt together. If cold chat cannot access filesystem, paste exact validated bytes inline while retaining canonical file + receipt. Receiver verifies receipt before readback. Do not paste content different from validated file.

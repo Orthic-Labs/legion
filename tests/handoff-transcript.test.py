@@ -153,7 +153,7 @@ def main() -> int:
             "source_path": "/Users/test/.claude/projects/p/claude-test.jsonl",
         })
         assert mac_prompt.startswith("You are target chat")
-        assert 'python3 "/workspace/tools/skills/legion/lib/handoff/transcript-handoff.py"' in mac_prompt
+        assert 'python3 "/workspace/legion/lib/handoff/transcript-handoff.py"' in mac_prompt
 
         output = root / "evidence.json"
         result = subprocess.run(

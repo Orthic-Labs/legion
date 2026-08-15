@@ -32,31 +32,12 @@
     "schemas": [],
     "receipts": [],
     "evals": [
-      "evals/evals.json",
-      "legacy-source/debugger/evals/evals.json"
+      "evals/evals.json"
     ],
     "consumers": [
       "registry/skills/index.json",
       "lib/skills/resolver.mjs",
       "registry/routing/domains.json"
-    ],
-    "legacyRef": "workspace:c1c7e818^",
-    "legacyArtifacts": [
-      {
-        "sourcePath": "tools/skills/debugger/SKILL.md",
-        "migratedPath": "legacy-source/debugger/SKILL.md",
-        "digest": "sha256:574e2d1a059828290bff1b65cfc9ab496265a32699956fcee802b52174e4ab97"
-      },
-      {
-        "sourcePath": "tools/skills/debugger/evals/evals.json",
-        "migratedPath": "legacy-source/debugger/evals/evals.json",
-        "digest": "sha256:a26801a049770cecad59df64073346390fdacd393cfb990881f1e4eb0ce0b1cb"
-      },
-      {
-        "sourcePath": "tools/skills/debugger/references/manual.md",
-        "migratedPath": "legacy-source/debugger/references/manual.md",
-        "digest": "sha256:3aceb91f567fdabbb087b71176b3b785bbfaeebac285d72d248bb2f8877dd254"
-      }
     ]
   },
   "files": [
@@ -72,27 +53,6 @@
       "uri": "legion-skill://debugger/evals/evals.json",
       "sourceDigest": "sha256:f5b39e351b4caad38a7bb7d845e66c0dbf2290416d7a1daa78cd4f5d4c8420be",
       "outputDigest": "sha256:f5b39e351b4caad38a7bb7d845e66c0dbf2290416d7a1daa78cd4f5d4c8420be",
-      "transformations": []
-    },
-    {
-      "path": "legacy-source/debugger/SKILL.md",
-      "uri": "legion-skill://debugger/legacy-source/debugger/SKILL.md",
-      "sourceDigest": "sha256:574e2d1a059828290bff1b65cfc9ab496265a32699956fcee802b52174e4ab97",
-      "outputDigest": "sha256:574e2d1a059828290bff1b65cfc9ab496265a32699956fcee802b52174e4ab97",
-      "transformations": []
-    },
-    {
-      "path": "legacy-source/debugger/evals/evals.json",
-      "uri": "legion-skill://debugger/legacy-source/debugger/evals/evals.json",
-      "sourceDigest": "sha256:a26801a049770cecad59df64073346390fdacd393cfb990881f1e4eb0ce0b1cb",
-      "outputDigest": "sha256:a26801a049770cecad59df64073346390fdacd393cfb990881f1e4eb0ce0b1cb",
-      "transformations": []
-    },
-    {
-      "path": "legacy-source/debugger/references/manual.md",
-      "uri": "legion-skill://debugger/legacy-source/debugger/references/manual.md",
-      "sourceDigest": "sha256:3aceb91f567fdabbb087b71176b3b785bbfaeebac285d72d248bb2f8877dd254",
-      "outputDigest": "sha256:3aceb91f567fdabbb087b71176b3b785bbfaeebac285d72d248bb2f8877dd254",
       "transformations": []
     },
     {

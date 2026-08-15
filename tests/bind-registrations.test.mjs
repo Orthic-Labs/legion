@@ -44,7 +44,7 @@ test('a plugin-supplied hook is visible even when settings.json has none', () =>
 
 test('the incident is caught: settings.json wiring on top of a plugin is a duplicate', () => {
   const h = host({
-    userHooks: stopHook('/Users/x/.nvm/versions/node/v26.7.0/bin/node /workspace/tools/skills/legion/hooks/arcane-hook.mjs'),
+    userHooks: stopHook('/Users/x/.nvm/versions/node/v26.7.0/bin/node /workspace/legion/hooks/arcane-hook.mjs'),
     pluginHooks: stopHook(ARCANE),
   });
   try {
@@ -72,7 +72,7 @@ test('the same handler on DIFFERENT events is not a duplicate', () => {
 test('handler identity survives absolute-path differences across machines', () => {
   assert.equal(
     handlerId('node "${CLAUDE_PLUGIN_ROOT}/hooks/arcane-hook.mjs"'),
-    handlerId('/Users/x/.nvm/versions/node/v26.7.0/bin/node /workspace/tools/skills/legion/hooks/arcane-hook.mjs'),
+    handlerId('/Users/x/.nvm/versions/node/v26.7.0/bin/node /workspace/legion/hooks/arcane-hook.mjs'),
   );
   assert.equal(handlerId('D:\\Claude\\.venv-tools\\Scripts\\python.exe C:/x/.claude/hooks/enforce_brief.py'), 'enforce_brief.py');
   // rhook is one binary serving many gates: keyed by subcommand, never merged.

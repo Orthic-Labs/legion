@@ -81,8 +81,8 @@ test('caller-claimed authority is still refused when a record is passed in', () 
 
 test('an absolute host path is matched against a relative scope entry', () => {
   assert.equal(
-    workspaceRelative('D:/workspace/tools/skills/legion/hooks/stop-shape.mjs', 'D:/workspace'),
-    'tools/skills/legion/hooks/stop-shape.mjs',
+    workspaceRelative('D:/workspace/legion/hooks/stop-shape.mjs', 'D:/workspace'),
+    'legion/hooks/stop-shape.mjs',
   );
 });
 

@@ -14,8 +14,8 @@
 - **Source evidence mode:** LIVE_CONTEXT
 - **Transcript evidence path:** NOT_APPLICABLE: package example derives from checked workspace state.
 - **Source prefix receipt:** NOT_APPLICABLE: LIVE_CONTEXT has no transcript prefix.
-- **Packet path:** /workspace/tools/skills/legion/skills/handoff/examples/validated-forward-test.md
-- **Receipt path:** /workspace/tools/skills/legion/skills/handoff/examples/validated-forward-test.receipt.json
+- **Packet path:** /workspace/legion/skills/handoff/examples/validated-forward-test.md
+- **Receipt path:** /workspace/legion/skills/handoff/examples/validated-forward-test.receipt.json
 
 ## 1. Intent & Mission
 
@@ -63,13 +63,13 @@
 
 | Artifact | Path / URL | Role | State | Version / hash | Validation + last checked |
 |---|---|---|---|---|---|
-| Handoff template | /workspace/tools/skills/legion/skills/handoff/assets/handoff-template.md | Canonical packet structure | COMPLETE | SHA recorded by validator | Run template self-check before release. |
+| Handoff template | /workspace/legion/skills/handoff/assets/handoff-template.md | Canonical packet structure | COMPLETE | SHA recorded by validator | Run template self-check before release. |
 
 ## 6. Failures, Dead Ends & Attempts
 
 | ID | Attempt / command | Exact symptom / result | Cause / diagnosis | Evidence | DO_NOT_RETRY_UNLESS | Replacement / next diagnostic |
 |---|---|---|---|---|---|---|
-| FAILURE-01 | Legacy script path invocation | Path no longer exists after package migration. | Runtime moved into package-local library. | /workspace/tools/skills/legion/lib/handoff | Never invoke retired path. | Use package-local wrapper. |
+| FAILURE-01 | Legacy script path invocation | Path no longer exists after package migration. | Runtime moved into package-local library. | /workspace/legion/lib/handoff | Never invoke retired path. | Use package-local wrapper. |
 
 ## 7. Learnings, Gotchas & Landmines
 
@@ -102,11 +102,11 @@
 - **Exact action:**
 
 ```text
-python3 /workspace/tools/skills/legion/lib/handoff/validate-handoff.py /workspace/tools/skills/legion/skills/handoff/examples/validated-forward-test.md --verify-receipt /workspace/tools/skills/legion/skills/handoff/examples/validated-forward-test.receipt.json
+python3 /workspace/legion/lib/handoff/validate-handoff.py /workspace/legion/skills/handoff/examples/validated-forward-test.md --verify-receipt /workspace/legion/skills/handoff/examples/validated-forward-test.receipt.json
 ```
 
 - **Expected result:** Receipt verifier reports RECEIPT_PASS.
-- **Evidence path:** /workspace/tools/skills/legion/skills/handoff/examples/validated-forward-test.receipt.json
+- **Evidence path:** /workspace/legion/skills/handoff/examples/validated-forward-test.receipt.json
 - **Timeout / retry:** 30 seconds; retry once after reading failure.
 - **If failure:** Stop use of packet & regenerate receipt only after packet validation.
 - **Depends on:** None checked.
@@ -118,11 +118,11 @@ python3 /workspace/tools/skills/legion/lib/handoff/validate-handoff.py /workspac
 - **Exact action:**
 
 ```text
-python3 /workspace/tools/skills/legion/lib/handoff/validate-handoff.py /workspace/tools/skills/legion/skills/handoff/assets/handoff-template.md --template-self-check
+python3 /workspace/legion/lib/handoff/validate-handoff.py /workspace/legion/skills/handoff/assets/handoff-template.md --template-self-check
 ```
 
 - **Expected result:** Template self-check reports PASS.
-- **Evidence path:** /workspace/tools/skills/legion/skills/handoff/assets/handoff-template.md
+- **Evidence path:** /workspace/legion/skills/handoff/assets/handoff-template.md
 - **Timeout / retry:** 30 seconds; retry once after named repair.
 - **If failure:** Repair only template defect, then repeat receipt verification.
 - **Depends on:** Resume Step 1 receipt verification.
@@ -134,11 +134,11 @@ python3 /workspace/tools/skills/legion/lib/handoff/validate-handoff.py /workspac
 - **Exact action:**
 
 ```text
-Run python3 -m unittest discover -s /workspace/tools/skills/legion/tests -p '*handoff*.py'
+Run python3 -m unittest discover -s /workspace/legion/tests -p '*handoff*.py'
 ```
 
 - **Expected result:** Focused Handoff tests exit zero.
-- **Evidence path:** /workspace/tools/skills/legion/tests
+- **Evidence path:** /workspace/legion/tests
 - **Timeout / retry:** 60 seconds; retry once after inspecting named test failure.
 - **If failure:** Preserve output & route only owned defect to correct owner.
 - **Depends on:** Resume Step 2 template verification.
@@ -148,7 +148,7 @@ Run python3 -m unittest discover -s /workspace/tools/skills/legion/tests -p '*ha
 - **Verification command:**
 
 ```text
-Check package changes: git -C /workspace status --short -- tools/skills/legion/skills/handoff
+Check package changes: git -C /workspace status --short -- legion/skills/handoff
 ```
 
 - **Expected state:** Only package-owned Handoff artifact paths appear.
@@ -157,13 +157,13 @@ Check package changes: git -C /workspace status --short -- tools/skills/legion/s
 - **Validator command:**
 
 ```text
-python3 /workspace/tools/skills/legion/lib/handoff/validate-handoff.py /workspace/tools/skills/legion/skills/handoff/examples/validated-forward-test.md --write-receipt /workspace/tools/skills/legion/skills/handoff/examples/validated-forward-test.receipt.json
+python3 /workspace/legion/lib/handoff/validate-handoff.py /workspace/legion/skills/handoff/examples/validated-forward-test.md --write-receipt /workspace/legion/skills/handoff/examples/validated-forward-test.receipt.json
 ```
 
 - **Receiver receipt check:**
 
 ```text
-python3 /workspace/tools/skills/legion/lib/handoff/validate-handoff.py /workspace/tools/skills/legion/skills/handoff/examples/validated-forward-test.md --verify-receipt /workspace/tools/skills/legion/skills/handoff/examples/validated-forward-test.receipt.json
+python3 /workspace/legion/lib/handoff/validate-handoff.py /workspace/legion/skills/handoff/examples/validated-forward-test.md --verify-receipt /workspace/legion/skills/handoff/examples/validated-forward-test.receipt.json
 ```
 
 ## 12. First Output & Readback Contract
@@ -191,8 +191,8 @@ You are receiving a cold-start handoff with zero prior memory.
 Treat only this packet plus its verified artifacts as context.
 Verify packet receipt, return READBACK exactly as specified, correct any mismatch from packet, then follow Proceed mode.
 Do not infer missing context, reopen LOCKED decisions, expose secrets, overwrite unrelated work, or execute reserved actions.
-BEGIN HANDOFF PACKET AT: /workspace/tools/skills/legion/skills/handoff/examples/validated-forward-test.md
-RECEIPT AT: /workspace/tools/skills/legion/skills/handoff/examples/validated-forward-test.receipt.json
+BEGIN HANDOFF PACKET AT: /workspace/legion/skills/handoff/examples/validated-forward-test.md
+RECEIPT AT: /workspace/legion/skills/handoff/examples/validated-forward-test.receipt.json
 ```
 
 ## 14. Context Gap Report

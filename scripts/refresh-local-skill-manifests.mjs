@@ -27,6 +27,11 @@ export function refreshLocalSkillManifest(bundle) {
   if (!existsSync(join(skillRoot, 'SKILL.md'))) throw new Error(`missing skill entrypoint: ${bundle}`);
   const prior = existsSync(manifestPath) ? JSON.parse(readFileSync(manifestPath, 'utf8')) : {};
   const priorFiles = new Map((prior.files ?? []).map((record) => [record.path, record]));
+  const priorParity = prior.parity && typeof prior.parity === 'object'
+    ? Object.fromEntries(Object.entries(prior.parity)
+      .filter(([key]) => !['legacyRef', 'legacyArtifacts'].includes(key))
+      .map(([key, value]) => [key, Array.isArray(value) ? value.filter((entry) => typeof entry !== 'string' || !entry.includes('legacy-source')) : value]))
+    : undefined;
   const manifest = {
     schemaVersion: 1,
     id: bundle,
@@ -42,8 +47,9 @@ export function refreshLocalSkillManifest(bundle) {
     },
     ...Object.fromEntries(Object.entries(prior).filter(([key]) => ![
       'schemaVersion', 'id', 'version', 'entry', 'rootUri', 'provenance',
-      'licenseState', 'rightsReceipt', 'profiles', 'files',
+      'licenseState', 'rightsReceipt', 'profiles', 'files', 'parity',
     ].includes(key))),
+    ...(priorParity ? { parity: priorParity } : {}),
     files: files(skillRoot).map((path) => {
       const bytes = readFileSync(join(skillRoot, path));
       const hash = digest(bytes);

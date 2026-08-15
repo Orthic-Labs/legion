@@ -41,31 +41,12 @@
     "receipts": [],
     "evals": [
       "evals/evals.json",
-      "evals/legacy-jfdi.json",
-      "legacy-source/jfdi/evals/evals.json"
+      "evals/legacy-jfdi.json"
     ],
     "consumers": [
       "registry/skills/index.json",
       "lib/skills/resolver.mjs",
       "registry/routing/domains.json"
-    ],
-    "legacyRef": "workspace:c1c7e818^",
-    "legacyArtifacts": [
-      {
-        "sourcePath": "tools/skills/jfdi/SKILL.md",
-        "migratedPath": "legacy-source/jfdi/SKILL.md",
-        "digest": "sha256:5f078b3da8956191a1edb258c4223bd97999a7db1b0e69142eadf18bd8748c36"
-      },
-      {
-        "sourcePath": "tools/skills/jfdi/agents/openai.yaml",
-        "migratedPath": "legacy-source/jfdi/agents/openai.yaml",
-        "digest": "sha256:8b6ef87f19fd93ad8d19f690071a53bdc8fbf7c1c3503cfc0848a2c01a999e65"
-      },
-      {
-        "sourcePath": "tools/skills/jfdi/evals/evals.json",
-        "migratedPath": "legacy-source/jfdi/evals/evals.json",
-        "digest": "sha256:b8d695ffb32c0d54c3d99113c210c69b01ae8e789a1256c51f5caeb41e1c0cd8"
-      }
     ]
   },
   "files": [
@@ -88,27 +69,6 @@
       "uri": "legion-skill://alchemist/evals/legacy-jfdi.json",
       "sourceDigest": "sha256:473df0302e99ad22000b67813954549d67878aa9517d774843266bdde80c3026",
       "outputDigest": "sha256:473df0302e99ad22000b67813954549d67878aa9517d774843266bdde80c3026",
-      "transformations": []
-    },
-    {
-      "path": "legacy-source/jfdi/SKILL.md",
-      "uri": "legion-skill://alchemist/legacy-source/jfdi/SKILL.md",
-      "sourceDigest": "sha256:5f078b3da8956191a1edb258c4223bd97999a7db1b0e69142eadf18bd8748c36",
-      "outputDigest": "sha256:5f078b3da8956191a1edb258c4223bd97999a7db1b0e69142eadf18bd8748c36",
-      "transformations": []
-    },
-    {
-      "path": "legacy-source/jfdi/agents/openai.yaml",
-      "uri": "legion-skill://alchemist/legacy-source/jfdi/agents/openai.yaml",
-      "sourceDigest": "sha256:8b6ef87f19fd93ad8d19f690071a53bdc8fbf7c1c3503cfc0848a2c01a999e65",
-      "outputDigest": "sha256:8b6ef87f19fd93ad8d19f690071a53bdc8fbf7c1c3503cfc0848a2c01a999e65",
-      "transformations": []
-    },
-    {
-      "path": "legacy-source/jfdi/evals/evals.json",
-      "uri": "legion-skill://alchemist/legacy-source/jfdi/evals/evals.json",
-      "sourceDigest": "sha256:b8d695ffb32c0d54c3d99113c210c69b01ae8e789a1256c51f5caeb41e1c0cd8",
-      "outputDigest": "sha256:b8d695ffb32c0d54c3d99113c210c69b01ae8e789a1256c51f5caeb41e1c0cd8",
       "transformations": []
     },
     {
