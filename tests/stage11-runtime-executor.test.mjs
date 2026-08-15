@@ -20,13 +20,13 @@ function runtimeRows() {
 
 test('S11 executes each runtime scenario through an exact ingress and consumer', async () => {
   const rows = runtimeRows();
-  assert.equal(rows.length, 96);
+  assert.equal(rows.length, 95);
   assert.ok(runtimePolicyIds().includes('AE-CONVERGENCE-004'));
   assert.ok(runtimePolicyIds().includes('AE-AUTHORITY-001'));
   assert.equal(new Set(runtimePolicyIds()).size, runtimePolicyIds().length, 'duplicate binding IDs must fail before dispatch');
   const results = await executeArchitectureRuntimeCases(rows);
-  assert.equal(results.length, 96);
-  assert.equal(results.filter((row) => row.status === 'PASS').length, 96);
+  assert.equal(results.length, 95);
+  assert.equal(results.filter((row) => row.status === 'PASS').length, 95);
   assert.equal(results.filter((row) => row.status === 'PENDING').length, 0);
   assert.ok(results.every((row) => row.reason.includes('binding') || row.reason.includes('observation') || row.reason.includes('capability') || row.reason.includes('semantics')));
 });

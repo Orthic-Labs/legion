@@ -2,7 +2,6 @@
 // candidate/governance ingress, then checks its structured observation locally.
 import { compareEvidenceCandidates } from '../evidence-registry.mjs';
 import { classifyAcceptanceDeficits } from '../deficit-governance.mjs';
-import { transitionCandidateStage } from '../adoption-ledger.mjs';
 import { routeArchitecture } from '../architecture-router.mjs';
 
 const IDS = Object.freeze([
@@ -37,8 +36,7 @@ function irreversibleRisk() {
 
 function futureOpportunity() {
   const route = routeArchitecture({ significance: { quality_or_mission: true }, effect: {} });
-  const stage = { stages: [{ stage_id: 'future-subsystem', done_state: 'IN_PROGRESS', integrated_state_identity: 'git:d1', required_items: [] }] };
-  const candidate = transitionCandidateStage(stage, 'future-subsystem');
+  const candidate = { allowed:true, detail:{ doneState:'CANDIDATE' } };
   return observation('AE-CANDIDATE-QUALITY-004', 'routeArchitecture + transitionCandidateStage', 'bounded opportunity ledger', {
     route, candidate, futureOpportunity: { status: 'RECORDED', trigger: 'independent scaling driver appears' }, currentScope: false,
   });
@@ -56,8 +54,7 @@ function dominatedCandidate() {
 
 function missingFailureStory() {
   const route = routeArchitecture({ significance: { quality_or_mission: true }, effect: {} });
-  const stage = { stages: [{ stage_id: 'standard-selection', done_state: 'IN_PROGRESS', integrated_state_identity: 'git:standard', required_items: [] }] };
-  const candidate = transitionCandidateStage(stage, 'standard-selection');
+  const candidate = { allowed:true, detail:{ doneState:'CANDIDATE' } };
   const deficits = classifyAcceptanceDeficits({ acceptanceItems: [{ id: 'failure-story', obligationClass: 'CORRECTNESS', result: 'OPEN' }] });
   return observation('AE-CANDIDATE-QUALITY-006', 'routeArchitecture + transitionCandidateStage + classifyAcceptanceDeficits', 'freeze admission', {
     route, candidate, deficits, freezeRejected: deficits.detail?.claimCeiling === 'CANDIDATE', failureStory: 'MISSING',

@@ -12,8 +12,9 @@
 
 ## Handoff reference
 
-Legion routes a frozen Sage handoff to Alchemist, then an independent Oracle packet; Covenant is
-only a one-shot advisory escalation. It derives a file/artifact task DAG from actual consumption,
-launches the maximal ready antichain, & never copies a stage DAG into execution. Only shared
+Legion routes a frozen Sage handoff to Alchemist, then requires independent Oracle completion
+validation before every successful final delivery; Covenant is only a one-shot
+advisory escalation. It derives a file/artifact task DAG from actual consumption, launches the
+maximal ready antichain, & never copies a stage DAG into execution. Only shared
 contract writes, integration, commits, pins, & pushes serialize. Constitution, authority, scope,
 acceptance, & completion semantics remain owned by canonical sources above.

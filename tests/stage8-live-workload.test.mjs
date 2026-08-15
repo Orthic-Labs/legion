@@ -62,7 +62,7 @@ test('S08-01 live assembled-package workload reaches Handoff acceptance through 
   assert.deepEqual(validateSchema(JSON.parse(readFileSync(join(legionRoot, 'schemas/representative-workload.schema.json'), 'utf8')), workload), []);
 
   const registry = new AcceptanceEvidenceRegistry();
-  assert.equal(registry.register({ acceptanceId: 'S08-01', claimType: 'acceptance-surface', producer: roles.evidence_producer, durableStore: 'adoption-ledger', verifier: 'oracle', completionConsumer: 'legion', integratedStateBinding: 'nested-git+tree+package-version', validityPolicy: 'until material package change' }).allowed, true);
+  assert.equal(registry.register({ acceptanceId: 'S08-01', claimType: 'acceptance-surface', producer: roles.evidence_producer, durableStore: 'evidence-registry', verifier: 'oracle', completionConsumer: 'legion', integratedStateBinding: 'nested-git+tree+package-version', validityPolicy: 'until material package change' }).allowed, true);
   const artifact = { acceptanceId: 'S08-01', producer: roles.evidence_producer, verifier: 'oracle', completionConsumer: 'legion', authenticated: true, integratedState, observedAt: observedAt.toISOString(), validUntil: new Date(observedAt.valueOf() + 3_600_000).toISOString(), artifactDigest };
   assert.equal(registry.verify('S08-01', artifact, { integratedState, latestMaterialChange: new Date(observedAt.valueOf() - 1).toISOString(), now: observedAt }).allowed, true);
 });

@@ -11,13 +11,14 @@
   "required_phrases": {
     "doctrine/sage.md": ["freeze a handoff record", "immutable acceptance IDs", "cutover obligations", "file/artifact consumption", "maximal ready antichain", "shared-contract writes, integration, commits, pins, & pushes"],
     "doctrine/alchemist.md": ["Advance only acceptance IDs frozen", "event & checkpoint", "delivery deficit", "Diagnose only when Sage's contract explicitly triggers", "Forward-test", "CANDIDATE | BLOCKED"],
-    "doctrine/oracle.md": ["sealed independent packet", "Preserve every finding", "First apply dismissal gates", "cannot expand acceptance", "fresh evidence from the resulting exact state", "material resulting-state/evidence delta"],
+    "doctrine/oracle.md": ["Completion Validation", "raw user turns", "do not run or rerun tests", "PASS", "BLOCK", "Create no file, receipt, ledger, evidence packet", "sealed independent packet", "Preserve every finding", "First apply dismissal gates", "cannot expand acceptance", "fresh evidence from the resulting exact state", "material resulting-state/evidence delta"],
+    "roster/oracle.md": ["before every user-requested task's successful final delivery", "verbatim user turns", "distrust producer prose", "never runs tests, probes, or browser work", "creates no receipt, ledger, evidence packet, or review file", "Scope reviewed", "PASS", "BLOCK", "validation response does not recurse"],
     "doctrine/covenant-seat.md": ["one-shot advisory review", "no authority", "neither dispatches a successor nor opens"],
-    "doctrine/legion.md": ["sole source", "references the constitution", "never copies a stage DAG", "maximal ready antichain"],
+    "doctrine/legion.md": ["sole source", "references the constitution", "completion validation", "never copies a stage DAG", "maximal ready antichain"],
     "doctrine/bundles/sage-architect.md": ["event/checkpoint bindings", "cutover obligations", "file/artifact consumption DAG"],
     "doctrine/bundles/sage-diagnose.md": ["S10 handoff override", "explicit diagnosis trigger", "file/artifact consumption"],
     "doctrine/bundles/legion-worker-capsule.md": ["S10 handoff override", "maximal ready antichain", "a dependency blocks only its consumers"],
-    "doctrine/bundles/oracle-assurance.md": ["S10 handoff override", "sealed independent packet", "dismiss at first failed configured gate"]
+    "doctrine/bundles/oracle-assurance.md": ["Completion Validation override", "semantic source inspection only", "S10 handoff override", "sealed independent packet", "dismiss at first failed configured gate"]
   },
   "forbidden_phrases": {
     "doctrine/legion.md": ["## What Legion does", "## The scope rule", "## Invariants Legion never breaks"]

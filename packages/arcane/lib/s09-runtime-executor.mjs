@@ -144,7 +144,7 @@ const FAMILY_PROBE = Object.freeze({
   'effect-classification': 'epochs', 'retry-semantics': 'replay', 'negative-triggers': 'replay',
   'lineage-budgets': 'budget', 'control-plane-budgets': 'budget', 'convergence': 'replay',
   evidence: 'freshness', 'evidence-freshness': 'freshness', 'evidence-artifacts': 'freshness',
-  'seal-reachability': 'freshness', 'adoption-governance': 'freshness', 'outcome-closure': 'freshness',
+  'seal-reachability': 'freshness', 'outcome-closure': 'freshness',
   'gate-validity': 'gate', 'machinery-defects': 'gate', 'review-verdict-security': 'gate',
   'integration-ownership': 'ownership', 'ownership-disposition': 'ownership', 'concurrency-attention': 'ownership',
   'deficit-propagation': 'acceptance', 'finding-lifecycle': 'acceptance', 'forward-workload': 'acceptance',
