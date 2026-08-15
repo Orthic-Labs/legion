@@ -2762,9 +2762,9 @@ This DAG is governed by the §58D adoption ledger. Each stage has one accountabl
 | S09 | `CANDIDATE` | Guard fixtures and completion trust paths are implemented; final independent admission remains required. |
 | S10 | `CANDIDATE` | Role-doctrine handoffs, package-local engines, consumer migration, and callable skill parity are implemented; final independent admission remains required. |
 | S11 | `CANDIDATE` | Deterministic architecture runner reports 103 PASS, zero PENDING, and zero failures through case-specific structured policy and production-control evaluators. |
-| S12 | `COMPLETE` | Calibration is implemented; current user explicitly retired `dispatch-legacy-default`, direct packets remain active, and legacy recovery remains available through Git history. |
+| S12 | `CANDIDATE` | Calibration & current-user retirement disposition are implemented; activation waits for verified S11 & authenticated exact-state admission. |
 
-All implementation stages are complete. Formal Arcane `VERIFIED` admission is not claimed; current exact-state admission remains a separate ledger concern.
+All implementation stages are complete. Formal adoption remains incomplete until Arcane admits every stage against one exact state in declared dependency order.
 
 The package hard cut is complete: `/legion` is the sole live Legion owner, retired `legacy-source` entrypoints and duplicate package-root skills are removed, and recovery remains available through Git history.
 
