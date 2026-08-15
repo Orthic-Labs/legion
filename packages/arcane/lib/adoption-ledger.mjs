@@ -13,7 +13,23 @@ const ADOPTION_LEDGER_SCHEMA = JSON.parse(readFileSync(new URL('../../../schemas
 
 const deny = (code, message, detail = {}) => decision({ allowed: false, code, message, detail });
 const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
-export const ADOPTION_VERIFICATION_BOUND_FIELDS = Object.freeze(['schemaVersion', 'kind', 'stageId', 'stageFingerprint', 'runId', 'taskId', 'contractId', 'integratedState', 'admittedAt']);
+export const ADOPTION_VERIFICATION_BOUND_FIELDS = Object.freeze(['schemaVersion', 'kind', 'stageId', 'stageFingerprint', 'runId', 'taskId', 'contractId', 'acceptanceFingerprint', 'integratedState', 'admittedAt']);
+export const ADOPTION_MANIFEST_RECEIPT_BOUND_FIELDS = Object.freeze(['schemaVersion', 'kind', 'manifestDigest', 'itemSetDigest', 'runId', 'taskId', 'contractId', 'contractVersion', 'contractDigest', 'sourceRevision', 'acceptanceFingerprint', 'integratedState', 'authorityProofDigest', 'observedAt']);
+export const REQUIRED_ADOPTION_EDGES = Object.freeze([
+  ['S01-canon-ownership', 'S02-scope-convergence-doctrine'],
+  ['S02-scope-convergence-doctrine', 'S03-router-state-trajectory'],
+  ['S03-router-state-trajectory', 'S04-rehydration-cancellation-checkpoints'],
+  ['S04-rehydration-cancellation-checkpoints', 'S05-seals-gates-evidence'],
+  ['S02-scope-convergence-doctrine', 'S06-edaf-workflow-modules'],
+  ['S06-edaf-workflow-modules', 'S07-templates-lenses'],
+  ['S05-seals-gates-evidence', 'S08-execution-ownership-migration'],
+  ['S07-templates-lenses', 'S08-execution-ownership-migration'],
+  ['S08-execution-ownership-migration', 'S09-arcane-guards'],
+  ['S08-execution-ownership-migration', 'S10-handoffs'],
+  ['S09-arcane-guards', 'S11-evals'],
+  ['S10-handoffs', 'S11-evals'],
+  ['S11-evals', 'S12-calibration-retirement'],
+]);
 const stageFingerprint = (stage) => {
   const { verification_admission: _admission, ...unsigned } = stage;
   return digestValue(unsigned);
@@ -45,6 +61,103 @@ export function validateAdoptionDependencyGraph(ledger) {
   };
   if (!stages.every((stage) => visit(stage.stage_id))) return deny('ARC_BINDING_MISMATCH', 'adoption dependency graph contains a cycle');
   return decision({ allowed: true, message: 'Arcane validated adoption dependency graph' });
+}
+
+export function validateFormalAdoptionGraph(ledger) {
+  const graph = validateAdoptionDependencyGraph(ledger);
+  if (!graph.allowed) return graph;
+  const actualEdges = (ledger.consumption_dependencies ?? []).map((edge) => `${edge.producer_stage_id}\0${edge.consumer_stage_id}`).sort();
+  const required = REQUIRED_ADOPTION_EDGES.map(([producer, consumer]) => `${producer}\0${consumer}`).sort();
+  if (!same(actualEdges, required)) return deny('ARC_BINDING_MISMATCH', 'formal adoption requires exact Architecture Book dependency edges', { requiredEdges: required.length, actualEdges: actualEdges.length });
+  return decision({ allowed: true, message: 'Arcane validated exact formal-adoption DAG' });
+}
+
+function manifestItems(manifest) {
+  return Array.isArray(manifest?.items) ? manifest.items : [];
+}
+
+function ledgerAcceptanceIds(ledger) {
+  return ledger.stages.flatMap((stage) => stage.required_items.map((item) => item.acceptance_id));
+}
+
+function validateManifestShape(ledger, manifest, { execution, integratedState, now }) {
+  const ids = ledgerAcceptanceIds(ledger);
+  const items = manifestItems(manifest);
+  const itemIds = items.map((item) => item?.acceptanceId);
+  const expectedKeys = ['acceptanceId', 'acceptanceSurface', 'evidenceId', 'liveConsumer', 'observedAt', 'productionSymbol', 'requirementId', 'verdict'];
+  if (manifest?.schemaVersion !== 1 || manifest?.kind !== 'legion-adoption-oracle-manifest'
+      || manifest.runId !== execution.runId || manifest.taskId !== execution.taskId || manifest.contractId !== execution.contractId
+      || manifest.contractVersion !== execution.contractVersion || manifest.contractDigest !== execution.contractDigest
+      || manifest.sourceRevision !== execution.sourceRevision || manifest.acceptanceFingerprint !== ledger.acceptance_fingerprint
+      || manifest.integratedState !== integratedState || !Number.isFinite(Date.parse(manifest.observedAt))
+      || Date.parse(manifest.observedAt) > now.getTime()) return deny('ARC_BINDING_MISMATCH', 'Oracle adoption manifest does not bind current execution, acceptance, state, or time');
+  if (ids.length !== items.length || new Set(itemIds).size !== itemIds.length || !ids.every((id) => itemIds.includes(id))) return deny('ARC_EVIDENCE_INSUFFICIENT', 'Oracle adoption manifest must cover every ledger item exactly once', { expected: ids.length, actual: items.length });
+  for (const item of items) {
+    if (!same(Object.keys(item).sort(), expectedKeys) || item.verdict !== 'PASS' || !item.acceptanceId || !item.requirementId || !item.productionSymbol || !item.liveConsumer || !item.acceptanceSurface || !/^sha256:[0-9a-f]{64}$/.test(item.evidenceId ?? '') || !Number.isFinite(Date.parse(item.observedAt)) || Date.parse(item.observedAt) > Date.parse(manifest.observedAt)) return deny('ARC_EVIDENCE_INSUFFICIENT', 'Oracle adoption manifest contains an invalid or non-PASS item', { acceptanceId: item?.acceptanceId ?? null });
+  }
+  return decision({ allowed: true, message: 'Arcane validated exact Oracle adoption manifest', detail: { itemCount: items.length, itemSetDigest: digestValue([...itemIds].sort()) } });
+}
+
+export function validateOracleAdoptionManifest(ledger, manifest, options = {}) {
+  const graph = validateFormalAdoptionGraph(ledger);
+  if (!graph.allowed) return graph;
+  return validateManifestShape(ledger, manifest, options);
+}
+
+export function verifyOracleAdoptionManifest(ledger, manifest, { receiptStore, keyRing, authorityProofIssuer, execution, integratedState, now = new Date() } = {}) {
+  if (!receiptStore?.list || !keyRing || !authorityProofIssuer || !execution) return deny('ARC_EVIDENCE_INSUFFICIENT', 'formal adoption requires persisted Oracle manifest authority');
+  const shaped = validateOracleAdoptionManifest(ledger, manifest, { execution, integratedState, now });
+  if (!shaped.allowed) return shaped;
+  const manifestDigest = digestValue(manifest);
+  const receipt = receiptStore.list({ runId: execution.runId }).find((record) => record?.kind === 'arcane-adoption-manifest-receipt' && record.manifestDigest === manifestDigest);
+  if (!receipt || receipt.itemSetDigest !== shaped.detail.itemSetDigest || receipt.taskId !== execution.taskId || receipt.contractId !== execution.contractId || receipt.contractVersion !== execution.contractVersion || receipt.contractDigest !== execution.contractDigest || receipt.sourceRevision !== execution.sourceRevision || receipt.acceptanceFingerprint !== ledger.acceptance_fingerprint || receipt.integratedState !== integratedState || receipt.observedAt !== manifest.observedAt) return deny('ARC_EVIDENCE_INSUFFICIENT', 'persisted Oracle manifest receipt is absent or misbound');
+  const authority = authorityProofIssuer.findByDigest(receipt.authorityProofDigest);
+  const expected = { runId: execution.runId, taskId: execution.taskId, contractId: execution.contractId, contractVersion: execution.contractVersion, contractDigest: execution.contractDigest, sourceRevision: execution.sourceRevision };
+  if (!authority || !authorityProofIssuer.verify(authority, { expected }).allowed || !verifyRecord(receipt, receipt.authentication, { keyRing, boundFields: ADOPTION_MANIFEST_RECEIPT_BOUND_FIELDS, expectedBinding: { runId: execution.runId, taskId: execution.taskId, contractId: execution.contractId }, macDomain: 'arcane-adoption-manifest-v1' }).allowed) return deny('ARC_AUTH_FORGED', 'Oracle adoption manifest receipt authentication is invalid');
+  return decision({ allowed: true, message: 'Arcane verified authenticated Oracle adoption manifest', detail: { manifestDigest, receiptId: receipt.receiptId } });
+}
+
+function topologicalStageIds(ledger) {
+  const incoming = new Map(ledger.stages.map((stage) => [stage.stage_id, new Set()]));
+  const outgoing = new Map(ledger.stages.map((stage) => [stage.stage_id, []]));
+  for (const edge of ledger.consumption_dependencies) { incoming.get(edge.consumer_stage_id).add(edge.producer_stage_id); outgoing.get(edge.producer_stage_id).push(edge.consumer_stage_id); }
+  const ready = [...incoming].filter(([, predecessors]) => predecessors.size === 0).map(([id]) => id).sort();
+  const order = [];
+  while (ready.length) { const id = ready.shift(); order.push(id); for (const next of outgoing.get(id).sort()) { incoming.get(next).delete(id); if (incoming.get(next).size === 0) ready.push(next); } ready.sort(); }
+  return order;
+}
+
+export function transitionVerifiedLedger(ledger, manifest, options = {}) {
+  const admitted = verifyOracleAdoptionManifest(ledger, manifest, options);
+  if (!admitted.allowed) return admitted;
+  const keyId = options.keyId ?? options.keyRing?.list?.().filter((entry) => entry.status === 'active' && !entry.keyId.includes(':authority-proof:')).sort((a, b) => a.createdAt.localeCompare(b.createdAt)).at(-1)?.keyId;
+  if (!keyId) return deny('ARC_AUTH_KEY_UNAVAILABLE', 'formal adoption requires Arcane signing key');
+  const evidenceById = new Map(manifest.items.map((item) => [item.acceptanceId, item.evidenceId]));
+  const order = topologicalStageIds(ledger);
+  if (order.length !== ledger.stages.length) return deny('ARC_BINDING_MISMATCH', 'formal adoption DAG is not topologically complete');
+  const admittedAt = options.now instanceof Date ? options.now.toISOString() : new Date(options.now).toISOString();
+  for (const stageId of order) {
+    const stage = ledger.stages.find((candidate) => candidate.stage_id === stageId);
+    for (const item of stage.required_items) { item.result = 'PASS'; item.evidence = [evidenceById.get(item.acceptance_id)]; }
+    stage.produce_readiness = 'PRODUCED'; stage.integrate_readiness = 'INTEGRATED'; stage.activate_readiness = 'ACTIVATED'; stage.done_state = 'VERIFIED'; stage.integrated_state_identity = options.integratedState;
+    const admission = { schemaVersion: 1, kind: 'arcane-adoption-verification', stageId, stageFingerprint: stageFingerprint(stage), runId: options.execution.runId, taskId: options.execution.taskId, contractId: options.execution.contractId, acceptanceFingerprint: ledger.acceptance_fingerprint, integratedState: options.integratedState, admittedAt };
+    admission.authentication = signRecord(admission, { keyRing: options.keyRing, keyId, boundFields: ADOPTION_VERIFICATION_BOUND_FIELDS, macDomain: 'arcane-adoption-verification-v1' });
+    stage.verification_admission = admission;
+  }
+  return decision({ allowed: true, message: 'Arcane atomically admitted complete formal-adoption DAG', detail: { stageIds: order, manifestReceiptId: admitted.detail.receiptId } });
+}
+
+export function transitionVerifiedLedgerFile(ledgerPath, manifest, options = {}) {
+  let ledger;
+  try { ledger = JSON.parse(readFileSync(ledgerPath, 'utf8')); } catch { return deny('ARC_STORE_CORRUPT', 'adoption ledger is unreadable', { ledgerPath }); }
+  const transitioned = transitionVerifiedLedger(ledger, manifest, options);
+  if (!transitioned.allowed) return transitioned;
+  const schemaIssues = validateSchema(ADOPTION_LEDGER_SCHEMA, ledger);
+  if (schemaIssues.length) return deny('ARC_SCHEMA_INVALID', 'admitted adoption ledger is schema-invalid', { issues: schemaIssues });
+  const temporary = `${ledgerPath}.${process.pid}.tmp`;
+  writeFileSync(temporary, `${JSON.stringify(ledger, null, 2)}\n`, { flag: 'wx' });
+  renameSync(temporary, ledgerPath);
+  return decision({ allowed: true, message: 'Arcane persisted complete formal adoption atomically', detail: { ...transitioned.detail, ledgerPath } });
 }
 
 function verifyStageDependencies(ledger, stageId) {
@@ -128,6 +241,7 @@ export function transitionVerifiedStage(ledger, stageId, options = {}) {
     runId: options.execution.runId,
     taskId: options.execution.taskId,
     contractId: options.execution.contractId,
+    acceptanceFingerprint: ledger.acceptance_fingerprint,
     integratedState: options.integratedState,
     admittedAt: options.now instanceof Date ? options.now.toISOString() : new Date(options.now).toISOString(),
   };
@@ -145,7 +259,7 @@ export function verifyVerifiedStageAdmission(ledger, stageId, { keyRing, integra
   if (!keyRing) return deny('ARC_AUTH_KEY_UNAVAILABLE', 'VERIFIED admission requires Arcane verification key', { stageId });
   if (integratedState === null || integratedState === undefined) return deny('ARC_EVIDENCE_INSUFFICIENT', 'VERIFIED admission requires current integrated state for consumption', { stageId });
   const checked = verifyRecord(admission, admission.authentication, { keyRing, boundFields: ADOPTION_VERIFICATION_BOUND_FIELDS, expectedBinding: { stageId }, macDomain: 'arcane-adoption-verification-v1' });
-  if (!checked.allowed || admission.stageId !== stageId || admission.stageFingerprint !== stageFingerprint(stage) || admission.integratedState !== stage.integrated_state_identity || admission.integratedState !== integratedState) return deny('ARC_BINDING_MISMATCH', 'VERIFIED admission receipt does not bind current stage state', { stageId });
+  if (!checked.allowed || admission.stageId !== stageId || admission.stageFingerprint !== stageFingerprint(stage) || admission.acceptanceFingerprint !== ledger.acceptance_fingerprint || admission.integratedState !== stage.integrated_state_identity || admission.integratedState !== integratedState) return deny('ARC_BINDING_MISMATCH', 'VERIFIED admission receipt does not bind current stage state', { stageId });
   return decision({ allowed: true, message: 'VERIFIED stage has an Arcane-authenticated admission receipt', detail: { stageId } });
 }
 

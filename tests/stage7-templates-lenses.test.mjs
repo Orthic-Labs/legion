@@ -5,7 +5,7 @@ import { join } from 'node:path';
 import test from 'node:test';
 
 import { validateSchema } from '../lib/qualification/schema-validator.mjs';
-import { admitVerifiedStage, readAdoptionStage, readVerifiedStageFile, transitionVerifiedStage, transitionVerifiedStageFile, validateAdoptionDependencyGraph, verifyVerifiedStageAdmission } from '../packages/arcane/lib/adoption-ledger.mjs';
+import { ADOPTION_MANIFEST_RECEIPT_BOUND_FIELDS, REQUIRED_ADOPTION_EDGES, admitVerifiedStage, readAdoptionStage, readVerifiedStageFile, transitionVerifiedLedger, transitionVerifiedStage, transitionVerifiedStageFile, validateAdoptionDependencyGraph, validateFormalAdoptionGraph, verifyVerifiedStageAdmission } from '../packages/arcane/lib/adoption-ledger.mjs';
 import { AcceptanceEvidenceRegistry } from '../packages/arcane/lib/evidence-registry.mjs';
 import { ReceiptStore } from '../packages/arcane/lib/receipt-store.mjs';
 import { generateTestKeyRing } from '../packages/arcane/lib/keys.mjs';
@@ -130,6 +130,42 @@ test('S07-01 Arcane, not a stage author, admits VERIFIED only from fresh exact-s
     const rejectedRead = readVerifiedStageFile(ledgerPath, 'S-1', { keyRing, integratedState });
     assert.equal(rejectedRead.allowed, false);
     assert.equal(rejectedRead.detail.doneState, 'CANDIDATE', 'production file consumer rejects a schema-shaped forged MAC');
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
+test('formal adoption consumes one authenticated exact-item Oracle manifest & admits complete DAG atomically', () => {
+  const stageIds = [...new Set(REQUIRED_ADOPTION_EDGES.flat())];
+  const formalAdoptionItemId = (stageId) => `${stageId}-01`;
+  const ledger = {
+    schema: 'architecture-adoption-ledger.v3', ledger_version: 1, acceptance_fingerprint: `sha256:${'a'.repeat(64)}`, frozen_at: '2026-08-14T00:00:00Z',
+    stages: stageIds.map((stage_id) => ({ stage_id, owner: 'integration-owner', required_items: [{ acceptance_id: formalAdoptionItemId(stage_id), outcome: `verify ${stage_id}`, producer: 'oracle', observable_surface: 'production', verification_method: 'authenticated manifest', evidence: [], result: 'OPEN' }], produce_readiness: 'PRODUCED', integrate_readiness: 'READY_TO_INTEGRATE', activate_readiness: 'NOT_READY', done_state: 'CANDIDATE', integrated_state_identity: null })),
+    consumption_dependencies: REQUIRED_ADOPTION_EDGES.map(([producer_stage_id, consumer_stage_id], index) => ({ producer_stage_id, producer_acceptance_id: formalAdoptionItemId(producer_stage_id), consumer_stage_id, consumer_acceptance_id: formalAdoptionItemId(consumer_stage_id), consumed_artifact_id: `artifact-${index}`, consumption: consumer_stage_id.startsWith('S11') || consumer_stage_id.startsWith('S12') ? 'ACTIVATE' : 'INTEGRATE', required_verification: true })),
+  };
+  const integratedState = `adoption-state-v1:${'b'.repeat(64)}`;
+  const execution = { runId: 'run-formal', taskId: 'T-1', contractId: 'EC-612', contractVersion: 1, contractDigest: `sha256:${'c'.repeat(64)}`, sourceRevision: 'abc' };
+  const manifest = { schemaVersion: 1, kind: 'legion-adoption-oracle-manifest', ...execution, acceptanceFingerprint: ledger.acceptance_fingerprint, integratedState, observedAt: '2026-08-14T12:00:00Z', items: stageIds.map((stageId, index) => ({ acceptanceId: formalAdoptionItemId(stageId), verdict: 'PASS', evidenceId: `sha256:${String(index + 1).padStart(64, '0')}`, requirementId: `R-${index + 1}`, productionSymbol: `symbol-${index + 1}`, liveConsumer: 'legion adoption status', acceptanceSurface: 'node --test', observedAt: '2026-08-14T11:00:00Z' })) };
+  const root = mkdtempSync(join(tmpdir(), 'arcane-formal-adoption-'));
+  try {
+    const keyRing = generateTestKeyRing(['host']); const receiptStore = new ReceiptStore({ root: join(root, 'receipts') });
+    const hostLedger = new HostEventLedger({ root: join(root, 'events'), keyRing, keyId: 'host', clock: () => '2026-08-14T11:30:00Z' });
+    const event = hostLedger.append({ eventId: 'oracle-formal-adoption', adapter: 'codex', eventType: 'SubagentStart', sessionId: 'oracle-formal', binding: execution, sourceRevision: execution.sourceRevision, observedAuthority: 'oracle', payload: {} });
+    const authorityProofIssuer = new AuthorityInvocationProofIssuer({ root: join(root, 'proofs'), keyRing, keyId: 'host', ledgerStore: hostLedger, clock: () => '2026-08-14T11:45:00Z' });
+    const proof = authorityProofIssuer.issue({ ledger: event, binding: { ...execution, sessionId: event.sessionId }, purpose: 'completion-claim', role: 'oracle' }).proof;
+    const receipt = { schemaVersion: 1, kind: 'arcane-adoption-manifest-receipt', receiptId: 'formal-receipt', manifestDigest: digestValue(manifest), itemSetDigest: digestValue(manifest.items.map((item) => item.acceptanceId).sort()), ...execution, acceptanceFingerprint: ledger.acceptance_fingerprint, integratedState, authorityProofDigest: digestValue(proof), observedAt: manifest.observedAt };
+    receipt.authentication = signRecord(receipt, { keyRing, keyId: 'host', boundFields: ADOPTION_MANIFEST_RECEIPT_BOUND_FIELDS, macDomain: 'arcane-adoption-manifest-v1' }); receiptStore.append(receipt);
+    const options = { receiptStore, keyRing, authorityProofIssuer, execution, integratedState, now: new Date('2026-08-14T12:30:00Z') };
+    assert.equal(validateFormalAdoptionGraph(ledger).allowed, true);
+    const partial = structuredClone(ledger); partial.consumption_dependencies.pop();
+    assert.equal(validateFormalAdoptionGraph(partial).allowed, false, 'missing S11→S12 or any formal edge denies');
+    const callerPass = structuredClone(ledger); callerPass.stages.forEach((stage) => stage.required_items.forEach((item) => { item.result = 'PASS'; item.evidence = ['caller']; }));
+    assert.equal(transitionVerifiedLedger(callerPass, { ...manifest, items: manifest.items.slice(1) }, options).allowed, false, 'caller-written PASS cannot replace complete manifest');
+    assert.equal(transitionVerifiedLedger(structuredClone(ledger), manifest, { ...options, integratedState: `adoption-state-v1:${'d'.repeat(64)}` }).allowed, false, 'cross-state manifest denies');
+    const forgedStore = new ReceiptStore({ root: join(root, 'forged') }); const forged = structuredClone(receipt); forged.authentication.mac = '0'.repeat(64); forgedStore.append(forged);
+    assert.equal(transitionVerifiedLedger(structuredClone(ledger), manifest, { ...options, receiptStore: forgedStore }).allowed, false, 'forged manifest receipt denies');
+    const result = transitionVerifiedLedger(ledger, manifest, options);
+    assert.equal(result.allowed, true); assert.equal(result.detail.stageIds.length, 12);
+    assert.ok(ledger.stages.every((stage) => stage.done_state === 'VERIFIED' && stage.activate_readiness === 'ACTIVATED' && stage.required_items.every((item) => item.result === 'PASS' && item.evidence.length === 1)));
+    assert.ok(ledger.stages.every((stage) => verifyVerifiedStageAdmission(ledger, stage.stage_id, { keyRing, integratedState }).allowed));
   } finally { rmSync(root, { recursive: true, force: true }); }
 });
 

@@ -12,6 +12,70 @@ function sha256(value) {
   return createHash('sha256').update(value).digest('hex');
 }
 
+function canonicalAdoptionProjection(value) {
+  if (Array.isArray(value)) return value.map(canonicalAdoptionProjection);
+  if (!value || typeof value !== 'object') return value;
+  return Object.fromEntries(Object.keys(value).sort().map((key) => [key, canonicalAdoptionProjection(value[key])]));
+}
+
+function adoptionLedgerProjection(ledger) {
+  return canonicalAdoptionProjection({
+    schema: ledger.schema,
+    ledger_version: ledger.ledger_version,
+    acceptance_fingerprint: ledger.acceptance_fingerprint,
+    frozen_at: ledger.frozen_at,
+    stages: (ledger.stages ?? []).map((stage) => ({
+      stage_id: stage.stage_id,
+      owner: stage.owner,
+      required_items: (stage.required_items ?? []).map((item) => ({
+        acceptance_id: item.acceptance_id,
+        outcome: item.outcome,
+        producer: item.producer,
+        observable_surface: item.observable_surface,
+        verification_method: item.verification_method,
+      })),
+    })),
+    consumption_dependencies: ledger.consumption_dependencies ?? [],
+  });
+}
+
+function substantiveS11Projection(evidence) {
+  const projected = structuredClone(evidence);
+  if (projected.verification) delete projected.verification.oracle_admission;
+  if (projected.contract_lifecycle) delete projected.contract_lifecycle.current_admission;
+  if (projected.integrated_state) delete projected.integrated_state.adoption_state;
+  return canonicalAdoptionProjection(projected);
+}
+
+function indexGitlink(repository, path) {
+  const row = command(repository, ['ls-files', '--stage', '--', path]).trim();
+  const match = /^160000 ([0-9a-f]{40}) 0\t/.exec(row);
+  if (!match) throw new TypeError(`staged gitlink unavailable: ${path}`);
+  return match[1];
+}
+
+/**
+ * Carrier-stable formal-adoption identity. It binds substantive source &
+ * acceptance definitions while deliberately excluding only fields Arcane
+ * derives during admission. Unrelated root worktree/index entries cannot
+ * alter this projection.
+ */
+export function adoptionIntegratedState({ parentRepository, legionRepository, ledgerPath, skillArchitecturePath, s11EvidencePath, legionMount = 'legion' }) {
+  try {
+    const parent = realpathSync(parentRepository);
+    const legion = realpathSync(legionRepository);
+    const projection = canonicalAdoptionProjection({
+      kind: 'adoption-state-v1',
+      legionCommit: command(legion, ['rev-parse', 'HEAD']).trim(),
+      parentGitlink: indexGitlink(parent, legionMount),
+      ledger: adoptionLedgerProjection(JSON.parse(readFileSync(ledgerPath, 'utf8'))),
+      skillArchitecture: `sha256:${sha256(readFileSync(skillArchitecturePath))}`,
+      s11Evidence: substantiveS11Projection(JSON.parse(readFileSync(s11EvidencePath, 'utf8'))),
+    });
+    return `adoption-state-v1:${sha256(JSON.stringify(projection))}`;
+  } catch { return null; }
+}
+
 /**
  * Converts a host path to its canonical repository-relative representation.
  * Paths that resolve outside `cwd` are deliberately unmatchable.
