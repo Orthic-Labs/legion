@@ -522,7 +522,7 @@ for Windows or Windows-absolute authority for Mac.
 Windows:
 
 ```powershell
-py -3.11 D:/workspace/legion/lib/dispatch-validator/validate-dispatch.py <dispatch.md> --write-receipt <dispatch.receipt.json>
+py -3.11 lib/dispatch-validator/validate-dispatch.py <dispatch.md> --write-receipt <dispatch.receipt.json>
 ```
 
 macOS:
@@ -536,7 +536,7 @@ Do not spawn/send or call dispatch/derived handoff ready, executable, or zero-co
 Receiver recomputes digest before execution:
 
 ```powershell
-py -3.11 D:/workspace/legion/lib/dispatch-validator/validate-dispatch.py <dispatch.md> --verify-receipt <dispatch.receipt.json>
+py -3.11 lib/dispatch-validator/validate-dispatch.py <dispatch.md> --verify-receipt <dispatch.receipt.json>
 ```
 
 Embedded self-hash is forbidden because changing document to add its hash changes hash. Sidecar binds exact bytes without circularity.
