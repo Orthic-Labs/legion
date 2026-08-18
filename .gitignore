@@ -7,3 +7,5 @@ __pycache__/
 repos/
 .DS_Store
 .pytest_cache/
+src/lib/review/cache/
+src/lib/review/shadow_log/

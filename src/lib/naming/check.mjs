@@ -24,7 +24,11 @@ function recursiveFiles(root, cursor = root, output = []) {
 function repositoryFiles(root) {
   try {
     return execFileSync('git', ['ls-files', '-co', '--exclude-standard', '-z'], { cwd: root })
-      .toString().split('\0').filter(Boolean).filter((path) => existsSync(resolve(root, path)))
+      // `git ls-files` reports a nested repository as a single gitlink entry,
+      // which is a directory on disk. Reading it as a file throws EISDIR, so
+      // keep only real files.
+      .toString().split('\0').filter(Boolean)
+      .filter((path) => { const p = resolve(root, path); return existsSync(p) && statSync(p).isFile(); })
       .filter((path) => !SKIP_PREFIXES.some((prefix) => path.startsWith(prefix)));
   } catch {
     return recursiveFiles(root);

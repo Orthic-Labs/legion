@@ -58,14 +58,14 @@ from the user's requested outcome.
 ## Parametrization + Anti-Slop (mandatory)
 
 - Positioning, campaign, and launch deliverables are parametrized per
-  `tools/skills/_shared/parametric-design.md`: channel mix, message risk, proof type, and funnel-stage
+  `skills/_shared/parametric-design.md`: channel mix, message risk, proof type, and funnel-stage
   weighting are named axes, not a single vibes-driven plan.
 - Produce >=3 divergent directions that differ on at least 2 of those axes before converging on
   one recommendation.
 - Record the winning parameter vector with the deliverable; a later revision ("more aggressive",
   "lower risk") mutates that vector rather than triggering a fresh redesign.
 - All outward-facing copy inside a marketing deliverable (positioning statements, launch copy,
-  campaign briefs) gets the anti-slop pass (`tools/skills/_shared/anti-slop.md`) before delivery.
+  campaign briefs) gets the anti-slop pass (`skills/_shared/anti-slop.md`) before delivery.
 - Never fabricate demand, stats, social proof, or customer language to fill a parameter or
   direction — this reinforces the existing contract rule above; an unsupported claim is cut, not
   invented.

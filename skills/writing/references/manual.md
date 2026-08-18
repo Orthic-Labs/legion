@@ -45,10 +45,10 @@ the requested deliverable truly combines purposes.
 ## Quality gates
 
 - **Anti-slop pass (mandatory).** Every prose deliverable — copy, captions, blog posts, scripts,
-  emails, microcopy — passes `tools/skills/_shared/anti-slop.md` before shipping: edit mode when drafting,
+  emails, microcopy — passes `skills/_shared/anti-slop.md` before shipping: edit mode when drafting,
   detect mode when reviewing someone else's draft. Brand card precedence stands: brand voice rules
   in `.claude/rules/brands.md` win over the anti-slop list where they conflict.
-- **Parametric contract (mandatory).** Follow `tools/skills/_shared/parametric-design.md`: parametrize tone,
+- **Parametric contract (mandatory).** Follow `skills/_shared/parametric-design.md`: parametrize tone,
   structure, hook, and evidence-density axes before drafting. For any non-trivial piece, generate
   ≥3 meaningfully different directions (divergent phase) before converging on one. Treat a later
   revision as an axis mutation ("make it bolder" -> `copy_tone ↑`), not a fresh redraft.

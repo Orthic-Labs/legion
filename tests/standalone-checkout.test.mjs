@@ -31,10 +31,13 @@ test('publication guard exists and blocks public channels without a grant', () =
   // Internal channel always allowed.
   const internal = execFileSync(process.execPath, [check, '--channel', 'internal-pack'], { cwd: root, encoding: 'utf8' });
   assert.match(internal, /internal channel allowed/);
-  // Public channel blocked (no release/publication-policy.json exists).
+  // npm carries an explicit grant in release/publication-policy.json.
+  const npm = execFileSync(process.execPath, [check, '--channel', 'npm'], { cwd: root, encoding: 'utf8' });
+  assert.match(npm, /publication channel allowed: npm/);
+  // A channel with no grant must still be refused — that is the guard's contract.
   try {
-    execFileSync(process.execPath, [check, '--channel', 'npm'], { cwd: root, encoding: 'utf8' });
-    assert.fail('npm channel must be blocked without a policy grant');
+    execFileSync(process.execPath, [check, '--channel', 'homebrew'], { cwd: root, encoding: 'utf8' });
+    assert.fail('ungranted channel must be blocked');
   } catch (error) {
     assert.equal(error.status, 5, 'publication guard must exit 5 (integrity) for an ungranted channel');
   }

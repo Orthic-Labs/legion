@@ -223,7 +223,7 @@ After gathering information, create `<private-overlay>/product-marketing-context
 
 ## Step 4: Confirm and Save
 
-**MANDATORY OKF emit (Skill Output Contract):** after saving, run `py -3.11 D:/workspace/tools/lib/skill_emit.py report <private-overlay>/product-marketing-context.md --type context --repo <project>` so the positioning is recallable in the memory engine.
+**MANDATORY OKF emit (Skill Output Contract):** after saving, run `py -3.11 src/lib/skill_emit.py report <private-overlay>/product-marketing-context.md --type context --repo <project>` so the positioning is recallable in the memory engine.
 
 - Show the completed document
 - Ask if anything needs adjustment

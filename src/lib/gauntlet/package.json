@@ -1,0 +1,16 @@
+{
+  "name": "evidence-gauntlet",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Phase 6.7 diff-scoped evidence gauntlet: mutation, changed-lines coverage, test-order independence. Emits Arcane-shaped receipts.",
+  "type": "module",
+  "bin": {
+    "gauntlet": "./gauntlet.mjs"
+  },
+  "scripts": {
+    "test": "node --test tests/gauntlet.test.mjs"
+  },
+  "engines": {
+    "node": ">=22.13"
+  }
+}

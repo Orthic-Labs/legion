@@ -16,7 +16,7 @@ method; outbound lead generation is outside this Research consolidation.
 
 ## Stage 1 — route only
 
-Run `tools/research-core/router/route_resolve.py --intent ...`. Stage 1:
+Run `src/lib/research-core/router/route_resolve.py --intent ...`. Stage 1:
 
 - resolves a typed route with `allowed_effects: []`;
 - performs no sensitive read, search, fetch, upload, write, or worker spawn;
@@ -33,7 +33,7 @@ Approvals are separate receipts stored in the run manifest. Stage 2 reloads the 
 it does not reclassify the prompt. Every pending gate must have an approval receipt and every
 deterministic domain gate must pass before effects are granted.
 
-Use `tools/research-core/run.py approve ...` followed by `run.py grant ...`.
+Use `src/lib/research-core/run.py approve ...` followed by `run.py grant ...`.
 
 ## Medical context
 

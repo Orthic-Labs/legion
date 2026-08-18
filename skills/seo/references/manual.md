@@ -151,7 +151,7 @@ Do not auto-offer or generate a PDF after routine analysis. If the approving hum
 [{"id":"seo-001","category":"technical|content|schema|geo|images|links|local","severity":"critical|high|medium|low","url":"https://...","evidence":"file:line or crawl locus","fix":"specific action","priority":1}]
 ```
 
-For portable agent consumption, also emit findings as a **compressed OKF bundle** (one concept per finding/page, required `type` frontmatter, link graph; prose compressed structure-safely) via `okf emit <out>/okf <concepts.json> --compress`. `findings.json` stays the machine source of truth and `FULL-AUDIT-REPORT.md` stays the uncompressed human deliverable. Pattern: `tools/lib/OKF-OUTPUT.md`. For agent INPUTS (page reads, repo files), prep with `crypt prep <tmp> <files...>` (code→skel, prose→compress) on SURVEY reads only. Full compaction stack: `tools/lib/CONTEXT-ENGINEERING.md`.
+For portable agent consumption, also emit findings as a **compressed OKF bundle** (one concept per finding/page, required `type` frontmatter, link graph; prose compressed structure-safely) via `okf emit <out>/okf <concepts.json> --compress`. `findings.json` stays the machine source of truth and `FULL-AUDIT-REPORT.md` stays the uncompressed human deliverable. Pattern: `src/lib/OKF-OUTPUT.md`. For agent INPUTS (page reads, repo files), prep with `crypt prep <tmp> <files...>` (code→skel, prose→compress) on SURVEY reads only.
 
 `FULL-AUDIT-REPORT.md` is rendered FROM `findings.json` by the main agent unless/until a dedicated renderer exists. It must include these sections in order:
 
@@ -198,7 +198,7 @@ SEO recommendations are not allowed to be vibes. Every material recommendation m
 ### Parametric Content Gate (mandatory)
 
 SEO content work (writing, auditing, or upgrading pages/posts) is parametrized per
-`tools/skills/_shared/parametric-design.md`: express the target page as an explicit vector
+`skills/_shared/parametric-design.md`: express the target page as an explicit vector
 before generating or scoring — search intent (brand/commercial/educational), entity
 density, E-E-A-T level, SERP risk, and passage-citability, at minimum. The SEO default-region
 fingerprint (H2-per-keyword scaffold, definition-then-list every section, FAQ blocks
@@ -206,7 +206,7 @@ restating headings) is both a scored audit defect (Slop Report item d, "template
 copy") and a pattern this skill must never generate — do not ship it and flag it later.
 
 Every piece of prose this skill produces or reviews (page copy, blog drafts, meta
-descriptions, FAQ answers) gets the anti-slop pass per `tools/skills/_shared/anti-slop.md`:
+descriptions, FAQ answers) gets the anti-slop pass per `skills/_shared/anti-slop.md`:
 embedded mode (silent, pre-ship) when producing content, detect mode (named findings) when
 auditing existing content. This doubles as GEO/AEO hygiene — slop patterns (rule-of-three
 lists, throat-clearing, weasel attribution, fake-profound kickers) read as low-quality

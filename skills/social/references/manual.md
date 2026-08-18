@@ -29,7 +29,7 @@ Failing a gate means revise before delivery.
 
 ## Parametrization + Anti-Slop (mandatory)
 
-- Social content is parametrized per `tools/skills/_shared/parametric-design.md`: platform, format, hook
+- Social content is parametrized per `skills/_shared/parametric-design.md`: platform, format, hook
   type, pacing, caption length, hashtag strategy, and risk/experiment level are named axes, not
   a vibes brief.
 - Calendars and batches must spread deliberately across those axes — never one template cloned
@@ -37,7 +37,7 @@ Failing a gate means revise before delivery.
 - The social default-region fingerprint is a scored defect even when the copy is clean: hook–
   value–CTA applied identically across platforms, emoji-bullet captions, engagement-bait
   questions.
-- Every caption, post, or script gets the anti-slop pass (`tools/skills/_shared/anti-slop.md`, embedded
+- Every caption, post, or script gets the anti-slop pass (`skills/_shared/anti-slop.md`, embedded
   mode) before delivery — apply silently, report only if it changed the output materially.
 - Brand card precedence stands: brand voice rules (including a brand's own flagged devices,
   e.g. Static Riot's ALL-CAPS headlines) win over the anti-slop list.

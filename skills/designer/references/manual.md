@@ -40,7 +40,7 @@ Paths are under `skills/designer/` unless shown from `skills/`.
 | Create or evolve the underlying brand identity | `brand-identity` |
 | Design animation language, tokens, choreography, or implementation | `specialists/motion/GUIDE.md`, then one platform reference |
 | Design glass, frosted, translucent, or liquid-glass-like UI | `specialists/glass/GUIDE.md` |
-| Direct or adapt biological-mechanical illustration language | `tools/skills/_shared/illustrate/GUIDE.md` |
+| Direct or adapt biological-mechanical illustration language | `skills/_shared/illustrate/GUIDE.md` |
 | Build/redesign a **platform-native** app surface (SwiftUI/AppKit macOS or iOS, `NSPanel`/HUD/palette, or Slint) | `references/app.md` → `references/native-app.md`; add `specialists/motion/native.md` for motion or window geometry |
 | Build/redesign a **Tauri** app surface | `references/app.md` → `references/native-app.md` §7; add `specialists/motion/webview.md` for per-OS engine split |
 | Port a Swift/SwiftUI surface to Slint, or reverse | `specialists/motion/native.md` §6 |
@@ -67,7 +67,7 @@ Paths are under `skills/designer/` unless shown from `skills/`.
 ## Parametric generation contract (mandatory)
 
 Every generated artifact — surface, static creative, or the copy riding on it — is parametrized,
-not one-shot vibes-to-final. Full axis tables, fingerprints, and phase tagging: `tools/skills/_shared/parametric-design.md`.
+not one-shot vibes-to-final. Full axis tables, fingerprints, and phase tagging: `skills/_shared/parametric-design.md`.
 
 1. Convert the brief into an explicit parameter vector before generating; state assumptions on any
    ambiguous high-impact axis.
@@ -84,7 +84,7 @@ not one-shot vibes-to-final. Full axis tables, fingerprints, and phase tagging: 
    mutation of that vector, not a fresh redesign.
 
 All copy/microcopy this skill produces (headlines, CTAs, body, captions) gets the anti-slop pass in
-embedded mode before it ships — `tools/skills/_shared/anti-slop.md`, silent unless findings change the output.
+embedded mode before it ships — `skills/_shared/anti-slop.md`, silent unless findings change the output.
 
 ## Boundaries
 

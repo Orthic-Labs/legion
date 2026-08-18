@@ -39,7 +39,7 @@ If any of those is missing, the route halts and asks **one** clarifying question
 6. Preserve chronology, exhibit IDs, exact amounts, and requested relief across every
    document.
 7. Use `scripts/generate_pack.py` (preserved at
-   `tools/research-core/workflows/legal/india/consumer/scripts/generate_pack.py`) for
+   `src/lib/research-core/workflows/legal/india/consumer/scripts/generate_pack.py`) for
    deterministic pack assembly.
 8. Flag limitation, jurisdiction, service, evidence, privacy, or professional-review
    risks before filing.

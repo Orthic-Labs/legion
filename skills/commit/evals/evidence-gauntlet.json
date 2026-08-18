@@ -1,8 +1,8 @@
 {
   "name": "phase-6.7-evidence-gauntlet",
-  "purpose": "Three diff-scoped mechanical checks (mutation, changed-lines coverage, test-order independence) wired into /commit as a host-issued Forge check.",
-  "rerunnable_command": "node tools/gauntlet/gauntlet.mjs --base HEAD",
-  "forge_mapping": {
+  "purpose": "Three diff-scoped mechanical checks (mutation, changed-lines coverage, test-order independence) wired into /commit as a host-issued Arcane check.",
+  "rerunnable_command": "node src/lib/gauntlet/gauntlet.mjs --base HEAD",
+  "arcane_mapping": {
     "kind": "gauntlet",
     "executor": "host",
     "authority": "host",
@@ -11,7 +11,7 @@
     "trust_class": "tool",
     "where_to_pass": "checks[] in checkpoint or verify",
     "issuer_derived_fields": ["status", "executor", "exit_code"],
-    "corejs_reference": "forge/lib/core.js:normalizeCheck lines 515-544"
+    "normalize_reference": "Arcane normalizeCheck: reads executor and status from caller data only when authority !== 'model'"
   },
   "layers": [
     {
@@ -19,21 +19,21 @@
       "what": "Inject a fault per added line; rerun the test command; report survived vs killed.",
       "ok_when": "no mutant survived",
       "fail_signal": "tests-that-cannot-fail",
-      "engine": "tools/gauntlet/lib/mutation.mjs"
+      "engine": "src/lib/gauntlet/lib/mutation.mjs"
     },
     {
       "name": "coverage",
       "what": "NODE_V8_COVERAGE driven test run; report fraction of added lines executed.",
       "ok_when": "all added lines executed at least once",
       "fail_signal": "untested_changed_lines",
-      "engine": "tools/gauntlet/lib/coverage.mjs"
+      "engine": "src/lib/gauntlet/lib/coverage.mjs"
     },
     {
       "name": "order",
       "what": "Seed Fisher-Yates shuffle over test files; rerun N times; every run must pass.",
       "ok_when": "every run exited 0",
       "fail_signal": "order_dependent_failure",
-      "engine": "tools/gauntlet/lib/order.mjs"
+      "engine": "src/lib/gauntlet/lib/order.mjs"
     }
   ],
   "anti_gaming": [

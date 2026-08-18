@@ -31,8 +31,7 @@
       "id": "editorial",
       "kind": "router",
       "children": [
-        { "id": "writing", "kind": "capability", "targetType": "content", "targetRef": "skills/writing/SKILL.md" },
-        { "id": "content", "kind": "capability", "targetType": "content", "targetRef": "skills/content/SKILL.md" }
+        { "id": "writing", "kind": "capability", "targetType": "content", "targetRef": "skills/writing/SKILL.md" }
       ]
     },
     {

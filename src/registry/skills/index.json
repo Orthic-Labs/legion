@@ -9,8 +9,6 @@
     { "id": "brand", "manifest": "skills/manifests/brand.json" },
     { "id": "coder", "manifest": "skills/manifests/coder.json" },
     { "id": "commit", "manifest": "skills/manifests/commit.json" },
-    { "id": "compshop", "manifest": "skills/manifests/compshop.json" },
-    { "id": "content", "manifest": "skills/manifests/content.json" },
     { "id": "cortex", "manifest": "skills/manifests/cortex.json" },
     { "id": "covenant", "manifest": "skills/manifests/covenant.json" },
     { "id": "debugger", "manifest": "skills/manifests/debugger.json" },

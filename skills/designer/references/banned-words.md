@@ -8,7 +8,7 @@ Every entry has a detection pattern (regex or grep). The build fails when hard-b
 
 ## How to use
 
-`tools/lib/design-gate.mjs` (Phase 5d) runs these patterns against built HTML. Hard-block entries fail the build. Soft-flag entries log a warning but don't block.
+`src/lib/design-gate.mjs` (Phase 5d) runs these patterns against built HTML. Hard-block entries fail the build. Soft-flag entries log a warning but don't block.
 
 To add a banned word: append to the relevant section with detection regex + reason + severity. Update this file, not per-brand files.
 
@@ -21,7 +21,7 @@ To add a banned word: append to the relevant section with detection regex + reas
 | `—` (U+2014, em dash) | LLM cadence tell; replace with comma, period, or em-dash-words | `\xE2\x80\x94` |
 | `–` (U+2013, en dash) | Same; replace with hyphen or comma | `\xE2\x80\x93` |
 | `"..."` (U+201C / U+201D, smart double quotes) | ASCII straight quotes preferred | `[\xE2\x80\x9C\xE2\x80\x9D]` |
-| `'...'` (U+2018 / U+2019, smart single quotes) | ASCII apostrophe preferred | `[\xE2\x80\x98\xE2\x2019]` |
+| `'...'` (U+2018 / U+2019, smart single quotes) | ASCII apostrophe preferred | `[\xE2\x80\x98\xE2\x80\x99]` |
 | `…` (U+2026, ellipsis) | Replace with three ASCII periods | `\xE2\x80\xA6` |
 
 ## Vocabulary (all brands — hard block)
@@ -102,6 +102,6 @@ To add a banned word: append to the relevant section with detection regex + reas
 
 ## Build integration
 
-`tools/lib/design-gate.mjs` runs the hard-block patterns against built HTML. Soft-flags appear in `artifacts/qa/banned-words.json` as warnings.
+`src/lib/design-gate.mjs` runs the hard-block patterns against built HTML. Soft-flags appear in `artifacts/qa/banned-words.json` as warnings.
 
 Override via `--allow-banned=<pattern>` flag with required reason. Waivers logged in `artifacts/qa/waivers.json`.

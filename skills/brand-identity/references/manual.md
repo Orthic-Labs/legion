@@ -17,7 +17,7 @@ This skill uses the same mechanism as the `/designer` website surface: product/b
 
 ## Parametric Design + Anti-Slop Contract
 
-Brand identity work IS parameter-space definition, per `tools/skills/_shared/parametric-design.md`:
+Brand identity work IS parameter-space definition, per `skills/_shared/parametric-design.md`:
 every phase below already outputs explicit axes (signature mechanism, color roles, type
 roles, voice dimensions) — treat these as the parameter vector, not incidental prose, so
 downstream skills (`/designer`, `/audit-visual`, Sage) consume `.brand/tokens.json`
@@ -27,7 +27,7 @@ category, voice signature — see the Option Divergence Gate) before converging 
 direction; never present near-duplicates as separate options.
 
 All voice/guideline prose — banned/owned vocabulary, positioning statements, do/don't copy,
-example headlines — gets the anti-slop pass per `tools/skills/_shared/anti-slop.md`
+example headlines — gets the anti-slop pass per `skills/_shared/anti-slop.md`
 (embedded mode: apply silently before Phase 6 human eyes). A brand may deliberately claim a
 device the anti-slop inventory flags (e.g. Static Riot's ALL-CAPS staccato headlines, per
 `anti-slop.md`'s own false-positive note) — that is not a failure; record it in the brand's

@@ -35,20 +35,20 @@
   },
   "providers": {
     "browser": [
-      "tools/research-core/providers/command_bridge.py",
-      "tools/research-core/providers/search_open_find.py"
+      "src/lib/research-core/providers/command_bridge.py",
+      "src/lib/research-core/providers/search_open_find.py"
     ],
     "domain-default": [
-      "tools/research-core/providers/search_open_find.py",
-      "tools/research-core/providers/scholarly.py",
-      "tools/research-core/providers/command_bridge.py",
+      "src/lib/research-core/providers/search_open_find.py",
+      "src/lib/research-core/providers/scholarly.py",
+      "src/lib/research-core/providers/command_bridge.py",
       "tools/skills/research/references/methods/authority.md"
     ],
     "local-corpus": [
-      "tools/research-core/providers/local_corpus.py"
+      "src/lib/research-core/providers/local_corpus.py"
     ],
     "notebooklm": [
-      "tools/research-core/providers/notebooklm.py",
+      "src/lib/research-core/providers/notebooklm.py",
       "tools/skills/research/references/providers/notebooklm.md"
     ]
   },
@@ -56,11 +56,11 @@
   "workflows": {
     "india-consumer-commission": [
       "tools/skills/research/references/domains/legal/india/consumer/GUIDE.md",
-      "tools/research-core/workflows/legal/india/consumer/scripts/generate_pack.py",
-      "tools/research-core/workflows/legal/india/consumer/scripts/case-template.yaml"
+      "src/lib/research-core/workflows/legal/india/consumer/scripts/generate_pack.py",
+      "src/lib/research-core/workflows/legal/india/consumer/scripts/case-template.yaml"
     ],
     "india-criminal": [
-      "tools/research-core/workflows/legal/india/criminal/GUIDE.md"
+      "src/lib/research-core/workflows/legal/india/criminal/GUIDE.md"
     ]
   }
 }

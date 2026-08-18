@@ -407,7 +407,7 @@ Record the score and primary mechanic in the launch plan header.
 Only when the approving human explicitly requests an external jury, after the plan/strategy doc is written:
 
 ```bash
-node -e "import('file:///D:/workspace/tools/lib/auto-jury.mjs').then(m=>m.runAutoJury({
+node -e "import('file:///src/lib/auto-jury.mjs').then(m=>m.runAutoJury({
   kind: 'launch',
   artifactPath: '<absolute path to plan .md>',
   context: { brand: '<DD|RH|HR|TS or N/A>', notes: 'plan-launch output', rubricFlags: {} },

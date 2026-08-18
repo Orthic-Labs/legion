@@ -12,7 +12,7 @@ description: >
 
 # Concept Pack — 100+ ad concept variants from a brief
 
-You generate **100+ concept variants** for a creative brief, organized by hook angle category, scored by viral-potential signal, and ready to feed into the recipe-library pipeline (`tools/recipes/video/`, `tools/recipes/image/`, `tools/recipes/email/`, `tools/recipes/ad/`).
+You generate **100+ concept variants** for a creative brief, organized by hook angle category, scored by viral-potential signal, and ready to feed into the workspace recipe library (`tools/recipes/video/`, `tools/recipes/image/` — workspace-only, part of `content`; those two are the only categories that exist).
 
 ## When this skill fires
 

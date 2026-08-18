@@ -12,7 +12,7 @@ that constitution, not a replacement for it. Everything below is preserved verba
 except where a `> **Superseded:**` note marks a doctrine conflict.
 
 > **Superseded:** the frontmatter and body below describe the retired Council SEO slash command
-> and the retired `tools/review/dual_review.py` CLI (multi-provider jury, `jury.verdict.json`,
+> and the retired `src/lib/review/dual_review.py` CLI (multi-provider jury, `jury.verdict.json`,
 > SHIP/REVISE/REJECT gate). That machinery does not exist in Covenant — Covenant convenes seats
 > from `covenant-seat.md`, disposition belongs to the caller (Sage/Alchemist), and there is no
 > standalone verdict-issuing CLI. The trigger phrase is `/covenant seo` (or an SEO artifact routed
@@ -41,7 +41,7 @@ Real multi-LLM API jury for SEO/GEO. Feed it a page's content, a blog draft, or 
 report (`FULL-AUDIT-REPORT.md` / `ACTION-PLAN.md`). Add brand + target keyword as context if known.
 
 ```bash
-py -3.11 D:/workspace/tools/review/dual_review.py jury-seo --stage advisory --input audit-or-page.md --output-dir <review-dir>
+py -3.11 src/lib/review/dual_review.py jury-seo --stage advisory --input audit-or-page.md --output-dir <review-dir>
 ```
 
 4 text jurors (reasoning · kimi-thinking · generalist · content-voice), no escalation. Verdict:

@@ -1,0 +1,105 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Council/Jury model registry (models.yaml)",
+  "description": "Validated at load time by src/lib/review/config.py. Anchors (_*_jurors) are expanded by yaml.safe_load before validation, so they appear as top-level array keys.",
+  "type": "object",
+  "required": ["providers", "skills"],
+  "properties": {
+    "prompt_version": {"type": "integer", "minimum": 1},
+    "providers": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": {
+        "type": "object",
+        "required": ["type"],
+        "properties": {
+          "type": {"type": "string"},
+          "base_url": {"type": "string"},
+          "keys": {"type": "array", "items": {"type": "string"}},
+          "command_template": {"type": "array", "items": {"type": "string"}},
+          "parallel_safe": {"type": "boolean"},
+          "disabled": {"type": "boolean"},
+          "timeout_s": {"type": "number"},
+          "min_gap_ms": {"type": "number"},
+          "retry_codes_as_quota": {"type": "array", "items": {"type": "integer"}}
+        }
+      }
+    },
+    "panels": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "required": ["jurors"],
+        "properties": {
+          "framing": {"type": "string"},
+          "jurors": {"$ref": "#/$defs/juror_list"}
+        }
+      }
+    },
+    "skills": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": {
+        "type": "object",
+        "required": ["jurors"],
+        "properties": {
+          "rubric": {"type": "string"},
+          "framing": {"type": "string"},
+          "output_schema": {"type": "string"},
+          "needs_vision_input": {"type": "boolean"},
+          "jurors": {"$ref": "#/$defs/juror_list"},
+          "escalation": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["trigger", "provider", "model"],
+              "properties": {
+                "trigger": {"type": "string"},
+                "provider": {"type": "string"},
+                "model": {"type": "string"}
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "patternProperties": {
+    "^_": {"$ref": "#/$defs/juror_list"}
+  },
+  "additionalProperties": true,
+  "$defs": {
+    "juror_list": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"$ref": "#/$defs/juror"}
+    },
+    "juror": {
+      "type": "object",
+      "required": ["id", "provider", "model"],
+      "properties": {
+        "id": {"type": "string"},
+        "provider": {"type": "string"},
+        "model": {"type": "string"},
+        "lens": {"type": "string"},
+        "vision": {"type": "boolean"},
+        "max_images": {"type": "integer", "minimum": 1},
+        "max_tokens": {"type": "integer", "minimum": 1},
+        "framing": {"type": "string"},
+        "output_schema": {"type": "string"},
+        "fallbacks": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["provider", "model"],
+            "properties": {
+              "provider": {"type": "string"},
+              "model": {"type": "string"}
+            }
+          }
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

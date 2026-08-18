@@ -1,4 +1,0 @@
-interface:
-  display_name: "CompShop"
-  short_description: "Semantic source-code repository comparison"
-  default_prompt: "Use $compshop to inventory repositories, consolidate independent reports, or reconcile genuine conflicts."

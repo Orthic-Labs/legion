@@ -133,7 +133,7 @@ Four sub-gates, all must pass before Phase 6:
 - **5a** — `/audit-visual` (impeccable detector incl. website-structure rules + 16 lenses + motion lens).
 - **5b** — `/seo` technical audit (meta, schema, OG, sitemap, robots, semantic HTML, CWV).
 - **5c** — Fresh-context judge agent (deferred; no-op in v1 — see `<local-path>` §11).
-- **5d** — `tools/lib/design-gate.mjs` deterministic runner. Verifies motion-plan.md + motion-gate.json exist and pass, runs 14 deterministic checks, outputs `artifacts/qa/gate.json` with motion + design-system results aggregated into one top-level verdict.
+- **5d** — `src/lib/design-gate.mjs` deterministic runner. Verifies motion-plan.md + motion-gate.json exist and pass, runs 14 deterministic checks, outputs `artifacts/qa/gate.json` with motion + design-system results aggregated into one top-level verdict.
 
 `verdict: pass` requires every check green or explicitly waived with reason. `fail` requires fix + re-run.
 
@@ -164,7 +164,7 @@ Pass surface context to the audit: website = first-impression + conversion weigh
 repeated-use weighting (action count, keyboard/focus, state completeness over drama).
 
 **Human eyes (phase 6).** The approving human approves with their eyes before final. Open what they should review
-via `node tools/lib/open-for-review.mjs <path>`.
+via `node src/lib/open-for-review.mjs <path>`.
 
 ## Craft rules (absorbed from Anthropic's frontend-design — apply while building)
 

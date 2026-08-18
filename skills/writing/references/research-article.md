@@ -539,7 +539,7 @@ inline editorial and evidence checks.
 
 ```bash
 # Save the draft to a file first, then jury it:
-node -e "import('file:///D:/workspace/tools/lib/auto-jury.mjs').then(m=>m.runAutoJury({
+node -e "import('file:///src/lib/auto-jury.mjs').then(m=>m.runAutoJury({
   kind: 'blog',
   artifactPath: '<absolute path to draft .md>',
   context: {

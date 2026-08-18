@@ -1,0 +1,18 @@
+TASK: Diagnose + fix DOCX editor TOOLBAR theming in a Tauri 2 + React/TS app. Be specific (name the CSS selector). You may read the files below.
+
+EDITOR: @eigenpal/docx-editor-react
+- Its bundled CSS is at: D:/workspace/readright/node_modules/.pnpm/@eigenpal+docx-editor-react_1fb515dcb5f3011d724b075318822117/node_modules/@eigenpal/docx-editor-react/dist/styles.css
+- That CSS defines theme vars on the `.ep-root` selector: shadcn-style HSL triplets (--background, --foreground, --card, --popover, --border, --input, --muted, --secondary, --accent, --primary, --ring) consumed as `hsl(var(--background))`, PLUS raw `--doc-*` colors (--doc-bg:#f8f9fa, --doc-text, etc.).
+
+OUR THEMING CODE: D:/workspace/readright/src/documents/docx/DocxPane.tsx
+- It renders <DocxEditor documentBuffer=... /> inside a wrapper div.
+- To theme dark, it injects a <style> string: `:root,.ep-root{ --background:<dark HSL triplet>; --card:...; --foreground:...; --border:...; --primary:...; --doc-bg:<dark hex>; --doc-text:...; ... }` — i.e. it re-declares ALL the editor's vars (shadcn HSL + doc raw) to the app's dark theme (hex converted to HSL triplets for the shadcn ones).
+- Tauri's CSP style-src modification is DISABLED (dangerousDisableAssetCspModification:["style-src"]), so the injected <style> DOES apply — verified: KaTeX, Mermaid, HTML, and the DOCX *page background* now theme correctly.
+
+SYMPTOM (the bug): After the override, the document PAGE background themes dark correctly, BUT the editor TOOLBAR — the ribbon with File/Format/Insert/Help and the Bold/Italic/underline/font-size/alignment buttons — stays WHITE (white bg, dark icons). So the page accepts the dark vars but the toolbar does not.
+
+INVESTIGATE in styles.css (and the dist JS if needed) and ANSWER:
+1. root_cause: why does the toolbar stay white when the page themes? (Is the toolbar element OUTSIDE .ep-root? In a React portal to document.body? Using a hardcoded Tailwind `bg-white`/`rgb(255 255 255)` rather than `hsl(var(--background))`? Using `color-scheme`? Using a var name I am not overriding? Identify the EXACT class/element that paints the toolbar white and what its background resolves to.)
+2. fix: the exact, copy-pasteable CSS (selector + declarations) OR DocxEditor prop to make the toolbar dark bg + light icons to match. If it is a hardcoded utility class, give the override rule. If it is a portal, say so.
+
+OUTPUT (machine-minimal): two lines — `root_cause: ...` and `fix: ...` (CSS or prop, copy-pasteable).

@@ -42,7 +42,7 @@ note rather than silently rewritten:
   decides or disposes. What reads as "blocks" here is a maximum-severity finding for the caller
   (Sage or Alchemist) to weigh.
 - `seo.md`: a note explaining the retired Council SEO command and retired
-  `tools/review/dual_review.py` CLI do not exist in Covenant; the rubric content is preserved, the
+  `src/lib/review/dual_review.py` CLI do not exist in Covenant; the rubric content is preserved, the
   delivery mechanism is not.
 
 `manual.md` (Council's 177-line operating manual — room driver, `dual-review` CLI, disposition

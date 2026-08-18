@@ -107,19 +107,19 @@ across in the absorption.
 
 | Reference | Cites | Cited by |
 |---|---:|---|
-| `tools/lib/auto-jury.mjs` | 18 | `designer/specialists/static-creative`, `writing`, others — an opt-in external jury |
-| `tools/skills/_shared/anti-slop.md` | 8 | `writing/references/manual.md` (**mandatory** gate), `designer`, `audit-visual` |
-| `tools/skills/_shared/parametric-design.md` | 8 | `writing/references/manual.md` (**mandatory** gate), `audit-visual` |
+| `src/lib/auto-jury.mjs` | 18 | `designer/specialists/static-creative`, `writing`, others — an opt-in external jury |
+| `skills/_shared/anti-slop.md` | 8 | `writing/references/manual.md` (**mandatory** gate), `designer`, `audit-visual` |
+| `skills/_shared/parametric-design.md` | 8 | `writing/references/manual.md` (**mandatory** gate), `audit-visual` |
 | `tools/lib/design-gate.mjs` | 3 | `designer/specialists/surface-design` Phase 5d |
-| `tools/lib/OKF-OUTPUT.md` | 3 | — |
+| `src/lib/OKF-OUTPUT.md` | 3 | — |
 | `tools/lib/CONTEXT-ENGINEERING.md` | 3 | — |
-| `tools/skills/_shared/illustrate/GUIDE.md` | 2 | `designer/SKILL.md` illustration route |
+| `skills/_shared/illustrate/GUIDE.md` | 2 | `designer/SKILL.md` illustration route |
 | `tools/lib/human-eyes-gate.mjs` | 1 | `designer` Phase 6 |
-| `tools/lib/open-for-review.mjs` | 1 | `designer` Phase 6 |
+| `src/lib/open-for-review.mjs` | 1 | `designer` Phase 6 |
 | `tools/skills/.system/imagegen/SKILL.md` | 1 | `content/references/routing.md` |
 | `tools/skills/.system/skill-creator/scripts/quick_validate.py` | 1 | `content/specialists/production-routing` |
 
-**Note on anti-slop.** `tools/skills/_shared/anti-slop.md` is absent, but the capability is
+**Note on anti-slop.** `skills/_shared/anti-slop.md` is absent, but the capability is
 present and superseded it: `providers/copy/anti-slop.mjs`, ten registered rules in
 `registry/rules/copy/anti-slop.json`, and a corpus at `bench/corpora/copy/anti-slop`. The
 guides cite the retired markdown rather than the provider that replaced it. Resolving this is
@@ -133,16 +133,16 @@ Left as-is pending confirmation that this is intended.
 
 ```text
 tools/agent-rules/manage.py          (8)
-tools/review/dual_review.py          (3)
+src/lib/review/dual_review.py          (3)
 tools/rhook/                         (3)
-tools/research-core/ledger.py        (2)   <- cited by skills/research/references/claim-ledger.md
-tools/research-core/{independence,contradictions,citecheck}.py
+src/lib/research-core/ledger.py        (2)   <- cited by skills/research/references/claim-ledger.md
+src/lib/research-core/{independence,contradictions,citecheck}.py
 tools/pipelines/transcribe/carousel.py (2)
-tools/recipes/video/                 (2)
+src/lib/media-recipes/video/                 (2)
 tools/demo/                          (2)
 ```
 
-`skills/research/references/claim-ledger.md` names `tools/research-core/ledger.py` as "the
+`skills/research/references/claim-ledger.md` names `src/lib/research-core/ledger.py` as "the
 executable validator" for the evidence and claim ledger. No `research-core` exists in legion.
 If the research ledger is meant to be self-contained here, this is a gap; if `research-core` is
 shared infrastructure, the reference should say so explicitly.

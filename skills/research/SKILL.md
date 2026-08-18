@@ -25,4 +25,4 @@ TERMINAL: Receipt records route, effects, evidence, gaps, checks, verdict.
 5. `verified` adds domain verification, citation-support, DOI retraction checks; corrections
    use a Read+Edit-only patch receipt with hunk caps.
 
-Paths: `tools/research-core/`; routing: `references/router.md`.
+Paths: `src/lib/research-core/`; routing: `references/router.md`.

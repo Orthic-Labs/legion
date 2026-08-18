@@ -1,12 +1,12 @@
 ---
 name: research-claim-ledger
-description: Current durable evidence and atomic-claim contract implemented by tools/research-core/ledger.py.
+description: Current durable evidence and atomic-claim contract implemented by src/lib/research-core/ledger.py.
 ---
 
 # Evidence and claim ledger
 
 The durable truth for a run is `evidence.jsonl` plus `claims.jsonl`; the brief is rendered from those
-records. The executable validator is `tools/research-core/ledger.py`.
+records. The executable validator is `src/lib/research-core/ledger.py`.
 
 Every evidence record must identify its source, retrieval date, locator, bounded quote or explicit
 paraphrase, discovery provenance (`suggested_by`, `seed_chain`), source role, independence cluster,
@@ -25,5 +25,5 @@ Domain extensions are mandatory when applicable:
 - Medical: study design, PICO, applicability, and regulator/guideline metadata where relevant.
 
 Automatic independence clustering and contradiction/consensus views are derived by
-`tools/research-core/independence.py` and `contradictions.py`. Citation-to-sentence support is checked
+`src/lib/research-core/independence.py` and `contradictions.py`. Citation-to-sentence support is checked
 against the final draft by `citecheck.py`.

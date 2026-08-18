@@ -22,6 +22,6 @@ Load `/brand` when branded. Choose draft for exploration or ship for production.
 - Static or print: `specialists/static-creative/GUIDE.md`.
 - Craft command: `engine/GUIDE.md`, then one matching command reference.
 - Slides or motion render: `engine/huashu/GUIDE.md`.
-- Motion: `specialists/motion/GUIDE.md`; glass: `specialists/glass/GUIDE.md`; illustration direction: `_shared/illustrate/GUIDE.md`.
+- Motion: `specialists/motion/GUIDE.md`; glass: `specialists/glass/GUIDE.md`; illustration direction: `skills/_shared/illustrate/GUIDE.md`.
 
 Read one branch only. Read `references/manual.md` for mixed, production, or unfamiliar work. Freeze content, truth, platform, states, dimensions, accessibility, & acceptance. Build one exemplar before scaling. Reuse existing tokens & components. Inspect rendered states at target sizes. Route review-only work to Audit Visual & identity creation to Brand Identity.

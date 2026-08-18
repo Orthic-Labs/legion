@@ -151,7 +151,7 @@ If you produce text directly here (e.g. a quick caption rewrite), call
 the auto-jury yourself before presenting:
 
 ```bash
-node -e "import('file:///D:/workspace/tools/lib/auto-jury.mjs').then(m=>m.runAutoJury({
+node -e "import('file:///src/lib/auto-jury.mjs').then(m=>m.runAutoJury({
   kind: 'copy',
   artifactPath: '<draft .md path>',
   context: { brand: '<DD|RH|HR|TS>', notes: 'writing-pro direct output' },

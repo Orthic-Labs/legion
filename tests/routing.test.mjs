@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { loadRoutingGraph, resolveDomain, validateRoutingGraph } from '../src/lib/routing/index.mjs';
+import { loadRoutingGraph, resolveDomain, targetExists, validateRoutingGraph } from '../src/lib/routing/index.mjs';
 import { validateCommercialLenses } from '../src/lib/lenses/routing.mjs';
 
 const ROOT = resolve(import.meta.dirname, '..');
@@ -13,6 +13,37 @@ test('five canonical domains resolve through dispatch or packaged content', () =
   assert.deepEqual(results.slice(1).map(({ status }) => status), ['resolved', 'resolved', 'resolved', 'resolved']);
   assert.deepEqual(results[0].capabilities.map(({ targetType }) => targetType), ['agent-dispatch', 'agent-dispatch', 'agent-dispatch']);
   assert.ok(results.slice(1).every(({ capabilities }) => capabilities.length > 0));
+});
+
+test('advisory leaves are reachable, not merely status-resolved (RTE-004)', () => {
+  // The prior assertions checked `status` only, so a domain reported `resolved`
+  // while every child carried availability 'unavailable' and nothing could be
+  // dispatched. Availability must be derived from the leaf actually resolving.
+  for (const id of ['commercial', 'research', 'editorial', 'design']) {
+    const { status, capabilities } = resolveDomain(ROOT, id);
+    assert.equal(status, 'resolved', id);
+    assert.ok(capabilities.length > 0, `${id} has children`);
+    for (const leaf of capabilities) {
+      assert.equal(leaf.availability, 'available', `${id}/${leaf.id} availability`);
+      assert.ok(targetExists(ROOT, leaf), `${id}/${leaf.id} targetRef resolves`);
+      const manifest = JSON.parse(readFileSync(resolve(ROOT, leaf.targetRef), 'utf8'));
+      const entry = resolve(ROOT, 'skills', leaf.id, manifest.entry);
+      assert.ok(existsSync(entry), `${id}/${leaf.id} entrypoint ${manifest.entry} exists`);
+    }
+  }
+});
+
+test('registry is the single source of advisory children (RTE-001)', () => {
+  const registry = JSON.parse(readFileSync(resolve(ROOT, 'src/registry/routing/domains.json'), 'utf8'));
+  const graph = loadRoutingGraph(ROOT);
+  for (const domain of registry.domains) {
+    const actual = graph.domains.find(({ id }) => id === domain.id);
+    assert.deepEqual(
+      actual.children.map(({ id }) => id),
+      (domain.children ?? []).map(({ id }) => id),
+      `${domain.id} children come from the registry`,
+    );
+  }
 });
 
 test('routing projection keeps engineering dispatch-only and advisory content-only', () => {

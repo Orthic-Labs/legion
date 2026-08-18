@@ -246,11 +246,11 @@ Use `references/specialist-lenses.md` for deeper per-lens prompts. Supporting re
 Two shared references apply as scored lenses on every audit, alongside Lens 2 (copy) and Lens 13
 (brand/domain specificity):
 
-- **Default-region-fingerprint proximity** (`tools/skills/_shared/parametric-design.md`) — score how close the
+- **Default-region-fingerprint proximity** (`skills/_shared/parametric-design.md`) — score how close the
   surface sits to its domain's known "LLM starter kit" cluster (centered hero + 3 cards + gradient
   blob, and the copy/social/SEO equivalents). Proximity is a scored finding even on an otherwise
   clean render.
-- **Anti-slop sweep, detect mode** (`tools/skills/_shared/anti-slop.md`) — sweep all visible copy (headlines,
+- **Anti-slop sweep, detect mode** (`skills/_shared/anti-slop.md`) — sweep all visible copy (headlines,
   CTAs, body, microcopy) in detect mode: name the pattern, quote the line (<=125 chars), give the
   fix. No rewrite, no authorship guessing.
 - **Parameter-vector conformance** — if the artifact shipped with a stated parameter vector, audit
@@ -308,8 +308,8 @@ Run:
 jury audit-visual --input input.md --json
 ```
 
-Vision juror routing lives in `tools/review/models.yaml`; rubric lives at
-`tools/review/rubrics/audit-visual.md`. Do not duplicate provider rosters in this skill.
+Vision juror routing lives in `src/lib/review/models.yaml`; rubric lives at
+`src/lib/review/rubrics/audit-visual.md`. Do not duplicate provider rosters in this skill.
 
 Hard rule: vision models can hallucinate. Before surfacing any jury blocker, open/inspect the
 actual PNG yourself and confirm the defect is visible.

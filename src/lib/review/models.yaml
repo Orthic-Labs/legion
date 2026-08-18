@@ -1,0 +1,313 @@
+# Unified Council review model registry.
+# One exposed skill; internally: 3-seat constructive Council then 4-seat Jury.
+# Live-probed 2026-07-14. Free/shared endpoints unless noted.
+
+prompt_version: 4
+
+providers:
+  nim:
+    type: openai_compat
+    base_url: https://integrate.api.nvidia.com/v1
+    keys: [NVIDIA_API_KEY]
+    stream: false
+    model_stream:
+      z-ai/glm-5.2: true        # watchlist only; high/max thinking needs SSE
+    rotation: failover_only
+    min_gap_ms: 1000
+    retry_codes_as_quota: [429, 503, 504]
+    timeout_s: 45
+    model_timeout_s:
+      deepseek-ai/deepseek-v4-flash: 30
+      mistralai/mistral-small-4-119b-2603: 30
+      minimaxai/minimax-m3: 30
+      nvidia/nemotron-3-super-120b-a12b: 30
+    model_extra_body:
+      deepseek-ai/deepseek-v4-flash:
+        chat_template_kwargs:
+          enable_thinking: false
+      nvidia/nemotron-3-super-120b-a12b:
+        chat_template_kwargs:
+          enable_thinking: false
+    parallel_safe: false
+
+  groq:
+    type: openai_compat
+    base_url: https://api.groq.com/openai/v1
+    keys: [GROQ_API_KEY]
+    rotation: round_robin
+    timeout_s: 30
+    max_output_tokens: 5000
+    parallel_safe: true
+    retry_codes_as_quota: [429, 503]
+    model_extra_body:
+      qwen/qwen3.6-27b:
+        reasoning_effort: none
+
+  cerebras:
+    type: openai_compat
+    base_url: https://api.cerebras.ai/v1
+    keys: [CEREBRAS_API_KEY]
+    rotation: failover_only
+    timeout_s: 30
+    min_gap_ms: 500
+    parallel_safe: true
+    retry_codes_as_quota: [429, 503, 504]
+    model_extra_body:
+      zai-glm-4.7:
+        reasoning_effort: none
+
+  minimax:
+    type: minimax_anthropic
+    base_url: https://api.minimax.io/anthropic/v1
+    keys: [MINIMAX_API_KEY]
+    timeout_s: 90
+    min_gap_ms: 500
+    parallel_safe: false
+    retry_codes_as_quota: [429, 503, 504]
+    model_extra_body:
+      MiniMax-M3:
+        thinking:
+          type: adaptive
+
+  codex_cli:
+    type: subprocess
+    command_template: ["codex", "exec", "--skip-git-repo-check", "-m", "{model}", "-"]
+    timeout_s: 180
+    parallel_safe: true
+    quota_source: chatgpt_subscription
+
+
+# Constructive helper panel. The active agent is the eighth/self seat and owns
+# disposition + revision; these three API seats never block ship.
+panels:
+  advisory:
+    framing: constructive
+    jurors:
+      - id: council:feasibility
+        provider: nim
+        model: mistralai/mistral-small-4-119b-2603
+        lens: improvement_path
+        max_tokens: 3072
+        fallbacks:
+          - {provider: cerebras, model: gpt-oss-120b}
+          - {provider: minimax, model: MiniMax-M2.7}
+      - id: council:reasoner
+        provider: groq
+        model: openai/gpt-oss-120b
+        lens: alternatives
+        max_tokens: 2048
+        fallbacks:
+          - {provider: minimax, model: MiniMax-M2.7}
+          - {provider: nim, model: nvidia/nemotron-3-super-120b-a12b}
+      - id: council:outcome
+        provider: cerebras
+        model: zai-glm-4.7
+        lens: user_outcome
+        max_tokens: 2048
+        fallbacks:
+          - {provider: groq, model: openai/gpt-oss-120b}
+          - {provider: nim, model: mistralai/mistral-small-4-119b-2603}
+
+
+_technical_jurors: &technical_jurors
+  - id: code_specialist
+    provider: nim
+    model: deepseek-ai/deepseek-v4-flash
+    lens: red_team
+    max_tokens: 3072
+    fallbacks:
+      - {provider: nim, model: mistralai/mistral-small-4-119b-2603}
+      - {provider: cerebras, model: gpt-oss-120b}
+  - id: fast_code
+    provider: groq
+    model: qwen/qwen3.6-27b
+    lens: minimize
+    max_tokens: 3072
+    fallbacks:
+      - {provider: cerebras, model: gpt-oss-120b}
+      - {provider: minimax, model: MiniMax-M2.7}
+  - id: structured
+    provider: groq
+    model: openai/gpt-oss-120b
+    lens: security_ops
+    max_tokens: 2048
+    fallbacks:
+      - {provider: nim, model: nvidia/nemotron-3-super-120b-a12b}
+      - {provider: minimax, model: MiniMax-M3}
+  - id: intention
+    provider: cerebras
+    model: zai-glm-4.7
+    lens: user_outcome
+    max_tokens: 2048
+    fallbacks:
+      - {provider: nim, model: nvidia/nemotron-3-super-120b-a12b}
+      - {provider: minimax, model: MiniMax-M2.7}
+
+_vision_jurors: &vision_jurors
+  - id: vision_minimax
+    vision: true
+    provider: nim
+    model: minimaxai/minimax-m3
+    lens: visual_accuracy
+    max_tokens: 4096
+    fallbacks:
+      - {provider: minimax, model: MiniMax-M3}
+  - id: vision_qwen
+    vision: true
+    provider: groq
+    model: qwen/qwen3.6-27b
+    lens: visual_usability
+    max_images: 3
+    max_tokens: 4096
+    fallbacks:
+      - {provider: minimax, model: MiniMax-M3}
+  - id: brand_lens
+    provider: cerebras
+    model: zai-glm-4.7
+    lens: user_outcome
+    max_tokens: 2048
+    fallbacks:
+      - {provider: groq, model: openai/gpt-oss-120b}
+
+_content_jurors: &content_jurors
+  - id: audience_strategy
+    provider: nim
+    model: mistralai/mistral-small-4-119b-2603
+    lens: audience_truth
+    max_tokens: 2048
+    fallbacks:
+      - {provider: minimax, model: MiniMax-M2.7}
+      - {provider: cerebras, model: gpt-oss-120b}
+  - id: evidence_generalist
+    provider: cerebras
+    model: zai-glm-4.7
+    lens: evidence_claims
+    max_tokens: 2048
+    fallbacks:
+      - {provider: groq, model: openai/gpt-oss-120b}
+      - {provider: nim, model: mistralai/mistral-small-4-119b-2603}
+  - id: content_voice
+    provider: groq
+    model: openai/gpt-oss-120b
+    lens: voice_integrity
+    max_tokens: 3072
+    fallbacks:
+      - {provider: minimax, model: MiniMax-M2.7}
+      - {provider: nim, model: nvidia/nemotron-3-super-120b-a12b}
+
+
+skills:
+  jury-code:
+    rubric: rubrics/code.md
+    framing: adversarial
+    output_schema: code
+    jurors: *technical_jurors
+    escalation: []
+  jury-plan:
+    rubric: rubrics/plan.md
+    framing: adversarial
+    output_schema: plan
+    jurors: *technical_jurors
+    escalation: []
+  jury-idea:
+    rubric: rubrics/idea.md
+    framing: adversarial
+    output_schema: idea
+    jurors: *technical_jurors
+    escalation: []
+  jury-business-plan:
+    rubric: rubrics/business-plan.md
+    framing: adversarial
+    output_schema: business_plan
+    jurors: *technical_jurors
+    escalation: []
+  jury-launch:
+    rubric: rubrics/launch.md
+    framing: adversarial
+    output_schema: launch
+    jurors: *technical_jurors
+    escalation: []
+  jury-priority:
+    rubric: rubrics/priority.md
+    framing: portfolio_aware
+    output_schema: priority
+    jurors: *technical_jurors
+    escalation: []
+  jury-compliance-risk:
+    rubric: rubrics/compliance-risk.md
+    framing: adversarial
+    output_schema: compliance
+    jurors: *technical_jurors
+    escalation: []
+  jury-design:
+    rubric: rubrics/design.md
+    framing: visual_critic
+    output_schema: design_review
+    needs_vision_input: true
+    jurors: *vision_jurors
+    escalation: []
+  audit-visual:
+    rubric: rubrics/audit-visual.md
+    framing: visual_critic
+    output_schema: design_review
+    needs_vision_input: true
+    jurors: *vision_jurors
+    escalation: []
+  # jury-image / jury-video: restored 2026-07-18. auto-jury.mjs KIND_TO_SKILL has
+  # always mapped kind 'image'/'video' here, but the skills were never carried over
+  # in the tools/jury -> tools/review rename (1dca05eb), so every visual pipeline
+  # calling runAutoJury({kind:'image'|'video'}) died with "skill not found".
+  # Do NOT collapse these into jury-design: rubrics/image.md and rubrics/video.md
+  # carry criteria design.md has no equivalent for (KDP trim/barcode/page-leak fail
+  # modes; continuity, camera_consistency, motion_physics, and the per-juror catch
+  # split that .claude/rules/video-pipeline.md rule 7 mandates).
+  jury-image:
+    rubric: rubrics/image.md
+    framing: visual_critic
+    output_schema: design_review
+    needs_vision_input: true
+    jurors: *vision_jurors
+    escalation: []
+  jury-video:
+    rubric: rubrics/video.md
+    framing: visual_critic
+    output_schema: design_review
+    needs_vision_input: true
+    jurors: *vision_jurors
+    escalation: []
+  jury-content-strategy:
+    rubric: rubrics/content-strategy.md
+    framing: constructive
+    output_schema: content_strategy
+    jurors: *content_jurors
+    escalation: []
+  jury-blogs:
+    rubric: rubrics/blogs.md
+    framing: constructive
+    output_schema: blogs
+    jurors: *content_jurors
+    escalation: []
+  jury-seo:
+    rubric: rubrics/seo.md
+    framing: constructive
+    output_schema: seo
+    jurors: *content_jurors
+    escalation: []
+  jury-brand-voice:
+    rubric: rubrics/brand-voice.md
+    framing: constructive
+    output_schema: brand_voice
+    jurors: *content_jurors
+    escalation: []
+  jury-offer:
+    rubric: rubrics/offer.md
+    framing: constructive
+    output_schema: offer
+    jurors: *content_jurors
+    escalation: []
+  jury-ad:
+    rubric: rubrics/ad.md
+    framing: adversarial
+    output_schema: ad
+    jurors: *content_jurors
+    escalation: []
