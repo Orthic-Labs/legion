@@ -19,7 +19,7 @@ TERMINAL: Requested findings meet frozen D3 source budget.
 
 **Invocation:** `/seo $1 $2` where `$1` is the command and `$2` is the URL or argument.
 
-**Scripts:** Reach them through the portable skills symlink — `<external-reference>` — which resolves on both machines from ANY working directory. `/seo` is normally invoked from the site repo being audited (rightsites, an app repo), not from the workspace, so never use a `tools/skills/seo`-relative path or a `cd` into the workspace.
+**Scripts:** Reach them through the portable skills symlink — `<external-reference>` — which resolves on both machines from ANY working directory. `/seo` is normally invoked from the site repo being audited (rightsites, an app repo), not from the workspace, so never use a `skills/seo`-relative path or a `cd` into the workspace.
 
 Comprehensive SEO analysis across all industries (SaaS, local services, e-commerce, publishers, agencies). Sub-references in `references/` are loaded on demand based on intent.
 

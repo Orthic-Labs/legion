@@ -10,7 +10,7 @@ worth adding" is a valid, good result.
 
 ## The gate (all four, in order — record answers)
 
-1. **Frequency** — table in `tools/skills/audit-visual/references/motion-standards.md` §"Should it animate?".
+1. **Frequency** — table in `skills/audit-visual/references/motion-standards.md` §"Should it animate?".
    Keyboard-initiated actions are a hard disqualifier, not a judgment call.
 2. **Purpose** — must be one of: feedback, spatial consistency, state indication, preventing a
    jarring change, explanation (marketing/onboarding only), delight (rare-tier only). "Looks cool"

@@ -48,7 +48,7 @@ Ask one short clarifying question only when the answer changes the tool path. Ot
 Before claiming the skill is ready after edits:
 
 ```powershell
-py -3.11 D:/workspace/tools/skills/.system/skill-creator/scripts/quick_validate.py D:/workspace/tools/skills/content
+py -3.11 D:/workspace/tools/skills/.system/skill-creator/scripts/quick_validate.py skills/content
 ```
 
 Use `references/smoke-checklist.md` for route-decision smoke checks. No paid provider calls are part of skill validation.
