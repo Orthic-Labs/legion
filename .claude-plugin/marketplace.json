@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-plugin-marketplace.json",
+  "name": "orthic-labs",
+  "owner": { "name": "Orthic Labs" },
+  "plugins": [
+    {
+      "name": "legion",
+      "source": "./",
+      "description": "The Legion authority system: Legion orchestrates, Sage decides, Alchemist transforms, Oracle assures, Arcane gates every effect."
+    }
+  ]
+}

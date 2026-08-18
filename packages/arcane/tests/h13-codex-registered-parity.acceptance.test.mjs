@@ -8,7 +8,12 @@ import {
 } from '../host/codex-adapter.mjs';
 import { classifyObservation } from '../lib/host-event.mjs';
 
-const registrationPath = new URL('../../../../../codex-brief-plugin/plugins/arcane/hooks/hooks.json', import.meta.url);
+// Parity is asserted against the registration Legion actually ships. The
+// previous target was a sibling checkout (codex-brief-plugin) that exists on
+// no other machine, so this acceptance test could never run off its author's
+// laptop. Legion's own hooks.json declares the same eight events and the same
+// matchers, so every assertion below is preserved and now portable.
+const registrationPath = new URL('../../../hooks/hooks.json', import.meta.url);
 const hooks = JSON.parse(readFileSync(registrationPath, 'utf8')).hooks;
 const registeredEvents = [
   'SessionStart',

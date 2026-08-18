@@ -72,7 +72,11 @@ test('ambient commits need no Minimize receipt, while contracted & locked commit
 
 test('nested repository paths are framed from workspace root before locked-domain matching', () => {
   const workspace = mkdtempSync(join(tmpdir(), 'arcane-nested-tier-'));
-  const repository = join(workspace, 'tools', 'skills', 'legion');
+  // Mirrors the real layout the policy encodes: the pattern is
+  // `legion/packages/arcane/**`, so `legion` is a direct child of the
+  // workspace root (/workspace/legion). Nesting it deeper here made
+  // the fixture contradict its own expectation.
+  const repository = join(workspace, 'legion');
   try {
     mkdirSync(join(repository, 'packages', 'arcane'), { recursive: true });
     execFileSync('git', ['init', '-q'], { cwd: repository, windowsHide: true });
