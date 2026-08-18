@@ -5,21 +5,21 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { runSecurityPack } from '../../providers/security/candidate-engine.mjs';
-import { entity } from '../../providers/security/model-extractors/common.mjs';
-import supplyChainPack from '../../providers/security/packs/supply-chain.mjs';
-import developerMachinePack from '../../providers/security/packs/developer-machine.mjs';
-import automationPack from '../../providers/security/packs/automation.mjs';
-import footprintPack from '../../providers/security/packs/repository-footprint.mjs';
+import { runSecurityPack } from '../../src/providers/security/candidate-engine.mjs';
+import { entity } from '../../src/providers/security/model-extractors/common.mjs';
+import supplyChainPack from '../../src/providers/security/packs/supply-chain.mjs';
+import developerMachinePack from '../../src/providers/security/packs/developer-machine.mjs';
+import automationPack from '../../src/providers/security/packs/automation.mjs';
+import footprintPack from '../../src/providers/security/packs/repository-footprint.mjs';
 
 const MODULE_PATHS = {
-  'supply-chain': fileURLToPath(new URL('../../providers/security/packs/supply-chain.mjs', import.meta.url)),
-  'developer-machine': fileURLToPath(new URL('../../providers/security/packs/developer-machine.mjs', import.meta.url)),
-  automation: fileURLToPath(new URL('../../providers/security/packs/automation.mjs', import.meta.url)),
-  'repository-footprint': fileURLToPath(new URL('../../providers/security/packs/repository-footprint.mjs', import.meta.url)),
+  'supply-chain': fileURLToPath(new URL('../../src/providers/security/packs/supply-chain.mjs', import.meta.url)),
+  'developer-machine': fileURLToPath(new URL('../../src/providers/security/packs/developer-machine.mjs', import.meta.url)),
+  automation: fileURLToPath(new URL('../../src/providers/security/packs/automation.mjs', import.meta.url)),
+  'repository-footprint': fileURLToPath(new URL('../../src/providers/security/packs/repository-footprint.mjs', import.meta.url)),
 };
 
-const registryPath = fileURLToPath(new URL('../../registry/rules/security/supply-developer-machine.json', import.meta.url));
+const registryPath = fileURLToPath(new URL('../../src/registry/rules/security/supply-developer-machine.json', import.meta.url));
 const registry = JSON.parse(readFileSync(registryPath, 'utf8'));
 
 const BINDING = {

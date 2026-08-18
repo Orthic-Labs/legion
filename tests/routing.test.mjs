@@ -2,8 +2,8 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { loadRoutingGraph, resolveDomain, validateRoutingGraph } from '../lib/routing/index.mjs';
-import { validateCommercialLenses } from '../lib/lenses/routing.mjs';
+import { loadRoutingGraph, resolveDomain, validateRoutingGraph } from '../src/lib/routing/index.mjs';
+import { validateCommercialLenses } from '../src/lib/lenses/routing.mjs';
 
 const ROOT = resolve(import.meta.dirname, '..');
 
@@ -40,7 +40,7 @@ test('validator rejects duplicate roots, mixed leaf types, and dangling targets'
 });
 
 test('routing compatibility preserves provider/audit lens ids', () => {
-  const expected = JSON.parse(readFileSync(resolve(ROOT, 'registry/lenses/commercial-routing.json'), 'utf8')).lenses.slice().sort();
+  const expected = JSON.parse(readFileSync(resolve(ROOT, 'src/registry/lenses/commercial-routing.json'), 'utf8')).lenses.slice().sort();
   const report = validateCommercialLenses(ROOT);
   assert.equal(report.ok, true, JSON.stringify(report.findings));
   assert.deepEqual(report.lensIds, expected);

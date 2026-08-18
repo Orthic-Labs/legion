@@ -1,0 +1,109 @@
+{
+  "schemaVersion": 1,
+  "kind": "arcane-policy-bundle",
+  "policyId": "POL-1",
+  "version": 1,
+  "description": "Arcane's single policy surface. Every allow/deny answer in the package resolves here — no adapter, alias, or gate holds its own allow/deny logic (S02 acceptance: 'adapters do not contain divergent allow/deny logic', enforced by policyDuplicationAudit). Changing this file changes runtime behavior without a code edit; that property is asserted by tests/s02-policy.test.mjs.",
+
+  "unclassifiedEffect": "deny",
+
+  "effectRules": [
+    { "effectClass": "FILE_WRITE", "rule": "allow", "approvalRequired": false, "trustMinimum": "capability-signature", "requiredEnforcement": "strong", "note": "Scoped by the contract's scope.own[] at the gate; policy allows the class, the gate owns the path." },
+    { "effectClass": "FILE_DELETE", "rule": "allow", "approvalRequired": true, "trustMinimum": "capability-signature", "requiredEnforcement": "strong", "note": "Deletion is not recoverable from the diff alone, so it carries an approval digest." },
+    { "effectClass": "FILE_MOVE", "rule": "allow", "approvalRequired": false, "trustMinimum": "capability-signature", "requiredEnforcement": "strong" },
+    { "effectClass": "COMMAND_EXEC", "rule": "allow", "approvalRequired": false, "trustMinimum": "capability-signature", "requiredEnforcement": "strong", "note": "A command's *effects* are gated by the receipts it produces; exec itself is allowed under a capability. An unknown exit-0 command is an observation, never proof (S04)." },
+    { "effectClass": "NETWORK_EGRESS", "rule": "allow", "approvalRequired": false, "trustMinimum": "capability-signature", "requiredEnforcement": "observed", "note": "Downgraded to 'observed' honestly: no host adapter in this baseline can broker egress, so claiming 'strong' would be a lie (ARCHITECTURE §24a)." },
+    { "effectClass": "PROCESS_SPAWN", "rule": "allow", "approvalRequired": false, "trustMinimum": "capability-signature", "requiredEnforcement": "observed" },
+    { "effectClass": "CREDENTIAL_ACCESS", "rule": "deny", "approvalRequired": true, "trustMinimum": "capability-signature", "requiredEnforcement": "strong", "note": "Denied by default. Arcane never prints or inspects credentials; a policy that wants this must say so explicitly, and even then the gate refuses without an approval digest." },
+    { "effectClass": "DEPENDENCY_INSTALL", "rule": "allow", "approvalRequired": true, "trustMinimum": "capability-signature", "requiredEnforcement": "strong", "note": "Mutates the lockfile dimension, which stales dependent evidence (S05). Approval-bound so the invalidation is never a surprise." },
+    { "effectClass": "VCS_COMMIT", "rule": "allow", "approvalRequired": true, "trustMinimum": "capability-signature", "requiredEnforcement": "strong" },
+    { "effectClass": "VCS_PUSH", "rule": "allow", "approvalRequired": true, "trustMinimum": "capability-signature", "requiredEnforcement": "strong", "note": "Outward-facing and hard to reverse. Denied by default; a deliberate policy change plus an approval digest is required." },
+    { "effectClass": "PUBLISH", "rule": "allow", "approvalRequired": true, "trustMinimum": "capability-signature", "requiredEnforcement": "strong" },
+    { "effectClass": "EXTERNAL_SIDE_EFFECT", "rule": "allow", "approvalRequired": true, "trustMinimum": "capability-signature", "requiredEnforcement": "strong", "note": "Deliberately NOT a catch-all. Unclassified operations hit unclassifiedEffect:'deny' and are refused by name; they are never quietly bucketed here. See EFFECT_CLASS_RECONCILIATION in lib/policy.mjs." }
+  ],
+
+  "capability": {
+    "ttlSeconds": 900,
+    "maxUses": 1,
+    "delegable": false,
+    "note": "Single-use by default: a capability authorizes one effect, so a replayed or reused grant cannot ride a stale authorization."
+  },
+
+  "replay": {
+    "freshnessWindowSeconds": 300,
+    "maxSkewSeconds": 60,
+    "nonceRequired": true,
+    "sequenceRequired": true,
+    "note": "Greenfield — S00 finding 3 confirmed predecessor has no nonce, sequence, or freshness window anywhere to port."
+  },
+
+  "trustMinima": {
+    "mutation": "capability-signature",
+    "readOnly": "host-connection-trust",
+    "claimRelease": "capability-signature",
+    "legacyImport": "unauthenticated"
+  },
+
+  "hostEnforcement": {
+    "requiredForMutation": "strong",
+    "requiredForReadOnly": "observed",
+    "note": "A host without working interception cannot be labeled 'strong' (ARCHITECTURE §24a). These are the minimum levels each operation class demands, not a description of any particular host."
+  },
+
+  "claimLevels": {
+    "signoff": {
+      "requiredEvidenceClasses": ["deterministic"],
+      "requiredEnforcement": "strong",
+      "requiresCovenant": false,
+      "allowStaleEvidence": false,
+      "requiredFields": [],
+      "note": "Deterministic evidence only. Requiring 'measured' as well would block signoff on any change that legitimately has nothing to measure — a policy that cannot be satisfied is not a stronger policy, it is one that gets waived."
+    },
+    "highRisk": {
+      "requiredEvidenceClasses": ["deterministic"],
+      "requiredEnforcement": "strong",
+      "requiresCovenant": true,
+      "allowStaleEvidence": false,
+      "requiredFields": ["intentRestatement", "blastRadius", "whySafe"],
+      "note": "Preserves predecessor's high_risk gate triple (S01 schema-map: runs.intent_restatement / blast_radius / why_safe), which was genuinely load-bearing and is carried forward as a policy requirement rather than as inherited code."
+    },
+    "release": {
+      "requiredEvidenceClasses": ["deterministic"],
+      "requiredEnforcement": "strong",
+      "requiresCovenant": true,
+      "allowStaleEvidence": false,
+      "requiredFields": []
+    }
+  },
+
+  "waiverAuthority": ["sage"],
+
+  "degradation": {
+    "preEffectGateUnavailable": "fail-closed",
+    "prePromptGateUnavailable": "downgrade",
+    "postEffectReceiptUnavailable": "fail-closed",
+    "receiptStoreUnavailable": "fail-closed",
+    "kernelUnavailable": "fail-closed",
+    "policyUnavailable": "fail-closed",
+    "note": "ARCHITECTURE §24a: if the pre-effect gate is unavailable, mutation-bearing operations fail closed; read-only operations may continue with a recorded enforcement-health downgrade. This is also the deliberate divergence from predecessor's dispatcher, which continued past a timed-out verifier (S00: lib/dispatcher.js:29-37)."
+  },
+
+  "evidence": {
+    "freshnessSeconds": 86400,
+    "unlinkedCandidateExpirySeconds": 604800,
+    "requireDependencyBinding": true
+  },
+
+  "retention": {
+    "excerptMaxBytes": 4096,
+    "storePayloads": false,
+    "note": "Digests are preserved even when payload retention is limited (detailed plan §6.1)."
+  },
+
+  "lockedDomains": [
+    { "pattern": "tools/rhook/**", "claimLevel": "highRisk", "note": "This is the enforcement plane itself (the rhook control plane); a false completion claim about the gate is the worst possible false clean, so it carries the bundle's highest claim level (highRisk: deterministic evidence, strong enforcement, Covenant, and the intentRestatement/blastRadius/whySafe fields)." },
+    { "pattern": "legion/packages/arcane/**", "claimLevel": "highRisk", "note": "This is the Arcane package that implements the enforcement plane; a false completion claim about the gate is the worst possible false clean, so it carries the bundle's highest claim level (highRisk: deterministic evidence, strong enforcement, Covenant, and the intentRestatement/blastRadius/whySafe fields)." },
+    { "pattern": "legion/src/packages/arcane/**", "claimLevel": "highRisk", "note": "This is the Arcane package that implements the enforcement plane; a false completion claim about the gate is the worst possible false clean, so it carries the bundle's highest claim level (highRisk: deterministic evidence, strong enforcement, Covenant, and the intentRestatement/blastRadius/whySafe fields)." },
+    { "pattern": "legion/qualification/**", "claimLevel": "signoff", "note": "Sealed qualification evidence must not be overwritten or superseded on say-so; signoff is the claim level that expresses 'a verification receipt is required' without also demanding Covenant or the highRisk narrative fields, which this evidence-integrity concern does not need. Locked domains are static by design; review authenticated receipts quarterly and expand this list when observed risky paths justify it." }
+  ]
+}

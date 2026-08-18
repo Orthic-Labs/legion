@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import test from 'node:test';
 import { buildSecurityBindingSchema, buildSecurityModelSchema, buildVerdictSchema } from '../scripts/generate-security-schemas.mjs';
-import { EVIDENCE_STRENGTH, SECURITY_VERDICTS } from '../providers/security/contracts.mjs';
+import { EVIDENCE_STRENGTH, SECURITY_VERDICTS } from '../src/providers/security/contracts.mjs';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
 
@@ -14,11 +14,11 @@ test('security schemas are generated from code-owned enums', () => {
 });
 
 test('committed security schemas match the generators', () => {
-  const binding = JSON.parse(readFileSync(new URL('../schemas/security-binding-v1.schema.json', import.meta.url), 'utf8'));
+  const binding = JSON.parse(readFileSync(new URL('../src/schemas/security-binding-v1.schema.json', import.meta.url), 'utf8'));
   assert.deepEqual(buildSecurityBindingSchema(), binding);
-  const model = JSON.parse(readFileSync(new URL('../schemas/security-model-v1.schema.json', import.meta.url), 'utf8'));
+  const model = JSON.parse(readFileSync(new URL('../src/schemas/security-model-v1.schema.json', import.meta.url), 'utf8'));
   assert.deepEqual(buildSecurityModelSchema(), model);
-  const verdict = JSON.parse(readFileSync(new URL('../schemas/security-verdict-v1.schema.json', import.meta.url), 'utf8'));
+  const verdict = JSON.parse(readFileSync(new URL('../src/schemas/security-verdict-v1.schema.json', import.meta.url), 'utf8'));
   assert.deepEqual(buildVerdictSchema(), verdict);
 });
 
@@ -29,7 +29,7 @@ test('security binding schema requires all binding fields', () => {
 
 test('no security schema references legacy identity', () => {
   for (const name of ['security-binding-v1.schema.json', 'security-model-v1.schema.json', 'security-verdict-v1.schema.json']) {
-    const content = readFileSync(new URL(`../schemas/${name}`, import.meta.url), 'utf8');
+    const content = readFileSync(new URL(`../src/schemas/${name}`, import.meta.url), 'utf8');
     assert.ok(!content.includes('operator'), `${name} must not reference legacy identity`);
   }
 });

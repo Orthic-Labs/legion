@@ -3,10 +3,10 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
-import { runSecurityPack } from '../../providers/security/candidate-engine.mjs';
-import { entity } from '../../providers/security/model-extractors/common.mjs';
-import abuseResiliencePack from '../../providers/security/packs/abuse-resilience.mjs';
-import observabilityForensicsPack from '../../providers/security/packs/observability-forensics.mjs';
+import { runSecurityPack } from '../../src/providers/security/candidate-engine.mjs';
+import { entity } from '../../src/providers/security/model-extractors/common.mjs';
+import abuseResiliencePack from '../../src/providers/security/packs/abuse-resilience.mjs';
+import observabilityForensicsPack from '../../src/providers/security/packs/observability-forensics.mjs';
 
 const SEVERITY_RANK = { info: 0, low: 1, medium: 2, high: 3, critical: 4 };
 
@@ -48,7 +48,7 @@ function candidatesById(result, ruleId) {
 // --- registry parity --------------------------------------------------------
 
 test('registry rule ids match abuse-resilience and observability-forensics pack rule ids exactly, in both directions', () => {
-  const registry = JSON.parse(readFileSync(new URL('../../registry/rules/security/abuse-observability.json', import.meta.url), 'utf8'));
+  const registry = JSON.parse(readFileSync(new URL('../../src/registry/rules/security/abuse-observability.json', import.meta.url), 'utf8'));
   const registryIds = new Set(registry.rules.map((r) => r.id));
   const packIds = new Set([...abuseResiliencePack.rules.map((r) => r.id), ...observabilityForensicsPack.rules.map((r) => r.id)]);
   assert.equal(registryIds.size, registry.rules.length, 'registry rule ids must be unique');
@@ -70,7 +70,7 @@ test('registry rule ids match abuse-resilience and observability-forensics pack 
 
 test('neither pack imports a live network, process, or worker module', () => {
   const forbidden = /\bnode:https?\b|\bnode:net\b|\bnode:dgram\b|\bnode:child_process\b|\bnode:worker_threads\b|from\s+['"]https?['"]|require\(\s*['"]https?['"]\s*\)|from\s+['"]net['"]|from\s+['"]dgram['"]|from\s+['"]child_process['"]|from\s+['"]worker_threads['"]/;
-  for (const relative of ['../../providers/security/packs/abuse-resilience.mjs', '../../providers/security/packs/observability-forensics.mjs']) {
+  for (const relative of ['../../src/providers/security/packs/abuse-resilience.mjs', '../../src/providers/security/packs/observability-forensics.mjs']) {
     const source = readFileSync(new URL(relative, import.meta.url), 'utf8');
     assert.ok(!forbidden.test(source), `${relative} must not import a live network/process module`);
   }

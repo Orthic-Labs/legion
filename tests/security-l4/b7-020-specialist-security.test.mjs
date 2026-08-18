@@ -11,24 +11,24 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { runSecurityPack } from '../../providers/security/candidate-engine.mjs';
-import { entity } from '../../providers/security/model-extractors/common.mjs';
-import { extractMobile } from '../../providers/security/model-extractors/mobile.mjs';
-import mobilePack from '../../providers/security/packs/mobile.mjs';
-import smartContractPack from '../../providers/security/packs/smart-contract.mjs';
-import embeddedIotPack from '../../providers/security/packs/embedded-iot.mjs';
-import icsOtPack from '../../providers/security/packs/ics-ot.mjs';
+import { runSecurityPack } from '../../src/providers/security/candidate-engine.mjs';
+import { entity } from '../../src/providers/security/model-extractors/common.mjs';
+import { extractMobile } from '../../src/providers/security/model-extractors/mobile.mjs';
+import mobilePack from '../../src/providers/security/packs/mobile.mjs';
+import smartContractPack from '../../src/providers/security/packs/smart-contract.mjs';
+import embeddedIotPack from '../../src/providers/security/packs/embedded-iot.mjs';
+import icsOtPack from '../../src/providers/security/packs/ics-ot.mjs';
 
 const PACKS = [mobilePack, smartContractPack, embeddedIotPack, icsOtPack];
 
-const registryPath = fileURLToPath(new URL('../../registry/rules/security/specialist.json', import.meta.url));
+const registryPath = fileURLToPath(new URL('../../src/registry/rules/security/specialist.json', import.meta.url));
 const registry = JSON.parse(readFileSync(registryPath, 'utf8'));
 
 const PACK_FILES = {
-  'security.mobile': fileURLToPath(new URL('../../providers/security/packs/mobile.mjs', import.meta.url)),
-  'security.smart-contract': fileURLToPath(new URL('../../providers/security/packs/smart-contract.mjs', import.meta.url)),
-  'security.embedded-iot': fileURLToPath(new URL('../../providers/security/packs/embedded-iot.mjs', import.meta.url)),
-  'security.ics-ot': fileURLToPath(new URL('../../providers/security/packs/ics-ot.mjs', import.meta.url)),
+  'security.mobile': fileURLToPath(new URL('../../src/providers/security/packs/mobile.mjs', import.meta.url)),
+  'security.smart-contract': fileURLToPath(new URL('../../src/providers/security/packs/smart-contract.mjs', import.meta.url)),
+  'security.embedded-iot': fileURLToPath(new URL('../../src/providers/security/packs/embedded-iot.mjs', import.meta.url)),
+  'security.ics-ot': fileURLToPath(new URL('../../src/providers/security/packs/ics-ot.mjs', import.meta.url)),
 };
 
 const BINDING = {

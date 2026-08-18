@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
-import { PROVIDER_PHASES, PROVIDER_ROLES, PROVIDER_STATUS, assertEnum } from '../registry/provider-contracts.mjs';
+import { PROVIDER_PHASES, PROVIDER_ROLES, PROVIDER_STATUS, assertEnum } from '../src/registry/provider-contracts.mjs';
 import {
   EVIDENCE_STRENGTH,
   FACT_KINDS,
@@ -11,7 +11,7 @@ import {
   assertBinding,
   canonicalize,
   stableId,
-} from '../providers/security/contracts.mjs';
+} from '../src/providers/security/contracts.mjs';
 import { validateProviderResult, normalizeProviderResult } from '../scripts/normalize-provider-result.mjs';
 
 function baseResult(status) {
@@ -35,7 +35,7 @@ for (const status of PROVIDER_STATUS) {
 }
 
 test('provider result statuses match the committed schema enum', () => {
-  const schema = JSON.parse(readFileSync(new URL('../schemas/provider-result-v1.schema.json', import.meta.url), 'utf8'));
+  const schema = JSON.parse(readFileSync(new URL('../src/schemas/provider-result-v1.schema.json', import.meta.url), 'utf8'));
   assert.deepEqual(schema.properties.status.enum, [...PROVIDER_STATUS]);
 });
 

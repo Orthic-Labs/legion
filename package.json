@@ -35,7 +35,7 @@
     "node": ">=22.13"
   },
   "bin": {
-    "legion": "./bin/legion.mjs"
+    "legion": "./src/bin/legion.mjs"
   },
   "exports": {
     ".": "./lib/index.mjs",
@@ -48,16 +48,16 @@
     ".codex-plugin/",
     "agents/",
     "hooks/",
-    "config/naming-registry.json",
-    "config/capability-aliases.json",
-    "config/naming-legacy-allowlist.json",
+    "src/config/naming-registry.json",
+    "src/config/capability-aliases.json",
+    "src/config/naming-legacy-allowlist.json",
     "doctrine/",
-    "evals/architecture/",
-    "roster/",
-    "packages/arcane/",
-    "packages/contracts/",
-    "packages/oracle/",
-    "bin/",
+    "src/evals/architecture/",
+    "src/roster/",
+    "src/packages/arcane/",
+    "src/packages/contracts/",
+    "src/packages/oracle/",
+    "src/bin/",
     "tools/audit/audit-complete.mjs",
     "tools/audit/audit-finalize.mjs",
     "tools/audit/audit-plan.mjs",
@@ -68,14 +68,14 @@
     "tools/audit/render-report.mjs",
     "tools/audit/security-chain-pipeline.mjs",
     "tools/audit/security-pipeline.mjs",
-    "adapters/",
-    "lib/",
-    "!lib/orthic_transcripts/selftest.py",
-    "!lib/orthic_transcripts/tests/",
-    "providers/",
-    "registry/",
-    "schemas/",
-    "integrations/",
+    "src/adapters/",
+    "src/lib/",
+    "!src/lib/orthic_transcripts/selftest.py",
+    "!src/lib/orthic_transcripts/tests/",
+    "src/providers/",
+    "src/registry/",
+    "src/schemas/",
+    "src/integrations/",
     "skills/",
     "scripts/self-test.mjs",
     "scripts/generate-schemas.mjs",
@@ -93,14 +93,14 @@
     "package.json"
   ],
   "scripts": {
-    "test": "node --test --test-concurrency=1 \"tests/*.test.mjs\" \"packages/arcane/tests/*.test.mjs\"",
+    "test": "node --test --test-concurrency=1 \"tests/*.test.mjs\" \"src/packages/arcane/tests/*.test.mjs\"",
     "architecture-evals": "node scripts/run-architecture-evals.mjs --json",
     "stage9-runtime-evals": "node scripts/run-stage9-runtime-evals.mjs",
     "self-test": "node scripts/self-test.mjs",
     "naming:check": "node scripts/check-canonical-names.mjs",
     "legion:check": "node scripts/check-canonical-names.mjs && node scripts/generate-schemas.mjs --check",
     "schemas:check": "node scripts/generate-schemas.mjs --check",
-    "prepack": "node scripts/check-publication-policy.mjs --channel internal-pack && node scripts/check-canonical-names.mjs && node scripts/generate-schemas.mjs --check && node --test --test-concurrency=1 \"tests/*.test.mjs\" \"packages/arcane/tests/*.test.mjs\""
+    "prepack": "node scripts/check-publication-policy.mjs --channel internal-pack && node scripts/check-canonical-names.mjs && node scripts/generate-schemas.mjs --check && node --test --test-concurrency=1 \"tests/*.test.mjs\" \"src/packages/arcane/tests/*.test.mjs\""
   },
   "dependencies": {
     "@rightkit/hooks": "0.1.0"

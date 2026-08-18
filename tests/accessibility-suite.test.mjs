@@ -3,7 +3,7 @@ import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
-import { runAccessibilitySuite } from '../providers/accessibility-suite.mjs';
+import { runAccessibilitySuite } from '../src/providers/accessibility-suite.mjs';
 
 function fixture(files) {
   const root = mkdtempSync(join(tmpdir(), 'audit-a11y-'));

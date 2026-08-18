@@ -3,9 +3,9 @@ import test from 'node:test';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { readdirSync } from 'node:fs';
-import { evaluateAiQuality, AI_QUALITY_METRICS } from '../../providers/ai-quality/index.mjs';
-import { assertEvaluationReceipt, AI_QUALITY_VERDICTS } from '../../providers/ai-quality/contracts.mjs';
-import { buildEvaluationReceiptSchema } from '../../providers/ai-quality/schema-builder.mjs';
+import { evaluateAiQuality, AI_QUALITY_METRICS } from '../../src/providers/ai-quality/index.mjs';
+import { assertEvaluationReceipt, AI_QUALITY_VERDICTS } from '../../src/providers/ai-quality/contracts.mjs';
+import { buildEvaluationReceiptSchema } from '../../src/providers/ai-quality/schema-builder.mjs';
 
 const BINDING = {
   planDigest: 'sha256:plan', repositoryRevision: 'rev', dirtyPatchDigest: null,
@@ -218,8 +218,8 @@ test('an evaluation receipt is not and cannot substitute for a security verdict'
 });
 
 test('no ai-quality module imports from providers/security/**, and no security pack imports from providers/ai-quality/**', () => {
-  const aiQualityDir = fileURLToPath(new URL('../../providers/ai-quality', import.meta.url));
-  const securityPacksDir = fileURLToPath(new URL('../../providers/security/packs', import.meta.url));
+  const aiQualityDir = fileURLToPath(new URL('../../src/providers/ai-quality', import.meta.url));
+  const securityPacksDir = fileURLToPath(new URL('../../src/providers/security/packs', import.meta.url));
 
   function collect(dir) {
     const out = [];
@@ -250,7 +250,7 @@ test('no ai-quality module imports from providers/security/**, and no security p
 // ---------------------------------------------------------------------------
 
 test('no ai-quality module imports a network-capable node builtin, calls fetch, or imports an AI vendor SDK', () => {
-  const aiQualityDir = fileURLToPath(new URL('../../providers/ai-quality', import.meta.url));
+  const aiQualityDir = fileURLToPath(new URL('../../src/providers/ai-quality', import.meta.url));
   const forbiddenImports = ['node:http', 'node:https', 'node:net', 'node:dgram'];
   const vendorSdkImportPatterns = [
     /from\s+['"]openai['"]/, /require\(\s*['"]openai['"]\s*\)/,
@@ -284,7 +284,7 @@ test('no ai-quality module imports a network-capable node builtin, calls fetch, 
 // ---------------------------------------------------------------------------
 
 test('committed schemas/ai-quality/evaluation-receipt-v1.schema.json is byte-identical to the code-owned builder', () => {
-  const committed = JSON.parse(readFileSync(new URL('../../schemas/ai-quality/evaluation-receipt-v1.schema.json', import.meta.url), 'utf8'));
+  const committed = JSON.parse(readFileSync(new URL('../../src/schemas/ai-quality/evaluation-receipt-v1.schema.json', import.meta.url), 'utf8'));
   assert.deepEqual(buildEvaluationReceiptSchema(), committed);
 });
 

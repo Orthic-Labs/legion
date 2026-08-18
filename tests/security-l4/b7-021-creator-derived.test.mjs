@@ -17,7 +17,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 const REPO_ROOT = fileURLToPath(new URL('../..', import.meta.url));
 
 const CREATOR_DERIVED_PATH = fileURLToPath(
-  new URL('../../registry/rules/security/creator-derived.json', import.meta.url),
+  new URL('../../src/registry/rules/security/creator-derived.json', import.meta.url),
 );
 const PROVENANCE_PATH = fileURLToPath(
   new URL('../../references/source-provenance/creator-security.json', import.meta.url),

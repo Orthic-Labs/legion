@@ -4,8 +4,8 @@ import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import test from 'node:test';
-import { loadSkill } from '../../lib/skills/loader.mjs';
-import { resolveSkillInvocation, resolveSkillPrompt } from '../../lib/skills/resolver.mjs';
+import { loadSkill } from '../../src/lib/skills/loader.mjs';
+import { resolveSkillInvocation, resolveSkillPrompt } from '../../src/lib/skills/resolver.mjs';
 
 const ROOT = fileURLToPath(new URL('../..', import.meta.url));
 const aliases = JSON.parse(readFileSync(join(ROOT, '_audit', 'capability-aliases.json'), 'utf8')).aliases;

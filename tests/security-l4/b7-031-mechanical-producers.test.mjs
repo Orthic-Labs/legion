@@ -13,9 +13,9 @@ import {
   mechanicalDependencyProposal,
   planMechanicalRemediation,
   producerFor,
-} from '../../lib/remediation/mechanical.mjs';
-import { STRUCTURAL_PRODUCERS, renderStructuralPreview } from '../../lib/remediation/producers/structural.mjs';
-import { CONFIG_PRODUCERS, renderConfigPreview } from '../../lib/remediation/producers/config.mjs';
+} from '../../src/lib/remediation/mechanical.mjs';
+import { STRUCTURAL_PRODUCERS, renderStructuralPreview } from '../../src/lib/remediation/producers/structural.mjs';
+import { CONFIG_PRODUCERS, renderConfigPreview } from '../../src/lib/remediation/producers/config.mjs';
 
 const binding = {
   planDigest: 'sha256:plan',
@@ -59,14 +59,14 @@ test('only low-risk, rule-specific producers are registered — never generic se
     assert.equal(producer.apply, undefined);
     assert.ok(Array.isArray(producer.preconditions) && producer.preconditions.length > 0);
   }
-  for (const source of ['../../lib/remediation/producers/structural.mjs', '../../lib/remediation/producers/config.mjs']) {
+  for (const source of ['../../src/lib/remediation/producers/structural.mjs', '../../src/lib/remediation/producers/config.mjs']) {
     const text = readFileSync(new URL(source, import.meta.url), 'utf8');
     assert.ok(!/writeFileSync|writeFile\(|rmSync|node:fs/.test(text), `${source} must not write to disk`);
   }
 });
 
 test('the committed mechanical registry is version-bound and matches the producer modules', () => {
-  const committed = JSON.parse(readFileSync(new URL('../../registry/remediation/mechanical.json', import.meta.url), 'utf8'));
+  const committed = JSON.parse(readFileSync(new URL('../../src/registry/remediation/mechanical.json', import.meta.url), 'utf8'));
   assert.deepEqual(committed, MECHANICAL_REGISTRY);
   const moduleIds = [...STRUCTURAL_PRODUCERS, ...CONFIG_PRODUCERS].map((producer) => producer.id).sort();
   assert.deepEqual(committed.producers.map((entry) => entry.id).sort(), moduleIds);

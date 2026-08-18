@@ -1,8 +1,8 @@
 import { readFileSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { transformSkillText } from '../lib/skills/transform.mjs';
-import { digestBytes } from '../lib/artifacts/digests.mjs';
+import { transformSkillText } from '../src/lib/skills/transform.mjs';
+import { digestBytes } from '../src/lib/artifacts/digests.mjs';
 
 const root=resolve(fileURLToPath(new URL('..',import.meta.url)));
 for(const bundle of ['designer','writing']){

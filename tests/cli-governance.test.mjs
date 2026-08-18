@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { runCli } from '../lib/cli/run.mjs';
+import { runCli } from '../src/lib/cli/run.mjs';
 
 function output() {
   let value = '';

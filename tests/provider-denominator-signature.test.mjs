@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { buildAuditPlan, verifyPlanBinding, verifyPlanSeal, verifyPlanSignature } from '../tools/audit/audit-plan.mjs';
-import { loadProviderRegistry } from '../registry/provider-registry.mjs';
+import { loadProviderRegistry } from '../src/registry/provider-registry.mjs';
 
 function projection() {
   return {

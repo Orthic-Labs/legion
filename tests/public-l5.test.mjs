@@ -6,7 +6,7 @@ import { join } from 'node:path';
 import { createHash } from 'node:crypto';
 
 test('B8-001 exposes one explicit versioned public surface', async () => {
-  const api = await import('../lib/index.mjs');
+  const api = await import('../src/lib/index.mjs');
   for (const name of ['inspectProduct', 'buildPlan', 'executePlan', 'reconcileRun', 'finalizeRun', 'verifyRun', 'loadReport', 'verifySkillBundle', 'renderHtmlReport', 'editorDiagnostics']) {
     assert.equal(typeof api[name], 'function', `${name} must be public`);
   }
@@ -18,7 +18,7 @@ test('B8-001 exposes one explicit versioned public surface', async () => {
 });
 
 test('B8-003 wires every advertised read-only MCP tool to bounded operations', async () => {
-  const { listTools, callTool } = await import('../integrations/mcp/tools.mjs');
+  const { listTools, callTool } = await import('../src/integrations/mcp/tools.mjs');
   const expected = ['legion_doctor', 'legion_plan', 'legion_audit', 'legion_verify', 'legion_get_run', 'legion_get_finding', 'legion_explain', 'legion_list_providers', 'legion_list_languages', 'legion_list_families', 'legion_list_skills'];
   assert.deepEqual(listTools().map(({ name }) => name), expected);
   assert.ok(listTools().every(({ inputSchema }) => inputSchema.additionalProperties === false));
@@ -50,13 +50,13 @@ test('B8-003 wires every advertised read-only MCP tool to bounded operations', a
     const result = await callTool({ name, arguments: {} }, { root: process.cwd(), core });
     assert.equal(result.isError, false, `${name} must execute`);
   }
-  const resources = await import('../integrations/mcp/resources.mjs');
+  const resources = await import('../src/integrations/mcp/resources.mjs');
   assert.equal(typeof resources.listResources, 'function');
   assert.equal(typeof resources.readResource, 'function');
 });
 
 test('B8-007 renders offline HTML with real CSP hash and evidence navigation', async () => {
-  const { renderHtmlReport } = await import('../lib/report/html/index.mjs');
+  const { renderHtmlReport } = await import('../src/lib/report/html/index.mjs');
   const html = renderHtmlReport({
     audit_status: 'fail', quality_gate: 'fail',
     findings: [{ id: 'finding-1', ruleId: 'xss', severity: 'high', title: '<img src=x onerror=alert(1)>', file: 'src/a.js', evidence: [{ id: 'evidence-1', detail: 'proof' }] }],
@@ -79,7 +79,7 @@ test('B8-007 renders offline HTML with real CSP hash and evidence navigation', a
 });
 
 test('B8-008 preserves canonical fingerprints, ranges, lineage, gaps, and preview-only actions', async () => {
-  const { editorDiagnostics } = await import('../lib/report/editor/index.mjs');
+  const { editorDiagnostics } = await import('../src/lib/report/editor/index.mjs');
   const diagnostics = editorDiagnostics({ report: {
     findings: [{ id: 'finding-1', fingerprint: 'sha256:f', family: 'security', evidenceClass: 'static', severity: 'high', title: 'Unsafe call', file: 'src/a.js', range: { start: { line: 4, column: 2 }, end: { line: 4, column: 9 } }, lineage: { state: 'moved', priorRange: { start: { line: 2, column: 1 }, end: { line: 2, column: 8 } } }, remediation: { id: 'proposal-1', qualified: true, findingFingerprint: 'sha256:f', patch: { path: 'patches/p.patch', digest: `sha256:${'a'.repeat(64)}` } } }],
     coverage_gaps: [{ id: 'gap-1', family: 'runtime', reviewRequired: true, detail: 'device absent' }],
@@ -96,8 +96,8 @@ test('B8-008 preserves canonical fingerprints, ranges, lineage, gaps, and previe
 });
 
 test('B8-017 generates non-empty package SBOMs, shipped notices, and typed provenance blockers', async () => {
-  const { generateSboms, inventoryRuntimeDependencies, inventoryDistribution, reconcileDistributionContents } = await import('../lib/distribution/sbom.mjs');
-  const { buildNoticeInventory, renderNotices } = await import('../lib/distribution/notices.mjs');
+  const { generateSboms, inventoryRuntimeDependencies, inventoryDistribution, reconcileDistributionContents } = await import('../src/lib/distribution/sbom.mjs');
+  const { buildNoticeInventory, renderNotices } = await import('../src/lib/distribution/notices.mjs');
   const components = [{ name: 'legion', version: '1.0.0', license: 'SEE LICENSE', source: 'local', shipped: true, distributionStatus: 'integrated' }];
   const sboms = generateSboms({ name: 'legion', components });
   assert.equal(sboms.cyclonedx.components.length, 1);
@@ -121,7 +121,7 @@ test('B8-018 release manifests bind final bytes and fail closed on empty SBOM or
   writeFileSync(join(root, 'sbom.json'), JSON.stringify({ components: [{ name: 'legion' }] }));
   writeFileSync(join(root, 'NOTICE.md'), 'notice');
   writeFileSync(join(root, 'SHA256SUMS'), 'sum');
-  const { buildReleaseManifest } = await import('../lib/distribution/release-manifest.mjs');
+  const { buildReleaseManifest } = await import('../src/lib/distribution/release-manifest.mjs');
   const { verifyReleaseManifestObject } = await import('../scripts/verify-release.mjs');
   const manifest = buildReleaseManifest({ root, version: '1.0.0', sourceRevision: '1234567', artifacts: [{ path: 'dist/pkg.tgz', type: 'package' }], checksums: [{ path: 'SHA256SUMS' }], sboms: [{ path: 'sbom.json' }], notices: [{ path: 'NOTICE.md' }], signatures: [{ path: 'signature.json', status: 'placeholder' }], channels: [{ id: 'internal' }] });
   assert.ok(manifest.sboms[0].digest?.startsWith('sha256:'));
@@ -134,7 +134,7 @@ test('B8-018 release manifests bind final bytes and fail closed on empty SBOM or
 });
 
 test('B8-024 derives claims from exact measured qualification identity', async () => {
-  const { generateClaims, generateClaimsFromQualification, renderSupportMarkdown } = await import('../lib/distribution/claims.mjs');
+  const { generateClaims, generateClaimsFromQualification, renderSupportMarkdown } = await import('../src/lib/distribution/claims.mjs');
   const claims = generateClaims([{ id: 'js', subject: 'JavaScript', state: 'deterministic-measured', artifactDigest: 'sha256:a', corpusDigest: 'sha256:c', providerDigest: 'sha256:p', expectedIdentity: { artifactDigest: 'sha256:a', corpusDigest: 'sha256:c', providerDigest: 'sha256:p' }, hostCapabilities: ['process'], authorityLimits: ['source-only'], resourceConstraints: { maxConcurrency: 1 } }]);
   assert.equal(claims[0].state, 'deterministic-measured');
   assert.deepEqual(claims[0].authorityLimits, ['source-only']);

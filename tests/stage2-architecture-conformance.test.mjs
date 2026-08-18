@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import test from 'node:test';
-import { validateSchema } from '../lib/qualification/schema-validator.mjs';
+import { validateSchema } from '../src/lib/qualification/schema-validator.mjs';
 
 const root = join(import.meta.dirname, '..', 'doctrine', 'architecture');
 const text = (path) => readFileSync(join(root, path), 'utf8');

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { changePassport, passportDigest, signPassport, verifyPassport } from '../lib/provenance/passport.mjs';
+import { changePassport, passportDigest, signPassport, verifyPassport } from '../src/lib/provenance/passport.mjs';
 
 test('passport digest is content-bound', () => {
   const a = changePassport({ baseCommit: 'a', patchDigest: 'sha256:p', findingIds: ['f1'], producer: {}, commands: [], verificationArtifacts: [], createdAt: 't', signingKey: 'k' });

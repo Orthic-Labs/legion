@@ -10,7 +10,7 @@ import {
   buildReviewPacket,
   buildUntrustedEvidenceSchema,
   wrapUntrustedEvidence,
-} from '../../lib/review/untrusted-evidence-envelope.mjs';
+} from '../../src/lib/review/untrusted-evidence-envelope.mjs';
 
 const binding = {
   planDigest: 'sha256:plan',
@@ -86,7 +86,7 @@ test('packets separate trusted instructions from untrusted evidence in every fam
       candidateId: 'sha256:candidate',
       instructions: ['Judge only the evidence below.'],
       reviewer: { role: 'adjudicator', contextId: 'ctx-1', fresh: true },
-      schema: 'schemas/core/judgment-receipt-v1.schema.json',
+      schema: 'src/schemas/core/judgment-receipt-v1.schema.json',
       verdictVocabulary: ['CONFIRMED', 'REJECTED', 'UNPROVEN'],
       policy: { policyEffect: 'blocking' },
       budget: { maxTokens: 4000 },
@@ -117,7 +117,7 @@ test('repository attempts to change provider, role, context, schema, tools, poli
     candidateId: 'sha256:candidate',
     instructions: ['Judge only the evidence below.'],
     reviewer: { role: 'adjudicator', contextId: 'ctx-1', fresh: true },
-    schema: 'schemas/core/judgment-receipt-v1.schema.json',
+    schema: 'src/schemas/core/judgment-receipt-v1.schema.json',
     verdictVocabulary: ['CONFIRMED', 'REJECTED', 'UNPROVEN'],
     policy: { policyEffect: 'blocking' },
     budget: { maxTokens: 4000 },
@@ -126,7 +126,7 @@ test('repository attempts to change provider, role, context, schema, tools, poli
   });
   assert.equal(packet.reviewer.role, 'adjudicator');
   assert.equal(packet.reviewer.contextId, 'ctx-1');
-  assert.equal(packet.schema, 'schemas/core/judgment-receipt-v1.schema.json');
+  assert.equal(packet.schema, 'src/schemas/core/judgment-receipt-v1.schema.json');
   assert.equal(packet.policy.policyEffect, 'blocking');
   assert.deepEqual(packet.verdictVocabulary, ['CONFIRMED', 'REJECTED', 'UNPROVEN']);
   assert.deepEqual(packet.tools, []);
@@ -176,7 +176,7 @@ test('packet truncation stays visible on the packet itself', () => {
 });
 
 test('the committed untrusted-evidence schema matches its generator', () => {
-  const committed = JSON.parse(readFileSync(new URL('../../schemas/core/untrusted-evidence-v1.schema.json', import.meta.url), 'utf8'));
+  const committed = JSON.parse(readFileSync(new URL('../../src/schemas/core/untrusted-evidence-v1.schema.json', import.meta.url), 'utf8'));
   assert.deepEqual(committed, buildUntrustedEvidenceSchema());
   assert.deepEqual(committed.properties.evidenceKind.enum, [...UNTRUSTED_EVIDENCE_KINDS]);
   assert.equal(committed.properties.trusted.const, false);

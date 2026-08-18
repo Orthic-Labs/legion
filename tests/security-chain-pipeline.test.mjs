@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { reconcileAttackPaths } from '../providers/security/attack-path-reconcile.mjs';
-import { createChainAdjudicationPacket, finalizeChainVerdict } from '../adapters/security-chain-adjudication.mjs';
+import { reconcileAttackPaths } from '../src/providers/security/attack-path-reconcile.mjs';
+import { createChainAdjudicationPacket, finalizeChainVerdict } from '../src/adapters/security-chain-adjudication.mjs';
 import { prepareChainAdjudicationBundle, finalizeChainAdjudicationBundle } from '../tools/audit/security-chain-pipeline.mjs';
 
 const BINDING = {

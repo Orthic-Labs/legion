@@ -22,11 +22,11 @@ const testEnv = {
 const syntaxTargets = [
   'tools/audit/audit-run.mjs', 'tools/audit/audit-complete.mjs', 'tools/audit/audit-finalize.mjs', 'tools/audit/audit-plan.mjs',
   'tools/audit/audit-verify.mjs', 'tools/audit/security-pipeline.mjs',
-  'adapters/cortex-projection.mjs', 'adapters/ecosystem-manifests.mjs', 'adapters/security-adjudication.mjs',
-  'providers/native-family-runner.mjs', 'providers/framework-suite.mjs', 'providers/security-suite.mjs',
-  'providers/data-suite.mjs', 'providers/infrastructure-suite.mjs', 'providers/generic-source-suite.mjs',
-  'providers/accessibility-suite.mjs', 'providers/visual-core.mjs',
-  'registry/provider-registry.mjs', 'registry/provider-registry-complete.mjs',
+  'src/adapters/cortex-projection.mjs', 'src/adapters/ecosystem-manifests.mjs', 'src/adapters/security-adjudication.mjs',
+  'src/providers/native-family-runner.mjs', 'src/providers/framework-suite.mjs', 'src/providers/security-suite.mjs',
+  'src/providers/data-suite.mjs', 'src/providers/infrastructure-suite.mjs', 'src/providers/generic-source-suite.mjs',
+  'src/providers/accessibility-suite.mjs', 'src/providers/visual-core.mjs',
+  'src/registry/provider-registry.mjs', 'src/registry/provider-registry-complete.mjs',
   'scripts/generate-manifest.mjs', 'scripts/report-to-sarif.mjs',
 ].map((path) => join(AUDIT_ROOT, path));
 

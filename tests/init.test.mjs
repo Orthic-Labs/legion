@@ -3,7 +3,7 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
-import { runInit } from '../lib/cli/commands/init.mjs';
+import { runInit } from '../src/lib/cli/commands/init.mjs';
 
 test('init defaults to a no-write preview', () => {
   const root = mkdtempSync(join(tmpdir(), 'legion-init-characterization-'));

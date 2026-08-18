@@ -10,7 +10,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
 
-import { enumerateRegistrations, handlerId } from '../lib/cli/commands/bind/registrations.mjs';
+import { enumerateRegistrations, handlerId } from '../src/lib/cli/commands/bind/registrations.mjs';
 
 const ARCANE = 'node "${CLAUDE_PLUGIN_ROOT}/hooks/arcane-hook.mjs"';
 

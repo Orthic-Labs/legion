@@ -11,16 +11,16 @@ import {
   buildSandboxReceiptSchema,
   createRemediationSandbox,
   requireMutationCapability,
-} from '../../lib/remediation/sandbox.mjs';
+} from '../../src/lib/remediation/sandbox.mjs';
 import {
   cleanupReceipt,
   cleanupSandbox,
-} from '../../lib/remediation/cleanup.mjs';
+} from '../../src/lib/remediation/cleanup.mjs';
 import {
   createCheckpoint,
   restoreCheckpoint,
   restorePlan,
-} from '../../lib/remediation/checkpoint.mjs';
+} from '../../src/lib/remediation/checkpoint.mjs';
 
 const binding = {
   planDigest: 'sha256:plan',
@@ -140,7 +140,7 @@ test('failed cleanup leaves exact recovery data and is never reported as removed
 });
 
 test('the committed sandbox receipt schema matches its generator', () => {
-  const committed = JSON.parse(readFileSync(new URL('../../schemas/remediation/sandbox-receipt-v1.schema.json', import.meta.url), 'utf8'));
+  const committed = JSON.parse(readFileSync(new URL('../../src/schemas/remediation/sandbox-receipt-v1.schema.json', import.meta.url), 'utf8'));
   assert.deepEqual(committed, buildSandboxReceiptSchema());
   assert.ok(committed.required.includes('binding'));
   assert.ok(committed.required.includes('findingRunDigest'));

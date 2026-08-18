@@ -3,7 +3,7 @@ import test from 'node:test';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { createDeliveryGovernanceDispatcher, createDurablePacketAdmissionCapability, createTrustedDeliveryEvidenceCapability, DurablePacketAdmissionStore, runDeliveryGovernance } from '../lib/cli/commands/governance/delivery.mjs';
+import { createDeliveryGovernanceDispatcher, createDurablePacketAdmissionCapability, createTrustedDeliveryEvidenceCapability, DurablePacketAdmissionStore, runDeliveryGovernance } from '../src/lib/cli/commands/governance/delivery.mjs';
 
 function hardCut() { return { plan: { mode: 'HARD_CUT', hard_cut: { absence_checks: { imports: [], routes: [], runtime_registrations: [], configuration_keys: [], dependencies: [], tests: [], documentation: [], emitted_protocol_variants: [] } } }, observations: { absence: { imports: [], routes: [], runtime_registrations: [], configuration_keys: [], dependencies: [], tests: [], documentation: [], emitted_protocol_variants: [] } } }; }
 

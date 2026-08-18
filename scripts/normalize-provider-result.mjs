@@ -9,7 +9,7 @@
  * the runtime validator and the JSON schema accept exactly the same values.
  */
 
-import { PROVIDER_STATUS } from '../registry/provider-contracts.mjs';
+import { PROVIDER_STATUS } from '../src/registry/provider-contracts.mjs';
 
 const REQUIRED_FIELDS = ['schemaVersion', 'provider', 'status', 'complete'];
 const STATUS_ENUM = new Set(PROVIDER_STATUS);

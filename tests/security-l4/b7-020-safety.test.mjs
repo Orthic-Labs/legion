@@ -14,25 +14,25 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { scanSafetyHazards, SAFETY_DOMAINS, SAFETY_RULE_IDS } from '../../providers/safety/scanner.mjs';
-import { createHazardCandidate, assertHazard, closeHazard } from '../../providers/safety/hazard-model.mjs';
-import { buildHazardModelSchema } from '../../providers/safety/schema-builder.mjs';
-import { safetySchemaText } from '../../providers/safety/generate-schema.mjs';
+import { scanSafetyHazards, SAFETY_DOMAINS, SAFETY_RULE_IDS } from '../../src/providers/safety/scanner.mjs';
+import { createHazardCandidate, assertHazard, closeHazard } from '../../src/providers/safety/hazard-model.mjs';
+import { buildHazardModelSchema } from '../../src/providers/safety/schema-builder.mjs';
+import { safetySchemaText } from '../../src/providers/safety/generate-schema.mjs';
 import {
   HAZARD_DISPOSITION,
   OUTCOME_CLASS,
   REASONING_REQUIREMENT,
-} from '../../providers/safety/contracts.mjs';
+} from '../../src/providers/safety/contracts.mjs';
 
 const SAFETY_MODULE_FILES = [
-  'providers/safety/contracts.mjs',
-  'providers/safety/hazard-model.mjs',
-  'providers/safety/scanner.mjs',
-  'providers/safety/schema-builder.mjs',
-  'providers/safety/generate-schema.mjs',
+  'src/providers/safety/contracts.mjs',
+  'src/providers/safety/hazard-model.mjs',
+  'src/providers/safety/scanner.mjs',
+  'src/providers/safety/schema-builder.mjs',
+  'src/providers/safety/generate-schema.mjs',
 ].map((rel) => [rel, fileURLToPath(new URL(`../../${rel}`, import.meta.url))]);
 
-const registryPath = fileURLToPath(new URL('../../registry/rules/safety/hazards.json', import.meta.url));
+const registryPath = fileURLToPath(new URL('../../src/registry/rules/safety/hazards.json', import.meta.url));
 const registry = JSON.parse(readFileSync(registryPath, 'utf8'));
 
 // Fixture text per disposition, keyed the same way for every domain trigger:
@@ -266,7 +266,7 @@ test('no safety module imports a live-probe-capable builtin, a serial/USB librar
 // ---------------------------------------------------------------------------
 
 test('generated hazard-model schema is byte-identical to the committed schemas/safety/hazard-model-v1.schema.json', () => {
-  const committedPath = fileURLToPath(new URL('../../schemas/safety/hazard-model-v1.schema.json', import.meta.url));
+  const committedPath = fileURLToPath(new URL('../../src/schemas/safety/hazard-model-v1.schema.json', import.meta.url));
   const committedText = readFileSync(committedPath, 'utf8');
   assert.equal(committedText, safetySchemaText(), 'committed schema drifted from the generator; run node providers/safety/generate-schema.mjs');
   assert.deepEqual(JSON.parse(committedText), buildHazardModelSchema());

@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import test from 'node:test';
 
-import { validateSchema } from '../lib/qualification/schema-validator.mjs';
+import { validateSchema } from '../src/lib/qualification/schema-validator.mjs';
 
 const root = join(import.meta.dirname, '..');
 const read = (path) => readFileSync(join(root, path), 'utf8');
@@ -17,7 +17,7 @@ const lenses = ['catalogue', 'product-quality', 'data-privacy-security', 'reliab
 test('S07-01 every representative template has a declared schema where applicable & validates', () => {
   for (const name of templates) assert.ok(read(`doctrine/architecture/templates/${name}.md`).length, name);
   for (const name of schemaNames) {
-    const schema = json(`schemas/${name}.schema.json`);
+    const schema = json(`src/schemas/${name}.schema.json`);
     assert.deepEqual(validateSchema(schema, fixtures[name]), [], name);
     assert.match(read(`doctrine/architecture/templates/${schemaTemplates[name]}.md`), new RegExp(schema.$id.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
   }
@@ -26,17 +26,17 @@ test('S07-01 every representative template has a declared schema where applicabl
 test('S07-01 schemas reject closed-shape & critical negative instances', () => {
   for (const name of schemaNames) {
     const invalid = structuredClone(fixtures[name]); invalid.extra = true;
-    assert.ok(validateSchema(json(`schemas/${name}.schema.json`), invalid).length, `${name} closes shape`);
+    assert.ok(validateSchema(json(`src/schemas/${name}.schema.json`), invalid).length, `${name} closes shape`);
   }
   const adr = structuredClone(fixtures['architecture-decision']); adr.record_worthiness.real_trade_off = false;
-  assert.ok(validateSchema(json('schemas/architecture-decision.schema.json'), adr).length, 'low-worth ADR rejects');
+  assert.ok(validateSchema(json('src/schemas/architecture-decision.schema.json'), adr).length, 'low-worth ADR rejects');
   const workload = structuredClone(fixtures['representative-workload']); delete workload.actual_acceptance_surface;
-  assert.ok(validateSchema(json('schemas/representative-workload.schema.json'), workload).length, 'proxy workload rejects');
+  assert.ok(validateSchema(json('src/schemas/representative-workload.schema.json'), workload).length, 'proxy workload rejects');
 });
 
 test('S07-01 concern lenses admit only material concerns & declare contract boundaries', () => {
   for (const lens of lenses) {
-    const body = read(`lenses/architecture/${lens}.md`);
+    const body = read(`src/lenses/architecture/${lens}.md`);
     if (lens === 'catalogue') {
       for (const phrase of ['omission scan', 'Admit', 'applicability', 'inputs', 'outputs', 'negative scope']) assert.match(body, new RegExp(phrase, 'i'));
     } else {

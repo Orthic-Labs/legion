@@ -6,12 +6,12 @@
 import { readFileSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { PROVIDER_STATUS, PROVIDER_PHASES, PROVIDER_ROLES } from '../registry/provider-contracts.mjs';
+import { PROVIDER_STATUS, PROVIDER_PHASES, PROVIDER_ROLES } from '../src/registry/provider-contracts.mjs';
 import {
   EVIDENCE_STRENGTH,
   FACT_KINDS,
   SECURITY_VERDICTS,
-} from '../providers/security/contracts.mjs';
+} from '../src/providers/security/contracts.mjs';
 
 function write(path, value) {
   writeFileSync(resolve(path), `${JSON.stringify(value, null, 2)}\n`, 'utf8');
@@ -156,9 +156,9 @@ export function buildWebActorFixtureSchema() {
 
 export function buildSchemas() {
   return {
-    'schemas/provider-result-v1.schema.json': buildProviderResultSchema(),
-    'schemas/security-verdict-v1.schema.json': buildSecurityVerdictSchema(),
-    'schemas/platform/web-actor-fixture-v1.schema.json': buildWebActorFixtureSchema(),
+    'src/schemas/provider-result-v1.schema.json': buildProviderResultSchema(),
+    'src/schemas/security-verdict-v1.schema.json': buildSecurityVerdictSchema(),
+    'src/schemas/platform/web-actor-fixture-v1.schema.json': buildWebActorFixtureSchema(),
   };
 }
 

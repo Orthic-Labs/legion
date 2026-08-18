@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { runGenericSourceAccounting } from '../providers/generic-source-suite.mjs';
+import { runGenericSourceAccounting } from '../src/providers/generic-source-suite.mjs';
 
 test('known parsed languages are fully accounted for', () => {
   const result = runGenericSourceAccounting({

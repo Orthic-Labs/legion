@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { synthesizeSecurityEvidence } from '../providers/security/evidence-synthesis.mjs';
+import { synthesizeSecurityEvidence } from '../src/providers/security/evidence-synthesis.mjs';
 
 const BINDING = {
   planDigest: 'sha256:plan', repositoryRevision: 'rev1', dirtyPatchDigest: null,

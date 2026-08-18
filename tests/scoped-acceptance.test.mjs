@@ -4,7 +4,7 @@ import {
   compileScopedAcceptance,
   diffScopedAcceptance,
   fingerprintAcceptanceItem,
-} from '../packages/arcane/lib/scoped-acceptance.mjs';
+} from '../src/packages/arcane/lib/scoped-acceptance.mjs';
 
 const item = (id, outcome = id) => ({
   acceptance_id: id,

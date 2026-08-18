@@ -1,10 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { detectAntiSlop } from '../providers/copy/anti-slop.mjs';
-import { analyzeClarity } from '../providers/copy/clarity.mjs';
-import { analyzeDocumentation } from '../providers/copy/documentation.mjs';
-import { assessChronology } from '../providers/narrative/chronology.mjs';
+import { detectAntiSlop } from '../src/providers/copy/anti-slop.mjs';
+import { analyzeClarity } from '../src/providers/copy/clarity.mjs';
+import { analyzeDocumentation } from '../src/providers/copy/documentation.mjs';
+import { assessChronology } from '../src/providers/narrative/chronology.mjs';
 
 const binding = { repository: 'sha256:fixture-repository' };
 

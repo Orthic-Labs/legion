@@ -2,12 +2,12 @@
 import { readFileSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { canonicalJson, loadProviderRegistry, renderManifest } from '../registry/provider-registry.mjs';
+import { canonicalJson, loadProviderRegistry, renderManifest } from '../src/registry/provider-registry.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const AUDIT_ROOT = resolve(HERE, '..');
 
-export function generatedManifestText(registryPath = resolve(AUDIT_ROOT, 'registry/providers.json')) {
+export function generatedManifestText(registryPath = resolve(AUDIT_ROOT, 'src/registry/providers.json')) {
   return `${JSON.stringify(renderManifest(loadProviderRegistry(registryPath)), null, 2)}\n`;
 }
 
@@ -27,7 +27,7 @@ async function main() {
   const check = args.includes('--check');
   const registryIndex = args.indexOf('--registry');
   const outIndex = args.indexOf('--out');
-  const registryPath = registryIndex >= 0 ? resolve(args[registryIndex + 1]) : resolve(AUDIT_ROOT, 'registry/providers.json');
+  const registryPath = registryIndex >= 0 ? resolve(args[registryIndex + 1]) : resolve(AUDIT_ROOT, 'src/registry/providers.json');
   const outPath = outIndex >= 0 ? resolve(args[outIndex + 1]) : resolve(AUDIT_ROOT, 'manifest.json');
   const expectedText = generatedManifestText(registryPath);
   const expected = JSON.parse(expectedText);

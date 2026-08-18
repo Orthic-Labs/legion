@@ -3,7 +3,7 @@ import { mkdtempSync, rmSync, readFileSync, existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
-import { RunArtifactStore } from '../lib/artifacts/run-store.mjs';
+import { RunArtifactStore } from '../src/lib/artifacts/run-store.mjs';
 
 function tempStore() {
   const dir = mkdtempSync(join(tmpdir(), 'legion-store-'));

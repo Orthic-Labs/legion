@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { stableId, pathDenominator, validateProviderRecord, normalizeProviderResult, topologicalProviders } from '../lib/providers/sdk/index.mjs';
-import { skippedReceipt } from '../lib/core/execute-plan.mjs';
+import { stableId, pathDenominator, validateProviderRecord, normalizeProviderResult, topologicalProviders } from '../src/lib/providers/sdk/index.mjs';
+import { skippedReceipt } from '../src/lib/core/execute-plan.mjs';
 
 test('stableId is deterministic and canonical', () => {
   const a = stableId('ns', { b: 1, a: [1, 2] });

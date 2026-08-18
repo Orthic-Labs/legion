@@ -4,7 +4,7 @@
 import { readFileSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
-export function buildLensCatalog(registryPath = 'registry/security-lenses.json') {
+export function buildLensCatalog(registryPath = 'src/registry/security-lenses.json') {
   const registry = JSON.parse(readFileSync(resolve(registryPath), 'utf8'));
   return (registry.lenses ?? []).map((lens) => ({
     id: lens.id,
@@ -20,7 +20,7 @@ export function renderCatalog(rows) {
   const lines = [
     '# Legion security lens catalogue',
     '',
-    'Generated from `registry/security-lenses.json`.',
+    'Generated from `src/registry/security-lenses.json`.',
     '',
     '| Lens | Family | Implementation | Benchmark | Clean-claim |',
     '|---|---|---|:---:|:---:|',

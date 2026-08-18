@@ -4,13 +4,13 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
-import { runSecurityPack } from '../../providers/security/candidate-engine.mjs';
-import { entity, controlEntity, relation } from '../../providers/security/model-extractors/common.mjs';
-import requestBoundariesPack from '../../providers/security/packs/request-boundaries.mjs';
-import ssrfEgressPack from '../../providers/security/packs/ssrf-egress.mjs';
-import fileBoundariesPack from '../../providers/security/packs/file-boundaries.mjs';
-import parserSerializationPack from '../../providers/security/packs/parser-serialization.mjs';
-import uploadsPack from '../../providers/security/packs/uploads.mjs';
+import { runSecurityPack } from '../../src/providers/security/candidate-engine.mjs';
+import { entity, controlEntity, relation } from '../../src/providers/security/model-extractors/common.mjs';
+import requestBoundariesPack from '../../src/providers/security/packs/request-boundaries.mjs';
+import ssrfEgressPack from '../../src/providers/security/packs/ssrf-egress.mjs';
+import fileBoundariesPack from '../../src/providers/security/packs/file-boundaries.mjs';
+import parserSerializationPack from '../../src/providers/security/packs/parser-serialization.mjs';
+import uploadsPack from '../../src/providers/security/packs/uploads.mjs';
 
 const SEVERITY_RANK = { info: 0, low: 1, medium: 2, high: 3, critical: 4 };
 
@@ -71,7 +71,7 @@ function artifactIdFor(model, file) {
 // ---------------------------------------------------------------------------
 
 test('boundaries registry rule ids and the five packs\' rule ids are in exact parity', () => {
-  const registry = JSON.parse(readFileSync(new URL('../../registry/rules/security/boundaries.json', import.meta.url), 'utf8'));
+  const registry = JSON.parse(readFileSync(new URL('../../src/registry/rules/security/boundaries.json', import.meta.url), 'utf8'));
   assert.equal(registry.schemaVersion, 1);
   assert.ok(Array.isArray(registry.rules) && registry.rules.length > 0);
 
@@ -103,11 +103,11 @@ test('boundaries registry rule ids and the five packs\' rule ids are in exact pa
 test('none of the five packs import a live network, filesystem, or process module', () => {
   const forbidden = /\bnode:fs\b|\bnode:https?\b|\bnode:net\b|\bnode:dgram\b|\bnode:child_process\b|\bnode:zlib\b/;
   const relatives = [
-    '../../providers/security/packs/request-boundaries.mjs',
-    '../../providers/security/packs/ssrf-egress.mjs',
-    '../../providers/security/packs/file-boundaries.mjs',
-    '../../providers/security/packs/parser-serialization.mjs',
-    '../../providers/security/packs/uploads.mjs',
+    '../../src/providers/security/packs/request-boundaries.mjs',
+    '../../src/providers/security/packs/ssrf-egress.mjs',
+    '../../src/providers/security/packs/file-boundaries.mjs',
+    '../../src/providers/security/packs/parser-serialization.mjs',
+    '../../src/providers/security/packs/uploads.mjs',
   ];
   for (const relative of relatives) {
     const source = readFileSync(new URL(relative, import.meta.url), 'utf8');

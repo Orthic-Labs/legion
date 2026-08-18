@@ -1,10 +1,10 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { buildSecurityModel } from '../providers/security/model-builder.mjs';
-import { entity, fact, relation } from '../providers/security/model-extractors/common.mjs';
-import { bindingFromPlan, sameBinding, assertArtifactBinding, stableId } from '../providers/security/contracts.mjs';
-import { sourceEvidence, boundedExcerpt, lineNumber } from '../providers/security/evidence.mjs';
-import { untrustedEvidenceEnvelope, escapeForReasoning, boundPacketEvidence } from '../adapters/untrusted-evidence-envelope.mjs';
+import { buildSecurityModel } from '../src/providers/security/model-builder.mjs';
+import { entity, fact, relation } from '../src/providers/security/model-extractors/common.mjs';
+import { bindingFromPlan, sameBinding, assertArtifactBinding, stableId } from '../src/providers/security/contracts.mjs';
+import { sourceEvidence, boundedExcerpt, lineNumber } from '../src/providers/security/evidence.mjs';
+import { untrustedEvidenceEnvelope, escapeForReasoning, boundPacketEvidence } from '../src/adapters/untrusted-evidence-envelope.mjs';
 
 const BINDING = {
   planDigest: 'sha256:plan',

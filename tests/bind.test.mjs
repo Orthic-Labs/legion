@@ -6,7 +6,7 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import test from 'node:test';
 
-const BIN = fileURLToPath(new URL('../bin/legion.mjs', import.meta.url));
+const BIN = fileURLToPath(new URL('../src/bin/legion.mjs', import.meta.url));
 const root = fileURLToPath(new URL('..', import.meta.url));
 
 function bind(args = [], cwd = root) {
@@ -111,7 +111,7 @@ test('codex bind writes managed agent pointers and is idempotent', () => {
     const config = readFileSync(join(dir, '.codex', 'config.toml'), 'utf8');
     assert.match(config, /# >>> legion:managed-block v1 >>>/);
     assert.match(config, /config_file = "agents\/sage.toml"/);
-    const server = join(root, 'integrations', 'mcp', 'server.mjs').replace(/\\/g, '/');
+    const server = join(root, 'src', 'integrations', 'mcp', 'server.mjs').replace(/\\/g, '/');
     assert.ok(existsSync(server), 'generated Legion MCP server must exist at package root');
     assert.match(config, new RegExp(`args = \["${server.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}"\]`));
     assert.doesNotMatch(config, /\/lib\/integrations\//);

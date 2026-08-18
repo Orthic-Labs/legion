@@ -1,20 +1,20 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { runSecurityPack } from '../../providers/security/candidate-engine.mjs';
-import { entity } from '../../providers/security/model-extractors/common.mjs';
-import insecureDefaults from '../../providers/security/packs/insecure-defaults.mjs';
-import cicd from '../../providers/security/packs/cicd-automation.mjs';
-import nativeWorkspace from '../../providers/security/packs/native-workspace.mjs';
-import authentication from '../../providers/security/packs/authentication-session.mjs';
-import businessLogic from '../../providers/security/packs/business-logic.mjs';
-import outputHandling from '../../providers/security/packs/output-handling.mjs';
-import browserHttp from '../../providers/security/packs/browser-http.mjs';
-import requestBoundaries from '../../providers/security/packs/request-boundaries.mjs';
-import cryptoPrivacy from '../../providers/security/packs/crypto-data-privacy.mjs';
-import abuseObservability from '../../providers/security/packs/abuse-observability.mjs';
-import supplyDeveloper from '../../providers/security/packs/supply-developer.mjs';
-import aiIntegrity from '../../providers/security/packs/ai-integrity.mjs';
-import highConsequence from '../../providers/security/packs/high-consequence.mjs';
+import { runSecurityPack } from '../../src/providers/security/candidate-engine.mjs';
+import { entity } from '../../src/providers/security/model-extractors/common.mjs';
+import insecureDefaults from '../../src/providers/security/packs/insecure-defaults.mjs';
+import cicd from '../../src/providers/security/packs/cicd-automation.mjs';
+import nativeWorkspace from '../../src/providers/security/packs/native-workspace.mjs';
+import authentication from '../../src/providers/security/packs/authentication-session.mjs';
+import businessLogic from '../../src/providers/security/packs/business-logic.mjs';
+import outputHandling from '../../src/providers/security/packs/output-handling.mjs';
+import browserHttp from '../../src/providers/security/packs/browser-http.mjs';
+import requestBoundaries from '../../src/providers/security/packs/request-boundaries.mjs';
+import cryptoPrivacy from '../../src/providers/security/packs/crypto-data-privacy.mjs';
+import abuseObservability from '../../src/providers/security/packs/abuse-observability.mjs';
+import supplyDeveloper from '../../src/providers/security/packs/supply-developer.mjs';
+import aiIntegrity from '../../src/providers/security/packs/ai-integrity.mjs';
+import highConsequence from '../../src/providers/security/packs/high-consequence.mjs';
 
 const binding = {
   planDigest: 'sha256:plan', repositoryRevision: 'rev', dirtyPatchDigest: null,

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { editorDiagnostics } from '../../lib/report/editor/index.mjs';
+import { editorDiagnostics } from '../../src/lib/report/editor/index.mjs';
 
 test('editor diagnostics map findings to stable diagnostics', () => {
   const diagnostics = editorDiagnostics({

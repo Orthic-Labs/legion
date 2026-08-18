@@ -12,7 +12,7 @@ import {
   normalizePath,
   profileConfig,
   validateConfig,
-} from '../lib/config/index.mjs';
+} from '../src/lib/config/index.mjs';
 
 test('defaults are safe and versioned', () => {
   assert.equal(DEFAULT_CONFIG.schemaVersion, CONFIG_SCHEMA_VERSION);

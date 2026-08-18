@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { joinReachability, reachabilityGap } from '../lib/analysis/reachability.mjs';
+import { joinReachability, reachabilityGap } from '../src/lib/analysis/reachability.mjs';
 
 test('no call evidence is unknown', () => {
   assert.equal(joinReachability({ vulnerability: {}, callEvidence: [] }).reachability, 'unknown');

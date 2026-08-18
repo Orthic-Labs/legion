@@ -5,10 +5,10 @@ import { readFileSync, readdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { executeStage9Fixtures, stage9ProbeFor } from '../packages/arcane/lib/s09-runtime-executor.mjs';
+import { executeStage9Fixtures, stage9ProbeFor } from '../src/packages/arcane/lib/s09-runtime-executor.mjs';
 
 const root = dirname(dirname(fileURLToPath(import.meta.url)));
-const corpus = join(root, 'evals', 'architecture');
+const corpus = join(root, 'src', 'evals', 'architecture');
 const digest = createHash('sha256');
 const rows = [];
 for (const name of readdirSync(corpus).filter((entry) => entry.endsWith('.jsonl')).sort()) {

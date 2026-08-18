@@ -1,9 +1,9 @@
 {
   "version": 3,
-  "generated_from": "registry/providers.json",
+  "generated_from": "src/registry/providers.json",
   "generated_sources": [
-    "registry/providers.json",
-    "registry/providers-runtime.json"
+    "src/registry/providers.json",
+    "src/registry/providers-runtime.json"
   ],
   "discovery_owner": "cortex",
   "concurrency": "min(cpus-1,4)",
@@ -427,7 +427,7 @@
       "phase": "facts",
       "runner": {
         "kind": "runtime-script",
-        "module": "providers/architecture/core/index.mjs",
+        "module": "src/providers/architecture/core/index.mjs",
         "moduleDigest": "sha256:8dddd6c315760648ed427d11431919e41555c23d7cea72008a2b9c51d0fac1cd"
       },
       "benchmark_status": "unproven",
@@ -443,7 +443,7 @@
       "phase": "facts",
       "runner": {
         "kind": "runtime-script",
-        "module": "providers/code/c-family/index.mjs",
+        "module": "src/providers/code/c-family/index.mjs",
         "moduleDigest": "sha256:676ebaf9c77b8bd48fa8573af6f0fc4a8aa7a24b426e00be840a37598683d6f6"
       },
       "benchmark_status": "unproven",
@@ -459,7 +459,7 @@
       "phase": "facts",
       "runner": {
         "kind": "runtime-script",
-        "module": "providers/code/dotnet/index.mjs",
+        "module": "src/providers/code/dotnet/index.mjs",
         "moduleDigest": "sha256:57088516c5abff104da86dad58a081ed9d6b747bcb3a6aa9acf1c442b4907137"
       },
       "benchmark_status": "unproven",
@@ -475,7 +475,7 @@
       "phase": "facts",
       "runner": {
         "kind": "runtime-script",
-        "module": "providers/code/go/index.mjs",
+        "module": "src/providers/code/go/index.mjs",
         "moduleDigest": "sha256:fac016accfc400895f2f53b4397d5518e1e2b12aa44ddb5fa0a35489f88bfde7"
       },
       "benchmark_status": "unproven",
@@ -491,7 +491,7 @@
       "phase": "facts",
       "runner": {
         "kind": "runtime-script",
-        "module": "providers/code/javascript/index.mjs",
+        "module": "src/providers/code/javascript/index.mjs",
         "moduleDigest": "sha256:278ab6568bf8259d762a8720c8081d74b500dc69f6ef3894e1eb39a9d6721b30"
       },
       "benchmark_status": "unproven",
@@ -507,7 +507,7 @@
       "phase": "facts",
       "runner": {
         "kind": "runtime-script",
-        "module": "providers/code/jvm/index.mjs",
+        "module": "src/providers/code/jvm/index.mjs",
         "moduleDigest": "sha256:5776a58c84c888b4aab6d17e4f296861c06bd9431a49e7ff8479bdb084663363"
       },
       "benchmark_status": "unproven",
@@ -523,7 +523,7 @@
       "phase": "facts",
       "runner": {
         "kind": "runtime-script",
-        "module": "providers/code/generic/index.mjs",
+        "module": "src/providers/code/generic/index.mjs",
         "moduleDigest": "sha256:e608681cb91019c618a45b1afe15aa1357da2b4653f1a619484e1838ef5d53dd"
       },
       "benchmark_status": "unproven",
@@ -539,7 +539,7 @@
       "phase": "facts",
       "runner": {
         "kind": "runtime-script",
-        "module": "providers/code/apple/index.mjs",
+        "module": "src/providers/code/apple/index.mjs",
         "moduleDigest": "sha256:21360bf86c328fd42161bae60b65ba29ce8356ef6126841b3a8f3e6110bb8a54"
       },
       "benchmark_status": "unproven",
@@ -555,7 +555,7 @@
       "phase": "facts",
       "runner": {
         "kind": "runtime-script",
-        "module": "providers/code/php/index.mjs",
+        "module": "src/providers/code/php/index.mjs",
         "moduleDigest": "sha256:24233b72c778f6150e8f88d308aabab97ca18c0c4286b6f9ebced299f02414b7"
       },
       "benchmark_status": "unproven",
@@ -571,7 +571,7 @@
       "phase": "facts",
       "runner": {
         "kind": "runtime-script",
-        "module": "providers/code/python/index.mjs",
+        "module": "src/providers/code/python/index.mjs",
         "moduleDigest": "sha256:a19de829960ab2d7e238bc4eac60815c6e92bc15418b606debb645ccfc772483"
       },
       "benchmark_status": "unproven",
@@ -587,7 +587,7 @@
       "phase": "facts",
       "runner": {
         "kind": "runtime-script",
-        "module": "providers/code/rust/index.mjs",
+        "module": "src/providers/code/rust/index.mjs",
         "moduleDigest": "sha256:a7b2c0ea179837253ee791fe31ee13461485472e7e8ccbfe9c49ae16b7530bd1"
       },
       "benchmark_status": "unproven",
@@ -603,7 +603,7 @@
       "phase": "facts",
       "runner": {
         "kind": "runtime-script",
-        "module": "providers/compatibility/index.mjs",
+        "module": "src/providers/compatibility/index.mjs",
         "moduleDigest": "sha256:dac3ea4264d7b51cc5cb4bc7e72d5cccb58fb106bdbcbbafb0602a5ef28072cf"
       },
       "benchmark_status": "unproven",
@@ -619,7 +619,7 @@
       "phase": "facts",
       "runner": {
         "kind": "runtime-script",
-        "module": "providers/container-iac/index.mjs",
+        "module": "src/providers/container-iac/index.mjs",
         "moduleDigest": "sha256:9ad4415c1cdc0e8b08df28ed39b4d9a621da3e80cd38d5112d42ee3a65ec7bb7"
       },
       "benchmark_status": "unproven",
@@ -635,7 +635,7 @@
       "phase": "facts",
       "runner": {
         "kind": "runtime-script",
-        "module": "providers/dependency/index.mjs",
+        "module": "src/providers/dependency/index.mjs",
         "moduleDigest": "sha256:3210a84759c6ad8529d261ca6fbf6c79b89784060deb09d274573f7577ccaa70"
       },
       "benchmark_status": "unproven",
@@ -651,7 +651,7 @@
       "phase": "facts",
       "runner": {
         "kind": "runtime-script",
-        "module": "providers/docs-contract/index.mjs",
+        "module": "src/providers/docs-contract/index.mjs",
         "moduleDigest": "sha256:b5dc2571903952fd2b18e3f0bccaa78cb6c41b3fdf55323e689ff9462b72c9dc"
       },
       "benchmark_status": "unproven",
@@ -667,7 +667,7 @@
       "phase": "facts",
       "runner": {
         "kind": "runtime-script",
-        "module": "providers/frameworks/backend/index.mjs",
+        "module": "src/providers/frameworks/backend/index.mjs",
         "moduleDigest": "sha256:72c12dad2531fd3d32adba4b403c19d7a567bf84b1d49cef6de7ed768ab1e008"
       },
       "benchmark_status": "unproven",
@@ -683,7 +683,7 @@
       "phase": "facts",
       "runner": {
         "kind": "runtime-script",
-        "module": "providers/frameworks/data/index.mjs",
+        "module": "src/providers/frameworks/data/index.mjs",
         "moduleDigest": "sha256:ecdf364d790f94dbfd3288dcd9dd447fee79cc696c8939f68a0743bef3decb33"
       },
       "benchmark_status": "unproven",
@@ -699,7 +699,7 @@
       "phase": "facts",
       "runner": {
         "kind": "runtime-script",
-        "module": "providers/frameworks/frontend/index.mjs",
+        "module": "src/providers/frameworks/frontend/index.mjs",
         "moduleDigest": "sha256:2b5af3adc886911893606497cfe0c81d4bad1f315968447ed09b9d853806f05c"
       },
       "benchmark_status": "unproven",
@@ -715,7 +715,7 @@
       "phase": "facts",
       "runner": {
         "kind": "runtime-script",
-        "module": "providers/governance/index.mjs",
+        "module": "src/providers/governance/index.mjs",
         "moduleDigest": "sha256:6f643b9b712ed0046885ec7d59977cf4db397df4a3b1e49c1d8cd9cd2400d165"
       },
       "benchmark_status": "unproven",
@@ -731,7 +731,7 @@
       "phase": "facts",
       "runner": {
         "kind": "runtime-script",
-        "module": "providers/imported-sarif/index.mjs",
+        "module": "src/providers/imported-sarif/index.mjs",
         "moduleDigest": "sha256:8f1dac89ff023dca1833ec40d932e5b056d6d07311261f750018d6ce7a794081"
       },
       "benchmark_status": "unproven",
@@ -747,7 +747,7 @@
       "phase": "runtime",
       "runner": {
         "kind": "runtime-script",
-        "module": "providers/accessibility-suite.mjs",
+        "module": "src/providers/accessibility-suite.mjs",
         "moduleDigest": "sha256:098dffe7ed2a16c66821f64cc4d9fe70907d5f026e0943d59fb192448d5e6f9f"
       },
       "benchmark_status": "unproven",
@@ -808,7 +808,7 @@
       "phase": "runtime",
       "runner": {
         "kind": "runtime-script",
-        "module": "providers/framework-suite.mjs",
+        "module": "src/providers/framework-suite.mjs",
         "moduleDigest": "sha256:6d16ba8f29aa5e343f645b981f2c0f58d1846dff2f7b5b586b61ae2934914e9e"
       },
       "benchmark_status": "unproven",
@@ -1289,7 +1289,7 @@
       "phase": "runtime",
       "runner": {
         "kind": "runtime-script",
-        "module": "providers/visual-core.mjs",
+        "module": "src/providers/visual-core.mjs",
         "moduleDigest": "sha256:89f4697375a8ac325e673a41e90d20a36590bad65a78f584afd58d4e91c6fa07"
       },
       "benchmark_status": "unproven",
@@ -1305,7 +1305,7 @@
       "phase": "facts",
       "runner": {
         "kind": "runtime-script",
-        "module": "providers/requirements/index.mjs",
+        "module": "src/providers/requirements/index.mjs",
         "moduleDigest": "sha256:d5b5bcc7e70f21b3fbbcb051af2f1f1f701ac3d695965f0405ef70b245e60809"
       },
       "benchmark_status": "unproven",
@@ -1321,7 +1321,7 @@
       "phase": "facts",
       "runner": {
         "kind": "runtime-script",
-        "module": "providers/secrets/index.mjs",
+        "module": "src/providers/secrets/index.mjs",
         "moduleDigest": "sha256:254568a3b0db75c1eb00f89962d59a291863083a6b1a0f878779d3401aaa8673"
       },
       "benchmark_status": "unproven",
@@ -1337,7 +1337,7 @@
       "phase": "facts",
       "runner": {
         "kind": "runtime-script",
-        "module": "providers/opengrep/index.mjs",
+        "module": "src/providers/opengrep/index.mjs",
         "moduleDigest": "sha256:621eaf260aee5bfb12e7f38615c65d062804eee842895d8783a53917034c3dbe"
       },
       "benchmark_status": "unproven",
@@ -1353,7 +1353,7 @@
       "phase": "facts",
       "runner": {
         "kind": "runtime-script",
-        "module": "providers/ast-grep/index.mjs",
+        "module": "src/providers/ast-grep/index.mjs",
         "moduleDigest": "sha256:4d22181207d40a08e2ceddc877a360090078f611d9e3a05cdab610a4672817f3"
       },
       "benchmark_status": "unproven",
@@ -1369,7 +1369,7 @@
       "phase": "facts",
       "runner": {
         "kind": "runtime-script",
-        "module": "providers/provenance/index.mjs",
+        "module": "src/providers/provenance/index.mjs",
         "moduleDigest": "sha256:cc01346e432feb3cbb28db528f046d453e172206f89d5a4099904b99a0bbb729"
       },
       "benchmark_status": "unproven",
@@ -1385,7 +1385,7 @@
       "phase": "facts",
       "runner": {
         "kind": "runtime-script",
-        "module": "providers/test-quality/index.mjs",
+        "module": "src/providers/test-quality/index.mjs",
         "moduleDigest": "sha256:3091a36c15ea2890dec11e4b33f6471a4cefcbed28cb5b30f4c4c73bd30e55ad"
       },
       "benchmark_status": "unproven",

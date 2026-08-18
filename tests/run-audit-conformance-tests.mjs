@@ -115,7 +115,7 @@ function test_result_contract() {
 
 // --- Case 5: Coverage binding — path digests compared ---
 function test_coverage_binding() {
-  const nativeSource = readFileSync(join(AUDIT_ROOT, 'providers/native-family-runner.mjs'), 'utf8');
+  const nativeSource = readFileSync(join(AUDIT_ROOT, 'src/providers/native-family-runner.mjs'), 'utf8');
   // The native runner must emit examinedPaths and examinedPathsDigest
   assert(nativeSource.includes('examinedPaths'), 'native runner emits examinedPaths');
   assert(nativeSource.includes('examinedPathsDigest'), 'native runner emits examinedPathsDigest');
@@ -130,7 +130,7 @@ function test_coverage_binding() {
 function test_discovery_authority() {
   const collectSource = readFileSync(join(AUDIT_ROOT, 'tools/audit/collect-facts.mjs'), 'utf8');
   // The registry validation must enforce discoveryOwner === 'cortex'
-  const registrySource = readFileSync(join(AUDIT_ROOT, 'registry/provider-registry.mjs'), 'utf8');
+  const registrySource = readFileSync(join(AUDIT_ROOT, 'src/registry/provider-registry.mjs'), 'utf8');
   assert(registrySource.includes("discoveryOwner !== 'cortex'"), 'registry enforces cortex as discovery owner');
   // detect() must NOT produce 'skipped' for plan-expected checks — only 'unproven'
   // The _forceSkip case (explicit --skip) is the only legitimate 'skipped'
@@ -162,7 +162,7 @@ function test_verification_exactness() {
 
 // --- Case 8: Adjudication rigor — unproven verdict rejected ---
 function test_adjudication_rigor() {
-  const adjudicationSource = readFileSync(join(AUDIT_ROOT, 'adapters/security-adjudication.mjs'), 'utf8');
+  const adjudicationSource = readFileSync(join(AUDIT_ROOT, 'src/adapters/security-adjudication.mjs'), 'utf8');
   // Surviving verdicts must require proof, attackerControl, evidenceStrength, and devilsAdvocate
   assert(adjudicationSource.includes('attackerControl above unproven'), 'attackerControl required for surviving verdicts');
   assert(adjudicationSource.includes('requires proof'), 'proof required for surviving verdicts');
@@ -191,7 +191,7 @@ function test_adjudication_rigor() {
 
 // --- Case 9: Qualification receipts — registry status generated ---
 function test_qualification_receipts() {
-  const registry = JSON.parse(readFileSync(join(AUDIT_ROOT, 'registry/providers-runtime.json'), 'utf8'));
+  const registry = JSON.parse(readFileSync(join(AUDIT_ROOT, 'src/registry/providers-runtime.json'), 'utf8'));
   // All providers must have benchmark status
   const missingBenchmark = registry.providers.filter((p) => !p.benchmark);
   assert(missingBenchmark.length === 0, 'all providers have benchmark status');

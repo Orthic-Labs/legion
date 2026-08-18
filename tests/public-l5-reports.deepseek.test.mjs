@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 
 test('B8-007 HTML report: real CSP hash, evidence navigation, no external resources', async () => {
-  const { renderHtmlReport } = await import('../lib/report/html/index.mjs');
+  const { renderHtmlReport } = await import('../src/lib/report/html/index.mjs');
   const html = renderHtmlReport({
     audit_status: 'fail',
     quality_gate: 'fail',
@@ -36,7 +36,7 @@ test('B8-007 HTML report: real CSP hash, evidence navigation, no external resour
 });
 
 test('B8-008 editor diagnostics: canonical ranges, lineage, gaps, preview binding', async () => {
-  const { editorDiagnostics } = await import('../lib/report/editor/index.mjs');
+  const { editorDiagnostics } = await import('../src/lib/report/editor/index.mjs');
   const diagnostics = editorDiagnostics({
     report: {
       findings: [

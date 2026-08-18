@@ -2,10 +2,10 @@
 import { readdir, readFile, mkdir, rm, writeFile } from 'node:fs/promises';
 import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { digestBytes } from '../lib/artifacts/digests.mjs';
-import { sanitizeImportedSkillText } from '../lib/skills/verify.mjs';
-import { transformSkillText } from '../lib/skills/transform.mjs';
-import { skillUri } from '../lib/skills/uri.mjs';
+import { digestBytes } from '../src/lib/artifacts/digests.mjs';
+import { sanitizeImportedSkillText } from '../src/lib/skills/verify.mjs';
+import { transformSkillText } from '../src/lib/skills/transform.mjs';
+import { skillUri } from '../src/lib/skills/uri.mjs';
 
 const BUNDLES = ['research', 'seo', 'ads', 'marketing', 'social', 'brand-identity'];
 const PROFILE = Object.freeze({ audit: { mutation: false, publish: false }, authoring: { mutation: true, publish: false, externalOnly: true } });

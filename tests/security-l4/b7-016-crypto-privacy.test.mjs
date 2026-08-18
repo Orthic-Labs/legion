@@ -2,16 +2,16 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { runSecurityPack } from '../../providers/security/candidate-engine.mjs';
-import { entity } from '../../providers/security/model-extractors/common.mjs';
-import cryptoIdentityPack from '../../providers/security/packs/crypto-identity-protocols.mjs';
-import dataPrivacyPack from '../../providers/security/packs/data-privacy.mjs';
+import { runSecurityPack } from '../../src/providers/security/candidate-engine.mjs';
+import { entity } from '../../src/providers/security/model-extractors/common.mjs';
+import cryptoIdentityPack from '../../src/providers/security/packs/crypto-identity-protocols.mjs';
+import dataPrivacyPack from '../../src/providers/security/packs/data-privacy.mjs';
 
-const registryPath = fileURLToPath(new URL('../../registry/rules/security/crypto-data-privacy.json', import.meta.url));
+const registryPath = fileURLToPath(new URL('../../src/registry/rules/security/crypto-data-privacy.json', import.meta.url));
 const registry = JSON.parse(readFileSync(registryPath, 'utf8'));
 
-const cryptoSourcePath = fileURLToPath(new URL('../../providers/security/packs/crypto-identity-protocols.mjs', import.meta.url));
-const privacySourcePath = fileURLToPath(new URL('../../providers/security/packs/data-privacy.mjs', import.meta.url));
+const cryptoSourcePath = fileURLToPath(new URL('../../src/providers/security/packs/crypto-identity-protocols.mjs', import.meta.url));
+const privacySourcePath = fileURLToPath(new URL('../../src/providers/security/packs/data-privacy.mjs', import.meta.url));
 
 const BINDING = {
   planDigest: 'sha256:plan', repositoryRevision: 'rev', dirtyPatchDigest: null,

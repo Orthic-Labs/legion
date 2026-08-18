@@ -27,7 +27,7 @@
     "legion": {
       "command": "node",
       "args": [
-        "${CLAUDE_PLUGIN_ROOT}/integrations/mcp/server.mjs"
+        "${CLAUDE_PLUGIN_ROOT}/src/integrations/mcp/server.mjs"
       ]
     }
   }

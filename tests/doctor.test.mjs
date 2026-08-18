@@ -6,7 +6,7 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import test from 'node:test';
 
-const BIN = fileURLToPath(new URL('../bin/legion.mjs', import.meta.url));
+const BIN = fileURLToPath(new URL('../src/bin/legion.mjs', import.meta.url));
 const root = fileURLToPath(new URL('..', import.meta.url));
 
 function doctor(args = [], env = {}) {

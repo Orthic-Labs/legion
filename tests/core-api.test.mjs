@@ -11,9 +11,9 @@ import {
   reconcileRun,
   verifyRun,
   writeRunManifest,
-} from '../lib/index.mjs';
-import { fixedHost } from '../lib/host/fixed-host.mjs';
-import { loadProviderRegistry } from '../registry/provider-registry.mjs';
+} from '../src/lib/index.mjs';
+import { fixedHost } from '../src/lib/host/fixed-host.mjs';
+import { loadProviderRegistry } from '../src/registry/provider-registry.mjs';
 
 const PROJECTION = {
   state: 'ready',

@@ -1,1 +1,1 @@
-import assert from 'node:assert/strict';import test from 'node:test';import value from '../../../../registry/controls/controls/universal/core.json' with {type:'json'};test('universal baseline spans whole product',()=>assert.ok(value.controls.length>=18));
+import assert from 'node:assert/strict';import test from 'node:test';import value from '../../../../src/registry/controls/controls/universal/core.json' with {type:'json'};test('universal baseline spans whole product',()=>assert.ok(value.controls.length>=18));

@@ -5,5 +5,5 @@ import runpy
 import sys
 
 PACKAGE_ROOT = Path(__file__).resolve().parents[3]
-sys.path.insert(0, str(PACKAGE_ROOT / "lib"))
-runpy.run_path(str(PACKAGE_ROOT / "lib/coder-api-worker/api-worker.py"), run_name="__main__")
+sys.path.insert(0, str(PACKAGE_ROOT / "src" / "lib"))
+runpy.run_path(str(PACKAGE_ROOT / "src/lib/coder-api-worker/api-worker.py"), run_name="__main__")

@@ -4,9 +4,9 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
 import { reconcileCompleteRun } from '../tools/audit/audit-complete.mjs';
-import { auditVisualArtifacts, encodePng } from '../providers/visual-core.mjs';
-import { extendRegistryWithNativeFamilies } from '../registry/provider-registry-complete.mjs';
-import { expandProviderRegistry } from '../registry/provider-registry.mjs';
+import { auditVisualArtifacts, encodePng } from '../src/providers/visual-core.mjs';
+import { extendRegistryWithNativeFamilies } from '../src/registry/provider-registry-complete.mjs';
+import { expandProviderRegistry } from '../src/registry/provider-registry.mjs';
 
 function rawRegistry() {
   return {
@@ -44,7 +44,7 @@ test('complete reconciliation fails closed when a selected runtime provider is m
     denominator: { expectedChecks: ['repo'], providerIds: ['core.repo', 'visual.core'] },
     providers: [
       { id: 'core.repo', phase: 'facts', runner: { kind: 'legacy-check', check: 'repo' } },
-      { id: 'visual.core', phase: 'runtime', runner: { kind: 'runtime-script', script: 'providers/visual-core.mjs' } },
+      { id: 'visual.core', phase: 'runtime', runner: { kind: 'runtime-script', script: 'src/providers/visual-core.mjs' } },
     ],
     coverageFamilies: [], coverageGaps: [], schemaVersion: 1, seal: {}, binding: {},
   };

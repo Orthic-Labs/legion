@@ -3,12 +3,12 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import test from 'node:test';
 import { buildSupportMatrix, renderMarkdown } from '../scripts/generate-support-matrix.mjs';
-import { NATIVE_PROVIDERS, nativeProviderFor } from '../providers/native/index.mjs';
+import { NATIVE_PROVIDERS, nativeProviderFor } from '../src/providers/native/index.mjs';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
 
 test('coverage registry contains all 85 language/format rows', () => {
-  const registry = JSON.parse(readFileSync(new URL('../registry/coverage/coverage-registry.json', import.meta.url), 'utf8'));
+  const registry = JSON.parse(readFileSync(new URL('../src/registry/coverage/coverage-registry.json', import.meta.url), 'utf8'));
   assert.equal(registry.schemaVersion, 2);
   assert.equal(registry.languages.length, 85, 'all Appendix C rows must exist');
   const ids = new Set(registry.languages.map((record) => record.id));
@@ -16,7 +16,7 @@ test('coverage registry contains all 85 language/format rows', () => {
 });
 
 test('every coverage row has the tier structure', () => {
-  const registry = JSON.parse(readFileSync(new URL('../registry/coverage/coverage-registry.json', import.meta.url), 'utf8'));
+  const registry = JSON.parse(readFileSync(new URL('../src/registry/coverage/coverage-registry.json', import.meta.url), 'utf8'));
   const tierKeys = ['inventory', 'parser', 'nativeSemantics', 'crossFileDataflow', 'measuredPack', 'runtime', 'remediation'];
   for (const record of registry.languages) {
     for (const key of tierKeys) {
@@ -28,7 +28,7 @@ test('every coverage row has the tier structure', () => {
 });
 
 test('no language may disappear because it is unsupported', () => {
-  const registry = JSON.parse(readFileSync(new URL('../registry/coverage/coverage-registry.json', import.meta.url), 'utf8'));
+  const registry = JSON.parse(readFileSync(new URL('../src/registry/coverage/coverage-registry.json', import.meta.url), 'utf8'));
   // Every text language from Appendix C is accounted, even at tier 1.
   for (const id of ['language.cobol', 'language.zig', 'language.generic', 'format.promql']) {
     assert.ok(registry.languages.some((record) => record.id === id), `${id} must be accounted`);
@@ -70,7 +70,7 @@ test('native provider maps extensions to families', () => {
 });
 
 test('tier promotion requires a qualification artifact', () => {
-  const registry = JSON.parse(readFileSync(new URL('../registry/coverage/coverage-registry.json', import.meta.url), 'utf8'));
+  const registry = JSON.parse(readFileSync(new URL('../src/registry/coverage/coverage-registry.json', import.meta.url), 'utf8'));
   for (const record of registry.languages) {
     if (record.qualification.status !== 'unproven') {
       assert.ok(record.qualification.corpusDigest, `${record.id} measured requires corpus digest`);

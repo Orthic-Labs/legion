@@ -3,7 +3,7 @@ import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
-import { auditVisualArtifacts, buildCoverageMatrix, comparePng, decodePng, encodePng } from '../providers/visual-core.mjs';
+import { auditVisualArtifacts, buildCoverageMatrix, comparePng, decodePng, encodePng } from '../src/providers/visual-core.mjs';
 
 function solid(width, height, color) {
   return encodePng({ width, height, rgba: Buffer.from(Array.from({ length: width * height }, () => color).flat()) });

@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { digestValue } from '../packages/arcane/lib/canonical.mjs';
-import { validateSchema } from '../lib/qualification/schema-validator.mjs';
+import { digestValue } from '../src/packages/arcane/lib/canonical.mjs';
+import { validateSchema } from '../src/lib/qualification/schema-validator.mjs';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import {
@@ -11,7 +11,7 @@ import {
   createExecutionCheckpoint,
   rehydrateUntrustedData,
   verifyExecutionCheckpoint,
-} from '../packages/arcane/lib/continuity.mjs';
+} from '../src/packages/arcane/lib/continuity.mjs';
 
 const fixtureDigest = (value) => digestValue(value);
 const state = () => ({

@@ -1,9 +1,9 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { createSecurityCandidateV2, runSecurityPack, validateSecurityCandidateV2 } from '../providers/security/candidate-engine.mjs';
-import credentialsPack from '../providers/security/packs/credentials.mjs';
-import injectionPack from '../providers/security/packs/injection.mjs';
-import { entity } from '../providers/security/model-extractors/common.mjs';
+import { createSecurityCandidateV2, runSecurityPack, validateSecurityCandidateV2 } from '../src/providers/security/candidate-engine.mjs';
+import credentialsPack from '../src/providers/security/packs/credentials.mjs';
+import injectionPack from '../src/providers/security/packs/injection.mjs';
+import { entity } from '../src/providers/security/model-extractors/common.mjs';
 
 const BINDING = {
   planDigest: 'sha256:plan',

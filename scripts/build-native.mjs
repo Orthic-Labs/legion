@@ -9,8 +9,8 @@ import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { arch, platform } from 'node:os';
-import { nativeBuildManifest } from '../lib/distribution/native-manifest.mjs';
-import { fileDigest } from '../lib/distribution/release-manifest.mjs';
+import { nativeBuildManifest } from '../src/lib/distribution/native-manifest.mjs';
+import { fileDigest } from '../src/lib/distribution/release-manifest.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -32,7 +32,7 @@ export function buildNative({ nodeBinary = process.execPath, outDir = join(root,
 
   // SEA starts a CJS file. Dynamic import preserves the canonical ESM CLI.
   const entry = join(prepDir, 'sea-entry.cjs');
-  writeFileSync(entry, `void import('../bin/legion.mjs');\n`);
+  writeFileSync(entry, `void import('../src/bin/legion.mjs');\n`);
   const output = join(prepDir, 'sea-preparation.blob');
 
   // SEA assets must contain real shipped material; empty placeholders are a

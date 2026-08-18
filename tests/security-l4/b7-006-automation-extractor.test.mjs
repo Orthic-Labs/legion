@@ -3,14 +3,14 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
-import { extractAutomation } from '../../providers/security/model-extractors/automation.mjs';
+import { extractAutomation } from '../../src/providers/security/model-extractors/automation.mjs';
 import {
   ENTITY_KINDS,
   FACT_KINDS,
   RELATION_KINDS,
-} from '../../providers/security/contracts.mjs';
+} from '../../src/providers/security/contracts.mjs';
 
-const MODULE_PATH = new URL('../../providers/security/model-extractors/automation.mjs', import.meta.url);
+const MODULE_PATH = new URL('../../src/providers/security/model-extractors/automation.mjs', import.meta.url);
 
 function run(filesMap) {
   const files = Object.keys(filesMap).sort();

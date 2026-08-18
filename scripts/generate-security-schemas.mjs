@@ -19,8 +19,8 @@ import {
   RELATION_KINDS,
   SECURITY_SCHEMA_VERSIONS,
   SECURITY_VERDICTS,
-} from '../providers/security/contracts.mjs';
-import { PROVIDER_STATUS } from '../registry/provider-contracts.mjs';
+} from '../src/providers/security/contracts.mjs';
+import { PROVIDER_STATUS } from '../src/registry/provider-contracts.mjs';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
 
@@ -397,14 +397,14 @@ export function buildCanonicalEvidenceSynthesisSchema() {
 }
 
 const CANONICAL = Object.freeze({
-  'schemas/security/security-binding-v1.schema.json': buildSecurityBindingSchema,
-  'schemas/security/security-model-v1.schema.json': buildCanonicalModelSchema,
-  'schemas/security/security-candidate-v2.schema.json': buildCanonicalCandidateSchema,
-  'schemas/security/security-verdict-v1.schema.json': buildCanonicalVerdictSchema,
-  'schemas/security/attack-path-hypothesis-v1.schema.json': buildCanonicalHypothesisSchema,
-  'schemas/security/security-chain-verdict-v1.schema.json': buildCanonicalChainVerdictSchema,
-  'schemas/security/security-variant-receipt-v2.schema.json': buildCanonicalVariantReceiptSchema,
-  'schemas/security/security-evidence-synthesis-v1.schema.json': buildCanonicalEvidenceSynthesisSchema,
+  'src/schemas/security/security-binding-v1.schema.json': buildSecurityBindingSchema,
+  'src/schemas/security/security-model-v1.schema.json': buildCanonicalModelSchema,
+  'src/schemas/security/security-candidate-v2.schema.json': buildCanonicalCandidateSchema,
+  'src/schemas/security/security-verdict-v1.schema.json': buildCanonicalVerdictSchema,
+  'src/schemas/security/attack-path-hypothesis-v1.schema.json': buildCanonicalHypothesisSchema,
+  'src/schemas/security/security-chain-verdict-v1.schema.json': buildCanonicalChainVerdictSchema,
+  'src/schemas/security/security-variant-receipt-v2.schema.json': buildCanonicalVariantReceiptSchema,
+  'src/schemas/security/security-evidence-synthesis-v1.schema.json': buildCanonicalEvidenceSynthesisSchema,
 });
 
 export const SECURITY_SCHEMA_FILES = Object.freeze(Object.keys(CANONICAL));
@@ -412,9 +412,9 @@ export const SECURITY_SCHEMA_FILES = Object.freeze(Object.keys(CANONICAL));
 // Legacy top-level security schemas predate the canonical set; they are still
 // generated from the same constants so neither copy can drift.
 const LEGACY = Object.freeze({
-  'schemas/security-binding-v1.schema.json': buildSecurityBindingSchema,
-  'schemas/security-model-v1.schema.json': buildSecurityModelSchema,
-  'schemas/security-verdict-v1.schema.json': buildVerdictSchema,
+  'src/schemas/security-binding-v1.schema.json': buildSecurityBindingSchema,
+  'src/schemas/security-model-v1.schema.json': buildSecurityModelSchema,
+  'src/schemas/security-verdict-v1.schema.json': buildVerdictSchema,
 });
 
 export function buildSecuritySchemas({ includeLegacy = false } = {}) {
@@ -426,7 +426,7 @@ export function buildSecurityEnumRegistry() {
   return {
     schemaVersion: 1,
     kind: 'legion-security-enum-registry',
-    source: 'providers/security/contracts.mjs',
+    source: 'src/providers/security/contracts.mjs',
     generator: 'scripts/generate-security-schemas.mjs',
     license: 'internal',
     enums: {
@@ -453,7 +453,7 @@ function main() {
     write(path, value);
     console.log(`wrote ${path}`);
   }
-  write('registry/rules/security/enums.json', buildSecurityEnumRegistry());
+  write('src/registry/rules/security/enums.json', buildSecurityEnumRegistry());
   console.log('wrote registry/rules/security/enums.json');
 }
 

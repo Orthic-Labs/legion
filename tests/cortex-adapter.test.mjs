@@ -3,7 +3,7 @@ import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
-import { CortexAdapter } from '../lib/adapters/cortex/index.mjs';
+import { CortexAdapter } from '../src/lib/adapters/cortex/index.mjs';
 
 test('external mode requires a configured command', async () => {
   const adapter = new CortexAdapter({ mode: 'external', externalCommand: null });

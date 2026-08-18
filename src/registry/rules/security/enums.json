@@ -1,0 +1,191 @@
+{
+  "schemaVersion": 1,
+  "kind": "legion-security-enum-registry",
+  "source": "src/providers/security/contracts.mjs",
+  "generator": "scripts/generate-security-schemas.mjs",
+  "license": "internal",
+  "enums": {
+    "providerStatus": [
+      "pass",
+      "fail",
+      "partial",
+      "unproven",
+      "skipped",
+      "error",
+      "pending",
+      "missing",
+      "candidates",
+      "blocked"
+    ],
+    "evidenceClass": [
+      "deterministic",
+      "measured",
+      "interpretive",
+      "external",
+      "human"
+    ],
+    "evidenceStrength": [
+      "possible",
+      "strong-inference",
+      "verified"
+    ],
+    "securityVerdict": [
+      "TRUE_POSITIVE",
+      "LIKELY_TRUE_POSITIVE",
+      "LIKELY_FALSE_POSITIVE",
+      "FALSE_POSITIVE",
+      "OUT_OF_SCOPE",
+      "HARDENING_GAP",
+      "MISUSE_HAZARD"
+    ],
+    "pathStatus": [
+      "PROPOSED",
+      "PARTIALLY_SUPPORTED",
+      "PROVEN",
+      "REFUTED",
+      "BLOCKED",
+      "UNPROVEN"
+    ],
+    "pathPriority": [
+      "DIRECT_CROWN_JEWEL",
+      "PRIVILEGE_ESCALATION",
+      "CROSS_TENANT",
+      "CREDENTIAL_PIVOT",
+      "LATERAL_PIVOT",
+      "CONTROL_BYPASS",
+      "PERSISTENT_COMPROMISE",
+      "DATA_EXFILTRATION",
+      "INTEGRITY_DESTRUCTION",
+      "AVAILABILITY_FAILURE",
+      "PARTIAL_PATH"
+    ],
+    "chainRole": [
+      "starter",
+      "enabler",
+      "pivot",
+      "privilege-escalation",
+      "control-bypass",
+      "impact"
+    ],
+    "factKind": [
+      "attacker-position",
+      "knowledge",
+      "capability",
+      "credential-possession",
+      "principal-access",
+      "network-reachability",
+      "data-access",
+      "object-access",
+      "code-execution",
+      "workflow-state",
+      "control-bypass",
+      "persistence",
+      "availability-impact",
+      "integrity-impact",
+      "confidentiality-impact"
+    ],
+    "entityKind": [
+      "actor",
+      "principal",
+      "identity",
+      "entrypoint",
+      "asset",
+      "crown-jewel",
+      "trust-boundary",
+      "control",
+      "source",
+      "sink",
+      "service",
+      "process",
+      "repository-artifact",
+      "data-store",
+      "tool-capability",
+      "permission-scope",
+      "deployment-context",
+      "workflow-state"
+    ],
+    "relationKind": [
+      "assumes-role",
+      "authenticates-as",
+      "authorizes",
+      "calls",
+      "contains",
+      "crosses",
+      "delegates-to",
+      "derives-from",
+      "executes",
+      "exposes",
+      "flows-to",
+      "grants",
+      "loads",
+      "protects",
+      "publishes-to",
+      "reaches",
+      "reads",
+      "retrieves-from",
+      "runs-as",
+      "stores",
+      "trusts",
+      "validates",
+      "writes"
+    ],
+    "controlState": [
+      "enforced",
+      "present-unenforced",
+      "misconfigured",
+      "absent",
+      "unknown",
+      "not-applicable"
+    ]
+  },
+  "schemaVersions": {
+    "security-binding": [
+      1
+    ],
+    "security-model": [
+      1
+    ],
+    "security-candidate": [
+      2
+    ],
+    "security-verdict": [
+      1
+    ],
+    "attack-path-hypothesis": [
+      1
+    ],
+    "security-chain-verdict": [
+      1
+    ],
+    "security-variant-receipt": [
+      2
+    ],
+    "security-evidence-synthesis": [
+      1
+    ],
+    "hazard-model": [
+      1
+    ],
+    "ai-quality-evaluation-receipt": [
+      1
+    ],
+    "remediation-sandbox-receipt": [
+      1
+    ],
+    "remediation-effect-graph": [
+      1
+    ],
+    "remediation-verification": [
+      1
+    ],
+    "remediation-apply-receipt": [
+      1
+    ],
+    "remediation-accepted-risk": [
+      1
+    ],
+    "untrusted-evidence": [
+      1
+    ]
+  }
+}

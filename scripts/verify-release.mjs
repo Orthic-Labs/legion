@@ -4,7 +4,7 @@
 
 import { existsSync, readFileSync } from 'node:fs';
 import { relative, resolve, sep } from 'node:path';
-import { fileDigest } from '../lib/distribution/release-manifest.mjs';
+import { fileDigest } from '../src/lib/distribution/release-manifest.mjs';
 
 export function sha256File(path) {
   return fileDigest(path);

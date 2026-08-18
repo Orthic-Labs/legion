@@ -2,25 +2,25 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { runSecurityPack } from '../../providers/security/candidate-engine.mjs';
-import { entity, controlEntity, relation } from '../../providers/security/model-extractors/common.mjs';
-import { extractAiAgent } from '../../providers/security/model-extractors/ai-agent.mjs';
-import promptInjectionPack from '../../providers/security/packs/ai-prompt-injection.mjs';
-import outputHandlingPack from '../../providers/security/packs/ai-output-handling.mjs';
-import excessiveAgencyPack from '../../providers/security/packs/ai-excessive-agency.mjs';
-import poisoningRagPack from '../../providers/security/packs/ai-poisoning-rag.mjs';
-import modelAbusePack from '../../providers/security/packs/ai-model-abuse.mjs';
+import { runSecurityPack } from '../../src/providers/security/candidate-engine.mjs';
+import { entity, controlEntity, relation } from '../../src/providers/security/model-extractors/common.mjs';
+import { extractAiAgent } from '../../src/providers/security/model-extractors/ai-agent.mjs';
+import promptInjectionPack from '../../src/providers/security/packs/ai-prompt-injection.mjs';
+import outputHandlingPack from '../../src/providers/security/packs/ai-output-handling.mjs';
+import excessiveAgencyPack from '../../src/providers/security/packs/ai-excessive-agency.mjs';
+import poisoningRagPack from '../../src/providers/security/packs/ai-poisoning-rag.mjs';
+import modelAbusePack from '../../src/providers/security/packs/ai-model-abuse.mjs';
 
 const PACKS = [promptInjectionPack, outputHandlingPack, excessiveAgencyPack, poisoningRagPack, modelAbusePack];
 const PACK_FILES = {
-  'security.ai-prompt-injection': '../../providers/security/packs/ai-prompt-injection.mjs',
-  'security.ai-output-handling': '../../providers/security/packs/ai-output-handling.mjs',
-  'security.ai-excessive-agency': '../../providers/security/packs/ai-excessive-agency.mjs',
-  'security.ai-poisoning-rag': '../../providers/security/packs/ai-poisoning-rag.mjs',
-  'security.ai-model-abuse': '../../providers/security/packs/ai-model-abuse.mjs',
+  'security.ai-prompt-injection': '../../src/providers/security/packs/ai-prompt-injection.mjs',
+  'security.ai-output-handling': '../../src/providers/security/packs/ai-output-handling.mjs',
+  'security.ai-excessive-agency': '../../src/providers/security/packs/ai-excessive-agency.mjs',
+  'security.ai-poisoning-rag': '../../src/providers/security/packs/ai-poisoning-rag.mjs',
+  'security.ai-model-abuse': '../../src/providers/security/packs/ai-model-abuse.mjs',
 };
 
-const registryPath = fileURLToPath(new URL('../../registry/rules/security/ai.json', import.meta.url));
+const registryPath = fileURLToPath(new URL('../../src/registry/rules/security/ai.json', import.meta.url));
 const registry = JSON.parse(readFileSync(registryPath, 'utf8'));
 
 const BINDING = {

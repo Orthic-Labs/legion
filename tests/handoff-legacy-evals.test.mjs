@@ -37,8 +37,8 @@ test('all ten retired Handoff eval cases retain IDs, routing polarity, & asserti
 test('legacy source-bootstrap, target-ingest, safety, & pressure contracts bind to public Handoff surfaces', () => {
   const skill = read('skills/handoff/SKILL.md');
   const manual = read('skills/handoff/references/manual.md');
-  const compiler = read('lib/handoff/transcript_handoff.py');
-  const validator = read('lib/handoff/validate_handoff.py');
+  const compiler = read('src/lib/handoff/transcript_handoff.py');
+  const validator = read('src/lib/handoff/validate_handoff.py');
   const surface = `${skill}\n${manual}\n${compiler}\n${validator}`;
   for (const value of ['session_id', 'cutoff_bytes', 'sha256', 'TRANSCRIPT_INGEST', 'READBACK', 'validate-handoff.py']) {
     assert.match(surface, new RegExp(value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i'), value);
@@ -49,7 +49,7 @@ test('legacy source-bootstrap, target-ingest, safety, & pressure contracts bind 
 });
 
 test('Handoff continues to use shared Orthic transcript selftests', () => {
-  const output = python(['lib/orthic_transcripts/selftest.py'], {
+  const output = python(['src/lib/orthic_transcripts/selftest.py'], {
     cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'],
   });
   assert.equal(output, '');

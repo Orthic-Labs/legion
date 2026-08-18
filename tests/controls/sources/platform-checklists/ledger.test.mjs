@@ -1,2 +1,2 @@
-import assert from 'node:assert/strict';import test from 'node:test';import ledger from '../../../../registry/controls/sources/platform-checklists-v1.json' with {type:'json'};
+import assert from 'node:assert/strict';import test from 'node:test';import ledger from '../../../../src/registry/controls/sources/platform-checklists-v1.json' with {type:'json'};
 test('platform source hierarchy is digest-only and rights unresolved',()=>{assert.equal(ledger.sources.length,3);assert.ok(ledger.items.every((item)=>item.textDigest&&!('text' in item)&&item.rightsStatus==='unresolved'));});

@@ -3,8 +3,8 @@ import { randomUUID } from 'node:crypto';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { createAdjudicationPacket, createSecurityCandidate, finalizeSecurityVerdict } from '../../adapters/security-adjudication.mjs';
-import { deriveVariantQueries } from '../../providers/security-suite.mjs';
+import { createAdjudicationPacket, createSecurityCandidate, finalizeSecurityVerdict } from '../../src/adapters/security-adjudication.mjs';
+import { deriveVariantQueries } from '../../src/providers/security-suite.mjs';
 
 const SURVIVING = new Set(['TRUE_POSITIVE', 'LIKELY_TRUE_POSITIVE']);
 

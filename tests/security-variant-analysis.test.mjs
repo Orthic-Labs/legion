@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { analyzeVariants } from '../providers/security/variant-analysis.mjs';
+import { analyzeVariants } from '../src/providers/security/variant-analysis.mjs';
 
 const BINDING = {
   planDigest: 'sha256:plan', repositoryRevision: 'rev1', dirtyPatchDigest: null,

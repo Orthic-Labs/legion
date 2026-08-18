@@ -4,8 +4,8 @@ import { writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { runCompleteAudit, reconcileCompleteRun } from './audit-complete.mjs';
-import { runGenericSourceAccounting } from '../../providers/generic-source-suite.mjs';
-import { runAccessibilitySuite } from '../../providers/accessibility-suite.mjs';
+import { runGenericSourceAccounting } from '../../src/providers/generic-source-suite.mjs';
+import { runAccessibilitySuite } from '../../src/providers/accessibility-suite.mjs';
 import { prepareAdjudicationBundle } from './security-pipeline.mjs';
 
 function arg(args, name) { const index = args.indexOf(name); return index >= 0 ? args[index + 1] : null; }

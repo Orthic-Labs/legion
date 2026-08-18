@@ -6,18 +6,18 @@ const root=resolve(import.meta.dirname,'..');
 const providerByFamily={universal:'requirements.traceability',web:'framework.frontend',desktop:'compatibility.core',mobile:'code.mobile','service-data':'framework.backend','developer-tools':'test-quality.core','infrastructure-release':'container.iac',conditional:'governance.policy'};
 const familyByPack={universal:'requirements',web:'framework',desktop:'compatibility',mobile:'code','service-data':'data','developer-tools':'test-quality','infrastructure-release':'supply-chain',conditional:'governance'};
 const ruleByFamily={universal:'requirements',web:'code.architecture',desktop:'compatibility',mobile:'code.architecture','service-data':'data-integrity','developer-tools':'code.test-quality','infrastructure-release':'governance',conditional:'governance'};
-const controlRoot=join(root,'registry','controls','controls');
+const controlRoot=join(root,'src', 'registry','controls','controls');
 const controlsByFamily=new Map();
 for(const family of readdirSync(controlRoot)){
   const path=join(controlRoot,family,'core.json');const catalogue=JSON.parse(readFileSync(path,'utf8'));
   catalogue.controls=catalogue.controls.map((control)=>{const name=control.id.slice(family.length+1);return{...control,selector:family==='conditional'?{facets:[name]}:control.selector,families:[familyByPack[family]],lenses:[`${family}.${name}`],providers:[providerByFamily[family]],rules:[ruleByFamily[family]],decisionMode:family==='universal'?'deterministic':'measured',remediationOwner:/documentation|legal|content/.test(name)?'writing':/architecture|infrastructure|release|backup|signing/.test(name)?'architecture':'code',sourceConcepts:[`canonical:${family}:${name}`],benchmark:{status:'unproven',providerVersion:null,corpusDigest:null,qualificationDigest:null},provenance:{kind:'canonical',source:`legion:${family}`,rights:'internal-contract',lineage:[`canonical:${family}:${name}`]}};});
   controlsByFamily.set(family,catalogue.controls);writeFileSync(path,`${JSON.stringify(catalogue,null,2)}\n`);
 }
-const packRoot=join(root,'registry','controls','packs');
+const packRoot=join(root,'src', 'registry','controls','packs');
 const walk=(path)=>readdirSync(path,{withFileTypes:true}).flatMap((entry)=>entry.isDirectory()?walk(join(path,entry.name)):entry.name==='core.json'?[join(path,entry.name)]:[]);
 for(const path of walk(packRoot)){const pack=JSON.parse(readFileSync(path,'utf8'));const family=pack.id==='universal.core'?'universal':pack.id==='component.service-data'?'service-data':pack.id.replace(/^target\.|^component\./,'');if(controlsByFamily.has(family)){pack.controls=controlsByFamily.get(family);writeFileSync(path,`${JSON.stringify(pack,null,2)}\n`);}}
 
-const sourceRoot=join(root,'registry','controls','sources');
+const sourceRoot=join(root,'src', 'registry','controls','sources');
 const ledgers=[['creator-audits-v1.json','creator-audits',{kind:'seed-metadata',version:'1.0.0',rawDocumentsAvailable:false}],['platform-checklists-v1.json','platform-checklists',{kind:'markdown-hierarchy',version:'1.0.0',headings:true,proseDigests:true,stopShip:true}]];
 const sourceRecords=[];
 const hash=(value)=>createHash('sha256').update(value).digest('hex');

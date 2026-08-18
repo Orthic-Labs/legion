@@ -2,12 +2,12 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { runSecurityPack } from '../../providers/security/candidate-engine.mjs';
-import { entity, controlEntity, relation } from '../../providers/security/model-extractors/common.mjs';
-import injectionPack from '../../providers/security/packs/injection.mjs';
-import outputHandlingPack from '../../providers/security/packs/output-handling.mjs';
+import { runSecurityPack } from '../../src/providers/security/candidate-engine.mjs';
+import { entity, controlEntity, relation } from '../../src/providers/security/model-extractors/common.mjs';
+import injectionPack from '../../src/providers/security/packs/injection.mjs';
+import outputHandlingPack from '../../src/providers/security/packs/output-handling.mjs';
 
-const registryPath = fileURLToPath(new URL('../../registry/rules/security/injection-output.json', import.meta.url));
+const registryPath = fileURLToPath(new URL('../../src/registry/rules/security/injection-output.json', import.meta.url));
 const registry = JSON.parse(readFileSync(registryPath, 'utf8'));
 
 const BINDING = {

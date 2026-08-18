@@ -9,11 +9,11 @@ import {
   buildEffectGraphSchema,
   computeClosure,
   patchEffectGraph,
-} from '../../lib/remediation/effect-graph.mjs';
+} from '../../src/lib/remediation/effect-graph.mjs';
 import {
   buildVerificationSchema,
   verifyProposal,
-} from '../../lib/remediation/verify-proposal.mjs';
+} from '../../src/lib/remediation/verify-proposal.mjs';
 
 const binding = {
   planDigest: 'sha256:plan',
@@ -184,9 +184,9 @@ test('vacuous verification is rejected when effects exist', () => {
 });
 
 test('the committed effect-graph and verification schemas match their generators', () => {
-  const effectSchema = JSON.parse(readFileSync(new URL('../../schemas/remediation/effect-graph-v1.schema.json', import.meta.url), 'utf8'));
+  const effectSchema = JSON.parse(readFileSync(new URL('../../src/schemas/remediation/effect-graph-v1.schema.json', import.meta.url), 'utf8'));
   assert.deepEqual(effectSchema, buildEffectGraphSchema());
-  const verificationSchema = JSON.parse(readFileSync(new URL('../../schemas/remediation/verification-v1.schema.json', import.meta.url), 'utf8'));
+  const verificationSchema = JSON.parse(readFileSync(new URL('../../src/schemas/remediation/verification-v1.schema.json', import.meta.url), 'utf8'));
   assert.deepEqual(verificationSchema, buildVerificationSchema());
   assert.ok(effectSchema.required.includes('binding'));
   assert.ok(verificationSchema.required.includes('verifier'));

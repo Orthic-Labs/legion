@@ -1,11 +1,11 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { executePlan, reconcileRun, finalizeRun } from '../lib/core/index.mjs';
-import { executionReceipt, blocked } from '../lib/core/execution-receipt.mjs';
-import { skippedReceipt } from '../lib/core/execute-plan.mjs';
-import { fixedHost } from '../lib/host/fixed-host.mjs';
-import { exitCodeForReport } from '../lib/cli/exit-code.mjs';
-import { EXIT } from '../lib/errors.mjs';
+import { executePlan, reconcileRun, finalizeRun } from '../src/lib/core/index.mjs';
+import { executionReceipt, blocked } from '../src/lib/core/execution-receipt.mjs';
+import { skippedReceipt } from '../src/lib/core/execute-plan.mjs';
+import { fixedHost } from '../src/lib/host/fixed-host.mjs';
+import { exitCodeForReport } from '../src/lib/cli/exit-code.mjs';
+import { EXIT } from '../src/lib/errors.mjs';
 
 function planWithProviders(providers) {
   return { kind: 'audit-provider-plan', root: '/tmp/repo', providers, denominator: { providerIds: providers.map((p) => p.id) } };

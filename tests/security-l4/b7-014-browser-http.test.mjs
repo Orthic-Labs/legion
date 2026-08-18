@@ -3,10 +3,10 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
-import { runSecurityPack } from '../../providers/security/candidate-engine.mjs';
-import { entity } from '../../providers/security/model-extractors/common.mjs';
-import browserClientPack from '../../providers/security/packs/browser-client.mjs';
-import httpProtocolCachePack from '../../providers/security/packs/http-protocol-cache.mjs';
+import { runSecurityPack } from '../../src/providers/security/candidate-engine.mjs';
+import { entity } from '../../src/providers/security/model-extractors/common.mjs';
+import browserClientPack from '../../src/providers/security/packs/browser-client.mjs';
+import httpProtocolCachePack from '../../src/providers/security/packs/http-protocol-cache.mjs';
 
 const SEVERITY_RANK = { info: 0, low: 1, medium: 2, high: 3, critical: 4 };
 
@@ -48,7 +48,7 @@ function candidatesById(result, ruleId) {
 // --- registry parity -------------------------------------------------------
 
 test('registry rule ids match browser-client and http-protocol-cache pack rule ids exactly, in both directions', () => {
-  const registry = JSON.parse(readFileSync(new URL('../../registry/rules/security/browser-http.json', import.meta.url), 'utf8'));
+  const registry = JSON.parse(readFileSync(new URL('../../src/registry/rules/security/browser-http.json', import.meta.url), 'utf8'));
   const registryIds = new Set(registry.rules.map((r) => r.id));
   const packIds = new Set([...browserClientPack.rules.map((r) => r.id), ...httpProtocolCachePack.rules.map((r) => r.id)]);
   assert.equal(registryIds.size, registry.rules.length, 'registry rule ids must be unique');
@@ -65,7 +65,7 @@ test('registry rule ids match browser-client and http-protocol-cache pack rule i
 
 test('neither pack imports or references a live network module', () => {
   const forbidden = /\bnode:https?\b|\bnode:net\b|\bnode:dgram\b|from\s+['"]https?['"]|require\(\s*['"]https?['"]\s*\)|from\s+['"]net['"]|from\s+['"]dgram['"]|require\(\s*['"]net['"]\s*\)|require\(\s*['"]dgram['"]\s*\)/;
-  for (const relative of ['../../providers/security/packs/browser-client.mjs', '../../providers/security/packs/http-protocol-cache.mjs']) {
+  for (const relative of ['../../src/providers/security/packs/browser-client.mjs', '../../src/providers/security/packs/http-protocol-cache.mjs']) {
     const source = readFileSync(new URL(relative, import.meta.url), 'utf8');
     assert.ok(!forbidden.test(source), `${relative} must not import a live network module`);
     assert.ok(!source.includes('import '), `${relative} must be self-contained (no imports at all)`);

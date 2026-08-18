@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { createRemediationWorktree, removeRemediationWorktree, worktreeReceipt } from '../../lib/remediation/worktree.mjs';
-import { createCheckpoint, restorePlan, cleanupReceipt, checkpointDigest } from '../../lib/remediation/checkpoint.mjs';
-import { changePassport, signPassport, verifyPassport } from '../../lib/provenance/passport.mjs';
+import { createRemediationWorktree, removeRemediationWorktree, worktreeReceipt } from '../../src/lib/remediation/worktree.mjs';
+import { createCheckpoint, restorePlan, cleanupReceipt, checkpointDigest } from '../../src/lib/remediation/checkpoint.mjs';
+import { changePassport, signPassport, verifyPassport } from '../../src/lib/provenance/passport.mjs';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';

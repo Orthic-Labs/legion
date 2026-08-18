@@ -7,8 +7,8 @@ import {
   registryDigest,
   selectProviders,
   sha256,
-} from '../../registry/provider-registry.mjs';
-import { PROVIDER_PHASES, PROVIDER_ROLES, PROVIDER_STATUS } from '../../registry/provider-contracts.mjs';
+} from '../../src/registry/provider-registry.mjs';
+import { PROVIDER_PHASES, PROVIDER_ROLES, PROVIDER_STATUS } from '../../src/registry/provider-contracts.mjs';
 
 // Single source of truth for schema versions bound into every plan. Rejecting
 // unknown future schema versions is explicit: a plan carrying a schema version

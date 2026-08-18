@@ -1,12 +1,12 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { runSecurityPack } from '../providers/security/candidate-engine.mjs';
-import { synthesizeAttackPaths } from '../providers/security/attack-path-synthesis.mjs';
-import { reconcileAttackPaths } from '../providers/security/attack-path-reconcile.mjs';
-import { createSecurityCandidateV2 } from '../providers/security/candidate-engine.mjs';
-import credentialsPack from '../providers/security/packs/credentials.mjs';
-import authorizationPack from '../providers/security/packs/authorization-tenant.mjs';
-import { entity } from '../providers/security/model-extractors/common.mjs';
+import { runSecurityPack } from '../src/providers/security/candidate-engine.mjs';
+import { synthesizeAttackPaths } from '../src/providers/security/attack-path-synthesis.mjs';
+import { reconcileAttackPaths } from '../src/providers/security/attack-path-reconcile.mjs';
+import { createSecurityCandidateV2 } from '../src/providers/security/candidate-engine.mjs';
+import credentialsPack from '../src/providers/security/packs/credentials.mjs';
+import authorizationPack from '../src/providers/security/packs/authorization-tenant.mjs';
+import { entity } from '../src/providers/security/model-extractors/common.mjs';
 
 const BINDING = {
   planDigest: 'sha256:plan', repositoryRevision: 'rev1', dirtyPatchDigest: null,

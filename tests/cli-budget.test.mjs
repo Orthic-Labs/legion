@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { EXIT } from '../lib/errors.mjs';
-import { runCli } from '../lib/cli/run.mjs';
+import { EXIT } from '../src/lib/errors.mjs';
+import { runCli } from '../src/lib/cli/run.mjs';
 
 function stream() { return { value: '', write(chunk) { this.value += chunk; } }; }
 

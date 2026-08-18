@@ -36,7 +36,7 @@ test('S10-02 Alchemist advances only frozen IDs, emits handoff evidence, & never
 });
 
 test('S10-03 Oracle packet, dismissal-first scope, preserved findings, & fresh closure reject authority drift', async () => {
-  for (const path of ['doctrine/oracle.md', 'roster/oracle.md']) {
+  for (const path of ['doctrine/oracle.md', 'src/roster/oracle.md']) {
     const oracle = await read(path);
     for (const phrase of fixture.required_phrases[path]) assert.match(oracle, phrasePattern(phrase));
   }

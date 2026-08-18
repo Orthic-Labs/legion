@@ -2,10 +2,10 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { normalizePath } from '../lib/config/index.mjs';
-import { runDoctor } from '../lib/cli/commands/doctor.mjs';
-import { runExternal } from '../lib/providers/executor/external-process.mjs';
-import { fixedHost } from '../lib/host/fixed-host.mjs';
+import { normalizePath } from '../src/lib/config/index.mjs';
+import { runDoctor } from '../src/lib/cli/commands/doctor.mjs';
+import { runExternal } from '../src/lib/providers/executor/external-process.mjs';
+import { fixedHost } from '../src/lib/host/fixed-host.mjs';
 import { validateProviderResult } from '../scripts/normalize-provider-result.mjs';
 import { finalizeAudit } from '../tools/audit/audit-finalize.mjs';
 

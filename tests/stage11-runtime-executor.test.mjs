@@ -3,10 +3,10 @@ import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import test from 'node:test';
 
-import { executeArchitectureRuntimeCases, runtimePolicyIds } from '../packages/arcane/lib/s11-runtime-executor.mjs';
+import { executeArchitectureRuntimeCases, runtimePolicyIds } from '../src/packages/arcane/lib/s11-runtime-executor.mjs';
 
 const root = join(import.meta.dirname, '..');
-const corpus = join(root, 'evals', 'architecture');
+const corpus = join(root, 'src', 'evals', 'architecture');
 function runtimeRows() {
   const rows = [];
   for (const name of readdirSync(corpus).filter((entry) => entry.endsWith('.jsonl')).sort()) {

@@ -8,13 +8,13 @@ import { execFileSync } from 'node:child_process';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { tmpdir } from 'node:os';
-import { collectRepositoryBinding, readCortexManifestBinding, readCortexProjection } from '../../adapters/cortex-projection.mjs';
+import { collectRepositoryBinding, readCortexManifestBinding, readCortexProjection } from '../../src/adapters/cortex-projection.mjs';
 import { buildAuditPlan, verifyPlanBinding, verifyPlanSeal } from './audit-plan.mjs';
-import { canonicalJson, loadProviderRegistry, sha256 } from '../../registry/provider-registry.mjs';
+import { canonicalJson, loadProviderRegistry, sha256 } from '../../src/registry/provider-registry.mjs';
 import {
   verificationDigest,
   verificationProjection,
-} from '../../lib/verification-projection.mjs';
+} from '../../src/lib/verification-projection.mjs';
 
 const PROJECT_EXECUTION_CHECKS = new Set(['types', 'lint', 'build', 'dead_code', 'duplication', 'ci_lint', 'docker', 'sast', 'swift_lint', 'js_licenses', 'cargo_unsafe', 'cargo_unused_deps']);
 const args = process.argv.slice(2);

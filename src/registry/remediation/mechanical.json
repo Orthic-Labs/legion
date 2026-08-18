@@ -1,0 +1,52 @@
+{
+  "schemaVersion": 1,
+  "kind": "legion-mechanical-remediation-registry",
+  "source": "src/lib/remediation/producers/",
+  "generator": "src/lib/remediation/mechanical.mjs",
+  "producers": [
+    {
+      "id": "config.content-type-nosniff",
+      "producerVersion": "1.0.0",
+      "kind": "config",
+      "risk": "low",
+      "ruleIds": [
+        "browser-http.content-type-nosniff"
+      ],
+      "description": "Set the X-Content-Type-Options response header to nosniff.",
+      "qualificationDigest": "sha256:e7cf962275b2f1937c29f52c15bca2d69df3be6e4e38c2520420291557044bed"
+    },
+    {
+      "id": "config.cookie-samesite",
+      "producerVersion": "1.0.0",
+      "kind": "config",
+      "risk": "low",
+      "ruleIds": [
+        "browser-http.cookie-samesite"
+      ],
+      "description": "Set the session cookie SameSite attribute to lax.",
+      "qualificationDigest": "sha256:ec2d25a4daf67cdf81d5cceb6c62699ea860b046fd1ea90cf56ff4927a1a2ff9"
+    },
+    {
+      "id": "structural.dom-innerhtml-to-textcontent",
+      "producerVersion": "1.0.0",
+      "kind": "structural",
+      "risk": "low",
+      "ruleIds": [
+        "output-handling.dom-innerhtml"
+      ],
+      "description": "Replace an innerHTML sink assignment with textContent so the value is not parsed as markup.",
+      "qualificationDigest": "sha256:8eb61fd2c0d78ad35dccf50280bca3f0858e7c67520a1b84ff7bc3ae1ebd0fac"
+    },
+    {
+      "id": "structural.tls-reject-unauthorized",
+      "producerVersion": "1.0.0",
+      "kind": "structural",
+      "risk": "low",
+      "ruleIds": [
+        "insecure-defaults.tls-reject-unauthorized"
+      ],
+      "description": "Restore TLS certificate verification by setting rejectUnauthorized back to true.",
+      "qualificationDigest": "sha256:d1d4dead0854d4488d5de9f9d8aa8210b0f857264595bfd7e3123ded1741d360"
+    }
+  ]
+}

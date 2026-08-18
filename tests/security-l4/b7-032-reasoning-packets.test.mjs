@@ -9,10 +9,10 @@ import {
   assertProducerIsNotVerifier,
   buildProposalPacket,
   splitCrossOwnerChanges,
-} from '../../lib/remediation/reasoning-packets.mjs';
-import { writingProposal } from '../../lib/remediation/writing-proposal.mjs';
-import { designProposal } from '../../lib/remediation/design-proposal.mjs';
-import { codeProposal } from '../../lib/remediation/code-proposal.mjs';
+} from '../../src/lib/remediation/reasoning-packets.mjs';
+import { writingProposal } from '../../src/lib/remediation/writing-proposal.mjs';
+import { designProposal } from '../../src/lib/remediation/design-proposal.mjs';
+import { codeProposal } from '../../src/lib/remediation/code-proposal.mjs';
 
 const binding = {
   planDigest: 'sha256:plan',
@@ -193,7 +193,7 @@ test('a code proposal is a bounded source patch confined to scope and protected 
   assert.deepEqual(proposal.targetPaths, ['src/app.mjs']);
   assert.ok(proposal.validationPlan.length > 0);
   assert.throws(
-    () => codeProposal({ packet: codePacket, changes: [{ kind: 'source-patch', path: 'schemas/core/plan-v1.schema.json' }], binding }),
+    () => codeProposal({ packet: codePacket, changes: [{ kind: 'source-patch', path: 'src/schemas/core/plan-v1.schema.json' }], binding }),
     /protected surface/,
   );
 });
@@ -232,10 +232,10 @@ test('a producer can never verify its own proposal', () => {
 
 test('the deterministic core never calls an external model', () => {
   for (const source of [
-    '../../lib/remediation/reasoning-packets.mjs',
-    '../../lib/remediation/writing-proposal.mjs',
-    '../../lib/remediation/design-proposal.mjs',
-    '../../lib/remediation/code-proposal.mjs',
+    '../../src/lib/remediation/reasoning-packets.mjs',
+    '../../src/lib/remediation/writing-proposal.mjs',
+    '../../src/lib/remediation/design-proposal.mjs',
+    '../../src/lib/remediation/code-proposal.mjs',
   ]) {
     const text = readFileSync(new URL(source, import.meta.url), 'utf8');
     assert.ok(!/node:http|node:https|node:net|fetch\(|anthropic|openai/i.test(text), `${source} must not reach a model or the network`);

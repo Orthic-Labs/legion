@@ -2,11 +2,11 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { readFileSync } from 'node:fs';
-import { executePlannedProvider, resolveRepositoryModule } from '../lib/providers/provider-executor.mjs';
-import { runExternal, blocked, pickEnvironment } from '../lib/providers/executor/external-process.mjs';
-import { requireProjectExecutionSandbox, ProviderBlockedError } from '../lib/host/sandbox-policy.mjs';
-import { fixedHost } from '../lib/host/fixed-host.mjs';
-import { SPAWN_STATUS } from '../lib/core/execution-receipt.mjs';
+import { executePlannedProvider, resolveRepositoryModule } from '../src/lib/providers/provider-executor.mjs';
+import { runExternal, blocked, pickEnvironment } from '../src/lib/providers/executor/external-process.mjs';
+import { requireProjectExecutionSandbox, ProviderBlockedError } from '../src/lib/host/sandbox-policy.mjs';
+import { fixedHost } from '../src/lib/host/fixed-host.mjs';
+import { SPAWN_STATUS } from '../src/lib/core/execution-receipt.mjs';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
 
@@ -65,7 +65,7 @@ test('output cap terminates the child', async () => {
   assert.equal(receipt.providerResult.complete, false);
   assert.equal(receipt.providerResult.coverageGaps[0].kind, 'execution-output-limit');
   assert.ok(SPAWN_STATUS.includes(receipt.spawnStatus));
-  const schema = JSON.parse(readFileSync(new URL('../schemas/execution-receipt-v1.schema.json', import.meta.url), 'utf8'));
+  const schema = JSON.parse(readFileSync(new URL('../src/schemas/execution-receipt-v1.schema.json', import.meta.url), 'utf8'));
   assert.deepEqual(schema.properties.spawnStatus.enum, SPAWN_STATUS);
 });
 
@@ -111,7 +111,7 @@ test('imported-artifact provider requires its artifact', async () => {
 test('resolveRepositoryModule rejects absolute external paths', () => {
   assert.throws(() => resolveRepositoryModule('/etc/evil.mjs'), /repository-relative/);
   assert.throws(() => resolveRepositoryModule('C:\\evil.mjs'), /repository-relative/);
-  assert.match(resolveRepositoryModule('providers/security-suite.mjs'), /providers[\\/]security-suite\.mjs$/);
+  assert.match(resolveRepositoryModule('src/providers/security-suite.mjs'), /providers[\\/]security-suite\.mjs$/);
 });
 
 test('pickEnvironment only carries allowlisted keys', () => {

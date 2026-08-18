@@ -4,8 +4,8 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
 import { importSkillBundle } from '../../scripts/import-skill-bundle.mjs';
-import { verifySkillCatalog } from '../../lib/skills/verify.mjs';
-import { transformSkillText } from '../../lib/skills/transform.mjs';
+import { verifySkillCatalog } from '../../src/lib/skills/verify.mjs';
+import { transformSkillText } from '../../src/lib/skills/transform.mjs';
 
 test('reviewed import policy sanitizes identity and private references without a second generator', async () => {
   const root = mkdtempSync(join(tmpdir(), 'legion-import-policy-'));

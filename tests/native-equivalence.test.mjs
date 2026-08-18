@@ -4,7 +4,7 @@ import { readFileSync, existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import test from 'node:test';
 import { exeSuffix, seaConfig } from '../scripts/build-native.mjs';
-import { LEGION_VERSION } from '../lib/version.mjs';
+import { LEGION_VERSION } from '../src/lib/version.mjs';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
 
@@ -23,7 +23,7 @@ test('exe suffix is platform-correct', () => {
 });
 
 test('npm CLI and SEA surface must agree on version', () => {
-  const cliOut = execFileSync(process.execPath, [fileURLToPath(new URL('../bin/legion.mjs', import.meta.url)), '--version'], { encoding: 'utf8' }).trim();
+  const cliOut = execFileSync(process.execPath, [fileURLToPath(new URL('../src/bin/legion.mjs', import.meta.url)), '--version'], { encoding: 'utf8' }).trim();
   assert.equal(cliOut, LEGION_VERSION);
   // A native build (if present) must match the npm CLI output exactly.
   const native = fileURLToPath(new URL('../dist/legion', import.meta.url));

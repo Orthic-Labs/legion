@@ -3,7 +3,7 @@ import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
-import { runFrameworkSuite } from '../providers/framework-suite.mjs';
+import { runFrameworkSuite } from '../src/providers/framework-suite.mjs';
 
 function fixture(files) {
   const root = mkdtempSync(join(tmpdir(), 'audit-framework-'));

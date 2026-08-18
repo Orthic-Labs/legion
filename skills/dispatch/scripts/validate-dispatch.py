@@ -6,7 +6,7 @@ import sys
 
 PACKAGE_ROOT = Path(__file__).resolve().parents[3]
 _SPEC = spec_from_file_location(
-    "legion_dispatch_validator", PACKAGE_ROOT / "lib/dispatch-validator/validate-dispatch.py"
+    "legion_dispatch_validator", PACKAGE_ROOT / "src/lib/dispatch-validator/validate-dispatch.py"
 )
 assert _SPEC and _SPEC.loader
 _ENGINE = module_from_spec(_SPEC)

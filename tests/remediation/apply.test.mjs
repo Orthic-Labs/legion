@@ -1,10 +1,10 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { patchEffectGraph, blocksAutoApply } from '../../lib/remediation/effect-graph.mjs';
-import { verifyPatch } from '../../lib/remediation/verify-patch.mjs';
-import { applyReceipt, requireApplyCapability, rollbackReceipt, treeFingerprint } from '../../lib/remediation/apply.mjs';
-import { baselineRecord, classifyFinding, findingFingerprint } from '../../lib/policy/baseline.mjs';
-import { acceptedRisk, evaluateRisk, isExpired } from '../../lib/policy/accepted-risk.mjs';
+import { patchEffectGraph, blocksAutoApply } from '../../src/lib/remediation/effect-graph.mjs';
+import { verifyPatch } from '../../src/lib/remediation/verify-patch.mjs';
+import { applyReceipt, requireApplyCapability, rollbackReceipt, treeFingerprint } from '../../src/lib/remediation/apply.mjs';
+import { baselineRecord, classifyFinding, findingFingerprint } from '../../src/lib/policy/baseline.mjs';
+import { acceptedRisk, evaluateRisk, isExpired } from '../../src/lib/policy/accepted-risk.mjs';
 
 test('patch effect graph maps finding to patch to affected surfaces', () => {
   const graph = patchEffectGraph({

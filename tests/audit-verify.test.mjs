@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import test from 'node:test';
-import { verificationDigest, verificationProjection } from '../lib/verification-projection.mjs';
+import { verificationDigest, verificationProjection } from '../src/lib/verification-projection.mjs';
 
 const FIXTURE = new URL('./fixtures/verify/facts.json', import.meta.url);
 const root = fileURLToPath(new URL('..', import.meta.url));

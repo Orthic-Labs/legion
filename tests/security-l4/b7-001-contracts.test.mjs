@@ -21,12 +21,12 @@ import {
   assertSecurityArtifact,
   assertSecuritySchemaVersion,
   securityArtifactRecord,
-} from '../../providers/security/contracts.mjs';
+} from '../../src/providers/security/contracts.mjs';
 import {
   EVIDENCE_CLASS as CORE_EVIDENCE_CLASS,
   JUDGMENT_VERDICT as CORE_JUDGMENT_VERDICT,
   PROVIDER_STATUS as CORE_PROVIDER_STATUS,
-} from '../../lib/contracts/enums.mjs';
+} from '../../src/lib/contracts/enums.mjs';
 import {
   SECURITY_SCHEMA_FILES,
   buildSecurityEnumRegistry,
@@ -94,7 +94,7 @@ test('the canonical artifact store record carries binding and denominator digest
 });
 
 test('runtime enum vocabulary and the committed enum registry are identical', () => {
-  const committed = JSON.parse(readFileSync(new URL('../../registry/rules/security/enums.json', import.meta.url), 'utf8'));
+  const committed = JSON.parse(readFileSync(new URL('../../src/registry/rules/security/enums.json', import.meta.url), 'utf8'));
   assert.deepEqual(committed, buildSecurityEnumRegistry());
 });
 
@@ -105,11 +105,11 @@ test('generated security schemas are committed byte-identically and are enum-clo
     const committed = JSON.parse(readFileSync(new URL(`../../${relativePath}`, import.meta.url), 'utf8'));
     assert.deepEqual(committed, schemas[relativePath], `${relativePath} drifted from its generator`);
   }
-  const model = schemas['schemas/security/security-model-v1.schema.json'];
+  const model = schemas['src/schemas/security/security-model-v1.schema.json'];
   assert.deepEqual(model.properties.entities.items.properties.kind.enum, [...ENTITY_KINDS]);
   assert.deepEqual(model.properties.relations.items.properties.kind.enum, [...RELATION_KINDS]);
   assert.deepEqual(model.required.includes('binding') && model.required.includes('denominatorDigest'), true);
-  const candidate = schemas['schemas/security/security-candidate-v2.schema.json'];
+  const candidate = schemas['src/schemas/security/security-candidate-v2.schema.json'];
   assert.equal(candidate.properties.schemaVersion.const, 2);
   assert.deepEqual(candidate.properties.effects.items.properties.kind.enum, [...FACT_KINDS]);
   for (const [relativePath, schema] of Object.entries(schemas)) {
@@ -123,6 +123,6 @@ test('legacy top-level security schemas remain generated and unchanged', () => {
   const legacy = buildSecuritySchemas({ includeLegacy: true });
   for (const name of ['security-binding-v1', 'security-model-v1', 'security-verdict-v1']) {
     const committed = JSON.parse(readFileSync(new URL(`../../schemas/${name}.schema.json`, import.meta.url), 'utf8'));
-    assert.deepEqual(committed, legacy[`schemas/${name}.schema.json`]);
+    assert.deepEqual(committed, legacy[`src/schemas/${name}.schema.json`]);
   }
 });

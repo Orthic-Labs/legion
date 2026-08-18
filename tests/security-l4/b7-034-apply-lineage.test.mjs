@@ -10,11 +10,11 @@ import {
   requireApplyCapability,
   rollbackReceipt,
   treeFingerprint,
-} from '../../lib/remediation/apply.mjs';
-import { rollbackApply } from '../../lib/remediation/rollback.mjs';
-import { LINEAGE_STATES, classifyLineage, lineageLedger } from '../../lib/policy/lineage.mjs';
-import { acceptedRisk, buildAcceptedRiskSchema, evaluateRisk, isExpired } from '../../lib/policy/accepted-risk.mjs';
-import { baselineRecord, classifyFinding, findingFingerprint } from '../../lib/policy/baseline.mjs';
+} from '../../src/lib/remediation/apply.mjs';
+import { rollbackApply } from '../../src/lib/remediation/rollback.mjs';
+import { LINEAGE_STATES, classifyLineage, lineageLedger } from '../../src/lib/policy/lineage.mjs';
+import { acceptedRisk, buildAcceptedRiskSchema, evaluateRisk, isExpired } from '../../src/lib/policy/accepted-risk.mjs';
+import { baselineRecord, classifyFinding, findingFingerprint } from '../../src/lib/policy/baseline.mjs';
 
 const binding = {
   planDigest: 'sha256:plan',
@@ -118,7 +118,7 @@ test('the engine delegates the mutation and never writes to a repository itself'
   assert.equal(receipt.appliedBy, 'host-mutator');
   assert.equal(applier.calls.length, 1);
   assert.equal(applier.calls[0].patchDigest, 'sha256:patch');
-  for (const source of ['../../lib/remediation/apply.mjs', '../../lib/remediation/rollback.mjs']) {
+  for (const source of ['../../src/lib/remediation/apply.mjs', '../../src/lib/remediation/rollback.mjs']) {
     const text = readFileSync(new URL(source, import.meta.url), 'utf8');
     assert.ok(!/writeFileSync|rmSync|node:fs/.test(text), `${source} must not mutate a repository directly`);
   }
@@ -234,11 +234,11 @@ test('a higher-impact path reopens an accepted risk', () => {
 });
 
 test('the committed apply-receipt and accepted-risk schemas match their generators', () => {
-  const applySchema = JSON.parse(readFileSync(new URL('../../schemas/remediation/apply-receipt-v1.schema.json', import.meta.url), 'utf8'));
+  const applySchema = JSON.parse(readFileSync(new URL('../../src/schemas/remediation/apply-receipt-v1.schema.json', import.meta.url), 'utf8'));
   assert.deepEqual(applySchema, buildApplyReceiptSchema());
   assert.ok(applySchema.required.includes('beforeFingerprint'));
   assert.ok(applySchema.required.includes('verificationDigest'));
-  const riskSchema = JSON.parse(readFileSync(new URL('../../schemas/remediation/accepted-risk-v1.schema.json', import.meta.url), 'utf8'));
+  const riskSchema = JSON.parse(readFileSync(new URL('../../src/schemas/remediation/accepted-risk-v1.schema.json', import.meta.url), 'utf8'));
   assert.deepEqual(riskSchema, buildAcceptedRiskSchema());
   assert.equal(riskSchema.properties.truthUnchanged.const, true);
   assert.ok(!('severity' in riskSchema.properties), 'accepted risk must not carry severity');

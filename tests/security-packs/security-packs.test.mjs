@@ -1,11 +1,11 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { runSecurityPack } from '../../providers/security/candidate-engine.mjs';
-import authorizationPack from '../../providers/security/packs/authorization-tenant.mjs';
-import aiPromptPack from '../../providers/security/packs/ai-prompt-injection.mjs';
-import aiOutputPack from '../../providers/security/packs/ai-output-handling.mjs';
-import aiAgencyPack from '../../providers/security/packs/ai-excessive-agency.mjs';
-import { entity } from '../../providers/security/model-extractors/common.mjs';
+import { runSecurityPack } from '../../src/providers/security/candidate-engine.mjs';
+import authorizationPack from '../../src/providers/security/packs/authorization-tenant.mjs';
+import aiPromptPack from '../../src/providers/security/packs/ai-prompt-injection.mjs';
+import aiOutputPack from '../../src/providers/security/packs/ai-output-handling.mjs';
+import aiAgencyPack from '../../src/providers/security/packs/ai-excessive-agency.mjs';
+import { entity } from '../../src/providers/security/model-extractors/common.mjs';
 
 const BINDING = {
   planDigest: 'sha256:plan', repositoryRevision: 'rev1', dirtyPatchDigest: null,

@@ -1,1 +1,1 @@
-import assert from 'node:assert/strict';import test from 'node:test';import value from '../../../../registry/controls/controls/web/core.json' with {type:'json'};test('web baseline spans deployed system',()=>assert.ok(value.controls.some(({id})=>id.endsWith('backup-dr'))));
+import assert from 'node:assert/strict';import test from 'node:test';import value from '../../../../src/registry/controls/controls/web/core.json' with {type:'json'};test('web baseline spans deployed system',()=>assert.ok(value.controls.some(({id})=>id.endsWith('backup-dr'))));

@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { assessChronology } from '../providers/narrative/chronology.mjs';
+import { assessChronology } from '../src/providers/narrative/chronology.mjs';
 
 const units = [
   { id: 'question', role: 'question', sourceOrder: 1 },

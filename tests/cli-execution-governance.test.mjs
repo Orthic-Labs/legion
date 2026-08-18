@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { EvidenceAuthorityRegistry } from '../packages/arcane/lib/evidence-authority.mjs';
-import { createExecutionControlCapability, dispatchExecutionControl, runExecutionGovernance } from '../lib/cli/commands/governance/execution.mjs';
+import { EvidenceAuthorityRegistry } from '../src/packages/arcane/lib/evidence-authority.mjs';
+import { createExecutionControlCapability, dispatchExecutionControl, runExecutionGovernance } from '../src/lib/cli/commands/governance/execution.mjs';
 
 const stream = () => ({ value: '', write(chunk) { this.value += chunk; } });
 

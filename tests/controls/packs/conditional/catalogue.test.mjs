@@ -1,1 +1,1 @@
-import assert from 'node:assert/strict';import test from 'node:test';import value from '../../../../registry/controls/controls/conditional/core.json' with {type:'json'};test('conditional controls require facets',()=>assert.ok(value.controls.every(({selector})=>selector.facets)));
+import assert from 'node:assert/strict';import test from 'node:test';import value from '../../../../src/registry/controls/controls/conditional/core.json' with {type:'json'};test('conditional controls require facets',()=>assert.ok(value.controls.every(({selector})=>selector.facets)));

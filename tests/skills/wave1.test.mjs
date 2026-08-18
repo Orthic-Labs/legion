@@ -3,9 +3,9 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
-import { verifySkillBytes, verifySkillCatalog } from '../../lib/skills/verify.mjs';
-import { validateCommercialLenses } from '../../lib/lenses/routing.mjs';
-import { validateInternalRecipes } from '../../lib/recipes/validate.mjs';
+import { verifySkillBytes, verifySkillCatalog } from '../../src/lib/skills/verify.mjs';
+import { validateCommercialLenses } from '../../src/lib/lenses/routing.mjs';
+import { validateInternalRecipes } from '../../src/lib/recipes/validate.mjs';
 
 test('skills verifier rejects all deterministic drift classes', () => {
   const root = mkdtempSync(join(tmpdir(), 'legion-wave1-'));

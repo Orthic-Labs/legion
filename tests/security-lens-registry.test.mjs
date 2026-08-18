@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import test from 'node:test';
-import { expandSecurityLensProviders, extendRegistryWithSecurityLenses, loadProviderRegistry, loadSecurityLensRegistry } from '../registry/provider-registry.mjs';
+import { expandSecurityLensProviders, extendRegistryWithSecurityLenses, loadProviderRegistry, loadSecurityLensRegistry } from '../src/registry/provider-registry.mjs';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
 
@@ -62,14 +62,14 @@ test('every registered security lens has an implemented module', async () => {
 });
 
 test('rule alias registry preserves history references', () => {
-  const aliases = JSON.parse(readFileSync(new URL('../registry/security-rule-aliases.json', import.meta.url), 'utf8'));
+  const aliases = JSON.parse(readFileSync(new URL('../src/registry/security-rule-aliases.json', import.meta.url), 'utf8'));
   assert.equal(aliases.kind, 'security-rule-aliases');
   assert.ok(aliases.aliases['data.sql-interpolation']);
   assert.ok(aliases.aliases['security.command-injection']);
 });
 
 test('security-suite compatibility wrapper exposes the legacy pack mapping', async () => {
-  const { legacyPackMapping } = await import('../providers/security-suite.mjs');
+  const { legacyPackMapping } = await import('../src/providers/security-suite.mjs');
   const mapping = legacyPackMapping();
   assert.equal(mapping.credentials, 'security.credentials');
   assert.equal(mapping['misuse-resistance'], 'security.misuse-resistance');

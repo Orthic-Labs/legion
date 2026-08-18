@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { checkCanonicalNames } from '../lib/naming/check.mjs';
+import { checkCanonicalNames } from '../src/lib/naming/check.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const report = checkCanonicalNames({ root });

@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 test('B5-007 geometry tokens preserve denominators and evidence classes', async () => {
-  const { analyzeGeometryTokens } = await import('../providers/visual/geometry-tokens.mjs');
+  const { analyzeGeometryTokens } = await import('../src/providers/visual/geometry-tokens.mjs');
   const result = analyzeGeometryTokens({ declaredScale: [4, 8, 16], instances: [
     { property: 'gap', value: 8, component: 'Card', source: 'card.css:1' },
     { property: 'gap', value: 13, component: 'Card', source: 'card.css:2', rendered: { surfaceId: 'home' } },
@@ -14,14 +14,14 @@ test('B5-007 geometry tokens preserve denominators and evidence classes', async 
 });
 
 test('B5-008 typography binds role surface viewport locale and font gaps', async () => {
-  const { analyzeTypography } = await import('../providers/visual/typography.mjs');
+  const { analyzeTypography } = await import('../src/providers/visual/typography.mjs');
   const result = analyzeTypography({ textItems: [{ id: 'title', role: 'heading', surfaceId: 'home', viewport: 'mobile', locale: 'de', clipped: true }] });
   assert.deepEqual(result.findings[0].context, { role: 'heading', surfaceId: 'home', viewport: 'mobile', locale: 'de' });
   assert.ok(result.coverageGaps.includes('font-evidence-missing'));
 });
 
 test('B5-009 hierarchy separates deterministic mismatch from taste', async () => {
-  const { analyzeHierarchy } = await import('../providers/visual/hierarchy-static.mjs');
+  const { analyzeHierarchy } = await import('../src/providers/visual/hierarchy-static.mjs');
   const empty = analyzeHierarchy();
   assert.equal(empty.status, 'unproven');
   assert.ok(empty.coverageGaps.includes('hierarchy-signals-missing'));
@@ -32,7 +32,7 @@ test('B5-009 hierarchy separates deterministic mismatch from taste', async () =>
 });
 
 test('B5-010 responsive and stacking preserve untested viewports and safe-area gaps', async () => {
-  const [{ analyzeResponsive }, { analyzeStacking }] = await Promise.all([import('../providers/visual/responsive.mjs'), import('../providers/visual/stacking.mjs')]);
+  const [{ analyzeResponsive }, { analyzeStacking }] = await Promise.all([import('../src/providers/visual/responsive.mjs'), import('../src/providers/visual/stacking.mjs')]);
   assert.equal(analyzeResponsive().status, 'unproven');
   assert.equal(analyzeStacking().status, 'unproven');
   const responsive = analyzeResponsive({ requiredViewports: ['desktop', 'mobile'], surfaces: [{ id: 'home', viewport: 'desktop', overflowX: true, safeAreaMeasured: false }] });
@@ -43,7 +43,7 @@ test('B5-010 responsive and stacking preserve untested viewports and safe-area g
 });
 
 test('B5-011 control states expose applicability and missing evidence', async () => {
-  const { analyzeControlStates } = await import('../providers/ux/control-states.mjs');
+  const { analyzeControlStates } = await import('../src/providers/ux/control-states.mjs');
   const empty = analyzeControlStates({ controls: [] });
   assert.equal(empty.status, 'unproven');
   assert.equal(empty.complete, false);
@@ -54,7 +54,7 @@ test('B5-011 control states expose applicability and missing evidence', async ()
 });
 
 test('B5-012 UX flow preserves cohorts paths measurements and inferred goals', async () => {
-  const [{ buildUxFlow }, { createFlowModel }] = await Promise.all([import('../lib/design/ux-flow.mjs'), import('../providers/ux/flow-model.mjs')]);
+  const [{ buildUxFlow }, { createFlowModel }] = await Promise.all([import('../src/lib/design/ux-flow.mjs'), import('../src/providers/ux/flow-model.mjs')]);
   const flow = buildUxFlow({ goal: 'Create project', goalSource: 'route', cohort: 'first-use', entrySurfaceId: 'home', steps: [{ surfaceId: 'home', action: 'new', expectedState: 'form', actualState: 'form' }], terminalState: 'unproven', measurements: { sample: 1, completionTimeMs: 900 }, alternatePaths: ['assistive-technology'] });
   assert.equal(flow.goalInferred, true);
   assert.equal(flow.measurements.sample, 1);
@@ -65,7 +65,7 @@ test('B5-012 UX flow preserves cohorts paths measurements and inferred goals', a
 });
 
 test('B5-013 navigation cites flow and route evidence without feature invention', async () => {
-  const { analyzeNavigation } = await import('../providers/ux/navigation.mjs');
+  const { analyzeNavigation } = await import('../src/providers/ux/navigation.mjs');
   const empty = analyzeNavigation();
   assert.equal(empty.status, 'unproven');
   assert.ok(empty.coverageGaps.includes('navigation-routes-missing'));
@@ -76,7 +76,7 @@ test('B5-013 navigation cites flow and route evidence without feature invention'
 });
 
 test('B5-014 forms bind field denominator and separate client validation from security', async () => {
-  const { analyzeForms } = await import('../providers/ux/forms.mjs');
+  const { analyzeForms } = await import('../src/providers/ux/forms.mjs');
   const empty = analyzeForms({ forms: [] });
   assert.equal(empty.status, 'unproven');
   assert.equal(empty.fieldDenominator, 0);
@@ -87,7 +87,7 @@ test('B5-014 forms bind field denominator and separate client validation from se
 });
 
 test('B5-015 system states separate absent implementation from untested state', async () => {
-  const { analyzeSystemStates } = await import('../providers/ux/system-states.mjs');
+  const { analyzeSystemStates } = await import('../src/providers/ux/system-states.mjs');
   assert.equal(analyzeSystemStates().status, 'unproven');
   const result = analyzeSystemStates({ surfaces: [{ id: 'feed', expectedStates: ['loading', 'error', 'offline'], declaredStates: ['loading', 'error'], observedStates: ['loading'] }] });
   assert.equal(result.denominator, 3);
@@ -96,7 +96,7 @@ test('B5-015 system states separate absent implementation from untested state', 
 });
 
 test('B5-016 recovery requires side-effect evidence for irreversible classification', async () => {
-  const { analyzeRecovery } = await import('../providers/ux/recovery.mjs');
+  const { analyzeRecovery } = await import('../src/providers/ux/recovery.mjs');
   assert.equal(analyzeRecovery().status, 'unproven');
   const result = analyzeRecovery({ actions: [{ id: 'delete', risk: 'high', claimedIrreversible: true, confirmation: false, sideEffectEvidence: null }] });
   assert.equal(result.actions[0].irreversible, 'unproven');
@@ -104,7 +104,7 @@ test('B5-016 recovery requires side-effect evidence for irreversible classificat
 });
 
 test('B5-017 data interaction keeps scale and chart interpretation unproven', async () => {
-  const { analyzeDataInteractions } = await import('../providers/ux/data-interaction.mjs');
+  const { analyzeDataInteractions } = await import('../src/providers/ux/data-interaction.mjs');
   assert.equal(analyzeDataInteractions().status, 'unproven');
   const result = analyzeDataInteractions({ interactions: [{ id: 'orders', kind: 'table', dataset: 'orders', headersAccessible: false, largeDataClaim: true }, { id: 'sales', kind: 'chart', dataset: 'sales', misleadingEncoding: true }] });
   assert.ok(result.coverageGaps.includes('scale-evidence-missing:orders'));
@@ -112,7 +112,7 @@ test('B5-017 data interaction keeps scale and chart interpretation unproven', as
 });
 
 test('B5-018 friction and deceptive design separate deterministic and interpretive evidence', async () => {
-  const [{ analyzeFriction }, { analyzeDeceptiveDesign }] = await Promise.all([import('../providers/ux/friction.mjs'), import('../providers/trust-safety/deceptive-design.mjs')]);
+  const [{ analyzeFriction }, { analyzeDeceptiveDesign }] = await Promise.all([import('../src/providers/ux/friction.mjs'), import('../src/providers/trust-safety/deceptive-design.mjs')]);
   assert.equal(analyzeFriction().status, 'unproven');
   assert.equal(analyzeDeceptiveDesign().status, 'unproven');
   const friction = analyzeFriction({ flows: [{ id: 'cancel', policyContext: 'subscription', steps: [{ id: 's1', loopTo: 's1' }] }] });
@@ -123,7 +123,7 @@ test('B5-018 friction and deceptive design separate deterministic and interpreti
 });
 
 test('B5-020 runtime accessibility never passes missing engine or paths', async () => {
-  const { analyzeRuntimeAccessibility } = await import('../providers/accessibility/runtime/core.mjs');
+  const { analyzeRuntimeAccessibility } = await import('../src/providers/accessibility/runtime/core.mjs');
   const missing = analyzeRuntimeAccessibility({ engine: null, requiredCases: [{ surfaceId: 'home', state: 'default' }] });
   assert.equal(missing.status, 'unproven');
   assert.equal(analyzeRuntimeAccessibility({ engine: { name: 'axe', version: '1' } }).status, 'unproven');
@@ -134,7 +134,7 @@ test('B5-020 runtime accessibility never passes missing engine or paths', async 
 });
 
 test('B5-021 runtime adapters are bounded redacted surface receipts', async () => {
-  const [{ buildBrowserSurfaceReceipt }, { buildNativeSurfaceReceipt }] = await Promise.all([import('../providers/runtime/browser/adapter.mjs'), import('../providers/runtime/native-surface/adapter.mjs')]);
+  const [{ buildBrowserSurfaceReceipt }, { buildNativeSurfaceReceipt }] = await Promise.all([import('../src/providers/runtime/browser/adapter.mjs'), import('../src/providers/runtime/native-surface/adapter.mjs')]);
   const spec = { surfaceId: 'home', route: '/', allowedActions: ['open'], allowedDestinations: ['local'] };
   const receipt = buildBrowserSurfaceReceipt(spec, { actions: ['open'], requests: [{ destination: 'local', headers: { authorization: 'secret' }, body: { password: 'secret' } }], ready: false, reachedMeaningfulState: false });
   assert.equal(receipt.status, 'unproven');
@@ -145,8 +145,8 @@ test('B5-021 runtime adapters are bounded redacted surface receipts', async () =
 });
 
 test('B5-022 visual capture binds digests and redacts sensitive values', async () => {
-  const [{ captureVisualEvidence }, { normalizeGeometry }] = await Promise.all([import('../providers/visual/capture.mjs'), import('../lib/design/geometry.mjs')]);
-  const { encodePng } = await import('../providers/visual-core.mjs');
+  const [{ captureVisualEvidence }, { normalizeGeometry }] = await Promise.all([import('../src/providers/visual/capture.mjs'), import('../src/lib/design/geometry.mjs')]);
+  const { encodePng } = await import('../src/providers/visual-core.mjs');
   const screenshotBytes = encodePng({ width: 1, height: 1, rgba: Buffer.from([0, 0, 0, 255]) });
   const result = captureVisualEvidence({ surfaceId: 'login', screenshotBytes, dom: '<input value="secret">', sensitiveValues: ['secret'], browser: { name: 'x', version: '1' }, viewport: { width: 100, height: 100, scale: 1 }, state: 'default', binding: { plan: 'p1' }, geometry: [{ id: 'input', x: 1.2, y: 2.4, width: 20, height: 10 }] });
   assert.match(result.screenshot.digest, /^sha256:/);
@@ -157,7 +157,7 @@ test('B5-022 visual capture binds digests and redacts sensitive values', async (
 });
 
 test('B5-023 geometry findings are measured and unsupported primitives remain gaps', async () => {
-  const { analyzeGeometryEvidence } = await import('../providers/visual/geometry.mjs');
+  const { analyzeGeometryEvidence } = await import('../src/providers/visual/geometry.mjs');
   const result = analyzeGeometryEvidence({ surfaceId: 'home', viewport: { width: 100, height: 100 }, elements: [{ id: 'button', x: 90, y: 0, width: 20, height: 20 }, { id: 'canvas', primitive: 'canvas' }] });
   assert.equal(result.findings[0].measurement.overflowRight, 10);
   assert.ok(result.coverageGaps.includes('unsupported-geometry:canvas:canvas'));
@@ -165,7 +165,7 @@ test('B5-023 geometry findings are measured and unsupported primitives remain ga
 });
 
 test('B5-024 visual diff rejects identity mismatch and never auto-accepts', async () => {
-  const [{ compareVisualEvidence }, { baselineIdentity }] = await Promise.all([import('../providers/visual/diff.mjs'), import('../lib/design/baselines.mjs')]);
+  const [{ compareVisualEvidence }, { baselineIdentity }] = await Promise.all([import('../src/providers/visual/diff.mjs'), import('../src/lib/design/baselines.mjs')]);
   const base = { route: '/', state: 'default', viewport: 'desktop', platform: 'web', browserPolicy: 'chromium', baselineId: 'b1' };
   assert.match(baselineIdentity(base), /^sha256:/);
   const result = compareVisualEvidence({ baseline: base, actual: { ...base, viewport: 'mobile' }, pixel: { changed: 10 }, geometry: {}, text: {} });
@@ -176,7 +176,7 @@ test('B5-024 visual diff rejects identity mismatch and never auto-accepts', asyn
 });
 
 test('B5-025 reviewer packets require fresh independent receipts and preserve uncertainty', async () => {
-  const { buildReviewPacket, validateJudgmentReceipt } = await import('../providers/visual/reviewer.mjs');
+  const { buildReviewPacket, validateJudgmentReceipt } = await import('../src/providers/visual/reviewer.mjs');
   const packet = buildReviewPacket({ surfaceId: 'home', screenshots: ['shot'], route: '/', state: 'default', viewport: 'desktop', omittedEvidence: ['brand-context'] });
   assert.equal(packet.scope, 'surface');
   const result = validateJudgmentReceipt(packet, { reviewer: { provider: 'other', model: 'm', contextId: 'c', fresh: true }, rendererIdentity: 'renderer', evidenceRefs: ['shot'], verdict: 'UNPROVEN', counterargument: 'Could be intentional', uncertainty: ['brand'] });
@@ -187,14 +187,14 @@ test('B5-025 reviewer packets require fresh independent receipts and preserve un
 });
 
 test('B5-026 motion binds transitions timing and reduced-motion coverage', async () => {
-  const { analyzeMotion } = await import('../providers/visual/motion.mjs');
+  const { analyzeMotion } = await import('../src/providers/visual/motion.mjs');
   const result = analyzeMotion({ transitions: [{ id: 'open', from: 'closed', to: 'open', durationMs: 500, budgetMs: 300, blocksInteraction: true }], reducedMotionExercised: false });
   assert.equal(result.findings[0].transitionId, 'open');
   assert.ok(result.coverageGaps.includes('reduced-motion-unproven'));
 });
 
 test('B5-028 bundle network cache evidence keeps identity and correctness analysis', async () => {
-  const [{ analyzeBundleEvidence }, { analyzeNetworkEvidence }, { analyzeCacheEvidence }] = await Promise.all([import('../providers/performance/bundle/core.mjs'), import('../providers/performance/network/core.mjs'), import('../providers/performance/cache/core.mjs')]);
+  const [{ analyzeBundleEvidence }, { analyzeNetworkEvidence }, { analyzeCacheEvidence }] = await Promise.all([import('../src/providers/performance/bundle/core.mjs'), import('../src/providers/performance/network/core.mjs'), import('../src/providers/performance/cache/core.mjs')]);
   const bundle = analyzeBundleEvidence({ artifact: { id: 'app.js', digest: 'sha256:x' }, modules: [{ name: 'big', bytes: 500, duplicate: true }] });
   assert.equal(bundle.artifact.digest, 'sha256:x');
   const network = analyzeNetworkEvidence({ requests: [{ id: 'r1', url: '/api', durationMs: 100, serializedBehind: 'r0' }] });

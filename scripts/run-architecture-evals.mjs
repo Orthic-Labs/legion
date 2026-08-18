@@ -5,10 +5,10 @@ import { readFileSync, readdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { executeArchitectureRuntimeCases } from '../packages/arcane/lib/s11-runtime-executor.mjs';
+import { executeArchitectureRuntimeCases } from '../src/packages/arcane/lib/s11-runtime-executor.mjs';
 
 const root = dirname(dirname(fileURLToPath(import.meta.url)));
-const corpusRoot = join(root, 'evals', 'architecture');
+const corpusRoot = join(root, 'src', 'evals', 'architecture');
 const expectedFamilies = [
   'routing', 'convergence', 'evidence', 'authority', 'candidate-quality', 'handoff',
   'scope-authority', 'stop-precedence', 'forward-workload', 'lineage-budgets',

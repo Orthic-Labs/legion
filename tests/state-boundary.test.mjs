@@ -10,7 +10,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
 
-import { runState } from '../lib/cli/commands/state.mjs';
+import { runState } from '../src/lib/cli/commands/state.mjs';
 
 function scenario() {
   const root = mkdtempSync(join(tmpdir(), 'legion-state-'));

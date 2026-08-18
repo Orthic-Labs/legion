@@ -1,10 +1,10 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { gitlabCiAdapter, bitbucketAdapter, azureDevopsAdapter } from '../../integrations/forges.mjs';
-import { organizationPolicy, applyPolicy } from '../../lib/policy/org/index.mjs';
-import { loadControls, mapEvidenceToControls } from '../../lib/policy/compliance.mjs';
-import { economicsReceipt, runSummary } from '../../lib/metrics/economics.mjs';
-import { privacyDataDictionary, privacyReceipt } from '../../lib/privacy/index.mjs';
+import { gitlabCiAdapter, bitbucketAdapter, azureDevopsAdapter } from '../../src/integrations/forges.mjs';
+import { organizationPolicy, applyPolicy } from '../../src/lib/policy/org/index.mjs';
+import { loadControls, mapEvidenceToControls } from '../../src/lib/policy/compliance.mjs';
+import { economicsReceipt, runSummary } from '../../src/lib/metrics/economics.mjs';
+import { privacyDataDictionary, privacyReceipt } from '../../src/lib/privacy/index.mjs';
 
 test('gitlab adapter calls the canonical CLI with identical output contracts', () => {
   const adapter = gitlabCiAdapter({ profile: 'standard' });

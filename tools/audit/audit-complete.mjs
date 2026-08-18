@@ -3,16 +3,16 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, isAbsolute, join, resolve } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { readCortexManifestBinding, readCortexProjection, collectRepositoryBinding } from '../../adapters/cortex-projection.mjs';
-import { enrichProjectionWithEcosystems } from '../../adapters/ecosystem-manifests.mjs';
+import { readCortexManifestBinding, readCortexProjection, collectRepositoryBinding } from '../../src/adapters/cortex-projection.mjs';
+import { enrichProjectionWithEcosystems } from '../../src/adapters/ecosystem-manifests.mjs';
 import { buildAuditPlan, reconcilePlanWithFacts, verifyPlanBinding, writeAuditPlan } from './audit-plan.mjs';
-import { loadProviderRegistry } from '../../registry/provider-registry.mjs';
-import { runNativeFamilies } from '../../providers/native-family-runner.mjs';
-import { runFrameworkSuite } from '../../providers/framework-suite.mjs';
-import { runDataSuite } from '../../providers/data-suite.mjs';
-import { runInfrastructureSuite } from '../../providers/infrastructure-suite.mjs';
-import { generateSecurityCandidates, mergeSecurityCandidateReports } from '../../providers/security-suite.mjs';
-import { auditVisualArtifacts } from '../../providers/visual-core.mjs';
+import { loadProviderRegistry } from '../../src/registry/provider-registry.mjs';
+import { runNativeFamilies } from '../../src/providers/native-family-runner.mjs';
+import { runFrameworkSuite } from '../../src/providers/framework-suite.mjs';
+import { runDataSuite } from '../../src/providers/data-suite.mjs';
+import { runInfrastructureSuite } from '../../src/providers/infrastructure-suite.mjs';
+import { generateSecurityCandidates, mergeSecurityCandidateReports } from '../../src/providers/security-suite.mjs';
+import { auditVisualArtifacts } from '../../src/providers/visual-core.mjs';
 import { normalizeProviderResult } from '../../scripts/normalize-provider-result.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -147,7 +147,7 @@ export function reconcileCompleteRun({ plan, facts, providerResults, securityRes
 }
 
 function securityProviderPlans(plan) {
-  return (plan.providers ?? []).filter((provider) => provider.runner?.kind === 'runtime-script' && provider.runner?.script === 'providers/security-suite.mjs');
+  return (plan.providers ?? []).filter((provider) => provider.runner?.kind === 'runtime-script' && provider.runner?.script === 'src/providers/security-suite.mjs');
 }
 
 export async function runCompleteAudit(inputOptions) {

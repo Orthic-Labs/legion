@@ -23,7 +23,7 @@ function runFixture(root) {
 }
 
 test('B8-001 public surface stays explicit, versioned, and registry-free', async () => {
-  const api = await import('../lib/index.mjs');
+  const api = await import('../src/lib/index.mjs');
   assert.equal(api.PUBLIC_API_VERSION, 1);
   assert.deepEqual(Object.keys(api.COMPATIBILITY_SURFACES).sort(), ['audit-finalize', 'audit-plan', 'audit-run', 'audit-verify']);
   for (const entry of Object.values(api.COMPATIBILITY_SURFACES)) {
@@ -40,7 +40,7 @@ test('B8-001 public surface stays explicit, versioned, and registry-free', async
 });
 
 test('B8-003 canonical core dispatch: doctor, plan, verify, and read tools execute in-process', async () => {
-  const { listTools, callTool } = await import('../integrations/mcp/tools.mjs');
+  const { listTools, callTool } = await import('../src/integrations/mcp/tools.mjs');
   const root = fixtureRoot();
   runFixture(root);
   // No injected core: every tool must dispatch through the canonical core.
@@ -82,7 +82,7 @@ test('B8-003 canonical core dispatch: doctor, plan, verify, and read tools execu
 });
 
 test('B8-003 canonical core dispatch: list tools read the sealed registry in-process', async () => {
-  const { callTool } = await import('../integrations/mcp/tools.mjs');
+  const { callTool } = await import('../src/integrations/mcp/tools.mjs');
   const root = fixtureRoot();
   const providers = await callTool({ name: 'legion_list_providers', arguments: {} }, { root });
   assert.equal(providers.isError, false);
@@ -99,7 +99,7 @@ test('B8-003 canonical core dispatch: list tools read the sealed registry in-pro
 });
 
 test('B8-003 rejects scope escape and bounded outputs on canonical dispatch', async () => {
-  const { callTool } = await import('../integrations/mcp/tools.mjs');
+  const { callTool } = await import('../src/integrations/mcp/tools.mjs');
   const root = fixtureRoot();
   for (const args of [{ root: '..' }, { root: `..${sep}other` }]) {
     assert.equal((await callTool({ name: 'legion_doctor', arguments: args }, { root })).isError, true);
@@ -112,7 +112,7 @@ test('B8-003 rejects scope escape and bounded outputs on canonical dispatch', as
 });
 
 test('resources expose the canonical run report with bounded, escape-safe reads', async () => {
-  const { listResources, readResource } = await import('../integrations/mcp/resources.mjs');
+  const { listResources, readResource } = await import('../src/integrations/mcp/resources.mjs');
   const root = fixtureRoot();
   runFixture(root);
   const runDir = join('.audit', 'run-1');

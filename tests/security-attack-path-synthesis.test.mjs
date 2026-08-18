@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { synthesizeAttackPaths, factMatches, canonicalFactKey } from '../providers/security/attack-path-synthesis.mjs';
-import { fact } from '../providers/security/model-extractors/common.mjs';
-import { bindingFromPlan } from '../providers/security/contracts.mjs';
+import { synthesizeAttackPaths, factMatches, canonicalFactKey } from '../src/providers/security/attack-path-synthesis.mjs';
+import { fact } from '../src/providers/security/model-extractors/common.mjs';
+import { bindingFromPlan } from '../src/providers/security/contracts.mjs';
 
 const BINDING = {
   planDigest: 'sha256:plan', repositoryRevision: 'rev1', dirtyPatchDigest: null,

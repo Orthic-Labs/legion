@@ -7,19 +7,19 @@ import {
   buildSchemas,
   buildSecurityVerdictSchema,
 } from '../scripts/generate-schemas.mjs';
-import { PROVIDER_STATUS } from '../registry/provider-contracts.mjs';
-import { EVIDENCE_STRENGTH, SECURITY_VERDICTS } from '../providers/security/contracts.mjs';
+import { PROVIDER_STATUS } from '../src/registry/provider-contracts.mjs';
+import { EVIDENCE_STRENGTH, SECURITY_VERDICTS } from '../src/providers/security/contracts.mjs';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
 
 test('generated provider-result schema deep-equals the committed schema', () => {
-  const committed = JSON.parse(readFileSync(new URL('../schemas/provider-result-v1.schema.json', import.meta.url), 'utf8'));
+  const committed = JSON.parse(readFileSync(new URL('../src/schemas/provider-result-v1.schema.json', import.meta.url), 'utf8'));
   assert.deepEqual(buildProviderResultSchema(), committed,
     'committed schema drifted from the generator; run node scripts/generate-schemas.mjs');
 });
 
 test('generated security-verdict schema deep-equals the committed schema', () => {
-  const committed = JSON.parse(readFileSync(new URL('../schemas/security-verdict-v1.schema.json', import.meta.url), 'utf8'));
+  const committed = JSON.parse(readFileSync(new URL('../src/schemas/security-verdict-v1.schema.json', import.meta.url), 'utf8'));
   assert.deepEqual(buildSecurityVerdictSchema(), committed,
     'committed schema drifted from the generator; run node scripts/generate-schemas.mjs');
 });
@@ -34,8 +34,8 @@ test('schema enums match the code-owned contract enums', () => {
 
 test('buildSchemas covers every committed schema', () => {
   const generated = buildSchemas();
-  assert.ok(generated['schemas/provider-result-v1.schema.json']);
-  assert.ok(generated['schemas/security-verdict-v1.schema.json']);
+  assert.ok(generated['src/schemas/provider-result-v1.schema.json']);
+  assert.ok(generated['src/schemas/security-verdict-v1.schema.json']);
   for (const [path, value] of Object.entries(generated)) {
     assert.ok(value && typeof value === 'object', `generated schema ${path} is invalid`);
   }

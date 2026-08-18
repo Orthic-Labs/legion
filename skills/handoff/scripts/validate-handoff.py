@@ -7,7 +7,7 @@ import sys
 
 PACKAGE_ROOT = Path(__file__).resolve().parents[3]
 _SPEC = spec_from_file_location(
-    "legion_handoff_validator", PACKAGE_ROOT / "lib/handoff/validate_handoff.py"
+    "legion_handoff_validator", PACKAGE_ROOT / "src/lib/handoff/validate_handoff.py"
 )
 assert _SPEC and _SPEC.loader
 _ENGINE = module_from_spec(_SPEC)

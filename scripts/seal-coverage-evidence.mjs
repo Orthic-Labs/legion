@@ -5,9 +5,9 @@ import {dirname,join,relative,resolve} from 'node:path';
 import {fileURLToPath} from 'node:url';
 
 const root=resolve(fileURLToPath(new URL('..',import.meta.url)));
-const indexPath=join(root,'registry/coverage/index.json');
+const indexPath=join(root,'src/registry/coverage/index.json');
 const registry=JSON.parse(readFileSync(indexPath,'utf8'));
-const providers=JSON.parse(readFileSync(join(root,'registry/providers.json'),'utf8')).providers;
+const providers=JSON.parse(readFileSync(join(root,'src/registry/providers.json'),'utf8')).providers;
 const sha=(bytes)=>`sha256:${createHash('sha256').update(bytes).digest('hex')}`;
 const tests={
   'language.javascript':'tests/providers/javascript/javascript.test.mjs','language.python':'tests/providers/python/python.test.mjs',

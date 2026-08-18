@@ -6,7 +6,7 @@ from pathlib import Path
 import sys
 
 PACKAGE_ROOT = Path(__file__).resolve().parents[3]
-_PACKAGE_LIB = PACKAGE_ROOT / "lib"
+_PACKAGE_LIB = PACKAGE_ROOT / "src" / "lib"
 if str(_PACKAGE_LIB) not in sys.path:
     sys.path.insert(0, str(_PACKAGE_LIB))
 _SPEC = spec_from_file_location(

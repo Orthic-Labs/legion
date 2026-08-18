@@ -3,10 +3,10 @@ import { execFileSync } from 'node:child_process';
 import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import test from 'node:test';
-import { validateSchema } from '../lib/qualification/schema-validator.mjs';
+import { validateSchema } from '../src/lib/qualification/schema-validator.mjs';
 
 const root = join(import.meta.dirname, '..');
-const corpus = join(root, 'evals', 'architecture');
+const corpus = join(root, 'src', 'evals', 'architecture');
 const run = () => JSON.parse(execFileSync(process.execPath, ['scripts/run-architecture-evals.mjs', '--json'], { cwd: root, encoding: 'utf8' }));
 
 test('S11 corpus JSONL parses with stable unique identifiers & positive/negative expectations', () => {

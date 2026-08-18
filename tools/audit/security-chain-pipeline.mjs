@@ -5,7 +5,7 @@ import { randomUUID } from 'node:crypto';
 import {
   createChainAdjudicationPacket,
   finalizeChainVerdict,
-} from '../../adapters/security-chain-adjudication.mjs';
+} from '../../src/adapters/security-chain-adjudication.mjs';
 
 export function prepareChainAdjudicationBundle({
   plan,

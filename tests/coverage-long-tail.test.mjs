@@ -2,9 +2,9 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import test from 'node:test';
-import { lexicalAccounting } from '../providers/generic/index.mjs';
-import { customGrammarRecord, rejectRepositoryGrammar, stableGrammarId } from '../providers/systems/custom-grammar.mjs';
-import { componentDenominator, componentIdentity, inferPackageManager, reconcileComponents } from '../providers/monorepo/index.mjs';
+import { lexicalAccounting } from '../src/providers/generic/index.mjs';
+import { customGrammarRecord, rejectRepositoryGrammar, stableGrammarId } from '../src/providers/systems/custom-grammar.mjs';
+import { componentDenominator, componentIdentity, inferPackageManager, reconcileComponents } from '../src/providers/monorepo/index.mjs';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
 
@@ -71,7 +71,7 @@ test('one failing component cannot be hidden by aggregate success', () => {
 });
 
 test('coverage registry still accounts long-tail languages', () => {
-  const registry = JSON.parse(readFileSync(new URL('../registry/coverage/coverage-registry.json', import.meta.url), 'utf8'));
+  const registry = JSON.parse(readFileSync(new URL('../src/registry/coverage/coverage-registry.json', import.meta.url), 'utf8'));
   for (const id of ['language.cobol', 'language.zig', 'language.generic', 'format.promql', 'language.assembly']) {
     assert.ok(registry.languages.some((record) => record.id === id), `${id} accounted`);
   }

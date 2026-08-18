@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { topologicalProviders, validateProviderDag, validateRoleOutput } from '../lib/providers/sdk/dag.mjs';
+import { topologicalProviders, validateProviderDag, validateRoleOutput } from '../src/lib/providers/sdk/dag.mjs';
 
 const P = (id, deps = [], produces = [], consumes = [], role = 'deterministic') => ({
   id, providerVersion: '1.0.0', role, phase: 'runtime',

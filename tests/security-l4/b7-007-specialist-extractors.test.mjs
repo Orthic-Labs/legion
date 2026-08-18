@@ -4,18 +4,18 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 
-import { extractCloud } from '../../providers/security/model-extractors/cloud.mjs';
-import { extractMobile } from '../../providers/security/model-extractors/mobile.mjs';
-import { extractDeveloperMachine } from '../../providers/security/model-extractors/developer-machine.mjs';
-import { extractAiAgent } from '../../providers/security/model-extractors/ai-agent.mjs';
-import { ENTITY_KINDS, RELATION_KINDS, FACT_KINDS } from '../../providers/security/contracts.mjs';
+import { extractCloud } from '../../src/providers/security/model-extractors/cloud.mjs';
+import { extractMobile } from '../../src/providers/security/model-extractors/mobile.mjs';
+import { extractDeveloperMachine } from '../../src/providers/security/model-extractors/developer-machine.mjs';
+import { extractAiAgent } from '../../src/providers/security/model-extractors/ai-agent.mjs';
+import { ENTITY_KINDS, RELATION_KINDS, FACT_KINDS } from '../../src/providers/security/contracts.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const MODULE_FILES = {
-  cloud: join(__dirname, '../../providers/security/model-extractors/cloud.mjs'),
-  mobile: join(__dirname, '../../providers/security/model-extractors/mobile.mjs'),
-  'developer-machine': join(__dirname, '../../providers/security/model-extractors/developer-machine.mjs'),
-  'ai-agent': join(__dirname, '../../providers/security/model-extractors/ai-agent.mjs'),
+  cloud: join(__dirname, '../../src/providers/security/model-extractors/cloud.mjs'),
+  mobile: join(__dirname, '../../src/providers/security/model-extractors/mobile.mjs'),
+  'developer-machine': join(__dirname, '../../src/providers/security/model-extractors/developer-machine.mjs'),
+  'ai-agent': join(__dirname, '../../src/providers/security/model-extractors/ai-agent.mjs'),
 };
 
 const CONTRACT_SHAPE = ['entities', 'relations', 'evidence', 'initialFacts', 'coverageGaps'];

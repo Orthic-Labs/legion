@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { baselineRecord, classifyFinding, findingFingerprint } from '../lib/policy/baseline.mjs';
-import { acceptedRisk, evaluateRisk } from '../lib/policy/accepted-risk.mjs';
+import { baselineRecord, classifyFinding, findingFingerprint } from '../src/lib/policy/baseline.mjs';
+import { acceptedRisk, evaluateRisk } from '../src/lib/policy/accepted-risk.mjs';
 
 test('baseline record binds revision and finding fingerprints', () => {
   const record = baselineRecord({ id: 'base-1', revision: 'rev1', findings: [{ id: 'f1', fingerprint: 'sha256:f' }], createdAt: '2026-01-01' });

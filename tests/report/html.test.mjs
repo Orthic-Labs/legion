@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { cspMeta, escapeHtml, renderHtmlReport } from '../../lib/report/html/index.mjs';
+import { cspMeta, escapeHtml, renderHtmlReport } from '../../src/lib/report/html/index.mjs';
 
 test('escapeHtml escapes all dangerous characters', () => {
   assert.equal(escapeHtml('<script>alert("x")&\'y\'</script>'), '&lt;script&gt;alert(&quot;x&quot;)&amp;&#39;y&#39;&lt;/script&gt;');

@@ -3,9 +3,9 @@ import { mkdtempSync, rmSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
-import { PRE_COMMIT_HOOK, PRE_PUSH_HOOK, hookInstalled, installHook, uninstallHook } from '../../integrations/hooks/index.mjs';
-import { actionSummary, sarifUploadCommand } from '../../integrations/github-action/index.mjs';
-import { changedFiles, classifyFinding, prScopeResult, stableCommentId } from '../../lib/pr/scope.mjs';
+import { PRE_COMMIT_HOOK, PRE_PUSH_HOOK, hookInstalled, installHook, uninstallHook } from '../../src/integrations/hooks/index.mjs';
+import { actionSummary, sarifUploadCommand } from '../../src/integrations/github-action/index.mjs';
+import { changedFiles, classifyFinding, prScopeResult, stableCommentId } from '../../src/lib/pr/scope.mjs';
 
 test('pre-commit hook uses the fast profile with uncommitted scope', () => {
   assert.match(PRE_COMMIT_HOOK, /--profile fast/);

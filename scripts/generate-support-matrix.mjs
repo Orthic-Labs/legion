@@ -5,7 +5,7 @@
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { resolve } from 'node:path';
 
-export function buildSupportMatrix(registryPath = 'registry/coverage/coverage-registry.json') {
+export function buildSupportMatrix(registryPath = 'src/registry/coverage/coverage-registry.json') {
   const registry = JSON.parse(readFileSync(resolve(registryPath), 'utf8'));
   const rows = (registry.languages ?? []).map((record) => ({
     id: record.id,

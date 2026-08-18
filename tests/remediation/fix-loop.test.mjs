@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { evaluateFixLoop, fixProposal, FIX_STOPS } from '../../lib/remediation/fix-contract.mjs';
-import { mechanicalAstGrepProposal, mechanicalConfigProposal, mechanicalDependencyProposal } from '../../lib/remediation/mechanical.mjs';
-import { agentPatchPacket, agentPatchProposal } from '../../lib/remediation/agent-patch.mjs';
+import { evaluateFixLoop, fixProposal, FIX_STOPS } from '../../src/lib/remediation/fix-contract.mjs';
+import { mechanicalAstGrepProposal, mechanicalConfigProposal, mechanicalDependencyProposal } from '../../src/lib/remediation/mechanical.mjs';
+import { agentPatchPacket, agentPatchProposal } from '../../src/lib/remediation/agent-patch.mjs';
 
 const FINDING = { id: 'f1', ruleId: 'r', rootCauseDigest: 'sha256:root' };
 
