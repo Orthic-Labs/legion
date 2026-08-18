@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "rules": [
     { "path": "config/naming-registry.json", "tokens": ["nemesis", "forge", "seer", "sentinel", "sorcerer"], "occurrences": { "nemesis": 1, "forge": 1, "seer": 1, "sentinel": 1, "sorcerer": 1 }, "class": "R2", "reason": "single compatibility alias source" },
-    { "path": "config/naming-legacy-allowlist.json", "tokens": ["nemesis", "forge", "seer", "sentinel", "sorcerer"], "occurrences": { "nemesis": 11, "forge": 60, "seer": 23, "sentinel": 21, "sorcerer": 13 }, "class": "R2", "reason": "legacy-token classification source" },
+    { "path": "config/naming-legacy-allowlist.json", "tokens": ["nemesis", "forge", "seer", "sentinel", "sorcerer"], "occurrences": { "nemesis": 10, "forge": 60, "seer": 22, "sentinel": 20, "sorcerer": 12 }, "class": "R2", "reason": "legacy-token classification source" },
     { "path": "lib/naming/check.mjs", "tokens": ["nemesis", "forge", "seer", "sentinel", "sorcerer"], "occurrences": { "nemesis": 3, "forge": 1, "seer": 5, "sentinel": 1, "sorcerer": 1 }, "class": "R2", "reason": "legacy-token detector and exact prohibited path checks" },
     { "path": "lib/cli/commands/doctor.mjs", "tokens": ["forge", "seer", "sentinel", "sorcerer"], "occurrences": { "forge": 1, "seer": 1, "sentinel": 1, "sorcerer": 1 }, "class": "R3", "reason": "reports legacy MCP bindings without rewriting unowned configuration" },
     { "path": "tests/bind.test.mjs", "tokens": ["seer"], "class": "R5", "reason": "prior binding migration fixture" },
@@ -37,8 +37,6 @@
     { "pathPrefix": "qualification/", "tokens": ["nemesis", "forge", "seer", "sentinel", "sorcerer"], "class": "R5", "reason": "frozen qualification evidence" },
     { "pathPrefix": "bench/qualifications/", "tokens": ["nemesis", "forge", "seer", "sentinel", "sorcerer"], "class": "R5", "reason": "frozen benchmark evidence" },
     { "pathPrefix": "docs/research/archive/", "tokens": ["nemesis", "forge", "seer", "sentinel", "sorcerer"], "class": "R5", "reason": "archived source research" },
-    { "path": "docs/research/2026-08-12-legion-architecture-book-final.md", "tokens": ["seer", "sentinel", "sorcerer"], "class": "R5", "reason": "accepted implementation-book history and migration requirements" },
-    { "pathPrefix": "docs/rights-audit/", "tokens": ["nemesis"], "class": "R5", "reason": "frozen rights inventory" },
     { "path": "integrations/forges.mjs", "tokens": ["forge"], "occurrences": { "forge": 2 }, "class": "R0", "reason": "generic source-code-hosting term" },
     { "path": "scripts/build-native.mjs", "tokens": ["sentinel"], "occurrences": { "sentinel": 1 }, "class": "R4", "reason": "Node SEA sentinel-fuse option" },
     { "path": "references/security-checklist.md", "tokens": ["forge"], "occurrences": { "forge": 4 }, "class": "R0", "reason": "ordinary security verb" },

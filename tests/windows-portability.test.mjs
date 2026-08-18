@@ -7,7 +7,7 @@ import { runDoctor } from '../lib/cli/commands/doctor.mjs';
 import { runExternal } from '../lib/providers/executor/external-process.mjs';
 import { fixedHost } from '../lib/host/fixed-host.mjs';
 import { validateProviderResult } from '../scripts/normalize-provider-result.mjs';
-import { finalizeAudit } from '../audit-finalize.mjs';
+import { finalizeAudit } from '../tools/audit/audit-finalize.mjs';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
 
@@ -48,11 +48,11 @@ test('audit rerun commands preserve adversarial paths as non-shell argv data', (
   assert.equal(report.schemaVersion, 4);
   assert.deepEqual(report.rerun.audit, {
     executable: process.execPath,
-    args: [join(root, 'audit-run.mjs'), workspace],
+    args: [join(root, 'tools/audit/audit-run.mjs'), workspace],
   });
   assert.deepEqual(report.rerun.verify, {
     executable: process.execPath,
-    args: [join(root, 'audit-verify.mjs'), '--facts', join(`${workspace}\\.audit\\run`, 'facts.json')],
+    args: [join(root, 'tools/audit/audit-verify.mjs'), '--facts', join(`${workspace}\\.audit\\run`, 'facts.json')],
   });
   assert.equal(typeof report.rerun.audit, 'object');
 });

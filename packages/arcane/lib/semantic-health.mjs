@@ -116,7 +116,7 @@ const probe = {
       task.budgetSeal = { contractId: contract.contractId, contractVersion: contract.version, contractDigest: digestValue(contract), taskDigest: digestValue({ taskId: task.taskId, ownScope: task.ownScope, title: task.title }), scopeDigest: digestValue(task.ownScope), activeTimeCapMs: 10, progressDeadlineMs: 5, evidenceReferences: ['AC-6'] };
       const seals = new TaskBudgetSealStore({ root, keyRing: ring });
       seals.seal({ contract, task, authorityAssertion: { authority: 'sage', assertedBy: 'semantic-health', verificationMethod: 'capability-signature', perMessage: true } });
-      if (seals.require('EC-604', 'T-2').scopeDigest !== digestValue(task.ownScope)) fail('task budget binding differs');
+      if (seals.require('EC-604', 'T-2', 1).scopeDigest !== digestValue(task.ownScope)) fail('task budget binding differs');
     });
   },
   'budget_monotonicity'() {

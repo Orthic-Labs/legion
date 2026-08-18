@@ -7,7 +7,7 @@ import test from "node:test";
 import { fileURLToPath } from "node:url";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
-const RENDERER = path.resolve(HERE, "../render-report.mjs");
+const RENDERER = path.resolve(HERE, "../tools/audit/render-report.mjs");
 
 const ADR_REF = "docs/plans/2026-07-13-billing-decomposition.md";
 

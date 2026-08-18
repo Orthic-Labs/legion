@@ -20,8 +20,8 @@ const testEnv = {
 };
 
 const syntaxTargets = [
-  'audit-run.mjs', 'audit-complete.mjs', 'audit-finalize.mjs', 'audit-plan.mjs',
-  'audit-verify.mjs', 'security-pipeline.mjs',
+  'tools/audit/audit-run.mjs', 'tools/audit/audit-complete.mjs', 'tools/audit/audit-finalize.mjs', 'tools/audit/audit-plan.mjs',
+  'tools/audit/audit-verify.mjs', 'tools/audit/security-pipeline.mjs',
   'adapters/cortex-projection.mjs', 'adapters/ecosystem-manifests.mjs', 'adapters/security-adjudication.mjs',
   'providers/native-family-runner.mjs', 'providers/framework-suite.mjs', 'providers/security-suite.mjs',
   'providers/data-suite.mjs', 'providers/infrastructure-suite.mjs', 'providers/generic-source-suite.mjs',

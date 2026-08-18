@@ -1,2 +1,0 @@
-import assert from 'node:assert/strict';import test from 'node:test';import {buildJourneys} from '../../../lib/inventory/journeys/build.mjs';
-test('journey keeps recovery and data effects',()=>{const value=buildJourneys({portfolio:{targets:[{id:'t'}]},projection:{journeys:['save'],journeyDetails:{save:{recovery:['retry'],dataEffects:['write']}}}});assert.deepEqual(value.journeys[0].recovery,['retry']);});

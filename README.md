@@ -4,8 +4,6 @@
 
 Legion makes AI-assisted work legible: it routes each request to the right capability, separates decisions from changes from independent checks, & records evidence before claiming delivery. It is one system projected into Claude Code, Codex, or an `AGENTS.md` harness—not a collection of unrelated prompts.
 
-**[Explore the system map →](docs/legion-system-map.html)**
-
 ```mermaid
 flowchart LR
   U["User intent"] --> L["Legion<br/>route & coordinate"]
@@ -97,7 +95,6 @@ flowchart LR
 
 ## Repository
 
-- [Interactive system map](docs/legion-system-map.html)
 - [Architecture & doctrine](doctrine/legion.md)
 - [Full manual](references/manual.md)
 - [Provider architecture](references/provider-architecture.md)

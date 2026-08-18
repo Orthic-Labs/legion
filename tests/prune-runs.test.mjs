@@ -4,7 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 
-import { pruneOldRuns, RUN_DIR_RE } from "../collect-facts.mjs";
+import { pruneOldRuns, RUN_DIR_RE } from "../tools/audit/collect-facts.mjs";
 
 function seed(root, names) {
   fs.mkdirSync(root, { recursive: true });

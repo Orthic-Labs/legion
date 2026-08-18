@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { reconcileAttackPaths } from '../providers/security/attack-path-reconcile.mjs';
 import { createChainAdjudicationPacket, finalizeChainVerdict } from '../adapters/security-chain-adjudication.mjs';
-import { prepareChainAdjudicationBundle, finalizeChainAdjudicationBundle } from '../security-chain-pipeline.mjs';
+import { prepareChainAdjudicationBundle, finalizeChainAdjudicationBundle } from '../tools/audit/security-chain-pipeline.mjs';
 
 const BINDING = {
   planDigest: 'sha256:plan', repositoryRevision: 'rev1', dirtyPatchDigest: null,

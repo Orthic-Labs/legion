@@ -93,7 +93,7 @@ test('Sage seal command creates exact contract & task budget bindings', async ()
     await runContract(['seal', '--file', s.contractPath, '--task-budgets', budgets, '--agent', 'agent-1', '--session', SESSION], s.ctx);
     const keys = loadHostKeyRing({ dir: s.ctx.env.ARCANE_KEY_DIR });
     assert.equal(new BudgetGovernanceStore({ root: join(s.root, '.audit', 'arcane', 'budget-governance'), keyRing: keys }).require('EC-11', 1).contractDigest, digestValue(contract));
-    assert.equal(new TaskBudgetSealStore({ root: join(s.root, '.audit', 'arcane', 'task-budget-seals'), keyRing: keys }).require('EC-11', 'T-1').activeTimeCapMs, 900000);
+    assert.equal(new TaskBudgetSealStore({ root: join(s.root, '.audit', 'arcane', 'task-budget-seals'), keyRing: keys }).require('EC-11', 'T-1', 1).activeTimeCapMs, 900000);
   } finally { s.cleanup(); }
 });
 

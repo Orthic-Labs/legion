@@ -1,2 +1,0 @@
-import assert from 'node:assert/strict';import test from 'node:test';import {buildComponentGraph} from '../../../lib/inventory/components/build-graph.mjs';
-test('typed trust crossing survives graph build',()=>{const graph=buildComponentGraph({portfolio:{targets:[{id:'t'}]},candidates:[{id:'a',kind:'api',targetIds:['t']},{id:'b',kind:'data',targetIds:['t']}],relations:[{kind:'writes',from:'a',to:'b',trustBoundary:true}]});assert.equal(graph.relations[0].trustBoundary,true);});

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { aggregateSecurityCandidates } from '../audit-run.mjs';
+import { aggregateSecurityCandidates } from '../tools/audit/audit-run.mjs';
 
 // The frozen plan record is the only authority for candidate providers.
 const CANDIDATE_PLAN = {

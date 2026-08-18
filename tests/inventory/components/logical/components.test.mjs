@@ -1,2 +1,0 @@
-import assert from 'node:assert/strict';import test from 'node:test';import {extractLogicalComponents} from '../../../../lib/inventory/components/extract-logical.mjs';
-test('identity data API and external integration remain distinct',()=>{const rows=extractLogicalComponents({portfolio:{targets:[{id:'t'}]},projection:{files:['oauth.ts','postgres.sql','api/routes.ts','stripe.ts']}});assert.deepEqual(new Set(rows.map(({kind})=>kind)),new Set(['identity','data','api','integration']));});

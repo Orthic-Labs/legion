@@ -21,7 +21,6 @@ test('CI workflow is self-contained in this repository', () => {
   assert.ok(workflow.includes('actions/checkout@v4'));
   assert.ok(workflow.includes('actions/setup-node@v4'));
   assert.ok(workflow.includes('run-audit-conformance-tests.mjs'));
-  assert.ok(workflow.includes('bench/run-bench.mjs'));
   assert.ok(workflow.includes('windows-latest'), 'CI must cover Windows');
   assert.ok(workflow.includes('macos-latest'), 'CI must cover macOS');
   assert.ok(workflow.includes('ubuntu-latest'), 'CI must cover Linux');
@@ -41,17 +40,10 @@ test('publication guard exists and blocks public channels without a grant', () =
   }
 });
 
-test('benchmark baseline is versioned and reproducible', () => {
-  const baseline = JSON.parse(readFileSync(join(root, 'bench', 'baseline', 'bench-baseline.json'), 'utf8'));
-  assert.ok(baseline.qualificationReceipt?.receiptDigest, 'baseline carries a qualification receipt digest');
-  assert.equal(baseline.gate_passed, true, 'baseline gate passed at capture time');
-  assert.ok(baseline.negative_controls >= 1, 'baseline includes negative controls');
-});
-
 test('license and third-party notices are present', () => {
   const license = readFileSync(join(root, 'LICENSE'), 'utf8');
   assert.ok(license.includes('Orthic Labs Source Use License'), 'LICENSE identifies the Orthic Labs source-use license');
-  const notices = readFileSync(join(root, 'THIRD_PARTY_NOTICES.md'), 'utf8');
+  const notices = readFileSync(join(root, 'docs/THIRD_PARTY_NOTICES.md'), 'utf8');
   assert.ok(notices.length > 0, 'third-party notices placeholder exists');
 });
 
@@ -89,7 +81,7 @@ test('Windows portability tests pass from a copied standalone checkout', () => {
         return !path.startsWith('.git')
           && !path.startsWith('node_modules')
           && !path.startsWith('qualification/evidence')
-          && path !== 'architecture.md'
+          && path !== 'docs/architecture.md'
           && path !== 'pnpm-lock.yaml';
       },
     });

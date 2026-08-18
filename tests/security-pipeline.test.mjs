@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { finalizeAdjudicationBundle, prepareAdjudicationBundle } from '../security-pipeline.mjs';
+import { finalizeAdjudicationBundle, prepareAdjudicationBundle } from '../tools/audit/security-pipeline.mjs';
 
 function candidates() {
   return {

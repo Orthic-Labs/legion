@@ -9,7 +9,7 @@
 //
 // See ../KEY-CUSTODY.md for the full custody/rotation/threat-model story.
 
-import { randomBytes } from 'node:crypto';
+import { createHmac, randomBytes } from 'node:crypto';
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { ArcaneError } from './errors.mjs';
@@ -48,7 +48,23 @@ export class KeyRing {
    *   unknown or revoked.
    */
   get(keyId) {
-    const rec = this.#keys.get(keyId);
+    let rec = this.#keys.get(keyId);
+    // Authority-proof keys are deterministic HMAC derivations of their root
+    // key, so any ring holding the root can re-derive them. Without this a
+    // record signed by a derived key verifies only inside the process that
+    // issued it — a fresh ring reading the same record fails closed even
+    // though the material is reproducible. Derivation must match
+    // authority-invocation-proof.mjs #credentials exactly.
+    if (!rec) {
+      const derived = /^(.+):authority-proof:([^:]+):([^:]+)$/.exec(keyId);
+      const root = derived && this.#keys.get(derived[1]);
+      if (root && root.status !== 'revoked') {
+        const macDomain = `arcane-authority-proof:v1:${derived[2]}:${derived[3]}`;
+        const material = createHmac('sha256', root.key).update(`arcane-key-derivation:v1\0${macDomain}`, 'utf8').digest();
+        this.add(keyId, material, { custody: `derived:${derived[1]}:${macDomain}` });
+        rec = this.#keys.get(keyId);
+      }
+    }
     if (!rec || rec.status === 'revoked') {
       throw new ArcaneError('ARC_AUTH_KEY_UNAVAILABLE', `key unavailable: ${keyId}`, { keyId });
     }

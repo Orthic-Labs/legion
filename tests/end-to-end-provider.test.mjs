@@ -3,7 +3,7 @@ import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
-import { reconcileCompleteRun } from '../audit-complete.mjs';
+import { reconcileCompleteRun } from '../tools/audit/audit-complete.mjs';
 import { auditVisualArtifacts, encodePng } from '../providers/visual-core.mjs';
 import { extendRegistryWithNativeFamilies } from '../registry/provider-registry-complete.mjs';
 import { expandProviderRegistry } from '../registry/provider-registry.mjs';

@@ -33,7 +33,7 @@ function sha256(data) {
 
 // --- Case 1: Security routing — candidate providers emit candidates only ---
 function test_security_routing() {
-  const { finalizeAudit } = await_import(join(AUDIT_ROOT, 'audit-finalize.mjs'));
+  const { finalizeAudit } = await_import(join(AUDIT_ROOT, 'tools/audit/audit-finalize.mjs'));
   const facts = {
     incomplete: false,
     out_dir: join(tmpdir(), 'legion-audit-conformance'),
@@ -60,7 +60,7 @@ function test_security_routing() {
 
 // --- Case 2: Execution status — failing command produces fail verdict ---
 function test_execution_status() {
-  const { finalizeAudit } = await_import(join(AUDIT_ROOT, 'audit-finalize.mjs'));
+  const { finalizeAudit } = await_import(join(AUDIT_ROOT, 'tools/audit/audit-finalize.mjs'));
   const facts = {
     incomplete: false,
     out_dir: join(tmpdir(), 'legion-audit-conformance'),
@@ -85,7 +85,7 @@ function test_execution_status() {
 // --- Case 3: Trust boundary — child environment excludes signing key ---
 function test_trust_boundary() {
   process.env.AUDIT_PLAN_SIGNING_KEY = 'super-secret-key-12345';
-  const verifySource = readFileSync(join(AUDIT_ROOT, 'audit-verify.mjs'), 'utf8');
+  const verifySource = readFileSync(join(AUDIT_ROOT, 'tools/audit/audit-verify.mjs'), 'utf8');
   // The childEnv helper must not spread process.env
   assert(!verifySource.includes('...process.env'), 'audit-verify does not spread process.env');
   // The ALLOWED_CHILD_KEYS must not include AUDIT_PLAN_SIGNING_KEY
@@ -121,14 +121,14 @@ function test_coverage_binding() {
   assert(nativeSource.includes('examinedPathsDigest'), 'native runner emits examinedPathsDigest');
   assert(nativeSource.includes('unexaminedPaths'), 'native runner emits unexaminedPaths');
   // The audit-complete denominatorDrift must compare digests
-  const completeSource = readFileSync(join(AUDIT_ROOT, 'audit-complete.mjs'), 'utf8');
+  const completeSource = readFileSync(join(AUDIT_ROOT, 'tools/audit/audit-complete.mjs'), 'utf8');
   assert(completeSource.includes('pathDigest') || completeSource.includes('denominatorDigest'), 'audit-complete compares path digests');
   pass('coverage binding: path digests compared, not counts');
 }
 
 // --- Case 6: Discovery authority — Cortex owns classification ---
 function test_discovery_authority() {
-  const collectSource = readFileSync(join(AUDIT_ROOT, 'collect-facts.mjs'), 'utf8');
+  const collectSource = readFileSync(join(AUDIT_ROOT, 'tools/audit/collect-facts.mjs'), 'utf8');
   // The registry validation must enforce discoveryOwner === 'cortex'
   const registrySource = readFileSync(join(AUDIT_ROOT, 'registry/provider-registry.mjs'), 'utf8');
   assert(registrySource.includes("discoveryOwner !== 'cortex'"), 'registry enforces cortex as discovery owner');
@@ -144,7 +144,7 @@ function test_discovery_authority() {
 
 // --- Case 7: Verification exactness — replay compares digests ---
 function test_verification_exactness() {
-  const verifySource = readFileSync(join(AUDIT_ROOT, 'audit-verify.mjs'), 'utf8');
+  const verifySource = readFileSync(join(AUDIT_ROOT, 'tools/audit/audit-verify.mjs'), 'utf8');
   // The verifier must use childEnv (not spread process.env)
   assert(verifySource.includes('childEnv'), 'verifier uses sanitized child environment');
   // The verifier must recompute plan binding
@@ -168,7 +168,7 @@ function test_adjudication_rigor() {
   assert(adjudicationSource.includes('requires proof'), 'proof required for surviving verdicts');
   assert(adjudicationSource.includes('evidenceStrength above possible'), 'evidenceStrength required above possible');
   assert(adjudicationSource.includes('devilsAdvocate'), 'devilsAdvocate challenge required');
-  const { finalizeAudit } = await_import(join(AUDIT_ROOT, 'audit-finalize.mjs'));
+  const { finalizeAudit } = await_import(join(AUDIT_ROOT, 'tools/audit/audit-finalize.mjs'));
   const facts = {
     incomplete: false,
     out_dir: join(tmpdir(), 'legion-audit-conformance'),
@@ -211,7 +211,7 @@ function test_qualification_receipts() {
 
 // --- Case 10: Supplemental tier — missing scanners don't block ---
 function test_supplemental_tier() {
-  const collectSource = readFileSync(join(AUDIT_ROOT, 'collect-facts.mjs'), 'utf8');
+  const collectSource = readFileSync(join(AUDIT_ROOT, 'tools/audit/collect-facts.mjs'), 'utf8');
   // tool_absent must be recorded, not treated as a clean pass
   assert(collectSource.includes('tool_absent'), 'tool_absent flag exists for missing scanners');
   // flag_if_absent must be present in check definitions
@@ -219,7 +219,7 @@ function test_supplemental_tier() {
   // tier: 'supplemental' must be present in check definitions
   assert(collectSource.includes("tier: 'supplemental'"), 'supplemental tier is declared on check definitions');
   // The reconciliation must ignore supplemental checks when absent
-  const planSource = readFileSync(join(AUDIT_ROOT, 'audit-plan.mjs'), 'utf8');
+  const planSource = readFileSync(join(AUDIT_ROOT, 'tools/audit/audit-plan.mjs'), 'utf8');
   assert(planSource.includes('supplemental'), 'reconciliation handles supplemental tier');
   pass('supplemental tier: missing scanners are flagged, not silently clean');
 }
@@ -268,7 +268,7 @@ function _loadValidator(path) {
 // --- Main ---
 async function main() {
   // Import modules dynamically
-  const finalizeMod = await import(pathToFileURL(join(AUDIT_ROOT, 'audit-finalize.mjs')).href);
+  const finalizeMod = await import(pathToFileURL(join(AUDIT_ROOT, 'tools/audit/audit-finalize.mjs')).href);
   const validatorMod = await import(pathToFileURL(join(AUDIT_ROOT, 'scripts/normalize-provider-result.mjs')).href);
 
   // Override the helper to use real imports

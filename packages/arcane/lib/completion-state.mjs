@@ -5,7 +5,7 @@ import { relative, resolve } from 'node:path';
 import { pathMatches } from './preeffect-gate.mjs';
 
 function command(cwd, args) {
-  return execFileSync('git', args, { cwd, encoding: 'utf8' });
+  return execFileSync('git', args, { cwd, encoding: 'utf8', maxBuffer: 1 << 28 });
 }
 
 function sha256(value) {

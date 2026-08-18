@@ -130,7 +130,7 @@ test('audit-verify.mjs executes end-to-end over a frozen fixture', () => {
     writeFileSync(planPath, JSON.stringify(seededPlan, null, 2));
 
     const result = spawnSync(process.execPath, [
-      'audit-verify.mjs',
+      'tools/audit/audit-verify.mjs',
       '--facts', factsPath,
       '--plan', planPath,
     ], {

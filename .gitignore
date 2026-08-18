@@ -5,3 +5,5 @@ node_modules/
 __pycache__/
 *.pyc
 repos/
+.DS_Store
+.pytest_cache/

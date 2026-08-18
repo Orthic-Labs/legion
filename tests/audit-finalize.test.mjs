@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { finalizeAudit } from '../audit-finalize.mjs';
+import { finalizeAudit } from '../tools/audit/audit-finalize.mjs';
 
 function facts(overrides = {}) {
   return {
