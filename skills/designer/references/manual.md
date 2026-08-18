@@ -27,7 +27,7 @@ deferred, never skipped for shipped work. State the mode out loud when starting.
 
 ## Route
 
-Paths are under `tools/skills/designer/` unless shown from `tools/skills/`.
+Paths are under `skills/designer/` unless shown from `skills/`.
 
 | Primary outcome | Read next |
 |---|---|

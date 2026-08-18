@@ -4,7 +4,7 @@
 hidden QA browser, drive functional interaction, capture visual evidence, and report findings.
 Recovered verbatim from git history — deleted at workspace commit `d810d827` (claimed "absorbed"
 into the new agent definitions; it was not). Source:
-`git show d810d827^:tools/skills/qa/references/manual.md` (242 lines). Loaded by: Oracle, when the
+`git show d810d827^:skills/qa/references/manual.md` (242 lines). Loaded by: Oracle, when the
 audit surface is a running app/UI and the check requires functional interaction or visual capture
 rather than static code inspection.
 
@@ -75,7 +75,7 @@ This is the regression harness surface.
 This shared skill provides generic runners under:
 
 ```text
-tools/skills/qa/scripts/
+skills/qa/scripts/
 ```
 
 - `qa-functional.mjs`: functional hover/click/type/key/assert/screenshot actions.
@@ -86,7 +86,7 @@ These runners use installed Chrome/Edge directly through headless flags and raw 
 
 This is the evidence and interaction tooling, not a replacement for the project contract.
 
-> **Superseded:** `tools/skills/qa/scripts/` no longer exists (the `qa` skill was retired along
+> **Superseded:** `skills/qa/scripts/` no longer exists (the `qa` skill was retired along
 > with `dispatch`/`debugger`/`architect`). Confirm the current location of these runners — or their
 > functional equivalent — before invoking them; this manual's shell examples below assume the
 > scripts still exist somewhere reachable and should be re-pointed once found, or the gap should be

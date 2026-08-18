@@ -58,19 +58,19 @@ Improve the quality of all PNG files in this directory
 
 ## Script
 
-A real Pillow-based script lives at `tools/skills/content/specialists/image-enhancement/scripts/enhance.py`.
+A real Pillow-based script lives at `skills/content/specialists/image-enhancement/scripts/enhance.py`.
 It performs: LANCZOS resize + UnsharpMask sharpen + optional contrast, and prints the **actual**
 input/output dimensions read from the file — no fabricated measurements.
 
 ```bash
 # Double size + sharpen (default)
-py -3.11 tools/skills/content/specialists/image-enhancement/scripts/enhance.py screenshot.png
+py -3.11 skills/content/specialists/image-enhancement/scripts/enhance.py screenshot.png
 
 # Scale to a specific width, skip sharpen
-py -3.11 tools/skills/content/specialists/image-enhancement/scripts/enhance.py screenshot.png --width 1920 --no-sharpen
+py -3.11 skills/content/specialists/image-enhancement/scripts/enhance.py screenshot.png --width 1920 --no-sharpen
 
 # Custom output path
-py -3.11 tools/skills/content/specialists/image-enhancement/scripts/enhance.py screenshot.png --output out/enhanced.png
+py -3.11 skills/content/specialists/image-enhancement/scripts/enhance.py screenshot.png --output out/enhanced.png
 ```
 
 Example output (actual values from the image):

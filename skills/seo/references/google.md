@@ -27,10 +27,10 @@ Chrome user metrics, real indexation status, search performance, and organic tra
 Run the commands in this reference from the SEO skill directory:
 
 ```powershell
-Set-Location D:/Claude/tools/skills/seo
+Set-Location skills/seo
 ```
 
-or prefix script paths with `D:/Claude/tools/skills/seo/`. The examples below use `scripts/*.py`
+or prefix script paths with `skills/seo/`. The examples below use `scripts/*.py`
 relative to that directory.
 
 All APIs are free. Setup requires a Google Cloud project with API key and/or

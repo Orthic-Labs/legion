@@ -33,7 +33,7 @@ The first argument is the action. Defaults to `status`.
 2. Invoke the admin script and pass the user's output through verbatim:
 
    ```bash
-   node tools/skills/designer/engine/scripts/hook-admin.mjs <action> [args...]
+   node skills/designer/engine/scripts/hook-admin.mjs <action> [args...]
    ```
 
 3. If `<action>` is `off`, follow up with a one-line note: "Done. New edits will not trigger the design hook in this project until you run `/designer hooks on`."
@@ -56,25 +56,25 @@ Prefer the narrowest exception:
 Example value-specific exception:
 
 ```bash
-node tools/skills/designer/engine/scripts/hook-admin.mjs ignore-value overused-font Inter --shared --reason "User confirmed Inter is intentional"
+node skills/designer/engine/scripts/hook-admin.mjs ignore-value overused-font Inter --shared --reason "User confirmed Inter is intentional"
 ```
 
 Example intentional motion exception:
 
 ```bash
-node tools/skills/designer/engine/scripts/hook-admin.mjs ignore-value bounce-easing bounce-ball --shared --reason "User confirmed ball bounce animation is intentional"
+node skills/designer/engine/scripts/hook-admin.mjs ignore-value bounce-easing bounce-ball --shared --reason "User confirmed ball bounce animation is intentional"
 ```
 
 Example whole-rule font exception:
 
 ```bash
-node tools/skills/designer/engine/scripts/hook-admin.mjs ignore-rule overused-font --all-values --reason "User asked to ignore overused fonts generally"
+node skills/designer/engine/scripts/hook-admin.mjs ignore-rule overused-font --all-values --reason "User asked to ignore overused fonts generally"
 ```
 
 Example file-scoped exception:
 
 ```bash
-node tools/skills/designer/engine/scripts/hook-admin.mjs ignore-file "src/legacy/Card.tsx"
+node skills/designer/engine/scripts/hook-admin.mjs ignore-file "src/legacy/Card.tsx"
 ```
 
 ## Constraints

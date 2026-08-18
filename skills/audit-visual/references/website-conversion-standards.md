@@ -95,10 +95,10 @@ Lens 14 judgment check.
 ## Mandatory scan protocol for any website/landing audit
 
 ```text
-node D:/Claude/tools/skills/designer/engine/scripts/detect.mjs --json --viewport=1440x900 <url>
-node D:/Claude/tools/skills/designer/engine/scripts/detect.mjs --json --tablet <url>
-node D:/Claude/tools/skills/designer/engine/scripts/detect.mjs --json --mobile <url>
-node D:/Claude/tools/skills/designer/engine/scripts/detect.mjs --json --site --site-type=<app|ecommerce|content> <homepage-url>
+node skills/designer/engine/scripts/detect.mjs --json --viewport=1440x900 <url>
+node skills/designer/engine/scripts/detect.mjs --json --tablet <url>
+node skills/designer/engine/scripts/detect.mjs --json --mobile <url>
+node skills/designer/engine/scripts/detect.mjs --json --site --site-type=<app|ecommerce|content> <homepage-url>
 ```
 
 - All runs are REQUIRED before a verdict (site sweep once, on the homepage); save the JSON outputs
@@ -112,4 +112,4 @@ node D:/Claude/tools/skills/designer/engine/scripts/detect.mjs --json --site --s
   verdict at REVISE. Only Adrian can waive one, explicitly, per finding. Agents — including this
   one — cannot argue a measured structure blocker down to a Note.
 - Re-runnable proof of the whole rule pack:
-  `node tools/skills/designer/engine/scripts/detector/tests/structure/run-structure-smoke.mjs`
+  `node skills/designer/engine/scripts/detector/tests/structure/run-structure-smoke.mjs`

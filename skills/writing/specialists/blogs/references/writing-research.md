@@ -6,10 +6,10 @@ Local sources:
 
 - `D:/Claude/Content/Storytelling/STORYTELLING_GUIDE.md`
 - `D:/Claude/Content/Storytelling/SOURCE_MATRIX.md`
-- `D:/Claude/tools/skills/writing/specialists/copywriting/references/craft-research.md`
-- `D:/Claude/tools/skills/writing/specialists/copywriting/references/hook.md`
+- `skills/writing/specialists/copywriting/references/craft-research.md`
+- `skills/writing/specialists/copywriting/references/hook.md`
 - `D:/Claude/SEO/vinay/blog-playbook.md`
-- `D:/Claude/tools/skills/seo/references/blog-post-contract.md`
+- `skills/seo/references/blog-post-contract.md`
 
 Extracted writing sources:
 
@@ -30,7 +30,7 @@ Source trace:
 
 `blogs` owns the post. `copywriting` owns the persuasion and line-quality corpus used inside the post.
 
-Use `D:/Claude/tools/skills/writing/specialists/copywriting/references/craft-research.md` for:
+Use `skills/writing/specialists/copywriting/references/craft-research.md` for:
 
 - blog titles and H1s
 - first sentence and TL;DR
@@ -39,7 +39,7 @@ Use `D:/Claude/tools/skills/writing/specialists/copywriting/references/craft-res
 - section hooks and transitions
 - claim specificity, proof gaps, and line edits
 
-Use `D:/Claude/tools/skills/writing/specialists/copywriting/references/hook.md` only when the user asks for stronger hooks/openers, social-native promotion, or a scroll-stopping angle for the post.
+Use `skills/writing/specialists/copywriting/references/hook.md` only when the user asks for stronger hooks/openers, social-native promotion, or a scroll-stopping angle for the post.
 
 Do not load `copywriting/references/ad.md` or ad platform specs unless the blog task also asks for ad copy or platform-specific promotion. Blog SEO and article structure stay in `blogs`; sales pages stay in `copywriting`.
 

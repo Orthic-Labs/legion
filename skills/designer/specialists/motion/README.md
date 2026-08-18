@@ -34,7 +34,7 @@ Read in this order: `GUIDE.md` → `principles.md` → `stack.md` → relevant `
 
 **This guide is producer bar** — it owns motion philosophy, language, tokens, architecture, choreography, patterns, libraries, & producer-side QA checklist.
 
-**Reviewer bar lives in `tools/skills/audit-visual/references/motion-standards.md`** — it owns escalation triggers, remedial hierarchy, & findings format.
+**Reviewer bar lives in `skills/audit-visual/references/motion-standards.md`** — it owns escalation triggers, remedial hierarchy, & findings format.
 
 Both files share easing values from `principles.md` §6. Drift breaks the contract.
 
@@ -56,7 +56,7 @@ Full contract: `docs/ARCHITECTURE-MOTION.md` §9.
 
 When you revise a file, keep the others in sync:
 
-- Add a new easing to `principles.md` → check `reviews.md`; update `tools/skills/audit-visual/references/motion-standards.md` if it diverges.
+- Add a new easing to `principles.md` → check `reviews.md`; update `skills/audit-visual/references/motion-standards.md` if it diverges.
 - Add a new pattern to `patterns/<category>.md` → check the count in `_index.md`.
 - Add a new library to `stack.md` → check `principles.md` budget rules still hold.
 

@@ -10,7 +10,7 @@
 > original raw-LOC gate: `docs/BLUEPRINT-AUDIT-ARCHITECT-WORKFLOW.md` (repo-relative; the previous
 > `D:/Claude/...` absolute path did not resolve on macOS).
 
-**Status:** P1–P3 shipped + E2E-validated on `viewright` (2026-06-19). `collect-facts` (12 checks, parallel pool + serial build) · `render-report` · `audit-verify` all working; out-of-band verify returns **all-MATCH**; a real run surfaced 2 `undici` CVEs (CVE-2026-9697 / -9678) and proved the secrets/build/dedup paths. Remaining slivers: ruff/clippy lint, knip/jscpd finding-counts, and the semgrep/actionlint/hadolint *ran*-paths (those tools aren't installed on this box). · **Scope:** rewrite `tools/skills/audit/` into one E2E hybrid repo-auditor that proves its own work and writes an implementable report.
+**Status:** P1–P3 shipped + E2E-validated on `viewright` (2026-06-19). `collect-facts` (12 checks, parallel pool + serial build) · `render-report` · `audit-verify` all working; out-of-band verify returns **all-MATCH**; a real run surfaced 2 `undici` CVEs (CVE-2026-9697 / -9678) and proved the secrets/build/dedup paths. Remaining slivers: ruff/clippy lint, knip/jscpd finding-counts, and the semgrep/actionlint/hadolint *ran*-paths (those tools aren't installed on this box). · **Scope:** rewrite `skills/audit/` into one E2E hybrid repo-auditor that proves its own work and writes an implementable report.
 
 > **E2E bugs caught & fixed (2026-06-19):** (1) Windows false-clean — `cmd.exe` returns exit 1 (not 127) for a missing tool, so absent `gitleaks` reported "ran, 0"; fixed via `spawn` ENOENT detection. (2) `gitleaks dir` read 10 GB of `node_modules` → 12,764 false positives; switched to `gitleaks git` (tracked history, ~1 s, 0 leaks). (3) dedup over-merged two distinct `package.json` CVEs; line-less findings now dedup by title. (4) uninstalled `npx` tools (knip/jscpd) reported "ran" because `looksMissing` didn't catch `npx canceled`; fixed.
 
@@ -45,7 +45,7 @@ flowchart LR
 ```
 
 ```
-tools/skills/audit/
+skills/audit/
 ├── SKILL.md              ← REWRITE (frontmatter + procedure + lens table + report spec + hard rules)
 ├── manifest.json         ← NEW   (the check denominator + required-set)
 ├── collect-facts.mjs     ← NEW   (deterministic scanner runner → facts.json; redaction; graceful-skip)
