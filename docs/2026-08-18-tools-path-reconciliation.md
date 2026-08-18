@@ -113,7 +113,7 @@ across in the absorption.
 | `tools/lib/design-gate.mjs` | 3 | `designer/specialists/surface-design` Phase 5d |
 | `src/lib/OKF-OUTPUT.md` | 3 | — |
 | `tools/lib/CONTEXT-ENGINEERING.md` | 3 | — |
-| `skills/_shared/illustrate/GUIDE.md` | 2 | `designer/SKILL.md` illustration route |
+| `skills/designer/specialists/illustration/GUIDE.md` | 2 | `designer/SKILL.md` illustration route (style-free; private style systems stay in the consuming workspace) |
 | `tools/lib/human-eyes-gate.mjs` | 1 | `designer` Phase 6 |
 | `src/lib/open-for-review.mjs` | 1 | `designer` Phase 6 |
 | `tools/skills/.system/imagegen/SKILL.md` | 1 | `content/references/routing.md` |

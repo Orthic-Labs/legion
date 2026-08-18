@@ -40,7 +40,7 @@ Paths are under `skills/designer/` unless shown from `skills/`.
 | Create or evolve the underlying brand identity | `brand-identity` |
 | Design animation language, tokens, choreography, or implementation | `specialists/motion/GUIDE.md`, then one platform reference |
 | Design glass, frosted, translucent, or liquid-glass-like UI | `specialists/glass/GUIDE.md` |
-| Direct or adapt biological-mechanical illustration language | `skills/_shared/illustrate/GUIDE.md` |
+| Direct illustration for any surface | `specialists/illustration/GUIDE.md`; the consuming project supplies the visual style |
 | Build/redesign a **platform-native** app surface (SwiftUI/AppKit macOS or iOS, `NSPanel`/HUD/palette, or Slint) | `references/app.md` → `references/native-app.md`; add `specialists/motion/native.md` for motion or window geometry |
 | Build/redesign a **Tauri** app surface | `references/app.md` → `references/native-app.md` §7; add `specialists/motion/webview.md` for per-OS engine split |
 | Port a Swift/SwiftUI surface to Slint, or reverse | `specialists/motion/native.md` §6 |

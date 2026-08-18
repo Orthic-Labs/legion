@@ -19,7 +19,7 @@ absorption rather than being deleted afterwards.
 | `lib/design-gate.mjs` | 3 | `designer/specialists/surface-design` Phase 5d, a **hard gate** | High |
 | `lib/human-eyes-gate.mjs` | 1 | `designer` Phase 6 | Medium |
 | `lib/open-for-review.mjs` | 1 | `designer` Phase 6 | Medium |
-| `skills/_shared/illustrate/GUIDE.md` | 2 | `designer/SKILL.md` illustration route | Medium |
+| ~~`skills/_shared/illustrate/GUIDE.md`~~ | 0 | Resolved: reclassified as a private visual system. Legion now ships style-free `skills/designer/specialists/illustration/GUIDE.md`; the biological-mechanical language lives in the consuming workspace | Closed |
 | `lib/OKF-OUTPUT.md` | 3 | — | Low |
 | `lib/CONTEXT-ENGINEERING.md` | 3 | — | Low |
 | `skills/.system/imagegen/SKILL.md` | 1 | `content/references/routing.md` | Low |
@@ -146,7 +146,7 @@ in the workspace and were simply not carried across. One never existed in either
 |---|---|
 | `skills/_shared/anti-slop.md` | Present in workspace — **superseded**, see below |
 | `skills/_shared/parametric-design.md` | Present in workspace, no legion equivalent |
-| `skills/_shared/illustrate/GUIDE.md` | Present in workspace, no legion equivalent |
+| `skills/_shared/illustrate/GUIDE.md` | Intentionally not in Legion — project-specific visual system; Legion owns generic illustration method only |
 | `lib/auto-jury.mjs` | Present in workspace, no legion equivalent |
 | `lib/human-eyes-gate.mjs` | Present in workspace, no legion equivalent |
 | `lib/open-for-review.mjs` | Present in workspace, no legion equivalent |

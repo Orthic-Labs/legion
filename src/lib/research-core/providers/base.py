@@ -13,8 +13,8 @@ from pathlib import Path
 from typing import Any, Protocol
 from urllib.parse import urlparse
 
-WORKSPACE = Path(__file__).resolve().parents[3]
-sys.path.insert(0, str(WORKSPACE / 'tools' / 'lib'))
+LEGION_LIB = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(LEGION_LIB))
 from membrane_data import fence as membrane_fence  # noqa: E402
 
 
