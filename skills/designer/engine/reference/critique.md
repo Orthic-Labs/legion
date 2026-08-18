@@ -20,7 +20,7 @@ Resolve one stable target, run two independent assessments, synthesize a design 
    - "this page" -> the current URL or source file
 2. **Compute the slug**:
    ```bash
-   node tools/skills/designer/engine/scripts/critique-storage.mjs slug "<resolved-path-or-url>"
+   node skills/designer/engine/scripts/critique-storage.mjs slug "<resolved-path-or-url>"
    ```
    Keep it. If the command exits non-zero, skip persistence and trend for this run, but continue the critique.
 3. **Read `.impeccable/critique/ignore.md`** if it exists. Drop matching findings silently; it is the only prior-run input critique consumes.
@@ -50,7 +50,7 @@ Run the bundled detector and browser visualization evidence. Assessment B is man
 
 CLI scan:
 ```bash
-node tools/skills/designer/engine/scripts/detect.mjs --json [target]
+node skills/designer/engine/scripts/detect.mjs --json [target]
 ```
 
 - Pass markup files/directories as `[target]`; do not pass CSS-only files.
@@ -64,7 +64,7 @@ Browser visualization is required for a viewable target when browser automation 
 1. Create a fresh tab and navigate.
 2. Preflight mutable injection by setting `document.title` and appending a `<script>` tag. Read-only evaluate APIs do not count.
 3. If mutation is unavailable, skip live server, browser presentation, and injection; report fallback signal.
-4. If mutation is available, start `node tools/skills/designer/engine/scripts/live-server.mjs --background`, present the browser if supported, label `[Human]`, scroll top, inject `http://localhost:PORT/detect.js`, wait 2-3 seconds, read `impeccable` console messages, then stop the live server.
+4. If mutation is available, start `node skills/designer/engine/scripts/live-server.mjs --background`, present the browser if supported, label `[Human]`, scroll top, inject `http://localhost:PORT/detect.js`, wait 2-3 seconds, read `impeccable` console messages, then stop the live server.
 5. For multi-view targets, inject on 3-5 representative pages.
 
 Return: CLI findings JSON/counts, browser console findings if applicable, false positives, and skipped/failed browser steps with concrete reasons.
@@ -166,7 +166,7 @@ Skip this step if the Setup slug was null (vague or root-level target).
 2. **Pass the structured metadata** through `IMPECCABLE_CRITIQUE_META` (JSON), then run the write command:
    ```bash
    IMPECCABLE_CRITIQUE_META='{"target":"<user phrasing>","total_score":<n>,"p0_count":<n>,"p1_count":<n>}' \
-     node tools/skills/designer/engine/scripts/critique-storage.mjs write <slug> <body-file>
+     node skills/designer/engine/scripts/critique-storage.mjs write <slug> <body-file>
    ```
    The helper prints the absolute path it wrote.
 
@@ -174,7 +174,7 @@ Skip this step if the Setup slug was null (vague or root-level target).
 
 4. **Read the trend** for context:
    ```bash
-   node tools/skills/designer/engine/scripts/critique-storage.mjs trend <slug> 5
+   node skills/designer/engine/scripts/critique-storage.mjs trend <slug> 5
    ```
    This returns a JSON array of the last 5 frontmatter entries (including the one you just wrote).
 

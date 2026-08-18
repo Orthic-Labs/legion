@@ -114,7 +114,7 @@ A pipeline. Scanners fan out; the build step is the lone serial exception; stage
    used to verify a finding are still read in full.
 
    > **Membrane status.** The typed Audit finding store (`<repo>/.audit/audit/findings.jsonl`,
-   > provider `tools/skills/audit/audit_provider.py`, `status == open` only) and the typed Architect
+   > provider `audit_provider.py`, `status == open` only) and the typed Architect
    > decision store are live in `main`; Audit still runs standalone directly after Cortex — no
    > planner prerequisite. Cross-machine parity claims stay gated on Mac evidence under
    > `rightcontext-evidence/g2/`; current runtime truth: `membrane/docs/MEMBRANE-STATE.md`.
@@ -293,7 +293,7 @@ style drift >2σ from the repo baseline, try/catch around every call against a c
 work that way, and meta-commentary left in source ("let me…", "this will…"). **Highest
 false-positive risk in the suite** — cap at `medium` unless a verified correctness impact exists, and
 run the counter-question first: *could a competent human have written this on purpose here?* If yes,
-downgrade or drop. Cues: `tools/skills/audit/references/lens-cues.md`.
+downgrade or drop. Cues: `references/lens-cues.md`.
 
 ### Lens selection policy — profile decides the required set
 
@@ -355,10 +355,10 @@ deterministic corpus; it is not part of the `/audit` run itself and never mutate
 **Run it:**
 
 ```bash
-node tools/skills/audit/bench/run-bench.mjs           # bench-local detectors — proves the harness
-node tools/skills/audit/bench/run-bench.mjs --real    # PRODUCTION scanners — proves /audit's recall
-node tools/skills/audit/bench/run-bench.mjs --json    # machine-readable result object
-node tools/skills/audit/bench/run-bench.mjs --threshold 0.9   # override the default 0.7 gate
+node bench/run-bench.mjs           # bench-local detectors — proves the harness
+node bench/run-bench.mjs --real    # PRODUCTION scanners — proves /audit's recall
+node bench/run-bench.mjs --json    # machine-readable result object
+node bench/run-bench.mjs --threshold 0.9   # override the default 0.7 gate
 ```
 
 **How it's built:** `bench/manifest.json` lists fixture entries under `bench/fixtures/<id>/` — each
@@ -499,7 +499,7 @@ skipped, no false "done". No flag is needed: the phrases "audit and fix", "audit
 ### GoalRoute v2 fix-route gate
 
 Before first nontrivial mutation, validate a Minimize decision/receipt under current audit run
-through `tools/lib/minimize/minimize_gate.py` with every new file/dependency declared; then compile GoalRoute and write
+through `lib/minimize/minimize_gate.py` with every new file/dependency declared; then compile GoalRoute and write
 `<repo>/.audit/<timestamp>/goal-route.json` plus receipt. Set:
 
 - `STATE_A` = latest gate vector, open finding fingerprints, behavior surfaces, dirty-state evidence;
@@ -510,7 +510,7 @@ through `tools/lib/minimize/minimize_gate.py` with every new file/dependency dec
 - dependency graph = root causes before findings they cause, using `caused_by`;
 - route objective = minimum expected time to verified clean, including retry and regression/rework.
 
-Validate with `tools/lib/goalroute/scripts/validate-route.py`; no patch begins before receipt PASS.
+Validate with `lib/goalroute/scripts/validate-route.py`; no patch begins before receipt PASS.
 Fix tier controls who may safely apply a fix; it does **not** determine sequence. Prefer safe root-cause
 fixes which clear multiple downstream findings. Parallelize only independent file/state clusters.
 

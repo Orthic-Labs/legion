@@ -1,7 +1,7 @@
 # Covenant lens — Content Strategy
 
 **What this is:** a recovered domain review lens from Council, deleted at workspace commit
-`d810d827` (the engine was ported to `tools/skills/covenant/`; this content was not — same gap as
+`d810d827` (the engine was ported to `skills/covenant/`; this content was not — same gap as
 the Sage manuals recovered in J-1). Source: `git show d810d827^:tools/skills/council/references/content-strategy.md`
 (35 lines). Assigned to a Covenant seat at convene time — **one lens per seat**, per
 `doctrine/covenant-seat.md` §"lens index" — this file IS the specialization a seat reads once

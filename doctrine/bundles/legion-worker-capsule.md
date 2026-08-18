@@ -4,7 +4,7 @@
 coordinator) constructs a dispatch packet to any executor — a native subagent, a cheap OmniRoute
 worker, or a human handoff. Recovered verbatim from git history — deleted at workspace commit
 `d810d827` (claimed "absorbed" into the new agent definitions; it was not). Source:
-`git show d810d827^:tools/skills/dispatch/references/manual.md` (505 lines). Loaded by: Legion
+`git show d810d827^:skills/dispatch/references/manual.md` (505 lines). Loaded by: Legion
 (the coordinator), and by Sage/Alchemist/Oracle when any of them constructs a sub-dispatch — a
 packet to a cheap worker, a fan-out lane, or a handoff — during their own execution.
 
@@ -70,7 +70,7 @@ NO AGENT TASK SHIPS UNTIL:
 
 Clear prose is not executable. A referenced plan is not transferred context. A command without cwd, expected result, failure branch, & evidence path is incomplete.
 
-> **Superseded:** retired paths were `tools/skills/dispatch/scripts/validate-dispatch.py` and
+> **Superseded:** retired paths were `skills/dispatch/scripts/validate-dispatch.py` and
 > `tools/skills/execution-preflight`. Current live owners are
 > `$WORKSPACE/legion/lib/dispatch-validator/validate-dispatch.py` and
 > `$WORKSPACE/docs/rules/execution-preflight.md`; use them for items 5–6.
@@ -109,7 +109,7 @@ In `$WORKSPACE`, read `docs/agent-rules/legion.md` and `docs/agent-rules/workspa
 
 Never write "use existing context," "as discussed," "follow plan," or equivalent. Cite exact accessible paths + required sections. Embed essential facts which exist only in chat.
 
-> **Superseded provenance:** `tools/skills/dispatch/references/agent-routing.md` was the retired
+> **Superseded provenance:** `skills/dispatch/references/agent-routing.md` was the retired
 > owner. Current routing rules are the two workspace constitution sources named above; per-role
 > model detail remains in `$WORKSPACE/docs/plans/legion/BRIEFING-LAYER.md` §5.
 
@@ -186,7 +186,7 @@ These are internal sidecars, never user-visible dispatch sections. `validate-dis
 when either sidecar is missing, invalid, stale, or policy-bound to different bytes.
 
 Before task decomposition or experiment topology, compile GoalRoute v2 through
-`tools/lib/goalroute` from exact
+`lib/goalroute` from exact
 current state A to verified state B. This applies to routine work too.
 
 Required route contract:
@@ -321,7 +321,7 @@ Set `Script involved: YES` for scripts, runners, pipelines, batch loops, generat
 Copy [dispatch template](../assets/dispatch-template.md). Fill every placeholder. Use exact paths, commands/tool actions, cwd, expected outputs, checks, artifacts, & limits.
 
 > **Superseded:** the referenced dispatch template no longer exists under
-> `tools/skills/dispatch/assets/`. No current equivalent template was located; treat this as a
+> `skills/dispatch/assets/`. No current equivalent template was located; treat this as a
 > content gap (template needs re-authoring, not merely re-pointing) rather than a stale link to
 > silently drop, since Step 3's field checklist below still applies without one.
 
