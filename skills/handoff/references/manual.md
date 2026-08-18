@@ -30,7 +30,7 @@ Plain `/handoff` in current source chat means:
 Windows:
 
 ```powershell
-py -3.11 D:/Claude/legion/lib/handoff/transcript-handoff.py bootstrap --platform codex --session-id "<CURRENT_TASK_ID>" --workspace "<CURRENT_WORKSPACE>"
+py -3.11 lib/handoff/transcript-handoff.py bootstrap --platform codex --session-id "<CURRENT_TASK_ID>" --workspace "<CURRENT_WORKSPACE>"
 ```
 
 Use `--platform claude` for Claude Code. If runtime exposes no ID, omit `--session-id`; resolver selects newest transcript whose embedded cwd exactly matches workspace & declares `selection_method=newest_workspace_match`. Never ask old chat to summarize itself.
@@ -257,8 +257,8 @@ Any missing answer means revise.
 Windows:
 
 ```powershell
-py -3.11 D:/Claude/legion/lib/handoff/validate-handoff.py <handoff.md> --write-receipt <handoff.receipt.json>
-py -3.11 D:/Claude/legion/lib/handoff/validate-handoff.py <handoff.md> --verify-receipt <handoff.receipt.json>
+py -3.11 lib/handoff/validate-handoff.py <handoff.md> --write-receipt <handoff.receipt.json>
+py -3.11 lib/handoff/validate-handoff.py <handoff.md> --verify-receipt <handoff.receipt.json>
 ```
 
 macOS:

@@ -171,3 +171,49 @@ byte-identical before and after, so this change introduces no regression.
 3. Reconcile skill guides against `providers/` and `registry/rules/` generally. The anti-slop
    case shows guides can cite retired artifacts while the provider that superseded them goes
    uncited. That is a content change and belongs in its own pass.
+
+---
+
+## Addendum — pass two: non-`tools/` absolute paths
+
+The first pass matched only `tools/`-prefixed references. A follow-up sweep covered every
+Windows absolute path in the repository (674 occurrences outside record and fixture surfaces).
+
+**Rewritten: 9 references across 3 files**, normalising two further legacy roots where the
+target exists in legion:
+
+```text
+D:/Claude/legion/lib/handoff/transcript-handoff.py  ->  lib/handoff/transcript-handoff.py
+D:\Claude\tools\skills\qa\scripts\qa-shot.mjs       ->  skills/qa/scripts/qa-shot.mjs
+D:/Claude/legion/lib/dispatch-validator/validate-dispatch.py -> lib/dispatch-validator/validate-dispatch.py
+```
+
+Files: `skills/handoff/references/manual.md`, `skills/audit-visual/references/visual-qa-capture.md`,
+`doctrine/bundles/legion-worker-capsule.md`.
+
+### Deliberately left as-is
+
+| Category | Example | Why |
+|---|---|---|
+| Windows browser discovery | `C:\Program Files\Google\Chrome\Application\chrome.exe` in `lib/qa-engine/qa.mjs`, `audit-runtime.mjs`, `skills/seo/scripts/render_gap.mjs`, designer CDP detector | Correct platform-specific paths with `process.env.ProgramFiles` fallbacks |
+| Path-validator test data | 265 `D:/workspace/...` in `lib/dispatch-validator/test_validate_dispatch.py` and its skills mirror, `lib/goalroute/scripts/test_validate_route.py` | The tests exist to exercise Windows path handling |
+| `tests/windows-portability.test.mjs` | 15 | Same reason |
+| External application | `D:\Claude\scraperight\...` in `skills/content/specialists/transcription` | Separate app, not a legion path |
+| Studio workspace convention | `D:/Claude/tasks/handoffs/`, `D:/Claude/tasks/dispatches/` | Cross-project output location, not a repo path |
+| Receipt-backed examples | `skills/dispatch/examples/`, `skills/tasklist/examples/` | Digests recorded over these files |
+
+### Package scope
+
+`package.json` `files` is an explicit allowlist. The record surfaces excluded from rewriting —
+`qualification/` (4.5M), `docs/`, `_audit/`, `bench/` — are outside it and do not ship. The
+rewritten files are inside it, so these fixes reach consumers.
+
+### Verification (both passes)
+
+| Check | Before | After |
+|---|---|---|
+| `pnpm legion:check` | PASS | PASS |
+| `pnpm test` | 730 / 716 pass / 14 fail | 730 / 716 pass / 14 fail — identical set |
+| Rewritten paths resolving | — | 127/127 |
+
+Unresolved items are tracked in `docs/open-issues.md`.
