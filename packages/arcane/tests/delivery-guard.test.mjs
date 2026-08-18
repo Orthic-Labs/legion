@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
@@ -13,7 +13,10 @@ function prepareClose(delivery, disposition, options = {}) { return guardPrepare
 function finalizeClose(delivery, options = {}) { return guardFinalizeClose(delivery, { ...options, owner: options.owner ?? deliveryOwners.get(delivery) }); }
 
 function repo() {
-  const dir = mkdtempSync(join(tmpdir(), 'arcane-delivery-'));
+  // realpath: git reports canonical roots, and on macOS every /var/... tmpdir
+  // is really /private/var/..., so a raw mkdtemp path never equals what the
+  // guard returns.
+  const dir = realpathSync(mkdtempSync(join(tmpdir(), 'arcane-delivery-')));
   const git = (args) => execFileSync('git', args, { cwd: dir, stdio: 'ignore' });
   git(['init', '--initial-branch=main']); git(['config', 'user.email', 'test@example.test']); git(['config', 'user.name', 'Test']); writeFileSync(join(dir, 'base.txt'), 'base\n'); writeFileSync(join(dir, '.gitignore'), '.audit/\n'); git(['add', '.']); git(['commit', '-m', 'base']);
   return { dir, git, cleanup: () => rmSync(dir, { recursive: true, force: true }) };

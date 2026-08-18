@@ -1,4 +1,4 @@
-import { appendFileSync, existsSync, mkdirSync } from 'node:fs';
+import { appendFileSync, existsSync, mkdirSync, realpathSync } from 'node:fs';
 import { join, relative, resolve } from 'node:path';
 
 import { readJson, repositoryRoot, stagedChanges, verifyReceipt } from './minimize.mjs';
@@ -44,6 +44,8 @@ function recordCommitAdvisory(workspace, message) {
   } catch { /* an advisory must never become a commit blocker */ }
 }
 
+const canonical = (target) => { try { return realpathSync(target); } catch { return target; } };
+
 export function commitReceiptRequirement({ workspace, repository = workspace, policy, contracted = false }) {
   if (contracted) return { required: true, reason: 'contracted-work', paths: [] };
   if (!policy || policy.failClosed || typeof policy.lockedDomainsFor !== 'function') {
@@ -54,7 +56,12 @@ export function commitReceiptRequirement({ workspace, repository = workspace, po
     const root = repositoryRoot(repository);
     const repositoryPaths = stagedChanges(process.env, repository)
       .flatMap(({ source, path }) => source ? [source, path] : [path]);
-    paths = [...new Set(repositoryPaths.map((path) => relative(workspace, resolve(root, path)).replaceAll('\\', '/')))];
+    // `repositoryRoot` is canonical (git resolves symlinks) while `workspace`
+    // is whatever the caller passed. Relativizing one against the other turns
+    // an in-workspace file into a `../..` escape and drops it out of
+    // locked-domain matching, so both sides must be canonical.
+    const base = canonical(workspace);
+    paths = [...new Set(repositoryPaths.map((path) => relative(base, canonical(resolve(root, path))).replaceAll('\\', '/')))];
   } catch (error) {
     return { required: false, reason: 'staged-paths-unavailable', paths: [], advisory: `staged paths could not be classified: ${error.message}` };
   }

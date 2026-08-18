@@ -1,7 +1,7 @@
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { readFileSync, realpathSync } from 'node:fs';
-import { relative, resolve } from 'node:path';
+import { basename, dirname, join, relative, resolve } from 'node:path';
 import { pathMatches } from './preeffect-gate.mjs';
 
 function command(cwd, args) {
@@ -16,11 +16,30 @@ function sha256(value) {
  * Converts a host path to its canonical repository-relative representation.
  * Paths that resolve outside `cwd` are deliberately unmatchable.
  */
+/**
+ * Canonicalizes the longest existing prefix of `target`, preserving any
+ * not-yet-created tail. Comparing a canonical root against a non-canonical
+ * target treats an in-repository path reached through a symlink (on macOS
+ * every `/var/...` path is really `/private/var/...`) as an escape, which
+ * would silently exempt it from locked-domain matching.
+ */
+function canonicalPath(target) {
+  const tail = [];
+  let head = target;
+  for (;;) {
+    try { return join(realpathSync(head), ...tail); } catch { /* walk up */ }
+    const parent = dirname(head);
+    if (parent === head) return target;
+    tail.unshift(basename(head));
+    head = parent;
+  }
+}
+
 export function repositoryRelative(target, cwd) {
   const value = String(target).replaceAll('\\', '/');
   if (value.split('/').includes('..') && !value.startsWith('/')) return null;
   const root = realpathSync(cwd);
-  const resolved = resolve(root, value);
+  const resolved = canonicalPath(resolve(root, value));
   const local = relative(root, resolved).replaceAll('\\', '/');
   if (local === '' || local === '..' || local.startsWith('../') || local.split('/').includes('..')) return null;
   return local;
