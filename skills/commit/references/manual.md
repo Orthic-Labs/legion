@@ -20,7 +20,7 @@ pre-commit safety net: the same lenses `/audit` runs whole-repo, scoped to just 
 autonomously, so broken or over-engineered code never lands. It uses **our own audit engine** —
 `correctness` is the CodeRabbit fold, `minimize` is the full ponytail hunt — **not** the external
 CodeRabbit or ponytail binaries (those aren't required; the engine absorbs both, see
-`tools/skills/audit/SKILL.md` "CodeRabbit absorption" + `references/ponytail-lens.md`).
+`skills/audit/SKILL.md` "CodeRabbit absorption" + `references/ponytail-lens.md`).
 
 ## When to use / not
 
@@ -172,7 +172,7 @@ CodeRabbit or ponytail binaries (those aren't required; the engine absorbs both,
    | `a11y` — only if the diff touches UI (JSX/markup/templates) | |
    | `data-safety` — only if the diff touches a migration or raw/ORM SQL (see `references/migration-safety.md`) | |
    The **lens set is chosen by diff profile**, using the same policy `/audit` applies (see
-   `tools/skills/audit/SKILL.md` → "Lens selection policy") so the two skills cannot drift apart:
+   `skills/audit/SKILL.md` → "Lens selection policy") so the two skills cannot drift apart:
    doc-only, config-only, code non-test, test-only, migration/SQL, new-dependency, UI, public-API,
    performance-targeted. Take the union when several profiles match. Every finding needs a real
    `file:line` per the two-span rule above; verify each locally before acting.
@@ -305,7 +305,7 @@ CodeRabbit or ponytail binaries (those aren't required; the engine absorbs both,
    for a rule the **user** authored.
 
 8. **Emit Minimize commit authority.** Write `.audit/minimize/commit-review.json` for exact staged
-   tree using `tools/lib/minimize/minimize_gate.py commit init-review`, update it with actual lens
+   tree using `lib/minimize/minimize_gate.py commit init-review`, update it with actual lens
    findings/new files/new dependencies, require `CLEAN`, then write
    `.audit/minimize/commit-receipt.json`. Re-run `commit verify` immediately before every commit.
    Missing, stale, open-finding, policy-drift, validator-drift, or staged-tree mismatch blocks commit.

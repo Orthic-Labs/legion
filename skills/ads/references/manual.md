@@ -191,9 +191,9 @@ Hard rules (never violate these):
 
 Load these on-demand as needed; do NOT load all at startup.
 
-**Path resolution:** All references are installed at `tools/skills/ads/references/`.
+**Path resolution:** All references are installed at `skills/ads/references/`.
 When sub-skills or agents reference `ads/references/*.md`, resolve to
-`tools/skills/ads/references/*.md`.
+`skills/ads/references/*.md`.
 
 - `references/scoring-system.md`: Weighted scoring algorithm and grading thresholds
 - `references/benchmarks.md`: Industry benchmarks by platform (CPC, CTR, CVR, ROAS)

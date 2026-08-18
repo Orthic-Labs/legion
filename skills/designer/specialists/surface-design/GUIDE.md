@@ -204,16 +204,16 @@ via `node tools/lib/open-for-review.mjs <path>`.
   motion respected.
 - **CSS discipline:** mind selector specificity (type-based vs element-based rules cancelling
   each other's spacing); test heading copy at every breakpoint — the viewport is part of the design.
-- Anti-slop is canonical in `tools/skills/audit-visual/references/design-slop.md` (absolute bans, the three
+- Anti-slop is canonical in `skills/audit-visual/references/design-slop.md` (absolute bans, the three
   AI-look clusters, category-reflex check) — design against it, don't rediscover it at QA.
-- Motion bar is canonical in `tools/skills/audit-visual/references/motion-standards.md` (frequency table,
+- Motion bar is canonical in `skills/audit-visual/references/motion-standards.md` (frequency table,
   easing/duration values, physicality) — build motion to it, don't wait for review to learn it.
-- Native app feedback is canonical in `tools/skills/audit-visual/references/native-feedback.md` (haptic
+- Native app feedback is canonical in `skills/audit-visual/references/native-feedback.md` (haptic
   semantics, 0.1s/1s/10s response budgets, per-platform target minimums, per-OS reduced-motion
   APIs, Fluent 2 + Material 3 tokens, SwiftUI spring defaults) — for any desktop or mobile app
   surface, build to it. `motion-standards.md` is the **web** bar; it does not cover haptics or
   native OS motion settings.
-- **Motion craft → `../motion/GUIDE.md`. Motion review → `tools/skills/audit-visual/references/motion-standards.md`.** Contract: `docs/ARCHITECTURE-MOTION.md` §9.
+- **Motion craft → `../motion/GUIDE.md`. Motion review → `skills/audit-visual/references/motion-standards.md`.** Contract: `docs/ARCHITECTURE-MOTION.md` §9.
 
 ## Completion checklist
 

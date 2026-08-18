@@ -1,7 +1,7 @@
 # Covenant lens index
 
 Recovered from `git show d810d827^:tools/skills/council/references/` (J-1b, 2026-08-09) — Council's
-engine was ported to `tools/skills/covenant/`, but these sixteen domain review lenses were not
+engine was ported to `skills/covenant/`, but these sixteen domain review lenses were not
 carried over. Each is the specific set of review roles, mandates, and evidence a reviewer needs for
 one domain; recovering them restores the specialization BRIEFING-LAYER.md §3 describes.
 

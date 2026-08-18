@@ -7,7 +7,7 @@ report. Run it FIRST on any full/site audit — the LLM lenses reason over its J
 re-eyeball these.
 
 ```
-python D:/workspace/tools/skills/seo/scripts/site_audit.py --url https://site.com --json out/site_audit.json --summary
+python skills/seo/scripts/site_audit.py --url https://site.com --json out/site_audit.json --summary
 ```
 Exit code 1 when any error-class issue is present (CI-friendly). Output JSON: `{crawled,
 sitemap_urls, broken_links_all, redirects, issues{class: [loci]}, severity{errors[], warnings[]}}`.

@@ -10,7 +10,7 @@ Preferred capture order:
    - Use the QA URL it emits, usually `http://127.0.0.1:<port>/?qa=1` or a documented route.
    - QA mode should use deterministic mocks for visual states.
    - Capture only the web/app surface, not the OS chrome.
-   - Use `D:\workspace\tools\skills\qa\scripts\qa-shot.mjs` for viewport screenshots and `D:\workspace\tools\skills\qa\scripts\qa-functional.mjs` for hover/click/type/key/assert flows.
+   - Use `skills/qa/scripts/qa-shot.mjs` for viewport screenshots and `skills/qa/scripts/qa-functional.mjs` for hover/click/type/key/assert flows.
 
 2. **Shared headless Chrome/Edge runner.**
    - Launch installed Chrome/Edge through the `/qa` scripts against the QA URL or local dev URL.
@@ -47,8 +47,8 @@ Suggested generic `/qa` pattern:
 ```powershell
 pnpm qa:browser
 $url = Get-Content .cache\qa-browser\url.txt
-node D:\workspace\tools\skills\qa\scripts\qa-shot.mjs --url $url --out .cache\qa-shots\current\app-default.png
-node D:\workspace\tools\skills\qa\scripts\qa-functional.mjs --url $url --actions .cache\qa-actions.json
+node skills/qa/scripts/qa-shot.mjs --url $url --out .cache\qa-shots\current\app-default.png
+node skills/qa/scripts/qa-functional.mjs --url $url --actions .cache\qa-actions.json
 ```
 
 If the project provides a dedicated screenshot script, use that instead of improvising. For SampleApp, follow `docs/QA.md` and the project `AGENTS.md`: routine visual QA uses the headless Vite QA harness, not foreground Tauri/WebView2.

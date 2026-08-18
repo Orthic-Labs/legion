@@ -76,7 +76,7 @@ editorial-typographic"), it's the trap one tier deeper. Both must be non-obvious
 ## Deterministic backing — the impeccable detector
 
 Most of this catalog is machine-detectable. The scan stage runs
-`node D:/workspace/tools/skills/designer/engine/scripts/detect.mjs --json <url|file|dir>` and its findings
+`node skills/designer/engine/scripts/detect.mjs --json <url|file|dir>` and its findings
 carry these rule ids — cite them as scanner evidence:
 
 `side-tab` · `border-accent-on-rounded` · `gradient-text` · `gray-on-color` · `low-contrast` ·
