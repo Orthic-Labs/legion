@@ -1,0 +1,93 @@
+{
+  "schemaVersion": 1,
+  "kind": "legion-capability-registry",
+  "classes": {
+    "PACKAGE_INTERNAL": "Resolves to a file shipped inside this package. Must exist on disk at validation time.",
+    "HOST_CAPABILITY": "Provided by the embedding host (an MCP server, a CLI, a graph engine). Never shipped. Must name a capability declared below and state its degradation behaviour.",
+    "PROJECT_OVERLAY": "Supplied by the consuming project at run time. Never shipped. Must be optional and state what happens when absent.",
+    "HISTORICAL_EVIDENCE": "A record of a past run kept for provenance. Never executed and never resolved as a live path.",
+    "TEST_FIXTURE": "A synthetic input under test. Never resolved at run time and never a claim about any real machine."
+  },
+  "capabilities": {
+    "banana": {
+      "kind": "mcp-server",
+      "summary": "Image generation with brand injection.",
+      "degradation": "Report unavailability to the caller and stop. This package ships no fallback generator."
+    },
+    "cortex-graph": {
+      "kind": "graph-engine",
+      "summary": "Code and knowledge graph search backing the Cortex skill and audit provider discovery.",
+      "degradation": "Return a NO_CAPABILITY result naming cortex-graph. Never fall back to ad-hoc grep and never present ungraphed results as graph results."
+    },
+    "omniroute": {
+      "kind": "local-gateway",
+      "summary": "OmniRoute model gateway plus the Codex CLI profile set used by the Alchemist worker.",
+      "degradation": "Alchemist exits 4 (gateway down). Callers must treat Alchemist as unavailable, not as returning an empty result."
+    },
+    "morph": {
+      "kind": "tool",
+      "summary": "Durable capture of results into the host's persistent store.",
+      "degradation": "Return results inline and state that they were not durably captured."
+    },
+    "media-production": {
+      "kind": "tool",
+      "summary": "Video and rich-media generation. Formerly the private Content skill; not part of Legion.",
+      "degradation": "Skip the media step and state that it was skipped."
+    },
+    "web-search": {
+      "kind": "tool",
+      "summary": "Live web search and page fetch used by Research browser and domain-default providers.",
+      "degradation": "Research returns UNPROVEN for any claim that required live retrieval."
+    },
+    "scholarly-search": {
+      "kind": "tool",
+      "summary": "Academic and citation-graph retrieval.",
+      "degradation": "Research returns UNPROVEN for scholarly claims."
+    },
+    "local-corpus": {
+      "kind": "tool",
+      "summary": "Retrieval over a caller-supplied local document corpus.",
+      "degradation": "Research skips the local-corpus provider and records it as unrun."
+    },
+    "notebooklm": {
+      "kind": "tool",
+      "summary": "NotebookLM-backed synthesis over a supplied source set.",
+      "degradation": "Research skips the notebooklm provider and records it as unrun."
+    },
+    "skill-emit": {
+      "kind": "tool",
+      "summary": "Host-side emission of generated skill artifacts.",
+      "degradation": "Write artifacts to the working directory and state that they were not emitted to the host."
+    },
+    "memory-engine": {
+      "kind": "tool",
+      "summary": "Host-side durable memory used for cross-run SEO and audit context.",
+      "degradation": "Proceed without prior-run context and state that the run is cold."
+    },
+    "okf": {
+      "kind": "tool",
+      "summary": "OKF concept-bundle emission and compression.",
+      "degradation": "Emit the uncompressed human deliverable only and state that no OKF bundle was produced."
+    },
+    "crypt": {
+      "kind": "tool",
+      "summary": "Structure-safe input compression for agent reads.",
+      "degradation": "Read the source files directly without compression."
+    },
+    "agent-host-config": {
+      "kind": "host-config",
+      "summary": "The embedding agent host's own configuration tree (for example ~/.claude or ~/.codex), written by installers and read by hooks.",
+      "degradation": "Report that no agent host configuration was found and take no action; never create one speculatively."
+    },
+    "dataforseo": {
+      "kind": "mcp-server",
+      "summary": "DataForSEO backlink, SERP, and keyword data.",
+      "degradation": "Report that backlink/SERP data is unavailable and mark those findings UNPROVEN; never estimate them."
+    },
+    "firecrawl": {
+      "kind": "mcp-server",
+      "summary": "Crawling and rendered-page extraction.",
+      "degradation": "Fall back to raw HTTP fetch and state that no rendered DOM was available."
+    }
+  }
+}

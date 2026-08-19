@@ -3,7 +3,7 @@
 > Updated: 2026-07-18
 > Source: Used by ads-creative, ads-google, ads-meta, and ads-plan skills
 
-> **Storytelling craft source (workspace):** `D:/workspace/Content/Storytelling/STORYTELLING_GUIDE.md` — hook construction (§3), dopamine addiction loop (§4.11), concreteness moves (§5). For **video** ad scripts, the machine-readable beat templates live in the workspace recipe library at `tools/recipes/video/ad-patterns.json` (workspace-only; part of `content`) (v1.1.0 adds `triangle_of_yaps` talking-head skeleton and `open_loop_mid_arrival` 3/4-reveal pacing) — pick a pattern there before writing a video script; the frameworks below are text-ad shapes.
+> **Storytelling craft source (project-supplied):** `<project-overlay>/storytelling-guide.md`, when the consuming project provides one — hook construction, the dopamine loop, and concreteness moves. For **video** ad scripts, prefer a project-supplied beat-template library if one exists; pick a pattern there before writing a video script. The frameworks below are text-ad shapes and need no external source.
 
 ## Overview
 

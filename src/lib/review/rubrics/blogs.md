@@ -5,7 +5,7 @@ DIMENSIONS (1-10): hook_strength, voice_fidelity, factual_accuracy, info_density
 QUESTIONS_5:
   bounce_point: paragraph or moment the average reader closes the tab
   claim_to_verify: pick most specific claim/stat that needs verification before publish (cite + scope)
-  voice_drift: cite specific phrase that drifts from brand voice (DD/RH/HR/TS if specified)
+  voice_drift: cite specific phrase that drifts from brand voice (per the project's brand rules, if specified)
   ai_default_tendency: em-dashes mid-sentence, "it's worth noting", three-item lists, hedging — find one
   reader_next_action: explicit/implicit CTA — what does reader do next?
 EEAT_SIGNALS_TO_CHECK:

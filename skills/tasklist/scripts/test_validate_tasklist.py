@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# dependency-class: TEST_FIXTURE — synthetic evidence paths asserting that temporary locations are rejected.
 """Adversarial smoke tests for validate-tasklist.py."""
 
 from __future__ import annotations

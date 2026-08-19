@@ -24,7 +24,7 @@ MAY_CALL_SKILLS: NONE
 TERMINAL: visual.core reconciles its frozen matrix or reports typed UNPROVEN coverage.
 ```
 
-`/audit-visual` is a thin entrypoint over `../../providers/visual-core.mjs` & shared frozen plan.
+`/audit-visual` is a thin entrypoint over `../../src/providers/visual-core.mjs` & shared frozen plan.
 
 1. Freeze repository, Cortex generation, routes/screens, viewports, states, themes, locales,
    platforms, interactions, references, & acceptance criteria.

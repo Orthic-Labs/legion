@@ -61,7 +61,7 @@ Output (JSON):
 Notes:
   - "client_only" = present in rendered DOM but absent/shorter in raw HTML
   - "server_only" = present in raw HTML but absent/shorter after JS execution
-  - Directly fixes the DD/RH Qwik false "no schema" false-positive: Qwik renders
+  - Removes the false "no schema" positive on resumable frameworks such as Qwik, which render
     schema/meta at runtime, so raw HTML has no JSON-LD; rendered DOM does.
   - Requires Chrome or Edge installed at a standard path.
 

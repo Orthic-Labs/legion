@@ -63,7 +63,7 @@ import { fileURLToPath } from 'node:url';
 // Resolve the workspace from this module's own location. These were pinned to
 // `D:/workspace` and the `py -3.11` launcher, which exist only on Windows — so on the
 // Mac the gate blocked every artifact while being unable to run a single juror
-// (ENOENT on the council CLI). It is the same checkout on both machines; derive it.
+// (ENOENT on the council CLI). The checkout layout is identical on every platform; derive it.
 const WORKSPACE_ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const IS_WINDOWS  = process.platform === 'win32';
 const COUNCIL_PY  = process.env.JURY_CLI || join(WORKSPACE_ROOT, 'tools', 'review', 'jury.py');

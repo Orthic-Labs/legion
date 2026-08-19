@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# dependency-class: HOST_CAPABILITY(omniroute) — ~/.codex and the local gateway belong to the host, not to this package.
 # Alchemist worker (Mac/Linux) — bash port of run-worker.ps1, same invocation contract.
 # The brief arrives on stdin so shell quoting cannot damage it.
 #
@@ -7,7 +8,7 @@
 # stdout: worker assistant text · stderr: progress + EVENT_LOG= path
 # Exit: 0 ok · 2 usage · 4 gateway down · 5 unknown profile · 124 timeout
 #
-# Contract (verified 2026-08-09 on both machines — do not "simplify" these):
+# Contract (verified 2026-08-09 against a live OmniRoute gateway — do not "simplify" these):
 #   * --model is REQUIRED. Without it Codex sends its own default model, OmniRoute
 #     resolves that to the unconnected `codex` provider and 404s.
 #   * NEVER add --ignore-user-config. It discards ~/.codex/config.toml, which holds

@@ -1,3 +1,4 @@
+# dependency-class: HOST_CAPABILITY(agent-host-config) — reads the embedding agent host's own config tree.
 """RETIRED 2026-07-05 — do not re-register. the operator locked the no-external-model-API rule:
 audit/cortex/seo/commit lens work runs on NATIVE Claude subagents; /coder is opt-in only.
 This hook force-rerouted native review spawns onto the external api-worker path, which is the

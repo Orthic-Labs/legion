@@ -8,7 +8,7 @@
     "description": "Inherited experiment plan has no validated survivor route.",
     "evidence": [
       {
-        "locator": "D:/workspace/evidence/inherited-plan.json",
+        "locator": "<workspace>/evidence/inherited-plan.json",
         "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
         "check": "Read plan and confirm no validated survivor route exists."
       }
@@ -18,39 +18,39 @@
     "description": "Validated survivor funnel emits one production-path winner.",
     "proof": [
       {
-        "command": "Run D:/workspace/tools/verify-final.ps1",
+        "command": "Run <workspace>/tools/verify-final.ps1",
         "expected": "Exit 0 and final-pass.json reports one winner.",
-        "evidence_path": "D:/workspace/evidence/final-pass.json"
+        "evidence_path": "<workspace>/evidence/final-pass.json"
       }
     ]
   },
   "constraints": {
     "authority": {
       "rule": "Current user objective controls route selection.",
-      "evidence_locator": "D:/workspace/evidence/authority.json"
+      "evidence_locator": "<workspace>/evidence/authority.json"
     },
     "safety": {
       "rule": "Only production-path evidence may qualify.",
-      "evidence_locator": "D:/workspace/evidence/safety.json"
+      "evidence_locator": "<workspace>/evidence/safety.json"
     },
     "scope": {
       "rule": "Run only declared trigger and latency experiment.",
-      "evidence_locator": "D:/workspace/evidence/scope.json"
+      "evidence_locator": "<workspace>/evidence/scope.json"
     },
     "quality": {
       "rule": "All declared acceptance thresholds must pass.",
-      "evidence_locator": "D:/workspace/evidence/quality.json"
+      "evidence_locator": "<workspace>/evidence/quality.json"
     },
     "cost": {
       "rule": "Use bounded local execution with zero paid calls.",
-      "evidence_locator": "D:/workspace/evidence/cost.json"
+      "evidence_locator": "<workspace>/evidence/cost.json"
     }
   },
   "candidates": [
     {
       "id": "R_FAST",
       "constraint_status": "PASS",
-      "constraint_evidence": "D:/workspace/evidence/route-fast.json",
+      "constraint_evidence": "<workspace>/evidence/route-fast.json",
       "steps": [
         {
           "id": "R_FAST/S1",
@@ -85,13 +85,13 @@
       "status": "SELECTED",
       "dominance_reason": "Lowest expected time to verified B.",
       "evidence": [
-        "D:/workspace/evidence/route-fast.json"
+        "<workspace>/evidence/route-fast.json"
       ]
     },
     {
       "id": "R_SLOW",
       "constraint_status": "PASS",
-      "constraint_evidence": "D:/workspace/evidence/route-slow.json",
+      "constraint_evidence": "<workspace>/evidence/route-slow.json",
       "steps": [
         {
           "id": "R_SLOW/S1",
@@ -135,7 +135,7 @@
       "status": "REJECTED",
       "dominance_reason": "R_FAST has lower expected time and no worse tradeoff.",
       "evidence": [
-        "D:/workspace/evidence/route-slow.json"
+        "<workspace>/evidence/route-slow.json"
       ]
     }
   ],

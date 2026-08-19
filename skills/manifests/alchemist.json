@@ -43,9 +43,9 @@
       "evals/legacy-jfdi.json"
     ],
     "consumers": [
-      "registry/skills/index.json",
-      "lib/skills/resolver.mjs",
-      "registry/routing/domains.json"
+      "src/registry/skills/index.json",
+      "src/lib/skills/resolver.mjs",
+      "src/registry/routing/domains.json"
     ],
     "outputsPrunedOn": "2026-08-19",
     "outputsRemoved": [
@@ -56,8 +56,8 @@
     {
       "path": "SKILL.md",
       "uri": "legion-skill://alchemist/SKILL.md",
-      "sourceDigest": "sha256:f80a7b6f145811187bccdc99f104bfc0bce985338c74ddbc92af8e954d2c6ca5",
-      "outputDigest": "sha256:f80a7b6f145811187bccdc99f104bfc0bce985338c74ddbc92af8e954d2c6ca5",
+      "sourceDigest": "sha256:66c959493e48306eebdd993ccfd3d2d994b4ffe7350290a055ce41dba516453b",
+      "outputDigest": "sha256:66c959493e48306eebdd993ccfd3d2d994b4ffe7350290a055ce41dba516453b",
       "transformations": []
     },
     {
@@ -84,8 +84,8 @@
     {
       "path": "references/manual.md",
       "uri": "legion-skill://alchemist/references/manual.md",
-      "sourceDigest": "sha256:4fc1a85fd4f73d2a8ea74b32b34234d9e2b8a5dfee016e62355498d7da55dbda",
-      "outputDigest": "sha256:4fc1a85fd4f73d2a8ea74b32b34234d9e2b8a5dfee016e62355498d7da55dbda",
+      "sourceDigest": "sha256:ee09c4a8fc82008b96a84bdfdc18ff81e2e7a610855bdeb01a7cba8784d3f3c9",
+      "outputDigest": "sha256:ee09c4a8fc82008b96a84bdfdc18ff81e2e7a610855bdeb01a7cba8784d3f3c9",
       "transformations": []
     },
     {
@@ -105,15 +105,15 @@
     {
       "path": "scripts/run-worker.sh",
       "uri": "legion-skill://alchemist/scripts/run-worker.sh",
-      "sourceDigest": "sha256:5dc3251204d7c1eccc4c5589998ae550d83742d56b658ffea23b2833138bf8a5",
-      "outputDigest": "sha256:5dc3251204d7c1eccc4c5589998ae550d83742d56b658ffea23b2833138bf8a5",
+      "sourceDigest": "sha256:521c90994b61f471f4e4986a716e58c8783da949390397ef5bd9bb96fe4b361a",
+      "outputDigest": "sha256:521c90994b61f471f4e4986a716e58c8783da949390397ef5bd9bb96fe4b361a",
       "transformations": []
     },
     {
       "path": "scripts/start-stack.vbs",
       "uri": "legion-skill://alchemist/scripts/start-stack.vbs",
-      "sourceDigest": "sha256:77e61515afd3334a511f808332e4092b64ee82eedce3ad7471c231ff269679cb",
-      "outputDigest": "sha256:77e61515afd3334a511f808332e4092b64ee82eedce3ad7471c231ff269679cb",
+      "sourceDigest": "sha256:8643cb03d50ca7f540807da7a1320f0ec0d10d2f79185ce4b2633bee0ab431de",
+      "outputDigest": "sha256:8643cb03d50ca7f540807da7a1320f0ec0d10d2f79185ce4b2633bee0ab431de",
       "transformations": []
     },
     {

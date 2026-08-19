@@ -39,7 +39,7 @@ overrides it.
 6. Read [engine interface](../../references/engine-interface.md) for scanner, report, & CLI contracts.
 7. Read [lens routing](../../references/lens-routing.md); reason only inside frozen-plan providers.
 8. Adjudicate each security candidate independently; no generator closes its own finding.
-9. Deduplicate, then run `../../audit-finalize.mjs` to write `report.json` & `report.sarif`.
+9. Deduplicate, then run `../../tools/audit/audit-finalize.mjs` to write `report.json` & `report.sarif`.
 10. Reconcile every provider & denominator; incomplete coverage is never clean.
 
 Return gate vector, coverage, findings with evidence loci, rerun commands, seal, signature, Cortex

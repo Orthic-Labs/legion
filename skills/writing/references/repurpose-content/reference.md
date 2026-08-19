@@ -15,7 +15,7 @@ description: >
 
 ## Workflow
 
-1. `/brand <DD|RH|HR|TS>` — SS is exempt from commercial content work; do not repurpose SS content for commercial/marketing ends
+1. `/brand <brand-code>` — do not repurpose content from a brand the project marks non-commercial for commercial or marketing ends
 2. **Identify source:** blog / video / podcast / thread / long caption
 3. **Pick 3 platforms** (defaults below)
 4. **Generate native variants** — different hook, different structure, same core insight
@@ -102,10 +102,10 @@ description: >
 Run this external jury only when the approving human explicitly requests it.
 
 ```bash
-node -e "import('file:///src/lib/auto-jury.mjs').then(m=>m.runAutoJury({
+node -e "import('@orthic-labs/legion/auto-jury').then(m=>m.runAutoJury({
   kind: 'copy',
   artifactPath: '<absolute path to output>',
-  context: { brand: '<DD|RH|HR|TS>', notes: 'repurpose-content output' },
+  context: { brand: '<brand-code>', notes: 'repurpose-content output' },
   failHard: true
 }).then(v=>console.log('verdict:', v.final_verdict||v.verdict||v.decision)).catch(e=>{console.error(e.message);process.exit(1)})"
 ```

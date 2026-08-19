@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# dependency-class: TEST_FIXTURE — synthetic transcript paths exercising per-platform handling; no real machine is described.
 """Deterministic tests for transcript-handoff.py."""
 
 from __future__ import annotations

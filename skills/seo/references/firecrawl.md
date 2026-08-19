@@ -19,7 +19,7 @@ metadata:
 
 This skill requires the Firecrawl extension to be installed:
 ```bash
-./extensions/firecrawl/install.sh
+# Firecrawl is a host capability (firecrawl MCP); this package ships no installer.
 ```
 
 **Check availability:** Before using any Firecrawl tool, verify the MCP server
@@ -190,7 +190,7 @@ When Firecrawl is available during `/seo audit`:
 
 | Error | Cause | Resolution |
 |-------|-------|-----------|
-| `FIRECRAWL_API_KEY not set` | MCP not configured | Run `./extensions/firecrawl/install.sh` |
+| `FIRECRAWL_API_KEY not set` | MCP not configured | Connect the `firecrawl` MCP host capability |
 | `402 Payment Required` | Credits exhausted | Check usage at firecrawl.dev/app, upgrade plan |
 | `429 Too Many Requests` | Rate limited | Wait 60s, reduce crawl concurrency |
 | `408 Timeout` | Page too slow to render | Increase `timeout`, try without JS rendering |
@@ -199,4 +199,4 @@ When Firecrawl is available during `/seo audit`:
 **Graceful fallback:** If Firecrawl is unavailable, inform the user and suggest:
 1. Use `fetch_page.py` for single-page analysis (no API cost)
 2. Use `WebFetch` tool for basic HTML retrieval
-3. Install Firecrawl: `./extensions/firecrawl/install.sh`
+3. Connect the `firecrawl` MCP host capability

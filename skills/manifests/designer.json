@@ -100,9 +100,9 @@
       "specialists/static-creative/evals/evals.json"
     ],
     "consumers": [
-      "registry/skills/index.json",
-      "lib/skills/resolver.mjs",
-      "registry/routing/domains.json"
+      "src/registry/skills/index.json",
+      "src/lib/skills/resolver.mjs",
+      "src/registry/routing/domains.json"
     ],
     "outputsPrunedOn": "2026-08-19",
     "outputsRemoved": [
@@ -278,8 +278,8 @@
     {
       "path": "engine/huashu/assets/personal-asset-index.example.json",
       "uri": "legion-skill://designer/engine/huashu/assets/personal-asset-index.example.json",
-      "sourceDigest": "sha256:b35ca20aa41f6a52ad7248969a25eadaf607d3379f79fd1f4cb841fca423886c",
-      "outputDigest": "sha256:b35ca20aa41f6a52ad7248969a25eadaf607d3379f79fd1f4cb841fca423886c",
+      "sourceDigest": "sha256:8134d8a4cb7c5a6159dccf0fb650b900e2bfa269f495419273cfbba5105e657d",
+      "outputDigest": "sha256:8134d8a4cb7c5a6159dccf0fb650b900e2bfa269f495419273cfbba5105e657d",
       "transformations": [
         "approving-human",
         "package-relative-links",
@@ -927,8 +927,8 @@
     {
       "path": "engine/reference/live.md",
       "uri": "legion-skill://designer/engine/reference/live.md",
-      "sourceDigest": "sha256:4ba9e89f65d7970569f4d089258843bb718309b310c6fa6ae1a42f6b6cf67b47",
-      "outputDigest": "sha256:4ba9e89f65d7970569f4d089258843bb718309b310c6fa6ae1a42f6b6cf67b47",
+      "sourceDigest": "sha256:2dd9bc154157d6cb1c4d2eb9f5962d4857f406b8d546e8b4e6b98ef6cd939537",
+      "outputDigest": "sha256:2dd9bc154157d6cb1c4d2eb9f5962d4857f406b8d546e8b4e6b98ef6cd939537",
       "transformations": [
         "approving-human",
         "package-relative-links",
@@ -2303,8 +2303,8 @@
     {
       "path": "specialists/static-creative/GUIDE.md",
       "uri": "legion-skill://designer/specialists/static-creative/GUIDE.md",
-      "sourceDigest": "sha256:c94f8523ea8a39b9fb35eb87045f00d2b440bffc09d5e54aefd11dfaa73fd034",
-      "outputDigest": "sha256:c94f8523ea8a39b9fb35eb87045f00d2b440bffc09d5e54aefd11dfaa73fd034",
+      "sourceDigest": "sha256:9fdc9879f29e440f555b1884c2184502998a37cc75cc8919624f350b96a7d805",
+      "outputDigest": "sha256:9fdc9879f29e440f555b1884c2184502998a37cc75cc8919624f350b96a7d805",
       "transformations": [
         "approving-human",
         "package-relative-links",
@@ -2348,8 +2348,8 @@
     {
       "path": "specialists/static-creative/references/marketing.md",
       "uri": "legion-skill://designer/specialists/static-creative/references/marketing.md",
-      "sourceDigest": "sha256:0caecd0f4d62cd0cd6f1a25da989e513f21d3c68aea3158c5aa3f9538274659a",
-      "outputDigest": "sha256:0caecd0f4d62cd0cd6f1a25da989e513f21d3c68aea3158c5aa3f9538274659a",
+      "sourceDigest": "sha256:a9b884cc51dd53ec3b058f7226567d99aa69e163640b439262dc573b29dad6f4",
+      "outputDigest": "sha256:a9b884cc51dd53ec3b058f7226567d99aa69e163640b439262dc573b29dad6f4",
       "transformations": [
         "approving-human",
         "package-relative-links",

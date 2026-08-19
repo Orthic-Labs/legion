@@ -68,7 +68,7 @@ Output should preserve platform-native choices, brand fit, cadence, and success 
 
 ## Workflow
 
-1. Run `/brand <DD|RH|SS|TS>` for branded work.
+1. Run `/brand <brand-code>` for branded work.
 2. Identify the platform and task type: create / plan / optimize / review. **For optimize/review of live content, ask for the platform analytics first** (IG Insights, YouTube Studio, X analytics) — "optimise my IG" without reach/saves numbers is guesswork; ground it or label it hypothetical.
 3. Read the matching reference only.
 4. If the task spans multiple platforms, read `references/content/reference.md` first, then only the platform-specific references needed.

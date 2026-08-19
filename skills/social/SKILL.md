@@ -20,7 +20,7 @@ TERMINAL: Platform-native artifact or strategy meets frozen scope.
 2. Load `/brand` before branded output.
 3. Route platform craft to `references/<platform>/reference.md`; route cross-platform content to `references/content/reference.md`.
 4. Read `references/manual.md` for strategy, calendar, audit, analytics, or multi-platform work.
-5. Use Content for media production, Writing for prose, Ads for paid distribution, & Marketing for positioning.
+5. Use Writing for prose, Ads for paid distribution, & Marketing for positioning; media production is a host capability, not a Legion skill.
 6. Verify current platform formats, limits, policies, & analytics definitions from primary sources.
 7. Never invent engagement, reach, testimonials, audience evidence, or performance.
 8. Return platform-native outputs plus assumptions, source links, publishing order, & measurement plan.

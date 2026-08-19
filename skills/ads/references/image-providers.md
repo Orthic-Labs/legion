@@ -96,7 +96,7 @@ ads-generate reads this after generation and includes cost summary in generation
 
 ## Fallback Providers
 
-If banana is not installed, these providers can be used directly via generate_image.py (deprecated).
+These providers are reachable only through the banana MCP host capability; this package ships no direct generator.
 
 ### OpenAI (gpt-image-1)
 - Env: `OPENAI_API_KEY`

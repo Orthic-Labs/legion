@@ -117,11 +117,11 @@ def concrete_fixture() -> str:
     )
     stage_rows = "\n".join(
         [
-            "| `TECHNICAL_RUNNABILITY` | `TECHNICAL` | QUESTION_1: Which candidates load and execute on locked runtime? | ALL_CANDIDATES; MAX_INPUTS:20 | START: candidate manifest hash passes | FACTORS:20x1; MAX_JOBS:20; ACTUAL_COUNT:D:/workspace/evidence/stage-1-count.json | SELECTOR: --candidates-from D:/workspace/candidates/all.json | PASS_IF: candidate loads and one probe exits 0 | SURVIVORS:D:/workspace/survivors/technical.json; ACTUAL_COUNT:D:/workspace/evidence/stage-1-count.json | PROHIBITED_UNTIL:TECHNICAL_RUNNABILITY:PASS |",
-            "| `BEHAVIORAL_UTILITY` | `BEHAVIORAL` | QUESTION_1: Which runnable candidates trigger all 14 positives? | SURVIVORS_FROM:TECHNICAL_RUNNABILITY; MAX_INPUTS:20 | PASS_FROM:TECHNICAL_RUNNABILITY | FACTORS:20x14; MAX_JOBS:280; ACTUAL_COUNT:D:/workspace/evidence/stage-2-count.json | SELECTOR: --candidates-from D:/workspace/survivors/technical.json --fixtures D:/workspace/fixtures/positives.json | PASS_IF: positive triggers equal 14/14 | SURVIVORS:D:/workspace/survivors/behavioral.json; ACTUAL_COUNT:D:/workspace/evidence/stage-2-count.json | PROHIBITED_UNTIL:BEHAVIORAL_UTILITY:PASS |",
-            "| `PERFORMANCE_SHORTLIST` | `PERFORMANCE` | QUESTION_2: Which behavioral survivors rank fastest on DML? | SURVIVORS_FROM:BEHAVIORAL_UTILITY; MAX_INPUTS:20 | PASS_FROM:BEHAVIORAL_UTILITY | FACTORS:20x2x2; MAX_JOBS:80; ACTUAL_COUNT:D:/workspace/evidence/stage-3-count.json | SELECTOR: --candidates-from D:/workspace/survivors/behavioral.json --runtime-arms 2 --scores 2 | PASS_IF: deterministic rank emits top 3 | SURVIVORS:D:/workspace/survivors/performance-top3.json; ACTUAL_COUNT:D:/workspace/evidence/stage-3-count.json | PROHIBITED_UNTIL:PERFORMANCE_SHORTLIST:PASS |",
-            "| `SAFETY_NEGATIVES` | `SAFETY_VALIDATION` | QUESTION_1: Which top 3 candidates produce zero controls on 238 negatives? | SURVIVORS_FROM:PERFORMANCE_SHORTLIST; MAX_INPUTS:3 | PASS_FROM:PERFORMANCE_SHORTLIST | FACTORS:3x238; MAX_JOBS:714; ACTUAL_COUNT:D:/workspace/evidence/stage-4-count.json | SELECTOR: --candidates-from D:/workspace/survivors/performance-top3.json --fixtures D:/workspace/fixtures/negatives.json | PASS_IF: false triggers equal 0/238 and winner count equals 1 | SURVIVORS:D:/workspace/survivors/safety-winner.json; ACTUAL_COUNT:D:/workspace/evidence/stage-4-count.json | PROHIBITED_UNTIL:SAFETY_NEGATIVES:PASS |",
-            "| `SYSTEM_INTERFERENCE` | `SYSTEM_INTERFERENCE` | QUESTION_2: Does final winner preserve TDT latency under four probe arms? | SURVIVORS_FROM:SAFETY_NEGATIVES; MAX_INPUTS:1 | PASS_FROM:SAFETY_NEGATIVES | FACTORS:1x4; MAX_JOBS:4; ACTUAL_COUNT:D:/workspace/evidence/stage-5-count.json | SELECTOR: --candidates-from D:/workspace/survivors/safety-winner.json --recording D:/workspace/fixtures/58.22s.wav | PASS_IF: declared final latency and interference thresholds pass | SURVIVORS:D:/workspace/survivors/final-winner.json; ACTUAL_COUNT:D:/workspace/evidence/stage-5-count.json | TERMINAL: final winner selected |",
+            "| `TECHNICAL_RUNNABILITY` | `TECHNICAL` | QUESTION_1: Which candidates load and execute on locked runtime? | ALL_CANDIDATES; MAX_INPUTS:20 | START: candidate manifest hash passes | FACTORS:20x1; MAX_JOBS:20; ACTUAL_COUNT:<workspace>/evidence/stage-1-count.json | SELECTOR: --candidates-from <workspace>/candidates/all.json | PASS_IF: candidate loads and one probe exits 0 | SURVIVORS:<workspace>/survivors/technical.json; ACTUAL_COUNT:<workspace>/evidence/stage-1-count.json | PROHIBITED_UNTIL:TECHNICAL_RUNNABILITY:PASS |",
+            "| `BEHAVIORAL_UTILITY` | `BEHAVIORAL` | QUESTION_1: Which runnable candidates trigger all 14 positives? | SURVIVORS_FROM:TECHNICAL_RUNNABILITY; MAX_INPUTS:20 | PASS_FROM:TECHNICAL_RUNNABILITY | FACTORS:20x14; MAX_JOBS:280; ACTUAL_COUNT:<workspace>/evidence/stage-2-count.json | SELECTOR: --candidates-from <workspace>/survivors/technical.json --fixtures <workspace>/fixtures/positives.json | PASS_IF: positive triggers equal 14/14 | SURVIVORS:<workspace>/survivors/behavioral.json; ACTUAL_COUNT:<workspace>/evidence/stage-2-count.json | PROHIBITED_UNTIL:BEHAVIORAL_UTILITY:PASS |",
+            "| `PERFORMANCE_SHORTLIST` | `PERFORMANCE` | QUESTION_2: Which behavioral survivors rank fastest on DML? | SURVIVORS_FROM:BEHAVIORAL_UTILITY; MAX_INPUTS:20 | PASS_FROM:BEHAVIORAL_UTILITY | FACTORS:20x2x2; MAX_JOBS:80; ACTUAL_COUNT:<workspace>/evidence/stage-3-count.json | SELECTOR: --candidates-from <workspace>/survivors/behavioral.json --runtime-arms 2 --scores 2 | PASS_IF: deterministic rank emits top 3 | SURVIVORS:<workspace>/survivors/performance-top3.json; ACTUAL_COUNT:<workspace>/evidence/stage-3-count.json | PROHIBITED_UNTIL:PERFORMANCE_SHORTLIST:PASS |",
+            "| `SAFETY_NEGATIVES` | `SAFETY_VALIDATION` | QUESTION_1: Which top 3 candidates produce zero controls on 238 negatives? | SURVIVORS_FROM:PERFORMANCE_SHORTLIST; MAX_INPUTS:3 | PASS_FROM:PERFORMANCE_SHORTLIST | FACTORS:3x238; MAX_JOBS:714; ACTUAL_COUNT:<workspace>/evidence/stage-4-count.json | SELECTOR: --candidates-from <workspace>/survivors/performance-top3.json --fixtures <workspace>/fixtures/negatives.json | PASS_IF: false triggers equal 0/238 and winner count equals 1 | SURVIVORS:<workspace>/survivors/safety-winner.json; ACTUAL_COUNT:<workspace>/evidence/stage-4-count.json | PROHIBITED_UNTIL:SAFETY_NEGATIVES:PASS |",
+            "| `SYSTEM_INTERFERENCE` | `SYSTEM_INTERFERENCE` | QUESTION_2: Does final winner preserve TDT latency under four probe arms? | SURVIVORS_FROM:SAFETY_NEGATIVES; MAX_INPUTS:1 | PASS_FROM:SAFETY_NEGATIVES | FACTORS:1x4; MAX_JOBS:4; ACTUAL_COUNT:<workspace>/evidence/stage-5-count.json | SELECTOR: --candidates-from <workspace>/survivors/safety-winner.json --recording <workspace>/fixtures/58.22s.wav | PASS_IF: declared final latency and interference thresholds pass | SURVIVORS:<workspace>/survivors/final-winner.json; ACTUAL_COUNT:<workspace>/evidence/stage-5-count.json | TERMINAL: final winner selected |",
         ]
     )
     fixture_row = (
@@ -132,11 +132,11 @@ def concrete_fixture() -> str:
     )
     fixture_rows = "\n".join(
         [
-            "| `candidate-artifacts` | `D:/workspace/candidates/all.json` | `TECHNICAL_RUNNABILITY` | Runtime load and probe execution | ALL_CANDIDATES | RUN_ONLY_IF:TECHNICAL_RUNNABILITY:ENTRY_PASS | FORBID: behavioral or winner claim from runtime-only result |",
-            "| `positive-14` | `D:/workspace/fixtures/positives.json` | `BEHAVIORAL_UTILITY` | 14/14 positive trigger gate | SURVIVORS_ONLY:TECHNICAL_RUNNABILITY | RUN_ONLY_IF:BEHAVIORAL_UTILITY:ENTRY_PASS | FORBID: technical, safety, or interference stage |",
-            "| `performance-arms` | `D:/workspace/fixtures/performance.json` | `PERFORMANCE_SHORTLIST` | DML latency rank | SURVIVORS_ONLY:BEHAVIORAL_UTILITY | RUN_ONLY_IF:PERFORMANCE_SHORTLIST:ENTRY_PASS | FORBID: candidates failing behavioral gate |",
-            "| `negative-238` | `D:/workspace/fixtures/negatives.json` | `SAFETY_NEGATIVES` | 0/238 false-trigger gate | SURVIVORS_ONLY:PERFORMANCE_SHORTLIST | RUN_ONLY_IF:SAFETY_NEGATIVES:ENTRY_PASS | FORBID: broad all-candidate run |",
-            "| `recording-58.22s` | `D:/workspace/fixtures/58.22s.wav` | `SYSTEM_INTERFERENCE` | Final-TDT latency under probe arms | SURVIVORS_ONLY:SAFETY_NEGATIVES | RUN_ONLY_IF:SYSTEM_INTERFERENCE:ENTRY_PASS | FORBID: semantic, transcript, or pre-winner use |",
+            "| `candidate-artifacts` | `<workspace>/candidates/all.json` | `TECHNICAL_RUNNABILITY` | Runtime load and probe execution | ALL_CANDIDATES | RUN_ONLY_IF:TECHNICAL_RUNNABILITY:ENTRY_PASS | FORBID: behavioral or winner claim from runtime-only result |",
+            "| `positive-14` | `<workspace>/fixtures/positives.json` | `BEHAVIORAL_UTILITY` | 14/14 positive trigger gate | SURVIVORS_ONLY:TECHNICAL_RUNNABILITY | RUN_ONLY_IF:BEHAVIORAL_UTILITY:ENTRY_PASS | FORBID: technical, safety, or interference stage |",
+            "| `performance-arms` | `<workspace>/fixtures/performance.json` | `PERFORMANCE_SHORTLIST` | DML latency rank | SURVIVORS_ONLY:BEHAVIORAL_UTILITY | RUN_ONLY_IF:PERFORMANCE_SHORTLIST:ENTRY_PASS | FORBID: candidates failing behavioral gate |",
+            "| `negative-238` | `<workspace>/fixtures/negatives.json` | `SAFETY_NEGATIVES` | 0/238 false-trigger gate | SURVIVORS_ONLY:PERFORMANCE_SHORTLIST | RUN_ONLY_IF:SAFETY_NEGATIVES:ENTRY_PASS | FORBID: broad all-candidate run |",
+            "| `recording-58.22s` | `<workspace>/fixtures/58.22s.wav` | `SYSTEM_INTERFERENCE` | Final-TDT latency under probe arms | SURVIVORS_ONLY:SAFETY_NEGATIVES | RUN_ONLY_IF:SYSTEM_INTERFERENCE:ENTRY_PASS | FORBID: semantic, transcript, or pre-winner use |",
         ]
     )
     typed_row = (
@@ -151,11 +151,11 @@ def concrete_fixture() -> str:
     )
     typed_rows = "\n".join(
         [
-            "| `TECHNICAL_RUNNABILITY` | QUESTION_1: Which candidates load and execute on locked runtime? | PROVIDER:DML; REQUIRED_FOR:QUESTION_1:runtime execution | DATASET:D:/workspace/candidates/all.json; ROLE:runtime artifacts | MODE:OFFLINE_LOGICAL_CHUNKS | ADMIT_IF:candidate manifest hash passes | PASS_IF:candidate loads and one probe exits 0 | EXCLUDE:CPU replay, physical sleep, behavior claims, negatives | ESTIMATED_RUNS:20 | WALL_FACTORS:RUNS=20; MS_PER_RUN_MIN=10; MAX_CONCURRENCY=4; MIN_WALL_MS=50; EVIDENCE:D:/workspace/evidence/stage-1-wall.json |",
-            "| `BEHAVIORAL_UTILITY` | QUESTION_1: Which runnable candidates trigger all 14 positives? | PROVIDER:DML; REQUIRED_FOR:QUESTION_1:positive trigger count | DATASET:D:/workspace/fixtures/positives.json; ROLE:binary positive gate | MODE:OFFLINE_LOGICAL_CHUNKS | ADMIT_IF:TECHNICAL_RUNNABILITY survivor artifact passes | PASS_IF:positive triggers equal 14/14 | EXCLUDE:CPU replay, physical sleep, negatives, transcripts, latency ranking | ESTIMATED_RUNS:280 | WALL_FACTORS:RUNS=280; MS_PER_RUN_MIN=5; MAX_CONCURRENCY=4; MIN_WALL_MS=350; EVIDENCE:D:/workspace/evidence/stage-2-wall.json |",
-            "| `PERFORMANCE_SHORTLIST` | QUESTION_2: Which behavioral survivors rank fastest on DML? | PROVIDER:DML; REQUIRED_FOR:QUESTION_2:DML latency rank | DATASET:D:/workspace/fixtures/performance.json; ROLE:DML performance arms | MODE:OFFLINE_LOGICAL_CHUNKS | ADMIT_IF:BEHAVIORAL_UTILITY survivor artifact passes | PASS_IF:deterministic rank emits top 3 | EXCLUDE:CPU replay, physical sleep, negatives, final recording | ESTIMATED_RUNS:80 | WALL_FACTORS:RUNS=80; MS_PER_RUN_MIN=20; MAX_CONCURRENCY=4; MIN_WALL_MS=400; EVIDENCE:D:/workspace/evidence/stage-3-wall.json |",
-            "| `SAFETY_NEGATIVES` | QUESTION_1: Which top 3 candidates produce zero controls on 238 negatives? | PROVIDER:DML; REQUIRED_FOR:QUESTION_1:negative trigger count | DATASET:D:/workspace/fixtures/negatives.json; ROLE:false-trigger safety gate | MODE:OFFLINE_LOGICAL_CHUNKS | ADMIT_IF:PERFORMANCE_SHORTLIST survivor artifact passes | PASS_IF:false triggers equal 0/238 and winner count equals 1 | EXCLUDE:all-candidate replay, physical sleep, transcripts, final recording | ESTIMATED_RUNS:714 | WALL_FACTORS:RUNS=714; MS_PER_RUN_MIN=5; MAX_CONCURRENCY=4; MIN_WALL_MS=893; EVIDENCE:D:/workspace/evidence/stage-4-wall.json |",
-            "| `SYSTEM_INTERFERENCE` | QUESTION_2: Does final winner preserve TDT latency under four probe arms? | PROVIDER:TDT_RUNTIME; REQUIRED_FOR:QUESTION_2:final-TDT latency | DATASET:D:/workspace/fixtures/58.22s.wav; ROLE:final interference workload | MODE:REALTIME | ADMIT_IF:SAFETY_NEGATIVES winner artifact passes | PASS_IF:declared final latency and interference thresholds pass | EXCLUDE:non-winners, transcripts, WER, semantic scoring | ESTIMATED_RUNS:4 | WALL_FACTORS:RUNS=4; MS_PER_RUN_MIN=100; MAX_CONCURRENCY=1; MIN_WALL_MS=400; EVIDENCE:D:/workspace/evidence/stage-5-wall.json |",
+            "| `TECHNICAL_RUNNABILITY` | QUESTION_1: Which candidates load and execute on locked runtime? | PROVIDER:DML; REQUIRED_FOR:QUESTION_1:runtime execution | DATASET:<workspace>/candidates/all.json; ROLE:runtime artifacts | MODE:OFFLINE_LOGICAL_CHUNKS | ADMIT_IF:candidate manifest hash passes | PASS_IF:candidate loads and one probe exits 0 | EXCLUDE:CPU replay, physical sleep, behavior claims, negatives | ESTIMATED_RUNS:20 | WALL_FACTORS:RUNS=20; MS_PER_RUN_MIN=10; MAX_CONCURRENCY=4; MIN_WALL_MS=50; EVIDENCE:<workspace>/evidence/stage-1-wall.json |",
+            "| `BEHAVIORAL_UTILITY` | QUESTION_1: Which runnable candidates trigger all 14 positives? | PROVIDER:DML; REQUIRED_FOR:QUESTION_1:positive trigger count | DATASET:<workspace>/fixtures/positives.json; ROLE:binary positive gate | MODE:OFFLINE_LOGICAL_CHUNKS | ADMIT_IF:TECHNICAL_RUNNABILITY survivor artifact passes | PASS_IF:positive triggers equal 14/14 | EXCLUDE:CPU replay, physical sleep, negatives, transcripts, latency ranking | ESTIMATED_RUNS:280 | WALL_FACTORS:RUNS=280; MS_PER_RUN_MIN=5; MAX_CONCURRENCY=4; MIN_WALL_MS=350; EVIDENCE:<workspace>/evidence/stage-2-wall.json |",
+            "| `PERFORMANCE_SHORTLIST` | QUESTION_2: Which behavioral survivors rank fastest on DML? | PROVIDER:DML; REQUIRED_FOR:QUESTION_2:DML latency rank | DATASET:<workspace>/fixtures/performance.json; ROLE:DML performance arms | MODE:OFFLINE_LOGICAL_CHUNKS | ADMIT_IF:BEHAVIORAL_UTILITY survivor artifact passes | PASS_IF:deterministic rank emits top 3 | EXCLUDE:CPU replay, physical sleep, negatives, final recording | ESTIMATED_RUNS:80 | WALL_FACTORS:RUNS=80; MS_PER_RUN_MIN=20; MAX_CONCURRENCY=4; MIN_WALL_MS=400; EVIDENCE:<workspace>/evidence/stage-3-wall.json |",
+            "| `SAFETY_NEGATIVES` | QUESTION_1: Which top 3 candidates produce zero controls on 238 negatives? | PROVIDER:DML; REQUIRED_FOR:QUESTION_1:negative trigger count | DATASET:<workspace>/fixtures/negatives.json; ROLE:false-trigger safety gate | MODE:OFFLINE_LOGICAL_CHUNKS | ADMIT_IF:PERFORMANCE_SHORTLIST survivor artifact passes | PASS_IF:false triggers equal 0/238 and winner count equals 1 | EXCLUDE:all-candidate replay, physical sleep, transcripts, final recording | ESTIMATED_RUNS:714 | WALL_FACTORS:RUNS=714; MS_PER_RUN_MIN=5; MAX_CONCURRENCY=4; MIN_WALL_MS=893; EVIDENCE:<workspace>/evidence/stage-4-wall.json |",
+            "| `SYSTEM_INTERFERENCE` | QUESTION_2: Does final winner preserve TDT latency under four probe arms? | PROVIDER:TDT_RUNTIME; REQUIRED_FOR:QUESTION_2:final-TDT latency | DATASET:<workspace>/fixtures/58.22s.wav; ROLE:final interference workload | MODE:REALTIME | ADMIT_IF:SAFETY_NEGATIVES winner artifact passes | PASS_IF:declared final latency and interference thresholds pass | EXCLUDE:non-winners, transcripts, WER, semantic scoring | ESTIMATED_RUNS:4 | WALL_FACTORS:RUNS=4; MS_PER_RUN_MIN=100; MAX_CONCURRENCY=1; MIN_WALL_MS=400; EVIDENCE:<workspace>/evidence/stage-5-wall.json |",
         ]
     )
     inherited_row = (
@@ -183,8 +183,8 @@ def concrete_fixture() -> str:
     )
     route_rows = "\n".join(
         [
-            "| `R_FAST` | STEPS:R_FAST/S1>R_FAST/S2 | EDGES:R_FAST/S1->R_FAST/S2 | PASS: authority, safety, cost, quality, and scope constraints pass | 900 | 900 | 1 | 1 | 1 | SELECTED | SELECTED_EXPECTED_TIME:EVIDENCE:D:/workspace/evidence/route-fast.json |",
-            "| `R_SLOW` | STEPS:R_SLOW/S1>R_SLOW/S2>R_SLOW/S3 | START:R_SLOW/S1,R_SLOW/S2; EDGES:R_SLOW/S1->R_SLOW/S3,R_SLOW/S2->R_SLOW/S3 | PASS: authority, safety, cost, quality, and scope constraints pass | 1200 | 1200 | 2 | 2 | 2 | REJECTED | DOMINATED_BY:R_FAST slower expected completion plus higher cost, risk, and rework; EVIDENCE:D:/workspace/evidence/route-slow.json |",
+            "| `R_FAST` | STEPS:R_FAST/S1>R_FAST/S2 | EDGES:R_FAST/S1->R_FAST/S2 | PASS: authority, safety, cost, quality, and scope constraints pass | 900 | 900 | 1 | 1 | 1 | SELECTED | SELECTED_EXPECTED_TIME:EVIDENCE:<workspace>/evidence/route-fast.json |",
+            "| `R_SLOW` | STEPS:R_SLOW/S1>R_SLOW/S2>R_SLOW/S3 | START:R_SLOW/S1,R_SLOW/S2; EDGES:R_SLOW/S1->R_SLOW/S3,R_SLOW/S2->R_SLOW/S3 | PASS: authority, safety, cost, quality, and scope constraints pass | 1200 | 1200 | 2 | 2 | 2 | REJECTED | DOMINATED_BY:R_FAST slower expected completion plus higher cost, risk, and rework; EVIDENCE:<workspace>/evidence/route-slow.json |",
         ]
     )
     text = (
@@ -198,27 +198,27 @@ def concrete_fixture() -> str:
 
 ```powershell
 # STAGE_COMMAND:TECHNICAL_RUNNABILITY
-Run-Stage -Provider DML -Mode OFFLINE_LOGICAL_CHUNKS -CandidatesFrom D:/workspace/candidates/all.json -Fixtures D:/workspace/candidates/all.json -SurvivorsOut D:/workspace/survivors/technical.json -ActualCountOut D:/workspace/evidence/stage-1-count.json
+Run-Stage -Provider DML -Mode OFFLINE_LOGICAL_CHUNKS -CandidatesFrom <workspace>/candidates/all.json -Fixtures <workspace>/candidates/all.json -SurvivorsOut <workspace>/survivors/technical.json -ActualCountOut <workspace>/evidence/stage-1-count.json
 ```
 
 ```powershell
 # STAGE_COMMAND:BEHAVIORAL_UTILITY
-Run-Stage -Provider DML -Mode OFFLINE_LOGICAL_CHUNKS -CandidatesFrom D:/workspace/survivors/technical.json -Fixtures D:/workspace/fixtures/positives.json -SurvivorsOut D:/workspace/survivors/behavioral.json -ActualCountOut D:/workspace/evidence/stage-2-count.json
+Run-Stage -Provider DML -Mode OFFLINE_LOGICAL_CHUNKS -CandidatesFrom <workspace>/survivors/technical.json -Fixtures <workspace>/fixtures/positives.json -SurvivorsOut <workspace>/survivors/behavioral.json -ActualCountOut <workspace>/evidence/stage-2-count.json
 ```
 
 ```powershell
 # STAGE_COMMAND:PERFORMANCE_SHORTLIST
-Run-Stage -Provider DML -Mode OFFLINE_LOGICAL_CHUNKS -CandidatesFrom D:/workspace/survivors/behavioral.json -Fixtures D:/workspace/fixtures/performance.json -SurvivorsOut D:/workspace/survivors/performance-top3.json -ActualCountOut D:/workspace/evidence/stage-3-count.json
+Run-Stage -Provider DML -Mode OFFLINE_LOGICAL_CHUNKS -CandidatesFrom <workspace>/survivors/behavioral.json -Fixtures <workspace>/fixtures/performance.json -SurvivorsOut <workspace>/survivors/performance-top3.json -ActualCountOut <workspace>/evidence/stage-3-count.json
 ```
 
 ```powershell
 # STAGE_COMMAND:SAFETY_NEGATIVES
-Run-Stage -Provider DML -Mode OFFLINE_LOGICAL_CHUNKS -CandidatesFrom D:/workspace/survivors/performance-top3.json -Fixtures D:/workspace/fixtures/negatives.json -SurvivorsOut D:/workspace/survivors/safety-winner.json -ActualCountOut D:/workspace/evidence/stage-4-count.json
+Run-Stage -Provider DML -Mode OFFLINE_LOGICAL_CHUNKS -CandidatesFrom <workspace>/survivors/performance-top3.json -Fixtures <workspace>/fixtures/negatives.json -SurvivorsOut <workspace>/survivors/safety-winner.json -ActualCountOut <workspace>/evidence/stage-4-count.json
 ```
 
 ```powershell
 # STAGE_COMMAND:SYSTEM_INTERFERENCE
-Run-Stage -Provider TDT_RUNTIME -Mode REALTIME -CandidatesFrom D:/workspace/survivors/safety-winner.json -Fixtures D:/workspace/fixtures/58.22s.wav -SurvivorsOut D:/workspace/survivors/final-winner.json -ActualCountOut D:/workspace/evidence/stage-5-count.json
+Run-Stage -Provider TDT_RUNTIME -Mode REALTIME -CandidatesFrom <workspace>/survivors/safety-winner.json -Fixtures <workspace>/fixtures/58.22s.wav -SurvivorsOut <workspace>/survivors/final-winner.json -ActualCountOut <workspace>/evidence/stage-5-count.json
 ```"""
     text = re.sub(
         r"### Stage command bindings.*?(?=\n## 2. Source of Truth & Known State)",
@@ -249,15 +249,15 @@ Run-Stage -Provider TDT_RUNTIME -Mode REALTIME -CandidatesFrom D:/workspace/surv
             "NUMERIC_TIME_OR_UNIT_CADENCE_PLUS_CHECKPOINTS": "SUPERVISE: after first action, every 5 minutes, and before each model or tool load, scope change, or batch",
             "EXACT_LATEST_USER_INTENT_TO_PROGRESS_ORDER": "LATEST_USER_INTENT > DECISION_OBJECTIVE > STAGE_CONTRACT > INHERITED_DOCUMENT > EXISTING_IMPLEMENTATION_OR_PROGRESS",
             "NONE_OR_SEMANTIC_CORRECTION_ID_AND_SOURCE": "SEMANTIC_CORRECTION: ID:eou-scope-20260728; SOURCE:USER_REQUEST",
-            "INVENTORY_SOURCE_SEMANTIC_DELTA_AND_EVIDENCE_PATH": "INVENTORY_SOURCE:current user correction plus inherited experiment plan; SEMANTIC_DELTA:YES; EVIDENCE:D:/workspace/evidence/correction-audit.json",
+            "INVENTORY_SOURCE_SEMANTIC_DELTA_AND_EVIDENCE_PATH": "INVENTORY_SOURCE:current user correction plus inherited experiment plan; SEMANTIC_DELTA:YES; EVIDENCE:<workspace>/evidence/correction-audit.json",
             "NOT_APPLICABLE_OR_PLAN_INVALIDATED_ROOT_DOWNSTREAM_STOP_LOCAL_PATCH_FORBIDDEN": "PLAN_INVALIDATED:ALL; DOWNSTREAM_INVALIDATED_FROM:ROOT; ACTIVE_WORK:STOP_AND_QUARANTINE; LOCAL_PATCH:FORBIDDEN",
             "FROM_ZERO_OBJECTIVE_REQUIREMENTS_STAGES_COMMANDS_COMPLETE": "FROM_ZERO:COMPLETE; OBJECTIVE_RESTATED:COMPLETE; REQUIREMENTS_RECLASSIFIED:COMPLETE; STAGES_REBUILT:COMPLETE; COMMANDS_REBOUND:COMPLETE",
             "PRESERVE_EVIDENCE_ONLY_REUSE_PROOF_STALE_PROGRESS_REJECT": "PRESERVE_EVIDENCE_ONLY; REUSE_ONLY_IF:new typed stage provider, dataset, mode, admission, and pass contract match; STALE_PROGRESS:REJECT",
-            "INVENTORY_TOTAL_CLASSIFIED_TOTAL_UNCLASSIFIED_ZERO_AND_EVIDENCE_PATH": "INVENTORY_TOTAL:4; CLASSIFIED_TOTAL:4; UNCLASSIFIED:0; EVIDENCE:D:/workspace/evidence/inherited-inventory.json",
+            "INVENTORY_TOTAL_CLASSIFIED_TOTAL_UNCLASSIFIED_ZERO_AND_EVIDENCE_PATH": "INVENTORY_TOTAL:4; CLASSIFIED_TOTAL:4; UNCLASSIFIED:0; EVIDENCE:<workspace>/evidence/inherited-inventory.json",
             "SCHEMA_RUN_ID_STATE_REF_AND_TYPED_STAGE_CHECKPOINT": "SCHEMA:dispatch.stage.v1; RUN_ID:0d4ce380-d482-41bc-b65c-1049448502b6; STATE:forge://run/0d4ce380-d482-41bc-b65c-1049448502b6/state; CHECKPOINT:TYPED_STAGES",
             "EXACT_VERIFIED_CURRENT_STATE_A": "STATE_A: inherited experiment plan has unqualified candidate matrix and no executable survivor route",
             "EXACT_VERIFIABLE_TARGET_STATE_B": "STATE_B: validated survivor funnel emits one production-path winner with trigger and latency evidence",
-            "EXACT_COMMAND_OR_CHECK_PROVING_B": "PROOF: run D:/workspace/tools/verify-final.ps1 and require D:/workspace/evidence/final-pass.json",
+            "EXACT_COMMAND_OR_CHECK_PROVING_B": "PROOF: run <workspace>/tools/verify-final.ps1 and require <workspace>/evidence/final-pass.json",
             "AUTHORITY_SAFETY_COST_TIME_QUALITY_AND_SCOPE_CONSTRAINTS": "CONSTRAINTS: AUTHORITY=current user; SAFETY=production path; COST=bounded local; QUALITY=acceptance thresholds; SCOPE=declared experiment only",
             "COMPARE_OR_SINGLE_FEASIBLE": "COMPARE",
             "CHECKOUT_RELATIVE_GOAL_ROUTE_V2_JSON_PATH": str(ROUTE_FIXTURE.resolve()),
@@ -304,25 +304,25 @@ Run-Stage -Provider TDT_RUNTIME -Mode REALTIME -CandidatesFrom D:/workspace/surv
             "EXACT_ROUTE_VERSION_OR_FORBIDDEN": "NO_MODEL_ALLOWED: transcription outside scope",
             "TIME_VRAM_MEMORY_NETWORK_COST_OR_NONE": "VRAM, time, memory, and attention cost",
             "ALLOW_OR_FORBID_WITH_REASON": "FORBID: produces no acceptance metric",
-            "RELEVANCE_EVIDENCE_PATH": "D:/workspace/evidence/model-relevance.md",
+            "RELEVANCE_EVIDENCE_PATH": "<workspace>/evidence/model-relevance.md",
             "SELECTION_FUNNEL_FULL_COMPARATIVE_DATASET_OR_SINGLE_PATH": "SELECTION_FUNNEL",
             "NOT_AUTHORIZED_OR_FULL_COMPARATIVE_DATASET_AUTHORIZED_SOURCE_AND_REASON": "NOT_AUTHORIZED: user requested winner selection, not complete comparative dataset",
             "RUN_ONLY_IF_RESULT_CAN_CHANGE_DECISION_OTHERWISE_SKIP": "RUN_ONLY_IF: result can change advance, reject, rank, winner, or safety decision; SKIP: result cannot change remaining decision",
             "JOB_TOTAL_MAX_NUMERIC_SUM": "JOB_TOTAL_MAX:1098",
             "MIN_WALL_MS_TOTAL_NUMERIC_SUM": "MIN_WALL_MS_TOTAL:2093",
             "RESOLVED_RUNS_WALL_TIME_AND_CONCURRENCY_OR_BLOCK": "RESOLVED:RUNS_WALL_TIME_CONCURRENCY",
-            "RECONCILE_STAGE_ACTUAL_SUM_AGAINST_DECLARED_TOTAL_AND_EVIDENCE_PATH": "RECONCILE: STAGE_ACTUAL_SUM must equal launched jobs and remain within JOB_TOTAL_MAX; BLOCK_IF_MISMATCH; EVIDENCE:D:/workspace/evidence/launch-reconcile.json",
+            "RECONCILE_STAGE_ACTUAL_SUM_AGAINST_DECLARED_TOTAL_AND_EVIDENCE_PATH": "RECONCILE: STAGE_ACTUAL_SUM must equal launched jobs and remain within JOB_TOTAL_MAX; BLOCK_IF_MISMATCH; EVIDENCE:<workspace>/evidence/launch-reconcile.json",
             "READBACK_AND_RECHECK_BEFORE_STAGE_BATCH_OR_SCOPE_CHANGE": "READBACK_REQUIRED: topology, stage order, survivor source, stage MAX_JOBS, and actual jobs; BEFORE_STAGE: every 1 stage and before batch or scope change",
             "FORBID_ALL_WILDCARD_FULL_CORPUS_OR_EXACT_AUTHORIZED_SCOPE": "FORBID_BROAD_SELECTORS: --all, wildcard candidates, full corpus, or all-candidate downstream runs",
             "PRODUCER_ID_AND_PROOF_FIELD": "PRODUCER: membrane_planner | PROOF_FIELD: producer",
             "ALLOW_ONLY_EXACT_SOURCE_CHAIN": "ALLOW_ONLY: provider.expected -> membrane_planner -> delivered value",
             "FORBID_EXACT_PRODUCERS_TRANSFORMS_OR_NONE_CHECKED": "FORBID: producer=design, direct closures, substitution projections",
-            "INVENTORY_REJECT_IF_INCOMPATIBLE_RESUME_ONLY_IF": "INVENTORY: inspect D:/workspace/evidence/runs.json; REJECT_IF_INCOMPATIBLE: producer != membrane_planner; RESUME_ONLY_IF: producer and lifecycle match",
+            "INVENTORY_REJECT_IF_INCOMPATIBLE_RESUME_ONLY_IF": "INVENTORY: inspect <workspace>/evidence/runs.json; REJECT_IF_INCOMPATIBLE: producer != membrane_planner; RESUME_ONLY_IF: producer and lifecycle match",
             "LIFECYCLE_WITH_AT_LEAST_FIVE_ORDERED_STATES": "LIFECYCLE: provider.expected -> started -> terminal -> delivery -> value_terminal",
             "NO_SUBSTITUTION_OR_EXACT_AUTHORIZED_EQUIVALENTS": "NO_SUBSTITUTION — direct closures and projections are forbidden",
             "DIRECT_ONLY_SOURCE_AND_TERMINAL_VALUE": "DIRECT_ONLY: delivered value from membrane_planner terminal record",
             "FORBID_PROJECTION_DIRECT_CLOSURE_OR_OTHER_INVALID_DERIVATION": "FORBID: direct closure, design producer, projection, or synthetic stand-in",
-            "EXACT_PRODUCER_PROVENANCE_LIFECYCLE_PREFLIGHT_COMMAND": "Run Get-Content -LiteralPath D:/workspace/evidence/runs.json and record D:/workspace/evidence/lifecycle-preflight.log",
+            "EXACT_PRODUCER_PROVENANCE_LIFECYCLE_PREFLIGHT_COMMAND": "Run Get-Content -LiteralPath <workspace>/evidence/runs.json and record <workspace>/evidence/lifecycle-preflight.log",
             "EXACT_PRODUCER_AND_PROVENANCE_CHECK": "Run producer check and record producer field",
             "REQUIRED_PRODUCER_AND_LINEAGE_VALUE": "producer=membrane_planner and lineage matches",
             "EXACT_ORDERED_LIFECYCLE_CHECK": "Run ordered state check over receipt events",
@@ -332,15 +332,15 @@ Run-Stage -Provider TDT_RUNTIME -Mode REALTIME -CandidatesFrom D:/workspace/surv
             "INVARIANTS_EMBEDDED_HERE_NOT_DELEGATED_TO_GUIDE": "INVARIANT: producer=membrane_planner; INVARIANT: provider.expected links through value_terminal; INVARIANT: P3 forbids substitutions",
             "RESET_REQUIRED_OR_RESUME_ALLOWED_IF_EXACT_COMPATIBILITY_PROOF": "RESET_REQUIRED: current producer=design is incompatible",
             "STOP_PRESERVE_OR_DISCARD_DO_NOT_COMMIT_RULE": "STOP current run; DISCARD invalid window; DO_NOT_COMMIT incompatible evidence",
-            "PULL_OR_REREAD_CORRECTED_AUTHORITY_AND_HASH": "AUTHORITY_REFRESH: read D:/workspace/authority.md and record SHA-256",
+            "PULL_OR_REREAD_CORRECTED_AUTHORITY_AND_HASH": "AUTHORITY_REFRESH: read <workspace>/authority.md and record SHA-256",
             "PRODUCTION_PATH_WITH_ENTRY_MORPHER_HOOK_RUNTIME_DELIVERY_VALUE": "PRODUCTION_PATH: CLI -> root hook -> membrane_planner -> delivery -> value_terminal",
-            "HASH_VERIFY_EXACT_COMPONENTS_CONFIG_HOOKS_AND_RUNTIME": "HASH_VERIFY: run Get-FileHash on D:/workspace/hook.ps1, D:/workspace/config.json, and D:/workspace/runtime.exe",
+            "HASH_VERIFY_EXACT_COMPONENTS_CONFIG_HOOKS_AND_RUNTIME": "HASH_VERIFY: run Get-FileHash on <workspace>/hook.ps1, <workspace>/config.json, and <workspace>/runtime.exe",
             "TRACE_LINK_FIELDS_ACROSS_EXPECTED_STARTED_TERMINAL_DELIVERY_VALUE": "TRACE_LINK: expected.id -> started.attempt_of -> terminal.terminal_of -> delivered.trace_id -> value.trace_id",
             "PROHIBITED_UNTIL_CANARY_PASS": "PROHIBITED_UNTIL_CANARY_PASS — zero batch calls before one trace passes",
             "DEFECT_ONLY_IF_PRODUCTION_PATH_PROVEN_CANARY_PASS_AND_CANONICAL_CHECK_FAILS": "DEFECT_ONLY_IF: PRODUCTION_PATH_PROVEN and CANARY_PASS and CANONICAL_CHECK_FAILS with matching trace",
             "STOP_DISCARD_INVALID_WINDOW_PULL_AUTHORITY_REVERIFY_RESTART_PREFLIGHT": "STOP -> DISCARD_INVALID_WINDOW -> PULL_AUTHORITY -> REVERIFY -> RESTART_PREFLIGHT",
-            "EXACT_APPEND_ONLY_DIRTY_STATE_OR_INTEGRITY_COMMAND_AND_EVIDENCE_PATH": "Run git -C D:/workspace status --short and record D:/workspace/evidence/environment-integrity.log",
-            "EXACT_ONE_TRACE_OR_ONE_UNIT_COMMAND_ASSERTIONS_AND_EVIDENCE_PATH": "Run D:/workspace/tools/one-trace.ps1 and record D:/workspace/evidence/one-trace.json",
+            "EXACT_APPEND_ONLY_DIRTY_STATE_OR_INTEGRITY_COMMAND_AND_EVIDENCE_PATH": "Run git -C <workspace> status --short and record <workspace>/evidence/environment-integrity.log",
+            "EXACT_ONE_TRACE_OR_ONE_UNIT_COMMAND_ASSERTIONS_AND_EVIDENCE_PATH": "Run <workspace>/tools/one-trace.ps1 and record <workspace>/evidence/one-trace.json",
             "STAGE_ID": "SYSTEM_INTERFERENCE",
             "STAGE_ID_OR_NONE": "SYSTEM_INTERFERENCE",
         }
@@ -349,9 +349,9 @@ Run-Stage -Provider TDT_RUNTIME -Mode REALTIME -CandidatesFrom D:/workspace/surv
         if token == "YES_OR_NO":
             return "YES"
         if "SCRIPT_SKILL" in token:
-            return "D:/workspace/tools/skills/script/SKILL.md"
+            return "<workspace>/tools/skills/script/SKILL.md"
         if "SCRIPT" in token and ("PATH" in token or "CREATED" in token):
-            return "D:/workspace/tools/run-task.ps1"
+            return "<workspace>/tools/run-task.ps1"
         if "ORCHESTRATOR_CREATED" in token:
             return "ORCHESTRATOR_CREATED"
         if "NO_SCRIPT" in token or "REASON_OR_NOT_APPLICABLE" in token:
@@ -367,17 +367,17 @@ Run-Stage -Provider TDT_RUNTIME -Mode REALTIME -CandidatesFrom D:/workspace/surv
         if "TRUE_BLOCKER" in token:
             return "Return TRUE_BLOCKER only after all recovery branches fail, evidence log exists, and missing input is named"
         if token in {"PRIMARY_ACTION", "EXACT_RECOVERY_ACTION"}:
-            return "Run Get-Item -LiteralPath D:/workspace/input.txt"
+            return "Run Get-Item -LiteralPath <workspace>/input.txt"
         if token == "SECOND_ACTION":
-            return "Search with rg --files D:/workspace and record D:/workspace/evidence/search.log"
+            return "Search with rg --files <workspace> and record <workspace>/evidence/search.log"
         if "CONDITION" in token or "EXPECTED_RESULT" in token:
-            return "command exits 0 and D:/workspace/evidence/pass.log exists"
+            return "command exits 0 and <workspace>/evidence/pass.log exists"
         if any(word in token for word in ("CONTINUE", "FALLBACK", "SUBSET", "FIXTURE", "QUARANTINE", "UNAFFECTED", "PROBE", "INTERPRETATION", "READ_ONLY")):
-            return "Continue read-only checks and record D:/workspace/evidence/degraded.log"
+            return "Continue read-only checks and record <workspace>/evidence/degraded.log"
         if any(word in token for word in ("COMMAND", "ACTION", "CHECK", "VALIDATION", "RETRIEVAL", "FETCH")):
-            return "Run Get-Item -LiteralPath D:/workspace/input.txt and record exit code"
+            return "Run Get-Item -LiteralPath <workspace>/input.txt and record exit code"
         if any(word in token for word in ("PATH", "DIRECTORY", "LOCATION")):
-            return "D:/workspace/artifacts/result.json"
+            return "<workspace>/artifacts/result.json"
         if "OWNER" in token or token in {"REQUESTER", "DISPATCH_AUTHOR", "EXECUTOR_OR_ROLE", "VERIFICATION_OWNER"}:
             return "executor"
         if "ACTIVE_OR_NONE" in token:
@@ -387,15 +387,15 @@ Run-Stage -Provider TDT_RUNTIME -Mode REALTIME -CandidatesFrom D:/workspace/surv
         if "NO_OVERLAP" in token:
             return "NO_OVERLAP — inventory is empty"
         if "PRE" in token and "RESULT" in token:
-            return "Run preflight; exit code 0 and D:/workspace/evidence/pre.log exists"
+            return "Run preflight; exit code 0 and <workspace>/evidence/pre.log exists"
         if "SMOKE" in token:
-            return "Run D:/workspace/tools/run-task.ps1 on 2 files; stdout processed=2"
+            return "Run <workspace>/tools/run-task.ps1 on 2 files; stdout processed=2"
         if "CORRECTNESS" in token:
-            return "Check output count equals 2; D:/workspace/evidence/smoke.log"
+            return "Check output count equals 2; <workspace>/evidence/smoke.log"
         if "BLAST" in token:
-            return "Reads D:/workspace/input; writes D:/workspace/artifacts; no network or cost"
+            return "Reads <workspace>/input; writes <workspace>/artifacts; no network or cost"
         if "OPT" in token:
-            return "No duplicate work; bounded retry; atomic D:/workspace/artifacts/result.json"
+            return "No duplicate work; bounded retry; atomic <workspace>/artifacts/result.json"
         if "EXIT_CODE" in token:
             return "exit code 0"
         if "EXPECTED_PROPERTIES" in token:
@@ -432,8 +432,8 @@ Run-Stage -Provider TDT_RUNTIME -Mode REALTIME -CandidatesFrom D:/workspace/surv
 
 def full_comparative_fixture(selection_fixture: str) -> str:
     text = selection_fixture.replace(
-        "**Inherited inventory reconciliation:** INVENTORY_TOTAL:4; CLASSIFIED_TOTAL:4; UNCLASSIFIED:0; EVIDENCE:D:/workspace/evidence/inherited-inventory.json",
-        "**Inherited inventory reconciliation:** INVENTORY_TOTAL:3; CLASSIFIED_TOTAL:3; UNCLASSIFIED:0; EVIDENCE:D:/workspace/evidence/inherited-inventory.json",
+        "**Inherited inventory reconciliation:** INVENTORY_TOTAL:4; CLASSIFIED_TOTAL:4; UNCLASSIFIED:0; EVIDENCE:<workspace>/evidence/inherited-inventory.json",
+        "**Inherited inventory reconciliation:** INVENTORY_TOTAL:3; CLASSIFIED_TOTAL:3; UNCLASSIFIED:0; EVIDENCE:<workspace>/evidence/inherited-inventory.json",
     ).replace(
         "**Topology mode:** SELECTION_FUNNEL",
         "**Topology mode:** FULL_COMPARATIVE_DATASET",
@@ -465,7 +465,7 @@ def full_comparative_fixture(selection_fixture: str) -> str:
 
 | Stage ID | Gate type | Decision question | Input population + max | Entry gate | Workload formula + count | Command selector | Exit gate | Survivor artifact + actual-count ledger | Downstream prohibited until |
 |---|---|---|---|---|---|---|---|---|---|
-| `FULL_COMPARATIVE_MATRIX` | `FULL_MATRIX` | QUESTION_1: What is every declared arm result across complete corpus? | ALL_CANDIDATES; MAX_INPUTS:20 | START: explicit comparative authorization and manifest hash pass | FACTORS:20x2x2x252; MAX_JOBS:20160; ACTUAL_COUNT:D:/workspace/evidence/full-count.json | SELECTOR: --all --fixtures D:/workspace/fixtures/full-corpus.json | PASS_IF: every declared matrix cell has terminal evidence | SURVIVORS:D:/workspace/results/full-matrix.json; ACTUAL_COUNT:D:/workspace/evidence/full-count.json | TERMINAL: complete comparative dataset emitted |"""
+| `FULL_COMPARATIVE_MATRIX` | `FULL_MATRIX` | QUESTION_1: What is every declared arm result across complete corpus? | ALL_CANDIDATES; MAX_INPUTS:20 | START: explicit comparative authorization and manifest hash pass | FACTORS:20x2x2x252; MAX_JOBS:20160; ACTUAL_COUNT:<workspace>/evidence/full-count.json | SELECTOR: --all --fixtures <workspace>/fixtures/full-corpus.json | PASS_IF: every declared matrix cell has terminal evidence | SURVIVORS:<workspace>/results/full-matrix.json; ACTUAL_COUNT:<workspace>/evidence/full-count.json | TERMINAL: complete comparative dataset emitted |"""
     text = re.sub(
         r"### Stage decision funnel.*?(?=\n### Typed stage records)",
         stage_table,
@@ -477,7 +477,7 @@ def full_comparative_fixture(selection_fixture: str) -> str:
 
 | Stage ID | Decision | Provider binding | Dataset + role | Execution mode | Admission | Pass rule | Explicit exclusions | Estimated runs | Minimum wall-time factors |
 |---|---|---|---|---|---|---|---|---|---|
-| `FULL_COMPARATIVE_MATRIX` | QUESTION_1: What is every declared arm result across complete corpus? | PROVIDER:MATRIX_RUNNER; REQUIRED_FOR:QUESTION_1:complete arm-by-arm dataset | DATASET:D:/workspace/fixtures/full-corpus.json; ROLE:complete comparative corpus | MODE:OFFLINE_LOGICAL_CHUNKS | ADMIT_IF:explicit full-comparison authorization and manifest hash pass | PASS_IF:every declared matrix cell has terminal evidence | EXCLUDE:physical sleep, undeclared candidates, undeclared fixtures | ESTIMATED_RUNS:20160 | WALL_FACTORS:RUNS=20160; MS_PER_RUN_MIN=5; MAX_CONCURRENCY=4; MIN_WALL_MS=25200; EVIDENCE:D:/workspace/evidence/full-wall.json |"""
+| `FULL_COMPARATIVE_MATRIX` | QUESTION_1: What is every declared arm result across complete corpus? | PROVIDER:MATRIX_RUNNER; REQUIRED_FOR:QUESTION_1:complete arm-by-arm dataset | DATASET:<workspace>/fixtures/full-corpus.json; ROLE:complete comparative corpus | MODE:OFFLINE_LOGICAL_CHUNKS | ADMIT_IF:explicit full-comparison authorization and manifest hash pass | PASS_IF:every declared matrix cell has terminal evidence | EXCLUDE:physical sleep, undeclared candidates, undeclared fixtures | ESTIMATED_RUNS:20160 | WALL_FACTORS:RUNS=20160; MS_PER_RUN_MIN=5; MAX_CONCURRENCY=4; MIN_WALL_MS=25200; EVIDENCE:<workspace>/evidence/full-wall.json |"""
     text = re.sub(
         r"### Typed stage records.*?(?=\n### Fixture-stage ownership)",
         typed_table,
@@ -489,7 +489,7 @@ def full_comparative_fixture(selection_fixture: str) -> str:
 
 | Fixture ID | Exact source | Owning stage | Decision role | Population scope | Use condition | Forbidden outside |
 |---|---|---|---|---|---|---|
-| `full-corpus-252` | `D:/workspace/fixtures/full-corpus.json` | `FULL_COMPARATIVE_MATRIX` | Complete public arm-by-arm comparison | ALL_CANDIDATES_AUTHORIZED | RUN_ONLY_IF:FULL_COMPARATIVE_MATRIX:ENTRY_PASS | NONE_AUTHORIZED: fixture use is confined to declared full matrix |"""
+| `full-corpus-252` | `<workspace>/fixtures/full-corpus.json` | `FULL_COMPARATIVE_MATRIX` | Complete public arm-by-arm comparison | ALL_CANDIDATES_AUTHORIZED | RUN_ONLY_IF:FULL_COMPARATIVE_MATRIX:ENTRY_PASS | NONE_AUTHORIZED: fixture use is confined to declared full matrix |"""
     text = re.sub(
         r"### Fixture-stage ownership.*?(?=\n### Stage command bindings)",
         fixture_table,
@@ -515,7 +515,7 @@ def full_comparative_fixture(selection_fixture: str) -> str:
 
 ```powershell
 # STAGE_COMMAND:FULL_COMPARATIVE_MATRIX
-Run-Stage -Provider MATRIX_RUNNER -Mode OFFLINE_LOGICAL_CHUNKS --all -Fixtures D:/workspace/fixtures/full-corpus.json -SurvivorsOut D:/workspace/results/full-matrix.json -ActualCountOut D:/workspace/evidence/full-count.json
+Run-Stage -Provider MATRIX_RUNNER -Mode OFFLINE_LOGICAL_CHUNKS --all -Fixtures <workspace>/fixtures/full-corpus.json -SurvivorsOut <workspace>/results/full-matrix.json -ActualCountOut <workspace>/evidence/full-count.json
 ```"""
     return re.sub(
         r"### Stage command bindings.*?(?=\n## 2. Source of Truth & Known State)",
@@ -544,9 +544,9 @@ def main() -> int:
             "tasks/dispatches/portable.md", artifact
         ) == artifact.resolve()
     assert validator_module.normalized_path(
-        "/Volumes/D/Claude/Packet.md", "posix"
+        "<workspace>/Packet.md", "posix"
     ) != validator_module.normalized_path(
-        "/Volumes/D/Claude/packet.md", "posix"
+        "<workspace>/packet.md", "posix"
     )
 
     template_check = subprocess.run(
@@ -565,7 +565,7 @@ def main() -> int:
     route_mirror_tamper = run(
         good.replace(
             "| 1200 | 1200 | 2 | 2 | 2 | REJECTED | DOMINATED_BY:R_FAST",
-            "| 800 | 800 | 2 | 2 | 2 | REJECTED | TRADEOFF:EVIDENCE:D:/workspace/evidence/route-slow.json",
+            "| 800 | 800 | 2 | 2 | 2 | REJECTED | TRADEOFF:EVIDENCE:<workspace>/evidence/route-slow.json",
             1,
         )
     )
@@ -757,8 +757,8 @@ def main() -> int:
     assert "offline stage BEHAVIORAL_UTILITY command contains physical sleep" in physical_sleep_offline.stdout
 
     downstream_fixture_early = run(good.replace(
-        "-Fixtures D:/workspace/fixtures/positives.json",
-        "-Fixtures D:/workspace/fixtures/positives.json,D:/workspace/fixtures/negatives.json",
+        "-Fixtures <workspace>/fixtures/positives.json",
+        "-Fixtures <workspace>/fixtures/positives.json,<workspace>/fixtures/negatives.json",
         1,
     ))
     assert downstream_fixture_early.returncode == 1
@@ -789,7 +789,7 @@ def main() -> int:
     assert "wall factors require positive duration + concurrency" in zero_wall_floor.stdout
 
     wall_floor_without_evidence = run(good.replace(
-        "; EVIDENCE:D:/workspace/evidence/stage-1-wall.json",
+        "; EVIDENCE:<workspace>/evidence/stage-1-wall.json",
         "",
         1,
     ))
@@ -831,7 +831,7 @@ def main() -> int:
 
     flattened_all = run(re.sub(
         r"(- \*\*Exact action / command:\*\*\s*```[^\n]*\n).*?(\n```)",
-        r"\1Run D:/workspace/tools/bakeoff.ps1 --all --fixtures D:/workspace/fixtures/full-corpus.json\2",
+        r"\1Run <workspace>/tools/bakeoff.ps1 --all --fixtures <workspace>/fixtures/full-corpus.json\2",
         good,
         count=1,
         flags=re.S,
@@ -877,16 +877,16 @@ def main() -> int:
     assert "stage BEHAVIORAL_UTILITY must consume SURVIVORS_FROM:TECHNICAL_RUNNABILITY" in wrong_stage_population.stdout
 
     wrong_survivor_selector = run(good.replace(
-        "SELECTOR: --candidates-from D:/workspace/survivors/technical.json --fixtures",
-        "SELECTOR: --candidates-from D:/workspace/candidates/all.json --fixtures",
+        "SELECTOR: --candidates-from <workspace>/survivors/technical.json --fixtures",
+        "SELECTOR: --candidates-from <workspace>/candidates/all.json --fixtures",
         1,
     ))
     assert wrong_survivor_selector.returncode == 1
     assert "stage BEHAVIORAL_UTILITY selector must use upstream survivor artifact" in wrong_survivor_selector.stdout
 
     broad_stage_selector = run(good.replace(
-        "SELECTOR: --candidates-from D:/workspace/survivors/performance-top3.json --fixtures",
-        "SELECTOR: --all --candidates-from D:/workspace/survivors/performance-top3.json --fixtures",
+        "SELECTOR: --candidates-from <workspace>/survivors/performance-top3.json --fixtures",
+        "SELECTOR: --all --candidates-from <workspace>/survivors/performance-top3.json --fixtures",
         1,
     ))
     assert broad_stage_selector.returncode == 1
@@ -901,16 +901,16 @@ def main() -> int:
     assert "stage BEHAVIORAL_UTILITY requires exactly one STAGE_COMMAND block" in missing_stage_command.stdout
 
     command_skips_upstream_survivor = run(good.replace(
-        "-CandidatesFrom D:/workspace/survivors/behavioral.json -Fixtures D:/workspace/fixtures/performance.json",
-        "-CandidatesFrom D:/workspace/candidates/all.json -Fixtures D:/workspace/fixtures/performance.json",
+        "-CandidatesFrom <workspace>/survivors/behavioral.json -Fixtures <workspace>/fixtures/performance.json",
+        "-CandidatesFrom <workspace>/candidates/all.json -Fixtures <workspace>/fixtures/performance.json",
         1,
     ))
     assert command_skips_upstream_survivor.returncode == 1
     assert "stage PERFORMANCE_SHORTLIST command does not consume upstream survivor artifact" in command_skips_upstream_survivor.stdout
 
     fixture_absent_from_owner_command = run(good.replace(
-        "-CandidatesFrom D:/workspace/survivors/performance-top3.json -Fixtures D:/workspace/fixtures/negatives.json",
-        "-CandidatesFrom D:/workspace/survivors/performance-top3.json -Fixtures D:/workspace/fixtures/positives.json",
+        "-CandidatesFrom <workspace>/survivors/performance-top3.json -Fixtures <workspace>/fixtures/negatives.json",
+        "-CandidatesFrom <workspace>/survivors/performance-top3.json -Fixtures <workspace>/fixtures/positives.json",
         1,
     ))
     assert fixture_absent_from_owner_command.returncode == 1
@@ -941,15 +941,15 @@ def main() -> int:
     assert "fixture-stage ownership contains duplicate fixture IDs" in duplicate_fixture.stdout
 
     wrong_fixture_owner = run(good.replace(
-        "| `negative-238` | `D:/workspace/fixtures/negatives.json` | `SAFETY_NEGATIVES` |",
-        "| `negative-238` | `D:/workspace/fixtures/negatives.json` | `TECHNICAL_RUNNABILITY` |",
+        "| `negative-238` | `<workspace>/fixtures/negatives.json` | `SAFETY_NEGATIVES` |",
+        "| `negative-238` | `<workspace>/fixtures/negatives.json` | `TECHNICAL_RUNNABILITY` |",
         1,
     ))
     assert wrong_fixture_owner.returncode == 1
     assert "fixture negative-238 use condition must bind owning stage entry" in wrong_fixture_owner.stdout
 
     no_launch_reconciliation = run(good.replace(
-        "RECONCILE: STAGE_ACTUAL_SUM must equal launched jobs and remain within JOB_TOTAL_MAX; BLOCK_IF_MISMATCH; EVIDENCE:D:/workspace/evidence/launch-reconcile.json",
+        "RECONCILE: STAGE_ACTUAL_SUM must equal launched jobs and remain within JOB_TOTAL_MAX; BLOCK_IF_MISMATCH; EVIDENCE:<workspace>/evidence/launch-reconcile.json",
         "Record totals after run",
         1,
     ))
@@ -977,7 +977,7 @@ def main() -> int:
     assert "SOURCE:USER_REQUEST or SOURCE:AUTHORITATIVE_SPEC" in self_authorized_full.stdout
 
     invented_intent_labels = run(good.replace(
-        "**Required inputs:** D:/workspace/artifacts/result.json",
+        "**Required inputs:** <workspace>/artifacts/result.json",
         "**Required inputs:** 14 audio clips plus exact intent labels",
     ))
     assert invented_intent_labels.returncode == 1
@@ -1016,8 +1016,8 @@ def main() -> int:
     assert "diagnostic-only item leaked into acceptance contract: decoded eou text" in diagnostic_in_acceptance.stdout
 
     measured_output_as_input = run(good.replace(
-        "**Required inputs:** D:/workspace/artifacts/result.json",
-        "**Required inputs:** D:/workspace/artifacts/result.json plus measured onset",
+        "**Required inputs:** <workspace>/artifacts/result.json",
+        "**Required inputs:** <workspace>/artifacts/result.json plus measured onset",
     ))
     assert measured_output_as_input.returncode == 1
     assert "measured output treated as prior input/acceptance requirement: onset" in measured_output_as_input.stdout
@@ -1138,7 +1138,7 @@ def main() -> int:
     assert "Required producer / actor" in unnamed_producer.stdout
 
     unconditional_resume = run(good.replace(
-        "INVENTORY: inspect D:/workspace/evidence/runs.json; REJECT_IF_INCOMPATIBLE: producer != membrane_planner; RESUME_ONLY_IF: producer and lifecycle match",
+        "INVENTORY: inspect <workspace>/evidence/runs.json; REJECT_IF_INCOMPATIBLE: producer != membrane_planner; RESUME_ONLY_IF: producer and lifecycle match",
         "Continue existing P3 run",
     ))
     assert unconditional_resume.returncode == 1

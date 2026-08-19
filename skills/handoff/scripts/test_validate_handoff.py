@@ -105,9 +105,9 @@ def fixture() -> str:
         if "TIMESTAMP" in token:
             return "2026-07-28T18:00:00+05:30"
         if any(word in token for word in ("PATH", "LOCATION", "DIRECTORY", "WORKSPACE", "REPO")):
-            return "D:/workspace/artifacts/handoff-evidence.log"
+            return "<workspace>/artifacts/handoff-evidence.log"
         if any(word in token for word in ("COMMAND", "ACTION", "OPERATION", "CHECK", "VALIDATION", "RELOAD", "SEQUENCE")):
-            return "Run Get-Item -LiteralPath D:/workspace/artifacts/handoff-evidence.log"
+            return "Run Get-Item -LiteralPath <workspace>/artifacts/handoff-evidence.log"
         if "NUMERIC_BOUND" in token:
             return "2 attempts within 30 seconds"
         if "OWNER" in token or "AUTHOR" in token:
@@ -117,9 +117,9 @@ def fixture() -> str:
         if "USER_WORDS" in token:
             return "Build a zero-memory handoff that transfers exact context."
         if "EXACT_RESULT" in token or "OBSERVABLE_RESULT" in token:
-            return "command exits 0 and D:/workspace/artifacts/handoff-evidence.log exists"
+            return "command exits 0 and <workspace>/artifacts/handoff-evidence.log exists"
         if "EVIDENCE" in token:
-            return "D:/workspace/artifacts/handoff-evidence.log"
+            return "<workspace>/artifacts/handoff-evidence.log"
         if "CONDITION" in token:
             return "Only when user changes locked objective in writing"
         if "NONE" in token:
@@ -136,9 +136,9 @@ def main() -> int:
     validator_module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(validator_module)
     assert validator_module.normalized_path(
-        "/Volumes/D/Claude/Packet.md", "posix"
+        "<workspace>/Packet.md", "posix"
     ) != validator_module.normalized_path(
-        "/Volumes/D/Claude/packet.md", "posix"
+        "<workspace>/packet.md", "posix"
     )
 
     template = subprocess.run(
@@ -363,7 +363,7 @@ def main() -> int:
         1,
     ).replace(
         "**Transcript evidence path:** NOT_APPLICABLE: packet authored from current live context",
-        "**Transcript evidence path:** D:/workspace/tasks/handoffs/source.evidence.json",
+        "**Transcript evidence path:** <workspace>/tasks/handoffs/source.evidence.json",
         1,
     ).replace(
         "**Source prefix receipt:** NOT_APPLICABLE: packet authored from current live context",

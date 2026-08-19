@@ -56,9 +56,9 @@
       "evals/evals.json"
     ],
     "consumers": [
-      "registry/skills/index.json",
-      "lib/skills/resolver.mjs",
-      "registry/routing/domains.json"
+      "src/registry/skills/index.json",
+      "src/lib/skills/resolver.mjs",
+      "src/registry/routing/domains.json"
     ]
   },
   "files": [
@@ -170,8 +170,8 @@
     {
       "path": "scripts/test_validate_tasklist.py",
       "uri": "legion-skill://tasklist/scripts/test_validate_tasklist.py",
-      "sourceDigest": "sha256:47424b286959bafd755bbe30cdd36dcf0a32c448a7679d923125deeff008cc7f",
-      "outputDigest": "sha256:47424b286959bafd755bbe30cdd36dcf0a32c448a7679d923125deeff008cc7f",
+      "sourceDigest": "sha256:643fbceaae02eb83a36347e0da01123177360dbb5f4aeb5c2dbadb1b35d2b63c",
+      "outputDigest": "sha256:643fbceaae02eb83a36347e0da01123177360dbb5f4aeb5c2dbadb1b35d2b63c",
       "transformations": []
     },
     {

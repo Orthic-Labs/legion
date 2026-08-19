@@ -131,9 +131,9 @@
       "evals/evals.json"
     ],
     "consumers": [
-      "registry/skills/index.json",
-      "lib/skills/resolver.mjs",
-      "registry/routing/domains.json"
+      "src/registry/skills/index.json",
+      "src/lib/skills/resolver.mjs",
+      "src/registry/routing/domains.json"
     ]
   },
   "files": [
@@ -270,8 +270,8 @@
     {
       "path": "agents/visual-designer.md",
       "uri": "legion-skill://ads/agents/visual-designer.md",
-      "sourceDigest": "sha256:7efdf0fc512a22127f3a45bdacade3587647096a9d1e647bc770292693768512",
-      "outputDigest": "sha256:7efdf0fc512a22127f3a45bdacade3587647096a9d1e647bc770292693768512",
+      "sourceDigest": "sha256:e0a94acdd00d775386e43f8d136f7593fbcc8c267621533200414b3609a50190",
+      "outputDigest": "sha256:e0a94acdd00d775386e43f8d136f7593fbcc8c267621533200414b3609a50190",
       "transformations": [
         "identity-genericization",
         "private-source-reference",
@@ -439,8 +439,8 @@
     {
       "path": "references/copy-frameworks.md",
       "uri": "legion-skill://ads/references/copy-frameworks.md",
-      "sourceDigest": "sha256:455126b8cb39d835a0e64aa07dc0db21fc2cdd3ac974f3eaf9a151e308287317",
-      "outputDigest": "sha256:455126b8cb39d835a0e64aa07dc0db21fc2cdd3ac974f3eaf9a151e308287317",
+      "sourceDigest": "sha256:17770173a7595e64485e95d3f3e7914a1e942d346810f7b77ab4b844cf68e881",
+      "outputDigest": "sha256:17770173a7595e64485e95d3f3e7914a1e942d346810f7b77ab4b844cf68e881",
       "transformations": [
         "identity-genericization",
         "private-source-reference",
@@ -504,8 +504,8 @@
     {
       "path": "references/generate.md",
       "uri": "legion-skill://ads/references/generate.md",
-      "sourceDigest": "sha256:45b059914d99bb2e29f42ef1052b654f245be6e297a2559342e1e0a0a63cd483",
-      "outputDigest": "sha256:45b059914d99bb2e29f42ef1052b654f245be6e297a2559342e1e0a0a63cd483",
+      "sourceDigest": "sha256:38ead6d42baae79cba5b62796be69280eb2bb7079db5db41c94035977869b147",
+      "outputDigest": "sha256:38ead6d42baae79cba5b62796be69280eb2bb7079db5db41c94035977869b147",
       "transformations": [
         "identity-genericization",
         "private-source-reference",
@@ -556,8 +556,8 @@
     {
       "path": "references/image-providers.md",
       "uri": "legion-skill://ads/references/image-providers.md",
-      "sourceDigest": "sha256:5b9e68b6e8cd92b5a6b3e3bb4cfe95880792310b22fed2b07fb20f223458cb6b",
-      "outputDigest": "sha256:5b9e68b6e8cd92b5a6b3e3bb4cfe95880792310b22fed2b07fb20f223458cb6b",
+      "sourceDigest": "sha256:b092d926b7284be92dcc9d02ca2c6d7ea9337efd43e21e31c438cfe3760baf9b",
+      "outputDigest": "sha256:b092d926b7284be92dcc9d02ca2c6d7ea9337efd43e21e31c438cfe3760baf9b",
       "transformations": [
         "identity-genericization",
         "private-source-reference",
@@ -621,8 +621,8 @@
     {
       "path": "references/manual.md",
       "uri": "legion-skill://ads/references/manual.md",
-      "sourceDigest": "sha256:4c07574c42912aea944a6cf913d78d6541bacafbcf775f4cb7f34fb17a35f206",
-      "outputDigest": "sha256:4c07574c42912aea944a6cf913d78d6541bacafbcf775f4cb7f34fb17a35f206",
+      "sourceDigest": "sha256:697fe6d386722b82fc0fd0b66cd09f98827e2d417185b29153f8edd77c90274e",
+      "outputDigest": "sha256:697fe6d386722b82fc0fd0b66cd09f98827e2d417185b29153f8edd77c90274e",
       "transformations": [
         "identity-genericization",
         "private-source-reference",
@@ -816,8 +816,8 @@
     {
       "path": "references/youtube-creative-specs.md",
       "uri": "legion-skill://ads/references/youtube-creative-specs.md",
-      "sourceDigest": "sha256:d0c127a6b1ee530dc334927e6b5cc1fdab78cc569d1f489aa4987914366f84e2",
-      "outputDigest": "sha256:d0c127a6b1ee530dc334927e6b5cc1fdab78cc569d1f489aa4987914366f84e2",
+      "sourceDigest": "sha256:10be68cba863139a36e3e2fc13f1a048d26b4d999a8cf0f7d84b1095de4d3ed3",
+      "outputDigest": "sha256:10be68cba863139a36e3e2fc13f1a048d26b4d999a8cf0f7d84b1095de4d3ed3",
       "transformations": [
         "identity-genericization",
         "private-source-reference",

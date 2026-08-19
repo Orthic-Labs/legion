@@ -108,7 +108,7 @@ Plus: spam score <5% (Moz), organic traffic trending up, fresh content <30 days,
 - Close: offer outline or full draft. **One** follow-up after 7 business days. No third.
 
 **Content standards:** 1,500–2,500 words, original research/firsthand data, H1→H2→H3,
-author bio (50–100 words, verifiable credentials from `AUTHOR-PROFILE.md`), 2–5 original/
+author bio (50–100 words, verifiable credentials from the project-supplied author profile), 2–5 original/
 royalty-free images w/ alt text, suggested internal links to THEIR content. Follow their
 guidelines exactly. Expectations: 5–10% cold acceptance; ranking impact 45–90 days post-index.
 
@@ -152,5 +152,5 @@ When asked to "build links" / "off-page plan" for a domain, produce `OFF-PAGE-PL
 5. Outreach tracker seeded (`SEO/data/<brand>/outreach-log.csv`)
 6. 30/60/90 measurement plan (GSC + GA4 + Ahrefs)
 
-> Author facts: `D:/workspace/SEO/AUTHOR-PROFILE.md`. Brand voice: `/brand <DD|RH|HR|TS>`.
+> Author facts: `<project-overlay>/seo/author-profile.md`. Brand voice: `/brand <brand-code>`.
 > Never fabricate stats, reviews, quotes, or press (CLAUDE.md). White-hat guardrail above is hard.

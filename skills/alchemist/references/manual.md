@@ -1,4 +1,5 @@
 # Alchemist — manual
+<!-- dependency-class: HOST_CAPABILITY(omniroute) — ~/.codex profiles and the local gateway belong to the host, not to this package. -->
 
 Detail behind `SKILL.md`.
 

@@ -1,66 +1,127 @@
 {
   "domains": {
     "legal": [
-      "references/domains/legal/GUIDE.md"
+      {
+        "class": "PACKAGE_INTERNAL",
+        "path": "references/domains/legal/GUIDE.md"
+      }
     ],
     "medical": [
-      "references/domains/medical/GUIDE.md"
+      {
+        "class": "PACKAGE_INTERNAL",
+        "path": "references/domains/medical/GUIDE.md"
+      }
     ]
   },
   "methods": {
     "audience": [
-      "references/methods/audience.md"
+      {
+        "class": "PACKAGE_INTERNAL",
+        "path": "references/methods/audience.md"
+      }
     ],
     "authority": [
-      "references/methods/authority.md"
+      {
+        "class": "PACKAGE_INTERNAL",
+        "path": "references/methods/authority.md"
+      }
     ],
     "competitor": [
-      "references/methods/competitors.md"
+      {
+        "class": "PACKAGE_INTERNAL",
+        "path": "references/methods/competitors.md"
+      }
     ],
     "document": [
-      "references/methods/document.md"
+      {
+        "class": "PACKAGE_INTERNAL",
+        "path": "references/methods/document.md"
+      }
     ],
     "reddit": [
-      "references/methods/reddit.md"
+      {
+        "class": "PACKAGE_INTERNAL",
+        "path": "references/methods/reddit.md"
+      }
     ],
     "scholarly": [
-      "references/methods/scholarly.md"
+      {
+        "class": "PACKAGE_INTERNAL",
+        "path": "references/methods/scholarly.md"
+      }
     ],
     "trends": [
-      "references/methods/trends.md"
+      {
+        "class": "PACKAGE_INTERNAL",
+        "path": "references/methods/trends.md"
+      }
     ],
     "web": [
-      "references/methods/search-discipline.md"
+      {
+        "class": "PACKAGE_INTERNAL",
+        "path": "references/methods/search-discipline.md"
+      }
     ]
   },
   "providers": {
     "browser": [
-      "TODO: no in-package equivalent under legion/skills/research/ for src/lib/research-core/providers/command_bridge.py",
-      "TODO: no in-package equivalent under legion/skills/research/ for src/lib/research-core/providers/search_open_find.py"
+      {
+        "capability": "web-search",
+        "class": "HOST_CAPABILITY"
+      }
     ],
     "domain-default": [
-      "TODO: no in-package equivalent under legion/skills/research/ for src/lib/research-core/providers/search_open_find.py",
-      "TODO: no in-package equivalent under legion/skills/research/ for src/lib/research-core/providers/scholarly.py",
-      "TODO: no in-package equivalent under legion/skills/research/ for src/lib/research-core/providers/command_bridge.py",
-      "references/methods/authority.md"
+      {
+        "capability": "web-search",
+        "class": "HOST_CAPABILITY"
+      },
+      {
+        "capability": "scholarly-search",
+        "class": "HOST_CAPABILITY"
+      },
+      {
+        "class": "PACKAGE_INTERNAL",
+        "path": "references/methods/authority.md"
+      }
     ],
     "local-corpus": [
-      "TODO: no in-package equivalent under legion/skills/research/ for src/lib/research-core/providers/local_corpus.py"
+      {
+        "capability": "local-corpus",
+        "class": "HOST_CAPABILITY"
+      }
     ],
     "notebooklm": [
-      "TODO: no in-package equivalent under legion/skills/research/ for src/lib/research-core/providers/notebooklm.py",
-      "references/providers/notebooklm.md"
+      {
+        "capability": "notebooklm",
+        "class": "HOST_CAPABILITY"
+      },
+      {
+        "class": "PACKAGE_INTERNAL",
+        "path": "references/providers/notebooklm.md"
+      }
     ]
   },
-  "schema_version": 1,
+  "schema_version": 2,
   "workflows": {
     "india-consumer-commission": [
-      "references/domains/legal/india/consumer/GUIDE.md",
-      "TODO: no in-package equivalent under legion/skills/research/ for src/lib/research-core/workflows/legal/india/consumer/scripts/generate_pack.py",
-      "TODO: no in-package equivalent under legion/skills/research/ for src/lib/research-core/workflows/legal/india/consumer/scripts/case-template.yaml"
+      {
+        "class": "PACKAGE_INTERNAL",
+        "path": "references/domains/legal/india/consumer/GUIDE.md"
+      },
+      {
+        "absent": "Generate the consumer pack from the GUIDE's inline template instead of a project template.",
+        "class": "PROJECT_OVERLAY",
+        "optional": true,
+        "path": "<project-overlay>/research/legal/india/consumer/case-template.yaml"
+      }
     ],
     "india-criminal": [
-      "TODO: no in-package equivalent under legion/skills/research/ for src/lib/research-core/workflows/legal/india/criminal/GUIDE.md"
+      {
+        "absent": "The criminal workflow is unavailable; route to the generic legal domain GUIDE and say so.",
+        "class": "PROJECT_OVERLAY",
+        "optional": true,
+        "path": "<project-overlay>/research/legal/india/criminal/GUIDE.md"
+      }
     ]
   }
 }

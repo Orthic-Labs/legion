@@ -23,7 +23,7 @@ profile. Uses banana-claude as the image generation provider.
 
 - Requires banana-claude (v1.4.1+) with nanobanana-mcp configured
 - Run `/banana setup` to configure API key and MCP
-- Fallback: if banana is not available, use `scripts/generate_image.py` (deprecated)
+- No fallback: if banana is not available, stop and report — image generation is a host capability (`banana` MCP)
 
 If banana-claude is not installed, this skill will display setup instructions
 and stop. It will never fail silently.
@@ -168,11 +168,11 @@ Run this external jury only when the approving human explicitly requests it; ord
 the skill's inline checks.
 
 ```bash
-node -e "import('file:///src/lib/auto-jury.mjs').then(m=>m.runAutoJury({
+node -e "import('@orthic-labs/legion/auto-jury').then(m=>m.runAutoJury({
   kind: 'ad',
   artifactPath: '<absolute path to saved creative>',
   context: {
-    brand:       '<DD|RH|HR|TS>',
+    brand:       '<brand-code>',
     campaign:    '<campaign name>',
     prompt:      '<the creative prompt + copy block>',
     brandRules:  '<brand palette/typography from /brand>',

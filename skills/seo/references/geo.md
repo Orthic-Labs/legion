@@ -52,7 +52,7 @@ still governs):
   before citing to a client.)*
 
 **Operational check — Cloudflare AI-bot default block (HIGH priority for our stack):** Cloudflare
-now blocks AI crawlers **by default** on proxied zones. DD/RH/TS/HR sites all sit behind Cloudflare —
+now blocks AI crawlers **by default** on proxied zones. Sites behind Cloudflare are affected —
 robots.txt allowing GPTBot/ClaudeBot/PerplexityBot means nothing if the CDN 403s them first. Every
 GEO audit on a Cloudflare-proxied site MUST verify actual bot reachability (fetch as the bot UA or
 check CF dashboard AI-crawler settings + logs), not just robots.txt text. A silent CF block is a

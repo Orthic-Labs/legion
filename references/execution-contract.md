@@ -31,7 +31,7 @@ unadjudicated security candidate is `UNPROVEN` and keeps the audit incomplete.
 ## Finalize invocation (step 9 detail)
 
 ```bash
-node <audit-skill-dir>/audit-finalize.mjs --facts <facts.json> \
+node <package-root>/tools/audit/audit-finalize.mjs --facts <facts.json> \
   --candidates <security-candidates.json> --adjudication <security-adjudication-result.json>
 ```
 

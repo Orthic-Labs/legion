@@ -10,7 +10,7 @@ description: >
 # YouTube
 
 ## Always start with
-1. `/brand <DD|RH|SS>` — voice + visual
+1. `/brand <brand-code>` — voice + visual
 2. **Identify task:** new video / clone existing / channel strategy / thumbnail+title / Shorts series
 
 ## Task workflows

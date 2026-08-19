@@ -342,11 +342,11 @@ inline conversion and evidence checks.
 
 ```bash
 # Save the draft to a file first, then jury it:
-node -e "import('file:///src/lib/auto-jury.mjs').then(m=>m.runAutoJury({
+node -e "import('@orthic-labs/legion/auto-jury').then(m=>m.runAutoJury({
   kind: 'ad',
   artifactPath: '<absolute path to draft .md>',
   context: {
-    brand:       '<DD|RH|HR|TS>',
+    brand:       '<brand-code>',
     notes:       'build-ad draft for review',
     brandRules:  '<brand voice rules from /brand>',
     rubricFlags: {}

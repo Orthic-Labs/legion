@@ -60,7 +60,7 @@ Output standard: measurable hypothesis, target metric, constraint/risk, smallest
 
 ## Workflow
 
-1. Run `/brand <DD|RH|HR|TS>` or read the relevant brand rules for branded work.
+1. Run `/brand <brand-code>` or read the relevant brand rules for branded work.
 2. Identify the growth lever and success metric.
 3. Read the matching reference only.
 4. Output a measurable hypothesis, concrete next action, and validation plan.

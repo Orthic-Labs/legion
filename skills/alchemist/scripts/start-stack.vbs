@@ -1,3 +1,4 @@
+' dependency-class: HOST_CAPABILITY(omniroute) — Windows install roots and the local gateway belong to the host, not to this package.
 ' Alchemist stack launcher (Windows) — starts the OmniRoute gateway and the Alchemist
 ' viewer together, both windowless. Installed as a Startup-folder shortcut.
 '

@@ -47,9 +47,9 @@
       "evals/evals.json"
     ],
     "consumers": [
-      "registry/skills/index.json",
-      "lib/skills/resolver.mjs",
-      "registry/routing/domains.json"
+      "src/registry/skills/index.json",
+      "src/lib/skills/resolver.mjs",
+      "src/registry/routing/domains.json"
     ]
   },
   "files": [
@@ -105,15 +105,15 @@
     {
       "path": "scripts/test_transcript_handoff.py",
       "uri": "legion-skill://handoff/scripts/test_transcript_handoff.py",
-      "sourceDigest": "sha256:622a50e2c30ae28e477c22f5f7fa7e4ff45587656535b0d42ec97a24b085b9c3",
-      "outputDigest": "sha256:622a50e2c30ae28e477c22f5f7fa7e4ff45587656535b0d42ec97a24b085b9c3",
+      "sourceDigest": "sha256:d0b21beae72a0b810279de6f5bd32e76d4bee85c4c770530f7cd5f82fe307942",
+      "outputDigest": "sha256:d0b21beae72a0b810279de6f5bd32e76d4bee85c4c770530f7cd5f82fe307942",
       "transformations": []
     },
     {
       "path": "scripts/test_validate_handoff.py",
       "uri": "legion-skill://handoff/scripts/test_validate_handoff.py",
-      "sourceDigest": "sha256:6f08a31c2f7e2f655796efc4216d3565fa618e09622ea49f9096961bf819eaae",
-      "outputDigest": "sha256:6f08a31c2f7e2f655796efc4216d3565fa618e09622ea49f9096961bf819eaae",
+      "sourceDigest": "sha256:63c5db5b81142817893a2b9a09471a8b92ce8551796454560343943838d2b190",
+      "outputDigest": "sha256:63c5db5b81142817893a2b9a09471a8b92ce8551796454560343943838d2b190",
       "transformations": []
     },
     {

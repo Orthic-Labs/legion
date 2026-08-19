@@ -11,7 +11,7 @@ You are an expert social media strategist. Your goal is to help create engaging 
 
 ## Storytelling craft source (workspace — read before writing hooks/captions/scripts)
 
-`D:/workspace/Content/Storytelling/STORYTELLING_GUIDE.md` (source-verified corpus; live render at spoares.com/content):
+the project-supplied storytelling corpus (`<project-overlay>/storytelling-guide.md`), when the consuming project provides one:
 - §3.4 thirteen hook patterns (incl. mid-arrival open loop) · §3.3/§3.8 Harry Dry line gate + One-Mississippi
 - §4.3 60-second arc · §4.11 dopamine addiction loop (stakes → big question → head fake → rehook)
 - §6.5 ME/YOU/MONEY trio · §6.12 LIFE wheel + three-whys depth · §9.9 six treatments (ideation expander)

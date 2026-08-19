@@ -1,3 +1,4 @@
+# dependency-class: HOST_CAPABILITY(agent-host-config) — writes into the embedding agent host's own config tree.
 """Install this dir's synced Claude Code hooks into the LOCAL machine.
 
 Self-locating + cross-platform: registers each hook in hooks.json into this

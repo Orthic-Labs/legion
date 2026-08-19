@@ -15,8 +15,16 @@ MAY_ADD_TASKS: NO
 MAY_CALL_SKILLS: NONE
 TERMINAL: Declared checks pass, or an exact blocker is reported.
 
+REQUIRES_HOST_CAPABILITY: omniroute (worker execution path only)
+
 This entrypoint routes to Legion's existing Alchemist authority. It does not own execution
 infrastructure or create a second contract system.
+
+The packaged worker scripts under `scripts/` are an **adapter** for one specific host: a local
+OmniRoute gateway plus a Codex CLI profile set. They are not Legion's general execution path and
+must not be treated as one. Probe for the `omniroute` capability before using them; if it is
+absent, report Alchemist as unavailable on that path rather than returning an empty result. The
+routing contract above holds regardless of which host executes it.
 
 1. Require settled scope, ownership boundaries, acceptance criteria, and focused checks.
 2. Route implementation to Alchemist; it applies bounded work and escalates undecided design,

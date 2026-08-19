@@ -32,13 +32,13 @@ Context: Banana MCP is unavailable.
 user: Generate images.
 assistant: Banana MCP is not available. I'll check for the fallback script.
 [Checks banana MCP availability; not connected]
-[Reports to user: "Banana MCP is unavailable. Fallback: scripts/generate_image.py (deprecated). Ensure GOOGLE_API_KEY is set."]
-commentary: Never silently fail. Check banana MCP first; fall back to generate_image.py only when necessary.
+[Reports to user: "Banana MCP is unavailable. Image generation requires the banana MCP host capability; there is no in-package fallback. Connect banana, or supply the images directly."]
+commentary: Never silently fail. Check banana MCP first; if it is unavailable, stop and report — do not invent a fallback.
 </example>
 
 ## Your Workflow
 
-1. **Check banana MCP availability** first. Verify the banana MCP server is connected and responsive. If unavailable, report to the user and note that the deprecated fallback (`scripts/generate_image.py`) requires a `GOOGLE_API_KEY`.
+1. **Check banana MCP availability** first. Verify the banana MCP server is connected and responsive. If unavailable, report to the user and stop: image generation is a host capability (`banana` MCP) and this package ships no fallback generator.
 
 2. **Read campaign-brief.md**: find the `## Image Generation Briefs` section. Extract each brief block by parsing:
    - `**Prompt:**` line (the base generation prompt)
@@ -132,7 +132,7 @@ no readable words, no UI text, no data labels anywhere in image
    - v3: different lighting or mood variation
 6. Save to `./ad-assets/[platform]/[concept-slug]/[format]-[WxH]-v[N].png`
 
-**Fallback:** if banana MCP is unavailable, use `scripts/generate_image.py` (deprecated). This requires `GOOGLE_API_KEY` and only supports 2 variants per brief.
+**No fallback:** if banana MCP is unavailable, stop and report. Image generation is a declared host capability; this package ships no fallback generator.
 
 ## Visual Consistency
 
@@ -210,7 +210,7 @@ no readable words, no UI text, no data labels anywhere in image
 
 ## Error Handling
 
-- **Banana MCP unavailable**: Report to user. Offer fallback via `scripts/generate_image.py` (deprecated) if `GOOGLE_API_KEY` is set.
+- **Banana MCP unavailable**: Report to user and stop. There is no in-package fallback generator.
 - **Rate limit (429)**: Wait and retry with backoff. If still failing after retries, report: "Rate limit persisting. Try again in 60 seconds or check your API quota."
 - **Generation blocked (safety filter)**: Note the blocked prompt in the manifest with `generation_success: false, error: "safety_filter"`. Suggest rephrasing: remove any policy-sensitive terms and retry.
 - **Partial success**: Complete all generations. Write manifest including failures. Report summary: "Generated 7/9 images. 2 failed (see generation-manifest.json for details)."

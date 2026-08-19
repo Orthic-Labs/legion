@@ -30,7 +30,7 @@ This skill has two components with distinct roles:
 
 This skill requires the banana extension to be installed:
 ```bash
-./extensions/banana/install.sh
+# banana is a host capability (banana MCP); this package ships no installer.
 ```
 
 **Check availability:** Before using any image generation tool, verify the MCP server
@@ -141,12 +141,12 @@ Approximate costs (gemini-3.1-flash):
 
 | Error | Resolution |
 |-------|-----------|
-| MCP not configured | Run `./extensions/banana/install.sh` |
+| MCP not configured | Connect the `banana` MCP host capability |
 | API key invalid | New key at https://aistudio.google.com/apikey |
 | Rate limited (429) | Wait 60s, retry. Free tier: ~10 RPM / ~500 RPD |
 | `IMAGE_SAFETY` | Rephrase prompt - see `references/prompt-engineering.md` Safety section |
 | MCP unavailable | Fall back: `python3 legion-skill://seo/extensions/banana/scripts/generate.py --prompt "..." --aspect-ratio "16:9"` |
-| Extension not installed | Show install instructions: `./extensions/banana/install.sh` |
+| Extension not installed | Ask the caller to connect the `banana` MCP host capability |
 
 ## Cross-Skill Integration
 
@@ -180,11 +180,11 @@ Run this external jury only when the approving human explicitly requests it; ord
 skill's inline and visual checks.
 
 ```bash
-node -e "import('file:///src/lib/auto-jury.mjs').then(m=>m.runAutoJury({
+node -e "import('@orthic-labs/legion/auto-jury').then(m=>m.runAutoJury({
   kind: 'image',
   artifactPath: '<absolute path to saved image>',
   context: {
-    brand:       '<DD|RH|HR|TS>',
+    brand:       '<brand-code>',
     prompt:      '<the prompt that was sent>',
     brandRules:  '<brand palette/typography rules from /brand>',
     notes:       'SEO image gen via /seo-image-gen',

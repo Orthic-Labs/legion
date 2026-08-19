@@ -40,9 +40,9 @@
       "evals/evals.json"
     ],
     "consumers": [
-      "registry/skills/index.json",
-      "lib/skills/resolver.mjs",
-      "registry/routing/domains.json"
+      "src/registry/skills/index.json",
+      "src/lib/skills/resolver.mjs",
+      "src/registry/routing/domains.json"
     ]
   },
   "files": [
@@ -70,8 +70,8 @@
     {
       "path": "hooks/enforce_cheap_review_routing.py",
       "uri": "legion-skill://coder/hooks/enforce_cheap_review_routing.py",
-      "sourceDigest": "sha256:baa4eda1a48ca437b2b9e1f0739fa3763f47945f2d3cc9c3d2a2c1594e9756ac",
-      "outputDigest": "sha256:baa4eda1a48ca437b2b9e1f0739fa3763f47945f2d3cc9c3d2a2c1594e9756ac",
+      "sourceDigest": "sha256:701fadfd7bb0531bcb2d3acbf8695edbd01408a64ada78fe48513c00874d75b3",
+      "outputDigest": "sha256:701fadfd7bb0531bcb2d3acbf8695edbd01408a64ada78fe48513c00874d75b3",
       "transformations": []
     },
     {
@@ -84,8 +84,8 @@
     {
       "path": "hooks/install.py",
       "uri": "legion-skill://coder/hooks/install.py",
-      "sourceDigest": "sha256:e4c396e2bf40bd856e03e02044dd38a6b4b4e30f23c8b10170b1baa6281c46a2",
-      "outputDigest": "sha256:e4c396e2bf40bd856e03e02044dd38a6b4b4e30f23c8b10170b1baa6281c46a2",
+      "sourceDigest": "sha256:0179923c910d4ef060d505f85c66403d85782e003057cae7dea9cf1175b1039c",
+      "outputDigest": "sha256:0179923c910d4ef060d505f85c66403d85782e003057cae7dea9cf1175b1039c",
       "transformations": []
     },
     {
@@ -98,15 +98,15 @@
     {
       "path": "scripts/api-worker.py",
       "uri": "legion-skill://coder/scripts/api-worker.py",
-      "sourceDigest": "sha256:3b98523f124ee04a93ae247d3c61744fe99bf296206bcfa2a4a4c3bc847ad454",
-      "outputDigest": "sha256:3b98523f124ee04a93ae247d3c61744fe99bf296206bcfa2a4a4c3bc847ad454",
+      "sourceDigest": "sha256:b5729b23ae80aab9f6b9f1553594390cdcfee6faea76df7d140bf6b7a0f50240",
+      "outputDigest": "sha256:b5729b23ae80aab9f6b9f1553594390cdcfee6faea76df7d140bf6b7a0f50240",
       "transformations": []
     },
     {
       "path": "tests/coder-entrypoint.test.py",
       "uri": "legion-skill://coder/tests/coder-entrypoint.test.py",
-      "sourceDigest": "sha256:2474212935230c6997671a464cf344c4703a8c7335027f08a193b011b599d6a6",
-      "outputDigest": "sha256:2474212935230c6997671a464cf344c4703a8c7335027f08a193b011b599d6a6",
+      "sourceDigest": "sha256:b4da563e01d1d8aecf0b60694f34101f05bb6dbe3602e7c4fd2dcf6885cb93bc",
+      "outputDigest": "sha256:b4da563e01d1d8aecf0b60694f34101f05bb6dbe3602e7c4fd2dcf6885cb93bc",
       "transformations": []
     }
   ]
