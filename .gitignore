@@ -1,6 +1,7 @@
 dist/
 node_modules/
 .audit/
+.audit
 .legion/
 __pycache__/
 *.pyc
@@ -9,3 +10,15 @@ repos/
 .pytest_cache/
 src/lib/review/cache/
 src/lib/review/shadow_log/
+
+# Evidence never belongs in this repo. Receipts, qualification lanes, and audit
+# output are written into whichever repo Legion is operated on; when that repo is
+# Legion itself, they stay untracked here and are tracked by the consuming
+# workspace outside this submodule. These trees were purged from history on
+# 2026-08-19 — do not re-add them.
+qualification/
+bench/
+_audit/
+_selfcheck/
+evidence/
+*.receipt.json
