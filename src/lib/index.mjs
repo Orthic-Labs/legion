@@ -57,3 +57,4 @@ export {
   PROVIDER_STATUS,
   assertEnum,
 } from '../registry/provider-contracts.mjs';
+export { loadCapabilityRegistry, probeAll, probeCapability } from './capabilities/probe.mjs';

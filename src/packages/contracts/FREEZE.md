@@ -160,7 +160,9 @@ authority initiated itself. `convenedBy` is `const: "legion"` when present,
 legion's existing `EVIDENCE_CLASS` convention
 (`tools/skills/legion/lib/contracts/index.mjs` re-exporting from
 `providers/security/contracts.mjs`, and mirrored in
-`schemas/core/status-enums.schema.json`). Did not `import` that module from
+`schemas/core/status-enums.schema.json`). [Historical note: `tools/skills/legion/lib/contracts/index.mjs`
+is a stale pre-migration path frozen as of this record; the current equivalent lives at
+`src/lib/contracts/index.mjs`.] Did not `import` that module from
 `packages/contracts/enums.mjs` to avoid this new package taking a runtime
 dependency on legion's internal provider/audit pipeline (a heavier,
 differently-versioned module graph) for the sake of five string literals.

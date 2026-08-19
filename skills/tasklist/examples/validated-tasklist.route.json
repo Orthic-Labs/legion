@@ -8,7 +8,7 @@
     "description": "No durable route-verified tasklist exists for current validation goal.",
     "evidence": [
       {
-        "locator": "/workspace/tools/skills/tasklist/SKILL.md",
+        "locator": "/workspace/legion/skills/tasklist/SKILL.md",
         "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
         "check": "Read tasklist skill and observe example acceptance record is not yet produced."
       }
@@ -18,7 +18,7 @@
     "description": "Permanent tasklist example passes route, structure, and receipt verification.",
     "proof": [
       {
-        "command": "py -3.11 /workspace/tools/skills/tasklist/scripts/test_validate_tasklist.py",
+        "command": "py -3.11 /workspace/legion/skills/tasklist/scripts/test_validate_tasklist.py",
         "expected": "Exit 0 and output begins PASS: tasklist validator.",
         "evidence_path": "/workspace/.audit/tasklist-example/test-output.txt"
       }
@@ -27,23 +27,23 @@
   "constraints": {
     "authority": {
       "rule": "Create same-agent tasklist only, without delegation or handoff.",
-      "evidence_locator": "/workspace/tools/skills/tasklist/SKILL.md"
+      "evidence_locator": "/workspace/legion/skills/tasklist/SKILL.md"
     },
     "safety": {
       "rule": "Use read-only validation plus owned example artifacts.",
-      "evidence_locator": "/workspace/tools/skills/tasklist/examples"
+      "evidence_locator": "/workspace/legion/skills/tasklist/examples"
     },
     "scope": {
       "rule": "Validate tasklist contract and exact receipts only.",
-      "evidence_locator": "/workspace/tools/skills/tasklist/scripts/test_validate_tasklist.py"
+      "evidence_locator": "/workspace/legion/skills/tasklist/scripts/test_validate_tasklist.py"
     },
     "quality": {
       "rule": "Adversarial validator and receipt replay must pass.",
-      "evidence_locator": "/workspace/tools/skills/tasklist/scripts/test_validate_tasklist.py"
+      "evidence_locator": "/workspace/legion/skills/tasklist/scripts/test_validate_tasklist.py"
     },
     "cost": {
       "rule": "Use local standard-library checks with zero paid calls.",
-      "evidence_locator": "/workspace/tools/skills/tasklist/scripts/validate-tasklist.py"
+      "evidence_locator": "/workspace/legion/skills/tasklist/scripts/validate-tasklist.py"
     }
   },
   "candidates": [

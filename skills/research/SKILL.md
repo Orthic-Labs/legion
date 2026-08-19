@@ -15,11 +15,11 @@ TERMINAL: Receipt records route, effects, evidence, gaps, checks, verdict.
 `doctor`, `legal`, `consumer-court`, `notebooklm` are internal routes, never catalog entries.
 
 
-1. Freeze `references/route-schema.json` via `router/route_resolve.py` (Stage 1, zero effects);
+1. Freeze `references/route-schema.json` via `src/lib/research-core/router/route_resolve.py` (Stage 1, zero effects);
    run `references/route-gates.md`; resume Stage 2 only on recorded approval receipts.
-2. Load ≤1 domain, ≤2 method, ≤1 assurance guide via `resource_guard.py` with the run id;
+2. Load ≤1 domain, ≤2 method, ≤1 assurance guide via `src/lib/research-core/resource_guard.py` with the run id;
    direct reads are invalid.
-3. Execute through `run.py` on the hook meter.
+3. Execute through `src/lib/research-core/run.py` on the hook meter.
 4. A hit is a lead; evidence needs an opened source and located passage; preserve atomic
    claims, contradictions, dates, scope, uncertainty.
 5. `verified` adds domain verification, citation-support, DOI retraction checks; corrections

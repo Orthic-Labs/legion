@@ -348,60 +348,9 @@ through `runtime`) lives in `references/engine-interface.md` §Scanner registry.
 
 ## AU20 — planted-finding recall/precision bench
 
-`bench/` measures whether the deterministic scanner layer actually catches known defect classes —
-today's report proves scanners *ran*, not that they *catch* anything. It is a separate, offline,
-deterministic corpus; it is not part of the `/audit` run itself and never mutates a real repo.
-
-**Run it:**
-
-```bash
-node bench/run-bench.mjs           # bench-local detectors — proves the harness
-node bench/run-bench.mjs --real    # PRODUCTION scanners — proves /audit's recall
-node bench/run-bench.mjs --json    # machine-readable result object
-node bench/run-bench.mjs --threshold 0.9   # override the default 0.7 gate
-```
-
-**How it's built:** `bench/manifest.json` lists fixture entries under `bench/fixtures/<id>/` — each
-either `planted: true` (a real defect a correct audit must catch) or `planted: false` (a negative
-control: code that superficially resembles a defect but isn't one, e.g. a variable named `apiKey`
-holding a UI label string, or a comment naming a credential env var with no value). Six classes are
-covered: hardcoded secret, vulnerable dependency version, dead/unreachable code, duplicated logic,
-type error, and doc-vs-code drift. Every planted secret is an obviously-fake literal
-(`AKIA_EXAMPLE_NOT_REAL_*`) — never anything that could be mistaken for a live credential.
-
-**Scoring:** `bench/detectors/*.mjs` are small, offline, deterministic detectors — one per class —
-applied per fixture. The runner reports recall and precision per class plus overall, and exits
-non-zero when `overall_recall < gate_threshold` (default `0.7`) OR any negative control fires
-(`false_positives > 0`, hard-gated regardless of threshold). A low score is a valid, useful result —
-never special-case a fixture or loosen a detector just to pass the gate.
-
-**Read the mode before trusting a score.** The default run scores `bench/detectors/*.mjs` — bench-local
-approximations written against the same fixtures they score. A green default run proves the corpus and
-harness are sound and catches regressions in them; it proves **nothing** about `/audit`.
-
-`--real` (`bench/real-scan.mjs`) is the production path: it materialises each fixture into a temp
-directory and invokes `collect-facts.mjs` — the same entry point `/audit` uses — then scores what the
-real scanner actually reported. Three rules it enforces:
-
-- A scanner whose tool is absent or which skipped itself reports **`unavailable`**: excluded from every
-  denominator and named in the output. A missing binary silently reading as "no findings" is the exact
-  failure this bench exists to detect.
-- Fixtures are never scanned in place, so a fixture's planted defect cannot leak into this repo's own
-  audit runs.
-- Nothing credential-shaped is ever committed. The committed secret fixture uses an obviously-unreal
-  literal (`AKIA_EXAMPLE_NOT_REAL_*`), which gitleaks is deliberately tuned to ignore — so `--real`
-  **synthesises** a provider-token-shaped fixture at run time (`AU20-S01`) to give the secret class
-  genuine production coverage, and deletes it afterwards.
-- A run that scored zero planted defects exits non-zero regardless of threshold. A bench that measured
-  nothing must never report success.
-
-**What `--real` measured on this machine (2026-07-26):** overall recall `0.5`, gate FAIL. Production
-gitleaks catches the synthesised token fixture but **misses the committed `AKIA_EXAMPLE_NOT_REAL_*`
-fixture entirely** — that fixture only ever exercised the bench regex. Ten of fourteen entries report
-`unavailable`: `deps_cve` (no lockfile / offline), `dead_code` (knip absent), `duplication` (jscpd
-absent), `type_error` (no typed stack in the fixture), and `drift` (no production scanner owns it —
-doc drift is Cortex's stale-reference machinery, not an audit scanner). That 0.5 is the honest
-current state of deterministic-scanner recall, and it is the number to improve.
+Not shipped in this repo. A prior benchmark harness (`bench/run-bench.mjs` and related scripts) that
+measured deterministic-scanner recall/precision against a planted-defect corpus was deliberately
+removed. There is no equivalent tooling in this package today.
 
 ## Output shape (`report.json`)
 

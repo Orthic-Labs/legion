@@ -90,19 +90,19 @@ Local route patching is forbidden.
 Windows:
 
 ```powershell
-py -3.11 lib/goalroute/scripts/validate-route.py <route.json> --write-receipt <route.receipt.json>
+py -3.11 src/lib/goalroute/scripts/validate-route.py <route.json> --write-receipt <route.receipt.json>
 ```
 
 macOS:
 
 ```bash
-python3 /workspace/lib/goalroute/scripts/validate-route.py <route.json> --write-receipt <route.receipt.json>
+python3 src/lib/goalroute/scripts/validate-route.py <route.json> --write-receipt <route.receipt.json>
 ```
 
 Downstream consumer:
 
 ```powershell
-py -3.11 lib/goalroute/scripts/validate-route.py <route.json> --verify-receipt <route.receipt.json>
+py -3.11 src/lib/goalroute/scripts/validate-route.py <route.json> --verify-receipt <route.receipt.json>
 ```
 
 Do not proceed until output begins `PASS:` or `RECEIPT_PASS:` and receipt matches exact bytes plus

@@ -29,7 +29,7 @@ TERMINAL: visual.core reconciles its frozen matrix or reports typed UNPROVEN cov
 1. Freeze repository, Cortex generation, routes/screens, viewports, states, themes, locales,
    platforms, interactions, references, & acceptance criteria.
 2. Create an explicit visual specification with expected matrix & capture artifacts; never invent evidence.
-3. Run `node ../../audit-run.mjs <root> --visual-spec <visual-spec.json>`. For runtime captures,
+3. Run `node ../../tools/audit/audit-run.mjs <root> --visual-spec <visual-spec.json>`. For runtime captures,
    also supply `--url`, `--surfaces`, & optional `--visual-baselines`.
 4. Read frozen `plan.json` before `visual.json`; `visual.core` must be selected before execution.
 5. Missing captures, baselines, matrix cases, readable PNGs, runtime states, or required review are

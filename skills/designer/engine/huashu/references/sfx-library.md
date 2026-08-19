@@ -223,4 +223,4 @@ ffmpeg -i video.mp4 \
 
 ## 详见
 - 音频双轨制与 ffmpeg 拼接：`apple-gallery-showcase.md`
-- 原始生成脚本：`/tmp/gen_sfx_batch.sh`（一次性批量生成器）
+- 原始生成脚本：一次性批量生成器（未随包分发）

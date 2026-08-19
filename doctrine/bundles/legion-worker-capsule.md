@@ -177,13 +177,13 @@ Local clause patching is forbidden. A corrected dispatch must not preserve an in
 ### Universal goal route & critical path
 
 Before GoalRoute, compile `<dispatch-stem>.minimize.json` plus
-`<dispatch-stem>.minimize.receipt.json` through `$LEGION/bin/legion.mjs minimize decision`. Select first safe
+`<dispatch-stem>.minimize.receipt.json` through `$LEGION/src/bin/legion.mjs minimize decision`. Select first safe
 canonical rung, reject every earlier rung with evidence, and declare every new file/dependency.
 These are internal sidecars, never user-visible dispatch sections. `validate-dispatch.py` fail-closes
 when either sidecar is missing, invalid, stale, or policy-bound to different bytes.
 
 Before task decomposition or experiment topology, compile GoalRoute v2 through
-`lib/goalroute` from exact
+`$LEGION/src/lib/goalroute` from exact
 current state A to verified state B. This applies to routine work too.
 
 Required route contract:
@@ -315,12 +315,7 @@ Set `Script involved: YES` for scripts, runners, pipelines, batch loops, generat
 
 ## Step 3 — Author from required template
 
-Copy [dispatch template](../assets/dispatch-template.md). Fill every placeholder. Use exact paths, commands/tool actions, cwd, expected outputs, checks, artifacts, & limits.
-
-> **Superseded:** the referenced dispatch template no longer exists under
-> `skills/dispatch/assets/`. No current equivalent template was located; treat this as a
-> content gap (template needs re-authoring, not merely re-pointing) rather than a stale link to
-> silently drop, since Step 3's field checklist below still applies without one.
+Copy [dispatch template](../../skills/dispatch/assets/dispatch-template.md). Fill every placeholder. Use exact paths, commands/tool actions, cwd, expected outputs, checks, artifacts, & limits.
 
 ### Execution identity & provenance gate
 
@@ -519,13 +514,13 @@ for Windows or Windows-absolute authority for Mac.
 Windows:
 
 ```powershell
-py -3.11 lib/dispatch-validator/validate-dispatch.py <dispatch.md> --write-receipt <dispatch.receipt.json>
+py -3.11 src/lib/dispatch-validator/validate-dispatch.py <dispatch.md> --write-receipt <dispatch.receipt.json>
 ```
 
 macOS:
 
 ```bash
-python3 /workspace/legion/lib/dispatch-validator/validate-dispatch.py <dispatch.md> --write-receipt <dispatch.receipt.json>
+python3 src/lib/dispatch-validator/validate-dispatch.py <dispatch.md> --write-receipt <dispatch.receipt.json>
 ```
 
 Do not spawn/send or call dispatch/derived handoff ready, executable, or zero-context until exit code is `0`, output begins `PASS:`, & adjacent receipt exists. Validator checks structure, producer/provenance/lifecycle contract, required failure classes, step contracts, checked author gate, placeholders, bypass language, durable paths, & raw-byte digest. Fix every error, rerun, then send exact dispatch + receipt together. Any derived handoff must independently pass `/handoff`.
@@ -533,7 +528,7 @@ Do not spawn/send or call dispatch/derived handoff ready, executable, or zero-co
 Receiver recomputes digest before execution:
 
 ```powershell
-py -3.11 lib/dispatch-validator/validate-dispatch.py <dispatch.md> --verify-receipt <dispatch.receipt.json>
+py -3.11 src/lib/dispatch-validator/validate-dispatch.py <dispatch.md> --verify-receipt <dispatch.receipt.json>
 ```
 
 Embedded self-hash is forbidden because changing document to add its hash changes hash. Sidecar binds exact bytes without circularity.

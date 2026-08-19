@@ -11,82 +11,118 @@
     "banana": {
       "kind": "mcp-server",
       "summary": "Image generation with brand injection.",
-      "degradation": "Report unavailability to the caller and stop. This package ships no fallback generator."
+      "degradation": "Report unavailability to the caller and stop. This package ships no fallback generator.",
+      "probe": {
+        "kind": "env",
+        "env": "BANANA_MCP_URL"
+      },
+      "remedy": "Wire an image-generation MCP server and expose it as BANANA_MCP_URL. This package ships no generator and no fallback."
     },
     "cortex-graph": {
       "kind": "graph-engine",
       "summary": "Code and knowledge graph search backing the Cortex skill and audit provider discovery.",
-      "degradation": "Return a NO_CAPABILITY result naming cortex-graph. Never fall back to ad-hoc grep and never present ungraphed results as graph results."
+      "degradation": "Return a NO_CAPABILITY result naming cortex-graph. Never fall back to ad-hoc grep and never present ungraphed results as graph results.",
+      "probe": {
+        "kind": "command",
+        "command": "cortex"
+      },
+      "remedy": "Install the Cortex graph engine and put its `cortex` executable on PATH, then re-run. This package does not ship it."
     },
     "omniroute": {
       "kind": "local-gateway",
       "summary": "OmniRoute model gateway plus the Codex CLI profile set used by the Alchemist worker.",
-      "degradation": "Alchemist exits 4 (gateway down). Callers must treat Alchemist as unavailable, not as returning an empty result."
+      "degradation": "Alchemist exits 4 (gateway down). Callers must treat Alchemist as unavailable, not as returning an empty result.",
+      "probe": {
+        "kind": "command",
+        "command": "omniroute"
+      },
+      "remedy": "Install the OmniRoute gateway and put `omniroute` on PATH, or run Alchemist against a host that provides it."
     },
     "morph": {
       "kind": "tool",
       "summary": "Durable capture of results into the host's persistent store.",
-      "degradation": "Return results inline and state that they were not durably captured."
+      "degradation": "Return results inline and state that they were not durably captured.",
+      "remedy": "Provide a durable-capture tool in the host, or accept inline results."
     },
     "media-production": {
       "kind": "tool",
       "summary": "Video and rich-media generation. Formerly the private Content skill; not part of Legion.",
-      "degradation": "Skip the media step and state that it was skipped."
+      "degradation": "Skip the media step and state that it was skipped.",
+      "remedy": "Wire a video/rich-media generation tool into the host. This package ships no media generator."
     },
     "web-search": {
       "kind": "tool",
       "summary": "Live web search and page fetch used by Research browser and domain-default providers.",
-      "degradation": "Research returns UNPROVEN for any claim that required live retrieval."
+      "degradation": "Research returns UNPROVEN for any claim that required live retrieval.",
+      "remedy": "Expose a web-search tool in the host; Research blocks rather than guessing."
     },
     "scholarly-search": {
       "kind": "tool",
       "summary": "Academic and citation-graph retrieval.",
-      "degradation": "Research returns UNPROVEN for scholarly claims."
+      "degradation": "Research returns UNPROVEN for scholarly claims.",
+      "remedy": "Expose a scholarly-search tool in the host."
     },
     "local-corpus": {
       "kind": "tool",
       "summary": "Retrieval over a caller-supplied local document corpus.",
-      "degradation": "Research skips the local-corpus provider and records it as unrun."
+      "degradation": "Research skips the local-corpus provider and records it as unrun.",
+      "remedy": "Point the host at a local document corpus for offline retrieval."
     },
     "notebooklm": {
       "kind": "tool",
       "summary": "NotebookLM-backed synthesis over a supplied source set.",
-      "degradation": "Research skips the notebooklm provider and records it as unrun."
+      "degradation": "Research skips the notebooklm provider and records it as unrun.",
+      "remedy": "Provide NotebookLM access in the host."
     },
     "skill-emit": {
       "kind": "tool",
       "summary": "Host-side emission of generated skill artifacts.",
-      "degradation": "Write artifacts to the working directory and state that they were not emitted to the host."
+      "degradation": "Write artifacts to the working directory and state that they were not emitted to the host.",
+      "remedy": "Provide the host's skill-emission channel; without it, emitted skills are returned inline only."
     },
     "memory-engine": {
       "kind": "tool",
       "summary": "Host-side durable memory used for cross-run SEO and audit context.",
-      "degradation": "Proceed without prior-run context and state that the run is cold."
+      "degradation": "Proceed without prior-run context and state that the run is cold.",
+      "remedy": "Wire a durable memory engine into the host; without it, recall is limited to the current session."
     },
     "okf": {
       "kind": "tool",
       "summary": "OKF concept-bundle emission and compression.",
-      "degradation": "Emit the uncompressed human deliverable only and state that no OKF bundle was produced."
+      "degradation": "Emit the uncompressed human deliverable only and state that no OKF bundle was produced.",
+      "remedy": "Provide the host's OKF sink; without it, OKF output is returned inline instead of persisted."
     },
     "crypt": {
       "kind": "tool",
       "summary": "Structure-safe input compression for agent reads.",
-      "degradation": "Read the source files directly without compression."
+      "degradation": "Read the source files directly without compression.",
+      "remedy": "Provide the host's durable storage shim; without it, state does not survive the session."
     },
     "agent-host-config": {
       "kind": "host-config",
       "summary": "The embedding agent host's own configuration tree (for example ~/.claude or ~/.codex), written by installers and read by hooks.",
-      "degradation": "Report that no agent host configuration was found and take no action; never create one speculatively."
+      "degradation": "Report that no agent host configuration was found and take no action; never create one speculatively.",
+      "remedy": "Supply the host's agent configuration; without it, defaults are used and model pinning is not enforced."
     },
     "dataforseo": {
       "kind": "mcp-server",
       "summary": "DataForSEO backlink, SERP, and keyword data.",
-      "degradation": "Report that backlink/SERP data is unavailable and mark those findings UNPROVEN; never estimate them."
+      "degradation": "Report that backlink/SERP data is unavailable and mark those findings UNPROVEN; never estimate them.",
+      "probe": {
+        "kind": "env",
+        "env": "DATAFORSEO_LOGIN"
+      },
+      "remedy": "Set DATAFORSEO_LOGIN and DATAFORSEO_PASSWORD in the host environment."
     },
     "firecrawl": {
       "kind": "mcp-server",
       "summary": "Crawling and rendered-page extraction.",
-      "degradation": "Fall back to raw HTTP fetch and state that no rendered DOM was available."
+      "degradation": "Fall back to raw HTTP fetch and state that no rendered DOM was available.",
+      "probe": {
+        "kind": "env",
+        "env": "FIRECRAWL_API_KEY"
+      },
+      "remedy": "Set FIRECRAWL_API_KEY in the host environment."
     }
   }
 }

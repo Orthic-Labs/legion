@@ -317,7 +317,7 @@ The first variant has no `display: none` (visible by default). All others do. If
 
 One edit, all variants; the browser's MutationObserver picks everything up in one pass.
 
-For `styleMode: "scoped"`, author every `:scope` rule with a descendant combinator. The `@scope` boundary is the **variant wrapper `<div data-impeccable-variant="N">`**, not the element you're designing. A bare `:scope { background: cream; }` styles the wrapper, not the inner replacement, so the cream lands on a `display: contents` shell while the actual element keeps page defaults. Always step in: `:scope > .card`, `:scope > section`, `:scope .hero-title`, etc. The fake test agent's CSS in `tests/live-e2e/agent.mjs` is a faithful template; every scoped rule starts `:scope > ...`.
+For `styleMode: "scoped"`, author every `:scope` rule with a descendant combinator. The `@scope` boundary is the **variant wrapper `<div data-impeccable-variant="N">`**, not the element you're designing. A bare `:scope { background: cream; }` styles the wrapper, not the inner replacement, so the cream lands on a `display: contents` shell while the actual element keeps page defaults. Always step in: `:scope > .card`, `:scope > section`, `:scope .hero-title`, etc. Every scoped rule starts `:scope > ...`.
 
 **JSX / TSX target files.** Wrap `<style>` content in a template literal so the CSS `{` / `}` aren't parsed as JSX expressions, and use `className=` / `style={{…}}` on every variant element. Keep `data-impeccable-*` attributes as-is; they're plain strings:
 

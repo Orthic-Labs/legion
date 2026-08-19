@@ -18,8 +18,7 @@ A diff-scoped, three-layer mechanical check for `commit` and any other
    once. Whole-repo coverage is discarded — it moves too slowly to
    gate anything and punishes untouched legacy code.
 
-3. **Test-order independence.** Reuses the seeded Fisher-Yates approach
-   from `cortex/scripts/test-random.mjs`. The gauntlet re-invokes the
+3. **Test-order independence.** Reuses a seeded Fisher-Yates shuffle. The gauntlet re-invokes the
    test command N times with different seeds via `GAUNTLET_TEST_ORDER`;
    any order-dependent failure shows up as a failed run.
 

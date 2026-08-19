@@ -109,10 +109,11 @@ independent. Confirmed findings require a separate variant analysis before closu
 
 ## Measured rule packs
 
-`bench/precision-recall.mjs` consumes labeled positive and negative samples and deterministic
-detections. A provider is marked `measured` only when its own rule outputs—not merely provider
+A provider is marked `measured` only when its own rule outputs—not merely provider
 selection—have reproducible precision and recall artifacts. Rule packs without that evidence remain
 `UNPROVEN` and prevent a clean claim. Numerical metrics are evidence metadata, not repository scores.
+(The benchmark harness that once produced these artifacts, `bench/precision-recall.mjs`, was removed
+from this repo; there is no equivalent tooling shipped today.)
 
 ## Entry points and outputs
 

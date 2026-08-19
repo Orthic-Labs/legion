@@ -86,11 +86,11 @@ These runners use installed Chrome/Edge directly through headless flags and raw 
 
 This is the evidence and interaction tooling, not a replacement for the project contract.
 
-> **Superseded:** `skills/qa/scripts/` no longer exists (the `qa` skill was retired along
-> with `dispatch`/`debugger`/`architect`). Confirm the current location of these runners — or their
-> functional equivalent — before invoking them; this manual's shell examples below assume the
-> scripts still exist somewhere reachable and should be re-pointed once found, or the gap should be
-> named to Sage as J-1's follow-on content work rather than silently assumed working.
+> **Superseded:** the runners are back under `skills/qa/scripts/qa-functional.mjs` and
+> `skills/qa/scripts/qa-shot.mjs`, with the canonical shared engine at
+> `src/lib/qa-engine/qa-functional.mjs` and `src/lib/qa-engine/qa-shot.mjs`. `qa-browser.sh`,
+> `qa-browser-stop.sh`, and their `.ps1` equivalents are not package files — they are project
+> scripts a consuming app authors itself, per the "Best Implementation For A New App" recipe below.
 
 ## Best Implementation For A New App
 

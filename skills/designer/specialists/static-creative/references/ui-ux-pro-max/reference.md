@@ -5,6 +5,11 @@ description: "UI/UX design intelligence for web and mobile. Includes 50+ styles,
 
 # UI/UX Pro Max - Design Intelligence
 
+> **Requires an optional host capability.** This package ships no reference-search script.
+> `<ui-reference-search>` below stands for whatever UI-reference search tool the host provides;
+> if none is wired, gather references manually and say so rather than inventing results.
+
+
 Comprehensive design guide for web and mobile applications. Contains 50+ styles, 161 color palettes, 57 font pairings, 161 product types with reasoning rules, 99 UX guidelines, and 25 chart types across 10 technology stacks. Searchable database with priority-based recommendations.
 
 ## When to Apply
@@ -363,7 +368,7 @@ Extract key information from user request:
 **Always start with `--design-system`** to get comprehensive recommendations with reasoning:
 
 ```bash
-python3 skills/ui-ux-pro-max/scripts/search.py "<product_type> <industry> <keywords>" --design-system [-p "Project Name"]
+<ui-reference-search> "<product_type> <industry> <keywords>" --design-system [-p "Project Name"]
 ```
 
 This command:
@@ -374,7 +379,7 @@ This command:
 
 **Example:**
 ```bash
-python3 skills/ui-ux-pro-max/scripts/search.py "beauty spa wellness service" --design-system -p "Serenity Spa"
+<ui-reference-search> "beauty spa wellness service" --design-system -p "Serenity Spa"
 ```
 
 ### Step 2b: Persist Design System (Master + Overrides Pattern)
@@ -382,7 +387,7 @@ python3 skills/ui-ux-pro-max/scripts/search.py "beauty spa wellness service" --d
 To save the design system for **hierarchical retrieval across sessions**, add `--persist`:
 
 ```bash
-python3 skills/ui-ux-pro-max/scripts/search.py "<query>" --design-system --persist -p "Project Name"
+<ui-reference-search> "<query>" --design-system --persist -p "Project Name"
 ```
 
 This creates:
@@ -391,7 +396,7 @@ This creates:
 
 **With page-specific override:**
 ```bash
-python3 skills/ui-ux-pro-max/scripts/search.py "<query>" --design-system --persist -p "Project Name" --page "dashboard"
+<ui-reference-search> "<query>" --design-system --persist -p "Project Name" --page "dashboard"
 ```
 
 This also creates:
@@ -416,7 +421,7 @@ Now, generate the code...
 After getting the design system, use domain searches to get additional details:
 
 ```bash
-python3 skills/ui-ux-pro-max/scripts/search.py "<keyword>" --domain <domain> [-n <max_results>]
+<ui-reference-search> "<keyword>" --domain <domain> [-n <max_results>]
 ```
 
 **When to use detailed searches:**
@@ -441,7 +446,7 @@ python3 skills/ui-ux-pro-max/scripts/search.py "<keyword>" --domain <domain> [-n
 Get React Native implementation-specific best practices:
 
 ```bash
-python3 skills/ui-ux-pro-max/scripts/search.py "<keyword>" --stack react-native
+<ui-reference-search> "<keyword>" --stack react-native
 ```
 
 ---
@@ -485,7 +490,7 @@ python3 skills/ui-ux-pro-max/scripts/search.py "<keyword>" --stack react-native
 ### Step 2: Generate Design System (REQUIRED)
 
 ```bash
-python3 skills/ui-ux-pro-max/scripts/search.py "AI search tool modern minimal" --design-system -p "AI Search"
+<ui-reference-search> "AI search tool modern minimal" --design-system -p "AI Search"
 ```
 
 **Output:** Complete design system with pattern, style, colors, typography, effects, and anti-patterns.
@@ -494,16 +499,16 @@ python3 skills/ui-ux-pro-max/scripts/search.py "AI search tool modern minimal" -
 
 ```bash
 # Get style options for a modern tool product
-python3 skills/ui-ux-pro-max/scripts/search.py "minimalism dark mode" --domain style
+<ui-reference-search> "minimalism dark mode" --domain style
 
 # Get UX best practices for search interaction and loading
-python3 skills/ui-ux-pro-max/scripts/search.py "search loading animation" --domain ux
+<ui-reference-search> "search loading animation" --domain ux
 ```
 
 ### Step 4: Stack Guidelines
 
 ```bash
-python3 skills/ui-ux-pro-max/scripts/search.py "list performance navigation" --stack react-native
+<ui-reference-search> "list performance navigation" --stack react-native
 ```
 
 **Then:** Synthesize design system + detailed searches and implement the design.
@@ -516,10 +521,10 @@ The `--design-system` flag supports two output formats:
 
 ```bash
 # ASCII box (default) - best for terminal display
-python3 skills/ui-ux-pro-max/scripts/search.py "fintech crypto" --design-system
+<ui-reference-search> "fintech crypto" --design-system
 
 # Markdown - best for documentation
-python3 skills/ui-ux-pro-max/scripts/search.py "fintech crypto" --design-system -f markdown
+<ui-reference-search> "fintech crypto" --design-system -f markdown
 ```
 
 ---

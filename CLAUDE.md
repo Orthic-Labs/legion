@@ -1,2 +1,2 @@
-<!-- GENERATED FILE. Do not hand-edit. Source: legion/docs/agent-rules.md. Regenerate: py -3.11 tools/agent-rules/manage.py sync (Windows) or python3 tools/agent-rules/manage.py sync (Mac). -->
+<!-- Source of truth: docs/agent-rules.md. Regeneration tooling for this file lives in the outer workspace, not in this package. -->
 @docs/agent-rules.md

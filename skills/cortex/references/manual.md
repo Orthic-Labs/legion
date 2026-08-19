@@ -40,7 +40,7 @@ file/symbol edges.** An unresolved import target is
 fabricated edge to a plausible file. A broad grammar or language count is not evidence of
 semantic coverage — report capability per language *and* per edge kind.
 
-The provider selected for a run is the one that passed `evals/run-qualification.mjs`; the
+The provider selected for a run is the one that passed the qualification harness; the
 mandatory gates (`correctness, freshness, security, contract, portability, operability`) are not
 waivable, and the `rg/skel-baseline` fallback is wired so it can never pass. Provider capability
 claims come from that harness, never from prose.
@@ -251,9 +251,9 @@ The two constraints that must not drift out of this file:
   20 (`sql, gql/graphql, astro, ps1, bat, nsi/nsh, vbs`) have no grammar in that package at all.
 - **A version bump in EITHER layer invalidates a persisted graph.** `graphStatus` validates the
   lexical identity and, on promoted manifests, the AST identity too — a fixed extractor must never
-  leave existing graphs silently stale. Identities live in `graph/provider-identity.mjs` so this
+  leave existing graphs silently stale. Provider identities are carried by the graph engine so this
   check costs no wasm load.
-- The **qualification harness is built and gated.** `evals/run-qualification.mjs` enforces six
+- The **qualification harness is built and gated.** It enforces six
   mandatory gates; the `rg/skel-baseline` fallback fails by design. Any future provider swap goes
   through this harness's gates, never through prose. Do not add new metrics before there is a
   provider that can produce them.
