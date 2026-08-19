@@ -154,7 +154,7 @@ A pipeline. Scanners fan out; the build step is the lone serial exception; stage
    is necessary and not sufficient: the same command re-run against a different commit, dirty tree,
    tool version, or vulnerability database is a *different experiment* that can silently disagree.
    This does not reopen the rejected design of hashing findings to prove the agent did its work
-   (`UPGRADE-PLAN.md` D1 — gameable, self-referential, and defeated by non-deterministic scanner
+   (`references/audit-design-decisions.md` D1 — gameable, self-referential, and defeated by non-deterministic scanner
    output). It records what the run was, so a later rerun can tell "fixed" from "measured
    differently". Per check, persist:
 
@@ -710,4 +710,4 @@ plan's boundaries and behavior contracts are verified. Test/tooling size candida
 ## Compatibility note
 
 Older SampleApp asset copies may use `name: repository-auditor`. Public shared invocation is
-`/audit`. Build plan + design rationale: `UPGRADE-PLAN.md` in this dir.
+`/audit`. Locked design decisions: `references/audit-design-decisions.md`.

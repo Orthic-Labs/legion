@@ -394,7 +394,7 @@ Ceremony is not cut by resolving to be less ceremonious. It is cut by deleting t
 - ❌ No control plane, service, or daemon. Legion is one operator in one workspace. (Rejects agentfield's shape, gstack's daemon.)
 - ❌ No parallel receipt/ledger/evidence stores. Three artifacts, one journal substrate.
 - ❌ No new `G-A` laws from this synthesis. Every mechanism lands inside an existing control or a layer.
-- ❌ No weighted-scoring config, no second audit tool, no jury/council wiring. (Consistent with `UPGRADE-PLAN.md` D7 and its non-goals.)
+- ❌ No weighted-scoring config, no second audit tool, no jury/council wiring. (Consistent with `references/audit-design-decisions.md` D7 and its non-goals.)
 - ❌ No auto-install of toolchains; capability-gate and report absence loudly.
 
 ---

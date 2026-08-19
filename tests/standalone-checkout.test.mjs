@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { cpSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { cpSync, mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -16,14 +16,16 @@ test('public checkout contains no parent-workspace path dependency', () => {
   assert.ok(!conformance.includes('../../../../'), 'conformance must not climb above the checkout');
 });
 
-test('CI workflow is self-contained in this repository', () => {
-  const workflow = readFileSync(join(root, '.github', 'workflows', 'ci.yml'), 'utf8');
-  assert.ok(workflow.includes('actions/checkout@v4'));
-  assert.ok(workflow.includes('actions/setup-node@v4'));
-  assert.ok(workflow.includes('run-audit-conformance-tests.mjs'));
-  assert.ok(workflow.includes('windows-latest'), 'CI must cover Windows');
-  assert.ok(workflow.includes('macos-latest'), 'CI must cover macOS');
-  assert.ok(workflow.includes('ubuntu-latest'), 'CI must cover Linux');
+test('no workflow runs automatically on push or pull request', () => {
+  // This repository deliberately ships no CI. The remaining workflows are manual
+  // (workflow_dispatch) or tag-gated release guards; none may fire on ordinary pushes.
+  const dir = join(root, '.github', 'workflows');
+  for (const name of readdirSync(dir)) {
+    const workflow = readFileSync(join(dir, name), 'utf8');
+    const triggers = workflow.slice(workflow.indexOf('on:'), workflow.indexOf('permissions:'));
+    assert.ok(!/\bpull_request\b/.test(triggers), `${name} must not run on pull requests`);
+    assert.ok(!/push:\s*\n\s*branches:/.test(triggers), `${name} must not run on branch pushes`);
+  }
 });
 
 test('publication guard exists and blocks public channels without a grant', () => {
