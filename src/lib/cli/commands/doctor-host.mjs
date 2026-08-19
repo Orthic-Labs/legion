@@ -65,10 +65,16 @@ function claudeDiscovery(root) {
   const manifest = readJson(join(root, '.claude-plugin', 'plugin.json'));
   const hooks = readJson(join(root, 'hooks', 'hooks.json'));
   const projection = readJson(join(root, 'src', 'registry', 'host-projection.json'));
+  // The committed plugin surface: the structural digest that a packaged copy
+  // must carry to prove it matches its version (scripts/verify-plugin-parity.mjs).
+  const surface = readJson(join(root, 'src', 'registry', 'plugin-surface.json'));
   const mcpArgs = Object.values(manifest?.mcpServers ?? {}).flatMap((server) => server?.args ?? []);
   return {
     manifestPresent: Boolean(manifest),
     version: manifest?.version ?? null,
+    surfaceDigest: surface?.digest ?? null,
+    surfaceCounts: surface?.counts ?? null,
+    surfaceProblems: surface?.problems ?? null,
     // A manifest that points at a path the package does not contain is the
     // stale-layout failure above, seen from the source side.
     mcpEntrypoints: mcpArgs.map((arg) => {

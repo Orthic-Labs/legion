@@ -1,0 +1,79 @@
+{
+  "schemaVersion": 1,
+  "kind": "legion-plugin-surface",
+  "version": "0.1.0-dev.0",
+  "digest": "sha256:1bf7f66c3d341357ff244423cb018fd529ebfa6603eb8a2c955dc1a064d59358",
+  "counts": {
+    "skills": 23,
+    "agents": 4,
+    "mcpServers": 1,
+    "hookEvents": 8
+  },
+  "surface": {
+    "skills": [
+      "ads",
+      "alchemist",
+      "architect",
+      "audit",
+      "audit-fix",
+      "audit-visual",
+      "brand",
+      "brand-identity",
+      "coder",
+      "commit",
+      "cortex",
+      "covenant",
+      "debugger",
+      "designer",
+      "dispatch",
+      "handoff",
+      "marketing",
+      "qa",
+      "research",
+      "seo",
+      "social",
+      "tasklist",
+      "writing"
+    ],
+    "agents": [
+      {
+        "file": "agents/alchemist.md",
+        "name": "alchemist"
+      },
+      {
+        "file": "agents/covenant-seat.md",
+        "name": "covenant-seat"
+      },
+      {
+        "file": "agents/oracle.md",
+        "name": "oracle"
+      },
+      {
+        "file": "agents/sage.md",
+        "name": "sage"
+      }
+    ],
+    "mcpServers": [
+      {
+        "id": "legion",
+        "entry": "src/integrations/mcp/server.mjs"
+      }
+    ],
+    "hooks": {
+      "events": [
+        "PostCompact",
+        "PostToolUse",
+        "PostToolUseFailure",
+        "PreToolUse",
+        "SessionStart",
+        "Stop",
+        "SubagentStart",
+        "UserPromptSubmit"
+      ],
+      "targets": [
+        "hooks/arcane-hook.mjs"
+      ]
+    }
+  },
+  "problems": []
+}

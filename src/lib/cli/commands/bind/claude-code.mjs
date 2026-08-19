@@ -1,83 +1,49 @@
-// Claude Code harness binding: doctrine agent files under .claude/agents/,
-// an .mcp.json entry for the legion MCP server, and a marker-delimited
-// doctrine include block in CLAUDE.md. Hook wiring into .claude/settings.json
-// is deferred — no prior-art JSON shape exists in this repo or D:/workspace's
-// settings.json to match against (see bind's final report).
-
-import { existsSync, readFileSync } from 'node:fs';
+// Claude Code harness binding — RETIRED as an installation path.
+//
+// The Claude plugin package (.claude-plugin/plugin.json) is now the single
+// installation owner for Claude Code: it ships skills/, agents/, hooks/, and the
+// legion MCP server natively, and scripts/verify-plugin-parity.mjs proves that
+// surface resolves in full. `legion bind` previously ALSO wrote .claude/agents,
+// .mcp.json, and a CLAUDE.md block for the same roles — two installers for one
+// harness. That duplication is exactly what SSOT I-20 forbids, and it is what
+// made the installed plugin's identity unreadable in practice.
+//
+// This module is kept only so the harness NAME still resolves for drift receipts
+// and explicit-request handling. It detects nothing (so it is never an installer)
+// and writes nothing. Development against the live tree uses the plugin, not
+// bind: `npm run plugin:dev` prints the exact `claude --plugin-dir` invocation.
+import { existsSync } from 'node:fs';
 import { join } from 'node:path';
-import { roleProjection } from '../../../roster/index.mjs';
-import { doctrineText } from './doctrine.mjs';
-import { upsertMarkerBlock, writeMarkerTarget, writeIfDifferent } from './common.mjs';
-import { mcpInstallConfig } from '../../../../integrations/mcp/install.mjs';
-import { migrateMcpServers } from '../../../naming/migrations.mjs';
 
 export const NAME = 'claude-code';
-export const FIDELITY_TIER = 'full';
+export const FIDELITY_TIER = 'retired';
+export const RETIRED = true;
+export const RETIREMENT_NOTE =
+  'Claude Code is installed by the Legion plugin package, not by legion bind. '
+  + 'Use the plugin (npm run plugin:dev for the live-source dev command); '
+  + 'bind no longer writes .claude/ for Claude Code (SSOT I-20: one installation path per harness).';
 
-export function detect(root) {
+// Never auto-selected as an installer. A repo with .claude/ is a Claude Code
+// repo, but its Legion installation owner is the plugin, so bind must not treat
+// the directory's presence as a reason to write.
+export function detect() {
+  return false;
+}
+
+// Whether a Claude Code checkout is present at all — used only to decide whether
+// the retirement note is worth surfacing when the harness is requested explicitly.
+export function present(root) {
   return existsSync(join(root, '.claude'));
 }
 
-// Engineering authority projections come only from roster/. Covenant remains
-// doctrine-owned because it is an advisory review seat, not a roster authority.
-const AGENT_PROJECTIONS = [
-  { target: 'sage.md', role: 'sage' },
-  { target: 'alchemist.md', role: 'alchemist' },
-  { target: 'oracle.md', role: 'oracle' },
-  { target: 'covenant-seat.md', doctrine: 'covenant-seat.md' },
-];
-
-function mcpTarget(root) {
-  const path = join(root, '.mcp.json');
-  let existing = {};
-  if (existsSync(path)) {
-    try { existing = migrateMcpServers(JSON.parse(readFileSync(path, 'utf8'))); } catch { existing = {}; }
-  }
-  const merged = { ...existing, mcpServers: { ...(existing.mcpServers ?? {}), legion: mcpInstallConfig().mcpServers.legion } };
-  return { path, kind: 'whole', reason: 'register the legion MCP server in .mcp.json', content: `${JSON.stringify(merged, null, 2)}\n` };
+export function targets() {
+  return [];
 }
 
-function claudeMdTarget(root) {
-  const path = join(root, 'CLAUDE.md');
-  // A CLAUDE.md that already @-imports the doctrine source gets nothing from an
-  // embedded copy except duplication: the workspace's generated CLAUDE.md
-  // imports docs/agent-rules/legion.md, and injecting the block there doubled
-  // the doctrine in every prompt and blew manage.py's 5-line cap on a file a
-  // DIFFERENT generator owns. Two writers for one artifact is the failure this
-  // whole day was about — bind embeds only where doctrine is not otherwise
-  // reachable.
-  if (existsSync(path) && readFileSync(path, 'utf8').includes('@docs/agent-rules/legion.md')) return null;
-  // Embedded verbatim (not an @-include pointer) so the block is
-  // self-contained even when doctrine/ isn't shipped into the target repo.
-  return { path, kind: 'marker', reason: 'include Legion orchestrator doctrine in CLAUDE.md', blockContent: doctrineText('legion.md') };
+export function plan() {
+  return [];
 }
 
-// Pure, read-only: derives the exact target list (paths, kinds, and the
-// content each write would produce) from doctrine/ and current disk state.
-export function targets(root) {
-  const agentTargets = AGENT_PROJECTIONS.map(({ target, role, doctrine }) => ({
-    path: join(root, '.claude', 'agents', target),
-    kind: 'whole',
-    reason: `install ${target} Legion role projection`,
-    content: role ? roleProjection(role) : doctrineText(doctrine),
-  }));
-  return [...agentTargets, mcpTarget(root), claudeMdTarget(root)].filter(Boolean);
-}
-
-export function plan(root) {
-  return targets(root).map(({ path, reason }) => ({ path, reason }));
-}
-
-export function write(root) {
-  const wrote = [];
-  for (const target of targets(root)) {
-    if (target.kind === 'marker') {
-      writeMarkerTarget(target.path, target.blockContent);
-    } else {
-      writeIfDifferent(target.path, target.content);
-    }
-    wrote.push(target.path);
-  }
-  return { wrote, wouldWrite: [] };
+export function write() {
+  return { wrote: [], wouldWrite: [] };
 }

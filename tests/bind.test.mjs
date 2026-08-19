@@ -25,19 +25,31 @@ function markerCount(text) {
   return (text.match(/<!-- legion:bind:start v1 -->/g) ?? []).length;
 }
 
-test('bind --check on a fresh .claude/ dir detects claude-code with no drift', () => {
+test('bind does not auto-install Claude Code: the plugin package owns that harness', () => {
   const dir = makeClaudeCodeDir();
   try {
+    // A .claude/ directory is present, but Claude Code's Legion installation
+    // owner is the plugin package (SSOT I-20). bind must not auto-select it.
     const result = bind(['--check', dir]);
     assert.equal(result.status, 0, result.stderr);
     const report = JSON.parse(result.stdout);
-    assert.equal(report.kind, 'legion-bind-preview');
     assert.equal(report.dryRun, true);
     const claudeCode = report.harnesses.find((h) => h.name === 'claude-code');
-    assert.ok(claudeCode, 'claude-code harness detected');
-    assert.equal(claudeCode.present, true);
-    assert.ok(claudeCode.wouldWrite.length > 0);
-    assert.deepEqual(claudeCode.drift, []);
+    assert.equal(claudeCode, undefined, 'claude-code must not be an auto-detected installer');
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('an explicit --harness claude-code request is answered with the retirement note and writes nothing', () => {
+  const dir = makeClaudeCodeDir();
+  try {
+    const result = bind(['--harness', 'claude-code', dir]);
+    assert.equal(result.status, 0, result.stderr);
+    const claudeCode = JSON.parse(result.stdout).harnesses.find((h) => h.name === 'claude-code');
+    assert.equal(claudeCode.retired, true);
+    assert.equal(claudeCode.wouldWrite.length, 0);
+    assert.match(claudeCode.note, /plugin/i);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
@@ -89,17 +101,16 @@ test('bind --write is idempotent across two runs', () => {
   }
 });
 
-test('Claude Code bind migrates only owned legacy assurance MCP binding', () => {
+test('a retired Claude Code bind writes no .mcp.json: the plugin declares the MCP server', () => {
   const dir = makeClaudeCodeDir();
   try {
-    const owned = { command: 'python3', args: ['-m', 'legion_kernel.adapters.mcp_server'] };
-    writeFileSync(join(dir, '.mcp.json'), `${JSON.stringify({ mcpServers: { seer: owned, private: { command: 'private-server' } } }, null, 2)}\n`);
+    // MCP registration for Claude Code now lives in the plugin manifest, not in
+    // a bind-written .mcp.json. A write request must leave the checkout untouched.
+    writeFileSync(join(dir, '.mcp.json'), `${JSON.stringify({ mcpServers: { private: { command: 'private-server' } } }, null, 2)}\n`);
     assert.equal(bind(['--write', '--harness', 'claude-code', dir]).status, 0);
     const config = JSON.parse(readFileSync(join(dir, '.mcp.json'), 'utf8'));
-    assert.equal(config.mcpServers.seer, undefined);
-    assert.deepEqual(config.mcpServers.private, { command: 'private-server' });
-    assert.deepEqual(config.mcpServers.oracle, owned);
-    assert.ok(config.mcpServers.legion);
+    assert.deepEqual(config.mcpServers, { private: { command: 'private-server' } });
+    assert.equal(config.mcpServers.legion, undefined);
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });
 
