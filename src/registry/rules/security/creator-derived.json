@@ -3,7 +3,6 @@
   "kind": "security-creator-derived-taxonomy",
   "sourceDocumentId": "creator.security",
   "sourceDigest": "sha256:c9d728c8eda9df46c035e5d0b4ea81116dfa1b4f9c475b621fc4b220e9866a3a",
-  "provenanceRef": "references/source-provenance/creator-security.json",
   "categories": [
     {
       "id": "passwords",
