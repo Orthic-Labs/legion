@@ -61,7 +61,7 @@ Run `legion doctor` to inspect current repository, binding, coverage, & host sta
 
 ## Install & use
 
-Node 22.13 or newer is required. The package ships without runtime dependencies.
+Node 22.13 or newer is required. The package has one runtime dependency, `@rightkit/hooks`, which normalizes host hook events for the Claude Code and Codex adapters. `npm install` pulls it in; a checkout without it cannot run the Arcane host adapters or their tests.
 
 ```sh
 npx @orthic-labs/legion init
