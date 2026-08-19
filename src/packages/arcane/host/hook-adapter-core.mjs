@@ -17,6 +17,7 @@
 
 import { existsSync, readFileSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
+import { resolveSourceRevisionFs } from './source-revision.mjs';
 
 import { ArcaneError, decision } from '../lib/errors.mjs';
 import { classifyObservation, HOST_EVENT_BOUND_FIELDS } from '../lib/host-event.mjs';
@@ -46,6 +47,15 @@ import { serializeHostRuntimeOutput } from './host-runtime-output.mjs';
  */
 export function resolveSourceRevision(workspace) {
   if (typeof workspace !== 'string' || workspace.length === 0) return null;
+  // Fast path: read HEAD from the git directory directly. Returns exactly what
+  // `git rev-parse HEAD` would for the layouts it recognizes (normal checkout,
+  // packed-refs, detached HEAD, worktree, submodule), and `undefined` when it
+  // does not — never a fabricated value. This removes the per-event subprocess
+  // for the cases that actually occur.
+  const fast = resolveSourceRevisionFs(workspace);
+  if (fast !== undefined) return fast;
+  // Fallback preserves the prior behaviour exactly for any layout the fast path
+  // declined: a git subprocess, and an honest null when git cannot answer.
   try {
     const result = spawnSync('git', ['rev-parse', 'HEAD'], { cwd: workspace, encoding: 'utf8', windowsHide: true, timeout: 5000 });
     if (result.error || result.status !== 0 || typeof result.stdout !== 'string') return null;
