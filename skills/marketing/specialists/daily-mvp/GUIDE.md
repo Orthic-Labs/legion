@@ -21,7 +21,7 @@ Idea → live URL with email capture in <4 hours.
 5. User picks + registers
 
 ### Phase 2 — Build (2 hours)
-1. `/brand` — apply DD/RH/SS or generic-sharp default
+1. `/brand <brand-code>` — apply the project's brand rules, or the generic-sharp default
 2. `/designer` — single landing page (Astro/Next.js minimal)
    - Hero + promise + 3-step how-it-works + email capture + footer
 3. `/writing` — copy at L2 (teen) for max comprehension
@@ -35,7 +35,7 @@ Idea → live URL with email capture in <4 hours.
 
 ### Phase 4 — Tease (1 hour)
 1. `/designer static` — 3 social variants (1:1, 9:16, 16:9)
-2. Optional: `/content seedance` 5-second teaser
+2. Optional: a 5-second teaser via the host's media-production capability, when the host provides one
 3. `/writing` — 3 caption variants
 4. Post manually to relevant communities (use reddit-mining for which)
 

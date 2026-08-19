@@ -19,7 +19,7 @@ TERMINAL: Requested findings meet frozen D3 source budget.
 
 **Invocation:** `/seo $1 $2` where `$1` is the command and `$2` is the URL or argument.
 
-**Scripts:** Reach them through the portable skills symlink  which resolves on both machines from ANY working directory. `/seo` is normally invoked from the site repo being audited (rightsites, an app repo), not from the workspace, so never use a `skills/seo`-relative path or a `cd` into the workspace.
+**Scripts:** Reach them through the package-provided script entrypoints, which resolve from ANY working directory. `/seo` is normally invoked from the site repo being audited, not from the package checkout, so never use a `skills/seo`-relative path or a `cd` into the package.
 
 Comprehensive SEO analysis across all industries (SaaS, local services, e-commerce, publishers, agencies). Sub-references in `references/` are loaded on demand based on intent.
 
@@ -76,7 +76,7 @@ audit read — use it to instant-index changed URLs after a fix.
 0. **site-audit crawler (deterministic — run FIRST on any full/site audit)** — `seo-site-audit --url <url> --json <out>/site_audit.json --summary` crawls from the sitemap + internal links and reproduces the **Ahrefs Site Audit mechanical issue taxonomy** with no LLM judgment: broken internal links + 4xx/5xx, redirect (3xx) internal links, 3xx/4xx URLs in the sitemap, missing/empty/duplicate/too-long/too-short `<title>`, missing/duplicate/too-long/too-short meta description, missing/multiple `<h1>`, missing canonical, canonical-points-elsewhere, images missing alt, thin content (<200w), missing viewport, orphan-in-sitemap, noindex-in-sitemap, mixed content. Exit 1 if error-class issues found. This is the evidence layer the LLM lenses reason over — do NOT hand-eyeball these; run the scanner. It reads real `<a href>` anchors only (so Qwik `q:base="/build/"` and CF `/cdn-cgi/` are NOT false-flagged) and collapses trailing-slash URL variants. Full taxonomy + Ahrefs mapping: `references/site-audit-checks.md`. (Stdlib-only crawler, sites up to ~300 URLs; pair with `render_gap.mjs` for JS-rendered signals and GSC/CrUX for indexation + field CWV.)
 1. **cannibalization-detector** — identify ≥2 pages targeting the same primary intent; measure authority split via position and traffic share; recommend pillar+cluster consolidation with 301/canonical to the stronger URL.
 2. **intent-drift-mapper** — find pages that rank for a query whose intent (informational / commercial / transactional / navigational) mismatches the content format; emit the specific page-split or reformat recommendation per URL.
-3. **render-gap-analyzer** — run `seo-render-gap --url <url>` to diff raw HTTP vs JS-rendered DOM for 8 signals (title, meta description, canonical, JSON-LD count, h1, main text length, internal links, meta robots). Client-only signals are invisible to non-rendering crawlers. NOTE: this directly fixes the DD/RH Qwik false "no schema" false-positive — Qwik renders schema/meta at runtime so raw HTML has no JSON-LD; the rendered DOM does.
+3. **render-gap-analyzer** — run `seo-render-gap --url <url>` to diff raw HTTP vs JS-rendered DOM for 8 signals (title, meta description, canonical, JSON-LD count, h1, main text length, internal links, meta robots). Client-only signals are invisible to non-rendering crawlers. NOTE: this removes the false "no schema" positive on resumable frameworks such as Qwik, which render schema/meta at runtime so raw HTML has no JSON-LD while the rendered DOM does.
 4. **content-decay-tracker** — identify pages with deteriorating ranking trajectory (position trending up = worse) with no technical cause; compare last-modified date against top-3 competitor freshness; flag for content refresh or consolidation.
 
 ## Internal SEO Council
@@ -108,7 +108,7 @@ Final recommendations should separate: evidence, impact, confidence, effort, and
 | `/seo technical <url>` | Technical SEO audit (9 categories) |
 | `/seo content <url>` | E-E-A-T and content quality analysis |
 | `/seo geo <url>` | AI Overviews / Generative Engine Optimization |
-| `/seo llms-txt <brand>` | Generate an `llms.txt` (+ optional `/pricing.md`) for AI crawlers — DD/RH/HR/TS only, never SS |
+| `/seo llms-txt <brand>` | Generate an `llms.txt` (+ optional `/pricing.md`) for AI crawlers — commercial brands only; exclude any brand the project marks non-commercial |
 | `/seo plan <business-type>` | Strategic SEO planning |
 | `/seo programmatic [url\|plan]` | Programmatic SEO analysis and planning |
 | `/seo competitor-pages [url\|generate]` | Competitor comparison page generation |
@@ -147,7 +147,7 @@ Do not auto-offer or generate a PDF after routine analysis. If the approving hum
 
 ## Output: `findings.json` (machine) + ONE human `FULL-AUDIT-REPORT.md`
 
-**MANDATORY after rendering (Skill Output Contract):** `skill-emit report <FULL-AUDIT-REPORT.md> --type seo --repo <site-dir>` emits the findings as OKF concepts into the memory engine; `findings.json` stays the gitignored machine cache.
+**After rendering (Skill Output Contract), where the host provides the `skill-emit` and `memory-engine` capabilities:** `skill-emit report <FULL-AUDIT-REPORT.md> --type seo --repo <site-dir>` emits the findings as OKF concepts into the memory engine; `findings.json` stays the gitignored machine cache. Without those capabilities, keep `FULL-AUDIT-REPORT.md` and `findings.json` as the deliverables and state that findings were not emitted to host memory.
 
 `findings.json` is the source of truth — one row per finding:
 
@@ -155,7 +155,7 @@ Do not auto-offer or generate a PDF after routine analysis. If the approving hum
 [{"id":"seo-001","category":"technical|content|schema|geo|images|links|local","severity":"critical|high|medium|low","url":"https://...","evidence":"file:line or crawl locus","fix":"specific action","priority":1}]
 ```
 
-For portable agent consumption, also emit findings as a **compressed OKF bundle** (one concept per finding/page, required `type` frontmatter, link graph; prose compressed structure-safely) via `okf emit <out>/okf <concepts.json> --compress`. `findings.json` stays the machine source of truth and `FULL-AUDIT-REPORT.md` stays the uncompressed human deliverable. Pattern: `src/lib/OKF-OUTPUT.md`. For agent INPUTS (page reads, repo files), prep with `crypt prep <tmp> <files...>` (code→skel, prose→compress) on SURVEY reads only.
+For portable agent consumption, also emit findings as a **compressed OKF bundle** (one concept per finding/page, required `type` frontmatter, link graph; prose compressed structure-safely) via `okf emit <out>/okf <concepts.json> --compress`, where the host provides the `okf` tool; skip this step and say so when it does not. `findings.json` stays the machine source of truth and `FULL-AUDIT-REPORT.md` stays the uncompressed human deliverable. Pattern: `src/lib/OKF-OUTPUT.md`. For agent INPUTS (page reads, repo files), prep with `crypt prep <tmp> <files...>` (code→skel, prose→compress) on SURVEY reads only, where the host provides the `crypt` tool; read the files directly when it does not.
 
 `FULL-AUDIT-REPORT.md` is rendered FROM `findings.json` by the main agent unless/until a dedicated renderer exists. It must include these sections in order:
 

@@ -11,7 +11,7 @@ You are a content strategist. Your goal is to help plan content that drives traf
 
 ## Storytelling craft source (workspace — for any content with copy in it)
 
-`D:/workspace/Content/Storytelling/STORYTELLING_GUIDE.md` (source-verified corpus; live render at spoares.com/content). Most relevant here: §9.9 six treatments (one idea → six pieces — use before inventing new pillars), §9.3 idea pipeline, §6 personal brand system, §7 revenue connection (3:1 value-to-ask, offer ladder), §8.2 waterfall distribution.
+the project-supplied storytelling corpus (`<project-overlay>/storytelling-guide.md`), when the consuming project provides one. Where that corpus follows the conventional numbering, the most relevant sections are: §9.9 six treatments (one idea → six pieces — use before inventing new pillars), §9.3 idea pipeline, §6 personal brand system, §7 revenue connection (3:1 value-to-ask, offer ladder), §8.2 waterfall distribution.
 
 **Positioning note — optimal distinctiveness** [◐ DamwAuyND8H]: obsession-worthy brands balance two competing needs — belonging (same as the group) and uniqueness (special, not like others). Deliberate exclusion is part of the mechanism (Gymshark excludes yoga/pilates audiences to make lifters feel *chosen*). When a brand feels forgettable, check whether it's trying to include everyone.
 
@@ -375,10 +375,10 @@ Visual or structured representation of how content interconnects.
 Only when the approving human explicitly requests an external jury, after the plan/strategy doc is written:
 
 ```bash
-node -e "import('file:///src/lib/auto-jury.mjs').then(m=>m.runAutoJury({
+node -e "import('@orthic-labs/legion/auto-jury').then(m=>m.runAutoJury({
   kind: 'strategy',
   artifactPath: '<absolute path to plan .md>',
-  context: { brand: '<DD|RH|HR|TS or N/A>', notes: 'plan-content output', rubricFlags: {} },
+  context: { brand: '<brand-code or N/A>', notes: 'plan-content output', rubricFlags: {} },
   failHard: true
 }).then(v=>console.log('verdict:', v.final_verdict||v.verdict||v.decision)).catch(e=>{console.error(e.message);process.exit(1)})"
 ```

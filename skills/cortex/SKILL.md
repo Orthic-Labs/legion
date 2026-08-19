@@ -15,8 +15,15 @@ MAY_ADD_TASKS: NO
 MAY_CALL_SKILLS: NONE
 TERMINAL: Cortex reports a complete map or exact remaining blocker.
 
-This entrypoint routes to existing Cortex graph engine. It does not duplicate graph storage,
-providers, or reconciliation rules.
+REQUIRES_HOST_CAPABILITY: cortex-graph
+
+This entrypoint routes to the host's Cortex graph engine. It does not duplicate graph storage,
+providers, or reconciliation rules, and it ships none of them.
+
+The graph engine is a host capability, not a package internal. Probe for it before any other step.
+If the host does not provide `cortex-graph`, return a typed degradation naming the missing
+capability and stop — never substitute ad-hoc file search for graph results, and never present an
+ungraphed reading as a Cortex map.
 
 1. Freeze repository root and requested depth: quick map, maintenance build, or full Cortex run.
 2. Build deterministic source map, verify claims against source and tests, and retain unresolved

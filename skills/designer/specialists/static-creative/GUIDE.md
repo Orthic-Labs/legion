@@ -45,7 +45,7 @@ Output standard: spec recap, 3 variant briefs, generated assets (or prompts), fi
 Run this external jury only when the approving human explicitly requests it.
 
 ```bash
-node -e "import('file:///src/lib/auto-jury.mjs').then(m=>m.runAutoJury({
+node -e "import('@orthic-labs/legion/auto-jury').then(m=>m.runAutoJury({
   kind: 'design',
   artifactPath: '<absolute path to output>',
   context: { brand: '<brand-code>', notes: 'design output' },

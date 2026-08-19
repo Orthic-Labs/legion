@@ -118,9 +118,9 @@
       "evals/evals.json"
     ],
     "consumers": [
-      "registry/skills/index.json",
-      "lib/skills/resolver.mjs",
-      "registry/routing/domains.json"
+      "src/registry/skills/index.json",
+      "src/lib/skills/resolver.mjs",
+      "src/registry/routing/domains.json"
     ]
   },
   "files": [
@@ -140,8 +140,8 @@
     {
       "path": "evals/evals.json",
       "uri": "legion-skill://research/evals/evals.json",
-      "sourceDigest": "sha256:52f23a54572a64656f6b9fc237ccc8b265a95215abad72ad2862f5f66340c00a",
-      "outputDigest": "sha256:52f23a54572a64656f6b9fc237ccc8b265a95215abad72ad2862f5f66340c00a",
+      "sourceDigest": "sha256:2ed40225d6604db7122fbbcc9207debf8c441fd52e5d85659b421b7f4969b4bb",
+      "outputDigest": "sha256:2ed40225d6604db7122fbbcc9207debf8c441fd52e5d85659b421b7f4969b4bb",
       "transformations": [
         "identity-genericization",
         "private-source-reference",
@@ -231,8 +231,8 @@
     {
       "path": "references/domains/legal/india/consumer/GUIDE.md",
       "uri": "legion-skill://research/references/domains/legal/india/consumer/GUIDE.md",
-      "sourceDigest": "sha256:1bd3b21fa2ae40ea3cf1d3bddd4eac9364240a61fabd0202e1c4a9d6fb2cd355",
-      "outputDigest": "sha256:1bd3b21fa2ae40ea3cf1d3bddd4eac9364240a61fabd0202e1c4a9d6fb2cd355",
+      "sourceDigest": "sha256:aee63d95c20adf7fe9ff0310bf04493be775d89d5d874e36f96a02893b540c07",
+      "outputDigest": "sha256:aee63d95c20adf7fe9ff0310bf04493be775d89d5d874e36f96a02893b540c07",
       "transformations": [
         "identity-genericization",
         "private-source-reference",
@@ -257,8 +257,8 @@
     {
       "path": "references/domains/legal/india/consumer/drafting-standards.md",
       "uri": "legion-skill://research/references/domains/legal/india/consumer/drafting-standards.md",
-      "sourceDigest": "sha256:f56e3f5f29b34887fb40533a21044e35c10251b24e0ac6d0c87b19e1db0a92b8",
-      "outputDigest": "sha256:f56e3f5f29b34887fb40533a21044e35c10251b24e0ac6d0c87b19e1db0a92b8",
+      "sourceDigest": "sha256:a5f1cfc6364be9a8836b9d81d0e799767ab7d2cc06ecb63f9cd94ffa5511d845",
+      "outputDigest": "sha256:a5f1cfc6364be9a8836b9d81d0e799767ab7d2cc06ecb63f9cd94ffa5511d845",
       "transformations": [
         "identity-genericization",
         "private-source-reference",
@@ -296,8 +296,8 @@
     {
       "path": "references/domains/legal/india/consumer/manual.md",
       "uri": "legion-skill://research/references/domains/legal/india/consumer/manual.md",
-      "sourceDigest": "sha256:f550c4355be24d7634d7073c78a87dfdb4e5b70631ce7ee13c686ddb472e7b35",
-      "outputDigest": "sha256:f550c4355be24d7634d7073c78a87dfdb4e5b70631ce7ee13c686ddb472e7b35",
+      "sourceDigest": "sha256:2b912cf33da50e508a4d13f63a5a0fd8454a22f484dc0e528a139f805c286e96",
+      "outputDigest": "sha256:2b912cf33da50e508a4d13f63a5a0fd8454a22f484dc0e528a139f805c286e96",
       "transformations": [
         "identity-genericization",
         "private-source-reference",
@@ -465,8 +465,8 @@
     {
       "path": "references/route-resources.json",
       "uri": "legion-skill://research/references/route-resources.json",
-      "sourceDigest": "sha256:1cbbdbb69b6e19cbe10aefd52b6283847fe0d92bd30b596c56ec9272469a4f6f",
-      "outputDigest": "sha256:1cbbdbb69b6e19cbe10aefd52b6283847fe0d92bd30b596c56ec9272469a4f6f",
+      "sourceDigest": "sha256:c16c1099e45735d213c1410a49f176f4e3320d10d1f3ec07bcf92a6d359860ec",
+      "outputDigest": "sha256:c16c1099e45735d213c1410a49f176f4e3320d10d1f3ec07bcf92a6d359860ec",
       "transformations": [
         "identity-genericization",
         "private-source-reference",

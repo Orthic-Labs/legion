@@ -279,6 +279,6 @@ For parallel analysis during full audits:
 - `audit-budget`: Budget, bidding, structure for LinkedIn, TikTok, Microsoft
 - `audit-compliance`: Compliance, settings, performance across all platforms
 - `creative-strategist`: Campaign concepts from brand profile + audit results (sonnet, maxTurns: 25)
-- `visual-designer`: Image generation with brand injection via generate_image.py (Sonnet, maxTurns: 30)
+- `visual-designer`: Image generation with brand injection via the banana MCP host capability (Sonnet, maxTurns: 30)
 - `copy-writer`: Headlines, CTAs, primary text within platform limits (Sonnet, maxTurns: 20)
 - `format-adapter`: Asset dimension validation and spec compliance reporting (Haiku, maxTurns: 15)

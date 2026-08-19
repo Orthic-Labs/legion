@@ -46,7 +46,7 @@ If the daemon throws "version mismatch" on Windows: `taskkill //F //IM agent-bro
 **Always read on-screen numbers back to the user** before analyzing — lets them flag if agent-browser grabbed stale or wrong panels.
 
 ## Always start with
-1. `/brand <DD|RH|SS>`
+1. `/brand <brand-code>`
 2. **Identify task:** strategy / calendar / single post / performance review / Reels-specific
 
 ## Tasks

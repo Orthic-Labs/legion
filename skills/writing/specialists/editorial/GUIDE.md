@@ -24,7 +24,7 @@ Use `writing-pro` only when the primary deliverable is prose rather than SEO/pub
 
 ## Always start with
 
-1. `/brand <DD|RH|SS>` — voice lock
+1. `/brand <brand-code>` — voice lock
 2. **Identify form:** blog (1500-3000w) / caption (50-150w) / script (timed) / email / thread / About page / product copy
 3. **Identify the level** (5 Levels framework below) the audience needs
 
@@ -48,7 +48,7 @@ Use this before drafting substantial writing. For routed work, inherit the more 
 Roles:
 - **Reader Advocate:** what the audience needs to understand, feel, or do.
 - **Editor:** structure, cuts, clarity, first sentence, ending.
-- **Brand Voice Guard:** fit with DD/RH/SS voice and forbidden cadence.
+- **Brand Voice Guard:** fit with the project's brand voice and forbidden cadence.
 - **Proof/Facts Checker:** unsupported claims, citations, invented stories, quote risk.
 - **Channel-Native Adapter:** blog, caption, script, email, thread, or product copy constraints.
 
@@ -151,10 +151,10 @@ If you produce text directly here (e.g. a quick caption rewrite), call
 the auto-jury yourself before presenting:
 
 ```bash
-node -e "import('file:///src/lib/auto-jury.mjs').then(m=>m.runAutoJury({
+node -e "import('@orthic-labs/legion/auto-jury').then(m=>m.runAutoJury({
   kind: 'copy',
   artifactPath: '<draft .md path>',
-  context: { brand: '<DD|RH|HR|TS>', notes: 'writing-pro direct output' },
+  context: { brand: '<brand-code>', notes: 'writing-pro direct output' },
   failHard: true
 }).then(v=>console.log('verdict:', v.final_verdict||v.verdict||v.decision)).catch(e=>{console.error(e.message);process.exit(1)})"
 ```

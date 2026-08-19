@@ -1,13 +1,16 @@
 {
+  "dependency-class": "HOST_CAPABILITY(agent-host-config)",
   "_meta": {
     "description": "个人素材索引模板 — 复制此文件并填入你的真实数据",
     "how_to_use": "1. 复制此文件到 ~/.claude/memory/personal-asset-index.json  2. 填入你的真实信息  3. design-philosophy skill 会自动读取",
     "note": "真实数据文件不要放在 skill 目录内，避免随 skill 分发泄露隐私"
   },
-
   "identity": {
     "real_name": "你的真名",
-    "pen_names": ["笔名1", "笔名2"],
+    "pen_names": [
+      "笔名1",
+      "笔名2"
+    ],
     "english_name": "English Name",
     "title": "你的头衔/一句话介绍",
     "bio_short": "50-100字简介",
@@ -15,13 +18,11 @@
     "avatar_url": "头像URL",
     "source": "数据来源备注"
   },
-
   "contact": {
     "email": "your@email.com",
     "wechat_personal": "微信号",
     "source": "数据来源备注"
   },
-
   "social_media": {
     "github": {
       "url": "https://github.com/yourname",
@@ -33,7 +34,6 @@
     },
     "source": "数据来源备注"
   },
-
   "websites": {
     "main_site": {
       "url": "https://yoursite.com",
@@ -41,7 +41,6 @@
       "local_path": "/path/to/local/project/"
     }
   },
-
   "products": {
     "product_1": {
       "name": "产品名",
@@ -51,20 +50,17 @@
       "project_path": "/path/to/project/"
     }
   },
-
   "stats": {
     "social_followers": "粉丝数",
     "product_users": "用户数",
     "source": "数据来源备注"
   },
-
   "design_assets": {
     "article_images": {
       "base_path": "/path/to/images/",
       "notable_sets": []
     }
   },
-
   "knowledge_base": {
     "wechat_articles": "/path/to/knowledge_base/"
   }

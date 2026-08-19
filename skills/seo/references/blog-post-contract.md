@@ -13,7 +13,7 @@ Every post page must render:
 - **Hero image** (`featuredAsset`) — see §3
 - **"In this guide" TOC** — auto-built from `<h2>`s (show if ≥3); inject `id`s for anchor links
 - Body with H2 sections (ids), callouts where useful
-- **Author bio block** (E-E-A-T) — real credentials from `SEO/AUTHOR-PROFILE.md`, never invented
+- **Author bio block** (E-E-A-T) — real credentials from the project-supplied author profile, never invented
 - **"Continue reading"** — 2-3 related posts + 1 product/shop link (2nd routeLoader → `getBlogPosts`)
 - Contextual **internal product links** in body — see §4
 
@@ -58,4 +58,4 @@ experience:
 ## 7. Pre-publish checklist
 H1 keyword · TL;DR/answer-first sentence · meta title ≤60 + dedup · meta-desc ≤155 · canonical · per-post OG image 1200×630 · article:* meta · Article+BreadcrumbList+FAQPage JSON-LD · TOC anchors · 4-6 FAQ Qs · author bio · 2-3 internal product links + 1 shop · no competitor outbound · all claims cited · hero from real lib or generated (never stock) · noai/noimageai · mobile preview · submit to GSC/Bing after publish.
 
-> Author facts: `D:/workspace/SEO/AUTHOR-PROFILE.md`. Per-brand keyword maps: `D:/workspace/SEO/data/<brand>/keyword-map.csv`. See memory `blog_template_upgrade_2026_05_25`.
+> Author facts and per-brand keyword maps are project-supplied: `<project-overlay>/seo/author-profile.md` and `<project-overlay>/seo/<brand>/keyword-map.csv`.

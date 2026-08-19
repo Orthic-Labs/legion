@@ -35,6 +35,7 @@
     "scripts/package-smoke.mjs",
     "scripts/check-publication-policy.mjs",
     "scripts/check-canonical-names.mjs",
+    "scripts/check-dependency-closure.mjs",
     "scripts/report-to-sarif.mjs",
     "references/",
     "MANIFEST.package.json",

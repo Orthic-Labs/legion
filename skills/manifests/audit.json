@@ -31,9 +31,9 @@
     "receipts": [],
     "evals": [],
     "consumers": [
-      "registry/skills/index.json",
-      "lib/skills/resolver.mjs",
-      "registry/routing/domains.json"
+      "src/registry/skills/index.json",
+      "src/lib/skills/resolver.mjs",
+      "src/registry/routing/domains.json"
     ]
   },
   "files": [
@@ -47,8 +47,8 @@
     {
       "path": "SKILL.md",
       "uri": "legion-skill://audit/SKILL.md",
-      "sourceDigest": "sha256:4d2f519199b76034bdefabdb350c589dca0a5d464aca653ebf8bf8409d697580",
-      "outputDigest": "sha256:4d2f519199b76034bdefabdb350c589dca0a5d464aca653ebf8bf8409d697580",
+      "sourceDigest": "sha256:b1ceee866f42b433e13ef81dda8702081841f0f477f2bfb1f01bfcff2cf3909e",
+      "outputDigest": "sha256:b1ceee866f42b433e13ef81dda8702081841f0f477f2bfb1f01bfcff2cf3909e",
       "transformations": []
     }
   ]

@@ -152,10 +152,10 @@ If DataForSEO MCP tools are available, use `dataforseo_labs_google_competitors_d
 Only when the approving human explicitly requests an external jury, after the plan/strategy doc is written:
 
 ```bash
-node -e "import('file:///src/lib/auto-jury.mjs').then(m=>m.runAutoJury({
+node -e "import('@orthic-labs/legion/auto-jury').then(m=>m.runAutoJury({
   kind: 'plan',
   artifactPath: '<absolute path to plan .md>',
-  context: { brand: '<DD|RH|HR|TS or N/A>', notes: 'plan-seo output', rubricFlags: {} },
+  context: { brand: '<brand-code or N/A>', notes: 'plan-seo output', rubricFlags: {} },
   failHard: true
 }).then(v=>console.log('verdict:', v.final_verdict||v.verdict||v.decision)).catch(e=>{console.error(e.message);process.exit(1)})"
 ```

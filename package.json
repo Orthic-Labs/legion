@@ -41,7 +41,8 @@
     ".": "./src/lib/index.mjs",
     "./contracts": "./src/lib/contracts/index.mjs",
     "./provider-sdk": "./src/lib/providers/sdk/index.mjs",
-    "./schemas/*": "./src/schemas/*"
+    "./schemas/*": "./src/schemas/*",
+    "./auto-jury": "./src/lib/auto-jury.mjs"
   },
   "files": [
     ".claude-plugin/",
@@ -83,6 +84,7 @@
     "scripts/normalize-provider-result.mjs",
     "scripts/check-publication-policy.mjs",
     "scripts/check-canonical-names.mjs",
+    "scripts/check-dependency-closure.mjs",
     "scripts/report-to-sarif.mjs",
     "scripts/run-architecture-evals.mjs",
     "references/",
@@ -99,9 +101,10 @@
     "stage9-runtime-evals": "node scripts/run-stage9-runtime-evals.mjs",
     "self-test": "node scripts/self-test.mjs",
     "naming:check": "node scripts/check-canonical-names.mjs",
-    "legion:check": "node scripts/check-canonical-names.mjs && node scripts/generate-schemas.mjs --check",
+    "legion:check": "node scripts/check-canonical-names.mjs && node scripts/generate-schemas.mjs --check && node scripts/check-dependency-closure.mjs",
     "schemas:check": "node scripts/generate-schemas.mjs --check",
-    "prepack": "node scripts/check-publication-policy.mjs --channel internal-pack && node scripts/check-canonical-names.mjs && node scripts/generate-schemas.mjs --check && node --test --test-concurrency=1 \"tests/*.test.mjs\" \"src/packages/arcane/tests/*.test.mjs\" && node scripts/package-smoke.mjs"
+    "prepack": "node scripts/check-publication-policy.mjs --channel internal-pack && node scripts/check-canonical-names.mjs && node scripts/generate-schemas.mjs --check && node --test --test-concurrency=1 \"tests/*.test.mjs\" \"src/packages/arcane/tests/*.test.mjs\" && node scripts/check-dependency-closure.mjs && node scripts/package-smoke.mjs",
+    "closure:check": "node scripts/check-dependency-closure.mjs"
   },
   "dependencies": {
     "@rightkit/hooks": "0.1.0"

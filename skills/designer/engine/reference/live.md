@@ -421,7 +421,7 @@ The goal is the same: give the user three variants to choose from AND persist th
 
 Use the error payload:
 
-- `element_not_in_source` with `generatedMatch: "public/docs/foo.html"`: the served HTML is generated. Find the generator (grep for writers of that path, e.g. `scripts/build-sub-pages.js`, an Astro/Next template) and locate the template or partial that emits this element.
+- `element_not_in_source` with `generatedMatch: "public/docs/foo.html"`: the served HTML is generated. Find the generator in the consuming project (grep for writers of that path — a custom build script, an Astro/Next template) and locate the template or partial that emits this element.
 - `element_not_found`: the element is runtime-injected. Look for the component that renders it (React/Vue/Svelte), the JS that assembles it, or the data source that feeds it.
 - `file_is_generated` with `file: "..."`: user pointed at a generated file explicitly. Same resolution as `element_not_in_source`.
 
@@ -590,7 +590,7 @@ Pick an anchor that exists in every file (`</body>` almost always works). Use `i
 
 For multi-page sites, **prefer a glob over a literal file list**. New pages added later are picked up automatically on the next `live-inject.mjs` run; no config maintenance needed.
 
-For multi-page sites whose pages are *rebuilt* by a generator (Astro, static-site generators, custom scripts like `build-sub-pages.js`), the inject survives only until the next regeneration. Re-run `live.mjs` after each build. Accept is unaffected; it writes to true source via the fallback flow.
+For multi-page sites whose pages are *rebuilt* by a generator (Astro, static-site generators, a project's own custom build scripts), the inject survives only until the next regeneration. Re-run `live.mjs` after each build. Accept is unaffected; it writes to true source via the fallback flow.
 
 ### Drift-heal warning
 

@@ -2,10 +2,8 @@
   "schemaVersion": 1,
   "aliases": {
     "/brief": "hook:brief",
-    "/demo-recorder": "/content demo",
     "/glass": "/designer glass",
     "/hormozi": "/marketing offer",
-    "/illustrate": "/content illustration",
     "/justdoit": "/alchemist",
     "/jfdi": "/alchemist",
     "/adapt": "tool:adapt",

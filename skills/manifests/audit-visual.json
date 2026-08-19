@@ -31,9 +31,9 @@
     "receipts": [],
     "evals": [],
     "consumers": [
-      "registry/skills/index.json",
-      "lib/skills/resolver.mjs",
-      "registry/routing/domains.json"
+      "src/registry/skills/index.json",
+      "src/lib/skills/resolver.mjs",
+      "src/registry/routing/domains.json"
     ]
   },
   "files": [
@@ -47,8 +47,8 @@
     {
       "path": "SKILL.md",
       "uri": "legion-skill://audit-visual/SKILL.md",
-      "sourceDigest": "sha256:959ef21eb9f28ae7352bfd17ddd6e02aafb42dad36a28073ddff4ed39d3b2432",
-      "outputDigest": "sha256:959ef21eb9f28ae7352bfd17ddd6e02aafb42dad36a28073ddff4ed39d3b2432",
+      "sourceDigest": "sha256:d01955712a6d1c5662a27ca026cb5ccc88ea1f47ece107b1628c63bd02c68b7c",
+      "outputDigest": "sha256:d01955712a6d1c5662a27ca026cb5ccc88ea1f47ece107b1628c63bd02c68b7c",
       "transformations": []
     },
     {
@@ -138,8 +138,8 @@
     {
       "path": "references/visual-qa-capture.md",
       "uri": "legion-skill://audit-visual/references/visual-qa-capture.md",
-      "sourceDigest": "sha256:f17ffd8e6910bf27768c93aa1c64564cd9256635e46b23237483a5ad5e78d737",
-      "outputDigest": "sha256:f17ffd8e6910bf27768c93aa1c64564cd9256635e46b23237483a5ad5e78d737",
+      "sourceDigest": "sha256:beb27fe267db48be23315ce0d20ba19f4106ad0f38e32ea19a2bc191aa94beaa",
+      "outputDigest": "sha256:beb27fe267db48be23315ce0d20ba19f4106ad0f38e32ea19a2bc191aa94beaa",
       "transformations": []
     },
     {

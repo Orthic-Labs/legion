@@ -18,7 +18,7 @@ description: >
 - Without: creation-only, post manually or via Tailwind
 
 ## Always start with
-1. `/brand <DD|RH|SS>`
+1. `/brand <brand-code>`
 2. **Goal:** traffic to blog post / product page / portfolio
 3. **Board strategy** — does brand have boards? If not, plan first
 

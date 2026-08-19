@@ -99,17 +99,17 @@
       "references/content/evals/evals.json"
     ],
     "consumers": [
-      "registry/skills/index.json",
-      "lib/skills/resolver.mjs",
-      "registry/routing/domains.json"
+      "src/registry/skills/index.json",
+      "src/lib/skills/resolver.mjs",
+      "src/registry/routing/domains.json"
     ]
   },
   "files": [
     {
       "path": "SKILL.md",
       "uri": "legion-skill://social/SKILL.md",
-      "sourceDigest": "sha256:30e209f262223e7fd19a11a68e02683041af725c2223f595dd9c331c399b70d3",
-      "outputDigest": "sha256:30e209f262223e7fd19a11a68e02683041af725c2223f595dd9c331c399b70d3",
+      "sourceDigest": "sha256:c7454b10047af009696f1153b50df2484edc2e5b85bd522b83c67e67ec4bf589",
+      "outputDigest": "sha256:c7454b10047af009696f1153b50df2484edc2e5b85bd522b83c67e67ec4bf589",
       "transformations": [
         "identity-genericization",
         "private-source-reference",
@@ -147,8 +147,8 @@
     {
       "path": "references/content/reference.md",
       "uri": "legion-skill://social/references/content/reference.md",
-      "sourceDigest": "sha256:cce4097c41ca81a178420da457144a0dd2ffaefe1c0741effb30eccce89ccbb4",
-      "outputDigest": "sha256:cce4097c41ca81a178420da457144a0dd2ffaefe1c0741effb30eccce89ccbb4",
+      "sourceDigest": "sha256:2cf5a0ccec68bec587b3d1edd5dfa5ab0099a5ebe466a9fb746fcc8414c3467c",
+      "outputDigest": "sha256:2cf5a0ccec68bec587b3d1edd5dfa5ab0099a5ebe466a9fb746fcc8414c3467c",
       "transformations": [
         "identity-genericization",
         "private-source-reference",
@@ -199,8 +199,8 @@
     {
       "path": "references/instagram/reference.md",
       "uri": "legion-skill://social/references/instagram/reference.md",
-      "sourceDigest": "sha256:1f46cfa8252cfd9586c6ce8d570c7c7e1871fb524c9af0cc1b868742cb254b73",
-      "outputDigest": "sha256:1f46cfa8252cfd9586c6ce8d570c7c7e1871fb524c9af0cc1b868742cb254b73",
+      "sourceDigest": "sha256:1e0dd1f4f7bf98867e1dd29d81292886b4e9d6c6d2205fb8a2f988068b603799",
+      "outputDigest": "sha256:1e0dd1f4f7bf98867e1dd29d81292886b4e9d6c6d2205fb8a2f988068b603799",
       "transformations": [
         "identity-genericization",
         "private-source-reference",
@@ -212,8 +212,8 @@
     {
       "path": "references/manual.md",
       "uri": "legion-skill://social/references/manual.md",
-      "sourceDigest": "sha256:8dfc885048e069d69e29b8cc6de417833d4a7cff87aaaf96cb4d1ef322c79e42",
-      "outputDigest": "sha256:8dfc885048e069d69e29b8cc6de417833d4a7cff87aaaf96cb4d1ef322c79e42",
+      "sourceDigest": "sha256:99dc916faa69fd5d631e28ad57a0ca55c1d2969a41d1bcfe792180dfc52f3ccb",
+      "outputDigest": "sha256:99dc916faa69fd5d631e28ad57a0ca55c1d2969a41d1bcfe792180dfc52f3ccb",
       "transformations": [
         "identity-genericization",
         "private-source-reference",
@@ -225,8 +225,8 @@
     {
       "path": "references/pinterest/reference.md",
       "uri": "legion-skill://social/references/pinterest/reference.md",
-      "sourceDigest": "sha256:dfeec810e6e6802a5675a3d89a96ab77f684cd049c0873eb2f74b5a9e95f30f1",
-      "outputDigest": "sha256:dfeec810e6e6802a5675a3d89a96ab77f684cd049c0873eb2f74b5a9e95f30f1",
+      "sourceDigest": "sha256:bfdf46029b31778d559d08328439f8eecf8b1f45ddc4d840c61492ef38bd385a",
+      "outputDigest": "sha256:bfdf46029b31778d559d08328439f8eecf8b1f45ddc4d840c61492ef38bd385a",
       "transformations": [
         "identity-genericization",
         "private-source-reference",
@@ -251,8 +251,8 @@
     {
       "path": "references/youtube/reference.md",
       "uri": "legion-skill://social/references/youtube/reference.md",
-      "sourceDigest": "sha256:19354dc720b385f14838a392f8495a28a8a14fce1714e454429a2b47e65005e8",
-      "outputDigest": "sha256:19354dc720b385f14838a392f8495a28a8a14fce1714e454429a2b47e65005e8",
+      "sourceDigest": "sha256:fcf0dea97429d32689d1fa7d4da1814fc2328ae4dd34e752c2b46a354e63f20f",
+      "outputDigest": "sha256:fcf0dea97429d32689d1fa7d4da1814fc2328ae4dd34e752c2b46a354e63f20f",
       "transformations": [
         "identity-genericization",
         "private-source-reference",

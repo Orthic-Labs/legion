@@ -20,7 +20,7 @@ metadata:
 
 This skill requires the DataForSEO extension:
 ```bash
-./extensions/dataforseo/install.sh
+# DataForSEO is a host capability (dataforseo MCP); this package ships no installer.
 ```
 
 **Check availability:** Before using backlink tools, verify the DataForSEO MCP server
@@ -195,7 +195,7 @@ Calculate a 0-100 score based on:
 
 | Error | Cause | Resolution |
 |-------|-------|-----------|
-| DataForSEO tools unavailable | Extension not installed | Run `./extensions/dataforseo/install.sh` |
+| DataForSEO tools unavailable | Extension not installed | Connect the `dataforseo` MCP host capability |
 | No backlink data returned | Domain too new or very small | Note: small sites may have <10 backlinks |
 | API credits insufficient | DataForSEO balance low | Check balance at app.dataforseo.com |
 
