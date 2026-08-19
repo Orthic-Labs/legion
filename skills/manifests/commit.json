@@ -25,7 +25,6 @@
       "\"Review, verify, commit, & push one frozen diff through Legion's guarded Commit workflow. Use for /commit, review and commit, or commit and push.\""
     ],
     "outputs": [
-      "references/legacy-workspace-skill.md",
       "references/manual.md"
     ],
     "scripts": [],
@@ -40,6 +39,10 @@
       "registry/skills/index.json",
       "lib/skills/resolver.mjs",
       "registry/routing/domains.json"
+    ],
+    "outputsPrunedOn": "2026-08-19",
+    "outputsRemoved": [
+      "references/legacy-workspace-skill.md"
     ]
   },
   "files": [
@@ -60,29 +63,22 @@
     {
       "path": "evals/evals.json",
       "uri": "legion-skill://commit/evals/evals.json",
-      "sourceDigest": "sha256:7c8fe8c01830d6c067124d88439dbd0460cb2e1b03dc4818212350c3b79ccc8f",
-      "outputDigest": "sha256:7c8fe8c01830d6c067124d88439dbd0460cb2e1b03dc4818212350c3b79ccc8f",
+      "sourceDigest": "sha256:c073358d4c64e19ae28c7b06d900cd843edc18ae61e6a10e7059a678c523666f",
+      "outputDigest": "sha256:c073358d4c64e19ae28c7b06d900cd843edc18ae61e6a10e7059a678c523666f",
       "transformations": []
     },
     {
       "path": "evals/evidence-gauntlet.json",
       "uri": "legion-skill://commit/evals/evidence-gauntlet.json",
-      "sourceDigest": "sha256:a62c3391adf4088f47219a135a22b606f81b7b02e6d535d9606e459c75299b80",
-      "outputDigest": "sha256:a62c3391adf4088f47219a135a22b606f81b7b02e6d535d9606e459c75299b80",
-      "transformations": []
-    },
-    {
-      "path": "references/legacy-workspace-skill.md",
-      "uri": "legion-skill://commit/references/legacy-workspace-skill.md",
-      "sourceDigest": "sha256:1a64dbb34e0cab876a10ec5e5631df9fc36e428e6218c42816a7671fb24a0379",
-      "outputDigest": "sha256:1a64dbb34e0cab876a10ec5e5631df9fc36e428e6218c42816a7671fb24a0379",
+      "sourceDigest": "sha256:25b1ea2e446e25e22c7bb22ffd1963f9561d4dc6630937c71c1d1c74fae77285",
+      "outputDigest": "sha256:25b1ea2e446e25e22c7bb22ffd1963f9561d4dc6630937c71c1d1c74fae77285",
       "transformations": []
     },
     {
       "path": "references/manual.md",
       "uri": "legion-skill://commit/references/manual.md",
-      "sourceDigest": "sha256:ec38e84071f0fa1b95eb6dcf6481aea00f492d90c94234bac0e9ac35f9526487",
-      "outputDigest": "sha256:ec38e84071f0fa1b95eb6dcf6481aea00f492d90c94234bac0e9ac35f9526487",
+      "sourceDigest": "sha256:167bf53139b86e0da364d9482cab167fc07de03e510cac0da80acd41e933240f",
+      "outputDigest": "sha256:167bf53139b86e0da364d9482cab167fc07de03e510cac0da80acd41e933240f",
       "transformations": []
     }
   ]

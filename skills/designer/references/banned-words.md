@@ -65,27 +65,24 @@ To add a banned word: append to the relevant section with detection regex + reas
 
 ## Voice (per brand — hard block)
 
-### Northwind Tools (DD)
-- "luxury" / "premium" as filler
-- "for the modern man"
-- "elevate your everyday" and similar aspirational cliches
+Each active venture gets its own heading here, with bullets of banned phrases/patterns specific to
+that venture's voice. Populate this section from the consuming project's own brand rules — this file
+ships with the shape only, no example ventures.
 
-### Harbor Coffee (RH)
-- "conscious" / "sustainable" without specific claim backing
-- "eco-friendly" without certification or specific metric
-- "guilt-free"
+### Venture A
+- filler superlatives ("luxury" / "premium") with no specific claim backing them
+- cliché positioning lines the brand has explicitly retired
 
-### SampleApp (HR)
-- "intelligent" / "smart" / "AI-powered"
-- Wake words other than `zephyr` (locked 2026-06-12). Retired: `quasar`, `decipher`, `cypher`, `cipher`, `shunya`.
-- Accent-tuned positioning or "accents Western tools mangle" framing (retired)
-- Hindi-English code-switch framing (retired)
+### Venture B
+- unverifiable virtue claims ("sustainable" / "eco-friendly" / "conscious") without certification or
+  a specific metric
+- guilt/shame-adjacent framing used as a selling point
 
-### Static Riot (TS)
-- "edgy" as self-descriptor
-- "for the rebels" (saturated)
-- "conscious" / "sustainable" without specific claim
-- Pink/purple palettes (per brand book)
+### Venture C
+- any locked wake word / trigger phrase drifting to an unretired alternate — keep exactly one live
+  wake word per venture and list retired ones so they can't resurface
+- framing patterns the brand has explicitly retired (accent, dialect, or identity framing that reads
+  as a stereotype)
 
 ---
 

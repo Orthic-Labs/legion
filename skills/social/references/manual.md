@@ -40,7 +40,7 @@ Failing a gate means revise before delivery.
 - Every caption, post, or script gets the anti-slop pass (`skills/_shared/anti-slop.md`, embedded
   mode) before delivery — apply silently, report only if it changed the output materially.
 - Brand card precedence stands: brand voice rules (including a brand's own flagged devices,
-  e.g. Static Riot's ALL-CAPS headlines) win over the anti-slop list.
+  e.g. a brand whose voice card explicitly calls for ALL-CAPS headlines) win over the anti-slop list.
 
 ## Routing
 
@@ -72,10 +72,13 @@ Output should preserve platform-native choices, brand fit, cadence, and success 
 2. Identify the platform and task type: create / plan / optimize / review. **For optimize/review of live content, ask for the platform analytics first** (IG Insights, YouTube Studio, X analytics) — "optimise my IG" without reach/saves numbers is guesswork; ground it or label it hypothetical.
 3. Read the matching reference only.
 4. If the task spans multiple platforms, read `references/content/reference.md` first, then only the platform-specific references needed.
-5. **Visual-asset handoff.** For carousels, pins, thumbnails, or story graphics, produce the exact copy + slide-by-slide structure, then offer to route to `/designer` (static) for the actual assets — don't leave "Slide 1: [hook]" as the deliverable. Video scripts → `/content` / the video pipeline.
+5. **Visual-asset handoff.** For carousels, pins, thumbnails, or story graphics, produce the exact copy + slide-by-slide structure, then offer to route to `/designer` (static) for the actual assets — don't leave "Slide 1: [hook]" as the deliverable. Video scripts → hand off to the host's media/video production capability if available.
 6. **Distribution boundary.** Source material already exists? Repurpose it, don't rewrite from scratch. Paid ads/budgets/funnel → `/marketing`; deep YouTube search optimisation → `/seo`. A CTA link must resolve (WebFetch) and, for conversion, carry UTM params — never ship a dead or untracked link.
 
-Existing Instagram carousel slide extraction routes to `/content carousel`; social owns concept,
-copy, slide sequence, platform fit, publishing strategy, & optimization.
+Existing Instagram carousel slide extraction stays owned by social end-to-end: concept, copy,
+slide sequence, platform fit, publishing strategy, & optimization. Hand off to the host's media
+capability only for producing the actual slide graphics.
 
-Willow and Pine is a passion project. Do not apply growth, ads, SEO, or commercialization framing to SS unless the approving human explicitly asks.
+Some ventures are explicitly non-commercial (passion projects). Honour the consuming project's
+per-venture policy — do not apply growth, ads, SEO, or commercialization framing to a venture
+flagged non-commercial unless the approving human explicitly asks.

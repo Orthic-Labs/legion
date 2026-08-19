@@ -56,14 +56,14 @@ SHARED_TRANSCRIPT: list[dict] = [
     {
         "type": "user",
         "sessionId": "shared-abc",
-        "cwd": "/workspace",
+        "cwd": "/Users/example/sample-project",
         "timestamp": "2026-08-04T12:00:01Z",
         "message": {"role": "user", "content": "Find the order total function."},
     },
     {
         "type": "assistant",
         "sessionId": "shared-abc",
-        "cwd": "/workspace",
+        "cwd": "/Users/example/sample-project",
         "timestamp": "2026-08-04T12:00:02Z",
         "message": {
             "role": "assistant",
@@ -75,7 +75,7 @@ SHARED_TRANSCRIPT: list[dict] = [
     {
         "type": "user",
         "sessionId": "shared-abc",
-        "cwd": "/workspace",
+        "cwd": "/Users/example/sample-project",
         "timestamp": "2026-08-04T12:00:03Z",
         "message": {
             "role": "user",
@@ -87,7 +87,7 @@ SHARED_TRANSCRIPT: list[dict] = [
     {
         "type": "assistant",
         "sessionId": "shared-abc",
-        "cwd": "/workspace",
+        "cwd": "/Users/example/sample-project",
         "timestamp": "2026-08-04T12:00:04Z",
         "message": {
             "role": "assistant",
@@ -101,7 +101,7 @@ CLASS_PRIORITY_TRANSCRIPT: list[dict] = []
 CLASS_PRIORITY_TRANSCRIPT.append({
     "type": "user",
     "sessionId": "class-priority",
-    "cwd": "/workspace",
+    "cwd": "/Users/example/sample-project",
     "timestamp": "2026-08-04T12:00:00Z",
     "message": {"role": "user", "content": "Please fix the build."},
 })
@@ -110,7 +110,7 @@ for i in range(1, 8):
     CLASS_PRIORITY_TRANSCRIPT.append({
         "type": "assistant",
         "sessionId": "class-priority",
-        "cwd": "/workspace",
+        "cwd": "/Users/example/sample-project",
         "timestamp": f"2026-08-04T12:00:{i*2:02d}Z",
         "message": {
             "role": "assistant",
@@ -127,7 +127,7 @@ for i in range(1, 8):
     CLASS_PRIORITY_TRANSCRIPT.append({
         "type": "user",
         "sessionId": "class-priority",
-        "cwd": "/workspace",
+        "cwd": "/Users/example/sample-project",
         "timestamp": f"2026-08-04T12:00:{i*2+1:02d}Z",
         "message": {
             "role": "user",
@@ -232,7 +232,7 @@ class TestTranscriptParser(unittest.TestCase):
                 {
                     "type": "assistant",
                     "sessionId": "plan",
-                    "cwd": "/workspace",
+                    "cwd": "/Users/example/sample-project",
                     "timestamp": "2026-08-04T12:00:00Z",
                     "message": {
                         "role": "assistant",
@@ -266,7 +266,7 @@ class TestTranscriptParser(unittest.TestCase):
                 {
                     "type": "assistant",
                     "sessionId": "repeat",
-                    "cwd": "/workspace",
+                    "cwd": "/Users/example/sample-project",
                     "timestamp": "2026-08-04T12:00:00Z",
                     "message": {
                         "role": "assistant",
@@ -276,7 +276,7 @@ class TestTranscriptParser(unittest.TestCase):
                 {
                     "type": "user",
                     "sessionId": "repeat",
-                    "cwd": "/workspace",
+                    "cwd": "/Users/example/sample-project",
                     "timestamp": "2026-08-04T12:00:01Z",
                     "message": {
                         "role": "user",
@@ -286,7 +286,7 @@ class TestTranscriptParser(unittest.TestCase):
                 {
                     "type": "assistant",
                     "sessionId": "repeat",
-                    "cwd": "/workspace",
+                    "cwd": "/Users/example/sample-project",
                     "timestamp": "2026-08-04T12:00:02Z",
                     "message": {
                         "role": "assistant",
@@ -296,7 +296,7 @@ class TestTranscriptParser(unittest.TestCase):
                 {
                     "type": "user",
                     "sessionId": "repeat",
-                    "cwd": "/workspace",
+                    "cwd": "/Users/example/sample-project",
                     "timestamp": "2026-08-04T12:00:03Z",
                     "message": {
                         "role": "user",

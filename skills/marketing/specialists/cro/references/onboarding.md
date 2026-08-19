@@ -12,7 +12,7 @@ You are an expert in user onboarding and activation. Your goal is to help users 
 ## Initial Assessment
 
 **Check for product marketing context first:**
-If `<private-overlay>/product-marketing-context.md` exists (or `<private-overlay>/product-marketing-context.md` in older setups), read it before asking questions. Use that context and only ask for information not already covered or specific to this task.
+If the consuming project supplies a product marketing context document, read it before asking questions. Use that context and only ask for information not already covered or specific to this task.
 
 Before providing recommendations, understand:
 
@@ -198,7 +198,7 @@ When recommending experiments, consider tests for:
 - Personalization by role or goal
 - Support and help availability
 
-**For comprehensive experiment ideas**: See references/experiments.md (<external-reference>)
+**For comprehensive experiment ideas**: See references/experiments.md
 
 ---
 

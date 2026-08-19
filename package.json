@@ -38,10 +38,10 @@
     "legion": "./src/bin/legion.mjs"
   },
   "exports": {
-    ".": "./lib/index.mjs",
-    "./contracts": "./lib/contracts/index.mjs",
-    "./provider-sdk": "./lib/providers/sdk/index.mjs",
-    "./schemas/*": "./schemas/*"
+    ".": "./src/lib/index.mjs",
+    "./contracts": "./src/lib/contracts/index.mjs",
+    "./provider-sdk": "./src/lib/providers/sdk/index.mjs",
+    "./schemas/*": "./src/schemas/*"
   },
   "files": [
     ".claude-plugin/",
@@ -80,6 +80,7 @@
     "scripts/self-test.mjs",
     "scripts/generate-schemas.mjs",
     "scripts/package-smoke.mjs",
+    "scripts/normalize-provider-result.mjs",
     "scripts/check-publication-policy.mjs",
     "scripts/check-canonical-names.mjs",
     "scripts/report-to-sarif.mjs",
@@ -100,7 +101,7 @@
     "naming:check": "node scripts/check-canonical-names.mjs",
     "legion:check": "node scripts/check-canonical-names.mjs && node scripts/generate-schemas.mjs --check",
     "schemas:check": "node scripts/generate-schemas.mjs --check",
-    "prepack": "node scripts/check-publication-policy.mjs --channel internal-pack && node scripts/check-canonical-names.mjs && node scripts/generate-schemas.mjs --check && node --test --test-concurrency=1 \"tests/*.test.mjs\" \"src/packages/arcane/tests/*.test.mjs\""
+    "prepack": "node scripts/check-publication-policy.mjs --channel internal-pack && node scripts/check-canonical-names.mjs && node scripts/generate-schemas.mjs --check && node --test --test-concurrency=1 \"tests/*.test.mjs\" \"src/packages/arcane/tests/*.test.mjs\" && node scripts/package-smoke.mjs"
   },
   "dependencies": {
     "@rightkit/hooks": "0.1.0"

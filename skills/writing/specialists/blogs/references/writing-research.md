@@ -4,11 +4,9 @@ Use this reference when planning, writing, auditing, or upgrading blog posts tha
 
 Local sources:
 
-- `D:/workspace/Content/Storytelling/STORYTELLING_GUIDE.md`
-- `D:/workspace/Content/Storytelling/SOURCE_MATRIX.md`
+- Consult your project's storytelling/quote-audit reference if one exists.
 - `skills/writing/specialists/copywriting/references/craft-research.md`
 - `skills/writing/specialists/copywriting/references/hook.md`
-- `D:/workspace/SEO/vinay/blog-playbook.md`
 - `skills/seo/references/blog-post-contract.md`
 
 Extracted writing sources:

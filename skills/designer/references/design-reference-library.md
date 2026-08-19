@@ -4,9 +4,9 @@ Use for taste calibration when a surface needs non-generic layout references, ed
 content hierarchy, palette behavior, case-study framing, motion direction (websites), or restrained
 polish, state hierarchy, density, typography, color discipline, micro-interactions (app UI).
 
-- Master document: `<local-path> Identity\Design Reference Library\MASTER.md`
-- Manifest: `<local-path> Identity\Design Reference Library\manifest.json`
-- Color cards: `<local-path> Identity\Color Bears`
+The consuming project supplies its own reference library (master document, manifest, and color
+cards) — this skill does not ship one. If the project has no reference library yet, skip this step
+rather than inventing a path.
 
 ## Guardrails
 

@@ -11,23 +11,27 @@ MAY_ADD_TASKS: NO
 MAY_CALL_SKILLS: NONE
 TERMINAL: Requested findings meet frozen D3 source budget.
 
-> **Vendored from** AgriciDaniel's universal SEO skill **v2.0.0** (frontmatter metadata above).
-> **Local changes — preserve on any upstream sync (diff, never overwrite):** the Northwind Tools
-> store map + SS passive-only rule below, the native-subagent lock (no external model APIs), the
-> `findings.json` machine-truth contract, and the conditional MCP lanes. An upstream update must be
-> merged around these blocks, not dropped in wholesale.
+> **Vendoring note:** if this skill is synced from an upstream source, preserve on any resync
+> (diff, never overwrite): this project's own site-inventory/per-site policy block below, the
+> native-subagent lock (no external model APIs), the `findings.json` machine-truth contract, and
+> the conditional MCP lanes. An upstream update must be merged around these blocks, not dropped in
+> wholesale.
 
 **Invocation:** `/seo $1 $2` where `$1` is the command and `$2` is the URL or argument.
 
-**Scripts:** Reach them through the portable skills symlink — `<external-reference>` — which resolves on both machines from ANY working directory. `/seo` is normally invoked from the site repo being audited (rightsites, an app repo), not from the workspace, so never use a `skills/seo`-relative path or a `cd` into the workspace.
+**Scripts:** Reach them through the portable skills symlink  which resolves on both machines from ANY working directory. `/seo` is normally invoked from the site repo being audited (rightsites, an app repo), not from the workspace, so never use a `skills/seo`-relative path or a `cd` into the workspace.
 
 Comprehensive SEO analysis across all industries (SaaS, local services, e-commerce, publishers, agencies). Sub-references in `references/` are loaded on demand based on intent.
 
 Uses an **LLM-first, agentic approach**: the LLM is the primary analyst with deterministic script-backed evidence for verification. For full/page audits the **machine source of truth** is `findings.json` (every finding as a structured row — agents and the box `apply-fixes-*` scripts read this, not the prose). The **one human deliverable** is `FULL-AUDIT-REPORT.md`, rendered from `findings.json` and ending in a prioritized Action Plan section. Do NOT emit a separate `ACTION-PLAN.md` — it folds into the report.
 
-## Store Map (Northwind Tools ventures)
+## Site Inventory
 
-Harbor Coffee → example.net (priority 1, most active); Willow and Pine → example.org (PASSIVE technical only — clean HTML/meta/schema/CWV/alt/sitemap; NO active commercial SEO, keyword campaigns, link-building, or GEO/AEO push, per brands.md SS rule); Northwind Tools → example.com (priority 3).
+This skill does not hardcode a site list. The consuming project supplies its own site inventory
+(domain, priority, and per-site policy) — including any site that is PASSIVE-only (clean
+HTML/meta/schema/CWV/alt/sitemap; NO active commercial SEO, keyword campaigns, link-building, or
+GEO/AEO push) per that project's brand rules. Load the project's own policy doc before running a
+multi-site audit.
 
 ## Routing — match user's intent to a reference
 

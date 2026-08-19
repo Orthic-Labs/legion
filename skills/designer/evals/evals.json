@@ -4,7 +4,7 @@
   "should_trigger": [
     {
       "id": "designer-app-surface",
-      "prompt": "Redesign the SampleApp inbox and settings flow so it feels coherent and production-ready.",
+      "prompt": "Redesign the Northwind Tools inbox and settings flow so it feels coherent and production-ready.",
       "expected_skill": "designer",
       "forbidden_skills": ["audit-visual"],
       "expected_behavior": "Routes to surface-design plus app.md because implementation/redesign is requested.",
@@ -15,8 +15,8 @@
       "id": "designer-static-creative",
       "prompt": "Create a Harbor Coffee launch poster and matching OG graphic.",
       "expected_skill": "designer",
-      "forbidden_skills": ["content"],
-      "expected_behavior": "Routes to static-creative and its marketing reference; applies RH brand rules.",
+      "forbidden_skills": ["handoff"],
+      "expected_behavior": "Routes to static-creative and its marketing reference; applies Harbor Coffee brand rules.",
       "severity": "error",
       "mode": "discovery"
     },
@@ -52,9 +52,9 @@
     {
       "id": "designer-not-video-production",
       "prompt": "Generate a cinematic Seedance product shot and render the final video.",
-      "expected_skill": "content",
+      "expected_skill": "handoff",
       "forbidden_skills": ["designer"],
-      "expected_behavior": "Media production routes to content.",
+      "expected_behavior": "Media production hands off to the host's media capability, not designer.",
       "severity": "error",
       "mode": "discovery"
     }
@@ -62,7 +62,7 @@
   "output_quality": [
     {
       "id": "designer-progressive-disclosure",
-      "prompt": "Design a new settings screen for SampleApp.",
+      "prompt": "Design a new settings screen for Northwind Tools.",
       "expected_skill": "designer",
       "forbidden_skills": [],
       "expected_behavior": "Loads surface-design plus app.md only; inspects existing tokens/components and verifies the rendered result.",
@@ -97,8 +97,8 @@
       "id": "designer-motion-handoff",
       "prompt": "Define the animation language and motion tokens for this app.",
       "expected_skill": "designer",
-      "forbidden_skills": ["motion"],
-      "expected_behavior": "Designer loads its motion guide and one platform reference.",
+      "forbidden_skills": ["audit-visual"],
+      "expected_behavior": "Designer loads its own motion guide and one platform reference internally, rather than calling out to another skill.",
       "severity": "error",
       "mode": "discovery"
     },
@@ -106,17 +106,17 @@
       "id": "designer-glass-branch",
       "prompt": "Design readable frosted-glass pills and a translucent command bar for this app.",
       "expected_skill": "designer",
-      "forbidden_skills": ["glass"],
-      "expected_behavior": "Designer loads its glass-material guide.",
+      "forbidden_skills": ["audit-visual"],
+      "expected_behavior": "Designer loads its own glass-material guide internally, rather than calling out to another skill.",
       "severity": "error",
       "mode": "discovery"
     },
     {
       "id": "designer-illustration-direction",
-      "prompt": "Direct the biological-mechanical illustration language for Orthic Labs.",
+      "prompt": "Direct the biological-mechanical illustration language for Harbor Coffee.",
       "expected_skill": "designer",
-      "forbidden_skills": ["illustrate"],
-      "expected_behavior": "Designer loads shared illustration contract for visual direction.",
+      "forbidden_skills": ["audit-visual"],
+      "expected_behavior": "Designer loads shared illustration contract for visual direction internally, rather than calling out to another skill.",
       "severity": "error",
       "mode": "discovery"
     }

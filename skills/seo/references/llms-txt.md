@@ -6,11 +6,15 @@ This is the GENERATOR. The `seo-geo` subagent + `references/geo.md` handle AUDIT
 
 **Trigger:** `/seo llms-txt`, "llms.txt", "AI search file", "Perplexity file", "AI crawler file", "generate an llms.txt".
 
-> **SS EXCLUSION (hard rule):** Willow and Pine is a passion project. `llms.txt-for-ranking` is **banned** for SS (per `<private-overlay>/rules/brands.md` — SS gets the defensive AI-training block + passive technical optimization ONLY, no active commercial SEO). Never generate an llms.txt for SS. Valid brands for this generator: **DD, RH, HR, TS** (and other commercial ventures).
+> **Non-commercial venture exclusion (hard rule):** some ventures are passive/non-commercial by
+> policy — `llms.txt-for-ranking` is **banned** for them (they get a defensive AI-training block +
+> passive technical optimization ONLY, no active commercial SEO). Never generate an llms.txt for a
+> venture flagged non-commercial in the consuming project's own brand policy. This generator is
+> for commercial ventures only.
 
 ## Always start with
 
-1. `/brand <DD|RH|HR|TS>` — pulls voice + positioning. (NOT SS.)
+1. `/brand <your-brand-code>` — pulls voice + positioning, if the host provides a brand-loading capability. Skip non-commercial ventures.
 2. Site URL + crawl access (use `references/firecrawl.md` or the site's `sitemap.xml`)
 3. Identify "hero content" — the pages most worth citing
 
@@ -21,7 +25,7 @@ This is the GENERATOR. The `seo-geo` subagent + `references/geo.md` handle AUDIT
 3. **Hero list** — pick 10-20 pages that, if cited, would drive the best results
 4. **Write llms.txt** in spec format (template below)
 5. **Optional AI-buyer file:** generate `/pricing.md` when agents need machine-readable pricing, tiers, limits, and features (mostly for software/SaaS like HR)
-6. **Save** to `<local-path>` — user deploys to site root
+6. **Save** to the site root — user deploys it there
 7. **Optional:** also generate `llms-full.txt` (full content of hero pages)
 
 ## Template
@@ -88,8 +92,8 @@ Position: local-first transcription + voice commands. Hero = the homepage, featu
 ### TS
 Position: counter-culture streetwear, slow-fashion wedge ("the antidote to fast fashion"). Hero = manifesto/about pages + hero product/collection pages.
 
-### SS — NOT ELIGIBLE
-SS is excluded — `llms.txt-for-ranking` is banned for the passion project (`<private-overlay>/rules/brands.md`). If asked to generate an llms.txt for SS, decline and explain the SS rule.
+### Non-commercial ventures — NOT ELIGIBLE
+Any venture flagged non-commercial/passion-project in the consuming project's brand policy is excluded — `llms.txt-for-ranking` is banned for it. If asked to generate an llms.txt for one, decline and explain the policy.
 
 ## Deploy notes
 

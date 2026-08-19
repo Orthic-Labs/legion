@@ -70,10 +70,10 @@ you'll ever get — they already like you. (Tool: Unlinked.io; also Ahrefs Conte
 Mentions, Google Alerts, GSC.)
 
 **Workflow:**
-1. **Find mentions:** search `"Northwind Tools" -site:example.com` (repeat per brand +
-   product names + "the approving human" + common misspellings) via WebSearch / Ahrefs mentions /
-   Google Alerts (standing alerts per brand). Press features we already know about (DD: Blade
-   Mag, Knife Junkie, Everyday Commentary) are prime candidates.
+1. **Find mentions:** search `"<Brand Name>" -site:<brand-domain>` (repeat per brand +
+   product names + founder/spokesperson name + common misspellings) via WebSearch / Ahrefs mentions /
+   Google Alerts (standing alerts per brand). Press outlets already known to have featured the
+   brand are prime candidates.
 2. **Qualify:** mention is live, on a reputable page, no link (or links elsewhere).
 3. **Outreach:** short, warm, specific — "thanks for mentioning [brand] in [article]; if
    you're open to it, a link to [exact URL] would help readers find us." One follow-up max.

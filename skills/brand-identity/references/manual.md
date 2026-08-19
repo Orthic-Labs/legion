@@ -29,8 +29,8 @@ direction; never present near-duplicates as separate options.
 All voice/guideline prose — banned/owned vocabulary, positioning statements, do/don't copy,
 example headlines — gets the anti-slop pass per `skills/_shared/anti-slop.md`
 (embedded mode: apply silently before Phase 6 human eyes). A brand may deliberately claim a
-device the anti-slop inventory flags (e.g. Static Riot's ALL-CAPS staccato headlines, per
-`anti-slop.md`'s own false-positive note) — that is not a failure; record it in the brand's
+device the anti-slop inventory flags (e.g. a counter-culture streetwear brand's ALL-CAPS
+staccato headlines, per `anti-slop.md`'s own false-positive note) — that is not a failure; record it in the brand's
 guidelines/registry row as an explicit, named exception, not a silent override.
 
 ## Artifact Boundary: Identity First

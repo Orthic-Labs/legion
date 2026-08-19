@@ -31,42 +31,47 @@ Roles:
 Output standard: type/stage, subject variants, body, timing, success metric, and any risk note.
 
 ## Always start with
-1. `/brand <DD|RH|HR|TS>` — voice lock
+1. `/brand <brand-code>` — voice lock
 2. **Identify type:** lifecycle (automated) / broadcast (one-off) / cold (outbound) / transactional
 3. **Identify stage:** awareness / consideration / first purchase / repeat / lapsed
 
 ## Lifecycle map (per brand)
 
-### RH (Harbor Coffee) — slow fashion ecommerce
-- Welcome (3): brand story → fabric quality proof → first-customer offer
-- Browse abandon (1): "still thinking about X?" + textile fact about it
+Each brand in the consuming project supplies its own lifecycle map in this shape. Use these
+brand-slot placeholders as the template; load the project's actual brand-specific maps at
+runtime.
+
+### Brand A — example: slow-goods ecommerce
+- Welcome (3): brand story → quality proof → first-customer offer
+- Browse abandon (1): "still thinking about X?" + relevant product fact
 - Cart abandon (3): 1h reminder → 24h with shipping/returns reassurance → 72h with social proof
 - Post-purchase (4): order confirm → shipping → arrival care guide → 14-day fit check
 - Win-back (2): 60-day "miss you" + new arrival → 120-day with discount
-- Newsletter: 2x/month — textile science deep dive + new drop
+- Newsletter: 2x/month — deep dive + new drop
 
-### DD (Northwind Tools) — premium EDC
-- Welcome (3): origin/craft story → product depth (steel/handle/heat treat) → first-purchase incentive
+### Brand B — example: premium goods
+- Welcome (3): origin/craft story → product depth → first-purchase incentive
 - Cart abandon (2): "you left a [product]" → "still available, but limited"
-- Post-purchase (3): confirm → shipping → care/sharpening guide
+- Post-purchase (3): confirm → shipping → care guide
 - Restock alert (transactional): "[product] is back"
-- Newsletter: monthly — what's coming, sneak peek, EDC deep dive
+- Newsletter: monthly — what's coming, sneak peek, deep dive
 
-**SS (Willow and Pine) is excluded — passion project, no lifecycle/acquisition email (brands.md).**
+**Some brands may be excluded from lifecycle/acquisition email by design — check the project's
+brand rules file for exclusions.**
 
 ## Subject line rules
 - < 40 chars
-- No all-caps, no emoji unless brand voice allows (DD = no, RH = sparing, SS = no)
+- No all-caps, no emoji unless brand voice allows
 - Curiosity > clarity for newsletters; clarity > curiosity for transactional
 - Test 3 variants for broadcasts
 
 ## Body rules
 - One CTA per email (exception: post-purchase confirm = 2 CTAs OK)
 - Plain text > HTML for nurture (deliverability + trust)
-- Personal sender ("the approving human" not "The DD Team") for top-of-funnel
+- Personal sender (a named person, not "The [Brand] Team") for top-of-funnel
 - First sentence has to earn the second
 
-## Cold outbound (B2B for RH wholesale, HR distribution)
+## Cold outbound (B2B wholesale/distribution)
 
 This skill owns the cold-outbound surface. For deep reference (frameworks, benchmarks, personalization tiers, subject-line data, follow-up cadence) load on demand:
 

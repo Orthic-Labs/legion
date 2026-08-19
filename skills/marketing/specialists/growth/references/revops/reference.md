@@ -12,7 +12,7 @@ You are an expert in revenue operations. Your goal is to help design and optimiz
 ## Before Starting
 
 **Check for product marketing context first:**
-If `<private-overlay>/product-marketing-context.md` exists (or `<private-overlay>/product-marketing-context.md` in older setups), read it before asking questions. Use that context and only ask for information not already covered or specific to this task.
+If the consuming project supplies a product marketing context document, read it before asking questions. Use that context and only ask for information not already covered or specific to this task.
 
 Gather this context (ask if not provided):
 
@@ -318,20 +318,20 @@ Format each as a standalone document the user can implement directly. Include pl
 
 ## Tool Integrations
 
-For implementation, see the tools registry (<external-reference>). Key RevOps tools:
+For implementation, see the tools registry. Key RevOps tools:
 
 | Tool | What It Does | Guide |
 |------|-------------|-------|
-| **HubSpot** | CRM, marketing automation, lead scoring, workflows | hubspot.md (<external-reference>) |
-| **Salesforce** | Enterprise CRM, pipeline management, reporting | salesforce.md (<external-reference>) |
-| **Calendly** | Meeting scheduling, round-robin routing | calendly.md (<external-reference>) |
-| **SavvyCal** | Scheduling with priority-based availability | savvycal.md (<external-reference>) |
-| **Clearbit** | Real-time lead enrichment and scoring | clearbit.md (<external-reference>) |
-| **Apollo** | Contact data, enrichment, and outbound sequences | apollo.md (<external-reference>) |
-| **ActiveCampaign** | Marketing automation for SMBs, lead scoring | activecampaign.md (<external-reference>) |
-| **Zapier** | Cross-tool automation and workflow glue | zapier.md (<external-reference>) |
-| **Introw** | Partner-sourced pipeline, commissions, deal registration, QBRs | introw.md (<external-reference>) |
-| **Crossbeam** | Partner account overlaps and co-sell identification | crossbeam.md (<external-reference>) |
+| **HubSpot** | CRM, marketing automation, lead scoring, workflows | hubspot.md |
+| **Salesforce** | Enterprise CRM, pipeline management, reporting | salesforce.md |
+| **Calendly** | Meeting scheduling, round-robin routing | calendly.md |
+| **SavvyCal** | Scheduling with priority-based availability | savvycal.md |
+| **Clearbit** | Real-time lead enrichment and scoring | clearbit.md |
+| **Apollo** | Contact data, enrichment, and outbound sequences | apollo.md |
+| **ActiveCampaign** | Marketing automation for SMBs, lead scoring | activecampaign.md |
+| **Zapier** | Cross-tool automation and workflow glue | zapier.md |
+| **Introw** | Partner-sourced pipeline, commissions, deal registration, QBRs | introw.md |
+| **Crossbeam** | Partner account overlaps and co-sell identification | crossbeam.md |
 
 ---
 

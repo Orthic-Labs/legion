@@ -1,35 +1,23 @@
 # Visual Reference Libraries
 
-These are external inspiration/reference libraries. Use them for taste calibration, palette behavior, naming rhythm, and anti-generic analysis. Do not treat them as approved brand systems, templates, or final identity outputs.
+External inspiration/reference libraries the consuming project maintains (mood-board collections, palette-card archives, case-study swipe files) can feed taste calibration, palette behavior, naming rhythm, and anti-generic analysis. Do not treat them as approved brand systems, templates, or final identity outputs.
 
-## Shared Design Reference Library
+If the project keeps such a library, point this file (or a project-level override) at its master document and manifest so brand-identity work can find it. This skill ships with no library of its own — there is nothing to read until the project adds one.
 
-- Master document: `<local-path> Identity\Design Reference Library\MASTER.md`
-- Manifest: `<local-path> Identity\Design Reference Library\manifest.json`
-- Sources:
-  - Color Bears palette cards
-  - Colossal Design category references
-  - AIGA Eye on Design references
-  - The Brand Identity case-study/interview/type references
-- Use for:
-  - taste calibration before visual direction work
-  - palette and naming rhythm prompts
-  - case-study and application proof examples
-  - anti-generic checks for brand, website, and app work
-- Do not use for:
-  - copying final palettes, layouts, article text, or imagery
-  - replacing brand truth, signature mechanism, or differentiation gates
+## Suggested shape
 
-## Color Bears Palette Cards
+- A master document indexing the library's sources and how to use each one.
+- A manifest listing individual assets (palette cards, case studies, type references, etc.).
 
-- Path: `<local-path> Identity\Color Bears`
-- Source: `https://www.threads.com/@color.bears`
-- Contents: 80 downloaded JPEG color cards plus `manifest.json`
-- Use for:
-  - palette naming inspiration
-  - compact color relationship examples
-  - checking whether a proposed palette feels generic or familiar
-- Do not use for:
-  - copying exact palettes as final brand systems
-  - replacing Phase 0 brand truth or Phase 1 signature mechanism
-  - registry differentiation decisions without checking actual brand context
+## Use for
+
+- taste calibration before visual direction work
+- palette and naming rhythm prompts
+- case-study and application proof examples
+- anti-generic checks for brand, website, and app work
+
+## Do not use for
+
+- copying final palettes, layouts, article text, or imagery
+- replacing brand truth, signature mechanism, or differentiation gates
+- registry differentiation decisions without checking actual brand context

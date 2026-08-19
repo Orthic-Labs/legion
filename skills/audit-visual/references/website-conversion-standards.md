@@ -109,7 +109,7 @@ node skills/designer/engine/scripts/detect.mjs --json --site --site-type=<app|ec
 - Structure blockers (`cta-below-fold`, `hero-viewport-hog`, `one-word-lines`,
   `hero-cta-competition`, `headline-word-wall`, `hover-contrast`, `oversized-header`,
   `broken-internal-link`, `missing-required-page`) on a marketing/landing surface floor the
-  verdict at REVISE. Only the operator can waive one, explicitly, per finding. Agents — including this
+  verdict at REVISE. Only the designated approver can waive one, explicitly, per finding. Agents — including this
   one — cannot argue a measured structure blocker down to a Note.
 - Re-runnable proof of the whole rule pack:
   `node skills/designer/engine/scripts/detector/tests/structure/run-structure-smoke.mjs`

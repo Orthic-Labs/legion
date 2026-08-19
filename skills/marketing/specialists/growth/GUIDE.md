@@ -65,4 +65,4 @@ Output standard: measurable hypothesis, target metric, constraint/risk, smallest
 3. Read the matching reference only.
 4. Output a measurable hypothesis, concrete next action, and validation plan.
 
-Do not apply growth tooling to Willow and Pine unless the approving human explicitly asks. SS is a passion project.
+Some ventures are explicitly non-commercial. Do not apply growth tooling to one unless the approving human explicitly asks; the consuming project's per-venture policy governs.

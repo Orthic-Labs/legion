@@ -4,7 +4,7 @@
   "should_trigger": [
     {
       "id": "ideas-ad-concepts",
-      "prompt": "Give me 100 concept variants for the next Static Riot video ad campaign.",
+      "prompt": "Give me 100 concept variants for the next Northwind Tools video ad campaign.",
       "expected_skill": "ideas",
       "forbidden_skills": ["copywriting", "plan"],
       "expected_behavior": "100+ ad concept ideation triggers ideas, routes to references/ad-concepts.md. Diverges first; does not produce finished copy.",
@@ -43,7 +43,7 @@
   "should_not_trigger": [
     {
       "id": "ideas-not-write-the-ad",
-      "prompt": "Write the ad copy for the Northwind Tools spring drop — hero headline, 3 variants.",
+      "prompt": "Write the ad copy for the Harbor Coffee spring drop — hero headline, 3 variants.",
       "expected_skill": "copywriting",
       "forbidden_skills": ["ideas"],
       "expected_behavior": "Writing finished ad copy routes to /writing copy, not /marketing ideas. Ideas is divergent ideation, not production.",
@@ -55,7 +55,7 @@
     },
     {
       "id": "ideas-not-plan-the-launch",
-      "prompt": "Plan the launch campaign for SampleApp v1 — timeline, channels, milestones.",
+      "prompt": "Plan the launch campaign for Northwind Tools v1 — timeline, channels, milestones.",
       "expected_skill": "plan",
       "forbidden_skills": ["ideas"],
       "expected_behavior": "Launch strategy/planning routes to /marketing strategy, not /marketing ideas.",
@@ -69,7 +69,7 @@
   "output_quality": [
     {
       "id": "ideas-diverge-then-converge",
-      "prompt": "/marketing ideas ad-concepts — brief: Harbor Coffee slow-fashion awareness reel.",
+      "prompt": "/marketing ideas ad-concepts — brief: Harbor Coffee slow-roast awareness reel.",
       "expected_skill": "ideas",
       "forbidden_skills": [],
       "expected_behavior": "Output: broad option set (20+), clusters/themes, strongest 3-5 with rationale, suggestion for what to test next. Does not produce a single finished concept.",

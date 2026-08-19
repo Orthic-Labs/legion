@@ -5,7 +5,7 @@
  *
  * Originally generated from upstream impeccable (cli/engine/browser/injected/index.mjs);
  * in this workspace the file is maintained DIRECTLY — there is no local build script.
- * Structure-rule smoke: node tools/skills/designer/engine/scripts/detector/tests/structure/run-structure-smoke.mjs
+ * Structure-rule smoke: node skills/designer/engine/scripts/detector/tests/structure/run-structure-smoke.mjs
  *
  * Usage: <script src="detect-antipatterns-browser.js"></script>
  * Re-scan: window.impeccableScan()

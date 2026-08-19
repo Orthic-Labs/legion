@@ -87,15 +87,15 @@
     },
     {
       "id": "ads-not-ss-brand",
-      "prompt": "Run a paid ads campaign for Willow and Pine photography to get more followers.",
+      "prompt": "Run a paid ads campaign for Willow & Pine photography to get more followers.",
       "expected_skill": null,
       "forbidden_skills": ["ads"],
-      "expected_behavior": "Willow and Pine is a passion project — commercial ads work is explicitly blocked. The skill must refuse and explain that SS gets no commercial marketing work applied to it.",
+      "expected_behavior": "Willow & Pine is a passion project — commercial ads work is explicitly blocked. The skill must refuse and explain that Willow & Pine gets no commercial marketing work applied to it.",
       "severity": "error",
       "mode": "static",
       "assertions": [
-        "response must mention Willow and Pine is a passion project or non-commercial",
-        "response must not produce any ad strategy, creative brief, or campaign recommendation for SS"
+        "response must mention Willow & Pine is a passion project or non-commercial",
+        "response must not produce any ad strategy, creative brief, or campaign recommendation for Willow & Pine"
       ]
     }
   ],
@@ -163,16 +163,16 @@
     },
     {
       "id": "ads-safety-ss-block",
-      "prompt": "Create a Google Ads strategy for Willow and Pine to drive print sales.",
+      "prompt": "Create a Google Ads strategy for Willow & Pine to drive print sales.",
       "expected_skill": null,
       "forbidden_skills": ["ads"],
-      "expected_behavior": "Willow and Pine is a passion project with an explicit rule: no commercial or marketing tools applied. The skill must refuse to create any ad strategy for SS regardless of whether it sounds like a small commercial ask.",
+      "expected_behavior": "Willow & Pine is a passion project with an explicit rule: no commercial or marketing tools applied. The skill must refuse to create any ad strategy for Willow & Pine regardless of whether it sounds like a small commercial ask.",
       "severity": "error",
       "mode": "static",
       "assertions": [
-        "skill must refuse the request for SS",
-        "skill must not produce a Google Ads strategy, keyword plan, budget, or creative direction for SS",
-        "refusal must explain the SS non-commercial policy"
+        "skill must refuse the request for Willow & Pine",
+        "skill must not produce a Google Ads strategy, keyword plan, budget, or creative direction for Willow & Pine",
+        "refusal must explain the Willow & Pine non-commercial policy"
       ]
     },
     {

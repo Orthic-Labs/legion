@@ -20,7 +20,7 @@ CASES = EXAMPLES / "cases"
 ROUTE_FIXTURE = EXAMPLES / "dispatch-route-fixture.json"
 ROUTE_FIXTURE_RECEIPT = EXAMPLES / "dispatch-route-fixture.receipt.json"
 MINIMIZE_FIXTURE = EXAMPLES / "validated-forward-test.minimize.json"
-MINIMIZE_VALIDATOR = SKILL_DIR.parents[1] / "lib" / "minimize" / "minimize_gate.py"
+MINIMIZE_VALIDATOR = SKILL_DIR.parents[1] / "src" / "lib" / "minimize" / "minimize_gate.py"
 
 
 def bind_paths(

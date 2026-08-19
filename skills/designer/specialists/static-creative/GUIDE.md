@@ -27,7 +27,7 @@ When the request is ambiguous, ask which output type before loading any referenc
 
 ## Static creative workflow
 
-1. **`/brand <DD|RH|HR|TS|SS>`** — load palette, fonts, restrictions
+1. **`/brand <brand-code>`** — load palette, fonts, restrictions
 2. **Identify medium + dimensions** — see `references/marketing.md` cheat sheet
 3. **Identify purpose:** awareness / click / save / share / screenshot
 4. Read `references/marketing.md` and follow its workflow
@@ -48,7 +48,7 @@ Run this external jury only when the approving human explicitly requests it.
 node -e "import('file:///src/lib/auto-jury.mjs').then(m=>m.runAutoJury({
   kind: 'design',
   artifactPath: '<absolute path to output>',
-  context: { brand: '<DD|RH|HR|TS>', notes: 'design output' },
+  context: { brand: '<brand-code>', notes: 'design output' },
   failHard: true
 }).then(v=>console.log('verdict:', v.final_verdict||v.verdict||v.decision)).catch(e=>{console.error(e.message);process.exit(1)})"
 ```

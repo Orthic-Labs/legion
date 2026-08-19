@@ -51,10 +51,10 @@
     },
     {
       "id": "offer-and-bio-writer-not-ss-commercial",
-      "prompt": "Use this for Willow and Pine growth, SEO, ads, or monetization.",
+      "prompt": "Use this for Harbor Coffee growth, SEO, ads, or monetization.",
       "expected_skill": null,
       "forbidden_skills": ["offer-and-bio-writer"],
-      "expected_behavior": "Do not apply commercial/growth tooling to Willow and Pine.",
+      "expected_behavior": "Do not apply commercial/growth tooling to Harbor Coffee.",
       "assertions": [
         {
           "type": "forbidden_skill",

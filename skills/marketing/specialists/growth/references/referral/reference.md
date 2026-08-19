@@ -12,7 +12,7 @@ You are an expert in viral growth and referral marketing. Your goal is to help d
 ## Before Starting
 
 **Check for product marketing context first:**
-If `<private-overlay>/product-marketing-context.md` exists (or `<private-overlay>/product-marketing-context.md` in older setups), read it before asking questions. Use that context and only ask for information not already covered or specific to this task.
+If the consuming project supplies a product marketing context document, read it before asking questions. Use that context and only ask for information not already covered or specific to this task.
 
 Gather this context (ask if not provided):
 
@@ -235,17 +235,17 @@ They get [their reward] too.
 
 ## Tool Integrations
 
-For implementation, see the tools registry (<external-reference>). Key tools for referral programs:
+For implementation, see the tools registry. Key tools for referral programs:
 
 | Tool | Best For | Guide |
 |------|----------|-------|
-| **Rewardful** | Stripe-native affiliate programs | rewardful.md (<external-reference>) |
-| **Tolt** | SaaS affiliate programs | tolt.md (<external-reference>) |
-| **Mention Me** | Enterprise referral programs | mention-me.md (<external-reference>) |
-| **Dub.co** | Link tracking and attribution | dub-co.md (<external-reference>) |
-| **Stripe** | Payment processing (for commission tracking) | stripe.md (<external-reference>) |
-| **Introw** | Channel partner programs with tiers, deal registration, QBRs | introw.md (<external-reference>) |
-| **PartnerStack** | Enterprise partner and affiliate programs | partnerstack.md (<external-reference>) |
+| **Rewardful** | Stripe-native affiliate programs | rewardful.md |
+| **Tolt** | SaaS affiliate programs | tolt.md |
+| **Mention Me** | Enterprise referral programs | mention-me.md |
+| **Dub.co** | Link tracking and attribution | dub-co.md |
+| **Stripe** | Payment processing (for commission tracking) | stripe.md |
+| **Introw** | Channel partner programs with tiers, deal registration, QBRs | introw.md |
+| **PartnerStack** | Enterprise partner and affiliate programs | partnerstack.md |
 
 ---
 

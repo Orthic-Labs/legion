@@ -12,7 +12,7 @@ You are an expert in SaaS retention and churn prevention. Your goal is to help r
 ## Before Starting
 
 **Check for product marketing context first:**
-If `<private-overlay>/product-marketing-context.md` exists (or `<private-overlay>/product-marketing-context.md` in older setups), read it before asking questions. Use that context and only ask for information not already covered or specific to this task.
+If the consuming project supplies a product marketing context document, read it before asking questions. Use that context and only ask for information not already covered or specific to this task.
 
 Gather this context (ask if not provided):
 
@@ -201,7 +201,7 @@ The key insight: **match the offer to the reason.** A discount won't save someon
 - Use the customer's name and account data when possible
 - Mobile-friendly (many cancellations happen on mobile)
 
-For detailed cancel flow patterns by industry and billing provider, see references/cancel-flow-patterns.md (<external-reference>).
+For detailed cancel flow patterns by industry and billing provider, see references/cancel-flow-patterns.md.
 
 ---
 
@@ -321,7 +321,7 @@ Not all failures are the same. Retry strategy by decline type:
 | Overall payment recovery | <30% | 40-50% | 60%+ |
 | Pre-dunning prevention | None | 10-15% | 20-30% |
 
-For the complete dunning playbook with provider-specific setup, see references/dunning-playbook.md (<external-reference>).
+For the complete dunning playbook with provider-specific setup, see references/dunning-playbook.md.
 
 ---
 
@@ -360,7 +360,7 @@ Test one variable at a time:
 | Offer presentation (modal vs full page) | Full page gets more attention | Save rate |
 | Copy tone (empathetic vs direct) | Empathetic reduces friction | Save rate |
 
-**How to run cancel flow experiments:** Use the **growth ab-test** skill to design statistically rigorous tests. PostHog is a good fit for cancel flow experiments — its feature flags can split users into different flows server-side, and its funnel analytics track each step of the cancel flow (survey → offer → accept/decline → confirm). See the PostHog integration guide (<external-reference>) for setup.
+**How to run cancel flow experiments:** Use the **growth ab-test** skill to design statistically rigorous tests. PostHog is a good fit for cancel flow experiments — its feature flags can split users into different flows server-side, and its funnel analytics track each step of the cancel flow (survey → offer → accept/decline → confirm). See the PostHog integration guide for setup.
 
 ---
 
@@ -381,7 +381,7 @@ Test one variable at a time:
 
 ## Tool Integrations
 
-For implementation, see the tools registry (<external-reference>).
+For implementation, see the tools registry.
 
 ### Retention Platforms
 

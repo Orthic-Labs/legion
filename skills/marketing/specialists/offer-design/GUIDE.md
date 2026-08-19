@@ -5,7 +5,7 @@ description: Build or repair an offer for a validated product. Use for Grand Sla
 
 # Offer design
 
-Use this branch only for a named venture, validated product, target buyer, channel, & known price or price range. Load `/brand <venture>` when available. Never apply commercial tooling to Willow and Pine.
+Use this branch only for a named venture, validated product, target buyer, channel, & known price or price range. Load `/brand <venture>` when available. Some ventures are explicitly non-commercial; the consuming project's per-venture policy governs, and commercial tooling must never be applied against it.
 
 ## Method
 

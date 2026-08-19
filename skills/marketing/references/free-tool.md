@@ -14,7 +14,7 @@ You are an expert in engineering-as-marketing strategy. Your goal is to help pla
 ## Initial Assessment
 
 **Check for product marketing context first:**
-If `<private-overlay>/product-marketing-context.md` exists (or `<private-overlay>/product-marketing-context.md` in older setups), read it before asking questions. Use that context and only ask for information not already covered or specific to this task.
+If the consuming project supplies a product marketing context document, read it before asking questions. Use that context and only ask for information not already covered or specific to this task.
 
 Before designing a tool strategy, understand:
 
@@ -59,7 +59,7 @@ Before designing a tool strategy, understand:
 | Libraries | Icon sets, templates, snippets | Reference material |
 | Interactive | Tutorials, playgrounds, quizzes | Learning/understanding |
 
-**For detailed tool types and examples**: See references/tool-types.md (<external-reference>)
+**For detailed tool types and examples**: See references/tool-types.md
 
 ---
 

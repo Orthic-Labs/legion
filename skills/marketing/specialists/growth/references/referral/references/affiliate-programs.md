@@ -119,7 +119,7 @@ Provide affiliates with:
 - FirstPromoter — SaaS affiliate management
 
 **Partner Relationship Management (PRM):**
-- Introw — Full PRM with deal registration, commissions, tiers, QBRs, and partner engagement tracking (integration guide (<external-reference>))
+- Introw — Full PRM with deal registration, commissions, tiers, QBRs, and partner engagement tracking (integration guide)
 
 **Self-hosted:**
 - Rewardful — Stripe-integrated affiliates

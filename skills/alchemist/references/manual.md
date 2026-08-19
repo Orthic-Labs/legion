@@ -1,6 +1,6 @@
 # Alchemist — manual
 
-Detail behind `SKILL.md`. Gateway itself is documented in `docs/rules/omniroute-access.md`.
+Detail behind `SKILL.md`.
 
 ## Visible relay architecture
 
@@ -35,7 +35,7 @@ OmniRoute combo (`omniroute combo create <name> --strategy round-robin`, needs t
 generate one profile for it, and pass that profile. Fixed aliases stay available for reproducible
 runs.
 
-## Invocation contract — verified 2026-08-09 on both machines
+## Invocation contract
 
 The runners call `omniroute launch-codex --profile <p> exec --model <id> -c
 features.multi_agent=false --json -`. Three rules, each learned from a real failure:
@@ -62,7 +62,7 @@ features.multi_agent=false --json -`. Three rules, each learned from a real fail
 
 `run-worker.ps1` (Windows) builds an **isolated `CODEX_HOME`** containing only the provider table,
 profile, and model catalog, then passes `--dangerously-bypass-approvals-and-sandbox --cd <dir>`.
-the operator accepted that full-host trust boundary on 2026-08-09 because managed Windows workers stay read-only.
+The operator accepts this full-host trust boundary when managed Windows workers stay read-only.
 limits concurrency with named mutexes (`ALCHEMIST_MAX_CONCURRENT`, default and maximum 10), and fails when the
 launcher emits zero JSON events. Isolation matters: without it the worker loads every configured
 MCP server and skill, and a trivial turn costs ~75k input tokens.

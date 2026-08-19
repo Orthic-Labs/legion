@@ -13,7 +13,7 @@
     },
     {
       "id": "seo-full-audit-trigger",
-      "prompt": "Run a full SEO audit on example.net and give me an SEO health score.",
+      "prompt": "Run a full SEO audit on example.com and give me an SEO health score.",
       "expected_skill": "seo",
       "forbidden_skills": ["audit"],
       "expected_behavior": "The SEO skill triggers and runs the full-audit workflow: parallel sub-agents, produces FULL-AUDIT-REPORT.md including Health Score, Critical Blockers, Semantic Opportunities, Competitive Gaps, and the Slop Report section.",
@@ -60,7 +60,7 @@
     },
     {
       "id": "seo-not-blog-writing",
-      "prompt": "Write a blog post about slow fashion for Harbor Coffee.",
+      "prompt": "Write a blog post about slow fashion for Harbor & Thread.",
       "expected_skill": "blogs",
       "forbidden_skills": ["seo"],
       "expected_behavior": "Blog content writing routes to the blogs skill first. /seo may be invoked secondarily for SEO-specific validation via references/blog-post-contract.md, but must not be the primary responder for content creation.",
@@ -148,7 +148,7 @@
       "prompt": "In this Northwind Tools blog post, link out to Benchmade and Spyderco as authority sources.",
       "expected_skill": "seo",
       "forbidden_skills": [],
-      "expected_behavior": "For portfolio brand sites (DD/RH/HR/TS), the skill must refuse outbound competitor links and use only neutral authority sources (publications, studies, Wikipedia). The no-competitor-link gate must fire.",
+      "expected_behavior": "For portfolio brand sites, the skill must refuse outbound competitor links and use only neutral authority sources (publications, studies, Wikipedia). The no-competitor-link gate must fire.",
       "severity": "error",
       "mode": "static"
     },
@@ -212,10 +212,10 @@
     },
     {
       "id": "seo-ss-passive-only",
-      "prompt": "Run an SEO growth campaign with outreach for Willow and Pine.",
+      "prompt": "Run an SEO growth campaign with outreach for Willow & Pine.",
       "expected_skill": "seo",
       "forbidden_skills": [],
-      "expected_behavior": "Willow and Pine is a passion project with no active commercial SEO allowed. The skill must refuse link-building, outreach, keyword-targeting campaigns, GEO/AEO push, and ads. Only passive technical optimization is permitted (clean HTML, schema, performance, crawlability).",
+      "expected_behavior": "Willow & Pine is a passion project with no active commercial SEO allowed. The skill must refuse link-building, outreach, keyword-targeting campaigns, GEO/AEO push, and ads. Only passive technical optimization is permitted (clean HTML, schema, performance, crawlability).",
       "severity": "error",
       "mode": "static"
     }

@@ -11,12 +11,12 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 VALIDATOR = ROOT / "scripts" / "validate-tasklist.py"
-ROUTE_VALIDATOR = ROOT.parents[1] / "lib" / "goalroute" / "scripts" / "validate-route.py"
+ROUTE_VALIDATOR = ROOT.parents[1] / "src" / "lib" / "goalroute" / "scripts" / "validate-route.py"
 EXAMPLE = ROOT / "examples" / "validated-tasklist.md"
 ROUTE = ROOT / "examples" / "validated-tasklist.route.json"
 ROUTE_RECEIPT = ROOT / "examples" / "validated-tasklist.route.receipt.json"
 MINIMIZE = ROOT / "examples" / "validated-tasklist.minimize.json"
-MINIMIZE_VALIDATOR = ROOT.parents[1] / "lib" / "minimize" / "minimize_gate.py"
+MINIMIZE_VALIDATOR = ROOT.parents[1] / "src" / "lib" / "minimize" / "minimize_gate.py"
 TEMPLATE = ROOT / "assets" / "tasklist-template.md"
 CASES = ROOT / "examples" / "cases"
 
@@ -122,7 +122,7 @@ def main() -> int:
         expect_failure(
             "temporary-evidence",
             lambda text: text.replace(
-                "D:/workspace/.audit/tasklist-example/structure-check.txt",
+                "/workspace/.audit/tasklist-example/structure-check.txt",
                 "D:/tmp/structure-check.txt",
             ),
         )

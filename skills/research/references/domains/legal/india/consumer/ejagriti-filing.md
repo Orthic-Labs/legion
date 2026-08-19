@@ -2,7 +2,7 @@
 
 How a District Commission consumer complaint actually gets onto the record. Portal specifics change — anything not `[VERIFIED]` must be confirmed live on the portal before you walk a user through it.
 
-`[OBSERVED 2026-05]` = seen directly during the May 2026 filings (reliable but portal UI can change). `[UNVERIFIED]` = general knowledge, confirm live.
+`[OBSERVED]` = seen directly during prior filings (reliable but portal UI can change). `[UNVERIFIED]` = general knowledge, confirm live.
 
 ---
 
@@ -17,19 +17,19 @@ How a District Commission consumer complaint actually gets onto the record. Port
 
 1. **NCH grievance** filed → docket number saved (it becomes an annexure).
 2. **Pre-litigation notice** sent to every OP — email and/or registered post — with an explicit working-day cure period. Save the sent copy; note the date the cure period expires. This becomes an annexure and the most recent "cause of action" event.
-3. **e-Jagriti account** created; complainant profile complete (it auto-populates the complainant fields at filing time). `[OBSERVED 2026-05]`
+3. **e-Jagriti account** created; complainant profile complete (it auto-populates the complainant fields at filing time). `[OBSERVED]`
 4. The **six-document pack** generated, the legal substance reviewed, the Complaint+Affidavit **notarised**, and **every document plus every annexure converted to PDF**. e-Jagriti takes PDF uploads.
 
-## The new-case form — step by step `[OBSERVED 2026-05]`
+## The new-case form — step by step `[OBSERVED]`
 
 Path observed: `e-jagriti.gov.in/consumer/case-filing/new-case-form`
 
 1. **Case Type** → *Consumer Complaint (CC)*, *Normal Filing*.
 2. **Case Details** →
-   - Amount paid as consideration (e.g. ₹18,600)
-   - Total claim value (e.g. ₹50,000)
-   - State (e.g. Maharashtra), District (e.g. Mumbai Suburban)
-   - Case Category / Sub Category / Sub-Sub Category — pick the closest fit (May 2026 example: *Service Deficiency* → *Service Provider Fraud or Misrepresentation* → *Service Scams*). The category tree is the portal's, not the Act's — choose the nearest, don't agonise.
+   - Amount paid as consideration (e.g. ₹9,400)
+   - Total claim value (e.g. ₹25,000)
+   - State (e.g. Karnataka), District (e.g. Bengaluru Urban)
+   - Case Category / Sub Category / Sub-Sub Category — pick the closest fit (example: *Service Deficiency* → *Service Provider Fraud or Misrepresentation* → *Service Scams*). The category tree is the portal's, not the Act's — choose the nearest, don't agonise.
 3. **Complainant details** — auto-populated from the account profile; review and save.
 4. **Additional Complainant** — skip if sole complainant.
 5. **Opposite Party 1** — name, address, contact. Fill from the Memo of Parties.
@@ -39,7 +39,7 @@ Path observed: `e-jagriti.gov.in/consumer/case-filing/new-case-form`
 
 > A part-completed case can be saved as a draft. Drafts may expire — if you return and the draft is gone, the case has to be re-entered. Don't start the portal form until the PDFs are ready to upload in one sitting.
 
-## What to upload `[OBSERVED 2026-05 + UNVERIFIED ordering]`
+## What to upload `[OBSERVED + UNVERIFIED ordering]`
 
 Upload as PDFs, in the Index order:
 
@@ -75,5 +75,5 @@ Confirm on the portal whether it wants one combined PDF or separate files per it
 
 ## Sources / provenance
 
-- Portal steps `[OBSERVED 2026-05]` directly from the May 2026 MyBiz filing session.
+- Portal steps `[OBSERVED]` directly from prior filing sessions.
 - Everything `[UNVERIFIED]` here must be confirmed live on e-jagriti.gov.in before relying on it — government portal UIs and upload rules change without notice.

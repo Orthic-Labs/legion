@@ -30,7 +30,7 @@ Plain `/handoff` in current source chat means:
 Windows:
 
 ```powershell
-py -3.11 lib/handoff/transcript-handoff.py bootstrap --platform codex --session-id "<CURRENT_TASK_ID>" --workspace "<CURRENT_WORKSPACE>"
+py -3.11 skills/handoff/scripts/transcript-handoff.py bootstrap --platform codex --session-id "<CURRENT_TASK_ID>" --workspace "<CURRENT_WORKSPACE>"
 ```
 
 Use `--platform claude` for Claude Code. If runtime exposes no ID, omit `--session-id`; resolver selects newest transcript whose embedded cwd exactly matches workspace & declares `selection_method=newest_workspace_match`. Never ask old chat to summarize itself.
@@ -38,7 +38,7 @@ Use `--platform claude` for Claude Code. If runtime exposes no ID, omit `--sessi
 macOS:
 
 ```bash
-python3 /workspace/legion/lib/handoff/transcript-handoff.py bootstrap --platform claude --session-id "<CURRENT_TASK_ID>" --workspace "/workspace"
+python3 skills/handoff/scripts/transcript-handoff.py bootstrap --platform claude --session-id "<CURRENT_TASK_ID>" --workspace "<CURRENT_WORKSPACE>"
 ```
 
 Source output is pointer, not handoff, so permanent packet/receipt gate does not apply yet.
@@ -87,7 +87,7 @@ Before validation or transfer, create permanent packet under:
 
 - existing project handoff directory, when declared by project rules; else
 - `<project>/tasks/handoffs/<YYYY-MM-DD>/<handoff-id>.md`; or
-- `D:/workspace/tasks/handoffs/<YYYY-MM-DD>/<handoff-id>.md` for cross-project studio work.
+- `<studio-workspace-root>/tasks/handoffs/<YYYY-MM-DD>/<handoff-id>.md` for cross-project studio work.
 
 Receipt lives beside packet as `<handoff-id>.receipt.json`. Never use OS Temp, `.cache`, `.council-runs`, scratch, or disposable validation path as canonical artifact. Include packet + receipt in scoped commit when task operates in tracked repo & packet has no sensitive content. Inline transfer is exact copy of canonical packet, never source.
 
@@ -103,7 +103,7 @@ Define:
 - what receiver must not do;
 - why handoff exists now.
 
-For the operator, default `IMMEDIATE`: receiver returns readback, corrects mismatch from packet, then proceeds without asking permission already granted. Use another mode only when user reserved a decision.
+Default `IMMEDIATE` for the caller's own standing authorization: receiver returns readback, corrects mismatch from packet, then proceeds without asking permission already granted. Use another mode only when the caller reserved a decision.
 
 ## Step 2 — Reconstruct, do not remember
 
@@ -257,15 +257,15 @@ Any missing answer means revise.
 Windows:
 
 ```powershell
-py -3.11 lib/handoff/validate-handoff.py <handoff.md> --write-receipt <handoff.receipt.json>
-py -3.11 lib/handoff/validate-handoff.py <handoff.md> --verify-receipt <handoff.receipt.json>
+py -3.11 skills/handoff/scripts/validate-handoff.py <handoff.md> --write-receipt <handoff.receipt.json>
+py -3.11 skills/handoff/scripts/validate-handoff.py <handoff.md> --verify-receipt <handoff.receipt.json>
 ```
 
 macOS:
 
 ```bash
-python3 /workspace/legion/lib/handoff/validate-handoff.py <handoff.md> --write-receipt <handoff.receipt.json>
-python3 /workspace/legion/lib/handoff/validate-handoff.py <handoff.md> --verify-receipt <handoff.receipt.json>
+python3 skills/handoff/scripts/validate-handoff.py <handoff.md> --write-receipt <handoff.receipt.json>
+python3 skills/handoff/scripts/validate-handoff.py <handoff.md> --verify-receipt <handoff.receipt.json>
 ```
 
 Write handoff to durable, named `.md` artifact before validation. Temporary-only & inline-only handoffs are forbidden. File remains canonical audit & resume source. Send packet + receipt together. If cold chat cannot access filesystem, paste exact validated bytes inline while retaining canonical file + receipt. Receiver verifies receipt before readback. Do not paste content different from validated file.

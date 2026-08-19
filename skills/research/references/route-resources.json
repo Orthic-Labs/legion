@@ -1,66 +1,66 @@
 {
   "domains": {
     "legal": [
-      "tools/skills/research/references/domains/legal/GUIDE.md"
+      "references/domains/legal/GUIDE.md"
     ],
     "medical": [
-      "tools/skills/research/references/domains/medical/GUIDE.md"
+      "references/domains/medical/GUIDE.md"
     ]
   },
   "methods": {
     "audience": [
-      "tools/skills/research/references/methods/audience.md"
+      "references/methods/audience.md"
     ],
     "authority": [
-      "tools/skills/research/references/methods/authority.md"
+      "references/methods/authority.md"
     ],
     "competitor": [
-      "tools/skills/research/references/methods/competitors.md"
+      "references/methods/competitors.md"
     ],
     "document": [
-      "tools/skills/research/references/methods/document.md"
+      "references/methods/document.md"
     ],
     "reddit": [
-      "tools/skills/research/references/methods/reddit.md"
+      "references/methods/reddit.md"
     ],
     "scholarly": [
-      "tools/skills/research/references/methods/scholarly.md"
+      "references/methods/scholarly.md"
     ],
     "trends": [
-      "tools/skills/research/references/methods/trends.md"
+      "references/methods/trends.md"
     ],
     "web": [
-      "tools/skills/research/references/methods/search-discipline.md"
+      "references/methods/search-discipline.md"
     ]
   },
   "providers": {
     "browser": [
-      "src/lib/research-core/providers/command_bridge.py",
-      "src/lib/research-core/providers/search_open_find.py"
+      "TODO: no in-package equivalent under legion/skills/research/ for src/lib/research-core/providers/command_bridge.py",
+      "TODO: no in-package equivalent under legion/skills/research/ for src/lib/research-core/providers/search_open_find.py"
     ],
     "domain-default": [
-      "src/lib/research-core/providers/search_open_find.py",
-      "src/lib/research-core/providers/scholarly.py",
-      "src/lib/research-core/providers/command_bridge.py",
-      "tools/skills/research/references/methods/authority.md"
+      "TODO: no in-package equivalent under legion/skills/research/ for src/lib/research-core/providers/search_open_find.py",
+      "TODO: no in-package equivalent under legion/skills/research/ for src/lib/research-core/providers/scholarly.py",
+      "TODO: no in-package equivalent under legion/skills/research/ for src/lib/research-core/providers/command_bridge.py",
+      "references/methods/authority.md"
     ],
     "local-corpus": [
-      "src/lib/research-core/providers/local_corpus.py"
+      "TODO: no in-package equivalent under legion/skills/research/ for src/lib/research-core/providers/local_corpus.py"
     ],
     "notebooklm": [
-      "src/lib/research-core/providers/notebooklm.py",
-      "tools/skills/research/references/providers/notebooklm.md"
+      "TODO: no in-package equivalent under legion/skills/research/ for src/lib/research-core/providers/notebooklm.py",
+      "references/providers/notebooklm.md"
     ]
   },
   "schema_version": 1,
   "workflows": {
     "india-consumer-commission": [
-      "tools/skills/research/references/domains/legal/india/consumer/GUIDE.md",
-      "src/lib/research-core/workflows/legal/india/consumer/scripts/generate_pack.py",
-      "src/lib/research-core/workflows/legal/india/consumer/scripts/case-template.yaml"
+      "references/domains/legal/india/consumer/GUIDE.md",
+      "TODO: no in-package equivalent under legion/skills/research/ for src/lib/research-core/workflows/legal/india/consumer/scripts/generate_pack.py",
+      "TODO: no in-package equivalent under legion/skills/research/ for src/lib/research-core/workflows/legal/india/consumer/scripts/case-template.yaml"
     ],
     "india-criminal": [
-      "src/lib/research-core/workflows/legal/india/criminal/GUIDE.md"
+      "TODO: no in-package equivalent under legion/skills/research/ for src/lib/research-core/workflows/legal/india/criminal/GUIDE.md"
     ]
   }
 }

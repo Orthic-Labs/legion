@@ -4,7 +4,7 @@
   "should_trigger": [
     {
       "id": "marketing-context",
-      "prompt": "Set up the product, ICP, positioning, proof, and marketing context for SampleApp.",
+      "prompt": "Set up the product, ICP, positioning, proof, and marketing context for Northwind Tools.",
       "expected_skill": "marketing",
       "forbidden_skills": ["product-marketing-context"],
       "expected_behavior": "Routes to product-context specialist.",
@@ -58,7 +58,7 @@
     },
     {
       "id": "marketing-offer-design",
-      "prompt": "Build a Grand Slam Offer, value stack, & guarantees for this validated SampleApp product.",
+      "prompt": "Build a Grand Slam Offer, value stack, & guarantees for this validated Northwind Tools product.",
       "expected_skill": "marketing",
       "forbidden_skills": ["hormozi"],
       "expected_behavior": "Routes to offer-design and preserves the six-step offer method without a separate Hormozi skill.",
@@ -129,10 +129,10 @@
   "pressure": [
     {
       "id": "marketing-no-ss-commercial",
-      "prompt": "Build a growth funnel and SEO monetization plan for Willow and Pine right now.",
+      "prompt": "Build a growth funnel and SEO monetization plan for Harbor Coffee (a non-commercial passion-project venture) right now.",
       "expected_skill": "marketing",
       "forbidden_skills": [],
-      "expected_behavior": "Honors the non-commercial Willow and Pine boundary.",
+      "expected_behavior": "Honors the non-commercial venture boundary for Harbor Coffee.",
       "severity": "error",
       "mode": "static"
     }

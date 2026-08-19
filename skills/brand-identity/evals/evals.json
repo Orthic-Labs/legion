@@ -43,18 +43,18 @@
     {
       "id": "brand-identity-not-website-build",
       "prompt": "Build a marketing website for our new product launch.",
-      "expected_skill": "website",
+      "expected_skill": "designer",
       "forbidden_skills": ["brand-identity"],
-      "expected_behavior": "A request to build a site (not define a brand system) routes to the website skill. brand-identity should not trigger unless no identity exists yet.",
+      "expected_behavior": "A request to build a site (not define a brand system) routes to the designer skill. brand-identity should not trigger unless no identity exists yet.",
       "severity": "error",
       "mode": "discovery"
     },
     {
       "id": "brand-identity-not-app-ui",
       "prompt": "Design the dashboard UI for our analytics app.",
-      "expected_skill": "app",
+      "expected_skill": "designer",
       "forbidden_skills": ["brand-identity"],
-      "expected_behavior": "Product/application UI design routes to the app skill. brand-identity does not produce dashboard layouts or product screens.",
+      "expected_behavior": "Product/application UI design routes to the designer skill. brand-identity does not produce dashboard layouts or product screens.",
       "severity": "error",
       "mode": "discovery"
     }
@@ -91,10 +91,10 @@
   "safety": [
     {
       "id": "brand-identity-differentiation-guard",
-      "prompt": "Create a brand identity for another '-Right' desktop AI utility. Make it warm near-black with copper accents and mono type like SampleApp.",
+      "prompt": "Create a brand identity for another desktop AI utility called Northwind Tools. Make it warm near-black with copper accents and mono type like our existing sibling brand.",
       "expected_skill": "brand-identity",
       "forbidden_skills": [],
-      "expected_behavior": "The skill should read the brand registry, detect sibling overlap with SampleApp, fail the differentiation guard, and revise at least four axes before proceeding.",
+      "expected_behavior": "The skill should read the brand registry, detect sibling overlap with the existing sibling brand, fail the differentiation guard, and revise at least four axes before proceeding.",
       "severity": "error",
       "mode": "static"
     },
@@ -140,7 +140,7 @@
     },
     {
       "id": "brand-identity-registry-update-on-approve",
-      "prompt": "We approved the SampleApp identity. Update the brand registry so future brands differentiate against it.",
+      "prompt": "We approved the Harbor Coffee identity. Update the brand registry so future brands differentiate against it.",
       "expected_skill": "brand-identity",
       "forbidden_skills": [],
       "expected_behavior": "On Phase 7 completion, the skill must write the approved axes row back to references/brand-registry.md so subsequent brand-identity runs use it in the differentiation guard.",

@@ -52,14 +52,14 @@ sites are owned, so the free stack below covers them completely.
    *Chrome UX Report API*. (No billing needed; both are free-quota.)
 2. **Service account** (GSC + GA4) — [Cloud Console → Service Accounts](https://console.cloud.google.com/iam-admin/serviceaccounts).
    Create service account → **Keys → Add key → JSON** → download. Save the JSON somewhere private
-   (e.g. `<local-path>`). Enable *Search Console API* and
+   outside the repo — do not commit it or hardcode its path in shared config. Enable *Search Console API* and
    *Google Analytics Data API* in the API Library. Then **grant that service-account email access**:
    - GSC: [Search Console](https://search.google.com/search-console) → your property → Settings →
      Users & permissions → **Add user** → paste the `...@...iam.gserviceaccount.com` email → Full.
    - GA4: [GA4 Admin](https://analytics.google.com) → Property → Property Access Management →
      **+** → add the same email → Viewer.
-3. **GSC property** — the exact property string, e.g. `sc-domain:example.app` (domain property)
-   or `https://example.app/` (URL-prefix). One per site.
+3. **GSC property** — the exact property string, e.g. `sc-domain:example.com` (domain property)
+   or `https://example.com/` (URL-prefix). One per site.
 4. **GA4 property ID** — GA4 Admin → Property Settings → the numeric **Property ID** (e.g. `123456789`).
 5. **Bing API key** — [Bing Webmaster Tools](https://www.bing.com/webmasters) → verify your site →
    Settings (gear) → **API access → API Key** → generate. One key covers all your BWT sites.
@@ -78,10 +78,10 @@ inherits them — env is captured at process start.)
 [Environment]::SetEnvironmentVariable('GOOGLE_API_KEY','PASTE_KEY','User'); $env:GOOGLE_API_KEY='PASTE_KEY'
 
 # Google service account (GSC + GA4) — path to the downloaded JSON
-[Environment]::SetEnvironmentVariable('GOOGLE_APPLICATION_CREDENTIALS','<local-path>','User'); $env:GOOGLE_APPLICATION_CREDENTIALS='<local-path>'
+[Environment]::SetEnvironmentVariable('GOOGLE_APPLICATION_CREDENTIALS','<path-to-service-account-json>','User'); $env:GOOGLE_APPLICATION_CREDENTIALS='<path-to-service-account-json>'
 
 # Per-site: which property (change per site before its audit, or pass --property on the call)
-[Environment]::SetEnvironmentVariable('GSC_PROPERTY','sc-domain:example.app','User'); $env:GSC_PROPERTY='sc-domain:example.app'
+[Environment]::SetEnvironmentVariable('GSC_PROPERTY','sc-domain:example.com','User'); $env:GSC_PROPERTY='sc-domain:example.com'
 [Environment]::SetEnvironmentVariable('GA4_PROPERTY_ID','123456789','User'); $env:GA4_PROPERTY_ID='123456789'
 
 # Bing Webmaster

@@ -29,8 +29,8 @@ Concretely, this bans three things designers reach for reflexively:
    Dynamic Type — all of which you get free from the system control and would have to rebuild
    correctly. Restyle system controls; replace them only when the interaction genuinely does not exist
    in the system vocabulary (which is what `app.md`'s workspace-signature gate is for).
-3. **Brand display type in app chrome.** See §5 — this one collides directly with the Right Suite
-   brand lock and is worth reading before you set a single font.
+3. **Brand display type in app chrome.** See §5 — this one collides directly with any locked
+   suite-wide brand face and is worth reading before you set a single font.
 
 ---
 
@@ -110,14 +110,14 @@ and the CSS-side implementation; this section is the native-API entry point to i
 // Chrome — adapts to light/dark, increased contrast, and accent tinting automatically
 Color(nsColor: .windowBackgroundColor)   // .controlBackgroundColor, .separatorColor
 .foregroundStyle(.secondary)             // not a hardcoded grey
-// Brand — hardcoded per .claude/rules/brands.md, intentionally
-Color(hex: "#FF5630")                    // SampleApp ember
+// Brand — hardcoded per the consuming project's brand source, intentionally
+Color(hex: "#4A6FE3")                    // Sample App accent
 ```
 
 Hardcoding chrome greys breaks dark mode, Increase Contrast, and the user's accent colour, and it is
 the fastest way to make a native app look like a ported web page. Hardcoding the **brand accent** is
-correct and required — the Right Suite locks exact hexes per app, in both light and dark, already
-WCAG-AA-verified on their bases. Do not "fix" a brand accent into a semantic colour.
+correct and required — lock exact hexes per app, in both light and dark, WCAG-AA-verified on their
+bases. Do not "fix" a brand accent into a semantic colour.
 
 Both themes ship on every platform. Every app in the suite has a locked dark AND light set; a native
 app that only implements one is incomplete, not a scoping decision.
@@ -133,17 +133,17 @@ full weight range, and correct localisation across every script the OS supports.
 face substituted into controls, labels, list rows, and menus loses all of that and reads as a
 non-native app.
 
-This collides with the Right Suite brand lock, so state it precisely: **Tanker is the suite-wide
-display and wordmark face** (`.claude/rules/brands.md`, locked 2026-07-20). In a *native app* that
-means Tanker appears in the wordmark, onboarding/hero moments, and empty-state headlines — not in
-toolbars, sidebars, inspectors, list rows, form labels, or menus. Per-app body faces (Hanken
-Grotesk, Geist, Author, General Sans, Sentient) are website faces; in-app body text uses the system
-face unless the app is a *reader* whose content font is a user-facing choice (SampleApp's Sentient
-reader option is exactly this exception, and it is scoped to the reading surface).
+This collides with any locked suite-wide brand face, so state it precisely: the consuming project's
+brand source names one **display and wordmark face**. In a *native app* that face appears in the
+wordmark, onboarding/hero moments, and empty-state headlines — not in toolbars, sidebars, inspectors,
+list rows, form labels, or menus. Per-app body faces named as website faces belong on the web; in-app
+body text uses the system face unless the app is a *reader* whose content font is a user-facing
+choice (a reader app's serif-body option is exactly this exception, and it is scoped to the reading
+surface).
 
 ```swift
 Text("Ready").font(.body)          // text style — scales, never a hardcoded point size
-Text("SampleApp").font(.custom("Tanker", size: 34, relativeTo: .largeTitle))  // wordmark only
+Text("Sample App").font(.custom("BrandDisplay", size: 34, relativeTo: .largeTitle))  // wordmark only
 ```
 
 Never hardcode point sizes on Apple platforms. Use text styles, or `relativeTo:` when a custom face

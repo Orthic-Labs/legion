@@ -76,6 +76,6 @@ export function Pricing({ heading, periods, tiers }: { heading: string; periods:
   accent sprinkling. Never two featured tiers.
 - Numbers in `price` must be real, verified prices from the source of truth — never invented
   (verify-before-propagate applies to pricing above everything).
-- One-time pricing (HR-style Free/Pro): drop the toggle, keep the layout; put the founders→standard
+- One-time pricing (Free/Pro with no recurring toggle): drop the toggle, keep the layout; put the founders→standard
   framing in `note`.
 - The `layoutId` pill is the only "clever" motion here; the cards just stagger in once.

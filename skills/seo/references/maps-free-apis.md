@@ -26,7 +26,7 @@
 **Restaurants within 5km radius:**
 ```bash
 curl -s "https://overpass-api.de/api/interpreter" \
-  --data-urlencode 'data=[out:json][timeout:25];(node"amenity"="restaurant" (<external-reference>);way"amenity"="restaurant" (<external-reference>););out body;>;out skel qt;'
+  --data-urlencode 'data=[out:json][timeout:25];(node"amenity"="restaurant";way"amenity"="restaurant";);out body;>;out skel qt;'
 ```
 
 **All businesses on a street:**
@@ -38,7 +38,7 @@ curl -s "https://overpass-api.de/api/interpreter" \
 **Competitor POIs by category in bounding box:**
 ```bash
 curl -s "https://overpass-api.de/api/interpreter" \
-  --data-urlencode 'data=[out:json][timeout:25];(node"amenity"="dentist" (<external-reference>);way"amenity"="dentist" (<external-reference>););out body;>;out skel qt;'
+  --data-urlencode 'data=[out:json][timeout:25];(node"amenity"="dentist";way"amenity"="dentist";);out body;>;out skel qt;'
 ```
 
 ### Key OSM Tags for Local SEO

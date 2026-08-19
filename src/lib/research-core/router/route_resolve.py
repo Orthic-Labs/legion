@@ -25,10 +25,10 @@ def build_subject(intent: str, domain: str, context: dict[str, Any]) -> dict[str
             kind = 'self'
         else:
             kind = 'anonymous'
+        # Personal routes never infer a patient-history path: the host must supply
+        # `history_source` explicitly via context (e.g. a configured patient-history
+        # file). No filename or path is hardcoded here.
         history_source = context.get('history_source')
-        if not history_source and kind == 'self':
-            canonical = WORKSPACE / 'Health' / 'medical-research-system' / 'history' / 'operator.yaml'
-            history_source = str(canonical)
         history_available = bool(history_source and Path(history_source).is_file())
         return {
             'patient': {

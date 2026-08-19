@@ -46,7 +46,6 @@
       "references/design-reference-library.md",
       "references/manual.md",
       "references/native-app.md",
-      "references/portfolio-registry.md",
       "references/reference-capture-template.md",
       "references/website.md",
       "specialists/glass/GUIDE.md",
@@ -104,14 +103,18 @@
       "registry/skills/index.json",
       "lib/skills/resolver.mjs",
       "registry/routing/domains.json"
+    ],
+    "outputsPrunedOn": "2026-08-19",
+    "outputsRemoved": [
+      "references/portfolio-registry.md"
     ]
   },
   "files": [
     {
       "path": "SKILL.md",
       "uri": "legion-skill://designer/SKILL.md",
-      "sourceDigest": "sha256:21e40542e41312ab883af24771f8471a41c09cad78d1b74ff4934851b81db7d2",
-      "outputDigest": "sha256:21e40542e41312ab883af24771f8471a41c09cad78d1b74ff4934851b81db7d2",
+      "sourceDigest": "sha256:782fc911f219831879d1bfe26740ac44721e51c440f98fc3315466f7394220a8",
+      "outputDigest": "sha256:782fc911f219831879d1bfe26740ac44721e51c440f98fc3315466f7394220a8",
       "transformations": [
         "approving-human",
         "package-relative-links",
@@ -121,8 +124,8 @@
     {
       "path": "engine/GUIDE.md",
       "uri": "legion-skill://designer/engine/GUIDE.md",
-      "sourceDigest": "sha256:634bf6c490376a92d295e02efd946738cebcae12e4014ae084a54089da882fd7",
-      "outputDigest": "sha256:634bf6c490376a92d295e02efd946738cebcae12e4014ae084a54089da882fd7",
+      "sourceDigest": "sha256:f7170def6530eebaa548d1f08edf341c6bba3fef23d48230ebbff41a31b68e9c",
+      "outputDigest": "sha256:f7170def6530eebaa548d1f08edf341c6bba3fef23d48230ebbff41a31b68e9c",
       "transformations": [
         "approving-human",
         "package-relative-links",
@@ -418,8 +421,8 @@
     {
       "path": "engine/huashu/references/hero-animation-case-study.md",
       "uri": "legion-skill://designer/engine/huashu/references/hero-animation-case-study.md",
-      "sourceDigest": "sha256:10497da0dd2dac244cea3c00c8b520551577ed6331fc6b423de74ba48141dfac",
-      "outputDigest": "sha256:10497da0dd2dac244cea3c00c8b520551577ed6331fc6b423de74ba48141dfac",
+      "sourceDigest": "sha256:e27111e37727218b7a81ac35def61febd3bb46e02cbf16d49195ade823a0eb62",
+      "outputDigest": "sha256:e27111e37727218b7a81ac35def61febd3bb46e02cbf16d49195ade823a0eb62",
       "transformations": [
         "approving-human",
         "package-relative-links",
@@ -484,8 +487,8 @@
     {
       "path": "engine/huashu/references/slide-decks.md",
       "uri": "legion-skill://designer/engine/huashu/references/slide-decks.md",
-      "sourceDigest": "sha256:f7c67305f9f169c6ce86bb35ddf5fd0b95bd543822f7aa0e27f0f66bbd95ac05",
-      "outputDigest": "sha256:f7c67305f9f169c6ce86bb35ddf5fd0b95bd543822f7aa0e27f0f66bbd95ac05",
+      "sourceDigest": "sha256:bde08988399d3dc187d2b4aff3b2c6f8535cb173d39d304e9eaa00189df2e26c",
+      "outputDigest": "sha256:bde08988399d3dc187d2b4aff3b2c6f8535cb173d39d304e9eaa00189df2e26c",
       "transformations": [
         "approving-human",
         "package-relative-links",
@@ -506,8 +509,8 @@
     {
       "path": "engine/huashu/references/verification.md",
       "uri": "legion-skill://designer/engine/huashu/references/verification.md",
-      "sourceDigest": "sha256:7743d6eb5392a741760b1ea68585267b82fd2fba2825cea166964f919b087225",
-      "outputDigest": "sha256:7743d6eb5392a741760b1ea68585267b82fd2fba2825cea166964f919b087225",
+      "sourceDigest": "sha256:ca9525dec77e667dfe066d4342a590c1e1998f56dad31f2cf1b9be7f8f1d1f94",
+      "outputDigest": "sha256:ca9525dec77e667dfe066d4342a590c1e1998f56dad31f2cf1b9be7f8f1d1f94",
       "transformations": [
         "approving-human",
         "package-relative-links",
@@ -803,8 +806,8 @@
     {
       "path": "engine/reference/craft.md",
       "uri": "legion-skill://designer/engine/reference/craft.md",
-      "sourceDigest": "sha256:e1a59a3cc66ddae019fc010b88adea56e8366e7751e879de574159d98de3b4e4",
-      "outputDigest": "sha256:e1a59a3cc66ddae019fc010b88adea56e8366e7751e879de574159d98de3b4e4",
+      "sourceDigest": "sha256:56881fef663319d27e8d3f4a2582cd070cc488de95013c835eba3163193e8bb0",
+      "outputDigest": "sha256:56881fef663319d27e8d3f4a2582cd070cc488de95013c835eba3163193e8bb0",
       "transformations": [
         "approving-human",
         "package-relative-links",
@@ -814,8 +817,8 @@
     {
       "path": "engine/reference/critique.md",
       "uri": "legion-skill://designer/engine/reference/critique.md",
-      "sourceDigest": "sha256:0ceee079a9687e22fdaac993bac464e02f825122086945cf3113f1a025c157a0",
-      "outputDigest": "sha256:0ceee079a9687e22fdaac993bac464e02f825122086945cf3113f1a025c157a0",
+      "sourceDigest": "sha256:c38b98513b512c44a1c00ef5bc6f1a574f15420d0792447df6f637a384aff6f6",
+      "outputDigest": "sha256:c38b98513b512c44a1c00ef5bc6f1a574f15420d0792447df6f637a384aff6f6",
       "transformations": [
         "approving-human",
         "package-relative-links",
@@ -880,8 +883,8 @@
     {
       "path": "engine/reference/hooks.md",
       "uri": "legion-skill://designer/engine/reference/hooks.md",
-      "sourceDigest": "sha256:1f859e1f65d8e64710d4bb1d63000b6773bf84f1bb918ed5790161e6bab6dd17",
-      "outputDigest": "sha256:1f859e1f65d8e64710d4bb1d63000b6773bf84f1bb918ed5790161e6bab6dd17",
+      "sourceDigest": "sha256:84ee7328a476414d2e71816abeccd87f6dd2d22e6ca9c286ace5cdd0f4d81947",
+      "outputDigest": "sha256:84ee7328a476414d2e71816abeccd87f6dd2d22e6ca9c286ace5cdd0f4d81947",
       "transformations": [
         "approving-human",
         "package-relative-links",
@@ -891,8 +894,8 @@
     {
       "path": "engine/reference/init.md",
       "uri": "legion-skill://designer/engine/reference/init.md",
-      "sourceDigest": "sha256:00b82441b390b068cb52b95e4c4523d64fab5c03e57312071ce58e0292deef8a",
-      "outputDigest": "sha256:00b82441b390b068cb52b95e4c4523d64fab5c03e57312071ce58e0292deef8a",
+      "sourceDigest": "sha256:cf6c7597a9cfd02d2a67e553862f776e508769ec9b6b26dd0fc1d441a56dc416",
+      "outputDigest": "sha256:cf6c7597a9cfd02d2a67e553862f776e508769ec9b6b26dd0fc1d441a56dc416",
       "transformations": [
         "approving-human",
         "package-relative-links",
@@ -924,8 +927,8 @@
     {
       "path": "engine/reference/live.md",
       "uri": "legion-skill://designer/engine/reference/live.md",
-      "sourceDigest": "sha256:cace7a0ed33821725271234305619f025c9a3642b5f013c3a2b207be79f9dfbb",
-      "outputDigest": "sha256:cace7a0ed33821725271234305619f025c9a3642b5f013c3a2b207be79f9dfbb",
+      "sourceDigest": "sha256:4ba9e89f65d7970569f4d089258843bb718309b310c6fa6ae1a42f6b6cf67b47",
+      "outputDigest": "sha256:4ba9e89f65d7970569f4d089258843bb718309b310c6fa6ae1a42f6b6cf67b47",
       "transformations": [
         "approving-human",
         "package-relative-links",
@@ -968,8 +971,8 @@
     {
       "path": "engine/reference/polish.md",
       "uri": "legion-skill://designer/engine/reference/polish.md",
-      "sourceDigest": "sha256:8775073f0f652bf3b37c558381d9d49d6b3498415b678a9b8fc7cc6ce7c2c67b",
-      "outputDigest": "sha256:8775073f0f652bf3b37c558381d9d49d6b3498415b678a9b8fc7cc6ce7c2c67b",
+      "sourceDigest": "sha256:5846049ba35a16707dad91d7d835a7882e9cea70b24383daea521394d2636efd",
+      "outputDigest": "sha256:5846049ba35a16707dad91d7d835a7882e9cea70b24383daea521394d2636efd",
       "transformations": [
         "approving-human",
         "package-relative-links",
@@ -1122,8 +1125,8 @@
     {
       "path": "engine/scripts/detector/detect-antipatterns-browser.js",
       "uri": "legion-skill://designer/engine/scripts/detector/detect-antipatterns-browser.js",
-      "sourceDigest": "sha256:28aef9700d50efaeaa13d5f1771eb92865069603cebf331ab24d2e9d75dcc2dc",
-      "outputDigest": "sha256:28aef9700d50efaeaa13d5f1771eb92865069603cebf331ab24d2e9d75dcc2dc",
+      "sourceDigest": "sha256:3ecc807fdce4f62222a8b846af9a32be8b3715d039ef96ac5eb62478eec46736",
+      "outputDigest": "sha256:3ecc807fdce4f62222a8b846af9a32be8b3715d039ef96ac5eb62478eec46736",
       "transformations": [
         "approving-human",
         "package-relative-links",
@@ -1144,8 +1147,8 @@
     {
       "path": "engine/scripts/detector/engines/browser/detect-url-cdp.mjs",
       "uri": "legion-skill://designer/engine/scripts/detector/engines/browser/detect-url-cdp.mjs",
-      "sourceDigest": "sha256:8c4b001440c1090234cf630770146bd562b5abf39211130d2216c34b6e9b794c",
-      "outputDigest": "sha256:8c4b001440c1090234cf630770146bd562b5abf39211130d2216c34b6e9b794c",
+      "sourceDigest": "sha256:41860fba00ea9d9f7234197d9ec3e13fb216d985591d1ff4abd08e7dfb1dfb8b",
+      "outputDigest": "sha256:41860fba00ea9d9f7234197d9ec3e13fb216d985591d1ff4abd08e7dfb1dfb8b",
       "transformations": [
         "approving-human",
         "package-relative-links",
@@ -1365,8 +1368,8 @@
     {
       "path": "engine/scripts/detector/tests/structure/run-structure-smoke.mjs",
       "uri": "legion-skill://designer/engine/scripts/detector/tests/structure/run-structure-smoke.mjs",
-      "sourceDigest": "sha256:51b3c55e9ddf0ea6a5269f294a5494ab47544b5a69d6be70eeca9088fa4fdc4a",
-      "outputDigest": "sha256:51b3c55e9ddf0ea6a5269f294a5494ab47544b5a69d6be70eeca9088fa4fdc4a",
+      "sourceDigest": "sha256:c462bb17a5943b31f3baa8742f03804ff546d598293420c6d8389872c4448878",
+      "outputDigest": "sha256:c462bb17a5943b31f3baa8742f03804ff546d598293420c6d8389872c4448878",
       "transformations": [
         "approving-human",
         "package-relative-links",
@@ -1849,8 +1852,8 @@
     {
       "path": "evals/evals.json",
       "uri": "legion-skill://designer/evals/evals.json",
-      "sourceDigest": "sha256:140f41e0cfbacfa3b6a02f16324ad85ceb008cf140fc751f1b3f3784bcbdb395",
-      "outputDigest": "sha256:140f41e0cfbacfa3b6a02f16324ad85ceb008cf140fc751f1b3f3784bcbdb395",
+      "sourceDigest": "sha256:c5590861c5339b8cc80455a8a4bb09110e360e4cdc12cdb0bff11fc95863efea",
+      "outputDigest": "sha256:c5590861c5339b8cc80455a8a4bb09110e360e4cdc12cdb0bff11fc95863efea",
       "transformations": [
         "approving-human",
         "package-relative-links",
@@ -1861,8 +1864,8 @@
     {
       "path": "references/above-the-fold-patterns.md",
       "uri": "legion-skill://designer/references/above-the-fold-patterns.md",
-      "sourceDigest": "sha256:6054c9a817abb5956a38e80c461134a83f2a5275bbe7bcdc4b4c6793336fe2bd",
-      "outputDigest": "sha256:6054c9a817abb5956a38e80c461134a83f2a5275bbe7bcdc4b4c6793336fe2bd",
+      "sourceDigest": "sha256:3456764079959df874427ab83246481b52995e8a3a607def61cfb482bfac0697",
+      "outputDigest": "sha256:3456764079959df874427ab83246481b52995e8a3a607def61cfb482bfac0697",
       "transformations": [
         "approving-human",
         "package-relative-links",
@@ -1883,8 +1886,8 @@
     {
       "path": "references/banned-words.md",
       "uri": "legion-skill://designer/references/banned-words.md",
-      "sourceDigest": "sha256:c92a9eb1a17ac9697eeff5859736087563d7b8de3769745b3237ce07f5a4d14c",
-      "outputDigest": "sha256:c92a9eb1a17ac9697eeff5859736087563d7b8de3769745b3237ce07f5a4d14c",
+      "sourceDigest": "sha256:56814d6c4d0ea5366df57c58e6ea573f83e6028dda2a17ec4556ebd2ac0fa37a",
+      "outputDigest": "sha256:56814d6c4d0ea5366df57c58e6ea573f83e6028dda2a17ec4556ebd2ac0fa37a",
       "transformations": [
         "approving-human",
         "package-relative-links",
@@ -1894,8 +1897,8 @@
     {
       "path": "references/components/_index.md",
       "uri": "legion-skill://designer/references/components/_index.md",
-      "sourceDigest": "sha256:3f3d5e7c34d2f6ea6456941df4f19934975ae221a9ea285fcd97d4745979506f",
-      "outputDigest": "sha256:3f3d5e7c34d2f6ea6456941df4f19934975ae221a9ea285fcd97d4745979506f",
+      "sourceDigest": "sha256:5f39778b32fcce012dfd0118de7f6293c71fafb6c0981d48c434dac5ea8aefe7",
+      "outputDigest": "sha256:5f39778b32fcce012dfd0118de7f6293c71fafb6c0981d48c434dac5ea8aefe7",
       "transformations": [
         "approving-human",
         "package-relative-links",
@@ -1971,8 +1974,8 @@
     {
       "path": "references/components/pricing.md",
       "uri": "legion-skill://designer/references/components/pricing.md",
-      "sourceDigest": "sha256:fff56d0c33d6d33841c59c38ff134c6ef42037d28d2c1a9abd85bb7d49595004",
-      "outputDigest": "sha256:fff56d0c33d6d33841c59c38ff134c6ef42037d28d2c1a9abd85bb7d49595004",
+      "sourceDigest": "sha256:e618a4ba11229eae76a6ee70be6615b760626b316e6b1e3b95e8d259b132e221",
+      "outputDigest": "sha256:e618a4ba11229eae76a6ee70be6615b760626b316e6b1e3b95e8d259b132e221",
       "transformations": [
         "approving-human",
         "package-relative-links",
@@ -2004,8 +2007,8 @@
     {
       "path": "references/design-reference-library.md",
       "uri": "legion-skill://designer/references/design-reference-library.md",
-      "sourceDigest": "sha256:fb0d8dbba141e08f4baf3be5e020acba76c8b216945601d0c38b5769b91700de",
-      "outputDigest": "sha256:fb0d8dbba141e08f4baf3be5e020acba76c8b216945601d0c38b5769b91700de",
+      "sourceDigest": "sha256:d0b5cb8e4ece6f73ff2187e588a35de1c787605da7f81edb5972238915d07b48",
+      "outputDigest": "sha256:d0b5cb8e4ece6f73ff2187e588a35de1c787605da7f81edb5972238915d07b48",
       "transformations": [
         "approving-human",
         "package-relative-links",
@@ -2015,8 +2018,8 @@
     {
       "path": "references/manual.md",
       "uri": "legion-skill://designer/references/manual.md",
-      "sourceDigest": "sha256:cd62f15fc1bc7e8823c760affce95f839543d95666885e4d97bf4735be59303c",
-      "outputDigest": "sha256:cd62f15fc1bc7e8823c760affce95f839543d95666885e4d97bf4735be59303c",
+      "sourceDigest": "sha256:53604f1d3d9fc76941551b962c24562dc4db9e50da41128b4799d0cf35b4004b",
+      "outputDigest": "sha256:53604f1d3d9fc76941551b962c24562dc4db9e50da41128b4799d0cf35b4004b",
       "transformations": [
         "approving-human",
         "package-relative-links",
@@ -2027,20 +2030,8 @@
     {
       "path": "references/native-app.md",
       "uri": "legion-skill://designer/references/native-app.md",
-      "sourceDigest": "sha256:94c802cc68612a54330fbab00b9cc381be3786c5eafb6521becbe0aeac543fef",
-      "outputDigest": "sha256:94c802cc68612a54330fbab00b9cc381be3786c5eafb6521becbe0aeac543fef",
-      "transformations": [
-        "approving-human",
-        "package-relative-links",
-        "audit-capability-strip",
-        "intentional-legion-fork"
-      ]
-    },
-    {
-      "path": "references/portfolio-registry.md",
-      "uri": "legion-skill://designer/references/portfolio-registry.md",
-      "sourceDigest": "sha256:9a62fb5d58daa0fece14793673fd1859644093a31cb7ee27a617849cffc7341f",
-      "outputDigest": "sha256:9a62fb5d58daa0fece14793673fd1859644093a31cb7ee27a617849cffc7341f",
+      "sourceDigest": "sha256:518d9980586762acc43d36718f9dc2c6ef353b3ab591e5b4deb7ee573491294b",
+      "outputDigest": "sha256:518d9980586762acc43d36718f9dc2c6ef353b3ab591e5b4deb7ee573491294b",
       "transformations": [
         "approving-human",
         "package-relative-links",
@@ -2051,8 +2042,8 @@
     {
       "path": "references/reference-capture-template.md",
       "uri": "legion-skill://designer/references/reference-capture-template.md",
-      "sourceDigest": "sha256:c8e7c8566c74a3686b053034a4d41f38d765f65512e69dd8c4bb6bbf2b35a787",
-      "outputDigest": "sha256:c8e7c8566c74a3686b053034a4d41f38d765f65512e69dd8c4bb6bbf2b35a787",
+      "sourceDigest": "sha256:3769415f4e2977fc29a910da0cdbcef8569d8c28b6ad90c225981f6c3f471955",
+      "outputDigest": "sha256:3769415f4e2977fc29a910da0cdbcef8569d8c28b6ad90c225981f6c3f471955",
       "transformations": [
         "approving-human",
         "package-relative-links",
@@ -2062,8 +2053,8 @@
     {
       "path": "references/website.md",
       "uri": "legion-skill://designer/references/website.md",
-      "sourceDigest": "sha256:a4e1be04d23962326f7623cf3d15980a07aa581589202d223a661520abd8c628",
-      "outputDigest": "sha256:a4e1be04d23962326f7623cf3d15980a07aa581589202d223a661520abd8c628",
+      "sourceDigest": "sha256:f1a2866be7bc5ee9ffc741af6b33755681d7b97ebbc22f8ed4ac3844fd97b68b",
+      "outputDigest": "sha256:f1a2866be7bc5ee9ffc741af6b33755681d7b97ebbc22f8ed4ac3844fd97b68b",
       "transformations": [
         "approving-human",
         "package-relative-links",
@@ -2073,8 +2064,8 @@
     {
       "path": "specialists/glass/GUIDE.md",
       "uri": "legion-skill://designer/specialists/glass/GUIDE.md",
-      "sourceDigest": "sha256:ebea6c173c6f1fc35d56efe2545d4148799a11ce4032f8fc2abb353084774e6c",
-      "outputDigest": "sha256:ebea6c173c6f1fc35d56efe2545d4148799a11ce4032f8fc2abb353084774e6c",
+      "sourceDigest": "sha256:a53f20034731c730752f33a4235f8b79fade99e0b2b1acb50e2660138ef39de1",
+      "outputDigest": "sha256:a53f20034731c730752f33a4235f8b79fade99e0b2b1acb50e2660138ef39de1",
       "transformations": [
         "approving-human",
         "package-relative-links",
@@ -2093,10 +2084,17 @@
       ]
     },
     {
+      "path": "specialists/illustration/GUIDE.md",
+      "uri": "legion-skill://designer/specialists/illustration/GUIDE.md",
+      "sourceDigest": "sha256:af5136dd17b0d919350018e68fe6aeec88e10d9c3fd68904435f7fe08ab1c43a",
+      "outputDigest": "sha256:af5136dd17b0d919350018e68fe6aeec88e10d9c3fd68904435f7fe08ab1c43a",
+      "transformations": []
+    },
+    {
       "path": "specialists/motion/GUIDE.md",
       "uri": "legion-skill://designer/specialists/motion/GUIDE.md",
-      "sourceDigest": "sha256:7c7e75c4757151cde01f039924356088cf463eedc49620b63f52e5672e33d9d2",
-      "outputDigest": "sha256:7c7e75c4757151cde01f039924356088cf463eedc49620b63f52e5672e33d9d2",
+      "sourceDigest": "sha256:7cb8ae56e3d466d9e86a0a2d6b22da638df3f529b90cf5894e1c539911b5ffbe",
+      "outputDigest": "sha256:7cb8ae56e3d466d9e86a0a2d6b22da638df3f529b90cf5894e1c539911b5ffbe",
       "transformations": [
         "approving-human",
         "package-relative-links",
@@ -2106,8 +2104,8 @@
     {
       "path": "specialists/motion/README.md",
       "uri": "legion-skill://designer/specialists/motion/README.md",
-      "sourceDigest": "sha256:6e8c08e42b9272060293697aecf66e1870c2c5b5c5c88336cc2644247b8fd245",
-      "outputDigest": "sha256:6e8c08e42b9272060293697aecf66e1870c2c5b5c5c88336cc2644247b8fd245",
+      "sourceDigest": "sha256:774a7126c36426c4bf67da0704cff066f166115f811fb972b7e528799926772e",
+      "outputDigest": "sha256:774a7126c36426c4bf67da0704cff066f166115f811fb972b7e528799926772e",
       "transformations": [
         "approving-human",
         "package-relative-links",
@@ -2117,8 +2115,8 @@
     {
       "path": "specialists/motion/fluid.md",
       "uri": "legion-skill://designer/specialists/motion/fluid.md",
-      "sourceDigest": "sha256:72a75ce9549ae0fbcc5e56dafbb845ea733951722ef0ad84eb35d6083265aa59",
-      "outputDigest": "sha256:72a75ce9549ae0fbcc5e56dafbb845ea733951722ef0ad84eb35d6083265aa59",
+      "sourceDigest": "sha256:0e99cfb8d6793be7f275fb884952c8e1d166156140866e4a012e6a3fa0b8faee",
+      "outputDigest": "sha256:0e99cfb8d6793be7f275fb884952c8e1d166156140866e4a012e6a3fa0b8faee",
       "transformations": [
         "approving-human",
         "package-relative-links",
@@ -2140,8 +2138,8 @@
     {
       "path": "specialists/motion/opportunities.md",
       "uri": "legion-skill://designer/specialists/motion/opportunities.md",
-      "sourceDigest": "sha256:e29a3037951e00abfc209e17e55c261bf00e358ed00f583873437e27ae5b0d33",
-      "outputDigest": "sha256:e29a3037951e00abfc209e17e55c261bf00e358ed00f583873437e27ae5b0d33",
+      "sourceDigest": "sha256:4b9d002c6186a18e4a9e63d812cd88c98d19a821663faed06579599be5c31bf4",
+      "outputDigest": "sha256:4b9d002c6186a18e4a9e63d812cd88c98d19a821663faed06579599be5c31bf4",
       "transformations": [
         "approving-human",
         "package-relative-links",
@@ -2151,8 +2149,8 @@
     {
       "path": "specialists/motion/patterns/_index.md",
       "uri": "legion-skill://designer/specialists/motion/patterns/_index.md",
-      "sourceDigest": "sha256:fb596241ac71688c7531688f8be77a0bdcb5322a7b06cc05e20b9ab4d16f4622",
-      "outputDigest": "sha256:fb596241ac71688c7531688f8be77a0bdcb5322a7b06cc05e20b9ab4d16f4622",
+      "sourceDigest": "sha256:62819f8ff89364ab07697650cc353ae011a9ba712595af9fc30b88e3c0ffb7f4",
+      "outputDigest": "sha256:62819f8ff89364ab07697650cc353ae011a9ba712595af9fc30b88e3c0ffb7f4",
       "transformations": [
         "approving-human",
         "package-relative-links",
@@ -2261,8 +2259,8 @@
     {
       "path": "specialists/motion/principles.md",
       "uri": "legion-skill://designer/specialists/motion/principles.md",
-      "sourceDigest": "sha256:b3b208d3abff126ed74f8137dd8d2e93339ea5553ce664e5de0052cd5ddd654d",
-      "outputDigest": "sha256:b3b208d3abff126ed74f8137dd8d2e93339ea5553ce664e5de0052cd5ddd654d",
+      "sourceDigest": "sha256:3620460455b0bf7a0ea2bd855e701bce0017253e4dab3a1be1b83b44a3b372fb",
+      "outputDigest": "sha256:3620460455b0bf7a0ea2bd855e701bce0017253e4dab3a1be1b83b44a3b372fb",
       "transformations": [
         "approving-human",
         "package-relative-links",
@@ -2283,8 +2281,8 @@
     {
       "path": "specialists/motion/stack.md",
       "uri": "legion-skill://designer/specialists/motion/stack.md",
-      "sourceDigest": "sha256:b82fbbd8709eca8f2e6e13e15e99b65c0e52b2609ed44734546543cbdf7d74ae",
-      "outputDigest": "sha256:b82fbbd8709eca8f2e6e13e15e99b65c0e52b2609ed44734546543cbdf7d74ae",
+      "sourceDigest": "sha256:fd69f43bbaff27eee62a0e52202e628be83e8ad877670d0f036efdd7dd41516b",
+      "outputDigest": "sha256:fd69f43bbaff27eee62a0e52202e628be83e8ad877670d0f036efdd7dd41516b",
       "transformations": [
         "approving-human",
         "package-relative-links",
@@ -2305,8 +2303,8 @@
     {
       "path": "specialists/static-creative/GUIDE.md",
       "uri": "legion-skill://designer/specialists/static-creative/GUIDE.md",
-      "sourceDigest": "sha256:4ee0abc509c659b1ef68dd20ea8496887a8d1e34a775cd35570abcae5be7dc13",
-      "outputDigest": "sha256:4ee0abc509c659b1ef68dd20ea8496887a8d1e34a775cd35570abcae5be7dc13",
+      "sourceDigest": "sha256:c94f8523ea8a39b9fb35eb87045f00d2b440bffc09d5e54aefd11dfaa73fd034",
+      "outputDigest": "sha256:c94f8523ea8a39b9fb35eb87045f00d2b440bffc09d5e54aefd11dfaa73fd034",
       "transformations": [
         "approving-human",
         "package-relative-links",
@@ -2317,8 +2315,8 @@
     {
       "path": "specialists/static-creative/evals/evals.json",
       "uri": "legion-skill://designer/specialists/static-creative/evals/evals.json",
-      "sourceDigest": "sha256:62ac0643c1c4d5b4b3d86503c93f62b5724ef27bd0032777bff5640d8eadde93",
-      "outputDigest": "sha256:62ac0643c1c4d5b4b3d86503c93f62b5724ef27bd0032777bff5640d8eadde93",
+      "sourceDigest": "sha256:a748e53e7258bb9e511999c433b665260220effbf024ebbf8aca09333f3ba9d7",
+      "outputDigest": "sha256:a748e53e7258bb9e511999c433b665260220effbf024ebbf8aca09333f3ba9d7",
       "transformations": [
         "approving-human",
         "package-relative-links",
@@ -2350,8 +2348,8 @@
     {
       "path": "specialists/static-creative/references/marketing.md",
       "uri": "legion-skill://designer/specialists/static-creative/references/marketing.md",
-      "sourceDigest": "sha256:31d458c1a8ad66d2f889a0bf880b09e092a6d90f3823ee58c18d9f36fcc36d72",
-      "outputDigest": "sha256:31d458c1a8ad66d2f889a0bf880b09e092a6d90f3823ee58c18d9f36fcc36d72",
+      "sourceDigest": "sha256:0caecd0f4d62cd0cd6f1a25da989e513f21d3c68aea3158c5aa3f9538274659a",
+      "outputDigest": "sha256:0caecd0f4d62cd0cd6f1a25da989e513f21d3c68aea3158c5aa3f9538274659a",
       "transformations": [
         "approving-human",
         "package-relative-links",
@@ -2373,8 +2371,8 @@
     {
       "path": "specialists/surface-design/GUIDE.md",
       "uri": "legion-skill://designer/specialists/surface-design/GUIDE.md",
-      "sourceDigest": "sha256:c19b68ccfeb315f3c107f123ea2c0a7e77ca80f7ced1b867f592ffc5a84adc57",
-      "outputDigest": "sha256:c19b68ccfeb315f3c107f123ea2c0a7e77ca80f7ced1b867f592ffc5a84adc57",
+      "sourceDigest": "sha256:61e9a6115ac8c47fdd905d11f94dbb931a617654b50147da528a6fe773cf2aa6",
+      "outputDigest": "sha256:61e9a6115ac8c47fdd905d11f94dbb931a617654b50147da528a6fe773cf2aa6",
       "transformations": [
         "approving-human",
         "package-relative-links",

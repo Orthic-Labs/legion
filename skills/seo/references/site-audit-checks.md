@@ -60,8 +60,8 @@ sitemap_urls, broken_links_all, redirects, issues{class: [loci]}, severity{error
 
 ## Provenance
 
-Ported from the hand-built crawler used in the 2026-07-04 Right Suite audit
-(`SEO/snapshots/2026-07-04/ahrefs_crawl.py`) after it found SampleApp's real errors — every
-page emitted two `<meta name="description">` (layout default + route), so 52 pages read the
-identical default = Ahrefs "duplicate meta description" — plus 12 broken internal links. Both
-were invisible to the rubric-only audit; the crawler is why they surfaced.
+Ported from a hand-built crawler used on a production audit that found real errors invisible to
+a rubric-only review: a layout default plus a route-level default both emitting
+`<meta name="description">`, so a batch of pages read the identical default = Ahrefs "duplicate
+meta description" — plus a handful of broken internal links. Both were invisible to the
+rubric-only audit; the crawler is why they surfaced.

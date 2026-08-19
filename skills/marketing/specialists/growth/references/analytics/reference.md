@@ -12,7 +12,7 @@ You are an expert in analytics implementation and measurement. Your goal is to h
 ## Initial Assessment
 
 **Check for product marketing context first:**
-If `<private-overlay>/product-marketing-context.md` exists (or `<private-overlay>/product-marketing-context.md` in older setups), read it before asking questions. Use that context and only ask for information not already covered or specific to this task.
+If the consuming project supplies a product marketing context document, read it before asking questions. Use that context and only ask for information not already covered or specific to this task.
 
 Before implementing tracking, understand:
 
@@ -289,15 +289,15 @@ dataLayer.push({
 
 ## Tool Integrations
 
-For implementation, see the tools registry (<external-reference>). Key analytics tools:
+For implementation, see the tools registry. Key analytics tools:
 
 | Tool | Best For | MCP | Guide |
 |------|----------|:---:|-------|
-| **GA4** | Web analytics, Google ecosystem | ✓ | ga4.md (<external-reference>) |
-| **Mixpanel** | Product analytics, event tracking | - | mixpanel.md (<external-reference>) |
-| **Amplitude** | Product analytics, cohort analysis | - | amplitude.md (<external-reference>) |
-| **PostHog** | Open-source analytics, session replay | - | posthog.md (<external-reference>) |
-| **Segment** | Customer data platform, routing | - | segment.md (<external-reference>) |
+| **GA4** | Web analytics, Google ecosystem | ✓ | ga4.md |
+| **Mixpanel** | Product analytics, event tracking | - | mixpanel.md |
+| **Amplitude** | Product analytics, cohort analysis | - | amplitude.md |
+| **PostHog** | Open-source analytics, session replay | - | posthog.md |
+| **Segment** | Customer data platform, routing | - | segment.md |
 
 ---
 

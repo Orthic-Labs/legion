@@ -4,9 +4,7 @@ Use this reference for serious persuasion copy, audit mode, landing-page rewrite
 
 Primary local source:
 
-- `D:/workspace/Content/Storytelling/STORYTELLING_GUIDE.md`
-- `D:/workspace/Content/Storytelling/SOURCE_MATRIX.md`
-- `D:/workspace/Content/Storytelling/_review/quote_audit.md`
+- Consult your project's storytelling/quote-audit reference if one exists.
 
 Key extracted sources:
 

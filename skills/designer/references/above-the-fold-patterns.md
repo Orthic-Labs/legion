@@ -132,10 +132,8 @@ Each brand filters 5-8 patterns to its idiom via `Content/<brand>/patterns/above
 
 Each active brand picks 5-8 from these 15 for its idiom. Saved at `Content/<brand>/patterns/above-the-fold/<pattern>.md` with brand-specific notes.
 
-Suggested starting filters:
-- **DD** — 1, 5, 8, 9, 11, 15
-- **RH** — 1, 3, 7, 10, 11
-- **HR** — 2, 4, 5, 8, 13
-- **TS** — 6, 9, 11, 13, 15
+Suggested starting filters (shape only — pick each venture's own 5-8 pattern numbers):
+- **Venture A** — e.g. 1, 5, 8, 9, 11, 15
+- **Venture B** — e.g. 1, 3, 7, 10, 11
 
 These are starting points, not requirements. Adjust based on what serves each brand.

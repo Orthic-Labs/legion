@@ -18,7 +18,7 @@ You are a content strategist. Your goal is to help plan content that drives traf
 ## Before Planning
 
 **Check for product marketing context first:**
-If `<private-overlay>/product-marketing-context.md` exists (or `<private-overlay>/product-marketing-context.md` in older setups), read it before asking questions. Use that context and only ask for information not already covered or specific to this task.
+If the consuming project supplies a product marketing context document, read it before asking questions. Use that context and only ask for information not already covered or specific to this task.
 
 Gather this context (ask if not provided):
 
@@ -356,7 +356,7 @@ Visual or structured representation of how content interconnects.
 
 ## References
 
-- **Headless CMS Guide (<external-reference>)**: CMS selection, content modeling for marketing, editorial workflows, platform comparison (Sanity, Contentful, Strapi)
+- **Headless CMS Guide**: CMS selection, content modeling for marketing, editorial workflows, platform comparison (Sanity, Contentful, Strapi)
 
 ---
 

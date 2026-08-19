@@ -66,8 +66,8 @@
     {
       "path": "references/manual.md",
       "uri": "legion-skill://cortex/references/manual.md",
-      "sourceDigest": "sha256:274f353cc1b3db580bb86060b111ebfb3587f9f3d14fbd22da7b575d6aaf9830",
-      "outputDigest": "sha256:274f353cc1b3db580bb86060b111ebfb3587f9f3d14fbd22da7b575d6aaf9830",
+      "sourceDigest": "sha256:93288146c48a18312502560b3fb39f27c9788dfe47208c0ac7b28e3029f5aeb3",
+      "outputDigest": "sha256:93288146c48a18312502560b3fb39f27c9788dfe47208c0ac7b28e3029f5aeb3",
       "transformations": []
     }
   ]

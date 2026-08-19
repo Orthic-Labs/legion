@@ -8,7 +8,7 @@
       "prompt": "/seo llms-txt",
       "expected_skill": "seo",
       "forbidden_skills": [],
-      "expected_behavior": "Route to references/llms-txt.md: starts with /brand, crawls the site, categorizes pages, picks 10-20 hero pages, writes llms.txt in spec format, saves to D:/workspace/out/llms-txt/<brand>/llms.txt.",
+      "expected_behavior": "Route to references/llms-txt.md: starts with /brand, crawls the site, categorizes pages, picks 10-20 hero pages, writes llms.txt in spec format, saves to the site root.",
       "assertions": [
         {
           "type": "expected_skill",
@@ -37,10 +37,10 @@
   "should_not_trigger": [
     {
       "id": "seo-llms-txt-not-ss-commercial",
-      "prompt": "Generate an llms.txt for Willow and Pine so it ranks better in AI search.",
+      "prompt": "Generate an llms.txt for Willow & Pine so it ranks better in AI search.",
       "expected_skill": null,
       "forbidden_skills": [],
-      "expected_behavior": "Do not generate an llms.txt for Willow and Pine. SS is a passion project — llms.txt-for-ranking is banned (<private-overlay>/rules/brands.md). SS gets only the defensive AI-training block + passive technical optimization, not active commercial SEO. Decline and explain the SS rule.",
+      "expected_behavior": "Do not generate an llms.txt for Willow & Pine. It is flagged non-commercial/passion-project in this project's brand policy — llms.txt-for-ranking is banned for such ventures. They get only the defensive AI-training block + passive technical optimization, not active commercial SEO. Decline and explain the venture policy.",
       "assertions": [],
       "severity": "error",
       "mode": "discovery"
@@ -49,10 +49,10 @@
   "output_quality": [
     {
       "id": "seo-llms-txt-spec-format",
-      "prompt": "Generate an llms.txt for the Harbor Coffee site.",
+      "prompt": "Generate an llms.txt for the Harbor & Thread site.",
       "expected_skill": "seo",
       "forbidden_skills": [],
-      "expected_behavior": "Output starts with /brand RH. File follows spec: # brand name, > description block, ## sections (Products, Collections, Guides, About). Lists only hero pages (10-20), not every URL. Uses plain text, no marketing slogans. Save path noted: D:/workspace/out/llms-txt/rh/llms.txt.",
+      "expected_behavior": "Output starts with /brand for the given brand. File follows spec: # brand name, > description block, ## sections (Products, Collections, Guides, About). Lists only hero pages (10-20), not every URL. Uses plain text, no marketing slogans. Save target noted: the site root.",
       "assertions": [
         {
           "type": "required_text",

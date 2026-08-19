@@ -144,14 +144,18 @@ def main() -> int:
         assert "TRANSCRIPT_INGEST" in prompt
         assert "Do not load raw transcript into model context" in prompt
         assert "test-thread" in prompt and digest in prompt
+        synthetic_workspace = str(root / "synthetic-workspace")
         mac_prompt = module.paste_prompt({
             **pointer,
             "platform": "claude",
-            "workspace": "/workspace",
+            "workspace": synthetic_workspace,
             "source_path": "/Users/test/.claude/projects/p/claude-test.jsonl",
         })
         assert mac_prompt.startswith("You are target chat")
-        assert 'python3 "/workspace/legion/lib/handoff/transcript-handoff.py"' in mac_prompt
+        expected_script_path = (
+            f'{synthetic_workspace}/tools/skills/legion/lib/handoff/transcript-handoff.py'
+        )
+        assert f'python3 "{expected_script_path}"' in mac_prompt
 
         output = root / "evidence.json"
         result = subprocess.run(

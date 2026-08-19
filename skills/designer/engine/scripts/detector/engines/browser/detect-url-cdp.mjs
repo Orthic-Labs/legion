@@ -3,7 +3,7 @@
  *
  * Launches an installed Chrome/Edge headless with a DevTools port, injects the
  * same detect-antipatterns-browser.js bundle, and collects serialized findings
- * through raw CDP (WebSocket client adapted from tools/lib/qa-engine/qa.mjs).
+ * through raw CDP (a minimal hand-rolled WebSocket client — no external CDP library).
  * Used automatically by detect-url.mjs when `import('puppeteer')` fails, so a
  * machine without puppeteer still gets real rendered-geometry checks instead of
  * silently degrading to static scanning.

@@ -12,7 +12,7 @@ You are an expert in structured data and schema markup. Your goal is to implemen
 ## Initial Assessment
 
 **Check for product marketing context first:**
-If `<private-overlay>/product-marketing-context.md` exists (or `<private-overlay>/product-marketing-context.md` in older setups), read it before asking questions. Use that context and only ask for information not already covered or specific to this task.
+If the consuming project supplies a product marketing context document, read it before asking questions. Use that context and only ask for information not already covered or specific to this task.
 
 Before implementing schema, understand:
 
@@ -62,7 +62,7 @@ Before implementing schema, understand:
 | LocalBusiness | Local business pages | name, address |
 | Event | Events, webinars | name, startDate, location |
 
-**For complete JSON-LD examples**: See references/schema-examples.md (<external-reference>)
+**For complete JSON-LD examples**: See references/schema-examples.md
 
 ---
 

@@ -1,6 +1,6 @@
 ---
 name: review-medical
-description: Multi-juror adversarial review of a medical protocol decision for the operator. Use when the operator asks "/review-medical <plan>" — runs the doctor pipeline first, then dispatches the cardiologist, endocrinologist, pharmacologist, and skeptic-methodologist jurors in parallel, synthesizes a chairman verdict with explicit dissents. NEVER replaces a clinician. Lower-stakes alternative is /doctor (single research pass without panel).
+description: Multi-juror adversarial review of a medical protocol decision for the requesting user. Use when the user asks "/review-medical <plan>" — runs the doctor pipeline first, then dispatches the cardiologist, endocrinologist, pharmacologist, and skeptic-methodologist jurors in parallel, synthesizes a chairman verdict with explicit dissents. NEVER replaces a clinician. Lower-stakes alternative is /doctor (single research pass without panel).
 ---
 
 # /review-medical — Multi-juror panel review
@@ -9,14 +9,14 @@ Adversarial review of a medical protocol decision. Runs `/doctor` first to build
 
 ## When to invoke
 
-- "/review-medical the Week 7 [redacted-drug] transition"
-- "/review-medical [redacted-drug] 2mg vs alternatives"
-- "/review-medical Tesa+Ipa simultaneous Wk 11 start"
-- "/review-medical pioglitazone 15mg as Decision-D fallback"
+- "/review-medical the Week 7 drug transition"
+- "/review-medical statin dose A vs alternatives"
+- "/review-medical combination therapy X+Y simultaneous Wk 11 start"
+- "/review-medical fallback drug Z 15mg as Decision-D fallback"
 
 NOT this skill if:
 - User just wants a research pack → use `/doctor`
-- User wants the protocol read out → read protocol.md
+- User wants the protocol read out → read the configured protocol file
 - User is asking about non-medical work → wrong skill
 
 ## Pipeline
@@ -24,7 +24,7 @@ NOT this skill if:
 ### Step 1 — Build evidence pack
 Same as `/doctor` but pass `--review`:
 ```bash
-cd D:/workspace/Health/medical-research-system
+cd <medical-engine-root>
 py -3.11 doctor.py \
   --pico-population "..." --pico-intervention "..." \
   --pico-comparator "..." --pico-outcome "..." \
@@ -40,10 +40,10 @@ Use `rubrics/question.md`. This produces the candidate verdict the jurors will r
 
 ### Step 4 — Run four jurors IN PARALLEL
 Spawn four sub-agents simultaneously (Agent tool, multiple tool_use blocks in one message). Each juror gets:
-- The juror prompt from `D:/workspace/Health/medical-research-system/jurors/<role>.md`
+- The juror prompt from `<medical-engine-root>/jurors/<role>.md`
 - The full evidence pack JSON from step 1
 - The synthesized doctor candidate from step 3
-- The relevant operator.yaml excerpts
+- The relevant excerpts from the configured patient-history file
 
 Use the **machine-minimal directive** prefix on every juror prompt (per CLAUDE.md). Jurors are:
 
@@ -53,7 +53,7 @@ Use the **machine-minimal directive** prefix on every juror prompt (per CLAUDE.m
 4. `skeptic_methodologist.md` — adversarial evidence-quality grade A-F per claim
 
 Use the workspace-approved subagent ceiling for every juror; no spawned subagent may use Opus.
-External jurors run only when the operator explicitly invokes this review workflow.
+External jurors run only when the user explicitly invokes this review workflow.
 
 ### Step 4.5 — Run output linter on the doctor synthesis
 
@@ -103,6 +103,6 @@ Then append the standard `/doctor` output (PICO, evidence-says, applies-to-me, e
 
 ## File locations
 
-- Orchestrator: `D:/workspace/Health/medical-research-system/doctor.py`
-- Jurors: `D:/workspace/Health/medical-research-system/jurors/*.md`
-- Plan: `D:/workspace/Health/medical-research-system/PLAN.md`
+- Orchestrator: `<medical-engine-root>/doctor.py`
+- Jurors: `<medical-engine-root>/jurors/*.md`
+- Plan: `<medical-engine-root>/PLAN.md`

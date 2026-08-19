@@ -43,7 +43,7 @@
     {
       "id": "commit-not-pr-comments",
       "prompt": "Address the CodeRabbit comments on this pull request.",
-      "expected_skill": "jury",
+      "expected_skill": null,
       "forbidden_skills": ["commit"],
       "expected_behavior": "An explicitly named CLI reviewer routes through its connected GitHub or CLI workflow, not the local pre-commit gate or the Council API panel.",
       "severity": "error",

@@ -8,7 +8,7 @@ SPECIALIST_REFS_MAX: 1
 CHILD_AGENTS_MAX: 0
 EXTERNAL_REQUESTS_MAX: 0
 MAY_ADD_TASKS: NO
-MAY_CALL_SKILLS: audit-visual,brand,qa
+MAY_CALL_SKILLS: NONE
 TERMINAL: Return one bounded text artifact; do not widen scope.
 
 Classify by the job the words must do, not by length. Load one primary guide; add a second only when
@@ -36,8 +36,8 @@ the requested deliverable truly combines purposes.
 4. Use research and citations when factual depth matters; distinguish sourced fact from editorial
    judgment.
 5. Run the selected guide's anti-slop and quality gate before delivery.
-6. If the copy will be judged inside a rendered page or app, pair the words with `audit-visual`/`qa`;
-   text alone cannot prove visual hierarchy or CTA placement.
+6. If the copy will be judged inside a rendered page or app, flag to the host/orchestrator that
+   `audit-visual`/`qa` review is needed next; text alone cannot prove visual hierarchy or CTA placement.
 7. **Hard-constraint verification.** When the brief sets a strict length (X-word caption, thread limit,
    meta description ≤ ~155 chars) — LLMs routinely overshoot — count the final output and trim to fit
    before delivery. A piece that violates a hard platform limit is not done.
@@ -47,7 +47,7 @@ the requested deliverable truly combines purposes.
 - **Anti-slop pass (mandatory).** Every prose deliverable — copy, captions, blog posts, scripts,
   emails, microcopy — passes `skills/_shared/anti-slop.md` before shipping: edit mode when drafting,
   detect mode when reviewing someone else's draft. Brand card precedence stands: brand voice rules
-  in `.claude/rules/brands.md` win over the anti-slop list where they conflict.
+  in the project's brand rules file win over the anti-slop list where they conflict.
 - **Parametric contract (mandatory).** Follow `skills/_shared/parametric-design.md`: parametrize tone,
   structure, hook, and evidence-density axes before drafting. For any non-trivial piece, generate
   ≥3 meaningfully different directions (divergent phase) before converging on one. Treat a later

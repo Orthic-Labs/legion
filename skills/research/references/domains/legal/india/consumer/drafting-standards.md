@@ -1,6 +1,6 @@
 # Drafting Standards — Consumer Complaint Pack
 
-The house style for a District Commission filing pack, distilled from the May 2026 set. The generator (`scripts/generate_pack.py`) produces all of this from the case YAML — this file is the spec the generator follows and the checklist a human uses to review the output.
+The house style for a District Commission filing pack, distilled from prior consumer-complaint drafting practice. The generator (`scripts/generate_pack.py`) produces all of this from the case YAML — this file is the spec the generator follows and the checklist a human uses to review the output.
 
 ---
 
@@ -61,7 +61,7 @@ The house style for a District Commission filing pack, distilled from the May 20
 
 ## Cross-references the generator must derive (never hand-type)
 
-These drifted in the May 2026 manual pack and caused real defects. The generator computes them from the case YAML:
+These drifted in prior manually-drafted packs and caused real defects. The generator computes them from the case YAML:
 
 - **"paragraphs 1 to N"** in the Verification and the Affidavit — N = the actual count of numbered complaint paragraphs.
 - **"Annexures A-1 to A-N"** in the Affidavit — N = the actual count of annexures in the Index.

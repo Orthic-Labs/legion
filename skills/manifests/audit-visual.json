@@ -54,8 +54,8 @@
     {
       "path": "evals/evals.json",
       "uri": "legion-skill://audit-visual/evals/evals.json",
-      "sourceDigest": "sha256:95dd2ce5afcced3564c89e1e5af743ff7cded5aab115aac7aab7abec7e2418f2",
-      "outputDigest": "sha256:95dd2ce5afcced3564c89e1e5af743ff7cded5aab115aac7aab7abec7e2418f2",
+      "sourceDigest": "sha256:433b42108c20af175f68389499b191b3f3e64631470dcfba6a990373110794c9",
+      "outputDigest": "sha256:433b42108c20af175f68389499b191b3f3e64631470dcfba6a990373110794c9",
       "transformations": []
     },
     {
@@ -68,15 +68,15 @@
     {
       "path": "references/design-slop.md",
       "uri": "legion-skill://audit-visual/references/design-slop.md",
-      "sourceDigest": "sha256:fcf9d40f3decdc6000b317502cbd37023720e2ddfde6fde80349fe16b773e6a2",
-      "outputDigest": "sha256:fcf9d40f3decdc6000b317502cbd37023720e2ddfde6fde80349fe16b773e6a2",
+      "sourceDigest": "sha256:23388a2d309b86bc8980bb5f1c7b1d485cde794b3781f4e7e721bbc6337b3074",
+      "outputDigest": "sha256:23388a2d309b86bc8980bb5f1c7b1d485cde794b3781f4e7e721bbc6337b3074",
       "transformations": []
     },
     {
       "path": "references/manual.md",
       "uri": "legion-skill://audit-visual/references/manual.md",
-      "sourceDigest": "sha256:d535d07ab7c29948dc9c08f1be933406f16ddec6a7a15351c724bfa4a2d409c6",
-      "outputDigest": "sha256:d535d07ab7c29948dc9c08f1be933406f16ddec6a7a15351c724bfa4a2d409c6",
+      "sourceDigest": "sha256:0617b801a9512f04d5fec3006fed86d09b445b32599924d45544fd80aa8fbeaf",
+      "outputDigest": "sha256:0617b801a9512f04d5fec3006fed86d09b445b32599924d45544fd80aa8fbeaf",
       "transformations": []
     },
     {
@@ -103,8 +103,8 @@
     {
       "path": "references/platform-fidelity.md",
       "uri": "legion-skill://audit-visual/references/platform-fidelity.md",
-      "sourceDigest": "sha256:3ec6cd55db6033b9e62023fcaca2eac074d09c6d08b10e3199232022fc8a2fde",
-      "outputDigest": "sha256:3ec6cd55db6033b9e62023fcaca2eac074d09c6d08b10e3199232022fc8a2fde",
+      "sourceDigest": "sha256:b66bf82b8da0ee495efe02df816c9f54b61acec0cb732d7e2744b7977a308752",
+      "outputDigest": "sha256:b66bf82b8da0ee495efe02df816c9f54b61acec0cb732d7e2744b7977a308752",
       "transformations": []
     },
     {
@@ -138,15 +138,15 @@
     {
       "path": "references/visual-qa-capture.md",
       "uri": "legion-skill://audit-visual/references/visual-qa-capture.md",
-      "sourceDigest": "sha256:514133f1751fffb07b3d957f5f60eb3d363efc766f1982bb6bf62f9171680519",
-      "outputDigest": "sha256:514133f1751fffb07b3d957f5f60eb3d363efc766f1982bb6bf62f9171680519",
+      "sourceDigest": "sha256:f17ffd8e6910bf27768c93aa1c64564cd9256635e46b23237483a5ad5e78d737",
+      "outputDigest": "sha256:f17ffd8e6910bf27768c93aa1c64564cd9256635e46b23237483a5ad5e78d737",
       "transformations": []
     },
     {
       "path": "references/website-conversion-standards.md",
       "uri": "legion-skill://audit-visual/references/website-conversion-standards.md",
-      "sourceDigest": "sha256:fdeb9860a09c28061b9e3878974b1e4358f1bef16613099a9a049cd58b2fb2a5",
-      "outputDigest": "sha256:fdeb9860a09c28061b9e3878974b1e4358f1bef16613099a9a049cd58b2fb2a5",
+      "sourceDigest": "sha256:752324b007190fc4d51c8f6236dfac82f30e751664a8f39cf985afda4cf6b3a9",
+      "outputDigest": "sha256:752324b007190fc4d51c8f6236dfac82f30e751664a8f39cf985afda4cf6b3a9",
       "transformations": []
     },
     {

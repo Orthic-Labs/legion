@@ -3,7 +3,7 @@
 ## 0. Dispatch Control
 
 - **Dispatch ID:** dispatch-handoff-final-forward-20260728
-- **Requester:** the operator via primary Codex orchestrator
+- **Requester:** the requesting user via primary Codex orchestrator
 - **Dispatcher:** Codex dispatch author
 - **Executor:** smaller read-only validation executor
 - **Verifier:** primary Codex orchestrator
@@ -11,10 +11,10 @@
 - **Mode:** READ_ONLY validation; artifact-only output
 - **Execution host / OS:** Windows 11 workstation
 - **Shell:** PowerShell 7 compatible shell
-- **Working directory:** `D:\workspace`
-- **Repository / branch:** D:\workspace at `absorption/phase1-6`
+- **Working directory:** `D:/workspace`
+- **Repository / branch:** D:/workspace at `absorption/phase1-6`
 - **Baseline revision:** `2e162e538bfd577504cb98148615e9c7f4aac58b`
-- **Scoped Git status:** Run `git -C D:\workspace status --short`; baseline contains unrelated modified workspace files plus untracked `tools/skills/dispatch/` & `tools/skills/handoff/`.
+- **Scoped Git status:** Run `git -C D:/workspace status --short`; baseline contains unrelated modified workspace files plus untracked `tools/skills/dispatch/` & `tools/skills/handoff/`.
 - **User authorization:** Verify handoff independence, run named read-only validation commands, write only named report artifacts; source edits, staging, commits, branches, worktrees, installs, deploys, network calls, & deletion are forbidden.
 - **Dependency position:** Input is handoff skill tree; output is an evidence report for primary Codex integration.
 - **Parallel safety:** PARALLEL_SAFE only against source because OWN is isolated review artifact directory; serialize with any writer in that exact directory.
@@ -184,14 +184,14 @@ Get-Item -LiteralPath D:\workspace\tools\skills\dispatch\examples\validated-forw
 | Evidence-01 | `D:\workspace\tools\skills\handoff\SKILL.md` | `rg -n -C 2 "Boundary from"; rg -n "Neither skill depends"; rg -n "validate-handoff"` | Boundary text plus validator route | `D:\workspace\tools\review\.council-runs\dispatch-handoff-final\forward\handoff-independence-report.md` | Executor-role |
 | Evidence-02 | `D:\workspace\tools\skills\handoff\scripts\test_validate_handoff.py` | `py -3.11 D:\workspace\tools\skills\handoff\scripts\test_validate_handoff.py` | PASS line & exit code 0 | `D:\workspace\tools\review\.council-runs\dispatch-handoff-final\forward\handoff-independence-report.md` | Executor-role |
 | Evidence-03 | `D:\workspace\tools\skills\handoff\scripts\validate-handoff.py` | `py -3.11 D:\workspace\tools\skills\handoff\scripts\validate-handoff.py D:\workspace\tools\skills\handoff\assets\handoff-template.md --template-self-check` | PASS line & SHA-256 | `D:\workspace\tools\review\.council-runs\dispatch-handoff-final\forward\handoff-independence-report.md` | Executor-role |
-| Evidence-04 | `D:\workspace\tools\skills\handoff\evals\evals.json` | `py -3.11 -c "import json; json.load(open(r'D:\\Claude\\tools\\skills\\handoff\\evals\\evals.json'))"` | JSON load succeeds & required routing assertion exists | `D:\workspace\tools\review\.council-runs\dispatch-handoff-final\forward\handoff-independence-report.md` | Executor-role |
+| Evidence-04 | `D:\workspace\tools\skills\handoff\evals\evals.json` | `py -3.11 -c "import json; json.load(open(r'D:\workspace\\tools\\skills\\handoff\\evals\\evals.json'))"` | JSON load succeeds & required routing assertion exists | `D:\workspace\tools\review\.council-runs\dispatch-handoff-final\forward\handoff-independence-report.md` | Executor-role |
 | Evidence-05 | `D:\workspace\tools\skills\handoff` | `rg -n "validate-dispatch" D:\workspace\tools\skills\handoff; rg -n "dispatch/scripts" D:\workspace\tools\skills\handoff; rg -n "tools/skills/dispatch" D:\workspace\tools\skills\handoff` | Exit 1 with no mandatory dispatch route outside boundary prose | `D:\workspace\tools\review\.council-runs\dispatch-handoff-final\forward\handoff-independence-report.md` | Executor-role |
-| Evidence-06 | `D:\workspace` | `git -C D:\workspace status --short` before & after | No source-path delta attributable to executor | `D:\workspace\tools\review\.council-runs\dispatch-handoff-final\forward\handoff-independence-report.md` | Executor-role |
+| Evidence-06 | `D:/workspace` | `git -C D:/workspace status --short` before & after | No source-path delta attributable to executor | `D:\workspace\tools\review\.council-runs\dispatch-handoff-final\forward\handoff-independence-report.md` | Executor-role |
 
 ## 3. Scope & Ownership
 
 - **OWN — may edit:** `D:\workspace\tools\review\.council-runs\dispatch-handoff-final\forward\handoff-independence-report.md` only; create parent directory only if missing.
-- **READ — read only:** `D:\workspace\AGENTS.md`; `D:\workspace\tools\skills\handoff\`; `D:\workspace\tools\skills\dispatch\SKILL.md`; `D:\workspace\tools\skills\script\SKILL.md`; `D:\workspace\.claude\rules\agent-routing.md`; Git metadata via `git -C D:\workspace status --short` & `rev-parse`.
+- **READ — read only:** `D:\workspace\AGENTS.md`; `D:\workspace\tools\skills\handoff\`; `D:\workspace\tools\skills\dispatch\SKILL.md`; `D:\workspace\tools\skills\script\SKILL.md`; `D:\workspace\.claude\rules\agent-routing.md`; Git metadata via `git -C D:/workspace status --short` & `rev-parse`.
 - **FORBIDDEN:** Every file outside OWN; all handoff & dispatch source writes; `.git` writes; dependency installs; network; process launch outside named short Python commands; staging; commit; branch; worktree; reset; revert; stash; delete; deployment; paid actions.
 - **Dirty-work policy:** Capture exact before/after Git status; preserve every pre-existing line; write no source path; do not clean or reinterpret other workers' modifications.
 - **Side effects / blast radius:** Reads source plus Git metadata; creates or overwrites only one owned Markdown report atomically through temporary sibling then rename; no network, database, account, paid cost, or production effect.
@@ -205,7 +205,7 @@ Get-Item -LiteralPath D:\workspace\tools\skills\dispatch\examples\validated-forw
 | Check | Exact command or action | Pass condition |
 |---|---|---|
 | Python runtime & files | `py -3.11 --version; Test-Path D:\workspace\tools\skills\handoff\scripts\validate-handoff.py; Test-Path D:\workspace\tools\skills\handoff\scripts\test_validate_handoff.py` | Python reports 3.11 & both paths return True |
-| Read-only source baseline | `git -C D:\workspace status --short; git -C D:\workspace rev-parse HEAD` | Status captured verbatim; revision reports a 40-character hash |
+| Read-only source baseline | `git -C D:/workspace status --short; git -C D:/workspace rev-parse HEAD` | Status captured verbatim; revision reports a 40-character hash |
 | Output isolation | `Test-Path D:\workspace\tools\review\.council-runs\dispatch-handoff-final\forward` | Existing path is inspected; only report path is eligible for write |
 
 - **Required tools / access:** Windows PowerShell, `py -3.11`, `rg`, `git`, local read/write access to exact OWN artifact path.
@@ -236,7 +236,7 @@ py -3.11 --version; git --version; rg --version | Select-Object -First 1; Test-P
 
 ```powershell
 # Run environment integrity capture.
-git -C D:\workspace status --short | Out-File D:\workspace\tools\review\.council-runs\dispatch-handoff-final\forward\environment-integrity.log; git -C D:\workspace rev-parse HEAD | Add-Content D:\workspace\tools\review\.council-runs\dispatch-handoff-final\forward\environment-integrity.log
+git -C D:/workspace status --short | Out-File D:\workspace\tools\review\.council-runs\dispatch-handoff-final\forward\environment-integrity.log; git -C D:/workspace rev-parse HEAD | Add-Content D:\workspace\tools\review\.council-runs\dispatch-handoff-final\forward\environment-integrity.log
 ```
 
 - **Canary / one-unit preflight:**
@@ -277,13 +277,13 @@ py -3.11 D:\workspace\tools\skills\handoff\scripts\validate-handoff.py D:\worksp
 - **Advances target:** ADVANCES_STATE_B: records source hashes & initial status required to prove subsequent non-mutation.
 - **Dependency order:** START: selected route begins from verified STATE_A.
 - **Purpose:** Preserve dirty state & baseline revision before any owned report write.
-- **Inputs:** `D:\workspace` Git metadata plus named handoff tree paths.
-- **Working directory:** `D:\workspace`
+- **Inputs:** `D:/workspace` Git metadata plus named handoff tree paths.
+- **Working directory:** `D:/workspace`
 - **Exact action / command:**
 
 ```powershell
 # Run baseline capture.
-git -C D:\workspace status --short; git -C D:\workspace rev-parse --abbrev-ref HEAD; git -C D:\workspace rev-parse HEAD; Get-ChildItem -Recurse -File D:\workspace\tools\skills\handoff | Select-Object -ExpandProperty FullName
+git -C D:/workspace status --short; git -C D:/workspace rev-parse --abbrev-ref HEAD; git -C D:/workspace rev-parse HEAD; Get-ChildItem -Recurse -File D:\workspace\tools\skills\handoff | Select-Object -ExpandProperty FullName
 ```
 
 - **Expected stdout / state:** Status, branch, 40-character revision, & six handoff file paths print without source modification.
@@ -291,7 +291,7 @@ git -C D:\workspace status --short; git -C D:\workspace rev-parse --abbrev-ref H
 - **Timeout / retry:** 20 seconds; one retry after rerunning exact command.
 - **Output artifacts:** `D:\workspace\tools\review\.council-runs\dispatch-handoff-final\forward\handoff-independence-report.md` receives baseline section.
 - **Evidence to record:** Command, UTC timestamp, status output, branch, revision, & file count in `D:\workspace\tools\review\.council-runs\dispatch-handoff-final\forward\handoff-independence-report.md`.
-- **On failure:** Run `Get-Location; Test-Path D:\workspace; git -C D:\workspace rev-parse --show-toplevel`; stop only after both discovery commands fail & record raw error.
+- **On failure:** Run `Get-Location; Test-Path D:/workspace; git -C D:/workspace rev-parse --show-toplevel`; stop only after both discovery commands fail & record raw error.
 
 ### Step 2 — Prove interface boundary & absence of operational coupling
 
@@ -300,7 +300,7 @@ git -C D:\workspace status --short; git -C D:\workspace rev-parse --abbrev-ref H
 - **Dependency order:** AFTER: R_VALIDATE/S1
 - **Purpose:** Distinguish documented boundary mention from mandatory dispatch execution.
 - **Inputs:** `D:\workspace\tools\skills\handoff\SKILL.md`, scripts, template, eval fixture.
-- **Working directory:** `D:\workspace`
+- **Working directory:** `D:/workspace`
 - **Exact action / command:**
 
 ```powershell
@@ -322,7 +322,7 @@ rg -n -C 2 "Boundary from" D:\workspace\tools\skills\handoff\SKILL.md; rg -n "Ne
 - **Dependency order:** AFTER: R_VALIDATE/S2
 - **Purpose:** Execute existing adversarial validator tests plus exact validator template self-check.
 - **Inputs:** Handoff validator, test file, & template paths listed in Section 2.
-- **Working directory:** `D:\workspace`
+- **Working directory:** `D:/workspace`
 - **Exact action / command:**
 
 ```powershell
@@ -344,12 +344,12 @@ py -3.11 -m py_compile D:\workspace\tools\skills\handoff\scripts\validate-handof
 - **Dependency order:** AFTER: R_VALIDATE/S3
 - **Purpose:** Prove eval JSON parses, contains expected dispatch-routing negative case, & source status remains preserved.
 - **Inputs:** `D:\workspace\tools\skills\handoff\evals\evals.json` plus baseline status from Step 1.
-- **Working directory:** `D:\workspace`
+- **Working directory:** `D:/workspace`
 - **Exact action / command:**
 
 ```powershell
 # Run scoped eval validation.
-py -3.11 -c "import json; p=r'D:\workspace\tools\skills\handoff\evals\evals.json'; d=json.load(open(p,encoding='utf-8')); x=[e for e in d['should_not_trigger'] if e['id']=='handoff-not-dispatch'][0]; assert x['expected_skill']=='dispatch' and 'handoff' in x['forbidden_skills']; print('EVAL_PASS: handoff-not-dispatch routes dispatch and forbids handoff')"; Get-FileHash D:\workspace\tools\skills\handoff\SKILL.md,D:\workspace\tools\skills\handoff\scripts\validate-handoff.py,D:\workspace\tools\skills\handoff\scripts\test_validate_handoff.py,D:\workspace\tools\skills\handoff\evals\evals.json -Algorithm SHA256; git -C D:\workspace status --short
+py -3.11 -c "import json; p=r'D:\workspace\tools\skills\handoff\evals\evals.json'; d=json.load(open(p,encoding='utf-8')); x=[e for e in d['should_not_trigger'] if e['id']=='handoff-not-dispatch'][0]; assert x['expected_skill']=='dispatch' and 'handoff' in x['forbidden_skills']; print('EVAL_PASS: handoff-not-dispatch routes dispatch and forbids handoff')"; Get-FileHash D:\workspace\tools\skills\handoff\SKILL.md,D:\workspace\tools\skills\handoff\scripts\validate-handoff.py,D:\workspace\tools\skills\handoff\scripts\test_validate_handoff.py,D:\workspace\tools\skills\handoff\evals\evals.json -Algorithm SHA256; git -C D:/workspace status --short
 ```
 
 - **Expected stdout / state:** `EVAL_PASS` line, four SHA-256 hashes, & final Git status print; no source-path delta is introduced.

@@ -232,8 +232,8 @@ The emerging **llms.txt** standard provides AI crawlers with structured content 
 > Brief description
 
 ## Main sections
-- Page title (<external-reference>): Description
-- Another page (<external-reference>): Description
+- Page title: Description
+- Another page: Description
 
 ## Optional: Key facts
 - Fact 1

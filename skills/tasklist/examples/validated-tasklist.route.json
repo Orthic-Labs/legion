@@ -8,7 +8,7 @@
     "description": "No durable route-verified tasklist exists for current validation goal.",
     "evidence": [
       {
-        "locator": "D:/workspace/tools/skills/tasklist/SKILL.md",
+        "locator": "/workspace/tools/skills/tasklist/SKILL.md",
         "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
         "check": "Read tasklist skill and observe example acceptance record is not yet produced."
       }
@@ -18,39 +18,39 @@
     "description": "Permanent tasklist example passes route, structure, and receipt verification.",
     "proof": [
       {
-        "command": "py -3.11 D:/workspace/tools/skills/tasklist/scripts/test_validate_tasklist.py",
+        "command": "py -3.11 /workspace/tools/skills/tasklist/scripts/test_validate_tasklist.py",
         "expected": "Exit 0 and output begins PASS: tasklist validator.",
-        "evidence_path": "D:/workspace/.audit/tasklist-example/test-output.txt"
+        "evidence_path": "/workspace/.audit/tasklist-example/test-output.txt"
       }
     ]
   },
   "constraints": {
     "authority": {
       "rule": "Create same-agent tasklist only, without delegation or handoff.",
-      "evidence_locator": "D:/workspace/tools/skills/tasklist/SKILL.md"
+      "evidence_locator": "/workspace/tools/skills/tasklist/SKILL.md"
     },
     "safety": {
       "rule": "Use read-only validation plus owned example artifacts.",
-      "evidence_locator": "D:/workspace/tools/skills/tasklist/examples"
+      "evidence_locator": "/workspace/tools/skills/tasklist/examples"
     },
     "scope": {
       "rule": "Validate tasklist contract and exact receipts only.",
-      "evidence_locator": "D:/workspace/tools/skills/tasklist/scripts/test_validate_tasklist.py"
+      "evidence_locator": "/workspace/tools/skills/tasklist/scripts/test_validate_tasklist.py"
     },
     "quality": {
       "rule": "Adversarial validator and receipt replay must pass.",
-      "evidence_locator": "D:/workspace/tools/skills/tasklist/scripts/test_validate_tasklist.py"
+      "evidence_locator": "/workspace/tools/skills/tasklist/scripts/test_validate_tasklist.py"
     },
     "cost": {
       "rule": "Use local standard-library checks with zero paid calls.",
-      "evidence_locator": "D:/workspace/tools/skills/tasklist/scripts/validate-tasklist.py"
+      "evidence_locator": "/workspace/tools/skills/tasklist/scripts/validate-tasklist.py"
     }
   },
   "candidates": [
     {
       "id": "R_SHORT",
       "constraint_status": "PASS",
-      "constraint_evidence": "D:/workspace/.audit/tasklist-example/r-short.json",
+      "constraint_evidence": "/workspace/.audit/tasklist-example/r-short.json",
       "steps": [
         {
           "id": "R_SHORT/S1",
@@ -75,13 +75,13 @@
       "status": "REJECTED",
       "dominance_reason": "R_RELIABLE reaches verified B sooner after expected rework.",
       "evidence": [
-        "D:/workspace/.audit/tasklist-example/r-short.json"
+        "/workspace/.audit/tasklist-example/r-short.json"
       ]
     },
     {
       "id": "R_RELIABLE",
       "constraint_status": "PASS",
-      "constraint_evidence": "D:/workspace/.audit/tasklist-example/r-reliable.json",
+      "constraint_evidence": "/workspace/.audit/tasklist-example/r-reliable.json",
       "steps": [
         {
           "id": "R_RELIABLE/S1",
@@ -126,7 +126,7 @@
       "status": "SELECTED",
       "dominance_reason": "Minimum expected time to verified B despite more steps.",
       "evidence": [
-        "D:/workspace/.audit/tasklist-example/r-reliable.json"
+        "/workspace/.audit/tasklist-example/r-reliable.json"
       ]
     }
   ],

@@ -13,7 +13,7 @@ MAY_CALL_SKILLS: NONE
 TERMINAL: One applicable lens wave plus focused checks finish with at most two repair or recheck cycles.
 ```
 
-Use only frozen candidate paths or hunks. Do not widen callers, tests, history, branch policy, rebuilds, Adapt, commit, or push without a matching manifest capability.
+Use only frozen candidate paths or hunks. Do not widen callers, tests, history, branch policy, rebuilds, durable-memory writes, commit, or push without a matching manifest capability.
 
 `/commit` is `audit-fix` aimed at the **git diff specifically**, then it commits and pushes. It is the
 pre-commit safety net: the same lenses `/audit` runs whole-repo, scoped to just what's changing, fixed
@@ -294,9 +294,9 @@ CodeRabbit or ponytail binaries (those aren't required; the engine absorbs both,
 7. **Knowledge extraction (only for a genuinely durable pattern).** Reviews should improve future
    reviews. If a fix in this run corrected a mistake you'd expect to recur across the workspace — a
    repeated anti-pattern, a repo convention you had to be corrected on, a "never do X here" — capture it
-   as a durable rule through the Adapt tool so the recall hook surfaces it
+   as a durable rule through a durable-memory capability, if the host provides one, so it surfaces
    next time. Do NOT log one-off, change-specific fixes; the bar is "a standing preference a future
-   agent should know," not a changelog of this diff. Casual/one-time fixes are noise in Crypt.
+   agent should know," not a changelog of this diff. Casual/one-time fixes are noise.
 
    **A commit-time inference is a low-authority candidate, not a user instruction.** One incident
    observed by an agent is weaker evidence than something the user actually said, and it must not enter

@@ -40,9 +40,10 @@ Use `src/lib/research-core/run.py approve ...` followed by `run.py grant ...`.
 Medical requires `patient + issue`:
 
 - `anonymous`: no personal history may be read;
-- `self` or `other-identified`: explicit route approval plus a readable history source;
-- generic evidence questions never load `private-history.yaml`;
-- personal the approving human questions may load the canonical history only after the route freezes.
+- `self` or `other-identified`: explicit route approval plus a readable, project-configured history source;
+- generic evidence questions never load the personal history source;
+- personal questions may load the configured history only after the route freezes, and the route
+  blocks rather than infers if no history source is configured.
 
 ## Legal context
 

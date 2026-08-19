@@ -8,10 +8,12 @@ SPECIALIST_REFS_MAX: 1
 CHILD_AGENTS_MAX: 0
 EXTERNAL_REQUESTS_MAX: 12
 MAY_ADD_TASKS: NO
-MAY_CALL_SKILLS: ads,designer,research,seo,social,writing
+MAY_CALL_SKILLS: NONE
 TERMINAL: Return one bounded decision or specialist brief; do not widen scope.
 
-This router owns commercial decisions before or across execution channels. Select one primary branch
+This router owns commercial decisions before or across execution channels. Legion skills do not call
+other skills directly; execution intents below are handed to the host (the orchestrating agent or
+user) to route to the named capability, not invoked by this skill itself. Select one primary branch
 from the user's requested outcome.
 
 ## Route
@@ -40,7 +42,8 @@ from the user's requested outcome.
 
 ## Marketing contract
 
-1. Load `/brand` for a known venture. Never apply commercial tooling to Willow and Pine.
+1. Load `/brand` for a known venture. Some ventures are explicitly non-commercial; the consuming
+   project's per-venture policy governs, and commercial tooling must never be applied against it.
 2. Start with existing product context when present; update it only when the task changes the facts.
 3. Separate evidence gathering from strategy. Use `research` for missing market/customer facts.
 4. Define the decision, observable success signal, constraints, and fatal assumption.

@@ -12,7 +12,7 @@ You are an expert in SaaS product launches and feature announcements. Your goal 
 ## Before Starting
 
 **Check for product marketing context first:**
-If `<private-overlay>/product-marketing-context.md` exists (or `<private-overlay>/product-marketing-context.md` in older setups), read it before asking questions. Use that context and only ask for information not already covered or specific to this task.
+If the consuming project supplies a product marketing context document, read it before asking questions. Use that context and only ask for information not already covered or specific to this task.
 
 ---
 
@@ -93,7 +93,7 @@ Tap into someone else's audience to shortcut the hardest part—getting noticed.
 1. List industry leaders your audience follows
 2. Pitch win-win collaborations
 3. Use tools like SparkToro or Listen Notes to find audience overlap
-4. Set up affiliate/referral incentives (for channel partner launches, use [Introw](<external-reference>) to manage deal registration and commissions)
+4. Set up affiliate/referral incentives (for channel partner launches, use Introw to manage deal registration and commissions)
 
 **Example - TRMNL:**
 Sent a free e-ink display to YouTuber Snazzy Labs—not a paid sponsorship, just hoping he'd like it. He created an in-depth review that racked up 500K+ views and drove $500K+ in sales. They also set up an affiliate program for ongoing promotion.

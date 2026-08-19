@@ -51,7 +51,7 @@ EDIT_MARKERS = (
 REASON = (
     "BLOCKED: this looks like a read-only review/lens on an expensive Claude model. "
     "Route it to the free/cheap API models instead — build a manifest and run:\n"
-    "  py -3.11 D:/workspace/tools/skills/coder/scripts/api-worker.py --batch manifest.json --pool-size 4\n"
+    "  py -3.11 skills/coder/scripts/api-worker.py --batch manifest.json --pool-size 4\n"
     "(see the /coder skill; use --fallback code for risky code lenses). "
     "If this genuinely must run on Claude, add [claude-review] to the prompt or set CHEAP_REVIEW_SKIP=1."
 )

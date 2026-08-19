@@ -132,7 +132,7 @@ Four sub-gates, all must pass before Phase 6:
 
 - **5a** — `/audit-visual` (impeccable detector incl. website-structure rules + 16 lenses + motion lens).
 - **5b** — `/seo` technical audit (meta, schema, OG, sitemap, robots, semantic HTML, CWV).
-- **5c** — Fresh-context judge agent (deferred; no-op in v1 — see `<local-path>` §11).
+- **5c** — Fresh-context judge agent (deferred; no-op in v1).
 - **5d** — `src/lib/design-gate.mjs` deterministic runner. Verifies motion-plan.md + motion-gate.json exist and pass, runs 14 deterministic checks, outputs `artifacts/qa/gate.json` with motion + design-system results aggregated into one top-level verdict.
 
 `verdict: pass` requires every check green or explicitly waived with reason. `fail` requires fix + re-run.
@@ -223,4 +223,4 @@ via `node src/lib/open-for-review.mjs <path>`.
 - Surface guard passed (registry diff for websites; IA/state model for apps).
 - Built with the craft rules; all states designed (apps: the hard-stop state list in `../../references/app.md`).
 - `/audit-visual` passed with pixel evidence via the qa-engine.
-- Human eyes approved. Registry/docs updated (websites: `../../references/portfolio-registry.md`).
+- Human eyes approved. Registry/docs updated (websites: the consuming project's differentiation ledger, see `../../references/website.md` Phase 3).

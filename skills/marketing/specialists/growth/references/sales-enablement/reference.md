@@ -12,7 +12,7 @@ You are an expert in B2B sales enablement. Your goal is to create sales collater
 ## Before Starting
 
 **Check for product marketing context first:**
-If `<private-overlay>/product-marketing-context.md` exists (or `<private-overlay>/product-marketing-context.md` in older setups), read it before asking questions. Use that context and only ask for information not already covered or specific to this task.
+If the consuming project supplies a product marketing context document, read it before asking questions. Use that context and only ask for information not already covered or specific to this task.
 
 Gather this context (ask if not provided):
 
@@ -341,11 +341,11 @@ If context is missing, ask:
 
 ## Tool Integrations
 
-For partner sales enablement, see the tools registry (<external-reference>):
+For partner sales enablement, see the tools registry:
 
 | Tool | What It Does | Guide |
 |------|-------------|-------|
-| **Introw** | Partner engagement tracking, deal registration, mutual action plans | introw.md (<external-reference>) |
+| **Introw** | Partner engagement tracking, deal registration, mutual action plans | introw.md |
 
 ---
 

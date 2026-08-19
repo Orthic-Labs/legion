@@ -6,7 +6,7 @@
  * real URL engine (puppeteer, or the CDP fallback against installed
  * Chrome/Edge), and asserts the exact structure-rule set per fixture.
  *
- * Run: node tools/skills/designer/engine/scripts/detector/tests/structure/run-structure-smoke.mjs
+ * Run: node skills/designer/engine/scripts/detector/tests/structure/run-structure-smoke.mjs
  * Exit 0 = all pass, 1 = mismatch or scan failure.
  */
 import fs from 'node:fs';

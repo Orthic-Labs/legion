@@ -159,7 +159,7 @@ Use `/banana generate` directly with the specified prompt and aspect ratio.
 ## Reference Files
 
 - `legion-skill://ads/references/image-providers.md`: provider config, pricing, limits
-- `<external-reference>`: per-platform specs
+- : per-platform specs
 - `legion-skill://ads/references/brand-dna-template.md`: brand injection schema
 
 ## Optional external jury (explicit opt-in only)

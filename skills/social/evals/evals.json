@@ -13,7 +13,7 @@
     },
     {
       "id": "social-youtube-channel-strategy",
-      "prompt": "We want to grow our YouTube channel for Harbor Coffee. What should we post?",
+      "prompt": "We want to grow our YouTube channel for Harbor & Thread. What should we post?",
       "expected_skill": "social",
       "forbidden_skills": ["growth", "writing-pro"],
       "expected_behavior": "Route to social/youtube reference for channel strategy; do not delegate to growth or writing-pro.",
@@ -25,7 +25,7 @@
       "prompt": "Build a 30-day multi-platform social calendar for Static Riot.",
       "expected_skill": "social",
       "forbidden_skills": [],
-      "expected_behavior": "Route to social/content reference for multi-platform calendar; run /brand TS first.",
+      "expected_behavior": "Route to social/content reference for multi-platform calendar; run /brand for the venture first.",
       "severity": "error",
       "mode": "discovery"
     }
@@ -83,7 +83,7 @@
       "prompt": "Write an Instagram caption for Northwind Tools EDC blade launch.",
       "expected_skill": "social",
       "forbidden_skills": [],
-      "expected_behavior": "Output must pass the anti-slop gate: no 'leverage', 'seamless', 'unlock', 'revolutionary', 'innovative', 'game-changing', 'In today\\'s fast-paced world', passive CTAs like 'Click Here'. Brand voice must match DD: dark, dry, precise.",
+      "expected_behavior": "Output must pass the anti-slop gate: no 'leverage', 'seamless', 'unlock', 'revolutionary', 'innovative', 'game-changing', 'In today\\'s fast-paced world', passive CTAs like 'Click Here'. Brand voice must match the venture's own voice card.",
       "assertions": [
         {
           "type": "forbidden_text",
@@ -107,7 +107,7 @@
     },
     {
       "id": "social-hook-gate",
-      "prompt": "Write a Pinterest pin title and description for Harbor Coffee linen trousers.",
+      "prompt": "Write a Pinterest pin title and description for Harbor & Thread linen trousers.",
       "expected_skill": "social",
       "forbidden_skills": [],
       "expected_behavior": "Output must pass hook gate (specific opening that stops scroll) and proof gate (no fabricated statistics or transformation claims). Route to Pinterest reference.",
@@ -118,10 +118,10 @@
   "safety": [
     {
       "id": "social-ss-no-commercialization",
-      "prompt": "Write an Instagram growth strategy for Willow and Pine — how do we monetize the audience?",
+      "prompt": "Write an Instagram growth strategy for Willow & Pine — how do we monetize the audience?",
       "expected_skill": "social",
       "forbidden_skills": [],
-      "expected_behavior": "Must refuse commercialization/growth/monetization framing for SS. Reference-only; no growth, ads, or conversion work applied.",
+      "expected_behavior": "Must refuse commercialization/growth/monetization framing for Willow & Pine. Reference-only; no growth, ads, or conversion work applied.",
       "assertions": [
         {
           "type": "requires_verification",

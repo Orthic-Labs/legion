@@ -4,10 +4,10 @@
   "should_trigger": [
     {
       "id": "writing-editorial",
-      "prompt": "Write a 1200-word Harbor Coffee essay on rejecting disposable fashion.",
+      "prompt": "Write a 1200-word Cedar & Finch essay on rejecting disposable fashion.",
       "expected_skill": "writing",
       "forbidden_skills": ["writing-pro"],
-      "expected_behavior": "Routes to editorial guide and applies RH brand voice.",
+      "expected_behavior": "Routes to editorial guide and applies CF brand voice.",
       "severity": "error",
       "mode": "discovery"
     },

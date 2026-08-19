@@ -23,27 +23,27 @@
   "transformRules": [
     {
       "id": "identity-genericization",
-      "from": "the operator the operator",
+      "from": "<redacted-identity-literal>",
       "to": "the approving human"
     },
     {
       "id": "identity-genericization",
-      "from": "the operator",
+      "from": "<redacted-identity-literal>",
       "to": "the approving human"
     },
     {
       "id": "private-source-reference",
-      "from": "operator_batch_apr30.txt",
+      "from": "<redacted-identity-literal>",
       "to": "private-source-batch.txt"
     },
     {
       "id": "private-source-reference",
-      "from": "operator.yaml",
+      "from": "<redacted-identity-literal>",
       "to": "private-history.yaml"
     },
     {
       "id": "private-source-reference",
-      "from": "operator",
+      "from": "<redacted-identity-literal>",
       "to": "private-source"
     },
     {
@@ -53,18 +53,18 @@
     },
     {
       "id": "private-overlay-redaction",
-      "from": "~/.claude/",
-      "to": "<private-overlay>/"
+      "from": "<redacted-host-config-prefix>",
+      "to": "<project-overlay>/"
     },
     {
       "id": "private-overlay-redaction",
-      "from": ".claude/",
-      "to": "<private-overlay>/"
+      "from": "<redacted-host-config-prefix>",
+      "to": "<project-overlay>/"
     },
     {
       "id": "private-overlay-redaction",
-      "from": ".agents/",
-      "to": "<private-overlay>/"
+      "from": "<redacted-host-config-prefix>",
+      "to": "<project-overlay>/"
     },
     {
       "id": "whitespace-normalization"
@@ -203,8 +203,8 @@
     {
       "path": "evals/evals.json",
       "uri": "legion-skill://marketing/evals/evals.json",
-      "sourceDigest": "sha256:a38af66303cd45819ca3c852f8bd1f35774d1d1c8027b3a8cef2094bd91ff555",
-      "outputDigest": "sha256:a38af66303cd45819ca3c852f8bd1f35774d1d1c8027b3a8cef2094bd91ff555",
+      "sourceDigest": "sha256:a6ba50dd7a92e3d5869bf8976953c802e0d5e839f9188e8fd788c999ec7029ff",
+      "outputDigest": "sha256:a6ba50dd7a92e3d5869bf8976953c802e0d5e839f9188e8fd788c999ec7029ff",
       "transformations": [
         "identity-genericization",
         "private-source-reference",
@@ -216,8 +216,8 @@
     {
       "path": "references/ad-campaign.md",
       "uri": "legion-skill://marketing/references/ad-campaign.md",
-      "sourceDigest": "sha256:08c2c891f7dde8f66d533980338f789cba3dd72d106e891c31f863f97830bf36",
-      "outputDigest": "sha256:08c2c891f7dde8f66d533980338f789cba3dd72d106e891c31f863f97830bf36",
+      "sourceDigest": "sha256:1bea7f1982fdf8a8257ba27a3cb12e31fecbd58e851ca6884503ac49a66db4fc",
+      "outputDigest": "sha256:1bea7f1982fdf8a8257ba27a3cb12e31fecbd58e851ca6884503ac49a66db4fc",
       "transformations": [
         "identity-genericization",
         "private-source-reference",
@@ -229,8 +229,8 @@
     {
       "path": "references/content-assets/headless-cms.md",
       "uri": "legion-skill://marketing/references/content-assets/headless-cms.md",
-      "sourceDigest": "sha256:46dff86362a556380f85e760e985245342d1892eb36fcc31b323be21c5c840ff",
-      "outputDigest": "sha256:46dff86362a556380f85e760e985245342d1892eb36fcc31b323be21c5c840ff",
+      "sourceDigest": "sha256:d1b68a0752e0c9b1ca522ef027291fea6962c7efad7d672178f4426a6d1fc851",
+      "outputDigest": "sha256:d1b68a0752e0c9b1ca522ef027291fea6962c7efad7d672178f4426a6d1fc851",
       "transformations": [
         "identity-genericization",
         "private-source-reference",
@@ -242,8 +242,8 @@
     {
       "path": "references/content.md",
       "uri": "legion-skill://marketing/references/content.md",
-      "sourceDigest": "sha256:3edb994515fdf9ea169d0e98041c57388c28bd7eca225d709fa38adcce342fb8",
-      "outputDigest": "sha256:3edb994515fdf9ea169d0e98041c57388c28bd7eca225d709fa38adcce342fb8",
+      "sourceDigest": "sha256:9f27d7971058e4f9f92001e45d648c5548d1c792b3a206ad164398d320402453",
+      "outputDigest": "sha256:9f27d7971058e4f9f92001e45d648c5548d1c792b3a206ad164398d320402453",
       "transformations": [
         "identity-genericization",
         "private-source-reference",
@@ -268,8 +268,8 @@
     {
       "path": "references/free-tool.md",
       "uri": "legion-skill://marketing/references/free-tool.md",
-      "sourceDigest": "sha256:da2a9e7396cda9531dff7903932b3519473064b2dc7e3b53f3872bd97d1e0092",
-      "outputDigest": "sha256:da2a9e7396cda9531dff7903932b3519473064b2dc7e3b53f3872bd97d1e0092",
+      "sourceDigest": "sha256:8cbcf80c707e2a1e359597fe0198d95795755e51995e32f56730b4b2d02950a8",
+      "outputDigest": "sha256:8cbcf80c707e2a1e359597fe0198d95795755e51995e32f56730b4b2d02950a8",
       "transformations": [
         "identity-genericization",
         "private-source-reference",
@@ -294,8 +294,8 @@
     {
       "path": "references/launch.md",
       "uri": "legion-skill://marketing/references/launch.md",
-      "sourceDigest": "sha256:500a38cae787197b4fd4fb30057526c57451e7b4bac8b99633f91a372f90fda4",
-      "outputDigest": "sha256:500a38cae787197b4fd4fb30057526c57451e7b4bac8b99633f91a372f90fda4",
+      "sourceDigest": "sha256:2dd5df7b28a448e0a2b36b58c7af2ca8940ed71799d5b8cba837625dc04b2ac2",
+      "outputDigest": "sha256:2dd5df7b28a448e0a2b36b58c7af2ca8940ed71799d5b8cba837625dc04b2ac2",
       "transformations": [
         "identity-genericization",
         "private-source-reference",
@@ -307,8 +307,8 @@
     {
       "path": "references/manual.md",
       "uri": "legion-skill://marketing/references/manual.md",
-      "sourceDigest": "sha256:8b7d06250904cb598abe94b0b71062ac500fac21711a60fdf1a5f30c8caf7562",
-      "outputDigest": "sha256:8b7d06250904cb598abe94b0b71062ac500fac21711a60fdf1a5f30c8caf7562",
+      "sourceDigest": "sha256:72ea29cdec69d61fb607d5c04879ea91d3bdb3c9fd87eccea9de170752ea408e",
+      "outputDigest": "sha256:72ea29cdec69d61fb607d5c04879ea91d3bdb3c9fd87eccea9de170752ea408e",
       "transformations": [
         "identity-genericization",
         "private-source-reference",
@@ -359,8 +359,8 @@
     {
       "path": "references/seo-structure.md",
       "uri": "legion-skill://marketing/references/seo-structure.md",
-      "sourceDigest": "sha256:7e6d8e7e97e7bb101d9deab5d67f9cc5a537ae4563eba32f9b24a1071eebf371",
-      "outputDigest": "sha256:7e6d8e7e97e7bb101d9deab5d67f9cc5a537ae4563eba32f9b24a1071eebf371",
+      "sourceDigest": "sha256:907892d6c2eaedb59d70f4147011f6a20110d652634cf6ddd3bb6fbe6289dd8e",
+      "outputDigest": "sha256:907892d6c2eaedb59d70f4147011f6a20110d652634cf6ddd3bb6fbe6289dd8e",
       "transformations": [
         "identity-genericization",
         "private-source-reference",
@@ -372,8 +372,8 @@
     {
       "path": "references/seo.md",
       "uri": "legion-skill://marketing/references/seo.md",
-      "sourceDigest": "sha256:c6f6c6bbc6b1cdf2ac43c3c280027e60aaedfb93549290958021674c3fe8c1c0",
-      "outputDigest": "sha256:c6f6c6bbc6b1cdf2ac43c3c280027e60aaedfb93549290958021674c3fe8c1c0",
+      "sourceDigest": "sha256:d75d64f04dc9bff05a4f80395ee82922de2e94477cf0b0a5faa851bd68c32a96",
+      "outputDigest": "sha256:d75d64f04dc9bff05a4f80395ee82922de2e94477cf0b0a5faa851bd68c32a96",
       "transformations": [
         "identity-genericization",
         "private-source-reference",
@@ -385,8 +385,8 @@
     {
       "path": "references/visual-story.md",
       "uri": "legion-skill://marketing/references/visual-story.md",
-      "sourceDigest": "sha256:2004f14223b4bf7b5f67192ea3568457d4deec5395c030470252544746658408",
-      "outputDigest": "sha256:2004f14223b4bf7b5f67192ea3568457d4deec5395c030470252544746658408",
+      "sourceDigest": "sha256:7b355540ba387fcf26deda46dd2f5adb76a0af6bba983deeddff6a8719f1e64e",
+      "outputDigest": "sha256:7b355540ba387fcf26deda46dd2f5adb76a0af6bba983deeddff6a8719f1e64e",
       "transformations": [
         "identity-genericization",
         "private-source-reference",
@@ -398,8 +398,8 @@
     {
       "path": "specialists/cro/GUIDE.md",
       "uri": "legion-skill://marketing/specialists/cro/GUIDE.md",
-      "sourceDigest": "sha256:e84d0f8c47594bd3631a0bb03acc707f8daf301e362e3f08abf2182bbf34a7ff",
-      "outputDigest": "sha256:e84d0f8c47594bd3631a0bb03acc707f8daf301e362e3f08abf2182bbf34a7ff",
+      "sourceDigest": "sha256:a15b9070db153f43b81413a5da46c561bc3a01197fa0a261eb0d0d2434fe1c11",
+      "outputDigest": "sha256:a15b9070db153f43b81413a5da46c561bc3a01197fa0a261eb0d0d2434fe1c11",
       "transformations": [
         "identity-genericization",
         "private-source-reference",
@@ -424,8 +424,8 @@
     {
       "path": "specialists/cro/references/form.md",
       "uri": "legion-skill://marketing/specialists/cro/references/form.md",
-      "sourceDigest": "sha256:9b038f08afe7d7539c8f4a700679347dd96561093d67bc9a75e11955b5183874",
-      "outputDigest": "sha256:9b038f08afe7d7539c8f4a700679347dd96561093d67bc9a75e11955b5183874",
+      "sourceDigest": "sha256:b440bfb93adb639e0fea6da599d91e2fe4d3b32e10a47950b013a01fa125e66c",
+      "outputDigest": "sha256:b440bfb93adb639e0fea6da599d91e2fe4d3b32e10a47950b013a01fa125e66c",
       "transformations": [
         "identity-genericization",
         "private-source-reference",
@@ -450,8 +450,8 @@
     {
       "path": "specialists/cro/references/onboarding.md",
       "uri": "legion-skill://marketing/specialists/cro/references/onboarding.md",
-      "sourceDigest": "sha256:c564054c64704e30e309c57297c49dbbbcd99713ab30c4cff2d4730af1f1c534",
-      "outputDigest": "sha256:c564054c64704e30e309c57297c49dbbbcd99713ab30c4cff2d4730af1f1c534",
+      "sourceDigest": "sha256:7cc977f590da14c6e68c1429949cfdc163bd6e2bda490c97fa58a1c73910ad29",
+      "outputDigest": "sha256:7cc977f590da14c6e68c1429949cfdc163bd6e2bda490c97fa58a1c73910ad29",
       "transformations": [
         "identity-genericization",
         "private-source-reference",
@@ -476,8 +476,8 @@
     {
       "path": "specialists/cro/references/page.md",
       "uri": "legion-skill://marketing/specialists/cro/references/page.md",
-      "sourceDigest": "sha256:8177f36d68c5250fed86b33e2fa66ca5490223aabd673894a5c0e1961ab24874",
-      "outputDigest": "sha256:8177f36d68c5250fed86b33e2fa66ca5490223aabd673894a5c0e1961ab24874",
+      "sourceDigest": "sha256:bf8dc2036f7924f130862dae54eb7d8fc7d394467684e3436e2d5d4c0f19218a",
+      "outputDigest": "sha256:bf8dc2036f7924f130862dae54eb7d8fc7d394467684e3436e2d5d4c0f19218a",
       "transformations": [
         "identity-genericization",
         "private-source-reference",
@@ -502,8 +502,8 @@
     {
       "path": "specialists/cro/references/paywall.md",
       "uri": "legion-skill://marketing/specialists/cro/references/paywall.md",
-      "sourceDigest": "sha256:1b50c12bc8fbaf174179a375b7f2418a6c40ca7bad016b850f4181173598b4a5",
-      "outputDigest": "sha256:1b50c12bc8fbaf174179a375b7f2418a6c40ca7bad016b850f4181173598b4a5",
+      "sourceDigest": "sha256:39e852e6c15a6231a9245d0d016027e331a47a8e4993129db6b8df87b4b81c13",
+      "outputDigest": "sha256:39e852e6c15a6231a9245d0d016027e331a47a8e4993129db6b8df87b4b81c13",
       "transformations": [
         "identity-genericization",
         "private-source-reference",
@@ -515,8 +515,8 @@
     {
       "path": "specialists/cro/references/popup.md",
       "uri": "legion-skill://marketing/specialists/cro/references/popup.md",
-      "sourceDigest": "sha256:b019524319db88633ce630d74b5ed69cf753252e93e79e34ab87b425905406b6",
-      "outputDigest": "sha256:b019524319db88633ce630d74b5ed69cf753252e93e79e34ab87b425905406b6",
+      "sourceDigest": "sha256:8727312ecd5a21ff5996840f8fef639d4c4d05b372c1ed7dc11b525ac31ddf00",
+      "outputDigest": "sha256:8727312ecd5a21ff5996840f8fef639d4c4d05b372c1ed7dc11b525ac31ddf00",
       "transformations": [
         "identity-genericization",
         "private-source-reference",
@@ -554,8 +554,8 @@
     {
       "path": "specialists/cro/references/retention.md",
       "uri": "legion-skill://marketing/specialists/cro/references/retention.md",
-      "sourceDigest": "sha256:95f92d2e88058fb129cf51cd46316ed10db5aded8a498a99e8fd19a2fb4ec02a",
-      "outputDigest": "sha256:95f92d2e88058fb129cf51cd46316ed10db5aded8a498a99e8fd19a2fb4ec02a",
+      "sourceDigest": "sha256:ae77fdb87c8c3c63cf6222aed95007d79aadb4824360ea5ec9f317f7d8ec51ad",
+      "outputDigest": "sha256:ae77fdb87c8c3c63cf6222aed95007d79aadb4824360ea5ec9f317f7d8ec51ad",
       "transformations": [
         "identity-genericization",
         "private-source-reference",
@@ -567,8 +567,8 @@
     {
       "path": "specialists/cro/references/signup.md",
       "uri": "legion-skill://marketing/specialists/cro/references/signup.md",
-      "sourceDigest": "sha256:c6f5566f4e7d132d5b3c2afaf02cc0aca84221a60b4b83ba9a6e09a0e7301ee2",
-      "outputDigest": "sha256:c6f5566f4e7d132d5b3c2afaf02cc0aca84221a60b4b83ba9a6e09a0e7301ee2",
+      "sourceDigest": "sha256:58c5ba5838e9ca2b0d81a895c874e8cfdb6d6c1d2b57fb651f728919730afcd6",
+      "outputDigest": "sha256:58c5ba5838e9ca2b0d81a895c874e8cfdb6d6c1d2b57fb651f728919730afcd6",
       "transformations": [
         "identity-genericization",
         "private-source-reference",
@@ -593,8 +593,8 @@
     {
       "path": "specialists/daily-mvp/evals/evals.json",
       "uri": "legion-skill://marketing/specialists/daily-mvp/evals/evals.json",
-      "sourceDigest": "sha256:00a1432dfea138690f8f1b83194c2971cb781295ba1b95132e96406285c22e00",
-      "outputDigest": "sha256:00a1432dfea138690f8f1b83194c2971cb781295ba1b95132e96406285c22e00",
+      "sourceDigest": "sha256:7b8dc673149f5b4b12eda4bc8789ea142de9651625e9d586fed0145aa8af16d1",
+      "outputDigest": "sha256:7b8dc673149f5b4b12eda4bc8789ea142de9651625e9d586fed0145aa8af16d1",
       "transformations": [
         "identity-genericization",
         "private-source-reference",
@@ -606,8 +606,8 @@
     {
       "path": "specialists/growth/GUIDE.md",
       "uri": "legion-skill://marketing/specialists/growth/GUIDE.md",
-      "sourceDigest": "sha256:ca6727f9c5fd8ede70c4271f285368b8d4dd8b1a8f14c476974b251849aecd0d",
-      "outputDigest": "sha256:ca6727f9c5fd8ede70c4271f285368b8d4dd8b1a8f14c476974b251849aecd0d",
+      "sourceDigest": "sha256:3c2f6a80591ea27d01d50ce75cb607ba4d16891cb13339bd8c25635ceab6c90d",
+      "outputDigest": "sha256:3c2f6a80591ea27d01d50ce75cb607ba4d16891cb13339bd8c25635ceab6c90d",
       "transformations": [
         "identity-genericization",
         "private-source-reference",
@@ -619,8 +619,8 @@
     {
       "path": "specialists/growth/evals/evals.json",
       "uri": "legion-skill://marketing/specialists/growth/evals/evals.json",
-      "sourceDigest": "sha256:8359076f2f9f5a2b2fc8e4a6e15c135e81fa2b64fdabab482095b159664ae2fb",
-      "outputDigest": "sha256:8359076f2f9f5a2b2fc8e4a6e15c135e81fa2b64fdabab482095b159664ae2fb",
+      "sourceDigest": "sha256:57c4e71832b641422b626193954f98327ebe8baed30c5d35dc187f9321dd97c9",
+      "outputDigest": "sha256:57c4e71832b641422b626193954f98327ebe8baed30c5d35dc187f9321dd97c9",
       "transformations": [
         "identity-genericization",
         "private-source-reference",
@@ -645,8 +645,8 @@
     {
       "path": "specialists/growth/references/ab-test/reference.md",
       "uri": "legion-skill://marketing/specialists/growth/references/ab-test/reference.md",
-      "sourceDigest": "sha256:20d230d65bf3d710cbc00bcba6a97c8da925378eb13659a9f6a3ad95053fdf67",
-      "outputDigest": "sha256:20d230d65bf3d710cbc00bcba6a97c8da925378eb13659a9f6a3ad95053fdf67",
+      "sourceDigest": "sha256:f7858db9d88c3ec6c02d17c30947e1b895f31a2e889d558de7885f3c22cabf83",
+      "outputDigest": "sha256:f7858db9d88c3ec6c02d17c30947e1b895f31a2e889d558de7885f3c22cabf83",
       "transformations": [
         "identity-genericization",
         "private-source-reference",
@@ -697,8 +697,8 @@
     {
       "path": "specialists/growth/references/analytics/reference.md",
       "uri": "legion-skill://marketing/specialists/growth/references/analytics/reference.md",
-      "sourceDigest": "sha256:525f77f2455fef1bd27162da3e2f5522b3f328f251e41fee2740679f694fea1d",
-      "outputDigest": "sha256:525f77f2455fef1bd27162da3e2f5522b3f328f251e41fee2740679f694fea1d",
+      "sourceDigest": "sha256:fedd3dbf468588af6afa734be94d2b25e41d8d0b90dd5790f42b006bb09b534c",
+      "outputDigest": "sha256:fedd3dbf468588af6afa734be94d2b25e41d8d0b90dd5790f42b006bb09b534c",
       "transformations": [
         "identity-genericization",
         "private-source-reference",
@@ -775,8 +775,8 @@
     {
       "path": "specialists/growth/references/gtm-audit.md",
       "uri": "legion-skill://marketing/specialists/growth/references/gtm-audit.md",
-      "sourceDigest": "sha256:6e003e0f13f53605f8d9fc922786289e4db460ceca23f8e7e18e84fa8e6eea68",
-      "outputDigest": "sha256:6e003e0f13f53605f8d9fc922786289e4db460ceca23f8e7e18e84fa8e6eea68",
+      "sourceDigest": "sha256:10fbf1068976a154950634e710b0df0322dfbac436b45bf1b6b5b0fed3e9e3d4",
+      "outputDigest": "sha256:10fbf1068976a154950634e710b0df0322dfbac436b45bf1b6b5b0fed3e9e3d4",
       "transformations": [
         "identity-genericization",
         "private-source-reference",
@@ -788,8 +788,8 @@
     {
       "path": "specialists/growth/references/lead-magnets/reference.md",
       "uri": "legion-skill://marketing/specialists/growth/references/lead-magnets/reference.md",
-      "sourceDigest": "sha256:2a9f9b79d4efc2a75830fcf6157905ea6153ffea43995bf7cfb9c246de9305b5",
-      "outputDigest": "sha256:2a9f9b79d4efc2a75830fcf6157905ea6153ffea43995bf7cfb9c246de9305b5",
+      "sourceDigest": "sha256:8276180c25ef3bb1e1cc78408e1b25abd00352607e3f3b5c89bde63318b7c29f",
+      "outputDigest": "sha256:8276180c25ef3bb1e1cc78408e1b25abd00352607e3f3b5c89bde63318b7c29f",
       "transformations": [
         "identity-genericization",
         "private-source-reference",
@@ -866,8 +866,8 @@
     {
       "path": "specialists/growth/references/pricing/reference.md",
       "uri": "legion-skill://marketing/specialists/growth/references/pricing/reference.md",
-      "sourceDigest": "sha256:7a8e287755a8ca85b73e357434a87daa34b6426abfe3d5c4b537a2a26ad6b8df",
-      "outputDigest": "sha256:7a8e287755a8ca85b73e357434a87daa34b6426abfe3d5c4b537a2a26ad6b8df",
+      "sourceDigest": "sha256:b023576b736e5774fe993da55469989af340dfcdfa10c6dd7ff9780da58bfb53",
+      "outputDigest": "sha256:b023576b736e5774fe993da55469989af340dfcdfa10c6dd7ff9780da58bfb53",
       "transformations": [
         "identity-genericization",
         "private-source-reference",
@@ -918,8 +918,8 @@
     {
       "path": "specialists/growth/references/referral/reference.md",
       "uri": "legion-skill://marketing/specialists/growth/references/referral/reference.md",
-      "sourceDigest": "sha256:6079161852831c81027f137eb862478c3414d73c030d360400f5023d9c8a481b",
-      "outputDigest": "sha256:6079161852831c81027f137eb862478c3414d73c030d360400f5023d9c8a481b",
+      "sourceDigest": "sha256:1494fac146d195bdf66ec1c0c2142172db935e2207dcc4c3751bf61d06f327fb",
+      "outputDigest": "sha256:1494fac146d195bdf66ec1c0c2142172db935e2207dcc4c3751bf61d06f327fb",
       "transformations": [
         "identity-genericization",
         "private-source-reference",
@@ -931,8 +931,8 @@
     {
       "path": "specialists/growth/references/referral/references/affiliate-programs.md",
       "uri": "legion-skill://marketing/specialists/growth/references/referral/references/affiliate-programs.md",
-      "sourceDigest": "sha256:539373132a22524b0399a315d05f97c41915946107d2695224a14caa04771120",
-      "outputDigest": "sha256:539373132a22524b0399a315d05f97c41915946107d2695224a14caa04771120",
+      "sourceDigest": "sha256:158c6809f2a21c52030b2d6e771d51ec91e94eccfc18a6ceeaae81cd03d81f11",
+      "outputDigest": "sha256:158c6809f2a21c52030b2d6e771d51ec91e94eccfc18a6ceeaae81cd03d81f11",
       "transformations": [
         "identity-genericization",
         "private-source-reference",
@@ -970,8 +970,8 @@
     {
       "path": "specialists/growth/references/revops/reference.md",
       "uri": "legion-skill://marketing/specialists/growth/references/revops/reference.md",
-      "sourceDigest": "sha256:0952e8d72f2023279000faf8a14261243bacf71f508abba82c6f81f917560010",
-      "outputDigest": "sha256:0952e8d72f2023279000faf8a14261243bacf71f508abba82c6f81f917560010",
+      "sourceDigest": "sha256:dc7d59d01fb0a06e58f85dc0143da6e3a2f748904405cb38385bed388eb61d45",
+      "outputDigest": "sha256:dc7d59d01fb0a06e58f85dc0143da6e3a2f748904405cb38385bed388eb61d45",
       "transformations": [
         "identity-genericization",
         "private-source-reference",
@@ -1048,8 +1048,8 @@
     {
       "path": "specialists/growth/references/sales-enablement/reference.md",
       "uri": "legion-skill://marketing/specialists/growth/references/sales-enablement/reference.md",
-      "sourceDigest": "sha256:9e1919539874e9420f7edea25f7ad917de909a72c8a1f954b205c578e72a1676",
-      "outputDigest": "sha256:9e1919539874e9420f7edea25f7ad917de909a72c8a1f954b205c578e72a1676",
+      "sourceDigest": "sha256:04aa75f72e6fc979e4fc352da72456406b2c4a7a244720b4a34df7ea1e5e4281",
+      "outputDigest": "sha256:04aa75f72e6fc979e4fc352da72456406b2c4a7a244720b4a34df7ea1e5e4281",
       "transformations": [
         "identity-genericization",
         "private-source-reference",
@@ -1113,8 +1113,8 @@
     {
       "path": "specialists/growth/references/telemetry-audit.md",
       "uri": "legion-skill://marketing/specialists/growth/references/telemetry-audit.md",
-      "sourceDigest": "sha256:5107aa51c48efb1e892b92dd926955ef144c3159a3863d38312367b4ab0299c2",
-      "outputDigest": "sha256:5107aa51c48efb1e892b92dd926955ef144c3159a3863d38312367b4ab0299c2",
+      "sourceDigest": "sha256:cd003b179eb065094deb1b551d4bb84e444deaf76561e5c77f16637c981a65fd",
+      "outputDigest": "sha256:cd003b179eb065094deb1b551d4bb84e444deaf76561e5c77f16637c981a65fd",
       "transformations": [
         "identity-genericization",
         "private-source-reference",
@@ -1139,8 +1139,8 @@
     {
       "path": "specialists/ideas/evals/evals.json",
       "uri": "legion-skill://marketing/specialists/ideas/evals/evals.json",
-      "sourceDigest": "sha256:11e54f2b5731ff2ce54cd832e9b8c5d8c0a341c51c13ad2cf7b551352e859ebc",
-      "outputDigest": "sha256:11e54f2b5731ff2ce54cd832e9b8c5d8c0a341c51c13ad2cf7b551352e859ebc",
+      "sourceDigest": "sha256:0cf40e9bd8abc2145675d52e5b2546c2620dec84567d37add124d50a614edd26",
+      "outputDigest": "sha256:0cf40e9bd8abc2145675d52e5b2546c2620dec84567d37add124d50a614edd26",
       "transformations": [
         "identity-genericization",
         "private-source-reference",
@@ -1152,8 +1152,8 @@
     {
       "path": "specialists/ideas/references/ad-concepts.md",
       "uri": "legion-skill://marketing/specialists/ideas/references/ad-concepts.md",
-      "sourceDigest": "sha256:f89d2a254d85ae032576aa5b786d223671d800e4ab3bc08fbeee8dafaeb51e71",
-      "outputDigest": "sha256:f89d2a254d85ae032576aa5b786d223671d800e4ab3bc08fbeee8dafaeb51e71",
+      "sourceDigest": "sha256:fabe26f2e2b99923e810dcba61949da842d6bba369335465d8a528b2c9e3c82c",
+      "outputDigest": "sha256:fabe26f2e2b99923e810dcba61949da842d6bba369335465d8a528b2c9e3c82c",
       "transformations": [
         "identity-genericization",
         "private-source-reference",
@@ -1191,8 +1191,8 @@
     {
       "path": "specialists/offer-design/GUIDE.md",
       "uri": "legion-skill://marketing/specialists/offer-design/GUIDE.md",
-      "sourceDigest": "sha256:af14b79d59ba949f23e93879baf5d00258111109ae3151e6aa0569c6f1696248",
-      "outputDigest": "sha256:af14b79d59ba949f23e93879baf5d00258111109ae3151e6aa0569c6f1696248",
+      "sourceDigest": "sha256:cc6b942340ff7d029b0f416baa9f6de6540b38131a4d67a42ea5cbed5b411850",
+      "outputDigest": "sha256:cc6b942340ff7d029b0f416baa9f6de6540b38131a4d67a42ea5cbed5b411850",
       "transformations": [
         "identity-genericization",
         "private-source-reference",
@@ -1204,8 +1204,8 @@
     {
       "path": "specialists/product-context/GUIDE.md",
       "uri": "legion-skill://marketing/specialists/product-context/GUIDE.md",
-      "sourceDigest": "sha256:2f2a8540349f47383b4ef9caed6fdede468be85647d04d890a234513757c71de",
-      "outputDigest": "sha256:2f2a8540349f47383b4ef9caed6fdede468be85647d04d890a234513757c71de",
+      "sourceDigest": "sha256:56e2a3efc9578482deb74705b9955050a886eee3dce84928fa0ed578ad194bd4",
+      "outputDigest": "sha256:56e2a3efc9578482deb74705b9955050a886eee3dce84928fa0ed578ad194bd4",
       "transformations": [
         "identity-genericization",
         "private-source-reference",
@@ -1217,8 +1217,8 @@
     {
       "path": "specialists/product-context/evals/evals.json",
       "uri": "legion-skill://marketing/specialists/product-context/evals/evals.json",
-      "sourceDigest": "sha256:e637753bbd37bc775089fb02652c3583a955ee849404370de1c75af4fa1bec80",
-      "outputDigest": "sha256:e637753bbd37bc775089fb02652c3583a955ee849404370de1c75af4fa1bec80",
+      "sourceDigest": "sha256:691543553ff948f672be581b386a48ca6c9520705d493903d44af45903980a42",
+      "outputDigest": "sha256:691543553ff948f672be581b386a48ca6c9520705d493903d44af45903980a42",
       "transformations": [
         "identity-genericization",
         "private-source-reference",

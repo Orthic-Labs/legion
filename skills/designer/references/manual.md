@@ -8,7 +8,7 @@ SPECIALIST_REFS_MAX: 1
 CHILD_AGENTS_MAX: 0
 EXTERNAL_REQUESTS_MAX: 0
 MAY_ADD_TASKS: NO
-MAY_CALL_SKILLS: audit-visual,brand,brand-identity,content
+MAY_CALL_SKILLS: NONE
 TERMINAL: Return one bounded route or artifact; do not widen scope.
 
 Use one memorable design entrypoint. Classify the requested outcome, then load only the matching
@@ -72,8 +72,8 @@ not one-shot vibes-to-final. Full axis tables, fingerprints, and phase tagging: 
 1. Convert the brief into an explicit parameter vector before generating; state assumptions on any
    ambiguous high-impact axis.
 2. Hard vs soft: brand tokens/palette/fonts, a11y floors, banned vocabulary are hard constraints —
-   reject on violation. Tone/density/risk are soft — score down. Brand rules (`.claude/rules/brands.md`)
-   are always hard.
+   reject on violation. Tone/density/risk are soft — score down. Brand rules (the consuming project's
+   brand token source) are always hard.
 3. Generate k >= 3 variants differing on >= 2 named axes (e.g. hero_pattern x visual_density) —
    never near-duplicates.
 4. Critique in a separate pass from generation; cap refine loops at 2-4; the generator never
@@ -88,8 +88,10 @@ embedded mode before it ships — `skills/_shared/anti-slop.md`, silent unless f
 
 ## Boundaries
 
-- Words as the primary deliverable -> `writing`.
-- Images/video/media production rather than design of a surface -> `content`.
-- Paid-media campaign strategy -> `ads`; this skill may produce its creative assets.
+- Words as the primary deliverable -> hand off to the host's writing capability if one is available.
+- Images/video/media production rather than design of a surface -> hand off to the host's media
+  production capability if one is available; this skill does not call it as a skill.
+- Paid-media campaign strategy -> hand off to the host's ads capability if one is available; this
+  skill may still produce its creative assets.
 - No five simultaneous design guides. Start with one primary branch and add one specialist only when
   the deliverable genuinely spans both.

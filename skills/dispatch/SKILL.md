@@ -17,7 +17,7 @@ MAY_CALL_SKILLS: NONE
 TERMINAL: Packet has scope, checks, recovery, ownership, & receipt-backed evidence.
 
 1. Freeze objective, authority, exact OWN/READ/FORBIDDEN paths, dependencies, integration owner, acceptance checks, & bounded recovery.
-2. Copy `assets/direct-packet.json` to declared packet path, then add one worker object per independent owner. Never add GoalRoute, timing, Minimize, or author-gate ceremony unless work is locked, contracted, or the operator explicitly requests it.
+2. Copy `assets/direct-packet.json` to declared packet path, then add one worker object per independent owner. Never add GoalRoute, timing, Minimize, or author-gate ceremony unless work is locked, contracted, or the user/caller explicitly requests it.
 3. Validate with `python3 legion/skills/dispatch/scripts/validate-dispatch.py <packet> --packet-type authority --write-receipt <receipt>`.
 4. Return packet path, receipt, executors, integration owner, & `TRUE_BLOCKER` only after bounded recovery evidence.
 

@@ -23,27 +23,27 @@
   "transformRules": [
     {
       "id": "identity-genericization",
-      "from": "the operator the operator",
+      "from": "<redacted-identity-literal>",
       "to": "the approving human"
     },
     {
       "id": "identity-genericization",
-      "from": "the operator",
+      "from": "<redacted-identity-literal>",
       "to": "the approving human"
     },
     {
       "id": "private-source-reference",
-      "from": "operator_batch_apr30.txt",
+      "from": "<redacted-identity-literal>",
       "to": "private-source-batch.txt"
     },
     {
       "id": "private-source-reference",
-      "from": "operator.yaml",
+      "from": "<redacted-identity-literal>",
       "to": "private-history.yaml"
     },
     {
       "id": "private-source-reference",
-      "from": "operator",
+      "from": "<redacted-identity-literal>",
       "to": "private-source"
     },
     {
@@ -53,18 +53,18 @@
     },
     {
       "id": "private-overlay-redaction",
-      "from": "~/.claude/",
-      "to": "<private-overlay>/"
+      "from": "<redacted-host-config-prefix>",
+      "to": "<project-overlay>/"
     },
     {
       "id": "private-overlay-redaction",
-      "from": ".claude/",
-      "to": "<private-overlay>/"
+      "from": "<redacted-host-config-prefix>",
+      "to": "<project-overlay>/"
     },
     {
       "id": "private-overlay-redaction",
-      "from": ".agents/",
-      "to": "<private-overlay>/"
+      "from": "<redacted-host-config-prefix>",
+      "to": "<project-overlay>/"
     },
     {
       "id": "whitespace-normalization"
@@ -113,8 +113,8 @@
     {
       "path": "evals/evals.json",
       "uri": "legion-skill://brand-identity/evals/evals.json",
-      "sourceDigest": "sha256:98faec0457dbb01ab097148083365f22333b214f0b53bce8596781eeb605e49c",
-      "outputDigest": "sha256:98faec0457dbb01ab097148083365f22333b214f0b53bce8596781eeb605e49c",
+      "sourceDigest": "sha256:fb2fc35bfb1ad1b29eeeabb7e02c9bd3eda8d3ae4098995bf2fe014bfd7dc0df",
+      "outputDigest": "sha256:fb2fc35bfb1ad1b29eeeabb7e02c9bd3eda8d3ae4098995bf2fe014bfd7dc0df",
       "transformations": [
         "identity-genericization",
         "private-source-reference",
@@ -126,8 +126,8 @@
     {
       "path": "references/brand-registry.md",
       "uri": "legion-skill://brand-identity/references/brand-registry.md",
-      "sourceDigest": "sha256:8b186e21756fa959f03ba365bcaa42305148f7677ac7362ceb7ad6d621436f04",
-      "outputDigest": "sha256:8b186e21756fa959f03ba365bcaa42305148f7677ac7362ceb7ad6d621436f04",
+      "sourceDigest": "sha256:ef70d13591bc40b571eaedfb5376f30f93591f44d3b55c46f9cbcfa33ce88a33",
+      "outputDigest": "sha256:ef70d13591bc40b571eaedfb5376f30f93591f44d3b55c46f9cbcfa33ce88a33",
       "transformations": [
         "identity-genericization",
         "private-source-reference",
@@ -139,8 +139,8 @@
     {
       "path": "references/manual.md",
       "uri": "legion-skill://brand-identity/references/manual.md",
-      "sourceDigest": "sha256:8dac46f72f069456dedcc5c109673615d8a1bf4ef5c3b9e8188a187073806142",
-      "outputDigest": "sha256:8dac46f72f069456dedcc5c109673615d8a1bf4ef5c3b9e8188a187073806142",
+      "sourceDigest": "sha256:fadb37f25336761059d22ca5ebaa7443392cbd327b2d7eed40c93818e616b44e",
+      "outputDigest": "sha256:fadb37f25336761059d22ca5ebaa7443392cbd327b2d7eed40c93818e616b44e",
       "transformations": [
         "identity-genericization",
         "private-source-reference",
@@ -152,8 +152,8 @@
     {
       "path": "references/visual-reference-libraries.md",
       "uri": "legion-skill://brand-identity/references/visual-reference-libraries.md",
-      "sourceDigest": "sha256:6ec214fece17ab5feadf590159ec5716303573cb83d60bec31583a4fc607acf7",
-      "outputDigest": "sha256:6ec214fece17ab5feadf590159ec5716303573cb83d60bec31583a4fc607acf7",
+      "sourceDigest": "sha256:c0a2f427947d4475d00faa1ee240be3bbc7a48d474c9e84994d0de0c8b60bd16",
+      "outputDigest": "sha256:c0a2f427947d4475d00faa1ee240be3bbc7a48d474c9e84994d0de0c8b60bd16",
       "transformations": [
         "identity-genericization",
         "private-source-reference",

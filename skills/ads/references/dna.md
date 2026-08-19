@@ -50,19 +50,19 @@ Capture the following:
 
 1. **Homepage hero section** (above the fold):
 ```bash
-python <external-reference> [url]
+node ../../qa/scripts/qa-shot.mjs --url [url] --out ./brand-screenshots/
 ```
 Saves: `./brand-screenshots/{domain}_homepage.png`
 
 2. **Product or services page**:
 ```bash
-python <external-reference> [url]/products
+node ../../qa/scripts/qa-shot.mjs --url [url]/products --out ./brand-screenshots/
 ```
 Saves: `./brand-screenshots/{domain}_product.png`
 
 3. **About page** (brand personality):
 ```bash
-python <external-reference> [url]/about
+node ../../qa/scripts/qa-shot.mjs --url [url]/about --out ./brand-screenshots/
 ```
 Saves: `./brand-screenshots/{domain}_about.png`
 

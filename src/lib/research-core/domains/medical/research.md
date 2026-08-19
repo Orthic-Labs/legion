@@ -1,32 +1,32 @@
 ---
 name: research-doctor
-description: Generate a doctor-ready evidence packet for one of the operator's protocol questions. Use when the operator asks "/doctor <question>" or anything that maps to "evaluate the evidence for X drug/peptide/dose change against my labs and stack." Loads operator.yaml, runs red-flag checks, retrieves primary medical sources, builds an evidence ledger with the workspace-approved citation verifier, and synthesizes via rubrics/question.md. NEVER replaces a clinician — every output ends with "Discuss with [specialist] before [action]." Hard rules in PLAN.md.
+description: Generate a doctor-ready evidence packet for one of the requesting user's protocol questions. Use when the user asks "/doctor <question>" or anything that maps to "evaluate the evidence for X drug/peptide/dose change against my labs and stack." Loads the configured patient-history file, runs red-flag checks, retrieves primary medical sources, builds an evidence ledger with the workspace-approved citation verifier, and synthesizes via rubrics/question.md. NEVER replaces a clinician — every output ends with "Discuss with [specialist] before [action]." Hard rules in PLAN.md.
 ---
 
 # /doctor — Medical Research Doctor
 
-This skill generates an evidence packet for one PICO-scoped clinical question against the operator's actual labs and current protocol.
+This skill generates an evidence packet for one PICO-scoped clinical question against the patient's actual labs and current protocol, using whatever history source the host has configured.
 
 ## When to invoke
 
 User says something like:
-- "/doctor should I switch from [redacted-drug] to [redacted-drug] at Week 7?"
-- "/doctor [redacted-drug] 2mg vs 4mg for [redacted-lab] <80 given my [redacted-lab]?"
-- "/doctor is Tesa+Ipa simultaneous nightly safe with my CAC 81?"
-- "/doctor what's the evidence for muvalaplin in [redacted-lab] reduction?"
+- "/doctor should I switch from drug A to drug B at Week 7?"
+- "/doctor statin dose A vs dose B for LDL target given my insulin resistance?"
+- "/doctor is combination therapy X+Y simultaneous nightly safe with my cardiac risk score?"
+- "/doctor what's the evidence for compound Z in lipoprotein(a) reduction?"
 
 NOT this skill if:
-- User is asking for the protocol itself (read `D:/workspace/Health/protocol.md`)
+- User is asking for the protocol itself (read the configured protocol file)
 - User wants brand-voice/marketing/SEO work (different skills)
 - User wants a panel/jury review of an existing decision → use `/doctor review`
 
 ## How to invoke
 
-1. Reformulate the user's free-text question into PICO. Use the prompt template at `D:/workspace/Health/medical-research-system/pico.py` (function `REFORMULATION_PROMPT`). If you can extract PICO directly from the question, do so.
+1. Reformulate the user's free-text question into PICO. Use the prompt template at `<medical-engine-root>/pico.py` (function `REFORMULATION_PROMPT`). If you can extract PICO directly from the question, do so.
 
 2. Run the orchestrator from inside the package directory:
 ```bash
-cd D:/workspace/Health/medical-research-system
+cd <medical-engine-root>
 py -3.11 doctor.py \
   --pico-population "<P>" \
   --pico-intervention "<I>" \
@@ -42,7 +42,7 @@ py -3.11 doctor.py \
 
 4. **If `must_abort: true`**, STOP. Output ONLY the red-flag block + "Discuss with [specialist named] now." Do NOT proceed to synthesis. Do NOT optimize the protocol.
 
-5. **Otherwise**, synthesize the evidence pack into the doctor-output format defined in `D:/workspace/Health/medical-research-system/rubrics/question.md`. Hard rules from that rubric:
+5. **Otherwise**, synthesize the evidence pack into the doctor-output format defined in `<medical-engine-root>/rubrics/question.md`. Hard rules from that rubric:
    - Every claim cites an evidence-ledger row by `[^N]`.
    - Provenance:protocol_quoted lab values must NOT drive high-confidence claims.
    - Items in `rejected_decisions` are not viable unless user explicitly asks to revisit.
@@ -55,7 +55,7 @@ py -3.11 doctor.py \
 ```bash
 py -3.11 -c "from evidence.verify import verify_claim; import json; print(json.dumps(verify_claim('<pmid>', '<DEPERSONALIZED claim text>').to_dict(), indent=2))"
 ```
-   **Privacy contract** (V1.1): claim text MUST NOT contain the operator's name, address, lab barcodes, or patient IDs. Strict-PII gate will refuse to send. Phrase claims generically: "[redacted-drug] reduces [redacted-lab] ~25% over 12 weeks in IR patients" — NOT "the operator's [redacted-lab] 4.23..."
+   **Privacy contract** (V1.1): claim text MUST NOT contain the patient's name, address, lab barcodes, or patient IDs. Strict-PII gate will refuse to send. Phrase claims generically: "Drug A reduces target biomarker ~25% over 12 weeks in insulin-resistant patients" — NOT "the patient's specific lab value of..."
 
    **Verdict handling (V1.1 stricter policy)**:
    - `SUPPORTS` → keep declared confidence, ship as final-support
@@ -82,11 +82,11 @@ py -3.11 lint.py /tmp/synthesized.md
 
 ## File locations
 
-- Orchestrator: `D:/workspace/Health/medical-research-system/doctor.py`
-- Patient yaml: `D:/workspace/Health/medical-research-system/history/operator.yaml`
-- Synthesis rubric: `D:/workspace/Health/medical-research-system/rubrics/question.md`
-- Interaction rubric: `D:/workspace/Health/medical-research-system/rubrics/interaction_check.md`
-- Plan: `D:/workspace/Health/medical-research-system/PLAN.md`
+- Orchestrator: `<medical-engine-root>/doctor.py`
+- Patient history file: supplied by the host as a configured patient-history file (see adapter contract); never a hardcoded path in this skill
+- Synthesis rubric: `<medical-engine-root>/rubrics/question.md`
+- Interaction rubric: `<medical-engine-root>/rubrics/interaction_check.md`
+- Plan: `<medical-engine-root>/PLAN.md`
 
 ## Hard guardrails (do not violate)
 
@@ -99,8 +99,8 @@ py -3.11 lint.py /tmp/synthesized.md
 
 ## Failure modes to remember
 
-- `protocol_quoted` lab values ([redacted-lab] 80.7, [redacted-lab] 132, hs-CRP 2.1, Vit D 19.4, B12 162, free T 16.32, LH 11) — these are clamped to confidence:medium. Don't reason from them as if confirmed.
-- The 2023-05-17 [redacted-lab] 42.3 reading is an analytical anomaly per the yaml — flag it, don't treat as biological event.
-- Pioglitazone is in conditional_decisions, not rejected. It's a real fallback option.
-- BPC-157 ORAL only. Injectable contraindicated due to CAC 81.
-- Reta ceiling 4mg, hardcoded.
+- `protocol_quoted` lab values from the configured history file are clamped to confidence:medium. Don't reason from them as if confirmed.
+- Any reading the history file marks as an analytical anomaly should be flagged as such, not treated as a biological event.
+- Items in `conditional_decisions` are real fallback options, not rejections — don't treat them as ruled out.
+- Route dosing/administration constraints (e.g. oral-only vs injectable) exactly as recorded in the configured history/protocol file — never infer or relax them.
+- Any hardcoded dose ceiling recorded in the configured protocol must be respected exactly as written.

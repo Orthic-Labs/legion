@@ -46,7 +46,7 @@ Indian consumer law is the kind of factual claim CLAUDE.md non-negotiable #2 gov
 ## Operating rules
 
 1. **Verify the law** before citing it — the hard gate above.
-2. **One source of truth per matter** is the case YAML. Every document derives from it. No copy-pasting paragraphs between cases — that is exactly what caused facts from one case to bleed into another in the May 2026 pack.
+2. **One source of truth per matter** is the case YAML. Every document derives from it. No copy-pasting paragraphs between cases — that is exactly what caused facts from one case to bleed into another in prior manually-drafted packs.
 3. **The generator owns structure; the human owns legal substance.** Do not auto-write legal argument. Structure (headings, paragraph numbering, the six-file split, Verification/Affidavit boilerplate, Index rows, annexure counts, "paragraphs 1 to N" cross-refs) is mechanical and error-prone — automate it. Facts and law are not — author them, then have them reviewed.
 4. **Consumer status is case-specific.** Get it right (see `drafting-standards.md`): an invoice in the complainant's personal name gives clean status; a purchase paid by the complainant's business relies on the livelihood / self-employment exception to the commercial-purpose exclusion in S.2(7); flag weak ones honestly.
 5. **Never fabricate** facts, dates, amounts, docket numbers, parties, or correspondence. Blanks that the filer or the registry must fill — the day-of-month in the signing date, the court case number — stay blank. Do not invent them.

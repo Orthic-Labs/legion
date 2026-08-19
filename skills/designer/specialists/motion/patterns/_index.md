@@ -45,4 +45,5 @@ If the category files don't have what you need:
 - continuous background animation with no semantic purpose
 - 3+ different motion languages on one page
 
-These are cut from the 96 motion-vocabulary terms for the reasons in `<local-path>` §5.2.
+These are cut from the broader motion-vocabulary list for the same reasons: no semantic purpose, or
+proven to read as an LLM tell.

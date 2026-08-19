@@ -14,7 +14,7 @@ For one-off graphics that live on social, in email, in print, or as ad creatives
 
 ## Always start with
 
-1. **`/brand <DD|RH|SS>`** — load palette, fonts, restrictions
+1. **`/brand <brand-code>`** — load palette, fonts, restrictions
 2. **Identify medium + dimensions** (table below)
 3. **Identify purpose:** awareness, click, save, share, screenshot
 
@@ -36,7 +36,7 @@ For one-off graphics that live on social, in email, in print, or as ad creatives
 | Print flyer (US Letter) | 2550×3300 @300dpi | 8.5×11" | Bleed: add 0.125" |
 | Postcard (4×6) | 1875×1275 @300dpi | 4:6 | |
 | Lookbook spread | varies | 2-page | Ask for specs |
-| Packaging insert | 100×150mm @300dpi | varies | DD orders |
+| Packaging insert | 100×150mm @300dpi | varies | physical-product orders |
 
 ## Tooling routing
 
@@ -59,30 +59,28 @@ For one-off graphics that live on social, in email, in print, or as ad creatives
 4. **Generate 3 variants** unless user asks for one — A/B options matter
 5. **Review against brand restrictions** — no stock/generic look, no hardcoded competitor colors, no fabricated content (testimonials, stats)
 6. **Output naming:** `<brand>_<medium>_<topic>_<date>_v<n>.png`
-7. **File location:** `<local-path>` (create if missing)
+7. **File location:** the consuming project's asset output directory (create it if missing)
 
 ## Brand cheat-sheets
 
-### DD marketing design
-- Background dominates: beige `#F7F2EA` for clean, near-black for dramatic
-- Copper accent ONE place per artifact
-- Cormorant Garamond for headlines (italic for emphasis), IBM Plex Sans for body, Mono for SKU/spec
-- Photography style: low-key lighting, warm shadows, single object centered, hand-in-frame OK
-- NEVER: bright pops, neon, tactical-bro aesthetics, overlay glow effects
+Keep one cheat sheet per active venture: background treatment, the one accent color and where it's
+allowed, the type pairing, the photography/illustration style, and a short NEVER list. Populate this
+from the consuming project's own brand rules — this file ships with the shape only, no example
+ventures.
 
-### RH marketing design
-- Background: warm cream or natural fiber texture (real photographed, not synthetic)
-- Muted rose accent — sparingly. Used for CTAs, emphasis, never as block color.
-- Fraunces (medium 500 for italics) + Inter
-- Photography style: natural light, drape and texture visible, fabric in motion or worn naturally, model gaze averted
-- NEVER: greenwashing icons, generic eco-leaf graphics, before/after comparisons
+### Venture A marketing design
+- Background dominates: state the base treatment (clean vs. dramatic variants)
+- One accent color, one place per artifact
+- Headline/body/mono type pairing
+- Photography or illustration style in one line
+- NEVER: list this venture's specific banned looks
 
-### SS marketing design
-- Dark grey `#121212` background dominates
-- Gold `#F5C518` only as 1 accent moment — never block color
-- Space Grotesk + 1-2 italic Gelato Luxe accents (slightly larger)
-- Photography style: portraits dominate, strong negative space, eyes are the subject
-- NEVER: heavy filters, instagram presets, busy compositions, multiple focal points
+### Venture B marketing design
+- Background: state the base treatment
+- Accent used sparingly — CTAs and emphasis only, never as block color
+- Type pairing
+- Photography or illustration style in one line
+- NEVER: list this venture's specific banned looks
 
 ## Anti-patterns
 
@@ -110,7 +108,7 @@ Run this external jury only when the approving human explicitly requests it.
 node -e "import('file:///src/lib/auto-jury.mjs').then(m=>m.runAutoJury({
   kind: 'design',
   artifactPath: '<absolute path to output>',
-  context: { brand: '<DD|RH|HR|TS>', notes: 'design-marketing output' },
+  context: { brand: '<brand-code>', notes: 'design-marketing output' },
   failHard: true
 }).then(v=>console.log('verdict:', v.final_verdict||v.verdict||v.decision)).catch(e=>{console.error(e.message);process.exit(1)})"
 ```

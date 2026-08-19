@@ -68,8 +68,8 @@
     {
       "path": "SKILL.md",
       "uri": "legion-skill://dispatch/SKILL.md",
-      "sourceDigest": "sha256:c2f823b53221f8f489f6dbe3ef5fb9b50d2046c17f6e50d023f7440983782580",
-      "outputDigest": "sha256:c2f823b53221f8f489f6dbe3ef5fb9b50d2046c17f6e50d023f7440983782580",
+      "sourceDigest": "sha256:697f598a25bc160016f0935d3c90dc9dbfc67ef26d77e627bb73c618e21f5981",
+      "outputDigest": "sha256:697f598a25bc160016f0935d3c90dc9dbfc67ef26d77e627bb73c618e21f5981",
       "transformations": []
     },
     {
@@ -138,15 +138,15 @@
     {
       "path": "examples/validated-forward-test.md",
       "uri": "legion-skill://dispatch/examples/validated-forward-test.md",
-      "sourceDigest": "sha256:26875549de9b788b0dc96ac5310c10b8cd94de577b9f8eb9c73e894ca0411d47",
-      "outputDigest": "sha256:26875549de9b788b0dc96ac5310c10b8cd94de577b9f8eb9c73e894ca0411d47",
+      "sourceDigest": "sha256:5e000b948a8e2d3bb6768f4c18758f19f13458fe02e17fa2ff523bff644ebe0c",
+      "outputDigest": "sha256:5e000b948a8e2d3bb6768f4c18758f19f13458fe02e17fa2ff523bff644ebe0c",
       "transformations": []
     },
     {
       "path": "examples/validated-forward-test.minimize.json",
       "uri": "legion-skill://dispatch/examples/validated-forward-test.minimize.json",
-      "sourceDigest": "sha256:cfc3986ed3273d940febf2eb36e3f0c93ca5e0e6e13f8a766cfabaa94a836135",
-      "outputDigest": "sha256:cfc3986ed3273d940febf2eb36e3f0c93ca5e0e6e13f8a766cfabaa94a836135",
+      "sourceDigest": "sha256:3e1c49de06b635c17e6e8e10fef606792c2fe2a256d6013a095a67e66e456254",
+      "outputDigest": "sha256:3e1c49de06b635c17e6e8e10fef606792c2fe2a256d6013a095a67e66e456254",
       "transformations": []
     },
     {
@@ -166,8 +166,8 @@
     {
       "path": "examples/validated-forward-test.route.json",
       "uri": "legion-skill://dispatch/examples/validated-forward-test.route.json",
-      "sourceDigest": "sha256:1751de757229b755245e23e5a5db3aa5a2b6d4fb73bae4cf279957cb744f54c1",
-      "outputDigest": "sha256:1751de757229b755245e23e5a5db3aa5a2b6d4fb73bae4cf279957cb744f54c1",
+      "sourceDigest": "sha256:a3f6125b2b3f92c52a4caf784f6e382d5244a5cc98e25540c21b82edb64765c7",
+      "outputDigest": "sha256:a3f6125b2b3f92c52a4caf784f6e382d5244a5cc98e25540c21b82edb64765c7",
       "transformations": []
     },
     {
@@ -194,15 +194,15 @@
     {
       "path": "scripts/test_validate_dispatch.py",
       "uri": "legion-skill://dispatch/scripts/test_validate_dispatch.py",
-      "sourceDigest": "sha256:63fa94d9644ec085150bbde3c1f73245840a76e9eeb54b92acde9ddf8f4eb552",
-      "outputDigest": "sha256:63fa94d9644ec085150bbde3c1f73245840a76e9eeb54b92acde9ddf8f4eb552",
+      "sourceDigest": "sha256:0b7192deac3ac23a19fc22f4bfdf029f8725d4ce5e3e2435562c98510de8032c",
+      "outputDigest": "sha256:0b7192deac3ac23a19fc22f4bfdf029f8725d4ce5e3e2435562c98510de8032c",
       "transformations": []
     },
     {
       "path": "scripts/validate-dispatch.py",
       "uri": "legion-skill://dispatch/scripts/validate-dispatch.py",
-      "sourceDigest": "sha256:623c0297c9b1417b5af36481669d1b029c890583ee0643ccb0f4ba5de54dfb3d",
-      "outputDigest": "sha256:623c0297c9b1417b5af36481669d1b029c890583ee0643ccb0f4ba5de54dfb3d",
+      "sourceDigest": "sha256:6993cdcebc93b33a569fc95ca092e9592f595d26ab5db80a982b2bfead0070d1",
+      "outputDigest": "sha256:6993cdcebc93b33a569fc95ca092e9592f595d26ab5db80a982b2bfead0070d1",
       "transformations": []
     }
   ]

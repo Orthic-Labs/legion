@@ -87,7 +87,7 @@ If user pastes existing content and asks "would this stop scroll?" or "run the a
 - No "Are you tired of...", "Did you know...", "In today's world..." — banned
 - No emojis unless brand voice explicitly allows
 - Specific > vague. "85% of textiles end up in US landfills" beats "lots of clothes get wasted"
-- For brand work, apply `/brand <X>` voice rules (load via `@.claude/rules/brands.md`)
+- For brand work, apply `/brand <X>` voice rules (load via your project's brand rules file)
 - Filter verdict must be ONE of PUSH / BORDERLINE / PASS — no hedging
 - "The ONE change" must be concrete and editable, not "make it punchier"
 

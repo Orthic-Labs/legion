@@ -34,9 +34,9 @@
     {
       "id": "alchemist-not-readonly-analysis",
       "prompt": "Audit this diff for concurrency bugs and tell me what actually fails.",
-      "expected_skill": "seer",
+      "expected_skill": null,
       "forbidden_skills": ["alchemist"],
-      "expected_behavior": "Routes read-only assurance to Seer; Alchemist is for transforming state under a contract, not for judging it.",
+      "expected_behavior": "Routes read-only assurance to the Oracle agent; Alchemist is for transforming state under a contract, not for judging it.",
       "severity": "error",
       "mode": "discovery"
     }

@@ -86,9 +86,11 @@ Pass requires:
 
 ## Phase 3 — Differentiation guard (HARD GATE)
 
-Read `references/portfolio-registry.md`. The candidate must differ from every sibling on ≥3 of the
-5 axes: base theme, type category, accent family, layout grid, motion signature. Fail -> adjust and
-re-run. After approval, update the registry row.
+Maintain a differentiation ledger for the consuming project's portfolio of sites (one row per site:
+base theme, type category, accent family, layout grid, motion signature). The candidate must differ
+from every sibling on ≥3 of those 5 axes. Fail -> adjust and re-run. After approval, update the
+ledger row. If the consuming project has no ledger yet, create one next to its brand source before
+running this gate.
 
 ## Phase 4 — Build
 

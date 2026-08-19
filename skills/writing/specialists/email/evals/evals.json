@@ -4,16 +4,16 @@
   "should_trigger": [
     {
       "id": "email-pro-welcome-sequence",
-      "prompt": "Write a 3-email welcome sequence for new Harbor Coffee customers.",
+      "prompt": "Write a 3-email welcome sequence for new Cedar & Finch customers.",
       "expected_skill": "email-pro",
       "forbidden_skills": [],
-      "expected_behavior": "Skill triggers for lifecycle email. Applies RH voice, brand story → fabric proof → first-customer offer arc. Runs /brand RH first. Includes subject variants and timing.",
+      "expected_behavior": "Skill triggers for lifecycle email. Applies CF voice, brand story → fabric proof → first-customer offer arc. Runs /brand CF first. Includes subject variants and timing.",
       "severity": "error",
       "mode": "discovery"
     },
     {
       "id": "email-pro-cold-outreach",
-      "prompt": "Write a cold outreach email to a boutique retailer about stocking Harbor Coffee.",
+      "prompt": "Write a cold outreach email to a boutique retailer about stocking Cedar & Finch.",
       "expected_skill": "email-pro",
       "forbidden_skills": [],
       "expected_behavior": "Cold outbound section activates. Peer-level voice, observation → problem → proof → ask structure, interest-based CTA. No feature dumps, no 'I hope this email finds you well'.",
@@ -25,16 +25,16 @@
       "prompt": "Write a cart abandonment sequence for Northwind Tools — 3 emails.",
       "expected_skill": "email-pro",
       "forbidden_skills": [],
-      "expected_behavior": "Lifecycle map for DD applies: 2-email cart abandon ('you left a [product]' → 'still available, but limited'). Brand voice quiet confidence. One CTA per email.",
+      "expected_behavior": "Lifecycle map for NT applies: 2-email cart abandon ('you left a [product]' → 'still available, but limited'). Brand voice quiet confidence. One CTA per email.",
       "severity": "error",
       "mode": "discovery"
     },
     {
       "id": "email-pro-newsletter",
-      "prompt": "Write this month's newsletter for Harbor Coffee — focus on a new fabric deep dive.",
+      "prompt": "Write this month's newsletter for Cedar & Finch — focus on a new fabric deep dive.",
       "expected_skill": "email-pro",
       "forbidden_skills": [],
-      "expected_behavior": "Broadcast type identified. RH newsletter = 2x/month, textile science deep dive + new drop. Plain text preferred. Subject: curiosity > clarity for newsletters. ≤40 chars.",
+      "expected_behavior": "Broadcast type identified. CF newsletter = 2x/month, textile science deep dive + new drop. Plain text preferred. Subject: curiosity > clarity for newsletters. ≤40 chars.",
       "severity": "error",
       "mode": "discovery"
     }
@@ -71,7 +71,7 @@
   "output_quality": [
     {
       "id": "email-pro-one-cta",
-      "prompt": "Write a win-back email for a 60-day lapsed Harbor Coffee customer with two CTAs: browse new arrivals and get a discount.",
+      "prompt": "Write a win-back email for a 60-day lapsed Cedar & Finch customer with two CTAs: browse new arrivals and get a discount.",
       "expected_skill": "email-pro",
       "forbidden_skills": [],
       "expected_behavior": "Skill enforces one CTA per email rule (exception is post-purchase confirm). Should pick one CTA and explain why, or propose two separate emails.",
@@ -80,7 +80,7 @@
     },
     {
       "id": "email-pro-cold-outbound-voice",
-      "prompt": "Write a cold email that starts: 'Hi [Name], I hope this email finds you well. My name is the approving human and I work at Harbor Coffee. We are a leading provider of sustainable fashion.'",
+      "prompt": "Write a cold email that starts: 'Hi [Name], I hope this email finds you well. My name is the approving human and I work at Cedar & Finch. We are a leading provider of sustainable fashion.'",
       "expected_skill": "email-pro",
       "forbidden_skills": [],
       "expected_behavior": "Skill must rewrite this: strips 'I hope this email finds you well', 'My name is X', 'leading provider'. Rewrite leads with their world, peer-level voice, specific observation.",
@@ -92,7 +92,7 @@
       "prompt": "Write subject lines for a Northwind Tools restock alert email.",
       "expected_skill": "email-pro",
       "forbidden_skills": [],
-      "expected_behavior": "Subject lines ≤40 chars, no all-caps, no emoji (DD = no emoji), clarity > curiosity for transactional. 3 variants provided.",
+      "expected_behavior": "Subject lines ≤40 chars, no all-caps, no emoji (NT = no emoji), clarity > curiosity for transactional. 3 variants provided.",
       "severity": "error",
       "mode": "static"
     }
@@ -149,7 +149,7 @@
     },
     {
       "id": "email-pro-sequence-reference",
-      "prompt": "Set up a 6-email nurture drip sequence with branching logic for Harbor Coffee.",
+      "prompt": "Set up a 6-email nurture drip sequence with branching logic for Cedar & Finch.",
       "expected_skill": "email-pro",
       "forbidden_skills": [],
       "expected_behavior": "Complex multi-email sequences load references/sequence/reference.md per the routing section. Skill does not attempt to handle complex sequence architecture from the router file alone.",

@@ -3,7 +3,17 @@ import { join, relative, resolve, sep } from 'node:path';
 import { digestBytes } from '../artifacts/digests.mjs';
 import { transformSkillText } from './transform.mjs';
 
-const PRIVATE_REFERENCE = /(?:\bthe operator\b|\boperator(?:\.yaml|_batch_[\w.-]+)?\b|(?:^|[\s"'`(=])[A-Za-z]:\\|\/Users\/|\/home\/|~\/\.claude|\.claude\/|\.agents\/)/i;
+// Structural private-reference patterns. Identity terms are NOT hardcoded here: a public package
+// must not ship the very names it exists to redact. Supply them via LEGION_PRIVATE_IDENTITY
+// (comma-separated) so each operator scans for their own.
+const STRUCTURAL_PRIVATE = String.raw`(?:^|[\s"'\`(=])[A-Za-z]:\\|\/Users\/|\/home\/|~\/\.claude|\.claude\/|\.agents\/`;
+const IDENTITY_TERMS = (process.env.LEGION_PRIVATE_IDENTITY ?? '')
+  .split(',').map((term) => term.trim()).filter(Boolean)
+  .map((term) => term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+const PRIVATE_REFERENCE = new RegExp(
+  IDENTITY_TERMS.length ? `(?:\\b(?:${IDENTITY_TERMS.join('|')})\\b|${STRUCTURAL_PRIVATE})` : `(?:${STRUCTURAL_PRIVATE})`,
+  'i',
+);
 const MARKDOWN_PACKAGE_LINK = /\[([^\]]+)\]\((legion-skill:\/\/[^)\s]+)\)/g;
 const PACKAGE_URI = /legion-skill:\/\/[a-z0-9-]+\/[^\s)`"']+/g;
 export function verifySkillBytes(bytes, expectedDigest) { const digest = digestBytes(Buffer.isBuffer(bytes) ? bytes : Buffer.from(bytes)); return { ok: digest === expectedDigest, digest, expectedDigest }; }

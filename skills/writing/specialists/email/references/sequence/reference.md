@@ -287,16 +287,16 @@ What to measure and benchmarks
 
 ## Tool Integrations
 
-For implementation, see the tools registry (<external-reference>). Key email tools:
+For implementation, see the tools registry. Key email tools:
 
 | Tool | Best For | MCP | Guide |
 |------|----------|:---:|-------|
-| **Customer.io** | Behavior-based automation | - | customer-io.md (<external-reference>) |
-| **Mailchimp** | SMB email marketing | ✓ | mailchimp.md (<external-reference>) |
-| **Nitrosend** | AI-native email (sequences via prompts) | ✓ | nitrosend.md (<external-reference>) |
-| **Resend** | Developer-friendly transactional | ✓ | resend.md (<external-reference>) |
-| **SendGrid** | Transactional email at scale | - | sendgrid.md (<external-reference>) |
-| **Kit** | Creator/newsletter focused | - | kit.md (<external-reference>) |
+| **Customer.io** | Behavior-based automation | - | customer-io.md |
+| **Mailchimp** | SMB email marketing | ✓ | mailchimp.md |
+| **Nitrosend** | AI-native email (sequences via prompts) | ✓ | nitrosend.md |
+| **Resend** | Developer-friendly transactional | ✓ | resend.md |
+| **SendGrid** | Transactional email at scale | - | sendgrid.md |
+| **Kit** | Creator/newsletter focused | - | kit.md |
 
 ---
 

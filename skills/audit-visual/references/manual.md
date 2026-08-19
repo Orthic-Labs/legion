@@ -119,7 +119,7 @@ Default order:
 2. `qa-shot --url <url> --out <dir>` for app-viewport screenshots.
 3. `qa-functional ...` for hover/click/type/key/assert evidence.
 4. Built-in browser/image inspection fallback.
-5. Native foreground screenshots only when the operator explicitly asks or native-window behavior is genuinely required.
+5. Native foreground screenshots only when the approving human explicitly asks or native-window behavior is genuinely required.
 
 Do not improvise foreground desktop capture for routine visual QA. Do not reach first for
 Playwright, Puppeteer, raw CDP, or desktop screenshots when `/qa` is available. If a fallback is
@@ -280,7 +280,7 @@ The external vision jury is an explicit opt-in lane inside this skill, not a def
 
 Run it when:
 
-- the operator explicitly asks for `/audit-visual`, visual jury, or external review.
+- The approving human explicitly asks for `/audit-visual`, visual jury, or external review.
 
 Do not infer external-review authority from a post-change gate, screenshot availability, commercial
 importance, or visual stakes. When not explicitly requested, record `external jury: not requested`.
@@ -329,7 +329,7 @@ Synthesis rules (before scoring):
 - **Regression context (when the audit is triggered post-change).** A finding is not automatically a
   ship-blocker just because it exists — what changed matters. Ask for the "before" state (previous
   screenshots or a prior audit baseline). A finding **present in the baseline** is a *pre-existing
-  condition* → **Note** severity; do not block the ship for it unless the operator explicitly scoped it in.
+  condition* → **Note** severity; do not block the ship for it unless the approving human explicitly scoped it in.
   A finding that is **new or worse than the baseline** is a *regression* → at least **Major**, and a
   visible regression of a core surface is a **Blocker**. If no baseline is available, say so and judge
   on absolute quality (the floors below still apply); don't imply a regression comparison you didn't do.
@@ -356,7 +356,7 @@ Critical floors:
   `headline-word-wall`, `hover-contrast`, `oversized-header`, `broken-internal-link`,
   `missing-required-page` — floors the verdict at REVISE. These are deterministic measurements,
   not taste; no lens, juror, or agent may argue one down to a Note or average it away. Only
-  the operator can waive one, explicitly, per finding. (`missing-hero-media` is advisory: the lens
+  the approving human can waive one, explicitly, per finding. (`missing-hero-media` is advisory: the lens
   must either confirm the gap or explicitly defend the type-only hero.)
 
 Do not average critical failures away. Coverage gaps cap the score: a surface with untested regions

@@ -90,7 +90,7 @@ forward, in this article, let's dive in.
 Perfect grammar or formal vocabulary alone; bland-but-honest writing; a single em dash;
 common transitions; unsourced claims per se; specific hard-to-fabricate details; mixed
 feelings; genuine asides; quoted text; brand voices that legitimately use a flagged device
-(e.g. Static Riot's ALL-CAPS two-beat headlines are brand voice, not slop — brand card wins).
+(e.g. Northwind Tools's ALL-CAPS two-beat headlines are brand voice, not slop — brand card wins).
 
 ## Workflow
 
@@ -103,5 +103,5 @@ feelings; genuine asides; quoted text; brand voices that legitimately use a flag
 4. **Embedded mode (inside another skill's pipeline):** apply silently before shipping the
    artifact; report only if findings changed the output materially.
 
-Precedence: brand card (voice/banned-word lists in `.claude/rules/brands.md`) > this file >
-personal taste. Where a brand bans words this file doesn't, both lists apply.
+Precedence: brand card (voice/banned-word lists in the consuming project's brand rules file) >
+this file > personal taste. Where a brand bans words this file doesn't, both lists apply.

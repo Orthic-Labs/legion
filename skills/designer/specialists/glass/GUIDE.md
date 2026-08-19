@@ -64,7 +64,7 @@ Use platform divergence only when:
 - macOS needs true system material/lensing through AppKit/SwiftUI rather than a
   WebView overlay.
 
-For SampleApp-style always-on-top pills, prefer one shared React/CSS material with
+For always-on-top status pills (e.g. a live-recording or now-playing indicator), prefer one shared React/CSS material with
 small platform tuning. The pill is transient control chrome, so glass is appropriate,
 but it must remain legible over arbitrary desktop content.
 

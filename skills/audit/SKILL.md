@@ -30,7 +30,7 @@ overrides it.
 1. Freeze repository root, scope, revision, dirty state, & requested mode.
 2. Read [provider architecture](../../references/provider-architecture.md); discovery belongs to
    Cortex — never build a parallel registry.
-3. Run `node ../../audit-run.mjs <root>`: fresh Cortex generation, signed `plan.json`, & exact
+3. Run `node ../../tools/audit/audit-run.mjs <root>`: fresh Cortex generation, signed `plan.json`, & exact
    frozen provider set; missing signing material is `UNPROVEN`.
 4. Project-executing checks need trusted host network-sandbox receipt; without it they are
    `UNPROVEN`; file-only providers still run.

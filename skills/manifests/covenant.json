@@ -25,8 +25,7 @@
       "Convene Legion's independent challenge chamber for a Sage decision, an Alchemist blocker, or packet-only review preparation. Use /covenant."
     ],
     "outputs": [
-      "assets/external-review-packet-template.md",
-      "references/legacy-workspace-skill.md"
+      "assets/external-review-packet-template.md"
     ],
     "scripts": [
       "scripts/test_validate_external_review_packet.py",
@@ -49,6 +48,10 @@
       "registry/skills/index.json",
       "lib/skills/resolver.mjs",
       "registry/routing/domains.json"
+    ],
+    "outputsPrunedOn": "2026-08-19",
+    "outputsRemoved": [
+      "references/legacy-workspace-skill.md"
     ]
   },
   "files": [
@@ -83,8 +86,8 @@
     {
       "path": "evals/evals.json",
       "uri": "legion-skill://covenant/evals/evals.json",
-      "sourceDigest": "sha256:deac7c7f14ec6af55060b377a22e6755e3241becc9190abbed2656bd1f3b2b23",
-      "outputDigest": "sha256:deac7c7f14ec6af55060b377a22e6755e3241becc9190abbed2656bd1f3b2b23",
+      "sourceDigest": "sha256:69e83d038e743d67479aee2495cda346894fb449a9e8f7c6e1da06c80ec9fe8e",
+      "outputDigest": "sha256:69e83d038e743d67479aee2495cda346894fb449a9e8f7c6e1da06c80ec9fe8e",
       "transformations": []
     },
     {
@@ -120,13 +123,6 @@
       "uri": "legion-skill://covenant/lib/schemas/covenant-request-v1.schema.json",
       "sourceDigest": "sha256:d20c19b62a4cd9d4d6c96c2aa6f02484111895264e75bcb9ea1a3b2e22a05aae",
       "outputDigest": "sha256:d20c19b62a4cd9d4d6c96c2aa6f02484111895264e75bcb9ea1a3b2e22a05aae",
-      "transformations": []
-    },
-    {
-      "path": "references/legacy-workspace-skill.md",
-      "uri": "legion-skill://covenant/references/legacy-workspace-skill.md",
-      "sourceDigest": "sha256:5926dae773fad7a217ce858ec8bb5f73a904e97790c04cb705a0fdc8f30b68b8",
-      "outputDigest": "sha256:5926dae773fad7a217ce858ec8bb5f73a904e97790c04cb705a0fdc8f30b68b8",
       "transformations": []
     },
     {

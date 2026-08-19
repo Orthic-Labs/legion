@@ -21,7 +21,7 @@ Exemplars never hardcode brand values. They consume CSS custom properties; brand
 
 | Token | Meaning | Source |
 |---|---|---|
-| `--bg` | page base | `Content/<brand>/design/tokens.json` or `.claude/rules/brands.md` |
+| `--bg` | page base | the consuming project's brand token source |
 | `--surface` | card/raised surface | same |
 | `--border` | hairlines, dividers | same |
 | `--text` | primary text | same |

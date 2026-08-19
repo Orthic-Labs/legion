@@ -56,8 +56,8 @@
     {
       "path": "SKILL.md",
       "uri": "legion-skill://handoff/SKILL.md",
-      "sourceDigest": "sha256:f83aabab534d45a26c02ff80a2f715508b70e2561155c27bc5d97a01ed6ddfd7",
-      "outputDigest": "sha256:f83aabab534d45a26c02ff80a2f715508b70e2561155c27bc5d97a01ed6ddfd7",
+      "sourceDigest": "sha256:a22106675d6592745371f03bf9330ec3fa4d765d9fcdd12a2768fc8ed63ea84a",
+      "outputDigest": "sha256:a22106675d6592745371f03bf9330ec3fa4d765d9fcdd12a2768fc8ed63ea84a",
       "transformations": []
     },
     {
@@ -84,29 +84,29 @@
     {
       "path": "examples/validated-forward-test.md",
       "uri": "legion-skill://handoff/examples/validated-forward-test.md",
-      "sourceDigest": "sha256:63424267513232edb640195f4319a1893d04402de2d8af4e2cfd3fe9dd9f02a1",
-      "outputDigest": "sha256:63424267513232edb640195f4319a1893d04402de2d8af4e2cfd3fe9dd9f02a1",
+      "sourceDigest": "sha256:f0572c8855e8ab1e307dc6934bab48049f6aa04af30a69fbf775e791fdb7340f",
+      "outputDigest": "sha256:f0572c8855e8ab1e307dc6934bab48049f6aa04af30a69fbf775e791fdb7340f",
       "transformations": []
     },
     {
       "path": "examples/validated-forward-test.receipt.json",
       "uri": "legion-skill://handoff/examples/validated-forward-test.receipt.json",
-      "sourceDigest": "sha256:9b44698c22f8272454488eb5f1722e3be5c8ad299ee89a4f3f25c88854a1ea5b",
-      "outputDigest": "sha256:9b44698c22f8272454488eb5f1722e3be5c8ad299ee89a4f3f25c88854a1ea5b",
+      "sourceDigest": "sha256:ef109011a33625edb5c30c672f008f58c27624d2c1e8195a0db5324ae56decf2",
+      "outputDigest": "sha256:ef109011a33625edb5c30c672f008f58c27624d2c1e8195a0db5324ae56decf2",
       "transformations": []
     },
     {
       "path": "references/manual.md",
       "uri": "legion-skill://handoff/references/manual.md",
-      "sourceDigest": "sha256:a8e6e94227a586823734c4dc32bed9ce75e7906a2dbf9e06b42c099d1b7b1110",
-      "outputDigest": "sha256:a8e6e94227a586823734c4dc32bed9ce75e7906a2dbf9e06b42c099d1b7b1110",
+      "sourceDigest": "sha256:751854498cdb0190a74a6065e4267674bb2f5b25b9f7929dd9eb7a8ddb74f836",
+      "outputDigest": "sha256:751854498cdb0190a74a6065e4267674bb2f5b25b9f7929dd9eb7a8ddb74f836",
       "transformations": []
     },
     {
       "path": "scripts/test_transcript_handoff.py",
       "uri": "legion-skill://handoff/scripts/test_transcript_handoff.py",
-      "sourceDigest": "sha256:d97c2b4b49974ca3ff788f87ab763d3f8dc7614a53c0dfa3f002085f43f2fac7",
-      "outputDigest": "sha256:d97c2b4b49974ca3ff788f87ab763d3f8dc7614a53c0dfa3f002085f43f2fac7",
+      "sourceDigest": "sha256:622a50e2c30ae28e477c22f5f7fa7e4ff45587656535b0d42ec97a24b085b9c3",
+      "outputDigest": "sha256:622a50e2c30ae28e477c22f5f7fa7e4ff45587656535b0d42ec97a24b085b9c3",
       "transformations": []
     },
     {
@@ -119,15 +119,15 @@
     {
       "path": "scripts/transcript-handoff.py",
       "uri": "legion-skill://handoff/scripts/transcript-handoff.py",
-      "sourceDigest": "sha256:6974b940fe835e469cef386caa39e8a774816d14e4a5d825de0e2ab72956609b",
-      "outputDigest": "sha256:6974b940fe835e469cef386caa39e8a774816d14e4a5d825de0e2ab72956609b",
+      "sourceDigest": "sha256:3c6c993d261fd6aee67e27a94227489a4d418dd8ae7a04bdaee07bc91b941d35",
+      "outputDigest": "sha256:3c6c993d261fd6aee67e27a94227489a4d418dd8ae7a04bdaee07bc91b941d35",
       "transformations": []
     },
     {
       "path": "scripts/validate-handoff.py",
       "uri": "legion-skill://handoff/scripts/validate-handoff.py",
-      "sourceDigest": "sha256:c4810fc710e7c66f04c93022cf244961ade79c06d618048c109e3a8367e4f9fd",
-      "outputDigest": "sha256:c4810fc710e7c66f04c93022cf244961ade79c06d618048c109e3a8367e4f9fd",
+      "sourceDigest": "sha256:fb65f46717939d5f5c907e5c12bfe62d00a1a3dec2ba2998c7b711d177d3bea7",
+      "outputDigest": "sha256:fb65f46717939d5f5c907e5c12bfe62d00a1a3dec2ba2998c7b711d177d3bea7",
       "transformations": []
     }
   ]

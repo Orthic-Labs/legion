@@ -7,9 +7,9 @@ description: Use when writing, auditing, upgrading, publishing, planning, or QA-
 
 The job is not "write an article." The job is to ship a post that can rank, convert, and survive expert review: keyword-mapped, answer-first, internally linked, cited, brand-voiced, non-generic, schema-ready, and preview-tested.
 
-This skill is based on `<local-path>`, `<local-path>`, `<local-path>`, and `references/writing-research.md`.
+This skill is based on `references/writing-research.md` and the project's own SEO/blog-post contract reference, where one exists.
 
-Load `references/writing-research.md` for serious drafts, audits, upgrades, posts that feel generic, or any request asking for better writing craft, research depth, hooks, intros, information gain, or "why would this rank?" For blog titles, intros, TL;DRs, meta descriptions, CTAs, and section hooks, apply the copy craft gates from `<local-path>`; do not route the whole blog task to `copywriting` unless the user is writing sales/landing-page copy rather than a blog post.
+Load `references/writing-research.md` for serious drafts, audits, upgrades, posts that feel generic, or any request asking for better writing craft, research depth, hooks, intros, information gain, or "why would this rank?" For blog titles, intros, TL;DRs, meta descriptions, CTAs, and section hooks, apply the copy craft gates from `skills/writing/specialists/copywriting/references/craft-research.md`; do not route the whole blog task to `copywriting` unless the user is writing sales/landing-page copy rather than a blog post.
 
 ## State Machine
 
@@ -246,7 +246,7 @@ Every publishable post must have:
 - Lighthouse 90+ target for live/published page where applicable
 - Share buttons appropriate to audience
 
-For a live/local preview URL, use the shared `qa` skill for preview evidence instead of ad hoc browser screenshots: start the project's `qa:browser` route when available, capture viewport screenshots with `<local-path>`, and use `<local-path>` for menu/share/button/CTA checks. Capture only the page/app viewport, not the desktop.
+For a live/local preview URL, use the shared `qa` skill for preview evidence instead of ad hoc browser screenshots: start the project's `qa:browser` route when available, capture viewport screenshots with the project's browser-automation tool, and use its interaction tooling for menu/share/button/CTA checks. Capture only the page/app viewport, not the desktop.
 
 ## Phase 9: Post-Publish Loop
 

@@ -42,18 +42,18 @@
     {
       "id": "covenant-not-routine-architecture",
       "prompt": "Design the retry policy for this queue consumer.",
-      "expected_skill": "sage",
+      "expected_skill": null,
       "forbidden_skills": ["covenant"],
-      "expected_behavior": "Routine architecture is decided by Sage alone; Covenant is not convened as ceremony (COV-SAGE-01).",
+      "expected_behavior": "Routine architecture is decided by the Sage agent alone, not a skill; Covenant is not convened as ceremony (COV-SAGE-01).",
       "severity": "error",
       "mode": "discovery"
     },
     {
-      "id": "covenant-not-behind-seer",
-      "prompt": "Seer found three failing controls — review its findings before I act.",
-      "expected_skill": "seer",
+      "id": "covenant-not-behind-oracle",
+      "prompt": "Oracle found three failing controls — review its findings before I act.",
+      "expected_skill": null,
       "forbidden_skills": ["covenant"],
-      "expected_behavior": "Seer already IS independent assurance; no panel is stacked behind the auditor by default (G14, COV-SEER-01).",
+      "expected_behavior": "The Oracle agent already IS independent assurance; no panel is stacked behind it by default (G14, COV-SEER-01).",
       "severity": "error",
       "mode": "discovery"
     }

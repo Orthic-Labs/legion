@@ -156,7 +156,7 @@ evidence for a claim, and a contradiction can never be raised against Cortex's o
 the fold makes `docs/architecture.md` human-maintained, the typed `docs_conflict` fallback applies.
 
 Portable, for any agent (OKF):
-- `okf/` — the understanding layer as an **Open Knowledge Format** bundle (one markdown concept per component/interface/risk; required `type` frontmatter; concepts linked as a graph; auto `index.md`), prose **compressed** structure-safely (refs/code/links preserved). **MANDATORY Phase-2 close — not optional, not agent discretion:** run `skill-emit blueprint <repo>` — it transforms `understanding.json` → OKF concepts (one per dimension; YAML `type` frontmatter) → emits the bundle AND ingests it into the memory engine, recallable immediately. It also emits **discrete debt concepts so recall surfaces architectural debt proactively** instead of burying it in the architecture blob: one `type: risk` per `architecture.coverageGaps[]` entry and one `type: contradiction` per `CODE-FELL-SHORT` verdict in `reconcile.json` — so the next agent working this repo is warned about the uncovered flow / unfulfilled plan before it repeats the mistake. The bare `okf.py emit` is the low-level primitive; skills call `skill_emit`, never okf.py directly. Portable into SampleApp and any OKF-aware agent; the JSON stays the structured source and the generated docs stay the uncompressed human docs. Pattern + before/after: `src/lib/OKF-OUTPUT.md`.
+- `okf/` — the understanding layer as an **Open Knowledge Format** bundle (one markdown concept per component/interface/risk; required `type` frontmatter; concepts linked as a graph; auto `index.md`), prose **compressed** structure-safely (refs/code/links preserved). **MANDATORY Phase-2 close — not optional, not agent discretion:** run `skill-emit blueprint <repo>` — it transforms `understanding.json` → OKF concepts (one per dimension; YAML `type` frontmatter) → emits the bundle AND ingests it into the memory engine, recallable immediately. It also emits **discrete debt concepts so recall surfaces architectural debt proactively** instead of burying it in the architecture blob: one `type: risk` per `architecture.coverageGaps[]` entry and one `type: contradiction` per `CODE-FELL-SHORT` verdict in `reconcile.json` — so the next agent working this repo is warned about the uncovered flow / unfulfilled plan before it repeats the mistake. The bare `okf.py emit` is the low-level primitive; skills call `skill_emit`, never okf.py directly. Portable into any OKF-aware agent or tool; the JSON stays the structured source and the generated docs stay the uncompressed human docs. Pattern + before/after: `OUTPUT.md`.
 
 **OKF emission is mandatory; durable memory ingestion is CONDITIONAL.** Emitting the bundle always
 happens on a sealed run. Writing concepts into the durable store does not, because a synthesized
@@ -431,7 +431,7 @@ code analysis).
 
 **Code-marker counter-claims (implicit documents).** A doc is not the only thing that can contradict a
 "Done/Complete/Shipped" claim — the implementation file itself does. Sweep debt markers in the code
-that backs each such claim: `git grep -nIE "(TODO|FIXME|unimplemented!\(\)|todo!\(\)|NotImplemented|raise NotImplementedError|throw new Error\(['\"]not implemented)"` scoped to the feature's files. **If a doc claim says a feature is Done/Complete/Shipped but its implementation file carries an unimplemented marker, that is an automatic `CODE-FELL-SHORT`** — the highest-value catch, exactly what Cortex exists for (the HR "wake UI shipped but KWS is still TODO" case). Feed these into the same per-divergence classification below, evidence = `path:line` of the marker.
+that backs each such claim: `git grep -nIE "(TODO|FIXME|unimplemented!\(\)|todo!\(\)|NotImplemented|raise NotImplementedError|throw new Error\(['\"]not implemented)"` scoped to the feature's files. **If a doc claim says a feature is Done/Complete/Shipped but its implementation file carries an unimplemented marker, that is an automatic `CODE-FELL-SHORT`** — the highest-value catch, exactly what Cortex exists for (the "voice UI shipped but wake-word detection is still TODO" case). Feed these into the same per-divergence classification below, evidence = `path:line` of the marker.
 
 **Authority order (state it; it resolves every divergence):**
 `executable proof > current code > canonical docs > historical docs`. Running code beats a doc; a
@@ -476,7 +476,7 @@ prose. Render it exactly like this, above the Verified-Facts/Contradictions sect
 > |---|---|---|---|---|---|
 > | 1 | "wake KWS ported to Rust app" — `roadmap.md:88` | not ported; still TODO — `wake_word.rs:12` | **CODE-FELL-SHORT** (agent didn't do it) | keep doc as TODO, OR file the gap | ☐ |
 > | 2 | "uses Higgsfield Soul refs" — `pipeline.md:40` | replaced by NB2 multi-ref — `render-char-refs.mjs:8` | **CODE-IS-BETTER** | update doc to NB2 | ☐ |
-> | 3 | "$69/$99 pricing" — `business-plan.md:5` | n/a (no code) — newer `hr_pricing_2026_06_28.md` | **SUPERSEDED-BY** newer doc | mark `business-plan.md` superseded | ☐ |
+> | 3 | "$69/$99 pricing" — `business-plan.md:5` | n/a (no code) — newer `pricing_2026_06_28.md` | **SUPERSEDED-BY** newer doc | mark `business-plan.md` superseded | ☐ |
 ```
 
 **Cortex does NOT auto-patch.** It PROPOSES the reconciliation (including "mark <old> superseded by

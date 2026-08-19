@@ -1,7 +1,7 @@
 # Parametric Design Contract (shared reference)
 
-Canonical distillation of `/workspace/newproj/para design/` (5 research docs, 2026-07)
-for every skill that produces a designed or written artifact. Loaded on demand by skill
+Canonical distillation of parametric-design research (2026-07) for every skill that produces
+a designed or written artifact. Loaded on demand by skill
 routers; do not inline this whole file into prompts — apply the contract.
 
 ## What parametric design is (one paragraph)
@@ -21,7 +21,7 @@ copy. Parameters, variant search, and a separate critic are what move the ceilin
 2. **Separate hard constraints from soft preferences.** Hard = brand tokens, palette, fonts,
    accessibility floors (contrast, focus, body size), banned vocabulary, legal/claim rules —
    violations reject the candidate. Soft = tone, density, risk — violations score down.
-   Brand rules from `.claude/rules/brands.md` are always hard constraints.
+   The consuming project's own brand rules source is always a hard constraint.
 3. **Generate variants, not a single answer.** For anything non-trivial, produce k ≥ 3
    candidates that differ on at least 2 named high-impact axes (e.g. density × hero pattern,
    or tone × structure). Sweep axes deliberately; do not generate 3 near-duplicates.
@@ -73,6 +73,5 @@ reduces creativity (fixation); the phase tag is the cheap fix.
 ## Scope limit
 
 This contract is workflow discipline, not a runtime. The full PDS (pd_* tools, design-record
-DB, novelty embeddings — see the sol/prplx specs in `newproj/para design/`) is a separate
-build decision; nothing in this file requires it. Skills apply the contract with judgment,
-in-session.
+DB, novelty embeddings) is a separate build decision; nothing in this file requires it. Skills
+apply the contract with judgment, in-session.

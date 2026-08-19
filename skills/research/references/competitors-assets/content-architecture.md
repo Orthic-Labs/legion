@@ -168,9 +168,9 @@ Each page pulls from centralized data:
 
 Looking to switch? See how [Your Product] compares to the tools you're evaluating:
 
-- **Notion Alternative (<external-reference>)** — Better for teams who need [X]
-- **Airtable Alternative (<external-reference>)** — Better for teams who need [Y]
-- **Monday Alternative (<external-reference>)** — Better for teams who need [Z]
+- **Notion Alternative** — Better for teams who need [X]
+- **Airtable Alternative** — Better for teams who need [Y]
+- **Monday Alternative** — Better for teams who need [Z]
 ```
 
 ---

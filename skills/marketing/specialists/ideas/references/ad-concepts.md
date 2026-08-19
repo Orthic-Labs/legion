@@ -12,7 +12,7 @@ description: >
 
 # Concept Pack — 100+ ad concept variants from a brief
 
-You generate **100+ concept variants** for a creative brief, organized by hook angle category, scored by viral-potential signal, and ready to feed into the workspace recipe library (`tools/recipes/video/`, `tools/recipes/image/` — workspace-only, part of `content`; those two are the only categories that exist).
+You generate **100+ concept variants** for a creative brief, organized by hook angle category, scored by viral-potential signal, and ready to feed into whatever video/image recipe or production pipeline the consuming project maintains.
 
 ## When this skill fires
 
@@ -33,32 +33,20 @@ If any are missing, ask once. Don't proceed with assumed inputs.
 
 ### Stage 1 — Mine transcripts FIRST
 
-Read the existing creator transcript corpus at `<local-path>` (193+ transcripts as of 2026-05-03). Extract:
+If the project keeps a creator transcript corpus (downloaded reels/shorts transcripts, founder interviews, swipe-file text), read it first. Extract:
 
 - **Real hooks** — opening lines that worked. Look for: questions, contrarian claims, pattern-interrupt lines, specific stats, sensory details, founder voice.
 - **Real problem framings** — how creators describe pain points in the brief's category.
 - **Real callbacks/structures** — how reels build to a payoff in 15-30s.
 - **Real CTA language** — soft asks vs hard sells, how creators close.
 
-**Sources to prioritize** (verified mined as of 2026-05-03):
-
-| Creator | What they're known for | Files |
-|---|---|---|
-| `byjoeym` | 1 video → 100 face swaps via NanoBanana + Kling (PJ Ace adjacent technique) | `Video_by_byjoeym*.txt` |
-| `baroobi` | 3 Claude connectors deep dives | `Video_by_baroobi.txt` |
-| `gannon` | Adobe Connector for editing photos/videos | `Video_by_gannon*.txt` |
-| `starter_story` | Founder interview corpus + aggregator | `starter_story_aggregate.md` |
-| `copywriterpiyush` | Email/copy patterns | `Video_by_copywriterpiyush*.txt` |
-| `aleksheffy`, `wright_mode` | Ecom ad creative | `Video_by_aleksheffy*.txt`, `Video_by_wright_mode*.txt` |
-| `brycenwood`, `theverunmayya`, `timkoda_` | Solo SaaS / indie launch hooks | various |
-
-Plus the user's own batches: `private-source-batch.txt`, `batch_apr8.txt`.
+If no corpus exists for the project, skip straight to Stage 2 but flag in the output that concepts are LLM-expanded without a mined baseline.
 
 **Mining technique:**
 1. Grep transcripts for opening lines (first 50 chars of each transcript)
 2. Categorize hooks by type (curiosity / contrarian / specific-stat / pain / pattern-interrupt / question / story-led)
 3. Extract 20-30 real opener patterns
-4. Note the structural shape (Hook→Problem→Solution→CTA, BAB, story-arc, etc.) — most transcripts will fit one of the 12 patterns in `<local-path>`
+4. Note the structural shape (Hook→Problem→Solution→CTA, BAB, story-arc, etc.) against the 12 patterns in the project's ad-pattern reference, if one exists
 
 ### Stage 2 — LLM-expand from the mined patterns
 
@@ -94,7 +82,7 @@ Markdown table, sorted by `(viral_potential * brand_fit)` descending:
 ```markdown
 | # | Hook line | Pattern | Continuation sketch | ad_pattern | aesthetic | viral | brand_fit | source |
 |---|---|---|---|---|---|---|---|---|
-| 1 | "If your accent breaks dictation, the problem isn't you." | contrarian | Show Wispr fail → SampleApp work → CTA | hook_problem_solution_cta | documentary | 9 | 9 | transcript_mined |
+| 1 | "If your setup breaks under pressure, the problem isn't you." | contrarian | Show old approach fail → product work → CTA | hook_problem_solution_cta | documentary | 9 | 9 | transcript_mined |
 | 2 | ... | ... | ... | ... | ... | ... | ... | ... |
 ```
 
@@ -134,6 +122,4 @@ The output of this skill is THE input to Phases 1-4 of the recipe-library pipeli
 
 ## Source authority
 
-- Researched + locked 2026-05-03 alongside the recipe library build
-- See `<private-overlay>/projects/D--Claude/memory/ai_video_ad_creator_playbook.md` for the full creator-research foundation
-- See `<local-path>` for acceptance gates this skill feeds
+If the project maintains a creator-research playbook or acceptance-gate reference for its recipe pipeline, consult it for the full research foundation and gate criteria this skill feeds.

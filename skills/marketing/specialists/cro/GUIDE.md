@@ -12,7 +12,7 @@ argument-hint: "form | onboarding | page | paywall | popup | retention | signup 
 
 Single entry for all CONVERSION OPTIMIZATION work (improving an existing flow for measurable outcome). Sub-references in `references/` are loaded on demand.
 
-**Live-URL gate (MANDATORY):** When the flow/page/paywall/popup/signup exists as a live URL, localhost route, or app preview, the shared `qa` skill chain is required — not optional — before issuing any visual or interaction verdict. Use the project `qa:browser` contract when available; otherwise run `<local-path>` for click/hover/type/assert flows and `<local-path>` for viewport screenshots. A CRO verdict issued without browser evidence for a live URL is invalid. Do not use foreground desktop screenshots for routine CRO QA.
+**Live-URL gate (MANDATORY):** When the flow/page/paywall/popup/signup exists as a live URL, localhost route, or app preview, the shared `qa` skill chain is required — not optional — before issuing any visual or interaction verdict. Use the project `qa:browser` contract when available; otherwise use the `qa` skill's `scripts/qa-functional.mjs` for click/hover/type/assert flows and `scripts/qa-shot.mjs` for viewport screenshots. A CRO verdict issued without browser evidence for a live URL is invalid. Do not use foreground desktop screenshots for routine CRO QA.
 
 ## Routing - match user intent to a reference
 

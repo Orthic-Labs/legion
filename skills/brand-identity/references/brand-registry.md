@@ -1,8 +1,8 @@
 # Brand Registry: Differentiation Ledger
 
-The Phase 3 guard in `brand-identity` checks every new or revised brand against this registry.
+The Phase 3 guard in `brand-identity` checks every new or revised brand against a per-project registry of that project's own ventures, kept by the consuming project (not shipped with this skill). If no registry exists yet for the project, create one using the template below before running the guard.
 
-No sibling brand should share four or more of the seven axes unless the user explicitly wants a same-family system. When a brand identity is approved, update this file. The registry is mutable memory, not a static reference.
+No sibling brand should share four or more of the seven axes unless the user explicitly wants a same-family system. When a brand identity is approved, update the project's registry. The registry is mutable memory, not a static reference.
 
 ## Axes
 
@@ -16,15 +16,7 @@ No sibling brand should share four or more of the seven axes unless the user exp
 
 ## Portfolio Snapshot
 
-| Brand | Register | Base | Type category | Accent family | Composition system | Mark logic | Asset language | Voice signature | Signature mechanism / notes |
-|---|---|---|---|---|---|---|---|---|---|
-| SampleApp | Editorial / print | Warm paper | Reading serif | Oxblood | Two-column source-to-render | System mark / wordmark | Document typography, render sweep | Editorial, precise | Render reveal: source becomes readable output. |
-| SampleApp | Swiss / utilitarian | Crisp off-white | Grotesque | Signal blue | Strict baseline + inbox triage | Wordmark / UI-native mark | Inbox rows, keyboard chips | Plainspoken, operational | Triage deck: inbox responds to keyboard action. |
-| SampleApp | Sonic / acoustic | Night | Humanist sans | Signal teal | Waveform spine | Kinetic/audio mark | Waveform, transcript, spectrogram | Warm, immediate | Spoken line: words materialize from voice. |
-| SampleApp | Calm terminal | Warm near-black | Mono-forward | Copper | Sidebar + console deck | Wordmark / terminal mark | Agent sessions, approval states | Technical, calm | Quiet room: copper appears only where approval is needed. |
-| Northwind Tools | Dark premium EDC | Ink / beige | Display serif | Copper / brass | Product editorial | Seal / wordmark | Product photography, metal/leather texture | Ceremonial, premium | Distinguish from SampleApp through product materiality and serif luxury. |
-| Harbor Coffee | Honest slow-fashion | Warm light | Humanist / craft | Muted rose | Lookbook editorial | Wordmark / stitch-like mark | Fabric texture, garment details | Honest, intimate | Slow-fashion identity, avoid tech/copper overlap. |
-| Static Riot | Counter-culture streetwear | Black / vivid | Display / street | Toxic green | Poster / drop culture | Loud symbol / wordmark | Stickers, street graphics | Provocative, playful | Loud by design; keep distinct from muted suite brands. |
+Keep one row per venture in the project's own registry file. Do not invent or assume rows here — this skill ships with no portfolio data; the registry starts empty for every new project and is populated only from real, approved brand work.
 
 ## Update Template
 
@@ -34,7 +26,7 @@ No sibling brand should share four or more of the seven axes unless the user exp
 
 ## Guard Procedure
 
-1. Read this registry before Phase 3.
+1. Read the project's registry before Phase 3.
 2. Compare the candidate brand to every row across the seven axes.
 3. If it shares four or more axes with any sibling, adjust the candidate and re-run.
 4. After user approval, add or update the row.

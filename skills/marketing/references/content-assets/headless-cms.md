@@ -189,6 +189,6 @@ Pull CMS content into email templates for consistent messaging across web and em
 
 ## Relevant Integration Guides
 
-- [Sanity](<external-reference>) — GROQ queries, mutations, CLI
-- [Contentful](<external-reference>) — Delivery/Management APIs, publishing
-- [Strapi](<external-reference>) — REST CRUD, filters, document API
+- Sanity — GROQ queries, mutations, CLI
+- Contentful — Delivery/Management APIs, publishing
+- Strapi — REST CRUD, filters, document API

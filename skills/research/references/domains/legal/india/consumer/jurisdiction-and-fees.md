@@ -35,7 +35,7 @@ Limb (d) is decisive for party-in-person filing — the complainant can file in 
 
 ## 4. Filing fees `[VERIFIED 2026-05-14 — slab values UNVERIFIED, confirm against official notification]`
 
-- **Claims up to ₹5,00,000: NIL filing fee.** Confirmed. All three of the May 2026 matters (each ~₹50,000 total) fall here — free to file.
+- **Claims up to ₹5,00,000: NIL filing fee.** Confirmed. Typical small consumer claims (e.g. ~₹25,000-₹50,000 total) fall here — free to file.
 - Above ₹5 lakh, fees rise by slab (commonly cited: ₹200 for the next band, up to ~₹2,000 around the ₹20–50 lakh band). **The exact slab values are `[UNVERIFIED]` — confirm against the current official fee notification / the e-Jagriti portal before quoting them.**
 - BPL families and Antyodaya cardholders: fee exemptions on production of a valid certificate. `[UNVERIFIED]`
 - Fee, where payable, is paid through the e-Jagriti portal during filing.

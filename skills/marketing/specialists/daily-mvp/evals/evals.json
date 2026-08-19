@@ -66,10 +66,10 @@
     },
     {
       "id": "daily-mvp-not-ss-commercial",
-      "prompt": "Use this for Willow and Pine growth, SEO, ads, or monetization.",
+      "prompt": "Use this for Harbor Coffee (a non-commercial passion-project venture) growth, SEO, ads, or monetization.",
       "expected_skill": null,
       "forbidden_skills": ["daily-mvp"],
-      "expected_behavior": "Do not apply commercial/growth tooling to Willow and Pine.",
+      "expected_behavior": "Do not apply commercial/growth tooling to Harbor Coffee.",
       "assertions": [
         {
           "type": "forbidden_skill",

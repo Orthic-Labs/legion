@@ -25,7 +25,6 @@
       "Execute a settled, bounded change through Legion's Alchemist authority. Use /alchemist after scope, ownership, checks, and acceptance are decided."
     ],
     "outputs": [
-      "references/legacy-workspace-skill.md",
       "references/manual.md"
     ],
     "scripts": [
@@ -47,6 +46,10 @@
       "registry/skills/index.json",
       "lib/skills/resolver.mjs",
       "registry/routing/domains.json"
+    ],
+    "outputsPrunedOn": "2026-08-19",
+    "outputsRemoved": [
+      "references/legacy-workspace-skill.md"
     ]
   },
   "files": [
@@ -60,8 +63,8 @@
     {
       "path": "evals/evals.json",
       "uri": "legion-skill://alchemist/evals/evals.json",
-      "sourceDigest": "sha256:ecb06ec2214dac4e7ff4dc06b7a18c3834f47610b73c8cde649f21f03071b9f7",
-      "outputDigest": "sha256:ecb06ec2214dac4e7ff4dc06b7a18c3834f47610b73c8cde649f21f03071b9f7",
+      "sourceDigest": "sha256:660e3f0a21cb82c58f3439918849969d31d5f57018cb33e9467f6b9bf3407edd",
+      "outputDigest": "sha256:660e3f0a21cb82c58f3439918849969d31d5f57018cb33e9467f6b9bf3407edd",
       "transformations": []
     },
     {
@@ -79,17 +82,10 @@
       "transformations": []
     },
     {
-      "path": "references/legacy-workspace-skill.md",
-      "uri": "legion-skill://alchemist/references/legacy-workspace-skill.md",
-      "sourceDigest": "sha256:775934f4524750b9135947291f5d251c1b296b4ba4d43aa7f2901ce5bbec10a6",
-      "outputDigest": "sha256:775934f4524750b9135947291f5d251c1b296b4ba4d43aa7f2901ce5bbec10a6",
-      "transformations": []
-    },
-    {
       "path": "references/manual.md",
       "uri": "legion-skill://alchemist/references/manual.md",
-      "sourceDigest": "sha256:826c834aae9ae09bcafa7cc9ceaa44db36d0512479e2484604499f2181347df6",
-      "outputDigest": "sha256:826c834aae9ae09bcafa7cc9ceaa44db36d0512479e2484604499f2181347df6",
+      "sourceDigest": "sha256:4fc1a85fd4f73d2a8ea74b32b34234d9e2b8a5dfee016e62355498d7da55dbda",
+      "outputDigest": "sha256:4fc1a85fd4f73d2a8ea74b32b34234d9e2b8a5dfee016e62355498d7da55dbda",
       "transformations": []
     },
     {

@@ -23,27 +23,27 @@
   "transformRules": [
     {
       "id": "identity-genericization",
-      "from": "the operator the operator",
+      "from": "<redacted-identity-literal>",
       "to": "the approving human"
     },
     {
       "id": "identity-genericization",
-      "from": "the operator",
+      "from": "<redacted-identity-literal>",
       "to": "the approving human"
     },
     {
       "id": "private-source-reference",
-      "from": "operator_batch_apr30.txt",
+      "from": "<redacted-identity-literal>",
       "to": "private-source-batch.txt"
     },
     {
       "id": "private-source-reference",
-      "from": "operator.yaml",
+      "from": "<redacted-identity-literal>",
       "to": "private-history.yaml"
     },
     {
       "id": "private-source-reference",
-      "from": "operator",
+      "from": "<redacted-identity-literal>",
       "to": "private-source"
     },
     {
@@ -53,18 +53,18 @@
     },
     {
       "id": "private-overlay-redaction",
-      "from": "~/.claude/",
-      "to": "<private-overlay>/"
+      "from": "<redacted-host-config-prefix>",
+      "to": "<project-overlay>/"
     },
     {
       "id": "private-overlay-redaction",
-      "from": ".claude/",
-      "to": "<private-overlay>/"
+      "from": "<redacted-host-config-prefix>",
+      "to": "<project-overlay>/"
     },
     {
       "id": "private-overlay-redaction",
-      "from": ".agents/",
-      "to": "<private-overlay>/"
+      "from": "<redacted-host-config-prefix>",
+      "to": "<project-overlay>/"
     },
     {
       "id": "whitespace-normalization"
@@ -121,8 +121,8 @@
     {
       "path": "evals/evals.json",
       "uri": "legion-skill://social/evals/evals.json",
-      "sourceDigest": "sha256:a8842b72ed1ebf5a611c43f388f47f908caeb56abc4373ea4e0e8326787e1083",
-      "outputDigest": "sha256:a8842b72ed1ebf5a611c43f388f47f908caeb56abc4373ea4e0e8326787e1083",
+      "sourceDigest": "sha256:36bda05b75182bf0092d3745c9e6aa4dcc2a70f865adf1d3aad0bff636deec6f",
+      "outputDigest": "sha256:36bda05b75182bf0092d3745c9e6aa4dcc2a70f865adf1d3aad0bff636deec6f",
       "transformations": [
         "identity-genericization",
         "private-source-reference",
@@ -147,8 +147,8 @@
     {
       "path": "references/content/reference.md",
       "uri": "legion-skill://social/references/content/reference.md",
-      "sourceDigest": "sha256:355c1aaf20e3d13253ed89ece38af411ac285f4cf02b8d57097aea43d6ef6fd4",
-      "outputDigest": "sha256:355c1aaf20e3d13253ed89ece38af411ac285f4cf02b8d57097aea43d6ef6fd4",
+      "sourceDigest": "sha256:cce4097c41ca81a178420da457144a0dd2ffaefe1c0741effb30eccce89ccbb4",
+      "outputDigest": "sha256:cce4097c41ca81a178420da457144a0dd2ffaefe1c0741effb30eccce89ccbb4",
       "transformations": [
         "identity-genericization",
         "private-source-reference",
@@ -212,8 +212,8 @@
     {
       "path": "references/manual.md",
       "uri": "legion-skill://social/references/manual.md",
-      "sourceDigest": "sha256:36a22feb3573e94ec2430f2f0857cef40d70279d71fdb3dcf23a7dca093b6f82",
-      "outputDigest": "sha256:36a22feb3573e94ec2430f2f0857cef40d70279d71fdb3dcf23a7dca093b6f82",
+      "sourceDigest": "sha256:8dfc885048e069d69e29b8cc6de417833d4a7cff87aaaf96cb4d1ef322c79e42",
+      "outputDigest": "sha256:8dfc885048e069d69e29b8cc6de417833d4a7cff87aaaf96cb4d1ef322c79e42",
       "transformations": [
         "identity-genericization",
         "private-source-reference",

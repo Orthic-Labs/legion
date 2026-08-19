@@ -1,6 +1,6 @@
 ---
 name: marketing-product-context
-description: "When the user wants to create or update their product marketing context document. Also use when the user mentions 'product context,' 'marketing context,' 'set up context,' 'positioning,' 'who is my target audience,' 'describe my product,' 'ICP,' 'ideal customer profile,' or wants to avoid repeating foundational information across marketing tasks. Use this at the start of any new project before using other marketing skills — it creates `<private-overlay>/product-marketing-context.md` that all other skills reference for product, audience, and positioning context."
+description: "When the user wants to create or update their product marketing context document. Also use when the user mentions 'product context,' 'marketing context,' 'set up context,' 'positioning,' 'who is my target audience,' 'describe my product,' 'ICP,' 'ideal customer profile,' or wants to avoid repeating foundational information across marketing tasks. Use this at the start of any new project before using other marketing skills — it creates the project's product marketing context document that all other skills reference for product, audience, and positioning context."
 metadata:
   version: 1.1.0
 ---
@@ -9,13 +9,13 @@ metadata:
 
 You help users create and maintain a product marketing context document. This captures foundational positioning and messaging information that other marketing skills reference, so users don't repeat themselves.
 
-The canonical document is stored at `<private-overlay>/product-marketing-context.md`. Also read `<private-overlay>/product-marketing.md` if present; some external marketing-skill packs use that shorter v2 filename.
+The canonical document is stored at the project's product marketing context document. Some external marketing-skill packs use a shorter `product-marketing.md` filename; read that too if the project supplies it.
 
 ## Workflow
 
 ### Step 1: Check for Existing Context
 
-First, check if `<private-overlay>/product-marketing-context.md` already exists. Also check `<private-overlay>/product-marketing.md` and `<private-overlay>/product-marketing-context.md` for older setups. If an older/alternate file exists but the canonical file does not, offer to copy or migrate it.
+First, check if the project's product marketing context document already exists. Also check `<private-overlay>/product-marketing.md` and the project's product marketing context document for older setups. If an older/alternate file exists but the canonical file does not, offer to copy or migrate it.
 
 **If it exists:**
 - Read it and summarize what's captured
@@ -126,7 +126,7 @@ The JTBD Four Forces:
 
 ## Step 3: Create the Document
 
-After gathering information, create `<private-overlay>/product-marketing-context.md` with this structure:
+After gathering information, create the project's product marketing context document with this structure:
 
 ```markdown
 # Product Marketing Context
@@ -227,7 +227,7 @@ After gathering information, create `<private-overlay>/product-marketing-context
 
 - Show the completed document
 - Ask if anything needs adjustment
-- Save to `<private-overlay>/product-marketing-context.md`
+- Save to the project's product marketing context document
 - Tell them: "Other marketing skills will now use this context automatically. Run `/marketing context` anytime to update it."
 
 ---

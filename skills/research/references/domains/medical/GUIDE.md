@@ -15,13 +15,14 @@ evidence with applicability limits.
 
 ## Personal route
 
-`self|other-identified` queues explicit route approval. After approval, read only the configured
-history source. For the approving human, the canonical source is
-`Health/medical-research-system/history/private-history.yaml`; it overrides older Markdown. If missing or
-unreadable, block rather than infer drugs, doses, labs, diagnoses, or investigations.
+`self|other-identified` queues explicit route approval. After approval, read only the history
+source the consuming project configures for personal medical context (a path or file the
+project points this route to). If no such source is configured, or it is unreadable, block
+rather than infer drugs, doses, labs, diagnoses, or investigations.
 
-The existing engine at `Health/medical-research-system/` remains authoritative for PICO framing,
-red flags, evidence verification, privacy linting, and clinician-review output.
+Where the consuming project maintains its own medical-research engine, that engine remains
+authoritative for PICO framing, red flags, evidence verification, privacy linting, and
+clinician-review output.
 
 ## Evidence extension
 

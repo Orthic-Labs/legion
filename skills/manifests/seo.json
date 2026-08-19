@@ -23,27 +23,27 @@
   "transformRules": [
     {
       "id": "identity-genericization",
-      "from": "the operator the operator",
+      "from": "<redacted-identity-literal>",
       "to": "the approving human"
     },
     {
       "id": "identity-genericization",
-      "from": "the operator",
+      "from": "<redacted-identity-literal>",
       "to": "the approving human"
     },
     {
       "id": "private-source-reference",
-      "from": "operator_batch_apr30.txt",
+      "from": "<redacted-identity-literal>",
       "to": "private-source-batch.txt"
     },
     {
       "id": "private-source-reference",
-      "from": "operator.yaml",
+      "from": "<redacted-identity-literal>",
       "to": "private-history.yaml"
     },
     {
       "id": "private-source-reference",
-      "from": "operator",
+      "from": "<redacted-identity-literal>",
       "to": "private-source"
     },
     {
@@ -53,18 +53,18 @@
     },
     {
       "id": "private-overlay-redaction",
-      "from": "~/.claude/",
-      "to": "<private-overlay>/"
+      "from": "<redacted-host-config-prefix>",
+      "to": "<project-overlay>/"
     },
     {
       "id": "private-overlay-redaction",
-      "from": ".claude/",
-      "to": "<private-overlay>/"
+      "from": "<redacted-host-config-prefix>",
+      "to": "<project-overlay>/"
     },
     {
       "id": "private-overlay-redaction",
-      "from": ".agents/",
-      "to": "<private-overlay>/"
+      "from": "<redacted-host-config-prefix>",
+      "to": "<project-overlay>/"
     },
     {
       "id": "whitespace-normalization"
@@ -194,8 +194,8 @@
     {
       "path": "evals/evals.json",
       "uri": "legion-skill://seo/evals/evals.json",
-      "sourceDigest": "sha256:e891a45a0dbca377cf02476722f803c8e3edd5739e561ce5e88cc8550a5b2d0a",
-      "outputDigest": "sha256:e891a45a0dbca377cf02476722f803c8e3edd5739e561ce5e88cc8550a5b2d0a",
+      "sourceDigest": "sha256:40d517a16cc53423cfdd3edb53f647710ad33948773ad2e9d6fed3498664dba6",
+      "outputDigest": "sha256:40d517a16cc53423cfdd3edb53f647710ad33948773ad2e9d6fed3498664dba6",
       "transformations": [
         "identity-genericization",
         "private-source-reference",
@@ -207,8 +207,8 @@
     {
       "path": "evals/llms-txt.evals.json",
       "uri": "legion-skill://seo/evals/llms-txt.evals.json",
-      "sourceDigest": "sha256:26f6d130425b3797806a9ee32b12213a7d406e348d44db16996d08fb9d7997a2",
-      "outputDigest": "sha256:26f6d130425b3797806a9ee32b12213a7d406e348d44db16996d08fb9d7997a2",
+      "sourceDigest": "sha256:37d92172003fdf6fe00d24ac08feead3c7d23032c4fbf87193e28b59c18217af",
+      "outputDigest": "sha256:37d92172003fdf6fe00d24ac08feead3c7d23032c4fbf87193e28b59c18217af",
       "transformations": [
         "identity-genericization",
         "private-source-reference",
@@ -493,8 +493,8 @@
     {
       "path": "references/blog-post-contract.md",
       "uri": "legion-skill://seo/references/blog-post-contract.md",
-      "sourceDigest": "sha256:ba2adb4ff11f386e1088b43a69005027cbfe272afc130be77341cc5ff602c13e",
-      "outputDigest": "sha256:ba2adb4ff11f386e1088b43a69005027cbfe272afc130be77341cc5ff602c13e",
+      "sourceDigest": "sha256:eb4753fa45166a05bd5993540c8ae264cb8370f14cd15755b2e6c0169e1e67ec",
+      "outputDigest": "sha256:eb4753fa45166a05bd5993540c8ae264cb8370f14cd15755b2e6c0169e1e67ec",
       "transformations": [
         "identity-genericization",
         "private-source-reference",
@@ -571,8 +571,8 @@
     {
       "path": "references/free-data-sources.md",
       "uri": "legion-skill://seo/references/free-data-sources.md",
-      "sourceDigest": "sha256:e366d96381b39c8847fb9cfb6181e73e8d5811ed49c5eab84c745bc81b49d3a3",
-      "outputDigest": "sha256:e366d96381b39c8847fb9cfb6181e73e8d5811ed49c5eab84c745bc81b49d3a3",
+      "sourceDigest": "sha256:158f382134e65aa221542575cdd072ab91601297d3f5097c8aa19d18048ae480",
+      "outputDigest": "sha256:158f382134e65aa221542575cdd072ab91601297d3f5097c8aa19d18048ae480",
       "transformations": [
         "identity-genericization",
         "private-source-reference",
@@ -584,8 +584,8 @@
     {
       "path": "references/geo.md",
       "uri": "legion-skill://seo/references/geo.md",
-      "sourceDigest": "sha256:dbaa3181ea7d032e73184213c3068cc182bb4d214e432281bd67ae64c2dedd68",
-      "outputDigest": "sha256:dbaa3181ea7d032e73184213c3068cc182bb4d214e432281bd67ae64c2dedd68",
+      "sourceDigest": "sha256:15799a2347be8492b615d441d7c5341f750c364dbd2697236791bd0fbfcd28ff",
+      "outputDigest": "sha256:15799a2347be8492b615d441d7c5341f750c364dbd2697236791bd0fbfcd28ff",
       "transformations": [
         "identity-genericization",
         "private-source-reference",
@@ -727,8 +727,8 @@
     {
       "path": "references/google.md",
       "uri": "legion-skill://seo/references/google.md",
-      "sourceDigest": "sha256:ca3cde40cff4c935e28f0d83a18f7dc0421d913f148d83e2fe757d8b15946b90",
-      "outputDigest": "sha256:ca3cde40cff4c935e28f0d83a18f7dc0421d913f148d83e2fe757d8b15946b90",
+      "sourceDigest": "sha256:f77b20641f612e059492f06107121684cb61a43fcaf11538d0f721093f1ed04d",
+      "outputDigest": "sha256:f77b20641f612e059492f06107121684cb61a43fcaf11538d0f721093f1ed04d",
       "transformations": [
         "identity-genericization",
         "private-source-reference",
@@ -844,8 +844,8 @@
     {
       "path": "references/image-gen.md",
       "uri": "legion-skill://seo/references/image-gen.md",
-      "sourceDigest": "sha256:08ce837627c5b66eadf9fa31f7398e3185c91593727a2bb8d5005a8e480c49b7",
-      "outputDigest": "sha256:08ce837627c5b66eadf9fa31f7398e3185c91593727a2bb8d5005a8e480c49b7",
+      "sourceDigest": "sha256:4c1136bcf20a9599106f65fe4b9ad81a1000780233f5dbecd6bcdff2180d7575",
+      "outputDigest": "sha256:4c1136bcf20a9599106f65fe4b9ad81a1000780233f5dbecd6bcdff2180d7575",
       "transformations": [
         "identity-genericization",
         "private-source-reference",
@@ -870,8 +870,8 @@
     {
       "path": "references/llms-txt.md",
       "uri": "legion-skill://seo/references/llms-txt.md",
-      "sourceDigest": "sha256:0d57b12e4d5c4dc1c0572c9c24cc53ca215b2dfbf513ccf694df75d2ecca27ba",
-      "outputDigest": "sha256:0d57b12e4d5c4dc1c0572c9c24cc53ca215b2dfbf513ccf694df75d2ecca27ba",
+      "sourceDigest": "sha256:84dd1002d7a745c250e136aa030323ba2d8bed45493546b010f09d4260bdb134",
+      "outputDigest": "sha256:84dd1002d7a745c250e136aa030323ba2d8bed45493546b010f09d4260bdb134",
       "transformations": [
         "identity-genericization",
         "private-source-reference",
@@ -922,8 +922,8 @@
     {
       "path": "references/manual.md",
       "uri": "legion-skill://seo/references/manual.md",
-      "sourceDigest": "sha256:a8cc72210db55840b8afea537aeafda021bb5cd0ace832253b3f9047ed5fdbcd",
-      "outputDigest": "sha256:a8cc72210db55840b8afea537aeafda021bb5cd0ace832253b3f9047ed5fdbcd",
+      "sourceDigest": "sha256:2cc22fcaccd82737c5abb4db7c628d0ff562868b5c2feaee5b03a7aa5274d1c6",
+      "outputDigest": "sha256:2cc22fcaccd82737c5abb4db7c628d0ff562868b5c2feaee5b03a7aa5274d1c6",
       "transformations": [
         "identity-genericization",
         "private-source-reference",
@@ -948,8 +948,8 @@
     {
       "path": "references/maps-free-apis.md",
       "uri": "legion-skill://seo/references/maps-free-apis.md",
-      "sourceDigest": "sha256:ba1ee6fcc9d59805a25f596bf1ad830da78bb6d4ff8225fc3013ae5bb6dfa0fc",
-      "outputDigest": "sha256:ba1ee6fcc9d59805a25f596bf1ad830da78bb6d4ff8225fc3013ae5bb6dfa0fc",
+      "sourceDigest": "sha256:1cb6ebe80904397f8d1d0429c6f69120e8eec28a5ad367297845f0b41afb2a18",
+      "outputDigest": "sha256:1cb6ebe80904397f8d1d0429c6f69120e8eec28a5ad367297845f0b41afb2a18",
       "transformations": [
         "identity-genericization",
         "private-source-reference",
@@ -987,8 +987,8 @@
     {
       "path": "references/off-page.md",
       "uri": "legion-skill://seo/references/off-page.md",
-      "sourceDigest": "sha256:f1142fea4070556da43646b36b08c88809699edddba131f2e3c504e4ab18621a",
-      "outputDigest": "sha256:f1142fea4070556da43646b36b08c88809699edddba131f2e3c504e4ab18621a",
+      "sourceDigest": "sha256:383ab0d76ef6132e042fc3a3a6c1c8679cdbccce05d369fcd273c50a757aa42e",
+      "outputDigest": "sha256:383ab0d76ef6132e042fc3a3a6c1c8679cdbccce05d369fcd273c50a757aa42e",
       "transformations": [
         "identity-genericization",
         "private-source-reference",
@@ -1052,8 +1052,8 @@
     {
       "path": "references/schema-markup.md",
       "uri": "legion-skill://seo/references/schema-markup.md",
-      "sourceDigest": "sha256:d98c6bca4dc2625bbd12ccd8b52c73fbe70116cbfc56e76fedfc2e5d0271efbd",
-      "outputDigest": "sha256:d98c6bca4dc2625bbd12ccd8b52c73fbe70116cbfc56e76fedfc2e5d0271efbd",
+      "sourceDigest": "sha256:864fae1a7d0f344a49ec4ffb3b563aff2ad979d88c76318d2e2eeca8445652e1",
+      "outputDigest": "sha256:864fae1a7d0f344a49ec4ffb3b563aff2ad979d88c76318d2e2eeca8445652e1",
       "transformations": [
         "identity-genericization",
         "private-source-reference",
@@ -1091,8 +1091,8 @@
     {
       "path": "references/site-audit-checks.md",
       "uri": "legion-skill://seo/references/site-audit-checks.md",
-      "sourceDigest": "sha256:8d9fd49f11e53d2a96d64d27c2883b800299b8f306f6d3e22806ff3588cd4af8",
-      "outputDigest": "sha256:8d9fd49f11e53d2a96d64d27c2883b800299b8f306f6d3e22806ff3588cd4af8",
+      "sourceDigest": "sha256:6b8fde5386fc98cdbd3547d3daed06bfe461a16a6ccfbe96e21ae5a0df0484ec",
+      "outputDigest": "sha256:6b8fde5386fc98cdbd3547d3daed06bfe461a16a6ccfbe96e21ae5a0df0484ec",
       "transformations": [
         "identity-genericization",
         "private-source-reference",
@@ -1117,8 +1117,8 @@
     {
       "path": "references/technical.md",
       "uri": "legion-skill://seo/references/technical.md",
-      "sourceDigest": "sha256:4668184e5157f7058d655187c8faf3d0eb42cb184771b585b68c5ecab0628dac",
-      "outputDigest": "sha256:4668184e5157f7058d655187c8faf3d0eb42cb184771b585b68c5ecab0628dac",
+      "sourceDigest": "sha256:66a9c8bb2eb2c14224ce2162e1d16a2436bf998d009592e0856655c8a2a8f1e8",
+      "outputDigest": "sha256:66a9c8bb2eb2c14224ce2162e1d16a2436bf998d009592e0856655c8a2a8f1e8",
       "transformations": [
         "identity-genericization",
         "private-source-reference",
