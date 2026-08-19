@@ -14,7 +14,33 @@ export const NAME = 'agents-md';
 export const FIDELITY_TIER = 'doctrine-only';
 export const MCP_REGISTERED = false;
 
-export function detect(root) {
+
+// QUARANTINED as an auto-selected installer (host/runtime cleanup, 2026-08-20).
+//
+// The descriptor-driven harness seam (src/lib/host/) is now the installer for
+// this harness's AGENTS.md instructions block. Two installers competing for one surface is the
+// failure SSOT I-20 forbids and the precedent already applied to bind's Claude
+// Code writer. `detect()` therefore returns false: `legion bind --write` with no
+// explicit --harness will never select this writer.
+//
+// It is QUARANTINED rather than deleted because it still carries the legacy
+// migration paths the seam does not have (the low-fidelity roster-only projection). Those run only when the
+// operator asks for this harness by name. New installations use
+// `legion harness install generic`.
+export const QUARANTINED = true;
+export const QUARANTINE_NOTE =
+  'legion bind no longer auto-selects generic; the harness adapter seam installs it '
+  + '(legion harness install generic). This writer remains reachable only via an explicit '
+  + '--harness generic, for its legacy migration paths.';
+
+// Never auto-selected. A repo with AGENTS.md is not evidence that bind should
+// write it — the harness seam's instructions surface owns that file now.
+export function detect() {
+  return false;
+}
+
+/** Whether a bare-AGENTS.md repo is present at all; used only for reporting. */
+export function present(root) {
   return existsSync(join(root, 'AGENTS.md')) && !existsSync(join(root, '.claude'));
 }
 
