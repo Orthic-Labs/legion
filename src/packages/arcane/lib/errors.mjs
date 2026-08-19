@@ -118,7 +118,7 @@ export function arcErr(code, message, detail) {
  * throwing on denial — a denial is data the caller must record, not an
  * exception it may swallow.
  */
-export function decision({ allowed, code = null, message = '', detail = {}, enforcementHealth = 'strong' }) {
+export function decision({ allowed, code = null, message = '', detail = {}, enforcementHealth = 'strong', escalate = false }) {
   if (!allowed && code && !CODES.has(code)) {
     throw new TypeError(`unknown ArcaneError code: ${code}`);
   }
@@ -129,6 +129,10 @@ export function decision({ allowed, code = null, message = '', detail = {}, enfo
     detail: Object.freeze({ ...detail }),
     failClosed: code ? FAIL_CLOSED_CODES.has(code) : false,
     enforcementHealth,
+    // `escalate` routes a refusal to the host's own operator prompt rather than
+    // a flat denial. It never widens a decision: the effect is still refused
+    // here, and only an explicit operator answer at the host can release it.
+    escalate: Boolean(escalate),
   });
 }
 

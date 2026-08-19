@@ -198,9 +198,19 @@ export function handleHookEvent(hookPayload, deps) {
     }
   }
 
-  // History rewrite: appealable, but only against a specific target. Without a
-  // store the behaviour is identical to before this change — refused — so a host
-  // that has not wired one up loses nothing and gains no silent permission.
+  // History rewrite: appealable, but only against a specific target.
+  //
+  // The prior comment claimed a host without an approval store "loses nothing".
+  // It lost the only path that could ever release the effect: `approvalStore`
+  // defaults to null, nothing in this repository wires one, and so every
+  // `git push --force` was refused with an approval that could not be produced
+  // by any action available to the operator or the agent. That is a dead end,
+  // not enforcement (SSOT I-22).
+  //
+  // The refusal therefore escalates instead of denying: the effect still does
+  // not proceed on Arcane's own authority, and the host asks the operator. A
+  // wired approvalStore continues to consume a target-bound approval exactly as
+  // before and skips the prompt entirely.
   if (hostEvent.eventType === 'pre-effect') {
     const push = classifyVcsPush(hookPayload?.command ?? hookPayload?.tool_input?.command);
     if (push?.rewrite) {
@@ -217,6 +227,10 @@ export function handleHookEvent(hookPayload, deps) {
               : `${push.operation} rewrites published history, and its remote/ref could not be isolated from the command; an approval is never bound to a guessed target`,
             detail: { operation: push.operation, remote: push.remote, ref: push.ref, approvalKey: key },
             enforcementHealth: 'strong',
+            // Escalate only when the target is isolated. An ambiguous target
+            // still hard-denies: an operator prompt that cannot name the ref it
+            // authorizes is worse than a refusal.
+            escalate: Boolean(key),
           }),
         };
       }
@@ -353,11 +367,19 @@ export function deriveTouchedPaths(receiptStore, runId) {
  *
  * `hostEvent.runId` has no source in a bare host hook payload (see each
  * adapter's module header) and is therefore null for a bare hook-driven
- * Stop; `evaluateCompletion` then sees no receipts for that run and fails
- * closed (`enforcementHealth: 'unsupported'`) rather than granting an
- * ungrounded pass. A caller that has a real runId (from its own
- * session/task binding) should normalize the event with that runId set for
- * a meaningful result.
+ * Stop. That case is AMBIENT work, not governed work (SSOT 36.7): no run or
+ * contract was ever opened, so there is no completion claim to certify and no
+ * evidence the session had any opportunity to produce.
+ *
+ * Failing closed there was a category error. It judged ambient work by
+ * governed-work contract evidence and produced a refusal nothing could
+ * satisfy — the session could not open a contract retroactively at Stop, so
+ * `unsupported` was terminal (SSOT I-22). Ambient Stop is now allowed and
+ * labelled honestly as ungoverned, so `legion doctor` and telemetry can still
+ * see that no contract enforcement applied. This does not weaken governed
+ * work: once a run binding exists (`sessionBinding` supplies `runId`), the
+ * full completion gate runs exactly as before, and it does not touch Oracle
+ * Completion Validation, which is separate Legion policy.
  *
  * @returns {object} the completion-gate decision (see completion-gate.mjs)
  */
@@ -366,6 +388,18 @@ export function evaluateHostStop(hostEvent, { policy, receiptStore, assuranceSto
   // authenticated host dispatch always supplies disposition and remains disposition-first.
   const terminal = disposition === null && claimedLevel !== null ? null : stopOutcome({ disposition, claimedLevel, intent, authenticatedClaim });
   if (terminal?.certification === 'not_claimed') return { allowed: true, code: null, message: 'Stop does not claim completion', detail: { ...terminal }, enforcementHealth: 'strong' };
+  // Ambient: no governed run was opened, so contract certification does not
+  // apply. `enforcementHealth: 'unsupported'` keeps the report truthful — the
+  // gate did not run, and nothing here should read as a passed certification.
+  if (!hostEvent.runId && !execution?.contractId && !hostEvent.contractId) {
+    return {
+      allowed: true,
+      code: null,
+      message: 'ambient session: no governed run or contract was opened, so contract completion does not apply',
+      detail: { ...(terminal ?? {}), governed: false },
+      enforcementHealth: 'unsupported',
+    };
+  }
   const touchedPaths = deriveTouchedPaths(receiptStore, hostEvent.runId);
   const certification = evaluateCompletion(
     { runId: hostEvent.runId, taskId: hostEvent.taskId, claimedLevel, touchedPaths, contractId: execution?.contractId ?? hostEvent.contractId ?? null, contractVersion: execution?.contractVersion ?? hostEvent.contractVersion ?? null, contractDigest: execution?.contractDigest ?? hostEvent.contractDigest ?? null, sourceRevision: execution?.sourceRevision ?? null, completionClaim },

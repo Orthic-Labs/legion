@@ -1,13 +1,98 @@
 {
   "description": "Arcane lifecycle gates and receipts for Legion.",
   "hooks": {
-    "SessionStart": [{ "matcher": "startup|resume|clear|compact", "hooks": [{ "type": "command", "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/arcane-hook.mjs\"", "timeout": 10 }] }],
-    "SubagentStart": [{ "hooks": [{ "type": "command", "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/arcane-hook.mjs\"", "timeout": 10 }] }],
-    "UserPromptSubmit": [{ "hooks": [{ "type": "command", "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/arcane-hook.mjs\"", "timeout": 10 }] }],
-    "PostCompact": [{ "matcher": "manual|auto", "hooks": [{ "type": "command", "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/arcane-hook.mjs\"", "timeout": 10 }] }],
-    "PreToolUse": [{ "matcher": "shell|shell_command|Bash|PowerShell|Write|Edit|MultiEdit|NotebookEdit|apply_patch|Agent|spawn_agent", "hooks": [{ "type": "command", "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/arcane-hook.mjs\"", "timeout": 10 }] }],
-    "PostToolUse": [{ "matcher": "shell|shell_command|Bash|PowerShell|Write|Edit|MultiEdit|NotebookEdit|apply_patch|Agent|spawn_agent", "hooks": [{ "type": "command", "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/arcane-hook.mjs\"", "timeout": 10 }] }],
-    "PostToolUseFailure": [{ "matcher": "shell|shell_command|Bash|PowerShell|Write|Edit|MultiEdit|NotebookEdit|apply_patch|Agent|spawn_agent", "hooks": [{ "type": "command", "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/arcane-hook.mjs\"", "timeout": 10 }] }],
-    "Stop": [{ "hooks": [{ "type": "command", "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/arcane-hook.mjs\"", "timeout": 10 }] }]
+    "SessionStart": [
+      {
+        "matcher": "startup|resume|clear|compact",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/arcane-hook.mjs\"",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "SubagentStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/arcane-hook.mjs\"",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/arcane-hook.mjs\"",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "PostCompact": [
+      {
+        "matcher": "manual|auto",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/arcane-hook.mjs\"",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "shell|shell_command|Bash|PowerShell|Write|Edit|MultiEdit|NotebookEdit|apply_patch",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/arcane-hook.mjs\"",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "shell|shell_command|Bash|PowerShell|Write|Edit|MultiEdit|NotebookEdit|apply_patch|WebFetch|WebSearch",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/arcane-hook.mjs\"",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "PostToolUseFailure": [
+      {
+        "matcher": "shell|shell_command|Bash|PowerShell|Write|Edit|MultiEdit|NotebookEdit|apply_patch|WebFetch|WebSearch",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/arcane-hook.mjs\"",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/arcane-hook.mjs\"",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
   }
 }

@@ -111,7 +111,7 @@ function runtimeResult(eventType, result) {
     responsibleProducer: envelope.responsibleProducer,
     remediationRoutes: envelope.remediationRoutes,
     missingEvidence: envelope.missingEvidence,
-    stdout: renderHostRuntimeOutput({ eventType, allowed: result.decision.allowed, code: result.decision.code, detail, enforcementHealth: envelope.enforcementHealth }),
+    stdout: renderHostRuntimeOutput({ eventType, allowed: result.decision.allowed, code: result.decision.code, detail, enforcementHealth: envelope.enforcementHealth, escalate: Boolean(result.decision.escalate) }),
   };
   schema.assert('arcane-host-runtime-result-v1', value);
   return value;

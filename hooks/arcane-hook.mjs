@@ -1,7 +1,6 @@
 #!/usr/bin/env node
-import { spawnSync } from "node:child_process";
 import { existsSync } from "node:fs";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { dirname, join } from "node:path";
 const root = dirname(dirname(fileURLToPath(import.meta.url)));
 const codex = Boolean(process.env.CODEX_HOME || process.env.CODEX_THREAD_ID || process.env.CODEX_SESSION_ID);
@@ -20,7 +19,17 @@ if (!target) {
   process.stderr.write(`arcane-hook: adapter not found; looked in:\n${candidates.join("\n")}\n`);
   process.exit(1);
 }
-const child = spawnSync(process.execPath, [target], { stdio: "inherit" });
-if (child.error) throw child.error;
-if (child.signal) process.kill(process.pid, child.signal);
-process.exitCode = child.status ?? 1;
+// The adapter is imported and called in-process rather than spawned. The
+// previous spawnSync paid a second Node cold start on every hook event —
+// ~400ms per event measured, against ~105ms for bare startup — which the
+// PreToolUse/PostToolUse pair doubled on every tool call. The adapter's own
+// `isMainModule` guard does not fire under import, so `main()` is called
+// explicitly here. Failure behaviour is unchanged: a throw exits non-zero,
+// which the host treats as a non-blocking hook error exactly as the
+// non-zero child status did.
+const mod = await import(pathToFileURL(target).href);
+if (typeof mod.main !== "function") {
+  process.stderr.write(`arcane-hook: ${target} exports no main()\n`);
+  process.exit(1);
+}
+mod.main();
