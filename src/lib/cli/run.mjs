@@ -135,6 +135,7 @@ async function dispatch(command, argv, { stdout, stderr, env, cwd, host }) {
       return runCompletion(argv, { stdout, env, cwd });
     }
     case 'host': { const { runHostEvents } = await import('./commands/host-events.mjs'); return runHostEvents(argv, { stdout, env, cwd }); }
+    case 'harness': { const { runHarness } = await import('./commands/harness.mjs'); return runHarness(argv, { stdout, stderr, env, cwd }); }
     case 'authority': { const { runAuthorityProof } = await import('./commands/authority-proof.mjs'); return runAuthorityProof(argv, { stdout, env, cwd }); }
     case 'state': {
       const { runState } = await import('./commands/state.mjs');

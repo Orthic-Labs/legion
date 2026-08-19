@@ -20,6 +20,9 @@ import { resolve, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = resolve(fileURLToPath(new URL('..', import.meta.url)));
+// Harness fidelity is derived from the adapter registry — the single source of
+// truth for what each harness supports — not hand-maintained here (SSOT I-2).
+import { fidelityMatrix } from '../src/lib/host/registry.mjs';
 const OUT = 'src/registry/host-projection.json';
 
 // Deliberately small: enough to select and compose a capability, and nothing a
@@ -104,33 +107,29 @@ export function buildProjection(root = ROOT) {
     // because doctrine says Arcane gates every effect. These values describe
     // what the repository actually ships today and are corrected as native
     // projections land, never rounded up.
-    harnesses: [
-      {
-        id: 'claude-code',
-        installPath: 'plugin package (.claude-plugin/plugin.json)',
-        fidelity: { skillDiscovery: 'strong', authorityAgents: 'strong', mcp: 'strong', arcaneEnforcement: 'strong' },
-        notes: 'Native plugin ships skills/, agents/, hooks/ and the legion MCP server.',
-      },
-      {
-        id: 'codex',
-        installPath: '.codex-plugin/plugin.json',
-        fidelity: { skillDiscovery: 'unsupported', authorityAgents: 'degraded', mcp: 'unsupported', arcaneEnforcement: 'degraded' },
-        notes: 'Manifest is metadata only. Roles reach Codex via legion bind (.codex/agents/*.toml); no skill or MCP projection exists, and the Arcane codex adapter ships but nothing installs its hook registration.',
-      },
-      {
-        id: 'gemini',
-        installPath: 'GEMINI.md + .gemini/commands/legion/*.toml',
-        fidelity: { skillDiscovery: 'unsupported', authorityAgents: 'degraded', mcp: 'degraded', arcaneEnforcement: 'unsupported' },
-        notes: 'Roles project as slash commands via legion bind. No skill projection. No hook mechanism is wired, so effect enforcement is absent, not degraded.',
-      },
-      {
-        id: 'agents-md',
-        installPath: 'AGENTS.md managed block',
-        fidelity: { skillDiscovery: 'unsupported', authorityAgents: 'degraded', mcp: 'unsupported', arcaneEnforcement: 'unsupported' },
-        notes: 'Deliberately lowest-fidelity projection: context text only.',
-      },
-    ],
+    // Derived from src/lib/host/registry.mjs. The projection reports the four
+    // SSOT 36.5 axes; they map onto the adapter's five surfaces (instructions is
+    // additionally carried for completeness). Truthful by construction: the
+    // values are whatever the adapters declare, never rounded up here.
+    harnesses: harnessFidelity(root)
   };
+}
+
+
+// Map each adapter's surface fidelity to the projection's reporting shape.
+function harnessFidelity() {
+  return fidelityMatrix().map((caps) => ({
+    id: caps.id,
+    installOwner: caps.installOwner,
+    fidelity: {
+      instructions: caps.surfaces.instructions.fidelity,
+      skillDiscovery: caps.surfaces.skills.fidelity,
+      authorityAgents: caps.surfaces.agents.fidelity,
+      mcp: caps.surfaces.mcp.fidelity,
+      arcaneEnforcement: caps.surfaces.hooks.fidelity,
+    },
+    mechanisms: Object.fromEntries(Object.entries(caps.surfaces).map(([k, v]) => [k, v.mechanism?.kind ?? 'none'])),
+  }));
 }
 
 const isMain = process.argv[1] && resolve(process.argv[1]) === resolve(fileURLToPath(import.meta.url));

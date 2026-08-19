@@ -17,6 +17,8 @@ import { existsSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { homedir } from 'node:os';
 
+import * as harnessRegistry from '../../host/registry.mjs';
+
 const readJson = (path) => { try { return JSON.parse(readFileSync(path, 'utf8')); } catch { return null; } };
 
 /**
@@ -108,7 +110,7 @@ function installationConflicts(root) {
   return conflicts;
 }
 
-/** Declared fidelity per harness, and whether the repository can currently meet it. */
+/** Declared fidelity per harness, derived from the adapter registry. */
 function fidelity(root) {
   const projection = readJson(join(root, 'src', 'registry', 'host-projection.json'));
   if (!projection) return { present: false, harnesses: [] };
@@ -116,9 +118,9 @@ function fidelity(root) {
     present: true,
     harnesses: (projection.harnesses ?? []).map((h) => ({
       id: h.id,
-      installPath: h.installPath,
+      installOwner: h.installOwner,
       ...h.fidelity,
-      notes: h.notes,
+      mechanisms: h.mechanisms,
     })),
   };
 }
@@ -139,6 +141,16 @@ function arcaneHostHealth(root, home) {
   };
 }
 
+function harnessAdaptersSection(root) {
+  let detected = [];
+  try { detected = harnessRegistry.detectHarnesses(root); } catch { detected = []; }
+  const capabilities = {};
+  for (const id of harnessRegistry.ADAPTER_IDS) {
+    try { capabilities[id] = harnessRegistry.capabilities(id, { root }); } catch { /* skip */ }
+  }
+  return { known: harnessRegistry.ADAPTER_IDS, detected, capabilities };
+}
+
 export function computeHostSection(root, { home = homedir() } = {}) {
   const projectionPath = join(root, 'src', 'registry', 'host-projection.json');
   return {
@@ -152,6 +164,10 @@ export function computeHostSection(root, { home = homedir() } = {}) {
     discovery: { 'claude-code': claudeDiscovery(root) },
     conflicts: installationConflicts(root),
     fidelity: fidelity(root),
+    // The live adapter seam: which harnesses this repo looks like, and each
+    // detected harness's declared surface capabilities (read-only; doctor never
+    // installs). This is the runtime view of what host-projection.json records.
+    harnessAdapters: harnessAdaptersSection(root),
     arcane: arcaneHostHealth(root, home),
   };
 }

@@ -30,6 +30,14 @@ export function extractMarkerBlock(existing) {
   return existing.match(MARKER_RE)?.[0] ?? null;
 }
 
+// Remove the legion marker block (and its surrounding blank lines) from a
+// Markdown target. Used by adapter uninstall to leave the rest of the file — a
+// user's own AGENTS.md prose — exactly as it was.
+export function stripMarkerBlock(existing) {
+  if (!MARKER_RE.test(existing)) return existing;
+  return existing.replace(MARKER_RE, '').replace(/\n{3,}/g, '\n\n').replace(/^\n+/, '').replace(/\n+$/, '\n');
+}
+
 export function readTextIfExists(path) {
   return existsSync(path) ? readFileSync(path, 'utf8') : '';
 }

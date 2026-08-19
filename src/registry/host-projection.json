@@ -307,47 +307,111 @@
   "harnesses": [
     {
       "id": "claude-code",
-      "installPath": "plugin package (.claude-plugin/plugin.json)",
+      "installOwner": "plugin",
       "fidelity": {
+        "instructions": "strong",
         "skillDiscovery": "strong",
         "authorityAgents": "strong",
         "mcp": "strong",
         "arcaneEnforcement": "strong"
       },
-      "notes": "Native plugin ships skills/, agents/, hooks/ and the legion MCP server."
+      "mechanisms": {
+        "instructions": "plugin",
+        "skills": "plugin",
+        "agents": "plugin",
+        "mcp": "plugin",
+        "hooks": "blocking-hook"
+      }
     },
     {
       "id": "codex",
-      "installPath": ".codex-plugin/plugin.json",
+      "installOwner": "adapter",
       "fidelity": {
-        "skillDiscovery": "unsupported",
-        "authorityAgents": "degraded",
-        "mcp": "unsupported",
-        "arcaneEnforcement": "degraded"
-      },
-      "notes": "Manifest is metadata only. Roles reach Codex via legion bind (.codex/agents/*.toml); no skill or MCP projection exists, and the Arcane codex adapter ships but nothing installs its hook registration."
-    },
-    {
-      "id": "gemini",
-      "installPath": "GEMINI.md + .gemini/commands/legion/*.toml",
-      "fidelity": {
-        "skillDiscovery": "unsupported",
-        "authorityAgents": "degraded",
-        "mcp": "degraded",
+        "instructions": "strong",
+        "skillDiscovery": "degraded",
+        "authorityAgents": "unsupported",
+        "mcp": "strong",
         "arcaneEnforcement": "unsupported"
       },
-      "notes": "Roles project as slash commands via legion bind. No skill projection. No hook mechanism is wired, so effect enforcement is absent, not degraded."
+      "mechanisms": {
+        "instructions": "agents-md",
+        "skills": "skills-dir",
+        "agents": "none",
+        "mcp": "toml",
+        "hooks": "none"
+      }
     },
     {
-      "id": "agents-md",
-      "installPath": "AGENTS.md managed block",
+      "id": "cline",
+      "installOwner": "adapter",
       "fidelity": {
-        "skillDiscovery": "unsupported",
-        "authorityAgents": "degraded",
+        "instructions": "strong",
+        "skillDiscovery": "degraded",
+        "authorityAgents": "unsupported",
+        "mcp": "strong",
+        "arcaneEnforcement": "unsupported"
+      },
+      "mechanisms": {
+        "instructions": "native-file",
+        "skills": "skills-dir",
+        "agents": "none",
+        "mcp": "json",
+        "hooks": "none"
+      }
+    },
+    {
+      "id": "command-code",
+      "installOwner": "adapter",
+      "fidelity": {
+        "instructions": "strong",
+        "skillDiscovery": "degraded",
+        "authorityAgents": "unsupported",
         "mcp": "unsupported",
         "arcaneEnforcement": "unsupported"
       },
-      "notes": "Deliberately lowest-fidelity projection: context text only."
+      "mechanisms": {
+        "instructions": "agents-md",
+        "skills": "skills-dir",
+        "agents": "none",
+        "mcp": "none",
+        "hooks": "none"
+      }
+    },
+    {
+      "id": "pi",
+      "installOwner": "adapter",
+      "fidelity": {
+        "instructions": "strong",
+        "skillDiscovery": "degraded",
+        "authorityAgents": "unsupported",
+        "mcp": "unsupported",
+        "arcaneEnforcement": "unsupported"
+      },
+      "mechanisms": {
+        "instructions": "agents-md",
+        "skills": "skills-dir",
+        "agents": "none",
+        "mcp": "none",
+        "hooks": "none"
+      }
+    },
+    {
+      "id": "generic",
+      "installOwner": "adapter",
+      "fidelity": {
+        "instructions": "strong",
+        "skillDiscovery": "degraded",
+        "authorityAgents": "unsupported",
+        "mcp": "unsupported",
+        "arcaneEnforcement": "unsupported"
+      },
+      "mechanisms": {
+        "instructions": "agents-md",
+        "skills": "skills-dir",
+        "agents": "none",
+        "mcp": "none",
+        "hooks": "none"
+      }
     }
   ]
 }

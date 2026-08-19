@@ -67,18 +67,30 @@ failure that took manual investigation to find.
 
 ## 2. Declared fidelity today
 
-Truthful, not aspirational (SSOT 36.5). Corrected as native projections land; never rounded up.
+Derived from the adapter registry (`src/lib/host/registry.mjs`) — the single source of truth —
+and projected into `host-projection.json`. Truthful, not aspirational (SSOT 36.5); never rounded
+up. Instructions is the fifth surface the adapters carry (baseline context via AGENTS.md or a
+native instructions file).
 
-| Harness | Skill discovery | Authority agents | MCP | Arcane |
-|---|---|---|---|---|
-| claude-code | strong | strong | strong | strong |
-| codex | unsupported | degraded | unsupported | degraded |
-| gemini | unsupported | degraded | degraded | unsupported |
-| agents-md | unsupported | degraded | unsupported | unsupported |
+| Harness | Instructions | Skills | Agents | MCP | Enforcement |
+|---|---|---|---|---|---|
+| claude-code | strong (plugin) | strong (plugin) | strong (plugin) | strong (plugin) | strong (blocking hook) |
+| codex | strong (AGENTS.md) | degraded (.agents/skills) | unsupported | strong (config.toml) | unsupported |
+| cline | strong (.clinerules) | degraded (.agents/skills) | unsupported | strong (mcp.json) | unsupported |
+| command-code | strong (AGENTS.md) | degraded (.agents/skills) | unsupported | unsupported | unsupported |
+| pi | strong (AGENTS.md) | degraded (.agents/skills) | unsupported | unsupported | unsupported |
+| generic | strong (AGENTS.md) | degraded (.agents/skills) | unsupported | unsupported | unsupported |
 
-Gemini's Arcane value is `unsupported`, not `degraded`: no hook mechanism is wired, so effect
-enforcement is **absent**. Stating that is the requirement; claiming otherwise would convert a
-known gap into an unknown one.
+`skills = degraded` for every non-Claude harness because skills reach them through the common
+`.agents/skills` surface (SKILL.md packages projected by symlink, never forked) rather than a
+first-class native skill API — which is the correct honest state, not a limitation of the
+projection. Enforcement is `unsupported` wherever no blocking hook/permission mechanism exists;
+Arcane's semantics stay host-neutral but the transport is host-specific, and a harness that cannot
+block an effect is never labelled `strong`. `command-code`, `pi`, `agents`, and their `mcp` values
+are `unsupported` where the native mechanism is not yet confirmed; correcting any of them is a
+one-line edit to that harness's descriptor, which is the point of the data-driven seam.
+
+Gemini is intentionally absent — it is not built, because it is not used.
 
 ## 3. Remaining work
 
@@ -104,30 +116,44 @@ The plugin package is the single installation owner for Claude Code. Parity is p
 `--harness claude-code` request returns a note pointing at the plugin. `legion bind` no longer
 competes for the Claude harness (I-20).
 
-### 3.3 Codex native projection — **format unverified**
+### 3.3–3.5 Generic host adapter seam — done
 
-`.codex-plugin/plugin.json` is metadata only (no `mcpServers`, no hooks, no agents). Before
-implementing, confirm against current Codex documentation which of skills / agents / hooks / MCP
-the plugin format natively supports. Then render them from `host-projection.json`. The Arcane
-`codex-adapter.mjs` already exists and needs only registration.
+The harness integration is now a data-driven adapter seam, not a per-harness reimplementation:
 
-### 3.4 Gemini native projection — **format unverified**
+```
+canonical Legion  →  host-projection.json  →  adapter descriptor (capabilities)  →  engine install/verify
+```
 
-Confirm whether Gemini CLI exposes a native Agent Skills / extension surface. If it does, project
-capabilities into it; if it does not, `skillDiscovery` stays `unsupported` and the fidelity table
-says so.
+- `src/lib/host/surfaces.mjs` — the closed vocabulary: five surfaces (instructions, skills,
+  agents, mcp, hooks) each rated `strong` / `degraded` / `unsupported`.
+- `src/lib/host/skill-projection.mjs` — projects canonical `skills/<id>` packages into a harness's
+  skill location by **symlink** (byte-identical copy only as a fallback), and verifies byte-identity
+  against the canonical source. This is the no-fork guarantee: `SKILL.md` is the common interchange
+  format and is never rewritten.
+- `src/lib/host/engine.mjs` — implements `detect / capabilities / install / verify / uninstall`
+  **once**, parameterized by a descriptor. It moves and registers canonical content; it never
+  decides what Legion contains.
+- `src/lib/host/adapters/*.mjs` — one small descriptor per harness: `claude-code` (plugin-owned,
+  defers install), `codex`, `cline`, `command-code`, `pi`, and `generic`.
+- `src/lib/host/registry.mjs` — the adapter list and the data-driven interface; `legion harness`
+  is the thin CLI over it.
 
-### 3.5 Renderers consume the projection
+Skills prefer the common `.agents/skills` surface; a harness that reads a native location declares
+it as `path` in its descriptor and the same projection code handles it. Adding a harness is one
+descriptor file plus one registry line; a harness Legion has never heard of needs nothing in the
+registry at all — the `generic` adapter resolves a descriptor from `.agents/legion-harness.json`
+or `LEGION_HARNESS_DESCRIPTOR` at runtime.
 
-`src/lib/host-projection.mjs` is the shared read side of the generated projection. The AGENTS.md
-binding — the harness-neutral path that covers harnesses without a native package — now carries
-the compact capability catalog from it, so a non-Claude harness is no longer three roles and zero
-capabilities. Roles already came from `src/lib/roster/index.mjs`, so no role text was duplicated.
+Conformance is locked by `tests/host-adapter-conformance.test.mjs`: the same canonical catalog
+reaches every projecting harness, every projected `SKILL.md` is byte-identical to canonical,
+discovery counts match the canonical projection, declared fidelity is structurally valid and
+enforcement is never overclaimed, and no descriptor enumerates individual skills (so adding a skill
+needs no per-harness edit).
 
-Remaining (deferred to whoever owns Codex/Gemini): have those binders render their role and
-capability text from the projection too, so `HARNESS_MODULES` becomes a pure renderer seam. Not
-done here because neither harness is in use and building a renderer for an unused harness is
-machinery without a driver (SSOT 26).
+Relationship to `legion bind`: the adapter seam is the go-forward harness integration. The older
+`bind/*` harness writers (`codex`, `gemini`, `agents-md`) are legacy and superseded by it; they are
+invoked only by the explicit `legion bind` command and do not auto-run, so they do not silently
+compete. Retiring them is a follow-up, out of scope for this pass.
 
 ### 3.6 Latency — investigated; the dominant cost is algorithmic, not process-lifecycle
 
@@ -172,16 +198,17 @@ diagnosis to `/audit` rather than embedding it; the remaining question is whethe
 2. ~~Claude live-plugin dev path + package/version lifecycle~~ — done (§3.1)
 3. ~~Canonical projection IR~~ — done (§1.2)
 4. ~~Claude native projection + retire competing bind path~~ — done (§3.2)
-5. Codex native projection — §3.3 (verify format first; deferred, harness not in use)
-6. Gemini native projection — §3.4 (verify format first; deferred, harness not in use)
+5. ~~Generic host adapter seam + the harnesses in use (Codex, Cline, Command Code, Pi) + generic custom harness~~ — done (§3.3–3.5)
+6. Gemini — **not built**, not used (explicit non-goal)
 7. ~~Arcane hook narrowing, Stop correction, double-spawn removal~~ — done (§1.1)
 8. ~~Benchmark — per-event git subprocess removed; ledger O(n) identified as the dominant cost~~ — done (§3.6)
 9. Resident Arcane decision — **not justified** by the measurements; the fix is algorithmic (§3.6)
-10. ~~`legion doctor` host diagnosis + plugin surface identity~~ — done (§1.3, §3.1); cross-harness evals remain — §3.7
+10. ~~`legion doctor` host diagnosis + plugin surface identity + live adapter seam~~ — done (§1.3, §3.1, §3.3–3.5); ~~cross-harness conformance evals~~ — done (`tests/host-adapter-conformance.test.mjs`)
 
-Host/runtime work is complete. What remains (Codex/Gemini native packages, the ledger-checkpoint
-change, `skills/commit` narrowing, cross-harness fidelity evals) is either gated on an unused
-harness or is semantic/security-bearing work owned by the SSOT/capability and Arcane owners.
+Host/runtime work is complete. What remains is either an explicit non-goal (Gemini) or
+semantic/security-bearing work owned by the SSOT/capability and Arcane owners: the ledger
+verified-prefix checkpoint, `skills/commit` narrowing, and retiring the legacy `bind/*` harness
+writers now superseded by the adapter seam.
 
 Superseded paths are retired as their native equivalents land, not kept in parallel
 (SSOT §26 retirement test, §32 non-goals).
