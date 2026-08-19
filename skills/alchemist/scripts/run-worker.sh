@@ -1,5 +1,4 @@
 #!/usr/bin/env bash
-# dependency-class: HOST_CAPABILITY(omniroute) — ~/.codex and the local gateway belong to the host, not to this package.
 # Alchemist worker (Mac/Linux) — bash port of run-worker.ps1, same invocation contract.
 # The brief arrives on stdin so shell quoting cannot damage it.
 #

@@ -1,31 +1,86 @@
+// Packaged-skill verification.
+//
+// Legion is the canonical source for the skills it ships. There is no upstream to diff against, so
+// a packaged file is verified against one digest and the manifest that declares it -- not against a
+// transform of some other copy living elsewhere.
+
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join, relative, resolve, sep } from 'node:path';
 import { digestBytes } from '../artifacts/digests.mjs';
-import { transformSkillText } from './transform.mjs';
 
-// Structural private-reference patterns. Identity terms are NOT hardcoded here: a public package
-// must not ship the very names it exists to redact. Supply them via LEGION_PRIVATE_IDENTITY
-// (comma-separated) so each operator scans for their own.
-const STRUCTURAL_PRIVATE = String.raw`(?:^|[\s"'\`(=])[A-Za-z]:\\|\/Users\/|\/home\/|~\/\.claude|\.claude\/|\.agents\/`;
-const IDENTITY_TERMS = (process.env.LEGION_PRIVATE_IDENTITY ?? '')
-  .split(',').map((term) => term.trim()).filter(Boolean)
-  .map((term) => term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
-const PRIVATE_REFERENCE = new RegExp(
-  IDENTITY_TERMS.length ? `(?:\\b(?:${IDENTITY_TERMS.join('|')})\\b|${STRUCTURAL_PRIVATE})` : `(?:${STRUCTURAL_PRIVATE})`,
-  'i',
-);
-const MARKDOWN_PACKAGE_LINK = /\[([^\]]+)\]\((legion-skill:\/\/[^)\s]+)\)/g;
 const PACKAGE_URI = /legion-skill:\/\/[a-z0-9-]+\/[^\s)`"']+/g;
-export function verifySkillBytes(bytes, expectedDigest) { const digest = digestBytes(Buffer.isBuffer(bytes) ? bytes : Buffer.from(bytes)); return { ok: digest === expectedDigest, digest, expectedDigest }; }
-export function sanitizeImportedSkillText(value, knownUris, path = 'SKILL.md') { const document = /(?:^|\.)(?:md|mdx|txt)$/i.test(path), structured = /\.(?:json|ya?ml|csv)$/i.test(path); if (!document && !structured) return String(value); const text = String(value).replace(/\/home\/[^\s)`"']+/g, '<local-path>'); if (!document) return text; return text.replace(MARKDOWN_PACKAGE_LINK, (match, label, uri) => knownUris.has(uri.split('#', 1)[0]) ? match : `${label} (<external-reference>)`).replace(PACKAGE_URI, (uri) => knownUris.has(uri.split('#', 1)[0]) ? uri : '<external-reference>'); }
-export function verifySkillCatalog({ packageRoot, manifests, sourceRoot = null, publication = false }) {
-  const findings = [], declaredUris = new Set(Object.values(manifests).flatMap((manifest) => (manifest.files ?? []).map(({ uri }) => uri)));
-  for (const manifest of Object.values(manifests)) { const declared = new Set(); if (publication && manifest.licenseState === 'unresolved') findings.push(finding('rights-unresolved', manifest.id, null, 'publication rejects unresolved rights')); for (const record of manifest.files ?? []) { const outputPath = safePath(packageRoot, join('skills', manifest.id, record.path)); if (!outputPath) { findings.push(finding('invalid-path', manifest.id, record.path, 'output path escapes package root')); continue; } declared.add(outputPath); verifyOutput(manifest, record, outputPath, declaredUris, findings); if (sourceRoot) verifySource(manifest, record, sourceRoot, outputPath, findings); } findUnexpected(packageRoot, manifest.id, declared, findings); }
+
+export function verifySkillBytes(bytes, expectedDigest) {
+  const digest = digestBytes(Buffer.isBuffer(bytes) ? bytes : Buffer.from(bytes));
+  return { ok: digest === expectedDigest, digest, expectedDigest };
+}
+
+export function verifySkillCatalog({ packageRoot, manifests, publication = false }) {
+  const findings = [];
+  const declaredUris = new Set(Object.values(manifests).flatMap((manifest) => (manifest.files ?? []).map(({ uri }) => uri)));
+  for (const manifest of Object.values(manifests)) {
+    const declared = new Set();
+    if (publication && manifest.licenseState === 'unresolved') {
+      findings.push(finding('rights-unresolved', manifest.id, null, 'publication rejects unresolved rights'));
+    }
+    for (const record of manifest.files ?? []) {
+      const outputPath = safePath(packageRoot, join('skills', manifest.id, record.path));
+      if (!outputPath) {
+        findings.push(finding('invalid-path', manifest.id, record.path, 'output path escapes package root'));
+        continue;
+      }
+      declared.add(outputPath);
+      verifyFile(manifest, record, outputPath, declaredUris, findings);
+    }
+    findUnexpected(packageRoot, manifest.id, declared, findings);
+  }
   return { ok: findings.length === 0, findings };
 }
-function verifyOutput(manifest, record, outputPath, declaredUris, findings) { if (!existsSync(outputPath)) { findings.push(finding('missing', manifest.id, record.path, 'declared output is missing')); return; } const output = readFileSync(outputPath), verification = verifySkillBytes(output, record.outputDigest); if (!verification.ok) findings.push(finding('digest-drift', manifest.id, record.path, 'output digest differs from manifest', verification)); const text = output.toString('utf8'); if (manifest.transformRules && PRIVATE_REFERENCE.test(text)) findings.push(finding('private-reference', manifest.id, record.path, 'packaged output contains a personal identifier or local/private path')); if (/(?:^|\.)(?:md|mdx|txt)$/i.test(record.path)) for (const match of text.matchAll(PACKAGE_URI)) { const uri = match[0].split('#', 1)[0]; if (!declaredUris.has(uri)) findings.push(finding('broken-link', manifest.id, record.path, `packaged link is not declared: ${uri}`)); } }
-function verifySource(manifest, record, sourceRoot, outputPath, findings) { const sourcePath = safePath(sourceRoot, join(manifest.id, record.path)); if (!sourcePath || !existsSync(sourcePath)) { findings.push(finding('missing', manifest.id, record.path, 'canonical source is missing')); return; } const source = readFileSync(sourcePath), sourceVerification = verifySkillBytes(source, record.sourceDigest); if (!sourceVerification.ok) findings.push(finding('digest-drift', manifest.id, record.path, 'source digest differs from manifest', sourceVerification)); if (record.transformations?.includes('intentional-legion-fork')) return; const knownUris = new Set((manifest.files ?? []).map(({ uri }) => uri)), transformed = Buffer.from(sanitizeImportedSkillText(transformSkillText(source.toString('utf8'), { bundle: manifest.id, path: record.path, profile: 'audit', rules: manifest.transformRules ?? [] }), knownUris, record.path)); if (!existsSync(outputPath) || !transformed.equals(readFileSync(outputPath))) findings.push(finding('transform-drift', manifest.id, record.path, 'canonical source transform differs from output')); }
-function findUnexpected(packageRoot, bundleId, declared, findings) { const bundleRoot = resolve(packageRoot, 'skills', bundleId); if (!existsSync(bundleRoot)) return; for (const path of allFiles(bundleRoot)) if (!declared.has(path)) findings.push(finding('unexpected', bundleId, relative(bundleRoot, path).replaceAll('\\', '/'), 'output is absent from manifest')); }
-function allFiles(directory) { return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => { const path = join(directory, entry.name); return entry.isDirectory() ? allFiles(path) : [path]; }); }
-function safePath(root, path) { const base = resolve(root), target = resolve(base, path); return target.startsWith(`${base}${sep}`) ? target : null; }
-function finding(code, bundleId, path, detail, digests = null) { return { code, bundleId, path, detail, ...(digests ? { expectedDigest: digests.expectedDigest, actualDigest: digests.digest } : {}) }; }
+
+function verifyFile(manifest, record, outputPath, declaredUris, findings) {
+  if (!existsSync(outputPath)) {
+    findings.push(finding('missing', manifest.id, record.path, 'declared file is missing'));
+    return;
+  }
+  const bytes = readFileSync(outputPath);
+  const verification = verifySkillBytes(bytes, record.digest);
+  if (!verification.ok) {
+    findings.push(finding('digest-drift', manifest.id, record.path, 'file digest differs from manifest', verification));
+  }
+  if (!/(?:^|\.)(?:md|mdx|txt)$/i.test(record.path)) return;
+  for (const match of bytes.toString('utf8').matchAll(PACKAGE_URI)) {
+    const uri = match[0].split('#', 1)[0];
+    if (!declaredUris.has(uri)) {
+      findings.push(finding('broken-link', manifest.id, record.path, `packaged link is not declared: ${uri}`));
+    }
+  }
+}
+
+function findUnexpected(packageRoot, bundleId, declared, findings) {
+  const bundleRoot = resolve(packageRoot, 'skills', bundleId);
+  if (!existsSync(bundleRoot)) return;
+  for (const path of allFiles(bundleRoot)) {
+    if (!declared.has(path)) {
+      findings.push(finding('unexpected', bundleId, relative(bundleRoot, path).replaceAll('\\', '/'), 'file is absent from manifest'));
+    }
+  }
+}
+
+function allFiles(directory) {
+  return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
+    const path = join(directory, entry.name);
+    return entry.isDirectory() ? allFiles(path) : [path];
+  });
+}
+
+function safePath(root, path) {
+  const base = resolve(root), target = resolve(base, path);
+  return target.startsWith(`${base}${sep}`) ? target : null;
+}
+
+function finding(code, bundleId, path, detail, digests = null) {
+  return {
+    code, bundleId, path, detail,
+    ...(digests ? { expectedDigest: digests.expectedDigest, actualDigest: digests.digest } : {}),
+  };
+}

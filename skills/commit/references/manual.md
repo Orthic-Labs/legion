@@ -292,7 +292,7 @@ CodeRabbit or ponytail binaries (those aren't required; the engine absorbs both,
    deliberate per-repo decision, not a commit side effect.
 
 7. **Knowledge extraction (only for a genuinely durable pattern).** Reviews should improve future
-   reviews. If a fix in this run corrected a mistake you'd expect to recur across the workspace — a
+   reviews. If a fix in this run corrected a mistake you'd expect to recur across the project — a
    repeated anti-pattern, a repo convention you had to be corrected on, a "never do X here" — capture it
    as a durable rule through a durable-memory capability, if the host provides one, so it surfaces
    next time. Do NOT log one-off, change-specific fixes; the bar is "a standing preference a future

@@ -4,9 +4,14 @@
   "version": "1.0.0",
   "entry": "SKILL.md",
   "rootUri": "legion-skill://coder/",
-  "provenance": "workspace-authored-wrapper",
-  "licenseState": "unresolved",
-  "rightsReceipt": null,
+  "provenance": "legion-authored",
+  "licenseState": "licensed",
+  "rightsReceipt": {
+    "kind": "legion-rights-receipt",
+    "basis": "repository-license",
+    "license": "LICENSE",
+    "licenseDigest": "sha256:6519936585434711b6d5971a3081fbd8b499438a39b6a08cc2191d33443926b4"
+  },
   "profiles": {
     "audit": {
       "mutation": false,
@@ -49,65 +54,47 @@
     {
       "path": "SKILL.md",
       "uri": "legion-skill://coder/SKILL.md",
-      "sourceDigest": "sha256:2b992247b2b8169bb3553bb78cc9f9c66fda25c3bb739bda79b2b33650e7132f",
-      "outputDigest": "sha256:2b992247b2b8169bb3553bb78cc9f9c66fda25c3bb739bda79b2b33650e7132f",
-      "transformations": []
+      "digest": "sha256:2b992247b2b8169bb3553bb78cc9f9c66fda25c3bb739bda79b2b33650e7132f"
     },
     {
       "path": "agents/openai.yaml",
       "uri": "legion-skill://coder/agents/openai.yaml",
-      "sourceDigest": "sha256:28152e6a0dd882a013d5d2731b4082be2d8f6aa601397909a045f3bc82e7e945",
-      "outputDigest": "sha256:28152e6a0dd882a013d5d2731b4082be2d8f6aa601397909a045f3bc82e7e945",
-      "transformations": []
+      "digest": "sha256:28152e6a0dd882a013d5d2731b4082be2d8f6aa601397909a045f3bc82e7e945"
     },
     {
       "path": "evals/evals.json",
       "uri": "legion-skill://coder/evals/evals.json",
-      "sourceDigest": "sha256:a519b0cb1dd57e23019f7a23d9f53bcc61d778a44877c8ccd884992cb3d6d1f5",
-      "outputDigest": "sha256:a519b0cb1dd57e23019f7a23d9f53bcc61d778a44877c8ccd884992cb3d6d1f5",
-      "transformations": []
+      "digest": "sha256:a519b0cb1dd57e23019f7a23d9f53bcc61d778a44877c8ccd884992cb3d6d1f5"
     },
     {
       "path": "hooks/enforce_cheap_review_routing.py",
       "uri": "legion-skill://coder/hooks/enforce_cheap_review_routing.py",
-      "sourceDigest": "sha256:701fadfd7bb0531bcb2d3acbf8695edbd01408a64ada78fe48513c00874d75b3",
-      "outputDigest": "sha256:701fadfd7bb0531bcb2d3acbf8695edbd01408a64ada78fe48513c00874d75b3",
-      "transformations": []
+      "digest": "sha256:50be7ec2ffe0070ea1ef69120bc53f7065eced51d92f55b9b74e91b4e6f19a88"
     },
     {
       "path": "hooks/hooks.json",
       "uri": "legion-skill://coder/hooks/hooks.json",
-      "sourceDigest": "sha256:37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570",
-      "outputDigest": "sha256:37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570",
-      "transformations": []
+      "digest": "sha256:37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
     },
     {
       "path": "hooks/install.py",
       "uri": "legion-skill://coder/hooks/install.py",
-      "sourceDigest": "sha256:0179923c910d4ef060d505f85c66403d85782e003057cae7dea9cf1175b1039c",
-      "outputDigest": "sha256:0179923c910d4ef060d505f85c66403d85782e003057cae7dea9cf1175b1039c",
-      "transformations": []
+      "digest": "sha256:e4c396e2bf40bd856e03e02044dd38a6b4b4e30f23c8b10170b1baa6281c46a2"
     },
     {
       "path": "references/provider-runbook.md",
       "uri": "legion-skill://coder/references/provider-runbook.md",
-      "sourceDigest": "sha256:e7de6988381fc043a36ef3004cf700453cc067d653da21e4ad4f00309d8d4068",
-      "outputDigest": "sha256:e7de6988381fc043a36ef3004cf700453cc067d653da21e4ad4f00309d8d4068",
-      "transformations": []
+      "digest": "sha256:e7de6988381fc043a36ef3004cf700453cc067d653da21e4ad4f00309d8d4068"
     },
     {
       "path": "scripts/api-worker.py",
       "uri": "legion-skill://coder/scripts/api-worker.py",
-      "sourceDigest": "sha256:b5729b23ae80aab9f6b9f1553594390cdcfee6faea76df7d140bf6b7a0f50240",
-      "outputDigest": "sha256:b5729b23ae80aab9f6b9f1553594390cdcfee6faea76df7d140bf6b7a0f50240",
-      "transformations": []
+      "digest": "sha256:b5729b23ae80aab9f6b9f1553594390cdcfee6faea76df7d140bf6b7a0f50240"
     },
     {
       "path": "tests/coder-entrypoint.test.py",
       "uri": "legion-skill://coder/tests/coder-entrypoint.test.py",
-      "sourceDigest": "sha256:b4da563e01d1d8aecf0b60694f34101f05bb6dbe3602e7c4fd2dcf6885cb93bc",
-      "outputDigest": "sha256:b4da563e01d1d8aecf0b60694f34101f05bb6dbe3602e7c4fd2dcf6885cb93bc",
-      "transformations": []
+      "digest": "sha256:b4da563e01d1d8aecf0b60694f34101f05bb6dbe3602e7c4fd2dcf6885cb93bc"
     }
   ]
 }

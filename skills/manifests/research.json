@@ -4,9 +4,14 @@
   "version": "1.0.0",
   "entry": "SKILL.md",
   "rootUri": "legion-skill://research/",
-  "provenance": "workspace-supplied-research",
-  "licenseState": "unresolved",
-  "rightsReceipt": null,
+  "provenance": "legion-authored",
+  "licenseState": "licensed",
+  "rightsReceipt": {
+    "kind": "legion-rights-receipt",
+    "basis": "repository-license",
+    "license": "LICENSE",
+    "licenseDigest": "sha256:6519936585434711b6d5971a3081fbd8b499438a39b6a08cc2191d33443926b4"
+  },
   "profiles": {
     "audit": {
       "mutation": false,
@@ -20,56 +25,6 @@
   },
   "noFabrication": true,
   "approvedWordsRequireRevision": false,
-  "transformRules": [
-    {
-      "id": "identity-genericization",
-      "from": "<redacted-identity-literal>",
-      "to": "the approving human"
-    },
-    {
-      "id": "identity-genericization",
-      "from": "<redacted-identity-literal>",
-      "to": "the approving human"
-    },
-    {
-      "id": "private-source-reference",
-      "from": "<redacted-identity-literal>",
-      "to": "private-source-batch.txt"
-    },
-    {
-      "id": "private-source-reference",
-      "from": "<redacted-identity-literal>",
-      "to": "private-history.yaml"
-    },
-    {
-      "id": "private-source-reference",
-      "from": "<redacted-identity-literal>",
-      "to": "private-source"
-    },
-    {
-      "id": "package-uri-rewrite",
-      "from": "~/.claude/skills/research/",
-      "to": "legion-skill://research/"
-    },
-    {
-      "id": "private-overlay-redaction",
-      "from": "<redacted-host-config-prefix>",
-      "to": "<project-overlay>/"
-    },
-    {
-      "id": "private-overlay-redaction",
-      "from": "<redacted-host-config-prefix>",
-      "to": "<project-overlay>/"
-    },
-    {
-      "id": "private-overlay-redaction",
-      "from": "<redacted-host-config-prefix>",
-      "to": "<project-overlay>/"
-    },
-    {
-      "id": "whitespace-normalization"
-    }
-  ],
   "parity": {
     "frozenAt": "2026-08-14",
     "triggers": [
@@ -127,392 +82,152 @@
     {
       "path": "SKILL.md",
       "uri": "legion-skill://research/SKILL.md",
-      "sourceDigest": "sha256:6ec702cc0847b621ecd82abf8bd1605dafbaae7f532c4ed22dc2bb5f47165602",
-      "outputDigest": "sha256:6ec702cc0847b621ecd82abf8bd1605dafbaae7f532c4ed22dc2bb5f47165602",
-      "transformations": [
-        "identity-genericization",
-        "private-source-reference",
-        "package-uri-rewrite",
-        "private-overlay-redaction",
-        "whitespace-normalization"
-      ]
+      "digest": "sha256:6ec702cc0847b621ecd82abf8bd1605dafbaae7f532c4ed22dc2bb5f47165602"
     },
     {
       "path": "evals/evals.json",
       "uri": "legion-skill://research/evals/evals.json",
-      "sourceDigest": "sha256:2ed40225d6604db7122fbbcc9207debf8c441fd52e5d85659b421b7f4969b4bb",
-      "outputDigest": "sha256:2ed40225d6604db7122fbbcc9207debf8c441fd52e5d85659b421b7f4969b4bb",
-      "transformations": [
-        "identity-genericization",
-        "private-source-reference",
-        "package-uri-rewrite",
-        "private-overlay-redaction",
-        "whitespace-normalization"
-      ]
+      "digest": "sha256:2ed40225d6604db7122fbbcc9207debf8c441fd52e5d85659b421b7f4969b4bb"
     },
     {
       "path": "references/assurance/README.md",
       "uri": "legion-skill://research/references/assurance/README.md",
-      "sourceDigest": "sha256:7d68f6b0559619ce18f8c23d80fa6f6a787572ff6fa5c19f36044de5fdea4add",
-      "outputDigest": "sha256:7d68f6b0559619ce18f8c23d80fa6f6a787572ff6fa5c19f36044de5fdea4add",
-      "transformations": [
-        "identity-genericization",
-        "private-source-reference",
-        "package-uri-rewrite",
-        "private-overlay-redaction",
-        "whitespace-normalization"
-      ]
+      "digest": "sha256:7d68f6b0559619ce18f8c23d80fa6f6a787572ff6fa5c19f36044de5fdea4add"
     },
     {
       "path": "references/claim-ledger.md",
       "uri": "legion-skill://research/references/claim-ledger.md",
-      "sourceDigest": "sha256:9f1655a4999e7792a6c34b3757e15e0f7a9b20db1765bb2f3c9431017d0d63d2",
-      "outputDigest": "sha256:9f1655a4999e7792a6c34b3757e15e0f7a9b20db1765bb2f3c9431017d0d63d2",
-      "transformations": [
-        "identity-genericization",
-        "private-source-reference",
-        "package-uri-rewrite",
-        "private-overlay-redaction",
-        "whitespace-normalization"
-      ]
+      "digest": "sha256:9f1655a4999e7792a6c34b3757e15e0f7a9b20db1765bb2f3c9431017d0d63d2"
     },
     {
       "path": "references/competitors-assets/content-architecture.md",
       "uri": "legion-skill://research/references/competitors-assets/content-architecture.md",
-      "sourceDigest": "sha256:463e2d56d5b2348aa7f0e47ee8d55f7d0ef35d6d0794b2a04f0ba59462b3ef86",
-      "outputDigest": "sha256:463e2d56d5b2348aa7f0e47ee8d55f7d0ef35d6d0794b2a04f0ba59462b3ef86",
-      "transformations": [
-        "identity-genericization",
-        "private-source-reference",
-        "package-uri-rewrite",
-        "private-overlay-redaction",
-        "whitespace-normalization"
-      ]
+      "digest": "sha256:463e2d56d5b2348aa7f0e47ee8d55f7d0ef35d6d0794b2a04f0ba59462b3ef86"
     },
     {
       "path": "references/competitors-assets/templates.md",
       "uri": "legion-skill://research/references/competitors-assets/templates.md",
-      "sourceDigest": "sha256:8f367433afe78d532f81e0da757514cdbeaa3ea39689ce158c1c963079a93046",
-      "outputDigest": "sha256:8f367433afe78d532f81e0da757514cdbeaa3ea39689ce158c1c963079a93046",
-      "transformations": [
-        "identity-genericization",
-        "private-source-reference",
-        "package-uri-rewrite",
-        "private-overlay-redaction",
-        "whitespace-normalization"
-      ]
+      "digest": "sha256:8f367433afe78d532f81e0da757514cdbeaa3ea39689ce158c1c963079a93046"
     },
     {
       "path": "references/customer-assets/source-guides.md",
       "uri": "legion-skill://research/references/customer-assets/source-guides.md",
-      "sourceDigest": "sha256:7dcef3740d5d30d65d07a4099a8907d4d9ee0976dc585fb1a0249c89e542e0c4",
-      "outputDigest": "sha256:7dcef3740d5d30d65d07a4099a8907d4d9ee0976dc585fb1a0249c89e542e0c4",
-      "transformations": [
-        "identity-genericization",
-        "private-source-reference",
-        "package-uri-rewrite",
-        "private-overlay-redaction",
-        "whitespace-normalization"
-      ]
+      "digest": "sha256:7dcef3740d5d30d65d07a4099a8907d4d9ee0976dc585fb1a0249c89e542e0c4"
     },
     {
       "path": "references/domains/legal/GUIDE.md",
       "uri": "legion-skill://research/references/domains/legal/GUIDE.md",
-      "sourceDigest": "sha256:aaa7ca842022d431960eab169ec580dd6c2f0cee65d5bb1677c615b803b4e139",
-      "outputDigest": "sha256:aaa7ca842022d431960eab169ec580dd6c2f0cee65d5bb1677c615b803b4e139",
-      "transformations": [
-        "identity-genericization",
-        "private-source-reference",
-        "package-uri-rewrite",
-        "private-overlay-redaction",
-        "whitespace-normalization"
-      ]
+      "digest": "sha256:aaa7ca842022d431960eab169ec580dd6c2f0cee65d5bb1677c615b803b4e139"
     },
     {
       "path": "references/domains/legal/india/consumer/GUIDE.md",
       "uri": "legion-skill://research/references/domains/legal/india/consumer/GUIDE.md",
-      "sourceDigest": "sha256:aee63d95c20adf7fe9ff0310bf04493be775d89d5d874e36f96a02893b540c07",
-      "outputDigest": "sha256:aee63d95c20adf7fe9ff0310bf04493be775d89d5d874e36f96a02893b540c07",
-      "transformations": [
-        "identity-genericization",
-        "private-source-reference",
-        "package-uri-rewrite",
-        "private-overlay-redaction",
-        "whitespace-normalization"
-      ]
+      "digest": "sha256:aee63d95c20adf7fe9ff0310bf04493be775d89d5d874e36f96a02893b540c07"
     },
     {
       "path": "references/domains/legal/india/consumer/cp-act-2019.md",
       "uri": "legion-skill://research/references/domains/legal/india/consumer/cp-act-2019.md",
-      "sourceDigest": "sha256:ceeaf1e49bf70854f1e41abe9d8703a27bb6ba5e1239a7522b71f6ec7f912321",
-      "outputDigest": "sha256:ceeaf1e49bf70854f1e41abe9d8703a27bb6ba5e1239a7522b71f6ec7f912321",
-      "transformations": [
-        "identity-genericization",
-        "private-source-reference",
-        "package-uri-rewrite",
-        "private-overlay-redaction",
-        "whitespace-normalization"
-      ]
+      "digest": "sha256:ceeaf1e49bf70854f1e41abe9d8703a27bb6ba5e1239a7522b71f6ec7f912321"
     },
     {
       "path": "references/domains/legal/india/consumer/drafting-standards.md",
       "uri": "legion-skill://research/references/domains/legal/india/consumer/drafting-standards.md",
-      "sourceDigest": "sha256:a5f1cfc6364be9a8836b9d81d0e799767ab7d2cc06ecb63f9cd94ffa5511d845",
-      "outputDigest": "sha256:a5f1cfc6364be9a8836b9d81d0e799767ab7d2cc06ecb63f9cd94ffa5511d845",
-      "transformations": [
-        "identity-genericization",
-        "private-source-reference",
-        "package-uri-rewrite",
-        "private-overlay-redaction",
-        "whitespace-normalization"
-      ]
+      "digest": "sha256:a5f1cfc6364be9a8836b9d81d0e799767ab7d2cc06ecb63f9cd94ffa5511d845"
     },
     {
       "path": "references/domains/legal/india/consumer/ejagriti-filing.md",
       "uri": "legion-skill://research/references/domains/legal/india/consumer/ejagriti-filing.md",
-      "sourceDigest": "sha256:76d551d0a19ff91028557f7f90c3db7e7acd33245738acffe6bee275ef071bbe",
-      "outputDigest": "sha256:76d551d0a19ff91028557f7f90c3db7e7acd33245738acffe6bee275ef071bbe",
-      "transformations": [
-        "identity-genericization",
-        "private-source-reference",
-        "package-uri-rewrite",
-        "private-overlay-redaction",
-        "whitespace-normalization"
-      ]
+      "digest": "sha256:76d551d0a19ff91028557f7f90c3db7e7acd33245738acffe6bee275ef071bbe"
     },
     {
       "path": "references/domains/legal/india/consumer/jurisdiction-and-fees.md",
       "uri": "legion-skill://research/references/domains/legal/india/consumer/jurisdiction-and-fees.md",
-      "sourceDigest": "sha256:e54ea7e20da1e79cf30d437af669c33d6cca7a99d06bc3d2d364e9829409ab84",
-      "outputDigest": "sha256:e54ea7e20da1e79cf30d437af669c33d6cca7a99d06bc3d2d364e9829409ab84",
-      "transformations": [
-        "identity-genericization",
-        "private-source-reference",
-        "package-uri-rewrite",
-        "private-overlay-redaction",
-        "whitespace-normalization"
-      ]
+      "digest": "sha256:e54ea7e20da1e79cf30d437af669c33d6cca7a99d06bc3d2d364e9829409ab84"
     },
     {
       "path": "references/domains/legal/india/consumer/manual.md",
       "uri": "legion-skill://research/references/domains/legal/india/consumer/manual.md",
-      "sourceDigest": "sha256:2b912cf33da50e508a4d13f63a5a0fd8454a22f484dc0e528a139f805c286e96",
-      "outputDigest": "sha256:2b912cf33da50e508a4d13f63a5a0fd8454a22f484dc0e528a139f805c286e96",
-      "transformations": [
-        "identity-genericization",
-        "private-source-reference",
-        "package-uri-rewrite",
-        "private-overlay-redaction",
-        "whitespace-normalization"
-      ]
+      "digest": "sha256:2b912cf33da50e508a4d13f63a5a0fd8454a22f484dc0e528a139f805c286e96"
     },
     {
       "path": "references/domains/medical/GUIDE.md",
       "uri": "legion-skill://research/references/domains/medical/GUIDE.md",
-      "sourceDigest": "sha256:23d1e3c999d702874df3c34dfcc70dc71efa0ee8ab95edbeb4e6ddb8709bc651",
-      "outputDigest": "sha256:23d1e3c999d702874df3c34dfcc70dc71efa0ee8ab95edbeb4e6ddb8709bc651",
-      "transformations": [
-        "identity-genericization",
-        "private-source-reference",
-        "package-uri-rewrite",
-        "private-overlay-redaction",
-        "whitespace-normalization"
-      ]
+      "digest": "sha256:23d1e3c999d702874df3c34dfcc70dc71efa0ee8ab95edbeb4e6ddb8709bc651"
     },
     {
       "path": "references/methods/audience.md",
       "uri": "legion-skill://research/references/methods/audience.md",
-      "sourceDigest": "sha256:d839e07fe4caed113a7a1236d9d0aa2e85cd12f9605e824873f286f0c9b85813",
-      "outputDigest": "sha256:d839e07fe4caed113a7a1236d9d0aa2e85cd12f9605e824873f286f0c9b85813",
-      "transformations": [
-        "identity-genericization",
-        "private-source-reference",
-        "package-uri-rewrite",
-        "private-overlay-redaction",
-        "whitespace-normalization"
-      ]
+      "digest": "sha256:d839e07fe4caed113a7a1236d9d0aa2e85cd12f9605e824873f286f0c9b85813"
     },
     {
       "path": "references/methods/authority.md",
       "uri": "legion-skill://research/references/methods/authority.md",
-      "sourceDigest": "sha256:c73b421c6254000dae1ed647ad012e91b10649bfba6297f3fc650017001a8acf",
-      "outputDigest": "sha256:c73b421c6254000dae1ed647ad012e91b10649bfba6297f3fc650017001a8acf",
-      "transformations": [
-        "identity-genericization",
-        "private-source-reference",
-        "package-uri-rewrite",
-        "private-overlay-redaction",
-        "whitespace-normalization"
-      ]
+      "digest": "sha256:c73b421c6254000dae1ed647ad012e91b10649bfba6297f3fc650017001a8acf"
     },
     {
       "path": "references/methods/competitors.md",
       "uri": "legion-skill://research/references/methods/competitors.md",
-      "sourceDigest": "sha256:baee3e4debda8f9de3303224092781f20f69dca2aa663e209df03fecc624a3e1",
-      "outputDigest": "sha256:baee3e4debda8f9de3303224092781f20f69dca2aa663e209df03fecc624a3e1",
-      "transformations": [
-        "identity-genericization",
-        "private-source-reference",
-        "package-uri-rewrite",
-        "private-overlay-redaction",
-        "whitespace-normalization"
-      ]
+      "digest": "sha256:baee3e4debda8f9de3303224092781f20f69dca2aa663e209df03fecc624a3e1"
     },
     {
       "path": "references/methods/document.md",
       "uri": "legion-skill://research/references/methods/document.md",
-      "sourceDigest": "sha256:e61410417279d47eeeeef6b310e9583e2f4ac559d745946077090182ab7fe7e6",
-      "outputDigest": "sha256:e61410417279d47eeeeef6b310e9583e2f4ac559d745946077090182ab7fe7e6",
-      "transformations": [
-        "identity-genericization",
-        "private-source-reference",
-        "package-uri-rewrite",
-        "private-overlay-redaction",
-        "whitespace-normalization"
-      ]
+      "digest": "sha256:e61410417279d47eeeeef6b310e9583e2f4ac559d745946077090182ab7fe7e6"
     },
     {
       "path": "references/methods/reddit.md",
       "uri": "legion-skill://research/references/methods/reddit.md",
-      "sourceDigest": "sha256:a83e3f19069c567b0e972f9448d223fdf2dc6b0949a3d0a8a607904dd42884a3",
-      "outputDigest": "sha256:a83e3f19069c567b0e972f9448d223fdf2dc6b0949a3d0a8a607904dd42884a3",
-      "transformations": [
-        "identity-genericization",
-        "private-source-reference",
-        "package-uri-rewrite",
-        "private-overlay-redaction",
-        "whitespace-normalization"
-      ]
+      "digest": "sha256:a83e3f19069c567b0e972f9448d223fdf2dc6b0949a3d0a8a607904dd42884a3"
     },
     {
       "path": "references/methods/scholarly.md",
       "uri": "legion-skill://research/references/methods/scholarly.md",
-      "sourceDigest": "sha256:0d3e2b201a41fabbad6a5473c725ffc74f77a936c5f2b5a118db4c13de196f08",
-      "outputDigest": "sha256:0d3e2b201a41fabbad6a5473c725ffc74f77a936c5f2b5a118db4c13de196f08",
-      "transformations": [
-        "identity-genericization",
-        "private-source-reference",
-        "package-uri-rewrite",
-        "private-overlay-redaction",
-        "whitespace-normalization"
-      ]
+      "digest": "sha256:0d3e2b201a41fabbad6a5473c725ffc74f77a936c5f2b5a118db4c13de196f08"
     },
     {
       "path": "references/methods/search-discipline.md",
       "uri": "legion-skill://research/references/methods/search-discipline.md",
-      "sourceDigest": "sha256:b0a6b42e79f02681092cf6ce1160c84e199b24908a99a3a5b49226ebe53e7932",
-      "outputDigest": "sha256:b0a6b42e79f02681092cf6ce1160c84e199b24908a99a3a5b49226ebe53e7932",
-      "transformations": [
-        "identity-genericization",
-        "private-source-reference",
-        "package-uri-rewrite",
-        "private-overlay-redaction",
-        "whitespace-normalization"
-      ]
+      "digest": "sha256:b0a6b42e79f02681092cf6ce1160c84e199b24908a99a3a5b49226ebe53e7932"
     },
     {
       "path": "references/methods/source-credibility.md",
       "uri": "legion-skill://research/references/methods/source-credibility.md",
-      "sourceDigest": "sha256:05fe9913c1406d0594c8928dd3f9dfa58152b4c4444c080c73ccafda3fa04a70",
-      "outputDigest": "sha256:05fe9913c1406d0594c8928dd3f9dfa58152b4c4444c080c73ccafda3fa04a70",
-      "transformations": [
-        "identity-genericization",
-        "private-source-reference",
-        "package-uri-rewrite",
-        "private-overlay-redaction",
-        "whitespace-normalization"
-      ]
+      "digest": "sha256:05fe9913c1406d0594c8928dd3f9dfa58152b4c4444c080c73ccafda3fa04a70"
     },
     {
       "path": "references/methods/trends.md",
       "uri": "legion-skill://research/references/methods/trends.md",
-      "sourceDigest": "sha256:7ed7efe8870e482e5e8f2cc07ff2e8edc796bb088570d0b9ea338467a6f71079",
-      "outputDigest": "sha256:7ed7efe8870e482e5e8f2cc07ff2e8edc796bb088570d0b9ea338467a6f71079",
-      "transformations": [
-        "identity-genericization",
-        "private-source-reference",
-        "package-uri-rewrite",
-        "private-overlay-redaction",
-        "whitespace-normalization"
-      ]
+      "digest": "sha256:7ed7efe8870e482e5e8f2cc07ff2e8edc796bb088570d0b9ea338467a6f71079"
     },
     {
       "path": "references/providers/notebooklm.md",
       "uri": "legion-skill://research/references/providers/notebooklm.md",
-      "sourceDigest": "sha256:9ed82ca550ec782cbf66a003793d288ed8892e6d7d3b4979465025d64fb50dbc",
-      "outputDigest": "sha256:9ed82ca550ec782cbf66a003793d288ed8892e6d7d3b4979465025d64fb50dbc",
-      "transformations": [
-        "identity-genericization",
-        "private-source-reference",
-        "package-uri-rewrite",
-        "private-overlay-redaction",
-        "whitespace-normalization"
-      ]
+      "digest": "sha256:9ed82ca550ec782cbf66a003793d288ed8892e6d7d3b4979465025d64fb50dbc"
     },
     {
       "path": "references/route-gates.md",
       "uri": "legion-skill://research/references/route-gates.md",
-      "sourceDigest": "sha256:6c9d7425064a1b6a6a43ed296ff0ac99652d4cb5149f251e97974074c9c50c2f",
-      "outputDigest": "sha256:6c9d7425064a1b6a6a43ed296ff0ac99652d4cb5149f251e97974074c9c50c2f",
-      "transformations": [
-        "identity-genericization",
-        "private-source-reference",
-        "package-uri-rewrite",
-        "private-overlay-redaction",
-        "whitespace-normalization"
-      ]
+      "digest": "sha256:6c9d7425064a1b6a6a43ed296ff0ac99652d4cb5149f251e97974074c9c50c2f"
     },
     {
       "path": "references/route-resources.json",
       "uri": "legion-skill://research/references/route-resources.json",
-      "sourceDigest": "sha256:c16c1099e45735d213c1410a49f176f4e3320d10d1f3ec07bcf92a6d359860ec",
-      "outputDigest": "sha256:c16c1099e45735d213c1410a49f176f4e3320d10d1f3ec07bcf92a6d359860ec",
-      "transformations": [
-        "identity-genericization",
-        "private-source-reference",
-        "package-uri-rewrite",
-        "private-overlay-redaction",
-        "whitespace-normalization"
-      ]
+      "digest": "sha256:c16c1099e45735d213c1410a49f176f4e3320d10d1f3ec07bcf92a6d359860ec"
     },
     {
       "path": "references/route-schema.json",
       "uri": "legion-skill://research/references/route-schema.json",
-      "sourceDigest": "sha256:531ab6cc1ba32456c2d605c613bfdc2c5453d97a4d014e48bd94e1883afdbeaa",
-      "outputDigest": "sha256:531ab6cc1ba32456c2d605c613bfdc2c5453d97a4d014e48bd94e1883afdbeaa",
-      "transformations": [
-        "identity-genericization",
-        "private-source-reference",
-        "package-uri-rewrite",
-        "private-overlay-redaction",
-        "whitespace-normalization"
-      ]
+      "digest": "sha256:531ab6cc1ba32456c2d605c613bfdc2c5453d97a4d014e48bd94e1883afdbeaa"
     },
     {
       "path": "references/router.md",
       "uri": "legion-skill://research/references/router.md",
-      "sourceDigest": "sha256:49ef9646f318989e7ad3e7fd80edf647f5b5828a58a1488722d2106dc6f5cb1f",
-      "outputDigest": "sha256:49ef9646f318989e7ad3e7fd80edf647f5b5828a58a1488722d2106dc6f5cb1f",
-      "transformations": [
-        "identity-genericization",
-        "private-source-reference",
-        "package-uri-rewrite",
-        "private-overlay-redaction",
-        "whitespace-normalization"
-      ]
+      "digest": "sha256:49ef9646f318989e7ad3e7fd80edf647f5b5828a58a1488722d2106dc6f5cb1f"
     },
     {
       "path": "references/scale/README.md",
       "uri": "legion-skill://research/references/scale/README.md",
-      "sourceDigest": "sha256:0160eb4f3419bcfe8140ed09d7d66adafa65e1063c8f4a45c7aa5729cf9f2649",
-      "outputDigest": "sha256:0160eb4f3419bcfe8140ed09d7d66adafa65e1063c8f4a45c7aa5729cf9f2649",
-      "transformations": [
-        "identity-genericization",
-        "private-source-reference",
-        "package-uri-rewrite",
-        "private-overlay-redaction",
-        "whitespace-normalization"
-      ]
+      "digest": "sha256:0160eb4f3419bcfe8140ed09d7d66adafa65e1063c8f4a45c7aa5729cf9f2649"
     }
   ]
 }

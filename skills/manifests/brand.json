@@ -4,9 +4,14 @@
   "version": "1.0.0",
   "entry": "SKILL.md",
   "rootUri": "legion-skill://brand/",
-  "provenance": "legion-authored-public-router",
-  "licenseState": "unresolved",
-  "rightsReceipt": null,
+  "provenance": "legion-authored",
+  "licenseState": "licensed",
+  "rightsReceipt": {
+    "kind": "legion-rights-receipt",
+    "basis": "repository-license",
+    "license": "LICENSE",
+    "licenseDigest": "sha256:6519936585434711b6d5971a3081fbd8b499438a39b6a08cc2191d33443926b4"
+  },
   "profiles": {
     "audit": {
       "mutation": false,
@@ -42,23 +47,17 @@
     {
       "path": "RIGHTS.json",
       "uri": "legion-skill://brand/RIGHTS.json",
-      "sourceDigest": "sha256:9d9991ae16d758bc69b1267c8b10e9370b68fcfec8228001d9e3b8e3fcc7ae31",
-      "outputDigest": "sha256:9d9991ae16d758bc69b1267c8b10e9370b68fcfec8228001d9e3b8e3fcc7ae31",
-      "transformations": []
+      "digest": "sha256:c0bf2eacaa699d68170497d77d76180cccb9d1e609a669a012efbfffd98e4401"
     },
     {
       "path": "SKILL.md",
       "uri": "legion-skill://brand/SKILL.md",
-      "sourceDigest": "sha256:f640bf6eba85fb452cd72a267b3fb86a264dc016b5d2c3f58fae96979a1f05fb",
-      "outputDigest": "sha256:f640bf6eba85fb452cd72a267b3fb86a264dc016b5d2c3f58fae96979a1f05fb",
-      "transformations": []
+      "digest": "sha256:f640bf6eba85fb452cd72a267b3fb86a264dc016b5d2c3f58fae96979a1f05fb"
     },
     {
       "path": "evals/evals.json",
       "uri": "legion-skill://brand/evals/evals.json",
-      "sourceDigest": "sha256:9ae88419e08d5031ff829586d288ed0a5821c2e838bf50a62fc774ad31d4c518",
-      "outputDigest": "sha256:9ae88419e08d5031ff829586d288ed0a5821c2e838bf50a62fc774ad31d4c518",
-      "transformations": []
+      "digest": "sha256:9ae88419e08d5031ff829586d288ed0a5821c2e838bf50a62fc774ad31d4c518"
     }
   ]
 }

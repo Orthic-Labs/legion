@@ -4,9 +4,14 @@
   "version": "1.0.0",
   "entry": "SKILL.md",
   "rootUri": "legion-skill://covenant/",
-  "provenance": "legion-authored-public-router",
-  "licenseState": "unresolved",
-  "rightsReceipt": null,
+  "provenance": "legion-authored",
+  "licenseState": "licensed",
+  "rightsReceipt": {
+    "kind": "legion-rights-receipt",
+    "basis": "repository-license",
+    "license": "LICENSE",
+    "licenseDigest": "sha256:6519936585434711b6d5971a3081fbd8b499438a39b6a08cc2191d33443926b4"
+  },
   "profiles": {
     "audit": {
       "mutation": false,
@@ -58,86 +63,62 @@
     {
       "path": "SKILL.md",
       "uri": "legion-skill://covenant/SKILL.md",
-      "sourceDigest": "sha256:916631068449d6675bec0f16c7339d2ecbd6e887c86408c455b4d368ae8ba56b",
-      "outputDigest": "sha256:916631068449d6675bec0f16c7339d2ecbd6e887c86408c455b4d368ae8ba56b",
-      "transformations": []
+      "digest": "sha256:916631068449d6675bec0f16c7339d2ecbd6e887c86408c455b4d368ae8ba56b"
     },
     {
       "path": "assets/external-review-packet-template.md",
       "uri": "legion-skill://covenant/assets/external-review-packet-template.md",
-      "sourceDigest": "sha256:4a9c3af5a65021e7faf3b740d3f7d151f9cd7e05283d88b387bd1db9a0df8928",
-      "outputDigest": "sha256:4a9c3af5a65021e7faf3b740d3f7d151f9cd7e05283d88b387bd1db9a0df8928",
-      "transformations": []
+      "digest": "sha256:4a9c3af5a65021e7faf3b740d3f7d151f9cd7e05283d88b387bd1db9a0df8928"
     },
     {
       "path": "engine/packet-validator.py",
       "uri": "legion-skill://covenant/engine/packet-validator.py",
-      "sourceDigest": "sha256:1409d162c5ffae5518c1553313741ab576c96b0e243a0bc1989e07e5dbf27405",
-      "outputDigest": "sha256:1409d162c5ffae5518c1553313741ab576c96b0e243a0bc1989e07e5dbf27405",
-      "transformations": []
+      "digest": "sha256:1409d162c5ffae5518c1553313741ab576c96b0e243a0bc1989e07e5dbf27405"
     },
     {
       "path": "evals/covenant.test.mjs",
       "uri": "legion-skill://covenant/evals/covenant.test.mjs",
-      "sourceDigest": "sha256:ef618e67282d5063a7205d98a4917954b6b06d9287c44b72740c2c4415516353",
-      "outputDigest": "sha256:ef618e67282d5063a7205d98a4917954b6b06d9287c44b72740c2c4415516353",
-      "transformations": []
+      "digest": "sha256:ef618e67282d5063a7205d98a4917954b6b06d9287c44b72740c2c4415516353"
     },
     {
       "path": "evals/evals.json",
       "uri": "legion-skill://covenant/evals/evals.json",
-      "sourceDigest": "sha256:69e83d038e743d67479aee2495cda346894fb449a9e8f7c6e1da06c80ec9fe8e",
-      "outputDigest": "sha256:69e83d038e743d67479aee2495cda346894fb449a9e8f7c6e1da06c80ec9fe8e",
-      "transformations": []
+      "digest": "sha256:69e83d038e743d67479aee2495cda346894fb449a9e8f7c6e1da06c80ec9fe8e"
     },
     {
       "path": "evals/legacy-council.json",
       "uri": "legion-skill://covenant/evals/legacy-council.json",
-      "sourceDigest": "sha256:0f0b116943c1c59070c978ea66ee5420e6eb5c5216dad9a0d8013c4c3d7bbf9a",
-      "outputDigest": "sha256:0f0b116943c1c59070c978ea66ee5420e6eb5c5216dad9a0d8013c4c3d7bbf9a",
-      "transformations": []
+      "digest": "sha256:0f0b116943c1c59070c978ea66ee5420e6eb5c5216dad9a0d8013c4c3d7bbf9a"
     },
     {
       "path": "lib/contracts.mjs",
       "uri": "legion-skill://covenant/lib/contracts.mjs",
-      "sourceDigest": "sha256:c633187bde8e13f4decafa8983eca59011bb912fdeac58693fb216d35094ddfd",
-      "outputDigest": "sha256:c633187bde8e13f4decafa8983eca59011bb912fdeac58693fb216d35094ddfd",
-      "transformations": []
+      "digest": "sha256:c633187bde8e13f4decafa8983eca59011bb912fdeac58693fb216d35094ddfd"
     },
     {
       "path": "lib/flows.mjs",
       "uri": "legion-skill://covenant/lib/flows.mjs",
-      "sourceDigest": "sha256:23c683d4bb79b830809b97f905de34ce25662a17acfadab1fb55a78d0f37d41b",
-      "outputDigest": "sha256:23c683d4bb79b830809b97f905de34ce25662a17acfadab1fb55a78d0f37d41b",
-      "transformations": []
+      "digest": "sha256:23c683d4bb79b830809b97f905de34ce25662a17acfadab1fb55a78d0f37d41b"
     },
     {
       "path": "lib/schemas/covenant-record-v1.schema.json",
       "uri": "legion-skill://covenant/lib/schemas/covenant-record-v1.schema.json",
-      "sourceDigest": "sha256:69bd24e42baa0ebcab10dd3af438a44d4a5f30abcb084d4f4026cb34fc209a64",
-      "outputDigest": "sha256:69bd24e42baa0ebcab10dd3af438a44d4a5f30abcb084d4f4026cb34fc209a64",
-      "transformations": []
+      "digest": "sha256:69bd24e42baa0ebcab10dd3af438a44d4a5f30abcb084d4f4026cb34fc209a64"
     },
     {
       "path": "lib/schemas/covenant-request-v1.schema.json",
       "uri": "legion-skill://covenant/lib/schemas/covenant-request-v1.schema.json",
-      "sourceDigest": "sha256:d20c19b62a4cd9d4d6c96c2aa6f02484111895264e75bcb9ea1a3b2e22a05aae",
-      "outputDigest": "sha256:d20c19b62a4cd9d4d6c96c2aa6f02484111895264e75bcb9ea1a3b2e22a05aae",
-      "transformations": []
+      "digest": "sha256:d20c19b62a4cd9d4d6c96c2aa6f02484111895264e75bcb9ea1a3b2e22a05aae"
     },
     {
       "path": "scripts/test_validate_external_review_packet.py",
       "uri": "legion-skill://covenant/scripts/test_validate_external_review_packet.py",
-      "sourceDigest": "sha256:d938e180c1b7b559ff3814b4e36e43204631f77a7cd87efd040452ce1f3edc09",
-      "outputDigest": "sha256:d938e180c1b7b559ff3814b4e36e43204631f77a7cd87efd040452ce1f3edc09",
-      "transformations": []
+      "digest": "sha256:d938e180c1b7b559ff3814b4e36e43204631f77a7cd87efd040452ce1f3edc09"
     },
     {
       "path": "scripts/validate-external-review-packet.py",
       "uri": "legion-skill://covenant/scripts/validate-external-review-packet.py",
-      "sourceDigest": "sha256:c0649bbafcb79615680a782776a62505932c681943b46c51658ecc98276e0c5c",
-      "outputDigest": "sha256:c0649bbafcb79615680a782776a62505932c681943b46c51658ecc98276e0c5c",
-      "transformations": []
+      "digest": "sha256:c0649bbafcb79615680a782776a62505932c681943b46c51658ecc98276e0c5c"
     }
   ]
 }

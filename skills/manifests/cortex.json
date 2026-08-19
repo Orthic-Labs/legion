@@ -4,9 +4,14 @@
   "version": "1.0.0",
   "entry": "SKILL.md",
   "rootUri": "legion-skill://cortex/",
-  "provenance": "legion-authored-public-router",
-  "licenseState": "unresolved",
-  "rightsReceipt": null,
+  "provenance": "legion-authored",
+  "licenseState": "licensed",
+  "rightsReceipt": {
+    "kind": "legion-rights-receipt",
+    "basis": "repository-license",
+    "license": "LICENSE",
+    "licenseDigest": "sha256:6519936585434711b6d5971a3081fbd8b499438a39b6a08cc2191d33443926b4"
+  },
   "profiles": {
     "audit": {
       "mutation": false,
@@ -45,30 +50,22 @@
     {
       "path": "SKILL.md",
       "uri": "legion-skill://cortex/SKILL.md",
-      "sourceDigest": "sha256:f93cfe808e55c3e0bb3311291074471a29dc2d7fde9a8d9749e70e40e40d2692",
-      "outputDigest": "sha256:f93cfe808e55c3e0bb3311291074471a29dc2d7fde9a8d9749e70e40e40d2692",
-      "transformations": []
+      "digest": "sha256:f93cfe808e55c3e0bb3311291074471a29dc2d7fde9a8d9749e70e40e40d2692"
     },
     {
       "path": "evals/evals.json",
       "uri": "legion-skill://cortex/evals/evals.json",
-      "sourceDigest": "sha256:578865ee679e87e406f9b5822e8494504c7d826057d70f935ce4c1b5ab28e3b1",
-      "outputDigest": "sha256:578865ee679e87e406f9b5822e8494504c7d826057d70f935ce4c1b5ab28e3b1",
-      "transformations": []
+      "digest": "sha256:578865ee679e87e406f9b5822e8494504c7d826057d70f935ce4c1b5ab28e3b1"
     },
     {
       "path": "references/legacy-workspace-skill.md",
       "uri": "legion-skill://cortex/references/legacy-workspace-skill.md",
-      "sourceDigest": "sha256:7c3a24aab5c3d1af0ccb7ceff69cca06a4da8e612873253b228ac4a532a12562",
-      "outputDigest": "sha256:7c3a24aab5c3d1af0ccb7ceff69cca06a4da8e612873253b228ac4a532a12562",
-      "transformations": []
+      "digest": "sha256:7c3a24aab5c3d1af0ccb7ceff69cca06a4da8e612873253b228ac4a532a12562"
     },
     {
       "path": "references/manual.md",
       "uri": "legion-skill://cortex/references/manual.md",
-      "sourceDigest": "sha256:93288146c48a18312502560b3fb39f27c9788dfe47208c0ac7b28e3029f5aeb3",
-      "outputDigest": "sha256:93288146c48a18312502560b3fb39f27c9788dfe47208c0ac7b28e3029f5aeb3",
-      "transformations": []
+      "digest": "sha256:b165e4fe5544924e058367a2e5e8eeed924e58fb7470de4f0b86dfebba1ff275"
     }
   ]
 }

@@ -48,6 +48,6 @@ note rather than silently rewritten:
 `manual.md` (Council's 177-line operating manual — room driver, `dual-review` CLI, disposition
 JSON, Jury seats, resumption/routing tables) was **not** recovered into this bundle. It documents
 the old engine's own operating procedure end-to-end, and that engine is retired; Covenant's
-operating procedure (packets, flows, C-invariants) is authored fresh in `$WORKSPACE/docs/plans/legion/COVENANT.md` and
+operating procedure (packets, flows, C-invariants) is authored fresh in `doctrine/covenant-seat.md` and
 `doctrine/covenant-seat.md`, which supersede it in full rather than in the piecewise way a lens
 does. See J-1b's report for the full reasoning.

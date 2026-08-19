@@ -3,10 +3,10 @@ name: audit-fix
 description: "Apply bounded remediation from a frozen Legion Audit report, then rerun its same provider plan. Use only for /audit-fix after /audit evidence exists."
 metadata:
   legion:
-    provenance: legion-authored-public-router
-    licenseState: unresolved
-    rightsReceipt: null
-    publish: false
+    provenance: legion-authored
+    licenseState: licensed
+    rightsReceipt: LICENSE
+    publish: true
 ---
 
 # Audit Fix

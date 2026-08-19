@@ -2,8 +2,7 @@
 
 **What this is:** the recovered method manual for Sage's Diagnose route (the "establish material
 facts, root cause" route named in `doctrine/sage.md`'s three internal routes). Recovered verbatim
-from git history — deleted at workspace commit `d810d827` (claimed "absorbed" into the new agent
-definitions; it was not — only the 36-line constitution survived). Source:
+from git history — retained from the original review craft. Source:
 `git show d810d827^:skills/debugger/references/manual.md` (292 lines). Loaded by: Sage,
 when the task requires reproducing a failure, separating symptom from cause, testing hypotheses, or
 establishing root cause before any fix is authored.

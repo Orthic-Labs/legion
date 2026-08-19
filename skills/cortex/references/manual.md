@@ -220,7 +220,7 @@ Retrieval/PULL layer 7, Curation/PERSIST layer 8), not merely the durable recall
 
 ### Runtime ownership and current implementation truth
 
-Cortex is installed once by the workspace setup, then run **separately from the root of each
+Cortex is installed once by the host, then run **separately from the root of each
 repository**. Its `.agent/` artifacts and any derived index/cache belong to that repository, are
 regenerable, and are not Crypt storage. The only allowed integration is a bounded, source-backed
 `ContextCandidateSet v1` submitted to Crypt's global admission planner, which combines it with
@@ -301,7 +301,7 @@ Canonical state definitions, diagnosis, recovery, safeguards, and incident evide
 - `dirty_overlay` is healthy: Membrane uses the verified committed snapshot plus tracked
   working-tree context from the live overlay. A standalone `cortex doctor --json` result of
   `stale_graph` on a dirty tree does not by itself mean prompt-time Cortex is unusable.
-- Every build runs its freshness postcondition. Workspace setup installs the reconcile hook as
+- Every build runs its freshness postcondition. Host setup installs the reconcile hook as
   `post-commit`, `post-merge`, and `post-checkout`; failures are recorded without repository content
   in `.git/blueprint-reconcile.log`.
 - `concurrent_update`, `partial_reindex`, `missing_snapshot`, or a generation mismatch fail closed.

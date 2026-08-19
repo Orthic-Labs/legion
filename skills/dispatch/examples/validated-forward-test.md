@@ -1,5 +1,3 @@
-<!-- dependency-class: HISTORICAL_EVIDENCE — a record of the 2026-07-28 forward test. The paths below describe that past run and are never resolved. -->
-
 # DISPATCH: Handoff Skill Independence & Validation
 
 ## 0. Dispatch Control

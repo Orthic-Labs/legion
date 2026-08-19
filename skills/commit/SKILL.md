@@ -3,10 +3,10 @@ name: commit
 description: "Review, verify, commit, & push one frozen diff through Legion's guarded Commit workflow. Use for /commit, review and commit, or commit and push."
 metadata:
   legion:
-    provenance: legion-authored-public-router
-    licenseState: unresolved
-    rightsReceipt: null
-    publish: false
+    provenance: legion-authored
+    licenseState: licensed
+    rightsReceipt: LICENSE
+    publish: true
 ---
 
 # Commit

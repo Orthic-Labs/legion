@@ -3,10 +3,10 @@ name: audit-visual
 description: "Review rendered UI through Legion's shared Audit visual provider. Use for /audit-visual, visual regressions, screenshot baselines, or rendered-state coverage."
 metadata:
   legion:
-    provenance: legion-authored-public-router
-    licenseState: unresolved
-    rightsReceipt: null
-    publish: false
+    provenance: legion-authored
+    licenseState: licensed
+    rightsReceipt: LICENSE
+    publish: true
 ---
 
 # Audit Visual

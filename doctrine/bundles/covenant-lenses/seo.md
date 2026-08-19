@@ -1,13 +1,10 @@
 # Covenant lens — SEO
 
-**What this is:** a recovered domain review lens from Council, deleted at workspace commit
-`d810d827` (the engine was ported to `skills/covenant/`; this content was not — same gap as
-the Sage manuals recovered in J-1). Source: `git show d810d827^:tools/skills/council/references/seo.md`
-(25 lines). Assigned to a Covenant seat at convene time — **one lens per seat**, per
+**What this is:** a domain review lens. Assigned to a Covenant seat at convene time — **one lens per seat**, per
 `doctrine/covenant-seat.md` §"lens index" — this file IS the specialization a seat reads once
 assigned.
 
-**Read `doctrine/covenant-seat.md` and `$WORKSPACE/docs/plans/legion/COVENANT.md` first.** This bundle is domain craft under
+**Read `doctrine/covenant-seat.md` first.** This bundle is domain craft under
 that constitution, not a replacement for it. Everything below is preserved verbatim from Council
 except where a `> **Superseded:**` note marks a doctrine conflict.
 

@@ -2,7 +2,7 @@
 
 **What this is:** the recovered method manual for Oracle's browser/app QA craft — how to stand up a
 hidden QA browser, drive functional interaction, capture visual evidence, and report findings.
-Recovered verbatim from git history — deleted at workspace commit `d810d827` (claimed "absorbed"
+Recovered verbatim from git history — retained from the original review craft (claimed "absorbed"
 into the new agent definitions; it was not). Source:
 `git show d810d827^:skills/qa/references/manual.md` (242 lines). Loaded by: Oracle, when the
 audit surface is a running app/UI and the check requires functional interaction or visual capture

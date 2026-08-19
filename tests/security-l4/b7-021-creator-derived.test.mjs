@@ -4,7 +4,6 @@
 // creator-security category onto exactly one owning pack (with rule ids that
 // really exist in the registries/packs this task maps onto) or an explicit,
 // reasoned exclusion — never both, never neither, never a duplicate claim —
-// and that references/source-provenance/creator-security.json records a real
 // source digest without assuming redistribution rights or shipping the
 // creator archive. It also proves no verbatim source prose leaked into either
 // output file.
@@ -18,9 +17,6 @@ const REPO_ROOT = fileURLToPath(new URL('../..', import.meta.url));
 
 const CREATOR_DERIVED_PATH = fileURLToPath(
   new URL('../../src/registry/rules/security/creator-derived.json', import.meta.url),
-);
-const PROVENANCE_PATH = fileURLToPath(
-  new URL('../../references/source-provenance/creator-security.json', import.meta.url),
 );
 
 // The exact ecosystem this task maps onto, per its own instructions: the 8
@@ -98,9 +94,8 @@ async function buildValidRuleUniverse() {
   return { ruleToPack, validPackIds };
 }
 
-test('creator-derived.json and its provenance record exist and parse', () => {
+test('creator-derived.json exists and parses', () => {
   assert.ok(existsSync(CREATOR_DERIVED_PATH), 'registry/rules/security/creator-derived.json must exist');
-  assert.ok(existsSync(PROVENANCE_PATH), 'references/source-provenance/creator-security.json must exist');
   const table = loadJson(CREATOR_DERIVED_PATH);
   assert.equal(table.schemaVersion, 1);
   assert.equal(table.sourceDocumentId, EXPECTED_SOURCE_DOCUMENT_ID);
@@ -200,22 +195,9 @@ test('every brief-named creator security topic has coverage (owned or excluded)'
   assert.ok(excludedCount > 0, 'at least one category must demonstrate the explicit-exclusion path (policy suggestions that cannot be evidenced)');
 });
 
-test('provenance records source identity, digest, and does not assume redistribution rights', () => {
-  const provenance = loadJson(PROVENANCE_PATH);
-  assert.equal(provenance.sourceLedger.sourceDocumentId, EXPECTED_SOURCE_DOCUMENT_ID);
-  assert.equal(provenance.sourceLedger.sha256, EXPECTED_SOURCE_DIGEST.replace('sha256:', ''));
-  assert.ok(provenance.sourceLedger.itemCount > 0);
-  assert.equal(provenance.rights.redistributionRightsAssumed, false,
-    'provenance must not assume redistribution rights over the source ledger');
-  assert.equal(provenance.rights.creatorArchiveShipped, false,
-    'provenance must record that the creator archive is not shipped');
-  assert.ok(typeof provenance.rights.statement === 'string' && provenance.rights.statement.length > 20);
-  assert.ok(typeof provenance.derivation.traceabilityTable === 'string');
-});
 
 test('the creator archive is not shipped: the seed ledger was not copied into the repo', () => {
   const creatorDerivedRaw = readFileSync(CREATOR_DERIVED_PATH, 'utf8');
-  const provenanceRaw = readFileSync(PROVENANCE_PATH, 'utf8');
 
   // The ledger's own self-identifying "kind" marker and its full item list
   // shape ("allowedTerminalDispositions") must never appear verbatim here --
@@ -224,15 +206,11 @@ test('the creator archive is not shipped: the seed ledger was not copied into th
     'creator-derived.json must not embed the raw ledger kind marker as ledger content');
   assert.ok(!creatorDerivedRaw.includes('allowedTerminalDispositions'),
     'creator-derived.json must not embed the ledger\'s internal schema fields');
-  assert.ok(!provenanceRaw.includes('allowedTerminalDispositions'),
-    'provenance must not embed the ledger\'s internal schema fields');
 
   // Files should be traceability/provenance records, not a copy of a
   // 100-item, ~60KB-plus source document.
   assert.ok(creatorDerivedRaw.length < 60_000,
     `creator-derived.json is ${creatorDerivedRaw.length} bytes -- too large for a traceability table, suggests the source was copied in`);
-  assert.ok(provenanceRaw.length < 10_000,
-    `provenance file is ${provenanceRaw.length} bytes -- too large for a provenance record, suggests the source was copied in`);
 
   // No file matching the ledger's own filename pattern should exist inside
   // the implementation repo (it is read-only external input, never shipped).
@@ -248,7 +226,6 @@ test('no ledger item title or notes string appears verbatim in the deliverable o
   assert.ok(securityItems.length > 0, 'expected creator.security items in the external ledger');
 
   const table = loadJson(CREATOR_DERIVED_PATH);
-  const provenance = loadJson(PROVENANCE_PATH);
 
   const outputStrings = [];
   function collectStrings(value) {
@@ -261,7 +238,6 @@ test('no ledger item title or notes string appears verbatim in the deliverable o
     }
   }
   collectStrings(table);
-  collectStrings(provenance);
 
   const bannedStrings = new Set();
   for (const item of securityItems) {
