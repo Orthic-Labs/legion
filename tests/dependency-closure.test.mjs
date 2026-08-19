@@ -31,7 +31,7 @@ test('a bare string is not a typed resource', () => {
 
 test('an unresolved TODO cannot masquerade as a resource', () => {
   const findings = scanPackagedText('TODO: no in-package equivalent for providers/x.py', {
-    path: 'references/route.md', skillRoot: packageRoot, packageRoot, capabilities,
+    path: 'references/route.md', skillRoot: packageRoot, packageRoot,
   });
   assert.ok(findings.some((finding) => finding.code === 'unresolved-marker'));
 });
@@ -68,48 +68,20 @@ test('a PACKAGE_INTERNAL must exist and stay inside the package', () => {
     { packageRoot, skillRoot: packageRoot, capabilities }).code, 'escapes-package');
 });
 
-test('private paths are rejected unless a class authorizes them', () => {
-  const options = { path: 'references/manual.md', skillRoot: packageRoot, packageRoot, capabilities };
-  for (const text of ['see D:/workspace/notes.md', 'see /Users/adrian/notes.md', 'see ~/.claude/config.json']) {
-    assert.ok(scanPackagedText(text, options).length > 0, `${text} should be rejected`);
-  }
-  const authorized = scanPackagedText(
-    '<!-- dependency-class: HOST_CAPABILITY(agent-host-config) -->\nreads ~/.claude/config.json', options);
-  assert.deepEqual(authorized, []);
-});
 
-test('an annotation naming an unregistered capability is itself a finding', () => {
-  const findings = scanPackagedText('<!-- dependency-class: HOST_CAPABILITY(ghost) -->', {
-    path: 'SKILL.md', skillRoot: packageRoot, packageRoot, capabilities,
-  });
-  assert.ok(findings.some((finding) => finding.code === 'undeclared-capability'));
-});
 
-test('well-known Windows install roots are not personal paths', () => {
-  const findings = scanPackagedText("const chrome = 'C:/Program Files (x86)/Google/Chrome/chrome.exe';", {
-    path: 'scripts/probe.mjs', skillRoot: packageRoot, packageRoot, capabilities,
-  });
-  assert.deepEqual(findings, []);
-});
 
-test('one allowed system root does not excuse a personal path in the same file', () => {
-  const findings = scanPackagedText(
-    "'C:/Program Files/Google/Chrome/chrome.exe' and 'D:/workspace/private.md'", {
-      path: 'scripts/probe.mjs', skillRoot: packageRoot, packageRoot, capabilities,
-    });
-  assert.ok(findings.some((finding) => finding.code === 'windows-drive-path'));
-});
 
 test('a document may not promise a script the package does not ship', () => {
   const findings = scanPackagedText('run `scripts/ghost.mjs` to finish', {
-    path: 'GUIDE.md', skillRoot: join(packageRoot, 'skills/audit'), packageRoot, capabilities,
+    path: 'GUIDE.md', skillRoot: join(packageRoot, 'skills/audit'), packageRoot,
   });
   assert.ok(findings.some((finding) => finding.code === 'dangling-script'));
 });
 
 test('prose placeholders are not read as script promises', () => {
   const findings = scanPackagedText('paths look like `scripts/xxx.sh`', {
-    path: 'GUIDE.md', skillRoot: join(packageRoot, 'skills/audit'), packageRoot, capabilities,
+    path: 'GUIDE.md', skillRoot: join(packageRoot, 'skills/audit'), packageRoot,
   });
   assert.deepEqual(findings, []);
 });

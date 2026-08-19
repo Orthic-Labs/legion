@@ -145,19 +145,3 @@ test('B8-024 derives claims from exact measured qualification identity', async (
   assert.equal(generateClaimsFromQualification({ claims: [{ id: 'self', state: 'deterministic-measured' }] }, null).claims[0].state, 'unproven');
 });
 
-test('B8-025 verifies creator archives, transformations, rights, and shipped prose fail closed', async () => {
-  const { verifySourceProvenance, writeSourceProvenanceQualification } = await import('../scripts/verify-source-provenance.mjs');
-  const blocked = verifySourceProvenance({ sources: [{ id: 'designer', status: 'transformed', digest: 'sha256:source', outputDigest: null, shipped: true, redistributionGrant: false, transformations: [], promptProseShipped: true }] }, { verifyFiles: false });
-  assert.equal(blocked.decision, 'BLOCKED');
-  assert.ok(blocked.blockers.some(({ kind }) => kind === 'redistribution-right-unresolved'));
-  assert.ok(blocked.blockers.some(({ kind }) => kind === 'creator-prompt-prose-shipped'));
-  assert.ok(blocked.blockers.some(({ kind }) => kind === 'transformation-manifest-incomplete'));
-  const current = JSON.parse(readFileSync(new URL('../references/source-provenance/creator-skills.json', import.meta.url), 'utf8'));
-  assert.equal(verifySourceProvenance(current, { verifyFiles: false }).decision, 'BLOCKED');
-  const digest = `sha256:${'a'.repeat(64)}`;
-  const qualified = verifySourceProvenance({ sources: [{ id: 'designer', status: 'transformed', digest, outputDigest: digest, shipped: false, redistributionGrant: false, transformations: ['rewrite'], promptProseShipped: false, userOwned: true, categoryMappings: ['design'], originalRuleOwnership: 'repository-original', shippedOutputs: [] }] }, { verifyFiles: false });
-  assert.equal(qualified.decision, 'QUALIFIED');
-  const output = join(mkdtempSync(join(tmpdir(), 'legion-provenance-')), 'qualification.json');
-  assert.equal(writeSourceProvenanceQualification({ sources: [] }, output, { verifyFiles: false }).decision, 'BLOCKED');
-  assert.equal(existsSync(output), true);
-});

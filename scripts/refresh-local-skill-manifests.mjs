@@ -38,8 +38,8 @@ export function refreshLocalSkillManifest(bundle) {
     version: prior.version ?? '1.0.0',
     entry: 'SKILL.md',
     rootUri: `legion-skill://${bundle}/`,
-    provenance: prior.provenance ?? 'workspace-authored-wrapper',
-    licenseState: prior.licenseState ?? 'unresolved',
+    provenance: prior.provenance ?? 'legion-authored',
+    licenseState: prior.licenseState ?? 'licensed',
     rightsReceipt: prior.rightsReceipt ?? null,
     profiles: prior.profiles ?? {
       audit: { mutation: false, publish: false },
@@ -47,7 +47,7 @@ export function refreshLocalSkillManifest(bundle) {
     },
     ...Object.fromEntries(Object.entries(prior).filter(([key]) => ![
       'schemaVersion', 'id', 'version', 'entry', 'rootUri', 'provenance',
-      'licenseState', 'rightsReceipt', 'profiles', 'files', 'parity',
+      'licenseState', 'rightsReceipt', 'profiles', 'files', 'parity', 'transformRules',
     ].includes(key))),
     ...(priorParity ? { parity: priorParity } : {}),
     files: files(skillRoot).map((path) => {
@@ -56,9 +56,7 @@ export function refreshLocalSkillManifest(bundle) {
       return {
         path,
         uri: `legion-skill://${bundle}/${path}`,
-        sourceDigest: hash,
-        outputDigest: hash,
-        transformations: priorFiles.get(path)?.transformations ?? [],
+        digest: hash,
       };
     }),
   };

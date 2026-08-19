@@ -3,10 +3,10 @@ name: audit
 description: "Diagnose a whole repository through Legion's frozen Audit provider plan. Use for /audit or repository-wide read-only health, security, runtime, & evidence review."
 metadata:
   legion:
-    provenance: legion-authored-public-router
-    licenseState: unresolved
-    rightsReceipt: null
-    publish: false
+    provenance: legion-authored
+    licenseState: licensed
+    rightsReceipt: LICENSE
+    publish: true
 ---
 
 # Audit

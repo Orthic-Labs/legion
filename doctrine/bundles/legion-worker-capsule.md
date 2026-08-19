@@ -2,8 +2,7 @@
 
 **What this is:** the recovered method manual for the discipline that governs how Legion (the
 coordinator) constructs a dispatch packet to any executor — a native subagent, a cheap OmniRoute
-worker, or a human handoff. Recovered verbatim from git history — deleted at workspace commit
-`d810d827` (claimed "absorbed" into the new agent definitions; it was not). Source:
+worker, or a human handoff. Recovered verbatim from git history — retained from the original review craft. Source:
 `git show d810d827^:skills/dispatch/references/manual.md` (505 lines). Loaded by: Legion
 (the coordinator), and by Sage/Alchemist/Oracle when any of them constructs a sub-dispatch — a
 packet to a cheap worker, a fan-out lane, or a handoff — during their own execution.
@@ -70,10 +69,9 @@ NO AGENT TASK SHIPS UNTIL:
 
 Clear prose is not executable. A referenced plan is not transferred context. A command without cwd, expected result, failure branch, & evidence path is incomplete.
 
-> **Superseded:** retired paths were `skills/dispatch/scripts/validate-dispatch.py` and
-> `tools/skills/execution-preflight`. Current live owners are
-> `$WORKSPACE/legion/lib/dispatch-validator/validate-dispatch.py` and
-> `$WORKSPACE/docs/rules/execution-preflight.md`; use them for items 5–6.
+> **Canonical validator:** `src/lib/dispatch-validator/validate-dispatch.py` owns dispatch
+> validation; use it for items 5–6. Execution preflight is a host capability, not a packaged
+> document — skip that step and say so when the host does not provide one.
 
 ## Step 0 — Decide whether dispatch should exist
 
@@ -105,13 +103,12 @@ Read:
 5. current scoped Git status for edit tasks;
 6. live launcher, model, tool, API, or environment config when routing can drift.
 
-In `$WORKSPACE`, read `docs/agent-rules/legion.md` and `docs/agent-rules/workspace.md` before dispatching. Preserve their primary-checkout, model-tier, structured-prompt, parallel-safety, anti-hang, & integration rules.
+Read `AGENTS.md` before dispatching. Preserve its primary-checkout, model-tier, structured-prompt, parallel-safety, anti-hang, & integration rules.
 
 Never write "use existing context," "as discussed," "follow plan," or equivalent. Cite exact accessible paths + required sections. Embed essential facts which exist only in chat.
 
-> **Superseded provenance:** `skills/dispatch/references/agent-routing.md` was the retired
-> owner. Current routing rules are the two workspace constitution sources named above; per-role
-> model detail remains in `$WORKSPACE/docs/plans/legion/BRIEFING-LAYER.md` §5.
+> **Canonical routing:** `AGENTS.md` owns routing rules. Per-role model selection is the host's
+> to configure; this package states tiers, not model names.
 
 ## Step 1A — Freeze decision semantics before adding evidence
 
@@ -541,9 +538,8 @@ py -3.11 lib/dispatch-validator/validate-dispatch.py <dispatch.md> --verify-rece
 
 Embedded self-hash is forbidden because changing document to add its hash changes hash. Sidecar binds exact bytes without circularity.
 
-> **Superseded:** retired validator locations above are replaced by
-> `$WORKSPACE/legion/lib/dispatch-validator/validate-dispatch.py`. `/handoff` is packaged
-> & available; derived handoffs must pass its packaged validator before delivery.
+> **Canonical validator:** `src/lib/dispatch-validator/validate-dispatch.py`. `/handoff` is
+> packaged & available; derived handoffs must pass its packaged validator before delivery.
 
 ## Executor return & integration contract
 

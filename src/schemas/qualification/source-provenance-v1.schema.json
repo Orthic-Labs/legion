@@ -1,7 +1,0 @@
-{
-  "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "legion-source-provenance-v1",
-  "type": "object",
-  "required": ["schemaVersion", "kind", "decision", "blockers", "sources"],
-  "properties": { "schemaVersion": {"const": 1}, "kind": {"const": "legion-source-provenance-qualification"}, "decision": {"enum": ["QUALIFIED", "BLOCKED"]} }
-}

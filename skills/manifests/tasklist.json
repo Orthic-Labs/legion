@@ -4,9 +4,14 @@
   "version": "1.0.0",
   "entry": "SKILL.md",
   "rootUri": "legion-skill://tasklist/",
-  "provenance": "workspace-authored-wrapper",
-  "licenseState": "unresolved",
-  "rightsReceipt": null,
+  "provenance": "legion-authored",
+  "licenseState": "licensed",
+  "rightsReceipt": {
+    "kind": "legion-rights-receipt",
+    "basis": "repository-license",
+    "license": "LICENSE",
+    "licenseDigest": "sha256:6519936585434711b6d5971a3081fbd8b499438a39b6a08cc2191d33443926b4"
+  },
   "profiles": {
     "audit": {
       "mutation": false,
@@ -65,128 +70,92 @@
     {
       "path": "SKILL.md",
       "uri": "legion-skill://tasklist/SKILL.md",
-      "sourceDigest": "sha256:31b1bffae83f7ca236a60e7ec73b6777ab56405dccf0ec2ff28e39f09bc91701",
-      "outputDigest": "sha256:31b1bffae83f7ca236a60e7ec73b6777ab56405dccf0ec2ff28e39f09bc91701",
-      "transformations": []
+      "digest": "sha256:31b1bffae83f7ca236a60e7ec73b6777ab56405dccf0ec2ff28e39f09bc91701"
     },
     {
       "path": "agents/openai.yaml",
       "uri": "legion-skill://tasklist/agents/openai.yaml",
-      "sourceDigest": "sha256:aeaa2ef474aff969e3ce7890eb6e957206a89aae0d8043686ad525e4c270cf7d",
-      "outputDigest": "sha256:aeaa2ef474aff969e3ce7890eb6e957206a89aae0d8043686ad525e4c270cf7d",
-      "transformations": []
+      "digest": "sha256:aeaa2ef474aff969e3ce7890eb6e957206a89aae0d8043686ad525e4c270cf7d"
     },
     {
       "path": "assets/tasklist-template.md",
       "uri": "legion-skill://tasklist/assets/tasklist-template.md",
-      "sourceDigest": "sha256:5f58de1b81c203be4ee1f5fd9e63facab6ce10273507aa216e3b7442e95e1089",
-      "outputDigest": "sha256:5f58de1b81c203be4ee1f5fd9e63facab6ce10273507aa216e3b7442e95e1089",
-      "transformations": []
+      "digest": "sha256:5f58de1b81c203be4ee1f5fd9e63facab6ce10273507aa216e3b7442e95e1089"
     },
     {
       "path": "evals/evals.json",
       "uri": "legion-skill://tasklist/evals/evals.json",
-      "sourceDigest": "sha256:fb59714d562cf29615b91bcd267902ad8ed9ac76f0f8329731030507d9900cd2",
-      "outputDigest": "sha256:fb59714d562cf29615b91bcd267902ad8ed9ac76f0f8329731030507d9900cd2",
-      "transformations": []
+      "digest": "sha256:fb59714d562cf29615b91bcd267902ad8ed9ac76f0f8329731030507d9900cd2"
     },
     {
       "path": "examples/sage-architect.route.json",
       "uri": "legion-skill://tasklist/examples/sage-architect.route.json",
-      "sourceDigest": "sha256:ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356",
-      "outputDigest": "sha256:ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356",
-      "transformations": []
+      "digest": "sha256:ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356"
     },
     {
       "path": "examples/tasklist-authority.packet.json",
       "uri": "legion-skill://tasklist/examples/tasklist-authority.packet.json",
-      "sourceDigest": "sha256:09c515ed91b1c001abe8b05593b341ea0711c8f668a087332497d7f8d8cb6c77",
-      "outputDigest": "sha256:09c515ed91b1c001abe8b05593b341ea0711c8f668a087332497d7f8d8cb6c77",
-      "transformations": []
+      "digest": "sha256:09c515ed91b1c001abe8b05593b341ea0711c8f668a087332497d7f8d8cb6c77"
     },
     {
       "path": "examples/tasklist-authority.packet.receipt.json",
       "uri": "legion-skill://tasklist/examples/tasklist-authority.packet.receipt.json",
-      "sourceDigest": "sha256:85105cbcfd5a0a3645367359e5e3a5564f4eb8c6bd464aef34268e39cddcde53",
-      "outputDigest": "sha256:85105cbcfd5a0a3645367359e5e3a5564f4eb8c6bd464aef34268e39cddcde53",
-      "transformations": []
+      "digest": "sha256:85105cbcfd5a0a3645367359e5e3a5564f4eb8c6bd464aef34268e39cddcde53"
     },
     {
       "path": "examples/validated-tasklist.md",
       "uri": "legion-skill://tasklist/examples/validated-tasklist.md",
-      "sourceDigest": "sha256:b9d320a4085822fd8b6a8bd496818e1895e35e580dda774a1f4c9222adb24d4f",
-      "outputDigest": "sha256:b9d320a4085822fd8b6a8bd496818e1895e35e580dda774a1f4c9222adb24d4f",
-      "transformations": []
+      "digest": "sha256:b9d320a4085822fd8b6a8bd496818e1895e35e580dda774a1f4c9222adb24d4f"
     },
     {
       "path": "examples/validated-tasklist.minimize.json",
       "uri": "legion-skill://tasklist/examples/validated-tasklist.minimize.json",
-      "sourceDigest": "sha256:fb48b7337a29e6e23a88141e0ab58985dcf0f7a0a58bfb73e083e9b332d4f92c",
-      "outputDigest": "sha256:fb48b7337a29e6e23a88141e0ab58985dcf0f7a0a58bfb73e083e9b332d4f92c",
-      "transformations": []
+      "digest": "sha256:fb48b7337a29e6e23a88141e0ab58985dcf0f7a0a58bfb73e083e9b332d4f92c"
     },
     {
       "path": "examples/validated-tasklist.minimize.receipt.json",
       "uri": "legion-skill://tasklist/examples/validated-tasklist.minimize.receipt.json",
-      "sourceDigest": "sha256:4aa23ef7677646d6c6f6d7915e106d630b90d85dc21ff573c273170047bd9128",
-      "outputDigest": "sha256:4aa23ef7677646d6c6f6d7915e106d630b90d85dc21ff573c273170047bd9128",
-      "transformations": []
+      "digest": "sha256:4aa23ef7677646d6c6f6d7915e106d630b90d85dc21ff573c273170047bd9128"
     },
     {
       "path": "examples/validated-tasklist.receipt.json",
       "uri": "legion-skill://tasklist/examples/validated-tasklist.receipt.json",
-      "sourceDigest": "sha256:ef6d1c17c4a733c20451b0d2f6ebaa27cb11957b0a4d8309e27fcef36989f63f",
-      "outputDigest": "sha256:ef6d1c17c4a733c20451b0d2f6ebaa27cb11957b0a4d8309e27fcef36989f63f",
-      "transformations": []
+      "digest": "sha256:ef6d1c17c4a733c20451b0d2f6ebaa27cb11957b0a4d8309e27fcef36989f63f"
     },
     {
       "path": "examples/validated-tasklist.route.json",
       "uri": "legion-skill://tasklist/examples/validated-tasklist.route.json",
-      "sourceDigest": "sha256:4bc64982ccfe1f397d7e0abf92c666705aaa0ceb86bd3204cf12d37a4b05f67a",
-      "outputDigest": "sha256:4bc64982ccfe1f397d7e0abf92c666705aaa0ceb86bd3204cf12d37a4b05f67a",
-      "transformations": []
+      "digest": "sha256:4bc64982ccfe1f397d7e0abf92c666705aaa0ceb86bd3204cf12d37a4b05f67a"
     },
     {
       "path": "examples/validated-tasklist.route.receipt.json",
       "uri": "legion-skill://tasklist/examples/validated-tasklist.route.receipt.json",
-      "sourceDigest": "sha256:f70f5440afdf707ca1b5960a647e306676f636a623148d5308f628498962f9ed",
-      "outputDigest": "sha256:f70f5440afdf707ca1b5960a647e306676f636a623148d5308f628498962f9ed",
-      "transformations": []
+      "digest": "sha256:f70f5440afdf707ca1b5960a647e306676f636a623148d5308f628498962f9ed"
     },
     {
       "path": "references/durable-workflow.md",
       "uri": "legion-skill://tasklist/references/durable-workflow.md",
-      "sourceDigest": "sha256:c8fd2ed668f1214d8f521b8e9c2c47ac1534ea8e4edf49f3531033b750b3194c",
-      "outputDigest": "sha256:c8fd2ed668f1214d8f521b8e9c2c47ac1534ea8e4edf49f3531033b750b3194c",
-      "transformations": []
+      "digest": "sha256:c8fd2ed668f1214d8f521b8e9c2c47ac1534ea8e4edf49f3531033b750b3194c"
     },
     {
       "path": "references/legacy-durable-workflow.md",
       "uri": "legion-skill://tasklist/references/legacy-durable-workflow.md",
-      "sourceDigest": "sha256:a3978a389925dc1fcbf449837865595c1af5c16c4cd7026a9e05ab7eb2852a79",
-      "outputDigest": "sha256:a3978a389925dc1fcbf449837865595c1af5c16c4cd7026a9e05ab7eb2852a79",
-      "transformations": []
+      "digest": "sha256:a3978a389925dc1fcbf449837865595c1af5c16c4cd7026a9e05ab7eb2852a79"
     },
     {
       "path": "scripts/test_validate_tasklist.py",
       "uri": "legion-skill://tasklist/scripts/test_validate_tasklist.py",
-      "sourceDigest": "sha256:643fbceaae02eb83a36347e0da01123177360dbb5f4aeb5c2dbadb1b35d2b63c",
-      "outputDigest": "sha256:643fbceaae02eb83a36347e0da01123177360dbb5f4aeb5c2dbadb1b35d2b63c",
-      "transformations": []
+      "digest": "sha256:47424b286959bafd755bbe30cdd36dcf0a32c448a7679d923125deeff008cc7f"
     },
     {
       "path": "scripts/validate-tasklist.py",
       "uri": "legion-skill://tasklist/scripts/validate-tasklist.py",
-      "sourceDigest": "sha256:43bb86b80ab21c111fcf8ba79f596bcb275f02e3dc7ba7183067f20d26fae194",
-      "outputDigest": "sha256:43bb86b80ab21c111fcf8ba79f596bcb275f02e3dc7ba7183067f20d26fae194",
-      "transformations": []
+      "digest": "sha256:43bb86b80ab21c111fcf8ba79f596bcb275f02e3dc7ba7183067f20d26fae194"
     },
     {
       "path": "tests/tasklist-entrypoint.test.py",
       "uri": "legion-skill://tasklist/tests/tasklist-entrypoint.test.py",
-      "sourceDigest": "sha256:6267ada2f0d09374447a7cd7a0b3366f26802d46a58436f5b1dabef9a1a0c7d6",
-      "outputDigest": "sha256:6267ada2f0d09374447a7cd7a0b3366f26802d46a58436f5b1dabef9a1a0c7d6",
-      "transformations": []
+      "digest": "sha256:6267ada2f0d09374447a7cd7a0b3366f26802d46a58436f5b1dabef9a1a0c7d6"
     }
   ]
 }

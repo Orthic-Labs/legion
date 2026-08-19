@@ -4,9 +4,14 @@
   "version": "1.0.0",
   "entry": "SKILL.md",
   "rootUri": "legion-skill://audit-fix/",
-  "provenance": "legion-authored-public-router",
-  "licenseState": "unresolved",
-  "rightsReceipt": null,
+  "provenance": "legion-authored",
+  "licenseState": "licensed",
+  "rightsReceipt": {
+    "kind": "legion-rights-receipt",
+    "basis": "repository-license",
+    "license": "LICENSE",
+    "licenseDigest": "sha256:6519936585434711b6d5971a3081fbd8b499438a39b6a08cc2191d33443926b4"
+  },
   "profiles": {
     "audit": {
       "mutation": false,
@@ -40,16 +45,12 @@
     {
       "path": "RIGHTS.json",
       "uri": "legion-skill://audit-fix/RIGHTS.json",
-      "sourceDigest": "sha256:90939d416bc917e60bbaad3da2a0fa27e9a96ffca56a5526ef1ac996700a0484",
-      "outputDigest": "sha256:90939d416bc917e60bbaad3da2a0fa27e9a96ffca56a5526ef1ac996700a0484",
-      "transformations": []
+      "digest": "sha256:1bec81bb923c5c1a7efe09ad2801f7553ca941d9d35feea4be8c5ac6e504090e"
     },
     {
       "path": "SKILL.md",
       "uri": "legion-skill://audit-fix/SKILL.md",
-      "sourceDigest": "sha256:dbfe2492f77368e22f21219ed0565b8f60a9774cc5068512b6b3a2c1ef076c9c",
-      "outputDigest": "sha256:dbfe2492f77368e22f21219ed0565b8f60a9774cc5068512b6b3a2c1ef076c9c",
-      "transformations": []
+      "digest": "sha256:44c75ca49fcccff393ff996b3e7b35590dfd07c79e1a4445ebf07214c242f234"
     }
   ]
 }

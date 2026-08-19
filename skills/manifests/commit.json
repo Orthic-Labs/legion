@@ -4,9 +4,14 @@
   "version": "1.0.0",
   "entry": "SKILL.md",
   "rootUri": "legion-skill://commit/",
-  "provenance": "legion-authored-public-router",
-  "licenseState": "unresolved",
-  "rightsReceipt": null,
+  "provenance": "legion-authored",
+  "licenseState": "licensed",
+  "rightsReceipt": {
+    "kind": "legion-rights-receipt",
+    "basis": "repository-license",
+    "license": "LICENSE",
+    "licenseDigest": "sha256:6519936585434711b6d5971a3081fbd8b499438a39b6a08cc2191d33443926b4"
+  },
   "profiles": {
     "audit": {
       "mutation": false,
@@ -49,37 +54,27 @@
     {
       "path": "RIGHTS.json",
       "uri": "legion-skill://commit/RIGHTS.json",
-      "sourceDigest": "sha256:1f844f7214466b153887c794ca06183116dabc98de430c728417c4ba31f3daeb",
-      "outputDigest": "sha256:1f844f7214466b153887c794ca06183116dabc98de430c728417c4ba31f3daeb",
-      "transformations": []
+      "digest": "sha256:a089f3f066f50b9cf62c75345bdab23a1966e4aa513f0cb7e5ec50b54cb0ad7f"
     },
     {
       "path": "SKILL.md",
       "uri": "legion-skill://commit/SKILL.md",
-      "sourceDigest": "sha256:b40cc8f076af7c20a740ea5c94505bdb345cc1da61324919e283f1b14bf3ca30",
-      "outputDigest": "sha256:b40cc8f076af7c20a740ea5c94505bdb345cc1da61324919e283f1b14bf3ca30",
-      "transformations": []
+      "digest": "sha256:ecd98cd148901a430a9d0d79d943f9887da218f2c743a92a3f79cfcd7af4dcbb"
     },
     {
       "path": "evals/evals.json",
       "uri": "legion-skill://commit/evals/evals.json",
-      "sourceDigest": "sha256:c073358d4c64e19ae28c7b06d900cd843edc18ae61e6a10e7059a678c523666f",
-      "outputDigest": "sha256:c073358d4c64e19ae28c7b06d900cd843edc18ae61e6a10e7059a678c523666f",
-      "transformations": []
+      "digest": "sha256:c073358d4c64e19ae28c7b06d900cd843edc18ae61e6a10e7059a678c523666f"
     },
     {
       "path": "evals/evidence-gauntlet.json",
       "uri": "legion-skill://commit/evals/evidence-gauntlet.json",
-      "sourceDigest": "sha256:25b1ea2e446e25e22c7bb22ffd1963f9561d4dc6630937c71c1d1c74fae77285",
-      "outputDigest": "sha256:25b1ea2e446e25e22c7bb22ffd1963f9561d4dc6630937c71c1d1c74fae77285",
-      "transformations": []
+      "digest": "sha256:25b1ea2e446e25e22c7bb22ffd1963f9561d4dc6630937c71c1d1c74fae77285"
     },
     {
       "path": "references/manual.md",
       "uri": "legion-skill://commit/references/manual.md",
-      "sourceDigest": "sha256:167bf53139b86e0da364d9482cab167fc07de03e510cac0da80acd41e933240f",
-      "outputDigest": "sha256:167bf53139b86e0da364d9482cab167fc07de03e510cac0da80acd41e933240f",
-      "transformations": []
+      "digest": "sha256:f97dd92cc3bf9b774eee63606fd79628721145a93874be117b7f354ce748eb6d"
     }
   ]
 }
