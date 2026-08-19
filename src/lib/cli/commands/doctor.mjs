@@ -28,6 +28,8 @@ function namingBindings(root) {
   return { claudeCode, gemini, codex: { status: codexLegacy.length ? 'legacy-present' : codexText ? 'canonical' : 'absent', legacy: codexLegacy } };
 }
 
+import { computeHostSection } from './doctor-host.mjs';
+
 function namingBindingsHealthy(state) {
   return Object.values(state).every(({ status }) => !['legacy-present', 'invalid'].includes(status));
 }
@@ -91,6 +93,10 @@ export async function runDoctor(argv, { stdout, stderr, env, cwd, host }) {
       toolchains,
     },
     arcane: { semanticHealth: arcaneSemanticHealth },
+    // SSOT 36.9 — installation identity, discovery, projection drift, declared
+    // fidelity, and effect-gate registration, so a harness that cannot see
+    // Legion is diagnosable without reading source.
+    host: computeHostSection(root),
     naming: { ...naming, bindings: namingBindingState },
     binding: computeBindingSection(root),
     cleanClaimPossible: false,

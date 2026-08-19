@@ -1,0 +1,353 @@
+{
+  "schemaVersion": 1,
+  "kind": "legion-host-projection",
+  "generatedFrom": [
+    "skills/*/SKILL.md",
+    "src/roster/*.md",
+    "src/registry/capabilities.json"
+  ],
+  "capabilities": [
+    {
+      "id": "ads",
+      "name": "ads",
+      "description": "Audit, plan, create, or optimize paid campaigns across Google, Meta, YouTube, LinkedIn, TikTok, Microsoft, or Apple. Use for PPC, ROAS, CPA, targeting, bidding, retargeting, budgets, creative, or ad-spend questions.",
+      "kind": "domain-capability",
+      "discoverability": "public",
+      "domain": null,
+      "source": "skills/ads/SKILL.md"
+    },
+    {
+      "id": "alchemist",
+      "name": "alchemist",
+      "description": "Execute a settled, bounded change through Legion's Alchemist authority. Use /alchemist after scope, ownership, checks, and acceptance are decided.",
+      "kind": "role-entrypoint",
+      "discoverability": "internal",
+      "domain": null,
+      "source": "skills/alchemist/SKILL.md"
+    },
+    {
+      "id": "architect",
+      "name": "architect",
+      "description": "Route engineering design, ADR, interface, invariant, or implementation-plan requests to Sage Architect. Do not use for current-state mapping, diagnosis, or execution.",
+      "kind": "domain-capability",
+      "discoverability": "public",
+      "domain": null,
+      "source": "skills/architect/SKILL.md"
+    },
+    {
+      "id": "audit",
+      "name": "audit",
+      "description": "Diagnose a whole repository through Legion's frozen Audit provider plan. Use for /audit or repository-wide read-only health, security, runtime, & evidence review.",
+      "kind": "domain-capability",
+      "discoverability": "public",
+      "domain": null,
+      "source": "skills/audit/SKILL.md"
+    },
+    {
+      "id": "audit-fix",
+      "name": "audit-fix",
+      "description": "Apply bounded remediation from a frozen Legion Audit report, then rerun its same provider plan. Use only for /audit-fix after /audit evidence exists.",
+      "kind": "domain-capability",
+      "discoverability": "public",
+      "domain": null,
+      "source": "skills/audit-fix/SKILL.md"
+    },
+    {
+      "id": "audit-visual",
+      "name": "audit-visual",
+      "description": "Review rendered UI through Legion's shared Audit visual provider. Use for /audit-visual, visual regressions, screenshot baselines, or rendered-state coverage.",
+      "kind": "domain-capability",
+      "discoverability": "public",
+      "domain": null,
+      "source": "skills/audit-visual/SKILL.md"
+    },
+    {
+      "id": "brand",
+      "name": "brand",
+      "description": "Load a source-bound brand card before branded content, design, marketing, social, or media work. Use /brand when a named brand or approved identity source governs an output.",
+      "kind": "domain-capability",
+      "discoverability": "public",
+      "domain": null,
+      "source": "skills/brand/SKILL.md"
+    },
+    {
+      "id": "brand-identity",
+      "name": "brand-identity",
+      "description": "Create, audit, evolve, or apply brand identities, systems, guidelines, visual identity, voice, naming, logo direction, brand books, rebrands, website or app identity, pitch decks, or social kits.",
+      "kind": "domain-capability",
+      "discoverability": "public",
+      "domain": null,
+      "source": "skills/brand-identity/SKILL.md"
+    },
+    {
+      "id": "coder",
+      "name": "coder",
+      "description": "Explicit opt-in router for scoped read-only code analysis through external API models. Use only for `/coder`, explicit outsourced API analysis, or a named API provider/model.",
+      "kind": "domain-capability",
+      "discoverability": "public",
+      "domain": null,
+      "source": "skills/coder/SKILL.md"
+    },
+    {
+      "id": "commit",
+      "name": "commit",
+      "description": "Review, verify, commit, & push one frozen diff through Legion's guarded Commit workflow. Use for /commit, review and commit, or commit and push.",
+      "kind": "domain-capability",
+      "discoverability": "public",
+      "domain": null,
+      "source": "skills/commit/SKILL.md"
+    },
+    {
+      "id": "cortex",
+      "name": "cortex",
+      "description": "Build a current, source-grounded repository map with Cortex. Use /cortex or /blueprint before inheriting, changing, auditing, or judging unfamiliar code.",
+      "kind": "domain-capability",
+      "discoverability": "public",
+      "domain": null,
+      "source": "skills/cortex/SKILL.md"
+    },
+    {
+      "id": "covenant",
+      "name": "covenant",
+      "description": "Convene Legion's independent challenge chamber for a Sage decision, an Alchemist blocker, or packet-only review preparation. Use /covenant.",
+      "kind": "role-entrypoint",
+      "discoverability": "internal",
+      "domain": null,
+      "source": "skills/covenant/SKILL.md"
+    },
+    {
+      "id": "debugger",
+      "name": "debugger",
+      "description": "Route known engineering failures, crashes, regressions, wrong data, intermittent tests, or unexplained slowness to Sage Diagnose. Do not use for preflight or completion-only verification.",
+      "kind": "domain-capability",
+      "discoverability": "public",
+      "domain": null,
+      "source": "skills/debugger/SKILL.md"
+    },
+    {
+      "id": "designer",
+      "name": "designer",
+      "description": "Create, redesign, or polish websites, app UI, dashboards, components, static creative, print, motion systems, glass materials, illustration direction, and frontend craft. Route review-only work to Audit Visual and identity systems to Brand Identity.",
+      "kind": "domain-capability",
+      "discoverability": "public",
+      "domain": null,
+      "source": "skills/designer/SKILL.md"
+    },
+    {
+      "id": "dispatch",
+      "name": "dispatch",
+      "description": "Create a validated zero-context work packet for another agent or executor while current orchestrator retains responsibility. Use for delegation, parallel workers, or copy-paste executor instructions. Same-agent work stays inline; session continuity uses handoff.",
+      "kind": "domain-capability",
+      "discoverability": "public",
+      "domain": null,
+      "source": "skills/dispatch/SKILL.md"
+    },
+    {
+      "id": "handoff",
+      "name": "handoff",
+      "description": "Transfer an ongoing task into a fresh chat through a hash-bound transcript pointer and a validated cold-start continuation packet. Use for fresh-thread continuity, context rollover, or transfer of decisions, state, failures, and landmines; never use for bounded executor delegation.",
+      "kind": "domain-capability",
+      "discoverability": "public",
+      "domain": null,
+      "source": "skills/handoff/SKILL.md"
+    },
+    {
+      "id": "marketing",
+      "name": "marketing",
+      "description": "Route positioning, offers, packaging, guarantees, launches, validation, growth, analytics, pricing, CRO, retention, and commercial ideation. Use for Grand Slam Offers or what, whom, why, and how to market; route execution to Ads, SEO, Social, Research, or Writing.",
+      "kind": "domain-capability",
+      "discoverability": "public",
+      "domain": null,
+      "source": "skills/marketing/SKILL.md"
+    },
+    {
+      "id": "qa",
+      "name": "qa",
+      "description": "Add, run, or audit local web or Tauri app QA: hidden servers, deterministic mocks, functional assertions, viewport captures, visual evidence, & contract-test authoring.",
+      "kind": "domain-capability",
+      "discoverability": "public",
+      "domain": null,
+      "source": "skills/qa/SKILL.md"
+    },
+    {
+      "id": "research",
+      "name": "research",
+      "description": "Sole top-level evidence router: general, market, technical, scientific, medical, legal, competitor, Reddit, audience, trends, scholarly, documents, authority, and NotebookLM. Medical and legal are private internal routes; India consumer-commission filing is a Legal workflow.",
+      "kind": "domain-capability",
+      "discoverability": "public",
+      "domain": null,
+      "source": "skills/research/SKILL.md"
+    },
+    {
+      "id": "seo",
+      "name": "seo",
+      "description": "Audit or improve SEO, GEO or AEO, AI citations, crawlability, indexing, Core Web Vitals, schema, sitemaps, content quality, E-E-A-T, images, hreflang, llms.txt, traffic drops, page speed, or repository SEO.",
+      "kind": "domain-capability",
+      "discoverability": "public",
+      "domain": null,
+      "source": "skills/seo/SKILL.md"
+    },
+    {
+      "id": "social",
+      "name": "social",
+      "description": "Route Instagram, Pinterest, YouTube, Twitter or X, LinkedIn, Reels, Shorts, pins, threads, calendars, distribution, analytics, and social growth. Use /social or when social strategy or content is the deliverable.",
+      "kind": "domain-capability",
+      "discoverability": "public",
+      "domain": null,
+      "source": "skills/social/SKILL.md"
+    },
+    {
+      "id": "tasklist",
+      "name": "tasklist",
+      "description": "Create an executable same-agent task list. Use `/tasklist`; keep it inline unless persistence, audit receipts, or a reusable record is requested. Use Dispatch for another agent & Handoff for a new chat.",
+      "kind": "domain-capability",
+      "discoverability": "public",
+      "domain": null,
+      "source": "skills/tasklist/SKILL.md"
+    },
+    {
+      "id": "writing",
+      "name": "writing",
+      "description": "Route editorial prose, essays, newsletters, scripts, captions, threads, research articles, blogs, SEO posts, conversion copy, bios, DMs, product copy, email, and changelogs. Use when words are the deliverable.",
+      "kind": "domain-capability",
+      "discoverability": "public",
+      "domain": null,
+      "source": "skills/writing/SKILL.md"
+    }
+  ],
+  "roles": [
+    {
+      "id": "alchemist",
+      "description": "Transformation authority. Dispatch to apply an already-bounded contract, integrate exact artifacts, run declared checks, & mechanically repair implementation failures. Do not dispatch for undecided meaning or independent assurance.",
+      "source": "src/roster/alchemist.md"
+    },
+    {
+      "id": "oracle",
+      "description": "Independent assurance authority. Dispatch before every successful final delivery for read-only semantic Completion Validation, or for a user-requested broader audit. Do not dispatch to decide architecture or perform product-state effects.",
+      "source": "src/roster/oracle.md"
+    },
+    {
+      "id": "sage",
+      "description": "Engineering decision authority. Dispatch when work needs diagnosis, an architecture or invariant decision, or a complete executable contract. Do not dispatch for already-decided execution or independent assurance.",
+      "source": "src/roster/sage.md"
+    }
+  ],
+  "hostCapabilities": [
+    {
+      "id": "agent-host-config",
+      "degradation": "Report that no agent host configuration was found and take no action; never create one speculatively."
+    },
+    {
+      "id": "banana",
+      "degradation": "Report unavailability to the caller and stop. This package ships no fallback generator."
+    },
+    {
+      "id": "cortex-graph",
+      "degradation": "Return a NO_CAPABILITY result naming cortex-graph. Never fall back to ad-hoc grep and never present ungraphed results as graph results."
+    },
+    {
+      "id": "crypt",
+      "degradation": "Read the source files directly without compression."
+    },
+    {
+      "id": "dataforseo",
+      "degradation": "Report that backlink/SERP data is unavailable and mark those findings UNPROVEN; never estimate them."
+    },
+    {
+      "id": "firecrawl",
+      "degradation": "Fall back to raw HTTP fetch and state that no rendered DOM was available."
+    },
+    {
+      "id": "local-corpus",
+      "degradation": "Research skips the local-corpus provider and records it as unrun."
+    },
+    {
+      "id": "media-production",
+      "degradation": "Skip the media step and state that it was skipped."
+    },
+    {
+      "id": "memory-engine",
+      "degradation": "Proceed without prior-run context and state that the run is cold."
+    },
+    {
+      "id": "morph",
+      "degradation": "Return results inline and state that they were not durably captured."
+    },
+    {
+      "id": "notebooklm",
+      "degradation": "Research skips the notebooklm provider and records it as unrun."
+    },
+    {
+      "id": "okf",
+      "degradation": "Emit the uncompressed human deliverable only and state that no OKF bundle was produced."
+    },
+    {
+      "id": "omniroute",
+      "degradation": "Alchemist exits 4 (gateway down). Callers must treat Alchemist as unavailable, not as returning an empty result."
+    },
+    {
+      "id": "scholarly-search",
+      "degradation": "Research returns UNPROVEN for scholarly claims."
+    },
+    {
+      "id": "skill-emit",
+      "degradation": "Write artifacts to the working directory and state that they were not emitted to the host."
+    },
+    {
+      "id": "web-search",
+      "degradation": "Research returns UNPROVEN for any claim that required live retrieval."
+    }
+  ],
+  "referenceClasses": [
+    "HISTORICAL_EVIDENCE",
+    "HOST_CAPABILITY",
+    "PACKAGE_INTERNAL",
+    "PROJECT_OVERLAY"
+  ],
+  "harnesses": [
+    {
+      "id": "claude-code",
+      "installPath": "plugin package (.claude-plugin/plugin.json)",
+      "fidelity": {
+        "skillDiscovery": "strong",
+        "authorityAgents": "strong",
+        "mcp": "strong",
+        "arcaneEnforcement": "strong"
+      },
+      "notes": "Native plugin ships skills/, agents/, hooks/ and the legion MCP server."
+    },
+    {
+      "id": "codex",
+      "installPath": ".codex-plugin/plugin.json",
+      "fidelity": {
+        "skillDiscovery": "unsupported",
+        "authorityAgents": "degraded",
+        "mcp": "unsupported",
+        "arcaneEnforcement": "degraded"
+      },
+      "notes": "Manifest is metadata only. Roles reach Codex via legion bind (.codex/agents/*.toml); no skill or MCP projection exists, and the Arcane codex adapter ships but nothing installs its hook registration."
+    },
+    {
+      "id": "gemini",
+      "installPath": "GEMINI.md + .gemini/commands/legion/*.toml",
+      "fidelity": {
+        "skillDiscovery": "unsupported",
+        "authorityAgents": "degraded",
+        "mcp": "degraded",
+        "arcaneEnforcement": "unsupported"
+      },
+      "notes": "Roles project as slash commands via legion bind. No skill projection. No hook mechanism is wired, so effect enforcement is absent, not degraded."
+    },
+    {
+      "id": "agents-md",
+      "installPath": "AGENTS.md managed block",
+      "fidelity": {
+        "skillDiscovery": "unsupported",
+        "authorityAgents": "degraded",
+        "mcp": "unsupported",
+        "arcaneEnforcement": "unsupported"
+      },
+      "notes": "Deliberately lowest-fidelity projection: context text only."
+    }
+  ]
+}
