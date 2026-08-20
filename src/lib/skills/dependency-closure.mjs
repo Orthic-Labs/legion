@@ -13,7 +13,7 @@
 // author's own machine.
 
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
-import { join, resolve, relative, dirname } from 'node:path';
+import { join, resolve, relative, dirname, isAbsolute, sep } from 'node:path';
 
 export const DEPENDENCY_CLASSES = Object.freeze([
   'PACKAGE_INTERNAL', 'HOST_CAPABILITY', 'PROJECT_OVERLAY', 'HISTORICAL_EVIDENCE',
@@ -58,7 +58,8 @@ export function classifyResource(entry, { packageRoot, skillRoot, capabilities }
   if (klass === 'PACKAGE_INTERNAL') {
     if (!entry.path) return { ok: false, code: 'invalid-resource', detail: 'PACKAGE_INTERNAL declares no path' };
     const target = resolve(skillRoot, entry.path);
-    if (!target.startsWith(`${resolve(packageRoot)}/`)) {
+    const contained = relative(resolve(packageRoot), target);
+    if (contained === '..' || contained.startsWith(`..${sep}`) || isAbsolute(contained)) {
       return { ok: false, code: 'escapes-package', detail: `PACKAGE_INTERNAL escapes the package: ${entry.path}` };
     }
     if (!existsSync(target)) {
