@@ -3,6 +3,7 @@ import { resolve } from 'node:path';
 import { validateSkillBundle } from './contracts.mjs';
 
 const COMMAND = /^\/([a-z][a-z0-9-]*)(?:\s|$)/;
+const DEFAULT_ROOT = resolve(import.meta.dirname, '../../..');
 
 function readJson(path) {
   return JSON.parse(readFileSync(path, 'utf8'));
@@ -17,7 +18,7 @@ function readJson(path) {
  * aliases deterministically, and validates that the selected canonical id is
  * packaged and available.
  */
-export function resolveSkillInvocation(input, { root = resolve(import.meta.dirname, '../..') } = {}) {
+export function resolveSkillInvocation(input, { root = DEFAULT_ROOT } = {}) {
   const match = COMMAND.exec(String(input ?? '').trim());
   if (!match) return { status: 'not-found', reason: 'not-explicit-command' };
 
@@ -48,7 +49,7 @@ export function resolveSkillInvocation(input, { root = resolve(import.meta.dirna
  * explicit source: explicit capabilities and entrypoints resolve per alias/config.
  */
 export function validateCapabilitySelection(selection, options = {}) {
-  const root = options.root ?? resolve(import.meta.dirname, '../..');
+  const root = options.root ?? DEFAULT_ROOT;
   const ids = Array.isArray(selection?.ids) ? selection.ids : [];
   const source = selection?.source === 'explicit' ? 'explicit' : 'semantic';
   const index = readJson(resolve(root, 'src/registry/skills/index.json'));

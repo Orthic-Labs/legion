@@ -29,6 +29,8 @@ const buildConsumerCheckScript=(pkgName,subpaths)=>{
     "  assert.equal(typeof root.reconcileRun,'function','reconcileRun export missing');",
     "  assert.equal(typeof root.resolveSkillInvocation,'function','resolveSkillInvocation export missing');",
     "  assert.equal(typeof root.validateCapabilitySelection,'function','validateCapabilitySelection export missing');",
+    "  assert.equal(root.resolveSkillInvocation('/blueprint map').canonical,'cortex','installed alias resolution failed');",
+    "  assert.equal(root.validateCapabilitySelection({ids:['architect'],source:'semantic'}).status,'resolved','installed semantic selection validation failed');",
   ];
   for(const key of subpaths){
     if(key.includes('*')){

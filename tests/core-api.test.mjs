@@ -31,6 +31,8 @@ const PROJECTION = {
 test('public API exposes deterministic explicit & model-selection validation seams', () => {
   assert.equal(typeof resolveSkillInvocation, 'function');
   assert.equal(typeof validateCapabilitySelection, 'function');
+  assert.equal(resolveSkillInvocation('/blueprint map').canonical, 'cortex');
+  assert.equal(validateCapabilitySelection({ ids: ['architect'], source: 'semantic' }).status, 'resolved');
 });
 
 test('buildPlan seals a deterministic plan with fixed host clock', async () => {
