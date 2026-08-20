@@ -162,10 +162,16 @@ function installMcp(mech, { root, legionRoot }) {
     const block = `\n[${table}.legion]\ncommand = ${JSON.stringify(server.command)}\nargs = [${argsToml}]\n`;
     mkdirSync(join(path, '..'), { recursive: true });
     const existing = existsSync(path) ? readFileSync(path, 'utf8') : '';
-    // Idempotent: replace an existing legion table, else append.
-    const next = legionTomlBlockRe(table).test(existing)
-      ? existing.replace(legionTomlBlockRe(table), block.replace(/\n$/, ''))
-      : existing + block;
+    // Idempotent & self-healing: retain exactly one Legion table even when a
+    // prior installer collision left duplicate keys that make Codex reject the
+    // entire project configuration.
+    let found = false;
+    const collapsed = existing.replace(legionTomlBlockRe(table), () => {
+      if (found) return '';
+      found = true;
+      return block.replace(/\n$/, '');
+    });
+    const next = found ? collapsed : existing + block;
     writeFileSync(path, next);
     return { wrote: [mech.path] };
   }

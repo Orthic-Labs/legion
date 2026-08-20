@@ -161,6 +161,18 @@ test('malformed MCP TOML is preserved, not appended to', () => {
   });
 });
 
+test('Codex MCP install collapses duplicate Legion tables to one valid owner', () => {
+  withRepo((root) => {
+    const path = join(root, '.codex', 'config.toml');
+    mkdirSync(join(root, '.codex'), { recursive: true });
+    writeFileSync(path, '[mcp_servers.legion]\ncommand = "node"\nargs = ["old.mjs"]\n\n[mcp_servers.mine]\ncommand = "mine"\n\n[mcp_servers.legion]\ncommand = "node"\nargs = ["duplicate.mjs"]\n');
+    reg.install('codex', { root, surfaces: ['mcp'] });
+    const after = readFileSync(path, 'utf8');
+    assert.equal((after.match(/^\[mcp_servers\.legion\]$/gm) ?? []).length, 1);
+    assert.match(after, /\[mcp_servers\.mine\]/);
+  });
+});
+
 test('a malformed custom harness descriptor fails closed instead of silently defaulting', () => {
   withRepo((root) => {
     mkdirSync(join(root, '.agents'), { recursive: true });
