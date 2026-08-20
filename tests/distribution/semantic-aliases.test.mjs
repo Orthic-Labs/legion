@@ -39,7 +39,11 @@ test('canonical & legacy commands resolve through packaged manifests with negati
   }
   assert.equal(resolveSkillInvocation('/jfdi execute', { root: ROOT }).canonical, 'alchemist');
   assert.equal(resolveSkillInvocation('/council review', { root: ROOT }).canonical, 'covenant');
-  assert.equal(resolveSkillInvocation('/blueprint map', { root: ROOT }).canonical, 'cortex');
+  assert.equal(resolveSkillInvocation('/blueprint map', { root: ROOT }).resolvedInvocation, '/cortex map');
+  assert.equal(resolveSkillInvocation('/glass refine header', { root: ROOT }).resolvedInvocation, '/designer glass refine header');
+  assert.equal(resolveSkillInvocation('/motion hero', { root: ROOT }).resolvedInvocation, '/designer motion hero');
+  assert.equal(resolveSkillInvocation('/hormozi launch', { root: ROOT }).resolvedInvocation, '/marketing offer launch');
+  assert.equal(resolveSkillInvocation('/test-author auth', { root: ROOT }).resolvedInvocation, '/audit contract-tests auth');
   assert.equal(resolveSkillInvocation('/council-review', { root: ROOT }).status, 'not-found');
   assert.equal(resolveSkillInvocation('/just-do-it', { root: ROOT }).status, 'not-found');
   assert.equal(resolveSkillInvocation('Please explain why this test fails.', { root: ROOT }).status, 'not-found');

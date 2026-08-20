@@ -19,17 +19,24 @@ function readJson(path) {
  * packaged and available.
  */
 export function resolveSkillInvocation(input, { root = DEFAULT_ROOT } = {}) {
-  const match = COMMAND.exec(String(input ?? '').trim());
+  const text = String(input ?? '').trim();
+  const match = COMMAND.exec(text);
   if (!match) return { status: 'not-found', reason: 'not-explicit-command' };
 
   const requested = `/${match[1]}`;
+  const suppliedArguments = text.slice(match[0].length).trim();
   const aliases = readJson(resolve(root, 'src/config/capability-aliases.json')).aliases ?? {};
   let target = requested;
+  let aliasArguments = '';
   const seen = new Set();
   while (aliases[target] && aliases[target].startsWith('/')) {
     if (seen.has(target)) return { status: 'invalid', requested, reason: 'alias-cycle' };
     seen.add(target);
-    target = aliases[target].split(/\s+/, 1)[0];
+    const declaration = aliases[target].trim();
+    const nextTarget = declaration.split(/\s+/, 1)[0];
+    const declaredArguments = declaration.slice(nextTarget.length).trim();
+    aliasArguments = [declaredArguments, aliasArguments].filter(Boolean).join(' ');
+    target = nextTarget;
   }
 
   const canonical = target.slice(1);
@@ -37,7 +44,9 @@ export function resolveSkillInvocation(input, { root = DEFAULT_ROOT } = {}) {
   const record = index.bundles.find(({ id }) => id === canonical);
   if (!record) return { status: 'not-found', requested, canonical };
   const manifest = validateSkillBundle(readJson(resolve(root, record.manifest)));
-  return { status: 'resolved', requested, canonical, manifestPath: record.manifest, manifest };
+  const argumentText = [aliasArguments, suppliedArguments].filter(Boolean).join(' ');
+  const resolvedInvocation = argumentText ? `${target} ${argumentText}` : target;
+  return { status: 'resolved', requested, canonical, argumentText, resolvedInvocation, manifestPath: record.manifest, manifest };
 }
 
 /**
