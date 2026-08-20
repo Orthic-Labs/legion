@@ -76,19 +76,30 @@ native instructions file).
 |---|---|---|---|---|---|
 | claude-code | strong (plugin) | strong (plugin) | strong (plugin) | strong (plugin) | strong (blocking hook) |
 | codex | strong (AGENTS.md) | degraded (.agents/skills) | unsupported | strong (config.toml) | unsupported |
-| cline | strong (.clinerules) | degraded (.agents/skills) | unsupported | strong (mcp.json) | unsupported |
+| cline | strong (.clinerules) | degraded (.agents/skills) | unsupported | unsupported | unsupported |
 | command-code | strong (AGENTS.md) | degraded (.agents/skills) | unsupported | unsupported | unsupported |
 | pi | strong (AGENTS.md) | degraded (.agents/skills) | unsupported | unsupported | unsupported |
 | generic | strong (AGENTS.md) | degraded (.agents/skills) | unsupported | unsupported | unsupported |
 
-`skills = degraded` for every non-Claude harness because skills reach them through the common
-`.agents/skills` surface (SKILL.md packages projected by symlink, never forked) rather than a
-first-class native skill API — which is the correct honest state, not a limitation of the
-projection. Enforcement is `unsupported` wherever no blocking hook/permission mechanism exists;
+`skills = degraded` for every non-Claude harness because none of them has native Agent Skills
+discovery: Legion projects the canonical SKILL.md packages to `.agents/skills` (by symlink, never
+forked) and points at that location from the instructions block, so the capability content reaches
+the model but selection is instruction-driven rather than host-driven. That is the honest state,
+not a claim of native support. Enforcement is `unsupported` wherever no blocking hook/permission mechanism exists;
 Arcane's semantics stay host-neutral but the transport is host-specific, and a harness that cannot
 block an effect is never labelled `strong`. `command-code`, `pi`, `agents`, and their `mcp` values
 are `unsupported` where the native mechanism is not yet confirmed; correcting any of them is a
 one-line edit to that harness's descriptor, which is the point of the data-driven seam.
+
+Cline's `mcp` was corrected from `strong (.cline/mcp.json)` to `unsupported` (2026-08-20): Cline
+reads its MCP registry from extension-managed storage (`cline_mcp_settings.json`) outside the
+repository, so the previously declared project-local path registered nothing. A fidelity claim must
+describe what Legion actually installs and verifies.
+
+Detection uses harness-specific evidence only. `AGENTS.md` was removed as a Codex / Pi /
+Command Code signal and `.vscode` as a Cline signal: those are cross-harness or cross-extension
+conventions, and matching on them made one ordinary repository detect as three harnesses at once.
+Two harnesses that genuinely coexist are still both reported — from their own evidence.
 
 Gemini is intentionally absent — it is not built, because it is not used.
 
@@ -139,21 +150,36 @@ canonical Legion  →  host-projection.json  →  adapter descriptor (capabiliti
   is the thin CLI over it.
 
 Skills prefer the common `.agents/skills` surface; a harness that reads a native location declares
-it as `path` in its descriptor and the same projection code handles it. Adding a harness is one
-descriptor file plus one registry line; a harness Legion has never heard of needs nothing in the
-registry at all — the `generic` adapter resolves a descriptor from `.agents/legion-harness.json`
-or `LEGION_HARNESS_DESCRIPTOR` at runtime.
+it as `path` in its descriptor and the same projection code handles it. Adding a harness requires **only a descriptor** when its surfaces can be expressed with the
+mechanisms the engine already implements (`agents-md` / `native-file` instructions, `skills-dir`
+projection, `json` or `toml` MCP registration, `blocking-hook` enforcement) — one descriptor file
+plus one registry line, or no registry line at all if the harness declares itself as data through
+`.agents/legion-harness.json` or `LEGION_HARNESS_DESCRIPTOR`. A harness with a genuinely new
+transport or config format requires **one shared mechanism implementation** in the engine, added
+once and available to every harness thereafter — but never a duplicated copy of Legion's semantics.
+The earlier claim that an unknown harness "needs no code at all" was true only for harnesses whose
+surfaces happened to match the existing mechanisms.
 
-Conformance is locked by `tests/host-adapter-conformance.test.mjs`: the same canonical catalog
+Conformance is locked by two suites. `tests/host-adapter-conformance.test.mjs`: the same canonical catalog
 reaches every projecting harness, every projected `SKILL.md` is byte-identical to canonical,
 discovery counts match the canonical projection, declared fidelity is structurally valid and
 enforcement is never overclaimed, and no descriptor enumerates individual skills (so adding a skill
-needs no per-harness edit).
+needs no per-harness edit). `tests/host-adapter-safety.test.mjs` adds the host-safety invariants:
+internal capabilities never reach a discovery surface, install refuses to overwrite a user-owned
+skill directory or a fork, malformed JSON/TOML is preserved rather than replaced, uninstall removes
+only Legion-owned entries, one generic file never detects three harnesses, every declared mechanism
+path is actually created by install, and only one installer is active per surface. A real
+`codex mcp list` discovery smoke test is included but skips when the binary is absent, so no harness
+binary is a mandatory CI dependency.
 
 Relationship to `legion bind`: the adapter seam is the go-forward harness integration. The older
-`bind/*` harness writers (`codex`, `gemini`, `agents-md`) are legacy and superseded by it; they are
-invoked only by the explicit `legion bind` command and do not auto-run, so they do not silently
-compete. Retiring them is a follow-up, out of scope for this pass.
+`bind/*` writers for surfaces the seam now owns are **quarantined** (2026-08-20): `claude-code` was
+already retired, and `codex` and `agents-md` now return `false` from `detect()`, so
+`legion bind --write` with no explicit `--harness` can never select them and never races the seam
+for `.codex/config.toml` or `AGENTS.md`. They are quarantined rather than deleted because they still
+carry legacy migration paths the seam does not have (prior-generation unmanaged-table migration,
+duplicate-MCP cleanup); those run only when an operator names the harness explicitly. `gemini` is untouched — no
+adapter claims that harness, so there is nothing for it to compete with.
 
 ### 3.6 Latency — investigated; the dominant cost is algorithmic, not process-lifecycle
 
@@ -205,10 +231,17 @@ diagnosis to `/audit` rather than embedding it; the remaining question is whethe
 9. Resident Arcane decision — **not justified** by the measurements; the fix is algorithmic (§3.6)
 10. ~~`legion doctor` host diagnosis + plugin surface identity + live adapter seam~~ — done (§1.3, §3.1, §3.3–3.5); ~~cross-harness conformance evals~~ — done (`tests/host-adapter-conformance.test.mjs`)
 
-Host/runtime work is complete. What remains is either an explicit non-goal (Gemini) or
-semantic/security-bearing work owned by the SSOT/capability and Arcane owners: the ledger
-verified-prefix checkpoint, `skills/commit` narrowing, and retiring the legacy `bind/*` harness
-writers now superseded by the adapter seam.
+Host/runtime work is complete. The 2026-08-20 cleanup pass closed the remaining host-layer
+correctness and safety gaps: projected skill membership now comes from the canonical capability
+projection rather than a `skills/*` directory scan (internal role entrypoints no longer leak into
+discovery), install and uninstall are collision-safe and surgically reversible, malformed config
+fails closed, copy-fallback verification covers the whole package, detection is non-ambiguous, and
+the superseded `bind/*` writers are quarantined. Those invariants are locked by
+`tests/host-adapter-safety.test.mjs`.
+
+What remains is either an explicit non-goal (Gemini) or semantic/security-bearing work owned by the
+SSOT/capability and Arcane owners: the ledger verified-prefix checkpoint and `skills/commit`
+narrowing.
 
 Superseded paths are retired as their native equivalents land, not kept in parallel
 (SSOT §26 retirement test, §32 non-goals).

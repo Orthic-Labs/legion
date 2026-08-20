@@ -31,6 +31,25 @@ import {
 export const NAME = 'codex';
 export const FIDELITY_TIER = 'full';
 
+// QUARANTINED as an auto-selected installer (host/runtime cleanup, 2026-08-20).
+//
+// The descriptor-driven harness seam (src/lib/host/) is now the installer for
+// this harness's .codex/config.toml MCP registration. Two installers competing for one surface is the
+// failure SSOT I-20 forbids and the precedent already applied to bind's Claude
+// Code writer. `detect()` therefore returns false: `legion bind --write` with no
+// explicit --harness will never select this writer.
+//
+// It is QUARANTINED rather than deleted because it still carries the legacy
+// migration paths the seam does not have (prior-generation unmanaged-table migration and duplicate-MCP cleanup). Those run only when the
+// operator asks for this harness by name. New installations use
+// `legion harness install codex`.
+export const QUARANTINED = true;
+export const QUARANTINE_NOTE =
+  'legion bind no longer auto-selects codex; the harness adapter seam installs it '
+  + '(legion harness install codex). This writer remains reachable only via an explicit '
+  + '--harness codex, for its legacy migration paths.';
+
+
 const AGENTS_DIR = '.codex/agents';
 const CONFIG_PATH = '.codex/config.toml';
 
@@ -188,8 +207,14 @@ function configTarget(root) {
   return { path, kind: 'toml-managed', reason: 'install Legion agent projections and MCP entry in .codex/config.toml', result };
 }
 
-export function detect(root) {
-  return existsSync(join(root, 'AGENTS.md')) || existsSync(join(root, '.codex')) || existsSync(join(root, AGENTS_DIR));
+// Never auto-selected — see the quarantine note above.
+export function detect() {
+  return false;
+}
+
+/** Whether a Codex checkout is present at all; used only for reporting. */
+export function present(root) {
+  return existsSync(join(root, '.codex')) || existsSync(join(root, AGENTS_DIR));
 }
 
 export function targets(root) {

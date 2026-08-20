@@ -348,14 +348,14 @@
         "instructions": "strong",
         "skillDiscovery": "degraded",
         "authorityAgents": "unsupported",
-        "mcp": "strong",
+        "mcp": "unsupported",
         "arcaneEnforcement": "unsupported"
       },
       "mechanisms": {
         "instructions": "native-file",
         "skills": "skills-dir",
         "agents": "none",
-        "mcp": "json",
+        "mcp": "none",
         "hooks": "none"
       }
     },

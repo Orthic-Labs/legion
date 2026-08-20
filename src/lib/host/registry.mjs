@@ -2,9 +2,13 @@
 // data-driven interface over them. Each adapter is a descriptor (adapters/*.mjs);
 // the engine implements detect/capabilities/install/verify/uninstall once.
 //
-// Adding a harness is one import + one array entry here plus its descriptor file.
-// No engine change, no forked skills. A completely unknown harness needs nothing
-// here at all — the generic adapter resolves its descriptor from data at runtime.
+// Adding a harness is one import + one array entry here plus its descriptor
+// file, with NO engine change and no forked skills — provided its surfaces can
+// be expressed with the mechanisms the engine already implements. A harness with
+// a genuinely new transport or config format needs one shared mechanism added to
+// the engine, used by every harness thereafter; it never needs a second copy of
+// Legion's semantics. An unknown harness can skip this file entirely by
+// declaring its descriptor as data (see adapters/generic.mjs).
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
 import claudeCode from './adapters/claude-code.mjs';
