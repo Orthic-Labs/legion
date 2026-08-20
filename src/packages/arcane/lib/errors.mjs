@@ -52,7 +52,7 @@ export const ARCANE_ERROR_CODE = Object.freeze([
 
   // pre-effect gate (deliverable 6)
   'ARC_GATE_UNAVAILABLE', // gate could not run -> mutation fails closed
-  'ARC_NO_CONTRACT', // mutation without an execution contract (G2)
+  'ARC_NO_CONTRACT', // mutation without an execution contract
   'ARC_CONTRACT_NOT_EXECUTABLE', // openQuestions non-empty
   'ARC_CONTRACT_VERSION_MISMATCH',
   'ARC_PROFILE_BINDING_MISMATCH',

@@ -406,14 +406,14 @@ export class PreEffectGate {
     });
     if (!auth.allowed) return { hardFail: false, deny: auth, contract };
 
-    // 4. G2 — no mutation without a contract.
+    // 4. Mutations require a bound executable contract.
     if (!contract) {
       return {
         hardFail: false,
         deny: decision({
           allowed: false,
           code: 'ARC_NO_CONTRACT',
-          message: 'mutation requested with no execution contract (G2)',
+          message: 'mutation requested with no execution contract',
           detail: { contractId: effectRequest.contractId, effectClass: effectRequest.effectClass },
         }),
         contract,

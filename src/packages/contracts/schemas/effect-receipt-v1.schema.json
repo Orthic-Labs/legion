@@ -26,7 +26,7 @@
 
     "match": {
       "type": "boolean",
-      "description": "True only when requested == authorized == observed on effectClass/target/operation. False triggers Arcane reconciliation, not silent acceptance (G2, §24a)."
+      "description": "True only when requested == authorized == observed on effectClass/target/operation. False triggers Arcane reconciliation, not silent acceptance."
     },
 
     "actualDiffDigest": { "type": ["string", "null"], "pattern": "^sha256:[0-9a-f]{64}$" },

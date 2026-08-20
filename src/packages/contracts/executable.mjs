@@ -58,7 +58,7 @@ function collectIds(contract) {
 function runExecutabilityChecks(contract) {
   const errors = [];
   if (!Array.isArray(contract.openQuestions) || contract.openQuestions.length !== 0) {
-    errors.push({ code: 'G9_OPEN_QUESTIONS_NONEMPTY', path: '$.openQuestions', message: 'execution contract has open questions' });
+    errors.push({ code: 'EXEC_OPEN_QUESTIONS_NONEMPTY', path: '$.openQuestions', message: 'execution contract has open questions' });
   }
   for (const [latitude, list] of [['exact', contract.artifacts?.exact], ['bounded', contract.artifacts?.bounded]]) {
     if (!Array.isArray(list)) continue;

@@ -6,8 +6,8 @@
 // closed; read-only operations may continue with a recorded enforcement-health
 // downgrade."
 //
-// G2: Alchemist never mutates product state without a bounded executable
-// contract. G9: open decisions make a contract non-executable.
+// Alchemist never mutates product state without a bounded executable
+// contract. Open decisions make a contract non-executable.
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -145,14 +145,14 @@ test('oracle is accepted as assurance authority by the pre-effect gate', () => {
 
 // -------------------------------------------------------------- G2 / G9
 
-test('G2: mutation without a contract is denied — ARC_NO_CONTRACT', () => {
+test('mutation without a contract is denied — ARC_NO_CONTRACT', () => {
   const gate = new PreEffectGate({ policy: engine(), capabilityStore: capabilityStore(), authorityLedger: ledgerWithAlchemist(), clock });
   const d = gate.evaluate(request(), { contract: null, turnId: 'turn-1', capabilityId: 'cap_1' });
   assert.equal(d.allowed, false);
   assert.equal(d.code, 'ARC_NO_CONTRACT');
 });
 
-test('G9: a contract with open questions is not executable', () => {
+test('a contract with open questions is not executable', () => {
   const gate = new PreEffectGate({ policy: engine(), capabilityStore: capabilityStore(), authorityLedger: ledgerWithAlchemist(), clock });
   const c = contract({ openQuestions: [{ id: 'q1', question: 'which db?' }] });
   const d = gate.evaluate(request(), { contract: c, turnId: 'turn-1', capabilityId: 'cap_1' });
