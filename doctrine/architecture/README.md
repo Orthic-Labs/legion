@@ -17,8 +17,8 @@ Reject unknown phase, cancelled epoch, restart without delta, backward no cause 
 - `reviews/**` — architecture review method.
 - `templates/**` — architecture artifact templates.
 - `schemas/**` — architecture state/control schemas.
-- `canon-map.md` — superseded ownership authority; retired as an architecture authority. See the
-  root SSOT ownership table.
+- `docs/provenance/canon-map-archived.md` — archived former ownership map; the root SSOT ownership
+  table is active canon.
 
 Sage participates only when a material unresolved architecture decision requires exceptional
 adjudication beyond Architect's routine mandate.

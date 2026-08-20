@@ -101,7 +101,7 @@
     "stage9-runtime-evals": "node scripts/run-stage9-runtime-evals.mjs",
     "self-test": "node scripts/self-test.mjs",
     "naming:check": "node scripts/check-canonical-names.mjs",
-    "legion:check": "node scripts/check-canonical-names.mjs && node scripts/generate-schemas.mjs --check && node scripts/check-dependency-closure.mjs && node scripts/generate-skill-catalog.mjs --check && node scripts/generate-host-projection.mjs --check && node scripts/verify-plugin-parity.mjs --check",
+    "legion:check": "node scripts/check-canonical-names.mjs && node scripts/generate-schemas.mjs --check && node scripts/check-dependency-closure.mjs && node scripts/generate-skill-catalog.mjs --check && node scripts/generate-host-projection.mjs --check && node scripts/refresh-local-skill-manifests.mjs --check && node scripts/generate-manifest.mjs --check && node scripts/generate-catalogs.mjs --check && node scripts/verify-plugin-parity.mjs --check",
     "schemas:check": "node scripts/generate-schemas.mjs --check",
     "prepack": "node scripts/check-publication-policy.mjs --channel internal-pack && node scripts/check-canonical-names.mjs && node scripts/generate-schemas.mjs --check && node --test --test-concurrency=1 \"tests/*.test.mjs\" \"src/packages/arcane/tests/*.test.mjs\" && node scripts/check-dependency-closure.mjs && node scripts/generate-host-projection.mjs --check && node scripts/verify-plugin-parity.mjs --check && node scripts/package-smoke.mjs",
     "closure:check": "node scripts/check-dependency-closure.mjs",

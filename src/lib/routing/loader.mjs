@@ -1,5 +1,5 @@
-import { existsSync, readFileSync } from 'node:fs';
-import { isAbsolute, relative, resolve } from 'node:path';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 
 /**
  * Grouping-integrity loader (M-019). Domains are optional grouping metadata
@@ -28,12 +28,4 @@ export function resolveGroupChild(skillIndex, childId) {
   const bundle = bundles.get(childId);
   if (!bundle) return null;
   return { id: bundle.id, manifest: bundle.manifest };
-}
-
-/** Backwards-compatible reachability: a leaf is reachable when its manifest resolves. */
-export function targetExists(root, node) {
-  if (typeof node?.targetRef !== 'string' || !node.targetRef || isAbsolute(node.targetRef)) return false;
-  const target = resolve(root, node.targetRef);
-  const targetRelative = relative(root, target);
-  return Boolean(targetRelative) && !targetRelative.startsWith('..') && !isAbsolute(targetRelative) && existsSync(target);
 }

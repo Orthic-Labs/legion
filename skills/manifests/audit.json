@@ -33,7 +33,9 @@
     "templates": [],
     "schemas": [],
     "receipts": [],
-    "evals": [],
+    "evals": [
+      "evals/evals.json"
+    ],
     "consumers": [
       "src/registry/skills/index.json",
       "src/lib/skills/resolver.mjs",
@@ -50,6 +52,11 @@
       "path": "SKILL.md",
       "uri": "legion-skill://audit/SKILL.md",
       "digest": "sha256:714d55b8f9975fc3cf6fe6657ef3532983cffaa25ce72b9b11904b2b6cf41b14"
+    },
+    {
+      "path": "evals/evals.json",
+      "uri": "legion-skill://audit/evals/evals.json",
+      "digest": "sha256:28021ba7da1e096111891503e4fa5a72392baa79ff9fdfd7e1a4adc906c4d805"
     }
   ]
 }

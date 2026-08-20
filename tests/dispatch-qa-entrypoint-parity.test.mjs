@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import test from 'node:test';
 import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
@@ -9,7 +10,7 @@ for (const skill of ['dispatch', 'qa']) test(`${skill} public entrypoint routes 
   assert.ok(existsSync(resolve(base, 'SKILL.md')));
   const evals = JSON.parse(readFileSync(resolve(base, 'evals/evals.json')));
   const count = Object.values(evals).filter(Array.isArray).flat().length;
-  assert.equal(count, skill === 'dispatch' ? 36 : 10);
+  assert.equal(count, skill === 'dispatch' ? 36 : 12);
 });
 
 test('dispatch & qa scripts are adapters, not duplicated engines', () => {
@@ -22,7 +23,12 @@ test('dispatch example packet has a receipt-bound route bundle', () => {
   const packet = JSON.parse(readFileSync(resolve(examples, 'sage-adjudication-dispatch.json')));
   const receipt = JSON.parse(readFileSync(resolve(examples, 'sage-adjudication-dispatch.receipt.json')));
   assert.equal(packet.packetType, 'sage');
-  assert.equal(packet.routeBundle.path, 'skills/dispatch/examples/sage-adjudication-route.json');
-  assert.equal(receipt.schema_version, 3);
-  assert.equal(receipt.referenced_artifacts.length, 1);
+  assert.equal(packet.routeBundle.path, 'skills/dispatch/examples/sage-adjudication.json');
+  assert.equal(receipt.schema_version, 4);
+  const expected = [packet.sourceArtifact, packet.promptArtifact, packet.routeBundle.path].sort();
+  assert.deepEqual(receipt.referenced_artifacts.map(({ path }) => path).sort(), expected);
+  for (const artifact of receipt.referenced_artifacts) {
+    const bytes = readFileSync(resolve(root, artifact.path));
+    assert.equal(artifact.sha256, `sha256:${createHash('sha256').update(bytes).digest('hex')}`);
+  }
 });

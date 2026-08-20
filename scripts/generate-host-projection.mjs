@@ -18,6 +18,7 @@
 import { readFileSync, writeFileSync, readdirSync, existsSync } from 'node:fs';
 import { resolve, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { parseSkillFrontmatter } from './lib/skill-frontmatter.mjs';
 
 const ROOT = resolve(fileURLToPath(new URL('..', import.meta.url)));
 // Harness fidelity is derived from the adapter registry — the single source of
@@ -25,33 +26,23 @@ const ROOT = resolve(fileURLToPath(new URL('..', import.meta.url)));
 import { fidelityMatrix } from '../src/lib/host/registry.mjs';
 const OUT = 'src/registry/host-projection.json';
 
-// Deliberately small: enough to select and compose a capability, and nothing a
-// renderer would have to re-derive. Full method stays in SKILL.md and is loaded
-// only after selection (SSOT 23, progressive disclosure).
-function frontmatter(text) {
-  if (!text.startsWith('---')) return {};
-  const end = text.indexOf('\n---', 3);
-  if (end === -1) return {};
-  const block = text.slice(4, end);
+function rosterFrontmatter(text) {
+  const end = text.indexOf('\n---', 4);
   const out = {};
-  let key = null;
-  for (const line of block.split(/\r?\n/)) {
-    const m = line.match(/^([A-Za-z_][A-Za-z0-9_-]*):\s*(.*)$/);
-    if (m) {
-      key = m[1];
-      let value = m[2].trim();
-      if (value === '' || value === '>' || value === '|') { out[key] = ''; continue; }
-      if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) {
-        value = value.slice(1, -1);
-      }
-      out[key] = value;
-    } else if (key && /^\s+\S/.test(line) && typeof out[key] === 'string') {
-      out[key] = `${out[key]} ${line.trim()}`.trim();
-    }
+  if (!text.startsWith('---\n') || end === -1) return out;
+  for (const line of text.slice(4, end).split(/\r?\n/)) {
+    const match = line.match(/^([A-Za-z_][A-Za-z0-9_-]*):\s*(.*)$/);
+    if (!match) continue;
+    const value = match[2].trim();
+    out[match[1]] = ((value.startsWith('"') && value.endsWith('"'))
+      || (value.startsWith("'") && value.endsWith("'"))) ? value.slice(1, -1) : value;
   }
   return out;
 }
 
+// Deliberately small: enough to select and compose a capability, and nothing a
+// renderer would have to re-derive. Full method stays in SKILL.md and is loaded
+// only after selection (SSOT 23, progressive disclosure).
 // A bundle with no SKILL.md is not a capability. `_shared` and `manifests` are
 // support directories and must never surface as peer expertise (SSOT 18).
 export function buildProjection(root = ROOT) {
@@ -61,7 +52,7 @@ export function buildProjection(root = ROOT) {
     .sort()
     .map((id) => {
       const path = `skills/${id}/SKILL.md`;
-      const fm = frontmatter(readFileSync(join(root, path), 'utf8'));
+      const fm = parseSkillFrontmatter(readFileSync(join(root, path), 'utf8'), { path });
       // Canonical SKILL metadata (M-012/M-021) decides classification. The host
       // projection is deliberately lossy for the frozen host consumer: public
       // capabilities project as public projectable rows; entrypoints do not.
@@ -85,7 +76,7 @@ export function buildProjection(root = ROOT) {
     .sort()
     .map((f) => {
       const path = `src/roster/${f}`;
-      const fm = frontmatter(readFileSync(join(root, path), 'utf8'));
+      const fm = rosterFrontmatter(readFileSync(join(root, path), 'utf8'));
       return { id: f.replace(/\.md$/, ''), description: fm.description ?? '', source: path };
     });
 

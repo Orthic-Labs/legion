@@ -10,11 +10,23 @@ import { requireCanonicalAdvisoryProfile } from './advisory-profile.mjs';
 const schema = new RuntimeSchemaSet();
 const fail = (code, message, detail = {}) => { throw new ArcaneError(code, message, detail); };
 const same = (a, b) => canonicalJson(a) === canonicalJson(b);
+const collisionPause = new Int32Array(new SharedArrayBuffer(4));
 export class ContractSealStore {
   #root; #clock; #manifestRoot;
   constructor({ root, clock = () => new Date().toISOString(), manifestRoot } = {}) { this.#root = root; this.#clock = clock; this.#manifestRoot = manifestRoot; }
   #path(contractId, version) { return stateFile(this.#root, 'arcane.contract-seal.key.v1', [contractId, version]); }
   #read(path) { try { const record = JSON.parse(readFileSync(path, 'utf8')); if (schema.validate('arcane-contract-seal-v1', record).length) fail('ARC_STORE_CORRUPT', 'invalid stored contract seal'); return record; } catch (e) { if (e instanceof ArcaneError) throw e; fail('ARC_STORE_CORRUPT', 'unreadable contract seal'); } }
+  #readAfterCreateCollision(path) {
+    let lastError;
+    for (let attempt = 0; attempt < 100; attempt += 1) {
+      try { return this.#read(path); } catch (error) {
+        if (error.code !== 'ARC_STORE_CORRUPT') throw error;
+        lastError = error;
+        Atomics.wait(collisionPause, 0, 0, 2);
+      }
+    }
+    throw lastError;
+  }
   seal({ contract, authorityAssertion, dispatchDigest = null, evidenceReachability = null }) {
     if (contract?.evidenceRequirements?.length && evidenceReachability?.allowed !== true) fail('ARC_UNSOUND_SEAL', 'contract evidence requirements lack a reachable lifecycle', evidenceReachability?.detail ?? { missing: 'evidenceReachability' });
     if (evidenceReachability && evidenceReachability.allowed !== true) fail('ARC_UNSOUND_SEAL', 'contract cannot seal without reachable evidence lifecycle', evidenceReachability.detail ?? {});
@@ -26,7 +38,10 @@ export class ContractSealStore {
     if (schema.validate('arcane-contract-seal-v1', record).length) fail('ARC_SCHEMA_INVALID', 'invalid contract seal');
     const path = this.#path(record.contractId, record.version); mkdirSync(this.#root, { recursive: true });
     let fd; try { fd = openSync(path, 'wx', 0o600); const bytes = Buffer.from(`${canonicalJson(record)}\n`); for (let at = 0; at < bytes.length;) at += writeSync(fd, bytes, at); fsyncSync(fd); closeSync(fd); return { ok: true, created: true, record }; } catch (e) { if (fd !== undefined) closeSync(fd); if (e.code !== 'EEXIST') fail('ARC_STORE_CORRUPT', 'cannot write contract seal'); }
-    const existing = this.#read(path); const fields = ['contractId', 'version', 'sourceRevision', 'contractDigest', 'dispatchDigest'];
+    // O_EXCL publishes the pathname before the winning process has completed
+    // its fsync. Followers only retry that bounded create-collision window;
+    // ordinary reads still report durable corruption immediately.
+    const existing = this.#readAfterCreateCollision(path); const fields = ['contractId', 'version', 'sourceRevision', 'contractDigest', 'dispatchDigest'];
     if (!fields.every((field) => existing[field] === record[field]) || !same(existing.contract, contract) || existing.sealedBy.authority !== record.sealedBy.authority || existing.sealedBy.verificationMethod !== 'capability-signature' || existing.sealedBy.perMessage !== true) fail('ARC_CONTRACT_VERSION_MISMATCH', 'contract seal conflicts with immutable version');
     return { ok: true, created: false, record: existing };
   }

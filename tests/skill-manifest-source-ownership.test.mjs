@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
+import { buildSkillCatalog } from '../scripts/generate-skill-catalog.mjs';
+import { parseSkillFrontmatter } from '../scripts/lib/skill-frontmatter.mjs';
 import { deriveParity } from '../scripts/refresh-local-skill-manifests.mjs';
 
 test('generated manifest parity derives from canonical semantics & package files only', () => {
@@ -10,4 +12,65 @@ test('generated manifest parity derives from canonical semantics & package files
   assert.equal(parity.triggers.some((value) => /Sage Architect/.test(value)), false);
   assert.deepEqual(parity.outputs, ['references/manual.md']);
   assert.deepEqual(parity.evals, ['evals/evals.json']);
+});
+
+test('catalog semantic lists are exact YAML values, never list-marker text', () => {
+  const { index } = buildSkillCatalog();
+  assert.equal(index.bundles.length, 23);
+  for (const bundle of index.bundles) {
+    for (const field of ['operations', 'effects', 'hostRequirements']) {
+      assert.equal(bundle[field].some((value) => value.startsWith('- ')), false, `${bundle.id}.${field}`);
+    }
+  }
+  const qa = index.bundles.find(({ id }) => id === 'qa');
+  assert.deepEqual(qa.operations, ['analyze', 'evaluate', 'execute', 'produce']);
+  assert.deepEqual(qa.effects, ['source-read', 'artifact-write', 'process-exec']);
+});
+
+test('all 23 packaged sources exactly match frozen M-012 classifications and repertoires', () => {
+  const expected = {
+    ads: ['capability', 'domain', 'public', 'commercial', 'analyze,decide,produce', 'source-read,network-request'],
+    alchemist: ['entrypoint', null, 'explicit', null, 'execute', 'source-read,repository-write,process-exec'],
+    architect: ['capability', 'domain', 'public', 'engineering', 'analyze,decide,produce', 'source-read,artifact-write'],
+    audit: ['capability', 'domain', 'public', 'engineering', 'analyze,evaluate,produce', 'source-read,process-exec,artifact-write'],
+    'audit-fix': ['capability', 'workflow', 'public', 'engineering', 'analyze,evaluate,execute,produce', 'source-read,repository-write,process-exec'],
+    'audit-visual': ['capability', 'domain', 'public', 'engineering', 'analyze,evaluate,produce', 'source-read,artifact-write,process-exec'],
+    brand: ['capability', 'context', 'public', null, 'analyze,produce', 'source-read'],
+    'brand-identity': ['capability', 'domain', 'public', 'design', 'analyze,decide,produce,evaluate', 'source-read,artifact-write'],
+    coder: ['entrypoint', null, 'explicit', null, 'analyze', 'source-read,network-request'],
+    commit: ['entrypoint', null, 'explicit', null, 'analyze,evaluate,execute', 'source-read,repository-write,process-exec,network-request'],
+    cortex: ['capability', 'domain', 'public', 'engineering', 'analyze,produce', 'source-read,process-exec'],
+    covenant: ['entrypoint', null, 'explicit', null, 'analyze,evaluate,produce', 'source-read'],
+    debugger: ['capability', 'domain', 'public', 'engineering', 'analyze,diagnose,decide,produce', 'source-read,process-exec'],
+    designer: ['capability', 'domain', 'public', 'design', 'analyze,decide,produce,evaluate', 'source-read,artifact-write'],
+    dispatch: ['entrypoint', null, 'explicit', null, 'route,produce', 'source-read,artifact-write,process-exec'],
+    handoff: ['capability', 'workflow', 'public', null, 'analyze,produce', 'source-read,artifact-write,process-exec'],
+    marketing: ['capability', 'domain', 'public', 'commercial', 'analyze,decide,produce', 'source-read,network-request'],
+    qa: ['capability', 'domain', 'public', 'engineering', 'analyze,evaluate,execute,produce', 'source-read,artifact-write,process-exec'],
+    research: ['capability', 'domain', 'public', 'research', 'route,analyze,produce', 'source-read,artifact-write,network-request'],
+    seo: ['capability', 'domain', 'public', 'commercial', 'analyze,diagnose,produce', 'source-read,artifact-write,process-exec,network-request'],
+    social: ['capability', 'domain', 'public', 'commercial', 'analyze,decide,produce', 'source-read,artifact-write,network-request'],
+    tasklist: ['capability', 'workflow', 'public', null, 'analyze,produce,execute', 'source-read,artifact-write,process-exec'],
+    writing: ['capability', 'domain', 'public', 'editorial', 'analyze,produce,evaluate', 'source-read,artifact-write'],
+  };
+  const { index } = buildSkillCatalog();
+  assert.deepEqual(index.bundles.map(({ id }) => id), Object.keys(expected).sort());
+  for (const bundle of index.bundles) {
+    assert.deepEqual(
+      [bundle.kind, bundle.capabilityClass, bundle.discoverability, bundle.domain ?? null, bundle.operations.join(','), bundle.effects.join(',')],
+      expected[bundle.id],
+      bundle.id,
+    );
+  }
+});
+
+test('skill frontmatter parser fails malformed semantic YAML instead of certifying drift', () => {
+  assert.throws(
+    () => parseSkillFrontmatter('---\nname: qa\ndescription: invalid: unquoted\nkind: capability\ncapabilityClass: domain\ndiscoverability: public\noperations:\n  - analyze\neffects:\n  - source-read\n---\n'),
+    /unquoted YAML mapping delimiter/,
+  );
+  assert.throws(
+    () => parseSkillFrontmatter('---\nname: qa\ndescription: "valid"\nkind: capability\ncapabilityClass: domain\ndiscoverability: public\noperations:\n  - analyze\neffects:\n  - source_read\n---\n'),
+    /invalid effects value source_read/,
+  );
 });

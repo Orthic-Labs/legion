@@ -3,8 +3,8 @@
 ## Scope
 
 QA owns functional/behavioral QA, deterministic browser/runtime checks, mocks, contract tests, and
-viewport capture as QA evidence. This manual carries the recovered QA method (project QA contract,
-shared runners, hidden-browser defaults, functional and visual QA, report format, machine-state
+viewport capture as supporting QA artifacts. This manual carries the recovered QA method (project QA contract,
+shared runners, hidden-browser defaults, functional and rendered browser checks, report format, machine-state
 boundary). It is **not** Oracle assurance, not Audit Visual's rendered-state audit, and not
 Designer's qualitative craft.
 
@@ -166,16 +166,18 @@ Supported actions:
 - `screenshot`
 - `sleep`
 
-## Visual QA
+## Rendered browser checks
 
-Purpose: "Does it look right?"
+Purpose: prove declared functional, behavioral, browser, & runtime acceptance in rendered states.
 
 Use SampleApp-style capture:
 
 - `--shot` captures only the app viewport: no desktop, wallpaper, other windows, or browser chrome.
 - Capture default, hover, active, selected, focused, disabled, error, empty, loading, long-text, and scrolled states.
-- Review screenshots with a design eye: contrast, spacing, visual hierarchy, alignment, overlap, density, theme fit, and polish.
-- Use computed styles to verify exact cursor/color/spacing claims; screenshots are evidence, not the only oracle.
+- Assert only frozen observable criteria such as visibility, overlap, focus, state transition, exact computed style, viewport containment, or required text.
+- Use computed styles to verify exact cursor/color/spacing acceptance; screenshots are supporting evidence, not a qualitative design oracle.
+- Route rendered-state enumeration, regression comparison, & evidence coverage to Audit Visual.
+- Route subjective hierarchy, typography, spacing craft, density, theme fit, brand expression, & polish judgment or remediation to Designer.
 
 Run:
 
@@ -213,7 +215,7 @@ Opt in only when the issue genuinely requires native behavior:
 - WebView-only packaged bugs
 - window frame, taskbar, tray, or foreground focus behavior
 
-Do not default to desktop screenshots for app visual QA.
+Do not default to desktop screenshots for browser or native QA.
 
 ## Report Format
 
@@ -236,8 +238,9 @@ Lead with findings:
 - `pnpm qa:shot -- --out .cache/qa-shots/default.png`
 ```
 
-Do not say a UI is fine just because automation can click it. Functional QA proves mechanics;
-visual QA still requires screenshot review.
+Do not say a UI satisfies frozen browser acceptance just because automation can click it. Assert each
+required observable criterion or mark it unknown. Route screenshot-matrix coverage & regression review
+to Audit Visual, and qualitative judgment to Designer.
 
 Classify each finding with the four-state verdict (`pass | fail | unknown | not-applicable`), not
 a bare priority label. Missing evidence never becomes a pass: an unrun `qa:functional` check is

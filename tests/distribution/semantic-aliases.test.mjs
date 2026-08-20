@@ -84,7 +84,7 @@ test('public entrypoint registry resolves digest-bound, non-publishable bundles'
   }
 });
 
-test('all 110 retired eval cases are retained under canonical entrypoints', () => {
+test('all 110 retired eval cases and two Phase A acceptance additions remain', () => {
   const evalPaths = [
     'skills/handoff/../../tests/fixtures/handoff/legacy-evals.json',
     'skills/architect/evals/evals.json',
@@ -102,7 +102,7 @@ test('all 110 retired eval cases are retained under canonical entrypoints', () =
       .filter(([key, value]) => !['schema_version', 'skill', 'legacy_skill'].includes(key) && Array.isArray(value))
       .reduce((sum, [, rows]) => sum + rows.length, 0);
   }, 0);
-  assert.equal(count, 110);
+  assert.equal(count, 112);
 });
 
 test('deterministic selection validation accepts semantic public capabilities and rejects entrypoints', () => {

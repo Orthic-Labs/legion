@@ -15,38 +15,11 @@
 import { readFileSync, writeFileSync, readdirSync, existsSync } from 'node:fs';
 import { resolve, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { parseSkillFrontmatter } from './lib/skill-frontmatter.mjs';
 
 const ROOT = resolve(fileURLToPath(new URL('..', import.meta.url)));
-const SKILLS_DIR = join(ROOT, 'skills');
 const OUT_INDEX = 'src/registry/skills/index.json';
 const OUT_DOMAINS = 'src/registry/routing/domains.json';
-
-// The five optional grouping labels. Domain is metadata only — never routing.
-const DOMAIN_LABELS = Object.freeze(['engineering', 'research', 'commercial', 'editorial', 'design']);
-
-function frontmatter(text) {
-  if (!text.startsWith('---')) return {};
-  const end = text.indexOf('\n---', 3);
-  if (end === -1) return {};
-  const block = text.slice(4, end);
-  const out = {};
-  let key = null;
-  for (const line of block.split(/\r?\n/)) {
-    const m = line.match(/^([A-Za-z_][A-Za-z0-9_-]*):\s*(.*)$/);
-    if (m) {
-      key = m[1];
-      let value = m[2].trim();
-      if (value === '' || value === '>' || value === '|') { out[key] = ''; continue; }
-      if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) value = value.slice(1, -1);
-      out[key] = value;
-    } else if (key && /^\s+\S/.test(line)) {
-      if (Array.isArray(out[key])) out[key].push(line.trim());
-      else if (typeof out[key] === 'string' && out[key] === '') out[key] = [line.trim()];
-      else if (key === 'description' || key === 'name') out[key] = `${out[key]} ${line.trim()}`.trim();
-    }
-  }
-  return out;
-}
 
 function listField(value) {
   if (Array.isArray(value)) return value.filter((v) => typeof v === 'string' && v.length);
@@ -55,12 +28,10 @@ function listField(value) {
 }
 
 function canonicalRecord(id, fm) {
-  const kind = fm.kind === 'entrypoint' ? 'entrypoint' : 'capability';
-  const capabilityClass = kind === 'capability'
-    ? (['domain', 'workflow', 'context'].includes(fm.capabilityClass) ? fm.capabilityClass : null)
-    : null;
-  const discoverability = ['public', 'explicit', 'internal'].includes(fm.discoverability) ? fm.discoverability : 'public';
-  const domain = fm.domain === 'null' || fm.domain === '' ? null : (DOMAIN_LABELS.includes(fm.domain) ? fm.domain : null);
+  const kind = fm.kind;
+  const capabilityClass = kind === 'capability' ? fm.capabilityClass : null;
+  const discoverability = fm.discoverability;
+  const domain = fm.domain === 'null' || fm.domain === '' ? null : fm.domain;
   return {
     id,
     name: fm.name ?? id,
@@ -77,13 +48,16 @@ function canonicalRecord(id, fm) {
 }
 
 export function buildSkillCatalog(root = ROOT) {
-  const ids = readdirSync(SKILLS_DIR)
-    .filter((id) => existsSync(join(SKILLS_DIR, id, 'SKILL.md')))
+  const skillsDir = join(root, 'skills');
+  const ids = readdirSync(skillsDir)
+    .filter((id) => existsSync(join(skillsDir, id, 'SKILL.md')))
     .sort();
   const bundles = ids.map((id) => {
-    const fm = frontmatter(readFileSync(join(SKILLS_DIR, id, 'SKILL.md'), 'utf8'));
+    const source = join(skillsDir, id, 'SKILL.md');
+    const fm = parseSkillFrontmatter(readFileSync(source, 'utf8'), { path: `skills/${id}/SKILL.md` });
     return { ...canonicalRecord(id, fm), manifest: `skills/manifests/${id}.json` };
   });
+  validateAliases(readJson(join(root, 'src/config/capability-aliases.json')), new Set(ids));
   const index = {
     schemaVersion: 2,
     generatedFrom: ['skills/*/SKILL.md', 'src/config/capability-aliases.json'],
@@ -111,6 +85,27 @@ export function buildSkillCatalog(root = ROOT) {
   };
 
   return { index, domains };
+}
+
+function readJson(path) {
+  return JSON.parse(readFileSync(path, 'utf8'));
+}
+
+function validateAliases(document, packagedIds) {
+  const aliases = document?.aliases;
+  if (!aliases || Array.isArray(aliases) || typeof aliases !== 'object') throw new Error('capability aliases must be an object');
+  for (const [alias, declared] of Object.entries(aliases)) {
+    if (!/^\/[a-z][a-z0-9-]*$/.test(alias) || typeof declared !== 'string') throw new Error(`invalid capability alias ${alias}`);
+    let target = declared.split(/\s+/, 1)[0];
+    const seen = new Set([alias]);
+    while (target.startsWith('/') && aliases[target]) {
+      if (seen.has(target)) throw new Error(`capability alias cycle at ${target}`);
+      seen.add(target);
+      target = aliases[target].split(/\s+/, 1)[0];
+    }
+    if (target.startsWith('/') && !packagedIds.has(target.slice(1))) throw new Error(`alias ${alias} targets missing package ${target}`);
+    if (!target.startsWith('/') && !/^(hook|tool):[a-z][a-z0-9-]*$/.test(target)) throw new Error(`alias ${alias} has unsupported target ${target}`);
+  }
 }
 
 function render(value) {

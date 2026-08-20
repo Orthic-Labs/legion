@@ -23,6 +23,12 @@ function files(root, current = root, out = []) {
 }
 
 export function refreshLocalSkillManifest(bundle) {
+  const { manifestPath, manifest } = buildLocalSkillManifest(bundle);
+  writeFileSync(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`, 'utf8');
+  return manifestPath;
+}
+
+function buildLocalSkillManifest(bundle) {
   const skillRoot = join(ROOT, 'skills', bundle);
   const manifestPath = join(ROOT, 'skills', 'manifests', `${bundle}.json`);
   if (!existsSync(join(skillRoot, 'SKILL.md'))) throw new Error(`missing skill entrypoint: ${bundle}`);
@@ -54,8 +60,7 @@ export function refreshLocalSkillManifest(bundle) {
       };
     }),
   };
-  writeFileSync(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`, 'utf8');
-  return manifestPath;
+  return { manifestPath, manifest };
 }
 
 export function deriveParity(bundle, semantic, packageFiles) {
@@ -73,8 +78,22 @@ export function deriveParity(bundle, semantic, packageFiles) {
 }
 
 async function main() {
-  const bundles = process.argv.slice(2);
-  if (!bundles.length) throw new Error('usage: refresh-local-skill-manifests.mjs BUNDLE...');
+  const check = process.argv.includes('--check');
+  const requested = process.argv.slice(2).filter((arg) => arg !== '--check');
+  const bundles = requested.length
+    ? requested
+    : (check ? buildSkillCatalog().index.bundles.map(({ id }) => id) : []);
+  if (!bundles.length) throw new Error('usage: refresh-local-skill-manifests.mjs [--check] BUNDLE...');
+  if (check) {
+    for (const bundle of bundles) {
+      const { manifestPath, manifest } = buildLocalSkillManifest(bundle);
+      const expected = `${JSON.stringify(manifest, null, 2)}\n`;
+      const actual = existsSync(manifestPath) ? readFileSync(manifestPath, 'utf8') : '';
+      if (actual !== expected) throw new Error(`skill manifest drift: skills/manifests/${bundle}.json`);
+    }
+    console.log(`skill manifests: no drift (${bundles.length} bundles)`);
+    return;
+  }
   for (const bundle of bundles) console.log(refreshLocalSkillManifest(bundle));
 }
 

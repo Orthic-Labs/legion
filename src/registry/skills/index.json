@@ -14,13 +14,13 @@
       "discoverability": "public",
       "domain": "commercial",
       "operations": [
-        "- analyze",
-        "- decide",
-        "- produce"
+        "analyze",
+        "decide",
+        "produce"
       ],
       "effects": [
-        "- source-read",
-        "- network-request"
+        "source-read",
+        "network-request"
       ],
       "hostRequirements": [],
       "source": "skills/ads/SKILL.md",
@@ -33,17 +33,16 @@
       "kind": "entrypoint",
       "capabilityClass": null,
       "discoverability": "explicit",
-      "domain": null,
       "operations": [
-        "- execute"
+        "execute"
       ],
       "effects": [
-        "- source-read",
-        "- repository-write",
-        "- process-exec"
+        "source-read",
+        "repository-write",
+        "process-exec"
       ],
       "hostRequirements": [
-        "- omniroute"
+        "omniroute"
       ],
       "source": "skills/alchemist/SKILL.md",
       "manifest": "skills/manifests/alchemist.json"
@@ -57,13 +56,13 @@
       "discoverability": "public",
       "domain": "engineering",
       "operations": [
-        "- analyze",
-        "- decide",
-        "- produce"
+        "analyze",
+        "decide",
+        "produce"
       ],
       "effects": [
-        "- source-read",
-        "- artifact-write"
+        "source-read",
+        "artifact-write"
       ],
       "hostRequirements": [],
       "source": "skills/architect/SKILL.md",
@@ -78,14 +77,14 @@
       "discoverability": "public",
       "domain": "engineering",
       "operations": [
-        "- analyze",
-        "- evaluate",
-        "- produce"
+        "analyze",
+        "evaluate",
+        "produce"
       ],
       "effects": [
-        "- source-read",
-        "- process-exec",
-        "- artifact-write"
+        "source-read",
+        "process-exec",
+        "artifact-write"
       ],
       "hostRequirements": [],
       "source": "skills/audit/SKILL.md",
@@ -100,15 +99,15 @@
       "discoverability": "public",
       "domain": "engineering",
       "operations": [
-        "- analyze",
-        "- evaluate",
-        "- execute",
-        "- produce"
+        "analyze",
+        "evaluate",
+        "execute",
+        "produce"
       ],
       "effects": [
-        "- source-read",
-        "- repository-write",
-        "- process-exec"
+        "source-read",
+        "repository-write",
+        "process-exec"
       ],
       "hostRequirements": [],
       "source": "skills/audit-fix/SKILL.md",
@@ -123,14 +122,14 @@
       "discoverability": "public",
       "domain": "engineering",
       "operations": [
-        "- analyze",
-        "- evaluate",
-        "- produce"
+        "analyze",
+        "evaluate",
+        "produce"
       ],
       "effects": [
-        "- source-read",
-        "- artifact-write",
-        "- process-exec"
+        "source-read",
+        "artifact-write",
+        "process-exec"
       ],
       "hostRequirements": [],
       "source": "skills/audit-visual/SKILL.md",
@@ -145,11 +144,11 @@
       "discoverability": "public",
       "domain": null,
       "operations": [
-        "- analyze",
-        "- produce"
+        "analyze",
+        "produce"
       ],
       "effects": [
-        "- source-read"
+        "source-read"
       ],
       "hostRequirements": [],
       "source": "skills/brand/SKILL.md",
@@ -164,14 +163,14 @@
       "discoverability": "public",
       "domain": "design",
       "operations": [
-        "- analyze",
-        "- decide",
-        "- produce",
-        "- evaluate"
+        "analyze",
+        "decide",
+        "produce",
+        "evaluate"
       ],
       "effects": [
-        "- source-read",
-        "- artifact-write"
+        "source-read",
+        "artifact-write"
       ],
       "hostRequirements": [],
       "source": "skills/brand-identity/SKILL.md",
@@ -184,13 +183,12 @@
       "kind": "entrypoint",
       "capabilityClass": null,
       "discoverability": "explicit",
-      "domain": null,
       "operations": [
-        "- analyze"
+        "analyze"
       ],
       "effects": [
-        "- source-read",
-        "- network-request"
+        "source-read",
+        "network-request"
       ],
       "hostRequirements": [],
       "source": "skills/coder/SKILL.md",
@@ -203,17 +201,16 @@
       "kind": "entrypoint",
       "capabilityClass": null,
       "discoverability": "explicit",
-      "domain": null,
       "operations": [
-        "- analyze",
-        "- evaluate",
-        "- execute"
+        "analyze",
+        "evaluate",
+        "execute"
       ],
       "effects": [
-        "- source-read",
-        "- repository-write",
-        "- process-exec",
-        "- network-request"
+        "source-read",
+        "repository-write",
+        "process-exec",
+        "network-request"
       ],
       "hostRequirements": [],
       "source": "skills/commit/SKILL.md",
@@ -228,15 +225,15 @@
       "discoverability": "public",
       "domain": "engineering",
       "operations": [
-        "- analyze",
-        "- produce"
+        "analyze",
+        "produce"
       ],
       "effects": [
-        "- source-read",
-        "- process-exec"
+        "source-read",
+        "process-exec"
       ],
       "hostRequirements": [
-        "- cortex-graph"
+        "cortex-graph"
       ],
       "source": "skills/cortex/SKILL.md",
       "manifest": "skills/manifests/cortex.json"
@@ -248,14 +245,13 @@
       "kind": "entrypoint",
       "capabilityClass": null,
       "discoverability": "explicit",
-      "domain": null,
       "operations": [
-        "- analyze",
-        "- evaluate",
-        "- produce"
+        "analyze",
+        "evaluate",
+        "produce"
       ],
       "effects": [
-        "- source-read"
+        "source-read"
       ],
       "hostRequirements": [],
       "source": "skills/covenant/SKILL.md",
@@ -270,14 +266,14 @@
       "discoverability": "public",
       "domain": "engineering",
       "operations": [
-        "- analyze",
-        "- diagnose",
-        "- decide",
-        "- produce"
+        "analyze",
+        "diagnose",
+        "decide",
+        "produce"
       ],
       "effects": [
-        "- source-read",
-        "- process-exec"
+        "source-read",
+        "process-exec"
       ],
       "hostRequirements": [],
       "source": "skills/debugger/SKILL.md",
@@ -292,14 +288,14 @@
       "discoverability": "public",
       "domain": "design",
       "operations": [
-        "- analyze",
-        "- decide",
-        "- produce",
-        "- evaluate"
+        "analyze",
+        "decide",
+        "produce",
+        "evaluate"
       ],
       "effects": [
-        "- source-read",
-        "- artifact-write"
+        "source-read",
+        "artifact-write"
       ],
       "hostRequirements": [],
       "source": "skills/designer/SKILL.md",
@@ -312,15 +308,14 @@
       "kind": "entrypoint",
       "capabilityClass": null,
       "discoverability": "explicit",
-      "domain": null,
       "operations": [
-        "- route",
-        "- produce"
+        "route",
+        "produce"
       ],
       "effects": [
-        "- source-read",
-        "- artifact-write",
-        "- process-exec"
+        "source-read",
+        "artifact-write",
+        "process-exec"
       ],
       "hostRequirements": [],
       "source": "skills/dispatch/SKILL.md",
@@ -335,13 +330,13 @@
       "discoverability": "public",
       "domain": null,
       "operations": [
-        "- analyze",
-        "- produce"
+        "analyze",
+        "produce"
       ],
       "effects": [
-        "- source-read",
-        "- artifact-write",
-        "- process-exec"
+        "source-read",
+        "artifact-write",
+        "process-exec"
       ],
       "hostRequirements": [],
       "source": "skills/handoff/SKILL.md",
@@ -356,13 +351,13 @@
       "discoverability": "public",
       "domain": "commercial",
       "operations": [
-        "- analyze",
-        "- decide",
-        "- produce"
+        "analyze",
+        "decide",
+        "produce"
       ],
       "effects": [
-        "- source-read",
-        "- network-request"
+        "source-read",
+        "network-request"
       ],
       "hostRequirements": [],
       "source": "skills/marketing/SKILL.md",
@@ -371,21 +366,21 @@
     {
       "id": "qa",
       "name": "qa",
-      "description": "Add, run, or audit local web or Tauri app QA: hidden servers, deterministic mocks, functional assertions, viewport captures, visual evidence, & contract-test authoring.",
+      "description": "Add, run, or audit local web or Tauri app QA: hidden servers, deterministic mocks, functional/browser assertions, supporting viewport captures, runtime checks, & contract-test authoring.",
       "kind": "capability",
       "capabilityClass": "domain",
       "discoverability": "public",
       "domain": "engineering",
       "operations": [
-        "- analyze",
-        "- evaluate",
-        "- execute",
-        "- produce"
+        "analyze",
+        "evaluate",
+        "execute",
+        "produce"
       ],
       "effects": [
-        "- source-read",
-        "- artifact-write",
-        "- process-exec"
+        "source-read",
+        "artifact-write",
+        "process-exec"
       ],
       "hostRequirements": [],
       "source": "skills/qa/SKILL.md",
@@ -400,14 +395,14 @@
       "discoverability": "public",
       "domain": "research",
       "operations": [
-        "- route",
-        "- analyze",
-        "- produce"
+        "route",
+        "analyze",
+        "produce"
       ],
       "effects": [
-        "- source-read",
-        "- artifact-write",
-        "- network-request"
+        "source-read",
+        "artifact-write",
+        "network-request"
       ],
       "hostRequirements": [],
       "source": "skills/research/SKILL.md",
@@ -422,15 +417,15 @@
       "discoverability": "public",
       "domain": "commercial",
       "operations": [
-        "- analyze",
-        "- diagnose",
-        "- produce"
+        "analyze",
+        "diagnose",
+        "produce"
       ],
       "effects": [
-        "- source-read",
-        "- artifact-write",
-        "- process-exec",
-        "- network-request"
+        "source-read",
+        "artifact-write",
+        "process-exec",
+        "network-request"
       ],
       "hostRequirements": [],
       "source": "skills/seo/SKILL.md",
@@ -445,14 +440,14 @@
       "discoverability": "public",
       "domain": "commercial",
       "operations": [
-        "- analyze",
-        "- decide",
-        "- produce"
+        "analyze",
+        "decide",
+        "produce"
       ],
       "effects": [
-        "- source-read",
-        "- artifact-write",
-        "- network-request"
+        "source-read",
+        "artifact-write",
+        "network-request"
       ],
       "hostRequirements": [],
       "source": "skills/social/SKILL.md",
@@ -467,14 +462,14 @@
       "discoverability": "public",
       "domain": null,
       "operations": [
-        "- analyze",
-        "- produce",
-        "- execute"
+        "analyze",
+        "produce",
+        "execute"
       ],
       "effects": [
-        "- source-read",
-        "- artifact-write",
-        "- process-exec"
+        "source-read",
+        "artifact-write",
+        "process-exec"
       ],
       "hostRequirements": [],
       "source": "skills/tasklist/SKILL.md",
@@ -489,13 +484,13 @@
       "discoverability": "public",
       "domain": "editorial",
       "operations": [
-        "- analyze",
-        "- produce",
-        "- evaluate"
+        "analyze",
+        "produce",
+        "evaluate"
       ],
       "effects": [
-        "- source-read",
-        "- artifact-write"
+        "source-read",
+        "artifact-write"
       ],
       "hostRequirements": [],
       "source": "skills/writing/SKILL.md",

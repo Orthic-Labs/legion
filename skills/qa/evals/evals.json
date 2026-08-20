@@ -15,12 +15,40 @@
       "expected_behavior": "Routes request to qa."
     },
     {
-      "id": "qa-visual-evidence",
-      "prompt": "Capture app viewport default and hover states.",
+      "id": "qa-rendered-browser-criteria",
+      "prompt": "Test whether default and hover states satisfy exact browser acceptance criteria, and capture supporting viewport evidence.",
       "expected_skill": "qa",
+      "forbidden_skills": [
+        "designer",
+        "audit-visual"
+      ],
       "severity": "error",
       "mode": "discovery",
-      "expected_behavior": "Routes request to qa."
+      "expected_behavior": "Routes functional browser assertions to QA; supporting screenshots do not grant qualitative design or rendered-coverage ownership."
+    },
+    {
+      "id": "qa-not-qualitative-design",
+      "prompt": "Review this dashboard's hierarchy, typography, spacing craft, density, theme fit, and polish, then improve it.",
+      "expected_skill": "designer",
+      "forbidden_skills": [
+        "qa",
+        "audit-visual"
+      ],
+      "severity": "error",
+      "mode": "discovery",
+      "expected_behavior": "Qualitative design judgment and remediation route to Designer, not QA."
+    },
+    {
+      "id": "qa-not-rendered-coverage",
+      "prompt": "Enumerate every route, viewport, theme, overlay, and interaction screenshot, then reconcile regression evidence coverage.",
+      "expected_skill": "audit-visual",
+      "forbidden_skills": [
+        "qa",
+        "designer"
+      ],
+      "severity": "error",
+      "mode": "discovery",
+      "expected_behavior": "Rendered-state enumeration, regression, and evidence coverage route to Audit Visual."
     }
   ],
   "should_not_trigger": [
@@ -64,10 +92,10 @@
     },
     {
       "id": "qa-functional-before-visual",
-      "expected_behavior": "Tests behavior before screenshot review.",
+      "expected_behavior": "Tests behavior before capturing supporting screenshot evidence.",
       "severity": "error",
       "mode": "static",
-      "prompt": "Tests behavior before screenshot review."
+      "prompt": "Tests behavior before capturing supporting screenshot evidence."
     },
     {
       "id": "qa-deterministic-mocks",
@@ -89,10 +117,10 @@
   "pressure": [
     {
       "id": "qa-no-false-pass",
-      "expected_behavior": "A passing click is not visual proof; records failed or skipped coverage.",
+      "expected_behavior": "A passing click does not prove every declared browser state; records failed or skipped functional coverage without issuing qualitative design verdicts.",
       "severity": "error",
       "mode": "static",
-      "prompt": "A passing click is not visual proof; records failed or skipped coverage."
+      "prompt": "A passing click does not prove every declared browser state; record failed or skipped functional coverage."
     }
   ],
   "compatibility": []

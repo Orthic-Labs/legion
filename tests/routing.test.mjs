@@ -8,9 +8,9 @@ import { validateCommercialLenses } from '../src/lib/lenses/routing.mjs';
 const ROOT = resolve(import.meta.dirname, '..');
 
 test('grouping domains resolve capabilities from the canonical catalog', () => {
-  const results = ['engineering', 'commercial', 'research', 'editorial', 'design'].map((id) => resolveDomain(ROOT, id));
-  assert.equal(results[0].status, 'resolved');
-  assert.deepEqual(results.slice(1).map(({ status }) => status), ['resolved', 'resolved', 'resolved', 'resolved']);
+  const registry = JSON.parse(readFileSync(resolve(ROOT, 'src/registry/routing/domains.json'), 'utf8'));
+  const results = registry.domains.map(({ id }) => resolveDomain(ROOT, id));
+  assert.deepEqual(results.map(({ status }) => status), registry.domains.map(() => 'resolved'));
   assert.ok(results.every(({ capabilities }) => capabilities.length > 0));
   // Groups carry catalog capabilities, never roles, and never routing targetType.
   for (const { capabilities } of results) {
@@ -20,6 +20,7 @@ test('grouping domains resolve capabilities from the canonical catalog', () => {
       assert.equal(capability.manifest, `skills/manifests/${capability.id}.json`);
     }
   }
+  assert.equal(resolveDomain(ROOT, 'not-a-declared-group').status, 'not-found');
 });
 
 test('registry is the single source of grouping children (RTE-001)', () => {

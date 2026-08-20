@@ -163,7 +163,7 @@
     {
       "id": "qa",
       "name": "qa",
-      "description": "Add, run, or audit local web or Tauri app QA: hidden servers, deterministic mocks, functional assertions, viewport captures, visual evidence, & contract-test authoring.",
+      "description": "Add, run, or audit local web or Tauri app QA: hidden servers, deterministic mocks, functional/browser assertions, supporting viewport captures, runtime checks, & contract-test authoring.",
       "kind": "domain-capability",
       "discoverability": "public",
       "domain": "engineering",

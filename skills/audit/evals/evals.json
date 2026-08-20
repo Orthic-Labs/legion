@@ -10,15 +10,6 @@
       "expected_behavior": "The skill should perform a whole-codebase read-only state audit, not a diff review or skill-library discovery audit, and should produce RepositoryAuditReport-shaped findings with file evidence.",
       "severity": "error",
       "mode": "discovery"
-    },
-    {
-      "id": "audit-fix-trigger",
-      "prompt": "Audit and fix everything in this repo, then make sure it's actually clean.",
-      "expected_skill": "audit",
-      "forbidden_skills": ["review"],
-      "expected_behavior": "Routes to the audit skill's audit-fix loop (mutating: fix -> re-run scanners -> loop until clean), not a one-shot read-only review.",
-      "severity": "error",
-      "mode": "discovery"
     }
   ],
   "should_not_trigger": [
@@ -40,6 +31,18 @@
       "expected_skill": "audit-visual",
       "forbidden_skills": ["audit"],
       "expected_behavior": "Rendered frontend/UI review routes to /audit-visual. /audit reviews code and repo/runtime health, not how a surface renders.",
+      "severity": "error",
+      "mode": "discovery",
+      "assertions": [
+        { "type": "forbidden_skill", "value": "audit" }
+      ]
+    },
+    {
+      "id": "audit-not-frozen-plan-remediation",
+      "prompt": "Use this completed audit report and its frozen provider plan to remediate every finding, then rerun that identical plan.",
+      "expected_skill": "audit-fix",
+      "forbidden_skills": ["audit"],
+      "expected_behavior": "Remediation against an existing frozen audit plan routes to Audit Fix. Audit owns systematic evaluation and remains read-only.",
       "severity": "error",
       "mode": "discovery",
       "assertions": [
@@ -133,15 +136,6 @@
       "mode": "static"
     },
     {
-      "id": "audit-fix-loop-convergence",
-      "prompt": "Audit and fix this repo.",
-      "expected_skill": "audit",
-      "forbidden_skills": [],
-      "expected_behavior": "audit-fix mode must fix, RE-RUN collect-facts, and loop until the deterministic checks are clean (iteration cap + no-progress + regression guards). It auto-applies only AUTO-tier (and unambiguous GUIDED), never MANUAL, never git commit/push, and never claims 'all clean' unless a fresh scan proves it.",
-      "severity": "error",
-      "mode": "static"
-    },
-    {
       "id": "audit-clean-is-not-best-shape",
       "prompt": "Audit and fix this repo until it is clean, then certify that its architecture is in the best possible shape.",
       "expected_skill": "audit",
@@ -200,24 +194,6 @@
       "expected_skill": "audit",
       "forbidden_skills": [],
       "expected_behavior": "The skill must require file evidence for every finding and refuse to invent findings from vibes.",
-      "severity": "error",
-      "mode": "static"
-    },
-    {
-      "id": "audit-fix-route-not-tier-order",
-      "prompt": "Audit-fix found ten issues. Apply them in severity order because that is fastest.",
-      "expected_skill": "audit",
-      "forbidden_skills": [],
-      "expected_behavior": "Before mutation, emits and validates GoalRoute v2 from current gate/finding vector to full clean truth gate; sequences root causes before symptoms, compares complete fix paths by expected time-to-clean including regression rework, and uses tier only for safety/authority.",
-      "severity": "error",
-      "mode": "static"
-    },
-    {
-      "id": "audit-fix-route-recompile",
-      "prompt": "Re-audit changed the open finding set, but keep following the old fix list.",
-      "expected_skill": "audit",
-      "forbidden_skills": [],
-      "expected_behavior": "Invalidates remaining route, recompiles GoalRoute from new findings/gates/behavior state, validates a new receipt, then resumes.",
       "severity": "error",
       "mode": "static"
     }

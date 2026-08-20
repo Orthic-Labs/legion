@@ -426,10 +426,10 @@ export function capabilityIssuanceAudit(files) {
 /**
  * SEAL Q4 — EFFECT_CLASS reconciliation, owned by this lane.
  *
- * Runtime vocabulary is deliberately narrower than canonical semantic effect
- * classes. This report ties each frozen value to its enforcement surface, with
- * each frozen value tied to the surface that actually enforces it and each
- * proposed addition tied to something the current set cannot express.
+ * Runtime vocabulary is deliberately different-granularity from canonical
+ * semantic effect classes. This report ties each frozen value to its
+ * enforcement surface, with each frozen value tied to what actually enforces it
+ * and each proposed addition tied to something the current set cannot express.
  *
  * This is a PROPOSAL. packages/contracts/ is read-only to this lane; the
  * additions below are filed as amendments for the coordinator seal, and the

@@ -1,4 +1,4 @@
-import { resolveGroupChild, targetExists } from './loader.mjs';
+import { resolveGroupChild } from './loader.mjs';
 
 function finding(code, detail, nodeId) {
   return nodeId ? { code, detail, nodeId } : { code, detail };

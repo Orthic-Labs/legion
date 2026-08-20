@@ -93,7 +93,7 @@
     {
       "path": "tests/coder-entrypoint.test.py",
       "uri": "legion-skill://coder/tests/coder-entrypoint.test.py",
-      "digest": "sha256:b4da563e01d1d8aecf0b60694f34101f05bb6dbe3602e7c4fd2dcf6885cb93bc"
+      "digest": "sha256:2474212935230c6997671a464cf344c4703a8c7335027f08a193b011b599d6a6"
     }
   ]
 }
