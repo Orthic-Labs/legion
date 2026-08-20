@@ -10,6 +10,7 @@ operations:
   - produce
 effects:
   - source-read
+hostRequirements: []
 ---
 
 # Brand

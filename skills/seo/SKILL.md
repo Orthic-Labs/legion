@@ -14,6 +14,7 @@ effects:
   - artifact-write
   - process-exec
   - network-request
+hostRequirements: []
 ---
 
 # SEO

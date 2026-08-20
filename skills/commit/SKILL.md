@@ -13,6 +13,7 @@ effects:
   - repository-write
   - process-exec
   - network-request
+hostRequirements: []
 metadata:
   legion:
     provenance: legion-authored

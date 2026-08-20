@@ -9,6 +9,7 @@ operations:
 effects:
   - source-read
   - network-request
+hostRequirements: []
 ---
 
 # Coder

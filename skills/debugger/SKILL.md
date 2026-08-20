@@ -13,6 +13,7 @@ operations:
 effects:
   - source-read
   - process-exec
+hostRequirements: []
 ---
 
 # Debugger

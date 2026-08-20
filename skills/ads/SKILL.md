@@ -12,6 +12,7 @@ operations:
 effects:
   - source-read
   - network-request
+hostRequirements: []
 ---
 
 # Ads

@@ -13,6 +13,7 @@ effects:
   - source-read
   - process-exec
   - artifact-write
+hostRequirements: []
 metadata:
   legion:
     provenance: legion-authored

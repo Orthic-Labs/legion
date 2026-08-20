@@ -13,6 +13,7 @@ effects:
   - source-read
   - artifact-write
   - process-exec
+hostRequirements: []
 ---
 
 # Tasklist

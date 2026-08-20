@@ -12,6 +12,7 @@ operations:
 effects:
   - source-read
   - artifact-write
+hostRequirements: []
 ---
 
 # Architect

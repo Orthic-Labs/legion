@@ -61,6 +61,7 @@ test('all 23 packaged sources exactly match frozen M-012 classifications and rep
       expected[bundle.id],
       bundle.id,
     );
+    assert.ok(Array.isArray(bundle.hostRequirements), `${bundle.id}.hostRequirements`);
   }
 });
 
@@ -70,7 +71,11 @@ test('skill frontmatter parser fails malformed semantic YAML instead of certifyi
     /unquoted YAML mapping delimiter/,
   );
   assert.throws(
-    () => parseSkillFrontmatter('---\nname: qa\ndescription: "valid"\nkind: capability\ncapabilityClass: domain\ndiscoverability: public\noperations:\n  - analyze\neffects:\n  - source_read\n---\n'),
+    () => parseSkillFrontmatter('---\nname: qa\ndescription: "valid"\nkind: capability\ncapabilityClass: domain\ndiscoverability: public\noperations:\n  - analyze\neffects:\n  - source_read\nhostRequirements: []\n---\n'),
     /invalid effects value source_read/,
+  );
+  assert.throws(
+    () => parseSkillFrontmatter('---\nname: qa\ndescription: "valid"\nkind: capability\ncapabilityClass: domain\ndiscoverability: public\noperations:\n  - analyze\neffects:\n  - source-read\n---\n'),
+    /missing canonical hostRequirements metadata/,
   );
 });

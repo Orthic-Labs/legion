@@ -49,7 +49,9 @@ export function parseSkillFrontmatter(text, { path = 'SKILL.md' } = {}) {
       key = top[1];
       const value = top[2];
       if (LIST_FIELDS.has(key)) {
-        if (value.trim()) throw new Error(`${path}:${index + 2}: ${key} must use a YAML block list`);
+        if (value.trim() && value.trim() !== '[]') {
+          throw new Error(`${path}:${index + 2}: ${key} must use a YAML block list or []`);
+        }
         out[key] = [];
       } else if (SCALAR_FIELDS.has(key)) {
         if (value.trim() === '>' || value.trim() === '|') {
@@ -74,7 +76,7 @@ export function parseSkillFrontmatter(text, { path = 'SKILL.md' } = {}) {
   }
   finishBlock();
 
-  for (const field of ['name', 'description', 'kind', 'discoverability', 'operations', 'effects']) {
+  for (const field of ['name', 'description', 'kind', 'discoverability', 'operations', 'effects', 'hostRequirements']) {
     if (!(field in out)) throw new Error(`${path}: missing canonical ${field} metadata`);
   }
   if (out.kind === 'capability' && !out.capabilityClass) {

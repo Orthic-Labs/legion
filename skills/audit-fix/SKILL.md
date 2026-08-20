@@ -14,6 +14,7 @@ effects:
   - source-read
   - repository-write
   - process-exec
+hostRequirements: []
 metadata:
   legion:
     provenance: legion-authored
