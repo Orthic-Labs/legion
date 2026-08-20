@@ -1,2 +1,2 @@
-<!-- Source of truth: docs/agent-rules.md. Regeneration tooling for this file lives in the outer workspace, not in this package. -->
+<!-- Compatibility adapter. Canonical package rules: docs/agent-rules.md. -->
 @docs/agent-rules.md
