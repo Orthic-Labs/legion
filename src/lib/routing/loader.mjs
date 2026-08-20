@@ -26,6 +26,6 @@ export function loadRoutingGroups(root) {
 export function resolveGroupChild(skillIndex, childId) {
   const bundles = new Map((skillIndex?.bundles ?? []).map((bundle) => [bundle.id, bundle]));
   const bundle = bundles.get(childId);
-  if (!bundle) return null;
+  if (!bundle || bundle.kind !== 'capability') return null;
   return { id: bundle.id, manifest: bundle.manifest };
 }

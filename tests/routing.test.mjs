@@ -48,6 +48,7 @@ test('grouping projection is capabilities-only; every child resolves to a catalo
       assert.equal(record.id, child.id);
     }
   }
+  assert.equal(resolveGroupChild(graph.skillIndex, 'commit'), null, 'entrypoints are not group children');
 });
 
 test('validator rejects duplicate groups, non-catalog children, and dangling members', () => {
@@ -56,10 +57,11 @@ test('validator rejects duplicate groups, non-catalog children, and dangling mem
   invalid.domains.push(structuredClone(invalid.domains[0]));
   invalid.domains[0].children.push({ id: 'not-a-capability' });
   invalid.domains[0].children.push({ id: 'sage' });
+  invalid.domains[0].children.push({ id: 'commit' });
   const report = validateRoutingGroups(invalid);
   assert.equal(report.ok, false);
   assert.ok(report.findings.some(({ code }) => code === 'duplicate-root'));
-  assert.equal(report.findings.filter(({ code }) => code === 'dangling-target').length, 2);
+  assert.equal(report.findings.filter(({ code }) => code === 'dangling-target').length, 3);
 });
 
 test('routing compatibility preserves provider/audit lens ids', () => {
