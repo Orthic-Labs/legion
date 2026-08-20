@@ -73,6 +73,7 @@ function codeOf(error) {
 }
 
 const READ_ONLY_STOP_INTENTS = new Set(['QUESTION', 'PLAN', 'REVOKE', 'SCOPE_NARROW']);
+const AVAILABILITY_CODES = new Set(['ARC_STORE_CORRUPT', 'ARC_AUTH_KEY_UNAVAILABLE']);
 
 /** Latest user intent classifies a Stop only; it never authorizes an effect. */
 export function readOnlyStopIntent(hookPayload) {
@@ -116,6 +117,21 @@ function runtimeResult(eventType, result) {
   };
   schema.assert('arcane-host-runtime-result-v1', value);
   return value;
+}
+
+function availabilityFallback({ eventType, code, contracted, hookPayload, adapter, policy, workspace }) {
+  if (!AVAILABILITY_CODES.has(code)) return null;
+  if (eventType === 'PreToolUse') {
+    const control = preEffectDiscipline(hookPayload, { workspace, policy, contracted, checkCommit: false });
+    if (control) return runtimeResult(eventType, { decision: denial(control.code, control.message), enforcementHealth: 'strong' });
+    const mapped = typeof adapter.mapPreEffect === 'function' ? adapter.mapPreEffect(hookPayload, { workspace }) : null;
+    const effects = mapped?.effects ?? (mapped ? [mapped] : []);
+    const locked = effects.length > 0 && policy.lockedDomainsFor(effects.map(({ target }) => target)).length > 0;
+    if (contracted || locked) return runtimeResult(eventType, { decision: denial(code, 'Arcane unavailable for governed effect'), enforcementHealth: 'unsupported' });
+  } else if (contracted) {
+    return runtimeResult(eventType, { decision: denial(code, 'Arcane unavailable for governed work'), enforcementHealth: 'unsupported' });
+  }
+  return runtimeResult(eventType, { decision: decision({ allowed: true, code, message: 'Arcane unavailable; ambient operation bypassed', detail: {}, enforcementHealth: 'degraded' }), enforcementHealth: 'degraded' });
 }
 
 /**
@@ -170,6 +186,11 @@ export function createHostRuntime({ adapter, workspace, keyDir, verificationKeyD
   // This is the sole runtime circuit projection. Every path returns through
   // `finish` once host binding exists; it cannot change allowed/effect state.
   const finish = (eventType, result, { binding = null, hostEvent = null, hookPayload = null, target = null } = {}) => {
+    const governed = Boolean(binding?.contractId);
+    if (!result.decision.allowed && AVAILABILITY_CODES.has(result.decision.code)) {
+      const fallback = availabilityFallback({ eventType, code: result.decision.code, contracted: governed, hookPayload, adapter, policy, workspace });
+      if (fallback) return fallback;
+    }
     if (!result.decision.allowed && denialCircuit && binding?.runId && binding?.taskId && hostEvent?.sessionId) {
       try {
         result = { ...result, decision: applyDenialCircuit(result.decision, denialCircuit, {
@@ -187,6 +208,8 @@ export function createHostRuntime({ adapter, workspace, keyDir, verificationKeyD
       try {
         consumeHostArchitectureLifecycle({ eventStore: architectureEvents, hostEvent, binding, workspace, stopIntent: eventType === 'Stop' ? readOnlyStopIntent(hookPayload).intent : 'UNKNOWN' });
       } catch (error) {
+        const fallback = availabilityFallback({ eventType, code: codeOf(error), contracted: governed, hookPayload, adapter, policy, workspace });
+        if (fallback) return fallback;
         result = { ...result, decision: denial(codeOf(error), 'architecture lifecycle unavailable', 'unsupported'), enforcementHealth: 'unsupported' };
       }
     }
@@ -196,6 +219,7 @@ export function createHostRuntime({ adapter, workspace, keyDir, verificationKeyD
   const handle = (hookPayload) => {
     const eventType = hookPayload?.hook_event_name;
     let identity = null;
+    let contracted = false;
     if (!EVENT_TYPES.has(eventType)) {
       return runtimeResult('PreToolUse', { decision: denial('ARC_HOST_EVENT_INVALID', 'invalid host event'), enforcementHealth: 'strong' });
     }
@@ -220,17 +244,21 @@ export function createHostRuntime({ adapter, workspace, keyDir, verificationKeyD
         }
       }
       const boundSeal = binding?.contractId ? stores.sealStore.get(binding.contractId, binding.contractVersion) : null;
-      const contracted = Boolean(boundSeal && boundSeal.contractDigest === binding.contractDigest);
+      contracted = Boolean(boundSeal && boundSeal.contractDigest === binding.contractDigest);
       // Host-derived ledger metadata is persisted before any policy dispatch;
       // adapters never supply sequence, correlation, or Stop ordinal fields.
-      if (!keyRing) return runtimeResult(eventType, { decision: denial('ARC_AUTH_KEY_UNAVAILABLE', 'authenticated event ledger unavailable'), enforcementHealth: 'unsupported' });
+      if (!keyRing) return availabilityFallback({ eventType, code: 'ARC_AUTH_KEY_UNAVAILABLE', contracted, hookPayload, adapter, policy, workspace });
       try {
-        const ledger = new HostEventLedger({ root: paths.events, keyRing, keyId: keyRing.activeKeyId(), clock: isoClock(clock) });
+        const ledger = new HostEventLedger({ root: paths.events, keyRing, keyId: keyRing.activeKeyId(), verificationKeyRing, clock: isoClock(clock) });
         const continuity = ledger.verify();
-        if (!continuity.allowed) return runtimeResult(eventType, { decision: continuity, enforcementHealth: 'unsupported' });
+        if (!continuity.allowed) return availabilityFallback({ eventType, code: continuity.code, contracted, hookPayload, adapter, policy, workspace });
         hostEvent.ledger = ledger.append({ eventId: identity?.eventId ?? hostEvent.eventId, adapter: adapter.name, eventType, sessionId: hostEvent.sessionId, binding, sourceRevision: boundSeal?.sourceRevision ?? null, observedAuthority: observedAuthorityFor(eventType, identity, stores.authorityBinding, adapter.name), payload: hookPayload });
       } catch (error) {
-        if (codeOf(error) === 'ARC_STORE_CORRUPT') throw error;
+        if (codeOf(error) === 'ARC_STORE_CORRUPT' && identity?.sessionId && identity?.agentId) {
+          stores.authorityBinding.recover({ adapter: adapter.name, sessionId: identity.sessionId, agentId: identity.agentId });
+        }
+        const fallback = availabilityFallback({ eventType, code: codeOf(error), contracted, hookPayload, adapter, policy, workspace });
+        if (fallback) return fallback;
         return runtimeResult(eventType, { decision: denial(codeOf(error), 'authenticated event ledger unavailable'), enforcementHealth: 'unsupported' });
       }
       if (contracted) {
@@ -335,7 +363,7 @@ export function createHostRuntime({ adapter, workspace, keyDir, verificationKeyD
         const stop = stopOutcome({ intent: stopIntent, authenticatedClaim: Boolean(consumed?.allowed&&terminal) });
         // A host Stop without an explicit completion claim always terminates;
         // failed certification is reported independently and cannot trap it.
-        const issuer = new AuthorityInvocationProofIssuer({ root: paths.authorityInvocations, keyRing, keyId: keyRing.activeKeyId(), ledgerStore: new HostEventLedger({ root: paths.events, keyRing, keyId: keyRing.activeKeyId(), clock: isoClock(clock) }) });
+        const issuer = new AuthorityInvocationProofIssuer({ root: paths.authorityInvocations, keyRing, keyId: keyRing.activeKeyId(), ledgerStore: new HostEventLedger({ root: paths.events, keyRing, keyId: keyRing.activeKeyId(), verificationKeyRing, clock: isoClock(clock) }) });
         const currentProof = claim ? issuer.findByDigest(claim.invocationProofDigest) : null;
         const execution = boundSeal ? { runId: binding.runId, taskId: binding.taskId, contractId: binding.contractId, contractVersion: binding.contractVersion, contractDigest: binding.contractDigest, sourceRevision: boundSeal.sourceRevision, acceptanceCriteria: boundSeal.contract.acceptanceCriteria } : null;
         const completionRepos = execution ? (binding?.delivery?.repositories?.length ? binding.delivery.repositories.map((repo) => ({ cwd: repo.root, scope: boundSeal.contract.scope.own })) : [{ cwd: workspace, scope: boundSeal.contract.scope.own }]) : [];
@@ -366,6 +394,8 @@ export function createHostRuntime({ adapter, workspace, keyDir, verificationKeyD
     } catch (error) {
       const diagnostic = readOnlyStoreDiagnostic(eventType, hookPayload, error, stores, identity, adapter.name);
       if (diagnostic) return diagnostic;
+      const fallback = availabilityFallback({ eventType, code: codeOf(error), contracted, hookPayload, adapter, policy, workspace });
+      if (fallback) return fallback;
       return runtimeResult(eventType, { decision: denial(codeOf(error), 'runtime failure'), enforcementHealth: 'unsupported' });
     }
   };

@@ -42,21 +42,44 @@ test('EC-503 v6: fresh adapter process binds SubagentStart only to durable threa
   } finally { rmSync(root, { recursive: true, force: true }); }
 });
 
-test('B6 runtime composes stores & returns a closed refusal without throwing', () => {
+test('B6 unavailable Arcane bypasses ambient tools without throwing', () => {
   const workspace = mkdtempSync(join(tmpdir(), 'arcane-runtime-'));
   try {
     const runtime = createHostRuntime({ adapter: { name: 'codex', normalize: normalizeCodexEvent }, workspace, keyDir: join(workspace, 'absent-keys') });
     const result = runtime.handle({ hook_event_name: 'PreToolUse', cwd: workspace, session_id: 'session', tool_name: 'Write', tool_input: { file_path: 'a.mjs' } });
     assert.equal(runtime.stateRoot, join(workspace, '.audit', 'arcane'));
     assert.equal(result.kind, 'arcane-host-runtime-result');
+    assert.equal(result.allowed, true);
+    assert.equal(result.code, 'ARC_AUTH_KEY_UNAVAILABLE');
+    assert.equal(result.enforcementHealth, 'degraded');
+    assert.equal(result.stdout, null);
+  } finally { rmSync(workspace, { recursive: true, force: true }); }
+});
+
+test('B6 unavailable Arcane still refuses a directly identified locked-domain effect', () => {
+  const workspace = mkdtempSync(join(tmpdir(), 'arcane-runtime-locked-'));
+  try {
+    const runtime = createHostRuntime({ adapter: claudeCodeHostAdapter, workspace, keyDir: join(workspace, 'absent-keys') });
+    const result = runtime.handle({ hook_event_name: 'PreToolUse', cwd: workspace, session_id: 'session', tool_name: 'Write', tool_input: { file_path: 'tools/rhook/src/main.rs' }, tool_use_id: 'locked-without-arcane' });
     assert.equal(result.allowed, false);
     assert.equal(result.code, 'ARC_AUTH_KEY_UNAVAILABLE');
-    assert.deepEqual(result.stdout, {
-      hookSpecificOutput: { hookEventName: 'PreToolUse', permissionDecision: 'deny', permissionDecisionReason: 'ARC_AUTH_KEY_UNAVAILABLE: Host authentication key is unavailable.' },
-      code: 'ARC_AUTH_KEY_UNAVAILABLE', publicReason: 'ARC_AUTH_KEY_UNAVAILABLE: Host authentication key is unavailable.', enforcementHealth: 'unsupported', retrySignature: null,
-      termination: 'continue', certification: 'rejected', missingClasses: [], responsibleProducer: null, remediationRoutes: [], missingEvidence: [],
-    });
   } finally { rmSync(workspace, { recursive: true, force: true }); }
+});
+
+test('B6 corrupt lifecycle storage cannot block an ambient tool', () => {
+  const root = mkdtempSync(join(tmpdir(), 'arcane-runtime-lifecycle-'));
+  const workspace = join(root, 'workspace'); const stateRoot = join(root, 'state'); const keyDir = join(root, 'keys');
+  try {
+    mkdirSync(workspace, { recursive: true }); mkdirSync(keyDir, { recursive: true }); writeFileSync(join(keyDir, 'k1.key'), 'a'.repeat(64));
+    const runtime = createHostRuntime({ adapter: { name: 'codex', normalize: normalizeCodexEvent }, workspace, keyDir, stateRoot });
+    assert.equal(runtime.handle({ hook_event_name: 'SessionStart', cwd: workspace, session_id: 'ambient-session' }).allowed, true);
+    writeFileSync(join(stateRoot, 'receipts', 'receipts.jsonl'), '{\n');
+    const result = runtime.handle({ hook_event_name: 'PreToolUse', cwd: workspace, session_id: 'ambient-session', tool_name: 'Bash', tool_input: { command: 'pwd' }, tool_use_id: 'ambient-after-corruption' });
+    assert.equal(result.allowed, true);
+    assert.equal(result.code, 'ARC_STORE_CORRUPT');
+    assert.equal(result.enforcementHealth, 'degraded');
+    assert.equal(result.stdout, null);
+  } finally { rmSync(root, { recursive: true, force: true }); }
 });
 
 test('fresh authenticated SessionStart binds only the Legion session root', () => {
@@ -253,9 +276,9 @@ test('Wave 1: corrupt authority state is diagnostic-only for question, plan, & p
     }
     writeFileSync(transcript, [entry('user', 'Fix it now.'), entry('assistant', 'Completed.')].join('\n'));
     corrupt(); const completion = runtime.handle(payload);
-    assert.equal(completion.allowed, false); assert.equal(completion.code, 'ARC_STORE_CORRUPT');
+    assert.equal(completion.allowed, true); assert.equal(completion.code, 'ARC_STORE_CORRUPT'); assert.equal(completion.enforcementHealth, 'degraded');
     const mutation = runtime.handle({ ...payload, hook_event_name: 'PreToolUse', tool_name: 'Write', tool_input: { file_path: 'src/a.mjs' }, tool_use_id: 'wave-1-mutation' });
-    assert.equal(mutation.allowed, false); assert.equal(mutation.code, 'ARC_STORE_CORRUPT');
+    assert.equal(mutation.allowed, true); assert.equal(mutation.code, null); assert.equal(mutation.enforcementHealth, 'strong');
   } finally { rmSync(root, { recursive: true, force: true }); }
 });
 

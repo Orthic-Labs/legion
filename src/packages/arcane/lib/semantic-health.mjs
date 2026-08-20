@@ -5,7 +5,7 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { normalizeClaudeCodeEvent } from '../host/claude-code-adapter.mjs';
-import { normalizeCodexEvent } from '../host/codex-adapter.mjs';
+import { mapCodexPreEffect, normalizeCodexEvent } from '../host/codex-adapter.mjs';
 import { createHostRuntime } from '../host/host-runtime.mjs';
 import { preEffectDiscipline } from './discipline-controls.mjs';
 import { HostEventLedger } from './host-event-ledger.mjs';
@@ -20,7 +20,8 @@ import { evaluateStopShape } from '../../../../hooks/stop-shape.mjs';
 const SELF = fileURLToPath(import.meta.url);
 const PROBES = Object.freeze([
   'generated-input-rejection',
-  'effect-denial',
+  'ambient-availability-bypass',
+  'locked-unavailable-denial',
   'uncertified-stop-exit',
   'two-denial-release',
   'recovery-preservation',
@@ -48,7 +49,7 @@ function keyDir(root) {
 }
 
 function adapter() {
-  return { name: 'codex', normalize: normalizeCodexEvent };
+  return { name: 'codex', normalize: normalizeCodexEvent, mapPreEffect: mapCodexPreEffect };
 }
 
 function signedBudget(ring, contractId = 'EC-604') {
@@ -65,11 +66,18 @@ const probe = {
     );
     if (result?.code !== 'ARC_EFFECT_CLASS_UNAUTHORIZED') fail('generated input was not denied');
   },
-  'effect-denial'() {
-    fixture('effect-denial', (workspace) => {
+  'ambient-availability-bypass'() {
+    fixture('ambient-availability-bypass', (workspace) => {
       const runtime = createHostRuntime({ adapter: adapter(), workspace, keyDir: join(workspace, 'missing-keys') });
-      const result = runtime.handle({ hook_event_name: 'PreToolUse', cwd: workspace, session_id: 'semantic', tool_name: 'Write', tool_input: { file_path: 'src/a.mjs' }, tool_use_id: 'semantic-effect-denial' });
-      if (result.allowed || result.code !== 'ARC_AUTH_KEY_UNAVAILABLE') fail(`effect denial was ${result.code}`);
+      const result = runtime.handle({ hook_event_name: 'PreToolUse', cwd: workspace, session_id: 'semantic', tool_name: 'Write', tool_input: { file_path: 'src/a.mjs' }, tool_use_id: 'semantic-ambient-bypass' });
+      if (!result.allowed || result.code !== 'ARC_AUTH_KEY_UNAVAILABLE' || result.enforcementHealth !== 'degraded' || result.stdout !== null) fail(`ambient availability bypass was ${result.code}`);
+    });
+  },
+  'locked-unavailable-denial'() {
+    fixture('locked-unavailable-denial', (workspace) => {
+      const runtime = createHostRuntime({ adapter: adapter(), workspace, keyDir: join(workspace, 'missing-keys') });
+      const result = runtime.handle({ hook_event_name: 'PreToolUse', cwd: workspace, session_id: 'semantic', tool_name: 'Write', tool_input: { file_path: 'tools/rhook/src/main.rs' }, tool_use_id: 'semantic-locked-denial' });
+      if (result.allowed || result.code !== 'ARC_AUTH_KEY_UNAVAILABLE') fail(`locked unavailable denial was ${result.code}`);
     });
   },
   'uncertified-stop-exit'() {
