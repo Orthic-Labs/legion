@@ -8,7 +8,7 @@
 // dependency graph and cascades transitively through `dimension: 'evidence'`
 // edges.
 //
-// Historical-preservation rule (detailed plan §6.3 rule 7): staleness is
+// Historical-preservation rule: staleness is
 // appended as a new fact. A record's originally-bound dependency digests are
 // never overwritten — `register()`'s stored dependency list is immutable
 // after registration; `observeChange()` only ever flips a `stale` flag and
@@ -207,7 +207,7 @@ export class DependencyLedger {
   }
 
   /**
-   * Mark an evidence entry corrupt/unreadable (detailed plan §5.3, WP4 action 9).
+   * Mark an evidence entry corrupt/unreadable without truncating history.
    * The record is never dropped — it stays in the ledger, quarantined, and
    * readable, but blocks any criterion it supports from becoming `proven`.
    */

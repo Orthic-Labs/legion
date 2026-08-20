@@ -93,7 +93,7 @@ export async function runDoctor(argv, { stdout, stderr, env, cwd, host }) {
       toolchains,
     },
     arcane: { semanticHealth: arcaneSemanticHealth },
-    // SSOT 36.9 — installation identity, discovery, projection drift, declared
+    // Installation identity, discovery, projection drift, declared
     // fidelity, and effect-gate registration, so a harness that cannot see
     // Legion is diagnosable without reading source.
     host: computeHostSection(root),

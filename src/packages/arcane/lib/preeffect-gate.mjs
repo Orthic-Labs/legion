@@ -612,7 +612,7 @@ export class PreEffectGate {
   }
 
   /**
-   * The read-only path. §24a permits read-only operations to continue when the
+   * Read-only operations may continue when the
    * gate is unavailable, provided the downgrade is *recorded* — so this returns
    * an allow whose enforcementHealth is honestly reduced and whose detail says
    * `degraded: true`. A caller that logs the decision cannot later claim strong
@@ -642,7 +642,7 @@ export class PreEffectGate {
     });
   }
 
-  /** Per-capability enforcement health, reported honestly and typed (§24a). */
+  /** Per-capability enforcement health, reported honestly and typed. */
   health() {
     return Object.freeze({
       policy: this.#policy && !this.#policy.failClosed ? 'strong' : 'unsupported',

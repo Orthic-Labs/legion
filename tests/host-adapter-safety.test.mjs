@@ -40,7 +40,7 @@ test('the projected set is the canonical discoverable set, not the skills/ direc
   for (const id of internal) assert.ok(!CANON.includes(id), `${id}: internal capability must not be in the projected set`);
 });
 
-test('internal role entrypoints never reach a harness skill discovery surface', () => {
+test('explicit entrypoints never reach a harness skill discovery surface', () => {
   const internal = internalCapabilityIds(LEGION);
   for (const id of PROJECTING) {
     withRepo((root) => {

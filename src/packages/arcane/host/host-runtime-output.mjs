@@ -13,7 +13,7 @@ const publicDetail = (envelope) => ({ code: envelope.code, publicReason: envelop
  *
  * A gate that refuses an effect for want of an approval, while offering no path
  * by which that approval could ever be produced, is not enforcement — it is a
- * dead end (SSOT I-22, "gates must be earnable"). Arcane's target-bound VCS
+ * dead end; every gate must be earnable. Arcane's target-bound VCS
  * rewrite approval was exactly that: `approvalStore` defaults to null and no
  * host wires one, so every `git push --force` was refused unappealably. Handing
  * the decision to the operator through the host's existing permission prompt

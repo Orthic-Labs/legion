@@ -42,7 +42,7 @@ export const MAC_ALGORITHM = 'HMAC-SHA256';
  *     against the receipt store's view, and `freshAt` is stamped at verify
  *     time by the verifier, not by the issuer.
  *   - `result` — Arcane may reconcile a receipt's result after observation
- *     (requested vs authorized vs observed, §24a) without invalidating the
+ *     (requested vs authorized vs observed) without invalidating the
  *     issuer's signature over what was actually claimed.
  */
 export const EFFECT_RECEIPT_BOUND_FIELDS = Object.freeze([

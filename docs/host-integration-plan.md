@@ -6,7 +6,7 @@
 AGENTS-only harnesses; how Arcane enforces effects on each; how failures are diagnosed.
 
 This plan owns **implementation steps only**. It defines no semantics. Where it appears to
-disagree with the SSOT, the SSOT wins (§0).
+disagree with the SSOT, the SSOT wins.
 
 ---
 
@@ -31,7 +31,7 @@ Legion's canonical content is host-neutral. Its delivery was not. Before this wo
 
 ## 1. Completed
 
-### 1.1 Arcane correctness (SSOT I-22, I-23)
+### 1.1 Arcane correctness
 
 | Defect | Fix | Verified by |
 |---|---|---|
@@ -41,20 +41,20 @@ Legion's canonical content is host-neutral. Its delivery was not. Before this wo
 | ledger re-read and re-verified the full hash chain up to three times per event | `#verify()` returns the records it verified; `append`/`inspect` reuse them. Same full-chain walk, same strength, computed once | `readFileUtf8` 274 ms → 105 ms in CPU profile |
 | effect gate registered for unclassifiable tools, unregistered for classifiable ones | `Agent`/`spawn_agent` dropped from PreToolUse; `WebFetch`/`WebSearch` added to PostToolUse. `Bash` retained — it is load-bearing for the destructive-command, VCS-rewrite, and escalation gates | `hooks/hooks.json`; regression cases above |
 
-### 1.2 Canonical projection (SSOT 36.2)
+### 1.2 Canonical projection
 
 `scripts/generate-host-projection.mjs` → `src/registry/host-projection.json`.
 
 Derived from canonical owners only: `skills/*/SKILL.md`, `src/roster/*.md`,
-`src/registry/capabilities.json`. Emits 21 domain capabilities, 2 role entrypoints, 3 roles,
+`src/registry/capabilities.json`. Emits 18 domain capabilities, 5 explicit entrypoints, 3 roles,
 16 host capabilities, the 4 reference classes, and a fidelity declaration per harness.
 `--check` fails on drift.
 
-`skills/alchemist` and `skills/covenant` project as `kind: role-entrypoint`,
-`discoverability: internal` (SSOT 6.1) — they are compatibility entrypoints into an authority,
-not domain capabilities.
+`skills/alchemist`, `skills/coder`, `skills/commit`, `skills/covenant`, and `skills/dispatch`
+project as `kind: entrypoint`, `discoverability: explicit`. Alchemist attaches its authority;
+Covenant requests optional challenge; the others enter their owned explicit workflows.
 
-### 1.3 Diagnosis (SSOT 36.9)
+### 1.3 Diagnosis
 
 `legion doctor --json` gained a `host` section: installation identity (active source, enabled
 state, installed vs source version, **layout match**, commit sha), discovery counts, MCP
@@ -68,7 +68,7 @@ failure that took manual investigation to find.
 ## 2. Declared fidelity today
 
 Derived from the adapter registry (`src/lib/host/registry.mjs`) — the single source of truth —
-and projected into `host-projection.json`. Truthful, not aspirational (SSOT 36.5); never rounded
+and projected into `host-projection.json`. Fidelity is truthful, not aspirational; never rounded
 up. Instructions is the fifth surface the adapters carry (baseline context via AGENTS.md or a
 native instructions file).
 
@@ -125,7 +125,7 @@ The plugin package is the single installation owner for Claude Code. Parity is p
 `verify-plugin-parity` (23 skills, 4 agents, 1 MCP server, 8 hook events all resolve), so
 `bind/claude-code.mjs` is retired: it detects nothing, writes nothing, and an explicit
 `--harness claude-code` request returns a note pointing at the plugin. `legion bind` no longer
-competes for the Claude harness (I-20).
+competes for the Claude harness; one installation path owns each harness.
 
 ### 3.3–3.5 Generic host adapter seam — done
 
@@ -220,20 +220,20 @@ diagnosis to `/audit` rather than embedding it; the remaining question is whethe
 
 ## 4. Ordering
 
-1. ~~SSOT host-projection invariants~~ — done (§36, I-19 … I-23)
+1. ~~Canonical host-projection invariants~~ — done
 2. ~~Claude live-plugin dev path + package/version lifecycle~~ — done (§3.1)
-3. ~~Canonical projection IR~~ — done (§1.2)
-4. ~~Claude native projection + retire competing bind path~~ — done (§3.2)
-5. ~~Generic host adapter seam + the harnesses in use (Codex, Cline, Command Code, Pi) + generic custom harness~~ — done (§3.3–3.5)
+3. ~~Canonical projection IR~~ — done
+4. ~~Claude native projection + retire competing bind path~~ — done
+5. ~~Generic host adapter seam + the harnesses in use (Codex, Cline, Command Code, Pi) + generic custom harness~~ — done
 6. Gemini — **not built**, not used (explicit non-goal)
-7. ~~Arcane hook narrowing, Stop correction, double-spawn removal~~ — done (§1.1)
-8. ~~Benchmark — per-event git subprocess removed; ledger O(n) identified as the dominant cost~~ — done (§3.6)
-9. Resident Arcane decision — **not justified** by the measurements; the fix is algorithmic (§3.6)
-10. ~~`legion doctor` host diagnosis + plugin surface identity + live adapter seam~~ — done (§1.3, §3.1, §3.3–3.5); ~~cross-harness conformance evals~~ — done (`tests/host-adapter-conformance.test.mjs`)
+7. ~~Arcane hook narrowing, Stop correction, double-spawn removal~~ — done
+8. ~~Benchmark — per-event git subprocess removed; ledger O(n) identified as the dominant cost~~ — done
+9. Resident Arcane decision — **not justified** by the measurements; the fix is algorithmic
+10. ~~`legion doctor` host diagnosis + plugin surface identity + live adapter seam~~ — done; ~~cross-harness conformance evals~~ — done (`tests/host-adapter-conformance.test.mjs`)
 
 Host/runtime work is complete. The 2026-08-20 cleanup pass closed the remaining host-layer
 correctness and safety gaps: projected skill membership now comes from the canonical capability
-projection rather than a `skills/*` directory scan (internal role entrypoints no longer leak into
+projection rather than a `skills/*` directory scan (explicit entrypoints no longer leak into
 discovery), install and uninstall are collision-safe and surgically reversible, malformed config
 fails closed, copy-fallback verification covers the whole package, detection is non-ambiguous, and
 the superseded `bind/*` writers are quarantined. Those invariants are locked by
@@ -244,4 +244,4 @@ SSOT/capability and Arcane owners: the ledger verified-prefix checkpoint and `sk
 narrowing.
 
 Superseded paths are retired as their native equivalents land, not kept in parallel
-(SSOT §26 retirement test, §32 non-goals).
+(canonical retirement test and non-goals).

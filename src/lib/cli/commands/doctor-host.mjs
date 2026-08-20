@@ -1,4 +1,4 @@
-// `legion doctor` host-projection diagnosis (SSOT 36.9).
+// `legion doctor` host-projection diagnosis.
 //
 // An operator must be able to answer "why does my harness not see Legion?"
 // without reading source. The failures this exists to name are all real and all
@@ -84,7 +84,7 @@ function claudeDiscovery(root) {
       return { path: relative, exists: existsSync(join(root, relative)) };
     }),
     capabilities: (projection?.capabilities ?? []).filter((c) => c.kind === 'domain-capability').length,
-    roleEntrypoints: (projection?.capabilities ?? []).filter((c) => c.kind === 'role-entrypoint').map((c) => c.id),
+    entrypoints: (projection?.capabilities ?? []).filter((c) => c.kind === 'entrypoint').map((c) => c.id),
     agents: existsSync(join(root, 'agents'))
       ? readJson(join(root, 'agents')) ?? undefined
       : undefined,
@@ -93,7 +93,7 @@ function claudeDiscovery(root) {
 }
 
 /**
- * Duplicate ownership of one harness (SSOT 36.4 / I-20). `legion bind` writes
+ * Duplicate ownership of one harness. `legion bind` writes
  * .claude/agents while the plugin package ships agents/ for the same roles; both
  * active at once is the state that made installation identity unreadable.
  */
@@ -104,7 +104,7 @@ function installationConflicts(root) {
     conflicts.push({
       harness: 'claude-code',
       kind: 'duplicate-installation-path',
-      detail: 'both the plugin package (agents/) and a legion bind projection (.claude/agents/) are present; SSOT 36.4 allows one installation path per harness',
+      detail: 'both the plugin package (agents/) and a legion bind projection (.claude/agents/) are present; one installation path must own each harness',
     });
   }
   return conflicts;

@@ -18,7 +18,7 @@
 //
 // A model-asserted authority is refused before either path is even
 // considered (ARC_MODEL_SELF_REPORT) — a model's statement that it wrote,
-// tested, or deployed something is never an effect receipt (§24a, I-07).
+// tested, or deployed something is never an effect receipt; host observation is required.
 
 import { decision } from './errors.mjs';
 import { validateHostEvent, classifyObservation } from './host-event.mjs';

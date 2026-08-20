@@ -72,7 +72,7 @@
 
         "invocationState": {
           "enum": ["ACCEPTED", "RUNNING", "INPUT_REQUIRED", "CANCELLED", "EXPIRED", "FAILED_INVOCATION", "COMPLETED"],
-          "description": "Kernel-owned axis: did the operation itself run to completion? Orthogonal to domainOutcome and claimBoundary (I-09)."
+          "description": "Kernel-owned axis: did the operation itself run to completion? Orthogonal to domainOutcome and claimBoundary."
         },
         "domainOutcome": {
           "enum": ["REPAIR", "BLOCKED_DECISION", "NEEDS_AMENDMENT", "OUT_OF_SCOPE", "BUDGET_STOP", "FAILED_CONTRACT", "COMPLETE"],

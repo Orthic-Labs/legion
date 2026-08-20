@@ -1,18 +1,18 @@
 #!/usr/bin/env node
 // Builds the ONE canonical host projection every harness renderer consumes.
 //
-// SSOT 36.2: a host adapter is a renderer, not a second semantic owner. Before
+// A host adapter is a renderer, not a second semantic owner. Before
 // this existed, each binder in src/lib/cli/commands/bind/ hand-authored its own
 // role text, so "what Legion contains" was defined four times and skills were
 // defined nowhere outside the Claude plugin. This script derives the answer once
-// from the canonical owners named in SSOT 19 and writes it as data.
+// from canonical owners and writes it as data.
 //
 // Inputs are canonical sources only:
-//   skills/<id>/SKILL.md            domain capabilities   (SSOT 19.2)
-//   src/roster/*.md                 role identity         (SSOT 19.3)
-//   src/registry/capabilities.json  host capabilities     (SSOT 19.6)
+//   skills/<id>/SKILL.md            capability/entrypoint semantics
+//   src/roster/*.md                 role identity
+//   src/registry/capabilities.json  host capabilities
 //
-// Output is a projection, never an authority (SSOT 19.7 / I-14).
+// Output is a projection, never semantic authority.
 //
 // Run with --check to fail when the committed projection has drifted.
 import { readFileSync, writeFileSync, readdirSync, existsSync } from 'node:fs';
@@ -22,7 +22,7 @@ import { parseSkillFrontmatter } from './lib/skill-frontmatter.mjs';
 
 const ROOT = resolve(fileURLToPath(new URL('..', import.meta.url)));
 // Harness fidelity is derived from the adapter registry — the single source of
-// truth for what each harness supports — not hand-maintained here (SSOT I-2).
+// truth for what each harness supports — not hand-maintained here.
 import { fidelityMatrix } from '../src/lib/host/registry.mjs';
 const OUT = 'src/registry/host-projection.json';
 
@@ -42,9 +42,9 @@ function rosterFrontmatter(text) {
 
 // Deliberately small: enough to select and compose a capability, and nothing a
 // renderer would have to re-derive. Full method stays in SKILL.md and is loaded
-// only after selection (SSOT 23, progressive disclosure).
+// only after selection (progressive disclosure).
 // A bundle with no SKILL.md is not a capability. `_shared` and `manifests` are
-// support directories and must never surface as peer expertise (SSOT 18).
+// support directories and must never surface as peer expertise.
 export function buildProjection(root = ROOT) {
   const skillsDir = join(root, 'skills');
   const capabilities = readdirSync(skillsDir)
@@ -94,13 +94,13 @@ export function buildProjection(root = ROOT) {
     roles,
     hostCapabilities,
     referenceClasses: Object.keys(registry.classes ?? {}).sort(),
-    // SSOT 36.5 — fidelity must be TRUE, not aspirational. A harness with no
+    // Fidelity must be true, not aspirational. A harness with no
     // hook mechanism declares Arcane `unsupported`; it does not claim `strong`
     // because doctrine says Arcane gates every effect. These values describe
     // what the repository actually ships today and are corrected as native
     // projections land, never rounded up.
     // Derived from src/lib/host/registry.mjs. The projection reports the four
-    // SSOT 36.5 axes; they map onto the adapter's five surfaces (instructions is
+    // fidelity axes; they map onto the adapter's five surfaces (instructions is
     // additionally carried for completeness). Truthful by construction: the
     // values are whatever the adapters declare, never rounded up here.
     harnesses: harnessFidelity(root)

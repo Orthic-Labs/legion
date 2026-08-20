@@ -30,6 +30,9 @@ test('doctor --json emits the canonical shape', () => {
   assert.equal(report.cleanClaimPossible, false);
   assert.ok(Array.isArray(report.gaps));
   assert.ok(Array.isArray(report.commands));
+  assert.equal(report.host.discovery['claude-code'].capabilities, 18);
+  assert.deepEqual(report.host.discovery['claude-code'].entrypoints, ['alchemist', 'coder', 'commit', 'covenant', 'dispatch']);
+  assert.equal(Object.hasOwn(report.host.discovery['claude-code'], 'roleEntrypoints'), false);
 });
 
 test('doctor reflects the network guard environment', () => {

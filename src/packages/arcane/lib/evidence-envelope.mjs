@@ -1,8 +1,8 @@
 // Evidence envelope — seals evidence-capability receipts and carries the
 // full Arcane-side dependency record the frozen receipt cannot express.
 //
-// Detailed plan §6.2 requires tracking dependency edges across a much wider
-// set of dimensions than the frozen `evidence-capability-receipt-v1` schema's
+// Arcane tracks dependency edges across a much wider set of dimensions than
+// the frozen `evidence-capability-receipt-v1` schema's
 // `dependsOn[].kind` enum allows (six values only: decision | source-revision
 // | config-digest | tool-digest | policy-digest | evidence). Per
 // INTERFACES.md's frozen-contract constraint, this module never edits that
@@ -28,7 +28,7 @@ import { digestValue } from './canonical.mjs';
 import { ArcaneError } from './errors.mjs';
 
 // ---------------------------------------------------------------------------
-// Dependency dimensions (detailed plan §6.2, INTERFACES.md §S05 full list)
+// Dependency dimensions (canonical list; see INTERFACES.md evidence envelope)
 // ---------------------------------------------------------------------------
 
 /**

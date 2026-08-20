@@ -15,8 +15,8 @@
 // canonical Legion decision, already made and recorded in the generated host
 // projection (src/registry/host-projection.json). This module CONSUMES that
 // set. Enumerating `skills/*/SKILL.md` off the filesystem would independently
-// redefine membership and would project internal role entrypoints (Alchemist,
-// Covenant) as if they were peer domain expertise.
+// redefine membership and would project explicit entrypoints as if they were
+// peer domain expertise.
 import { existsSync, mkdirSync, readdirSync, symlinkSync, rmSync, lstatSync, readlinkSync, cpSync, readFileSync } from 'node:fs';
 import { join, resolve, relative, sep } from 'node:path';
 
@@ -36,7 +36,7 @@ function hostProjectionPath(legionRoot) {
 
 /**
  * The canonical DISCOVERABLE capability set, in catalog order, read from the
- * generated host projection. Role entrypoints and anything marked internal are
+ * generated host projection. Explicit entrypoints and anything non-public are
  * excluded by the canonical projection itself — this function does not decide,
  * it only reads.
  */
@@ -58,7 +58,7 @@ export function canonicalSkillIds(legionRoot) {
 }
 
 /**
- * Capabilities the canonical projection marks internal / non-discoverable.
+ * Bundles the compatibility projection marks non-projectable, including explicit entrypoints.
  * Exposed so conformance tests can assert they never reach a harness's skill
  * discovery surface.
  */

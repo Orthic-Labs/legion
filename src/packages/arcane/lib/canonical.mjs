@@ -1,8 +1,7 @@
 // Canonical serialization + digests.
 //
-// Detailed plan §4.2 requires "canonical serialization" under every HMAC and
-// §5.2 requires "canonical event serialization" + "per-record digest". This
-// module is the single implementation of both; nothing in Arcane may hand-roll
+// Every HMAC and per-record digest uses canonical serialization. This module is
+// the single implementation; nothing in Arcane may hand-roll
 // JSON.stringify over a security-relevant value.
 //
 // Rules (deliberately strict — ambiguity here is a forgery surface):

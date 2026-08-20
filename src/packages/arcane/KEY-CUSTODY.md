@@ -89,7 +89,7 @@ messages bound to the wrong run/session/workspace/operation are all rejected
 (see `tests/s03-receipt-auth.test.mjs`, `tests/s03-replay.test.mjs`).
 
 **This is not an absolute cryptographic guarantee, and the threat model must
-say so explicitly (detailed plan §4.2): a same-user unrestricted shell can
+say so explicitly: a same-user unrestricted shell can
 still undermine local isolation.** If a process runs as the same OS user as
 the host process that holds a `KeyRing`, it can, in principle, read the same
 `.key` files `loadHostKeyRing` reads, inspect the host process's memory, or

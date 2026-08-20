@@ -1,6 +1,6 @@
 // S03 — append-only receipt store + capability store.
 //
-// Detailed plan §5.1: "Use the Legion workspace store with predecessor namespace
+// Use the Legion workspace store with predecessor namespace
 // and shared immutable object pool. Do not create an unrelated
 // predecessor/predecessor state root as the new authority." Lane D (Kernel) has not
 // landed at the time this module was written (see lib/kernel-binding.mjs),
@@ -84,7 +84,7 @@ export class ReceiptStore {
    * *to* the newest entry:
    *   - rewriting the last entry and recomputing its own recordDigest;
    *   - truncating entries off the end.
-   * The second is exactly what detailed plan §5.3 forbids ("never truncate
+   * The second violates Arcane's append-only history invariant (never truncate
    * history merely to get a green result"), so silent truncation would defeat
    * the store's whole purpose.
    *
@@ -178,7 +178,7 @@ export class ReceiptStore {
   }
 
   /**
-   * Independent verification (detailed plan §5.2). Walks the file from the
+   * Independent verification. Walks the file from the
    * first line, recomputing every per-record digest and chain link. Stops at
    * the first divergence and names its exact sequence — never a range, never
    * "somewhere near".

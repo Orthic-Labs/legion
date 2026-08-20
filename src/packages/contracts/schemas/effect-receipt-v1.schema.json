@@ -30,7 +30,7 @@
     },
 
     "actualDiffDigest": { "type": ["string", "null"], "pattern": "^sha256:[0-9a-f]{64}$" },
-    "hostEventRef": { "type": ["string", "null"], "description": "Reference to the host-observed event that grounds 'observed' (I-07: model self-report is never sufficient)." },
+    "hostEventRef": { "type": ["string", "null"], "description": "Reference to the host-observed event that grounds 'observed'; model self-report is never sufficient." },
 
     "authentication": {
       "type": "object",
@@ -61,7 +61,7 @@
     },
 
     "sourceRevision": { "type": "string", "minLength": 7 },
-    "replayOf": { "type": ["string", "null"], "pattern": "^eff_[0-9A-HJKMNP-TV-Z]{26}$", "description": "Non-null marks this receipt as a detected replay of a prior receipt (replay protection, §24a)." },
+    "replayOf": { "type": ["string", "null"], "pattern": "^eff_[0-9A-HJKMNP-TV-Z]{26}$", "description": "Non-null marks this receipt as a detected replay of a prior receipt." },
     "idempotencyKey": { "type": ["string", "null"] },
 
     "result": { "enum": ["applied", "blocked", "failed", "no-op"] },

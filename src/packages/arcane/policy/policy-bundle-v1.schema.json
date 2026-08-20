@@ -124,7 +124,7 @@
         "policyUnavailable": { "enum": ["fail-closed"] },
         "note": { "type": "string" }
       },
-      "description": "'allow' is not a representable degradation value anywhere. A missing capability never becomes a silent pass (detailed plan §7.4)."
+      "description": "'allow' is not a representable degradation value anywhere. A missing capability never becomes a silent pass."
     },
 
     "evidence": {

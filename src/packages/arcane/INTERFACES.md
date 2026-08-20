@@ -98,7 +98,7 @@ export class ReceiptStore {
 Append-only JSONL. Each line: `{ sequence, at, recordDigest, prevDigest, record }`.
 Atomic write (temp file + `rename`) and owner-only mode where the platform
 supports it. `verifyChain()` is the independent verification operation the
-detailed plan §5.2 requires. Corruption never truncates history (§5.3).
+Arcane requires. Corruption never truncates history.
 
 **Capabilities** live here too:
 
@@ -153,7 +153,7 @@ Hard rules (each needs its own negative test):
 Emitted receipts must satisfy `effect-receipt-v1` (`assertValid`), with
 `authentication.perMessage: true` and `verificationMethod: 'capability-signature'`
 when S03 verified the message, and `'host-connection-trust'` + `perMessage:false`
-when only connection-level trust was available (an honest downgrade, per §24a).
+when only connection-level trust was available, preserving an honest downgrade.
 
 ## S05 — evidence envelope + invalidation (owner: S05)
 
@@ -169,7 +169,7 @@ export function envelopeDigest(envelope);
 
 **Frozen-contract constraint:** `evidence-capability-receipt-v1.dependsOn[].kind`
 is a closed 6-value enum (`decision | source-revision | config-digest |
-tool-digest | policy-digest | evidence`). The detailed plan §6.2 requires far
+tool-digest | policy-digest | evidence`). Arcane tracks far
 more dimensions (lockfile, worktree dirty state, environment/platform, method
 fingerprint, tool/provider version, topology, approval authority, upstream
 contract revision, external source revision). Do **not** edit the frozen
@@ -199,7 +199,7 @@ export class DependencyLedger {
 - Cascade is transitive through `dimension: 'evidence'` edges (S00 finding: predecessor
   had **no** cascade at all — this is new work, not a port).
 - Historical evidence is preserved; staleness is a new fact appended, never a
-  silent refresh (detailed plan §6.3 rule 7).
+  silent refresh.
 - Unaffected evidence must be provably unaffected — the test asserts on the
   `unaffected` list, not just on the staled one.
 

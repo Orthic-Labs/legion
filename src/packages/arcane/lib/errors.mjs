@@ -136,5 +136,5 @@ export function decision({ allowed, code = null, message = '', detail = {}, enfo
   });
 }
 
-/** Enforcement levels Arcane may honestly report (detailed plan §7.3). */
+/** Enforcement levels Arcane may honestly report. */
 export const ENFORCEMENT_LEVEL = Object.freeze(['strong', 'observed', 'read_only', 'advisory', 'unsupported']);

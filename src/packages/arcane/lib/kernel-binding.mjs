@@ -13,7 +13,7 @@
 //     Kernel-issued one.
 //   - Every canonical-state write goes through this seam. With no Kernel bound,
 //     writes fail closed with ARC_KERNEL_PRIMITIVE_UNAVAILABLE rather than
-//     falling back to a second store root (detailed plan §5.1: "do not create
+//     falling back to a second store root (Arcane must not create
 //     an unrelated predecessor/predecessor state root as the new authority").
 //   - Arcane's own append-only receipt store (lib/receipt-store.mjs) is NOT a
 //     second authority: it is the Arcane namespace's local journal, and it is
@@ -119,5 +119,5 @@ export async function putObject(namespace, key, record) {
   return bound.putObject(namespace, key, record);
 }
 
-/** The Legion store namespace Arcane owns (detailed plan §5.1). */
+/** The Legion store namespace Arcane owns. */
 export const ARCANE_NAMESPACE = 'arcane';

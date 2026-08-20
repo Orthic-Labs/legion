@@ -1,4 +1,4 @@
-// Shared read side of the canonical host projection (SSOT 36.2).
+// Shared read side of the canonical host projection.
 //
 // Roles already reached every harness through src/lib/roster/index.mjs, so role
 // text was never the duplication problem. Capabilities were: no binder projected
@@ -25,9 +25,8 @@ export function loadHostProjection() {
 /**
  * Publicly discoverable domain capabilities, in catalog order.
  *
- * Role entrypoints (`skills/alchemist`, `skills/covenant`) and anything marked
- * internal are excluded: a slash command must not make an authority or an
- * internal primitive appear as peer expertise in discovery (SSOT 6.1, 18).
+ * Explicit entrypoints are excluded: a slash command must not make an authority,
+ * workflow entrypoint, or internal primitive appear as peer expertise in discovery.
  */
 export function publicCapabilities() {
   return loadHostProjection().capabilities
@@ -35,7 +34,7 @@ export function publicCapabilities() {
 }
 
 /**
- * The compact discovery catalog as Markdown — SSOT 23 layer 1. Names and
+ * The compact discovery catalog as Markdown. Names and
  * one-line descriptions only; method stays in SKILL.md and loads after
  * selection, so a harness that carries this block does not preload doctrine.
  */
@@ -49,7 +48,7 @@ export function capabilityCatalogBlock() {
   ].join('\n');
 }
 
-/** Declared fidelity for one harness (SSOT 36.5), or null when undeclared. */
+/** Declared fidelity for one harness, or null when undeclared. */
 export function harnessFidelity(id) {
   return loadHostProjection().harnesses.find((h) => h.id === id) ?? null;
 }

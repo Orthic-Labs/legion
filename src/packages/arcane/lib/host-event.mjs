@@ -2,7 +2,7 @@
 // one versioned, closed host-event schema, and classify what a completed
 // operation actually observed.
 //
-// Detailed plan §3.2 requires a single canonical host-event contract with:
+// Arcane uses a single canonical host-event contract with:
 // event id/type/time; adapter/client/host identity+versions; request/run/
 // task/session binding; workspace/subject binding; actor/issuer identity;
 // operation/tool identity; a redacted/canonical argument digest (never raw
@@ -38,7 +38,7 @@ const DATE_TIME_RE = '^\\d{4}-\\d{2}-\\d{2}[Tt]\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?([Z
 const DIGEST_RE = DIGEST_PATTERN.source;
 
 /**
- * Canonical event classes (detailed plan §7.2 required lifecycle hooks,
+ * Canonical event classes required by lifecycle hooks,
  * normalized). `normalizeHostEvent` translates real adapter-native names
  * (Claude Code / Codex hook events — legacy-semantic-inventory.json
  * #hook_enforcement_points) into these via LEGACY_HOST_EVENT_TYPE.
@@ -311,7 +311,7 @@ export function normalizeHostEvent(raw, { adapter } = {}) {
 }
 
 // ---------------------------------------------------------------------------
-// Classification (detailed plan §3.2 action 5; WP4 actions 5 and 8).
+// Deterministic event classification.
 // ---------------------------------------------------------------------------
 
 export const EFFECT_OBSERVATION_CLASS = Object.freeze([

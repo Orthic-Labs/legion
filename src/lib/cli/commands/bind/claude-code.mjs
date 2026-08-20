@@ -5,7 +5,7 @@
 // legion MCP server natively, and scripts/verify-plugin-parity.mjs proves that
 // surface resolves in full. `legion bind` previously ALSO wrote .claude/agents,
 // .mcp.json, and a CLAUDE.md block for the same roles — two installers for one
-// harness. That duplication is exactly what SSOT I-20 forbids, and it is what
+// harness. That duplication violates the one-installation-owner invariant and is what
 // made the installed plugin's identity unreadable in practice.
 //
 // This module is kept only so the harness NAME still resolves for drift receipts
@@ -21,7 +21,7 @@ export const RETIRED = true;
 export const RETIREMENT_NOTE =
   'Claude Code is installed by the Legion plugin package, not by legion bind. '
   + 'Use the plugin (npm run plugin:dev for the live-source dev command); '
-  + 'bind no longer writes .claude/ for Claude Code (SSOT I-20: one installation path per harness).';
+  + 'bind no longer writes .claude/ for Claude Code (one installation path owns each harness).';
 
 // Never auto-selected as an installer. A repo with .claude/ is a Claude Code
 // repo, but its Legion installation owner is the plugin, so bind must not treat

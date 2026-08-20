@@ -85,7 +85,7 @@ export function runBind(argv, { stdout, stderr, cwd }) {
       artifacts: targets.map((target) => artifactForTarget(root, target)),
       drift,
       managedConflicts,
-      // A retired installation path (SSOT I-20) writes nothing and carries a
+      // A retired installation path writes nothing and carries a
       // note pointing to the owner, so an explicit --harness request is answered
       // rather than silently doing nothing.
       ...(mod.RETIRED ? { retired: true, note: mod.RETIREMENT_NOTE } : {}),

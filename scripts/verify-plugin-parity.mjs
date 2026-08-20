@@ -8,7 +8,7 @@
 // signalled the drift because the version string was identical.
 //
 // The surface a Claude plugin exposes, by convention plus manifest:
-//   skills/<id>/SKILL.md          domain capabilities and role entrypoints
+//   skills/<id>/SKILL.md          capabilities and explicit entrypoints
 //   agents/<name>.md              authority agents
 //   .claude-plugin/plugin.json    mcpServers → the legion MCP server entry point
 //   hooks/hooks.json              lifecycle hook command targets

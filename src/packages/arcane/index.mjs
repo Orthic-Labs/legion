@@ -5,7 +5,7 @@
 // sits on the host boundary and executes on every turn. Nothing in this
 // package calls a model, and nothing in it takes an npm dependency.
 //
-// Three interception points (§24a):
+// Three deterministic interception points:
 //   PRE-PROMPT GATE     authority identity per turn -> lib/authority.mjs
 //   PRE-EFFECT GATE     capability/path/effect-class/latitude -> lib/preeffect-gate.mjs
 //   POST-EFFECT RECEIPT host-observed effect -> lib/ingest.mjs + lib/receipt-store.mjs

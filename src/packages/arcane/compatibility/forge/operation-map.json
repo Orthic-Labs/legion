@@ -29,7 +29,7 @@
       "conflicts": [
         {
           "legacy": "assess accepts caller-supplied `authority` and stores it on the run row.",
-          "arcaneInvariant": "Authority identity is asserted by the kernel per turn, never claimed by the model in text (ARCHITECTURE §24a).",
+          "arcaneInvariant": "Authority identity is asserted by the kernel per turn, never claimed by the model in text.",
           "resolution": "Compatibility error ARC_AUTHORITY_MODEL_CLAIMED when the alias payload carries an `authority` field. The alias does not silently drop it and does not silently honor it."
         }
       ]
@@ -76,7 +76,7 @@
       "conflicts": [
         {
           "legacy": "A gate can pass on evidence whose trust came from an unvalidated host receipt.",
-          "arcaneInvariant": "Claim prerequisites are validated against authenticated evidence only (ARCHITECTURE §26: Arcane validates prerequisites and controls release).",
+          "arcaneInvariant": "Arcane validates claim prerequisites against authenticated evidence and controls release.",
           "resolution": "Gate outcome is recomputed from canonical evidence. A legacy-passing gate may evaluate to blocked under Arcane; that is a strengthening and is reported explicitly, never suppressed."
         }
       ]
@@ -96,7 +96,7 @@
       "conflicts": [
         {
           "legacy": "close_ledger_hash is computed by the same process that wrote the ledger.",
-          "arcaneInvariant": "Tamper evidence must be independently verifiable (detailed plan §5.2).",
+          "arcaneInvariant": "Tamper evidence must be independently verifiable.",
           "resolution": "close still returns close_ledger_hash for compatibility, but canonical integrity is the Arcane receipt-store prev-digest chain, verified by ReceiptStore.verifyChain(). The legacy hash is not treated as evidence of anything."
         }
       ]
@@ -127,7 +127,7 @@
       "conflicts": [
         {
           "legacy": "doctor reports environment facts but never states an enforcement level.",
-          "arcaneInvariant": "A host without working interception cannot be labeled `strong`; Arcane reports its own degradation honestly, typed, per capability (ARCHITECTURE §24a).",
+          "arcaneInvariant": "A host without working interception cannot be labeled `strong`; Arcane reports its own degradation honestly, typed, per capability.",
           "resolution": "Extended, not weakened: the canonical operation additionally returns a per-capability enforcement level. No legacy output field is removed."
         }
       ]
@@ -138,7 +138,7 @@
       "loadBearing": false,
       "canonicalOperationId": null,
       "disposition": "rejected",
-      "reason": "Destructive, unconfirmed, and authenticated by nothing beyond the same model-only CLI ceiling as every other command; deletes every row matching a run id across all tables. It contradicts the append-only history requirement (detailed plan §5.3: 'never truncate history merely to get a green result'). No canonical successor. Calling the alias returns a typed compatibility error.",
+      "reason": "Destructive, unconfirmed, and authenticated by nothing beyond the same model-only CLI ceiling as every other command; deletes every row matching a run id across all tables. It contradicts Arcane's append-only history requirement: never truncate history merely to get a green result. No canonical successor. Calling the alias returns a typed compatibility error.",
       "conflicts": [
         {
           "legacy": "purge deletes history.",
@@ -153,7 +153,7 @@
       "loadBearing": true,
       "canonicalOperationId": null,
       "disposition": "out-of-scope",
-      "reason": "ARCHITECTURE §24a: Arcane 'does not absorb Forge's product expansion (no second daemon, no docs-provider hub, no separate CLI, no competing lifecycle store).' The docs resolver is product expansion, not enforcement lineage. Listed here so the omission is explicit rather than an oversight."
+      "reason": "Arcane's canonical boundary excludes Forge product expansion: no second daemon, docs-provider hub, separate CLI, or competing lifecycle store. The docs resolver is product expansion, not enforcement lineage. Listed here so the omission is explicit rather than an oversight."
     },
     {
       "legacyOperation": "sequentialthinking / resolve-library-id / query-docs",
@@ -183,7 +183,7 @@
       "conflicts": [
         {
           "legacy": "A handler exceeding its 1500ms budget is marked bypassed_delayed_verifier and the dispatcher CONTINUES past it (lib/dispatcher.js:29-37) — enforcement can be skipped purely on a timeout, fail-open.",
-          "arcaneInvariant": "If the pre-effect gate is unavailable, mutation-bearing operations fail closed; read-only operations may continue with a recorded enforcement-health downgrade (ARCHITECTURE §24a).",
+          "arcaneInvariant": "If the pre-effect gate is unavailable, mutation-bearing operations fail closed; read-only operations may continue with a recorded enforcement-health downgrade.",
           "resolution": "NOT preserved. This is the single most important behavioral divergence in this map. Arcane's pre-effect gate returns ARC_GATE_UNAVAILABLE with failClosed:true for mutation-bearing effect classes on timeout/unavailability, and a recorded downgrade for read-only ones. Legacy callers relying on fail-open will observe denials they did not previously get; that is the intended strengthening."
         }
       ]

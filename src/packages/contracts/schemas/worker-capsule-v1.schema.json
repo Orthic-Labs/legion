@@ -42,7 +42,7 @@
           "statement": { "type": "string", "minLength": 1 }
         }
       },
-      "description": "Embedded copies (not references) — §31/§45 zero-context completeness: the capsule must be self-sufficient without conversation history."
+      "description": "Embedded copies, not references: the capsule must be self-sufficient without conversation history."
     },
     "invariants": {
       "type": "array",

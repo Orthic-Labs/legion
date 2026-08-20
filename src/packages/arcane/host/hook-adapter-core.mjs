@@ -215,7 +215,7 @@ export function handleHookEvent(hookPayload, deps) {
   // defaults to null, nothing in this repository wires one, and so every
   // `git push --force` was refused with an approval that could not be produced
   // by any action available to the operator or the agent. That is a dead end,
-  // not enforcement (SSOT I-22).
+  // not enforcement.
   //
   // The refusal therefore escalates instead of denying: the effect still does
   // not proceed on Arcane's own authority, and the host asks the operator. A
@@ -377,14 +377,14 @@ export function deriveTouchedPaths(receiptStore, runId) {
  *
  * `hostEvent.runId` has no source in a bare host hook payload (see each
  * adapter's module header) and is therefore null for a bare hook-driven
- * Stop. That case is AMBIENT work, not governed work (SSOT 36.7): no run or
+ * Stop. That case is ambient work, not governed work: no run or
  * contract was ever opened, so there is no completion claim to certify and no
  * evidence the session had any opportunity to produce.
  *
  * Failing closed there was a category error. It judged ambient work by
  * governed-work contract evidence and produced a refusal nothing could
  * satisfy — the session could not open a contract retroactively at Stop, so
- * `unsupported` was terminal (SSOT I-22). Ambient Stop is now allowed and
+ * `unsupported` was terminal. Ambient Stop is now allowed and
  * labelled honestly as ungoverned, so `legion doctor` and telemetry can still
  * see that no contract enforcement applied. This does not weaken governed
  * work: once a run binding exists (`sessionBinding` supplies `runId`), the

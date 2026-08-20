@@ -19,7 +19,7 @@ export const MCP_REGISTERED = false;
 //
 // The descriptor-driven harness seam (src/lib/host/) is now the installer for
 // this harness's AGENTS.md instructions block. Two installers competing for one surface is the
-// failure SSOT I-20 forbids and the precedent already applied to bind's Claude
+// failure the one-installation-owner invariant forbids and the precedent already applied to bind's Claude
 // Code writer. `detect()` therefore returns false: `legion bind --write` with no
 // explicit --harness will never select this writer.
 //
@@ -47,7 +47,7 @@ export function present(root) {
 // Roles alone were never Legion. This projection previously carried the three
 // authorities and no capabilities at all, so a harness reaching Legion this way
 // could route to Sage but had no idea `audit`, `architect`, or `designer`
-// existed. The compact catalog (SSOT 23 layer 1) is added: names and one-line
+// existed. The compact catalog is added: names and one-line
 // descriptions only, so selection is possible without preloading any method.
 function agentsMdTarget(root) {
   const catalog = capabilityCatalogBlock();

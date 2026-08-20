@@ -1,4 +1,4 @@
-// Claude Code — installation owner is the packaged plugin (SSOT I-20), so the
+// Claude Code — installation owner is the packaged plugin, so the
 // adapter DECLARES full native fidelity and DEFERS install to the plugin rather
 // than writing a competing .claude/ tree. verify() confirms the plugin surface.
 export default {

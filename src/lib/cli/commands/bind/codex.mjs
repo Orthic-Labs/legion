@@ -35,7 +35,7 @@ export const FIDELITY_TIER = 'full';
 //
 // The descriptor-driven harness seam (src/lib/host/) is now the installer for
 // this harness's .codex/config.toml MCP registration. Two installers competing for one surface is the
-// failure SSOT I-20 forbids and the precedent already applied to bind's Claude
+// failure the one-installation-owner invariant forbids and the precedent already applied to bind's Claude
 // Code writer. `detect()` therefore returns false: `legion bind --write` with no
 // explicit --harness will never select this writer.
 //
