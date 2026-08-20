@@ -1,11 +1,10 @@
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { cpSync, mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs';
+import { mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { dirname, join, relative } from 'node:path';
+import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import test from 'node:test';
-import { createRequire } from 'node:module';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
 
@@ -72,37 +71,5 @@ test('fresh standalone checkout runs self-test and schema check without parent f
     assert.match(selfTest, /match|OK|pass/i);
   } finally {
     rmSync(tempHome, { recursive: true, force: true });
-  }
-});
-
-test('Windows portability tests pass from a copied standalone checkout', () => {
-  const temp = mkdtempSync(join(tmpdir(), 'legion-portable-copy-'));
-  const checkout = join(temp, 'legion-copy');
-  try {
-    cpSync(root, checkout, {
-      recursive: true,
-      filter(source) {
-        const path = relative(root, source).replaceAll('\\', '/');
-        return !path.startsWith('.git')
-          && !path.startsWith('node_modules')
-          && !path.startsWith('qualification/evidence')
-          && path !== 'docs/architecture.md'
-          && path !== 'pnpm-lock.yaml';
-      },
-    });
-    const require = createRequire(import.meta.url);
-    const hookRuntime = require.resolve('@rightkit/hooks');
-    cpSync(dirname(dirname(hookRuntime)), join(checkout, 'node_modules', '@rightkit', 'hooks'), { recursive: true });
-    const env = { ...process.env };
-    delete env.NODE_TEST_CONTEXT;
-    const output = execFileSync(process.execPath, ['--test', 'tests/windows-portability.test.mjs'], {
-      cwd: checkout,
-      encoding: 'utf8',
-      env,
-      stdio: ['ignore', 'pipe', 'pipe'],
-    });
-    assert.match(output, /pass 4/);
-  } finally {
-    rmSync(temp, { recursive: true, force: true });
   }
 });

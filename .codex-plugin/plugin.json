@@ -1,6 +1,6 @@
 {
   "name": "legion",
-  "version": "0.1.0-dev.0",
+  "version": "0.1.0-dev.1",
   "author": "Orthic Labs",
   "description": "Legion — the authority system for AI-assisted engineering. Orchestrates Sage (decisions), Alchemist (transformation), Oracle (assurance), and Arcane (the deterministic gate), plus the evidence-governed whole-repository audit engine that backs Oracle.",
   "license": "SEE LICENSE IN LICENSE",

@@ -137,7 +137,7 @@ export function reportToSarif(report) {
         generatedAt: report?.generated_at ?? report?.generatedAt ?? null,
         planSeal: report?.plan?.seal?.digest ?? null,
         planSignature: report?.plan?.seal?.signature ?? null,
-        cortexGeneration: report?.cortex?.generationId ?? null,
+        blueprintGeneration: report?.blueprint?.generationId ?? null,
       },
     }],
   };

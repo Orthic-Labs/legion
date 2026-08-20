@@ -26,14 +26,14 @@ const repositoryBinding = {
   dirty: false,
   dirtyPatchDigest: 'sha256:clean',
 };
-const cortexBinding = {
+const blueprintBinding = {
   state: 'ready',
   generationId: 'gen-1',
   manifestDigest: 'sha256:manifest',
   sourceObservation: { head: 'abc', statusDigest: 'status-1' },
 };
 
-test('dependency and script selected providers bind Cortex implementation files, not only package.json', () => {
+test('dependency and script selected providers bind Blueprint implementation files, not only package.json', () => {
   const plan = buildAuditPlan({
     root: '/repo',
     registry: loadProviderRegistry(),
@@ -57,8 +57,8 @@ test('signed plan verifies only with the matching key', () => {
   assert.equal(verifyPlanSeal(plan), true);
   assert.equal(verifyPlanSignature(plan, 'correct-key'), true);
   assert.equal(verifyPlanSignature(plan, 'wrong-key'), false);
-  assert.equal(verifyPlanBinding(plan, repositoryBinding, cortexBinding, 'correct-key').valid, true);
-  assert.ok(verifyPlanBinding(plan, repositoryBinding, cortexBinding, 'wrong-key').drift.some((item) => item.field === 'signature'));
+  assert.equal(verifyPlanBinding(plan, repositoryBinding, blueprintBinding, 'correct-key').valid, true);
+  assert.ok(verifyPlanBinding(plan, repositoryBinding, blueprintBinding, 'wrong-key').drift.some((item) => item.field === 'signature'));
 });
 
 test('unsigned plan is integrity-valid but explicitly UNPROVEN', () => {

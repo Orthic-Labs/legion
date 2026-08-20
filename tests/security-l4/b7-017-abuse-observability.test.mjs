@@ -12,7 +12,7 @@ const SEVERITY_RANK = { info: 0, low: 1, medium: 2, high: 3, critical: 4 };
 
 const BINDING = {
   planDigest: 'sha256:plan', repositoryRevision: 'rev', dirtyPatchDigest: null,
-  cortexGenerationId: 'gen', cortexManifestDigest: 'sha256:manifest', registryDigest: 'sha256:registry',
+  blueprintGenerationId: 'gen', blueprintManifestDigest: 'sha256:manifest', registryDigest: 'sha256:registry',
 };
 
 function run(pack, filesMap, auditFacts = {}) {
@@ -28,7 +28,7 @@ function run(pack, filesMap, auditFacts = {}) {
     seal: { digest: BINDING.planDigest },
     binding: {
       repositoryRevision: BINDING.repositoryRevision, dirtyPatchDigest: null,
-      cortex: { generationId: BINDING.cortexGenerationId, manifestDigest: BINDING.cortexManifestDigest },
+      blueprint: { generationId: BINDING.blueprintGenerationId, manifestDigest: BINDING.blueprintManifestDigest },
       registryDigest: BINDING.registryDigest,
     },
     providers: [{ id: pack.id, benchmark: { requiredForCleanClaim: true }, denominator: { pathDigest: 'sha256:denom', pathCount: files.length, paths: files } }],

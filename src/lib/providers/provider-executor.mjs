@@ -120,5 +120,5 @@ export function resolveRepositoryModule(script) {
   if (script.startsWith('/') || /^[a-zA-Z]:[\\/]/.test(script)) {
     throw new Error(`runtime-script path must be repository-relative: ${script}`);
   }
-  return resolve(import.meta.dirname, '..', '..', script);
+  return resolve(import.meta.dirname, '..', '..', '..', script);
 }

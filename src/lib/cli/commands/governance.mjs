@@ -1,4 +1,3 @@
-import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { parseArgs } from 'node:util';
 
@@ -6,7 +5,7 @@ import { EXIT, LegionError } from '../../errors.mjs';
 import { AuthorityBindingStore } from '../../../packages/arcane/lib/authority-binding-store.mjs';
 import { upsertFinding } from '../../../packages/arcane/lib/finding-lifecycle.mjs';
 import { HostEventLedger } from '../../../packages/arcane/lib/host-event-ledger.mjs';
-import { loadHostKeyRing } from '../../../packages/arcane/lib/keys.mjs';
+import { loadCanonicalHostKeyRing, loadHostKeyRing } from '../../../packages/arcane/lib/keys.mjs';
 import { ReceiptStore } from '../../../packages/arcane/lib/receipt-store.mjs';
 import { createDeliveryGovernanceDispatcher, runDeliveryGovernance } from './governance/delivery.mjs';
 import { dispatchExecutionControl } from './governance/execution.mjs';
@@ -26,7 +25,8 @@ const parseRequest = (argv) => {
 };
 
 function authenticatedContext({ cwd, env, values }) {
-  const keyRing = loadHostKeyRing({ dir: values['key-dir'] || env.ARCANE_KEY_DIR || join(homedir(), '.claude', 'arcane-keys') });
+  const configured = values['key-dir'] || env.ARCANE_KEY_DIR;
+  const keyRing = configured ? loadHostKeyRing({ dir: configured }) : loadCanonicalHostKeyRing();
   return {
     keyRing,
     receiptStore: new ReceiptStore({ root: join(cwd, '.audit', 'arcane', 'receipts') }),

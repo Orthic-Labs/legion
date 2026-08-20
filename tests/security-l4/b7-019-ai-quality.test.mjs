@@ -9,7 +9,7 @@ import { buildEvaluationReceiptSchema } from '../../src/providers/ai-quality/sch
 
 const BINDING = {
   planDigest: 'sha256:plan', repositoryRevision: 'rev', dirtyPatchDigest: null,
-  cortexGenerationId: 'gen', cortexManifestDigest: 'sha256:manifest', registryDigest: 'sha256:registry',
+  blueprintGenerationId: 'gen', blueprintManifestDigest: 'sha256:manifest', registryDigest: 'sha256:registry',
 };
 
 const IDENTITY = {

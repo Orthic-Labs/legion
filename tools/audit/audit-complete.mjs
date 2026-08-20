@@ -3,7 +3,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, isAbsolute, join, resolve } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { readCortexManifestBinding, readCortexProjection, collectRepositoryBinding } from '../../src/adapters/cortex-projection.mjs';
+import { readBlueprintManifestBinding, readBlueprintPacket, collectRepositoryBinding } from '../../src/adapters/blueprint-packet.mjs';
 import { enrichProjectionWithEcosystems } from '../../src/adapters/ecosystem-manifests.mjs';
 import { buildAuditPlan, reconcilePlanWithFacts, verifyPlanBinding, writeAuditPlan } from './audit-plan.mjs';
 import { loadProviderRegistry } from '../../src/registry/provider-registry.mjs';
@@ -138,7 +138,7 @@ export function reconcileCompleteRun({ plan, facts, providerResults, securityRes
   return {
     ...facts,
     incomplete,
-    cortex: { state: projection.state, reason: projection.reason ?? null, generationId: projection.generationId ?? null, manifestDigest: projection.manifestDigest ?? null, fileCount: projection.fileCount ?? 0, sourceFileCount: projection.sourceFileCount ?? 0, parsedExtensions: projection.parsedExtensions ?? [], unsupportedExtensions: projection.unsupportedExtensions ?? [] },
+    blueprint: { state: projection.state, reason: projection.reason ?? null, generationId: projection.generationId ?? null, manifestDigest: projection.manifestDigest ?? null, fileCount: projection.fileCount ?? 0, sourceFileCount: projection.sourceFileCount ?? 0, parsedExtensions: projection.parsedExtensions ?? [], unsupportedExtensions: projection.unsupportedExtensions ?? [] },
     plan: { schemaVersion: plan.schemaVersion, seal: plan.seal, binding: plan.binding, expectedChecks: plan.denominator.expectedChecks, selectedProviderIds: plan.denominator.providerIds, coverageGaps: plan.coverageGaps },
     provider_reconciliation: { ...legacy, providerResults: [...legacy.providerResults.filter((provider) => provider.status !== 'pending'), ...providerResults], coverageFamilies: families, unresolvedCoverage: unresolved, missingRuntimeProviders, denominatorMismatches },
     security: { candidatesPath: 'security-candidates.json', candidatesCount: securityResult?.candidates?.length ?? 0, adjudicationRequired: securityPending },
@@ -154,10 +154,10 @@ export async function runCompleteAudit(inputOptions) {
   const options = applyOfflinePolicy(inputOptions);
   const root = resolve(options.root);
   const outDir = resolve(options.outDir ?? join(root, '.audit', new Date().toISOString().replace(/[:.]/g, '-')));
-  const cortexOut = options.cortexOut ?? '.agent';
+  const blueprintOut = options.blueprintOut ?? '.agent';
   mkdirSync(outDir, { recursive: true });
   const registry = loadProviderRegistry(options.registryPath);
-  const projection = enrichProjectionWithEcosystems(readCortexProjection(root, { outDir: cortexOut }), root);
+  const projection = enrichProjectionWithEcosystems(readBlueprintPacket(root, { outDir: blueprintOut }), root);
   const plan = buildAuditPlan({ root, registry, projection, repositoryBinding: collectRepositoryBinding(root), scope: options.scope, only: options.only, skip: options.skip });
   const planPath = join(outDir, 'plan.json');
   writeAuditPlan(planPath, plan);
@@ -220,7 +220,7 @@ export async function runCompleteAudit(inputOptions) {
       return { ...result, status: 'error', complete: false, coverageGaps: [{ kind: 'provider-validation', provider: result.provider, error: error.message }] };
     }
   });
-  const bindingVerification = verifyPlanBinding(plan, collectRepositoryBinding(root), readCortexManifestBinding(root, { outDir: cortexOut }));
+  const bindingVerification = verifyPlanBinding(plan, collectRepositoryBinding(root), readBlueprintManifestBinding(root, { outDir: blueprintOut }));
   const facts = reconcileCompleteRun({ plan, facts: rawFacts, providerResults: normalizedResults, securityResult, projection, bindingVerification });
   facts.plan.path = planPath;
   facts.network_policy = {
@@ -236,7 +236,7 @@ export async function runCompleteAudit(inputOptions) {
 function arg(args, name) { const index = args.indexOf(name); return index >= 0 ? args[index + 1] : null; }
 function values(args, name) { const raw = arg(args, name); return raw ? raw.split(',').map((value) => value.trim()).filter(Boolean) : []; }
 function first(args) {
-  const valued = new Set(['--out', '--only', '--skip', '--type', '--base', '--base-commit', '--dir', '--cortex-out', '--url', '--surfaces', '--visual-spec', '--visual-baselines', '--width', '--height']);
+  const valued = new Set(['--out', '--only', '--skip', '--type', '--base', '--base-commit', '--dir', '--blueprint-out', '--url', '--surfaces', '--visual-spec', '--visual-baselines', '--width', '--height']);
   for (let index = 0; index < args.length; index += 1) {
     if (args[index].startsWith('--')) { if (valued.has(args[index])) index += 1; continue; }
     return args[index];
@@ -246,7 +246,7 @@ function first(args) {
 async function main() {
   const args = process.argv.slice(2);
   const result = await runCompleteAudit({
-    root: first(args), outDir: arg(args, '--out'), cortexOut: arg(args, '--cortex-out') ?? '.agent',
+    root: first(args), outDir: arg(args, '--out'), blueprintOut: arg(args, '--blueprint-out') ?? '.agent',
     only: values(args, '--only'), skip: values(args, '--skip'),
     scope: { mode: ['--type', '--base', '--base-commit', '--dir'].some((name) => args.includes(name)) ? 'diff' : 'whole-repo', type: arg(args, '--type') ?? 'all', base: arg(args, '--base'), baseCommit: arg(args, '--base-commit'), dir: arg(args, '--dir') },
     planOnly: args.includes('--plan-only'), quiet: args.includes('--quiet'), url: arg(args, '--url'),

@@ -1,8 +1,7 @@
 {
   "schemaVersion": 1,
   "aliases": {
-    "/blueprint": "/cortex",
-    "/brief": "hook:brief",
+        "/brief": "hook:brief",
     "/glass": "/designer glass",
     "/hormozi": "/marketing offer",
     "/justdoit": "/alchemist",

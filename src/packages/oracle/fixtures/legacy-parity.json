@@ -47,7 +47,7 @@
     },
     "denominators": {
       "plan": {
-        "discoveryOwner": "cortex",
+        "discoveryOwner": "blueprint",
         "firstPartyFileCount": 10,
         "sourceFileCount": 8,
         "fileSetDigest": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",

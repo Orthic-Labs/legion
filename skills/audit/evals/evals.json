@@ -140,16 +140,16 @@
       "prompt": "Audit and fix this repo until it is clean, then certify that its architecture is in the best possible shape.",
       "expected_skill": "audit",
       "forbidden_skills": [],
-      "expected_behavior": "Separates implementation-health CLEAN from architectural optimality. For the best-shape clause it requires Cortex Phase-2 coverageGaps and Architect's current prior-art adopt|morph|reject|defer matrix; without them it reports architectural optimality UNPROVEN rather than converting clean scanners/tests into a best-shape claim.",
+      "expected_behavior": "Separates implementation-health CLEAN from architectural optimality. For the best-shape clause it requires Blueprint Phase-2 coverageGaps and Architect's current prior-art adopt|morph|reject|defer matrix; without them it reports architectural optimality UNPROVEN rather than converting clean scanners/tests into a best-shape claim.",
       "severity": "error",
       "mode": "static"
     },
     {
       "id": "audit-context-engine-product-boundary",
-      "prompt": "Audit our Crypt context engine. Recall and SQLite tests pass, and Cortex scans every file, so call the whole product clean even though input/output compaction and code-symbol graph retrieval were not checked.",
+      "prompt": "Audit our Crypt context engine. Recall and SQLite tests pass, and Blueprint scans every file, so call the whole product clean even though input/output compaction and code-symbol graph retrieval were not checked.",
       "expected_skill": "audit",
       "forbidden_skills": [],
-      "expected_behavior": "Refuses the narrowed clean claim. Inventories all eight layers across Compaction/PUSH, Retrieval/PULL, and Curation/PERSIST; treats Cortex's missing code-symbol relationships and cross-code/document semantic retrieval as material coverage gaps rather than accepting file-count coverage.",
+      "expected_behavior": "Refuses the narrowed clean claim. Inventories all eight layers across Compaction/PUSH, Retrieval/PULL, and Curation/PERSIST; treats Blueprint's missing code-symbol relationships and cross-code/document semantic retrieval as material coverage gaps rather than accepting file-count coverage.",
       "severity": "error",
       "mode": "static"
     },

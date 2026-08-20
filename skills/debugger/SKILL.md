@@ -29,7 +29,7 @@ Use for a known failure needing reproduction, isolation, hypothesis testing, roo
 or a minimal verified repair. Natural-language triggers include "this test is failing", "debug
 this crash", and "why is production returning 403?".
 
-Do not use for preflight validation of an unrun command, repository mapping (`/cortex`),
+Do not use for preflight validation of an unrun command, repository mapping (`/blueprint`),
 systematic evaluation (`/audit`), independent Completion Validation (Oracle), or design of a future state (`/architect`).
 
 ## Method

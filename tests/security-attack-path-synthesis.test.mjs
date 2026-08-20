@@ -6,7 +6,7 @@ import { bindingFromPlan } from '../src/providers/security/contracts.mjs';
 
 const BINDING = {
   planDigest: 'sha256:plan', repositoryRevision: 'rev1', dirtyPatchDigest: null,
-  cortexGenerationId: 'gen1', cortexManifestDigest: 'sha256:manifest', registryDigest: 'sha256:registry',
+  blueprintGenerationId: 'gen1', blueprintManifestDigest: 'sha256:manifest', registryDigest: 'sha256:registry',
 };
 
 function planWith() {
@@ -14,7 +14,7 @@ function planWith() {
     seal: { digest: 'sha256:plan' },
     binding: {
       repositoryRevision: 'rev1', dirtyPatchDigest: null,
-      cortex: { generationId: 'gen1', manifestDigest: 'sha256:manifest' },
+      blueprint: { generationId: 'gen1', manifestDigest: 'sha256:manifest' },
       registryDigest: 'sha256:registry',
     },
     providers: [],

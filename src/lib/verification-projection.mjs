@@ -89,12 +89,12 @@ export function verificationProjection(facts) {
       providerIds: [...(facts.plan?.denominator?.providerIds ?? [])].sort(),
       expectedChecks: [...(facts.plan?.denominator?.expectedChecks ?? [])].sort(),
     },
-    cortex: {
-      generationId: facts.cortex?.generationId
-        ?? facts.plan?.binding?.cortex?.generationId ?? null,
-      manifestDigest: facts.cortex?.manifestDigest
-        ?? facts.plan?.binding?.cortex?.manifestDigest ?? null,
-      providerVersion: facts.cortex?.providerVersion ?? null,
+    blueprint: {
+      generationId: facts.blueprint?.generationId
+        ?? facts.plan?.binding?.blueprint?.generationId ?? null,
+      manifestDigest: facts.blueprint?.manifestDigest
+        ?? facts.plan?.binding?.blueprint?.manifestDigest ?? null,
+      providerVersion: facts.blueprint?.providerVersion ?? null,
     },
     networkPolicy: {
       mode: facts.network_policy?.mode ?? null,

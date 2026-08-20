@@ -9,7 +9,7 @@
   "secrets_unscanned": false,
   "manifest_drift": null,
   "scope": { "mode": "whole-repo", "type": "all" },
-  "detectionOwner": "cortex",
+  "detectionOwner": "blueprint",
   "detectionDisagreement": [],
   "network_policy": { "mode": "deny", "sandboxActive": false },
   "checks": [
@@ -88,11 +88,11 @@
       "repositoryRevision": "4e82122e713341f9a27545207a00ba45645d8e8f",
       "dirty": false,
       "dirtyPatchDigest": null,
-      "cortex": { "state": "ready", "generationId": "generation-verify-001", "manifestDigest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", "sourceStatusDigest": null, "sourceHead": null },
+      "blueprint": { "state": "ready", "generationId": "generation-verify-001", "manifestDigest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", "sourceStatusDigest": null, "sourceHead": null },
       "registryDigest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
     },
     "denominator": {
-      "discoveryOwner": "cortex",
+      "discoveryOwner": "blueprint",
       "firstPartyFileCount": 10,
       "sourceFileCount": 8,
       "fileSetDigest": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",

@@ -52,7 +52,7 @@ from the user's requested outcome.
    conversion/retention baseline is theoretical; if the data is unavailable, label the output
    "Hypothetical — requires baseline data," don't present it as optimisation.
 8. **Feature verification before promoting a capability.** Do not write copy claiming a feature is live
-   until it's confirmed shipped — check `docs/product.md`, or `cortex graph search <feature>` where the host provides the `cortex-graph` capability (without it, rely on `docs/product.md` alone and say the graph was unavailable). A feature
+   until it's confirmed shipped — check `docs/product.md`, or `Membrane Blueprint context for <feature>` where the host provides the `blueprint-graph` capability (without it, rely on `docs/product.md` alone and say the graph was unavailable). A feature
    that is `planned`/unverified gets "coming soon" framing (route to `writing`), never a live claim.
 
 ## Parametrization + Anti-Slop (mandatory)

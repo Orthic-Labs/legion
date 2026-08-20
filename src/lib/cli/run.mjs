@@ -16,7 +16,7 @@ Usage: legion <command> [options]
 
 Commands:
   init [root]        Initialize repository audit configuration (dry-run preview)
-  doctor [root]      Report repository, Cortex, coverage, provider, and host state
+  doctor [root]      Report repository, Blueprint and Membrane context, coverage, provider, and host state
   bind [root]        Write or check per-harness bindings (agents, MCP, doctrine)
   languages [root]   Report detected languages and coverage tiers
   providers [root]   Report selected providers

@@ -88,12 +88,12 @@ test('security verdicts and evidence strength are canonical', () => {
 test('security binding helper rejects incomplete bindings', () => {
   assert.throws(() => assertBinding({ planDigest: 'sha256:a' }), /binding\.repositoryRevision/);
   assert.throws(() => assertBinding({
-    planDigest: 'sha256:a', repositoryRevision: 'r', cortexGenerationId: 'g',
-    cortexManifestDigest: 'sha256:m', registryDigest: 'sha256:r', dirtyPatchDigest: 5,
+    planDigest: 'sha256:a', repositoryRevision: 'r', blueprintGenerationId: 'g',
+    blueprintManifestDigest: 'sha256:m', registryDigest: 'sha256:r', dirtyPatchDigest: 5,
   }), /dirtyPatchDigest/);
   assert.doesNotThrow(() => assertBinding({
     planDigest: 'sha256:a', repositoryRevision: 'r', dirtyPatchDigest: null,
-    cortexGenerationId: 'g', cortexManifestDigest: 'sha256:m', registryDigest: 'sha256:r',
+    blueprintGenerationId: 'g', blueprintManifestDigest: 'sha256:m', registryDigest: 'sha256:r',
   }));
 });
 

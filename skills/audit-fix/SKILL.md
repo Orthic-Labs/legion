@@ -44,7 +44,7 @@ writes (authority is not inferred from `repository-write`). Its actual effects r
 Arcane-gated.
 
 1. Require prior `plan.json`, `facts.json`, `report.json`, & security adjudication result.
-2. Verify plan seal, repository binding, Cortex generation, provider set, & denominators before
+2. Verify plan seal, repository binding, Blueprint generation, provider set, & denominators before
    editing. Stop on drift & create a new `/audit` plan.
 3. Fix only unambiguous findings. Never auto-fix manual findings, unadjudicated security findings,
    or visual findings lacking acceptance evidence.

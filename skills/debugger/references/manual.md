@@ -76,10 +76,10 @@ Then:
 
 ### 2. Isolate
 
-- **Ground first when mapped:** run `cortex doctor`; trust generated evidence when doctor is
+- **Ground first when mapped:** run `blueprint doctor`; trust generated evidence when doctor is
   `ready`, or when doctor is `degraded` while the graph is explicitly fresh and doctor reports no
   blocker/error — carry every degradation warning into the diagnosis instead of treating it as clean.
-  If the graph exists, confirm `cortex graph status`, then use `graph search|resolve` to
+  If the graph exists, confirm `blueprint graph status`, then use `graph search|resolve` to
   identify the failing nodes, `graph path` to trace the suspected call/data route, `graph neighbors`
   for the local dependency boundary, and `graph impact` to find callers/consumers that may reproduce
   the failure. Graph output narrows hypotheses; exact source, logs, and the reproduction establish cause.
@@ -123,7 +123,7 @@ mask the very race or ordering bug being chased. Earn step 5.
 | Input-driven crash | property/fuzz testing (Hypothesis, fast-check, proptest, cargo-fuzz) |
 | Production-only behaviour | telemetry — see fields below |
 
-**Membrane boundary.** Cortex is the current-repository truth producer; Audit may contribute
+**Membrane boundary.** Blueprint is the current-repository truth producer; Audit may contribute
 current diagnostic evidence; Architect designs a future state only when the investigation exposes
 an architectural change. Crypt is durable memory, not current execution proof.
 

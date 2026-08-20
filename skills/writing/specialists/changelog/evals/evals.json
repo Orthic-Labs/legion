@@ -29,11 +29,11 @@
   ],
   "should_not_trigger": [
     {
-      "id": "changelog-generator-not-cortex",
+      "id": "changelog-generator-not-blueprint",
       "prompt": "Help me co-write a technical spec for a new API endpoint.",
-      "expected_skill": "cortex",
+      "expected_skill": "blueprint",
       "forbidden_skills": ["changelog-generator"],
-      "expected_behavior": "Technical spec / design-doc co-authoring routes to /cortex, not /writing changelog. changelog-generator is for git-commit-to-release-notes transforms only.",
+      "expected_behavior": "Technical spec / design-doc co-authoring routes to /blueprint, not /writing changelog. changelog-generator is for git-commit-to-release-notes transforms only.",
       "severity": "error",
       "mode": "discovery",
       "assertions": [

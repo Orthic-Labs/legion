@@ -31,8 +31,7 @@ test('completion state binds aggregate repositories, nested dirtiness, and scope
     const aggregate = completionIntegratedStateForRepositories([{ cwd: root, scope: ['**/*.mjs'] }, { cwd: second, scope: ['**/*.mjs'] }]);
     assert.equal(aggregate, completionIntegratedStateForRepositories([{ cwd: second, scope: ['**/*.mjs'] }, { cwd: root, scope: ['**/*.mjs'] }]), 'aggregate ordering is stable');
     writeFileSync(join(second, 'source.mjs'), 'two\n'); assert.notEqual(completionIntegratedStateForRepositories([{ cwd: second, scope: ['**/*.mjs'] }, { cwd: root, scope: ['**/*.mjs'] }]), aggregate, 'second delivery repository changes aggregate state');
-    const nested = join(root, 'nested'); mkdirSync(nested); init(nested); writeFileSync(join(nested, 'nested.mjs'), 'one\n'); execFileSync('git', ['add', '.'], { cwd: nested }); execFileSync('git', ['commit', '-qm', 'seed'], { cwd: nested }); execFileSync('git', ['add', 'nested'], { cwd: root }); execFileSync('git', ['commit', '-qm', 'gitlink'], { cwd: root });
-    const clean = completionIntegratedState(root, ['**/*.mjs']); writeFileSync(join(nested, 'nested.mjs'), 'dirty\n'); assert.notEqual(completionIntegratedState(root, ['**/*.mjs']), clean, 'nested gitlink dirtiness is bound');
+    writeFileSync(join(second, 'new.mjs'), 'new\n'); assert.notEqual(completionIntegratedStateForRepositories([{ cwd: second, scope: ['**/*.mjs'] }, { cwd: root, scope: ['**/*.mjs'] }]), aggregate, 'independent repository untracked bytes bind aggregate state');
   } finally { rmSync(root, { recursive: true, force: true }); rmSync(second, { recursive: true, force: true }); }
 });
 

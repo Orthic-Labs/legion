@@ -39,8 +39,8 @@ overrides it.
 
 1. Freeze repository root, scope, revision, dirty state, & requested mode.
 2. Read [provider architecture](../../references/provider-architecture.md); discovery belongs to
-   Cortex — never build a parallel registry.
-3. Run `node ../../tools/audit/audit-run.mjs <root>`: fresh Cortex generation, signed `plan.json`, & exact
+   Blueprint — never build a parallel registry.
+3. Run `node ../../tools/audit/audit-run.mjs <root>`: fresh Blueprint generation, signed `plan.json`, & exact
    frozen provider set; missing signing material is `UNPROVEN`.
 4. Project-executing checks need trusted host network-sandbox receipt; without it they are
    `UNPROVEN`; file-only providers still run.
@@ -52,7 +52,7 @@ overrides it.
 9. Deduplicate, then run `../../tools/audit/audit-finalize.mjs` to write `report.json` & `report.sarif`.
 10. Reconcile every provider & denominator; incomplete coverage is never clean.
 
-Return gate vector, coverage, findings with evidence loci, rerun commands, seal, signature, Cortex
+Return gate vector, coverage, findings with evidence loci, rerun commands, seal, signature, Blueprint
 generation, receipts, artifacts, & typed degradation; `quality_gate` stays separate.
 
 Read [full manual](../../references/manual.md) only for complex runtime, migration, desktop/Tauri,

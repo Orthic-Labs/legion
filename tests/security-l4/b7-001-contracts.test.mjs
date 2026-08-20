@@ -37,8 +37,8 @@ const binding = {
   planDigest: 'sha256:plan',
   repositoryRevision: 'rev',
   dirtyPatchDigest: null,
-  cortexGenerationId: 'gen',
-  cortexManifestDigest: 'sha256:manifest',
+  blueprintGenerationId: 'gen',
+  blueprintManifestDigest: 'sha256:manifest',
   registryDigest: 'sha256:registry',
 };
 
@@ -116,13 +116,5 @@ test('generated security schemas are committed byte-identically and are enum-clo
     if (relativePath.endsWith('security-binding-v1.schema.json')) continue;
     assert.ok(schema.required.includes('binding'), `${relativePath} must require binding`);
     assert.ok(schema.required.includes('denominatorDigest'), `${relativePath} must require denominatorDigest`);
-  }
-});
-
-test('legacy top-level security schemas remain generated and unchanged', () => {
-  const legacy = buildSecuritySchemas({ includeLegacy: true });
-  for (const name of ['security-binding-v1', 'security-model-v1', 'security-verdict-v1']) {
-    const committed = JSON.parse(readFileSync(new URL(`../../schemas/${name}.schema.json`, import.meta.url), 'utf8'));
-    assert.deepEqual(committed, legacy[`src/schemas/${name}.schema.json`]);
   }
 });

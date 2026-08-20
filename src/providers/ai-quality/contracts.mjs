@@ -83,12 +83,12 @@ export function digest(value) {
 }
 
 // Same binding shape/semantics as the security binding (frozen plan +
-// repository revision + Cortex generation + registry digest), reimplemented
+// repository revision + Blueprint generation + registry digest), reimplemented
 // locally rather than imported, so ai-quality has zero coupling to
 // providers/security/**.
 export function assertBinding(binding) {
   requireObject(binding, 'binding');
-  for (const key of ['planDigest', 'repositoryRevision', 'cortexGenerationId', 'cortexManifestDigest', 'registryDigest']) {
+  for (const key of ['planDigest', 'repositoryRevision', 'blueprintGenerationId', 'blueprintManifestDigest', 'registryDigest']) {
     requireString(binding[key], `binding.${key}`);
   }
   if (binding.dirtyPatchDigest !== null) requireString(binding.dirtyPatchDigest, 'binding.dirtyPatchDigest');

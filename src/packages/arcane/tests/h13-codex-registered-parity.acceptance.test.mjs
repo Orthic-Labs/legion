@@ -1,12 +1,17 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { test } from 'node:test';
+import test, { after } from 'node:test';
 
 import {
   buildRawCodexEvent,
   normalizeCodexEvent,
 } from '../host/codex-adapter.mjs';
 import { classifyObservation } from '../lib/host-event.mjs';
+
+// Payload-only parity fixtures must not inherit this process's wrapper thread.
+// Native hook session_id remains sole identity authority.
+const inheritedCodexThreadId = process.env.CODEX_THREAD_ID;
+delete process.env.CODEX_THREAD_ID;
 
 // Parity is asserted against the registration Legion actually ships. The
 // previous target was a sibling checkout (codex-brief-plugin) that exists on
@@ -94,4 +99,9 @@ test('H-13 oracle: matcher coverage stays honest', () => {
   });
   assert.equal(failure.result.outcome, 'failure');
   assert.equal(failure.effect, null);
+});
+
+after(() => {
+  if (inheritedCodexThreadId === undefined) delete process.env.CODEX_THREAD_ID;
+  else process.env.CODEX_THREAD_ID = inheritedCodexThreadId;
 });

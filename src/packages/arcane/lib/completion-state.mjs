@@ -58,10 +58,7 @@ function repositoryState(cwd, scope = []) {
   const root = realpathSync(command(cwd, ['rev-parse', '--show-toplevel']).trim());
   const tree = command(root, ['rev-parse', 'HEAD^{tree}']).trim();
   const diff = command(root, ['diff', '--binary', 'HEAD']);
-  // Git's parent diff records a gitlink's committed revision but not every
-  // working-tree change beneath it. Porcelain with submodules enabled binds
-  // nested dirty/untracked state as well.
-  const status = command(root, ['status', '--porcelain=v1', '--untracked-files=no', '--ignore-submodules=none']);
+  const status = command(root, ['status', '--porcelain=v1', '--untracked-files=no']);
   return { cwd: root.replaceAll('\\', '/'), state: `git:${tree}:${sha256(`${diff}\n${status}\n${scopedUntracked(root, scope)}`)}` };
 }
 

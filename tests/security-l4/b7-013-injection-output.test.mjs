@@ -12,7 +12,7 @@ const registry = JSON.parse(readFileSync(registryPath, 'utf8'));
 
 const BINDING = {
   planDigest: 'sha256:plan', repositoryRevision: 'rev', dirtyPatchDigest: null,
-  cortexGenerationId: 'gen', cortexManifestDigest: 'sha256:manifest', registryDigest: 'sha256:registry',
+  blueprintGenerationId: 'gen', blueprintManifestDigest: 'sha256:manifest', registryDigest: 'sha256:registry',
 };
 
 function planFor(pack, files) {
@@ -20,7 +20,7 @@ function planFor(pack, files) {
     seal: { digest: BINDING.planDigest },
     binding: {
       repositoryRevision: BINDING.repositoryRevision, dirtyPatchDigest: null,
-      cortex: { generationId: BINDING.cortexGenerationId, manifestDigest: BINDING.cortexManifestDigest },
+      blueprint: { generationId: BINDING.blueprintGenerationId, manifestDigest: BINDING.blueprintManifestDigest },
       registryDigest: BINDING.registryDigest,
     },
     providers: [{
@@ -214,7 +214,7 @@ test('injection pack keeps shell sink metadata and command-injection uncertainty
     seal: { digest: BINDING.planDigest },
     binding: {
       repositoryRevision: BINDING.repositoryRevision, dirtyPatchDigest: null,
-      cortex: { generationId: BINDING.cortexGenerationId, manifestDigest: BINDING.cortexManifestDigest },
+      blueprint: { generationId: BINDING.blueprintGenerationId, manifestDigest: BINDING.blueprintManifestDigest },
       registryDigest: BINDING.registryDigest,
     },
     providers: [{ id: 'security.injection', benchmark: { requiredForCleanClaim: true }, denominator: { pathDigest: 'sha256:denom', pathCount: 1, paths: ['app.py'] } }],

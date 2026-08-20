@@ -18,15 +18,15 @@
       },
       "remedy": "Wire an image-generation MCP server and expose it as BANANA_MCP_URL. This package ships no generator and no fallback."
     },
-    "cortex-graph": {
+    "blueprint-graph": {
       "kind": "graph-engine",
-      "summary": "Code and knowledge graph search backing the Cortex skill and audit provider discovery.",
-      "degradation": "Return a NO_CAPABILITY result naming cortex-graph. Never fall back to ad-hoc grep and never present ungraphed results as graph results.",
+      "summary": "Code and knowledge graph search backing the Blueprint skill and audit provider discovery.",
+      "degradation": "Return a NO_CAPABILITY result naming blueprint-graph. Never fall back to ad-hoc grep and never present ungraphed results as graph results.",
       "probe": {
         "kind": "command",
-        "command": "cortex"
+        "command": "blueprint"
       },
-      "remedy": "Install the Cortex graph engine and put its `cortex` executable on PATH, then re-run. This package does not ship it."
+      "remedy": "Install the Blueprint graph engine and put its `blueprint` executable on PATH, then re-run. This package does not ship it."
     },
     "omniroute": {
       "kind": "local-gateway",

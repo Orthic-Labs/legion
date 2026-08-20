@@ -21,9 +21,9 @@
 
 - **Original user intent verbatim:** Restore Handoff artifacts while preserving unrelated workspace changes.
 - **Underlying goal:** Ship a callable, validated cold-start Handoff skill package.
-- **Current objective:** Verify package template, parser, validator, & focused tests.
+- **Current objective:** Verify package template, Membrane transport, validator, & focused tests.
 - **Definition of success:** Template self-check, receipt verification, & focused tests exit successfully.
-- **Out of scope:** Registry, aliases, parent pins, commits, pushes, & unrelated package edits.
+- **Out of scope:** Registry, aliases, repository topology, commits, pushes, & unrelated package edits.
 - **First responsibility:** Verify this packet receipt before inspecting live state.
 - **Must not do first:** Do not reset, stage, commit, or overwrite shared checkout work.
 
@@ -37,7 +37,7 @@
 - **Last action:** Run template validator self-check.
 - **Last observed result:** Template validator exited zero with PASS evidence.
 - **Active goal / plan:** Restore package parity then report exact paths & hashes.
-- **Current hypothesis:** Library wrappers preserve legacy validation semantics.
+- **Current hypothesis:** Pointer transport preserves host boundary while Membrane owns semantics.
 
 ## 3. Environment & Active Work
 
@@ -47,7 +47,7 @@
 - **Baseline revision:** c1c7e818 legacy-retirement boundary.
 - **Dirty state:** Shared checkout may contain concurrent Handoff library & test edits.
 - **OS / shell:** macOS zsh with python3.
-- **Tools / dependencies:** Python standard library plus tools.lib.orthic_transcripts.
+- **Tools / dependencies:** Python standard library plus installed Membrane continuity command.
 - **Services / processes:** NONE_CHECKED: do not stop any shared process.
 - **Agents / tasks / threads:** Concurrent Handoff library & test owners may be active.
 - **Scheduled work:** NONE_CHECKED: no scheduler inspection needed.

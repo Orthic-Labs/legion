@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Packaged Handoff transcript compiler entrypoint."""
+"""Packaged Handoff pointer & Membrane continuity entrypoint."""
 
 from importlib.util import module_from_spec, spec_from_file_location
 from pathlib import Path

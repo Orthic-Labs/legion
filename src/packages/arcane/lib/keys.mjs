@@ -11,6 +11,7 @@
 
 import { createHmac, randomBytes } from 'node:crypto';
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
+import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { ArcaneError } from './errors.mjs';
 
@@ -155,6 +156,16 @@ export function loadHostKeyRing({ dir }) {
   const ring = new KeyRing();
   loadDirectoryInto(ring, dir);
   return ring;
+}
+
+// One Mac host verification ring is projected at this path by workspace setup.
+// Host adapters may keep per-harness signing paths, but authenticated CLI
+// readers must verify every legitimate historical host key from one custody
+// location rather than whichever harness happened to sign the latest event.
+export const DEFAULT_CANONICAL_HOST_KEY_DIR = join(homedir(), '.codex', 'arcane-keys');
+
+export function loadCanonicalHostKeyRing({ dir = DEFAULT_CANONICAL_HOST_KEY_DIR } = {}) {
+  return loadHostKeyRing({ dir });
 }
 
 export function loadVerificationKeyRing({ dirs }) {

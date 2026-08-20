@@ -1,0 +1,50 @@
+{
+  "schemaVersion": 1,
+  "id": "blueprint",
+  "version": "1.0.0",
+  "entry": "SKILL.md",
+  "rootUri": "legion-skill://blueprint/",
+  "provenance": "legion-authored",
+  "licenseState": "licensed",
+  "rightsReceipt": {
+    "kind": "legion-rights-receipt",
+    "basis": "repository-license",
+    "license": "LICENSE",
+    "licenseDigest": "sha256:6519936585434711b6d5971a3081fbd8b499438a39b6a08cc2191d33443926b4"
+  },
+  "profiles": {
+    "audit": {
+      "mutation": false,
+      "publish": false
+    },
+    "authoring": {
+      "mutation": true,
+      "publish": false,
+      "externalOnly": true
+    }
+  },
+  "parity": {
+    "triggers": [
+      "/blueprint",
+      "Build or consume current source-grounded repository truth through Membrane's Blueprint packet. Use /blueprint before inheriting, changing, auditing, or judging unfamiliar code."
+    ],
+    "outputs": [],
+    "scripts": [],
+    "templates": [],
+    "schemas": [],
+    "receipts": [],
+    "evals": [],
+    "consumers": [
+      "src/registry/skills/index.json",
+      "src/lib/skills/resolver.mjs",
+      "src/registry/routing/domains.json"
+    ]
+  },
+  "files": [
+    {
+      "path": "SKILL.md",
+      "uri": "legion-skill://blueprint/SKILL.md",
+      "digest": "sha256:0e48baa6008330cf55bfc9bbb020efa462776839721c704db525255b256dc015"
+    }
+  ]
+}

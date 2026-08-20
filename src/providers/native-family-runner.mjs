@@ -209,7 +209,7 @@ const FRAMEWORK_SPECS = Object.freeze({
     inspect({ root, files }) {
       const findings = [];
       const configs = files.filter((file) => /(^|\/)tailwind\.config\.(js|cjs|mjs|ts)$/.test(file));
-      if (!configs.length) findings.push(finding('tailwind-config-missing', 'warning', 'Tailwind dependency exists but no Tailwind config is in the Cortex denominator.'));
+      if (!configs.length) findings.push(finding('tailwind-config-missing', 'warning', 'Tailwind dependency exists but no Tailwind config is in the Blueprint denominator.'));
       for (const file of files.filter((file) => /\.(jsx?|tsx?|vue|svelte|html)$/.test(file))) {
         const text = safeRead(join(root, file));
         if (/class(?:Name)?\s*=\s*\{[^}]*[`'"][^`'"]*\$\{/.test(text)) findings.push(finding('tailwind-dynamic-class', 'warning', 'Runtime-built Tailwind class may be absent from generated CSS.', file));

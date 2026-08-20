@@ -11,16 +11,16 @@ const ROOT = fileURLToPath(new URL('../..', import.meta.url));
 const aliases = JSON.parse(readFileSync(join(ROOT, 'src', 'config', 'capability-aliases.json'), 'utf8')).aliases;
 const PUBLIC_ENTRYPOINTS = [
   'alchemist', 'architect', 'audit', 'audit-fix', 'audit-visual', 'brand', 'coder',
-  'commit', 'cortex', 'covenant', 'debugger', 'dispatch',
+  'blueprint', 'commit', 'covenant', 'debugger', 'dispatch',
   'handoff', 'qa', 'tasklist',
 ];
 
 test('legacy semantic aliases resolve only to packaged public Legion capabilities', () => {
   assert.equal(aliases['/jfdi'], '/alchemist');
   assert.equal(aliases['/council'], '/covenant');
-  assert.equal(aliases['/blueprint'], '/cortex');
+  assert.equal(aliases['/blueprint'], undefined);
 
-  for (const target of [aliases['/jfdi'], aliases['/council'], aliases['/blueprint']]) {
+  for (const target of [aliases['/jfdi'], aliases['/council']]) {
     const capability = target.slice(1).split(' ', 1)[0];
     assert.equal(existsSync(join(ROOT, 'skills', capability, 'SKILL.md')), true, target);
   }
@@ -39,7 +39,7 @@ test('canonical & legacy commands resolve through packaged manifests with negati
   }
   assert.equal(resolveSkillInvocation('/jfdi execute', { root: ROOT }).canonical, 'alchemist');
   assert.equal(resolveSkillInvocation('/council review', { root: ROOT }).canonical, 'covenant');
-  assert.equal(resolveSkillInvocation('/blueprint map', { root: ROOT }).resolvedInvocation, '/cortex map');
+  assert.equal(resolveSkillInvocation('/blueprint map', { root: ROOT }).resolvedInvocation, '/blueprint map');
   assert.equal(resolveSkillInvocation('/glass refine header', { root: ROOT }).resolvedInvocation, '/designer glass refine header');
   assert.equal(resolveSkillInvocation('/motion hero', { root: ROOT }).resolvedInvocation, '/designer motion hero');
   assert.equal(resolveSkillInvocation('/hormozi launch', { root: ROOT }).resolvedInvocation, '/marketing offer launch');

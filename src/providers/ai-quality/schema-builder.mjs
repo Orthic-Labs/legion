@@ -110,13 +110,13 @@ export function buildEvaluationReceiptSchema() {
       evidenceRefs: STRINGS,
       binding: {
         type: 'object',
-        required: ['planDigest', 'repositoryRevision', 'dirtyPatchDigest', 'cortexGenerationId', 'cortexManifestDigest', 'registryDigest'],
+        required: ['planDigest', 'repositoryRevision', 'dirtyPatchDigest', 'blueprintGenerationId', 'blueprintManifestDigest', 'registryDigest'],
         properties: {
           planDigest: SHA,
           repositoryRevision: { type: 'string', minLength: 1 },
           dirtyPatchDigest: NULLABLE_SHA,
-          cortexGenerationId: { type: 'string', minLength: 1 },
-          cortexManifestDigest: SHA,
+          blueprintGenerationId: { type: 'string', minLength: 1 },
+          blueprintManifestDigest: SHA,
           registryDigest: SHA,
         },
         additionalProperties: false,

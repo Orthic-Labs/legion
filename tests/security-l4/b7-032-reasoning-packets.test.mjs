@@ -18,8 +18,8 @@ const binding = {
   planDigest: 'sha256:plan',
   repositoryRevision: 'abc123',
   dirtyPatchDigest: null,
-  cortexGenerationId: 'gen',
-  cortexManifestDigest: 'sha256:manifest',
+  blueprintGenerationId: 'gen',
+  blueprintManifestDigest: 'sha256:manifest',
   registryDigest: 'sha256:registry',
 };
 
@@ -179,8 +179,8 @@ test('a design proposal changes layout or style and preserves approved text dige
 test('a code proposal is a bounded source patch confined to scope and protected surfaces', () => {
   const codePacket = packet({
     owner: 'code',
-    scope: ['src/app.mjs'],
-    protectedSurfaces: ['schemas/**'],
+    scope: ['src/**'],
+    protectedSurfaces: ['src/schemas/**'],
     producer: { id: 'code.agent', kind: 'reasoning', version: '1.0.0', contextId: 'ctx-c' },
   });
   const proposal = codeProposal({

@@ -120,7 +120,7 @@ examples: architect, audit, research, designer, seo
 HOST CAPABILITY
 externally supplied execution or tool facility the package does not contain,
 declared in src/registry/capabilities.json
-examples: cortex-graph, web-search, omniroute
+examples: blueprint-graph, web-search, omniroute
 ```
 
 Unqualified "capability" in this document means **domain capability**. Host capabilities are
@@ -307,7 +307,7 @@ runtime only validates/loads selected capability IDs and resolves explicit alias
 
 At the current ~20–30 semantic entries, no retrieval infrastructure (RAG, embeddings, vector
 search, graph routing, RDF/JSON-LD, hierarchical retrieval) is added. Add retrieval only after
-measured discovery failure. Cortex graph infrastructure remains unrelated to capability routing.
+measured discovery failure. Blueprint graph infrastructure remains unrelated to capability routing.
 
 Explicit-only entrypoints (`alchemist`, `covenant`, `dispatch`, `commit`, `coder`) are excluded
 from automatic natural-language capability selection; explicit user intent resolves them.

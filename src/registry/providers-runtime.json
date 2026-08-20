@@ -10,7 +10,7 @@
         "op": "sourceFilesAtLeast",
         "count": 1
       },
-      "allowWithoutCortex": false,
+      "allowWithoutBlueprint": false,
       "runner": {
         "kind": "runtime-script",
         "script": "src/providers/native-family-runner.mjs"
@@ -22,7 +22,7 @@
       "providerVersion": "1.0.0",
       "dependsOn": [],
       "consumes": [
-        "cortex-projection"
+        "blueprint-packet"
       ],
       "produces": [
         "provider-result"
@@ -92,7 +92,7 @@
           }
         ]
       },
-      "allowWithoutCortex": false,
+      "allowWithoutBlueprint": false,
       "runner": {
         "kind": "runtime-script",
         "script": "src/providers/framework-suite.mjs"
@@ -106,7 +106,7 @@
       "providerVersion": "1.0.0",
       "dependsOn": [],
       "consumes": [
-        "cortex-projection"
+        "blueprint-packet"
       ],
       "produces": [
         "security-candidates"
@@ -155,7 +155,7 @@
           }
         ]
       },
-      "allowWithoutCortex": false,
+      "allowWithoutBlueprint": false,
       "runner": {
         "kind": "runtime-script",
         "script": "src/providers/data-suite.mjs"
@@ -169,7 +169,7 @@
       "providerVersion": "1.0.0",
       "dependsOn": [],
       "consumes": [
-        "cortex-projection"
+        "blueprint-packet"
       ],
       "produces": [
         "security-candidates"
@@ -202,7 +202,7 @@
           "**/Tauri.toml"
         ]
       },
-      "allowWithoutCortex": false,
+      "allowWithoutBlueprint": false,
       "runner": {
         "kind": "runtime-script",
         "script": "src/providers/infrastructure-suite.mjs"
@@ -216,7 +216,7 @@
       "providerVersion": "1.0.0",
       "dependsOn": [],
       "consumes": [
-        "cortex-projection"
+        "blueprint-packet"
       ],
       "produces": [
         "security-candidates"
@@ -234,7 +234,7 @@
         "op": "sourceFilesAtLeast",
         "count": 1
       },
-      "allowWithoutCortex": false,
+      "allowWithoutBlueprint": false,
       "runner": {
         "kind": "runtime-script",
         "script": "src/providers/generic-source-suite.mjs"
@@ -246,7 +246,7 @@
       "providerVersion": "1.0.0",
       "dependsOn": [],
       "consumes": [
-        "cortex-projection"
+        "blueprint-packet"
       ],
       "produces": [
         "provider-result"
@@ -296,7 +296,7 @@
           }
         ]
       },
-      "allowWithoutCortex": false,
+      "allowWithoutBlueprint": false,
       "runner": {
         "kind": "runtime-script",
         "script": "src/providers/accessibility-suite.mjs"
@@ -308,7 +308,7 @@
       "providerVersion": "1.0.0",
       "dependsOn": [],
       "consumes": [
-        "cortex-projection"
+        "blueprint-packet"
       ],
       "produces": [
         "provider-result"
@@ -351,7 +351,7 @@
           }
         ]
       },
-      "allowWithoutCortex": false,
+      "allowWithoutBlueprint": false,
       "runner": {
         "kind": "runtime-script",
         "script": "src/providers/visual-core.mjs"
@@ -363,7 +363,7 @@
       "providerVersion": "1.0.0",
       "dependsOn": [],
       "consumes": [
-        "cortex-projection",
+        "blueprint-packet",
         "runtime-evidence"
       ],
       "produces": [

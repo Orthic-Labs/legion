@@ -28,7 +28,7 @@ and `minimize`: they need the exact tokens, never skeletonize (`minimize`/ponyta
 `yagni`/`delete` — a one-impl trait vs a real DI seam, a wrapper that only delegates vs one that
 adds logic — which a skeleton strips out; guessing from a skeleton is exactly the false-positive
 trap `references/ponytail-lens.md` forbids).
-When Cortex Phase 2 exists, pass `understanding.json.architecture.coverageGaps` to the
+When Blueprint Phase 2 exists, pass `understanding.json.architecture.coverageGaps` to the
 `architecture` lens. Under an explicit best-shape/completeness request, every material
 `partial|missing|undetermined` flow must appear in the lens output with its evidence and an
 `architect` handoff; absence of a code file is the evidence for a documented-but-missing flow.

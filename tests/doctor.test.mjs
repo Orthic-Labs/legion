@@ -23,8 +23,8 @@ test('doctor --json emits the canonical shape', () => {
   assert.equal(report.schemaVersion, 1);
   assert.equal(report.kind, 'legion-doctor');
   assert.ok(report.repository.root);
-  assert.ok(['ready', 'stale', 'missing', 'incompatible', 'corrupt'].includes(report.cortex.state));
-  assert.ok(['bundled', 'external', 'precomputed'].includes(report.cortex.mode));
+  assert.ok(['ready', 'stale', 'missing', 'incompatible', 'corrupt'].includes(report.blueprint.state));
+  assert.ok(['packet-file', 'transport', 'unavailable'].includes(report.blueprint.mode));
   assert.ok(Array.isArray(report.coverage.languages));
   assert.ok(Array.isArray(report.providers.selected));
   assert.ok(typeof report.hostCapabilities.networkSandbox === 'boolean');

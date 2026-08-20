@@ -1,5 +1,5 @@
 // JavaScript/TypeScript language pack per SNIP-LANGUAGE-PACK-01. Combines
-// Cortex AST/SCIP, tsc/Oxc, ast-grep, OpenGrep, dependency policy, and
+// Blueprint AST/SCIP, tsc/Oxc, ast-grep, OpenGrep, dependency policy, and
 // test/build evidence. Commands run only when selected by the frozen plan and
 // represented in the exact provider denominator.
 

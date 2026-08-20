@@ -22,7 +22,7 @@ boots the dev server and sweeps every reachable surface for visual, runtime, and
 (e.g. "typing re-renders every tab") that static analysis cannot see.
 
 Do **not** use for single-file or single-PR review (use code review) or to map the current
-architecture (use `cortex`). **Out of scope, route elsewhere:** commercial/product-strategy gaps
+architecture (use `blueprint`). **Out of scope, route elsewhere:** commercial/product-strategy gaps
 → `/marketing`; engineering design gaps → `/architect`; competitive/absorption analysis →
 `/research` (never emit uncited competitor claims); explicitly requested multi-model launch
 verdicts → `/covenant launch` (the report's `triage_top` + critical count already IS the blocker
@@ -32,13 +32,13 @@ list — don't restate it as a verdict).
 repo root and any runnable surface they start locally — never the inferred health of a live site
 whose source moved elsewhere (audit the owning repo separately). For a deployed URL, `/seo audit`
 owns crawl/index/schema/CWV evidence and `/audit-visual` owns rendered UI/UX; neither replaces
-repository Audit. Cortex documents with `lifecycle.status` `superseded|archived` are provenance
+repository Audit. Blueprint documents with `lifecycle.status` `superseded|archived` are provenance
 only, excluded from the doc-drift input denominator — history, never a current finding.
 
 **Health is not optimality.** `CLEAN` means the current implementation passed the applicable scanner,
 lens, runtime, and test gates. It does not prove every material flow is covered or that stronger
 current approaches were considered. When the user asks for "best shape", "best architecture",
-"architecturally complete", or equivalent, Audit must consume Cortex's `coverageGaps[]` and route
+"architecturally complete", or equivalent, Audit must consume Blueprint's `coverageGaps[]` and route
 each material gap through `architect`'s current prior-art `adopt|morph|reject|defer` matrix before the
 final response — without that artifact, architecture optimality is **UNPROVEN** even when the health
 verdict is CLEAN. For an assessment-only request, consume Architect's read-only Phase-2 matrix and
@@ -57,15 +57,15 @@ A pipeline. Scanners fan out; the build step is the lone serial exception; stage
 
 | Stage | Execution |
 |---|---|
-| 0 · Cortex grounding (if available) | Check freshness; query the current graph + flow inventory; use `.agent/` document/claim artifacts as the verified companion layer |
-| 1 · Scanners (`collect-facts.mjs`) | Consume fresh Cortex hygiene facts first; run only missing/stale checks in a **parallel**, bounded pool `min(cpus-1,4)`. Size metrics nominate review candidates; they do not emit architecture findings. |
+| 0 · Blueprint grounding (if available) | Check freshness; query the current graph + flow inventory; use `.agent/` document/claim artifacts as the verified companion layer |
+| 1 · Scanners (`collect-facts.mjs`) | Consume fresh Blueprint hygiene facts first; run only missing/stale checks in a **parallel**, bounded pool `min(cpus-1,4)`. Size metrics nominate review candidates; they do not emit architecture findings. |
 | 1b · `build` / install check | **Sequential, alone**, after the pool (builds/installs are serial) |
 | 2 · Reasoning lenses | After stage 1 (all consume `facts.json`). **Default = parallel native Claude subagents** (one Agent spawn per lens; haiku for mechanical lenses, sonnet for judgment lenses — never opus; see Lens fan-out). Running lenses inline in the main session is the fallback. **NO external model APIs** — no api-worker or any HTTP model provider (locked 2026-07-05: provider limits repeatedly hung runs) |
 | 3 · Synthesize → render → open | Sequential |
 
 ## Procedure
 
-0. **Ground in Cortex (if mapped).** Run `cortex doctor --json`, then `cortex graph status`.
+0. **Ground in Blueprint (if mapped).** Run `blueprint doctor --json`, then `blueprint graph status`.
    Trust generated evidence when doctor is `ready`, or when doctor is `degraded` while the graph is
    explicitly fresh and doctor reports no blocker/error; carry every degradation warning into audit
    constraints/findings instead of treating it as clean. A `missing|stale|broken|corrupt` state, a
@@ -75,7 +75,7 @@ A pipeline. Scanners fan out; the build step is the lone serial exception; stage
    loci and flows. Structural queries default to ranked reference rows under a token budget; use
    `--json` for machine parsing, inspect the freshness stamp, and follow continuation cursors rather
    than requesting an unbounded graph dump.
-   For a best-shape/completeness request, `cortex graph flows --complete` is the primary flow
+   For a best-shape/completeness request, `blueprint graph flows --complete` is the primary flow
    inventory and `understanding.json.architecture.coverageGaps` is the secondary synthesized queue.
    Every material `partial|missing|undetermined` flow goes onward to Architect.
 
@@ -84,14 +84,14 @@ A pipeline. Scanners fan out; the build step is the lone serial exception; stage
    `understanding.json`, and `verdicts.json` machine-local artifacts remain the
    document/claim layer where present. Every `contradicted`/`stale` verdict is a ready-made
    **doc-drift finding** only after current code evidence re-verifies it. On a large unmapped
-   repo, run Cortex first; on a small repo where Cortex is unavailable, record
-   `graph-unavailable` and let scanners plus lenses stand alone. Cortex is the current-reality
+   repo, run Blueprint first; on a small repo where Blueprint is unavailable, record
+   `graph-unavailable` and let scanners plus lenses stand alone. Blueprint is the current-reality
    producer; Audit is the diagnosis layer.
 
-   Run `cortex hygiene status --json`. When it is `fresh`, ingest
+   Run `blueprint hygiene status --json`. When it is `fresh`, ingest
    `.agent/hygiene/facts.json` and exclude those completed checks from Audit scanner fan-out. When it
-   is `missing|stale`, run `cortex hygiene refresh --json` (or `--offline` when network probes are
-   disallowed) before Audit. Cortex owns cached facts/candidates; Audit still owns severity,
+   is `missing|stale`, run `blueprint hygiene refresh --json` (or `--offline` when network probes are
+   disallowed) before Audit. Blueprint owns cached facts/candidates; Audit still owns severity,
    policy, false-positive adjudication, full ponytail/minimize reasoning, and finding lifecycle.
    Never call a cached `outdated|cargo_outdated|binary_pins` result current unless its
    `refreshedAt`, command, and status are carried into the report.
@@ -103,13 +103,13 @@ A pipeline. Scanners fan out; the build step is the lone serial exception; stage
    alternatives, boundaries, invariants, & decomposition plans follow `skills/architect/SKILL.md`
    plus `doctrine/architecture/**`; Audit supplies evidence & findings without duplicating that method.
 
-   For scoped lens input selection, `cortex graph candidates --task "<task>"` may supply a
+   For scoped lens input selection, `blueprint graph candidates --task "<task>"` may supply a
    bounded `ContextCandidateSet v1`. It never narrows the scanner/check denominator, and exact files
    used to verify a finding are still read in full.
 
    > **Membrane status.** The typed Audit finding store (`<repo>/.audit/audit/findings.jsonl`,
    > provider `audit_provider.py`, `status == open` only) and the typed Architect
-   > decision store are live in `main`; Audit still runs standalone directly after Cortex — no
+   > decision store are live in `main`; Audit still runs standalone directly after Blueprint — no
    > planner prerequisite. Cross-machine parity claims stay gated on Mac evidence under
    > `rightcontext-evidence/g2/`; current runtime truth: `membrane/docs/MEMBRANE-STATE.md`.
 
@@ -258,7 +258,7 @@ unscanned checks were clean, and none of this turns `/audit` into single-PR revi
 | Lens | Fed these facts | Gate / threshold | Cross-checked by |
 |---|---|---|---|
 | `doc-drift` | git diff of docs vs code, README/CLAUDE.md | — | — |
-| `architecture` *(widened)* | Cortex `graph architecture`, `graph flows --complete`, relevant `impact|neighbors|path` results, size/symbol/relationship metrics, `facts.decomposition.review_candidates`, synthesized `architecture.coverageGaps[]` when present | **Size is nomination, not verdict.** Assess every runtime candidate as `not-needed|confirmed|undetermined`. Confirm decomposition only when evidence identifies distinct responsibilities, state/side effects, caller/consumer and dependency direction, stable public contracts, test seams, and a cohesion/coupling improvement. Route each `confirmed` case through Architect and fold back the exact keep/extract component map, destination files, moved symbols, public contracts, ordered TDD steps, behavior-preservation checks, risks, and ADR reference. A 420-line cohesive unit may be `not-needed`; a 180-line mixed-responsibility unit may still be found by the lens. Mechanical include-splits are strong review evidence but still do not determine the correct target boundaries. Runtime candidates require assessment; test/tooling candidates are advisory. **Coverage gaps:** ordinary audit reports gaps that contradict a documented/product-required flow; a best-shape audit treats every material `partial|missing|undetermined` flow as open architecture evidence and routes design to `architect`. **quality** only on a named anti-pattern. | `knip`, `tsc`, `facts.decomposition`, `cortex`, `architect` |
+| `architecture` *(widened)* | Blueprint `graph architecture`, `graph flows --complete`, relevant `impact|neighbors|path` results, size/symbol/relationship metrics, `facts.decomposition.review_candidates`, synthesized `architecture.coverageGaps[]` when present | **Size is nomination, not verdict.** Assess every runtime candidate as `not-needed|confirmed|undetermined`. Confirm decomposition only when evidence identifies distinct responsibilities, state/side effects, caller/consumer and dependency direction, stable public contracts, test seams, and a cohesion/coupling improvement. Route each `confirmed` case through Architect and fold back the exact keep/extract component map, destination files, moved symbols, public contracts, ordered TDD steps, behavior-preservation checks, risks, and ADR reference. A 420-line cohesive unit may be `not-needed`; a 180-line mixed-responsibility unit may still be found by the lens. Mechanical include-splits are strong review evidence but still do not determine the correct target boundaries. Runtime candidates require assessment; test/tooling candidates are advisory. **Coverage gaps:** ordinary audit reports gaps that contradict a documented/product-required flow; a best-shape audit treats every material `partial|missing|undetermined` flow as open architecture evidence and routes design to `architect`. **quality** only on a named anti-pattern. | `knip`, `tsc`, `facts.decomposition`, `blueprint`, `architect` |
 | `correctness` *(coderabbit fold)* | changed + oversized + entrypoint files, `tsc`/lint errors, tests | real logic bugs: unhandled errors/rejections, swallowed failures, edge cases (null/empty/boundary/overflow), off-by-one, races / missing `await`, resource leaks, incorrect conditionals. Each needs a real `file:line`. This is the bug-review CodeRabbit does (the earlier "CodeRabbit ergonomics" was only the `--dir/--type/--base` flags) | `tsc`/lint, test suite |
 | `ai-slop` | `jscpd` dup, lint unused, dead exports | — | `jscpd`, lint |
 | `naming` | lint, file listing | — | lint |
@@ -401,7 +401,7 @@ worked examples in `references/coverage-and-trajectory.md`:
   code evidence is invalid. (This class produced every false P0 in the 2026-07 six-model bake-off:
   stale audit prose reported as current code findings.) Re-verify before repeating; a prior finding
   that code now disproves is itself a doc-drift finding against the stale doc.
-- **Historical docs are not live claims.** A Cortex document explicitly classified
+- **Historical docs are not live claims.** A Blueprint document explicitly classified
   `lifecycle.status: superseded|archived` remains traceable but does not enter doc-drift, business-
   constant, or public-site claim sweeps. Follow its canonical pointer when repo-local; route an
   external live surface to `/seo audit` for deployed-site SEO evidence and `/audit-visual` for
@@ -423,7 +423,7 @@ worked examples in `references/coverage-and-trajectory.md`:
   The eyes-gate stays the human VISUAL checkpoint; Council is not a separate manual step here.
 - **CLEAN ≠ best shape.** Never promote the scanner/lens health verdict into an architectural
   optimality claim. A best-shape conclusion additionally requires a current Architect prior-art
-  matrix covering every material Cortex gap; absent matrix or unresolved `undetermined` gap means
+  matrix covering every material Blueprint gap; absent matrix or unresolved `undetermined` gap means
   architecture optimality is UNPROVEN.
 
 ## Lens fan-out (native parallel subagents — NO external APIs)
@@ -557,7 +557,7 @@ behavior-preservation tests pass. A shallow `include!`/part split is NOT a fix; 
 without implementing the designed boundaries.
 Do not hand `/architect`+`/covenant` back to the operator to run manually; that hand-off was the old stall.
 When the request says best shape/architecture rather than only decomposition, Architect must also run
-its external solution-space gate and record `adopt|morph|reject|defer` for every material Cortex
+its external solution-space gate and record `adopt|morph|reject|defer` for every material Blueprint
 coverage gap; internal refactoring alone cannot close an unsearched architectural gap.
 The loop may only finish with code-quality findings remaining if it hit **no-progress** (two identical
 iterations) — and then it reports them OPEN, NOT clean. A confirmed decomposition finding, scanner-
@@ -632,7 +632,7 @@ Before saying or implying "passed", "clean", "done", "all clear", "100/100", "au
 - open findings by tier/category
 - tests run and any required-but-unrun tests
 - functionality-preservation check for touched public surfaces
-- for any best-shape/completeness claim: Cortex material coverage gaps plus the path to Architect's
+- for any best-shape/completeness claim: Blueprint material coverage gaps plus the path to Architect's
   current prior-art decision matrix, including every `defer|undetermined` row
 
 If any value is unknown, missing, skipped without manual coverage, or nonzero for confirmed open

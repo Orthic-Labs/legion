@@ -15,7 +15,7 @@
     "repositoryRevision": "4e82122e713341f9a27545207a00ba45645d8e8f",
     "dirty": false,
     "dirtyPatchDigest": null,
-    "cortex": {
+    "blueprint": {
       "state": "ready",
       "generationId": "generation-verify-001",
       "manifestDigest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
@@ -25,7 +25,7 @@
     "registryDigest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
   },
   "denominator": {
-    "discoveryOwner": "cortex",
+    "discoveryOwner": "blueprint",
     "firstPartyFileCount": 10,
     "sourceFileCount": 8,
     "fileSetDigest": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",

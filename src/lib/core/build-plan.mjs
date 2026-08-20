@@ -6,12 +6,12 @@ import { PLANNING_STAGE_IDS } from './plan-stages/registry.mjs';
 const CLAIMS = new Set(['inventory', 'source', 'runtime', 'product', 'release']);
 const CLAIM_RANK = Object.freeze({ inventory: 0, source: 1, runtime: 2, product: 3, release: 4 });
 const REQUIRED_FOR=Object.freeze({
-  'repository-binding':'inventory','cortex-projection':'inventory','product-portfolio':'inventory','component-graph':'source','stack-external-system-graph':'source','release-contract-product-context':'source','control-baseline':'source','evidence-capabilities':'source','scenario-matrices':'source','family-lens-provider-rule-selection':'runtime','provider-dag':'runtime','plan-sealing':'runtime'
+  'repository-binding':'inventory','blueprint-packet':'inventory','product-portfolio':'inventory','component-graph':'source','stack-external-system-graph':'source','release-contract-product-context':'source','control-baseline':'source','evidence-capabilities':'source','scenario-matrices':'source','family-lens-provider-rule-selection':'runtime','provider-dag':'runtime','plan-sealing':'runtime'
 });
 const stage=(id,run)=>Object.freeze({id,requiredFor:REQUIRED_FOR[id],run});
 const passThrough=(id,key)=>stage(id,async(options)=>{const artifact=options[key]??options.artifacts?.[id]??null;return artifact?{complete:true,status:'pass',artifact}:{complete:false,status:'missing',detail:`${id}-required`};});
 const DEFAULT_STAGES = Object.freeze([
-  passThrough('repository-binding','binding'),passThrough('cortex-projection','projection'),stage('product-portfolio',productTopologyStage.run),
+  passThrough('repository-binding','binding'),passThrough('blueprint-packet','projection'),stage('product-portfolio',productTopologyStage.run),
   stage('component-graph',async(options)=>options.artifacts['product-portfolio']?{complete:true,status:'pass',artifact:options.artifacts['product-portfolio'].components}:{complete:false,status:'missing'}),
   stage('stack-external-system-graph',async(options)=>options.artifacts['product-portfolio']?{complete:true,status:'pass',artifact:options.artifacts['product-portfolio'].stacks}:{complete:false,status:'missing'}),
   passThrough('release-contract-product-context','releaseContext'),stage('control-baseline',controlBaselineStage.run),passThrough('evidence-capabilities','evidenceCapabilities'),passThrough('scenario-matrices','scenarioMatrices'),

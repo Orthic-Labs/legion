@@ -19,8 +19,8 @@ export async function runPlan(argv, { stdout, stderr, cwd, host, core=null }) {
     defaults: profileConfig(profile),
     cli: parsed.values.profile ? { profile } : {},
   });
-  const api=core??await import('../../index.mjs');const registry=loadProviderRegistry();const projection=await host.cortex?.project?.({root})??{state:'unproven',files:[],reason:'cortex-projection-unavailable'};const repositoryBinding=await api.bindRepository(root,{revision:null});
-  const plan = await api.buildPlan({ root, registry, projection, repositoryBinding },host);
+  const api=core??await import('../../index.mjs');const registry=loadProviderRegistry();const packet=await host.membrane?.context?.({root})??{schema:'legion.context-result.v1',status:'unavailable',reason:'membrane-context-unavailable'};const repositoryBinding=await api.bindRepository(root,{revision:null});
+  const plan = await api.buildPlan({ root, registry, projection: packet, repositoryBinding },host);
   if (parsed.values.json) {
     stdout.write(`${JSON.stringify(plan, null, 2)}\n`);
   } else {

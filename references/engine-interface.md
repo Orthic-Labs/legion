@@ -22,7 +22,7 @@ Commands (the literal re-run lines the report prints):
 
 | check | command | runs when |
 |---|---|---|
-| decomposition | measure tracked code LOC/bytes and reconstruct mechanical part-splits; Cortex enriches candidates with symbol/span and relationship metrics | git repo. Default 400 LOC is a configurable **review trigger**, not a finding or clean-gate failure; configure `.agent/config.json → hygiene.decompositionReviewLoc` |
+| decomposition | measure tracked code LOC/bytes and reconstruct mechanical part-splits; Blueprint enriches candidates with symbol/span and relationship metrics | git repo. Default 400 LOC is a configurable **review trigger**, not a finding or clean-gate failure; configure `.agent/config.json → hygiene.decompositionReviewLoc` |
 | secrets | `gitleaks git .` (git repo, tracked history) / `gitleaks dir .` (non-git) → json | gitleaks present (else NOT-SCANNED) |
 | deps_cve | `pnpm audit --json` / `npm audit --json` | package.json |
 | py_deps_cve | `pip-audit -r requirements.txt -f json` / `pip-audit -f json` (active env) | Python project + pip-audit present (else NOT-SCANNED — a Python tree without it has ZERO dep-CVE coverage; the npm/cargo-audit sibling) |

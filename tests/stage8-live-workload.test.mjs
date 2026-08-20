@@ -47,9 +47,9 @@ test('S08-01 live assembled-package workload reaches Handoff acceptance through 
     schema: 'representative-workload.v1',
     acceptance_fingerprint: `sha256:${'1'.repeat(64)}`,
     required_items_exercised: ['S08-01', 'S05-01', 'S07-01'],
-    smallest_complete_slice: 'assemble public Legion package & invoke recovered Handoff plus transcript engine',
-    actual_workflow: 'run clean assembled-package smoke through public binary, engines, Handoff, transcript substrate, & decisions',
-    actual_acceptance_surface: 'public package returns successful Handoff/transcript execution with no forbidden private markers',
+    smallest_complete_slice: 'assemble public Legion package & invoke Handoff pointer transport plus Membrane context seam',
+    actual_workflow: 'run clean assembled-package smoke through public binary, engines, Handoff transport, Membrane packet seam, & decisions',
+    actual_acceptance_surface: 'public package returns successful Handoff/Membrane transport execution with no forbidden private markers',
     environment: { os: process.platform, runtime: process.version, browser_or_device: 'CLI', locale_timezone_network: 'local/offline' },
     representative_data: 'current public Legion package allowlist & recovered Handoff entrypoint',
     artifact: { kind: 'receipt', sensitivity: 'internal', trust: 'trusted', retention: 'repository history', deletion_owner: 'legion-integration-owner', digest: artifactDigest },
@@ -76,7 +76,7 @@ test('S08-01 ownership has one integration owner & one shared-state writer', () 
 
 test('S08-01 migration is a hard cut with losing roots absent & canonical package paths present', () => {
   for (const path of retiredRoots) assert.equal(existsSync(join(workspaceRoot, path)), false, `retired path still exists: ${path}`);
-  for (const path of ['skills/handoff/SKILL.md', 'src/lib/handoff/transcript_handoff.py', 'src/lib/orthic_transcripts/driver.py']) assert.equal(existsSync(join(legionRoot, path)), true, `canonical path missing: ${path}`);
+  for (const path of ['skills/handoff/SKILL.md', 'src/lib/handoff/transcript_handoff.py', 'src/packages/context/lib/context.mjs']) assert.equal(existsSync(join(legionRoot, path)), true, `canonical path missing: ${path}`);
   const absence = retiredRoots.map((path) => `${path}:absent`);
   const cutover = {
     schema: 'migration-cutover.v1', mode: 'HARD_CUT', runtime_owner: roles.runtime_owner,

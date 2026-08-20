@@ -102,6 +102,8 @@ function rehydrationProbe() {
 
 function ingressProbe() {
   const root = mkdtempSync(join(tmpdir(), 'arcane-s09-ingress-'));
+  const inheritedCodexThreadId = process.env.CODEX_THREAD_ID;
+  delete process.env.CODEX_THREAD_ID;
   try {
     const keyDir = join(root, 'keys'); mkdirSync(keyDir); writeFileSync(join(keyDir, 'k1.key'), 'a'.repeat(64));
     const runtime = createHostRuntime({ adapter: { name: 'codex', normalize: normalizeCodexEvent, observeIdentity: observeCodexIdentity, mapPreEffect: mapCodexPreEffect }, workspace: root, keyDir, stateRoot: join(root, 'state') });
@@ -112,7 +114,11 @@ function ingressProbe() {
     assert.equal(runtime.stores.sessionBinding.getBinding(base.session_id)?.runId, binding.runId);
     assert.equal(runtime.handle({ ...base, hook_event_name: 'PreToolUse', tool_name: 'Write', tool_input: { file_path: 'tools/rhook/guard.mjs' }, tool_use_id: 'locked' }).code, 'ARC_NO_CONTRACT');
     assert.equal(runtime.handle({ ...base, hook_event_name: 'PreToolUse', tool_name: 'Write', tool_input: { file_path: 'src/sanctioned.mjs' }, tool_use_id: 'ambient' }).allowed, true);
-  } finally { rmSync(root, { recursive: true, force: true }); }
+  } finally {
+    if (inheritedCodexThreadId === undefined) delete process.env.CODEX_THREAD_ID;
+    else process.env.CODEX_THREAD_ID = inheritedCodexThreadId;
+    rmSync(root, { recursive: true, force: true });
+  }
 }
 
 function acceptanceProbe() {

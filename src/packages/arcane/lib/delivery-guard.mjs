@@ -1,6 +1,6 @@
 import { createHash, randomBytes } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, renameSync, unlinkSync, writeFileSync } from 'node:fs';
-import { dirname, join, relative, resolve } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { tmpdir } from 'node:os';
 
@@ -41,17 +41,6 @@ function primary(root, commonDir) {
   }
   refuse('ARC_DELIVERY_CANONICAL_REF_INVALID', 'primary worktree is unavailable');
 }
-function parent(root) {
-  for (let cursor = dirname(root); cursor !== dirname(cursor); cursor = dirname(cursor)) {
-    if (!succeeds(cursor, ['rev-parse', '--is-inside-work-tree'])) continue;
-    const parentRoot = resolve(git(cursor, ['rev-parse', '--show-toplevel']));
-    if (parentRoot === root) continue;
-    const path = relative(parentRoot, root).replaceAll('\\', '/'); const ref = primary(parentRoot, common(parentRoot)).ref;
-    const entry = git(parentRoot, ['ls-tree', ref, '--', path]).split('\n').find((line) => line.startsWith('160000 '));
-    if (entry) return { root: parentRoot, path, ref };
-  }
-  return null;
-}
 function leasePath(repo) { return join(repo.primaryRoot, '.audit', 'arcane', 'delivery', 'lease.json'); }
 function acquisitionPath(repo) { return join(repo.primaryRoot, '.audit', 'arcane', 'delivery', 'acquisitions', `${repo.acquisitionKey}.json`); }
 function metadata(repo) { const { leaseToken, acquisitionKey, reused, ...value } = repo; return value; }
@@ -90,7 +79,7 @@ function inspect(path, mode, owner) {
       try { const old = JSON.parse(readFileSync(path, 'utf8')); if (old.owner?.sessionId === owner.sessionId && old.owner?.runId === owner.runId && old.owner?.taskId === owner.taskId && old.metadata?.root === root && old.metadata?.commonDir === commonDir && old.metadata?.primaryRoot === main.root && old.metadata?.canonicalRef === main.ref) return { ...old.metadata, leaseToken: old.token, acquisitionKey: key, reused: true }; } catch {}
       refuse('ARC_INTEGRATION_OWNER_CONFLICT', 'read-only acquisition owner differs');
     }
-    const repo = { root, commonDir, primaryRoot: main.root, canonicalRef: main.ref, head, snapshotTree: snapshot(root, head), mode, parent: parent(main.root), leaseToken: randomBytes(32).toString('hex'), acquisitionKey: key };
+    const repo = { root, commonDir, primaryRoot: main.root, canonicalRef: main.ref, head, snapshotTree: snapshot(root, head), mode, leaseToken: randomBytes(32).toString('hex'), acquisitionKey: key };
     writeFileSync(path, JSON.stringify({ owner, token: repo.leaseToken, metadata: metadata(repo) }), { encoding: 'utf8', flag: 'wx' }); return repo;
   }
   const target = leasePath({ primaryRoot: main.root }); mkdirSync(dirname(target), { recursive: true });
@@ -101,7 +90,7 @@ function inspect(path, mode, owner) {
     } catch {}
     refuse('ARC_INTEGRATION_OWNER_CONFLICT', 'another run owns repository integration');
   }
-  const repo = { root, commonDir, primaryRoot: main.root, canonicalRef: main.ref, head, snapshotTree: snapshot(root, head), mode, parent: parent(main.root), leaseToken: null };
+  const repo = { root, commonDir, primaryRoot: main.root, canonicalRef: main.ref, head, snapshotTree: snapshot(root, head), mode, leaseToken: null };
   const lease = { ...owner, repository: root, token: randomBytes(32).toString('hex'), metadata: metadata(repo) };
   try { writeFileSync(target, JSON.stringify(lease), { encoding: 'utf8', flag: 'wx' }); repo.leaseToken = lease.token; }
   catch (error) {
@@ -164,15 +153,14 @@ export function prepareClose(delivery, disposition, { owner, io = archiveIo } = 
     const root = resolve(git(repo.root, ['rev-parse', '--show-toplevel'])); if (root !== repo.root || common(root) !== repo.commonDir) refuse('ARC_DELIVERY_IDENTITY_CHANGED', 'repository identity changed');
     const head = git(root, ['rev-parse', 'HEAD']), closeTree = snapshot(root, head), changed = closeTree !== repo.snapshotTree;
     if (repo.mode === 'read-only' && changed) refuse('ARC_DELIVERY_READ_ONLY_MUTATED', 'read-only repository changed');
-    let state = 'clean', reachable = false, parentPinned = null, patch = null;
+    let state = 'clean', reachable = false, patch = null;
     if (!changed) {
       state = 'clean';
     } else if (disposition === 'complete') {
       if (closeTree !== git(root, ['rev-parse', 'HEAD^{tree}']) || !succeeds(root, ['merge-base', '--is-ancestor', head, repo.canonicalRef])) refuse('ARC_DELIVERY_NOT_REACHABLE', 'HEAD is not reachable from canonical ref');
       reachable = true; state = 'integrated';
-      if (repo.parent) { if (git(repo.parent.root, ['rev-parse', `${repo.parent.ref}:${repo.parent.path}`]) !== head) refuse('ARC_DELIVERY_PARENT_NOT_PINNED', 'parent canonical ref does not pin child'); parentPinned = true; }
     } else { state = 'archived'; patch = archive(repo, closeTree, io); }
-    return { repository: root, commonDir: repo.commonDir, baselineTree: repo.snapshotTree, closeTree, canonicalRef: repo.canonicalRef, commit: head, reachable, parentPinned, disposition, state, patch, leaseToken: repo.leaseToken ?? null };
+    return { repository: root, commonDir: repo.commonDir, baselineTree: repo.snapshotTree, closeTree, canonicalRef: repo.canonicalRef, commit: head, reachable, disposition, state, patch, leaseToken: repo.leaseToken ?? null };
   });
 }
 export function finalizeClose(delivery, { recovery = false, owner } = {}) {

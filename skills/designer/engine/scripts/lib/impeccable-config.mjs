@@ -621,7 +621,7 @@ function resolveGitDir(root) {
   if (!existsSync(dotGit)) return null;
   try {
     if (statSync(dotGit).isDirectory()) return dotGit;
-    // A `.git` file (worktree/submodule) points elsewhere: "gitdir: <path>".
+    // A linked-worktree `.git` file points elsewhere: "gitdir: <path>".
     const match = readFileSync(dotGit, 'utf-8').match(/gitdir:\s*(.+)/);
     if (match) {
       const resolved = match[1].trim();

@@ -36,7 +36,7 @@ TERMINAL: visual.core reconciles its frozen matrix or reports typed UNPROVEN cov
 
 `/audit-visual` is a thin entrypoint over `../../src/providers/visual-core.mjs` & shared frozen plan.
 
-1. Freeze repository, Cortex generation, routes/screens, viewports, states, themes, locales,
+1. Freeze repository, Blueprint generation, routes/screens, viewports, states, themes, locales,
    platforms, interactions, references, & acceptance criteria.
 2. Create an explicit visual specification with expected matrix & capture artifacts; never invent evidence.
 3. Run `node ../../tools/audit/audit-run.mjs <root> --visual-spec <visual-spec.json>`. For runtime captures,

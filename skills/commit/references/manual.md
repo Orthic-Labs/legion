@@ -59,8 +59,8 @@ CodeRabbit or ponytail binaries (those aren't required; the engine absorbs both,
    A mismatch means the committed content is not the validated content: re-run the gate, do not push.
    Record `candidateTree` in the gate artifact (step 8).
 
-   **Blast radius via the Cortex graph (when `.agent/index.json` exists in the repo).** Run
-   `cortex graph impact` over the changed files/symbols. Two uses, both diff-scoped:
+   **Blast radius via the Blueprint graph (when `.agent/index.json` exists in the repo).** Run
+   `blueprint graph impact` over the changed files/symbols. Two uses, both diff-scoped:
 
    (a) **bigger-scheme check** — callers/dependents of the changed symbols that are NOT in the diff
    are the risk surface; if impact shows heavy fan-in onto a changed public contract, escalate the
@@ -78,9 +78,9 @@ CodeRabbit or ponytail binaries (those aren't required; the engine absorbs both,
    git grep -nIE "(TODO|FIXME|unimplemented!\(\)|todo!\(\)|NotImplemented|raise NotImplementedError|throw new Error\(['\"]not implemented)" -- <files backing the claim>
    ```
    A "done" claim over a file carrying an unimplemented marker is a hard finding, not generic drift.
-   Cortex catches this repo-wide; here it catches it before the claim ships.
+   Blueprint catches this repo-wide; here it catches it before the claim ships.
 
-   **Graph freshness, not just graph existence.** Run `cortex doctor` first. A **stale** graph is
+   **Graph freshness, not just graph existence.** Run `blueprint doctor` first. A **stale** graph is
    worse than no graph — it answers impact queries with last week's structure and manufactures
    confidence. Trust impact when doctor is `ready`; mark it low-confidence and lean on the post-fix
    re-check when `degraded`; treat `stale`/`broken`/`corrupt` as no graph.
@@ -282,10 +282,10 @@ CodeRabbit or ponytail binaries (those aren't required; the engine absorbs both,
      as inline comments. This closes the one real gap vs. CodeRabbit — GitHub-native delivery — without
      giving up the local test-execution + fix-before-it-leaves-the-machine advantage.
 
-6. **Graph freshness (post-push, non-blocking).** If the repo has a Cortex index
-   (`.agent/index.json`), refresh it now so the graph tracks reality: `cortex build` in the
+6. **Graph freshness (post-push, non-blocking).** If the repo has a Blueprint index
+   (`.agent/index.json`), refresh it now so the graph tracks reality: `blueprint build` in the
    background (or queue it). Never block or fail the commit/push on this — a rebuild error is
-   reported as residue, not a gate. Repos without an index are left alone; adopting Cortex is a
+   reported as residue, not a gate. Repos without an index are left alone; adopting Blueprint is a
    deliberate per-repo decision, not a commit side effect.
 
 7. **Knowledge extraction (only for a genuinely durable pattern).** Reviews should improve future

@@ -16,9 +16,8 @@ import { tmpdir } from "node:os";
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(__dirname, "..");
 
-// Fixtures ship as plain tracked files, not embedded git repositories: a
-// gitlink is not carried by a clone, so the fixtures would arrive empty for
-// everyone but the author and these tests would fail. Each fixture is
+// Fixtures ship as plain tracked files, not embedded git repositories, so
+// each fixture is
 // materialised into a throwaway repo here — `base/` is committed, `changed/`
 // is layered on top uncommitted to form the diff the gauntlet scans.
 const materialised = [];

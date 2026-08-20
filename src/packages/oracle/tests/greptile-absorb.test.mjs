@@ -31,7 +31,7 @@ function auditRequest(changedPaths = ['src/a.mjs']) {
   };
 }
 
-test('Cortex traces every changed path through resolve then impact', async () => {
+test('Blueprint traces every changed path through resolve then impact', async () => {
   const calls = [];
   const run = async (_root, args) => {
     calls.push(args);
@@ -53,7 +53,7 @@ test('Oracle forwards per-diff blast radius and appends verdict outcomes to Arca
   try {
     const receiptStore = new ReceiptStore({ root });
     let forwarded;
-    const traceDiff = async ({ changedPaths }) => Object.freeze({ schemaVersion: 1, kind: 'oracle-cortex-diff-blast-radius', state: 'ready', changedPaths, traces: [], digest: `sha256:${'b'.repeat(64)}` });
+    const traceDiff = async ({ changedPaths }) => Object.freeze({ schemaVersion: 1, kind: 'oracle-blueprint-impact', state: 'ready', changedPaths, traces: [], digest: `sha256:${'b'.repeat(64)}` });
     const oracle = createOracle({
       receiptStore,
       traceDiff,
@@ -72,12 +72,12 @@ test('Oracle forwards per-diff blast radius and appends verdict outcomes to Arca
   }
 });
 
-test('unproven Cortex impact prevents a clean Oracle claim', async () => {
+test('unproven Blueprint impact prevents a clean Oracle claim', async () => {
   const oracle = createOracle({
-    traceDiff: async ({ changedPaths }) => ({ schemaVersion: 1, kind: 'oracle-cortex-diff-blast-radius', state: 'unproven', changedPaths, traces: [], digest: `sha256:${'c'.repeat(64)}` }),
+    traceDiff: async ({ changedPaths }) => ({ schemaVersion: 1, kind: 'oracle-blueprint-impact', state: 'unproven', changedPaths, traces: [], digest: `sha256:${'c'.repeat(64)}` }),
     core: { audit: async () => ({ claimBoundary: 'PROVEN' }) },
   });
   const pair = await oracle.audit(auditRequest());
   assert.equal(pair.result.claimBoundary, 'UNPROVEN');
-  assert.deepEqual(pair.result.warnings, ['cortex-blast-radius-unproven']);
+  assert.deepEqual(pair.result.warnings, ['blueprint-impact-unproven']);
 });

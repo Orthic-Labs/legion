@@ -223,7 +223,7 @@ After gathering information, create the project's product marketing context docu
 
 ## Step 4: Confirm and Save
 
-**MANDATORY OKF emit (Skill Output Contract):** after saving, run `py -3.11 src/lib/skill_emit.py report <private-overlay>/product-marketing-context.md --type context --repo <project>` so the positioning is recallable in the memory engine.
+**MANDATORY Membrane handoff:** after saving, send document path plus requested scope to Membrane's durable-memory ingress. Legion does not write repository truth or invoke a legacy memory engine directly.
 
 - Show the completed document
 - Ask if anything needs adjustment

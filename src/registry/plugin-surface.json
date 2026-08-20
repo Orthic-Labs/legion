@@ -1,8 +1,8 @@
 {
   "schemaVersion": 1,
   "kind": "legion-plugin-surface",
-  "version": "0.1.0-dev.0",
-  "digest": "sha256:1bf7f66c3d341357ff244423cb018fd529ebfa6603eb8a2c955dc1a064d59358",
+  "version": "0.1.0-dev.1",
+  "digest": "sha256:bf1e286ad2db68d00dc7816e9ced7d764fc2f08c70ca8808bc10ccbe5d4bf869",
   "counts": {
     "skills": 23,
     "agents": 4,
@@ -17,11 +17,11 @@
       "audit",
       "audit-fix",
       "audit-visual",
+      "blueprint",
       "brand",
       "brand-identity",
       "coder",
       "commit",
-      "cortex",
       "covenant",
       "debugger",
       "designer",

@@ -186,7 +186,7 @@ adapter claims that harness, so there is nothing for it to compete with.
 The per-event `git rev-parse HEAD` subprocess is **removed**. `resolveSourceRevision` now reads
 HEAD from the git directory directly (`src/packages/arcane/host/source-revision.mjs`), returning
 exactly what git would for normal checkouts, packed-refs, detached HEAD, worktrees, and
-submodules, and falling back to the subprocess only for a layout it does not recognize. Output is
+nested checkouts, and falling back to the subprocess only for a layout it does not recognize. Output is
 identical, so no enforcement behaviour changes. CPU profile confirms `spawnSync` at 0 ms after the
 change; unit tests assert the resolver matches `git rev-parse HEAD` across all five layouts.
 

@@ -24,9 +24,8 @@ function recursiveFiles(root, cursor = root, output = []) {
 function repositoryFiles(root) {
   try {
     return execFileSync('git', ['ls-files', '-co', '--exclude-standard', '-z'], { cwd: root })
-      // `git ls-files` reports a nested repository as a single gitlink entry,
-      // which is a directory on disk. Reading it as a file throws EISDIR, so
-      // keep only real files.
+      // Keep only real files: nested checkout entries may resolve to directories
+      // on disk, and reading those as files throws EISDIR.
       .toString().split('\0').filter(Boolean)
       .filter((path) => { const p = resolve(root, path); return existsSync(p) && statSync(p).isFile(); })
       .filter((path) => !SKIP_PREFIXES.some((prefix) => path.startsWith(prefix)));
@@ -86,7 +85,6 @@ function semanticIssues(root, registry) {
   if (existsSync(resolve(root, 'packages/seer'))) issues.push({ path: 'packages/seer', reason: 'legacy assurance package still exists' });
   if (existsSync(resolve(root, 'registry/rules/opengrep/nemesis-core.yml'))) issues.push({ path: 'registry/rules/opengrep/nemesis-core.yml', reason: 'legacy product filename still exists' });
   for (const { path, declaration, valuePattern = /['"]([^'"]+)['"]/g, expected: values } of [
-    { path: 'src/packages/context/lib/context.mjs', declaration: /const AUTHORITIES\s*=\s*new Set\((\[[^\]]+\])\)/, expected: runtimeExpected },
     { path: 'src/packages/arcane/lib/architecture-event-store.mjs', declaration: /const ACTOR_ROLES\s*=\s*new Set\((\[[^\]]+\])\)/, expected: ['alchemist', 'covenant', 'host', 'legion', 'oracle', 'sage', 'worker'] },
     { path: 'src/packages/arcane/lib/authority-binding-store.mjs', declaration: /const MAP\s*=\s*(\{[^}]+\})/, valuePattern: /:\s*['"]([^'"]+)['"]/g, expected: ['alchemist', 'legion', 'oracle', 'sage'] },
   ]) {

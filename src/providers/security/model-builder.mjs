@@ -1,6 +1,6 @@
 // Security surface model builder per Security Appendix §10. A pure
 // deterministic provider: reads only frozen provider denominator paths, never
-// calls Cortex again, never runs a filesystem walk.
+// calls Blueprint again, never runs a filesystem walk.
 
 import { bindingFromPlan, digest } from './contracts.mjs';
 import { extractCommon } from './model-extractors/common.mjs';

@@ -11,7 +11,7 @@ import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
-import { KeyRing, loadHostKeyRing, loadVerificationKeyRing, generateTestKeyRing } from '../lib/keys.mjs';
+import { KeyRing, loadCanonicalHostKeyRing, loadHostKeyRing, loadVerificationKeyRing, generateTestKeyRing } from '../lib/keys.mjs';
 import { ArcaneError } from '../lib/errors.mjs';
 
 test('KeyRing.add + get round-trips key material', () => {
@@ -168,5 +168,16 @@ test('verification keyring loads an N-harness directory set without changing sig
   } finally {
     rmSync(first, { recursive: true, force: true });
     rmSync(second, { recursive: true, force: true });
+  }
+});
+
+test('canonical host keyring loads complete projected custody path', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'legion-arcane-s03-canonical-'));
+  try {
+    writeFileSync(join(dir, 'canonical-key.key'), '03'.repeat(32), 'utf8');
+    const ring = loadCanonicalHostKeyRing({ dir });
+    assert.equal(ring.has('canonical-key'), true);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
   }
 });

@@ -85,7 +85,7 @@ export function sealPlan(plan, signingKey = process.env.AUDIT_PLAN_SIGNING_KEY ?
       signature: signingKey ? planSignature(unsigned, signingKey) : null,
       keyId: signingKey ? signingKeyId(signingKey) : null,
       semantics: signingKey
-        ? 'integrity digest plus key-backed HMAC signature bound to revision, dirty digest, Cortex generation, registry digest, provider set, and denominators'
+        ? 'integrity digest plus key-backed HMAC signature bound to revision, dirty digest, Blueprint packet, registry digest, provider set, and denominators'
         : 'integrity digest only; authenticity is unproven until AUDIT_PLAN_SIGNING_KEY is supplied',
     },
   };
@@ -145,8 +145,8 @@ export function buildAuditPlan({
     .filter((entry) => entry.reason === 'skipped-by-request')
     .map((entry) => ({ kind: 'skipped-provider', provider: entry.id, check: entry.check ?? null }));
   const discoveryGaps = projection.state === 'ready'
-    ? (projection.unsupportedExtensions ?? []).map((extension) => ({ kind: 'unsupported-cortex-extension', extension }))
-    : [{ kind: 'cortex-discovery', state: projection.state, reason: projection.reason ?? 'unknown' }];
+    ? (projection.unsupportedExtensions ?? []).map((extension) => ({ kind: 'unsupported-blueprint-extension', extension }))
+    : [{ kind: 'blueprint-discovery', state: projection.state, reason: projection.reason ?? 'unknown' }];
   const signingGaps = signingKey ? [] : [{ kind: 'unsigned-plan', requiredEnvironment: 'AUDIT_PLAN_SIGNING_KEY' }];
   const coverageGaps = [...discoveryGaps, ...coverage.gaps, ...benchmarkGaps, ...skippedByRequest, ...signingGaps];
 
@@ -161,7 +161,7 @@ export function buildAuditPlan({
       repositoryRevision: repositoryBinding.repositoryRevision,
       dirty: repositoryBinding.dirty,
       dirtyPatchDigest: repositoryBinding.dirtyPatchDigest,
-      cortex: {
+      blueprint: {
         state: projection.state,
         generationId: projection.generationId ?? null,
         manifestDigest: projection.manifestDigest ?? null,
@@ -172,7 +172,7 @@ export function buildAuditPlan({
       schemaVersions: { ...SCHEMA_VERSIONS },
     },
     denominator: {
-      discoveryOwner: 'cortex',
+      discoveryOwner: 'blueprint',
       firstPartyFileCount: projection.fileCount ?? 0,
       sourceFileCount: projection.sourceFileCount ?? 0,
       fileSetDigest: projection.fileSetDigest,
@@ -198,7 +198,7 @@ export function buildAuditPlan({
   return sealPlan(plan, signingKey);
 }
 
-export function verifyPlanBinding(plan, currentRepositoryBinding, currentCortexBinding, signingKey = process.env.AUDIT_PLAN_SIGNING_KEY ?? null) {
+export function verifyPlanBinding(plan, currentRepositoryBinding, currentBlueprintBinding, signingKey = process.env.AUDIT_PLAN_SIGNING_KEY ?? null) {
   const drift = [];
   if (!verifyPlanSeal(plan)) drift.push({ field: 'seal', expected: plan?.seal?.digest ?? null, observed: 'invalid' });
   if (!verifyPlanSignature(plan, signingKey)) {
@@ -213,23 +213,23 @@ export function verifyPlanBinding(plan, currentRepositoryBinding, currentCortexB
   if (plan.binding.dirtyPatchDigest !== currentRepositoryBinding.dirtyPatchDigest) {
     drift.push({ field: 'dirtyPatchDigest', expected: plan.binding.dirtyPatchDigest, observed: currentRepositoryBinding.dirtyPatchDigest });
   }
-  if (currentCortexBinding?.state !== 'ready') {
-    drift.push({ field: 'cortex', expected: 'ready', observed: currentCortexBinding?.state ?? 'unproven' });
+  if (currentBlueprintBinding?.state !== 'ready') {
+    drift.push({ field: 'blueprint', expected: 'ready', observed: currentBlueprintBinding?.state ?? 'unproven' });
   } else {
-    if (plan.binding.cortex.generationId !== currentCortexBinding.generationId) {
-      drift.push({ field: 'cortex.generationId', expected: plan.binding.cortex.generationId, observed: currentCortexBinding.generationId });
+    if (plan.binding.blueprint.generationId !== currentBlueprintBinding.generationId) {
+      drift.push({ field: 'blueprint.generationId', expected: plan.binding.blueprint.generationId, observed: currentBlueprintBinding.generationId });
     }
-    if (plan.binding.cortex.manifestDigest && currentCortexBinding.manifestDigest
-      && plan.binding.cortex.manifestDigest !== currentCortexBinding.manifestDigest) {
-      drift.push({ field: 'cortex.manifestDigest', expected: plan.binding.cortex.manifestDigest, observed: currentCortexBinding.manifestDigest });
+    if (plan.binding.blueprint.manifestDigest && currentBlueprintBinding.manifestDigest
+      && plan.binding.blueprint.manifestDigest !== currentBlueprintBinding.manifestDigest) {
+      drift.push({ field: 'blueprint.manifestDigest', expected: plan.binding.blueprint.manifestDigest, observed: currentBlueprintBinding.manifestDigest });
     }
-    const currentStatusDigest = currentCortexBinding.sourceObservation?.statusDigest ?? null;
-    if (plan.binding.cortex.sourceStatusDigest !== currentStatusDigest) {
-      drift.push({ field: 'cortex.sourceStatusDigest', expected: plan.binding.cortex.sourceStatusDigest, observed: currentStatusDigest });
+    const currentStatusDigest = currentBlueprintBinding.sourceObservation?.statusDigest ?? null;
+    if (plan.binding.blueprint.sourceStatusDigest !== currentStatusDigest) {
+      drift.push({ field: 'blueprint.sourceStatusDigest', expected: plan.binding.blueprint.sourceStatusDigest, observed: currentStatusDigest });
     }
-    const currentSourceHead = currentCortexBinding.sourceObservation?.head ?? null;
-    if (plan.binding.cortex.sourceHead !== currentSourceHead) {
-      drift.push({ field: 'cortex.sourceHead', expected: plan.binding.cortex.sourceHead, observed: currentSourceHead });
+    const currentSourceHead = currentBlueprintBinding.sourceObservation?.head ?? null;
+    if (plan.binding.blueprint.sourceHead !== currentSourceHead) {
+      drift.push({ field: 'blueprint.sourceHead', expected: plan.binding.blueprint.sourceHead, observed: currentSourceHead });
     }
   }
   return { valid: drift.length === 0, drift };

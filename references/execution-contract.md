@@ -6,7 +6,7 @@ normative; the SKILL body summarizes it.
 ## Canonical entrypoint (step 3 detail)
 
 `node <audit-skill-dir>/audit-run.mjs <root>` is the canonical entrypoint. It pins one fresh
-Cortex `generationId`, enriches only audit-owned manifest/toolchain facts, loads the complete
+Blueprint `generationId`, enriches only audit-owned manifest/toolchain facts, loads the complete
 declarative provider registry, writes a SHA-256-sealed and HMAC-signed `plan.json`, and executes
 the exact frozen provider set. Set `AUDIT_PLAN_SIGNING_KEY` through the trusted host environment.
 Missing signing material is `UNPROVEN`; it never degrades silently to an authenticity claim.
@@ -23,7 +23,7 @@ rendered evidence, or `--visual-baselines <map.json>` for baseline comparison.
 
 ## `UNPROVEN` conditions (step 5 detail)
 
-Read `plan.json` before `facts.json`. A stale/missing Cortex generation, plan-seal or signature
+Read `plan.json` before `facts.json`. A stale/missing Blueprint generation, plan-seal or signature
 failure, binding drift, selected-provider omission, unsupported toolchain, absent network-sandbox
 receipt, incomplete runtime/visual matrix, unmeasured rule pack, network-dependent check, or
 unadjudicated security candidate is `UNPROVEN` and keeps the audit incomplete.
@@ -39,16 +39,16 @@ Writes both `report.json` and `report.sarif`.
 
 ## Hard rules (full text)
 
-- Order is freeze scope → deterministic Cortex projection → deterministic provider plan → execute
+- Order is freeze scope → deterministic Blueprint projection → deterministic provider plan → execute
   frozen plan → provider-bounded reasoning.
 - The agent never selects, adds, removes, or narrows providers after execution begins.
 - `registry/providers.json` plus its declarative registry extensions are the executable source of
   truth. JavaScript loaders may validate and merge registry data, but may not invent providers or
   qualifications.
 - `plan.json` carries a SHA-256 integrity digest and an HMAC-SHA-256 authenticity signature bound
-  to revision, dirty digest, Cortex generation, registry digest, provider set, and denominators.
+  to revision, dirty digest, Blueprint generation, registry digest, provider set, and denominators.
   An unsigned plan is valid only as an `UNPROVEN` artifact and cannot support a clean claim.
-- Cortex owns file, language, workspace, symbol, and graph discovery. Audit owns toolchain,
+- Blueprint owns file, language, workspace, symbol, and graph discovery. Audit owns toolchain,
   manifest, build/test, runtime, visual, release, and adjudication evidence.
 - Legacy scanner adapters receive their applicability from the frozen provider plan. Any internal
   stack-detection disagreement may only produce `UNPROVEN`; it may never narrow the frozen

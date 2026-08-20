@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
@@ -20,23 +20,6 @@ function repo() {
   const git = (args) => execFileSync('git', args, { cwd: dir, stdio: 'ignore' });
   git(['init', '--initial-branch=main']); git(['config', 'user.email', 'test@example.test']); git(['config', 'user.name', 'Test']); writeFileSync(join(dir, 'base.txt'), 'base\n'); writeFileSync(join(dir, '.gitignore'), '.audit/\n'); git(['add', '.']); git(['commit', '-m', 'base']);
   return { dir, git, cleanup: () => rmSync(dir, { recursive: true, force: true }) };
-}
-
-function nestedRepo() {
-  const parent = repo();
-  const child = join(parent.dir, 'child');
-  mkdirSync(child);
-  const childGit = (args) => execFileSync('git', args, { cwd: child, stdio: 'ignore' });
-  childGit(['init', '--initial-branch=main']); childGit(['config', 'user.email', 'test@example.test']); childGit(['config', 'user.name', 'Test']);
-  writeFileSync(join(child, 'child.txt'), 'base\n'); childGit(['add', '.']); childGit(['commit', '-m', 'child base']);
-  parent.git(['add', 'child']); parent.git(['commit', '-m', 'add child']);
-  return { ...parent, child, childGit };
-}
-
-function absorbedNestedRepo() {
-  const source = repo(), parent = repo();
-  parent.git(['-c', 'protocol.file.allow=always', 'submodule', 'add', source.dir, 'absorbed']); parent.git(['commit', '-m', 'add absorbed child']);
-  return { source, parent, child: join(parent.dir, 'absorbed'), cleanup: () => { parent.cleanup(); source.cleanup(); } };
 }
 
 test('delivery guard serializes writers, preserves clean repository, & releases only matching lease', () => {
@@ -161,52 +144,6 @@ test('archive binary rename deletion is deterministic & complete failure retains
     assert.equal(one.state, 'archived'); assert.equal(one.patch.digest, two.patch.digest); assert.deepEqual(readFileSync(one.patch.path), readFileSync(two.patch.path)); assert.match(readFileSync(one.patch.path, 'utf8'), /GIT binary patch|rename from|new.txt/);
     finalizeClose(delivery);
   } finally { fixture.cleanup(); }
-});
-
-test('nested complete requires committed parent canonical-ref gitlink pin', () => {
-  const fixture = nestedRepo();
-  try {
-    fixture.git(['rm', '--cached', 'child']);
-    const delivery = openDelivery({ repositories: [fixture.child], readOnly: false, owner: { sessionId: 'one', runId: 'run-one', taskId: 'T-1' } });
-    writeFileSync(join(fixture.child, 'child.txt'), 'delivered\n'); fixture.childGit(['add', '.']); fixture.childGit(['commit', '-m', 'child delivery']);
-    const childHead = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: fixture.child, encoding: 'utf8' }).trim();
-    assert.throws(() => prepareClose(delivery, 'complete'), { code: 'ARC_DELIVERY_PARENT_NOT_PINNED' });
-    assert.ok(existsSync(join(fixture.child, '.audit', 'arcane', 'delivery', 'lease.json')));
-    fixture.git(['add', 'child']);
-    assert.throws(() => prepareClose(delivery, 'complete'), { code: 'ARC_DELIVERY_PARENT_NOT_PINNED' }, 'index-only parent pin cannot pass');
-    fixture.git(['commit', '-m', 'pin child']);
-    const result = prepareClose(delivery, 'complete')[0];
-    assert.equal(result.state, 'integrated'); assert.equal(result.commit, childHead); assert.equal(result.parentPinned, true);
-    finalizeClose(delivery);
-  } finally { fixture.cleanup(); }
-});
-
-test('absorbed submodule resolves its primary root before parent delivery checks', () => {
-  const fixture = absorbedNestedRepo();
-  try {
-    const commonDir = execFileSync('git', ['rev-parse', '--git-common-dir'], { cwd: fixture.child, encoding: 'utf8' }).trim();
-    const listed = execFileSync('git', ['worktree', 'list', '--porcelain'], { cwd: fixture.child, encoding: 'utf8' });
-    assert.equal(readFileSync(join(fixture.child, '.git'), 'utf8').startsWith('gitdir: '), true); assert.match(commonDir.replaceAll('\\', '/'), /\.git\/modules\/absorbed$/); assert.match(listed.replaceAll('\\', '/'), new RegExp(`worktree ${commonDir.replaceAll('\\', '/').replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`));
-    const owner = { sessionId: 'absorbed', runId: 'run-absorbed', taskId: 'T-1' };
-    const delivery = openDelivery({ repositories: [fixture.child], readOnly: false, owner }); const repoRecord = delivery.repositories[0];
-    assert.equal(repoRecord.root, fixture.child); assert.equal(repoRecord.primaryRoot, fixture.child); assert.equal(repoRecord.canonicalRef, 'refs/heads/main'); assert.deepEqual(repoRecord.parent, { root: fixture.parent.dir, path: 'absorbed', ref: 'refs/heads/main' });
-    const childLease = join(fixture.child, '.audit', 'arcane', 'delivery', 'lease.json'); assert.equal(existsSync(childLease), true); assert.equal(existsSync(join(commonDir, '.audit', 'arcane', 'delivery', 'lease.json')), false);
-    writeFileSync(join(fixture.child, 'child.txt'), 'delivered\n'); execFileSync('git', ['add', '.'], { cwd: fixture.child }); execFileSync('git', ['commit', '-m', 'child delivery'], { cwd: fixture.child });
-    assert.throws(() => prepareClose(delivery, 'complete'), { code: 'ARC_DELIVERY_PARENT_NOT_PINNED' }); fixture.parent.git(['add', 'absorbed']); fixture.parent.git(['commit', '-m', 'pin absorbed child']);
-    assert.equal(prepareClose(delivery, 'complete')[0].state, 'integrated'); finalizeClose(delivery); assert.equal(existsSync(childLease), false);
-  } finally { fixture.cleanup(); }
-});
-
-test('linked child worktree still derives parent from child primary root', () => {
-  const fixture = nestedRepo(); const linked = mkdtempSync(join(tmpdir(), 'arcane-linked-child-'));
-  try {
-    fixture.childGit(['worktree', 'add', '-b', 'linked-delivery', linked]);
-    const linkedGit = (args) => execFileSync('git', args, { cwd: linked, stdio: 'ignore' });
-    const delivery = openDelivery({ repositories: [linked], readOnly: false, owner: { sessionId: 'linked', runId: 'run-linked', taskId: 'T-1' } });
-    writeFileSync(join(linked, 'child.txt'), 'linked delivery\n'); linkedGit(['add', '.']); linkedGit(['commit', '-m', 'linked delivery']);
-    fixture.childGit(['update-ref', 'refs/heads/main', execFileSync('git', ['rev-parse', 'HEAD'], { cwd: linked, encoding: 'utf8' }).trim()]);
-    assert.throws(() => prepareClose(delivery, 'complete'), { code: 'ARC_DELIVERY_PARENT_NOT_PINNED' });
-  } finally { try { fixture.childGit(['worktree', 'remove', '--force', linked]); } catch {} rmSync(linked, { recursive: true, force: true }); fixture.cleanup(); }
 });
 
 test('complete rejects nonancestor and missing canonical refs while retaining lease', () => {

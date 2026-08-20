@@ -49,7 +49,7 @@ export function resolveSourceRevision(workspace) {
   if (typeof workspace !== 'string' || workspace.length === 0) return null;
   // Fast path: read HEAD from the git directory directly. Returns exactly what
   // `git rev-parse HEAD` would for the layouts it recognizes (normal checkout,
-  // packed-refs, detached HEAD, worktree, submodule), and `undefined` when it
+  // packed-refs, detached HEAD, or linked worktree, and `undefined` when it
   // does not — never a fabricated value. This removes the per-event subprocess
   // for the cases that actually occur.
   const fast = resolveSourceRevisionFs(workspace);

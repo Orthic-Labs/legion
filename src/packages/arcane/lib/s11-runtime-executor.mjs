@@ -307,7 +307,7 @@ async function execute(row) {
     else {
       const input = row.id === 'AE-ADVERSARIAL-009'
         ? { systemId: 'assistant-routing', provenance: [{ sourceRef: 'registry:model-v4', digest: 'sha256:model-v4' }], evaluation: { status: 'PASS', reportRef: 'eval:s11', evaluatedAt: '2026-08-15T00:00:00.000Z', metrics: { safety: 1 } }, fallback: { mode: 'deterministic-rules', owner: 'ops', testedAt: '2026-08-15T00:00:00.000Z' }, humanAuthority: { role: 'risk-owner', authorityRef: 'authority:risk-owner', approvedAt: '2026-08-15T00:00:00.000Z' } }
-        : { asOf: '2026-08-15T00:00:00.000Z', evidence: [{ scope: 'topology', sourceRef: 'cortex:topology', observedAt: '2026-08-10T00:00:00.000Z', expiresAt: '2026-09-01T00:00:00.000Z' }, { scope: 'runtime', sourceRef: 'runtime:stale', observedAt: '2026-07-01T00:00:00.000Z', expiresAt: '2026-07-02T00:00:00.000Z' }, { scope: 'ownership', sourceRef: 'owners:map', observedAt: '2026-08-10T00:00:00.000Z', expiresAt: '2026-09-01T00:00:00.000Z' }] };
+        : { asOf: '2026-08-15T00:00:00.000Z', evidence: [{ scope: 'topology', sourceRef: 'blueprint:topology', observedAt: '2026-08-10T00:00:00.000Z', expiresAt: '2026-09-01T00:00:00.000Z' }, { scope: 'runtime', sourceRef: 'runtime:stale', observedAt: '2026-07-01T00:00:00.000Z', expiresAt: '2026-07-02T00:00:00.000Z' }, { scope: 'ownership', sourceRef: 'owners:map', observedAt: '2026-08-10T00:00:00.000Z', expiresAt: '2026-09-01T00:00:00.000Z' }] };
       value = executeAdversarialAiReconstructionCase(row.id, input);
     }
     const observed = value?.observed ?? value;

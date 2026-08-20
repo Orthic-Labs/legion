@@ -136,7 +136,7 @@ export function finalizeAudit({ facts, candidates, adjudication }) {
     quality_gate: qualityGate,
     incomplete,
     plan: facts.plan,
-    cortex: facts.cortex,
+    blueprint: facts.blueprint,
     network_policy: facts.network_policy ?? null,
     gates: {
       deterministic_checks: (facts.checks ?? []).every((check) => (check.execution_status ?? check.status) === 'ran' && (check.verdict ?? 'pass') === 'pass') ? 'pass' : 'unproven',

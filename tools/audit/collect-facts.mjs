@@ -90,7 +90,7 @@ function decompositionReviewLoc() {
   const rawEnv = process.env.CORTEX_DECOMPOSITION_REVIEW_LOC;
   if (rawEnv !== undefined && rawEnv !== '') {
     const fromEnv = Number(rawEnv);
-    if (valid(fromEnv)) return { value: fromEnv, source: 'cortex-config', ignored };
+    if (valid(fromEnv)) return { value: fromEnv, source: 'blueprint-config', ignored };
     ignored.push({ source: 'CORTEX_DECOMPOSITION_REVIEW_LOC', value: rawEnv, reason: 'must be an integer >= 100' });
   }
   try {
@@ -277,7 +277,7 @@ function buildChecks(d) {
           return { status: 'ran', command: 'git rev-parse HEAD; git ls-files', exit_code: 0, meta: { commit: sha, tracked_files: files }, log: '' };
         } });
 
-  // Size is a deterministic REVIEW TRIGGER, never proof that decomposition is correct. Cortex
+  // Size is a deterministic REVIEW TRIGGER, never proof that decomposition is correct. Blueprint
   // enriches these candidates with graph metrics; Audit/Architect must inspect responsibilities,
   // state, callers, dependencies, and tests before emitting a decomposition finding or plan.
   add({ check: 'decomposition', tool: 'loc', required: false, parallel: true,
@@ -1292,7 +1292,7 @@ async function main() {
   mkdirSync(outDir, { recursive: true });
   // One current audit reflecting current repo state: prune older timestamped run
   // dirs so `.audit/` doesn't accumulate forever (same cache-with-no-GC trap the
-  // Cortex generations had). ONLY the `<ts>` run dirs are pruned — the persistent
+  // Blueprint generations had). ONLY the `<ts>` run dirs are pruned — the persistent
   // typed stores (`.audit/audit/`, `.audit/architect/`) and any non-timestamp entry
   // are never touched. Skipped when the caller passed an explicit --out.
   if (!flag('--out')) pruneOldRuns(join(root, '.audit'), ts, 1);
@@ -1341,10 +1341,10 @@ async function main() {
     scope,
     decomposition: results.find(r => r.check === 'decomposition')?.meta || null,
     checks: results,
-    detectionOwner: 'cortex',
+    detectionOwner: 'blueprint',
     detectionDisagreement: (() => {
       const skipped = results.filter((r) => r.status === 'skipped' && r.skip_reason);
-      return skipped.length ? skipped.map((r) => ({ check: r.check, reason: r.skip_reason, note: 'toolchain absent per local detect(); Cortex projection decides provider applicability' })) : [];
+      return skipped.length ? skipped.map((r) => ({ check: r.check, reason: r.skip_reason, note: 'toolchain absent per local detect(); Blueprint projection decides provider applicability' })) : [];
     })(),
   };
   const factsPath = join(outDir, 'facts.json');

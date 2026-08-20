@@ -18,14 +18,14 @@ import highConsequence from '../../src/providers/security/packs/high-consequence
 
 const binding = {
   planDigest: 'sha256:plan', repositoryRevision: 'rev', dirtyPatchDigest: null,
-  cortexGenerationId: 'gen', cortexManifestDigest: 'sha256:manifest', registryDigest: 'sha256:registry',
+  blueprintGenerationId: 'gen', blueprintManifestDigest: 'sha256:manifest', registryDigest: 'sha256:registry',
 };
 
 function run(pack, text, file = 'app.mjs') {
   const artifact = entity('repository-artifact', file, { path: file }, ['ev']);
   const plan = {
     seal: { digest: binding.planDigest },
-    binding: { repositoryRevision: 'rev', dirtyPatchDigest: null, cortex: { generationId: 'gen', manifestDigest: 'sha256:manifest' }, registryDigest: 'sha256:registry' },
+    binding: { repositoryRevision: 'rev', dirtyPatchDigest: null, blueprint: { generationId: 'gen', manifestDigest: 'sha256:manifest' }, registryDigest: 'sha256:registry' },
     providers: [{ id: pack.id, benchmark: { requiredForCleanClaim: true }, denominator: { pathDigest: 'sha256:denom', pathCount: 1, paths: [file] } }],
   };
   const model = { schemaVersion: 1, kind: 'security-surface-model', binding, denominatorDigest: 'sha256:denom', complete: true, entities: [artifact], relations: [], initialFacts: [], evidence: [{ id: 'ev', kind: 'source-location', file }], coverage: {}, coverageGaps: [] };

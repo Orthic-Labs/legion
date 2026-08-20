@@ -269,8 +269,8 @@
         "planDigest",
         "repositoryRevision",
         "dirtyPatchDigest",
-        "cortexGenerationId",
-        "cortexManifestDigest",
+        "blueprintGenerationId",
+        "blueprintManifestDigest",
         "registryDigest"
       ],
       "properties": {
@@ -293,11 +293,11 @@
             }
           ]
         },
-        "cortexGenerationId": {
+        "blueprintGenerationId": {
           "type": "string",
           "minLength": 1
         },
-        "cortexManifestDigest": {
+        "blueprintManifestDigest": {
           "type": "string",
           "pattern": "^sha256:"
         },

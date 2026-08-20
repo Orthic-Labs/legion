@@ -12,7 +12,7 @@
       "phase": "source",
       "dependsOn": [],
       "consumes": [
-        "cortex-projection"
+        "blueprint-packet"
       ],
       "produces": [
         "provider-result"
@@ -81,7 +81,7 @@
       "phase": "source",
       "dependsOn": [],
       "consumes": [
-        "cortex-projection"
+        "blueprint-packet"
       ],
       "produces": [
         "provider-result"
@@ -150,7 +150,7 @@
       "phase": "source",
       "dependsOn": [],
       "consumes": [
-        "cortex-projection"
+        "blueprint-packet"
       ],
       "produces": [
         "provider-result"
@@ -219,7 +219,7 @@
       "phase": "source",
       "dependsOn": [],
       "consumes": [
-        "cortex-projection"
+        "blueprint-packet"
       ],
       "produces": [
         "provider-result"
@@ -288,7 +288,7 @@
       "phase": "source",
       "dependsOn": [],
       "consumes": [
-        "cortex-projection"
+        "blueprint-packet"
       ],
       "produces": [
         "provider-result"
@@ -357,7 +357,7 @@
       "phase": "source",
       "dependsOn": [],
       "consumes": [
-        "cortex-projection"
+        "blueprint-packet"
       ],
       "produces": [
         "provider-result"
@@ -426,7 +426,7 @@
       "phase": "source",
       "dependsOn": [],
       "consumes": [
-        "cortex-projection"
+        "blueprint-packet"
       ],
       "produces": [
         "provider-result"
@@ -495,7 +495,7 @@
       "phase": "source",
       "dependsOn": [],
       "consumes": [
-        "cortex-projection"
+        "blueprint-packet"
       ],
       "produces": [
         "provider-result"
@@ -564,7 +564,7 @@
       "phase": "source",
       "dependsOn": [],
       "consumes": [
-        "cortex-projection"
+        "blueprint-packet"
       ],
       "produces": [
         "provider-result"
@@ -633,7 +633,7 @@
       "phase": "source",
       "dependsOn": [],
       "consumes": [
-        "cortex-projection"
+        "blueprint-packet"
       ],
       "produces": [
         "provider-result"
@@ -702,7 +702,7 @@
       "phase": "source",
       "dependsOn": [],
       "consumes": [
-        "cortex-projection"
+        "blueprint-packet"
       ],
       "produces": [
         "provider-result"
@@ -771,7 +771,7 @@
       "phase": "source",
       "dependsOn": [],
       "consumes": [
-        "cortex-projection"
+        "blueprint-packet"
       ],
       "produces": [
         "provider-result"
@@ -840,7 +840,7 @@
       "phase": "source",
       "dependsOn": [],
       "consumes": [
-        "cortex-projection"
+        "blueprint-packet"
       ],
       "produces": [
         "provider-result"
@@ -909,7 +909,7 @@
       "phase": "source",
       "dependsOn": [],
       "consumes": [
-        "cortex-projection"
+        "blueprint-packet"
       ],
       "produces": [
         "provider-result"
@@ -978,7 +978,7 @@
       "phase": "source",
       "dependsOn": [],
       "consumes": [
-        "cortex-projection"
+        "blueprint-packet"
       ],
       "produces": [
         "provider-result"
@@ -1047,7 +1047,7 @@
       "phase": "source",
       "dependsOn": [],
       "consumes": [
-        "cortex-projection"
+        "blueprint-packet"
       ],
       "produces": [
         "provider-result"
@@ -1116,7 +1116,7 @@
       "phase": "source",
       "dependsOn": [],
       "consumes": [
-        "cortex-projection"
+        "blueprint-packet"
       ],
       "produces": [
         "provider-result"
@@ -1185,7 +1185,7 @@
       "phase": "source",
       "dependsOn": [],
       "consumes": [
-        "cortex-projection"
+        "blueprint-packet"
       ],
       "produces": [
         "provider-result"
@@ -1254,7 +1254,7 @@
       "phase": "source",
       "dependsOn": [],
       "consumes": [
-        "cortex-projection"
+        "blueprint-packet"
       ],
       "produces": [
         "provider-result"
@@ -1323,7 +1323,7 @@
       "phase": "source",
       "dependsOn": [],
       "consumes": [
-        "cortex-projection"
+        "blueprint-packet"
       ],
       "produces": [
         "provider-result"
@@ -1394,7 +1394,7 @@
       "phase": "runtime",
       "dependsOn": [],
       "consumes": [
-        "cortex-projection"
+        "blueprint-packet"
       ],
       "produces": [
         "provider-result"
@@ -1468,7 +1468,7 @@
       "phase": "source",
       "dependsOn": [],
       "consumes": [
-        "cortex-projection"
+        "blueprint-packet"
       ],
       "produces": [
         "security-candidates"
@@ -1553,7 +1553,7 @@
       "phase": "source",
       "dependsOn": [],
       "consumes": [
-        "cortex-projection"
+        "blueprint-packet"
       ],
       "produces": [
         "provider-result"
@@ -1562,13 +1562,13 @@
         "op": "sourceFilesAtLeast",
         "count": 1
       },
-      "denominatorKind": "Cortex first-party source inventory",
+      "denominatorKind": "Blueprint first-party source inventory",
       "runner": {
         "kind": "legacy-check",
         "check": "decomposition",
         "tool": "size/graph metrics",
         "requiredWhen": "optional",
-        "applies": "Cortex first-party source inventory",
+        "applies": "Blueprint first-party source inventory",
         "parallel": true,
         "backs": [
           "architecture",
@@ -1632,7 +1632,7 @@
       "phase": "source",
       "dependsOn": [],
       "consumes": [
-        "cortex-projection"
+        "blueprint-packet"
       ],
       "produces": [
         "provider-result"
@@ -1709,7 +1709,7 @@
       "phase": "runtime",
       "dependsOn": [],
       "consumes": [
-        "cortex-projection"
+        "blueprint-packet"
       ],
       "produces": [
         "security-candidates"
@@ -1794,7 +1794,7 @@
       "phase": "source",
       "dependsOn": [],
       "consumes": [
-        "cortex-projection"
+        "blueprint-packet"
       ],
       "produces": [
         "provider-result"
@@ -1886,7 +1886,7 @@
       "phase": "source",
       "dependsOn": [],
       "consumes": [
-        "cortex-projection"
+        "blueprint-packet"
       ],
       "produces": [
         "provider-result"
@@ -1968,7 +1968,7 @@
       "phase": "source",
       "dependsOn": [],
       "consumes": [
-        "cortex-projection"
+        "blueprint-packet"
       ],
       "produces": [
         "provider-result"
@@ -2048,7 +2048,7 @@
       "phase": "source",
       "dependsOn": [],
       "consumes": [
-        "cortex-projection"
+        "blueprint-packet"
       ],
       "produces": [
         "provider-result"
@@ -2130,7 +2130,7 @@
       "phase": "source",
       "dependsOn": [],
       "consumes": [
-        "cortex-projection"
+        "blueprint-packet"
       ],
       "produces": [
         "provider-result"
@@ -2212,7 +2212,7 @@
       "phase": "source",
       "dependsOn": [],
       "consumes": [
-        "cortex-projection"
+        "blueprint-packet"
       ],
       "produces": [
         "provider-result"
@@ -2291,7 +2291,7 @@
       "phase": "source",
       "dependsOn": [],
       "consumes": [
-        "cortex-projection"
+        "blueprint-packet"
       ],
       "produces": [
         "provider-result"
@@ -2375,7 +2375,7 @@
       "phase": "source",
       "dependsOn": [],
       "consumes": [
-        "cortex-projection"
+        "blueprint-packet"
       ],
       "produces": [
         "provider-result"
@@ -2460,7 +2460,7 @@
       "phase": "source",
       "dependsOn": [],
       "consumes": [
-        "cortex-projection"
+        "blueprint-packet"
       ],
       "produces": [
         "provider-result"
@@ -2539,7 +2539,7 @@
       "phase": "source",
       "dependsOn": [],
       "consumes": [
-        "cortex-projection"
+        "blueprint-packet"
       ],
       "produces": [
         "provider-result"
@@ -2623,7 +2623,7 @@
       "phase": "source",
       "dependsOn": [],
       "consumes": [
-        "cortex-projection"
+        "blueprint-packet"
       ],
       "produces": [
         "provider-result"
@@ -2707,7 +2707,7 @@
       "phase": "runtime",
       "dependsOn": [],
       "consumes": [
-        "cortex-projection"
+        "blueprint-packet"
       ],
       "produces": [
         "provider-result"
@@ -2792,7 +2792,7 @@
       "phase": "judgment",
       "dependsOn": [],
       "consumes": [
-        "cortex-projection"
+        "blueprint-packet"
       ],
       "produces": [
         "provider-result"
@@ -2864,7 +2864,7 @@
       "phase": "source",
       "dependsOn": [],
       "consumes": [
-        "cortex-projection"
+        "blueprint-packet"
       ],
       "produces": [
         "security-candidates"
@@ -2944,7 +2944,7 @@
       "phase": "source",
       "dependsOn": [],
       "consumes": [
-        "cortex-projection"
+        "blueprint-packet"
       ],
       "produces": [
         "security-candidates"
@@ -3022,7 +3022,7 @@
       "phase": "source",
       "dependsOn": [],
       "consumes": [
-        "cortex-projection"
+        "blueprint-packet"
       ],
       "produces": [
         "security-candidates"
@@ -3103,7 +3103,7 @@
       "phase": "source",
       "dependsOn": [],
       "consumes": [
-        "cortex-projection"
+        "blueprint-packet"
       ],
       "produces": [
         "security-candidates"
@@ -3184,7 +3184,7 @@
       "phase": "source",
       "dependsOn": [],
       "consumes": [
-        "cortex-projection"
+        "blueprint-packet"
       ],
       "produces": [
         "security-candidates"
@@ -3265,7 +3265,7 @@
       "phase": "source",
       "dependsOn": [],
       "consumes": [
-        "cortex-projection"
+        "blueprint-packet"
       ],
       "produces": [
         "security-candidates"
@@ -3345,7 +3345,7 @@
       "phase": "source",
       "dependsOn": [],
       "consumes": [
-        "cortex-projection"
+        "blueprint-packet"
       ],
       "produces": [
         "security-candidates"
@@ -3427,7 +3427,7 @@
       "phase": "source",
       "dependsOn": [],
       "consumes": [
-        "cortex-projection"
+        "blueprint-packet"
       ],
       "produces": [
         "security-candidates"
@@ -3508,7 +3508,7 @@
       "phase": "source",
       "dependsOn": [],
       "consumes": [
-        "cortex-projection"
+        "blueprint-packet"
       ],
       "produces": [
         "security-candidates"
@@ -3590,7 +3590,7 @@
       "phase": "source",
       "dependsOn": [],
       "consumes": [
-        "cortex-projection"
+        "blueprint-packet"
       ],
       "produces": [
         "security-candidates"
@@ -3671,7 +3671,7 @@
       "phase": "source",
       "dependsOn": [],
       "consumes": [
-        "cortex-projection"
+        "blueprint-packet"
       ],
       "produces": [
         "security-candidates"
@@ -3749,7 +3749,7 @@
       "phase": "source",
       "dependsOn": [],
       "consumes": [
-        "cortex-projection"
+        "blueprint-packet"
       ],
       "produces": [
         "security-candidates"
@@ -3826,7 +3826,7 @@
       "phase": "judgment",
       "dependsOn": [],
       "consumes": [
-        "cortex-projection"
+        "blueprint-packet"
       ],
       "produces": [
         "provider-result"
@@ -3896,7 +3896,7 @@
       "phase": "source",
       "dependsOn": [],
       "consumes": [
-        "cortex-projection"
+        "blueprint-packet"
       ],
       "produces": [
         "security-candidates"
@@ -3974,7 +3974,7 @@
       "phase": "source",
       "dependsOn": [],
       "consumes": [
-        "cortex-projection"
+        "blueprint-packet"
       ],
       "produces": [
         "provider-result"
@@ -4054,7 +4054,7 @@
       "phase": "source",
       "dependsOn": [],
       "consumes": [
-        "cortex-projection"
+        "blueprint-packet"
       ],
       "produces": [
         "provider-result"
@@ -4135,7 +4135,7 @@
       "phase": "source",
       "dependsOn": [],
       "consumes": [
-        "cortex-projection"
+        "blueprint-packet"
       ],
       "produces": [
         "security-candidates"
@@ -4218,7 +4218,7 @@
       "phase": "source",
       "dependsOn": [],
       "consumes": [
-        "cortex-projection"
+        "blueprint-packet"
       ],
       "produces": [
         "security-candidates"
@@ -4300,7 +4300,7 @@
       "phase": "runtime",
       "dependsOn": [],
       "consumes": [
-        "cortex-projection"
+        "blueprint-packet"
       ],
       "produces": [
         "provider-result"
@@ -4370,7 +4370,7 @@
       "phase": "source",
       "dependsOn": [],
       "consumes": [
-        "cortex-projection"
+        "blueprint-packet"
       ],
       "produces": [
         "provider-result"
@@ -4439,7 +4439,7 @@
       "phase": "source",
       "dependsOn": [],
       "consumes": [
-        "cortex-projection"
+        "blueprint-packet"
       ],
       "produces": [
         "provider-result"
@@ -4508,7 +4508,7 @@
       "phase": "source",
       "dependsOn": [],
       "consumes": [
-        "cortex-projection"
+        "blueprint-packet"
       ],
       "produces": [
         "security-candidates"
@@ -4577,7 +4577,7 @@
       "phase": "source",
       "dependsOn": [],
       "consumes": [
-        "cortex-projection"
+        "blueprint-packet"
       ],
       "produces": [
         "provider-result"
@@ -4646,7 +4646,7 @@
       "phase": "source",
       "dependsOn": [],
       "consumes": [
-        "cortex-projection"
+        "blueprint-packet"
       ],
       "produces": [
         "provider-result"
@@ -4715,7 +4715,7 @@
       "phase": "source",
       "dependsOn": [],
       "consumes": [
-        "cortex-projection"
+        "blueprint-packet"
       ],
       "produces": [
         "provider-result"

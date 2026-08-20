@@ -117,7 +117,7 @@
     {
       "path": "references/manual.md",
       "uri": "legion-skill://marketing/references/manual.md",
-      "digest": "sha256:442940d00f64e822343b4580b6ebe31ff68d00a757681dcdf97c3d06911eed42"
+      "digest": "sha256:eea5070dbb132b93e3fc872301ed125debb53807cddfbbae4f3c5b89b03dc425"
     },
     {
       "path": "references/seo-structure-assets/mermaid-templates.md",
@@ -462,7 +462,7 @@
     {
       "path": "specialists/product-context/GUIDE.md",
       "uri": "legion-skill://marketing/specialists/product-context/GUIDE.md",
-      "digest": "sha256:56e2a3efc9578482deb74705b9955050a886eee3dce84928fa0ed578ad194bd4"
+      "digest": "sha256:00c99cd69f13b6f1168e0195d31b87410453ed0195a37fe7d2643db335fc7022"
     },
     {
       "path": "specialists/product-context/evals/evals.json",
@@ -472,7 +472,7 @@
     {
       "path": "specialists/strategy/GUIDE.md",
       "uri": "legion-skill://marketing/specialists/strategy/GUIDE.md",
-      "digest": "sha256:769f09fbeba405baadd602c734ddd5592ed897cb54bb4a4de910ca376e436f7a"
+      "digest": "sha256:602275d075d64e524e1825336035eb0b4e835ecde10bfc49784de8c52a24e695"
     }
   ]
 }

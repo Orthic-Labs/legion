@@ -93,9 +93,9 @@ test('B1-012 reasoning runner prepares a packet without invoking a reviewer', as
   assert.equal(receipt.state, 'packet-prepared');
 });
 
-test('B1-013 precomputed Cortex projection rejects stale repository binding', async () => {
-  const { loadPrecomputedProjection } = await import('../../src/lib/adapters/cortex/precomputed.mjs');
-  assert.throws(() => loadPrecomputedProjection({ schemaVersion: 1, binding: { revision: 'old' } }, { revision: 'new' }), /binding/);
+test('B1-013 Membrane packet transport rejects unavailable or unknown packets', async () => {
+  const { consumeMembranePacket } = await import('../../src/packages/context/lib/context.mjs');
+  assert.throws(() => consumeMembranePacket({ schema: 'legacy.repository-packet.v1' }), /unsupported/);
 });
 
 test('B1-014 binding comparison is stable across path separators', async () => {
@@ -105,7 +105,7 @@ test('B1-014 binding comparison is stable across path separators', async () => {
 
 test('B1-015 planning stage registry is fixed and missing required stages are typed', async () => {
   const { PLANNING_STAGE_IDS, runPlanningStages } = await import('../../src/lib/core/plan-stages/registry.mjs');
-  assert.deepEqual(PLANNING_STAGE_IDS.slice(0, 3), ['repository-binding', 'cortex-projection', 'product-portfolio']);
+  assert.deepEqual(PLANNING_STAGE_IDS.slice(0, 3), ['repository-binding', 'blueprint-packet', 'product-portfolio']);
   const result = await runPlanningStages([], { claimLevel: 'source' });
   assert.equal(result.status, 'unproven');
   assert.ok(result.gaps.some(({ stage }) => stage === 'control-baseline'));
@@ -192,7 +192,7 @@ test('B1-027 qualifier supports Books 1 through 6 and package smoke exercises li
   const { discoverBookTests } = await import('../../scripts/qualify-book.mjs');
   const { packageSmokeContract } = await import('../../scripts/package-smoke.mjs');
   for (const book of [1, 2, 3, 4, 5, 6]) assert.ok((await discoverBookTests(book)).length > 0);
-  assert.deepEqual(packageSmokeContract(), ['binary', 'library-import', 'cortex-projection', 'plan', 'schedule', 'serial-execution', 'auto-execution', 'audit', 'verify', 'tasklist', 'dispatch', 'coder', 'qa', 'handoff', 'transcripts', 'decisions']);
+  assert.deepEqual(packageSmokeContract(), ['binary', 'library-import', 'blueprint-packet', 'plan', 'schedule', 'serial-execution', 'auto-execution', 'audit', 'verify', 'tasklist', 'dispatch', 'coder', 'qa', 'handoff', 'transcripts', 'decisions']);
 });
 
 test('B1-028 qualification digest ignores duration and noisy test bytes', async () => {

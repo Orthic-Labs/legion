@@ -35,7 +35,7 @@ export function expandSecurityLensProviders(lensRegistry) {
     role: 'candidate-generator',
     phase: 'runtime',
     selector: lens.selector,
-    allowWithoutCortex: false,
+    allowWithoutBlueprint: false,
     runner: {
       kind: 'runtime-script',
       script: 'src/providers/security/candidate-engine.mjs',
@@ -95,7 +95,7 @@ export function expandProviderRegistry(raw) {
   for (const item of raw.legacy ?? []) {
     providers.push({
       id: item.id, role: item.role, phase: 'facts', selector: expandSelector(item.selector),
-      allowWithoutCortex: Boolean(item.allowWithoutCortex), runner: { kind: 'legacy-check', check: item.check },
+      allowWithoutBlueprint: Boolean(item.allowWithoutBlueprint), runner: { kind: 'legacy-check', check: item.check },
       manifest: {
         check: item.check, tool: item.tool, required_when: item.required, applies: item.applies,
         parallel: item.parallel, backs: item.backs ?? [],
@@ -109,7 +109,7 @@ export function expandProviderRegistry(raw) {
   for (const item of raw.runtime ?? []) {
     providers.push({
       id: item.id, role: item.role, phase: 'runtime', selector: expandSelector(item.selector),
-      allowWithoutCortex: Boolean(item.allowWithoutCortex),
+      allowWithoutBlueprint: Boolean(item.allowWithoutBlueprint),
       runner: { kind: 'runtime-script', script: item.script, ...(item.pack ? { pack: item.pack } : {}) },
       manifest: item.manifest, benchmark: benchmark(item.benchmark), ...(item.covers ? { covers: item.covers } : {}),
       ...(item.role === 'candidate-generator' ? { producesSecurityCandidates: true, mayCloseOwnCandidates: false } : {}),
@@ -118,7 +118,7 @@ export function expandProviderRegistry(raw) {
   for (const item of raw.reasoning ?? []) {
     providers.push({
       id: item.id, role: item.role, phase: 'reasoning', selector: expandSelector(item.selector),
-      allowWithoutCortex: Boolean(item.allowWithoutCortex), runner: { kind: 'reasoning-contract', contract: item.contract },
+      allowWithoutBlueprint: Boolean(item.allowWithoutBlueprint), runner: { kind: 'reasoning-contract', contract: item.contract },
       benchmark: benchmark(item.benchmark), ...(item.freshContextRequired ? { freshContextRequired: true } : {}),
       ...(item.mayCloseOwnCandidates === false ? { mayCloseOwnCandidates: false } : {}),
     });
@@ -178,7 +178,7 @@ function adaptProviderV2Registry(raw) {
         role: provider.role,
         phase: provider.phase === 'source' ? 'facts' : provider.phase,
         selector: provider.selector,
-        allowWithoutCortex: id === 'core.repo',
+        allowWithoutBlueprint: id === 'core.repo',
         runner: runner.kind === 'legacy-check'
           ? { kind: 'legacy-check', check: runner.check }
           : runner,
@@ -202,7 +202,7 @@ function adaptProviderV2Registry(raw) {
     { id: 'framework.react', kind: 'framework', qualification: 'unproven', selector: { op: 'anyDependency', names: ['react','react-dom'] }, providers: ['react.hooks-config'].filter((id) => ids.has(id)) },
     { id: 'framework.tauri', kind: 'framework', qualification: 'unproven', selector: { op: 'anyPath', patterns: ['src-tauri/**'] }, providers: ['tauri.contract-mirror','tauri.capabilities'].filter((id) => ids.has(id)) }
   ];
-  return { schemaVersion: 1, kind: 'audit-provider-registry', discoveryOwner: 'cortex', planSeal: 'sha256', concurrency: 'min(cpus-1,4)', candidateAdjudication: 'separate-context', providers, coverageFamilies };
+  return { schemaVersion: 1, kind: 'audit-provider-registry', discoveryOwner: 'blueprint', planSeal: 'sha256', concurrency: 'min(cpus-1,4)', candidateAdjudication: 'separate-context', providers, coverageFamilies };
 }
 export function loadProviderRegistry(path = DEFAULT_REGISTRY, extensionPath = DEFAULT_EXTENSION) {
   const raw = JSON.parse(readFileSync(path, 'utf8'));
@@ -218,7 +218,7 @@ export function loadProviderRegistry(path = DEFAULT_REGISTRY, extensionPath = DE
 
 export function validateProviderRegistry(registry) {
   if (registry?.schemaVersion !== 1 || registry?.kind !== 'audit-provider-registry') throw new Error('provider registry must be audit-provider-registry schemaVersion=1');
-  if (registry.discoveryOwner !== 'cortex') throw new Error('provider registry discoveryOwner must be cortex');
+  if (registry.discoveryOwner !== 'blueprint') throw new Error('provider registry discoveryOwner must be blueprint');
   if (!Array.isArray(registry.providers) || !registry.providers.length) throw new Error('provider registry must declare providers');
   const ids = new Set(); const checks = new Set();
   for (const provider of registry.providers) {
@@ -308,7 +308,7 @@ export function evaluateSelector(selector, context, selectedProviders = []) {
 }
 function denominator(paths, projection) {
   const normalized = [...new Set(paths.map(normalizePath))].sort();
-  return normalized.length ? { source: 'cortex-selector', pathCount: normalized.length, pathDigest: sha256(normalized), paths: normalized } : { source: 'repository', pathCount: projection?.files?.length ?? 0, pathDigest: projection?.fileSetDigest ?? sha256([]) };
+  return normalized.length ? { source: 'blueprint-selector', pathCount: normalized.length, pathDigest: sha256(normalized), paths: normalized } : { source: 'repository', pathCount: projection?.files?.length ?? 0, pathDigest: projection?.fileSetDigest ?? sha256([]) };
 }
 
 export function selectProviders(registry, projection, options = {}) {
@@ -319,7 +319,7 @@ export function selectProviders(registry, projection, options = {}) {
     const check = provider.runner.kind === 'legacy-check' ? provider.runner.check : null;
     if (only.size && check && !only.has(check)) { excluded.push({ id: provider.id, check, reason: 'not-in-only-filter' }); continue; }
     if (check && skip.has(check)) { excluded.push({ id: provider.id, check, reason: 'skipped-by-request' }); continue; }
-    if (!context.ready && !provider.allowWithoutCortex) { excluded.push({ id: provider.id, check, reason: 'cortex-unproven' }); continue; }
+    if (!context.ready && !provider.allowWithoutBlueprint) { excluded.push({ id: provider.id, check, reason: 'blueprint-unproven' }); continue; }
     const verdict = evaluateSelector(provider.selector, context, selected);
     if (!verdict.matched) { excluded.push({ id: provider.id, check, reason: verdict.reason }); continue; }
     selected.push({ ...provider, selectionReason: verdict.reason, denominator: denominator(verdict.paths, projection) });
@@ -356,7 +356,7 @@ export function renderManifest(registry) {
   const providers = registry.providers.map((provider) => ({
     id: provider.id, role: provider.role, phase: provider.phase, runner: provider.runner,
     benchmark_status: provider.benchmark?.status ?? 'unproven', required_for_clean_claim: Boolean(provider.benchmark?.requiredForCleanClaim),
-    allow_without_cortex: Boolean(provider.allowWithoutCortex), produces_security_candidates: Boolean(provider.producesSecurityCandidates),
+    allow_without_blueprint: Boolean(provider.allowWithoutBlueprint), produces_security_candidates: Boolean(provider.producesSecurityCandidates),
     fresh_context_required: Boolean(provider.freshContextRequired), may_close_own_candidates: provider.role === 'candidate-generator' ? false : provider.mayCloseOwnCandidates !== false,
   }));
   return {

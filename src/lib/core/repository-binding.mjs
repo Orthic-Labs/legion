@@ -13,7 +13,7 @@ async function files(root, current = root, output = []) {
   return output;
 }
 
-export async function bindRepository(root, { revision = null, sourceRevision = revision, cortexDigest = null, skillRegistryDigest = null, familyRegistryDigest = null, providerRegistryDigest = null, configDigest = null } = {}) {
+export async function bindRepository(root, { revision = null, sourceRevision = revision, blueprintDigest = null, skillRegistryDigest = null, familyRegistryDigest = null, providerRegistryDigest = null, configDigest = null } = {}) {
   const absoluteRoot = resolve(root);
   const names = (await files(absoluteRoot)).sort();
   const hash = createHash('sha256');
@@ -21,6 +21,6 @@ export async function bindRepository(root, { revision = null, sourceRevision = r
     const path = join(absoluteRoot, name);
     hash.update(`${name}\0`); hash.update(await readFile(path));
   }
-  const dirtyOverlayDigest=`sha256:${hash.digest('hex')}`;const authorities={cortexDigest,skillRegistryDigest,familyRegistryDigest,providerRegistryDigest,configDigest};
+  const dirtyOverlayDigest=`sha256:${hash.digest('hex')}`;const authorities={blueprintDigest,skillRegistryDigest,familyRegistryDigest,providerRegistryDigest,configDigest};
   return Object.freeze({ schemaVersion: 1, root: absoluteRoot, repositoryRevision: revision,sourceRevision,dirtyOverlayDigest,fileCount:names.length,...authorities,digest:digest({revision,sourceRevision,dirtyOverlayDigest,names,authorities}) });
 }

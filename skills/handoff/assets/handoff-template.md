@@ -201,7 +201,7 @@ RECEIPT AT: {{ABSOLUTE_RECEIPT_PATH}}
 ## 15. Handoff Author Gate
 
 - [ ] Original user intent + active goal are exact, not paraphrased away.
-- [ ] Source evidence mode is explicit; transcript ingest binds compiled ledger path + prefix receipt.
+- [ ] Source evidence mode is explicit; Membrane context path + prefix receipt are bound.
 - [ ] Live state was re-read from workspace/tools this turn.
 - [ ] Completed/in-progress/blocked/not-started states are separated.
 - [ ] Branch/version/dirty state or non-code equivalent is exact.

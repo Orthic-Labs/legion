@@ -60,7 +60,7 @@ async function buildValidRuleUniverse() {
   const validPackIds = new Set();
 
   for (const file of REGISTRY_FILES) {
-    const registry = loadJson(fileURLToPath(new URL(`../../registry/rules/security/${file}`, import.meta.url)));
+    const registry = loadJson(fileURLToPath(new URL(`../../src/registry/rules/security/${file}`, import.meta.url)));
     assert.ok(Array.isArray(registry.rules), `${file} must have a rules array`);
     for (const rule of registry.rules) {
       assert.ok(rule.id, `${file} has a rule with no id`);
@@ -76,7 +76,7 @@ async function buildValidRuleUniverse() {
   }
 
   for (const file of STANDALONE_PACK_FILES) {
-    const url = pathToFileURL(fileURLToPath(new URL(`../../providers/security/packs/${file}`, import.meta.url))).href;
+    const url = pathToFileURL(fileURLToPath(new URL(`../../src/providers/security/packs/${file}`, import.meta.url))).href;
     const mod = await import(url);
     const pack = mod.default;
     assert.ok(pack && pack.id, `${file} must have a default-exported pack with an id`);

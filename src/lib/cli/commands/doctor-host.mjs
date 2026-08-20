@@ -13,7 +13,7 @@
 //     registered for tools it could.
 //
 // Read-only: this inspects state and reports, never repairs.
-import { existsSync, readFileSync, statSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { homedir } from 'node:os';
 
@@ -161,10 +161,16 @@ function fidelity(root) {
 /** Arcane runtime health: keys present, and which effects the hooks can actually gate. */
 function arcaneHostHealth(root, home) {
   const keyDirs = [join(home, '.claude', 'arcane-keys'), join(home, '.codex', 'arcane-keys')];
+  const canonicalKeyDir = join(home, '.codex', 'arcane-keys');
+  const canonicalKeyIds = (() => {
+    try { return readdirSync(canonicalKeyDir).filter((name) => name.endsWith('.key')).map((name) => name.slice(0, -4)).sort(); }
+    catch { return []; }
+  })();
   const hooks = readJson(join(root, 'hooks', 'hooks.json'));
   const matcherFor = (event) => hooks?.hooks?.[event]?.[0]?.matcher ?? null;
   return {
     keyDirs: keyDirs.map((dir) => ({ dir, present: existsSync(dir) })),
+    canonicalVerificationKeyring: { dir: canonicalKeyDir, present: existsSync(canonicalKeyDir), keyIds: canonicalKeyIds },
     hookRegistration: {
       preToolUse: matcherFor('PreToolUse'),
       postToolUse: matcherFor('PostToolUse'),

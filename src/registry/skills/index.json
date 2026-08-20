@@ -136,6 +136,25 @@
       "manifest": "skills/manifests/audit-visual.json"
     },
     {
+      "id": "blueprint",
+      "name": "blueprint",
+      "description": "Build or consume current source-grounded repository truth through Membrane's Blueprint packet. Use /blueprint before inheriting, changing, auditing, or judging unfamiliar code.",
+      "kind": "capability",
+      "capabilityClass": "context",
+      "discoverability": "public",
+      "domain": "engineering",
+      "operations": [
+        "analyze",
+        "produce"
+      ],
+      "effects": [
+        "source-read"
+      ],
+      "hostRequirements": [],
+      "source": "skills/blueprint/SKILL.md",
+      "manifest": "skills/manifests/blueprint.json"
+    },
+    {
       "id": "brand",
       "name": "brand",
       "description": "Load a source-bound brand card before branded content, design, marketing, social, or media work. Use /brand when a named brand or approved identity source governs an output.",
@@ -215,28 +234,6 @@
       "hostRequirements": [],
       "source": "skills/commit/SKILL.md",
       "manifest": "skills/manifests/commit.json"
-    },
-    {
-      "id": "cortex",
-      "name": "cortex",
-      "description": "Build a current, source-grounded repository map with Cortex. Use /cortex or /blueprint before inheriting, changing, auditing, or judging unfamiliar code.",
-      "kind": "capability",
-      "capabilityClass": "domain",
-      "discoverability": "public",
-      "domain": "engineering",
-      "operations": [
-        "analyze",
-        "produce"
-      ],
-      "effects": [
-        "source-read",
-        "process-exec"
-      ],
-      "hostRequirements": [
-        "cortex-graph"
-      ],
-      "source": "skills/cortex/SKILL.md",
-      "manifest": "skills/manifests/cortex.json"
     },
     {
       "id": "covenant",

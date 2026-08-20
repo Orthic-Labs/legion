@@ -48,7 +48,7 @@ export function controlEntity(controlType, name, evidenceRefs, attributes = {}) 
 }
 
 // Common extractor per Security Appendix §11.1: repository artifacts from the
-// Cortex file list, package manifests and dependencies, deployment contexts,
+// Blueprint file list, package manifests and dependencies, deployment contexts,
 // and external actors as explicit assumptions only.
 export function extractCommon({ root, plan, projection, files, lensRegistry }) {
   const entities = [];

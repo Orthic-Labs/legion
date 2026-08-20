@@ -687,7 +687,7 @@
     {
       "path": "engine/scripts/lib/impeccable-config.mjs",
       "uri": "legion-skill://designer/engine/scripts/lib/impeccable-config.mjs",
-      "digest": "sha256:b8da16081a158d2aa6e86ff4fa74028977ee73e6559eda13e6a068b60123c7cb"
+      "digest": "sha256:73695aa8e0561867e799f75f6ba526769a057a3e28343755e246c69f175b81b0"
     },
     {
       "path": "engine/scripts/lib/impeccable-paths.mjs",

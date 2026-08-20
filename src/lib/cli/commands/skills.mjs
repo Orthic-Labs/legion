@@ -4,8 +4,8 @@ import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { validateCommercialLenses } from '../../lenses/routing.mjs';
 import { validateInternalRecipes } from '../../recipes/validate.mjs';
-const packageRoot = fileURLToPath(new URL('../../../', import.meta.url));
-async function packagedManifests() { const index = JSON.parse(await readFile(new URL('../../../registry/skills/index.json', import.meta.url), 'utf8')); return Object.fromEntries(await Promise.all(index.bundles.map(async ({ id, manifest }) => [id, JSON.parse(await readFile(new URL(`../../../${manifest}`, import.meta.url), 'utf8'))]))); }
+const packageRoot = fileURLToPath(new URL('../../../../', import.meta.url));
+async function packagedManifests() { const index = JSON.parse(await readFile(new URL('../../../../src/registry/skills/index.json', import.meta.url), 'utf8')); return Object.fromEntries(await Promise.all(index.bundles.map(async ({ id, manifest }) => [id, JSON.parse(await readFile(new URL(`../../../../${manifest}`, import.meta.url), 'utf8'))]))); }
 export async function runSkills(argv, { stdout, stderr }, manifests = null) {
   manifests ??= await packagedManifests(); if (argv.includes('--help')) { stdout.write('Usage: legion skills [list|verify] [--bundle <id>] [--publication]\n'); return { exitCode: 0 }; }
   const command = argv[0] ?? 'list'; let publication = false; const bundles = [];

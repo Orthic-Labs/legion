@@ -2,9 +2,9 @@
 
 ## Ownership
 
-Cortex owns deterministic repository discovery: first-party files, generated/vendored boundaries,
+Blueprint owns deterministic repository discovery: first-party files, generated/vendored boundaries,
 language parsing, symbols, edges, confidence tiers, freshness, and generation identity. Audit reads
-`cortex graph status --json`, `cortex graph manifest`, and `cortex graph export`; it does not maintain
+`blueprint graph status --json`, `blueprint graph manifest`, and `blueprint graph export`; it does not maintain
 a second provider-selection file/language signature registry.
 
 Audit owns provider planning and execution: project-native build/type/lint/test commands, audit-only
@@ -13,14 +13,14 @@ coverage reconciliation, and reports.
 
 The legacy `collect-facts.mjs` implementation may inspect local stack details only to choose the
 command for a check that was already selected by the frozen plan. It never selects applicability.
-A disagreement between its local command adapter and the Cortex-backed plan produces `skipped` or
+A disagreement between its local command adapter and the Blueprint-backed plan produces `skipped` or
 `UNPROVEN`; it cannot narrow the denominator or produce a clean result.
 
 ## Frozen order
 
 ```text
 freeze scope + repository identity
-  → pin fresh Cortex generation
+  → pin fresh Blueprint generation
   → project graph into audit facts
   → load declarative registry data
   → select additive providers deterministically
@@ -35,13 +35,13 @@ The plan carries two independent protections:
 - a SHA-256 integrity digest over the unsigned plan body;
 - an HMAC-SHA-256 authenticity signature using `AUDIT_PLAN_SIGNING_KEY` supplied by the trusted host.
 
-Both bind the repository revision, dirty-tree digest, Cortex generation/manifest, registry digest,
+Both bind the repository revision, dirty-tree digest, Blueprint generation/manifest, registry digest,
 provider set, and expected denominators. Missing signing material leaves a valid integrity artifact,
 but adds an `unsigned-plan` coverage gap and keeps the audit `UNPROVEN`. A generation, dirty-tree,
 registry, denominator, or signature change invalidates the experiment.
 
-If Cortex is missing, stale, corrupt, incomplete, or changes generation during projection, Audit may
-run only providers explicitly declared safe without Cortex. The audit remains `UNPROVEN`; it never
+If Blueprint is missing, stale, corrupt, incomplete, or changes generation during projection, Audit may
+run only providers explicitly declared safe without Blueprint. The audit remains `UNPROVEN`; it never
 falls back to an agent-invented language inventory.
 
 ## Registry
@@ -121,6 +121,6 @@ from this repo; there is no equivalent tooling shipped today.)
 - `/audit-fix` → a bounded mutation loop over the same frozen provider contract.
 - `/audit-visual` → a thin route over `visual.core`, not a second visual engine.
 - `plan.json` — frozen, integrity-sealed, authenticity-signed provider plan.
-- `facts.json` — deterministic execution results plus plan/Cortex/network-policy reconciliation.
+- `facts.json` — deterministic execution results plus plan/Blueprint/network-policy reconciliation.
 - `report.json` — normalized audit findings and gate vector.
 - `report.sarif` — dependency-free SARIF 2.1.0 projection for code-scanning consumers.

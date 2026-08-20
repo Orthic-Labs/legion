@@ -9,13 +9,13 @@ import { entity } from '../../src/providers/security/model-extractors/common.mjs
 
 const BINDING = {
   planDigest: 'sha256:plan', repositoryRevision: 'rev1', dirtyPatchDigest: null,
-  cortexGenerationId: 'gen1', cortexManifestDigest: 'sha256:manifest', registryDigest: 'sha256:registry',
+  blueprintGenerationId: 'gen1', blueprintManifestDigest: 'sha256:manifest', registryDigest: 'sha256:registry',
 };
 
 function planFor(providerId) {
   return {
     seal: { digest: 'sha256:plan' },
-    binding: { repositoryRevision: 'rev1', dirtyPatchDigest: null, cortex: { generationId: 'gen1', manifestDigest: 'sha256:manifest' }, registryDigest: 'sha256:registry' },
+    binding: { repositoryRevision: 'rev1', dirtyPatchDigest: null, blueprint: { generationId: 'gen1', manifestDigest: 'sha256:manifest' }, registryDigest: 'sha256:registry' },
     providers: [{ id: providerId, benchmark: { requiredForCleanClaim: true, status: 'unproven' }, denominator: { pathDigest: 'sha256:denom', pathCount: 1, paths: ['app.ts'] } }],
   };
 }

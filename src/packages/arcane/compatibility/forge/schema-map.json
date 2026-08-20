@@ -120,8 +120,7 @@
         { "legacyField": "criterion_id", "disposition": "compatibility-only", "canonicalTarget": null, "affects": ["signoff"], "note": "Criterion linkage is re-established canonically by the S05 dependency ledger (link(evidenceId,{criterionId})), which binds evidence to a criterion only when the declared evidence method matches (S04 action 7). An inherited criterion id therefore names a relationship, never satisfies one." },
         { "legacyField": "criterion_ids", "disposition": "compatibility-only", "canonicalTarget": null, "affects": ["signoff"], "note": "Criterion linkage is re-established canonically by the S05 dependency ledger (link(evidenceId,{criterionId})), which binds evidence to a criterion only when the declared evidence method matches (S04 action 7). An inherited criterion id therefore names a relationship, never satisfies one." },
         { "legacyField": "payload_ref", "disposition": "compatibility-only", "canonicalTarget": null },
-        { "legacyField": "security_labels", "disposition": "canonical", "canonicalTarget": "artifact-v1.sensitivity (when the evidence materializes an artifact)" },
-        { "legacyField": "cortex_orientation", "disposition": "compatibility-only", "canonicalTarget": null }
+        { "legacyField": "security_labels", "disposition": "canonical", "canonicalTarget": "artifact-v1.sensitivity (when the evidence materializes an artifact)" }
       ]
     },
     {

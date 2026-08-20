@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Out-of-band verification for a frozen provider plan and its deterministic facts.
-// Recomputes Cortex-backed provider selection, verifies the plan seal/signature/binding,
+// Recomputes Blueprint-backed provider selection, verifies the plan seal/signature/binding,
 // then reruns planned deterministic checks only under the same network-sandbox contract.
 
 import { existsSync, mkdtempSync, readFileSync } from 'node:fs';
@@ -8,7 +8,7 @@ import { execFileSync } from 'node:child_process';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { tmpdir } from 'node:os';
-import { collectRepositoryBinding, readCortexManifestBinding, readCortexProjection } from '../../src/adapters/cortex-projection.mjs';
+import { collectRepositoryBinding, readBlueprintManifestBinding, readBlueprintPacket } from '../../src/adapters/blueprint-packet.mjs';
 import { buildAuditPlan, verifyPlanBinding, verifyPlanSeal } from './audit-plan.mjs';
 import { canonicalJson, loadProviderRegistry, sha256 } from '../../src/registry/provider-registry.mjs';
 import {
@@ -77,13 +77,13 @@ if (!verifyPlanSeal(priorPlan)) {
 }
 
 const currentBinding = collectRepositoryBinding(prior.workspace);
-const currentCortex = readCortexManifestBinding(prior.workspace, { outDir: '.agent' });
-const binding = verifyPlanBinding(priorPlan, currentBinding, currentCortex);
+const currentBlueprint = readBlueprintManifestBinding(prior.workspace, { outDir: '.agent' });
+const binding = verifyPlanBinding(priorPlan, currentBinding, currentBlueprint);
 for (const item of binding.drift) {
   console.log(`DRIFT  ${item.field}: expected=${item.expected} observed=${item.observed}`);
   drift += 1;
 }
-if (binding.valid) console.log('MATCH  revision, dirty-tree digest, Cortex generation, and plan signature');
+if (binding.valid) console.log('MATCH  revision, dirty-tree digest, Blueprint packet, and plan signature');
 
 const priorSandboxActive = prior.network_policy?.sandboxActive === true;
 if (priorSandboxActive !== networkSandboxActive) {
@@ -92,7 +92,7 @@ if (priorSandboxActive !== networkSandboxActive) {
 }
 
 const registry = loadProviderRegistry();
-const projection = readCortexProjection(prior.workspace, { outDir: '.agent' });
+const projection = readBlueprintPacket(prior.workspace, { outDir: '.agent' });
 const recomputed = buildAuditPlan({
   root: prior.workspace,
   registry,

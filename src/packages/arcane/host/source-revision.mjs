@@ -16,8 +16,8 @@ import { isAbsolute, join, resolve, dirname } from 'node:path';
 
 const SHA = /^[0-9a-f]{40}$|^[0-9a-f]{64}$/; // sha1 or sha256 object ids
 
-// `.git` is a directory in a normal checkout, or a `gitdir: <path>` pointer file
-// in a worktree or submodule. Resolve to the actual git directory.
+// `.git` is a directory in normal checkout, or a `gitdir: <path>` pointer file
+// in linked worktree. Resolve to actual git directory.
 function gitDir(workspace) {
   const dotGit = join(workspace, '.git');
   if (!existsSync(dotGit)) return undefined;
@@ -33,8 +33,8 @@ function gitDir(workspace) {
   return undefined;
 }
 
-// For a worktree/submodule the refs live in the common dir, not the per-worktree
-// git dir. `commondir` names it when present; otherwise refs are local.
+// For linked worktree refs live in common dir, not per-worktree git dir.
+// `commondir` names it when present; otherwise refs are local.
 function commonDir(gd) {
   const cd = join(gd, 'commondir');
   if (!existsSync(cd)) return gd;

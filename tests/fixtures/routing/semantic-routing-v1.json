@@ -406,12 +406,12 @@
       "forbiddenSelections": []
     },
     {
-      "id": "legacy-cortex",
+      "id": "legacy-blueprint",
       "concerns": ["legacy-natural-route"],
-      "legacyRoute": "cortex",
+      "legacyRoute": "blueprint",
       "prompt": "Map current architecture of this repository.",
       "source": "semantic",
-      "expectedCapabilities": ["cortex"],
+      "expectedCapabilities": ["blueprint"],
       "expectedEntrypoints": [],
       "operations": ["analyze", "produce"],
       "effects": ["source-read", "artifact-write", "process-exec"],

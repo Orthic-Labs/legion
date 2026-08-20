@@ -5,7 +5,7 @@ description: >
   campaigns, content strategy, free tools, Graham 5-stage idea validation, product launches, SEO
   strategy/structure, visual storytelling. Use when user says "/marketing strategy", "plan a campaign", "plan a
   launch", "content plan", "SEO plan", "site structure", "validate this idea", "go-to-market".
-  Engineering/code planning → cortex.
+  Engineering/code planning → blueprint.
 argument-hint: "ad-campaign | content | free-tool | graham | launch | seo | seo-structure | visual-story | <freeform>"
 ---
 
@@ -28,7 +28,7 @@ Single entry for all STRATEGIC PLANNING (decision before build). Sub-references 
 
 When invoked, decide which reference matches, Read it, follow its instructions.
 
-> **Engineering/code planning** (ADR, implementation plan, refactor, schema/library choice) → use **`cortex`**, not this router. `/marketing strategy` is strategy/marketing only.
+> **Engineering/code planning** (ADR, implementation plan, refactor, schema/library choice) → use **`blueprint`**, not this router. `/marketing strategy` is strategy/marketing only.
 
 ## Internal Planning Council
 

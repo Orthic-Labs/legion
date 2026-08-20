@@ -9,8 +9,8 @@ const BINDING = {
   planDigest: 'sha256:plan',
   repositoryRevision: 'rev1',
   dirtyPatchDigest: null,
-  cortexGenerationId: 'gen1',
-  cortexManifestDigest: 'sha256:manifest',
+  blueprintGenerationId: 'gen1',
+  blueprintManifestDigest: 'sha256:manifest',
   registryDigest: 'sha256:registry',
 };
 
@@ -19,7 +19,7 @@ function planWith() {
     seal: { digest: 'sha256:plan' },
     binding: {
       repositoryRevision: 'rev1', dirtyPatchDigest: null,
-      cortex: { generationId: 'gen1', manifestDigest: 'sha256:manifest' },
+      blueprint: { generationId: 'gen1', manifestDigest: 'sha256:manifest' },
       registryDigest: 'sha256:registry',
     },
     providers: [{ id: 'security.credentials', benchmark: { requiredForCleanClaim: true }, denominator: { pathDigest: 'sha256:denom', pathCount: 1, paths: ['env.ts'] } }],

@@ -24,7 +24,7 @@ test('committed security schemas match the generators', () => {
 
 test('security binding schema requires all binding fields', () => {
   const schema = buildSecurityBindingSchema();
-  assert.deepEqual(schema.required, ['planDigest', 'repositoryRevision', 'dirtyPatchDigest', 'cortexGenerationId', 'cortexManifestDigest', 'registryDigest']);
+  assert.deepEqual(schema.required, ['planDigest', 'repositoryRevision', 'dirtyPatchDigest', 'blueprintGenerationId', 'blueprintManifestDigest', 'registryDigest']);
 });
 
 test('no security schema references legacy identity', () => {

@@ -16,8 +16,8 @@ const binding = {
   planDigest: 'sha256:plan',
   repositoryRevision: 'rev',
   dirtyPatchDigest: null,
-  cortexGenerationId: 'gen',
-  cortexManifestDigest: 'sha256:manifest',
+  blueprintGenerationId: 'gen',
+  blueprintManifestDigest: 'sha256:manifest',
   registryDigest: 'sha256:registry',
 };
 

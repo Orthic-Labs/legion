@@ -2,7 +2,7 @@ import { canonicalJson, clone, deepFreeze, wrapArtifact } from './artifact.mjs';
 import { createHash } from 'node:crypto';
 import { resolve } from 'node:path';
 import { buildJudgmentPacket } from '../../../lib/core/judgment-packets.mjs';
-import { traceDiffBlastRadius } from './cortex-impact.mjs';
+import { traceDiffBlastRadius } from './blueprint-impact.mjs';
 
 const API = Object.freeze({
   inspect: 'inspectProduct',
@@ -71,7 +71,7 @@ function completedPair(request, context, output, clock, artifactKind, blastRadiu
   const observedBoundary = output?.claimBoundary ?? output?.report?.claimBoundary ?? output?.report?.claim_boundary ?? 'UNPROVEN';
   const claimBoundary = blastRadius?.state === 'unproven' ? 'UNPROVEN' : observedBoundary;
   const warnings = Array.isArray(output?.warnings) ? [...output.warnings] : [];
-  if (blastRadius?.state === 'unproven') warnings.push('cortex-blast-radius-unproven');
+  if (blastRadius?.state === 'unproven') warnings.push('blueprint-impact-unproven');
   return Object.freeze({
     request,
     ...context,

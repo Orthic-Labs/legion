@@ -7,16 +7,9 @@ import hashlib
 import json
 import re
 import subprocess
-import sys
 from dataclasses import dataclass, asdict
-from pathlib import Path
 from typing import Any, Protocol
 from urllib.parse import urlparse
-
-LEGION_LIB = Path(__file__).resolve().parents[2]
-sys.path.insert(0, str(LEGION_LIB))
-from membrane_data import fence as membrane_fence  # noqa: E402
-
 
 @dataclass(frozen=True)
 class SearchHit:
@@ -89,7 +82,14 @@ def stable_hit_id(provider: str, url: str) -> str:
 
 
 def data_only_envelope(body: str, *, source_url: str) -> tuple[str, str]:
-    return membrane_fence(body, source=source_url)
+    """Return upstream bytes & digest for transport to Membrane.
+
+    Legion does not create or validate Membrane's data-fence contract. The
+    source URL remains provider metadata; Membrane owns envelope policy.
+    """
+    del source_url
+    normalized = body.replace('\x00', '')
+    return normalized, hashlib.sha256(normalized.encode('utf-8')).hexdigest()
 
 
 def locate_text(body: str, pattern: str, *, context_chars: int = 300) -> tuple[str, str] | None:

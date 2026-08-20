@@ -68,7 +68,7 @@
     {
       "path": "hooks/enforce_cheap_review_routing.py",
       "uri": "legion-skill://coder/hooks/enforce_cheap_review_routing.py",
-      "digest": "sha256:50be7ec2ffe0070ea1ef69120bc53f7065eced51d92f55b9b74e91b4e6f19a88"
+      "digest": "sha256:4f621b3b02fe85743b89b1b993da7002722f15b54a57afa78364e44450e2d415"
     },
     {
       "path": "hooks/hooks.json",

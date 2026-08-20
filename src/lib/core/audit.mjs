@@ -15,10 +15,10 @@ export async function audit(options,host){
   const root=resolve(options.root);const runDir=resolve(root,options.outDir??'.audit/legion-run');
   const binding=options.binding??await bindRepository(root,options.bindingOptions??{});
   const store=new RunArtifactStore(runDir);await store.init();
-  const projection=options.projection??await host.cortex?.project?.({root})??{schemaVersion:1,state:'unproven',files:[],reason:'cortex-projection-unavailable'};
-  const productInspection=await inspectProduct({projection,binding,contract:options.releaseContract??{}},host);
+  const packet=options.packet??options.projection??await host.membrane?.context?.({root})??{schema:'legion.context-result.v1',status:'unavailable',reason:'membrane-context-unavailable'};
+  const productInspection=await inspectProduct({projection:packet,binding,contract:options.releaseContract??{}},host);
   const providers=select(options.providers??[],options);
-  const plan=await buildSealedPlan({...options,root,projection,productInspection,binding,providers,releaseContext:productInspection.releaseContract,evidenceCapabilities:productInspection.capabilities,scenarioMatrices:productInspection.scenarios,selection:options.selection??null,providerDag:options.providerDag??null},host);
+  const plan=await buildSealedPlan({...options,root,projection:packet,productInspection,binding,providers,releaseContext:productInspection.releaseContract,evidenceCapabilities:productInspection.capabilities,scenarioMatrices:productInspection.scenarios,selection:options.selection??null,providerDag:options.providerDag??null},host);
   const planRecord=await write(store,'plan.json','plan',binding,plan);
   if(options.planOnly){const report={schemaVersion:1,kind:'repository-audit-report',audit_status:'incomplete',quality_gate:'unproven',incomplete:true,coverage_gaps:[{kind:'plan-only'}],findings:[],plan};const reportRecord=await write(store,'reports/report.json','report',binding,report);return{plan,execution:null,facts:null,judgments:null,report,artifacts:{runDir,plan:planRecord,report:reportRecord,records:store.records()}};}
   const execution=await executePlan(plan,host);const receiptsRecord=await write(store,'receipts.json','execution-receipts',binding,execution.receipts);

@@ -12,11 +12,11 @@ function rawRegistry() {
   return {
     schemaVersion: 1,
     kind: 'audit-provider-registry',
-    discoveryOwner: 'cortex',
+    discoveryOwner: 'blueprint',
     planSeal: 'sha256',
     concurrency: '1',
     candidateAdjudication: {},
-    legacy: [{ id: 'core.repo', role: 'deterministic', selector: 'always', allowWithoutCortex: true, check: 'repo', tool: 'git', required: 'always', applies: 'git', parallel: true }],
+    legacy: [{ id: 'core.repo', role: 'deterministic', selector: 'always', allowWithoutBlueprint: true, check: 'repo', tool: 'git', required: 'always', applies: 'git', parallel: true }],
     runtime: [], reasoning: [],
     coverageFamilies: [{ id: 'language.go', kind: 'language', selector: { ext: ['go'] }, qualification: 'unproven', providers: [] }],
   };

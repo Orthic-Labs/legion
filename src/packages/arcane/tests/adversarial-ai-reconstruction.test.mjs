@@ -31,7 +31,7 @@ test('stale or incomplete reconstruction evidence reports uncertainty & forbids 
   const input = {
     asOf: '2026-08-15T00:00:00.000Z',
     evidence: [
-      { scope: 'topology', sourceRef: 'cortex:topology', observedAt: '2026-08-10T00:00:00.000Z', expiresAt: '2026-09-01T00:00:00.000Z' },
+      { scope: 'topology', sourceRef: 'blueprint:topology', observedAt: '2026-08-10T00:00:00.000Z', expiresAt: '2026-09-01T00:00:00.000Z' },
       { scope: 'runtime', sourceRef: 'runtime:health', observedAt: '2026-07-01T00:00:00.000Z', expiresAt: '2026-07-02T00:00:00.000Z' },
       { scope: 'ownership', sourceRef: 'owners:map', observedAt: '2026-08-10T00:00:00.000Z', expiresAt: '2026-09-01T00:00:00.000Z' },
     ],

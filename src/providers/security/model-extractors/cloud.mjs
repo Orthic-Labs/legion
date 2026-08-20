@@ -1,5 +1,5 @@
 // Cloud extractor (B7-007): Terraform/Kubernetes/cloud-config repository text
-// plus upstream package-manifest and release-file evidence from the Cortex
+// plus upstream package-manifest and release-file evidence from the Blueprint
 // projection. Extracts cloud identities/roles, public exposure, network
 // relations, workload identity, secrets, and deployment contexts.
 //

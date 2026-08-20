@@ -242,8 +242,8 @@ export function requireArray(value, label) {
 export function assertBinding(binding) {
   requireObject(binding, 'binding');
   for (const key of [
-    'planDigest', 'repositoryRevision', 'cortexGenerationId',
-    'cortexManifestDigest', 'registryDigest',
+    'planDigest', 'repositoryRevision', 'blueprintGenerationId',
+    'blueprintManifestDigest', 'registryDigest',
   ]) requireString(binding[key], `binding.${key}`);
   if (binding.dirtyPatchDigest !== null) {
     requireString(binding.dirtyPatchDigest, 'binding.dirtyPatchDigest');
@@ -257,8 +257,8 @@ export function bindingFromPlan(plan) {
     planDigest: plan.seal.digest,
     repositoryRevision: plan.binding.repositoryRevision,
     dirtyPatchDigest: plan.binding.dirtyPatchDigest,
-    cortexGenerationId: plan.binding.cortex.generationId,
-    cortexManifestDigest: plan.binding.cortex.manifestDigest,
+    blueprintGenerationId: plan.binding.blueprint.generationId,
+    blueprintManifestDigest: plan.binding.blueprint.manifestDigest,
     registryDigest: plan.binding.registryDigest,
   });
 }

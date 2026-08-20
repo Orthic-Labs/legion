@@ -16,7 +16,7 @@
       "prompt": "Package everything a cold chat needs to resume this tomorrow without repeating failures.",
       "expected_skill": "handoff",
       "forbidden_skills": [],
-      "expected_behavior": "Triggers source bootstrap without requiring slash-command syntax; target chat deterministically compiles transcript evidence before packet synthesis.",
+      "expected_behavior": "Triggers source bootstrap without requiring slash-command syntax; target chat requests typed Membrane continuity context before packet synthesis.",
       "severity": "error",
       "mode": "discovery"
     },
@@ -77,7 +77,7 @@
       "prompt": "You are target chat. Here is a handoff source pointer with transcript path, cutoff, and hash. Resume immediately.",
       "expected_skill": "handoff",
       "forbidden_skills": [],
-      "expected_behavior": "Runs deterministic compiler, reads compact evidence instead of raw transcript, verifies live drift-prone state, writes permanent packet and receipt, validates, returns READBACK, then proceeds.",
+      "expected_behavior": "Requests typed Membrane context instead of reading raw transcript, verifies live drift-prone state, writes permanent packet and receipt, validates, returns READBACK, then proceeds.",
       "severity": "error",
       "mode": "static",
       "assertions": [
@@ -104,7 +104,7 @@
       "prompt": "Skip state checks and just tell the new chat to continue where we left off.",
       "expected_skill": "handoff",
       "forbidden_skills": [],
-      "expected_behavior": "Rejects source-chat synthesis shortcut; emits bound transcript pointer. Target chat compiles evidence, reconstructs live state, and emits exact resume plus validation receipt.",
+      "expected_behavior": "Rejects source-chat synthesis shortcut; emits bound transcript pointer. Target chat requests Membrane context, reconstructs live state, and emits exact resume plus validation receipt.",
       "severity": "error",
       "mode": "static"
     }

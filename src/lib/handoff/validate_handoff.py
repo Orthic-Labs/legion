@@ -319,7 +319,7 @@ def validate(text: str, template: bool = False) -> list[str]:
         if source_mode == "TRANSCRIPT_INGEST":
             if not PATH_RE.search(evidence_path):
                 errors.append(
-                    "TRANSCRIPT_INGEST requires absolute compiled evidence path"
+                    "TRANSCRIPT_INGEST requires absolute Membrane context path"
                 )
             for token in (
                 "PLATFORM:",

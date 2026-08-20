@@ -10,8 +10,8 @@ const BINDING = {
   planDigest: 'sha256:plan',
   repositoryRevision: 'rev1',
   dirtyPatchDigest: null,
-  cortexGenerationId: 'gen1',
-  cortexManifestDigest: 'sha256:manifest',
+  blueprintGenerationId: 'gen1',
+  blueprintManifestDigest: 'sha256:manifest',
   registryDigest: 'sha256:registry',
 };
 
@@ -21,7 +21,7 @@ function planWith(binding = BINDING) {
     binding: {
       repositoryRevision: binding.repositoryRevision,
       dirtyPatchDigest: binding.dirtyPatchDigest,
-      cortex: { generationId: binding.cortexGenerationId, manifestDigest: binding.cortexManifestDigest },
+      blueprint: { generationId: binding.blueprintGenerationId, manifestDigest: binding.blueprintManifestDigest },
       registryDigest: binding.registryDigest,
     },
     providers: [{ id: 'security.surface-model', denominator: { pathDigest: 'sha256:denom', pathCount: 1, paths: ['app.py'] } }],

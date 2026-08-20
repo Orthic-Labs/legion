@@ -11,7 +11,7 @@ import { prepareAdjudicationBundle } from './security-pipeline.mjs';
 function arg(args, name) { const index = args.indexOf(name); return index >= 0 ? args[index + 1] : null; }
 function values(args, name) { const raw = arg(args, name); return raw ? raw.split(',').map((value) => value.trim()).filter(Boolean) : []; }
 function firstPositional(args) {
-  const takesValue = new Set(['--out', '--only', '--skip', '--type', '--base', '--base-commit', '--dir', '--cortex-out', '--url', '--surfaces', '--visual-spec', '--visual-baselines', '--width', '--height']);
+  const takesValue = new Set(['--out', '--only', '--skip', '--type', '--base', '--base-commit', '--dir', '--blueprint-out', '--url', '--surfaces', '--visual-spec', '--visual-baselines', '--width', '--height']);
   for (let index = 0; index < args.length; index += 1) {
     const value = args[index];
     if (value.startsWith('--')) { if (takesValue.has(value)) index += 1; continue; }
@@ -39,7 +39,7 @@ function onlyWrapperProvidersCausedPriorIncomplete(facts, addedProviderIds) {
   if ((reconciliation.unresolvedCoverage ?? []).length > 0) return false;
   if ((reconciliation.denominatorMismatches ?? []).length > 0) return false;
   if (facts.security?.adjudicationRequired) return false;
-  if (facts.cortex?.state !== 'ready' || facts.plan_binding_verification?.valid !== true) return false;
+  if (facts.blueprint?.state !== 'ready' || facts.plan_binding_verification?.valid !== true) return false;
   return (reconciliation.providerResults ?? [])
     .filter((provider) => !addedProviderIds.has(provider.provider) && provider.status !== 'pending')
     .every((provider) => provider.complete !== false && !['unproven', 'error', 'missing'].includes(provider.status));
@@ -154,7 +154,7 @@ export async function runAuditProviders(options) {
 async function main() {
   const args = process.argv.slice(2);
   const result = await runAuditProviders({
-    root: firstPositional(args), outDir: arg(args, '--out'), cortexOut: arg(args, '--cortex-out') ?? '.agent',
+    root: firstPositional(args), outDir: arg(args, '--out'), blueprintOut: arg(args, '--blueprint-out') ?? '.agent',
     only: values(args, '--only'), skip: values(args, '--skip'), scope: scopeFromArgs(args),
     planOnly: args.includes('--plan-only'), quiet: args.includes('--quiet'), url: arg(args, '--url'),
     surfaces: arg(args, '--surfaces'), visualSpec: arg(args, '--visual-spec'), visualBaselines: arg(args, '--visual-baselines'),

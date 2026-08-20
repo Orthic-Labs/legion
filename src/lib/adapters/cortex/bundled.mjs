@@ -1,1 +1,0 @@
-export async function loadBundledProjection(adapter, root) { if (typeof adapter?.project !== 'function') return { state: 'unproven', reason: 'bundled-cortex-unavailable', files: [] }; return adapter.project({ root }); }

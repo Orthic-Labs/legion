@@ -14,7 +14,7 @@ const EFFECTS = new Set(['source-read', 'artifact-write', 'repository-write', 'p
 const AUTHORITIES = new Set(['sage', 'alchemist', 'oracle']);
 const EXPLICIT_ONLY = new Set(['alchemist', 'covenant', 'dispatch', 'commit', 'coder']);
 const LEGACY_NATURAL_ROUTES = new Set([
-  'alchemist', 'architect', 'audit', 'commit', 'cortex', 'covenant', 'debugger',
+  'alchemist', 'architect', 'audit', 'blueprint', 'commit', 'covenant', 'debugger',
   'dispatch', 'doctor', 'execution-preflight', 'handoff', 'marketing', 'qa', 'tasklist',
 ]);
 const REQUIRED_CONCERNS = new Set([

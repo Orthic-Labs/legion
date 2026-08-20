@@ -25,7 +25,6 @@
 
 import { parseArgs } from 'node:util';
 import { readFileSync } from 'node:fs';
-import { homedir } from 'node:os';
 import { join } from 'node:path';
 
 import { EXIT, LegionError } from '../../errors.mjs';
@@ -33,7 +32,7 @@ import { ArcaneError } from '../../../packages/arcane/lib/errors.mjs';
 import { ContractSealStore } from '../../../packages/arcane/lib/contract-seal-store.mjs';
 import { AuthorityBindingStore } from '../../../packages/arcane/lib/authority-binding-store.mjs';
 import { AuthorityLedger } from '../../../packages/arcane/lib/authority.mjs';
-import { loadHostKeyRing } from '../../../packages/arcane/lib/keys.mjs';
+import { loadCanonicalHostKeyRing, loadHostKeyRing } from '../../../packages/arcane/lib/keys.mjs';
 import { compileSealReachability } from '../../../packages/arcane/lib/seal-reachability.mjs';
 import { AMENDED_BUDGET_BOUND_FIELDS, BUDGET_AMENDMENT_BOUND_FIELDS, BUDGET_BOUND_FIELDS, BudgetGovernanceStore } from '../../../packages/arcane/lib/budget-governance-store.mjs';
 import { TaskBudgetSealStore } from '../../../packages/arcane/lib/task-budget-seal-store.mjs';
@@ -125,13 +124,13 @@ function contractSeal(argv, { stdout, env, cwd }) {
   // The host key is mandatory. Without it assertForTurn throws
   // ARC_AUTH_KEY_UNAVAILABLE and no seal is minted — a host that cannot
   // authenticate must not be able to authorize a locked domain.
-  const keyDir = keyDirFlag ?? env.ARCANE_KEY_DIR ?? join(homedir(), '.claude', 'arcane-keys');
+  const keyDir = keyDirFlag ?? env.ARCANE_KEY_DIR ?? null;
   let keyRing;
   try {
-    keyRing = loadHostKeyRing({ dir: keyDir });
+    keyRing = keyDir ? loadHostKeyRing({ dir: keyDir }) : loadCanonicalHostKeyRing();
   } catch {
     throw new LegionError(
-      `ARC_AUTH_KEY_UNAVAILABLE: no host key in ${keyDir} — a seal cannot be minted without one`,
+      `ARC_AUTH_KEY_UNAVAILABLE: canonical host keyring unavailable — a seal cannot be minted without one`,
       { code: 'ARC_AUTH_KEY_UNAVAILABLE', exitCode: EXIT.INTERNAL_ERROR },
     );
   }

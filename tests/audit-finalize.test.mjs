@@ -6,7 +6,7 @@ function facts(overrides = {}) {
   return {
     workspace: '/repo', out_dir: '/repo/.audit/run',
     plan: { binding: { repositoryRevision: 'abc' }, coverageGaps: [] },
-    cortex: { state: 'ready', generationId: 'gen-1' },
+    blueprint: { state: 'ready', generationId: 'gen-1' },
     checks: [{ check: 'repo', status: 'ran' }],
     network_policy: { mode: 'deny', skippedChecks: [] },
     plan_binding_verification: { valid: true, drift: [] },

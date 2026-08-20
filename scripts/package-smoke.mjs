@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import { basename,join,resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
-export function packageSmokeContract(){return['binary','library-import','cortex-projection','plan','schedule','serial-execution','auto-execution','audit','verify','tasklist','dispatch','coder','qa','handoff','transcripts','decisions'];}
+export function packageSmokeContract(){return['binary','library-import','blueprint-packet','plan','schedule','serial-execution','auto-execution','audit','verify','tasklist','dispatch','coder','qa','handoff','transcripts','decisions'];}
 const walk=(root,current=root,out=[])=>{for(const name of readdirSync(current)){const path=join(current,name);if(statSync(path).isDirectory())walk(root,path,out);else out.push(path);}return out;};
 const python=(args,options)=>process.platform==='win32'
   ? execFileSync('py',['-3.11',...args],options)
@@ -29,7 +29,7 @@ const buildConsumerCheckScript=(pkgName,subpaths)=>{
     "  assert.equal(typeof root.reconcileRun,'function','reconcileRun export missing');",
     "  assert.equal(typeof root.resolveSkillInvocation,'function','resolveSkillInvocation export missing');",
     "  assert.equal(typeof root.validateCapabilitySelection,'function','validateCapabilitySelection export missing');",
-    "  assert.equal(root.resolveSkillInvocation('/blueprint map').resolvedInvocation,'/cortex map','installed alias resolution failed');",
+    "  assert.equal(root.resolveSkillInvocation('/blueprint map').resolvedInvocation,'/blueprint map','installed Blueprint resolution failed');",
     "  assert.equal(root.resolveSkillInvocation('/glass refine header').resolvedInvocation,'/designer glass refine header','installed alias arguments were dropped');",
     "  assert.equal(root.validateCapabilitySelection({ids:['architect'],source:'semantic'}).status,'resolved','installed semantic selection validation failed');",
   ];
@@ -110,7 +110,7 @@ export async function runPackageSmoke(root=resolve(import.meta.dirname,'..')){
     // public exports map (host/plan/audit orchestration, skill scripts). They
     // are addressed by file path inside the extracted tarball, same as before.
     const library=await import(`${pathToFileURL(join(assembled,'src/lib/index.mjs')).href}?smoke=${Date.now()}`);if(typeof library.buildPlan!=='function'||typeof library.reconcileRun!=='function')throw new Error('assembled library exports incomplete');
-    const {loadPrecomputedProjection}=await import(pathToFileURL(join(assembled,'src/lib/adapters/cortex/precomputed.mjs')).href);const binding={repositoryRevision:'smoke',dirty:false,dirtyPatchDigest:'sha256:clean'};const projection=loadPrecomputedProjection({schemaVersion:1,binding,generation:'smoke',state:'ready',files:['package.json'],manifestDigest:'sha256:manifest',generationId:'smoke'},binding);
+    const binding={repositoryRevision:'smoke',dirty:false,dirtyPatchDigest:'sha256:clean'};const projection={schema:'membrane.context-packet.v1',status:'ready',binding,files:['package.json'],packetDigest:'sha256:packet'};
     const host=library.fixedHost({processRunner:{run:async()=>({exitCode:0,stdout:'',stderr:'',status:'completed'})}});const {loadProviderRegistry}=await import(pathToFileURL(join(assembled,'src/registry/provider-registry.mjs')).href);const registry=loadProviderRegistry();const plan=await library.buildPlan({root:assembled,projection,repositoryBinding:binding,registry},host);const serialPlan={...plan,schedule:'serial'};const autoPlan={...plan,schedule:'auto'};const serial=await library.executePlan(serialPlan,host);const automatic=await library.executePlan(autoPlan,host);if(serial.receipts.length!==plan.providers.length||automatic.receipts.length!==plan.providers.length)throw new Error('assembled execution omitted selected providers');
     const facts=library.reconcileRun({plan,receipts:automatic.receipts,artifacts:{root:assembled}},host);const report=await library.finalizeRun({plan,facts,results:{securityCandidates:[],adjudication:{complete:true,verdicts:[]}}},host);const verification=await library.verifyRun({priorRun:{binding,controls:[],claims:{source:'pass'}},currentRepository:{binding,snapshot:{binding,controls:[],claims:{source:'pass'}}}},host);const audit=await library.audit({root:assembled,outDir:join(temp,'audit'),projection,binding,claimLevel:'inventory',providers:[]},host);
     const py=(script,args=['--help'])=>python([join(assembled,script),...args],{cwd:assembled,encoding:'utf8'});
@@ -120,9 +120,8 @@ export async function runPackageSmoke(root=resolve(import.meta.dirname,'..')){
     py('skills/handoff/scripts/transcript-handoff.py');
     py('skills/handoff/scripts/validate-handoff.py');
     execFileSync(process.execPath,[join(assembled,'skills/qa/scripts/qa.mjs'),'--help'],{cwd:assembled,encoding:'utf8'});
-    py('src/lib/orthic_transcripts/driver.py',['parser-digest']);
     python(['-c',"from decision_provider import produce_candidate_set; assert produce_candidate_set('package smoke', {'repositoryId': '.', 'maxCandidates': 1}).candidates == ()"],{cwd:join(assembled,'src','lib'),encoding:'utf8'});
-    return{binary:true,library:true,cortexProjection:projection.state==='ready',plan:Boolean(plan.seal?.digest),schedule:serial.receipts.length===automatic.receipts.length,serialExecution:true,autoExecution:true,audit:Boolean(audit.report),verify:verification.valid,report:Boolean(report),tasklist:true,dispatch:true,coder:true,qa:true,handoff:true,transcripts:true,decisions:true,forbiddenMarkers,fileCount:files.length,version,publishedExports:true};
+    return{binary:true,library:true,blueprintPacket:projection.status==='ready',plan:Boolean(plan.seal?.digest),schedule:serial.receipts.length===automatic.receipts.length,serialExecution:true,autoExecution:true,audit:Boolean(audit.report),verify:verification.valid,report:Boolean(report),tasklist:true,dispatch:true,coder:true,qa:true,handoff:true,transcripts:true,decisions:true,forbiddenMarkers,fileCount:files.length,version,publishedExports:true};
   }finally{rmSync(temp,{recursive:true,force:true});}
 }
 

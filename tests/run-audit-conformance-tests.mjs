@@ -126,12 +126,12 @@ function test_coverage_binding() {
   pass('coverage binding: path digests compared, not counts');
 }
 
-// --- Case 6: Discovery authority — Cortex owns classification ---
+// --- Case 6: Discovery authority — Blueprint owns classification ---
 function test_discovery_authority() {
   const collectSource = readFileSync(join(AUDIT_ROOT, 'tools/audit/collect-facts.mjs'), 'utf8');
-  // The registry validation must enforce discoveryOwner === 'cortex'
+  // The registry validation must enforce discoveryOwner === 'blueprint'
   const registrySource = readFileSync(join(AUDIT_ROOT, 'src/registry/provider-registry.mjs'), 'utf8');
-  assert(registrySource.includes("discoveryOwner !== 'cortex'"), 'registry enforces cortex as discovery owner');
+  assert(registrySource.includes("discoveryOwner !== 'blueprint'"), 'registry enforces Blueprint as discovery owner');
   // detect() must NOT produce 'skipped' for plan-expected checks — only 'unproven'
   // The _forceSkip case (explicit --skip) is the only legitimate 'skipped'
   const skippedLines = collectSource.split('\n').filter((line) => line.includes("status: 'skipped'"));

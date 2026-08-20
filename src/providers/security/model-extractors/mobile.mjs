@@ -1,5 +1,5 @@
 // Mobile extractor (B7-007): Android/iOS manifest and config repository text
-// plus upstream package-manifest evidence from the Cortex projection.
+// plus upstream package-manifest evidence from the Blueprint projection.
 // Extracts declared permissions, deep links, JS/native bridges, exported
 // components, and backup/cleartext-traffic flags.
 //

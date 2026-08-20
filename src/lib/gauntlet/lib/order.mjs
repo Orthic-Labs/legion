@@ -1,6 +1,6 @@
 // Phase 6.7 — test-order independence, diff-scoped.
 //
-// Reuses the same approach as cortex/scripts/test-random.mjs (seeded
+// Reuses same seeded random-test approach as prior gauntlet tooling
 // Fisher-Yates with xorshift32) so a recorded seed reproduces a run.
 // Diff-scoped: we only include test files transitively touching the
 // changed set. We run the test command N times with different seeds and

@@ -38,9 +38,9 @@
       "type": ["string", "null"],
       "description": "Release-candidate label bound to this run, when applicable."
     },
-    "cortexGeneration": {
+    "blueprintGeneration": {
       "type": ["string", "null"],
-      "description": "Cortex generation identifier bound to this run's context."
+      "description": "Blueprint generation identifier bound to this run's repository context."
     },
     "policyDigest": {
       "type": ["string", "null"],

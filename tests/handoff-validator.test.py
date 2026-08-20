@@ -13,8 +13,8 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parent
-VALIDATOR = ROOT / "lib" / "handoff" / "validate-handoff.py"
-VALIDATOR_MODULE = ROOT / "lib" / "handoff" / "validate_handoff.py"
+VALIDATOR = ROOT / "skills" / "handoff" / "scripts" / "validate-handoff.py"
+VALIDATOR_MODULE = ROOT / "src" / "lib" / "handoff" / "validate_handoff.py"
 TEMPLATE = ROOT / "skills" / "handoff" / "assets" / "handoff-template.md"
 FIXTURES = ROOT / "tests" / "fixtures" / "handoff"
 CASES = FIXTURES / "cases"

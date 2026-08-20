@@ -1,10 +1,9 @@
 import { parseArgs } from 'node:util';
 import { readFileSync } from 'node:fs';
-import { homedir } from 'node:os';
 import { join } from 'node:path';
 
 import { EXIT, LegionError } from '../../errors.mjs';
-import { loadHostKeyRing } from '../../../packages/arcane/lib/keys.mjs';
+import { loadCanonicalHostKeyRing, loadHostKeyRing } from '../../../packages/arcane/lib/keys.mjs';
 import { digestValue, isDigest } from '../../../packages/arcane/lib/canonical.mjs';
 import { SessionBindingStore } from '../../../packages/arcane/lib/session-binding.mjs';
 import { ContractSealStore } from '../../../packages/arcane/lib/contract-seal-store.mjs';
@@ -66,7 +65,7 @@ export async function runCompletion(argv, { stdout, env, cwd }) {
   const sessionId = session(values.session, env);
   if (!values.file || !sessionId) throw new LegionError('completion claim requires --file & known session', { code: 'USAGE', exitCode: EXIT.USAGE });
 
-  const keys = loadHostKeyRing({ dir: values['key-dir'] || env.ARCANE_KEY_DIR || join(homedir(), '.claude', 'arcane-keys') });
+  const keys = values['key-dir'] || env.ARCANE_KEY_DIR ? loadHostKeyRing({ dir: values['key-dir'] || env.ARCANE_KEY_DIR }) : loadCanonicalHostKeyRing();
   const binding = new SessionBindingStore({ root: join(cwd, '.audit', 'arcane', 'session-bindings') }).getBinding(sessionId);
   if (!binding?.contractId || !binding.taskId) throw new LegionError('ARC_NO_CONTRACT', { code: 'ARC_NO_CONTRACT', exitCode: EXIT.INCOMPLETE });
   const seal = new ContractSealStore({ root: join(cwd, '.audit', 'arcane', 'contract-seals') }).get(binding.contractId, binding.contractVersion);
@@ -109,7 +108,7 @@ export async function runCompletion(argv, { stdout, env, cwd }) {
 function runEvidence(argv, { stdout, env, cwd }) {
   const values = parseArgs({ args: argv, strict: true, options: { file: { type: 'string' }, session: { type: 'string' }, 'key-dir': { type: 'string' } } }).values;
   const sessionId = session(values.session, env); if (!values.file || !sessionId) throw new LegionError('completion evidence requires --file & known session', { code: 'USAGE', exitCode: EXIT.USAGE });
-  const keys = loadHostKeyRing({ dir: values['key-dir'] || env.ARCANE_KEY_DIR || join(homedir(), '.claude', 'arcane-keys') });
+  const keys = values['key-dir'] || env.ARCANE_KEY_DIR ? loadHostKeyRing({ dir: values['key-dir'] || env.ARCANE_KEY_DIR }) : loadCanonicalHostKeyRing();
   const binding = new SessionBindingStore({ root: join(cwd, '.audit', 'arcane', 'session-bindings') }).getBinding(sessionId);
   const seal = binding?.contractId ? new ContractSealStore({ root: join(cwd, '.audit', 'arcane', 'contract-seals') }).get(binding.contractId, binding.contractVersion) : null;
   if (!binding?.taskId || !seal || seal.contractDigest !== binding.contractDigest) throw new LegionError('ARC_NO_CONTRACT', { code: 'ARC_NO_CONTRACT', exitCode: EXIT.INCOMPLETE });
