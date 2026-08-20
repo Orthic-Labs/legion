@@ -28,8 +28,8 @@ function markerCount(text) {
 test('bind does not auto-install Claude Code: the plugin package owns that harness', () => {
   const dir = makeClaudeCodeDir();
   try {
-    // A .claude/ directory is present, but Claude Code's Legion installation
-    // owner is the plugin package (SSOT I-20). bind must not auto-select it.
+    // A .claude/ directory is present, but plugin package owns Claude Code's
+    // Legion installation. bind must not auto-select it.
     const result = bind(['--check', dir]);
     assert.equal(result.status, 0, result.stderr);
     const report = JSON.parse(result.stdout);

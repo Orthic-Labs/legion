@@ -294,12 +294,11 @@ test('CapabilityStore: consume()/revoke() on an unknown capability throw ARC_CAP
   assert.throws(() => store.revoke('cap_ghost'), (err) => err.code === 'ARC_CAPABILITY_UNKNOWN');
 });
 
-// ── Head-anchor coverage (added at lane review) ────────────────────────────
+// ── Head-anchor coverage ───────────────────────────────────────────────────
 // A forward-only hash chain cannot detect anything done to its NEWEST entry,
 // because nothing links to it. Rewriting the tail (recomputing its own
 // recordDigest) and truncating the tail both produced ok:true before the head
-// anchor existed — and silent truncation is precisely what detailed plan §5.3
-// forbids. These lock that shut.
+// anchor existed. Receipt-chain integrity requires both attacks to fail.
 
 test('verifyChain detects a rewritten tail entry whose own digest was recomputed', () => {
   const root = freshRoot();

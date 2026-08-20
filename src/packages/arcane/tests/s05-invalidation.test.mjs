@@ -1,7 +1,7 @@
 // S05 — invalidation.mjs
 //
-// Headline test is the G11 cascade (ARCHITECTURE.md §1786, detailed plan
-// §6.3): source revision -> evidence A -> evidence B -> criterion C -> claim.
+// Headline test covers Arcane's transitive invalidation cascade:
+// source revision -> evidence A -> evidence B -> criterion C -> claim.
 // Changing the source revision must stale A, cascade-stale B transitively
 // through the dimension:'evidence' edge, mark C unproven, invalidate the
 // claim, and leave an unrelated evidence D explicitly listed in `unaffected`
@@ -17,7 +17,7 @@ import { ArcaneError } from '../lib/errors.mjs';
 const SRC_DIGEST_1 = 'sha256:' + '1'.repeat(64);
 const SRC_DIGEST_2 = 'sha256:' + '2'.repeat(64);
 
-test('G11 cascade: source revision change stales A, cascades to B, unproves C, invalidates the claim, leaves D unaffected — exactly one event', () => {
+test('source revision change stales A, cascades to B, unproves C, invalidates the claim, leaves D unaffected — exactly one event', () => {
   const ledger = new DependencyLedger({ clock: () => '2026-01-01T00:00:00.000Z' });
 
   // A depends directly on the source revision.

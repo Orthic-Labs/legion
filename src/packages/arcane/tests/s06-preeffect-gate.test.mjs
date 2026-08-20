@@ -1,10 +1,9 @@
 // Deliverable 6 — the pre-effect gate.
 //
-// ARCHITECTURE §24a, PRE-EFFECT GATE: "capability check, path ownership,
-// effect-class authorization, contract version, latitude class (EXACT/BOUNDED)"
-// and "if the pre-effect gate is unavailable, mutation-bearing operations fail
-// closed; read-only operations may continue with a recorded enforcement-health
-// downgrade."
+// Arcane's pre-effect gate checks capability, path ownership, effect-class
+// authorization, contract version, & latitude class (EXACT/BOUNDED). If gate
+// is unavailable, mutation-bearing operations fail closed; read-only operations
+// may continue with a recorded enforcement-health downgrade.
 //
 // Alchemist never mutates product state without a bounded executable
 // contract. Open decisions make a contract non-executable.
@@ -143,7 +142,7 @@ test('oracle is accepted as assurance authority by the pre-effect gate', () => {
   assert.equal(d.allowed, true, d.message);
 });
 
-// -------------------------------------------------------------- G2 / G9
+// -------------------------------------------------------------- Contract executability
 
 test('mutation without a contract is denied — ARC_NO_CONTRACT', () => {
   const gate = new PreEffectGate({ policy: engine(), capabilityStore: capabilityStore(), authorityLedger: ledgerWithAlchemist(), clock });

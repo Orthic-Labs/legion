@@ -337,7 +337,7 @@ test('S02: EFFECT_CLASS reconciliation (SEAL Q4) is recorded, with every frozen 
   }
 });
 
-test('S02: FILE_READ is proposed — §24a’s read-only downgrade path is unrepresentable without it', () => {
+test('S02: FILE_READ is proposed because read-only enforcement degradation needs a distinct effect class', () => {
   const names = EFFECT_CLASS_RECONCILIATION.proposedAdditions.map((p) => p.name);
   assert.ok(names.includes('FILE_READ'));
 });

@@ -1,8 +1,7 @@
 // S04 — host-event contract: closed schema, normalization, classification.
 //
-// Detailed plan §3.2 requires one versioned host-event contract covering
-// every bullet in that section, closed except for a single `extensions` bag
-// — exactly the discipline legacy Forge's ONE hard closed-schema validator
+// Arcane owns one versioned host-event contract, closed except for a single
+// `extensions` bag — exactly the discipline legacy Forge's closed-schema validator
 // (orthic.observable-event.v1, legacy-semantic-inventory.json
 // #hook_enforcement_points / #record_types) already enforced. Every other
 // legacy record type was open; this module makes that the rule, not the
