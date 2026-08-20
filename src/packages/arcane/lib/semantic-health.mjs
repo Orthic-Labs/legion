@@ -187,7 +187,11 @@ export function runProbe(name, { env = process.env } = {}) {
 
 export function runSemanticHealth({ cwd = process.cwd(), env = process.env, spawn = spawnSync } = {}) {
   const probes = PROBES.map((id) => {
-    const child = spawn(process.execPath, [SELF, '--probe', id, '--json'], { cwd, env: { ...process.env, ...env }, encoding: 'utf8', windowsHide: true });
+    const childEnv = { ...process.env, ...env };
+    // Synthetic probes must not inherit a launcher continuity hint. Native
+    // lifecycle payloads remain the only Codex authority source.
+    delete childEnv.CODEX_THREAD_ID;
+    const child = spawn(process.execPath, [SELF, '--probe', id, '--json'], { cwd, env: childEnv, encoding: 'utf8', windowsHide: true });
     try {
       const value = JSON.parse(child.stdout);
       return value?.id === id ? value : { id, ok: false, error: 'semantic probe returned malformed output' };

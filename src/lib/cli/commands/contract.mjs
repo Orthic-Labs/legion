@@ -148,6 +148,16 @@ function contractSeal(argv, { stdout, env, cwd }) {
       { code: 'ARC_AUTHORITY_NOT_ASSERTED', exitCode: EXIT.INTERNAL_ERROR },
     );
   }
+  if (adapter === 'codex') {
+    const ledger = new HostEventLedger({ root: stateDir(cwd, 'host-events'), keyRing, keyId: keyRing.activeKeyId() });
+    const continuity = ledger.verify();
+    const current = continuity.allowed
+      ? ledger.records().filter((event) => event.adapter === adapter && event.sessionId === sessionId && ['SessionStart', 'SubagentStart'].includes(event.eventType) && ['legion', 'sage'].includes(event.observedAuthority)).at(-1)
+      : null;
+    if (!current || current.eventId !== observed.observedEventId) {
+      throw new LegionError('ARC_AUTHORITY_NOT_ASSERTED: current observed Codex Legion or Sage host event required', { code: 'ARC_AUTHORITY_NOT_ASSERTED', exitCode: EXIT.INTERNAL_ERROR });
+    }
+  }
   if (!['legion', 'sage'].includes(observed.authority)) {
     throw new LegionError(
       `ARC_AUTHORITY_NOT_ASSERTED: agent '${agent}' is observed as authority '${observed.authority}'; only Legion or Sage may seal an execution contract`,

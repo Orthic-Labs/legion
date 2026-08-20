@@ -32,13 +32,29 @@ test('EC-503 v6: fresh adapter process binds SubagentStart only to durable threa
     mkdirSync(workspace, { recursive: true }); mkdirSync(keyDir, { recursive: true }); writeFileSync(join(keyDir, 'k1.key'), 'a'.repeat(64));
     const env = { ...process.env, ARCANE_WORKSPACE: workspace, ARCANE_STATE_ROOT: stateRoot, ARCANE_KEY_DIR: keyDir, CODEX_THREAD_ID: 'durable-thread' };
     const run = (payload) => execFileSync(process.execPath, [CODEX_ADAPTER], { cwd: process.cwd(), env, input: JSON.stringify(payload), encoding: 'utf8' });
-    run({ hook_event_name: 'SubagentStart', cwd: workspace, session_id: 'transient-session', thread_id: 'durable-thread', agent_id: 'agent-1', agent_type: 'alchemist' });
+    run({ hook_event_name: 'SessionStart', cwd: workspace, session_id: 'durable-thread', thread_id: 'durable-thread' });
+    run({ hook_event_name: 'SubagentStart', cwd: workspace, session_id: 'durable-thread', thread_id: 'durable-thread', agent_id: 'agent-1', agent_type: 'alchemist' });
     const bindings = new AuthorityBindingStore({ root: join(stateRoot, 'authority-bindings') });
     assert.equal(bindings.findLatest({ adapter: 'codex', sessionId: 'durable-thread', authority: 'alchemist' })?.authority, 'alchemist');
+    const ledger = JSON.parse(readFileSync(join(stateRoot, 'host-events', '0000000000000002.json'), 'utf8'));
+    assert.equal(bindings.findLatest({ adapter: 'codex', sessionId: 'durable-thread', authority: 'alchemist' })?.observedEventId, ledger.eventId);
     assert.equal(bindings.findLatest({ adapter: 'codex', sessionId: 'transient-session', authority: 'alchemist' }), null);
-    const output = run({ hook_event_name: 'SubagentStart', cwd: workspace, thread_id: 'conflicting-thread', agent_id: 'agent-2', agent_type: 'alchemist' });
+    const output = run({ hook_event_name: 'SubagentStart', cwd: workspace, session_id: 'durable-thread', thread_id: 'conflicting-thread', agent_id: 'agent-2', agent_type: 'alchemist' });
     assert.match(output, /ARC_BINDING_MISMATCH/);
     assert.equal(bindings.findLatest({ adapter: 'codex', sessionId: 'conflicting-thread', authority: 'alchemist' }), null);
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
+test('Codex caller/session aliases cannot mint root or subagent authority', () => {
+  const root = mkdtempSync(join(tmpdir(), 'arcane-codex-identity-'));
+  const workspace = join(root, 'workspace'); const stateRoot = join(root, 'state'); const keyDir = join(root, 'keys');
+  try {
+    mkdirSync(workspace, { recursive: true }); mkdirSync(keyDir, { recursive: true }); writeFileSync(join(keyDir, 'k1.key'), 'a'.repeat(64));
+    const runtime = createHostRuntime({ adapter: { name: 'codex', normalize: normalizeCodexEvent, observeIdentity: observeCodexIdentity }, workspace, keyDir, stateRoot });
+    assert.equal(runtime.handle({ hook_event_name: 'SessionStart', cwd: workspace, sessionId: 'caller-session' }).allowed, true);
+    assert.equal(new AuthorityBindingStore({ root: join(stateRoot, 'authority-bindings') }).findLatest({ adapter: 'codex', sessionId: 'caller-session', authority: 'legion' }), null);
+    const denied = runtime.handle({ hook_event_name: 'SubagentStart', cwd: workspace, sessionId: 'caller-session', agent_id: 'sage-1', agent_type: 'sage' });
+    assert.equal(denied.allowed, false); assert.equal(denied.code, 'ARC_AUTHORITY_NOT_ASSERTED');
   } finally { rmSync(root, { recursive: true, force: true }); }
 });
 
@@ -88,7 +104,9 @@ test('fresh authenticated SessionStart binds only the Legion session root', () =
   try {
     mkdirSync(workspace, { recursive: true }); mkdirSync(keyDir, { recursive: true }); writeFileSync(join(keyDir, 'k1.key'), 'a'.repeat(64));
     const runtime = createHostRuntime({ adapter: { name: 'codex', normalize: normalizeCodexEvent, observeIdentity: observeCodexIdentity }, workspace, keyDir, stateRoot });
-    const result = runtime.handle({ hook_event_name: 'SessionStart', cwd: workspace, session_id: 'fresh-session', agent_id: 'agent', agent_type: 'alchemist' });
+    const start = { hook_event_name: 'SessionStart', cwd: workspace, session_id: 'fresh-session', agent_id: 'agent', agent_type: 'alchemist' };
+    const result = runtime.handle(start);
+    assert.equal(runtime.handle(start).code, 'ARC_REPLAY_NONCE_SEEN');
     const ledger = JSON.parse(readFileSync(join(stateRoot, 'host-events', '0000000000000001.json'), 'utf8'));
     assert.equal(result.allowed, true, result.code);
     assert.equal(ledger.observedAuthority, 'legion');
@@ -175,7 +193,8 @@ test('EC-503 v2: sealed apply_patch pre-authorizes all effects; unchanged post e
     new SessionBindingStore({ root: join(stateRoot, 'session-bindings') }).putBinding(sessionId, { runId: 'run_01ARZ3NDEKTSV4RRFFQ69G5FAV', taskId: 'T-1', contractId: contract.contractId, contractVersion: contract.version, contractDigest: sealed.contractDigest });
     const runtime = createHostRuntime({ adapter: { name: 'codex', normalize: normalizeCodexEvent, observeIdentity: observeCodexIdentity, mapPreEffect: mapCodexPreEffect }, workspace, keyDir, stateRoot });
     const command = '*** Begin Patch\n*** Update File: src/a.mjs\n@@\n-a\n+b\n*** Add File: src/b.mjs\n+b\n*** End Patch';
-    const base = { session_id: sessionId, agent_id: 'agent', agent_type: 'alchemist', cwd: workspace, tool_name: 'apply_patch', tool_use_id: 'patch-1', tool_input: { command } };
+    const base = { session_id: sessionId, thread_id: sessionId, agent_id: 'agent', agent_type: 'alchemist', cwd: workspace, tool_name: 'apply_patch', tool_use_id: 'patch-1', tool_input: { command } };
+    assert.equal(runtime.handle({ ...base, hook_event_name: 'SessionStart' }).allowed, true);
     assert.equal(runtime.handle({ ...base, hook_event_name: 'SubagentStart' }).allowed, true);
     const pre = runtime.handle({ ...base, hook_event_name: 'PreToolUse' }); assert.equal(pre.allowed, true, pre.code);
     const post = runtime.handle({ ...base, hook_event_name: 'PostToolUse', tool_response: { ok: true } }); assert.equal(post.allowed, true, post.code);
@@ -264,6 +283,7 @@ test('Wave 1: corrupt authority state is diagnostic-only for question, plan, & p
     mkdirSync(workspace, { recursive: true }); mkdirSync(keyDir, { recursive: true }); writeFileSync(join(keyDir, 'k1.key'), 'a'.repeat(64));
     const runtime = createHostRuntime({ adapter: { name: 'codex', normalize: normalizeCodexEvent, observeIdentity: observeCodexIdentity }, workspace, keyDir, stateRoot });
     const payload = { hook_event_name: 'Stop', cwd: workspace, session_id: 'read-only-session', agent_id: 'agent', agent_type: 'alchemist', transcript_path: transcript };
+    assert.equal(runtime.handle({ ...payload, hook_event_name: 'SessionStart', agent_id: null, agent_type: null }).allowed, true);
     const corrupt = () => {
       const path = runtime.stores.authorityBinding.path('codex', 'read-only-session', 'agent');
       mkdirSync(join(stateRoot, 'authority-bindings'), { recursive: true }); writeFileSync(path, '{'); return path;

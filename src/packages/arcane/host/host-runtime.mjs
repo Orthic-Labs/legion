@@ -54,13 +54,20 @@ function hostRetry(hookPayload, eventType) {
 
 function hostProgress(eventType) { return eventType === 'PostToolUse'; }
 
-function observedAuthorityFor(eventType, identity, authorityBindings, adapter) {
-  // SessionStart authenticates already-running Legion root. UserPromptSubmit
-  // remains current-user provenance, not Legion authority; raw payloads must
-  // never mint either identity.
-  if (eventType === 'SessionStart') return 'legion';
+function observedAuthorityFor(eventType, identity, authorityBindings, adapter, sessionId = identity?.sessionId) {
+  // SessionStart authenticates Legion only after its host adapter observed the
+  // durable root identity & persisted its immutable root binding. UserPromptSubmit
+  // remains current-user provenance, never Legion authority.
+  if (eventType === 'SessionStart') {
+    const root = authorityBindings.get({ adapter, sessionId, agentId: 'legion-session-root' });
+    if (adapter === 'codex' && identity?.rootThreadId === sessionId) return 'legion';
+    return root?.authority === 'legion' ? 'legion' : null;
+  }
   if (!identity?.sessionId || !identity?.agentId || !OBSERVED_AGENT_AUTHORITIES.has(identity?.agentType)) return null;
+  const root = authorityBindings.get({ adapter, sessionId: identity.sessionId, agentId: 'legion-session-root' });
+  if (root?.authority !== 'legion') return null;
   const binding = authorityBindings.get({ adapter, sessionId: identity.sessionId, agentId: identity.agentId });
+  if (adapter === 'codex' && identity.rootThreadId === identity.sessionId) return identity.agentType;
   return binding?.authority === identity.agentType ? binding.authority : null;
 }
 
@@ -227,11 +234,22 @@ export function createHostRuntime({ adapter, workspace, keyDir, verificationKeyD
       const hostEvent = adapter.normalize(hookPayload);
       identity = typeof adapter.observeIdentity === 'function' ? adapter.observeIdentity(hookPayload, { hostEvent }) : null;
       if (identity?.modelClaimed) return runtimeResult(eventType, { decision: denial('ARC_AUTHORITY_MODEL_CLAIMED', 'payload authority claim refused'), enforcementHealth: 'strong' });
+      const deferCodexBinding = adapter.name === 'codex' && ['SessionStart', 'SubagentStart'].includes(eventType);
       if (eventType === 'SessionStart' && hostEvent.sessionId) {
-        stores.authorityBinding.observeLegionSession({ adapter: adapter.name, sessionId: hostEvent.sessionId, eventId: hostEvent.eventId });
+        // Codex authority requires native hook identity. A session_id-less or
+        // wrapper-only invocation remains ambient & cannot mint Legion.
+        const codexRoot = adapter.name === 'codex' ? identity?.rootThreadId === hostEvent.sessionId : true;
+        if (codexRoot && !deferCodexBinding) stores.authorityBinding.observeLegionSession({ adapter: adapter.name, sessionId: hostEvent.sessionId, eventId: hostEvent.eventId });
+      }
+      if (eventType === 'SubagentStart' && adapter.name === 'codex' && (!identity?.rootThreadId || identity.rootThreadId !== hostEvent.sessionId)) {
+        return runtimeResult(eventType, { decision: denial('ARC_AUTHORITY_NOT_ASSERTED', 'Codex SubagentStart requires native session_id'), enforcementHealth: 'strong' });
       }
       if (eventType === 'SubagentStart' && identity?.sessionId && identity?.agentId && identity?.agentType) {
-        stores.authorityBinding.observe({ adapter: adapter.name, eventId: identity.eventId ?? `host:${eventType}`, ...identity });
+        const root = stores.authorityBinding.get({ adapter: adapter.name, sessionId: identity.sessionId, agentId: 'legion-session-root' });
+        if (adapter.name === 'codex' && (identity.rootThreadId !== identity.sessionId || root?.authority !== 'legion')) {
+          return runtimeResult(eventType, { decision: denial('ARC_AUTHORITY_NOT_ASSERTED', 'Codex subagent requires current observed Legion root'), enforcementHealth: 'strong' });
+        }
+        if (!deferCodexBinding) stores.authorityBinding.observe({ adapter: adapter.name, eventId: identity.eventId ?? `host:${eventType}`, ...identity });
       }
       const binding = hostEvent.sessionId ? stores.sessionBinding.getBinding(hostEvent.sessionId) : null;
       if (binding?.contractId) {
@@ -252,7 +270,18 @@ export function createHostRuntime({ adapter, workspace, keyDir, verificationKeyD
         const ledger = new HostEventLedger({ root: paths.events, keyRing, keyId: keyRing.activeKeyId(), verificationKeyRing, clock: isoClock(clock) });
         const continuity = ledger.verify();
         if (!continuity.allowed) return availabilityFallback({ eventType, code: continuity.code, contracted, hookPayload, adapter, policy, workspace });
-        hostEvent.ledger = ledger.append({ eventId: identity?.eventId ?? hostEvent.eventId, adapter: adapter.name, eventType, sessionId: hostEvent.sessionId, binding, sourceRevision: boundSeal?.sourceRevision ?? null, observedAuthority: observedAuthorityFor(eventType, identity, stores.authorityBinding, adapter.name), payload: hookPayload });
+        if (adapter.name === 'codex' && ['SessionStart', 'SubagentStart'].includes(eventType)) {
+          const payloadDigest = digestValue(hookPayload);
+          if (ledger.records().some((event) => event.adapter === adapter.name && event.eventType === eventType && event.sessionId === hostEvent.sessionId && event.payloadDigest === payloadDigest)) {
+            return runtimeResult(eventType, { decision: denial('ARC_REPLAY_NONCE_SEEN', 'duplicate Codex lifecycle observation'), enforcementHealth: 'strong' });
+          }
+        }
+        hostEvent.ledger = ledger.append({ eventId: identity?.eventId ?? hostEvent.eventId, adapter: adapter.name, eventType, sessionId: hostEvent.sessionId, binding, sourceRevision: boundSeal?.sourceRevision ?? null, observedAuthority: observedAuthorityFor(eventType, identity, stores.authorityBinding, adapter.name, hostEvent.sessionId), payload: hookPayload });
+        if (deferCodexBinding && eventType === 'SessionStart' && identity?.rootThreadId === hostEvent.sessionId) {
+          stores.authorityBinding.observeLegionSession({ adapter: adapter.name, sessionId: hostEvent.sessionId, eventId: hostEvent.ledger.eventId });
+        } else if (deferCodexBinding && eventType === 'SubagentStart' && identity?.sessionId && identity?.agentId && identity?.agentType) {
+          stores.authorityBinding.observe({ adapter: adapter.name, eventId: hostEvent.ledger.eventId, ...identity });
+        }
       } catch (error) {
         if (codeOf(error) === 'ARC_STORE_CORRUPT' && identity?.sessionId && identity?.agentId) {
           stores.authorityBinding.recover({ adapter: adapter.name, sessionId: identity.sessionId, agentId: identity.agentId });

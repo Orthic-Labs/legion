@@ -36,8 +36,8 @@ after(() => {
 });
 
 test('B7 Codex identity & pre-effect tables are host-derived and closed', () => {
-  const payload = { hook_event_name: 'PreToolUse', sessionId: 'session', agentId: 'agent', agentType: 'alchemist', tool_name: 'Edit', tool_input: { file_path: 'src/a.mjs' }, tool_use_id: 'tool' };
-  assert.deepEqual(observeCodexIdentity(payload, { hostEvent: { eventId: 'hev_0123456789ABCDEFGHJKMNPQ' } }), { sessionId: 'session', agentId: 'agent', agentType: 'alchemist', eventId: 'hev_0123456789ABCDEFGHJKMNPQ' });
+  const payload = { hook_event_name: 'PreToolUse', session_id: 'session', agent_id: 'agent', agent_type: 'alchemist', tool_name: 'Edit', tool_input: { file_path: 'src/a.mjs' }, tool_use_id: 'tool' };
+  assert.deepEqual(observeCodexIdentity(payload, { hostEvent: { eventId: 'hev_0123456789ABCDEFGHJKMNPQ' } }), { sessionId: 'session', rootThreadId: 'session', identitySource: 'codex-native-hook', agentId: 'agent', agentType: 'alchemist', eventId: 'hev_0123456789ABCDEFGHJKMNPQ' });
   assert.deepEqual(mapCodexPreEffect(payload), { effectClass: 'FILE_WRITE', target: 'src/a.mjs', operation: 'Edit', toolUseId: 'tool' });
   assert.deepEqual(observeCodexIdentity({ ...payload, authority: 'sage' }), { modelClaimed: true });
   assert.equal(mapCodexPreEffect({ ...payload, tool_name: 'shell' }), null);
@@ -157,11 +157,11 @@ test('EC-B: Codex thread identity completes SubagentStart authority binding', ()
   const prior = process.env.CODEX_THREAD_ID;
   process.env.CODEX_THREAD_ID = 'thread-019fe6fe';
   try {
-    const payload = { hook_event_name: 'SubagentStart', cwd: '/tmp/ws', agent_id: 'agent-1', agent_type: 'sage' };
+    const payload = { hook_event_name: 'SubagentStart', cwd: '/tmp/ws', session_id: 'thread-019fe6fe', agent_id: 'agent-1', agent_type: 'sage' };
     const hostEvent = normalizeCodexEvent(payload);
     assert.equal(hostEvent.sessionId, 'thread-019fe6fe');
     assert.deepEqual(observeCodexIdentity(payload, { hostEvent }), {
-      sessionId: 'thread-019fe6fe',
+      sessionId: 'thread-019fe6fe', rootThreadId: 'thread-019fe6fe', identitySource: 'codex-native-hook',
       agentId: 'agent-1',
       agentType: 'sage',
       eventId: hostEvent.eventId,
@@ -174,7 +174,7 @@ test('EC-B: Codex thread identity completes SubagentStart authority binding', ()
 
 test('EC-503 v6: fresh Codex process gives durable thread identity precedence over transient session id', () => {
   const adapter = new URL('../host/codex-adapter.mjs', import.meta.url).href;
-  const script = `import { buildRawCodexEvent } from ${JSON.stringify(adapter)}; console.log(buildRawCodexEvent({ hook_event_name: 'SessionStart', session_id: 'transient-session', thread_id: 'durable-thread' }).sessionId);`;
+  const script = `import { buildRawCodexEvent } from ${JSON.stringify(adapter)}; console.log(buildRawCodexEvent({ hook_event_name: 'SessionStart', session_id: 'durable-thread', thread_id: 'durable-thread' }).sessionId);`;
   const output = execFileSync(process.execPath, ['--input-type=module', '--eval', script], {
     encoding: 'utf8', env: { ...process.env, CODEX_THREAD_ID: 'durable-thread' },
   });
@@ -185,10 +185,10 @@ test('EC-503 v6: matching payload thread is accepted & conflicting identity fail
   const prior = process.env.CODEX_THREAD_ID;
   process.env.CODEX_THREAD_ID = 'durable-thread';
   try {
-    assert.equal(resolveCodexSessionId({ session_id: 'transient-session', thread_id: 'durable-thread' }), 'durable-thread');
+    assert.equal(resolveCodexSessionId({ session_id: 'durable-thread', thread_id: 'durable-thread' }), 'durable-thread');
     assert.throws(
-      () => resolveCodexSessionId({ session_id: 'transient-session', thread_id: 'conflicting-thread' }),
-      /ARC_BINDING_MISMATCH|conflicts/,
+      () => resolveCodexSessionId({ session_id: 'durable-thread', thread_id: 'conflicting-thread' }),
+      /ARC_BINDING_MISMATCH|conflict/,
     );
   } finally {
     if (prior === undefined) delete process.env.CODEX_THREAD_ID;

@@ -7,10 +7,11 @@
 // does — see that file and ./hook-adapter-core.mjs for the parts common to
 // every host.
 //
-// Codex hook stdin supplies session_id plus agent_id/agent_type on subagent
-// events. Desktop exposes the durable thread identity as CODEX_THREAD_ID. It
-// is authoritative over transient payload session ids; a supplied thread id
-// must match it or the event fails closed.
+// Codex hook stdin supplies the durable root session_id on lifecycle events,
+// plus agent_id/agent_type on SubagentStart. Do not import Claude-only hook
+// assumptions or trust model/caller identity fields. CODEX_THREAD_ID remains
+// accepted only as a compatibility cross-check for installed wrappers; native
+// Codex session_id is authoritative.
 //
 // `hook_event_name` and `tool_name`/`tool_input.file_path` (for Write/Edit)
 // are shared field names between the two hosts per predecessor/hooks/codex/hooks.json
@@ -72,20 +73,33 @@ function payloadThreadId(hookPayload) {
   if (snake !== undefined && camel !== undefined && snake !== camel) {
     throw new ArcaneError('ARC_BINDING_MISMATCH', 'conflicting Codex payload thread identities');
   }
-  return snake ?? camel ?? null;
+  const value = snake ?? camel ?? null;
+  return typeof value === 'string' && value.trim() ? value.trim() : null;
+}
+
+/** Native Codex session_id is durable root identity; wrapper env is a cross-check. */
+export function resolveCodexThreadId(hookPayload, env = process.env) {
+  const nativeSession = hookPayload?.session_id ?? null;
+  const threadId = payloadThreadId(hookPayload);
+  const wrapperThread = typeof env.CODEX_THREAD_ID === 'string' && env.CODEX_THREAD_ID.trim()
+    ? env.CODEX_THREAD_ID.trim() : null;
+  const nativeRoot = typeof nativeSession === 'string' && nativeSession.trim() ? nativeSession.trim() : null;
+  // Only native hook session_id can authenticate root authority. Wrapper env
+  // values are continuity hints for CLI routing, never authority evidence.
+  const durable = nativeRoot;
+  if (threadId && nativeRoot && threadId !== nativeRoot) {
+    throw new ArcaneError('ARC_BINDING_MISMATCH', 'conflicting Codex session and thread identities');
+  }
+  if (wrapperThread && durable && wrapperThread !== durable) {
+    throw new ArcaneError('ARC_BINDING_MISMATCH', 'Codex wrapper thread identity conflicts with native hook identity');
+  }
+  return durable;
 }
 
 /** Resolve Codex identity without allowing a transient hook session to split a durable thread binding. */
 export function resolveCodexSessionId(hookPayload, env = process.env) {
-  const durableThreadId = env.CODEX_THREAD_ID ?? null;
-  const threadId = payloadThreadId(hookPayload);
-  if (durableThreadId) {
-    if (threadId !== null && threadId !== durableThreadId) {
-      throw new ArcaneError('ARC_BINDING_MISMATCH', 'Codex payload thread identity conflicts with CODEX_THREAD_ID');
-    }
-    return durableThreadId;
-  }
-  return hookPayload?.session_id ?? hookPayload?.sessionId ?? threadId
+  const nativeRoot = resolveCodexThreadId(hookPayload, env);
+  return nativeRoot ?? hookPayload?.sessionId ?? payloadThreadId(hookPayload)
     ?? env.CODEX_SESSION_ID ?? env.CLAUDE_SESSION_ID ?? null;
 }
 
@@ -232,9 +246,17 @@ export function observeCodexIdentity(hookPayload, { hostEvent } = {}) {
   if (hostEvent?.eventType === 'user-prompt-submit') return { sessionId: hostEvent.sessionId, eventId: hostEvent.eventId, currentUserPrompt: true };
   if (['authority', 'callerAuthority', 'assertedAuthority', 'trust_class', 'trustClass', 'executor'].some((key) => Object.hasOwn(hookPayload ?? {}, key))) return { modelClaimed: true };
   const sessionId = hostEvent?.sessionId ?? resolveCodexSessionId(hookPayload);
+  const rootThreadId = resolveCodexThreadId(hookPayload);
   const agentId = hookPayload?.agent_id ?? hookPayload?.agentId ?? hookPayload?.subagent?.agent_id ?? hookPayload?.subagent?.agentId ?? null;
   const agentType = hookPayload?.agent_type ?? hookPayload?.agentType ?? hookPayload?.subagent?.agent_type ?? hookPayload?.subagent?.agentType ?? null;
-  return sessionId && agentId && agentType ? { sessionId, agentId, agentType, eventId: hostEvent?.eventId } : null;
+  if (hostEvent?.eventType === 'session-start') {
+    return rootThreadId && sessionId === rootThreadId
+      ? { sessionId, rootThreadId, identitySource: 'codex-native-hook', eventId: hostEvent?.eventId }
+      : null;
+  }
+  return sessionId && rootThreadId === sessionId && agentId && agentType
+    ? { sessionId, rootThreadId, agentId, agentType, identitySource: 'codex-native-hook', eventId: hostEvent?.eventId }
+    : null;
 }
 
 const PATCH_LIMIT_BYTES = 1024 * 1024;

@@ -1,10 +1,11 @@
-import { mkdirSync, openSync, readFileSync, readdirSync, closeSync, fsyncSync, writeSync, existsSync, renameSync } from 'node:fs';
+import { mkdirSync, openSync, readFileSync, readdirSync, closeSync, fsyncSync, writeSync, existsSync, renameSync, unlinkSync } from 'node:fs';
 import { randomBytes } from 'node:crypto';
 import { join } from 'node:path';
 import { digestValue } from './canonical.mjs';
 import { ArcaneError } from './errors.mjs';
 const MAP={legion:'legion',sage:'sage',alchemist:'alchemist',oracle:'oracle'};
 const dig=(domain,values)=>digestValue({domain,values});
+const refresh=(path,record)=>{const tmp=`${path}.refresh-${process.pid}-${randomBytes(6).toString('hex')}`,fd=openSync(tmp,'w',0o600);try{writeSync(fd,`${JSON.stringify(record)}\n`);fsyncSync(fd);}finally{closeSync(fd);}try{renameSync(tmp,path);}catch(error){if(error.code!=='EEXIST')throw error;unlinkSync(path);renameSync(tmp,path);}};
 export class AuthorityBindingStore {
   constructor({root,clock=()=>new Date().toISOString()}){this.root=root;this.clock=clock;}
   key(adapter,sessionId,agentId=null){return dig('arcane.authority.binding-key.v1',[adapter,sessionId,agentId]).slice(7);}
@@ -14,7 +15,7 @@ export class AuthorityBindingStore {
     const key=this.key(adapter,sessionId,agentId), path=join(this.root,`${key}.json`), record={schemaVersion:1,kind:'arcane-authority-binding',adapter,sessionIdDigest:dig('arcane.authority.session.v1',[adapter,sessionId]),agentIdDigest:dig('arcane.authority.agent.v1',[adapter,sessionId,agentId]),agentType,authority:MAP[agentType],observedEventId:eventId,observedAt:this.clock()};
     mkdirSync(this.root,{recursive:true}); const text=`${JSON.stringify(record)}\n`;
     try { const fd=openSync(path,'wx',0o600); try{writeSync(fd,text);fsyncSync(fd);}finally{closeSync(fd);} return {bound:true,created:true,record}; }
-    catch(error){if(error.code!=='EEXIST')throw error; const existing=this.get({adapter,sessionId,agentId}); if(!existing)throw new ArcaneError('ARC_STORE_CORRUPT','binding record corrupt'); if(['adapter','sessionIdDigest','agentIdDigest','agentType','authority'].some(k=>existing[k]!==record[k]))throw new ArcaneError('ARC_BINDING_MISMATCH','binding identity conflict'); return {bound:true,created:false,record:existing};}
+    catch(error){if(error.code!=='EEXIST')throw error; const existing=this.get({adapter,sessionId,agentId}); if(!existing)throw new ArcaneError('ARC_STORE_CORRUPT','binding record corrupt'); if(['adapter','sessionIdDigest','agentIdDigest','agentType','authority'].some(k=>existing[k]!==record[k]))throw new ArcaneError('ARC_BINDING_MISMATCH','binding identity conflict'); if(existing.observedEventId!==eventId){const refreshed={...existing,observedEventId:eventId,observedAt:this.clock()};refresh(path,refreshed);return {bound:true,created:false,record:refreshed};} return {bound:true,created:false,record:existing};}
   }
   observeLegionSession({adapter,sessionId,eventId}){const agentId='legion-session-root';return this.observe({adapter,sessionId,agentId,agentType:'legion',eventId,sessionRoot:true});}
   get({adapter,sessionId,agentId=null}){try{const r=JSON.parse(readFileSync(this.path(adapter,sessionId,agentId),'utf8'));return r?.kind==='arcane-authority-binding'?r:null;}catch(e){if(e.code==='ENOENT')return null;throw new ArcaneError('ARC_STORE_CORRUPT','binding record corrupt');}}

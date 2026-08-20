@@ -189,6 +189,7 @@ function runOpen(argv, { stdout, env, cwd }) {
         version: { type: 'string' },
         task: { type: 'string' },
         session: { type: 'string' },
+        adapter: { type: 'string' },
         repo: { type: 'string', multiple: true },
         'read-only': { type: 'boolean' },
       },
@@ -197,7 +198,7 @@ function runOpen(argv, { stdout, env, cwd }) {
     throw new LegionError(err.message, { code: 'USAGE', exitCode: EXIT.USAGE });
   }
 
-  const { contract = null, task = null, session = null, version = null, repo = [], 'read-only': readOnly = false } = parsed.values;
+  const { contract = null, task = null, session = null, version = null, repo = [], adapter = 'claude-code', 'read-only': readOnly = false } = parsed.values;
   if (!contract || !isId('executionContract', contract)) {
     throw new LegionError(`run open requires --contract <EC-#> (got ${contract ?? '<none>'})`, { code: 'USAGE', exitCode: EXIT.USAGE });
   }
@@ -214,6 +215,18 @@ function runOpen(argv, { stdout, env, cwd }) {
   let head = null;
   try { head = execFileSync('git', ['rev-parse', 'HEAD'], { cwd, encoding: 'utf8' }).trim(); } catch { throw new LegionError('run open cannot verify current source revision', { code: 'ARC_SOURCE_UNAVAILABLE', exitCode: EXIT.INCOMPLETE }); }
   if (seal.sourceRevision !== head) throw new LegionError('ARC_CONTRACT_SOURCE_STALE: sealed contract sourceRevision differs from current HEAD', { code: 'ARC_CONTRACT_SOURCE_STALE', exitCode: EXIT.INCOMPLETE });
+  if (!['claude-code', 'codex'].includes(adapter)) throw new LegionError(`run open unknown adapter '${adapter}'`, { code: 'USAGE', exitCode: EXIT.USAGE });
+  if (adapter === 'codex') {
+    if (!env.ARCANE_KEY_DIR) throw new LegionError('ARC_AUTH_KEY_UNAVAILABLE: Codex run open requires ARCANE_KEY_DIR', { code: 'ARC_AUTH_KEY_UNAVAILABLE', exitCode: EXIT.INTERNAL_ERROR });
+    let keyRing;
+    try { keyRing = loadHostKeyRing({ dir: env.ARCANE_KEY_DIR }); } catch { throw new LegionError('ARC_AUTH_KEY_UNAVAILABLE: Codex run open host key unavailable', { code: 'ARC_AUTH_KEY_UNAVAILABLE', exitCode: EXIT.INTERNAL_ERROR }); }
+    const ledger = new HostEventLedger({ root: join(cwd, '.audit', 'arcane', 'host-events'), keyRing, keyId: keyRing.activeKeyId() });
+    const continuity = ledger.verify();
+    const current = continuity.allowed
+      ? ledger.records().filter((event) => event.adapter === adapter && event.sessionId === sessionId && ['SessionStart', 'SubagentStart'].includes(event.eventType) && ['legion', 'sage'].includes(event.observedAuthority)).at(-1)
+      : null;
+    if (!current) throw new LegionError('ARC_AUTHORITY_NOT_ASSERTED: current observed Codex Legion or Sage host event required', { code: 'ARC_AUTHORITY_NOT_ASSERTED', exitCode: EXIT.INTERNAL_ERROR });
+  }
   const exactBudget = requireExactTaskBudget({ cwd, env, contract, version: seal.version, task, digest: seal.contractDigest });
   // Source preflight is intentionally before even ambient binding creation.
   const store = new SessionBindingStore({ root: bindingRoot(cwd) });
