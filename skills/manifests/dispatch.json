@@ -24,24 +24,11 @@
     }
   },
   "parity": {
-    "frozenAt": "2026-08-14",
     "triggers": [
       "/dispatch",
       "Create a validated zero-context work packet for another agent or executor while current orchestrator retains responsibility. Use for delegation, parallel workers, or copy-paste executor instructions. Same-agent work stays inline; session continuity uses handoff."
     ],
     "outputs": [
-      "assets/dispatch-template.md",
-      "examples/dispatch-route-fixture.json",
-      "examples/dispatch-route-fixture.receipt.json",
-      "examples/sage-architect-dispatch.json",
-      "examples/sage-architect-dispatch.receipt.json",
-      "examples/sage-architect-route.json",
-      "examples/validated-forward-test.md",
-      "examples/validated-forward-test.minimize.json",
-      "examples/validated-forward-test.minimize.receipt.json",
-      "examples/validated-forward-test.receipt.json",
-      "examples/validated-forward-test.route.json",
-      "examples/validated-forward-test.route.receipt.json",
       "references/agent-routing.md",
       "references/manual.md"
     ],
@@ -55,7 +42,7 @@
     "schemas": [],
     "receipts": [
       "examples/dispatch-route-fixture.receipt.json",
-      "examples/sage-architect-dispatch.receipt.json",
+      "examples/sage-adjudication-dispatch.receipt.json",
       "examples/validated-forward-test.minimize.receipt.json",
       "examples/validated-forward-test.receipt.json",
       "examples/validated-forward-test.route.receipt.json"
@@ -106,19 +93,24 @@
       "digest": "sha256:9f9b1f0b92dd22846d214e8c7e701b47c554f3bef4f2e5fab14cb43391024725"
     },
     {
-      "path": "examples/sage-architect-dispatch.json",
-      "uri": "legion-skill://dispatch/examples/sage-architect-dispatch.json",
-      "digest": "sha256:3c5712842d6d0874bb1f2020dd6550487e0c1bf45f9873e382d09f9c30b89e79"
+      "path": "examples/sage-adjudication-dispatch.json",
+      "uri": "legion-skill://dispatch/examples/sage-adjudication-dispatch.json",
+      "digest": "sha256:5b71c9488c583a23e74b93a0e7ddb902d2b91c89f8ecf3cfff54d5ce66f8f467"
     },
     {
-      "path": "examples/sage-architect-dispatch.receipt.json",
-      "uri": "legion-skill://dispatch/examples/sage-architect-dispatch.receipt.json",
-      "digest": "sha256:2469df5c3a080004178f392b8db6b3e4cdf8337818edb9c5a2c62c0879336c71"
+      "path": "examples/sage-adjudication-dispatch.receipt.json",
+      "uri": "legion-skill://dispatch/examples/sage-adjudication-dispatch.receipt.json",
+      "digest": "sha256:cea62ddc3942467e0b0e34a8d4a75f039bd77a217b26bf0199f444249e41e214"
     },
     {
-      "path": "examples/sage-architect-route.json",
-      "uri": "legion-skill://dispatch/examples/sage-architect-route.json",
-      "digest": "sha256:000b8cf121a6c7c3459903e9def1182ce7820e5a7b660a281f408cfe78c99e0c"
+      "path": "examples/sage-adjudication.json",
+      "uri": "legion-skill://dispatch/examples/sage-adjudication.json",
+      "digest": "sha256:32912339a8d59118b833325a39fd54a5af0569e78e20bcb203f9b11f72b04bf2"
+    },
+    {
+      "path": "examples/sage-adjudication.prompt.txt",
+      "uri": "legion-skill://dispatch/examples/sage-adjudication.prompt.txt",
+      "digest": "sha256:3ccd2e7126de4f9d794e0da667d1d589f6801f9a4975b3e4b560219f06485f54"
     },
     {
       "path": "examples/validated-forward-test.md",
@@ -153,7 +145,7 @@
     {
       "path": "references/agent-routing.md",
       "uri": "legion-skill://dispatch/references/agent-routing.md",
-      "digest": "sha256:95f0e677fa83ec46a522be00aa4fc5c0a73a5a9596bf40877b93ac60b557d5b4"
+      "digest": "sha256:871aeae94797619a82c2575fd8e3c688e38108bf576e877735197579bc003a8a"
     },
     {
       "path": "references/manual.md",

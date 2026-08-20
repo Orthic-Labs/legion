@@ -12,7 +12,7 @@ Default to the simplest option. Escalate only when justified.
 
 These have different stacks, different QA, different costs. Don't conflate.
 
-**Producer/reviewer split:** this file is producer library reference. For reviewer-side escalation triggers, see `skills/audit-visual/references/motion-standards.md`. Both files share easing values from `principles.md` §6.
+**Producer/reviewer split:** this file is producer library reference. For Designer review escalation triggers, see `skills/designer/references/motion-standards.md`. Both files share easing values from `principles.md` §6.
 
 ---
 

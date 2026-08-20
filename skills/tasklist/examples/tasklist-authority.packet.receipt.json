@@ -1,10 +1,23 @@
 {
-  "schema_version": 3,
-  "sha256": "09c515ed91b1c001abe8b05593b341ea0711c8f668a087332497d7f8d8cb6c77",
+  "schema_version": 4,
+  "sha256": "b2b1e0eef07e60b081fb0be49b1bab55a130ac235cc661a6e3e1fd52a8e9a5e9",
   "referenced_artifacts": [
     {
-      "path": "skills/tasklist/examples/sage-architect.route.json",
+      "path": "skills/tasklist/SKILL.md",
+      "sha256": "sha256:46491cf58935064e37270fc11b6427fe02a4ea83862f4b131cdc89e164a27017"
+    },
+    {
+      "path": "skills/tasklist/examples/tasklist-authority.prompt.txt",
+      "sha256": "sha256:b4941bde55284b98512ba83b3d4529c5b1637fad825c3ea90e362b5cc15db6e9"
+    },
+    {
+      "path": "skills/tasklist/examples/sage-adjudication.json",
       "sha256": "sha256:ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356"
     }
-  ]
+  ],
+  "authority_binding": {
+    "packet_sha256": "b2b1e0eef07e60b081fb0be49b1bab55a130ac235cc661a6e3e1fd52a8e9a5e9",
+    "source_revision": "sha256:46491cf58935064e37270fc11b6427fe02a4ea83862f4b131cdc89e164a27017",
+    "prompt_digest": "sha256:b4941bde55284b98512ba83b3d4529c5b1637fad825c3ea90e362b5cc15db6e9"
+  }
 }

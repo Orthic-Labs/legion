@@ -1,9 +1,69 @@
 import assert from 'node:assert/strict';
-import { mkdtempSync, rmSync } from 'node:fs'; import { tmpdir } from 'node:os'; import { join } from 'node:path'; import test from 'node:test';
-import { stopOutcome } from '../lib/stop-disposition.mjs'; import { HighRiskAssuranceStore } from '../lib/high-risk-assurance-store.mjs'; import { mintAssuranceRequest, mintAssuranceReceipt } from '../lib/high-risk-assurance.mjs'; import { digestValue } from '../lib/canonical.mjs'; import { HostEventLedger } from '../lib/host-event-ledger.mjs'; import { AuthorityInvocationProofIssuer } from '../lib/authority-invocation-proof.mjs'; import { PendingTerminalOperationStore } from '../lib/pending-terminal-operation-store.mjs'; import { generateTestKeyRing } from '../lib/keys.mjs'; import { evaluateHostStop } from '../host/hook-adapter-core.mjs';
-const digest=(c)=>'sha256:'+c.repeat(64); const binding={runId:'run-1',taskId:'T-1',contractId:'EC-603',contractVersion:7,contractDigest:digest('c'),sourceRevision:'7f4adfeeb8dec603c9e60ea820a7f21052eef102'};
-function mint(store,nonce){return store.mint({invocationProofDigest:digest('d'),producerAuthority:'legion',...binding,turnCorrelationDigest:digest('a'),expectedStopOrdinal:1,outcomeSummaryDigest:digest('e'),artifactStateDigest:digest('f'),nonce});}
-test('EC603 Stop disposition matrix terminates bare/question/plan/pause & only matching terminal claim is genuine',()=>{const root=mkdtempSync(join(tmpdir(),'arcane-stop-'));try{const keys=generateTestKeyRing(['k1']),store=new PendingTerminalOperationStore({root,keyRing:keys,keyId:'k1',clock:()=> '2026-08-12T00:00:00.000Z'});for(const intent of ['UNKNOWN','QUESTION','PLAN','PAUSE']){const outcome=stopOutcome({intent,authenticatedClaim:false});assert.equal(outcome.termination.allowed,true);assert.equal(outcome.certification,'not_claimed');}const claim=store.append(mint(store,'nonce-one-000000')).detail.claim;for(const intent of ['QUESTION','PLAN','PAUSE']){const result=store.resolve({claimId:claim.claimId,stopEventDigest:digest('b'),turnCorrelationDigest:claim.turnCorrelationDigest,stopOrdinal:1,terminal:false});assert.equal(result.detail.certification,'not_claimed');assert.equal(result.detail.record.state,'ABANDONED');break;}const second=store.append(mint(store,'nonce-two-000000')).detail.claim;const consumed=store.resolve({claimId:second.claimId,stopEventDigest:digest('b'),turnCorrelationDigest:second.turnCorrelationDigest,stopOrdinal:1,terminal:true});assert.equal(consumed.detail.certification,'genuine');assert.equal(store.resolve({claimId:second.claimId,stopEventDigest:digest('b'),turnCorrelationDigest:second.turnCorrelationDigest,stopOrdinal:1,terminal:true}).detail.idempotent,true);assert.equal(store.resolve({claimId:second.claimId,stopEventDigest:digest('d'),turnCorrelationDigest:second.turnCorrelationDigest,stopOrdinal:1,terminal:true}).code,'ARC_REPLAY_NONCE_SEEN');}finally{rmSync(root,{recursive:true,force:true})}});
-test('EC603 genuine completion reaches completion gate; caller disposition cannot bypass it',()=>{let calls=0;const policy={lockedDomainsFor:()=>[],claimLevel:()=>null,evaluateClaimPrerequisites:()=>{calls++;return{allowed:true,detail:{}};}};const receipts={list:()=>[{authentication:{verificationMethod:'capability-signature',perMessage:true}}]};const host={runId:'run-1',taskId:'T-1'};const genuine=evaluateHostStop(host,{policy,receiptStore:receipts,authenticatedClaim:true,intent:'UNKNOWN',claimedLevel:'release'});assert.equal(genuine.allowed,true);assert.equal(calls,1);const bare=evaluateHostStop(host,{policy,receiptStore:receipts,authenticatedClaim:false,disposition:'completion',intent:'UNKNOWN'});assert.equal(bare.detail.certification,'not_claimed');assert.equal(bare.detail.termination.allowed,true);});
+import { mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import test from 'node:test';
 
-test('EC603 locked Stop consumes only persisted dedicated assurance with current proof',()=>{const root=mkdtempSync(join(tmpdir(),'arcane-locked-stop-'));try{const keys=generateTestKeyRing(['k1','covenant']),execution={runId:'run-1',taskId:'T-1',contractId:'EC-603',contractVersion:7,contractDigest:digest('c'),sourceRevision:'7f4adfeeb8dec603c9e60ea820a7f21052eef102'},sageBinding={authority:'sage',id:'sage'},covenantBinding={authority:'covenant',id:'covenant'},bindings={findLatest:({authority})=>authority==='sage'?sageBinding:authority==='covenant'?covenantBinding:null},events=new HostEventLedger({root:join(root,'events'),keyRing:keys,keyId:'k1',clock:()=> '2026-08-12T00:00:00.000Z'}),ledger=events.append({eventId:'legion-prompt',adapter:'codex',eventType:'UserPromptSubmit',sessionId:'session-1',binding:execution,sourceRevision:execution.sourceRevision,observedAuthority:'legion',payload:{}}),issuer=new AuthorityInvocationProofIssuer({root:join(root,'proofs'),keyRing:keys,keyId:'k1',ledgerStore:events,clock:()=> '2026-08-12T00:00:00.000Z'}),proof=issuer.issue({ledger,binding:{...execution,sessionId:'session-1'},purpose:'completion-claim',role:'legion'}).proof,assurance=new HighRiskAssuranceStore({root:join(root,'assurance'),clock:()=> '2026-08-12T00:00:00.000Z'}),request=mintAssuranceRequest({schemaVersion:1,kind:'arcane-high-risk-assurance-request',...execution,intentRestatement:'locked completion',blastRadius:'Arcane',whySafe:'verified',invocationProofDigest:digest('a'),binding:{adapter:'codex',sessionId:'session-1',bindingDigest:digestValue(sageBinding)},issuedAt:'2026-08-12T00:00:00.000Z',expiresAt:'2026-08-12T01:00:00.000Z',nonce:'sage-request-nonce-0001'},{keyRing:keys,keyId:'covenant'}),receipt=mintAssuranceReceipt({schemaVersion:1,kind:'arcane-high-risk-assurance-receipt',receiptId:'receipt-1',requestDigest:digestValue(request),invocationProofDigest:digest('b'),...execution,binding:{adapter:'codex',sessionId:'session-1',bindingDigest:digestValue(covenantBinding)},verdict:'SUPPORTED',issuedAt:'2026-08-12T00:00:00.000Z'},{keyRing:keys,keyId:'covenant'}),receiptDigest=assurance.appendReceipt(receipt).digest;assurance.appendRequest(request);const claim={claimId:digest('d'),invocationProofDigest:digestValue(proof),producerAuthority:'legion'},policy={lockedDomainsFor:()=>[{claimLevel:'release'}],claimLevel:()=>({requiresCovenant:true}),evidencePolicy:()=>({freshnessSeconds:3600}),evaluateClaimPrerequisites:()=>({allowed:true,detail:{},enforcementHealth:'strong'})},result=evaluateHostStop({runId:execution.runId,taskId:execution.taskId},{policy,receiptStore:{list:()=>[{authentication:{verificationMethod:'capability-signature',perMessage:true}}]},assuranceStore:assurance,keyRing:keys,authorityBindingStore:bindings,currentProof:proof,binding:{...execution,sessionId:'session-1'},execution,completionClaim:claim,claimedLevel:'release',intent:'UNKNOWN',authenticatedClaim:true,now:new Date('2026-08-12T00:01:00.000Z')});assert.equal(result.allowed,true);assert.equal(assurance.consume({receiptDigest,completionClaimDigest:claim.claimId}).detail.idempotent,true);}finally{rmSync(root,{recursive:true,force:true})}});
+import { evaluateHostStop } from '../host/hook-adapter-core.mjs';
+import { PendingTerminalOperationStore } from '../lib/pending-terminal-operation-store.mjs';
+import { generateTestKeyRing } from '../lib/keys.mjs';
+import { stopOutcome } from '../lib/stop-disposition.mjs';
+
+const digest = (character) => `sha256:${character.repeat(64)}`;
+const binding = { runId: 'run-1', taskId: 'T-1', contractId: 'EC-603', contractVersion: 7, contractDigest: digest('c'), sourceRevision: '7f4adfeeb8dec603c9e60ea820a7f21052eef102' };
+function mint(store, nonce) { return store.mint({ invocationProofDigest: digest('d'), producerAuthority: 'legion', ...binding, turnCorrelationDigest: digest('a'), expectedStopOrdinal: 1, outcomeSummaryDigest: digest('e'), artifactStateDigest: digest('f'), nonce }); }
+
+test('EC603 Stop disposition matrix terminates bare/question/plan/pause & only matching terminal claim is genuine', () => {
+  const root = mkdtempSync(join(tmpdir(), 'arcane-stop-'));
+  try {
+    const keys = generateTestKeyRing(['k1']);
+    const store = new PendingTerminalOperationStore({ root, keyRing: keys, keyId: 'k1', clock: () => '2026-08-12T00:00:00.000Z' });
+    for (const intent of ['UNKNOWN', 'QUESTION', 'PLAN', 'PAUSE']) {
+      const outcome = stopOutcome({ intent, authenticatedClaim: false });
+      assert.equal(outcome.termination.allowed, true);
+      assert.equal(outcome.certification, 'not_claimed');
+    }
+    const claim = store.append(mint(store, 'nonce-one-000000')).detail.claim;
+    const abandoned = store.resolve({ claimId: claim.claimId, stopEventDigest: digest('b'), turnCorrelationDigest: claim.turnCorrelationDigest, stopOrdinal: 1, terminal: false });
+    assert.equal(abandoned.detail.certification, 'not_claimed');
+    assert.equal(abandoned.detail.record.state, 'ABANDONED');
+    const second = store.append(mint(store, 'nonce-two-000000')).detail.claim;
+    const consumed = store.resolve({ claimId: second.claimId, stopEventDigest: digest('b'), turnCorrelationDigest: second.turnCorrelationDigest, stopOrdinal: 1, terminal: true });
+    assert.equal(consumed.detail.certification, 'genuine');
+    assert.equal(store.resolve({ claimId: second.claimId, stopEventDigest: digest('b'), turnCorrelationDigest: second.turnCorrelationDigest, stopOrdinal: 1, terminal: true }).detail.idempotent, true);
+    assert.equal(store.resolve({ claimId: second.claimId, stopEventDigest: digest('d'), turnCorrelationDigest: second.turnCorrelationDigest, stopOrdinal: 1, terminal: true }).code, 'ARC_REPLAY_NONCE_SEEN');
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
+test('genuine completion reaches completion gate; caller disposition cannot bypass it', () => {
+  let calls = 0;
+  const policy = { lockedDomainsFor: () => [], claimLevel: () => null, evaluateClaimPrerequisites: () => { calls += 1; return { allowed: true, detail: {} }; } };
+  const receipts = { list: () => [{ authentication: { verificationMethod: 'capability-signature', perMessage: true } }] };
+  const host = { runId: 'run-1', taskId: 'T-1' };
+  assert.equal(evaluateHostStop(host, { policy, receiptStore: receipts, authenticatedClaim: true, intent: 'UNKNOWN', claimedLevel: 'release' }).allowed, true);
+  assert.equal(calls, 1);
+  const bare = evaluateHostStop(host, { policy, receiptStore: receipts, authenticatedClaim: false, disposition: 'completion', intent: 'UNKNOWN' });
+  assert.equal(bare.detail.certification, 'not_claimed');
+  assert.equal(bare.detail.termination.allowed, true);
+});
+
+test('locked completion evaluates deterministic policy without Covenant authority or release gate', () => {
+  let received;
+  const highRiskContext = { intentRestatement: 'preserve frozen host behavior', blastRadius: 'Arcane completion gate only', whySafe: 'deterministic evidence remains mandatory' };
+  const policy = {
+    lockedDomainsFor: () => [{ claimLevel: 'release' }],
+    claimLevel: () => ({ requiredEvidenceClasses: ['deterministic'] }),
+    evaluateClaimPrerequisites: (_level, context) => { received = context; return { allowed: true, detail: {}, enforcementHealth: 'strong' }; },
+  };
+  const result = evaluateHostStop({ runId: 'run-1', taskId: 'T-1' }, {
+    policy,
+    receiptStore: { list: () => [{ evidenceClass: 'deterministic', authentication: { verificationMethod: 'capability-signature', perMessage: true } }] },
+    completionClaim: { highRiskContext },
+    claimedLevel: 'release',
+    intent: 'UNKNOWN',
+    authenticatedClaim: true,
+  });
+  assert.equal(result.allowed, true);
+  assert.deepEqual(received.fields, highRiskContext);
+  assert.equal(Object.hasOwn(received, 'covenantVerdict'), false);
+});

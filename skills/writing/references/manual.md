@@ -33,8 +33,9 @@ the requested deliverable truly combines purposes.
 4. Use research and citations when factual depth matters; distinguish sourced fact from editorial
    judgment.
 5. Run the selected guide's anti-slop and quality gate before delivery.
-6. If the copy will be judged inside a rendered page or app, flag to the host/orchestrator that
-   `audit-visual`/`qa` review is needed next; text alone cannot prove visual hierarchy or CTA placement.
+6. If copy will be judged inside a rendered page or app, flag that Designer owns qualitative
+   hierarchy, Audit Visual owns rendered-state evidence, & QA owns functional/browser checks;
+   text alone cannot prove layout or behavior.
 7. **Hard-constraint verification.** When the brief sets a strict length (X-word caption, thread limit,
    meta description ≤ ~155 chars) — LLMs routinely overshoot — count the final output and trim to fit
    before delivery. A piece that violates a hard platform limit is not done.

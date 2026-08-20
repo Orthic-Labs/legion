@@ -24,7 +24,6 @@
     }
   },
   "parity": {
-    "frozenAt": "2026-08-14",
     "triggers": [
       "/cortex",
       "Build a current, source-grounded repository map with Cortex. Use /cortex or /blueprint before inheriting, changing, auditing, or judging unfamiliar code."
@@ -65,7 +64,7 @@
     {
       "path": "references/manual.md",
       "uri": "legion-skill://cortex/references/manual.md",
-      "digest": "sha256:002cacaa2fe62cad99996f8730bf42b63e8649b5e1af6e875fe7c954348f0f84"
+      "digest": "sha256:8af234abbb1a6dab5aeceb480a3602082ce20a9f8fb22eb8911c6b5222fa5910"
     }
   ]
 }

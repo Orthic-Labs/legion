@@ -37,6 +37,15 @@ function advisoryClaimFor(outcome, seal) {
     profileDigest: profile.profileDigest,
   };
 }
+function highRiskContextFor(outcome) {
+  const context = outcome?.highRiskContext;
+  if (context == null) return null;
+  const fields = ['blastRadius', 'intentRestatement', 'whySafe'];
+  if (!context || typeof context !== 'object' || Object.keys(context).sort().join(',') !== fields.sort().join(',') || fields.some((field) => typeof context[field] !== 'string' || !context[field].trim())) {
+    throw new LegionError('ARC_SCHEMA_INVALID: highRiskContext requires exact non-empty blastRadius, intentRestatement, & whySafe', { code: 'ARC_SCHEMA_INVALID', exitCode: EXIT.USAGE });
+  }
+  return Object.fromEntries(fields.map((field) => [field, context[field]]));
+}
 function completionRepositories(cwd, binding, scope) {
   const roots = binding.delivery?.repositories?.map((repo) => repo.root).filter(Boolean);
   return (roots?.length ? roots : [cwd]).map((root) => ({ cwd: root, scope }));
@@ -87,6 +96,7 @@ export async function runCompletion(argv, { stdout, env, cwd }) {
     outcomeSummaryDigest: digestValue(outcome.outcomeSummary || ''),
     artifactStateDigest: digestValue(outcome.artifactState || ''),
     advisoryClaim: advisoryClaimFor(outcome, seal),
+    highRiskContext: highRiskContextFor(outcome),
   });
   const consumed = issuer.consume(proof, { artifactDigest: digestValue(claim) });
   if (!consumed.allowed) throw new LegionError(consumed.code, { code: consumed.code, exitCode: EXIT.INCOMPLETE });

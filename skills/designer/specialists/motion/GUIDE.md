@@ -192,6 +192,6 @@ Without `motion-plan.md` and `motion-gate.json` (verdict: pass), the build canno
 
 ## Cross-references
 
-- **Producer/reviewer split:** for reviewer-side motion bar, see `skills/audit-visual/references/motion-standards.md`. This guide is producer bar.
-- **Regression reality:** use `audit-visual/references/website-regression-gotchas.md`. Motion code is not evidence; capture timed state changes, scroll-position changes, the reduced variant, and any explicit opt-in propagation.
-- **Routing contract with /designer:** `/designer` invokes this skill when the primary need is an animation language or motion system. See `docs/ARCHITECTURE-MOTION.md` §9 for the contract, §8 for the producer/reviewer handoff.
+- **Craft/review split:** for Designer's qualitative motion bar, see `skills/designer/references/motion-standards.md`. This guide is producer bar.
+- **Regression reality:** use `skills/designer/references/website-regression-gotchas.md` for acceptance design, then Audit Visual for rendered-state regression evidence. Motion code is not evidence; capture timed state changes, scroll-position changes, the reduced variant, and any explicit opt-in propagation.
+- **Routing contract with /designer:** `/designer` invokes this specialist when the primary need is an animation language or motion system. This guide owns producer craft; Audit Visual owns rendered regression evidence.

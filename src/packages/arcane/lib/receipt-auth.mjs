@@ -15,8 +15,8 @@
 //      before it even looks at the MAC.
 //   2. **Authority is never self-asserted.** A record that carries its own
 //      `authority` field is refused outright, even when the MAC is perfect.
-//      Authority identity is asserted by the kernel per turn (ARCHITECTURE
-//      §24a), so a correctly signed self-assertion is still a forged claim —
+//      Authority identity is asserted by kernel/host evidence per turn, so a
+//      correctly signed self-assertion is still a forged claim —
 //      it just proves the signer held a key, not that it holds that authority.
 //   3. **Binding is checked separately from the MAC.** A valid signature over
 //      the wrong run/session/workspace/operation is ARC_BINDING_MISMATCH, not
@@ -279,7 +279,7 @@ export function verifyRecord(record, auth, { keyRing, boundFields, expectedBindi
  * The `authentication` block to attach to a receipt after a successful verify.
  * `perMessage: true` is only ever set from a real per-message MAC check —
  * connection-level trust must report `host-connection-trust` + `perMessage:false`
- * and accept the honest downgrade (ARCHITECTURE §24a, S00 finding 2).
+ * and accept the honest downgrade recorded by current Arcane policy.
  */
 export function authenticationBlock({ keyId, verifiedAt = new Date().toISOString() }) {
   return {

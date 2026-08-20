@@ -1,6 +1,6 @@
 ---
 name: designer-surface
-description: "THE design/redesign skill for anything rendered in a browser or app window — new builds and redesigns alike. Use when creating, redesigning, or polishing: websites, landing pages, marketing/product pages, brand sites, portfolios, ecommerce front-of-house, content pages, AND product/application UI — desktop apps, SaaS dashboards, tools, editors, inboxes, queues, settings, forms, data tables, workflows, stateful screens. Replaces the retired /website and /app skills (their gates live at the designer skill root: designer/references/website.md and designer/references/app.md). Routes static creative (flyers/OG/banners/print) → /designer static, brand systems → /brand-identity, review-only → /audit-visual."
+description: "THE design/redesign/critique skill for anything rendered in a browser or app window — new builds and redesigns alike. Use when creating, redesigning, critiquing, or polishing: websites, landing pages, marketing/product pages, brand sites, portfolios, ecommerce front-of-house, content pages, AND product/application UI — desktop apps, SaaS dashboards, tools, editors, inboxes, queues, settings, forms, data tables, workflows, stateful screens. Replaces the retired /website and /app skills (their gates live at the designer skill root: designer/references/website.md and designer/references/app.md). Routes static creative (flyers/OG/banners/print) → /designer static, brand systems → /brand-identity, rendered-state coverage/regression evidence → /audit-visual."
 ---
 
 # Surface Design — websites and app UI
@@ -21,7 +21,8 @@ Route away first:
 
 - Static creative (flyers, social posts, OG images, banners, print) -> `/designer static`
 - Brand identity system (when none exists) -> `/brand-identity` first
-- Review/critique of an existing surface with no build work -> `/audit-visual`
+- Qualitative review/critique of an existing surface with no build work -> `/designer critique`
+- Rendered-state enumeration, capture, coverage, or regression evidence -> `/audit-visual`
 - Deep specialist passes and deliverables (PPTX decks, motion renders, voiceover, live in-browser
   variants) -> `/designer <command>` — this skill is the entry; impeccable is the engine room for
   `critique/polish/bolder/quieter/typeset/colorize/layout/delight/live/deck/motion/video/voiceover`.
@@ -71,7 +72,7 @@ tests.
 | 2.5 | Option Divergence Gate | auto **HARD GATE** |
 | 3 | Surface-specific guard (differentiation registry · IA/state model · SEO surface) | auto **HARD GATE** |
 | 4 | Build (with continuous verification — runtime enforces) | auto |
-| 5 | QA: multi-gate (5a audit-visual · 5b /seo · 5c judge [deferred] · 5d design-gate.mjs) | auto **HARD GATE** — fail -> fix -> re-run |
+| 5 | Verification: Designer critique · Audit Visual rendered coverage/regression · QA functional/runtime checks · technical SEO when in scope · design-gate.mjs | auto **HARD GATE** — fail -> fix -> re-run |
 | 6 | Human eyes — approving human's taste gate | render screenshots, then **PARK** |
 | 7 | Handoff (docs, tokens, registry row for websites) | auto |
 
@@ -96,7 +97,7 @@ Output: `artifacts/page-inventory.md`. Every page in the build, with: URL, prima
 Output: `artifacts/motion-plan.md` only at this phase. **`motion-gate.json` may NOT be written here** —
 its verdict requires prototype evidence (see Phase 4 inner loop). A gate self-graded before any
 pixel renders is theater; that failure mode shipped a dead pin on 2026-07-17. Routing contract:
-`docs/ARCHITECTURE-MOTION.md` §9.
+`skills/designer/specialists/motion/GUIDE.md`.
 
 ### Phase 4 — the build inner loop (HARD, per section — this is where quality lives)
 
@@ -126,14 +127,15 @@ any of them is a defect, not a style choice.
 a compact build brief (brand card, tokens, exemplar code, copy blocks, asset list) and nothing
 else. Building at the tail of a long operational session measurably degrades generation quality.
 
-### Phase 5 — Multi-gate QA (HARD GATE)
+### Phase 5 — Verification (HARD GATE)
 
-Four sub-gates, all must pass before Phase 6:
+Required lanes must pass before Phase 6:
 
-- **5a** — `/audit-visual` (impeccable detector incl. website-structure rules + 16 lenses + motion lens).
-- **5b** — `/seo` technical audit (meta, schema, OG, sitemap, robots, semantic HTML, CWV).
-- **5c** — Fresh-context judge agent (deferred; no-op in v1).
-- **5d** — `src/lib/design-gate.mjs` deterministic runner. Verifies motion-plan.md + motion-gate.json exist and pass, runs 14 deterministic checks, outputs `artifacts/qa/gate.json` with motion + design-system results aggregated into one top-level verdict.
+- **5a** — Designer critique against brief, craft rules, & declared acceptance; Designer owns qualitative findings & remediation.
+- **5b** — `/audit-visual` rendered-state matrix, capture, coverage, & regression evidence.
+- **5c** — `/qa` functional, behavioral, browser, & runtime checks required by declared acceptance.
+- **5d** — `/seo` technical audit when website scope requires meta, schema, OG, sitemap, robots, semantic HTML, or CWV checks.
+- **5e** — `src/lib/design-gate.mjs` deterministic runner. Verifies motion-plan.md + motion-gate.json exist and pass, runs 14 deterministic checks, outputs `artifacts/qa/gate.json` with motion + design-system results aggregated into one top-level verdict.
 
 `verdict: pass` requires every check green or explicitly waived with reason. `fail` requires fix + re-run.
 
@@ -157,11 +159,10 @@ state, selection); color is never the only indicator of state; all text/control 
 accessible contrast. Default pale blue, generic SaaS blue, purple-blue gradients, and mood-only
 palettes are rejected unless product-truth demands them.
 
-**QA gate (phase 5).** Run `/audit-visual` — its lenses, floors, coverage matrix, and detector scan
-are canonical; do not restate them. Route pixel evidence through the qa-engine (project `qa:browser`
-contract, `lib/qa-engine/qa-shot.mjs`, `lib/qa-engine/qa-functional.mjs`); never foreground desktop screenshots for routine QA.
-Pass surface context to the audit: website = first-impression + conversion weighting; app =
-repeated-use weighting (action count, keyboard/focus, state completeness over drama).
+**Verification (phase 5).** Designer applies qualitative craft judgment. Audit Visual freezes &
+reconciles rendered-state coverage/regression evidence. QA owns navigation, interaction,
+accessibility execution, browser, & runtime checks. Pass QA-produced captures to Audit Visual;
+never treat one default screenshot as functional or coverage proof.
 
 **Human eyes (phase 6).** The approving human approves with their eyes before final. Open what they should review
 via `node src/lib/open-for-review.mjs <path>`.
@@ -204,16 +205,16 @@ via `node src/lib/open-for-review.mjs <path>`.
   motion respected.
 - **CSS discipline:** mind selector specificity (type-based vs element-based rules cancelling
   each other's spacing); test heading copy at every breakpoint — the viewport is part of the design.
-- Anti-slop is canonical in `skills/audit-visual/references/design-slop.md` (absolute bans, the three
+- Anti-slop is canonical in `skills/designer/references/design-slop.md` (absolute bans, the three
   AI-look clusters, category-reflex check) — design against it, don't rediscover it at QA.
-- Motion bar is canonical in `skills/audit-visual/references/motion-standards.md` (frequency table,
+- Motion bar is canonical in `skills/designer/references/motion-standards.md` (frequency table,
   easing/duration values, physicality) — build motion to it, don't wait for review to learn it.
-- Native app feedback is canonical in `skills/audit-visual/references/native-feedback.md` (haptic
+- Native app feedback is canonical in `skills/designer/references/native-feedback.md` (haptic
   semantics, 0.1s/1s/10s response budgets, per-platform target minimums, per-OS reduced-motion
   APIs, Fluent 2 + Material 3 tokens, SwiftUI spring defaults) — for any desktop or mobile app
   surface, build to it. `motion-standards.md` is the **web** bar; it does not cover haptics or
   native OS motion settings.
-- **Motion craft → `../motion/GUIDE.md`. Motion review → `skills/audit-visual/references/motion-standards.md`.** Contract: `docs/ARCHITECTURE-MOTION.md` §9.
+- **Motion craft & qualitative review → `../motion/GUIDE.md` plus `skills/designer/references/motion-standards.md`.**
 
 ## Completion checklist
 
@@ -222,5 +223,5 @@ via `node src/lib/open-for-review.mjs <path>`.
 - Three directions/registers explored for major work; divergence gate passed; user picked.
 - Surface guard passed (registry diff for websites; IA/state model for apps).
 - Built with the craft rules; all states designed (apps: the hard-stop state list in `../../references/app.md`).
-- `/audit-visual` passed with pixel evidence via the qa-engine.
+- Designer critique passed; Audit Visual reconciled rendered-state evidence; QA passed declared functional/runtime checks.
 - Human eyes approved. Registry/docs updated (websites: the consuming project's differentiation ledger, see `../../references/website.md` Phase 3).

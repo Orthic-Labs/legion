@@ -24,10 +24,9 @@
     }
   },
   "parity": {
-    "frozenAt": "2026-08-14",
     "triggers": [
       "/audit-fix",
-      "\"Apply bounded remediation from a frozen Legion Audit report, then rerun its same provider plan. Use only for /audit-fix after /audit evidence exists.\""
+      "Apply bounded remediation from a frozen Legion Audit report, then rerun its same provider plan. Use only for /audit-fix after /audit evidence exists."
     ],
     "outputs": [],
     "scripts": [],

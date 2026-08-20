@@ -45,10 +45,9 @@ const STANDALONE_PACK_FILES = [
 const EXPECTED_SOURCE_DIGEST = 'sha256:c9d728c8eda9df46c035e5d0b4ea81116dfa1b4f9c475b621fc4b220e9866a3a';
 const EXPECTED_SOURCE_DOCUMENT_ID = 'creator.security';
 
-// Absolute path to the read-only external source ledger. Present in this
-// lane's environment; guarded with existsSync so the verbatim-prose check
-// degrades to a skip (not a false pass) if the external doc is unavailable.
-const EXTERNAL_LEDGER_PATH = 'D:/workspace/docs/plans/legion/creator-audits-source-ledger.seed.json';
+const CREATOR_LEDGER_PATH = fileURLToPath(
+  new URL('../../src/registry/controls/sources/creator-audits-v1.json', import.meta.url),
+);
 
 function loadJson(path) {
   return JSON.parse(readFileSync(path, 'utf8'));
@@ -220,33 +219,13 @@ test('the creator archive is not shipped: the seed ledger was not copied into th
     'the source ledger seed must not be copied into the security registry directory');
 });
 
-test('no ledger item title or notes string appears verbatim in the deliverable outputs', { skip: !existsSync(EXTERNAL_LEDGER_PATH) }, () => {
-  const ledger = loadJson(EXTERNAL_LEDGER_PATH);
+test('tracked creator ledger stores digest-only metadata, never unavailable external prose', () => {
+  const ledger = loadJson(CREATOR_LEDGER_PATH);
   const securityItems = ledger.items.filter((item) => item.sourceDocumentId === 'creator.security');
-  assert.ok(securityItems.length > 0, 'expected creator.security items in the external ledger');
-
-  const table = loadJson(CREATOR_DERIVED_PATH);
-
-  const outputStrings = [];
-  function collectStrings(value) {
-    if (typeof value === 'string') {
-      outputStrings.push(value);
-    } else if (Array.isArray(value)) {
-      value.forEach(collectStrings);
-    } else if (value && typeof value === 'object') {
-      Object.values(value).forEach(collectStrings);
-    }
-  }
-  collectStrings(table);
-
-  const bannedStrings = new Set();
+  assert.ok(securityItems.length > 0, 'expected creator.security digest metadata');
   for (const item of securityItems) {
-    if (item.title) bannedStrings.add(item.title);
-    if (item.notes) bannedStrings.add(item.notes);
-  }
-
-  for (const output of outputStrings) {
-    assert.ok(!bannedStrings.has(output),
-      `output string exactly matches a creator.security ledger item's title/notes verbatim: ${JSON.stringify(output)}`);
+    assert.equal(Object.hasOwn(item, 'title'), false);
+    assert.equal(Object.hasOwn(item, 'notes'), false);
+    assert.match(item.titleDigest, /^sha256:[0-9a-f]{64}$/);
   }
 });

@@ -63,8 +63,9 @@ function semanticIssues(root, registry) {
   const issues = [];
   const expected = ['alchemist', 'arcane', 'oracle', 'sage'];
   if (JSON.stringify(canonicalAuthorityIds(registry)) !== JSON.stringify(expected)) issues.push({ path: 'src/config/naming-registry.json', reason: 'canonical authority set mismatch' });
-  const runtimeExpected = [...new Set([registry.product.id, ...expected, ...Object.keys(registry.actors), ...Object.keys(registry.seats)])].sort();
+  const runtimeExpected = [...new Set([registry.product.id, ...expected, ...Object.keys(registry.actors)])].sort();
   if (JSON.stringify([...AUTHORITY_ID].sort()) !== JSON.stringify(runtimeExpected)) issues.push({ path: 'src/packages/contracts/enums.mjs', reason: 'runtime authority set differs from naming registry' });
+  for (const [id, seat] of Object.entries(registry.seats)) if (seat.authority !== false || AUTHORITY_ID.includes(id)) issues.push({ path: 'src/config/naming-registry.json', reason: `advisory seat '${id}' must not be an authority` });
   if (JSON.stringify([...ROSTER_ROLE_IDS].sort()) !== JSON.stringify(['alchemist', 'oracle', 'sage'])) issues.push({ path: 'src/lib/roster/index.mjs', reason: 'runtime roster differs from naming registry' });
   const readme = readFileSync(resolve(root, 'README.md'), 'utf8');
   for (const display of ['Legion', 'Sage', 'Alchemist', 'Oracle', 'Arcane', 'Covenant']) {
@@ -87,7 +88,7 @@ function semanticIssues(root, registry) {
   for (const { path, declaration, valuePattern = /['"]([^'"]+)['"]/g, expected: values } of [
     { path: 'src/packages/context/lib/context.mjs', declaration: /const AUTHORITIES\s*=\s*new Set\((\[[^\]]+\])\)/, expected: runtimeExpected },
     { path: 'src/packages/arcane/lib/architecture-event-store.mjs', declaration: /const ACTOR_ROLES\s*=\s*new Set\((\[[^\]]+\])\)/, expected: ['alchemist', 'covenant', 'host', 'legion', 'oracle', 'sage', 'worker'] },
-    { path: 'src/packages/arcane/lib/authority-binding-store.mjs', declaration: /const MAP\s*=\s*(\{[^}]+\})/, valuePattern: /:\s*['"]([^'"]+)['"]/g, expected: ['alchemist', 'covenant', 'oracle', 'sage'] },
+    { path: 'src/packages/arcane/lib/authority-binding-store.mjs', declaration: /const MAP\s*=\s*(\{[^}]+\})/, valuePattern: /:\s*['"]([^'"]+)['"]/g, expected: ['alchemist', 'legion', 'oracle', 'sage'] },
   ]) {
     const source = readFileSync(resolve(root, path), 'utf8');
     const literal = declaration.exec(source)?.[1] ?? '';

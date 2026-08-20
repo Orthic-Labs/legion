@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Phase 5d deterministic design gate.
 //
-// Specified in docs/ARCHITECTURE-DESIGNER.md §"Phase 5 — Multi-gate QA" and in
+// Delegated to Designer craft plus QA's functional/runtime validation, with
 // skills/designer/specialists/surface-design/GUIDE.md §5d. The spec existed for
 // months; the runner did not, so Phase 5d was a hard gate that never ran.
 //

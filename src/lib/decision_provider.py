@@ -1,6 +1,6 @@
 """Architect decision lifecycle provider.
 
-Lane-owned (G5 Lane A). Reads from a `DecisionStore` and produces
+Architect-owned decision lifecycle provider. Reads from a `DecisionStore` and produces
 ContextCandidateSet-shaped candidates (`Candidate` records with the schema
 fields required by the Right Suite context contracts) plus a status
 lifecycle policy:

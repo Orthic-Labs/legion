@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "legion-artifact-v1",
   "title": "Artifact",
-  "description": "Shared canonical Artifact object (ARCHITECTURE.md §33 shared-state list; content-addressed per IMPLEMENTATION-PLAN.md §9.2 'content-addressed immutable artifacts', 'sensitivity and retention on every artifact', 'secret redaction before persistence'). Reused by execution-contract-v1 (artifacts.exact[]/bounded[] entries wrap this shape), worker-capsule-v1, operation-envelope-v1 results, and legion-result-v1.",
+  "description": "Shared content-addressed Artifact wire object with sensitivity, retention, & redaction metadata. Reused by execution contracts, worker capsules, operation results, & Legion results.",
   "type": "object",
   "additionalProperties": false,
   "required": ["schemaVersion", "kind", "artifactId", "artifactKind", "digest", "bytes", "immutable", "producerAuthority", "sourceRevision", "sensitivity", "retention", "redaction", "createdAt"],
@@ -35,10 +35,10 @@
     },
     "immutable": {
       "type": "boolean",
-      "description": "IMPLEMENTATION-PLAN §9.2: content-addressed immutable artifacts."
+      "description": "Content digest for immutable artifact identity."
     },
     "producerAuthority": {
-      "enum": ["legion", "sage", "alchemist", "oracle", "arcane", "covenant", "kernel"]
+      "enum": ["legion", "sage", "alchemist", "oracle", "arcane", "kernel"]
     },
     "producerVersion": {
       "type": ["string", "null"]
@@ -54,7 +54,7 @@
     "sensitivity": {
       "type": "string",
       "enum": ["public", "internal", "restricted", "secret"],
-      "description": "IMPLEMENTATION-PLAN §9.2: 'sensitivity and retention on every artifact'."
+      "description": "Sensitivity & retention metadata for this artifact."
     },
     "retention": {
       "type": "object",
@@ -73,7 +73,7 @@
         "applied": { "type": "boolean" },
         "metadata": { "type": "array" }
       },
-      "description": "Same shape as legion execution-receipt-v1.schema.json's artifact.redaction; IMPLEMENTATION-PLAN §9.2 'secret redaction before persistence'."
+      "description": "Secret-redaction metadata recorded before persistence."
     },
     "createdAt": {
       "type": "string",

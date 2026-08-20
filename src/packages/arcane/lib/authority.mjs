@@ -1,7 +1,7 @@
 // S02 — authority identity assertion.
 //
-// ARCHITECTURE §24a: "Authority identity is asserted by the kernel per turn,
-// not claimed by the model in text." That single sentence is the whole design
+// Authority identity is asserted by kernel/host evidence per turn, never
+// claimed by model text. That invariant is the whole design
 // constraint here, and it has a sharp consequence the legacy system missed:
 //
 //   S00 finding — predecessor stored `authority` as a caller-supplied string on the
@@ -126,7 +126,7 @@ export function extractAuthorityFromPayload(payload) {
   const found = PAYLOAD_AUTHORITY_FIELDS.filter((f) => payload && Object.prototype.hasOwnProperty.call(payload, f));
   throw new ArcaneError(
     'ARC_AUTHORITY_MODEL_CLAIMED',
-    'authority cannot be read from a payload; it is asserted by the kernel per turn (ARCHITECTURE §24a)',
+    'authority cannot be read from a payload; it is asserted by kernel or host evidence per turn',
     { fields: found },
   );
 }

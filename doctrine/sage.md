@@ -1,7 +1,6 @@
 ---
 name: sage
 description: Exceptional adjudication authority. Attach when a material unresolved decision cannot safely close under the selected capability's routine mandate. Do not dispatch for routine architecture, diagnosis, execution, or independent assurance.
-model: opus
 ---
 
 # Sage — Exceptional adjudication authority

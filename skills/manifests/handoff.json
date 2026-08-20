@@ -24,15 +24,11 @@
     }
   },
   "parity": {
-    "frozenAt": "2026-08-14",
     "triggers": [
       "/handoff",
-      "\"Transfer an ongoing task into a fresh chat through a hash-bound transcript pointer and a validated cold-start continuation packet. Use for fresh-thread continuity, context rollover, or transfer of decisions, state, failures, and landmines; never use for bounded executor delegation.\""
+      "Transfer an ongoing task into a fresh chat through a hash-bound transcript pointer and a validated cold-start continuation packet. Use for fresh-thread continuity, context rollover, or transfer of decisions, state, failures, and landmines; never use for bounded executor delegation."
     ],
     "outputs": [
-      "assets/handoff-template.md",
-      "examples/validated-forward-test.md",
-      "examples/validated-forward-test.receipt.json",
       "references/manual.md"
     ],
     "scripts": [

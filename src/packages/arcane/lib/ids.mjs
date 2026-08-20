@@ -36,7 +36,7 @@ export const ID_PATTERN = Object.freeze({
   evidenceReceipt: new RegExp(`^ev_${ULID_RE}$`),
   claim: new RegExp(`^clm_${ULID_RE}$`),
   workerCapsule: new RegExp(`^wc_${ULID_RE}$`),
-  // Sequence IDs (ARCHITECTURE §33) — validated, never minted here.
+  // Sequence IDs are validated, never minted here.
   requirement: /^R-\d+$/,
   decision: /^D-\d+$/,
   invariant: /^I-\d+$/,

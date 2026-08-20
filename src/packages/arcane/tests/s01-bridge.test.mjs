@@ -97,7 +97,7 @@ test('S01: bridging a real S00 store-snapshot fixture yields valid envelopes wit
     assert.equal(env.provisionalMappingRef, null);
     assert.equal(
       env.provenance.legacyInventoryRef,
-      'docs/plans/legion/s00-baseline/legacy-semantic-inventory.json',
+      'src/packages/arcane/compatibility/forge/schema-map.json',
     );
   }
 });

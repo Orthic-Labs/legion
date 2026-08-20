@@ -20,7 +20,6 @@ const PUBLIC_REASONS = Object.freeze({
 const REMEDIATION = Object.freeze({
   deterministic: Object.freeze({ responsibleProducer: 'legion run close', remediationRoutes: Object.freeze(['legion run close --help']) }),
   'terminal-operation-claim': Object.freeze({ responsibleProducer: 'legion completion claim', remediationRoutes: Object.freeze(['legion completion claim --help']) }),
-  'high-risk-assurance': Object.freeze({ responsibleProducer: 'legion assurance request', remediationRoutes: Object.freeze(['legion assurance --help']) }),
   'host-event-ledger': Object.freeze({ responsibleProducer: 'authenticated host ingress', remediationRoutes: Object.freeze(['legion host events inspect']) }),
 });
 

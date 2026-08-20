@@ -1,8 +1,7 @@
 // EC-5 item 3 — `legion run open|close`: the missing writer H-11 named.
 //
-// A Sage contract is a prose artifact; before this command, nothing recorded
-// "run R executes contract C for session S" as machine state (H-11,
-// IMPLEMENTATION-PLAN.md). `open` binds the CURRENT session (self-healing via
+// A sealed executable contract needs runtime binding. `open` records
+// "run R executes contract C for session S" as machine state & binds current session (self-healing via
 // `ensureBinding` if SessionStart never fired) to a contract/task; `close`
 // clears the contract/task but keeps the runId — the session reverts to
 // ambient, the run continues, it is simply no longer authorized against a

@@ -1,6 +1,6 @@
 // Arcane typed error taxonomy.
 //
-// Arcane is deterministic code on the host boundary (ARCHITECTURE.md §24a). It
+// Arcane is deterministic code on the host boundary. It
 // never throws untyped strings and never degrades silently: every refusal
 // carries a machine-readable `code`, the subject it refused, and whether the
 // refusal was a *fail-closed* (enforcement unavailable) or a *denial*
@@ -53,7 +53,7 @@ export const ARCANE_ERROR_CODE = Object.freeze([
   // pre-effect gate (deliverable 6)
   'ARC_GATE_UNAVAILABLE', // gate could not run -> mutation fails closed
   'ARC_NO_CONTRACT', // mutation without an execution contract (G2)
-  'ARC_CONTRACT_NOT_EXECUTABLE', // openQuestions non-empty (G9)
+  'ARC_CONTRACT_NOT_EXECUTABLE', // openQuestions non-empty
   'ARC_CONTRACT_VERSION_MISMATCH',
   'ARC_PROFILE_BINDING_MISMATCH',
   'ARC_PROFILE_EFFECT_FORBIDDEN',
@@ -86,8 +86,8 @@ export class ArcaneError extends Error {
     this.detail = Object.freeze({ ...detail });
     /**
      * true when the refusal is because enforcement itself was unavailable
-     * (ARCHITECTURE §24a: "if the pre-effect gate is unavailable,
-     * mutation-bearing operations fail closed"). Distinct from a denial,
+     * because mutation-bearing operations fail closed when pre-effect
+     * enforcement is unavailable. Distinct from a denial,
      * where enforcement ran and said no.
      */
     this.failClosed = FAIL_CLOSED_CODES.has(code);

@@ -1,6 +1,6 @@
 # Clarification convergence
 
-**Stage:** S02 · **Ledger:** S02-03 · **Owner:** Sage architecture doctrine. This defines bounded deliberation, not question UI, state, or runtime scheduling.
+**Stage:** S02 · **Ledger:** S02-03 · **Owner:** Architect architecture doctrine. This defines bounded deliberation, not question UI, state, or runtime scheduling.
 
 Ask one frontier sweep per round: every currently answerable reserved decision whose prerequisites are settled, numbered with recommended answer & consequence. Discoverable facts route to evidence gathering; dependent questions wait; “use your judgment” delegates within stated authority. Continue only while an unanswered item could change acceptance, candidate ranking, authority, safety, or next bounded increment. Otherwise stop, record disposition, & proceed.
 

@@ -1,1 +1,1 @@
-{"id":"editorial","availability":"available","targetType":"content","targetRef":"src/registry/routing/domains.json","privateOverlay":{"state":"optional","fields":[]}}
+{"id":"editorial","availability":"available","group":"editorial","privateOverlay":{"state":"optional","fields":[]}}

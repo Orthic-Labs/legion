@@ -23,13 +23,10 @@
       "externalOnly": true
     }
   },
-  "noFabrication": true,
-  "approvedWordsRequireRevision": false,
   "parity": {
-    "frozenAt": "2026-08-14",
     "triggers": [
       "/social",
-      "\"Route Instagram, Pinterest, YouTube, Twitter or X, LinkedIn, Reels, Shorts, pins, threads, calendars, distribution, analytics, and social growth. Use /social or when social strategy or content is the deliverable.\""
+      "Route Instagram, Pinterest, YouTube, Twitter or X, LinkedIn, Reels, Shorts, pins, threads, calendars, distribution, analytics, and social growth. Use /social or when social strategy or content is the deliverable."
     ],
     "outputs": [
       "references/content/evals/evals.json",
@@ -44,9 +41,7 @@
       "references/youtube/reference.md"
     ],
     "scripts": [],
-    "templates": [
-      "references/content/references/post-templates.md"
-    ],
+    "templates": [],
     "schemas": [],
     "receipts": [],
     "evals": [

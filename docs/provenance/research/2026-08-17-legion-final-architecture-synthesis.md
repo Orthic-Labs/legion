@@ -1,7 +1,9 @@
-# Legion — Final Architecture Synthesis
+# Archived Legion Architecture Synthesis
+
+> Historical research only. `docs/LEGION-CANONICAL-SSOT.md` supersedes all architecture claims here.
 
 **Date:** 17 August 2026
-**Status:** design proposal, not yet doctrine. Nothing here is operational until Part IX's staging lands.
+**Status:** archived, non-normative research provenance.
 **Question this document answers:** not *"which of these 18 repos' features should we copy?"* but *"what is the smallest whole-system shape that keeps every Legion invariant true, and which of the candidate shapes is it?"*
 
 **Its load-bearing claim** is Part VI: Legion's honesty controls should be two cheap adversaries rather than an accumulating chain of producer-side artifacts — one adversary checking that a shape is not more than was asked, one checking that a completion claim is true — and the receipt/packet/seal machinery those adversaries supersede should be deleted in the same change that adds them.

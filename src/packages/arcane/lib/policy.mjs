@@ -242,8 +242,8 @@ export class PolicyEngine {
   /**
    * S02 deliverable: claim-prerequisite evaluation.
    *
-   * Arcane does not invent claims and does not decide their engineering
-   * meaning (ARCHITECTURE §25/§26) — it checks whether the mechanical
+   * Arcane does not invent claims or decide their engineering meaning; it
+   * checks whether declared mechanical
    * prerequisites the policy names are satisfied, and controls release.
    */
   evaluateClaimPrerequisites(levelName, ctx) {
@@ -260,7 +260,6 @@ export class PolicyEngine {
       evidenceClasses = [],
       staleEvidenceCount = 0,
       enforcementHealth = 'unsupported',
-      covenantVerdict = null,
       fields = {},
       waivedBy = null,
     } = ctx ?? {};
@@ -291,15 +290,6 @@ export class PolicyEngine {
         message: `claim '${levelName}' requires ${level.requiredEnforcement} enforcement; host is ${enforcementHealth}`,
         detail: { levelName, required: level.requiredEnforcement, actual: enforcementHealth },
         enforcementHealth,
-      });
-    }
-
-    if (level.requiresCovenant && covenantVerdict === null) {
-      return decision({
-        allowed: false,
-        code: 'ARC_CLAIM_PREREQUISITE_UNMET',
-        message: `claim '${levelName}' requires a Covenant verdict`,
-        detail: { levelName },
       });
     }
 
@@ -436,10 +426,8 @@ export function capabilityIssuanceAudit(files) {
 /**
  * SEAL Q4 — EFFECT_CLASS reconciliation, owned by this lane.
  *
- * FREEZE.md J-8 records that the twelve frozen values were synthesized from
- * the containment nouns ARCHITECTURE §24/§24a names, with "reasonable
- * confidence this is complete enough ... low confidence it is the final set
- * Arcane will enforce." Having now built the broker, here is the answer, with
+ * Runtime vocabulary is deliberately narrower than canonical semantic effect
+ * classes. This report ties each frozen value to its enforcement surface, with
  * each frozen value tied to the surface that actually enforces it and each
  * proposed addition tied to something the current set cannot express.
  *
@@ -468,8 +456,8 @@ export const EFFECT_CLASS_RECONCILIATION = Object.freeze({
   proposedAdditions: [
     {
       name: 'FILE_READ',
-      why: 'ARCHITECTURE §24a states that when the pre-effect gate is unavailable, "read-only operations may continue with a recorded enforcement-health downgrade." With no read effect class, "read-only" is not representable in an effect request, so the gate cannot distinguish the operations that may continue from the ones that must fail closed — it must fall back to inferring intent from the tool name. Path ownership on reads (reading outside scope.read[]) is likewise inexpressible.',
-      evidence: 'ARCHITECTURE §24a degradation rule; execution-contract-v1.scope.read[] exists but no effect class can be checked against it.',
+      why: 'Current degradation policy permits read-only operations with a recorded enforcement downgrade when pre-effect enforcement is unavailable. With no read effect class, read-only work is not representable in an effect request, so the gate must infer intent from the tool name. Path ownership on reads is likewise inexpressible.',
+      evidence: 'Current Arcane degradation policy plus execution-contract-v1.scope.read[]; no runtime effect class can be checked against it.',
     },
     {
       name: 'CREDENTIAL_WRITE',

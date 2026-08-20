@@ -39,7 +39,7 @@
     "invalidatedEvidenceRefs": {
       "type": "array",
       "items": { "type": "string" },
-      "description": "ARCHITECTURE §34: dependent evidence invalidated by this amendment."
+      "description": "Dependent evidence invalidated by this amendment."
     },
     "invalidatedArtifactRefs": { "type": "array", "items": { "type": "string" } },
 

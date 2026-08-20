@@ -24,22 +24,11 @@
     }
   },
   "parity": {
-    "frozenAt": "2026-08-14",
     "triggers": [
       "/tasklist",
       "Create an executable same-agent task list. Use `/tasklist`; keep it inline unless persistence, audit receipts, or a reusable record is requested. Use Dispatch for another agent & Handoff for a new chat."
     ],
     "outputs": [
-      "assets/tasklist-template.md",
-      "examples/sage-architect.route.json",
-      "examples/tasklist-authority.packet.json",
-      "examples/tasklist-authority.packet.receipt.json",
-      "examples/validated-tasklist.md",
-      "examples/validated-tasklist.minimize.json",
-      "examples/validated-tasklist.minimize.receipt.json",
-      "examples/validated-tasklist.receipt.json",
-      "examples/validated-tasklist.route.json",
-      "examples/validated-tasklist.route.receipt.json",
       "references/durable-workflow.md",
       "references/legacy-durable-workflow.md"
     ],
@@ -88,19 +77,24 @@
       "digest": "sha256:fb59714d562cf29615b91bcd267902ad8ed9ac76f0f8329731030507d9900cd2"
     },
     {
-      "path": "examples/sage-architect.route.json",
-      "uri": "legion-skill://tasklist/examples/sage-architect.route.json",
+      "path": "examples/sage-adjudication.json",
+      "uri": "legion-skill://tasklist/examples/sage-adjudication.json",
       "digest": "sha256:ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356"
     },
     {
       "path": "examples/tasklist-authority.packet.json",
       "uri": "legion-skill://tasklist/examples/tasklist-authority.packet.json",
-      "digest": "sha256:09c515ed91b1c001abe8b05593b341ea0711c8f668a087332497d7f8d8cb6c77"
+      "digest": "sha256:b2b1e0eef07e60b081fb0be49b1bab55a130ac235cc661a6e3e1fd52a8e9a5e9"
     },
     {
       "path": "examples/tasklist-authority.packet.receipt.json",
       "uri": "legion-skill://tasklist/examples/tasklist-authority.packet.receipt.json",
-      "digest": "sha256:85105cbcfd5a0a3645367359e5e3a5564f4eb8c6bd464aef34268e39cddcde53"
+      "digest": "sha256:7d96287b760b7d75d158cc38c7371d7dc15e0672a2e4f3ac0f4bdef77e0c1ffe"
+    },
+    {
+      "path": "examples/tasklist-authority.prompt.txt",
+      "uri": "legion-skill://tasklist/examples/tasklist-authority.prompt.txt",
+      "digest": "sha256:b4941bde55284b98512ba83b3d4529c5b1637fad825c3ea90e362b5cc15db6e9"
     },
     {
       "path": "examples/validated-tasklist.md",
@@ -155,7 +149,7 @@
     {
       "path": "tests/tasklist-entrypoint.test.py",
       "uri": "legion-skill://tasklist/tests/tasklist-entrypoint.test.py",
-      "digest": "sha256:6267ada2f0d09374447a7cd7a0b3366f26802d46a58436f5b1dabef9a1a0c7d6"
+      "digest": "sha256:0d018fab81c21403b4ad134ee75b7ae50fcfec39f1abab9603dfb2fd29df112c"
     }
   ]
 }

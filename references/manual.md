@@ -1,10 +1,7 @@
 # Audit advanced manual
 
 ```text
-MODE: DIAGNOSE
 PRIMARY_DELIVERABLE: Re-runnable audit report plus bounded findings.
-DISCOVERY_PROFILE: D1_SCOPED_SOURCE
-EFFECT_PROFILES: audit_engine
 SPECIALIST_REFS_MAX: 0
 CHILD_AGENTS_MAX: 0
 EXTERNAL_REQUESTS_MAX: 0
@@ -13,8 +10,8 @@ MAY_CALL_SKILLS: NONE
 TERMINAL: Frozen audit checks finish with evidence-backed findings or typed degradation.
 ```
 
-Canonical ownership and decomposition contract:
-`docs/BLUEPRINT-AUDIT-ARCHITECT-WORKFLOW.md`.
+Canonical owners: `skills/audit/SKILL.md` plus this manual own systematic evaluation;
+`skills/architect/SKILL.md` plus `doctrine/architecture/**` own architecture/decomposition method.
 
 ## When to use
 
@@ -102,12 +99,9 @@ A pipeline. Scanners fan out; the build step is the lone serial exception; stage
    For decomposition, assess every runtime candidate in `facts.decomposition.review_candidates` as
    `not-needed|confirmed|undetermined`. A confirmed verdict MUST route through Architect and return a
    complete `decomposition_plan`; an unassessed candidate or confirmed verdict without that plan
-   makes the report INCOMPLETE. LOC/bytes are triggers only, never proof. The full renderer-enforced
-   assessment discipline — symbol-level sub-span evidence loci, the ≥3×-trigger/high-fan-in
-   second-assessor rule, `undetermined` naming its missing evidence, mechanical-split keys, and the
-   `architect_decision_ref` workspace-confinement rules (read-only `/audit` writes under
-   `<root>/.audit/…`, never `docs/plans/`) — is the canonical workflow doc's contract
-   (`docs/BLUEPRINT-AUDIT-ARCHITECT-WORKFLOW.md`); apply it from there, not from memory.
+   makes the report INCOMPLETE. LOC/bytes are triggers only, never proof. Architecture assessment,
+   alternatives, boundaries, invariants, & decomposition plans follow `skills/architect/SKILL.md`
+   plus `doctrine/architecture/**`; Audit supplies evidence & findings without duplicating that method.
 
    For scoped lens input selection, `cortex graph candidates --task "<task>"` may supply a
    bounded `ContextCandidateSet v1`. It never narrows the scanner/check denominator, and exact files

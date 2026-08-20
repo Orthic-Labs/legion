@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "legion-covenant-record-v1",
   "title": "CovenantRecord",
-  "description": "Canonical CovenantRecord (COVENANT.md §12). Digest- and source-bound (C2, C3); Arcane treats verdicts as evidence, not sovereign authority (C10). A record about an old source revision must not satisfy a gate for a newer contract (COVENANT §18).",
+  "description": "Advisory Covenant record. Digest- & source-bound findings are evidence only; a record about an old source revision is stale for a changed subject.",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -89,7 +89,7 @@
     "freshVerdictRecordId": {
       "type": ["string", "null"],
       "pattern": "^CV-\\d+$",
-      "description": "COVENANT §15: reference to the fresh-verdict CovenantRecord, kept as a sibling record (own recordId) rather than nested inline, so the fresh verdict is itself digest/source bound independently."
+      "description": "Reference to a fresh sibling CovenantRecord, independently digest- & source-bound."
     },
 
     "lane": { "type": ["string", "null"] },

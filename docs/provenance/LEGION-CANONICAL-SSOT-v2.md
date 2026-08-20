@@ -9,7 +9,7 @@ This document supersedes the prior active architecture documents:
 - `docs/architecture.md`
 - `docs/capability-architecture.md` — already deleted in the working tree; tracked history at
   commit `b84ca9e6`
-- `docs/research/2026-08-17-legion-final-architecture-synthesis.md`
+- `docs/provenance/research/2026-08-17-legion-final-architecture-synthesis.md`
 
 Those are the real repository paths. There is no `legion-architecture-restructure-revised.md` or
 `capability-architecture-final.md` in this repository; earlier drafts of this document named chat
@@ -1854,7 +1854,7 @@ Extract surviving method to its correct owner, then remove from active doctrine/
   tree. It describes the roles as a universal
   cross-domain decide/execute/certify axis and treats `MODE` as determining which role becomes
   involved. Both claims are reversed by §6 and §17 of this document;
-- `docs/research/2026-08-17-legion-final-architecture-synthesis.md` — retain as non-normative
+- `docs/provenance/research/2026-08-17-legion-final-architecture-synthesis.md` — retained as non-normative
   research provenance only.
 
 **Done when:** no loader, prompt, skill, contributor guide, or agent can treat a superseded architecture document as current authority, and no Audit method was lost in the retirement.

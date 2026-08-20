@@ -24,17 +24,22 @@
     }
   },
   "parity": {
-    "frozenAt": "2026-08-14",
     "triggers": [
       "/audit-visual",
-      "\"Review rendered UI through Legion's shared Audit visual provider. Use for /audit-visual, visual regressions, screenshot baselines, or rendered-state coverage.\""
+      "Enumerate, capture, compare, and reconcile rendered UI evidence through Legion's shared Audit visual provider. Use for /audit-visual, visual regressions, screenshot baselines, or rendered-state coverage."
     ],
-    "outputs": [],
+    "outputs": [
+      "references/manual.md",
+      "references/platform-fidelity.md",
+      "references/visual-qa-capture.md"
+    ],
     "scripts": [],
     "templates": [],
     "schemas": [],
     "receipts": [],
-    "evals": [],
+    "evals": [
+      "evals/evals.json"
+    ],
     "consumers": [
       "src/registry/skills/index.json",
       "src/lib/skills/resolver.mjs",
@@ -50,82 +55,27 @@
     {
       "path": "SKILL.md",
       "uri": "legion-skill://audit-visual/SKILL.md",
-      "digest": "sha256:c7d1973fb5b551ee9cb5365b22831d04c2f2c32d78c2e8fa8bc2ffaa61b61f3e"
+      "digest": "sha256:b24800256a102cded44bfcdf85e15b0c428123ab450c6c278f034e4f29caac06"
     },
     {
       "path": "evals/evals.json",
       "uri": "legion-skill://audit-visual/evals/evals.json",
-      "digest": "sha256:433b42108c20af175f68389499b191b3f3e64631470dcfba6a990373110794c9"
-    },
-    {
-      "path": "references/craft-tests.md",
-      "uri": "legion-skill://audit-visual/references/craft-tests.md",
-      "digest": "sha256:a2bd28e6aa6ac8f36632edef71c30fc3c4d73c9e2075d9792b4281bac82824c2"
-    },
-    {
-      "path": "references/design-slop.md",
-      "uri": "legion-skill://audit-visual/references/design-slop.md",
-      "digest": "sha256:23388a2d309b86bc8980bb5f1c7b1d485cde794b3781f4e7e721bbc6337b3074"
+      "digest": "sha256:71d13a16ff9d6fde9cbe4921e87154467b06455cc5297e6540d65365d57df062"
     },
     {
       "path": "references/manual.md",
       "uri": "legion-skill://audit-visual/references/manual.md",
-      "digest": "sha256:6f9f5b07de7ea3df332dde6230b325ae6d20ce9b9365fac8a02979baf6726558"
-    },
-    {
-      "path": "references/motion-standards.md",
-      "uri": "legion-skill://audit-visual/references/motion-standards.md",
-      "digest": "sha256:9233f265123b67a4dbd643a55bc5407b73923dda1199870ec84d50ce90da9b1c"
-    },
-    {
-      "path": "references/native-feedback.md",
-      "uri": "legion-skill://audit-visual/references/native-feedback.md",
-      "digest": "sha256:df4c574e1a1f47a1df4547617ecb000a51d93b6892e04034cae403c6d0f9e076"
-    },
-    {
-      "path": "references/performance.md",
-      "uri": "legion-skill://audit-visual/references/performance.md",
-      "digest": "sha256:917da1447eb5c86a803f2f005143979fa214ce48e5ba41ee988e6d195e76c232"
+      "digest": "sha256:adab8ad2a1faaae703217f458ced135953b4abf976b8da63bbe3cfaeec790995"
     },
     {
       "path": "references/platform-fidelity.md",
       "uri": "legion-skill://audit-visual/references/platform-fidelity.md",
-      "digest": "sha256:b66bf82b8da0ee495efe02df816c9f54b61acec0cb732d7e2744b7977a308752"
-    },
-    {
-      "path": "references/specialist-lenses.md",
-      "uri": "legion-skill://audit-visual/references/specialist-lenses.md",
-      "digest": "sha256:55c9d997501ad5488e0d432ecc57ee79d890f80e01aabc5bba814df23309c203"
-    },
-    {
-      "path": "references/surfaces.md",
-      "uri": "legion-skill://audit-visual/references/surfaces.md",
-      "digest": "sha256:a3be910d22bd39595c157071ce359958e186b1d71b84f1729a36d898800f704d"
-    },
-    {
-      "path": "references/typography.md",
-      "uri": "legion-skill://audit-visual/references/typography.md",
-      "digest": "sha256:adcd567ea7ac7a8369e27964b8b0144a1505def8cea172fdcc0d974ccfe4548e"
-    },
-    {
-      "path": "references/ui-ux-checklist.md",
-      "uri": "legion-skill://audit-visual/references/ui-ux-checklist.md",
-      "digest": "sha256:8b256620920778dcd56e4a4b833f12dc1d399a759ceb4a8d3e344ea4553cb25e"
+      "digest": "sha256:f4e4dba84a826d3fad21c0cc210da0d006e3106d749f06537d4ae5e0c62705f1"
     },
     {
       "path": "references/visual-qa-capture.md",
       "uri": "legion-skill://audit-visual/references/visual-qa-capture.md",
       "digest": "sha256:beb27fe267db48be23315ce0d20ba19f4106ad0f38e32ea19a2bc191aa94beaa"
-    },
-    {
-      "path": "references/website-conversion-standards.md",
-      "uri": "legion-skill://audit-visual/references/website-conversion-standards.md",
-      "digest": "sha256:752324b007190fc4d51c8f6236dfac82f30e751664a8f39cf985afda4cf6b3a9"
-    },
-    {
-      "path": "references/website-regression-gotchas.md",
-      "uri": "legion-skill://audit-visual/references/website-regression-gotchas.md",
-      "digest": "sha256:4d93b5e20671129f6e27ce1576b02f3bf908315b85bdb6b141854118cb5d2a19"
     }
   ]
 }

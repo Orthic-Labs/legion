@@ -1,4 +1,4 @@
-# Audit-Visual Specialist Lenses
+# Designer Specialist Lenses
 
 Use these lenses when the main `SKILL.md` matrix is too thin for the surface.
 The goal is repeatable severity, not vague taste.

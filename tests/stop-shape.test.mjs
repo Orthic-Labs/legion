@@ -67,7 +67,7 @@ test('block instructions escalate across pushes instead of repeating', () => {
   assert.equal(second.block, true);
   assert.notEqual(first.instruction, second.instruction);
   assert.match(first.instruction, /Sage/);
-  assert.match(second.instruction, /Covenant/);
+  assert.doesNotMatch(second.instruction, /Covenant/);
   assert.match(second.instruction, /CURRENT state/);
 });
 
@@ -268,8 +268,8 @@ test('reservedCategories identifies the canonical five', () => {
 // pins: a packet claimed "reserved decision" for a question committed doctrine
 // had already answered, matched the category word, and passed — twice in one
 // session. The token was an unconditional exit, so emitting it was cheaper than
-// working. Doctrine's ladder is resolve -> Sage -> Covenant -> block, so a
-// blocker must show the ladder was actually walked.
+// working. Materially unresolved reserved decisions belong to Sage, so a
+// blocker must show that authority was actually used.
 test('a blocker with a real category but no escalation blocks', () => {
   const packet = 'BLOCKED-ON-APPROVAL: flipping VCS_PUSH from deny to allow — reserved decision, it changes what the enforcement plane permits globally.';
   const verdict = evaluateStopShape(packet, { escalated: false });
@@ -297,7 +297,7 @@ test('an invented category still blocks even with escalation', () => {
 test('escalation evidence comes from real dispatches, not prose claims', () => {
   assert.equal(escalatedThisSession('I considered dispatching Sage about this.'), false);
   assert.equal(escalatedThisSession('{"subagent_type":"sage","prompt":"..."}'), true);
-  assert.equal(escalatedThisSession('{"subagent_type":"legion:covenant-seat"}'), true);
+  assert.equal(escalatedThisSession('{"subagent_type":"legion:covenant-seat"}'), false);
 });
 
 // The incident this closes: the operator said "Go on, fix it", and the turn still

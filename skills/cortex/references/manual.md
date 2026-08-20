@@ -12,7 +12,9 @@ TERMINAL: Frozen mapper checks complete with a map or typed degradation.
 
 One tool to make an agent understand a repo. Deterministic mapping first (cheap, complete, grounds everything in real files), then parallel agents to verify and synthesize. Humans get `docs/product.md` and `docs/architecture.md`; agents get structured machine artifacts. This is comprehension — it never modifies application code.
 
-Canonical ownership and workflow boundary: `docs/BLUEPRINT-AUDIT-ARCHITECT-WORKFLOW.md`.
+Canonical owners: `skills/cortex/SKILL.md` plus this manual own current-state mapping;
+`skills/audit/SKILL.md` owns systematic evaluation; `skills/architect/SKILL.md` plus
+`doctrine/architecture/**` own architecture/decomposition decisions.
 
 The deterministic layer is **reproducible and source-provenanced, not infallible.** It reports
 exactly what its providers extracted, together with provider coverage, confidence, parse
@@ -485,7 +487,7 @@ ever edits *docs*, and only after the user decides). After decisions, apply the 
 **Routing addendum — `CODE-FELL-SHORT` where the user chooses "fix the code":** Cortex does not
 fix code (read-only-code contract). When the user's per-item decision on a `CODE-FELL-SHORT` row is to
 close the delivery gap rather than mark the doc, hand that item off — a bug/partial-implementation goes
-to `/audit-fix`, a genuine design gap goes to Sage (the mandatory prior-art decision matrix) —
+to `/audit-fix`, & a genuine design gap goes to `architect` for its prior-art decision matrix —
 with the reconcile entry as the brief. Record the handoff in the reconcile decision; do not silently
 convert it into a doc edit.
 
@@ -521,10 +523,11 @@ Per-repo `.agent/config.json` (written on first run) controls `budgets` (e.g. ra
 - Captures CURRENT state. Fix punch-lists are `/audit`; new designs are `architect`.
 - A size threshold only nominates a component for review. Never claim that a component needs
   decomposition without the responsibility/coupling/state/caller/test evidence and exact target plan
-  required by `docs/BLUEPRINT-AUDIT-ARCHITECT-WORKFLOW.md`.
+  required by Architect's canonical method in `skills/architect/SKILL.md` &
+  `doctrine/architecture/**`.
 - Cortex does not research or choose external solutions. If the user asks whether the architecture
   is the best shape or complete, Cortex's deliverable is the evidenced coverage-gap inventory;
-  hand every material gap to `architect` for the mandatory external prior-art decision matrix before
+  hand every material gap to `architect` for its external prior-art decision matrix before
   anyone makes an optimality claim.
 - Never reduce a multi-family product to the subsystem currently under inspection. For Crypt,
   explicitly verify all three families and eight layers before describing its purpose or coverage.

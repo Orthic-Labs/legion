@@ -126,10 +126,6 @@ async function dispatch(command, argv, { stdout, stderr, env, cwd, host }) {
       const { runContract } = await import('./commands/contract.mjs');
       return runContract(argv, { stdout, stderr, env, cwd });
     }
-    case 'assurance': {
-      const { runAssurance } = await import('./commands/assurance.mjs');
-      return runAssurance(argv, { stdout, env, cwd });
-    }
     case 'completion': {
       const { runCompletion } = await import('./commands/completion.mjs');
       return runCompletion(argv, { stdout, env, cwd });

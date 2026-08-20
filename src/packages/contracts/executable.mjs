@@ -2,11 +2,11 @@
 //
 // Composes (a) draft 2020-12 structural validation against
 // `execution-contract-v1.schema.json` via lib/qualification/schema-validator.mjs
-// with (b) G9 executability rules JSON Schema cannot express:
-//   - openQuestions must be empty (G9)
-//   - EXACT artifacts must carry non-null content (ARCHITECTURE §12)
-//   - BOUNDED artifacts must carry non-empty locked[] and freedom[] (ARCHITECTURE §12)
-//   - shared-mutable-resource edges must carry a resourceKey (ARCHITECTURE §32a)
+// with executability rules JSON Schema cannot express:
+//   - openQuestions must be empty
+//   - EXACT artifacts must carry non-null content
+//   - BOUNDED artifacts must carry non-empty locked[] and freedom[]
+//   - shared-mutable-resource edges must carry a resourceKey
 //   - contract-wide ID uniqueness across R-/D-/I-/AC-/NG-/EC-/F-/B-/A-/CV-/T- prefixes
 //
 // Backward-compatible surface: returns the contract on success, throws

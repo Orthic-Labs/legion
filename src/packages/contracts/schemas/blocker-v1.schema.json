@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "legion-blocker-v1",
   "title": "Blocker",
-  "description": "Canonical Blocker (ARCHITECTURE.md §15 'BLOCKER B-12' example, §33 shared-state list, §38 flow). Raised by Alchemist when execution discovers a semantic obstacle; the contract does not mutate silently (§15).",
+  "description": "Execution blocker raised when bounded transformation cannot continue without changing settled meaning, ownership, scope, or acceptance. Contracts never mutate silently.",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -28,14 +28,14 @@
 
     "classification": {
       "enum": ["CLEARLY_SEMANTIC", "POSSIBLY_CONTRACT_SAFE"],
-      "description": "ARCHITECTURE §15/§38: routes directly to Sage amendment (CLEARLY_SEMANTIC) or through Covenant BLOCKER_CONSULT first (POSSIBLY_CONTRACT_SAFE)."
+      "description": "Classification is evidence for routing: material unresolved semantics attach Sage; optional Covenant BLOCKER_CONSULT may challenge a proposed contract-safe resolution."
     },
     "status": { "enum": ["OPEN", "COVENANT_CONSULTED", "AMENDED", "RESOLVED"] },
     "covenantRequestId": { "type": ["string", "null"], "pattern": "^req_[0-9A-HJKMNP-TV-Z]{26}$" },
     "covenantRecordId": { "type": ["string", "null"], "pattern": "^CV-\\d+$" },
     "amendmentId": { "type": ["string", "null"], "pattern": "^A-\\d+$" },
 
-    "raisedBy": { "const": "alchemist", "description": "ARCHITECTURE §15/§29: Alchemist is the only normal raiser of a Blocker." },
+    "raisedBy": { "const": "alchemist", "description": "A governed execution blocker is raised by its Alchemist execution authority." },
     "raisedAt": { "type": "string", "format": "date-time" },
     "sourceRevision": { "type": "string", "minLength": 7 }
   }

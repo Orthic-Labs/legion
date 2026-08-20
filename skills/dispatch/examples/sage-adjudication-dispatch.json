@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "kind": "legion-authority-dispatch",
+  "packetType": "sage",
+  "sourceRevision": "sha256:30607480062ce11016b74a55e527881a9f79d3c78a72997d06871234d37d6e0d",
+  "sourceArtifact": "skills/dispatch/SKILL.md",
+  "promptArtifact": "skills/dispatch/examples/sage-adjudication.prompt.txt",
+  "promptDigest": "sha256:3ccd2e7126de4f9d794e0da667d1d589f6801f9a4975b3e4b560219f06485f54",
+  "modelRouting": {
+    "modelTier": "FRONTIER",
+    "workerProfile": "strict",
+    "routingRationale": "Material cross-capability ownership conflict requires exceptional adjudication."
+  },
+  "routeBundle": {
+    "path": "skills/dispatch/examples/sage-adjudication.json",
+    "digest": "sha256:32912339a8d59118b833325a39fd54a5af0569e78e20bcb203f9b11f72b04bf2"
+  }
+}

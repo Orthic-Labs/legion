@@ -274,7 +274,7 @@ test('execution-contract-v1: authorizedEffectClasses items match EFFECT_CLASS; a
   assert.ok(artifactUnitLatitude.every((v) => Enums.LATITUDE.includes(v)), 'artifactUnit.latitude must be a subset of LATITUDE');
   assert.ok(eq(artifactUnitLatitude, ['EXACT', 'BOUNDED']), 'artifactUnit.latitude excludes OPEN by design (see schema description)');
   const oq = s.properties.openQuestions;
-  assert.ok(oq, 'openQuestions must be present (G9: empty array required for executability)');
+  assert.ok(oq, 'openQuestions must be present; executability requires an empty array');
 });
 
 test('execution-task-v1: status matches ALCHEMIST_STATE; assignedAuthority matches AUTHORITY_ID; latitude matches LATITUDE; routing enums match MODEL_TIER/WORKER_PROFILE', () => {
@@ -438,5 +438,5 @@ test('enums.mjs: assertEnum and assertSchemaVersion behave as documented', () =>
 });
 
 test('canonical authority ID set is exact', () => {
-  assert.deepEqual(Enums.AUTHORITY_ID, ['legion', 'sage', 'alchemist', 'oracle', 'arcane', 'covenant', 'kernel']);
+  assert.deepEqual(Enums.AUTHORITY_ID, ['legion', 'sage', 'alchemist', 'oracle', 'arcane', 'kernel']);
 });

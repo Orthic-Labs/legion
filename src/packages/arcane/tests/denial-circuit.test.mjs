@@ -35,8 +35,8 @@ test('EC-603 T-4: changed fingerprint resets authenticated count', () => {
   const { root, circuit } = fixture();
   try {
     applyDenialCircuit(denied(), circuit, context);
-    const changed = applyDenialCircuit(denied('ARC_EVIDENCE_INSUFFICIENT', { missingClasses: ['high-risk-assurance'] }), circuit, context);
-    const secondChanged = applyDenialCircuit(denied('ARC_EVIDENCE_INSUFFICIENT', { missingClasses: ['high-risk-assurance'] }), circuit, context);
+    const changed = applyDenialCircuit(denied('ARC_EVIDENCE_INSUFFICIENT', { missingClasses: ['trusted-completion-evidence'] }), circuit, context);
+    const secondChanged = applyDenialCircuit(denied('ARC_EVIDENCE_INSUFFICIENT', { missingClasses: ['trusted-completion-evidence'] }), circuit, context);
     assert.equal(changed.detail.termination, undefined);
     assert.equal(secondChanged.detail.termination, 'terminate');
   } finally { rmSync(root, { recursive: true, force: true }); }

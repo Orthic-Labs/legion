@@ -49,3 +49,10 @@ test('S06-01 Architect owns architecture method; no Sage bundle route remains ac
   assert.match(readme, /Canonical owner/);
   assert.match(readme, /skills\/architect\/SKILL\.md/);
 });
+test('canonical doctrine owns methods while roster owns abstract model tiers', async () => {
+  for (const role of ['sage', 'alchemist', 'oracle']) {
+    assert.doesNotMatch(await read(`doctrine/${role}.md`), /^model:/m);
+    assert.match(await read(`src/roster/${role}.md`), /^modelTier:/m);
+  }
+  assert.doesNotMatch(await read('doctrine/covenant-seat.md'), /^model:/m);
+});

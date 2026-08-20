@@ -58,7 +58,7 @@ export function kernelBound() {
 
 /**
  * Current binding status, for enforcement-health reporting. Arcane reports its
- * own degradation honestly and per-capability (ARCHITECTURE §24a) rather than
+ * own degradation honestly & per capability rather than
  * claiming a strength it does not have.
  */
 export function kernelStatus() {

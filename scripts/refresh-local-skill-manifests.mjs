@@ -3,6 +3,7 @@ import { createHash } from 'node:crypto';
 import { existsSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs';
 import { join, relative, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
+import { buildSkillCatalog } from './generate-skill-catalog.mjs';
 
 const ROOT = resolve(import.meta.dirname, '..');
 const EXCLUDED = new Set(['.DS_Store']);
@@ -26,12 +27,9 @@ export function refreshLocalSkillManifest(bundle) {
   const manifestPath = join(ROOT, 'skills', 'manifests', `${bundle}.json`);
   if (!existsSync(join(skillRoot, 'SKILL.md'))) throw new Error(`missing skill entrypoint: ${bundle}`);
   const prior = existsSync(manifestPath) ? JSON.parse(readFileSync(manifestPath, 'utf8')) : {};
-  const priorFiles = new Map((prior.files ?? []).map((record) => [record.path, record]));
-  const priorParity = prior.parity && typeof prior.parity === 'object'
-    ? Object.fromEntries(Object.entries(prior.parity)
-      .filter(([key]) => !['legacyRef', 'legacyArtifacts'].includes(key))
-      .map(([key, value]) => [key, Array.isArray(value) ? value.filter((entry) => typeof entry !== 'string' || !entry.includes('legacy-source')) : value]))
-    : undefined;
+  const semantic = buildSkillCatalog().index.bundles.find(({ id }) => id === bundle);
+  if (!semantic) throw new Error(`missing canonical catalog record: ${bundle}`);
+  const packageFiles = files(skillRoot);
   const manifest = {
     schemaVersion: 1,
     id: bundle,
@@ -45,12 +43,8 @@ export function refreshLocalSkillManifest(bundle) {
       audit: { mutation: false, publish: false },
       authoring: { mutation: true, publish: false, externalOnly: true },
     },
-    ...Object.fromEntries(Object.entries(prior).filter(([key]) => ![
-      'schemaVersion', 'id', 'version', 'entry', 'rootUri', 'provenance',
-      'licenseState', 'rightsReceipt', 'profiles', 'files', 'parity', 'transformRules',
-    ].includes(key))),
-    ...(priorParity ? { parity: priorParity } : {}),
-    files: files(skillRoot).map((path) => {
+    parity: deriveParity(bundle, semantic, packageFiles),
+    files: packageFiles.map((path) => {
       const bytes = readFileSync(join(skillRoot, path));
       const hash = digest(bytes);
       return {
@@ -62,6 +56,20 @@ export function refreshLocalSkillManifest(bundle) {
   };
   writeFileSync(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`, 'utf8');
   return manifestPath;
+}
+
+export function deriveParity(bundle, semantic, packageFiles) {
+  const selected = (predicate) => packageFiles.filter(predicate);
+  return {
+    triggers: [`/${bundle}`, semantic.description],
+    outputs: selected((path) => path.startsWith('references/')),
+    scripts: selected((path) => path.startsWith('scripts/') || path.startsWith('hooks/')),
+    templates: selected((path) => /(^|\/)(assets|templates)\//.test(path) && /template/i.test(path)),
+    schemas: selected((path) => /(^|\/)schemas?\//.test(path) || /\.schema\.json$/.test(path)),
+    receipts: selected((path) => /\.receipt\.json$/.test(path)),
+    evals: selected((path) => /(^|\/)evals?\//.test(path)),
+    consumers: ['src/registry/skills/index.json', 'src/lib/skills/resolver.mjs', 'src/registry/routing/domains.json'],
+  };
 }
 
 async function main() {

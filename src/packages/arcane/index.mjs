@@ -1,6 +1,6 @@
 // Arcane — the deterministic enforcement/evidence plane (Legion lane E).
 //
-// ARCHITECTURE.md §24/§24a: Arcane is not a model and not a prompt. It is
+// Arcane is not a model or prompt. It is
 // deterministic code — hooks, brokers, validators, and a receipt store — that
 // sits on the host boundary and executes on every turn. Nothing in this
 // package calls a model, and nothing in it takes an npm dependency.
@@ -85,8 +85,6 @@ export * from './lib/session-binding.mjs';
 export * from './lib/host-event-ledger.mjs';
 export * from './lib/authority-invocation-proof.mjs';
 export * from './lib/pending-terminal-operation-store.mjs';
-export * from './lib/high-risk-assurance.mjs';
-export * from './lib/high-risk-assurance-store.mjs';
 export * from './lib/advisory-profile.mjs';
 export * from './lib/advisory-certification.mjs';
 export * from './lib/advisory-judgment.mjs';

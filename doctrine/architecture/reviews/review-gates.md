@@ -1,6 +1,6 @@
 # Review admission & scoped CLEAN
 
-**Stage:** S02 · **Ledger:** S02-02 · **Owner:** Oracle + Arcane doctrine. This defines admission only; S05 owns runtime gate execution & evidence persistence.
+**Stage:** S02 · **Ledger:** S02-02 · **Owner:** Architect review method + Arcane deterministic admission. Oracle may consume resulting evidence for Completion Validation but does not own this evaluation method.
 
 Every review module declares `when_to_use`, `when_not_to_use`, configured scope, eligibility filter, ordered gates, calibration-table version, claim language, & CLEAN bindings. Dismiss first: test `PROCESS → REACHABILITY → CONTROL → REAL_IMPACT → REPRODUCTION → BOUNDS → ENVIRONMENT`; first failed gate records decisive dismissal plus evidence. Assign severity only to survivors, then apply reviewer-scope mapping. Confidence never establishes blocker status without applicability, evidence, & mapping.
 

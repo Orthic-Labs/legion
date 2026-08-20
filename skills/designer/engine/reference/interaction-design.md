@@ -196,7 +196,7 @@ Everything above is the **web** interaction bar. Desktop and mobile apps add a f
 web has no equivalent for — haptics, OS-level reduced-motion settings, and per-platform control
 minimums that genuinely conflict with each other.
 
-Canonical values live in **`audit-visual/references/native-feedback.md`**. Build to it rather than
+Canonical values live in **`designer/references/native-feedback.md`**. Build to it rather than
 duplicating numbers here, so the builder side and the review side never drift apart.
 
 The four things that most often get built wrong:

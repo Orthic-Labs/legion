@@ -139,7 +139,7 @@ function contractSeal(argv, { stdout, env, cwd }) {
   const bindings = new AuthorityBindingStore({ root: stateDir(cwd, 'authority-bindings') });
   const observed = agent
     ? bindings.get({ adapter, sessionId, agentId: agent })
-    : bindings.findLatest({ adapter, sessionId, authority: 'sage' }) ?? bindings.findLatest({ adapter, sessionId, authority: 'legion' });
+    : bindings.findLatest({ adapter, sessionId, authority: 'legion' }) ?? bindings.findLatest({ adapter, sessionId, authority: 'sage' });
   if (!observed) {
     throw new LegionError(
       agent
@@ -182,7 +182,7 @@ function contractSeal(argv, { stdout, env, cwd }) {
       if (prior) {
         const event = hostEventLedger.records().at(-1);
         if (!event || event.sessionId !== sessionId || !['legion', 'sage'].includes(event.observedAuthority)) throw new LegionError('ARC_AUTHORITY_NOT_ASSERTED: current Legion or Sage host event required for contract amendment', { code: 'ARC_AUTHORITY_NOT_ASSERTED', exitCode: EXIT.INTERNAL_ERROR });
-        const proof = proofIssuer.issue({ ledger: event, binding: { runId: event.runId ?? `seal:${contract.contractId}`, taskId: contract.tasks[0], contractId: prior.contractId, contractVersion: prior.version, contractDigest: prior.contractDigest }, purpose: 'budget-amendment', role: 'sage' }).proof;
+        const proof = proofIssuer.issue({ ledger: event, binding: { runId: event.runId ?? `seal:${contract.contractId}`, taskId: contract.tasks[0], contractId: prior.contractId, contractVersion: prior.version, contractDigest: prior.contractDigest }, purpose: 'budget-amendment', role: observed.authority }).proof;
         budget.amendmentEvidence = { schemaVersion: 1, kind: 'arcane-budget-amendment', priorContractDigest: prior.contractDigest, newContractDigest: contractDigest, priorLegionBlastMapCapMs: prior.legionBlastMapCapMs, newLegionBlastMapCapMs: budget.legionBlastMapCapMs, priorSagePlanningCapMs: prior.sagePlanningCapMs, newSagePlanningCapMs: budget.sagePlanningCapMs, scopeExpanded: false, invocationProofDigest: digestValue(proof), observedAt: new Date().toISOString() };
         budget.amendmentEvidence.authentication = signRecord(budget.amendmentEvidence, { keyRing, keyId: keyRing.activeKeyId(), boundFields: BUDGET_AMENDMENT_BOUND_FIELDS, macDomain: 'arcane-budget-amendment-v1' });
         budget.userScopeExpansionEvidence = null;

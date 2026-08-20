@@ -61,9 +61,9 @@
     {
       "id": "copywriting-not-visual-review",
       "prompt": "Review this landing page screenshot and tell me what looks wrong visually.",
-      "expected_skill": "audit-visual",
+      "expected_skill": "designer",
       "forbidden_skills": ["copywriting"],
-      "expected_behavior": "Visual / pixel-level UI review routes to /audit-visual. Copywriting handles text/message, not visual hierarchy from screenshots.",
+      "expected_behavior": "Qualitative UI critique routes to Designer. Copywriting handles text/message, not visual hierarchy from screenshots.",
       "severity": "warning",
       "mode": "discovery"
     }
@@ -179,7 +179,7 @@
       "prompt": "Review my sales page — both the copy and the visual layout.",
       "expected_skill": "copywriting",
       "forbidden_skills": [],
-      "expected_behavior": "Copywriting handles the copy/message layer; skill should suggest pairing with /audit-visual for visual hierarchy claims. Does not attempt visual pixel review itself.",
+      "expected_behavior": "Copywriting handles copy/message; Designer handles qualitative visual hierarchy, while Audit Visual can supply rendered-state evidence. Copywriting does not attempt either method.",
       "severity": "warning",
       "mode": "discovery"
     }

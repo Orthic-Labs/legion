@@ -1,6 +1,6 @@
 # Reviewer scope
 
-**Stage:** S02 · **Ledger:** S02-02 · **Owner:** Oracle + Arcane doctrine. This control bounds review; S05 implements assurance packets/gates; S10 owns role handoffs.
+**Stage:** S02 · **Ledger:** S02-02 · **Owner:** Architect review method under root SSOT scope rules. Arcane implements deterministic gates; Oracle independently applies Completion Validation doctrine.
 
 A finding may block current delivery only as `FAILED_ACCEPTANCE` against named frozen `REQUIRED` item, `FAILED_INVARIANT` required by such item, or demonstrated `SAFETY_BLOCK` (safety, security, privacy, correctness, or data integrity). It names mapped acceptance/invariant or safety class, current evidence, affected decisions, minimum correction, invalidation cause, & smallest scope.
 

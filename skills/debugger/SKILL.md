@@ -29,7 +29,7 @@ or a minimal verified repair. Natural-language triggers include "this test is fa
 this crash", and "why is production returning 403?".
 
 Do not use for preflight validation of an unrun command, repository mapping (`/cortex`),
-completion-only verification (`/audit`/Oracle), or design of a future state (`/architect`).
+systematic evaluation (`/audit`), independent Completion Validation (Oracle), or design of a future state (`/architect`).
 
 ## Method
 

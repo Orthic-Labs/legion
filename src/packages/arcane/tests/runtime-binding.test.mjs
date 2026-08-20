@@ -59,7 +59,7 @@ test('B6 runtime composes stores & returns a closed refusal without throwing', (
   } finally { rmSync(workspace, { recursive: true, force: true }); }
 });
 
-test('EC-603 v7: fresh authenticated ingress accepts & creates a ledger record without self-asserted authority', () => {
+test('fresh authenticated SessionStart binds only the Legion session root', () => {
   const root = mkdtempSync(join(tmpdir(), 'arcane-host-event-ledger-'));
   const workspace = join(root, 'workspace'); const stateRoot = join(root, 'state'); const keyDir = join(root, 'keys');
   try {
@@ -68,8 +68,11 @@ test('EC-603 v7: fresh authenticated ingress accepts & creates a ledger record w
     const result = runtime.handle({ hook_event_name: 'SessionStart', cwd: workspace, session_id: 'fresh-session', agent_id: 'agent', agent_type: 'alchemist' });
     const ledger = JSON.parse(readFileSync(join(stateRoot, 'host-events', '0000000000000001.json'), 'utf8'));
     assert.equal(result.allowed, true, result.code);
-    assert.equal(ledger.observedAuthority, 'alchemist');
+    assert.equal(ledger.observedAuthority, 'legion');
     assert.equal(Object.hasOwn(ledger, 'authority'), false);
+    const bindings = new AuthorityBindingStore({ root: join(stateRoot, 'authority-bindings') });
+    assert.equal(bindings.findLatest({ adapter: 'codex', sessionId: 'fresh-session', authority: 'legion' })?.agentType, 'legion');
+    assert.equal(bindings.findLatest({ adapter: 'codex', sessionId: 'fresh-session', authority: 'alchemist' }), null);
   } finally { rmSync(root, { recursive: true, force: true }); }
 });
 
@@ -150,6 +153,7 @@ test('EC-503 v2: sealed apply_patch pre-authorizes all effects; unchanged post e
     const runtime = createHostRuntime({ adapter: { name: 'codex', normalize: normalizeCodexEvent, observeIdentity: observeCodexIdentity, mapPreEffect: mapCodexPreEffect }, workspace, keyDir, stateRoot });
     const command = '*** Begin Patch\n*** Update File: src/a.mjs\n@@\n-a\n+b\n*** Add File: src/b.mjs\n+b\n*** End Patch';
     const base = { session_id: sessionId, agent_id: 'agent', agent_type: 'alchemist', cwd: workspace, tool_name: 'apply_patch', tool_use_id: 'patch-1', tool_input: { command } };
+    assert.equal(runtime.handle({ ...base, hook_event_name: 'SubagentStart' }).allowed, true);
     const pre = runtime.handle({ ...base, hook_event_name: 'PreToolUse' }); assert.equal(pre.allowed, true, pre.code);
     const post = runtime.handle({ ...base, hook_event_name: 'PostToolUse', tool_response: { ok: true } }); assert.equal(post.allowed, true, post.code);
     const receipts = runtime.stores.receiptStore.list({ runId: 'run_01ARZ3NDEKTSV4RRFFQ69G5FAV' });

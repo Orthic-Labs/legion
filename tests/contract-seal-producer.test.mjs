@@ -1,10 +1,10 @@
-// The authenticated Sage contract-seal producer (`legion contract seal`).
+// Authenticated Legion/Sage contract-seal producer (`legion contract seal`).
 //
 // Before this command existed, `ContractSealStore.seal()` was called only by
 // test fixtures, so a locked domain could be refused for having no sealed
 // contract while there was no supported way to produce one. These tests pin
-// both halves of the fix: a Sage-observed agent CAN mint a seal, and nobody
-// else can — including a caller who tries to name its own authority.
+// ordinary settled contracts seal from an authenticated Legion root, actual
+// adjudicated contracts may seal from Sage, & callers cannot name authority.
 
 import assert from 'node:assert/strict';
 import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
@@ -67,6 +67,29 @@ test('a Sage-observed agent mints a contract seal', async () => {
     assert.equal(payload.created, true);
     assert.equal(payload.sealedBy.authority, 'sage');
     assert.equal(payload.sealedBy.perMessage, true);
+  } finally { s.cleanup(); }
+});
+
+test('authenticated host SessionStart makes ordinary Legion sealing reachable without an agent', async () => {
+  const { createHostRuntime } = await import('../src/packages/arcane/host/host-runtime.mjs');
+  const { claudeCodeHostAdapter } = await import('../src/packages/arcane/host/claude-code-adapter.mjs');
+  const s = scenario();
+  try {
+    rmSync(join(s.root, '.audit', 'arcane', 'authority-bindings'), { recursive: true, force: true });
+    const runtime = createHostRuntime({ adapter: claudeCodeHostAdapter, workspace: s.root, keyDir: join(s.root, 'keys') });
+    const started = runtime.handle({ hook_event_name: 'SessionStart', cwd: s.root, session_id: SESSION });
+    assert.equal(started.allowed, true, started.code);
+    const contract = b5Contract('EC-9'); contract.budget = { objectiveLineageId: 'EC-9-lineage', objectiveDigest: digestValue('EC-9'), legionBlastMapCapMs: 900000, sagePlanningCapMs: 900000, maxContractVersions: 2 }; writeFileSync(s.contractPath, JSON.stringify(contract));
+    const budgets = join(s.root, 'task-budgets.json');
+    writeFileSync(budgets, JSON.stringify({ tasks: [{ taskId: 'T-1', ownScope: ['x'], activeTimeCapMs: 900000, progressDeadlineMs: 600000, evidenceReferences: ['AC-1'] }] }));
+    const result = await runContract(['seal', '--file', s.contractPath, '--task-budgets', budgets, '--session', SESSION], s.ctx);
+    assert.equal(result.exitCode, 0);
+    const payload = JSON.parse(s.out.join(''));
+    assert.equal(payload.sealedBy.authority, 'legion');
+    assert.equal(payload.sealedBy.perMessage, true);
+    assert.equal(payload.taskBudgetsSealed, 1);
+    const keys = loadHostKeyRing({ dir: s.ctx.env.ARCANE_KEY_DIR });
+    assert.equal(new TaskBudgetSealStore({ root: join(s.root, '.audit', 'arcane', 'task-budget-seals'), keyRing: keys }).require('EC-9', 'T-1', 1).sealedBy.authority, 'legion');
   } finally { s.cleanup(); }
 });
 

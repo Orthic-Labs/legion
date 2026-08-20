@@ -23,52 +23,20 @@
       "externalOnly": true
     }
   },
-  "noFabrication": true,
-  "approvedWordsRequireRevision": true,
   "parity": {
-    "frozenAt": "2026-08-14",
     "triggers": [
       "/writing",
-      "\"Route editorial prose, essays, newsletters, scripts, captions, threads, research articles, blogs, SEO posts, conversion copy, bios, DMs, product copy, email, and changelogs. Use when words are the deliverable.\""
+      "Route editorial prose, essays, newsletters, scripts, captions, threads, research articles, blogs, SEO posts, conversion copy, bios, DMs, product copy, email, and changelogs. Use when words are the deliverable."
     ],
     "outputs": [
       "references/content-repurposer/reference.md",
       "references/manual.md",
       "references/repurpose-content/reference.md",
       "references/research-article.md",
-      "references/script.md",
-      "specialists/blogs/GUIDE.md",
-      "specialists/blogs/evals/evals.json",
-      "specialists/blogs/references/writing-research.md",
-      "specialists/changelog/GUIDE.md",
-      "specialists/changelog/evals/evals.json",
-      "specialists/copywriting/GUIDE.md",
-      "specialists/copywriting/evals/evals.json",
-      "specialists/copywriting/references/ad-assets/generative-tools.md",
-      "specialists/copywriting/references/ad-assets/platform-specs.md",
-      "specialists/copywriting/references/ad.md",
-      "specialists/copywriting/references/craft-research.md",
-      "specialists/copywriting/references/hook.md",
-      "specialists/editorial/GUIDE.md",
-      "specialists/email/GUIDE.md",
-      "specialists/email/evals/evals.json",
-      "specialists/email/references/cold-outbound/benchmarks.md",
-      "specialists/email/references/cold-outbound/follow-up-sequences.md",
-      "specialists/email/references/cold-outbound/frameworks.md",
-      "specialists/email/references/cold-outbound/personalization.md",
-      "specialists/email/references/cold-outbound/subject-lines.md",
-      "specialists/email/references/sequence/evals/evals.json",
-      "specialists/email/references/sequence/reference.md",
-      "specialists/email/references/sequence/references/copy-guidelines.md",
-      "specialists/email/references/sequence/references/email-types.md",
-      "specialists/email/references/sequence/references/sequence-templates.md",
-      "specialists/profile-copy/GUIDE.md",
-      "specialists/profile-copy/evals/evals.json"
+      "references/script.md"
     ],
     "scripts": [],
-    "templates": [
-      "specialists/email/references/sequence/references/sequence-templates.md"
-    ],
+    "templates": [],
     "schemas": [],
     "receipts": [],
     "evals": [
@@ -105,7 +73,7 @@
     {
       "path": "references/manual.md",
       "uri": "legion-skill://writing/references/manual.md",
-      "digest": "sha256:0ce9cf4f35c3d700a8bc13d6c1d0f356325897845ce27c438d6c67c4c747584b"
+      "digest": "sha256:685d57b9402adc88c291add5f65c4aab7e5b1977f2fc81e634ca7359b86a7071"
     },
     {
       "path": "references/repurpose-content/reference.md",
@@ -155,7 +123,7 @@
     {
       "path": "specialists/copywriting/evals/evals.json",
       "uri": "legion-skill://writing/specialists/copywriting/evals/evals.json",
-      "digest": "sha256:254248b75bb218fe20f789397b477feac42776e64790b61bb9b66cb5561b078e"
+      "digest": "sha256:ff6059393bf059b8c857b8e1390089975b036384ec23039fbf619df5fab9687a"
     },
     {
       "path": "specialists/copywriting/references/ad-assets/generative-tools.md",

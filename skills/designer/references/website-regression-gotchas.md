@@ -1,6 +1,6 @@
 # Website regression gotchas
 
-Use this checklist for landing-page redesigns and every follow-up visual audit. These are ship gates,
+Use this checklist for landing-page redesigns and Designer's follow-up qualitative review. These are ship gates,
 not suggestions.
 
 ## Whole-page coverage

@@ -33,7 +33,8 @@ Paths are under `skills/designer/` unless shown from `skills/`.
 | Flyer, social post, OG image, banner, ad creative, poster, print, packaging insert | `specialists/static-creative/GUIDE.md`, then `specialists/static-creative/references/marketing.md` |
 | Deep craft command: craft, shape, polish, bolder, quieter, colorize, typeset, layout, delight, harden, live, document | `engine/GUIDE.md`, then exactly one `engine/reference/<command>.md` |
 | Slide deck, editable PPTX, motion render, voiceover, device frame | `engine/huashu/GUIDE.md` |
-| Review an existing rendered surface without implementation | `audit-visual` |
+| Qualitatively critique an existing rendered surface | `designer` critique via `engine/GUIDE.md` |
+| Enumerate/capture rendered states or prove visual regression coverage | `audit-visual` |
 | Create or evolve the underlying brand identity | `brand-identity` |
 | Design animation language, tokens, choreography, or implementation | `specialists/motion/GUIDE.md`, then one platform reference |
 | Design glass, frosted, translucent, or liquid-glass-like UI | `specialists/glass/GUIDE.md` |
@@ -58,7 +59,8 @@ Paths are under `skills/designer/` unless shown from `skills/`.
    turn it into a frontend build unless the requested deliverable is HTML.
 5. Use the engine branch for a named deep-craft command or when the surface workflow explicitly
    needs its detector/live tooling. The engine is implementation detail, not another user-facing skill.
-6. Run `audit-visual` and the hidden `qa` workflow before making a rendered ship claim. the approving human's eyes
+6. For a rendered ship claim, run Designer's qualitative critique, Audit Visual's declared rendered-state
+   coverage/regression checks, & QA's declared functional/browser/runtime checks. Approving human eyes
    approve visual taste.
 
 ## Parametric generation contract (mandatory)

@@ -52,9 +52,9 @@
 // key (`ARC_AUTH_KEY_UNAVAILABLE`), this module never falls back to signing
 // with a different key and never silently skips signing. It marks the
 // result `enforcementHealth: 'degraded'` and, for anything classified as a
-// mutation-observation, refuses to proceed to ingestion at all (ARCHITECTURE
-// §24a: mutation-bearing operations fail closed when enforcement is
-// unavailable). Non-mutating observations are also left unsigned/un-ingested
+// mutation-observation, refuses to proceed to ingestion at all because
+// mutation-bearing operations fail closed when enforcement is unavailable.
+// Non-mutating observations are also left unsigned/un-ingested
 // in that state — there is no partial-trust path in HostIngestor to hand
 // them to.
 

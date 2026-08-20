@@ -1537,7 +1537,7 @@ def main() -> int:
         artifact_proj.write_text("{}", encoding="utf-8")
         oracle = artifacts_dir / "oracle.json"
         oracle.write_text("{}", encoding="utf-8")
-        sage_route = artifacts_dir / "sage-architect.json"
+        sage_route = artifacts_dir / "sage-adjudication.json"
         sage_route.write_text("{}", encoding="utf-8")
         context = authority_context(root)
         sha = lambda path: "sha256:" + hashlib.sha256(path.read_bytes()).hexdigest()
@@ -1545,7 +1545,7 @@ def main() -> int:
         sage_packet = {
             "schemaVersion": 1, "kind": "legion-authority-dispatch", "packetType": "sage",
             "sourceRevision": CONCRETE_GIT_SHA, "promptDigest": REAL_PROMPT_DIGEST,
-            "modelRouting": {"modelTier": "FRONTIER", "workerProfile": "strict", "routingRationale": "architect"},
+            "modelRouting": {"modelTier": "FRONTIER", "workerProfile": "strict", "routingRationale": "material ownership conflict"},
             "routeBundle": {"path": str(sage_route), "digest": sha(sage_route)},
         }
         sage_packet_path = artifacts_dir / "sage-packet.json"

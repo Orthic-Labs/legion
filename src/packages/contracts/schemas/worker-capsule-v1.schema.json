@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "legion-worker-capsule-v1",
   "title": "WorkerCapsule",
-  "description": "Canonical WorkerCapsule (ARCHITECTURE.md §31): the mechanical, zero-context projection of an ExecutionTask dispatched to a worker executor. 'The worker packet must derive from canonical state, not from a new free-form model reinterpretation.' Worker output remains untrusted until reconciled by Alchemist + Arcane (§32, G16).",
+  "description": "Optional mechanical zero-context projection of an ExecutionTask for a worker executor. It derives from canonical state; worker output remains untrusted until locally reconciled by Alchemist & Arcane.",
   "type": "object",
   "additionalProperties": false,
   "required": [

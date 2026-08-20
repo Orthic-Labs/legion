@@ -14,7 +14,7 @@
 //     (`{issuerIdentity, verifiedAt}`), which downgrades the resulting
 //     receipt's `authentication` block to `host-connection-trust` +
 //     `perMessage:false` rather than claiming a strength it lacks
-//     (ARCHITECTURE §24a, S00 finding 2).
+//     (recorded predecessor compatibility finding 2).
 //
 // A model-asserted authority is refused before either path is even
 // considered (ARC_MODEL_SELF_REPORT) — a model's statement that it wrote,
@@ -95,12 +95,12 @@ export class HostIngestor {
    */
   ingest(hostEvent, { authorityAssertion } = {}) {
     // 1. Authority — a model self-report is refused before anything else is
-    //    even inspected (ARCHITECTURE §24a, I-07).
+    //    even inspected.
     if (authorityAssertion?.assertedBy === 'model') {
       return this.#refuse(null, decision({
         allowed: false,
         code: 'ARC_MODEL_SELF_REPORT',
-        message: 'a model self-report is never an effect receipt (ARCHITECTURE §24a, I-07)',
+        message: 'a model self-report is never an effect receipt',
         detail: { assertedBy: 'model' },
       }));
     }
@@ -127,7 +127,7 @@ export class HostIngestor {
 
     // 2b. Authority may never be smuggled in through the one open bag
     //     either — `extensions` is content, not a side channel for a claim
-    //     this codebase never honors from a payload (ARCHITECTURE §24a).
+    //     this codebase never honors from a payload.
     if (payloadClaimsAuthority(hostEvent.extensions)) {
       return this.#refuse(null, decision({
         allowed: false,

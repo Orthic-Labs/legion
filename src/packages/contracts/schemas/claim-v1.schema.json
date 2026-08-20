@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "legion-claim-v1",
   "title": "Claim",
-  "description": "Canonical Claim (ARCHITECTURE.md §26, §33). Claims are authority-scoped: Sage/Alchemist/Oracle each own a fixed claim vocabulary; 'Arcane does not invent these claims. It validates whether their prerequisites and evidence bindings are satisfied and controls their release.' The (claimingAuthority, name) pair is constrained: name must be a member of that authority's claim vocabulary (see enums.mjs CLAIMS_BY_AUTHORITY). This cross-field constraint is expressed below via oneOf rather than JSON Schema's if/then, for readability; smoke.test.mjs checks the three branches' enum sets against enums.mjs.",
+  "description": "Authority-scoped claim. Sage vocabulary is exceptional adjudication only, Alchemist vocabulary is bounded transformation evidence, & Oracle vocabulary is independent Completion Validation. Arcane validates prerequisites/evidence bindings without inventing semantic claims.",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -13,19 +13,19 @@
     {
       "properties": {
         "claimingAuthority": { "const": "sage" },
-        "name": { "enum": ["ROOT_CAUSE_ESTABLISHED", "DECISION_MADE", "ARCHITECTURE_SEALED", "CONTRACT_SEALED", "IMPLEMENTATION_SPEC_COMPLETE"] }
+        "name": { "enum": ["ADJUDICATION_MADE", "SEMANTIC_CONFLICT_RESOLVED", "ACCEPTANCE_SEMANTICS_SEALED", "ADJUDICATED_CONTRACT_SEALED"] }
       }
     },
     {
       "properties": {
         "claimingAuthority": { "const": "alchemist" },
-        "name": { "enum": ["EFFECT_APPLIED", "TASK_COMPLETED", "DECLARED_CHECKS_PASSED", "IMPLEMENTATION_MATCHES_CONTRACT", "LOCAL_EXECUTION_VERIFIED"] }
+        "name": { "enum": ["EFFECT_APPLIED", "CANDIDATE_READY", "DECLARED_CHECKS_PASSED", "IMPLEMENTATION_MATCHES_CONTRACT", "LOCAL_EXECUTION_VERIFIED"] }
       }
     },
     {
       "properties": {
         "claimingAuthority": { "const": "oracle" },
-        "name": { "enum": ["FINDING_CONFIRMED", "CONTROL_PASS", "CONTROL_FAIL", "UNKNOWN", "NOT_APPLICABLE", "EVIDENCE_INSUFFICIENT", "CLEAN_WITHIN_DECLARED_SCOPE"] }
+        "name": { "enum": ["COMPLETION_VALIDATED", "COMPLETION_BLOCKED", "UNKNOWN", "NOT_APPLICABLE", "EVIDENCE_INSUFFICIENT"] }
       }
     }
   ],
@@ -37,13 +37,13 @@
     "claimingAuthority": { "enum": ["sage", "alchemist", "oracle"] },
     "name": {
       "enum": [
-        "ROOT_CAUSE_ESTABLISHED", "DECISION_MADE", "ARCHITECTURE_SEALED", "CONTRACT_SEALED", "IMPLEMENTATION_SPEC_COMPLETE",
-        "EFFECT_APPLIED", "TASK_COMPLETED", "DECLARED_CHECKS_PASSED", "IMPLEMENTATION_MATCHES_CONTRACT", "LOCAL_EXECUTION_VERIFIED",
-        "FINDING_CONFIRMED", "CONTROL_PASS", "CONTROL_FAIL", "UNKNOWN", "NOT_APPLICABLE", "EVIDENCE_INSUFFICIENT", "CLEAN_WITHIN_DECLARED_SCOPE"
+        "ADJUDICATION_MADE", "SEMANTIC_CONFLICT_RESOLVED", "ACCEPTANCE_SEMANTICS_SEALED", "ADJUDICATED_CONTRACT_SEALED",
+        "EFFECT_APPLIED", "CANDIDATE_READY", "DECLARED_CHECKS_PASSED", "IMPLEMENTATION_MATCHES_CONTRACT", "LOCAL_EXECUTION_VERIFIED",
+        "COMPLETION_VALIDATED", "COMPLETION_BLOCKED", "UNKNOWN", "NOT_APPLICABLE", "EVIDENCE_INSUFFICIENT"
       ]
     },
 
-    "subjectType": { "type": "string", "minLength": 1, "description": "e.g. 'execution-contract', 'execution-task', 'audit-control'." },
+    "subjectType": { "type": "string", "minLength": 1, "description": "For example execution-contract, execution-task, or completion-subject." },
     "subjectId": { "type": "string", "minLength": 1 },
     "subjectVersion": { "type": ["integer", "null"], "minimum": 1 },
 
@@ -52,7 +52,7 @@
 
     "status": {
       "enum": ["PENDING", "VALIDATED", "REJECTED"],
-      "description": "PENDING until Arcane validates prerequisites/evidence bindings; ARCHITECTURE §26."
+      "description": "PENDING until Arcane validates prerequisites & evidence bindings."
     },
     "arcaneValidation": {
       "type": ["object", "null"],

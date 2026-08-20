@@ -104,8 +104,8 @@
 
     "waiverAuthority": {
       "type": "array",
-      "items": { "enum": ["legion", "sage", "alchemist", "oracle", "arcane", "covenant", "kernel"] },
-      "description": "Which authorities may waive a claim prerequisite. Arcane validates; it does not invent claims (ARCHITECTURE §26)."
+      "items": { "enum": ["legion", "sage", "alchemist", "oracle", "arcane", "kernel"] },
+      "description": "Which authorities may waive a claim prerequisite. Arcane validates declared policy; it does not invent claims."
     },
 
     "degradation": {
@@ -169,14 +169,13 @@
     "claimLevel": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["requiredEvidenceClasses", "requiredEnforcement", "requiresCovenant", "allowStaleEvidence", "requiredFields"],
+      "required": ["requiredEvidenceClasses", "requiredEnforcement", "allowStaleEvidence", "requiredFields"],
       "properties": {
         "requiredEvidenceClasses": {
           "type": "array",
           "items": { "enum": ["deterministic", "measured", "interpretive", "external", "human"] }
         },
         "requiredEnforcement": { "enum": ["strong", "observed", "read_only", "unsupported"] },
-        "requiresCovenant": { "type": "boolean" },
         "allowStaleEvidence": { "type": "boolean" },
         "requiredFields": { "type": "array", "items": { "type": "string" } },
         "note": { "type": "string" }

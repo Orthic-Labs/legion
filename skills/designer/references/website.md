@@ -19,7 +19,7 @@ If two appear, the site has failed:
 - Stock photos, abstract tech renders, AI screenshots with garbled text.
 - CTA color sprinkled everywhere with no attention logic.
 
-(Full anti-slop catalog + the three AI-look clusters: `audit-visual/references/design-slop.md`.)
+(Full anti-slop catalog + three AI-look clusters: `designer/references/design-slop.md`.)
 
 ## Phase 0 — Site truth
 
@@ -119,7 +119,7 @@ Any `structure` hit (`cta-below-fold`, `hero-cta-competition`, `headline-word-wa
 `one-word-lines`, `hero-viewport-hog`, `hover-contrast`, `oversized-header`,
 `broken-internal-link`, `missing-required-page`; advisory `missing-hero-media`) is a build
 defect — fix and re-scan before proceeding. These are measured viewport geometry, not taste; do not rationalize
-them. Thresholds and the hero contract: `../../audit-visual/references/website-conversion-standards.md`.
+them. Thresholds and hero contract: `website-conversion-standards.md`.
 The same contract applies while building: primary CTA inside the first viewport on desktop AND
 mobile, h1 ≤ ~10 words, one primary action, a visual anchor (or a deliberately defended type-only
 hero), hero ≤ ~1 viewport.
@@ -131,6 +131,6 @@ inaccessible contrast/focus/hit targets, missing loading/error/success states fo
 pages, AI imagery with garbled text.
 
 For redesign follow-ups, also apply
-`../../audit-visual/references/website-regression-gotchas.md`. In particular: capture section
+`website-regression-gotchas.md`. In particular: capture section
 boundaries, audit dark/light cadence by viewport count, preserve one-to-one example semantics,
 separate wide feature canvases from prose measure, and prove motion from rendered state changes.

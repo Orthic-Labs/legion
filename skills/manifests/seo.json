@@ -23,13 +23,10 @@
       "externalOnly": true
     }
   },
-  "noFabrication": true,
-  "approvedWordsRequireRevision": false,
   "parity": {
-    "frozenAt": "2026-08-14",
     "triggers": [
       "/seo",
-      "\"Audit or improve SEO, GEO or AEO, AI citations, crawlability, indexing, Core Web Vitals, schema, sitemaps, content quality, E-E-A-T, images, hreflang, llms.txt, traffic drops, page speed, or repository SEO.\""
+      "Audit or improve SEO, GEO or AEO, AI citations, crawlability, indexing, Core Web Vitals, schema, sitemaps, content quality, E-E-A-T, images, hreflang, llms.txt, traffic drops, page speed, or repository SEO."
     ],
     "outputs": [
       "references/ahrefs.md",
@@ -109,16 +106,8 @@
       "scripts/site_audit.py",
       "scripts/youtube_search.py"
     ],
-    "templates": [
-      "schema/templates.json"
-    ],
+    "templates": [],
     "schemas": [
-      "hooks/validate-schema.py",
-      "references/local-schema-types.md",
-      "references/schema-markup-assets/schema-examples.md",
-      "references/schema-markup.md",
-      "references/schema-types.md",
-      "references/schema.md",
       "schema/templates.json"
     ],
     "receipts": [],

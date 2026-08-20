@@ -137,7 +137,7 @@ export class HostIngestor {
 Hard rules (each needs its own negative test):
 - `authorityAssertion.assertedBy === 'model'`, or any authority value read out
   of a model-controlled payload → `ARC_MODEL_SELF_REPORT`. A model self-report
-  is never a receipt (ARCHITECTURE §24a).
+  is never a receipt.
 - `authority === 'host'` plus a non-empty `receipt` string is **not** sufficient
   — the receipt must validate structurally *and* verify under
   `verifyRecord` (this is S00 finding 5, and closing it is the point of S04).

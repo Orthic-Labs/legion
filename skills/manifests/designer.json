@@ -23,16 +23,10 @@
       "externalOnly": true
     }
   },
-  "protectedActions": [
-    "rewrite-approved-words",
-    "distort-protected-subjects",
-    "enter-protected-regions"
-  ],
   "parity": {
-    "frozenAt": "2026-08-14",
     "triggers": [
       "/designer",
-      "\"Create, redesign, or polish websites, app UI, dashboards, components, static creative, print, motion systems, glass materials, illustration direction, and frontend craft. Route review-only work to Audit Visual and identity systems to Brand Identity.\""
+      "Create, critique, redesign, or polish websites, app UI, dashboards, components, static creative, print, motion systems, glass materials, illustration direction, and frontend craft. Route deterministic rendered-state coverage/regression evidence to Audit Visual and identity systems to Brand Identity."
     ],
     "outputs": [
       "references/above-the-fold-patterns.md",
@@ -48,56 +42,25 @@
       "references/components/pricing.md",
       "references/components/social-proof.md",
       "references/components/text-effects.md",
+      "references/craft-tests.md",
       "references/design-reference-library.md",
+      "references/design-slop.md",
       "references/manual.md",
+      "references/motion-standards.md",
       "references/native-app.md",
+      "references/native-feedback.md",
+      "references/performance.md",
       "references/reference-capture-template.md",
-      "references/website.md",
-      "specialists/glass/GUIDE.md",
-      "specialists/glass/references/source-scan.md",
-      "specialists/motion/GUIDE.md",
-      "specialists/motion/README.md",
-      "specialists/motion/fluid.md",
-      "specialists/motion/native.md",
-      "specialists/motion/opportunities.md",
-      "specialists/motion/patterns/_index.md",
-      "specialists/motion/patterns/attention.md",
-      "specialists/motion/patterns/continuous.md",
-      "specialists/motion/patterns/entrance.md",
-      "specialists/motion/patterns/exit.md",
-      "specialists/motion/patterns/gesture.md",
-      "specialists/motion/patterns/layout.md",
-      "specialists/motion/patterns/showpiece.md",
-      "specialists/motion/patterns/spatial.md",
-      "specialists/motion/patterns/state.md",
-      "specialists/motion/principles.md",
-      "specialists/motion/reviews.md",
-      "specialists/motion/stack.md",
-      "specialists/motion/webview.md",
-      "specialists/static-creative/GUIDE.md",
-      "specialists/static-creative/evals/evals.json",
-      "specialists/static-creative/references/app.md",
-      "specialists/static-creative/references/frontend.md",
-      "specialists/static-creative/references/marketing.md",
-      "specialists/static-creative/references/ui-ux-pro-max/reference.md",
-      "specialists/surface-design/GUIDE.md"
+      "references/specialist-lenses.md",
+      "references/surfaces.md",
+      "references/typography.md",
+      "references/ui-ux-checklist.md",
+      "references/website-conversion-standards.md",
+      "references/website-regression-gotchas.md",
+      "references/website.md"
     ],
     "scripts": [],
-    "templates": [
-      "engine/huashu/assets/android_frame.jsx",
-      "engine/huashu/assets/animations.jsx",
-      "engine/huashu/assets/banner.svg",
-      "engine/huashu/assets/browser_window.jsx",
-      "engine/huashu/assets/deck_index.html",
-      "engine/huashu/assets/deck_stage.js",
-      "engine/huashu/assets/design_canvas.jsx",
-      "engine/huashu/assets/ios_frame.jsx",
-      "engine/huashu/assets/macos_window.jsx",
-      "engine/huashu/assets/narration_stage.jsx",
-      "engine/huashu/assets/personal-asset-index.example.json",
-      "engine/huashu/references/scene-templates.md",
-      "references/reference-capture-template.md"
-    ],
+    "templates": [],
     "schemas": [],
     "receipts": [],
     "evals": [
@@ -108,17 +71,13 @@
       "src/registry/skills/index.json",
       "src/lib/skills/resolver.mjs",
       "src/registry/routing/domains.json"
-    ],
-    "outputsPrunedOn": "2026-08-19",
-    "outputsRemoved": [
-      "references/portfolio-registry.md"
     ]
   },
   "files": [
     {
       "path": "SKILL.md",
       "uri": "legion-skill://designer/SKILL.md",
-      "digest": "sha256:ebedc7be49bec9b4f1f5b9c0bd21177862d16727c886f21708b1e87aff072e56"
+      "digest": "sha256:0008da1d8a5493af5bb98b60655cb6ab138b9aeba8a3abf23385253992c6be7b"
     },
     {
       "path": "engine/GUIDE.md",
@@ -478,7 +437,7 @@
     {
       "path": "engine/reference/interaction-design.md",
       "uri": "legion-skill://designer/engine/reference/interaction-design.md",
-      "digest": "sha256:8bf1e35f44a0d954db87e92095bcb005197bc12432d8aee17b2033552224d6c7"
+      "digest": "sha256:0e8c949d9c8ccb32ac4631dbffe6b7f0da71067a05a80646d94c64d5fd417720"
     },
     {
       "path": "engine/reference/layout.md",
@@ -976,14 +935,29 @@
       "digest": "sha256:5efb991109792579d613391cc42bbfe7f556f138523f28ca2de75a3e56adc60e"
     },
     {
+      "path": "references/craft-tests.md",
+      "uri": "legion-skill://designer/references/craft-tests.md",
+      "digest": "sha256:a2bd28e6aa6ac8f36632edef71c30fc3c4d73c9e2075d9792b4281bac82824c2"
+    },
+    {
       "path": "references/design-reference-library.md",
       "uri": "legion-skill://designer/references/design-reference-library.md",
       "digest": "sha256:d0b5cb8e4ece6f73ff2187e588a35de1c787605da7f81edb5972238915d07b48"
     },
     {
+      "path": "references/design-slop.md",
+      "uri": "legion-skill://designer/references/design-slop.md",
+      "digest": "sha256:23388a2d309b86bc8980bb5f1c7b1d485cde794b3781f4e7e721bbc6337b3074"
+    },
+    {
       "path": "references/manual.md",
       "uri": "legion-skill://designer/references/manual.md",
-      "digest": "sha256:af70b85027b22ea14bdbbaf02a0756459ec25cf4968aedaeada44ee4e5124c65"
+      "digest": "sha256:bd8f958bf5bd887f058f08df33d2548f867bd98f41a22262aca7c6395fd0dd15"
+    },
+    {
+      "path": "references/motion-standards.md",
+      "uri": "legion-skill://designer/references/motion-standards.md",
+      "digest": "sha256:9233f265123b67a4dbd643a55bc5407b73923dda1199870ec84d50ce90da9b1c"
     },
     {
       "path": "references/native-app.md",
@@ -991,14 +965,54 @@
       "digest": "sha256:518d9980586762acc43d36718f9dc2c6ef353b3ab591e5b4deb7ee573491294b"
     },
     {
+      "path": "references/native-feedback.md",
+      "uri": "legion-skill://designer/references/native-feedback.md",
+      "digest": "sha256:df4c574e1a1f47a1df4547617ecb000a51d93b6892e04034cae403c6d0f9e076"
+    },
+    {
+      "path": "references/performance.md",
+      "uri": "legion-skill://designer/references/performance.md",
+      "digest": "sha256:917da1447eb5c86a803f2f005143979fa214ce48e5ba41ee988e6d195e76c232"
+    },
+    {
       "path": "references/reference-capture-template.md",
       "uri": "legion-skill://designer/references/reference-capture-template.md",
       "digest": "sha256:3769415f4e2977fc29a910da0cdbcef8569d8c28b6ad90c225981f6c3f471955"
     },
     {
+      "path": "references/specialist-lenses.md",
+      "uri": "legion-skill://designer/references/specialist-lenses.md",
+      "digest": "sha256:6936ac6a7232671679946f8240f3d75e5c8d013f6fc5e4b323891f787859d7cb"
+    },
+    {
+      "path": "references/surfaces.md",
+      "uri": "legion-skill://designer/references/surfaces.md",
+      "digest": "sha256:a3be910d22bd39595c157071ce359958e186b1d71b84f1729a36d898800f704d"
+    },
+    {
+      "path": "references/typography.md",
+      "uri": "legion-skill://designer/references/typography.md",
+      "digest": "sha256:adcd567ea7ac7a8369e27964b8b0144a1505def8cea172fdcc0d974ccfe4548e"
+    },
+    {
+      "path": "references/ui-ux-checklist.md",
+      "uri": "legion-skill://designer/references/ui-ux-checklist.md",
+      "digest": "sha256:fff8e77280351854124548ee3593772f3be5c1026f814ba53ddfb57bfc6ad12d"
+    },
+    {
+      "path": "references/website-conversion-standards.md",
+      "uri": "legion-skill://designer/references/website-conversion-standards.md",
+      "digest": "sha256:752324b007190fc4d51c8f6236dfac82f30e751664a8f39cf985afda4cf6b3a9"
+    },
+    {
+      "path": "references/website-regression-gotchas.md",
+      "uri": "legion-skill://designer/references/website-regression-gotchas.md",
+      "digest": "sha256:f8c9bb9669fe234d9e23a4eea082d0c2ae973c57ad0a572bf63422194124ecda"
+    },
+    {
       "path": "references/website.md",
       "uri": "legion-skill://designer/references/website.md",
-      "digest": "sha256:f1a2866be7bc5ee9ffc741af6b33755681d7b97ebbc22f8ed4ac3844fd97b68b"
+      "digest": "sha256:ed87377c34d4ae1203ab43ca6b18b934c3d99bf46f8c994b63e0a13aea535008"
     },
     {
       "path": "specialists/glass/GUIDE.md",
@@ -1018,17 +1032,17 @@
     {
       "path": "specialists/motion/GUIDE.md",
       "uri": "legion-skill://designer/specialists/motion/GUIDE.md",
-      "digest": "sha256:7cb8ae56e3d466d9e86a0a2d6b22da638df3f529b90cf5894e1c539911b5ffbe"
+      "digest": "sha256:672a19ce437fa753fe064016a8ee9ebb7c6207d35fa622e3ec100eed7d30dfe6"
     },
     {
       "path": "specialists/motion/README.md",
       "uri": "legion-skill://designer/specialists/motion/README.md",
-      "digest": "sha256:774a7126c36426c4bf67da0704cff066f166115f811fb972b7e528799926772e"
+      "digest": "sha256:f88c85a10b59ef782c88a63d85e5a46d685270d2424069d3e3fa6535dd915baf"
     },
     {
       "path": "specialists/motion/fluid.md",
       "uri": "legion-skill://designer/specialists/motion/fluid.md",
-      "digest": "sha256:0e99cfb8d6793be7f275fb884952c8e1d166156140866e4a012e6a3fa0b8faee"
+      "digest": "sha256:24e00523ca1c3a541c148bee88726e24cf1980260848c7e76375af7127fe9bdc"
     },
     {
       "path": "specialists/motion/native.md",
@@ -1038,7 +1052,7 @@
     {
       "path": "specialists/motion/opportunities.md",
       "uri": "legion-skill://designer/specialists/motion/opportunities.md",
-      "digest": "sha256:4b9d002c6186a18e4a9e63d812cd88c98d19a821663faed06579599be5c31bf4"
+      "digest": "sha256:f02112891c2ac5a79b1b800402d8eba8b77de481b71585995f94faf8fdfed354"
     },
     {
       "path": "specialists/motion/patterns/_index.md",
@@ -1093,7 +1107,7 @@
     {
       "path": "specialists/motion/principles.md",
       "uri": "legion-skill://designer/specialists/motion/principles.md",
-      "digest": "sha256:3620460455b0bf7a0ea2bd855e701bce0017253e4dab3a1be1b83b44a3b372fb"
+      "digest": "sha256:40329390c4a879ddd9711e4418b3be3562e8cc9b39a95c8390ea8481ccfebc1a"
     },
     {
       "path": "specialists/motion/reviews.md",
@@ -1103,7 +1117,7 @@
     {
       "path": "specialists/motion/stack.md",
       "uri": "legion-skill://designer/specialists/motion/stack.md",
-      "digest": "sha256:fd69f43bbaff27eee62a0e52202e628be83e8ad877670d0f036efdd7dd41516b"
+      "digest": "sha256:e3ec777fa4474aeaf9eb58e46c5f18b818f29c57de9185d34e8f0e0033995ded"
     },
     {
       "path": "specialists/motion/webview.md",
@@ -1113,7 +1127,7 @@
     {
       "path": "specialists/static-creative/GUIDE.md",
       "uri": "legion-skill://designer/specialists/static-creative/GUIDE.md",
-      "digest": "sha256:9fdc9879f29e440f555b1884c2184502998a37cc75cc8919624f350b96a7d805"
+      "digest": "sha256:2a1befa1b28dab100a62c25e1edfc10e08a375f238c2c7321bbb95e00ab78992"
     },
     {
       "path": "specialists/static-creative/evals/evals.json",
@@ -1128,7 +1142,7 @@
     {
       "path": "specialists/static-creative/references/frontend.md",
       "uri": "legion-skill://designer/specialists/static-creative/references/frontend.md",
-      "digest": "sha256:7c29f425dbe6ebb992fb18b4b71e8adcb3d7959e15416b9e9723aebdddf4120d"
+      "digest": "sha256:dcfc313f2ac9f7c083b5492a05eceff97639a7205942d94a927e10e81da0ddea"
     },
     {
       "path": "specialists/static-creative/references/marketing.md",
@@ -1143,7 +1157,7 @@
     {
       "path": "specialists/surface-design/GUIDE.md",
       "uri": "legion-skill://designer/specialists/surface-design/GUIDE.md",
-      "digest": "sha256:61e9a6115ac8c47fdd905d11f94dbb931a617654b50147da528a6fe773cf2aa6"
+      "digest": "sha256:f87c0e9f1e437657ff7d415ec48ec38f906998b465a184c60ebf85bfdbf13040"
     }
   ]
 }

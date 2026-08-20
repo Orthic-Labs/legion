@@ -1,7 +1,7 @@
 # Legion host-integration implementation plan
 
 **Status:** active implementation plan
-**Governed by:** `docs/LEGION-CANONICAL-SSOT-v2.md` §36 and invariants I-19 … I-23
+**Governed by:** `docs/LEGION-CANONICAL-SSOT.md`; host projection is a deliberately lossy compatibility seam
 **Scope:** how canonical Legion semantics reach Claude Code, Codex, Gemini CLI, and
 AGENTS-only harnesses; how Arcane enforces effects on each; how failures are diagnosed.
 

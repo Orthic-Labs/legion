@@ -56,7 +56,7 @@ export const OPERATION_MAP = JSON.parse(readFileSync(path.join(compatDir, 'opera
 
 export const DISPOSITIONS = Object.freeze(Object.keys(SCHEMA_MAP.dispositionVocabulary));
 
-const LEGACY_INVENTORY_REF = 'docs/plans/legion/s00-baseline/legacy-semantic-inventory.json';
+const LEGACY_INVENTORY_REF = 'src/packages/arcane/compatibility/forge/schema-map.json';
 
 /** Legacy store table name -> the record-type entry that describes it. */
 const BY_KIND = new Map(SCHEMA_MAP.recordTypes.map((rt) => [rt.legacyKind, rt]));
@@ -337,7 +337,7 @@ export function migrationDryRun({ capturedAt }) {
     baseline: SCHEMA_MAP.baseline,
     capturedAt,
     source: {
-      root: 'docs/plans/legion/s00-baseline/fixtures',
+      root: 'compatibility-fixture:docs/plans/legion/s00-baseline/fixtures',
       fixtureCount: perFixture.length,
       recordCount: sourceRecords.length,
       digest: digestValue(sourceRecords),
@@ -357,7 +357,7 @@ export function migrationDryRun({ capturedAt }) {
     },
     perFixture,
     rollback: {
-      source: 'docs/plans/legion/s00-baseline/fixtures (unmodified; the legacy store is read-only to this bridge)',
+      source: 'compatibility fixture docs/plans/legion/s00-baseline/fixtures (read-only)',
       method: 'reverseEnvelope(envelope) restores the legacy payload exactly; no destructive rewrite occurred, so rollback is a no-op on the source.',
       reversible: reversedMatches,
     },

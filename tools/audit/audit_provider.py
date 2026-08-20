@@ -8,7 +8,7 @@ deliberately suppressed — they do not rank as active findings (G4 acceptance
 rule #3) and they MUST NOT surface to the planner.
 
 The adapter owns ONLY admission; the planner owns ranking, deduplication, and
-budget enforcement. G5 (federation) wires this adapter through the central
+budget enforcement. Capability federation wires this adapter through the central
 catalog; G4 keeps the boundary narrow on purpose.
 
 Identity passthrough: candidate IDs are the *finding IDs* from the typed

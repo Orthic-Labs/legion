@@ -5,8 +5,8 @@
 // the requested work is complete and verified, or a reserved blocker names the
 // exact missing input only the operator can supply. Ending with a permission question
 // ("say go", "shall I"), an unresolved caveat, or a promise of future work is a
-// stop-short: the agent should have resolved it (itself → Sage → Covenant →
-// best judgement) before ending the turn.
+// stop-short: the agent should have resolved it directly, or used Sage only
+// for material unresolved meaning/ownership/acceptance, before ending the turn.
 //
 // Two failure modes this gate must never have, both observed in production:
 //
@@ -353,23 +353,23 @@ export function recordedThisTurn(transcriptText) {
   return false;
 }
 
-// Evidence that the escalation ladder was actually walked before blocking: a
-// Sage or Covenant dispatch somewhere in this session. Matched against the raw
+// Evidence that a reserved decision reached its authority owner before blocking:
+// a Sage dispatch somewhere in this session. Matched against the raw
 // transcript (which carries tool-call JSON), so it sees a real dispatch rather
 // than the agent's prose claim of one — the same reason receipts beat sentences
 // everywhere else in this system.
-const ESCALATION_EVIDENCE = /"subagent_type"\s*:\s*"(?:legion:)?(?:sage|covenant-seat)"|\/covenant\b|(?:^|\s)@sage\b/i;
+const ESCALATION_EVIDENCE = /"subagent_type"\s*:\s*"(?:legion:)?sage"|(?:^|\s)@sage\b/i;
 
 export function escalatedThisSession(transcriptText) {
   return typeof transcriptText === 'string' && ESCALATION_EVIDENCE.test(transcriptText);
 }
 
-// The escalation ladder (doctrine: resolve → Sage → Covenant → best call →
-// stop). Each push instructs the NEXT rung and never repeats the last one: a
+// Resolution sequence: direct resolution, then Sage only for a material
+// unresolved decision, then best bounded call. Each push advances it: a
 // gate that repeats itself teaches reformatting, not progress.
 const ESCALATION = [
-  'Resolve it yourself now; if it needs an engineering decision, dispatch Sage.',
-  'Sage did not settle it: convene Covenant, or make the best decision yourself and record the reasoning. Re-verify the blocker against CURRENT state before re-asserting it — a blocker observed earlier in a session is often already stale.',
+  'Resolve it yourself now; dispatch Sage only if material meaning, ownership, or acceptance remains unresolved.',
+  'Make the best bounded decision from settled doctrine and record the reasoning. Re-verify the blocker against CURRENT state before re-asserting it — a blocker observed earlier in a session is often already stale.',
 ];
 
 export function lastAssistantText(raw) {
@@ -467,9 +467,9 @@ export function evaluateStopShape(finalText, { intent = 'EXECUTE', pushes = 0, r
       // emitting it was cheaper than doing the work — the gate taught the very
       // laundering it existed to stop.
       //
-      // Doctrine's ladder is resolve -> Sage -> Covenant -> block. So a blocker
-      // must SHOW the ladder was walked. This is not a format check: it looks
-      // for an actual Sage/Covenant dispatch in the session transcript. If the
+      // A materially unresolved reserved decision belongs to Sage. A blocker
+      // must SHOW that authority was used. This is not a format check: it looks
+      // for an actual Sage dispatch in the session transcript. If the
       // question was genuinely undecided, that dispatch already happened; if it
       // was already answered, Sage says so and no blocker is needed. Either way
       // blocking is now more expensive than resolving, which is the correct
@@ -478,7 +478,7 @@ export function evaluateStopShape(finalText, { intent = 'EXECUTE', pushes = 0, r
       return {
         block: true,
         shape: 'unescalated-blocker',
-        instruction: 'Your blocker names a real category but shows no escalation. The ladder is: resolve it yourself, then dispatch Sage, then convene Covenant, and only then block. Nothing in this session shows Sage or Covenant was consulted. If the operator asked for it, intended it, or it is obvious, it is not a reserved decision — do it. If it is genuinely ambiguous, dispatch Sage now and block only if Sage cannot settle it.',
+        instruction: 'Your blocker names a real category but shows no authority resolution. Resolve settled work directly. If material meaning, ownership, or acceptance remains unresolved, dispatch Sage now and block only if Sage cannot settle it.',
       };
     }
     return {

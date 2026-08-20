@@ -66,4 +66,10 @@ test('routing compatibility preserves provider/audit lens ids', () => {
   const report = validateCommercialLenses(ROOT);
   assert.equal(report.ok, true, JSON.stringify(report.findings));
   assert.deepEqual(report.lensIds, expected);
+  for (const id of report.lensIds) {
+    const lens = JSON.parse(readFileSync(resolve(ROOT, 'src/lenses', `${id}.json`), 'utf8'));
+    assert.equal(Object.hasOwn(lens, 'targetType'), false);
+    assert.equal(Object.hasOwn(lens, 'targetRef'), false);
+    assert.equal(typeof lens.group === 'string' || lens.group === null, true);
+  }
 });

@@ -347,7 +347,7 @@ def authority_packet_errors(packet: object, artifact: Path) -> tuple[list[str], 
             errors.append("direct packet requires bounded recovery and return contract")
     elif packet_type == "sage":
         route = packet.get("routeBundle")
-        if not isinstance(route, dict) or not re.search(r"sage-(architect|diagnose)", str(route.get("path", ""))): errors.append("Sage packet requires sage-architect or sage-diagnose route bundle")
+        if not isinstance(route, dict) or not re.search(r"sage-adjudication(?:\.[a-z0-9]+)?$", str(route.get("path", ""))): errors.append("Sage packet requires an exceptional sage-adjudication route bundle")
         else: reference(route, "Sage route bundle")
     elif packet_type == "seer":
         lens = packet.get("lens"); scope = packet.get("scope"); oracle = packet.get("oracle")

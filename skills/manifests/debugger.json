@@ -24,10 +24,9 @@
     }
   },
   "parity": {
-    "frozenAt": "2026-08-14",
     "triggers": [
       "/debugger",
-      "Route known engineering failures, crashes, regressions, wrong data, intermittent tests, or unexplained slowness to Sage Diagnose. Do not use for preflight or completion-only verification."
+      "Diagnosis capability for reproducing failures, isolating evidence, forming disconfirmable hypotheses, establishing root cause, and selecting routine repairs. Do not use for preflight or completion-only verification."
     ],
     "outputs": [
       "references/manual.md"
@@ -49,7 +48,7 @@
     {
       "path": "SKILL.md",
       "uri": "legion-skill://debugger/SKILL.md",
-      "digest": "sha256:219fa81e4f49af6ccc04f11784055845eda69232901bf557726fcf9ef7f28196"
+      "digest": "sha256:0cdb2634cd81d27df697adbfc3ac98f87d0401e7d8f204848c1242068f1ce30d"
     },
     {
       "path": "evals/evals.json",

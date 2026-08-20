@@ -2,7 +2,8 @@
 name: designer-static
 description: >
   Static creative owner — flyers, social posts, OG images, banners, ad creatives, print, packaging inserts.
-  Routes websites + product/app UI → /designer, frontend critique → /audit-visual,
+  Routes websites + product/app UI & qualitative frontend critique → /designer,
+  rendered-state coverage/regression evidence → /audit-visual,
   brand systems → /brand-identity. Do NOT use for interactive app/web design or visual QA.
 argument-hint: "flyer | social | OG | banner | print | ad creative | <medium>"
 ---
@@ -18,7 +19,9 @@ packaging inserts, print, lookbook spreads. It is NOT the primary route for inte
 |---|---|
 | Product/app/dashboard UI design | `/designer` |
 | Marketing site, landing page, web page | `/designer` |
-| Frontend visual review / polish / QA | `/audit-visual` (owns the strict rendered frontend/UI audit gate) |
+| Frontend qualitative critique / polish | `/designer critique` |
+| Rendered-state enumeration / capture / regression evidence | `/audit-visual` |
+| Functional / behavioral / browser / runtime checks | `/qa` |
 | Brand system, identity, color/type lock | `/brand-identity` |
 | Blog/SEO page | `/writing blog` + `/seo` |
 | Flyer, social post, OG image, banner, ad creative, print | **this skill → `references/marketing.md`** |

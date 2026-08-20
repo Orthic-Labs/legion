@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "legion-result-v1",
   "title": "LegionResult",
-  "description": "Canonical top-level Legion result (IMPLEMENTATION-PLAN.md §7.12: 'Contains invocation state, domain outcome, claim boundary, artifacts, warnings, next actions, and typed error.'). Run/request-level aggregate returned to the caller across possibly-many operations; distinct from legion-operation-envelope-v1's per-operation OperationResult, which this may aggregate over (resultOf). Shares the invocationState/domainOutcome/claimBoundary triad by explicit WP2 instruction and I-09 orthogonality.",
+  "description": "Canonical top-level Legion result. This run/request aggregate preserves invocation state, domain outcome, & claim boundary as orthogonal dimensions.",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -29,7 +29,7 @@
 
     "authoritiesInvolved": {
       "type": "array",
-      "items": { "enum": ["legion", "sage", "alchemist", "oracle", "arcane", "covenant", "kernel"] }
+      "items": { "enum": ["legion", "sage", "alchemist", "oracle", "arcane", "kernel"] }
     },
 
     "artifacts": { "type": "array", "items": { "type": "string" } },

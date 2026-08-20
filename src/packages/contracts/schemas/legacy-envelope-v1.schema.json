@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "legion-legacy-envelope-v1",
   "title": "LegacyEnvelope",
-  "description": "Minimal typed extension point for legacy Forge receipt compatibility (per WP2 task brief: 'define it minimally: opaque payload + provenance + provisional mapping ref'). S00 completed concurrently with this freeze and produced docs/plans/legion/s00-baseline/legacy-semantic-inventory.json (11 record types, 19 status/verdict/state vocabularies, every entry file:line-cited) plus 12 real record fixtures under s00-baseline/fixtures/. This schema binds to that inventory by reference (path + record-type name) rather than re-modeling Forge's internal record shapes — S00's report is explicit that 'no canonical target mapping was produced (WP2 contracts are not frozen)', so provisionalMappingRef stays provisional here by design; final incorporation happens at coordinator seal.",
+  "description": "Minimal typed envelope for read-only historical Forge compatibility: opaque payload, provenance, & provisional mapping reference. Compatibility records never become canonical semantic owners.",
   "type": "object",
   "additionalProperties": false,
   "required": ["schemaVersion", "kind", "legacyKind", "payload", "provenance", "provisionalMappingRef"],
@@ -13,7 +13,7 @@
     "legacyKind": {
       "type": "string",
       "minLength": 1,
-      "description": "Identifies the legacy record family being wrapped. Values SHOULD be drawn from docs/plans/legion/s00-baseline/legacy-semantic-inventory.json's record_types (e.g. 'orthic.tool-receipt.v1', 'orthic.observable-event.v1', 'runs', 'claims', 'evidence', 'checks', 'decisions', 'retry_budget', 'failures', 'session_bindings / task_bindings', 'rubrics', 'memory_candidates') — not a closed enum here because that inventory, not this contract, owns the authoritative list and may grow at S01+."
+      "description": "Identifies a historical Forge record family wrapped for compatibility. Current mapping provenance lives under src/packages/arcane/compatibility/forge/."
     },
     "payload": {
       "description": "Opaque legacy payload, preserved byte-for-byte in structure. Intentionally unconstrained (no additionalProperties restriction) since its shape belongs to the legacy producer, not to this contract. For provenance.legacyInventoryRecordType == 'orthic.tool-receipt.v1', see the S00 report's explicit warning: the payload's 'signature_or_mac' field is a self-hash by the same untrusted process that built the receipt, not authentication — do not treat a non-null payload.signature_or_mac as proof of anything beyond payload integrity-at-capture."
@@ -29,7 +29,7 @@
         "importedBy": { "type": ["string", "null"], "description": "Identity of the translator/adapter that produced this envelope." },
         "legacyInventoryRef": {
           "type": "string",
-          "default": "docs/plans/legion/s00-baseline/legacy-semantic-inventory.json",
+          "default": "src/packages/arcane/compatibility/forge/schema-map.json",
           "description": "Path to the S00 inventory document that defines legacyKind's original field list, status vocabulary, and store mechanics. Reference target, not a shape to duplicate here."
         },
         "legacyInventoryRecordType": {

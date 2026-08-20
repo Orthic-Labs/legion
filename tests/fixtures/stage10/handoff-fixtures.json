@@ -10,8 +10,8 @@
   ],
   "required_phrases": {
     "doctrine/sage.md": ["freeze a handoff record", "immutable acceptance IDs", "cutover obligations", "file/artifact consumption", "maximal ready antichain", "shared-contract writes, integration, commits, pins, & pushes"],
-    "doctrine/alchemist.md": ["Advance only acceptance IDs frozen", "event & checkpoint", "delivery deficit", "Diagnose only when Sage's contract explicitly triggers", "Forward-test", "CANDIDATE | BLOCKED"],
-    "doctrine/oracle.md": ["Completion Validation", "raw user turns", "do not run or rerun tests", "PASS", "BLOCK", "Create no file, receipt, ledger, evidence packet", "sealed independent packet", "Preserve every finding", "First apply dismissal gates", "cannot expand acceptance", "fresh evidence from the resulting exact state", "material resulting-state/evidence delta"],
+    "doctrine/alchemist.md": ["Advance only acceptance IDs frozen", "event & checkpoint", "delivery deficit", "Invoke Debugger when root-cause work becomes necessary", "Forward-test", "CANDIDATE | BLOCKED"],
+    "doctrine/oracle.md": ["Completion Validation", "raw user turns", "do not run or rerun tests", "PASS", "BLOCK", "Create no file, receipt, ledger, evidence packet", "ephemeral chat packet", "Block only incorrect requested behavior", "never duplicates their methods", "material resulting-state/evidence delta"],
     "doctrine/covenant-seat.md": ["one-shot advisory review", "no authority", "neither dispatches a successor nor opens"],
     "doctrine/legion.md": ["routing and orchestration reference", "constrained by", "completion validation", "never copies a stage DAG", "maximal ready antichain"]
   },

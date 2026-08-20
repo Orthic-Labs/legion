@@ -1,6 +1,6 @@
 ---
 name: designer
-description: "Create, redesign, or polish websites, app UI, dashboards, components, static creative, print, motion systems, glass materials, illustration direction, and frontend craft. Route review-only work to Audit Visual and identity systems to Brand Identity."
+description: "Create, critique, redesign, or polish websites, app UI, dashboards, components, static creative, print, motion systems, glass materials, illustration direction, and frontend craft. Route deterministic rendered-state coverage/regression evidence to Audit Visual and identity systems to Brand Identity."
 kind: capability
 capabilityClass: domain
 discoverability: public
@@ -33,4 +33,4 @@ Load `/brand` when branded. Choose draft for exploration or ship for production.
 - Slides or motion render: `engine/huashu/GUIDE.md`.
 - Motion: `specialists/motion/GUIDE.md`; glass: `specialists/glass/GUIDE.md`; illustration direction: `specialists/illustration/GUIDE.md`.
 
-Read one branch only. Read `references/manual.md` for mixed, production, or unfamiliar work. Freeze content, truth, platform, states, dimensions, accessibility, & acceptance. Build one exemplar before scaling. Reuse existing tokens & components. Inspect rendered states at target sizes. Route review-only work to Audit Visual & identity creation to Brand Identity.
+Read one branch only. Read `references/manual.md` for mixed, production, or unfamiliar work. Freeze content, truth, platform, states, dimensions, accessibility, & acceptance. Build one exemplar before scaling. Reuse existing tokens & components. Inspect rendered states at target sizes. Designer owns qualitative critique & remediation. Route deterministic rendered-state coverage/regression evidence to Audit Visual, functional/runtime checks to QA, & identity creation to Brand Identity.

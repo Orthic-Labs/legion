@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "legion-run-identity-v1",
   "title": "RunIdentity",
-  "description": "Workspace/repo/revision/dirty-digest binding for a Legion run. Grounded in IMPLEMENTATION-PLAN.md §7.1 'Source identity' (workspace, repository, revision, dirty digest, release candidate, Cortex generation, policy, timestamp) and aligned in field intent with the existing legion schemas/core/binding-v1.schema.json (repository, revision, dirtyOverlayDigest, registryDigests) without importing or modifying it.",
+  "description": "Workspace/repository/revision/dirty-digest source identity binding for a Legion run.",
   "type": "object",
   "additionalProperties": false,
   "required": ["schemaVersion", "kind", "runId", "workspace", "repository", "revision", "dirtyDigest", "capturedAt"],
@@ -36,11 +36,11 @@
     },
     "releaseCandidate": {
       "type": ["string", "null"],
-      "description": "Release-candidate label bound to this run, when applicable (IMPLEMENTATION-PLAN §7.1)."
+      "description": "Release-candidate label bound to this run, when applicable."
     },
     "cortexGeneration": {
       "type": ["string", "null"],
-      "description": "Cortex generation identifier the run's context bound to (IMPLEMENTATION-PLAN §7.1, Workstream F)."
+      "description": "Cortex generation identifier bound to this run's context."
     },
     "policyDigest": {
       "type": ["string", "null"],

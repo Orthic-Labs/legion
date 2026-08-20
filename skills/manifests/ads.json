@@ -23,13 +23,10 @@
       "externalOnly": true
     }
   },
-  "noFabrication": true,
-  "approvedWordsRequireRevision": false,
   "parity": {
-    "frozenAt": "2026-08-14",
     "triggers": [
       "/ads",
-      "\"Audit, plan, create, or optimize paid campaigns across Google, Meta, YouTube, LinkedIn, TikTok, Microsoft, or Apple. Use for PPC, ROAS, CPA, targeting, bidding, retargeting, budgets, creative, or ad-spend questions.\""
+      "Audit, plan, create, or optimize paid campaigns across Google, Meta, YouTube, LinkedIn, TikTok, Microsoft, or Apple. Use for PPC, ROAS, CPA, targeting, bidding, retargeting, budgets, creative, or ad-spend questions."
     ],
     "outputs": [
       "references/ad-copy-templates.md",
@@ -76,10 +73,7 @@
       "references/youtube.md"
     ],
     "scripts": [],
-    "templates": [
-      "references/ad-copy-templates.md",
-      "references/brand-dna-template.md"
-    ],
+    "templates": [],
     "schemas": [],
     "receipts": [],
     "evals": [

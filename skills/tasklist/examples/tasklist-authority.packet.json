@@ -2,15 +2,17 @@
   "schemaVersion": 1,
   "kind": "legion-authority-dispatch",
   "packetType": "sage",
-  "sourceRevision": "adb742c",
-  "promptDigest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+  "sourceRevision": "sha256:46491cf58935064e37270fc11b6427fe02a4ea83862f4b131cdc89e164a27017",
+  "sourceArtifact": "skills/tasklist/SKILL.md",
+  "promptArtifact": "skills/tasklist/examples/tasklist-authority.prompt.txt",
+  "promptDigest": "sha256:b4941bde55284b98512ba83b3d4529c5b1637fad825c3ea90e362b5cc15db6e9",
   "modelRouting": {
     "modelTier": "FRONTIER",
     "workerProfile": "strict",
     "routingRationale": "tasklist durable route"
   },
   "routeBundle": {
-    "path": "skills/tasklist/examples/sage-architect.route.json",
+    "path": "skills/tasklist/examples/sage-adjudication.json",
     "digest": "sha256:ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356"
   }
 }

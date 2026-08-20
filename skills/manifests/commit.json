@@ -24,10 +24,9 @@
     }
   },
   "parity": {
-    "frozenAt": "2026-08-14",
     "triggers": [
       "/commit",
-      "\"Review, verify, commit, & push one frozen diff through Legion's guarded Commit workflow. Use for /commit, review and commit, or commit and push.\""
+      "Review, verify, commit, & push one frozen diff through Legion's guarded Commit workflow. Use for /commit, review and commit, or commit and push."
     ],
     "outputs": [
       "references/manual.md"
@@ -44,10 +43,6 @@
       "src/registry/skills/index.json",
       "src/lib/skills/resolver.mjs",
       "src/registry/routing/domains.json"
-    ],
-    "outputsPrunedOn": "2026-08-19",
-    "outputsRemoved": [
-      "references/legacy-workspace-skill.md"
     ]
   },
   "files": [

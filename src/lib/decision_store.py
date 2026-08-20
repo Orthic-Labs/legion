@@ -1,6 +1,6 @@
 """Architect decision store — durable JSONL backing for ArchitectDecisionV1.
 
-Lane-owned (G5 Lane A). Persists typed decision records to a per-repository
+Architect-owned decision store. Persists typed decision records to a per-repository
 JSONL store at `.audit/architect/decisions.jsonl`. Owns the stable-ID
 derivation so that the same logical decision gets the same id across
 re-saves, worktrees, and machines (modulo repository identity).

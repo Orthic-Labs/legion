@@ -1,6 +1,6 @@
 // Deliverable 6 — the PRE-EFFECT GATE.
 //
-// ARCHITECTURE §24a names exactly what this gate checks:
+// Arcane's canonical enforcement boundary names exactly what this gate checks:
 //   "capability check, path ownership, effect-class authorization,
 //    contract version, latitude class (EXACT/BOUNDED)"
 // and exactly how it degrades:
@@ -8,9 +8,8 @@
 //    closed; read-only operations may continue with a recorded
 //    enforcement-health downgrade."
 //
-// It is the enforcement point for G2 (no product-state mutation without a
-// bounded executable contract) and G9 (open questions make a contract
-// non-executable).
+// It enforces contract requirements where governed execution applies & always
+// refuses execution while unresolved questions remain.
 //
 // Two decisions worth stating, because both are places the legacy system got
 // it wrong:
@@ -387,7 +386,7 @@ export class PreEffectGate {
         decision: decision({
           allowed: false,
           code: 'ARC_GATE_UNAVAILABLE',
-          message: 'pre-effect gate unavailable; mutation-bearing operations fail closed (ARCHITECTURE §24a)',
+          message: 'pre-effect gate unavailable; mutation-bearing operations fail closed',
           detail: {
             policy: Boolean(this.#policy && !this.#policy.failClosed),
             capabilityStore: Boolean(this.#capabilityStore),
@@ -459,14 +458,14 @@ export class PreEffectGate {
       };
     }
 
-    // 6. G9 — open questions make a contract non-executable.
+    // 6. Open questions make a contract non-executable.
     if (Array.isArray(contract.openQuestions) && contract.openQuestions.length > 0) {
       return {
         hardFail: false,
         deny: decision({
           allowed: false,
           code: 'ARC_CONTRACT_NOT_EXECUTABLE',
-          message: `contract ${contract.contractId} has ${contract.openQuestions.length} open question(s) (G9)`,
+          message: `contract ${contract.contractId} has ${contract.openQuestions.length} unresolved open question(s)`,
           detail: { openQuestions: contract.openQuestions.map((q) => q.id) },
         }),
         contract,
@@ -623,7 +622,7 @@ export class PreEffectGate {
     if (!this.available()) {
       return decision({
         allowed: true,
-        message: 'read-only operation continuing with degraded enforcement (ARCHITECTURE §24a)',
+        message: 'read-only operation continuing with recorded degraded enforcement',
         detail: { target, turnId, degraded: true, reason: this.#policy?.reason ?? 'gate unavailable' },
         enforcementHealth: 'read_only',
       });

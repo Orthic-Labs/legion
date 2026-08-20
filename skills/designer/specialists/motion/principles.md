@@ -176,7 +176,7 @@ Motion has tempo. Establish it explicitly per scene.
 
 ## 6. Easing library (canonical)
 
-Easing carries meaning. Different curves communicate different things. **Locked values** — these match `skills/audit-visual/references/motion-standards.md`. Drift breaks producer/reviewer contract.
+Easing carries meaning. Different curves communicate different things. **Locked values** — these match `skills/designer/references/motion-standards.md`. Drift breaks producer/reviewer contract.
 
 | Curve | CSS value | Motion value | Use when |
 |---|---|---|---|

@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "legion-evidence-capability-receipt-v1",
   "title": "EvidenceCapabilityReceipt",
-  "description": "Canonical evidence-capability receipt (IMPLEMENTATION-PLAN.md §7.10: a reusable, consumer-independent observation evaluated by Sage acceptance, Arcane proof, and Oracle controls without transferring authority). Distinct from the existing legion schemas/controls/evidence-capability-v1.schema.json, which models capability *availability* (id/available/owner/reason); this object models the *observation itself*, produced after execution, and is dependency-bound per ARCHITECTURE §34 (evidence goes stale when a decision it depends on changes).",
+  "description": "Reusable consumer-independent evidence observation produced after execution. It transfers no authority & becomes stale when a bound dependency changes.",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -19,7 +19,7 @@
     "taskId": { "type": ["string", "null"], "pattern": "^T-\\d+(\\.\\d+)*$" },
     "contractId": { "type": ["string", "null"], "pattern": "^EC-\\d+$" },
 
-    "producerAuthority": { "enum": ["legion", "sage", "alchemist", "oracle", "arcane", "covenant", "kernel"] },
+    "producerAuthority": { "enum": ["legion", "sage", "alchemist", "oracle", "arcane", "kernel"] },
     "capability": {
       "type": "string",
       "minLength": 1,
@@ -27,7 +27,7 @@
     },
     "observation": {
       "type": "object",
-      "description": "Producer-specific structured observation payload (command/exit-code/artifact refs, or a structural finding). Deliberately opaque here: the shape varies per capability and is not specified by ARCHITECTURE/IMPLEMENTATION-PLAN beyond 'reusable, consumer-independent'."
+      "description": "Producer-specific structured observation payload. Deliberately opaque here because shape varies by evidence capability."
     },
 
     "evidenceClass": {
@@ -72,14 +72,14 @@
           "ref": { "type": "string", "minLength": 1 }
         }
       },
-      "description": "ARCHITECTURE §34: dependency-aware invalidation. When any dependsOn entry changes, this receipt becomes stale."
+      "description": "Dependency-aware invalidation inputs. When any entry changes, this receipt becomes stale."
     },
     "stale": { "type": "boolean", "default": false },
 
     "consumers": {
       "type": "array",
       "items": { "enum": ["sage-acceptance", "arcane-proof", "oracle-control"] },
-      "description": "IMPLEMENTATION-PLAN §7.10: which of the three consumer classes may evaluate this receipt."
+      "description": "Consumer classes permitted to evaluate this receipt."
     },
 
     "observedAt": { "type": "string", "format": "date-time" }

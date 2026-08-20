@@ -1,4 +1,4 @@
-# UI/UX Depth Checklist (audit-visual)
+# UI/UX Depth Checklist (Designer)
 
 Extra-depth checklist to pull from during a review — especially the areas the
 4-pass protocol covers more thinly: **WCAG 2.1 AA accessibility (45-56)**,

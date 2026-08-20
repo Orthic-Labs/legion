@@ -23,13 +23,10 @@
       "externalOnly": true
     }
   },
-  "noFabrication": true,
-  "approvedWordsRequireRevision": true,
   "parity": {
-    "frozenAt": "2026-08-14",
     "triggers": [
       "/brand-identity",
-      "\"Create, audit, evolve, or apply brand identities, systems, guidelines, visual identity, voice, naming, logo direction, brand books, rebrands, website or app identity, pitch decks, or social kits.\""
+      "Create, audit, evolve, or apply brand identities, systems, guidelines, visual identity, voice, naming, logo direction, brand books, rebrands, website or app identity, pitch decks, or social kits."
     ],
     "outputs": [
       "references/brand-registry.md",

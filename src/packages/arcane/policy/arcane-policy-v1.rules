@@ -3,7 +3,7 @@ allow FILE_WRITE approval=none trust=capability-signature enforcement=strong not
 allow FILE_DELETE approval=required trust=capability-signature enforcement=strong note="Deletion is not recoverable from the diff alone, so it carries an approval digest."
 allow FILE_MOVE approval=none trust=capability-signature enforcement=strong
 allow COMMAND_EXEC approval=none trust=capability-signature enforcement=strong note="A command's *effects* are gated by the receipts it produces; exec itself is allowed under a capability. An unknown exit-0 command is an observation, never proof (S04)."
-allow NETWORK_EGRESS approval=none trust=capability-signature enforcement=observed note="Downgraded to 'observed' honestly: no host adapter in this baseline can broker egress, so claiming 'strong' would be a lie (ARCHITECTURE §24a)."
+allow NETWORK_EGRESS approval=none trust=capability-signature enforcement=observed note="Downgraded to 'observed' honestly: no host adapter in this baseline can broker egress, so claiming 'strong' would be false."
 allow PROCESS_SPAWN approval=none trust=capability-signature enforcement=observed
 deny CREDENTIAL_ACCESS approval=required trust=capability-signature enforcement=strong note="Denied by default. Arcane never prints or inspects credentials; a policy that wants this must say so explicitly, and even then the gate refuses without an approval digest."
 allow DEPENDENCY_INSTALL approval=required trust=capability-signature enforcement=strong note="Mutates the lockfile dimension, which stales dependent evidence (S05). Approval-bound so the invalidation is never a surprise."

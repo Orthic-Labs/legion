@@ -13,11 +13,11 @@ export class TaskBudgetSealStore {
   #path(contractId, taskId, contractVersion) { return stateFile(this.#root, 'arcane.task-budget-seal.v1', [contractId, taskId, String(contractVersion)]); }
   #read(path) { try { const value = JSON.parse(readFileSync(path, 'utf8')); if (schema.validate('arcane-task-budget-seal-v1', value).length) fail('ARC_STORE_CORRUPT', 'invalid task budget seal'); return value; } catch (error) { if (error instanceof ArcaneError) throw error; fail('ARC_STORE_CORRUPT', 'unreadable task budget seal'); } }
   seal({ contract, task, authorityAssertion }) {
-    if (!authorityAssertion || authorityAssertion.authority !== 'sage' || authorityAssertion.verificationMethod !== 'capability-signature' || authorityAssertion.perMessage !== true || !authorityAssertion.assertedBy) fail('ARC_SCHEMA_INVALID', 'only Sage may seal a task budget');
+    if (!authorityAssertion || !['legion', 'sage'].includes(authorityAssertion.authority) || authorityAssertion.verificationMethod !== 'capability-signature' || authorityAssertion.perMessage !== true || !authorityAssertion.assertedBy) fail('ARC_SCHEMA_INVALID', 'only Legion or Sage may seal a task budget');
     const budget = task.budgetSeal; if (!budget || budget.contractId !== contract.contractId || budget.contractVersion !== contract.version || budget.contractDigest !== digestValue(contract)) fail('ARC_BINDING_MISMATCH', 'task budget contract binding mismatch');
     const { budgetSeal: _budgetSeal, ...unsignedTask } = task;
     if (budget.taskDigest !== digestValue(unsignedTask) || budget.scopeDigest !== digestValue(task.ownScope)) fail('ARC_BINDING_MISMATCH', 'task budget task or scope binding mismatch');
-    const record = { schemaVersion: 1, kind: 'arcane-task-budget-seal', ...budget, taskId: task.taskId, sealedBy: { authority: 'sage', assertedBy: authorityAssertion.assertedBy, verificationMethod: 'capability-signature', perMessage: true }, sealedAt: this.#clock() };
+    const record = { schemaVersion: 1, kind: 'arcane-task-budget-seal', ...budget, taskId: task.taskId, sealedBy: { authority: authorityAssertion.authority, assertedBy: authorityAssertion.assertedBy, verificationMethod: 'capability-signature', perMessage: true }, sealedAt: this.#clock() };
     record.authentication = signRecord(record, { keyRing: this.#keyRing, keyId: this.#keyId, boundFields: TASK_BUDGET_SEAL_BOUND_FIELDS, macDomain: 'arcane-task-budget-seal-v1' });
     if (schema.validate('arcane-task-budget-seal-v1', record).length) fail('ARC_SCHEMA_INVALID', 'invalid task budget seal');
     const path = this.#path(record.contractId, record.taskId, record.contractVersion); mkdirSync(this.#root, { recursive: true });

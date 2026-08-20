@@ -7,7 +7,7 @@ It is intentionally separate from:
 
 * the Crypt durable-memory database (different storage boundary; G4 owns its
   own file so the durable-memory authority is preserved),
-* the central planner catalog (federation wiring in G5),
+* the central provider catalog (capability-federation wiring),
 * the raw ``.audit/<ts>/report.json`` artifact (still produced by the existing
   renderer; treated as a read-only import source — the planner reads the typed
   store, not the prose report).

@@ -24,14 +24,11 @@
     }
   },
   "parity": {
-    "frozenAt": "2026-08-14",
     "triggers": [
       "/covenant",
-      "Convene Legion's independent challenge chamber for a Sage decision, an Alchemist blocker, or packet-only review preparation. Use /covenant."
+      "Convene Legion's optional independent challenge chamber for a named decision, work artifact, blocker, or packet-only review preparation. Use /covenant."
     ],
-    "outputs": [
-      "assets/external-review-packet-template.md"
-    ],
+    "outputs": [],
     "scripts": [
       "scripts/test_validate_external_review_packet.py",
       "scripts/validate-external-review-packet.py"
@@ -53,17 +50,13 @@
       "src/registry/skills/index.json",
       "src/lib/skills/resolver.mjs",
       "src/registry/routing/domains.json"
-    ],
-    "outputsPrunedOn": "2026-08-19",
-    "outputsRemoved": [
-      "references/legacy-workspace-skill.md"
     ]
   },
   "files": [
     {
       "path": "SKILL.md",
       "uri": "legion-skill://covenant/SKILL.md",
-      "digest": "sha256:6dbbe9952d53b3e22ab7fe72a00c19b354037efeeea94ba27db946befed2a9c1"
+      "digest": "sha256:d52c657b06be0bb7cadd0b4a99e4681f6100c398d9a856aa5926f7edbd2a0b7d"
     },
     {
       "path": "assets/external-review-packet-template.md",
@@ -103,12 +96,12 @@
     {
       "path": "lib/schemas/covenant-record-v1.schema.json",
       "uri": "legion-skill://covenant/lib/schemas/covenant-record-v1.schema.json",
-      "digest": "sha256:69bd24e42baa0ebcab10dd3af438a44d4a5f30abcb084d4f4026cb34fc209a64"
+      "digest": "sha256:86a9770696bc4f1812569218b7c44dcfae256f96efb4b7ab05bd609f0e57a5af"
     },
     {
       "path": "lib/schemas/covenant-request-v1.schema.json",
       "uri": "legion-skill://covenant/lib/schemas/covenant-request-v1.schema.json",
-      "digest": "sha256:d20c19b62a4cd9d4d6c96c2aa6f02484111895264e75bcb9ea1a3b2e22a05aae"
+      "digest": "sha256:9928c784b6de4d61566fbc105c972304970eabe9197848eb52f32adc3c0417b6"
     },
     {
       "path": "scripts/test_validate_external_review_packet.py",

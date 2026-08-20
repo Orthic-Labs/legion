@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "legion-execution-task-v1",
   "title": "ExecutionTask",
-  "description": "Canonical ExecutionTask (ARCHITECTURE.md §33 shared-state list; id family T-#.# per §33 example 'T-4.2 implements D-17'). Distinct from WorkerCapsule (legion-worker-capsule-v1): ExecutionTask is Sage/Execution-Compile-owned durable state inside an ExecutionContract; WorkerCapsule is the mechanical, zero-context projection dispatched to an executor (ARCHITECTURE §31).",
+  "description": "Durable ExecutionTask inside an ExecutionContract. Legion plus the producing capability materialize task meaning; WorkerCapsule is an optional zero-context mechanical projection for dispatched execution.",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -19,13 +19,13 @@
     "kernelTaskId": {
       "type": ["string", "null"],
       "pattern": "^ktask_[0-9A-HJKMNP-TV-Z]{26}$",
-      "description": "Cross-reference to the Kernel's durable lifecycle task handle, when one has been started for this ExecutionTask. See ids.md open question: ARCHITECTURE/IMPLEMENTATION-PLAN never explicitly unify or distinguish 'ExecutionTask' from the Kernel's 'task' object; this field is the seam. FREEZE.md open question."
+      "description": "Optional cross-reference to the runtime lifecycle task handle."
     },
 
     "title": { "type": "string", "minLength": 1 },
     "description": { "type": ["string", "null"] },
 
-    "ownScope": { "type": "array", "items": { "type": "string" }, "description": "ARCHITECTURE §32a: disjoint own[] scope is the parallelism-partitioning tool." },
+    "ownScope": { "type": "array", "items": { "type": "string" }, "description": "Disjoint OWN scope partitions permit parallel work." },
     "readScope": { "type": "array", "items": { "type": "string" } },
 
     "dependsOn": { "type": "array", "items": { "type": "string", "pattern": "^T-\\d+(\\.\\d+)*$" } },
@@ -47,15 +47,15 @@
 
     "status": {
       "enum": ["REPAIR", "BLOCKED_DECISION", "NEEDS_AMENDMENT", "OUT_OF_SCOPE", "BUDGET_STOP", "FAILED_CONTRACT", "COMPLETE"],
-      "description": "Reuses ALCHEMIST_STATE verbatim per ARCHITECTURE §18's explicit instruction that these become 'part of Legion's shared state vocabulary, not duplicated ad hoc'. A task not yet started/in progress is represented by the absence of a terminal/intermediate state marker upstream (Kernel INVOCATION_STATE), not by an eighth value here — see FREEZE.md judgment call J-6."
+      "description": "Execution outcome vocabulary remains orthogonal to runtime invocation state."
     },
 
-    "assignedAuthority": { "enum": ["legion", "sage", "alchemist", "oracle", "arcane", "covenant", "kernel"] },
+    "assignedAuthority": { "enum": ["legion", "sage", "alchemist", "oracle", "arcane", "kernel"] },
 
     "routingDecision": {
       "type": ["object", "null"],
       "additionalProperties": false,
-      "description": "ARCHITECTURE §6a cost-based execution routing: 'The orchestrator logs model, tier, predicted cost, and the reason.'",
+      "description": "Optional host routing projection records abstract model tier, profile, predicted cost, & reason.",
       "properties": {
         "modelTier": { "enum": ["FRONTIER", "MID", "CHEAP_STRICT", "NONE"] },
         "workerProfile": { "enum": ["strict", "standard", "advanced"] },

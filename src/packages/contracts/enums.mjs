@@ -1,4 +1,4 @@
-// Legion shared-contract enums — WP2 freeze.
+// Legion shared-contract wire enums.
 //
 // This module is the single code-owned source of truth for every enumerated
 // value used by the JSON Schemas in packages/contracts/schemas/. Schemas do
@@ -8,30 +8,24 @@
 // update the schema(s) that reference it, then update smoke.test.mjs if a
 // new enum-bearing field was added.
 //
-// Naming is canonical per docs/plans/legion/00-CANON.md: Sage, Alchemist,
-// Oracle, Arcane, Covenant, Legion, Kernel. Superseded identities must never
-// appear here.
+// docs/LEGION-CANONICAL-SSOT.md owns semantics; this module projects only
+// current contract/runtime vocabulary.
 
-/** Legion authority identities (ARCHITECTURE.md Part I-VI, VI-A). */
+/** Runtime identities permitted in authority-bearing contract fields. Covenant is advisory. */
 export const AUTHORITY_ID = Object.freeze([
-  'legion', // orchestrator — routes, never decides (ARCHITECTURE §3a, G21)
-  'sage', // engineering decision authority
+  'legion', // always-on orchestrator
+  'sage', // exceptional adjudication authority
   'alchemist', // transformation authority
   'oracle', // independent assurance authority
-  'arcane', // control/evidence/claim authority (no model — ARCHITECTURE Part XI-A)
-  'covenant', // deliberation subsystem, not a peer authority
+  'arcane', // deterministic enforcement identity
   'kernel', // deterministic substrate under Legion
 ]);
 
-/** Decision latitude on an artifact/task (ARCHITECTURE §12). */
+/** Decision latitude on an artifact/task. */
 export const LATITUDE = Object.freeze(['EXACT', 'BOUNDED', 'OPEN']);
 
 /**
- * Alchemist terminal/intermediate execution states (ARCHITECTURE §18).
- * ARCHITECTURE §18 explicitly instructs these become "part of Legion's
- * shared state vocabulary, not duplicated ad hoc in prompts" — this array
- * is also reused verbatim as the DOMAIN_OUTCOME enum (see below) rather
- * than inventing a parallel vocabulary. See FREEZE.md judgment call J-6.
+ * Alchemist terminal/intermediate execution states, reused as domain outcome.
  */
 export const ALCHEMIST_STATE = Object.freeze([
   'REPAIR',
@@ -47,13 +41,7 @@ export const ALCHEMIST_STATE = Object.freeze([
 export const DOMAIN_OUTCOME = ALCHEMIST_STATE;
 
 /**
- * Operation/task invocation lifecycle state — the Kernel-owned axis,
- * orthogonal to domain outcome and claim boundary per ARCHITECTURE I-09
- * (archive numbering; carried into ARCHITECTURE.md's status-orthogonality
- * invariant referenced at §33/§34). Grounded in IMPLEMENTATION-PLAN
- * Workstream D deliverables (cancellation, resumption, expiry,
- * input-required handling) and Phase 9's durable terminal states.
- * Not given a literal enum anywhere in source docs — judgment call J-7.
+ * Runtime invocation lifecycle, orthogonal to domain outcome & claim boundary.
  */
 export const INVOCATION_STATE = Object.freeze([
   'ACCEPTED',
@@ -66,12 +54,7 @@ export const INVOCATION_STATE = Object.freeze([
 ]);
 
 /**
- * Claim boundary — what the result is actually licensed to claim, distinct
- * from whether the operation ran (INVOCATION_STATE) and whether the
- * engineering outcome succeeded (DOMAIN_OUTCOME). Grounded in
- * IMPLEMENTATION-PLAN §7.11 Oracle report ("safe/prohibited claims"), I-12
- * ("no false clean"), and ARCHITECTURE §26 Oracle claims. No literal enum is
- * given in source docs for this specific axis — judgment call J-7.
+ * Claim boundary is distinct from invocation state & domain outcome.
  */
 export const CLAIM_BOUNDARY = Object.freeze([
   'CLEAN_WITHIN_DECLARED_SCOPE',
@@ -81,52 +64,48 @@ export const CLAIM_BOUNDARY = Object.freeze([
   'NOT_APPLICABLE',
 ]);
 
-/** Sage-owned claims (ARCHITECTURE §26). */
+/** Sage claims are limited to actual exceptional adjudication. */
 export const SAGE_CLAIM = Object.freeze([
-  'ROOT_CAUSE_ESTABLISHED',
-  'DECISION_MADE',
-  'ARCHITECTURE_SEALED',
-  'CONTRACT_SEALED',
-  'IMPLEMENTATION_SPEC_COMPLETE',
+  'ADJUDICATION_MADE',
+  'SEMANTIC_CONFLICT_RESOLVED',
+  'ACCEPTANCE_SEMANTICS_SEALED',
+  'ADJUDICATED_CONTRACT_SEALED',
 ]);
 
-/** Alchemist-owned claims (ARCHITECTURE §26). */
+/** Alchemist-owned transformation claims. */
 export const ALCHEMIST_CLAIM = Object.freeze([
   'EFFECT_APPLIED',
-  'TASK_COMPLETED',
+  'CANDIDATE_READY',
   'DECLARED_CHECKS_PASSED',
   'IMPLEMENTATION_MATCHES_CONTRACT',
   'LOCAL_EXECUTION_VERIFIED',
 ]);
 
-/** Oracle-owned claims (ARCHITECTURE §26). */
+/** Oracle claims are limited to independent Completion Validation. */
 export const ORACLE_CLAIM = Object.freeze([
-  'FINDING_CONFIRMED',
-  'CONTROL_PASS',
-  'CONTROL_FAIL',
+  'COMPLETION_VALIDATED',
+  'COMPLETION_BLOCKED',
   'UNKNOWN',
   'NOT_APPLICABLE',
   'EVIDENCE_INSUFFICIENT',
-  'CLEAN_WITHIN_DECLARED_SCOPE',
 ]);
 
-/** Every claim name across all authorities — Arcane validates, does not invent, these (ARCHITECTURE §26). */
+/** Every claim name across all authorities; Arcane validates but does not invent them. */
 export const CLAIM_NAME = Object.freeze([...SAGE_CLAIM, ...ALCHEMIST_CLAIM, ...ORACLE_CLAIM]);
 
-/** Which claim names a given authority is permitted to assert (ARCHITECTURE §26). */
+/** Which claim names a given authority is permitted to assert. */
 export const CLAIMS_BY_AUTHORITY = Object.freeze({
   sage: SAGE_CLAIM,
   alchemist: ALCHEMIST_CLAIM,
   oracle: ORACLE_CLAIM,
 });
 
-/** Covenant caller authority (COVENANT.md §11). */
+/** Authority context supplied by an explicit Covenant caller. */
 export const CALLER_AUTHORITY = Object.freeze(['SAGE', 'ALCHEMIST', 'USER_OVERRIDE']);
 
 /**
- * Covenant modes (COVENANT.md Part III + §9). DISPUTE_REVIEW is the
- * exceptional mode (§9) — included because CovenantRequest.mode must be
- * able to express it, not because it is a routine Oracle route.
+ * Covenant advisory modes. DISPUTE_REVIEW is exceptional; its presence does
+ * not make Covenant a routine Oracle route or release gate.
  */
 export const COVENANT_MODE = Object.freeze([
   'DECISION_CHALLENGE',
@@ -136,7 +115,7 @@ export const COVENANT_MODE = Object.freeze([
 ]);
 
 /**
- * Covenant outcomes across all modes (COVENANT.md §12 CovenantRecord.outcome).
+ * Covenant outcomes across all modes.
  * Not every value applies to every mode; see ids.md / schema descriptions.
  */
 export const COVENANT_OUTCOME = Object.freeze([
@@ -148,7 +127,7 @@ export const COVENANT_OUTCOME = Object.freeze([
   'INSUFFICIENT_EVIDENCE',
 ]);
 
-/** Caller disposition of a Covenant finding — Sage/Alchemist owned (COVENANT.md §14). */
+/** Originating decision owner disposition of a Covenant finding. */
 export const DISPOSITION_VALUE = Object.freeze([
   'ACCEPT',
   'REJECT',
@@ -157,7 +136,7 @@ export const DISPOSITION_VALUE = Object.freeze([
   'SUPERSEDED',
 ]);
 
-/** Covenant finding scope classification (COVENANT.md §13). */
+/** Covenant finding scope classification. */
 export const FINDING_SCOPE_CLASS = Object.freeze([
   'IN_SCOPE_DEFECT',
   'LATER_PHASE',
@@ -167,10 +146,9 @@ export const FINDING_SCOPE_CLASS = Object.freeze([
 ]);
 
 /**
- * Effect classes Arcane authorizes/gates (ARCHITECTURE §24, §24a; COVENANT
- * §17; IMPLEMENTATION-PLAN Workstream E and Phase 5 tasks). No source
- * document gives a literal closed enum — this list is synthesized from the
- * containment/policy nouns those sections name. Judgment call J-8.
+ * Runtime effect classes Arcane authorizes & gates. Canonical semantic effect
+ * classes remain owned by docs/LEGION-CANONICAL-SSOT.md; this is a deliberately
+ * narrower compatibility vocabulary at the enforcement boundary.
  */
 export const EFFECT_CLASS = Object.freeze([
   'FILE_WRITE',
@@ -188,31 +166,17 @@ export const EFFECT_CLASS = Object.freeze([
 ]);
 
 /**
- * Model tiers (ARCHITECTURE Part XI-A). The table names concrete
- * model-class examples (Opus-class, MiMo/DeepSeek-flash/Luna-class) rather
- * than a closed tier enum; these four tier names are a judgment-call
- * normalization of that table. Judgment call J-9.
+ * Abstract runtime model tiers. Role identity sources own tier selection;
+ * generated host projections may map them to host-specific model names.
  */
 export const MODEL_TIER = Object.freeze(['FRONTIER', 'MID', 'CHEAP_STRICT', 'NONE']);
 
-/** Worker execution profiles (IMPLEMENTATION-PLAN Phase 8 task 13). */
+/** Worker execution profiles. */
 export const WORKER_PROFILE = Object.freeze(['strict', 'standard', 'advanced']);
 
 /**
- * Effect/evidence authentication method. Grounded in the S00 predecessor semantic
- * baseline (docs/plans/legion/s00-baseline/legacy-semantic-inventory.json,
- * report §"What S03/S04/S05 will need to preserve or must NOT inherit as-is"
- * findings 1-2): predecessor `signature_or_mac` field
- * (hooks/claude-code/tool-receipt.js:80) is a self-hash by the same
- * untrusted process that built the receipt, not real authentication; the one
- * genuine trust primitive found is `lib/host.js`'s process-identity /
- * code-signing check, and it authenticates a *connection* once at MCP
- * startup, not each message. This enum lets a receipt/request say honestly
- * which of these it actually has. 'unauthenticated' is the correct value for
- * an imported legacy record; S03 owns designing real per-message
- * authentication ('capability-signature' is the forward-looking target this
- * freeze reserves a slot for, not something S03 is required to name this).
- * Judgment call, added mid-freeze at coordinator direction — see FREEZE.md.
+ * Effect/evidence authentication method. Imported historical records remain
+ * explicitly unauthenticated; connection trust never masquerades as per-message proof.
  */
 export const AUTHENTICATION_METHOD = Object.freeze([
   'host-connection-trust',
@@ -220,14 +184,14 @@ export const AUTHENTICATION_METHOD = Object.freeze([
   'unauthenticated',
 ]);
 
-/** Contract-safety test outcome for a Covenant blocker suggestion (COVENANT.md §17) — subset of COVENANT_OUTCOME relevant to Alchemist. */
+/** Advisory contract-safety outcome from Covenant blocker challenge. */
 export const BLOCKER_CONSULT_OUTCOME = Object.freeze([
   'CONTRACT_SAFE',
   'AMENDMENT_REQUIRED',
   'INSUFFICIENT_EVIDENCE',
 ]);
 
-/** Blocker classification — whether a blocker is clearly semantic or possibly contract-safe (ARCHITECTURE §15, §38). */
+/** Whether a blocker is clearly semantic or possibly contract-safe. */
 export const BLOCKER_CLASS = Object.freeze(['CLEARLY_SEMANTIC', 'POSSIBLY_CONTRACT_SAFE']);
 
 /** Blocker lifecycle status. */
@@ -238,7 +202,7 @@ export const BLOCKER_STATUS = Object.freeze([
   'RESOLVED',
 ]);
 
-/** Claim object lifecycle status — Arcane owns the transition to VALIDATED/REJECTED (ARCHITECTURE §26). */
+/** Claim object lifecycle status; Arcane owns validation transitions. */
 export const CLAIM_STATUS = Object.freeze(['PENDING', 'VALIDATED', 'REJECTED']);
 
 /**

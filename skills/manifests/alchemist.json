@@ -24,7 +24,6 @@
     }
   },
   "parity": {
-    "frozenAt": "2026-08-14",
     "triggers": [
       "/alchemist",
       "Execute a settled, bounded change through Legion's Alchemist authority. Use /alchemist after scope, ownership, checks, and acceptance are decided."
@@ -51,10 +50,6 @@
       "src/registry/skills/index.json",
       "src/lib/skills/resolver.mjs",
       "src/registry/routing/domains.json"
-    ],
-    "outputsPrunedOn": "2026-08-19",
-    "outputsRemoved": [
-      "references/legacy-workspace-skill.md"
     ]
   },
   "files": [

@@ -1,0 +1,8 @@
+{
+  "schemaVersion": 1,
+  "kind": "sage-route-bundle",
+  "route": "adjudication",
+  "objective": "Resolve one material ownership conflict that routine capability mandates cannot settle.",
+  "scope": {"read": ["src/"], "forbidden": ["secrets/", "production/"]},
+  "acceptance": ["unresolved material question is explicit", "adjudication records disposition", "producing capability retains routine method ownership"]
+}

@@ -24,10 +24,9 @@
     }
   },
   "parity": {
-    "frozenAt": "2026-08-14",
     "triggers": [
       "/architect",
-      "Route engineering design, ADR, interface, invariant, or implementation-plan requests to Sage Architect. Do not use for current-state mapping, diagnosis, or execution."
+      "Software and system architecture capability for architecture decisions, ADRs, quality attributes, interfaces, invariants, migrations, and architecture-significant planning."
     ],
     "outputs": [
       "references/manual.md"

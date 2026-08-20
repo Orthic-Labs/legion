@@ -1,6 +1,6 @@
 ---
 name: audit-visual
-description: "Review rendered UI through Legion's shared Audit visual provider. Use for /audit-visual, visual regressions, screenshot baselines, or rendered-state coverage."
+description: "Enumerate, capture, compare, and reconcile rendered UI evidence through Legion's shared Audit visual provider. Use for /audit-visual, visual regressions, screenshot baselines, or rendered-state coverage."
 kind: capability
 capabilityClass: domain
 discoverability: public
@@ -41,8 +41,8 @@ TERMINAL: visual.core reconciles its frozen matrix or reports typed UNPROVEN cov
 3. Run `node ../../tools/audit/audit-run.mjs <root> --visual-spec <visual-spec.json>`. For runtime captures,
    also supply `--url`, `--surfaces`, & optional `--visual-baselines`.
 4. Read frozen `plan.json` before `visual.json`; `visual.core` must be selected before execution.
-5. Missing captures, baselines, matrix cases, readable PNGs, runtime states, or required review are
+5. Missing captures, baselines, matrix cases, readable PNGs, runtime states, or required evidence are
    `UNPROVEN`; zero pixel findings is not a pass without complete coverage.
 6. Finalize through shared report & SARIF pipeline. Do not emit an incompatible report shape.
 
-Use `/designer` for implementation & `/audit` for full repository provider set.
+Use `/designer` for qualitative critique/remediation, `/qa` for functional/browser/runtime checks, & `/audit` for full repository provider set.

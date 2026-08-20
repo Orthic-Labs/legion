@@ -55,7 +55,7 @@
     {
       "id": "audit-visual",
       "name": "audit-visual",
-      "description": "Review rendered UI through Legion's shared Audit visual provider. Use for /audit-visual, visual regressions, screenshot baselines, or rendered-state coverage.",
+      "description": "Enumerate, capture, compare, and reconcile rendered UI evidence through Legion's shared Audit visual provider. Use for /audit-visual, visual regressions, screenshot baselines, or rendered-state coverage.",
       "kind": "domain-capability",
       "discoverability": "public",
       "domain": "engineering",
@@ -109,7 +109,7 @@
     {
       "id": "covenant",
       "name": "covenant",
-      "description": "Convene Legion's independent challenge chamber for a Sage decision, an Alchemist blocker, or packet-only review preparation. Use /covenant.",
+      "description": "Convene Legion's optional independent challenge chamber for a named decision, work artifact, blocker, or packet-only review preparation. Use /covenant.",
       "kind": "entrypoint",
       "discoverability": "explicit",
       "domain": null,
@@ -127,7 +127,7 @@
     {
       "id": "designer",
       "name": "designer",
-      "description": "Create, redesign, or polish websites, app UI, dashboards, components, static creative, print, motion systems, glass materials, illustration direction, and frontend craft. Route review-only work to Audit Visual and identity systems to Brand Identity.",
+      "description": "Create, critique, redesign, or polish websites, app UI, dashboards, components, static creative, print, motion systems, glass materials, illustration direction, and frontend craft. Route deterministic rendered-state coverage/regression evidence to Audit Visual and identity systems to Brand Identity.",
       "kind": "domain-capability",
       "discoverability": "public",
       "domain": "design",

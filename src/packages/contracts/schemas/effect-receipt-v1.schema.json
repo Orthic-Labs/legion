@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "legion-effect-receipt-v1",
   "title": "EffectReceipt",
-  "description": "POST-EFFECT RECEIPT (ARCHITECTURE.md §24a): 'requested vs authorized vs observed effect, actual diff, host-observed evidence, replay protection.' A model's statement that it edited/tested/deployed something is never an effect receipt (§24a, I-07); only host-observed events are. requested/authorized/observed effect identity are kept as three separate objects by design, per the WP2 task instruction and archive §7.9. `authentication` and `replayDefense` were added mid-freeze per the S00 predecessor semantic baseline (docs/plans/legion/s00-baseline/legacy-semantic-inventory.json): predecessor's `signature_or_mac` on `orthic.tool-receipt.v1` is a self-hash, not authentication, and no nonce/sequence/freshness field exists anywhere in legacy predecessor records — this schema does not repeat that gap.",
+  "description": "Post-effect receipt separates requested, authorized, & host-observed effect identity plus actual diff, authentication, & replay defense. A model self-report is never an effect receipt.",
   "type": "object",
   "additionalProperties": false,
   "required": [

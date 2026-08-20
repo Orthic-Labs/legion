@@ -23,13 +23,10 @@
       "externalOnly": true
     }
   },
-  "noFabrication": true,
-  "approvedWordsRequireRevision": false,
   "parity": {
-    "frozenAt": "2026-08-14",
     "triggers": [
       "/research",
-      "\"Sole top-level evidence router: general, market, technical, scientific, medical, legal, competitor, Reddit, audience, trends, scholarly, documents, authority, and NotebookLM. Medical and legal are private internal routes; India consumer-commission filing is a Legal workflow.\""
+      "Sole top-level evidence router: general, market, technical, scientific, medical, legal, competitor, Reddit, audience, trends, scholarly, documents, authority, and NotebookLM. Medical and legal are private internal routes; India consumer-commission filing is a Legal workflow."
     ],
     "outputs": [
       "references/assurance/README.md",
@@ -62,12 +59,8 @@
       "references/scale/README.md"
     ],
     "scripts": [],
-    "templates": [
-      "references/competitors-assets/templates.md"
-    ],
-    "schemas": [
-      "references/route-schema.json"
-    ],
+    "templates": [],
+    "schemas": [],
     "receipts": [],
     "evals": [
       "evals/evals.json"

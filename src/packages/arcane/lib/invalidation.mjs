@@ -1,5 +1,4 @@
-// Dependency-invalidation cascade — G11 ("Evidence follows dependencies",
-// ARCHITECTURE.md §1786) and detailed plan §6.3.
+// Dependency-invalidation cascade: evidence freshness follows dependencies.
 //
 // S00 finding (legacy-semantic-inventory.json, dependency_invalidation_mechanics):
 // predecessor's own invalidation is caller-driven string-equality plus a
@@ -132,7 +131,7 @@ export class DependencyLedger {
       }
     }
 
-    // --- transitive cascade through 'evidence' edges (G11) ---
+    // --- transitive cascade through evidence edges ---
     const cascadedEvidence = [];
     const touched = new Set(staledEvidence);
     const queue = [...staledEvidence];

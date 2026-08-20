@@ -168,7 +168,6 @@ test('S02: claim prerequisites are evaluated from the bundle — stale evidence 
     evidenceClasses: ['deterministic'],
     staleEvidenceCount: 0,
     enforcementHealth: 'strong',
-    covenantVerdict: null,
   });
   assert.equal(ok.allowed, true);
 
@@ -176,7 +175,6 @@ test('S02: claim prerequisites are evaluated from the bundle — stale evidence 
     evidenceClasses: ['deterministic'],
     staleEvidenceCount: 1,
     enforcementHealth: 'strong',
-    covenantVerdict: null,
   });
   assert.equal(stale.allowed, false);
   assert.equal(stale.code, 'ARC_EVIDENCE_STALE');
@@ -189,7 +187,6 @@ test('S02: a signoff claim on degraded enforcement is refused, not quietly downg
     evidenceClasses: ['deterministic'],
     staleEvidenceCount: 0,
     enforcementHealth: 'read_only',
-    covenantVerdict: null,
   });
   assert.equal(d.allowed, false);
   assert.equal(d.code, 'ARC_CLAIM_PREREQUISITE_UNMET');

@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "legion-operation-envelope-v1",
   "title": "OperationEnvelope",
-  "description": "Canonical operation request/result envelope (IMPLEMENTATION-PLAN.md §8 operation registry descriptor fields; §7.12 Legion result: 'invocation state, domain outcome, claim boundary, artifacts, warnings, next actions, and typed error'; I-09: invocation, domain outcome, proof, enforcement health, audit completeness, and finding disposition are orthogonal status dimensions, not collapsed into one status). Modeled as a single discriminated file (envelopeKind: request|result) rather than two files, since the WP2 task names 'operation-envelope-v1' as one schema while explicitly requiring the invocation/domain/claim triad to stay separate fields on the result branch. Judgment call, see FREEZE.md.",
+  "description": "Canonical operation request/result envelope. Invocation state, domain outcome, & claim boundary remain orthogonal rather than collapsing into one status.",
   "type": "object",
   "oneOf": [
     { "$ref": "#/$defs/OperationRequest" },
@@ -21,14 +21,14 @@
         "kind": { "const": "legion-operation-envelope" },
         "envelopeKind": { "const": "request" },
 
-        "operationId": { "type": "string", "minLength": 1, "description": "e.g. 'legion.task.start' (IMPLEMENTATION-PLAN §8.1)." },
+        "operationId": { "type": "string", "minLength": 1, "description": "Registered operation identifier, e.g. 'legion.task.start'." },
         "operationVersion": { "type": "string", "minLength": 1 },
 
         "requestId": { "type": "string", "pattern": "^req_[0-9A-HJKMNP-TV-Z]{26}$" },
         "runId": { "type": "string", "pattern": "^run_[0-9A-HJKMNP-TV-Z]{26}$" },
         "taskId": { "type": ["string", "null"], "pattern": "^ktask_[0-9A-HJKMNP-TV-Z]{26}$" },
 
-        "callerAuthority": { "enum": ["legion", "sage", "alchemist", "oracle", "arcane", "covenant", "kernel"] },
+        "callerAuthority": { "enum": ["legion", "sage", "alchemist", "oracle", "arcane", "kernel"] },
         "authorityAssertion": {
           "type": "object",
           "additionalProperties": false,
@@ -37,13 +37,13 @@
             "assertedBy": { "type": "string", "minLength": 1, "description": "Concrete identity asserting callerAuthority for this specific message (process/capability/session identity)." },
             "perMessage": {
               "type": "boolean",
-              "description": "S00 predecessor baseline finding (docs/plans/legion/s00-baseline/legacy-semantic-inventory.json): legacy predecessor trust (lib/host.js process-identity/code-signing) is connection-level, asserted once at MCP startup, never re-checked per message. This field forces every operation request to say explicitly whether its authority was actually re-asserted for this message (true) or merely inherited from the connection (false) — the gap must be visible, not silently inherited."
+              "description": "States whether authority was authenticated for this message or inherited from connection-level trust; consumers must not hide that distinction."
             },
             "verificationMethod": { "enum": ["host-connection-trust", "capability-signature", "unauthenticated"] }
           },
           "description": "Added mid-freeze at coordinator direction from the S00 baseline. Distinct from callerAuthority (which authority role is claimed) — this is how strongly Arcane can trust that claim for this one message."
         },
-        "input": { "type": "object", "description": "Operation-specific input payload, validated against that operation's own registered input schema (IMPLEMENTATION-PLAN §8) — not further constrained here." },
+        "input": { "type": "object", "description": "Operation-specific input payload, validated against its registered input schema." },
 
         "idempotencyKey": { "type": ["string", "null"] },
         "sourceRevision": { "type": "string", "minLength": 7 },
@@ -76,11 +76,11 @@
         },
         "domainOutcome": {
           "enum": ["REPAIR", "BLOCKED_DECISION", "NEEDS_AMENDMENT", "OUT_OF_SCOPE", "BUDGET_STOP", "FAILED_CONTRACT", "COMPLETE"],
-          "description": "Reuses ALCHEMIST_STATE verbatim (ARCHITECTURE §18: 'part of Legion's shared state vocabulary'). Engineering-outcome axis: did the requested change actually happen as intended?"
+          "description": "Reuses ALCHEMIST_STATE as an engineering-outcome axis: did requested change happen as intended?"
         },
         "claimBoundary": {
           "enum": ["CLEAN_WITHIN_DECLARED_SCOPE", "PARTIALLY_PROVEN", "UNPROVEN", "EVIDENCE_INSUFFICIENT", "NOT_APPLICABLE"],
-          "description": "What the result may honestly claim, independent of whether it ran (invocationState) or succeeded (domainOutcome). Grounded in I-12 'no false clean' and IMPLEMENTATION-PLAN §7.11 safe/prohibited claims."
+          "description": "What result may honestly claim, independent of whether it ran or succeeded."
         },
 
         "artifacts": { "type": "array", "items": { "type": "string" }, "description": "artifactId references (legion-artifact-v1)." },

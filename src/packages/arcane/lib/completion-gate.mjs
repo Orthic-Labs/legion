@@ -31,15 +31,11 @@
 //                            be stronger than its least-authenticated evidence.
 
 import { decision } from './errors.mjs';
-import { digestValue } from './canonical.mjs';
-import { verifyRecord } from './receipt-auth.mjs';
-import { AUTHORITY_PROOF_FIELDS } from './authority-invocation-proof.mjs';
 
 // Imported, never re-declared — policy.mjs owns the ordering (policyDuplicationAudit
 // enforces this). A divergent local copy would silently let 'advisory' satisfy claim
 // levels it must never satisfy.
 import { ENFORCEMENT_RANK } from './policy.mjs';
-import { verifyAssurance } from './high-risk-assurance.mjs';
 import { findCurrentAdvisoryCertification } from './advisory-certification.mjs';
 import { consumeCurrentUserRiskAcceptance, verifyCurrentUserRiskAcceptance } from './current-user-risk-acceptance.mjs';
 import { loadCompletionEvidence } from './completion-evidence.mjs';
@@ -127,7 +123,7 @@ function verifyRequiredAcceptanceEvidence({ evidenceRegistry, acceptanceProofs, 
  *   the union failed; on success, `detail.levelsChecked` lists every level
  *   the union required.
  */
-export function evaluateCompletion({ runId, taskId = null, claimedLevel, touchedPaths = [], contractId = null, contractVersion = null, contractDigest = null, sourceRevision = null, completionClaim = null }, { policy, receiptStore, ledgerStore = null, budgetStore = null, assuranceStore = null, keyRing = null, authorityBindingStore = null, currentProof = null, binding = null, execution = null, authorityProofIssuer = null, integratedState = null, latestMaterialChange = null, requireAcceptanceEvidence = false, now = new Date() }) {
+export function evaluateCompletion({ runId, taskId = null, claimedLevel, touchedPaths = [], contractId = null, contractVersion = null, contractDigest = null, sourceRevision = null, completionClaim = null }, { policy, receiptStore, ledgerStore = null, budgetStore = null, keyRing = null, authorityBindingStore = null, currentProof = null, binding = null, execution = null, authorityProofIssuer = null, integratedState = null, latestMaterialChange = null, requireAcceptanceEvidence = false, now = new Date() }) {
   // Budget state comes only from Arcane's persisted projection. Completion
   // never accepts a caller-authored elapsed time or retry fingerprint.
   if (budgetStore && contractId && Number.isInteger(contractVersion) && taskId && typeof budgetStore.inspect === 'function') {
@@ -217,34 +213,11 @@ export function evaluateCompletion({ runId, taskId = null, claimedLevel, touched
 
   const levelsChecked = [];
   for (const levelName of levels) {
-    const level = policy.claimLevel(levelName);
-    let assurance = { allowed: true, detail: { covenantVerdict: null, fields: {} } };
-    if (level?.requiresCovenant) {
-      const expected = { runId, taskId, contractId, contractVersion, contractDigest, sourceRevision };
-      const persisted = assuranceStore?.findForExecution(expected);
-      const macDomain = currentProof ? `arcane-authority-proof:v1:${currentProof.role}:${currentProof.purpose}` : null;
-      const proofValid = Boolean(currentProof && completionClaim && binding && execution
-        && currentProof.role === completionClaim.producerAuthority
-        && currentProof.purpose === 'completion-claim'
-        && digestValue(currentProof) === completionClaim.invocationProofDigest
-        && currentProof.sessionId === binding.sessionId
-        && ['runId','taskId','contractId','contractVersion','contractDigest','sourceRevision'].every((field) => currentProof[field] === execution[field])
-        && verifyRecord(currentProof, currentProof.authentication, { keyRing, boundFields: AUTHORITY_PROOF_FIELDS, macDomain }).allowed);
-      assurance = persisted && proofValid
-        ? verifyAssurance({ request: persisted.request, receipt: persisted.receipt, expected }, { keyRing, authorityBindingStore, now, freshnessMs: policy.evidencePolicy().freshnessSeconds * 1000 })
-        : decision({ allowed: false, code: 'ARC_CLAIM_PREREQUISITE_UNMET', message: 'dedicated assurance or current completion proof is unavailable', detail: {} });
-      if (assurance.allowed) {
-        const consumption = assuranceStore.consume({ receiptDigest: persisted.receiptDigest, completionClaimDigest: completionClaim.claimId });
-        if (!consumption.allowed) assurance = consumption;
-      }
-    }
-    if (!assurance.allowed) return decision({ allowed: false, code: assurance.code, message: assurance.message, detail: { ...assurance.detail, level: levelName, runId, taskId, lockedDomainMatches: lockedMatches, missingEvidence: ['high-risk-assurance'] } });
     const result = policy.evaluateClaimPrerequisites(levelName, {
       evidenceClasses,
       staleEvidenceCount,
       enforcementHealth,
-      covenantVerdict: assurance.detail.covenantVerdict,
-      fields: assurance.detail.fields,
+      fields: completionClaim?.highRiskContext ?? {},
     });
     levelsChecked.push(levelName);
     if (!result.allowed) {

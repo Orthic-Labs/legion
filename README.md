@@ -7,42 +7,41 @@ Legion makes AI-assisted work legible: it routes each request to the right capab
 ```mermaid
 flowchart LR
   U["User intent"] --> L["Legion<br/>route & coordinate"]
-  L --> E["Engineering<br/>Sage · Alchemist · Oracle · Arcane · Covenant"]
-  L --> C["Routed lenses<br/>Commercial · Research · Editorial · Design"]
-  E --> D["Evidence & delivery"]
-  C --> D
+  L --> C["Semantic capability selection<br/>0..N packaged IDs"]
+  C --> W["Validated work graph"]
+  W --> D["Evidence & delivery"]
   D --> H["Claude Code · Codex · AGENTS.md"]
 ```
 
 ## What it does
 
-Legion begins with current user intent. A question gets an answer; a small in-scope change is executed directly; a real engineering decision goes to Sage; bounded execution goes to Alchemist; an independent check goes to Oracle. Arcane is the deterministic control plane: it can deny unsafe effects, record receipts, & invalidate stale evidence, but it never invents consent.
+Legion begins with current user intent. Already-running model selects zero or more capabilities from compact public catalog, deterministic runtime validates IDs, & Legion materializes work graph. Authority attaches only where work requires it: Sage for material unresolved meaning/ownership/acceptance, Alchemist for bounded transformation, & Oracle for independent Completion Validation. Arcane is deterministic effect-enforcement plane: it can deny unsafe effects, record receipts, & invalidate stale evidence, but it never invents consent.
 
-Work splits into independent lanes where safe, then reunites at delivery. This applies beyond engineering: Legion routes commercial, research, editorial, & design work through reusable skills & recipes instead of exposing a bag of commands to the user.
+Work splits into independent units where safe, then reunites at delivery. Capabilities supply expertise, method, workflow, & context; capability never grants authority. Optional domains group catalog entries for discovery only.
 
 ## Engineering cohort
 
 | Component | Job | Cannot do |
 |---|---|---|
 | **Legion** | Interpret live intent, route work, coordinate lanes, report delivery state | Manufacture authority from assistant prose or hooks |
-| **Sage** | Diagnose, decide architecture, define invariants, compile executable contracts | Implement its own decisions |
+| **Sage** | Exceptionally adjudicate material unresolved meaning, ownership, or acceptance | Own architecture, diagnosis, routine decisions, or implementation |
 | **Alchemist** | Apply bounded changes, repair mechanical failures, verify its work | Settle new engineering decisions |
-| **Oracle** | Independently audit outcome, safety, infrastructure, or historical evidence | Certify its own fix |
+| **Oracle** | Independently perform Completion Validation over requested outcome & evidence | Own Audit/QA/Audit Visual methods or certify its own fix |
 | **Arcane** | Deterministic hook & receipt control plane | Grant authority or impersonate judgment |
 | **Covenant** | Isolated challenge chamber over frozen evidence | Override caller authority |
 
-Oracle is the assurance authority throughout current doctrine, bindings, & reports.
+Oracle is independent assurance authority for Completion Validation.
 
-## Routed lenses
+## Catalog grouping
 
-These are reusable reasoning surfaces, not alternate authority stacks:
+Current catalog uses these optional discovery groups, not routing authorities or a fixed hierarchy:
 
 - **Commercial** — marketing, advertising, social, SEO
 - **Research** — general, scientific, & market evidence
 - **Editorial** — writing & editorial work
 - **Design** — interface, visual, & brand-identity work
 
-Skills supply reusable methods. Recipes combine them when a request needs more than one discipline. Legion owns routing, evidence, & delivery state across all of them.
+Skills supply reusable methods. Legion owns semantic selection, work graph, evidence, & delivery state across all groups.
 
 ## Harnesses & fidelity
 
@@ -55,7 +54,7 @@ One doctrine & kernel project into harness-native slots. Legion does not pretend
 | Arcane pre-effect interception | when host hooks support it | when host hooks support it | boundary-gated |
 | Receipts | hook or CLI | hook or CLI | CLI/boundary |
 | Covenant isolation | engine-owned | engine-owned | engine-owned |
-| Oracle audit | yes | yes | yes |
+| Oracle Completion Validation | yes | yes | yes |
 
 Run `legion doctor` to inspect current repository, binding, coverage, & host state. Run `legion bind --registrations` to inventory installed hooks across settings & plugins and detect duplicate registrations.
 

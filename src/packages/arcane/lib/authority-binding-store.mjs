@@ -3,19 +3,20 @@ import { randomBytes } from 'node:crypto';
 import { join } from 'node:path';
 import { digestValue } from './canonical.mjs';
 import { ArcaneError } from './errors.mjs';
-const MAP={sage:'sage',alchemist:'alchemist',oracle:'oracle','covenant-seat':'covenant'};
+const MAP={legion:'legion',sage:'sage',alchemist:'alchemist',oracle:'oracle'};
 const dig=(domain,values)=>digestValue({domain,values});
 export class AuthorityBindingStore {
   constructor({root,clock=()=>new Date().toISOString()}){this.root=root;this.clock=clock;}
   key(adapter,sessionId,agentId=null){return dig('arcane.authority.binding-key.v1',[adapter,sessionId,agentId]).slice(7);}
   path(adapter,sessionId,agentId=null){return join(this.root,`${this.key(adapter,sessionId,agentId)}.json`);}
-  observe({adapter,sessionId,agentId=null,agentType,eventId}){
-    if(agentId==null)return {bound:false,reason:'missing-identity'}; if(!MAP[agentType])return {bound:false,reason:'unsupported-agent-type'};
+  observe({adapter,sessionId,agentId=null,agentType,eventId,sessionRoot=false}){
+    if(agentId==null)return {bound:false,reason:'missing-identity'}; if(!MAP[agentType]||(agentType==='legion'&&!sessionRoot))return {bound:false,reason:'unsupported-agent-type'};
     const key=this.key(adapter,sessionId,agentId), path=join(this.root,`${key}.json`), record={schemaVersion:1,kind:'arcane-authority-binding',adapter,sessionIdDigest:dig('arcane.authority.session.v1',[adapter,sessionId]),agentIdDigest:dig('arcane.authority.agent.v1',[adapter,sessionId,agentId]),agentType,authority:MAP[agentType],observedEventId:eventId,observedAt:this.clock()};
     mkdirSync(this.root,{recursive:true}); const text=`${JSON.stringify(record)}\n`;
     try { const fd=openSync(path,'wx',0o600); try{writeSync(fd,text);fsyncSync(fd);}finally{closeSync(fd);} return {bound:true,created:true,record}; }
     catch(error){if(error.code!=='EEXIST')throw error; const existing=this.get({adapter,sessionId,agentId}); if(!existing)throw new ArcaneError('ARC_STORE_CORRUPT','binding record corrupt'); if(['adapter','sessionIdDigest','agentIdDigest','agentType','authority'].some(k=>existing[k]!==record[k]))throw new ArcaneError('ARC_BINDING_MISMATCH','binding identity conflict'); return {bound:true,created:false,record:existing};}
   }
+  observeLegionSession({adapter,sessionId,eventId}){const agentId='legion-session-root';return this.observe({adapter,sessionId,agentId,agentType:'legion',eventId,sessionRoot:true});}
   get({adapter,sessionId,agentId=null}){try{const r=JSON.parse(readFileSync(this.path(adapter,sessionId,agentId),'utf8'));return r?.kind==='arcane-authority-binding'?r:null;}catch(e){if(e.code==='ENOENT')return null;throw new ArcaneError('ARC_STORE_CORRUPT','binding record corrupt');}}
   // A binding is routing metadata, never authority. On a read-only Stop it is
   // safe to quarantine one unreadable binding: this removes a bad lookup but
@@ -26,7 +27,8 @@ export class AuthorityBindingStore {
   // binding — which left `contract seal` unrunnable by anyone. Scanning by the
   // session digest (derivable from the sessionId the caller already has) is the
   // supported way back in. It never widens authority: only bindings a real
-  // SubagentStart wrote are visible, and the requested authority must match.
+  // SubagentStart or authenticated root SessionStart wrote are visible, and
+  // the requested authority must match.
   findLatest({adapter,sessionId,authority}){
     const want=dig('arcane.authority.session.v1',[adapter,sessionId]); let best=null;
     let names; try{names=readdirSync(this.root);}catch(e){if(e.code==='ENOENT')return null;throw e;}
