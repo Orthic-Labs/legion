@@ -234,12 +234,12 @@ export function createHostRuntime({ adapter, workspace, keyDir, verificationKeyD
       const hostEvent = adapter.normalize(hookPayload);
       identity = typeof adapter.observeIdentity === 'function' ? adapter.observeIdentity(hookPayload, { hostEvent }) : null;
       if (identity?.modelClaimed) return runtimeResult(eventType, { decision: denial('ARC_AUTHORITY_MODEL_CLAIMED', 'payload authority claim refused'), enforcementHealth: 'strong' });
-      const deferCodexBinding = adapter.name === 'codex' && ['SessionStart', 'SubagentStart'].includes(eventType);
       if (eventType === 'SessionStart' && hostEvent.sessionId) {
         // Codex authority requires native hook identity. A session_id-less or
         // wrapper-only invocation remains ambient & cannot mint Legion.
-        const codexRoot = adapter.name === 'codex' ? identity?.rootThreadId === hostEvent.sessionId : true;
-        if (codexRoot && !deferCodexBinding) stores.authorityBinding.observeLegionSession({ adapter: adapter.name, sessionId: hostEvent.sessionId, eventId: hostEvent.eventId });
+        // A wrapper-only SessionStart remains ambient and may be recorded, but
+        // it cannot create a Legion binding. Authority-bearing consumers below
+        // require the native root and the durable binding.
       }
       if (eventType === 'SubagentStart' && adapter.name === 'codex' && (!identity?.rootThreadId || identity.rootThreadId !== hostEvent.sessionId)) {
         return runtimeResult(eventType, { decision: denial('ARC_AUTHORITY_NOT_ASSERTED', 'Codex SubagentStart requires native session_id'), enforcementHealth: 'strong' });
@@ -249,7 +249,6 @@ export function createHostRuntime({ adapter, workspace, keyDir, verificationKeyD
         if (adapter.name === 'codex' && (identity.rootThreadId !== identity.sessionId || root?.authority !== 'legion')) {
           return runtimeResult(eventType, { decision: denial('ARC_AUTHORITY_NOT_ASSERTED', 'Codex subagent requires current observed Legion root'), enforcementHealth: 'strong' });
         }
-        if (!deferCodexBinding) stores.authorityBinding.observe({ adapter: adapter.name, eventId: identity.eventId ?? `host:${eventType}`, ...identity });
       }
       const binding = hostEvent.sessionId ? stores.sessionBinding.getBinding(hostEvent.sessionId) : null;
       if (binding?.contractId) {
@@ -266,6 +265,7 @@ export function createHostRuntime({ adapter, workspace, keyDir, verificationKeyD
       // Host-derived ledger metadata is persisted before any policy dispatch;
       // adapters never supply sequence, correlation, or Stop ordinal fields.
       if (!keyRing) return availabilityFallback({ eventType, code: 'ARC_AUTH_KEY_UNAVAILABLE', contracted, hookPayload, adapter, policy, workspace });
+      let lifecycleBinding = null;
       try {
         const ledger = new HostEventLedger({ root: paths.events, keyRing, keyId: keyRing.activeKeyId(), verificationKeyRing, clock: isoClock(clock) });
         const continuity = ledger.verify();
@@ -276,13 +276,24 @@ export function createHostRuntime({ adapter, workspace, keyDir, verificationKeyD
             return runtimeResult(eventType, { decision: denial('ARC_REPLAY_NONCE_SEEN', 'duplicate Codex lifecycle observation'), enforcementHealth: 'strong' });
           }
         }
-        hostEvent.ledger = ledger.append({ eventId: identity?.eventId ?? hostEvent.eventId, adapter: adapter.name, eventType, sessionId: hostEvent.sessionId, binding, sourceRevision: boundSeal?.sourceRevision ?? null, observedAuthority: observedAuthorityFor(eventType, identity, stores.authorityBinding, adapter.name, hostEvent.sessionId), payload: hookPayload });
-        if (deferCodexBinding && eventType === 'SessionStart' && identity?.rootThreadId === hostEvent.sessionId) {
-          stores.authorityBinding.observeLegionSession({ adapter: adapter.name, sessionId: hostEvent.sessionId, eventId: hostEvent.ledger.eventId });
-        } else if (deferCodexBinding && eventType === 'SubagentStart' && identity?.sessionId && identity?.agentId && identity?.agentType) {
-          stores.authorityBinding.observe({ adapter: adapter.name, eventId: hostEvent.ledger.eventId, ...identity });
+        // Bind lifecycle authority before appending its signed observation. A
+        // failed binding therefore cannot leave an authority-bearing ledger
+        // record. If append fails after a new binding, rollback that binding
+        // so both stores remain empty for this observation.
+        if (eventType === 'SessionStart' && hostEvent.sessionId && (adapter.name !== 'codex' || identity?.rootThreadId === hostEvent.sessionId)) {
+          lifecycleBinding = stores.authorityBinding.observeLegionSession({ adapter: adapter.name, sessionId: hostEvent.sessionId, eventId: hostEvent.eventId });
+        } else if (eventType === 'SubagentStart' && identity?.sessionId && identity?.agentId && identity?.agentType) {
+          lifecycleBinding = stores.authorityBinding.observe({ adapter: adapter.name, eventId: hostEvent.eventId, ...identity });
         }
+        hostEvent.ledger = ledger.append({ eventId: identity?.eventId ?? hostEvent.eventId, adapter: adapter.name, eventType, sessionId: hostEvent.sessionId, binding, sourceRevision: boundSeal?.sourceRevision ?? null, observedAuthority: observedAuthorityFor(eventType, identity, stores.authorityBinding, adapter.name, hostEvent.sessionId), payload: hookPayload });
       } catch (error) {
+        if (lifecycleBinding?.created) {
+          try {
+            stores.authorityBinding.rollback({ adapter: adapter.name, sessionId: hostEvent.sessionId, agentId: eventType === 'SessionStart' ? 'legion-session-root' : identity?.agentId, record: lifecycleBinding.record });
+          } catch (rollbackError) {
+            return runtimeResult(eventType, { decision: denial(codeOf(rollbackError), 'lifecycle binding rollback failed'), enforcementHealth: 'unsupported' });
+          }
+        }
         if (codeOf(error) === 'ARC_STORE_CORRUPT' && identity?.sessionId && identity?.agentId) {
           stores.authorityBinding.recover({ adapter: adapter.name, sessionId: identity.sessionId, agentId: identity.agentId });
         }

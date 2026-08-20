@@ -15,6 +15,7 @@ import { SessionBindingStore } from '../lib/session-binding.mjs';
 import { AuthorityBindingStore } from '../lib/authority-binding-store.mjs';
 import { ArchitectureEventStore } from '../lib/architecture-event-store.mjs';
 import { createHostArchitectureState } from '../lib/continuity.mjs';
+import { HostEventLedger } from '../lib/host-event-ledger.mjs';
 
 const CODEX_ADAPTER = fileURLToPath(new URL('../host/codex-adapter.mjs', import.meta.url));
 
@@ -56,6 +57,35 @@ test('Codex caller/session aliases cannot mint root or subagent authority', () =
     const denied = runtime.handle({ hook_event_name: 'SubagentStart', cwd: workspace, sessionId: 'caller-session', agent_id: 'sage-1', agent_type: 'sage' });
     assert.equal(denied.allowed, false); assert.equal(denied.code, 'ARC_AUTHORITY_NOT_ASSERTED');
   } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
+test('lifecycle binding write failure cannot leave an authority ledger record', () => {
+  const root = mkdtempSync(join(tmpdir(), 'arcane-binding-failure-'));
+  const workspace = join(root, 'workspace'); const stateRoot = join(root, 'state'); const keyDir = join(root, 'keys');
+  try {
+    mkdirSync(workspace, { recursive: true }); mkdirSync(keyDir, { recursive: true }); writeFileSync(join(keyDir, 'k1.key'), 'a'.repeat(64));
+    const runtime = createHostRuntime({ adapter: { name: 'codex', normalize: normalizeCodexEvent, observeIdentity: observeCodexIdentity }, workspace, keyDir, stateRoot });
+    runtime.stores.authorityBinding.observeLegionSession = () => { throw Object.assign(new Error('injected binding write failure'), { code: 'ARC_STORE_CORRUPT' }); };
+    const result = runtime.handle({ hook_event_name: 'SessionStart', cwd: workspace, session_id: 'binding-failure' });
+    assert.equal(result.code, 'ARC_STORE_CORRUPT');
+    assert.equal(new AuthorityBindingStore({ root: join(stateRoot, 'authority-bindings') }).findLatest({ adapter: 'codex', sessionId: 'binding-failure', authority: 'legion' }), null);
+    assert.equal(existsSync(join(stateRoot, 'host-events', '0000000000000001.json')), false);
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
+test('ledger append failure rolls back a newly-created lifecycle binding', () => {
+  const root = mkdtempSync(join(tmpdir(), 'arcane-ledger-failure-'));
+  const workspace = join(root, 'workspace'); const stateRoot = join(root, 'state'); const keyDir = join(root, 'keys');
+  const append = HostEventLedger.prototype.append;
+  try {
+    mkdirSync(workspace, { recursive: true }); mkdirSync(keyDir, { recursive: true }); writeFileSync(join(keyDir, 'k1.key'), 'a'.repeat(64));
+    HostEventLedger.prototype.append = () => { throw Object.assign(new Error('injected ledger failure'), { code: 'ARC_STORE_CORRUPT' }); };
+    const runtime = createHostRuntime({ adapter: { name: 'codex', normalize: normalizeCodexEvent, observeIdentity: observeCodexIdentity }, workspace, keyDir, stateRoot });
+    const result = runtime.handle({ hook_event_name: 'SessionStart', cwd: workspace, session_id: 'ledger-failure' });
+    assert.equal(result.code, 'ARC_STORE_CORRUPT');
+    assert.equal(new AuthorityBindingStore({ root: join(stateRoot, 'authority-bindings') }).findLatest({ adapter: 'codex', sessionId: 'ledger-failure', authority: 'legion' }), null);
+    assert.equal(existsSync(join(stateRoot, 'host-events', '0000000000000001.json')), false);
+  } finally { HostEventLedger.prototype.append = append; rmSync(root, { recursive: true, force: true }); }
 });
 
 test('B6 unavailable Arcane bypasses ambient tools without throwing', () => {

@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import test from 'node:test';
+import { codexHookTrust } from '../src/lib/cli/commands/doctor-host.mjs';
 
 const BIN = fileURLToPath(new URL('../src/bin/legion.mjs', import.meta.url));
 const root = fileURLToPath(new URL('..', import.meta.url));
@@ -45,6 +46,19 @@ test('doctor reflects signing key presence', () => {
   const result = doctor(['.'], { AUDIT_PLAN_SIGNING_KEY: 'local-key' });
   const report = JSON.parse(result.stdout);
   assert.equal(report.hostCapabilities.signing, true);
+});
+
+test('doctor reports typed Codex hook trust failure without manufacturing hashes', () => {
+  const home = mkdtempSync(join(tmpdir(), 'legion-doctor-codex-trust-'));
+  try {
+    mkdirSync(join(home, '.codex'), { recursive: true });
+    writeFileSync(join(home, '.codex', 'config.toml'), '[plugins."arcane@local-brief"]\nenabled = true\n');
+    const report = codexHookTrust(home);
+    assert.equal(report.state, 'ARC_HOOK_TRUST_REQUIRED');
+    assert.equal(report.trusted.length, 0);
+    assert.equal(report.missing.length, 7);
+    assert.match(report.remediation, /never manufactures trusted_hash/);
+  } finally { rmSync(home, { recursive: true, force: true }); }
 });
 
 test('doctor binding.receiptPresent is false with no .legion/binding.json', () => {

@@ -21,6 +21,39 @@ import * as harnessRegistry from '../../host/registry.mjs';
 
 const readJson = (path) => { try { return JSON.parse(readFileSync(path, 'utf8')); } catch { return null; } };
 
+const CODEX_HOOK_EVENTS = Object.freeze([
+  'session_start', 'subagent_start', 'user_prompt_submit', 'post_compact',
+  'pre_tool_use', 'post_tool_use', 'stop',
+]);
+const CODEX_TRUSTED_HASH = /^sha256:[0-9a-f]{64}$/;
+
+/** Read Codex's native hook trust without writing or deriving trust hashes. */
+export function codexHookTrust(home = homedir()) {
+  const configPath = join(home, '.codex', 'config.toml');
+  let text = '';
+  try { text = readFileSync(configPath, 'utf8'); } catch { /* absent config is typed below */ }
+  const trusted = new Set();
+  let current = null;
+  for (const line of text.split(/\r?\n/)) {
+    const table = /^\[hooks\.state\."([^"]+)"\]\s*$/.exec(line.trim());
+    if (table) { current = table[1]; continue; }
+    const hash = /^trusted_hash\s*=\s*"([^"]*)"\s*$/.exec(line.trim());
+    if (hash && current && CODEX_HOOK_EVENTS.some((event) => current === `arcane@local-brief:hooks/hooks.json:${event}:0:0`) && CODEX_TRUSTED_HASH.test(hash[1])) trusted.add(current);
+  }
+  const required = CODEX_HOOK_EVENTS.map((event) => `arcane@local-brief:hooks/hooks.json:${event}:0:0`);
+  const missing = required.filter((key) => !trusted.has(key));
+  return {
+    configPath,
+    configPresent: Boolean(text),
+    plugin: 'arcane@local-brief',
+    required,
+    trusted: [...trusted].sort(),
+    missing,
+    state: missing.length === 0 ? 'pass' : 'ARC_HOOK_TRUST_REQUIRED',
+    remediation: missing.length === 0 ? null : 'Review & trust current Arcane hooks with Codex /hooks; setup never manufactures trusted_hash.',
+  };
+}
+
 /**
  * Claude Code installation identity: which source is active, whether it is the
  * live tree or a packaged copy, and whether that copy still matches the tree.
@@ -138,6 +171,7 @@ function arcaneHostHealth(root, home) {
       stop: Boolean(hooks?.hooks?.Stop),
     },
     adapterPresent: existsSync(join(root, 'src', 'packages', 'arcane', 'host', 'claude-code-adapter.mjs')),
+    codexHookTrust: codexHookTrust(home),
   };
 }
 
