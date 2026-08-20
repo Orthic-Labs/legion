@@ -18,8 +18,9 @@ const PUBLIC_ENTRYPOINTS = [
 test('legacy semantic aliases resolve only to packaged public Legion capabilities', () => {
   assert.equal(aliases['/jfdi'], '/alchemist');
   assert.equal(aliases['/council'], '/covenant');
+  assert.equal(aliases['/blueprint'], '/cortex');
 
-  for (const target of [aliases['/jfdi'], aliases['/council']]) {
+  for (const target of [aliases['/jfdi'], aliases['/council'], aliases['/blueprint']]) {
     const capability = target.slice(1).split(' ', 1)[0];
     assert.equal(existsSync(join(ROOT, 'skills', capability, 'SKILL.md')), true, target);
   }
@@ -38,6 +39,7 @@ test('canonical & legacy commands resolve through packaged manifests with negati
   }
   assert.equal(resolveSkillInvocation('/jfdi execute', { root: ROOT }).canonical, 'alchemist');
   assert.equal(resolveSkillInvocation('/council review', { root: ROOT }).canonical, 'covenant');
+  assert.equal(resolveSkillInvocation('/blueprint map', { root: ROOT }).canonical, 'cortex');
   assert.equal(resolveSkillInvocation('/council-review', { root: ROOT }).status, 'not-found');
   assert.equal(resolveSkillInvocation('/just-do-it', { root: ROOT }).status, 'not-found');
   assert.equal(resolveSkillInvocation('Please explain why this test fails.', { root: ROOT }).status, 'not-found');

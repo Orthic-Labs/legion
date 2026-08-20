@@ -9,6 +9,8 @@ import {
   executePlan,
   finalizeRun,
   reconcileRun,
+  resolveSkillInvocation,
+  validateCapabilitySelection,
   verifyRun,
   writeRunManifest,
 } from '../src/lib/index.mjs';
@@ -25,6 +27,11 @@ const PROJECTION = {
   fileSetDigest: 'sha256:files',
   auditFacts: {},
 };
+
+test('public API exposes deterministic explicit & model-selection validation seams', () => {
+  assert.equal(typeof resolveSkillInvocation, 'function');
+  assert.equal(typeof validateCapabilitySelection, 'function');
+});
 
 test('buildPlan seals a deterministic plan with fixed host clock', async () => {
   const host = fixedHost();

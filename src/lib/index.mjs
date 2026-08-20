@@ -21,7 +21,7 @@ export { createHost } from './host/index.mjs';
 export { renderHtmlReport } from './report/html/index.mjs';
 export { editorDiagnostics } from './report/editor/index.mjs';
 export { verifySkillBytes as verifySkillBundle } from './skills/verify.mjs';
-export { resolveSkillInvocation } from './skills/resolver.mjs';
+export { resolveSkillInvocation, validateCapabilitySelection } from './skills/resolver.mjs';
 
 export const PUBLIC_API_VERSION = 1;
 export const COMPATIBILITY_SURFACES = Object.freeze({

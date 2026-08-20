@@ -27,6 +27,8 @@ const buildConsumerCheckScript=(pkgName,subpaths)=>{
     `  const root=await import(current);`,
     "  assert.equal(typeof root.buildPlan,'function','buildPlan export missing');",
     "  assert.equal(typeof root.reconcileRun,'function','reconcileRun export missing');",
+    "  assert.equal(typeof root.resolveSkillInvocation,'function','resolveSkillInvocation export missing');",
+    "  assert.equal(typeof root.validateCapabilitySelection,'function','validateCapabilitySelection export missing');",
   ];
   for(const key of subpaths){
     if(key.includes('*')){
