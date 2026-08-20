@@ -185,6 +185,18 @@ test('Codex MCP install accepts valid quoted TOML keys', () => {
   });
 });
 
+test('Codex MCP install accepts valid TOML array tables', () => {
+  withRepo((root) => {
+    const path = join(root, '.codex', 'config.toml');
+    mkdirSync(join(root, '.codex'), { recursive: true });
+    writeFileSync(path, '[[skills.config]]\npath = "skills/example"\n');
+    reg.install('codex', { root, surfaces: ['mcp'] });
+    const after = readFileSync(path, 'utf8');
+    assert.match(after, /\[\[skills\.config\]\]/);
+    assert.equal((after.match(/^\[mcp_servers\.legion\]$/gm) ?? []).length, 1);
+  });
+});
+
 test('a malformed custom harness descriptor fails closed instead of silently defaulting', () => {
   withRepo((root) => {
     mkdirSync(join(root, '.agents'), { recursive: true });

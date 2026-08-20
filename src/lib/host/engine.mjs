@@ -191,7 +191,7 @@ function assertPlausibleToml(path, surface) {
     const line = raw.trim();
     if (inMultiline) { if (MULTI.some((m) => line.includes(m))) inMultiline = false; continue; }
     if (line === '' || line.startsWith('#')) continue;
-    if (/^\[[^\]]+\]$/.test(line)) continue;
+    if (/^(?:\[[^\]]+\]|\[\[[^\]]+\]\])$/.test(line)) continue;
     if (/^(?:"(?:\\.|[^"\\])*"|'[^']*'|[A-Za-z0-9_.-]+)\s*=/.test(line)) {
       if (MULTI.some((m) => line.trimEnd().endsWith(m))) inMultiline = true;
       continue;
