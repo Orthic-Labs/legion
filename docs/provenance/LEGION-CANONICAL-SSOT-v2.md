@@ -1,5 +1,9 @@
 # Legion — Canonical System Architecture, Orchestration & Assurance Doctrine
 
+> [!IMPORTANT]
+> **SUPERSEDED PROVENANCE — NON-NORMATIVE.** This file preserves historical v2 text.
+> Active architecture and ownership authority lives only in `docs/LEGION-CANONICAL-SSOT.md`.
+
 **Status:** CANONICAL — single root architecture source of truth  
 **Canonical as of:** 19 August 2026  
 **Scope:** Legion-wide system architecture, orchestration, capability/authority boundaries, execution substrate, deterministic effect policy, adversarial challenge, independent completion assurance, routing/discovery architecture, progressive context loading, and canonical ownership.

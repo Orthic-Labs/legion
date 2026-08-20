@@ -39,8 +39,9 @@ effect semantics, or another subject governed here, this document wins. Inside a
 specialist method, that specialist's canonical owner wins unless it violates a global invariant
 defined here.
 
-**Provenance.** `legion-ssot-phase-a-final-v1.1.md`, `LEGION-PHASE-B-FINAL-MECHANICAL-MIGRATION-v1.0.md`,
-and `docs/LEGION-CANONICAL-SSOT-v2.md` are migration provenance, not co-equal architecture
+**Provenance.** `docs/provenance/migrations/LEGION-SEMANTIC-DECISIONS-v1.1.md`,
+`docs/provenance/migrations/LEGION-PHASE-B-v1.0.md`, and
+`docs/provenance/LEGION-CANONICAL-SSOT-v2.md` are migration provenance, not co-equal architecture
 authorities. They must not remain active normative loading paths.
 
 ## 2. Legion system model

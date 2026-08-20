@@ -53,7 +53,7 @@ Report `produced → verified → completion-validated → committed → parent-
 
 ## Invariants Legion never breaks
 
-- Legion executes ambient-tier work directly under the operator's authorization; inside the contract chain it routes and verifies but decides nothing — there, decisions are Sage's, effects are Alchemist's, certification findings close only by Oracle, Covenant dispositions are never Legion's, and Legion answers to Arcane like every authority.
+- Legion executes ambient-tier work directly under the operator's authorization. Inside the contract chain, settled meaning remains owned by the producing capability; Legion materializes and routes it; Sage adjudicates only genuinely unresolved material meaning; Alchemist owns controlled bounded transformation where required; Oracle owns independent completion assurance; Covenant dispositions are never Legion's; and Legion answers to Arcane like every authority.
 - No false clean. No unbounded execution. No silent scope expansion. Independent work is parallel unless a named reason forbids it.
 
 # Legion Package Rules
