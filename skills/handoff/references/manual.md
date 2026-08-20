@@ -1,10 +1,7 @@
 # Handoff ingest manual
 
 ```text
-MODE: OUTPUT_ONLY
 PRIMARY_DELIVERABLE: Hash-bound cold-start handoff packet or source bootstrap block.
-DISCOVERY_PROFILE: D1_SCOPED_SOURCE
-EFFECT_PROFILES: source_read, output_write
 SPECIALIST_REFS_MAX: 0
 CHILD_AGENTS_MAX: 0
 EXTERNAL_REQUESTS_MAX: 0

@@ -1,9 +1,6 @@
 # Social - platform content router
 
-MODE: OUTPUT_ONLY
 PRIMARY_DELIVERABLE: Bounded platform strategy or content for frozen account, domain, or source scope.
-DISCOVERY_PROFILE: D3_EXTERNAL
-EFFECT_PROFILES: external_research, connector
 SPECIALIST_REFS_MAX: 0
 CHILD_AGENTS_MAX: 0
 EXTERNAL_REQUESTS_MAX: 12

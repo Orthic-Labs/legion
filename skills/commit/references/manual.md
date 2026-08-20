@@ -1,10 +1,7 @@
 # Commit — guarded, autonomous commit + push
 
 ```text
-MODE: EXECUTE
 PRIMARY_DELIVERABLE: Frozen diff disposition, focused checks, plus bounded repair result.
-DISCOVERY_PROFILE: D1_SCOPED_SOURCE
-EFFECT_PROFILES: diff_broker, focused_check
 SPECIALIST_REFS_MAX: 0
 CHILD_AGENTS_MAX: 0
 EXTERNAL_REQUESTS_MAX: 0

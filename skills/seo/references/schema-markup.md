@@ -177,5 +177,4 @@ You can combine multiple schema types on one page using `@graph`:
 - **programmatic-seo**: For templated schema at scale
 - **site-architecture**: For breadcrumb structure and navigation schema planning
 
-
 _Additional refs: see schema-markup-assets/_

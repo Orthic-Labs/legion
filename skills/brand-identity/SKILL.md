@@ -1,14 +1,23 @@
 ---
 name: brand-identity
 description: "Create, audit, evolve, or apply brand identities, systems, guidelines, visual identity, voice, naming, logo direction, brand books, rebrands, website or app identity, pitch decks, or social kits."
+kind: capability
+capabilityClass: domain
+discoverability: public
+domain: design
+operations:
+  - analyze
+  - decide
+  - produce
+  - evaluate
+effects:
+  - source-read
+  - artifact-write
 ---
 
 # Brand Identity
 
-MODE: OUTPUT_ONLY
 PRIMARY_DELIVERABLE: Identity decisions, assets, restrictions, & QA evidence.
-DISCOVERY_PROFILE: D1_SCOPED_SOURCE
-EFFECT_PROFILES: asset_read, output_write
 SPECIALIST_REFS_MAX: 1
 CHILD_AGENTS_MAX: 0
 EXTERNAL_REQUESTS_MAX: 0

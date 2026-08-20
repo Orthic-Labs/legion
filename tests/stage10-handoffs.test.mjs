@@ -36,9 +36,13 @@ test('S10-02 Alchemist advances only frozen IDs, emits handoff evidence, & never
 });
 
 test('S10-03 Oracle packet, dismissal-first scope, preserved findings, & fresh closure reject authority drift', async () => {
+  // Method phrases live in doctrine/oracle.md; identity/authority/tier live in the roster.
   for (const path of ['doctrine/oracle.md', 'src/roster/oracle.md']) {
     const oracle = await read(path);
-    for (const phrase of fixture.required_phrases[path]) assert.match(oracle, phrasePattern(phrase));
+    for (const phrase of fixture.required_phrases[path] ?? []) assert.match(oracle, phrasePattern(phrase));
+  }
+  for (const phrase of ['verbatim current user request', 'raw user turns', 'Never trust', 'do not run or rerun tests', 'Create no file, receipt, ledger, evidence packet', 'Scope reviewed', 'does not recursively require another validation']) {
+    assert.match(await read('doctrine/oracle.md'), phrasePattern(phrase));
   }
   assert.equal(closeFinding({ mapped: true, fresh: true, exactState: true }), 'CLOSED');
   assert.equal(closeFinding({ mapped: true, fresh: false, exactState: true }), 'OPEN');
@@ -53,9 +57,13 @@ test('S10-04 Covenant remains one-shot advisory & Legion references, rather than
   }
 });
 
-test('S10-05 every role bundle carries same bounded handoff contract', async () => {
-  for (const path of Object.keys(fixture.required_phrases).filter((path) => path.startsWith('doctrine/bundles/'))) {
+test('S10-05 handoff method is owned by its capability, not by retired Sage bundles', async () => {
+  for (const path of ['skills/architect/SKILL.md', 'skills/debugger/SKILL.md', 'skills/dispatch/references/manual.md']) {
     const body = await read(path);
-    for (const phrase of fixture.required_phrases[path]) assert.match(body, phrasePattern(phrase));
+    assert.ok(body.length, path);
+  }
+  const dispatch = await read('skills/dispatch/references/manual.md');
+  for (const phrase of ['zero-context', 'failure-complete recovery', 'TRUE_BLOCKER', 'validate-dispatch.py', 'ownership & dependency graph']) {
+    assert.match(dispatch, phrasePattern(phrase));
   }
 });

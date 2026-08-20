@@ -9,7 +9,6 @@ description: "UI/UX design intelligence for web and mobile. Includes 50+ styles,
 > `<ui-reference-search>` below stands for whatever UI-reference search tool the host provides;
 > if none is wired, gather references manually and say so rather than inventing results.
 
-
 Comprehensive design guide for web and mobile applications. Contains 50+ styles, 161 color palettes, 57 font pairings, 161 product types with reasoning rules, 99 UX guidelines, and 25 chart types across 10 technology stacks. Searchable database with priority-based recommendations.
 
 ## When to Apply
@@ -662,7 +661,6 @@ Scope notice: The rules below are for App UI (iOS/Android/React Native/Flutter),
 | **Touch Target Minimum** | Minimum 44×44pt interactive area (use hitSlop if icon is smaller). | Small icons without expanded tap area. | Meets accessibility and platform usability standards. |
 | **Icon Alignment** | Align icons to text baseline and maintain consistent padding. | Misaligned icons or inconsistent spacing around them. | Prevents subtle visual imbalance that reduces perceived quality. |
 | **Icon Contrast** | Follow WCAG contrast standards: 4.5:1 for small elements, 3:1 minimum for larger UI glyphs. | Low-contrast icons that blend into the background. | Ensures accessibility in both light and dark modes. |
-
 
 ### Interaction (App)
 

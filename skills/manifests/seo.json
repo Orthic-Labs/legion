@@ -136,7 +136,7 @@
     {
       "path": "SKILL.md",
       "uri": "legion-skill://seo/SKILL.md",
-      "digest": "sha256:1c5e4cf265448a2b9def55ffbbf9b17fb328d4f175747d20f39fcaa5a0672a61"
+      "digest": "sha256:5b39767930bf033accc31591a6ef9076ec138ae6859b5ce5e1fc70fda0c8172d"
     },
     {
       "path": "evals/evals.json",
@@ -346,7 +346,7 @@
     {
       "path": "references/google.md",
       "uri": "legion-skill://seo/references/google.md",
-      "digest": "sha256:f77b20641f612e059492f06107121684cb61a43fcaf11538d0f721093f1ed04d"
+      "digest": "sha256:6cdf2101a8a4be1e21de99cdb2c48ba7b02524bac4a005b519094a3c861bf527"
     },
     {
       "path": "references/hreflang.md",
@@ -391,7 +391,7 @@
     {
       "path": "references/image-gen.md",
       "uri": "legion-skill://seo/references/image-gen.md",
-      "digest": "sha256:413cd16827708392a2ea58e84cd870c95ef80e85dd6741ec49986820b7bba500"
+      "digest": "sha256:8b330cd6e2aae900cf8e63d1b74d092b019d2a4487faeb32b6e948bcf502ddca"
     },
     {
       "path": "references/images.md",
@@ -421,7 +421,7 @@
     {
       "path": "references/manual.md",
       "uri": "legion-skill://seo/references/manual.md",
-      "digest": "sha256:31c4304774093f8c2001279805930fcf3bece1b8d67fb0cd0f57d99dfbc3a8d4"
+      "digest": "sha256:ddd37fe81dc471319219d931e57e4b15d678f2df40738ff33cfe54811e8825bc"
     },
     {
       "path": "references/maps-api-endpoints.md",
@@ -471,7 +471,7 @@
     {
       "path": "references/schema-markup.md",
       "uri": "legion-skill://seo/references/schema-markup.md",
-      "digest": "sha256:864fae1a7d0f344a49ec4ffb3b563aff2ad979d88c76318d2e2eeca8445652e1"
+      "digest": "sha256:1c85df0d5cb1da30cbaec5956589ac94edf1712b1b454df6b062dd7b02c476e4"
     },
     {
       "path": "references/schema-types.md",

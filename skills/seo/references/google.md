@@ -367,5 +367,4 @@ Generate a professional PDF report with charts and analytics.
 | Indexing API quota exceeded | Report 200/day limit. Suggest prioritizing most important URLs. |
 | Rate limit (429) | Wait and retry with exponential backoff. Report which API hit the limit. |
 
-
 _Additional refs: see google-assets/_

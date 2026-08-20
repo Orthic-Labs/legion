@@ -6,10 +6,7 @@ description: Build & verify a current repository map with Cortex; `/blueprint` i
 # Cortex
 
 ```text
-MODE: DIAGNOSE
 PRIMARY_DELIVERABLE: Verified repository understanding or typed graph degradation.
-DISCOVERY_PROFILE: D1_SCOPED_SOURCE
-EFFECT_PROFILES: graph_engine
 SPECIALIST_REFS_MAX: 0
 CHILD_AGENTS_MAX: 0
 EXTERNAL_REQUESTS_MAX: 0

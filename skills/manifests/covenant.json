@@ -63,7 +63,7 @@
     {
       "path": "SKILL.md",
       "uri": "legion-skill://covenant/SKILL.md",
-      "digest": "sha256:916631068449d6675bec0f16c7339d2ecbd6e887c86408c455b4d368ae8ba56b"
+      "digest": "sha256:6dbbe9952d53b3e22ab7fe72a00c19b354037efeeea94ba27db946befed2a9c1"
     },
     {
       "path": "assets/external-review-packet-template.md",
@@ -83,7 +83,7 @@
     {
       "path": "evals/evals.json",
       "uri": "legion-skill://covenant/evals/evals.json",
-      "digest": "sha256:69e83d038e743d67479aee2495cda346894fb449a9e8f7c6e1da06c80ec9fe8e"
+      "digest": "sha256:1093447d5e75e122c1caaecb0b4e537ab6f67b79966b2681cd23540f45928a32"
     },
     {
       "path": "evals/legacy-council.json",

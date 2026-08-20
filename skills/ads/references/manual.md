@@ -1,9 +1,6 @@
 # Ads: Multi-Platform Paid Advertising Audit & Optimization
 
-MODE: DIAGNOSE
 PRIMARY_DELIVERABLE: Bounded paid-media findings or strategy for frozen account, object, or domain scope.
-DISCOVERY_PROFILE: D3_EXTERNAL
-EFFECT_PROFILES: external_research, connector
 SPECIALIST_REFS_MAX: 0
 CHILD_AGENTS_MAX: 0
 EXTERNAL_REQUESTS_MAX: 12

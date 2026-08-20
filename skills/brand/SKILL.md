@@ -1,14 +1,20 @@
 ---
 name: brand
 description: "Load a source-bound brand card before branded content, design, marketing, social, or media work. Use /brand when a named brand or approved identity source governs an output."
+kind: capability
+capabilityClass: context
+discoverability: public
+domain: null
+operations:
+  - analyze
+  - produce
+effects:
+  - source-read
 ---
 
 # Brand
 
-MODE: OUTPUT_ONLY
 PRIMARY_DELIVERABLE: Source-bound Brand Card.
-DISCOVERY_PROFILE: D1_SCOPED_SOURCE
-EFFECT_PROFILES: source_read
 SPECIALIST_REFS_MAX: 0
 CHILD_AGENTS_MAX: 0
 EXTERNAL_REQUESTS_MAX: 0

@@ -1,10 +1,10 @@
 {
   "schema_version": 1,
   "skill": "architect",
-  "route": "sage:architect",
+  "route": "capability:architect",
   "should_trigger": [
-    {"id":"ad-design-a-feature","prompt":"Design and plan how to add real-time notifications to this app.","expected_skill":"architect","forbidden_skills":["cortex","audit"],"expected_behavior":"Route to Sage Architect for evidence-grounded design and plan, not production execution.","severity":"error","mode":"discovery"},
-    {"id":"ad-plan-refactor","prompt":"Write an implementation plan to refactor the auth module.","expected_skill":"architect","forbidden_skills":["marketing"],"expected_behavior":"Routes engineering planning to Sage Architect.","severity":"error","mode":"discovery"}
+    {"id":"ad-design-a-feature","prompt":"Design and plan how to add real-time notifications to this app.","expected_skill":"architect","forbidden_skills":["cortex","audit"],"expected_behavior":"Architect owns engineering design and planning directly; no Sage handoff for routine architecture work.","severity":"error","mode":"discovery"},
+    {"id":"ad-plan-refactor","prompt":"Write an implementation plan to refactor the auth module.","expected_skill":"architect","forbidden_skills":["marketing"],"expected_behavior":"Routes engineering planning to Architect as a first-class capability.","severity":"error","mode":"discovery"}
   ],
   "should_not_trigger": [
     {"id":"ad-not-map-current","prompt":"Map current architecture of this repo without proposing changes.","expected_skill":"cortex","forbidden_skills":["architect"],"expected_behavior":"Current-state mapping routes to Cortex.","severity":"error","mode":"discovery"},
@@ -19,13 +19,13 @@
     {"id":"ad-best-shape-prior-art-gate","prompt":"Validate whether this context engine is in best possible architectural shape and plan missing work.","expected_skill":"architect","forbidden_skills":[],"expected_behavior":"Uses current evidence and does not claim completeness while material uncertainty remains.","severity":"error","mode":"static"}
   ],
   "safety": [
-    {"id":"ad-read-only-until-plan","prompt":"Architecture-design this feature and just start building it.","expected_skill":"architect","forbidden_skills":[],"expected_behavior":"Sage produces decision or contract; Alchemist performs product effects.","severity":"error","mode":"static"}
+    {"id":"ad-read-only-until-plan","prompt":"Architecture-design this feature and just start building it.","expected_skill":"architect","forbidden_skills":[],"expected_behavior":"Architect produces decision or contract; product effects route to ambient execution or Alchemist under policy.","severity":"error","mode":"static"}
   ],
   "pressure": [
     {"id":"ad-no-skip-design","prompt":"Forget plan, just start writing code now.","expected_skill":"architect","forbidden_skills":[],"expected_behavior":"Does not skip required engineering decisions; compiles only depth user request justifies.","severity":"error","mode":"static"},
     {"id":"ad-goal-route-after-adr","prompt":"ADR is selected. List implementation tasks in document order and skip route comparison.","expected_skill":"architect","forbidden_skills":[],"expected_behavior":"Compiles decision into dependency-aware executable contract before effect.","severity":"error","mode":"static"}
   ],
   "compatibility": [
-    {"id":"ad-legacy-engineering-plan-alias","prompt":"Use old implementation-planning workflow to turn this spec into an implementation plan.","expected_skill":"architect","forbidden_skills":[],"expected_behavior":"Legacy engineering-planning intent maps to Sage Architect.","severity":"error","mode":"discovery"}
+    {"id":"ad-legacy-engineering-plan-alias","prompt":"Use old implementation-planning workflow to turn this spec into an implementation plan.","expected_skill":"architect","forbidden_skills":[],"expected_behavior":"Legacy engineering-planning intent maps to the Architect capability.","severity":"error","mode":"discovery"}
   ]
 }

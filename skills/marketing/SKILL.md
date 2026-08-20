@@ -1,14 +1,22 @@
 ---
 name: marketing
 description: "Route positioning, offers, packaging, guarantees, launches, validation, growth, analytics, pricing, CRO, retention, and commercial ideation. Use for Grand Slam Offers or what, whom, why, and how to market; route execution to Ads, SEO, Social, Research, or Writing."
+kind: capability
+capabilityClass: domain
+discoverability: public
+domain: commercial
+operations:
+  - analyze
+  - decide
+  - produce
+effects:
+  - source-read
+  - network-request
 ---
 
 # Marketing
 
-MODE: OUTPUT_ONLY
 PRIMARY_DELIVERABLE: Commercial decision or specialist route.
-DISCOVERY_PROFILE: D3_EXTERNAL
-EFFECT_PROFILES: external_research
 SPECIALIST_REFS_MAX: 1
 CHILD_AGENTS_MAX: 0
 EXTERNAL_REQUESTS_MAX: 12

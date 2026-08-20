@@ -1,9 +1,6 @@
 # Brand Identity
 
-MODE: OUTPUT_ONLY
 PRIMARY_DELIVERABLE: Requested identity-system output for exact granted assets or paths.
-DISCOVERY_PROFILE: D1_SCOPED_SOURCE
-EFFECT_PROFILES: asset_read, output_write
 SPECIALIST_REFS_MAX: 0
 CHILD_AGENTS_MAX: 0
 EXTERNAL_REQUESTS_MAX: 0

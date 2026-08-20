@@ -9,6 +9,81 @@ import { compileAdvisoryProfile } from '../lib/advisory-profile.mjs';
 
 const contract = () => ({ schemaVersion: 1, kind: 'legion-execution-contract', contractId: 'EC-1', version: 1, sourceRevision: 'abcdef0', objective: 'x', currentState: 'x', desiredState: 'x', requirements: [], decisions: [], invariants: [], nonGoals: [], scope: { own: [], read: [], forbidden: [] }, artifacts: { exact: [{ id: 'a', path: 'x', latitude: 'EXACT', content: 'x' }], bounded: [{ id: 'b', path: 'y', latitude: 'BOUNDED', locked: ['x'], freedom: ['y'] }] }, tasks: ['T-1'], dependencies: [], acceptanceCriteria: [], declaredChecks: [], evidenceRequirements: [], authorizedEffectClasses: [], repairLatitude: [], stopConditions: [], escalationConditions: [], rollback: [], openQuestions: [], budget: { objectiveLineageId: 'objective-1', objectiveDigest: `sha256:${'a'.repeat(64)}`, legionBlastMapCapMs: 1, sagePlanningCapMs: 1, maxContractVersions: 2 } });
 const assertion = { authority: 'sage', assertedBy: 'host', verificationMethod: 'capability-signature', perMessage: true };
+const legionAssertion = { authority: 'legion', assertedBy: 'legion-orchestrator', verificationMethod: 'capability-signature', perMessage: true };
+
+test('M-011: Legion may seal a settled executable contract; Sage seals an adjudicated one', () => {
+  const root = mkdtempSync(path.join(os.tmpdir(), 'seal-authority-'));
+  const store = new ContractSealStore({ root, clock: () => '2026-08-09T12:00:00Z' });
+  const settled = contract();
+  const legion = store.seal({ contract: settled, authorityAssertion: legionAssertion });
+  assert.equal(legion.created, true);
+  assert.equal(legion.record.sealedBy.authority, 'legion');
+  assert.deepEqual(store.require(settled).sealedBy.authority, 'legion');
+
+  const adjudicated = contract(); adjudicated.contractId = 'EC-2';
+  const sage = store.seal({ contract: adjudicated, authorityAssertion: assertion });
+  assert.equal(sage.created, true);
+  assert.equal(sage.record.sealedBy.authority, 'sage');
+});
+
+test('M-011: OPEN / non-empty openQuestions are rejected exactly as before', () => {
+  const root = mkdtempSync(path.join(os.tmpdir(), 'seal-open-'));
+  const store = new ContractSealStore({ root });
+  const open = contract(); open.openQuestions = ['what should the interface be?'];
+  assert.throws(() => store.seal({ contract: open, authorityAssertion: legionAssertion }), (e) => e.code === 'ARC_CONTRACT_NOT_EXECUTABLE');
+});
+
+test('M-011: Alchemist, Oracle, and Covenant assertions are rejected', () => {
+  const root = mkdtempSync(path.join(os.tmpdir(), 'seal-reject-'));
+  const store = new ContractSealStore({ root });
+  for (const authority of ['alchemist', 'oracle', 'covenant', 'arcane', 'kernel']) {
+    assert.throws(
+      () => store.seal({ contract: contract(), authorityAssertion: { authority, assertedBy: 'host', verificationMethod: 'capability-signature', perMessage: true } }),
+      (e) => e.code === 'ARC_SCHEMA_INVALID',
+      `${authority} must not seal`,
+    );
+  }
+});
+
+test('M-011: missing/invalid capability signature fields are rejected', () => {
+  const root = mkdtempSync(path.join(os.tmpdir(), 'seal-sig-'));
+  const store = new ContractSealStore({ root });
+  const base = { ...legionAssertion };
+  for (const broken of [
+    { ...base, assertedBy: '' },
+    { ...base, assertedBy: null },
+    { ...base, verificationMethod: 'host-connection-trust' },
+    { ...base, perMessage: false },
+    { ...base, authority: 'host' },
+  ]) {
+    assert.throws(() => store.seal({ contract: contract(), authorityAssertion: broken }), (e) => e.code === 'ARC_SCHEMA_INVALID');
+  }
+});
+
+test('M-011: legacy Sage seal fixture still verifies', () => {
+  const root = mkdtempSync(path.join(os.tmpdir(), 'seal-legacy-'));
+  const store = new ContractSealStore({ root });
+  const c = contract();
+  const legacy = store.seal({ contract: c, authorityAssertion: assertion });
+  assert.equal(legacy.record.sealedBy.authority, 'sage');
+  assert.deepEqual(store.verify('EC-1', 1), { ok: true, code: null, issues: [] });
+});
+
+test('M-011: same Legion-sealed immutable version is idempotent; conflicting sealer/digest is a version mismatch', () => {
+  const root = mkdtempSync(path.join(os.tmpdir(), 'seal-conflict-'));
+  const store = new ContractSealStore({ root });
+  const c = contract();
+  const first = store.seal({ contract: c, authorityAssertion: legionAssertion });
+  const second = store.seal({ contract: c, authorityAssertion: { ...legionAssertion, assertedBy: 'other' } });
+  assert.equal(first.created, true);
+  assert.equal(second.created, false);
+  assert.equal(second.record.sealedBy.authority, 'legion');
+
+  const changed = contract(); changed.desiredState = 'changed';
+  assert.throws(() => store.seal({ contract: changed, authorityAssertion: legionAssertion }), (e) => e.code === 'ARC_CONTRACT_VERSION_MISMATCH');
+  // A Sage assertion against an already-Legion-sealed version conflicts.
+  assert.throws(() => store.seal({ contract: c, authorityAssertion: assertion }), (e) => e.code === 'ARC_CONTRACT_VERSION_MISMATCH');
+});
 test('B2 seals immutably, returns idempotently, and detects changed desired state', () => {
   const root = mkdtempSync(path.join(os.tmpdir(), 'seal-')); const store = new ContractSealStore({ root, clock: () => '2026-08-09T12:00:00Z' }); const first = store.seal({ contract: contract(), authorityAssertion: assertion }); const second = store.seal({ contract: contract(), authorityAssertion: { ...assertion, assertedBy: 'other' } });
   assert.equal(first.created, true); assert.equal(second.created, false); assert.equal(store.require(contract()).contractDigest, first.record.contractDigest); const changed = contract(); changed.desiredState = 'changed'; assert.throws(() => store.seal({ contract: changed, authorityAssertion: assertion }), /immutable version/); assert.deepEqual(store.verify('EC-1', 1), { ok: true, code: null, issues: [] });

@@ -2,40 +2,29 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { loadRoutingGraph, resolveDomain, targetExists, validateRoutingGraph } from '../src/lib/routing/index.mjs';
+import { loadRoutingGroups, resolveDomain, resolveGroupChild, validateRoutingGroups } from '../src/lib/routing/index.mjs';
 import { validateCommercialLenses } from '../src/lib/lenses/routing.mjs';
 
 const ROOT = resolve(import.meta.dirname, '..');
 
-test('five canonical domains resolve through dispatch or packaged content', () => {
+test('grouping domains resolve capabilities from the canonical catalog', () => {
   const results = ['engineering', 'commercial', 'research', 'editorial', 'design'].map((id) => resolveDomain(ROOT, id));
   assert.equal(results[0].status, 'resolved');
   assert.deepEqual(results.slice(1).map(({ status }) => status), ['resolved', 'resolved', 'resolved', 'resolved']);
-  assert.deepEqual(results[0].capabilities.map(({ targetType }) => targetType), ['agent-dispatch', 'agent-dispatch', 'agent-dispatch']);
-  assert.ok(results.slice(1).every(({ capabilities }) => capabilities.length > 0));
-});
-
-test('advisory leaves are reachable, not merely status-resolved (RTE-004)', () => {
-  // The prior assertions checked `status` only, so a domain reported `resolved`
-  // while every child carried availability 'unavailable' and nothing could be
-  // dispatched. Availability must be derived from the leaf actually resolving.
-  for (const id of ['commercial', 'research', 'editorial', 'design']) {
-    const { status, capabilities } = resolveDomain(ROOT, id);
-    assert.equal(status, 'resolved', id);
-    assert.ok(capabilities.length > 0, `${id} has children`);
-    for (const leaf of capabilities) {
-      assert.equal(leaf.availability, 'available', `${id}/${leaf.id} availability`);
-      assert.ok(targetExists(ROOT, leaf), `${id}/${leaf.id} targetRef resolves`);
-      const manifest = JSON.parse(readFileSync(resolve(ROOT, leaf.targetRef), 'utf8'));
-      const entry = resolve(ROOT, 'skills', leaf.id, manifest.entry);
-      assert.ok(existsSync(entry), `${id}/${leaf.id} entrypoint ${manifest.entry} exists`);
+  assert.ok(results.every(({ capabilities }) => capabilities.length > 0));
+  // Groups carry catalog capabilities, never roles, and never routing targetType.
+  for (const { capabilities } of results) {
+    for (const capability of capabilities) {
+      assert.equal(capability.id.startsWith('sage') || capability.id.startsWith('alchemist') || capability.id.startsWith('oracle'), false, 'roles are not grouping children');
+      assert.equal(capability.targetType, undefined, 'grouping children carry no routing targetType');
+      assert.equal(capability.manifest, `skills/manifests/${capability.id}.json`);
     }
   }
 });
 
-test('registry is the single source of advisory children (RTE-001)', () => {
+test('registry is the single source of grouping children (RTE-001)', () => {
   const registry = JSON.parse(readFileSync(resolve(ROOT, 'src/registry/routing/domains.json'), 'utf8'));
-  const graph = loadRoutingGraph(ROOT);
+  const graph = loadRoutingGroups(ROOT);
   for (const domain of registry.domains) {
     const actual = graph.domains.find(({ id }) => id === domain.id);
     assert.deepEqual(
@@ -46,27 +35,29 @@ test('registry is the single source of advisory children (RTE-001)', () => {
   }
 });
 
-test('routing projection keeps engineering dispatch-only and advisory content-only', () => {
-  const report = validateRoutingGraph(loadRoutingGraph(ROOT));
+test('grouping projection is capabilities-only; every child resolves to a catalog capability', () => {
+  const report = validateRoutingGroups(loadRoutingGroups(ROOT));
   assert.equal(report.ok, true, JSON.stringify(report.findings));
-  const graph = loadRoutingGraph(ROOT);
+  const graph = loadRoutingGroups(ROOT);
+  const index = JSON.parse(readFileSync(resolve(ROOT, 'src/registry/skills/index.json'), 'utf8'));
   for (const domain of graph.domains) {
-    const expected = domain.id === 'engineering' ? 'agent-dispatch' : 'content';
-    assert.ok((domain.children ?? []).every(({ targetType }) => targetType === expected));
+    for (const child of domain.children ?? []) {
+      const record = resolveGroupChild(index, child.id);
+      assert.ok(record, `${child.id} is a catalog capability`);
+      assert.equal(record.id, child.id);
+    }
   }
 });
 
-test('validator rejects duplicate roots, mixed leaf types, and dangling targets', () => {
-  const graph = loadRoutingGraph(ROOT);
+test('validator rejects duplicate groups, non-catalog children, and dangling members', () => {
+  const graph = loadRoutingGroups(ROOT);
   const invalid = structuredClone(graph);
   invalid.domains.push(structuredClone(invalid.domains[0]));
-  invalid.domains[0].children[0].targetType = 'content';
-  invalid.domains[0].children[1].targetRef = 'roster/missing.md';
-  invalid.domains[0].children[2].targetRef = '../AGENTS.md';
-  const report = validateRoutingGraph(invalid);
+  invalid.domains[0].children.push({ id: 'not-a-capability' });
+  invalid.domains[0].children.push({ id: 'sage' });
+  const report = validateRoutingGroups(invalid);
   assert.equal(report.ok, false);
   assert.ok(report.findings.some(({ code }) => code === 'duplicate-root'));
-  assert.ok(report.findings.some(({ code }) => code === 'mixed-leaf-type'));
   assert.equal(report.findings.filter(({ code }) => code === 'dangling-target').length, 2);
 });
 

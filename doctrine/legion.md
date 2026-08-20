@@ -1,20 +1,64 @@
-# Legion — role doctrine reference
+# Legion — routing and orchestration reference
 
-> **Canon owner:** the operator's agent-rules source is the **sole source** for Legion identity, authority, routing & scope constitution (see `doctrine/architecture/canon-map.md` §37A). This file owns **role-routing reference** only — it references the constitution, never duplicates it. Do not edit constitution text here; edit that source and regenerate this file from it.
+**Status:** delegated routing/orchestration reference doctrine. Constrained by
+`docs/LEGION-CANONICAL-SSOT.md` (root architecture SSOT) and `AGENTS.md` (live operational
+constitution).
 
-**Canonical source:** an operator-supplied agent-rules source, generated into `AGENTS.md`/`CLAUDE.md` by that operator's own tooling. This package ships neither the source nor the generator.
+This file does **not** own:
 
-**This file's scope:** how Legion routes to Sage/Alchemist/Oracle/Arcane/Covenant per the constitution — no duplicated identity, scope, or invariant text. For full authority see the canonical source and `doctrine/architecture/canon-map.md`.
+- Legion identity, authority, or constitution (owned by `AGENTS.md`);
+- system architecture or ownership boundaries (owned by the root SSOT);
+- role identity, authority boundary, or model policy (owned by `src/roster/*.md`);
+- any external unpublished "operator source" constitution (none outranks the shipped canon).
 
-**Related map:** `doctrine/architecture/canon-map.md` — concept → source_owner, generated_consumers, runtime_producer, conformance_checks.
+It may describe:
 
-> **Historical:** prior version of this file duplicated the constitution verbatim — archived via this reference to eliminate dual ownership (Stage 1 S01-04).
+- routing reference;
+- capability composition;
+- work-graph reference;
+- authority attachment;
+- dispatch/handoff relationships.
 
 ## Handoff reference
 
-Legion routes a frozen Sage handoff to Alchemist, then requires independent Oracle completion
-validation before every successful final delivery; Covenant is only a one-shot
-advisory escalation. It derives a file/artifact task DAG from actual consumption, launches the
-maximal ready antichain, & never copies a stage DAG into execution. Only shared
-contract writes, integration, commits, pins, & pushes serialize. Constitution, authority, scope,
-acceptance, & completion semantics remain owned by canonical sources above.
+Legion routes work by capability descriptions and explicit authority invocation. A frozen Sage
+handoff goes to Alchemist, then independent Oracle completion validation is required before every
+successful final delivery; Covenant is only a one-shot advisory escalation. Execution derives a
+file/artifact task DAG from actual consumption, launches the maximal ready antichain, & never
+copies a stage DAG into execution. Only shared contract writes, integration, commits, pins, &
+pushes serialize. Constitution, authority, scope, acceptance, & completion semantics remain owned
+by the canonical sources above.
+
+## Orchestration boundary
+
+Dispatch is a Legion orchestration primitive for validated zero-context delegation packets. Its
+deterministic mechanics live in `skills/dispatch/**` and the dispatch-validator/contracts
+runtime. The bounded-execution substrate (typed terminals, numeric budgets, same-failure stop,
+checkpoints/resume, receipts, worker-output distrust) applies where justified — dispatched,
+governed, locked, contracted, expensive/retry-prone, or resumable long-running work — not to
+ambient routine work.
+
+## Routing shape
+
+```text
+USER INTENT
+    ↓
+LEGION — semantic classification over the compact canonical catalog
+    ↓
+0..N capabilities / internal entrypoints
+    ↓
+WORK GRAPH — operations, effects, dependencies, authority only where required
+    ↓
+Arcane gates declared effects
+    ↓
+execution / integration
+    ↓
+Oracle Completion Validation under current policy
+    ↓
+delivery
+```
+
+Natural-language routing is performed by the always-on Legion orchestration model from the
+compact catalog in context. The deterministic runtime validates selected IDs and resolves
+explicit aliases only; it does not interpret prose. Domains are grouping metadata only and never
+decide routing. Slash aliases remain deterministic.

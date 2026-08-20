@@ -84,7 +84,6 @@
 - HTML实现:纯CSS+少量JS还原骨架（原作就是HTML+CSS+jQuery无WebGL）。视差分层position+scroll位移、image-rendering:pixelated、CSS逐帧background-position做sprite动画、分段背景色。缺口：原创角色/场景手绘像素插画——无生图时用CSS方块拼简易像素图标替代（美术降级，技术不降）。
 - 字体:Press Start 2P / VT323（像素字）+ Inter
 
-
 #### 中性派
 
 **包豪斯几何标志+扁平插画系统 Bauhaus Geometric** `中性·还原90%`
@@ -136,7 +135,6 @@
 - HTML实现:纯CSS 80%还原。等宽字代码块+暗色bento+box-shadow光晕；2.5D等距cube用CSS 3D transform(rotateX/Y+skew)或SVG等距投影手搓。缺口：可点击切换的多界面demo需JS+假UI拼接。无WebGL刚需。
 - 字体:Geist Mono / JetBrains Mono（主角）+ Inter（辅助）
 
-
 #### 安静派
 
 **功能主义网格社区 Functional Brutalism（灰线分割+系统字+蓝链接）** `安静·还原98%`
@@ -166,7 +164,6 @@
 - 视觉DNA:配色近全白#FAFAFA底+纯黑文字#0A0A0A+极淡灰分割#EFEFEF，内容图提供全部色彩、UI退到背景。字体极简系统/几何无衬线小字、大字距。布局masonry瀑布网格、极致留白、淡灰发丝分隔、东方空寂。标志元素：白盒美学、奢侈留白、内容至上UI隐退、瀑布流策展。
 - HTML实现:纯CSS还原静态版式（与暗色画廊区分在『白』）。CSS columns或Grid做masonry+近白变量+大padding留白+淡灰分隔。缺口是Lenis/GSAP丝滑惯性滚动与图片入场缓动（高级感60%在此），CSS仅基础transition，动效层降级。
 - 字体:Inter（细字重）/ Cooper Hewitt（Aesop同款开源）
-
 
 ## PPT风格库(20种)
 
@@ -228,7 +225,6 @@
 - HTML实现:撞色满版background；3D膨胀数字用CSS text-shadow多层叠加+transform:perspective或SVG+stroke制造立体(非真3D渲染)；duotone用mix-blend-mode+渐变叠在灰度图占位块上。金属质感降级为渐变填充文字background-clip:text，还原度降约15%
 - 字体:Archivo Black / Anton超粗 + 数字Clash Display
 
-
 #### 中性派
 
 **Bento便当格模块网格 / Bento Grid** `中性·还原95%`
@@ -273,7 +269,6 @@
 - HTML实现:波形线用内联SVG path(平滑贝塞尔)；标注点用SVG circle+text定位；对照波形上下两条path；reveal用CSS动画stroke-dashoffset。纯SVG绘制无素材
 - 字体:Inter + 数字Geist Mono
 
-
 #### 安静派
 
 **断言-证据 / Tufte信息设计** `安静·还原93%`
@@ -317,7 +312,6 @@
 - 视觉DNA:配色=纯白或纯黑底+单一强调色(Netflix红#E50914)做唯一高亮，极致克制。字体=阅读级排印，一页一观点金句断言/纯散文零bullet零图。母版=①满版底+金句断言②口语化坦诚段落③制度名词高亮(Keeper Test)④六页散文+附录表。标志=纯文字一页一观点、零图零bullet、单色高亮金句、口语坦诚、silent-read文档感
 - HTML实现:纯排版：金句用大字clamp()左对齐层级；散文max-width控制行宽；唯一强调色span高亮关键短语；附录用极简table。零素材零图，纯文字是HTML最稳的还原
 - 字体:Newsreader / Source Serif(阅读级)或Inter(宣言式)；标题可Archivo超粗
-
 
 ---
 

@@ -50,7 +50,7 @@
     {
       "path": "SKILL.md",
       "uri": "legion-skill://cortex/SKILL.md",
-      "digest": "sha256:f93cfe808e55c3e0bb3311291074471a29dc2d7fde9a8d9749e70e40e40d2692"
+      "digest": "sha256:c5ee5b26aec9d4785c45ee10cf1bba533c3e333f2b5219a6bb84fd7574d53121"
     },
     {
       "path": "evals/evals.json",
@@ -60,12 +60,12 @@
     {
       "path": "references/legacy-workspace-skill.md",
       "uri": "legion-skill://cortex/references/legacy-workspace-skill.md",
-      "digest": "sha256:7c3a24aab5c3d1af0ccb7ceff69cca06a4da8e612873253b228ac4a532a12562"
+      "digest": "sha256:fb96262fef893c24ce31c0821d81da132a79fea2787b4e73e7b5a1419349e180"
     },
     {
       "path": "references/manual.md",
       "uri": "legion-skill://cortex/references/manual.md",
-      "digest": "sha256:b165e4fe5544924e058367a2e5e8eeed924e58fb7470de4f0b86dfebba1ff275"
+      "digest": "sha256:002cacaa2fe62cad99996f8730bf42b63e8649b5e1af6e875fe7c954348f0f84"
     }
   ]
 }

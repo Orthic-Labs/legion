@@ -1,14 +1,23 @@
 ---
 name: social
 description: "Route Instagram, Pinterest, YouTube, Twitter or X, LinkedIn, Reels, Shorts, pins, threads, calendars, distribution, analytics, and social growth. Use /social or when social strategy or content is the deliverable."
+kind: capability
+capabilityClass: domain
+discoverability: public
+domain: commercial
+operations:
+  - analyze
+  - decide
+  - produce
+effects:
+  - source-read
+  - artifact-write
+  - network-request
 ---
 
 # Social
 
-MODE: OUTPUT_ONLY
 PRIMARY_DELIVERABLE: Platform-native artifact or strategy.
-DISCOVERY_PROFILE: D3_EXTERNAL
-EFFECT_PROFILES: external_research, connector
 SPECIALIST_REFS_MAX: 1
 CHILD_AGENTS_MAX: 0
 EXTERNAL_REQUESTS_MAX: 12

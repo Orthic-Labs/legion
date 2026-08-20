@@ -1,13 +1,20 @@
 ---
 name: covenant
 description: Convene Legion's independent challenge chamber for a Sage decision, an Alchemist blocker, or packet-only review preparation. Use /covenant.
+kind: entrypoint
+discoverability: explicit
+target: challenge:covenant
+operations:
+  - analyze
+  - evaluate
+  - produce
+effects:
+  - source-read
 ---
 
 # Covenant
 
-MODE: DIAGNOSE
 PRIMARY_DELIVERABLE: Digest-bound Covenant request, record, or packet-only artifact.
-EFFECT_PROFILES: child_packet
 CHILD_AGENTS_MAX: 0
 EXTERNAL_REQUESTS_MAX: 0
 MAY_ADD_TASKS: NO

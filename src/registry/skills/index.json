@@ -1,28 +1,505 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
+  "generatedFrom": [
+    "skills/*/SKILL.md",
+    "src/config/capability-aliases.json"
+  ],
   "bundles": [
-    { "id": "alchemist", "manifest": "skills/manifests/alchemist.json" },
-    { "id": "architect", "manifest": "skills/manifests/architect.json" },
-    { "id": "audit", "manifest": "skills/manifests/audit.json" },
-    { "id": "audit-fix", "manifest": "skills/manifests/audit-fix.json" },
-    { "id": "audit-visual", "manifest": "skills/manifests/audit-visual.json" },
-    { "id": "brand", "manifest": "skills/manifests/brand.json" },
-    { "id": "coder", "manifest": "skills/manifests/coder.json" },
-    { "id": "commit", "manifest": "skills/manifests/commit.json" },
-    { "id": "cortex", "manifest": "skills/manifests/cortex.json" },
-    { "id": "covenant", "manifest": "skills/manifests/covenant.json" },
-    { "id": "debugger", "manifest": "skills/manifests/debugger.json" },
-    { "id": "dispatch", "manifest": "skills/manifests/dispatch.json" },
-    { "id": "handoff", "manifest": "skills/manifests/handoff.json" },
-    { "id": "qa", "manifest": "skills/manifests/qa.json" },
-    { "id": "tasklist", "manifest": "skills/manifests/tasklist.json" },
-    { "id": "designer", "manifest": "skills/manifests/designer.json" },
-    { "id": "writing", "manifest": "skills/manifests/writing.json" },
-    { "id": "research", "manifest": "skills/manifests/research.json" },
-    { "id": "seo", "manifest": "skills/manifests/seo.json" },
-    { "id": "ads", "manifest": "skills/manifests/ads.json" },
-    { "id": "marketing", "manifest": "skills/manifests/marketing.json" },
-    { "id": "social", "manifest": "skills/manifests/social.json" },
-    { "id": "brand-identity", "manifest": "skills/manifests/brand-identity.json" }
+    {
+      "id": "ads",
+      "name": "ads",
+      "description": "Audit, plan, create, or optimize paid campaigns across Google, Meta, YouTube, LinkedIn, TikTok, Microsoft, or Apple. Use for PPC, ROAS, CPA, targeting, bidding, retargeting, budgets, creative, or ad-spend questions.",
+      "kind": "capability",
+      "capabilityClass": "domain",
+      "discoverability": "public",
+      "domain": "commercial",
+      "operations": [
+        "- analyze",
+        "- decide",
+        "- produce"
+      ],
+      "effects": [
+        "- source-read",
+        "- network-request"
+      ],
+      "hostRequirements": [],
+      "source": "skills/ads/SKILL.md",
+      "manifest": "skills/manifests/ads.json"
+    },
+    {
+      "id": "alchemist",
+      "name": "alchemist",
+      "description": "Execute a settled, bounded change through Legion's Alchemist authority. Use /alchemist after scope, ownership, checks, and acceptance are decided.",
+      "kind": "entrypoint",
+      "capabilityClass": null,
+      "discoverability": "explicit",
+      "domain": null,
+      "operations": [
+        "- execute"
+      ],
+      "effects": [
+        "- source-read",
+        "- repository-write",
+        "- process-exec"
+      ],
+      "hostRequirements": [
+        "- omniroute"
+      ],
+      "source": "skills/alchemist/SKILL.md",
+      "manifest": "skills/manifests/alchemist.json"
+    },
+    {
+      "id": "architect",
+      "name": "architect",
+      "description": "Software and system architecture capability for architecture decisions, ADRs, quality attributes, interfaces, invariants, migrations, and architecture-significant planning.",
+      "kind": "capability",
+      "capabilityClass": "domain",
+      "discoverability": "public",
+      "domain": "engineering",
+      "operations": [
+        "- analyze",
+        "- decide",
+        "- produce"
+      ],
+      "effects": [
+        "- source-read",
+        "- artifact-write"
+      ],
+      "hostRequirements": [],
+      "source": "skills/architect/SKILL.md",
+      "manifest": "skills/manifests/architect.json"
+    },
+    {
+      "id": "audit",
+      "name": "audit",
+      "description": "Diagnose a whole repository through Legion's frozen Audit provider plan. Use for /audit or repository-wide read-only health, security, runtime, & evidence review.",
+      "kind": "capability",
+      "capabilityClass": "domain",
+      "discoverability": "public",
+      "domain": "engineering",
+      "operations": [
+        "- analyze",
+        "- evaluate",
+        "- produce"
+      ],
+      "effects": [
+        "- source-read",
+        "- process-exec",
+        "- artifact-write"
+      ],
+      "hostRequirements": [],
+      "source": "skills/audit/SKILL.md",
+      "manifest": "skills/manifests/audit.json"
+    },
+    {
+      "id": "audit-fix",
+      "name": "audit-fix",
+      "description": "Apply bounded remediation from a frozen Legion Audit report, then rerun its same provider plan. Use only for /audit-fix after /audit evidence exists.",
+      "kind": "capability",
+      "capabilityClass": "workflow",
+      "discoverability": "public",
+      "domain": "engineering",
+      "operations": [
+        "- analyze",
+        "- evaluate",
+        "- execute",
+        "- produce"
+      ],
+      "effects": [
+        "- source-read",
+        "- repository-write",
+        "- process-exec"
+      ],
+      "hostRequirements": [],
+      "source": "skills/audit-fix/SKILL.md",
+      "manifest": "skills/manifests/audit-fix.json"
+    },
+    {
+      "id": "audit-visual",
+      "name": "audit-visual",
+      "description": "Review rendered UI through Legion's shared Audit visual provider. Use for /audit-visual, visual regressions, screenshot baselines, or rendered-state coverage.",
+      "kind": "capability",
+      "capabilityClass": "domain",
+      "discoverability": "public",
+      "domain": "engineering",
+      "operations": [
+        "- analyze",
+        "- evaluate",
+        "- produce"
+      ],
+      "effects": [
+        "- source-read",
+        "- artifact-write",
+        "- process-exec"
+      ],
+      "hostRequirements": [],
+      "source": "skills/audit-visual/SKILL.md",
+      "manifest": "skills/manifests/audit-visual.json"
+    },
+    {
+      "id": "brand",
+      "name": "brand",
+      "description": "Load a source-bound brand card before branded content, design, marketing, social, or media work. Use /brand when a named brand or approved identity source governs an output.",
+      "kind": "capability",
+      "capabilityClass": "context",
+      "discoverability": "public",
+      "domain": null,
+      "operations": [
+        "- analyze",
+        "- produce"
+      ],
+      "effects": [
+        "- source-read"
+      ],
+      "hostRequirements": [],
+      "source": "skills/brand/SKILL.md",
+      "manifest": "skills/manifests/brand.json"
+    },
+    {
+      "id": "brand-identity",
+      "name": "brand-identity",
+      "description": "Create, audit, evolve, or apply brand identities, systems, guidelines, visual identity, voice, naming, logo direction, brand books, rebrands, website or app identity, pitch decks, or social kits.",
+      "kind": "capability",
+      "capabilityClass": "domain",
+      "discoverability": "public",
+      "domain": "design",
+      "operations": [
+        "- analyze",
+        "- decide",
+        "- produce",
+        "- evaluate"
+      ],
+      "effects": [
+        "- source-read",
+        "- artifact-write"
+      ],
+      "hostRequirements": [],
+      "source": "skills/brand-identity/SKILL.md",
+      "manifest": "skills/manifests/brand-identity.json"
+    },
+    {
+      "id": "coder",
+      "name": "coder",
+      "description": "Explicit opt-in router for scoped read-only code analysis through external API models. Use only for `/coder`, explicit outsourced API analysis, or a named API provider/model.",
+      "kind": "entrypoint",
+      "capabilityClass": null,
+      "discoverability": "explicit",
+      "domain": null,
+      "operations": [
+        "- analyze"
+      ],
+      "effects": [
+        "- source-read",
+        "- network-request"
+      ],
+      "hostRequirements": [],
+      "source": "skills/coder/SKILL.md",
+      "manifest": "skills/manifests/coder.json"
+    },
+    {
+      "id": "commit",
+      "name": "commit",
+      "description": "Review, verify, commit, & push one frozen diff through Legion's guarded Commit workflow. Use for /commit, review and commit, or commit and push.",
+      "kind": "entrypoint",
+      "capabilityClass": null,
+      "discoverability": "explicit",
+      "domain": null,
+      "operations": [
+        "- analyze",
+        "- evaluate",
+        "- execute"
+      ],
+      "effects": [
+        "- source-read",
+        "- repository-write",
+        "- process-exec",
+        "- network-request"
+      ],
+      "hostRequirements": [],
+      "source": "skills/commit/SKILL.md",
+      "manifest": "skills/manifests/commit.json"
+    },
+    {
+      "id": "cortex",
+      "name": "cortex",
+      "description": "Build a current, source-grounded repository map with Cortex. Use /cortex or /blueprint before inheriting, changing, auditing, or judging unfamiliar code.",
+      "kind": "capability",
+      "capabilityClass": "domain",
+      "discoverability": "public",
+      "domain": "engineering",
+      "operations": [
+        "- analyze",
+        "- produce"
+      ],
+      "effects": [
+        "- source-read",
+        "- process-exec"
+      ],
+      "hostRequirements": [
+        "- cortex-graph"
+      ],
+      "source": "skills/cortex/SKILL.md",
+      "manifest": "skills/manifests/cortex.json"
+    },
+    {
+      "id": "covenant",
+      "name": "covenant",
+      "description": "Convene Legion's independent challenge chamber for a Sage decision, an Alchemist blocker, or packet-only review preparation. Use /covenant.",
+      "kind": "entrypoint",
+      "capabilityClass": null,
+      "discoverability": "explicit",
+      "domain": null,
+      "operations": [
+        "- analyze",
+        "- evaluate",
+        "- produce"
+      ],
+      "effects": [
+        "- source-read"
+      ],
+      "hostRequirements": [],
+      "source": "skills/covenant/SKILL.md",
+      "manifest": "skills/manifests/covenant.json"
+    },
+    {
+      "id": "debugger",
+      "name": "debugger",
+      "description": "Diagnosis capability for reproducing failures, isolating evidence, forming disconfirmable hypotheses, establishing root cause, and selecting routine repairs. Do not use for preflight or completion-only verification.",
+      "kind": "capability",
+      "capabilityClass": "domain",
+      "discoverability": "public",
+      "domain": "engineering",
+      "operations": [
+        "- analyze",
+        "- diagnose",
+        "- decide",
+        "- produce"
+      ],
+      "effects": [
+        "- source-read",
+        "- process-exec"
+      ],
+      "hostRequirements": [],
+      "source": "skills/debugger/SKILL.md",
+      "manifest": "skills/manifests/debugger.json"
+    },
+    {
+      "id": "designer",
+      "name": "designer",
+      "description": "Create, redesign, or polish websites, app UI, dashboards, components, static creative, print, motion systems, glass materials, illustration direction, and frontend craft. Route review-only work to Audit Visual and identity systems to Brand Identity.",
+      "kind": "capability",
+      "capabilityClass": "domain",
+      "discoverability": "public",
+      "domain": "design",
+      "operations": [
+        "- analyze",
+        "- decide",
+        "- produce",
+        "- evaluate"
+      ],
+      "effects": [
+        "- source-read",
+        "- artifact-write"
+      ],
+      "hostRequirements": [],
+      "source": "skills/designer/SKILL.md",
+      "manifest": "skills/manifests/designer.json"
+    },
+    {
+      "id": "dispatch",
+      "name": "dispatch",
+      "description": "Create a validated zero-context work packet for another agent or executor while current orchestrator retains responsibility. Use for delegation, parallel workers, or copy-paste executor instructions. Same-agent work stays inline; session continuity uses handoff.",
+      "kind": "entrypoint",
+      "capabilityClass": null,
+      "discoverability": "explicit",
+      "domain": null,
+      "operations": [
+        "- route",
+        "- produce"
+      ],
+      "effects": [
+        "- source-read",
+        "- artifact-write",
+        "- process-exec"
+      ],
+      "hostRequirements": [],
+      "source": "skills/dispatch/SKILL.md",
+      "manifest": "skills/manifests/dispatch.json"
+    },
+    {
+      "id": "handoff",
+      "name": "handoff",
+      "description": "Transfer an ongoing task into a fresh chat through a hash-bound transcript pointer and a validated cold-start continuation packet. Use for fresh-thread continuity, context rollover, or transfer of decisions, state, failures, and landmines; never use for bounded executor delegation.",
+      "kind": "capability",
+      "capabilityClass": "workflow",
+      "discoverability": "public",
+      "domain": null,
+      "operations": [
+        "- analyze",
+        "- produce"
+      ],
+      "effects": [
+        "- source-read",
+        "- artifact-write",
+        "- process-exec"
+      ],
+      "hostRequirements": [],
+      "source": "skills/handoff/SKILL.md",
+      "manifest": "skills/manifests/handoff.json"
+    },
+    {
+      "id": "marketing",
+      "name": "marketing",
+      "description": "Route positioning, offers, packaging, guarantees, launches, validation, growth, analytics, pricing, CRO, retention, and commercial ideation. Use for Grand Slam Offers or what, whom, why, and how to market; route execution to Ads, SEO, Social, Research, or Writing.",
+      "kind": "capability",
+      "capabilityClass": "domain",
+      "discoverability": "public",
+      "domain": "commercial",
+      "operations": [
+        "- analyze",
+        "- decide",
+        "- produce"
+      ],
+      "effects": [
+        "- source-read",
+        "- network-request"
+      ],
+      "hostRequirements": [],
+      "source": "skills/marketing/SKILL.md",
+      "manifest": "skills/manifests/marketing.json"
+    },
+    {
+      "id": "qa",
+      "name": "qa",
+      "description": "Add, run, or audit local web or Tauri app QA: hidden servers, deterministic mocks, functional assertions, viewport captures, visual evidence, & contract-test authoring.",
+      "kind": "capability",
+      "capabilityClass": "domain",
+      "discoverability": "public",
+      "domain": "engineering",
+      "operations": [
+        "- analyze",
+        "- evaluate",
+        "- execute",
+        "- produce"
+      ],
+      "effects": [
+        "- source-read",
+        "- artifact-write",
+        "- process-exec"
+      ],
+      "hostRequirements": [],
+      "source": "skills/qa/SKILL.md",
+      "manifest": "skills/manifests/qa.json"
+    },
+    {
+      "id": "research",
+      "name": "research",
+      "description": "Sole top-level evidence router: general, market, technical, scientific, medical, legal, competitor, Reddit, audience, trends, scholarly, documents, authority, and NotebookLM. Medical and legal are private internal routes; India consumer-commission filing is a Legal workflow.",
+      "kind": "capability",
+      "capabilityClass": "domain",
+      "discoverability": "public",
+      "domain": "research",
+      "operations": [
+        "- route",
+        "- analyze",
+        "- produce"
+      ],
+      "effects": [
+        "- source-read",
+        "- artifact-write",
+        "- network-request"
+      ],
+      "hostRequirements": [],
+      "source": "skills/research/SKILL.md",
+      "manifest": "skills/manifests/research.json"
+    },
+    {
+      "id": "seo",
+      "name": "seo",
+      "description": "Audit or improve SEO, GEO or AEO, AI citations, crawlability, indexing, Core Web Vitals, schema, sitemaps, content quality, E-E-A-T, images, hreflang, llms.txt, traffic drops, page speed, or repository SEO.",
+      "kind": "capability",
+      "capabilityClass": "domain",
+      "discoverability": "public",
+      "domain": "commercial",
+      "operations": [
+        "- analyze",
+        "- diagnose",
+        "- produce"
+      ],
+      "effects": [
+        "- source-read",
+        "- artifact-write",
+        "- process-exec",
+        "- network-request"
+      ],
+      "hostRequirements": [],
+      "source": "skills/seo/SKILL.md",
+      "manifest": "skills/manifests/seo.json"
+    },
+    {
+      "id": "social",
+      "name": "social",
+      "description": "Route Instagram, Pinterest, YouTube, Twitter or X, LinkedIn, Reels, Shorts, pins, threads, calendars, distribution, analytics, and social growth. Use /social or when social strategy or content is the deliverable.",
+      "kind": "capability",
+      "capabilityClass": "domain",
+      "discoverability": "public",
+      "domain": "commercial",
+      "operations": [
+        "- analyze",
+        "- decide",
+        "- produce"
+      ],
+      "effects": [
+        "- source-read",
+        "- artifact-write",
+        "- network-request"
+      ],
+      "hostRequirements": [],
+      "source": "skills/social/SKILL.md",
+      "manifest": "skills/manifests/social.json"
+    },
+    {
+      "id": "tasklist",
+      "name": "tasklist",
+      "description": "Create an executable same-agent task list. Use `/tasklist`; keep it inline unless persistence, audit receipts, or a reusable record is requested. Use Dispatch for another agent & Handoff for a new chat.",
+      "kind": "capability",
+      "capabilityClass": "workflow",
+      "discoverability": "public",
+      "domain": null,
+      "operations": [
+        "- analyze",
+        "- produce",
+        "- execute"
+      ],
+      "effects": [
+        "- source-read",
+        "- artifact-write",
+        "- process-exec"
+      ],
+      "hostRequirements": [],
+      "source": "skills/tasklist/SKILL.md",
+      "manifest": "skills/manifests/tasklist.json"
+    },
+    {
+      "id": "writing",
+      "name": "writing",
+      "description": "Route editorial prose, essays, newsletters, scripts, captions, threads, research articles, blogs, SEO posts, conversion copy, bios, DMs, product copy, email, and changelogs. Use when words are the deliverable.",
+      "kind": "capability",
+      "capabilityClass": "domain",
+      "discoverability": "public",
+      "domain": "editorial",
+      "operations": [
+        "- analyze",
+        "- produce",
+        "- evaluate"
+      ],
+      "effects": [
+        "- source-read",
+        "- artifact-write"
+      ],
+      "hostRequirements": [],
+      "source": "skills/writing/SKILL.md",
+      "manifest": "skills/manifests/writing.json"
+    }
   ]
 }

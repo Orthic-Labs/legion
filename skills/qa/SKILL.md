@@ -1,14 +1,24 @@
 ---
 name: qa
 description: Add, run, or audit local web or Tauri app QA: hidden servers, deterministic mocks, functional assertions, viewport captures, visual evidence, & contract-test authoring.
+kind: capability
+capabilityClass: domain
+discoverability: public
+domain: engineering
+operations:
+  - analyze
+  - evaluate
+  - execute
+  - produce
+effects:
+  - source-read
+  - artifact-write
+  - process-exec
 ---
 
 # QA
 
-MODE: EXECUTE
 PRIMARY_DELIVERABLE: Bounded behavior & artifact evidence.
-DISCOVERY_PROFILE: D1_SCOPED_SOURCE
-EFFECT_PROFILES: runtime
 SPECIALIST_REFS_MAX: 1
 CHILD_AGENTS_MAX: 0
 EXTERNAL_REQUESTS_MAX: 0

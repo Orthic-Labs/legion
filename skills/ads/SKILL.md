@@ -1,14 +1,22 @@
 ---
 name: ads
 description: "Audit, plan, create, or optimize paid campaigns across Google, Meta, YouTube, LinkedIn, TikTok, Microsoft, or Apple. Use for PPC, ROAS, CPA, targeting, bidding, retargeting, budgets, creative, or ad-spend questions."
+kind: capability
+capabilityClass: domain
+discoverability: public
+domain: commercial
+operations:
+  - analyze
+  - decide
+  - produce
+effects:
+  - source-read
+  - network-request
 ---
 
 # Ads
 
-MODE: DIAGNOSE
 PRIMARY_DELIVERABLE: Evidence-bound paid-media findings or plan.
-DISCOVERY_PROFILE: D3_EXTERNAL
-EFFECT_PROFILES: external_research, connector
 SPECIALIST_REFS_MAX: 1
 CHILD_AGENTS_MAX: 0
 EXTERNAL_REQUESTS_MAX: 12

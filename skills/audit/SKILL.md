@@ -1,6 +1,18 @@
 ---
 name: audit
 description: "Diagnose a whole repository through Legion's frozen Audit provider plan. Use for /audit or repository-wide read-only health, security, runtime, & evidence review."
+kind: capability
+capabilityClass: domain
+discoverability: public
+domain: engineering
+operations:
+  - analyze
+  - evaluate
+  - produce
+effects:
+  - source-read
+  - process-exec
+  - artifact-write
 metadata:
   legion:
     provenance: legion-authored
@@ -12,10 +24,7 @@ metadata:
 # Audit
 
 ```text
-MODE: DIAGNOSE
 PRIMARY_DELIVERABLE: Re-runnable audit report with bounded findings.
-DISCOVERY_PROFILE: D1_SCOPED_SOURCE
-EFFECT_PROFILES: audit_engine
 SPECIALIST_REFS_MAX: 0
 CHILD_AGENTS_MAX: 0
 EXTERNAL_REQUESTS_MAX: 0

@@ -1,9 +1,6 @@
 # Consumer Court (India)
 
-MODE: OUTPUT_ONLY
 PRIMARY_DELIVERABLE: Bounded consumer-court drafting or filing guidance for frozen case materials.
-DISCOVERY_PROFILE: D3_EXTERNAL
-EFFECT_PROFILES: external_research, sensitive_source
 SPECIALIST_REFS_MAX: 0
 CHILD_AGENTS_MAX: 0
 EXTERNAL_REQUESTS_MAX: 12

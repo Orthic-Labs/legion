@@ -40,8 +40,12 @@ test('S06-01 method contracts are conditional & reject prohibited automatic use'
   const text = await Promise.all(methods.map((name) => read(`doctrine/architecture/methods/${name}.md`))).then((all) => all.join('\n'));
   for (const value of fixtures.reject) assert.match(text, new RegExp(value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i'));
 });
-test('S06-01 Sage bundle is compact router without legacy live workflow', async () => {
-  const text = await read('doctrine/bundles/sage-architect.md');
-  for (const phrase of ['doctrine/sage.md', 'OBJECTIVE × DEPTH × RIGOR', 'acceptance freeze', 'current state', 'progressive loading', 'CANDIDATE | BLOCKED']) assert.match(text, new RegExp(phrase.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i'));
-  for (const forbidden of ['Cortex workflow', 'universal web search', 'Minimize sidecars', 'GoalRoute', 'skill-emits', 'complete-code planning', '/architect', 'recovered-manual provenance']) assert.doesNotMatch(text, new RegExp(forbidden, 'i'));
+test('S06-01 Architect owns architecture method; no Sage bundle route remains active', async () => {
+  const skill = await read('skills/architect/SKILL.md');
+  for (const phrase of ['doctrine/architecture', 'owns', 'Architect', 'Sage attaches only']) assert.match(skill, new RegExp(phrase.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i'));
+  assert.doesNotMatch(skill, /agents\/sage\.md/);
+  assert.doesNotMatch(skill, /Sage Architect/i);
+  const readme = await read('doctrine/architecture/README.md');
+  assert.match(readme, /Canonical owner/);
+  assert.match(readme, /skills\/architect\/SKILL\.md/);
 });

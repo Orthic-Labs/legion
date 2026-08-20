@@ -1,46 +1,82 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
+  "generatedFrom": [
+    "src/registry/skills/index.json"
+  ],
   "domains": [
     {
-      "id": "engineering",
-      "kind": "router",
-      "children": [
-        { "id": "sage", "kind": "capability", "targetType": "agent-dispatch", "targetRef": "src/roster/sage.md" },
-        { "id": "alchemist", "kind": "capability", "targetType": "agent-dispatch", "targetRef": "src/roster/alchemist.md" },
-        { "id": "oracle", "kind": "capability", "targetType": "agent-dispatch", "targetRef": "src/roster/oracle.md" }
-      ]
-    },
-    {
       "id": "commercial",
-      "kind": "router",
+      "kind": "group",
       "children": [
-        { "id": "ads", "kind": "capability", "targetType": "content", "targetRef": "skills/ads/SKILL.md" },
-        { "id": "marketing", "kind": "capability", "targetType": "content", "targetRef": "skills/marketing/SKILL.md" },
-        { "id": "seo", "kind": "capability", "targetType": "content", "targetRef": "skills/seo/SKILL.md" },
-        { "id": "social", "kind": "capability", "targetType": "content", "targetRef": "skills/social/SKILL.md" }
-      ]
-    },
-    {
-      "id": "research",
-      "kind": "router",
-      "children": [
-        { "id": "research", "kind": "capability", "targetType": "content", "targetRef": "skills/research/SKILL.md" }
-      ]
-    },
-    {
-      "id": "editorial",
-      "kind": "router",
-      "children": [
-        { "id": "writing", "kind": "capability", "targetType": "content", "targetRef": "skills/writing/SKILL.md" }
+        {
+          "id": "ads"
+        },
+        {
+          "id": "marketing"
+        },
+        {
+          "id": "seo"
+        },
+        {
+          "id": "social"
+        }
       ]
     },
     {
       "id": "design",
-      "kind": "router",
+      "kind": "group",
       "children": [
-        { "id": "designer", "kind": "capability", "targetType": "content", "targetRef": "skills/designer/SKILL.md" },
-        { "id": "brand-identity", "kind": "capability", "targetType": "content", "targetRef": "skills/brand-identity/SKILL.md" },
-        { "id": "brand", "kind": "capability", "targetType": "content", "targetRef": "skills/brand/SKILL.md" }
+        {
+          "id": "brand-identity"
+        },
+        {
+          "id": "designer"
+        }
+      ]
+    },
+    {
+      "id": "editorial",
+      "kind": "group",
+      "children": [
+        {
+          "id": "writing"
+        }
+      ]
+    },
+    {
+      "id": "engineering",
+      "kind": "group",
+      "children": [
+        {
+          "id": "architect"
+        },
+        {
+          "id": "audit"
+        },
+        {
+          "id": "audit-fix"
+        },
+        {
+          "id": "audit-visual"
+        },
+        {
+          "id": "cortex"
+        },
+        {
+          "id": "debugger"
+        },
+        {
+          "id": "qa"
+        }
+      ]
+    },
+    {
+      "id": "research",
+      "kind": "group",
+      "children": [
+        {
+          "id": "research"
+        }
       ]
     }
   ]

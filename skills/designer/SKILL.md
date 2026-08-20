@@ -1,14 +1,23 @@
 ---
 name: designer
 description: "Create, redesign, or polish websites, app UI, dashboards, components, static creative, print, motion systems, glass materials, illustration direction, and frontend craft. Route review-only work to Audit Visual and identity systems to Brand Identity."
+kind: capability
+capabilityClass: domain
+discoverability: public
+domain: design
+operations:
+  - analyze
+  - decide
+  - produce
+  - evaluate
+effects:
+  - source-read
+  - artifact-write
 ---
 
 # Designer
 
-MODE: OUTPUT_ONLY
 PRIMARY_DELIVERABLE: Rendered design artifact.
-DISCOVERY_PROFILE: D1_SCOPED_SOURCE
-EFFECT_PROFILES: asset_read, output_write
 SPECIALIST_REFS_MAX: 1
 CHILD_AGENTS_MAX: 0
 EXTERNAL_REQUESTS_MAX: 0

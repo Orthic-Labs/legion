@@ -4,7 +4,8 @@
 // fake `two/cpu_only` route into the app's REAL app-data directory; the final
 // source was clean (mock persister), every test was green, Oracle
 // passed the audit, and the shipped build loaded CPU instead of DML. The
-// doctrine rule in doctrine/bundles/oracle-assurance.md names the failure; this command is the
+// doctrine rule in the QA machine-state boundary (skills/qa/references/manual.md) names the
+// failure; this command is the
 // enforcement — prose asks an auditor to remember, a snapshot/verify pair
 // fails the run.
 //

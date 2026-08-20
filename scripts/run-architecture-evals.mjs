@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-/** Deterministically validates and executes Architecture Book Part XIV corpus. */
+/** Deterministically validates and executes the architecture eval corpus (src/evals/architecture). */
 import { createHash } from 'node:crypto';
 import { readFileSync, readdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';

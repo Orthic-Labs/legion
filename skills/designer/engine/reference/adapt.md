@@ -2,7 +2,6 @@
 
 Morph an existing design to a different context: another screen size, device, platform, or use case. The trap is treating adaptation as scaling. The job is rethinking the experience for the new context.
 
-
 ---
 
 ## Assess Adaptation Challenge

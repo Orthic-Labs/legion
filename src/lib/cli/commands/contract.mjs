@@ -1,4 +1,4 @@
-// `legion contract seal` — the authenticated Sage contract-seal producer.
+// `legion contract seal` — the authenticated contract-seal producer.
 //
 // Why this exists: `ContractSealStore.seal()` has always been callable, but no
 // production code path ever called it — only test fixtures did. So a locked
@@ -13,9 +13,11 @@
 // So this command does NOT take an `--authority sage` flag. It names an already
 // OBSERVED agent identity (`--agent`), and `AuthorityBindingStore.assertForTurn`
 // decides what authority that identity carries — a binding the SubagentStart
-// hook wrote when the agent started. If the observed authority is not `sage`,
-// the seal is refused. A caller cannot promote itself by passing a different
-// string, because no such string is read.
+// hook wrote when the agent started. If the observed authority is neither
+// `legion` nor `sage`, the seal is refused. A caller cannot promote itself by
+// passing a different string, because no such string is read. Legion seals
+// settled executable contracts; Sage seals contracts whose settled meaning
+// includes an actual Sage adjudication.
 //
 // The host key is required (not optional): `assertForTurn` throws
 // ARC_AUTH_KEY_UNAVAILABLE without one, so a host that cannot authenticate
@@ -137,18 +139,18 @@ function contractSeal(argv, { stdout, env, cwd }) {
   const bindings = new AuthorityBindingStore({ root: stateDir(cwd, 'authority-bindings') });
   const observed = agent
     ? bindings.get({ adapter, sessionId, agentId: agent })
-    : bindings.findLatest({ adapter, sessionId, authority: 'sage' });
+    : bindings.findLatest({ adapter, sessionId, authority: 'sage' }) ?? bindings.findLatest({ adapter, sessionId, authority: 'legion' });
   if (!observed) {
     throw new LegionError(
       agent
         ? `ARC_AUTHORITY_NOT_ASSERTED: no observed authority binding for agent '${agent}' in this session — the host must observe the agent (SubagentStart) before it can seal`
-        : 'ARC_AUTHORITY_NOT_ASSERTED: no observed Sage binding in this session — a Sage agent must have started (SubagentStart) before a contract can be sealed',
+        : 'ARC_AUTHORITY_NOT_ASSERTED: no observed Sage or Legion binding in this session — a Sage agent or the Legion orchestrator must have started before a contract can be sealed',
       { code: 'ARC_AUTHORITY_NOT_ASSERTED', exitCode: EXIT.INTERNAL_ERROR },
     );
   }
-  if (observed.authority !== 'sage') {
+  if (!['legion', 'sage'].includes(observed.authority)) {
     throw new LegionError(
-      `ARC_AUTHORITY_NOT_ASSERTED: agent '${agent}' is observed as authority '${observed.authority}'; only Sage may seal an execution contract`,
+      `ARC_AUTHORITY_NOT_ASSERTED: agent '${agent}' is observed as authority '${observed.authority}'; only Legion or Sage may seal an execution contract`,
       { code: 'ARC_AUTHORITY_NOT_ASSERTED', exitCode: EXIT.INTERNAL_ERROR },
     );
   }
@@ -179,7 +181,7 @@ function contractSeal(argv, { stdout, env, cwd }) {
       }
       if (prior) {
         const event = hostEventLedger.records().at(-1);
-        if (!event || event.sessionId !== sessionId || event.observedAuthority !== 'sage') throw new LegionError('ARC_AUTHORITY_NOT_ASSERTED: current Sage host event required for contract amendment', { code: 'ARC_AUTHORITY_NOT_ASSERTED', exitCode: EXIT.INTERNAL_ERROR });
+        if (!event || event.sessionId !== sessionId || !['legion', 'sage'].includes(event.observedAuthority)) throw new LegionError('ARC_AUTHORITY_NOT_ASSERTED: current Legion or Sage host event required for contract amendment', { code: 'ARC_AUTHORITY_NOT_ASSERTED', exitCode: EXIT.INTERNAL_ERROR });
         const proof = proofIssuer.issue({ ledger: event, binding: { runId: event.runId ?? `seal:${contract.contractId}`, taskId: contract.tasks[0], contractId: prior.contractId, contractVersion: prior.version, contractDigest: prior.contractDigest }, purpose: 'budget-amendment', role: 'sage' }).proof;
         budget.amendmentEvidence = { schemaVersion: 1, kind: 'arcane-budget-amendment', priorContractDigest: prior.contractDigest, newContractDigest: contractDigest, priorLegionBlastMapCapMs: prior.legionBlastMapCapMs, newLegionBlastMapCapMs: budget.legionBlastMapCapMs, priorSagePlanningCapMs: prior.sagePlanningCapMs, newSagePlanningCapMs: budget.sagePlanningCapMs, scopeExpanded: false, invocationProofDigest: digestValue(proof), observedAt: new Date().toISOString() };
         budget.amendmentEvidence.authentication = signRecord(budget.amendmentEvidence, { keyRing, keyId: keyRing.activeKeyId(), boundFields: BUDGET_AMENDMENT_BOUND_FIELDS, macDomain: 'arcane-budget-amendment-v1' });

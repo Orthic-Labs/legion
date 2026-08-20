@@ -1,51 +1,37 @@
-import { ADVISORY_DOMAIN_IDS, DOMAIN_IDS, targetExists } from './loader.mjs';
-
-const DOMAIN_SET = new Set(DOMAIN_IDS);
-const ADVISORY_SET = new Set(ADVISORY_DOMAIN_IDS);
-const TARGET_TYPES = new Set(['agent-dispatch', 'content']);
+import { resolveGroupChild, targetExists } from './loader.mjs';
 
 function finding(code, detail, nodeId) {
   return nodeId ? { code, detail, nodeId } : { code, detail };
 }
 
-function validateNode(node, { root, domainId, findings }) {
-  if (!node || typeof node !== 'object' || Array.isArray(node)) {
-    findings.push(finding('node-shape', 'routing node must be an object'));
-    return;
-  }
-  if (typeof node.id !== 'string' || !/^[a-z][a-z0-9-]*$/.test(node.id)) findings.push(finding('node-id', 'routing node id must be canonical', node.id));
-  if (node.kind === 'router') {
-    if ('targetType' in node || 'targetRef' in node) findings.push(finding('router-target', 'routers cannot have targets', node.id));
-    if (node.children !== undefined && !Array.isArray(node.children)) findings.push(finding('router-children', 'router children must be an array', node.id));
-    for (const child of node.children ?? []) validateNode(child, { root, domainId, findings });
-    return;
-  }
-  if (node.kind !== 'capability') {
-    findings.push(finding('node-kind', 'node kind must be router or capability', node.id));
-    return;
-  }
-  if (node.children !== undefined) findings.push(finding('capability-children', 'capabilities cannot have children', node.id));
-  if (!TARGET_TYPES.has(node.targetType)) findings.push(finding('target-type', 'capability target type must be agent-dispatch or content', node.id));
-  if (typeof node.targetRef !== 'string' || !node.targetRef) findings.push(finding('target-ref', 'capability target ref is required', node.id));
-  else if (!targetExists(root, node)) findings.push(finding('dangling-target', 'capability target does not exist', node.id));
-  if (domainId === 'engineering' && node.targetType !== 'agent-dispatch') findings.push(finding('mixed-leaf-type', 'engineering may terminate only in agent dispatches', node.id));
-  if (ADVISORY_SET.has(domainId) && node.targetType !== 'content') findings.push(finding('mixed-leaf-type', 'advisory domains may terminate only in content', node.id));
-}
-
-export function validateRoutingGraph(graph) {
+/**
+ * Grouping-integrity validation (M-019). Keeps only the generic grouping
+ * invariants live consumers need: valid JSON, unique domain ids, children
+ * resolve to catalog capabilities, no duplicate child membership, and no
+ * entrypoints/roles in the grouping projection. Does not route.
+ */
+export function validateRoutingGroups(graph) {
   const findings = [];
   const domains = graph?.domains;
   if (!Array.isArray(domains)) return { ok: false, findings: [finding('domain-roster', 'routing registry domains must be an array')] };
+
   const ids = domains.map((domain) => domain?.id);
   const uniqueIds = new Set(ids);
-  if (uniqueIds.size !== ids.length) findings.push(finding('duplicate-root', 'routing roots must be unique'));
-  if (ids.length !== DOMAIN_IDS.length || DOMAIN_IDS.some((id) => !uniqueIds.has(id)) || ids.some((id) => !DOMAIN_SET.has(id))) {
-    findings.push(finding('noncanonical-roots', 'routing registry must contain exactly five canonical domains'));
-  }
+  if (uniqueIds.size !== ids.length) findings.push(finding('duplicate-root', 'grouping roots must be unique'));
+
   for (const domain of domains) {
-    if (domain?.kind !== 'router') findings.push(finding('domain-kind', 'root domains must be routers', domain?.id));
-    if (domain?.availability && !['available', 'unavailable'].includes(domain.availability)) findings.push(finding('availability', 'availability must be available or unavailable', domain?.id));
-    validateNode(domain, { root: graph.root, domainId: domain?.id, findings });
+    if (!domain?.id || typeof domain.id !== 'string') { findings.push(finding('domain-id', 'grouping id must be a string')); continue; }
+    if (domain.kind !== 'group') findings.push(finding('domain-kind', 'grouping entries must be groups', domain.id));
+    if (domain.children !== undefined && !Array.isArray(domain.children)) findings.push(finding('group-children', 'group children must be an array', domain.id));
+    const children = domain.children ?? [];
+    const childIds = children.map((child) => child?.id);
+    if (childIds.some((id) => typeof id !== 'string' || !id)) findings.push(finding('child-id', 'group child id must be a string', domain.id));
+    if (new Set(childIds).size !== childIds.length) findings.push(finding('duplicate-child', 'group child membership must be unique', domain.id));
+    for (const child of children) {
+      if (!resolveGroupChild(graph.skillIndex, child.id)) {
+        findings.push(finding('dangling-target', `group child '${child.id}' is not a catalog capability`, domain.id));
+      }
+    }
   }
   return { ok: findings.length === 0, findings };
 }

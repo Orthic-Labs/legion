@@ -1,6 +1,18 @@
 ---
 name: commit
 description: "Review, verify, commit, & push one frozen diff through Legion's guarded Commit workflow. Use for /commit, review and commit, or commit and push."
+kind: entrypoint
+discoverability: explicit
+target: workflow:commit
+operations:
+  - analyze
+  - evaluate
+  - execute
+effects:
+  - source-read
+  - repository-write
+  - process-exec
+  - network-request
 metadata:
   legion:
     provenance: legion-authored

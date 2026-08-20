@@ -1,10 +1,14 @@
-# Architect route manual
+# Architect method
 
-Canonical method lives in [`../../../doctrine/bundles/sage-architect.md`](../../../doctrine/bundles/sage-architect.md)
-and [`../../../doctrine/sage.md`](../../../doctrine/sage.md). This compatibility artifact exists so
-legacy entrypoint consumers retain a stable manual path.
+Architect is the engineering architecture capability. Canonical method lives in
+`../../../doctrine/architecture/**` (workflow modules, controls, methods, reviews, templates,
+schemas) and the architecture ownership statement at
+`../../../doctrine/architecture/README.md`.
 
-Read `../../../agents/sage.md` first. Architect is Sage's decision route: it establishes what should
-exist, compares meaningful options, freezes requirements/decisions/invariants/non-goals/acceptance,
-and compiles an executable contract only when user asks for implementation. It never performs a
-product-source effect; hand settled effects to Alchemist.
+Read `../../../doctrine/architecture/README.md` first for the workflow manifest and progress
+rules. Architecture applies only when at least one declared architecture-significant fact is
+true; insignificant work routes to a direct D0 without an architecture record
+(`00-charter-significance-tailoring.md`).
+
+Architect never performs product-source effects; it settles meaning and hands effects to ambient
+execution or Alchemist under policy. Sage attaches only for material unresolved judgment.

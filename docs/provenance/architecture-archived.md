@@ -84,4 +84,4 @@ Follow-on implementation must add explicit source-backed controls & fixtures for
 
 Both parts are required. Dispatch completion alone does not create this final connected flow.
 
-Detailed workspace decision: `$WORKSPACE/docs/plans/legion/ARCHITECTURE.md`.
+Detailed workspace decision: `$WORKSPACE/docs/plans/legion/ARCHITECTURE.md` (historical provenance only — superseded by `docs/LEGION-CANONICAL-SSOT.md`).

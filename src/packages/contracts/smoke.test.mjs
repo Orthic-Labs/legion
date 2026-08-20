@@ -339,9 +339,9 @@ test('blocker-v1: classification matches BLOCKER_CLASS; status matches BLOCKER_S
   assert.equal(s.properties.raisedBy.const, 'alchemist');
 });
 
-test('amendment-v1: sealedBy is sage-only', () => {
+test('amendment-v1: sealedBy admits Legion or Sage only', () => {
   const s = loadSchema('amendment-v1');
-  assert.equal(s.properties.sealedBy.const, 'sage');
+  assert.deepEqual(s.properties.sealedBy.enum, ['legion', 'sage']);
 });
 
 test('claim-v1: claimingAuthority is a subset of AUTHORITY_ID; name matches CLAIM_NAME; per-authority oneOf branches match CLAIMS_BY_AUTHORITY', () => {

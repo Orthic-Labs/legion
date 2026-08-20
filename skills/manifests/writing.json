@@ -90,7 +90,7 @@
     {
       "path": "SKILL.md",
       "uri": "legion-skill://writing/SKILL.md",
-      "digest": "sha256:c81e59ae01842d3bd7d6d9eedeb58d34ded46298023fc3470fa431d3b0ab9019"
+      "digest": "sha256:56b44d37d9d7f0f30c6fbb709769c0fff908e271b94c672b5d2c40ff494c963f"
     },
     {
       "path": "evals/evals.json",
@@ -105,7 +105,7 @@
     {
       "path": "references/manual.md",
       "uri": "legion-skill://writing/references/manual.md",
-      "digest": "sha256:510a3aeac52e61337f6f4e12de835d6ef33c53bd720b700be6c7c0b62e7a682e"
+      "digest": "sha256:0ce9cf4f35c3d700a8bc13d6c1d0f356325897845ce27c438d6c67c4c747584b"
     },
     {
       "path": "references/repurpose-content/reference.md",
@@ -115,7 +115,7 @@
     {
       "path": "references/research-article.md",
       "uri": "legion-skill://writing/references/research-article.md",
-      "digest": "sha256:b97948ce7388edb35517905d2467efa9c465e7cc2155462e65ad340753135fc0"
+      "digest": "sha256:3dbd4d5c7253afc3ec89c58b14c74335bc652484b3315f747a37c7536b61fcbe"
     },
     {
       "path": "references/script.md",
@@ -170,7 +170,7 @@
     {
       "path": "specialists/copywriting/references/ad.md",
       "uri": "legion-skill://writing/specialists/copywriting/references/ad.md",
-      "digest": "sha256:82410d9ae21a5966836d8506c8e16e916749f4d48edbf2b8e0ecf799df23fedb"
+      "digest": "sha256:09be35aedacfebdddebebfaec8d2c1f5ed393321b430da089b6488ca28103552"
     },
     {
       "path": "specialists/copywriting/references/craft-research.md",

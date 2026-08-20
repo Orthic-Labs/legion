@@ -1,6 +1,14 @@
 ---
 name: coder
 description: Explicit opt-in router for scoped read-only code analysis through external API models. Use only for `/coder`, explicit outsourced API analysis, or a named API provider/model.
+kind: entrypoint
+discoverability: explicit
+target: outsourced-analysis:coder
+operations:
+  - analyze
+effects:
+  - source-read
+  - network-request
 ---
 
 # Coder

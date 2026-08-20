@@ -185,5 +185,4 @@ node -e "import('@orthic-labs/legion/auto-jury').then(m=>m.runAutoJury({
 
 DON'T-SHIP blocks presentation. Show verdict, ask user before regenerating.
 
-
 _Additional assets: see generate-assets/_

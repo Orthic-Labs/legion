@@ -1,19 +1,28 @@
 ---
 name: research
 description: "Sole top-level evidence router: general, market, technical, scientific, medical, legal, competitor, Reddit, audience, trends, scholarly, documents, authority, and NotebookLM. Medical and legal are private internal routes; India consumer-commission filing is a Legal workflow."
+kind: capability
+capabilityClass: domain
+discoverability: public
+domain: research
+operations:
+  - route
+  - analyze
+  - produce
+effects:
+  - source-read
+  - artifact-write
+  - network-request
 ---
 
 # Research
 
-MODE: ROUTE · DISCOVERY_PROFILE: D3_EXTERNAL
 PRIMARY_DELIVERABLE: Frozen `ResearchRoute` plus route-scoped evidence artifact.
-EFFECT_PROFILES: external_research, sensitive_source, connector, output_write, child_packet
 RESOURCE_BUDGET: hook-metered by route scale, never model-counted.
 MAY_ADD_TASKS: NO · MAY_CALL_SKILLS: NONE
 TERMINAL: Receipt records route, effects, evidence, gaps, checks, verdict.
 
 `doctor`, `legal`, `consumer-court`, `notebooklm` are internal routes, never catalog entries.
-
 
 1. Freeze `references/route-schema.json` via `src/lib/research-core/router/route_resolve.py` (Stage 1, zero effects);
    run `references/route-gates.md`; resume Stage 2 only on recorded approval receipts.

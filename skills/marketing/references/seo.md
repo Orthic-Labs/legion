@@ -74,7 +74,6 @@ metadata:
 
 For AI search/GEO, schema, and programmatic SEO execution, route to `/seo` rather than duplicating those references here.
 
-
 ### 7. Implementation Roadmap (4 phases)
 
 #### Phase 1: Foundation (weeks 1-4)

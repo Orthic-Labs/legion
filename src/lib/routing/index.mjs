@@ -1,3 +1,3 @@
-export { ADVISORY_DOMAIN_IDS, DOMAIN_IDS, loadRoutingGraph, projectContentNodes, targetExists } from './loader.mjs';
-export { validateRoutingGraph } from './validator.mjs';
+export { loadRoutingGroups, resolveGroupChild, targetExists } from './loader.mjs';
+export { validateRoutingGroups } from './validator.mjs';
 export { resolveDomain } from './resolver.mjs';

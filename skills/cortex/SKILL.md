@@ -1,14 +1,23 @@
 ---
 name: cortex
 description: Build a current, source-grounded repository map with Cortex. Use /cortex or /blueprint before inheriting, changing, auditing, or judging unfamiliar code.
+kind: capability
+capabilityClass: domain
+discoverability: public
+domain: engineering
+operations:
+  - analyze
+  - produce
+effects:
+  - source-read
+  - process-exec
+hostRequirements:
+  - cortex-graph
 ---
 
 # Cortex
 
-MODE: DIAGNOSE
 PRIMARY_DELIVERABLE: Verified repository understanding or typed graph degradation.
-DISCOVERY_PROFILE: D1_SCOPED_SOURCE
-EFFECT_PROFILES: graph_engine
 CHILD_AGENTS_MAX: 0
 EXTERNAL_REQUESTS_MAX: 0
 MAY_ADD_TASKS: NO

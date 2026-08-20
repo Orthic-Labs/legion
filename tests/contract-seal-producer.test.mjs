@@ -116,12 +116,12 @@ test('Sage seal command authenticates one bounded v1 → v2 budget amendment', a
   } finally { s.cleanup(); }
 });
 
-test('a non-Sage authority cannot mint a contract seal', async () => {
+test('a non-sealer authority cannot mint a contract seal', async () => {
   const s = scenario({ agentType: 'alchemist' });
   try {
     await assert.rejects(
       runContract(['seal', '--file', s.contractPath, '--agent', 'agent-1', '--session', SESSION], s.ctx),
-      /only Sage may seal/,
+      /only Legion or Sage may seal/,
     );
   } finally { s.cleanup(); }
 });

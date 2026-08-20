@@ -98,7 +98,7 @@ test('S02-05 finite lineage/control-plane budget admits bounded fixture & reject
 });
 
 test('S02-06 material-delta retry is admitted & identical/nonretryable attempts reject', () => {
-  const body = text('controls/retry-semantics.md') + text('controls/intent-cancellation.md') + text('canon-map.md');
+  const body = text('controls/retry-semantics.md') + text('controls/intent-cancellation.md');
   has(body, ['material input, method, or state delta', 'non-retryable', 'Second identical fingerprint terminates', 'attempts greater than three mismatch', 'doctrine-recorded drift only', 'runtime repair']);
   assert.equal(retryAdmitted({ retryable: true, finite: true, materialDelta: true, identicalFingerprint: false, budgetRemaining: true }), true);
   assert.equal(retryAdmitted({ retryable: true, finite: true, materialDelta: false, identicalFingerprint: true, budgetRemaining: true }), false);

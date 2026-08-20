@@ -531,7 +531,6 @@ Recommended structure for writing projects:
 - Writing case studies
 - Developing course outlines
 
-
 ## Optional external jury (explicit opt-in only)
 
 Run this external jury only when the approving human explicitly requests it; ordinary drafts use the skill's

@@ -1,6 +1,18 @@
 ---
 name: tasklist
 description: Create an executable same-agent task list. Use `/tasklist`; keep it inline unless persistence, audit receipts, or a reusable record is requested. Use Dispatch for another agent & Handoff for a new chat.
+kind: capability
+capabilityClass: workflow
+discoverability: public
+domain: null
+operations:
+  - analyze
+  - produce
+  - execute
+effects:
+  - source-read
+  - artifact-write
+  - process-exec
 ---
 
 # Tasklist

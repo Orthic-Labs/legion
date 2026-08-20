@@ -7,9 +7,9 @@ const ROSTER_DIR = resolve(ROOT, 'roster');
 const ROLE_IDS = Object.freeze(['sage', 'alchemist', 'oracle']);
 const MODEL_TIERS = new Set(['frontier-judgment', 'balanced-executor', 'mechanical-cheap']);
 const ROUTE_METHODS = Object.freeze({
-  sage: 'doctrine/bundles/sage-architect.md, doctrine/bundles/sage-diagnose.md',
+  sage: 'doctrine/sage.md',
   alchemist: 'doctrine/alchemist.md',
-  oracle: 'doctrine/bundles/oracle-assurance.md',
+  oracle: 'doctrine/oracle.md',
 });
 const PROJECTION_SECTIONS = Object.freeze(['Purpose', 'Triggers', 'Routes', 'Capabilities', 'Inputs', 'Outputs', 'Boundaries', 'Handoffs', 'Evidence rules', 'Model policy']);
 

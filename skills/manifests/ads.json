@@ -95,7 +95,7 @@
     {
       "path": "SKILL.md",
       "uri": "legion-skill://ads/SKILL.md",
-      "digest": "sha256:78550fceadd97329cfb99ea5982dafa36073f7c820d491b742edf827485c0750"
+      "digest": "sha256:966d74899dc2812079c18f4bf12d762ac0face2d0d70fad68b959a129716eeb0"
     },
     {
       "path": "agents/audit-budget.md",
@@ -235,7 +235,7 @@
     {
       "path": "references/generate.md",
       "uri": "legion-skill://ads/references/generate.md",
-      "digest": "sha256:38ead6d42baae79cba5b62796be69280eb2bb7079db5db41c94035977869b147"
+      "digest": "sha256:9e427e49e6ff209e9b54a06263d8e23ce8b0f708e63edcddd833a35965583093"
     },
     {
       "path": "references/google-audit.md",
@@ -280,7 +280,7 @@
     {
       "path": "references/manual.md",
       "uri": "legion-skill://ads/references/manual.md",
-      "digest": "sha256:697fe6d386722b82fc0fd0b66cd09f98827e2d417185b29153f8edd77c90274e"
+      "digest": "sha256:b3df6a46aee9c88d83d2d58895652b7b267a74bdc26600f10c8a19e9f1925246"
     },
     {
       "path": "references/meta-audit.md",

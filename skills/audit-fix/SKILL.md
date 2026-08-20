@@ -1,6 +1,19 @@
 ---
 name: audit-fix
 description: "Apply bounded remediation from a frozen Legion Audit report, then rerun its same provider plan. Use only for /audit-fix after /audit evidence exists."
+kind: capability
+capabilityClass: workflow
+discoverability: public
+domain: engineering
+operations:
+  - analyze
+  - evaluate
+  - execute
+  - produce
+effects:
+  - source-read
+  - repository-write
+  - process-exec
 metadata:
   legion:
     provenance: legion-authored
@@ -12,10 +25,7 @@ metadata:
 # Audit Fix
 
 ```text
-MODE: IMPLEMENT
 PRIMARY_DELIVERABLE: Bounded fixes plus reconciled rerun evidence.
-DISCOVERY_PROFILE: D1_SCOPED_SOURCE
-EFFECT_PROFILES: repo_write, audit_engine
 SPECIALIST_REFS_MAX: 0
 CHILD_AGENTS_MAX: 0
 EXTERNAL_REQUESTS_MAX: 0
@@ -26,6 +36,11 @@ TERMINAL: Every applied fix is verified by the same frozen provider contract or 
 
 `/audit-fix` is a thin mutation loop over shared `/audit` provider architecture. It never selects
 providers, creates a second scanner registry, or reinterprets original denominator.
+
+**Standing:** Audit Fix is a workflow capability attached to a frozen Audit result. It is **not**
+Oracle (it does not independently certify completion) and **not** Alchemist merely because it
+writes (authority is not inferred from `repository-write`). Its actual effects remain
+Arcane-gated.
 
 1. Require prior `plan.json`, `facts.json`, `report.json`, & security adjudication result.
 2. Verify plan seal, repository binding, Cortex generation, provider set, & denominators before

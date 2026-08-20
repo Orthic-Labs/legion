@@ -1,9 +1,6 @@
 # Marketing
 
-MODE: OUTPUT_ONLY
 PRIMARY_DELIVERABLE: Bounded commercial strategy or routed specialist brief
-DISCOVERY_PROFILE: D3_EXTERNAL
-EFFECT_PROFILES: external_research
 SPECIALIST_REFS_MAX: 1
 CHILD_AGENTS_MAX: 0
 EXTERNAL_REQUESTS_MAX: 12

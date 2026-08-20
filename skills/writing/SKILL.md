@@ -1,14 +1,22 @@
 ---
 name: writing
 description: "Route editorial prose, essays, newsletters, scripts, captions, threads, research articles, blogs, SEO posts, conversion copy, bios, DMs, product copy, email, and changelogs. Use when words are the deliverable."
+kind: capability
+capabilityClass: domain
+discoverability: public
+domain: editorial
+operations:
+  - analyze
+  - produce
+  - evaluate
+effects:
+  - source-read
+  - artifact-write
 ---
 
 # Writing
 
-MODE: OUTPUT_ONLY
 PRIMARY_DELIVERABLE: Prose artifact.
-DISCOVERY_PROFILE: D1_SCOPED_SOURCE
-EFFECT_PROFILES: source_read, output_write
 SPECIALIST_REFS_MAX: 1
 CHILD_AGENTS_MAX: 0
 EXTERNAL_REQUESTS_MAX: 0

@@ -1,14 +1,22 @@
 ---
 name: alchemist
 description: Execute a settled, bounded change through Legion's Alchemist authority. Use /alchemist after scope, ownership, checks, and acceptance are decided.
+kind: entrypoint
+discoverability: explicit
+target: authority:alchemist
+operations:
+  - execute
+effects:
+  - source-read
+  - repository-write
+  - process-exec
+hostRequirements:
+  - omniroute
 ---
 
 # Alchemist
 
-MODE: EXECUTE
 PRIMARY_DELIVERABLE: Contract-conformant repository state with focused verification.
-DISCOVERY_PROFILE: D1_SCOPED_SOURCE
-EFFECT_PROFILES: source_read, output_write, focused_check, child_packet
 CHILD_AGENTS_MAX: 0
 EXTERNAL_REQUESTS_MAX: 0
 MAY_ADD_TASKS: NO

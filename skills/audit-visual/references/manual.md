@@ -1,9 +1,6 @@
 # Audit-Visual — Strict Rendered Frontend/UI Audit
 
-MODE: DIAGNOSE
 PRIMARY_DELIVERABLE: Bounded rendered-surface findings for exact granted routes, screens, or assets.
-DISCOVERY_PROFILE: D1_SCOPED_SOURCE
-EFFECT_PROFILES: asset_read
 SPECIALIST_REFS_MAX: 0
 CHILD_AGENTS_MAX: 0
 EXTERNAL_REQUESTS_MAX: 0

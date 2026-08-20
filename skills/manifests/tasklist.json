@@ -70,7 +70,7 @@
     {
       "path": "SKILL.md",
       "uri": "legion-skill://tasklist/SKILL.md",
-      "digest": "sha256:31b1bffae83f7ca236a60e7ec73b6777ab56405dccf0ec2ff28e39f09bc91701"
+      "digest": "sha256:46491cf58935064e37270fc11b6427fe02a4ea83862f4b131cdc89e164a27017"
     },
     {
       "path": "agents/openai.yaml",
@@ -105,12 +105,12 @@
     {
       "path": "examples/validated-tasklist.md",
       "uri": "legion-skill://tasklist/examples/validated-tasklist.md",
-      "digest": "sha256:b9d320a4085822fd8b6a8bd496818e1895e35e580dda774a1f4c9222adb24d4f"
+      "digest": "sha256:1cc59d7919617e6ccc565b87de9319483a0ec936f70d6a94cb50214b2a99ddce"
     },
     {
       "path": "examples/validated-tasklist.minimize.json",
       "uri": "legion-skill://tasklist/examples/validated-tasklist.minimize.json",
-      "digest": "sha256:fb48b7337a29e6e23a88141e0ab58985dcf0f7a0a58bfb73e083e9b332d4f92c"
+      "digest": "sha256:6d3e3d7cddbe391b9971b31148bc4df6065c36cc5205d5fa96d4bfab5c3e7832"
     },
     {
       "path": "examples/validated-tasklist.minimize.receipt.json",
@@ -125,7 +125,7 @@
     {
       "path": "examples/validated-tasklist.route.json",
       "uri": "legion-skill://tasklist/examples/validated-tasklist.route.json",
-      "digest": "sha256:4bc64982ccfe1f397d7e0abf92c666705aaa0ceb86bd3204cf12d37a4b05f67a"
+      "digest": "sha256:647bbb186dd3ccf5852a33aea9cefe104fa8f3d26a46f0084762e15b8d822b56"
     },
     {
       "path": "examples/validated-tasklist.route.receipt.json",

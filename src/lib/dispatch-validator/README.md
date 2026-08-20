@@ -1,8 +1,8 @@
-# Dispatch validator — G24 seed
+# Dispatch validator
 
-Preserved from the retired `dispatch` skill. ARCHITECTURE G24 requires that **every worker
-capsule passes a self-consistency validator before launch**; this is the tested implementation
-that capability grows from (2,830 lines + 1,422 lines of tests).
+Preserved from the retired `dispatch` skill. Every worker capsule must pass a self-consistency
+validator before launch; this is the tested implementation that capability grows from (2,830
+lines + 1,422 lines of tests).
 
 `--packet-type legacy` preserves legacy Markdown validation. `--packet-type authority` validates
 typed Sage, Seer, Alchemist, or worker JSON packets & receipt-binds every referenced artifact;

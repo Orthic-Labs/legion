@@ -1,14 +1,24 @@
 ---
 name: seo
 description: "Audit or improve SEO, GEO or AEO, AI citations, crawlability, indexing, Core Web Vitals, schema, sitemaps, content quality, E-E-A-T, images, hreflang, llms.txt, traffic drops, page speed, or repository SEO."
+kind: capability
+capabilityClass: domain
+discoverability: public
+domain: commercial
+operations:
+  - analyze
+  - diagnose
+  - produce
+effects:
+  - source-read
+  - artifact-write
+  - process-exec
+  - network-request
 ---
 
 # SEO
 
-MODE: DIAGNOSE
 PRIMARY_DELIVERABLE: Rerunnable SEO findings or changes.
-DISCOVERY_PROFILE: D3_EXTERNAL
-EFFECT_PROFILES: external_research
 SPECIALIST_REFS_MAX: 1
 CHILD_AGENTS_MAX: 0
 EXTERNAL_REQUESTS_MAX: 12

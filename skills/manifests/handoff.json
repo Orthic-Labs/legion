@@ -61,7 +61,7 @@
     {
       "path": "SKILL.md",
       "uri": "legion-skill://handoff/SKILL.md",
-      "digest": "sha256:a22106675d6592745371f03bf9330ec3fa4d765d9fcdd12a2768fc8ed63ea84a"
+      "digest": "sha256:994f098ff23c48e65e256440d0d5117bfaa3a57820b7ef0aa0654539181b17ba"
     },
     {
       "path": "agents/openai.yaml",
@@ -91,7 +91,7 @@
     {
       "path": "references/manual.md",
       "uri": "legion-skill://handoff/references/manual.md",
-      "digest": "sha256:1e3a94993e8586f408cc4e9ed9c6c6b95a671c6f43fad4aad333fde144edad4d"
+      "digest": "sha256:03c577040694c5bf95f0e54c46c6ca382ade7d3ff39aedbe7de7921d4679ea8c"
     },
     {
       "path": "scripts/test_transcript_handoff.py",

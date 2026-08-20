@@ -1,15 +1,23 @@
 ---
 name: handoff
 description: "Transfer an ongoing task into a fresh chat through a hash-bound transcript pointer and a validated cold-start continuation packet. Use for fresh-thread continuity, context rollover, or transfer of decisions, state, failures, and landmines; never use for bounded executor delegation."
+kind: capability
+capabilityClass: workflow
+discoverability: public
+domain: null
+operations:
+  - analyze
+  - produce
+effects:
+  - source-read
+  - artifact-write
+  - process-exec
 ---
 
 # Handoff
 
 ```text
-MODE: OUTPUT_ONLY
 PRIMARY_DELIVERABLE: Source pointer or validated cold-start continuation packet.
-DISCOVERY_PROFILE: D1_SCOPED_SOURCE
-EFFECT_PROFILES: source_read, output_write
 SPECIALIST_REFS_MAX: 0
 CHILD_AGENTS_MAX: 0
 EXTERNAL_REQUESTS_MAX: 0

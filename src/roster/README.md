@@ -1,8 +1,12 @@
 # Legion roster
 
-`roster/{sage,alchemist,oracle}.md` is Legion's sole source for engineering
-authority identity, dispatch context, boundaries, handoffs, evidence rules, &
-model tiers. `doctrine/covenant-seat.md` remains source for Covenant seats.
+`roster/{sage,alchemist,oracle}.md` is Legion's sole source for authority identity,
+authority boundary, trigger boundary, & abstract model tiers. `doctrine/covenant-seat.md`
+remains source for Covenant seats; Covenant is not a roster role.
+
+Roster files own identity, authority, and tier only. Detailed operating method lives in
+delegated doctrine (`doctrine/{sage,alchemist,oracle}.md` and specialist skill references),
+which must not recreate a second role identity.
 
 `legion bind --write` projects this roster into Claude Code, Codex, Gemini CLI,
 & a low-fidelity `AGENTS.md` context block. Generated harness files are outputs:

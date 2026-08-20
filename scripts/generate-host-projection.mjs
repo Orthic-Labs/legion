@@ -62,18 +62,19 @@ export function buildProjection(root = ROOT) {
     .map((id) => {
       const path = `skills/${id}/SKILL.md`;
       const fm = frontmatter(readFileSync(join(root, path), 'utf8'));
-      // `skills/alchemist` and `skills/covenant` declare themselves compatibility
-      // entrypoints into an authority, not domain capabilities (SSOT 6.1). They
-      // are projected as internal so a slash command does not make an authority
-      // appear as peer expertise in natural-language discovery.
-      const roleEntrypoint = ['alchemist', 'covenant'].includes(id);
+      // Canonical SKILL metadata (M-012/M-021) decides classification. The host
+      // projection is deliberately lossy for the frozen host consumer: public
+      // capabilities project as public projectable rows; entrypoints do not.
+      const kind = fm.kind ?? 'capability';
+      const discoverability = fm.discoverability ?? 'public';
+      const publicCapability = kind === 'capability' && discoverability === 'public';
       return {
         id,
         name: fm.name ?? id,
         description: fm.description ?? '',
-        kind: roleEntrypoint ? 'role-entrypoint' : 'domain-capability',
-        discoverability: roleEntrypoint ? 'internal' : (fm.discoverability ?? 'public'),
-        domain: fm.domain ?? null,
+        kind: publicCapability ? 'domain-capability' : 'entrypoint',
+        discoverability: publicCapability ? 'public' : discoverability,
+        domain: fm.domain === 'null' || fm.domain === '' ? null : (fm.domain ?? null),
         source: path,
       };
     });

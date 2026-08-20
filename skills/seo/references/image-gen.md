@@ -200,5 +200,4 @@ jury verdict (`<image>.verdict.json`) and ask whether to regenerate or proceed.
 `failHard: false` is allowed only when the user has explicitly accepted a
 warn-only mode for this batch.
 
-
 _Additional refs: see image-gen-assets/_

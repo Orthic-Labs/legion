@@ -55,7 +55,7 @@
     {
       "path": "SKILL.md",
       "uri": "legion-skill://brand-identity/SKILL.md",
-      "digest": "sha256:ba7483362f0e7bedc1d7cb8978f8965344aea0f7a69a9aa2a108f53806069bdc"
+      "digest": "sha256:bbeebf9aacc635fe14b7062d5ee5c370ff4480b030a1d9253a68a7ca53876454"
     },
     {
       "path": "evals/evals.json",
@@ -70,7 +70,7 @@
     {
       "path": "references/manual.md",
       "uri": "legion-skill://brand-identity/references/manual.md",
-      "digest": "sha256:fadb37f25336761059d22ca5ebaa7443392cbd327b2d7eed40c93818e616b44e"
+      "digest": "sha256:afd3fcbfc049dbd44b789e6aeea198037f57de888e51de89a0773c8a548e598f"
     },
     {
       "path": "references/visual-reference-libraries.md",

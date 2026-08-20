@@ -1,14 +1,21 @@
 ---
 name: dispatch
 description: Create a validated zero-context work packet for another agent or executor while current orchestrator retains responsibility. Use for delegation, parallel workers, or copy-paste executor instructions. Same-agent work stays inline; session continuity uses handoff.
+kind: entrypoint
+discoverability: explicit
+target: orchestration:dispatch
+operations:
+  - route
+  - produce
+effects:
+  - source-read
+  - artifact-write
+  - process-exec
 ---
 
 # Dispatch
 
-MODE: OUTPUT_ONLY
 PRIMARY_DELIVERABLE: Validated zero-context dispatch packet.
-DISCOVERY_PROFILE: D1_SCOPED_SOURCE
-EFFECT_PROFILES: source_read, output_write
 SPECIALIST_REFS_MAX: 1
 CHILD_AGENTS_MAX: 0
 EXTERNAL_REQUESTS_MAX: 0

@@ -423,5 +423,4 @@ For implementation, see the tools registry.
 - **analytics-tracking**: For setting up churn signal events
 - **growth ab-test**: For testing cancel flow variations with statistical rigor
 
-
 _Additional refs: see retention-assets/_

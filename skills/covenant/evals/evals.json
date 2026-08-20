@@ -44,7 +44,7 @@
       "prompt": "Design the retry policy for this queue consumer.",
       "expected_skill": null,
       "forbidden_skills": ["covenant"],
-      "expected_behavior": "Routine architecture is decided by the Sage agent alone, not a skill; Covenant is not convened as ceremony (COV-SAGE-01).",
+      "expected_behavior": "Routine architecture is decided by the Architect capability, not a skill; Covenant is not convened as ceremony.",
       "severity": "error",
       "mode": "discovery"
     },

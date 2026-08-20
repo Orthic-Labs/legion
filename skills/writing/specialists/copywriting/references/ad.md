@@ -359,7 +359,5 @@ If DON'T-SHIP, surface the verdict to the user. Don't present the draft as
 ready until either (a) jury returns SHIP/REVISE-OK, or (b) the user
 explicitly accepts warn-only mode.
 
-
 _Additional refs: see ad-assets/_
-
 

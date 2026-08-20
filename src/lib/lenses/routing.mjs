@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { loadRoutingGraph, validateRoutingGraph } from '../routing/index.mjs';
+import { loadRoutingGroups, validateRoutingGroups } from '../routing/index.mjs';
 
 const EXPECTED = new Set(['commercial', 'research', 'editorial', 'design']);
 
@@ -14,7 +14,7 @@ export function validateCommercialLenses(root) {
     if (record.privateOverlay?.state !== 'optional' || !Array.isArray(record.privateOverlay?.fields) || record.privateOverlay.fields.length) findings.push({ code: 'private-overlay', lensId: record.id, detail: 'private overlay must remain optional, empty & unbound' });
     if (hasSlashSkill(record)) findings.push({ code: 'slash-skill', lensId: record.id, detail: 'lens leaks a slash skill' });
   }
-  const routing = validateRoutingGraph(loadRoutingGraph(root));
+  const routing = validateRoutingGroups(loadRoutingGroups(root));
   if (!routing.ok) findings.push(...routing.findings.map((item) => ({ ...item, code: `routing-${item.code}` })));
   return { ok: findings.length === 0, findings, lensIds: records.map(({ id }) => id).sort() };
 }

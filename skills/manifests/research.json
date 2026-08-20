@@ -82,7 +82,7 @@
     {
       "path": "SKILL.md",
       "uri": "legion-skill://research/SKILL.md",
-      "digest": "sha256:6ec702cc0847b621ecd82abf8bd1605dafbaae7f532c4ed22dc2bb5f47165602"
+      "digest": "sha256:363a8a2daeb57f0eacac0d9d8df12d8d788dd2340b6162e439073995474c49e0"
     },
     {
       "path": "evals/evals.json",
@@ -147,7 +147,7 @@
     {
       "path": "references/domains/legal/india/consumer/manual.md",
       "uri": "legion-skill://research/references/domains/legal/india/consumer/manual.md",
-      "digest": "sha256:2b912cf33da50e508a4d13f63a5a0fd8454a22f484dc0e528a139f805c286e96"
+      "digest": "sha256:9f584defb6b2b80511e1f3e7fc49497f0f90536ca5c83a2b9807cf051037f31b"
     },
     {
       "path": "references/domains/medical/GUIDE.md",

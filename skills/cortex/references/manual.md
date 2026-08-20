@@ -1,10 +1,7 @@
 # Cortex full workflow
 
 ```text
-MODE: DIAGNOSE
 PRIMARY_DELIVERABLE: Bounded repository map or typed graph degradation.
-DISCOVERY_PROFILE: D1_SCOPED_SOURCE
-EFFECT_PROFILES: graph_engine
 SPECIALIST_REFS_MAX: 0
 CHILD_AGENTS_MAX: 0
 EXTERNAL_REQUESTS_MAX: 0

@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "legion-amendment-v1",
   "title": "Amendment",
-  "description": "Canonical Amendment (ARCHITECTURE.md §15, §33: 'EC-44 v1 -> Amendment A-2 -> EC-44 v2'; G10: 'A blocker changes a sealed contract only through an amendment.'). Sage-authored and Sage-sealed only.",
+  "description": "Canonical Amendment ('EC-44 v1 -> Amendment A-2 -> EC-44 v2'). A semantic amendment whose changed meaning was adjudicated by Sage is sealed by Sage; a purely mechanical representation of already-settled meaning is sealed by Legion. No other authority seals amendments.",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -43,7 +43,7 @@
     },
     "invalidatedArtifactRefs": { "type": "array", "items": { "type": "string" } },
 
-    "sealedBy": { "const": "sage", "description": "ARCHITECTURE §15: 'Sage produces a versioned amendment.'" },
+    "sealedBy": { "enum": ["legion", "sage"], "description": "Sage seals amendments whose changed meaning it adjudicated; Legion seals mechanical amendments of already-settled meaning." },
     "sealedAt": { "type": ["string", "null"], "format": "date-time" },
     "sourceRevision": { "type": "string", "minLength": 7 }
   }
