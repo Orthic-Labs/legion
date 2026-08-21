@@ -142,7 +142,7 @@ const archiveIo = Object.freeze({
   hash: (bytes) => createHash('sha256').update(bytes).digest('hex'),
 });
 function archive(repo, closeTree, io = archiveIo) {
-  const bytes = execFileSync('git', ['diff', '--binary', '--full-index', repo.snapshotTree, closeTree], { cwd: repo.root }); const digest = createHash('sha256').update(bytes).digest('hex'); const dir = join(repo.primaryRoot, '.audit', 'arcane', 'delivery', 'patches', 'sha256'); const path = join(dir, `${digest}.patch`); mkdirSync(dir, { recursive: true });
+  const bytes = execFileSync('git', ['diff', '--binary', '--full-index', repo.snapshotTree, closeTree], { cwd: repo.root, maxBuffer: 128 * 1024 * 1024 }); const digest = createHash('sha256').update(bytes).digest('hex'); const dir = join(repo.primaryRoot, '.audit', 'arcane', 'delivery', 'patches', 'sha256'); const path = join(dir, `${digest}.patch`); mkdirSync(dir, { recursive: true });
   if (io.exists(path)) { if (io.hash(io.read(path)) !== digest) refuse('ARC_DELIVERY_PATCH_HASH_INVALID', 'archive patch hash differs'); }
   else { const temp = `${path}.${randomBytes(8).toString('hex')}`; io.write(temp, bytes); io.rename(temp, path); }
   return { digest, path };

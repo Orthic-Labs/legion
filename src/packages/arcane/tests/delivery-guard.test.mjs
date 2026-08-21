@@ -48,6 +48,18 @@ test('delivery guard archives tracked & untracked changes as a content-addressed
   } finally { fixture.cleanup(); }
 });
 
+test('delivery guard archives patches larger than Node child-process default buffer', () => {
+  const fixture = repo();
+  try {
+    const delivery = openDelivery({ repositories: [fixture.dir], readOnly: false, owner: { sessionId: 'one', runId: 'run-one', taskId: 'T-1' } });
+    writeFileSync(join(fixture.dir, 'large.txt'), Array.from({ length: 90_000 }, (_, index) => `${index.toString(16).padStart(8, '0')}-${createHash('sha256').update(String(index)).digest('hex')}\n`).join(''));
+    const archived = prepareClose(delivery, 'archive')[0];
+    assert.equal(archived.state, 'archived');
+    assert.ok(readFileSync(archived.patch.path).byteLength > 1024 * 1024);
+    finalizeClose(delivery);
+  } finally { fixture.cleanup(); }
+});
+
 test('archive persistence failures retain authority & never report an archive', () => {
   const writeFixture = repo(), renameFixture = repo(), hashFixture = repo();
   try {
