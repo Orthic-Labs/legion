@@ -1,10 +1,10 @@
 /**
  * Membrane packet boundary for Blueprint repository evidence.
  *
- * Blueprint owns repository truth. This module only accepts a packet already
- * produced by Membrane's transport and exposes typed degradation when that
- * transport is unavailable. It never walks files, invokes Blueprint, or
- * derives repository facts locally.
+ * Blueprint owns repository truth. This module invokes Blueprint's compact,
+ * read-only Audit projection transport, validates its Membrane packet, &
+ * exposes typed degradation when transport is unavailable. It never walks
+ * files or derives repository facts locally.
  */
 
 import { createHash } from 'node:crypto';
@@ -48,10 +48,40 @@ export function collectRepositoryBinding(rootInput) {
   return { repositoryRevision: revision, dirty: status.length > 0, dirtyPatchDigest: `sha256:${digest.digest('hex')}` };
 }
 
-export function readBlueprintManifestBinding() {
-  return { state: 'unproven', reason: 'membrane-blueprint-transport-unavailable' };
+function invokeBlueprintProjection(rootInput, options = {}) {
+  const root = resolve(rootInput);
+  const blueprintBin = options.blueprintBin ?? process.env.BLUEPRINT_BIN ?? 'blueprint';
+  const outDir = options.outDir ?? '.agent';
+  const result = spawnSync(blueprintBin, ['graph', 'audit-projection', '--out', outDir, '--json'], {
+    cwd: root,
+    encoding: 'utf8',
+    windowsHide: true,
+    maxBuffer: 128 * 1024 * 1024,
+  });
+  if (result.error || result.status !== 0) return unavailablePacket('membrane-blueprint-transport-unavailable');
+  try {
+    const packet = consumeBlueprintPacket(JSON.parse(result.stdout));
+    const files = [...new Set((packet.files ?? []).map((path) => String(path).replaceAll('\\', '/')).filter(Boolean))].sort();
+    const fileSetDigest = `sha256:${createHash('sha256').update(JSON.stringify(files)).digest('hex')}`;
+    return { ...packet, files, fileCount: files.length, fileSetDigest };
+  } catch {
+    return unavailablePacket('membrane-blueprint-packet-invalid');
+  }
 }
 
-export function readBlueprintPacket() {
-  return unavailablePacket('membrane-blueprint-transport-unavailable');
+export function readBlueprintManifestBinding(rootInput, options = {}) {
+  const packet = invokeBlueprintProjection(rootInput, options);
+  if (packet.status !== 'ready' || packet.state !== 'ready') {
+    return { state: 'unproven', reason: packet.reason ?? 'membrane-blueprint-transport-unavailable' };
+  }
+  return {
+    state: 'ready',
+    generationId: packet.generationId ?? null,
+    manifestDigest: packet.manifestDigest ?? null,
+    sourceObservation: packet.sourceObservation ?? null,
+  };
+}
+
+export function readBlueprintPacket(rootInput, options = {}) {
+  return invokeBlueprintProjection(rootInput, options);
 }

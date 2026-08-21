@@ -101,3 +101,9 @@ flowchart LR
 - [License](LICENSE)
 
 <sub><b><a href="https://orthic-labs.github.io">Orthic Labs</a></b> — local-first infrastructure for AI-assisted development.</sub>
+
+<!-- blueprint:docs:start -->
+## Repository truth docs
+- [Product overview](docs/product.md) — what this is and does (generated, code-grounded)
+- [Architecture](docs/architecture.md) — components, flows, interfaces (generated, code-grounded)
+<!-- blueprint:docs:end -->

@@ -231,7 +231,9 @@ diagnosis to `/audit` rather than embedding it; the remaining question is whethe
 9. Resident Arcane decision — **not justified** by the measurements; the fix is algorithmic
 10. ~~`legion doctor` host diagnosis + plugin surface identity + live adapter seam~~ — done; ~~cross-harness conformance evals~~ — done (`tests/host-adapter-conformance.test.mjs`)
 
-Host/runtime work is complete. The 2026-08-20 cleanup pass closed the remaining host-layer
+Host/runtime source is complete. The active marketplace source is this checkout; any installed
+Claude cache must be refreshed from it before live-hook claims are made. A stale cache can still
+emit pre-refresh Arcane results even when source tests pass. The 2026-08-20 cleanup pass closed the remaining host-layer
 correctness and safety gaps: projected skill membership now comes from the canonical capability
 projection rather than a `skills/*` directory scan (explicit entrypoints no longer leak into
 discovery), install and uninstall are collision-safe and surgically reversible, malformed config

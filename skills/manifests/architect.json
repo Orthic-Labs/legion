@@ -32,8 +32,54 @@
       "references/manual.md"
     ],
     "scripts": [],
-    "templates": [],
-    "schemas": [],
+    "templates": [
+      "doctrine/architecture/templates/acceptance-ledger.md",
+      "doctrine/architecture/templates/adr.md",
+      "doctrine/architecture/templates/architecture-brief.md",
+      "doctrine/architecture/templates/architecture-convergence-receipt.md",
+      "doctrine/architecture/templates/architecture-review.md",
+      "doctrine/architecture/templates/assumption-unknown-register.md",
+      "doctrine/architecture/templates/candidate-card.md",
+      "doctrine/architecture/templates/canon-map.md",
+      "doctrine/architecture/templates/control-lifecycle.md",
+      "doctrine/architecture/templates/delivery-deficit.md",
+      "doctrine/architecture/templates/domain-data-ownership.md",
+      "doctrine/architecture/templates/evidence-card.md",
+      "doctrine/architecture/templates/intent-epoch.md",
+      "doctrine/architecture/templates/migration-cutover.md",
+      "doctrine/architecture/templates/option-evaluation.md",
+      "doctrine/architecture/templates/ownership-disposition.md",
+      "doctrine/architecture/templates/quality-scenario.md",
+      "doctrine/architecture/templates/representative-workload.md",
+      "doctrine/architecture/templates/review-module-contract.md"
+    ],
+    "schemas": [
+      "doctrine/architecture/schemas/acceptance-evidence-registry.schema.json",
+      "doctrine/architecture/schemas/acceptance-ledger.schema.json",
+      "doctrine/architecture/schemas/acceptance-surface-proof.schema.json",
+      "doctrine/architecture/schemas/architecture-eval-result.schema.json",
+      "doctrine/architecture/schemas/architecture-evidence.schema.json",
+      "doctrine/architecture/schemas/architecture-replay-result.schema.json",
+      "doctrine/architecture/schemas/architecture-review-finding.schema.json",
+      "doctrine/architecture/schemas/architecture-route.schema.json",
+      "doctrine/architecture/schemas/architecture-router-input.schema.json",
+      "doctrine/architecture/schemas/architecture-state.schema.json",
+      "doctrine/architecture/schemas/check-contract.schema.json",
+      "doctrine/architecture/schemas/control-lifecycle.schema.json",
+      "doctrine/architecture/schemas/delivery-deficit.schema.json",
+      "doctrine/architecture/schemas/downstream-acknowledgement.schema.json",
+      "doctrine/architecture/schemas/evidence-artifact-envelope.schema.json",
+      "doctrine/architecture/schemas/evidence-reachability.schema.json",
+      "doctrine/architecture/schemas/execution-checkpoint.schema.json",
+      "doctrine/architecture/schemas/execution-trajectory-event.schema.json",
+      "doctrine/architecture/schemas/external-provider-capability.schema.json",
+      "doctrine/architecture/schemas/gate-validity-receipt.schema.json",
+      "doctrine/architecture/schemas/migration-cutover.schema.json",
+      "doctrine/architecture/schemas/objective-lineage-budget.schema.json",
+      "doctrine/architecture/schemas/ownership-disposition.schema.json",
+      "doctrine/architecture/schemas/rehydration-envelope.schema.json",
+      "doctrine/architecture/schemas/review-module-contract.schema.json"
+    ],
     "receipts": [],
     "evals": [
       "evals/evals.json"
@@ -51,6 +97,461 @@
       "digest": "sha256:971acf546155946883edf6da0d485fe4d57a616d24aa94440cb7786b93653ce9"
     },
     {
+      "path": "doctrine/architecture/00-charter-significance-tailoring.md",
+      "uri": "legion-skill://architect/doctrine/architecture/00-charter-significance-tailoring.md",
+      "digest": "sha256:d6bace1129500740f9a3d43d162b4f97c54aa050cc339a8d85b76f3cac0c595b"
+    },
+    {
+      "path": "doctrine/architecture/README.md",
+      "uri": "legion-skill://architect/doctrine/architecture/README.md",
+      "digest": "sha256:5fb0d15a62c81d0b1e52488586d9e6563d1146ecb78ef78fa9e9f5c487e8b31f"
+    },
+    {
+      "path": "doctrine/architecture/controls/acceptance-ledger.md",
+      "uri": "legion-skill://architect/doctrine/architecture/controls/acceptance-ledger.md",
+      "digest": "sha256:fe386e093ce31c6353342aba253a9e27d2e083007c42f9397dbdf4235f381caa"
+    },
+    {
+      "path": "doctrine/architecture/controls/adr-admission.md",
+      "uri": "legion-skill://architect/doctrine/architecture/controls/adr-admission.md",
+      "digest": "sha256:d66822e7efda8a02579619debe147244ebdc21bfe55e97e838917772691f9884"
+    },
+    {
+      "path": "doctrine/architecture/controls/architecture-routing.md",
+      "uri": "legion-skill://architect/doctrine/architecture/controls/architecture-routing.md",
+      "digest": "sha256:6d8c00204eb302af58095d3816f57907de2f3b3876b7484c5627c89b2f5b6bdc"
+    },
+    {
+      "path": "doctrine/architecture/controls/clarification-convergence.md",
+      "uri": "legion-skill://architect/doctrine/architecture/controls/clarification-convergence.md",
+      "digest": "sha256:beda5158db4cd9215ce93a079a0f3559471ba1a70b6bf62ab3f16abaad778cdf"
+    },
+    {
+      "path": "doctrine/architecture/controls/control-lifecycle.md",
+      "uri": "legion-skill://architect/doctrine/architecture/controls/control-lifecycle.md",
+      "digest": "sha256:d5d6bfe2b619e1b29a9301a0e8dbe6e915661cf8d9989e8cfddbbeb3e184b711"
+    },
+    {
+      "path": "doctrine/architecture/controls/control-plane-budgets.md",
+      "uri": "legion-skill://architect/doctrine/architecture/controls/control-plane-budgets.md",
+      "digest": "sha256:9714497e8c8f062ff68e0f61a298d50dab534d30bb8e0ec8517a7ddcd6e5a7d8"
+    },
+    {
+      "path": "doctrine/architecture/controls/delivery-deficits.md",
+      "uri": "legion-skill://architect/doctrine/architecture/controls/delivery-deficits.md",
+      "digest": "sha256:ee8e5608e3fd1149b04533d385125daf346ef04b980442082eba96feecb14cb1"
+    },
+    {
+      "path": "doctrine/architecture/controls/effect-classification.md",
+      "uri": "legion-skill://architect/doctrine/architecture/controls/effect-classification.md",
+      "digest": "sha256:de6335cebd47ff87955fcf63c5fb3c7dadffcb6f0ae4bcaa4ab4b7af902565d0"
+    },
+    {
+      "path": "doctrine/architecture/controls/evidence-freshness.md",
+      "uri": "legion-skill://architect/doctrine/architecture/controls/evidence-freshness.md",
+      "digest": "sha256:49f684f6ae7aa98d42996987392ef0ea40dc471e9c329c635732782bfe3e3a8b"
+    },
+    {
+      "path": "doctrine/architecture/controls/execution-trajectory-checkpoints.md",
+      "uri": "legion-skill://architect/doctrine/architecture/controls/execution-trajectory-checkpoints.md",
+      "digest": "sha256:b9a20f7d3884a48ec121b37ae70864f5106e41c776c10ca79cae7feb36b577ec"
+    },
+    {
+      "path": "doctrine/architecture/controls/execution-trajectory.md",
+      "uri": "legion-skill://architect/doctrine/architecture/controls/execution-trajectory.md",
+      "digest": "sha256:e3eb87065c0e9d60a03c30a0cabcbe626164a41a97b701cee0c9d1d9934ed89e"
+    },
+    {
+      "path": "doctrine/architecture/controls/gate-validity.md",
+      "uri": "legion-skill://architect/doctrine/architecture/controls/gate-validity.md",
+      "digest": "sha256:c29ea044b87e2d554f9e2ee21ad7480798c1967c4c2c87e01adb7be5f30a1a41"
+    },
+    {
+      "path": "doctrine/architecture/controls/intent-cancellation.md",
+      "uri": "legion-skill://architect/doctrine/architecture/controls/intent-cancellation.md",
+      "digest": "sha256:ceb7334d685a5dd3f874433842886377ef28efff3ee619abafba99be928aef10"
+    },
+    {
+      "path": "doctrine/architecture/controls/machinery-defect-isolation.md",
+      "uri": "legion-skill://architect/doctrine/architecture/controls/machinery-defect-isolation.md",
+      "digest": "sha256:bf525772dbd82921829a6abc8fed1e1dc7c3c3de0e8b6e0c8c29c561689a65ff"
+    },
+    {
+      "path": "doctrine/architecture/controls/migration-cutover.md",
+      "uri": "legion-skill://architect/doctrine/architecture/controls/migration-cutover.md",
+      "digest": "sha256:6aaa2e1d3d2c416806f064512d939e604cd09c40ebd400c57b064371f5fd8a3a"
+    },
+    {
+      "path": "doctrine/architecture/controls/objective-lineage-budgets.md",
+      "uri": "legion-skill://architect/doctrine/architecture/controls/objective-lineage-budgets.md",
+      "digest": "sha256:2ce9ace16131c87a250a71dd6407822a2971bfdd25875fdd3567dd9422aa14f8"
+    },
+    {
+      "path": "doctrine/architecture/controls/ownership-disposition.md",
+      "uri": "legion-skill://architect/doctrine/architecture/controls/ownership-disposition.md",
+      "digest": "sha256:a2c35d5acd3013e8ae99432550fbea0ed0031da0083dbaf5552f92480492283d"
+    },
+    {
+      "path": "doctrine/architecture/controls/rehydration-boundary.md",
+      "uri": "legion-skill://architect/doctrine/architecture/controls/rehydration-boundary.md",
+      "digest": "sha256:ef15d4c73b35f651df0ac103954684255a21677468b32337200d8d3e911d587c"
+    },
+    {
+      "path": "doctrine/architecture/controls/retry-semantics.md",
+      "uri": "legion-skill://architect/doctrine/architecture/controls/retry-semantics.md",
+      "digest": "sha256:6c0e2d71bb41a59d009534639de2167de8575d804ccd2fa1c0f4fbef26a6926d"
+    },
+    {
+      "path": "doctrine/architecture/controls/reviewer-scope.md",
+      "uri": "legion-skill://architect/doctrine/architecture/controls/reviewer-scope.md",
+      "digest": "sha256:b2f02396b4bf49b300b6dac13517a2ba956bc9127b828b24e830d438fc82d729"
+    },
+    {
+      "path": "doctrine/architecture/controls/seal-reachability.md",
+      "uri": "legion-skill://architect/doctrine/architecture/controls/seal-reachability.md",
+      "digest": "sha256:41f01c706fc43b9f22c58ff68273b4374a38213189e7af4bb13e2cbaccc17291"
+    },
+    {
+      "path": "doctrine/architecture/controls/terminal-states.md",
+      "uri": "legion-skill://architect/doctrine/architecture/controls/terminal-states.md",
+      "digest": "sha256:a9003685a5ce101c1e9dde99dd028cd312b3d145ef5944256113c42e123de40e"
+    },
+    {
+      "path": "doctrine/architecture/methods/add.md",
+      "uri": "legion-skill://architect/doctrine/architecture/methods/add.md",
+      "digest": "sha256:b80310fb1bec53aa00caa181c013adedb068d82003490ea81a2cd3959808aa45"
+    },
+    {
+      "path": "doctrine/architecture/methods/assurance-case.md",
+      "uri": "legion-skill://architect/doctrine/architecture/methods/assurance-case.md",
+      "digest": "sha256:a7e5461870ab4ffb0b92954bd44f0369e3335acce8cef5ff91a2039ca2f8ecd8"
+    },
+    {
+      "path": "doctrine/architecture/methods/atam.md",
+      "uri": "legion-skill://architect/doctrine/architecture/methods/atam.md",
+      "digest": "sha256:79986e78b5737c19d555c57eac441a1b569a3c4af611110c423323d164076acd"
+    },
+    {
+      "path": "doctrine/architecture/methods/cbam.md",
+      "uri": "legion-skill://architect/doctrine/architecture/methods/cbam.md",
+      "digest": "sha256:a298bfc17a5ceb74cd6f2fb259fbd2f142bbca06c47d92e8b3589132dc9183e5"
+    },
+    {
+      "path": "doctrine/architecture/methods/decision-analysis.md",
+      "uri": "legion-skill://architect/doctrine/architecture/methods/decision-analysis.md",
+      "digest": "sha256:51416a6ffd082ef358cce780a54ca67c16b7e6267c847a8d4d10a5982eb15e6a"
+    },
+    {
+      "path": "doctrine/architecture/methods/qaw.md",
+      "uri": "legion-skill://architect/doctrine/architecture/methods/qaw.md",
+      "digest": "sha256:23716b3f7971999c24870eb9adfa27796adaf7401deefe7b86149fb1276034b8"
+    },
+    {
+      "path": "doctrine/architecture/methods/technology-selection.md",
+      "uri": "legion-skill://architect/doctrine/architecture/methods/technology-selection.md",
+      "digest": "sha256:ac622696b3fe83a11397e869e5ef938ccc3e267990af2520d001056c20c975eb"
+    },
+    {
+      "path": "doctrine/architecture/reviews/evidence-uncertainty.md",
+      "uri": "legion-skill://architect/doctrine/architecture/reviews/evidence-uncertainty.md",
+      "digest": "sha256:fc550b2b4a864c6dc3a2cea1683a4cc088b75a84770990154896aac215d866e7"
+    },
+    {
+      "path": "doctrine/architecture/reviews/independent-evaluation.md",
+      "uri": "legion-skill://architect/doctrine/architecture/reviews/independent-evaluation.md",
+      "digest": "sha256:2a26d4c6546212f12cd9affd4e5933552ca96e374b4fd8b83c7de665180a3d7c"
+    },
+    {
+      "path": "doctrine/architecture/reviews/review-gates.md",
+      "uri": "legion-skill://architect/doctrine/architecture/reviews/review-gates.md",
+      "digest": "sha256:aa6ef8a209fa8f5103b0a656c1ef23bf57ff7a2513b9347f481683fc735f24bc"
+    },
+    {
+      "path": "doctrine/architecture/reviews/simplicity-yagni.md",
+      "uri": "legion-skill://architect/doctrine/architecture/reviews/simplicity-yagni.md",
+      "digest": "sha256:9af51c83a2ddec33d853e05a23ad457f9e02eea68d1e57c67c596288d61602ec"
+    },
+    {
+      "path": "doctrine/architecture/reviews/tradeoffs.md",
+      "uri": "legion-skill://architect/doctrine/architecture/reviews/tradeoffs.md",
+      "digest": "sha256:7f64dd98c8107d4b178fe4e9b2c16fe4750a5504e7a80d6a4a510ec4549b506d"
+    },
+    {
+      "path": "doctrine/architecture/schemas/acceptance-evidence-registry.schema.json",
+      "uri": "legion-skill://architect/doctrine/architecture/schemas/acceptance-evidence-registry.schema.json",
+      "digest": "sha256:af77929eede46e276e03269462ade15fba1e281cc3046921ce72f9b03ccb693a"
+    },
+    {
+      "path": "doctrine/architecture/schemas/acceptance-ledger.schema.json",
+      "uri": "legion-skill://architect/doctrine/architecture/schemas/acceptance-ledger.schema.json",
+      "digest": "sha256:233e0021f3a1f22fd42f130f29d9680790e1a709a0772b42b62c4fa9923e758e"
+    },
+    {
+      "path": "doctrine/architecture/schemas/acceptance-surface-proof.schema.json",
+      "uri": "legion-skill://architect/doctrine/architecture/schemas/acceptance-surface-proof.schema.json",
+      "digest": "sha256:de792b5c8d2971b1a633926207f398e9aadbc1015d8d0ee5ce045cb7edcd8cc2"
+    },
+    {
+      "path": "doctrine/architecture/schemas/architecture-eval-result.schema.json",
+      "uri": "legion-skill://architect/doctrine/architecture/schemas/architecture-eval-result.schema.json",
+      "digest": "sha256:711a41a16a49983b02bb51cb3309789eabcebdea591d08296af7e1d6adcecaff"
+    },
+    {
+      "path": "doctrine/architecture/schemas/architecture-evidence.schema.json",
+      "uri": "legion-skill://architect/doctrine/architecture/schemas/architecture-evidence.schema.json",
+      "digest": "sha256:6f9a88a6f3096cae23121e28c9bc554d5f94e6b92ce9221784c9638311ae4a0a"
+    },
+    {
+      "path": "doctrine/architecture/schemas/architecture-replay-result.schema.json",
+      "uri": "legion-skill://architect/doctrine/architecture/schemas/architecture-replay-result.schema.json",
+      "digest": "sha256:51b9737f70f18fa86625c3af16f73be8f659bea2d16b2e70eb27d42fe269da5a"
+    },
+    {
+      "path": "doctrine/architecture/schemas/architecture-review-finding.schema.json",
+      "uri": "legion-skill://architect/doctrine/architecture/schemas/architecture-review-finding.schema.json",
+      "digest": "sha256:ba5be3606fdfd24f09e8a16bb9f624e17c5e8c6c009e65b3a82e055470c39b63"
+    },
+    {
+      "path": "doctrine/architecture/schemas/architecture-route.schema.json",
+      "uri": "legion-skill://architect/doctrine/architecture/schemas/architecture-route.schema.json",
+      "digest": "sha256:946718b00d005086a7567aed4c7c6f0b35f4c05b8c16026ace293e4eb268b23e"
+    },
+    {
+      "path": "doctrine/architecture/schemas/architecture-router-input.schema.json",
+      "uri": "legion-skill://architect/doctrine/architecture/schemas/architecture-router-input.schema.json",
+      "digest": "sha256:a194e3a91ecb83988751ac17c459152bd9b8f6a0a33100dd5656cbe1c22d055f"
+    },
+    {
+      "path": "doctrine/architecture/schemas/architecture-state.schema.json",
+      "uri": "legion-skill://architect/doctrine/architecture/schemas/architecture-state.schema.json",
+      "digest": "sha256:3faeb01358197c9a7551772855739d3192437a0af7603d7b75eb0c1fe8d23b13"
+    },
+    {
+      "path": "doctrine/architecture/schemas/check-contract.schema.json",
+      "uri": "legion-skill://architect/doctrine/architecture/schemas/check-contract.schema.json",
+      "digest": "sha256:c8387e91353ddf54a5023f1e6aaeaffe4365acd9a79bc16f39859caeab46fae1"
+    },
+    {
+      "path": "doctrine/architecture/schemas/control-lifecycle.schema.json",
+      "uri": "legion-skill://architect/doctrine/architecture/schemas/control-lifecycle.schema.json",
+      "digest": "sha256:9ffe9b8568d7e744dfe46ad755608e0f416bc63ff52383f8418e351765906082"
+    },
+    {
+      "path": "doctrine/architecture/schemas/delivery-deficit.schema.json",
+      "uri": "legion-skill://architect/doctrine/architecture/schemas/delivery-deficit.schema.json",
+      "digest": "sha256:42b5f824cce7aec20f07b3aafeface68c0492c1bc7d34e67227e744c353a5974"
+    },
+    {
+      "path": "doctrine/architecture/schemas/downstream-acknowledgement.schema.json",
+      "uri": "legion-skill://architect/doctrine/architecture/schemas/downstream-acknowledgement.schema.json",
+      "digest": "sha256:32de79906f57468c9af3aaed0065bb575ed2ae9982d934670a52658b3b27d9cf"
+    },
+    {
+      "path": "doctrine/architecture/schemas/evidence-artifact-envelope.schema.json",
+      "uri": "legion-skill://architect/doctrine/architecture/schemas/evidence-artifact-envelope.schema.json",
+      "digest": "sha256:2bcfbc49cab22666fa8cfa8aac31afc07fb2072c2942071e575ed36393e88b15"
+    },
+    {
+      "path": "doctrine/architecture/schemas/evidence-reachability.schema.json",
+      "uri": "legion-skill://architect/doctrine/architecture/schemas/evidence-reachability.schema.json",
+      "digest": "sha256:2052b1c56b14393d0bae41e15182492975c73fe2bd6ee607c1534073163f9e2d"
+    },
+    {
+      "path": "doctrine/architecture/schemas/execution-checkpoint.schema.json",
+      "uri": "legion-skill://architect/doctrine/architecture/schemas/execution-checkpoint.schema.json",
+      "digest": "sha256:d84a6193796ba034db7011d416773babd3c4b74aa55872e664275547edd6cc31"
+    },
+    {
+      "path": "doctrine/architecture/schemas/execution-trajectory-event.schema.json",
+      "uri": "legion-skill://architect/doctrine/architecture/schemas/execution-trajectory-event.schema.json",
+      "digest": "sha256:bfd23fa5133b370415f10212a60e54e79ccbdb32becc42c5a3186d5905d7523c"
+    },
+    {
+      "path": "doctrine/architecture/schemas/external-provider-capability.schema.json",
+      "uri": "legion-skill://architect/doctrine/architecture/schemas/external-provider-capability.schema.json",
+      "digest": "sha256:8d857508f7a458a1c3652528dde32ed0d138d1d2b77aaa65769de409f7f4f6da"
+    },
+    {
+      "path": "doctrine/architecture/schemas/gate-validity-receipt.schema.json",
+      "uri": "legion-skill://architect/doctrine/architecture/schemas/gate-validity-receipt.schema.json",
+      "digest": "sha256:52320fcf522788e72943d41214369785081f4a4be50fd7320332e54af7e0a180"
+    },
+    {
+      "path": "doctrine/architecture/schemas/migration-cutover.schema.json",
+      "uri": "legion-skill://architect/doctrine/architecture/schemas/migration-cutover.schema.json",
+      "digest": "sha256:90a19912f30517035c1102d0012bf06d7886f8cf08739e9e49dcd5c166dfc974"
+    },
+    {
+      "path": "doctrine/architecture/schemas/objective-lineage-budget.schema.json",
+      "uri": "legion-skill://architect/doctrine/architecture/schemas/objective-lineage-budget.schema.json",
+      "digest": "sha256:6255244035d976193f5537ef68ec56d30ca0e653cdc2b0d787d1696ba82bb6cd"
+    },
+    {
+      "path": "doctrine/architecture/schemas/ownership-disposition.schema.json",
+      "uri": "legion-skill://architect/doctrine/architecture/schemas/ownership-disposition.schema.json",
+      "digest": "sha256:aeb6aaa06966a6a080aeca78b9064eaac97c61ace011f6654f7b645d2d0b1194"
+    },
+    {
+      "path": "doctrine/architecture/schemas/rehydration-envelope.schema.json",
+      "uri": "legion-skill://architect/doctrine/architecture/schemas/rehydration-envelope.schema.json",
+      "digest": "sha256:5085a27d89c22e379c38635703ee233be4be8beb15233143b1915b4679e7c7e6"
+    },
+    {
+      "path": "doctrine/architecture/schemas/review-module-contract.schema.json",
+      "uri": "legion-skill://architect/doctrine/architecture/schemas/review-module-contract.schema.json",
+      "digest": "sha256:200d5c01c423897ae5facd55b1fc5dd2b20f91c489b48ec64398d7258d1dfb65"
+    },
+    {
+      "path": "doctrine/architecture/templates/acceptance-ledger.md",
+      "uri": "legion-skill://architect/doctrine/architecture/templates/acceptance-ledger.md",
+      "digest": "sha256:340ecd48d941d92a3798215879edfa01a769715320486b7a17031ac115de55bc"
+    },
+    {
+      "path": "doctrine/architecture/templates/adr.md",
+      "uri": "legion-skill://architect/doctrine/architecture/templates/adr.md",
+      "digest": "sha256:811cd5b65967e0810a84a05c6940d5a4f9f183e822eacc35a6c3255227e694d1"
+    },
+    {
+      "path": "doctrine/architecture/templates/architecture-brief.md",
+      "uri": "legion-skill://architect/doctrine/architecture/templates/architecture-brief.md",
+      "digest": "sha256:b8e2adb0805ac9f094fc4b330bfcda2c9a3b894d77ae0f1fc211f2dfe89458aa"
+    },
+    {
+      "path": "doctrine/architecture/templates/architecture-convergence-receipt.md",
+      "uri": "legion-skill://architect/doctrine/architecture/templates/architecture-convergence-receipt.md",
+      "digest": "sha256:41d8cb9acb2de2f522a195650b303790ddd300e532ec0c195e060b154d30ce96"
+    },
+    {
+      "path": "doctrine/architecture/templates/architecture-review.md",
+      "uri": "legion-skill://architect/doctrine/architecture/templates/architecture-review.md",
+      "digest": "sha256:dfaa91714774fd936d60dd10bed8914ed8efea2f8d121b0f359d001a6ee1db08"
+    },
+    {
+      "path": "doctrine/architecture/templates/assumption-unknown-register.md",
+      "uri": "legion-skill://architect/doctrine/architecture/templates/assumption-unknown-register.md",
+      "digest": "sha256:1a6fe46933f6e455f42d121270180284346f5ad754d9896b89625724016a0236"
+    },
+    {
+      "path": "doctrine/architecture/templates/candidate-card.md",
+      "uri": "legion-skill://architect/doctrine/architecture/templates/candidate-card.md",
+      "digest": "sha256:823fa34ab7903c9a1e9ce56bd5a2882388a4c3a3baac50d78f0bf2e8ab35647d"
+    },
+    {
+      "path": "doctrine/architecture/templates/canon-map.md",
+      "uri": "legion-skill://architect/doctrine/architecture/templates/canon-map.md",
+      "digest": "sha256:01c32056ec5092e88fda936bf43caeb99816b8ad31177059184e8853bc62c114"
+    },
+    {
+      "path": "doctrine/architecture/templates/control-lifecycle.md",
+      "uri": "legion-skill://architect/doctrine/architecture/templates/control-lifecycle.md",
+      "digest": "sha256:2577bc55960152255e5570197b24b7609267c8ab2718747fbbdd3b54fd49ab64"
+    },
+    {
+      "path": "doctrine/architecture/templates/delivery-deficit.md",
+      "uri": "legion-skill://architect/doctrine/architecture/templates/delivery-deficit.md",
+      "digest": "sha256:99e51dc9a2f5d88d76e57d394404a642a2852860c253c2eeb773c65c8b11e09a"
+    },
+    {
+      "path": "doctrine/architecture/templates/domain-data-ownership.md",
+      "uri": "legion-skill://architect/doctrine/architecture/templates/domain-data-ownership.md",
+      "digest": "sha256:476f0783743e324e41b304e18a3bda96280e493dfc9033d73dd766a873e37fec"
+    },
+    {
+      "path": "doctrine/architecture/templates/evidence-card.md",
+      "uri": "legion-skill://architect/doctrine/architecture/templates/evidence-card.md",
+      "digest": "sha256:61ac6a86e3f45a1c888085eb8b4a75bca8b799c9c11e368f814b1652f30420f6"
+    },
+    {
+      "path": "doctrine/architecture/templates/intent-epoch.md",
+      "uri": "legion-skill://architect/doctrine/architecture/templates/intent-epoch.md",
+      "digest": "sha256:959b8ccf16aeb375cfc15a9f6912572f924430f795a5b5c184124dab64904691"
+    },
+    {
+      "path": "doctrine/architecture/templates/migration-cutover.md",
+      "uri": "legion-skill://architect/doctrine/architecture/templates/migration-cutover.md",
+      "digest": "sha256:835495f167049d9b9bce079872e80ef20aa7fc9f857801e30deacb988d893138"
+    },
+    {
+      "path": "doctrine/architecture/templates/option-evaluation.md",
+      "uri": "legion-skill://architect/doctrine/architecture/templates/option-evaluation.md",
+      "digest": "sha256:9888fcdf8b64540f141b479fe4eafcf4fda363b0383231f847fc64ede65723b3"
+    },
+    {
+      "path": "doctrine/architecture/templates/ownership-disposition.md",
+      "uri": "legion-skill://architect/doctrine/architecture/templates/ownership-disposition.md",
+      "digest": "sha256:3d4d26642f66dc67ce6c80c66d1b9b6e03e587968caf8b40addb9d7e59328341"
+    },
+    {
+      "path": "doctrine/architecture/templates/quality-scenario.md",
+      "uri": "legion-skill://architect/doctrine/architecture/templates/quality-scenario.md",
+      "digest": "sha256:b62cd02e956cca552bab80f158151635de47448e62e18dce1ee7e5e3c3cf71d5"
+    },
+    {
+      "path": "doctrine/architecture/templates/representative-workload.md",
+      "uri": "legion-skill://architect/doctrine/architecture/templates/representative-workload.md",
+      "digest": "sha256:5568df3dd807e9b301898b8cf026128c17f89249710f59f376074421623d57ef"
+    },
+    {
+      "path": "doctrine/architecture/templates/review-module-contract.md",
+      "uri": "legion-skill://architect/doctrine/architecture/templates/review-module-contract.md",
+      "digest": "sha256:c23ee234475df3617cdda184532284bb16b6c467dd97e30771e91b6b0897e444"
+    },
+    {
+      "path": "doctrine/architecture/workflow/01-frame.md",
+      "uri": "legion-skill://architect/doctrine/architecture/workflow/01-frame.md",
+      "digest": "sha256:07d5171409823a314577ee112e9c704831403e28e3d2c7ec6d45fdf859f2d17e"
+    },
+    {
+      "path": "doctrine/architecture/workflow/02-context-stakeholders.md",
+      "uri": "legion-skill://architect/doctrine/architecture/workflow/02-context-stakeholders.md",
+      "digest": "sha256:ffe7d47b086940cc716b4e1c116500fb3cfb1c4deb2960298573595c647e48a9"
+    },
+    {
+      "path": "doctrine/architecture/workflow/03-drivers-quality-scenarios.md",
+      "uri": "legion-skill://architect/doctrine/architecture/workflow/03-drivers-quality-scenarios.md",
+      "digest": "sha256:8350929c217f9423e5be7f46990ff0cd8cbb0164b2730e8eecfed6a0776c7712"
+    },
+    {
+      "path": "doctrine/architecture/workflow/04-domain-data-change.md",
+      "uri": "legion-skill://architect/doctrine/architecture/workflow/04-domain-data-change.md",
+      "digest": "sha256:d125e8ed17e5d20f448a5e1c249cdea626f64e7fbf64bef8781a07037175783f"
+    },
+    {
+      "path": "doctrine/architecture/workflow/05-risk-uncertainty.md",
+      "uri": "legion-skill://architect/doctrine/architecture/workflow/05-risk-uncertainty.md",
+      "digest": "sha256:75da2e9fd13756ce59283b3db0049ea4f1bfe470b012486bc5811fd1b677929a"
+    },
+    {
+      "path": "doctrine/architecture/workflow/06-candidates.md",
+      "uri": "legion-skill://architect/doctrine/architecture/workflow/06-candidates.md",
+      "digest": "sha256:0e03eead4721e45336901db4bd726d4d36eb3ddc5e1345038f62c5cd94768c88"
+    },
+    {
+      "path": "doctrine/architecture/workflow/07-evaluate-select.md",
+      "uri": "legion-skill://architect/doctrine/architecture/workflow/07-evaluate-select.md",
+      "digest": "sha256:c6b798cb2bcb44a543cda0600fdb1b93b8b7f2fdf1e8090283c85f1578384a19"
+    },
+    {
+      "path": "doctrine/architecture/workflow/08-minimize.md",
+      "uri": "legion-skill://architect/doctrine/architecture/workflow/08-minimize.md",
+      "digest": "sha256:bfc606fbd32a2fb9c088b36c4a1da88dac9548fb3f11a4b6b8d29d6db9d334cc"
+    },
+    {
+      "path": "doctrine/architecture/workflow/09-describe-views.md",
+      "uri": "legion-skill://architect/doctrine/architecture/workflow/09-describe-views.md",
+      "digest": "sha256:4ca234ad1c647f59bc85f58a4636567269522ce9852ed52f72defe2fd8bacef9"
+    },
+    {
+      "path": "doctrine/architecture/workflow/10-assure-accept.md",
+      "uri": "legion-skill://architect/doctrine/architecture/workflow/10-assure-accept.md",
+      "digest": "sha256:9950de8995ce1a559fcf65e9605fef1cb3dbef49d4b263f2e89ee67686d72d77"
+    },
+    {
+      "path": "doctrine/architecture/workflow/11-govern-evolve-retire.md",
+      "uri": "legion-skill://architect/doctrine/architecture/workflow/11-govern-evolve-retire.md",
+      "digest": "sha256:4c391c7ea26e32b8152bc6d5fd644ad639f39cd1c4a0f803d298dd2c82553bfb"
+    },
+    {
       "path": "evals/evals.json",
       "uri": "legion-skill://architect/evals/evals.json",
       "digest": "sha256:cbdc292723b14d3c6e5c9e0f93fb460943d6c03fbfcc919a84e0ae99a8a7274d"
@@ -58,7 +559,7 @@
     {
       "path": "references/manual.md",
       "uri": "legion-skill://architect/references/manual.md",
-      "digest": "sha256:a1487baf1d1331d374d2b85ab2dd3051cfa3806bad442ea09e5775c8756424a9"
+      "digest": "sha256:1cb1b07a371ad611af74b14222953b747e1ce801b61ea44474183353392952e8"
     }
   ]
 }

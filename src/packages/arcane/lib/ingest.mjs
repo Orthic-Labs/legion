@@ -184,7 +184,17 @@ export class HostIngestor {
       return { accepted: true, receipt: null, observationClass, decision: decision({ allowed: true, detail: { eventType: hostEvent.eventType, effect: null } }) };
     }
 
-    if (!hostEvent.sourceRevision || !hostEvent.runId) {
+    // A native hook can arrive before SessionStart was observed (or from an
+    // ambient session whose binding state was unavailable). That event is
+    // still a valid host observation, but it cannot mint a run-scoped receipt.
+    // Keep it accepted as typed, unbound telemetry; governed work always has
+    // a run binding and remains fail-closed below when its source proof is
+    // absent.
+    if (!hostEvent.runId) {
+      return { accepted: true, receipt: null, observationClass, decision: decision({ allowed: true, detail: { eventType: hostEvent.eventType, effect: hostEvent.effect, unboundAmbient: true, receipt: null } }) };
+    }
+
+    if (!hostEvent.sourceRevision) {
       return this.#refuse(observationClass, decision({
         allowed: false,
         code: 'ARC_HOST_EVENT_INVALID',

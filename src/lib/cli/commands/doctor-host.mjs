@@ -23,7 +23,7 @@ const readJson = (path) => { try { return JSON.parse(readFileSync(path, 'utf8'))
 
 const CODEX_HOOK_EVENTS = Object.freeze([
   'session_start', 'subagent_start', 'user_prompt_submit', 'post_compact',
-  'pre_tool_use', 'post_tool_use', 'stop',
+  'pre_tool_use', 'post_tool_use', 'post_tool_use_failure', 'stop',
 ]);
 const CODEX_TRUSTED_HASH = /^sha256:[0-9a-f]{64}$/;
 

@@ -3,6 +3,7 @@ node_modules/
 .audit/
 .audit
 .legion/
+.agent/
 __pycache__/
 *.pyc
 repos/

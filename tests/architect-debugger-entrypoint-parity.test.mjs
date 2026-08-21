@@ -22,3 +22,15 @@ for (const [skill, count, methodPointer] of [
   assert.match(skillText, new RegExp(methodPointer.replace('.', '\\.')));
   assert.ok(existsSync(resolve(base, 'references/manual.md')));
 });
+
+test('Architect doctrine is self-contained inside its projected skill package', () => {
+  const base = resolve(root, 'skills', 'architect');
+  const manual = readFileSync(resolve(base, 'references/manual.md'), 'utf8');
+  const packageManifest = JSON.parse(readFileSync(resolve(root, 'skills/manifests/architect.json'), 'utf8'));
+  const doctrineFiles = packageManifest.files.filter(({ path }) => path.startsWith('doctrine/architecture/'));
+
+  assert.ok(existsSync(resolve(base, 'doctrine/architecture/README.md')));
+  assert.doesNotMatch(manual, /\.\.\/\.\.\//);
+  assert.equal(doctrineFiles.length, 91);
+  assert.ok(doctrineFiles.every(({ uri }) => uri.startsWith('legion-skill://architect/doctrine/architecture/')));
+});

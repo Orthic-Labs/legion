@@ -12,7 +12,7 @@ import { runPackageSmoke } from '../scripts/package-smoke.mjs';
 const legionRoot = resolve(import.meta.dirname, '..');
 const workspaceRoot = resolve(legionRoot, '../../..');
 const digestJson = (value) => `sha256:${createHash('sha256').update(JSON.stringify(value)).digest('hex')}`;
-const loadDoctrineSchema = (name) => JSON.parse(readFileSync(join(legionRoot, `doctrine/architecture/schemas/${name}.schema.json`), 'utf8'));
+const loadDoctrineSchema = (name) => JSON.parse(readFileSync(join(legionRoot, `skills/architect/doctrine/architecture/schemas/${name}.schema.json`), 'utf8'));
 
 const roles = Object.freeze({
   runtime_owner: 'legion-package',

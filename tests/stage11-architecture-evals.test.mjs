@@ -28,7 +28,7 @@ test('S11 corpus JSONL parses with stable unique identifiers & positive/negative
 test('S11 runner is deterministic & emits schema-valid machine result', () => {
   const first = run(); const second = run();
   assert.deepEqual(first, second);
-  assert.deepEqual(validateSchema(JSON.parse(readFileSync(join(root, 'doctrine/architecture/schemas/architecture-eval-result.schema.json'), 'utf8')), first), []);
+  assert.deepEqual(validateSchema(JSON.parse(readFileSync(join(root, 'skills/architect/doctrine/architecture/schemas/architecture-eval-result.schema.json'), 'utf8')), first), []);
   assert.equal(first.failed, 0); assert.equal(first.pending + first.passed, first.total_cases); assert.ok(first.passed > 0);
   assert.equal(first.families.length, 36);
   assert.equal(first.state, 'PASS');

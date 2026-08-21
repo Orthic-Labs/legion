@@ -164,6 +164,30 @@ test('EC-2: handleClaudeCodeHookEvent with a real key ring signs and ingests a l
   }
 });
 
+test('EC-2 regression: an unbound ambient PostToolUse is accepted as typed telemetry, not ARC_HOST_EVENT_INVALID', () => {
+  const { root, cleanup } = tempRoot();
+  try {
+    const ring = generateTestKeyRing(['k1']);
+    const receiptStore = new ReceiptStore({ root });
+    const replayGuard = new ReplayGuard({});
+    const policy = testPolicy();
+
+    const outcome = handleClaudeCodeHookEvent({
+      hook_event_name: 'PostToolUse', session_id: 'unbound-session', cwd: process.cwd(),
+      tool_name: 'Write', tool_input: { file_path: 'ambient.txt' },
+      tool_response: { ok: true }, tool_use_id: 'ambient-tool-1',
+    }, { keyRing: ring, receiptStore, replayGuard, policy });
+
+    assert.equal(outcome.enforcementHealth, 'strong');
+    assert.equal(outcome.accepted, true);
+    assert.equal(outcome.receipt, null);
+    assert.equal(outcome.decision.code, null);
+    assert.equal(outcome.decision.detail.unboundAmbient, true);
+  } finally {
+    cleanup();
+  }
+});
+
 // ──────────────────────────────────────────────────── Stop -> completion gate
 
 /** Ingest a signed FILE_WRITE post-effect event for RUN_ID via HostIngestor,

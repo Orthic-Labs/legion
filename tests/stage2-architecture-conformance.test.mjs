@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import test from 'node:test';
 import { validateSchema } from '../src/lib/qualification/schema-validator.mjs';
 
-const root = join(import.meta.dirname, '..', 'doctrine', 'architecture');
+const root = join(import.meta.dirname, '..', 'skills', 'architect', 'doctrine', 'architecture');
 const text = (path) => readFileSync(join(root, path), 'utf8');
 const json = (path) => JSON.parse(text(path));
 const has = (body, values) => values.forEach((value) => assert.match(body, new RegExp(value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i'), value));

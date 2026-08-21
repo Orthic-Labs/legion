@@ -56,7 +56,7 @@ test('doctor reports typed Codex hook trust failure without manufacturing hashes
     const report = codexHookTrust(home);
     assert.equal(report.state, 'ARC_HOOK_TRUST_REQUIRED');
     assert.equal(report.trusted.length, 0);
-    assert.equal(report.missing.length, 7);
+    assert.equal(report.missing.length, 8);
     assert.match(report.remediation, /never manufactures trusted_hash/);
   } finally { rmSync(home, { recursive: true, force: true }); }
 });

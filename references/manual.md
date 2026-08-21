@@ -11,7 +11,7 @@ TERMINAL: Frozen audit checks finish with evidence-backed findings or typed degr
 ```
 
 Canonical owners: `skills/audit/SKILL.md` plus this manual own systematic evaluation;
-`skills/architect/SKILL.md` plus `doctrine/architecture/**` own architecture/decomposition method.
+`skills/architect/SKILL.md` plus `skills/architect/doctrine/architecture/**` own architecture/decomposition method.
 
 ## When to use
 
@@ -101,7 +101,7 @@ A pipeline. Scanners fan out; the build step is the lone serial exception; stage
    complete `decomposition_plan`; an unassessed candidate or confirmed verdict without that plan
    makes the report INCOMPLETE. LOC/bytes are triggers only, never proof. Architecture assessment,
    alternatives, boundaries, invariants, & decomposition plans follow `skills/architect/SKILL.md`
-   plus `doctrine/architecture/**`; Audit supplies evidence & findings without duplicating that method.
+   plus `skills/architect/doctrine/architecture/**`; Audit supplies evidence & findings without duplicating that method.
 
    For scoped lens input selection, `blueprint graph candidates --task "<task>"` may supply a
    bounded `ContextCandidateSet v1`. It never narrows the scanner/check denominator, and exact files

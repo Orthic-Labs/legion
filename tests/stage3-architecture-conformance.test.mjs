@@ -72,7 +72,7 @@ test('S03-03 five closed schemas reject unknown fields & event payload mismatche
     h.store.replay({ objective_lineage_id: events.objective_lineage_id, initial_state: initial });
     const accepted = h.store.accept(proposal(), { expected_state_fingerprint: initial.state_fingerprint });
     const replay = h.store.replay({ objective_lineage_id: events.objective_lineage_id, initial_state: initial });
-    const schema = (name) => JSON.parse(readFileSync(new URL(`../doctrine/architecture/schemas/${name}.schema.json`, import.meta.url)));
+    const schema = (name) => JSON.parse(readFileSync(new URL(`../skills/architect/doctrine/architecture/schemas/${name}.schema.json`, import.meta.url)));
     for (const [name, value] of [['architecture-router-input', router.significant], ['architecture-route', routeArchitecture(router.significant)], ['architecture-state', initial], ['execution-trajectory-event', accepted.event], ['architecture-replay-result', replay]]) {
       assert.deepEqual(validateSchema(schema(name), value), [], name);
       const bad = clone(value); bad.extra = true; assert.ok(validateSchema(schema(name), bad).length, `${name} closed`);
@@ -158,5 +158,5 @@ test('architecture state accepts scoped acceptance v2 while preserving v1 replay
   };
   scoped.state_fingerprint = stateFingerprint(scoped);
   assert.equal(validateArchitectureState(scoped).valid, true);
-  assert.deepEqual(validateSchema(JSON.parse(readFileSync(join(import.meta.dirname, '..', 'doctrine', 'architecture', 'schemas', 'architecture-state.schema.json'), 'utf8')), scoped), []);
+  assert.deepEqual(validateSchema(JSON.parse(readFileSync(join(import.meta.dirname, '..', 'skills', 'architect', 'doctrine', 'architecture', 'schemas', 'architecture-state.schema.json'), 'utf8')), scoped), []);
 });

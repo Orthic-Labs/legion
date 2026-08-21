@@ -15,11 +15,11 @@ const templates = ['architecture-brief', 'quality-scenario', 'assumption-unknown
 const lenses = ['catalogue', 'product-quality', 'data-privacy-security', 'reliability-operations', 'socio-technical', 'economics-sustainability', 'ai-edge-platform-conditional'];
 
 test('S07-01 every representative template has a declared schema where applicable & validates', () => {
-  for (const name of templates) assert.ok(read(`doctrine/architecture/templates/${name}.md`).length, name);
+  for (const name of templates) assert.ok(read(`skills/architect/doctrine/architecture/templates/${name}.md`).length, name);
   for (const name of schemaNames) {
     const schema = json(`src/schemas/${name}.schema.json`);
     assert.deepEqual(validateSchema(schema, fixtures[name]), [], name);
-    assert.match(read(`doctrine/architecture/templates/${schemaTemplates[name]}.md`), new RegExp(schema.$id.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
+    assert.match(read(`skills/architect/doctrine/architecture/templates/${schemaTemplates[name]}.md`), new RegExp(schema.$id.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
   }
 });
 
@@ -45,5 +45,5 @@ test('S07-01 concern lenses admit only material concerns & declare contract boun
   }
   const nonmaterial = { frozen_driver: false, scenario: false, constraint: false, risk: false, decision: false };
   assert.equal(Object.values(nonmaterial).some(Boolean), false, 'nonmaterial lens is not admitted');
-  assert.match(read('doctrine/architecture/reviews/review-gates.md'), /missing negative scope or admission gates cannot block/i);
+  assert.match(read('skills/architect/doctrine/architecture/reviews/review-gates.md'), /missing negative scope or admission gates cannot block/i);
 });

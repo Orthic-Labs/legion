@@ -93,7 +93,7 @@ Primary rules:
 | Alchemist identity / authority / tier | `src/roster/alchemist.md` | `agents/alchemist.md`, doctrine method |
 | Oracle identity / authority / tier | `src/roster/oracle.md` | `agents/oracle.md`, doctrine method |
 | Covenant challenge standing | `doctrine/covenant-seat.md` | `agents/covenant-seat.md`, entrypoint |
-| Architecture craft | `skills/architect/SKILL.md` + `doctrine/architecture/**` | old Sage Architect bundle |
+| Architecture craft | `skills/architect/SKILL.md` + `skills/architect/doctrine/architecture/**` | old Sage Architect bundle |
 | Diagnosis craft | `skills/debugger/SKILL.md` + debugger references | old Sage Diagnose bundle |
 | Audit method | `skills/audit/**` | Oracle may consume evidence |
 | Audit Fix workflow | `skills/audit-fix/**` | no authority owner implied |
@@ -476,7 +476,7 @@ Legion routing reference           → doctrine/legion.md
 Role identity/authority/tier       → src/roster/{sage,alchemist,oracle}.md
 Role method                        → doctrine/{sage,alchemist,oracle}.md
 Covenant challenge seat            → doctrine/covenant-seat.md
-Architecture craft                 → skills/architect/SKILL.md + doctrine/architecture/**
+Architecture craft                 → skills/architect/SKILL.md + skills/architect/doctrine/architecture/**
 Diagnosis craft                    → skills/debugger/SKILL.md + skills/debugger/references/manual.md
 Audit method                       → skills/audit/**
 Audit Fix workflow                 → skills/audit-fix/**
