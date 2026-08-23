@@ -1,0 +1,12 @@
+[package]
+name = "legion-decisions"
+version = "0.1.0"
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+legion-contracts = { path = "../legion-contracts" }
+rusqlite.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true

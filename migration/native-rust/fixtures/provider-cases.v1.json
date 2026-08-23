@@ -1,0 +1,59 @@
+{
+  "schemaVersion": 1,
+  "kind": "legion-provider-compatibility-fixtures",
+  "contracts": ["provider-result", "provider-completeness", "provider-ordering"],
+  "cases": [
+    {
+      "case_id": "provider-denominator-complete",
+      "contract": "provider-completeness",
+      "future_packets": ["LEG-018", "LEG-019"],
+      "sources": [
+        {"path": "src/lib/providers/sdk/result.mjs", "symbol": "normalizeProviderResult"},
+        {"path": "tests/provider-sdk.test.mjs", "symbol": "complete reported denominator"}
+      ],
+      "input": {"provider": {"id": "p", "denominator": {"pathDigest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", "pathCount": 1}}, "result": {"status": "pass", "complete": true, "denominator": {"expected": 1, "examined": 1, "unexamined": []}, "findings": []}},
+      "expected": {"status": "pass", "complete": true, "coverage": {"expected": 1, "examined": 1}, "coverage_gaps": []},
+      "normalization": {"ignore_paths": [], "sort_paths": ["$.findings", "$.candidates", "$.coverageGaps"]},
+      "deltas": []
+    },
+    {
+      "case_id": "provider-denominator-missing",
+      "contract": "provider-completeness",
+      "future_packets": ["LEG-018", "LEG-019"],
+      "sources": [
+        {"path": "src/lib/providers/sdk/result.mjs", "symbol": "provider-denominator-unreported"},
+        {"path": "tests/provider-sdk.test.mjs", "symbol": "pass without provider denominator"}
+      ],
+      "input": {"provider": {"id": "p", "denominator": {"pathDigest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "pathCount": 1}}, "result": {"status": "pass", "complete": true, "coverage": null, "findings": []}},
+      "expected": {"status": "unproven", "complete": false, "coverage_gaps": [{"kind": "provider-denominator-unreported"}]},
+      "normalization": {"ignore_paths": [], "sort_paths": ["$.coverageGaps"]},
+      "deltas": []
+    },
+    {
+      "case_id": "provider-skipped-blocked",
+      "contract": "provider-result",
+      "future_packets": ["LEG-018", "LEG-021"],
+      "sources": [
+        {"path": "src/lib/core/execute-plan.mjs", "symbol": "skippedReceipt"},
+        {"path": "tests/provider-sdk.test.mjs", "symbol": "selected-but-not-activated provider"}
+      ],
+      "input": {"provider": "security.chain-adjudication", "activation": {"kind": "chain-eligible-paths-present"}, "reason": "no-path-retained"},
+      "expected": {"status": "blocked", "complete": false, "coverage_gap_reason": "no-path-retained"},
+      "normalization": {"ignore_paths": ["$.receipt.observedAt"], "sort_paths": ["$.coverageGaps"]},
+      "deltas": []
+    },
+    {
+      "case_id": "provider-topological-order",
+      "contract": "provider-ordering",
+      "future_packets": ["LEG-018", "LEG-021"],
+      "sources": [
+        {"path": "src/lib/providers/sdk/dag.mjs", "symbol": "topologicalProviders"},
+        {"path": "tests/provider-sdk.test.mjs", "symbol": "topological provider order"}
+      ],
+      "input": {"providers": [{"id": "b", "dependsOn": ["a"]}, {"id": "a", "dependsOn": []}]},
+      "expected": {"ordered_ids": ["a", "b"], "cycle": "reject", "duplicate_id": "reject"},
+      "normalization": {"ignore_paths": [], "sort_paths": []},
+      "deltas": []
+    }
+  ]
+}

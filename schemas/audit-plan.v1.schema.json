@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://legion.orthic-labs.com/schemas/audit-plan.v1.schema.json",
+  "title": "Legion native audit plan",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "repositoryId", "inventoryGeneration", "inventoryDigest", "providers", "bounds"],
+  "properties": {
+    "schemaVersion": {"const": 1},
+    "repositoryId": {"type": "string", "minLength": 1},
+    "inventoryGeneration": {"type": "string", "minLength": 1},
+    "inventoryDigest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "providers": {
+      "type": "array", "items": {"$ref": "#/$defs/provider"}, "uniqueItems": true
+    },
+    "bounds": {"type": "object", "additionalProperties": true}
+  },
+  "$defs": {
+    "provider": {
+      "type": "object", "additionalProperties": false,
+      "required": ["id", "version", "dependencies", "kind", "configuration", "bounds", "required"],
+      "properties": {
+        "id": {"type": "string", "minLength": 1},
+        "version": {"type": "string", "minLength": 1},
+        "dependencies": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
+        "kind": {"enum": ["built_in", "effect_executor"]},
+        "configuration": {"type": "object", "additionalProperties": true},
+        "bounds": {"type": "object", "additionalProperties": true},
+        "required": {"type": "boolean"}
+      }
+    }
+  }
+}

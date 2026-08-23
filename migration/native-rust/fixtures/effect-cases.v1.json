@@ -1,0 +1,65 @@
+{
+  "schemaVersion": 1,
+  "kind": "legion-effect-compatibility-fixtures",
+  "contracts": ["effect-classification", "effect-receipt", "effect-simulation"],
+  "cases": [
+    {
+      "case_id": "effect-01-claude-write-map",
+      "contract": "effect-classification",
+      "future_packets": ["LEG-015", "LEG-020"],
+      "sources": [
+        {"path": "src/packages/arcane/host/claude-code-adapter.mjs", "symbol": "PostToolUse effect mapping"},
+        {"path": "src/packages/arcane/tests/claude-code-adapter.test.mjs", "symbol": "Write/Edit/NotebookEdit mappings"}
+      ],
+      "input": {"events": [{"tool_name": "Write", "tool_input": {"file_path": "src/a.mjs"}}, {"tool_name": "WebFetch", "tool_input": {"url": "https://example.com"}}, {"tool_name": "Bash", "tool_input": {"command": "echo hi"}}]},
+      "expected": {"effects": [{"effectClass": "FILE_WRITE", "target": "src/a.mjs", "operation": "Write"}, {"effectClass": "NETWORK_EGRESS", "target": "https://example.com", "operation": "WebFetch"}, null]},
+      "simulation": {"mode": "classification-only", "immutableInputs": true, "duplicateRealEffects": false, "realEffects": 0, "productionMutation": false},
+      "normalization": {"ignore_paths": ["$.events[*].tool_use_id"], "sort_paths": []},
+      "deltas": []
+    },
+    {
+      "case_id": "effect-02-pretool-is-claim",
+      "contract": "effect-classification",
+      "future_packets": ["LEG-015", "LEG-020"],
+      "sources": [
+        {"path": "src/packages/arcane/host/claude-code-adapter.mjs", "symbol": "PreToolUse normalization"},
+        {"path": "src/packages/arcane/tests/claude-code-adapter.test.mjs", "symbol": "PreToolUse Write never gets effect"}
+      ],
+      "input": {"event_type": "PreToolUse", "tool_name": "Write", "tool_input": {"file_path": "a.txt"}},
+      "expected": {"effect": null, "observation": false, "claim": true},
+      "simulation": {"mode": "claim-classification-only", "immutableInputs": true, "duplicateRealEffects": false, "realEffects": 0, "productionMutation": false},
+      "normalization": {"ignore_paths": [], "sort_paths": []},
+      "deltas": []
+    },
+    {
+      "case_id": "effect-03-external-process-block",
+      "contract": "effect-receipt",
+      "future_packets": ["LEG-015", "LEG-016", "LEG-017"],
+      "sources": [
+        {"path": "src/lib/providers/executor/external-process.mjs", "symbol": "runExternal/blocked"},
+        {"path": "tests/provider-executor.test.mjs", "symbol": "non-allowlisted executable"},
+        {"path": "src/schemas/execution-receipt-v1.schema.json", "symbol": "spawnStatus"}
+      ],
+      "input": {"executable": "rm", "args": ["-rf", "/"], "cwd": "fixture-root", "allowlisted": false},
+      "expected": {"spawn_status": "blocked", "provider_result": {"status": "blocked", "complete": false}, "effect_executed": false},
+      "simulation": {"mode": "blocked-effect-simulation", "immutableInputs": true, "duplicateRealEffects": false, "realEffects": 0, "productionMutation": false, "productionTarget": null},
+      "normalization": {"ignore_paths": ["$.command.cwd", "$.startedAt", "$.completedAt", "$.stdoutArtifact.path", "$.stderrArtifact.path"], "sort_paths": ["$.providerResult.coverageGaps"]},
+      "deltas": []
+    },
+    {
+      "case_id": "effect-04-simulation-no-duplicate",
+      "contract": "effect-simulation",
+      "future_packets": ["LEG-015", "LEG-020"],
+      "sources": [
+        {"path": "src/packages/arcane/lib/preeffect-gate.mjs", "symbol": "pre-effect gate"},
+        {"path": "src/packages/arcane/lib/receipt-store.mjs", "symbol": "receipt storage"},
+        {"path": "src/packages/arcane/tests/s06-preeffect-gate.test.mjs", "symbol": "effect gate cases"}
+      ],
+      "input": {"mode": "fixture-simulation", "effect_class": "FILE_WRITE", "target": "fixture.txt"},
+      "expected": {"simulation_only": true, "real_effect_count": 0, "receipt_count": 1, "policy_decision_count": 1},
+      "simulation": {"mode": "fixture-only", "immutableInputs": true, "duplicateRealEffects": false, "realEffects": 0, "productionMutation": false, "productionTarget": null},
+      "normalization": {"ignore_paths": ["$.receipt.observedAt", "$.receipt.digest"], "sort_paths": []},
+      "deltas": []
+    }
+  ]
+}

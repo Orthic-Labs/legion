@@ -1,0 +1,54 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "legion-native-executable-ledger.v1",
+  "title": "Legion native migration executable ledger",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "repository", "baselineCommit", "allowedDispositions", "crateMap", "rows", "completeness"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "repository": { "const": "Orthic-Labs/legion" },
+    "baselineCommit": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+    "allowedDispositions": { "type": "array", "items": { "enum": ["port", "data", "external-tool", "dev-only", "delete"] }, "uniqueItems": true },
+    "crateMap": { "type": "array", "items": { "type": "string", "minLength": 1 }, "uniqueItems": true },
+    "rows": { "type": "array", "items": { "$ref": "#/$defs/row" }, "uniqueItems": true },
+    "completeness": { "$ref": "#/$defs/completeness" }
+  },
+  "$defs": {
+    "row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "currentPath", "kind", "sideEffects", "contract", "publicIds", "targetDisposition", "targetCrate", "parityFixture", "cutoverGate", "deletionPacket", "evidence"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "currentPath": { "type": "string", "minLength": 1 },
+        "kind": { "enum": ["module", "script", "test", "hook", "tool", "binary", "package-script"] },
+        "sideEffects": { "type": "array", "items": { "type": "string" } },
+        "contract": { "type": "string", "minLength": 1 },
+        "publicIds": { "type": "array", "items": { "type": "string" } },
+        "targetDisposition": { "enum": ["port", "data", "external-tool", "dev-only", "delete"] },
+        "targetCrate": { "type": ["string", "null"] },
+        "parityFixture": { "type": "string", "minLength": 1 },
+        "cutoverGate": { "type": "string", "minLength": 1 },
+        "deletionPacket": { "type": ["string", "null"] },
+        "evidence": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+        "devOnlyProof": { "type": "array", "minItems": 6, "maxItems": 6, "items": { "type": "string", "minLength": 1 } }
+      },
+      "allOf": [
+        { "if": { "properties": { "targetDisposition": { "const": "dev-only" } } }, "then": { "required": ["devOnlyProof"] } }
+      ]
+    },
+    "completeness": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["complete", "unknownRows", "unownedLaunchSites", "executablePathCount", "launchSiteCount"],
+      "properties": {
+        "complete": { "type": "boolean" },
+        "unknownRows": { "type": "integer", "minimum": 0 },
+        "unownedLaunchSites": { "type": "integer", "minimum": 0 },
+        "executablePathCount": { "type": "integer", "minimum": 0 },
+        "launchSiteCount": { "type": "integer", "minimum": 0 }
+      }
+    }
+  }
+}

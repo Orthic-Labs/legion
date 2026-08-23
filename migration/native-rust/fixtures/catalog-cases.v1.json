@@ -1,0 +1,49 @@
+{
+  "schemaVersion": 1,
+  "kind": "legion-catalog-compatibility-fixtures",
+  "contracts": ["provider-catalog", "host-surface-catalog", "agent-skill-catalog"],
+  "cases": [
+    {
+      "case_id": "catalog-01-provider-registry",
+      "contract": "provider-catalog",
+      "future_packets": ["LEG-012", "LEG-018"],
+      "sources": [
+        {"path": "src/lib/providers/registry.mjs", "symbol": "loadProviderRegistry"},
+        {"path": "src/schemas/provider/provider-v2.schema.json", "symbol": "required provider fields"},
+        {"path": "tests/provider-contracts.test.mjs", "symbol": "provider statuses and roles"}
+      ],
+      "input": {"registry": "src/registry/providers.json", "aliases": "src/registry/provider-aliases.json"},
+      "expected": {"required_fields": ["id", "providerVersion", "family", "role", "phase", "runner", "execution", "reasoning", "benchmark", "selectable"], "unique_by": ["id"], "unknown_fields": "reject", "runtime_module_digest": "required"},
+      "normalization": {"ignore_paths": ["$.providers[*].runner.moduleDigest"], "sort_paths": ["$.providers[*].id", "$.providers[*].dependsOn", "$.providers[*].consumes", "$.providers[*].produces"]},
+      "deltas": []
+    },
+    {
+      "case_id": "catalog-02-host-fidelity-matrix",
+      "contract": "host-surface-catalog",
+      "future_packets": ["LEG-023"],
+      "sources": [
+        {"path": "src/lib/host/surfaces.mjs", "symbol": "SURFACES/FIDELITY"},
+        {"path": "src/lib/host/registry.mjs", "symbol": "fidelityMatrix"},
+        {"path": "tests/host-adapter-conformance.test.mjs", "symbol": "declared fidelity"}
+      ],
+      "input": {"surfaces": ["instructions", "skills", "agents", "mcp", "hooks"]},
+      "expected": {"fidelity_values": ["strong", "degraded", "unsupported"], "strong_requires_mechanism": true, "unsupported_requires_mechanism": "none", "hooks_strong_requires": "blocking-hook"},
+      "normalization": {"ignore_paths": [], "sort_paths": ["$.harnesses[*].id", "$.harnesses[*].surfaces.*"]},
+      "deltas": []
+    },
+    {
+      "case_id": "catalog-03-agent-skill-projection",
+      "contract": "agent-skill-catalog",
+      "future_packets": ["LEG-012", "LEG-023"],
+      "sources": [
+        {"path": "src/lib/host/skill-projection.mjs", "symbol": "canonicalSkillIds/projectSkills"},
+        {"path": "tests/host-adapter-conformance.test.mjs", "symbol": "same canonical skill catalog"},
+        {"path": "tests/host-adapter-safety.test.mjs", "symbol": "internal capabilities never leak"}
+      ],
+      "input": {"projection": "canonical discoverable skills"},
+      "expected": {"package_identity": "byte-identical", "internal_capabilities": "excluded", "foreign_neighbours": "preserved", "per_harness_allowlist": false},
+      "normalization": {"ignore_paths": [], "sort_paths": ["$.skill_ids"]},
+      "deltas": []
+    }
+  ]
+}

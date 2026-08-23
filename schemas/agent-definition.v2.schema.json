@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://orthic.dev/legion/schemas/agent-definition.v2.schema.json",
+  "title": "Legion agent definition v2",
+  "type": "object",
+  "required": ["schema_version", "name", "description", "capabilities", "tools", "budget", "routing", "escalation_graph"],
+  "properties": {
+    "schema_version": {"const": 2},
+    "id": {"type": "string", "minLength": 1},
+    "name": {"type": "string", "minLength": 1},
+    "description": {"type": "string", "minLength": 1},
+    "model_ceiling": {"type": ["string", "null"]},
+    "capabilities": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
+    "tools": {
+      "type": "object",
+      "required": ["allow", "deny"],
+      "properties": {"allow": {"type": "array", "items": {"type": "string"}}, "deny": {"type": "array", "items": {"type": "string"}}},
+      "additionalProperties": false
+    },
+    "budget": {
+      "type": "object",
+      "required": ["max_active_time_ms", "max_cost_micros", "max_output_bytes"],
+      "properties": {"max_active_time_ms": {"type": "integer", "minimum": 0}, "max_cost_micros": {"type": "integer", "minimum": 0}, "max_output_bytes": {"type": "integer", "minimum": 0}},
+      "additionalProperties": false
+    },
+    "routing": {
+      "type": "object",
+      "required": ["model_tiers", "worker_profiles"],
+      "properties": {"model_tiers": {"type": "array", "items": {"type": "string"}}, "worker_profiles": {"type": "array", "items": {"type": "string"}}},
+      "additionalProperties": false
+    },
+    "escalation_graph": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
+    "forward_compatible": {"type": "boolean"},
+    "extensions": {"type": "object", "additionalProperties": true}
+  },
+  "additionalProperties": true,
+  "$comment": "Unknown top-level fields are accepted only when forward_compatible is true or extensions is present; parser preserves them in extensions."
+}

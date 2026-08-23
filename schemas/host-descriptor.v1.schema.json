@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://orthic-labs.github.io/legion/schemas/host-descriptor.v1.schema.json",
+  "title": "Legion host descriptor",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "kind", "id", "displayName", "installOwner", "detect", "surfaces"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "kind": { "const": "legion-host-descriptor" },
+    "id": { "type": "string", "minLength": 1, "pattern": "^[^\\u0000-\\u001f]+$" },
+    "displayName": { "type": "string", "minLength": 1 },
+    "installOwner": { "enum": ["adapter", "plugin", "external"] },
+    "detect": {
+      "type": "object", "additionalProperties": false,
+      "properties": {
+        "anyOf": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+        "env": { "type": "array", "items": { "type": "string", "minLength": 1 } }
+      }
+    },
+    "surfaces": {
+      "type": "object",
+      "additionalProperties": { "$ref": "#/$defs/surface" }
+    }
+  },
+  "$defs": {
+    "surface": {
+      "type": "object", "additionalProperties": false,
+      "required": ["fidelity", "mechanism"],
+      "properties": {
+        "fidelity": { "enum": ["strong", "degraded", "unsupported"] },
+        "note": { "type": ["string", "null"] },
+        "mechanism": {
+          "type": "object", "additionalProperties": false,
+          "required": ["kind"],
+          "properties": {
+            "kind": { "enum": ["none", "plugin", "agents-md", "native-file", "skills-dir", "json", "toml", "blocking-hook"] },
+            "path": { "type": "string", "minLength": 1 },
+            "table": { "type": "string", "minLength": 1 },
+            "key": { "type": "string", "minLength": 1 }
+          }
+        }
+      }
+    }
+  }
+}

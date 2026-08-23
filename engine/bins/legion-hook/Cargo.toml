@@ -1,0 +1,17 @@
+[package]
+name = "legion-hook"
+version = "0.1.0"
+edition.workspace = true
+license.workspace = true
+
+[[bin]]
+name = "legion-hook"
+path = "src/main.rs"
+
+[dependencies]
+legion-application = { path = "../../crates/legion-application" }
+legion-contracts = { path = "../../crates/legion-contracts" }
+legion-runtime = { path = "../../crates/legion-runtime" }
+serde_json.workspace = true
+tokio.workspace = true
+tokio-util.workspace = true

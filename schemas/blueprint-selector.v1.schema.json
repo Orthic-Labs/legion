@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://orthic.dev/legion/schemas/blueprint-selector.v1.schema.json",
+  "title": "Typed Blueprint selector v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "selectorId", "operation", "expectedEvidenceTier"],
+  "properties": {
+    "schemaVersion": {"const": 1},
+    "selectorId": {"type": "string", "minLength": 1},
+    "operation": {"enum": ["files", "symbols", "references", "dependencies", "dependents", "neighbors", "path", "impact", "flows"]},
+    "repositoryId": {"type": ["string", "null"]},
+    "pathPrefix": {"type": ["string", "null"]},
+    "symbol": {"type": ["string", "null"]},
+    "from": {"type": ["string", "null"]},
+    "to": {"type": ["string", "null"]},
+    "expectedEvidenceTier": {"enum": ["inventory", "structural", "semantic"]},
+    "expectedGeneration": {"type": ["string", "null"]}
+  }
+}

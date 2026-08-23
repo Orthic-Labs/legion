@@ -1,0 +1,85 @@
+{
+  "schemaVersion": 1,
+  "kind": "legion-cli-compatibility-fixtures",
+  "contracts": ["cli-command-surface", "cli-machine-output", "cli-exit-taxonomy"],
+  "cases": [
+    {
+      "case_id": "cli-01-help-version",
+      "contract": "cli-command-surface",
+      "future_packets": ["LEG-020"],
+      "sources": [
+        {"path": "src/lib/cli/help.mjs", "symbol": "COMMANDS/renderHelp"},
+        {"path": "tests/cli.test.mjs", "symbol": "--help/--version tests"}
+      ],
+      "input": {"argv": ["--help"]},
+      "expected": {"exit_code": 0, "stdout_contains": ["Usage: legion <command>", "Commands:"], "stderr": ""},
+      "normalization": {"ignore_paths": [], "sort_paths": []},
+      "deltas": []
+    },
+    {
+      "case_id": "cli-02-unknown-command",
+      "contract": "cli-exit-taxonomy",
+      "future_packets": ["LEG-020"],
+      "sources": [
+        {"path": "src/lib/cli/run.mjs", "symbol": "unknown command dispatch"},
+        {"path": "tests/cli.test.mjs", "symbol": "unknown subcommand exits 4"}
+      ],
+      "input": {"argv": ["frobnicate"]},
+      "expected": {"exit_code": 4, "stdout": "", "stderr_contains": ["unknown command"]},
+      "normalization": {"ignore_paths": [], "sort_paths": []},
+      "deltas": []
+    },
+    {
+      "case_id": "cli-03-providers-json",
+      "contract": "cli-machine-output",
+      "future_packets": ["LEG-020", "LEG-018"],
+      "sources": [
+        {"path": "src/lib/cli/commands/providers.mjs", "symbol": "providers command"},
+        {"path": "tests/cli.test.mjs", "symbol": "providers --json"}
+      ],
+      "input": {"argv": ["providers", "--json"]},
+      "expected": {"exit_code": 0, "json": {"kind": "legion-providers", "required_arrays": ["providers"], "contains": {"providers[].id": "framework.major-suite"}}},
+      "normalization": {"ignore_paths": ["$.providers[*].version", "$.providers[*].observedAt"], "sort_paths": ["$.providers[*].id"]},
+      "deltas": []
+    },
+    {
+      "case_id": "cli-04-languages-json",
+      "contract": "cli-machine-output",
+      "future_packets": ["LEG-020"],
+      "sources": [
+        {"path": "src/lib/cli/commands/languages.mjs", "symbol": "languages command"},
+        {"path": "tests/cli.test.mjs", "symbol": "languages --json"}
+      ],
+      "input": {"argv": ["languages", "--json"]},
+      "expected": {"exit_code": 0, "json": {"kind": "legion-languages", "required_arrays": ["languages"]}},
+      "normalization": {"ignore_paths": [], "sort_paths": ["$.languages[*].id"]},
+      "deltas": []
+    },
+    {
+      "case_id": "cli-05-report-status-exit",
+      "contract": "cli-exit-taxonomy",
+      "future_packets": ["LEG-020", "LEG-022"],
+      "sources": [
+        {"path": "src/lib/core/finalize-run.mjs", "symbol": "exitCodeForReport"},
+        {"path": "tests/cli.test.mjs", "symbol": "exit taxonomy maps report states"}
+      ],
+      "input": {"reports": [{"audit_status": "pass"}, {"audit_status": "fail"}, {"audit_status": "incomplete"}, {"integrity": {"valid": false}}]},
+      "expected": {"exit_codes": [0, 1, 2, 5]},
+      "normalization": {"ignore_paths": [], "sort_paths": []},
+      "deltas": []
+    },
+    {
+      "case_id": "cli-06-verify-run-artifacts",
+      "contract": "cli-command-surface",
+      "future_packets": ["LEG-020", "LEG-022"],
+      "sources": [
+        {"path": "src/lib/cli/commands/verify.mjs", "symbol": "facts/plan artifact resolution"},
+        {"path": "tests/cli.test.mjs", "symbol": "verify run directory and direct facts support"}
+      ],
+      "input": {"argv": ["verify", "fixture-run"]},
+      "expected": {"required_artifacts": ["facts.json", "plan.json"], "missing_facts_exit_code": 4, "missing_plan_exit_code": 4},
+      "normalization": {"ignore_paths": ["$.path", "$.run_directory"], "sort_paths": []},
+      "deltas": []
+    }
+  ]
+}

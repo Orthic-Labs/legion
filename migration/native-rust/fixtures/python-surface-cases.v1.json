@@ -1,0 +1,48 @@
+{
+  "schemaVersion": 1,
+  "kind": "legion-python-surface-compatibility-fixtures",
+  "contracts": ["python-surface", "python-entrypoint-parity"],
+  "cases": [
+    {
+      "case_id": "python-01-decision-store-roundtrip",
+      "contract": "python-surface",
+      "future_packets": ["LEG-020", "LEG-024"],
+      "sources": [
+        {"path": "src/lib/decision_store.py", "symbol": "decision store"},
+        {"path": "src/lib/decision_provider.py", "symbol": "decision provider"},
+        {"path": "tests/handoff-validator.test.py", "symbol": "Python validation surface"}
+      ],
+      "input": {"record": {"decision_id": "D-1", "status": "FROZEN", "scope": "repo"}},
+      "expected": {"id_stable": true, "json_round_trip": true, "unknown_fields": "preserve_or_reject_by_contract"},
+      "normalization": {"ignore_paths": ["$.observed_at", "$.source_path"], "sort_paths": ["$.records[*].decision_id"]},
+      "deltas": []
+    },
+    {
+      "case_id": "python-02-research-provider-surface",
+      "contract": "python-entrypoint-parity",
+      "future_packets": ["LEG-018", "LEG-019", "LEG-020"],
+      "sources": [
+        {"path": "src/lib/research-core/providers/base.py", "symbol": "provider base"},
+        {"path": "src/lib/research-core/providers/command_bridge.py", "symbol": "command bridge"},
+        {"path": "src/lib/research-core/test_entrypoint_parity.py", "symbol": "entrypoint parity"}
+      ],
+      "input": {"provider": "command_bridge", "request": {"query": "fixture", "max_results": 1}},
+      "expected": {"typed_result": true, "receipt_fields": ["provider", "status", "complete"], "network_policy": "explicit"},
+      "normalization": {"ignore_paths": ["$.receipt.timestamp", "$.receipt.request_id"], "sort_paths": ["$.items[*].id"]},
+      "deltas": []
+    },
+    {
+      "case_id": "python-03-handoff-validation-failure",
+      "contract": "python-surface",
+      "future_packets": ["LEG-025"],
+      "sources": [
+        {"path": "src/lib/handoff/validate-handoff.py", "symbol": "handoff validation"},
+        {"path": "tests/handoff-validator.test.py", "symbol": "invalid handoff cases"}
+      ],
+      "input": {"packet": {"schemaVersion": 1, "kind": "handoff", "records": []}},
+      "expected": {"valid": false, "failure_is_typed": true, "silent_coercion": false},
+      "normalization": {"ignore_paths": ["$.error.location"], "sort_paths": []},
+      "deltas": []
+    }
+  ]
+}

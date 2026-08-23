@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://orthic.dev/legion/schemas/catalog.v1.schema.json",
+  "title": "Legion immutable catalog v1",
+  "type": "object",
+  "required": ["schema_version", "entries"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "entries": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["canonical_id", "kind", "source_path", "package_identity", "source_hash", "body", "source_bytes", "frontmatter"],
+        "properties": {
+          "canonical_id": {"type": "string", "minLength": 1},
+          "kind": {"enum": ["skill", "agent", "lens", "recipe", "roster", "document"]},
+          "source_path": {"type": "string", "minLength": 1},
+          "package_identity": {"type": "string", "minLength": 1},
+          "source_hash": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+          "body": {"type": "array", "items": {"type": "integer", "minimum": 0, "maximum": 255}},
+          "source_bytes": {"type": "array", "items": {"type": "integer", "minimum": 0, "maximum": 255}},
+          "frontmatter": {"type": "object"}
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}

@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://orthic-labs.dev/schemas/provider-registry.v1.schema.json",
+  "title": "Legion Provider Registry",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "providers"],
+  "properties": {
+    "schemaVersion": {"const": 1},
+    "providers": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/provider"}
+    }
+  },
+  "$defs": {
+    "provider": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schemaVersion", "id", "providerVersion", "implementationKey", "capabilities", "dependsOn", "required", "permissions", "sourceProvenance"],
+      "properties": {
+        "schemaVersion": {"const": 1},
+        "id": {"type": "string", "minLength": 1},
+        "providerVersion": {"type": "string", "minLength": 1},
+        "implementationKey": {"type": "string", "minLength": 1},
+        "capabilities": {"type": "array", "items": {"type": "string", "minLength": 1}, "uniqueItems": true},
+        "dependsOn": {"type": "array", "items": {"type": "string", "minLength": 1}, "uniqueItems": true},
+        "required": {"type": "boolean"},
+        "permissions": {"type": "array", "items": {"type": "string", "minLength": 1}, "uniqueItems": true},
+        "sourceProvenance": {"type": "object", "additionalProperties": {"type": "string"}}
+      }
+    }
+  }
+}

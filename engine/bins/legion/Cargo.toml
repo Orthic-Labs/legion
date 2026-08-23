@@ -1,0 +1,32 @@
+[package]
+name = "legion"
+version = "0.1.0-dev.1"
+edition.workspace = true
+license.workspace = true
+[[bin]]
+name = "legion"
+path = "src/main.rs"
+[dependencies]
+clap.workspace = true
+hmac.workspace = true
+legion-audit = { path = "../../crates/legion-audit" }
+legion-application = { path = "../../crates/legion-application" }
+legion-catalog = { path = "../../crates/legion-catalog" }
+legion-contracts = { path = "../../crates/legion-contracts" }
+legion-decisions = { path = "../../crates/legion-decisions" }
+legion-effects = { path = "../../crates/legion-effects" }
+legion-handoff = { path = "../../crates/legion-handoff" }
+legion-host = { path = "../../crates/legion-host" }
+legion-policy = { path = "../../crates/legion-policy" }
+legion-policy-model = { path = "../../crates/legion-policy-model" }
+legion-provider-sdk = { path = "../../crates/legion-provider-sdk" }
+legion-report = { path = "../../crates/legion-report" }
+legion-research = { path = "../../crates/legion-research" }
+legion-review = { path = "../../crates/legion-review" }
+legion-rules = { path = "../../crates/legion-rules" }
+legion-runtime = { path = "../../crates/legion-runtime" }
+serde.workspace = true
+serde_json.workspace = true
+sha2.workspace = true
+tokio.workspace = true
+tokio-util.workspace = true

@@ -1,0 +1,14 @@
+[package]
+name = "legion-catalog"
+version = "0.1.0"
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+legion-contracts = { path = "../legion-contracts" }
+serde.workspace = true
+serde_json.workspace = true
+serde_yaml.workspace = true
+sha2.workspace = true
+thiserror.workspace = true
+walkdir.workspace = true

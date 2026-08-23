@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "decision-record.v1",
+  "title": "Legion Decision Record",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "id", "repositoryId", "scopeId", "taskId", "linkedGraphGeneration", "rationale", "alternatives", "evidence", "implementationRefs", "supersedes", "supersededBy", "currentStatus", "createdAt", "sourceHash", "sourcePath", "provenance"],
+  "properties": {
+    "schemaVersion": {"const": 1},
+    "id": {"type": "string", "pattern": "^architect:decision:.+"},
+    "repositoryId": {"type": "string", "minLength": 1},
+    "scopeId": {"type": "string", "minLength": 1},
+    "taskId": {"type": "string", "minLength": 1},
+    "linkedGraphGeneration": {"type": "string"},
+    "rationale": {"type": "string", "minLength": 1},
+    "alternatives": {"type": "array", "items": {"type": "string"}},
+    "evidence": {"type": "array", "items": {"type": "string"}},
+    "implementationRefs": {"type": "array", "items": {"type": "string"}},
+    "supersedes": {"type": "array", "items": {"type": "string"}},
+    "supersededBy": {"type": ["string", "null"]},
+    "currentStatus": {"enum": ["proposed", "accepted", "implemented", "superseded"]},
+    "createdAt": {"type": "string"},
+    "sourceHash": {"type": "string", "pattern": "^sha256:[a-f0-9]{64}$"},
+    "sourcePath": {"type": ["string", "null"]},
+    "provenance": {"type": "object", "additionalProperties": {"type": "string"}}
+  }
+}

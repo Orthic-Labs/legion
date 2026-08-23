@@ -1,0 +1,49 @@
+{
+  "schemaVersion": 1,
+  "kind": "legion-policy-compatibility-fixtures",
+  "contracts": ["arcane-policy-bundle", "policy-fail-closed", "policy-lineage"],
+  "cases": [
+    {
+      "case_id": "policy-01-unknown-effect-deny",
+      "contract": "policy-fail-closed",
+      "future_packets": ["LEG-013", "LEG-014"],
+      "sources": [
+        {"path": "src/packages/arcane/policy/policy-bundle-v1.schema.json", "symbol": "unclassifiedEffect"},
+        {"path": "src/packages/arcane/lib/policy.mjs", "symbol": "PolicyEngine"},
+        {"path": "src/packages/arcane/tests/s02-policy.test.mjs", "symbol": "unknown effect behavior"}
+      ],
+      "input": {"effect_class": "UNKNOWN_EFFECT", "policy": "src/packages/arcane/policy/arcane-policy-v1.json"},
+      "expected": {"allowed": false, "decision": "deny", "reason": "unclassified effect", "implicit_allow": false},
+      "normalization": {"ignore_paths": ["$.observedAt", "$.requestId"], "sort_paths": ["$.missingClasses", "$.remediationRoutes"]},
+      "deltas": []
+    },
+    {
+      "case_id": "policy-02-effect-rule-precedence",
+      "contract": "arcane-policy-bundle",
+      "future_packets": ["LEG-013", "LEG-014"],
+      "sources": [
+        {"path": "src/packages/arcane/policy/arcane-policy-v1.json", "symbol": "effectRules"},
+        {"path": "src/packages/arcane/lib/policy.mjs", "symbol": "evaluate"},
+        {"path": "src/packages/arcane/tests/policy-compiler.test.mjs", "symbol": "compiled policy rules"}
+      ],
+      "input": {"effect_classes": ["FILE_WRITE", "FILE_DELETE", "COMMAND_EXEC", "NETWORK_EGRESS", "VCS_PUSH", "PUBLISH"]},
+      "expected": {"required_fields": ["effectClass", "rule", "approvalRequired", "trustMinimum", "requiredEnforcement"], "unknown_fields": "reject", "fallback": "deny"},
+      "normalization": {"ignore_paths": [], "sort_paths": ["$.effectRules[*].effectClass"]},
+      "deltas": []
+    },
+    {
+      "case_id": "policy-03-locked-domain-completion",
+      "contract": "policy-lineage",
+      "future_packets": ["LEG-013", "LEG-014", "LEG-020"],
+      "sources": [
+        {"path": "src/packages/arcane/lib/completion-gate.mjs", "symbol": "locked domain claim prerequisites"},
+        {"path": "src/packages/arcane/tests/claude-code-adapter.test.mjs", "symbol": "locked-domain block"},
+        {"path": "tests/policy-lineage.test.mjs", "symbol": "finding and risk lineage"}
+      ],
+      "input": {"claim_level": "signoff", "locked_target": "src/locked/secret.ts", "evidence": []},
+      "expected": {"allowed": false, "missing_evidence": true, "decision_is_replayable": true},
+      "normalization": {"ignore_paths": ["$.timestamps", "$.workspace"], "sort_paths": ["$.missingEvidence", "$.remediationRoutes"]},
+      "deltas": []
+    }
+  ]
+}

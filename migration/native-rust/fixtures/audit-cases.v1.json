@@ -1,0 +1,48 @@
+{
+  "schemaVersion": 1,
+  "kind": "legion-audit-compatibility-fixtures",
+  "contracts": ["audit-plan", "audit-reconciliation", "audit-report"],
+  "cases": [
+    {
+      "case_id": "audit-01-plan-only-incomplete",
+      "contract": "audit-plan",
+      "future_packets": ["LEG-021", "LEG-022"],
+      "sources": [
+        {"path": "src/lib/core/audit.mjs", "symbol": "audit planOnly"},
+        {"path": "src/lib/core/build-plan.mjs", "symbol": "buildSealedPlan"}
+      ],
+      "input": {"root": "fixture-root", "plan_only": true, "providers": []},
+      "expected": {"report_kind": "repository-audit-report", "audit_status": "incomplete", "quality_gate": "unproven", "coverage_gaps": [{"kind": "plan-only"}], "findings": []},
+      "normalization": {"ignore_paths": ["$.plan.seal.digest", "$.runDir", "$.binding.repositoryRevision"], "sort_paths": ["$.findings", "$.coverage_gaps"]},
+      "deltas": []
+    },
+    {
+      "case_id": "audit-02-report-semantic-fields",
+      "contract": "audit-report",
+      "future_packets": ["LEG-021", "LEG-022"],
+      "sources": [
+        {"path": "src/lib/core/finalize-run.mjs", "symbol": "finalizeRun"},
+        {"path": "src/schemas/report/report-v1.schema.json", "symbol": "required report fields"},
+        {"path": "tests/audit-finalize.test.mjs", "symbol": "report finalization"}
+      ],
+      "input": {"report": "repository audit report fixture"},
+      "expected": {"required_fields": ["schemaVersion", "kind", "targets", "components", "stacks", "externalSystems", "controls", "scenarios", "findings", "gaps", "claims", "auditStatus"], "unknown_fields": "reject"},
+      "normalization": {"ignore_paths": ["$.claims.generatedAt", "$.findings[*].observedAt"], "sort_paths": ["$.findings[*].id", "$.gaps[*].id"]},
+      "deltas": []
+    },
+    {
+      "case_id": "audit-03-provider-selection",
+      "contract": "audit-reconciliation",
+      "future_packets": ["LEG-021"],
+      "sources": [
+        {"path": "src/lib/core/audit.mjs", "symbol": "select"},
+        {"path": "src/lib/core/reconcile-run.mjs", "symbol": "reconcileRun"},
+        {"path": "tests/audit-verify.test.mjs", "symbol": "audit verification"}
+      ],
+      "input": {"providers": [{"id": "p", "runner": {"check": "p"}}, {"id": "q", "runner": {"check": "q"}}], "only": ["p"], "skip": ["q"]},
+      "expected": {"selected_ids": ["p"], "excluded_ids": ["q"], "selection_is_deterministic": true},
+      "normalization": {"ignore_paths": ["$.binding", "$.runDir"], "sort_paths": ["$.selected_ids"]},
+      "deltas": []
+    }
+  ]
+}

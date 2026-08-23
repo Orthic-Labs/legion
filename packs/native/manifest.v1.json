@@ -1,0 +1,166 @@
+{
+  "schemaVersion": 1,
+  "kind": "legion-native-pack-manifest",
+  "repository": "Orthic-Labs/legion",
+  "packetId": "LEG-033",
+  "baselineCommit": "90678a130dc26937d544304b79a22f24d74383ac",
+  "engineContract": "rust-regex-1",
+  "classA": 11,
+  "classB": 0,
+  "classCExcluded": 29,
+  "ruleCount": 31,
+  "packs": [
+    {
+      "schemaVersion": 1,
+      "kind": "analysis-rule-pack",
+      "packId": "security.abuse-observability",
+      "version": "1.0.0",
+      "class": "A",
+      "engineContract": "rust-regex-1",
+      "sourceProvenance": {"sourcePath": "src/providers/security/packs/abuse-observability.mjs", "sourceSha256": "eee0c73068a15ee33fbeb7ffbeaa1997337d82fb2e63d101e81242f59c8b9da2", "translation": "LEG-019"},
+      "rules": [
+        {"id": "abuse.login-without-rate-limit", "stableId": "abuse.login-without-rate-limit", "kind": "lexical", "severity": "warning", "confidence": "medium", "matcher": {"mode": "regex", "pattern": "(?i)(?:login|signin|resetPassword|sendOtp)\\s*\\([^\\n]*"}, "companions": {"negative": [{"mode": "regex", "pattern": "(?i)rateLimit|throttle"}]}, "evidence": {"extract": "span", "authority": "lexical"}, "uncertainty": ["Reachability and compensating controls require independent adjudication."], "coverage": {"denominator": null, "gaps": []}, "remediation": null},
+        {"id": "abuse.webhook-without-signature", "stableId": "abuse.webhook-without-signature", "kind": "lexical", "severity": "error", "confidence": "medium", "matcher": {"mode": "regex", "pattern": "(?i)(?:webhook|callback)\\s*\\([^\\n]*"}, "companions": {"negative": [{"mode": "regex", "pattern": "(?i)signature|hmac|verify"}]}, "evidence": {"extract": "span", "authority": "lexical"}, "uncertainty": ["Reachability and compensating controls require independent adjudication."], "coverage": {"denominator": null, "gaps": []}, "remediation": null},
+        {"id": "observability.swallowed-security-error", "stableId": "observability.swallowed-security-error", "kind": "lexical", "severity": "warning", "confidence": "medium", "matcher": {"mode": "regex", "pattern": "(?i)catch\\s*\\([^)]*\\)\\s*\\{\\s*(?:return\\s+(?:null|false|undefined)|\\})"}, "evidence": {"extract": "span", "authority": "lexical"}, "uncertainty": ["Reachability and compensating controls require independent adjudication."], "coverage": {"denominator": null, "gaps": []}, "remediation": null}
+      ]
+    },
+    {
+      "schemaVersion": 1,
+      "kind": "analysis-rule-pack",
+      "packId": "security.ai-integrity",
+      "version": "1.0.0",
+      "class": "A",
+      "engineContract": "rust-regex-1",
+      "sourceProvenance": {"sourcePath": "src/providers/security/packs/ai-integrity.mjs", "sourceSha256": "f10522a2a6ecb9c29299d95987cdea2d7e894be64baa0dabdc38e76394d58bdc", "translation": "LEG-019"},
+      "rules": [
+        {"id": "ai.model-output-policy", "stableId": "ai.model-output-policy", "kind": "lexical", "severity": "error", "confidence": "medium", "matcher": {"mode": "regex", "pattern": "(?i)(?:completion|modelOutput|assistantMessage)[\\s\\S]{0,120}(?:approve|allow|authorize|isSafe)\\s*[:=]"}, "evidence": {"extract": "span", "authority": "lexical"}, "uncertainty": ["Reachability and compensating controls require independent adjudication."], "coverage": {"denominator": null, "gaps": []}, "remediation": null},
+        {"id": "ai.rag-untrusted-ingestion", "stableId": "ai.rag-untrusted-ingestion", "kind": "lexical", "severity": "warning", "confidence": "medium", "matcher": {"mode": "regex", "pattern": "(?i)(?:embed|vectorStore|indexDocuments|upsert)\\s*\\([^\\n]*(?:url|upload|user|external|web)"}, "evidence": {"extract": "span", "authority": "lexical"}, "uncertainty": ["Reachability and compensating controls require independent adjudication."], "coverage": {"denominator": null, "gaps": []}, "remediation": null}
+      ]
+    },
+    {
+      "schemaVersion": 1,
+      "kind": "analysis-rule-pack",
+      "packId": "security.authentication-session",
+      "version": "1.0.0",
+      "class": "A",
+      "engineContract": "rust-regex-1",
+      "sourceProvenance": {"sourcePath": "src/providers/security/packs/authentication-session.mjs", "sourceSha256": "93f415e1f8cff1812a866690e89312df5b9df3ea0b504d07f96dddaf466c08c3", "translation": "LEG-019"},
+      "rules": [
+        {"id": "auth.jwt-without-verification", "stableId": "auth.jwt-without-verification", "kind": "lexical", "severity": "error", "confidence": "medium", "matcher": {"mode": "regex", "pattern": "jwt\\.(?:decode|Decode)\\s*\\(|parseJwt\\s*\\("}, "evidence": {"extract": "span", "authority": "lexical"}, "uncertainty": ["Reachability and compensating controls require independent adjudication."], "coverage": {"denominator": null, "gaps": []}, "remediation": null},
+        {"id": "auth.reset-token-log", "stableId": "auth.reset-token-log", "kind": "lexical", "severity": "error", "confidence": "medium", "matcher": {"mode": "regex", "pattern": "(?i)(?:console|logger)\\.(?:log|info|debug)\\([^\\n]*(?:resetToken|passwordReset|magicLink)"}, "evidence": {"extract": "span", "authority": "lexical"}, "uncertainty": ["Reachability and compensating controls require independent adjudication."], "coverage": {"denominator": null, "gaps": []}, "remediation": null},
+        {"id": "auth.session-cookie-weak", "stableId": "auth.session-cookie-weak", "kind": "lexical", "severity": "warning", "confidence": "medium", "matcher": {"mode": "regex", "pattern": "(?i)(?:session|auth)[\\s\\S]{0,180}(?:secure\\s*:\\s*false|httpOnly\\s*:\\s*false|sameSite\\s*:\\s*['\"]none)"}, "evidence": {"extract": "span", "authority": "lexical"}, "uncertainty": ["Reachability and compensating controls require independent adjudication."], "coverage": {"denominator": null, "gaps": []}, "remediation": null}
+      ]
+    },
+    {
+      "schemaVersion": 1,
+      "kind": "analysis-rule-pack",
+      "packId": "security.browser-http",
+      "version": "1.0.0",
+      "class": "A",
+      "engineContract": "rust-regex-1",
+      "sourceProvenance": {"sourcePath": "src/providers/security/packs/browser-http.mjs", "sourceSha256": "1aa083ed8019ef10c72bf45f6c4f89ed5fb1b73e2933931d720b90135dbb265d", "translation": "LEG-019"},
+      "rules": [
+        {"id": "http.cors-wildcard-credentials", "stableId": "http.cors-wildcard-credentials", "kind": "lexical", "severity": "error", "confidence": "medium", "matcher": {"mode": "regex", "pattern": "(?i)Access-Control-Allow-Origin[^\\n]*\\*[\\s\\S]{0,200}Access-Control-Allow-Credentials[^\\n]*(?:true|1)"}, "evidence": {"extract": "span", "authority": "lexical"}, "uncertainty": ["Reachability and compensating controls require independent adjudication."], "coverage": {"denominator": null, "gaps": []}, "remediation": null},
+        {"id": "http.sensitive-public-cache", "stableId": "http.sensitive-public-cache", "kind": "lexical", "severity": "warning", "confidence": "medium", "matcher": {"mode": "regex", "pattern": "(?i)Cache-Control[^\\n]*(?:public|s-maxage)[\\s\\S]{0,200}(?:authorization|session|user|account)"}, "evidence": {"extract": "span", "authority": "lexical"}, "uncertainty": ["Reachability and compensating controls require independent adjudication."], "coverage": {"denominator": null, "gaps": []}, "remediation": null},
+        {"id": "http.trust-forwarded-host", "stableId": "http.trust-forwarded-host", "kind": "lexical", "severity": "warning", "confidence": "medium", "matcher": {"mode": "regex", "pattern": "(?i)(?:x-forwarded-host|x-forwarded-proto|host)\\b[^\\n]*(?:redirect|callback|absoluteUrl)"}, "evidence": {"extract": "span", "authority": "lexical"}, "uncertainty": ["Reachability and compensating controls require independent adjudication."], "coverage": {"denominator": null, "gaps": []}, "remediation": null}
+      ]
+    },
+    {
+      "schemaVersion": 1,
+      "kind": "analysis-rule-pack",
+      "packId": "security.business-logic",
+      "version": "1.0.0",
+      "class": "A",
+      "engineContract": "rust-regex-1",
+      "sourceProvenance": {"sourcePath": "src/providers/security/packs/business-logic.mjs", "sourceSha256": "7414c0e01a830fd6a74bb593c155e73bc8d4500e77c9adeb044d023106b5ff0e", "translation": "LEG-019"},
+      "rules": [
+        {"id": "logic.client-controlled-price", "stableId": "logic.client-controlled-price", "kind": "lexical", "severity": "error", "confidence": "medium", "matcher": {"mode": "regex", "pattern": "(?i)(?:price|amount|total)\\s*[:=]\\s*(?:req|request|body|params)\\b"}, "evidence": {"extract": "span", "authority": "lexical"}, "uncertainty": ["Reachability and compensating controls require independent adjudication."], "coverage": {"denominator": null, "gaps": []}, "remediation": null},
+        {"id": "logic.payment-without-idempotency", "stableId": "logic.payment-without-idempotency", "kind": "lexical", "severity": "warning", "confidence": "medium", "matcher": {"mode": "regex", "pattern": "(?i)(?:charge|refund|capture|settle)\\s*\\([^\\n]*"}, "companions": {"negative": [{"mode": "regex", "pattern": "(?i)idempot"}]}, "evidence": {"extract": "span", "authority": "lexical"}, "uncertainty": ["Reachability and compensating controls require independent adjudication."], "coverage": {"denominator": null, "gaps": []}, "remediation": null}
+      ]
+    },
+    {
+      "schemaVersion": 1,
+      "kind": "analysis-rule-pack",
+      "packId": "security.cicd-automation",
+      "version": "1.0.0",
+      "class": "A",
+      "engineContract": "rust-regex-1",
+      "sourceProvenance": {"sourcePath": "src/providers/security/packs/cicd-automation.mjs", "sourceSha256": "3dc7c7f4d09208e5964d2276be5743174413b2e39571a2d0db92c7407d3c0c6d", "translation": "LEG-019"},
+      "rules": [
+        {"id": "cicd.action-unpinned", "stableId": "cicd.action-unpinned", "kind": "lexical", "severity": "warning", "confidence": "medium", "matcher": {"mode": "regex", "pattern": "(?i)uses:\\s+[\\w.-]+/[\\w.-]+@(?:v\\d+|main|master)\\b"}, "evidence": {"extract": "span", "authority": "lexical"}, "uncertainty": ["Reachability and compensating controls require independent adjudication."], "coverage": {"denominator": null, "gaps": []}, "remediation": null},
+        {"id": "cicd.pull-request-target-write", "stableId": "cicd.pull-request-target-write", "kind": "lexical", "severity": "error", "confidence": "medium", "matcher": {"mode": "regex", "pattern": "(?i)pull_request_target[\\s\\S]{0,1200}permissions:[\\s\\S]{0,400}(?:write-all|contents:\\s*write)"}, "evidence": {"extract": "span", "authority": "lexical"}, "uncertainty": ["Reachability and compensating controls require independent adjudication."], "coverage": {"denominator": null, "gaps": []}, "remediation": null},
+        {"id": "cicd.verifier-bypass", "stableId": "cicd.verifier-bypass", "kind": "lexical", "severity": "error", "confidence": "medium", "matcher": {"mode": "regex", "pattern": "(?i)(?:verify|check|audit)[^\\n]*\\|\\|\\s*true|continue-on-error:\\s*true"}, "evidence": {"extract": "span", "authority": "lexical"}, "uncertainty": ["Reachability and compensating controls require independent adjudication."], "coverage": {"denominator": null, "gaps": []}, "remediation": null}
+      ]
+    },
+    {
+      "schemaVersion": 1,
+      "kind": "analysis-rule-pack",
+      "packId": "security.crypto-data-privacy",
+      "version": "1.0.0",
+      "class": "A",
+      "engineContract": "rust-regex-1",
+      "sourceProvenance": {"sourcePath": "src/providers/security/packs/crypto-data-privacy.mjs", "sourceSha256": "8bf143514d0bde3dc4d94d52eb22e3e7de857d5200673c5f6a3007dfbdc28d8b", "translation": "LEG-019"},
+      "rules": [
+        {"id": "crypto.static-iv", "stableId": "crypto.static-iv", "kind": "lexical", "severity": "error", "confidence": "medium", "matcher": {"mode": "regex", "pattern": "(?i)(?:iv|nonce)\\s*[:=]\\s*(?:Buffer\\.alloc\\([^)]*,\\s*0\\)|['\"][0-9a-f]{8,}['\"])"}, "evidence": {"extract": "span", "authority": "lexical"}, "uncertainty": ["Reachability and compensating controls require independent adjudication."], "coverage": {"denominator": null, "gaps": []}, "remediation": null},
+        {"id": "crypto.weak-hash-password", "stableId": "crypto.weak-hash-password", "kind": "lexical", "severity": "error", "confidence": "medium", "matcher": {"mode": "regex", "pattern": "(?i)(?:md5|sha1)\\s*\\([^\\n]*(?:password|secret|token)"}, "evidence": {"extract": "span", "authority": "lexical"}, "uncertainty": ["Reachability and compensating controls require independent adjudication."], "coverage": {"denominator": null, "gaps": []}, "remediation": null},
+        {"id": "privacy.pii-log", "stableId": "privacy.pii-log", "kind": "lexical", "severity": "warning", "confidence": "medium", "matcher": {"mode": "regex", "pattern": "(?i)(?:console|logger)\\.(?:log|info|debug)\\([^\\n]*(?:email|phone|address|token|password|ssn)"}, "evidence": {"extract": "span", "authority": "lexical"}, "uncertainty": ["Reachability and compensating controls require independent adjudication."], "coverage": {"denominator": null, "gaps": []}, "remediation": null}
+      ]
+    },
+    {
+      "schemaVersion": 1,
+      "kind": "analysis-rule-pack",
+      "packId": "security.high-consequence",
+      "version": "1.0.0",
+      "class": "A",
+      "engineContract": "rust-regex-1",
+      "sourceProvenance": {"sourcePath": "src/providers/security/packs/high-consequence.mjs", "sourceSha256": "96c45ac83560d1e0edf1d74ffdbce197b2470a7854a69100dbd37a93ff373c9e", "translation": "LEG-019"},
+      "rules": [
+        {"id": "embedded.update-without-verification", "stableId": "embedded.update-without-verification", "kind": "lexical", "severity": "error", "confidence": "medium", "matcher": {"mode": "regex", "pattern": "(?i)(?:firmware|ota|flash)[\\s\\S]{0,180}(?:download|apply)"}, "companions": {"negative": [{"mode": "regex", "pattern": "(?i)signature|verify|digest"}]}, "evidence": {"extract": "span", "authority": "lexical"}, "uncertainty": ["Reachability and compensating controls require independent adjudication."], "coverage": {"denominator": null, "gaps": []}, "remediation": null},
+        {"id": "safety.command-without-interlock", "stableId": "safety.command-without-interlock", "kind": "lexical", "severity": "error", "confidence": "medium", "matcher": {"mode": "regex", "pattern": "(?i)(?:actuator|motor|valve|relay)\\.(?:start|open|enable|write)\\s*\\("}, "companions": {"negative": [{"mode": "regex", "pattern": "(?i)interlock|limit|safe"}]}, "evidence": {"extract": "span", "authority": "lexical"}, "uncertainty": ["Reachability and compensating controls require independent adjudication."], "coverage": {"denominator": null, "gaps": []}, "remediation": null},
+        {"id": "smart-contract.tx-origin-auth", "stableId": "smart-contract.tx-origin-auth", "kind": "lexical", "severity": "error", "confidence": "medium", "matcher": {"mode": "regex", "pattern": "(?i)tx\\.origin\\s*==|require\\s*\\(\\s*tx\\.origin"}, "evidence": {"extract": "span", "authority": "lexical"}, "uncertainty": ["Reachability and compensating controls require independent adjudication."], "coverage": {"denominator": null, "gaps": []}, "remediation": null}
+      ]
+    },
+    {
+      "schemaVersion": 1,
+      "kind": "analysis-rule-pack",
+      "packId": "security.insecure-defaults",
+      "version": "1.0.0",
+      "class": "A",
+      "engineContract": "rust-regex-1",
+      "sourceProvenance": {"sourcePath": "src/providers/security/packs/insecure-defaults.mjs", "sourceSha256": "58d2b10e5914568c696e7acae1645c2fc9b03f62aaa4f59332fda93ab42ede79", "translation": "LEG-019"},
+      "rules": [
+        {"id": "defaults.authentication-optional", "stableId": "defaults.authentication-optional", "kind": "lexical", "severity": "error", "confidence": "medium", "matcher": {"mode": "regex", "pattern": "(?i)auth(?:entication)?\\s*[:=]\\s*(?:false|optional)|ALLOW_ANONYMOUS\\s*[:=]\\s*(?:true|1)"}, "evidence": {"extract": "span", "authority": "lexical"}, "uncertainty": ["Reachability and compensating controls require independent adjudication."], "coverage": {"denominator": null, "gaps": []}, "remediation": null},
+        {"id": "defaults.debug-enabled", "stableId": "defaults.debug-enabled", "kind": "lexical", "severity": "warning", "confidence": "medium", "matcher": {"mode": "regex", "pattern": "(?i)(?:DEBUG|debug)\\s*[:=]\\s*(?:true|1)|NODE_ENV\\s*!==?\\s*['\"]production"}, "evidence": {"extract": "span", "authority": "lexical"}, "uncertainty": ["Reachability and compensating controls require independent adjudication."], "coverage": {"denominator": null, "gaps": []}, "remediation": null},
+        {"id": "defaults.tls-verification-disabled", "stableId": "defaults.tls-verification-disabled", "kind": "lexical", "severity": "error", "confidence": "medium", "matcher": {"mode": "regex", "pattern": "(?i)rejectUnauthorized\\s*:\\s*false|verify\\s*=\\s*False|CERT_NONE"}, "evidence": {"extract": "span", "authority": "lexical"}, "uncertainty": ["Reachability and compensating controls require independent adjudication."], "coverage": {"denominator": null, "gaps": []}, "remediation": null}
+      ]
+    },
+    {
+      "schemaVersion": 1,
+      "kind": "analysis-rule-pack",
+      "packId": "security.native-workspace",
+      "version": "1.0.0",
+      "class": "A",
+      "engineContract": "rust-regex-1",
+      "sourceProvenance": {"sourcePath": "src/providers/security/packs/native-workspace.mjs", "sourceSha256": "7e148c234d8c362579e99f99f1ca1de0b63163015c8a2a31f9d01cb339985e8b", "translation": "LEG-019"},
+      "rules": [
+        {"id": "native.plugin-untrusted-path", "stableId": "native.plugin-untrusted-path", "kind": "lexical", "severity": "warning", "confidence": "medium", "matcher": {"mode": "regex", "pattern": "(?i)(?:plugin|extension)[\\s\\S]{0,120}(?:load|import|require)\\s*\\([^\\n]*(?:input|config|env)"}, "evidence": {"extract": "span", "authority": "lexical"}, "uncertainty": ["Reachability and compensating controls require independent adjudication."], "coverage": {"denominator": null, "gaps": []}, "remediation": null},
+        {"id": "native.shell-string-command", "stableId": "native.shell-string-command", "kind": "lexical", "severity": "error", "confidence": "medium", "matcher": {"mode": "regex", "pattern": "(?i)(?:Command::new\\(['\"](?:sh|bash)|child_process\\.exec\\s*\\(|subprocess\\.(?:run|Popen)\\([^\\n]*shell\\s*=\\s*True)"}, "evidence": {"extract": "span", "authority": "lexical"}, "uncertainty": ["Reachability and compensating controls require independent adjudication."], "coverage": {"denominator": null, "gaps": []}, "remediation": null},
+        {"id": "native.updater-insecure-transport", "stableId": "native.updater-insecure-transport", "kind": "lexical", "severity": "error", "confidence": "medium", "matcher": {"mode": "regex", "pattern": "(?i)(?:update|download|artifact)[\\s\\S]{0,180}http://"}, "evidence": {"extract": "span", "authority": "lexical"}, "uncertainty": ["Reachability and compensating controls require independent adjudication."], "coverage": {"denominator": null, "gaps": []}, "remediation": null}
+      ]
+    },
+    {
+      "schemaVersion": 1,
+      "kind": "analysis-rule-pack",
+      "packId": "security.supply-developer",
+      "version": "1.0.0",
+      "class": "A",
+      "engineContract": "rust-regex-1",
+      "sourceProvenance": {"sourcePath": "src/providers/security/packs/supply-developer.mjs", "sourceSha256": "705b42afb9374229febb71f0b3ed5d8e3581503ebc0c9e28289db70fe49d06d2", "translation": "LEG-019"},
+      "rules": [
+        {"id": "developer.global-config-write", "stableId": "developer.global-config-write", "kind": "lexical", "severity": "warning", "confidence": "medium", "matcher": {"mode": "regex", "pattern": "(?i)(?:\\.gitconfig|\\.npmrc|\\.cargo/config|Library/LaunchAgents)[^\\n]*(?:write|append|>|Set-Content)"}, "evidence": {"extract": "span", "authority": "lexical"}, "uncertainty": ["Reachability and compensating controls require independent adjudication."], "coverage": {"denominator": null, "gaps": []}, "remediation": null},
+        {"id": "supply.download-execute-unverified", "stableId": "supply.download-execute-unverified", "kind": "lexical", "severity": "error", "confidence": "medium", "matcher": {"mode": "regex", "pattern": "(?i)(?:curl|wget)[^\\n]*(?:\\||&&)\\s*(?:sh|bash|python|node)|Invoke-WebRequest[^\\n]*\\|[^\\n]*iex"}, "evidence": {"extract": "span", "authority": "lexical"}, "uncertainty": ["Reachability and compensating controls require independent adjudication."], "coverage": {"denominator": null, "gaps": []}, "remediation": null},
+        {"id": "supply.mutable-container-tag", "stableId": "supply.mutable-container-tag", "kind": "lexical", "severity": "warning", "confidence": "medium", "matcher": {"mode": "regex", "pattern": "(?i)(?:image:|FROM)\\s+[^\\s@]+:(?:latest|main|master)\\b"}, "evidence": {"extract": "span", "authority": "lexical"}, "uncertainty": ["Reachability and compensating controls require independent adjudication."], "coverage": {"denominator": null, "gaps": []}, "remediation": null}
+      ]
+    }
+  ]
+}

@@ -1,0 +1,84 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "arcane-policy-pack.v1",
+  "title": "ArcanePolicyPack",
+  "description": "Host-neutral declarative Arcane policy vocabulary. Unknown fields and unknown enum values fail closed.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "kind", "policy_id", "version", "contract_versions", "unclassified_effect", "effect_rules", "capability", "leases", "trust_minima", "host_enforcement", "receipt_requirements"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "kind": {"const": "arcane-policy-pack"},
+    "policy_id": {"type": "string", "minLength": 1},
+    "version": {"type": "integer", "minimum": 1},
+    "contract_versions": {"type": "array", "items": {"$ref": "#/$defs/contractVersion"}},
+    "unclassified_effect": {"const": "deny"},
+    "effect_rules": {"type": "array", "items": {"$ref": "#/$defs/policyRule"}},
+    "capability": {"$ref": "#/$defs/capabilityCeiling"},
+    "leases": {"$ref": "#/$defs/leasePolicy"},
+    "trust_minima": {"$ref": "#/$defs/trustMinima"},
+    "host_enforcement": {"$ref": "#/$defs/hostEnforcement"},
+    "receipt_requirements": {"$ref": "#/$defs/receiptRequirements"}
+  },
+  "$defs": {
+    "effectClass": {"enum": ["FILE_WRITE", "FILE_DELETE", "FILE_MOVE", "COMMAND_EXEC", "NETWORK_EGRESS", "PROCESS_SPAWN", "CREDENTIAL_ACCESS", "DEPENDENCY_INSTALL", "VCS_COMMIT", "VCS_PUSH", "PUBLISH", "EXTERNAL_SIDE_EFFECT"]},
+    "trust": {"enum": ["unauthenticated", "host-connection-trust", "capability-signature"]},
+    "enforcement": {"enum": ["unsupported", "read_only", "observed", "strong"]},
+    "operation": {"enum": ["read", "write", "delete", "move", "execute"]},
+    "contractVersion": {
+      "type": "object", "additionalProperties": false,
+      "required": ["name", "major", "minor"],
+      "properties": {"name": {"type": "string", "minLength": 1}, "major": {"type": "integer", "minimum": 1}, "minor": {"type": "integer", "minimum": 0}}
+    },
+    "rulePredicate": {
+      "type": "object", "additionalProperties": false,
+      "required": ["effect_class", "operations", "repositories", "worktrees", "path_prefixes", "required_tags", "contract", "trust", "approval"],
+      "properties": {
+        "effect_class": {"anyOf": [{"$ref": "#/$defs/effectClass"}, {"type": "null"}]},
+        "operations": {"type": "array", "items": {"$ref": "#/$defs/operation"}},
+        "repositories": {"type": "array", "items": {"type": "string"}},
+        "worktrees": {"type": "array", "items": {"type": "string"}},
+        "path_prefixes": {"type": "array", "items": {"type": "string", "minLength": 1}},
+        "required_tags": {"type": "array", "items": {"type": "string"}},
+        "contract": {"anyOf": [{"$ref": "#/$defs/contractVersion"}, {"type": "null"}]},
+        "trust": {"anyOf": [{"$ref": "#/$defs/trust"}, {"type": "null"}]},
+        "approval": {"anyOf": [{"enum": ["none", "user", "authority"]}, {"type": "null"}]}
+      }
+    },
+    "policyRule": {
+      "type": "object", "additionalProperties": false,
+      "required": ["schema_version", "id", "effect_class", "rule", "predicate", "approval_required", "trust_minimum", "required_enforcement", "receipt_required", "exception_capable", "note"],
+      "properties": {
+        "schema_version": {"const": 1}, "id": {"type": "string", "minLength": 1}, "effect_class": {"$ref": "#/$defs/effectClass"},
+        "rule": {"enum": ["allow", "deny"]}, "predicate": {"$ref": "#/$defs/rulePredicate"}, "approval_required": {"type": "boolean"},
+        "trust_minimum": {"$ref": "#/$defs/trust"}, "required_enforcement": {"$ref": "#/$defs/enforcement"},
+        "receipt_required": {"type": "boolean"}, "exception_capable": {"type": "boolean"}, "note": {"anyOf": [{"type": "string"}, {"type": "null"}]}
+      }
+    },
+    "capabilityCeiling": {
+      "type": "object", "additionalProperties": false,
+      "required": ["effects", "operations", "targets", "max_ttl_seconds", "max_uses", "delegable", "trust"],
+      "properties": {
+        "effects": {"type": "array", "items": {"$ref": "#/$defs/effectClass"}},
+        "operations": {"type": "array", "items": {"type": "string"}}, "targets": {"type": "array", "items": {"type": "string"}},
+        "max_ttl_seconds": {"type": "integer", "minimum": 1}, "max_uses": {"type": "integer", "minimum": 1}, "delegable": {"type": "boolean"}, "trust": {"$ref": "#/$defs/trust"}
+      }
+    },
+    "leasePolicy": {
+      "type": "object", "additionalProperties": false, "required": ["max_ttl_seconds", "max_uses", "delegable"],
+      "properties": {"max_ttl_seconds": {"type": "integer", "minimum": 1}, "max_uses": {"type": "integer", "minimum": 1}, "delegable": {"type": "boolean"}}
+    },
+    "trustMinima": {
+      "type": "object", "additionalProperties": false, "required": ["mutation", "read_only", "claim_release", "legacy_import"],
+      "properties": {"mutation": {"$ref": "#/$defs/trust"}, "read_only": {"$ref": "#/$defs/trust"}, "claim_release": {"$ref": "#/$defs/trust"}, "legacy_import": {"$ref": "#/$defs/trust"}}
+    },
+    "hostEnforcement": {
+      "type": "object", "additionalProperties": false, "required": ["required_for_mutation", "required_for_read_only"],
+      "properties": {"required_for_mutation": {"$ref": "#/$defs/enforcement"}, "required_for_read_only": {"$ref": "#/$defs/enforcement"}}
+    },
+    "receiptRequirements": {
+      "type": "object", "additionalProperties": false, "required": ["effect_receipt", "bind_policy_digest", "bind_capability_id"],
+      "properties": {"effect_receipt": {"type": "boolean"}, "bind_policy_digest": {"type": "boolean"}, "bind_capability_id": {"type": "boolean"}}
+    }
+  }
+}

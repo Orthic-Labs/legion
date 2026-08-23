@@ -1,0 +1,61 @@
+{
+  "schemaVersion": 1,
+  "kind": "legion-host-compatibility-fixtures",
+  "contracts": ["host-detection", "host-install", "host-safe-mutation"],
+  "cases": [
+    {
+      "case_id": "host-01-detect-specific-evidence",
+      "contract": "host-detection",
+      "future_packets": ["LEG-023"],
+      "sources": [
+        {"path": "src/lib/host/engine.mjs", "symbol": "detect"},
+        {"path": "src/lib/host/registry.mjs", "symbol": "detectHarnesses"},
+        {"path": "tests/host-adapter-safety.test.mjs", "symbol": "detection is non-ambiguous"}
+      ],
+      "input": {"files": ["AGENTS.md"], "env": {}},
+      "expected": {"detected": [], "cross_harness_file_is_signal": false},
+      "normalization": {"ignore_paths": [], "sort_paths": ["$.detected"]},
+      "deltas": []
+    },
+    {
+      "case_id": "host-02-codex-mcp-surgical",
+      "contract": "host-safe-mutation",
+      "future_packets": ["LEG-023"],
+      "sources": [
+        {"path": "src/lib/host/adapters/codex.mjs", "symbol": "mcp descriptor"},
+        {"path": "src/lib/host/engine.mjs", "symbol": "install/uninstall MCP"},
+        {"path": "tests/host-adapter-safety.test.mjs", "symbol": "MCP uninstall is surgical"}
+      ],
+      "input": {"config": ".codex/config.toml", "existing_server": "mine", "operation": "install_then_uninstall"},
+      "expected": {"legion_registration": "added_then_removed", "existing_server": "preserved", "unrelated_config": "preserved"},
+      "normalization": {"ignore_paths": ["$.mcpServers.legion.args[*]"], "sort_paths": []},
+      "deltas": []
+    },
+    {
+      "case_id": "host-03-malformed-config-refuse",
+      "contract": "host-safe-mutation",
+      "future_packets": ["LEG-023"],
+      "sources": [
+        {"path": "src/lib/host/engine.mjs", "symbol": "readJsonOrRefuse/assertPlausibleToml"},
+        {"path": "tests/host-adapter-safety.test.mjs", "symbol": "malformed config fails closed"}
+      ],
+      "input": {"config": ".codex/config.toml", "content": "<<<<<<< HEAD", "operation": "install"},
+      "expected": {"error_code": "HARNESS_CONFLICT", "content_changed": false},
+      "normalization": {"ignore_paths": ["$.error.message"], "sort_paths": []},
+      "deltas": []
+    },
+    {
+      "case_id": "host-04-projection-preserves-foreign-skill",
+      "contract": "host-install",
+      "future_packets": ["LEG-023", "LEG-012"],
+      "sources": [
+        {"path": "src/lib/host/skill-projection.mjs", "symbol": "projectSkills/unprojectSkills"},
+        {"path": "tests/host-adapter-safety.test.mjs", "symbol": "foreign neighbour preserved"}
+      ],
+      "input": {"harness": "codex", "foreign_skill": "my-private-skill"},
+      "expected": {"foreign_skill": "preserved", "canonical_packages": "byte-identical", "uninstall": "only_legion_owned"},
+      "normalization": {"ignore_paths": [], "sort_paths": ["$.removed", "$.kept"]},
+      "deltas": []
+    }
+  ]
+}

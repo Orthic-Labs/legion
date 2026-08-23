@@ -1,0 +1,9 @@
+[package]
+name = "legion-report"
+version = "0.1.0"
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+legion-contracts = { path = "../legion-contracts" }
+serde_json.workspace = true

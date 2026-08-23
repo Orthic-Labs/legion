@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "kind": "legion-native-parity-fixture-manifest",
+  "repository": "Orthic-Labs/legion",
+  "baselineCommit": "90678a130dc26937d544304b79a22f24d74383ac",
+  "packetId": "LEG-001",
+  "comparison": {"mode": "semantic", "case_key": "case_id", "duplicate_case_ids": "reject", "sort_cases_by": "case_id", "ignore_policy": "explicit-only"},
+  "futurePackets": ["LEG-010", "LEG-012", "LEG-013", "LEG-014", "LEG-015", "LEG-016", "LEG-017", "LEG-018", "LEG-019", "LEG-020", "LEG-021", "LEG-022", "LEG-023", "LEG-024", "LEG-025"],
+  "files": {
+    "cli-cases.v1.json": "sha256:b8d63f6cab819fc963e2a13b56e8a4079bc8fe30db74bea6cb9fff5dfa824a18",
+    "catalog-cases.v1.json": "sha256:797007d2d446b0e8cb042dc7343479b35fe35470f6052ee9c1e213ff7d254508",
+    "policy-cases.v1.json": "sha256:6efce5987ad7dd46eef9676596d202c1cec7160cf0e4f4babbad653a182ad050",
+    "effect-cases.v1.json": "sha256:0d652f45964b756f10357ad814f223db5ac868707cc00dd3df52d9eb25e4c2c6",
+    "provider-cases.v1.json": "sha256:71f70331e1cd73262b2accd228828761ccb520848354960ed111be7f6b663581",
+    "audit-cases.v1.json": "sha256:54ec6566b712854a4a839c4e81cda219c64f2ea6a994d15a33922c3fdd98d08c",
+    "host-cases.v1.json": "sha256:ae89aa459fb2f80065b6b8ad0ba56709a346ecd807c011ccd47a8338b203b117",
+    "python-surface-cases.v1.json": "sha256:3192701d19852e4dc38e8354315d248fe51d9194aa99bec815519e5f594ba422",
+    "README.md": "sha256:c32220963f4958fa3af1beb5966a6aaddec2a0eb6488280c52940ea9c15b1eaa"
+  },
+  "case_counts": {"cli": 6, "catalog": 3, "policy": 3, "effect": 4, "provider": 4, "audit": 3, "host": 4, "python_surface": 3, "total": 30}
+}
