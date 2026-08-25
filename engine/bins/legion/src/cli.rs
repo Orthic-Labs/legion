@@ -822,7 +822,7 @@ fn host_event_records(
         }
         let expected_parent = previous
             .as_ref()
-            .map(|record| legion_contracts::canonical_digest(record))
+            .map(legion_contracts::canonical_digest)
             .transpose()
             .map_err(|error| commands::CommandError::integrity(error.to_string()))?;
         if value.get("previousDigest").and_then(Value::as_str) != expected_parent.as_deref() {
