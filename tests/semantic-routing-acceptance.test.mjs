@@ -12,7 +12,7 @@ const bundles = new Map(catalog.bundles.map((bundle) => [bundle.id, bundle]));
 const OPERATIONS = new Set(['route', 'analyze', 'diagnose', 'decide', 'produce', 'evaluate', 'execute']);
 const EFFECTS = new Set(['source-read', 'artifact-write', 'repository-write', 'process-exec', 'network-request']);
 const AUTHORITIES = new Set(['sage', 'alchemist', 'oracle']);
-const EXPLICIT_ONLY = new Set(['alchemist', 'covenant', 'dispatch', 'commit', 'coder']);
+const EXPLICIT_ONLY = new Set(['alchemist', 'covenant', 'commit', 'coder']);
 const LEGACY_NATURAL_ROUTES = new Set([
   'alchemist', 'architect', 'audit', 'blueprint', 'commit', 'covenant', 'debugger',
   'dispatch', 'doctor', 'execution-preflight', 'handoff', 'marketing', 'qa', 'tasklist',

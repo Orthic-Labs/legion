@@ -89,8 +89,8 @@
       "forbiddenSelections": ["brand"]
     },
     {
-      "id": "explicit-dispatch",
-      "concerns": ["explicit-only", "minimal-pair-task-routing"],
+      "id": "explicit-dispatch-capability",
+      "concerns": ["workflow-capability", "minimal-pair-task-routing"],
       "prompt": "/dispatch send this bounded task to another agent",
       "source": "explicit",
       "expectedCapabilities": [],
@@ -354,17 +354,17 @@
       "forbiddenSelections": ["architect"]
     },
     {
-      "id": "legacy-dispatch-no-auto",
-      "concerns": ["explicit-only", "legacy-natural-route"],
+      "id": "public-workflow-dispatch",
+      "concerns": ["public-discovery", "workflow-capability", "minimal-pair-task-routing", "legacy-natural-route"],
       "legacyRoute": "dispatch",
       "prompt": "Send this bounded work to another agent.",
       "source": "semantic",
-      "expectedCapabilities": [],
+      "expectedCapabilities": ["dispatch"],
       "expectedEntrypoints": [],
-      "operations": ["route"],
-      "effects": [],
+      "operations": ["route", "produce"],
+      "effects": ["source-read", "artifact-write", "process-exec"],
       "attachedAuthorities": [],
-      "forbiddenSelections": ["dispatch"]
+      "forbiddenSelections": ["tasklist", "handoff"]
     },
     {
       "id": "legacy-doctor-research",

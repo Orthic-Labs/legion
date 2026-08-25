@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "kind": "legion-authority-dispatch",
   "packetType": "sage",
-  "sourceRevision": "sha256:22d8dcaf7d28145de3786f97cf24a9bc928a6bfccea4cc17ceddcffedbbcf858",
+  "sourceRevision": "sha256:ad26fc3bc47d552bf194bc70f1a81f37a39097159f8bca60497ccb6e8fe67e4a",
   "sourceArtifact": "skills/dispatch/SKILL.md",
   "promptArtifact": "skills/dispatch/examples/sage-adjudication.prompt.txt",
   "promptDigest": "sha256:3ccd2e7126de4f9d794e0da667d1d589f6801f9a4975b3e4b560219f06485f54",

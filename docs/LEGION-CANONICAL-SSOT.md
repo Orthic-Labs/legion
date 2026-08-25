@@ -200,7 +200,6 @@ Entrypoint targets are semantically explicit:
 ```text
 /alchemist → authority:alchemist
 /covenant  → challenge:covenant
-/dispatch  → orchestration:dispatch
 /commit    → workflow:commit
 /coder     → outsourced-analysis:coder
 ```
@@ -309,8 +308,11 @@ At the current ~20–30 semantic entries, no retrieval infrastructure (RAG, embe
 search, graph routing, RDF/JSON-LD, hierarchical retrieval) is added. Add retrieval only after
 measured discovery failure. Blueprint graph infrastructure remains unrelated to capability routing.
 
-Explicit-only entrypoints (`alchemist`, `covenant`, `dispatch`, `commit`, `coder`) are excluded
+Explicit-only entrypoints (`alchemist`, `covenant`, `commit`, `coder`) are excluded
 from automatic natural-language capability selection; explicit user intent resolves them.
+
+Dispatch is a public workflow capability: natural-language delegation intent selects it
+semantically, while `/dispatch` remains a deterministic explicit invocation of the same capability.
 
 Domains never decide routing. Generated registries (`src/registry/skills/index.json`,
 `src/registry/routing/domains.json`, `src/registry/host-projection.json`, `skills/manifests/*.json`)

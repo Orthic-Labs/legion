@@ -1,9 +1,10 @@
 ---
 name: dispatch
 description: Create a validated zero-context work packet for another agent or executor while current orchestrator retains responsibility. Use for delegation, parallel workers, or copy-paste executor instructions. Same-agent work stays inline; session continuity uses handoff.
-kind: entrypoint
-discoverability: explicit
-target: orchestration:dispatch
+kind: capability
+capabilityClass: workflow
+discoverability: public
+domain: null
 operations:
   - route
   - produce

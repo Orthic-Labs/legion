@@ -112,12 +112,12 @@ test('all 110 retired eval cases and two Phase A acceptance additions remain', (
 });
 
 test('deterministic selection validation accepts semantic public capabilities and rejects entrypoints', () => {
-  const semantic = validateCapabilitySelection({ ids: ['architect', 'audit'], source: 'semantic' }, { root: ROOT });
+  const semantic = validateCapabilitySelection({ ids: ['architect', 'audit', 'dispatch'], source: 'semantic' }, { root: ROOT });
   assert.equal(semantic.status, 'resolved');
-  assert.equal(semantic.resolved.length, 2);
+  assert.equal(semantic.resolved.length, 3);
 
   // Explicit-only entrypoints are excluded from automatic semantic selection.
-  for (const entrypoint of ['alchemist', 'covenant', 'dispatch', 'commit', 'coder']) {
+  for (const entrypoint of ['alchemist', 'covenant', 'commit', 'coder']) {
     const rejected = validateCapabilitySelection({ ids: [entrypoint], source: 'semantic' }, { root: ROOT });
     assert.equal(rejected.status, 'invalid', `${entrypoint} must not be semantically selected`);
     assert.equal(rejected.invalid[0].reason, 'not-capability');

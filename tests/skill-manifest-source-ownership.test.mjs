@@ -43,7 +43,7 @@ test('all 23 packaged sources exactly match frozen M-012 classifications and rep
     covenant: ['entrypoint', null, 'explicit', null, 'analyze,evaluate,produce', 'source-read'],
     debugger: ['capability', 'domain', 'public', 'engineering', 'analyze,diagnose,decide,produce', 'source-read,process-exec'],
     designer: ['capability', 'domain', 'public', 'design', 'analyze,decide,produce,evaluate', 'source-read,artifact-write'],
-    dispatch: ['entrypoint', null, 'explicit', null, 'route,produce', 'source-read,artifact-write,process-exec'],
+    dispatch: ['capability', 'workflow', 'public', null, 'route,produce', 'source-read,artifact-write,process-exec'],
     handoff: ['capability', 'workflow', 'public', null, 'analyze,produce', 'source-read,artifact-write,process-exec'],
     marketing: ['capability', 'domain', 'public', 'commercial', 'analyze,decide,produce', 'source-read,network-request'],
     qa: ['capability', 'domain', 'public', 'engineering', 'analyze,evaluate,execute,produce', 'source-read,artifact-write,process-exec'],

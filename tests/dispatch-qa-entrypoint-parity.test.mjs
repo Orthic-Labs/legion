@@ -5,12 +5,12 @@ import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 const root = resolve(import.meta.dirname, '..');
-for (const skill of ['dispatch', 'qa']) test(`${skill} public entrypoint routes to shared engine`, () => {
+for (const skill of ['dispatch', 'qa']) test(`${skill} public capability routes to shared engine`, () => {
   const base = resolve(root, 'skills', skill);
   assert.ok(existsSync(resolve(base, 'SKILL.md')));
   const evals = JSON.parse(readFileSync(resolve(base, 'evals/evals.json')));
   const count = Object.values(evals).filter(Array.isArray).flat().length;
-  assert.equal(count, skill === 'dispatch' ? 36 : 12);
+  assert.equal(count, skill === 'dispatch' ? 37 : 12);
 });
 
 test('dispatch & qa scripts are adapters, not duplicated engines', () => {

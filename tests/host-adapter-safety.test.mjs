@@ -37,6 +37,7 @@ test('the projected set is the canonical discoverable set, not the skills/ direc
   assert.ok(onDisk.length > CANON.length, 'expected the package to ship internal skill packages beyond the discoverable set');
   const internal = internalCapabilityIds(LEGION);
   assert.ok(internal.length > 0, 'expected the canonical projection to mark some capabilities internal');
+  assert.ok(CANON.includes('dispatch'), 'Dispatch workflow must be projected for semantic discovery');
   for (const id of internal) assert.ok(!CANON.includes(id), `${id}: internal capability must not be in the projected set`);
 });
 
