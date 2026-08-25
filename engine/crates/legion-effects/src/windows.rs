@@ -295,23 +295,23 @@ async fn wait_process(process_value: usize) -> Result<Option<i32>, EffectError> 
     .map_err(|error| EffectError::Internal(error.to_string()))?
 }
 
-fn request_cooperative_stop(child: &ChildHandles) {
+fn request_cooperative_stop(pid: u32) {
     // CTRL_BREAK is cooperative for the new process group.  Job termination
     // remains the bounded fallback when a target ignores the request.
     unsafe {
-        GenerateConsoleCtrlEvent(CTRL_BREAK_EVENT, child.pid);
+        GenerateConsoleCtrlEvent(CTRL_BREAK_EVENT, pid);
     }
 }
 
-fn terminate_job(child: &mut ChildHandles) -> bool {
-    let Some(job) = child.job.as_ref() else {
+fn terminate_job(job: &mut Option<Handle>) -> bool {
+    let Some(handle) = job.as_ref() else {
         return true;
     };
-    let terminated = unsafe { TerminateJobObject(job.raw(), 1) } != 0;
+    let terminated = unsafe { TerminateJobObject(handle.raw(), 1) } != 0;
     if !terminated {
         // Closing a KILL_ON_JOB_CLOSE handle is the final bounded cleanup
         // path, including when TerminateJobObject itself is unavailable.
-        child.job.take();
+        job.take();
     }
     terminated
 }
@@ -329,22 +329,28 @@ impl PlatformProcess for WindowsProcess {
     fn run<'a>(&'a self, launch: ProcessLaunch) -> ProcessFuture<'a> {
         Box::pin(async move {
             let started_at_ms = now_ms();
-            let child = spawn_child(&launch)?;
+            let ChildHandles {
+                process,
+                mut job,
+                stdout,
+                stderr,
+                pid,
+            } = spawn_child(&launch)?;
             let limited = Arc::new(AtomicBool::new(false));
             let limit_notify = Arc::new(tokio::sync::Notify::new());
             let stdout = tokio::spawn(read_limited(
-                as_file(child.stdout),
+                as_file(stdout),
                 launch.stdout_limit,
                 limited.clone(),
                 limit_notify.clone(),
             ));
             let stderr = tokio::spawn(read_limited(
-                as_file(child.stderr),
+                as_file(stderr),
                 launch.stderr_limit,
                 limited.clone(),
                 limit_notify.clone(),
             ));
-            let mut wait = Box::pin(wait_process(child.process.raw() as usize));
+            let mut wait = Box::pin(wait_process(process.raw() as usize));
             let exit_code;
             let mut timed_out = false;
             let mut cancelled = false;
@@ -354,26 +360,26 @@ impl PlatformProcess for WindowsProcess {
             tokio::select! {
                 result = &mut wait => {
                     exit_code = result?;
-                    hard_killed = terminate_job(&mut child);
+                    hard_killed = terminate_job(&mut job);
                 }
                 _ = &mut termination => {
                     timed_out = true;
-                    request_cooperative_stop(&child);
+                    request_cooperative_stop(pid);
                     if launch.termination_grace_ms > 0 { tokio::time::sleep(Duration::from_millis(launch.termination_grace_ms)).await; }
-                    hard_killed = terminate_job(&mut child);
+                    hard_killed = terminate_job(&mut job);
                     exit_code = wait.await?;
                 }
                 _ = launch.cancellation.cancelled() => {
                     cancelled = true;
-                    request_cooperative_stop(&child);
+                    request_cooperative_stop(pid);
                     if launch.termination_grace_ms > 0 { tokio::time::sleep(Duration::from_millis(launch.termination_grace_ms)).await; }
-                    hard_killed = terminate_job(&mut child);
+                    hard_killed = terminate_job(&mut job);
                     exit_code = wait.await?;
                 }
                 _ = limit_notify.notified() => {
-                    request_cooperative_stop(&child);
+                    request_cooperative_stop(pid);
                     if launch.termination_grace_ms > 0 { tokio::time::sleep(Duration::from_millis(launch.termination_grace_ms)).await; }
-                    hard_killed = terminate_job(&mut child);
+                    hard_killed = terminate_job(&mut job);
                     exit_code = wait.await?;
                 }
             }
