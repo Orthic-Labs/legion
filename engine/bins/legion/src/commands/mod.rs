@@ -7,6 +7,7 @@ pub mod host;
 pub mod policy;
 pub mod research;
 pub mod review;
+pub mod rules;
 use serde_json::Value;
 use std::sync::Arc;
 pub type CommandResult = Result<Value, CommandError>;
