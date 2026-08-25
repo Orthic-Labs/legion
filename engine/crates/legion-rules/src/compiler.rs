@@ -156,7 +156,10 @@ impl RuleCompiler {
                 )));
             }
             let pack_id = pack.pack_id.clone();
-            if compiled.insert(pack_id.clone(), Self::compile(pack)?).is_some() {
+            if compiled
+                .insert(pack_id.clone(), Self::compile(pack)?)
+                .is_some()
+            {
                 return Err(RuleError::InvalidPack(format!(
                     "duplicate native pack id: {pack_id}"
                 )));

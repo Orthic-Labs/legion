@@ -1037,11 +1037,7 @@ impl NativeApplication {
                     .freeze(signing_key.as_deref())?;
                 let execution_inventory = self.inventory_source.inventory(&repository_id)?;
                 verify_binding(&plan, &execution_inventory, signing_key.as_deref())?;
-                let report = execute(
-                    &plan,
-                    &execution_inventory,
-                    self.provider_executor.as_ref(),
-                )?;
+                let report = execute(&plan, &execution_inventory, self.provider_executor.as_ref())?;
                 verify_execution(&report)?;
                 Ok(NativeOperationResult::Audit(report))
             }
