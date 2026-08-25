@@ -3,7 +3,7 @@
   "kind": "legion-authority-dispatch",
   "packetType": "direct",
   "repositoryRoot": "/Volumes/D/claude/legion",
-  "sourceRevision": "566de04215d9ed60d3ed2ddc4e6746a030a27ac1",
+  "sourceRevision": "396f427009ade1a4243188c7da75ff335efe9e82",
   "promptArtifact": "migration/native-rust/dispatches/M0-REQUEST.md",
   "promptDigest": "sha256:83bf81861f2c3dfdf80928e94ca96588d8b0427f2146726602fffebe1d9055ba",
   "modelRouting": {
@@ -51,6 +51,11 @@
     ],
     "allowUnplannedFiles": false
   },
+  "waveExecutionPolicy": {
+    "preflight": "Before a wave starts, none of that wave's allowlisted paths may already be dirty. Accepted outputs from completed waves and the dispatch packet artifacts are permitted.",
+    "activeWaveGuard": "While one or more dependency-eligible waves are active, permit dirty paths only from dispatch packet artifacts, accepted completed-wave outputs, and the union of every currently active wave's lane allowlists. Never apply a lane-local dirty-path guard while peer lanes are running.",
+    "barrier": "After every active wave finishes, reconcile each changed path to exactly one owning lane; require each lane's actual changed paths to equal its exact allowlist, reject missing, overlapping, foreign, or unplanned paths, then mark the wave accepted before any dependent wave starts."
+  },
   "dispatches": [
     {
       "id": "A",
@@ -65,8 +70,9 @@
         "strain-protocol"
       ],
       "completionChecks": [
-        "all seven lanes complete against source revision 566de04215d9ed60d3ed2ddc4e6746a030a27ac1 with only this packet, request, and receipt added afterward",
-        "actual changed paths equal union of A lane allowlists",
+        "all seven lanes complete against source revision 396f427009ade1a4243188c7da75ff335efe9e82 with only this packet and receipt added afterward",
+        "while A is active, permitted dirty paths equal dispatch packet artifacts plus union of all seven A lane allowlists",
+        "at A barrier, each lane's actual changed paths equal its exact allowlist and total A paths equal union of A lane allowlists",
         "every output parses and contains current baseline identity"
       ]
     },
@@ -77,7 +83,8 @@
       "completionChecks": [
         "both B lanes consume complete A outputs without editing them",
         "M0 acceptance identifies zero unknown runtime paths or unresolved target-owner collisions",
-        "actual changed paths equal union of B lane allowlists"
+        "while B is active, permitted dirty paths equal dispatch packet artifacts plus accepted A outputs plus union of both B lane allowlists",
+        "at B barrier, each lane's actual changed paths equal its exact allowlist and total B paths equal union of B lane allowlists"
       ]
     },
     {
@@ -88,7 +95,8 @@
         "M1-M8 packet file inventory is derived from frozen M0 ownership map rather than guessed",
         "M1-M8 packet validates with a fresh adjacent receipt",
         "M1-M8 packet requires its own fresh adversarial Oracle PASS before execution",
-        "actual changed paths equal C lane allowlist"
+        "while C is active, permitted dirty paths equal dispatch packet artifacts plus accepted A and B outputs plus C lane allowlist",
+        "at C barrier, actual C paths equal C lane allowlist with zero foreign or unplanned paths"
       ]
     }
   ],
@@ -363,8 +371,10 @@
   "recovery": {
     "maxRetries": 1,
     "stopConditions": [
-      "git diff sourceRevision..HEAD contains any path other than migration/native-rust/dispatches/M0-REQUEST.md, migration/native-rust/dispatches/M0-DISPATCH.json, or migration/native-rust/dispatches/M0-DISPATCH.receipt.json",
-      "any allowlisted file is dirty before its owning lane starts",
+      "git diff sourceRevision..HEAD contains any path other than migration/native-rust/dispatches/M0-DISPATCH.json or migration/native-rust/dispatches/M0-DISPATCH.receipt.json",
+      "before a wave starts, any path in that wave's union allowlist is already dirty",
+      "while waves are active, a dirty path exists outside dispatch packet artifacts, accepted completed-wave outputs, and union of every currently active wave's allowlists",
+      "at a wave barrier, any lane has missing, overlapping, foreign, or unplanned actual changed paths relative to its exact allowlist",
       "current source cannot resolve complete shipped-runtime classification",
       "M0 evidence contradicts accepted architecture",
       "required private client configuration evidence is unavailable"
