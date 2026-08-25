@@ -1,6 +1,5 @@
 use super::{CommandError, CommandResult};
 use clap::Args;
-use legion_audit::BlueprintInventorySource;
 use legion_contracts::{
     Coverage, FindingId, FindingRef, ProviderId, ProviderResult, ProviderStatus,
 };
