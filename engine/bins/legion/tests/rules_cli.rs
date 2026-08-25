@@ -1,5 +1,7 @@
 use std::process::Command;
 
+use legion_audit::BlueprintInventorySource;
+
 #[test]
 fn native_rules_evaluate_blueprint_bound_source() {
     let root = std::env::temp_dir().join(format!(
@@ -134,4 +136,103 @@ fn native_rules_evaluate_blueprint_bound_source() {
     assert_eq!(audit_summary["findingCount"], 1);
     assert!(audit_out.join("report.json").is_file());
     assert!(audit_out.join("report.sarif").is_file());
+}
+
+#[test]
+fn native_audit_continues_without_blueprint() {
+    let root = std::env::temp_dir().join(format!(
+        "legion-native-audit-fallback-{}-{}",
+        std::process::id(),
+        std::thread::current().name().unwrap_or("fixture")
+    ));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(root.join("src")).unwrap();
+    std::fs::create_dir_all(root.join(".audit/inputs")).unwrap();
+    std::fs::write(root.join("src/service.rs"), "fn service() {}\n").unwrap();
+    let root = std::fs::canonicalize(root).unwrap();
+    let inventory = legion_audit::FilesystemInventorySource::new(&root)
+        .unwrap()
+        .inventory(root.to_str().unwrap())
+        .unwrap();
+    let plan = serde_json::json!({
+        "providers": [{
+            "schemaVersion": 2,
+            "id": "native.fixture",
+            "providerVersion": "1",
+            "family": "security",
+            "lensIds": [],
+            "role": "deterministic",
+            "phase": "source",
+            "dependsOn": [],
+            "consumes": ["repository-inventory"],
+            "produces": ["provider-result"],
+            "selector": {"op": "all"},
+            "denominatorKind": "repository-inventory",
+            "runner": {"kind": "built-in"},
+            "hostCapabilities": [],
+            "execution": {},
+            "reasoning": {},
+            "benchmark": {"status": "qualified", "requiredForCleanClaim": true},
+            "cleanClaim": "finding-producing",
+            "controlIds": [],
+            "scopes": [],
+            "selectable": true
+        }]
+    });
+    let result = serde_json::json!({
+        "schema_version": 1,
+        "provider": "native.fixture",
+        "applicable": true,
+        "required": true,
+        "status": "complete",
+        "complete": true,
+        "coverage": {
+            "denominator_digest": inventory.digest,
+            "expected": 1,
+            "examined": 1,
+            "gaps": []
+        },
+        "findings": [],
+        "coverage_gaps": [],
+        "degradation": [],
+        "details": {}
+    });
+    let plan_path = root.join(".audit/inputs/provider-plan.json");
+    let result_path = root.join(".audit/inputs/provider-result.json");
+    std::fs::write(&plan_path, serde_json::to_vec_pretty(&plan).unwrap()).unwrap();
+    std::fs::write(&result_path, serde_json::to_vec_pretty(&result).unwrap()).unwrap();
+    let audit_out = root.join(".audit/output");
+    let audit = Command::new(env!("CARGO_BIN_EXE_legion"))
+        .args([
+            "audit",
+            root.to_str().unwrap(),
+            "--out",
+            audit_out.to_str().unwrap(),
+            "--provider-plan",
+            plan_path.to_str().unwrap(),
+            "--provider-result",
+            result_path.to_str().unwrap(),
+        ])
+        .env("AUDIT_PLAN_SIGNING_KEY", "fixture-signing-key")
+        .output()
+        .unwrap();
+    assert_eq!(
+        audit.status.code(),
+        Some(0),
+        "{}",
+        String::from_utf8_lossy(&audit.stderr)
+    );
+    let summary: serde_json::Value = serde_json::from_slice(&audit.stdout).unwrap();
+    assert_eq!(summary["auditStatus"], "pass");
+    assert!(summary["contextNotices"][0]
+        .as_str()
+        .unwrap()
+        .contains("Audit continued"));
+    let report: serde_json::Value =
+        serde_json::from_slice(&std::fs::read(audit_out.join("report.json")).unwrap()).unwrap();
+    assert!(report["claims"]["contextNotices"][0]
+        .as_str()
+        .unwrap()
+        .contains("Use Membrane as context engine"));
+    std::fs::remove_dir_all(root).unwrap();
 }

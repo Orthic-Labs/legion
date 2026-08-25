@@ -316,8 +316,9 @@ impl NativeApplicationConfig {
             .build()
     }
 
-    /// Compose one standalone Audit from a host-published Blueprint source,
-    /// an exact selected provider plan, and typed host-injected results.
+    /// Compose one standalone Audit from an inventory source, an exact selected
+    /// provider plan, and typed host-injected results. Inventory may come from
+    /// Blueprint or Audit's read-only filesystem fallback.
     pub fn for_audit_artifacts(
         repository_id: impl Into<String>,
         inventory_source: Arc<dyn BlueprintInventorySource>,
@@ -343,7 +344,7 @@ impl NativeApplicationConfig {
                     .is_none_or(|coverage| coverage.denominator_digest != inventory.digest)
             {
                 return Err(NativeApplicationError::Configuration(format!(
-                    "complete provider result {} is not bound to the Blueprint inventory digest",
+                    "complete provider result {} is not bound to the selected inventory digest",
                     result.provider
                 )));
             }

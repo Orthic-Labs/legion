@@ -41,10 +41,14 @@ pub async fn run(args: AuditArgs, cancellation: CancellationToken) -> CommandRes
         }));
     }
     let signing_key = super::audit_signing_key()?;
-    let application = if direct {
-        Arc::new(direct_application(&args, &root)?)
+    let (application, context_notices) = if direct {
+        let (application, notices) = direct_application(&args, &root)?;
+        (Arc::new(application), notices)
     } else {
-        super::native_application_for(&root.to_string_lossy())?
+        (
+            super::native_application_for(&root.to_string_lossy())?,
+            Vec::new(),
+        )
     };
     let operation = if args.plan_only {
         legion_application::NativeOperation::Plan {
@@ -76,9 +80,10 @@ pub async fn run(args: AuditArgs, cancellation: CancellationToken) -> CommandRes
             "repository": repository_id,
             "profile": args.profile,
             "planDigest": plan_digest,
-            "planSignature": plan_signature,
-            "providers": providers,
-            "auditStatus": "complete"
+                "planSignature": plan_signature,
+                "providers": providers,
+                "contextNotices": context_notices,
+                "auditStatus": "complete"
             });
             if let Some(out) = &args.out {
                 write_artifact(
@@ -90,8 +95,13 @@ pub async fn run(args: AuditArgs, cancellation: CancellationToken) -> CommandRes
             Ok(output)
         }
         legion_application::NativeOperationResult::Audit(execution) => {
-            let report = legion_audit::canonical_report(&root.to_string_lossy(), &execution)
+            let mut report = legion_audit::canonical_report(&root.to_string_lossy(), &execution)
                 .map_err(|error| CommandError::integrity(error.to_string()))?;
+            if !context_notices.is_empty() {
+                report
+                    .claims
+                    .insert("contextNotices".into(), json!(context_notices));
+            }
             let report_json = legion_report::render_json(&report).map_err(super::io_error)?;
             let report_sarif = legion_report::render_sarif(&report).map_err(super::io_error)?;
             if let Some(out) = &args.out {
@@ -123,6 +133,7 @@ pub async fn run(args: AuditArgs, cancellation: CancellationToken) -> CommandRes
                 "findingCount": report.findings.len(),
                 "selectedLenses": execution.selected_lenses,
                 "lensesRan": execution.lenses_ran,
+                "contextNotices": context_notices,
                 "gaps": report.gaps,
                 "artifacts": args.out.as_ref().map(|out| json!({
                     "reportJson": out.join("report.json"),
@@ -141,11 +152,7 @@ pub async fn run(args: AuditArgs, cancellation: CancellationToken) -> CommandRes
 fn direct_application(
     args: &AuditArgs,
     root: &std::path::Path,
-) -> Result<legion_application::NativeApplication, CommandError> {
-    let packet = args
-        .blueprint_packet
-        .as_ref()
-        .ok_or_else(|| CommandError::usage("direct Audit requires --blueprint-packet"))?;
+) -> Result<(legion_application::NativeApplication, Vec<String>), CommandError> {
     let plan = args
         .provider_plan
         .as_ref()
@@ -155,23 +162,66 @@ fn direct_application(
             "direct Audit requires at least one --provider-result",
         ));
     }
-    let packet = std::fs::canonicalize(packet).map_err(super::io_error)?;
-    let source =
-        legion_audit::FileBlueprintInventorySource::new(packet, args.expected_generation.clone())
-            .map_err(|error| CommandError::incomplete(error.to_string()))?;
+    let (source, context_notices) = inventory_source(args, root)?;
     let specifications = read_provider_plan(plan)?;
     let results = args
         .provider_results
         .iter()
         .map(|path| read_provider_result(path))
         .collect::<Result<Vec<_>, _>>()?;
-    legion_application::NativeApplicationConfig::for_audit_artifacts(
+    let application = legion_application::NativeApplicationConfig::for_audit_artifacts(
         root.to_string_lossy().into_owned(),
-        Arc::new(source),
+        source,
         specifications,
         results,
     )
-    .map_err(|error| CommandError::incomplete(error.to_string()))
+    .map_err(|error| CommandError::incomplete(error.to_string()))?;
+    Ok((application, context_notices))
+}
+
+fn inventory_source(
+    args: &AuditArgs,
+    root: &std::path::Path,
+) -> Result<
+    (
+        Arc<dyn legion_audit::BlueprintInventorySource>,
+        Vec<String>,
+    ),
+    CommandError,
+> {
+    if let Some(packet) = &args.blueprint_packet {
+        let blueprint = std::fs::canonicalize(packet)
+            .map_err(|error| error.to_string())
+            .and_then(|path| {
+                legion_audit::FileBlueprintInventorySource::new(
+                    path,
+                    args.expected_generation.clone(),
+                )
+                .map_err(|error| error.to_string())
+            });
+        match blueprint {
+            Ok(source) => return Ok((Arc::new(source), Vec::new())),
+            Err(error) => {
+                let fallback = legion_audit::FilesystemInventorySource::new(root)
+                    .map_err(|fallback| CommandError::incomplete(fallback.to_string()))?;
+                return Ok((
+                    Arc::new(fallback),
+                    vec![format!(
+                        "Blueprint was unavailable ({error}). Audit continued with its own read-only repository inventory. Use Membrane as context engine and provide a fresh Blueprint packet for richer context."
+                    )],
+                ));
+            }
+        }
+    }
+    let fallback = legion_audit::FilesystemInventorySource::new(root)
+        .map_err(|error| CommandError::incomplete(error.to_string()))?;
+    Ok((
+        Arc::new(fallback),
+        vec![
+            "Blueprint was not provided. Audit continued with its own read-only repository inventory. Use Membrane as context engine and provide a fresh Blueprint packet for richer context."
+                .into(),
+        ],
+    ))
 }
 
 fn read_provider_plan(

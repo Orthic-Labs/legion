@@ -1,8 +1,10 @@
 use serde::{Deserialize, Serialize};
+use sha2::{Digest, Sha256};
 use std::{
     collections::BTreeSet,
     path::{Path, PathBuf},
 };
+use walkdir::{DirEntry, WalkDir};
 
 use crate::{error::AuditError, integrity::digest};
 
@@ -30,6 +32,12 @@ pub struct InventoryEnvelope {
 
 pub trait BlueprintInventorySource: Send + Sync {
     fn inventory(&self, repository_id: &str) -> Result<InventoryEnvelope, AuditError>;
+}
+
+/// Audit-owned read-only repository inventory used when Blueprint is absent.
+#[derive(Clone, Debug)]
+pub struct FilesystemInventorySource {
+    root: PathBuf,
 }
 
 /// Read-only source for a host-published Membrane Blueprint audit projection.
@@ -63,6 +71,91 @@ struct BlueprintPacket {
 
 pub type BlueprintSource = dyn BlueprintInventorySource;
 pub type InventorySnapshot = InventoryEnvelope;
+
+impl FilesystemInventorySource {
+    pub fn new(root: impl AsRef<Path>) -> Result<Self, AuditError> {
+        let root = std::fs::canonicalize(root.as_ref()).map_err(|error| {
+            AuditError::Invalid(format!("could not resolve Audit root: {error}"))
+        })?;
+        if !root.is_dir() {
+            return Err(AuditError::Invalid("Audit root must be a directory".into()));
+        }
+        Ok(Self { root })
+    }
+
+    pub fn root(&self) -> &Path {
+        &self.root
+    }
+}
+
+impl BlueprintInventorySource for FilesystemInventorySource {
+    fn inventory(&self, repository_id: &str) -> Result<InventoryEnvelope, AuditError> {
+        let mut entries = Vec::new();
+        let walker = WalkDir::new(&self.root)
+            .follow_links(false)
+            .into_iter()
+            .filter_entry(included_entry);
+        for entry in walker {
+            let entry = entry.map_err(|error| {
+                AuditError::Invalid(format!("could not inventory repository: {error}"))
+            })?;
+            if entry.depth() == 0 {
+                continue;
+            }
+            let file_type = entry.file_type();
+            if !file_type.is_file() && !file_type.is_symlink() {
+                continue;
+            }
+            let relative = entry.path().strip_prefix(&self.root).map_err(|error| {
+                AuditError::Invalid(format!("inventory path escaped Audit root: {error}"))
+            })?;
+            let path = relative.to_string_lossy().replace('\\', "/");
+            let bytes = if file_type.is_symlink() {
+                std::fs::read_link(entry.path())
+                    .map_err(|error| {
+                        AuditError::Invalid(format!(
+                            "could not read inventory symlink {}: {error}",
+                            entry.path().display()
+                        ))
+                    })?
+                    .to_string_lossy()
+                    .into_owned()
+                    .into_bytes()
+            } else {
+                std::fs::read(entry.path()).map_err(|error| {
+                    AuditError::Invalid(format!(
+                        "could not read inventory file {}: {error}",
+                        entry.path().display()
+                    ))
+                })?
+            };
+            entries.push(InventoryEntry {
+                path,
+                symbols: Vec::new(),
+                dependencies: Vec::new(),
+                digest: Some(format!("sha256:{:x}", Sha256::digest(bytes))),
+            });
+        }
+        entries.sort_by(|left, right| left.path.cmp(&right.path));
+        let content_digest = legion_contracts::canonical_digest(&entries)
+            .map_err(|error| AuditError::Invalid(error.to_string()))?;
+        InventoryEnvelope::new(
+            repository_id,
+            format!("filesystem:{content_digest}"),
+            entries,
+        )
+    }
+}
+
+fn included_entry(entry: &DirEntry) -> bool {
+    if !entry.file_type().is_dir() || entry.depth() == 0 {
+        return true;
+    }
+    !matches!(
+        entry.file_name().to_str(),
+        Some(".git" | ".audit" | "node_modules" | "target")
+    )
+}
 
 impl FileBlueprintInventorySource {
     pub fn new(
@@ -348,5 +441,29 @@ mod tests {
             Err(AuditError::SourceDrift(message)) if message.contains("non-canonical path")
         ));
         std::fs::remove_file(path).unwrap();
+    }
+
+    #[test]
+    fn filesystem_source_is_deterministic_and_detects_content_drift() {
+        let root = std::env::temp_dir().join(format!(
+            "legion-filesystem-inventory-{}",
+            std::process::id()
+        ));
+        let _ = std::fs::remove_dir_all(&root);
+        std::fs::create_dir_all(root.join("src")).unwrap();
+        std::fs::create_dir_all(root.join(".audit")).unwrap();
+        std::fs::write(root.join("src/lib.rs"), "fn one() {}\n").unwrap();
+        std::fs::write(root.join(".audit/report.json"), "ignored").unwrap();
+        let source = FilesystemInventorySource::new(&root).unwrap();
+        let first = source.inventory("repo").unwrap();
+        let repeated = source.inventory("repo").unwrap();
+        assert_eq!(first, repeated);
+        assert_eq!(first.paths().collect::<Vec<_>>(), ["src/lib.rs"]);
+
+        std::fs::write(root.join("src/lib.rs"), "fn two() {}\n").unwrap();
+        let changed = source.inventory("repo").unwrap();
+        assert_ne!(first.generation, changed.generation);
+        assert_ne!(first.digest, changed.digest);
+        std::fs::remove_dir_all(root).unwrap();
     }
 }
