@@ -70,4 +70,68 @@ fn native_rules_evaluate_blueprint_bound_source() {
         result["providerResult"]["coverage"]["denominator_digest"],
         result["inventoryDigest"]
     );
+
+    let result_path = root.join("rule-result.json");
+    std::fs::write(&result_path, &output.stdout).unwrap();
+    let plan = serde_json::json!({
+        "providers": [{
+            "schemaVersion": 2,
+            "id": "native.security.rules",
+            "providerVersion": "1",
+            "family": "security",
+            "lensIds": [],
+            "role": "deterministic",
+            "phase": "source",
+            "dependsOn": [],
+            "consumes": ["blueprint-packet"],
+            "produces": ["provider-result"],
+            "selector": {"op": "all"},
+            "denominatorKind": "blueprint-inventory",
+            "runner": {"kind": "built-in"},
+            "hostCapabilities": [],
+            "execution": {},
+            "reasoning": {},
+            "benchmark": {
+                "status": "qualified",
+                "requiredForCleanClaim": true,
+                "qualificationDigest": "sha256:fixture"
+            },
+            "cleanClaim": "finding-producing",
+            "controlIds": [],
+            "scopes": [],
+            "selectable": true
+        }]
+    });
+    let plan_path = root.join("provider-plan.json");
+    std::fs::write(&plan_path, serde_json::to_vec_pretty(&plan).unwrap()).unwrap();
+    let audit_out = root.join("audit");
+    let audit = Command::new(env!("CARGO_BIN_EXE_legion"))
+        .args([
+            "audit",
+            root.to_str().unwrap(),
+            "--out",
+            audit_out.to_str().unwrap(),
+            "--blueprint-packet",
+            packet_path.to_str().unwrap(),
+            "--expected-generation",
+            "fixture-generation",
+            "--provider-plan",
+            plan_path.to_str().unwrap(),
+            "--provider-result",
+            result_path.to_str().unwrap(),
+        ])
+        .env("AUDIT_PLAN_SIGNING_KEY", "fixture-signing-key")
+        .output()
+        .unwrap();
+    assert_eq!(
+        audit.status.code(),
+        Some(0),
+        "{}",
+        String::from_utf8_lossy(&audit.stderr)
+    );
+    let audit_summary: serde_json::Value = serde_json::from_slice(&audit.stdout).unwrap();
+    assert_eq!(audit_summary["auditStatus"], "findings");
+    assert_eq!(audit_summary["findingCount"], 1);
+    assert!(audit_out.join("report.json").is_file());
+    assert!(audit_out.join("report.sarif").is_file());
 }
