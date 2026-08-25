@@ -2,35 +2,40 @@
 
 **Target:** `PRODUCT-ARCHITECTURE-V2.md`
 **Mode:** hard cut after bounded qualification; no indefinite dual runtime
-**Primary optimization:** lowest practical system strain with one-shot installation and strong AX
+**Primary optimization:** lowest practical system strain with one machine install and strong AX
 
 ## 1. Disposition of previous plan
 
-Previous core-port work remains useful, but its host/runtime/product cutover is frozen pending this revision.
+Previous core-port work remains useful, but old host/runtime/product cutover contracts are retired.
 
 | Previous area | Disposition |
 |---|---|
 | executable inventory and algorithm/data classification | retain and refresh against current `main` |
 | contracts, catalog, policy, rules, Audit, Research, review Rust ports | retain where behavior matches v2 contracts |
 | one effect executor | retain with clarified external-project-tool boundary |
-| descriptor-driven host engine | retire; Agent Plugins 1.0 is portable host contract |
-| CLI/hook/MCP binaries as equal target adapters | make native Rust MCP server portable runtime; CLI remains standalone/CI |
-| npm/plugin root cutover | replace with one Agent Plugins package validated by RightKit AX |
+| descriptor-driven host engine | retire; thin mechanical integration adapters replace it |
+| CLI/hook/MCP binaries as equal target adapters | one Rust runtime; CLI and MCP share core |
+| npm/plugin-root cutover | replace with machine package plus `legion setup` |
+| per-client embedded native binary | remove; one installed executable per machine/platform architecture |
+| Agent Plugins as universal installer | remove; keep as preferred portable integration contract |
 | Blueprint as global Audit gate | remove; use optional typed capability degradation |
-| “always-on orchestrator” language | remove; Legion is always available and lazily active |
-| immediate Node/Python deletion | defer until installed-product qualification and absence proof |
+| always-on orchestrator language | remove; Legion is available and lazily active |
+| immediate Node/Python deletion | defer until signed installed-product qualification and absence proof |
 
-Existing L10, L15, L17, L18, L19, and L20 dispatches must not execute unchanged. Other dispatches require contract-delta review before reuse.
+Existing L10, L15, L17, L18, L19, and L20 dispatches must not execute unchanged. Other legacy
+dispatches require contract-delta review before reuse.
 
 ## 2. Migration principles
 
-1. Prove one complete installed vertical slice before porting breadth.
-2. Keep core semantics host-neutral; use hosts only as conformance fixtures.
-3. Use Agent Plugins skills + one reusable client-owned native MCP server; no Legion-specific transport.
-4. Keep shipped runtime Rust-only; leave dev-only test/build languages alone.
-5. Never delete legacy runtime before signed installed artifacts pass Mac and Windows qualification.
-6. Switch once, verify absence, then remove compatibility code and stale registrations.
-7. Preserve current Legion and Membrane worktrees; migration integration owns Legion only.
+1. Prove install -> setup -> discover -> launch -> invoke -> receipt before porting breadth.
+2. Keep Legion semantics in Rust/declarative assets; adapters remain mechanical.
+3. Treat Agent Plugins as preferred integration format, not installer or client-support definition.
+4. Install one native executable; allow one reusable stdio MCP subprocess per active client.
+5. Keep shipped runtime Rust-only; leave development-only test/build languages alone.
+6. Preserve one canonical owner for state, assets, tool schemas, and release identity.
+7. Never delete legacy runtime before signed Mac and Windows installed qualification.
+8. Switch once, verify absence, then remove compatibility code and stale registrations.
+9. Preserve Membrane worktree; migration integration owns Legion only.
 
 ## 3. Workstreams
 
@@ -38,23 +43,32 @@ Existing L10, L15, L17, L18, L19, and L20 dispatches must not execute unchanged.
 
 Outputs:
 
-- current executable/runtime inventory;
-- current host-surface inventory;
+- current executable/runtime and host-surface inventories;
 - algorithm/data/dev-only/runtime disposition for every Node/Python path;
-- Agent Plugins 1.0 packaging disposition;
-- MCP tool and runtime contract;
-- client-extension dependency audit;
-- RightKit AX/spec discrepancy disposition for non-skill directories under `skills/`;
-- AX and strain benchmark protocol;
-- revised file ownership map.
+- canonical capability, policy, receipt, Audit, and Research semantic freeze;
+- Supported Client Profile and fidelity matrix;
+- official Pi integration path;
+- setup adapter contract for detection, install, repair, disable, removal, and verification;
+- Agent Plugins package contract with required `$schema` and bare-command behavior;
+- executable-resolution proof method for each client launch environment;
+- release-binding manifest and runtime handshake contract;
+- persistent-state ownership, schema, lease, migration, snapshot, and rollback contract;
+- macOS Homebrew form decision—formula/bottle, cask, or tap—from measured release mechanics;
+- Windows WinGet portable/alternative package disposition;
+- exact RightKit AX version and source-commit pin;
+- RightKit/spec discovery discrepancy disposition;
+- AX, process, and strain benchmark protocol;
+- narrow `LEGION-CANONICAL-SSOT.md` authority correction;
+- revised file-ownership map.
 
 Gate:
 
-- every shipped executable path classified;
-- previous-plan contract contradictions identified;
-- Legion packaged plugin root is distinct from mixed-purpose source layout;
-- RightKit AX hard gate matches Agent Plugins 1.0 discovery semantics;
-- no implementation dispatch uses stale L10/L15/L17 assumptions.
+- every shipped executable and state root is classified;
+- one normative owner exists for target topology and semantics;
+- no adapter may own Legion semantics;
+- package/install choice preserves signing, provenance, update, rollback, and command discovery;
+- current RightKit pin provides clean-room static, conformance, behavioral, adversarial, and real-client matrix evidence;
+- no implementation uses stale descriptor-host, embedded-binary, or per-client-install assumptions.
 
 ### M1 — Native core vertical slice
 
@@ -64,130 +78,151 @@ Implement minimum Rust path needed to demonstrate product shape:
 load release manifest
 -> load compact catalog
 -> return Legion status/version
--> execute one deterministic tool
--> apply one policy decision
+-> execute one deterministic capability
+-> apply one Arcane policy decision
 -> emit one typed result and receipt
+-> serve same surface over stdio MCP
 ```
 
-Do not port every capability first.
-
 Gate:
 
-- same core API callable through MCP and standalone CLI;
+- same core API works through MCP and standalone CLI;
+- MCP handshake verifies runtime/catalog/tool-schema/declarative-asset identity;
+- mismatched binding fails closed with exact repair instruction;
 - no internal Node/Python/self-spawn;
-- lazy asset loading demonstrated.
+- lazy asset loading is demonstrated.
 
-### M2 — Agent Plugins product package
+### M2 — Portable integration package and adapters
 
-Use existing RightKit AX to build and validate:
+Build one Agent Plugins 1.0 package containing:
 
-- Agent Plugins 1.0 `plugin.json`;
-- canonical `skills/` tree with complete reference closure;
-- `mcp.json` pointing to packaged Rust stdio server;
-- client-owned `${PLUGIN_DATA}` state contract;
+- valid `plugin.json` and `mcp.json` with canonical `$schema` values;
+- canonical `skills/` with complete reference closure;
+- `command: "legion"` plus `serve --stdio` arguments;
+- release-binding manifest, identities, schemas, and declarative assets;
 - optional reverse-domain extension directories;
-- strict MCP tool schemas, typed errors, effects, claim boundaries, and bounded results;
-- packaged-artifact conformance, behavioral, and adversarial evidence.
+- strict MCP schemas, typed errors, effect declarations, claim boundaries, and bounded results.
 
-Use two compatible clients as conformance fixtures. Both consume same plugin directory without repackaging.
-
-Gate:
-
-- both clients expose identical Legion release, capability, and tool identities;
-- plugin install, skill discovery, MCP start, tool invocation, cancellation, and shutdown pass;
-- client-specific extensions remain optional and cannot own portable behavior.
-
-### M3 — Client-native installation and AX
-
-Integrate with client-native Agent Plugin installation before broad porting:
-
-- publish one self-contained plugin artifact;
-- install through each reference client's marketplace/CLI/plugin UI;
-- let client own scope, cache, enablement, trust prompts, reload, update, disable, and uninstall;
-- validate asset/reference closure with RightKit AX;
-- verify packaged Mac and Windows native commands;
-- expose concise `legion.status` runtime diagnostics;
-- record client-specific fidelity separately from portable conformance.
+Implement thin adapters for two independent agent clients. Use each client's highest-fidelity
+supported mechanism without embedding or duplicating Legion semantics.
 
 Gate:
 
-- one explicit native action installs Legion into each client;
-- later client launches recognize Legion without setup;
-- no project edit required;
-- broken/missing symlink and junction fixtures fail plugin validation or component loading;
-- plugin failure cannot corrupt unrelated client configuration.
+- portable package contains no platform executable;
+- both clients expose identical release, capability, and tool identities;
+- actual client environments prove bare-command lookup or use supported exact-path registration;
+- skill discovery, MCP start, invocation, cancellation, restart, and shutdown pass;
+- client-native bridge, if required, remains mechanically inspectable and semantic-free;
+- RightKit pinned clean-room conformance, behavioral, and adversarial gates pass.
+
+### M3 — Machine installation, `legion setup`, and AX
+
+Implement and qualify:
+
+- native signed macOS and Windows runtime artifacts;
+- chosen Homebrew and WinGet installation paths;
+- `legion setup` detection, fidelity display, selection, install, and verification;
+- preference for supported client-native lifecycle APIs;
+- transactional fallback config mutation with preview, confirmation, backup, and rollback;
+- `setup --dry-run`, status, repair, disable, remove, and explicit state purge;
+- release-binding refresh across every selected integration;
+- state locks, runtime leases, snapshot migration, atomic rollback, and interrupted recovery;
+- concise `legion status` and `legion setup status` diagnostics.
+
+Gate:
+
+- fresh machine install plus one setup flow enables Legion in two independent clients;
+- later launches recognize Legion without project edits or manual config archaeology;
+- PATH-sanitized and stale-PATH fixtures do not produce false Full support;
+- update cannot mix runtime, plugin assets, catalogs, or schemas;
+- repair restores damaged projection without touching unrelated client configuration;
+- disable/remove are reversible; purge targets verified Legion-owned state only;
+- Mac and Windows installed flows pass before broad porting resumes.
 
 ### M4 — Core capability migration
 
 Port in dependency order:
 
-1. contracts, catalog, policy model, policy evaluator;
-2. runtime/work graph and receipts;
-3. provider SDK and declarative rules;
-4. Audit planning, providers, reconciliation, reporting;
-5. Research evidence and provider interfaces;
+1. contracts, catalog, policy model, and policy evaluator;
+2. runtime/work graph, state compatibility, and receipts;
+3. provider SDK and declarative rule engine;
+4. Audit planning, providers, reasoning lenses, reconciliation, and reports;
+5. Research evidence ledger and provider interfaces;
 6. review, completion validation, handoff, dispatch, architecture, and remaining workflows;
 7. standalone CLI/CI/hook surfaces sharing core APIs.
 
-Each capability must pass through installed host integration, not only direct crate tests.
+Each capability passes through installed client integration, not only crate tests.
 
 Blueprint behavior:
 
-- Blueprint available: consume host/Membrane packet through typed source;
-- Blueprint unavailable: continue applicable work, record recommendation and exact lost structural coverage;
-- Blueprint method explicitly requested: return provider-level typed degradation if unavailable;
-- never crash, abort unrelated providers, or silently substitute an ad-hoc graph.
+- available: consume Membrane/Blueprint packet through typed interface;
+- unavailable: continue applicable work and record exact structural-coverage loss;
+- explicitly required Blueprint operation: provider-level typed degradation;
+- never abort unrelated providers, crash, or silently substitute ad-hoc graph.
 
 ### M5 — Provider and external-tool boundary
 
-Classify each provider as declarative rule, Rust algorithm, optional Blueprint evidence, host service, or external project tool.
+Classify every provider as declarative rule, Rust algorithm, optional Blueprint evidence, host
+service, or external project tool.
 
 Gate:
 
 - no unknown provider owner;
 - no provider returns empty success after unavailability;
+- selected reasoning-provider denominator is frozen and reconciled;
 - every external executable request is typed, bounded, policy-evaluated, and receipt-backed;
-- Audit and Research complete with truthful degradation when optional host services are absent.
+- Audit and Research complete with truthful degradation when optional services are absent.
 
 ### M6 — Installed-product qualification
 
-Qualify signed artifacts through compatible clients:
+Qualify exact signed release artifacts:
 
-- Mac install, first launch, repeated launch, tool use, update, disable, uninstall;
+- macOS install, setup, first/repeated launch, update, repair, disable, remove, rollback;
 - Windows equivalent;
-- same Agent Plugin loaded by two reference clients;
+- two independent agent clients with same semantic release;
+- Full, Degraded, Baseline, and Unavailable client behavior;
 - Audit end to end with and without Blueprint;
-- Research end to end with evidence ledger and external source use;
-- cancellation, timeout, crash, stale cache, version mismatch, partial config, junction, and missing-target faults;
+- Research end to end with evidence ledger and real external-source use;
+- command resolution, permission denial/revocation, cancellation, crash, restart, timeout;
+- stale integration, runtime/asset mismatch, missing target, junction, and damaged cache;
+- N-1 -> N migration, interruption, N -> N-1 rollback, uninstall/reinstall, corruption;
+- concurrent active clients and active-work update behavior;
 - strain benchmark against current Node release and same client without Legion.
 
 Gate:
 
 - signed installed artifact passes; source checkout success is insufficient;
-- no repeated Legion process births during normal repeated operations;
-- no idle daemon;
-- exact capability/tool/version agreement across tested clients;
-- AX acceptance scenarios pass without manual dotfile edits.
+- runtime provenance, capability-catalog hash, MCP tool-schema hash, and asset hash reconcile;
+- one MCP subprocess per active client is reusable and client-owned;
+- no per-tool Legion runtime births or idle daemon;
+- Mac/Windows and cross-client semantic identities match;
+- AX scenarios pass without manual dotfile edits;
+- rollback restores compatible state and integrations atomically.
 
 ### M7 — Hard cut
 
 Cut sequence:
 
-1. publish signed native Agent Plugin release candidate privately;
-2. install same artifact through reference clients;
-3. switch canonical marketplace/package entry to native plugin;
-4. run post-switch client-loaded verification;
-5. remove Node/Python runtime entrypoints using refreshed exact ledger;
-6. remove npm runtime package, Node MCP server, Python product scripts, legacy shims, stale plugin cache routes, and duplicate registrations;
-7. update canonical docs and release claims;
-8. prove losing routes and emitted variants absent;
-9. publish signed release.
+1. publish private signed machine-runtime and portable-integration release candidate;
+2. install through qualified Homebrew and WinGet paths;
+3. run `legion setup` against both reference clients per platform;
+4. verify installed release bindings and complete Audit/Research workflows;
+5. switch canonical distribution and setup metadata to native release;
+6. remove Node/Python runtime entrypoints using refreshed exact ledger;
+7. remove npm runtime package, Node MCP server, Python product scripts, legacy shims, stale caches, and duplicate registrations;
+8. update canonical docs and release claims;
+9. prove losing routes, source-checkout/PATH fallbacks, and emitted variants absent;
+10. publish signed release.
 
-Rollback uses client-native plugin version rollback or reinstalls previous signed plugin. It does not create indefinite dual execution.
+Rollback reinstalls previous signed machine runtime, restores pre-upgrade state snapshot, and restores
+matching client integrations. It does not create indefinite dual execution.
+
+GitHub governance and local release-gate enforcement must be complete before destructive hard cut;
+they do not block M0/M1 architecture or vertical-slice work.
 
 ### M8 — Post-cut cleanup
 
-- retain Node/Python only for explicitly classified development tooling;
+- retain Node/Python only for classified development tooling;
 - remove migration-only compatibility code and flags;
 - archive parity corpus and qualification receipts;
 - measure first production sessions;
@@ -197,73 +232,93 @@ Rollback uses client-native plugin version rollback or reinstalls previous signe
 
 ### V1 — One-shot first use
 
-Fresh Mac or Windows machine has a compatible client. User selects Install Legion once in that client, confirms client-required trust/permissions, then sees Legion skills plus native tools without repository setup or manual configuration. Same artifact installs unchanged in a second compatible client through that client's own install action.
+Fresh Mac or Windows machine installs Legion through chosen native package manager, runs
+`legion setup`, selects an agent client, confirms proposed changes, and receives discovered skills
+plus native tools without repository setup.
 
-### V2 — Quiet idle
+### V2 — Two independent clients
 
-No client is open. Legion runs no process. Client loads installed skills without loading full capability bodies. MCP lifecycle follows client behavior and is measured explicitly.
+Setup enables two different agent clients. Both invoke same installed runtime and expose same
+release/capability/tool identities through their highest-fidelity supported mechanisms.
 
-### V3 — Repeated tool use
+### V3 — Quiet idle and repeated work
 
-One client session invokes multiple Legion operations. One native MCP server handles them; Legion creates no per-tool child runtime.
+No client open means no Legion process. Each active client owns at most one reusable Legion MCP
+subprocess for repeated calls; multiple active clients may own separate processes.
 
-### V4 — Unsupported client
+### V4 — Command resolution failure
 
-Client without Agent Plugins support is reported unsupported. Legion does not write custom configuration or claim portability. Temporary compatibility shim, if retained during migration, has expiry and no semantic ownership.
+Agent Plugins package is valid but client cannot resolve bare `legion`. Setup uses supported native
+exact-path registration or reports Degraded/Unavailable with exact remediation; it never claims Full.
 
-### V5 — Blueprint absent
+### V5 — Skills-only client
 
-Audit runs every applicable provider, completes reports, marks structural coverage limits, and recommends Membrane/Blueprint without treating absence as global failure.
+Client exposes Baseline skills only. Legion does not claim Arcane enforcement, Audit execution,
+Research execution, or native tool access.
 
-### V6 — Damaged projection
+### V6 — Blueprint absent
 
-An installed asset link is missing or stale. RightKit AX rejects release artifact before publication; a client encountering later damage isolates failing component and reports it without disabling valid siblings.
+Audit runs every applicable provider, completes reports, records structural-coverage limits, and
+recommends Membrane/Blueprint without global failure.
 
-### V7 — Upgrade and rollback
+### V7 — Damaged or mismatched integration
 
-Client update replaces one versioned plugin package. Plugin never points outside its root or mixes core, assets, schemas, and binaries from different versions. Client-native rollback or reinstall restores previous signed version.
+Missing asset, junction escape, stale catalog, or runtime/schema mismatch is isolated, reported,
+and repaired transactionally. No source-checkout fallback or silent mixed-version execution occurs.
 
-### V8 — Complete removal
+### V8 — State migration and rollback
 
-Client-native uninstall removes installed Legion plugin and its registration while preserving unrelated settings and repositories. Client may remove or retain `${PLUGIN_DATA}` according to its documented policy.
+N-1 state migrates under exclusive lock with pre-upgrade snapshot. Interruption restores previous
+generation. Rollback restores N-1 runtime, integrations, and state after incompatible leases close.
+
+### V9 — Complete removal
+
+`legion setup remove` removes selected integrations and preserves unrelated config. Package-manager
+uninstall removes runtime. State remains unless user explicitly requests verified purge.
 
 ## 5. Evidence required before legacy deletion
 
 - executable inventory with zero unknown runtime item;
-- Agent Plugins and RightKit AX conformance reports;
-- client-native install/enablement results;
-- asset closure and link-target verification;
-- client-loaded capability/tool/version inventories;
-- Mac and Windows end-to-end results;
+- signed runtime artifact digest/provenance per platform and architecture;
+- capability-catalog, MCP tool-schema, and declarative-asset hashes;
+- pinned RightKit AX reports from clean-room artifacts and real-client matrix;
+- package-manager install/update/rollback/removal evidence;
+- setup dry-run/install/repair/disable/remove evidence;
+- per-client executable-resolution and fidelity evidence;
+- Mac/Windows semantic-equivalence results;
 - Blueprint-present and Blueprint-absent Audit reports;
-- Research end-to-end ledger and artifacts;
-- process-count and strain measurements;
-- update, disable, rollback, and uninstall results;
-- absence scan for losing entrypoints, imports, package dependencies, registrations, caches, documentation, and protocol variants;
-- independent completion validation against current user scope.
+- Research evidence ledger and artifacts;
+- process-tree and strain measurements;
+- state upgrade/rollback/concurrency matrix;
+- permission denial/revocation and degraded-client results;
+- absence scan for losing entrypoints, imports, package dependencies, registrations, caches,
+  source-checkout/PATH fallback, documentation, and protocol variants;
+- independent Completion Validation against current user scope.
 
-## 6. Revised execution order
+## 6. Execution order
 
 ```text
 M0 contracts + inventory
   -> M1 minimal native vertical slice
-  -> M2 Agent Plugins package + two client conformance fixtures
-  -> M3 client-native install + RightKit AX lifecycle
+  -> M2 portable package + two client adapters
+  -> M3 machine install + legion setup + state lifecycle
   -> M4/M5 capability and provider migration
   -> M6 signed installed-product qualification
   -> M7 hard cut + legacy deletion
   -> M8 cleanup and production observation
 ```
 
-Parallel work begins only after M0 freezes file ownership and contracts. M4 capability families may run concurrently; M2, M3, M6, and M7 each retain one integration owner.
+Broad Audit/Research porting does not resume before M1–M3 prove actual product lifecycle. Parallel
+work begins only after M0 freezes ownership and contracts. M4 capability families may run
+concurrently; M2, M3, M6, and M7 each retain one integration owner.
 
 ## 7. Immediate next actions
 
-1. Freeze old host/cutover dispatches.
-2. Refresh L00 inventory at current Legion `main` without touching Membrane.
-3. Replace old host contracts with Agent Plugins 1.0 + MCP + client-extension boundaries.
-4. Use RightKit AX as existing packaging and AX authority; do not rebuild it in Legion.
-5. Select two compatible clients solely for conformance coverage.
-6. Implement M1–M3 vertical slice before resuming broad port work.
-7. Measure it against current Node runtime.
-8. Resume reusable Rust ports only after vertical slice proves product topology.
+1. Freeze stale host/cutover dispatches.
+2. Refresh runtime, host, state, and integration inventories at current Legion `main`.
+3. Land narrow canonical SSOT authority correction.
+4. Freeze Supported Client Profile, Pi path, setup adapters, state, release binding, and package forms.
+5. Pin RightKit AX qualification implementation and reconcile remaining spec discrepancy.
+6. Implement M1–M3 vertical slice before broad capability porting.
+7. Measure installed lifecycle against current Node runtime.
+8. Resume reusable Rust ports only after product topology passes.

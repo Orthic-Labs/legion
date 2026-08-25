@@ -398,10 +398,13 @@ HOST-SPECIFIC
 .claude/**, .codex/**, .gemini/**, AGENTS.md, plugin packages
 ```
 
-The host/runtime integration behavior delivered at the frozen baseline is preserved: descriptor-
-driven host seam, canonical public-membership consumption, collision-safe/reversible install,
-truthful host fidelity, adapter detection behavior, legacy-writer quarantine, and
-conformance/safety guarantees. The host layer does not define the canonical capability ontology.
+Canonical semantic ownership defined by this SSOT remains authoritative. For target product
+topology, machine installation, portable host integration, client fidelity, and runtime lifecycle,
+`migration/native-rust/PRODUCT-ARCHITECTURE-V2.md` supersedes the frozen descriptor-driven host
+seam. Thin target adapters preserve collision-safe/reversible installation, truthful fidelity,
+legacy-writer quarantine, and conformance/safety guarantees without preserving descriptor-driven
+semantic hosting. Legacy `.claude`, `.codex`, `.gemini`, and equivalent projections are
+migration/compatibility surfaces only and have no target-runtime semantic authority.
 
 Host projection may be deliberately lossy for compatibility: source `kind=capability` +
 `discoverability=public` projects as a public projectable capability row (using the legacy
