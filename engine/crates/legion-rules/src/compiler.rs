@@ -1,9 +1,9 @@
 use crate::{
     error::{Result, RuleError},
     lexical::LexicalEngine,
-    schema::{AnalysisRulePack, BlueprintSelector, RuleClass, RuleKind},
+    schema::{AnalysisRulePack, BlueprintSelector, NativePackManifest, RuleClass, RuleKind},
 };
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 
 #[derive(Clone, Debug)]
 pub struct CompiledRules {
@@ -108,6 +108,67 @@ impl RuleCompiler {
         let pack: AnalysisRulePack = serde_json::from_str(input)
             .map_err(|error| RuleError::InvalidPack(error.to_string()))?;
         Self::compile(pack)
+    }
+
+    pub fn compile_manifest(
+        manifest: NativePackManifest,
+    ) -> Result<BTreeMap<String, CompiledRules>> {
+        if manifest.schema_version != 1
+            || manifest.kind != "legion-native-pack-manifest"
+            || manifest.repository.trim().is_empty()
+            || manifest.packet_id.trim().is_empty()
+            || manifest.baseline_commit.trim().is_empty()
+            || manifest.engine_contract != "rust-regex-1"
+        {
+            return Err(RuleError::InvalidPack(
+                "native pack manifest identity is invalid".into(),
+            ));
+        }
+        let class_a = manifest
+            .packs
+            .iter()
+            .filter(|pack| pack.class == RuleClass::A)
+            .count();
+        let class_b = manifest
+            .packs
+            .iter()
+            .filter(|pack| pack.class == RuleClass::B)
+            .count();
+        let rule_count = manifest
+            .packs
+            .iter()
+            .map(|pack| pack.rules.len())
+            .sum::<usize>();
+        if class_a != manifest.class_a
+            || class_b != manifest.class_b
+            || rule_count != manifest.rule_count
+        {
+            return Err(RuleError::InvalidPack(
+                "native pack manifest counts do not reconcile".into(),
+            ));
+        }
+        let mut compiled = BTreeMap::new();
+        for pack in manifest.packs {
+            if pack.engine_contract != manifest.engine_contract {
+                return Err(RuleError::InvalidPack(format!(
+                    "pack {} uses a different engine contract",
+                    pack.pack_id
+                )));
+            }
+            let pack_id = pack.pack_id.clone();
+            if compiled.insert(pack_id.clone(), Self::compile(pack)?).is_some() {
+                return Err(RuleError::InvalidPack(format!(
+                    "duplicate native pack id: {pack_id}"
+                )));
+            }
+        }
+        Ok(compiled)
+    }
+
+    pub fn compile_manifest_json(input: &str) -> Result<BTreeMap<String, CompiledRules>> {
+        let manifest: NativePackManifest = serde_json::from_str(input)
+            .map_err(|error| RuleError::InvalidPack(error.to_string()))?;
+        Self::compile_manifest(manifest)
     }
 }
 

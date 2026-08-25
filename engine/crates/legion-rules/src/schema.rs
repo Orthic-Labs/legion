@@ -5,6 +5,22 @@ use crate::error::{Result, RuleError};
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct NativePackManifest {
+    pub schema_version: u32,
+    pub kind: String,
+    pub repository: String,
+    pub packet_id: String,
+    pub baseline_commit: String,
+    pub engine_contract: String,
+    pub class_a: usize,
+    pub class_b: usize,
+    pub class_c_excluded: usize,
+    pub rule_count: usize,
+    pub packs: Vec<AnalysisRulePack>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct AnalysisRulePack {
     pub schema_version: u32,
     pub kind: String,

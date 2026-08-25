@@ -70,6 +70,24 @@ fn audit_required_fields_are_explicit_in_fixture() {
 }
 
 #[test]
+fn native_class_a_pack_manifest_compiles_exactly() {
+    let manifest = std::fs::read_to_string(
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../packs/native/manifest.v1.json"),
+    )
+    .unwrap();
+    let compiled = legion_rules::RuleCompiler::compile_manifest_json(&manifest).unwrap();
+    assert_eq!(compiled.len(), 11);
+    assert_eq!(
+        compiled
+            .values()
+            .filter_map(|pack| pack.lexical.as_ref())
+            .count(),
+        11
+    );
+}
+
+#[test]
 fn plan_requires_provider_and_signature() {
     let inventory = legion_audit::InventoryEnvelope::new("fixture", "generation", Vec::new())
         .expect("fixture inventory");
