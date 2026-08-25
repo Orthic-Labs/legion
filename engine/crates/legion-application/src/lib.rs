@@ -538,20 +538,18 @@ impl VersionedApplicationConfig {
             .map(|provider| provider.definition.id.clone());
         let profile = legion_runtime::AgentProfile::new(self.profile)
             .map_err(|error| NativeApplicationError::Configuration(error.to_string()))?;
-        let inventory_source: Arc<dyn BlueprintInventorySource> =
-            if let Some(packet_path) = self.blueprint_packet_path {
-                Arc::new(
-                    FileBlueprintInventorySource::new(
-                        packet_path,
-                        self.blueprint_expected_generation,
-                    )
+        let inventory_source: Arc<dyn BlueprintInventorySource> = if let Some(packet_path) =
+            self.blueprint_packet_path
+        {
+            Arc::new(
+                FileBlueprintInventorySource::new(packet_path, self.blueprint_expected_generation)
                     .map_err(NativeApplicationError::Audit)?,
-                )
-            } else {
-                Arc::new(StaticInventorySource {
-                    snapshots: self.inventory,
-                })
-            };
+            )
+        } else {
+            Arc::new(StaticInventorySource {
+                snapshots: self.inventory,
+            })
+        };
         let results = self
             .providers
             .iter()

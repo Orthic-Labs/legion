@@ -319,7 +319,10 @@ mod tests {
         let source = FileBlueprintInventorySource::new(&path, Some("generation-1".into())).unwrap();
         let inventory = source.inventory("repo").unwrap();
         assert_eq!(inventory.generation, "generation-1");
-        assert_eq!(inventory.paths().collect::<Vec<_>>(), ["src/a.rs", "src/b.rs"]);
+        assert_eq!(
+            inventory.paths().collect::<Vec<_>>(),
+            ["src/a.rs", "src/b.rs"]
+        );
         std::fs::remove_file(path).unwrap();
     }
 
