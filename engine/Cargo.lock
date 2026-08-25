@@ -992,6 +992,7 @@ dependencies = [
  "legion-effects",
  "legion-host",
  "legion-policy-model",
+ "legion-rules",
  "serde_json",
  "sha2",
 ]
