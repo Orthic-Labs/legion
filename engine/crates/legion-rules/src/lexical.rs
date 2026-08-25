@@ -126,11 +126,17 @@ impl LexicalEngine {
             for rule in &self.rules {
                 if !applies(&rule.paths, path)
                     || !rule.required.iter().all(|m| m.is_present(&text))
-                    || rule.negative.iter().any(|m| m.is_present(&text))
                 {
                     continue;
                 }
                 for matched in rule.matcher.regex.find_iter(&text) {
+                    if rule
+                        .negative
+                        .iter()
+                        .any(|matcher| matcher.is_present(matched.as_str()))
+                    {
+                        continue;
+                    }
                     let start = matched.start();
                     let end = matched.end();
                     findings.push(EvidenceSpan::from_text(
@@ -184,4 +190,59 @@ pub fn normalize_path(path: &str) -> String {
         }
     }
     parts.join("/")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::schema::{
+        CompanionSpec, Confidence, CoverageSpec, EvidenceSpec, RuleClass, Severity,
+    };
+
+    #[test]
+    fn negative_companions_apply_to_each_match_not_the_whole_file() {
+        let pack = AnalysisRulePack {
+            schema_version: 1,
+            kind: "analysis-rule-pack".into(),
+            pack_id: "fixture".into(),
+            version: "1".into(),
+            class: RuleClass::A,
+            engine_contract: "rust-regex-1".into(),
+            rules: vec![RuleSpec {
+                id: "unsafe-call".into(),
+                stable_id: "unsafe-call".into(),
+                kind: RuleKind::Lexical,
+                severity: Severity::Warning,
+                confidence: Confidence::Medium,
+                data_class: None,
+                lifecycle: None,
+                paths: Vec::new(),
+                matcher: Some(MatcherSpec {
+                    mode: MatchMode::Regex,
+                    pattern: "(?i)(?:login|reset)\\([^\\n]*".into(),
+                }),
+                companions: CompanionSpec {
+                    required: Vec::new(),
+                    negative: vec![MatcherSpec {
+                        mode: MatchMode::Literal,
+                        pattern: "rateLimit".into(),
+                    }],
+                },
+                evidence: EvidenceSpec::default(),
+                uncertainty: Vec::new(),
+                coverage: CoverageSpec::default(),
+                remediation: None,
+                selector: None,
+                implementation_key: None,
+            }],
+            source_provenance: Default::default(),
+        };
+        let engine = LexicalEngine::compile(&pack).unwrap();
+        let evaluation = engine.evaluate(&[SourceFile::text(
+            "src/auth.rs",
+            "login(user, rateLimit);\nreset(user);\n",
+        )]);
+        assert_eq!(evaluation.findings.len(), 1);
+        assert_eq!(evaluation.findings[0].text, "reset(user);");
+    }
 }
