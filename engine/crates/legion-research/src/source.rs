@@ -50,7 +50,7 @@ impl SourceRecord {
                 )));
             }
         }
-        let actual = self.text.as_bytes().len() as u64;
+        let actual = self.text.len() as u64;
         if actual != self.byte_length {
             return Err(ResearchError::InvalidSource(format!(
                 "byte_length {0} does not match source text length {actual}",

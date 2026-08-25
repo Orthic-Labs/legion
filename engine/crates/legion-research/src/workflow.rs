@@ -174,7 +174,7 @@ impl ResearchWorkflow {
             completed: false,
             detail: None,
         });
-        let providers: Vec<_> = request.source_providers.iter().cloned().collect();
+        let providers = request.source_providers.to_vec();
         for provider_name in &providers {
             if let Err(error) = self.budget.reserve_call(&self.cancellation) {
                 failures.push(SourceFailure {

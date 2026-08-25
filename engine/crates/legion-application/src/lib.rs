@@ -62,6 +62,7 @@ pub enum ReportFormat {
 }
 
 /// Bounded work exposed by the native application seam.
+#[allow(clippy::large_enum_variant)]
 pub enum NativeOperation {
     /// Execute one already-authorized runtime invocation.
     Invoke(Invocation),
