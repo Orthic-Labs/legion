@@ -1,6 +1,6 @@
 use std::{collections::BTreeMap, process::Command};
 
-use legion_audit::InventoryEnvelope;
+use legion_audit::{InventoryEntry, InventoryEnvelope};
 use legion_catalog::Catalog;
 use legion_contracts::{
     AgentDefinition, AgentId, BudgetCeiling, Coverage, PolicyPack, ProviderId, ProviderResult,
@@ -19,8 +19,17 @@ fn configured_audit_writes_reconciled_json_and_sarif() {
     let root = std::fs::canonicalize(root).unwrap();
     let repository_id = root.to_string_lossy().into_owned();
     let provider_id = ProviderId::new("fixture-provider").unwrap();
-    let inventory =
-        InventoryEnvelope::new(&repository_id, "fixture-generation", Vec::new()).unwrap();
+    let inventory = InventoryEnvelope::new(
+        &repository_id,
+        "fixture-generation",
+        vec![InventoryEntry {
+            path: "src/lib.rs".into(),
+            symbols: Vec::new(),
+            dependencies: Vec::new(),
+            digest: None,
+        }],
+    )
+    .unwrap();
     let result = ProviderResult {
         schema_version: 1,
         provider: provider_id.clone(),
@@ -112,10 +121,30 @@ fn configured_audit_writes_reconciled_json_and_sarif() {
         },
         "providerSpecs": [specification],
         "providers": [{"definition": definition, "result": result}],
-        "inventory": [inventory],
+        "blueprintPacketPath": root.join("blueprint-packet.json"),
+        "blueprintExpectedGeneration": "fixture-generation",
         "catalog": Catalog::new(Vec::new()).unwrap(),
         "report": report
     });
+    let packet = serde_json::json!({
+        "schema": "membrane.blueprint-packet.v1",
+        "status": "ready",
+        "state": "ready",
+        "generationId": "fixture-generation",
+        "manifestDigest": format!("sha256:{}", "1".repeat(64)),
+        "sourceObservation": {"kind": "fixture"},
+        "files": ["src/lib.rs"],
+        "fileCount": 1,
+        "sourceFileCount": 1,
+        "parsedExtensions": ["rs"],
+        "unsupportedExtensions": [],
+        "overlay": {"state": "ready", "dirtyTracked": 0, "untracked": 0}
+    });
+    std::fs::write(
+        root.join("blueprint-packet.json"),
+        serde_json::to_vec_pretty(&packet).unwrap(),
+    )
+    .unwrap();
     let config_path = root.join("application.json");
     std::fs::write(&config_path, serde_json::to_vec_pretty(&config).unwrap()).unwrap();
     let out = root.join("out");

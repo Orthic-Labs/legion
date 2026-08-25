@@ -10,7 +10,8 @@ use async_trait::async_trait;
 
 use legion_audit::{
     execute, verify_binding, verify_execution, AuditError, AuditPlan, AuditProvider,
-    BlueprintInventorySource, ExecutionReport, InventoryEnvelope, ProviderExecutor,
+    BlueprintInventorySource, ExecutionReport, FileBlueprintInventorySource, InventoryEnvelope,
+    ProviderExecutor,
 };
 use legion_catalog::{Catalog, CatalogError};
 use legion_contracts::task::RequestEnvelope;
@@ -416,7 +417,12 @@ struct VersionedApplicationConfig {
     policy: PolicyPack,
     provider_specs: Vec<ProviderSpec>,
     providers: Vec<ConfiguredProviderDocument>,
+    #[serde(default)]
     inventory: Vec<InventoryEnvelope>,
+    #[serde(default)]
+    blueprint_packet_path: Option<String>,
+    #[serde(default)]
+    blueprint_expected_generation: Option<String>,
     catalog: Catalog,
     report: ReportV1,
 }
@@ -445,6 +451,18 @@ impl VersionedApplicationConfig {
         self.report
             .validate()
             .map_err(|error| NativeApplicationError::Configuration(error.to_string()))?;
+        let has_static_inventory = !self.inventory.is_empty();
+        let has_blueprint_packet = self.blueprint_packet_path.is_some();
+        if has_static_inventory == has_blueprint_packet {
+            return Err(NativeApplicationError::Configuration(
+                "configure exactly one inventory source: inventory or blueprintPacketPath".into(),
+            ));
+        }
+        if !has_blueprint_packet && self.blueprint_expected_generation.is_some() {
+            return Err(NativeApplicationError::Configuration(
+                "blueprintExpectedGeneration requires blueprintPacketPath".into(),
+            ));
+        }
         for inventory in &self.inventory {
             inventory
                 .validate()
@@ -520,9 +538,20 @@ impl VersionedApplicationConfig {
             .map(|provider| provider.definition.id.clone());
         let profile = legion_runtime::AgentProfile::new(self.profile)
             .map_err(|error| NativeApplicationError::Configuration(error.to_string()))?;
-        let snapshots = StaticInventorySource {
-            snapshots: self.inventory,
-        };
+        let inventory_source: Arc<dyn BlueprintInventorySource> =
+            if let Some(packet_path) = self.blueprint_packet_path {
+                Arc::new(
+                    FileBlueprintInventorySource::new(
+                        packet_path,
+                        self.blueprint_expected_generation,
+                    )
+                    .map_err(NativeApplicationError::Audit)?,
+                )
+            } else {
+                Arc::new(StaticInventorySource {
+                    snapshots: self.inventory,
+                })
+            };
         let results = self
             .providers
             .iter()
@@ -533,7 +562,7 @@ impl VersionedApplicationConfig {
             .with_profile(profile)
             .with_registry(Arc::new(registry))
             .with_policy(Arc::new(CanonicalEffectPolicy { pack: self.policy }))
-            .with_inventory_source(Arc::new(snapshots))
+            .with_inventory_source(inventory_source)
             .with_provider_executor(Arc::new(executor))
             .with_catalog_source(Arc::new(StaticCatalogSource {
                 catalog: self.catalog,

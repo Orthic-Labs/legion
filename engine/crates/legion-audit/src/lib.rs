@@ -16,7 +16,8 @@ pub use error::AuditError;
 pub use execution::{execute, ExecutionReport, ProviderExecution, ProviderExecutor};
 pub use integrity::{canonical_bytes, digest, plan_digest, sign, verify};
 pub use inventory::{
-    BlueprintInventorySource, BlueprintSource, InventoryEntry, InventoryEnvelope, InventorySnapshot,
+    BlueprintInventorySource, BlueprintSource, FileBlueprintInventorySource, InventoryEntry,
+    InventoryEnvelope, InventorySnapshot,
 };
 pub use normalize::{normalize, normalize_all};
 pub use plan::{AuditPlan, AuditProvider, FrozenPlan, ProviderKind};
