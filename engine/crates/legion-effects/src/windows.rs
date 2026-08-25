@@ -20,19 +20,20 @@ use std::{
 };
 
 use tokio::io::AsyncReadExt;
-use tokio_util::sync::CancellationToken;
 use windows_sys::Win32::{
     Foundation::{CloseHandle, GetLastError, SetHandleInformation, HANDLE, HANDLE_FLAG_INHERIT},
     System::{
         Console::{GenerateConsoleCtrlEvent, CTRL_BREAK_EVENT},
+        JobObjects::{
+            AssignProcessToJobObject, CreateJobObjectW, JobObjectExtendedLimitInformation,
+            SetInformationJobObject, TerminateJobObject, JOBOBJECT_BASIC_LIMIT_INFORMATION,
+            JOBOBJECT_EXTENDED_LIMIT_INFORMATION, JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE,
+        },
         Pipes::CreatePipe,
         Threading::{
-            AssignProcessToJobObject, CreateJobObjectW, CreateProcessW, GetExitCodeProcess,
-            JobObjectExtendedLimitInformation, ResumeThread, SetInformationJobObject,
-            TerminateJobObject, CREATE_NEW_PROCESS_GROUP, CREATE_SUSPENDED,
-            CREATE_UNICODE_ENVIRONMENT, JOBOBJECT_BASIC_LIMIT_INFORMATION,
-            JOBOBJECT_EXTENDED_LIMIT_INFORMATION, JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE,
-            PROCESS_INFORMATION, STARTF_USESTDHANDLES, STARTUPINFOW,
+            CreateProcessW, GetExitCodeProcess, ResumeThread, CREATE_NEW_PROCESS_GROUP,
+            CREATE_SUSPENDED, CREATE_UNICODE_ENVIRONMENT, PROCESS_INFORMATION,
+            STARTF_USESTDHANDLES, STARTUPINFOW,
         },
     },
 };
@@ -278,8 +279,7 @@ async fn read_limited(
     output
 }
 
-async fn wait_process(process: HANDLE) -> Result<Option<i32>, EffectError> {
-    let process_value = process as usize;
+async fn wait_process(process_value: usize) -> Result<Option<i32>, EffectError> {
     tokio::task::spawn_blocking(move || {
         let process = process_value as HANDLE;
         unsafe {
@@ -344,41 +344,36 @@ impl PlatformProcess for WindowsProcess {
                 limited.clone(),
                 limit_notify.clone(),
             ));
-            let mut wait = Box::pin(wait_process(child.process.raw()));
-            let mut exit_code = None;
+            let mut wait = Box::pin(wait_process(child.process.raw() as usize));
+            let exit_code;
             let mut timed_out = false;
             let mut cancelled = false;
-            let mut hard_killed = false;
-            let mut tree_terminated = false;
+            let hard_killed;
             let termination = tokio::time::sleep(Duration::from_millis(launch.timeout_ms));
             tokio::pin!(termination);
             tokio::select! {
                 result = &mut wait => {
                     exit_code = result?;
                     hard_killed = terminate_job(&mut child);
-                    tree_terminated = true;
                 }
                 _ = &mut termination => {
                     timed_out = true;
                     request_cooperative_stop(&child);
                     if launch.termination_grace_ms > 0 { tokio::time::sleep(Duration::from_millis(launch.termination_grace_ms)).await; }
-                    hard_killed = terminate_job(&mut child) || hard_killed;
-                    tree_terminated = true;
+                    hard_killed = terminate_job(&mut child);
                     exit_code = wait.await?;
                 }
                 _ = launch.cancellation.cancelled() => {
                     cancelled = true;
                     request_cooperative_stop(&child);
                     if launch.termination_grace_ms > 0 { tokio::time::sleep(Duration::from_millis(launch.termination_grace_ms)).await; }
-                    hard_killed = terminate_job(&mut child) || hard_killed;
-                    tree_terminated = true;
+                    hard_killed = terminate_job(&mut child);
                     exit_code = wait.await?;
                 }
                 _ = limit_notify.notified() => {
                     request_cooperative_stop(&child);
                     if launch.termination_grace_ms > 0 { tokio::time::sleep(Duration::from_millis(launch.termination_grace_ms)).await; }
-                    hard_killed = terminate_job(&mut child) || hard_killed;
-                    tree_terminated = true;
+                    hard_killed = terminate_job(&mut child);
                     exit_code = wait.await?;
                 }
             }
@@ -400,7 +395,7 @@ impl PlatformProcess for WindowsProcess {
                 kill_succeeded: !timed_out && !cancelled && !output_limited || hard_killed,
                 process_tree: ProcessTreeEvidence {
                     started: true,
-                    terminated: tree_terminated,
+                    terminated: true,
                     hard_killed,
                     reaped: true,
                     detail: Some("windows job object".into()),
