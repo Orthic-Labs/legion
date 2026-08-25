@@ -15,7 +15,7 @@ pub fn html(value: &str) -> String {
 
 pub fn markdown(value: &str) -> String {
     let mut output = String::with_capacity(value.len());
-    for character in value.replace('\r', " ").replace('\n', " ").chars() {
+    for character in value.replace(['\r', '\n'], " ").chars() {
         match character {
             '\\' | '`' | '*' | '_' | '[' | ']' | '|' | '#' => {
                 output.push('\\');

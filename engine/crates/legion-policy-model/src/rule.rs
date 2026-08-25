@@ -14,7 +14,7 @@ pub enum RuleDecision {
     Deny,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct RulePredicate {
     pub effect_class: Option<EffectClass>,
@@ -26,22 +26,6 @@ pub struct RulePredicate {
     pub contract: Option<ContractVersion>,
     pub trust: Option<TrustLevel>,
     pub approval: Option<ApprovalRequirement>,
-}
-
-impl Default for RulePredicate {
-    fn default() -> Self {
-        Self {
-            effect_class: None,
-            operations: BTreeSet::new(),
-            repositories: BTreeSet::new(),
-            worktrees: BTreeSet::new(),
-            path_prefixes: BTreeSet::new(),
-            required_tags: BTreeSet::new(),
-            contract: None,
-            trust: None,
-            approval: None,
-        }
-    }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]

@@ -297,7 +297,7 @@ impl InferenceClient for HttpInferenceClient {
         Err(self
             .config
             .retry
-            .exhausted(last.unwrap_or_else(|| InferenceError::timeout())))
+            .exhausted(last.unwrap_or_else(InferenceError::timeout)))
     }
 
     async fn stream(&self, request: InferenceRequest) -> Result<InferenceStream, InferenceError> {
