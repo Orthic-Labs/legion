@@ -9,3 +9,4 @@ legion-contracts = { path = "../legion-contracts" }
 legion-runtime = { path = "../legion-runtime" }
 legion-provider-sdk = { path = "../legion-provider-sdk" }
 serde.workspace = true
+sha2.workspace = true

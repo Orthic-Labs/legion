@@ -15,6 +15,7 @@ pub struct ResearchReceipt {
     pub report_digest: String,
     pub status: WorkflowStatus,
     pub source_successes: u64,
+    pub external_requests: u64,
     pub omissions: Vec<String>,
     pub budget: BudgetSnapshot,
     pub stages: Vec<StageRecord>,
@@ -29,6 +30,11 @@ impl ResearchReceipt {
             report_digest,
             status: outcome.status,
             source_successes: outcome.ledger.records().count() as u64,
+            external_requests: outcome
+                .ledger
+                .records()
+                .filter(|record| record.provenance.contains_key("request_receipt"))
+                .count() as u64,
             omissions: outcome
                 .failures
                 .iter()
@@ -75,6 +81,11 @@ impl ResearchReceipt {
                 crate::report::ReportStatus::Cancelled => WorkflowStatus::Cancelled,
             },
             source_successes: report.source_assertions.len() as u64,
+            external_requests: report
+                .source_assertions
+                .iter()
+                .filter(|claim| claim.provenance.contains_key("request_receipt"))
+                .count() as u64,
             omissions: report
                 .omissions
                 .iter()

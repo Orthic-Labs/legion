@@ -1,4 +1,4 @@
-use super::{CommandError, CommandResult};
+use super::CommandResult;
 use clap::Args;
 use serde_json::json;
 use std::path::PathBuf;

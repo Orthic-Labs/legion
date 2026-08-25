@@ -7,6 +7,7 @@ mod integrity;
 mod inventory;
 mod normalize;
 mod plan;
+mod report;
 mod verify;
 mod worktree;
 
@@ -19,5 +20,6 @@ pub use inventory::{
 };
 pub use normalize::{normalize, normalize_all};
 pub use plan::{AuditPlan, AuditProvider, FrozenPlan, ProviderKind};
+pub use report::canonical_report;
 pub use verify::{verify_binding, verify_execution};
 pub use worktree::{cleanup, create, WorktreeEffect, WorktreeReceipt};

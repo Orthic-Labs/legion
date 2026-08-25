@@ -65,6 +65,12 @@ impl EvidenceRecord {
         kind: EvidenceKind,
     ) -> Result<Self, ResearchError> {
         source.validate()?;
+        let mut provenance = source.metadata.clone();
+        provenance.insert("provider".into(), source.provider.clone());
+        provenance.insert("uri".into(), source.uri.clone());
+        if let Some(retrieved_at) = &source.retrieved_at {
+            provenance.insert("retrieved_at".into(), retrieved_at.clone());
+        }
         let record = Self {
             schema_version: 1,
             evidence_id: evidence_id.into(),
@@ -73,7 +79,7 @@ impl EvidenceRecord {
             locator,
             text: source.text.clone(),
             content_digest: source.content_digest.clone(),
-            provenance: source.metadata.clone(),
+            provenance,
         };
         record.validate()?;
         Ok(record)

@@ -3,7 +3,7 @@
 //! Every child is placed in its own process group before `exec`.  Cleanup is
 //! consequently group-scoped, so a target cannot leave descendants behind.
 
-use std::os::unix::process::{CommandExt, ExitStatusExt};
+use std::os::unix::process::ExitStatusExt;
 use std::process::Stdio;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
@@ -202,9 +202,9 @@ async fn cleanup_group(pid: u32, grace_ms: u64) -> CleanupResult {
     let term = signal_group(pid, libc::SIGTERM);
     if term.absent {
         return CleanupResult {
-            terminated: false,
+            terminated: true,
             hard_killed: false,
-            kill_succeeded: term.succeeded,
+            kill_succeeded: true,
         };
     }
 

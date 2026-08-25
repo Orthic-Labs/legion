@@ -33,31 +33,43 @@ impl Coverage {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct ProviderSpec {
     #[serde(deserialize_with = "crate::deserialize_schema_version_2")]
     pub schema_version: u32,
     pub id: ProviderId,
     pub provider_version: String,
+    pub family: String,
+    #[serde(default)]
+    pub lens_ids: Vec<String>,
     pub role: String,
     pub phase: String,
     pub depends_on: Vec<ProviderId>,
     pub consumes: Vec<String>,
     pub produces: Vec<String>,
-    pub implementation_key: String,
-    pub required: bool,
-    pub permissions: Vec<String>,
-    pub source_provenance: BTreeMap<String, String>,
+    pub selector: serde_json::Value,
+    pub denominator_kind: String,
+    pub runner: serde_json::Value,
+    pub host_capabilities: Vec<String>,
+    pub execution: serde_json::Value,
+    pub reasoning: serde_json::Value,
+    pub benchmark: serde_json::Value,
+    pub clean_claim: String,
+    pub control_ids: Vec<String>,
+    pub scopes: Vec<String>,
+    pub selectable: bool,
 }
 
 impl ProviderSpec {
     pub fn validate(&self) -> Result<(), ContractError> {
         require_version(self.schema_version, 2)?;
         for (path, value) in [
-            ("provider_version", &self.provider_version),
+            ("providerVersion", &self.provider_version),
+            ("family", &self.family),
             ("role", &self.role),
             ("phase", &self.phase),
-            ("implementation_key", &self.implementation_key),
+            ("denominatorKind", &self.denominator_kind),
+            ("cleanClaim", &self.clean_claim),
         ] {
             if value.trim().is_empty() {
                 return Err(ContractError::InvalidContract {
@@ -65,6 +77,37 @@ impl ProviderSpec {
                     reason: "must be non-empty".into(),
                 });
             }
+        }
+        if self.lens_ids.iter().any(|lens| lens.trim().is_empty()) {
+            return Err(ContractError::InvalidContract {
+                path: "lensIds".into(),
+                reason: "must contain only non-empty lens identifiers".into(),
+            });
+        }
+        for (path, value) in [
+            ("selector", &self.selector),
+            ("runner", &self.runner),
+            ("execution", &self.execution),
+            ("reasoning", &self.reasoning),
+            ("benchmark", &self.benchmark),
+        ] {
+            if !value.is_object() {
+                return Err(ContractError::InvalidContract {
+                    path: path.into(),
+                    reason: "must be an object".into(),
+                });
+            }
+        }
+        if self
+            .runner
+            .get("kind")
+            .and_then(serde_json::Value::as_str)
+            .is_none_or(str::is_empty)
+        {
+            return Err(ContractError::InvalidContract {
+                path: "runner.kind".into(),
+                reason: "must be non-empty".into(),
+            });
         }
         Ok(())
     }

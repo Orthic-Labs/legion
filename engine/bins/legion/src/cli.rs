@@ -45,7 +45,7 @@ enum Command {
     Run(RunArgs),
     Budget(CommonArgs),
     Contract(CommonArgs),
-    Assurance(CommonArgs),
+    Assurance(commands::assurance::AssuranceArgs),
     Completion(CompletionArgs),
     Host(HostCommandArgs),
     Harness(CommonArgs),
@@ -194,23 +194,16 @@ struct StateVerifyArgs {
     snapshot: std::path::PathBuf,
 }
 struct DoctorSummary {
-    repository_id: String,
     inventory_digest: String,
     catalog_entries: usize,
     provider_count: usize,
-}
-pub async fn run<I>(args: I) -> i32
-where
-    I: IntoIterator<Item = OsString>,
-{
-    run_with_cancellation(args, CancellationToken::new()).await
 }
 pub async fn run_with_cancellation<I>(args: I, cancellation: CancellationToken) -> i32
 where
     I: IntoIterator<Item = OsString>,
 {
     let args: Vec<OsString> = args.into_iter().collect();
-    if args.iter().any(|arg| arg == "--version") {
+    if args.len() == 1 && matches!(args[0].to_str(), Some("--version" | "-V")) {
         println!("0.1.0-dev.1");
         return 0;
     }
@@ -294,7 +287,7 @@ async fn dispatch(cli: Cli, cancellation: CancellationToken) -> commands::Comman
         Command::Skills(args) => common_projection!("skills", args),
         Command::Rules(args) => common_projection!("rules", args),
         Command::Schedule(args) => common_projection!("schedule", args),
-        Command::Assurance(args) => common_projection!("assurance", args),
+        Command::Assurance(args) => commands::assurance::run(args),
         Command::Completion(args) => native_completion(args, cancellation.clone()).await,
         Command::Harness(args) => common_projection!("harness", args),
         Command::Authority(args) => common_projection!("authority", args),
@@ -359,58 +352,44 @@ fn finish(result: CommandResult) -> i32 {
 async fn native_root_projection(
     kind: &str,
     args: RootArgs,
-    cancellation: CancellationToken,
+    _cancellation: CancellationToken,
 ) -> CommandResult {
     let root = std::fs::canonicalize(&args.root).map_err(commands::io_error)?;
-    let summary = invoke_doctor(&root, cancellation, "repository projection").await?;
-    Ok(render_doctor(
-        kind,
-        summary,
-        json!({"root": root}),
-        None,
-        Some(args.json),
-        false,
-    ))
+    Ok(json!({
+        "schemaVersion": 1,
+        "kind": format!("legion-{kind}"),
+        "status": "incomplete",
+        "repository": {"root": root},
+        "json": args.json,
+        "gaps": [format!("native {kind} implementation is not connected")],
+    }))
 }
 async fn native_common_projection(
     kind: &str,
     args: CommonArgs,
-    cancellation: CancellationToken,
+    _cancellation: CancellationToken,
 ) -> CommandResult {
-    let root = common_root(&args.args);
-    let summary = invoke_doctor(&root, cancellation, "command projection").await?;
-    Ok(render_doctor(
-        kind,
-        summary,
-        Value::String(root.to_string_lossy().into_owned()),
-        Some(args.args.iter().map(|arg| arg.to_string_lossy()).collect()),
-        Some(args.json),
-        false,
-    ))
-}
-fn common_root(args: &[OsString]) -> std::path::PathBuf {
-    let mut candidate = None;
-    let mut iter = args.iter();
-    while let Some(arg) = iter.next() {
-        if arg == "--root" {
-            candidate = iter.next().cloned();
-            break;
-        }
-        if !arg.to_string_lossy().starts_with('-') && candidate.is_none() {
-            candidate = Some(arg.clone());
-        }
-    }
-    let path = candidate
-        .map(std::path::PathBuf::from)
-        .unwrap_or_else(|| std::path::PathBuf::from("."));
-    if path.is_dir() {
-        std::fs::canonicalize(path).unwrap_or_else(|_| std::path::PathBuf::from("."))
-    } else {
-        std::fs::canonicalize(".").unwrap_or_else(|_| std::path::PathBuf::from("."))
-    }
+    Ok(json!({
+        "schemaVersion": 1,
+        "kind": format!("legion-{kind}"),
+        "status": "incomplete",
+        "arguments": args.args.iter().map(|arg| arg.to_string_lossy().into_owned()).collect::<Vec<_>>(),
+        "json": args.json,
+        "gaps": [format!("native {kind} implementation is not connected")],
+    }))
 }
 async fn native_doctor(args: RootArgs, cancellation: CancellationToken) -> CommandResult {
     let root = std::fs::canonicalize(&args.root).map_err(commands::io_error)?;
+    if std::env::var_os("LEGION_NATIVE_APPLICATION_CONFIG").is_none() {
+        return Ok(json!({
+            "schemaVersion": 1,
+            "kind": "legion-doctor",
+            "status": "incomplete",
+            "repository": {"root": root},
+            "cleanClaimPossible": false,
+            "gaps": ["native repository inventory, catalog, and provider composition are not connected"],
+        }));
+    }
     let summary = invoke_doctor(&root, cancellation, "doctor").await?;
     Ok(render_doctor(
         "doctor",
@@ -430,7 +409,7 @@ fn render_doctor(
     clean_claim: bool,
 ) -> Value {
     let mut output = json!({
-        "schemaVersion": 1, "kind": format!("legion-{kind}"), "status": "complete",
+        "schemaVersion": 1, "kind": format!("legion-{kind}"), "status": if clean_claim { "complete" } else { "incomplete" },
         "repository": repository, "inventoryDigest": summary.inventory_digest,
         "catalogEntries": summary.catalog_entries, "providerCount": summary.provider_count,
     });
@@ -440,8 +419,11 @@ fn render_doctor(
     if let Some(json_flag) = json_flag {
         output["json"] = json!(json_flag);
     }
-    if clean_claim {
-        output["cleanClaimPossible"] = Value::Bool(true);
+    output["cleanClaimPossible"] = Value::Bool(clean_claim);
+    if !clean_claim {
+        output["gaps"] = json!([
+            "native repository inventory, catalog, and provider composition are not connected"
+        ]);
     }
     output
 }
@@ -463,12 +445,11 @@ async fn invoke_doctor(
         .map_err(|error| commands::CommandError::incomplete(error.to_string()))?
     {
         legion_application::NativeOperationResult::Doctor {
-            repository_id,
+            repository_id: _,
             inventory_digest,
             catalog_entries,
             provider_count,
         } => Ok(DoctorSummary {
-            repository_id,
             inventory_digest,
             catalog_entries,
             provider_count,
@@ -480,13 +461,24 @@ async fn invoke_doctor(
 }
 async fn native_plan(args: RootArgs, cancellation: CancellationToken) -> CommandResult {
     let root = std::fs::canonicalize(&args.root).map_err(commands::io_error)?;
+    if std::env::var_os("LEGION_NATIVE_APPLICATION_CONFIG").is_none() {
+        return Ok(json!({
+            "schemaVersion": 1,
+            "kind": "audit-provider-plan",
+            "repository": root,
+            "providers": [],
+            "status": "incomplete",
+            "gaps": ["native Blueprint inventory and frozen provider composition are not connected"],
+        }));
+    }
+    let signing_key = commands::audit_signing_key()?;
     let application = commands::native_application_for(&root.to_string_lossy())?;
     match application
         .invoke_with_cancellation(
             legion_application::NativeOperation::Plan {
                 repository_id: root.to_string_lossy().into_owned(),
                 providers: application.provider_specs(),
-                signing_key: None,
+                signing_key: Some(signing_key),
             },
             cancellation,
         )
@@ -496,9 +488,10 @@ async fn native_plan(args: RootArgs, cancellation: CancellationToken) -> Command
         legion_application::NativeOperationResult::Plan {
             repository_id,
             plan_digest,
+            plan_signature,
             providers,
         } => Ok(
-            json!({"schemaVersion": 1, "kind": "audit-provider-plan", "repository": repository_id, "seal": {"digest": plan_digest}, "providers": providers, "status": "complete"}),
+            json!({"schemaVersion": 1, "kind": "audit-provider-plan", "repository": repository_id, "seal": {"digest": plan_digest, "authenticity": "hmac-sha256", "signature": plan_signature}, "providers": providers, "status": "complete"}),
         ),
         _ => Err(commands::CommandError::internal(
             "native plan returned an incompatible result",
@@ -1034,6 +1027,16 @@ async fn native_run(args: RunArgs, cancellation: CancellationToken) -> CommandRe
             ))
         }
     };
+    if std::env::var_os("LEGION_NATIVE_APPLICATION_CONFIG").is_none() {
+        return Ok(json!({
+            "schemaVersion": 1,
+            "kind": "legion-run",
+            "subcommand": subcommand,
+            "request": request,
+            "status": "incomplete",
+            "gaps": ["native run composition is not connected"],
+        }));
+    }
     let root = std::fs::canonicalize(".").map_err(commands::io_error)?;
     let application = commands::native_application_for(&root.to_string_lossy())?;
     let request_digest = legion_contracts::canonical_digest_hex(&request)
@@ -1270,7 +1273,16 @@ fn collect_state_entries(
     current: &std::path::Path,
     entries: &mut serde_json::Map<String, Value>,
 ) -> Result<(), commands::CommandError> {
-    let metadata = std::fs::metadata(current).map_err(commands::io_error)?;
+    let metadata = std::fs::symlink_metadata(current).map_err(commands::io_error)?;
+    if metadata.file_type().is_symlink() {
+        let target = std::fs::read_link(current).map_err(commands::io_error)?;
+        let bytes = target.to_string_lossy().as_bytes().to_vec();
+        entries.insert(
+            ".".into(),
+            json!({"kind": "symlink", "target": target, "sha256": legion_host::digest_bytes(&bytes), "size": bytes.len()}),
+        );
+        return Ok(());
+    }
     if metadata.is_file() {
         let bytes = std::fs::read(current).map_err(commands::io_error)?;
         entries.insert(
@@ -1291,10 +1303,15 @@ fn collect_state_entries(
             .map_err(commands::io_error)?
             .to_string_lossy()
             .replace('\\', "/");
-        if std::fs::metadata(&path)
-            .map_err(commands::io_error)?
-            .is_dir()
-        {
+        let metadata = std::fs::symlink_metadata(&path).map_err(commands::io_error)?;
+        if metadata.file_type().is_symlink() {
+            let target = std::fs::read_link(&path).map_err(commands::io_error)?;
+            let bytes = target.to_string_lossy().as_bytes().to_vec();
+            entries.insert(
+                relative,
+                json!({"kind": "symlink", "target": target, "sha256": legion_host::digest_bytes(&bytes), "size": bytes.len()}),
+            );
+        } else if metadata.is_dir() {
             collect_state_entries(root, &path, entries)?;
         } else {
             let bytes = std::fs::read(&path).map_err(commands::io_error)?;

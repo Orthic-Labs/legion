@@ -25,7 +25,7 @@ async fn main() -> std::io::Result<()> {
             "versioned native application configuration is missing",
         )
     })?;
-    let application = NativeApplicationConfig::from_versioned_json(&input)
+    let application = NativeApplicationConfig::from_versioned_source(&input)
         .and_then(NativeApplicationConfig::build)
         .map(Arc::new)
         .map_err(|_| {

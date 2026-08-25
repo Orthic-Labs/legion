@@ -68,17 +68,17 @@ impl NativeEngine for NativeApplicationEngine {
             "legion_plan" => NativeOperation::Plan {
                 repository_id: required_root(arguments)?,
                 providers: self.application.provider_specs(),
-                signing_key: None,
+                signing_key: Some(audit_signing_key()?),
             },
             "legion_audit" => NativeOperation::Audit {
                 repository_id: required_root(arguments)?,
                 providers: self.application.provider_specs(),
-                signing_key: None,
+                signing_key: Some(audit_signing_key()?),
             },
             "legion_verify" => NativeOperation::Verify {
                 repository_id: required_root(arguments)?,
                 providers: self.application.provider_specs(),
-                signing_key: None,
+                signing_key: Some(audit_signing_key()?),
             },
             _ => {
                 return Err(RuntimeError::Policy(
@@ -150,14 +150,20 @@ fn operation_result(
         NativeOperationResult::Plan {
             repository_id,
             plan_digest,
+            plan_signature,
             providers,
         } => Ok(
-            json!({"operation": operation, "root": repository_id, "status": "complete", "planDigest": plan_digest, "providers": providers}),
+            json!({"operation": operation, "root": repository_id, "status": "complete", "planDigest": plan_digest, "planSignature": plan_signature, "providers": providers}),
         ),
         NativeOperationResult::Audit(report) => Ok(json!({
             "operation": operation,
             "root": arguments.get("root"),
             "status": if report.gaps.is_empty() { "complete" } else { "partial" },
+            "planDigest": report.plan_digest,
+            "planSignature": report.plan_signature,
+            "plannedProviders": report.planned_providers,
+            "selectedLenses": report.selected_lenses,
+            "lensesRan": report.lenses_ran,
             "gaps": report.gaps,
         })),
         NativeOperationResult::Verification {
@@ -174,6 +180,15 @@ fn operation_result(
             "gaps": outcome.adjudication.gaps,
         })),
     }
+}
+
+fn audit_signing_key() -> Result<Vec<u8>, RuntimeError> {
+    std::env::var_os("AUDIT_PLAN_SIGNING_KEY")
+        .filter(|value| !value.is_empty())
+        .map(|value| value.to_string_lossy().as_bytes().to_vec())
+        .ok_or_else(|| {
+            RuntimeError::Policy("host-injected audit plan signing key is missing".into())
+        })
 }
 
 #[derive(Clone)]

@@ -300,7 +300,7 @@ fn load_application() -> Result<Arc<NativeApplication>, HookError> {
             "versioned native application configuration is missing".into(),
         )
     })?;
-    NativeApplicationConfig::from_versioned_json(&input)
+    NativeApplicationConfig::from_versioned_source(&input)
         .and_then(NativeApplicationConfig::build)
         .map(Arc::new)
         .map_err(|error| {

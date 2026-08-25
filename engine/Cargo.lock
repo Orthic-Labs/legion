@@ -941,6 +941,7 @@ dependencies = [
  "legion-provider-sdk",
  "legion-runtime",
  "serde",
+ "sha2",
 ]
 
 [[package]]

@@ -22,7 +22,7 @@ fn launch(executable: &str, args: &[&str]) -> ProcessLaunch {
 #[tokio::test]
 async fn captures_direct_output_and_reaps_child() {
     let output = UnixProcess::new()
-        .run(launch("/bin/printf", &["hello"]))
+        .run(launch("/usr/bin/printf", &["hello"]))
         .await
         .expect("direct process should spawn");
 

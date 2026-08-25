@@ -1,3 +1,4 @@
+pub mod assurance;
 pub mod audit;
 pub mod catalog;
 pub mod decision;
@@ -12,17 +13,25 @@ pub type CommandResult = Result<Value, CommandError>;
 pub fn native_application_for(
     repository_id: &str,
 ) -> Result<Arc<legion_application::NativeApplication>, CommandError> {
-    if let Ok(input) = std::env::var("LEGION_NATIVE_APPLICATION_CONFIG") {
-        return legion_application::NativeApplicationConfig::from_versioned_json(&input)
+    if let Ok(configured) = std::env::var("LEGION_NATIVE_APPLICATION_CONFIG") {
+        return legion_application::NativeApplicationConfig::from_versioned_source(&configured)
             .and_then(legion_application::NativeApplicationConfig::build)
             .map(Arc::new)
             .map_err(|error| {
                 CommandError::incomplete(format!("native application rejected: {error}"))
             });
     }
-    legion_application::NativeApplicationConfig::default_for_repository(repository_id)
-        .map(Arc::new)
-        .map_err(|error| CommandError::incomplete(format!("native default rejected: {error}")))
+    Err(CommandError::incomplete(format!(
+        "native application config is required for repository {repository_id}"
+    )))
+}
+pub fn audit_signing_key() -> Result<Vec<u8>, CommandError> {
+    std::env::var_os("AUDIT_PLAN_SIGNING_KEY")
+        .filter(|value| !value.is_empty())
+        .map(|value| value.to_string_lossy().as_bytes().to_vec())
+        .ok_or_else(|| {
+            CommandError::incomplete("native audit requires host-injected AUDIT_PLAN_SIGNING_KEY")
+        })
 }
 #[derive(Debug)]
 pub struct CommandError {

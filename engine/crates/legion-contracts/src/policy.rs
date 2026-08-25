@@ -8,6 +8,7 @@ use crate::{
 };
 
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd, Serialize, Deserialize)]
+#[allow(non_camel_case_types)]
 pub enum EffectClass {
     FILE_WRITE,
     FILE_DELETE,

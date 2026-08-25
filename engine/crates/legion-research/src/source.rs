@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use sha2::{Digest, Sha256};
 use std::{collections::BTreeMap, sync::Arc, time::Instant};
 
 use crate::{error::ResearchError, workflow::Cancellation};
@@ -55,6 +56,37 @@ impl SourceRecord {
                 "byte_length {0} does not match source text length {actual}",
                 self.byte_length
             )));
+        }
+        let actual_digest = format!("sha256:{:x}", Sha256::digest(self.text.as_bytes()));
+        if self.content_digest != actual_digest {
+            return Err(ResearchError::InvalidSource(
+                "content_digest does not match source text".into(),
+            ));
+        }
+        if self.text.trim().is_empty() {
+            return Err(ResearchError::InvalidSource(
+                "source text must be non-empty".into(),
+            ));
+        }
+        if matches!(
+            self.kind,
+            SourceKind::Web | SourceKind::Scholarly | SourceKind::Authority
+        ) {
+            if self.retrieved_at.as_deref().is_none_or(str::is_empty) {
+                return Err(ResearchError::InvalidSource(
+                    "external source requires retrieved_at".into(),
+                ));
+            }
+            if self
+                .metadata
+                .get("request_receipt")
+                .map(String::as_str)
+                .is_none_or(str::is_empty)
+            {
+                return Err(ResearchError::InvalidSource(
+                    "external source requires request_receipt provenance".into(),
+                ));
+            }
         }
         Ok(())
     }

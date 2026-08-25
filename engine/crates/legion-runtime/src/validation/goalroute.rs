@@ -566,9 +566,9 @@ fn critical_path(steps: &[RouteStep]) -> Option<u64> {
             .filter(|(id, step)| {
                 !values.contains_key(*id)
                     && step
-                    .depends_on
-                    .iter()
-                    .all(|dependency| values.contains_key(dependency.as_str()))
+                        .depends_on
+                        .iter()
+                        .all(|dependency| values.contains_key(dependency.as_str()))
             })
             .map(|(id, _)| *id)
             .collect::<Vec<_>>();

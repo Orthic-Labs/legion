@@ -6,7 +6,7 @@ use std::{
 use sha2::{Digest, Sha256};
 
 use crate::{
-    error::{HandoffError, Result, SourceError, SourceErrorCode},
+    error::{Result, SourceError, SourceErrorCode},
     model::{HandoffEntry, HandoffPacket, HandoffSection, Omission},
     source::{EventCursor, HandoffQuery, Record, RecordCategory, SourceSet},
     token::{TokenAccounting, TokenBudget, Tokenizer},

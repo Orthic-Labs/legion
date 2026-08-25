@@ -23,12 +23,20 @@ pub enum ProviderKind {
 pub struct AuditProvider {
     pub id: String,
     pub version: String,
+    pub role: String,
+    pub phase: String,
+    #[serde(default)]
+    pub lens_ids: Vec<String>,
     pub dependencies: Vec<String>,
     pub kind: ProviderKind,
     #[serde(default)]
     pub configuration: BTreeMap<String, Value>,
     #[serde(default)]
     pub bounds: BTreeMap<String, Value>,
+    pub clean_claim: String,
+    pub benchmark_status: String,
+    pub benchmark_required_for_clean_claim: bool,
+    pub qualification_digest: Option<String>,
     pub required: bool,
 }
 
@@ -57,20 +65,53 @@ impl AuditPlan {
         specs: &[ProviderSpec],
     ) -> Result<Self, AuditError> {
         inventory.validate()?;
-        let mut providers = specs
+        if specs.is_empty() {
+            return Err(AuditError::Invalid(
+                "audit plan requires at least one frozen provider".into(),
+            ));
+        }
+        let providers = specs
             .iter()
-            .map(|spec| AuditProvider {
-                id: spec.id.to_string(),
-                version: spec.provider_version.clone(),
-                dependencies: spec.depends_on.iter().map(ToString::to_string).collect(),
-                kind: if spec.implementation_key.starts_with("builtin:") {
-                    ProviderKind::BuiltIn
-                } else {
-                    ProviderKind::EffectExecutor
-                },
-                configuration: BTreeMap::new(),
-                bounds: BTreeMap::new(),
-                required: spec.required,
+            .map(|spec| {
+                let mut lens_ids = spec.lens_ids.clone();
+                lens_ids.sort();
+                lens_ids.dedup();
+                AuditProvider {
+                    id: spec.id.to_string(),
+                    version: spec.provider_version.clone(),
+                    role: spec.role.clone(),
+                    phase: spec.phase.clone(),
+                    lens_ids,
+                    dependencies: spec.depends_on.iter().map(ToString::to_string).collect(),
+                    kind: if matches!(
+                        spec.runner.get("kind").and_then(Value::as_str),
+                        Some("external-process" | "legacy-check")
+                    ) {
+                        ProviderKind::EffectExecutor
+                    } else {
+                        ProviderKind::BuiltIn
+                    },
+                    configuration: BTreeMap::new(),
+                    bounds: BTreeMap::new(),
+                    clean_claim: spec.clean_claim.clone(),
+                    benchmark_status: spec
+                        .benchmark
+                        .get("status")
+                        .and_then(Value::as_str)
+                        .unwrap_or("unproven")
+                        .to_owned(),
+                    benchmark_required_for_clean_claim: spec
+                        .benchmark
+                        .get("requiredForCleanClaim")
+                        .and_then(Value::as_bool)
+                        .unwrap_or(true),
+                    qualification_digest: spec
+                        .benchmark
+                        .get("qualificationDigest")
+                        .and_then(Value::as_str)
+                        .map(ToOwned::to_owned),
+                    required: true,
+                }
             })
             .collect::<Vec<_>>();
         let order = topological(&providers)?;
@@ -96,17 +137,30 @@ impl AuditPlan {
         if self.schema_version != 1
             || self.repository_id.trim().is_empty()
             || self.inventory_generation.trim().is_empty()
+            || self.providers.is_empty()
         {
             return Err(AuditError::Invalid("invalid audit plan envelope".into()));
         }
         topological(&self.providers)?;
+        if self
+            .providers
+            .iter()
+            .any(|provider| provider.role != "deterministic" && provider.lens_ids.is_empty())
+        {
+            return Err(AuditError::Invalid(
+                "reasoning providers require explicit lens identifiers".into(),
+            ));
+        }
         Ok(())
     }
 
     pub fn freeze(self, signing_key: Option<&[u8]>) -> Result<FrozenPlan, AuditError> {
         self.validate()?;
+        let signing_key = signing_key
+            .filter(|key| !key.is_empty())
+            .ok_or_else(|| AuditError::Invalid("audit plan signing key is required".into()))?;
         let digest = plan_digest(&self)?;
-        let signature = signing_key.map(|key| sign(&self, key)).transpose()?;
+        let signature = Some(sign(&self, signing_key)?);
         Ok(FrozenPlan {
             plan: self,
             digest,

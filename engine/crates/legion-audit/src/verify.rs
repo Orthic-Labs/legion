@@ -24,9 +24,19 @@ pub fn verify_binding(
 }
 
 pub fn verify_execution(report: &ExecutionReport) -> Result<(), AuditError> {
+    if report.plan_signature.is_none() {
+        return Err(AuditError::Invalid(
+            "audit execution is not bound to a signed plan".into(),
+        ));
+    }
+    if report.planned_providers.is_empty() {
+        return Err(AuditError::Invalid(
+            "audit execution has no planned providers".into(),
+        ));
+    }
     let mut ids = BTreeSet::new();
     for item in &report.results {
-        if !ids.insert(&item.provider) {
+        if !ids.insert(item.provider.clone()) {
             return Err(AuditError::Invalid("duplicate provider execution".into()));
         }
         if item.result.provider.to_string() != item.provider {
@@ -47,6 +57,16 @@ pub fn verify_execution(report: &ExecutionReport) -> Result<(), AuditError> {
                 "complete provider result lacks coverage proof".into(),
             ));
         }
+    }
+    let planned = report
+        .planned_providers
+        .iter()
+        .cloned()
+        .collect::<BTreeSet<_>>();
+    if planned.len() != report.planned_providers.len() || planned != ids {
+        return Err(AuditError::Invalid(
+            "planned and executed provider sets do not reconcile".into(),
+        ));
     }
     Ok(())
 }
