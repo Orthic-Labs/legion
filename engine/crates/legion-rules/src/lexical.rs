@@ -124,9 +124,7 @@ impl LexicalEngine {
         for (path, file) in ordered.iter() {
             let text = String::from_utf8_lossy(&file.bytes);
             for rule in &self.rules {
-                if !applies(&rule.paths, path)
-                    || !rule.required.iter().all(|m| m.is_present(&text))
-                {
+                if !applies(&rule.paths, path) || !rule.required.iter().all(|m| m.is_present(&text)) {
                     continue;
                 }
                 for matched in rule.matcher.regex.find_iter(&text) {
