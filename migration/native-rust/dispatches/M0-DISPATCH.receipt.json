@@ -1,0 +1,35 @@
+{
+  "schema_version": 4,
+  "sha256": "6143dc15ccb52674a065329dfe68f24de47dfff58fd2208581d9108ecfb9906c",
+  "referenced_artifacts": [
+    {
+      "path": "migration/native-rust/dispatches/M0-REQUEST.md",
+      "sha256": "sha256:83bf81861f2c3dfdf80928e94ca96588d8b0427f2146726602fffebe1d9055ba"
+    },
+    {
+      "path": "migration/native-rust/dispatches/M0-REQUEST.md",
+      "sha256": "sha256:83bf81861f2c3dfdf80928e94ca96588d8b0427f2146726602fffebe1d9055ba"
+    },
+    {
+      "path": "migration/native-rust/PRODUCT-ARCHITECTURE-V2.md",
+      "sha256": "sha256:ab181ef9b391f22d739b40ffff6240a50078828d081f9490416ac8d959ed32c5"
+    },
+    {
+      "path": "migration/native-rust/MIGRATION-PLAN-V2.md",
+      "sha256": "sha256:7f5ddd5caf12cc2fcce945fe12d1a8ae2a3c1f4e4c39931cd57e1f5b78303462"
+    },
+    {
+      "path": "docs/LEGION-CANONICAL-SSOT.md",
+      "sha256": "sha256:d757e969d21a4f4217caab2d887782665fceb11c34e3aca38ab3346651edf238"
+    },
+    {
+      "path": "migration/native-rust/README.md",
+      "sha256": "sha256:ad236c9266ae3b9b633b19d1874538a82bb938afdd129d0ac4b4dd94cbf52462"
+    }
+  ],
+  "authority_binding": {
+    "packet_sha256": "6143dc15ccb52674a065329dfe68f24de47dfff58fd2208581d9108ecfb9906c",
+    "source_revision": "566de04215d9ed60d3ed2ddc4e6746a030a27ac1",
+    "prompt_digest": "sha256:83bf81861f2c3dfdf80928e94ca96588d8b0427f2146726602fffebe1d9055ba"
+  }
+}

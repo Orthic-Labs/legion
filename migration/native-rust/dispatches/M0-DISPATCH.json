@@ -1,0 +1,380 @@
+{
+  "schemaVersion": 1,
+  "kind": "legion-authority-dispatch",
+  "packetType": "direct",
+  "repositoryRoot": "/Volumes/D/claude/legion",
+  "sourceRevision": "566de04215d9ed60d3ed2ddc4e6746a030a27ac1",
+  "promptArtifact": "migration/native-rust/dispatches/M0-REQUEST.md",
+  "promptDigest": "sha256:83bf81861f2c3dfdf80928e94ca96588d8b0427f2146726602fffebe1d9055ba",
+  "modelRouting": {
+    "modelTier": "MID",
+    "workerProfile": "parallel",
+    "routingRationale": "M0 is bounded source inspection and deterministic contract generation; independent inventories run in earliest wave, synthesis waits for frozen inputs, and downstream dispatch compilation waits for synthesis."
+  },
+  "objective": "Rebaseline Legion native-Rust migration against current main, freeze M0 contracts, and compile one exact M1-M8 implementation dispatch packet without product-runtime edits.",
+  "authority": [
+    "migration/native-rust/dispatches/M0-REQUEST.md",
+    "migration/native-rust/PRODUCT-ARCHITECTURE-V2.md",
+    "migration/native-rust/MIGRATION-PLAN-V2.md",
+    "docs/LEGION-CANONICAL-SSOT.md",
+    "migration/native-rust/README.md"
+  ],
+  "integrationOwner": "Legion primary-checkout orchestrator",
+  "fileTouchPolicy": {
+    "mode": "once-end-to-end",
+    "plannedFiles": [
+      "migration/native-rust/executable-ledger.json",
+      "migration/native-rust/invocation-graph.json",
+      "migration/native-rust/legacy-path-ownership.json",
+      "migration/native-rust/public-contract-inventory.json",
+      "migration/native-rust/discrepancy-ledger.json",
+      "migration/native-rust/m0/semantic-freeze.json",
+      "migration/native-rust/m0/provider-boundary.json",
+      "migration/native-rust/m0/supported-client-profile.json",
+      "migration/native-rust/m0/client-fidelity-matrix.json",
+      "migration/native-rust/m0/setup-adapter-contract.json",
+      "migration/native-rust/m0/agent-plugins-contract.json",
+      "migration/native-rust/m0/command-resolution-proof.json",
+      "migration/native-rust/m0/pi-integration-contract.json",
+      "migration/native-rust/m0/state-contract.json",
+      "migration/native-rust/m0/distribution-contract.json",
+      "migration/native-rust/m0/release-binding-contract.json",
+      "migration/native-rust/m0/rightkit-ax-pin.json",
+      "migration/native-rust/m0/rightkit-conformance-plan.json",
+      "migration/native-rust/m0/strain-benchmark-protocol.json",
+      "migration/native-rust/m0/contract-freeze.json",
+      "migration/native-rust/m0/m0-acceptance.json",
+      "migration/native-rust/m0/file-ownership-map.json",
+      "migration/native-rust/dispatches/M1-M8-REQUEST.md",
+      "migration/native-rust/dispatches/M1-M8-DISPATCH.json",
+      "migration/native-rust/dispatches/M1-M8-DISPATCH.receipt.json"
+    ],
+    "allowUnplannedFiles": false
+  },
+  "dispatches": [
+    {
+      "id": "A",
+      "dependsOn": [],
+      "lanes": [
+        "runtime-inventory",
+        "semantic-freeze",
+        "client-integration",
+        "state-lifecycle",
+        "distribution-binding",
+        "rightkit-ax",
+        "strain-protocol"
+      ],
+      "completionChecks": [
+        "all seven lanes complete against source revision 566de04215d9ed60d3ed2ddc4e6746a030a27ac1 with only this packet, request, and receipt added afterward",
+        "actual changed paths equal union of A lane allowlists",
+        "every output parses and contains current baseline identity"
+      ]
+    },
+    {
+      "id": "B",
+      "dependsOn": ["A"],
+      "lanes": ["contract-convergence", "ownership-convergence"],
+      "completionChecks": [
+        "both B lanes consume complete A outputs without editing them",
+        "M0 acceptance identifies zero unknown runtime paths or unresolved target-owner collisions",
+        "actual changed paths equal union of B lane allowlists"
+      ]
+    },
+    {
+      "id": "C",
+      "dependsOn": ["B"],
+      "lanes": ["downstream-dispatch-compiler"],
+      "completionChecks": [
+        "M1-M8 packet file inventory is derived from frozen M0 ownership map rather than guessed",
+        "M1-M8 packet validates with a fresh adjacent receipt",
+        "M1-M8 packet requires its own fresh adversarial Oracle PASS before execution",
+        "actual changed paths equal C lane allowlist"
+      ]
+    }
+  ],
+  "workers": [
+    {
+      "id": "runtime-inventory",
+      "dispatch": "A",
+      "executor": "Alchemist worker",
+      "allowlist": [
+        "migration/native-rust/executable-ledger.json",
+        "migration/native-rust/invocation-graph.json",
+        "migration/native-rust/legacy-path-ownership.json",
+        "migration/native-rust/public-contract-inventory.json"
+      ],
+      "read": [
+        "src",
+        "skills",
+        "scripts",
+        "hooks",
+        "package.json",
+        "pnpm-lock.yaml",
+        "migration/native-rust/PRODUCT-ARCHITECTURE-V2.md",
+        "migration/native-rust/MIGRATION-PLAN-V2.md"
+      ],
+      "forbidden": [".git", ".audit", "node_modules", "target", "secrets"],
+      "checks": [
+        "regenerate all four inventories from git-tracked source at exact sourceRevision",
+        "classify each Node/Python path as shipped semantic runtime, declarative data, external project tool, development-only, or deletion candidate",
+        "prove completeness counts, zero unknown rows, zero unowned launch sites, and current baselineCommit in every output",
+        "python3 -m json.tool migration/native-rust/executable-ledger.json >/dev/null && python3 -m json.tool migration/native-rust/invocation-graph.json >/dev/null && python3 -m json.tool migration/native-rust/legacy-path-ownership.json >/dev/null && python3 -m json.tool migration/native-rust/public-contract-inventory.json >/dev/null"
+      ],
+      "dependencies": []
+    },
+    {
+      "id": "semantic-freeze",
+      "dispatch": "A",
+      "executor": "Alchemist worker",
+      "allowlist": [
+        "migration/native-rust/discrepancy-ledger.json",
+        "migration/native-rust/m0/semantic-freeze.json",
+        "migration/native-rust/m0/provider-boundary.json"
+      ],
+      "read": [
+        "src",
+        "skills",
+        "schemas",
+        "doctrine",
+        "manifest.json",
+        "migration/native-rust/PRODUCT-ARCHITECTURE-V2.md",
+        "migration/native-rust/MIGRATION-PLAN-V2.md",
+        "docs/LEGION-CANONICAL-SSOT.md"
+      ],
+      "forbidden": [".git", ".audit", "node_modules", "target", "secrets"],
+      "checks": [
+        "freeze canonical capability, policy, receipt, Audit, Research, review, claim, and Blueprint-degradation semantics with source locators",
+        "classify each provider as Rust algorithm, declarative rule, optional Blueprint evidence, host service, or typed external project tool",
+        "record all source-to-v2 discrepancies with explicit disposition and zero unexplained security, authority, plan-integrity, finding-coverage, receipt, destructive-effect, or process-cleanup gaps",
+        "python3 -m json.tool migration/native-rust/discrepancy-ledger.json >/dev/null && python3 -m json.tool migration/native-rust/m0/semantic-freeze.json >/dev/null && python3 -m json.tool migration/native-rust/m0/provider-boundary.json >/dev/null"
+      ],
+      "dependencies": []
+    },
+    {
+      "id": "client-integration",
+      "dispatch": "A",
+      "executor": "Alchemist worker",
+      "allowlist": [
+        "migration/native-rust/m0/supported-client-profile.json",
+        "migration/native-rust/m0/client-fidelity-matrix.json",
+        "migration/native-rust/m0/setup-adapter-contract.json",
+        "migration/native-rust/m0/agent-plugins-contract.json",
+        "migration/native-rust/m0/command-resolution-proof.json",
+        "migration/native-rust/m0/pi-integration-contract.json"
+      ],
+      "read": [
+        "plugin.json",
+        ".claude-plugin",
+        ".codex-plugin",
+        "skills",
+        "src",
+        "migration/native-rust/PRODUCT-ARCHITECTURE-V2.md",
+        "migration/native-rust/MIGRATION-PLAN-V2.md"
+      ],
+      "forbidden": [".git", ".audit", "node_modules", "target", "secrets"],
+      "checks": [
+        "freeze Full, Degraded, Baseline, and Unavailable fidelity requirements plus two reference clients and official Pi path",
+        "freeze setup detection, preview, confirmation, install, verify, status, repair, disable, remove, and purge behavior",
+        "bind valid Agent Plugins schema fields, portable bare-command contract, and per-client executable-resolution proof/fallback",
+        "prove adapters are mechanical and contain no Legion semantics",
+        "python3 -m json.tool migration/native-rust/m0/supported-client-profile.json >/dev/null && python3 -m json.tool migration/native-rust/m0/client-fidelity-matrix.json >/dev/null && python3 -m json.tool migration/native-rust/m0/setup-adapter-contract.json >/dev/null && python3 -m json.tool migration/native-rust/m0/agent-plugins-contract.json >/dev/null && python3 -m json.tool migration/native-rust/m0/command-resolution-proof.json >/dev/null && python3 -m json.tool migration/native-rust/m0/pi-integration-contract.json >/dev/null"
+      ],
+      "dependencies": []
+    },
+    {
+      "id": "state-lifecycle",
+      "dispatch": "A",
+      "executor": "Alchemist worker",
+      "allowlist": ["migration/native-rust/m0/state-contract.json"],
+      "read": [
+        "src",
+        "schemas",
+        "migration/native-rust/PRODUCT-ARCHITECTURE-V2.md",
+        "migration/native-rust/MIGRATION-PLAN-V2.md"
+      ],
+      "forbidden": [".git", ".audit", "node_modules", "target", "secrets"],
+      "checks": [
+        "freeze canonical state roots, schemas, leases, locks, snapshots, migrations, rollback, interrupted recovery, and verified purge ownership",
+        "define N-1 to N and N to N-1 acceptance without dual active runtime",
+        "python3 -m json.tool migration/native-rust/m0/state-contract.json >/dev/null"
+      ],
+      "dependencies": []
+    },
+    {
+      "id": "distribution-binding",
+      "dispatch": "A",
+      "executor": "Alchemist worker",
+      "allowlist": [
+        "migration/native-rust/m0/distribution-contract.json",
+        "migration/native-rust/m0/release-binding-contract.json"
+      ],
+      "read": [
+        "package.json",
+        "src",
+        "docs",
+        "migration/native-rust/PRODUCT-ARCHITECTURE-V2.md",
+        "migration/native-rust/MIGRATION-PLAN-V2.md"
+      ],
+      "forbidden": [".git", ".audit", "node_modules", "target", "secrets"],
+      "checks": [
+        "select Homebrew formula optionally bottled versus cask plus tap/channel from measured release mechanics, and freeze WinGet disposition",
+        "freeze runtime, catalog, MCP schema, declarative asset, version, digest, provenance, skew, update, repair, and rollback binding",
+        "require signed native host builds through existing RightKit Release with no desktop installer",
+        "python3 -m json.tool migration/native-rust/m0/distribution-contract.json >/dev/null && python3 -m json.tool migration/native-rust/m0/release-binding-contract.json >/dev/null"
+      ],
+      "dependencies": []
+    },
+    {
+      "id": "rightkit-ax",
+      "dispatch": "A",
+      "executor": "Alchemist worker",
+      "allowlist": [
+        "migration/native-rust/m0/rightkit-ax-pin.json",
+        "migration/native-rust/m0/rightkit-conformance-plan.json"
+      ],
+      "read": [
+        "package.json",
+        "pnpm-lock.yaml",
+        "plugin.json",
+        ".claude-plugin",
+        ".codex-plugin",
+        "migration/native-rust/PRODUCT-ARCHITECTURE-V2.md",
+        "migration/native-rust/MIGRATION-PLAN-V2.md"
+      ],
+      "forbidden": [".git", ".audit", "node_modules", "target", "secrets"],
+      "checks": [
+        "freeze exact RightKit AX version and source commit from existing workspace-managed installation",
+        "freeze clean-room static, conformance, behavioral, adversarial, and real-client evidence commands without adding repository-owned release machinery",
+        "record and disposition RightKit/spec discovery discrepancy",
+        "python3 -m json.tool migration/native-rust/m0/rightkit-ax-pin.json >/dev/null && python3 -m json.tool migration/native-rust/m0/rightkit-conformance-plan.json >/dev/null"
+      ],
+      "dependencies": []
+    },
+    {
+      "id": "strain-protocol",
+      "dispatch": "A",
+      "executor": "Alchemist worker",
+      "allowlist": ["migration/native-rust/m0/strain-benchmark-protocol.json"],
+      "read": [
+        "src",
+        "skills",
+        "migration/native-rust/PRODUCT-ARCHITECTURE-V2.md",
+        "migration/native-rust/MIGRATION-PLAN-V2.md"
+      ],
+      "forbidden": [".git", ".audit", "node_modules", "target", "secrets"],
+      "checks": [
+        "define same-client idle, startup, repeated invocation, memory, CPU, process-count, latency, and cancellation workloads for baseline client, current Node Legion, and native Legion",
+        "measure one reusable MCP process per active client and forbid per-tool Legion births or idle daemon",
+        "define Mac and Windows evidence fields plus pass thresholds before measurement",
+        "python3 -m json.tool migration/native-rust/m0/strain-benchmark-protocol.json >/dev/null"
+      ],
+      "dependencies": []
+    },
+    {
+      "id": "contract-convergence",
+      "dispatch": "B",
+      "executor": "Alchemist worker",
+      "allowlist": [
+        "migration/native-rust/m0/contract-freeze.json",
+        "migration/native-rust/m0/m0-acceptance.json"
+      ],
+      "read": [
+        "migration/native-rust/m0",
+        "migration/native-rust/executable-ledger.json",
+        "migration/native-rust/invocation-graph.json",
+        "migration/native-rust/legacy-path-ownership.json",
+        "migration/native-rust/public-contract-inventory.json",
+        "migration/native-rust/discrepancy-ledger.json",
+        "migration/native-rust/PRODUCT-ARCHITECTURE-V2.md",
+        "migration/native-rust/MIGRATION-PLAN-V2.md"
+      ],
+      "forbidden": [".git", ".audit", "node_modules", "target", "secrets"],
+      "checks": [
+        "reconcile all A contracts into one immutable content-addressable freeze without editing A outputs",
+        "fail M0 acceptance on stale baseline, unknown shipped runtime path, semantic owner collision, adapter-owned semantics, unresolved distribution/state/AX decision, or Blueprint global gate",
+        "record exact evidence locators and digests for every M0 gate",
+        "python3 -m json.tool migration/native-rust/m0/contract-freeze.json >/dev/null && python3 -m json.tool migration/native-rust/m0/m0-acceptance.json >/dev/null"
+      ],
+      "dependencies": []
+    },
+    {
+      "id": "ownership-convergence",
+      "dispatch": "B",
+      "executor": "Alchemist worker",
+      "allowlist": ["migration/native-rust/m0/file-ownership-map.json"],
+      "read": [
+        "migration/native-rust/m0",
+        "migration/native-rust/executable-ledger.json",
+        "migration/native-rust/invocation-graph.json",
+        "migration/native-rust/legacy-path-ownership.json",
+        "migration/native-rust/public-contract-inventory.json",
+        "migration/native-rust/PRODUCT-ARCHITECTURE-V2.md",
+        "migration/native-rust/MIGRATION-PLAN-V2.md"
+      ],
+      "forbidden": [".git", ".audit", "node_modules", "target", "secrets"],
+      "checks": [
+        "assign every M1-M8 planned changed file to exactly one end-to-end owner lane and earliest legal dependency wave",
+        "separate retained development-only files from shipped runtime port/delete paths",
+        "prove zero file overlap, zero unowned planned file, and no integration or cleanup owner edits",
+        "python3 -m json.tool migration/native-rust/m0/file-ownership-map.json >/dev/null"
+      ],
+      "dependencies": []
+    },
+    {
+      "id": "downstream-dispatch-compiler",
+      "dispatch": "C",
+      "executor": "Alchemist worker",
+      "allowlist": [
+        "migration/native-rust/dispatches/M1-M8-REQUEST.md",
+        "migration/native-rust/dispatches/M1-M8-DISPATCH.json",
+        "migration/native-rust/dispatches/M1-M8-DISPATCH.receipt.json"
+      ],
+      "read": [
+        "skills/dispatch/SKILL.md",
+        "skills/dispatch/assets/direct-packet.json",
+        "migration/native-rust/m0/contract-freeze.json",
+        "migration/native-rust/m0/m0-acceptance.json",
+        "migration/native-rust/m0/file-ownership-map.json",
+        "migration/native-rust/PRODUCT-ARCHITECTURE-V2.md",
+        "migration/native-rust/MIGRATION-PLAN-V2.md"
+      ],
+      "forbidden": [".git", ".audit", "node_modules", "target", "secrets"],
+      "checks": [
+        "compile M1-M8 waves from exact frozen file-ownership map with all currently eligible lanes in earliest wave",
+        "bind sourceRevision to sha256 of migration/native-rust/m0/contract-freeze.json through sourceArtifact",
+        "require exact file allowlists, closed planned-file union, no worker dependencies, no lane overlap, bounded recovery, and adversarial Oracle pre-execution contract",
+        "python3 skills/dispatch/scripts/validate-dispatch.py /Volumes/D/claude/legion/migration/native-rust/dispatches/M1-M8-DISPATCH.json --packet-type authority --write-receipt /Volumes/D/claude/legion/migration/native-rust/dispatches/M1-M8-DISPATCH.receipt.json"
+      ],
+      "dependencies": []
+    }
+  ],
+  "oracleAudit": {
+    "required": true,
+    "mode": "adversarial",
+    "status": "required-before-execution",
+    "checks": [
+      "allowlist-completeness",
+      "lane-disjointness",
+      "dependency-validity",
+      "maximum-safe-parallelization",
+      "end-to-end-lane-closure"
+    ]
+  },
+  "recovery": {
+    "maxRetries": 1,
+    "stopConditions": [
+      "git diff sourceRevision..HEAD contains any path other than migration/native-rust/dispatches/M0-REQUEST.md, migration/native-rust/dispatches/M0-DISPATCH.json, or migration/native-rust/dispatches/M0-DISPATCH.receipt.json",
+      "any allowlisted file is dirty before its owning lane starts",
+      "current source cannot resolve complete shipped-runtime classification",
+      "M0 evidence contradicts accepted architecture",
+      "required private client configuration evidence is unavailable"
+    ],
+    "returnFields": [
+      "changedPaths",
+      "checks",
+      "blockers",
+      "baselineRevision",
+      "patchDigest"
+    ]
+  }
+}
