@@ -176,7 +176,7 @@ function adaptProviderV2Registry(raw) {
         canonicalId,
         providerVersion: provider.providerVersion,
         role: provider.role,
-        phase: provider.phase === 'source' ? 'facts' : provider.phase,
+        phase: provider.phase === 'source' ? 'facts' : provider.phase === 'judgment' ? 'reasoning' : provider.phase,
         selector: provider.selector,
         allowWithoutBlueprint: id === 'core.repo',
         runner: runner.kind === 'legacy-check'

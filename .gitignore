@@ -11,6 +11,7 @@ repos/
 .pytest_cache/
 src/lib/review/cache/
 src/lib/review/shadow_log/
+src/lib/research-core/runs/
 
 # Evidence never belongs in this repo. Receipts, qualification lanes, and audit
 # output are written into whichever repo Legion is operated on; when that repo is

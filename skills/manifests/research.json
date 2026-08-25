@@ -58,7 +58,9 @@
       "references/router.md",
       "references/scale/README.md"
     ],
-    "scripts": [],
+    "scripts": [
+      "scripts/research-core.py"
+    ],
     "templates": [],
     "schemas": [],
     "receipts": [],
@@ -221,6 +223,11 @@
       "path": "references/scale/README.md",
       "uri": "legion-skill://research/references/scale/README.md",
       "digest": "sha256:0160eb4f3419bcfe8140ed09d7d66adafa65e1063c8f4a45c7aa5729cf9f2649"
+    },
+    {
+      "path": "scripts/research-core.py",
+      "uri": "legion-skill://research/scripts/research-core.py",
+      "digest": "sha256:fc1a77b50551143c88704b59e2fada814fc32e1d0d7c84719e189b946b189387"
     }
   ]
 }

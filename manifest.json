@@ -748,7 +748,7 @@
       "runner": {
         "kind": "runtime-script",
         "module": "src/providers/accessibility-suite.mjs",
-        "moduleDigest": "sha256:098dffe7ed2a16c66821f64cc4d9fe70907d5f026e0943d59fb192448d5e6f9f"
+        "moduleDigest": "sha256:57c05a9cb6cbe8841eac759bad0a426ad99eaf4608c4820ad6d7414cd6690ad8"
       },
       "benchmark_status": "unproven",
       "required_for_clean_claim": true,
@@ -809,7 +809,7 @@
       "runner": {
         "kind": "runtime-script",
         "module": "src/providers/framework-suite.mjs",
-        "moduleDigest": "sha256:6d16ba8f29aa5e343f645b981f2c0f58d1846dff2f7b5b586b61ae2934914e9e"
+        "moduleDigest": "sha256:2f1d4d588458824b0ac926242107a3ea283fffdfc5f3cba07b53f14d7644305e"
       },
       "benchmark_status": "unproven",
       "required_for_clean_claim": true,
@@ -1001,7 +1001,7 @@
     {
       "id": "security.adjudication",
       "role": "adjudicator",
-      "phase": "judgment",
+      "phase": "reasoning",
       "runner": {
         "kind": "reasoning-contract",
         "contract": "security-adjudication-v1"
@@ -1196,7 +1196,7 @@
     {
       "id": "security.variant-analysis",
       "role": "variant-analysis",
-      "phase": "judgment",
+      "phase": "reasoning",
       "runner": {
         "kind": "reasoning-contract",
         "contract": "security-variant-analysis-v1"
@@ -1290,7 +1290,7 @@
       "runner": {
         "kind": "runtime-script",
         "module": "src/providers/visual-core.mjs",
-        "moduleDigest": "sha256:89f4697375a8ac325e673a41e90d20a36590bad65a78f584afd58d4e91c6fa07"
+        "moduleDigest": "sha256:530e771fa67ae2629fc8d4fda68c260a075304d75ae7a894593dca8b44890830"
       },
       "benchmark_status": "unproven",
       "required_for_clean_claim": true,
@@ -1354,7 +1354,7 @@
       "runner": {
         "kind": "runtime-script",
         "module": "src/providers/ast-grep/index.mjs",
-        "moduleDigest": "sha256:4d22181207d40a08e2ceddc877a360090078f611d9e3a05cdab610a4672817f3"
+        "moduleDigest": "sha256:a62412fa51dd7db1b9d4e0548fe7a4efc86872e447d12cbe780b015fe83c3532"
       },
       "benchmark_status": "unproven",
       "required_for_clean_claim": true,

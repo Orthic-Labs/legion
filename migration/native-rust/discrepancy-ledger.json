@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "packetId": "LEG-I01",
+  "repository": "Orthic-Labs/legion",
+  "baselineCommit": "90678a130dc26937d544304b79a22f24d74383ac",
+  "status": "pending",
+  "allowedClassifications": [
+    "intentional_version_change",
+    "baseline_defect",
+    "regression",
+    "unexplained"
+  ],
+  "discrepancies": [],
+  "zeroUnexplainedSecurityAuthorityPlanIntegrityFindingCoverageReceiptDestructiveEffectProcessCleanup": true,
+  "notes": [
+    "Ledger is empty until independent legacy/native outputs are produced.",
+    "An empty ledger is not an acceptance claim; acceptance-report.json remains pending."
+  ]
+}

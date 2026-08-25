@@ -33,7 +33,9 @@
       "references/platform-fidelity.md",
       "references/visual-qa-capture.md"
     ],
-    "scripts": [],
+    "scripts": [
+      "scripts/visual-core.mjs"
+    ],
     "templates": [],
     "schemas": [],
     "receipts": [],
@@ -76,6 +78,11 @@
       "path": "references/visual-qa-capture.md",
       "uri": "legion-skill://audit-visual/references/visual-qa-capture.md",
       "digest": "sha256:beb27fe267db48be23315ce0d20ba19f4106ad0f38e32ea19a2bc191aa94beaa"
+    },
+    {
+      "path": "scripts/visual-core.mjs",
+      "uri": "legion-skill://audit-visual/scripts/visual-core.mjs",
+      "digest": "sha256:e4247692e8248ac59a69dcffe7e408752c839151b8e6d29aa5af83a5be31dfe8"
     }
   ]
 }

@@ -1,5 +1,12 @@
 # Native Rust executable graph ledger
 
+## Revised v2 direction
+
+- [`PRODUCT-ARCHITECTURE-V2.md`](PRODUCT-ARCHITECTURE-V2.md) is target product & runtime architecture.
+- [`MIGRATION-PLAN-V2.md`](MIGRATION-PLAN-V2.md) is ordered migration, qualification, hard-cut, & cleanup plan.
+
+These documents supersede earlier host-engine, npm-cutover, always-on-runtime, & Blueprint-required assumptions. Existing ledgers and fixtures remain migration evidence; refresh them against current `main` before v2 implementation.
+
 LEG-000 inventory is source-bound to Legion baseline `90678a130dc26937d544304b79a22f24d74383ac`.
 
 `executable-ledger.json` has one row for every tracked `.mjs`, `.js`, `.cjs`, `.ts`, `.py`, `.sh`, `.bash`, `.zsh`, `.ps1`, `.bat`, and `.cmd` path. `invocation-graph.json` records normalized executable nodes, package-script launch sites, shebangs, process/dynamic-load sites, and observed edges. `public-contract-inventory.json` records shipped entrypoints, exports, package scripts, hook/MCP surfaces, manifests, and schema identifiers. `legacy-path-ownership.json` gives every legacy executable path exactly one future packet owner.

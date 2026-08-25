@@ -59,7 +59,10 @@
       "references/website-regression-gotchas.md",
       "references/website.md"
     ],
-    "scripts": [],
+    "scripts": [
+      "scripts/design-gate.mjs",
+      "scripts/open-for-review.mjs"
+    ],
     "templates": [],
     "schemas": [],
     "receipts": [],
@@ -1013,6 +1016,16 @@
       "path": "references/website.md",
       "uri": "legion-skill://designer/references/website.md",
       "digest": "sha256:ed87377c34d4ae1203ab43ca6b18b934c3d99bf46f8c994b63e0a13aea535008"
+    },
+    {
+      "path": "scripts/design-gate.mjs",
+      "uri": "legion-skill://designer/scripts/design-gate.mjs",
+      "digest": "sha256:f646633b377b401bf464b432e39ac50859b782fd4f821acbbc25f895e96cfaab"
+    },
+    {
+      "path": "scripts/open-for-review.mjs",
+      "uri": "legion-skill://designer/scripts/open-for-review.mjs",
+      "digest": "sha256:2377ea9f04340b356ca57d71e73703363f4b9e765c8138069abb805d8345ce93"
     },
     {
       "path": "specialists/glass/GUIDE.md",

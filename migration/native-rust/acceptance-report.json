@@ -1,0 +1,42 @@
+{
+  "schemaVersion": 1,
+  "packetId": "LEG-I01",
+  "repository": "Orthic-Labs/legion",
+  "baselineCommit": "90678a130dc26937d544304b79a22f24d74383ac",
+  "status": "pending",
+  "stopCode": null,
+  "stopReason": "Acceptance tests are authored; integration receipts are pending workspace compilation and named LEG-I01 gates.",
+  "fixtureManifest": "migration/native-rust/fixtures/manifest.v1.json",
+  "fixtureBaselineCommit": "90678a130dc26937d544304b79a22f24d74383ac",
+  "tests": [
+    {"path": "engine/tests/native_contracts.rs", "state": "pending"},
+    {"path": "engine/tests/native_policy.rs", "state": "pending"},
+    {"path": "engine/tests/native_effects.rs", "state": "pending"},
+    {"path": "engine/tests/native_audit.rs", "state": "pending"},
+    {"path": "engine/tests/native_hosts.rs", "state": "pending"},
+    {"path": "engine/tests/native_python_surfaces.rs", "state": "pending"},
+    {"path": "engine/tests/native_no_interpreter.rs", "state": "pending"}
+  ],
+  "staticChecks": [
+    {"name": "cargo fmt --all --check", "state": "not-run", "evidence": "Awaiting parent-owned RightKit receipt."},
+    {"name": "cargo check --workspace --all-targets --locked", "state": "not-run", "evidence": "Awaiting parent-owned RightKit receipt."},
+    {"name": "cargo test --workspace --all-targets --locked", "state": "not-run", "evidence": "Awaiting parent-owned RightKit receipt."},
+    {"name": "cargo clippy --workspace --all-targets --locked", "state": "not-run", "evidence": "Awaiting parent-owned RightKit receipt."},
+    {"name": "launch-site and dynamic-load scan", "state": "not-run", "evidence": "Awaiting parent-owned static scan receipt."}
+  ],
+  "contractChecklist": [
+    {"contract": "LEG-001 fixture manifest and semantic corpus", "state": "pending", "evidence": "native_contracts.rs and fixture manifest"},
+    {"contract": "policy fail-closed, ceiling intersection, replayable decision", "state": "pending", "evidence": "native_policy.rs"},
+    {"contract": "one policy decision, no duplicate real effect, bounded receipt", "state": "pending", "evidence": "native_effects.rs"},
+    {"contract": "frozen plan integrity, deterministic provider order, honest gaps", "state": "pending", "evidence": "native_audit.rs"},
+    {"contract": "host detection and ownership-safe mutation", "state": "pending", "evidence": "native_hosts.rs"},
+    {"contract": "retained Python surface typed parity", "state": "pending", "evidence": "native_python_surfaces.rs"},
+    {"contract": "native process boundary has no interpreter re-entry", "state": "pending", "evidence": "native_no_interpreter.rs plus static scan"}
+  ],
+  "observations": [],
+  "discrepancies": [],
+  "notes": [
+    "No passing result is asserted before parent supplies compile, test, lint, and scan receipts.",
+    "No effect fixture executes a production mutation; comparison remains side-effect-free."
+  ]
+}

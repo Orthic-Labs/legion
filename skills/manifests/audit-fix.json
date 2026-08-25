@@ -29,7 +29,9 @@
       "Apply bounded remediation from a frozen Legion Audit report, then rerun its same provider plan. Use only for /audit-fix after /audit evidence exists."
     ],
     "outputs": [],
-    "scripts": [],
+    "scripts": [
+      "scripts/audit-run.mjs"
+    ],
     "templates": [],
     "schemas": [],
     "receipts": [],
@@ -57,6 +59,11 @@
       "path": "evals/evals.json",
       "uri": "legion-skill://audit-fix/evals/evals.json",
       "digest": "sha256:d3e1ff58d6c5ece6d9a91f6311260949bb9df808a199c5f26a52321cceb01131"
+    },
+    {
+      "path": "scripts/audit-run.mjs",
+      "uri": "legion-skill://audit-fix/scripts/audit-run.mjs",
+      "digest": "sha256:e8faa3c78e362cfda3e61cbbcbae1d7a4a9621e2d9146f59f1d5b347c75455ac"
     }
   ]
 }
