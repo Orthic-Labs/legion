@@ -104,7 +104,7 @@ pub fn project_mcp(
         });
     }
     let mechanism = &surface.mechanism;
-    let before_digest = existing.map(|bytes| digest_bytes(bytes));
+    let before_digest = existing.map(digest_bytes);
     let next = match mechanism.kind.as_str() {
         "json" => {
             let mut value: serde_json::Value = match existing {

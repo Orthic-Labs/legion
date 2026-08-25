@@ -105,16 +105,16 @@ fn quote_arg(value: &str) -> String {
             continue;
         }
         if byte == b'"' {
-            result.extend(std::iter::repeat('\\').take(slashes * 2 + 1));
+            result.extend(std::iter::repeat_n('\\', slashes * 2 + 1));
             result.push('"');
             slashes = 0;
             continue;
         }
-        result.extend(std::iter::repeat('\\').take(slashes));
+        result.extend(std::iter::repeat_n('\\', slashes));
         result.push(byte as char);
         slashes = 0;
     }
-    result.extend(std::iter::repeat('\\').take(slashes * 2));
+    result.extend(std::iter::repeat_n('\\', slashes * 2));
     result.push('"');
     result
 }
@@ -159,14 +159,14 @@ fn configure_job() -> Result<Handle, EffectError> {
 }
 
 fn spawn_child(launch: &ProcessLaunch) -> Result<ChildHandles, EffectError> {
-    let mut attrs = windows_sys::Win32::Security::SECURITY_ATTRIBUTES {
+    let attrs = windows_sys::Win32::Security::SECURITY_ATTRIBUTES {
         nLength: size_of::<windows_sys::Win32::Security::SECURITY_ATTRIBUTES>() as u32,
         lpSecurityDescriptor: null_mut(),
         bInheritHandle: 1,
     };
     let mut stdout_read_raw: HANDLE = null_mut();
     let mut stdout_write_raw: HANDLE = null_mut();
-    if unsafe { CreatePipe(&mut stdout_read_raw, &mut stdout_write_raw, &mut attrs, 0) } == 0 {
+    if unsafe { CreatePipe(&mut stdout_read_raw, &mut stdout_write_raw, &attrs, 0) } == 0 {
         return Err(last_error("create stdout pipe"));
     }
     let stdout_read = Handle::new(stdout_read_raw)?;
@@ -176,7 +176,7 @@ fn spawn_child(launch: &ProcessLaunch) -> Result<ChildHandles, EffectError> {
     }
     let mut stderr_read_raw: HANDLE = null_mut();
     let mut stderr_write_raw: HANDLE = null_mut();
-    if unsafe { CreatePipe(&mut stderr_read_raw, &mut stderr_write_raw, &mut attrs, 0) } == 0 {
+    if unsafe { CreatePipe(&mut stderr_read_raw, &mut stderr_write_raw, &attrs, 0) } == 0 {
         return Err(last_error("create stderr pipe"));
     }
     let stderr_read = Handle::new(stderr_read_raw)?;

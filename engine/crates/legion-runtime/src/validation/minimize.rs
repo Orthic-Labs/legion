@@ -172,7 +172,7 @@ pub fn verify_protected(result: &MinimizeResult) -> bool {
         && result
             .removals
             .iter()
-            .all(|item| item.byte_delta > 0 && item.recoverability.trim().len() > 0)
+            .all(|item| item.byte_delta > 0 && !item.recoverability.trim().is_empty())
 }
 
 fn token_count(value: &str) -> usize {

@@ -19,6 +19,7 @@ pub struct EvidenceSpan {
 }
 
 impl EvidenceSpan {
+    #[allow(clippy::too_many_arguments)]
     pub fn from_text(
         rule_id: impl Into<String>,
         path: impl Into<String>,

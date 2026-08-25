@@ -130,12 +130,11 @@ where
             );
         }
         if request.requires_network_sandbox
-            && request
+            && !request
                 .sandbox
                 .as_ref()
                 .map(|receipt| receipt.network)
                 .unwrap_or(false)
-                == false
         {
             return self.failure_with_identity(
                 request,

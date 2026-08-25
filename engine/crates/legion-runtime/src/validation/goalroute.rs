@@ -158,6 +158,7 @@ pub struct GoalRoute {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
+#[allow(clippy::large_enum_variant)]
 pub enum RouteSelection {
     Exact(RouteCandidate),
     Invalid(ValidationReport),
@@ -662,7 +663,7 @@ fn dominates(left: &RouteCandidate, right: &RouteCandidate) -> bool {
         && left.rework_units <= right.rework_units
 }
 fn ceil_bps(value: u32, cost: u64) -> u64 {
-    (u64::from(value) * cost + 9_999) / 10_000
+    (u64::from(value) * cost).div_ceil(10_000)
 }
 fn valid_hex_digest(value: &str) -> bool {
     value.len() == 64
