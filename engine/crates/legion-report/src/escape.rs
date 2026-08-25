@@ -17,7 +17,8 @@ pub fn markdown(value: &str) -> String {
     let mut output = String::with_capacity(value.len());
     for character in value.replace(['\r', '\n'], " ").chars() {
         match character {
-            '\\' | '`' | '*' | '_' | '[' | ']' | '|' | '#' => {
+            '\\' | '`' | '*' | '_' | '[' | ']' | '|' | '#' | '<' | '>' | '&' | '!' | '(' | ')'
+            | '{' | '}' => {
                 output.push('\\');
                 output.push(character);
             }
@@ -25,4 +26,25 @@ pub fn markdown(value: &str) -> String {
         }
     }
     output
+}
+
+/// Render an arbitrary value in a Markdown code span without allowing its
+/// backticks to terminate the span.
+pub fn markdown_code(value: &str) -> String {
+    let value = value.replace(['\r', '\n'], " ");
+    let longest_run = value
+        .split(|character| character != '`')
+        .map(str::len)
+        .max()
+        .unwrap_or(0);
+    let delimiter = "`".repeat(longest_run + 1);
+    if value.starts_with(' ')
+        || value.ends_with(' ')
+        || value.starts_with('`')
+        || value.ends_with('`')
+    {
+        format!("{delimiter} {value} {delimiter}")
+    } else {
+        format!("{delimiter}{value}{delimiter}")
+    }
 }

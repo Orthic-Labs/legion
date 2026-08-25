@@ -1,0 +1,149 @@
+{
+  "schemaVersion": 1,
+  "kind": "legion-authority-dispatch",
+  "packetType": "direct",
+  "repositoryRoot": ".",
+  "sourceRevision": "1611c431cd734e01903233075b152fdc29b98e98",
+  "sourceArtifact": "migration/native-rust/m0/contract-freeze.json",
+  "promptArtifact": "migration/native-rust/dispatches/M4-REPORT-REQUEST.md",
+  "promptDigest": "sha256:1d79f565c11532586c4ceaabf88d40ea59fb58ec5ab9c689544cbc763405edd7",
+  "modelRouting": {
+    "modelTier": "FAST",
+    "workerProfile": "luna-rust",
+    "routingRationale": "One bounded independent Rust crate with frozen contract, no external effects, & module-local tests"
+  },
+  "objective": "Complete & freeze M4 native Report rendering: validated deterministic JSON/SARIF/Markdown/HTML with preserved report status, visible coverage gaps, stable finding order, safe escaping, & no false clean.",
+  "authority": [
+    "AGENTS.md",
+    "docs/LEGION-CANONICAL-SSOT.md",
+    "migration/native-rust/PRODUCT-ARCHITECTURE-V2.md",
+    "migration/native-rust/MIGRATION-PLAN-V2.md",
+    "migration/native-rust/m0/semantic-freeze.json",
+    "migration/native-rust/dispatches/M1-M8-DISPATCH.json",
+    "migration/native-rust/dispatches/M2-M7-OWNERSHIP-AMENDMENT.json"
+  ],
+  "integrationOwner": "current orchestrator; sole owner of integration worktree HEAD, index, validation, commits, receipts, & push; may not edit worker-owned report files",
+  "interfaceLock": {
+    "input": "Only legion_contracts::ReportV1; validation failure returns ReportError & never renders misleading output.",
+    "formats": "render_json emits canonical JSON; render_sarif emits SARIF 2.1.0 with report identity/status/gaps/targets/claims plus deterministic rules/results; Markdown & HTML expose status, omissions, findings, locations, providers, evidence, & escape all untrusted content.",
+    "truth": "Zero findings never implies PASS; ReportV1 status & gaps remain authoritative & visible. Rendering cannot change completeness, adjudicate findings, invoke providers, execute tools, or claim qualification.",
+    "determinism": "Equivalent validated report values render byte-identically; findings use stable semantic ordering & maps use canonical/ordered serialization."
+  },
+  "fileTouchPolicy": {
+    "mode": "once-end-to-end",
+    "plannedFiles": [
+      "engine/crates/legion-report/Cargo.toml",
+      "engine/crates/legion-report/src/error.rs",
+      "engine/crates/legion-report/src/escape.rs",
+      "engine/crates/legion-report/src/html.rs",
+      "engine/crates/legion-report/src/json.rs",
+      "engine/crates/legion-report/src/lib.rs",
+      "engine/crates/legion-report/src/markdown.rs",
+      "engine/crates/legion-report/src/sarif.rs"
+    ],
+    "allowUnplannedFiles": false
+  },
+  "dispatches": [
+    {
+      "id": "M4-report",
+      "dependsOn": [],
+      "lanes": [
+        "m4-report-rendering"
+      ],
+      "completionChecks": [
+        "actual changes remain within exact report-crate allowlist & no dependency/lockfile change occurs",
+        "focused unit cases prove contract rejection, deterministic ordering, truthful empty/incomplete reports, SARIF fields, & escaping",
+        "direct Cargo fmt/check/test/clippy for legion-report pass",
+        "application, CLI, Audit, Node/Python, legacy, & Membrane paths remain untouched"
+      ]
+    }
+  ],
+  "workers": [
+    {
+      "id": "m4-report-rendering",
+      "dispatch": "M4-report",
+      "executor": "Luna Rust worker in isolated worktree; no commit or push",
+      "allowlist": [
+        "engine/crates/legion-report/Cargo.toml",
+        "engine/crates/legion-report/src/error.rs",
+        "engine/crates/legion-report/src/escape.rs",
+        "engine/crates/legion-report/src/html.rs",
+        "engine/crates/legion-report/src/json.rs",
+        "engine/crates/legion-report/src/lib.rs",
+        "engine/crates/legion-report/src/markdown.rs",
+        "engine/crates/legion-report/src/sarif.rs"
+      ],
+      "read": [
+        "engine/crates/legion-contracts/src/report.rs",
+        "engine/crates/legion-application/src/lib.rs",
+        "engine/bins/legion/src/cli.rs",
+        "engine/bins/legion/src/commands/audit.rs",
+        "engine/crates/legion-audit/src/report.rs",
+        "migration/native-rust/fixtures/audit-cases.v1.json",
+        "migration/native-rust/m0/semantic-freeze.json"
+      ],
+      "forbidden": [
+        ".git",
+        ".audit",
+        "node_modules",
+        "target",
+        "secrets",
+        "membrane",
+        "src",
+        "skills",
+        "tools",
+        "engine/Cargo.lock",
+        "engine/Cargo.toml",
+        "engine/crates/legion-application",
+        "engine/crates/legion-audit",
+        "engine/bins/legion"
+      ],
+      "checks": [
+        "from engine with external CARGO_TARGET_DIR: cargo fmt --all --check",
+        "from engine with external CARGO_TARGET_DIR: cargo check -p legion-report --locked",
+        "from engine with external CARGO_TARGET_DIR: cargo test -p legion-report --locked",
+        "from engine with external CARGO_TARGET_DIR: cargo clippy -p legion-report --all-targets --locked -- -D warnings",
+        "search changed report files for process execution, filesystem/network effects, Node/Python/Membrane references, unsafe raw HTML, omitted status/gaps, & false-clean wording"
+      ],
+      "dependencies": []
+    }
+  ],
+  "oracleAudit": {
+    "required": true,
+    "mode": "adversarial",
+    "status": "required-before-execution",
+    "checks": [
+      "allowlist-completeness",
+      "lane-disjointness",
+      "dependency-validity",
+      "maximum-safe-parallelization",
+      "end-to-end-lane-closure",
+      "report-contract-preservation",
+      "truthful-gap-visibility",
+      "deterministic-rendering",
+      "escaping-and-SARIF-validity",
+      "legacy-tooling-retention",
+      "Membrane-exclusion"
+    ]
+  },
+  "recovery": {
+    "maxRetries": 1,
+    "stopConditions": [
+      "source revision or frozen authority changes",
+      "worker-owned report path is dirty before execution",
+      "implementation requires any path outside exact allowlist",
+      "ReportV1 contract change would be required",
+      "provider execution, external effect, Node/Python runtime, or Membrane change would be required"
+    ],
+    "returnFields": [
+      "status",
+      "changedPaths",
+      "checks",
+      "rawFailures",
+      "blockers",
+      "baselineRevision",
+      "patchDigest",
+      "next"
+    ]
+  }
+}

@@ -8,13 +8,35 @@ use crate::{
 pub fn render(report: &ReportV1) -> Result<String, ReportError> {
     validate(report)?;
     let mut output = String::from("# Legion Report\n\n");
-    output.push_str("- Status: `");
-    output.push_str(&escape::markdown(
-        &format!("{:?}", report.status).to_ascii_lowercase(),
-    ));
-    output.push_str("`\n- Report ID: `");
-    output.push_str(&escape::markdown(report.report_id.as_str()));
-    output.push_str("`\n\n## Coverage & omissions\n\n");
+    output.push_str("- Status: ");
+    output.push_str(&escape::markdown_code(crate::status_label(report.status)));
+    output.push_str("\n- Report ID: ");
+    output.push_str(&escape::markdown_code(report.report_id.as_str()));
+    output.push_str("\n\n## Targets\n\n");
+    if report.targets.is_empty() {
+        output.push_str("No targets recorded.\n\n");
+    } else {
+        for target in &report.targets {
+            output.push_str("- ");
+            output.push_str(&escape::markdown_code(target));
+            output.push('\n');
+        }
+        output.push('\n');
+    }
+    output.push_str("## Claims\n\n");
+    if report.claims.is_empty() {
+        output.push_str("No claims recorded.\n\n");
+    } else {
+        for (key, value) in &report.claims {
+            output.push_str("- ");
+            output.push_str(&escape::markdown_code(key));
+            output.push_str(": ");
+            output.push_str(&escape::markdown_code(&value.to_string()));
+            output.push('\n');
+        }
+        output.push('\n');
+    }
+    output.push_str("## Coverage & omissions\n\n");
     if report.gaps.is_empty() {
         output.push_str("No omissions recorded.\n\n");
     } else {
@@ -35,9 +57,9 @@ pub fn render(report: &ReportV1) -> Result<String, ReportError> {
         output.push_str(&escape::markdown(finding.id.as_str()));
         output.push_str(" — ");
         output.push_str(&escape::markdown(&finding.title));
-        output.push_str("\n\n- Severity: `");
-        output.push_str(&escape::markdown(&finding.severity));
-        output.push_str("`\n- Message: ");
+        output.push_str("\n\n- Severity: ");
+        output.push_str(&escape::markdown_code(&finding.severity));
+        output.push_str("\n- Message: ");
         output.push_str(&escape::markdown(&finding.message));
         output.push('\n');
         if let Some(provider) = &finding.provider {
@@ -51,7 +73,7 @@ pub fn render(report: &ReportV1) -> Result<String, ReportError> {
                 &finding
                     .locations
                     .iter()
-                    .map(|location| format!("`{}`", escape::markdown(location)))
+                    .map(|location| escape::markdown_code(location))
                     .collect::<Vec<_>>()
                     .join(", "),
             );
@@ -61,9 +83,9 @@ pub fn render(report: &ReportV1) -> Result<String, ReportError> {
             output.push_str("- Evidence:\n");
             for (key, value) in &finding.evidence {
                 output.push_str("  - ");
-                output.push_str(&escape::markdown(key));
+                output.push_str(&escape::markdown_code(key));
                 output.push_str(": ");
-                output.push_str(&escape::markdown(&value.to_string()));
+                output.push_str(&escape::markdown_code(&value.to_string()));
                 output.push('\n');
             }
         }

@@ -1,0 +1,43 @@
+{
+  "schema_version": 4,
+  "sha256": "e4eb5fc932f58773c733bd459ee281049e2d6624588f89238105c10e1d751ffb",
+  "referenced_artifacts": [
+    {
+      "path": "migration/native-rust/dispatches/M4-REPORT-REQUEST.md",
+      "sha256": "sha256:1d79f565c11532586c4ceaabf88d40ea59fb58ec5ab9c689544cbc763405edd7"
+    },
+    {
+      "path": "AGENTS.md",
+      "sha256": "sha256:e9549a27c0e4edf161fd5abbcb9679b585cd5bcde0d8809cc56f230278019f7f"
+    },
+    {
+      "path": "docs/LEGION-CANONICAL-SSOT.md",
+      "sha256": "sha256:6a607498397142fc66e963ca6c25798bf8b68f59b59369c7f928cba912ad4e83"
+    },
+    {
+      "path": "migration/native-rust/PRODUCT-ARCHITECTURE-V2.md",
+      "sha256": "sha256:ab181ef9b391f22d739b40ffff6240a50078828d081f9490416ac8d959ed32c5"
+    },
+    {
+      "path": "migration/native-rust/MIGRATION-PLAN-V2.md",
+      "sha256": "sha256:7f5ddd5caf12cc2fcce945fe12d1a8ae2a3c1f4e4c39931cd57e1f5b78303462"
+    },
+    {
+      "path": "migration/native-rust/m0/semantic-freeze.json",
+      "sha256": "sha256:2d93461e5fd2c5d70f2133264f6066bac282130b9a541b02317ee8d1722f546f"
+    },
+    {
+      "path": "migration/native-rust/dispatches/M1-M8-DISPATCH.json",
+      "sha256": "sha256:23fc2c1452d5831da36a87fdb27f23555f1f31a850a1f77a970fcab07227f31c"
+    },
+    {
+      "path": "migration/native-rust/dispatches/M2-M7-OWNERSHIP-AMENDMENT.json",
+      "sha256": "sha256:4d48d17cdeb953d72af136659dcd99716307824ba937763761d500815b789f1c"
+    }
+  ],
+  "authority_binding": {
+    "packet_sha256": "e4eb5fc932f58773c733bd459ee281049e2d6624588f89238105c10e1d751ffb",
+    "source_revision": "1611c431cd734e01903233075b152fdc29b98e98",
+    "prompt_digest": "sha256:1d79f565c11532586c4ceaabf88d40ea59fb58ec5ab9c689544cbc763405edd7"
+  }
+}
