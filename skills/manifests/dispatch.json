@@ -60,7 +60,7 @@
     {
       "path": "SKILL.md",
       "uri": "legion-skill://dispatch/SKILL.md",
-      "digest": "sha256:22d8dcaf7d28145de3786f97cf24a9bc928a6bfccea4cc17ceddcffedbbcf858"
+      "digest": "sha256:88d2d0550bd55619c7502b77cb5c508513f9fae36aa62bb062ec558451d6477f"
     },
     {
       "path": "agents/openai.yaml",
@@ -70,7 +70,7 @@
     {
       "path": "assets/direct-packet.json",
       "uri": "legion-skill://dispatch/assets/direct-packet.json",
-      "digest": "sha256:d4dc9c532492dac706a2228e87fe5b8ffc2a90abedd090d17313cea7eb4560a7"
+      "digest": "sha256:c2c83cc3c8572f719817ea2ac6f06832d8563c249fb779628b779424fe1c446b"
     },
     {
       "path": "assets/dispatch-template.md",
@@ -80,17 +80,17 @@
     {
       "path": "evals/evals.json",
       "uri": "legion-skill://dispatch/evals/evals.json",
-      "digest": "sha256:10807ded75da16aff7204d200db83eb1a19f00972d93e8d26d9853e250c9ad86"
+      "digest": "sha256:9e964bc4c135b807bce0aaed7fd9c3238501f6ac2fd189c06d51089620e1c221"
     },
     {
       "path": "examples/dispatch-route-fixture.json",
       "uri": "legion-skill://dispatch/examples/dispatch-route-fixture.json",
-      "digest": "sha256:040f496f7969723d652ea239bbaa0ae8dd65c626726d2ec20824e9156f78be3a"
+      "digest": "sha256:150f0b70e066dda54b55724da6f897df0a3b9bdabfedcea0e03a7883ebc51b7d"
     },
     {
       "path": "examples/dispatch-route-fixture.receipt.json",
       "uri": "legion-skill://dispatch/examples/dispatch-route-fixture.receipt.json",
-      "digest": "sha256:9f9b1f0b92dd22846d214e8c7e701b47c554f3bef4f2e5fab14cb43391024725"
+      "digest": "sha256:023f73a3ca0b186a4ad47ba93f68a521dd83333d91c4be28ef75dffdc8f622c5"
     },
     {
       "path": "examples/sage-adjudication-dispatch.json",
@@ -150,7 +150,7 @@
     {
       "path": "references/manual.md",
       "uri": "legion-skill://dispatch/references/manual.md",
-      "digest": "sha256:dc57fc322afbf9e1b0a0be47c053b062cbe55d25e2b99275292ab58accfb2126"
+      "digest": "sha256:23a8be5a1203345e195971b88f898132315e235c2cc34b43b4e034eff89ebd1e"
     },
     {
       "path": "scripts/test_validate_dispatch.py",

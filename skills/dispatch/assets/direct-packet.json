@@ -18,17 +18,53 @@
     "task-specific source"
   ],
   "integrationOwner": "current orchestrator",
+  "fileTouchPolicy": {
+    "mode": "once-end-to-end",
+    "plannedFiles": ["src/example.ts", "tests/example.test.ts"],
+    "allowUnplannedFiles": false
+  },
+  "dispatches": [
+    {
+      "id": "A",
+      "dependsOn": [],
+      "lanes": ["lane-a-implementation", "lane-a-test"],
+      "completionChecks": ["all A lane checks pass and changed paths reconcile"]
+    }
+  ],
   "workers": [
     {
-      "id": "worker-1",
+      "id": "lane-a-implementation",
+      "dispatch": "A",
       "executor": "configured worker",
-      "own": ["src/example.ts"],
+      "allowlist": ["src/example.ts"],
       "read": ["tests/example.test.ts"],
+      "forbidden": [".git", "secrets"],
+      "checks": ["run implementation-focused check"],
+      "dependencies": []
+    },
+    {
+      "id": "lane-a-test",
+      "dispatch": "A",
+      "executor": "configured worker",
+      "allowlist": ["tests/example.test.ts"],
+      "read": ["src/example.ts"],
       "forbidden": [".git", "secrets"],
       "checks": ["run focused test"],
       "dependencies": []
     }
   ],
+  "oracleAudit": {
+    "required": true,
+    "mode": "adversarial",
+    "status": "required-before-execution",
+    "checks": [
+      "allowlist-completeness",
+      "lane-disjointness",
+      "dependency-validity",
+      "maximum-safe-parallelization",
+      "end-to-end-lane-closure"
+    ]
+  },
   "recovery": {
     "maxRetries": 2,
     "stopConditions": ["owned path is already dirty", "required private input is missing"],

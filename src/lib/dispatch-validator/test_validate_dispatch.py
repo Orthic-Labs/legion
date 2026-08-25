@@ -1660,13 +1660,16 @@ def main() -> int:
         worker_ids = ("OR-SUPERVISOR", "MB-IO", "MB-RETRIEVAL", "MB-PLANNER", "MB-LIFECYCLE", "CX-HARDEN", "CX-STATE")
         cursor = 0
         workers = []
+        planned_files = []
         for worker_id, count in zip(worker_ids, counts):
             own = [f"owned/path-{value:03d}" for value in range(cursor, cursor + count)]
             cursor += count
+            planned_files.extend(own)
             workers.append({
                 "id": worker_id,
+                "dispatch": "A",
                 "executor": "deepseek",
-                "own": own,
+                "allowlist": own,
                 "read": ["AGENTS.md", "tasks/plan.md"],
                 "forbidden": [".git", "secrets"],
                 "checks": [f"verify {worker_id} focused suite"],
@@ -1682,7 +1685,30 @@ def main() -> int:
             "objective": "Complete Phase A through seven frozen owners.",
             "authority": ["AGENTS.md", "tasks/plan.md", "path-ownership-ledger.json"],
             "integrationOwner": "codex",
+            "fileTouchPolicy": {
+                "mode": "once-end-to-end",
+                "plannedFiles": planned_files,
+                "allowUnplannedFiles": False,
+            },
+            "dispatches": [{
+                "id": "A",
+                "dependsOn": [],
+                "lanes": list(worker_ids),
+                "completionChecks": ["all seven lane checks pass and changed paths reconcile"],
+            }],
             "workers": workers,
+            "oracleAudit": {
+                "required": True,
+                "mode": "adversarial",
+                "status": "required-before-execution",
+                "checks": [
+                    "allowlist-completeness",
+                    "lane-disjointness",
+                    "dependency-validity",
+                    "maximum-safe-parallelization",
+                    "end-to-end-lane-closure",
+                ],
+            },
             "recovery": {
                 "maxRetries": 2,
                 "stopConditions": ["owned path is already dirty"],
@@ -1744,36 +1770,66 @@ def main() -> int:
         (root / "captured-prompt.txt").write_text("exact captured dispatch prompt", encoding="utf-8")
 
         collision = json.loads(json.dumps(direct_packet))
-        collision["workers"][1]["own"].append(collision["workers"][0]["own"][0])
+        collision["workers"][1]["allowlist"].append(collision["workers"][0]["allowlist"][0])
         errors, _ = validator_module.authority_packet_errors(collision, direct_path)
         assert any("direct OWN collision" in error for error in errors), errors
 
         ancestor_collision = json.loads(json.dumps(direct_packet))
-        ancestor_collision["workers"][1]["own"] = ["owned"]
+        ancestor_collision["workers"][1]["allowlist"] = ["owned"]
         errors, _ = validator_module.authority_packet_errors(ancestor_collision, direct_path)
-        assert any("direct OWN collision" in error for error in errors), errors
+        assert any("unplanned files" in error for error in errors), errors
 
         glob_collision = json.loads(json.dumps(direct_packet))
-        glob_collision["workers"][1]["own"] = ["owned/**"]
+        glob_collision["workers"][1]["allowlist"] = ["owned/**"]
         errors, _ = validator_module.authority_packet_errors(glob_collision, direct_path)
-        assert any("direct OWN collision" in error for error in errors), errors
+        assert any("allowlist forbids globs" in error for error in errors), errors
 
         alias_collision = json.loads(json.dumps(direct_packet))
-        alias_collision["workers"][1]["own"].append(
+        alias_collision["workers"][1]["allowlist"].append(
             "owned\\path-000/../path-000"
         )
         errors, _ = validator_module.authority_packet_errors(alias_collision, direct_path)
         assert any("direct OWN collision" in error for error in errors), errors
 
         invalid_scope = json.loads(json.dumps(direct_packet))
-        invalid_scope["workers"][0]["own"] = ["../outside-repository"]
+        invalid_scope["workers"][0]["allowlist"] = ["../outside-repository"]
         errors, _ = validator_module.authority_packet_errors(invalid_scope, direct_path)
-        assert any("invalid OWN path" in error for error in errors), errors
+        assert any("allowlist forbids globs" in error for error in errors), errors
 
         overlap = json.loads(json.dumps(direct_packet))
-        overlap["workers"][0]["forbidden"].append(overlap["workers"][0]["own"][0])
+        overlap["workers"][0]["forbidden"].append(overlap["workers"][0]["allowlist"][0])
         errors, _ = validator_module.authority_packet_errors(overlap, direct_path)
         assert any("OWN overlaps FORBIDDEN" in error for error in errors), errors
+
+        incomplete_inventory = json.loads(json.dumps(direct_packet))
+        incomplete_inventory["fileTouchPolicy"]["plannedFiles"].append("owned/unassigned-file")
+        errors, _ = validator_module.authority_packet_errors(incomplete_inventory, direct_path)
+        assert any("planned files lack lane allowlist" in error for error in errors), errors
+
+        duplicate_lane_membership = json.loads(json.dumps(direct_packet))
+        duplicate_lane_membership["dispatches"].append({
+            "id": "B",
+            "dependsOn": ["A"],
+            "lanes": [worker_ids[0]],
+            "completionChecks": ["B complete"],
+        })
+        errors, _ = validator_module.authority_packet_errors(duplicate_lane_membership, direct_path)
+        assert any("lanes appear in multiple dispatches" in error for error in errors), errors
+
+        unnecessary_root_wave = json.loads(json.dumps(direct_packet))
+        unnecessary_root_wave["dispatches"].append({
+            "id": "B",
+            "dependsOn": [],
+            "lanes": ["lane-b"],
+            "completionChecks": ["B complete"],
+        })
+        errors, _ = validator_module.authority_packet_errors(unnecessary_root_wave, direct_path)
+        assert any("move its lanes into first eligible wave" in error for error in errors), errors
+
+        missing_oracle = json.loads(json.dumps(direct_packet))
+        del missing_oracle["oracleAudit"]
+        errors, _ = validator_module.authority_packet_errors(missing_oracle, direct_path)
+        assert any("adversarial Oracle" in error for error in errors), errors
 
         unknown_dependency = json.loads(json.dumps(direct_packet))
         unknown_dependency["workers"][0]["dependencies"] = ["MISSING"]

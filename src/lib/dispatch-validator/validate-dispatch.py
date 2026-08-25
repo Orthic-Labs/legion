@@ -156,6 +156,19 @@ def direct_scope_path(value: str) -> str | None:
     return normalized.casefold() if os.name == "nt" else normalized
 
 
+def direct_file_allowlist_path(value: str) -> str | None:
+    """Return one exact file key for one-touch direct-packet ownership."""
+    raw = value.strip().replace("\\", "/")
+    normalized = direct_scope_path(raw)
+    if (
+        normalized is None
+        or raw.endswith("/")
+        or any(token in raw for token in "*?[")
+    ):
+        return None
+    return normalized
+
+
 def scope_static_prefix(value: str) -> str:
     parts = value.split("/")
     concrete: list[str] = []
@@ -273,7 +286,10 @@ def authority_packet_errors(packet: object, artifact: Path) -> tuple[list[str], 
         objective = packet.get("objective")
         integration_owner = packet.get("integrationOwner")
         authority = packet.get("authority")
+        file_touch_policy = packet.get("fileTouchPolicy")
+        dispatches = packet.get("dispatches")
         workers = packet.get("workers")
+        oracle_audit = packet.get("oracleAudit")
         recovery = packet.get("recovery")
         if not isinstance(objective, str) or not objective.strip(): errors.append("direct packet requires objective")
         if not isinstance(integration_owner, str) or not integration_owner.strip(): errors.append("direct packet requires integration owner")
@@ -284,6 +300,88 @@ def authority_packet_errors(packet: object, artifact: Path) -> tuple[list[str], 
                 content_reference(
                     authority_path, artifact, f"direct authority {index}", errors, references
                 )
+        planned_files: set[str] = set()
+        if (
+            not isinstance(file_touch_policy, dict)
+            or file_touch_policy.get("mode") != "once-end-to-end"
+            or file_touch_policy.get("allowUnplannedFiles") is not False
+            or not isinstance(file_touch_policy.get("plannedFiles"), list)
+            or not file_touch_policy.get("plannedFiles")
+        ):
+            errors.append("direct packet requires closed once-end-to-end file-touch policy")
+        else:
+            raw_planned = file_touch_policy["plannedFiles"]
+            if any(not isinstance(value, str) or not value.strip() for value in raw_planned):
+                errors.append("direct plannedFiles requires exact repository-relative file paths")
+            else:
+                normalized_planned = [direct_file_allowlist_path(value) for value in raw_planned]
+                if any(value is None for value in normalized_planned):
+                    errors.append("direct plannedFiles forbids globs, directories, and invalid paths")
+                planned_files = {value for value in normalized_planned if value is not None}
+                if len(planned_files) != len(raw_planned):
+                    errors.append("direct plannedFiles contains duplicate or aliased paths")
+                if root is not None:
+                    for path in planned_files:
+                        if (root / path).is_dir():
+                            errors.append(f"direct plannedFiles path is a directory: {path}")
+        dispatch_ids: set[str] = set()
+        dispatch_lanes: dict[str, set[str]] = {}
+        declared_lanes: set[str] = set()
+        if not isinstance(dispatches, list) or not dispatches:
+            errors.append("direct packet requires dependency-ordered dispatch waves")
+        else:
+            prior_dispatches: set[str] = set()
+            for index, dispatch in enumerate(dispatches):
+                label = f"direct dispatch {index + 1}"
+                if not isinstance(dispatch, dict):
+                    errors.append(f"{label} must be an object")
+                    continue
+                dispatch_id = dispatch.get("id")
+                dependencies = dispatch.get("dependsOn")
+                lanes = dispatch.get("lanes")
+                completion_checks = dispatch.get("completionChecks")
+                if not isinstance(dispatch_id, str) or not dispatch_id.strip():
+                    errors.append(f"{label} requires id")
+                    continue
+                if dispatch_id in dispatch_ids:
+                    errors.append(f"direct dispatch id is duplicated: {dispatch_id}")
+                    continue
+                dispatch_ids.add(dispatch_id)
+                if (
+                    not isinstance(dependencies, list)
+                    or any(not isinstance(value, str) or not value.strip() for value in dependencies)
+                    or len(set(dependencies)) != len(dependencies)
+                ):
+                    errors.append(f"{label} dependsOn requires unique prior dispatch ids")
+                    dependencies = []
+                elif any(value not in prior_dispatches for value in dependencies):
+                    errors.append(f"{label} dependsOn must reference only earlier dispatches")
+                if index == 0 and dependencies:
+                    errors.append("first direct dispatch wave cannot have dependencies")
+                if index > 0 and not dependencies:
+                    errors.append(f"{label} lacks dependency; move its lanes into first eligible wave")
+                if (
+                    not isinstance(lanes, list)
+                    or not lanes
+                    or any(not isinstance(value, str) or not value.strip() for value in lanes)
+                    or len(set(lanes)) != len(lanes)
+                ):
+                    errors.append(f"{label} requires unique lane ids")
+                    dispatch_lanes[dispatch_id] = set()
+                else:
+                    lane_set = set(lanes)
+                    overlap = declared_lanes & lane_set
+                    if overlap:
+                        errors.append(f"direct lanes appear in multiple dispatches: {', '.join(sorted(overlap))}")
+                    declared_lanes.update(lane_set)
+                    dispatch_lanes[dispatch_id] = lane_set
+                if (
+                    not isinstance(completion_checks, list)
+                    or not completion_checks
+                    or any(not isinstance(value, str) or not value.strip() for value in completion_checks)
+                ):
+                    errors.append(f"{label} requires completion checks")
+                prior_dispatches.add(dispatch_id)
         if not isinstance(workers, list) or not workers:
             errors.append("direct packet requires at least one worker")
         else:
@@ -295,8 +393,9 @@ def authority_packet_errors(packet: object, artifact: Path) -> tuple[list[str], 
                     errors.append(f"{label} must be an object")
                     continue
                 worker_id = worker.get("id")
+                dispatch_id = worker.get("dispatch")
                 executor = worker.get("executor")
-                own = worker.get("own")
+                own = worker.get("allowlist")
                 read = worker.get("read")
                 forbidden = worker.get("forbidden")
                 checks = worker.get("checks")
@@ -308,6 +407,10 @@ def authority_packet_errors(packet: object, artifact: Path) -> tuple[list[str], 
                     errors.append(f"direct worker id is duplicated: {worker_id}")
                 else:
                     worker_ids.add(worker_id)
+                if not isinstance(dispatch_id, str) or dispatch_id not in dispatch_ids:
+                    errors.append(f"{label} requires known dispatch wave")
+                elif worker_id not in dispatch_lanes.get(dispatch_id, set()):
+                    errors.append(f"{label} is not listed in dispatch {dispatch_id}")
                 if not isinstance(executor, str) or not executor.strip(): errors.append(f"{label} requires executor")
                 scopes = (("OWN", own, True), ("READ", read, False), ("FORBIDDEN", forbidden, False))
                 normalized: dict[str, set[str]] = {}
@@ -316,11 +419,21 @@ def authority_packet_errors(packet: object, artifact: Path) -> tuple[list[str], 
                         errors.append(f"{label} requires valid {scope_name} paths")
                         normalized[scope_name] = set()
                     else:
-                        path_values = [direct_scope_path(value) for value in values]
+                        path_values = [
+                            direct_file_allowlist_path(value) if scope_name == "OWN" else direct_scope_path(value)
+                            for value in values
+                        ]
                         if any(value is None for value in path_values):
-                            errors.append(f"{label} contains invalid {scope_name} path")
+                            if scope_name == "OWN":
+                                errors.append(f"{label} allowlist forbids globs, directories, and invalid paths")
+                            else:
+                                errors.append(f"{label} contains invalid {scope_name} path")
                         normalized[scope_name] = {value for value in path_values if value is not None}
                         if len(normalized[scope_name]) != len(values): errors.append(f"{label} contains duplicate {scope_name} paths")
+                if root is not None:
+                    for path in normalized["OWN"]:
+                        if (root / path).is_dir():
+                            errors.append(f"{label} allowlist path is a directory: {path}")
                 if normalized["OWN"] & normalized["FORBIDDEN"]: errors.append(f"{label} OWN overlaps FORBIDDEN")
                 if normalized["READ"] & normalized["FORBIDDEN"]: errors.append(f"{label} READ overlaps FORBIDDEN")
                 for path in normalized["OWN"]:
@@ -337,12 +450,41 @@ def authority_packet_errors(packet: object, artifact: Path) -> tuple[list[str], 
                 if not isinstance(checks, list) or not checks or any(not isinstance(value, str) or not value.strip() for value in checks): errors.append(f"{label} requires acceptance checks")
                 if not isinstance(dependencies, list) or any(not isinstance(value, str) or not value.strip() for value in dependencies) or len(set(dependencies)) != len(dependencies): errors.append(f"{label} dependencies must be unique worker ids")
             known_ids = {worker.get("id") for worker in workers if isinstance(worker, dict) and isinstance(worker.get("id"), str)}
+            if worker_ids != declared_lanes:
+                missing = declared_lanes - worker_ids
+                extra = worker_ids - declared_lanes
+                if missing: errors.append(f"direct dispatch lanes missing workers: {', '.join(sorted(missing))}")
+                if extra: errors.append(f"direct workers missing dispatch lane membership: {', '.join(sorted(extra))}")
+            owned_file_set = set(owned_paths)
+            missing_files = planned_files - owned_file_set
+            unplanned_files = owned_file_set - planned_files
+            if missing_files:
+                errors.append(f"direct planned files lack lane allowlist: {', '.join(sorted(missing_files))}")
+            if unplanned_files:
+                errors.append(f"direct lane allowlist contains unplanned files: {', '.join(sorted(unplanned_files))}")
             for worker in workers:
                 if not isinstance(worker, dict): continue
                 worker_id = worker.get("id")
                 for dependency in worker.get("dependencies", []) if isinstance(worker.get("dependencies", []), list) else []:
                     if dependency == worker_id: errors.append(f"direct worker {worker_id} cannot depend on itself")
                     elif dependency not in known_ids: errors.append(f"direct worker {worker_id} has unknown dependency: {dependency}")
+                    else: errors.append(f"direct lane {worker_id} dependencies belong on dispatch wave, not worker")
+        required_oracle_checks = {
+            "allowlist-completeness",
+            "lane-disjointness",
+            "dependency-validity",
+            "maximum-safe-parallelization",
+            "end-to-end-lane-closure",
+        }
+        if (
+            not isinstance(oracle_audit, dict)
+            or oracle_audit.get("required") is not True
+            or oracle_audit.get("mode") != "adversarial"
+            or oracle_audit.get("status") != "required-before-execution"
+            or not isinstance(oracle_audit.get("checks"), list)
+            or not required_oracle_checks.issubset(set(oracle_audit.get("checks", [])))
+        ):
+            errors.append("direct packet requires adversarial Oracle pre-execution audit contract")
         if not isinstance(recovery, dict) or not isinstance(recovery.get("maxRetries"), int) or not 0 <= recovery["maxRetries"] <= 2 or not isinstance(recovery.get("stopConditions"), list) or not recovery["stopConditions"] or any(not isinstance(value, str) or not value.strip() for value in recovery.get("stopConditions", [])) or not isinstance(recovery.get("returnFields"), list) or not recovery["returnFields"] or any(not isinstance(value, str) or not value.strip() for value in recovery.get("returnFields", [])):
             errors.append("direct packet requires bounded recovery and return contract")
     elif packet_type == "sage":

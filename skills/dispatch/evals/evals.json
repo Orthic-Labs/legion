@@ -65,10 +65,17 @@
   "output_quality": [
     {
       "id": "dispatch-required-contracts",
-      "expected_behavior": "Requires OWN, TRUE_BLOCKER, recovery, evidence, receipt, and validator PASS.",
+      "expected_behavior": "Requires exact one-touch file allowlists, dependency waves, TRUE_BLOCKER, recovery, evidence, receipt, validator PASS, and adversarial Oracle PASS.",
       "severity": "error",
       "mode": "static",
-      "prompt": "Requires OWN, TRUE_BLOCKER, recovery, evidence, receipt, and validator PASS."
+      "prompt": "Requires exact one-touch file allowlists, dependency waves, TRUE_BLOCKER, recovery, evidence, receipt, validator PASS, and adversarial Oracle PASS."
+    },
+    {
+      "id": "dispatch-one-touch-wave-parallelism",
+      "expected_behavior": "Assigns every planned changed file once, groups all independent lanes into earliest dependency wave, and forbids integrator repair edits.",
+      "severity": "error",
+      "mode": "static",
+      "prompt": "Assigns every planned changed file once, groups all independent lanes into earliest dependency wave, and forbids integrator repair edits."
     },
     {
       "id": "dispatch-script-chaining",

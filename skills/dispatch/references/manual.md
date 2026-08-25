@@ -48,17 +48,32 @@ accessible paths + required sections. Embed essential facts which exist only in 
 
 ## Step 2 — Design ownership & dependency graph
 
-For each executor define: one outcome; `OWN` paths it may edit; `READ` paths it may inspect;
-`FORBIDDEN` paths/actions; upstream inputs; downstream consumer; dependency position; whether
-parallel-safe; integration owner.
+First compile full expected changed-file inventory. Partition work into ordered dispatch waves. Wave A
+contains every lane with no unmet dependency; each later wave names exact completed-wave outputs or
+shared-state gate it consumes. Lanes within one wave are mutually independent and run in parallel.
+If a lane can safely move earlier, move it; phase labels alone never justify serialization.
 
-Multiple agents receive separate complete dispatches. Never give overlapping `OWN` scopes.
-Serialize shared-state edits, builds, installs, renders, deploys, migrations, paid calls, &
-production writes. If independence is uncertain, investigate first. Do not dispatch ambiguity.
+For each lane define one end-to-end outcome; exact repository-relative write `allowlist`; `READ`
+paths; `FORBIDDEN` paths/actions; upstream inputs; downstream consumer; wave; checks; integration
+owner. Write allowlists contain files only—no glob, directory, or path-prefix ownership. Include
+created files, tests, fixtures, docs, lockfiles, manifests, and generated outputs the lane will
+change.
+
+Each planned changed file appears in exactly one lane across complete dispatch set. That lane owns
+all requested changes to file from first edit through final check. No later cleanup, integration, or
+repair lane may edit it. Integrator stages, checks, commits, and pushes but does not edit lane-owned
+files. When two outcomes require same file, merge them into one lane or redesign boundary; never
+schedule sequential file touching.
+
+Multiple agents receive separate complete lane instructions. READ scopes may overlap; write
+allowlists may not. Serialize only concrete data, file, build/install, render, deploy, migration,
+paid-call, or production-write dependency. If independence is uncertain, investigate before packet
+is declared ready.
 
 ## Step 3 — Author from required template
 
-Copy `assets/dispatch-template.md`. Fill every placeholder. Use exact paths, commands/tool
+Copy `assets/direct-packet.json` for normal work. Fill every placeholder, dispatch wave, lane,
+file-touch entry, and Oracle contract. Use exact paths, commands/tool
 actions, cwd, expected outputs, checks, artifacts, & limits. Every execution step must answer:
 why does this step exist; what exact inputs it consumes; where it runs; what exact command or tool
 action runs; what stdout/state + exit/result proves success; what timeout + retry bound applies;
@@ -113,24 +128,36 @@ bound, evidence, & escalation threshold without asking the dispatcher to reconst
 
 Any "no" means revise.
 
-## Step 8 — Validate before sending
+## Step 8 — Validate and adversarially review before sending
 
-Write dispatch to a durable, named `.md` artifact before validation. Temporary-only & inline-only
-dispatches are forbidden. Validate:
+Write direct dispatch to durable named `.json` artifact before validation. Temporary-only and
+inline-only dispatches are forbidden. Validate:
 
 ```bash
-python3 skills/dispatch/scripts/validate-dispatch.py <dispatch.md> --write-receipt <dispatch.receipt.json>
+python3 skills/dispatch/scripts/validate-dispatch.py <dispatch.json> --packet-type authority --write-receipt <dispatch.receipt.json>
 ```
 
 Do not spawn/send until exit code is `0` and output begins `PASS:`. Receiver recomputes digest
 before execution:
 
 ```bash
-python3 skills/dispatch/scripts/validate-dispatch.py <dispatch.md> --verify-receipt <dispatch.receipt.json>
+python3 skills/dispatch/scripts/validate-dispatch.py <dispatch.json> --packet-type authority --verify-receipt <dispatch.receipt.json>
 ```
 
 Embedded self-hash is forbidden (changing the document to add its hash changes the hash); the
 sidecar binds exact bytes without circularity.
+
+Then give fresh Oracle exact packet, receipt, authoritative requirements, and source/file inventory.
+Oracle must adversarially try to disprove:
+
+1. full planned-file coverage;
+2. one-touch ownership and disjoint write allowlists;
+3. necessary, acyclic wave dependencies;
+4. earliest legal wave placement and maximum safe parallelism;
+5. lane-local end-to-end acceptance and absence of integrator repair edits.
+
+Oracle returns `PASS` or exact blocking defect. Any packet change invalidates its review. Revalidate
+and rerun Oracle after correction. No execution begins without fresh PASS.
 
 ## Executor return & integration contract
 
@@ -144,7 +171,8 @@ observations only.
 ## Worker output is untrusted
 
 Delegated work is never proof of completion. The integrator reruns the relevant final checks in
-the primary checkout after integration and requires a reachable canonical commit or
+the primary checkout without editing lane-owned files, reconciles actual changed paths against each
+allowlist and global one-touch ledger, and requires a reachable canonical commit or
 content-addressed patch before archive. Clean read-only tasks archive freely.
 
 ## Experiment / correction / lifecycle work
