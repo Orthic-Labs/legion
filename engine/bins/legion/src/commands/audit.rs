@@ -36,7 +36,7 @@ pub async fn run(args: AuditArgs, cancellation: CancellationToken) -> CommandRes
             "root": root,
             "providers": [],
             "resultCount": 0,
-            "gaps": ["native Blueprint inventory and frozen provider composition are not connected"],
+            "gaps": ["native frozen provider composition is not connected"],
             "auditStatus": "incomplete",
         }));
     }
@@ -162,7 +162,11 @@ fn direct_application(
             "direct Audit requires at least one --provider-result",
         ));
     }
-    let (source, context_notices) = inventory_source(args, root)?;
+    let (source, context_notices) = super::audit_inventory_source(
+        root,
+        args.blueprint_packet.as_deref(),
+        args.expected_generation.clone(),
+    )?;
     let specifications = read_provider_plan(plan)?;
     let results = args
         .provider_results
@@ -177,45 +181,6 @@ fn direct_application(
     )
     .map_err(|error| CommandError::incomplete(error.to_string()))?;
     Ok((application, context_notices))
-}
-
-fn inventory_source(
-    args: &AuditArgs,
-    root: &std::path::Path,
-) -> Result<(Arc<dyn legion_audit::BlueprintInventorySource>, Vec<String>), CommandError> {
-    if let Some(packet) = &args.blueprint_packet {
-        let blueprint = std::fs::canonicalize(packet)
-            .map_err(|error| error.to_string())
-            .and_then(|path| {
-                legion_audit::FileBlueprintInventorySource::new(
-                    path,
-                    args.expected_generation.clone(),
-                )
-                .map_err(|error| error.to_string())
-            });
-        match blueprint {
-            Ok(source) => return Ok((Arc::new(source), Vec::new())),
-            Err(error) => {
-                let fallback = legion_audit::FilesystemInventorySource::new(root)
-                    .map_err(|fallback| CommandError::incomplete(fallback.to_string()))?;
-                return Ok((
-                    Arc::new(fallback),
-                    vec![format!(
-                        "Blueprint was unavailable ({error}). Audit continued with its own read-only repository inventory. Use Membrane as context engine and provide a fresh Blueprint packet for richer context."
-                    )],
-                ));
-            }
-        }
-    }
-    let fallback = legion_audit::FilesystemInventorySource::new(root)
-        .map_err(|error| CommandError::incomplete(error.to_string()))?;
-    Ok((
-        Arc::new(fallback),
-        vec![
-            "Blueprint was not provided. Audit continued with its own read-only repository inventory. Use Membrane as context engine and provide a fresh Blueprint packet for richer context."
-                .into(),
-        ],
-    ))
 }
 
 fn read_provider_plan(

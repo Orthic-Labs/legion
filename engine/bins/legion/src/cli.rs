@@ -468,7 +468,7 @@ async fn native_plan(args: RootArgs, cancellation: CancellationToken) -> Command
             "repository": root,
             "providers": [],
             "status": "incomplete",
-            "gaps": ["native Blueprint inventory and frozen provider composition are not connected"],
+            "gaps": ["native frozen provider composition is not connected"],
         }));
     }
     let signing_key = commands::audit_signing_key()?;

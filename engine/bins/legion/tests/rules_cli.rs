@@ -1,7 +1,5 @@
 use std::process::Command;
 
-use legion_audit::BlueprintInventorySource;
-
 #[test]
 fn native_rules_evaluate_blueprint_bound_source() {
     let root = std::env::temp_dir().join(format!(
@@ -150,10 +148,32 @@ fn native_audit_continues_without_blueprint() {
     std::fs::create_dir_all(root.join(".audit/inputs")).unwrap();
     std::fs::write(root.join("src/service.rs"), "fn service() {}\n").unwrap();
     let root = std::fs::canonicalize(root).unwrap();
-    let inventory = legion_audit::FilesystemInventorySource::new(&root)
-        .unwrap()
-        .inventory(root.to_str().unwrap())
+    let manifest = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../../../packs/native/manifest.v1.json");
+    let rules = Command::new(env!("CARGO_BIN_EXE_legion"))
+        .args([
+            "rules",
+            "--manifest",
+            manifest.to_str().unwrap(),
+            "--root",
+            root.to_str().unwrap(),
+            "--provider",
+            "native.fixture",
+        ])
+        .output()
         .unwrap();
+    assert_eq!(
+        rules.status.code(),
+        Some(0),
+        "{}",
+        String::from_utf8_lossy(&rules.stderr)
+    );
+    let rules_summary: serde_json::Value = serde_json::from_slice(&rules.stdout).unwrap();
+    assert_eq!(rules_summary["status"], "complete");
+    assert!(rules_summary["contextNotices"][0]
+        .as_str()
+        .unwrap()
+        .contains("Audit continued"));
     let plan = serde_json::json!({
         "providers": [{
             "schemaVersion": 2,
@@ -183,28 +203,10 @@ fn native_audit_continues_without_blueprint() {
             "selectable": true
         }]
     });
-    let result = serde_json::json!({
-        "schema_version": 1,
-        "provider": "native.fixture",
-        "applicable": true,
-        "required": true,
-        "status": "complete",
-        "complete": true,
-        "coverage": {
-            "denominator_digest": inventory.digest,
-            "expected": 1,
-            "examined": 1,
-            "gaps": []
-        },
-        "findings": [],
-        "coverage_gaps": [],
-        "degradation": [],
-        "details": {}
-    });
     let plan_path = root.join(".audit/inputs/provider-plan.json");
     let result_path = root.join(".audit/inputs/provider-result.json");
     std::fs::write(&plan_path, serde_json::to_vec_pretty(&plan).unwrap()).unwrap();
-    std::fs::write(&result_path, serde_json::to_vec_pretty(&result).unwrap()).unwrap();
+    std::fs::write(&result_path, &rules.stdout).unwrap();
     let audit_out = root.join(".audit/output");
     let audit = Command::new(env!("CARGO_BIN_EXE_legion"))
         .args([

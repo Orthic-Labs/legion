@@ -9,7 +9,7 @@ pub mod research;
 pub mod review;
 pub mod rules;
 use serde_json::Value;
-use std::sync::Arc;
+use std::{path::Path, sync::Arc};
 pub type CommandResult = Result<Value, CommandError>;
 pub fn native_application_for(
     repository_id: &str,
@@ -33,6 +33,42 @@ pub fn audit_signing_key() -> Result<Vec<u8>, CommandError> {
         .ok_or_else(|| {
             CommandError::incomplete("native audit requires host-injected AUDIT_PLAN_SIGNING_KEY")
         })
+}
+pub fn audit_inventory_source(
+    root: &Path,
+    packet: Option<&Path>,
+    expected_generation: Option<String>,
+) -> Result<(Arc<dyn legion_audit::BlueprintInventorySource>, Vec<String>), CommandError> {
+    if let Some(packet) = packet {
+        let blueprint = std::fs::canonicalize(packet)
+            .map_err(|error| error.to_string())
+            .and_then(|path| {
+                legion_audit::FileBlueprintInventorySource::new(path, expected_generation)
+                    .map_err(|error| error.to_string())
+            });
+        match blueprint {
+            Ok(source) => return Ok((Arc::new(source), Vec::new())),
+            Err(error) => {
+                let fallback = legion_audit::FilesystemInventorySource::new(root)
+                    .map_err(|fallback| CommandError::incomplete(fallback.to_string()))?;
+                return Ok((
+                    Arc::new(fallback),
+                    vec![format!(
+                        "Blueprint was unavailable ({error}). Audit continued with its own read-only repository inventory. Use Membrane as context engine and provide a fresh Blueprint packet for richer context."
+                    )],
+                ));
+            }
+        }
+    }
+    let fallback = legion_audit::FilesystemInventorySource::new(root)
+        .map_err(|error| CommandError::incomplete(error.to_string()))?;
+    Ok((
+        Arc::new(fallback),
+        vec![
+            "Blueprint was not provided. Audit continued with its own read-only repository inventory. Use Membrane as context engine and provide a fresh Blueprint packet for richer context."
+                .into(),
+        ],
+    ))
 }
 #[derive(Debug)]
 pub struct CommandError {

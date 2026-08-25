@@ -1,6 +1,6 @@
 use super::{CommandError, CommandResult};
 use clap::Args;
-use legion_audit::{BlueprintInventorySource, FileBlueprintInventorySource};
+use legion_audit::BlueprintInventorySource;
 use legion_contracts::{
     Coverage, FindingId, FindingRef, ProviderId, ProviderResult, ProviderStatus,
 };
@@ -13,7 +13,7 @@ pub struct RulesArgs {
     #[arg(long)]
     pub manifest: PathBuf,
     #[arg(long = "blueprint-packet")]
-    pub blueprint_packet: PathBuf,
+    pub blueprint_packet: Option<PathBuf>,
     #[arg(long = "expected-generation")]
     pub expected_generation: Option<String>,
     #[arg(long, default_value = ".")]
@@ -32,16 +32,18 @@ pub fn run(args: RulesArgs) -> CommandResult {
     }
     let root = std::fs::canonicalize(&args.root).map_err(super::io_error)?;
     let manifest_path = std::fs::canonicalize(&args.manifest).map_err(super::io_error)?;
-    let packet_path = std::fs::canonicalize(&args.blueprint_packet).map_err(super::io_error)?;
     let provider =
         ProviderId::new(args.provider).map_err(|error| CommandError::usage(error.to_string()))?;
     let manifest = std::fs::read_to_string(&manifest_path).map_err(super::io_error)?;
     let compiled = RuleCompiler::compile_manifest_json(&manifest)
         .map_err(|error| CommandError::usage(error.to_string()))?;
     let selected = select_packs(compiled, &args.packs)?;
-    let source = FileBlueprintInventorySource::new(packet_path, args.expected_generation)
-        .map_err(|error| CommandError::incomplete(error.to_string()))?;
     let repository_id = root.to_string_lossy().into_owned();
+    let (source, context_notices) = super::audit_inventory_source(
+        &root,
+        args.blueprint_packet.as_deref(),
+        args.expected_generation,
+    )?;
     let inventory = source
         .inventory(&repository_id)
         .map_err(|error| CommandError::incomplete(error.to_string()))?;
@@ -49,7 +51,7 @@ pub fn run(args: RulesArgs) -> CommandResult {
     let mut files = Vec::new();
     let mut gaps = Vec::new();
     if inventory.entries.is_empty() {
-        gaps.push("blueprint-inventory-empty".into());
+        gaps.push("repository-inventory-empty".into());
     }
     for entry in &inventory.entries {
         let path = root.join(&entry.path);
@@ -179,6 +181,7 @@ pub fn run(args: RulesArgs) -> CommandResult {
         "repository": repository_id,
         "generation": inventory.generation,
         "inventoryDigest": inventory.digest,
+        "contextNotices": context_notices,
         "providerResult": result,
     }))
 }
