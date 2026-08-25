@@ -16,6 +16,7 @@ fn configured_audit_writes_reconciled_json_and_sarif() {
         std::thread::current().name().unwrap_or("fixture")
     ));
     std::fs::create_dir_all(&root).unwrap();
+    let root = std::fs::canonicalize(root).unwrap();
     let repository_id = root.to_string_lossy().into_owned();
     let provider_id = ProviderId::new("fixture-provider").unwrap();
     let inventory =
