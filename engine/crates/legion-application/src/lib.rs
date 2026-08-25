@@ -316,6 +316,152 @@ impl NativeApplicationConfig {
             .build()
     }
 
+    /// Compose one standalone Audit from a host-published Blueprint source,
+    /// an exact selected provider plan, and typed host-injected results.
+    pub fn for_audit_artifacts(
+        repository_id: impl Into<String>,
+        inventory_source: Arc<dyn BlueprintInventorySource>,
+        provider_specs: Vec<ProviderSpec>,
+        provider_results: Vec<ProviderResult>,
+    ) -> Result<NativeApplication, NativeApplicationError> {
+        let repository_id = repository_id.into();
+        let inventory = inventory_source.inventory(&repository_id)?;
+        if provider_specs.is_empty() {
+            return Err(NativeApplicationError::Configuration(
+                "standalone Audit requires selected provider specifications".into(),
+            ));
+        }
+        let mut results = BTreeMap::new();
+        for result in provider_results {
+            result
+                .validate()
+                .map_err(|error| NativeApplicationError::Configuration(error.to_string()))?;
+            if result.complete
+                && result
+                    .coverage
+                    .as_ref()
+                    .is_none_or(|coverage| coverage.denominator_digest != inventory.digest)
+            {
+                return Err(NativeApplicationError::Configuration(format!(
+                    "complete provider result {} is not bound to the Blueprint inventory digest",
+                    result.provider
+                )));
+            }
+            let provider_id = result.provider.to_string();
+            if results.insert(provider_id.clone(), result).is_some() {
+                return Err(NativeApplicationError::Configuration(format!(
+                    "duplicate provider result: {provider_id}"
+                )));
+            }
+        }
+        let planned = provider_specs
+            .iter()
+            .map(|specification| specification.id.to_string())
+            .collect::<BTreeSet<_>>();
+        let supplied = results.keys().cloned().collect::<BTreeSet<_>>();
+        if planned != supplied {
+            return Err(NativeApplicationError::Configuration(
+                "selected provider specifications and supplied results do not reconcile".into(),
+            ));
+        }
+        for specification in &provider_specs {
+            specification
+                .validate()
+                .map_err(|error| NativeApplicationError::Configuration(error.to_string()))?;
+        }
+
+        let profile_definition = AgentDefinition::new(
+            AgentId::new("legion")
+                .map_err(|error| NativeApplicationError::Configuration(error.to_string()))?,
+            "Legion",
+            "native standalone Audit",
+            BudgetCeiling {
+                max_active_time_ms: 300_000,
+                max_cost_micros: 1,
+                max_output_bytes: 64 * 1024 * 1024,
+            },
+            ToolCeiling::default(),
+            RoutingCeiling::default(),
+        )
+        .map_err(|error| NativeApplicationError::Configuration(error.to_string()))?;
+        let profile = legion_runtime::AgentProfile::new(profile_definition)
+            .map_err(|error| NativeApplicationError::Configuration(error.to_string()))?;
+        let definitions = provider_specs
+            .iter()
+            .map(|specification| ProviderDefinition {
+                schema_version: 1,
+                id: specification.id.clone(),
+                provider_version: specification.provider_version.clone(),
+                implementation_key: "host-injected-audit-result".into(),
+                capabilities: specification.control_ids.clone(),
+                depends_on: specification.depends_on.clone(),
+                required: true,
+                permissions: Vec::new(),
+                source_provenance: BTreeMap::from([(
+                    "kind".into(),
+                    "host-injected-audit-result".into(),
+                )]),
+            })
+            .collect::<Vec<_>>();
+        let mut implementations = ImplementationRegistry::new();
+        let configured_results = results.clone();
+        implementations
+            .register("host-injected-audit-result", "*", move |definition| {
+                let result = configured_results
+                    .get(&definition.id.to_string())
+                    .cloned()
+                    .ok_or_else(|| {
+                        ProviderError::new(
+                            ProviderErrorKind::MissingTool,
+                            format!("no host-injected result for provider {}", definition.id),
+                        )
+                    })?;
+                Ok(Arc::new(ConfiguredProvider {
+                    definition: definition.clone(),
+                    result,
+                }) as Arc<dyn Provider>)
+            })
+            .map_err(|error| NativeApplicationError::Provider(error.to_string()))?;
+        let registry = ProviderRegistry::load(
+            ProviderRegistryDocument {
+                schema_version: 1,
+                providers: definitions,
+            },
+            &implementations,
+        )
+        .map_err(|error| NativeApplicationError::Provider(error.to_string()))?;
+        let catalog = Catalog::new(Vec::new())?;
+        let report = ReportV1 {
+            schema_version: 1,
+            report_id: ReportId::new("native-audit")
+                .map_err(|error| NativeApplicationError::Configuration(error.to_string()))?,
+            status: ReportStatus::Incomplete,
+            findings: Vec::new(),
+            gaps: vec!["not-executed".into()],
+            claims: BTreeMap::new(),
+            targets: vec![repository_id],
+            extensions: BTreeMap::new(),
+        };
+        NativeApplicationConfig::new()
+            .with_profile(profile)
+            .with_registry(Arc::new(registry))
+            .with_policy(Arc::new(CanonicalEffectPolicy {
+                pack: PolicyPack {
+                    schema_version: 1,
+                    id: "native-audit".into(),
+                    version: 1,
+                    rules: Vec::new(),
+                    extensions: BTreeMap::new(),
+                },
+            }))
+            .with_inventory_source(inventory_source)
+            .with_provider_executor(Arc::new(StaticProviderExecutor { results }))
+            .with_catalog_source(Arc::new(StaticCatalogSource { catalog }))
+            .with_report_source(Arc::new(StaticReportSource { report }))
+            .with_provider_specs(provider_specs)
+            .build()
+    }
+
     pub fn with_profile(mut self, profile: legion_runtime::AgentProfile) -> Self {
         self.profile = Some(profile);
         self

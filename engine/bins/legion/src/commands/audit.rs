@@ -1,7 +1,7 @@
 use super::{CommandError, CommandResult};
 use clap::Args;
 use serde_json::json;
-use std::path::PathBuf;
+use std::{path::PathBuf, sync::Arc};
 use tokio_util::sync::CancellationToken;
 #[derive(Debug, Args)]
 pub struct AuditArgs {
@@ -15,10 +15,21 @@ pub struct AuditArgs {
     pub profile: String,
     #[arg(long)]
     pub out: Option<PathBuf>,
+    #[arg(long = "blueprint-packet")]
+    pub blueprint_packet: Option<PathBuf>,
+    #[arg(long = "expected-generation")]
+    pub expected_generation: Option<String>,
+    #[arg(long = "provider-plan")]
+    pub provider_plan: Option<PathBuf>,
+    #[arg(long = "provider-result")]
+    pub provider_results: Vec<PathBuf>,
 }
 pub async fn run(args: AuditArgs, cancellation: CancellationToken) -> CommandResult {
     let root = std::fs::canonicalize(&args.root).map_err(super::io_error)?;
-    if std::env::var_os("LEGION_NATIVE_APPLICATION_CONFIG").is_none() {
+    let direct = args.blueprint_packet.is_some()
+        || args.provider_plan.is_some()
+        || !args.provider_results.is_empty();
+    if !direct && std::env::var_os("LEGION_NATIVE_APPLICATION_CONFIG").is_none() {
         return Ok(json!({
             "schemaVersion": 1,
             "kind": if args.plan_only { "audit-provider-plan" } else { "repository-audit-report" },
@@ -30,7 +41,11 @@ pub async fn run(args: AuditArgs, cancellation: CancellationToken) -> CommandRes
         }));
     }
     let signing_key = super::audit_signing_key()?;
-    let application = super::native_application_for(&root.to_string_lossy())?;
+    let application = if direct {
+        Arc::new(direct_application(&args, &root)?)
+    } else {
+        super::native_application_for(&root.to_string_lossy())?
+    };
     let operation = if args.plan_only {
         legion_application::NativeOperation::Plan {
             repository_id: root.to_string_lossy().into_owned(),
@@ -121,6 +136,74 @@ pub async fn run(args: AuditArgs, cancellation: CancellationToken) -> CommandRes
             "native audit application returned an incompatible result",
         )),
     }
+}
+
+fn direct_application(
+    args: &AuditArgs,
+    root: &std::path::Path,
+) -> Result<legion_application::NativeApplication, CommandError> {
+    let packet = args.blueprint_packet.as_ref().ok_or_else(|| {
+        CommandError::usage("direct Audit requires --blueprint-packet")
+    })?;
+    let plan = args
+        .provider_plan
+        .as_ref()
+        .ok_or_else(|| CommandError::usage("direct Audit requires --provider-plan"))?;
+    if args.provider_results.is_empty() {
+        return Err(CommandError::usage(
+            "direct Audit requires at least one --provider-result",
+        ));
+    }
+    let packet = std::fs::canonicalize(packet).map_err(super::io_error)?;
+    let source = legion_audit::FileBlueprintInventorySource::new(
+        packet,
+        args.expected_generation.clone(),
+    )
+    .map_err(|error| CommandError::incomplete(error.to_string()))?;
+    let specifications = read_provider_plan(plan)?;
+    let results = args
+        .provider_results
+        .iter()
+        .map(|path| read_provider_result(path))
+        .collect::<Result<Vec<_>, _>>()?;
+    legion_application::NativeApplicationConfig::for_audit_artifacts(
+        root.to_string_lossy().into_owned(),
+        Arc::new(source),
+        specifications,
+        results,
+    )
+    .map_err(|error| CommandError::incomplete(error.to_string()))
+}
+
+fn read_provider_plan(path: &std::path::Path) -> Result<Vec<legion_contracts::ProviderSpec>, CommandError> {
+    let value: serde_json::Value = serde_json::from_slice(
+        &std::fs::read(path).map_err(super::io_error)?,
+    )
+    .map_err(|error| CommandError::usage(format!("invalid provider plan: {error}")))?;
+    let providers = value
+        .as_array()
+        .or_else(|| value.get("providers").and_then(serde_json::Value::as_array))
+        .ok_or_else(|| {
+            CommandError::usage("provider plan must be an array or contain providers")
+        })?;
+    providers
+        .iter()
+        .cloned()
+        .map(|provider| {
+            serde_json::from_value(provider)
+                .map_err(|error| CommandError::usage(format!("invalid provider specification: {error}")))
+        })
+        .collect()
+}
+
+fn read_provider_result(path: &std::path::Path) -> Result<legion_contracts::ProviderResult, CommandError> {
+    let value: serde_json::Value = serde_json::from_slice(
+        &std::fs::read(path).map_err(super::io_error)?,
+    )
+    .map_err(|error| CommandError::usage(format!("invalid provider result: {error}")))?;
+    let result = value.get("providerResult").cloned().unwrap_or(value);
+    serde_json::from_value(result)
+        .map_err(|error| CommandError::usage(format!("invalid provider result contract: {error}")))
 }
 
 fn write_artifact(root: &std::path::Path, name: &str, bytes: &[u8]) -> Result<(), CommandError> {

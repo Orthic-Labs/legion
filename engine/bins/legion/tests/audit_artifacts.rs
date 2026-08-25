@@ -1,12 +1,9 @@
 use std::{collections::BTreeMap, process::Command};
 
 use legion_audit::{InventoryEntry, InventoryEnvelope};
-use legion_catalog::Catalog;
 use legion_contracts::{
-    AgentDefinition, AgentId, BudgetCeiling, Coverage, PolicyPack, ProviderId, ProviderResult,
-    ProviderSpec, ProviderStatus, ReportId, ReportStatus, ReportV1, RoutingCeiling, ToolCeiling,
+    Coverage, ProviderId, ProviderResult, ProviderSpec, ProviderStatus,
 };
-use legion_provider_sdk::ProviderDefinition;
 
 #[test]
 fn configured_audit_writes_reconciled_json_and_sarif() {
@@ -15,7 +12,8 @@ fn configured_audit_writes_reconciled_json_and_sarif() {
         std::process::id(),
         std::thread::current().name().unwrap_or("fixture")
     ));
-    std::fs::create_dir_all(&root).unwrap();
+    std::fs::create_dir_all(root.join("src")).unwrap();
+    std::fs::write(root.join("src/lib.rs"), "pub fn fixture() {}\n").unwrap();
     let root = std::fs::canonicalize(root).unwrap();
     let repository_id = root.to_string_lossy().into_owned();
     let provider_id = ProviderId::new("fixture-provider").unwrap();
@@ -75,57 +73,6 @@ fn configured_audit_writes_reconciled_json_and_sarif() {
         scopes: Vec::new(),
         selectable: true,
     };
-    let definition = ProviderDefinition {
-        schema_version: 1,
-        id: provider_id,
-        provider_version: "1".into(),
-        implementation_key: "fixture".into(),
-        capabilities: Vec::new(),
-        depends_on: Vec::new(),
-        required: true,
-        permissions: Vec::new(),
-        source_provenance: BTreeMap::new(),
-    };
-    let profile = AgentDefinition::new(
-        AgentId::new("legion").unwrap(),
-        "Legion",
-        "native fixture",
-        BudgetCeiling {
-            max_active_time_ms: 30_000,
-            max_cost_micros: 1,
-            max_output_bytes: 1_000_000,
-        },
-        ToolCeiling::default(),
-        RoutingCeiling::default(),
-    )
-    .unwrap();
-    let report = ReportV1 {
-        schema_version: 1,
-        report_id: ReportId::new("fixture").unwrap(),
-        status: ReportStatus::Incomplete,
-        findings: Vec::new(),
-        gaps: vec!["not-executed".into()],
-        claims: BTreeMap::new(),
-        targets: vec![repository_id.clone()],
-        extensions: BTreeMap::new(),
-    };
-    let config = serde_json::json!({
-        "schemaVersion": 1,
-        "profile": profile,
-        "policy": PolicyPack {
-            schema_version: 1,
-            id: "fixture".into(),
-            version: 1,
-            rules: Vec::new(),
-            extensions: BTreeMap::new(),
-        },
-        "providerSpecs": [specification],
-        "providers": [{"definition": definition, "result": result}],
-        "blueprintPacketPath": root.join("blueprint-packet.json"),
-        "blueprintExpectedGeneration": "fixture-generation",
-        "catalog": Catalog::new(Vec::new()).unwrap(),
-        "report": report
-    });
     let packet = serde_json::json!({
         "schema": "membrane.blueprint-packet.v1",
         "status": "ready",
@@ -145,8 +92,18 @@ fn configured_audit_writes_reconciled_json_and_sarif() {
         serde_json::to_vec_pretty(&packet).unwrap(),
     )
     .unwrap();
-    let config_path = root.join("application.json");
-    std::fs::write(&config_path, serde_json::to_vec_pretty(&config).unwrap()).unwrap();
+    let plan_path = root.join("provider-plan.json");
+    std::fs::write(
+        &plan_path,
+        serde_json::to_vec_pretty(&serde_json::json!({"providers": [specification]})).unwrap(),
+    )
+    .unwrap();
+    let result_path = root.join("provider-result.json");
+    std::fs::write(
+        &result_path,
+        serde_json::to_vec_pretty(&serde_json::json!({"providerResult": result})).unwrap(),
+    )
+    .unwrap();
     let out = root.join("out");
     let output = Command::new(env!("CARGO_BIN_EXE_legion"))
         .args([
@@ -155,8 +112,15 @@ fn configured_audit_writes_reconciled_json_and_sarif() {
             "--out",
             out.to_str().unwrap(),
             "--json",
+            "--blueprint-packet",
+            root.join("blueprint-packet.json").to_str().unwrap(),
+            "--expected-generation",
+            "fixture-generation",
+            "--provider-plan",
+            plan_path.to_str().unwrap(),
+            "--provider-result",
+            result_path.to_str().unwrap(),
         ])
-        .env("LEGION_NATIVE_APPLICATION_CONFIG", &config_path)
         .env("AUDIT_PLAN_SIGNING_KEY", "fixture-signing-key")
         .output()
         .unwrap();
