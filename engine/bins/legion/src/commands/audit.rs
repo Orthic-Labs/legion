@@ -182,13 +182,7 @@ fn direct_application(
 fn inventory_source(
     args: &AuditArgs,
     root: &std::path::Path,
-) -> Result<
-    (
-        Arc<dyn legion_audit::BlueprintInventorySource>,
-        Vec<String>,
-    ),
-    CommandError,
-> {
+) -> Result<(Arc<dyn legion_audit::BlueprintInventorySource>, Vec<String>), CommandError> {
     if let Some(packet) = &args.blueprint_packet {
         let blueprint = std::fs::canonicalize(packet)
             .map_err(|error| error.to_string())
