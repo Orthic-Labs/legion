@@ -1,0 +1,119 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "legion:references/audit-provider-benchmarks.schema.json",
+  "title": "Audit provider benchmark results",
+  "description": "Frozen contract for versioned precision/recall measurement results produced by tools/audit/provider-benchmarks.mjs. Every result is bound to the measured provider implementation plus rule-pack digests and to the planted-defect fixture corpus digest. Metrics are always measured; this schema carries no default values.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "kind", "results"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "kind": { "const": "audit-provider-benchmark-results" },
+    "generatedAt": { "type": "string", "format": "date-time" },
+    "results": {
+      "type": "array",
+      "description": "Measured provider results; an empty document carries no measured evidence and classifies every provider unproven.",
+      "items": { "$ref": "#/$defs/result" }
+    }
+  },
+  "$defs": {
+    "digest": {
+      "type": "string",
+      "pattern": "^sha256:[a-f0-9]{64}$"
+    },
+    "digestBinding": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["path", "digest"],
+        "properties": {
+          "path": { "type": "string", "minLength": 1 },
+          "digest": { "$ref": "#/$defs/digest" }
+        }
+      }
+    },
+    "count": { "type": "integer", "minimum": 0 },
+    "ratio": { "type": "number", "minimum": 0, "maximum": 1 },
+    "metrics": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["truePositives", "falsePositives", "falseNegatives", "precision", "recall"],
+      "properties": {
+        "truePositives": { "$ref": "#/$defs/count" },
+        "falsePositives": { "$ref": "#/$defs/count" },
+        "falseNegatives": { "$ref": "#/$defs/count" },
+        "precision": { "$ref": "#/$defs/ratio" },
+        "recall": { "$ref": "#/$defs/ratio" }
+      }
+    },
+    "fixturesSummary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["caseCount", "plantedFindingCount", "cleanCaseCount"],
+      "properties": {
+        "caseCount": { "$ref": "#/$defs/count" },
+        "plantedFindingCount": { "$ref": "#/$defs/count" },
+        "cleanCaseCount": { "$ref": "#/$defs/count" }
+      }
+    },
+    "caseRecord": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["caseId", "expectedFindings", "emittedFindings", "matchedFindings"],
+      "properties": {
+        "caseId": { "type": "string", "minLength": 1 },
+        "expectedFindings": { "$ref": "#/$defs/count" },
+        "emittedFindings": { "$ref": "#/$defs/count" },
+        "matchedFindings": { "$ref": "#/$defs/count" }
+      }
+    },
+    "result": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "kind",
+        "provider",
+        "binding",
+        "measuredAt",
+        "fixtures",
+        "metrics",
+        "cases",
+        "qualificationDigest"
+      ],
+      "properties": {
+        "schemaVersion": { "const": 1 },
+        "kind": { "const": "audit-provider-benchmark-result" },
+        "provider": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["id", "version"],
+          "properties": {
+            "id": { "type": "string", "minLength": 1 },
+            "version": { "type": "string", "minLength": 1 },
+            "rulePack": { "type": "string", "minLength": 1 }
+          }
+        },
+        "binding": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["implementationDigests", "rulePackDigests", "fixturesDigest"],
+          "properties": {
+            "implementationDigests": { "$ref": "#/$defs/digestBinding" },
+            "rulePackDigests": { "$ref": "#/$defs/digestBinding" },
+            "fixturesDigest": { "$ref": "#/$defs/digest" }
+          }
+        },
+        "measuredAt": { "type": "string", "format": "date-time" },
+        "fixtures": { "$ref": "#/$defs/fixturesSummary" },
+        "metrics": { "$ref": "#/$defs/metrics" },
+        "cases": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/caseRecord" }
+        },
+        "qualificationDigest": { "$ref": "#/$defs/digest" }
+      }
+    }
+  }
+}

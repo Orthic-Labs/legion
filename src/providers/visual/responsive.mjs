@@ -9,5 +9,5 @@ export function analyzeResponsive({ surfaces = [], requiredViewports = [] } = {}
       if (surface[condition]) findings.push({ ruleId, surfaceId: surface.id, viewport: surface.viewport, state: surface.state ?? 'default', evidenceClass: surface.geometry ? 'rendered' : 'source-heuristic' });
     }
   }
-  return { provider: 'visual.responsive', status: findings.length ? 'candidates' : coverageGaps.length ? 'unproven' : 'pass', findings, coverageGaps, testedViewports: [...tested] };
+  return { provider: 'visual.responsive', status: findings.length ? 'candidates' : coverageGaps.length ? 'unproven' : 'pass', complete: surfaces.length > 0 && !coverageGaps.length, denominator: { kind: 'responsive-surfaces', expected: Math.max(surfaces.length, requiredViewports.length), examined: surfaces.length }, findings, coverageGaps, testedViewports: [...tested] };
 }

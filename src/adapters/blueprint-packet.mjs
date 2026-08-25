@@ -1,17 +1,34 @@
 /**
  * Membrane packet boundary for Blueprint repository evidence.
  *
- * Blueprint owns repository truth. This module invokes Blueprint's compact,
- * read-only Audit projection transport, validates its Membrane packet, &
- * exposes typed degradation when transport is unavailable. It never walks
- * files or derives repository facts locally.
+ * Blueprint owns repository truth. Build a run-scoped graph under `.audit/`,
+ * pin its generation with `blueprint graph status --json`, then project that
+ * exact generation with `blueprint graph audit-projection`. This module validates the
+ * Membrane packet schema (`membrane.blueprint-packet.v1`), binds each
+ * projection to the exact pinned generation, & exposes typed degradation that
+ * preserves Membrane/Blueprint error codes instead of collapsing them. Output
+ * defaults under Audit's `.audit/` root & never escapes the
+ * audited repository. It never walks files or derives repository semantic
+ * truth locally; the git collector below is execution provenance only.
  */
 
 import { createHash } from 'node:crypto';
-import { readFileSync } from 'node:fs';
+import { lstatSync, readFileSync, readlinkSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
-import { resolve, join } from 'node:path';
+import { isAbsolute, join, relative, resolve, sep } from 'node:path';
 import { consumeMembranePacket } from '../packages/context/lib/context.mjs';
+
+export const BLUEPRINT_ERROR_CODES = Object.freeze({
+  transportUnavailable: 'membrane-blueprint-transport-unavailable',
+  graphStale: 'membrane-blueprint-graph-stale',
+  graphBuildFailed: 'membrane-blueprint-graph-build-failed',
+  packetInvalid: 'membrane-blueprint-packet-invalid',
+  generationMismatch: 'membrane-blueprint-generation-mismatch',
+  outputOutsideAuditBoundary: 'membrane-blueprint-output-outside-audit-boundary',
+});
+
+/** Audit-owned output defaults under the only permitted audit write boundary. */
+export const DEFAULT_OUT_DIR = '.audit/blueprint';
 
 export function unavailablePacket(reason = 'membrane-transport-unavailable') {
   return { schema: 'legion.context-result.v1', status: 'unavailable', reason };
@@ -23,11 +40,42 @@ export function consumeBlueprintPacket(packet) {
 
 export async function requestBlueprintPacket({ transport, request }) {
   if (typeof transport !== 'function') return unavailablePacket();
+  let raw;
   try {
-    return consumeBlueprintPacket(await transport({ operation: 'membrane_context', ...request }));
+    raw = await transport({ operation: 'membrane_context', ...request });
   } catch (error) {
-    return unavailablePacket(error?.code === 'MEMBRANE_UNAVAILABLE' ? 'membrane-unavailable' : 'membrane-packet-invalid');
+    // Transport failure & malformed packets degrade distinctly; never collapse them.
+    return unavailablePacket(error?.code === 'MEMBRANE_UNAVAILABLE' ? 'membrane-unavailable' : 'membrane-transport-failed');
   }
+  try {
+    return consumeBlueprintPacket(raw);
+  } catch {
+    return unavailablePacket('membrane-packet-invalid');
+  }
+}
+
+/**
+ * Classify one untracked path without following links: regular files hash by
+ * content, symlinks (& Windows junctions, which surface as symlinks) hash by
+ * their link text alone, & directories are represented explicitly instead of
+ * being read as bytes.
+ */
+export function describeUntrackedEntry(absolutePath) {
+  let stats;
+  try { stats = lstatSync(absolutePath); } catch { return { kind: 'unreadable' }; }
+  if (stats.isSymbolicLink()) {
+    let target = null;
+    try { target = readlinkSync(absolutePath); } catch { /* keep null */ }
+    return { kind: 'symlink', target };
+  }
+  if (stats.isFile()) {
+    try {
+      return { kind: 'file', contentDigest: `sha256:${createHash('sha256').update(readFileSync(absolutePath)).digest('hex')}` };
+    } catch { return { kind: 'unreadable' }; }
+  }
+  // Directories & junction-like reparse points are represented explicitly,
+  // never read as bytes.
+  return { kind: stats.isDirectory() ? 'directory' : 'other' };
 }
 
 /** Git binding is execution provenance, not repository semantic truth. */
@@ -44,28 +92,130 @@ export function collectRepositoryBinding(rootInput) {
   const untracked = String(git(['ls-files', '--others', '--exclude-standard', '-z'])).split('\0').filter(Boolean).sort();
   const digest = createHash('sha256');
   digest.update('status\0'); digest.update(status); digest.update('patch\0'); digest.update(patch);
-  for (const path of untracked) { digest.update('untracked\0'); digest.update(path); digest.update('\0'); digest.update(readFileSync(join(root, path))); }
+  for (const path of untracked) {
+    digest.update('untracked\0'); digest.update(path); digest.update('\0');
+    digest.update(JSON.stringify(describeUntrackedEntry(join(root, path))));
+    digest.update('\0');
+  }
   return { repositoryRevision: revision, dirty: status.length > 0, dirtyPatchDigest: `sha256:${digest.digest('hex')}` };
+}
+
+/**
+ * Audit owns everything written under its output root inside the audited
+ * repository. Refuse absolute paths & traversal escaping the repository root,
+ * & refuse collapsing output onto the repository root itself. All resolution
+ * goes through node:path so Windows drive letters & separators stay intact.
+ */
+export function enforceAuditOutputBoundary(rootInput, outDir = DEFAULT_OUT_DIR) {
+  const root = resolve(rootInput);
+  const resolvedOutDir = isAbsolute(outDir) ? resolve(outDir) : resolve(root, outDir);
+  if (resolvedOutDir === root || !resolvedOutDir.startsWith(root + sep)) {
+    return { ok: false, code: BLUEPRINT_ERROR_CODES.outputOutsideAuditBoundary, outDir: resolvedOutDir };
+  }
+  return { ok: true, outDir: resolvedOutDir };
+}
+
+function runBlueprintCli(root, blueprintBin, args, maxBuffer) {
+  return spawnSync(blueprintBin, args, { cwd: root, encoding: 'utf8', windowsHide: true, maxBuffer });
+}
+
+function blueprintCliOutDir(root, absoluteOutDir) {
+  return relative(root, absoluteOutDir).replaceAll('\\', '/');
+}
+
+/**
+ * Preserve Blueprint/Membrane's own exact degradation code whenever it emits
+ * one; fall back to a canonical code only where the CLI produced no
+ * structured reason.
+ */
+export function classifyBlueprintFailure(result, fallbackCode) {
+  if (result?.error) return BLUEPRINT_ERROR_CODES.transportUnavailable;
+  for (const stream of [result?.stdout, result?.stderr]) {
+    if (typeof stream !== 'string' || !stream.trim()) continue;
+    try {
+      const payload = JSON.parse(stream);
+      const reason = typeof payload?.reason === 'string'
+        ? payload.reason
+        : typeof payload?.error?.code === 'string' ? payload.error.code : null;
+      if (reason) return reason;
+    } catch { /* stream is not structured degradation */ }
+  }
+  return fallbackCode;
+}
+
+function pinnedGenerationFromStatus(payload) {
+  const stale = payload?.stale === true || payload?.generation?.stale === true
+    || payload?.state === 'stale' || payload?.status === 'stale';
+  if (stale) {
+    return { ok: false, code: typeof payload?.reason === 'string' ? payload.reason : BLUEPRINT_ERROR_CODES.graphStale };
+  }
+  const id = typeof payload?.generation?.id === 'string' && payload.generation.id.length > 0 ? payload.generation.id
+    : typeof payload?.generationId === 'string' && payload.generationId.length > 0 ? payload.generationId
+      : typeof payload?.manifest?.generationId === 'string' && payload.manifest.generationId.length > 0 ? payload.manifest.generationId : null;
+  return id ? { ok: true, generationId: id } : { ok: false, code: BLUEPRINT_ERROR_CODES.packetInvalid };
+}
+
+/** Build a fresh graph into this audit run's output directory. */
+export function buildRunScopedGraph(rootInput, options = {}) {
+  const root = resolve(rootInput);
+  const blueprintBin = options.blueprintBin ?? process.env.BLUEPRINT_BIN ?? 'blueprint';
+  const boundary = enforceAuditOutputBoundary(root, options.outDir ?? DEFAULT_OUT_DIR);
+  if (!boundary.ok) return { ok: false, code: boundary.code };
+  const result = runBlueprintCli(root, blueprintBin, ['graph', 'build', '--out', blueprintCliOutDir(root, boundary.outDir)], 128 * 1024 * 1024);
+  if (result.error || result.status !== 0) {
+    return { ok: false, code: classifyBlueprintFailure(result, BLUEPRINT_ERROR_CODES.graphBuildFailed) };
+  }
+  return { ok: true, outDir: boundary.outDir };
+}
+
+/** Pin the generated Blueprint generation (`blueprint graph status --json`). */
+export function readBlueprintGraphStatus(rootInput, options = {}) {
+  const root = resolve(rootInput);
+  const blueprintBin = options.blueprintBin ?? process.env.BLUEPRINT_BIN ?? 'blueprint';
+  const boundary = enforceAuditOutputBoundary(root, options.outDir ?? DEFAULT_OUT_DIR);
+  if (!boundary.ok) return { ok: false, code: boundary.code };
+  const result = runBlueprintCli(root, blueprintBin, ['graph', 'status', '--out', blueprintCliOutDir(root, boundary.outDir), '--json'], 32 * 1024 * 1024);
+  if (result.error || result.status !== 0) {
+    return { ok: false, code: classifyBlueprintFailure(result, BLUEPRINT_ERROR_CODES.graphBuildFailed) };
+  }
+  try {
+    return pinnedGenerationFromStatus(JSON.parse(result.stdout));
+  } catch {
+    return { ok: false, code: BLUEPRINT_ERROR_CODES.packetInvalid };
+  }
 }
 
 function invokeBlueprintProjection(rootInput, options = {}) {
   const root = resolve(rootInput);
   const blueprintBin = options.blueprintBin ?? process.env.BLUEPRINT_BIN ?? 'blueprint';
-  const outDir = options.outDir ?? '.agent';
-  const result = spawnSync(blueprintBin, ['graph', 'audit-projection', '--out', outDir, '--json'], {
-    cwd: root,
-    encoding: 'utf8',
-    windowsHide: true,
-    maxBuffer: 128 * 1024 * 1024,
-  });
-  if (result.error || result.status !== 0) return unavailablePacket('membrane-blueprint-transport-unavailable');
+  const boundary = enforceAuditOutputBoundary(root, options.outDir ?? DEFAULT_OUT_DIR);
+  if (!boundary.ok) return unavailablePacket(boundary.code);
+  const built = buildRunScopedGraph(root, { blueprintBin, outDir: boundary.outDir });
+  if (!built.ok) return unavailablePacket(built.code);
+  const status = readBlueprintGraphStatus(root, { blueprintBin, outDir: boundary.outDir });
+  if (!status.ok) return unavailablePacket(status.code);
+  const result = runBlueprintCli(root, blueprintBin, [
+    'graph', 'audit-projection', '--out', blueprintCliOutDir(root, boundary.outDir),
+    '--expected-generation', status.generationId, '--json',
+  ], 128 * 1024 * 1024);
+  if (result.error || result.status !== 0) return unavailablePacket(classifyBlueprintFailure(result, BLUEPRINT_ERROR_CODES.transportUnavailable));
   try {
     const packet = consumeBlueprintPacket(JSON.parse(result.stdout));
+    const pinned = status.generationId;
+    if (pinned !== null && packet.generationId != null && packet.generationId !== pinned) {
+      return unavailablePacket(BLUEPRINT_ERROR_CODES.generationMismatch);
+    }
     const files = [...new Set((packet.files ?? []).map((path) => String(path).replaceAll('\\', '/')).filter(Boolean))].sort();
     const fileSetDigest = `sha256:${createHash('sha256').update(JSON.stringify(files)).digest('hex')}`;
-    return { ...packet, files, fileCount: files.length, fileSetDigest };
+    return {
+      ...packet,
+      generationId: packet.generationId ?? pinned,
+      files,
+      fileCount: files.length,
+      fileSetDigest,
+    };
   } catch {
-    return unavailablePacket('membrane-blueprint-packet-invalid');
+    return unavailablePacket(BLUEPRINT_ERROR_CODES.packetInvalid);
   }
 }
 

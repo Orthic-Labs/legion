@@ -23,7 +23,11 @@ const PROJECT_EXECUTION_CHECKS = new Set(['types', 'lint', 'build', 'dead_code',
 const writeJson = (path, value) => writeFileSync(path, `${JSON.stringify(value, null, 2)}\n`, 'utf8');
 
 function applyOfflinePolicy(options) {
-  const networkSandboxActive = process.env.AUDIT_NETWORK_GUARD === 'active';
+  const sandbox = options.host?.capabilities?.networkSandbox ?? {};
+  const networkSandboxReceipt = sandbox.receipt ?? null;
+  const networkSandboxActive = process.env.AUDIT_NETWORK_GUARD === 'active'
+    && sandbox.active === true
+    && Boolean(networkSandboxReceipt);
   process.env.AUDIT_OFFLINE = '1';
   process.env.npm_config_offline = 'true';
   process.env.CARGO_NET_OFFLINE = 'true';
@@ -37,6 +41,7 @@ function applyOfflinePolicy(options) {
   return {
     ...options,
     networkSandboxActive,
+    networkSandboxReceipt,
     skip: [...new Set([...(options.skip ?? []), ...NETWORK_DEPENDENT_CHECKS, ...guardedSkips])].sort(),
   };
 }
@@ -139,7 +144,7 @@ export function reconcileCompleteRun({ plan, facts, providerResults, securityRes
     ...facts,
     incomplete,
     blueprint: { state: projection.state, reason: projection.reason ?? null, generationId: projection.generationId ?? null, manifestDigest: projection.manifestDigest ?? null, fileCount: projection.fileCount ?? 0, sourceFileCount: projection.sourceFileCount ?? 0, parsedExtensions: projection.parsedExtensions ?? [], unsupportedExtensions: projection.unsupportedExtensions ?? [] },
-    plan: { schemaVersion: plan.schemaVersion, seal: plan.seal, binding: plan.binding, expectedChecks: plan.denominator.expectedChecks, selectedProviderIds: plan.denominator.providerIds, coverageGaps: plan.coverageGaps },
+    plan: { schemaVersion: plan.schemaVersion, seal: plan.seal, binding: plan.binding, expectedChecks: plan.denominator.expectedChecks, selectedProviderIds: plan.denominator.providerIds, reasoningProviders: plan.denominator.reasoningProviders ?? [], coverageGaps: plan.coverageGaps },
     provider_reconciliation: { ...legacy, providerResults: [...legacy.providerResults.filter((provider) => provider.status !== 'pending'), ...providerResults], coverageFamilies: families, unresolvedCoverage: unresolved, missingRuntimeProviders, denominatorMismatches },
     security: { candidatesPath: 'security-candidates.json', candidatesCount: securityResult?.candidates?.length ?? 0, adjudicationRequired: securityPending },
     plan_binding_verification: bindingVerification,
@@ -154,7 +159,7 @@ export async function runCompleteAudit(inputOptions) {
   const options = applyOfflinePolicy(inputOptions);
   const root = resolve(options.root);
   const outDir = resolve(options.outDir ?? join(root, '.audit', new Date().toISOString().replace(/[:.]/g, '-')));
-  const blueprintOut = options.blueprintOut ?? '.agent';
+  const blueprintOut = options.blueprintOut ?? join(outDir, 'blueprint');
   mkdirSync(outDir, { recursive: true });
   const registry = loadProviderRegistry(options.registryPath);
   const projection = enrichProjectionWithEcosystems(readBlueprintPacket(root, { outDir: blueprintOut }), root);
@@ -224,13 +229,26 @@ export async function runCompleteAudit(inputOptions) {
   const facts = reconcileCompleteRun({ plan, facts: rawFacts, providerResults: normalizedResults, securityResult, projection, bindingVerification });
   facts.plan.path = planPath;
   facts.network_policy = {
-    mode: 'deny',
+    mode: options.networkSandboxActive ? 'deny' : 'offline-hints',
     sandboxActive: options.networkSandboxActive,
+    receiptPresent: Boolean(options.networkSandboxReceipt),
     requiredGuard: 'AUDIT_NETWORK_GUARD=active',
     skippedChecks: [...new Set([...NETWORK_DEPENDENT_CHECKS, ...(!options.networkSandboxActive ? PROJECT_EXECUTION_CHECKS : [])])].sort(),
   };
   writeJson(factsPath, facts);
   return { plan, planPath, projection, outDir, facts, providerResults: normalizedResults, securityResult, securityReports };
+}
+
+// Windows argv[1] may differ from import.meta.url only by drive-letter case or
+// path normalization; compare normalized file URLs so the direct entrypoint is
+// detected reliably on every host.
+function normalizedExecutableHref(href, platform = process.platform) {
+  return platform === 'win32' ? String(href).toLowerCase() : String(href);
+}
+export function isMainEntrypoint(importMetaUrl, argvPath = process.argv[1], platform = process.platform) {
+  if (!argvPath) return false;
+  try { return normalizedExecutableHref(pathToFileURL(resolve(argvPath)).href, platform) === normalizedExecutableHref(importMetaUrl, platform); }
+  catch { return false; }
 }
 
 function arg(args, name) { const index = args.indexOf(name); return index >= 0 ? args[index + 1] : null; }
@@ -256,4 +274,4 @@ async function main() {
   console.log(JSON.stringify({ kind: 'audit-complete-run', outDir: result.outDir, plan: result.planPath, facts: result.facts ? join(result.outDir, 'facts.json') : null, incomplete: result.facts?.incomplete ?? true, securityCandidates: result.securityResult?.candidates?.length ?? 0 }, null, 2));
   if (result.facts?.incomplete) process.exitCode = 2;
 }
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) main().catch((error) => { console.error(error.stack ?? error.message); process.exit(1); });
+if (isMainEntrypoint(import.meta.url)) main().catch((error) => { console.error(error.stack ?? error.message); process.exit(1); });

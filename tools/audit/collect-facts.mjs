@@ -20,6 +20,7 @@ import { spawn } from 'node:child_process';
 import { existsSync, readFileSync, readdirSync, mkdirSync, writeFileSync, chmodSync, unlinkSync, rmSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { cpus } from 'node:os';
+import { createHash } from 'node:crypto';
 import { pathToFileURL } from 'node:url';
 
 const args = process.argv.slice(2);
@@ -206,12 +207,22 @@ function redact(text) {
     .replace(/-----BEGIN [A-Z ]*PRIVATE KEY-----[\s\S]*?-----END [A-Z ]*PRIVATE KEY-----/g, '<REDACTED:privkey>')
     .replace(/\b[A-Za-z0-9+/]{60,}={0,2}\b/g, '<REDACTED:b64>');
 }
-function redactGitleaks(jsonText) {
-  try {
-    const arr = JSON.parse(jsonText);
-    for (const f of arr) { if (f.Secret) f.Secret = '<REDACTED>'; if (f.Match) f.Match = '<REDACTED>'; }
-    return JSON.stringify(arr, null, 2);
-  } catch { return redact(jsonText); }
+// gitleaksCandidates — convert the raw gitleaks JSON report into SECRET-FREE redacted
+// candidate records BEFORE the raw output is deleted. Only the fields needed for
+// adjudication survive: digest (gitleaks Fingerprint, else sha256 of rule\0file\0line),
+// rule, file, line. Secret/Match values and commit metadata are dropped entirely — they
+// are never serialized into any persisted log or facts payload.
+export function gitleaksCandidates(jsonText) {
+  let parsed;
+  try { parsed = JSON.parse(jsonText); } catch { throw new Error('gitleaks report is not valid JSON'); }
+  if (!Array.isArray(parsed)) throw new Error('gitleaks report is not a JSON array');
+  return parsed.map((f) => ({
+    digest: (typeof f.Fingerprint === 'string' && f.Fingerprint)
+      || `sha256:${createHash('sha256').update(`${f.RuleID ?? ''}\0${f.File ?? ''}\0${f.StartLine ?? ''}`).digest('hex')}`,
+    rule: f.RuleID ?? null,
+    file: f.File ?? null,
+    line: f.StartLine ?? null,
+  }));
 }
 
 async function pool(items, worker) {
@@ -370,15 +381,17 @@ function buildChecks(d) {
           const r = await run(cmd, { timeoutMs: 300000 });
           // gitleaks exit: 0 = no leaks, 1 = leaks found, >1 = error. Never call an error "ran".
           if (r.code > 1 || looksMissing(r)) return { status: 'error', command: cmd, exit_code: r.code, _rawLog: redact(r.stderr || r.stdout) };
-          let findings = 0, raw = '[]';
-          try { raw = readFileSync(rawPath, 'utf8'); findings = JSON.parse(raw).length; } catch { findings = null; }
+          let findings = 0, raw = '[]', candidates = [];
+          // Convert to redacted candidates FIRST; only then delete the raw report.
+          try { raw = readFileSync(rawPath, 'utf8'); candidates = gitleaksCandidates(raw); findings = candidates.length; } catch { findings = null; }
           try { unlinkSync(rawPath); } catch {}
           // An unreadable/unparseable report is NOT a clean scan. Reporting 'ran'
           // with a null count defeats secrets_unscanned (which only trips on
           // status !== 'ran') and renders as zero findings downstream — a silent
           // false-clean on the highest-stakes check. Found by the AU20 bench.
           if (findings === null) return { status: 'error', command: cmd, exit_code: r.code, skip_reason: 'gitleaks report unreadable — scan not proven', _rawLog: redact(r.stderr || r.stdout) };
-          return { status: 'ran', command: cmd, exit_code: r.code, findings_count: findings, _rawLog: redactGitleaks(raw), duration_ms: r.duration_ms };
+          return { status: 'ran', command: cmd, exit_code: r.code, findings_count: findings,
+                   meta: { secret_candidates: candidates }, _rawLog: JSON.stringify(candidates, null, 2), duration_ms: r.duration_ms };
         } });
 
   add({ check: 'deps_cve', tool: `${d.pkgMgr} audit`, required: d.node, parallel: true,

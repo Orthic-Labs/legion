@@ -185,8 +185,9 @@ function cartesian(dimensions) {
 }
 
 export function buildCoverageMatrix(spec) {
-  const expectedCases = spec.expected?.cases ?? cartesian(spec.expected ?? {});
-  const captureByKey = new Map((spec.captures ?? []).map((capture) => [caseKey(capture), capture]));
+  const declaredCases = Array.isArray(spec.expected?.cases) ? spec.expected.cases : null;
+  const expectedCases = declaredCases ?? cartesian(spec.expected ?? {});
+  const captureByKey = new Map((Array.isArray(spec.captures) ? spec.captures : []).map((capture) => [caseKey(capture), capture]));
   const cases = expectedCases.map((item) => {
     const normalized = {
       route: item.route ?? '/', state: item.state ?? 'default', viewport: item.viewport ?? 'default',
@@ -208,9 +209,16 @@ export function auditVisualArtifacts({ root, spec }) {
   const coverage = buildCoverageMatrix(spec);
   const captures = [];
   const findings = [];
-  for (const capture of spec.captures ?? []) {
-    const actualPath = resolve(root, capture.path);
-    if (!existsSync(actualPath)) {
+  // Exact typed degradation: a malformed or missing capture degrades as an unproven entry — it must
+  // never crash the audit into an untyped error, and never count as examined evidence.
+  for (const capture of (Array.isArray(spec.captures) ? spec.captures : [])) {
+    if (!capture || typeof capture !== 'object' || typeof capture.path !== 'string') {
+      captures.push({ id: capture?.id ?? null, status: 'unproven', reason: 'capture-missing', path: null });
+      continue;
+    }
+    let actualPath = null;
+    try { actualPath = resolve(root, capture.path); } catch { actualPath = null; }
+    if (!actualPath || !existsSync(actualPath)) {
       captures.push({ id: capture.id, status: 'unproven', reason: 'capture-missing', path: capture.path });
       continue;
     }
@@ -218,8 +226,9 @@ export function auditVisualArtifacts({ root, spec }) {
       captures.push({ id: capture.id, status: 'captured-no-baseline', path: capture.path, digest: sha256(readFileSync(actualPath)) });
       continue;
     }
-    const baselinePath = resolve(root, capture.baseline);
-    if (!existsSync(baselinePath)) {
+    let baselinePath = null;
+    try { baselinePath = resolve(root, capture.baseline); } catch {}
+    if (!baselinePath || !existsSync(baselinePath)) {
       captures.push({ id: capture.id, status: 'unproven', reason: 'baseline-missing', path: capture.path, baseline: capture.baseline });
       continue;
     }
@@ -237,7 +246,9 @@ export function auditVisualArtifacts({ root, spec }) {
     }
   }
   const reviewRequired = captures.some((capture) => capture.status === 'captured-no-baseline');
-  const unproven = captures.some((capture) => capture.status === 'unproven') || !coverage.complete || reviewRequired;
+  // A spec that declares ZERO expected cases proves nothing — never report pass/complete on an empty matrix.
+  const emptyMatrix = coverage.expectedCount === 0;
+  const unproven = captures.some((capture) => capture.status === 'unproven') || !coverage.complete || reviewRequired || emptyMatrix;
   return {
     schemaVersion: 1,
     kind: 'audit-visual-result',
@@ -245,16 +256,27 @@ export function auditVisualArtifacts({ root, spec }) {
     complete: !unproven,
     reviewRequired,
     coverage,
+    denominator: { kind: 'visual-artifacts', expected: coverage.expectedCount, examined: captures.filter((capture) => capture.status && capture.status !== 'unproven').length },
     captures,
     findings,
     coverageGaps: [
+      ...(emptyMatrix ? [{ kind: 'visual-cases-missing', detail: 'visual spec declares no expected cases; nothing is proven' }] : []),
       ...coverage.cases.filter((item) => !item.covered).map((item) => ({ kind: 'missing-visual-case', case: item })),
       ...captures.filter((item) => item.status === 'unproven').map((item) => ({ kind: item.reason, captureId: item.id })),
       ...captures.filter((item) => item.status === 'captured-no-baseline').map((item) => ({ kind: 'visual-review-or-baseline-required', captureId: item.id })),
     ],
   };
 }
-export function analyze({root,artifacts}={}){const spec=artifacts?.visualSpec;if(!spec)return{status:'unproven',complete:false,denominator:{kind:'visual-artifacts',expected:0,examined:0},findings:[],coverageGaps:[{kind:'visual-spec-missing'}]};const result=auditVisualArtifacts({root,spec});return{status:result.status,complete:result.complete,denominator:{kind:'visual-artifacts',expected:result.coverage?.cases?.length??0,examined:result.captures?.length??0},findings:result.findings,coverageGaps:result.coverageGaps};}
+export function analyze({root,artifacts}={}){
+  const spec=artifacts?.visualSpec;
+  // Exact typed degradation for missing/malformed input: bounded zero denominator + typed gap,
+  // never a crash and never a false clean.
+  if(!spec)return{status:'unproven',complete:false,denominator:{kind:'visual-artifacts',expected:0,examined:0},findings:[],coverageGaps:[{kind:'visual-spec-missing'}]};
+  let result;
+  try{result=auditVisualArtifacts({root,spec});}
+  catch(error){return{status:'unproven',complete:false,denominator:{kind:'visual-artifacts',expected:0,examined:0},findings:[],coverageGaps:[{kind:'visual-spec-invalid',detail:String(error?.message??error).slice(0,200)}]};}
+  return{status:result.status,complete:result.complete,reviewRequired:result.reviewRequired===true,denominator:result.denominator??{kind:'visual-artifacts',expected:result.coverage?.cases?.length??0,examined:result.captures?.length??0},findings:result.findings,coverageGaps:result.coverageGaps};
+}
 
 function main() {
   const [rootArg, specPath, outPath] = process.argv.slice(2);

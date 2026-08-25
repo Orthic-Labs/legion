@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { createHash } from 'node:crypto';
-import { readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
@@ -19,14 +19,16 @@ function severityHint(level) {
 function lineOf(text, pattern) { const match = pattern.exec(text); pattern.lastIndex = 0; return match ? text.slice(0, match.index).split('\n').length : 1; }
 function scan(root, files, rules) {
   const candidates = [];
+  const unreadable = [];
   for (const file of files) {
     const text = read(root, file);
+    if (text === '' && !existsSync(join(root, file))) { unreadable.push(file); continue; }
     for (const rule of rules) {
       rule.pattern.lastIndex = 0;
       if (rule.pattern.test(text)) candidates.push(candidate(rule.id, rule.level, rule.message, file, lineOf(text, rule.pattern)));
     }
   }
-  return candidates;
+  return { candidates, unreadable };
 }
 
 const SPECS = Object.freeze({
@@ -128,7 +130,10 @@ export function runFrameworkSuite({ root, plan }) {
   for (const [family, rules] of Object.entries(SPECS)) {
     const files = familyFiles(plan, family);
     if (!files.length) continue;
-    const candidates = scan(root, files, rules);
+    const { candidates, unreadable } = scan(root, files, rules);
+    // Exact typed degradation with a bounded denominator: a frozen denominator path that cannot be
+    // read is never silently treated as clean content.
+    const coverageGaps = unreadable.length ? [{ kind: 'denominator-file-unreadable', detail: `${unreadable.length} of ${files.length} frozen paths could not be read`, paths: unreadable }] : [];
     results.push({
       schemaVersion: 1,
       provider: `framework.${family}`,
@@ -138,10 +143,10 @@ export function runFrameworkSuite({ root, plan }) {
       applicable: true,
       required: true,
       role: 'candidate-generator',
-      status: candidates.length ? 'candidates' : 'pass',
-      complete: true,
-      coverage: { pathCount: files.length, paths: files, rules: rules.length },
-      receipts: [], candidates, findings: [], coverageGaps: [], degradation: [],
+      status: candidates.length ? 'candidates' : coverageGaps.length ? 'unproven' : 'pass',
+      complete: coverageGaps.length === 0,
+      coverage: { pathCount: files.length, readablePathCount: files.length - unreadable.length, paths: files, rules: rules.length },
+      receipts: [], candidates, findings: [], coverageGaps, degradation: coverageGaps,
     });
   }
   return results;

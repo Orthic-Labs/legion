@@ -10,5 +10,6 @@ export function analyzeTypography({ textItems = [], fontEvidence = null } = {}) 
   const coverageGaps = [];
   if (!fontEvidence) coverageGaps.push('font-evidence-missing');
   for (const item of textItems.filter((entry) => !entry.viewport || !entry.locale)) coverageGaps.push(`render-context-incomplete:${item.id}`);
-  return { provider: 'visual.typography', status: findings.length ? 'candidates' : coverageGaps.length ? 'unproven' : 'pass', findings, coverageGaps };
+  return { provider: 'visual.typography', status: findings.length ? 'candidates' : coverageGaps.length ? 'unproven' : 'pass', complete: coverageGaps.length === 0,
+    denominator: { kind: 'typography-text-items', expected: textItems.length, examined: textItems.length }, findings, coverageGaps };
 }

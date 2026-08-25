@@ -15,7 +15,13 @@
 // arbitrary buttons are NOT auto-clicked; actions like "Open file…" hang headless on a native dialog).
 // To reach button/card-driven views (e.g. an editor behind a "New text" card), pass --surfaces with a
 // JSON array of click-targets: [{"label":"editor","text":"New text"}, {"label":"prefs","selector":"#settings-btn"}].
-// If nothing typeable is reached the report is marked incomplete/shallow — never a false "clean".
+// If nothing typeable is reached the report is marked incomplete/shallow — never a false "clean".//
+// Typed degradation: every input/environment shortfall (--url absent, --surfaces unreadable,
+// browser/CDP unavailable, app never loads) emits an exact machine-readable report — kind
+// 'audit-runtime', status 'unproven', coverageGaps/degradation entries with BOUNDED denominators
+// {kind, expected, examined} — written to <out>/runtime.json before exiting:
+//   exit 2 = invalid input (no --url), exit 3 = environment failure (browser/CDP/app load).
+// A supplied --url with reachable targets is unaffected and launches/captures deterministically.
 //
 // Reuses the qa.mjs CDP approach (raw node:net WebSocket, zero deps). ponytail: the WS+launch
 // plumbing is copied from tools/skills/qa/scripts/qa.mjs deliberately — audit owns its tooling
@@ -24,14 +30,15 @@
 import { spawn } from 'node:child_process';
 import { createConnection, createServer } from 'node:net';
 import { randomBytes } from 'node:crypto';
-import { existsSync, mkdirSync, writeFileSync, readFileSync, openSync } from 'node:fs';
+import { existsSync, mkdirSync, writeFileSync, readFileSync, openSync, realpathSync } from 'node:fs';
 import { join, isAbsolute, resolve as resolvePath } from 'node:path';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { createRequire } from 'node:module';
 
 const args = process.argv.slice(2);
 const flag = (n, d) => { const i = args.indexOf(n); return i >= 0 ? args[i + 1] : d; };
-const URL_ = flag('--url'); if (!URL_) { console.error('--url <running dev-server url> required'); process.exit(2); }
-const KEYS = Number(flag('--keys', '12'));
+const URL_ = flag('--url');   // absence is handled by typedDegradationExit under the CLI guard
+const KEYS = Math.max(1, Number(flag('--keys', '12')));
 const W = Number(flag('--width', '1280')), H = Number(flag('--height', '800'));
 const OUT = flag('--out', join(process.cwd(), '.audit', 'runtime'));
 const PERKEY_MS = Number(flag('--perkey-threshold', '8'));   // scripting ms/keystroke that flags
@@ -140,6 +147,38 @@ async function waitForHttp(url, timeoutMs) {
   while (Date.now() < end) { try { const r = await fetch(url); if (r.ok) return; } catch {} await wait(300); }
   throw new Error(`timed out waiting for ${url}`);
 }
+
+// ---------- typed degradation ----------
+// Every shortfall below the launch path degrades EXACTLY: one structured gap with a bounded
+// denominator ({kind, expected, examined}), persisted to <out>/runtime.json so downstream
+// reconcilers see an honest unproven result instead of an exit code alone. Never a false clean.
+export function parseSurfacesInput(text) {
+  try {
+    const parsed = JSON.parse(text);
+    if (!Array.isArray(parsed)) return { ok: false, error: '--surfaces must contain a JSON array of {label, text|selector} targets' };
+    return { ok: true, targets: parsed.filter((t) => t && typeof t === 'object') };
+  } catch (e) { return { ok: false, error: `--surfaces parse failed: ${e.message}` }; }
+}
+function classifyRuntimeFailure(error) {
+  const m = String(error?.message ?? error);
+  if (/No Chrome\/Edge found/.test(m)) return 'browser-unavailable';
+  if (/timed out waiting for app load/.test(m)) return 'app-load-timeout';
+  if (/timed out waiting|CDP|page target|handshake/i.test(m)) return 'cdp-unavailable';
+  return 'runtime-execution';
+}
+function buildDegradedReport(gaps, denominator, extra = {}) {
+  return { kind: 'audit-runtime', url: URL_ ?? null, generated_at: new Date().toISOString(),
+    status: 'unproven', complete: false, incomplete: true, shallow: false,
+    denominator, surfaces_found: denominator.expected, surfaces_tested: denominator.examined, keystrokes: KEYS,
+    findings: [], degradation: gaps, coverageGaps: gaps, console_total: 0, a11y_axe: 'not-run', a11y_violations_total: 0, ...extra };
+}
+function typedDegradationExit(gaps, denominator, exitCode, outDir = OUT) {
+  const report = buildDegradedReport(gaps, denominator);
+  try { mkdirSync(resolvePath(outDir), { recursive: true }); writeFileSync(join(resolvePath(outDir), 'runtime.json'), JSON.stringify(report, null, 2)); } catch {}
+  console.error(JSON.stringify(report, null, 2));
+  process.exit(exitCode);
+}
+
 
 // ---------- instrumentation injected before the app loads ----------
 const INSTRUMENT = `
@@ -323,8 +362,16 @@ async function measureSurface(client, name, consoleRef, outDir) {
 async function main() {
   const outDir = resolvePath(OUT);          // Chrome needs an absolute --user-data-dir
   mkdirSync(outDir, { recursive: true });
-  const browser = findBrowser();
-  const cdpPort = Number(flag('--cdp-port')) || (await freePort(9333));
+  // Bound denominator before any launch: a supplied --url commits the pass to at least the entry surface.
+  const launchBound = { kind: 'runtime-surfaces', expected: URL_ ? 1 : 0, examined: 0 };
+  let browser;
+  try { browser = findBrowser(); } catch (e) {
+    typedDegradationExit([{ kind: 'browser-unavailable', detail: String(e.message), denominator: launchBound }], launchBound, 3, outDir);
+  }
+  let cdpPort;
+  try { cdpPort = Number(flag('--cdp-port')) || (await freePort(9333)); } catch (e) {
+    typedDegradationExit([{ kind: 'cdp-unavailable', detail: String(e.message), denominator: launchBound }], launchBound, 3, outDir);
+  }
   const profile = join(outDir, `_chrome-${Date.now()}`); mkdirSync(profile, { recursive: true });
   const chromeLogPath = join(outDir, '_chrome.log');
   console.error(`[audit-runtime] launch ${browser} · cdp :${cdpPort} · profile ${profile}`);
@@ -370,15 +417,24 @@ async function main() {
     // Operator-named deep targets (--surfaces): reach button/card-driven views the safe auto-enum
     // can't, e.g. the editor behind "New text". Each {label, text|selector} is clicked from the entry.
     let manual = [];
-    if (SURF_FILE) { try { const j = JSON.parse(readFileSync(SURF_FILE, 'utf8')); if (Array.isArray(j)) manual = j; } catch (e) { console.error(`[audit-runtime] --surfaces parse failed: ${e.message}`); } }
+    let surfacesFileError = null;
+    if (SURF_FILE) {
+      try {
+        const parsed = parseSurfacesInput(readFileSync(SURF_FILE, 'utf8'));
+        if (parsed.ok) manual = parsed.targets;
+        else surfacesFileError = parsed.error;
+      } catch (e) { surfacesFileError = `--surfaces read failed: ${e.message}`; }
+      if (surfacesFileError) console.error(`[audit-runtime] ${surfacesFileError}`);
+    }
+    let unreachableManual = 0;
     for (const spec of manual) {
       const label = spec.label || spec.text || spec.selector || 'target';
       try {
         const loc = await evalJs(client, locate(spec)).catch(() => ({ ok: false }));
-        if (!loc.ok) { findings.push({ surface: label, flags: ['could not locate surface (no element matched text/selector)'] }); continue; }
+        if (!loc.ok) { findings.push({ surface: label, flags: ['could not locate surface (no element matched text/selector)'] }); unreachableManual++; continue; }
         await click(client, loc.x, loc.y); await wait(500);
         findings.push(await measureSurface(client, label, consoleErrors, OUT)); tested++;
-      } catch (e) { findings.push({ surface: label, flags: [`could not test: ${String(e.message).slice(0, 80)}`] }); }
+      } catch (e) { findings.push({ surface: label, flags: [`could not test: ${String(e.message).slice(0, 80)}`] }); unreachableManual++; }
     }
     const reachable = surfaces.length + manual.length;
     // Honesty #1 — nothing rendered: do NOT report "clean". App likely never mounted (stuck loader /
@@ -389,8 +445,17 @@ async function main() {
     // Honesty #2 — app rendered but the entry surface had no input and nothing was navigable. Not clean.
     const shallow = !testedAnything && !incomplete && reachable === 0;
     if (shallow && findings[0]) findings[0].flags.push('shallow-coverage: entry surface has no text input and no tab/nav surfaces were found. Button/card-driven views (e.g. an editor behind "New text") were NOT crawled — pass --surfaces <json> of {label, text|selector} click-targets to reach and perf-test them. NOT a clean bill of health.');
+    // Exact typed degradation with BOUNDED denominators for every coverage shortfall.
+    const surfacesDenominator = { kind: 'runtime-surfaces', expected: reachable + 1, examined: tested };
+    const manualDenominator = { kind: 'manual-surface-targets', expected: manual.length, examined: Math.max(0, manual.length - unreachableManual) };
+    const degradation = [];
+    if (surfacesFileError) degradation.push({ kind: 'surfaces-file-invalid', detail: String(surfacesFileError).slice(0, 200), denominator: { kind: 'manual-surface-targets', expected: 0, examined: 0 } });
+    if (unreachableManual) degradation.push({ kind: 'surface-unreachable', detail: `${unreachableManual} of ${manual.length} operator-supplied surface targets could not be tested`, denominator: manualDenominator });
+    if (incomplete && findings[0]) degradation.push({ kind: 'app-not-ready', detail: 'app did not render testable content; runtime pass proved nothing here', denominator: surfacesDenominator });
+    else if (shallow && findings[0]) degradation.push({ kind: 'shallow-coverage', detail: 'entry surface only; button/card-driven views were NOT crawled without --surfaces', denominator: surfacesDenominator });
     const a11yTotal = findings.reduce((n, f) => n + (Array.isArray(f.a11y) ? f.a11y.length : 0), 0);
-    const report = { kind: 'audit-runtime', url: URL_, generated_at: new Date().toISOString(), incomplete, shallow, surfaces_found: reachable + 1, surfaces_tested: tested, keystrokes: KEYS, findings, console_total: consoleErrors.length, a11y_axe: AXE_SOURCE ? 'ran' : 'skipped (axe-core not installed — npm i -D axe-core to enable deterministic a11y)', a11y_violations_total: a11yTotal };
+    const flaggedCount = findings.filter((f) => (f.flags || []).length).length;
+    const report = { kind: 'audit-runtime', url: URL_, generated_at: new Date().toISOString(), status: flaggedCount || consoleErrors.length ? 'candidates' : 'pass', complete: !incomplete && !shallow && !degradation.length, incomplete, shallow, denominator: surfacesDenominator, surfaces_found: reachable + 1, surfaces_tested: tested, keystrokes: KEYS, findings, degradation, coverageGaps: degradation, console_total: consoleErrors.length, a11y_axe: AXE_SOURCE ? 'ran' : 'skipped (axe-core not installed — npm i -D axe-core to enable deterministic a11y)', a11y_violations_total: a11yTotal };
     writeFileSync(join(OUT, 'runtime.json'), JSON.stringify(report, null, 2));
     // console summary
     const flagged = findings.filter((f) => (f.flags || []).length);
@@ -403,6 +468,12 @@ async function main() {
       const perClick = f.clicked?.targets ? `${f.clicked.avgScriptMsPerClick}ms/click×${f.clicked.targets}` : '';
       console.log(`  ${(f.surface || '?').padEnd(22)} ${perKey.padEnd(12)} ${perClick.padEnd(16)} ${(f.flags || []).join(' | ') || 'clean'}`);
     }
+  } catch (e) {
+    // Launch/connect/load failure → exact typed degradation with a bounded denominator (entry surface
+    // committed but unexamined). Supplied targets that DO load are unaffected by this path.
+    try { client?.close(); } catch {}   // cleanup here: typedDegradationExit exits before finally runs
+    try { chrome.kill(); } catch {}
+    typedDegradationExit([{ kind: classifyRuntimeFailure(e), detail: String(e?.message ?? e).slice(0, 200), denominator: launchBound }], launchBound, 3, outDir);
   } finally {
     try { client?.close(); } catch {}
     try { chrome.kill(); } catch {}
@@ -426,4 +497,26 @@ async function waitForAppReady(client, getInflight, getLastNet, timeoutMs) {
     prev = n; await wait(300);
   }
 }
-main().catch((e) => { console.error(`[audit-runtime] ${e.stack || e.message}`); process.exit(1); });
+// Direct-entrypoint detection with a NORMALIZED, Windows-safe comparison. Exact
+// import.meta.url === pathToFileURL(argv[1]) equality is fragile: on Windows drive-letter case,
+// short paths, and symlinks can diverge. Resolve both sides through realpath and compare
+// case-insensitively on win32; fall back to the raw href check first for the fast common case.
+const IS_CLI = (() => {
+  try {
+    if (!process.argv[1]) return false;
+    if (pathToFileURL(resolvePath(process.argv[1])).href === import.meta.url) return true;
+    const norm = (href) => { const p = fileURLToPath(href); try { return realpathSync(p); } catch { return p; } };
+    const a = norm(import.meta.url);
+    const b = norm(pathToFileURL(resolvePath(process.argv[1])).href);
+    return process.platform === 'win32' ? a.toLowerCase() === b.toLowerCase() : a === b;
+  } catch { return false; }
+})();
+if (IS_CLI) {
+  if (!URL_) {
+    // Exact typed degradation for a missing app URL: bounded denominator (nothing was committed,
+    // nothing examined), persisted report, exit 2. Never a bare usage line alone.
+    const gap = [{ kind: 'runtime-url-missing', detail: '--url <running dev-server url> required: no app target was audited.', denominator: { kind: 'runtime-surfaces', expected: 0, examined: 0 } }];
+    typedDegradationExit(gap, { kind: 'runtime-surfaces', expected: 0, examined: 0 }, 2);
+  }
+  main().catch((e) => { console.error(`[audit-runtime] ${e.stack || e.message}`); process.exit(1); });
+}

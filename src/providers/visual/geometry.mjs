@@ -5,6 +5,7 @@ export function analyzeGeometryEvidence({ surfaceId, viewport, elements = [], to
   const coverageGaps = [];
   const intentional = new Set(intentionalOverlaps.map((pair) => [...pair].sort().join(':')));
   const measurable = elements.filter((item) => !item.primitive);
+  if (!elements.length) coverageGaps.push('geometry-elements-missing');
   for (const element of elements) {
     if (['canvas', 'webgl', 'cross-origin'].includes(element.primitive)) coverageGaps.push(`unsupported-geometry:${element.id}:${element.primitive}`);
     if (!Number.isFinite(element.x) || !Number.isFinite(element.width)) continue;
@@ -24,5 +25,6 @@ export function analyzeGeometryEvidence({ surfaceId, viewport, elements = [], to
     const a = measurable[left]; const b = measurable[right]; const overlap = intersectBounds(a, b); const key = [a.id, b.id].sort().join(':');
     if (overlap && !intentional.has(key) && (a.control || b.control)) findings.push({ ruleId: 'visual.geometry-control-overlap', surfaceId, elementIds: [a.id, b.id], measurement: overlap });
   }
-  return { provider: 'visual.geometry', status: findings.length ? 'candidates' : coverageGaps.length ? 'unproven' : 'pass', findings, coverageGaps, tolerances };
+  const examined = elements.filter((item) => Number.isFinite(item.x) && Number.isFinite(item.width)).length;
+  return { provider: 'visual.geometry', status: findings.length ? 'candidates' : coverageGaps.length ? 'unproven' : 'pass', complete: elements.length > 0, denominator: { kind: 'geometry-elements', expected: elements.length, examined }, findings, coverageGaps, tolerances };
 }

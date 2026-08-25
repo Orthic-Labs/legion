@@ -5,6 +5,27 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { reportToSarif } from '../../scripts/report-to-sarif.mjs';
 
 const SURVIVING = new Set(['TRUE_POSITIVE', 'LIKELY_TRUE_POSITIVE']);
+
+// Reasoning lenses selected by the sealed plan must be recorded as run before
+// any audit may read as complete — a scanner-only pass is never an audit.
+function requiredLenses(facts) {
+  return [...new Set(facts?.plan?.reasoningProviders ?? [])].sort();
+}
+function ranLenses(facts) {
+  return Array.isArray(facts?.lenses_ran) ? [...new Set(facts.lenses_ran)].sort() : [];
+}
+
+// Windows argv[1] may differ from import.meta.url only by drive-letter case or
+// path normalization; compare normalized file URLs so the direct entrypoint is
+// detected reliably on every host.
+function normalizedExecutableHref(href, platform = process.platform) {
+  return platform === 'win32' ? String(href).toLowerCase() : String(href);
+}
+export function isMainEntrypoint(importMetaUrl, argvPath = process.argv[1], platform = process.platform) {
+  if (!argvPath) return false;
+  try { return normalizedExecutableHref(pathToFileURL(resolve(argvPath)).href, platform) === normalizedExecutableHref(importMetaUrl, platform); }
+  catch { return false; }
+}
 const AUDIT_RUN = fileURLToPath(new URL('./audit-run.mjs', import.meta.url));
 const AUDIT_VERIFY = fileURLToPath(new URL('./audit-verify.mjs', import.meta.url));
 function command(executable, args) { return { executable, args }; }
@@ -47,11 +68,31 @@ function providerFindings(facts) {
   });
 }
 
+// Redaction happens upstream (secrets provider). Adjudication must carry the
+// redacted values through to report findings verbatim — never dropped, never
+// un-redacted. Only digest/metadata plus the redacted marker survive.
+const SECRET_CARRIER_KEYS = ['match', 'secretDigest', 'secretType', 'mode', 'classification', 'validity', 'commit'];
+function redactedSecretCarrier(candidate) {
+  const carrier = {};
+  for (const key of SECRET_CARRIER_KEYS) {
+    if (candidate?.[key] !== undefined && candidate[key] !== null) carrier[key] = candidate[key];
+  }
+  return Object.keys(carrier).length ? carrier : null;
+}
+
+export function orphanSecurityVerdicts(adjudication, candidates) {
+  const known = new Set((candidates?.candidates ?? []).map((candidate) => candidate.id));
+  return (adjudication?.verdicts ?? [])
+    .filter((verdict) => !known.has(verdict.candidateId))
+    .map((verdict) => ({ candidateId: verdict.candidateId }));
+}
+
 function securityFindings(adjudication, candidates) {
   const candidateById = new Map((candidates.candidates ?? []).map((candidate) => [candidate.id, candidate]));
   return (adjudication.verdicts ?? []).filter((verdict) => SURVIVING.has(verdict.verdict)).map((verdict) => {
     const candidate = candidateById.get(verdict.candidateId) ?? {};
     const location = candidate.evidence?.[0] ?? {};
+    const secretCarrier = redactedSecretCarrier(candidate);
     return {
       id: verdict.candidateId,
       category: 'security',
@@ -67,6 +108,7 @@ function securityFindings(adjudication, candidates) {
       tier: 'GUIDED',
       provider: verdict.candidateProvider,
       security: verdict,
+      ...(secretCarrier ? { redacted_secret: secretCarrier } : {}),
     };
   });
 }
@@ -87,14 +129,45 @@ function nonSecurityGaps(facts) {
   }
   for (const gap of reconciliation.unresolvedCoverage ?? []) gaps.push({ kind: 'coverage-family', family: gap.id, detail: gap });
   for (const provider of reconciliation.missingRuntimeProviders ?? []) gaps.push({ kind: 'missing-runtime-provider', provider });
+  const ranLensSet = new Set(ranLenses(facts));
+  for (const lens of requiredLenses(facts)) {
+    if (!ranLensSet.has(lens)) gaps.push({ kind: 'missing-reasoning-lens', lens });
+  }
   if (facts.network_policy?.mode !== 'deny') gaps.push({ kind: 'network-policy', detail: facts.network_policy ?? null });
   if (facts.incomplete && gaps.length === 0) gaps.push({ kind: 'facts-incomplete', detail: 'facts.json is marked incomplete without a more specific normalized gap' });
   return gaps;
 }
 
+// One canonical count model shared by JSON consumers, the Markdown renderer,
+// and SARIF: every surface derives from these numbers, never from its own recount.
+function canonicalCounts({ facts, findings, candidates, adjudication, lenses, requiredLensList }) {
+  const providerResults = facts.provider_reconciliation?.providerResults ?? [];
+  const bySeverity = { critical: 0, high: 0, medium: 0, low: 0, info: 0 };
+  for (const finding of findings) bySeverity[finding.severity] = (bySeverity[finding.severity] ?? 0) + 1;
+  const selectedProviderIds = facts.plan?.selectedProviderIds ?? [];
+  const ranProviders = new Set(providerResults.map((provider) => provider.provider));
+  return {
+    schemaVersion: 1,
+    providers_selected: selectedProviderIds.length,
+    providers_ran: providerResults.filter((provider) => provider.status !== 'pending').length,
+    providers_missing: selectedProviderIds.filter((id) => !ranProviders.has(id)).length,
+    findings_total: findings.length,
+    findings_by_severity: bySeverity,
+    findings_open: findings.filter((finding) => finding.status === 'open').length,
+    security_candidates: candidates?.candidates?.length ?? 0,
+    security_verdicts: adjudication?.verdicts?.length ?? 0,
+    security_findings_surviving: findings.filter((finding) => Boolean(finding.security)).length,
+    lenses_required: requiredLensList.length,
+    lenses_ran: lenses.length,
+  };
+}
+
 export function finalizeAudit({ facts, candidates, adjudication }) {
   const gaps = nonSecurityGaps(facts);
   if (!adjudication?.complete) gaps.push({ kind: 'security-adjudication', detail: adjudication ?? null });
+  for (const orphan of orphanSecurityVerdicts(adjudication ?? {}, candidates ?? {})) {
+    gaps.push({ kind: 'orphan-security-verdict', candidateId: orphan.candidateId });
+  }
 
   // Contract violation: candidate-generating providers must not emit findings directly
   for (const provider of (facts.provider_reconciliation?.providerResults ?? [])) {
@@ -122,6 +195,9 @@ export function finalizeAudit({ facts, candidates, adjudication }) {
   }
   if (duplicateCandidates.length) gaps.push({ kind: 'duplicate-candidate-ids', ids: duplicateCandidates });
 
+  const lenses = ranLenses(facts);
+  const requiredLensList = requiredLenses(facts);
+  const summary = canonicalCounts({ facts, findings, candidates, adjudication, lenses, requiredLensList });
   const incomplete = Boolean(facts.incomplete) || gaps.length > 0;
   const executionFailed = (facts.checks ?? []).some((check) => (check.verdict ?? (check.status === 'ran' ? 'pass' : 'unproven')) === 'fail');
   const auditStatus = incomplete ? 'incomplete' : executionFailed ? 'fail' : findings.length ? 'fail' : 'pass';
@@ -138,6 +214,9 @@ export function finalizeAudit({ facts, candidates, adjudication }) {
     plan: facts.plan,
     blueprint: facts.blueprint,
     network_policy: facts.network_policy ?? null,
+    lenses_ran: lenses,
+    lenses: { required: requiredLensList, ran: lenses },
+    summary,
     gates: {
       deterministic_checks: (facts.checks ?? []).every((check) => (check.execution_status ?? check.status) === 'ran' && (check.verdict ?? 'pass') === 'pass') ? 'pass' : 'unproven',
       provider_reconciliation: gaps.some((gap) => gap.kind !== 'security-adjudication') ? 'unproven' : 'pass',
@@ -171,8 +250,20 @@ function main() {
   const report = finalizeAudit({ facts: readJson(factsPath), candidates: readJson(candidatesPath), adjudication: readJson(adjudicationPath) });
   writeJson(outPath, report);
   writeJson(sarifPath, reportToSarif(report));
-  console.log(JSON.stringify({ report: resolve(outPath), sarif: resolve(sarifPath), auditStatus: report.audit_status, qualityGate: report.quality_gate, findings: report.findings.length, coverageGaps: report.coverage_gaps.length }, null, 2));
+  console.log(JSON.stringify({
+    report: resolve(outPath), sarif: resolve(sarifPath),
+    auditStatus: report.audit_status, qualityGate: report.quality_gate,
+    findings: report.summary.findings_total,
+    findingsBySeverity: report.summary.findings_by_severity,
+    providersSelected: report.summary.providers_selected,
+    providersMissing: report.summary.providers_missing,
+    securityCandidates: report.summary.security_candidates,
+    securityFindingsSurviving: report.summary.security_findings_surviving,
+    lensesRequired: report.summary.lenses_required,
+    lensesRan: report.lenses_ran,
+    coverageGaps: report.coverage_gaps.length,
+  }, null, 2));
   if (report.audit_status !== 'pass') process.exitCode = 2;
 }
 
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) main();
+if (isMainEntrypoint(import.meta.url)) main();

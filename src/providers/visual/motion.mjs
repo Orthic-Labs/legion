@@ -6,5 +6,5 @@ export function analyzeMotion({ transitions = [], reducedMotionExercised = false
     if (transition.layoutShift) findings.push({ ruleId: 'visual.motion-layout-shift', transitionId: transition.id, from: transition.from, to: transition.to, timing: { durationMs: transition.durationMs }, performanceLink: true });
   }
   const coverageGaps = reducedMotionExercised ? [] : ['reduced-motion-unproven'];
-  return { provider: 'visual.motion', status: findings.length ? 'candidates' : coverageGaps.length ? 'unproven' : 'pass', findings, coverageGaps, decorativeRecommendations: [] };
+  return { provider: 'visual.motion', status: findings.length ? 'candidates' : coverageGaps.length ? 'unproven' : 'pass', complete: transitions.length > 0 && reducedMotionExercised, denominator: { kind: 'motion-transitions', expected: transitions.length, examined: transitions.length }, findings, coverageGaps, decorativeRecommendations: [] };
 }
