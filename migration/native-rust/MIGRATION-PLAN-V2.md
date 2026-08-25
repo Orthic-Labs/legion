@@ -53,7 +53,8 @@ Outputs:
 - executable-resolution proof method for each client launch environment;
 - release-binding manifest and runtime handshake contract;
 - persistent-state ownership, schema, lease, migration, snapshot, and rollback contract;
-- macOS Homebrew form decision—formula/bottle, cask, or tap—from measured release mechanics;
+- macOS Homebrew packaging decision—formula (optionally bottled) versus cask—plus appropriate
+  tap/distribution channel from measured release mechanics;
 - Windows WinGet portable/alternative package disposition;
 - exact RightKit AX version and source-commit pin;
 - RightKit/spec discovery discrepancy disposition;

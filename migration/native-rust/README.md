@@ -8,10 +8,10 @@
 These documents supersede earlier descriptor-host, per-client embedded-binary, npm-cutover,
 always-on-runtime, and Blueprint-required assumptions. Target product is one machine-installed Rust
 runtime plus `legion setup`, portable Agent Plugins integration where supported, and thin
-client-native adapters with no semantic ownership. Exact Homebrew form, Supported Client Profile,
-Pi adapter, state contract, release binding, and pinned RightKit qualification implementation are
-frozen in M0. Existing ledgers and fixtures remain migration evidence; refresh them against current
-`main` before v2 implementation.
+client-native adapters with no semantic ownership. Exact Homebrew packaging form and distribution
+channel, Supported Client Profile, Pi adapter, state contract, release binding, and pinned RightKit
+qualification implementation are frozen in M0. Existing ledgers and fixtures remain migration
+evidence; refresh them against current `main` before v2 implementation.
 
 LEG-000 inventory is source-bound to Legion baseline `90678a130dc26937d544304b79a22f24d74383ac`.
 

@@ -71,8 +71,9 @@ signed + notarized legion              signed + timestamped legion.exe
           install/register/verify each adapter
 ```
 
-M0 freezes exact Homebrew distribution form—formula/bottle, cask, or tap—from release mechanics,
-signing, provenance, update, and rollback evidence. Architecture does not pre-decide that choice.
+M0 freezes Homebrew packaging as formula (optionally bottled) versus cask, then selects appropriate
+tap/distribution channel from release mechanics, signing, provenance, update, and rollback evidence.
+Architecture does not pre-decide those choices.
 WinGet portable packaging is acceptable when it preserves signing, aliases, updates, and removal.
 Neither platform requires a desktop app, DMG, PKG, MSI, tray process, or setup wizard.
 
