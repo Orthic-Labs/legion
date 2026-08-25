@@ -1,19 +1,20 @@
 #![forbid(unsafe_code)]
 
-mod error;
-mod server;
-mod tools;
-
 use std::sync::Arc;
 
 use legion_application::{NativeApplication, NativeApplicationConfig};
+use legion_mcp::{run_with_application, RejectingBindingGate};
 
 /// Start MCP against one explicitly composed native application. All tools
 /// share this instance, so policy/provider state cannot diverge by request.
-pub async fn run_with_application(application: Arc<NativeApplication>) -> std::io::Result<()> {
-    server::run_stdio(Arc::new(tools::EngineAdapter::new(Arc::new(
-        tools::NativeApplicationEngine::new(application),
-    ))))
+async fn run_binary(application: Arc<NativeApplication>) -> std::io::Result<()> {
+    // M1 release binding is supplied by the later CLI composition layer. Until
+    // then the standalone binary fails closed instead of advertising tools
+    // without a verified installed release identity.
+    run_with_application(
+        application,
+        Arc::new(RejectingBindingGate::new("legion setup --repair")),
+    )
     .await
 }
 
@@ -34,5 +35,5 @@ async fn main() -> std::io::Result<()> {
                 "versioned native application configuration is invalid",
             )
         })?;
-    run_with_application(application).await
+    run_binary(application).await
 }

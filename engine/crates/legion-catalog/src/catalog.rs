@@ -1,4 +1,8 @@
-use std::{collections::BTreeSet, path::Path};
+use std::{
+    collections::BTreeSet,
+    fs,
+    path::{Path, PathBuf},
+};
 
 use serde::{Deserialize, Serialize};
 
@@ -41,6 +45,46 @@ pub struct CatalogEntry {
     pub body: Vec<u8>,
     pub source_bytes: Vec<u8>,
     pub frontmatter: serde_json::Value,
+}
+
+/// The routing-sized representation of a capability. It deliberately carries
+/// no source body: selection only needs compact catalog metadata.
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+pub struct CompactCatalogEntry {
+    pub canonical_id: String,
+    pub source_path: String,
+    pub manifest_path: Option<String>,
+    pub name: Option<String>,
+    pub description: Option<String>,
+    pub kind: Option<String>,
+    pub discoverability: Option<String>,
+}
+
+/// A catalog index plus its content root. Bodies are read only by
+/// [`CompactCatalog::resolve_body`], never while metadata is loaded.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct CompactCatalog {
+    root: PathBuf,
+    pub schema_version: u32,
+    pub entries: Vec<CompactCatalogEntry>,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct CompactCatalogDocument {
+    pub schema_version: u32,
+    pub bundles: Vec<CompactCatalogDocumentEntry>,
+}
+
+#[derive(Deserialize)]
+pub(crate) struct CompactCatalogDocumentEntry {
+    pub id: String,
+    pub source: String,
+    pub manifest: Option<String>,
+    pub name: Option<String>,
+    pub description: Option<String>,
+    pub kind: Option<String>,
+    pub discoverability: Option<String>,
 }
 
 impl CatalogEntry {
@@ -153,6 +197,58 @@ impl Catalog {
     }
     pub fn validate(&self) -> Result<(), CatalogError> {
         Self::new(self.entries.clone()).map(|_| ())
+    }
+}
+
+impl CompactCatalog {
+    /// Load only the generated compact index. Capability files are not opened.
+    pub fn load(
+        root: impl AsRef<Path>,
+        index_path: impl AsRef<Path>,
+    ) -> Result<Self, CatalogError> {
+        crate::discovery::load_compact(root, index_path)
+    }
+
+    pub(crate) fn new(
+        root: PathBuf,
+        schema_version: u32,
+        mut entries: Vec<CompactCatalogEntry>,
+    ) -> Result<Self, CatalogError> {
+        entries.sort_by(|left, right| left.canonical_id.cmp(&right.canonical_id));
+        let mut ids = BTreeSet::new();
+        let mut paths = BTreeSet::new();
+        for entry in &entries {
+            validate_id(&entry.canonical_id)?;
+            if !ids.insert(entry.canonical_id.clone()) {
+                return Err(CatalogError::OwnershipCollision {
+                    identity: format!("canonical id `{}`", entry.canonical_id),
+                });
+            }
+            if !paths.insert(entry.source_path.clone()) {
+                return Err(CatalogError::OwnershipCollision {
+                    identity: format!("source path `{}`", entry.source_path),
+                });
+            }
+        }
+        Ok(Self {
+            root,
+            schema_version,
+            entries,
+        })
+    }
+
+    pub fn get(&self, id: &str) -> Option<&CompactCatalogEntry> {
+        self.entries.iter().find(|entry| entry.canonical_id == id)
+    }
+
+    /// Resolve one capability body on demand and reject index paths outside its root.
+    pub fn resolve_body(&self, id: &str) -> Result<Vec<u8>, CatalogError> {
+        let entry = self.get(id).ok_or_else(|| CatalogError::InvalidCatalog {
+            path: id.into(),
+            reason: "unknown compact catalog id".into(),
+        })?;
+        let path = self.root.join(&entry.source_path);
+        fs::read(&path).map_err(|source| CatalogError::Io { path, source })
     }
 }
 

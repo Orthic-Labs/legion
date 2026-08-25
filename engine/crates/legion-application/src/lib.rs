@@ -31,6 +31,9 @@ use legion_runtime::{
 };
 use thiserror::Error;
 
+use legion_policy::{PolicyEvaluation, PolicyEvaluator, PolicyReceipt};
+use legion_policy_model::{DecisionOutcome, PolicyContext, PolicyPack as ArcanePolicyPack};
+
 /// Read-only catalog access supplied by the composition owner.
 pub trait CatalogSource: Send + Sync {
     fn catalog(&self) -> Result<Catalog, CatalogError>;
@@ -148,6 +151,186 @@ pub enum NativeApplicationError {
     Configuration(String),
     #[error("provider composition failed: {0}")]
     Provider(String),
+}
+
+/// Explicit, process-free composition inputs for the shared M1 application surface.
+/// Both the CLI and MCP library construct this same type before serving requests.
+#[derive(Clone, Debug)]
+pub struct M1ApplicationInputs {
+    pub release_manifest_path: std::path::PathBuf,
+    pub release_binding_inputs: legion_runtime::ReleaseBindingInputs,
+    pub catalog_root: std::path::PathBuf,
+    pub catalog_index_path: std::path::PathBuf,
+    pub policy_pack: ArcanePolicyPack,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct M1Status {
+    pub release_version: String,
+    pub capability_count: usize,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize)]
+pub struct DeterministicCapabilityResult {
+    pub capability_id: String,
+    pub source_path: String,
+    pub body_sha256: String,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct M1InvocationRequest {
+    pub capability_id: String,
+    pub policy_context: PolicyContext,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct M1InvocationResult {
+    pub status: M1Status,
+    pub capability: DeterministicCapabilityResult,
+    pub policy_evaluation: PolicyEvaluation,
+    pub policy_receipt: PolicyReceipt,
+    pub invocation_receipt: legion_contracts::InvocationReceipt,
+}
+
+#[derive(Debug, Error)]
+pub enum M1ApplicationError {
+    #[error("release binding failed: {0}")]
+    ReleaseBinding(#[from] legion_runtime::ReleaseBindingError),
+    #[error("catalog operation failed: {0}")]
+    Catalog(#[from] legion_catalog::CatalogError),
+    #[error("Arcane policy pack failed validation: {0}")]
+    Policy(#[from] legion_policy::PolicyEvaluationError),
+    #[error("typed invocation receipt could not be constructed: {0}")]
+    Contract(#[from] legion_contracts::ContractError),
+    #[error("canonical invocation identity could not be encoded: {0}")]
+    Canonical(#[from] legion_contracts::canonical::CanonicalError),
+}
+
+/// Native M1 API shared by standalone CLI and reusable stdio MCP transports.
+/// It has no interpreter, shell, or child-process dependency.
+#[derive(Debug)]
+pub struct M1Application {
+    binding: legion_runtime::VerifiedReleaseBinding,
+    catalog: legion_catalog::CompactCatalog,
+    evaluator: PolicyEvaluator,
+}
+
+impl M1Application {
+    pub fn from_inputs(inputs: M1ApplicationInputs) -> Result<Self, M1ApplicationError> {
+        let manifest = legion_runtime::load_release_manifest(&inputs.release_manifest_path)?;
+        let binding =
+            legion_runtime::verify_release_binding(&manifest, &inputs.release_binding_inputs)?;
+        let catalog =
+            legion_catalog::CompactCatalog::load(&inputs.catalog_root, &inputs.catalog_index_path)?;
+        let evaluator = PolicyEvaluator::new(inputs.policy_pack)?;
+        Ok(Self {
+            binding,
+            catalog,
+            evaluator,
+        })
+    }
+
+    pub fn status(&self) -> M1Status {
+        M1Status {
+            release_version: self.binding.release_version().into(),
+            capability_count: self.catalog.entries.len(),
+        }
+    }
+
+    /// Exposes the complete identity already verified at composition time for
+    /// MCP's initialization gate; callers must not reconstruct it from status.
+    pub fn release_binding(&self) -> &legion_runtime::VerifiedReleaseBinding {
+        &self.binding
+    }
+
+    /// Resolve exactly one selected capability body, evaluate its explicit Arcane
+    /// context, and return one deterministic typed invocation receipt.
+    pub fn invoke(
+        &self,
+        request: M1InvocationRequest,
+    ) -> Result<M1InvocationResult, M1ApplicationError> {
+        let entry = self.catalog.get(&request.capability_id).ok_or_else(|| {
+            legion_catalog::CatalogError::InvalidCatalog {
+                path: request.capability_id.clone(),
+                reason: "unknown compact catalog id".into(),
+            }
+        })?;
+        let body = self.catalog.resolve_body(&request.capability_id)?;
+        let capability = DeterministicCapabilityResult {
+            capability_id: entry.canonical_id.clone(),
+            source_path: entry.source_path.clone(),
+            body_sha256: legion_catalog::hex_digest(&body),
+        };
+        let policy_evaluation = self.evaluator.evaluate(&request.policy_context);
+        let policy_receipt = policy_evaluation.receipt.clone();
+        let invocation_receipt = self.invocation_receipt(&capability, &policy_evaluation)?;
+        Ok(M1InvocationResult {
+            status: self.status(),
+            capability,
+            policy_evaluation,
+            policy_receipt,
+            invocation_receipt,
+        })
+    }
+
+    fn invocation_receipt(
+        &self,
+        capability: &DeterministicCapabilityResult,
+        evaluation: &PolicyEvaluation,
+    ) -> Result<legion_contracts::InvocationReceipt, M1ApplicationError> {
+        #[derive(serde::Serialize)]
+        #[serde(rename_all = "camelCase")]
+        struct Identity<'a> {
+            release_version: &'a str,
+            capability: &'a DeterministicCapabilityResult,
+            policy: &'a legion_policy_model::PolicyDecision,
+        }
+        let identity = Identity {
+            release_version: self.binding.release_version(),
+            capability,
+            policy: &evaluation.decision,
+        };
+        let bytes = legion_contracts::canonical_json_bytes(&identity)?;
+        let status = if evaluation.decision.outcome == DecisionOutcome::Allow {
+            legion_contracts::InvocationStatus::Ok
+        } else {
+            legion_contracts::InvocationStatus::Failed
+        };
+        let complete = status == legion_contracts::InvocationStatus::Ok;
+        let mut artifacts = BTreeMap::new();
+        artifacts.insert(
+            "capabilityBodySha256".into(),
+            capability.body_sha256.clone(),
+        );
+        artifacts.insert("policyReceiptSha256".into(), evaluation.receipt.digest()?);
+        artifacts.insert(
+            "releaseVersion".into(),
+            self.binding.release_version().into(),
+        );
+        let receipt = legion_contracts::InvocationReceipt {
+            schema_version: 1,
+            receipt_id: legion_contracts::derived_id(&bytes)?,
+            invocation_id: legion_contracts::derived_id(&bytes)?,
+            request_id: legion_contracts::derived_id(&bytes)?,
+            task_id: legion_contracts::derived_id(&bytes)?,
+            plan_id: legion_contracts::derived_id(&bytes)?,
+            provider: legion_contracts::ProviderId::new("m1-native-capability")?,
+            status,
+            complete,
+            findings: Vec::new(),
+            gaps: if complete {
+                Vec::new()
+            } else {
+                vec![format!(
+                    "Arcane policy outcome: {:?}",
+                    evaluation.decision.outcome
+                )]
+            },
+            artifacts,
+        };
+        receipt.validate()?;
+        Ok(receipt)
+    }
 }
 
 /// Explicit dependency set for one in-process native application.
@@ -1270,5 +1453,267 @@ impl NativeApplication {
     }
     pub fn provider_specs(&self) -> Vec<ProviderSpec> {
         self.provider_specs.clone()
+    }
+}
+
+#[cfg(test)]
+mod m1_tests {
+    use super::*;
+    use legion_policy_model::{
+        ApprovalState, CanonicalPath, CapabilityCeiling, CapabilityGrant, ContractVersion,
+        EffectClass as ArcaneEffectClass, EnforcementLevel, HostEnforcement, LeasePolicy,
+        LeaseState, PathOperation, PathScope, PolicyRule as ArcanePolicyRule, ReceiptRequirements,
+        ReceiptState, RuleDecision, RulePredicate, SymlinkState, TrustLevel, TrustMinima,
+        UnclassifiedEffect, POLICY_SCHEMA_VERSION,
+    };
+    use std::{
+        collections::BTreeSet,
+        fs,
+        path::{Path, PathBuf},
+        time::{SystemTime, UNIX_EPOCH},
+    };
+
+    fn temp_root() -> PathBuf {
+        let root = std::env::temp_dir().join(format!(
+            "legion-m1-application-{}-{}",
+            std::process::id(),
+            SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .expect("clock")
+                .as_nanos()
+        ));
+        fs::create_dir_all(root.join("registry")).expect("registry directory");
+        root
+    }
+
+    fn values<T: Ord>(values: impl IntoIterator<Item = T>) -> BTreeSet<T> {
+        values.into_iter().collect()
+    }
+
+    fn policy_pack() -> ArcanePolicyPack {
+        ArcanePolicyPack {
+            schema_version: POLICY_SCHEMA_VERSION,
+            kind: "arcane-policy-pack".into(),
+            policy_id: "m1-test-policy".into(),
+            version: 1,
+            contract_versions: vec![ContractVersion {
+                name: "m1".into(),
+                major: 1,
+                minor: 0,
+            }],
+            unclassified_effect: UnclassifiedEffect::Deny,
+            effect_rules: vec![ArcanePolicyRule {
+                schema_version: POLICY_SCHEMA_VERSION,
+                id: "allow-m1-capability".into(),
+                effect_class: ArcaneEffectClass::FileWrite,
+                rule: RuleDecision::Allow,
+                predicate: RulePredicate::default(),
+                approval_required: false,
+                trust_minimum: TrustLevel::CapabilitySignature,
+                required_enforcement: EnforcementLevel::Strong,
+                receipt_required: false,
+                exception_capable: false,
+                note: Some("M1 deterministic capability fixture".into()),
+            }],
+            capability: CapabilityCeiling {
+                effects: values([ArcaneEffectClass::FileWrite]),
+                operations: values(["write".into()]),
+                targets: BTreeSet::new(),
+                max_ttl_seconds: 60,
+                max_uses: 1,
+                delegable: false,
+                trust: TrustLevel::CapabilitySignature,
+            },
+            leases: LeasePolicy {
+                max_ttl_seconds: 60,
+                max_uses: 1,
+                delegable: false,
+            },
+            trust_minima: TrustMinima {
+                mutation: TrustLevel::CapabilitySignature,
+                read_only: TrustLevel::Unauthenticated,
+                claim_release: TrustLevel::CapabilitySignature,
+                legacy_import: TrustLevel::CapabilitySignature,
+            },
+            host_enforcement: HostEnforcement {
+                required_for_mutation: EnforcementLevel::Strong,
+                required_for_read_only: EnforcementLevel::ReadOnly,
+            },
+            receipt_requirements: ReceiptRequirements {
+                effect_receipt: false,
+                bind_policy_digest: true,
+                bind_capability_id: true,
+            },
+        }
+    }
+
+    fn request() -> M1InvocationRequest {
+        let repository = "repo".to_string();
+        let worktree = "main".to_string();
+        M1InvocationRequest {
+            capability_id: "demo".into(),
+            policy_context: PolicyContext {
+                schema_version: POLICY_SCHEMA_VERSION,
+                contract: ContractVersion {
+                    name: "m1".into(),
+                    major: 1,
+                    minor: 0,
+                },
+                effect_class: ArcaneEffectClass::FileWrite,
+                operation: PathOperation::Write,
+                path: Some(
+                    CanonicalPath::from_relative(
+                        "m1-test-root",
+                        PathScope {
+                            repository: repository.clone(),
+                            worktree: worktree.clone(),
+                        },
+                        "skills/demo/SKILL.md",
+                        SymlinkState::NotFollowed,
+                    )
+                    .expect("canonical path"),
+                ),
+                repository,
+                worktree,
+                trust: TrustLevel::CapabilitySignature,
+                enforcement: EnforcementLevel::Strong,
+                approval: ApprovalState::None,
+                lease: LeaseState::Active,
+                receipt: ReceiptState::NotRequired,
+                grant: Some(CapabilityGrant {
+                    schema_version: POLICY_SCHEMA_VERSION,
+                    id: "m1-grant".into(),
+                    effects: values([ArcaneEffectClass::FileWrite]),
+                    operations: values(["write".into()]),
+                    targets: BTreeSet::new(),
+                    ttl_seconds: 60,
+                    max_uses: 1,
+                    delegable: false,
+                    trust: TrustLevel::CapabilitySignature,
+                    lease_id: Some("m1-lease".into()),
+                }),
+                tags: BTreeSet::new(),
+            },
+        }
+    }
+
+    fn inputs(root: &Path, write_body: bool) -> M1ApplicationInputs {
+        fs::write(
+            root.join("registry/index.json"),
+            r#"{"schemaVersion":2,"bundles":[{"id":"demo","source":"skills/demo/SKILL.md","description":"M1 fixture"}]}"#,
+        )
+        .expect("compact catalog");
+        if write_body {
+            fs::create_dir_all(root.join("skills/demo")).expect("skill directory");
+            fs::write(root.join("skills/demo/SKILL.md"), "deterministic body").expect("skill body");
+        }
+        fs::write(root.join("runtime"), "native runtime").expect("runtime");
+        fs::write(root.join("mcp-schema.json"), "mcp schema").expect("schema");
+        fs::write(root.join("assets.json"), "assets").expect("assets");
+        let digest = |name: &str| {
+            legion_catalog::hex_digest(&fs::read(root.join(name)).expect("digest source"))
+        };
+        let manifest = legion_runtime::ReleaseManifest {
+            release_version: "1.0.0".into(),
+            runtime: legion_runtime::RuntimeIdentity {
+                platform: "linux".into(),
+                architecture: "x86_64".into(),
+                sha256: digest("runtime"),
+                provenance: "rightkit-release://m1-fixture".into(),
+            },
+            capability_catalog_sha256: digest("registry/index.json"),
+            mcp_tool_schema_sha256: digest("mcp-schema.json"),
+            declarative_assets_sha256: digest("assets.json"),
+            state_schema_version: 1,
+            rightkit_ax: legion_runtime::RightkitAxIdentity {
+                version: "0.2.0".into(),
+                source_commit: "01f52555202da3dffc6b649ca44e803b55238081".into(),
+            },
+        };
+        let manifest_path = root.join("release.json");
+        fs::write(
+            &manifest_path,
+            serde_json::to_vec(&manifest).expect("manifest JSON"),
+        )
+        .expect("manifest");
+        M1ApplicationInputs {
+            release_manifest_path: manifest_path,
+            release_binding_inputs: legion_runtime::ReleaseBindingInputs {
+                release_version: "1.0.0".into(),
+                runtime_path: root.join("runtime"),
+                runtime_platform: "linux".into(),
+                runtime_architecture: "x86_64".into(),
+                runtime_provenance: "rightkit-release://m1-fixture".into(),
+                catalog_path: root.join("registry/index.json"),
+                mcp_tool_schema_path: root.join("mcp-schema.json"),
+                declarative_assets: legion_runtime::DeclarativeAssets::File(
+                    root.join("assets.json"),
+                ),
+                state_schema_version: 1,
+                rightkit_ax: legion_runtime::RightkitAxIdentity {
+                    version: "0.2.0".into(),
+                    source_commit: "01f52555202da3dffc6b649ca44e803b55238081".into(),
+                },
+            },
+            catalog_root: root.into(),
+            catalog_index_path: PathBuf::from("registry/index.json"),
+            policy_pack: policy_pack(),
+        }
+    }
+
+    #[test]
+    fn m1_operation_is_deterministic_and_emits_real_arcane_receipts() {
+        let root = temp_root();
+        let app = M1Application::from_inputs(inputs(&root, true)).expect("application");
+        let first = app.invoke(request()).expect("first result");
+        let second = app.invoke(request()).expect("second result");
+
+        assert_eq!(first, second);
+        assert_eq!(first.status.release_version, "1.0.0");
+        assert_eq!(first.status.capability_count, 1);
+        assert_eq!(
+            first.policy_evaluation.decision.outcome,
+            DecisionOutcome::Allow
+        );
+        assert_eq!(first.policy_receipt, first.policy_evaluation.receipt);
+        first.invocation_receipt.validate().expect("typed receipt");
+        assert!(first.invocation_receipt.complete);
+        assert!(first
+            .invocation_receipt
+            .artifacts
+            .contains_key("policyReceiptSha256"));
+        fs::remove_dir_all(root).expect("cleanup");
+    }
+
+    #[test]
+    fn application_defers_capability_body_reads_until_invocation() {
+        let root = temp_root();
+        let app =
+            M1Application::from_inputs(inputs(&root, false)).expect("metadata-only composition");
+        fs::create_dir_all(root.join("skills/demo")).expect("skill directory");
+        fs::write(root.join("skills/demo/SKILL.md"), "late body").expect("late body");
+
+        let result = app.invoke(request()).expect("lazy invocation");
+        assert_eq!(
+            result.capability.body_sha256,
+            legion_catalog::hex_digest(b"late body")
+        );
+        fs::remove_dir_all(root).expect("cleanup");
+    }
+
+    #[test]
+    fn release_binding_mismatch_fails_before_capability_execution() {
+        let root = temp_root();
+        let mut inputs = inputs(&root, true);
+        inputs.release_binding_inputs.state_schema_version = 2;
+
+        match M1Application::from_inputs(inputs).expect_err("mismatch must fail closed") {
+            M1ApplicationError::ReleaseBinding(legion_runtime::ReleaseBindingError::Mismatch {
+                remediation,
+                ..
+            }) => assert_eq!(remediation, legion_runtime::REPAIR_COMMAND),
+            error => panic!("wrong failure: {error:?}"),
+        }
+        fs::remove_dir_all(root).expect("cleanup");
     }
 }

@@ -1,9 +1,14 @@
 use crate::commands::{self, CommandResult};
 use clap::{error::ErrorKind, CommandFactory, Parser, Subcommand};
 use hmac::{Hmac, Mac};
+use serde::Deserialize;
 use serde_json::{json, Value};
 use sha2::Sha256;
-use std::ffi::OsString;
+use std::{
+    ffi::OsString,
+    path::{Path, PathBuf},
+    sync::Arc,
+};
 use tokio_util::sync::CancellationToken;
 #[derive(Debug, Parser)]
 #[command(
@@ -20,6 +25,8 @@ pub struct Cli {
 }
 #[derive(Debug, Subcommand)]
 enum Command {
+    Status(M1ConfigArgs),
+    Serve(ServeArgs),
     Init(RootArgs),
     Doctor(RootArgs),
     Bind(RootArgs),
@@ -58,6 +65,19 @@ enum Command {
     Handoff(commands::handoff::HandoffArgs),
     Research(commands::research::ResearchArgs),
     Review(commands::review::ReviewArgs),
+}
+#[derive(Clone, Debug, clap::Args)]
+struct M1ConfigArgs {
+    /// Versioned explicit composition source for the native M1 API.
+    #[arg(long)]
+    config: Option<PathBuf>,
+}
+#[derive(Debug, clap::Args)]
+struct ServeArgs {
+    #[arg(long)]
+    stdio: bool,
+    #[command(flatten)]
+    m1: M1ConfigArgs,
 }
 #[derive(Debug, clap::Args)]
 struct CommonArgs {
@@ -198,6 +218,308 @@ struct DoctorSummary {
     catalog_entries: usize,
     provider_count: usize,
 }
+
+const M1_COMPOSITION_SCHEMA_VERSION: u32 = 1;
+const M1_STATE_SCHEMA_VERSION: u32 = 1;
+const M1_REPAIR: &str = "legion setup --repair";
+const M1_RIGHTKIT_AX_VERSION: &str = "0.2.0";
+const M1_RIGHTKIT_AX_SOURCE_COMMIT: &str = "01f52555202da3dffc6b649ca44e803b55238081";
+
+/// Installed composition is explicit and versioned so the CLI never infers
+/// release assets from a source checkout or developer environment.
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct M1CompositionConfig {
+    schema_version: u32,
+    kind: String,
+    release_manifest_path: PathBuf,
+    release_binding: M1BindingConfig,
+    catalog_root: PathBuf,
+    catalog_index_path: PathBuf,
+    policy_pack: legion_policy_model::PolicyPack,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct M1BindingConfig {
+    runtime_provenance: String,
+    catalog_path: PathBuf,
+    mcp_tool_schema_path: PathBuf,
+    declarative_assets_path: PathBuf,
+    declarative_assets_kind: M1AssetsKind,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "lowercase")]
+enum M1AssetsKind {
+    File,
+    Directory,
+}
+
+impl M1CompositionConfig {
+    fn into_inputs(
+        self,
+        config_path: &Path,
+    ) -> Result<legion_application::M1ApplicationInputs, commands::CommandError> {
+        if self.schema_version != M1_COMPOSITION_SCHEMA_VERSION {
+            return Err(commands::CommandError::usage(format!(
+                "unsupported M1 composition schema version {}",
+                self.schema_version
+            )));
+        }
+        if self.kind != "legion-m1-composition" {
+            return Err(commands::CommandError::usage(
+                "M1 composition kind must be legion-m1-composition",
+            ));
+        }
+        let base = config_path.parent().unwrap_or_else(|| Path::new("."));
+        let resolve = |path: PathBuf| {
+            if path.is_absolute() {
+                path
+            } else {
+                base.join(path)
+            }
+        };
+        let assets_path = resolve(self.release_binding.declarative_assets_path);
+        let declarative_assets = match self.release_binding.declarative_assets_kind {
+            M1AssetsKind::File => legion_runtime::DeclarativeAssets::File(assets_path),
+            M1AssetsKind::Directory => legion_runtime::DeclarativeAssets::Directory(assets_path),
+        };
+        Ok(legion_application::M1ApplicationInputs {
+            release_manifest_path: resolve(self.release_manifest_path),
+            release_binding_inputs: legion_runtime::ReleaseBindingInputs {
+                release_version: env!("CARGO_PKG_VERSION").into(),
+                runtime_path: std::env::current_exe().map_err(commands::io_error)?,
+                runtime_platform: std::env::consts::OS.into(),
+                runtime_architecture: std::env::consts::ARCH.into(),
+                runtime_provenance: self.release_binding.runtime_provenance,
+                catalog_path: resolve(self.release_binding.catalog_path),
+                mcp_tool_schema_path: resolve(self.release_binding.mcp_tool_schema_path),
+                declarative_assets,
+                state_schema_version: M1_STATE_SCHEMA_VERSION,
+                rightkit_ax: legion_runtime::RightkitAxIdentity {
+                    version: M1_RIGHTKIT_AX_VERSION.into(),
+                    source_commit: M1_RIGHTKIT_AX_SOURCE_COMMIT.into(),
+                },
+            },
+            catalog_root: resolve(self.catalog_root),
+            catalog_index_path: self.catalog_index_path,
+            policy_pack: self.policy_pack,
+        })
+    }
+}
+
+fn load_m1_application(
+    args: &M1ConfigArgs,
+) -> Result<Arc<legion_application::M1Application>, commands::CommandError> {
+    let config_path = args
+        .config
+        .clone()
+        .or_else(|| {
+            std::env::var_os("LEGION_M1_CONFIG")
+                .filter(|value| !value.is_empty())
+                .map(PathBuf::from)
+        })
+        .ok_or_else(|| {
+            commands::CommandError::usage(
+                "M1 composition config is required via --config or LEGION_M1_CONFIG",
+            )
+        })?;
+    let bytes = std::fs::read(&config_path).map_err(commands::io_error)?;
+    let config: M1CompositionConfig = serde_json::from_slice(&bytes)
+        .map_err(|error| commands::CommandError::usage(error.to_string()))?;
+    let inputs = config.into_inputs(&config_path)?;
+    legion_application::M1Application::from_inputs(inputs)
+        .map(Arc::new)
+        .map_err(|error| commands::CommandError::incomplete(error.to_string()))
+}
+
+struct M1McpApi {
+    application: Option<Arc<legion_application::M1Application>>,
+}
+
+impl M1McpApi {
+    fn ready(application: Arc<legion_application::M1Application>) -> Self {
+        Self {
+            application: Some(application),
+        }
+    }
+
+    fn unavailable() -> Self {
+        Self { application: None }
+    }
+
+    fn application(
+        &self,
+    ) -> Result<&legion_application::M1Application, legion_runtime::RuntimeError> {
+        self.application.as_deref().ok_or_else(|| {
+            legion_runtime::RuntimeError::Policy("M1 application binding unavailable".into())
+        })
+    }
+}
+
+impl legion_mcp::NativeApi for M1McpApi {
+    fn tool_definitions(&self) -> Vec<Value> {
+        vec![
+            json!({
+                "name": "legion_m1_status",
+                "description": "Return the native M1 release status.",
+                "inputSchema": {
+                    "type": "object",
+                    "required": [],
+                    "additionalProperties": false,
+                    "properties": {}
+                }
+            }),
+            json!({
+                "name": "legion_m1_invoke",
+                "description": "Resolve one deterministic M1 capability and emit policy and invocation receipts.",
+                "inputSchema": {
+                    "type": "object",
+                    "required": ["capabilityId", "policyContext"],
+                    "additionalProperties": false,
+                    "properties": {
+                        "capabilityId": {"type": "string", "minLength": 1},
+                        "policyContext": {}
+                    }
+                }
+            }),
+        ]
+    }
+
+    fn validate_tool_scope(
+        &self,
+        operation: &str,
+        arguments: &Value,
+    ) -> Result<(), legion_mcp::McpError> {
+        if operation != "legion_m1_invoke" {
+            return Ok(());
+        }
+        let Some(context) = arguments.get("policyContext") else {
+            return Err(legion_mcp::McpError::InvalidParams);
+        };
+        serde_json::from_value::<legion_policy_model::PolicyContext>(context.clone())
+            .map(|_| ())
+            .map_err(|_| legion_mcp::McpError::InvalidParams)
+    }
+
+    fn invoke(
+        &self,
+        operation: &str,
+        arguments: &Value,
+    ) -> Result<Value, legion_runtime::RuntimeError> {
+        let application = self.application()?;
+        match operation {
+            "legion_m1_status" => Ok(m1_status_value(&application.status())),
+            "legion_m1_invoke" => {
+                let capability_id = arguments
+                    .get("capabilityId")
+                    .and_then(Value::as_str)
+                    .filter(|id| !id.is_empty())
+                    .ok_or_else(|| {
+                        legion_runtime::RuntimeError::InvalidTask("capabilityId is required".into())
+                    })?
+                    .to_owned();
+                let policy_context = serde_json::from_value(
+                    arguments.get("policyContext").cloned().ok_or_else(|| {
+                        legion_runtime::RuntimeError::InvalidTask(
+                            "policyContext is required".into(),
+                        )
+                    })?,
+                )
+                .map_err(|_| {
+                    legion_runtime::RuntimeError::InvalidTask("policyContext is invalid".into())
+                })?;
+                application
+                    .invoke(legion_application::M1InvocationRequest {
+                        capability_id,
+                        policy_context,
+                    })
+                    .map(m1_invocation_value)
+                    .map_err(|error| legion_runtime::RuntimeError::Policy(error.to_string()))
+            }
+            _ => Err(legion_runtime::RuntimeError::InvalidTask(
+                "unknown M1 MCP operation".into(),
+            )),
+        }
+    }
+}
+
+fn m1_status_value(status: &legion_application::M1Status) -> Value {
+    json!({
+        "releaseVersion": status.release_version,
+        "capabilityCount": status.capability_count,
+        "status": "complete"
+    })
+}
+
+fn m1_invocation_value(result: legion_application::M1InvocationResult) -> Value {
+    json!({
+        "status": m1_status_value(&result.status),
+        "capability": result.capability,
+        "policyEvaluation": {"decision": result.policy_evaluation.decision},
+        "policyReceipt": {"decision": result.policy_receipt.decision},
+        "invocationReceipt": result.invocation_receipt,
+    })
+}
+
+struct M1BindingGate {
+    outcome: Result<legion_mcp::VerifiedReleaseBinding, legion_mcp::BindingFailure>,
+}
+
+impl M1BindingGate {
+    fn verified(identity: Value) -> Self {
+        Self {
+            outcome: Ok(legion_mcp::VerifiedReleaseBinding::new(identity)),
+        }
+    }
+
+    fn rejected() -> Self {
+        Self {
+            outcome: Err(legion_mcp::BindingFailure::new(M1_REPAIR)),
+        }
+    }
+}
+
+impl legion_mcp::ReleaseBindingGate for M1BindingGate {
+    fn verify_binding(
+        &self,
+    ) -> Result<legion_mcp::VerifiedReleaseBinding, legion_mcp::BindingFailure> {
+        self.outcome.clone()
+    }
+}
+
+async fn native_m1_status(args: M1ConfigArgs) -> CommandResult {
+    let application = load_m1_application(&args)?;
+    Ok(json!({
+        "schemaVersion": 1,
+        "kind": "legion-m1-status",
+        "status": "complete",
+        "native": m1_status_value(&application.status()),
+    }))
+}
+
+async fn native_m1_serve(args: ServeArgs) -> CommandResult {
+    if !args.stdio {
+        return Err(commands::CommandError::usage(
+            "legion serve requires --stdio",
+        ));
+    }
+    let (api, gate) = match load_m1_application(&args.m1) {
+        Ok(application) => match serde_json::to_value(application.release_binding().manifest()) {
+            Ok(identity) => (
+                M1McpApi::ready(application),
+                M1BindingGate::verified(identity),
+            ),
+            Err(_) => (M1McpApi::unavailable(), M1BindingGate::rejected()),
+        },
+        Err(_) => (M1McpApi::unavailable(), M1BindingGate::rejected()),
+    };
+    legion_mcp::run_stdio(Arc::new(api), Arc::new(gate))
+        .await
+        .map_err(commands::io_error)?;
+    Ok(json!({"__silent": true}))
+}
 pub async fn run_with_cancellation<I>(args: I, cancellation: CancellationToken) -> i32
 where
     I: IntoIterator<Item = OsString>,
@@ -251,6 +573,8 @@ async fn dispatch(cli: Cli, cancellation: CancellationToken) -> commands::Comman
         };
     }
     let result: CommandResult = match command {
+        Command::Status(args) => native_m1_status(args).await,
+        Command::Serve(args) => native_m1_serve(args).await,
         Command::Catalog(args) => commands::catalog::run(args),
         Command::Policy(args) => commands::policy::run(args),
         Command::Audit(args) => commands::audit::run(args, cancellation.clone()).await,

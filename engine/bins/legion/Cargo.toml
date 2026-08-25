@@ -16,6 +16,7 @@ legion-contracts = { path = "../../crates/legion-contracts" }
 legion-decisions = { path = "../../crates/legion-decisions" }
 legion-effects = { path = "../../crates/legion-effects" }
 legion-handoff = { path = "../../crates/legion-handoff" }
+legion-mcp = { path = "../legion-mcp" }
 legion-host = { path = "../../crates/legion-host" }
 legion-policy = { path = "../../crates/legion-policy" }
 legion-policy-model = { path = "../../crates/legion-policy-model" }

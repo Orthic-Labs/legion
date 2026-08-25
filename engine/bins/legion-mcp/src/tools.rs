@@ -14,12 +14,27 @@ const MAX_OUTPUT_BYTES: usize = 1_000_000;
 /// The MCP adapter delegates semantics to this canonical API. It does not own policy,
 /// provider selection, filesystem inspection, or report generation.
 pub trait NativeApi: Send + Sync {
+    /// The exact tool contract exposed by this API instance for its whole MCP
+    /// session. The transport validates calls against this same snapshot.
+    fn tool_definitions(&self) -> Vec<Value>;
+
+    /// API-specific validation that cannot be represented by the MCP input
+    /// schema. Generic callers use the safe no-op default; the legacy adapter
+    /// keeps its existing repository and identifier scope checks.
+    fn validate_tool_scope(&self, _operation: &str, _arguments: &Value) -> Result<(), McpError> {
+        Ok(())
+    }
+
     fn invoke(&self, operation: &str, arguments: &Value) -> Result<Value, RuntimeError>;
 }
 
 /// Concrete seam used by the binary to bind the protocol to the canonical
 /// engine. The adapter forwards requests without interpreting engine payloads.
 pub trait NativeEngine: Send + Sync {
+    fn tool_definitions(&self) -> Vec<Value>;
+
+    fn validate_tool_scope(&self, operation: &str, arguments: &Value) -> Result<(), McpError>;
+
     fn execute_tool(&self, operation: &str, arguments: &Value) -> Result<Value, RuntimeError>;
 }
 
@@ -34,6 +49,14 @@ impl EngineAdapter {
 }
 
 impl NativeApi for EngineAdapter {
+    fn tool_definitions(&self) -> Vec<Value> {
+        self.engine.tool_definitions()
+    }
+
+    fn validate_tool_scope(&self, operation: &str, arguments: &Value) -> Result<(), McpError> {
+        self.engine.validate_tool_scope(operation, arguments)
+    }
+
     fn invoke(&self, operation: &str, arguments: &Value) -> Result<Value, RuntimeError> {
         self.engine.execute_tool(operation, arguments)
     }
@@ -53,6 +76,14 @@ impl NativeApplicationEngine {
 }
 
 impl NativeEngine for NativeApplicationEngine {
+    fn tool_definitions(&self) -> Vec<Value> {
+        legacy_tool_definitions()
+    }
+
+    fn validate_tool_scope(&self, operation: &str, arguments: &Value) -> Result<(), McpError> {
+        validate_legacy_scope(operation, arguments)
+    }
+
     fn execute_tool(&self, operation: &str, arguments: &Value) -> Result<Value, RuntimeError> {
         let native_operation = match operation {
             "legion_list_providers"
@@ -194,15 +225,21 @@ fn audit_signing_key() -> Result<Vec<u8>, RuntimeError> {
 #[derive(Clone)]
 pub struct ToolService<A> {
     api: Arc<A>,
+    definitions: Vec<Value>,
 }
 
 impl<A: NativeApi> ToolService<A> {
     pub fn new(api: Arc<A>) -> Self {
-        Self { api }
+        let definitions = api.tool_definitions();
+        Self { api, definitions }
+    }
+
+    pub fn definitions(&self) -> &[Value] {
+        &self.definitions
     }
 
     pub fn call(&self, name: &str, arguments: &Value) -> Value {
-        match dispatch(self.api.as_ref(), name, arguments) {
+        match dispatch(self.api.as_ref(), &self.definitions, name, arguments) {
             Ok(value) => json!({
                 "content": [{"type": "text", "text": value.to_string()}],
                 "structuredContent": value,
@@ -216,7 +253,7 @@ impl<A: NativeApi> ToolService<A> {
     }
 }
 
-pub fn tool_definitions() -> Vec<Value> {
+fn legacy_tool_definitions() -> Vec<Value> {
     let root = |mut properties: Map<String, Value>| {
         properties.insert("root".into(), json!({"type":"string","minLength":1}));
         json!({"type":"object","required":["root"],"additionalProperties":false,"properties":properties})
@@ -250,19 +287,24 @@ fn properties(entries: impl IntoIterator<Item = (&'static str, Value)>) -> Map<S
         .collect()
 }
 
-fn schema(name: &str) -> Option<Value> {
-    tool_definitions()
-        .into_iter()
+fn schema(definitions: &[Value], name: &str) -> Option<Value> {
+    definitions
+        .iter()
         .find(|tool| tool.get("name").and_then(Value::as_str) == Some(name))
         .and_then(|tool| tool.get("inputSchema").cloned())
 }
 
-fn dispatch<A: NativeApi>(api: &A, name: &str, arguments: &Value) -> Result<Value, McpError> {
-    let Some(input_schema) = schema(name) else {
+fn dispatch<A: NativeApi>(
+    api: &A,
+    definitions: &[Value],
+    name: &str,
+    arguments: &Value,
+) -> Result<Value, McpError> {
+    let Some(input_schema) = schema(definitions, name) else {
         return Err(McpError::ToolNotFound);
     };
     validate_arguments(&input_schema, arguments)?;
-    validate_scope(name, arguments)?;
+    api.validate_tool_scope(name, arguments)?;
     let result = api.invoke(name, arguments).map_err(McpError::from)?;
     if serde_json::to_vec(&result)
         .map_err(|_| McpError::Backend)?
@@ -321,7 +363,7 @@ fn validate_arguments(schema: &Value, arguments: &Value) -> Result<(), McpError>
     Ok(())
 }
 
-fn validate_scope(name: &str, arguments: &Value) -> Result<(), McpError> {
+fn validate_legacy_scope(name: &str, arguments: &Value) -> Result<(), McpError> {
     let Some(args) = arguments.as_object() else {
         return Err(McpError::InvalidParams);
     };

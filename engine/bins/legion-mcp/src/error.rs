@@ -7,6 +7,8 @@ pub enum McpError {
     InvalidRequest,
     InvalidParams,
     MethodNotFound,
+    InitializationRequired,
+    ReleaseBinding(String),
     ToolNotFound,
     ScopeDenied,
     Backend,
@@ -20,16 +22,19 @@ impl McpError {
             Self::InvalidRequest => -32600,
             Self::InvalidParams => -32602,
             Self::MethodNotFound => -32601,
+            Self::InitializationRequired | Self::ReleaseBinding(_) => -32000,
             Self::ToolNotFound | Self::ScopeDenied | Self::Backend | Self::OutputLimit => -32603,
         }
     }
 
-    pub const fn message(&self) -> &'static str {
+    pub fn message(&self) -> &str {
         match self {
             Self::Parse => "parse error",
             Self::InvalidRequest => "invalid request",
             Self::InvalidParams => "invalid params",
             Self::MethodNotFound => "method not found",
+            Self::InitializationRequired => "MCP initialization required",
+            Self::ReleaseBinding(repair) => repair,
             Self::ToolNotFound => "unknown tool",
             Self::ScopeDenied => "explicit scope required",
             Self::Backend => "native backend failure",

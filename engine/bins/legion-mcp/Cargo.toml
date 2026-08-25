@@ -4,6 +4,10 @@ version = "0.1.0"
 edition.workspace = true
 license.workspace = true
 
+[lib]
+name = "legion_mcp"
+path = "src/lib.rs"
+
 [[bin]]
 name = "legion-mcp"
 path = "src/main.rs"
