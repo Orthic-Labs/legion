@@ -1,0 +1,163 @@
+{
+  "schemaVersion": 1,
+  "kind": "legion-m0-agent-plugins-contract",
+  "baseline": {
+    "commit": "396f427009ade1a4243188c7da75ff335efe9e82",
+    "selectedBy": "migration/native-rust/dispatches/M0-DISPATCH.json#sourceRevision",
+    "observedHead": "abc83488cead00be46411b4fc0761d91b9724c65"
+  },
+  "authority": [
+    "migration/native-rust/PRODUCT-ARCHITECTURE-V2.md:136-175",
+    "migration/native-rust/PRODUCT-ARCHITECTURE-V2.md:218-250",
+    "migration/native-rust/PRODUCT-ARCHITECTURE-V2.md:280-290",
+    "migration/native-rust/MIGRATION-PLAN-V2.md:98-116"
+  ],
+  "role": "Preferred portable integration package where the selected client supports Agent Plugins 1.0; it is not a universal installer or a definition of supported-client fidelity.",
+  "packageLayout": {
+    "root": "legion-plugin/",
+    "requiredEntries": [
+      "plugin.json",
+      "skills/",
+      "mcp.json",
+      "share/legion/release-binding.json",
+      "share/legion/identity/",
+      "share/legion/schemas/"
+    ],
+    "optionalExtensions": "com.<client>/",
+    "portableBinaryRule": "The package contains no platform executable, embedded native runtime, source-checkout launcher, or disguised plugin-relative external binary."
+  },
+  "schemaContract": {
+    "specification": "Agent Plugins 1.0",
+    "pluginJson": {
+      "architectureRequiredDeclarations": [
+        "Legion identity",
+        "Agent Plugins specification version"
+      ],
+      "fieldValidationRule": "Exact literal field names, schema URL, required fields, and allowed optional fields are accepted only from the pinned RightKit AX schema-validation result. The accepted architecture deliberately does not authorize inventing an unverified plugin.json field or schema URL.",
+      "releaseGate": "A release is Unavailable for Agent Plugins installation until RightKit AX validates plugin.json against its pinned Agent Plugins 1.0 schema."
+    },
+    "mcpJson": {
+      "schema": "https://agent-plugins.org/schemas/1.0.0/mcp.schema.json",
+      "allowedTopLevelFields": [
+        "$schema",
+        "mcpServers"
+      ],
+      "serverKey": "legion",
+      "serverFields": {
+        "type": "stdio",
+        "command": "legion",
+        "args": [
+          "serve",
+          "--stdio",
+          "--plugin-root",
+          "${PLUGIN_ROOT}"
+        ]
+      },
+      "validationRule": "RightKit AX validates the final packaged mcp.json static contract and containment before release."
+    },
+    "skillContract": {
+      "rule": "Canonical Agent Skills occupy their specification fixed locations and all references close within the package.",
+      "failureIsolation": "A failed skill component is visible and isolated; it cannot silently change MCP, release-binding, or Legion semantics."
+    }
+  },
+  "pathAndDataBoundary": {
+    "PLUGIN_ROOT": "Immutable integration assets inside the installed portable package.",
+    "PLUGIN_DATA": "Client-managed integration-local cache/config only; never canonical Legion semantics or canonical Legion durable state.",
+    "containmentRules": [
+      "Plugin package paths and links must resolve inside plugin root before activation.",
+      "No plugin-relative path may escape plugin root.",
+      "No Agent Plugins command substitutes an arbitrary absolute executable path.",
+      "No installed integration points into a source checkout."
+    ]
+  },
+  "portableCommandContract": {
+    "command": "legion",
+    "args": [
+      "serve",
+      "--stdio",
+      "--plugin-root",
+      "${PLUGIN_ROOT}"
+    ],
+    "runtimeOwnership": "The machine-installed native Legion command owns all executable Legion behavior. The client owns the stdio MCP process lifecycle.",
+    "prohibited": [
+      "node",
+      "python",
+      "shell launcher",
+      "plugin-embedded native binary",
+      "source checkout script",
+      "an arbitrary absolute command in Agent Plugins mcp.json"
+    ],
+    "fallback": "A client that cannot resolve the bare installed command may use only its supported native registration mechanism with the exact installed path. The fallback is client-specific, outside Agent Plugins mcp.json, and requires its own resolution proof."
+  },
+  "extensionBoundary": {
+    "allowed": [
+      "reverse-domain namespace com.<client>/",
+      "client-required detection",
+      "registration",
+      "path projection",
+      "enable/disable",
+      "verification",
+      "repair",
+      "cleanup"
+    ],
+    "prohibited": [
+      "routing",
+      "capability semantics",
+      "Audit",
+      "Research",
+      "Arcane policy",
+      "work graphs",
+      "receipts",
+      "duplicate Legion ontology",
+      "runtime self-spawn"
+    ],
+    "mechanicalProof": "Each extension must be inspectable as a client transport/projection. Its inputs and outputs are registration, filesystem, process-lifecycle, and verification facts; it invokes the installed Legion command and does not implement a Legion decision, workflow, policy, receipt, or capability body."
+  },
+  "releaseBindingGate": {
+    "beforeToolsExposed": true,
+    "requiredBindings": [
+      "runtime artifact digest and provenance",
+      "release version",
+      "capability-catalog hash",
+      "MCP tool-schema hash",
+      "declarative-asset/schema hash"
+    ],
+    "failure": {
+      "behavior": "fail closed",
+      "remediation": "legion setup --repair",
+      "forbidden": "silent mixed-version execution"
+    }
+  },
+  "currentSourceDiscrepancies": [
+    {
+      "locator": ".claude-plugin/plugin.json:1-35",
+      "finding": "Current package is a Claude Code plugin manifest and launches node with ${CLAUDE_PLUGIN_ROOT}/src/integrations/mcp/server.mjs.",
+      "targetDisposition": "replace; it is not the Agent Plugins 1.0 portable package."
+    },
+    {
+      "locator": ".codex-plugin/plugin.json:1-9",
+      "finding": "Current Codex plugin metadata does not establish the Agent Plugins 1.0 package layout or MCP contract.",
+      "targetDisposition": "replace or retire according to the frozen M1-M8 ownership plan."
+    },
+    {
+      "locator": "package.json:37-39,47-94",
+      "finding": "Current package ships a Node bin and source integration files.",
+      "targetDisposition": "do not copy into the native portable package."
+    }
+  ],
+  "qualificationOwner": {
+    "name": "RightKit AX",
+    "responsibilities": [
+      "Agent Plugins scaffold and schema validation",
+      "containment",
+      "skill reference closure",
+      "MCP static contract",
+      "clean-room conformance",
+      "behavioral matrix",
+      "adversarial evidence",
+      "JSON, SARIF, and Markdown gate reports"
+    ],
+    "pinInput": "migration/native-rust/m0/rightkit-ax-pin.json",
+    "conformancePlanInput": "migration/native-rust/m0/rightkit-conformance-plan.json"
+  }
+}

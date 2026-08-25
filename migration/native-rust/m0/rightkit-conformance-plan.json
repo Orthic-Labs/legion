@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "kind": "legion-rightkit-conformance-plan",
+  "baselineCommit": "396f427009ade1a4243188c7da75ff335efe9e82",
+  "status": "frozen",
+  "pinArtifact": "migration/native-rust/m0/rightkit-ax-pin.json",
+  "artifactUnderTest": "clean-room extracted portable Legion Agent Plugins package bound to one signed Legion release",
+  "executionEnvironment": {
+    "rightkitRoot": "RIGHTKIT_AX_ROOT must resolve source commit 01f52555202da3dffc6b649ca44e803b55238081",
+    "packageRoot": "LEGION_PACKAGE_ROOT must be a clean extracted release artifact, never the source checkout",
+    "reportRoot": "qualification-owned immutable evidence directory outside shipped Legion artifacts"
+  },
+  "commandContract": {
+    "preflight": ["test \"$(git -C $RIGHTKIT_AX_ROOT rev-parse HEAD)\" = \"01f52555202da3dffc6b649ca44e803b55238081\"", "test \"$(node -p \"require('$RIGHTKIT_AX_ROOT/package.json').version\")\" = \"0.2.0\""],
+    "static": "pnpm --dir $RIGHTKIT_AX_ROOT exec rightkit-ax validate --package $LEGION_PACKAGE_ROOT --profile static --format json --output $AX_REPORT_ROOT/static.json",
+    "conformance": "pnpm --dir $RIGHTKIT_AX_ROOT exec rightkit-ax validate --package $LEGION_PACKAGE_ROOT --profile conformance --format json --output $AX_REPORT_ROOT/conformance.json",
+    "behavioral": "pnpm --dir $RIGHTKIT_AX_ROOT exec rightkit-ax validate --package $LEGION_PACKAGE_ROOT --profile behavioral --format json --output $AX_REPORT_ROOT/behavioral.json",
+    "adversarial": "pnpm --dir $RIGHTKIT_AX_ROOT exec rightkit-ax validate --package $LEGION_PACKAGE_ROOT --profile adversarial --format sarif --output $AX_REPORT_ROOT/adversarial.sarif",
+    "realClient": "pnpm --dir $RIGHTKIT_AX_ROOT exec rightkit-ax validate --package $LEGION_PACKAGE_ROOT --profile real-client --clients $SUPPORTED_CLIENT_PROFILE --format json --output $AX_REPORT_ROOT/real-client.json"
+  },
+  "requiredEvidence": ["exact AX version and source commit", "clean-room artifact digest", "release-binding identity", "static report", "conformance report", "behavioral report", "adversarial SARIF", "two-reference-client matrix", "coverage gaps", "tool exit status"],
+  "gates": ["no path escapes plugin root", "valid Agent Plugins fields and $schema", "skill reference closure", "MCP static contract valid", "no embedded platform binary", "bare legion command contract", "no source-checkout path", "real-client discovery and launch evidence"],
+  "failurePolicy": "Any failed required gate blocks release qualification. Missing optional Blueprint context is typed coverage degradation and does not abort unrelated AX gates.",
+  "ownership": {"gateAndReport": "RightKit AX", "releaseVerdict": "Legion integration owner", "signAndPublish": "RightKit Release"},
+  "prohibition": "M0 does not install RightKit, add dependencies, create release machinery, run the commands, or modify Membrane."
+}

@@ -1,6 +1,6 @@
 {
   "schema_version": 4,
-  "sha256": "e753f97c138fd6374626e2890ea551d89ce4badc7012f138243e2481fc76d916",
+  "sha256": "02428b82f98175591fbec549ddf90475b1c20b16d221a6e709f5f6ea78bc0dca",
   "referenced_artifacts": [
     {
       "path": "migration/native-rust/dispatches/M0-REQUEST.md",
@@ -28,7 +28,7 @@
     }
   ],
   "authority_binding": {
-    "packet_sha256": "e753f97c138fd6374626e2890ea551d89ce4badc7012f138243e2481fc76d916",
+    "packet_sha256": "02428b82f98175591fbec549ddf90475b1c20b16d221a6e709f5f6ea78bc0dca",
     "source_revision": "396f427009ade1a4243188c7da75ff335efe9e82",
     "prompt_digest": "sha256:83bf81861f2c3dfdf80928e94ca96588d8b0427f2146726602fffebe1d9055ba"
   }

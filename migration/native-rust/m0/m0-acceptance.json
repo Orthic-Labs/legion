@@ -1,0 +1,334 @@
+{
+  "schemaVersion": 1,
+  "kind": "legion-native-rust-m0-acceptance",
+  "baselineCommit": "396f427009ade1a4243188c7da75ff335efe9e82",
+  "sourceRevision": "396f427009ade1a4243188c7da75ff335efe9e82",
+  "freeze": {
+    "path": "migration/native-rust/m0/contract-freeze.json",
+    "contentAddress": "sha256:244f093484880399f59d052df950e6b494024411029ba462fa8d08738cd28a61",
+    "inputSetContentAddress": "sha256:4a130fa816272a43d12d87b6642db6fafd73ec89b29ff9b08f45cff54488274a"
+  },
+  "requiredFailureConditions": [
+    "stale baseline",
+    "unknown shipped runtime path",
+    "semantic owner collision",
+    "adapter-owned Legion semantics",
+    "unresolved distribution decision",
+    "unresolved state decision",
+    "unresolved RightKit AX decision",
+    "Blueprint global Audit gate"
+  ],
+  "gates": [
+    {
+      "id": "baseline-current",
+      "requirement": "Every Wave A contract is bound to the dispatch source revision.",
+      "result": "pass",
+      "evidence": [
+        {
+          "path": "migration/native-rust/discrepancy-ledger.json",
+          "contentAddress": "sha256:45d085d6cf25216096afeff78566a5778c4403108a32e328b7101317194c2ddd",
+          "locator": "baselineCommit or baseline.commit"
+        },
+        {
+          "path": "migration/native-rust/executable-ledger.json",
+          "contentAddress": "sha256:c300955a047563dab99af777fc213741232c96cf9d53639d20290aa2b5b654d9",
+          "locator": "baselineCommit or baseline.commit"
+        },
+        {
+          "path": "migration/native-rust/invocation-graph.json",
+          "contentAddress": "sha256:3c0ed4f56471bc794f6198f3b28c9df13d8d43a63e94e0fdffb38b0d95e4e628",
+          "locator": "baselineCommit or baseline.commit"
+        },
+        {
+          "path": "migration/native-rust/legacy-path-ownership.json",
+          "contentAddress": "sha256:aedd4724b73faaf3ebc9f79e9aeb19b0b8ba8b522eb7559d67e1c3288366ee4b",
+          "locator": "baselineCommit or baseline.commit"
+        },
+        {
+          "path": "migration/native-rust/m0/agent-plugins-contract.json",
+          "contentAddress": "sha256:250740954d6cb7c780ab735b3da1de52cf49960a54933923e2270fa18bce3d4e",
+          "locator": "baselineCommit or baseline.commit"
+        },
+        {
+          "path": "migration/native-rust/m0/client-fidelity-matrix.json",
+          "contentAddress": "sha256:513f6f7418a334e744a8447be2bfa5f55045aff5830ccb1687939cd006b1502e",
+          "locator": "baselineCommit or baseline.commit"
+        },
+        {
+          "path": "migration/native-rust/m0/command-resolution-proof.json",
+          "contentAddress": "sha256:71240159c9c097d7f8de78fbc491afb698eceea380e73522cab31d0e1f5d0e28",
+          "locator": "baselineCommit or baseline.commit"
+        },
+        {
+          "path": "migration/native-rust/m0/distribution-contract.json",
+          "contentAddress": "sha256:ec574dbb1bf28dd5b76d0060c430e2115abd9a789db2509edce3124562e99153",
+          "locator": "baselineCommit or baseline.commit"
+        },
+        {
+          "path": "migration/native-rust/m0/pi-integration-contract.json",
+          "contentAddress": "sha256:9491431b4cb2a6ae4f304e7d50a7ff8e46a0ef05f8046cde997f138a0718b3a7",
+          "locator": "baselineCommit or baseline.commit"
+        },
+        {
+          "path": "migration/native-rust/m0/provider-boundary.json",
+          "contentAddress": "sha256:21b28e4ff31e9937419a6589c1ac37c6ac9b8f4d0d0f3676a7d3e3d2ddd06df2",
+          "locator": "baselineCommit or baseline.commit"
+        },
+        {
+          "path": "migration/native-rust/m0/release-binding-contract.json",
+          "contentAddress": "sha256:e2b5609afa008fdecd774e889e5a1a6b1a6e1ac339289744ad01b10789d9752b",
+          "locator": "baselineCommit or baseline.commit"
+        },
+        {
+          "path": "migration/native-rust/m0/rightkit-ax-pin.json",
+          "contentAddress": "sha256:f2c576b0860e58727fcadd702845dea5510475a189739615eacbad7553846800",
+          "locator": "baselineCommit or baseline.commit"
+        },
+        {
+          "path": "migration/native-rust/m0/rightkit-conformance-plan.json",
+          "contentAddress": "sha256:389a5c9b9cdc962e28d1a2c68d05c73ca42b7a38e4689cab5e030218575944a3",
+          "locator": "baselineCommit or baseline.commit"
+        },
+        {
+          "path": "migration/native-rust/m0/semantic-freeze.json",
+          "contentAddress": "sha256:2d93461e5fd2c5d70f2133264f6066bac282130b9a541b02317ee8d1722f546f",
+          "locator": "baselineCommit or baseline.commit"
+        },
+        {
+          "path": "migration/native-rust/m0/setup-adapter-contract.json",
+          "contentAddress": "sha256:aaa1c927ae2b7990dadabd70feccd316f352daae4e86f891e766fe6b02518756",
+          "locator": "baselineCommit or baseline.commit"
+        },
+        {
+          "path": "migration/native-rust/m0/state-contract.json",
+          "contentAddress": "sha256:ab25057be65da82bab1618ee4f7536e402566a98c49bb8fb79f316d39c1708c1",
+          "locator": "baselineCommit or baseline.commit"
+        },
+        {
+          "path": "migration/native-rust/m0/strain-benchmark-protocol.json",
+          "contentAddress": "sha256:1fceb7638aaecd7bc2e805e922e06abd3b84c6c81f4df78b863ffe6048b21029",
+          "locator": "baselineCommit or baseline.commit"
+        },
+        {
+          "path": "migration/native-rust/m0/supported-client-profile.json",
+          "contentAddress": "sha256:5b0207b27eebd28b7d0673639477455c60e3b0ff3ed59c34e076aead5be8c0d3",
+          "locator": "baselineCommit or baseline.commit"
+        },
+        {
+          "path": "migration/native-rust/public-contract-inventory.json",
+          "contentAddress": "sha256:0ce8815a1746d62d2d70989b01c1f25f7aad06a678bdbe31a73c6d8e6d3b0413",
+          "locator": "baselineCommit or baseline.commit"
+        }
+      ],
+      "details": {
+        "expected": "396f427009ade1a4243188c7da75ff335efe9e82",
+        "observedBaselines": [
+          "396f427009ade1a4243188c7da75ff335efe9e82"
+        ],
+        "missingBaselinePaths": []
+      }
+    },
+    {
+      "id": "runtime-classification-complete",
+      "requirement": "No shipped runtime path is unknown and no launch site is unowned.",
+      "result": "pass",
+      "evidence": [
+        {
+          "path": "migration/native-rust/executable-ledger.json",
+          "contentAddress": "sha256:c300955a047563dab99af777fc213741232c96cf9d53639d20290aa2b5b654d9",
+          "locator": "completeness.unknownRows, completeness.executablePathCount"
+        },
+        {
+          "path": "migration/native-rust/invocation-graph.json",
+          "contentAddress": "sha256:3c0ed4f56471bc794f6198f3b28c9df13d8d43a63e94e0fdffb38b0d95e4e628",
+          "locator": "completeness.unknownNodes, completeness.unownedLaunchSites"
+        },
+        {
+          "path": "migration/native-rust/legacy-path-ownership.json",
+          "contentAddress": "sha256:aedd4724b73faaf3ebc9f79e9aeb19b0b8ba8b522eb7559d67e1c3288366ee4b",
+          "locator": "completeness.unknownRuntimePaths"
+        },
+        {
+          "path": "migration/native-rust/public-contract-inventory.json",
+          "contentAddress": "sha256:0ce8815a1746d62d2d70989b01c1f25f7aad06a678bdbe31a73c6d8e6d3b0413",
+          "locator": "completeness.unknownRuntimePaths"
+        }
+      ],
+      "details": {
+        "trackedExecutablePathCount": 1228,
+        "unknownRows": 0,
+        "unknownNodes": 0
+      }
+    },
+    {
+      "id": "semantic-owner-closure",
+      "requirement": "Every executable, native product path, provider, and frozen semantic question has one resolved owner with no collision.",
+      "result": "pass",
+      "evidence": [
+        {
+          "path": "migration/native-rust/legacy-path-ownership.json",
+          "contentAddress": "sha256:aedd4724b73faaf3ebc9f79e9aeb19b0b8ba8b522eb7559d67e1c3288366ee4b",
+          "locator": "completeness.collisionCount, completeness.unownedPaths"
+        },
+        {
+          "path": "migration/native-rust/m0/provider-boundary.json",
+          "contentAddress": "sha256:21b28e4ff31e9937419a6589c1ac37c6ac9b8f4d0d0f3676a7d3e3d2ddd06df2",
+          "locator": "completion.unknownProviderOwners"
+        },
+        {
+          "path": "migration/native-rust/m0/semantic-freeze.json",
+          "contentAddress": "sha256:2d93461e5fd2c5d70f2133264f6066bac282130b9a541b02317ee8d1722f546f",
+          "locator": "closure.unresolvedSemanticQuestions"
+        }
+      ],
+      "details": {
+        "ownerCollisionCount": 0,
+        "unownedPathCount": 0,
+        "unknownProviderOwners": [],
+        "unresolvedSemanticQuestions": []
+      }
+    },
+    {
+      "id": "adapter-mechanical-boundary",
+      "requirement": "No client adapter owns Legion semantics, and the only approved Pi path makes Baseline claims.",
+      "result": "pass",
+      "evidence": [
+        {
+          "path": "migration/native-rust/m0/setup-adapter-contract.json",
+          "contentAddress": "sha256:aaa1c927ae2b7990dadabd70feccd316f352daae4e86f891e766fe6b02518756",
+          "locator": "mechanicalAdapterBoundary.adapterMustNotOwn"
+        },
+        {
+          "path": "migration/native-rust/m0/supported-client-profile.json",
+          "contentAddress": "sha256:5b0207b27eebd28b7d0673639477455c60e3b0ff3ed59c34e076aead5be8c0d3",
+          "locator": "profileContract.forbiddenAdapterOwnership, officialPiPath.fidelity"
+        }
+      ],
+      "details": {
+        "requiredForbiddenOwnership": [
+          "Arcane policy evaluation",
+          "Audit or Research behavior",
+          "Legion product semantics",
+          "a duplicate semantic host engine",
+          "capability selection or execution",
+          "receipt generation semantics",
+          "routing",
+          "work-graph construction"
+        ],
+        "piFidelity": "Baseline"
+      }
+    },
+    {
+      "id": "state-decision-resolved",
+      "requirement": "State roots, compatibility, lease, snapshot, rollback, recovery, and purge ownership are frozen with no unresolved decision.",
+      "result": "pass",
+      "evidence": [
+        {
+          "path": "migration/native-rust/m0/state-contract.json",
+          "contentAddress": "sha256:ab25057be65da82bab1618ee4f7536e402566a98c49bb8fb79f316d39c1708c1",
+          "locator": "status, completion.unresolvedCompatibilityDecisions, completion.unresolvedStateOwners"
+        }
+      ],
+      "details": {
+        "unresolvedCompatibilityDecisions": [],
+        "unresolvedStateOwners": []
+      }
+    },
+    {
+      "id": "distribution-and-release-binding-resolved",
+      "requirement": "Homebrew, WinGet, signing/provenance, digest binding, update, repair, and rollback decisions are frozen.",
+      "result": "pass",
+      "evidence": [
+        {
+          "path": "migration/native-rust/m0/distribution-contract.json",
+          "contentAddress": "sha256:ec574dbb1bf28dd5b76d0060c430e2115abd9a789db2509edce3124562e99153",
+          "locator": "status, macOS.packageForm, windows.installerType"
+        },
+        {
+          "path": "migration/native-rust/m0/release-binding-contract.json",
+          "contentAddress": "sha256:e2b5609afa008fdecd774e889e5a1a6b1a6e1ac339289744ad01b10789d9752b",
+          "locator": "status, requiredIdentity, handshake, skewPolicy"
+        }
+      ],
+      "details": {
+        "macOSPackageForm": "homebrew-formula-with-bottles",
+        "windowsInstallerType": "portable",
+        "releaseBindingStatus": "frozen"
+      }
+    },
+    {
+      "id": "rightkit-ax-decision-resolved",
+      "requirement": "RightKit AX qualification pin and current manifest discrepancy disposition are exact and frozen.",
+      "result": "pass",
+      "evidence": [
+        {
+          "path": "migration/native-rust/m0/rightkit-ax-pin.json",
+          "contentAddress": "sha256:f2c576b0860e58727fcadd702845dea5510475a189739615eacbad7553846800",
+          "locator": "status, qualificationPin, agentPluginsDiscoveryDiscrepancy.disposition"
+        },
+        {
+          "path": "migration/native-rust/m0/rightkit-conformance-plan.json",
+          "contentAddress": "sha256:389a5c9b9cdc962e28d1a2c68d05c73ca42b7a38e4689cab5e030218575944a3",
+          "locator": "status, requiredEvidence, gates"
+        }
+      ],
+      "details": {
+        "package": "@rightkit/ax",
+        "version": "0.2.0",
+        "sourceCommit": "01f52555202da3dffc6b649ca44e803b55238081"
+      }
+    },
+    {
+      "id": "blueprint-optional-degradation",
+      "requirement": "Blueprint absence cannot globally gate Audit; only explicit Blueprint-dependent operations receive typed degradation.",
+      "result": "pass",
+      "evidence": [
+        {
+          "path": "migration/native-rust/m0/semantic-freeze.json",
+          "contentAddress": "sha256:2d93461e5fd2c5d70f2133264f6066bac282130b9a541b02317ee8d1722f546f",
+          "locator": "canonicalSemantics.blueprint rules"
+        },
+        {
+          "path": "migration/native-rust/m0/provider-boundary.json",
+          "contentAddress": "sha256:21b28e4ff31e9937419a6589c1ac37c6ac9b8f4d0d0f3676a7d3e3d2ddd06df2",
+          "locator": "providerExecutionInvariants"
+        },
+        {
+          "path": "migration/native-rust/discrepancy-ledger.json",
+          "contentAddress": "sha256:45d085d6cf25216096afeff78566a5778c4403108a32e328b7101317194c2ddd",
+          "locator": "blueprint-audit-coverage disposition and summary.unexplained"
+        }
+      ],
+      "details": {
+        "unexplainedDiscrepancies": 0,
+        "globalBlueprintGate": false
+      }
+    }
+  ],
+  "knownResolvedDiscrepancies": [
+    {
+      "id": "cli:assurance:declared-without-dispatch",
+      "disposition": "delete",
+      "futureOwner": "M7-hard-cut-and-legacy-deletion",
+      "evidence": {
+        "path": "migration/native-rust/public-contract-inventory.json",
+        "contentAddress": "sha256:0ce8815a1746d62d2d70989b01c1f25f7aad06a678bdbe31a73c6d8e6d3b0413",
+        "locator": "knownContractDiscrepancies"
+      }
+    }
+  ],
+  "summary": {
+    "status": "PASS",
+    "gateCount": 8,
+    "passedGateCount": 8,
+    "failedGateCount": 0,
+    "failedGates": [],
+    "unknownRuntimePathCount": 0,
+    "ownerCollisionCount": 0,
+    "unownedLaunchSiteCount": 0,
+    "unresolvedDecisionCount": 0,
+    "blueprintGlobalGate": false
+  },
+  "acceptanceRule": "PASS is valid only while the referenced freeze content address and all frozen input content addresses remain unchanged.",
+  "contentAddress": "sha256:8eb325234488164aed2f7e012d84e1f2576be381f5b88d041a30ea0e9c263f21"
+}

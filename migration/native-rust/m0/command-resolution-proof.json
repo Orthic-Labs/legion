@@ -1,0 +1,151 @@
+{
+  "schemaVersion": 1,
+  "kind": "legion-m0-command-resolution-proof-contract",
+  "baseline": {
+    "commit": "396f427009ade1a4243188c7da75ff335efe9e82",
+    "selectedBy": "migration/native-rust/dispatches/M0-DISPATCH.json#sourceRevision",
+    "observedHead": "abc83488cead00be46411b4fc0761d91b9724c65"
+  },
+  "authority": [
+    "migration/native-rust/PRODUCT-ARCHITECTURE-V2.md:121-175",
+    "migration/native-rust/PRODUCT-ARCHITECTURE-V2.md:252-278",
+    "migration/native-rust/PRODUCT-ARCHITECTURE-V2.md:294-319",
+    "migration/native-rust/MIGRATION-PLAN-V2.md:98-116",
+    "migration/native-rust/MIGRATION-PLAN-V2.md:244-259"
+  ],
+  "portableInvocation": {
+    "command": "legion",
+    "argv": [
+      "serve",
+      "--stdio",
+      "--plugin-root",
+      "${PLUGIN_ROOT}"
+    ],
+    "rule": "The canonical portable declaration is bare-command only. It relies on platform executable search and must not contain an arbitrary absolute command or a plugin-contained external executable."
+  },
+  "proofMethod": {
+    "requiredFor": "Every released client integration that claims executable Legion access or Full fidelity.",
+    "environment": "The actual client launch environment after setup, not an interactive developer shell, source checkout, test harness, or inherited test PATH.",
+    "steps": [
+      "Install the signed, release-bound native Legion artifact through the qualifying machine package path.",
+      "Install or register the selected client integration through legion setup.",
+      "Capture the launch environment identity and effective executable search inputs without recording secrets.",
+      "Attempt the canonical bare invocation through the client's actual launcher.",
+      "Record the resolved executable canonical path, file identity, release version, artifact digest, and provenance.",
+      "Start one client-owned stdio MCP process, complete initialization, and verify release binding before tools are exposed.",
+      "Exercise initialization, invocation, cancellation, restart, and shutdown within the same client session to prove reuse and lifecycle ownership.",
+      "Repeat with PATH sanitized or stale as an adversarial fixture.",
+      "If bare lookup fails, attempt only the client's documented/supported native exact-path registration and repeat the same identity and lifecycle checks.",
+      "Classify the released fidelity from the evidence; never retain Full on an unresolved or source-checkout route."
+    ],
+    "passConditions": [
+      "resolved path is the machine-installed native Legion executable for the expected OS/architecture",
+      "path does not reside in a source checkout, plugin package, temporary fixture, cache substitute, or another project's dependency tree",
+      "resolved binary digest and provenance match the release binding",
+      "server identity, capability catalog, MCP tool schema, and declarative asset/schema hashes match the bound release",
+      "one process is reused for repeated work in one active client session",
+      "no machine-wide idle daemon or per-tool Legion runtime birth occurs",
+      "the client owns cancellation, restart, and shutdown",
+      "a PATH-sanitized/stale-PATH case does not produce a false Full claim"
+    ]
+  },
+  "proofRecord": {
+    "requiredFields": [
+      "schemaVersion",
+      "clientId",
+      "clientVersion",
+      "platform",
+      "architecture",
+      "selectedMechanism",
+      "resolutionMode",
+      "launchEnvironmentDigest",
+      "requestedCommand",
+      "requestedArgv",
+      "resolvedExecutablePath",
+      "resolvedExecutableIdentity",
+      "runtimeArtifactDigest",
+      "runtimeProvenance",
+      "releaseVersion",
+      "releaseBindingDigest",
+      "capabilityCatalogHash",
+      "mcpToolSchemaHash",
+      "declarativeAssetSchemaHash",
+      "mcpInitializationEvidence",
+      "reuseEvidence",
+      "cancellationEvidence",
+      "restartEvidence",
+      "shutdownEvidence",
+      "pathSanitizedFixture",
+      "outcome",
+      "fidelity",
+      "missingSurfaces",
+      "remediation"
+    ],
+    "allowedResolutionModes": [
+      "agent-plugins-bare-command",
+      "supported-native-exact-path-registration"
+    ],
+    "rejectedResolutionModes": [
+      "node-source-script",
+      "python-source-script",
+      "plugin-relative-binary",
+      "source-checkout-path",
+      "shell-wrapper",
+      "developer-shell-only-path",
+      "unverified-environment-mutation"
+    ]
+  },
+  "perClientContract": [
+    {
+      "clientId": "claude-code",
+      "target": "Try the selected supported native plugin mechanism, then Agent Plugins bare-command launch. If the client cannot resolve legion, use only its supported native exact-path registration.",
+      "fullGate": "All generic proof pass conditions plus claimed host-enforcement qualification.",
+      "failureDisposition": "Degraded for a safe meaningful subset; Unavailable when no safe executable route exists."
+    },
+    {
+      "clientId": "codex",
+      "target": "Try the selected supported native plugin mechanism, then Agent Plugins bare-command launch, then a supported native exact-path MCP/config registration.",
+      "fullGate": "All generic proof pass conditions plus qualified skill delivery and every claimed host surface.",
+      "failureDisposition": "Degraded when only instruction-mediated skills or another safe subset remains; Baseline when no executable route is activated; Unavailable when requested installation is unsafe."
+    },
+    {
+      "clientId": "pi",
+      "target": "No executable resolution proof is applicable to the official M0 Baseline path.",
+      "fullGate": "Not eligible until Pi promotion evidence selects a supported executable mechanism.",
+      "failureDisposition": "Remain Baseline without executable claims, or Unavailable when the instruction/skill path cannot be installed safely."
+    }
+  ],
+  "fallbackContract": {
+    "allowed": "A client-specific supported native registration may contain the exact installed path only outside Agent Plugins mcp.json.",
+    "must": [
+      "record why bare lookup failed",
+      "validate the exact path identity, containment, digest, provenance, and release binding",
+      "remain transactional and reversible through legion setup",
+      "preserve unrelated client configuration"
+    ],
+    "forbidden": [
+      "mutating PATH globally or opaquely",
+      "using source checkout fallback",
+      "embedding the native binary into the portable package",
+      "disguising an external binary as a plugin-relative executable",
+      "claiming Full before fallback proof passes"
+    ]
+  },
+  "currentSourceDiscrepancies": [
+    {
+      "locator": ".claude-plugin/plugin.json:26-34",
+      "finding": "Current plugin launches node with a source path rooted at ${CLAUDE_PLUGIN_ROOT}.",
+      "targetDisposition": "replace"
+    },
+    {
+      "locator": "src/lib/host/engine.mjs:46-59,146-179",
+      "finding": "Current adapter engine manufactures Node-plus-absolute-source-script MCP registrations.",
+      "targetDisposition": "replace"
+    },
+    {
+      "locator": "src/integrations/mcp/install.mjs:1-22",
+      "finding": "Current preview defaults to legion mcp server rather than the target legion serve --stdio contract.",
+      "targetDisposition": "replace"
+    }
+  ]
+}

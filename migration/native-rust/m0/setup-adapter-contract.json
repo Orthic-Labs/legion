@@ -1,0 +1,192 @@
+{
+  "schemaVersion": 1,
+  "kind": "legion-m0-setup-adapter-contract",
+  "baseline": {
+    "commit": "396f427009ade1a4243188c7da75ff335efe9e82",
+    "selectedBy": "migration/native-rust/dispatches/M0-DISPATCH.json#sourceRevision",
+    "observedHead": "abc83488cead00be46411b4fc0761d91b9724c65"
+  },
+  "authority": [
+    "migration/native-rust/PRODUCT-ARCHITECTURE-V2.md:16-23",
+    "migration/native-rust/PRODUCT-ARCHITECTURE-V2.md:235-278",
+    "migration/native-rust/PRODUCT-ARCHITECTURE-V2.md:294-348",
+    "migration/native-rust/PRODUCT-ARCHITECTURE-V2.md:399-412",
+    "migration/native-rust/MIGRATION-PLAN-V2.md:119-143"
+  ],
+  "commandGrammar": {
+    "setup": [
+      "legion",
+      "setup",
+      "[--dry-run]",
+      "[--client <id>]"
+    ],
+    "subcommands": [
+      ["legion", "setup", "status", "[--client <id>]"],
+      ["legion", "setup", "repair", "[--client <id>]"],
+      ["legion", "setup", "disable", "[--client <id>]"],
+      ["legion", "setup", "remove", "[--client <id>]"],
+      ["legion", "setup", "purge", "--confirm", "[--client <id>]"],
+      ["legion", "status"]
+    ],
+    "executionRule": "Arguments are structured native argv, never a shell command string."
+  },
+  "setupStateMachine": {
+    "states": [
+      "detected",
+      "previewed",
+      "confirmed",
+      "staged",
+      "verified",
+      "active",
+      "disabled",
+      "removed",
+      "rolledBack",
+      "unavailable"
+    ],
+    "activationRule": "An integration becomes active only after all selected assets and registrations are written transactionally and verification passes.",
+    "failureRule": "Any failed stage restores its pre-operation snapshot and leaves unrelated configuration untouched."
+  },
+  "operations": {
+    "detect": {
+      "inputs": ["installed native Legion runtime", "client-specific presence evidence"],
+      "must": [
+        "identify only supported client candidates",
+        "discover the highest supported mechanism without treating generic project instructions as client identity",
+        "report available mechanisms and provisional fidelity without mutation"
+      ],
+      "output": ["clientId", "detected", "mechanisms", "provisionalFidelity", "evidence", "reason"]
+    },
+    "preview": {
+      "must": [
+        "resolve all asset, config, symlink, junction, and reparse targets before mutation",
+        "show every proposed registration, path, backup, removal, fidelity, and release-binding change",
+        "show exact client configuration ownership boundaries",
+        "perform no write"
+      ],
+      "output": ["planId", "mutations", "backups", "fidelity", "missingSurfaces", "warnings", "rollbackPlan"]
+    },
+    "confirmation": {
+      "must": [
+        "require explicit user confirmation for a non-dry-run mutation",
+        "bind confirmation to the reviewed plan identity",
+        "reject changed or stale plans"
+      ],
+      "output": ["planId", "confirmed"]
+    },
+    "install": {
+      "must": [
+        "prefer a supported native client install/update/remove API",
+        "otherwise use Agent Plugins package installation, then a supported native MCP/config registration, then only a required minimal bridge",
+        "copy versioned release-bound assets; never point an integration into the source checkout",
+        "preserve unrelated client configuration",
+        "stage backup and rollback data before activation"
+      ],
+      "output": ["integrationId", "selectedMechanism", "stagedAssets", "registrations", "backupRef", "provisionalFidelity"]
+    },
+    "verify": {
+      "must": [
+        "verify containment and asset integrity",
+        "verify skill discovery where claimed",
+        "start the client-owned MCP process where executable access is claimed",
+        "verify command resolution in the actual client launch environment",
+        "verify runtime identity, release version, required binding hashes, lifecycle behavior, and fidelity",
+        "fail closed before tools are exposed on a binding mismatch"
+      ],
+      "output": ["status", "fidelity", "missingSurfaces", "commandProofRef", "releaseBindingRef", "qualificationEvidenceRef", "remediation"]
+    },
+    "status": {
+      "must": [
+        "read without mutation",
+        "report per-client selected mechanism, fidelity, health, bound release identity, missing surfaces, and exact remediation",
+        "distinguish disabled, removed, unavailable, damaged, and active"
+      ],
+      "output": ["clients"]
+    },
+    "repair": {
+      "must": [
+        "re-read current client state and produce a fresh preview",
+        "rebuild only Legion-owned damaged projections or registrations",
+        "refresh a release binding transactionally",
+        "never overwrite unrelated configuration",
+        "verify before reactivation"
+      ],
+      "output": ["repaired", "preserved", "verification", "remediation"]
+    },
+    "disable": {
+      "must": [
+        "disable only Legion-owned activation or registration state",
+        "retain recoverable integration state and user configuration",
+        "not remove the machine-installed runtime"
+      ],
+      "output": ["disabled", "retained", "reEnablePlan"]
+    },
+    "remove": {
+      "must": [
+        "remove only the selected Legion integration and its verified owned assets",
+        "restore or remove only Legion-managed configuration entries",
+        "leave package-manager runtime uninstall independent",
+        "retain Legion state unless explicit purge is requested"
+      ],
+      "output": ["removed", "preserved", "stateRetained", "packageRuntimeStatus"]
+    },
+    "purge": {
+      "must": [
+        "require an explicit destructive confirmation",
+        "target only verified Legion-owned state roots",
+        "refuse ambiguous ownership, foreign paths, source checkout paths, and unresolved links",
+        "report exact removed roots and retained roots"
+      ],
+      "output": ["purged", "retained", "ownershipProof"]
+    }
+  },
+  "transactionRules": [
+    "No fallback configuration edit occurs before preview and confirmation.",
+    "Every fallback edit has a pre-operation backup and exact rollback route.",
+    "A client-specific failure cannot corrupt another client configuration.",
+    "Update cannot activate mixed runtime, asset, schema, catalog, or tool-contract versions.",
+    "Existing client processes may finish their bound release; incompatible state work waits for old leases to close.",
+    "No setup action starts an idle Legion daemon or a machine-wide socket."
+  ],
+  "mechanicalAdapterBoundary": {
+    "adapterMayOwn": [
+      "detection",
+      "registration",
+      "asset projection",
+      "client paths",
+      "enable and disable",
+      "verification orchestration",
+      "repair",
+      "cleanup"
+    ],
+    "adapterMustNotOwn": [
+      "Legion product semantics",
+      "capability selection or execution",
+      "routing",
+      "Audit or Research behavior",
+      "Arcane policy evaluation",
+      "work-graph construction",
+      "receipt generation semantics",
+      "a duplicate semantic host engine"
+    ],
+    "sourceDiscrepancy": {
+      "locator": "src/lib/host/engine.mjs:1-18,81-179,230-336",
+      "finding": "The current Node descriptor engine performs projection and registration and is explicitly retired as a target semantic host shape.",
+      "targetDisposition": "replace with Rust-owned setup and mechanical per-client adapters; do not port its Legion semantic ownership."
+    }
+  },
+  "typedFailures": [
+    "CLIENT_NOT_DETECTED",
+    "CLIENT_MECHANISM_UNSUPPORTED",
+    "PLAN_CONFIRMATION_REQUIRED",
+    "PLAN_STALE",
+    "CONFIG_OWNERSHIP_CONFLICT",
+    "CONFIG_PARSE_REFUSED",
+    "PATH_ESCAPE_REFUSED",
+    "SOURCE_CHECKOUT_REFERENCE_REFUSED",
+    "COMMAND_RESOLUTION_FAILED",
+    "RELEASE_BINDING_MISMATCH",
+    "VERIFICATION_FAILED",
+    "ROLLBACK_FAILED",
+    "PURGE_OWNERSHIP_UNPROVEN"
+  ]
+}

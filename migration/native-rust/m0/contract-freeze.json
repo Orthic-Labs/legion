@@ -1,0 +1,236 @@
+{
+  "schemaVersion": 1,
+  "kind": "legion-native-rust-m0-contract-freeze",
+  "status": "frozen",
+  "baselineCommit": "396f427009ade1a4243188c7da75ff335efe9e82",
+  "sourceRevision": "396f427009ade1a4243188c7da75ff335efe9e82",
+  "inputSetContentAddress": "sha256:4a130fa816272a43d12d87b6642db6fafd73ec89b29ff9b08f45cff54488274a",
+  "authoritySetContentAddress": "sha256:bbced9d19b1a5cdb01f187e4078dbf788e0d71bec20e42e5c7a30ec142d1debf",
+  "authoritySources": [
+    {
+      "path": "migration/native-rust/PRODUCT-ARCHITECTURE-V2.md",
+      "contentAddress": "sha256:ab181ef9b391f22d739b40ffff6240a50078828d081f9490416ac8d959ed32c5"
+    },
+    {
+      "path": "migration/native-rust/MIGRATION-PLAN-V2.md",
+      "contentAddress": "sha256:7f5ddd5caf12cc2fcce945fe12d1a8ae2a3c1f4e4c39931cd57e1f5b78303462"
+    }
+  ],
+  "inputArtifacts": [
+    {
+      "lane": "semantic-freeze",
+      "path": "migration/native-rust/discrepancy-ledger.json",
+      "contentAddress": "sha256:45d085d6cf25216096afeff78566a5778c4403108a32e328b7101317194c2ddd",
+      "baselineCommit": "396f427009ade1a4243188c7da75ff335efe9e82",
+      "kind": "legion-native-rust-discrepancy-ledger",
+      "status": "frozen"
+    },
+    {
+      "lane": "runtime-inventory",
+      "path": "migration/native-rust/executable-ledger.json",
+      "contentAddress": "sha256:c300955a047563dab99af777fc213741232c96cf9d53639d20290aa2b5b654d9",
+      "baselineCommit": "396f427009ade1a4243188c7da75ff335efe9e82",
+      "kind": "runtime-inventory",
+      "status": true
+    },
+    {
+      "lane": "runtime-inventory",
+      "path": "migration/native-rust/invocation-graph.json",
+      "contentAddress": "sha256:3c0ed4f56471bc794f6198f3b28c9df13d8d43a63e94e0fdffb38b0d95e4e628",
+      "baselineCommit": "396f427009ade1a4243188c7da75ff335efe9e82",
+      "kind": "runtime-inventory",
+      "status": true
+    },
+    {
+      "lane": "runtime-inventory",
+      "path": "migration/native-rust/legacy-path-ownership.json",
+      "contentAddress": "sha256:aedd4724b73faaf3ebc9f79e9aeb19b0b8ba8b522eb7559d67e1c3288366ee4b",
+      "baselineCommit": "396f427009ade1a4243188c7da75ff335efe9e82",
+      "kind": "runtime-inventory",
+      "status": true
+    },
+    {
+      "lane": "client-integration",
+      "path": "migration/native-rust/m0/agent-plugins-contract.json",
+      "contentAddress": "sha256:250740954d6cb7c780ab735b3da1de52cf49960a54933923e2270fa18bce3d4e",
+      "baselineCommit": "396f427009ade1a4243188c7da75ff335efe9e82",
+      "kind": "legion-m0-agent-plugins-contract",
+      "status": "present"
+    },
+    {
+      "lane": "client-integration",
+      "path": "migration/native-rust/m0/client-fidelity-matrix.json",
+      "contentAddress": "sha256:513f6f7418a334e744a8447be2bfa5f55045aff5830ccb1687939cd006b1502e",
+      "baselineCommit": "396f427009ade1a4243188c7da75ff335efe9e82",
+      "kind": "legion-m0-client-fidelity-matrix",
+      "status": "present"
+    },
+    {
+      "lane": "client-integration",
+      "path": "migration/native-rust/m0/command-resolution-proof.json",
+      "contentAddress": "sha256:71240159c9c097d7f8de78fbc491afb698eceea380e73522cab31d0e1f5d0e28",
+      "baselineCommit": "396f427009ade1a4243188c7da75ff335efe9e82",
+      "kind": "legion-m0-command-resolution-proof-contract",
+      "status": "present"
+    },
+    {
+      "lane": "distribution-binding",
+      "path": "migration/native-rust/m0/distribution-contract.json",
+      "contentAddress": "sha256:ec574dbb1bf28dd5b76d0060c430e2115abd9a789db2509edce3124562e99153",
+      "baselineCommit": "396f427009ade1a4243188c7da75ff335efe9e82",
+      "kind": "legion-native-distribution-contract",
+      "status": "frozen"
+    },
+    {
+      "lane": "client-integration",
+      "path": "migration/native-rust/m0/pi-integration-contract.json",
+      "contentAddress": "sha256:9491431b4cb2a6ae4f304e7d50a7ff8e46a0ef05f8046cde997f138a0718b3a7",
+      "baselineCommit": "396f427009ade1a4243188c7da75ff335efe9e82",
+      "kind": "legion-m0-pi-integration-contract",
+      "status": "present"
+    },
+    {
+      "lane": "semantic-freeze",
+      "path": "migration/native-rust/m0/provider-boundary.json",
+      "contentAddress": "sha256:21b28e4ff31e9937419a6589c1ac37c6ac9b8f4d0d0f3676a7d3e3d2ddd06df2",
+      "baselineCommit": "396f427009ade1a4243188c7da75ff335efe9e82",
+      "kind": "legion-native-rust-provider-boundary",
+      "status": "frozen"
+    },
+    {
+      "lane": "distribution-binding",
+      "path": "migration/native-rust/m0/release-binding-contract.json",
+      "contentAddress": "sha256:e2b5609afa008fdecd774e889e5a1a6b1a6e1ac339289744ad01b10789d9752b",
+      "baselineCommit": "396f427009ade1a4243188c7da75ff335efe9e82",
+      "kind": "legion-native-release-binding-contract",
+      "status": "frozen"
+    },
+    {
+      "lane": "rightkit-ax",
+      "path": "migration/native-rust/m0/rightkit-ax-pin.json",
+      "contentAddress": "sha256:f2c576b0860e58727fcadd702845dea5510475a189739615eacbad7553846800",
+      "baselineCommit": "396f427009ade1a4243188c7da75ff335efe9e82",
+      "kind": "legion-rightkit-ax-pin",
+      "status": "frozen"
+    },
+    {
+      "lane": "rightkit-ax",
+      "path": "migration/native-rust/m0/rightkit-conformance-plan.json",
+      "contentAddress": "sha256:389a5c9b9cdc962e28d1a2c68d05c73ca42b7a38e4689cab5e030218575944a3",
+      "baselineCommit": "396f427009ade1a4243188c7da75ff335efe9e82",
+      "kind": "legion-rightkit-conformance-plan",
+      "status": "frozen"
+    },
+    {
+      "lane": "semantic-freeze",
+      "path": "migration/native-rust/m0/semantic-freeze.json",
+      "contentAddress": "sha256:2d93461e5fd2c5d70f2133264f6066bac282130b9a541b02317ee8d1722f546f",
+      "baselineCommit": "396f427009ade1a4243188c7da75ff335efe9e82",
+      "kind": "legion-native-rust-semantic-freeze",
+      "status": "frozen"
+    },
+    {
+      "lane": "client-integration",
+      "path": "migration/native-rust/m0/setup-adapter-contract.json",
+      "contentAddress": "sha256:aaa1c927ae2b7990dadabd70feccd316f352daae4e86f891e766fe6b02518756",
+      "baselineCommit": "396f427009ade1a4243188c7da75ff335efe9e82",
+      "kind": "legion-m0-setup-adapter-contract",
+      "status": "present"
+    },
+    {
+      "lane": "state-lifecycle",
+      "path": "migration/native-rust/m0/state-contract.json",
+      "contentAddress": "sha256:ab25057be65da82bab1618ee4f7536e402566a98c49bb8fb79f316d39c1708c1",
+      "baselineCommit": "396f427009ade1a4243188c7da75ff335efe9e82",
+      "kind": "legion-native-rust-state-contract",
+      "status": "frozen"
+    },
+    {
+      "lane": "strain-protocol",
+      "path": "migration/native-rust/m0/strain-benchmark-protocol.json",
+      "contentAddress": "sha256:1fceb7638aaecd7bc2e805e922e06abd3b84c6c81f4df78b863ffe6048b21029",
+      "baselineCommit": "396f427009ade1a4243188c7da75ff335efe9e82",
+      "kind": "legion-native-strain-benchmark-protocol",
+      "status": "frozen-before-measurement"
+    },
+    {
+      "lane": "client-integration",
+      "path": "migration/native-rust/m0/supported-client-profile.json",
+      "contentAddress": "sha256:5b0207b27eebd28b7d0673639477455c60e3b0ff3ed59c34e076aead5be8c0d3",
+      "baselineCommit": "396f427009ade1a4243188c7da75ff335efe9e82",
+      "kind": "legion-m0-supported-client-profile",
+      "status": "present"
+    },
+    {
+      "lane": "runtime-inventory",
+      "path": "migration/native-rust/public-contract-inventory.json",
+      "contentAddress": "sha256:0ce8815a1746d62d2d70989b01c1f25f7aad06a678bdbe31a73c6d8e6d3b0413",
+      "baselineCommit": "396f427009ade1a4243188c7da75ff335efe9e82",
+      "kind": "runtime-inventory",
+      "status": true
+    }
+  ],
+  "contractSections": [
+    {
+      "id": "runtime-inventory",
+      "inputs": [
+        "migration/native-rust/executable-ledger.json",
+        "migration/native-rust/invocation-graph.json",
+        "migration/native-rust/legacy-path-ownership.json",
+        "migration/native-rust/public-contract-inventory.json"
+      ],
+      "frozenRule": "Every tracked executable path is classified, every launch site is owned, and every existing native Rust product source has one v2 disposition and milestone owner."
+    },
+    {
+      "id": "semantic-boundary",
+      "inputs": [
+        "migration/native-rust/discrepancy-ledger.json",
+        "migration/native-rust/m0/provider-boundary.json",
+        "migration/native-rust/m0/semantic-freeze.json"
+      ],
+      "frozenRule": "Legion Rust owns product semantics and deterministic effect evaluation; declarative assets remain data; external project tools are typed effects; Membrane and Blueprint remain outside the product boundary."
+    },
+    {
+      "id": "client-integration",
+      "inputs": [
+        "migration/native-rust/m0/agent-plugins-contract.json",
+        "migration/native-rust/m0/client-fidelity-matrix.json",
+        "migration/native-rust/m0/command-resolution-proof.json",
+        "migration/native-rust/m0/pi-integration-contract.json",
+        "migration/native-rust/m0/setup-adapter-contract.json",
+        "migration/native-rust/m0/supported-client-profile.json"
+      ],
+      "frozenRule": "Agent Plugins is a preferred portable package only. Setup chooses a qualified client mechanism; adapters are mechanical and cannot own Legion semantics; Pi is Baseline until executable evidence exists."
+    },
+    {
+      "id": "state-lifecycle",
+      "inputs": [
+        "migration/native-rust/m0/state-contract.json"
+      ],
+      "frozenRule": "Legion owns only its durable state root, with version metadata, exclusive migration/lease coordination, snapshot rollback, interrupted recovery, and verified purge."
+    },
+    {
+      "id": "distribution-and-binding",
+      "inputs": [
+        "migration/native-rust/m0/distribution-contract.json",
+        "migration/native-rust/m0/release-binding-contract.json"
+      ],
+      "frozenRule": "One signed native command is distributed by Homebrew formula/bottles and WinGet portable package; integration assets and runtime are digest-bound and fail closed on mismatch."
+    },
+    {
+      "id": "rightkit-and-strain-qualification",
+      "inputs": [
+        "migration/native-rust/m0/rightkit-ax-pin.json",
+        "migration/native-rust/m0/rightkit-conformance-plan.json",
+        "migration/native-rust/m0/strain-benchmark-protocol.json"
+      ],
+      "frozenRule": "RightKit AX is pinned to one version and commit for clean-room qualification; each active client owns exactly one reusable stdio process, with no idle daemon or per-tool Legion birth."
+    }
+  ],
+  "immutability": {
+    "rule": "This freeze is valid only for this baseline and this exact input content-address set. Any input, authority source, baseline, or section change requires a new freeze content address and a new acceptance evaluation.",
+    "downstreamRequirement": "All M1-M8 planning consumes this freeze by content address; a filename alone is insufficient.",
+    "mutableInputs": false
+  },
+  "contentAddress": "sha256:244f093484880399f59d052df950e6b494024411029ba462fa8d08738cd28a61"
+}

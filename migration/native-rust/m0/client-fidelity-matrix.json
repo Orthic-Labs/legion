@@ -1,0 +1,162 @@
+{
+  "schemaVersion": 1,
+  "kind": "legion-m0-client-fidelity-matrix",
+  "baseline": {
+    "commit": "396f427009ade1a4243188c7da75ff335efe9e82",
+    "selectedBy": "migration/native-rust/dispatches/M0-DISPATCH.json#sourceRevision",
+    "observedHead": "abc83488cead00be46411b4fc0761d91b9724c65"
+  },
+  "authority": [
+    "migration/native-rust/PRODUCT-ARCHITECTURE-V2.md:29-44",
+    "migration/native-rust/PRODUCT-ARCHITECTURE-V2.md:252-278",
+    "migration/native-rust/PRODUCT-ARCHITECTURE-V2.md:353-385",
+    "migration/native-rust/MIGRATION-PLAN-V2.md:98-116",
+    "migration/native-rust/MIGRATION-PLAN-V2.md:231-259"
+  ],
+  "surfaceVocabulary": [
+    "instructions",
+    "skills",
+    "executableToolSurface",
+    "mcpLifecycle",
+    "releaseBinding",
+    "hostEnforcement",
+    "executableResolution",
+    "cancellation",
+    "restart",
+    "shutdown"
+  ],
+  "fidelityRequirements": {
+    "Full": {
+      "allOf": [
+        "instructions or skills are presented as the selected integration requires",
+        "the native Legion tool surface is available",
+        "the client owns a reusable stdio MCP process and its lifecycle",
+        "release identity, version, runtime digest/provenance, catalog hash, tool-schema hash, and declarative-asset/schema hash bind before tools are exposed",
+        "each claimed host-enforcement surface is measured",
+        "a bare-command or supported exact-path proof passes in the actual launch environment"
+      ],
+      "notSufficient": [
+        "Agent Plugins schema conformance alone",
+        "a source-checkout launch",
+        "a test process with an inherited developer PATH"
+      ]
+    },
+    "Degraded": {
+      "allOf": [
+        "a meaningful subset remains operational",
+        "missing surfaces and their safe behavior are recorded",
+        "status and repair output identify the downgrade"
+      ]
+    },
+    "Baseline": {
+      "allOf": [
+        "only instructions and/or skills are provided",
+        "no executable workflow is registered or claimed"
+      ]
+    },
+    "Unavailable": {
+      "allOf": [
+        "setup cannot safely install or operate the requested integration",
+        "no partial write is activated",
+        "the reason and remediation are reported"
+      ]
+    }
+  },
+  "clients": [
+    {
+      "clientId": "claude-code",
+      "referenceClient": true,
+      "approvedMechanismOrder": [
+        "native plugin API",
+        "Agent Plugins 1.0 package",
+        "native MCP/config registration",
+        "minimal required native bridge"
+      ],
+      "fullQualification": {
+        "requiredSurfaces": [
+          "skills",
+          "executableToolSurface",
+          "mcpLifecycle",
+          "releaseBinding",
+          "executableResolution",
+          "cancellation",
+          "restart",
+          "shutdown"
+        ],
+        "conditionalSurface": "hostEnforcement is required only when an enforcement claim is made; every such claim requires measured native support."
+      },
+      "safeDowngrade": "Degraded when a selected safe subset works but an executable-resolution, lifecycle, binding, or claimed enforcement proof is missing; Unavailable when setup cannot activate a safe mechanism.",
+      "currentSourceEvidence": [
+        ".claude-plugin/plugin.json:1-35",
+        "src/lib/host/adapters/claude-code.mjs:1-15"
+      ]
+    },
+    {
+      "clientId": "codex",
+      "referenceClient": true,
+      "approvedMechanismOrder": [
+        "native plugin API",
+        "Agent Plugins 1.0 package",
+        "native MCP/config registration",
+        "minimal required native bridge"
+      ],
+      "fullQualification": {
+        "requiredSurfaces": [
+          "skills",
+          "executableToolSurface",
+          "mcpLifecycle",
+          "releaseBinding",
+          "executableResolution",
+          "cancellation",
+          "restart",
+          "shutdown"
+        ],
+        "conditionalSurface": "hostEnforcement is absent unless a verified native surface is measured; it must not be claimed from instructions or MCP alone."
+      },
+      "safeDowngrade": "Degraded when skills are only instruction-mediated or when any executable proof is missing; Baseline when only instructions/skills are installed; Unavailable when the requested executable route cannot be operated safely.",
+      "currentSourceEvidence": [
+        "src/lib/host/adapters/codex.mjs:1-29",
+        "src/lib/host/engine.mjs:81-115",
+        "src/lib/host/engine.mjs:146-179"
+      ]
+    },
+    {
+      "clientId": "pi",
+      "referenceClient": false,
+      "officialM0Mechanism": "Baseline instructions and skills only",
+      "releaseFidelity": "Baseline",
+      "requiredSurfaces": [
+        "instructions",
+        "skills"
+      ],
+      "missingSurfaces": [
+        "executableToolSurface",
+        "mcpLifecycle",
+        "releaseBinding",
+        "executableResolution",
+        "hostEnforcement",
+        "cancellation",
+        "restart",
+        "shutdown"
+      ],
+      "safeDowngrade": "No executable claim is made. If even the instruction/skill projection cannot be installed without overwriting unrelated client state, Pi is Unavailable.",
+      "promotionGate": "A verified Pi-native mechanism and real-client qualification must be recorded before promotion to Degraded or Full.",
+      "currentSourceEvidence": [
+        "src/lib/host/adapters/pi.mjs:1-26"
+      ]
+    }
+  ],
+  "matrixInvariants": [
+    "A client receives at most one reusable Legion MCP subprocess per active client session; Legion does not self-spawn a runtime per tool call.",
+    "No client integration creates an idle Legion daemon or machine-wide socket.",
+    "A client can finish a bound process during an update, but a new incompatible mixed-version execution cannot start.",
+    "Each client status record names its selected mechanism, fidelity, missing surfaces, command proof, release binding, and remediation.",
+    "Client permission prompts remain client-owned and Legion setup consent never grants later host-governed effects."
+  ],
+  "disallowedFidelityCollapses": [
+    "Do not label a skills-only integration Full or Degraded merely because a package validates.",
+    "Do not label a client Full when its executable lookup only succeeds through a developer source checkout or inherited test PATH.",
+    "Do not infer host enforcement from tool presentation, instructions, or a non-blocking event surface.",
+    "Do not retain a claimed feature after its verification or release-binding handshake fails."
+  ]
+}

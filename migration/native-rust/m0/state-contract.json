@@ -1,0 +1,195 @@
+{
+  "schemaVersion": 1,
+  "kind": "legion-native-rust-state-contract",
+  "status": "frozen",
+  "baselineCommit": "396f427009ade1a4243188c7da75ff335efe9e82",
+  "sourceRevision": "396f427009ade1a4243188c7da75ff335efe9e82",
+  "ownership": {
+    "legionPlatformUserData": {
+      "owner": "Legion",
+      "rootIdentity": "platform-user-data/legion",
+      "resolution": "Resolve through the native platform user-data convention at install/runtime; do not hardcode source-checkout, plugin-root, project, temporary, or client-cache paths as canonical Legion state.",
+      "contains": [
+        "setup registry",
+        "runtime-local durable state",
+        "state snapshots and migration journal",
+        "Legion-owned lock and runtime-lease records"
+      ],
+      "rule": "This is the only canonical root for Legion-written durable product state."
+    },
+    "clientPluginData": {
+      "owner": "agent client/host",
+      "rootIdentity": "${PLUGIN_DATA}",
+      "contains": [
+        "client-managed integration cache",
+        "client-managed integration configuration"
+      ],
+      "rule": "Never canonical Legion semantics, migration authority, durable receipt authority, or release truth."
+    },
+    "repositoryContextAndEvidence": {
+      "owner": "Membrane/Blueprint typed interfaces",
+      "rule": "Legion consumes typed packets only; this root is never copied into, migrated as, or purged by Legion state lifecycle."
+    },
+    "durableMemory": {
+      "owner": "Cortex",
+      "rule": "Outside Legion state migration, rollback, and purge authority."
+    },
+    "projectWorkflowArtifacts": {
+      "owner": "owning workflow/project path",
+      "rule": "Outside canonical Legion product state. Existing .audit and development workflow artifacts are not migrated or purged as Legion platform state."
+    }
+  },
+  "persistentRootMetadata": {
+    "requiredFields": [
+      "schema_version",
+      "writer_version",
+      "min_reader_version",
+      "migration_generation"
+    ],
+    "rules": [
+      "Each Legion-written persistent root stores all four fields before it is active.",
+      "schema_version identifies the root format; writer_version identifies the runtime that last wrote it; min_reader_version gates compatibility; migration_generation monotonically identifies a committed generation.",
+      "Unknown, missing, corrupt, or incompatible metadata fails closed with exact repair guidance; it never defaults to empty success or implicit destructive recreation."
+    ]
+  },
+  "leasesAndLocks": {
+    "exclusiveStateLock": {
+      "holders": [
+        "legion setup",
+        "state migration",
+        "state rollback",
+        "verified purge"
+      ],
+      "rules": [
+        "Only one lifecycle mutation holder exists per Legion platform-user-data root.",
+        "Lock acquisition validates the canonical root and does not follow a symlink, junction, or reparse point outside the verified Legion-owned boundary.",
+        "A failed holder releases no partial active generation; recovery uses the migration journal and snapshot."
+      ]
+    },
+    "runtimeLeases": {
+      "owner": "Active client-owned Legion serve --stdio runtime instances",
+      "rules": [
+        "Each active runtime lease records the release/state compatibility generation it is using and closes at client shutdown/restart/crash recovery.",
+        "An incompatible migration waits for all old-generation leases to close; it does not terminate unrelated clients or run a parallel active Legion runtime.",
+        "Compatible existing clients may finish under their release-bound generation while a bounded update skew is repaired transactionally."
+      ]
+    }
+  },
+  "setupAndMigrationTransaction": {
+    "preconditions": [
+      "Installed runtime and integration assets pass release-binding verification.",
+      "Exclusive state lock is held.",
+      "Canonical root ownership and every reparse/link target are verified.",
+      "For an incompatible state format change, old runtime leases have closed."
+    ],
+    "steps": [
+      "Read and validate current root metadata and compatibility.",
+      "Create an immutable pre-upgrade snapshot and migration journal for the current committed generation.",
+      "Stage new state and selected integration changes outside the active generation.",
+      "Validate staged state, metadata, release binding, and selected client integration health.",
+      "Atomically activate the new generation and record its migration_generation.",
+      "Retain the prior snapshot until the upgrade/rollback acceptance window closes."
+    ],
+    "forbidden": [
+      "In-place destructive mutation without a pre-upgrade snapshot.",
+      "Partial activation of runtime, assets, schemas, catalog, tools, integrations, or state.",
+      "Overwriting unrelated user configuration.",
+      "Source-checkout or plugin-relative fallback for canonical product state."
+    ]
+  },
+  "rollbackAndRecovery": {
+    "rollback": {
+      "trigger": "Explicit rollback to a compatible N-1 signed runtime/integration release or failure before new generation activation.",
+      "rules": [
+        "Acquire exclusive state lock and wait for incompatible N leases to close.",
+        "Restore the pre-upgrade snapshot atomically with matching N-1 integrations and state metadata.",
+        "Verify restored root integrity, release binding, client integration health, and exact rollback outcome before reporting success.",
+        "Rollback does not create indefinite dual active runtime execution."
+      ]
+    },
+    "interruptedMigration": {
+      "rules": [
+        "On startup or setup resume, detect an unfinished journal or non-committed generation before exposing tools.",
+        "Restore the last verified generation atomically when activation did not commit.",
+        "If atomic restoration or snapshot validation cannot be proven, fail closed and direct the user to repair; do not continue with a mixed or guessed state."
+      ]
+    },
+    "corruption": {
+      "rules": [
+        "Corrupt, incomplete, unreadable, or ownership-invalid state is unavailable, not fresh state.",
+        "Repair is explicit, reports the failing root and remediation, preserves unrelated client/project data, and writes a receipt after verification.",
+        "Purge is never an automatic corruption recovery action."
+      ]
+    }
+  },
+  "compatibility": {
+    "nMinus1ToN": {
+      "acceptance": [
+        "N reads N-1 only when min_reader_version and the declared migration path permit it.",
+        "Migration executes once under exclusive lock from a verified snapshot and atomically activates exactly one N generation.",
+        "Old runtime leases close before an incompatible activation; selected integrations bind to N runtime/assets/schemas/catalog/tool contract."
+      ]
+    },
+    "nToNMinus1": {
+      "acceptance": [
+        "Rollback uses the saved pre-upgrade snapshot and matching N-1 signed release/integrations rather than attempting a lossy reverse transform.",
+        "N-1 compatibility is verified before activation and state metadata again names the restored generation.",
+        "At no point are N and N-1 active Legion product runtimes against one canonical state root."
+      ]
+    },
+    "dualActiveRuntime": "forbidden"
+  },
+  "uninstallAndPurge": {
+    "packageManagerUninstall": "Removes the machine runtime according to package-manager behavior and does not imply client-integration cleanup or state purge.",
+    "setupRemove": "Removes selected Legion integrations transactionally, preserves unrelated configuration, and does not imply runtime uninstall or state purge.",
+    "defaultStateDisposition": "retain",
+    "verifiedPurge": {
+      "requires": [
+        "explicit user request",
+        "exclusive state lock",
+        "verified Legion-owned canonical root",
+        "resolved symlink/junction/reparse targets remain inside that root",
+        "preview and confirmation of exact deletion targets",
+        "post-action receipt containing deleted roots and preserved foreign roots"
+      ],
+      "forbiddenTargets": [
+        "agent client configuration not owned by Legion",
+        "${PLUGIN_DATA} outside verified Legion-owned cache entries",
+        "Membrane/Blueprint context or evidence roots",
+        "Cortex memory",
+        "project workflow artifacts",
+        "source checkout"
+      ]
+    }
+  },
+  "qualificationMatrix": [
+    "N-1 to N upgrade with an idle root",
+    "N-1 to N upgrade while incompatible old runtime lease is active",
+    "interruption before activation and during activation",
+    "N to N-1 rollback with matching runtime, integration, and snapshot",
+    "uninstall then reinstall with retained state",
+    "corrupt/incomplete metadata and damaged snapshot handling",
+    "two concurrent active clients and active-work update behavior",
+    "setup repair, disable, remove, and explicit verified purge",
+    "symlink, junction, reparse, stale integration, and release-binding mismatch rejection"
+  ],
+  "currentSourceBoundary": {
+    "developmentOnlyTooling": [
+      "src/lib/cli/commands/state.mjs snapshot|verify remains a mechanical test-state boundary and is retained as development tooling.",
+      "Existing .audit workflow state, decision stores, and review artifacts remain owned by their workflow/project paths rather than becoming native product state."
+    ],
+    "implementationStatus": "M0 contract only; production native state lifecycle is not implemented by this artifact."
+  },
+  "sourceLocators": [
+    "migration/native-rust/PRODUCT-ARCHITECTURE-V2.md:292-351",
+    "migration/native-rust/PRODUCT-ARCHITECTURE-V2.md:310-321",
+    "migration/native-rust/MIGRATION-PLAN-V2.md:42-67",
+    "migration/native-rust/MIGRATION-PLAN-V2.md:198-223",
+    "src/lib/cli/commands/state.mjs:1-125"
+  ],
+  "completion": {
+    "unresolvedStateOwners": [],
+    "unresolvedCompatibilityDecisions": [],
+    "nextOwner": "M3 setup and state lifecycle"
+  }
+}

@@ -1,0 +1,44 @@
+{
+  "schemaVersion": 1,
+  "kind": "legion-native-strain-benchmark-protocol",
+  "baselineCommit": "396f427009ade1a4243188c7da75ff335efe9e82",
+  "status": "frozen-before-measurement",
+  "comparisonArms": [
+    {"id": "client-only", "description": "same supported client and workload with Legion disabled"},
+    {"id": "node-legion", "description": "same client and workload using current Node Legion release"},
+    {"id": "native-legion", "description": "same client and workload using signed installed native Legion release"}
+  ],
+  "matrix": {
+    "platforms": ["macOS arm64", "macOS x86_64", "Windows x86_64", "Windows arm64 where released"],
+    "clients": ["reference-client-1 from supported-client-profile", "reference-client-2 from supported-client-profile"],
+    "runs": {"cold": 10, "warm": 30, "repeatedInvocationsPerSession": 100, "cancellationRuns": 10},
+    "controls": ["same machine", "same client version", "same client configuration except Legion enablement", "same dataset and operation sequence", "no unrelated foreground workload", "record power mode", "record OS build", "randomized arm order after one warm-up"]
+  },
+  "workloads": [
+    {"id": "idle", "procedure": "Start client session, allow MCP initialization, perform no Legion operation for 10 minutes.", "metrics": ["idle CPU percent", "resident memory bytes", "process count", "unexpected process births"]},
+    {"id": "startup", "procedure": "Measure client launch through usable session and Legion MCP ready.", "metrics": ["client-ready latency", "Legion-ready latency", "cold-start delta", "peak startup memory"]},
+    {"id": "repeated-invocation", "procedure": "Run 100 deterministic lightweight Legion operations through one client session.", "metrics": ["first-operation latency", "p50/p95/p99 repeated latency", "CPU time", "process births", "MCP process identity reuse"]},
+    {"id": "audit", "procedure": "Run the fixed representative Audit corpus with Blueprint present and absent.", "metrics": ["wall latency", "peak RSS", "CPU time", "child process count", "typed degradation accuracy"]},
+    {"id": "research", "procedure": "Run the fixed representative Research workload and evidence ledger production.", "metrics": ["wall latency", "peak RSS", "CPU time", "child process count"]},
+    {"id": "cancellation", "procedure": "Cancel a bounded long operation at fixed checkpoints and then reuse or restart the client-owned MCP process.", "metrics": ["cancel acknowledgement latency", "process exit latency", "restart latency", "orphan process count", "state integrity"]},
+    {"id": "shutdown-recovery", "procedure": "Close client, crash MCP process once, and restart client.", "metrics": ["shutdown latency", "orphan process count", "restart latency", "binding revalidation latency"]}
+  ],
+  "processInvariant": {
+    "required": "exactly one reusable client-owned legion serve --stdio process per active client session",
+    "allowed": "one separate reusable process for each concurrently active client",
+    "forbidden": ["per-tool Legion runtime births", "Legion self-spawn", "idle machine-wide daemon", "shared local socket daemon"]
+  },
+  "evidenceFields": ["runId", "timestampUtc", "platform", "osBuild", "architecture", "machineModel", "cpu", "memoryBytes", "powerMode", "clientName", "clientVersion", "arm", "legionVersion", "runtimeSha256", "releaseBindingSha256", "workloadId", "iteration", "wallTimeMs", "cpuUserMs", "cpuSystemMs", "idleCpuPercent", "rssBytes", "peakRssBytes", "processCount", "processBirths", "mcpPidSequence", "cancelLatencyMs", "shutdownLatencyMs", "restartLatencyMs", "result", "coverageDegradation", "notes"],
+  "passThresholds": {
+    "idleDaemonCount": 0,
+    "perToolLegionBirths": 0,
+    "reusedMcpProcessesPerActiveClient": 1,
+    "orphanProcessesAfterShutdownOrCancellation": 0,
+    "semanticResultParity": "100 percent for the fixed corpus, excluding explicitly typed optional-provider degradation",
+    "nativeOverhead": "Native Legion must materially reduce the Node Legion overhead versus client-only on a predeclared composite of startup delta, repeated-operation CPU time, and peak RSS; material means at least 20 percent improvement in two metrics and no regression greater than 5 percent in the third on each reference platform/client.",
+    "latency": "Native p95 repeated-operation latency must not regress more than 5 percent versus Node Legion.",
+    "cancellation": "No state corruption; p95 acknowledgement and cleanup complete within the operation's declared timeout budget."
+  },
+  "decisionRule": "Legacy deletion is forbidden until signed installed native artifacts pass every invariant and threshold on macOS and Windows. Raw samples, summaries, process trees, and environment metadata are retained together.",
+  "cargoPolicy": "No Cargo command or benchmark is run during M0."
+}

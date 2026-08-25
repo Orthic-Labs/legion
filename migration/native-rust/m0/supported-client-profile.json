@@ -1,0 +1,170 @@
+{
+  "schemaVersion": 1,
+  "kind": "legion-m0-supported-client-profile",
+  "baseline": {
+    "commit": "396f427009ade1a4243188c7da75ff335efe9e82",
+    "selectedBy": "migration/native-rust/dispatches/M0-DISPATCH.json#sourceRevision",
+    "observedHead": "abc83488cead00be46411b4fc0761d91b9724c65",
+    "postBaselineSourceChanges": [
+      "migration/native-rust/dispatches/M0-DISPATCH.json",
+      "migration/native-rust/dispatches/M0-DISPATCH.receipt.json"
+    ]
+  },
+  "authority": [
+    "migration/native-rust/PRODUCT-ARCHITECTURE-V2.md:10-23",
+    "migration/native-rust/PRODUCT-ARCHITECTURE-V2.md:218-290",
+    "migration/native-rust/PRODUCT-ARCHITECTURE-V2.md:294-319",
+    "migration/native-rust/MIGRATION-PLAN-V2.md:34-143"
+  ],
+  "profileContract": {
+    "supportedMeans": "A released adapter has a selected mechanism, declared fidelity, explicit missing surfaces, a per-client executable-resolution proof when executable access is claimed, and qualification evidence.",
+    "releaseInvariant": "The same installed Legion release, capability identifiers, tool schemas, semantic results, and release-binding handshake apply to every executable client integration.",
+    "hostResponsibilities": [
+      "trust, permission, authentication, and sandbox prompts",
+      "MCP process start, cancellation, restart, and shutdown",
+      "skill and tool presentation",
+      "client-native enablement and session lifecycle"
+    ],
+    "forbiddenAdapterOwnership": [
+      "routing",
+      "Audit",
+      "Research",
+      "Arcane policy",
+      "work graphs",
+      "receipts",
+      "capability semantics",
+      "a Legion-specific ontology"
+    ]
+  },
+  "fidelityDefinitions": {
+    "Full": {
+      "requires": [
+        "skills",
+        "executable Legion tool surface",
+        "required MCP lifecycle",
+        "release identity and version binding",
+        "every claimed host-enforcement surface",
+        "measured qualification for every claimed runtime and host surface"
+      ],
+      "prohibits": [
+        "claiming Full from Agent Plugins conformance alone",
+        "claiming Full before executable-resolution proof passes"
+      ]
+    },
+    "Degraded": {
+      "requires": [
+        "a meaningful operational subset",
+        "an explicit list of every missing surface",
+        "safe behavior despite each missing surface"
+      ],
+      "prohibits": [
+        "implicit promotion to Full",
+        "claiming an unavailable enforcement or executable surface"
+      ]
+    },
+    "Baseline": {
+      "requires": [
+        "instructions and/or skills only"
+      ],
+      "prohibits": [
+        "executable Legion workflow claims",
+        "Arcane enforcement claims",
+        "Audit or Research execution claims",
+        "native tool-access claims"
+      ]
+    },
+    "Unavailable": {
+      "requires": [
+        "a specific installation or safe-operation failure",
+        "a visible remediation or reason"
+      ],
+      "prohibits": [
+        "writing an unverified configuration",
+        "claiming a partial integration works"
+      ]
+    }
+  },
+  "referenceClients": [
+    {
+      "id": "claude-code",
+      "role": "reference-client-1",
+      "targetMechanismOrder": [
+        "supported native plugin install/update/remove API",
+        "Agent Plugins 1.0 package installation",
+        "native MCP/config registration",
+        "minimal client-native bridge only when required"
+      ],
+      "releaseFidelity": "Full only after setup verifies skills, a reusable client-owned stdio MCP process, release binding, bare-command resolution or a supported exact-path registration, and every claimed enforcement surface.",
+      "degradedWhen": [
+        "the selected mechanism exposes only a safe subset",
+        "bare command lookup fails and no supported exact-path registration exists",
+        "a claimed enforcement surface is not measured"
+      ],
+      "currentSourceDisposition": "The existing .claude-plugin/plugin.json launches a Node checkout asset through ${CLAUDE_PLUGIN_ROOT}; it is migration evidence only and is not a target portable package."
+    },
+    {
+      "id": "codex",
+      "role": "reference-client-2",
+      "targetMechanismOrder": [
+        "supported native plugin install/update/remove API",
+        "Agent Plugins 1.0 package installation",
+        "native MCP/config registration",
+        "minimal client-native bridge only when required"
+      ],
+      "releaseFidelity": "Full only after setup verifies the selected client mechanism, skill delivery, a reusable client-owned stdio MCP process, release binding, bare-command resolution or supported exact-path registration, and every claimed enforcement surface.",
+      "degradedWhen": [
+        "native skill discovery is absent or unqualified",
+        "only instruction-mediated skill access is available",
+        "the installed command is not reachable from the client launch environment"
+      ],
+      "currentSourceDisposition": "The current descriptor projects skills through .agents/skills and writes a Node-plus-source-path MCP registration; neither behavior establishes the target release fidelity."
+    }
+  ],
+  "officialPiPath": {
+    "id": "pi-baseline-integration",
+    "fidelity": "Baseline",
+    "mechanism": "versioned, release-bound instructions and skills only; no executable Legion registration",
+    "selectionRule": "This is Pi's only M0-approved release path because the authorized current source explicitly marks its native-agent and MCP mechanisms unconfirmed.",
+    "allowedClaims": [
+      "instructions and skills are available after verified setup projection",
+      "the Pi integration has no executable Legion workflow"
+    ],
+    "forbiddenClaims": [
+      "MCP registration",
+      "legion serve --stdio launch",
+      "native tool access",
+      "Arcane enforcement",
+      "Audit execution",
+      "Research execution"
+    ],
+    "promotionRule": "Pi may move to Degraded or Full only after a supported Pi mechanism, path ownership, executable-resolution proof, release-binding handshake, and lifecycle qualification are recorded. A Pi-native bridge may be introduced only when that verified mechanism requires it and remains mechanical."
+  },
+  "releaseRecordRequiredFields": [
+    "clientId",
+    "selectedMechanism",
+    "fidelity",
+    "missingSurfaces",
+    "executableResolutionProofRef",
+    "releaseBindingRef",
+    "qualificationEvidenceRef",
+    "status",
+    "remediation"
+  ],
+  "currentSourceFindings": [
+    {
+      "locator": ".claude-plugin/plugin.json:26-34",
+      "finding": "Current Claude plugin MCP launch uses node and a plugin-root source script, not the installed native Legion command.",
+      "targetDisposition": "replace"
+    },
+    {
+      "locator": "src/lib/host/adapters/codex.mjs:1-29",
+      "finding": "Current Codex descriptor declares projected rather than native skill discovery and a TOML MCP surface.",
+      "targetDisposition": "replace"
+    },
+    {
+      "locator": "src/lib/host/adapters/pi.mjs:1-26",
+      "finding": "Current Pi descriptor explicitly marks native-agent and MCP paths unconfirmed.",
+      "targetDisposition": "freeze as Baseline-only"
+    }
+  ]
+}

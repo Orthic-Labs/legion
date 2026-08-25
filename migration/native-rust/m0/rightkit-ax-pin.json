@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 1,
+  "kind": "legion-rightkit-ax-pin",
+  "baselineCommit": "396f427009ade1a4243188c7da75ff335efe9e82",
+  "status": "frozen",
+  "qualificationPin": {
+    "package": "@rightkit/ax",
+    "version": "0.2.0",
+    "sourceCommit": "01f52555202da3dffc6b649ca44e803b55238081",
+    "integrityRule": "Qualification must resolve this exact version and source commit; version-only or floating resolution fails closed.",
+    "source": "migration/native-rust/PRODUCT-ARCHITECTURE-V2.md:6.5"
+  },
+  "workspaceDiscovery": {
+    "legionDependency": "absent",
+    "legionExistingRightKitDependency": "@rightkit/hooks@0.1.0 only",
+    "inspectedWorkspaceLock": "@rightkit/ax@0.1.1",
+    "discrepancy": "The available workspace lock is older than the accepted architecture's inspected 0.2.0 candidate and is not qualification evidence for Legion.",
+    "disposition": "Do not reuse 0.1.1. M3/M6 provisioning must acquire the exact 0.2.0 package at the pinned source commit outside Legion repository-owned release machinery.",
+    "m0Effect": "The authoritative inspected pin is frozen; package acquisition and execution are deferred. This does not authorize publication or modify Membrane."
+  },
+  "responsibility": {
+    "rightkitAxOwns": ["Agent Plugins scaffold and schema validation", "containment", "skill reference closure", "MCP static contracts", "clean-room conformance", "behavioral matrix", "adversarial evidence", "JSON/SARIF/Markdown gate reports"],
+    "rightkitAxDoesNotOwn": ["Legion semantics", "release verdict", "artifact signing", "release publication"],
+    "releaseOwner": "RightKit Release"
+  },
+  "agentPluginsDiscoveryDiscrepancy": {
+    "observed": "Current Legion has client-specific .claude-plugin/plugin.json and .codex-plugin/plugin.json but no root Agent Plugins 1.0 plugin.json package.",
+    "disposition": "M2 creates and validates the portable package; current client-specific manifests are evidence inputs, not the target portable contract."
+  }
+}

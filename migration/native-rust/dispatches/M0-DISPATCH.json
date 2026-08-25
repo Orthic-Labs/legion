@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "kind": "legion-authority-dispatch",
   "packetType": "direct",
-  "repositoryRoot": "/Volumes/D/claude/legion",
+  "repositoryRoot": ".",
   "sourceRevision": "396f427009ade1a4243188c7da75ff335efe9e82",
   "promptArtifact": "migration/native-rust/dispatches/M0-REQUEST.md",
   "promptDigest": "sha256:83bf81861f2c3dfdf80928e94ca96588d8b0427f2146726602fffebe1d9055ba",
@@ -112,6 +112,7 @@
         "migration/native-rust/public-contract-inventory.json"
       ],
       "read": [
+        "engine",
         "src",
         "skills",
         "scripts",
@@ -125,6 +126,7 @@
       "checks": [
         "regenerate all four inventories from git-tracked source at exact sourceRevision",
         "classify each Node/Python path as shipped semantic runtime, declarative data, external project tool, development-only, or deletion candidate",
+        "inventory every existing engine Rust product path and classify it as retained unchanged, modified in place, replaced, or deleted for exact downstream ownership",
         "prove completeness counts, zero unknown rows, zero unowned launch sites, and current baselineCommit in every output",
         "python3 -m json.tool migration/native-rust/executable-ledger.json >/dev/null && python3 -m json.tool migration/native-rust/invocation-graph.json >/dev/null && python3 -m json.tool migration/native-rust/legacy-path-ownership.json >/dev/null && python3 -m json.tool migration/native-rust/public-contract-inventory.json >/dev/null"
       ],
@@ -311,6 +313,7 @@
       "executor": "Alchemist worker",
       "allowlist": ["migration/native-rust/m0/file-ownership-map.json"],
       "read": [
+        "engine",
         "migration/native-rust/m0",
         "migration/native-rust/executable-ledger.json",
         "migration/native-rust/invocation-graph.json",
@@ -322,6 +325,7 @@
       "forbidden": [".git", ".audit", "node_modules", "target", "secrets"],
       "checks": [
         "assign every M1-M8 planned changed file to exactly one end-to-end owner lane and earliest legal dependency wave",
+        "reconcile every git-tracked engine path against the accepted v2 topology and record whether it is retained unchanged or owned for modification, replacement, or deletion",
         "separate retained development-only files from shipped runtime port/delete paths",
         "prove zero file overlap, zero unowned planned file, and no integration or cleanup owner edits",
         "python3 -m json.tool migration/native-rust/m0/file-ownership-map.json >/dev/null"
@@ -340,6 +344,7 @@
       "read": [
         "skills/dispatch/SKILL.md",
         "skills/dispatch/assets/direct-packet.json",
+        "engine",
         "migration/native-rust/m0/contract-freeze.json",
         "migration/native-rust/m0/m0-acceptance.json",
         "migration/native-rust/m0/file-ownership-map.json",
@@ -351,7 +356,7 @@
         "compile M1-M8 waves from exact frozen file-ownership map with all currently eligible lanes in earliest wave",
         "bind sourceRevision to sha256 of migration/native-rust/m0/contract-freeze.json through sourceArtifact",
         "require exact file allowlists, closed planned-file union, no worker dependencies, no lane overlap, bounded recovery, and adversarial Oracle pre-execution contract",
-        "python3 skills/dispatch/scripts/validate-dispatch.py /Volumes/D/claude/legion/migration/native-rust/dispatches/M1-M8-DISPATCH.json --packet-type authority --write-receipt /Volumes/D/claude/legion/migration/native-rust/dispatches/M1-M8-DISPATCH.receipt.json"
+        "python3 skills/dispatch/scripts/validate-dispatch.py migration/native-rust/dispatches/M1-M8-DISPATCH.json --packet-type authority --write-receipt migration/native-rust/dispatches/M1-M8-DISPATCH.receipt.json"
       ],
       "dependencies": []
     }

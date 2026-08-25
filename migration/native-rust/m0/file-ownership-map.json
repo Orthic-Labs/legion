@@ -1,0 +1,520 @@
+{
+  "schemaVersion": 1,
+  "kind": "legion-native-rust-file-ownership-map",
+  "status": "frozen",
+  "baselineCommit": "396f427009ade1a4243188c7da75ff335efe9e82",
+  "sourceRevision": "396f427009ade1a4243188c7da75ff335efe9e82",
+  "purpose": "The sole ownership declaration for M1-M8 implementation files. A lane owns each assigned file for its complete end-to-end change; integration, qualification, hard-cut, and cleanup lanes may not edit another lane's file.",
+  "sourceArtifacts": [
+    {
+      "path": "migration/native-rust/executable-ledger.json",
+      "sha256": "sha256:c300955a047563dab99af777fc213741232c96cf9d53639d20290aa2b5b654d9",
+      "role": "Complete executable and native-engine source inventory"
+    },
+    {
+      "path": "migration/native-rust/invocation-graph.json",
+      "sha256": "sha256:3c0ed4f56471bc794f6198f3b28c9df13d8d43a63e94e0fdffb38b0d95e4e628",
+      "role": "Launch, process, and target-consolidation evidence"
+    },
+    {
+      "path": "migration/native-rust/legacy-path-ownership.json",
+      "sha256": "sha256:aedd4724b73faaf3ebc9f79e9aeb19b0b8ba8b522eb7559d67e1c3288366ee4b",
+      "role": "Exact 1,228-entry legacy executable ownership projection"
+    },
+    {
+      "path": "migration/native-rust/public-contract-inventory.json",
+      "sha256": "sha256:0ce8815a1746d62d2d70989b01c1f25f7aad06a678bdbe31a73c6d8e6d3b0413",
+      "role": "Current CLI, MCP, hook, manifest, and schema surface inventory"
+    },
+    {
+      "path": "migration/native-rust/discrepancy-ledger.json",
+      "sha256": "sha256:45d085d6cf25216096afeff78566a5778c4403108a32e328b7101317194c2ddd",
+      "role": "Resolved source-to-v2 discrepancy dispositions"
+    },
+    {
+      "path": "migration/native-rust/m0/semantic-freeze.json",
+      "sha256": "sha256:2d93461e5fd2c5d70f2133264f6066bac282130b9a541b02317ee8d1722f546f",
+      "role": "Canonical semantics and Blueprint optional-degradation freeze"
+    },
+    {
+      "path": "migration/native-rust/m0/provider-boundary.json",
+      "sha256": "sha256:21b28e4ff31e9937419a6589c1ac37c6ac9b8f4d0d0f3676a7d3e3d2ddd06df2",
+      "role": "Provider, host-service, external-tool, and Blueprint boundary freeze"
+    },
+    {
+      "path": "migration/native-rust/m0/supported-client-profile.json",
+      "sha256": "sha256:5b0207b27eebd28b7d0673639477455c60e3b0ff3ed59c34e076aead5be8c0d3",
+      "role": "Supported-client and fidelity contract"
+    },
+    {
+      "path": "migration/native-rust/m0/client-fidelity-matrix.json",
+      "sha256": "sha256:513f6f7418a334e744a8447be2bfa5f55045aff5830ccb1687939cd006b1502e",
+      "role": "Per-client fidelity and claimed-surface matrix"
+    },
+    {
+      "path": "migration/native-rust/m0/setup-adapter-contract.json",
+      "sha256": "sha256:aaa1c927ae2b7990dadabd70feccd316f352daae4e86f891e766fe6b02518756",
+      "role": "Mechanical setup/adapter lifecycle contract"
+    },
+    {
+      "path": "migration/native-rust/m0/agent-plugins-contract.json",
+      "sha256": "sha256:250740954d6cb7c780ab735b3da1de52cf49960a54933923e2270fa18bce3d4e",
+      "role": "Portable Agent Plugins package contract"
+    },
+    {
+      "path": "migration/native-rust/m0/command-resolution-proof.json",
+      "sha256": "sha256:71240159c9c097d7f8de78fbc491afb698eceea380e73522cab31d0e1f5d0e28",
+      "role": "Per-client bare-command/exact-path proof contract"
+    },
+    {
+      "path": "migration/native-rust/m0/pi-integration-contract.json",
+      "sha256": "sha256:9491431b4cb2a6ae4f304e7d50a7ff8e46a0ef05f8046cde997f138a0718b3a7",
+      "role": "Official Pi path and mechanical-bridge boundary"
+    },
+    {
+      "path": "migration/native-rust/m0/state-contract.json",
+      "sha256": "sha256:ab25057be65da82bab1618ee4f7536e402566a98c49bb8fb79f316d39c1708c1",
+      "role": "Persistent root, lock, lease, migration, rollback, recovery, and purge contract"
+    },
+    {
+      "path": "migration/native-rust/m0/distribution-contract.json",
+      "sha256": "sha256:ec574dbb1bf28dd5b76d0060c430e2115abd9a789db2509edce3124562e99153",
+      "role": "Homebrew formula and WinGet portable distribution contract"
+    },
+    {
+      "path": "migration/native-rust/m0/release-binding-contract.json",
+      "sha256": "sha256:e2b5609afa008fdecd774e889e5a1a6b1a6e1ac339289744ad01b10789d9752b",
+      "role": "Runtime/assets/catalog/schema release-binding handshake"
+    },
+    {
+      "path": "migration/native-rust/m0/rightkit-ax-pin.json",
+      "sha256": "sha256:f2c576b0860e58727fcadd702845dea5510475a189739615eacbad7553846800",
+      "role": "Exact RightKit AX pin and discovery disposition"
+    },
+    {
+      "path": "migration/native-rust/m0/rightkit-conformance-plan.json",
+      "sha256": "sha256:389a5c9b9cdc962e28d1a2c68d05c73ca42b7a38e4689cab5e030218575944a3",
+      "role": "Clean-room AX evidence plan"
+    },
+    {
+      "path": "migration/native-rust/m0/strain-benchmark-protocol.json",
+      "sha256": "sha256:1fceb7638aaecd7bc2e805e922e06abd3b84c6c81f4df78b863ffe6048b21029",
+      "role": "Installed-product process and strain qualification protocol"
+    }
+  ],
+  "waves": [
+    {
+      "id": "M1",
+      "lanes": ["M1-native-core-vertical-slice"],
+      "dependsOn": [],
+      "rationale": "The minimal Rust API, binding handshake, policy decision, receipt, CLI, and stdio MCP surface must exist before any package, client, or machine lifecycle can be exercised."
+    },
+    {
+      "id": "M2",
+      "lanes": ["M2-portable-integration-and-adapters"],
+      "dependsOn": ["M1"],
+      "rationale": "Portable package contents and mechanical adapters bind to the M1 installed-command, MCP, catalog, schema, and release identity surface."
+    },
+    {
+      "id": "M3",
+      "lanes": ["M3-install-setup-and-state"],
+      "dependsOn": ["M2"],
+      "rationale": "Machine setup verifies and transactionally registers the M2 adapters/package, then owns persistent-state lifecycle and platform installation paths."
+    },
+    {
+      "id": "M4-M5",
+      "lanes": ["M4-capability-migration", "M5-provider-migration"],
+      "dependsOn": ["M3"],
+      "rationale": "After installed lifecycle proof, broad capability porting and the provider/external-tool boundary have no shared owned file and may run in parallel."
+    },
+    {
+      "id": "M6",
+      "lanes": ["M6-installed-product-qualification"],
+      "dependsOn": ["M4-M5"],
+      "rationale": "Qualification requires the complete installed lifecycle, capabilities, provider boundary, and release binding."
+    },
+    {
+      "id": "M7",
+      "lanes": ["M7-hard-cut-and-legacy-deletion"],
+      "dependsOn": ["M6"],
+      "rationale": "Legacy deletion and distribution/claim cutover are destructive and remain blocked on signed installed-product qualification."
+    },
+    {
+      "id": "M8",
+      "lanes": ["M8-cleanup-and-production-observation"],
+      "dependsOn": ["M7"],
+      "rationale": "Post-cut observation may only begin after the losing product routes are absent and canonical native distribution is active."
+    }
+  ],
+  "laneOwners": [
+    {
+      "id": "M1-native-core-vertical-slice",
+      "earliestLegalWave": "M1",
+      "scope": "Shared Rust core, single legion CLI/MCP product surface, compact catalog, release handshake, one policy decision, typed receipt, and stable extension seams consumed without later binary edits.",
+      "forbidden": ["Membrane source", "client config", "portable package files", "state root implementation", "provider migration files", "legacy cleanup files"]
+    },
+    {
+      "id": "M2-portable-integration-and-adapters",
+      "earliestLegalWave": "M2",
+      "scope": "Portable Agent Plugins package and client-native mechanical adapters only; no Legion routing, policy, Audit, Research, work graph, receipt, or ontology semantics.",
+      "forbidden": ["Membrane source", "M1 binary/router files", "state root implementation", "release verdict"]
+    },
+    {
+      "id": "M3-install-setup-and-state",
+      "earliestLegalWave": "M3",
+      "scope": "Machine installation integration, setup registry, release refresh, exclusive lock, leases, snapshots, migrations, rollback, recovery, and verified purge using M1's frozen command interface.",
+      "forbidden": ["Membrane source", "M1 CLI/router files", "portable package files", "provider/capability semantics"]
+    },
+    {
+      "id": "M4-capability-migration",
+      "earliestLegalWave": "M4-M5",
+      "scope": "Audit, Research, review, reporting, rules, workflows, claims, and declarative-rule interpretation in Rust with Blueprint optional-degradation behavior.",
+      "forbidden": ["Membrane source", "M1 CLI/router files", "adapter files", "external-tool SDK files", "legacy cleanup files"]
+    },
+    {
+      "id": "M5-provider-migration",
+      "earliestLegalWave": "M4-M5",
+      "scope": "Provider SDK, typed external-project-tool requests, host-service boundaries, optional Blueprint evidence, and provider denominator/coverage/receipt behavior.",
+      "forbidden": ["Membrane source", "M1 CLI/router files", "adapter files", "M4 capability files", "legacy cleanup files"]
+    },
+    {
+      "id": "M6-installed-product-qualification",
+      "earliestLegalWave": "M6",
+      "scope": "Installed signed artifact, two-client, AX, lifecycle, Blueprint-present/absent, process, strain, and state qualification artifacts/tests only.",
+      "forbidden": ["implementation files owned by M1-M5", "Membrane source", "legacy source deletion"]
+    },
+    {
+      "id": "M7-hard-cut-and-legacy-deletion",
+      "earliestLegalWave": "M7",
+      "scope": "The eight preclassified deletion candidates and final package/document distribution cutover only, after M6 evidence passes.",
+      "forbidden": ["Membrane source", "M1-M5 implementation files", "retained development-only paths", "qualification evidence rewrite"]
+    },
+    {
+      "id": "M8-cleanup-and-production-observation",
+      "earliestLegalWave": "M8",
+      "scope": "Post-cut observation and migration-only cleanup artifacts; retained development-only source remains unchanged unless a later source-bound packet reclassifies it.",
+      "forbidden": ["Membrane source", "M1-M7 owned files", "development-only tooling deletion without a renewed classification"]
+    }
+  ],
+  "contentAddressedOwnershipProjections": [
+    {
+      "id": "legacy-m1",
+      "sourceArtifact": "migration/native-rust/legacy-path-ownership.json",
+      "sourceArray": "entries",
+      "identityField": "currentPath",
+      "selector": {
+        "futureOwner": "M1-native-core-vertical-slice",
+        "runtimeClass": "shipped-semantic-runtime",
+        "targetDisposition": "port"
+      },
+      "exactPathCount": 524,
+      "owner": "M1-native-core-vertical-slice",
+      "action": "port",
+      "rule": "The matching currentPath values are the exact M1 legacy semantic-runtime set; later lanes cannot edit them."
+    },
+    {
+      "id": "legacy-m2",
+      "sourceArtifact": "migration/native-rust/legacy-path-ownership.json",
+      "sourceArray": "entries",
+      "identityField": "currentPath",
+      "selector": {
+        "futureOwner": "M2-portable-integration-and-adapters",
+        "runtimeClass": "shipped-semantic-runtime",
+        "targetDisposition": "port"
+      },
+      "exactPathCount": 9,
+      "owner": "M2-portable-integration-and-adapters",
+      "action": "port",
+      "rule": "The matching currentPath values are the exact mechanical integration/package source set."
+    },
+    {
+      "id": "legacy-m3",
+      "sourceArtifact": "migration/native-rust/legacy-path-ownership.json",
+      "sourceArray": "entries",
+      "identityField": "currentPath",
+      "selector": {
+        "futureOwner": "M3-install-setup-and-state",
+        "runtimeClass": "shipped-semantic-runtime",
+        "targetDisposition": "port"
+      },
+      "exactPathCount": 2,
+      "owner": "M3-install-setup-and-state",
+      "action": "port",
+      "rule": "The matching currentPath values are the exact setup/state source set."
+    },
+    {
+      "id": "legacy-m4",
+      "sourceArtifact": "migration/native-rust/legacy-path-ownership.json",
+      "sourceArray": "entries",
+      "identityField": "currentPath",
+      "selector": {
+        "futureOwner": "M4-capability-migration",
+        "runtimeClass": "shipped-semantic-runtime",
+        "targetDisposition": "port"
+      },
+      "exactPathCount": 367,
+      "owner": "M4-capability-migration",
+      "action": "port",
+      "rule": "The matching currentPath values are the exact Audit, Research, review, reporting, rules, and workflow source set."
+    },
+    {
+      "id": "legacy-m5",
+      "sourceArtifact": "migration/native-rust/legacy-path-ownership.json",
+      "sourceArray": "entries",
+      "identityField": "currentPath",
+      "selector": {
+        "futureOwner": "M5-provider-migration",
+        "runtimeClass": "shipped-semantic-runtime",
+        "targetDisposition": "port"
+      },
+      "exactPathCount": 1,
+      "owner": "M5-provider-migration",
+      "action": "port",
+      "rule": "The matching currentPath value is the exact provider-boundary source set."
+    },
+    {
+      "id": "legacy-m7-delete",
+      "sourceArtifact": "migration/native-rust/legacy-path-ownership.json",
+      "sourceArray": "entries",
+      "identityField": "currentPath",
+      "selector": {
+        "futureOwner": "M7-hard-cut-and-legacy-deletion",
+        "runtimeClass": "deletion-candidate",
+        "targetDisposition": "delete"
+      },
+      "exactPathCount": 8,
+      "owner": "M7-hard-cut-and-legacy-deletion",
+      "action": "delete",
+      "paths": [
+        "skills/audit-fix/scripts/audit-run.mjs",
+        "skills/audit-visual/scripts/visual-core.mjs",
+        "skills/audit/scripts/audit-finalize.mjs",
+        "skills/audit/scripts/audit-run.mjs",
+        "skills/audit/scripts/audit-sandbox.mjs",
+        "skills/designer/scripts/design-gate.mjs",
+        "skills/designer/scripts/open-for-review.mjs",
+        "skills/research/scripts/research-core.py"
+      ],
+      "cutoverPrerequisite": "M2 portable package/adapters and the complete M6 installed-product evidence set"
+    }
+  ],
+  "retainedDevelopmentOnlyProjection": {
+    "sourceArtifact": "migration/native-rust/legacy-path-ownership.json",
+    "sourceArray": "entries",
+    "identityField": "currentPath",
+    "selector": {
+      "futureOwner": "M8-cleanup-and-production-observation",
+      "runtimeClass": "development-only",
+      "targetDisposition": "dev-only"
+    },
+    "exactPathCount": 317,
+    "action": "retained-unchanged",
+    "rule": "These paths are development-only tests/build/qualification tools, not shipped Legion runtime paths. M8 observes their post-cut status but has no permission to delete or migrate them under this map."
+  },
+  "engineReconciliation": {
+    "sourceArtifact": "migration/native-rust/executable-ledger.json",
+    "allTrackedEnginePathCount": 199,
+    "nativeProductProjection": {
+      "sourceArray": "nativeEngineProductPaths",
+      "identityField": "currentPath",
+      "exactPathCount": 161,
+      "rules": [
+        "Each record's futureOwner is the sole end-to-end owner.",
+        "Each record's targetDisposition is either modified-in-place or replaced; no native product source is implicitly retained.",
+        "Counts reconcile to 144 modified-in-place and 17 replaced paths across M1=89, M2=13, M3=6, M4=40, and M5=13."
+      ]
+    },
+    "nonProductTrackedPaths": [
+      {
+        "owner": "M1-native-core-vertical-slice",
+        "action": "modified-in-place",
+        "paths": [
+          "engine/Cargo.lock",
+          "engine/Cargo.toml",
+          "engine/bins/legion-mcp/Cargo.toml",
+          "engine/bins/legion/Cargo.toml",
+          "engine/crates/legion-application/Cargo.toml",
+          "engine/crates/legion-catalog/Cargo.toml",
+          "engine/crates/legion-contracts/Cargo.toml",
+          "engine/crates/legion-effects/Cargo.toml",
+          "engine/crates/legion-handoff/Cargo.toml",
+          "engine/crates/legion-policy-model/Cargo.toml",
+          "engine/crates/legion-policy/Cargo.toml",
+          "engine/crates/legion-runtime/Cargo.toml",
+          "engine/crates/legion-testkit/Cargo.toml",
+          "engine/bins/legion/tests/cli_truthfulness.rs",
+          "engine/crates/legion-effects/tests/unix_process_tree.rs",
+          "engine/crates/legion-effects/tests/windows_process_tree.rs",
+          "engine/tests/native_contracts.rs",
+          "engine/tests/native_effects.rs",
+          "engine/tests/native_policy.rs"
+        ]
+      },
+      {
+        "owner": "M2-portable-integration-and-adapters",
+        "action": "modified-in-place",
+        "paths": [
+          "engine/bins/legion-hook/Cargo.toml",
+          "engine/crates/legion-host/Cargo.toml",
+          "engine/tests/native_hosts.rs"
+        ]
+      },
+      {
+        "owner": "M3-install-setup-and-state",
+        "action": "modified-in-place",
+        "paths": [
+          "engine/crates/legion-decisions/Cargo.toml"
+        ]
+      },
+      {
+        "owner": "M4-capability-migration",
+        "action": "modified-in-place",
+        "paths": [
+          "engine/bins/legion/tests/audit_artifacts.rs",
+          "engine/bins/legion/tests/research_cli.rs",
+          "engine/bins/legion/tests/rules_cli.rs",
+          "engine/crates/legion-audit/Cargo.toml",
+          "engine/crates/legion-report/Cargo.toml",
+          "engine/crates/legion-research/Cargo.toml",
+          "engine/crates/legion-review/Cargo.toml",
+          "engine/crates/legion-rules/Cargo.toml",
+          "engine/tests/native_audit.rs"
+        ]
+      },
+      {
+        "owner": "M5-provider-migration",
+        "action": "modified-in-place",
+        "paths": [
+          "engine/crates/legion-provider-sdk/Cargo.toml"
+        ]
+      },
+      {
+        "owner": "M6-installed-product-qualification",
+        "action": "modified-in-place",
+        "paths": [
+          "engine/tests/native_no_interpreter.rs"
+        ]
+      },
+      {
+        "owner": "M7-hard-cut-and-legacy-deletion",
+        "action": "modified-in-place",
+        "paths": [
+          "engine/tests/native_python_surfaces.rs"
+        ]
+      },
+      {
+        "owner": null,
+        "action": "retained-unchanged",
+        "paths": [
+          "engine/clippy.toml",
+          "engine/deny.toml",
+          "engine/rust-toolchain.toml"
+        ],
+        "rule": "Static development tool configuration remains unchanged; no implementation, integration, hard-cut, or cleanup lane may opportunistically edit it."
+      }
+    ]
+  },
+  "newPlannedFiles": [
+    {
+      "owner": "M1-native-core-vertical-slice",
+      "action": "create",
+      "paths": [
+        "engine/crates/legion-runtime/src/release_binding.rs",
+        "engine/tests/m1_vertical_slice.rs"
+      ],
+      "rule": "M1 establishes the stable release-binding and command integration seam. M3 and later lanes consume this seam without editing M1 router/binary files."
+    },
+    {
+      "owner": "M2-portable-integration-and-adapters",
+      "action": "create",
+      "paths": [
+        "engine/crates/legion-host/src/agent_plugins.rs",
+        "engine/assets/legion-plugin/plugin.json",
+        "engine/assets/legion-plugin/mcp.json",
+        "engine/tests/m2_portable_integration.rs"
+      ],
+      "rule": "Portable artifacts contain no binary and adapters are mechanically inspectable; the source checkout is not an installed-asset fallback."
+    },
+    {
+      "owner": "M3-install-setup-and-state",
+      "action": "create",
+      "paths": [
+        "engine/crates/legion-decisions/src/setup_registry.rs",
+        "engine/tests/m3_setup_state.rs"
+      ],
+      "rule": "M3 owns state registry/migration implementation behind M1's frozen extension seam and never edits M1 binary/router paths."
+    },
+    {
+      "owner": "M4-capability-migration",
+      "action": "create",
+      "paths": [
+        "engine/tests/m4_capability_migration.rs"
+      ],
+      "rule": "M4 proves Audit, Research, review, claims, and Blueprint absent/degraded semantics through installed integration."
+    },
+    {
+      "owner": "M5-provider-migration",
+      "action": "create",
+      "paths": [
+        "engine/crates/legion-provider-sdk/src/external_project_tool.rs",
+        "engine/tests/m5_provider_boundary.rs"
+      ],
+      "rule": "M5 owns typed external-project-tool requests and truthful provider/host/Blueprint availability semantics."
+    },
+    {
+      "owner": "M6-installed-product-qualification",
+      "action": "create",
+      "paths": [
+        "engine/tests/m6_installed_product.rs",
+        "migration/native-rust/qualification/m6-installed-product-matrix.json"
+      ],
+      "rule": "M6 writes qualification-only test/evidence artifacts and does not edit implementation files."
+    },
+    {
+      "owner": "M7-hard-cut-and-legacy-deletion",
+      "action": "modified-in-place",
+      "paths": [
+        "README.md",
+        "docs/host-integration-plan.md",
+        "package.json",
+        "pnpm-lock.yaml"
+      ],
+      "rule": "M7 owns canonical distribution/claim cutover and npm runtime removal after M6 evidence; it does not edit retained development-only tooling."
+    },
+    {
+      "owner": "M8-cleanup-and-production-observation",
+      "action": "create",
+      "paths": [
+        "migration/native-rust/qualification/m8-production-observation.json"
+      ],
+      "rule": "M8 writes observation evidence only and has no cross-lane cleanup edit permission."
+    }
+  ],
+  "proof": {
+    "plannedLegacyPathCount": 903,
+    "retainedDevelopmentOnlyPathCount": 317,
+    "legacyDeletionPathCount": 8,
+    "engineTrackedPathCount": 199,
+    "engineNativeProductPathCount": 161,
+    "engineNonProductPathCount": 38,
+    "plannedFileOverlapCount": 0,
+    "unownedPlannedFileCount": 0,
+    "unreconciledEnginePathCount": 0,
+    "integrationOwnerCrossLaneEdits": 0,
+    "cleanupOwnerCrossLaneEdits": 0,
+    "assertions": [
+      "Every current legacy executable path is resolved by exactly one content-addressed selector: 524 M1 + 9 M2 + 2 M3 + 367 M4 + 1 M5 + 8 M7 + 317 retained development-only M8 = 1,228.",
+      "Every native product engine path is resolved by exactly one record in executable-ledger.json.nativeEngineProductPaths; all remaining 38 tracked engine paths are listed above.",
+      "No selector overlaps because futureOwner, runtimeClass, and targetDisposition form disjoint predicates over the frozen legacy ownership array.",
+      "M4 and M5 have disjoint engine/manifests/tests/new files and are therefore the only parallel M1-M8 implementation lanes.",
+      "M6 creates qualification evidence only; M7 deletes only the eight preclassified deletion candidates and owns final package/document cutover; M8 creates observation evidence only."
+    ]
+  },
+  "globalInvariants": [
+    "Do not modify Membrane.",
+    "No lane runs Cargo during M0; later Cargo authority is defined by its own M1-M8 dispatch and qualification scope.",
+    "Blueprint remains optional typed evidence; no map entry creates a global Blueprint gate.",
+    "Node/Python development-only tools remain retained unless a new source-bound packet explicitly reclassifies them.",
+    "No lane commit, push, or integration cleanup edit is authorized by this map."
+  ]
+}

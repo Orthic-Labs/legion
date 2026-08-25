@@ -1,0 +1,45 @@
+{
+  "schemaVersion": 1,
+  "kind": "legion-native-distribution-contract",
+  "baselineCommit": "396f427009ade1a4243188c7da75ff335efe9e82",
+  "status": "frozen",
+  "productShape": {
+    "artifact": "one signed native legion command per platform and architecture",
+    "forbidden": ["desktop application", "DMG", "PKG", "MSI", "tray process", "setup wizard", "machine-wide daemon"]
+  },
+  "macOS": {
+    "packageForm": "homebrew-formula-with-bottles",
+    "rationale": "Legion is a command-line executable with declarative assets and no application bundle; a formula is the native Homebrew form. Bottles avoid local Rust compilation and preserve the qualified signed artifact.",
+    "initialChannel": "Orthic-Labs/homebrew-tap",
+    "installCommand": "brew install orthic-labs/tap/legion",
+    "futureUnqualifiedAlias": "brew install legion",
+    "artifacts": ["arm64 macOS bottle", "x86_64 macOS bottle"],
+    "requirements": ["Developer ID signature", "Apple notarization", "stapled notarization evidence where applicable", "SHA-256 bottle digest", "release provenance", "legion command on Homebrew prefix PATH"],
+    "update": "brew upgrade legion followed transactionally by legion setup --repair",
+    "rollback": "reinstall the preceding immutable bottle, restore the matching state snapshot, then repair integrations to the preceding release binding",
+    "removal": "brew uninstall legion removes the runtime; legion setup remove handles integrations; durable state is preserved unless explicit verified purge is requested"
+  },
+  "windows": {
+    "packageManager": "WinGet",
+    "packageIdentifier": "OrthicLabs.Legion",
+    "installerType": "portable",
+    "installCommand": "winget install --id OrthicLabs.Legion --exact",
+    "requirements": ["Authenticode signature", "trusted timestamp", "SHA-256 installer digest", "legion command alias", "silent upgrade", "deterministic uninstall", "release provenance"],
+    "fallbackDisposition": "If WinGet portable cannot preserve signature verification, command aliases, update, and removal, M3 must select an archive-based package manifest with the same guarantees; no MSI or desktop installer is introduced.",
+    "update": "winget upgrade --id OrthicLabs.Legion --exact followed transactionally by legion setup --repair",
+    "rollback": "install the preceding immutable signed version, restore the matching state snapshot, then repair integrations to the preceding release binding",
+    "removal": "winget uninstall --id OrthicLabs.Legion --exact removes the runtime; integrations and explicit state purge remain separate legion setup operations"
+  },
+  "publication": {
+    "artifactOwner": "RightKit Release",
+    "channel": "immutable GitHub release assets consumed by Homebrew tap and WinGet manifests",
+    "requiredArchitectures": ["macos-arm64", "macos-x86_64", "windows-x86_64", "windows-arm64"],
+    "mutationRule": "publication is permitted only after signed installed-product qualification; M0 records contracts only"
+  },
+  "evidence": [
+    "migration/native-rust/PRODUCT-ARCHITECTURE-V2.md:3.1",
+    "migration/native-rust/PRODUCT-ARCHITECTURE-V2.md:10",
+    "migration/native-rust/MIGRATION-PLAN-V2.md:M0",
+    "migration/native-rust/MIGRATION-PLAN-V2.md:M6"
+  ]
+}

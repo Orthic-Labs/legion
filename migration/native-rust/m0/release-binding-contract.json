@@ -1,0 +1,38 @@
+{
+  "schemaVersion": 1,
+  "kind": "legion-native-release-binding-contract",
+  "baselineCommit": "396f427009ade1a4243188c7da75ff335efe9e82",
+  "status": "frozen",
+  "canonicalManifest": "release.json",
+  "requiredIdentity": {
+    "releaseVersion": "semver",
+    "runtime": {"platform": "string", "architecture": "string", "sha256": "sha256 digest", "provenance": "signed build provenance locator"},
+    "capabilityCatalogSha256": "sha256 digest",
+    "mcpToolSchemaSha256": "sha256 digest",
+    "declarativeAssetsSha256": "sha256 digest",
+    "stateSchemaVersion": "integer",
+    "rightkitAx": {"version": "exact version", "sourceCommit": "40-character git SHA"}
+  },
+  "consumers": ["legion serve --stdio", "legion setup", "legion status", "each installed client integration"],
+  "handshake": {
+    "phase": "MCP initialization before exposing any Legion tool",
+    "checks": ["runtime digest and provenance", "release version", "capability catalog hash", "MCP schema hash", "declarative asset hash", "state compatibility"],
+    "success": "Expose tools with the exact bound release identity.",
+    "failure": "Fail closed without exposing tools and emit exact legion setup --repair remediation."
+  },
+  "skewPolicy": {
+    "allowed": "A bounded package-manager update window while no mixed-version execution occurs.",
+    "forbidden": "New runtime with stale integration assets, schemas, catalog, or tool contracts.",
+    "activeProcesses": "Existing client-owned processes may finish under their bound release; incompatible state migration waits for old runtime leases to close.",
+    "repair": "legion setup --repair refreshes every selected integration transactionally and verifies the complete identity tuple before activation."
+  },
+  "updateTransaction": ["verify new signed runtime", "snapshot compatible durable state", "install runtime and versioned assets", "repair selected integrations", "verify binding handshake", "activate or roll back atomically"],
+  "rollbackTransaction": ["wait for incompatible active leases", "restore preceding signed runtime", "restore preceding state snapshot", "restore matching integration assets", "verify binding handshake", "reactivate preceding release"],
+  "provenanceOwner": "RightKit Release",
+  "releaseVerdictOwner": "Legion integration owner outside RightKit AX",
+  "evidence": [
+    "migration/native-rust/PRODUCT-ARCHITECTURE-V2.md:5.3",
+    "migration/native-rust/PRODUCT-ARCHITECTURE-V2.md:7.2",
+    "migration/native-rust/MIGRATION-PLAN-V2.md:M6"
+  ]
+}

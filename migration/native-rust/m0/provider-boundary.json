@@ -1,0 +1,197 @@
+{
+  "schemaVersion": 1,
+  "kind": "legion-native-rust-provider-boundary",
+  "status": "frozen",
+  "baselineCommit": "396f427009ade1a4243188c7da75ff335efe9e82",
+  "sourceRevision": "396f427009ade1a4243188c7da75ff335efe9e82",
+  "classificationVocabulary": [
+    "rust-algorithm",
+    "declarative-rule",
+    "optional-blueprint-evidence",
+    "host-service",
+    "typed-external-project-tool"
+  ],
+  "providerRegistryCoverage": {
+    "src/registry/providers.json": 63,
+    "src/registry/providers-runtime.json": 7,
+    "totalRegistryRows": 70,
+    "unclassifiedRows": 0
+  },
+  "providerClassifications": [
+    {
+      "registrySource": "src/registry/providers.json",
+      "currentRunnerKind": "runtime-script",
+      "targetClass": "rust-algorithm",
+      "targetOwner": "Legion Rust core",
+      "providerIds": [
+        "architecture.core",
+        "code.c-family",
+        "code.dotnet",
+        "code.go",
+        "code.javascript",
+        "code.jvm",
+        "code.long-tail",
+        "code.mobile",
+        "code.php-ruby",
+        "code.python",
+        "code.rust",
+        "compatibility.core",
+        "container.iac",
+        "dependency.osv",
+        "docs.contract",
+        "framework.backend",
+        "framework.data",
+        "framework.frontend",
+        "governance.policy",
+        "imported.sarif",
+        "legacy.accessibility.internal-suite",
+        "legacy.framework.major-suite",
+        "legacy.visual.core",
+        "requirements.traceability",
+        "secrets.current-history",
+        "security.opengrep",
+        "structural.ast-grep",
+        "supply-chain.license-sbom-provenance",
+        "test-quality.core"
+      ],
+      "rule": "Port deterministic orchestration, selection, normalization, finding/candidate separation, coverage accounting, and report semantics to Rust. Their current source-language modules are not a target runtime boundary."
+    },
+    {
+      "registrySource": "src/registry/providers.json",
+      "currentRunnerKind": "legacy-check",
+      "targetClass": "typed-external-project-tool",
+      "targetOwner": "Arcane-gated external-project-tool executor called by Legion Rust core",
+      "providerIds": [
+        "legacy.apple.platform",
+        "legacy.architecture.decomposition",
+        "legacy.core.repo",
+        "legacy.quality.build",
+        "legacy.quality.dead-code",
+        "legacy.quality.debt-markers",
+        "legacy.quality.duplication",
+        "legacy.quality.lint",
+        "legacy.quality.negative-space",
+        "legacy.quality.rust-unused-deps",
+        "legacy.quality.swift-lint",
+        "legacy.quality.tool-coverage",
+        "legacy.quality.types",
+        "legacy.react.hooks-config",
+        "legacy.runtime.app",
+        "legacy.security.binary-pins",
+        "legacy.security.dependency-pinning",
+        "legacy.security.docker",
+        "legacy.security.github-actions-lint",
+        "legacy.security.js-licenses",
+        "legacy.security.node-dependencies",
+        "legacy.security.python-dependencies",
+        "legacy.security.rust-advisories",
+        "legacy.security.rust-policy",
+        "legacy.security.rust-unsafe",
+        "legacy.security.sast",
+        "legacy.security.secrets",
+        "legacy.security.vendored-dependencies",
+        "legacy.stack.node-outdated",
+        "legacy.stack.rust-outdated",
+        "legacy.tauri.capabilities",
+        "legacy.tauri.contract-mirror"
+      ],
+      "rule": "A target repository tool is an intentional typed request, not a Legion runtime dependency. Require policy authorization immediately before the effect, an argument-bounded non-shell invocation, executable identity/provenance, timeout/output/cancellation bounds, immutable raw output, process-tree control, and a receipt; unavailable or denied tooling is truthful typed degradation."
+    },
+    {
+      "registrySource": "src/registry/providers.json",
+      "currentRunnerKind": "reasoning-contract",
+      "targetClass": "host-service",
+      "targetOwner": "Agent client/host reviewer service with Legion Rust contract adapter",
+      "providerIds": [
+        "legacy.security.adjudication",
+        "legacy.security.variant-analysis"
+      ],
+      "rule": "Model invocation and native host tools stay host-owned. Legion passes a typed bounded packet and preserves unavailable/invalid service outcomes as unproven; host service output cannot self-certify or close its own finding."
+    },
+    {
+      "registrySource": "src/registry/providers-runtime.json",
+      "currentRunnerKind": "runtime-script",
+      "targetClass": "rust-algorithm",
+      "targetOwner": "Legion Rust core",
+      "providerIds": [
+        "accessibility.internal-suite",
+        "data.internal-suite",
+        "framework.major-suite",
+        "generic.source-accounting",
+        "infrastructure.internal-suite",
+        "native.family-suite",
+        "visual.core"
+      ],
+      "rule": "These historical runtime-registry rows are retained as source evidence only; each algorithm ports to Rust or is explicitly retired by a later ownership packet. They cannot remain a Node runtime fallback."
+    }
+  ],
+  "crossCuttingBoundaries": {
+    "declarativeRule": {
+      "targetClass": "declarative-rule",
+      "owner": "Versioned Legion assets consumed by Rust",
+      "includes": [
+        "provider registry records and aliases",
+        "JSON/YAML schemas",
+        "policy data",
+        "skills, prompts, lenses, recipes, and rule packs"
+      ],
+      "rule": "Data declares semantics but does not execute Legion-owned algorithmic workflows. Rust validates and interprets the data under the frozen contracts.",
+      "sourceLocators": [
+        "migration/native-rust/PRODUCT-ARCHITECTURE-V2.md:194-209",
+        "src/registry/providers.json:1-8",
+        "src/lib/providers/sdk/contracts.mjs:1-9"
+      ]
+    },
+    "blueprint": {
+      "targetClass": "optional-blueprint-evidence",
+      "owner": "Membrane typed interface and Blueprint repository-truth service",
+      "appliesTo": "Every provider whose current record consumes blueprint-packet, including all 63 rows in src/registry/providers.json and all 7 rows in src/registry/providers-runtime.json.",
+      "rule": "Blueprint supplies context/evidence, never a global runtime gate. A non-Blueprint-capable provider runs when applicable and reports exact structural-coverage loss; an explicitly Blueprint-dependent operation returns a provider-level typed degradation. Legion does not synthesize local graph truth.",
+      "sourceLocators": [
+        "migration/native-rust/PRODUCT-ARCHITECTURE-V2.md:107-115",
+        "skills/blueprint/SKILL.md:16-26",
+        "src/adapters/blueprint-packet.mjs:21-54"
+      ]
+    },
+    "hostServices": {
+      "targetClass": "host-service",
+      "owner": "Agent client/host, Membrane, Blueprint, Cortex, OmniRouter, or declared external capability",
+      "declaredCapabilities": [
+        "agent-host-config",
+        "banana",
+        "blueprint-graph",
+        "crypt",
+        "dataforseo",
+        "firecrawl",
+        "local-corpus",
+        "media-production",
+        "memory-engine",
+        "morph",
+        "notebooklm",
+        "okf",
+        "omniroute",
+        "scholarly-search",
+        "skill-emit",
+        "web-search"
+      ],
+      "rule": "Host services are never silently emulated by Legion. Each has declared probe/remedy/degradation behavior; unavailability remains visible and cannot be coerced to empty success.",
+      "sourceLocators": [
+        "src/registry/capabilities.json:1-127",
+        "migration/native-rust/PRODUCT-ARCHITECTURE-V2.md:91-115"
+      ]
+    }
+  },
+  "providerExecutionInvariants": [
+    "No selected provider is unowned or has two semantic owners.",
+    "Provider selection, dependency closure, denominators, findings, candidates, coverage gaps, degradation, and receipts are deterministic Legion Rust responsibilities.",
+    "Candidate generators cannot emit or close findings; independent adjudication remains separate.",
+    "No provider reports successful empty output for an unavailable service or tool.",
+    "Blueprint unavailability cannot block non-Blueprint providers or erase their selected-provider denominator.",
+    "External project tools do not make Node, Python, shell, Cargo, or other project executables Legion runtime dependencies."
+  ],
+  "completion": {
+    "unknownProviderOwners": [],
+    "nextOwner": "M5 provider and external-tool boundary",
+    "discrepancyLedger": "migration/native-rust/discrepancy-ledger.json"
+  }
+}

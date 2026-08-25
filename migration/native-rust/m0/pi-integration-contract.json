@@ -1,0 +1,107 @@
+{
+  "schemaVersion": 1,
+  "kind": "legion-m0-pi-integration-contract",
+  "baseline": {
+    "commit": "396f427009ade1a4243188c7da75ff335efe9e82",
+    "selectedBy": "migration/native-rust/dispatches/M0-DISPATCH.json#sourceRevision",
+    "observedHead": "abc83488cead00be46411b4fc0761d91b9724c65"
+  },
+  "authority": [
+    "migration/native-rust/PRODUCT-ARCHITECTURE-V2.md:16-23",
+    "migration/native-rust/PRODUCT-ARCHITECTURE-V2.md:235-250",
+    "migration/native-rust/PRODUCT-ARCHITECTURE-V2.md:252-278",
+    "migration/native-rust/PRODUCT-ARCHITECTURE-V2.md:294-319",
+    "migration/native-rust/MIGRATION-PLAN-V2.md:45-55",
+    "migration/native-rust/MIGRATION-PLAN-V2.md:231-259"
+  ],
+  "officialPath": {
+    "id": "pi-baseline-integration",
+    "scope": "Pi's sole M0-approved public integration route.",
+    "fidelity": "Baseline",
+    "mechanism": "Versioned, release-bound instruction and skill projection only. It does not register an executable Legion tool surface.",
+    "selectionReason": "The authorized current Pi adapter explicitly says native-agent support and MCP registration are unconfirmed. M0 therefore freezes the only source-supported safe path rather than guessing a private configuration format or extension API.",
+    "setupBehavior": [
+      "Detect Pi only from Pi-specific evidence, never from a generic AGENTS.md alone.",
+      "Preview and confirm the client-owned instruction/skill projection before mutation.",
+      "Install only versioned release-bound projection assets at verified Pi-owned locations selected by the implementation after source-backed client discovery.",
+      "Verify that the projected instruction/skill entry is present and records Baseline fidelity.",
+      "Report no executable Legion workflow, MCP server, native tool, Arcane enforcement, Audit execution, or Research execution."
+    ],
+    "removeBehavior": "Remove only verified Legion-owned projected assets and restore no unrelated Pi state; runtime package uninstall and state purge remain independent actions."
+  },
+  "explicitlyAbsentInM0": [
+    "Pi MCP registration",
+    "Pi native agent registration",
+    "Pi executable command resolution",
+    "Pi Legion stdio process lifecycle",
+    "Pi host enforcement",
+    "Pi-native bridge"
+  ],
+  "fidelityRules": {
+    "Baseline": {
+      "claims": ["instructions", "skills"],
+      "prohibits": ["executable Legion workflow claims", "native tools", "Arcane enforcement", "Audit execution", "Research execution"]
+    },
+    "Unavailable": {
+      "condition": "The instruction/skill projection cannot be installed without an ownership conflict, path escape, unverified client location, or an unrelated configuration overwrite.",
+      "behavior": "Make no active partial write; report the blocking evidence and remediation."
+    },
+    "DegradedOrFullPromotion": {
+      "condition": "A supported Pi-native mechanism is discovered and independently qualified.",
+      "requiredEvidence": [
+        "official supported Pi installation or registration contract",
+        "verified client-owned integration path and ownership",
+        "actual client launch-environment executable-resolution proof",
+        "release-binding handshake before tools are exposed",
+        "MCP initialization, reuse, cancellation, restart, and shutdown evidence where executable access is claimed",
+        "explicit missing-surface and host-enforcement record",
+        "RightKit AX evidence if Agent Plugins is selected"
+      ],
+      "rule": "A promotion is a new M1-M8-owned change; it must not retroactively reinterpret this M0 Baseline contract."
+    }
+  },
+  "bridgeRule": {
+    "status": "not authorized by this M0 contract",
+    "mayBeIntroducedOnlyWhen": "A verified Pi extension model requires a bridge and no higher-fidelity supported native plugin, Agent Plugins, or native MCP/config mechanism can satisfy the qualified route.",
+    "allowedBridgeResponsibilities": [
+      "client-required registration",
+      "path projection",
+      "launching the installed Legion command",
+      "forwarding client lifecycle events",
+      "verification and cleanup"
+    ],
+    "forbiddenBridgeResponsibilities": [
+      "routing",
+      "capability behavior",
+      "Audit",
+      "Research",
+      "Arcane policy",
+      "work graphs",
+      "receipts",
+      "Legion semantic ontology",
+      "embedded Legion executable"
+    ],
+    "processRule": "If later qualified, Pi may own one reusable client-owned legion serve --stdio process per active session, never an idle daemon or a per-tool Legion runtime birth."
+  },
+  "mechanicalAdapterProof": {
+    "required": "Any future Pi adapter is inspectable as detection, registration, path, process lifecycle, verification, repair, and cleanup only.",
+    "negativeProof": "No adapter module may contain a capability catalog, routing policy, Audit or Research logic, Arcane policy evaluator, work-graph model, receipt semantics, or another Legion runtime."
+  },
+  "currentSourceEvidence": [
+    {
+      "locator": "src/lib/host/adapters/pi.mjs:1-26",
+      "finding": "Current source offers AGENTS.md instructions and .agents/skills projection but marks native agent and MCP mechanisms unconfirmed.",
+      "disposition": "The current descriptor is evidence for Baseline-only status, not a source of target executable configuration."
+    },
+    {
+      "locator": "src/lib/host/engine.mjs:1-18,81-179,230-336",
+      "finding": "Current descriptor engine includes projection and client config mutation machinery in Node.",
+      "disposition": "Do not port Legion semantics from this retired shape; target setup/adapters are Rust-owned and mechanical."
+    }
+  ],
+  "blockingEvidence": {
+    "exists": false,
+    "reason": "Baseline requires no unverified Pi executable/private configuration evidence. Promotion to an executable Pi integration is blocked until the promotion evidence set is available.",
+    "effect": "Does not block the M0 Baseline contract; blocks only Pi Degraded/Full executable implementation and claims."
+  }
+}

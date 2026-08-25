@@ -1,0 +1,190 @@
+{
+  "schemaVersion": 1,
+  "kind": "legion-native-rust-semantic-freeze",
+  "status": "frozen",
+  "baselineCommit": "396f427009ade1a4243188c7da75ff335efe9e82",
+  "sourceRevision": "396f427009ade1a4243188c7da75ff335efe9e82",
+  "authorityOrder": [
+    {
+      "source": "docs/LEGION-CANONICAL-SSOT.md",
+      "scope": "Legion-wide architecture, ownership boundaries, global invariants, orchestration, authority, and effect semantics"
+    },
+    {
+      "source": "migration/native-rust/PRODUCT-ARCHITECTURE-V2.md",
+      "scope": "Accepted native-Rust product topology, runtime, client, Blueprint, release, and state target"
+    },
+    {
+      "source": "migration/native-rust/MIGRATION-PLAN-V2.md",
+      "scope": "Ordered migration, qualification, hard-cut, and cleanup gates"
+    },
+    {
+      "source": "skills/<id>/SKILL.md",
+      "scope": "Capability and entrypoint method semantics, constrained by the root SSOT"
+    },
+    {
+      "source": "doctrine/legion.md and doctrine/oracle.md",
+      "scope": "Delegated routing and independent Completion Validation method, constrained by the root SSOT"
+    }
+  ],
+  "canonicalSemantics": {
+    "capabilityCatalog": {
+      "owner": "skills/<id>/SKILL.md",
+      "rules": [
+        "A capability is domain, workflow, or context expertise; an entrypoint is an explicit compatibility or orchestration surface.",
+        "Domain metadata is optional grouping only and never a routing hierarchy.",
+        "Natural-language routing selects from the compact canonical catalog; deterministic runtime validates selected identifiers and explicit aliases but does not interpret prose.",
+        "Only entrypoints carry target mappings; capability identity never statically grants authority.",
+        "Package-internal, host-capability, project-overlay, and historical-evidence references remain explicitly classified; project overlays are optional and declare absence behavior."
+      ],
+      "sourceLocators": [
+        "docs/LEGION-CANONICAL-SSOT.md:119-178",
+        "doctrine/legion.md:41-64",
+        "src/lib/skills/dependency-closure.mjs:1-89",
+        "src/config/capability-aliases.json:1-15"
+      ]
+    },
+    "workGraphAndAuthority": {
+      "owner": "Legion Rust core with producing-capability routine judgment",
+      "rules": [
+        "A work unit declares capabilities, operations, effects, dependencies, and authority only where required.",
+        "Operations, effects, and authority are independent axes; execute does not imply Alchemist and judgment alone does not imply Sage.",
+        "Sage handles material unresolved adjudication, Alchemist controlled bounded transformation when policy or risk requires it, and Oracle is independent read-only Completion Validation.",
+        "Covenant is optional, bounded, advisory, and has no effect or disposition authority."
+      ],
+      "sourceLocators": [
+        "docs/LEGION-CANONICAL-SSOT.md:181-251",
+        "docs/LEGION-CANONICAL-SSOT.md:255-320",
+        "doctrine/legion.md:32-64"
+      ]
+    },
+    "policyAndEffects": {
+      "owner": "Arcane policy data plus Legion Rust evaluator",
+      "rules": [
+        "Effect intent is explicit and Arcane evaluates it immediately before the effect.",
+        "Legion-owned algorithms do not invoke Node, Python, shell scripts, or another Legion runtime.",
+        "A target repository's compiler, browser, scanner, VCS, Node, Python, or Cargo is an intentional typed external-project-tool effect, not a Legion runtime dependency.",
+        "No shell command string is accepted for a typed external-tool request; executable identity, bounded arguments, timeout, output cap, cancellation/process-tree control, policy outcome, and receipt are required."
+      ],
+      "sourceLocators": [
+        "docs/LEGION-CANONICAL-SSOT.md:322-390",
+        "migration/native-rust/PRODUCT-ARCHITECTURE-V2.md:194-216",
+        "src/lib/providers/executor/external-process.mjs:7-34"
+      ]
+    },
+    "receipts": {
+      "owner": "Legion Rust core",
+      "rules": [
+        "Every bounded external effect has a receipt bound to the provider, repository binding, denominator, command identity, timing, status, output artifacts, environment keys, sandbox/process-tree evidence, tool qualification, and normalized provider result.",
+        "A receipt never converts unavailable, blocked, partial, missing, invalid, or incomplete evidence into pass.",
+        "Provider reconciliation requires one terminal receipt for every selected provider, no unplanned or duplicate receipt, correct binding and denominator, and visible coverage gaps."
+      ],
+      "sourceLocators": [
+        "src/lib/core/execution-receipt.mjs:1-12",
+        "src/lib/core/reconcile-run.mjs:1-28",
+        "migration/native-rust/PRODUCT-ARCHITECTURE-V2.md:196-207"
+      ]
+    },
+    "audit": {
+      "owner": "Legion Rust core; Audit owns systematic evaluation methodology",
+      "rules": [
+        "Audit freezes repository binding, scope, selected provider set, denominator, and provider plan before execution.",
+        "Audit plans, executes, reconciles, and reports deterministic providers; candidate generators cannot close their own findings.",
+        "Every selected provider reconciles to evidence or a typed degradation; incomplete coverage is never a clean audit claim.",
+        "Audit status, quality gate, process execution state, and independent Completion Validation are separate verdicts."
+      ],
+      "sourceLocators": [
+        "skills/audit/SKILL.md:25-61",
+        "src/lib/providers/sdk/contracts.mjs:1-9",
+        "src/lib/providers/sdk/result.mjs:1-27",
+        "src/lib/core/finalize-run.mjs:1-27"
+      ]
+    },
+    "research": {
+      "owner": "Legion Rust core; Research owns evidence-routing method",
+      "rules": [
+        "Research freezes a route before effects, records approval receipts before stage-two work, and emits a route-scoped evidence artifact and terminal receipt.",
+        "A search hit, snippet, AI summary, provider answer, or NotebookLM answer is a lead, never ledger evidence; evidence requires an opened source and locator.",
+        "Atomic claims preserve source links, dates, scope, contradiction, uncertainty, and confidence ceilings; a claim cannot exceed its bound proof.",
+        "When required live retrieval is unavailable, Research reports truthful UNPROVEN/typed degradation and does not guess."
+      ],
+      "sourceLocators": [
+        "skills/research/SKILL.md:19-38",
+        "src/lib/research-core/ledger.py:17-27",
+        "src/lib/research-core/ledger.py:50-86",
+        "src/lib/content/claim-proof-ledger.mjs:1"
+      ]
+    },
+    "reviewAndCompletion": {
+      "owner": "Legion Rust core for review protocol; Oracle for independent Completion Validation",
+      "rules": [
+        "Review uses bounded judgment packets with identified evidence and omitted material; unknown remains an honest verdict.",
+        "Oracle Completion Validation is source-first, independent, read-only semantic assurance before successful delivery.",
+        "Completion Validation reconstructs raw current scope, inspects changed source and consumers, may read tests to understand behavior, and never runs or reruns tests.",
+        "Oracle returns only PASS or BLOCK, reports concrete safety/behavior/data-loss defects, does not author remediation or durable review artifacts, and permits at most one repair/recheck loop."
+      ],
+      "sourceLocators": [
+        "src/lib/core/judgment-packets.mjs:1",
+        "doctrine/oracle.md:14-60",
+        "doctrine/oracle.md:62-76"
+      ]
+    },
+    "claims": {
+      "owner": "Legion Rust core",
+      "rules": [
+        "Claim levels are inventory, source, runtime, product, and release; a claimed level is achieved only by passing the required lower/equal evidence stages.",
+        "Missing evidence produces incomplete or unproven, never a clean claim.",
+        "Claim proof records retain the evidence objects that satisfy referenced evidence identifiers; missing references are unproven."
+      ],
+      "sourceLocators": [
+        "src/lib/core/claim-levels.mjs:1-2",
+        "src/lib/core/build-plan.mjs:6-56",
+        "src/lib/core/completeness.mjs:1",
+        "src/lib/content/claim-proof-ledger.mjs:1"
+      ]
+    },
+    "blueprintDegradation": {
+      "owner": "Membrane owns context selection/evidence publication; Blueprint owns repository truth; Legion owns only the typed consumer boundary",
+      "rules": [
+        "Blueprint is optional context acceleration and is never a global Audit prerequisite.",
+        "When Blueprint is unavailable, execute every applicable non-Blueprint provider, preserve the selected-provider denominator, emit a visible recommendation and exact structural-coverage limits, and retain non-Blueprint results.",
+        "Only an operation explicitly marked Blueprint-dependent may return provider-level typed degradation; it cannot abort unrelated work, produce empty success, or surface as a machinery crash.",
+        "Legion never walks Blueprint storage, synthesizes a local graph fallback, or modifies Membrane."
+      ],
+      "typedDegradation": {
+        "unavailableStatus": "unavailable",
+        "currentErrorFamily": "membrane-blueprint-*",
+        "requiredReportFields": [
+          "provider",
+          "operation",
+          "reasonCode",
+          "structuralCoverageLimits",
+          "recommendation",
+          "unaffectedProviders"
+        ]
+      },
+      "sourceLocators": [
+        "migration/native-rust/PRODUCT-ARCHITECTURE-V2.md:107-115",
+        "skills/blueprint/SKILL.md:16-26",
+        "src/adapters/blueprint-packet.mjs:21-54",
+        "src/lib/adapters/membrane/index.mjs:1-27"
+      ]
+    }
+  },
+  "migrationInvariants": [
+    "One machine-installed Rust runtime owns all shipped Legion semantics and executable workflows.",
+    "Client-native adapters are mechanical and may not own routing, Audit, Research, Arcane policy, work graphs, receipts, capability semantics, or another Legion ontology.",
+    "One reusable client-owned stdio MCP process serves an active client session; there is no idle Legion daemon and no per-tool Legion runtime birth.",
+    "Markdown, JSON, YAML, schemas, prompts, lenses, recipes, and rule packs remain declarative assets.",
+    "Development-only Node/Python test and build tools remain unless a refreshed source-bound inventory explicitly classifies their deletion.",
+    "M0 does not implement a runtime port, modify Membrane, run Cargo, commit, or push."
+  ],
+  "closure": {
+    "unresolvedSemanticQuestions": [],
+    "requiredDownstreamConsumers": [
+      "migration/native-rust/m0/provider-boundary.json",
+      "migration/native-rust/m0/state-contract.json",
+      "M1-M8 implementation dispatch compiled after all M0 contracts converge"
+    ],
+    "discrepancyLedger": "migration/native-rust/discrepancy-ledger.json"
+  }
+}

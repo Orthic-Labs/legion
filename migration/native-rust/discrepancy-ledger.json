@@ -1,19 +1,215 @@
 {
   "schemaVersion": 1,
+  "kind": "legion-native-rust-discrepancy-ledger",
   "packetId": "LEG-I01",
   "repository": "Orthic-Labs/legion",
-  "baselineCommit": "90678a130dc26937d544304b79a22f24d74383ac",
-  "status": "pending",
+  "baselineCommit": "396f427009ade1a4243188c7da75ff335efe9e82",
+  "sourceRevision": "396f427009ade1a4243188c7da75ff335efe9e82",
+  "status": "frozen",
   "allowedClassifications": [
     "intentional_version_change",
     "baseline_defect",
     "regression",
     "unexplained"
   ],
-  "discrepancies": [],
+  "discrepancies": [
+    {
+      "id": "M0-D001",
+      "area": "baseline-identity",
+      "classification": "baseline_defect",
+      "sourceLocators": [
+        "migration/native-rust/README.md:15",
+        "migration/native-rust/PRODUCT-ARCHITECTURE-V2.md:5",
+        "migration/native-rust/dispatches/M0-DISPATCH.json:6"
+      ],
+      "discrepancy": "The migration README, accepted architecture, and M0 dispatch record different inspected baselines.",
+      "targetDisposition": "M0 output identity is the dispatch sourceRevision 396f427009ade1a4243188c7da75ff335efe9e82. Historical baseline strings remain provenance only and cannot validate an M0 or later implementation packet.",
+      "owner": "M0 integration owner",
+      "closureEvidence": "Every M0 output carries baselineCommit and sourceRevision equal to the dispatch sourceRevision.",
+      "status": "resolved"
+    },
+    {
+      "id": "M0-D002",
+      "area": "blueprint-audit-coverage",
+      "classification": "intentional_version_change",
+      "sourceLocators": [
+        "src/lib/core/audit.mjs:18-21",
+        "src/lib/core/build-plan.mjs:8-18",
+        "src/lib/core/reconcile-run.mjs:26-28",
+        "migration/native-rust/PRODUCT-ARCHITECTURE-V2.md:107-115"
+      ],
+      "discrepancy": "The current audit plan makes blueprint-packet an inventory-stage prerequisite, so an unavailable Membrane packet makes the run incomplete before providers can reconcile.",
+      "targetDisposition": "Blueprint becomes optional typed context evidence. Audit runs every applicable non-Blueprint provider, preserves the selected-provider denominator, emits visible structural-coverage limits and a recommendation, and returns typed provider-level degradation only for an explicitly Blueprint-dependent operation.",
+      "owner": "M4 Audit and provider migration",
+      "closureEvidence": "Blueprint-absent qualification proves applicable providers still reconcile and no unrelated provider reports a machinery crash or empty success.",
+      "status": "resolved"
+    },
+    {
+      "id": "M0-D003",
+      "area": "shipped-runtime-ownership",
+      "classification": "intentional_version_change",
+      "sourceLocators": [
+        "src/lib/core/audit.mjs:1-28",
+        "src/lib/providers/provider-executor.mjs:1-124",
+        "migration/native-rust/PRODUCT-ARCHITECTURE-V2.md:194-216"
+      ],
+      "discrepancy": "Current shipped product algorithms are implemented in Node and Python modules, including orchestration, provider execution, Audit, Research, review, receipts, and policy integrations.",
+      "targetDisposition": "Port Legion-owned shipped algorithms to the shared Rust runtime. Preserve Node/Python only when the refreshed executable inventory proves a path is development-only or an intentional external project tool; no native runtime may invoke Node, Python, shell scripts, or another Legion runtime for Legion semantics.",
+      "owner": "M1-M5 native-runtime lanes",
+      "closureEvidence": "Installed-product qualification finds no Node/Python runtime dependency for Legion-owned behavior and retains classified development tooling.",
+      "status": "resolved"
+    },
+    {
+      "id": "M0-D004",
+      "area": "provider-boundaries",
+      "classification": "intentional_version_change",
+      "sourceLocators": [
+        "src/registry/providers.json:1-8",
+        "src/registry/providers-runtime.json:1-8",
+        "src/lib/providers/provider-executor.mjs:27-57",
+        "migration/native-rust/PRODUCT-ARCHITECTURE-V2.md:196-209"
+      ],
+      "discrepancy": "Current provider records mix runtime scripts, legacy named checks, reasoning contracts, imported artifacts, and Blueprint consumption without one target-owner taxonomy.",
+      "targetDisposition": "The frozen provider boundary assigns every current registry provider a target semantic owner: Rust algorithm, typed external project tool, or host service; declarative rules remain assets and Blueprint remains optional typed evidence rather than a provider-runtime owner.",
+      "owner": "M5 provider and external-tool boundary",
+      "closureEvidence": "provider-boundary.json has no unclassified registry row and the M5 gate rejects unknown provider owners.",
+      "status": "resolved"
+    },
+    {
+      "id": "M0-D005",
+      "area": "external-effects-and-receipts",
+      "classification": "intentional_version_change",
+      "sourceLocators": [
+        "src/lib/providers/executor/external-process.mjs:7-34",
+        "src/lib/core/execution-receipt.mjs:1-12",
+        "migration/native-rust/PRODUCT-ARCHITECTURE-V2.md:201-215",
+        "docs/LEGION-CANONICAL-SSOT.md:322-390"
+      ],
+      "discrepancy": "Current external-process execution has an allowlist and receipts, but the native target has not yet made its typed request, immediate policy evaluation, bounded execution, and receipt contract the sole implementation path.",
+      "targetDisposition": "All external executable use is a typed, bounded external-project-tool effect evaluated by Arcane immediately before execution and accompanied by an effect receipt. Shell command strings, unsealed executable bytes, missing process-tree control, missing immutable output, and unapproved destructive effects fail closed.",
+      "owner": "M4 policy/receipt migration and M5 external-tool boundary",
+      "closureEvidence": "Adversarial effect tests prove denial, timeout, output limit, cancellation, executable identity mismatch, and destructive-effect approval paths are receipt-backed.",
+      "status": "resolved"
+    },
+    {
+      "id": "M0-D006",
+      "area": "host-and-authority-boundary",
+      "classification": "intentional_version_change",
+      "sourceLocators": [
+        "src/lib/host/adapters/codex.mjs:1-24",
+        "src/lib/host/adapters/pi.mjs:1-24",
+        "docs/LEGION-CANONICAL-SSOT.md:255-320",
+        "migration/native-rust/PRODUCT-ARCHITECTURE-V2.md:235-278"
+      ],
+      "discrepancy": "Current host adapters are source-language implementation surfaces rather than a frozen native product adapter contract.",
+      "targetDisposition": "Host/client shims remain mechanical: detection, registration, paths, lifecycle projection, verification, repair, and cleanup only. Legion Rust owns routing, Audit, Research, Arcane evaluation, work graphs, receipts, and capability semantics; host trust and prompt policy remain host-owned.",
+      "owner": "M2 client integration and M3 setup lifecycle",
+      "closureEvidence": "Adapter conformance proves no adapter contains Legion semantic implementation and every claimed host surface has measured fidelity evidence.",
+      "status": "resolved"
+    },
+    {
+      "id": "M0-D007",
+      "area": "state-lifecycle",
+      "classification": "intentional_version_change",
+      "sourceLocators": [
+        "src/lib/cli/commands/state.mjs:1-125",
+        "migration/native-rust/PRODUCT-ARCHITECTURE-V2.md:323-351"
+      ],
+      "discrepancy": "Current legion state snapshot|verify is a mechanical test-state boundary and does not define production state roots, schema compatibility, leases, migration, rollback, interrupted recovery, or verified purge.",
+      "targetDisposition": "Implement only the frozen native state contract: Legion-owned platform user-data roots, version metadata, exclusive migration/setup lock, active-runtime leases, snapshot-plus-atomic-restore rollback, fail-closed recovery, and explicit verified purge. Keep snapshot|verify as development-only tooling.",
+      "owner": "M3 setup and state lifecycle",
+      "closureEvidence": "N-1 to N, interruption, N to N-1, corruption, concurrent clients, uninstall/reinstall, and purge scenarios satisfy state-contract.json.",
+      "status": "resolved"
+    },
+    {
+      "id": "M0-D008",
+      "area": "release-binding",
+      "classification": "intentional_version_change",
+      "sourceLocators": [
+        "migration/native-rust/PRODUCT-ARCHITECTURE-V2.md:177-192",
+        "migration/native-rust/PRODUCT-ARCHITECTURE-V2.md:310-321"
+      ],
+      "discrepancy": "The current source has no native installed-release binding that jointly verifies runtime provenance, version, catalog, MCP schema, and declarative assets before tool exposure.",
+      "targetDisposition": "Freeze and implement a release-binding contract in the distribution lane. Mismatch fails closed with exact repair; bounded package-update skew is repaired transactionally and never executes a mixed release.",
+      "owner": "M0 distribution-binding then M3/M6",
+      "closureEvidence": "Installed artifact tests cover stale assets, release mismatch, update repair, and old-runtime lease closure before incompatible migration.",
+      "status": "resolved"
+    },
+    {
+      "id": "M0-D009",
+      "area": "review-and-completion",
+      "classification": "intentional_version_change",
+      "sourceLocators": [
+        "doctrine/oracle.md:14-60",
+        "src/lib/core/judgment-packets.mjs:1",
+        "migration/native-rust/PRODUCT-ARCHITECTURE-V2.md:201-207"
+      ],
+      "discrepancy": "Current review packets and completion semantics are spread across source-language modules and doctrine rather than one native runtime contract.",
+      "targetDisposition": "Rust owns deterministic review and completion protocols, while Oracle remains independent read-only Completion Validation. Completion Validation reconstructs raw scope, inspects source and consumers, and never reruns tests or authors a durable review artifact.",
+      "owner": "M4 review and completion migration",
+      "closureEvidence": "Completion validation and review contracts retain independence, unknown verdicts, source-first inspection, and no false clean behavior.",
+      "status": "resolved"
+    },
+    {
+      "id": "M0-D010",
+      "area": "membrane-ownership",
+      "classification": "intentional_version_change",
+      "sourceLocators": [
+        "skills/blueprint/SKILL.md:16-26",
+        "src/lib/adapters/membrane/index.mjs:1-27",
+        "migration/native-rust/PRODUCT-ARCHITECTURE-V2.md:91-115"
+      ],
+      "discrepancy": "The migration could incorrectly absorb Membrane or Blueprint behavior while porting context consumers.",
+      "targetDisposition": "Membrane remains the typed context-selection and evidence-publication owner; Blueprint remains repository truth. Legion ports only the typed consumer boundary and does not modify Membrane, walk Blueprint storage, synthesize a local graph fallback, or transfer host/model ownership into Legion.",
+      "owner": "All implementation lanes",
+      "closureEvidence": "No downstream allowlist includes Membrane source, and Blueprint absence produces typed degradation rather than an ad-hoc local substitute.",
+      "status": "resolved"
+    },
+    {
+      "id": "M0-D011",
+      "area": "research-and-claims",
+      "classification": "intentional_version_change",
+      "sourceLocators": [
+        "skills/research/SKILL.md:19-38",
+        "src/lib/research-core/ledger.py:17-27",
+        "src/lib/content/claim-proof-ledger.mjs:1"
+      ],
+      "discrepancy": "Research evidence and claim binding exist in current Python/Node implementations but have no native boundary contract yet.",
+      "targetDisposition": "Rust owns Research routing, evidence-ledger and claim-proof algorithms. Evidence remains opened-source and locator-bound; leads do not become evidence, unavailable required retrieval yields truthful UNPROVEN/typed degradation, and claims cannot exceed bound proof.",
+      "owner": "M4 Research migration",
+      "closureEvidence": "Research qualification demonstrates evidence/claim linkage, uncertainty preservation, provider unavailability, and real external-source receipts.",
+      "status": "resolved"
+    },
+    {
+      "id": "M0-D012",
+      "area": "development-tooling-preservation",
+      "classification": "intentional_version_change",
+      "sourceLocators": [
+        "migration/native-rust/PRODUCT-ARCHITECTURE-V2.md:29-44",
+        "migration/native-rust/MIGRATION-PLAN-V2.md:52-67"
+      ],
+      "discrepancy": "A native runtime cutover could incorrectly delete Node/Python test, build, qualification, or repository-maintenance tooling together with shipped product paths.",
+      "targetDisposition": "Retain development-only Node/Python tools unless a refreshed ledger classifies a path for deletion. Each retained development path requires path-specific exclusion proof; no M0 contract authorizes product-runtime edits or tooling removal.",
+      "owner": "M7 hard cut and M8 cleanup",
+      "closureEvidence": "The refreshed executable ledger and production-entrypoint absence scan distinguish retained tooling from removed product runtime paths.",
+      "status": "resolved"
+    }
+  ],
+  "summary": {
+    "total": 12,
+    "resolved": 12,
+    "unexplained": 0,
+    "securityGaps": 0,
+    "authorityGaps": 0,
+    "planIntegrityGaps": 0,
+    "findingCoverageGaps": 0,
+    "receiptGaps": 0,
+    "destructiveEffectGaps": 0,
+    "processCleanupGaps": 0
+  },
   "zeroUnexplainedSecurityAuthorityPlanIntegrityFindingCoverageReceiptDestructiveEffectProcessCleanup": true,
   "notes": [
-    "Ledger is empty until independent legacy/native outputs are produced.",
-    "An empty ledger is not an acceptance claim; acceptance-report.json remains pending."
+    "This is a semantic disposition ledger, not evidence that product-runtime migration has been implemented.",
+    "M0 performs source inspection and contract generation only; no Cargo invocation, runtime port, Membrane change, commit, or push is authorized."
   ]
 }

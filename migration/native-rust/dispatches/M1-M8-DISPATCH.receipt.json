@@ -1,0 +1,47 @@
+{
+  "schema_version": 4,
+  "sha256": "2bb6129f17e18dbb065bed90719048664a7d10be06ecad9574cdf3523ce5a32f",
+  "referenced_artifacts": [
+    {
+      "path": "migration/native-rust/m0/contract-freeze.json",
+      "sha256": "sha256:d1957531acc220c965e2d7d8419d0634febdaa2c3878a5a43ea9547a7ac4d7e5"
+    },
+    {
+      "path": "migration/native-rust/dispatches/M1-M8-REQUEST.md",
+      "sha256": "sha256:46b7d87358588e5ee0dd19e445131a398956e917006530eb897430f75c978a6c"
+    },
+    {
+      "path": "migration/native-rust/dispatches/M1-M8-REQUEST.md",
+      "sha256": "sha256:46b7d87358588e5ee0dd19e445131a398956e917006530eb897430f75c978a6c"
+    },
+    {
+      "path": "migration/native-rust/dispatches/M0-REQUEST.md",
+      "sha256": "sha256:83bf81861f2c3dfdf80928e94ca96588d8b0427f2146726602fffebe1d9055ba"
+    },
+    {
+      "path": "migration/native-rust/PRODUCT-ARCHITECTURE-V2.md",
+      "sha256": "sha256:ab181ef9b391f22d739b40ffff6240a50078828d081f9490416ac8d959ed32c5"
+    },
+    {
+      "path": "migration/native-rust/MIGRATION-PLAN-V2.md",
+      "sha256": "sha256:7f5ddd5caf12cc2fcce945fe12d1a8ae2a3c1f4e4c39931cd57e1f5b78303462"
+    },
+    {
+      "path": "migration/native-rust/m0/contract-freeze.json",
+      "sha256": "sha256:d1957531acc220c965e2d7d8419d0634febdaa2c3878a5a43ea9547a7ac4d7e5"
+    },
+    {
+      "path": "migration/native-rust/m0/m0-acceptance.json",
+      "sha256": "sha256:db42f5430b712442243b61248f3b1c714faf5d2249717b100b7bf0a01bc4e8df"
+    },
+    {
+      "path": "migration/native-rust/m0/file-ownership-map.json",
+      "sha256": "sha256:2d5a4b2c69b223d33d3f92b4ab91b94bc5bf3516c578908c855a8912dd277654"
+    }
+  ],
+  "authority_binding": {
+    "packet_sha256": "2bb6129f17e18dbb065bed90719048664a7d10be06ecad9574cdf3523ce5a32f",
+    "source_revision": "sha256:d1957531acc220c965e2d7d8419d0634febdaa2c3878a5a43ea9547a7ac4d7e5",
+    "prompt_digest": "sha256:46b7d87358588e5ee0dd19e445131a398956e917006530eb897430f75c978a6c"
+  }
+}
