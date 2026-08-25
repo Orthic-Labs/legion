@@ -172,7 +172,11 @@ fn native_audit_continues_without_blueprint() {
             "hostCapabilities": [],
             "execution": {},
             "reasoning": {},
-            "benchmark": {"status": "qualified", "requiredForCleanClaim": true},
+            "benchmark": {
+                "status": "qualified",
+                "requiredForCleanClaim": true,
+                "qualificationDigest": "sha256:fixture"
+            },
             "cleanClaim": "finding-producing",
             "controlIds": [],
             "scopes": [],
