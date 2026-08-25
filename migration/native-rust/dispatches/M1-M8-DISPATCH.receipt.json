@@ -1,6 +1,6 @@
 {
   "schema_version": 4,
-  "sha256": "2bb6129f17e18dbb065bed90719048664a7d10be06ecad9574cdf3523ce5a32f",
+  "sha256": "23fc2c1452d5831da36a87fdb27f23555f1f31a850a1f77a970fcab07227f31c",
   "referenced_artifacts": [
     {
       "path": "migration/native-rust/m0/contract-freeze.json",
@@ -36,11 +36,11 @@
     },
     {
       "path": "migration/native-rust/m0/file-ownership-map.json",
-      "sha256": "sha256:2d5a4b2c69b223d33d3f92b4ab91b94bc5bf3516c578908c855a8912dd277654"
+      "sha256": "sha256:c394112776bf557c4916aee70d423acba9a3152445df4b359570cf86e4c2b1b2"
     }
   ],
   "authority_binding": {
-    "packet_sha256": "2bb6129f17e18dbb065bed90719048664a7d10be06ecad9574cdf3523ce5a32f",
+    "packet_sha256": "23fc2c1452d5831da36a87fdb27f23555f1f31a850a1f77a970fcab07227f31c",
     "source_revision": "sha256:d1957531acc220c965e2d7d8419d0634febdaa2c3878a5a43ea9547a7ac4d7e5",
     "prompt_digest": "sha256:46b7d87358588e5ee0dd19e445131a398956e917006530eb897430f75c978a6c"
   }

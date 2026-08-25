@@ -420,9 +420,10 @@
       "action": "create",
       "paths": [
         "engine/crates/legion-runtime/src/release_binding.rs",
-        "engine/tests/m1_vertical_slice.rs"
+        "engine/bins/legion-mcp/src/lib.rs",
+        "engine/bins/legion/tests/m1_vertical_slice.rs"
       ],
-      "rule": "M1 establishes the stable release-binding and command integration seam. M3 and later lanes consume this seam without editing M1 router/binary files."
+      "rule": "M1 establishes the stable release-binding, reusable MCP library, and command integration seam. M3 and later lanes consume this seam without editing M1 router/binary files."
     },
     {
       "owner": "M2-portable-integration-and-adapters",

@@ -1,0 +1,243 @@
+{
+  "schemaVersion": 1,
+  "kind": "legion-authority-dispatch",
+  "packetType": "direct",
+  "repositoryRoot": ".",
+  "sourceRevision": "dfcf1447c2e21f6366de8d4da3cfee9e0cc09414",
+  "sourceArtifact": "migration/native-rust/m0/contract-freeze.json",
+  "promptArtifact": "migration/native-rust/dispatches/M1-REQUEST.md",
+  "promptDigest": "sha256:37618a036dd22d6c3368a9fae368aadf9ba060b37ace0fb2047f98bec08cc129",
+  "modelRouting": {
+    "modelTier": "MID",
+    "workerProfile": "terra",
+    "routingRationale": "Two independent Rust foundations run concurrently; application and CLI convergence follow only after their concrete source APIs exist."
+  },
+  "objective": "Implement M1 only: one release-bound native Rust vertical slice shared by legion status, legion serve --stdio, one deterministic capability, one Arcane decision, and one typed receipt. Preserve all legacy runtime sources unchanged.",
+  "authority": [
+    "AGENTS.md",
+    "docs/LEGION-CANONICAL-SSOT.md",
+    "migration/native-rust/PRODUCT-ARCHITECTURE-V2.md",
+    "migration/native-rust/MIGRATION-PLAN-V2.md",
+    "migration/native-rust/m0/contract-freeze.json",
+    "migration/native-rust/m0/file-ownership-map.json",
+    "migration/native-rust/m0/release-binding-contract.json",
+    "migration/native-rust/m0/semantic-freeze.json",
+    "migration/native-rust/dispatches/M1-M8-DISPATCH.json"
+  ],
+  "integrationOwner": "current orchestrator; sole owner of primary checkout HEAD, index, validation, commit, and push; may not edit lane-owned files",
+  "interfaceLock": {
+    "releaseBinding": "legion_runtime::release_binding owns typed manifest parsing, full identity verification, VerifiedReleaseBinding, typed mismatch, and exact repair command legion setup --repair",
+    "catalog": "legion_catalog owns compact metadata loading and lazy capability-body resolution; metadata load performs no capability-body reads",
+    "application": "legion_application owns the shared M1 operation and typed status, capability, PolicyEvaluation/PolicyReceipt, and InvocationReceipt result",
+    "mcp": "legion_mcp is a reusable library and binary; initialize verifies binding before tool advertisement and the stdio session reuses one application instance",
+    "cli": "legion owns status and serve --stdio syntax and delegates without interpreter, shell, or child-Legion execution"
+  },
+  "ownershipAmendment": {
+    "operatorApproved": true,
+    "reason": "Correct frozen M1 ownership for the reusable MCP library seam and place the vertical-slice test under a real Cargo package.",
+    "supersededFileOwnershipMapDigest": "sha256:2d5a4b2c69b223d33d3f92b4ab91b94bc5bf3516c578908c855a8912dd277654",
+    "fileOwnershipMapDigest": "sha256:c394112776bf557c4916aee70d423acba9a3152445df4b359570cf86e4c2b1b2",
+    "supersededRoadmapPacketDigest": "sha256:2bb6129f17e18dbb065bed90719048664a7d10be06ecad9574cdf3523ce5a32f",
+    "roadmapPacketDigest": "sha256:23fc2c1452d5831da36a87fdb27f23555f1f31a850a1f77a970fcab07227f31c",
+    "added": [
+      "engine/bins/legion-mcp/src/lib.rs",
+      "engine/bins/legion/tests/m1_vertical_slice.rs"
+    ],
+    "removed": ["engine/tests/m1_vertical_slice.rs"]
+  },
+  "fileTouchPolicy": {
+    "mode": "once-end-to-end",
+    "plannedFiles": [
+      "engine/Cargo.lock",
+      "engine/bins/legion-mcp/Cargo.toml",
+      "engine/bins/legion-mcp/src/error.rs",
+      "engine/bins/legion-mcp/src/lib.rs",
+      "engine/bins/legion-mcp/src/main.rs",
+      "engine/bins/legion-mcp/src/server.rs",
+      "engine/bins/legion-mcp/src/tools.rs",
+      "engine/bins/legion/Cargo.toml",
+      "engine/bins/legion/src/cli.rs",
+      "engine/bins/legion/tests/m1_vertical_slice.rs",
+      "engine/crates/legion-application/Cargo.toml",
+      "engine/crates/legion-application/src/lib.rs",
+      "engine/crates/legion-catalog/src/catalog.rs",
+      "engine/crates/legion-catalog/src/discovery.rs",
+      "engine/crates/legion-catalog/src/lib.rs",
+      "engine/crates/legion-runtime/Cargo.toml",
+      "engine/crates/legion-runtime/src/lib.rs",
+      "engine/crates/legion-runtime/src/release_binding.rs"
+    ],
+    "allowUnplannedFiles": false,
+    "legacyPortInputs": "All 524 legacy paths classified to M1 by migration/native-rust/m0/file-ownership-map.json are read-only behavioral sources during M1 and are not edit targets."
+  },
+  "dispatches": [
+    {
+      "id": "M1-foundation",
+      "dependsOn": [],
+      "lanes": [
+        "m1-release-catalog",
+        "m1-mcp-transport"
+      ],
+      "completionChecks": [
+        "both disjoint foundation lanes complete from the same source revision",
+        "release/catalog and generic MCP transport compile independently without peer outputs",
+        "actual changed paths are a subset of the exact closed planned-file union with no foreign or overlapping path"
+      ]
+    },
+    {
+      "id": "M1-application",
+      "dependsOn": ["M1-foundation"],
+      "lanes": ["m1-application-policy"],
+      "completionChecks": [
+        "application consumes the integrated release/catalog API and emits the frozen M1 typed result"
+      ]
+    },
+    {
+      "id": "M1",
+      "dependsOn": ["M1-application"],
+      "lanes": ["m1-cli-integration"],
+      "completionChecks": [
+        "actual changed paths are a subset of the exact closed planned-file union with no foreign or overlapping path",
+        "the shared vertical slice passes CLI, stdio MCP, release mismatch, lazy asset, policy, receipt, and no-interpreter tests",
+        "Cargo fmt, check, clippy, and focused tests pass in the integrated checkout"
+      ]
+    }
+  ],
+  "workers": [
+    {
+      "id": "m1-release-catalog",
+      "dispatch": "M1-foundation",
+      "executor": "Terra Rust worker in an isolated worktree",
+      "allowlist": [
+        "engine/crates/legion-catalog/src/catalog.rs",
+        "engine/crates/legion-catalog/src/discovery.rs",
+        "engine/crates/legion-catalog/src/lib.rs",
+        "engine/crates/legion-runtime/Cargo.toml",
+        "engine/crates/legion-runtime/src/lib.rs",
+        "engine/crates/legion-runtime/src/release_binding.rs"
+      ],
+      "read": [
+        "migration/native-rust/m0/release-binding-contract.json",
+        "migration/native-rust/m0/semantic-freeze.json",
+        "migration/native-rust/fixtures/catalog-cases.v1.json",
+        "src/registry/skills/index.json",
+        "engine/crates/legion-contracts",
+        "engine/crates/legion-policy"
+      ],
+      "forbidden": [".git", ".audit", "node_modules", "target", "secrets", "membrane", "src", "skills"],
+      "checks": [
+        "cargo fmt --check for owned Rust files",
+        "cargo check -p legion-catalog -p legion-runtime --locked",
+        "focused unit tests prove full identity verification, exact repair text, deterministic digesting, and lazy body reads"
+      ],
+      "dependencies": []
+    },
+    {
+      "id": "m1-mcp-transport",
+      "dispatch": "M1-foundation",
+      "executor": "Terra Rust worker in an isolated worktree",
+      "allowlist": [
+        "engine/bins/legion-mcp/Cargo.toml",
+        "engine/bins/legion-mcp/src/error.rs",
+        "engine/bins/legion-mcp/src/lib.rs",
+        "engine/bins/legion-mcp/src/main.rs",
+        "engine/bins/legion-mcp/src/server.rs",
+        "engine/bins/legion-mcp/src/tools.rs"
+      ],
+      "read": [
+        "migration/native-rust/m0/release-binding-contract.json",
+        "migration/native-rust/m0/command-resolution-proof.json",
+        "migration/native-rust/m0/client-fidelity-matrix.json",
+        "engine/crates/legion-application",
+        "engine/crates/legion-runtime"
+      ],
+      "forbidden": [".git", ".audit", "node_modules", "target", "secrets", "membrane", "src", "skills"],
+      "checks": [
+        "cargo fmt --check for owned Rust files",
+        "cargo check -p legion-mcp --locked",
+        "focused tests prove the reusable generic stdio server keeps one API instance, gates initialize before tool advertisement, and exposes no listener or child process"
+      ],
+      "dependencies": []
+    },
+    {
+      "id": "m1-application-policy",
+      "dispatch": "M1-application",
+      "executor": "Terra Rust worker in an isolated worktree",
+      "allowlist": [
+        "engine/crates/legion-application/Cargo.toml",
+        "engine/crates/legion-application/src/lib.rs"
+      ],
+      "read": [
+        "migration/native-rust/m0/semantic-freeze.json",
+        "migration/native-rust/m0/release-binding-contract.json",
+        "engine/crates/legion-contracts",
+        "engine/crates/legion-policy",
+        "engine/crates/legion-policy-model",
+        "engine/crates/legion-runtime",
+        "engine/crates/legion-catalog"
+      ],
+      "forbidden": [".git", ".audit", "node_modules", "target", "secrets", "membrane", "src", "skills"],
+      "checks": [
+        "cargo fmt --check for owned Rust files",
+        "cargo check -p legion-application --locked",
+        "focused unit tests prove one deterministic capability, one real Arcane evaluation and policy receipt, and one typed invocation receipt"
+      ],
+      "dependencies": []
+    },
+    {
+      "id": "m1-cli-integration",
+      "dispatch": "M1",
+      "executor": "Terra Rust worker in an isolated worktree",
+      "allowlist": [
+        "engine/Cargo.lock",
+        "engine/bins/legion/Cargo.toml",
+        "engine/bins/legion/src/cli.rs",
+        "engine/bins/legion/tests/m1_vertical_slice.rs"
+      ],
+      "read": [
+        "migration/native-rust/m0/release-binding-contract.json",
+        "migration/native-rust/m0/command-resolution-proof.json",
+        "migration/native-rust/m0/client-fidelity-matrix.json",
+        "engine/bins/legion-mcp",
+        "engine/crates/legion-application",
+        "engine/crates/legion-runtime",
+        "engine/crates/legion-catalog",
+        "engine/crates/legion-policy"
+      ],
+      "forbidden": [".git", ".audit", "node_modules", "target", "secrets", "membrane", "src", "skills"],
+      "checks": [
+        "cargo fmt --check for owned Rust files",
+        "cargo check -p legion -p legion-mcp --locked",
+        "focused integration test proves legion status and legion serve --stdio share the same native application, initialize verifies binding before tools/list, mismatch exposes no tools and reports legion setup --repair, and no self-spawn/interpreter route exists"
+      ],
+      "dependencies": []
+    }
+  ],
+  "oracleAudit": {
+    "required": true,
+    "mode": "adversarial",
+    "status": "required-before-execution",
+    "checks": [
+      "allowlist-completeness",
+      "lane-disjointness",
+      "dependency-validity",
+      "maximum-safe-parallelization",
+      "interface-lock-sufficiency",
+      "end-to-end-lane-closure",
+      "legacy-source-retention",
+      "Membrane-exclusion"
+    ]
+  },
+  "recovery": {
+    "maxRetries": 1,
+    "stopConditions": [
+      "source revision or frozen contract digest changes",
+      "owned path is already dirty",
+      "a required public interface cannot be implemented additively inside its lane",
+      "an unplanned path is required",
+      "architecture contradiction",
+      "Membrane change would be required"
+    ],
+    "returnFields": ["changedPaths", "checks", "blockers", "baselineRevision", "patchDigest"]
+  }
+}
