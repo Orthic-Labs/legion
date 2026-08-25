@@ -59,7 +59,13 @@ fn native_rules_evaluate_blueprint_bound_source() {
     let result: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
     assert_eq!(result["status"], "complete");
     assert_eq!(result["providerResult"]["complete"], true);
-    assert_eq!(result["providerResult"]["findings"].as_array().unwrap().len(), 1);
+    assert_eq!(
+        result["providerResult"]["findings"]
+            .as_array()
+            .unwrap()
+            .len(),
+        1
+    );
     assert_eq!(
         result["providerResult"]["coverage"]["denominator_digest"],
         result["inventoryDigest"]

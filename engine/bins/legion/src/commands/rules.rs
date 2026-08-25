@@ -1,7 +1,9 @@
 use super::{CommandError, CommandResult};
 use clap::Args;
 use legion_audit::{BlueprintInventorySource, FileBlueprintInventorySource};
-use legion_contracts::{Coverage, FindingId, FindingRef, ProviderId, ProviderResult, ProviderStatus};
+use legion_contracts::{
+    Coverage, FindingId, FindingRef, ProviderId, ProviderResult, ProviderStatus,
+};
 use legion_rules::{Confidence, RuleCompiler, Severity, SourceFile};
 use serde_json::{json, Map, Value};
 use std::{collections::BTreeSet, path::PathBuf};
@@ -31,8 +33,8 @@ pub fn run(args: RulesArgs) -> CommandResult {
     let root = std::fs::canonicalize(&args.root).map_err(super::io_error)?;
     let manifest_path = std::fs::canonicalize(&args.manifest).map_err(super::io_error)?;
     let packet_path = std::fs::canonicalize(&args.blueprint_packet).map_err(super::io_error)?;
-    let provider = ProviderId::new(args.provider)
-        .map_err(|error| CommandError::usage(error.to_string()))?;
+    let provider =
+        ProviderId::new(args.provider).map_err(|error| CommandError::usage(error.to_string()))?;
     let manifest = std::fs::read_to_string(&manifest_path).map_err(super::io_error)?;
     let compiled = RuleCompiler::compile_manifest_json(&manifest)
         .map_err(|error| CommandError::usage(error.to_string()))?;
