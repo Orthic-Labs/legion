@@ -1,4 +1,10 @@
-use crate::{error::HostError, install::digest, install::FileEffects, projection::ProjectionItem};
+use crate::{
+    descriptor::ClientIdentity,
+    detect::CommandResolutionEvidence,
+    error::HostError,
+    install::{digest, FileEffects},
+    projection::ProjectionItem,
+};
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, Default, Eq, PartialEq, Serialize, Deserialize)]
@@ -33,4 +39,25 @@ pub fn verify<E: FileEffects>(
     result.ok =
         result.missing.is_empty() && result.mismatched.is_empty() && result.foreign.is_empty();
     Ok(result)
+}
+
+pub fn verify_client_identity(
+    expected: &ClientIdentity,
+    actual: &ClientIdentity,
+    resolution: &CommandResolutionEvidence,
+) -> Result<(), HostError> {
+    expected.validate()?;
+    actual.validate()?;
+    resolution.validate()?;
+    if expected != actual {
+        return Err(HostError::ReleaseBindingMismatch {
+            reason: "client identity tuple does not match the release-bound projection".into(),
+        });
+    }
+    if expected.client_id != resolution.client_id {
+        return Err(HostError::Verification {
+            reason: "resolution evidence belongs to another client".into(),
+        });
+    }
+    Ok(())
 }

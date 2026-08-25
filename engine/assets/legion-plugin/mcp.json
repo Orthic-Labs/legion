@@ -1,0 +1,15 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/mcp.schema.json",
+  "mcpServers": {
+    "legion": {
+      "type": "stdio",
+      "command": "legion",
+      "args": [
+        "serve",
+        "--stdio",
+        "--plugin-root",
+        "${PLUGIN_ROOT}"
+      ]
+    }
+  }
+}

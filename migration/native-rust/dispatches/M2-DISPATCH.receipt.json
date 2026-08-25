@@ -1,0 +1,71 @@
+{
+  "schema_version": 4,
+  "sha256": "c5e2af8b3cd1616f6ea1906f39c80c98afb7f910126b5423bb7847b01ba990fa",
+  "referenced_artifacts": [
+    {
+      "path": "migration/native-rust/dispatches/M2-REQUEST.md",
+      "sha256": "sha256:18898c8c68a957dcface69cad542dc5446d139fca42163886b0e5e832a350045"
+    },
+    {
+      "path": "AGENTS.md",
+      "sha256": "sha256:e9549a27c0e4edf161fd5abbcb9679b585cd5bcde0d8809cc56f230278019f7f"
+    },
+    {
+      "path": "docs/LEGION-CANONICAL-SSOT.md",
+      "sha256": "sha256:6a607498397142fc66e963ca6c25798bf8b68f59b59369c7f928cba912ad4e83"
+    },
+    {
+      "path": "migration/native-rust/PRODUCT-ARCHITECTURE-V2.md",
+      "sha256": "sha256:ab181ef9b391f22d739b40ffff6240a50078828d081f9490416ac8d959ed32c5"
+    },
+    {
+      "path": "migration/native-rust/MIGRATION-PLAN-V2.md",
+      "sha256": "sha256:7f5ddd5caf12cc2fcce945fe12d1a8ae2a3c1f4e4c39931cd57e1f5b78303462"
+    },
+    {
+      "path": "migration/native-rust/m0/contract-freeze.json",
+      "sha256": "sha256:d1957531acc220c965e2d7d8419d0634febdaa2c3878a5a43ea9547a7ac4d7e5"
+    },
+    {
+      "path": "migration/native-rust/m0/file-ownership-map.json",
+      "sha256": "sha256:c394112776bf557c4916aee70d423acba9a3152445df4b359570cf86e4c2b1b2"
+    },
+    {
+      "path": "migration/native-rust/m0/agent-plugins-contract.json",
+      "sha256": "sha256:250740954d6cb7c780ab735b3da1de52cf49960a54933923e2270fa18bce3d4e"
+    },
+    {
+      "path": "migration/native-rust/m0/client-fidelity-matrix.json",
+      "sha256": "sha256:513f6f7418a334e744a8447be2bfa5f55045aff5830ccb1687939cd006b1502e"
+    },
+    {
+      "path": "migration/native-rust/m0/command-resolution-proof.json",
+      "sha256": "sha256:71240159c9c097d7f8de78fbc491afb698eceea380e73522cab31d0e1f5d0e28"
+    },
+    {
+      "path": "migration/native-rust/m0/release-binding-contract.json",
+      "sha256": "sha256:e2b5609afa008fdecd774e889e5a1a6b1a6e1ac339289744ad01b10789d9752b"
+    },
+    {
+      "path": "migration/native-rust/m0/rightkit-ax-pin.json",
+      "sha256": "sha256:f2c576b0860e58727fcadd702845dea5510475a189739615eacbad7553846800"
+    },
+    {
+      "path": "migration/native-rust/m0/rightkit-conformance-plan.json",
+      "sha256": "sha256:389a5c9b9cdc962e28d1a2c68d05c73ca42b7a38e4689cab5e030218575944a3"
+    },
+    {
+      "path": "migration/native-rust/dispatches/M1-M8-DISPATCH.json",
+      "sha256": "sha256:23fc2c1452d5831da36a87fdb27f23555f1f31a850a1f77a970fcab07227f31c"
+    },
+    {
+      "path": "migration/native-rust/dispatches/M2-M7-OWNERSHIP-AMENDMENT.json",
+      "sha256": "sha256:6d91dc0db726047d47a791f3af8fe10bd5d69e19659c611cf7604bf96419e419"
+    }
+  ],
+  "authority_binding": {
+    "packet_sha256": "c5e2af8b3cd1616f6ea1906f39c80c98afb7f910126b5423bb7847b01ba990fa",
+    "source_revision": "475ff5d1931e1006f0b1f199129a4cf4a29713f3",
+    "prompt_digest": "sha256:18898c8c68a957dcface69cad542dc5446d139fca42163886b0e5e832a350045"
+  }
+}

@@ -1,23 +1,15 @@
-use std::time::{Duration, Instant};
-
-use legion_contracts::task::RequestEnvelope;
 use serde_json::{Map, Value};
-use tokio_util::sync::CancellationToken;
 
 pub const SCHEMA_VERSION: u32 = 1;
 pub const REQUEST_KIND: &str = "legion-hook-request";
 pub const RESPONSE_KIND: &str = "legion-hook-response";
-pub const DEFAULT_DEADLINE_MS: u64 = 120_000;
 
 #[derive(Clone, Debug)]
 pub struct HookRequest {
     pub schema_version: u32,
     pub kind: String,
     pub event_type: String,
-    pub payload: Map<String, Value>,
-    pub request_envelope: Option<RequestEnvelope>,
-    pub deadline_ms: u64,
-    pub cancelled: bool,
+    pub payload: Value,
 }
 
 impl HookRequest {
@@ -27,34 +19,30 @@ impl HookRequest {
         let object = value
             .as_object()
             .ok_or_else(|| crate::error::HookError::invalid("request must be a JSON object"))?;
-        // Keep malformed/overflowing schema values on the fail-closed path.
-        let schema_version = number(object, "schemaVersion")
-            .and_then(|value| u32::try_from(value).ok())
-            .unwrap_or(0);
-        let kind = string(object, "kind").unwrap_or_default();
+        // Native host hooks send an unwrapped event object.  Normalize that
+        // transport shape to this adapter's versioned frame without assigning
+        // any meaning to the event payload. Supplied malformed/overflowing
+        // values remain invalid rather than silently becoming version one.
+        let schema_version = match object.get("schemaVersion") {
+            None => SCHEMA_VERSION,
+            Some(value) => value
+                .as_u64()
+                .and_then(|value| u32::try_from(value).ok())
+                .unwrap_or(0),
+        };
+        let kind = string(object, "kind").unwrap_or_else(|| REQUEST_KIND.into());
         let event_type = string(object, "eventType")
             .or_else(|| string(object, "hook_event_name"))
             .unwrap_or_default();
         let payload = object
             .get("payload")
-            .and_then(Value::as_object)
             .cloned()
-            .unwrap_or_else(|| object.clone());
-        let request_envelope = object
-            .get("requestEnvelope")
-            .or_else(|| object.get("request_envelope"))
-            .map(|value| {
-                serde_json::from_value(value.clone()).map_err(crate::error::HookError::malformed)
-            })
-            .transpose()?;
+            .unwrap_or_else(|| value.clone());
         Ok(Self {
             schema_version,
             kind,
             event_type,
             payload,
-            request_envelope,
-            deadline_ms: number(object, "deadlineMs").unwrap_or(DEFAULT_DEADLINE_MS),
-            cancelled: boolean(object, "cancelled").unwrap_or(false),
         })
     }
 
@@ -72,38 +60,7 @@ impl HookRequest {
         if self.event_type.trim().is_empty() {
             return Err(crate::error::HookError::invalid("event type is required"));
         }
-        if self.deadline_ms == 0 {
-            return Err(crate::error::HookError::invalid(
-                "deadline must be positive",
-            ));
-        }
-        if let Some(envelope) = &self.request_envelope {
-            envelope
-                .validate()
-                .map_err(|error| crate::error::HookError::invalid(error.to_string()))?;
-        }
         Ok(())
-    }
-
-    pub fn deadline(&self, started: Instant) -> Instant {
-        started + Duration::from_millis(self.deadline_ms)
-    }
-    pub fn cancellation(&self) -> CancellationToken {
-        let token = CancellationToken::new();
-        if self.cancelled {
-            token.cancel();
-        }
-        token
-    }
-
-    pub fn is_effectful(&self) -> bool {
-        if self.event_type != "PreToolUse" {
-            return false;
-        }
-        matches!(
-            string(&self.payload, "tool_name").as_deref(),
-            Some("Write" | "Edit" | "NotebookEdit" | "Bash")
-        )
     }
 }
 
@@ -119,15 +76,15 @@ pub struct HookResponse {
 }
 
 impl HookResponse {
-    pub fn allowed(event_type: impl Into<String>) -> Self {
+    pub fn unsupported(event_type: impl Into<String>) -> Self {
         Self {
             schema_version: SCHEMA_VERSION,
             kind: RESPONSE_KIND,
             event_type: event_type.into(),
             allowed: true,
             code: None,
-            reason: "allowed".into(),
-            enforcement_health: "strong",
+            reason: "native hook enforcement is not available through this adapter".into(),
+            enforcement_health: "unsupported",
         }
     }
 
@@ -172,10 +129,4 @@ fn string(object: &Map<String, Value>, key: &str) -> Option<String> {
         .get(key)
         .and_then(Value::as_str)
         .map(ToOwned::to_owned)
-}
-fn number(object: &Map<String, Value>, key: &str) -> Option<u64> {
-    object.get(key).and_then(Value::as_u64)
-}
-fn boolean(object: &Map<String, Value>, key: &str) -> Option<bool> {
-    object.get(key).and_then(Value::as_bool)
 }

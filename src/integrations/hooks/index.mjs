@@ -1,18 +1,18 @@
-// Generated git hooks per SNIP-HOOK-01. Thin adapters over the canonical CLI;
-// installation is explicit and idempotent; no hook-specific engine.
+// Generated git hooks are thin installed-native CLI adapters; installation is
+// explicit and idempotent, with no hook-specific engine or Node launch path.
 
 import { existsSync, mkdirSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 export const PRE_COMMIT_HOOK = `#!/bin/sh
-exec npx --no-install @orthic-labs/legion audit . \\
+exec legion audit . \\
   --profile fast \\
   --type uncommitted \\
   --baseline .legion/baseline.json
 `;
 
 export const PRE_PUSH_HOOK = `#!/bin/sh
-exec npx --no-install @orthic-labs/legion audit . \\
+exec legion audit . \\
   --profile standard \\
   --type local \\
   --baseline .legion/baseline.json

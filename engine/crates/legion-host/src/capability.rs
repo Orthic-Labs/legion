@@ -12,6 +12,38 @@ pub enum Fidelity {
     Unsupported,
 }
 
+/// Released client fidelity.  This is deliberately separate from a host
+/// descriptor's per-surface fidelity: package conformance alone must never
+/// promote a client to Full.
+#[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd, Serialize, Deserialize)]
+#[serde(rename_all = "PascalCase")]
+pub enum ClientFidelity {
+    Full,
+    Degraded,
+    Baseline,
+    Unavailable,
+}
+
+impl ClientFidelity {
+    pub fn from_evidence(
+        instructions_or_skills: bool,
+        executable: bool,
+        lifecycle: bool,
+        release_binding: bool,
+        command_resolution: bool,
+    ) -> Self {
+        if executable && lifecycle && release_binding && command_resolution {
+            Self::Full
+        } else if executable || lifecycle || release_binding || command_resolution {
+            Self::Degraded
+        } else if instructions_or_skills {
+            Self::Baseline
+        } else {
+            Self::Unavailable
+        }
+    }
+}
+
 impl Fidelity {
     pub fn parse(value: &str) -> Result<Self, HostError> {
         match value {

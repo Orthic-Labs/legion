@@ -5,6 +5,7 @@ edition.workspace = true
 license.workspace = true
 
 [dependencies]
+directories-next = "2"
 legion-contracts = { path = "../legion-contracts" }
 legion-catalog = { path = "../legion-catalog" }
 legion-policy-model = { path = "../legion-policy-model" }

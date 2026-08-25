@@ -1,0 +1,249 @@
+{
+  "schemaVersion": 1,
+  "kind": "legion-authority-dispatch",
+  "packetType": "direct",
+  "repositoryRoot": ".",
+  "sourceRevision": "ee587d0f6d1e7f56c4889d8bdff578880b598315",
+  "sourceArtifact": "migration/native-rust/m0/contract-freeze.json",
+  "promptArtifact": "migration/native-rust/dispatches/M3-REQUEST.md",
+  "promptDigest": "sha256:10840de24fe3e53027e7b39c94546ee90126cb8d43c17741cd0d1388ac9a2c36",
+  "modelRouting": {
+    "modelTier": "MID",
+    "workerProfile": "terra",
+    "routingRationale": "The host-state implementation and append-only setup CLI grammar have disjoint files and a frozen public API; their shared acceptance test must wait for both integrated outputs."
+  },
+  "objective": "Implement M3 only: machine setup/state lifecycle through one native host registry and one append-only CLI surface, preserving the accepted M2 plugin-root Serve contract and truthfully blocking unavailable external qualification.",
+  "authority": [
+    "AGENTS.md",
+    "docs/LEGION-CANONICAL-SSOT.md",
+    "migration/native-rust/PRODUCT-ARCHITECTURE-V2.md",
+    "migration/native-rust/MIGRATION-PLAN-V2.md",
+    "migration/native-rust/m0/contract-freeze.json",
+    "migration/native-rust/m0/file-ownership-map.json",
+    "migration/native-rust/m0/setup-adapter-contract.json",
+    "migration/native-rust/m0/state-contract.json",
+    "migration/native-rust/m0/command-resolution-proof.json",
+    "migration/native-rust/m0/release-binding-contract.json",
+    "migration/native-rust/m0/distribution-contract.json",
+    "migration/native-rust/m0/rightkit-ax-pin.json",
+    "migration/native-rust/m0/rightkit-conformance-plan.json",
+    "migration/native-rust/dispatches/M1-M8-DISPATCH.json",
+    "migration/native-rust/dispatches/M2-DISPATCH.json",
+    "migration/native-rust/dispatches/M2-M7-OWNERSHIP-AMENDMENT.json"
+  ],
+  "integrationOwner": "current orchestrator; sole owner of primary checkout HEAD, index, validation, commit, and push; may not edit lane-owned files",
+  "interfaceLock": {
+    "hostState": "Before source edits, legion_host::setup_registry public API is frozen. All public models derive Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize. pub const SETUP_REGISTRY_SCHEMA_VERSION: u32 = 1. pub struct BoundRelease { release_version: String, runtime_digest: String, capability_catalog_hash: String, mcp_tool_schema_hash: String, declarative_asset_schema_hash: String, state_compatibility: String }. pub enum SetupAction { Preview, Apply, Status, Repair, Disable, Remove, Purge }. pub enum ClientSelector { AllSupported, ClientId(String) }. pub struct ClientEvidence { client_id: String, detected: bool, mechanisms: Vec<String>, command_proof_ref: Option<String>, qualification_evidence_ref: Option<String> }. pub struct SetupRequest { action: SetupAction, selector: ClientSelector, release: BoundRelease, platform_state_root: PathBuf, client_evidence: Vec<ClientEvidence>, dry_run: bool }. pub struct DetectedClient { client_id: String, selected_mechanism: String, fidelity: String, missing_surfaces: Vec<String>, remediation: Vec<String> }. pub struct SetupPreview { plan_id: String, plan_digest: String, request: SetupRequest, clients: Vec<DetectedClient>, mutations: Vec<PlannedMutation>, backups: Vec<BackupRecord>, rollback: RollbackPlan, external_qualification: ExternalQualification }. pub struct PlanConfirmation { plan_id: String, plan_digest: String }. pub struct ConfirmedSetup { preview: SetupPreview, confirmation: PlanConfirmation }. pub struct ClientStatus { client_id: String, installed: bool, fidelity: String, bound_release: Option<BoundRelease>, missing_surfaces: Vec<String>, remediation: Vec<String> }. Support types are PlannedMutation { target: PathBuf, operation: String, digest: String }, BackupRecord { target: PathBuf, snapshot: PathBuf, digest: String }, RollbackPlan { generation: String, snapshot: PathBuf, release: BoundRelease }, SetupExecution { action: SetupAction, generation: Option<String>, clients: Vec<ClientStatus>, remediation: Vec<String>, external_qualification: ExternalQualification }, RecoveryReport { recovered_generation: Option<String>, remediation: Vec<String> }, RuntimeLease { lease_id: String, client_id: String, generation: String }, StateLock { lock_path: PathBuf }, SetupState { schema_version: u32, migration_generation: String }, ExternalQualification { status: ExternalQualificationStatus, missing_evidence: Vec<String> }, and ExternalQualificationStatus { Qualified, ExternalQualificationBlocked }. pub trait SetupStore has exact methods platform_state_root(&self) -> &Path; load_state(&self) -> Result<Option<SetupState>, SetupError>; write_state_atomic(&mut self, state: &SetupState) -> Result<(), SetupError>; snapshot(&mut self, generation: &str) -> Result<BackupRecord, SetupError>; restore(&mut self, rollback: &RollbackPlan) -> Result<(), SetupError>; acquire_exclusive_lock(&mut self) -> Result<StateLock, SetupError>; release_exclusive_lock(&mut self, lock: StateLock) -> Result<(), SetupError>. pub struct OnDiskSetupStore has private fields and exact public constructor open(platform_state_root: PathBuf) -> Result<Self, SetupError> plus state_path(&self) -> &Path. pub struct SetupRegistry<S: SetupStore> has private fields and exact methods open(store: S, release: BoundRelease) -> Result<Self, SetupError>; recover(&mut self) -> Result<RecoveryReport, SetupError>; detect(&self, selector: &ClientSelector, evidence: &[ClientEvidence]) -> Result<Vec<DetectedClient>, SetupError>; status(&self, selector: &ClientSelector) -> Result<Vec<ClientStatus>, SetupError>; preview(&mut self, request: SetupRequest) -> Result<SetupPreview, SetupError>; confirm(&self, preview: SetupPreview, confirmation: PlanConfirmation) -> Result<ConfirmedSetup, SetupError>; execute(&mut self, confirmed: ConfirmedSetup) -> Result<SetupExecution, SetupError>; rollback(&mut self, rollback: RollbackPlan) -> Result<SetupExecution, SetupError>; acquire_runtime_lease(&mut self, client_id: String, generation: String) -> Result<RuntimeLease, SetupError>; release_runtime_lease(&mut self, lease: RuntimeLease) -> Result<(), SetupError>. impl SetupRegistry<OnDiskSetupStore> has exact open_on_disk(release: BoundRelease, platform_state_root: PathBuf) -> Result<Self, SetupError>. SetupErrorCode is exactly { ClientNotDetected, ClientMechanismUnsupported, PlanConfirmationRequired, PlanStale, ConfigOwnershipConflict, ConfigParseRefused, PathEscapeRefused, SourceCheckoutReferenceRefused, CommandResolutionFailed, ReleaseBindingMismatch, VerificationFailed, RollbackFailed, PurgeOwnershipUnproven, PlatformStateRootInvalid, StateMetadataInvalid, StateSerializationFailed, StateLockUnavailable, RuntimeLeaseActive, SnapshotFailed, JournalIncomplete, RecoveryFailed, ExternalQualificationBlocked }; SetupError { code: SetupErrorCode, remediation: String }. C constructs only OnDiskSetupStore through open_on_disk, uses the frozen serde models, and never guesses H storage behavior. Preview is non-mutating; execute requires ConfirmedSetup with matching plan_id and plan_digest. H may add private helpers only; C compiles against these exact names, fields, signatures, serialization, meanings, and failure mapping.",
+    "platformRoot": "This field corrects the generic open_on_disk construction wording in hostState. legion_host::platform_state_root() derives only directories_next::BaseDirs::data_local_dir().join(\"Legion\"), never a caller-supplied temporary, source-checkout, project, plugin, or client path. SetupRegistry<OnDiskSetupStore>::open_platform(release) is the sole product CLI constructor. open_on_disk(release, root) is a low-level/test seam only. H alone owns directories-next and the resulting engine/Cargo.lock resolution; C accepts no state-root argument.",
+    "cli": "C adds only legion setup grammar/dispatch and bare setup status through the frozen host API. It preserves byte-for-contract the accepted M2 legion serve --stdio --plugin-root ${PLUGIN_ROOT} parsing, package-root containment, release-binding verification, MCP startup, and M1 status --config behavior; it does not reinterpret Serve or MCP.",
+    "state": "Canonical durable state is only the verified platform-user-data Legion root. Setup state validates ownership/reparse containment, holds one exclusive lifecycle lock, records client-owned runtime leases, snapshots/journals before migration, atomically activates or rolls back exactly one generation, recovers interrupted work fail-closed, and purges only explicit verified Legion-owned targets.",
+    "qualification": "Repository-local M3 implementation may return EXTERNAL_QUALIFICATION_BLOCKED for unavailable signed macOS/Windows artifacts, Homebrew/WinGet paths, RightKit AX, or real-client environments. M6 alone owns immutable signed-artifact, platform-package, real-client, and Full-fidelity qualification; M3 never fabricates PASS, publication, or release claims."
+  },
+  "ownershipAmendment": {
+    "operatorApproved": true,
+    "reason": "The approved M2-M7 ownership amendment replaces the obsolete M3 decision-store scope with the exact nine-path native setup/state union, including the convergence testkit manifest required to register m3_setup_state, and reserves M1 Serve/MCP behavior while requiring M2 plugin-root compatibility.",
+    "amendmentArtifact": "migration/native-rust/dispatches/M2-M7-OWNERSHIP-AMENDMENT.json",
+    "activePathCount": 9,
+    "removedLegacyPaths": [
+      "engine/crates/legion-decisions/Cargo.toml",
+      "engine/crates/legion-decisions/src/error.rs",
+      "engine/crates/legion-decisions/src/lib.rs",
+      "engine/crates/legion-decisions/src/migrate_jsonl.rs",
+      "engine/crates/legion-decisions/src/model.rs",
+      "engine/crates/legion-decisions/src/query.rs",
+      "engine/crates/legion-decisions/src/setup_registry.rs",
+      "engine/crates/legion-decisions/src/store.rs",
+      "src/lib/decision_provider.py",
+      "src/lib/decision_store.py"
+    ]
+  },
+  "fileTouchPolicy": {
+    "mode": "once-end-to-end",
+    "plannedFiles": [
+      "engine/Cargo.lock",
+      "engine/bins/legion/src/cli.rs",
+      "engine/bins/legion/src/commands/mod.rs",
+      "engine/bins/legion/src/commands/setup.rs",
+      "engine/crates/legion-host/Cargo.toml",
+      "engine/crates/legion-host/src/lib.rs",
+      "engine/crates/legion-host/src/setup_registry.rs",
+      "engine/crates/legion-testkit/Cargo.toml",
+      "engine/tests/m3_setup_state.rs"
+    ],
+    "allowUnplannedFiles": false,
+    "legacyPortInputs": "The removed legion-decisions and src/lib/decision paths remain read-only retained development/project tooling. M3 ports or deletes no legacy runtime source and changes no Membrane path."
+  },
+  "dispatches": [
+    {
+      "id": "M3-foundation",
+      "dependsOn": [],
+      "lanes": [
+        "m3-host-state",
+        "m3-cli-grammar"
+      ],
+      "completionChecks": [
+        "H and C begin from the same source revision and obey the frozen setup_registry API without owned-path overlap",
+        "H alone owns Cargo.toml and Cargo.lock resolution; C introduces no Cargo dependency or lockfile edit",
+        "C preserves the accepted M2 plugin-root Serve contract and adds no source-checkout, daemon, or semantic host fallback"
+      ]
+    },
+    {
+      "id": "M3-convergence",
+      "baselineRevision": "1f4092f059f1fc9f09446ab4f3c06ff9574f0c07",
+      "dependsOn": [
+        "M3-foundation"
+      ],
+      "lanes": [
+        "m3-setup-state-tests"
+      ],
+      "completionChecks": [
+        "the exact nine-path union is complete and remains disjoint",
+        "focused tests prove setup preview/confirmation, transactional install/repair/disable/remove, lock/lease, snapshot migration/rollback/recovery, and ownership-safe purge",
+        "M2 plugin-root Serve behavior remains compatible and external qualification is either immutable PASS evidence or EXTERNAL_QUALIFICATION_BLOCKED"
+      ]
+    }
+  ],
+  "workers": [
+    {
+      "id": "m3-host-state",
+      "dispatch": "M3-foundation",
+      "executor": "Terra Rust worker in an isolated worktree",
+      "allowlist": [
+        "engine/Cargo.lock",
+        "engine/crates/legion-host/Cargo.toml",
+        "engine/crates/legion-host/src/lib.rs",
+        "engine/crates/legion-host/src/setup_registry.rs"
+      ],
+      "read": [
+        "engine/crates/legion-host",
+        "engine/crates/legion-runtime",
+        "engine/crates/legion-contracts",
+        "migration/native-rust/m0/setup-adapter-contract.json",
+        "migration/native-rust/m0/state-contract.json",
+        "migration/native-rust/m0/release-binding-contract.json"
+      ],
+      "forbidden": [
+        ".git",
+        ".audit",
+        "node_modules",
+        "target",
+        "secrets",
+        "membrane",
+        "engine/bins/legion",
+        "src"
+      ],
+      "checks": [
+        "cargo fmt --check for owned Rust files",
+        "cargo check -p legion-host --locked",
+        "focused host tests prove platform-root containment, typed state failures, exclusive lock/lease, snapshot journal, atomic rollback/recovery, and verified purge without product semantics"
+      ],
+      "dependencies": []
+    },
+    {
+      "id": "m3-cli-grammar",
+      "dispatch": "M3-foundation",
+      "executor": "Terra Rust worker in an isolated worktree",
+      "allowlist": [
+        "engine/bins/legion/src/cli.rs",
+        "engine/bins/legion/src/commands/mod.rs",
+        "engine/bins/legion/src/commands/setup.rs"
+      ],
+      "read": [
+        "engine/crates/legion-host",
+        "engine/bins/legion/src/commands",
+        "engine/assets/legion-plugin/mcp.json",
+        "migration/native-rust/m0/setup-adapter-contract.json",
+        "migration/native-rust/m0/state-contract.json",
+        "migration/native-rust/m0/command-resolution-proof.json"
+      ],
+      "forbidden": [
+        ".git",
+        ".audit",
+        "node_modules",
+        "target",
+        "secrets",
+        "membrane",
+        "Cargo.toml",
+        "Cargo.lock"
+      ],
+      "checks": [
+        "cargo fmt --check for owned Rust files",
+        "cargo check -p legion --locked",
+        "native argv tests prove setup grammar, confirmation, dry-run, status, repair, disable, remove, and purge dispatch through SetupRegistry",
+        "existing M2 plugin-root Serve invocation still parses and reaches its binding gate without source-checkout fallback"
+      ],
+      "dependencies": []
+    },
+    {
+      "id": "m3-setup-state-tests",
+      "dispatch": "M3-convergence",
+      "executor": "Terra test worker in an isolated worktree",
+      "allowlist": [
+        "engine/crates/legion-testkit/Cargo.toml",
+        "engine/tests/m3_setup_state.rs"
+      ],
+      "read": [
+        "engine",
+        "migration/native-rust/m0/setup-adapter-contract.json",
+        "migration/native-rust/m0/state-contract.json",
+        "migration/native-rust/m0/command-resolution-proof.json",
+        "engine/assets/legion-plugin/mcp.json"
+      ],
+      "forbidden": [
+        ".git",
+        ".audit",
+        "node_modules",
+        "target",
+        "secrets",
+        "membrane",
+        "src",
+        "hooks"
+      ],
+      "checks": [
+        "cargo test --test m3_setup_state --locked",
+        "integrated cargo fmt --check, cargo check --locked, cargo test --locked, and cargo clippy --locked",
+        "missing signed platform or real-client evidence is asserted only as EXTERNAL_QUALIFICATION_BLOCKED and never as release or Full-fidelity PASS"
+      ],
+      "dependencies": []
+    }
+  ],
+  "oracleAudit": {
+    "required": true,
+    "mode": "adversarial",
+    "status": "required-before-execution",
+    "checks": [
+      "allowlist-completeness",
+      "lane-disjointness",
+      "dependency-validity",
+      "maximum-safe-parallelization",
+      "end-to-end-lane-closure",
+      "frozen-api-sufficiency",
+      "m2-plugin-root-compatibility",
+      "state-ownership-and-rollback-safety",
+      "external-qualification-truthfulness",
+      "legacy-tooling-retention",
+      "Membrane-exclusion"
+    ]
+  },
+  "recovery": {
+    "maxRetries": 1,
+    "stopConditions": [
+      "source revision or frozen contract digest changes",
+      "owned path is already dirty",
+      "H public setup_registry API would change after C begins",
+      "C requires a Cargo dependency or lockfile change",
+      "M2 plugin-root Serve behavior regresses",
+      "state lifecycle requires an unplanned path",
+      "Membrane change would be required",
+      "external qualification is falsely asserted as PASS"
+    ],
+    "returnFields": [
+      "changedPaths",
+      "checks",
+      "blockers",
+      "externalQualification",
+      "baselineRevision",
+      "patchDigest"
+    ]
+  }
+}

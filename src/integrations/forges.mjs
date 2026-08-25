@@ -1,6 +1,6 @@
-// Forge CI adapters per PR41. GitLab/Bitbucket/Azure DevOps adapters call the
-// same canonical CLI and consume identical JSON/SARIF; no forge adapter may
-// alter planner, policy, or report truth.
+// Forge CI adapters invoke a preinstalled native Legion command and only
+// translate each forge provider's job/artifact shape. Provisioning, policy, routing,
+// capability, workflow, receipt, and report semantics belong to Legion core.
 
 export function gitlabCiAdapter({ jobName = 'legion-audit', profile = 'standard', baseline } = {}) {
   return {
@@ -8,7 +8,6 @@ export function gitlabCiAdapter({ jobName = 'legion-audit', profile = 'standard'
     kind: 'legion-gitlab-ci-adapter',
     jobName,
     script: [
-      `npm install --global @orthic-labs/legion`,
       `legion audit . --profile ${profile}${baseline ? ` --baseline ${baseline}` : ''} --out .audit`,
     ],
     artifacts: { reports: { sarif: '.audit/report.sarif' }, paths: ['.audit/'] },
@@ -22,7 +21,7 @@ export function bitbucketAdapter({ pipelineName = 'legion-audit', profile = 'sta
     kind: 'legion-bitbucket-adapter',
     pipelineName,
     steps: [
-      { step: { name: 'Legion audit', script: [`npm install --global @orthic-labs/legion`, `legion audit . --profile ${profile} --out .audit`] } },
+      { step: { name: 'Legion audit', script: [`legion audit . --profile ${profile} --out .audit`] } },
     ],
     artifacts: { downloads: ['.audit/report.sarif'] },
     canonicalCli: true,
@@ -35,7 +34,6 @@ export function azureDevopsAdapter({ pipelineName = 'legion-audit', profile = 's
     kind: 'legion-azure-devops-adapter',
     pipelineName,
     steps: [
-      { script: `npm install --global @orthic-labs/legion`, displayName: 'Install legion' },
       { script: `legion audit . --profile ${profile} --out .audit`, displayName: 'Run legion audit' },
       { task: 'PublishPipelineArtifact@1', inputs: { path: '.audit', artifact: 'legion' } },
     ],

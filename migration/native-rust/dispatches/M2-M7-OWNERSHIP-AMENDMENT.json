@@ -1,0 +1,156 @@
+{
+  "schemaVersion": 1,
+  "kind": "legion-native-rust-ownership-amendment",
+  "status": "frozen",
+  "operatorApproved": true,
+  "sourceRevision": "475ff5d1931e1006f0b1f199129a4cf4a29713f3",
+  "supersedes": {
+    "fileOwnershipMap": {
+      "path": "migration/native-rust/m0/file-ownership-map.json",
+      "sha256": "sha256:c394112776bf557c4916aee70d423acba9a3152445df4b359570cf86e4c2b1b2"
+    },
+    "roadmap": {
+      "path": "migration/native-rust/dispatches/M1-M8-DISPATCH.json",
+      "sha256": "sha256:23fc2c1452d5831da36a87fdb27f23555f1f31a850a1f77a970fcab07227f31c"
+    }
+  },
+  "reason": "Fresh adversarial review after M1 found impossible package closure, missing M3 CLI/state ownership, writable legacy port evidence in M4/M5, and an incomplete M7 hard-cut selector. The operator explicitly authorized repair and re-freeze.",
+  "globalRules": {
+    "activeTouch": "Only activeTouchAllowlist paths may be changed by an implementation lane.",
+    "readOnlyPortEvidence": "Legacy port selectors are read-only behavioral evidence until the M7 absence-proven hard cut.",
+    "generatedArtifacts": "Clean-room release outputs are generated outside the source checkout and are never added to a source-edit allowlist.",
+    "externalQualification": "Missing signed artifacts, pinned RightKit AX, or real-client environments produce EXTERNAL_QUALIFICATION_BLOCKED and never fabricated PASS evidence. Repository-local M2 and M3 implementation may progress behind that typed boundary; M6 alone owns release qualification and no publish or Full-support claim may proceed while blocked.",
+    "membrane": "No amendment grants access to Membrane."
+  },
+  "milestones": {
+    "M2": {
+      "owner": "M2-portable-integration-and-adapters",
+      "addedActivePaths": [
+        "engine/assets/legion-plugin/skills/legion/SKILL.md",
+        "engine/bins/legion/src/cli.rs",
+        "engine/bins/legion/tests/m2_plugin_root.rs",
+        "tests/integrations/github-action.test.mjs"
+      ],
+      "removedActivePaths": [
+        "engine/crates/legion-host/Cargo.toml",
+        "hooks/stop-shape.mjs",
+        "hooks/user-intent.mjs"
+      ],
+      "deferredReadOnlyLegacyPaths": [
+        "hooks/stop-shape.mjs",
+        "hooks/user-intent.mjs"
+      ],
+      "portableProfile": {
+        "repositoryTemplates": [
+          "engine/assets/legion-plugin/plugin.json",
+          "engine/assets/legion-plugin/mcp.json",
+          "engine/assets/legion-plugin/skills/legion/SKILL.md"
+        ],
+        "generatedCleanRoomEntries": [
+          "legion-plugin/plugin.json",
+          "legion-plugin/mcp.json",
+          "legion-plugin/skills/legion/SKILL.md",
+          "legion-plugin/share/legion/release-binding.json",
+          "legion-plugin/share/legion/identity/release-identity.json",
+          "legion-plugin/share/legion/schemas/mcp-tools.schema.json"
+        ],
+        "rule": "The sole M2 portable skill is declarative, self-contained, and references only the installed MCP surface. legion_host::agent_plugins assembles generated entries from verified signed-release inputs into a clean-room external staging root. No legacy skills tree, executable, interpreter, symlink, or source-checkout path is copied."
+      },
+      "cliLease": "Narrow M2 lease: accept --plugin-root on serve, validate the closed package root, and bind its release manifest to the loaded native application before MCP startup. Preserve every other M1 CLI route.",
+      "activePathCount": 30,
+      "progressionRule": "Passing repository-local M2 implementation checks permits M3 implementation. External qualification remains blocked and is not an M2 completion prerequisite because M3 installation is required to produce the real-client evidence that M6 evaluates."
+    },
+    "M3": {
+      "owner": "M3-install-setup-and-state",
+      "activeTouchAllowlist": [
+        "engine/Cargo.lock",
+        "engine/bins/legion/src/cli.rs",
+        "engine/bins/legion/src/commands/mod.rs",
+        "engine/bins/legion/src/commands/setup.rs",
+        "engine/crates/legion-host/Cargo.toml",
+        "engine/crates/legion-host/src/lib.rs",
+        "engine/crates/legion-host/src/setup_registry.rs",
+        "engine/crates/legion-testkit/Cargo.toml",
+        "engine/tests/m3_setup_state.rs"
+      ],
+      "activePathCount": 9,
+      "removedFromM2": [
+        "engine/crates/legion-host/Cargo.toml"
+      ],
+      "removedFromM3": [
+        "engine/crates/legion-decisions/Cargo.toml",
+        "engine/crates/legion-decisions/src/error.rs",
+        "engine/crates/legion-decisions/src/lib.rs",
+        "engine/crates/legion-decisions/src/migrate_jsonl.rs",
+        "engine/crates/legion-decisions/src/model.rs",
+        "engine/crates/legion-decisions/src/query.rs",
+        "engine/crates/legion-decisions/src/setup_registry.rs",
+        "engine/crates/legion-decisions/src/store.rs",
+        "src/lib/decision_provider.py",
+        "src/lib/decision_store.py"
+      ],
+      "leases": {
+        "cli": "Append-only Setup grammar/dispatch and bare setup status integration; M1 Serve/MCP/status --config behavior remains owned by M1.",
+        "host": "M3 adds setup_registry and its directories-next native-platform resolver dependency, including the resulting Cargo.lock resolution, but may not edit M2 install, projection, uninstall, or verify modules."
+      },
+      "retained": {
+        "engine/crates/legion-decisions": "Existing decision-compatibility domain; not canonical platform state.",
+        "src/lib/decision_provider.py": "Retained project/Architect workflow tooling; not shipped canonical Legion state.",
+        "src/lib/decision_store.py": "Retained project/Architect workflow tooling; not shipped canonical Legion state."
+      }
+    },
+    "M4": {
+      "owner": "M4-capability-migration",
+      "activeTouchRule": "Only current roadmap M4 allowlist paths under engine/ are active, plus the added Rust targets below.",
+      "readOnlyPortEvidence": {
+        "artifact": "migration/native-rust/legacy-path-ownership.json",
+        "selector": {
+          "futureOwner": "M4-capability-migration",
+          "runtimeClass": "shipped-semantic-runtime",
+          "targetDisposition": "port"
+        },
+        "exactPathCount": 367
+      },
+      "addedActivePaths": [],
+      "dependencyRule": "Provider SDK interface freeze precedes Rules, Research, Review, and Audit. Report rendering may run concurrently with provider SDK. Audit follows Rules and provider SDK."
+    },
+    "M5": {
+      "owner": "M5-provider-migration",
+      "activeTouchRule": "Only current roadmap M5 allowlist paths under engine/ are active.",
+      "readOnlyPortEvidence": {
+        "artifact": "migration/native-rust/legacy-path-ownership.json",
+        "selector": {
+          "futureOwner": "M5-provider-migration",
+          "runtimeClass": "shipped-semantic-runtime",
+          "targetDisposition": "port"
+        },
+        "exactPathCount": 1
+      },
+      "interfaceBarrier": "legion-provider-sdk including external_project_tool.rs is frozen before dependent M4 lanes execute."
+    },
+    "M6": {
+      "owner": "M6-installed-product-qualification",
+      "rule": "M6 remains the sole owner of immutable signed-artifact, clean-package, pinned-AX, and two-real-client acceptance evidence."
+    },
+    "M7": {
+      "owner": "M7-hard-cut-and-legacy-deletion",
+      "portDeletionSelector": {
+        "artifact": "migration/native-rust/legacy-path-ownership.json",
+        "selector": {
+          "runtimeClass": "shipped-semantic-runtime",
+          "targetDisposition": "port"
+        },
+        "exactPathCount": 903,
+        "formerOwnerCounts": {
+          "M1-native-core-vertical-slice": 524,
+          "M2-portable-integration-and-adapters": 9,
+          "M3-install-setup-and-state": 2,
+          "M4-capability-migration": 367,
+          "M5-provider-migration": 1
+        }
+      },
+      "additionalDeleteRows": 8,
+      "authorizationRule": "Resolve the two immutable selectors to a sorted content-addressed 911-path allowlist only after M6 PASS and native absence proof; never use a mutable glob."
+    }
+  }
+}

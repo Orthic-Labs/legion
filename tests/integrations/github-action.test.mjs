@@ -10,7 +10,8 @@ import { changedFiles, classifyFinding, prScopeResult, stableCommentId } from '.
 test('pre-commit hook uses the fast profile with uncommitted scope', () => {
   assert.match(PRE_COMMIT_HOOK, /--profile fast/);
   assert.match(PRE_COMMIT_HOOK, /--type uncommitted/);
-  assert.match(PRE_COMMIT_HOOK, /npx --no-install @orthic-labs\/legion/);
+  assert.match(PRE_COMMIT_HOOK, /exec legion audit/);
+  assert.doesNotMatch(PRE_COMMIT_HOOK, /\bnpx\b|\bnode\b|\bpython\b/);
 });
 
 test('pre-push hook uses the standard profile with local scope', () => {

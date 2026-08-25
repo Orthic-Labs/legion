@@ -45,6 +45,36 @@ pub struct HostDescriptor {
     pub surfaces: BTreeMap<String, SurfaceDescriptor>,
 }
 
+/// Stable, release-bound identity exposed by every supported client.
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ClientIdentity {
+    pub client_id: String,
+    pub selected_mechanism: String,
+    pub release_version: String,
+    pub release_binding_digest: String,
+    pub capability_catalog_hash: String,
+    pub mcp_tool_schema_hash: String,
+    pub declarative_assets_hash: String,
+}
+
+impl ClientIdentity {
+    pub fn validate(&self) -> Result<(), HostError> {
+        for (path, value) in [
+            ("clientId", &self.client_id),
+            ("selectedMechanism", &self.selected_mechanism),
+            ("releaseVersion", &self.release_version),
+            ("releaseBindingDigest", &self.release_binding_digest),
+            ("capabilityCatalogHash", &self.capability_catalog_hash),
+            ("mcpToolSchemaHash", &self.mcp_tool_schema_hash),
+            ("declarativeAssetsHash", &self.declarative_assets_hash),
+        ] {
+            non_empty(path, value)?;
+        }
+        Ok(())
+    }
+}
+
 impl HostDescriptor {
     pub fn validate(&self) -> Result<(), HostError> {
         if self.schema_version != SCHEMA_VERSION {

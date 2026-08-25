@@ -56,6 +56,81 @@ pub trait FileEffects {
     fn atomic_delete(&mut self, path: &str) -> Result<(), HostError>;
 }
 
+/// Captured pre-operation contents.  The host always captures before applying
+/// so callers can restore an integration after any failed verification.
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
+pub struct TransactionPreimage {
+    pub entries: BTreeMap<String, Option<Vec<u8>>>,
+}
+
+pub fn capture_preimage<E: FileEffects>(
+    effects: &E,
+    plan: &MutationPlan,
+) -> Result<TransactionPreimage, HostError> {
+    plan.validate()?;
+    let mut entries = BTreeMap::new();
+    for mutation in &plan.mutations {
+        entries.insert(mutation.path.clone(), effects.read(&mutation.path)?);
+    }
+    Ok(TransactionPreimage { entries })
+}
+
+pub fn rollback<E: FileEffects>(
+    effects: &mut E,
+    preimage: &TransactionPreimage,
+) -> Result<(), HostError> {
+    for (path, before) in &preimage.entries {
+        match before {
+            Some(bytes) => effects.atomic_write(path, bytes)?,
+            None => effects.atomic_delete(path)?,
+        }
+    }
+    Ok(())
+}
+
+pub fn apply_transaction<E, V>(
+    effects: &mut E,
+    plan: &MutationPlan,
+    verify: V,
+) -> Result<TransactionPreimage, HostError>
+where
+    E: FileEffects,
+    V: FnOnce(&E) -> Result<bool, HostError>,
+{
+    let preimage = capture_preimage(effects, plan)?;
+    let outcome = apply(effects, plan).and_then(|_| {
+        verify(effects).and_then(|ok| {
+            ok.then_some(()).ok_or_else(|| HostError::Verification {
+                reason: "post-apply verification did not pass".into(),
+            })
+        })
+    });
+    if let Err(error) = outcome {
+        rollback(effects, &preimage).map_err(|rollback_error| HostError::Rollback {
+            reason: format!("{error}; recovery failed: {rollback_error}"),
+        })?;
+        return Err(error);
+    }
+    Ok(preimage)
+}
+
+pub fn install_transactional<E, V>(
+    effects: &mut E,
+    descriptor: &HostDescriptor,
+    existing: &BTreeMap<String, Vec<u8>>,
+    projections: impl IntoIterator<Item = ProjectionItem>,
+    verify: V,
+) -> Result<MutationPlan, HostError>
+where
+    E: FileEffects,
+    V: FnOnce(&E) -> Result<bool, HostError>,
+{
+    descriptor.validate()?;
+    let plan = plan(existing, projections)?;
+    apply_transaction(effects, &plan, verify)?;
+    Ok(plan)
+}
+
 pub fn plan(
     existing: &BTreeMap<String, Vec<u8>>,
     projections: impl IntoIterator<Item = ProjectionItem>,

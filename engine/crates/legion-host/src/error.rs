@@ -11,6 +11,12 @@ pub enum FailureCode {
     HarnessConflict,
     InvalidDescriptor,
     Io,
+    PathEscape,
+    SourceCheckoutReference,
+    CommandResolution,
+    ReleaseBindingMismatch,
+    Verification,
+    Rollback,
 }
 
 impl FailureCode {
@@ -24,6 +30,12 @@ impl FailureCode {
             Self::HarnessConflict => "HARNESS_CONFLICT",
             Self::InvalidDescriptor => "INVALID_DESCRIPTOR",
             Self::Io => "IO_ERROR",
+            Self::PathEscape => "PATH_ESCAPE_REFUSED",
+            Self::SourceCheckoutReference => "SOURCE_CHECKOUT_REFERENCE_REFUSED",
+            Self::CommandResolution => "COMMAND_RESOLUTION_FAILED",
+            Self::ReleaseBindingMismatch => "RELEASE_BINDING_MISMATCH",
+            Self::Verification => "VERIFICATION_FAILED",
+            Self::Rollback => "ROLLBACK_FAILED",
         }
     }
 }
@@ -38,6 +50,12 @@ pub enum HostError {
     HarnessConflict { path: String, reason: String },
     InvalidDescriptor { path: String, reason: String },
     Io { path: PathBuf, reason: String },
+    PathEscape { path: String, reason: String },
+    SourceCheckoutReference { path: String },
+    CommandResolution { client: String, reason: String },
+    ReleaseBindingMismatch { reason: String },
+    Verification { reason: String },
+    Rollback { reason: String },
     Json(serde_json::Error),
     Toml(toml::de::Error),
 }
@@ -63,6 +81,22 @@ impl Display for HostError {
                 write!(formatter, "invalid host descriptor at {path}: {reason}")
             }
             Self::Io { path, reason } => write!(formatter, "I/O at {}: {reason}", path.display()),
+            Self::PathEscape { path, reason } => {
+                write!(formatter, "PATH_ESCAPE_REFUSED at {path}: {reason}")
+            }
+            Self::SourceCheckoutReference { path } => {
+                write!(formatter, "SOURCE_CHECKOUT_REFERENCE_REFUSED: {path}")
+            }
+            Self::CommandResolution { client, reason } => write!(
+                formatter,
+                "COMMAND_RESOLUTION_FAILED for {client}: {reason}"
+            ),
+            Self::ReleaseBindingMismatch { reason } => write!(
+                formatter,
+                "RELEASE_BINDING_MISMATCH: {reason}; run legion setup --repair"
+            ),
+            Self::Verification { reason } => write!(formatter, "VERIFICATION_FAILED: {reason}"),
+            Self::Rollback { reason } => write!(formatter, "ROLLBACK_FAILED: {reason}"),
             Self::Json(error) => write!(formatter, "JSON parse failed: {error}"),
             Self::Toml(error) => write!(formatter, "TOML parse failed: {error}"),
         }
@@ -92,6 +126,12 @@ impl HostError {
             Self::HarnessConflict { .. } => FailureCode::HarnessConflict,
             Self::InvalidDescriptor { .. } => FailureCode::InvalidDescriptor,
             Self::Io { .. } => FailureCode::Io,
+            Self::PathEscape { .. } => FailureCode::PathEscape,
+            Self::SourceCheckoutReference { .. } => FailureCode::SourceCheckoutReference,
+            Self::CommandResolution { .. } => FailureCode::CommandResolution,
+            Self::ReleaseBindingMismatch { .. } => FailureCode::ReleaseBindingMismatch,
+            Self::Verification { .. } => FailureCode::Verification,
+            Self::Rollback { .. } => FailureCode::Rollback,
             Self::Json(_) | Self::Toml(_) => FailureCode::InvalidDescriptor,
         }
     }

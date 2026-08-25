@@ -1,6 +1,5 @@
-// GitHub Action adapter per SNIP-ACTION-01. Installs the package, runs the
-// canonical CLI, uploads SARIF/artifacts, and posts deduped summaries with
-// stable finding fingerprints.
+// GitHub Action adapter translates native Legion output into provider upload
+// requests and a summary. It neither installs nor launches a Node Legion copy.
 
 export function actionSummary({ report, scoped, runDir }) {
   return {

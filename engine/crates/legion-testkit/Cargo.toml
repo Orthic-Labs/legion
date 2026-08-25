@@ -43,3 +43,7 @@ path = "../../tests/native_python_surfaces.rs"
 [[test]]
 name = "native_no_interpreter"
 path = "../../tests/native_no_interpreter.rs"
+
+[[test]]
+name = "m3_setup_state"
+path = "../../tests/m3_setup_state.rs"

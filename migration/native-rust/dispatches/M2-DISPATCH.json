@@ -1,0 +1,196 @@
+{
+  "schemaVersion": 1,
+  "kind": "legion-authority-dispatch",
+  "packetType": "direct",
+  "repositoryRoot": ".",
+  "sourceRevision": "475ff5d1931e1006f0b1f199129a4cf4a29713f3",
+  "sourceArtifact": "migration/native-rust/m0/contract-freeze.json",
+  "promptArtifact": "migration/native-rust/dispatches/M2-REQUEST.md",
+  "promptDigest": "sha256:18898c8c68a957dcface69cad542dc5446d139fca42163886b0e5e832a350045",
+  "modelRouting": {
+    "modelTier": "MID",
+    "workerProfile": "terra",
+    "routingRationale": "Portable metadata, the complete native host ownership/lifecycle surface, and mechanical adapters have disjoint files and run concurrently; convergence tests consume every foundation output."
+  },
+  "objective": "Implement M2 repository-local product work from accepted M1 using maximum safe disjoint-lane parallelism, then run pinned external qualification without fabricating unavailable evidence.",
+  "authority": [
+    "AGENTS.md",
+    "docs/LEGION-CANONICAL-SSOT.md",
+    "migration/native-rust/PRODUCT-ARCHITECTURE-V2.md",
+    "migration/native-rust/MIGRATION-PLAN-V2.md",
+    "migration/native-rust/m0/contract-freeze.json",
+    "migration/native-rust/m0/file-ownership-map.json",
+    "migration/native-rust/m0/agent-plugins-contract.json",
+    "migration/native-rust/m0/client-fidelity-matrix.json",
+    "migration/native-rust/m0/command-resolution-proof.json",
+    "migration/native-rust/m0/release-binding-contract.json",
+    "migration/native-rust/m0/rightkit-ax-pin.json",
+    "migration/native-rust/m0/rightkit-conformance-plan.json",
+    "migration/native-rust/dispatches/M1-M8-DISPATCH.json",
+    "migration/native-rust/dispatches/M2-M7-OWNERSHIP-AMENDMENT.json"
+  ],
+  "integrationOwner": "current orchestrator; sole owner of primary checkout HEAD, index, validation, commit, and push; may not edit lane-owned files",
+  "interfaceLock": {
+    "portablePackage": "Three repository templates produce a declarative Agent Plugins 1.0 clean-room package. legion_host::agent_plugins generates the verified release binding, identity, and MCP schema into external staging. References close inside the staged package, which uses bare legion serve --stdio --plugin-root ${PLUGIN_ROOT} and contains no executable or source launcher.",
+    "host": "legion_host owns containment, release-bound projection, client detection and fidelity, command-resolution evidence, transactional ownership-safe lifecycle, and verification; it owns no Legion semantics.",
+    "adapters": "legion-hook and retained client modules are mechanical lifecycle/protocol bridges only; they invoke installed native Legion and contain no policy, routing, capability, workflow, or receipt implementation.",
+    "identity": "Every supported client exposes the same verified runtime, release, catalog, MCP-schema, declarative-asset, and state-compatibility identity tuple.",
+    "qualification": "RightKit AX 0.2.0 at 01f52555202da3dffc6b649ca44e803b55238081 owns static, conformance, behavioral, adversarial, and real-client evidence; missing external prerequisites produce a typed blocker, never PASS."
+  },
+  "ownershipAmendment": {
+    "operatorApproved": true,
+    "reason": "The operator requires maximum safe parallel execution. This packet derives from the frozen 29-path predecessor and applies the approved 30-path amendment while subdividing work into exact disjoint end-to-end implementation lanes.",
+    "frozenMilestoneOwner": "M2-portable-integration-and-adapters",
+    "predecessorPathSetDigest": "sha256:b7f63586bf3751ddf6e88acb6cc8eebb42d77d4a41cbf5db8ee9413d8326d35b",
+    "amendedPathSetDigest": "sha256:67b8c920f0cb13b535ee2d155b5a81bd8f5c52ba5a54e50769e82734abd5722e",
+    "amendmentArtifact": "migration/native-rust/dispatches/M2-M7-OWNERSHIP-AMENDMENT.json",
+    "added": ["engine/assets/legion-plugin/skills/legion/SKILL.md", "engine/bins/legion/src/cli.rs", "engine/bins/legion/tests/m2_plugin_root.rs", "tests/integrations/github-action.test.mjs"],
+    "removed": ["engine/crates/legion-host/Cargo.toml", "hooks/stop-shape.mjs", "hooks/user-intent.mjs"]
+  },
+  "fileTouchPolicy": {
+    "mode": "once-end-to-end",
+    "plannedFiles": [
+      "engine/assets/legion-plugin/mcp.json",
+      "engine/assets/legion-plugin/plugin.json",
+      "engine/assets/legion-plugin/skills/legion/SKILL.md",
+      "engine/bins/legion-hook/Cargo.toml",
+      "engine/bins/legion-hook/src/error.rs",
+      "engine/bins/legion-hook/src/main.rs",
+      "engine/bins/legion-hook/src/protocol.rs",
+      "engine/bins/legion/src/cli.rs",
+      "engine/bins/legion/tests/m2_plugin_root.rs",
+      "engine/crates/legion-host/src/agent_plugins.rs",
+      "engine/crates/legion-host/src/capability.rs",
+      "engine/crates/legion-host/src/descriptor.rs",
+      "engine/crates/legion-host/src/detect.rs",
+      "engine/crates/legion-host/src/error.rs",
+      "engine/crates/legion-host/src/install.rs",
+      "engine/crates/legion-host/src/lib.rs",
+      "engine/crates/legion-host/src/ownership.rs",
+      "engine/crates/legion-host/src/projection.rs",
+      "engine/crates/legion-host/src/uninstall.rs",
+      "engine/crates/legion-host/src/verify.rs",
+      "engine/tests/m2_portable_integration.rs",
+      "engine/tests/native_hosts.rs",
+      "hooks/arcane-hook.mjs",
+      "src/integrations/azure-devops/index.mjs",
+      "src/integrations/bitbucket/index.mjs",
+      "src/integrations/forges.mjs",
+      "src/integrations/github-action/index.mjs",
+      "src/integrations/gitlab/index.mjs",
+      "src/integrations/hooks/index.mjs",
+      "tests/integrations/github-action.test.mjs"
+    ],
+    "allowUnplannedFiles": false,
+    "legacyPortInputs": "Legacy adapter paths in this union may only be retired or reduced to semantic-free compatibility bridges; all other legacy runtime sources remain read-only and deletion remains deferred."
+  },
+  "dispatches": [
+    {
+      "id": "M2-foundation",
+      "dependsOn": [],
+      "lanes": ["m2-portable-assets", "m2-native-host", "m2-mechanical-adapters"],
+      "completionChecks": [
+        "all three lanes complete from source revision 475ff5d1931e1006f0b1f199129a4cf4a29713f3",
+        "actual changed paths are subsets of exact closed disjoint allowlists",
+        "the native host lane owns its public kernel and lifecycle implementation end to end"
+      ]
+    },
+    {
+      "id": "M2-convergence",
+      "dependsOn": ["M2-foundation"],
+      "lanes": ["m2-convergence-tests", "m2-cli-plugin-root"],
+      "completionChecks": [
+        "repository-local format, check, clippy, focused tests, identity-equivalence tests, no-runtime package tests, and semantic-free adapter tests pass",
+        "external RightKit and real-client gates either pass with immutable evidence or return an explicit typed external blocker",
+        "repository-local M2 implementation may be accepted with a typed external blocker; M6 release qualification, publication, and Full-support claims remain blocked"
+      ]
+    }
+  ],
+  "workers": [
+    {
+      "id": "m2-portable-assets",
+      "dispatch": "M2-foundation",
+      "executor": "Terra worker in an isolated worktree",
+      "allowlist": ["engine/assets/legion-plugin/mcp.json", "engine/assets/legion-plugin/plugin.json", "engine/assets/legion-plugin/skills/legion/SKILL.md"],
+      "read": ["migration/native-rust/m0/agent-plugins-contract.json", "migration/native-rust/m0/rightkit-ax-pin.json", "migration/native-rust/m0/release-binding-contract.json"],
+      "forbidden": [".git", ".audit", "node_modules", "target", "secrets", "membrane"],
+      "checks": ["JSON parses", "mcp.json has the exact frozen schema and bare command contract", "plugin.json uses only fields validated by pinned RightKit AX", "neither file contains an executable, interpreter, absolute command, or source-checkout path"],
+      "dependencies": []
+    },
+    {
+      "id": "m2-native-host",
+      "dispatch": "M2-foundation",
+      "executor": "Terra Rust worker in an isolated worktree",
+      "allowlist": [
+        "engine/crates/legion-host/src/agent_plugins.rs",
+        "engine/crates/legion-host/src/capability.rs",
+        "engine/crates/legion-host/src/descriptor.rs",
+        "engine/crates/legion-host/src/detect.rs",
+        "engine/crates/legion-host/src/error.rs",
+        "engine/crates/legion-host/src/install.rs",
+        "engine/crates/legion-host/src/lib.rs",
+        "engine/crates/legion-host/src/ownership.rs",
+        "engine/crates/legion-host/src/projection.rs",
+        "engine/crates/legion-host/src/uninstall.rs",
+        "engine/crates/legion-host/src/verify.rs"
+      ],
+      "read": ["engine/crates/legion-runtime", "engine/crates/legion-contracts", "migration/native-rust/m0/agent-plugins-contract.json", "migration/native-rust/m0/client-fidelity-matrix.json", "migration/native-rust/m0/command-resolution-proof.json"],
+      "forbidden": [".git", ".audit", "node_modules", "target", "secrets", "membrane", "src", "hooks"],
+      "checks": ["cargo fmt --check for owned Rust files", "cargo check -p legion-host --locked", "focused unit tests prove containment, release identity, client fidelity, resolution evidence, and fail-closed errors without Legion semantics"],
+      "dependencies": []
+    },
+    {
+      "id": "m2-mechanical-adapters",
+      "dispatch": "M2-foundation",
+      "executor": "Terra integration worker in an isolated worktree",
+      "allowlist": [
+        "engine/bins/legion-hook/Cargo.toml",
+        "engine/bins/legion-hook/src/error.rs",
+        "engine/bins/legion-hook/src/main.rs",
+        "engine/bins/legion-hook/src/protocol.rs",
+        "hooks/arcane-hook.mjs",
+        "src/integrations/azure-devops/index.mjs",
+        "src/integrations/bitbucket/index.mjs",
+        "src/integrations/forges.mjs",
+        "src/integrations/github-action/index.mjs",
+        "src/integrations/gitlab/index.mjs",
+        "src/integrations/hooks/index.mjs"
+      ],
+      "read": ["engine/bins/legion", "engine/bins/legion-mcp", "migration/native-rust/m0/client-fidelity-matrix.json", "migration/native-rust/m0/command-resolution-proof.json", "migration/native-rust/m0/semantic-freeze.json"],
+      "forbidden": [".git", ".audit", "node_modules", "target", "secrets", "membrane"],
+      "checks": ["cargo fmt --check and cargo check -p legion-hook --locked", "development Node tests for retained adapters pass", "static inspection proves installed-native invocation only and no policy, capability, routing, workflow, or receipt semantics"],
+      "dependencies": []
+    },
+    {
+      "id": "m2-convergence-tests",
+      "dispatch": "M2-convergence",
+      "executor": "Terra test worker in an isolated worktree",
+      "allowlist": ["engine/tests/m2_portable_integration.rs", "engine/tests/native_hosts.rs", "tests/integrations/github-action.test.mjs"],
+      "read": ["engine", "migration/native-rust/m0", "engine/assets/legion-plugin", "hooks", "src/integrations"],
+      "forbidden": [".git", ".audit", "node_modules", "target", "secrets", "membrane"],
+      "checks": ["focused Cargo tests cover portable containment, identity equivalence, lifecycle, failure isolation, and no embedded runtime", "pinned RightKit reports and two actual-client lifecycle evidence are verified when available", "missing external evidence is returned as a typed blocker and never asserted as PASS"],
+      "dependencies": []
+    },
+    {
+      "id": "m2-cli-plugin-root",
+      "dispatch": "M2-convergence",
+      "executor": "Terra Rust worker in an isolated worktree",
+      "allowlist": ["engine/bins/legion/src/cli.rs", "engine/bins/legion/tests/m2_plugin_root.rs"],
+      "read": ["engine/assets/legion-plugin", "engine/crates/legion-host", "engine/crates/legion-runtime", "engine/bins/legion/tests/m1_vertical_slice.rs", "migration/native-rust/m0/release-binding-contract.json"],
+      "forbidden": [".git", ".audit", "node_modules", "target", "secrets", "membrane", "Cargo.toml", "Cargo.lock"],
+      "checks": ["cargo fmt --check for owned Rust files", "cargo check -p legion --locked", "actual binary accepts --plugin-root, rejects missing, escaping, or incomplete package roots before MCP startup, and binds package release identity before exposing tools"],
+      "dependencies": []
+    }
+  ],
+  "oracleAudit": {
+    "required": true,
+    "mode": "adversarial",
+    "status": "required-before-execution",
+    "checks": ["allowlist-completeness", "lane-disjointness", "dependency-validity", "maximum-safe-parallelization", "end-to-end-lane-closure", "interface-lock-sufficiency", "portable-package-closure", "qualification-truthfulness", "legacy-source-retention", "Membrane-exclusion"]
+  },
+  "recovery": {
+    "maxRetries": 1,
+    "stopConditions": ["source revision or frozen contract digest changes", "owned path is already dirty", "portable package closure requires an unplanned path", "a legacy adapter cannot be made semantic-free inside its allowlist", "external qualification is falsely asserted as PASS", "architecture contradiction", "Membrane change would be required"],
+    "returnFields": ["changedPaths", "checks", "blockers", "baselineRevision", "patchDigest"]
+  }
+}

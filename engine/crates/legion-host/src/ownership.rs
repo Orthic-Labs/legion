@@ -2,6 +2,27 @@ use crate::error::HostError;
 use legion_contracts::canonical_digest;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
+use std::path::{Component, Path};
+
+/// Reject paths that could escape a package or client configuration root.
+pub fn validate_relative_path(path: &str) -> Result<(), HostError> {
+    let candidate = Path::new(path);
+    if path.trim().is_empty()
+        || candidate.is_absolute()
+        || candidate.components().any(|part| {
+            matches!(
+                part,
+                Component::ParentDir | Component::RootDir | Component::Prefix(_)
+            )
+        })
+    {
+        return Err(HostError::PathEscape {
+            path: path.into(),
+            reason: "path must be a non-empty relative contained path".into(),
+        });
+    }
+    Ok(())
+}
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]

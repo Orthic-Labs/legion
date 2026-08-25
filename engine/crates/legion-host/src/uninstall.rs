@@ -224,3 +224,12 @@ pub fn uninstall<E: FileEffects>(
     crate::install::apply(effects, &result.plan)?;
     Ok(result)
 }
+
+pub fn uninstall_transactional<E: FileEffects>(
+    effects: &mut E,
+    targets: &[OwnedTarget],
+) -> Result<UninstallResult, HostError> {
+    let result = plan_uninstall(effects, targets)?;
+    crate::install::apply_transaction(effects, &result.plan, |_| Ok(true))?;
+    Ok(result)
+}

@@ -7,6 +7,53 @@ pub struct HostEvidence {
     pub environment: BTreeMap<String, String>,
 }
 
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct CommandResolutionEvidence {
+    pub client_id: String,
+    pub resolution_mode: String,
+    pub resolved_executable: String,
+    pub runtime_digest: String,
+    pub provenance: String,
+    pub launch_environment_digest: String,
+    pub source_checkout: bool,
+    pub path_sanitized: bool,
+}
+
+impl CommandResolutionEvidence {
+    pub fn validate(&self) -> Result<(), HostError> {
+        if !matches!(
+            self.resolution_mode.as_str(),
+            "agent-plugins-bare-command" | "supported-native-exact-path-registration"
+        ) {
+            return Err(HostError::CommandResolution {
+                client: self.client_id.clone(),
+                reason: "unsupported resolution mode".into(),
+            });
+        }
+        if self.source_checkout {
+            return Err(HostError::SourceCheckoutReference {
+                path: self.resolved_executable.clone(),
+            });
+        }
+        if [
+            &self.client_id,
+            &self.resolved_executable,
+            &self.runtime_digest,
+            &self.provenance,
+            &self.launch_environment_digest,
+        ]
+        .iter()
+        .any(|value| value.trim().is_empty())
+        {
+            return Err(HostError::CommandResolution {
+                client: self.client_id.clone(),
+                reason: "incomplete resolution evidence".into(),
+            });
+        }
+        Ok(())
+    }
+}
+
 impl HostEvidence {
     pub fn with_files(files: impl IntoIterator<Item = String>) -> Self {
         Self {

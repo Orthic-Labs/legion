@@ -5,6 +5,7 @@ use serde::Deserialize;
 use serde_json::{json, Value};
 use sha2::Sha256;
 use std::{
+    collections::BTreeSet,
     ffi::OsString,
     path::{Path, PathBuf},
     sync::Arc,
@@ -65,6 +66,7 @@ enum Command {
     Handoff(commands::handoff::HandoffArgs),
     Research(commands::research::ResearchArgs),
     Review(commands::review::ReviewArgs),
+    Setup(commands::setup::SetupArgs),
 }
 #[derive(Clone, Debug, clap::Args)]
 struct M1ConfigArgs {
@@ -76,6 +78,9 @@ struct M1ConfigArgs {
 struct ServeArgs {
     #[arg(long)]
     stdio: bool,
+    /// Immutable Agent Plugins package root supplied by the client launcher.
+    #[arg(long)]
+    plugin_root: Option<PathBuf>,
     #[command(flatten)]
     m1: M1ConfigArgs,
 }
@@ -224,6 +229,22 @@ const M1_STATE_SCHEMA_VERSION: u32 = 1;
 const M1_REPAIR: &str = "legion setup --repair";
 const M1_RIGHTKIT_AX_VERSION: &str = "0.2.0";
 const M1_RIGHTKIT_AX_SOURCE_COMMIT: &str = "01f52555202da3dffc6b649ca44e803b55238081";
+const M2_PORTABLE_PACKAGE_FILES: [&str; 6] = [
+    "plugin.json",
+    "mcp.json",
+    "skills/legion/SKILL.md",
+    "share/legion/release-binding.json",
+    "share/legion/identity/release-identity.json",
+    "share/legion/schemas/mcp-tools.schema.json",
+];
+const M2_PORTABLE_PACKAGE_DIRECTORIES: [&str; 6] = [
+    "skills",
+    "skills/legion",
+    "share",
+    "share/legion",
+    "share/legion/identity",
+    "share/legion/schemas",
+];
 
 /// Installed composition is explicit and versioned so the CLI never infers
 /// release assets from a source checkout or developer environment.
@@ -332,6 +353,178 @@ fn load_m1_application(
     legion_application::M1Application::from_inputs(inputs)
         .map(Arc::new)
         .map_err(|error| commands::CommandError::incomplete(error.to_string()))
+}
+
+fn plugin_root_error(reason: impl Into<String>) -> commands::CommandError {
+    commands::CommandError::incomplete(format!(
+        "portable plugin root rejected: {}; run {M1_REPAIR}",
+        reason.into()
+    ))
+}
+
+fn validate_portable_plugin_root(
+    raw_root: &Path,
+    manifest: &legion_runtime::ReleaseManifest,
+) -> Result<(), commands::CommandError> {
+    if raw_root
+        .components()
+        .any(|component| matches!(component, std::path::Component::ParentDir))
+    {
+        return Err(plugin_root_error("plugin root may not contain `..`"));
+    }
+    let absolute_root = if raw_root.is_absolute() {
+        raw_root.to_path_buf()
+    } else {
+        std::env::current_dir()
+            .map_err(commands::io_error)?
+            .join(raw_root)
+    };
+    for ancestor in absolute_root.ancestors() {
+        let metadata = std::fs::symlink_metadata(ancestor).map_err(|error| {
+            plugin_root_error(format!("cannot inspect {}: {error}", ancestor.display()))
+        })?;
+        if metadata.file_type().is_symlink() {
+            return Err(plugin_root_error(format!(
+                "plugin root crosses symlink {}",
+                ancestor.display()
+            )));
+        }
+    }
+    let root = std::fs::canonicalize(&absolute_root).map_err(|error| {
+        plugin_root_error(format!(
+            "cannot resolve {}: {error}",
+            absolute_root.display()
+        ))
+    })?;
+    if !std::fs::symlink_metadata(&root)
+        .map_err(commands::io_error)?
+        .file_type()
+        .is_dir()
+    {
+        return Err(plugin_root_error("plugin root must be a directory"));
+    }
+
+    let expected_files = M2_PORTABLE_PACKAGE_FILES
+        .iter()
+        .map(|path| (*path).to_owned())
+        .collect::<BTreeSet<_>>();
+    let expected_directories = M2_PORTABLE_PACKAGE_DIRECTORIES
+        .iter()
+        .map(|path| (*path).to_owned())
+        .collect::<BTreeSet<_>>();
+    let mut discovered_files = BTreeSet::new();
+    let mut discovered_directories = BTreeSet::new();
+    collect_portable_package_entries(
+        &root,
+        &root,
+        &expected_files,
+        &expected_directories,
+        &mut discovered_files,
+        &mut discovered_directories,
+    )?;
+    if discovered_files != expected_files || discovered_directories != expected_directories {
+        return Err(plugin_root_error(
+            "package entries are incomplete or do not close exactly",
+        ));
+    }
+
+    for relative in [
+        "plugin.json",
+        "mcp.json",
+        "share/legion/release-binding.json",
+        "share/legion/identity/release-identity.json",
+        "share/legion/schemas/mcp-tools.schema.json",
+    ] {
+        serde_json::from_slice::<Value>(
+            &std::fs::read(root.join(relative)).map_err(commands::io_error)?,
+        )
+        .map_err(|error| plugin_root_error(format!("{relative} is not valid JSON: {error}")))?;
+    }
+    legion_host::validate_templates(&legion_host::PortableTemplates {
+        plugin_json: std::fs::read(root.join("plugin.json")).map_err(commands::io_error)?,
+        mcp_json: std::fs::read(root.join("mcp.json")).map_err(commands::io_error)?,
+        skill_markdown: std::fs::read(root.join("skills/legion/SKILL.md"))
+            .map_err(commands::io_error)?,
+    })
+    .map_err(|error| plugin_root_error(error.to_string()))?;
+
+    let binding_path = root.join("share/legion/release-binding.json");
+    let package_binding = legion_runtime::load_release_manifest(&binding_path)
+        .map_err(|error| plugin_root_error(error.to_string()))?;
+    if &package_binding != manifest {
+        return Err(plugin_root_error(
+            "release-binding.json does not match the verified native application manifest",
+        ));
+    }
+    let identity_path = root.join("share/legion/identity/release-identity.json");
+    let package_identity = legion_runtime::load_release_manifest(&identity_path)
+        .map_err(|error| plugin_root_error(error.to_string()))?;
+    if &package_identity != manifest {
+        return Err(plugin_root_error(
+            "release-identity.json does not match the verified native application manifest",
+        ));
+    }
+    let schema_path = root.join("share/legion/schemas/mcp-tools.schema.json");
+    let package_schema = std::fs::read(&schema_path).map_err(commands::io_error)?;
+    if legion_catalog::hex_digest(&package_schema) != manifest.mcp_tool_schema_sha256 {
+        return Err(plugin_root_error(
+            "mcp-tools.schema.json digest does not match the verified native application manifest",
+        ));
+    }
+    Ok(())
+}
+
+fn collect_portable_package_entries(
+    root: &Path,
+    current: &Path,
+    expected_files: &BTreeSet<String>,
+    expected_directories: &BTreeSet<String>,
+    discovered_files: &mut BTreeSet<String>,
+    discovered_directories: &mut BTreeSet<String>,
+) -> Result<(), commands::CommandError> {
+    for entry in std::fs::read_dir(current).map_err(commands::io_error)? {
+        let entry = entry.map_err(commands::io_error)?;
+        let path = entry.path();
+        let relative = path
+            .strip_prefix(root)
+            .map_err(commands::io_error)?
+            .to_string_lossy()
+            .into_owned();
+        let metadata = std::fs::symlink_metadata(&path).map_err(commands::io_error)?;
+        if metadata.file_type().is_symlink() {
+            return Err(plugin_root_error(format!(
+                "package entry {relative} is a symlink"
+            )));
+        }
+        if metadata.file_type().is_dir() {
+            if !expected_directories.contains(&relative) {
+                return Err(plugin_root_error(format!(
+                    "package contains extra directory {relative}"
+                )));
+            }
+            discovered_directories.insert(relative);
+            collect_portable_package_entries(
+                root,
+                &path,
+                expected_files,
+                expected_directories,
+                discovered_files,
+                discovered_directories,
+            )?;
+        } else if metadata.file_type().is_file() {
+            if !expected_files.contains(&relative) {
+                return Err(plugin_root_error(format!(
+                    "package contains extra file {relative}"
+                )));
+            }
+            discovered_files.insert(relative);
+        } else {
+            return Err(plugin_root_error(format!(
+                "package entry {relative} is not a regular file"
+            )));
+        }
+    }
+    Ok(())
 }
 
 struct M1McpApi {
@@ -505,6 +698,19 @@ async fn native_m1_serve(args: ServeArgs) -> CommandResult {
             "legion serve requires --stdio",
         ));
     }
+    if let Some(plugin_root) = args.plugin_root.as_deref() {
+        let application = load_m1_application(&args.m1)?;
+        validate_portable_plugin_root(plugin_root, application.release_binding().manifest())?;
+        let identity = serde_json::to_value(application.release_binding().manifest())
+            .map_err(commands::io_error)?;
+        legion_mcp::run_stdio(
+            Arc::new(M1McpApi::ready(application)),
+            Arc::new(M1BindingGate::verified(identity)),
+        )
+        .await
+        .map_err(commands::io_error)?;
+        return Ok(json!({"__silent": true}));
+    }
     let (api, gate) = match load_m1_application(&args.m1) {
         Ok(application) => match serde_json::to_value(application.release_binding().manifest()) {
             Ok(identity) => (
@@ -583,6 +789,7 @@ async fn dispatch(cli: Cli, cancellation: CancellationToken) -> commands::Comman
         Command::Handoff(args) => commands::handoff::run(args),
         Command::Research(args) => commands::research::run(args, cancellation.clone()),
         Command::Review(args) => commands::review::run(args, cancellation.clone()),
+        Command::Setup(args) => commands::setup::run(args),
         Command::Providers(args) => Ok(
             json!({"schemaVersion":1,"kind":"legion-providers","providers": providers(), "selected": !(args.json || root_json), "arguments": args.args, "json": args.json || root_json, "text": providers_text()}),
         ),
