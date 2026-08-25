@@ -1,9 +1,7 @@
 use std::{collections::BTreeMap, process::Command};
 
 use legion_audit::{InventoryEntry, InventoryEnvelope};
-use legion_contracts::{
-    Coverage, ProviderId, ProviderResult, ProviderSpec, ProviderStatus,
-};
+use legion_contracts::{Coverage, ProviderId, ProviderResult, ProviderSpec, ProviderStatus};
 
 #[test]
 fn configured_audit_writes_reconciled_json_and_sarif() {

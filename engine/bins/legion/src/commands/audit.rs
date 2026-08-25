@@ -142,9 +142,10 @@ fn direct_application(
     args: &AuditArgs,
     root: &std::path::Path,
 ) -> Result<legion_application::NativeApplication, CommandError> {
-    let packet = args.blueprint_packet.as_ref().ok_or_else(|| {
-        CommandError::usage("direct Audit requires --blueprint-packet")
-    })?;
+    let packet = args
+        .blueprint_packet
+        .as_ref()
+        .ok_or_else(|| CommandError::usage("direct Audit requires --blueprint-packet"))?;
     let plan = args
         .provider_plan
         .as_ref()
@@ -155,11 +156,9 @@ fn direct_application(
         ));
     }
     let packet = std::fs::canonicalize(packet).map_err(super::io_error)?;
-    let source = legion_audit::FileBlueprintInventorySource::new(
-        packet,
-        args.expected_generation.clone(),
-    )
-    .map_err(|error| CommandError::incomplete(error.to_string()))?;
+    let source =
+        legion_audit::FileBlueprintInventorySource::new(packet, args.expected_generation.clone())
+            .map_err(|error| CommandError::incomplete(error.to_string()))?;
     let specifications = read_provider_plan(plan)?;
     let results = args
         .provider_results
@@ -175,11 +174,12 @@ fn direct_application(
     .map_err(|error| CommandError::incomplete(error.to_string()))
 }
 
-fn read_provider_plan(path: &std::path::Path) -> Result<Vec<legion_contracts::ProviderSpec>, CommandError> {
-    let value: serde_json::Value = serde_json::from_slice(
-        &std::fs::read(path).map_err(super::io_error)?,
-    )
-    .map_err(|error| CommandError::usage(format!("invalid provider plan: {error}")))?;
+fn read_provider_plan(
+    path: &std::path::Path,
+) -> Result<Vec<legion_contracts::ProviderSpec>, CommandError> {
+    let value: serde_json::Value =
+        serde_json::from_slice(&std::fs::read(path).map_err(super::io_error)?)
+            .map_err(|error| CommandError::usage(format!("invalid provider plan: {error}")))?;
     let providers = value
         .as_array()
         .or_else(|| value.get("providers").and_then(serde_json::Value::as_array))
@@ -190,17 +190,19 @@ fn read_provider_plan(path: &std::path::Path) -> Result<Vec<legion_contracts::Pr
         .iter()
         .cloned()
         .map(|provider| {
-            serde_json::from_value(provider)
-                .map_err(|error| CommandError::usage(format!("invalid provider specification: {error}")))
+            serde_json::from_value(provider).map_err(|error| {
+                CommandError::usage(format!("invalid provider specification: {error}"))
+            })
         })
         .collect()
 }
 
-fn read_provider_result(path: &std::path::Path) -> Result<legion_contracts::ProviderResult, CommandError> {
-    let value: serde_json::Value = serde_json::from_slice(
-        &std::fs::read(path).map_err(super::io_error)?,
-    )
-    .map_err(|error| CommandError::usage(format!("invalid provider result: {error}")))?;
+fn read_provider_result(
+    path: &std::path::Path,
+) -> Result<legion_contracts::ProviderResult, CommandError> {
+    let value: serde_json::Value =
+        serde_json::from_slice(&std::fs::read(path).map_err(super::io_error)?)
+            .map_err(|error| CommandError::usage(format!("invalid provider result: {error}")))?;
     let result = value.get("providerResult").cloned().unwrap_or(value);
     serde_json::from_value(result)
         .map_err(|error| CommandError::usage(format!("invalid provider result contract: {error}")))
