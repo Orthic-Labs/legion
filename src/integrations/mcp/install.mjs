@@ -1,9 +1,7 @@
 // MCP host installer per SNIP-MCP-01. Prints the host installer config but
 // never edits client config without an explicit command/preview.
 
-import { LEGION_PACKAGE } from '../../lib/version.mjs';
-
-export function mcpInstallConfig({ command = 'legion', args = ['mcp', 'server'] } = {}) {
+export function mcpInstallConfig({ command = 'legion', args = ['serve', '--stdio'] } = {}) {
   return {
     mcpServers: {
       legion: { command, args },

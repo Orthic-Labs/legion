@@ -58,9 +58,7 @@
       "references/router.md",
       "references/scale/README.md"
     ],
-    "scripts": [
-      "scripts/research-core.py"
-    ],
+    "scripts": [],
     "templates": [],
     "schemas": [],
     "receipts": [],
@@ -77,7 +75,7 @@
     {
       "path": "SKILL.md",
       "uri": "legion-skill://research/SKILL.md",
-      "digest": "sha256:6da928f5b7b87eb433831027c50019858f45fae5370f3f0422a2e91ce7c86e69"
+      "digest": "sha256:6d664122d7e70af68b74d37770eb0e1be65aca8e1f2187b315ebc33eb4dcb0c5"
     },
     {
       "path": "evals/evals.json",
@@ -223,11 +221,6 @@
       "path": "references/scale/README.md",
       "uri": "legion-skill://research/references/scale/README.md",
       "digest": "sha256:0160eb4f3419bcfe8140ed09d7d66adafa65e1063c8f4a45c7aa5729cf9f2649"
-    },
-    {
-      "path": "scripts/research-core.py",
-      "uri": "legion-skill://research/scripts/research-core.py",
-      "digest": "sha256:fc1a77b50551143c88704b59e2fada814fc32e1d0d7c84719e189b946b189387"
     }
   ]
 }

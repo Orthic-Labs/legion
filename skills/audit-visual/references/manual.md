@@ -106,10 +106,10 @@ incomplete. A full-page image does not prove hidden overlays or interaction stat
 
 ## 7. Shared provider execution
 
-`/audit-visual` is a thin entrypoint over `../../src/providers/visual-core.mjs` & shared frozen plan.
+`/audit-visual` uses client-native capture tools plus Legion's shared frozen Audit plan.
 
 1. Write visual specification.
-2. Run `node ../../tools/audit/audit-run.mjs <root> --visual-spec <visual-spec.json>`.
+2. Capture specified states, then run `legion audit <root> --out <run-dir>` with evidence-bound provider results.
 3. For runtime captures, also supply `--url`, `--surfaces`, & optional `--visual-baselines`.
 4. Read frozen `plan.json` before `visual.json`; `visual.core` must be selected before execution.
 5. Finalize through shared report & SARIF pipeline; do not emit an incompatible report shape.

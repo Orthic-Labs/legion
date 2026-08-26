@@ -11,7 +11,7 @@
 // looks. Semantics live in skills/*/SKILL.md and src/roster/*; the engine only
 // moves and registers them.
 import { existsSync, mkdirSync, readFileSync, writeFileSync, readdirSync, rmSync } from 'node:fs';
-import { join, resolve, isAbsolute } from 'node:path';
+import { join, isAbsolute } from 'node:path';
 import { projectSkills, verifySkillProjection, unprojectSkills } from './skill-projection.mjs';
 import { capabilityCatalogBlock } from '../host-projection.mjs';
 import { upsertMarkerBlock, stripMarkerBlock } from '../cli/commands/bind/common.mjs';
@@ -43,11 +43,10 @@ function readJsonOrRefuse(path, surface) {
   catch (err) { throw new HarnessConflict(surface, path, `existing JSON does not parse (${err.message}); fix or move it, Legion will not overwrite it`); }
 }
 
-// The command a harness uses to launch the Legion MCP server. node + absolute
-// path works regardless of whether the `legion` CLI is on PATH, so it is the
-// portable default across harnesses.
-export function mcpServerCommand(legionRoot) {
-  return { command: process.execPath, args: [join(legionRoot, 'src', 'integrations', 'mcp', 'server.mjs')] };
+// Harnesses launch only signed installed native Legion. Setup owns PATH
+// registration; source-tree Node is never a shipped runtime fallback.
+export function mcpServerCommand() {
+  return { command: 'legion', args: ['serve', '--stdio'] };
 }
 
 // ---- detection -----------------------------------------------------------
@@ -63,7 +62,7 @@ export function detect(descriptor, root, env = process.env) {
 // ---- capabilities --------------------------------------------------------
 // The declared support table: one entry per surface with its fidelity, the
 // mechanism kind, and the concrete location. Pure — no disk writes.
-export function capabilities(descriptor, { legionRoot } = {}) {
+export function capabilities(descriptor) {
   const surfaces = {};
   for (const surface of SURFACES) {
     const m = descriptor.surfaces?.[surface] ?? { fidelity: 'unsupported', mechanism: { kind: 'none' } };
@@ -78,7 +77,7 @@ export function capabilities(descriptor, { legionRoot } = {}) {
 // only place that touches the filesystem, and none of them transform skill
 // content: skills are projected as packages by skill-projection.mjs.
 
-function installInstructions(mech, { root, legionRoot, skillsLocation }) {
+function installInstructions(mech, { root, skillsLocation }) {
   if (mech.kind === 'agents-md' || mech.kind === 'native-file') {
     const path = abs(root, mech.path);
     // Baseline context + the compact capability catalog. This is a POINTER to

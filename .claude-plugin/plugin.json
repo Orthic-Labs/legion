@@ -1,7 +1,7 @@
 {
   "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
   "name": "legion",
-  "version": "0.1.0-dev.1",
+  "version": "0.1.0-dev.3",
   "displayName": "Legion",
   "description": "The Legion authority system: Legion orchestrates, Sage decides, Alchemist transforms, Oracle assures, Arcane gates every effect. Installs the full-fidelity Claude Code binding \u2014 agents, the /covenant skill, Arcane's pre/post-tool hooks, and the legion MCP server.",
   "author": {
@@ -25,9 +25,10 @@
   ],
   "mcpServers": {
     "legion": {
-      "command": "node",
+      "command": "legion",
       "args": [
-        "${CLAUDE_PLUGIN_ROOT}/src/integrations/mcp/server.mjs"
+        "serve",
+        "--stdio"
       ]
     }
   }

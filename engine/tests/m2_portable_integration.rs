@@ -95,7 +95,7 @@ fn package_files(root: &Path, current: &Path) -> Vec<String> {
                 path.strip_prefix(root)
                     .expect("package path under root")
                     .to_string_lossy()
-                    .into_owned(),
+                    .replace('\\', "/"),
             );
         }
     }
@@ -236,8 +236,8 @@ fn absent_external_evidence_is_a_typed_blocker_and_never_a_fabricated_pass() {
 
 #[test]
 fn m2_mechanical_adapters_delegate_to_installed_native_commands_without_source_paths() {
-    let arcane_hook = include_str!("../../hooks/arcane-hook.mjs");
-    assert!(arcane_hook.contains("spawnSync('legion-hook'"));
+    let arcane_hook = include_str!("../../hooks/hooks.json");
+    assert!(arcane_hook.contains("\"command\": \"legion-hook\""));
     for forbidden in ["/src/", "../src/", "server.mjs", "node "] {
         assert!(
             !arcane_hook.contains(forbidden),

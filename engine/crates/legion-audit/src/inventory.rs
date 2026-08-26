@@ -734,6 +734,20 @@ fn normalize_selector(selector: &Value) -> Result<Value, AuditError> {
     let object = selector
         .as_object()
         .ok_or_else(|| AuditError::Invalid("provider selector must be string or object".into()))?;
+    if let Some(op) = object.get("op").and_then(Value::as_str) {
+        if matches!(op, "any" | "all") {
+            let selectors = object
+                .get("selectors")
+                .and_then(Value::as_array)
+                .ok_or_else(|| AuditError::Invalid(format!("selector.{op} requires selectors")))?;
+            let selectors = selectors
+                .iter()
+                .map(normalize_selector)
+                .collect::<Result<Vec<_>, _>>()?;
+            return Ok(serde_json::json!({"op": op, "selectors": selectors}));
+        }
+        return Ok(selector.clone());
+    }
     for (field, op, key) in [
         ("paths", "anyPath", "patterns"),
         ("ext", "anyExtension", "extensions"),
@@ -755,20 +769,6 @@ fn normalize_selector(selector: &Value) -> Result<Value, AuditError> {
                 .collect::<Result<Vec<_>, _>>()?;
             return Ok(serde_json::json!({"op": op, "selectors": selectors}));
         }
-    }
-    if let Some(op) = object.get("op").and_then(Value::as_str) {
-        if matches!(op, "any" | "all") {
-            let selectors = object
-                .get("selectors")
-                .and_then(Value::as_array)
-                .ok_or_else(|| AuditError::Invalid(format!("selector.{op} requires selectors")))?;
-            let selectors = selectors
-                .iter()
-                .map(normalize_selector)
-                .collect::<Result<Vec<_>, _>>()?;
-            return Ok(serde_json::json!({"op": op, "selectors": selectors}));
-        }
-        return Ok(selector.clone());
     }
     Err(AuditError::Invalid(
         "selector has no supported operation".into(),
@@ -958,11 +958,12 @@ mod tests {
             serde_json::json!({"op": "paths", "paths": [""]}),
             serde_json::json!({"paths": []}),
         ] {
+            let result = inventory.denominator_entries(&selector);
             assert!(matches!(
-                inventory.denominator_entries(&selector),
+                &result,
                 Err(AuditError::Invalid(message))
                     if message.contains("non-empty")
-            ));
+            ), "selector {selector} returned {result:?}");
         }
     }
 }

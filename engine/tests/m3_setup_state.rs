@@ -237,7 +237,7 @@ fn recovery_and_purge_failure_compensate_to_the_verified_generation() {
     );
 
     fs::write(root.path().join("foreign.txt"), "must survive failed purge")
-        .expect("foreign sentinel");
+        .expect("foreign ownership marker");
     let purge = registry
         .preview(request(root.path(), SetupAction::Purge))
         .expect("preview purge");

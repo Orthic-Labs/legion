@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { existsSync, mkdtempSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createHash } from 'node:crypto';
@@ -15,44 +15,6 @@ test('B8-001 exposes one explicit versioned public surface', async () => {
   assert.ok(Object.values(api.COMPATIBILITY_SURFACES).every((entry) => entry.deprecated === true && entry.replacement));
   assert.equal('registry' in api, false);
   assert.equal('loadProviderRegistry' in api, false);
-});
-
-test('B8-003 wires every advertised read-only MCP tool to bounded operations', async () => {
-  const { listTools, callTool } = await import('../src/integrations/mcp/tools.mjs');
-  const expected = ['legion_doctor', 'legion_plan', 'legion_audit', 'legion_verify', 'legion_get_run', 'legion_get_finding', 'legion_explain', 'legion_list_providers', 'legion_list_languages', 'legion_list_families', 'legion_list_skills'];
-  assert.deepEqual(listTools().map(({ name }) => name), expected);
-  assert.ok(listTools().every(({ inputSchema }) => inputSchema.additionalProperties === false));
-  const calls = [];
-  const core = {
-    doctor: async (options) => (calls.push(['doctor', options]), { status: 'pass', gapIds: [] }),
-    plan: async (options) => (calls.push(['plan', options]), { kind: 'legion-sealed-plan', planDigest: 'sha256:p' }),
-    audit: async (options) => (calls.push(['audit', options]), { report: { id: 'run-1' }, artifacts: { runDir: '.audit/run-1' } }),
-    verify: async (options) => (calls.push(['verify', options]), { valid: true }),
-    providers: () => ['p1'], languages: () => ['js'], families: () => ['security'], skills: () => ['designer'],
-    getRun: async (options) => (calls.push(['getRun', options]), { run: options.run, artifact: 'report.json', content: { findings: [] } }),
-    getFinding: async (options) => (calls.push(['getFinding', options]), { run: options.run, findingId: options.findingId, finding: null }),
-    explain: async (options) => (calls.push(['explain', options]), { kind: 'legion-explain', id: options.id, found: false }),
-  };
-  for (const name of expected.slice(0, 4)) {
-    const result = await callTool({ name, arguments: { root: '.' } }, { root: process.cwd(), core, maxOutputBytes: 4096 });
-    assert.equal(result.isError, false, `${name} must execute`);
-  }
-  assert.deepEqual(calls.map(([name]) => name), ['doctor', 'plan', 'audit', 'verify']);
-  const escaped = await callTool({ name: 'legion_doctor', arguments: { root: '..' } }, { root: process.cwd(), core });
-  assert.equal(escaped.isError, true);
-  assert.equal((await callTool({ name: 'legion_doctor', arguments: {} }, { root: process.cwd(), core })).isError, true);
-  assert.equal((await callTool({ name: 'legion_list_skills', arguments: { extra: true } }, { root: process.cwd(), core })).isError, true);
-  for (const [name, args] of [['legion_get_run', { run: 'run-1' }], ['legion_get_finding', { run: 'run-1', findingId: 'f-1' }], ['legion_explain', { id: 'f-1', run: 'run-1' }]]) {
-    const result = await callTool({ name, arguments: args }, { root: process.cwd(), core });
-    assert.equal(result.isError, false, `${name} must call injected core`);
-  }
-  for (const name of expected.slice(7)) {
-    const result = await callTool({ name, arguments: {} }, { root: process.cwd(), core });
-    assert.equal(result.isError, false, `${name} must execute`);
-  }
-  const resources = await import('../src/integrations/mcp/resources.mjs');
-  assert.equal(typeof resources.listResources, 'function');
-  assert.equal(typeof resources.readResource, 'function');
 });
 
 test('B8-007 renders offline HTML with real CSP hash and evidence navigation', async () => {
@@ -144,4 +106,3 @@ test('B8-024 derives claims from exact measured qualification identity', async (
   assert.equal(generateClaims([{ id: 'self', state: 'deterministic-measured', artifactDigest: 'sha256:x', corpusDigest: 'sha256:y', providerDigest: 'sha256:z' }])[0].state, 'unproven');
   assert.equal(generateClaimsFromQualification({ claims: [{ id: 'self', state: 'deterministic-measured' }] }, null).claims[0].state, 'unproven');
 });
-

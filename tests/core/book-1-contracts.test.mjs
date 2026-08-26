@@ -188,11 +188,10 @@ test('B1-026 Writing bundle makes proof and no-fabrication explicit', async () =
   assert.equal(manifest.approvedWordsRequireRevision, true);
 });
 
-test('B1-027 qualifier supports Books 1 through 6 and package smoke exercises library plus plan', async () => {
+test('B1-027 qualifier supports Books 1 through 6 after native release cutover', async () => {
   const { discoverBookTests } = await import('../../scripts/qualify-book.mjs');
-  const { packageSmokeContract } = await import('../../scripts/package-smoke.mjs');
   for (const book of [1, 2, 3, 4, 5, 6]) assert.ok((await discoverBookTests(book)).length > 0);
-  assert.deepEqual(packageSmokeContract(), ['binary', 'library-import', 'blueprint-packet', 'plan', 'schedule', 'serial-execution', 'auto-execution', 'audit', 'verify', 'tasklist', 'dispatch', 'coder', 'qa', 'handoff', 'transcripts', 'decisions']);
+  assert.match(await readFile(new URL('../../scripts/assemble-native-release.mjs', import.meta.url), 'utf8'), /legion-hook/);
 });
 
 test('B1-028 qualification digest ignores duration and noisy test bytes', async () => {

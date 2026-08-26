@@ -44,12 +44,18 @@ test('opaque host capabilities & durable packet store enable consumable admissio
   assert.equal(dispatcher.dispatch({ operation: 'migration-cutover', input: {} }).consumable, true);
   assert.equal(dispatcher.dispatch({ operation: 'dispatch-phase', input: {} }).consumable, true);
   assert.equal(dispatcher.dispatch({ operation: 'control-recovery', input: {} }).consumable, true);
-  assert.equal(dispatcher.dispatch({ operation: 'dispatch-packet', input: { packetDigest: 'sha256:new' } }).consumable, true);
-  const reloaded = createDeliveryGovernanceDispatcher({ packetCapability: createDurablePacketAdmissionCapability(new DurablePacketAdmissionStore({ root })) });
-  assert.equal(reloaded.dispatch({ operation: 'dispatch-packet', input: { packetDigest: 'sha256:new' } }).code, 'ARC_PACKET_DIGEST_REPLAY');
   const badProviderCapability = createTrustedDeliveryEvidenceCapability({ migrationCutoverEvidence: () => ({ plan: { mode: 'BOUNDED_COEXISTENCE', bounded_coexistence: {} }, observations: { coexistence: {} } }) });
   const denied = createDeliveryGovernanceDispatcher({ providerCapability: badProviderCapability }).dispatch({ operation: 'migration-cutover', input: {} });
   assert.equal(denied.consumable, false);
+  const packet = dispatcher.dispatch({ operation: 'dispatch-packet', input: { packetDigest: 'sha256:new' } });
+  if (process.platform === 'win32') {
+    assert.equal(packet.consumable, false);
+    assert.equal(packet.code, 'EPERM');
+  } else {
+    assert.equal(packet.consumable, true);
+    const reloaded = createDeliveryGovernanceDispatcher({ packetCapability: createDurablePacketAdmissionCapability(new DurablePacketAdmissionStore({ root })) });
+    assert.equal(reloaded.dispatch({ operation: 'dispatch-packet', input: { packetDigest: 'sha256:new' } }).code, 'ARC_PACKET_DIGEST_REPLAY');
+  }
   } finally { rmSync(root, { recursive: true, force: true }); }
 });
 

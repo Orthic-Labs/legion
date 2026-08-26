@@ -18,7 +18,7 @@
 // full contents — so a bump is required whenever the discoverable structure
 // changes, which is exactly the invariant version numbers must carry.
 import { readFileSync, writeFileSync, readdirSync, existsSync, statSync } from 'node:fs';
-import { resolve, join, dirname } from 'node:path';
+import { resolve, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createHash } from 'node:crypto';
 
@@ -28,7 +28,7 @@ const SURFACE_FILE = 'src/registry/plugin-surface.json';
 const readJson = (p) => JSON.parse(readFileSync(p, 'utf8'));
 
 // Resolve a ${CLAUDE_PLUGIN_ROOT}-relative reference to a repo path.
-const pluginRel = (ref) => ref.replace('${CLAUDE_PLUGIN_ROOT}/', '');
+const pluginRel = (ref) => ref.replace(`\${CLAUDE_PLUGIN_ROOT}/`, '');
 
 export function collectSurface(root = ROOT) {
   const problems = [];
@@ -52,13 +52,16 @@ export function collectSurface(root = ROOT) {
       })
     : [];
 
-  // MCP servers — declared in the manifest; each entry point must resolve.
+  // MCP servers — source-backed entries must resolve. Installed-native entries
+  // must use Legion's exact stdio launch contract.
   const manifest = readJson(join(root, '.claude-plugin', 'plugin.json'));
   const mcpServers = Object.entries(manifest.mcpServers ?? {}).map(([id, server]) => {
-    const entry = (server.args ?? []).map(pluginRel).find((a) => a.endsWith('.mjs') || a.endsWith('.js'));
-    if (!entry) problems.push(`mcp server ${id} declares no resolvable entry point`);
-    else if (!existsSync(join(root, entry))) problems.push(`mcp server ${id} entry point missing: ${entry}`);
-    return { id, entry: entry ?? null };
+    const args = server.args ?? [];
+    const native = server.command === 'legion' && JSON.stringify(args) === JSON.stringify(['serve', '--stdio']);
+    const entry = args.map(pluginRel).find((a) => a.endsWith('.mjs') || a.endsWith('.js'));
+    if (!native && !entry) problems.push(`mcp server ${id} declares neither installed native Legion nor a resolvable entry point`);
+    else if (entry && !existsSync(join(root, entry))) problems.push(`mcp server ${id} entry point missing: ${entry}`);
+    return { id, command: server.command ?? null, args, entry: entry ?? null };
   });
 
   // Hooks — every command target referenced by hooks.json must resolve.
@@ -93,7 +96,7 @@ export function surfaceDigest(surface) {
   const shape = {
     skills: surface.skills,
     agents: surface.agents.map((a) => a.name),
-    mcpServers: surface.mcpServers.map((s) => ({ id: s.id, entry: s.entry })),
+    mcpServers: surface.mcpServers.map((s) => ({ id: s.id, command: s.command, args: s.args, entry: s.entry })),
     hooks: surface.hooks,
   };
   return `sha256:${createHash('sha256').update(JSON.stringify(shape)).digest('hex')}`;

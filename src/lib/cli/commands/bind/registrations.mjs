@@ -41,6 +41,7 @@ import { homedir } from 'node:os';
 export function handlerId(command, args) {
   const text = String(command ?? '').replace(/\\/g, '/');
   if (/\brhook(\.exe)?\b/.test(text)) return `rhook ${(args ?? []).join(' ')}`.trim();
+  if (/(?:^|\/)legion-hook(?:\.exe)?(?:\s|$)/.test(text)) return 'legion-hook';
   const match = text.match(/([^/\s"']+\.(?:py|mjs|cjs|js))\b/);
   if (match) return basename(match[1]);
   return text.slice(0, 60).trim();

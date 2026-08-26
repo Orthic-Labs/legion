@@ -49,6 +49,6 @@ Arcane-gated.
 3. Fix only unambiguous findings. Never auto-fix manual findings, unadjudicated security findings,
    or visual findings lacking acceptance evidence.
 4. Do not install tools, fetch mutable rules, or alter provider selection.
-5. After each bounded batch, rerun `node ../../tools/audit/audit-run.mjs <root>` with identical scope & evidence.
+5. After each bounded batch, rerun `legion audit <root> --out <run-dir>` with identical scope & evidence.
 6. Cap loop at four batches; stop earlier on no progress, regression, drift, or new high/critical finding.
 7. Return changed files, closed/open findings, regressions, rerun commands, & report/SARIF paths.

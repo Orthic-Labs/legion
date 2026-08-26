@@ -9,7 +9,7 @@ import test from 'node:test';
 const BIN = fileURLToPath(new URL('../src/bin/legion.mjs', import.meta.url));
 const root = fileURLToPath(new URL('..', import.meta.url));
 
-function bind(args = [], cwd = root) {
+function bind(args = []) {
   return spawnSync(process.execPath, [BIN, 'bind', ...args], {
     cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'],
   });
@@ -122,10 +122,9 @@ test('codex bind writes managed agent pointers and is idempotent', () => {
     const config = readFileSync(join(dir, '.codex', 'config.toml'), 'utf8');
     assert.match(config, /# >>> legion:managed-block v1 >>>/);
     assert.match(config, /config_file = "agents\/sage.toml"/);
-    const server = join(root, 'src', 'integrations', 'mcp', 'server.mjs').replace(/\\/g, '/');
-    assert.ok(existsSync(server), 'generated Legion MCP server must exist at package root');
-    assert.match(config, new RegExp(`args = \["${server.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}"\]`));
-    assert.doesNotMatch(config, /\/lib\/integrations\//);
+    assert.match(config, /command = "legion"/);
+    assert.match(config, /args = \["serve", "--stdio"\]/);
+    assert.doesNotMatch(config, /node|server\.mjs|\/lib\/integrations\//);
     const sage = readFileSync(join(dir, '.codex', 'agents', 'sage.toml'), 'utf8');
     assert.match(sage, /\nname = "sage"/);
     assert.doesNotMatch(sage, /\nmodel = /);
@@ -255,7 +254,7 @@ test('gemini bind emits native role commands, context, MCP, and byte-bound recei
     assert.match(context, /frontier-judgment/);
     assert.match(sage, /prompt = /);
     assert.equal(settings.mcpServers.legion.command, 'legion');
-    assert.deepEqual(settings.mcpServers.legion.args, ['mcp', 'server']);
+    assert.deepEqual(settings.mcpServers.legion.args, ['serve', '--stdio']);
     assert.equal(receipt.schemaVersion, 2);
     assert.ok(receipt.harnesses[0].files.every((file) => !file.path.includes(':') && typeof file.bytes === 'number' && /^sha256:/.test(file.digest)));
     assert.equal(bind(['--check', '--harness', 'gemini', dir]).status, 0);

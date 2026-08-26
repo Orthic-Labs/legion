@@ -34,13 +34,13 @@ MAY_CALL_SKILLS: NONE
 TERMINAL: visual.core reconciles its frozen matrix or reports typed UNPROVEN coverage.
 ```
 
-`/audit-visual` is a thin entrypoint over `../../src/providers/visual-core.mjs` & shared frozen plan.
+`/audit-visual` uses client-native capture tools plus Legion's shared frozen Audit plan.
 
 1. Freeze repository, Blueprint generation, routes/screens, viewports, states, themes, locales,
    platforms, interactions, references, & acceptance criteria.
 2. Create an explicit visual specification with expected matrix & capture artifacts; never invent evidence.
-3. Run `node ../../tools/audit/audit-run.mjs <root> --visual-spec <visual-spec.json>`. For runtime captures,
-   also supply `--url`, `--surfaces`, & optional `--visual-baselines`.
+3. Capture specified runtime states through client-native browser tools, then run
+   `legion audit <root> --out <run-dir>` with captured evidence bound into provider results.
 4. Read frozen `plan.json` before `visual.json`; `visual.core` must be selected before execution.
 5. Missing captures, baselines, matrix cases, readable PNGs, runtime states, or required evidence are
    `UNPROVEN`; zero pixel findings is not a pass without complete coverage.

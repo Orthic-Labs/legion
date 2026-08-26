@@ -236,6 +236,103 @@ fn start_stdio(config: &std::path::Path) -> (Child, ChildStdin, BufReader<ChildS
     (child, stdin, stdout)
 }
 
+#[test]
+fn installed_composition_is_resolved_from_the_executable() {
+    let root = std::env::temp_dir().join(format!(
+        "legion-m1-installed-{}-{}",
+        std::process::id(),
+        SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("clock")
+            .as_nanos()
+    ));
+    let executable_name = if cfg!(windows) { "legion.exe" } else { "legion" };
+    let executable = root.join("bin").join(executable_name);
+    let share = root.join("share/legion");
+    let assets = share.join("assets");
+    fs::create_dir_all(assets.join("registry")).expect("installed registry directory");
+    fs::create_dir_all(assets.join("skills/demo")).expect("installed skill directory");
+    fs::copy(env!("CARGO_BIN_EXE_legion"), &executable).unwrap_or_else(|_| {
+        fs::create_dir_all(executable.parent().expect("executable parent"))
+            .expect("installed bin directory");
+        fs::copy(env!("CARGO_BIN_EXE_legion"), &executable).expect("installed executable")
+    });
+    fs::write(
+        assets.join("registry/index.json"),
+        r#"{"schemaVersion":2,"bundles":[{"id":"demo","source":"skills/demo/SKILL.md","description":"installed fixture"}]}"#,
+    )
+    .expect("installed catalog");
+    fs::write(assets.join("skills/demo/SKILL.md"), "installed body").expect("installed skill");
+    fs::write(assets.join("mcp-schema.json"), "installed schema").expect("installed schema");
+    fs::write(assets.join("assets.json"), "installed assets").expect("installed assets");
+    let digest = |path: &std::path::Path| {
+        legion_catalog::hex_digest(&fs::read(path).expect("installed digest source"))
+    };
+    let manifest = legion_runtime::ReleaseManifest {
+        release_version: env!("CARGO_PKG_VERSION").into(),
+        runtime: legion_runtime::RuntimeIdentity {
+            platform: std::env::consts::OS.into(),
+            architecture: std::env::consts::ARCH.into(),
+            sha256: digest(&executable),
+            provenance: "rightkit-release://installed-test".into(),
+        },
+        capability_catalog_sha256: digest(&assets.join("registry/index.json")),
+        mcp_tool_schema_sha256: digest(&assets.join("mcp-schema.json")),
+        declarative_assets_sha256: digest(&assets.join("assets.json")),
+        state_schema_version: 1,
+        rightkit_ax: legion_runtime::RightkitAxIdentity {
+            version: "0.2.0".into(),
+            source_commit: "01f52555202da3dffc6b649ca44e803b55238081".into(),
+        },
+    };
+    fs::write(
+        share.join("release.json"),
+        serde_json::to_vec(&manifest).expect("installed manifest JSON"),
+    )
+    .expect("installed manifest");
+    fs::write(
+        share.join("composition.json"),
+        serde_json::to_vec(&json!({
+            "schemaVersion": 1,
+            "kind": "legion-m1-composition",
+            "releaseManifestPath": "release.json",
+            "catalogRoot": "assets",
+            "catalogIndexPath": "registry/index.json",
+            "policyPack": policy_pack(),
+            "releaseBinding": {
+                "runtimeProvenance": "rightkit-release://installed-test",
+                "catalogPath": "assets/registry/index.json",
+                "mcpToolSchemaPath": "assets/mcp-schema.json",
+                "declarativeAssetsPath": "assets/assets.json",
+                "declarativeAssetsKind": "file",
+            }
+        }))
+        .expect("installed composition JSON"),
+    )
+    .expect("installed composition");
+
+    let output = Command::new(&executable)
+        .args(["--json", "status"])
+        .env_remove("LEGION_M1_CONFIG")
+        .output()
+        .expect("installed Legion status");
+    assert_eq!(
+        output.status.code(),
+        Some(2),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let value: Value = serde_json::from_slice(&output.stdout).expect("installed status JSON");
+    assert_eq!(value["kind"], "legion-m1-status");
+    assert_eq!(value["status"], "incomplete");
+    assert_eq!(value["fidelity"], "degraded");
+    assert_eq!(value["native"]["scope"], "m1-vertical-slice");
+    assert!(value["gaps"]
+        .as_array()
+        .is_some_and(|gaps| !gaps.is_empty()));
+    fs::remove_dir_all(root).expect("installed fixture cleanup");
+}
+
 fn request(stdin: &mut ChildStdin, stdout: &mut BufReader<ChildStdout>, request: Value) -> Value {
     writeln!(stdin, "{}", request).expect("write MCP request");
     stdin.flush().expect("flush MCP request");
@@ -248,8 +345,9 @@ fn request(stdin: &mut ChildStdin, stdout: &mut BufReader<ChildStdout>, request:
 fn actual_binary_serves_the_shared_m1_surface_and_lazy_capability_body() {
     let fixture = fixture(false);
     let status = legion(&["status"], &fixture.config);
-    assert_eq!(status.status.code(), Some(0));
+    assert_eq!(status.status.code(), Some(2));
     let status: Value = serde_json::from_slice(&status.stdout).expect("status JSON");
+    assert_eq!(status["status"], "incomplete");
     assert_eq!(
         status["native"]["releaseVersion"],
         env!("CARGO_PKG_VERSION")
@@ -299,7 +397,7 @@ fn actual_binary_serves_the_shared_m1_surface_and_lazy_capability_body() {
             }
         }),
     );
-    let result = &invoked["result"]["structuredContent"];
+    let result = &invoked["result"]["structuredContent"]["data"];
     assert_eq!(
         result["capability"]["body_sha256"],
         legion_catalog::hex_digest(b"late body"),

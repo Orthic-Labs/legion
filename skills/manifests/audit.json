@@ -29,11 +29,7 @@
       "Diagnose a whole repository through Legion's frozen Audit provider plan. Use for /audit or repository-wide read-only health, security, runtime, & evidence review."
     ],
     "outputs": [],
-    "scripts": [
-      "scripts/audit-finalize.mjs",
-      "scripts/audit-run.mjs",
-      "scripts/audit-sandbox.mjs"
-    ],
+    "scripts": [],
     "templates": [],
     "schemas": [],
     "receipts": [],
@@ -55,27 +51,12 @@
     {
       "path": "SKILL.md",
       "uri": "legion-skill://audit/SKILL.md",
-      "digest": "sha256:340433340fba14748138cb0d1bc1ce7060ffc1f2bb6538074ecd61a17160614f"
+      "digest": "sha256:c980ed9c1943893ef259cb100b584218ed5ee79346185a202c276870d0be82ef"
     },
     {
       "path": "evals/evals.json",
       "uri": "legion-skill://audit/evals/evals.json",
       "digest": "sha256:d5167c55d676b961bd3f8a2a1e921c7381e50c293e30eff8bcb74f1825f7ca3d"
-    },
-    {
-      "path": "scripts/audit-finalize.mjs",
-      "uri": "legion-skill://audit/scripts/audit-finalize.mjs",
-      "digest": "sha256:87ca0d349dd32efecb847c8b35b639948ee988f3e0525e9d65790e0d04be2029"
-    },
-    {
-      "path": "scripts/audit-run.mjs",
-      "uri": "legion-skill://audit/scripts/audit-run.mjs",
-      "digest": "sha256:c6b5c751cbcd8154dee7fe019933ac0644056d7c6439d01fdd8f2ab8271dd1a1"
-    },
-    {
-      "path": "scripts/audit-sandbox.mjs",
-      "uri": "legion-skill://audit/scripts/audit-sandbox.mjs",
-      "digest": "sha256:050ced33802c6816457755780e82a83d38ef2d87ac7466269e6da7cc92435e85"
     }
   ]
 }

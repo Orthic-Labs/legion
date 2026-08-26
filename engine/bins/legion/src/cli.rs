@@ -14,7 +14,7 @@ use tokio_util::sync::CancellationToken;
 #[derive(Debug, Parser)]
 #[command(
     name = "legion",
-    version = "0.1.0-dev.1",
+    version = "0.1.0-dev.3",
     about = "evidence-governed repository audit",
     disable_help_subcommand = true
 )]
@@ -229,6 +229,7 @@ const M1_STATE_SCHEMA_VERSION: u32 = 1;
 const M1_REPAIR: &str = "legion setup --repair";
 const M1_RIGHTKIT_AX_VERSION: &str = "0.2.0";
 const M1_RIGHTKIT_AX_SOURCE_COMMIT: &str = "01f52555202da3dffc6b649ca44e803b55238081";
+const M1_INSTALLED_COMPOSITION: &str = "share/legion/composition.json";
 const M2_PORTABLE_PACKAGE_FILES: [&str; 6] = [
     "plugin.json",
     "mcp.json",
@@ -341,11 +342,8 @@ fn load_m1_application(
                 .filter(|value| !value.is_empty())
                 .map(PathBuf::from)
         })
-        .ok_or_else(|| {
-            commands::CommandError::usage(
-                "M1 composition config is required via --config or LEGION_M1_CONFIG",
-            )
-        })?;
+        .map(Ok)
+        .unwrap_or_else(installed_m1_composition)?;
     let bytes = std::fs::read(&config_path).map_err(commands::io_error)?;
     let config: M1CompositionConfig = serde_json::from_slice(&bytes)
         .map_err(|error| commands::CommandError::usage(error.to_string()))?;
@@ -353,6 +351,32 @@ fn load_m1_application(
     legion_application::M1Application::from_inputs(inputs)
         .map(Arc::new)
         .map_err(|error| commands::CommandError::incomplete(error.to_string()))
+}
+
+fn installed_m1_composition() -> Result<PathBuf, commands::CommandError> {
+    let executable = std::fs::canonicalize(std::env::current_exe().map_err(commands::io_error)?)
+        .map_err(commands::io_error)?;
+    let executable_directory = executable.parent().ok_or_else(|| {
+        commands::CommandError::incomplete("installed executable has no parent directory")
+    })?;
+    let mut roots = vec![executable_directory];
+    if executable_directory
+        .file_name()
+        .is_some_and(|name| name == "bin")
+    {
+        if let Some(parent) = executable_directory.parent() {
+            roots.push(parent);
+        }
+    }
+    roots
+        .into_iter()
+        .map(|root| root.join(M1_INSTALLED_COMPOSITION))
+        .find(|candidate| candidate.is_file())
+        .ok_or_else(|| {
+            commands::CommandError::incomplete(format!(
+                "installed M1 composition {M1_INSTALLED_COMPOSITION} was not found; run {M1_REPAIR}"
+            ))
+        })
 }
 
 fn plugin_root_error(reason: impl Into<String>) -> commands::CommandError {
@@ -489,7 +513,7 @@ fn collect_portable_package_entries(
             .strip_prefix(root)
             .map_err(commands::io_error)?
             .to_string_lossy()
-            .into_owned();
+            .replace('\\', "/");
         let metadata = std::fs::symlink_metadata(&path).map_err(commands::io_error)?;
         if metadata.file_type().is_symlink() {
             return Err(plugin_root_error(format!(
@@ -642,6 +666,7 @@ fn m1_status_value(status: &legion_application::M1Status) -> Value {
     json!({
         "releaseVersion": status.release_version,
         "capabilityCount": status.capability_count,
+        "scope": "m1-vertical-slice",
         "status": "complete"
     })
 }
@@ -683,14 +708,17 @@ impl legion_mcp::ReleaseBindingGate for M1BindingGate {
 }
 
 async fn native_m1_status(args: M1ConfigArgs) -> CommandResult {
-    if args.config.is_none() && std::env::var_os("LEGION_M1_CONFIG").is_none() {
-        return commands::setup::top_level_status();
-    }
     let application = load_m1_application(&args)?;
     Ok(json!({
         "schemaVersion": 1,
         "kind": "legion-m1-status",
-        "status": "complete",
+        "status": "incomplete",
+        "fidelity": "degraded",
+        "gaps": [
+            "native hook enforcement is not connected",
+            "native CLI product projections are not fully connected",
+            "M4 capability migration and M6 installed-product qualification are incomplete"
+        ],
         "native": m1_status_value(&application.status()),
     }))
 }
@@ -735,7 +763,7 @@ where
 {
     let args: Vec<OsString> = args.into_iter().collect();
     if args.len() == 1 && matches!(args[0].to_str(), Some("--version" | "-V")) {
-        println!("0.1.0-dev.1");
+        println!("0.1.0-dev.3");
         return 0;
     }
     match Cli::try_parse_from(std::iter::once(OsString::from("legion")).chain(args.clone())) {

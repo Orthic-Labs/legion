@@ -130,10 +130,6 @@ pub fn run(args: SetupArgs) -> CommandResult {
     }
 }
 
-pub fn top_level_status() -> CommandResult {
-    status(SetupClientArgs { client: None })
-}
-
 fn lifecycle(args: SetupLifecycleArgs, action: legion_host::SetupAction) -> CommandResult {
     if matches!(action, legion_host::SetupAction::Purge) && !args.confirm && !args.dry_run {
         return Err(CommandError::usage(

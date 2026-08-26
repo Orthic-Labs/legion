@@ -12,7 +12,7 @@ import test from 'node:test';
 
 import { enumerateRegistrations, handlerId } from '../src/lib/cli/commands/bind/registrations.mjs';
 
-const ARCANE = 'node "${CLAUDE_PLUGIN_ROOT}/hooks/arcane-hook.mjs"';
+const ARCANE = 'legion-hook';
 
 function host({ userHooks = {}, pluginHooks = null } = {}) {
   const home = mkdtempSync(join(tmpdir(), 'legion-reg-'));
@@ -36,7 +36,7 @@ test('a plugin-supplied hook is visible even when settings.json has none', () =>
   try {
     const { registrations, duplicates } = enumerateRegistrations({ home: h.home });
     assert.equal(duplicates.length, 0);
-    const arcane = registrations.filter((r) => r.handler === 'arcane-hook.mjs');
+    const arcane = registrations.filter((r) => r.handler === 'legion-hook');
     assert.equal(arcane.length, 1);
     assert.equal(arcane[0].source, 'plugin:legion@skills-dir');
   } finally { h.cleanup(); }
@@ -44,13 +44,13 @@ test('a plugin-supplied hook is visible even when settings.json has none', () =>
 
 test('the incident is caught: settings.json wiring on top of a plugin is a duplicate', () => {
   const h = host({
-    userHooks: stopHook('/Users/x/.nvm/versions/node/v26.7.0/bin/node /workspace/legion/hooks/arcane-hook.mjs'),
+    userHooks: stopHook('/usr/local/bin/legion-hook'),
     pluginHooks: stopHook(ARCANE),
   });
   try {
     const { duplicates } = enumerateRegistrations({ home: h.home });
     assert.equal(duplicates.length, 1);
-    assert.equal(duplicates[0].handler, 'arcane-hook.mjs');
+    assert.equal(duplicates[0].handler, 'legion-hook');
     assert.equal(duplicates[0].event, 'Stop');
     assert.deepEqual(duplicates[0].sources.sort(), ['plugin:legion@skills-dir', 'user-settings']);
     assert.match(duplicates[0].detail, /runs 2x on Stop/);
@@ -71,8 +71,8 @@ test('the same handler on DIFFERENT events is not a duplicate', () => {
 
 test('handler identity survives absolute-path differences across machines', () => {
   assert.equal(
-    handlerId('node "${CLAUDE_PLUGIN_ROOT}/hooks/arcane-hook.mjs"'),
-    handlerId('/Users/x/.nvm/versions/node/v26.7.0/bin/node /workspace/legion/hooks/arcane-hook.mjs'),
+    handlerId('legion-hook'),
+    handlerId('/usr/local/bin/legion-hook'),
   );
   assert.equal(handlerId('D:\\Claude\\.venv-tools\\Scripts\\python.exe C:/x/.claude/hooks/enforce_brief.py'), 'enforce_brief.py');
   // rhook is one binary serving many gates: keyed by subcommand, never merged.

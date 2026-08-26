@@ -72,7 +72,7 @@ tests.
 | 2.5 | Option Divergence Gate | auto **HARD GATE** |
 | 3 | Surface-specific guard (differentiation registry · IA/state model · SEO surface) | auto **HARD GATE** |
 | 4 | Build (with continuous verification — runtime enforces) | auto |
-| 5 | Verification: Designer critique · Audit Visual rendered coverage/regression · QA functional/runtime checks · technical SEO when in scope · design-gate.mjs | auto **HARD GATE** — fail -> fix -> re-run |
+| 5 | Verification: Designer critique · Audit Visual rendered coverage/regression · QA functional/runtime checks · technical SEO when in scope · native Legion review | auto **HARD GATE** — fail -> fix -> re-run |
 | 6 | Human eyes — approving human's taste gate | render screenshots, then **PARK** |
 | 7 | Handoff (docs, tokens, registry row for websites) | auto |
 
@@ -135,7 +135,7 @@ Required lanes must pass before Phase 6:
 - **5b** — `/audit-visual` rendered-state matrix, capture, coverage, & regression evidence.
 - **5c** — `/qa` functional, behavioral, browser, & runtime checks required by declared acceptance.
 - **5d** — `/seo` technical audit when website scope requires meta, schema, OG, sitemap, robots, semantic HTML, or CWV checks.
-- **5e** — `src/lib/design-gate.mjs` deterministic runner. Verifies motion-plan.md + motion-gate.json exist and pass, runs 14 deterministic checks, outputs `artifacts/qa/gate.json` with motion + design-system results aggregated into one top-level verdict.
+- **5e** — `legion review` verifies motion evidence & design-system results under one native verdict.
 
 `verdict: pass` requires every check green or explicitly waived with reason. `fail` requires fix + re-run.
 
@@ -165,7 +165,7 @@ accessibility execution, browser, & runtime checks. Pass QA-produced captures to
 never treat one default screenshot as functional or coverage proof.
 
 **Human eyes (phase 6).** The approving human approves with their eyes before final. Open what they should review
-via `node src/lib/open-for-review.mjs <path>`.
+through client-native artifact review.
 
 ## Craft rules (absorbed from Anthropic's frontend-design — apply while building)
 

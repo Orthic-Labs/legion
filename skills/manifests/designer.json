@@ -59,10 +59,7 @@
       "references/website-regression-gotchas.md",
       "references/website.md"
     ],
-    "scripts": [
-      "scripts/design-gate.mjs",
-      "scripts/open-for-review.mjs"
-    ],
+    "scripts": [],
     "templates": [],
     "schemas": [],
     "receipts": [],
@@ -885,7 +882,7 @@
     {
       "path": "references/banned-words.md",
       "uri": "legion-skill://designer/references/banned-words.md",
-      "digest": "sha256:56814d6c4d0ea5366df57c58e6ea573f83e6028dda2a17ec4556ebd2ac0fa37a"
+      "digest": "sha256:78fc65a6a85e1cc1656a61016e4278df57b2f0705f78168d107e4914e4748873"
     },
     {
       "path": "references/components/_index.md",
@@ -1016,16 +1013,6 @@
       "path": "references/website.md",
       "uri": "legion-skill://designer/references/website.md",
       "digest": "sha256:ed87377c34d4ae1203ab43ca6b18b934c3d99bf46f8c994b63e0a13aea535008"
-    },
-    {
-      "path": "scripts/design-gate.mjs",
-      "uri": "legion-skill://designer/scripts/design-gate.mjs",
-      "digest": "sha256:f646633b377b401bf464b432e39ac50859b782fd4f821acbbc25f895e96cfaab"
-    },
-    {
-      "path": "scripts/open-for-review.mjs",
-      "uri": "legion-skill://designer/scripts/open-for-review.mjs",
-      "digest": "sha256:2377ea9f04340b356ca57d71e73703363f4b9e765c8138069abb805d8345ce93"
     },
     {
       "path": "specialists/glass/GUIDE.md",
@@ -1170,7 +1157,7 @@
     {
       "path": "specialists/surface-design/GUIDE.md",
       "uri": "legion-skill://designer/specialists/surface-design/GUIDE.md",
-      "digest": "sha256:f87c0e9f1e437657ff7d415ec48ec38f906998b465a184c60ebf85bfdbf13040"
+      "digest": "sha256:ac45f51aa17b62984c250cdb014eda47f5bf24a05804cdd910ef7b096586119a"
     }
   ]
 }

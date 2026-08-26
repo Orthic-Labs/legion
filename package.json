@@ -1,6 +1,7 @@
 {
   "name": "@orthic-labs/legion",
-  "version": "0.1.0-dev.1",
+  "version": "0.1.0-dev.3",
+  "private": true,
   "description": "Legion routes engineering, research, editorial, design, and commercial work through explicit authority, execution, and evidence controls.",
   "license": "SEE LICENSE IN LICENSE",
   "author": {
@@ -33,9 +34,6 @@
   "type": "module",
   "engines": {
     "node": ">=22.13"
-  },
-  "bin": {
-    "legion": "./src/bin/legion.mjs"
   },
   "exports": {
     ".": "./src/lib/index.mjs",
@@ -78,7 +76,6 @@
     "skills/",
     "scripts/self-test.mjs",
     "scripts/generate-schemas.mjs",
-    "scripts/package-smoke.mjs",
     "scripts/normalize-provider-result.mjs",
     "scripts/check-publication-policy.mjs",
     "scripts/check-canonical-names.mjs",
@@ -94,6 +91,7 @@
     "package.json"
   ],
   "scripts": {
+    "biome": "biome lint scripts/assemble-native-release.mjs scripts/verify-plugin-parity.mjs src/adapters/blueprint-packet.mjs src/integrations/mcp/install.mjs src/lib/cli/commands/bind/codex.mjs src/lib/cli/commands/bind/registrations.mjs src/lib/cli/commands/mcp.mjs src/lib/host/engine.mjs src/lib/version.mjs tests/bind-registrations.test.mjs tests/bind.test.mjs tests/cli-delivery-governance.test.mjs tests/package-install.test.mjs tests/public-l5.test.mjs",
     "test": "node --test --test-concurrency=1 \"tests/*.test.mjs\" \"src/packages/arcane/tests/*.test.mjs\"",
     "architecture-evals": "node scripts/run-architecture-evals.mjs --json",
     "stage9-runtime-evals": "node scripts/run-stage9-runtime-evals.mjs",
@@ -101,13 +99,16 @@
     "naming:check": "node scripts/check-canonical-names.mjs",
     "legion:check": "node scripts/check-canonical-names.mjs && node scripts/generate-schemas.mjs --check && node scripts/check-dependency-closure.mjs && node scripts/generate-skill-catalog.mjs --check && node scripts/generate-host-projection.mjs --check && node scripts/refresh-local-skill-manifests.mjs --check && node scripts/generate-manifest.mjs --check && node scripts/generate-catalogs.mjs --check && node scripts/verify-plugin-parity.mjs --check",
     "schemas:check": "node scripts/generate-schemas.mjs --check",
-    "prepack": "node scripts/check-publication-policy.mjs --channel internal-pack && node scripts/check-canonical-names.mjs && node scripts/generate-schemas.mjs --check && node --test --test-concurrency=1 \"tests/*.test.mjs\" \"src/packages/arcane/tests/*.test.mjs\" && node scripts/check-dependency-closure.mjs && node scripts/generate-host-projection.mjs --check && node scripts/verify-plugin-parity.mjs --check && node scripts/package-smoke.mjs",
     "closure:check": "node scripts/check-dependency-closure.mjs",
     "plugin:surface": "node scripts/verify-plugin-parity.mjs",
     "plugin:verify": "node scripts/verify-plugin-parity.mjs --check",
-    "plugin:dev": "node scripts/plugin-dev.mjs"
+    "plugin:dev": "node scripts/plugin-dev.mjs",
+    "native:assemble": "node scripts/assemble-native-release.mjs"
   },
   "dependencies": {
     "@rightkit/hooks": "0.1.0"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.5.10"
   }
 }

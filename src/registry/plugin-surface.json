@@ -1,8 +1,8 @@
 {
   "schemaVersion": 1,
   "kind": "legion-plugin-surface",
-  "version": "0.1.0-dev.1",
-  "digest": "sha256:bf1e286ad2db68d00dc7816e9ced7d764fc2f08c70ca8808bc10ccbe5d4bf869",
+  "version": "0.1.0-dev.3",
+  "digest": "sha256:750ec2923fb7be22bdcc77ef745b21cfaceeb1ad474aac3699cf30fedf6445d5",
   "counts": {
     "skills": 23,
     "agents": 4,
@@ -56,7 +56,12 @@
     "mcpServers": [
       {
         "id": "legion",
-        "entry": "src/integrations/mcp/server.mjs"
+        "command": "legion",
+        "args": [
+          "serve",
+          "--stdio"
+        ],
+        "entry": null
       }
     ],
     "hooks": {
@@ -70,9 +75,7 @@
         "SubagentStart",
         "UserPromptSubmit"
       ],
-      "targets": [
-        "hooks/arcane-hook.mjs"
-      ]
+      "targets": []
     }
   },
   "problems": []

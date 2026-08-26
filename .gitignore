@@ -1,4 +1,5 @@
 dist/
+engine/target/
 node_modules/
 .audit/
 .audit

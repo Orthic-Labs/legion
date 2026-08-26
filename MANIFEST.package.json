@@ -32,7 +32,6 @@
     "skills/",
     "scripts/self-test.mjs",
     "scripts/generate-schemas.mjs",
-    "scripts/package-smoke.mjs",
     "scripts/check-publication-policy.mjs",
     "scripts/check-canonical-names.mjs",
     "scripts/check-dependency-closure.mjs",

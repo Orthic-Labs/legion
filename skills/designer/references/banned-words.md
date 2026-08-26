@@ -8,7 +8,7 @@ Every entry has a detection pattern (regex or grep). The build fails when hard-b
 
 ## How to use
 
-`src/lib/design-gate.mjs` (Phase 5d) runs these patterns against built HTML. Hard-block entries fail the build. Soft-flag entries log a warning but don't block.
+Native `legion review` runs these patterns against built HTML. Hard-block entries fail review. Soft flags remain warnings.
 
 To add a banned word: append to the relevant section with detection regex + reason + severity. Update this file, not per-brand files.
 
@@ -99,6 +99,6 @@ ships with the shape only, no example ventures.
 
 ## Build integration
 
-`src/lib/design-gate.mjs` runs the hard-block patterns against built HTML. Soft-flags appear in `artifacts/qa/banned-words.json` as warnings.
+Native `legion review` runs hard-block patterns against built HTML. Soft flags appear in review evidence as warnings.
 
 Override via `--allow-banned=<pattern>` flag with required reason. Waivers logged in `artifacts/qa/waivers.json`.

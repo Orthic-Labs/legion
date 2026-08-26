@@ -17,9 +17,8 @@ Legion's canonical content is host-neutral. Its delivery was not. Before this wo
 - the plugin was disabled in the operator's settings, so **no** capability or agent was
   discovered by Claude Code, and every other symptom was downstream of that;
 - the installed plugin was a copy taken at commit `52a83ca` with the pre-`src/` layout, while
-  the working tree had moved to `src/packages/**`. The manifest in the tree pointed the MCP
-  server at `src/integrations/mcp/server.mjs`; the installed copy had no `src/`. The version
-  string was identical across both, so nothing signalled the drift;
+  the working tree had moved to `src/packages/**`. Old plugin metadata referenced a source-tree
+  Node MCP server absent from installed copies; native cutover retires that route entirely;
 - `legion bind` wrote `.claude/agents/**` while the plugin package shipped `agents/**` for the
   same three roles — two installers for one harness;
 - **no** binder projected `skills/` at all. Outside Claude Code, Legion was three roles and zero
