@@ -31,7 +31,7 @@ const PROJECTION = {
 test('public API exposes deterministic explicit & model-selection validation seams', () => {
   assert.equal(typeof resolveSkillInvocation, 'function');
   assert.equal(typeof validateCapabilitySelection, 'function');
-  assert.equal(resolveSkillInvocation('/blueprint map').resolvedInvocation, '/blueprint map');
+  assert.equal(resolveSkillInvocation('/blueprint map').status, 'not-found');
   assert.equal(resolveSkillInvocation('/glass refine header').resolvedInvocation, '/designer glass refine header');
   assert.equal(validateCapabilitySelection({ ids: ['architect'], source: 'semantic' }).status, 'resolved');
 });

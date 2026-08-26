@@ -571,9 +571,9 @@ REQUIRED_LABELS = [
     "**Model / tool relevance rule:**",
     "**Locked model / runtime route:**",
     "**Recovery scope rule:**",
-    "**Forge gate:**",
-    "**Forge state reference:**",
-    "**Forge verification:**",
+    "**Alchemist gate:**",
+    "**Alchemist state reference:**",
+    "**Alchemist verification:**",
     "**First-action readback:**",
     "**Supervision cadence:**",
     "**Authority order:**",
@@ -583,7 +583,7 @@ REQUIRED_LABELS = [
     "**Re-derivation status:**",
     "**Progress disposition:**",
     "**Inherited inventory reconciliation:**",
-    "**Forge typed-stage binding:**",
+    "**Alchemist typed-stage binding:**",
     "**State A:**",
     "**State B:**",
     "**Goal success proof:**",
@@ -595,7 +595,7 @@ REQUIRED_LABELS = [
     "**Bottleneck:**",
     "**Parallel lanes:**",
     "**Deleted / deferred work:**",
-    "**Route Forge binding:**",
+    "**Route Alchemist binding:**",
     "**Topology mode:**",
     "**Full-matrix authorization:**",
     "**Value-of-information rule:**",
@@ -828,6 +828,23 @@ def ordered_heading_errors(text: str) -> list[str]:
 def label_value(text: str, label: str) -> str | None:
     match = re.search(rf"(?m)^-\s+{re.escape(label)}\s*(.*)$", text)
     return match.group(1).strip() if match else None
+
+
+LEGACY_AUTHORITY_LABELS = {
+    "**Alchemist gate:**": "**Forge gate:**",
+    "**Alchemist state reference:**": "**Forge state reference:**",
+    "**Alchemist verification:**": "**Forge verification:**",
+    "**Alchemist typed-stage binding:**": "**Forge typed-stage binding:**",
+    "**Route Alchemist binding:**": "**Route Forge binding:**",
+}
+
+
+def authority_label_value(text: str, label: str) -> str | None:
+    value = label_value(text, label)
+    if value is not None:
+        return value
+    legacy = LEGACY_AUTHORITY_LABELS.get(label)
+    return label_value(text, legacy) if legacy else None
 
 
 def is_concrete(value: str) -> bool:
@@ -1664,27 +1681,30 @@ def goal_route_errors(
                 if critical_steps != artifact_path:
                     errors.append("Critical path must exactly match GoalRoute artifact")
 
-    forge_gate = label_value(text, "**Forge gate:**") or ""
-    route_forge = label_value(text, "**Route Forge binding:**") or ""
-    artifact_forge = (
-        route_document.get("forge", {})
-        if isinstance(route_document, dict)
-        else {}
-    )
-    if isinstance(artifact_forge, dict) and artifact_forge.get("required"):
-        run_id = str(artifact_forge.get("run_id", ""))
+    alchemist_gate = authority_label_value(text, "**Alchemist gate:**") or ""
+    route_alchemist = authority_label_value(text, "**Route Alchemist binding:**") or ""
+    artifact_alchemist = {}
+    state_scheme = "alchemist"
+    if isinstance(route_document, dict):
+        if isinstance(route_document.get("alchemist"), dict):
+            artifact_alchemist = route_document["alchemist"]
+        elif isinstance(route_document.get("forge"), dict):
+            artifact_alchemist = route_document["forge"]
+            state_scheme = "forge"
+    if isinstance(artifact_alchemist, dict) and artifact_alchemist.get("required"):
+        run_id = str(artifact_alchemist.get("run_id", ""))
         expected = (
             f"SCHEMA:goal-route.v2; RUN_ID:{run_id}; "
-            f"STATE:forge://run/{run_id}/state; CHECKPOINT:GOAL_ROUTE_V2"
+            f"STATE:{state_scheme}://run/{run_id}/state; CHECKPOINT:GOAL_ROUTE_V2"
         )
-        if route_forge.casefold() != expected.casefold():
-            errors.append("Route Forge binding must match GoalRoute artifact")
-        if run_id not in forge_gate:
-            errors.append("dispatch Forge gate must contain GoalRoute Forge run ID")
+        if route_alchemist.casefold() != expected.casefold():
+            errors.append("Route Alchemist binding must match GoalRoute artifact")
+        if run_id not in alchemist_gate:
+            errors.append("dispatch Alchemist gate must contain GoalRoute Alchemist run ID")
     elif not re.match(
-        r"^SCHEMA:goal-route\.v2;\s*NOT_REQUIRED:\s*\S", route_forge, re.I
+        r"^SCHEMA:goal-route\.v2;\s*NOT_REQUIRED:\s*\S", route_alchemist, re.I
     ):
-        errors.append("routine route Forge binding requires NOT_REQUIRED reason")
+        errors.append("routine route Alchemist binding requires NOT_REQUIRED reason")
     return errors
 
 
@@ -1868,7 +1888,7 @@ def decision_scope_errors(text: str, allow_template: bool) -> list[str]:
         if not re.search(pattern, value, re.I):
             errors.append(f"{label} lacks enforceable decision-scope contract")
 
-    forge_required = bool(
+    alchemist_required = bool(
         semantics
         & {
             "EXPERIMENT",
@@ -1879,44 +1899,47 @@ def decision_scope_errors(text: str, allow_template: bool) -> list[str]:
             "REPEATED_FAILURE",
         }
     )
-    forge_gate = label_value(text, "**Forge gate:**") or ""
-    forge_state = label_value(text, "**Forge state reference:**") or ""
-    forge_verify = label_value(text, "**Forge verification:**") or ""
-    if forge_required:
+    alchemist_gate = authority_label_value(text, "**Alchemist gate:**") or ""
+    alchemist_state = authority_label_value(text, "**Alchemist state reference:**") or ""
+    alchemist_verify = authority_label_value(text, "**Alchemist verification:**") or ""
+    if alchemist_required:
         run_match = re.match(
             r"^REQUIRED:\s*run_id=[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
-            forge_gate,
+            alchemist_gate,
             re.I,
         )
         if not run_match:
             errors.append(
-                "**Forge gate:** non-routine semantic work requires REQUIRED run_id=<uuid>"
+                "**Alchemist gate:** non-routine semantic work requires REQUIRED run_id=<uuid>"
             )
         else:
-            run_id = forge_gate.split("=", 1)[1].strip()
-            if forge_state != f"forge://run/{run_id}/state":
+            run_id = alchemist_gate.split("=", 1)[1].strip()
+            if alchemist_state not in {
+                f"alchemist://run/{run_id}/state",
+                f"forge://run/{run_id}/state",
+            }:
                 errors.append(
-                    "**Forge state reference:** must bind exact required run_id"
+                    "**Alchemist state reference:** must bind exact required run_id"
                 )
-        if forge_verify != "VERIFIED_NO_CRITICAL_OPEN":
+        if alchemist_verify != "VERIFIED_NO_CRITICAL_OPEN":
             errors.append(
-                "**Forge verification:** non-routine semantic work requires VERIFIED_NO_CRITICAL_OPEN"
+                "**Alchemist verification:** non-routine semantic work requires VERIFIED_NO_CRITICAL_OPEN"
             )
     else:
         if not (
-            re.match(r"^REQUIRED:\s*run_id=", forge_gate, re.I)
-            or re.match(r"^NOT_REQUIRED:\s*\S", forge_gate, re.I)
+            re.match(r"^REQUIRED:\s*run_id=", alchemist_gate, re.I)
+            or re.match(r"^NOT_REQUIRED:\s*\S", alchemist_gate, re.I)
         ):
             errors.append(
-                "**Forge gate:** must be REQUIRED run_id=<uuid> or NOT_REQUIRED: <reason>"
+                "**Alchemist gate:** must be REQUIRED run_id=<uuid> or NOT_REQUIRED: <reason>"
             )
-        if forge_verify not in {"VERIFIED_NO_CRITICAL_OPEN", "NOT_REQUIRED"}:
+        if alchemist_verify not in {"VERIFIED_NO_CRITICAL_OPEN", "NOT_REQUIRED"}:
             errors.append(
-                "**Forge verification:** must be VERIFIED_NO_CRITICAL_OPEN or NOT_REQUIRED"
+                "**Alchemist verification:** must be VERIFIED_NO_CRITICAL_OPEN or NOT_REQUIRED"
             )
-        if forge_gate.startswith("NOT_REQUIRED:") and forge_state != "NOT_REQUIRED":
+        if alchemist_gate.startswith("NOT_REQUIRED:") and alchemist_state != "NOT_REQUIRED":
             errors.append(
-                "**Forge state reference:** routine NOT_REQUIRED gate requires NOT_REQUIRED"
+                "**Alchemist state reference:** routine NOT_REQUIRED gate requires NOT_REQUIRED"
             )
 
     def scope_items(value: str, prefix: str) -> list[str]:
@@ -2091,7 +2114,7 @@ def authority_correction_errors(text: str, allow_template: bool) -> list[str]:
         )
         if value.strip()
     }
-    forge_required = bool(
+    alchemist_required = bool(
         semantics
         & {
             "EXPERIMENT",
@@ -2102,26 +2125,26 @@ def authority_correction_errors(text: str, allow_template: bool) -> list[str]:
             "REPEATED_FAILURE",
         }
     )
-    typed_binding = label_value(text, "**Forge typed-stage binding:**") or ""
-    if forge_required:
+    typed_binding = authority_label_value(text, "**Alchemist typed-stage binding:**") or ""
+    if alchemist_required:
         match = re.fullmatch(
-            r"SCHEMA:dispatch\.stage\.v1;\s*RUN_ID:([0-9a-f-]{36});\s*STATE:forge://run/([0-9a-f-]{36})/state;\s*CHECKPOINT:TYPED_STAGES",
+            r"SCHEMA:dispatch\.stage\.v1;\s*RUN_ID:([0-9a-f-]{36});\s*STATE:(?:alchemist|forge)://run/([0-9a-f-]{36})/state;\s*CHECKPOINT:TYPED_STAGES",
             typed_binding,
             re.I,
         )
-        forge_gate = label_value(text, "**Forge gate:**") or ""
-        gate_run = forge_gate.split("=", 1)[1].strip() if "=" in forge_gate else ""
+        alchemist_gate = authority_label_value(text, "**Alchemist gate:**") or ""
+        gate_run = alchemist_gate.split("=", 1)[1].strip() if "=" in alchemist_gate else ""
         if not match or match.group(1).lower() != match.group(2).lower():
             errors.append(
-                "non-routine work requires typed Forge binding schema, matching run/state IDs, & TYPED_STAGES checkpoint"
+                "non-routine work requires typed Alchemist binding schema, matching run/state IDs, & TYPED_STAGES checkpoint"
             )
         elif match.group(1).lower() != gate_run.lower():
             errors.append(
-                "Forge typed-stage binding run ID must match Forge gate"
+                "Alchemist typed-stage binding run ID must match Alchemist gate"
             )
     elif not re.match(r"^NOT_REQUIRED:\s*\S", typed_binding, re.I):
         errors.append(
-            "routine work requires Forge typed-stage binding NOT_REQUIRED:<reason>"
+            "routine work requires Alchemist typed-stage binding NOT_REQUIRED:<reason>"
         )
 
     inherited = table_rows(
@@ -2959,7 +2982,7 @@ def validate(
     errors = ordered_heading_errors(text)
 
     for label in REQUIRED_LABELS:
-        value = label_value(text, label)
+        value = authority_label_value(text, label)
         if value is None:
             errors.append(f"missing label: {label}")
         elif not value and label not in {

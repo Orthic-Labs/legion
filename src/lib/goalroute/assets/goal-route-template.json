@@ -110,11 +110,11 @@
     "invalidates": [],
     "source_fingerprint_sha256": "{{64_HEX_SHA256}}"
   },
-  "forge": {
+  "alchemist": {
     "required": true,
     "run_id": "{{UUID}}",
-    "state_ref": "forge://run/{{UUID}}/state",
+    "state_ref": "alchemist://run/{{UUID}}/state",
     "checkpoint": "GOAL_ROUTE_V2",
-    "reason": "{{WHY_FORGE_REQUIRED_OR_NOT_REQUIRED}}"
+    "reason": "{{WHY_ALCHEMIST_REQUIRED_OR_NOT_REQUIRED}}"
   }
 }

@@ -8,7 +8,7 @@
     "description": "Handoff independence evidence has not been compiled into owned report.",
     "evidence": [
       {
-        "locator": "<workspace>/tools/skills/dispatch/examples/validated-forward-test.md",
+        "locator": "skills/dispatch/examples/validated-forward-test.md",
         "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
         "check": "Read mission and observed report evidence remains uncompiled."
       }
@@ -18,39 +18,39 @@
     "description": "Owned report contains all passing handoff independence evidence.",
     "proof": [
       {
-        "command": "py -3.11 <workspace>/tools/skills/handoff/scripts/test_validate_handoff.py",
+        "command": "python skills/handoff/scripts/test_validate_handoff.py",
         "expected": "Exit 0 and report contains every named passing check.",
-        "evidence_path": "<workspace>/tools/review/.council-runs/dispatch-handoff-final/forward/handoff-independence-report.md"
+        "evidence_path": ".audit/dispatch-handoff-final/forward/handoff-independence-report.md"
       }
     ]
   },
   "constraints": {
     "authority": {
       "rule": "Read-only validation with no source or Git mutation.",
-      "evidence_locator": "<workspace>/tools/skills/dispatch/examples/validated-forward-test.md"
+      "evidence_locator": "skills/dispatch/examples/validated-forward-test.md"
     },
     "safety": {
       "rule": "No network, production, destructive, or paid action.",
-      "evidence_locator": "<workspace>/tools/skills/dispatch/examples/validated-forward-test.md"
+      "evidence_locator": "skills/dispatch/examples/validated-forward-test.md"
     },
     "scope": {
       "rule": "One owned report plus named local validation inputs.",
-      "evidence_locator": "<workspace>/tools/skills/dispatch/examples/validated-forward-test.md"
+      "evidence_locator": "skills/dispatch/examples/validated-forward-test.md"
     },
     "quality": {
       "rule": "All four named validation checks must pass.",
-      "evidence_locator": "<workspace>/tools/skills/dispatch/examples/validated-forward-test.md"
+      "evidence_locator": "skills/dispatch/examples/validated-forward-test.md"
     },
     "cost": {
       "rule": "Zero paid or network cost.",
-      "evidence_locator": "<workspace>/tools/skills/dispatch/examples/validated-forward-test.md"
+      "evidence_locator": "skills/dispatch/examples/validated-forward-test.md"
     }
   },
   "candidates": [
     {
       "id": "R_VALIDATE",
       "constraint_status": "PASS",
-      "constraint_evidence": "<workspace>/tools/review/.council-runs/dispatch-handoff-final/forward/route-proof.json",
+      "constraint_evidence": ".audit/dispatch-handoff-final/forward/route-proof.json",
       "steps": [
         {
           "id": "R_VALIDATE/S1",
@@ -105,7 +105,7 @@
       "status": "SELECTED",
       "dominance_reason": "Only authority-compliant complete validation path.",
       "evidence": [
-        "<workspace>/tools/review/.council-runs/dispatch-handoff-final/forward/route-proof.json"
+        ".audit/dispatch-handoff-final/forward/route-proof.json"
       ]
     }
   ],
@@ -130,7 +130,7 @@
   ],
   "deferred_work": [],
   "single_feasible_evidence": [
-    "<workspace>/tools/review/.council-runs/dispatch-handoff-final/forward/route-proof.json"
+    ".audit/dispatch-handoff-final/forward/route-proof.json"
   ],
   "invalidation": {
     "revision": 1,
@@ -138,7 +138,7 @@
     "invalidates": [],
     "source_fingerprint_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
   },
-  "forge": {
+  "alchemist": {
     "required": false,
     "run_id": "",
     "state_ref": "",

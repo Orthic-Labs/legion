@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { createHash } from 'node:crypto';
-import { existsSync, writeFileSync } from 'node:fs';
+import { existsSync, realpathSync, writeFileSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import { dirname, isAbsolute, join, relative, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -33,7 +33,10 @@ function writeJson(path, value) { writeFileSync(path, `${JSON.stringify(value, n
 function stableId(value) { return `sha256:${createHash('sha256').update(value).digest('hex')}`; }
 
 function normalizedExecutableHref(href, platform = process.platform) {
-  return platform === 'win32' ? String(href).toLowerCase() : String(href);
+  let normalized = String(href);
+  try { normalized = pathToFileURL(realpathSync(fileURLToPath(normalized))).href; }
+  catch {}
+  return platform === 'win32' ? normalized.toLowerCase() : normalized;
 }
 export function sameExecutableHref(leftHref, rightHref, platform = process.platform) {
   return normalizedExecutableHref(leftHref, platform) === normalizedExecutableHref(rightHref, platform);

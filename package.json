@@ -91,7 +91,6 @@
     "package.json"
   ],
   "scripts": {
-    "biome": "biome lint scripts/assemble-native-release.mjs scripts/verify-plugin-parity.mjs src/adapters/blueprint-packet.mjs src/integrations/mcp/install.mjs src/lib/cli/commands/bind/codex.mjs src/lib/cli/commands/bind/registrations.mjs src/lib/cli/commands/mcp.mjs src/lib/host/engine.mjs src/lib/version.mjs tests/bind-registrations.test.mjs tests/bind.test.mjs tests/cli-delivery-governance.test.mjs tests/package-install.test.mjs tests/public-l5.test.mjs",
     "test": "node --test --test-concurrency=1 \"tests/*.test.mjs\" \"src/packages/arcane/tests/*.test.mjs\"",
     "architecture-evals": "node scripts/run-architecture-evals.mjs --json",
     "stage9-runtime-evals": "node scripts/run-stage9-runtime-evals.mjs",
@@ -103,7 +102,8 @@
     "plugin:surface": "node scripts/verify-plugin-parity.mjs",
     "plugin:verify": "node scripts/verify-plugin-parity.mjs --check",
     "plugin:dev": "node scripts/plugin-dev.mjs",
-    "native:assemble": "node scripts/assemble-native-release.mjs"
+    "native:assemble": "node scripts/assemble-native-release.mjs",
+    "biome": "biome lint . --max-diagnostics=1000"
   },
   "dependencies": {
     "@rightkit/hooks": "0.1.0"

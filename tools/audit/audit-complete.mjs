@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, realpathSync, writeFileSync } from 'node:fs';
 import { dirname, isAbsolute, join, resolve } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -243,7 +243,10 @@ export async function runCompleteAudit(inputOptions) {
 // path normalization; compare normalized file URLs so the direct entrypoint is
 // detected reliably on every host.
 function normalizedExecutableHref(href, platform = process.platform) {
-  return platform === 'win32' ? String(href).toLowerCase() : String(href);
+  let normalized = String(href);
+  try { normalized = pathToFileURL(realpathSync(fileURLToPath(normalized))).href; }
+  catch {}
+  return platform === 'win32' ? normalized.toLowerCase() : normalized;
 }
 export function isMainEntrypoint(importMetaUrl, argvPath = process.argv[1], platform = process.platform) {
   if (!argvPath) return false;

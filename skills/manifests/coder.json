@@ -26,7 +26,7 @@
   "parity": {
     "triggers": [
       "/coder",
-      "Explicit opt-in router for scoped read-only code analysis through external API models. Use only for `/coder`, explicit outsourced API analysis, or a named API provider/model."
+      "Explicit opt-in router for scoped read-only code analysis through Pi catalog models. Use only for `/coder`, explicit outsourced analysis, or a named Pi model/tier."
     ],
     "outputs": [
       "references/provider-runbook.md"
@@ -53,22 +53,22 @@
     {
       "path": "SKILL.md",
       "uri": "legion-skill://coder/SKILL.md",
-      "digest": "sha256:8af4cbadc1fff627e2c056c6431eaae071a765eb8ef13841f1f63bb11a49e8ca"
+      "digest": "sha256:281c480e77e8e165b142b8b19426b831edaf8dfa7e1904eefc93a28bec29ef7f"
     },
     {
       "path": "agents/openai.yaml",
       "uri": "legion-skill://coder/agents/openai.yaml",
-      "digest": "sha256:28152e6a0dd882a013d5d2731b4082be2d8f6aa601397909a045f3bc82e7e945"
+      "digest": "sha256:1caeddd9fc7a956453a837b9253455cb97b89bd250bcee3a239a1a1d629f8233"
     },
     {
       "path": "evals/evals.json",
       "uri": "legion-skill://coder/evals/evals.json",
-      "digest": "sha256:a519b0cb1dd57e23019f7a23d9f53bcc61d778a44877c8ccd884992cb3d6d1f5"
+      "digest": "sha256:0b6900fa67f43ec77bb2405ec3625a83cb5564af582e65f3c60fcc77b59b96d0"
     },
     {
       "path": "hooks/enforce_cheap_review_routing.py",
       "uri": "legion-skill://coder/hooks/enforce_cheap_review_routing.py",
-      "digest": "sha256:4f621b3b02fe85743b89b1b993da7002722f15b54a57afa78364e44450e2d415"
+      "digest": "sha256:c39226932233b5f13e36ebb095b2a30ba1f8b4c1addaeeb2f6712d3f948bc33e"
     },
     {
       "path": "hooks/hooks.json",
@@ -83,17 +83,17 @@
     {
       "path": "references/provider-runbook.md",
       "uri": "legion-skill://coder/references/provider-runbook.md",
-      "digest": "sha256:e7de6988381fc043a36ef3004cf700453cc067d653da21e4ad4f00309d8d4068"
+      "digest": "sha256:6700b90ef797646b6bf85ddfd6fb977eaeff46c5efd8cca075bfca26f65b6eca"
     },
     {
       "path": "scripts/api-worker.py",
       "uri": "legion-skill://coder/scripts/api-worker.py",
-      "digest": "sha256:b5729b23ae80aab9f6b9f1553594390cdcfee6faea76df7d140bf6b7a0f50240"
+      "digest": "sha256:68be41c4d1f3925ab593d12d67dc70eae6e2148503c74c0870a59bbb4e9e7ffd"
     },
     {
       "path": "tests/coder-entrypoint.test.py",
       "uri": "legion-skill://coder/tests/coder-entrypoint.test.py",
-      "digest": "sha256:2474212935230c6997671a464cf344c4703a8c7335027f08a193b011b599d6a6"
+      "digest": "sha256:986f26c5720b2568584a94c1a0916f35607eef7270b75b8767d2faa86c1fb65c"
     }
   ]
 }

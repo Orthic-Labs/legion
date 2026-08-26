@@ -59,8 +59,10 @@ CodeRabbit or ponytail binaries (those aren't required; the engine absorbs both,
    A mismatch means the committed content is not the validated content: re-run the gate, do not push.
    Record `candidateTree` in the gate artifact (step 8).
 
-   **Blast radius via the Blueprint graph (when `.agent/index.json` exists in the repo).** Run
-   `blueprint graph impact` over the changed files/symbols. Two uses, both diff-scoped:
+  **Blast radius via Legion's direct Membrane Blueprint provider (when `.agent/index.json` exists
+  in the repo).** Request `graph impact` over changed files/symbols through resident Hub transport
+  when available, or bounded one-shot for supplied root when Hub is off or resident access reports
+  `project is not enrolled`. Enrollment does not gate one-shot access. Two uses, both diff-scoped:
 
    (a) **bigger-scheme check** — callers/dependents of the changed symbols that are NOT in the diff
    are the risk surface; if impact shows heavy fan-in onto a changed public contract, escalate the
@@ -80,10 +82,10 @@ CodeRabbit or ponytail binaries (those aren't required; the engine absorbs both,
    A "done" claim over a file carrying an unimplemented marker is a hard finding, not generic drift.
    Blueprint catches this repo-wide; here it catches it before the claim ships.
 
-   **Graph freshness, not just graph existence.** Run `blueprint doctor` first. A **stale** graph is
-   worse than no graph — it answers impact queries with last week's structure and manufactures
-   confidence. Trust impact when doctor is `ready`; mark it low-confidence and lean on the post-fix
-   re-check when `degraded`; treat `stale`/`broken`/`corrupt` as no graph.
+  **Graph freshness, not just graph existence.** Request provider-reported `doctor` status first. A
+  **stale** graph is worse than no graph — it answers impact queries with last week's structure and
+  manufactures confidence. Trust impact when doctor is `ready`; mark it low-confidence and lean on
+  post-fix re-check when `degraded`; treat `stale`/`broken`/`corrupt` as no graph.
 
    Because `/commit` runs *pre*-commit, the committed graph does not contain the change under review.
    Where the engine supports it, query with the working-tree overlay so impact reflects the candidate
@@ -283,10 +285,11 @@ CodeRabbit or ponytail binaries (those aren't required; the engine absorbs both,
      giving up the local test-execution + fix-before-it-leaves-the-machine advantage.
 
 6. **Graph freshness (post-push, non-blocking).** If the repo has a Blueprint index
-   (`.agent/index.json`), refresh it now so the graph tracks reality: `blueprint build` in the
-   background (or queue it). Never block or fail the commit/push on this — a rebuild error is
-   reported as residue, not a gate. Repos without an index are left alone; adopting Blueprint is a
-   deliberate per-repo decision, not a commit side effect.
+   (`.agent/index.json`), request refresh through Legion's direct Membrane Blueprint provider so
+   graph tracks reality. It selects resident Hub transport when available, or bounded one-shot for
+   supplied root when Hub is off/not enrolled. Never block or fail commit/push on this — refresh
+   failure is reported as residue, not a gate. Repos without an index are left alone; adopting
+   Blueprint is a deliberate per-repo decision, not a commit side effect.
 
 7. **Knowledge extraction (only for a genuinely durable pattern).** Reviews should improve future
    reviews. If a fix in this run corrected a mistake you'd expect to recur across the project — a

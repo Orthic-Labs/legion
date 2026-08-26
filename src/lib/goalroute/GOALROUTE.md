@@ -65,7 +65,7 @@ NOMINAL_CRITICAL_PATH_MS
 8. selected route: minimum expected time among constraint-passing candidates. On equal expected time,
    reject selection dominated on cost, risk, and rework.
 9. selected critical path, independent parallel lanes, bottleneck, deleted work, deferred work.
-10. correction/invalidation record and Forge binding for non-routine work.
+10. correction/invalidation record and Alchemist binding for non-routine work.
 
 Probabilities are evidence-backed estimates, not decorative precision. If unresolved uncertainty can
 change winner, gather cheapest discriminating evidence before selecting.
@@ -157,6 +157,6 @@ standard. A cheap probe which cannot discriminate live hypotheses does not advan
 - Every step advances B or is a named safety/dependency requirement.
 - Parallel lanes contain no dependency relationship.
 - Existing progress has no priority unless compatible with current route.
-- Non-routine route requires Forge checkpoint `GOAL_ROUTE_V2`.
+- Non-routine route requires Alchemist checkpoint `GOAL_ROUTE_V2`.
 - Semantic correction invalidates route from root.
 - One artifact, one receipt, one selected route.

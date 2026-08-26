@@ -19,6 +19,8 @@
 - **Dependency position:** {{UPSTREAM_INPUTS_AND_DOWNSTREAM_CONSUMER}}
 - **Parallel safety:** {{SERIAL_OR_PARALLEL_WITH_EXACT_NON_OVERLAP}}
 - **Integration owner:** {{OWNER_WHO_REVIEWS_AND_INTEGRATES}}
+- **Worker boundary:** EDIT_ONLY:{{WORKERS_INSPECT_READ_AND_EDIT_EXACT_OWN_PATHS_ONLY; NO_CARGO_TESTS_BUILDS_GENERATORS_INSTALLS_COMMITS_PUSHES_MERGES_OR_EXPENSIVE_CHECKS}}
+- **Integration checkpoint owner:** {{INTEGRATION_OWNER_RUNS_MERGE_RECONCILIATION_AND_ALL_INTENDED_CHECKPOINTS}}
 
 | Active dispatch ID | OWN paths | Status | Overlap decision |
 |---|---|---|---|
@@ -43,9 +45,9 @@
 - **Model / tool relevance rule:** {{LOAD_ONLY_IF_IT_PRODUCES_NAMED_ACCEPTANCE_METRIC}}
 - **Locked model / runtime route:** {{ROUTE_LOCK_OR_NO_MODEL_ALLOWED}}
 - **Recovery scope rule:** {{RECOVERY_RESTORES_REQUIRED_INPUT_BUT_CANNOT_EXPAND_EXPERIMENT}}
-- **Forge gate:** {{REQUIRED_RUN_ID_OR_NOT_REQUIRED_WITH_EXACT_REASON}}
-- **Forge state reference:** {{FORGE_STATE_REF_OR_NOT_REQUIRED}}
-- **Forge verification:** {{VERIFIED_NO_CRITICAL_OPEN_OR_NOT_REQUIRED}}
+- **Alchemist gate:** {{REQUIRED_RUN_ID_OR_NOT_REQUIRED_WITH_EXACT_REASON}}
+- **Alchemist state reference:** {{ALCHEMIST_STATE_REF_OR_NOT_REQUIRED}}
+- **Alchemist verification:** {{VERIFIED_NO_CRITICAL_OPEN_OR_NOT_REQUIRED}}
 - **First-action readback:** {{QUESTIONS_METRICS_DIAGNOSTICS_FORBIDDEN_FIRST_ACTION}}
 - **Supervision cadence:** {{NUMERIC_TIME_OR_UNIT_CADENCE_PLUS_CHECKPOINTS}}
 
@@ -76,7 +78,7 @@
 - **Re-derivation status:** {{FROM_ZERO_OBJECTIVE_REQUIREMENTS_STAGES_COMMANDS_COMPLETE}}
 - **Progress disposition:** {{PRESERVE_EVIDENCE_ONLY_REUSE_PROOF_STALE_PROGRESS_REJECT}}
 - **Inherited inventory reconciliation:** {{INVENTORY_TOTAL_CLASSIFIED_TOTAL_UNCLASSIFIED_ZERO_AND_EVIDENCE_PATH}}
-- **Forge typed-stage binding:** {{SCHEMA_RUN_ID_STATE_REF_AND_TYPED_STAGE_CHECKPOINT}}
+- **Alchemist typed-stage binding:** {{SCHEMA_RUN_ID_STATE_REF_AND_TYPED_STAGE_CHECKPOINT}}
 
 ### Inherited instruction disposition
 
@@ -102,7 +104,7 @@
 - **Bottleneck:** {{BOTTLENECK_STEP_RESOURCE_AND_BOUND}}
 - **Parallel lanes:** {{PARALLEL_GROUPS_OR_NONE_WITH_DEPENDENCY_PROOF}}
 - **Deleted / deferred work:** {{DELETE_NON_ADVANCING_AND_DEFER_DOWNSTREAM_ITEMS}}
-- **Route Forge binding:** {{ROUTE_SCHEMA_RUN_STATE_CHECKPOINT_OR_NOT_REQUIRED_REASON}}
+- **Route Alchemist binding:** {{ROUTE_SCHEMA_RUN_STATE_CHECKPOINT_OR_NOT_REQUIRED_REASON}}
 
 | Route ID | Ordered route steps | Dependencies | Constraint result | Min wall ms | Expected verified-B ms | Cost units | Risk units | Rework units | Status | Rejection / dominance evidence |
 |---|---|---|---|---:|---:|---:|---:|---:|---|---|
@@ -162,6 +164,7 @@ Provide exactly one fenced command block per declared stage. First line must be 
 - **Substitution policy:** {{NO_SUBSTITUTION_OR_EXACT_AUTHORIZED_EQUIVALENTS}}
 - **Allowed result derivation:** {{DIRECT_ONLY_SOURCE_AND_TERMINAL_VALUE}}
 - **Forbidden result derivation:** {{FORBID_PROJECTION_DIRECT_CLOSURE_OR_OTHER_INVALID_DERIVATION}}
+- **Source-port policy:** {{DIRECT_PORT_EXISTING_SOURCE_FIRST; CROSS_LANGUAGE_PORT_INTO_TARGET_LANGUAGE; RUST_TARGETS_REQUIRE_RUST_PORT; NO_HAND_ROLL_WHILE_SOURCE_EXISTS}}
 - **Lifecycle preflight:**
 
 ```text
@@ -176,9 +179,17 @@ Provide exactly one fenced command block per declared stage. First line must be 
 
 - **OWN — may edit:** {{EXACT_PATHS_OR_NONE}}
 - **READ — read only:** {{EXACT_PATHS_OR_DATA_SOURCES}}
-- **FORBIDDEN:** {{PATHS_ACTIONS_SYSTEMS_AND_OTHER_AGENT_SCOPES}}
+- **FORBIDDEN:** {{PATHS_ACTIONS_SYSTEMS_AND_OTHER_AGENT_SCOPES_PLUS_CARGO_TESTS_BUILDS_GENERATORS_INSTALLS_COMMITS_PUSHES_MERGES_AND_EXPENSIVE_CHECKS_FOR_WORKERS}}
 - **Dirty-work policy:** {{HOW_UNRELATED_CHANGES_ARE_PRESERVED}}
 - **Side effects / blast radius:** {{FILES_NETWORK_DATABASE_ACCOUNTS_COST_OR_NONE}}
+- **Dispatch waves:** {{WAVE_IDS_WITH_EVERY_READY_LANE_IN_EARLIEST_WAVE}}
+- **Wave dependency rule:** {{LATER_WAVE_ONLY_FOR_EXACT_COMPLETED_OUTPUT_OR_STATE; NO_PHASE_ONLY_SERIALIZATION}}
+
+- **Lane record:** WAVE={{WAVE_ID}}; LANE={{LANE_ID}}; DEPENDS={{START_OR_EXACT_PRIOR_WAVE_OUTPUT}}; OWN={{EXACT_REPOSITORY_RELATIVE_FILES}}; INTEGRATION_CHECK={{CHECK_AFTER_MERGE}}
+
+### One-touch path ledger
+
+- **Path record:** PATH={{EXACT_REPOSITORY_RELATIVE_FILE}}; OWNER={{LANE_ID}}; OPERATION={{CREATE_EDIT_DELETE}}; LANE={{LANE_ID}}; FINAL_CHECK={{EXACT_CHECK}}
 
 | Task ID | Owner | Depends on | Output | Verification | Parallelizable |
 |---|---|---|---|---|---|
@@ -395,7 +406,7 @@ Required blocker record must include all tokens: `RECOVERY_EXHAUSTED`, `INDEPEND
 - [ ] Authority order places latest user intent above inherited text, implementation, checkpoints, & progress.
 - [ ] Semantic correction invalidates plan from ROOT, stops/quarantines active work, & completes from-zero re-derivation; no local patch survives.
 - [ ] Every inherited clause is KEEP, DELETE, or REWRITE; deleted match text is absent from executable commands.
-- [ ] Exact A/B, hard constraints, route candidates, minimum-wall selection, critical path, parallel lanes, deleted work, & Forge binding pass.
+- [ ] Exact A/B, hard constraints, route candidates, minimum-wall selection, critical path, parallel lanes, deleted work, & Alchemist binding pass.
 - [ ] Every execution step binds selected route, advances B, & follows dependency order.
 - [ ] Every acceptance/input criterion has exactly one declared stage owner.
 - [ ] Topology mode matches actual decision: staged selection, explicitly authorized full comparison, or single path.
@@ -413,9 +424,13 @@ Required blocker record must include all tokens: `RECOVERY_EXHAUSTED`, `INDEPEND
 - [ ] All thirteen failure classes have two branches, degraded continuation, bounds, proceed condition, & escalation threshold.
 - [ ] Missing files, tools, auth, dirty state, partial output, & failed tests do not cause premature stop.
 - [ ] OWN / READ / FORBIDDEN scopes cannot overlap another active dispatch.
+- [ ] Workers inspect READ paths & edit exact OWN allowlists only; workers run no Cargo, tests, builds, generators, installs, commits, pushes, merges, or expensive checks.
+- [ ] Integration owner alone merges, reconciles changed paths, runs intended checkpoints, & owns final evidence; no integrator repair edits lane-owned files.
+- [ ] Existing source implementation is direct-ported first; cross-language work is ported into target language (Rust targets use Rust); no hand-rolled replacement exists while source is available.
 - [ ] User authority, destructive boundaries, spend, & production effects are explicit.
 - [ ] Executor can distinguish COMPLETE from plausible-looking output.
 - [ ] TRUE_BLOCKER requires attempts, raw evidence, preserved state, missing input, & resume command.
 - [ ] Fresh-agent simulation found no unstated judgment.
 - [ ] `validate-dispatch.py` returns PASS on exact dispatched bytes.
 - [ ] No dispatch, derived handoff, or execution packet is called ready before validator PASS + receipt.
+- [ ] Fresh adversarial Oracle/subagent review passes after validator PASS; any packet-byte change triggers revalidation & fresh review.

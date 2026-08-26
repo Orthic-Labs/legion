@@ -48,7 +48,7 @@
     {
       "path": "SKILL.md",
       "uri": "legion-skill://debugger/SKILL.md",
-      "digest": "sha256:df97684ce7d736d4ad233ee9114554aedd2a7fc94ef6a07c87f9b0f07d444df1"
+      "digest": "sha256:c5056114314410397fc71cff95fcfb49b949f339078599de3d99e127b7c5e23e"
     },
     {
       "path": "evals/evals.json",
@@ -58,7 +58,7 @@
     {
       "path": "references/manual.md",
       "uri": "legion-skill://debugger/references/manual.md",
-      "digest": "sha256:1d9043116747f97d6b86121188642e0f895ac090f4f1b4a7ae55b7c97da210c2"
+      "digest": "sha256:fe3bf25ea3d226a9221848be8c13d1a415d7e01fd11b59d6395fe4fec88bf862"
     }
   ]
 }

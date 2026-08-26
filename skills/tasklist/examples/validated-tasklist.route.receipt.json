@@ -1,11 +1,11 @@
 {
-  "created_at": "2026-07-28T16:47:22.853367+00:00",
+  "created_at": "2026-08-26T14:37:05.543135+00:00",
   "expected_time_to_verified_b_ms": 624000,
-  "route_path": "D:\\Claude\\tools\\skills\\tasklist\\examples\\validated-tasklist.route.json",
+  "route_path": "skills/tasklist/examples/validated-tasklist.route.json",
   "route_revision": 1,
-  "route_sha256": "7e420fd9cb7e1efe30eedc8f1d20e61528929040a60700042088697c2d5302ce",
+  "route_sha256": "85cc87e1f347855614f4546a894f663d434cb3999cfea24794f03c34eabc951c",
   "schema": "goal-route.receipt.v2",
   "selected_route_id": "R_RELIABLE",
-  "validator_sha256": "f9fe48eeaf52bea870151fef0df812fb21524d123378532eb20c0734ebf0e413",
-  "validator_version": "2.0.0"
+  "validator_sha256": "5361292e9a7784d9ffa8febc7c0cc7b18b4876e34a4ef59e56230cb818a3477e",
+  "validator_version": "2.1.0"
 }

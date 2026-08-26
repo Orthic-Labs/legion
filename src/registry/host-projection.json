@@ -62,15 +62,6 @@
       "source": "skills/audit-visual/SKILL.md"
     },
     {
-      "id": "blueprint",
-      "name": "blueprint",
-      "description": "Build or consume current source-grounded repository truth through Membrane's Blueprint packet. Use /blueprint before inheriting, changing, auditing, or judging unfamiliar code.",
-      "kind": "domain-capability",
-      "discoverability": "public",
-      "domain": "engineering",
-      "source": "skills/blueprint/SKILL.md"
-    },
-    {
       "id": "brand",
       "name": "brand",
       "description": "Load a source-bound brand card before branded content, design, marketing, social, or media work. Use /brand when a named brand or approved identity source governs an output.",
@@ -91,7 +82,7 @@
     {
       "id": "coder",
       "name": "coder",
-      "description": "Explicit opt-in router for scoped read-only code analysis through external API models. Use only for `/coder`, explicit outsourced API analysis, or a named API provider/model.",
+      "description": "Explicit opt-in router for scoped read-only code analysis through Pi catalog models. Use only for `/coder`, explicit outsourced analysis, or a named Pi model/tier.",
       "kind": "entrypoint",
       "discoverability": "explicit",
       "domain": null,
@@ -141,6 +132,15 @@
       "discoverability": "public",
       "domain": null,
       "source": "skills/dispatch/SKILL.md"
+    },
+    {
+      "id": "gotchas",
+      "name": "gotchas",
+      "description": "Capture user-confirmed recurring agent failures as concise deduplicated lessons in repository gotchas.md; record symptom, root cause, correction, prevention, & evidence without invention.",
+      "kind": "domain-capability",
+      "discoverability": "public",
+      "domain": null,
+      "source": "skills/gotchas/SKILL.md"
     },
     {
       "id": "handoff",
@@ -206,6 +206,15 @@
       "source": "skills/tasklist/SKILL.md"
     },
     {
+      "id": "wake",
+      "name": "wake",
+      "description": "Schedule one bounded wakeup for an active job, external review, or goal-alignment check; inspect once per wake, stop polling, & continue only from observed state.",
+      "kind": "domain-capability",
+      "discoverability": "public",
+      "domain": null,
+      "source": "skills/wake/SKILL.md"
+    },
+    {
       "id": "writing",
       "name": "writing",
       "description": "Route editorial prose, essays, newsletters, scripts, captions, threads, research articles, blogs, SEO posts, conversion copy, bios, DMs, product copy, email, and changelogs. Use when words are the deliverable.",
@@ -243,7 +252,7 @@
     },
     {
       "id": "blueprint-graph",
-      "degradation": "Return a NO_CAPABILITY result naming blueprint-graph. Never fall back to ad-hoc grep and never present ungraphed results as graph results."
+      "degradation": "Use resident Membrane transport when available, then bounded Blueprint one-shot regardless of enrollment. Return a NO_CAPABILITY result naming blueprint-graph only when both are unavailable; never fall back to ad-hoc grep or present ungraphed results as graph results."
     },
     {
       "id": "crypt",

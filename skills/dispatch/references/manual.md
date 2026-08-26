@@ -46,6 +46,8 @@ launcher/model/tool/API/environment config when routing can drift.
 Never write "use existing context", "as discussed", "follow plan", or equivalent. Cite exact
 accessible paths + required sections. Embed essential facts which exist only in chat.
 
+When task compares repositories or implementations, inspect source implementation first & direct-port it as initial route. If source & target languages differ, port behavior into target language; for Rust targets, write Rust. Do not hand-roll a replacement while source implementation is available.
+
 ## Step 2 — Design ownership & dependency graph
 
 First compile full expected changed-file inventory. Partition work into ordered dispatch waves. Wave A
@@ -69,6 +71,8 @@ Multiple agents receive separate complete lane instructions. READ scopes may ove
 allowlists may not. Serialize only concrete data, file, build/install, render, deploy, migration,
 paid-call, or production-write dependency. If independence is uncertain, investigate before packet
 is declared ready.
+
+Worker boundary is edit-only: worker may inspect declared READ inputs & edit only exact OWN paths. Worker must not run Cargo, tests, builds, generators, installs, commits, pushes, merges, or expensive checks. Lane instructions record intended checks as integration-owner actions. Integration owner alone reconciles paths, merges outputs, runs checkpoints (including Cargo/tests/builds/expensive checks when required), & owns final evidence; integrator repair edits are forbidden.
 
 ## Step 3 — Author from required template
 
@@ -147,7 +151,7 @@ python3 skills/dispatch/scripts/validate-dispatch.py <dispatch.json> --packet-ty
 Embedded self-hash is forbidden (changing the document to add its hash changes the hash); the
 sidecar binds exact bytes without circularity.
 
-Then give fresh Oracle exact packet, receipt, authoritative requirements, and source/file inventory.
+Then give a fresh adversarial Oracle/subagent exact packet, receipt, authoritative requirements, & source/file inventory.
 Oracle must adversarially try to disprove:
 
 1. full planned-file coverage;
@@ -155,6 +159,8 @@ Oracle must adversarially try to disprove:
 3. necessary, acyclic wave dependencies;
 4. earliest legal wave placement and maximum safe parallelism;
 5. lane-local end-to-end acceptance and absence of integrator repair edits.
+
+Review must also verify direct-port priority, target-language porting, worker edit-only boundary, integration-owner-only checkpoints, & maximum safe parallelism. Any packet byte change invalidates review; revalidate & obtain fresh review.
 
 Oracle returns `PASS` or exact blocking defect. Any packet change invalidates its review. Revalidate
 and rerun Oracle after correction. No execution begins without fresh PASS.

@@ -25,7 +25,7 @@ VAGUE_RE = re.compile(
     re.I,
 )
 LOCATOR_RE = re.compile(
-    r"^(?:[A-Za-z]:[\\/]|/|(?:forge|https?)://|(?:\.\.?[\\/])?[\w.-]+[\\/])\S+"
+    r"^(?:[A-Za-z]:[\\/]|/|(?:alchemist|forge|https?)://|(?:\.\.?[\\/])?[\w.-]+[\\/])\S+"
 )
 
 
@@ -513,26 +513,40 @@ def validate_route(data: Any) -> list[str]:
             if not invalidates:
                 errors.append("recompiled route must name invalidated route")
 
-    forge = data.get("forge")
-    if not isinstance(forge, dict) or not isinstance(forge.get("required"), bool):
-        errors.append("forge must declare required boolean")
+    alchemist = data.get("alchemist")
+    legacy_forge = data.get("forge")
+    if alchemist is not None and legacy_forge is not None:
+        errors.append("route must not declare both alchemist and legacy forge bindings")
+        binding = None
+        binding_name = "alchemist"
+        state_scheme = "alchemist"
+    elif alchemist is not None:
+        binding = alchemist
+        binding_name = "alchemist"
+        state_scheme = "alchemist"
     else:
-        required = forge.get("required")
+        binding = legacy_forge
+        binding_name = "legacy forge"
+        state_scheme = "forge"
+    if not isinstance(binding, dict) or not isinstance(binding.get("required"), bool):
+        errors.append("alchemist must declare required boolean")
+    else:
+        required = binding.get("required")
         if data.get("routine") is False and required is not True:
-            errors.append("non-routine route requires Forge")
+            errors.append("non-routine route requires Alchemist")
         if required:
-            run_id = str(forge.get("run_id", ""))
+            run_id = str(binding.get("run_id", ""))
             try:
                 uuid.UUID(run_id)
             except ValueError:
-                errors.append("forge.run_id must be UUID")
-            expected_ref = f"forge://run/{run_id}/state"
-            if forge.get("state_ref") != expected_ref:
-                errors.append("forge.state_ref must match run_id")
-            if forge.get("checkpoint") != "GOAL_ROUTE_V2":
-                errors.append("forge.checkpoint must equal GOAL_ROUTE_V2")
-        elif not concrete(forge.get("reason"), minimum=8):
-            errors.append("routine route without Forge requires reason")
+                errors.append(f"{binding_name}.run_id must be UUID")
+            expected_ref = f"{state_scheme}://run/{run_id}/state"
+            if binding.get("state_ref") != expected_ref:
+                errors.append(f"{binding_name}.state_ref must match run_id")
+            if binding.get("checkpoint") != "GOAL_ROUTE_V2":
+                errors.append(f"{binding_name}.checkpoint must equal GOAL_ROUTE_V2")
+        elif not concrete(binding.get("reason"), minimum=8):
+            errors.append("routine route without Alchemist requires reason")
 
     return errors
 

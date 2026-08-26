@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { readFileSync, writeFileSync } from 'node:fs';
+import { readFileSync, realpathSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { reportToSarif } from '../../scripts/report-to-sarif.mjs';
@@ -19,7 +19,10 @@ function ranLenses(facts) {
 // path normalization; compare normalized file URLs so the direct entrypoint is
 // detected reliably on every host.
 function normalizedExecutableHref(href, platform = process.platform) {
-  return platform === 'win32' ? String(href).toLowerCase() : String(href);
+  let normalized = String(href);
+  try { normalized = pathToFileURL(realpathSync(fileURLToPath(normalized))).href; }
+  catch {}
+  return platform === 'win32' ? normalized.toLowerCase() : normalized;
 }
 export function isMainEntrypoint(importMetaUrl, argvPath = process.argv[1], platform = process.platform) {
   if (!argvPath) return false;

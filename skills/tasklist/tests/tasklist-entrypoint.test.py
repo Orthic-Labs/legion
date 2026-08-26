@@ -9,7 +9,7 @@ import tempfile
 ROOT = Path(__file__).resolve().parents[1]
 evals = json.loads((ROOT / "evals/evals.json").read_text())
 assert evals["skill"] == "tasklist"
-assert sum(len(evals[key]) for key in ("should_trigger", "should_not_trigger", "output_quality", "safety", "pressure", "compatibility")) == 8
+assert sum(len(evals[key]) for key in ("should_trigger", "should_not_trigger", "output_quality", "safety", "pressure", "compatibility")) == 9
 skill = (ROOT / "SKILL.md").read_text()
 assert "dispatch-validator" in skill and "Dispatch" in skill and "Handoff" in skill
 assert "dispatch-validator" in (ROOT / "scripts/validate-tasklist.py").read_text()

@@ -10,7 +10,7 @@ for (const skill of ['dispatch', 'qa']) test(`${skill} public capability routes 
   assert.ok(existsSync(resolve(base, 'SKILL.md')));
   const evals = JSON.parse(readFileSync(resolve(base, 'evals/evals.json')));
   const count = Object.values(evals).filter(Array.isArray).flat().length;
-  assert.equal(count, skill === 'dispatch' ? 37 : 12);
+  assert.equal(count, skill === 'dispatch' ? 38 : 12);
 });
 
 test('dispatch & qa scripts are adapters, not duplicated engines', () => {

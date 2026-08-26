@@ -43,9 +43,9 @@
 - **Model / tool relevance rule:** LOAD_ONLY_IF_METRIC: tool directly produces a named Section 7 acceptance result.
 - **Locked model / runtime route:** NO_MODEL_ALLOWED: no model inference contributes to static validation.
 - **Recovery scope rule:** NO_SCOPE_EXPANSION: recover only named local validation inputs or commands; never add models, transcription, network, source edits, or new acceptance criteria.
-- **Forge gate:** NOT_REQUIRED: routine bounded static validation with no experiment, benchmark, performance claim, model decision, research claim, or repeated-failure recovery.
-- **Forge state reference:** NOT_REQUIRED
-- **Forge verification:** NOT_REQUIRED
+- **Alchemist gate:** NOT_REQUIRED: routine bounded static validation with no experiment, benchmark, performance claim, model decision, research claim, or repeated-failure recovery.
+- **Alchemist state reference:** NOT_REQUIRED
+- **Alchemist verification:** NOT_REQUIRED
 - **First-action readback:** READBACK_REQUIRED: decision question, acceptance metrics, diagnostics, forbidden scope, fixture roles, & Step 1 exact action.
 - **Supervision cadence:** SUPERVISE: after first action, after every 1 step, & before any new tool, dependency, scope change, or batch.
 
@@ -81,7 +81,7 @@
 - **Re-derivation status:** FROM_ZERO:COMPLETE; OBJECTIVE_RESTATED:COMPLETE; REQUIREMENTS_RECLASSIFIED:COMPLETE; STAGES_REBUILT:COMPLETE; COMMANDS_REBOUND:COMPLETE
 - **Progress disposition:** PRESERVE_EVIDENCE_ONLY; REUSE_ONLY_IF:source hashes, producer, lifecycle, & typed stage contract match; STALE_PROGRESS:REJECT
 - **Inherited inventory reconciliation:** INVENTORY_TOTAL:2; CLASSIFIED_TOTAL:2; UNCLASSIFIED:0; EVIDENCE:D:\workspace\tools\review\.council-runs\dispatch-handoff-final\forward\inherited-inventory.json
-- **Forge typed-stage binding:** NOT_REQUIRED: routine bounded static validation
+- **Alchemist typed-stage binding:** NOT_REQUIRED: routine bounded static validation
 
 ### Inherited instruction disposition
 
@@ -108,7 +108,7 @@
 - **Bottleneck:** BOTTLENECK: R_VALIDATE/S3 validator/test execution is serialized at 4 ms minimum wall time.
 - **Parallel lanes:** NONE_DEPENDENCY_BOUND: each step appends evidence to one atomic report & final non-mutation check requires prior commands.
 - **Deleted / deferred work:** DELETE: model review, network lookup, source mutation, & duplicated validators; DEFER: none because all four acceptance checks are critical path.
-- **Route Forge binding:** SCHEMA:goal-route.v2; NOT_REQUIRED: routine bounded static validation has one evidence-proven feasible route.
+- **Route Alchemist binding:** SCHEMA:goal-route.v2; NOT_REQUIRED: routine bounded static validation has one evidence-proven feasible route.
 
 | Route ID | Ordered route steps | Dependencies | Constraint result | Min wall ms | Expected verified-B ms | Cost units | Risk units | Rework units | Status | Rejection / dominance evidence |
 |---|---|---|---|---:|---:|---:|---:|---:|---|---|

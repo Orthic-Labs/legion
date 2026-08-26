@@ -11,7 +11,7 @@ const ROOT = fileURLToPath(new URL('../..', import.meta.url));
 const aliases = JSON.parse(readFileSync(join(ROOT, 'src', 'config', 'capability-aliases.json'), 'utf8')).aliases;
 const PUBLIC_ENTRYPOINTS = [
   'alchemist', 'architect', 'audit', 'audit-fix', 'audit-visual', 'brand', 'coder',
-  'blueprint', 'commit', 'covenant', 'debugger', 'dispatch',
+  'commit', 'covenant', 'debugger', 'dispatch',
   'handoff', 'qa', 'tasklist',
 ];
 
@@ -29,6 +29,12 @@ test('legacy semantic aliases resolve only to packaged public Legion capabilitie
   assert.equal(Object.hasOwn(aliases, '/just-do-it'), false);
 });
 
+test('Blueprint remains a direct host capability, not a packaged skill', () => {
+  const projection = JSON.parse(readFileSync(join(ROOT, 'src', 'registry', 'host-projection.json'), 'utf8'));
+  assert.equal(projection.capabilities.some(({ id }) => id === 'blueprint'), false);
+  assert.equal(projection.hostCapabilities.some(({ id }) => id === 'blueprint-graph'), true);
+});
+
 test('canonical & legacy commands resolve through packaged manifests with negative boundaries', () => {
   for (const id of PUBLIC_ENTRYPOINTS) {
     const resolved = resolveSkillInvocation(`/${id} example`, { root: ROOT });
@@ -39,7 +45,7 @@ test('canonical & legacy commands resolve through packaged manifests with negati
   }
   assert.equal(resolveSkillInvocation('/jfdi execute', { root: ROOT }).canonical, 'alchemist');
   assert.equal(resolveSkillInvocation('/council review', { root: ROOT }).canonical, 'covenant');
-  assert.equal(resolveSkillInvocation('/blueprint map', { root: ROOT }).resolvedInvocation, '/blueprint map');
+  assert.equal(resolveSkillInvocation('/blueprint map', { root: ROOT }).status, 'not-found');
   assert.equal(resolveSkillInvocation('/glass refine header', { root: ROOT }).resolvedInvocation, '/designer glass refine header');
   assert.equal(resolveSkillInvocation('/motion hero', { root: ROOT }).resolvedInvocation, '/designer motion hero');
   assert.equal(resolveSkillInvocation('/hormozi launch', { root: ROOT }).resolvedInvocation, '/marketing offer launch');
@@ -90,9 +96,9 @@ test('public entrypoint registry resolves digest-bound, non-publishable bundles'
   }
 });
 
-test('all 110 retired eval cases and two Phase A acceptance additions remain', () => {
+test('all routed eval cases remain after capability migration', () => {
   const evalPaths = [
-    'skills/handoff/../../tests/fixtures/handoff/legacy-evals.json',
+    'skills/handoff/evals/evals.json',
     'skills/architect/evals/evals.json',
     'skills/debugger/evals/evals.json',
     'skills/tasklist/evals/evals.json',
@@ -108,7 +114,7 @@ test('all 110 retired eval cases and two Phase A acceptance additions remain', (
       .filter(([key, value]) => !['schema_version', 'skill', 'legacy_skill'].includes(key) && Array.isArray(value))
       .reduce((sum, [, rows]) => sum + rows.length, 0);
   }, 0);
-  assert.equal(count, 112);
+  assert.equal(count, 113);
 });
 
 test('deterministic selection validation accepts semantic public capabilities and rejects entrypoints', () => {

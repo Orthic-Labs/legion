@@ -56,4 +56,4 @@ function main() {
   }
 }
 
-if (process.argv[1] && process.argv[1].endsWith('generate-support-matrix.mjs')) main();
+if (process.argv[1]?.endsWith('generate-support-matrix.mjs')) main();

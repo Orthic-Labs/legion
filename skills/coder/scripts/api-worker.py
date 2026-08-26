@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Compatibility entrypoint delegating Coder jobs to shared API worker engine."""
+"""Compatibility entrypoint delegating Coder jobs to shared Pi worker engine."""
 from pathlib import Path
 import runpy
 import sys

@@ -24,14 +24,14 @@ test('doctor --json emits the canonical shape', () => {
   assert.equal(report.kind, 'legion-doctor');
   assert.ok(report.repository.root);
   assert.ok(['ready', 'stale', 'missing', 'incompatible', 'corrupt'].includes(report.blueprint.state));
-  assert.ok(['packet-file', 'transport', 'unavailable'].includes(report.blueprint.mode));
+  assert.ok(['packet-file', 'resident-transport', 'bounded-one-shot'].includes(report.blueprint.mode));
   assert.ok(Array.isArray(report.coverage.languages));
   assert.ok(Array.isArray(report.providers.selected));
   assert.ok(typeof report.hostCapabilities.networkSandbox === 'boolean');
   assert.equal(report.cleanClaimPossible, false);
   assert.ok(Array.isArray(report.gaps));
   assert.ok(Array.isArray(report.commands));
-  assert.equal(report.host.discovery['claude-code'].capabilities, 19);
+  assert.equal(report.host.discovery['claude-code'].capabilities, 20);
   assert.deepEqual(report.host.discovery['claude-code'].entrypoints, ['alchemist', 'coder', 'commit', 'covenant']);
   assert.equal(Object.hasOwn(report.host.discovery['claude-code'], 'roleEntrypoints'), false);
 });

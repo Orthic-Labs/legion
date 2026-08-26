@@ -40,12 +40,24 @@
 
 ## 3. Execution Tasks
 
+### Exact Next Actions & Path Ledger
+
+- **Next action now:** NEXT_ACTION:1. Validate sibling GoalRoute receipt; PATHS: none (read-only).
+- **Lane graph:** LANE A: Task 1; LANE B: Task 2 after Task 1; LANE C: Task 3 after Task 2. Serial because each receipt/check consumes prior state.
+- **Path rule:** every planned changed file appears exactly once below; no globs, directory ownership, hidden cleanup, or integrator repair edits.
+
+| Exact path | Operation | Owning task | Lane | Dependency | Final check | Evidence path |
+|---|---|---|---|---|---|---|
+| `/workspace/legion/skills/tasklist/examples/validated-tasklist.receipt.json` | CREATE | Task 2 | LANE B | Task 1 | verify tasklist receipt | `/workspace/.audit/tasklist-example/structure-check.txt` |
+
 ### Task 1 — Validate route authority
 
 - **Task status:** TODO
 - **Route step:** ROUTE_STEP:R_RELIABLE/S1
 - **Action:** ACTION:Validate GoalRoute artifact and exact-byte receipt.
 - **Depends on:** START
+- **Exact touch paths:** PATHS:none (read-only)
+- **Parallel lane:** LANE A; serial because route receipt is prerequisite state.
 - **Advances target:** ADVANCES_STATE_B:Route authority and expected-success winner are proven.
 - **Done check:** CHECK:py -3.11 /workspace/legion/src/lib/goalroute/scripts/validate-route.py /workspace/legion/skills/tasklist/examples/validated-tasklist.route.json --verify-receipt /workspace/legion/skills/tasklist/examples/validated-tasklist.route.receipt.json
 - **Expected result:** EXPECTED:exit 0 and RECEIPT_PASS output
@@ -61,6 +73,8 @@
 - **Route step:** ROUTE_STEP:R_RELIABLE/S2
 - **Action:** ACTION:Validate tasklist structure against selected route DAG.
 - **Depends on:** AFTER:R_RELIABLE/S1
+- **Exact touch paths:** PATHS:none (read-only)
+- **Parallel lane:** LANE B; serial after Task 1 because route receipt is consumed.
 - **Advances target:** ADVANCES_STATE_B:Every selected route step has one executable evidence-bearing task.
 - **Done check:** CHECK:py -3.11 /workspace/legion/skills/tasklist/scripts/validate-tasklist.py /workspace/legion/skills/tasklist/examples/validated-tasklist.md --write-receipt /workspace/legion/skills/tasklist/examples/validated-tasklist.receipt.json
 - **Expected result:** EXPECTED:exit 0 and PASS output
@@ -76,6 +90,8 @@
 - **Route step:** ROUTE_STEP:R_RELIABLE/S3
 - **Action:** ACTION:Verify exact tasklist receipt and record final acceptance.
 - **Depends on:** AFTER:R_RELIABLE/S2
+- **Exact touch paths:** PATHS:none (read-only)
+- **Parallel lane:** LANE C; serial after Task 2 because receipt is created from final bytes.
 - **Advances target:** ADVANCES_STATE_B:Permanent tasklist and receipt reach verified target state.
 - **Done check:** CHECK:py -3.11 /workspace/legion/skills/tasklist/scripts/validate-tasklist.py /workspace/legion/skills/tasklist/examples/validated-tasklist.md --verify-receipt /workspace/legion/skills/tasklist/examples/validated-tasklist.receipt.json
 - **Expected result:** EXPECTED:exit 0 and RECEIPT_PASS output
@@ -106,4 +122,5 @@
 - **Final expected result:** exit 0 and PASS: tasklist validator output
 - **Final evidence path:** /workspace/.audit/tasklist-example/test-output.txt
 - **Completion rule:** ALL_TASKS_DONE_AND_FINAL_PROOF_PASS_BEFORE_STATUS_COMPLETE
+- **Review gate:** FRESH_ADVERSARIAL_SUBAGENT_PASS_ON_ACTIONS_PATH_LEDGER_DEPENDENCIES_PARALLELISM_SCOPE_AND_PROOF; RECHECK_AFTER_ANY_BYTE_CHANGE
 - **Terminal record:** STATUS=PLANNED; DONE=0/3; NEXT=R_RELIABLE/S1

@@ -6,7 +6,7 @@ import { AUTHORITY_ID } from '../../packages/contracts/enums.mjs';
 import { ROSTER_ROLE_IDS } from '../roster/index.mjs';
 
 const TOKENS = Object.freeze(['seer', 'nemesis', 'forge', 'sentinel', 'sorcerer']);
-const SKIP_PREFIXES = Object.freeze(['.git/', '.agent/', 'node_modules/']);
+const SKIP_PREFIXES = Object.freeze(['.git/', '.agent/', '.audit/', 'node_modules/']);
 const ACTIVE_SOURCE = /\.(?:cjs|js|json|jsx|md|mjs|py|sh|toml|ts|tsx|ya?ml)$/i;
 
 function recursiveFiles(root, cursor = root, output = []) {

@@ -84,7 +84,7 @@ export function verifyReleaseManifestObject(manifest, { root, manifestPath = nul
   };
 }
 
-if (process.argv[1] && process.argv[1].endsWith('verify-release.mjs')) {
+if (process.argv[1]?.endsWith('verify-release.mjs')) {
   const [manifestPath] = process.argv.slice(2);
   if (!manifestPath) {
     console.error('usage: verify-release.mjs <release-manifest.json>');

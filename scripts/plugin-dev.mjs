@@ -11,7 +11,7 @@
 // This prints the exact invocation and first proves the live surface resolves,
 // so "it didn't load" is distinguished from "it loaded but a target is missing".
 import { spawnSync } from 'node:child_process';
-import { resolve, dirname } from 'node:path';
+import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = resolve(fileURLToPath(new URL('..', import.meta.url)));

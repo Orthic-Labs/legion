@@ -457,4 +457,4 @@ function main() {
   console.log('wrote registry/rules/security/enums.json');
 }
 
-if (process.argv[1] && process.argv[1].endsWith('generate-security-schemas.mjs')) main();
+if (process.argv[1]?.endsWith('generate-security-schemas.mjs')) main();

@@ -4,7 +4,7 @@
   "referenced_artifacts": [
     {
       "path": "skills/dispatch/SKILL.md",
-      "sha256": "sha256:ad26fc3bc47d552bf194bc70f1a81f37a39097159f8bca60497ccb6e8fe67e4a"
+      "sha256": "sha256:752c2b26658d0b5eb7ea0613ec41e27c15f30bc44acc5b3c1e4f62fff02cf65d"
     },
     {
       "path": "skills/dispatch/examples/sage-adjudication.prompt.txt",

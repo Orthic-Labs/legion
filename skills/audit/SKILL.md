@@ -38,10 +38,15 @@ TERMINAL: Frozen provider plan reconciles to evidence or typed degradation.
 overrides it.
 
 1. Freeze repository root, scope, revision, dirty state, & requested mode.
-2. Read [provider architecture](../../references/provider-architecture.md); discovery belongs to
-   Blueprint — never build a parallel registry.
-3. Run `legion audit <root> --out <run-dir>`: fresh Blueprint intake, signed `plan.json`, & exact
-   frozen provider set; missing signing material is `UNPROVEN`.
+2. Read [provider architecture](../../references/provider-architecture.md); repository discovery is
+   supplied by Legion's direct Membrane Blueprint provider — never build a parallel registry.
+   The provider uses resident Hub transport when available, otherwise a bounded one-shot for
+   supplied root. Enrollment controls resident watcher operation only; `project is not enrolled`
+   must fall through to one-shot.
+3. Run `legion audit <root> --out <run-dir>`: request fresh Blueprint evidence through that
+   provider, signed `plan.json`, & exact frozen provider set; missing signing material is `UNPROVEN`.
+   If resident & one-shot paths both genuinely fail or are unavailable, record exact typed
+   degradation & continue applicable providers; do not treat enrollment alone as unavailable.
 4. Project-executing checks need trusted host network-sandbox receipt; without it they are
    `UNPROVEN`; file-only providers still run.
 5. Read `plan.json` before `facts.json`; every contract-enumerated failure is `UNPROVEN` & keeps
@@ -49,7 +54,7 @@ overrides it.
 6. Read [engine interface](../../references/engine-interface.md) for scanner, report, & CLI contracts.
 7. Read [lens routing](../../references/lens-routing.md); reason only inside frozen-plan providers.
 8. Adjudicate each security candidate independently; no generator closes its own finding.
-9. Native Audit deduplicates & writes `report.json` plus `report.sarif` in one transaction.
+9. Deduplicate, then run `../../tools/audit/audit-finalize.mjs` to write `report.json` & `report.sarif`.
 10. Reconcile every provider & denominator; incomplete coverage is never clean.
 
 Return gate vector, coverage, findings with evidence loci, rerun commands, seal, signature, Blueprint

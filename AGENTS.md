@@ -80,8 +80,3 @@ Legion provides shared routing, execution, and independent semantic validation a
 ## Verification
 - Run focused doctrine and routing tests after role changes.
 - Check generated agent-rule overlays after source changes.
-
-<!-- blueprint:start -->
-## Blueprint Graph
-Before reading repository files, call `blueprint_recall` with current repository root. Use `blueprint_expand` for bounded context and `blueprint_search` for queries.
-<!-- blueprint:end -->

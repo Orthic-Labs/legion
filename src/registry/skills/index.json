@@ -136,25 +136,6 @@
       "manifest": "skills/manifests/audit-visual.json"
     },
     {
-      "id": "blueprint",
-      "name": "blueprint",
-      "description": "Build or consume current source-grounded repository truth through Membrane's Blueprint packet. Use /blueprint before inheriting, changing, auditing, or judging unfamiliar code.",
-      "kind": "capability",
-      "capabilityClass": "context",
-      "discoverability": "public",
-      "domain": "engineering",
-      "operations": [
-        "analyze",
-        "produce"
-      ],
-      "effects": [
-        "source-read"
-      ],
-      "hostRequirements": [],
-      "source": "skills/blueprint/SKILL.md",
-      "manifest": "skills/manifests/blueprint.json"
-    },
-    {
       "id": "brand",
       "name": "brand",
       "description": "Load a source-bound brand card before branded content, design, marketing, social, or media work. Use /brand when a named brand or approved identity source governs an output.",
@@ -198,7 +179,7 @@
     {
       "id": "coder",
       "name": "coder",
-      "description": "Explicit opt-in router for scoped read-only code analysis through external API models. Use only for `/coder`, explicit outsourced API analysis, or a named API provider/model.",
+      "description": "Explicit opt-in router for scoped read-only code analysis through Pi catalog models. Use only for `/coder`, explicit outsourced analysis, or a named Pi model/tier.",
       "kind": "entrypoint",
       "capabilityClass": null,
       "discoverability": "explicit",
@@ -318,6 +299,27 @@
       "hostRequirements": [],
       "source": "skills/dispatch/SKILL.md",
       "manifest": "skills/manifests/dispatch.json"
+    },
+    {
+      "id": "gotchas",
+      "name": "gotchas",
+      "description": "Capture user-confirmed recurring agent failures as concise deduplicated lessons in repository gotchas.md; record symptom, root cause, correction, prevention, & evidence without invention.",
+      "kind": "capability",
+      "capabilityClass": "workflow",
+      "discoverability": "public",
+      "domain": null,
+      "operations": [
+        "analyze",
+        "execute",
+        "produce"
+      ],
+      "effects": [
+        "source-read",
+        "repository-write"
+      ],
+      "hostRequirements": [],
+      "source": "skills/gotchas/SKILL.md",
+      "manifest": "skills/manifests/gotchas.json"
     },
     {
       "id": "handoff",
@@ -472,6 +474,27 @@
       "hostRequirements": [],
       "source": "skills/tasklist/SKILL.md",
       "manifest": "skills/manifests/tasklist.json"
+    },
+    {
+      "id": "wake",
+      "name": "wake",
+      "description": "Schedule one bounded wakeup for an active job, external review, or goal-alignment check; inspect once per wake, stop polling, & continue only from observed state.",
+      "kind": "capability",
+      "capabilityClass": "workflow",
+      "discoverability": "public",
+      "domain": null,
+      "operations": [
+        "analyze",
+        "execute",
+        "produce"
+      ],
+      "effects": [
+        "source-read",
+        "artifact-write"
+      ],
+      "hostRequirements": [],
+      "source": "skills/wake/SKILL.md",
+      "manifest": "skills/manifests/wake.json"
     },
     {
       "id": "writing",

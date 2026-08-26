@@ -1,0 +1,52 @@
+{
+  "schemaVersion": 1,
+  "id": "gotchas",
+  "version": "1.0.0",
+  "entry": "SKILL.md",
+  "rootUri": "legion-skill://gotchas/",
+  "provenance": "legion-authored",
+  "licenseState": "licensed",
+  "rightsReceipt": null,
+  "profiles": {
+    "audit": {
+      "mutation": false,
+      "publish": false
+    },
+    "authoring": {
+      "mutation": true,
+      "publish": false,
+      "externalOnly": true
+    }
+  },
+  "parity": {
+    "triggers": [
+      "/gotchas",
+      "Capture user-confirmed recurring agent failures as concise deduplicated lessons in repository gotchas.md; record symptom, root cause, correction, prevention, & evidence without invention."
+    ],
+    "outputs": [],
+    "scripts": [],
+    "templates": [],
+    "schemas": [],
+    "receipts": [],
+    "evals": [
+      "evals/evals.json"
+    ],
+    "consumers": [
+      "src/registry/skills/index.json",
+      "src/lib/skills/resolver.mjs",
+      "src/registry/routing/domains.json"
+    ]
+  },
+  "files": [
+    {
+      "path": "SKILL.md",
+      "uri": "legion-skill://gotchas/SKILL.md",
+      "digest": "sha256:17f70d1668bdcb3cf26ad9f5d777ba9e3f4085f64c3892e50ec0365de3583897"
+    },
+    {
+      "path": "evals/evals.json",
+      "uri": "legion-skill://gotchas/evals/evals.json",
+      "digest": "sha256:d3f4a40d70ffff6ef635c1cabf153d5cc4036607c5e7ec3e44ec779bd3345bfd"
+    }
+  ]
+}
