@@ -34,6 +34,9 @@ impl EvidenceSpan {
     ) -> Self {
         let evidence_hash =
             canonical_digest(&text).unwrap_or_else(|_| "sha256:".to_owned() + &"0".repeat(64));
+        let mut uncertainty = uncertainty;
+        uncertainty.sort();
+        uncertainty.dedup();
         Self {
             rule_id: rule_id.into(),
             path: path.into(),
@@ -60,6 +63,8 @@ pub struct RuleCoverage {
 
 impl RuleCoverage {
     pub fn complete(&self) -> bool {
-        self.gaps.is_empty() && self.expected_files == self.examined_files
+        self.expected_files > 0
+            && self.gaps.is_empty()
+            && self.expected_files == self.examined_files
     }
 }

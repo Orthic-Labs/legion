@@ -1,5 +1,6 @@
+use legion_research::{ResearchNumber, ResearchPatient, ResearchRoute, ResearchValue};
 use sha2::{Digest, Sha256};
-use std::process::Command;
+use std::{collections::BTreeMap, process::Command};
 
 #[test]
 fn research_consumes_host_injected_sources_with_receipts() {
@@ -62,9 +63,95 @@ fn research_consumes_host_injected_sources_with_receipts() {
     );
     let value: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
     assert_eq!(value["status"], "ok");
-    assert_eq!(value["externalRequests"], 2);
+    assert_eq!(value["externalRequests"], 4);
     assert_eq!(value["independentProviders"], 2);
     assert_eq!(value["receipt"]["source_successes"], 2);
+    assert_eq!(value["receipt"]["selected_provider_denominator"], 2);
+    assert_eq!(
+        value["receipt"]["approval_receipt_ids"],
+        serde_json::json!([])
+    );
+    assert_eq!(value["route"]["provider"], "local-corpus");
+    assert!(value["receipt"]["route_digest"].as_str().is_some());
     assert_eq!(value["evidence"].as_array().unwrap().len(), 2);
     assert_eq!(value["claims"].as_array().unwrap().len(), 2);
+}
+
+#[test]
+fn research_missing_sources_returns_validated_unproven_receipt() {
+    let output = Command::new(env!("CARGO_BIN_EXE_legion"))
+        .args(["research", "--query", "missing host evidence"])
+        .output()
+        .expect("native Legion research must execute");
+
+    assert_eq!(output.status.code(), Some(2));
+    let value: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(value["status"], "unproven");
+    assert_eq!(value["verdict"], "UNPROVEN");
+    assert_eq!(value["incomplete"], true);
+    assert_eq!(value["receipt"]["status"], "unproven");
+    assert_eq!(value["receipt"]["selected_provider_denominator"], 1);
+    assert_eq!(
+        value["receipt"]["stages"]
+            .as_array()
+            .unwrap()
+            .last()
+            .unwrap()["stage"],
+        "unproven"
+    );
+    assert_eq!(
+        value["receipt"]["stages"]
+            .as_array()
+            .unwrap()
+            .last()
+            .unwrap()["completed"],
+        true
+    );
+    assert!(value["receipt"]["stages"][0]["detail"]
+        .as_str()
+        .unwrap()
+        .contains("approval_receipts:not-required"));
+    assert!(!value["receipt"]["stages"][0]["detail"]
+        .as_str()
+        .unwrap()
+        .contains("approval_receipt:recorded"));
+}
+
+#[test]
+fn research_route_extensions_round_trip_and_bind_digest() {
+    let mut route = ResearchRoute::host_injected("extension query");
+    route.subject.extensions.insert(
+        "subject_extension".into(),
+        ResearchValue::Object(BTreeMap::from([
+            ("enabled".into(), ResearchValue::Bool(true)),
+            (
+                "items".into(),
+                ResearchValue::Array(vec![
+                    ResearchValue::Null,
+                    ResearchValue::Number(ResearchNumber::Unsigned(7)),
+                    ResearchValue::String("nested".into()),
+                ]),
+            ),
+        ])),
+    );
+    route.subject.patient = Some(ResearchPatient {
+        kind: "anonymous".into(),
+        extensions: BTreeMap::from([(
+            "patient_extension".into(),
+            ResearchValue::Object(BTreeMap::from([
+                ("enabled".into(), ResearchValue::Bool(false)),
+                (
+                    "threshold".into(),
+                    ResearchValue::Number(ResearchNumber::Float(1.25f64.to_bits())),
+                ),
+            ])),
+        )]),
+        ..ResearchPatient::default()
+    });
+    let encoded = serde_json::to_string(&route).unwrap();
+    let decoded: ResearchRoute = serde_json::from_str(&encoded).unwrap();
+    assert_eq!(decoded, route);
+    assert_eq!(decoded.digest().unwrap(), route.digest().unwrap());
+    assert!(encoded.contains("subject_extension"));
+    assert!(encoded.contains("patient_extension"));
 }

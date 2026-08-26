@@ -19,6 +19,75 @@ pub struct NativePackManifest {
     pub packs: Vec<AnalysisRulePack>,
 }
 
+impl NativePackManifest {
+    pub fn validate(&self) -> Result<()> {
+        if self.schema_version != 1 {
+            return Err(RuleError::InvalidPack(format!(
+                "unsupported native pack manifest schema version {}",
+                self.schema_version
+            )));
+        }
+        if self.kind != "legion-native-pack-manifest" {
+            return Err(RuleError::InvalidPack(
+                "kind must be legion-native-pack-manifest".into(),
+            ));
+        }
+        for (field, value) in [
+            ("repository", self.repository.as_str()),
+            ("packetId", self.packet_id.as_str()),
+            ("baselineCommit", self.baseline_commit.as_str()),
+            ("engineContract", self.engine_contract.as_str()),
+        ] {
+            validate_identifier(field, value)?;
+        }
+        if self.engine_contract != "rust-regex-1" {
+            return Err(RuleError::InvalidPack(
+                "unsupported regex engine contract".into(),
+            ));
+        }
+        if self.packs.is_empty() {
+            return Err(RuleError::InvalidPack(
+                "native pack manifest must contain at least one pack".into(),
+            ));
+        }
+        let mut pack_ids = std::collections::BTreeSet::new();
+        let mut class_a = 0;
+        let mut class_b = 0;
+        let mut rule_count = 0;
+        for pack in &self.packs {
+            if pack.engine_contract != self.engine_contract {
+                return Err(RuleError::InvalidPack(format!(
+                    "pack {} uses a different engine contract",
+                    pack.pack_id
+                )));
+            }
+            pack.validate()?;
+            if !pack_ids.insert(pack.pack_id.as_str()) {
+                return Err(RuleError::InvalidPack(format!(
+                    "duplicate native pack id: {}",
+                    pack.pack_id
+                )));
+            }
+            match pack.class {
+                RuleClass::A => class_a += 1,
+                RuleClass::B => class_b += 1,
+                RuleClass::C => {
+                    return Err(RuleError::UnsupportedClass(
+                        "C (Rust provider required)".into(),
+                    ))
+                }
+            }
+            rule_count += pack.rules.len();
+        }
+        if class_a != self.class_a || class_b != self.class_b || rule_count != self.rule_count {
+            return Err(RuleError::InvalidPack(
+                "native pack manifest counts do not reconcile".into(),
+            ));
+        }
+        Ok(())
+    }
+}
+
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct AnalysisRulePack {
@@ -27,7 +96,6 @@ pub struct AnalysisRulePack {
     pub pack_id: String,
     pub version: String,
     pub class: RuleClass,
-    #[serde(default = "default_engine_contract")]
     pub engine_contract: String,
     pub rules: Vec<RuleSpec>,
     #[serde(default)]
@@ -35,14 +103,60 @@ pub struct AnalysisRulePack {
 }
 
 impl AnalysisRulePack {
+    pub fn validate(&self) -> Result<()> {
+        if self.schema_version != 1 {
+            return Err(RuleError::InvalidPack(format!(
+                "unsupported rule pack schema version {}",
+                self.schema_version
+            )));
+        }
+        if self.kind != "analysis-rule-pack" {
+            return Err(RuleError::InvalidPack(
+                "kind must be analysis-rule-pack".into(),
+            ));
+        }
+        validate_identifier("packId", &self.pack_id)?;
+        validate_identifier("version", &self.version)?;
+        if self.engine_contract != "rust-regex-1" {
+            return Err(RuleError::InvalidPack(
+                "unsupported regex engine contract".into(),
+            ));
+        }
+        if self.rules.is_empty() {
+            return Err(RuleError::InvalidPack("rules must not be empty".into()));
+        }
+        if self
+            .source_provenance
+            .iter()
+            .any(|(key, value)| key.trim().is_empty() || value.trim().is_empty())
+        {
+            return Err(RuleError::InvalidPack(
+                "source provenance keys and values must be non-empty".into(),
+            ));
+        }
+
+        let mut ids = std::collections::BTreeSet::new();
+        let mut stable_ids = std::collections::BTreeSet::new();
+        for rule in &self.rules {
+            rule.validate(self.class)?;
+            if !ids.insert(rule.id.as_str()) {
+                return Err(RuleError::DuplicateRule(rule.id.clone()));
+            }
+            if !stable_ids.insert(rule.stable_id.as_str()) {
+                return Err(RuleError::InvalidPack(format!(
+                    "duplicate stable rule id: {}",
+                    rule.stable_id
+                )));
+            }
+        }
+        Ok(())
+    }
+
     pub fn canonical_digest(&self) -> Result<String> {
+        self.validate()?;
         legion_contracts::canonical_digest(self)
             .map_err(|error| RuleError::InvalidPack(error.to_string()))
     }
-}
-
-fn default_engine_contract() -> String {
-    "rust-regex-1".into()
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
@@ -85,6 +199,99 @@ pub struct RuleSpec {
     pub implementation_key: Option<String>,
 }
 
+impl RuleSpec {
+    pub fn validate(&self, class: RuleClass) -> Result<()> {
+        validate_identifier("rule id", &self.id)?;
+        validate_identifier("stable rule id", &self.stable_id)?;
+        if self.stable_id != self.id {
+            return Err(RuleError::InvalidPack(format!(
+                "stable id must equal rule id: {}",
+                self.id
+            )));
+        }
+        for selector in &self.paths {
+            selector.validate()?;
+        }
+        if self.uncertainty.iter().any(|item| item.trim().is_empty()) {
+            return Err(RuleError::InvalidPack(format!(
+                "rule {} has an empty uncertainty entry",
+                self.id
+            )));
+        }
+        for (field, value) in [
+            ("data class", self.data_class.as_deref()),
+            ("lifecycle", self.lifecycle.as_deref()),
+            ("remediation", self.remediation.as_deref()),
+        ] {
+            if value.is_some_and(|value| value.trim().is_empty()) {
+                return Err(RuleError::InvalidPack(format!(
+                    "rule {} has an empty {field}",
+                    self.id
+                )));
+            }
+        }
+        self.evidence.validate(self.kind)?;
+        self.coverage.validate()?;
+
+        match (class, self.kind) {
+            (RuleClass::A, RuleKind::Lexical) => {
+                let matcher = self.matcher.as_ref().ok_or_else(|| {
+                    RuleError::InvalidPack(format!("rule {} has no matcher", self.id))
+                })?;
+                matcher.validate(&self.id)?;
+                validate_companions(&self.id, &self.companions)?;
+                if self.selector.is_some() || self.implementation_key.is_some() {
+                    return Err(RuleError::InvalidPack(format!(
+                        "lexical rule {} cannot declare a selector or implementation key",
+                        self.id
+                    )));
+                }
+            }
+            (RuleClass::B, RuleKind::Structural) => {
+                let selector = self.selector.as_ref().ok_or_else(|| {
+                    RuleError::InvalidPack(format!(
+                        "structural rule {} has no Blueprint selector",
+                        self.id
+                    ))
+                })?;
+                selector.validate()?;
+                if self.matcher.is_some()
+                    || !self.companions.required.is_empty()
+                    || !self.companions.negative.is_empty()
+                    || self.implementation_key.is_some()
+                {
+                    return Err(RuleError::InvalidPack(format!(
+                        "structural rule {} declares lexical or executable fields",
+                        self.id
+                    )));
+                }
+            }
+            (RuleClass::C, RuleKind::Algorithmic) => {
+                let implementation = self.implementation_key.as_deref().ok_or_else(|| {
+                    RuleError::InvalidPack(format!(
+                        "algorithmic rule {} requires implementation key",
+                        self.id
+                    ))
+                })?;
+                validate_identifier("implementation key", implementation)?;
+                if self.matcher.is_some() || self.selector.is_some() {
+                    return Err(RuleError::InvalidPack(format!(
+                        "algorithmic rule {} cannot declare declarative selectors",
+                        self.id
+                    )));
+                }
+            }
+            _ => {
+                return Err(RuleError::InvalidPack(format!(
+                    "rule {} kind does not match pack class",
+                    self.id
+                )))
+            }
+        }
+        Ok(())
+    }
+}
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum RuleKind {
@@ -122,6 +329,28 @@ pub struct PathSelector {
 }
 
 impl PathSelector {
+    pub fn validate(&self) -> Result<()> {
+        for (name, value) in [
+            ("prefix", self.prefix.as_deref()),
+            ("suffix", self.suffix.as_deref()),
+            ("exact", self.exact.as_deref()),
+        ] {
+            if let Some(value) = value {
+                if value.trim().is_empty() {
+                    return Err(RuleError::InvalidPack(format!(
+                        "path selector {name} must be non-empty when present"
+                    )));
+                }
+                if value.contains('\0') {
+                    return Err(RuleError::InvalidPack(format!(
+                        "path selector {name} contains NUL"
+                    )));
+                }
+            }
+        }
+        Ok(())
+    }
+
     pub fn matches(&self, path: &str) -> bool {
         self.prefix
             .as_ref()
@@ -141,6 +370,17 @@ impl PathSelector {
 pub struct MatcherSpec {
     pub mode: MatchMode,
     pub pattern: String,
+}
+
+impl MatcherSpec {
+    fn validate(&self, rule: &str) -> Result<()> {
+        if self.pattern.is_empty() {
+            return Err(RuleError::InvalidPack(format!(
+                "rule {rule} has an empty matcher pattern"
+            )));
+        }
+        Ok(())
+    }
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
@@ -194,6 +434,22 @@ pub struct CoverageSpec {
     pub gaps: Vec<String>,
 }
 
+impl CoverageSpec {
+    fn validate(&self) -> Result<()> {
+        if self
+            .denominator
+            .as_deref()
+            .is_some_and(|value| value.trim().is_empty())
+            || self.gaps.iter().any(|gap| gap.trim().is_empty())
+        {
+            return Err(RuleError::InvalidPack(
+                "coverage fields must be non-empty when present".into(),
+            ));
+        }
+        Ok(())
+    }
+}
+
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct BlueprintSelector {
@@ -213,6 +469,32 @@ pub struct BlueprintSelector {
     pub expected_evidence_tier: EvidenceTier,
     #[serde(default)]
     pub expected_generation: Option<String>,
+}
+
+impl BlueprintSelector {
+    pub fn validate(&self) -> Result<()> {
+        if self.schema_version != 1 {
+            return Err(RuleError::InvalidPack(
+                "unsupported Blueprint selector version".into(),
+            ));
+        }
+        validate_identifier("selector id", &self.selector_id)?;
+        for (name, value) in [
+            ("repositoryId", self.repository_id.as_deref()),
+            ("pathPrefix", self.path_prefix.as_deref()),
+            ("symbol", self.symbol.as_deref()),
+            ("from", self.from.as_deref()),
+            ("to", self.to.as_deref()),
+            ("expectedGeneration", self.expected_generation.as_deref()),
+        ] {
+            if value.is_some_and(|value| value.trim().is_empty() || value.contains('\0')) {
+                return Err(RuleError::InvalidPack(format!(
+                    "Blueprint selector {name} must be non-empty when present"
+                )));
+            }
+        }
+        Ok(())
+    }
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
@@ -256,4 +538,121 @@ pub struct BlueprintResult {
     pub complete: bool,
     #[serde(default)]
     pub gaps: Vec<String>,
+}
+
+impl BlueprintResult {
+    pub fn validate(&self) -> Result<()> {
+        validate_identifier("Blueprint generation", &self.generation)?;
+        let mut ids = std::collections::BTreeSet::new();
+        for matched in &self.matches {
+            validate_identifier("Blueprint match id", &matched.id)?;
+            if !ids.insert(matched.id.as_str()) {
+                return Err(RuleError::InvalidPack(format!(
+                    "duplicate Blueprint match id: {}",
+                    matched.id
+                )));
+            }
+            for (field, value) in [
+                ("path", matched.path.as_deref()),
+                ("symbol", matched.symbol.as_deref()),
+            ] {
+                if value.is_some_and(|value| value.is_empty() || value.contains('\0')) {
+                    return Err(RuleError::InvalidPack(format!(
+                        "Blueprint match {} has invalid {field}",
+                        matched.id
+                    )));
+                }
+            }
+            if matched.evidence.trim().is_empty() {
+                return Err(RuleError::InvalidPack(format!(
+                    "Blueprint match {} has no evidence",
+                    matched.id
+                )));
+            }
+        }
+        if self.gaps.iter().any(|gap| gap.trim().is_empty()) {
+            return Err(RuleError::InvalidPack(
+                "Blueprint result gaps must be non-empty".into(),
+            ));
+        }
+        Ok(())
+    }
+}
+
+fn validate_companions(rule: &str, companions: &CompanionSpec) -> Result<()> {
+    for matcher in companions.required.iter().chain(companions.negative.iter()) {
+        matcher.validate(rule)?;
+    }
+    Ok(())
+}
+
+fn validate_identifier(field: &str, value: &str) -> Result<()> {
+    if value.trim().is_empty() || value.contains('\0') {
+        return Err(RuleError::InvalidPack(format!(
+            "{field} must be a non-empty string"
+        )));
+    }
+    Ok(())
+}
+
+impl EvidenceSpec {
+    fn validate(&self, kind: RuleKind) -> Result<()> {
+        let expected = match kind {
+            RuleKind::Lexical => EvidenceAuthority::Lexical,
+            RuleKind::Structural => EvidenceAuthority::Structural,
+            RuleKind::Algorithmic => return Ok(()),
+        };
+        if self.authority != expected {
+            return Err(RuleError::InvalidPack(
+                "evidence authority does not match rule kind".into(),
+            ));
+        }
+        Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn empty_path_selector_is_rejected_by_pack_validation() {
+        let pack = AnalysisRulePack {
+            schema_version: 1,
+            kind: "analysis-rule-pack".into(),
+            pack_id: "fixture".into(),
+            version: "1".into(),
+            class: RuleClass::A,
+            engine_contract: "rust-regex-1".into(),
+            rules: vec![RuleSpec {
+                id: "fixture.rule".into(),
+                stable_id: "fixture.rule".into(),
+                kind: RuleKind::Lexical,
+                severity: Severity::Info,
+                confidence: Confidence::High,
+                data_class: None,
+                lifecycle: None,
+                paths: vec![PathSelector {
+                    prefix: Some(String::new()),
+                    suffix: None,
+                    exact: None,
+                }],
+                matcher: Some(MatcherSpec {
+                    mode: MatchMode::Literal,
+                    pattern: "needle".into(),
+                }),
+                companions: CompanionSpec::default(),
+                evidence: EvidenceSpec::default(),
+                uncertainty: Vec::new(),
+                coverage: CoverageSpec::default(),
+                remediation: None,
+                selector: None,
+                implementation_key: None,
+            }],
+            source_provenance: BTreeMap::new(),
+        };
+
+        let error = pack.validate().expect_err("empty path selector must fail");
+        assert!(error.to_string().contains("path selector prefix"));
+    }
 }

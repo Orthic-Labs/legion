@@ -242,3 +242,47 @@ fn native_audit_continues_without_blueprint() {
         .contains("Use Membrane as context engine"));
     std::fs::remove_dir_all(root).unwrap();
 }
+
+#[test]
+fn native_rules_report_unproven_for_invalid_source_bytes() {
+    let root = std::env::temp_dir().join(format!(
+        "legion-native-rules-invalid-{}-{}",
+        std::process::id(),
+        std::thread::current().name().unwrap_or("fixture")
+    ));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(root.join("src")).unwrap();
+    std::fs::write(root.join("src/binary.rs"), [0xff, 0xfe]).unwrap();
+    let root = std::fs::canonicalize(root).unwrap();
+    let manifest = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../../../packs/native/manifest.v1.json");
+    let output = Command::new(env!("CARGO_BIN_EXE_legion"))
+        .args([
+            "rules",
+            "--manifest",
+            manifest.to_str().unwrap(),
+            "--root",
+            root.to_str().unwrap(),
+            "--provider",
+            "native.fixture",
+            "--pack",
+            "security.native-workspace",
+        ])
+        .output()
+        .unwrap();
+    assert_eq!(
+        output.status.code(),
+        Some(2),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let result: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(result["status"], "incomplete");
+    assert_eq!(result["providerResult"]["complete"], false);
+    assert!(result["providerResult"]["coverage_gaps"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|gap| gap.as_str().unwrap().contains("source-invalid-utf8")));
+    std::fs::remove_dir_all(root).unwrap();
+}

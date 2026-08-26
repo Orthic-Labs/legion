@@ -15,6 +15,7 @@ pub use receipt::ResearchReceipt;
 pub use report::{ReportClaim, ReportStatus, ResearchReport};
 pub use source::{InjectedSource, SourceClient, SourceHit, SourceKind, SourceRecord};
 pub use workflow::{
-    Cancellation, ResearchWorkflow, SourceFailure, StageRecord, WorkflowOutcome, WorkflowRequest,
-    WorkflowStage, WorkflowStatus,
+    Cancellation, NullableString, ResearchAuthorization, ResearchNumber, ResearchPatient,
+    ResearchRoute, ResearchSubject, ResearchValue, ResearchWorkflow, SourceFailure, StageRecord,
+    WorkflowOutcome, WorkflowRequest, WorkflowStage, WorkflowStatus,
 };

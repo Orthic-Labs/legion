@@ -1,0 +1,299 @@
+{
+  "schemaVersion": 1,
+  "kind": "legion-authority-dispatch",
+  "packetType": "direct",
+  "repositoryRoot": ".",
+  "sourceRevision": "01337d75b9ad56543ff10783b353709fb5145e99",
+  "sourceArtifact": "migration/native-rust/dispatches/M4-CORRECTED-OWNERSHIP-AMENDMENT.json",
+  "promptArtifact": "migration/native-rust/dispatches/M4-CORRECTED-WAVE-A-REQUEST.md",
+  "promptDigest": "sha256:2069da0534a19973e2391f8f709d2b3187f5235771661c59cd9a1d4defd5277f",
+  "modelRouting": {
+    "modelTier": "LOW",
+    "workerProfile": "luna-rust",
+    "routingRationale": "Three settled disjoint Rust capability families after corrected M5 interface freeze"
+  },
+  "objective": "Complete corrected M4 Wave A by freezing native Rules, Research including its exact live CLI consumer, and Review semantics in three disjoint lanes before Audit Wave B.",
+  "authority": [
+    "AGENTS.md",
+    "docs/LEGION-CANONICAL-SSOT.md",
+    "migration/native-rust/PRODUCT-ARCHITECTURE-V2.md",
+    "migration/native-rust/MIGRATION-PLAN-V2.md",
+    "migration/native-rust/m0/semantic-freeze.json",
+    "migration/native-rust/m0/provider-boundary.json",
+    "migration/native-rust/m0/file-ownership-map.json",
+    "migration/native-rust/legacy-path-ownership.json",
+    "migration/native-rust/discrepancy-ledger.json",
+    "migration/native-rust/dispatches/M1-M8-DISPATCH.json",
+    "migration/native-rust/dispatches/M2-M7-OWNERSHIP-AMENDMENT.json",
+    "migration/native-rust/dispatches/M4-CORRECTED-OWNERSHIP-AMENDMENT.json",
+    "migration/native-rust/dispatches/M5-CORRECTED-DISPATCH.json",
+    "migration/native-rust/dispatches/M5-LIVE-WIRING-OWNERSHIP-AMENDMENT.json",
+    "migration/native-rust/dispatches/M5-LIVE-WIRING-DISPATCH.json"
+  ],
+  "integrationOwner": "current orchestrator; sole owner of integration HEAD, index, generated state, direct Cargo, receipts, commits, and push; integrates exact worker patches without authoring worker-owned implementation",
+  "preconditions": {
+    "m5Revision": "01337d75b9ad56543ff10783b353709fb5145e99",
+    "m5Barrier": "Corrected M5 typed ExternalProjectTool core and live wiring are immutable before any Wave A worker starts.",
+    "reportRevision": "0d4de01464a7297939cd9c6caacd54e325361331",
+    "reportRule": "Completed M4 Report bytes are frozen and outside Wave A ownership.",
+    "liveConsumerCorrection": {
+      "path": "engine/bins/legion/src/commands/research.rs",
+      "amendmentDigest": "sha256:766576ec103b34c46f0ccb5724c0b909a767a63b6b94bbbc6d1f9dac99009c6c",
+      "rule": "Only this completed-M1 path is reopened so typed UNPROVEN and cancellation terminal receipts reach installed CLI integration."
+    },
+    "legacyEvidence": {
+      "selector": {
+        "futureOwner": "M4-capability-migration",
+        "runtimeClass": "shipped-semantic-runtime",
+        "targetDisposition": "port"
+      },
+      "exactPathCount": 367,
+      "sortedPathDigest": "sha256:f31e796b28ce2747b027bcbb5c5132b4a8b9df7b13925399cd1370dc77e49bab",
+      "rule": "Read-only evidence until M7; no selected legacy path may be modified."
+    }
+  },
+  "fileTouchPolicy": {
+    "mode": "once-end-to-end",
+    "plannedFiles": [
+      "engine/bins/legion/src/commands/research.rs",
+      "engine/bins/legion/tests/research_cli.rs",
+      "engine/bins/legion/tests/rules_cli.rs",
+      "engine/crates/legion-research/Cargo.toml",
+      "engine/crates/legion-research/src/budget.rs",
+      "engine/crates/legion-research/src/error.rs",
+      "engine/crates/legion-research/src/evidence.rs",
+      "engine/crates/legion-research/src/lib.rs",
+      "engine/crates/legion-research/src/receipt.rs",
+      "engine/crates/legion-research/src/report.rs",
+      "engine/crates/legion-research/src/source.rs",
+      "engine/crates/legion-research/src/workflow.rs",
+      "engine/crates/legion-review/Cargo.toml",
+      "engine/crates/legion-review/src/adjudication.rs",
+      "engine/crates/legion-review/src/candidate.rs",
+      "engine/crates/legion-review/src/error.rs",
+      "engine/crates/legion-review/src/lib.rs",
+      "engine/crates/legion-review/src/normalize.rs",
+      "engine/crates/legion-review/src/provider.rs",
+      "engine/crates/legion-review/src/receipt.rs",
+      "engine/crates/legion-rules/Cargo.toml",
+      "engine/crates/legion-rules/src/compiler.rs",
+      "engine/crates/legion-rules/src/error.rs",
+      "engine/crates/legion-rules/src/evidence.rs",
+      "engine/crates/legion-rules/src/lexical.rs",
+      "engine/crates/legion-rules/src/lib.rs",
+      "engine/crates/legion-rules/src/schema.rs",
+      "engine/crates/legion-rules/src/structural.rs"
+    ],
+    "allowUnplannedFiles": false
+  },
+  "dispatches": [
+    {
+      "id": "M4-corrected-wave-a",
+      "dependsOn": [],
+      "lanes": [
+        "m4-rules",
+        "m4-research",
+        "m4-review"
+      ],
+      "completionChecks": [
+        "three exact allowlists reconcile with no overlap, generated lockfile, legacy runtime, Report, Audit, M5, or Membrane change",
+        "Rules remains declarative and deterministic with typed evidence and no execution",
+        "Research proves frozen routing, opened-source evidence, bound claims, budgets, receipts, truthful unavailable outcomes, and live CLI cancellation propagation",
+        "Review proves bounded packets, provenance, omissions, unknown verdict, and no candidate self-closure",
+        "Blueprint absence remains typed and cannot block unrelated work or synthesize graph truth",
+        "integration owner direct-Cargo fmt, check, focused tests, CLI tests, and clippy pass"
+      ]
+    }
+  ],
+  "workers": [
+    {
+      "id": "m4-rules",
+      "dispatch": "M4-corrected-wave-a",
+      "executor": "Luna Rust worker in isolated worktree; no Cargo, stage, commit, or push",
+      "allowlist": [
+        "engine/bins/legion/tests/rules_cli.rs",
+        "engine/crates/legion-rules/Cargo.toml",
+        "engine/crates/legion-rules/src/compiler.rs",
+        "engine/crates/legion-rules/src/error.rs",
+        "engine/crates/legion-rules/src/evidence.rs",
+        "engine/crates/legion-rules/src/lexical.rs",
+        "engine/crates/legion-rules/src/lib.rs",
+        "engine/crates/legion-rules/src/schema.rs",
+        "engine/crates/legion-rules/src/structural.rs"
+      ],
+      "read": [
+        "engine/crates/legion-contracts",
+        "engine/crates/legion-policy-model",
+        "engine/crates/legion-provider-sdk",
+        "engine/bins/legion/src",
+        "migration/native-rust/fixtures/provider-cases.v1.json",
+        "migration/native-rust/m0/semantic-freeze.json",
+        "migration/native-rust/legacy-path-ownership.json",
+        "selected M4 legacy Rules and declarative provider paths resolved from the frozen selector"
+      ],
+      "forbidden": [
+        ".git",
+        "node_modules",
+        "target",
+        "secrets",
+        "membrane",
+        "src",
+        "skills",
+        "tools",
+        "engine/Cargo.lock",
+        "engine/crates/legion-report",
+        "engine/crates/legion-research",
+        "engine/crates/legion-review",
+        "engine/crates/legion-audit"
+      ],
+      "checks": [
+        "rustfmt --edition 2021 --check on owned Rust files",
+        "git diff --check",
+        "prove no process, filesystem, network, model, Blueprint storage, or policy effect exists in Rules"
+      ],
+      "dependencies": []
+    },
+    {
+      "id": "m4-research",
+      "dispatch": "M4-corrected-wave-a",
+      "executor": "Luna Rust worker in isolated worktree; no Cargo, stage, commit, or push",
+      "allowlist": [
+        "engine/bins/legion/src/commands/research.rs",
+        "engine/bins/legion/tests/research_cli.rs",
+        "engine/crates/legion-research/Cargo.toml",
+        "engine/crates/legion-research/src/budget.rs",
+        "engine/crates/legion-research/src/error.rs",
+        "engine/crates/legion-research/src/evidence.rs",
+        "engine/crates/legion-research/src/lib.rs",
+        "engine/crates/legion-research/src/receipt.rs",
+        "engine/crates/legion-research/src/report.rs",
+        "engine/crates/legion-research/src/source.rs",
+        "engine/crates/legion-research/src/workflow.rs"
+      ],
+      "read": [
+        "engine/crates/legion-contracts",
+        "engine/crates/legion-provider-sdk",
+        "engine/crates/legion-runtime",
+        "engine/bins/legion/src",
+        "migration/native-rust/fixtures/provider-cases.v1.json",
+        "migration/native-rust/m0/semantic-freeze.json",
+        "migration/native-rust/legacy-path-ownership.json",
+        "selected M4 legacy Research, claim, and evidence paths resolved from the frozen selector"
+      ],
+      "forbidden": [
+        ".git",
+        "node_modules",
+        "target",
+        "secrets",
+        "membrane",
+        "src",
+        "skills",
+        "tools",
+        "engine/Cargo.lock",
+        "engine/crates/legion-report",
+        "engine/crates/legion-rules",
+        "engine/crates/legion-review",
+        "engine/crates/legion-audit"
+      ],
+      "checks": [
+        "rustfmt --edition 2021 --check on owned Rust files",
+        "git diff --check",
+        "prove leads cannot enter evidence ledger without opened-source locator and claims cannot exceed bound proof",
+        "prove required retrieval unavailability is typed UNPROVEN with terminal receipt",
+        "prove caller cancellation reaches active workflow and returns terminal receipt evidence through live CLI consumer"
+      ],
+      "dependencies": []
+    },
+    {
+      "id": "m4-review",
+      "dispatch": "M4-corrected-wave-a",
+      "executor": "Luna Rust worker in isolated worktree; no Cargo, stage, commit, or push",
+      "allowlist": [
+        "engine/crates/legion-review/Cargo.toml",
+        "engine/crates/legion-review/src/adjudication.rs",
+        "engine/crates/legion-review/src/candidate.rs",
+        "engine/crates/legion-review/src/error.rs",
+        "engine/crates/legion-review/src/lib.rs",
+        "engine/crates/legion-review/src/normalize.rs",
+        "engine/crates/legion-review/src/provider.rs",
+        "engine/crates/legion-review/src/receipt.rs"
+      ],
+      "read": [
+        "engine/crates/legion-contracts",
+        "engine/crates/legion-provider-sdk",
+        "engine/crates/legion-runtime",
+        "doctrine/oracle.md",
+        "migration/native-rust/m0/semantic-freeze.json",
+        "migration/native-rust/legacy-path-ownership.json",
+        "selected M4 legacy review, completion, judgment, and claim paths resolved from the frozen selector"
+      ],
+      "forbidden": [
+        ".git",
+        "node_modules",
+        "target",
+        "secrets",
+        "membrane",
+        "src",
+        "skills",
+        "tools",
+        "engine/Cargo.lock",
+        "engine/crates/legion-report",
+        "engine/crates/legion-rules",
+        "engine/crates/legion-research",
+        "engine/crates/legion-audit"
+      ],
+      "checks": [
+        "rustfmt --edition 2021 --check on owned Rust files",
+        "git diff --check",
+        "prove bounded packets identify evidence and omissions, unknown stays honest, and candidate providers cannot close themselves",
+        "prove deterministic Review contract does not impersonate or mutate Oracle Completion Validation"
+      ],
+      "dependencies": []
+    }
+  ],
+  "oracleAudit": {
+    "required": true,
+    "mode": "adversarial",
+    "status": "required-before-execution",
+    "checks": [
+      "authority-order",
+      "source-revision",
+      "allowlist-completeness",
+      "lane-disjointness",
+      "dependency-validity",
+      "maximum-safe-parallelization",
+      "end-to-end-lane-closure",
+      "M5-interface-freeze",
+      "legacy-selector-exactness",
+      "Rules-effect-exclusion",
+      "Research-evidence-and-claim-truth",
+      "Research-live-CLI-receipt-and-cancellation",
+      "Review-independence-and-unknown-verdict",
+      "Blueprint-degradation",
+      "legacy-tooling-retention",
+      "Membrane-exclusion"
+    ]
+  },
+  "recovery": {
+    "maxRetries": 1,
+    "stopConditions": [
+      "source revision or frozen authority changes",
+      "a worker-owned path is dirty before execution",
+      "implementation requires a path outside exact allowlist",
+      "corrected M5, completed Report, or any other completed M1 CLI bytes would need modification",
+      "legacy runtime or Membrane modification would be required",
+      "a lane would execute an untyped or unreceipted external effect",
+      "Audit or M6 qualification would be asserted"
+    ],
+    "returnFields": [
+      "status",
+      "changedPaths",
+      "checks",
+      "rawFailures",
+      "blockers",
+      "baselineRevision",
+      "patchDigest",
+      "next"
+    ]
+  }
+}

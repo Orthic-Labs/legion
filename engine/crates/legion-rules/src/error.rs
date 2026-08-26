@@ -12,6 +12,8 @@ pub enum RuleError {
     InvalidPattern { rule: String, source: regex::Error },
     #[error("structural source unavailable: {0}")]
     SourceUnavailable(String),
+    #[error("invalid structural source result: {0}")]
+    InvalidSource(String),
     #[error("blueprint generation mismatch: expected {expected}, got {actual}")]
     GenerationMismatch { expected: String, actual: String },
 }

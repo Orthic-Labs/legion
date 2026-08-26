@@ -1,0 +1,42 @@
+{
+  "schemaVersion": 1,
+  "kind": "legion-native-rust-ownership-amendment",
+  "status": "frozen",
+  "operatorApproved": true,
+  "sourceRevision": "01337d75b9ad56543ff10783b353709fb5145e99",
+  "supersedes": {
+    "roadmap": {
+      "path": "migration/native-rust/dispatches/M1-M8-DISPATCH.json",
+      "sha256": "sha256:23fc2c1452d5831da36a87fdb27f23555f1f31a850a1f77a970fcab07227f31c"
+    },
+    "priorAmendment": {
+      "path": "migration/native-rust/dispatches/M2-M7-OWNERSHIP-AMENDMENT.json",
+      "sha256": "sha256:4d48d17cdeb953d72af136659dcd99716307824ba937763761d500815b789f1c"
+    },
+    "m5LiveDispatch": {
+      "path": "migration/native-rust/dispatches/M5-LIVE-WIRING-DISPATCH.json",
+      "sha256": "sha256:eabed1adfe9f1fcce4a302a800eca4eb6b797e8ed0684d61b1891c8387a50d8a"
+    }
+  },
+  "reason": "Fresh adversarial validation proved the frozen M4 Research allowlist owns CLI qualification tests but omits their live consumer. The existing command emits bare incomplete output without a terminal receipt and disconnects caller cancellation, so Research cannot close through installed client integration within the prior allowlist.",
+  "retainedAuthority": "All M0 freezes, completed M1-M3 and M5 bytes, completed Report lane, M1-M8 rules, and M2-M7 amendment terms remain authoritative except this exact M4 live-consumer correction.",
+  "globalRules": {
+    "singleReopenedPath": "Only engine/bins/legion/src/commands/research.rs transfers from completed M1 CLI ownership to corrected M4 Research for one final end-to-end touch.",
+    "generatedLock": "engine/Cargo.lock remains integration-owner generated state and outside worker ownership.",
+    "legacy": "All Node/Python legacy runtime paths remain read-only evidence until M7.",
+    "membrane": "No worker may read or modify Membrane.",
+    "execution": "Research host/external effects remain typed, policy-controlled, bounded, receipt-backed, and truthful.",
+    "qualification": "This amendment does not authorize Audit Wave B, assert M6 qualification, or authorize M7 deletion."
+  },
+  "milestones": {
+    "M4": {
+      "owner": "M4-capability-migration",
+      "addedActivePaths": [
+        "engine/bins/legion/src/commands/research.rs"
+      ],
+      "dependencyRule": "The corrected Research crate and its live CLI consumer close together in Wave A after corrected M5 commit.",
+      "consumerRule": "Missing required host-injected sources and insufficient independent providers emit typed UNPROVEN/incomplete output with a validated terminal ResearchReceipt; caller cancellation reaches the active workflow and also terminates with truthful receipt evidence rather than a bare error.",
+      "scopeRule": "Rules and Review CLI implementation paths remain frozen M1 outputs; Audit remains Wave B."
+    }
+  }
+}

@@ -5,7 +5,7 @@ use std::collections::BTreeMap;
 use crate::{
     error::ResearchError,
     evidence::{Claim, EvidenceKind, EvidenceLedger},
-    workflow::{SourceFailure, WorkflowStatus},
+    workflow::{SourceFailure, WorkflowStage, WorkflowStatus},
 };
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
@@ -15,6 +15,7 @@ pub enum ReportStatus {
     Partial,
     Failed,
     Cancelled,
+    Unproven,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
@@ -43,6 +44,49 @@ pub struct ResearchReport {
 }
 
 impl ResearchReport {
+    pub fn terminal_unproven(
+        query: impl Into<String>,
+        omissions: Vec<SourceFailure>,
+    ) -> Result<Self, ResearchError> {
+        let query = query.into();
+        let report = Self {
+            schema_version: 1,
+            report_id: format!("research-{}", digest_key(&query)),
+            query,
+            status: ReportStatus::Unproven,
+            observations: Vec::new(),
+            source_assertions: Vec::new(),
+            synthesis: Vec::new(),
+            uncertainties: Vec::new(),
+            unknowns: Vec::new(),
+            omissions,
+        };
+        report.validate()?;
+        Ok(report)
+    }
+
+    pub fn terminal_cancelled(query: impl Into<String>) -> Result<Self, ResearchError> {
+        let query = query.into();
+        let report = Self {
+            schema_version: 1,
+            report_id: format!("research-{}", digest_key(&query)),
+            query,
+            status: ReportStatus::Cancelled,
+            observations: Vec::new(),
+            source_assertions: Vec::new(),
+            synthesis: Vec::new(),
+            uncertainties: Vec::new(),
+            unknowns: Vec::new(),
+            omissions: vec![SourceFailure {
+                provider: "caller".into(),
+                stage: WorkflowStage::Cancelled,
+                reason: "caller cancellation observed before research effects".into(),
+            }],
+        };
+        report.validate()?;
+        Ok(report)
+    }
+
     pub fn validate(&self) -> Result<(), ResearchError> {
         if self.schema_version != 1 {
             return Err(ResearchError::Report(
@@ -52,6 +96,16 @@ impl ResearchReport {
         if self.report_id.trim().is_empty() || self.query.trim().is_empty() {
             return Err(ResearchError::Report(
                 "report id and query must be non-empty".into(),
+            ));
+        }
+        if self.status == ReportStatus::Unproven && self.omissions.is_empty() {
+            return Err(ResearchError::Report(
+                "unproven report must disclose at least one omission".into(),
+            ));
+        }
+        if self.status == ReportStatus::Complete && !self.omissions.is_empty() {
+            return Err(ResearchError::Report(
+                "complete report cannot conceal omissions".into(),
             ));
         }
         let mut ids = std::collections::BTreeSet::new();
@@ -114,6 +168,7 @@ impl ReportBuilder {
                 WorkflowStatus::Partial => ReportStatus::Partial,
                 WorkflowStatus::Failed => ReportStatus::Failed,
                 WorkflowStatus::Cancelled => ReportStatus::Cancelled,
+                WorkflowStatus::Unproven => ReportStatus::Unproven,
             },
             observations,
             source_assertions,

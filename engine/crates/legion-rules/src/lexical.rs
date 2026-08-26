@@ -5,6 +5,7 @@ use crate::{
 };
 use regex::Regex;
 use serde::{Deserialize, Serialize};
+use std::collections::BTreeSet;
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -55,6 +56,7 @@ struct CompiledLexicalRule {
     matcher: CompiledMatcher,
     required: Vec<CompiledMatcher>,
     negative: Vec<CompiledMatcher>,
+    extraction: crate::schema::EvidenceExtraction,
 }
 
 #[derive(Clone, Debug)]
@@ -108,6 +110,7 @@ impl LexicalEngine {
                 matcher: CompiledMatcher::compile(&spec.id, matcher)?,
                 required,
                 negative,
+                extraction: spec.evidence.extract,
             });
         }
         rules.sort_by(|left, right| left.spec.id.cmp(&right.spec.id));
@@ -121,14 +124,32 @@ impl LexicalEngine {
             .collect();
         ordered.sort_by(|left, right| left.0.cmp(&right.0));
         let mut findings = Vec::new();
+        let mut gaps = Vec::new();
+        let mut seen_paths = BTreeSet::new();
+        let mut examined_files = 0;
         for (path, file) in ordered.iter() {
-            let text = String::from_utf8_lossy(&file.bytes);
+            if path.is_empty() {
+                gaps.push("source-path-empty".into());
+                continue;
+            }
+            if !seen_paths.insert(path.clone()) {
+                gaps.push(format!("duplicate-source-path:{path}"));
+                continue;
+            }
+            let text = match std::str::from_utf8(&file.bytes) {
+                Ok(text) => text,
+                Err(_) => {
+                    gaps.push(format!("source-invalid-utf8:{path}"));
+                    continue;
+                }
+            };
+            examined_files += 1;
             for rule in &self.rules {
-                if !applies(&rule.paths, path) || !rule.required.iter().all(|m| m.is_present(&text))
+                if !applies(&rule.paths, path) || !rule.required.iter().all(|m| m.is_present(text))
                 {
                     continue;
                 }
-                for matched in rule.matcher.regex.find_iter(&text) {
+                for matched in rule.matcher.regex.find_iter(text) {
                     if rule
                         .negative
                         .iter()
@@ -136,14 +157,14 @@ impl LexicalEngine {
                     {
                         continue;
                     }
-                    let start = matched.start();
-                    let end = matched.end();
+                    let (start, end, evidence_text) =
+                        extract_evidence(text, matched.start(), matched.end(), rule.extraction);
                     findings.push(EvidenceSpan::from_text(
                         rule.spec.id.clone(),
                         path.clone(),
                         start,
                         end,
-                        matched.as_str().to_owned(),
+                        evidence_text,
                         rule.spec.severity,
                         rule.spec.confidence,
                         rule.spec.evidence.authority,
@@ -159,16 +180,35 @@ impl LexicalEngine {
                 .then(left.path.cmp(&right.path))
                 .then(left.byte_start.cmp(&right.byte_start))
                 .then(left.byte_end.cmp(&right.byte_end))
+                .then(left.evidence_hash.cmp(&right.evidence_hash))
         });
+        gaps.sort();
+        gaps.dedup();
         LexicalEvaluation {
             findings,
             coverage: RuleCoverage {
                 expected_files: files.len(),
-                examined_files: files.len(),
-                gaps: Vec::new(),
+                examined_files,
+                gaps,
             },
         }
     }
+}
+
+fn extract_evidence(
+    text: &str,
+    start: usize,
+    end: usize,
+    extraction: crate::schema::EvidenceExtraction,
+) -> (usize, usize, String) {
+    if !matches!(extraction, crate::schema::EvidenceExtraction::Line) {
+        return (start, end, text[start..end].to_owned());
+    }
+    let line_start = text[..start].rfind('\n').map_or(0, |offset| offset + 1);
+    let line_end = text[start..]
+        .find('\n')
+        .map_or(text.len(), |offset| start + offset);
+    (line_start, line_end, text[line_start..line_end].to_owned())
 }
 
 fn applies(selectors: &[PathSelector], path: &str) -> bool {
@@ -243,5 +283,58 @@ mod tests {
         )]);
         assert_eq!(evaluation.findings.len(), 1);
         assert_eq!(evaluation.findings[0].text, "reset(user);");
+    }
+
+    #[test]
+    fn line_extraction_is_source_bound_and_invalid_utf8_is_a_gap() {
+        let pack = AnalysisRulePack {
+            schema_version: 1,
+            kind: "analysis-rule-pack".into(),
+            pack_id: "fixture-lines".into(),
+            version: "1".into(),
+            class: RuleClass::A,
+            engine_contract: "rust-regex-1".into(),
+            rules: vec![RuleSpec {
+                id: "line-rule".into(),
+                stable_id: "line-rule".into(),
+                kind: RuleKind::Lexical,
+                severity: Severity::Info,
+                confidence: Confidence::High,
+                data_class: None,
+                lifecycle: None,
+                paths: Vec::new(),
+                matcher: Some(MatcherSpec {
+                    mode: MatchMode::Literal,
+                    pattern: "needle".into(),
+                }),
+                companions: CompanionSpec::default(),
+                evidence: EvidenceSpec {
+                    extract: crate::schema::EvidenceExtraction::Line,
+                    authority: crate::schema::EvidenceAuthority::Lexical,
+                },
+                uncertainty: Vec::new(),
+                coverage: CoverageSpec::default(),
+                remediation: None,
+                selector: None,
+                implementation_key: None,
+            }],
+            source_provenance: Default::default(),
+        };
+        let engine = LexicalEngine::compile(&pack).unwrap();
+        let evaluation = engine.evaluate(&[
+            SourceFile::text("src/one.rs", "before\nneedle here\nafter\n"),
+            SourceFile {
+                path: "src/binary.rs".into(),
+                bytes: vec![0xff, 0xfe],
+            },
+        ]);
+        assert_eq!(evaluation.findings[0].text, "needle here");
+        assert_eq!(evaluation.findings[0].byte_start, 7);
+        assert_eq!(evaluation.findings[0].byte_end, 18);
+        assert!(evaluation
+            .coverage
+            .gaps
+            .contains(&"source-invalid-utf8:src/binary.rs".into()));
+        assert!(!evaluation.coverage.complete());
     }
 }
