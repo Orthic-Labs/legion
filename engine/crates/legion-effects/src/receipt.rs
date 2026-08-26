@@ -72,6 +72,15 @@ pub struct ParserState {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
+pub struct PolicyEvidence {
+    pub id: String,
+    pub version: u32,
+    pub digest: String,
+    pub allowed: bool,
+    pub reason: Option<String>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ExecutionReceipt {
     pub schema_version: u32,
     pub receipt_id: String,
@@ -79,6 +88,8 @@ pub struct ExecutionReceipt {
     pub provider_id: String,
     pub plan_id: String,
     pub policy_id: String,
+    /// Absent only when request validation failed before policy evaluation.
+    pub policy: Option<PolicyEvidence>,
     pub task_id: Option<String>,
     pub state: ExecutionState,
     pub complete: bool,
@@ -110,6 +121,7 @@ impl ExecutionReceipt {
             provider_id: request.provider_id.clone(),
             plan_id: request.plan_id.clone(),
             policy_id: request.policy_id.clone(),
+            policy: None,
             task_id: request.task_id.clone(),
             state,
             complete: false,

@@ -5,10 +5,16 @@ use std::{
 
 use legion_contracts::task::RequestEnvelope;
 use legion_contracts::{EffectRequest, InvocationGrant, Plan, TaskSpec};
+use legion_effects::{
+    receipt::{ExecutionReceipt, ExecutionState},
+    request::ExternalToolRequest,
+};
 use serde_json::Value;
 use tokio_util::sync::CancellationToken;
 
-use crate::error::ProviderError;
+use crate::{error::ProviderError, external_project_tool::ExternalProjectTool};
+
+const EXTERNAL_TOOL_CLEANUP_GRACE: Duration = Duration::from_millis(2500);
 
 /// Typed, injected read-only source access available to a provider.
 pub trait SourceInterface: Send + Sync {
@@ -33,6 +39,7 @@ pub struct ProviderContext {
     policy_grant: Arc<InvocationGrant>,
     sources: Arc<dyn SourceInterface>,
     effects: Arc<dyn EffectInterface>,
+    external_project_tool: Option<Arc<dyn ExternalProjectTool>>,
 }
 
 impl ProviderContext {
@@ -60,6 +67,7 @@ impl ProviderContext {
             policy_grant: Arc::new(policy_grant),
             sources,
             effects,
+            external_project_tool: None,
         }
     }
 
@@ -92,6 +100,104 @@ impl ProviderContext {
     }
     pub fn effects(&self) -> &Arc<dyn EffectInterface> {
         &self.effects
+    }
+    pub fn with_external_project_tool(mut self, tool: Arc<dyn ExternalProjectTool>) -> Self {
+        self.external_project_tool = Some(tool);
+        self
+    }
+    pub fn external_project_tool(&self) -> Option<&Arc<dyn ExternalProjectTool>> {
+        self.external_project_tool.as_ref()
+    }
+
+    /// Executes only through the injected effects-owned boundary and never turns absence into
+    /// provider success.
+    pub async fn execute_external_project_tool(
+        &self,
+        request: ExternalToolRequest,
+    ) -> ExecutionReceipt {
+        let Some(tool) = self.external_project_tool.as_ref() else {
+            return ExecutionReceipt::failure(
+                &request,
+                ExecutionState::Blocked,
+                "external_project_tool_unavailable",
+            );
+        };
+        if self.is_cancelled() {
+            return ExecutionReceipt::failure(
+                &request,
+                ExecutionState::Cancelled,
+                "provider cancelled",
+            );
+        }
+        let remaining = self.remaining(Instant::now());
+        if remaining.is_zero() {
+            return ExecutionReceipt::failure(
+                &request,
+                ExecutionState::Timeout,
+                "provider deadline exceeded",
+            );
+        }
+        let cancellation = self.cancellation.child_token();
+        let execution = tool.execute(request.clone(), cancellation.clone());
+        tokio::pin!(execution);
+        let deadline = tokio::time::sleep(remaining);
+        tokio::pin!(deadline);
+        tokio::select! {
+            // Cancellation wins deterministic ties with the context deadline; callers never
+            // receive a successful provider result after cancellation became observable.
+            biased;
+            _ = self.cancellation.cancelled() => {
+                cancellation.cancel();
+                match tokio::time::timeout(EXTERNAL_TOOL_CLEANUP_GRACE, &mut execution).await {
+                    Ok(receipt) => Self::incomplete_context_receipt(
+                        receipt,
+                        ExecutionState::Cancelled,
+                        "provider cancelled",
+                    ),
+                    Err(_) => Self::unconfirmed_cleanup_receipt(
+                        &request,
+                        "provider cancelled",
+                    ),
+                }
+            }
+            _ = &mut deadline => {
+                cancellation.cancel();
+                match tokio::time::timeout(EXTERNAL_TOOL_CLEANUP_GRACE, &mut execution).await {
+                    Ok(receipt) => Self::incomplete_context_receipt(
+                        receipt,
+                        ExecutionState::Timeout,
+                        "provider deadline exceeded",
+                    ),
+                    Err(_) => Self::unconfirmed_cleanup_receipt(
+                        &request,
+                        "provider deadline exceeded",
+                    ),
+                }
+            }
+            receipt = &mut execution => receipt,
+        }
+    }
+
+    fn incomplete_context_receipt(
+        mut receipt: ExecutionReceipt,
+        state: ExecutionState,
+        gap: &str,
+    ) -> ExecutionReceipt {
+        if receipt.state != ExecutionState::KillFailed {
+            receipt.state = state;
+        }
+        receipt.complete = false;
+        if !receipt.gaps.iter().any(|existing| existing == gap) {
+            receipt.gaps.push(gap.into());
+        }
+        receipt
+    }
+
+    fn unconfirmed_cleanup_receipt(request: &ExternalToolRequest, gap: &str) -> ExecutionReceipt {
+        let mut receipt = ExecutionReceipt::failure(request, ExecutionState::KillFailed, gap);
+        receipt.gaps.push("cleanup_unconfirmed".into());
+        receipt.gaps.push("kill_failed".into());
+        receipt
     }
 
     pub fn is_cancelled(&self) -> bool {

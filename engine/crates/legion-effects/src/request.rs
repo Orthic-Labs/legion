@@ -53,8 +53,6 @@ pub struct ExternalToolRequest {
     pub expected_digest: Option<String>,
     pub version_args: Vec<String>,
     pub version_requirement: Option<String>,
-    pub version_output: Option<String>,
-    pub version_exit_code: Option<i32>,
     pub environment: BTreeMap<String, String>,
     pub environment_allowlist: BTreeSet<String>,
     pub sensitive_argument_indexes: BTreeSet<usize>,
@@ -83,8 +81,6 @@ impl Default for ExternalToolRequest {
             expected_digest: None,
             version_args: vec!["--version".into()],
             version_requirement: None,
-            version_output: None,
-            version_exit_code: None,
             environment: BTreeMap::new(),
             environment_allowlist: BTreeSet::new(),
             sensitive_argument_indexes: BTreeSet::new(),
@@ -124,7 +120,12 @@ impl ExternalToolRequest {
                 "shell execution is forbidden".into(),
             ));
         }
-        if self.args.iter().any(|arg| arg.contains('\0')) {
+        if self
+            .args
+            .iter()
+            .chain(self.version_args.iter())
+            .any(|arg| arg.contains('\0'))
+        {
             return Err(EffectError::InvalidRequest(
                 "arguments may not contain NUL".into(),
             ));

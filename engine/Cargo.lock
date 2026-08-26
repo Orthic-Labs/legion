@@ -943,6 +943,7 @@ dependencies = [
  "async-trait",
  "futures-util",
  "legion-contracts",
+ "legion-effects",
  "reqwest",
  "secrecy",
  "serde",

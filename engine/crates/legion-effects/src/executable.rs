@@ -83,15 +83,13 @@ impl ExecutableIdentity {
     }
 
     pub fn version_qualified(&self, requirement: Option<&str>) -> bool {
-        let Some(requirement) = requirement else {
-            return true;
-        };
         self.version.qualified
-            && self
-                .version
-                .output
-                .as_deref()
-                .is_some_and(|output| output.contains(requirement))
+            && requirement.is_none_or(|required| {
+                self.version
+                    .output
+                    .as_deref()
+                    .is_some_and(|output| output.contains(required))
+            })
     }
 }
 

@@ -1,0 +1,163 @@
+{
+  "schemaVersion": 1,
+  "kind": "legion-authority-dispatch",
+  "packetType": "direct",
+  "repositoryRoot": ".",
+  "sourceRevision": "1611c431cd734e01903233075b152fdc29b98e98",
+  "sourceArtifact": "migration/native-rust/m0/contract-freeze.json",
+  "promptArtifact": "migration/native-rust/dispatches/M5-CORRECTED-REQUEST.md",
+  "promptDigest": "sha256:2210982d903b6b9840542b76d8305976744ac02e189fe9a9a38f5046cfa6478b",
+  "modelRouting": {
+    "modelTier": "MID",
+    "workerProfile": "rust-alchemist",
+    "routingRationale": "Bounded Rust correction with exact public interface, exact file ownership, existing executor reuse, & adversarial failure corpus"
+  },
+  "objective": "Implement & freeze corrected M5 typed external-project-tool boundary before dependent M4 lanes: argv-only requests, immediate policy evaluation, actual bounded version evidence, immutable outputs, process-tree control, truthful terminal receipts, provider-level typed degradation, & no Legion runtime re-entry.",
+  "authority": [
+    "AGENTS.md",
+    "docs/LEGION-CANONICAL-SSOT.md",
+    "migration/native-rust/PRODUCT-ARCHITECTURE-V2.md",
+    "migration/native-rust/MIGRATION-PLAN-V2.md",
+    "migration/native-rust/m0/semantic-freeze.json",
+    "migration/native-rust/m0/provider-boundary.json",
+    "migration/native-rust/discrepancy-ledger.json",
+    "migration/native-rust/dispatches/M1-M8-DISPATCH.json",
+    "migration/native-rust/dispatches/M2-M7-OWNERSHIP-AMENDMENT.json"
+  ],
+  "integrationOwner": "current orchestrator; sole owner of integration worktree HEAD, index, validation, commits, receipts, push, & later milestone gates; may not edit worker-owned implementation paths",
+  "ownershipCorrection": {
+    "reason": "Fresh rebaseline proved provider SDK cannot truthfully close M5 while native executor omits policy version/digest/outcome from receipts & accepts caller-asserted version probe output. M0-D005 jointly assigns policy/receipt migration & external-tool boundary to M4/M5. Corrected M5 owns only four necessary executor contract files plus existing SDK scope.",
+    "legacyRule": "All Node/Python runtime paths remain read-only evidence until M7; no Membrane path is readable or writable by worker.",
+    "testRegistration": "M5-owned legion-provider-sdk/Cargo.toml registers ../../tests/m5_provider_boundary.rs; no testkit manifest amendment is needed."
+  },
+  "interfaceLock": {
+    "executor": "legion-effects remains sole process executor. ExternalToolRequest contains executable + argv, never shell command text; shell=true remains rejected. Caller-supplied version output/exit fields are removed. EffectExecutor runs requested version_args as a bounded argv-only post-policy probe through same PlatformProcess, then executes requested tool only when digest & actual version evidence qualify.",
+    "receipt": "ExecutionReceipt exposes policy id, version, digest, allowed outcome/reason, executable digest & actual version-probe evidence, redacted argv shape, cwd, environment names, sandbox, process-tree, timing, immutable stdout/stderr artifacts, parser state, terminal state, completeness, & gaps. Every post-policy terminal path binds exact policy evidence; pre-policy invalid requests remain explicitly incomplete.",
+    "providerSdk": "legion-provider-sdk::external_project_tool re-exports existing effects request/receipt/state types & defines one async ExternalProjectTool trait. EffectExecutor implements that trait; ProviderContext accepts optional injected Arc<dyn ExternalProjectTool>, exposes a builder/accessor & bounded async execution using context cancellation/deadline, & returns an incomplete blocked receipt with external_project_tool_unavailable when absent. SDK never spawns processes, evaluates policy, writes artifacts, or implements a second receipt.",
+    "truth": "Missing, denied, unsealed, unqualified, timed out, cancelled, output-limited, non-zero, cleanup-failed, artifact-failed, or unavailable execution never reports complete & never becomes empty Provider success. Blueprint absence remains provider-level typed degradation without aborting independent providers."
+  },
+  "fileTouchPolicy": {
+    "mode": "once-end-to-end",
+    "plannedFiles": [
+      "engine/Cargo.lock",
+      "engine/crates/legion-effects/src/executable.rs",
+      "engine/crates/legion-effects/src/executor.rs",
+      "engine/crates/legion-effects/src/receipt.rs",
+      "engine/crates/legion-effects/src/request.rs",
+      "engine/crates/legion-provider-sdk/Cargo.toml",
+      "engine/crates/legion-provider-sdk/src/context.rs",
+      "engine/crates/legion-provider-sdk/src/external_project_tool.rs",
+      "engine/crates/legion-provider-sdk/src/lib.rs",
+      "engine/tests/m5_provider_boundary.rs"
+    ],
+    "allowUnplannedFiles": false
+  },
+  "dispatches": [
+    {
+      "id": "M5-interface-freeze",
+      "dependsOn": [],
+      "lanes": [
+        "m5-external-tool-boundary"
+      ],
+      "completionChecks": [
+        "all actual changes are contained in exact ten-path allowlist & legacy/Membrane paths remain untouched",
+        "provider SDK compiles against one effects-owned request/receipt contract with no duplicate executor or shell-string path",
+        "denial, timeout, cancellation, output limit, unavailable executor, process cleanup failure, executable mismatch, actual version failure, & artifact failure each yield bound incomplete receipts",
+        "focused direct-Cargo checks pass; interface bytes are frozen before dependent M4 dispatch creation"
+      ]
+    }
+  ],
+  "workers": [
+    {
+      "id": "m5-external-tool-boundary",
+      "dispatch": "M5-interface-freeze",
+      "executor": "Alchemist Rust worker in isolated worktree; no commit or push",
+      "allowlist": [
+        "engine/Cargo.lock",
+        "engine/crates/legion-effects/src/executable.rs",
+        "engine/crates/legion-effects/src/executor.rs",
+        "engine/crates/legion-effects/src/receipt.rs",
+        "engine/crates/legion-effects/src/request.rs",
+        "engine/crates/legion-provider-sdk/Cargo.toml",
+        "engine/crates/legion-provider-sdk/src/context.rs",
+        "engine/crates/legion-provider-sdk/src/external_project_tool.rs",
+        "engine/crates/legion-provider-sdk/src/lib.rs",
+        "engine/tests/m5_provider_boundary.rs"
+      ],
+      "read": [
+        "engine/crates/legion-effects",
+        "engine/crates/legion-provider-sdk",
+        "engine/crates/legion-policy",
+        "engine/crates/legion-policy-model",
+        "engine/crates/legion-contracts",
+        "engine/tests/native_effects.rs",
+        "migration/native-rust/m0/semantic-freeze.json",
+        "migration/native-rust/m0/provider-boundary.json",
+        "migration/native-rust/discrepancy-ledger.json"
+      ],
+      "forbidden": [
+        ".git",
+        ".audit",
+        "node_modules",
+        "target",
+        "secrets",
+        "membrane",
+        "src",
+        "skills",
+        "tools",
+        "package.json",
+        "pnpm-lock.yaml"
+      ],
+      "checks": [
+        "from engine: cargo fmt --all --check",
+        "from engine: cargo check -p legion-effects -p legion-provider-sdk --locked",
+        "from engine: cargo test -p legion-provider-sdk --locked",
+        "from engine: cargo test -p legion-provider-sdk --test m5_provider_boundary --locked",
+        "from engine: cargo test -p legion-testkit --test native_effects --locked",
+        "from engine: cargo test -p legion-effects --tests --locked",
+        "search changed Rust for Command shell invocation, shell=true acceptance, Node/Python/PowerShell runtime re-entry, caller-supplied version output, missing receipt paths, & false complete states"
+      ],
+      "dependencies": []
+    }
+  ],
+  "oracleAudit": {
+    "required": true,
+    "mode": "adversarial",
+    "status": "required-before-execution",
+    "checks": [
+      "allowlist-completeness",
+      "lane-disjointness",
+      "dependency-validity",
+      "maximum-safe-parallelization",
+      "end-to-end-lane-closure",
+      "frozen-interface-sufficiency",
+      "policy-receipt-provenance",
+      "actual-version-evidence",
+      "failure-truthfulness",
+      "legacy-tooling-retention",
+      "Membrane-exclusion"
+    ]
+  },
+  "recovery": {
+    "maxRetries": 1,
+    "stopConditions": [
+      "source revision or frozen authority changes",
+      "worker-owned path is dirty before execution",
+      "implementation requires any path outside exact allowlist",
+      "provider SDK would duplicate process execution or policy semantics",
+      "a shell command string or Legion runtime re-entry would be required",
+      "Membrane modification or local graph fallback would be required",
+      "external qualification is falsely asserted as M6 PASS"
+    ],
+    "returnFields": [
+      "status",
+      "changedPaths",
+      "checks",
+      "rawFailures",
+      "blockers",
+      "baselineRevision",
+      "patchDigest",
+      "next"
+    ]
+  }
+}

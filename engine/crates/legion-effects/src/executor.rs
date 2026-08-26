@@ -3,7 +3,7 @@ use crate::{
     environment::allowlisted_environment,
     executable::{ExecutableIdentity, VersionProbeEvidence},
     platform::{PlatformProcess, ProcessLaunch},
-    receipt::{ExecutionReceipt, ExecutionState, ParserState, SandboxEvidence},
+    receipt::{ExecutionReceipt, ExecutionState, ParserState, PolicyEvidence, SandboxEvidence},
     request::ExternalToolRequest,
 };
 
@@ -64,29 +64,45 @@ where
             return ExecutionReceipt::failure(request, error.state(), error.to_string());
         }
         let decision = self.policy.authorize(request);
+        let policy = PolicyEvidence {
+            id: decision.policy_id.clone(),
+            version: decision.policy_version,
+            digest: decision.policy_digest.clone(),
+            allowed: decision.allowed,
+            reason: decision.reason.clone(),
+        };
         if !decision.allowed {
-            return ExecutionReceipt::failure(
+            return Self::failure_with_policy(
                 request,
                 ExecutionState::UnauthorizedEffect,
                 decision
                     .reason
                     .unwrap_or_else(|| "policy denied effect".into()),
+                None,
+                request.cwd.clone(),
+                policy,
             );
         }
         let cwd = match std::fs::canonicalize(&request.cwd) {
             Ok(path) if path.is_dir() => path,
             Ok(_) => {
-                return ExecutionReceipt::failure(
+                return Self::failure_with_policy(
                     request,
                     ExecutionState::Internal,
                     "cwd is not a directory",
+                    None,
+                    request.cwd.clone(),
+                    policy,
                 )
             }
             Err(error) => {
-                return ExecutionReceipt::failure(
+                return Self::failure_with_policy(
                     request,
                     ExecutionState::Internal,
                     error.to_string(),
+                    None,
+                    request.cwd.clone(),
+                    policy,
                 )
             }
         };
@@ -94,39 +110,26 @@ where
             &request.executable,
             request.expected_digest.as_deref(),
         ) {
-            Ok(value) => value.with_version_probe(VersionProbeEvidence {
-                args: request.version_args.clone(),
-                output: request.version_output.clone(),
-                exit_code: request.version_exit_code,
-                qualified: request.version_requirement.is_none()
-                    || request.version_output.is_some() && request.version_exit_code == Some(0),
-            }),
+            Ok(value) => value,
             Err(error) => {
-                return self.failure_with_identity(
+                return Self::failure_with_policy(
                     request,
                     error.state(),
                     error.to_string(),
                     None,
                     cwd.to_string_lossy().into_owned(),
+                    policy,
                 )
             }
         };
         if request.expected_digest.is_none() {
-            return self.failure_with_identity(
+            return Self::failure_with_policy(
                 request,
                 ExecutionState::UnsealedExecutable,
                 "executable digest is required",
                 Some(identity),
                 cwd.to_string_lossy().into_owned(),
-            );
-        }
-        if !identity.version_qualified(request.version_requirement.as_deref()) {
-            return self.failure_with_identity(
-                request,
-                ExecutionState::UnsealedExecutable,
-                "executable version is not qualified",
-                Some(identity),
-                cwd.to_string_lossy().into_owned(),
+                policy,
             );
         }
         if request.requires_network_sandbox
@@ -136,12 +139,13 @@ where
                 .map(|receipt| receipt.network)
                 .unwrap_or(false)
         {
-            return self.failure_with_identity(
+            return Self::failure_with_policy(
                 request,
                 ExecutionState::SandboxMissing,
                 "network sandbox receipt is required",
                 Some(identity),
                 cwd.to_string_lossy().into_owned(),
+                policy,
             );
         }
         let environment = allowlisted_environment(
@@ -149,15 +153,87 @@ where
             &request.environment_allowlist,
             &request.sensitive_environment_names,
         );
+        let version_launch = ProcessLaunch {
+            executable: identity
+                .canonical_path
+                .as_ref()
+                .expect("resolved executable")
+                .to_string_lossy()
+                .into_owned(),
+            args: request.version_args.clone(),
+            cwd: cwd.to_string_lossy().into_owned(),
+            environment: environment.values.clone(),
+            stdout_limit: request.stdout_limit,
+            stderr_limit: request.stderr_limit,
+            timeout_ms: request.timeout_ms,
+            termination_grace_ms: 2_000,
+            cancellation: cancellation.clone(),
+        };
+        let version_output = match self.platform.run(version_launch).await {
+            Ok(value) => value,
+            Err(error) => {
+                return Self::failure_with_policy(
+                    request,
+                    error.state(),
+                    error.to_string(),
+                    Some(identity),
+                    cwd.to_string_lossy().into_owned(),
+                    policy,
+                )
+            }
+        };
+        let version = VersionProbeEvidence {
+            args: request.version_args.clone(),
+            output: Some(combined_probe_output(
+                &version_output.stdout,
+                &version_output.stderr,
+            )),
+            exit_code: version_output.exit_code,
+            qualified: version_output.exit_code == Some(0)
+                && !version_output.timed_out
+                && !version_output.cancelled
+                && !version_output.output_limited
+                && version_output.kill_succeeded
+                && version_output.process_tree.started
+                && version_output.process_tree.terminated
+                && version_output.process_tree.reaped,
+        };
+        let identity = identity.with_version_probe(version);
+        if !identity.version_qualified(request.version_requirement.as_deref()) {
+            let state = if !version_output.kill_succeeded
+                || !version_output.process_tree.started
+                || !version_output.process_tree.terminated
+                || !version_output.process_tree.reaped
+            {
+                ExecutionState::KillFailed
+            } else if version_output.output_limited {
+                ExecutionState::OutputLimited
+            } else if version_output.timed_out {
+                ExecutionState::Timeout
+            } else if version_output.cancelled {
+                ExecutionState::Cancelled
+            } else {
+                ExecutionState::UnsealedExecutable
+            };
+            return Self::failure_with_policy(
+                request,
+                state,
+                "actual executable version probe is not qualified",
+                Some(identity),
+                cwd.to_string_lossy().into_owned(),
+                policy,
+            );
+        }
         let stdout_path = format!("{}/stdout", request.request_id);
         let stderr_path = format!("{}/stderr", request.request_id);
         if let Err(error) = self.artifacts.reserve(&[&stdout_path, &stderr_path]) {
-            return self.failure_with_identity(
+            return Self::failure_with_policy(
                 request,
                 ExecutionState::ArtifactFailed,
                 error.to_string(),
                 Some(identity),
                 cwd.to_string_lossy().into_owned(),
+                policy,
             );
         }
         let launch = ProcessLaunch {
@@ -179,40 +255,23 @@ where
         let output = match self.platform.run(launch).await {
             Ok(value) => value,
             Err(error) => {
-                return self.failure_with_identity(
+                return Self::failure_with_policy(
                     request,
                     error.state(),
                     error.to_string(),
                     Some(identity),
                     cwd.to_string_lossy().into_owned(),
+                    policy,
                 )
             }
         };
-        let stdout = match self.artifacts.write(&stdout_path, &output.stdout) {
-            Ok(value) => value,
-            Err(error) => {
-                return self.failure_with_identity(
-                    request,
-                    ExecutionState::ArtifactFailed,
-                    error.to_string(),
-                    Some(identity),
-                    cwd.to_string_lossy().into_owned(),
-                )
-            }
-        };
-        let stderr = match self.artifacts.write(&stderr_path, &output.stderr) {
-            Ok(value) => value,
-            Err(error) => {
-                return self.failure_with_identity(
-                    request,
-                    ExecutionState::ArtifactFailed,
-                    error.to_string(),
-                    Some(identity),
-                    cwd.to_string_lossy().into_owned(),
-                )
-            }
-        };
-        let state = if output.output_limited {
+        let process_state = if !output.kill_succeeded
+            || !output.process_tree.started
+            || !output.process_tree.terminated
+            || !output.process_tree.reaped
+        {
+            ExecutionState::KillFailed
+        } else if output.output_limited {
             ExecutionState::OutputLimited
         } else if output.timed_out {
             ExecutionState::Timeout
@@ -224,17 +283,52 @@ where
             ExecutionState::Failed
         };
         let mut gaps = Vec::new();
-        if state != ExecutionState::Completed {
-            gaps.push(state.as_str().into());
-        }
-        if !output.kill_succeeded && (output.timed_out || output.cancelled || output.output_limited)
+        if process_state != ExecutionState::Completed && process_state != ExecutionState::KillFailed
         {
+            gaps.push(process_state.as_str().into());
+        }
+        if process_state == ExecutionState::KillFailed {
             gaps.push("kill_failed".into());
         }
+        let mut artifact_error = None;
+        let stdout = match self.artifacts.write(&stdout_path, &output.stdout) {
+            Ok(value) => Some(value),
+            Err(error) => {
+                artifact_error = Some(error.to_string());
+                None
+            }
+        };
+        let stderr = if artifact_error.is_none() {
+            match self.artifacts.write(&stderr_path, &output.stderr) {
+                Ok(value) => Some(value),
+                Err(error) => {
+                    artifact_error = Some(error.to_string());
+                    None
+                }
+            }
+        } else {
+            None
+        };
+        if artifact_error.is_none()
+            && (stdout.as_ref().is_none_or(|value| !value.immutable)
+                || stderr.as_ref().is_none_or(|value| !value.immutable))
+        {
+            artifact_error = Some("artifact_failed: artifact is not immutable".into());
+        }
+        if let Some(error) = artifact_error {
+            gaps.push(error);
+        }
+        let state = if process_state == ExecutionState::Completed && !gaps.is_empty() {
+            ExecutionState::ArtifactFailed
+        } else {
+            process_state
+        };
         let complete = state == ExecutionState::Completed
             && output.process_tree.reaped
-            && stdout.immutable
-            && stderr.immutable
+            && output.process_tree.started
+            && output.process_tree.terminated
+            && stdout.as_ref().is_some_and(|value| value.immutable)
+            && stderr.as_ref().is_some_and(|value| value.immutable)
             && gaps.is_empty();
         ExecutionReceipt {
             schema_version: 1,
@@ -243,6 +337,7 @@ where
             provider_id: request.provider_id.clone(),
             plan_id: request.plan_id.clone(),
             policy_id: decision.policy_id,
+            policy: Some(policy),
             task_id: request.task_id.clone(),
             state,
             complete,
@@ -267,8 +362,8 @@ where
             },
             exit_code: output.exit_code,
             signal: output.signal,
-            stdout: Some(stdout),
-            stderr: Some(stderr),
+            stdout,
+            stderr,
             parser: ParserState {
                 attempted: false,
                 succeeded: false,
@@ -278,17 +373,19 @@ where
         }
     }
 
-    fn failure_with_identity(
-        &self,
+    fn failure_with_policy(
         request: &ExternalToolRequest,
         state: ExecutionState,
         gap: impl Into<String>,
         identity: Option<ExecutableIdentity>,
         cwd: String,
+        policy: PolicyEvidence,
     ) -> ExecutionReceipt {
         let mut receipt = ExecutionReceipt::failure(request, state, gap);
         receipt.executable = identity;
         receipt.cwd = Some(cwd);
+        receipt.policy_id = policy.id.clone();
+        receipt.policy = Some(policy);
         receipt
     }
 }
@@ -297,4 +394,21 @@ impl<P, A, G> EffectExecutor<P, A, G> {
     pub fn platform(&self) -> &P {
         &self.platform
     }
+}
+
+fn combined_probe_output(stdout: &[u8], stderr: &[u8]) -> String {
+    let stdout = String::from_utf8_lossy(stdout);
+    let stderr = String::from_utf8_lossy(stderr);
+    if stdout.is_empty() {
+        return stderr.into_owned();
+    }
+    if stderr.is_empty() {
+        return stdout.into_owned();
+    }
+    let mut combined = stdout.into_owned();
+    if !combined.ends_with('\n') {
+        combined.push('\n');
+    }
+    combined.push_str(&stderr);
+    combined
 }

@@ -4,6 +4,7 @@ pub mod auth;
 pub mod context;
 pub mod coverage;
 pub mod error;
+pub mod external_project_tool;
 pub mod http_client;
 pub mod inference;
 pub mod provider;
@@ -16,6 +17,9 @@ pub mod testkit;
 pub use context::{EffectInterface, ProviderContext, SourceInterface};
 pub use coverage::{normalize_coverage, CoverageAssessment};
 pub use error::{ProviderError, ProviderErrorKind};
+pub use external_project_tool::{
+    ExecutionReceipt, ExecutionState, ExternalProjectTool, ExternalToolRequest,
+};
 pub use inference::{HostInference, InferenceClient, InferenceRequest, InferenceResponse};
 pub use provider::{Provider, ProviderDefinition, ProviderFactory, ProviderMetadata};
 pub use registry::{ImplementationRegistry, ProviderRegistry, ProviderRegistryDocument};
