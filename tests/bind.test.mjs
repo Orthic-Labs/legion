@@ -124,7 +124,7 @@ test('codex bind writes managed agent pointers and is idempotent', () => {
     assert.match(config, /config_file = "agents\/sage.toml"/);
     const server = join(root, 'src', 'integrations', 'mcp', 'server.mjs').replace(/\\/g, '/');
     assert.ok(existsSync(server), 'generated Legion MCP server must exist at package root');
-    assert.match(config, new RegExp(`args = \["${server.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}"\]`));
+    assert.match(config, new RegExp(`args = \\["${server.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}"\\]`));
     assert.doesNotMatch(config, /\/lib\/integrations\//);
     const sage = readFileSync(join(dir, '.codex', 'agents', 'sage.toml'), 'utf8');
     assert.match(sage, /\nname = "sage"/);

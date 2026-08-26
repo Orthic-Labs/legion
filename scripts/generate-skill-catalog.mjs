@@ -6,7 +6,7 @@
 //   src/config/capability-aliases.json  explicit aliases (independently canonical)
 //
 // Outputs (projections, never semantic owners):
-//   src/registry/skills/index.json      compact sorted catalog, all 23 packaged sources
+//   src/registry/skills/index.json      compact sorted catalog, all 24 packaged sources
 //   src/registry/routing/domains.json   grouping-only metadata (kind=capability,
 //                                       non-null domain only; no entrypoints/roles,
 //                                       no targetType, no engineering/advisory split)

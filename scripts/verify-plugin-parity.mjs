@@ -18,7 +18,7 @@
 // full contents — so a bump is required whenever the discoverable structure
 // changes, which is exactly the invariant version numbers must carry.
 import { readFileSync, writeFileSync, readdirSync, existsSync, statSync } from 'node:fs';
-import { resolve, join, dirname } from 'node:path';
+import { resolve, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createHash } from 'node:crypto';
 
@@ -28,6 +28,7 @@ const SURFACE_FILE = 'src/registry/plugin-surface.json';
 const readJson = (p) => JSON.parse(readFileSync(p, 'utf8'));
 
 // Resolve a ${CLAUDE_PLUGIN_ROOT}-relative reference to a repo path.
+// biome-ignore lint/suspicious/noTemplateCurlyInString: this is a literal plugin placeholder.
 const pluginRel = (ref) => ref.replace('${CLAUDE_PLUGIN_ROOT}/', '');
 
 export function collectSurface(root = ROOT) {

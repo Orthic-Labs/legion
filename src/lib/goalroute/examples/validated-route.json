@@ -27,7 +27,7 @@
   "constraints": {
     "authority": {
       "rule": "Change only shared route and named skill contracts.",
-      "evidence_locator": "forge://run/e523178d-a8f3-4804-a1c5-1f86ed90bdbc/state"
+      "evidence_locator": "alchemist://run/e523178d-a8f3-4804-a1c5-1f86ed90bdbc/state"
     },
     "safety": {
       "rule": "Preserve unrelated dirty work and avoid production mutation.",
@@ -139,10 +139,10 @@
     "invalidates": [],
     "source_fingerprint_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
   },
-  "forge": {
+  "alchemist": {
     "required": true,
     "run_id": "e523178d-a8f3-4804-a1c5-1f86ed90bdbc",
-    "state_ref": "forge://run/e523178d-a8f3-4804-a1c5-1f86ed90bdbc/state",
+    "state_ref": "alchemist://run/e523178d-a8f3-4804-a1c5-1f86ed90bdbc/state",
     "checkpoint": "GOAL_ROUTE_V2",
     "reason": "Shared non-routine skill architecture change."
   }

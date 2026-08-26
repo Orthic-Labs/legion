@@ -72,10 +72,17 @@
     },
     {
       "id": "dispatch-one-touch-wave-parallelism",
-      "expected_behavior": "Assigns every planned changed file once, groups all independent lanes into earliest dependency wave, and forbids integrator repair edits.",
+      "expected_behavior": "Assigns every planned changed file once, groups all independent lanes into earliest dependency wave, makes workers edit-only with no Cargo/tests/builds/expensive checks, and reserves merge plus checkpoints for integration owner with no repair edits.",
       "severity": "error",
       "mode": "static",
-      "prompt": "Assigns every planned changed file once, groups all independent lanes into earliest dependency wave, and forbids integrator repair edits."
+      "prompt": "Assigns every planned changed file once, groups all independent lanes into earliest dependency wave, makes workers edit-only with no Cargo/tests/builds/expensive checks, and reserves merge plus checkpoints for integration owner with no repair edits."
+    },
+    {
+      "id": "dispatch-direct-port-priority",
+      "expected_behavior": "Uses existing source implementation as direct-port baseline, ports cross-language behavior into target language including Rust, and forbids hand-rolled replacement while source exists.",
+      "severity": "error",
+      "mode": "static",
+      "prompt": "Uses existing source implementation as direct-port baseline, ports cross-language behavior into target language including Rust, and forbids hand-rolled replacement while source exists."
     },
     {
       "id": "dispatch-script-chaining",
@@ -155,7 +162,7 @@
       "prompt": "Forbids tools with no named acceptance metric."
     },
     {
-      "id": "dispatch-forge-semantic-gate",
+      "id": "dispatch-alchemist-semantic-gate",
       "expected_behavior": "Requires checkpointed requirement-to-decision trace.",
       "severity": "error",
       "mode": "static",

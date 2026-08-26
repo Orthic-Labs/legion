@@ -1,11 +1,11 @@
 {
-  "created_at": "2026-07-28T16:47:22.714488+00:00",
+  "created_at": "2026-08-26T14:37:05.490438+00:00",
   "expected_time_to_verified_b_ms": 738000,
-  "route_path": "D:\\Claude\\tools\\lib\\goalroute\\examples\\validated-route.json",
+  "route_path": "src/lib/goalroute/examples/validated-route.json",
   "route_revision": 1,
-  "route_sha256": "930f8e121f9c46c2b3d7ffb469d3531f7f5fbe4935e50c71071781328fd0b071",
+  "route_sha256": "9718a02367322c4dd9d68daa56c5c4788da7bd059139e338178a400a5674d0db",
   "schema": "goal-route.receipt.v2",
   "selected_route_id": "R_RELIABLE",
-  "validator_sha256": "f9fe48eeaf52bea870151fef0df812fb21524d123378532eb20c0734ebf0e413",
-  "validator_version": "2.0.0"
+  "validator_sha256": "5361292e9a7784d9ffa8febc7c0cc7b18b4876e34a4ef59e56230cb818a3477e",
+  "validator_version": "2.1.0"
 }

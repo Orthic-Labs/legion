@@ -172,10 +172,10 @@
     ],
     "source_fingerprint_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
   },
-  "forge": {
+  "alchemist": {
     "required": true,
     "run_id": "0d4ce380-d482-41bc-b65c-1049448502b6",
-    "state_ref": "forge://run/0d4ce380-d482-41bc-b65c-1049448502b6/state",
+    "state_ref": "alchemist://run/0d4ce380-d482-41bc-b65c-1049448502b6/state",
     "checkpoint": "GOAL_ROUTE_V2",
     "reason": "Non-routine experiment dispatch requires drift control."
   }

@@ -38,10 +38,15 @@ TERMINAL: Frozen provider plan reconciles to evidence or typed degradation.
 overrides it.
 
 1. Freeze repository root, scope, revision, dirty state, & requested mode.
-2. Read [provider architecture](../../references/provider-architecture.md); discovery belongs to
-   Blueprint — never build a parallel registry.
-3. Run `node ../../tools/audit/audit-run.mjs <root>`: fresh Blueprint generation, signed `plan.json`, & exact
-   frozen provider set; missing signing material is `UNPROVEN`.
+2. Read [provider architecture](../../references/provider-architecture.md); repository discovery is
+   supplied by Legion's direct Membrane Blueprint provider — never build a parallel registry.
+   The provider uses resident Hub transport when available, otherwise a bounded one-shot for
+   supplied root. Enrollment controls resident watcher operation only; `project is not enrolled`
+   must fall through to one-shot.
+3. Run `node ../../tools/audit/audit-run.mjs <root>`: request fresh Blueprint evidence through that
+   provider, signed `plan.json`, & exact frozen provider set; missing signing material is `UNPROVEN`.
+   If resident & one-shot paths both genuinely fail or are unavailable, record exact typed
+   degradation & continue applicable providers; do not treat enrollment alone as unavailable.
 4. Project-executing checks need trusted host network-sandbox receipt; without it they are
    `UNPROVEN`; file-only providers still run.
 5. Read `plan.json` before `facts.json`; every contract-enumerated failure is `UNPROVEN` & keeps

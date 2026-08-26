@@ -28,21 +28,20 @@ const withRepo = (fn) => {
 
 // ---- 1. internal capabilities never leak into projected discovery ---------
 
-test('the projected set is the canonical discoverable set, not the skills/ directory listing', () => {
+test('the projected set is exactly the canonical user-invokable skill set', () => {
   const onDisk = readdirSync(join(LEGION, 'skills'), { withFileTypes: true })
     .filter((e) => e.isDirectory() && existsSync(join(LEGION, 'skills', e.name, 'SKILL.md')))
     .map((e) => e.name).sort();
-  // The two sets MUST differ — otherwise this test proves nothing about where
-  // membership comes from, and the filesystem scan would look correct.
-  assert.ok(onDisk.length > CANON.length, 'expected the package to ship internal skill packages beyond the discoverable set');
   const internal = internalCapabilityIds(LEGION);
-  assert.ok(internal.length > 0, 'expected the canonical projection to mark some capabilities internal');
+  assert.deepEqual([...CANON, ...internal].sort(), onDisk, 'canonical projection must classify every packaged skill');
   assert.ok(CANON.includes('dispatch'), 'Dispatch workflow must be projected for semantic discovery');
   for (const id of internal) assert.ok(!CANON.includes(id), `${id}: internal capability must not be in the projected set`);
 });
 
-test('explicit entrypoints never reach a harness skill discovery surface', () => {
+test('explicit slash entrypoints remain invokable while internal capabilities stay hidden', () => {
   const internal = internalCapabilityIds(LEGION);
+  const entrypoints = ['alchemist', 'coder', 'commit', 'covenant'];
+  for (const entrypoint of entrypoints) assert.ok(CANON.includes(entrypoint), `${entrypoint}: explicit slash entrypoint must be projected`);
   for (const id of PROJECTING) {
     withRepo((root) => {
       reg.install(id, { root });

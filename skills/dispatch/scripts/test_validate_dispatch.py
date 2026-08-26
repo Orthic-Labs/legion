@@ -243,7 +243,7 @@ Run-Stage -Provider TDT_RUNTIME -Mode REALTIME -CandidatesFrom <workspace>/survi
             "ROUTE_LOCK_OR_NO_MODEL_ALLOWED": "NO_MODEL_ALLOWED: transcription is outside experiment",
             "RECOVERY_RESTORES_REQUIRED_INPUT_BUT_CANNOT_EXPAND_EXPERIMENT": "NO_SCOPE_EXPANSION: recover only required trigger or latency inputs; never invent labels, transcription, or models",
             "REQUIRED_RUN_ID_OR_NOT_REQUIRED_WITH_EXACT_REASON": "REQUIRED: run_id=0d4ce380-d482-41bc-b65c-1049448502b6",
-            "FORGE_STATE_REF_OR_NOT_REQUIRED": "forge://run/0d4ce380-d482-41bc-b65c-1049448502b6/state",
+            "ALCHEMIST_STATE_REF_OR_NOT_REQUIRED": "alchemist://run/0d4ce380-d482-41bc-b65c-1049448502b6/state",
             "VERIFIED_NO_CRITICAL_OPEN_OR_NOT_REQUIRED": "VERIFIED_NO_CRITICAL_OPEN",
             "QUESTIONS_METRICS_DIAGNOSTICS_FORBIDDEN_FIRST_ACTION": "READBACK_REQUIRED: questions, metrics, diagnostics, forbidden scope, fixture roles, and exact first action",
             "NUMERIC_TIME_OR_UNIT_CADENCE_PLUS_CHECKPOINTS": "SUPERVISE: after first action, every 5 minutes, and before each model or tool load, scope change, or batch",
@@ -254,7 +254,7 @@ Run-Stage -Provider TDT_RUNTIME -Mode REALTIME -CandidatesFrom <workspace>/survi
             "FROM_ZERO_OBJECTIVE_REQUIREMENTS_STAGES_COMMANDS_COMPLETE": "FROM_ZERO:COMPLETE; OBJECTIVE_RESTATED:COMPLETE; REQUIREMENTS_RECLASSIFIED:COMPLETE; STAGES_REBUILT:COMPLETE; COMMANDS_REBOUND:COMPLETE",
             "PRESERVE_EVIDENCE_ONLY_REUSE_PROOF_STALE_PROGRESS_REJECT": "PRESERVE_EVIDENCE_ONLY; REUSE_ONLY_IF:new typed stage provider, dataset, mode, admission, and pass contract match; STALE_PROGRESS:REJECT",
             "INVENTORY_TOTAL_CLASSIFIED_TOTAL_UNCLASSIFIED_ZERO_AND_EVIDENCE_PATH": "INVENTORY_TOTAL:4; CLASSIFIED_TOTAL:4; UNCLASSIFIED:0; EVIDENCE:<workspace>/evidence/inherited-inventory.json",
-            "SCHEMA_RUN_ID_STATE_REF_AND_TYPED_STAGE_CHECKPOINT": "SCHEMA:dispatch.stage.v1; RUN_ID:0d4ce380-d482-41bc-b65c-1049448502b6; STATE:forge://run/0d4ce380-d482-41bc-b65c-1049448502b6/state; CHECKPOINT:TYPED_STAGES",
+            "SCHEMA_RUN_ID_STATE_REF_AND_TYPED_STAGE_CHECKPOINT": "SCHEMA:dispatch.stage.v1; RUN_ID:0d4ce380-d482-41bc-b65c-1049448502b6; STATE:alchemist://run/0d4ce380-d482-41bc-b65c-1049448502b6/state; CHECKPOINT:TYPED_STAGES",
             "EXACT_VERIFIED_CURRENT_STATE_A": "STATE_A: inherited experiment plan has unqualified candidate matrix and no executable survivor route",
             "EXACT_VERIFIABLE_TARGET_STATE_B": "STATE_B: validated survivor funnel emits one production-path winner with trigger and latency evidence",
             "EXACT_COMMAND_OR_CHECK_PROVING_B": "PROOF: run <workspace>/tools/verify-final.ps1 and require <workspace>/evidence/final-pass.json",
@@ -272,7 +272,7 @@ Run-Stage -Provider TDT_RUNTIME -Mode REALTIME -CandidatesFrom <workspace>/survi
             "BOTTLENECK_STEP_RESOURCE_AND_BOUND": "BOTTLENECK: R_FAST/S2 DML scoring is bounded to 900 minimum wall milliseconds",
             "PARALLEL_GROUPS_OR_NONE_WITH_DEPENDENCY_PROOF": "PARALLEL: fixture hash and runtime identity checks overlap before R_FAST/S2",
             "DELETE_NON_ADVANCING_AND_DEFER_DOWNSTREAM_ITEMS": "DELETE: transcripts, WER, CPU replay, and broad negative matrix; DEFER: safety negatives and interference until survivor gates pass",
-            "ROUTE_SCHEMA_RUN_STATE_CHECKPOINT_OR_NOT_REQUIRED_REASON": "SCHEMA:goal-route.v2; RUN_ID:0d4ce380-d482-41bc-b65c-1049448502b6; STATE:forge://run/0d4ce380-d482-41bc-b65c-1049448502b6/state; CHECKPOINT:GOAL_ROUTE_V2",
+            "ROUTE_SCHEMA_RUN_STATE_CHECKPOINT_OR_NOT_REQUIRED_REASON": "SCHEMA:goal-route.v2; RUN_ID:0d4ce380-d482-41bc-b65c-1049448502b6; STATE:alchemist://run/0d4ce380-d482-41bc-b65c-1049448502b6/state; CHECKPOINT:GOAL_ROUTE_V2",
             "SELECTED_ROUTE_AND_STEP_ID": "ROUTE_STEP:R_FAST/S1",
             "OBSERVABLE_STATE_B_DELTA": "ADVANCES_STATE_B: creates verified candidate manifest required by selected route",
             "START_OR_AFTER_ROUTE_STEP_IDS": "START: selected route begins from verified STATE_A",
@@ -612,15 +612,15 @@ def main() -> int:
     assert non_advancing_step.returncode == 1
     assert "lacks observable ADVANCES_STATE_B delta" in non_advancing_step.stdout
 
-    unforgeed_route = run(
+    unbound_route = run(
         good.replace(
             "SCHEMA:goal-route.v2; RUN_ID:0d4ce380-d482-41bc-b65c-1049448502b6",
             "SCHEMA:goal-route.v2; NOT_REQUIRED: route was not frozen",
             1,
         )
     )
-    assert unforgeed_route.returncode == 1
-    assert "Route Forge binding must match GoalRoute artifact" in unforgeed_route.stdout
+    assert unbound_route.returncode == 1
+    assert "Route Alchemist binding must match GoalRoute artifact" in unbound_route.stdout
 
     uncorrected_good = good.replace(
         "**Correction state:** SEMANTIC_CORRECTION: ID:eou-scope-20260728; SOURCE:USER_REQUEST",
@@ -812,13 +812,13 @@ def main() -> int:
     assert wall_total_mismatch.returncode == 1
     assert "MIN_WALL_MS_TOTAL 9999 does not equal typed stage wall sum 2093" in wall_total_mismatch.stdout
 
-    invalid_typed_forge = run(good.replace(
+    invalid_typed_alchemist = run(good.replace(
         "CHECKPOINT:TYPED_STAGES",
         "CHECKPOINT:PROSE_SUMMARY",
         1,
     ))
-    assert invalid_typed_forge.returncode == 1
-    assert "requires typed Forge binding schema" in invalid_typed_forge.stdout
+    assert invalid_typed_alchemist.returncode == 1
+    assert "requires typed Alchemist binding schema" in invalid_typed_alchemist.stdout
 
     missing_behavioral_gate = run(re.sub(
         r"(?m)^\| `BEHAVIORAL_UTILITY` \|.*\r?\n",
@@ -1049,12 +1049,12 @@ def main() -> int:
     assert recovery_scope_creep.returncode == 1
     assert "**Recovery scope rule:** lacks enforceable decision-scope contract" in recovery_scope_creep.stdout
 
-    missing_forge = run(good.replace(
+    missing_alchemist = run(good.replace(
         "REQUIRED: run_id=0d4ce380-d482-41bc-b65c-1049448502b6",
         "NOT_REQUIRED: packet is structurally complete",
     ))
-    assert missing_forge.returncode == 1
-    assert "non-routine semantic work requires REQUIRED run_id=<uuid>" in missing_forge.stdout
+    assert missing_alchemist.returncode == 1
+    assert "non-routine semantic work requires REQUIRED run_id=<uuid>" in missing_alchemist.stdout
 
     no_readback = run(good.replace(
         "READBACK_REQUIRED: questions, metrics, diagnostics, forbidden scope, fixture roles, and exact first action",

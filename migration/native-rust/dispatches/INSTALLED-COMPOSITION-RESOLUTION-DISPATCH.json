@@ -1,0 +1,123 @@
+{
+  "schemaVersion": 1,
+  "kind": "legion-authority-dispatch",
+  "packetType": "direct",
+  "repositoryRoot": "D:/Claude/legion-m4-m8",
+  "sourceRevision": "91d0e4b9120bf4d4693356b5a1db1da6b7a3a16f",
+  "sourceArtifact": "migration/native-rust/MIGRATION-PLAN-V2.md",
+  "promptArtifact": "migration/native-rust/dispatches/INSTALLED-COMPOSITION-RESOLUTION-REQUEST.md",
+  "promptDigest": "sha256:3ef772990f64827509d462df78496660727990a55fa64dd9fee418689eccacf3",
+  "modelRouting": {
+    "modelTier": "LOW",
+    "workerProfile": "luna-edit-only",
+    "routingRationale": "One bounded interface-freeze edit; root owns execution"
+  },
+  "objective": "Freeze asynchronous repository-bound AX-compliant MCP protocol contract before dependent installed composition work.",
+  "authority": [
+    "AGENTS.md",
+    "migration/native-rust/PRODUCT-ARCHITECTURE-V2.md",
+    "migration/native-rust/MIGRATION-PLAN-V2.md",
+    "migration/native-rust/m0/file-ownership-map.json",
+    "migration/native-rust/public-contract-inventory.json",
+    "migration/native-rust/dispatches/M2-M7-OWNERSHIP-AMENDMENT.json",
+    "migration/native-rust/dispatches/INSTALLED-COMPOSITION-RESOLUTION-REQUEST.md"
+  ],
+  "integrationOwner": "/root",
+  "fileTouchPolicy": {
+    "mode": "once-end-to-end",
+    "plannedFiles": [
+      "engine/bins/legion-mcp/src/error.rs",
+      "engine/bins/legion-mcp/src/lib.rs",
+      "engine/bins/legion-mcp/src/server.rs",
+      "engine/bins/legion-mcp/src/tools.rs"
+    ],
+    "allowUnplannedFiles": false
+  },
+  "dispatches": [
+    {
+      "id": "protocol-contract",
+      "dependsOn": [],
+      "lanes": ["mcp-protocol"],
+      "completionChecks": [
+        "owned diff only",
+        "root runs direct focused Cargo checks",
+        "root freezes resulting public interface before consumer dispatches"
+      ]
+    }
+  ],
+  "workers": [
+    {
+      "id": "mcp-protocol",
+      "dispatch": "protocol-contract",
+      "executor": "Luna edit-only worker",
+      "allowlist": [
+        "engine/bins/legion-mcp/src/error.rs",
+        "engine/bins/legion-mcp/src/lib.rs",
+        "engine/bins/legion-mcp/src/server.rs",
+        "engine/bins/legion-mcp/src/tools.rs"
+      ],
+      "read": [
+        "engine/bins/legion-mcp/Cargo.toml",
+        "engine/crates/legion-application/src/lib.rs",
+        "migration/native-rust/public-contract-inventory.json",
+        "migration/native-rust/dispatches/M2-M7-OWNERSHIP-AMENDMENT.json",
+        "migration/native-rust/dispatches/INSTALLED-COMPOSITION-RESOLUTION-REQUEST.md"
+      ],
+      "forbidden": [
+        ".git",
+        "Membrane",
+        "engine/bins/legion-mcp/src/main.rs",
+        "cargo",
+        "build",
+        "tests",
+        "clippy",
+        "rustfmt",
+        "node",
+        "python",
+        "package-manager",
+        "signing",
+        "qualification",
+        "stage",
+        "commit",
+        "push"
+      ],
+      "checks": [
+        "boxed async interface with no new dependency",
+        "no runtime or thread spawn",
+        "bound repository identity with no public root input",
+        "exact eleven tools",
+        "exact AX schema annotation and typed-error envelope",
+        "git diff --check",
+        "owned diff only"
+      ],
+      "dependencies": []
+    }
+  ],
+  "oracleAudit": {
+    "required": true,
+    "mode": "adversarial",
+    "status": "required-before-execution",
+    "checks": [
+      "allowlist-completeness",
+      "lane-disjointness",
+      "dependency-validity",
+      "maximum-safe-parallelization",
+      "end-to-end-lane-closure"
+    ]
+  },
+  "recovery": {
+    "maxRetries": 2,
+    "stopConditions": [
+      "owned path has overlapping edits",
+      "frozen semantics require change",
+      "protocol contract cannot close without new dependency"
+    ],
+    "returnFields": [
+      "changedPaths",
+      "checks",
+      "blockers",
+      "baselineRevision",
+      "patchDigest"
+    ]
+  }
+}

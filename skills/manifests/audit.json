@@ -55,12 +55,12 @@
     {
       "path": "SKILL.md",
       "uri": "legion-skill://audit/SKILL.md",
-      "digest": "sha256:340433340fba14748138cb0d1bc1ce7060ffc1f2bb6538074ecd61a17160614f"
+      "digest": "sha256:8db513cb585152a29010a73289d8fda974207ff3cc4f26811b7fccf43950fbde"
     },
     {
       "path": "evals/evals.json",
       "uri": "legion-skill://audit/evals/evals.json",
-      "digest": "sha256:d5167c55d676b961bd3f8a2a1e921c7381e50c293e30eff8bcb74f1825f7ca3d"
+      "digest": "sha256:d82bf4ec5e5d39530721c141731c55f6fa5c8eb3af975d495abcd10b274e7959"
     },
     {
       "path": "scripts/audit-finalize.mjs",

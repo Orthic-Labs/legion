@@ -40,12 +40,24 @@
 
 ## 3. Execution Tasks
 
+### Exact Next Actions & Path Ledger
+
+- **Next action now:** NEXT_ACTION:{{NUMBERED_FIRST_NON_DONE_ACTION_WITH_EXACT_PATHS_OR_PATHS_NONE}}
+- **Lane graph:** {{LANE_IDS_WITH_STARTABLE_WAVE_AND_EXACT_DEPENDENCY_EDGES}}
+- **Path rule:** every planned changed file appears exactly once below; no globs, directory ownership, hidden cleanup, or integrator repair edits.
+
+| Exact path | Operation | Owning task | Lane | Dependency | Final check | Evidence path |
+|---|---|---|---|---|---|---|
+| `{{ABSOLUTE_OR_REPOSITORY_RELATIVE_FILE_PATH}}` | {{CREATE_EDIT_DELETE_OR_NONE}} | {{TASK_ID}} | {{LANE_ID}} | {{START_OR_TASK_IDS}} | {{EXACT_CHECK}} | `{{ABSOLUTE_EVIDENCE_PATH}}` |
+
 ### Task 1 — {{TASK_NAME}}
 
 - **Task status:** {{TODO_IN_PROGRESS_DONE_OR_TRUE_BLOCKER}}
 - **Route step:** ROUTE_STEP:{{ROUTE_ID_AND_STEP}}
 - **Action:** ACTION:{{EXACT_OPERATION}}
 - **Depends on:** {{START_OR_AFTER_ROUTE_STEP_IDS}}
+- **Exact touch paths:** PATHS:{{EXACT_ABSOLUTE_OR_REPOSITORY_RELATIVE_PATHS_OR_NONE}}
+- **Parallel lane:** {{LANE_ID_OR_SERIAL}}; {{WHY_INDEPENDENT_OR_EXACT_DEPENDENCY}}
 - **Advances target:** ADVANCES_STATE_B:{{OBSERVABLE_TARGET_DELTA}}
 - **Done check:** CHECK:{{EXACT_COMMAND_OR_ACTION}}
 - **Expected result:** EXPECTED:{{SPECIFIC_PASS_STATE}}
@@ -76,4 +88,5 @@
 - **Final expected result:** {{EXACT_PASS_STATE}}
 - **Final evidence path:** {{ABSOLUTE_PERMANENT_EVIDENCE_PATH}}
 - **Completion rule:** ALL_TASKS_DONE_AND_FINAL_PROOF_PASS_BEFORE_STATUS_COMPLETE
+- **Review gate:** FRESH_ADVERSARIAL_SUBAGENT_PASS_ON_ACTIONS_PATH_LEDGER_DEPENDENCIES_PARALLELISM_SCOPE_AND_PROOF; RECHECK_AFTER_ANY_BYTE_CHANGE
 - **Terminal record:** STATUS={{PLANNED_IN_PROGRESS_COMPLETE_OR_TRUE_BLOCKER}}; DONE={{DONE_COUNT}}/{{TOTAL_COUNT}}; NEXT={{FIRST_NON_DONE_TASK_OR_NONE}}

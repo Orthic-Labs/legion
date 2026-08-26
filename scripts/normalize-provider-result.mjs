@@ -95,7 +95,7 @@ export function normalizeProviderResult(planContract, rawOutput) {
   return normalized;
 }
 
-if (process.argv[1] && process.argv[1].endsWith('normalize-provider-result.mjs')) {
+if (process.argv[1]?.endsWith('normalize-provider-result.mjs')) {
   // Self-test when run directly
   const testResult = normalizeProviderResult(
     { id: 'test.provider', denominator: { pathDigest: 'sha256:test' }, benchmark: { requiredForCleanClaim: true } },

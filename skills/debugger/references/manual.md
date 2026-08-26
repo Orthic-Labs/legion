@@ -76,13 +76,16 @@ Then:
 
 ### 2. Isolate
 
-- **Ground first when mapped:** run `blueprint doctor`; trust generated evidence when doctor is
-  `ready`, or when doctor is `degraded` while the graph is explicitly fresh and doctor reports no
-  blocker/error — carry every degradation warning into the diagnosis instead of treating it as clean.
-  If the graph exists, confirm `blueprint graph status`, then use `graph search|resolve` to
-  identify the failing nodes, `graph path` to trace the suspected call/data route, `graph neighbors`
-  for the local dependency boundary, and `graph impact` to find callers/consumers that may reproduce
-  the failure. Graph output narrows hypotheses; exact source, logs, and the reproduction establish cause.
+- **Ground first when mapped:** request current Blueprint evidence through Legion's direct Membrane
+  provider. It uses resident Hub transport when available, or a bounded one-shot for supplied root
+  when Hub is off. A resident `project is not enrolled` response also falls through to one-shot;
+  enrollment controls watcher/resident operation, not one-shot access. Trust generated evidence when
+  doctor is `ready`, or when it is `degraded` while graph is explicitly fresh & no blocker/error is
+  reported — carry every degradation warning into diagnosis instead of treating it as clean.
+  If graph exists, confirm provider-reported graph status, then use `graph search|resolve` to identify
+  failing nodes, `graph path` to trace suspected call/data route, `graph neighbors` for local
+  dependency boundary, & `graph impact` to find callers/consumers that may reproduce failure.
+  Graph output narrows hypotheses; exact source, logs, & reproduction establish cause.
   If graph coverage is unsupported/stale/unavailable, record `graph-unavailable` and bisect with
   direct code/log evidence instead.
 - **Time-box the graph, and never rebuild it mid-debug.** Doctor plus status is a couple of minutes of

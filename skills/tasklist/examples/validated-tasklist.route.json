@@ -156,7 +156,7 @@
     "invalidates": [],
     "source_fingerprint_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
   },
-  "forge": {
+  "alchemist": {
     "required": false,
     "run_id": "",
     "state_ref": "",

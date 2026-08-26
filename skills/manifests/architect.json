@@ -554,7 +554,7 @@
     {
       "path": "evals/evals.json",
       "uri": "legion-skill://architect/evals/evals.json",
-      "digest": "sha256:cbdc292723b14d3c6e5c9e0f93fb460943d6c03fbfcc919a84e0ae99a8a7274d"
+      "digest": "sha256:b8c633a4e37a50aa761c51f84e22ab048ad3c3c3c0fbf1b7bbbc4806a41d465e"
     },
     {
       "path": "references/manual.md",

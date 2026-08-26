@@ -1,11 +1,11 @@
 {
-  "created_at": "2026-08-25T15:25:07.264120+00:00",
+  "created_at": "2026-08-26T14:37:05.509486+00:00",
   "expected_time_to_verified_b_ms": 900,
   "route_path": "skills/dispatch/examples/dispatch-route-fixture.json",
   "route_revision": 1,
-  "route_sha256": "150f0b70e066dda54b55724da6f897df0a3b9bdabfedcea0e03a7883ebc51b7d",
+  "route_sha256": "ab74755bac07a39a7ed95f7d4bf9d7603f9eba773347c5c5043a2bae49036eda",
   "schema": "goal-route.receipt.v2",
   "selected_route_id": "R_FAST",
-  "validator_sha256": "2ca6dacbc8fdde8091bdf9a90d6f5eb1c9e656271f4630d06ea10d1ed546dae1",
+  "validator_sha256": "5361292e9a7784d9ffa8febc7c0cc7b18b4876e34a4ef59e56230cb818a3477e",
   "validator_version": "2.1.0"
 }

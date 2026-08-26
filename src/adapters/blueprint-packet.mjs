@@ -13,13 +13,15 @@
  */
 
 import { createHash } from 'node:crypto';
-import { lstatSync, readFileSync, readlinkSync } from 'node:fs';
+import { existsSync, lstatSync, readFileSync, readlinkSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { isAbsolute, join, relative, resolve, sep } from 'node:path';
 import { consumeMembranePacket } from '../packages/context/lib/context.mjs';
 
 export const BLUEPRINT_ERROR_CODES = Object.freeze({
   transportUnavailable: 'membrane-blueprint-transport-unavailable',
+  oneShotTimeout: 'membrane-blueprint-one-shot-timeout',
+  oneShotCancelled: 'membrane-blueprint-one-shot-cancelled',
   graphStale: 'membrane-blueprint-graph-stale',
   graphBuildFailed: 'membrane-blueprint-graph-build-failed',
   packetInvalid: 'membrane-blueprint-packet-invalid',
@@ -27,8 +29,28 @@ export const BLUEPRINT_ERROR_CODES = Object.freeze({
   outputOutsideAuditBoundary: 'membrane-blueprint-output-outside-audit-boundary',
 });
 
+const DEFAULT_ONE_SHOT_TIMEOUT_MS = 120_000;
+const MAX_ONE_SHOT_TIMEOUT_MS = 300_000;
+
+/** Resident transport may report these states when Hub is off or enrollment
+ * only governs its watcher. Direct Blueprint consumers must then use one-shot. */
+export function shouldUseBlueprintOneShot(value) {
+  const reason = String(value?.reason ?? value?.error?.code ?? value?.code ?? '').toLowerCase();
+  return reason.includes('unavailable')
+    || reason.includes('transport')
+    || reason.includes('hub_inactive')
+    || reason.includes('hub-inactive')
+    || reason.includes('not_enrolled')
+    || reason.includes('not-enrolled')
+    || reason.includes('not configured')
+    || reason.includes('not_configured')
+    || reason.includes('not-configured')
+    || reason.includes('project is not enrolled')
+    || reason.includes('project_not_enrolled');
+}
+
 /** Audit-owned output defaults under the only permitted audit write boundary. */
-export const DEFAULT_OUT_DIR = '.audit/blueprint';
+export const DEFAULT_OUT_DIR = join('.audit', 'blueprint');
 
 export function unavailablePacket(reason = 'membrane-transport-unavailable') {
   return { schema: 'legion.context-result.v1', status: 'unavailable', reason };
@@ -47,6 +69,9 @@ export async function requestBlueprintPacket({ transport, request }) {
     // Transport failure & malformed packets degrade distinctly; never collapse them.
     return unavailablePacket(error?.code === 'MEMBRANE_UNAVAILABLE' ? 'membrane-unavailable' : 'membrane-transport-failed');
   }
+  // Context unavailable envelopes are intentionally not packet-schema values;
+  // preserve their typed reason so caller can select one-shot access.
+  if (raw?.status === 'unavailable') return unavailablePacket(raw.reason ?? 'membrane-unavailable');
   try {
     return consumeBlueprintPacket(raw);
   } catch {
@@ -115,8 +140,58 @@ export function enforceAuditOutputBoundary(rootInput, outDir = DEFAULT_OUT_DIR) 
   return { ok: true, outDir: resolvedOutDir };
 }
 
-function runBlueprintCli(root, blueprintBin, args, maxBuffer) {
-  return spawnSync(blueprintBin, args, { cwd: root, encoding: 'utf8', windowsHide: true, maxBuffer });
+function boundedTimeout(timeoutMs) {
+  const requested = Number(timeoutMs ?? DEFAULT_ONE_SHOT_TIMEOUT_MS);
+  if (!Number.isFinite(requested) || requested < 1) return DEFAULT_ONE_SHOT_TIMEOUT_MS;
+  return Math.min(Math.floor(requested), MAX_ONE_SHOT_TIMEOUT_MS);
+}
+
+function resolveBlueprintInvocation(blueprintBin) {
+  let executable = blueprintBin;
+  const explicitPath = isAbsolute(executable) || /[\\/]/.test(executable);
+  if (process.platform === 'win32' && !explicitPath) {
+    const located = spawnSync('where.exe', [executable], { encoding: 'utf8', windowsHide: true, maxBuffer: 1024 * 1024 });
+    if (located.status === 0 && located.stdout) {
+      const candidates = String(located.stdout).split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+      executable = candidates.find((candidate) => /\.(?:cmd|bat)$/i.test(candidate)) ?? candidates[0] ?? executable;
+    }
+  }
+  if (process.platform !== 'win32' || !existsSync(executable)) {
+    return { executable, prefix: [] };
+  }
+  if (!/\.(?:cmd|bat)$/i.test(executable)) {
+    // Windows cannot launch extensionless shebang files directly. Support
+    // test/dev Blueprint node shims while leaving arbitrary real executables
+    // untouched.
+    try {
+      const header = readFileSync(executable, 'utf8').slice(0, 256);
+      if (/^#![^\r\n]*\bnode(?:\.exe)?\b/i.test(header)) {
+        return { executable: process.execPath, prefix: [executable] };
+      }
+    } catch { /* preserve arbitrary executable unchanged */ }
+    return { executable, prefix: [] };
+  }
+  // Windows command wrappers cannot be launched with shell:false. Resolve
+  // Blueprint's checked-in wrapper to node + script so child argv remains
+  // explicit & shell-free.
+  let wrapper;
+  try { wrapper = readFileSync(executable, 'utf8'); } catch { return { executable, prefix: [] }; }
+  const script = wrapper.match(/node(?:\.exe)?\s+"([^"]+\.mjs)"/i)?.[1];
+  return script ? { executable: process.execPath, prefix: [script] } : { executable, prefix: [] };
+}
+
+function runBlueprintCli(root, blueprintBin, args, maxBuffer, options = {}) {
+  if (options.signal?.aborted) return { error: Object.assign(new Error('Blueprint one-shot cancelled'), { code: 'ABORT_ERR' }) };
+  const invocation = resolveBlueprintInvocation(blueprintBin);
+  const result = spawnSync(invocation.executable, [...invocation.prefix, ...args], {
+    cwd: root,
+    encoding: 'utf8',
+    windowsHide: true,
+    maxBuffer,
+    timeout: boundedTimeout(options.timeoutMs),
+    killSignal: 'SIGTERM',
+  });
+  return result;
 }
 
 function blueprintCliOutDir(root, absoluteOutDir) {
@@ -129,7 +204,9 @@ function blueprintCliOutDir(root, absoluteOutDir) {
  * structured reason.
  */
 export function classifyBlueprintFailure(result, fallbackCode) {
-  if (result?.error) return BLUEPRINT_ERROR_CODES.transportUnavailable;
+  if (result?.error?.code === 'ETIMEDOUT') return BLUEPRINT_ERROR_CODES.oneShotTimeout;
+  if (result?.error?.code === 'ABORT_ERR') return BLUEPRINT_ERROR_CODES.oneShotCancelled;
+  if (result?.signal === 'SIGTERM' && result?.status === null) return BLUEPRINT_ERROR_CODES.oneShotTimeout;
   for (const stream of [result?.stdout, result?.stderr]) {
     if (typeof stream !== 'string' || !stream.trim()) continue;
     try {
@@ -140,6 +217,7 @@ export function classifyBlueprintFailure(result, fallbackCode) {
       if (reason) return reason;
     } catch { /* stream is not structured degradation */ }
   }
+  if (result?.error) return BLUEPRINT_ERROR_CODES.transportUnavailable;
   return fallbackCode;
 }
 
@@ -161,7 +239,7 @@ export function buildRunScopedGraph(rootInput, options = {}) {
   const blueprintBin = options.blueprintBin ?? process.env.BLUEPRINT_BIN ?? 'blueprint';
   const boundary = enforceAuditOutputBoundary(root, options.outDir ?? DEFAULT_OUT_DIR);
   if (!boundary.ok) return { ok: false, code: boundary.code };
-  const result = runBlueprintCli(root, blueprintBin, ['graph', 'build', '--out', blueprintCliOutDir(root, boundary.outDir)], 128 * 1024 * 1024);
+  const result = runBlueprintCli(root, blueprintBin, ['graph', 'build', '--out', blueprintCliOutDir(root, boundary.outDir)], 128 * 1024 * 1024, options);
   if (result.error || result.status !== 0) {
     return { ok: false, code: classifyBlueprintFailure(result, BLUEPRINT_ERROR_CODES.graphBuildFailed) };
   }
@@ -174,7 +252,7 @@ export function readBlueprintGraphStatus(rootInput, options = {}) {
   const blueprintBin = options.blueprintBin ?? process.env.BLUEPRINT_BIN ?? 'blueprint';
   const boundary = enforceAuditOutputBoundary(root, options.outDir ?? DEFAULT_OUT_DIR);
   if (!boundary.ok) return { ok: false, code: boundary.code };
-  const result = runBlueprintCli(root, blueprintBin, ['graph', 'status', '--out', blueprintCliOutDir(root, boundary.outDir), '--json'], 32 * 1024 * 1024);
+  const result = runBlueprintCli(root, blueprintBin, ['graph', 'status', '--out', blueprintCliOutDir(root, boundary.outDir), '--json'], 32 * 1024 * 1024, options);
   if (result.error || result.status !== 0) {
     return { ok: false, code: classifyBlueprintFailure(result, BLUEPRINT_ERROR_CODES.graphBuildFailed) };
   }
@@ -190,14 +268,14 @@ function invokeBlueprintProjection(rootInput, options = {}) {
   const blueprintBin = options.blueprintBin ?? process.env.BLUEPRINT_BIN ?? 'blueprint';
   const boundary = enforceAuditOutputBoundary(root, options.outDir ?? DEFAULT_OUT_DIR);
   if (!boundary.ok) return unavailablePacket(boundary.code);
-  const built = buildRunScopedGraph(root, { blueprintBin, outDir: boundary.outDir });
+  const built = buildRunScopedGraph(root, { blueprintBin, outDir: boundary.outDir, timeoutMs: options.timeoutMs, signal: options.signal });
   if (!built.ok) return unavailablePacket(built.code);
-  const status = readBlueprintGraphStatus(root, { blueprintBin, outDir: boundary.outDir });
+  const status = readBlueprintGraphStatus(root, { blueprintBin, outDir: boundary.outDir, timeoutMs: options.timeoutMs, signal: options.signal });
   if (!status.ok) return unavailablePacket(status.code);
   const result = runBlueprintCli(root, blueprintBin, [
     'graph', 'audit-projection', '--out', blueprintCliOutDir(root, boundary.outDir),
     '--expected-generation', status.generationId, '--json',
-  ], 128 * 1024 * 1024);
+  ], 128 * 1024 * 1024, options);
   if (result.error || result.status !== 0) return unavailablePacket(classifyBlueprintFailure(result, BLUEPRINT_ERROR_CODES.transportUnavailable));
   try {
     const packet = consumeBlueprintPacket(JSON.parse(result.stdout));
@@ -219,8 +297,37 @@ function invokeBlueprintProjection(rootInput, options = {}) {
   }
 }
 
+/**
+ * Synchronous Audit callers can inject resident Hub transport when its host
+ * provides a synchronous bridge. Async bridges are handled by MembraneAdapter;
+ * they never get mistaken for a packet or silently bypass validation.
+ */
+function invokeResidentOrOneShot(rootInput, options = {}) {
+  const transport = options.transport ?? options.residentTransport;
+  if (typeof transport !== 'function') return invokeBlueprintProjection(rootInput, options);
+  let raw;
+  try {
+    raw = transport({ operation: 'membrane_context', root: resolve(rootInput), ...(options.request ?? {}) });
+  } catch (error) {
+    const unavailable = unavailablePacket(error?.code === 'MEMBRANE_UNAVAILABLE' ? 'membrane-unavailable' : 'membrane-transport-failed');
+    return shouldUseBlueprintOneShot(unavailable) ? invokeBlueprintProjection(rootInput, options) : unavailable;
+  }
+  if (raw && typeof raw.then === 'function') {
+    return invokeBlueprintProjection(rootInput, options);
+  }
+  if (raw?.status === 'unavailable') {
+    const unavailable = unavailablePacket(raw.reason ?? 'membrane-unavailable');
+    return shouldUseBlueprintOneShot(unavailable) ? invokeBlueprintProjection(rootInput, options) : unavailable;
+  }
+  try {
+    return consumeBlueprintPacket(raw);
+  } catch {
+    return unavailablePacket('membrane-packet-invalid');
+  }
+}
+
 export function readBlueprintManifestBinding(rootInput, options = {}) {
-  const packet = invokeBlueprintProjection(rootInput, options);
+  const packet = invokeResidentOrOneShot(rootInput, options);
   if (packet.status !== 'ready' || packet.state !== 'ready') {
     return { state: 'unproven', reason: packet.reason ?? 'membrane-blueprint-transport-unavailable' };
   }
@@ -233,5 +340,5 @@ export function readBlueprintManifestBinding(rootInput, options = {}) {
 }
 
 export function readBlueprintPacket(rootInput, options = {}) {
-  return invokeBlueprintProjection(rootInput, options);
+  return invokeResidentOrOneShot(rootInput, options);
 }

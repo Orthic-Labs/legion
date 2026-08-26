@@ -5,7 +5,6 @@
 
 import { readFileSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { pathToFileURL } from 'node:url';
 import { PROVIDER_STATUS, PROVIDER_PHASES, PROVIDER_ROLES } from '../src/registry/provider-contracts.mjs';
 import {
   EVIDENCE_STRENGTH,
@@ -211,6 +210,6 @@ function main() {
   }
 }
 
-if (process.argv[1] && process.argv[1].endsWith('generate-schemas.mjs')) {
+if (process.argv[1]?.endsWith('generate-schemas.mjs')) {
   main();
 }

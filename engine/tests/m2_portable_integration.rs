@@ -238,6 +238,7 @@ fn absent_external_evidence_is_a_typed_blocker_and_never_a_fabricated_pass() {
 fn m2_mechanical_adapters_delegate_to_installed_native_commands_without_source_paths() {
     let arcane_hook = include_str!("../../hooks/arcane-hook.mjs");
     assert!(arcane_hook.contains("spawnSync('legion-hook'"));
+    assert!(arcane_hook.contains("shell: false"));
     for forbidden in ["/src/", "../src/", "server.mjs", "node "] {
         assert!(
             !arcane_hook.contains(forbidden),

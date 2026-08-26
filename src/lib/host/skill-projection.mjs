@@ -15,8 +15,7 @@
 // canonical Legion decision, already made and recorded in the generated host
 // projection (src/registry/host-projection.json). This module CONSUMES that
 // set. Enumerating `skills/*/SKILL.md` off the filesystem would independently
-// redefine membership and would project explicit entrypoints as if they were
-// peer domain expertise.
+// redefine membership and would project internal-only surfaces.
 import { existsSync, mkdirSync, readdirSync, symlinkSync, rmSync, lstatSync, readlinkSync, cpSync, readFileSync } from 'node:fs';
 import { join, resolve, relative, sep } from 'node:path';
 
@@ -34,11 +33,18 @@ function hostProjectionPath(legionRoot) {
   return join(legionRoot, 'src', 'registry', 'host-projection.json');
 }
 
+// Public domain skills and explicit slash entrypoints are both user-invokable
+// surfaces. Roles, host capabilities, and every other non-public capability
+// remain internal to Legion and never enter a harness's flat skills directory.
+function isProjectableCapability(capability) {
+  return (capability.kind === 'domain-capability' && capability.discoverability === 'public')
+    || (capability.kind === 'entrypoint' && capability.discoverability === 'explicit');
+}
+
 /**
- * The canonical DISCOVERABLE capability set, in catalog order, read from the
- * generated host projection. Explicit entrypoints and anything non-public are
- * excluded by the canonical projection itself — this function does not decide,
- * it only reads.
+ * The canonical user-invokable capability set, in catalog order, read from the
+ * generated host projection. Public domain skills and explicit slash
+ * entrypoints are included; internal-only surfaces are excluded.
  */
 export function canonicalSkillIds(legionRoot) {
   const path = hostProjectionPath(legionRoot);
@@ -47,7 +53,7 @@ export function canonicalSkillIds(legionRoot) {
   }
   const projection = JSON.parse(readFileSync(path, 'utf8'));
   const ids = (projection.capabilities ?? [])
-    .filter((c) => c.kind === 'domain-capability' && c.discoverability === 'public')
+    .filter(isProjectableCapability)
     .map((c) => c.id)
     .sort();
   // A capability the projection declares but whose package is absent is a
@@ -58,7 +64,7 @@ export function canonicalSkillIds(legionRoot) {
 }
 
 /**
- * Bundles the compatibility projection marks non-projectable, including explicit entrypoints.
+ * Capabilities the canonical projection marks internal / non-discoverable.
  * Exposed so conformance tests can assert they never reach a harness's skill
  * discovery surface.
  */
@@ -66,7 +72,7 @@ export function internalCapabilityIds(legionRoot) {
   const path = hostProjectionPath(legionRoot);
   const projection = JSON.parse(readFileSync(path, 'utf8'));
   return (projection.capabilities ?? [])
-    .filter((c) => !(c.kind === 'domain-capability' && c.discoverability === 'public'))
+    .filter((c) => !isProjectableCapability(c))
     .map((c) => c.id)
     .sort();
 }

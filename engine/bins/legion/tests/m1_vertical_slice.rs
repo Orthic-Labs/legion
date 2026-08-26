@@ -299,7 +299,7 @@ fn actual_binary_serves_the_shared_m1_surface_and_lazy_capability_body() {
             }
         }),
     );
-    let result = &invoked["result"]["structuredContent"];
+    let result = &invoked["result"]["structuredContent"]["data"];
     assert_eq!(
         result["capability"]["body_sha256"],
         legion_catalog::hex_digest(b"late body"),

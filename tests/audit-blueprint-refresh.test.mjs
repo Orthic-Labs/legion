@@ -121,6 +121,24 @@ test('missing Blueprint binary degrades as transport-unavailable', () => {
   assert.equal(packet.reason, BLUEPRINT_ERROR_CODES.transportUnavailable);
 });
 
+test('Windows command discovery prefers argv-safe Blueprint cmd wrapper over shell shim', { skip: process.platform !== 'win32' }, () => {
+  const dir = mkdtempSync(join(tmpdir(), 'legion-blueprint-windows-shim-'));
+  const script = join(dir, 'blueprint-fixture.mjs');
+  const priorPath = process.env.PATH;
+  writeFileSync(join(dir, 'blueprint'), '#!/bin/sh\nexit 99\n');
+  writeFileSync(join(dir, 'blueprint.cmd'), `@echo off\r\nnode "${script}" %*\r\n`);
+  writeFileSync(script, `console.log(JSON.stringify(${JSON.stringify(packetPayload())}));\n`);
+  try {
+    process.env.PATH = `${dir};${priorPath ?? ''}`;
+    const packet = readBlueprintPacket(process.cwd(), { blueprintBin: 'blueprint' });
+    assert.equal(packet.status, 'ready');
+    assert.equal(packet.generationId, GENERATION_ID);
+  } finally {
+    process.env.PATH = priorPath;
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 test('preserves Blueprint CLI exact code on projection failure', () => {
   const fixture = fakeBlueprint('projection-exact-code');
   try {

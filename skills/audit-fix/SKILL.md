@@ -44,8 +44,10 @@ writes (authority is not inferred from `repository-write`). Its actual effects r
 Arcane-gated.
 
 1. Require prior `plan.json`, `facts.json`, `report.json`, & security adjudication result.
-2. Verify plan seal, repository binding, Blueprint generation, provider set, & denominators before
-   editing. Stop on drift & create a new `/audit` plan.
+2. Verify plan seal, repository binding, direct Membrane Blueprint evidence, provider set, &
+   denominators before editing. The provider uses resident Hub transport when available & a
+   bounded one-shot for supplied root when Hub is off or resident access reports `project is not
+   enrolled`; enrollment does not gate one-shot access. Stop on drift & create a new `/audit` plan.
 3. Fix only unambiguous findings. Never auto-fix manual findings, unadjudicated security findings,
    or visual findings lacking acceptance evidence.
 4. Do not install tools, fetch mutable rules, or alter provider selection.

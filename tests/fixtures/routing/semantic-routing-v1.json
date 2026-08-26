@@ -406,19 +406,6 @@
       "forbiddenSelections": []
     },
     {
-      "id": "legacy-blueprint",
-      "concerns": ["legacy-natural-route"],
-      "legacyRoute": "blueprint",
-      "prompt": "Map current architecture of this repository.",
-      "source": "semantic",
-      "expectedCapabilities": ["blueprint"],
-      "expectedEntrypoints": [],
-      "operations": ["analyze", "produce"],
-      "effects": ["source-read", "artifact-write", "process-exec"],
-      "attachedAuthorities": [],
-      "forbiddenSelections": ["architect"]
-    },
-    {
       "id": "legacy-audit",
       "concerns": ["legacy-natural-route"],
       "legacyRoute": "audit",

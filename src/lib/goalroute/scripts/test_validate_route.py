@@ -164,10 +164,10 @@ def valid_route() -> dict:
             "invalidates": [],
             "source_fingerprint_sha256": "b" * 64,
         },
-        "forge": {
+        "alchemist": {
             "required": True,
             "run_id": run_id,
-            "state_ref": f"forge://run/{run_id}/state",
+            "state_ref": f"alchemist://run/{run_id}/state",
             "checkpoint": "GOAL_ROUTE_V2",
             "reason": "Non-routine shared workflow change.",
         },
@@ -184,6 +184,13 @@ def expect_error(module, name: str, mutate, expected: str) -> None:
 def main() -> int:
     module = load_validator()
     assert module.validate_route(valid_route()) == []
+    legacy_route = valid_route()
+    legacy_binding = legacy_route.pop("alchemist")
+    legacy_binding["state_ref"] = legacy_binding["state_ref"].replace(
+        "alchemist://", "forge://", 1
+    )
+    legacy_route["forge"] = legacy_binding
+    assert module.validate_route(legacy_route) == []
 
     expect_error(
         module,
@@ -259,11 +266,11 @@ def main() -> int:
     )
     expect_error(
         module,
-        "unforgeed",
-        lambda route: route["forge"].update(
-            {"required": False, "reason": "Skip Forge for speed."}
+        "missing Alchemist",
+        lambda route: route["alchemist"].update(
+            {"required": False, "reason": "Skip Alchemist for speed."}
         ),
-        "non-routine route requires Forge",
+        "non-routine route requires Alchemist",
     )
     expect_error(
         module,
@@ -379,7 +386,7 @@ def main() -> int:
 
     print(
         "PASS: GoalRoute v2 rejects nominal-speed traps, arithmetic lies, cycles, "
-        "false parallelism, local correction, missing proof, unforgeed routes, and stale receipts"
+        "false parallelism, local correction, missing proof, unbound routes, and stale receipts"
     )
     return 0
 

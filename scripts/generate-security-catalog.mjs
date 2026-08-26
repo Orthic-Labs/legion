@@ -48,4 +48,4 @@ function main() {
   }
 }
 
-if (process.argv[1] && process.argv[1].endsWith('generate-security-catalog.mjs')) main();
+if (process.argv[1]?.endsWith('generate-security-catalog.mjs')) main();

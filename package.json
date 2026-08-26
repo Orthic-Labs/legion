@@ -105,9 +105,13 @@
     "closure:check": "node scripts/check-dependency-closure.mjs",
     "plugin:surface": "node scripts/verify-plugin-parity.mjs",
     "plugin:verify": "node scripts/verify-plugin-parity.mjs --check",
-    "plugin:dev": "node scripts/plugin-dev.mjs"
+    "plugin:dev": "node scripts/plugin-dev.mjs",
+    "biome": "biome lint . --max-diagnostics=1000"
   },
   "dependencies": {
     "@rightkit/hooks": "0.1.0"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.5.10"
   }
 }

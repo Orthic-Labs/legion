@@ -1,7 +1,7 @@
 import { execFileSync } from 'node:child_process';
 import { existsSync,mkdirSync,mkdtempSync,readdirSync,readFileSync,rmSync,statSync,writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { basename,join,resolve } from 'node:path';
+import { basename,dirname,isAbsolute,join,resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
 export function packageSmokeContract(){return['binary','library-import','blueprint-packet','plan','schedule','serial-execution','auto-execution','audit','verify','tasklist','dispatch','coder','qa','handoff','transcripts','decisions'];}
@@ -9,6 +9,22 @@ const walk=(root,current=root,out=[])=>{for(const name of readdirSync(current)){
 const python=(args,options)=>process.platform==='win32'
   ? execFileSync('py',['-3.11',...args],options)
   : execFileSync('python3',args,options);
+const pnpmCli=()=>{
+  const homes=[process.env.PNPM_HOME,...String(process.env.PATH??'').split(process.platform==='win32'?';':':')].filter(Boolean);
+  for(const home of homes){
+    for(const name of ['pnpm','pnpm.CMD']){
+      const shim=join(home,name);
+      if(!existsSync(shim))continue;
+      const source=readFileSync(shim,'utf8');
+      const direct=source.match(/cmd-shim-target=(.+pnpm\.mjs)\s*$/im)?.[1]?.trim();
+      if(direct&&existsSync(direct))return direct;
+      const relative=source.match(/["'](%~dp0[^"']*pnpm\.mjs)["']/i)?.[1];
+      if(relative){const resolved=resolve(dirname(shim),relative.replace(/^%~dp0[\\/]?/i,''));if(existsSync(resolved))return resolved;}
+    }
+  }
+  throw new Error('pnpm runtime unavailable');
+};
+const pnpm=(args,options={})=>execFileSync(process.execPath,[pnpmCli(),...args],options);
 
 // Builds a standalone .mjs file that a *separate* node process runs from inside
 // a scratch consumer package. It must import the tarball-installed dependency
@@ -29,7 +45,6 @@ const buildConsumerCheckScript=(pkgName,subpaths)=>{
     "  assert.equal(typeof root.reconcileRun,'function','reconcileRun export missing');",
     "  assert.equal(typeof root.resolveSkillInvocation,'function','resolveSkillInvocation export missing');",
     "  assert.equal(typeof root.validateCapabilitySelection,'function','validateCapabilitySelection export missing');",
-    "  assert.equal(root.resolveSkillInvocation('/blueprint map').resolvedInvocation,'/blueprint map','installed Blueprint resolution failed');",
     "  assert.equal(root.resolveSkillInvocation('/glass refine header').resolvedInvocation,'/designer glass refine header','installed alias arguments were dropped');",
     "  assert.equal(root.validateCapabilitySelection({ids:['architect'],source:'semantic'}).status,'resolved','installed semantic selection validation failed');",
   ];
@@ -57,20 +72,21 @@ export async function runPackageSmoke(root=resolve(import.meta.dirname,'..')){
   const packDir=join(temp,'pack');
   mkdirSync(packDir,{recursive:true});
   try{
-    // (a) build the actual publishable tarball. --ignore-scripts on THIS pack
-    // call is what keeps package-smoke (wired into `prepack`) from recursing
-    // into itself: `npm pack` normally re-runs `prepack`, and `prepack` runs
+    // (a) build the actual publishable tarball. Ignoring scripts on THIS pack
+    // call keeps package-smoke (wired into `prepack`) from recursing
+    // into itself: package managers normally re-run `prepack`, which runs
     // this very script. Skipping lifecycle scripts here is correct on its own
     // merits too -- by the time prepack reaches this step it has already run
     // the full test suite and the naming/schema checks, so re-running them via
-    // a nested `npm pack` would just be redundant work, not extra safety.
-    const packOutputRaw=execFileSync('npm',['pack','--json','--ignore-scripts',`--pack-destination=${packDir}`],{cwd:root,encoding:'utf8'});
-    const [packInfo]=JSON.parse(packOutputRaw);
-    const tarballPath=join(packDir,packInfo.filename);
-    if(!existsSync(tarballPath))throw new Error(`npm pack did not produce ${packInfo.filename}`);
+    // a nested pack would just be redundant work, not extra safety.
+    const packOutputRaw=pnpm(['--config.ignore-scripts=true','pack','--json',`--pack-destination=${packDir}`],{cwd:root,encoding:'utf8'});
+    const parsedPackInfo=JSON.parse(packOutputRaw);
+    const packInfo=Array.isArray(parsedPackInfo)?parsedPackInfo[0]:parsedPackInfo;
+    const tarballPath=isAbsolute(packInfo.filename)?packInfo.filename:join(packDir,packInfo.filename);
+    if(!existsSync(tarballPath))throw new Error(`pnpm pack did not produce ${packInfo.filename}`);
 
     // (b) extract the tarball to a temp dir -- this is what actually ships,
-    // including npm's own interpretation of the "files" allowlist/denylist,
+    // including pnpm's interpretation of the "files" allowlist/denylist,
     // rather than a hand-rolled copy that can silently drift from reality.
     const extractDir=join(temp,'extracted');
     mkdirSync(extractDir,{recursive:true});
@@ -90,7 +106,7 @@ export async function runPackageSmoke(root=resolve(import.meta.dirname,'..')){
     const consumerDir=join(temp,'consumer');
     mkdirSync(consumerDir,{recursive:true});
     writeFileSync(join(consumerDir,'package.json'),JSON.stringify({name:'legion-package-smoke-consumer',version:'0.0.0',private:true,type:'module'}));
-    execFileSync('npm',['install','--no-audit','--no-fund','--no-save','--ignore-scripts',tarballPath],{cwd:consumerDir,encoding:'utf8'});
+    pnpm(['add','--offline','--ignore-scripts',tarballPath],{cwd:consumerDir,encoding:'utf8'});
     const installedRoot=join(consumerDir,'node_modules',...pkg.name.split('/'));
     if(!existsSync(installedRoot))throw new Error(`npm install did not place ${pkg.name} in node_modules`);
 

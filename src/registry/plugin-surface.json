@@ -2,9 +2,9 @@
   "schemaVersion": 1,
   "kind": "legion-plugin-surface",
   "version": "0.1.0-dev.1",
-  "digest": "sha256:bf1e286ad2db68d00dc7816e9ced7d764fc2f08c70ca8808bc10ccbe5d4bf869",
+  "digest": "sha256:86c7105c7a9c7e7007922af068412b3cccbd67e847c8b2deea7eec1c2f4c2f6c",
   "counts": {
-    "skills": 23,
+    "skills": 24,
     "agents": 4,
     "mcpServers": 1,
     "hookEvents": 8
@@ -17,7 +17,6 @@
       "audit",
       "audit-fix",
       "audit-visual",
-      "blueprint",
       "brand",
       "brand-identity",
       "coder",
@@ -26,6 +25,7 @@
       "debugger",
       "designer",
       "dispatch",
+      "gotchas",
       "handoff",
       "marketing",
       "qa",
@@ -33,6 +33,7 @@
       "seo",
       "social",
       "tasklist",
+      "wake",
       "writing"
     ],
     "agents": [

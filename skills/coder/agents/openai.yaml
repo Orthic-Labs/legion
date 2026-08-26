@@ -1,4 +1,4 @@
 interface:
   display_name: "Coder"
-  short_description: "Explicit API-worker code analysis"
-  default_prompt: "Use $coder for scoped read-only code analysis with an API worker."
+  short_description: "Explicit Pi-worker code analysis"
+  default_prompt: "Use $coder for scoped read-only code analysis with Pi catalog models."

@@ -29,11 +29,11 @@
   ],
   "should_not_trigger": [
     {
-      "id": "changelog-generator-not-blueprint",
+      "id": "changelog-generator-not-technical-spec",
       "prompt": "Help me co-write a technical spec for a new API endpoint.",
-      "expected_skill": "blueprint",
+      "expected_skill": "architect",
       "forbidden_skills": ["changelog-generator"],
-      "expected_behavior": "Technical spec / design-doc co-authoring routes to /blueprint, not /writing changelog. changelog-generator is for git-commit-to-release-notes transforms only.",
+      "expected_behavior": "Technical spec / design-doc co-authoring routes to Architect, not /writing changelog. changelog-generator is for git-commit-to-release-notes transforms only.",
       "severity": "error",
       "mode": "discovery",
       "assertions": [

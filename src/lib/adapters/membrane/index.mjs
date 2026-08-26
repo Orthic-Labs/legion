@@ -1,17 +1,26 @@
 import { existsSync, readFileSync } from 'node:fs';
-import { consumeBlueprintPacket, requestBlueprintPacket, unavailablePacket } from '../../../adapters/blueprint-packet.mjs';
+import {
+  consumeBlueprintPacket,
+  readBlueprintPacket,
+  requestBlueprintPacket,
+  shouldUseBlueprintOneShot,
+  unavailablePacket,
+} from '../../../adapters/blueprint-packet.mjs';
 
-/** Transport-only Membrane adapter. Blueprint repository truth stays remote. */
+/** Membrane adapter: resident transport first, bounded Blueprint one-shot fallback. */
 export class MembraneAdapter {
-  constructor({ packet = null, transport = null, packetPath = null } = {}) {
+  constructor({ packet = null, transport = null, packetPath = null, blueprintBin = null, outDir = '.audit/blueprint', timeoutMs = 120_000 } = {}) {
     this.packet = packet;
     this.transport = transport;
     this.packetPath = packetPath;
-    this.mode = packetPath ? 'packet-file' : transport ? 'transport' : 'unavailable';
+    this.blueprintBin = blueprintBin;
+    this.outDir = outDir;
+    this.timeoutMs = timeoutMs;
+    this.mode = packetPath ? 'packet-file' : transport ? 'resident-transport' : 'bounded-one-shot';
   }
 
   async ensureCompatible() {
-    if (this.packet || (this.packetPath && existsSync(this.packetPath)) || this.transport) {
+    if (this.packet || (this.packetPath && existsSync(this.packetPath)) || this.transport || this.mode === 'bounded-one-shot') {
       return { ok: true, mode: this.mode, provider: 'membrane' };
     }
     return { ok: false, error: 'Membrane transport unavailable' };
@@ -22,7 +31,19 @@ export class MembraneAdapter {
     if (this.packetPath && existsSync(this.packetPath)) {
       return consumeBlueprintPacket(JSON.parse(readFileSync(this.packetPath, 'utf8')));
     }
-    return requestBlueprintPacket({ transport: this.transport, request });
+    if (this.transport) {
+      const resident = await requestBlueprintPacket({ transport: this.transport, request });
+      if (resident.status !== 'unavailable' || !shouldUseBlueprintOneShot(resident)) return resident;
+    }
+    // Direct Blueprint access is explicit, bounded, & independent from
+    // enrollment. Enrollment controls resident watcher ownership only.
+    const root = request.root ?? request.repoRoot ?? process.cwd();
+    return readBlueprintPacket(root, {
+      blueprintBin: this.blueprintBin ?? undefined,
+      outDir: this.outDir,
+      timeoutMs: request.timeoutMs ?? this.timeoutMs,
+      signal: request.signal,
+    });
   }
 
   async verifyFreshness({ packet } = {}) {

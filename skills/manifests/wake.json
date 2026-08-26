@@ -1,17 +1,12 @@
 {
   "schemaVersion": 1,
-  "id": "blueprint",
+  "id": "wake",
   "version": "1.0.0",
   "entry": "SKILL.md",
-  "rootUri": "legion-skill://blueprint/",
+  "rootUri": "legion-skill://wake/",
   "provenance": "legion-authored",
   "licenseState": "licensed",
-  "rightsReceipt": {
-    "kind": "legion-rights-receipt",
-    "basis": "repository-license",
-    "license": "LICENSE",
-    "licenseDigest": "sha256:6519936585434711b6d5971a3081fbd8b499438a39b6a08cc2191d33443926b4"
-  },
+  "rightsReceipt": null,
   "profiles": {
     "audit": {
       "mutation": false,
@@ -25,15 +20,17 @@
   },
   "parity": {
     "triggers": [
-      "/blueprint",
-      "Build or consume current source-grounded repository truth through Membrane's Blueprint packet. Use /blueprint before inheriting, changing, auditing, or judging unfamiliar code."
+      "/wake",
+      "Schedule one bounded wakeup for an active job, external review, or goal-alignment check; inspect once per wake, stop polling, & continue only from observed state."
     ],
     "outputs": [],
     "scripts": [],
     "templates": [],
     "schemas": [],
     "receipts": [],
-    "evals": [],
+    "evals": [
+      "evals/evals.json"
+    ],
     "consumers": [
       "src/registry/skills/index.json",
       "src/lib/skills/resolver.mjs",
@@ -43,8 +40,13 @@
   "files": [
     {
       "path": "SKILL.md",
-      "uri": "legion-skill://blueprint/SKILL.md",
-      "digest": "sha256:0e48baa6008330cf55bfc9bbb020efa462776839721c704db525255b256dc015"
+      "uri": "legion-skill://wake/SKILL.md",
+      "digest": "sha256:9cf40e570ef36d99636ed5310e1735cf490adee630f828d117eff42c4454770e"
+    },
+    {
+      "path": "evals/evals.json",
+      "uri": "legion-skill://wake/evals/evals.json",
+      "digest": "sha256:ec76cea9aeacbd0e9bdaf319556b1b5c08205dd4aa030f2061d4a4cffc327bc7"
     }
   ]
 }

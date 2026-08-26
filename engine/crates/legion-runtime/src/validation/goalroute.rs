@@ -121,7 +121,7 @@ pub struct Invalidation {
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-pub struct Forge {
+pub struct Alchemist {
     pub required: bool,
     #[serde(default)]
     pub run_id: Option<String>,
@@ -154,7 +154,8 @@ pub struct GoalRoute {
     #[serde(default)]
     pub single_feasible_evidence: Vec<String>,
     pub invalidation: Invalidation,
-    pub forge: Forge,
+    #[serde(alias = "forge")]
+    pub alchemist: Alchemist,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -388,13 +389,13 @@ pub fn validate_route(route: &GoalRoute) -> ValidationReport {
             "recompiled routes must identify invalidated routes",
         ));
     }
-    if !route.routine && !route.forge.required {
+    if !route.routine && !route.alchemist.required {
         errors.push(Diagnostic::error(
             source,
             0,
-            "forge",
+            "alchemist",
             "SEMANTIC_BOUNDS_FAILED",
-            "non-routine route requires Forge",
+            "non-routine route requires Alchemist",
         ));
     }
     ValidationReport::from_diagnostics(errors)

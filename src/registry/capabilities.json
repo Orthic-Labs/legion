@@ -20,13 +20,13 @@
     },
     "blueprint-graph": {
       "kind": "graph-engine",
-      "summary": "Code and knowledge graph search backing the Blueprint skill and audit provider discovery.",
-      "degradation": "Return a NO_CAPABILITY result naming blueprint-graph. Never fall back to ad-hoc grep and never present ungraphed results as graph results.",
+      "summary": "Membrane Blueprint graph and packet transport called directly by Legion for source-grounded repository discovery.",
+      "degradation": "Use resident Membrane transport when available, then bounded Blueprint one-shot regardless of enrollment. Return a NO_CAPABILITY result naming blueprint-graph only when both are unavailable; never fall back to ad-hoc grep or present ungraphed results as graph results.",
       "probe": {
         "kind": "command",
         "command": "blueprint"
       },
-      "remedy": "Install the Blueprint graph engine and put its `blueprint` executable on PATH, then re-run. This package does not ship it."
+      "remedy": "Provide Membrane resident transport or install the Blueprint graph engine and put its `blueprint` executable on PATH, then re-run. This package does not ship it."
     },
     "omniroute": {
       "kind": "local-gateway",
