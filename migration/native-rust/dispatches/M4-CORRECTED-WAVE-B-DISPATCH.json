@@ -1,0 +1,216 @@
+{
+  "schemaVersion": 1,
+  "kind": "legion-authority-dispatch",
+  "packetType": "direct",
+  "repositoryRoot": ".",
+  "sourceRevision": "a32c56b966f71d1b66936b3c2585ac8c2eef52ac",
+  "sourceArtifact": "migration/native-rust/dispatches/M4-CORRECTED-WAVE-B-OWNERSHIP-AMENDMENT.json",
+  "promptArtifact": "migration/native-rust/dispatches/M4-CORRECTED-WAVE-B-REQUEST.md",
+  "promptDigest": "sha256:d00d281ab88ca467e3d57e8c6fdf1ffd32538acf56c511c4a4ac80f1135b194a",
+  "modelRouting": {
+    "modelTier": "LOW",
+    "workerProfile": "luna-rust",
+    "routingRationale": "Audit meaning is frozen; one coupled lane is the maximum safe parallelism because plan, execution, reconciliation, report, shared Blueprint degradation, and installed CLI tests share types and consumers."
+  },
+  "objective": "Complete corrected M4 Wave B by closing native Audit planning, provider ownership, execution reconciliation, Blueprint degradation, reporting, and installed CLI artifacts without changing frozen Wave A or M5 interfaces.",
+  "authority": [
+    "AGENTS.md",
+    "docs/LEGION-CANONICAL-SSOT.md",
+    "migration/native-rust/PRODUCT-ARCHITECTURE-V2.md",
+    "migration/native-rust/MIGRATION-PLAN-V2.md",
+    "migration/native-rust/m0/semantic-freeze.json",
+    "migration/native-rust/m0/provider-boundary.json",
+    "migration/native-rust/m0/file-ownership-map.json",
+    "migration/native-rust/legacy-path-ownership.json",
+    "migration/native-rust/discrepancy-ledger.json",
+    "migration/native-rust/fixtures/audit-cases.v1.json",
+    "migration/native-rust/dispatches/M1-M8-DISPATCH.json",
+    "migration/native-rust/dispatches/M2-M7-OWNERSHIP-AMENDMENT.json",
+    "migration/native-rust/dispatches/M4-CORRECTED-OWNERSHIP-AMENDMENT.json",
+    "migration/native-rust/dispatches/M4-CORRECTED-WAVE-A-DISPATCH.json",
+    "migration/native-rust/dispatches/M4-CORRECTED-WAVE-B-OWNERSHIP-AMENDMENT.json",
+    "migration/native-rust/dispatches/M5-CORRECTED-DISPATCH.json",
+    "migration/native-rust/dispatches/M5-LIVE-WIRING-DISPATCH.json"
+  ],
+  "integrationOwner": "current orchestrator; sole owner of integration HEAD, index, direct Cargo, generated state, receipts, commits, push, and all post-worker repairs",
+  "preconditions": {
+    "waveARevision": "a32c56b966f71d1b66936b3c2585ac8c2eef52ac",
+    "waveABarrier": "Rules, Research, and Review are complete, Completion-Validated PASS, committed, and immutable except the exact rules_cli shared-consumer qualification reopening.",
+    "m5Revision": "01337d75b9ad56543ff10783b353709fb5145e99",
+    "m5Barrier": "Corrected M5 typed ExternalProjectTool and live runtime wiring remain immutable; Audit validates their terminal receipt projection without changing or wrapping them.",
+    "reportRevision": "0d4de01464a7297939cd9c6caacd54e325361331",
+    "reportRule": "Completed Report bytes remain frozen; Audit supplies truthful canonical inputs only.",
+    "ownershipAmendment": {
+      "path": "migration/native-rust/dispatches/M4-CORRECTED-WAVE-B-OWNERSHIP-AMENDMENT.json",
+      "sha256": "sha256:6d1999e7e91376a04d0b35b2afe1ffc7e787df15551364ba09e5b3abed5fdca5"
+    },
+    "legacyEvidence": {
+      "selector": {
+        "futureOwner": "M4-capability-migration",
+        "runtimeClass": "shipped-semantic-runtime",
+        "targetDisposition": "port"
+      },
+      "exactPathCount": 367,
+      "sortedPathDigest": "sha256:f31e796b28ce2747b027bcbb5c5132b4a8b9df7b13925399cd1370dc77e49bab",
+      "rule": "Selected legacy Audit/provider paths are read-only evidence; no Node/Python path may change."
+    }
+  },
+  "fileTouchPolicy": {
+    "mode": "once-end-to-end",
+    "plannedFiles": [
+      "engine/bins/legion/src/commands/audit.rs",
+      "engine/bins/legion/src/commands/mod.rs",
+      "engine/bins/legion/src/commands/rules.rs",
+      "engine/bins/legion/tests/audit_artifacts.rs",
+      "engine/bins/legion/tests/rules_cli.rs",
+      "engine/crates/legion-audit/Cargo.toml",
+      "engine/crates/legion-audit/src/dag.rs",
+      "engine/crates/legion-audit/src/error.rs",
+      "engine/crates/legion-audit/src/execution.rs",
+      "engine/crates/legion-audit/src/integrity.rs",
+      "engine/crates/legion-audit/src/inventory.rs",
+      "engine/crates/legion-audit/src/lib.rs",
+      "engine/crates/legion-audit/src/normalize.rs",
+      "engine/crates/legion-audit/src/plan.rs",
+      "engine/crates/legion-audit/src/report.rs",
+      "engine/crates/legion-audit/src/verify.rs",
+      "engine/crates/legion-audit/src/worktree.rs",
+      "engine/crates/legion-application/src/lib.rs",
+      "engine/tests/m4_capability_migration.rs",
+      "engine/tests/native_audit.rs"
+    ],
+    "allowUnplannedFiles": false
+  },
+  "dispatches": [
+    {
+      "id": "M4-corrected-wave-b",
+      "dependsOn": [],
+      "lanes": [
+        "m4-audit"
+      ],
+      "completionChecks": [
+        "exact 20-path allowlist reconciles with no Cargo.lock, Wave A core, M5, Report, legacy runtime, development tooling, or Membrane change",
+        "frozen full ProviderSpec, provider ownership, DAG, scope, inventory, and denominator bind signed plan identity",
+        "every selected provider has exactly one truthful terminal result; duplicates, omissions, unplanned results, malformed findings, incomplete coverage, missing receipt, denial, timeout, cancellation, and unavailability remain incomplete",
+        "candidate generators cannot emit or close findings and host reasoning cannot self-certify",
+        "Blueprint absence preserves non-Blueprint work and denominator while emitting the exact typed degradation fields without graph substitution",
+        "auditStatus, qualityGate, process execution state, and Completion Validation remain separate; plan-only and incomplete execution never claim clean/pass",
+        "integration owner direct-Cargo fmt, check, focused tests, CLI tests, clippy, convergence, and fresh Oracle Completion Validation pass"
+      ]
+    }
+  ],
+  "workers": [
+    {
+      "id": "m4-audit",
+      "dispatch": "M4-corrected-wave-b",
+      "executor": "Luna Rust worker in isolated worktree; no Cargo, stage, commit, push, receipt creation, or generated-state mutation",
+      "allowlist": [
+        "engine/bins/legion/src/commands/audit.rs",
+        "engine/bins/legion/src/commands/mod.rs",
+        "engine/bins/legion/src/commands/rules.rs",
+        "engine/bins/legion/tests/audit_artifacts.rs",
+        "engine/bins/legion/tests/rules_cli.rs",
+        "engine/crates/legion-audit/Cargo.toml",
+        "engine/crates/legion-audit/src/dag.rs",
+        "engine/crates/legion-audit/src/error.rs",
+        "engine/crates/legion-audit/src/execution.rs",
+        "engine/crates/legion-audit/src/integrity.rs",
+        "engine/crates/legion-audit/src/inventory.rs",
+        "engine/crates/legion-audit/src/lib.rs",
+        "engine/crates/legion-audit/src/normalize.rs",
+        "engine/crates/legion-audit/src/plan.rs",
+        "engine/crates/legion-audit/src/report.rs",
+        "engine/crates/legion-audit/src/verify.rs",
+        "engine/crates/legion-audit/src/worktree.rs",
+        "engine/crates/legion-application/src/lib.rs",
+        "engine/tests/m4_capability_migration.rs",
+        "engine/tests/native_audit.rs"
+      ],
+      "read": [
+        "engine/crates/legion-contracts",
+        "engine/crates/legion-provider-sdk",
+        "engine/crates/legion-effects",
+        "engine/crates/legion-runtime",
+        "engine/crates/legion-application",
+        "engine/crates/legion-report",
+        "engine/crates/legion-rules",
+        "engine/bins/legion/src",
+        "migration/native-rust/fixtures/audit-cases.v1.json",
+        "migration/native-rust/fixtures/provider-cases.v1.json",
+        "migration/native-rust/m0/semantic-freeze.json",
+        "migration/native-rust/m0/provider-boundary.json",
+        "migration/native-rust/legacy-path-ownership.json",
+        "selected M4 legacy Audit, provider registry, reconciliation, and report paths resolved from the frozen selector"
+      ],
+      "forbidden": [
+        ".git",
+        "node_modules",
+        "target",
+        "secrets",
+        "membrane",
+        "engine/Cargo.lock",
+        "engine/crates/legion-research",
+        "engine/crates/legion-review",
+        "src",
+        "skills",
+        "tools"
+      ],
+      "checks": [
+        "rustfmt --edition 2021 --check on owned Rust files",
+        "git diff --check",
+        "prove no new dependency or Cargo.lock drift",
+        "prove every selected provider terminally reconciles to exact plan/denominator/result/receipt identity",
+        "prove Blueprint typed degradation has all six frozen fields and cannot erase unaffected results",
+        "prove plan-only, cancellation, denial, timeout, unavailable, missing receipt, and malformed finding paths cannot claim clean/pass"
+      ],
+      "dependencies": []
+    }
+  ],
+  "oracleAudit": {
+    "required": true,
+    "mode": "adversarial",
+    "status": "required-before-execution",
+    "checks": [
+      "authority-order",
+      "source-revision",
+      "allowlist-completeness",
+      "lane-disjointness",
+      "single-lane-coupling-necessity",
+      "dependency-validity",
+      "maximum-safe-parallelization",
+      "end-to-end-lane-closure",
+      "full-provider-spec-plan-binding",
+      "provider-owner-classification",
+      "selected-result-denominator-reconciliation",
+      "external-tool-terminal-receipt-binding",
+      "candidate-self-closure-exclusion",
+      "Blueprint-six-field-degradation",
+      "verdict-separation",
+      "installed-CLI-closure",
+      "legacy-tooling-retention",
+      "Membrane-exclusion",
+      "M6-M7-gate-exclusion"
+    ]
+  },
+  "recovery": {
+    "maxRetries": 1,
+    "stopConditions": [
+      "source revision or frozen authority changes",
+      "any allowlisted implementation path is dirty before worker execution",
+      "implementation requires a path outside exact 20-path allowlist",
+      "a new dependency or Cargo.lock mutation is required",
+      "Wave A core, M5, Report, any other application path, runtime, host, setup, legacy runtime, development tooling, or Membrane modification is required",
+      "Audit would execute a tool/model directly, synthesize graph truth, or assert M6 qualification"
+    ],
+    "returnFields": [
+      "status",
+      "changedPaths",
+      "checks",
+      "rawFailures",
+      "blockers",
+      "baselineRevision",
+      "patchDigest",
+      "next"
+    ]
+  }
+}

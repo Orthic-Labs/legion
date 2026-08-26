@@ -13,6 +13,13 @@ pub fn canonical_report(
     let mut findings = Vec::new();
     let mut gaps = execution.gaps.clone();
     for provider in &execution.results {
+        gaps.extend(
+            provider
+                .result
+                .degradation
+                .iter()
+                .map(|gap| format!("provider-degradation:{}:{gap}", provider.provider)),
+        );
         for finding in &provider.result.findings {
             if !finding_ids.insert(finding.id.clone()) {
                 gaps.push(format!("duplicate-finding-id:{}", finding.id));
@@ -86,6 +93,7 @@ pub fn canonical_report(
             ("planDigest".into(), json!(execution.plan_digest)),
             ("planSignature".into(), json!(execution.plan_signature)),
             ("inventoryGeneration".into(), json!(execution.generation)),
+            ("inventoryDigest".into(), json!(execution.inventory_digest)),
             (
                 "plannedProviders".into(),
                 json!(execution.planned_providers),

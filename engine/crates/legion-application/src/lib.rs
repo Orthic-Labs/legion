@@ -517,21 +517,59 @@ impl NativeApplicationConfig {
                 "standalone Audit requires selected provider specifications".into(),
             ));
         }
+        let frozen_plan = AuditPlan::compile(&inventory, &provider_specs)
+            .map_err(|error| NativeApplicationError::Configuration(error.to_string()))?;
         let mut results = BTreeMap::new();
         for result in provider_results {
             result
                 .validate()
                 .map_err(|error| NativeApplicationError::Configuration(error.to_string()))?;
-            if result.complete
-                && result
-                    .coverage
-                    .as_ref()
-                    .is_none_or(|coverage| coverage.denominator_digest != inventory.digest)
-            {
-                return Err(NativeApplicationError::Configuration(format!(
-                    "complete provider result {} is not bound to the selected inventory digest",
-                    result.provider
-                )));
+            if result.complete {
+                let provider = frozen_plan
+                    .providers
+                    .iter()
+                    .find(|provider| provider.id == result.provider.to_string())
+                    .ok_or_else(|| {
+                        NativeApplicationError::Configuration(format!(
+                            "complete provider result {} is not in frozen plan",
+                            result.provider
+                        ))
+                    })?;
+                let expected_digest = provider
+                    .configuration
+                    .get("denominatorDigest")
+                    .and_then(serde_json::Value::as_str)
+                    .ok_or_else(|| {
+                        NativeApplicationError::Configuration(format!(
+                            "provider {} is missing frozen denominator",
+                            provider.id
+                        ))
+                    })?;
+                let expected_count = provider
+                    .configuration
+                    .get("denominatorCount")
+                    .and_then(serde_json::Value::as_u64)
+                    .ok_or_else(|| {
+                        NativeApplicationError::Configuration(format!(
+                            "provider {} is missing frozen denominator count",
+                            provider.id
+                        ))
+                    })?;
+                let coverage = result.coverage.as_ref().ok_or_else(|| {
+                    NativeApplicationError::Configuration(format!(
+                        "complete provider result {} is missing coverage",
+                        result.provider
+                    ))
+                })?;
+                if coverage.denominator_digest != expected_digest
+                    || coverage.expected != expected_count
+                    || coverage.examined != coverage.expected
+                {
+                    return Err(NativeApplicationError::Configuration(format!(
+                        "complete provider result {} is not bound to frozen selector denominator",
+                        result.provider
+                    )));
+                }
             }
             let provider_id = result.provider.to_string();
             if results.insert(provider_id.clone(), result).is_some() {

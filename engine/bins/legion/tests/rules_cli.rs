@@ -85,7 +85,7 @@ fn native_rules_evaluate_blueprint_bound_source() {
             "dependsOn": [],
             "consumes": ["blueprint-packet"],
             "produces": ["provider-result"],
-            "selector": {"op": "all"},
+            "selector": {"op": "always"},
             "denominatorKind": "blueprint-inventory",
             "runner": {"kind": "built-in"},
             "hostCapabilities": [],
@@ -186,7 +186,7 @@ fn native_audit_continues_without_blueprint() {
             "dependsOn": [],
             "consumes": ["repository-inventory"],
             "produces": ["provider-result"],
-            "selector": {"op": "all"},
+            "selector": {"op": "always"},
             "denominatorKind": "repository-inventory",
             "runner": {"kind": "built-in"},
             "hostCapabilities": [],
@@ -284,5 +284,53 @@ fn native_rules_report_unproven_for_invalid_source_bytes() {
         .unwrap()
         .iter()
         .any(|gap| gap.as_str().unwrap().contains("source-invalid-utf8")));
+    std::fs::remove_dir_all(root).unwrap();
+}
+
+#[test]
+fn native_rules_emits_selector_bound_denominator() {
+    let root = std::env::temp_dir().join(format!(
+        "legion-native-rules-selector-{}-{}",
+        std::process::id(),
+        std::thread::current().name().unwrap_or("fixture")
+    ));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(root.join("src")).unwrap();
+    std::fs::create_dir_all(root.join("docs")).unwrap();
+    std::fs::write(root.join("src/service.rs"), "fn service() {}\n").unwrap();
+    std::fs::write(root.join("docs/readme.md"), "fixture\n").unwrap();
+    let root = std::fs::canonicalize(root).unwrap();
+    let manifest = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../../../packs/native/manifest.v1.json");
+    let output = Command::new(env!("CARGO_BIN_EXE_legion"))
+        .args([
+            "rules",
+            "--manifest",
+            manifest.to_str().unwrap(),
+            "--root",
+            root.to_str().unwrap(),
+            "--provider",
+            "native.fixture",
+            "--selector",
+            r#"{"op":"anyPath","patterns":["src/*.rs"]}"#,
+        ])
+        .output()
+        .unwrap();
+    assert_eq!(
+        output.status.code(),
+        Some(0),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let result: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(result["providerResult"]["coverage"]["expected"], 1);
+    assert_ne!(
+        result["providerResult"]["coverage"]["denominator_digest"],
+        result["inventoryDigest"]
+    );
+    assert_eq!(
+        result["denominatorDigest"],
+        result["providerResult"]["coverage"]["denominator_digest"]
+    );
     std::fs::remove_dir_all(root).unwrap();
 }

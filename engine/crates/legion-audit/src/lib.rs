@@ -17,7 +17,8 @@ pub use execution::{execute, ExecutionReport, ProviderExecution, ProviderExecuto
 pub use integrity::{canonical_bytes, digest, plan_digest, sign, verify};
 pub use inventory::{
     BlueprintInventorySource, BlueprintSource, FileBlueprintInventorySource,
-    FilesystemInventorySource, InventoryEntry, InventoryEnvelope, InventorySnapshot,
+    FilesystemInventorySource, InventoryDenominator, InventoryEntry, InventoryEnvelope,
+    InventorySnapshot,
 };
 pub use normalize::{normalize, normalize_all};
 pub use plan::{AuditPlan, AuditProvider, FrozenPlan, ProviderKind};

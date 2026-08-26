@@ -34,6 +34,11 @@ pub fn verify_execution(report: &ExecutionReport) -> Result<(), AuditError> {
             "audit execution has no planned providers".into(),
         ));
     }
+    if report.inventory_digest.trim().is_empty() || report.generation.trim().is_empty() {
+        return Err(AuditError::Invalid(
+            "audit execution is missing frozen inventory identity".into(),
+        ));
+    }
     let mut ids = BTreeSet::new();
     for item in &report.results {
         if !ids.insert(item.provider.clone()) {
@@ -42,6 +47,26 @@ pub fn verify_execution(report: &ExecutionReport) -> Result<(), AuditError> {
         if item.result.provider.to_string() != item.provider {
             return Err(AuditError::Invalid(
                 "provider result identity mismatch".into(),
+            ));
+        }
+        if item.skipped
+            && !matches!(
+                item.result.status,
+                legion_contracts::ProviderStatus::Cancelled
+            )
+        {
+            return Err(AuditError::Invalid(
+                "skipped provider execution must be cancelled".into(),
+            ));
+        }
+        if item.result.complete
+            && !matches!(
+                item.result.status,
+                legion_contracts::ProviderStatus::Ok | legion_contracts::ProviderStatus::Complete
+            )
+        {
+            return Err(AuditError::Invalid(
+                "failed or cancelled provider cannot be complete".into(),
             ));
         }
         if item.result.complete
@@ -63,7 +88,10 @@ pub fn verify_execution(report: &ExecutionReport) -> Result<(), AuditError> {
         .iter()
         .cloned()
         .collect::<BTreeSet<_>>();
-    if planned.len() != report.planned_providers.len() || planned != ids {
+    if planned.len() != report.planned_providers.len()
+        || planned != ids
+        || report.results.len() != report.planned_providers.len()
+    {
         return Err(AuditError::Invalid(
             "planned and executed provider sets do not reconcile".into(),
         ));

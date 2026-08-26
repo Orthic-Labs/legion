@@ -1,0 +1,154 @@
+{
+  "schemaVersion": 1,
+  "kind": "legion-authority-dispatch",
+  "packetType": "direct",
+  "repositoryRoot": "D:\\Claude\\legion-m4-m8",
+  "sourceRevision": "a32c56b966f71d1b66936b3c2585ac8c2eef52ac",
+  "sourceArtifact": "sha256:cb3291837d8da23f42f974a48b599d1d43823197ca48e88541407a3649559b1a",
+  "promptArtifact": "migration/native-rust/dispatches/ORACLE-REPAIR-REQUEST.md",
+  "promptDigest": "sha256:2e269de4c884fde3fae5a88b20e1d8546ec35a1170945adb9843735e0dc8e083",
+  "modelRouting": {
+    "modelTier": "MID",
+    "workerProfile": "Luna edit-only",
+    "routingRationale": "Three bounded independent repairs on disjoint files; root retains all execution & integration"
+  },
+  "objective": "Close four exact Oracle defects across selector denominators, Blueprint degradation identity, terminal receipt truth, & installed-product identity binding without changing frozen architecture or external evidence.",
+  "authority": [
+    "AGENTS.md",
+    "migration/native-rust/MIGRATION-PLAN-V2.md",
+    "migration/native-rust/PRODUCT-ARCHITECTURE-V2.md",
+    "migration/native-rust/m0/provider-boundary.json",
+    "migration/native-rust/m0/release-binding-contract.json",
+    "migration/native-rust/dispatches/ORACLE-REPAIR-REQUEST.md"
+  ],
+  "integrationOwner": "/root in D:\\Claude\\legion-m4-m8",
+  "fileTouchPolicy": {
+    "mode": "once-end-to-end",
+    "plannedFiles": [
+      "engine/crates/legion-audit/src/inventory.rs",
+      "engine/crates/legion-audit/src/execution.rs",
+      "engine/bins/legion/src/commands/mod.rs",
+      "engine/bins/legion/tests/rules_cli.rs",
+      "engine/tests/m6_installed_product.rs"
+    ],
+    "allowUnplannedFiles": false
+  },
+  "dispatches": [
+    {
+      "id": "A",
+      "dependsOn": [],
+      "lanes": ["audit-core", "blueprint-cli", "qualification-binding"],
+      "completionChecks": [
+        "all three edit-only lanes return exact changed paths & patch digest",
+        "root reconciles five-file allowlist before direct Cargo"
+      ]
+    }
+  ],
+  "workers": [
+    {
+      "id": "audit-core",
+      "dispatch": "A",
+      "executor": "Luna edit-only worker in D:\\Claude\\legion-flat-core",
+      "allowlist": [
+        "engine/crates/legion-audit/src/inventory.rs",
+        "engine/crates/legion-audit/src/execution.rs"
+      ],
+      "read": [
+        "migration/native-rust/dispatches/ORACLE-REPAIR-REQUEST.md",
+        "migration/native-rust/m0/provider-boundary.json",
+        "engine/crates/legion-audit/src/plan.rs"
+      ],
+      "forbidden": [
+        ".git",
+        "engine/target",
+        "Membrane",
+        "legacy runtime paths",
+        "Cargo/tests/builds/clippy/rustfmt/Node/Python/package managers/signing/qualification/commit/push"
+      ],
+      "checks": [
+        "add same-file regression coverage for empty normalized path selector arrays & completed-state gap inconsistency",
+        "git diff --check",
+        "return exact changed paths & SHA-256 patch"
+      ],
+      "dependencies": []
+    },
+    {
+      "id": "blueprint-cli",
+      "dispatch": "A",
+      "executor": "Luna edit-only worker in D:\\Claude\\legion-flat-cli",
+      "allowlist": [
+        "engine/bins/legion/src/commands/mod.rs",
+        "engine/bins/legion/tests/rules_cli.rs"
+      ],
+      "read": [
+        "migration/native-rust/dispatches/ORACLE-REPAIR-REQUEST.md",
+        "migration/native-rust/m0/provider-boundary.json",
+        "engine/bins/legion/src/commands/audit.rs"
+      ],
+      "forbidden": [
+        ".git",
+        "engine/target",
+        "Membrane",
+        "legacy runtime paths",
+        "Cargo/tests/builds/clippy/rustfmt/Node/Python/package managers/signing/qualification/commit/push"
+      ],
+      "checks": [
+        "add regression coverage for two Blueprint-dependent providers plus unaffected providers",
+        "git diff --check",
+        "return exact changed paths & SHA-256 patch"
+      ],
+      "dependencies": []
+    },
+    {
+      "id": "qualification-binding",
+      "dispatch": "A",
+      "executor": "Luna edit-only worker in D:\\Claude\\legion-m3-corrected",
+      "allowlist": ["engine/tests/m6_installed_product.rs"],
+      "read": [
+        "migration/native-rust/dispatches/ORACLE-REPAIR-REQUEST.md",
+        "migration/native-rust/m0/release-binding-contract.json",
+        "engine/crates/legion-host/src/setup_registry.rs"
+      ],
+      "forbidden": [
+        ".git",
+        "engine/target",
+        "Membrane",
+        "legacy runtime paths",
+        "external evidence creation or mutation",
+        "Cargo/tests/builds/clippy/rustfmt/Node/Python/package managers/signing/qualification/commit/push"
+      ],
+      "checks": [
+        "add regression coverage proving signed/client identity mismatch blocks qualification",
+        "git diff --check",
+        "return exact changed path & SHA-256 patch"
+      ],
+      "dependencies": []
+    }
+  ],
+  "oracleAudit": {
+    "required": true,
+    "mode": "adversarial",
+    "status": "required-before-execution",
+    "checks": [
+      "allowlist-completeness",
+      "lane-disjointness",
+      "dependency-validity",
+      "maximum-safe-parallelization",
+      "end-to-end-lane-closure"
+    ]
+  },
+  "recovery": {
+    "maxRetries": 2,
+    "stopConditions": [
+      "owned path contains conflicting changes not present in integration source artifact",
+      "frozen source contradicts requested invariant"
+    ],
+    "returnFields": [
+      "changedPaths",
+      "checks",
+      "blockers",
+      "baselineRevision",
+      "patchDigest"
+    ]
+  }
+}

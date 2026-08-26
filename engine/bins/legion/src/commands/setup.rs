@@ -3,11 +3,22 @@ use clap::{Args, Subcommand, ValueEnum};
 use serde_json::json;
 use std::path::PathBuf;
 
+/// `legion setup [--dry-run] [--client]` is the installed-product lifecycle
+/// surface; lifecycle subcommands include `legion setup purge --confirm`.
 /// Native machine setup is intentionally a small grammar over the frozen host
 /// registry: previews are materialized as files, then mutations require that
 /// exact preview plus an explicit confirmation flag.
 #[derive(Debug, Args)]
 pub struct SetupArgs {
+    /// Preview the selected lifecycle action without changing durable state.
+    #[arg(long)]
+    dry_run: bool,
+    /// Restrict setup to one supported client.
+    #[arg(long)]
+    client: Option<String>,
+    /// Confirm the generated preview for the default setup action.
+    #[arg(long)]
+    confirm: bool,
     #[command(subcommand)]
     command: Option<SetupCommand>,
 }
@@ -16,11 +27,11 @@ pub struct SetupArgs {
 enum SetupCommand {
     Preview(SetupPreviewArgs),
     Apply(SetupMutationArgs),
-    Status(SetupStatusArgs),
-    Repair(SetupMutationArgs),
-    Disable(SetupMutationArgs),
-    Remove(SetupMutationArgs),
-    Purge(SetupMutationArgs),
+    Status(SetupClientArgs),
+    Repair(SetupLifecycleArgs),
+    Disable(SetupLifecycleArgs),
+    Remove(SetupLifecycleArgs),
+    Purge(SetupLifecycleArgs),
 }
 
 #[derive(Clone, Debug, ValueEnum)]
@@ -58,9 +69,6 @@ struct SetupPreviewArgs {
 
 #[derive(Debug, Args)]
 struct SetupRequestArgs {
-    /// JSON BoundRelease document from installed, verified release assets.
-    #[arg(long)]
-    release: PathBuf,
     /// JSON array of ClientEvidence collected by the installed launcher.
     #[arg(long = "client-evidence")]
     client_evidence: Option<PathBuf>,
@@ -73,16 +81,7 @@ struct SetupRequestArgs {
 }
 
 #[derive(Debug, Args)]
-struct SetupStatusArgs {
-    #[command(flatten)]
-    open: SetupOpenArgs,
-}
-
-#[derive(Debug, Args)]
-struct SetupOpenArgs {
-    /// JSON BoundRelease document from installed, verified release assets.
-    #[arg(long)]
-    release: PathBuf,
+struct SetupClientArgs {
     /// Restrict status to one supported client; default is all supported clients.
     #[arg(long)]
     client: Option<String>,
@@ -98,19 +97,83 @@ struct SetupMutationArgs {
     confirm: bool,
 }
 
+#[derive(Debug, Args)]
+struct SetupLifecycleArgs {
+    /// Restrict lifecycle action to one supported client.
+    #[arg(long)]
+    client: Option<String>,
+    /// Preview only; never mutate durable state.
+    #[arg(long)]
+    dry_run: bool,
+    /// Explicitly confirm the generated plan before mutation.
+    #[arg(long)]
+    confirm: bool,
+}
+
 pub fn run(args: SetupArgs) -> CommandResult {
     match args.command {
         Some(SetupCommand::Preview(args)) => preview(args),
         Some(SetupCommand::Apply(args)) => execute(args, legion_host::SetupAction::Apply),
         Some(SetupCommand::Status(args)) => status(args),
-        Some(SetupCommand::Repair(args)) => execute(args, legion_host::SetupAction::Repair),
-        Some(SetupCommand::Disable(args)) => execute(args, legion_host::SetupAction::Disable),
-        Some(SetupCommand::Remove(args)) => execute(args, legion_host::SetupAction::Remove),
-        Some(SetupCommand::Purge(args)) => execute(args, legion_host::SetupAction::Purge),
-        None => Err(CommandError::usage(
-            "legion setup requires preview, apply, status, repair, disable, remove, or purge",
-        )),
+        Some(SetupCommand::Repair(args)) => lifecycle(args, legion_host::SetupAction::Repair),
+        Some(SetupCommand::Disable(args)) => lifecycle(args, legion_host::SetupAction::Disable),
+        Some(SetupCommand::Remove(args)) => lifecycle(args, legion_host::SetupAction::Remove),
+        Some(SetupCommand::Purge(args)) => lifecycle(args, legion_host::SetupAction::Purge),
+        None => lifecycle(
+            SetupLifecycleArgs {
+                client: args.client,
+                dry_run: args.dry_run,
+                confirm: args.confirm,
+            },
+            legion_host::SetupAction::Apply,
+        ),
     }
+}
+
+pub fn top_level_status() -> CommandResult {
+    status(SetupClientArgs { client: None })
+}
+
+fn lifecycle(args: SetupLifecycleArgs, action: legion_host::SetupAction) -> CommandResult {
+    if matches!(action, legion_host::SetupAction::Purge) && !args.confirm && !args.dry_run {
+        return Err(CommandError::usage(
+            "setup purge requires --confirm for the exact generated plan",
+        ));
+    }
+    let release = installed_bound_release()?;
+    let request = SetupRequestArgs {
+        client_evidence: None,
+        client: args.client,
+        dry_run: args.dry_run,
+    };
+    let request = request_from_release(request, action, release)?;
+    let mut registry = open_registry(&request)?;
+    let recovery = registry.recover().map_err(setup_error)?;
+    let preview = registry.preview(request).map_err(setup_error)?;
+    if !args.confirm || args.dry_run {
+        return Ok(json!({
+            "schemaVersion": 1,
+            "kind": "legion-setup-preview",
+            "status": "complete",
+            "recovery": recovery,
+            "preview": preview,
+        }));
+    }
+    let confirmation = legion_host::PlanConfirmation {
+        plan_id: preview.plan_id.clone(),
+        plan_digest: preview.plan_digest.clone(),
+    };
+    let confirmed = registry
+        .confirm(preview, confirmation)
+        .map_err(setup_error)?;
+    let execution = registry.execute(confirmed).map_err(setup_error)?;
+    Ok(json!({
+        "schemaVersion": 1,
+        "kind": "legion-setup-execution",
+        "status": "complete",
+        "recovery": recovery,
+        "execution": execution,
+    }))
 }
 
 fn preview(args: SetupPreviewArgs) -> CommandResult {
@@ -130,10 +193,9 @@ fn preview(args: SetupPreviewArgs) -> CommandResult {
     }))
 }
 
-fn status(args: SetupStatusArgs) -> CommandResult {
-    let open = args.open;
-    let release = read_json(&open.release, "BoundRelease")?;
-    let selector = selector(open.client);
+fn status(args: SetupClientArgs) -> CommandResult {
+    let release = installed_bound_release()?;
+    let selector = selector(args.client);
     let mut registry = legion_host::SetupRegistry::open_platform(release).map_err(setup_error)?;
     let recovery = registry.recover().map_err(setup_error)?;
     let clients = registry.status(&selector).map_err(setup_error)?;
@@ -181,23 +243,98 @@ fn request(
     args: SetupRequestArgs,
     action: legion_host::SetupAction,
 ) -> Result<legion_host::SetupRequest, CommandError> {
+    let client = args.client.clone();
     Ok(legion_host::SetupRequest {
         action,
-        selector: selector(args.client),
-        release: read_json(&args.release, "BoundRelease")?,
+        selector: selector(client.clone()),
+        release: installed_bound_release()?,
         platform_state_root: legion_host::platform_state_root().map_err(setup_error)?,
         client_evidence: match args.client_evidence {
             Some(path) => read_json(&path, "ClientEvidence array")?,
-            None => Vec::new(),
+            None => discovered_client_evidence(client.as_deref()),
         },
         dry_run: args.dry_run,
     })
 }
 
+fn request_from_release(
+    args: SetupRequestArgs,
+    action: legion_host::SetupAction,
+    release: legion_host::BoundRelease,
+) -> Result<legion_host::SetupRequest, CommandError> {
+    Ok(legion_host::SetupRequest {
+        action,
+        selector: selector(args.client.clone()),
+        release,
+        platform_state_root: legion_host::platform_state_root().map_err(setup_error)?,
+        client_evidence: discovered_client_evidence(args.client.as_deref()),
+        dry_run: args.dry_run,
+    })
+}
+
+fn installed_bound_release() -> Result<legion_host::BoundRelease, CommandError> {
+    let installed = installed_release()?;
+    let manifest = installed.manifest;
+    Ok(legion_host::BoundRelease {
+        release_version: manifest.release_version,
+        runtime_digest: manifest.runtime.sha256,
+        capability_catalog_hash: manifest.capability_catalog_sha256,
+        mcp_tool_schema_hash: manifest.mcp_tool_schema_sha256,
+        declarative_asset_schema_hash: manifest.declarative_assets_sha256,
+        state_compatibility: manifest.state_schema_version.to_string(),
+    })
+}
+
+fn installed_release() -> Result<legion_runtime::release_binding::InstalledRelease, CommandError> {
+    legion_runtime::release_binding::load_installed_release().map_err(|error| {
+        CommandError::incomplete(format!(
+            "installed release binding unavailable: {error}; run legion setup --repair"
+        ))
+    })
+}
+
+fn discovered_client_evidence(selected: Option<&str>) -> Vec<legion_host::ClientEvidence> {
+    let home = std::env::var_os("USERPROFILE")
+        .or_else(|| std::env::var_os("HOME"))
+        .map(PathBuf::from);
+    let clients = [("claude-code", ".claude"), ("codex", ".codex")];
+    clients
+        .into_iter()
+        .filter_map(|(client_id, relative)| {
+            if selected.is_some_and(|value| value != client_id) {
+                return None;
+            }
+            let detected = home
+                .as_ref()
+                .map(|path| path.join(relative).is_dir())
+                .unwrap_or(false);
+            if selected.is_none() && !detected {
+                return None;
+            }
+            Some(legion_host::ClientEvidence {
+                client_id: client_id.into(),
+                detected,
+                mechanisms: vec!["agent-plugins-bare-command".into()],
+                command_proof_ref: None,
+                qualification_evidence_ref: None,
+            })
+        })
+        .collect()
+}
+
 fn open_registry(
     request: &legion_host::SetupRequest,
 ) -> Result<legion_host::SetupRegistry<legion_host::OnDiskSetupStore>, CommandError> {
-    legion_host::SetupRegistry::open_platform(request.release.clone()).map_err(setup_error)
+    let release = installed_bound_release()?;
+    if request.release != release {
+        return Err(setup_error(legion_host::SetupError {
+            code: legion_host::SetupErrorCode::ReleaseBindingMismatch,
+            remediation:
+                "setup plan release differs from installed release; run legion setup --repair"
+                    .into(),
+        }));
+    }
+    legion_host::SetupRegistry::open_platform(release).map_err(setup_error)
 }
 
 fn selector(client: Option<String>) -> legion_host::ClientSelector {

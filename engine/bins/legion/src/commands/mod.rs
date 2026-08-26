@@ -9,7 +9,7 @@ pub mod research;
 pub mod review;
 pub mod rules;
 pub mod setup;
-use serde_json::Value;
+use serde_json::{json, Value};
 use std::{path::Path, sync::Arc};
 pub type CommandResult = Result<Value, CommandError>;
 pub fn native_application_for(
@@ -71,6 +71,53 @@ pub fn audit_inventory_source(
         ],
     ))
 }
+
+/// Stable, machine-readable degradation projection. Text notices remain for humans,
+/// while this object is the only semantic representation consumed by Audit clients.
+pub fn audit_blueprint_degradations(
+    providers: &[legion_contracts::ProviderSpec],
+    operation: &str,
+    reason_code: &str,
+) -> Vec<Value> {
+    let unaffected = providers
+        .iter()
+        .filter(|provider| {
+            !provider
+                .consumes
+                .iter()
+                .any(|item| item == "blueprint-packet")
+        })
+        .map(|provider| provider.id.to_string())
+        .collect::<Vec<_>>();
+    let mut unaffected = unaffected;
+    unaffected.sort();
+    unaffected.dedup();
+    let mut dependent = providers
+        .iter()
+        .filter(|provider| {
+            provider
+                .consumes
+                .iter()
+                .any(|item| item == "blueprint-packet")
+        })
+        .map(|provider| provider.id.to_string())
+        .collect::<Vec<_>>();
+    dependent.sort();
+    dependent.dedup();
+    dependent
+        .into_iter()
+        .map(|provider| {
+            json!({
+                "provider": provider,
+                "operation": operation,
+                "reasonCode": reason_code,
+                "structuralCoverageLimits": ["symbols", "dependencies", "graph relationships"],
+                "recommendation": "Provide a fresh host-published Blueprint packet for structural coverage.",
+                "unaffectedProviders": unaffected.clone(),
+            })
+        })
+        .collect()
+}
 #[derive(Debug)]
 pub struct CommandError {
     pub code: i32,
@@ -116,4 +163,61 @@ impl CommandError {
 }
 pub fn io_error(error: impl std::fmt::Display) -> CommandError {
     CommandError::internal(error.to_string())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn provider(id: &str, consumes: &[&str]) -> legion_contracts::ProviderSpec {
+        legion_contracts::ProviderSpec {
+            schema_version: 2,
+            id: legion_contracts::ProviderId::new(id).expect("provider id"),
+            provider_version: "1".into(),
+            family: "fixture".into(),
+            lens_ids: Vec::new(),
+            role: "deterministic".into(),
+            phase: "source".into(),
+            depends_on: Vec::new(),
+            consumes: consumes.iter().map(|item| (*item).into()).collect(),
+            produces: vec!["provider-result".into()],
+            selector: json!({"op": "always"}),
+            denominator_kind: "repository-inventory".into(),
+            runner: json!({"kind": "built-in"}),
+            host_capabilities: Vec::new(),
+            execution: json!({}),
+            reasoning: json!({}),
+            benchmark: json!({}),
+            clean_claim: "finding-producing".into(),
+            control_ids: Vec::new(),
+            scopes: Vec::new(),
+            selectable: true,
+        }
+    }
+
+    #[test]
+    fn blueprint_degradation_is_per_dependent_provider() {
+        let degradations = audit_blueprint_degradations(
+            &[
+                provider("blueprint.second", &["blueprint-packet"]),
+                provider("unaffected", &["repository-inventory"]),
+                provider("blueprint.first", &["blueprint-packet"]),
+            ],
+            "audit",
+            "blueprint-unavailable",
+        );
+        assert_eq!(degradations.len(), 2);
+        assert_eq!(
+            degradations
+                .iter()
+                .map(|item| item["provider"].as_str().unwrap())
+                .collect::<Vec<_>>(),
+            ["blueprint.first", "blueprint.second"]
+        );
+        for degradation in degradations {
+            assert_eq!(degradation["operation"], "audit");
+            assert_eq!(degradation["reasonCode"], "blueprint-unavailable");
+            assert_eq!(degradation["unaffectedProviders"], json!(["unaffected"]));
+        }
+    }
 }

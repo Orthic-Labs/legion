@@ -38,6 +38,10 @@ pub async fn run(args: AuditArgs, cancellation: CancellationToken) -> CommandRes
             "resultCount": 0,
             "gaps": ["native frozen provider composition is not connected"],
             "auditStatus": "incomplete",
+            "qualityGate": "unproven",
+            "processExecution": "not-run",
+            "processState": "not-run",
+            "completionValidation": "not-run",
         }));
     }
     let signing_key = super::audit_signing_key()?;
@@ -49,6 +53,26 @@ pub async fn run(args: AuditArgs, cancellation: CancellationToken) -> CommandRes
             super::native_application_for(&root.to_string_lossy())?,
             Vec::new(),
         )
+    };
+    let selected_specs = application.provider_specs();
+    let blueprint_dependent = selected_specs.iter().any(|provider| {
+        provider
+            .consumes
+            .iter()
+            .any(|item| item == "blueprint-packet")
+    });
+    let blueprint_degradations = if context_notices.is_empty() || !blueprint_dependent {
+        Vec::new()
+    } else {
+        let reason = if context_notices
+            .iter()
+            .any(|notice| notice.contains("was not provided"))
+        {
+            "blueprint-unavailable"
+        } else {
+            "blueprint-invalid"
+        };
+        super::audit_blueprint_degradations(&selected_specs, "audit", reason)
     };
     let operation = if args.plan_only {
         legion_application::NativeOperation::Plan {
@@ -82,8 +106,15 @@ pub async fn run(args: AuditArgs, cancellation: CancellationToken) -> CommandRes
             "planDigest": plan_digest,
                 "planSignature": plan_signature,
                 "providers": providers,
+                "providerSpecs": selected_specs,
                 "contextNotices": context_notices,
-                "auditStatus": "complete"
+                "auditStatus": "incomplete",
+                "qualityGate": "unproven",
+                "processExecution": "not-run",
+                "processState": "not-run",
+                "completionValidation": "not-run",
+                "gaps": ["plan-only"],
+                "blueprintDegradations": blueprint_degradations
             });
             if let Some(out) = &args.out {
                 write_artifact(
@@ -102,6 +133,43 @@ pub async fn run(args: AuditArgs, cancellation: CancellationToken) -> CommandRes
                     .claims
                     .insert("contextNotices".into(), json!(context_notices));
             }
+            if !blueprint_degradations.is_empty() {
+                report.claims.insert(
+                    "blueprintDegradations".into(),
+                    json!(blueprint_degradations),
+                );
+                report.gaps.push("blueprint-degradation".into());
+                report.gaps.sort();
+                report.gaps.dedup();
+                report.status = legion_contracts::ReportStatus::Incomplete;
+            }
+            let report_status = match report.status {
+                legion_contracts::ReportStatus::Clean => "pass",
+                legion_contracts::ReportStatus::Findings => "findings",
+                legion_contracts::ReportStatus::Incomplete => "incomplete",
+                legion_contracts::ReportStatus::Failed => "failed",
+                legion_contracts::ReportStatus::Blocked => "blocked",
+            };
+            report
+                .claims
+                .insert("auditStatus".into(), json!(report_status));
+            report.claims.insert(
+                "qualityGate".into(),
+                json!(if report.status == legion_contracts::ReportStatus::Clean {
+                    "proven"
+                } else {
+                    "unproven"
+                }),
+            );
+            report
+                .claims
+                .insert("processExecution".into(), json!("complete"));
+            report
+                .claims
+                .insert("processState".into(), json!("complete"));
+            report
+                .claims
+                .insert("completionValidation".into(), json!("not-run"));
             let report_json = legion_report::render_json(&report).map_err(super::io_error)?;
             let report_sarif = legion_report::render_sarif(&report).map_err(super::io_error)?;
             if let Some(out) = &args.out {
@@ -128,6 +196,7 @@ pub async fn run(args: AuditArgs, cancellation: CancellationToken) -> CommandRes
                 "planDigest": execution.plan_digest,
                 "planSignature": execution.plan_signature,
                 "generation": execution.generation,
+                "inventoryDigest": execution.inventory_digest,
                 "plannedProviders": execution.planned_providers,
                 "resultCount": execution.results.len(),
                 "findingCount": report.findings.len(),
@@ -140,7 +209,12 @@ pub async fn run(args: AuditArgs, cancellation: CancellationToken) -> CommandRes
                     "reportSarif": out.join("report.sarif"),
                     "execution": out.join("execution.json")
                 })),
-                "auditStatus": status
+                "auditStatus": if !report.gaps.is_empty() { "incomplete" } else { status },
+                "qualityGate": if report.gaps.is_empty() { "proven" } else { "unproven" },
+                "processExecution": "complete",
+                "processState": "complete",
+                "completionValidation": "not-run",
+                "blueprintDegradations": blueprint_degradations
             }))
         }
         _ => Err(CommandError::internal(

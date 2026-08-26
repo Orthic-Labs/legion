@@ -683,6 +683,9 @@ impl legion_mcp::ReleaseBindingGate for M1BindingGate {
 }
 
 async fn native_m1_status(args: M1ConfigArgs) -> CommandResult {
+    if args.config.is_none() && std::env::var_os("LEGION_M1_CONFIG").is_none() {
+        return commands::setup::top_level_status();
+    }
     let application = load_m1_application(&args)?;
     Ok(json!({
         "schemaVersion": 1,

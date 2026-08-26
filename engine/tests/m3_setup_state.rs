@@ -352,4 +352,20 @@ fn m2_plugin_root_and_setup_cli_routes_remain_explicit() {
     ] {
         assert!(setup.contains(command), "missing setup grammar: {command}");
     }
+    for argv_surface in [
+        "legion setup [--dry-run]",
+        "--client",
+        "legion setup purge",
+        "--confirm",
+        "load_installed_release",
+        "share/legion/release.json",
+    ] {
+        assert!(
+            setup.contains(argv_surface)
+                || cli.contains(argv_surface)
+                || include_str!("../crates/legion-runtime/src/release_binding.rs")
+                    .contains(argv_surface),
+            "missing installed-product argv surface: {argv_surface}"
+        );
+    }
 }

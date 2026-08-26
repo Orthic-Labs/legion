@@ -10,6 +10,9 @@ use serde::{Deserialize, Serialize};
 
 /// The sole remediation for a mixed or otherwise invalid installed identity.
 pub const REPAIR_COMMAND: &str = "legion setup --repair";
+pub const CANONICAL_RELEASE_MANIFEST: &str = "share/legion/release.json";
+pub const RIGHTKIT_AX_VERSION: &str = "0.2.0";
+pub const RIGHTKIT_AX_SOURCE_COMMIT: &str = "01f52555202da3dffc6b649ca44e803b55238081";
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -63,6 +66,16 @@ pub enum DeclarativeAssets {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct VerifiedReleaseBinding {
     manifest: ReleaseManifest,
+}
+
+/// The release identity discovered from the running installed executable.
+/// Product commands must use this source rather than caller-supplied paths or
+/// developer-environment configuration.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct InstalledRelease {
+    pub manifest: ReleaseManifest,
+    pub manifest_path: PathBuf,
+    pub executable_path: PathBuf,
 }
 
 impl VerifiedReleaseBinding {
@@ -193,7 +206,70 @@ pub fn load_release_manifest(
         }
     })?;
     manifest.validate(path)?;
+    validate_frozen_rightkit(path, &manifest)?;
     Ok(manifest)
+}
+
+/// Locate the canonical installed manifest relative to the running executable.
+/// No environment, source checkout, or caller-selected fallback is consulted.
+pub fn load_installed_release() -> Result<InstalledRelease, ReleaseBindingError> {
+    let executable =
+        fs::canonicalize(
+            std::env::current_exe().map_err(|source| ReleaseBindingError::Io {
+                path: PathBuf::from("<current_exe>"),
+                source,
+            })?,
+        )
+        .map_err(|source| ReleaseBindingError::Io {
+            path: PathBuf::from("<current_exe>"),
+            source,
+        })?;
+    let executable_directory =
+        executable
+            .parent()
+            .ok_or_else(|| ReleaseBindingError::InvalidManifest {
+                path: executable.clone(),
+                reason: "installed executable has no parent directory".into(),
+            })?;
+    let mut roots = vec![executable_directory];
+    if executable_directory
+        .file_name()
+        .is_some_and(|name| name == "bin")
+    {
+        if let Some(parent) = executable_directory.parent() {
+            roots.push(parent);
+        }
+    }
+    let manifest_path = roots
+        .into_iter()
+        .map(|root| root.join(CANONICAL_RELEASE_MANIFEST))
+        .find(|candidate| candidate.is_file())
+        .ok_or_else(|| ReleaseBindingError::InvalidManifest {
+            path: executable.clone(),
+            reason: "installed release manifest share/legion/release.json was not found".into(),
+        })?;
+    let manifest_path =
+        fs::canonicalize(manifest_path.clone()).map_err(|source| ReleaseBindingError::Io {
+            path: manifest_path,
+            source,
+        })?;
+    let manifest = load_release_manifest(&manifest_path)?;
+    exact(
+        "runtime platform",
+        &manifest.runtime.platform,
+        std::env::consts::OS,
+    )?;
+    exact(
+        "runtime architecture",
+        &manifest.runtime.architecture,
+        std::env::consts::ARCH,
+    )?;
+    check_file("runtime digest", &manifest.runtime.sha256, &executable)?;
+    Ok(InstalledRelease {
+        manifest,
+        manifest_path,
+        executable_path: executable,
+    })
 }
 
 /// Verify all required runtime, catalog, schema, asset, state, and RightKit identities.
@@ -202,6 +278,26 @@ pub fn verify_release_binding(
     inputs: &ReleaseBindingInputs,
 ) -> Result<VerifiedReleaseBinding, ReleaseBindingError> {
     manifest.validate(Path::new("release.json"))?;
+    exact(
+        "RightKit AX version",
+        RIGHTKIT_AX_VERSION,
+        &manifest.rightkit_ax.version,
+    )?;
+    exact(
+        "RightKit AX source commit",
+        RIGHTKIT_AX_SOURCE_COMMIT,
+        &manifest.rightkit_ax.source_commit,
+    )?;
+    exact(
+        "RightKit AX version",
+        RIGHTKIT_AX_VERSION,
+        &inputs.rightkit_ax.version,
+    )?;
+    exact(
+        "RightKit AX source commit",
+        RIGHTKIT_AX_SOURCE_COMMIT,
+        &inputs.rightkit_ax.source_commit,
+    )?;
     exact(
         "release version",
         &manifest.release_version,
@@ -271,6 +367,27 @@ fn invalid<T>(path: &Path, reason: impl Into<String>) -> Result<T, ReleaseBindin
         path: path.into(),
         reason: reason.into(),
     })
+}
+
+fn validate_frozen_rightkit(
+    path: &Path,
+    manifest: &ReleaseManifest,
+) -> Result<(), ReleaseBindingError> {
+    if manifest.rightkit_ax.version != RIGHTKIT_AX_VERSION {
+        return invalid(
+            path,
+            format!("rightkitAx.version must equal frozen version {RIGHTKIT_AX_VERSION}"),
+        );
+    }
+    if manifest.rightkit_ax.source_commit != RIGHTKIT_AX_SOURCE_COMMIT {
+        return invalid(
+            path,
+            format!(
+                "rightkitAx.sourceCommit must equal frozen source commit {RIGHTKIT_AX_SOURCE_COMMIT}"
+            ),
+        );
+    }
+    Ok(())
 }
 
 fn require(path: &Path, field: &str, value: &str) -> Result<(), ReleaseBindingError> {
@@ -573,10 +690,9 @@ mod tests {
         inputs.runtime_provenance = "RIGHTKIT-RELEASE://42".into();
         assert_component(&manifest, &inputs, "runtime provenance");
         inputs.runtime_provenance = manifest.runtime.provenance.clone();
-        manifest.rightkit_ax.version = "0.2.0-rc".into();
         inputs.rightkit_ax.version = "0.2.0-RC".into();
         assert_component(&manifest, &inputs, "RightKit AX version");
-        inputs.rightkit_ax.version = manifest.rightkit_ax.version.clone();
+        inputs.rightkit_ax.version = RIGHTKIT_AX_VERSION.into();
         inputs.rightkit_ax.source_commit = manifest.rightkit_ax.source_commit.to_uppercase();
         assert_component(&manifest, &inputs, "RightKit AX source commit");
 

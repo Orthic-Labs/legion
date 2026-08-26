@@ -47,3 +47,7 @@ path = "../../tests/native_no_interpreter.rs"
 [[test]]
 name = "m3_setup_state"
 path = "../../tests/m3_setup_state.rs"
+
+[[test]]
+name = "m6_installed_product"
+path = "../../tests/m6_installed_product.rs"

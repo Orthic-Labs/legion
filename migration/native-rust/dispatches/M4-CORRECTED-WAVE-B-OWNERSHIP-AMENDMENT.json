@@ -1,0 +1,53 @@
+{
+  "schemaVersion": 1,
+  "kind": "legion-native-rust-ownership-amendment",
+  "status": "frozen",
+  "operatorApproved": true,
+  "sourceRevision": "a32c56b966f71d1b66936b3c2585ac8c2eef52ac",
+  "supersedes": {
+    "roadmap": {
+      "path": "migration/native-rust/dispatches/M1-M8-DISPATCH.json",
+      "sha256": "sha256:23fc2c1452d5831da36a87fdb27f23555f1f31a850a1f77a970fcab07227f31c"
+    },
+    "priorAmendment": {
+      "path": "migration/native-rust/dispatches/M2-M7-OWNERSHIP-AMENDMENT.json",
+      "sha256": "sha256:4d48d17cdeb953d72af136659dcd99716307824ba937763761d500815b789f1c"
+    },
+    "waveAAmendment": {
+      "path": "migration/native-rust/dispatches/M4-CORRECTED-OWNERSHIP-AMENDMENT.json",
+      "sha256": "sha256:766576ec103b34c46f0ccb5724c0b909a767a63b6b94bbbc6d1f9dac99009c6c"
+    },
+    "waveADispatch": {
+      "path": "migration/native-rust/dispatches/M4-CORRECTED-WAVE-A-DISPATCH.json",
+      "sha256": "sha256:cf6973b964b67d1fdd819928c20993e03cbffc1a422c1328fe7c23c8aa06aef4"
+    }
+  },
+  "reason": "Wave A Completion Validation exposed that corrected Audit cannot close only inside the original M4 crate/test allowlist: the installed Audit command marks plan-only output complete, the shared Rules/Audit inventory consumer emits free-text Blueprint notices instead of the frozen typed degradation, live artifact tests must prove the corrected verdict and receipt bindings, and direct Application validation currently rejects selector-bound denominators before Audit can verify them.",
+  "retainedAuthority": "All M0 freezes, completed M1-M3 and M5 bytes, completed Report, committed Wave A bytes, roadmap rules, and prior amendments remain authoritative except these exact Wave B live-consumer and test corrections.",
+  "globalRules": {
+    "waveAFreeze": "Wave A commit a32c56b966f71d1b66936b3c2585ac8c2eef52ac is immutable except engine/bins/legion/tests/rules_cli.rs receives one final shared-inventory-consumer qualification touch.",
+    "singleReopenedSurface": "Only Audit command integration, its shared inventory helper and Rules projection, exact CLI tests, plus the direct Application selector-denominator prevalidation are reopened from completed M1/Wave A ownership.",
+    "generatedLock": "engine/Cargo.lock remains integration-owner generated state and outside worker ownership; dependency additions are forbidden.",
+    "legacy": "All Node/Python legacy runtime paths remain read-only evidence until M7.",
+    "membrane": "No worker may read or modify Membrane; Blueprint is consumed only through the existing typed packet boundary.",
+    "execution": "External project-tool results reconcile only with a truthful frozen-M5 terminal receipt projection; Audit does not spawn tools or wrap Cargo.",
+    "qualification": "This amendment completes corrected M4 Audit only; it does not assert M6 qualification or authorize M7 deletion."
+  },
+  "milestones": {
+    "M4": {
+      "owner": "M4-capability-migration",
+      "completedWaveARevision": "a32c56b966f71d1b66936b3c2585ac8c2eef52ac",
+      "addedActivePaths": [
+        "engine/bins/legion/src/commands/audit.rs",
+        "engine/bins/legion/src/commands/mod.rs",
+        "engine/bins/legion/src/commands/rules.rs",
+        "engine/bins/legion/tests/audit_artifacts.rs",
+        "engine/bins/legion/tests/rules_cli.rs",
+        "engine/crates/legion-application/src/lib.rs"
+      ],
+      "dependencyRule": "Wave B starts only from completedWaveARevision and closes as one coupled Audit lane before M6 begins.",
+      "consumerRule": "Installed Audit and Rules surfaces expose the exact typed Blueprint degradation and keep audit status, quality gate, process execution state, and independent Completion Validation separate.",
+      "scopeRule": "No Report, Rules core, Research, Review, M5, other application, runtime, host, setup, package, legacy, or Membrane path may change. The sole Application touch replaces whole-inventory prevalidation with the same frozen selector denominator verified by Audit."
+    }
+  }
+}

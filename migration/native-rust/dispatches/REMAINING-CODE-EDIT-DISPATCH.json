@@ -1,0 +1,245 @@
+{
+  "schemaVersion": 1,
+  "kind": "legion-authority-dispatch",
+  "packetType": "direct",
+  "repositoryRoot": "D:\\Claude\\legion-m4-m8",
+  "sourceRevision": "a32c56b966f71d1b66936b3c2585ac8c2eef52ac",
+  "sourceArtifact": "migration/native-rust/dispatches/REMAINING-CODE-EDIT-REQUEST.md",
+  "promptArtifact": "migration/native-rust/dispatches/REMAINING-CODE-EDIT-REQUEST.md",
+  "promptDigest": "sha256:4de5c75bbff35918f9a8fe9a25c81c79ea4ffbdd4d2ece1766fbccddbcc4ce56",
+  "modelRouting": {
+    "modelTier": "LUNA",
+    "workerProfile": "parallel-edit-only",
+    "routingRationale": "Four disjoint frozen-owner file groups cover every current edit; three run concurrently while root remains sole integration owner and the fourth starts at the first free slot."
+  },
+  "objective": "Complete every currently legal remaining code and qualification-harness edit in four isolated worktrees; workers edit only and root performs all execution, verification, integration, commits, qualification, and delivery.",
+  "authority": [
+    "AGENTS.md",
+    "migration/native-rust/dispatches/REMAINING-CODE-EDIT-REQUEST.md",
+    "migration/native-rust/PRODUCT-ARCHITECTURE-V2.md",
+    "migration/native-rust/MIGRATION-PLAN-V2.md",
+    "migration/native-rust/m0/contract-freeze.json",
+    "migration/native-rust/m0/file-ownership-map.json",
+    "migration/native-rust/discrepancy-ledger.json",
+    "migration/native-rust/dispatches/M1-DISPATCH.json",
+    "migration/native-rust/dispatches/M2-M7-OWNERSHIP-AMENDMENT.json",
+    "migration/native-rust/dispatches/M3-DISPATCH.json",
+    "migration/native-rust/dispatches/M4-CORRECTED-WAVE-B-OWNERSHIP-AMENDMENT.json",
+    "migration/native-rust/dispatches/M4-CORRECTED-WAVE-B-DISPATCH.json",
+    "migration/native-rust/dispatches/M1-M8-DISPATCH.json"
+  ],
+  "integrationOwner": "Legion root in D:\\Claude\\legion-m4-m8",
+  "fileTouchPolicy": {
+    "mode": "once-end-to-end",
+    "plannedFiles": [
+      "engine/bins/legion/src/cli.rs",
+      "engine/bins/legion/src/commands/audit.rs",
+      "engine/bins/legion/src/commands/mod.rs",
+      "engine/bins/legion/src/commands/rules.rs",
+      "engine/bins/legion/src/commands/setup.rs",
+      "engine/bins/legion/tests/audit_artifacts.rs",
+      "engine/bins/legion/tests/rules_cli.rs",
+      "engine/crates/legion-application/src/lib.rs",
+      "engine/crates/legion-audit/src/execution.rs",
+      "engine/crates/legion-audit/src/inventory.rs",
+      "engine/crates/legion-audit/src/lib.rs",
+      "engine/crates/legion-audit/src/plan.rs",
+      "engine/crates/legion-audit/src/report.rs",
+      "engine/crates/legion-audit/src/verify.rs",
+      "engine/crates/legion-host/src/setup_registry.rs",
+      "engine/crates/legion-runtime/src/release_binding.rs",
+      "engine/crates/legion-testkit/Cargo.toml",
+      "engine/tests/m3_setup_state.rs",
+      "engine/tests/m6_installed_product.rs",
+      "engine/tests/native_audit.rs",
+      "engine/tests/native_no_interpreter.rs"
+    ],
+    "allowUnplannedFiles": false
+  },
+  "dispatches": [
+    {
+      "id": "current-code-edits",
+      "dependsOn": [],
+      "lanes": [
+        "core-capability",
+        "cli-surfaces",
+        "setup-lifecycle",
+        "installed-product-qualification"
+      ],
+      "completionChecks": [
+        "all four changed-path sets are disjoint subsets of exact allowlists",
+        "workers ran no build, Cargo, test, formatter, package-manager, signing, qualification, staging, commit, or push command",
+        "root merges all worker diffs before one integrated verification checkpoint"
+      ]
+    }
+  ],
+  "workers": [
+    {
+      "id": "core-capability",
+      "dispatch": "current-code-edits",
+      "executor": "Luna edit-only worker",
+      "worktree": "D:\\Claude\\legion-flat-core",
+      "objective": "Reconcile seeded core capability implementation and original core-owned installed release-binding seam against frozen selector, denominator, receipt, Blueprint-degradation, terminal-truth, and release-identity contracts. Correct code only where source inspection proves a defect.",
+      "allowlist": [
+        "engine/crates/legion-application/src/lib.rs",
+        "engine/crates/legion-audit/src/execution.rs",
+        "engine/crates/legion-audit/src/inventory.rs",
+        "engine/crates/legion-audit/src/lib.rs",
+        "engine/crates/legion-audit/src/plan.rs",
+        "engine/crates/legion-audit/src/report.rs",
+        "engine/crates/legion-audit/src/verify.rs",
+        "engine/crates/legion-runtime/src/release_binding.rs",
+        "engine/tests/native_audit.rs"
+      ],
+      "read": [
+        "migration/native-rust/m0/semantic-freeze.json",
+        "migration/native-rust/m0/provider-boundary.json",
+        "migration/native-rust/m0/release-binding-contract.json",
+        "migration/native-rust/dispatches/M1-DISPATCH.json",
+        "migration/native-rust/discrepancy-ledger.json"
+      ],
+      "forbidden": [
+        ".git",
+        "engine/target",
+        "membrane",
+        "all non-allowlisted files",
+        "Cargo, rustfmt, clippy, tests, builds, Node, Python, package managers, signing, qualification, staging, commits, and pushes"
+      ],
+      "checks": [
+        "inspect seeded diff against frozen sources",
+        "return git diff --name-only and git diff --check only; run no executable verification"
+      ],
+      "dependencies": []
+    },
+    {
+      "id": "cli-surfaces",
+      "dispatch": "current-code-edits",
+      "executor": "Luna edit-only worker",
+      "worktree": "D:\\Claude\\legion-flat-cli",
+      "objective": "Finish seeded CLI, rule-selector, and artifact fixture code. Repair exact frozen-denominator fixture mismatch reported by root checkpoint without weakening denominator validation.",
+      "allowlist": [
+        "engine/bins/legion/src/commands/audit.rs",
+        "engine/bins/legion/src/commands/mod.rs",
+        "engine/bins/legion/src/commands/rules.rs",
+        "engine/bins/legion/tests/audit_artifacts.rs",
+        "engine/bins/legion/tests/rules_cli.rs"
+      ],
+      "read": [
+        "engine/crates/legion-application/src/lib.rs",
+        "engine/crates/legion-audit/src",
+        "migration/native-rust/m0/semantic-freeze.json",
+        "migration/native-rust/discrepancy-ledger.json"
+      ],
+      "forbidden": [
+        ".git",
+        "engine/target",
+        "membrane",
+        "all non-allowlisted files",
+        "Cargo, rustfmt, clippy, tests, builds, Node, Python, package managers, signing, qualification, staging, commits, and pushes"
+      ],
+      "checks": [
+        "inspect seeded diff and raw failing assertion",
+        "return git diff --name-only and git diff --check only; run no executable verification"
+      ],
+      "dependencies": []
+    },
+    {
+      "id": "setup-lifecycle",
+      "dispatch": "current-code-edits",
+      "executor": "Luna edit-only worker",
+      "worktree": "D:\\Claude\\legion-m3-corrected",
+      "objective": "Finish installed setup lifecycle corrections by consuming the core-owned release-binding seam; preserve exact client configuration, state ownership, rollback, removal, and verified purge behavior.",
+      "allowlist": [
+        "engine/bins/legion/src/cli.rs",
+        "engine/bins/legion/src/commands/setup.rs",
+        "engine/crates/legion-host/src/setup_registry.rs",
+        "engine/crates/legion-testkit/Cargo.toml",
+        "engine/tests/m3_setup_state.rs"
+      ],
+      "read": [
+        "migration/native-rust/m0/setup-adapter-contract.json",
+        "migration/native-rust/m0/release-binding-contract.json",
+        "migration/native-rust/m0/state-lifecycle-contract.json",
+        "engine/crates/legion-runtime/src/release_binding.rs",
+        "migration/native-rust/dispatches/M2-M7-OWNERSHIP-AMENDMENT.json",
+        "migration/native-rust/dispatches/M3-DISPATCH.json",
+        "migration/native-rust/MIGRATION-PLAN-V2.md"
+      ],
+      "forbidden": [
+        ".git",
+        "engine/target",
+        "membrane",
+        "all non-allowlisted files",
+        "Cargo, rustfmt, clippy, tests, builds, Node, Python, package managers, signing, qualification, staging, commits, and pushes"
+      ],
+      "checks": [
+        "inspect current draft and frozen installed-product contracts",
+        "return git diff --name-only and git diff --check only; run no executable verification"
+      ],
+      "dependencies": []
+    },
+    {
+      "id": "installed-product-qualification",
+      "dispatch": "current-code-edits",
+      "executor": "Luna edit-only worker",
+      "worktree": "D:\\Claude\\legion-flat-qualification",
+      "objective": "Implement source-side installed-product and no-interpreter qualification harness owned by frozen qualification scope, without creating or fabricating signed-artifact evidence.",
+      "allowlist": [
+        "engine/tests/m6_installed_product.rs",
+        "engine/tests/native_no_interpreter.rs"
+      ],
+      "read": [
+        "engine/crates/legion-testkit/Cargo.toml",
+        "engine/bins/legion/src/cli.rs",
+        "engine/bins/legion/src/commands/setup.rs",
+        "engine/crates/legion-host/src/setup_registry.rs",
+        "engine/crates/legion-runtime/src/release_binding.rs",
+        "migration/native-rust/m0/release-binding-contract.json",
+        "migration/native-rust/m0/setup-adapter-contract.json",
+        "migration/native-rust/MIGRATION-PLAN-V2.md"
+      ],
+      "forbidden": [
+        ".git",
+        "engine/target",
+        "membrane",
+        "migration/native-rust/qualification/m6-installed-product-matrix.json",
+        "all non-allowlisted files",
+        "Cargo, rustfmt, clippy, tests, builds, Node, Python, package managers, signing, qualification, staging, commits, and pushes"
+      ],
+      "checks": [
+        "inspect frozen installed-product requirements and current setup/release seams",
+        "harness must fail closed when exact signed artifacts or receipts are absent",
+        "return git diff --name-only and git diff --check only; run no executable verification"
+      ],
+      "dependencies": []
+    }
+  ],
+  "oracleAudit": {
+    "required": true,
+    "mode": "adversarial",
+    "status": "required-before-execution",
+    "checks": [
+      "allowlist-completeness",
+      "lane-disjointness",
+      "dependency-validity",
+      "maximum-safe-parallelization",
+      "end-to-end-lane-closure"
+    ]
+  },
+  "recovery": {
+    "maxRetries": 1,
+    "stopConditions": [
+      "worker needs a non-allowlisted write",
+      "worker attempts executable verification",
+      "worker needs qualification evidence that does not yet exist",
+      "worker encounters Membrane or legacy-deletion mutation"
+    ],
+    "returnFields": [
+      "changedPaths",
+      "checks",
+      "blockers",
+      "baselineRevision",
+      "patchDigest"
+    ]
+  }
+}

@@ -19,6 +19,8 @@ pub struct RulesArgs {
     pub root: PathBuf,
     #[arg(long)]
     pub provider: String,
+    #[arg(long, default_value = r#"{"op":"always"}"#)]
+    pub selector: String,
     #[arg(long = "pack")]
     pub packs: Vec<String>,
     #[arg(long, default_value_t = 1_048_576)]
@@ -33,6 +35,8 @@ pub fn run(args: RulesArgs) -> CommandResult {
     let manifest_path = std::fs::canonicalize(&args.manifest).map_err(super::io_error)?;
     let provider =
         ProviderId::new(args.provider).map_err(|error| CommandError::usage(error.to_string()))?;
+    let selector: Value = serde_json::from_str(&args.selector)
+        .map_err(|error| CommandError::usage(format!("selector must be JSON: {error}")))?;
     let manifest = std::fs::read_to_string(&manifest_path).map_err(super::io_error)?;
     let compiled = RuleCompiler::compile_manifest_json(&manifest)
         .map_err(|error| CommandError::usage(error.to_string()))?;
@@ -46,13 +50,16 @@ pub fn run(args: RulesArgs) -> CommandResult {
     let inventory = source
         .inventory(&repository_id)
         .map_err(|error| CommandError::incomplete(error.to_string()))?;
+    let denominator = inventory
+        .denominator_entries(&selector)
+        .map_err(|error| CommandError::usage(error.to_string()))?;
 
     let mut files = Vec::new();
     let mut gaps = Vec::new();
-    if inventory.entries.is_empty() {
+    if denominator.entries.is_empty() {
         gaps.push("repository-inventory-empty".into());
     }
-    for entry in &inventory.entries {
+    for entry in &denominator.entries {
         let path = root.join(&entry.path);
         let metadata = match std::fs::symlink_metadata(&path) {
             Ok(metadata) => metadata,
@@ -136,7 +143,11 @@ pub fn run(args: RulesArgs) -> CommandResult {
         );
     }
 
-    let complete = gaps.is_empty() && files.len() == inventory.entries.len();
+    let complete = gaps.is_empty() && files.len() == denominator.entries.len();
+    // Rules consumes the read-only filesystem inventory directly; it is not an
+    // explicitly Blueprint-dependent operation, so context absence cannot
+    // degrade its provider result.
+    let degradations: Vec<Value> = Vec::new();
     let result = ProviderResult {
         schema_version: 1,
         provider,
@@ -149,8 +160,8 @@ pub fn run(args: RulesArgs) -> CommandResult {
         },
         complete,
         coverage: Some(Coverage {
-            denominator_digest: inventory.digest.clone(),
-            expected: inventory.entries.len() as u64,
+            denominator_digest: denominator.digest.clone(),
+            expected: denominator.entries.len() as u64,
             examined: files.len() as u64,
             gaps: gaps.clone(),
         }),
@@ -162,6 +173,8 @@ pub fn run(args: RulesArgs) -> CommandResult {
             ("findingLocations".into(), Value::Object(locations)),
             ("findingTitles".into(), Value::Object(titles)),
             ("findingMessages".into(), Value::Object(messages)),
+            ("selector".into(), selector.clone()),
+            ("blueprintDegradations".into(), json!(degradations)),
             (
                 "packs".into(),
                 json!(selected.keys().cloned().collect::<Vec<_>>()),
@@ -180,7 +193,10 @@ pub fn run(args: RulesArgs) -> CommandResult {
         "repository": repository_id,
         "generation": inventory.generation,
         "inventoryDigest": inventory.digest,
+        "selector": selector,
+        "denominatorDigest": denominator.digest,
         "contextNotices": context_notices,
+        "blueprintDegradations": degradations,
         "providerResult": result,
     }))
 }

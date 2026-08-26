@@ -348,6 +348,11 @@ impl PathSelector {
                 }
             }
         }
+        if self.prefix.is_none() && self.suffix.is_none() && self.exact.is_none() {
+            return Err(RuleError::InvalidPack(
+                "path selector must declare prefix, suffix, or exact".into(),
+            ));
+        }
         Ok(())
     }
 
@@ -654,5 +659,19 @@ mod tests {
 
         let error = pack.validate().expect_err("empty path selector must fail");
         assert!(error.to_string().contains("path selector prefix"));
+    }
+
+    #[test]
+    fn unconstrained_path_selector_is_rejected() {
+        let error = (PathSelector {
+            prefix: None,
+            suffix: None,
+            exact: None,
+        })
+        .validate()
+        .expect_err("unconstrained path selector must fail");
+        assert!(error
+            .to_string()
+            .contains("must declare prefix, suffix, or exact"));
     }
 }

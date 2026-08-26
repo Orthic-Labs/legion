@@ -154,6 +154,10 @@ pub struct SetupExecution {
     pub clients: Vec<ClientStatus>,
     pub remediation: Vec<String>,
     pub external_qualification: ExternalQualification,
+    pub purged: Vec<PathBuf>,
+    pub retained: Vec<PathBuf>,
+    #[serde(rename = "ownershipProof")]
+    pub ownership_proof: Option<String>,
 }
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -239,18 +243,48 @@ impl OnDiskSetupStore {
     pub fn open(platform_state_root: PathBuf) -> Result<Self, SetupError> {
         let root = validate_root(platform_state_root)?;
         let marker = root.join(".legion-owned");
-        if marker.exists() {
-            if read(&marker)? != OWNER_MARKER.as_bytes() {
+        match fs::symlink_metadata(&marker) {
+            Ok(metadata) if metadata.file_type().is_symlink() => {
                 return Err(err(
-                    SetupErrorCode::PurgeOwnershipUnproven,
-                    "state root ownership marker is invalid",
+                    SetupErrorCode::PathEscapeRefused,
+                    "state ownership marker is a symlink",
                 ));
             }
-        } else {
-            atomic_write(&root, &marker, OWNER_MARKER.as_bytes())?;
+            Ok(metadata) if metadata.is_file() => {
+                if read(&marker)? != OWNER_MARKER.as_bytes() {
+                    return Err(err(
+                        SetupErrorCode::PurgeOwnershipUnproven,
+                        "state root ownership marker is invalid",
+                    ));
+                }
+            }
+            Ok(_) => {
+                return Err(err(
+                    SetupErrorCode::PurgeOwnershipUnproven,
+                    "state ownership marker is not a regular file",
+                ));
+            }
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+                atomic_write(&root, &marker, OWNER_MARKER.as_bytes())?;
+            }
+            Err(error) => return Err(io(error)),
         }
         for name in ["snapshots", "journal", "locks", "leases", "integrations"] {
-            fs::create_dir_all(root.join(name)).map_err(io)?;
+            let directory = root.join(name);
+            fs::create_dir_all(&directory).map_err(io)?;
+            let metadata = fs::symlink_metadata(&directory).map_err(io)?;
+            if metadata.file_type().is_symlink() {
+                return Err(err(
+                    SetupErrorCode::PathEscapeRefused,
+                    format!("state directory {name} is a symlink"),
+                ));
+            }
+            if !metadata.is_dir() {
+                return Err(err(
+                    SetupErrorCode::PlatformStateRootInvalid,
+                    format!("state directory {name} is not a directory"),
+                ));
+            }
         }
         Ok(Self {
             state: root.join("setup-state.json"),
@@ -267,6 +301,7 @@ impl SetupStore for OnDiskSetupStore {
         &self.root
     }
     fn load_state(&self) -> Result<Option<SetupState>, SetupError> {
+        require_contained(&self.root, &self.state)?;
         if !self.state.exists() {
             return Ok(None);
         }
@@ -296,6 +331,7 @@ impl SetupStore for OnDiskSetupStore {
         atomic_write(&self.root, &self.state, &bytes)
     }
     fn snapshot(&mut self, generation: &str) -> Result<BackupRecord, SetupError> {
+        require_contained(&self.root, &self.state)?;
         let snapshot = self
             .root
             .join("snapshots")
@@ -305,7 +341,18 @@ impl SetupStore for OnDiskSetupStore {
         } else {
             b"null".to_vec()
         };
+        require_contained(&self.root, &snapshot)?;
         if snapshot.exists() {
+            if fs::symlink_metadata(&snapshot)
+                .map_err(io)?
+                .file_type()
+                .is_symlink()
+            {
+                return Err(err(
+                    SetupErrorCode::PathEscapeRefused,
+                    "snapshot path is a symlink",
+                ));
+            }
             if read(&snapshot)? != bytes {
                 return Err(err(
                     SetupErrorCode::SnapshotFailed,
@@ -375,6 +422,13 @@ impl SetupStore for OnDiskSetupStore {
 #[serde(deny_unknown_fields)]
 struct Journal {
     rollback: RollbackPlan,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+struct PurgeReceipt {
+    purged: Vec<PathBuf>,
+    retained: Vec<PathBuf>,
+    ownership_proof: String,
 }
 
 pub struct SetupRegistry<S: SetupStore> {
@@ -469,11 +523,7 @@ impl<S: SetupStore> SetupRegistry<S> {
         let clients = self.detect(&request.selector, &request.client_evidence)?;
         if matches!(
             request.action,
-            SetupAction::Apply
-                | SetupAction::Repair
-                | SetupAction::Disable
-                | SetupAction::Remove
-                | SetupAction::Purge
+            SetupAction::Apply | SetupAction::Repair | SetupAction::Disable | SetupAction::Remove
         ) && clients.is_empty()
         {
             return Err(err(
@@ -536,20 +586,14 @@ impl<S: SetupStore> SetupRegistry<S> {
             snapshot,
             release: self.release.clone(),
         };
-        let plan_material = serde_json::to_vec(&(
-            request.clone(),
-            clients.clone(),
-            mutations.clone(),
-            rollback.clone(),
-        ))
-        .map_err(|_| {
-            err(
-                SetupErrorCode::StateSerializationFailed,
-                "cannot create setup plan",
-            )
-        })?;
-        let plan_digest = digest_bytes(&plan_material);
         let external_qualification = external_qualification(&clients);
+        let plan_digest = compute_plan_digest(
+            &request,
+            &clients,
+            &mutations,
+            &rollback,
+            &external_qualification,
+        )?;
         Ok(SetupPreview {
             plan_id: format!("setup-{plan_digest}"),
             plan_digest,
@@ -566,6 +610,21 @@ impl<S: SetupStore> SetupRegistry<S> {
         preview: SetupPreview,
         confirmation: PlanConfirmation,
     ) -> Result<ConfirmedSetup, SetupError> {
+        let expected_digest = compute_plan_digest(
+            &preview.request,
+            &preview.clients,
+            &preview.mutations,
+            &preview.rollback,
+            &preview.external_qualification,
+        )?;
+        if preview.plan_digest != expected_digest
+            || preview.plan_id != format!("setup-{expected_digest}")
+        {
+            return Err(err(
+                SetupErrorCode::PlanStale,
+                "setup plan contents no longer match its recorded identity",
+            ));
+        }
         if preview.plan_id != confirmation.plan_id
             || preview.plan_digest != confirmation.plan_digest
         {
@@ -592,34 +651,58 @@ impl<S: SetupStore> SetupRegistry<S> {
     }
     pub fn execute(&mut self, confirmed: ConfirmedSetup) -> Result<SetupExecution, SetupError> {
         let confirmed = self.confirm(confirmed.preview, confirmed.confirmation)?;
-        let state = self.store.load_state()?;
-        if state
-            .as_ref()
-            .map(|s| &s.migration_generation)
-            .unwrap_or(&"0".into())
-            != &confirmed.preview.rollback.generation
-        {
+        validate_release(&confirmed.preview.request.release)?;
+        same_root(
+            self.store.platform_state_root(),
+            &confirmed.preview.request.platform_state_root,
+        )?;
+        if confirmed.preview.request.release != self.release {
             return Err(err(
-                SetupErrorCode::PlanStale,
-                "setup state changed after preview",
+                SetupErrorCode::ReleaseBindingMismatch,
+                "setup request release differs from verified native release",
             ));
         }
         let lock = self.store.acquire_exclusive_lock()?;
         let prior_clients = self.clients.clone();
-        let result = match self.execute_locked(&confirmed.preview) {
+        let mut started = false;
+        let operation = match self.store.load_state() {
+            Ok(state)
+                if state
+                    .as_ref()
+                    .map(|s| &s.migration_generation)
+                    .unwrap_or(&"0".into())
+                    != &confirmed.preview.rollback.generation =>
+            {
+                Err(err(
+                    SetupErrorCode::PlanStale,
+                    "setup state changed after preview",
+                ))
+            }
+            Ok(_) => {
+                started = true;
+                self.execute_locked(&confirmed.preview)
+            }
+            Err(error) => Err(error),
+        };
+        let result = match operation {
             Ok(value) => Ok(value),
-            Err(operation_error) if journal_path(self.store.platform_state_root()).exists() => {
+            Err(operation_error)
+                if started && journal_path(self.store.platform_state_root()).exists() =>
+            {
                 self.clients = prior_clients;
                 match self
                     .store
                     .restore(&confirmed.preview.rollback)
                     .and_then(|_| save_clients(self.store.platform_state_root(), &self.clients))
                 {
-                    Ok(()) => {
-                        fs::remove_file(journal_path(self.store.platform_state_root()))
-                            .map_err(io)?;
-                        Err(operation_error)
-                    }
+                    Ok(()) => match fs::remove_file(journal_path(self.store.platform_state_root()))
+                    {
+                        Ok(()) => Err(operation_error),
+                        Err(_) => Err(err(
+                            SetupErrorCode::RollbackFailed,
+                            "setup failure journal could not be cleared after rollback",
+                        )),
+                    },
                     Err(_) => Err(err(
                         SetupErrorCode::RollbackFailed,
                         "setup failure could not be compensated from the verified snapshot",
@@ -629,7 +712,15 @@ impl<S: SetupStore> SetupRegistry<S> {
             Err(operation_error) => Err(operation_error),
         };
         let unlock = self.store.release_exclusive_lock(lock);
-        result.and_then(|value| unlock.map(|_| value))
+        match (result, unlock) {
+            (Ok(value), Ok(())) => Ok(value),
+            (Err(error), Ok(())) => Err(error),
+            (Ok(_), Err(error)) => Err(error),
+            (Err(_), Err(_)) => Err(err(
+                SetupErrorCode::RollbackFailed,
+                "setup failed and lifecycle lock could not be released",
+            )),
+        }
     }
     pub fn rollback(&mut self, rollback: RollbackPlan) -> Result<SetupExecution, SetupError> {
         if active_leases(self.store.platform_state_root())? {
@@ -660,6 +751,9 @@ impl<S: SetupStore> SetupRegistry<S> {
             clients: self.status(&ClientSelector::AllSupported)?,
             remediation: Vec::new(),
             external_qualification: external_qualification(&[]),
+            purged: Vec::new(),
+            retained: Vec::new(),
+            ownership_proof: None,
         })
     }
     pub fn acquire_runtime_lease(
@@ -770,12 +864,14 @@ impl<S: SetupStore> SetupRegistry<S> {
             };
             self.clients.insert(status.client_id.clone(), status);
         }
-        if matches!(preview.request.action, SetupAction::Purge) {
-            verified_purge(self.store.platform_state_root())?;
+        let purge_receipt = if matches!(preview.request.action, SetupAction::Purge) {
+            let receipt = verified_purge(self.store.platform_state_root())?;
             self.clients.clear();
+            Some(receipt)
         } else {
             save_clients(self.store.platform_state_root(), &self.clients)?;
-        }
+            None
+        };
         let journal = journal_path(self.store.platform_state_root());
         if journal.exists() {
             fs::remove_file(journal).map_err(io)?;
@@ -786,6 +882,15 @@ impl<S: SetupStore> SetupRegistry<S> {
             clients: self.status(&preview.request.selector)?,
             remediation: Vec::new(),
             external_qualification: preview.external_qualification.clone(),
+            purged: purge_receipt
+                .as_ref()
+                .map(|receipt| receipt.purged.clone())
+                .unwrap_or_default(),
+            retained: purge_receipt
+                .as_ref()
+                .map(|receipt| receipt.retained.clone())
+                .unwrap_or_default(),
+            ownership_proof: purge_receipt.map(|receipt| receipt.ownership_proof),
         })
     }
 }
@@ -919,6 +1024,28 @@ fn external_qualification(clients: &[DetectedClient]) -> ExternalQualification {
         status: ExternalQualificationStatus::ExternalQualificationBlocked,
         missing_evidence: missing,
     }
+}
+fn compute_plan_digest(
+    request: &SetupRequest,
+    clients: &[DetectedClient],
+    mutations: &[PlannedMutation],
+    rollback: &RollbackPlan,
+    external_qualification: &ExternalQualification,
+) -> Result<String, SetupError> {
+    let plan_material = serde_json::to_vec(&(
+        request,
+        clients,
+        mutations,
+        rollback,
+        external_qualification,
+    ))
+    .map_err(|_| {
+        err(
+            SetupErrorCode::StateSerializationFailed,
+            "cannot create setup plan",
+        )
+    })?;
+    Ok(digest_bytes(&plan_material))
 }
 fn next_generation(generation: &str) -> String {
     generation
@@ -1069,6 +1196,7 @@ fn clients_path(root: &Path) -> PathBuf {
 }
 fn load_clients(root: &Path) -> Result<BTreeMap<String, ClientStatus>, SetupError> {
     let path = clients_path(root);
+    require_contained(root, &path)?;
     if !path.exists() {
         return Ok(BTreeMap::new());
     }
@@ -1097,13 +1225,34 @@ fn active_leases(root: &Path) -> Result<bool, SetupError> {
         .map_err(io)?
         .is_some())
 }
-fn verified_purge(root: &Path) -> Result<(), SetupError> {
-    if read(&root.join(".legion-owned"))? != OWNER_MARKER.as_bytes() {
+fn verified_purge(root: &Path) -> Result<PurgeReceipt, SetupError> {
+    let marker = root.join(".legion-owned");
+    let marker_metadata = match fs::symlink_metadata(&marker) {
+        Ok(metadata) => metadata,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+            return Err(err(
+                SetupErrorCode::PurgeOwnershipUnproven,
+                "state ownership marker is missing",
+            ));
+        }
+        Err(error) => return Err(io(error)),
+    };
+    if marker_metadata.file_type().is_symlink() {
+        return Err(err(
+            SetupErrorCode::PathEscapeRefused,
+            "state ownership marker is a symlink",
+        ));
+    }
+    let marker_bytes = read(&marker)?;
+    if marker_bytes != OWNER_MARKER.as_bytes() {
         return Err(err(
             SetupErrorCode::PurgeOwnershipUnproven,
             "state root ownership is not proven",
         ));
     }
+    validate_owned_tree(root)?;
+    let mut purged = Vec::new();
+    let mut retained = Vec::new();
     for entry in fs::read_dir(root).map_err(io)? {
         let entry = entry.map_err(io)?;
         let name = entry.file_name();
@@ -1133,13 +1282,47 @@ fn verified_purge(root: &Path) -> Result<(), SetupError> {
                 "purge refuses symlinked state entries",
             ));
         }
-        if name != ".legion-owned" && name != "locks" {
-            let path = entry.path();
-            if path.is_dir() {
-                fs::remove_dir_all(path).map_err(io)?;
-            } else {
-                fs::remove_file(path).map_err(io)?;
-            }
+        let path = entry.path();
+        if name == ".legion-owned" || name == "locks" {
+            retained.push(path);
+        } else {
+            purged.push(path);
+        }
+    }
+    purged.sort();
+    retained.sort();
+    for path in &purged {
+        if path.is_dir() {
+            fs::remove_dir_all(path).map_err(io)?;
+        } else {
+            fs::remove_file(path).map_err(io)?;
+        }
+    }
+    Ok(PurgeReceipt {
+        purged,
+        retained,
+        ownership_proof: format!(
+            "marker:{}:{}",
+            marker.display(),
+            digest_bytes(&marker_bytes)
+        ),
+    })
+}
+
+fn validate_owned_tree(root: &Path) -> Result<(), SetupError> {
+    for entry in fs::read_dir(root).map_err(io)? {
+        let entry = entry.map_err(io)?;
+        let path = entry.path();
+        let metadata = fs::symlink_metadata(&path).map_err(io)?;
+        if metadata.file_type().is_symlink() {
+            return Err(err(
+                SetupErrorCode::PathEscapeRefused,
+                "purge refuses symlinked state entries",
+            ));
+        }
+        require_contained(root, &path)?;
+        if metadata.is_dir() {
+            validate_owned_tree(&path)?;
         }
     }
     Ok(())
@@ -1152,7 +1335,7 @@ mod tests {
     struct TestRoot(PathBuf);
     impl TestRoot {
         fn new(label: &str) -> Self {
-            Self(PathBuf::from("/tmp").join(format!("legion-host-{label}-{}", nonce())))
+            Self(std::env::temp_dir().join(format!("legion-host-{label}-{}", nonce())))
         }
     }
     impl Drop for TestRoot {
@@ -1281,6 +1464,45 @@ mod tests {
             before_clients
         );
         assert_eq!(registry.recover().unwrap().recovered_generation, None);
+    }
+
+    #[test]
+    fn verified_purge_returns_deleted_and_preserved_roots() {
+        let root = TestRoot::new("purge-receipt");
+        let mut registry = SetupRegistry::open_on_disk(release(), root.0.clone()).unwrap();
+        let canonical_root = fs::canonicalize(&root.0).unwrap();
+        let preview = registry
+            .preview(request(root.0.clone(), SetupAction::Purge))
+            .unwrap();
+        let result = registry
+            .execute(
+                registry
+                    .confirm(
+                        preview.clone(),
+                        PlanConfirmation {
+                            plan_id: preview.plan_id.clone(),
+                            plan_digest: preview.plan_digest.clone(),
+                        },
+                    )
+                    .unwrap(),
+            )
+            .unwrap();
+        assert!(result
+            .purged
+            .iter()
+            .any(|path| path == &canonical_root.join("snapshots")));
+        assert!(result
+            .retained
+            .iter()
+            .any(|path| path == &canonical_root.join(".legion-owned")));
+        assert!(result
+            .retained
+            .iter()
+            .any(|path| path == &canonical_root.join("locks")));
+        assert!(result
+            .ownership_proof
+            .as_deref()
+            .is_some_and(|proof| proof.starts_with("marker:")));
     }
 
     #[cfg(unix)]

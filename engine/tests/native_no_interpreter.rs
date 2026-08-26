@@ -48,6 +48,19 @@ fn process_launch_surface_is_singleton() {
 }
 
 #[test]
+fn external_effect_boundary_owns_process_launch_and_interpreter_rejection() {
+    let launcher = include_str!("../crates/legion-effects/src/unix.rs");
+    assert!(launcher.contains("Command::new"));
+    let request_validation = include_str!("../crates/legion-effects/src/request.rs");
+    for runtime in FORBIDDEN_RUNTIME_NAMES {
+        assert!(
+            request_validation.contains(&format!("\"{runtime}\"")),
+            "effect requests must reject interpreter name {runtime}"
+        );
+    }
+}
+
+#[test]
 fn production_source_does_not_reenter_interpreters() {
     let engine = Path::new(env!("CARGO_MANIFEST_DIR"))
         .ancestors()
@@ -56,19 +69,44 @@ fn production_source_does_not_reenter_interpreters() {
     let mut violations = Vec::new();
     for root in [engine.join("crates"), engine.join("bins")] {
         scan_rust_sources(&root, &mut |path, source| {
-            for runtime in FORBIDDEN_RUNTIME_NAMES {
-                for quote in ['"', '\''] {
-                    let marker = format!("Command::new({quote}{runtime}{quote}");
-                    if source.contains(&marker) {
-                        violations.push(format!("{} launches {runtime}", path.display()));
-                    }
-                }
+            if let Some(runtime) = forbidden_interpreter_launch(source) {
+                violations.push(format!("{} launches {runtime}", path.display()));
             }
         });
     }
     assert!(
         violations.is_empty(),
         "native production source reenters an interpreter: {violations:?}"
+    );
+}
+
+fn forbidden_interpreter_launch(source: &str) -> Option<&'static str> {
+    // Keep this deliberately source-based: native qualification must detect a
+    // re-entry route without running a product or trusting developer PATH.
+    let compact = source
+        .chars()
+        .filter(|character| !character.is_whitespace())
+        .collect::<String>();
+    for runtime in FORBIDDEN_RUNTIME_NAMES {
+        for quote in ['"', '\''] {
+            let marker = format!("Command::new({quote}{runtime}{quote}");
+            if compact.contains(&marker) {
+                return Some(runtime);
+            }
+        }
+    }
+    None
+}
+
+#[test]
+fn interpreter_launch_detector_covers_literal_binary_forms() {
+    assert_eq!(
+        forbidden_interpreter_launch(r#"std::process::Command::new("python3")"#),
+        Some("python3")
+    );
+    assert_eq!(
+        forbidden_interpreter_launch(r#"Command::new( 'node' )"#),
+        Some("node")
     );
 }
 

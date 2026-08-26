@@ -1,6 +1,6 @@
-use std::{collections::BTreeMap, process::Command};
+use std::{collections::BTreeMap, process::Command, sync::Arc};
 
-use legion_audit::{InventoryEntry, InventoryEnvelope};
+use legion_audit::{FileBlueprintInventorySource, InventoryEntry, InventoryEnvelope};
 use legion_contracts::{Coverage, ProviderId, ProviderResult, ProviderSpec, ProviderStatus};
 
 #[test]
@@ -12,18 +12,32 @@ fn configured_audit_writes_reconciled_json_and_sarif() {
     ));
     std::fs::create_dir_all(root.join("src")).unwrap();
     std::fs::write(root.join("src/lib.rs"), "pub fn fixture() {}\n").unwrap();
+    std::fs::create_dir_all(root.join("docs")).unwrap();
+    std::fs::write(root.join("docs/readme.md"), "fixture\n").unwrap();
     let root = std::fs::canonicalize(root).unwrap();
     let repository_id = root.to_string_lossy().into_owned();
     let provider_id = ProviderId::new("fixture-provider").unwrap();
     let inventory = InventoryEnvelope::new(
         &repository_id,
         "fixture-generation",
-        vec![InventoryEntry {
-            path: "src/lib.rs".into(),
-            symbols: Vec::new(),
-            dependencies: Vec::new(),
-            digest: None,
-        }],
+        vec![
+            InventoryEntry {
+                path: "docs/readme.md".into(),
+                symbols: Vec::new(),
+                dependencies: Vec::new(),
+                package_scripts: Vec::new(),
+                source_file: true,
+                digest: None,
+            },
+            InventoryEntry {
+                path: "src/lib.rs".into(),
+                symbols: Vec::new(),
+                dependencies: Vec::new(),
+                package_scripts: Vec::new(),
+                source_file: true,
+                digest: None,
+            },
+        ],
     )
     .unwrap();
     let result = ProviderResult {
@@ -35,8 +49,8 @@ fn configured_audit_writes_reconciled_json_and_sarif() {
         complete: true,
         coverage: Some(Coverage {
             denominator_digest: inventory.digest.clone(),
-            expected: 1,
-            examined: 1,
+            expected: inventory.entries.len() as u64,
+            examined: inventory.entries.len() as u64,
             gaps: Vec::new(),
         }),
         findings: Vec::new(),
@@ -78,10 +92,10 @@ fn configured_audit_writes_reconciled_json_and_sarif() {
         "generationId": "fixture-generation",
         "manifestDigest": format!("sha256:{}", "1".repeat(64)),
         "sourceObservation": {"kind": "fixture"},
-        "files": ["src/lib.rs"],
-        "fileCount": 1,
-        "sourceFileCount": 1,
-        "parsedExtensions": ["rs"],
+        "files": ["docs/readme.md", "src/lib.rs"],
+        "fileCount": 2,
+        "sourceFileCount": 2,
+        "parsedExtensions": ["md", "rs"],
         "unsupportedExtensions": [],
         "overlay": {"state": "ready", "dirtyTracked": 0, "untracked": 0}
     });
@@ -90,6 +104,28 @@ fn configured_audit_writes_reconciled_json_and_sarif() {
         serde_json::to_vec_pretty(&packet).unwrap(),
     )
     .unwrap();
+    let invalid_result = {
+        let mut invalid = result.clone();
+        invalid.coverage.as_mut().unwrap().denominator_digest =
+            format!("sha256:{}", "0".repeat(64));
+        invalid
+    };
+    let source = Arc::new(
+        FileBlueprintInventorySource::new(
+            root.join("blueprint-packet.json"),
+            Some("fixture-generation".into()),
+        )
+        .unwrap(),
+    );
+    assert!(
+        legion_application::NativeApplicationConfig::for_audit_artifacts(
+            repository_id.clone(),
+            source,
+            vec![specification.clone()],
+            vec![invalid_result],
+        )
+        .is_err()
+    );
     let plan_path = root.join("provider-plan.json");
     std::fs::write(
         &plan_path,
