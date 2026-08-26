@@ -19,7 +19,9 @@ pub use server::{
     run_stdio, BindingFailure, RejectingBindingGate, ReleaseBindingGate, Server,
     VerifiedReleaseBinding,
 };
-pub use tools::{EngineAdapter, NativeApi, NativeApplicationEngine, NativeEngine, ToolService};
+pub use tools::{
+    EngineAdapter, NativeApi, NativeApplicationEngine, NativeEngine, NativeFuture, ToolService,
+};
 
 /// Start the MCP transport over one already-composed native application.
 ///
@@ -34,5 +36,21 @@ where
     G: ReleaseBindingGate + 'static,
 {
     let engine = Arc::new(NativeApplicationEngine::new(application));
+    run_stdio(Arc::new(EngineAdapter::new(engine)), binding_gate).await
+}
+
+/// Start MCP with one explicitly bound repository identity for installed use.
+pub async fn run_with_repository_application<G>(
+    application: Arc<NativeApplication>,
+    repository_id: impl Into<String>,
+    binding_gate: Arc<G>,
+) -> std::io::Result<()>
+where
+    G: ReleaseBindingGate + 'static,
+{
+    let engine = Arc::new(NativeApplicationEngine::for_repository(
+        application,
+        repository_id,
+    ));
     run_stdio(Arc::new(EngineAdapter::new(engine)), binding_gate).await
 }

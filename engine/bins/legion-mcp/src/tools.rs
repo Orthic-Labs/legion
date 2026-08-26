@@ -1,4 +1,4 @@
-use std::{path::Path, sync::Arc};
+use std::{future::Future, pin::Pin, sync::Arc};
 
 use legion_application::{
     NativeApplication, NativeApplicationError, NativeOperation, NativeOperationResult, ReportFormat,
@@ -10,6 +10,7 @@ use crate::error::McpError;
 
 pub const PROTOCOL_VERSION: &str = "2024-11-05";
 const MAX_OUTPUT_BYTES: usize = 1_000_000;
+pub type NativeFuture<'a> = Pin<Box<dyn Future<Output = Result<Value, RuntimeError>> + Send + 'a>>;
 
 /// The MCP adapter delegates semantics to this canonical API. It does not own policy,
 /// provider selection, filesystem inspection, or report generation.
@@ -26,6 +27,10 @@ pub trait NativeApi: Send + Sync {
     }
 
     fn invoke(&self, operation: &str, arguments: &Value) -> Result<Value, RuntimeError>;
+
+    fn invoke_async<'a>(&'a self, operation: &'a str, arguments: &'a Value) -> NativeFuture<'a> {
+        Box::pin(async move { self.invoke(operation, arguments) })
+    }
 }
 
 /// Concrete seam used by the binary to bind the protocol to the canonical
@@ -36,6 +41,14 @@ pub trait NativeEngine: Send + Sync {
     fn validate_tool_scope(&self, operation: &str, arguments: &Value) -> Result<(), McpError>;
 
     fn execute_tool(&self, operation: &str, arguments: &Value) -> Result<Value, RuntimeError>;
+
+    fn execute_tool_async<'a>(
+        &'a self,
+        operation: &'a str,
+        arguments: &'a Value,
+    ) -> NativeFuture<'a> {
+        Box::pin(async move { self.execute_tool(operation, arguments) })
+    }
 }
 
 pub struct EngineAdapter {
@@ -60,6 +73,10 @@ impl NativeApi for EngineAdapter {
     fn invoke(&self, operation: &str, arguments: &Value) -> Result<Value, RuntimeError> {
         self.engine.execute_tool(operation, arguments)
     }
+
+    fn invoke_async<'a>(&'a self, operation: &'a str, arguments: &'a Value) -> NativeFuture<'a> {
+        self.engine.execute_tool_async(operation, arguments)
+    }
 }
 
 /// MCP-to-application forwarding adapter. It owns no policy, provider, or
@@ -67,11 +84,25 @@ impl NativeApi for EngineAdapter {
 /// request handled by this process.
 pub struct NativeApplicationEngine {
     application: Arc<NativeApplication>,
+    repository_id: Option<String>,
 }
 
 impl NativeApplicationEngine {
     pub fn new(application: Arc<NativeApplication>) -> Self {
-        Self { application }
+        Self {
+            application,
+            repository_id: None,
+        }
+    }
+
+    pub fn for_repository(
+        application: Arc<NativeApplication>,
+        repository_id: impl Into<String>,
+    ) -> Self {
+        Self {
+            application,
+            repository_id: Some(repository_id.into()),
+        }
     }
 }
 
@@ -85,80 +116,84 @@ impl NativeEngine for NativeApplicationEngine {
     }
 
     fn execute_tool(&self, operation: &str, arguments: &Value) -> Result<Value, RuntimeError> {
+        let _ = (operation, arguments);
+        Err(RuntimeError::Policy(NATIVE_ASYNC_ONLY_ERROR.into()))
+    }
+
+    fn execute_tool_async<'a>(
+        &'a self,
+        operation: &'a str,
+        _arguments: &'a Value,
+    ) -> NativeFuture<'a> {
+        let application = Arc::clone(&self.application);
         let native_operation = match operation {
             "legion_list_providers"
             | "legion_list_languages"
             | "legion_list_families"
             | "legion_list_skills" => NativeOperation::Catalog,
-            "legion_get_run" | "legion_get_finding" | "legion_explain" => {
-                NativeOperation::Report(ReportFormat::Json)
-            }
-            "legion_doctor" => NativeOperation::Doctor {
-                repository_id: required_root(arguments)?,
-            },
-            "legion_plan" => NativeOperation::Plan {
-                repository_id: required_root(arguments)?,
-                providers: self.application.provider_specs(),
-                signing_key: Some(audit_signing_key()?),
-            },
-            "legion_audit" => NativeOperation::Audit {
-                repository_id: required_root(arguments)?,
-                providers: self.application.provider_specs(),
-                signing_key: Some(audit_signing_key()?),
-            },
-            "legion_verify" => NativeOperation::Verify {
-                repository_id: required_root(arguments)?,
-                providers: self.application.provider_specs(),
-                signing_key: Some(audit_signing_key()?),
-            },
             _ => {
-                return Err(RuntimeError::Policy(
-                    "unsupported native MCP operation".into(),
-                ))
+                let Some(repository_id) = self.repository_id.clone() else {
+                    return Box::pin(async {
+                        Err(RuntimeError::Policy(NATIVE_ASYNC_ONLY_ERROR.into()))
+                    });
+                };
+                match operation {
+                    "legion_get_run" | "legion_get_finding" | "legion_explain" => {
+                        NativeOperation::Report(ReportFormat::Json)
+                    }
+                    "legion_doctor" => NativeOperation::Doctor { repository_id },
+                    "legion_plan" => NativeOperation::Plan {
+                        repository_id: repository_id.clone(),
+                        providers: application.provider_specs(),
+                        signing_key: match audit_signing_key() {
+                            Ok(key) => Some(key),
+                            Err(error) => return Box::pin(async { Err(error) }),
+                        },
+                    },
+                    "legion_audit" => NativeOperation::Audit {
+                        repository_id: repository_id.clone(),
+                        providers: application.provider_specs(),
+                        signing_key: match audit_signing_key() {
+                            Ok(key) => Some(key),
+                            Err(error) => return Box::pin(async { Err(error) }),
+                        },
+                    },
+                    "legion_verify" => NativeOperation::Verify {
+                        repository_id,
+                        providers: application.provider_specs(),
+                        signing_key: match audit_signing_key() {
+                            Ok(key) => Some(key),
+                            Err(error) => return Box::pin(async { Err(error) }),
+                        },
+                    },
+                    _ => {
+                        return Box::pin(async {
+                            Err(RuntimeError::Policy(
+                                "unsupported native MCP operation".into(),
+                            ))
+                        })
+                    }
+                }
             }
         };
-        let result = invoke_application(Arc::clone(&self.application), native_operation)?;
-        operation_result(operation, arguments, result)
+        Box::pin(async move {
+            let result = application
+                .invoke(native_operation)
+                .await
+                .map_err(application_error)?;
+            operation_result(operation, result)
+        })
     }
 }
 
-fn invoke_application(
-    application: Arc<NativeApplication>,
-    operation: NativeOperation,
-) -> Result<NativeOperationResult, RuntimeError> {
-    std::thread::spawn(move || {
-        let runtime = tokio::runtime::Builder::new_current_thread()
-            .enable_all()
-            .build()
-            .map_err(|error| {
-                RuntimeError::Policy(format!("native application runtime unavailable: {error}"))
-            })?;
-        runtime
-            .block_on(application.invoke(operation))
-            .map_err(application_error)
-    })
-    .join()
-    .map_err(|_| RuntimeError::Policy("native application invocation panicked".into()))?
-}
+const NATIVE_ASYNC_ONLY_ERROR: &str =
+    "native MCP application requires repository-bound asynchronous invocation";
 
 fn application_error(error: NativeApplicationError) -> RuntimeError {
     RuntimeError::Policy(format!("native application operation failed: {error}"))
 }
 
-fn required_root(arguments: &Value) -> Result<String, RuntimeError> {
-    arguments
-        .get("root")
-        .and_then(Value::as_str)
-        .filter(|root| !root.trim().is_empty())
-        .map(ToOwned::to_owned)
-        .ok_or_else(|| RuntimeError::InvalidTask("root is required".into()))
-}
-
-fn operation_result(
-    operation: &str,
-    arguments: &Value,
-    result: NativeOperationResult,
-) -> Result<Value, RuntimeError> {
+fn operation_result(operation: &str, result: NativeOperationResult) -> Result<Value, RuntimeError> {
     match result {
         NativeOperationResult::Catalog(catalog) => {
             let entries = catalog
@@ -176,7 +211,7 @@ fn operation_result(
             catalog_entries,
             provider_count,
         } => Ok(
-            json!({"operation": operation, "root": repository_id, "status": "complete", "inventoryDigest": inventory_digest, "catalogEntries": catalog_entries, "providerCount": provider_count}),
+            json!({"operation": operation, "repositoryId": repository_id, "status": "complete", "inventoryDigest": inventory_digest, "catalogEntries": catalog_entries, "providerCount": provider_count}),
         ),
         NativeOperationResult::Plan {
             repository_id,
@@ -184,11 +219,10 @@ fn operation_result(
             plan_signature,
             providers,
         } => Ok(
-            json!({"operation": operation, "root": repository_id, "status": "complete", "planDigest": plan_digest, "planSignature": plan_signature, "providers": providers}),
+            json!({"operation": operation, "repositoryId": repository_id, "status": "complete", "planDigest": plan_digest, "planSignature": plan_signature, "providers": providers}),
         ),
         NativeOperationResult::Audit(report) => Ok(json!({
             "operation": operation,
-            "root": arguments.get("root"),
             "status": if report.gaps.is_empty() { "complete" } else { "partial" },
             "planDigest": report.plan_digest,
             "planSignature": report.plan_signature,
@@ -202,11 +236,10 @@ fn operation_result(
             plan_digest,
             inventory_digest,
         } => Ok(
-            json!({"operation": operation, "root": repository_id, "status": "complete", "planDigest": plan_digest, "inventoryDigest": inventory_digest}),
+            json!({"operation": operation, "repositoryId": repository_id, "status": "complete", "planDigest": plan_digest, "inventoryDigest": inventory_digest}),
         ),
         NativeOperationResult::Invocation(outcome) => Ok(json!({
             "operation": operation,
-            "root": arguments.get("root"),
             "status": if outcome.adjudication.complete { "complete" } else { "partial" },
             "gaps": outcome.adjudication.gaps,
         })),
@@ -238,46 +271,57 @@ impl<A: NativeApi> ToolService<A> {
         &self.definitions
     }
 
-    pub fn call(&self, name: &str, arguments: &Value) -> Value {
-        match dispatch(self.api.as_ref(), &self.definitions, name, arguments) {
+    pub async fn call(&self, name: &str, arguments: &Value) -> Value {
+        match dispatch(self.api.as_ref(), &self.definitions, name, arguments).await {
             Ok(value) => json!({
                 "content": [{"type": "text", "text": value.to_string()}],
-                "structuredContent": value,
+                "structuredContent": success_envelope(value),
                 "isError": false
             }),
             Err(error) => json!({
-                "content": [{"type": "text", "text": error.message()}],
-                "isError": true
+                "content": [{"type": "text", "text": error.tool_message()}],
+                "structuredContent": failure_envelope(&error),
+                "isError": true,
             }),
         }
     }
 }
 
 fn legacy_tool_definitions() -> Vec<Value> {
-    let root = |mut properties: Map<String, Value>| {
-        properties.insert("root".into(), json!({"type":"string","minLength":1}));
-        json!({"type":"object","required":["root"],"additionalProperties":false,"properties":properties})
-    };
     let closed = |properties: Map<String, Value>, required: &[&str]| json!({"type":"object","required":required,"additionalProperties":false,"properties":properties});
+    let output_schema = output_schema();
+    let tool = |name: &str, description: &str, input_schema: Value| json!({"name":name,"description":description,"inputSchema":input_schema,"outputSchema":output_schema,"annotations":{"readOnlyHint":true,"destructiveHint":false,"idempotentHint":true}});
     vec![
-        json!({"name":"legion_doctor","description":"Run legion doctor on a repository.","inputSchema":root(Map::new())}),
-        json!({"name":"legion_plan","description":"Build and seal an audit plan.","inputSchema":root(properties([("profile", json!({"type":"string","enum":["fast","standard","full","release"]}))]))}),
-        json!({"name":"legion_audit","description":"Run a complete audit.","inputSchema":root(properties([("profile", json!({"type":"string","enum":["fast","standard","full","release"]}))]))}),
-        json!({"name":"legion_verify","description":"Verify a prior run out of band.","inputSchema":root(properties([("priorRun", json!({}))]))}),
-        json!({"name":"legion_get_run","description":"Read a run artifact.","inputSchema":closed(properties([
+        tool("legion_doctor","Use this when checking native repository configuration. Do not use for running an audit.",closed(Map::new(), &[])),
+        tool("legion_plan","Use this when creating an audit plan. Do not use for executing an audit.",closed(properties([("profile", json!({"type":"string","enum":["fast","standard","full","release"]}))]), &[])),
+        tool("legion_audit","Use this when running a complete audit. Do not use for planning only.",closed(properties([("profile", json!({"type":"string","enum":["fast","standard","full","release"]}))]), &[])),
+        tool("legion_verify","Use this when verifying an audit binding. Do not use for running providers.",closed(properties([("priorRun", json!({}))]), &[])),
+        tool("legion_get_run","Use this when reading a run artifact. Do not use for creating runs.",closed(properties([
             ("run", json!({"type":"string","minLength":1})), ("artifact", json!({"type":"string"}))
-        ]), &["run"])}),
-        json!({"name":"legion_get_finding","description":"Read a finding from a run.","inputSchema":closed(properties([
+        ]), &["run"])),
+        tool("legion_get_finding","Use this when reading a finding from a run. Do not use for changing findings.",closed(properties([
             ("run", json!({"type":"string","minLength":1})), ("findingId", json!({"type":"string","minLength":1}))
-        ]), &["run","findingId"])}),
-        json!({"name":"legion_explain","description":"Explain a finding or gap.","inputSchema":closed(properties([
+        ]), &["run","findingId"])),
+        tool("legion_explain","Use this when explaining a finding or gap. Do not use for modifying audit state.",closed(properties([
             ("id", json!({"type":"string","minLength":1})), ("run", json!({"type":"string"}))
-        ]), &["id"])}),
-        json!({"name":"legion_list_providers","description":"List providers.","inputSchema":closed(Map::new(), &[])}),
-        json!({"name":"legion_list_languages","description":"List languages.","inputSchema":closed(Map::new(), &[])}),
-        json!({"name":"legion_list_families","description":"List audit families.","inputSchema":closed(Map::new(), &[])}),
-        json!({"name":"legion_list_skills","description":"List bundled skills.","inputSchema":closed(Map::new(), &[])}),
+        ]), &["id"])),
+        tool("legion_list_providers","Use this when listing providers. Do not use for executing providers.",closed(Map::new(), &[])),
+        tool("legion_list_languages","Use this when listing supported languages. Do not use for changing configuration.",closed(Map::new(), &[])),
+        tool("legion_list_families","Use this when listing audit families. Do not use for executing an audit.",closed(Map::new(), &[])),
+        tool("legion_list_skills","Use this when listing bundled skills. Do not use for loading arbitrary paths.",closed(Map::new(), &[])),
     ]
+}
+
+fn output_schema() -> Value {
+    json!({"type":"object","additionalProperties":false,"required":["status","data","error","truncated","continuationCursor"],"properties":{"status":{"type":"string","enum":["ok","error"]},"data":{},"error":{"oneOf":[{"type":"null"},{"type":"object","additionalProperties":false,"required":["code","retryable","remediation"],"properties":{"code":{"type":"string"},"retryable":{"type":"boolean"},"remediation":{"type":"string"}}}]},"truncated":{"type":"boolean"},"continuationCursor":{"type":"null"}}})
+}
+
+fn success_envelope(data: Value) -> Value {
+    json!({"status":"ok","data":data,"error":null,"truncated":false,"continuationCursor":null})
+}
+
+fn failure_envelope(error: &McpError) -> Value {
+    json!({"status":"error","data":null,"error":error.data(),"truncated":false,"continuationCursor":null})
 }
 
 fn properties(entries: impl IntoIterator<Item = (&'static str, Value)>) -> Map<String, Value> {
@@ -294,7 +338,7 @@ fn schema(definitions: &[Value], name: &str) -> Option<Value> {
         .and_then(|tool| tool.get("inputSchema").cloned())
 }
 
-fn dispatch<A: NativeApi>(
+async fn dispatch<A: NativeApi>(
     api: &A,
     definitions: &[Value],
     name: &str,
@@ -305,7 +349,10 @@ fn dispatch<A: NativeApi>(
     };
     validate_arguments(&input_schema, arguments)?;
     api.validate_tool_scope(name, arguments)?;
-    let result = api.invoke(name, arguments).map_err(McpError::from)?;
+    let result = api
+        .invoke_async(name, arguments)
+        .await
+        .map_err(McpError::from)?;
     if serde_json::to_vec(&result)
         .map_err(|_| McpError::Backend)?
         .len()
@@ -363,26 +410,12 @@ fn validate_arguments(schema: &Value, arguments: &Value) -> Result<(), McpError>
     Ok(())
 }
 
-fn validate_legacy_scope(name: &str, arguments: &Value) -> Result<(), McpError> {
+fn validate_legacy_scope(_name: &str, arguments: &Value) -> Result<(), McpError> {
     let Some(args) = arguments.as_object() else {
         return Err(McpError::InvalidParams);
     };
-    if [
-        "legion_doctor",
-        "legion_plan",
-        "legion_audit",
-        "legion_verify",
-    ]
-    .contains(&name)
-    {
-        let root = args
-            .get("root")
-            .and_then(Value::as_str)
-            .ok_or(McpError::ScopeDenied)?;
-        let path = Path::new(root);
-        if root == "." || root == ".." || root.contains('\0') || !path.is_absolute() {
-            return Err(McpError::ScopeDenied);
-        }
+    if args.contains_key("root") {
+        return Err(McpError::InvalidParams);
     }
     for field in ["run", "artifact", "findingId", "id"] {
         if let Some(value) = args.get(field).and_then(Value::as_str) {
@@ -392,4 +425,115 @@ fn validate_legacy_scope(name: &str, arguments: &Value) -> Result<(), McpError> 
         }
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use std::sync::Arc;
+
+    use super::{
+        legacy_tool_definitions, validate_legacy_scope, NativeApi, ToolService, MAX_OUTPUT_BYTES,
+    };
+    use crate::error::McpError;
+    use legion_runtime::RuntimeError;
+    use serde_json::{json, Value};
+
+    struct TestApi {
+        output: Value,
+    }
+
+    impl NativeApi for TestApi {
+        fn tool_definitions(&self) -> Vec<Value> {
+            vec![json!({
+                "name": "test",
+                "description": "Use this when testing. Do not use for production.",
+                "inputSchema": {"type":"object","required":[],"additionalProperties":false,"properties":{}}
+            })]
+        }
+
+        fn invoke(&self, _operation: &str, _arguments: &Value) -> Result<Value, RuntimeError> {
+            Ok(self.output.clone())
+        }
+    }
+
+    #[test]
+    fn legacy_contract_has_exact_closed_tools_and_common_output_schema() {
+        let definitions = legacy_tool_definitions();
+        let names = definitions
+            .iter()
+            .map(|tool| tool["name"].as_str().unwrap())
+            .collect::<Vec<_>>();
+        assert_eq!(
+            names,
+            vec![
+                "legion_doctor",
+                "legion_plan",
+                "legion_audit",
+                "legion_verify",
+                "legion_get_run",
+                "legion_get_finding",
+                "legion_explain",
+                "legion_list_providers",
+                "legion_list_languages",
+                "legion_list_families",
+                "legion_list_skills",
+            ]
+        );
+        let output = definitions[0]["outputSchema"].clone();
+        for tool in definitions {
+            assert!(!tool["description"].as_str().unwrap().is_empty());
+            assert!(tool["description"]
+                .as_str()
+                .unwrap()
+                .contains("Use this when"));
+            assert!(tool["description"].as_str().unwrap().contains("Do not use"));
+            assert_eq!(tool["inputSchema"]["additionalProperties"], false);
+            assert!(tool["inputSchema"].get("required").is_some());
+            assert_eq!(tool["outputSchema"], output);
+            assert_eq!(
+                tool["annotations"],
+                json!({"readOnlyHint":true,"destructiveHint":false,"idempotentHint":true})
+            );
+            assert!(tool["inputSchema"]["properties"].get("root").is_none());
+        }
+    }
+
+    #[tokio::test]
+    async fn async_call_returns_common_success_envelope() {
+        let service = ToolService::new(Arc::new(TestApi {
+            output: json!({"ok":true}),
+        }));
+        let result = service.call("test", &json!({})).await;
+        assert_eq!(result["isError"], false);
+        assert_eq!(result["structuredContent"]["status"], "ok");
+        assert_eq!(result["structuredContent"]["data"]["ok"], true);
+        assert_eq!(result["structuredContent"]["error"], Value::Null);
+        assert_eq!(
+            result["structuredContent"]["continuationCursor"],
+            Value::Null
+        );
+    }
+
+    #[tokio::test]
+    async fn output_limit_is_typed_and_public_text_is_generic() {
+        let service = ToolService::new(Arc::new(TestApi {
+            output: Value::String("x".repeat(MAX_OUTPUT_BYTES + 1)),
+        }));
+        let result = service.call("test", &json!({})).await;
+        assert_eq!(result["isError"], true);
+        assert_eq!(result["structuredContent"]["error"]["code"], "OUTPUT_LIMIT");
+        assert_eq!(result["structuredContent"]["status"], "error");
+        assert_eq!(
+            result["content"][0]["text"],
+            "tool output exceeded the configured limit"
+        );
+    }
+
+    #[test]
+    fn root_is_rejected_even_when_called_directly() {
+        assert_eq!(
+            validate_legacy_scope("legion_doctor", &json!({"root":"C:/x"})),
+            Err(McpError::InvalidParams)
+        );
+    }
 }

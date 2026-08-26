@@ -41,6 +41,63 @@ impl McpError {
             Self::OutputLimit => "tool output exceeds configured limit",
         }
     }
+
+    pub const fn public_code(&self) -> &'static str {
+        match self {
+            Self::Parse => "PARSE_ERROR",
+            Self::InvalidRequest => "INVALID_REQUEST",
+            Self::InvalidParams => "INVALID_PARAMS",
+            Self::MethodNotFound => "METHOD_NOT_FOUND",
+            Self::InitializationRequired => "INITIALIZATION_REQUIRED",
+            Self::ReleaseBinding(_) => "RELEASE_BINDING",
+            Self::ToolNotFound => "TOOL_NOT_FOUND",
+            Self::ScopeDenied => "SCOPE_DENIED",
+            Self::Backend => "BACKEND_UNAVAILABLE",
+            Self::OutputLimit => "OUTPUT_LIMIT",
+        }
+    }
+
+    pub const fn retryable(&self) -> bool {
+        matches!(self, Self::Backend | Self::ReleaseBinding(_))
+    }
+
+    pub fn remediation(&self) -> &str {
+        match self {
+            Self::ReleaseBinding(repair) => repair,
+            Self::Parse => "send valid JSON",
+            Self::InvalidRequest => "send a valid JSON-RPC 2.0 request",
+            Self::InvalidParams => "provide arguments matching the advertised tool schema",
+            Self::MethodNotFound => "use initialize, tools/list, or tools/call",
+            Self::InitializationRequired => "call initialize before using MCP tools",
+            Self::ToolNotFound => "use a tool advertised by tools/list",
+            Self::ScopeDenied => "provide valid arguments for the selected tool",
+            Self::Backend => "retry the request after checking native application health",
+            Self::OutputLimit => "reduce the requested output below one megabyte",
+        }
+    }
+
+    pub fn data(&self) -> serde_json::Value {
+        serde_json::json!({
+            "code": self.public_code(),
+            "retryable": self.retryable(),
+            "remediation": self.remediation(),
+        })
+    }
+
+    pub const fn tool_message(&self) -> &'static str {
+        match self {
+            Self::Parse => "tool request could not be parsed",
+            Self::InvalidRequest => "tool request was invalid",
+            Self::InvalidParams => "tool arguments were invalid",
+            Self::MethodNotFound => "MCP method was not found",
+            Self::InitializationRequired => "MCP initialization is required",
+            Self::ReleaseBinding(_) => "release binding failed",
+            Self::ToolNotFound => "tool was not found",
+            Self::ScopeDenied => "tool scope was denied",
+            Self::Backend => "native backend failed",
+            Self::OutputLimit => "tool output exceeded the configured limit",
+        }
+    }
 }
 
 impl fmt::Display for McpError {

@@ -109,7 +109,7 @@ impl<A: NativeApi> Server<A> {
         }
     }
 
-    pub fn handle(&self, request: Value) -> Option<Value> {
+    pub async fn handle(&self, request: Value) -> Option<Value> {
         let Some(object) = request.as_object() else {
             return Some(error_response(Value::Null, McpError::InvalidRequest));
         };
@@ -128,7 +128,7 @@ impl<A: NativeApi> Server<A> {
         let result = match method {
             "initialize" => self.initialize(),
             "tools/list" => self.list_tools(),
-            "tools/call" => self.call(object.get("params")),
+            "tools/call" => self.call(object.get("params")).await,
             _ => Err(McpError::MethodNotFound),
         };
         if notification {
@@ -173,7 +173,7 @@ impl<A: NativeApi> Server<A> {
         Ok(json!({"tools": self.tools.definitions()}))
     }
 
-    fn call(&self, params: Option<&Value>) -> Result<Value, McpError> {
+    async fn call(&self, params: Option<&Value>) -> Result<Value, McpError> {
         self.require_ready()?;
         let params = params
             .and_then(Value::as_object)
@@ -186,7 +186,7 @@ impl<A: NativeApi> Server<A> {
             .get("arguments")
             .cloned()
             .unwrap_or_else(|| json!({}));
-        Ok(self.tools.call(name, &arguments))
+        Ok(self.tools.call(name, &arguments).await)
     }
 
     fn require_ready(&self) -> Result<(), McpError> {
@@ -214,7 +214,7 @@ where
             continue;
         }
         let response = match serde_json::from_str::<Value>(&line) {
-            Ok(request) => server.handle(request),
+            Ok(request) => server.handle(request).await,
             Err(_) => Some(error_response(Value::Null, McpError::Parse)),
         };
         if let Some(response) = response {
@@ -236,7 +236,7 @@ fn success_response(id: Value, result: Value) -> Value {
 }
 
 fn error_response(id: Value, error: McpError) -> Value {
-    json!({"jsonrpc":"2.0","id":id,"error":{"code":error.code(),"message":error.message()}})
+    json!({"jsonrpc":"2.0","id":id,"error":{"code":error.code(),"message":error.message(),"data":error.data()}})
 }
 
 async fn write_response<W: AsyncWrite + Unpin>(
@@ -314,28 +314,37 @@ mod tests {
         json!({"jsonrpc":"2.0", "id":id, "method":method, "params":params})
     }
 
-    #[test]
-    fn gates_tools_until_binding_verifies_then_reuses_one_api() {
+    #[tokio::test]
+    async fn gates_tools_until_binding_verifies_then_reuses_one_api() {
         let api = Arc::new(CountingApi::default());
         let gate = Arc::new(PassingGate {
             checks: AtomicUsize::new(0),
         });
         let server = Server::new(Arc::clone(&api), Arc::clone(&gate));
 
-        let before_initialize = server.handle(request(1, "tools/list", json!({}))).unwrap();
+        let before_initialize = server
+            .handle(request(1, "tools/list", json!({})))
+            .await
+            .unwrap();
         assert_eq!(
             before_initialize["error"]["message"],
             "MCP initialization required"
         );
 
-        let initialized = server.handle(request(2, "initialize", json!({}))).unwrap();
+        let initialized = server
+            .handle(request(2, "initialize", json!({})))
+            .await
+            .unwrap();
         assert_eq!(
             initialized["result"]["releaseIdentity"]["releaseVersion"],
             "1.2.3"
         );
         assert_eq!(gate.checks.load(Ordering::SeqCst), 1);
 
-        let tools = server.handle(request(3, "tools/list", json!({}))).unwrap();
+        let tools = server
+            .handle(request(3, "tools/list", json!({})))
+            .await
+            .unwrap();
         assert!(tools["result"]["tools"]
             .as_array()
             .is_some_and(|tools| !tools.is_empty()));
@@ -345,6 +354,7 @@ mod tests {
                 "tools/call",
                 json!({"name":"m1_status", "arguments":{}}),
             ))
+            .await
             .unwrap();
         let second = server
             .handle(request(
@@ -352,15 +362,17 @@ mod tests {
                 "tools/call",
                 json!({"name":"m1_status", "arguments":{}}),
             ))
+            .await
             .unwrap();
         assert_eq!(first["result"]["isError"], false);
+        assert_eq!(first["result"]["structuredContent"]["status"], "ok");
         assert_eq!(second["result"]["isError"], false);
         assert_eq!(api.invocations.load(Ordering::SeqCst), 2);
         assert_eq!(gate.checks.load(Ordering::SeqCst), 1);
     }
 
-    #[test]
-    fn custom_definitions_are_advertised_and_called_without_legacy_tool_leaks() {
+    #[tokio::test]
+    async fn custom_definitions_are_advertised_and_called_without_legacy_tool_leaks() {
         let api = Arc::new(CountingApi::default());
         let server = Server::new(
             Arc::clone(&api),
@@ -371,8 +383,14 @@ mod tests {
             }),
         );
 
-        server.handle(request(1, "initialize", json!({}))).unwrap();
-        let listed = server.handle(request(2, "tools/list", json!({}))).unwrap();
+        server
+            .handle(request(1, "initialize", json!({})))
+            .await
+            .unwrap();
+        let listed = server
+            .handle(request(2, "tools/list", json!({})))
+            .await
+            .unwrap();
         assert_eq!(listed["result"]["tools"].as_array().unwrap().len(), 1);
         assert_eq!(listed["result"]["tools"][0]["name"], "m1_status");
         assert!(!listed.to_string().contains("legion_list_skills"));
@@ -383,6 +401,7 @@ mod tests {
                 "tools/call",
                 json!({"name":"legion_list_skills", "arguments":{}}),
             ))
+            .await
             .unwrap();
         assert_eq!(rejected["result"]["isError"], true);
         assert_eq!(api.invocations.load(Ordering::SeqCst), 0);
@@ -393,8 +412,13 @@ mod tests {
                 "tools/call",
                 json!({"name":"m1_status", "arguments":{"legacy":true}}),
             ))
+            .await
             .unwrap();
         assert_eq!(invalid_arguments["result"]["isError"], true);
+        assert_eq!(
+            invalid_arguments["result"]["structuredContent"]["error"]["code"],
+            "INVALID_PARAMS"
+        );
         assert_eq!(api.invocations.load(Ordering::SeqCst), 0);
 
         let called = server
@@ -403,24 +427,30 @@ mod tests {
                 "tools/call",
                 json!({"name":"m1_status", "arguments":{}}),
             ))
+            .await
             .unwrap();
         assert_eq!(called["result"]["isError"], false);
         assert_eq!(api.invocations.load(Ordering::SeqCst), 1);
     }
 
-    #[test]
-    fn binding_failure_never_advertises_or_invokes_tools_and_preserves_repair() {
+    #[tokio::test]
+    async fn binding_failure_never_advertises_or_invokes_tools_and_preserves_repair() {
         let api = Arc::new(CountingApi::default());
         let server = Server::new(api.clone(), Arc::new(FailingGate));
 
-        let initialize = server.handle(request(1, "initialize", json!({}))).unwrap();
+        let initialize = server
+            .handle(request(1, "initialize", json!({})))
+            .await
+            .unwrap();
         assert_eq!(initialize["error"]["message"], "legion setup --repair");
+        assert_eq!(initialize["error"]["data"]["code"], "RELEASE_BINDING");
+        assert!(initialize["error"]["data"].get("retryable").is_some());
 
         for request in [
             request(2, "tools/list", json!({})),
             request(3, "tools/call", json!({"name":"m1_status", "arguments":{}})),
         ] {
-            let response = server.handle(request).unwrap();
+            let response = server.handle(request).await.unwrap();
             assert_eq!(response["error"]["message"], "legion setup --repair");
             assert!(response.get("result").is_none());
         }
