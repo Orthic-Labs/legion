@@ -25,9 +25,11 @@ use windows_sys::Win32::{
     System::{
         Console::{GenerateConsoleCtrlEvent, CTRL_BREAK_EVENT},
         JobObjects::{
-            AssignProcessToJobObject, CreateJobObjectW, JobObjectExtendedLimitInformation,
-            SetInformationJobObject, TerminateJobObject, JOBOBJECT_BASIC_LIMIT_INFORMATION,
-            JOBOBJECT_EXTENDED_LIMIT_INFORMATION, JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE,
+            AssignProcessToJobObject, CreateJobObjectW, JobObjectBasicAccountingInformation,
+            JobObjectExtendedLimitInformation, QueryInformationJobObject, SetInformationJobObject,
+            TerminateJobObject, JOBOBJECT_BASIC_ACCOUNTING_INFORMATION,
+            JOBOBJECT_BASIC_LIMIT_INFORMATION, JOBOBJECT_EXTENDED_LIMIT_INFORMATION,
+            JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE,
         },
         Pipes::CreatePipe,
         Threading::{
@@ -303,17 +305,103 @@ fn request_cooperative_stop(pid: u32) {
     }
 }
 
-fn terminate_job(job: &mut Option<Handle>) -> bool {
-    let Some(handle) = job.as_ref() else {
-        return true;
+#[derive(Clone, Copy, Debug, Default)]
+struct CleanupResult {
+    terminated: bool,
+    hard_killed: bool,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum JobState {
+    Empty,
+    Active,
+    Unknown,
+}
+
+fn query_job_state(job: HANDLE) -> JobState {
+    let mut accounting: JOBOBJECT_BASIC_ACCOUNTING_INFORMATION = unsafe { zeroed() };
+    let queried = unsafe {
+        QueryInformationJobObject(
+            job,
+            JobObjectBasicAccountingInformation,
+            &mut accounting as *mut _ as *mut c_void,
+            size_of::<JOBOBJECT_BASIC_ACCOUNTING_INFORMATION>() as u32,
+            null_mut(),
+        )
     };
+    if queried == 0 {
+        JobState::Unknown
+    } else if accounting.ActiveProcesses == 0 {
+        JobState::Empty
+    } else {
+        JobState::Active
+    }
+}
+
+async fn wait_job_empty(job_value: usize, timeout_ms: u64) -> Result<JobState, EffectError> {
+    tokio::task::spawn_blocking(move || {
+        let job = job_value as HANDLE;
+        let deadline = std::time::Instant::now() + Duration::from_millis(timeout_ms);
+        loop {
+            match query_job_state(job) {
+                JobState::Empty => return Ok(JobState::Empty),
+                JobState::Unknown => return Ok(JobState::Unknown),
+                JobState::Active if timeout_ms == 0 || std::time::Instant::now() >= deadline => {
+                    return Ok(JobState::Active)
+                }
+                JobState::Active => std::thread::sleep(Duration::from_millis(1)),
+            }
+        }
+    })
+    .await
+    .map_err(|error| EffectError::Internal(error.to_string()))?
+}
+
+async fn terminate_job(
+    job: &mut Option<Handle>,
+    cleanup_timeout_ms: u64,
+    allow_natural_settle: bool,
+) -> Result<CleanupResult, EffectError> {
+    let Some(handle) = job.as_ref() else {
+        return Ok(CleanupResult::default());
+    };
+    // A normally exited leader can briefly precede the job's accounting
+    // update. Allow its bounded grace to settle before hard termination.
+    let natural_settle_timeout_ms = if allow_natural_settle {
+        cleanup_timeout_ms
+    } else {
+        0
+    };
+    match wait_job_empty(handle.raw() as usize, natural_settle_timeout_ms).await? {
+        JobState::Empty => {
+            return Ok(CleanupResult {
+                terminated: true,
+                hard_killed: false,
+            });
+        }
+        JobState::Unknown => {
+            job.take();
+            return Ok(CleanupResult::default());
+        }
+        JobState::Active => {}
+    }
     let terminated = unsafe { TerminateJobObject(handle.raw(), 1) } != 0;
     if !terminated {
         // Closing a KILL_ON_JOB_CLOSE handle is the final bounded cleanup
         // path, including when TerminateJobObject itself is unavailable.
         job.take();
+        return Ok(CleanupResult::default());
     }
-    terminated
+    let state = wait_job_empty(handle.raw() as usize, cleanup_timeout_ms).await?;
+    if state != JobState::Empty {
+        // Preserve kill-on-close as a bounded fallback when accounting cannot
+        // confirm an empty job within its cleanup budget.
+        job.take();
+    }
+    Ok(CleanupResult {
+        terminated: state == JobState::Empty,
+        hard_killed: state == JobState::Empty,
+    })
 }
 
 fn as_file(handle: Handle) -> tokio::fs::File {
@@ -354,32 +442,36 @@ impl PlatformProcess for WindowsProcess {
             let exit_code;
             let mut timed_out = false;
             let mut cancelled = false;
-            let hard_killed;
+            let cleanup;
             let termination = tokio::time::sleep(Duration::from_millis(launch.timeout_ms));
             tokio::pin!(termination);
             tokio::select! {
                 result = &mut wait => {
                     exit_code = result?;
-                    hard_killed = terminate_job(&mut job);
+                    cleanup =
+                        terminate_job(&mut job, launch.termination_grace_ms, true).await?;
                 }
                 _ = &mut termination => {
                     timed_out = true;
                     request_cooperative_stop(pid);
                     if launch.termination_grace_ms > 0 { tokio::time::sleep(Duration::from_millis(launch.termination_grace_ms)).await; }
-                    hard_killed = terminate_job(&mut job);
+                    cleanup =
+                        terminate_job(&mut job, launch.termination_grace_ms, false).await?;
                     exit_code = wait.await?;
                 }
                 _ = launch.cancellation.cancelled() => {
                     cancelled = true;
                     request_cooperative_stop(pid);
                     if launch.termination_grace_ms > 0 { tokio::time::sleep(Duration::from_millis(launch.termination_grace_ms)).await; }
-                    hard_killed = terminate_job(&mut job);
+                    cleanup =
+                        terminate_job(&mut job, launch.termination_grace_ms, false).await?;
                     exit_code = wait.await?;
                 }
                 _ = limit_notify.notified() => {
                     request_cooperative_stop(pid);
                     if launch.termination_grace_ms > 0 { tokio::time::sleep(Duration::from_millis(launch.termination_grace_ms)).await; }
-                    hard_killed = terminate_job(&mut job);
+                    cleanup =
+                        terminate_job(&mut job, launch.termination_grace_ms, false).await?;
                     exit_code = wait.await?;
                 }
             }
@@ -398,11 +490,11 @@ impl PlatformProcess for WindowsProcess {
                 timed_out,
                 cancelled,
                 output_limited,
-                kill_succeeded: !timed_out && !cancelled && !output_limited || hard_killed,
+                kill_succeeded: cleanup.terminated,
                 process_tree: ProcessTreeEvidence {
                     started: true,
-                    terminated: true,
-                    hard_killed,
+                    terminated: cleanup.terminated,
+                    hard_killed: cleanup.hard_killed,
                     reaped: true,
                     detail: Some("windows job object".into()),
                 },

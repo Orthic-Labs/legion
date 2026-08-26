@@ -1,9 +1,52 @@
 #![cfg(windows)]
 
-use std::{collections::BTreeMap, time::Duration};
+use std::{
+    collections::BTreeMap,
+    process::Command,
+    sync::atomic::{AtomicBool, Ordering},
+    time::Duration,
+};
 
 use legion_effects::{platform::windows::WindowsProcess, PlatformProcess, ProcessLaunch};
 use tokio_util::sync::CancellationToken;
+use windows_sys::Win32::{
+    Foundation::BOOL,
+    System::Console::{SetConsoleCtrlHandler, CTRL_BREAK_EVENT, PHANDLER_ROUTINE},
+};
+
+static CTRL_BREAK_SEEN: AtomicBool = AtomicBool::new(false);
+
+unsafe extern "system" fn consume_ctrl_break(ctrl_type: u32) -> BOOL {
+    if ctrl_type == CTRL_BREAK_EVENT {
+        1
+    } else {
+        0
+    }
+}
+
+unsafe extern "system" fn stop_on_ctrl_break(ctrl_type: u32) -> BOOL {
+    if ctrl_type == CTRL_BREAK_EVENT {
+        CTRL_BREAK_SEEN.store(true, Ordering::Release);
+        1
+    } else {
+        0
+    }
+}
+
+fn install_ctrl_handler(handler: PHANDLER_ROUTINE) {
+    assert_ne!(unsafe { SetConsoleCtrlHandler(handler, 1) }, 0);
+}
+
+#[allow(clippy::zombie_processes)]
+fn spawn_live_descendant() {
+    // Deliberately do not wait: this child inherits the tested KILL_ON_CLOSE
+    // job, so leader exit must leave it live for process-tree cleanup.
+    Command::new(std::env::current_exe().unwrap())
+        .args(["--exact", "fixture_child", "--nocapture"])
+        .env("LEGION_WINDOWS_FIXTURE", "grandchild-sleep")
+        .spawn()
+        .unwrap();
+}
 
 fn launch(mode: &str, timeout_ms: u64, stdout_limit: usize) -> ProcessLaunch {
     let mut environment = BTreeMap::new();
@@ -32,37 +75,133 @@ fn launch(mode: &str, timeout_ms: u64, stdout_limit: usize) -> ProcessLaunch {
 }
 
 #[tokio::test]
-async fn timeout_reports_bounded_job_cleanup() {
-    let output = WindowsProcess.run(launch("sleep", 25, 4096)).await.unwrap();
-    assert!(output.timed_out);
-    assert!(output.process_tree.reaped);
-    assert!(output.process_tree.terminated);
-}
-
-#[tokio::test]
-async fn cancellation_reports_bounded_job_cleanup() {
-    let process = WindowsProcess;
-    let launch = launch("sleep", 5_000, 4096);
-    let cancellation = launch.cancellation.clone();
-    cancellation.cancel();
-    let output = process
-        .run(ProcessLaunch {
-            cancellation,
-            ..launch
-        })
+async fn normal_exit_reports_natural_completion_and_cleanup_truth() {
+    let output = WindowsProcess
+        .run(launch("normal", 5_000, 4096))
         .await
         .unwrap();
-    assert!(output.cancelled);
+    assert_eq!(output.exit_code, Some(0));
+    assert!(!output.timed_out);
+    assert!(!output.cancelled);
+    assert!(!output.output_limited);
+    assert!(output.kill_succeeded);
+    assert!(output.process_tree.started);
+    assert!(output.process_tree.terminated);
+    assert!(!output.process_tree.hard_killed);
     assert!(output.process_tree.reaped);
 }
 
 #[tokio::test]
-async fn output_cap_terminates_job() {
+async fn normal_leader_exit_hard_cleans_live_descendant() {
+    let output = WindowsProcess
+        .run(launch("leader-exits-with-descendant", 5_000, 4096))
+        .await
+        .unwrap();
+    assert_eq!(output.exit_code, Some(0));
+    assert!(!output.timed_out);
+    assert!(!output.cancelled);
+    assert!(!output.output_limited);
+    assert!(output.kill_succeeded);
+    assert!(output.process_tree.started);
+    assert!(output.process_tree.terminated);
+    assert!(output.process_tree.hard_killed);
+    assert!(output.process_tree.reaped);
+}
+
+#[tokio::test]
+async fn timeout_reports_cooperative_cleanup_without_hard_kill() {
+    let output = WindowsProcess
+        .run(launch("cooperative-sleep", 1_000, 4096))
+        .await
+        .unwrap();
+    assert!(output.timed_out);
+    assert!(!output.cancelled);
+    assert!(!output.output_limited);
+    assert!(output.kill_succeeded);
+    assert!(output.process_tree.reaped);
+    assert!(output.process_tree.terminated);
+    assert!(!output.process_tree.hard_killed);
+}
+
+#[tokio::test]
+async fn timeout_reports_required_hard_cleanup_truth() {
+    let output = WindowsProcess
+        .run(launch("non-cooperative-sleep", 25, 4096))
+        .await
+        .unwrap();
+    assert!(output.timed_out);
+    assert!(!output.cancelled);
+    assert!(!output.output_limited);
+    assert!(output.kill_succeeded);
+    assert!(output.process_tree.reaped);
+    assert!(output.process_tree.terminated);
+    assert!(output.process_tree.hard_killed);
+}
+
+#[tokio::test]
+async fn cancellation_reports_cooperative_cleanup_without_hard_kill() {
+    let process = WindowsProcess;
+    let launch = launch("cooperative-sleep", 5_000, 4096);
+    let cancellation = launch.cancellation.clone();
+    let mut run = Box::pin(process.run(ProcessLaunch {
+        cancellation: cancellation.clone(),
+        ..launch
+    }));
+    let output = tokio::select! {
+        result = &mut run => result.unwrap(),
+        _ = tokio::time::sleep(Duration::from_millis(100)) => {
+            cancellation.cancel();
+            run.await.unwrap()
+        }
+    };
+    assert!(output.cancelled);
+    assert!(!output.timed_out);
+    assert!(!output.output_limited);
+    assert!(output.kill_succeeded);
+    assert!(output.process_tree.started);
+    assert!(output.process_tree.terminated);
+    assert!(!output.process_tree.hard_killed);
+    assert!(output.process_tree.reaped);
+}
+
+#[tokio::test]
+async fn cancellation_reports_required_hard_cleanup_truth() {
+    let process = WindowsProcess;
+    let launch = launch("non-cooperative-sleep", 5_000, 4096);
+    let cancellation = launch.cancellation.clone();
+    let mut run = Box::pin(process.run(ProcessLaunch {
+        cancellation: cancellation.clone(),
+        ..launch
+    }));
+    let output = tokio::select! {
+        result = &mut run => result.unwrap(),
+        _ = tokio::time::sleep(Duration::from_millis(100)) => {
+            cancellation.cancel();
+            run.await.unwrap()
+        }
+    };
+    assert!(output.cancelled);
+    assert!(!output.timed_out);
+    assert!(!output.output_limited);
+    assert!(output.kill_succeeded);
+    assert!(output.process_tree.started);
+    assert!(output.process_tree.terminated);
+    assert!(output.process_tree.hard_killed);
+    assert!(output.process_tree.reaped);
+}
+
+#[tokio::test]
+async fn output_cap_reports_required_hard_cleanup_truth() {
     let output = WindowsProcess
         .run(launch("burst", 5_000, 64))
         .await
         .unwrap();
     assert!(output.output_limited);
+    assert!(!output.timed_out);
+    assert!(!output.cancelled);
+    assert!(output.kill_succeeded);
+    assert!(output.process_tree.started);
+    assert!(output.process_tree.terminated);
     assert!(output.process_tree.reaped);
     assert!(output.stdout.len() <= 64);
 }
@@ -71,7 +210,20 @@ async fn output_cap_terminates_job() {
 fn fixture_child() {
     match std::env::var("LEGION_WINDOWS_FIXTURE").as_deref() {
         Ok("sleep") => std::thread::sleep(Duration::from_millis(500)),
+        Ok("cooperative-sleep") => {
+            CTRL_BREAK_SEEN.store(false, Ordering::Release);
+            install_ctrl_handler(Some(stop_on_ctrl_break));
+            while !CTRL_BREAK_SEEN.load(Ordering::Acquire) {
+                std::thread::sleep(Duration::from_millis(1));
+            }
+        }
+        Ok("non-cooperative-sleep") => {
+            install_ctrl_handler(Some(consume_ctrl_break));
+            std::thread::sleep(Duration::from_millis(500));
+        }
         Ok("burst") => print!("{}", "x".repeat(16 * 1024)),
+        Ok("leader-exits-with-descendant") => spawn_live_descendant(),
+        Ok("grandchild-sleep") => std::thread::sleep(Duration::from_millis(500)),
         _ => {}
     }
 }

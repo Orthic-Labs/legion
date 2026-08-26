@@ -1,0 +1,191 @@
+{
+  "schemaVersion": 1,
+  "kind": "legion-authority-dispatch",
+  "packetType": "direct",
+  "repositoryRoot": ".",
+  "sourceRevision": "0b26116dad21c0f2bc8a4d7a99966684ca51648f",
+  "sourceArtifact": "migration/native-rust/dispatches/M5-LIVE-WIRING-OWNERSHIP-AMENDMENT.json",
+  "promptArtifact": "migration/native-rust/dispatches/M5-LIVE-WIRING-REQUEST.md",
+  "promptDigest": "sha256:b5d88c3f4b132cc2e2ab199bade2ef27bbb48c3ded11e4fce7440191be996497",
+  "modelRouting": {
+    "modelTier": "LOW",
+    "workerProfile": "luna-rust",
+    "routingRationale": "Two settled disjoint Rust repairs under the operator's hard Luna-worker rule"
+  },
+  "objective": "Complete corrected M5 by wiring the frozen effects-owned ExternalProjectTool boundary through every native application invocation and correcting Windows process cleanup truth, without reopening the ten-path core interface.",
+  "authority": [
+    "AGENTS.md",
+    "docs/LEGION-CANONICAL-SSOT.md",
+    "migration/native-rust/PRODUCT-ARCHITECTURE-V2.md",
+    "migration/native-rust/MIGRATION-PLAN-V2.md",
+    "migration/native-rust/m0/semantic-freeze.json",
+    "migration/native-rust/m0/provider-boundary.json",
+    "migration/native-rust/discrepancy-ledger.json",
+    "migration/native-rust/dispatches/M1-M8-DISPATCH.json",
+    "migration/native-rust/dispatches/M2-M7-OWNERSHIP-AMENDMENT.json",
+    "migration/native-rust/dispatches/M5-CORRECTED-DISPATCH.json",
+    "migration/native-rust/dispatches/M5-LIVE-WIRING-OWNERSHIP-AMENDMENT.json"
+  ],
+  "integrationOwner": "current orchestrator; sole owner of integration HEAD, index, generated state, validation, commits, receipts, and push; integrates worker patches without authoring worker-owned implementation",
+  "preconditions": {
+    "coreRevision": "0b26116dad21c0f2bc8a4d7a99966684ca51648f",
+    "coreRule": "The frozen ten-path M5 core is immutable and both workers start from this exact reachable commit.",
+    "legacyRule": "Node/Python runtime paths are read-only evidence until M7; Membrane is excluded.",
+    "qualificationRule": "No M6 PASS or M7 deletion claim is authorized."
+  },
+  "fileTouchPolicy": {
+    "mode": "once-end-to-end",
+    "plannedFiles": [
+      "engine/crates/legion-effects/src/windows.rs",
+      "engine/crates/legion-effects/tests/windows_process_tree.rs",
+      "engine/crates/legion-runtime/src/task.rs",
+      "engine/crates/legion-runtime/src/scheduler.rs",
+      "engine/crates/legion-application/src/lib.rs"
+    ],
+    "allowUnplannedFiles": false
+  },
+  "dispatches": [
+    {
+      "id": "M5-live-wiring",
+      "dependsOn": [],
+      "lanes": [
+        "m5-live-windows",
+        "m5-live-runtime-application"
+      ],
+      "completionChecks": [
+        "both exact allowlists reconcile with no overlap or Cargo.lock change",
+        "application composition reaches ProviderContext on Invoke, Run, RunRequest, custom RunSource, and cancellation flows",
+        "application and scheduler never drop an active provider/effect future on cancellation or deadline; bounded cleanup preserves terminal evidence and forces incomplete truth",
+        "Windows timeout, cancellation, output-limit, and normal-exit receipts report actual cleanup truth",
+        "all declared direct-Cargo checks pass and frozen core bytes remain unchanged",
+        "legacy runtime and Membrane paths remain untouched"
+      ]
+    }
+  ],
+  "workers": [
+    {
+      "id": "m5-live-windows",
+      "dispatch": "M5-live-wiring",
+      "executor": "Luna Rust worker in isolated worktree; no stage, commit, or push",
+      "allowlist": [
+        "engine/crates/legion-effects/src/windows.rs",
+        "engine/crates/legion-effects/tests/windows_process_tree.rs"
+      ],
+      "read": [
+        "engine/crates/legion-effects/src/platform.rs",
+        "engine/crates/legion-effects/src/executor.rs",
+        "engine/crates/legion-effects/src/receipt.rs",
+        "engine/crates/legion-effects/src/unix.rs",
+        "engine/tests/m5_provider_boundary.rs",
+        "migration/native-rust/fixtures/effect-cases.v1.json"
+      ],
+      "forbidden": [
+        ".git",
+        "node_modules",
+        "target",
+        "secrets",
+        "membrane",
+        "src",
+        "skills",
+        "tools",
+        "engine/Cargo.lock",
+        "engine/crates/legion-effects/src/executable.rs",
+        "engine/crates/legion-effects/src/request.rs",
+        "engine/crates/legion-provider-sdk"
+      ],
+      "checks": [
+        "from engine: cargo fmt --all --check",
+        "from engine: cargo test -p legion-effects --test windows_process_tree --locked",
+        "from engine: cargo test -p legion-effects --tests --locked",
+        "prove suspended creation, job assignment, resume, cooperative grace, hard cleanup, bounded output, and reaping remain intact",
+        "prove kill_succeeded cannot be true when required cleanup fails"
+      ],
+      "dependencies": []
+    },
+    {
+      "id": "m5-live-runtime-application",
+      "dispatch": "M5-live-wiring",
+      "executor": "Luna Rust worker in isolated worktree; no stage, commit, or push",
+      "allowlist": [
+        "engine/crates/legion-runtime/src/task.rs",
+        "engine/crates/legion-runtime/src/scheduler.rs",
+        "engine/crates/legion-application/src/lib.rs"
+      ],
+      "read": [
+        "engine/crates/legion-provider-sdk/src/context.rs",
+        "engine/crates/legion-provider-sdk/src/external_project_tool.rs",
+        "engine/crates/legion-provider-sdk/src/lib.rs",
+        "engine/crates/legion-effects/src/executor.rs",
+        "engine/crates/legion-effects/src/receipt.rs",
+        "engine/crates/legion-effects/src/request.rs",
+        "engine/tests/m5_provider_boundary.rs",
+        "engine/tests/native_effects.rs"
+      ],
+      "forbidden": [
+        ".git",
+        "node_modules",
+        "target",
+        "secrets",
+        "membrane",
+        "src",
+        "skills",
+        "tools",
+        "engine/Cargo.lock"
+      ],
+      "checks": [
+        "from engine: cargo fmt --all --check",
+        "from engine: cargo check -p legion-runtime -p legion-application --locked",
+        "from engine: cargo test -p legion-runtime --lib --locked",
+        "from engine: cargo test -p legion-application --lib --locked",
+        "from engine: cargo test -p legion-testkit --test native_effects --locked",
+        "prove one optional typed seam is bound on Invoke, Run, RunRequest, custom RunSource, and cancellation paths",
+        "prove cancellation and deadline signal then await bounded provider/effect cleanup, retain terminal evidence, and never drop an active future",
+        "prove non-cooperative provider cleanup returns bounded explicit incomplete cleanup-unconfirmed evidence",
+        "prove runtime and SDK never construct EffectExecutor, evaluate policy, spawn a process, or synthesize success"
+      ],
+      "dependencies": []
+    }
+  ],
+  "oracleAudit": {
+    "required": true,
+    "mode": "adversarial",
+    "status": "required-before-execution",
+    "checks": [
+      "authority-order",
+      "source-revision",
+      "allowlist-completeness",
+      "lane-disjointness",
+      "dependency-validity",
+      "maximum-safe-parallelization",
+      "end-to-end-lane-closure",
+      "core-interface-immutability",
+      "runtime-reachability",
+      "cancellation-cleanup-receipts",
+      "failure-truthfulness",
+      "legacy-tooling-retention",
+      "Membrane-exclusion"
+    ]
+  },
+  "recovery": {
+    "maxRetries": 1,
+    "stopConditions": [
+      "source revision or frozen authority changes",
+      "a worker-owned path is dirty before execution",
+      "implementation requires a path outside exact allowlist",
+      "frozen M5 core interface would need modification",
+      "runtime would construct an executor or evaluate policy",
+      "legacy runtime or Membrane modification would be required",
+      "external qualification would be asserted"
+    ],
+    "returnFields": [
+      "status",
+      "changedPaths",
+      "checks",
+      "rawFailures",
+      "blockers",
+      "baselineRevision",
+      "patchDigest",
+      "next"
+    ]
+  }
+}

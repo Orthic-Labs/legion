@@ -21,8 +21,9 @@ use legion_contracts::{
     ReportId, ReportStatus, ReportV1, RequestId, RoutingCeiling, TaskSpec, TaskStatus, ToolCeiling,
 };
 use legion_provider_sdk::{
-    EffectInterface, ImplementationRegistry, Provider, ProviderContext, ProviderDefinition,
-    ProviderError, ProviderErrorKind, ProviderRegistry, ProviderRegistryDocument, SourceInterface,
+    EffectInterface, ExternalProjectTool, ImplementationRegistry, Provider, ProviderContext,
+    ProviderDefinition, ProviderError, ProviderErrorKind, ProviderRegistry,
+    ProviderRegistryDocument, SourceInterface,
 };
 use legion_report::ReportError;
 use legion_runtime::{
@@ -344,6 +345,7 @@ pub struct NativeApplicationConfig {
     catalog_source: Option<Arc<dyn CatalogSource>>,
     report_source: Option<Arc<dyn ReportSource>>,
     run_source: Option<Arc<dyn RunSource>>,
+    external_project_tool: Option<Arc<dyn ExternalProjectTool>>,
     provider_specs: Vec<ProviderSpec>,
 }
 
@@ -686,6 +688,11 @@ impl NativeApplicationConfig {
         self
     }
 
+    pub fn with_external_project_tool(mut self, tool: Arc<dyn ExternalProjectTool>) -> Self {
+        self.external_project_tool = Some(tool);
+        self
+    }
+
     pub fn with_provider_specs(mut self, providers: Vec<ProviderSpec>) -> Self {
         self.provider_specs = providers;
         self
@@ -734,6 +741,7 @@ impl NativeApplicationConfig {
             catalog_source,
             report_source,
             run_source: self.run_source,
+            external_project_tool: self.external_project_tool,
             provider_specs: self.provider_specs,
         })
     }
@@ -1267,6 +1275,7 @@ pub struct NativeApplication {
     catalog_source: Arc<dyn CatalogSource>,
     report_source: Arc<dyn ReportSource>,
     run_source: Option<Arc<dyn RunSource>>,
+    external_project_tool: Option<Arc<dyn ExternalProjectTool>>,
     provider_specs: Vec<ProviderSpec>,
 }
 
@@ -1294,13 +1303,22 @@ impl NativeApplication {
         })
     }
 
+    fn bind_external_project_tool(&self, mut invocation: Invocation) -> Invocation {
+        if let Some(tool) = self.external_project_tool.clone() {
+            invocation.context = invocation.context.with_external_project_tool(tool);
+        }
+        invocation
+    }
+
     pub async fn invoke(
         &self,
         operation: NativeOperation,
     ) -> Result<NativeOperationResult, NativeApplicationError> {
         match operation {
             NativeOperation::Invoke(invocation) => Ok(NativeOperationResult::Invocation(
-                self.engine.execute(invocation).await?,
+                self.engine
+                    .execute(self.bind_external_project_tool(invocation))
+                    .await?,
             )),
             NativeOperation::Run => {
                 let invocation = self
@@ -1311,7 +1329,9 @@ impl NativeApplication {
                     })?
                     .invocation()?;
                 Ok(NativeOperationResult::Invocation(
-                    self.engine.execute(invocation).await?,
+                    self.engine
+                        .execute(self.bind_external_project_tool(invocation))
+                        .await?,
                 ))
             }
             NativeOperation::RunRequest { request } => {
@@ -1323,7 +1343,9 @@ impl NativeApplication {
                     })?
                     .invocation_for(&request)?;
                 Ok(NativeOperationResult::Invocation(
-                    self.engine.execute(invocation).await?,
+                    self.engine
+                        .execute(self.bind_external_project_tool(invocation))
+                        .await?,
                 ))
             }
             NativeOperation::Doctor { repository_id } => {
@@ -1439,9 +1461,17 @@ impl NativeApplication {
             }
             operation => operation,
         };
-        tokio::select! {
-            _ = cancellation.cancelled() => Err(NativeApplicationError::Runtime(RuntimeError::Cancelled)),
-            result = self.invoke(operation) => result,
+        if matches!(&operation, NativeOperation::Invoke(_)) {
+            // Runtime owns provider cancellation and bounded cleanup. Keeping this future
+            // awaited lets its scheduler retain terminal provider evidence.
+            self.invoke(operation).await
+        } else if cancellation.is_cancelled() {
+            Err(NativeApplicationError::Runtime(RuntimeError::Cancelled))
+        } else {
+            tokio::select! {
+                _ = cancellation.cancelled() => Err(NativeApplicationError::Runtime(RuntimeError::Cancelled)),
+                result = self.invoke(operation) => result,
+            }
         }
     }
 

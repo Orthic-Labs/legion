@@ -1,13 +1,16 @@
 use std::{
     collections::{BTreeMap, BTreeSet},
-    time::Instant,
+    sync::Arc,
+    time::{Duration, Instant},
 };
 
 use legion_contracts::{
     InvocationId, InvocationReceipt, InvocationStatus, ProviderId, ProviderResult, ProviderStatus,
     TaskSpec,
 };
-use legion_provider_sdk::{normalize_result, ProviderContext, ProviderRegistry};
+use legion_provider_sdk::{
+    normalize_result, Provider, ProviderContext, ProviderError, ProviderErrorKind, ProviderRegistry,
+};
 use tokio_util::sync::CancellationToken;
 
 use crate::{
@@ -16,6 +19,39 @@ use crate::{
     plan::FrozenPlan,
     task::ContextRequest,
 };
+
+#[cfg(not(test))]
+const PROVIDER_CLEANUP_GRACE: Duration = Duration::from_millis(2500);
+#[cfg(test)]
+const PROVIDER_CLEANUP_GRACE: Duration = Duration::from_millis(25);
+
+#[derive(Clone, Copy)]
+enum ProviderSignal {
+    Cancelled,
+    Deadline,
+}
+
+impl ProviderSignal {
+    fn status(self) -> InvocationStatus {
+        match self {
+            Self::Cancelled => InvocationStatus::Cancelled,
+            Self::Deadline => InvocationStatus::Failed,
+        }
+    }
+
+    fn gap(self) -> &'static str {
+        match self {
+            Self::Cancelled => "provider cancelled",
+            Self::Deadline => "provider deadline exceeded",
+        }
+    }
+}
+
+struct ProviderExecution {
+    result: Result<ProviderResult, ProviderError>,
+    signal: Option<ProviderSignal>,
+    cleanup_unconfirmed: bool,
+}
 
 #[derive(Clone, Debug)]
 pub struct SchedulerPolicy {
@@ -115,14 +151,31 @@ impl<'a> Scheduler<'a> {
             output
                 .events
                 .push(SchedulerEvent::Ready(provider_id.clone()));
-            if self.policy.cancellation.is_cancelled() || Instant::now() >= self.policy.deadline {
-                output.events.push(SchedulerEvent::Cancelled);
-                output.receipts.push(self.receipt(
-                    &provider_id,
-                    InvocationStatus::Cancelled,
-                    false,
-                    vec!["scheduler cancelled".into()],
-                ));
+            if let Some(signal) = pre_provider_signal(&self.policy) {
+                match signal {
+                    ProviderSignal::Cancelled => {
+                        output.events.push(SchedulerEvent::Cancelled);
+                        output.receipts.push(self.receipt(
+                            &provider_id,
+                            signal.status(),
+                            false,
+                            vec![signal.gap().into()],
+                        ));
+                    }
+                    ProviderSignal::Deadline => {
+                        let gap = signal.gap().to_owned();
+                        output
+                            .events
+                            .push(SchedulerEvent::Failed(provider_id.clone(), gap.clone()));
+                        failed.insert(provider_id.clone());
+                        output.receipts.push(self.receipt(
+                            &provider_id,
+                            signal.status(),
+                            false,
+                            vec![gap],
+                        ));
+                    }
+                }
                 continue;
             }
             let dependency_failed = node.depends_on.iter().any(|dependency| {
@@ -178,21 +231,32 @@ impl<'a> Scheduler<'a> {
                 self.request.sources.clone(),
                 self.request.effects.clone(),
             );
+            let context = if let Some(tool) = self.request.external_project_tool().cloned() {
+                context.with_external_project_tool(tool)
+            } else {
+                context
+            };
             let remaining = self
                 .policy
                 .deadline
                 .checked_duration_since(Instant::now())
                 .unwrap_or_default();
-            let result = tokio::select! {
-                _ = self.policy.cancellation.cancelled() => Err(legion_provider_sdk::ProviderError::cancelled()),
-                result = tokio::time::timeout(remaining, provider.execute(&context)) => match result {
-                    Ok(value) => value,
-                    Err(_) => Err(legion_provider_sdk::ProviderError::timeout()),
-                },
-            };
-            match result {
+            let execution = Self::execute_provider(
+                provider,
+                context,
+                self.policy.cancellation.clone(),
+                remaining,
+            )
+            .await;
+            match execution.result {
                 Ok(value) => {
-                    let normalized = normalize_result(value)?;
+                    let mut normalized = normalize_result(value)?;
+                    if let Some(signal) = execution.signal {
+                        force_incomplete(&mut normalized, signal.gap());
+                        if execution.cleanup_unconfirmed {
+                            add_gap(&mut normalized, "cleanup_unconfirmed");
+                        }
+                    }
                     let complete =
                         normalized.complete && normalized.status == ProviderStatus::Complete;
                     if complete {
@@ -200,12 +264,16 @@ impl<'a> Scheduler<'a> {
                     } else {
                         failed.insert(provider_id.clone());
                     }
-                    output
-                        .events
-                        .push(SchedulerEvent::Completed(provider_id.clone()));
+                    output.events.push(if execution.signal.is_some() {
+                        SchedulerEvent::Failed(provider_id.clone(), "provider interrupted".into())
+                    } else {
+                        SchedulerEvent::Completed(provider_id.clone())
+                    });
                     output.receipts.push(self.receipt(
                         &provider_id,
-                        if complete {
+                        if let Some(signal) = execution.signal {
+                            signal.status()
+                        } else if complete {
                             InvocationStatus::Ok
                         } else {
                             InvocationStatus::Partial
@@ -216,28 +284,99 @@ impl<'a> Scheduler<'a> {
                     output.results.insert(provider_id, normalized);
                 }
                 Err(error) => {
-                    let status = if error.kind == legion_provider_sdk::ProviderErrorKind::Cancelled
-                    {
-                        InvocationStatus::Cancelled
-                    } else {
-                        InvocationStatus::Failed
-                    };
+                    let status =
+                        execution
+                            .signal
+                            .map(ProviderSignal::status)
+                            .unwrap_or_else(|| {
+                                if error.kind == ProviderErrorKind::Cancelled {
+                                    InvocationStatus::Cancelled
+                                } else {
+                                    InvocationStatus::Failed
+                                }
+                            });
+                    let mut gaps = Vec::new();
+                    if let Some(signal) = execution.signal {
+                        gaps.push(signal.gap().into());
+                    }
+                    if execution.cleanup_unconfirmed {
+                        gaps.push("cleanup_unconfirmed".into());
+                    }
+                    gaps.push(error.to_string());
                     output.events.push(SchedulerEvent::Failed(
                         provider_id.clone(),
                         error.to_string(),
                     ));
                     failed.insert(provider_id.clone());
-                    output.receipts.push(self.receipt(
-                        &provider_id,
-                        status,
-                        false,
-                        vec![error.to_string()],
-                    ));
+                    output
+                        .receipts
+                        .push(self.receipt(&provider_id, status, false, gaps));
                 }
             }
         }
         let _ = succeeded;
         Ok(output)
+    }
+
+    /// Run provider work in a detached task so a non-cooperative provider future is never
+    /// cancelled by dropping the scheduler's handle. Signals cancel provider context, then
+    /// bounded cleanup retains any terminal result arriving during grace period.
+    async fn execute_provider(
+        provider: Arc<dyn Provider>,
+        context: ProviderContext,
+        cancellation: CancellationToken,
+        remaining: Duration,
+    ) -> ProviderExecution {
+        let provider_cancellation = context.cancellation().clone();
+        let mut task = tokio::spawn(async move { provider.execute(&context).await });
+        tokio::select! {
+            biased;
+            _ = cancellation.cancelled() => {
+                provider_cancellation.cancel();
+                Self::finish_after_signal(&mut task, ProviderSignal::Cancelled).await
+            }
+            _ = tokio::time::sleep(remaining) => {
+                provider_cancellation.cancel();
+                Self::finish_after_signal(&mut task, ProviderSignal::Deadline).await
+            }
+            result = &mut task => Self::join_result(result),
+        }
+    }
+
+    async fn finish_after_signal(
+        task: &mut tokio::task::JoinHandle<Result<ProviderResult, ProviderError>>,
+        signal: ProviderSignal,
+    ) -> ProviderExecution {
+        match tokio::time::timeout(PROVIDER_CLEANUP_GRACE, task).await {
+            Ok(result) => Self::join_result(result).with_signal(signal, false),
+            Err(_) => ProviderExecution {
+                result: Err(ProviderError::new(
+                    match signal {
+                        ProviderSignal::Cancelled => ProviderErrorKind::Cancelled,
+                        ProviderSignal::Deadline => ProviderErrorKind::Timeout,
+                    },
+                    signal.gap(),
+                )),
+                signal: Some(signal),
+                cleanup_unconfirmed: true,
+            },
+        }
+    }
+
+    fn join_result(
+        result: Result<Result<ProviderResult, ProviderError>, tokio::task::JoinError>,
+    ) -> ProviderExecution {
+        let result = result.unwrap_or_else(|error| {
+            Err(ProviderError::new(
+                ProviderErrorKind::MalformedOutput,
+                format!("provider task failed: {error}"),
+            ))
+        });
+        ProviderExecution {
+            result,
+            signal: None,
+            cleanup_unconfirmed: false,
+        }
     }
 
     fn receipt(
@@ -265,5 +404,112 @@ impl<'a> Scheduler<'a> {
             gaps,
             artifacts: BTreeMap::new(),
         }
+    }
+}
+
+impl ProviderExecution {
+    fn with_signal(mut self, signal: ProviderSignal, cleanup_unconfirmed: bool) -> Self {
+        self.signal = Some(signal);
+        self.cleanup_unconfirmed = cleanup_unconfirmed;
+        self
+    }
+}
+
+fn add_gap(result: &mut ProviderResult, gap: &str) {
+    if !result.coverage_gaps.iter().any(|existing| existing == gap) {
+        result.coverage_gaps.push(gap.into());
+    }
+    result.coverage_gaps.sort();
+    if !result.degradation.iter().any(|existing| existing == gap) {
+        result.degradation.push(gap.into());
+    }
+    result.degradation.sort();
+}
+
+fn force_incomplete(result: &mut ProviderResult, gap: &str) {
+    result.complete = false;
+    if matches!(result.status, ProviderStatus::Ok | ProviderStatus::Complete) {
+        result.status = ProviderStatus::Partial;
+    }
+    add_gap(result, gap);
+}
+
+fn pre_provider_signal(policy: &SchedulerPolicy) -> Option<ProviderSignal> {
+    if policy.cancellation.is_cancelled() {
+        Some(ProviderSignal::Cancelled)
+    } else if Instant::now() >= policy.deadline {
+        Some(ProviderSignal::Deadline)
+    } else {
+        None
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use legion_contracts::ProviderResult;
+    use std::sync::atomic::{AtomicBool, Ordering};
+
+    struct DropProbe(Arc<AtomicBool>);
+    impl Drop for DropProbe {
+        fn drop(&mut self) {
+            self.0.store(true, Ordering::SeqCst);
+        }
+    }
+
+    #[tokio::test]
+    async fn cancellation_keeps_noncooperative_provider_future_alive_until_bounded_cleanup() {
+        let started = Arc::new(AtomicBool::new(false));
+        let dropped = Arc::new(AtomicBool::new(false));
+        let probe_started = started.clone();
+        let probe_dropped = dropped.clone();
+        let mut task: tokio::task::JoinHandle<Result<ProviderResult, ProviderError>> =
+            tokio::spawn(async move {
+                probe_started.store(true, Ordering::SeqCst);
+                let _probe = DropProbe(probe_dropped);
+                std::future::pending::<Result<ProviderResult, ProviderError>>().await
+            });
+        while !started.load(Ordering::SeqCst) {
+            tokio::task::yield_now().await;
+        }
+        let execution = tokio::time::timeout(
+            Duration::from_millis(200),
+            Scheduler::finish_after_signal(&mut task, ProviderSignal::Cancelled),
+        )
+        .await
+        .expect("bounded scheduler cleanup");
+        assert!(execution.cleanup_unconfirmed);
+        assert!(matches!(execution.signal, Some(ProviderSignal::Cancelled)));
+        assert!(!dropped.load(Ordering::SeqCst));
+    }
+
+    #[test]
+    fn pre_provider_deadline_is_distinct_from_cancellation() {
+        let cancellation = CancellationToken::new();
+        let cancelled = SchedulerPolicy::new(
+            Instant::now() + Duration::from_secs(1),
+            cancellation.clone(),
+            0,
+            "scheduler-test-repository",
+        );
+        assert!(pre_provider_signal(&cancelled).is_none());
+        cancellation.cancel();
+        assert!(matches!(
+            pre_provider_signal(&cancelled),
+            Some(ProviderSignal::Cancelled)
+        ));
+
+        let expired = SchedulerPolicy::new(
+            Instant::now() - Duration::from_secs(1),
+            CancellationToken::new(),
+            0,
+            "scheduler-test-repository",
+        );
+        assert!(matches!(
+            pre_provider_signal(&expired),
+            Some(ProviderSignal::Deadline)
+        ));
+        assert_eq!(ProviderSignal::Deadline.status(), InvocationStatus::Failed);
+        assert_eq!(ProviderSignal::Deadline.gap(), "provider deadline exceeded");
     }
 }

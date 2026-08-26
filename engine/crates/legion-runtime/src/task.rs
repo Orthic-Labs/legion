@@ -5,7 +5,7 @@ use std::{
 
 use legion_contracts::task::RequestEnvelope;
 use legion_contracts::{InvocationGrant, TaskSpec};
-use legion_provider_sdk::{EffectInterface, SourceInterface};
+use legion_provider_sdk::{EffectInterface, ExternalProjectTool, SourceInterface};
 use tokio_util::sync::CancellationToken;
 
 use crate::error::RuntimeError;
@@ -19,6 +19,8 @@ pub struct ContextRequest {
     pub cancellation: CancellationToken,
     pub sources: Arc<dyn SourceInterface>,
     pub effects: Arc<dyn EffectInterface>,
+    /// Optional effects-owned project execution boundary supplied by application composition.
+    pub external_project_tool: Option<Arc<dyn ExternalProjectTool>>,
 }
 
 impl ContextRequest {
@@ -48,7 +50,18 @@ impl ContextRequest {
             cancellation,
             sources,
             effects,
+            external_project_tool: None,
         })
+    }
+
+    /// Attach the effects-owned project tool without changing the frozen constructor shape.
+    pub fn with_external_project_tool(mut self, tool: Arc<dyn ExternalProjectTool>) -> Self {
+        self.external_project_tool = Some(tool);
+        self
+    }
+
+    pub fn external_project_tool(&self) -> Option<&Arc<dyn ExternalProjectTool>> {
+        self.external_project_tool.as_ref()
     }
 
     pub fn remaining(&self) -> Duration {
@@ -57,12 +70,8 @@ impl ContextRequest {
             .unwrap_or_default()
     }
     pub fn ensure_available(&self) -> Result<(), RuntimeError> {
-        if self.cancellation.is_cancelled() {
-            return Err(RuntimeError::Cancelled);
-        }
-        if self.remaining().is_zero() {
-            return Err(RuntimeError::DeadlineExceeded);
-        }
+        // Admission is intentionally non-consuming. Scheduler owns selected-provider
+        // cancellation/deadline truth so terminal receipts are emitted for both states.
         Ok(())
     }
 }

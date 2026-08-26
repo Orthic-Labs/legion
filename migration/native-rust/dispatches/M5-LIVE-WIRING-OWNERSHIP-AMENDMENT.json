@@ -1,0 +1,48 @@
+{
+  "schemaVersion": 1,
+  "kind": "legion-native-rust-ownership-amendment",
+  "status": "frozen",
+  "operatorApproved": true,
+  "sourceRevision": "0b26116dad21c0f2bc8a4d7a99966684ca51648f",
+  "supersedes": {
+    "roadmap": {
+      "path": "migration/native-rust/dispatches/M1-M8-DISPATCH.json",
+      "sha256": "sha256:23fc2c1452d5831da36a87fdb27f23555f1f31a850a1f77a970fcab07227f31c"
+    },
+    "priorAmendment": {
+      "path": "migration/native-rust/dispatches/M2-M7-OWNERSHIP-AMENDMENT.json",
+      "sha256": "sha256:4d48d17cdeb953d72af136659dcd99716307824ba937763761d500815b789f1c"
+    },
+    "m5CoreDispatch": {
+      "path": "migration/native-rust/dispatches/M5-CORRECTED-DISPATCH.json",
+      "sha256": "sha256:622763db542855c296b3f054255c3297d042dc6b866b538e6684cbbc58cdfc57"
+    }
+  },
+  "reason": "Fresh independent validation proved corrected M5 core requires live runtime/application injection and truthful Windows cleanup evidence before M5 can close. This additive amendment grants only those post-core paths; frozen M0 semantics remain unchanged.",
+  "retainedAuthority": "All M0 freezes, M1-M8 rules, and M2-M7 amendment terms remain authoritative except this explicit M5 ownership correction.",
+  "globalRules": {
+    "coreFreeze": "The ten M5 core paths committed at sourceRevision are complete one-touch ownership and may not be edited by live-wiring workers.",
+    "generatedLock": "engine/Cargo.lock remains integration-owner generated state and is outside worker ownership.",
+    "legacy": "All Node/Python legacy runtime paths remain read-only evidence until M7.",
+    "membrane": "No worker may read or modify Membrane.",
+    "execution": "All external execution remains argv-only, policy-controlled, bounded, receipt-backed, and effects-owned.",
+    "qualification": "This amendment does not assert M6 qualification or authorize M7 deletion."
+  },
+  "milestones": {
+    "M5": {
+      "owner": "M5-provider-migration",
+      "completedCoreRevision": "0b26116dad21c0f2bc8a4d7a99966684ca51648f",
+      "addedActivePaths": [
+        "engine/crates/legion-effects/src/windows.rs",
+        "engine/crates/legion-effects/tests/windows_process_tree.rs",
+        "engine/crates/legion-runtime/src/task.rs",
+        "engine/crates/legion-runtime/src/scheduler.rs",
+        "engine/crates/legion-application/src/lib.rs"
+      ],
+      "dependencyRule": "Both disjoint live-wiring lanes start only from completedCoreRevision. M5 closes only after integration verification proves runtime reachability and Windows cleanup truth.",
+      "interfaceRule": "ContextRequest carries optional Arc<dyn ExternalProjectTool>; Scheduler injects it into ProviderContext; NativeApplication binds it on every Invoke, Run, RunRequest, custom RunSource, and cancellation path. Runtime and SDK never construct an executor or evaluate policy.",
+      "cancellationRule": "Application and scheduler cancellation/deadline paths signal the active provider/effect future, await bounded cleanup instead of dropping it, preserve returned terminal evidence, and force incomplete cancellation/timeout truth. Non-cooperative cleanup remains bounded and explicitly unconfirmed.",
+      "windowsRule": "kill_succeeded and process-tree evidence report actual cleanup truth for normal exit, timeout, cancellation, and output-limit paths."
+    }
+  }
+}

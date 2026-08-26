@@ -1,0 +1,59 @@
+{
+  "schema_version": 4,
+  "sha256": "eabed1adfe9f1fcce4a302a800eca4eb6b797e8ed0684d61b1891c8387a50d8a",
+  "referenced_artifacts": [
+    {
+      "path": "migration/native-rust/dispatches/M5-LIVE-WIRING-REQUEST.md",
+      "sha256": "sha256:b5d88c3f4b132cc2e2ab199bade2ef27bbb48c3ded11e4fce7440191be996497"
+    },
+    {
+      "path": "AGENTS.md",
+      "sha256": "sha256:e9549a27c0e4edf161fd5abbcb9679b585cd5bcde0d8809cc56f230278019f7f"
+    },
+    {
+      "path": "docs/LEGION-CANONICAL-SSOT.md",
+      "sha256": "sha256:6a607498397142fc66e963ca6c25798bf8b68f59b59369c7f928cba912ad4e83"
+    },
+    {
+      "path": "migration/native-rust/PRODUCT-ARCHITECTURE-V2.md",
+      "sha256": "sha256:ab181ef9b391f22d739b40ffff6240a50078828d081f9490416ac8d959ed32c5"
+    },
+    {
+      "path": "migration/native-rust/MIGRATION-PLAN-V2.md",
+      "sha256": "sha256:7f5ddd5caf12cc2fcce945fe12d1a8ae2a3c1f4e4c39931cd57e1f5b78303462"
+    },
+    {
+      "path": "migration/native-rust/m0/semantic-freeze.json",
+      "sha256": "sha256:2d93461e5fd2c5d70f2133264f6066bac282130b9a541b02317ee8d1722f546f"
+    },
+    {
+      "path": "migration/native-rust/m0/provider-boundary.json",
+      "sha256": "sha256:21b28e4ff31e9937419a6589c1ac37c6ac9b8f4d0d0f3676a7d3e3d2ddd06df2"
+    },
+    {
+      "path": "migration/native-rust/discrepancy-ledger.json",
+      "sha256": "sha256:45d085d6cf25216096afeff78566a5778c4403108a32e328b7101317194c2ddd"
+    },
+    {
+      "path": "migration/native-rust/dispatches/M1-M8-DISPATCH.json",
+      "sha256": "sha256:23fc2c1452d5831da36a87fdb27f23555f1f31a850a1f77a970fcab07227f31c"
+    },
+    {
+      "path": "migration/native-rust/dispatches/M2-M7-OWNERSHIP-AMENDMENT.json",
+      "sha256": "sha256:4d48d17cdeb953d72af136659dcd99716307824ba937763761d500815b789f1c"
+    },
+    {
+      "path": "migration/native-rust/dispatches/M5-CORRECTED-DISPATCH.json",
+      "sha256": "sha256:622763db542855c296b3f054255c3297d042dc6b866b538e6684cbbc58cdfc57"
+    },
+    {
+      "path": "migration/native-rust/dispatches/M5-LIVE-WIRING-OWNERSHIP-AMENDMENT.json",
+      "sha256": "sha256:fd0cc58bd7eea9296a668c21d642349e734f1b9f0aba24b57ed5a482507e1dd0"
+    }
+  ],
+  "authority_binding": {
+    "packet_sha256": "eabed1adfe9f1fcce4a302a800eca4eb6b797e8ed0684d61b1891c8387a50d8a",
+    "source_revision": "0b26116dad21c0f2bc8a4d7a99966684ca51648f",
+    "prompt_digest": "sha256:b5d88c3f4b132cc2e2ab199bade2ef27bbb48c3ded11e4fce7440191be996497"
+  }
+}
