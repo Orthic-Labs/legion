@@ -17,7 +17,8 @@ impl TempRoot {
             .duration_since(UNIX_EPOCH)
             .expect("clock")
             .as_nanos();
-        Self(std::env::temp_dir().join(format!("legion-m3-{label}-{}-{nonce}", std::process::id())))
+        let temp_dir = fs::canonicalize(std::env::temp_dir()).expect("physical temp directory");
+        Self(temp_dir.join(format!("legion-m3-{label}-{}-{nonce}", std::process::id())))
     }
 
     fn path(&self) -> &Path {
