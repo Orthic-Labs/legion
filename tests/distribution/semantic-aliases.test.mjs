@@ -10,9 +10,10 @@ import { resolveSkillInvocation, validateCapabilitySelection } from '../../src/l
 const ROOT = fileURLToPath(new URL('../..', import.meta.url));
 const aliases = JSON.parse(readFileSync(join(ROOT, 'src', 'config', 'capability-aliases.json'), 'utf8')).aliases;
 const PUBLIC_ENTRYPOINTS = [
-  'alchemist', 'architect', 'audit', 'audit-fix', 'audit-visual', 'brand', 'coder',
-  'commit', 'covenant', 'debugger', 'dispatch',
-  'handoff', 'qa', 'tasklist',
+  'ads', 'alchemist', 'architect', 'audit', 'audit-fix', 'audit-visual', 'brand',
+  'brand-identity', 'coder', 'commit', 'covenant', 'debugger', 'designer', 'dispatch',
+  'gotchas', 'handoff', 'marketing', 'qa', 'research', 'seo', 'social', 'tasklist',
+  'wake', 'writing',
 ];
 
 test('legacy semantic aliases resolve only to packaged public Legion capabilities', () => {
@@ -114,7 +115,7 @@ test('all routed eval cases remain after capability migration', () => {
       .filter(([key, value]) => !['schema_version', 'skill', 'legacy_skill'].includes(key) && Array.isArray(value))
       .reduce((sum, [, rows]) => sum + rows.length, 0);
   }, 0);
-  assert.equal(count, 113);
+  assert.equal(count, 115);
 });
 
 test('deterministic selection validation accepts semantic public capabilities and rejects entrypoints', () => {

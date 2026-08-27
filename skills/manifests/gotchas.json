@@ -6,7 +6,12 @@
   "rootUri": "legion-skill://gotchas/",
   "provenance": "legion-authored",
   "licenseState": "licensed",
-  "rightsReceipt": null,
+  "rightsReceipt": {
+    "kind": "legion-rights-receipt",
+    "basis": "repository-license",
+    "license": "LICENSE",
+    "licenseDigest": "sha256:6519936585434711b6d5971a3081fbd8b499438a39b6a08cc2191d33443926b4"
+  },
   "profiles": {
     "audit": {
       "mutation": false,

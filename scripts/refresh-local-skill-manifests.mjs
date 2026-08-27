@@ -7,9 +7,20 @@ import { buildSkillCatalog } from './generate-skill-catalog.mjs';
 
 const ROOT = resolve(import.meta.dirname, '..');
 const EXCLUDED = new Set(['.DS_Store']);
+const REPOSITORY_LICENSE = join(ROOT, 'LICENSE');
 
 function digest(bytes) {
   return `sha256:${createHash('sha256').update(bytes).digest('hex')}`;
+}
+
+function defaultRightsReceipt(provenance, licenseState) {
+  if (provenance !== 'legion-authored' || licenseState !== 'licensed') return null;
+  return {
+    kind: 'legion-rights-receipt',
+    basis: 'repository-license',
+    license: 'LICENSE',
+    licenseDigest: digest(readFileSync(REPOSITORY_LICENSE)),
+  };
 }
 
 function files(root, current = root, out = []) {
@@ -36,15 +47,17 @@ function buildLocalSkillManifest(bundle) {
   const semantic = buildSkillCatalog().index.bundles.find(({ id }) => id === bundle);
   if (!semantic) throw new Error(`missing canonical catalog record: ${bundle}`);
   const packageFiles = files(skillRoot);
+  const provenance = prior.provenance ?? 'legion-authored';
+  const licenseState = prior.licenseState ?? 'licensed';
   const manifest = {
     schemaVersion: 1,
     id: bundle,
     version: prior.version ?? '1.0.0',
     entry: 'SKILL.md',
     rootUri: `legion-skill://${bundle}/`,
-    provenance: prior.provenance ?? 'legion-authored',
-    licenseState: prior.licenseState ?? 'licensed',
-    rightsReceipt: prior.rightsReceipt ?? null,
+    provenance,
+    licenseState,
+    rightsReceipt: prior.rightsReceipt ?? defaultRightsReceipt(provenance, licenseState),
     profiles: prior.profiles ?? {
       audit: { mutation: false, publish: false },
       authoring: { mutation: true, publish: false, externalOnly: true },
