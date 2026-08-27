@@ -1,4 +1,5 @@
-import { existsSync, fsyncSync, lstatSync, mkdirSync, openSync, readFileSync, writeSync, closeSync } from 'node:fs';
+import { closeSync, existsSync, fsyncSync, linkSync, lstatSync, mkdirSync, openSync, readFileSync, unlinkSync, writeSync } from 'node:fs';
+import { randomUUID } from 'node:crypto';
 import { join } from 'node:path';
 import { ArcaneError, decision } from './errors.mjs';
 import { canonicalJson, digestValue } from './canonical.mjs';
@@ -7,7 +8,16 @@ const key = (id) => digestValue({ domain: 'arcane.capability.key.v1', values: [i
 const fail = (code, id, detail = {}) => decision({ allowed: false, code, message: `${code}: ${id}`, detail: { capabilityId: id, ...detail } });
 const stamp = (clock) => new Date(clock()).toISOString();
 const same = (left, right) => canonicalJson(left) === canonicalJson(right);
-const write = (file, value) => { const fd = openSync(file, 'wx', 0o600); try { writeSync(fd, `${canonicalJson(value)}\n`); fsyncSync(fd); } finally { closeSync(fd); } };
+const write = (file, value) => {
+  const staged = `${file}.${process.pid}.${randomUUID()}.tmp`;
+  try {
+    const fd = openSync(staged, 'wx', 0o600);
+    try { writeSync(fd, `${canonicalJson(value)}\n`); fsyncSync(fd); } finally { closeSync(fd); }
+    linkSync(staged, file);
+  } finally {
+    try { unlinkSync(staged); } catch { /* Best-effort cleanup cannot replace publication outcome. */ }
+  }
+};
 const read = (file, id) => { try { if (!lstatSync(file).isFile()) throw Error('non-file'); return JSON.parse(readFileSync(file, 'utf8')); } catch (error) { throw new ArcaneError('ARC_STORE_CORRUPT', 'capability record is corrupt', { capabilityId: id, error: String(error.message) }); } };
 
 export class CapabilityStore {
