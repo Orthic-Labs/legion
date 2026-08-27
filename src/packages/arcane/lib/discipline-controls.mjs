@@ -1,5 +1,5 @@
 import { appendFileSync, existsSync, mkdirSync, realpathSync } from 'node:fs';
-import { join, relative, resolve } from 'node:path';
+import { isAbsolute, join, relative, resolve } from 'node:path';
 
 import { readJson, repositoryRoot, stagedChanges, verifyReceipt } from './minimize.mjs';
 
@@ -46,6 +46,11 @@ function recordCommitAdvisory(workspace, message) {
 
 const canonical = (target) => { try { return realpathSync(target); } catch { return target; } };
 
+function containsPath(root, target) {
+  const framed = relative(root, target);
+  return framed === '' || (!framed.startsWith('..') && !isAbsolute(framed));
+}
+
 export function commitReceiptRequirement({ workspace, repository = workspace, policy, contracted = false }) {
   if (contracted) return { required: true, reason: 'contracted-work', paths: [] };
   if (!policy || policy.failClosed || typeof policy.lockedDomainsFor !== 'function') {
@@ -53,7 +58,12 @@ export function commitReceiptRequirement({ workspace, repository = workspace, po
   }
   let paths;
   try {
-    const root = repositoryRoot(repository);
+    const requestedRepository = canonical(repository);
+    const reportedRoot = canonical(repositoryRoot(repository));
+    // Git process state can leak a foreign worktree into rev-parse on hosted
+    // Windows runners. Never frame paths from a root that does not contain the
+    // repository the caller asked us to inspect.
+    const root = containsPath(reportedRoot, requestedRepository) ? reportedRoot : requestedRepository;
     const repositoryPaths = stagedChanges(process.env, repository)
       .flatMap(({ source, path }) => source ? [source, path] : [path]);
     // `repositoryRoot` is canonical (git resolves symlinks) while `workspace`
@@ -61,7 +71,8 @@ export function commitReceiptRequirement({ workspace, repository = workspace, po
     // an in-workspace file into a `../..` escape and drops it out of
     // locked-domain matching, so both sides must be canonical.
     const base = canonical(workspace);
-    paths = [...new Set(repositoryPaths.map((path) => relative(base, canonical(resolve(root, path))).replaceAll('\\', '/')))];
+    const repositoryPrefix = relative(base, root).replaceAll('\\', '/');
+    paths = [...new Set(repositoryPaths.map((path) => [repositoryPrefix, path.replaceAll('\\', '/')].filter(Boolean).join('/')))];
   } catch (error) {
     return { required: false, reason: 'staged-paths-unavailable', paths: [], advisory: `staged paths could not be classified: ${error.message}` };
   }

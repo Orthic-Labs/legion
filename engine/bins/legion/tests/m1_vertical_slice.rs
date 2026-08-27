@@ -4,6 +4,7 @@ use std::{
     io::{BufRead, BufReader, Write},
     path::PathBuf,
     process::{Child, ChildStdin, ChildStdout, Command, Stdio},
+    sync::atomic::{AtomicU64, Ordering},
     time::{SystemTime, UNIX_EPOCH},
 };
 
@@ -21,6 +22,8 @@ struct Fixture {
     config: PathBuf,
     policy_context: Value,
 }
+
+static NEXT_FIXTURE_ID: AtomicU64 = AtomicU64::new(0);
 
 impl Drop for Fixture {
     fn drop(&mut self) {
@@ -138,12 +141,13 @@ fn policy_context() -> PolicyContext {
 
 fn fixture(with_body: bool) -> Fixture {
     let root = std::env::temp_dir().join(format!(
-        "legion-m1-cli-{}-{}",
+        "legion-m1-cli-{}-{}-{}",
         std::process::id(),
         SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .expect("clock")
-            .as_nanos()
+            .as_nanos(),
+        NEXT_FIXTURE_ID.fetch_add(1, Ordering::Relaxed)
     ));
     fs::create_dir_all(root.join("registry")).expect("registry directory");
     fs::write(
