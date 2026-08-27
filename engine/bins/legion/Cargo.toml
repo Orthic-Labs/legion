@@ -1,6 +1,6 @@
 [package]
 name = "legion"
-version = "0.1.0-dev.3"
+version = "0.1.0-dev.10"
 edition.workspace = true
 license.workspace = true
 [[bin]]

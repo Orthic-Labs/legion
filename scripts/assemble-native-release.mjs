@@ -247,6 +247,7 @@ writeJson(join(share, "composition.json"), {
 	releaseManifestPath: "release.json",
 	catalogRoot: "assets",
 	catalogIndexPath: "registry/index.json",
+	providers: [{ id: "m1-native-capability" }],
 	policyPack,
 	releaseBinding: {
 		runtimeProvenance: provenance,

@@ -153,6 +153,7 @@ fn fixture() -> Fixture {
             "releaseManifestPath": "release.json",
             "catalogRoot": ".",
             "catalogIndexPath": "registry/index.json",
+            "providers": [{"id":"m1-native-capability"}],
             "policyPack": policy_pack(),
             "releaseBinding": {
                 "runtimeProvenance": "rightkit-release://m2-plugin-root-fixture",

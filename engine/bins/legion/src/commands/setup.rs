@@ -1,7 +1,20 @@
 use super::{io_error, CommandError, CommandResult};
 use clap::{Args, Subcommand, ValueEnum};
-use serde_json::json;
-use std::path::PathBuf;
+use serde::{Deserialize, Serialize};
+use serde_json::{json, Value};
+use std::{
+    ffi::OsString,
+    path::{Path, PathBuf},
+    process::{Command, Output, Stdio},
+    time::{Duration, Instant},
+};
+
+const QUALIFICATION_SCHEMA_VERSION: u32 = 1;
+const QUALIFICATION_MECHANISM: &str = "agent-plugins-bare-command";
+const QUALIFICATION_TOOL: &str = "legion_m1_status";
+const QUALIFICATION_SERVER: &str = "legion";
+const QUALIFICATION_TIMEOUT: Duration = Duration::from_secs(180);
+const QUALIFICATION_MCP_ARGS: [&str; 2] = ["serve", "--stdio"];
 
 /// `legion setup [--dry-run] [--client]` is the installed-product lifecycle
 /// surface; lifecycle subcommands include `legion setup purge --confirm`.
@@ -99,6 +112,9 @@ struct SetupMutationArgs {
 
 #[derive(Debug, Args)]
 struct SetupLifecycleArgs {
+    /// JSON array of verified ClientEvidence collected from supported clients.
+    #[arg(long = "client-evidence")]
+    client_evidence: Option<PathBuf>,
     /// Restrict lifecycle action to one supported client.
     #[arg(long)]
     client: Option<String>,
@@ -108,6 +124,51 @@ struct SetupLifecycleArgs {
     /// Explicitly confirm the generated plan before mutation.
     #[arg(long)]
     confirm: bool,
+}
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct ClientCommandProof {
+    schema_version: u32,
+    kind: String,
+    client_id: String,
+    mechanism: String,
+    release: legion_host::BoundRelease,
+    launcher_path: String,
+    launcher_sha256: String,
+    command: String,
+    resolved: bool,
+    exit_code: i32,
+    output_sha256: String,
+    legion_command: String,
+    legion_launcher_path: String,
+    legion_launcher_sha256: String,
+    legion_resolved: bool,
+    legion_exit_code: i32,
+    legion_output_sha256: String,
+    mcp_command: String,
+    mcp_args: Vec<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct ClientQualificationProof {
+    schema_version: u32,
+    kind: String,
+    client_id: String,
+    mechanism: String,
+    release: legion_host::BoundRelease,
+    launcher_path: String,
+    mcp_server: String,
+    mcp_tool: String,
+    invocation_status: String,
+    observed_release_version: String,
+    capability_count: usize,
+    completed: bool,
+    output_sha256: String,
+    legion_launcher_path: String,
+    legion_launcher_sha256: String,
+    mcp_command: String,
+    mcp_args: Vec<String>,
 }
 
 pub fn run(args: SetupArgs) -> CommandResult {
@@ -121,6 +182,7 @@ pub fn run(args: SetupArgs) -> CommandResult {
         Some(SetupCommand::Purge(args)) => lifecycle(args, legion_host::SetupAction::Purge),
         None => lifecycle(
             SetupLifecycleArgs {
+                client_evidence: None,
                 client: args.client,
                 dry_run: args.dry_run,
                 confirm: args.confirm,
@@ -138,7 +200,7 @@ fn lifecycle(args: SetupLifecycleArgs, action: legion_host::SetupAction) -> Comm
     }
     let release = installed_bound_release()?;
     let request = SetupRequestArgs {
-        client_evidence: None,
+        client_evidence: args.client_evidence,
         client: args.client,
         dry_run: args.dry_run,
     };
@@ -173,7 +235,7 @@ fn lifecycle(args: SetupLifecycleArgs, action: legion_host::SetupAction) -> Comm
 }
 
 fn preview(args: SetupPreviewArgs) -> CommandResult {
-    let request = request(args.request, args.action.into())?;
+    let request = request(args.request, args.action.into(), false)?;
     let mut registry = open_registry(&request)?;
     let recovery = registry.recover().map_err(setup_error)?;
     let preview = registry.preview(request).map_err(setup_error)?;
@@ -216,6 +278,12 @@ fn execute(args: SetupMutationArgs, expected: legion_host::SetupAction) -> Comma
             "setup command does not match the action recorded in --plan",
         ));
     }
+    validate_client_evidence(
+        &preview.request.client_evidence,
+        &preview.request.release,
+        &preview.request.platform_state_root,
+        true,
+    )?;
     let mut registry = open_registry(&preview.request)?;
     let recovery = registry.recover().map_err(setup_error)?;
     let confirmation = legion_host::PlanConfirmation {
@@ -238,17 +306,24 @@ fn execute(args: SetupMutationArgs, expected: legion_host::SetupAction) -> Comma
 fn request(
     args: SetupRequestArgs,
     action: legion_host::SetupAction,
+    live_validation: bool,
 ) -> Result<legion_host::SetupRequest, CommandError> {
     let client = args.client.clone();
+    let release = installed_bound_release()?;
+    let platform_state_root = legion_host::platform_state_root().map_err(setup_error)?;
+    let client_evidence = client_evidence(
+        args.client_evidence,
+        client.as_deref(),
+        &release,
+        &platform_state_root,
+        live_validation,
+    )?;
     Ok(legion_host::SetupRequest {
         action,
         selector: selector(client.clone()),
-        release: installed_bound_release()?,
-        platform_state_root: legion_host::platform_state_root().map_err(setup_error)?,
-        client_evidence: match args.client_evidence {
-            Some(path) => read_json(&path, "ClientEvidence array")?,
-            None => discovered_client_evidence(client.as_deref()),
-        },
+        release,
+        platform_state_root,
+        client_evidence,
         dry_run: args.dry_run,
     })
 }
@@ -258,13 +333,546 @@ fn request_from_release(
     action: legion_host::SetupAction,
     release: legion_host::BoundRelease,
 ) -> Result<legion_host::SetupRequest, CommandError> {
+    let platform_state_root = legion_host::platform_state_root().map_err(setup_error)?;
+    let client_evidence = client_evidence(
+        args.client_evidence,
+        args.client.as_deref(),
+        &release,
+        &platform_state_root,
+        matches!(
+            action,
+            legion_host::SetupAction::Apply | legion_host::SetupAction::Repair
+        ),
+    )?;
     Ok(legion_host::SetupRequest {
         action,
         selector: selector(args.client.clone()),
         release,
-        platform_state_root: legion_host::platform_state_root().map_err(setup_error)?,
-        client_evidence: discovered_client_evidence(args.client.as_deref()),
+        platform_state_root,
+        client_evidence,
         dry_run: args.dry_run,
+    })
+}
+fn client_evidence(
+    evidence_path: Option<PathBuf>,
+    selected: Option<&str>,
+    release: &legion_host::BoundRelease,
+    platform_state_root: &std::path::Path,
+    live_validation: bool,
+) -> Result<Vec<legion_host::ClientEvidence>, CommandError> {
+    let (evidence, already_live) = match evidence_path {
+        Some(path) => (read_json(&path, "ClientEvidence array")?, false),
+        None if live_validation => (
+            qualify_discovered_clients(selected, release, platform_state_root)?,
+            true,
+        ),
+        None => (discovered_client_evidence(selected), false),
+    };
+    validate_client_evidence(
+        &evidence,
+        release,
+        platform_state_root,
+        live_validation && !already_live,
+    )?;
+    Ok(evidence)
+}
+fn validate_client_evidence(
+    evidence: &[legion_host::ClientEvidence],
+    release: &legion_host::BoundRelease,
+    platform_state_root: &std::path::Path,
+    live_validation: bool,
+) -> Result<(), CommandError> {
+    let qualification_root =
+        std::fs::canonicalize(platform_state_root.join("qualification")).map_err(io_error)?;
+    for client in evidence {
+        if !client.detected {
+            continue;
+        }
+        let Some(command_ref) = client.command_proof_ref.as_deref() else {
+            continue;
+        };
+        let Some(qualification_ref) = client.qualification_evidence_ref.as_deref() else {
+            continue;
+        };
+        let command_path = std::fs::canonicalize(command_ref).map_err(io_error)?;
+        let qualification_path = std::fs::canonicalize(qualification_ref).map_err(io_error)?;
+        if command_path == qualification_path
+            || !command_path.starts_with(&qualification_root)
+            || !qualification_path.starts_with(&qualification_root)
+        {
+            return Err(CommandError::usage(
+                "client command and qualification proofs must be distinct files inside Legion platform state",
+            ));
+        }
+        let command_proof: ClientCommandProof =
+            read_json(&command_path, "client command resolution proof")?;
+        let qualification_proof: ClientQualificationProof =
+            read_json(&qualification_path, "real-client qualification proof")?;
+        validate_proof_pair(
+            client,
+            release,
+            &command_path,
+            &qualification_path,
+            &command_proof,
+            &qualification_proof,
+        )?;
+        if live_validation {
+            let (fresh_command, fresh_qualification) =
+                qualify_client(&client.client_id, release, platform_state_root)?;
+            if fresh_command.launcher_path != command_proof.launcher_path
+                || fresh_command.legion_launcher_path != command_proof.legion_launcher_path
+                || fresh_command.mcp_command != command_proof.mcp_command
+                || fresh_command.mcp_args != command_proof.mcp_args
+                || fresh_qualification.observed_release_version
+                    != qualification_proof.observed_release_version
+                || !fresh_qualification.completed
+            {
+                return Err(CommandError::incomplete(format!(
+                    "live client qualification changed for {}; run legion setup --repair",
+                    client.client_id
+                )));
+            }
+        }
+    }
+    Ok(())
+}
+
+fn validate_proof_pair(
+    client: &legion_host::ClientEvidence,
+    release: &legion_host::BoundRelease,
+    command_path: &Path,
+    qualification_path: &Path,
+    command: &ClientCommandProof,
+    qualification: &ClientQualificationProof,
+) -> Result<(), CommandError> {
+    let launcher = std::fs::canonicalize(&command.launcher_path).map_err(io_error)?;
+    let launcher_digest = legion_catalog::hex_digest(&std::fs::read(&launcher).map_err(io_error)?);
+    let installed = installed_release()?;
+    let installed_launcher = std::fs::canonicalize(&installed.executable_path).map_err(io_error)?;
+    let legion_launcher = std::fs::canonicalize(&command.legion_launcher_path).map_err(io_error)?;
+    let resolved_legion = resolve_command("legion")?;
+    let resolved_legion_digest =
+        legion_catalog::hex_digest(&std::fs::read(&resolved_legion).map_err(io_error)?);
+    let expected_mcp_args = QUALIFICATION_MCP_ARGS
+        .iter()
+        .map(|value| (*value).to_string())
+        .collect::<Vec<_>>();
+    let valid = command.schema_version == QUALIFICATION_SCHEMA_VERSION
+        && command.kind == "legion-command-resolution-proof"
+        && command.client_id == client.client_id
+        && command.mechanism == QUALIFICATION_MECHANISM
+        && client
+            .mechanisms
+            .iter()
+            .any(|item| item == &command.mechanism)
+        && &command.release == release
+        && command.resolved
+        && command.exit_code == 0
+        && command.launcher_path == launcher.to_string_lossy()
+        && command.launcher_sha256 == launcher_digest
+        && is_sha256(&command.output_sha256)
+        && command.legion_command == "legion --version"
+        && command.legion_resolved
+        && command.legion_exit_code == 0
+        && command.legion_launcher_path == legion_launcher.to_string_lossy()
+        && command.legion_launcher_path == installed_launcher.to_string_lossy()
+        && command.legion_launcher_path == resolved_legion.to_string_lossy()
+        && command.legion_launcher_sha256 == release.runtime_digest
+        && command.legion_launcher_sha256 == resolved_legion_digest
+        && is_sha256(&command.legion_output_sha256)
+        && command.mcp_command == QUALIFICATION_SERVER
+        && command.mcp_args == expected_mcp_args
+        && qualification.schema_version == QUALIFICATION_SCHEMA_VERSION
+        && qualification.kind == "legion-real-client-qualification"
+        && qualification.client_id == client.client_id
+        && qualification.mechanism == command.mechanism
+        && &qualification.release == release
+        && qualification.launcher_path == command.launcher_path
+        && qualification.legion_launcher_path == command.legion_launcher_path
+        && qualification.legion_launcher_sha256 == command.legion_launcher_sha256
+        && qualification.mcp_server == QUALIFICATION_SERVER
+        && qualification.mcp_tool == QUALIFICATION_TOOL
+        && qualification.mcp_command == command.mcp_command
+        && qualification.mcp_args == command.mcp_args
+        && qualification.invocation_status == "complete"
+        && qualification.observed_release_version == release.release_version
+        && qualification.capability_count > 0
+        && qualification.completed
+        && is_sha256(&qualification.output_sha256)
+        && command_path.is_file()
+        && qualification_path.is_file();
+    if !valid {
+        return Err(CommandError::incomplete(format!(
+            "client qualification evidence does not bind {} to a resolved launcher, completed MCP call, and installed release; run legion setup --repair",
+            client.client_id
+        )));
+    }
+    Ok(())
+}
+
+fn is_sha256(value: &str) -> bool {
+    value.len() == 64 && value.bytes().all(|byte| byte.is_ascii_hexdigit())
+}
+
+fn qualify_discovered_clients(
+    selected: Option<&str>,
+    release: &legion_host::BoundRelease,
+    platform_state_root: &Path,
+) -> Result<Vec<legion_host::ClientEvidence>, CommandError> {
+    let discovered = discovered_client_evidence(selected);
+    if discovered.is_empty() {
+        return Ok(discovered);
+    }
+    discovered
+        .into_iter()
+        .map(|client| {
+            if !client.detected {
+                return Ok(client);
+            }
+            let (command, qualification) =
+                qualify_client(&client.client_id, release, platform_state_root)?;
+            let root = platform_state_root.join("qualification");
+            std::fs::create_dir_all(&root).map_err(io_error)?;
+            let command_path = root.join(format!("{}-command.json", client.client_id));
+            let qualification_path = root.join(format!("{}-qualification.json", client.client_id));
+            write_json(&command_path, &command)?;
+            write_json(&qualification_path, &qualification)?;
+            Ok(legion_host::ClientEvidence {
+                command_proof_ref: Some(command_path.to_string_lossy().into_owned()),
+                qualification_evidence_ref: Some(qualification_path.to_string_lossy().into_owned()),
+                ..client
+            })
+        })
+        .collect()
+}
+
+fn qualify_client(
+    client_id: &str,
+    release: &legion_host::BoundRelease,
+    _platform_state_root: &Path,
+) -> Result<(ClientCommandProof, ClientQualificationProof), CommandError> {
+    let launcher = resolve_launcher(client_id)?;
+    let installed = installed_release()?;
+    let installed_launcher = std::fs::canonicalize(&installed.executable_path).map_err(io_error)?;
+    let legion_launcher = resolve_command("legion")?;
+    if legion_launcher != installed_launcher {
+        return Err(CommandError::incomplete(format!(
+            "bare legion resolved to {}, not installed release {}",
+            legion_launcher.display(),
+            installed_launcher.display()
+        )));
+    }
+    let legion_launcher_digest =
+        legion_catalog::hex_digest(&std::fs::read(&legion_launcher).map_err(io_error)?);
+    let mut legion_version_command = Command::new("legion");
+    legion_version_command.arg("--version");
+    let legion_version_output = run_client_command(
+        &mut legion_version_command,
+        client_id,
+        "Legion command resolution",
+    )?;
+    let legion_version_bytes = output_bytes(&legion_version_output);
+    let legion_version_text = String::from_utf8_lossy(&legion_version_output.stdout);
+    if !legion_version_output.status.success()
+        || !legion_version_text
+            .lines()
+            .any(|line| line.trim() == release.release_version)
+    {
+        return Err(CommandError::incomplete(format!(
+            "bare legion did not resolve installed release {} for {client_id}",
+            release.release_version
+        )));
+    }
+    let mut version_command = Command::new(&launcher);
+    version_command.arg("--version");
+    let version_output = run_client_command(&mut version_command, client_id, "command resolution")?;
+    if !version_output.status.success() {
+        return Err(CommandError::incomplete(format!(
+            "{client_id} launcher {} did not resolve successfully",
+            launcher.display()
+        )));
+    }
+    let version_bytes = output_bytes(&version_output);
+    let launcher_digest = legion_catalog::hex_digest(&std::fs::read(&launcher).map_err(io_error)?);
+    let command = ClientCommandProof {
+        schema_version: QUALIFICATION_SCHEMA_VERSION,
+        kind: "legion-command-resolution-proof".into(),
+        client_id: client_id.into(),
+        mechanism: QUALIFICATION_MECHANISM.into(),
+        release: release.clone(),
+        launcher_path: std::fs::canonicalize(&launcher)
+            .map_err(io_error)?
+            .to_string_lossy()
+            .into_owned(),
+        launcher_sha256: launcher_digest,
+        command: format!("{} --version", launcher.display()),
+        resolved: true,
+        exit_code: version_output.status.code().unwrap_or(-1),
+        output_sha256: legion_catalog::hex_digest(&version_bytes),
+        legion_command: "legion --version".into(),
+        legion_launcher_path: legion_launcher.to_string_lossy().into_owned(),
+        legion_launcher_sha256: legion_launcher_digest,
+        legion_resolved: true,
+        legion_exit_code: legion_version_output.status.code().unwrap_or(-1),
+        legion_output_sha256: legion_catalog::hex_digest(&legion_version_bytes),
+        mcp_command: QUALIFICATION_SERVER.into(),
+        mcp_args: QUALIFICATION_MCP_ARGS
+            .iter()
+            .map(|value| (*value).to_string())
+            .collect(),
+    };
+
+    let mcp_config = serde_json::to_string(&json!({
+        "mcpServers": {
+            QUALIFICATION_SERVER: {
+                "command": QUALIFICATION_SERVER,
+                "args": QUALIFICATION_MCP_ARGS,
+            }
+        }
+    }))
+    .map_err(io_error)?;
+    let prompt = format!(
+        "Call the Legion MCP tool {QUALIFICATION_TOOL} now. Return its complete structured result as JSON; do not infer or paraphrase it."
+    );
+    let output = match client_id {
+        "claude-code" => {
+            let mut client_command = Command::new(&launcher);
+            client_command
+                .arg("-p")
+                .arg("--output-format")
+                .arg("json")
+                .arg("--bare")
+                .arg("--no-session-persistence")
+                .arg("--strict-mcp-config")
+                .arg("--mcp-config")
+                .arg(&mcp_config)
+                .arg("--")
+                .arg(&prompt);
+            run_client_command(
+                &mut client_command,
+                client_id,
+                "real-client MCP qualification",
+            )?
+        }
+        "codex" => {
+            let mut client_command = Command::new(&launcher);
+            client_command
+                .args([
+                    "exec",
+                    "--ephemeral",
+                    "--json",
+                    "--dangerously-bypass-approvals-and-sandbox",
+                    "--skip-git-repo-check",
+                    "--ignore-user-config",
+                    "-c",
+                    "mcp_servers.legion.command=\"legion\"",
+                    "-c",
+                    "mcp_servers.legion.args=[\"serve\",\"--stdio\"]",
+                ])
+                .arg(&prompt);
+            run_client_command(
+                &mut client_command,
+                client_id,
+                "real-client MCP qualification",
+            )?
+        }
+        other => {
+            return Err(CommandError::usage(format!(
+                "unsupported client qualification target {other}"
+            )))
+        }
+    };
+    if !output.status.success() {
+        return Err(CommandError::incomplete(format!(
+            "{client_id} real-client qualification exited with {}",
+            output.status.code().unwrap_or(-1)
+        )));
+    }
+    let output_bytes = output_bytes(&output);
+    let (observed_release_version, capability_count) =
+        parse_client_result(client_id, &output_bytes, &release.release_version)?;
+    let qualification = ClientQualificationProof {
+        schema_version: QUALIFICATION_SCHEMA_VERSION,
+        kind: "legion-real-client-qualification".into(),
+        client_id: client_id.into(),
+        mechanism: QUALIFICATION_MECHANISM.into(),
+        release: release.clone(),
+        launcher_path: command.launcher_path.clone(),
+        mcp_server: QUALIFICATION_SERVER.into(),
+        mcp_tool: QUALIFICATION_TOOL.into(),
+        invocation_status: "complete".into(),
+        observed_release_version,
+        capability_count,
+        completed: true,
+        output_sha256: legion_catalog::hex_digest(&output_bytes),
+        legion_launcher_path: command.legion_launcher_path.clone(),
+        legion_launcher_sha256: command.legion_launcher_sha256.clone(),
+        mcp_command: command.mcp_command.clone(),
+        mcp_args: command.mcp_args.clone(),
+    };
+    Ok((command, qualification))
+}
+
+fn resolve_launcher(client_id: &str) -> Result<PathBuf, CommandError> {
+    let command = match client_id {
+        "claude-code" => "claude",
+        "codex" => "codex",
+        other => {
+            return Err(CommandError::usage(format!(
+                "unsupported client qualification target {other}"
+            )))
+        }
+    };
+    resolve_command(command)
+}
+
+fn resolve_command(command: &str) -> Result<PathBuf, CommandError> {
+    let path = std::env::var_os("PATH").ok_or_else(|| {
+        CommandError::incomplete(format!("PATH is unavailable while resolving {command}"))
+    })?;
+    let directories = std::env::split_paths(&path).collect::<Vec<_>>();
+    let suffixes: Vec<OsString> = if cfg!(windows) {
+        vec![
+            OsString::from(".exe"),
+            OsString::from(".cmd"),
+            OsString::from(".bat"),
+        ]
+    } else {
+        vec![OsString::new()]
+    };
+    for suffix in &suffixes {
+        for directory in &directories {
+            let candidate = directory.join(format!("{command}{}", suffix.to_string_lossy()));
+            if candidate.is_file() {
+                return std::fs::canonicalize(candidate).map_err(io_error);
+            }
+        }
+    }
+    Err(CommandError::incomplete(format!(
+        "cannot resolve {command} on PATH"
+    )))
+}
+
+fn run_client_command(
+    command: &mut Command,
+    client_id: &str,
+    operation: &str,
+) -> Result<Output, CommandError> {
+    let mut child = command
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .map_err(|error| {
+            CommandError::incomplete(format!("{client_id} {operation} could not start: {error}"))
+        })?;
+    let deadline = Instant::now() + QUALIFICATION_TIMEOUT;
+    loop {
+        if child.try_wait().map_err(io_error)?.is_some() {
+            return child.wait_with_output().map_err(io_error);
+        }
+        if Instant::now() >= deadline {
+            let _ = child.kill();
+            let _ = child.wait();
+            return Err(CommandError::incomplete(format!(
+                "{client_id} {operation} exceeded {} seconds",
+                QUALIFICATION_TIMEOUT.as_secs()
+            )));
+        }
+        std::thread::sleep(Duration::from_millis(100));
+    }
+}
+
+fn output_bytes(output: &Output) -> Vec<u8> {
+    let mut bytes = output.stdout.clone();
+    bytes.push(0);
+    bytes.extend_from_slice(&output.stderr);
+    bytes
+}
+
+fn parse_client_result(
+    client_id: &str,
+    bytes: &[u8],
+    release_version: &str,
+) -> Result<(String, usize), CommandError> {
+    let text = String::from_utf8_lossy(bytes);
+    match client_id {
+        "codex" => {
+            for line in text.lines() {
+                let Ok(value) = serde_json::from_str::<serde_json::Value>(line) else {
+                    continue;
+                };
+                let item = value.get("item").unwrap_or(&value);
+                if item.get("type").and_then(Value::as_str) != Some("mcp_tool_call")
+                    || item.get("server").and_then(Value::as_str) != Some(QUALIFICATION_SERVER)
+                    || item.get("tool").and_then(Value::as_str) != Some(QUALIFICATION_TOOL)
+                    || item.get("status").and_then(Value::as_str) != Some("completed")
+                {
+                    continue;
+                }
+                let data = item
+                    .get("result")
+                    .and_then(|result| result.get("structured_content"))
+                    .and_then(|content| content.get("data"))
+                    .ok_or_else(|| {
+                        CommandError::incomplete("Codex MCP result lacked structured data")
+                    })?;
+                let observed = data
+                    .get("releaseVersion")
+                    .and_then(Value::as_str)
+                    .unwrap_or_default();
+                let count = data
+                    .get("capabilityCount")
+                    .and_then(Value::as_u64)
+                    .unwrap_or_default() as usize;
+                if observed == release_version
+                    && data.get("status").and_then(Value::as_str) == Some("complete")
+                    && count > 0
+                {
+                    return Ok((observed.into(), count));
+                }
+            }
+        }
+        "claude-code" => {
+            for line in text.lines().rev() {
+                let Ok(value) = serde_json::from_str::<serde_json::Value>(line) else {
+                    continue;
+                };
+                if value.get("is_error").and_then(Value::as_bool) == Some(true) {
+                    continue;
+                }
+                if let Some(result) = value.get("result").and_then(Value::as_str) {
+                    if let Some(structured) = parse_embedded_json(result) {
+                        let data = structured.get("data").unwrap_or(&structured);
+                        let observed = data
+                            .get("releaseVersion")
+                            .and_then(Value::as_str)
+                            .unwrap_or_default();
+                        let count = data
+                            .get("capabilityCount")
+                            .and_then(Value::as_u64)
+                            .unwrap_or_default() as usize;
+                        if observed == release_version
+                            && data.get("status").and_then(Value::as_str) == Some("complete")
+                            && count > 0
+                        {
+                            return Ok((observed.into(), count));
+                        }
+                    }
+                }
+            }
+        }
+        _ => {}
+    }
+    Err(CommandError::incomplete(format!(
+        "{client_id} did not return completed {QUALIFICATION_TOOL} result for {release_version}"
+    )))
+}
+
+fn parse_embedded_json(text: &str) -> Option<Value> {
+    serde_json::from_str(text.trim()).ok().or_else(|| {
+        let start = text.find('{')?;
+        let end = text.rfind('}')?;
+        serde_json::from_str(&text[start..=end]).ok()
     })
 }
 
@@ -341,16 +949,17 @@ fn selector(client: Option<String>) -> legion_host::ClientSelector {
 }
 
 fn read_json<T: serde::de::DeserializeOwned>(
-    path: &PathBuf,
+    path: impl AsRef<std::path::Path>,
     kind: &str,
 ) -> Result<T, CommandError> {
+    let path = path.as_ref();
     let bytes = std::fs::read(path).map_err(io_error)?;
     serde_json::from_slice(&bytes).map_err(|error| {
         CommandError::usage(format!("invalid {kind} at {}: {error}", path.display()))
     })
 }
 
-fn write_json<T: serde::Serialize>(path: &PathBuf, value: &T) -> Result<(), CommandError> {
+fn write_json<T: Serialize>(path: &PathBuf, value: &T) -> Result<(), CommandError> {
     let bytes = serde_json::to_vec_pretty(value).map_err(io_error)?;
     std::fs::write(path, bytes).map_err(io_error)
 }

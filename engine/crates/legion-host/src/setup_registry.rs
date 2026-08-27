@@ -16,6 +16,9 @@ use std::{
 
 pub const SETUP_REGISTRY_SCHEMA_VERSION: u32 = 1;
 const OWNER_MARKER: &str = "legion-host-setup-registry-v1";
+const SIGNING_RECEIPT_RELATIVE_PATH: &str = "qualification/signing-receipt.json";
+const RIGHTKIT_AX_VERSION: &str = "0.2.0";
+const RIGHTKIT_AX_SOURCE_COMMIT: &str = "01f52555202da3dffc6b649ca44e803b55238081";
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -424,6 +427,20 @@ struct Journal {
     rollback: RollbackPlan,
 }
 
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct SigningReceipt {
+    schema_version: u32,
+    kind: String,
+    release_version: String,
+    runtime_sha256: String,
+    signer: String,
+    authenticode_status: String,
+    timestamped: bool,
+    rightkit_ax_version: String,
+    rightkit_ax_source_commit: String,
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 struct PurgeReceipt {
     purged: Vec<PathBuf>,
@@ -586,7 +603,8 @@ impl<S: SetupStore> SetupRegistry<S> {
             snapshot,
             release: self.release.clone(),
         };
-        let external_qualification = external_qualification(&clients);
+        let external_qualification =
+            external_qualification(&clients, self.store.platform_state_root(), &request.release);
         let plan_digest = compute_plan_digest(
             &request,
             &clients,
@@ -744,13 +762,18 @@ impl<S: SetupStore> SetupRegistry<S> {
             )
         })?;
         unlock?;
-        self.release = rollback.release;
+        let rollback_release = rollback.release.clone();
+        self.release = rollback_release.clone();
         Ok(SetupExecution {
             action: SetupAction::Repair,
             generation: Some(rollback.generation),
             clients: self.status(&ClientSelector::AllSupported)?,
             remediation: Vec::new(),
-            external_qualification: external_qualification(&[]),
+            external_qualification: external_qualification(
+                &[],
+                self.store.platform_state_root(),
+                &rollback_release,
+            ),
             purged: Vec::new(),
             retained: Vec::new(),
             ownership_proof: None,
@@ -993,37 +1016,72 @@ fn detected(evidence: &ClientEvidence) -> DetectedClient {
     if evidence.qualification_evidence_ref.is_none() {
         missing.push("real-client qualification evidence".into());
     }
+    let qualified = missing.is_empty();
     DetectedClient {
         client_id: evidence.client_id.clone(),
         selected_mechanism: mechanisms.remove(0),
-        fidelity: if missing.is_empty() {
-            "Degraded".into()
+        fidelity: if qualified {
+            "Full".into()
         } else {
             "Baseline".into()
         },
         missing_surfaces: missing,
-        remediation: vec!["legion setup --repair".into()],
+        remediation: if qualified {
+            Vec::new()
+        } else {
+            vec!["legion setup --repair".into()]
+        },
     }
 }
-fn external_qualification(clients: &[DetectedClient]) -> ExternalQualification {
-    let mut missing = vec![
-        "signed platform artifact evidence".into(),
-        "pinned RightKit AX evidence".into(),
-    ];
-    for client in clients {
-        if client
-            .missing_surfaces
-            .iter()
-            .any(|item| item.contains("qualification"))
-        {
-            missing.push(format!("real-client evidence: {}", client.client_id));
-        }
+fn external_qualification(
+    clients: &[DetectedClient],
+    platform_state_root: &Path,
+    release: &BoundRelease,
+) -> ExternalQualification {
+    let mut missing: Vec<String> = clients
+        .iter()
+        .filter(|client| client.fidelity != "Full")
+        .map(|client| format!("qualified client evidence: {}", client.client_id))
+        .collect();
+    if clients.is_empty() {
+        missing.push("qualified client evidence".into());
+    }
+    let (signed_platform, pinned_rightkit) = signing_receipt_evidence(platform_state_root, release);
+    if !signed_platform {
+        missing.push("signed native platform artifact".into());
+    }
+    if !pinned_rightkit {
+        missing.push("pinned RightKit AX identity".into());
     }
     missing.sort();
     ExternalQualification {
-        status: ExternalQualificationStatus::ExternalQualificationBlocked,
+        status: if missing.is_empty() {
+            ExternalQualificationStatus::Qualified
+        } else {
+            ExternalQualificationStatus::ExternalQualificationBlocked
+        },
         missing_evidence: missing,
     }
+}
+
+fn signing_receipt_evidence(platform_state_root: &Path, release: &BoundRelease) -> (bool, bool) {
+    let path = platform_state_root.join(SIGNING_RECEIPT_RELATIVE_PATH);
+    let receipt = fs::read(path)
+        .ok()
+        .and_then(|bytes| serde_json::from_slice::<SigningReceipt>(&bytes).ok());
+    let Some(receipt) = receipt else {
+        return (false, false);
+    };
+    let signed = receipt.schema_version == 1
+        && receipt.kind == "legion-signing-receipt"
+        && receipt.release_version == release.release_version
+        && receipt.runtime_sha256 == release.runtime_digest
+        && receipt.authenticode_status == "Valid"
+        && receipt.timestamped
+        && receipt.signer == "Damned Ventures LLC";
+    let pinned = receipt.rightkit_ax_version == RIGHTKIT_AX_VERSION
+        && receipt.rightkit_ax_source_commit == RIGHTKIT_AX_SOURCE_COMMIT;
+    (signed, pinned)
 }
 fn compute_plan_digest(
     request: &SetupRequest,

@@ -3,7 +3,7 @@ use clap::{error::ErrorKind, CommandFactory, Parser, Subcommand};
 use hmac::{Hmac, Mac};
 use serde::Deserialize;
 use serde_json::{json, Value};
-use sha2::Sha256;
+use sha2::{Digest, Sha256};
 use std::{
     collections::BTreeSet,
     ffi::OsString,
@@ -14,7 +14,7 @@ use tokio_util::sync::CancellationToken;
 #[derive(Debug, Parser)]
 #[command(
     name = "legion",
-    version = "0.1.0-dev.3",
+    version = "0.1.0-dev.10",
     about = "evidence-governed repository audit",
     disable_help_subcommand = true
 )]
@@ -259,6 +259,13 @@ struct M1CompositionConfig {
     catalog_root: PathBuf,
     catalog_index_path: PathBuf,
     policy_pack: legion_policy_model::PolicyPack,
+    providers: Vec<M1ProviderConfig>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct M1ProviderConfig {
+    id: String,
 }
 
 #[derive(Debug, Deserialize)]
@@ -279,6 +286,23 @@ enum M1AssetsKind {
 }
 
 impl M1CompositionConfig {
+    fn provider_count(&self) -> Result<usize, commands::CommandError> {
+        if self.providers.is_empty() {
+            return Err(commands::CommandError::usage(
+                "M1 composition must declare at least one provider",
+            ));
+        }
+        let mut ids = BTreeSet::new();
+        for provider in &self.providers {
+            if provider.id.trim().is_empty() || !ids.insert(provider.id.as_str()) {
+                return Err(commands::CommandError::usage(
+                    "M1 composition provider ids must be non-empty and unique",
+                ));
+            }
+        }
+        Ok(self.providers.len())
+    }
+
     fn into_inputs(
         self,
         config_path: &Path,
@@ -763,7 +787,7 @@ where
 {
     let args: Vec<OsString> = args.into_iter().collect();
     if args.len() == 1 && matches!(args[0].to_str(), Some("--version" | "-V")) {
-        println!("0.1.0-dev.3");
+        println!("0.1.0-dev.10");
         return 0;
     }
     match Cli::try_parse_from(std::iter::once(OsString::from("legion")).chain(args.clone())) {
@@ -942,17 +966,19 @@ async fn native_common_projection(
 }
 async fn native_doctor(args: RootArgs, cancellation: CancellationToken) -> CommandResult {
     let root = std::fs::canonicalize(&args.root).map_err(commands::io_error)?;
-    if std::env::var_os("LEGION_NATIVE_APPLICATION_CONFIG").is_none() {
-        return Ok(json!({
-            "schemaVersion": 1,
-            "kind": "legion-doctor",
-            "status": "incomplete",
-            "repository": {"root": root},
-            "cleanClaimPossible": false,
-            "gaps": ["native repository inventory, catalog, and provider composition are not connected"],
-        }));
-    }
-    let summary = invoke_doctor(&root, cancellation, "doctor").await?;
+    let summary = match installed_doctor_summary(&root, cancellation).await {
+        Ok(summary) => summary,
+        Err(error) => {
+            return Ok(json!({
+                "schemaVersion": 1,
+                "kind": "legion-doctor",
+                "status": "incomplete",
+                "repository": {"root": root},
+                "cleanClaimPossible": false,
+                "gaps": [error.message],
+            }));
+        }
+    };
     Ok(render_doctor(
         "doctor",
         summary,
@@ -961,6 +987,58 @@ async fn native_doctor(args: RootArgs, cancellation: CancellationToken) -> Comma
         None,
         true,
     ))
+}
+async fn installed_doctor_summary(
+    root: &Path,
+    _cancellation: CancellationToken,
+) -> Result<DoctorSummary, commands::CommandError> {
+    let config_path = installed_m1_composition()?;
+    let bytes = std::fs::read(&config_path).map_err(commands::io_error)?;
+    let config: M1CompositionConfig = serde_json::from_slice(&bytes)
+        .map_err(|error| commands::CommandError::usage(error.to_string()))?;
+    let provider_count = config.provider_count()?;
+    let inputs = config.into_inputs(&config_path)?;
+    let application = legion_application::M1Application::from_inputs(inputs)
+        .map(Arc::new)
+        .map_err(|error| commands::CommandError::incomplete(error.to_string()))?;
+    let status = application.status();
+    Ok(DoctorSummary {
+        inventory_digest: native_repository_inventory_digest(root)?,
+        catalog_entries: status.capability_count,
+        provider_count,
+    })
+}
+fn native_repository_inventory_digest(root: &Path) -> Result<String, commands::CommandError> {
+    fn collect(root: &Path, directory: &Path, files: &mut Vec<PathBuf>) -> std::io::Result<()> {
+        for entry in std::fs::read_dir(directory)? {
+            let entry = entry?;
+            let path = entry.path();
+            let file_type = entry.file_type()?;
+            if file_type.is_dir() {
+                if !matches!(
+                    entry.file_name().to_str(),
+                    Some(".git" | ".audit" | "node_modules" | "target")
+                ) {
+                    collect(root, &path, files)?;
+                }
+            } else if file_type.is_file() {
+                files.push(path.strip_prefix(root).unwrap_or(&path).to_path_buf());
+            }
+        }
+        Ok(())
+    }
+
+    let mut files = Vec::new();
+    collect(root, root, &mut files).map_err(commands::io_error)?;
+    files.sort();
+    let mut digest = Sha256::new();
+    for relative in files {
+        let path = root.join(&relative);
+        digest.update(relative.to_string_lossy().replace('\\', "/").as_bytes());
+        digest.update([0]);
+        digest.update(std::fs::read(path).map_err(commands::io_error)?);
+    }
+    Ok(format!("sha256:{:x}", digest.finalize()))
 }
 fn render_doctor(
     kind: &str,

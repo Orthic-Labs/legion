@@ -52,6 +52,38 @@ fn evidence() -> Vec<ClientEvidence> {
     }]
 }
 
+#[test]
+fn release_bound_real_client_evidence_promotes_full_fidelity() {
+    let root = TempRoot::new("qualified-client");
+    fs::create_dir_all(root.path().join("qualification")).expect("qualification directory");
+    fs::write(
+        root.path().join("qualification/signing-receipt.json"),
+        serde_json::json!({
+            "schemaVersion": 1,
+            "kind": "legion-signing-receipt",
+            "releaseVersion": release().release_version,
+            "runtimeSha256": release().runtime_digest,
+            "signer": "Damned Ventures LLC",
+            "authenticodeStatus": "Valid",
+            "timestamped": true,
+            "rightkitAxVersion": "0.2.0",
+            "rightkitAxSourceCommit": "01f52555202da3dffc6b649ca44e803b55238081"
+        })
+        .to_string(),
+    )
+    .expect("signing receipt");
+    let mut registry = registry(root.path());
+    let mut request = request(root.path(), SetupAction::Apply);
+    request.client_evidence[0].qualification_evidence_ref =
+        Some("installed-real-client-proof".into());
+    let preview = registry.preview(request).expect("preview qualified setup");
+    assert_eq!(preview.clients[0].fidelity, "Full");
+    assert_eq!(
+        serde_json::to_value(&preview.external_qualification.status).expect("serialize status"),
+        serde_json::json!("qualified")
+    );
+}
+
 fn request(root: &Path, action: SetupAction) -> SetupRequest {
     SetupRequest {
         action,

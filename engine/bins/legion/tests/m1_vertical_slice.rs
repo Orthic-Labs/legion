@@ -191,6 +191,7 @@ fn fixture(with_body: bool) -> Fixture {
             "releaseManifestPath": "release.json",
             "catalogRoot": ".",
             "catalogIndexPath": "registry/index.json",
+            "providers": [{"id":"m1-native-capability"}],
             "policyPack": policy_pack(),
             "releaseBinding": {
                 "runtimeProvenance": "rightkit-release://m1-cli-fixture",
@@ -298,6 +299,7 @@ fn installed_composition_is_resolved_from_the_executable() {
             "releaseManifestPath": "release.json",
             "catalogRoot": "assets",
             "catalogIndexPath": "registry/index.json",
+            "providers": [{"id":"m1-native-capability"}],
             "policyPack": policy_pack(),
             "releaseBinding": {
                 "runtimeProvenance": "rightkit-release://installed-test",
