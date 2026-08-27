@@ -44,7 +44,10 @@ impl EvidenceRecord {
                 "content_digest must be non-empty".into(),
             ));
         }
-        let expected_digest = format!("sha256:{:x}", Sha256::digest(self.text.as_bytes()));
+        let expected_digest = format!(
+            "sha256:{}",
+            hex::encode(Sha256::digest(self.text.as_bytes()))
+        );
         if self.content_digest != expected_digest {
             return Err(ResearchError::InvalidEvidence(
                 "content_digest does not match evidence text".into(),
@@ -358,7 +361,7 @@ mod tests {
             kind: EvidenceKind::SourceAssertion,
             source_id: Some(format!("source-{id}")),
             locator: Some(format!("https://example.test/{id}#passage")),
-            content_digest: format!("sha256:{:x}", Sha256::digest(text.as_bytes())),
+            content_digest: format!("sha256:{}", hex::encode(Sha256::digest(text.as_bytes()))),
             text,
             provenance: BTreeMap::from([
                 ("provider".into(), format!("provider-{id}")),

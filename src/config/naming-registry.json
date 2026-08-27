@@ -12,20 +12,20 @@
     "alchemist": {
       "displayName": "Alchemist",
       "aliases": [
-        { "id": "forge", "status": "read_only_alias", "read": true, "write": false, "removalEarliest": "3.0.0" },
-        { "id": "sorcerer", "status": "read_only_alias", "read": true, "write": false, "removalEarliest": "3.0.0" }
+        { "id": "forge", "status": "read_only_alias", "read": true, "write": false, "removalCondition": "remove after supported predecessor state import closes" },
+        { "id": "sorcerer", "status": "read_only_alias", "read": true, "write": false, "removalCondition": "remove after supported predecessor state import closes" }
       ]
     },
     "oracle": {
       "displayName": "Oracle",
       "aliases": [
-        { "id": "seer", "status": "read_only_alias", "read": true, "write": false, "removalEarliest": "3.0.0" }
+        { "id": "seer", "status": "read_only_alias", "read": true, "write": false, "removalCondition": "remove after supported predecessor state import closes" }
       ]
     },
     "arcane": {
       "displayName": "Arcane",
       "aliases": [
-        { "id": "sentinel", "status": "read_only_alias", "read": true, "write": false, "removalEarliest": "3.0.0" }
+        { "id": "sentinel", "status": "read_only_alias", "read": true, "write": false, "removalCondition": "remove after supported predecessor state import closes" }
       ]
     }
   },

@@ -1,6 +1,6 @@
 use crate::commands::{self, CommandResult};
 use clap::{error::ErrorKind, CommandFactory, Parser, Subcommand};
-use hmac::{Hmac, Mac};
+use hmac::{Hmac, KeyInit, Mac};
 use serde::Deserialize;
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
@@ -14,7 +14,7 @@ use tokio_util::sync::CancellationToken;
 #[derive(Debug, Parser)]
 #[command(
     name = "legion",
-    version = "0.1.0-dev.10",
+    version = env!("CARGO_PKG_VERSION"),
     about = "evidence-governed repository audit",
     disable_help_subcommand = true
 )]
@@ -787,7 +787,7 @@ where
 {
     let args: Vec<OsString> = args.into_iter().collect();
     if args.len() == 1 && matches!(args[0].to_str(), Some("--version" | "-V")) {
-        println!("0.1.0-dev.10");
+        println!("{}", env!("CARGO_PKG_VERSION"));
         return 0;
     }
     match Cli::try_parse_from(std::iter::once(OsString::from("legion")).chain(args.clone())) {
@@ -844,7 +844,7 @@ async fn dispatch(cli: Cli, cancellation: CancellationToken) -> commands::Comman
         Command::Handoff(args) => commands::handoff::run(args),
         Command::Research(args) => commands::research::run(args, cancellation.clone()),
         Command::Review(args) => commands::review::run(args, cancellation.clone()),
-        Command::Setup(args) => commands::setup::run(args),
+        Command::Setup(args) => commands::setup::run(args, cancellation.clone()).await,
         Command::Providers(args) => Ok(
             json!({"schemaVersion":1,"kind":"legion-providers","providers": providers(), "selected": !(args.json || root_json), "arguments": args.args, "json": args.json || root_json, "text": providers_text()}),
         ),
@@ -1038,7 +1038,7 @@ fn native_repository_inventory_digest(root: &Path) -> Result<String, commands::C
         digest.update([0]);
         digest.update(std::fs::read(path).map_err(commands::io_error)?);
     }
-    Ok(format!("sha256:{:x}", digest.finalize()))
+    Ok(format!("sha256:{}", hex::encode(digest.finalize())))
 }
 fn render_doctor(
     kind: &str,

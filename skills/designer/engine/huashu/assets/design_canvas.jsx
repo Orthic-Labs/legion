@@ -134,7 +134,18 @@ function DesignCanvas({ title, subtitle, columns = 3, children }) {
 
       {expanded !== null && (
         <div
-          onClick={() => setExpanded(null)}
+          role="button"
+          tabIndex={0}
+          aria-label="Close expanded variation"
+          onClick={event => {
+            if (event.target === event.currentTarget) setExpanded(null);
+          }}
+          onKeyDown={event => {
+            if (event.key === 'Escape' || event.key === 'Enter' || event.key === ' ') {
+              event.preventDefault();
+              setExpanded(null);
+            }
+          }}
           style={{
             position: 'fixed',
             inset: 0,
@@ -148,7 +159,6 @@ function DesignCanvas({ title, subtitle, columns = 3, children }) {
           }}
         >
           <div
-            onClick={e => e.stopPropagation()}
             style={{
               background: '#fff',
               borderRadius: 8,
@@ -180,7 +190,16 @@ function Variation({ label, description, number, children, _index, _expanded, _o
       </div>
 
       <div
+        role="button"
+        tabIndex={0}
+        aria-label={`Expand ${label}`}
         onClick={_onToggle}
+        onKeyDown={event => {
+          if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault();
+            _onToggle();
+          }
+        }}
         style={{
           ...canvasStyles.frame,
           aspectRatio,
@@ -189,6 +208,12 @@ function Variation({ label, description, number, children, _index, _expanded, _o
           e.currentTarget.style.boxShadow = '0 8px 24px rgba(0,0,0,0.08)';
         }}
         onMouseLeave={e => {
+          e.currentTarget.style.boxShadow = 'none';
+        }}
+        onFocus={e => {
+          e.currentTarget.style.boxShadow = '0 8px 24px rgba(0,0,0,0.08)';
+        }}
+        onBlur={e => {
           e.currentTarget.style.boxShadow = 'none';
         }}
       >

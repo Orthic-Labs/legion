@@ -26,7 +26,9 @@ Use for an active job, an external review, or goal-alignment mode when the user
 wants a later check. Natural language such as “check again later”, “wake me when
 it finishes”, or “keep this aligned” routes here. A numeric `wake N` (or `/wake N`)
 means `N` minutes. `N` must be a positive integer; preserve the thread's local
-timezone when presenting the next check time.
+timezone when presenting the next check time. Bare `/wake` defaults to a
+five-minute heartbeat. Goal-alignment heartbeats repeat at five-minute bounded
+checks unless the user explicitly selects another cadence.
 
 Do not schedule a wake when there is no identifiable target, when target state is
 already terminal, or after a stop, pause, revoke, or scope-narrowing instruction.
@@ -46,10 +48,46 @@ Reuse or update an existing wake for the same target instead of creating a
 duplicate. Never emulate scheduling with `wait_threads`, sleep, a timer, a
 watcher, or repeated tool calls in the current turn.
 
+## What not to do
+
+- Do not encode a relative wake as a timezone-less daily `BYHOUR`/`BYMINUTE`
+  rule. Hosts may interpret that wall clock differently, leave automation
+  `ACTIVE`, and never run expected check.
+- Do not treat `ACTIVE` status or a rendered automation card as proof that a
+  future occurrence exists. Verify scheduler reports one future run.
+- Do not use a relative `COUNT=1` rule when scheduler consumes immediate
+  occurrence at creation. If host has no reliable one-shot primitive, schedule
+  supported relative recurrence whose first instruction deletes itself before
+  inspection, then create only next bounded wake after observing target state.
+- Do not report wake as scheduled until target thread ID, next occurrence, and
+  self-cancel behavior are all observable.
+
 ## One-inspection wake protocol
 
 Each heartbeat performs one state inspection, records observed evidence, and then
 chooses one outcome. It must not poll again during that wake.
+
+### Evidence floor
+
+A status label, worker state, or elapsed-time estimate alone is never an
+inspection. Before choosing an outcome, inspect all available evidence below:
+
+1. Exact changed-file inventory plus relevant bounded diffs since the prior wake,
+   including tracked, untracked, generated, & deleted files. Never start an
+   unbounded repository scan to build this inventory.
+2. Active agent/worker state plus new messages, receipts, failures, & completed
+   outputs since the prior wake.
+3. Completed behavior proven by current command, test, build, delivery, or
+   artifact evidence; distinguish produced work from verified work.
+4. Remaining work reconstructed from latest user requests, corrections,
+   exclusions, active plan, & unresolved acceptance criteria.
+5. Relevant host-visible desktop/task artifacts, including current terminal,
+   review, file, or automation state when the host exposes them. Record
+   `unavailable` rather than infer unseen state.
+
+Compare this evidence with the prior wake and name material deltas. If no
+evidence changed, report that exact fact quietly; never substitute shallow
+`running`, `active`, or `complete` labels for inspection.
 
 | Observed state | Action |
 | --- | --- |
@@ -100,6 +138,11 @@ mode: active-job | external-review | goal-alignment
 observed_at: <timestamp>
 state: running | succeeded | failed | ambiguous | stopped
 evidence: <paths, IDs, or user-confirmed observations>
+changed_files: <exact bounded delta or none>
+agents: <new messages, outputs, failures, or unchanged>
+completed_behavior: <current proof or none>
+remaining_work: <latest-scope acceptance items>
+desktop_artifacts: <observed artifacts or unavailable>
 action: <one action taken or explicitly none>
 next_wake: <timestamp, cancelled, or none>
 ```

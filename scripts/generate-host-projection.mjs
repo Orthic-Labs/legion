@@ -25,6 +25,7 @@ const ROOT = resolve(fileURLToPath(new URL('..', import.meta.url)));
 // truth for what each harness supports — not hand-maintained here.
 import { fidelityMatrix } from '../src/lib/host/registry.mjs';
 const OUT = 'src/registry/host-projection.json';
+const SUPPORT_OUT = 'references/generated/support.md';
 
 function rosterFrontmatter(text) {
   const end = text.indexOf('\n---', 4);
@@ -59,12 +60,18 @@ export function buildProjection(root = ROOT) {
       const kind = fm.kind ?? 'capability';
       const discoverability = fm.discoverability ?? 'public';
       const publicCapability = kind === 'capability' && discoverability === 'public';
+      const invocation = discoverability === 'public'
+        ? { user: true, model: true }
+        : discoverability === 'explicit'
+          ? { user: true, model: false }
+          : { user: false, model: false };
       return {
         id,
         name: fm.name ?? id,
         description: fm.description ?? '',
         kind: publicCapability ? 'domain-capability' : 'entrypoint',
         discoverability: publicCapability ? 'public' : discoverability,
+        invocation,
         domain: fm.domain === 'null' || fm.domain === '' ? null : (fm.domain ?? null),
         source: path,
       };
@@ -124,20 +131,39 @@ function harnessFidelity() {
   }));
 }
 
+export function renderHarnessSupport(projection) {
+  const lines = [
+    '# Generated host support matrix',
+    '',
+    'Generated from registered host adapters. Values describe implemented projection fidelity, not aspirational product parity.',
+    '',
+    '| Host | Install owner | Instructions | Skills | Agents | MCP | Hooks | Skills mechanism | MCP mechanism |',
+    '|---|---|---|---|---|---|---|---|---|',
+  ];
+  for (const harness of projection.harnesses) {
+    lines.push(`| ${harness.id} | ${harness.installOwner} | ${harness.fidelity.instructions} | ${harness.fidelity.skillDiscovery} | ${harness.fidelity.authorityAgents} | ${harness.fidelity.mcp} | ${harness.fidelity.arcaneEnforcement} | ${harness.mechanisms.skills} | ${harness.mechanisms.mcp} |`);
+  }
+  return `${lines.join('\n')}\n`;
+}
+
 const isMain = process.argv[1] && resolve(process.argv[1]) === resolve(fileURLToPath(import.meta.url));
 if (isMain) {
   const projection = buildProjection();
   const rendered = `${JSON.stringify(projection, null, 2)}\n`;
+  const support = renderHarnessSupport(projection);
   const target = join(ROOT, OUT);
+  const supportTarget = join(ROOT, SUPPORT_OUT);
   if (process.argv.includes('--check')) {
     const current = existsSync(target) ? readFileSync(target, 'utf8') : '';
-    if (current !== rendered) {
-      process.stderr.write(`host projection drift: ${OUT} does not match its canonical sources.\nRun: node scripts/generate-host-projection.mjs\n`);
+    const currentSupport = existsSync(supportTarget) ? readFileSync(supportTarget, 'utf8') : '';
+    if (current !== rendered || currentSupport !== support) {
+      process.stderr.write(`host projection drift: ${OUT} or ${SUPPORT_OUT} does not match canonical sources.\nRun: node scripts/generate-host-projection.mjs\n`);
       process.exit(1);
     }
     process.stdout.write('host projection: no drift\n');
   } else {
     writeFileSync(target, rendered);
+    writeFileSync(supportTarget, support);
     process.stdout.write(`wrote ${OUT} (${projection.capabilities.length} capabilities, ${projection.roles.length} roles, ${projection.harnesses.length} harnesses)\n`);
   }
 }

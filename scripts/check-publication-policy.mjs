@@ -1,40 +1,56 @@
 #!/usr/bin/env node
-// Publication policy guard. Public publication (npm, Homebrew, winget, MSI/MSIX,
-// signed releases, public SDK channels) is blocked until a tracked
-// release/publication-policy.json explicitly grants the channel. Only the
-// internal pack/local-test/ci-test channels are always allowed.
-
+// Public channels require an explicit grant bound to current shipped surface.
+import { createHash } from 'node:crypto';
 import { existsSync, readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-const args = process.argv.slice(2);
-const index = args.indexOf('--channel');
-const channel = index >= 0 ? args[index + 1] : null;
-if (!channel) {
-  console.error('usage: check-publication-policy.mjs --channel <name>');
-  process.exit(4);
-}
+const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+const INTERNAL = new Set(['internal-pack', 'local-test', 'ci-test']);
 
-const internal = new Set(['internal-pack', 'local-test', 'ci-test']);
-if (internal.has(channel)) {
-  console.log(`internal channel allowed: ${channel}`);
-  process.exit(0);
+function readJson(root, path) {
+  return JSON.parse(readFileSync(resolve(root, path), 'utf8'));
 }
 
-const policyPath = resolve('release/publication-policy.json');
-if (!existsSync(policyPath)) {
-  console.error(`publication blocked: ${policyPath} is absent`);
-  process.exit(5);
+export function publicationSurfaceDigest(root = ROOT) {
+  const pkg = readJson(root, 'package.json');
+  const manifest = readJson(root, 'MANIFEST.package.json');
+  const canonical = JSON.stringify({
+    files: pkg.files,
+    allowlistedTopLevel: manifest.allowlistedTopLevel,
+  });
+  return `sha256:${createHash('sha256').update(canonical).digest('hex')}`;
 }
 
-const policy = JSON.parse(readFileSync(policyPath, 'utf8'));
-if (policy.schemaVersion !== 1 || policy.kind !== 'legion-publication-policy') {
-  console.error('publication blocked: invalid policy');
-  process.exit(5);
+export function checkPublicationChannel(channel, root = ROOT) {
+  if (!channel) return { status: 'error', exitCode: 4, message: 'usage: check-publication-policy.mjs --channel <name>' };
+  if (INTERNAL.has(channel)) return { status: 'pass', exitCode: 0, message: `internal channel allowed: ${channel}` };
+  const policyPath = resolve(root, 'release/publication-policy.json');
+  if (!existsSync(policyPath)) return { status: 'blocked', exitCode: 5, message: `publication blocked: ${policyPath} is absent` };
+  const policy = JSON.parse(readFileSync(policyPath, 'utf8'));
+  if (policy.schemaVersion !== 1 || policy.kind !== 'legion-publication-policy') {
+    return { status: 'blocked', exitCode: 5, message: 'publication blocked: invalid policy' };
+  }
+  const grant = policy.channels?.[channel];
+  if (!grant?.allowed || !grant.approvedBy || !grant.approvedAt || !grant.policyDigest) {
+    return { status: 'blocked', exitCode: 5, message: `publication blocked: channel ${channel} has no complete grant` };
+  }
+  const observed = publicationSurfaceDigest(root);
+  if (grant.policyDigest !== observed) {
+    return {
+      status: 'blocked',
+      exitCode: 5,
+      message: `publication blocked: channel ${channel} policy digest drift (declared ${grant.policyDigest}, current ${observed})`,
+    };
+  }
+  return { status: 'pass', exitCode: 0, message: `publication channel allowed: ${channel}` };
 }
-const grant = policy.channels?.[channel];
-if (!grant?.allowed || !grant.approvedBy || !grant.approvedAt || !grant.policyDigest) {
-  console.error(`publication blocked: channel ${channel} has no complete grant`);
-  process.exit(5);
+
+const isMain = process.argv[1] && resolve(process.argv[1]) === resolve(fileURLToPath(import.meta.url));
+if (isMain) {
+  const index = process.argv.indexOf('--channel');
+  const result = checkPublicationChannel(index >= 0 ? process.argv[index + 1] : null);
+  const output = result.exitCode === 0 ? process.stdout : process.stderr;
+  output.write(`${result.message}\n`);
+  process.exitCode = result.exitCode;
 }
-console.log(`publication channel allowed: ${channel}`);

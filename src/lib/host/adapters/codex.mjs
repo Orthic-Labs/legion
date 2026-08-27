@@ -4,11 +4,10 @@
 // MCP servers from its config TOML as `[mcp_servers.<name>]`. Both are real,
 // implemented, and asserted by the conformance tests.
 //
-// Skills: Codex has NO native Agent Skills discovery. Legion projects the
-// canonical SKILL.md packages to `.agents/skills` and points at them from the
-// AGENTS.md instructions block, so the capability content reaches the model —
-// but selection is instruction-driven, not host-driven. That loss is exactly
-// what `degraded` means here; it is not a claim of native support.
+// Skills: current Codex discovers Agent Skills from `.agents/skills`. Legion
+// projects canonical packages there. Fidelity remains degraded until Legion's
+// explicit-only invocation policy is projected into a Codex-native control;
+// discovery itself is native and host-driven.
 //
 // Detection uses Codex-specific evidence only. AGENTS.md is a cross-harness
 // convention and is deliberately NOT a Codex signal: it would positively detect
@@ -20,7 +19,7 @@ export default {
   detect: { anyOf: ['.codex', '.codex/config.toml'], env: ['CODEX_HOME', 'CODEX_THREAD_ID', 'CODEX_SESSION_ID'] },
   surfaces: {
     instructions: { fidelity: 'strong', mechanism: { kind: 'agents-md', path: 'AGENTS.md' } },
-    skills: { fidelity: 'degraded', mechanism: { kind: 'skills-dir', path: '.agents/skills' }, note: 'no native skill discovery; canonical packages projected to .agents/skills and referenced from AGENTS.md' },
+    skills: { fidelity: 'degraded', mechanism: { kind: 'skills-dir', path: '.agents/skills' }, note: 'native Agent Skills discovery; explicit-only invocation policy is not yet enforceable through this adapter' },
     agents: { fidelity: 'unsupported', mechanism: { kind: 'none' }, note: 'no native subagents' },
     mcp: { fidelity: 'strong', mechanism: { kind: 'toml', path: '.codex/config.toml', table: 'mcp_servers' } },
     hooks: { fidelity: 'unsupported', mechanism: { kind: 'none' }, note: 'no effect-enforcement hook surface; Arcane enforcement is absent, not degraded' },

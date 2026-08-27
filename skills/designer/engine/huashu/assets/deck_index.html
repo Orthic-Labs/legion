@@ -10,7 +10,7 @@
    · grid  自适应网格墙：列数随页数+视口自适应，行多则倾斜变平，scale-to-fit 居中铺满（任意页数都不溢出/不失真）
    · gallery 无限画廊：固定卡片大小，无缝无限平铺 + 缓慢漂移 + 轻微呼吸；一个 tile 含全部页（洗牌），看完所有页才重复
   演示 present：单页 fit 缩放翻页。ESC / ⊞ 回概览。
-  性能：manifest 每项可带 thumb（预渲染缩略图），概览即用 <img> 平铺，避免 N 个 iframe 同时加载。
+  性能：manifest 每项可带 thumb（预渲染缩略图），概览即用 image elements 平铺，避免 N 个 iframe 同时加载。
 
   用法：复制为 index.html；建 slides/ 放每页独立 HTML；编辑 MANIFEST。
   可选覆盖：window.DECK_OVERVIEW = 'grid' | 'gallery'（不写则随机）；URL ?ov=grid|gallery 临时强制。

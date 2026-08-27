@@ -87,7 +87,7 @@ test('an absolute host path is matched against a relative scope entry', () => {
 });
 
 test('backslashes and drive-letter casing do not defeat the match', () => {
-  assert.equal(workspaceRelative('D:\\Claude\\tools\\a.mjs', 'd:/claude'), 'tools/a.mjs');
+  assert.equal(workspaceRelative('D:\\Example\\tools\\a.mjs', 'd:/example'), 'tools/a.mjs');
 });
 
 test('a path outside the workspace is left absolute, so it still fails own[]', () => {

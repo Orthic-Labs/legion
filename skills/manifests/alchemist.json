@@ -96,7 +96,7 @@
     {
       "path": "scripts/start-stack.vbs",
       "uri": "legion-skill://alchemist/scripts/start-stack.vbs",
-      "digest": "sha256:df2b95571ee90cc1d126d493154bd4df1a80cc13e1134942cf0332229cd8f8bf"
+      "digest": "sha256:289f7ce8d66ef69ce1e689193276b8ff74f9edf1483adf9d75423c59c28a6aed"
     },
     {
       "path": "scripts/tray.ps1",

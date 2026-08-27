@@ -122,7 +122,7 @@
     {
       "path": "engine/huashu/assets/deck_index.html",
       "uri": "legion-skill://designer/engine/huashu/assets/deck_index.html",
-      "digest": "sha256:55e3b20091ae34dc0dc8e6f4a7023c7f472e1239432d3bc7e8eab0683ba31895"
+      "digest": "sha256:06095c95532c9f44da01f9459723bac990bfc5bba9e4290fe90021f7836e6866"
     },
     {
       "path": "engine/huashu/assets/deck_stage.js",
@@ -132,7 +132,7 @@
     {
       "path": "engine/huashu/assets/design_canvas.jsx",
       "uri": "legion-skill://designer/engine/huashu/assets/design_canvas.jsx",
-      "digest": "sha256:5376c8ebdc59ec8b969161cb815d9455ccd233e6d6baa0d49f8af337883ed3d6"
+      "digest": "sha256:ea847f40bb64fc0eb300fb767f0e7f2b330c5da9626c7db994504b7815cbc769"
     },
     {
       "path": "engine/huashu/assets/ios_frame.jsx",

@@ -14,7 +14,10 @@ fn research_consumes_host_injected_sources_with_receipts() {
             "uri": "https://example.test/source",
             "title": "Fixture source",
             "retrieved_at": "2026-08-25T00:00:00Z",
-            "content_digest": format!("sha256:{:x}", Sha256::digest(text.as_bytes())),
+            "content_digest": format!(
+                "sha256:{}",
+                hex::encode(Sha256::digest(text.as_bytes()))
+            ),
             "byte_length": text.len(),
             "text": text,
             "metadata": {"request_receipt": receipt}

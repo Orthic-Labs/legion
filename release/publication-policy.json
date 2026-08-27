@@ -6,8 +6,8 @@
     "npm": {
       "allowed": true,
       "approvedBy": "Orthic Labs",
-      "approvedAt": "2026-08-18",
-      "policyDigest": "sha256:5aee7017cb37b90153f25d7319287614b607119af239f6d775d9ca14e64a6153"
+      "approvedAt": "2026-08-27",
+      "policyDigest": "sha256:b8fa015955a745d8b3f9010b59aae0c33c721ee8d02e1d559cf2e91797aab24d"
     }
   }
 }

@@ -99,7 +99,10 @@ impl SourceRecord {
                 self.byte_length
             )));
         }
-        let actual_digest = format!("sha256:{:x}", Sha256::digest(self.text.as_bytes()));
+        let actual_digest = format!(
+            "sha256:{}",
+            hex::encode(Sha256::digest(self.text.as_bytes()))
+        );
         if self.content_digest != actual_digest {
             return Err(ResearchError::InvalidSource(
                 "content_digest does not match source text".into(),
@@ -234,7 +237,7 @@ mod tests {
             uri: "https://example.test/source".into(),
             title: Some("Source".into()),
             retrieved_at: Some("2026-08-26T00:00:00Z".into()),
-            content_digest: format!("sha256:{:x}", Sha256::digest(text.as_bytes())),
+            content_digest: format!("sha256:{}", hex::encode(Sha256::digest(text.as_bytes()))),
             byte_length: text.len() as u64,
             text: text.into(),
             metadata: BTreeMap::from([("request_receipt".into(), "request-1".into())]),

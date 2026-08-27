@@ -152,7 +152,7 @@ impl BlueprintInventorySource for FilesystemInventorySource {
                     Vec::new()
                 },
                 source_file: is_source_path(relative),
-                digest: Some(format!("sha256:{:x}", Sha256::digest(bytes))),
+                digest: Some(format!("sha256:{}", hex::encode(Sha256::digest(bytes)))),
             });
         }
         entries.sort_by(|left, right| left.path.cmp(&right.path));
@@ -959,11 +959,14 @@ mod tests {
             serde_json::json!({"paths": []}),
         ] {
             let result = inventory.denominator_entries(&selector);
-            assert!(matches!(
-                &result,
-                Err(AuditError::Invalid(message))
-                    if message.contains("non-empty")
-            ), "selector {selector} returned {result:?}");
+            assert!(
+                matches!(
+                    &result,
+                    Err(AuditError::Invalid(message))
+                        if message.contains("non-empty")
+                ),
+                "selector {selector} returned {result:?}"
+            );
         }
     }
 }

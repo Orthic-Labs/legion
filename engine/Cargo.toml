@@ -24,32 +24,32 @@ members = [
 ]
 
 [workspace.package]
+version = "0.1.0-dev.10"
 edition = "2021"
 license = "LicenseRef-Orthic-Labs-Source-Use-1.0"
 license-file = "../LICENSE"
 
 [workspace.dependencies]
-serde = { version = "1", features = ["derive"] }
-serde_json = "1"
-serde_yaml = "0.9"
-thiserror = "2"
-tokio = { version = "1", features = ["full"] }
-tokio-util = { version = "0.7", features = ["rt"] }
-async-trait = "0.1"
-sha2 = "0.10"
-hmac = "0.12"
-hex = "0.4"
-regex = "1"
-walkdir = "2"
-clap = { version = "4", features = ["derive"] }
-reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls", "stream"] }
-futures-util = "0.3"
-secrecy = "0.10"
-rusqlite = { version = "0.40", features = ["bundled"] }
-jsonschema = "0.33"
-toml = "1"
-libc = "0.2"
-windows-sys = { version = "0.59", features = [
+serde = { version = "1.0.229", features = ["derive"] }
+serde_json = "1.0.151"
+serde_yaml = "0.9.34"
+thiserror = "2.0.20"
+tokio = { version = "1.53.1", features = ["full"] }
+tokio-util = { version = "0.7.19", features = ["rt"] }
+async-trait = "0.1.92"
+sha2 = "0.11.0"
+hmac = "0.13.0"
+hex = "0.4.3"
+regex = "1.13.1"
+walkdir = "2.5.0"
+clap = { version = "4.6.6", features = ["derive"] }
+reqwest = { version = "0.13.4", default-features = false, features = ["json", "rustls", "stream"] }
+futures-util = "0.3.34"
+secrecy = "0.10.3"
+rusqlite = { version = "0.40.2", features = ["bundled"] }
+toml = "1.1.4"
+libc = "1.0.0-alpha.4"
+windows-sys = { version = "0.61.2", features = [
     "Win32_Foundation",
     "Win32_Security",
     "Win32_System_Console",
@@ -57,4 +57,4 @@ windows-sys = { version = "0.59", features = [
     "Win32_System_Pipes",
     "Win32_System_Threading",
 ] }
-tiktoken-rs = "0.6"
+tiktoken-rs = "0.12.0"

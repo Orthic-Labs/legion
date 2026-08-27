@@ -13,13 +13,7 @@ import { dirname, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-const cargoManifest = join(
-	repositoryRoot,
-	"engine",
-	"bins",
-	"legion",
-	"Cargo.toml",
-);
+const releaseVersionRecord = join(repositoryRoot, "release", "version.json");
 
 function argument(name, fallback) {
 	const index = process.argv.indexOf(name);
@@ -86,11 +80,14 @@ function copyDeclarativeTree(source, destination) {
 }
 
 function version() {
-	const match = readFileSync(cargoManifest, "utf8").match(
-		/^version\s*=\s*"([^"]+)"/m,
-	);
-	if (!match) throw new Error(`version missing from ${cargoManifest}`);
-	return match[1];
+	const record = JSON.parse(readFileSync(releaseVersionRecord, "utf8"));
+	if (
+		record.schemaVersion !== 1 ||
+		record.kind !== "legion-release-version" ||
+		typeof record.version !== "string"
+	)
+		throw new Error(`invalid release version record: ${releaseVersionRecord}`);
+	return record.version;
 }
 
 const platform = process.platform === "win32" ? "windows" : process.platform;

@@ -23,7 +23,7 @@ function recursiveFiles(root, cursor = root, output = []) {
 
 function repositoryFiles(root) {
   try {
-    return execFileSync('git', ['ls-files', '-co', '--exclude-standard', '-z'], { cwd: root })
+    return execFileSync('git', ['ls-files', '-co', '--exclude-standard', '-z'], { cwd: root, stdio: ['ignore', 'pipe', 'ignore'] })
       // Keep only real files: nested checkout entries may resolve to directories
       // on disk, and reading those as files throws EISDIR.
       .toString().split('\0').filter(Boolean)
@@ -46,6 +46,36 @@ function text(path) {
 
 function matchingRule(rules, path, token) {
   return rules.find((rule) => (rule.path === path || (rule.pathPrefix && path.startsWith(rule.pathPrefix))) && rule.tokens.includes(token));
+}
+
+function allowlistIssues(root, rules, files) {
+  const issues = [];
+  for (const [index, rule] of rules.entries()) {
+    const rulePath = `src/config/naming-legacy-allowlist.json#rules[${index}]`;
+    if ((!rule.path && !rule.pathPrefix) || !Array.isArray(rule.tokens) || rule.tokens.length === 0 || !rule.class || !rule.reason) {
+      issues.push({ path: rulePath, reason: 'legacy allowlist rule lacks target, tokens, class, or reason' });
+      continue;
+    }
+    const candidates = files.filter((path) => rule.path === path || (rule.pathPrefix && path.startsWith(rule.pathPrefix)));
+    if (candidates.length === 0) {
+      issues.push({ path: rule.path ?? rule.pathPrefix, reason: 'legacy allowlist target does not exist or matches no files' });
+      continue;
+    }
+    for (const token of rule.tokens) {
+      if (!TOKENS.includes(token)) {
+        issues.push({ path: rulePath, token, reason: 'legacy allowlist names unknown token' });
+        continue;
+      }
+      let observed = 0;
+      for (const path of candidates) {
+        observed += occurrences(path, token).length;
+        const content = text(resolve(root, path));
+        if (content !== null) observed += occurrences(content, token).length;
+      }
+      if (observed === 0) issues.push({ path: rule.path ?? rule.pathPrefix, token, reason: 'legacy allowlist token exemption is unused' });
+    }
+  }
+  return issues;
 }
 
 function occurrences(content, token) {
@@ -99,8 +129,9 @@ function semanticIssues(root, registry) {
 export function checkCanonicalNames({ root }) {
   const registry = loadNamingRegistry(resolve(root, 'src/config/naming-registry.json'));
   const allowlist = JSON.parse(readFileSync(resolve(root, 'src/config/naming-legacy-allowlist.json'), 'utf8'));
-  const issues = semanticIssues(root, registry);
-  for (const path of repositoryFiles(root)) {
+  const files = repositoryFiles(root);
+  const issues = [...semanticIssues(root, registry), ...allowlistIssues(root, allowlist.rules, files)];
+  for (const path of files) {
     for (const token of TOKENS) {
       const pathHit = occurrences(path, token).length > 0;
       if (pathHit && !matchingRule(allowlist.rules, path, token)) issues.push({ path, token, reason: 'unclassified legacy filename' });

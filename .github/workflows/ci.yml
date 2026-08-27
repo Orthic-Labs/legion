@@ -1,0 +1,34 @@
+name: legion-ci
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - name: Install pinned pnpm
+        uses: pnpm/setup@84cb39b217b10273981911c288cd62326dc7c6d2 # v2
+      - name: Verify toolchain
+        run: |
+          node --version
+          pnpm --version
+          cd engine
+          rustc --version
+          cargo --version
+      - name: Install locked Node dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Run repository consistency gates
+        run: pnpm legion:check
+      - name: Run Node test suite
+        run: pnpm test
+      - name: Run Rust test suite
+        working-directory: engine
+        run: cargo test --locked

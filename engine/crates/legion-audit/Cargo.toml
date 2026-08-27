@@ -1,6 +1,6 @@
 [package]
 name = "legion-audit"
-version = "0.1.0"
+version.workspace = true
 edition.workspace = true
 license.workspace = true
 
@@ -11,6 +11,7 @@ legion-rules = { path = "../legion-rules" }
 legion-effects = { path = "../legion-effects" }
 legion-runtime = { path = "../legion-runtime" }
 hmac.workspace = true
+hex.workspace = true
 sha2.workspace = true
 serde.workspace = true
 serde_json.workspace = true

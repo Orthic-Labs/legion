@@ -1,0 +1,4 @@
+# Historical synthetic credentials used only by security-scanner tests.
+f9d93a182c11f09667c134c1be0d2fb2e82e591a:tests/audit-provider-accuracy.test.mjs:generic-api-key:26
+21f4477fee7f861068f50f034318b0fd365680f7:tests/legacy-parity.test.mjs:generic-api-key:82
+6976f9208f239b3bd34e4d2dd58afa8d457e45ee:tests/providers/supply-chain/supply-chain.test.mjs:github-pat:71

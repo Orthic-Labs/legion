@@ -1,6 +1,6 @@
 [package]
 name = "legion"
-version = "0.1.0-dev.10"
+version.workspace = true
 edition.workspace = true
 license.workspace = true
 [[bin]]
@@ -9,6 +9,7 @@ path = "src/main.rs"
 [dependencies]
 clap.workspace = true
 hmac.workspace = true
+hex.workspace = true
 legion-audit = { path = "../../crates/legion-audit" }
 legion-application = { path = "../../crates/legion-application" }
 legion-catalog = { path = "../../crates/legion-catalog" }

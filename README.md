@@ -60,15 +60,25 @@ Run `legion doctor` to inspect current repository, binding, coverage, & host sta
 
 ## Install & use
 
-Node 22.13 or newer is required. The package has one runtime dependency, `@rightkit/hooks`, which normalizes host hook events for the Claude Code and Codex adapters. `npm install` pulls it in; a checkout without it cannot run the Arcane host adapters or their tests.
+Public package-manager installation is not open yet. Current shipping contract is signed native Legion; Node package remains private development tooling. From a source checkout, Node 22.13+, pnpm, & Rust toolchain are required.
 
 ```sh
-npx @orthic-labs/legion init
-legion bind . --check
-legion doctor .
+pnpm install --frozen-lockfile
+cargo build --manifest-path engine/Cargo.toml --release --bin legion
+engine/target/release/legion --version
 ```
 
-`init` previews repository audit configuration. `bind --check` reports projected harness bindings without writes; `bind --write` writes selected bindings & a receipt. `doctor` reports measured state instead of claiming enforcement the host cannot provide.
+After installing a signed release-bound binary through an approved channel:
+
+```sh
+legion setup --dry-run
+legion setup --confirm
+legion setup --check
+```
+
+Setup detects supported clients, previews exact persistent changes, projects canonical skills & MCP integration through registered host adapters, records rollback state, then verifies installed host-visible state. `setup --check` is read-only. `setup remove --confirm` removes Legion-owned projections while preserving user-owned config.
+
+Claude Code receives packaged plugin surfaces. Codex receives canonical Agent Skills under `.agents/skills` plus MCP registration. Portable Agent Plugins receive one documented umbrella `legion` skill that routes internally; this is a fallback surface, not per-skill fidelity.
 
 For repository audit:
 

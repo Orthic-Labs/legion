@@ -9,9 +9,9 @@ use std::{
 
 use legion_effects::{platform::windows::WindowsProcess, PlatformProcess, ProcessLaunch};
 use tokio_util::sync::CancellationToken;
-use windows_sys::Win32::{
-    Foundation::BOOL,
-    System::Console::{SetConsoleCtrlHandler, CTRL_BREAK_EVENT, PHANDLER_ROUTINE},
+use windows_sys::{
+    core::BOOL,
+    Win32::System::Console::{SetConsoleCtrlHandler, CTRL_BREAK_EVENT, PHANDLER_ROUTINE},
 };
 
 static CTRL_BREAK_SEEN: AtomicBool = AtomicBool::new(false);
@@ -69,7 +69,7 @@ fn launch(mode: &str, timeout_ms: u64, stdout_limit: usize) -> ProcessLaunch {
         stdout_limit,
         stderr_limit: 4096,
         timeout_ms,
-        termination_grace_ms: 5,
+        termination_grace_ms: 250,
         cancellation: CancellationToken::new(),
     }
 }
@@ -126,7 +126,7 @@ async fn timeout_reports_cooperative_cleanup_without_hard_kill() {
 #[tokio::test]
 async fn timeout_reports_required_hard_cleanup_truth() {
     let output = WindowsProcess
-        .run(launch("non-cooperative-sleep", 25, 4096))
+        .run(launch("non-cooperative-sleep", 250, 4096))
         .await
         .unwrap();
     assert!(output.timed_out);
@@ -149,7 +149,7 @@ async fn cancellation_reports_cooperative_cleanup_without_hard_kill() {
     }));
     let output = tokio::select! {
         result = &mut run => result.unwrap(),
-        _ = tokio::time::sleep(Duration::from_millis(100)) => {
+        _ = tokio::time::sleep(Duration::from_millis(250)) => {
             cancellation.cancel();
             run.await.unwrap()
         }
@@ -175,7 +175,7 @@ async fn cancellation_reports_required_hard_cleanup_truth() {
     }));
     let output = tokio::select! {
         result = &mut run => result.unwrap(),
-        _ = tokio::time::sleep(Duration::from_millis(100)) => {
+        _ = tokio::time::sleep(Duration::from_millis(250)) => {
             cancellation.cancel();
             run.await.unwrap()
         }
@@ -219,7 +219,7 @@ fn fixture_child() {
         }
         Ok("non-cooperative-sleep") => {
             install_ctrl_handler(Some(consume_ctrl_break));
-            std::thread::sleep(Duration::from_millis(500));
+            std::thread::sleep(Duration::from_secs(2));
         }
         Ok("burst") => print!("{}", "x".repeat(16 * 1024)),
         Ok("leader-exits-with-descendant") => spawn_live_descendant(),

@@ -105,6 +105,21 @@ test('naming checker rejects security-pack prefix and occurrence bypasses', () =
   } finally { rmSync(fixture, { recursive: true, force: true }); }
 });
 
+test('naming checker rejects dead exact-path & unused token exemptions', () => {
+  const fixture = namingFixture();
+  try {
+    const allowlistPath = join(fixture, 'src/config/naming-legacy-allowlist.json');
+    const allowlist = JSON.parse(readFileSync(allowlistPath, 'utf8'));
+    allowlist.rules.push({ path: 'missing/legacy.md', tokens: ['forge'], class: 'R5', reason: 'dead fixture' });
+    allowlist.rules.push({ path: 'README.md', tokens: ['seer'], class: 'R5', reason: 'unused fixture' });
+    writeFileSync(allowlistPath, `${JSON.stringify(allowlist, null, 2)}\n`);
+    const report = checkCanonicalNames({ root: fixture });
+    assert.equal(report.status, 'fail');
+    assert.ok(report.unclassified.some(({ path, reason }) => path === 'missing/legacy.md' && reason.includes('matches no files')));
+    assert.ok(report.unclassified.some(({ path, token, reason }) => path === 'README.md' && token === 'seer' && reason.includes('unused')));
+  } finally { rmSync(fixture, { recursive: true, force: true }); }
+});
+
 test('repository has no unclassified legacy naming', () => {
   assert.deepEqual(checkCanonicalNames({ root }).unclassified, []);
 });

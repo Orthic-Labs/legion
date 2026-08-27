@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -15,16 +15,15 @@ test('public checkout contains no parent-workspace path dependency', () => {
   assert.ok(!conformance.includes('../../../../'), 'conformance must not climb above the checkout');
 });
 
-test('no workflow runs automatically on push or pull request', () => {
-  // This repository deliberately ships no CI. The remaining workflows are manual
-  // (workflow_dispatch) or tag-gated release guards; none may fire on ordinary pushes.
-  const dir = join(root, '.github', 'workflows');
-  for (const name of readdirSync(dir)) {
-    const workflow = readFileSync(join(dir, name), 'utf8');
-    const triggers = workflow.slice(workflow.indexOf('on:'), workflow.indexOf('permissions:'));
-    assert.ok(!/\bpull_request\b/.test(triggers), `${name} must not run on pull requests`);
-    assert.ok(!/push:\s*\n\s*branches:/.test(triggers), `${name} must not run on branch pushes`);
-  }
+test('ordinary pull requests & main pushes run mandatory repository checks', () => {
+  const workflow = readFileSync(join(root, '.github', 'workflows', 'ci.yml'), 'utf8');
+  const triggers = workflow.slice(workflow.indexOf('on:'), workflow.indexOf('permissions:'));
+  assert.match(triggers, /\bpull_request\b/);
+  assert.match(triggers, /push:\s*\n\s*branches:\s*\[main\]/);
+  assert.match(workflow, /pnpm legion:check/);
+  assert.match(workflow, /pnpm test/);
+  assert.match(workflow, /working-directory: engine\s+run: cargo test --locked/);
+  assert.doesNotMatch(workflow, /uses:\s+[^\s]+@v\d+/i, 'GitHub Actions must use immutable revisions');
 });
 
 test('publication guard exists and blocks public channels without a grant', () => {

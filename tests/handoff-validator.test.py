@@ -137,9 +137,9 @@ def main() -> int:
     validator_module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(validator_module)
     assert validator_module.normalized_path(
-        "/Volumes/D/Claude/Packet.md", "posix"
+        "/Volumes/Example/Workspace/Packet.md", "posix"
     ) != validator_module.normalized_path(
-        "/Volumes/D/Claude/packet.md", "posix"
+        "/Volumes/Example/Workspace/packet.md", "posix"
     )
 
     template = subprocess.run(

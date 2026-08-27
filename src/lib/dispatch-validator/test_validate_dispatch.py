@@ -570,9 +570,9 @@ def main() -> int:
             "tasks/dispatches/portable.md", artifact
         ) == artifact.resolve()
     assert validator_module.normalized_path(
-        "/Volumes/D/Claude/Packet.md", "posix"
+        "/Volumes/Example/Workspace/Packet.md", "posix"
     ) != validator_module.normalized_path(
-        "/Volumes/D/Claude/packet.md", "posix"
+        "/Volumes/Example/Workspace/packet.md", "posix"
     )
 
     template_check = subprocess.run(

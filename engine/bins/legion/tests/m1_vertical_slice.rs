@@ -247,7 +247,11 @@ fn installed_composition_is_resolved_from_the_executable() {
             .expect("clock")
             .as_nanos()
     ));
-    let executable_name = if cfg!(windows) { "legion.exe" } else { "legion" };
+    let executable_name = if cfg!(windows) {
+        "legion.exe"
+    } else {
+        "legion"
+    };
     let executable = root.join("bin").join(executable_name);
     let share = root.join("share/legion");
     let assets = share.join("assets");

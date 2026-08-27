@@ -1,6 +1,6 @@
 [package]
 name = "legion-research"
-version = "0.1.0"
+version.workspace = true
 edition.workspace = true
 license.workspace = true
 
@@ -9,4 +9,5 @@ legion-contracts = { path = "../legion-contracts" }
 legion-runtime = { path = "../legion-runtime" }
 legion-provider-sdk = { path = "../legion-provider-sdk" }
 serde.workspace = true
+hex.workspace = true
 sha2.workspace = true

@@ -687,13 +687,12 @@ impl ExternalProjectTool for StubTool {
 
 #[tokio::test]
 async fn provider_context_absence_is_typed_incomplete_degradation() {
+    let request = sealed_request();
     let context = provider_context(
         Instant::now() + Duration::from_secs(1),
         CancellationToken::new(),
     );
-    let receipt = context
-        .execute_external_project_tool(sealed_request())
-        .await;
+    let receipt = context.execute_external_project_tool(request).await;
     assert_eq!(receipt.state, ExecutionState::Blocked);
     assert_eq!(receipt.gaps, ["external_project_tool_unavailable"]);
     assert_incomplete(&receipt);
@@ -702,6 +701,7 @@ async fn provider_context_absence_is_typed_incomplete_degradation() {
 #[tokio::test]
 async fn provider_context_injected_tool_is_the_only_execution_seam() {
     let called = Arc::new(AtomicBool::new(false));
+    let request = sealed_request();
     let context = provider_context(
         Instant::now() + Duration::from_secs(1),
         CancellationToken::new(),
@@ -709,9 +709,7 @@ async fn provider_context_injected_tool_is_the_only_execution_seam() {
     .with_external_project_tool(Arc::new(StubTool {
         called: called.clone(),
     }));
-    let receipt = context
-        .execute_external_project_tool(sealed_request())
-        .await;
+    let receipt = context.execute_external_project_tool(request).await;
     assert!(called.load(Ordering::SeqCst));
     assert_eq!(receipt.state, ExecutionState::Blocked);
     assert_eq!(receipt.gaps, ["stub-result"]);
@@ -723,6 +721,7 @@ async fn provider_cancellation_waits_for_tool_cleanup_and_normalizes_receipt() {
     let parent_cancellation = CancellationToken::new();
     let started = Arc::new(AtomicBool::new(false));
     let cleaned = Arc::new(AtomicBool::new(false));
+    let request = sealed_request();
     let context = provider_context(
         Instant::now() + Duration::from_secs(1),
         parent_cancellation.clone(),
@@ -731,11 +730,8 @@ async fn provider_cancellation_waits_for_tool_cleanup_and_normalizes_receipt() {
         started: started.clone(),
         cleaned: cleaned.clone(),
     }));
-    let execution = tokio::spawn(async move {
-        context
-            .execute_external_project_tool(sealed_request())
-            .await
-    });
+    let execution =
+        tokio::spawn(async move { context.execute_external_project_tool(request).await });
     wait_for_started(&started).await;
     parent_cancellation.cancel();
     let receipt = join_with_timeout(execution).await;
@@ -753,6 +749,7 @@ async fn provider_cancellation_waits_for_tool_cleanup_and_normalizes_receipt() {
 async fn provider_deadline_waits_for_tool_cleanup_and_normalizes_receipt() {
     let started = Arc::new(AtomicBool::new(false));
     let cleaned = Arc::new(AtomicBool::new(false));
+    let request = sealed_request();
     let context = provider_context(
         Instant::now() + Duration::from_secs(1),
         CancellationToken::new(),
@@ -761,11 +758,8 @@ async fn provider_deadline_waits_for_tool_cleanup_and_normalizes_receipt() {
         started: started.clone(),
         cleaned: cleaned.clone(),
     }));
-    let execution = tokio::spawn(async move {
-        context
-            .execute_external_project_tool(sealed_request())
-            .await
-    });
+    let execution =
+        tokio::spawn(async move { context.execute_external_project_tool(request).await });
     wait_for_started(&started).await;
     let receipt = join_with_timeout(execution).await;
     assert!(cleaned.load(Ordering::SeqCst));
@@ -783,6 +777,7 @@ async fn provider_cancellation_preserves_tool_cleanup_failure_state() {
     let parent_cancellation = CancellationToken::new();
     let started = Arc::new(AtomicBool::new(false));
     let cleaned = Arc::new(AtomicBool::new(false));
+    let request = sealed_request();
     let context = provider_context(
         Instant::now() + Duration::from_secs(1),
         parent_cancellation.clone(),
@@ -791,11 +786,8 @@ async fn provider_cancellation_preserves_tool_cleanup_failure_state() {
         started: started.clone(),
         cleaned: cleaned.clone(),
     }));
-    let execution = tokio::spawn(async move {
-        context
-            .execute_external_project_tool(sealed_request())
-            .await
-    });
+    let execution =
+        tokio::spawn(async move { context.execute_external_project_tool(request).await });
     wait_for_started(&started).await;
     parent_cancellation.cancel();
     let receipt = join_with_timeout(execution).await;
@@ -814,6 +806,7 @@ async fn provider_ignored_tool_cleanup_is_bounded_and_incomplete() {
     ] {
         let parent_cancellation = CancellationToken::new();
         let started = Arc::new(AtomicBool::new(false));
+        let request = sealed_request();
         let deadline = if cancelled {
             Instant::now() + Duration::from_secs(1)
         } else {
@@ -823,11 +816,8 @@ async fn provider_ignored_tool_cleanup_is_bounded_and_incomplete() {
             .with_external_project_tool(Arc::new(IgnoresCancellationTool {
                 started: started.clone(),
             }));
-        let execution = tokio::spawn(async move {
-            context
-                .execute_external_project_tool(sealed_request())
-                .await
-        });
+        let execution =
+            tokio::spawn(async move { context.execute_external_project_tool(request).await });
         wait_for_started(&started).await;
         if cancelled {
             parent_cancellation.cancel();
@@ -847,6 +837,7 @@ async fn provider_delayed_cleanup_within_grace_retains_terminal_receipt() {
     let parent_cancellation = CancellationToken::new();
     let started = Arc::new(AtomicBool::new(false));
     let cleaned = Arc::new(AtomicBool::new(false));
+    let request = sealed_request();
     let context = provider_context(
         Instant::now() + Duration::from_secs(4),
         parent_cancellation.clone(),
@@ -855,11 +846,8 @@ async fn provider_delayed_cleanup_within_grace_retains_terminal_receipt() {
         started: started.clone(),
         cleaned: cleaned.clone(),
     }));
-    let execution = tokio::spawn(async move {
-        context
-            .execute_external_project_tool(sealed_request())
-            .await
-    });
+    let execution =
+        tokio::spawn(async move { context.execute_external_project_tool(request).await });
     wait_for_started(&started).await;
     parent_cancellation.cancel();
     let receipt = join_with_timeout(execution).await;

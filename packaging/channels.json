@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "kind": "legion-package-manager-channels",
+  "versionSource": "release/version.json",
+  "artifactSource": "immutable-github-release",
+  "channels": {
+    "homebrew": {
+      "status": "unavailable",
+      "tapRepository": "Orthic-Labs/homebrew-tap",
+      "formula": "orthic-labs/tap/legion",
+      "requiredArchitectures": ["macos-arm64", "macos-x86_64"],
+      "publicationOwner": "RightKit Release"
+    },
+    "winget": {
+      "status": "unavailable",
+      "packageIdentifier": "OrthicLabs.Legion",
+      "installerType": "portable",
+      "requiredArchitectures": ["windows-x86_64", "windows-arm64"],
+      "publicationOwner": "RightKit Release"
+    }
+  }
+}

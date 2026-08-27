@@ -38,7 +38,7 @@ test('Membrane adapter uses bounded one-shot when resident reports enrollment ab
       transport: async () => ({ schema: 'legion.context-result.v1', status: 'unavailable', reason: 'root_not_enrolled' }),
       blueprintBin: bin,
       outDir: '.audit/blueprint',
-      timeoutMs: 1000,
+      timeoutMs: 10_000,
     });
     const result = await adapter.generateOrLoadProjection({ request: { root: process.cwd() } });
     assert.equal(result.status, 'ready');

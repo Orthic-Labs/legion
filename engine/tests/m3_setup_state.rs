@@ -364,7 +364,7 @@ fn m2_plugin_root_and_setup_cli_routes_remain_explicit() {
     let cli = include_str!("../bins/legion/src/cli.rs");
     for required in [
         "Command::Serve(args) => native_m1_serve(args).await",
-        "Command::Setup(args) => commands::setup::run(args)",
+        "Command::Setup(args) => commands::setup::run(args, cancellation.clone()).await",
     ] {
         assert!(cli.contains(required), "missing CLI route: {required}");
     }

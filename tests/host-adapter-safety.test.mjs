@@ -177,10 +177,10 @@ test('Codex MCP install accepts valid quoted TOML keys', () => {
   withRepo((root) => {
     const path = join(root, '.codex', 'config.toml');
     mkdirSync(join(root, '.codex'), { recursive: true });
-    writeFileSync(path, '[projects]\n"/Volumes/D/claude/project" = "trusted"\n');
+    writeFileSync(path, '[projects]\n"/Volumes/Example/project" = "trusted"\n');
     reg.install('codex', { root, surfaces: ['mcp'] });
     const after = readFileSync(path, 'utf8');
-    assert.match(after, /"\/Volumes\/D\/claude\/project" = "trusted"/);
+    assert.match(after, /"\/Volumes\/Example\/project" = "trusted"/);
     assert.equal((after.match(/^\[mcp_servers\.legion\]$/gm) ?? []).length, 1);
   });
 });

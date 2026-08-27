@@ -16,10 +16,28 @@ Dim shell, fso
 Set shell = CreateObject("WScript.Shell")
 Set fso   = CreateObject("Scripting.FileSystemObject")
 
+Function ResolveExecutable(name)
+    Dim process, line
+    ResolveExecutable = ""
+    On Error Resume Next
+    Set process = shell.Exec("cmd.exe /d /s /c ""where " & name & " 2>nul""")
+    If Err.Number = 0 Then
+        Do While process.Status = 0
+            WScript.Sleep 25
+        Loop
+        If process.ExitCode = 0 And Not process.StdOut.AtEndOfStream Then
+            line = Trim(process.StdOut.ReadLine())
+            If fso.FileExists(line) Then ResolveExecutable = line
+        End If
+    End If
+    Err.Clear
+    On Error GoTo 0
+End Function
+
 Dim omniroute, pythonw, viewer
-omniroute = "C:\nvm4w\nodejs\omniroute.cmd"
-pythonw   = "C:\Users\adrds\AppData\Local\Programs\Python\Python311\pythonw.exe"
-viewer    = "D:\workspace\tools\skills\alchemist\scripts\viewer.py"
+omniroute = ResolveExecutable("omniroute.cmd")
+pythonw   = ResolveExecutable("pythonw.exe")
+viewer    = fso.BuildPath(fso.GetParentFolderName(WScript.ScriptFullName), "viewer.py")
 
 ' Returns True when something already answers on the given URL.
 Function Listening(url)

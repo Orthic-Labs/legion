@@ -11,6 +11,7 @@ import { mkdtempSync, rmSync, readFileSync, readdirSync, existsSync, realpathSyn
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import * as reg from '../src/lib/host/registry.mjs';
+import { buildProjection, renderHarnessSupport } from '../scripts/generate-host-projection.mjs';
 import { canonicalSkillIds } from '../src/lib/host/skill-projection.mjs';
 import { SURFACES, FIDELITY } from '../src/lib/host/surfaces.mjs';
 
@@ -22,6 +23,22 @@ const CANON = canonicalSkillIds(LEGION);
 const PROJECTING = reg.ADAPTER_IDS.filter((id) => {
   const s = reg.capabilities(id).surfaces.skills;
   return s.mechanism?.kind === 'skills-dir';
+});
+
+test('canonical discoverability projects to normalized user/model invocation policy', () => {
+  const projection = buildProjection(LEGION);
+  for (const capability of projection.capabilities) {
+    if (capability.discoverability === 'public') assert.deepEqual(capability.invocation, { user: true, model: true });
+    else if (capability.discoverability === 'explicit') assert.deepEqual(capability.invocation, { user: true, model: false });
+    else assert.deepEqual(capability.invocation, { user: false, model: false });
+  }
+});
+
+test('human host support matrix is generated from adapter projection', () => {
+  const projection = buildProjection(LEGION);
+  const generated = readFileSync(join(LEGION, 'references/generated/support.md'), 'utf8');
+  assert.equal(generated, renderHarnessSupport(projection));
+  for (const harness of projection.harnesses) assert.match(generated, new RegExp(`\\| ${harness.id} \\|`));
 });
 
 const withRepo = (fn) => {

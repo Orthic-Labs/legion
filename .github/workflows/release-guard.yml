@@ -12,10 +12,9 @@ jobs:
   publication-policy:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '22.13.0'
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - name: Verify Node runtime
+        run: node --version
       - name: Block publication without an explicit policy grant
         run: node scripts/check-publication-policy.mjs --channel signed-release
       - name: Block npm publication without an explicit policy grant

@@ -13,6 +13,10 @@
       "description": "Audit, plan, create, or optimize paid campaigns across Google, Meta, YouTube, LinkedIn, TikTok, Microsoft, or Apple. Use for PPC, ROAS, CPA, targeting, bidding, retargeting, budgets, creative, or ad-spend questions.",
       "kind": "domain-capability",
       "discoverability": "public",
+      "invocation": {
+        "user": true,
+        "model": true
+      },
       "domain": "commercial",
       "source": "skills/ads/SKILL.md"
     },
@@ -22,6 +26,10 @@
       "description": "Execute a settled, bounded change through Legion's Alchemist authority. Use /alchemist after scope, ownership, checks, and acceptance are decided.",
       "kind": "entrypoint",
       "discoverability": "explicit",
+      "invocation": {
+        "user": true,
+        "model": false
+      },
       "domain": null,
       "source": "skills/alchemist/SKILL.md"
     },
@@ -31,6 +39,10 @@
       "description": "Software and system architecture capability for architecture decisions, ADRs, quality attributes, interfaces, invariants, migrations, and architecture-significant planning.",
       "kind": "domain-capability",
       "discoverability": "public",
+      "invocation": {
+        "user": true,
+        "model": true
+      },
       "domain": "engineering",
       "source": "skills/architect/SKILL.md"
     },
@@ -40,6 +52,10 @@
       "description": "Diagnose a whole repository through Legion's frozen Audit provider plan. Use for /audit or repository-wide read-only health, security, runtime, & evidence review.",
       "kind": "domain-capability",
       "discoverability": "public",
+      "invocation": {
+        "user": true,
+        "model": true
+      },
       "domain": "engineering",
       "source": "skills/audit/SKILL.md"
     },
@@ -49,6 +65,10 @@
       "description": "Apply bounded remediation from a frozen Legion Audit report, then rerun its same provider plan. Use only for /audit-fix after /audit evidence exists.",
       "kind": "domain-capability",
       "discoverability": "public",
+      "invocation": {
+        "user": true,
+        "model": true
+      },
       "domain": "engineering",
       "source": "skills/audit-fix/SKILL.md"
     },
@@ -58,6 +78,10 @@
       "description": "Enumerate, capture, compare, and reconcile rendered UI evidence through Legion's shared Audit visual provider. Use for /audit-visual, visual regressions, screenshot baselines, or rendered-state coverage.",
       "kind": "domain-capability",
       "discoverability": "public",
+      "invocation": {
+        "user": true,
+        "model": true
+      },
       "domain": "engineering",
       "source": "skills/audit-visual/SKILL.md"
     },
@@ -67,6 +91,10 @@
       "description": "Load a source-bound brand card before branded content, design, marketing, social, or media work. Use /brand when a named brand or approved identity source governs an output.",
       "kind": "domain-capability",
       "discoverability": "public",
+      "invocation": {
+        "user": true,
+        "model": true
+      },
       "domain": null,
       "source": "skills/brand/SKILL.md"
     },
@@ -76,6 +104,10 @@
       "description": "Create, audit, evolve, or apply brand identities, systems, guidelines, visual identity, voice, naming, logo direction, brand books, rebrands, website or app identity, pitch decks, or social kits.",
       "kind": "domain-capability",
       "discoverability": "public",
+      "invocation": {
+        "user": true,
+        "model": true
+      },
       "domain": "design",
       "source": "skills/brand-identity/SKILL.md"
     },
@@ -85,6 +117,10 @@
       "description": "Explicit opt-in router for scoped read-only code analysis through Pi catalog models. Use only for `/coder`, explicit outsourced analysis, or a named Pi model/tier.",
       "kind": "entrypoint",
       "discoverability": "explicit",
+      "invocation": {
+        "user": true,
+        "model": false
+      },
       "domain": null,
       "source": "skills/coder/SKILL.md"
     },
@@ -94,6 +130,10 @@
       "description": "Review, verify, commit, & push one frozen diff through Legion's guarded Commit workflow. Use for /commit, review and commit, or commit and push.",
       "kind": "entrypoint",
       "discoverability": "explicit",
+      "invocation": {
+        "user": true,
+        "model": false
+      },
       "domain": null,
       "source": "skills/commit/SKILL.md"
     },
@@ -103,6 +143,10 @@
       "description": "Convene Legion's optional independent challenge chamber for a named decision, work artifact, blocker, or packet-only review preparation. Use /covenant.",
       "kind": "entrypoint",
       "discoverability": "explicit",
+      "invocation": {
+        "user": true,
+        "model": false
+      },
       "domain": null,
       "source": "skills/covenant/SKILL.md"
     },
@@ -112,6 +156,10 @@
       "description": "Diagnosis capability for reproducing failures, isolating evidence, forming disconfirmable hypotheses, establishing root cause, and selecting routine repairs. Do not use for preflight or completion-only verification.",
       "kind": "domain-capability",
       "discoverability": "public",
+      "invocation": {
+        "user": true,
+        "model": true
+      },
       "domain": "engineering",
       "source": "skills/debugger/SKILL.md"
     },
@@ -121,6 +169,10 @@
       "description": "Create, critique, redesign, or polish websites, app UI, dashboards, components, static creative, print, motion systems, glass materials, illustration direction, and frontend craft. Route deterministic rendered-state coverage/regression evidence to Audit Visual and identity systems to Brand Identity.",
       "kind": "domain-capability",
       "discoverability": "public",
+      "invocation": {
+        "user": true,
+        "model": true
+      },
       "domain": "design",
       "source": "skills/designer/SKILL.md"
     },
@@ -130,6 +182,10 @@
       "description": "Create a validated zero-context work packet for another agent or executor while current orchestrator retains responsibility. Use for delegation, parallel workers, or copy-paste executor instructions. Same-agent work stays inline; session continuity uses handoff.",
       "kind": "domain-capability",
       "discoverability": "public",
+      "invocation": {
+        "user": true,
+        "model": true
+      },
       "domain": null,
       "source": "skills/dispatch/SKILL.md"
     },
@@ -139,6 +195,10 @@
       "description": "Capture user-confirmed recurring agent failures as concise deduplicated lessons in repository gotchas.md; record symptom, root cause, correction, prevention, & evidence without invention.",
       "kind": "domain-capability",
       "discoverability": "public",
+      "invocation": {
+        "user": true,
+        "model": true
+      },
       "domain": null,
       "source": "skills/gotchas/SKILL.md"
     },
@@ -148,6 +208,10 @@
       "description": "Transfer an ongoing task into a fresh chat through a hash-bound transcript pointer and a validated cold-start continuation packet. Use for fresh-thread continuity, context rollover, or transfer of decisions, state, failures, and landmines; never use for bounded executor delegation.",
       "kind": "domain-capability",
       "discoverability": "public",
+      "invocation": {
+        "user": true,
+        "model": true
+      },
       "domain": null,
       "source": "skills/handoff/SKILL.md"
     },
@@ -157,6 +221,10 @@
       "description": "Route positioning, offers, packaging, guarantees, launches, validation, growth, analytics, pricing, CRO, retention, and commercial ideation. Use for Grand Slam Offers or what, whom, why, and how to market; route execution to Ads, SEO, Social, Research, or Writing.",
       "kind": "domain-capability",
       "discoverability": "public",
+      "invocation": {
+        "user": true,
+        "model": true
+      },
       "domain": "commercial",
       "source": "skills/marketing/SKILL.md"
     },
@@ -166,6 +234,10 @@
       "description": "Add, run, or audit local web or Tauri app QA: hidden servers, deterministic mocks, functional/browser assertions, supporting viewport captures, runtime checks, & contract-test authoring.",
       "kind": "domain-capability",
       "discoverability": "public",
+      "invocation": {
+        "user": true,
+        "model": true
+      },
       "domain": "engineering",
       "source": "skills/qa/SKILL.md"
     },
@@ -175,6 +247,10 @@
       "description": "Sole top-level evidence router: general, market, technical, scientific, medical, legal, competitor, Reddit, audience, trends, scholarly, documents, authority, and NotebookLM. Medical and legal are private internal routes; India consumer-commission filing is a Legal workflow.",
       "kind": "domain-capability",
       "discoverability": "public",
+      "invocation": {
+        "user": true,
+        "model": true
+      },
       "domain": "research",
       "source": "skills/research/SKILL.md"
     },
@@ -184,6 +260,10 @@
       "description": "Audit or improve SEO, GEO or AEO, AI citations, crawlability, indexing, Core Web Vitals, schema, sitemaps, content quality, E-E-A-T, images, hreflang, llms.txt, traffic drops, page speed, or repository SEO.",
       "kind": "domain-capability",
       "discoverability": "public",
+      "invocation": {
+        "user": true,
+        "model": true
+      },
       "domain": "commercial",
       "source": "skills/seo/SKILL.md"
     },
@@ -193,6 +273,10 @@
       "description": "Route Instagram, Pinterest, YouTube, Twitter or X, LinkedIn, Reels, Shorts, pins, threads, calendars, distribution, analytics, and social growth. Use /social or when social strategy or content is the deliverable.",
       "kind": "domain-capability",
       "discoverability": "public",
+      "invocation": {
+        "user": true,
+        "model": true
+      },
       "domain": "commercial",
       "source": "skills/social/SKILL.md"
     },
@@ -202,6 +286,10 @@
       "description": "Create an executable same-agent task list. Use `/tasklist`; keep it inline unless persistence, audit receipts, or a reusable record is requested. Use Dispatch for another agent & Handoff for a new chat.",
       "kind": "domain-capability",
       "discoverability": "public",
+      "invocation": {
+        "user": true,
+        "model": true
+      },
       "domain": null,
       "source": "skills/tasklist/SKILL.md"
     },
@@ -211,6 +299,10 @@
       "description": "Schedule one bounded wakeup for an active job, external review, or goal-alignment check; inspect once per wake, stop polling, & continue only from observed state.",
       "kind": "domain-capability",
       "discoverability": "public",
+      "invocation": {
+        "user": true,
+        "model": true
+      },
       "domain": null,
       "source": "skills/wake/SKILL.md"
     },
@@ -220,6 +312,10 @@
       "description": "Route editorial prose, essays, newsletters, scripts, captions, threads, research articles, blogs, SEO posts, conversion copy, bios, DMs, product copy, email, and changelogs. Use when words are the deliverable.",
       "kind": "domain-capability",
       "discoverability": "public",
+      "invocation": {
+        "user": true,
+        "model": true
+      },
       "domain": "editorial",
       "source": "skills/writing/SKILL.md"
     }

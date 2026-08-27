@@ -9,8 +9,8 @@ importers:
   .:
     dependencies:
       '@rightkit/hooks':
-        specifier: 0.1.0
-        version: 0.1.0
+        specifier: 0.1.1
+        version: 0.1.1
     devDependencies:
       '@biomejs/biome':
         specifier: 2.5.10
@@ -75,8 +75,8 @@ packages:
     cpu: [x64]
     os: [win32]
 
-  '@rightkit/hooks@0.1.0':
-    resolution: {integrity: sha512-6+SjBp5YABYqxMH6l2BC0ZTrIdDmTBSzvpuHyHvw3mT8Sf5FSgCYo1zVo28AQ+BsHfWkJN+S4JlirIrhTIc0mg==}
+  '@rightkit/hooks@0.1.1':
+    resolution: {integrity: sha512-Z8AOe4eRJN90k98D9DB6XgKjSmjNTeQNcpHuTBIJRk0xmFyO7jqzV9AmO7jxFJOSg9YkzEuftra0UhfYLbGXRA==}
     hasBin: true
 
 snapshots:
@@ -116,4 +116,4 @@ snapshots:
   '@biomejs/cli-win32-x64@2.5.10':
     optional: true
 
-  '@rightkit/hooks@0.1.0': {}
+  '@rightkit/hooks@0.1.1': {}
