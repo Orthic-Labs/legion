@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url';
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
 const readJson = (root, path) => JSON.parse(readFileSync(join(root, path), 'utf8'));
+export const isDevelopmentVersion = (version) => /-dev\./.test(version);
 
 function cargoManifests(root, cursor = join(root, 'engine'), output = []) {
   for (const entry of readdirSync(cursor)) {
@@ -25,7 +26,7 @@ export function versionParityReport(root = ROOT, { stable = false } = {}) {
   if (release.schemaVersion !== 1 || release.kind !== 'legion-release-version' || typeof expected !== 'string') {
     issues.push({ path: 'release/version.json', reason: 'invalid canonical release version record' });
   }
-  if (stable && /-dev\./.test(expected)) {
+  if (stable && isDevelopmentVersion(expected)) {
     issues.push({ path: 'release/version.json', reason: `stable release cannot use development version ${expected}` });
   }
   for (const path of ['package.json', '.claude-plugin/plugin.json', '.codex-plugin/plugin.json', 'engine/assets/legion-plugin/plugin.json', 'src/registry/plugin-surface.json']) {
