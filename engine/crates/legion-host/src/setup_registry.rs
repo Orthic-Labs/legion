@@ -1403,7 +1403,8 @@ mod tests {
     struct TestRoot(PathBuf);
     impl TestRoot {
         fn new(label: &str) -> Self {
-            Self(std::env::temp_dir().join(format!("legion-host-{label}-{}", nonce())))
+            let temp_dir = fs::canonicalize(std::env::temp_dir()).unwrap();
+            Self(temp_dir.join(format!("legion-host-{label}-{}", nonce())))
         }
     }
     impl Drop for TestRoot {
