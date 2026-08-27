@@ -113,7 +113,7 @@ async fn run_process(launch: ProcessLaunch) -> Result<ProcessOutput, EffectError
     }
 
     if let Some(reason) = stop_reason {
-        let cleanup = cleanup_group(pid, launch.termination_grace_ms).await;
+        let mut cleanup = cleanup_group(pid, launch.termination_grace_ms).await;
         if status.is_none() {
             status = Some(
                 child
@@ -121,6 +121,10 @@ async fn run_process(launch: ProcessLaunch) -> Result<ProcessOutput, EffectError
                     .await
                     .map_err(|error| EffectError::SpawnFailed(error.to_string()))?,
             );
+        }
+        if !cleanup.terminated && signal_group(pid, 0).absent {
+            cleanup.terminated = true;
+            cleanup.kill_succeeded = true;
         }
 
         // A reader can otherwise remain blocked by a surviving pipe holder.
@@ -213,9 +217,9 @@ async fn cleanup_group(pid: u32, grace_ms: u64) -> CleanupResult {
     tokio::time::sleep(Duration::from_millis(grace_ms)).await;
     let hard = signal_group(pid, libc::SIGKILL);
     CleanupResult {
-        terminated: hard.succeeded,
-        hard_killed: hard.succeeded && !hard.absent,
-        kill_succeeded: hard.succeeded,
+        terminated: term.succeeded,
+        hard_killed: true,
+        kill_succeeded: term.succeeded && hard.succeeded,
     }
 }
 
