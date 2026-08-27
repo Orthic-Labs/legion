@@ -598,6 +598,7 @@ fn execute_write(
         &destination,
         &stage,
         matches!(current.kind, CodexSkillOperationKind::Update),
+        current.expected_digest.as_deref(),
         &ledger_path,
         &ledger,
     )
@@ -672,6 +673,7 @@ fn replace_with_stage(
     destination: &Path,
     stage: &Path,
     replacing: bool,
+    expected_existing_digest: Option<&str>,
     ledger_path: &Path,
     ledger: &CodexSkillsLedger,
 ) -> Result<bool, HostError> {
@@ -697,6 +699,23 @@ fn replace_with_stage(
     let backup = create_stage_directory(root, id, "backup")?;
     fs::remove_dir(&backup).map_err(|error| io_error(&backup, error))?;
     fs::rename(destination, &backup).map_err(|error| io_error(destination, error))?;
+    let backup_tree = match destination_tree(&backup) {
+        Ok(tree) => tree,
+        Err(error) => {
+            rollback_rename(&backup, destination)?;
+            let _ = fs::remove_dir_all(stage);
+            return Err(error);
+        }
+    };
+    if !matches!(
+        backup_tree,
+        DestinationTree::Digest(ref digest)
+            if expected_existing_digest == Some(digest.as_str())
+    ) {
+        rollback_rename(&backup, destination)?;
+        fs::remove_dir_all(stage).map_err(|error| io_error(stage, error))?;
+        return Ok(false);
+    }
     if let Err(error) = fs::rename(stage, destination).map_err(|error| io_error(destination, error))
     {
         rollback_rename(&backup, destination)?;
@@ -1356,6 +1375,41 @@ mod tests {
             fs::read(destination.join("SKILL.md")).unwrap(),
             b"user fork"
         );
+    }
+
+    #[test]
+    fn staged_update_rechecks_owned_digest_before_replacement() {
+        let temp = TempRoot::new("staged-update-recheck");
+        write_skill(&temp.0, "destination", "audit v1");
+        write_skill(&temp.0, "stage", "audit v2");
+        let destination = temp.0.join("destination");
+        let stage = temp.0.join("stage");
+        let expected = package_digest_at(&destination).unwrap();
+        fs::write(destination.join("SKILL.md"), "user fork").unwrap();
+        let ledger_path = temp.0.join("state").join("ledger.json");
+        let ledger = CodexSkillsLedger {
+            schema_version: CODEX_SKILLS_LEDGER_SCHEMA_VERSION,
+            owner: CODEX_SKILLS_OWNER.into(),
+            entries: BTreeMap::new(),
+        };
+
+        let changed = replace_with_stage(
+            &destination,
+            &stage,
+            true,
+            Some(&expected),
+            &ledger_path,
+            &ledger,
+        )
+        .unwrap();
+
+        assert!(!changed);
+        assert_eq!(
+            fs::read(destination.join("SKILL.md")).unwrap(),
+            b"user fork"
+        );
+        assert!(!stage.exists());
+        assert!(!ledger_path.exists());
     }
 
     #[test]
