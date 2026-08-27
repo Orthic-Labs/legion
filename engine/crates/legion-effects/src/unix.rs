@@ -213,9 +213,9 @@ async fn cleanup_group(pid: u32, grace_ms: u64) -> CleanupResult {
     tokio::time::sleep(Duration::from_millis(grace_ms)).await;
     let hard = signal_group(pid, libc::SIGKILL);
     CleanupResult {
-        terminated: term.succeeded,
-        hard_killed: true,
-        kill_succeeded: term.succeeded && hard.succeeded,
+        terminated: hard.succeeded,
+        hard_killed: hard.succeeded && !hard.absent,
+        kill_succeeded: hard.succeeded,
     }
 }
 
