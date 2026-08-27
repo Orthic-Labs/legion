@@ -1403,7 +1403,9 @@ mod tests {
     struct TestRoot(PathBuf);
     impl TestRoot {
         fn new(label: &str) -> Self {
-            let temp_dir = fs::canonicalize(std::env::temp_dir()).unwrap();
+            let temp_dir = std::env::temp_dir();
+            #[cfg(unix)]
+            let temp_dir = fs::canonicalize(temp_dir).unwrap();
             Self(temp_dir.join(format!("legion-host-{label}-{}", nonce())))
         }
     }
