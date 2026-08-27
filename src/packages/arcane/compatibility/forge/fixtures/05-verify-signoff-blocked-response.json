@@ -1,0 +1,67 @@
+{
+  "run_id": "a2f78070-d4b0-44bf-aced-b98c0d084530",
+  "operation": "forge",
+  "decision": "blocked",
+  "summary": "Fix parser: reject unescaped trailing comma in JSON5-lite input",
+  "claim_updates": [],
+  "next_actions": [
+    {
+      "code": "open_critical_claims",
+      "ids": [
+        "cbc4b593-9eab-428a-9602-6720c0cd7339"
+      ]
+    },
+    {
+      "code": "insufficient_evidence",
+      "required": 1
+    }
+  ],
+  "unresolved": [
+    {
+      "id": "cbc4b593-9eab-428a-9602-6720c0cd7339",
+      "text": "Parser currently accepts trailing comma silently",
+      "status": "open"
+    }
+  ],
+  "context_refs": [
+    "fd621dd3-15d0-4193-abd7-dcd18c26c5d4"
+  ],
+  "state_ref": "forge://run/a2f78070-d4b0-44bf-aced-b98c0d084530/state",
+  "budget_used": {
+    "max_return_tokens": 4000,
+    "max_evidence_items": 30,
+    "max_external_requests": 20,
+    "max_verifier_calls": 5
+  },
+  "rubric_id": "826195a0-b2da-44cb-aa14-e99055c5c1a1",
+  "rubric_version": "d314f53639e74634d16ee932fdb62df2938d4171581a7d1bfff8027ae370b311",
+  "gate": {
+    "ok": false,
+    "gate": "signoff",
+    "deficits": [
+      {
+        "code": "open_critical_claims",
+        "ids": [
+          "cbc4b593-9eab-428a-9602-6720c0cd7339"
+        ]
+      },
+      {
+        "code": "insufficient_evidence",
+        "required": 1
+      }
+    ],
+    "rubric_id": "826195a0-b2da-44cb-aa14-e99055c5c1a1",
+    "counts": {
+      "claims": 1,
+      "evidence": 1,
+      "checks": 1,
+      "passing_checks": 1
+    }
+  },
+  "preflight": {
+    "ok": true,
+    "skipped": true,
+    "reason": "no_execution_contract"
+  },
+  "authority": "model"
+}

@@ -1,0 +1,17 @@
+{
+  "schema": "arcane.s00-compatibility-inventory.v1",
+  "record_types": [
+    { "name": "runs" },
+    { "name": "claims" },
+    { "name": "evidence" },
+    { "name": "checks" },
+    { "name": "decisions" },
+    { "name": "retry_budget" },
+    { "name": "failures" },
+    { "name": "session_bindings / task_bindings" },
+    { "name": "rubrics" },
+    { "name": "memory_candidates" },
+    { "name": "orthic.tool-receipt.v1" },
+    { "name": "orthic.observable-event.v1" }
+  ]
+}

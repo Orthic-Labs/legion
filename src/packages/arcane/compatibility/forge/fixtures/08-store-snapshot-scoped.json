@@ -1,0 +1,280 @@
+{
+  "runs": [
+    {
+      "id": "a2f78070-d4b0-44bf-aced-b98c0d084530",
+      "summary": "Fix parser: reject unescaped trailing comma in JSON5-lite input",
+      "task_kind": "bugfix",
+      "acceptance_criteria": [
+        {
+          "criterion": "Parser rejects unescaped trailing comma",
+          "severity": "critical",
+          "verification": [
+            {
+              "kind": "test",
+              "specification": "node --test test/parser.test.mjs"
+            }
+          ],
+          "id": "criterion-0",
+          "execution_contract": null
+        }
+      ],
+      "authority": "model",
+      "profile": "strong",
+      "status": "open",
+      "trigger_flags": {
+        "openMaterialClaims": true
+      },
+      "trigger_score": 2,
+      "budget": {
+        "max_return_tokens": 4000,
+        "max_evidence_items": 30,
+        "max_external_requests": 20,
+        "max_verifier_calls": 5
+      },
+      "created_at": "2026-08-08T14:17:46.009Z",
+      "workspace_hash": null,
+      "task_id": null,
+      "session_id": "sess-fixture-0001",
+      "table": "runs",
+      "stored_at": "2026-08-08T14:17:46.064Z",
+      "verified_rubric_id": "da98fd06-a436-4487-baef-d827851dbb13",
+      "verified_rubric_version": "eef9f460045b08319a1153207065545cf6a2c62746a9579fd3151b4919193fbc",
+      "verified_at": "2026-08-08T14:17:46.064Z",
+      "intent_restatement": "",
+      "blast_radius": "",
+      "why_safe": ""
+    }
+  ],
+  "claims": [
+    {
+      "id": "cbc4b593-9eab-428a-9602-6720c0cd7339",
+      "run_id": "a2f78070-d4b0-44bf-aced-b98c0d084530",
+      "text": "Parser currently accepts trailing comma silently",
+      "kind": "behavioral_fact",
+      "materiality": "critical",
+      "status": "open",
+      "invalidation_key": null,
+      "confidence": null,
+      "table": "claims",
+      "stored_at": "2026-08-08T14:17:46.014Z"
+    }
+  ],
+  "session_bindings": [
+    {
+      "id": "sess-fixture-0001",
+      "session_id": "sess-fixture-0001",
+      "run_id": "a2f78070-d4b0-44bf-aced-b98c0d084530",
+      "project_root": "<developer-home>\\AppData\\Local\\Temp\\forge-s00-project-Ps6ZVo",
+      "workspace_hash": null,
+      "task_id": null,
+      "table": "session_bindings",
+      "stored_at": "2026-08-08T14:17:46.016Z"
+    }
+  ],
+  "evidence": [
+    {
+      "id": "fd621dd3-15d0-4193-abd7-dcd18c26c5d4",
+      "run_id": "a2f78070-d4b0-44bf-aced-b98c0d084530",
+      "claim_ids": [],
+      "kind": "repo",
+      "uri": "file://<developer-home>/AppData/Local/Temp/forge-s00-fixture/example.js",
+      "locator": "example.js:1-4",
+      "version_or_commit": null,
+      "content_hash": "sha256:754052599694724afaf234c67ab548b34584aa20a91a46e3f61ecfdca6f5383e",
+      "retrieved_at": "2026-08-08T14:17:46.024Z",
+      "observed_at": "2026-08-08T14:17:46.024Z",
+      "trust_class": "tool",
+      "attested": true,
+      "attestation_reason": "verified_against_source",
+      "start_line": null,
+      "end_line": null,
+      "symbol": null,
+      "stale": false,
+      "freshness_policy": "event-only",
+      "invalidation_key": "sha256:754052599694724afaf234c67ab548b34584aa20a91a46e3f61ecfdca6f5383e",
+      "supports_or_refutes": "supports",
+      "excerpt": "function add(a, b) {",
+      "criterion_id": null,
+      "criterion_ids": [],
+      "payload_ref": "objects\\sha256\\d5\\5a9883b881a4b3d587fa70fbee08f54a4bd43a92d2d79029dabbd0731901be",
+      "security_labels": [],
+      "cortex_orientation": false,
+      "table": "evidence",
+      "stored_at": "2026-08-08T14:17:46.024Z"
+    }
+  ],
+  "retry_budget": [
+    {
+      "id": "c136cc52-bdad-4457-9063-03713afebc9d",
+      "run_id": "a2f78070-d4b0-44bf-aced-b98c0d084530",
+      "fingerprint": "sha256:7c21a09583bfc588ea840209cb882304b51683230c18c47c34a50154870e52bc",
+      "count": 1,
+      "max_retries": 2,
+      "table": "retry_budget",
+      "stored_at": "2026-08-08T14:17:46.028Z"
+    }
+  ],
+  "failures": [
+    {
+      "run_id": "a2f78070-d4b0-44bf-aced-b98c0d084530",
+      "observed_failure": "AssertionError: expected parse() to throw on trailing comma",
+      "expected_behavior": "parse() throws SyntaxError",
+      "error_fingerprint": "sha256:7c21a09583bfc588ea840209cb882304b51683230c18c47c34a50154870e52bc",
+      "last_relevant_mutation": "",
+      "contradicting_evidence": [],
+      "likely_failure_class": "unknown",
+      "corrected_hypothesis": "",
+      "next_falsifying_check": "",
+      "command": "node --test test/parser.test.mjs",
+      "retry_remaining": 1,
+      "id": "801c4851-a7b0-4097-92be-f161ea712ae6",
+      "table": "failures",
+      "stored_at": "2026-08-08T14:17:46.029Z"
+    }
+  ],
+  "checks": [
+    {
+      "id": "5ddf9f43-2d94-44a3-a52f-42a097fc357d",
+      "run_id": "a2f78070-d4b0-44bf-aced-b98c0d084530",
+      "kind": "test",
+      "specification": "node --test test/parser.test.mjs",
+      "command": "node --test test/parser.test.mjs",
+      "criterion_id": "criterion-0",
+      "criterion_ids": [],
+      "executor": "host",
+      "authority": "host",
+      "env_fingerprint": null,
+      "workspace_hash": null,
+      "status": "passed",
+      "exit_code": 0,
+      "output_ref": "objects\\sha256\\aa\\f797114f545e4b4d6cce3b486f452b0e5b269ec942445e1e32d96071ee01d2",
+      "recorded_at": "2026-08-08T14:17:46.039Z",
+      "table": "checks",
+      "stored_at": "2026-08-08T14:17:46.039Z"
+    }
+  ],
+  "rubrics": [
+    {
+      "id": "826195a0-b2da-44cb-aa14-e99055c5c1a1",
+      "run_id": "a2f78070-d4b0-44bf-aced-b98c0d084530",
+      "criteria": [
+        {
+          "id": "criterion-0",
+          "criterion": "Parser rejects unescaped trailing comma",
+          "severity": "critical",
+          "verification": [
+            {
+              "kind": "test",
+              "specification": "node --test test/parser.test.mjs"
+            }
+          ],
+          "execution_contract": null,
+          "required_evidence_kinds": [],
+          "claim_ids": []
+        }
+      ],
+      "generated_at": "2026-08-08T14:17:46.051Z",
+      "version": "d314f53639e74634d16ee932fdb62df2938d4171581a7d1bfff8027ae370b311",
+      "table": "rubrics",
+      "stored_at": "2026-08-08T14:17:46.051Z"
+    },
+    {
+      "id": "da98fd06-a436-4487-baef-d827851dbb13",
+      "run_id": "a2f78070-d4b0-44bf-aced-b98c0d084530",
+      "criteria": [
+        {
+          "id": "criterion-0",
+          "criterion": "Parser rejects unescaped trailing comma",
+          "severity": "critical",
+          "verification": [
+            {
+              "kind": "test",
+              "specification": "node --test test/parser.test.mjs"
+            }
+          ],
+          "execution_contract": null,
+          "required_evidence_kinds": [],
+          "claim_ids": []
+        }
+      ],
+      "generated_at": "2026-08-08T14:17:46.062Z",
+      "version": "eef9f460045b08319a1153207065545cf6a2c62746a9579fd3151b4919193fbc",
+      "table": "rubrics",
+      "stored_at": "2026-08-08T14:17:46.062Z"
+    }
+  ],
+  "decisions": [
+    {
+      "run_id": "a2f78070-d4b0-44bf-aced-b98c0d084530",
+      "decision": "blocked",
+      "gate": "signoff",
+      "deficits": [
+        {
+          "code": "open_critical_claims",
+          "ids": [
+            "cbc4b593-9eab-428a-9602-6720c0cd7339"
+          ]
+        },
+        {
+          "code": "insufficient_evidence",
+          "required": 1
+        }
+      ],
+      "authority": "model",
+      "id": "de41aad0-bca9-4bf5-8d96-dc5e7ebc344c",
+      "table": "decisions",
+      "stored_at": "2026-08-08T14:17:46.057Z"
+    },
+    {
+      "run_id": "a2f78070-d4b0-44bf-aced-b98c0d084530",
+      "decision": "blocked",
+      "gate": "high_risk",
+      "deficits": [
+        {
+          "code": "open_critical_claims",
+          "ids": [
+            "cbc4b593-9eab-428a-9602-6720c0cd7339"
+          ]
+        },
+        {
+          "code": "missing_intent_restatement"
+        },
+        {
+          "code": "missing_blast_radius"
+        },
+        {
+          "code": "missing_safety_case"
+        },
+        {
+          "code": "insufficient_evidence",
+          "required": 1
+        }
+      ],
+      "authority": "model",
+      "id": "92825b94-910a-4a0c-af8a-3f2fb54d2ce1",
+      "table": "decisions",
+      "stored_at": "2026-08-08T14:17:46.068Z"
+    },
+    {
+      "run_id": "a2f78070-d4b0-44bf-aced-b98c0d084530",
+      "decision": "blocked",
+      "gate": "signoff",
+      "deficits": [
+        {
+          "code": "open_critical_claims",
+          "ids": [
+            "cbc4b593-9eab-428a-9602-6720c0cd7339"
+          ]
+        },
+        {
+          "code": "insufficient_evidence",
+          "required": 1
+        }
+      ],
+      "authority": "model",
+      "id": "e91d7e8c-9e2d-4d1f-9306-1d89b8474bfa",
+      "table": "decisions",
+      "stored_at": "2026-08-08T14:17:46.071Z"
+    }
+  ]
+}

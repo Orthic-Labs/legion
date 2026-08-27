@@ -15,7 +15,7 @@
 //      as correspondence pairs whose canonical side stays null until the Kernel
 //      identity interface is bound (S01 action 2: no private ID allocator).
 
-import { readFileSync, readdirSync, existsSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -28,28 +28,10 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const packageRoot = path.dirname(here);
 const compatDir = path.join(packageRoot, 'compatibility', 'forge');
 
-/** Repo-relative location of the S00 baseline, found by walking up. */
-const S00_RELATIVE = path.join('docs', 'plans', 'legion', 's00-baseline', 'fixtures');
-
-function findS00Fixtures(startDir) {
-  let dir = startDir;
-  for (let i = 0; i < 12; i++) {
-    const candidate = path.join(dir, S00_RELATIVE);
-    if (existsSync(candidate)) return candidate;
-    const parent = path.dirname(dir);
-    if (parent === dir) break;
-    dir = parent;
-  }
-  throw new ArcaneError('ARC_SCHEMA_INVALID', 'S00 baseline fixtures not found from this checkout', {
-    searchedFrom: startDir,
-    expectedRelative: S00_RELATIVE,
-  });
-}
-
-/** The S00 baseline fixture directory — real Forge output, not fabricated JSON. */
+/** Sanitized S00 Forge baseline fixtures bundled with Arcane for portable verification. */
 export const FIXTURES_DIR = process.env.ARCANE_S00_FIXTURES
   ? path.resolve(process.env.ARCANE_S00_FIXTURES)
-  : findS00Fixtures(here);
+  : path.join(compatDir, 'fixtures');
 
 export const SCHEMA_MAP = JSON.parse(readFileSync(path.join(compatDir, 'schema-map.json'), 'utf8'));
 export const OPERATION_MAP = JSON.parse(readFileSync(path.join(compatDir, 'operation-map.json'), 'utf8'));
@@ -337,7 +319,7 @@ export function migrationDryRun({ capturedAt }) {
     baseline: SCHEMA_MAP.baseline,
     capturedAt,
     source: {
-      root: 'compatibility-fixture:docs/plans/legion/s00-baseline/fixtures',
+      root: 'compatibility-fixture:bundled-s00',
       fixtureCount: perFixture.length,
       recordCount: sourceRecords.length,
       digest: digestValue(sourceRecords),
@@ -357,7 +339,7 @@ export function migrationDryRun({ capturedAt }) {
     },
     perFixture,
     rollback: {
-      source: 'compatibility fixture docs/plans/legion/s00-baseline/fixtures (read-only)',
+      source: 'bundled S00 compatibility fixtures (read-only)',
       method: 'reverseEnvelope(envelope) restores the legacy payload exactly; no destructive rewrite occurred, so rollback is a no-op on the source.',
       reversible: reversedMatches,
     },

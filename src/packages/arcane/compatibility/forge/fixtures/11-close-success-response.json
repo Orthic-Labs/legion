@@ -1,0 +1,33 @@
+{
+  "run_id": "f84ee4ab-090d-47a5-b8bf-943f103147ba",
+  "operation": "forge",
+  "decision": "closed",
+  "summary": "Docs: clarify retry-budget fingerprint fields",
+  "claim_updates": [],
+  "next_actions": [],
+  "unresolved": [],
+  "context_refs": [
+    "8da02679-d4f2-47f5-affe-e07929a05a5a"
+  ],
+  "state_ref": "forge://run/f84ee4ab-090d-47a5-b8bf-943f103147ba/state",
+  "budget_used": {
+    "max_return_tokens": 4000,
+    "max_evidence_items": 30,
+    "max_external_requests": 20,
+    "max_verifier_calls": 5
+  },
+  "gate": {
+    "ok": true,
+    "gate": "signoff",
+    "deficits": [],
+    "rubric_id": "ad3773cb-9ebe-450e-bcb1-eaf2825d76fd",
+    "counts": {
+      "claims": 0,
+      "evidence": 1,
+      "checks": 1,
+      "passing_checks": 1
+    }
+  },
+  "ledger_hash": "sha256:ca7f03d70a2e6dbab1070163d363d1aac088cf41c4ef4ca26c5edfb9331f75b2",
+  "authority": "host"
+}

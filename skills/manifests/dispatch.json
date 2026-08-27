@@ -94,12 +94,12 @@
     {
       "path": "examples/sage-adjudication-dispatch.json",
       "uri": "legion-skill://dispatch/examples/sage-adjudication-dispatch.json",
-      "digest": "sha256:257af3b3b462ca3f8ba45292c462c40e202b7958a8bf38fa6b7c581c9a0fded1"
+      "digest": "sha256:a81ec2444ba01db65b1681045ac96f515a431af7bf8c70090a16ff5cca9c4993"
     },
     {
       "path": "examples/sage-adjudication-dispatch.receipt.json",
       "uri": "legion-skill://dispatch/examples/sage-adjudication-dispatch.receipt.json",
-      "digest": "sha256:c9440cda2ca054f426aa6b156d85fdd6bdec3a7150c9a8584021e9da1d208846"
+      "digest": "sha256:4e1ad4ea38e54b18273e19a3cce412b95c85a5183190caf12a67d89286b69060"
     },
     {
       "path": "examples/sage-adjudication.json",
