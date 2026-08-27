@@ -92,7 +92,12 @@ function version() {
 	return record.version;
 }
 
-const platform = process.platform === "win32" ? "windows" : process.platform;
+const platform =
+	process.platform === "win32"
+		? "windows"
+		: process.platform === "darwin"
+			? "macos"
+			: process.platform;
 const architecture =
 	process.arch === "x64"
 		? "x86_64"

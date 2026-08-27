@@ -31,6 +31,7 @@ test('native assembly consumes right-release target & provenance contracts', () 
   assert.match(assembler, /@rightkit\/release\/cargo-target\.mjs/);
   assert.match(assembler, /resolveTargetRoot\(cargoManifest\)/);
   assert.match(assembler, /cargoTarget \? \[cargoTarget\] : \[\]/);
+  assert.match(assembler, /process\.platform === "darwin"\s*\? "macos"/);
   assert.doesNotMatch(assembler, /engine["'],\s*["']target["'],\s*["'](?:debug|release)/);
   assert.match(assembler, /localProvenanceScheme/);
   assert.match(assembler, /signedProvenanceScheme/);
