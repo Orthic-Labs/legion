@@ -936,6 +936,16 @@ impl SetupRegistry<OnDiskSetupStore> {
 
 /// Resolves the native platform-local data convention with the fixed Legion suffix.
 pub fn platform_state_root() -> Result<PathBuf, SetupError> {
+    if let Some(configured) = std::env::var_os("LEGION_STATE_ROOT") {
+        let configured = PathBuf::from(configured);
+        if !configured.is_absolute() {
+            return Err(err(
+                SetupErrorCode::PlatformStateRootInvalid,
+                "LEGION_STATE_ROOT must be an absolute path",
+            ));
+        }
+        return Ok(configured);
+    }
     let directories = directories_next::BaseDirs::new().ok_or_else(|| {
         err(
             SetupErrorCode::PlatformStateRootInvalid,

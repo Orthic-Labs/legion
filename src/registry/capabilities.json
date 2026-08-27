@@ -38,6 +38,38 @@
       },
       "remedy": "Install the OmniRoute gateway and put `omniroute` on PATH, or run Alchemist against a host that provides it."
     },
+    "pi-cli": {
+      "kind": "command-line-provider",
+      "summary": "Pi command-line model provider used only by Coder's explicit, bounded read-only analysis route.",
+      "degradation": "Coder returns a typed unavailable-provider result and performs no outsourced analysis.",
+      "probe": {
+        "kind": "command-any",
+        "commands": [
+          "pi"
+        ]
+      },
+      "commands": [
+        "pi"
+      ],
+      "remedy": "Install the Pi CLI and expose its `pi` command on PATH, then invoke Coder again."
+    },
+    "python-runtime": {
+      "kind": "language-runtime",
+      "summary": "Python runtime used by package-local validators and Coder's Pi worker adapter.",
+      "degradation": "The dependent skill reports that its local validator or worker adapter is unavailable and does not substitute another runtime.",
+      "probe": {
+        "kind": "command-any",
+        "commands": [
+          "python3",
+          "python"
+        ]
+      },
+      "commands": [
+        "python3",
+        "python"
+      ],
+      "remedy": "Install Python 3 and expose either `python3` or `python` on PATH."
+    },
     "morph": {
       "kind": "tool",
       "summary": "Durable capture of results into the host's persistent store.",

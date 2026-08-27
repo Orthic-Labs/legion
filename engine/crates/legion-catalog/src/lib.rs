@@ -8,6 +8,7 @@ pub mod projection;
 
 pub use catalog::{
     normalize_path, Catalog, CatalogEntry, CatalogKind, CompactCatalog, CompactCatalogEntry,
+    HostRequirementDetail,
 };
 pub use discovery::{discover, discover_paths, load_compact};
 pub use error::{CatalogError, FailureCode};

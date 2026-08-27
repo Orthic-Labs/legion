@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 
 import { canonicalJson, constantTimeEqual, digestValue } from './canonical.mjs';
 import { ArcaneError, decision } from './errors.mjs';
-import { classifyLatestUserIntent, latestExternalUserTurn } from '../../../../hooks/user-intent.mjs';
+import { classifyLatestUserIntent, latestExternalUserTurn } from './user-intent.mjs';
 
 const TTL_SECONDS = 900;
 const BOUND_FIELDS = Object.freeze(['schemaVersion', 'kind', 'keyId', 'sessionDigest', 'runId', 'taskId', 'contractId', 'contractVersion', 'contractDigest', 'effectClass', 'targetDigest', 'userTurnDigest', 'issuedAt', 'expiresAt']);

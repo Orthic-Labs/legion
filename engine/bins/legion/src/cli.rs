@@ -687,12 +687,12 @@ impl legion_mcp::NativeApi for M1McpApi {
 }
 
 fn m1_status_value(status: &legion_application::M1Status) -> Value {
-    json!({
-        "releaseVersion": status.release_version,
-        "capabilityCount": status.capability_count,
-        "scope": "m1-vertical-slice",
-        "status": "complete"
-    })
+    let mut value = serde_json::to_value(status).expect("M1 status is serializable");
+    if let Value::Object(object) = &mut value {
+        object.insert("scope".into(), json!("m1-vertical-slice"));
+        object.insert("status".into(), json!("complete"));
+    }
+    value
 }
 
 fn m1_invocation_value(result: legion_application::M1InvocationResult) -> Value {

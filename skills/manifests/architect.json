@@ -97,6 +97,16 @@
       "digest": "sha256:971acf546155946883edf6da0d485fe4d57a616d24aa94440cb7786b93653ce9"
     },
     {
+      "path": "agents/openai.yaml",
+      "uri": "legion-skill://architect/agents/openai.yaml",
+      "digest": "sha256:2d2271e2a14e1784ffc767aecebe8139bd743e2e7307cd80add011a3737e989d"
+    },
+    {
+      "path": "dependencies.json",
+      "uri": "legion-skill://architect/dependencies.json",
+      "digest": "sha256:d40678f7c62f0461a8a1d8aff05b1a8c46ed071db0ac5da710d89ae3e660c968"
+    },
+    {
       "path": "doctrine/architecture/00-charter-significance-tailoring.md",
       "uri": "legion-skill://architect/doctrine/architecture/00-charter-significance-tailoring.md",
       "digest": "sha256:d6bace1129500740f9a3d43d162b4f97c54aa050cc339a8d85b76f3cac0c595b"

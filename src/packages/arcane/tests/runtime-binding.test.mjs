@@ -9,7 +9,7 @@ import { fileURLToPath } from 'node:url';
 import { createHostRuntime, evaluateLatestStopShape } from '../host/host-runtime.mjs';
 import { normalizeCodexEvent, mapCodexPreEffect, observeCodexIdentity } from '../host/codex-adapter.mjs';
 import { claudeCodeHostAdapter } from '../host/claude-code-adapter.mjs';
-import { evaluateStopShape } from '../../../../hooks/stop-shape.mjs';
+import { evaluateStopShape } from '../lib/stop-shape.mjs';
 import { b5Contract, seedStore } from './fixtures/runtime-binding-contract.mjs';
 import { SessionBindingStore } from '../lib/session-binding.mjs';
 import { AuthorityBindingStore } from '../lib/authority-binding-store.mjs';
@@ -301,7 +301,7 @@ test('EC-603 T-4: standalone Stop shape keeps no unauthenticated local retry cir
     assert.equal(evaluateLatestStopShape(payload).block, true);
     assert.equal(evaluateLatestStopShape(payload).block, true);
     assert.equal(existsSync(join(root, '.audit', 'legion', 'stop-shape', 'pushes.json')), false);
-    assert.doesNotMatch(readFileSync(new URL('../../../../hooks/stop-shape.mjs', import.meta.url), 'utf8'), /intent\.intent === 'proceed'/);
+    assert.doesNotMatch(readFileSync(new URL('../lib/stop-shape.mjs', import.meta.url), 'utf8'), /intent\.intent === 'proceed'/);
   } finally { rmSync(root, { recursive: true, force: true }); }
 });
 

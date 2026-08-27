@@ -8,10 +8,11 @@ import { checkPublicationChannel, publicationSurfaceDigest } from '../scripts/ch
 
 const root = fileURLToPath(new URL('..', import.meta.url));
 
-test('publication grant digest binds current package surface', () => {
+test('private Node package has no public npm grant', () => {
   const policy = JSON.parse(readFileSync(join(root, 'release/publication-policy.json'), 'utf8'));
-  assert.equal(policy.channels.npm.policyDigest, publicationSurfaceDigest(root));
-  assert.equal(checkPublicationChannel('npm', root).status, 'pass');
+  assert.equal(policy.channels.npm.allowed, false);
+  assert.equal(checkPublicationChannel('npm', root).status, 'blocked');
+  assert.match(publicationSurfaceDigest(root), /^sha256:/);
 });
 
 test('publication guard rejects surface drift without digest update', () => {
@@ -25,9 +26,18 @@ test('publication guard rejects surface drift without digest update', () => {
     const pkg = JSON.parse(readFileSync(pkgPath, 'utf8'));
     pkg.files.push('unexpected/');
     writeFileSync(pkgPath, `${JSON.stringify(pkg, null, 2)}\n`);
-    const result = checkPublicationChannel('npm', fixture);
+    const policyPath = join(fixture, 'release/publication-policy.json');
+    const policy = JSON.parse(readFileSync(policyPath, 'utf8'));
+    policy.channels['test-public'] = {
+      allowed: true,
+      approvedBy: 'test',
+      approvedAt: '2026-08-27',
+      policyDigest: publicationSurfaceDigest(root),
+    };
+    writeFileSync(policyPath, `${JSON.stringify(policy, null, 2)}\n`);
+    const result = checkPublicationChannel('test-public', fixture);
     assert.equal(result.status, 'blocked');
-    assert.match(result.message, /policy digest drift/);
+    assert.match(result.message, /(?:policy digest drift|publication surface mismatch)/);
   } finally {
     rmSync(fixture, { recursive: true, force: true });
   }

@@ -1,0 +1,6 @@
+interface:
+  display_name: "Alchemist"
+  short_description: "Execute a settled, bounded change through Legion's Alchemist authority. Use /alchemist after scope, ownership, checks, and acceptance are decided."
+  default_prompt: "Use $alchemist when this request matches: Execute a settled, bounded change through Legion's Alchemist authority. Use /alchemist after scope, ownership, checks, and acceptance are decided."
+policy:
+  allow_implicit_invocation: false

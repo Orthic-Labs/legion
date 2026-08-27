@@ -50,6 +50,18 @@ pub struct CatalogEntry {
 /// The routing-sized representation of a capability. It deliberately carries
 /// no source body: selection only needs compact catalog metadata.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct HostRequirementDetail {
+    pub id: String,
+    #[serde(default)]
+    pub degradation: String,
+    #[serde(default)]
+    pub remedy: String,
+    #[serde(default)]
+    pub probe: Option<serde_json::Value>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct CompactCatalogEntry {
     pub canonical_id: String,
     pub source_path: String,
@@ -58,6 +70,8 @@ pub struct CompactCatalogEntry {
     pub description: Option<String>,
     pub kind: Option<String>,
     pub discoverability: Option<String>,
+    #[serde(rename = "hostRequirementDetails", default)]
+    pub host_requirement_details: Vec<HostRequirementDetail>,
 }
 
 /// A catalog index plus its content root. Bodies are read only by
@@ -77,6 +91,7 @@ pub(crate) struct CompactCatalogDocument {
 }
 
 #[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub(crate) struct CompactCatalogDocumentEntry {
     pub id: String,
     pub source: String,
@@ -85,6 +100,8 @@ pub(crate) struct CompactCatalogDocumentEntry {
     pub description: Option<String>,
     pub kind: Option<String>,
     pub discoverability: Option<String>,
+    #[serde(default)]
+    pub host_requirement_details: Vec<HostRequirementDetail>,
 }
 
 impl CatalogEntry {
@@ -228,6 +245,18 @@ impl CompactCatalog {
                 return Err(CatalogError::OwnershipCollision {
                     identity: format!("source path `{}`", entry.source_path),
                 });
+            }
+            let mut requirement_ids = BTreeSet::new();
+            for requirement in &entry.host_requirement_details {
+                if !requirement_ids.insert(requirement.id.clone()) {
+                    return Err(CatalogError::OwnershipCollision {
+                        identity: format!(
+                            "duplicate host requirement `{}` for `{}`",
+                            requirement.id, entry.canonical_id
+                        ),
+                    });
+                }
+                validate_id(&requirement.id)?;
             }
         }
         Ok(Self {

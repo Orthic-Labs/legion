@@ -55,7 +55,7 @@ fn first_location(finding: &Finding) -> (String, u64, u64) {
             let (path, span) = normalized
                 .rsplit_once(':')
                 .unwrap_or((normalized.as_str(), ""));
-            let (start, end) = span.split_once('-').map_or((span, span), |range| range);
+            let (start, end) = span.split_once('-').unwrap_or((span, span));
             let start = start.parse::<u64>().unwrap_or(0);
             let end = end.parse::<u64>().unwrap_or(start);
             (path.to_string(), start, end)

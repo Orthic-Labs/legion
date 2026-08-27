@@ -4,6 +4,9 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
+patchedDependencies:
+  '@rightkit/git@0.2.1': 8d2d62ccdeeb6cd64c43965900b6c56a984da2e98d6d47cb00848c8aeba27bac
+
 importers:
 
   .:
@@ -15,6 +18,12 @@ importers:
       '@biomejs/biome':
         specifier: 2.5.10
         version: 2.5.10
+      '@rightkit/git':
+        specifier: 0.2.1
+        version: 0.2.1(patch_hash=8d2d62ccdeeb6cd64c43965900b6c56a984da2e98d6d47cb00848c8aeba27bac)
+      '@rightkit/release':
+        specifier: 0.2.68
+        version: 0.2.68
 
 packages:
 
@@ -75,8 +84,16 @@ packages:
     cpu: [x64]
     os: [win32]
 
+  '@rightkit/git@0.2.1':
+    resolution: {integrity: sha512-Cw0igaGlZUD6J21P7olWm/0PpclubXMtVmqZKm6cTFUUD1689vKjlGmuKRX3yKYgCkMULNm06Oq+VQimOm6qOg==}
+    hasBin: true
+
   '@rightkit/hooks@0.1.1':
     resolution: {integrity: sha512-Z8AOe4eRJN90k98D9DB6XgKjSmjNTeQNcpHuTBIJRk0xmFyO7jqzV9AmO7jxFJOSg9YkzEuftra0UhfYLbGXRA==}
+    hasBin: true
+
+  '@rightkit/release@0.2.68':
+    resolution: {integrity: sha512-oIo4AYNJ+9l92ED6D++tHA63j7mA7hGTFARmzu2As7pa3gaPj82JaZDd6ceOkjHZOcX9FFzKTUn+hPdSuutwNA==}
     hasBin: true
 
 snapshots:
@@ -116,4 +133,8 @@ snapshots:
   '@biomejs/cli-win32-x64@2.5.10':
     optional: true
 
+  '@rightkit/git@0.2.1(patch_hash=8d2d62ccdeeb6cd64c43965900b6c56a984da2e98d6d47cb00848c8aeba27bac)': {}
+
   '@rightkit/hooks@0.1.1': {}
+
+  '@rightkit/release@0.2.68': {}

@@ -1,0 +1,6 @@
+interface:
+  display_name: "Commit"
+  short_description: "Review, verify, commit, & push one frozen diff through Legion's guarded Commit workflow. Use for /commit, review and commit, or commit and push."
+  default_prompt: "Use $commit when this request matches: Review, verify, commit, & push one frozen diff through Legion's guarded Commit workflow. Use for /commit, review and commit, or commit and push."
+policy:
+  allow_implicit_invocation: false

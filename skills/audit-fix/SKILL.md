@@ -14,7 +14,8 @@ effects:
   - source-read
   - repository-write
   - process-exec
-hostRequirements: []
+hostRequirements:
+  - blueprint-graph
 metadata:
   legion:
     provenance: legion-authored

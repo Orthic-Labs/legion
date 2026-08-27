@@ -18,6 +18,7 @@ import { join } from 'node:path';
 import { homedir } from 'node:os';
 
 import * as harnessRegistry from '../../host/registry.mjs';
+import { loadCapabilityRegistry, probeCapability } from '../../capabilities/probe.mjs';
 
 const readJson = (path) => { try { return JSON.parse(readFileSync(path, 'utf8')); } catch { return null; } };
 
@@ -191,6 +192,46 @@ function harnessAdaptersSection(root) {
   return { known: harnessRegistry.ADAPTER_IDS, detected, capabilities };
 }
 
+function isUserInvokable(capability) {
+  return (capability.kind === 'domain-capability' && capability.discoverability === 'public')
+    || (capability.kind === 'entrypoint' && capability.discoverability === 'explicit');
+}
+
+/** Per-skill host requirement health; unavailable never means silently omitted. */
+function hostRequirementHealth(root) {
+  const projection = readJson(join(root, 'src', 'registry', 'host-projection.json'));
+  if (!projection) return { present: false, state: 'missing-projection', skills: [] };
+  let registry;
+  try { registry = loadCapabilityRegistry(root); } catch (error) {
+    return { present: false, state: 'invalid-registry', detail: error.message, skills: [] };
+  }
+  const skills = (projection.capabilities ?? []).filter(isUserInvokable).map((skill) => {
+    const requirements = (skill.hostRequirements ?? []).map((id) => {
+      try { return probeCapability(id, { registry }); } catch (error) {
+        return {
+          id,
+          available: false,
+          degradation: 'The projected skill requirement is absent from the capability registry; do not invoke this dependency.',
+          remedy: 'Regenerate host projection after repairing the capability registry.',
+          message: error.message,
+        };
+      }
+    });
+    const state = requirements.some((requirement) => requirement.available === false)
+      ? 'missing'
+      : requirements.some((requirement) => requirement.available == null)
+        ? 'unknown'
+        : 'pass';
+    return { id: skill.id, state, requirements };
+  });
+  const state = skills.some((skill) => skill.state === 'missing')
+    ? 'missing'
+    : skills.some((skill) => skill.state === 'unknown')
+      ? 'unknown'
+      : 'pass';
+  return { present: true, state, skills };
+}
+
 export function computeHostSection(root, { home = homedir() } = {}) {
   const projectionPath = join(root, 'src', 'registry', 'host-projection.json');
   return {
@@ -208,6 +249,7 @@ export function computeHostSection(root, { home = homedir() } = {}) {
     // detected harness's declared surface capabilities (read-only; doctor never
     // installs). This is the runtime view of what host-projection.json records.
     harnessAdapters: harnessAdaptersSection(root),
+    hostRequirements: hostRequirementHealth(root),
     arcane: arcaneHostHealth(root, home),
   };
 }

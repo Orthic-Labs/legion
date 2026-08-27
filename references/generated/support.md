@@ -5,7 +5,7 @@ Generated from registered host adapters. Values describe implemented projection 
 | Host | Install owner | Instructions | Skills | Agents | MCP | Hooks | Skills mechanism | MCP mechanism |
 |---|---|---|---|---|---|---|---|---|
 | claude-code | plugin | strong | strong | strong | strong | strong | plugin | plugin |
-| codex | adapter | strong | degraded | unsupported | strong | unsupported | skills-dir | toml |
+| codex | adapter | strong | strong | unsupported | strong | unsupported | skills-dir | toml |
 | cline | adapter | strong | degraded | unsupported | unsupported | unsupported | skills-dir | none |
 | command-code | adapter | strong | degraded | unsupported | unsupported | unsupported | skills-dir | none |
 | pi | adapter | strong | degraded | unsupported | unsupported | unsupported | skills-dir | none |

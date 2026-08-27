@@ -12,8 +12,9 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import * as reg from '../src/lib/host/registry.mjs';
 import { buildProjection, renderHarnessSupport } from '../scripts/generate-host-projection.mjs';
-import { canonicalSkillIds } from '../src/lib/host/skill-projection.mjs';
+import { canonicalSkillIds, canonicalSkillRequirements } from '../src/lib/host/skill-projection.mjs';
 import { SURFACES, FIDELITY } from '../src/lib/host/surfaces.mjs';
+import { expectedCodexSidecars } from '../scripts/generate-codex-skill-sidecars.mjs';
 
 const LEGION = reg.LEGION_ROOT;
 const CANON = canonicalSkillIds(LEGION);
@@ -32,6 +33,29 @@ test('canonical discoverability projects to normalized user/model invocation pol
     else if (capability.discoverability === 'explicit') assert.deepEqual(capability.invocation, { user: true, model: false });
     else assert.deepEqual(capability.invocation, { user: false, model: false });
   }
+});
+
+test('host projection carries every skill requirement with typed degradation metadata', () => {
+  const projection = buildProjection(LEGION);
+  const coder = projection.capabilities.find((capability) => capability.id === 'coder');
+  assert.deepEqual(coder.hostRequirements, ['pi-cli', 'python-runtime']);
+  assert.deepEqual(coder.hostRequirementDetails.map((requirement) => requirement.id), ['pi-cli', 'python-runtime']);
+  assert.ok(coder.hostRequirementDetails.every((requirement) => requirement.degradation && requirement.remedy));
+  const persisted = canonicalSkillRequirements(LEGION).find((capability) => capability.id === 'coder');
+  assert.ok(Array.isArray(persisted.hostRequirements));
+});
+
+test('Codex sidecars preserve canonical implicit and explicit invocation policy', () => {
+  const sidecars = expectedCodexSidecars(LEGION);
+  assert.equal(sidecars.size, CANON.length);
+  const projection = buildProjection(LEGION);
+  for (const capability of projection.capabilities.filter((entry) => CANON.includes(entry.id))) {
+    const sidecar = sidecars.get(capability.id);
+    assert.ok(sidecar, `${capability.id}: Codex sidecar exists`);
+    assert.match(sidecar, new RegExp(`allow_implicit_invocation: ${capability.discoverability === 'public'}`));
+    assert.equal(readFileSync(join(LEGION, 'skills', capability.id, 'agents', 'openai.yaml'), 'utf8'), sidecar);
+  }
+  assert.equal(reg.capabilities('codex').surfaces.skills.fidelity, 'strong');
 });
 
 test('human host support matrix is generated from adapter projection', () => {

@@ -361,6 +361,19 @@ test('only one installer is active for any harness surface: legacy bind writers 
   }
 });
 
+test('explicit Claude bind remains a read-only retirement receipt', async () => {
+  const claude = await import('../src/lib/cli/commands/bind/claude-code.mjs');
+  await withRepo(async (root) => {
+    mkdirSync(join(root, '.claude'), { recursive: true });
+    assert.equal(claude.present(root), true);
+    assert.equal(claude.RETIRED, true);
+    assert.deepEqual(claude.targets(root), []);
+    assert.deepEqual(claude.plan(root), []);
+    assert.deepEqual(claude.write(root), { wrote: [], wouldWrite: [] });
+    assert.match(claude.RETIREMENT_NOTE, /plugin package/);
+  });
+});
+
 // ---- 8. real harness discovery smoke test (opt-in, never a CI dependency) --
 //
 // Proving that files exist on disk is not proof that a harness FINDS them. The

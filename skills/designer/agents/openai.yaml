@@ -1,0 +1,6 @@
+interface:
+  display_name: "Designer"
+  short_description: "Create, critique, redesign, or polish websites, app UI, dashboards, components, static creative, print, motion systems, glass materials, illustration direction, and frontend craft. Route deterministic rendered-state coverage/regression evidence to Audit Visual and identity systems to Brand Identity."
+  default_prompt: "Use $designer when this request matches: Create, critique, redesign, or polish websites, app UI, dashboards, components, static creative, print, motion systems, glass materials, illustration direction, and frontend craft. Route deterministic rendered-state coverage/regression evidence to Audit Visual and identity systems to Brand Identity."
+policy:
+  allow_implicit_invocation: true

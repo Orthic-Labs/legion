@@ -1,0 +1,6 @@
+interface:
+  display_name: "Audit Visual"
+  short_description: "Enumerate, capture, compare, and reconcile rendered UI evidence through Legion's shared Audit visual provider. Use for /audit-visual, visual regressions, screenshot baselines, or rendered-state coverage."
+  default_prompt: "Use $audit-visual when this request matches: Enumerate, capture, compare, and reconcile rendered UI evidence through Legion's shared Audit visual provider. Use for /audit-visual, visual regressions, screenshot baselines, or rendered-state coverage."
+policy:
+  allow_implicit_invocation: true

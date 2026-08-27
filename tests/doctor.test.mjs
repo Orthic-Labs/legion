@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import test from 'node:test';
-import { codexHookTrust } from '../src/lib/cli/commands/doctor-host.mjs';
+import { codexHookTrust, computeHostSection } from '../src/lib/cli/commands/doctor-host.mjs';
 
 const BIN = fileURLToPath(new URL('../src/bin/legion.mjs', import.meta.url));
 const root = fileURLToPath(new URL('..', import.meta.url));
@@ -40,6 +40,14 @@ test('doctor reflects the network guard environment', () => {
   const result = doctor(['.'], { AUDIT_NETWORK_GUARD: 'active' });
   const report = JSON.parse(result.stdout);
   assert.equal(report.hostCapabilities.networkSandbox, true);
+});
+
+test('doctor reports per-skill host requirements with typed degradation', () => {
+  const section = computeHostSection(root);
+  const coder = section.hostRequirements.skills.find((skill) => skill.id === 'coder');
+  assert.ok(coder);
+  assert.deepEqual(coder.requirements.map((requirement) => requirement.id), ['pi-cli', 'python-runtime']);
+  assert.ok(coder.requirements.every((requirement) => requirement.degradation && requirement.remedy));
 });
 
 test('doctor reflects signing key presence', () => {

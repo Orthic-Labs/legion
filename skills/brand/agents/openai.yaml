@@ -1,0 +1,6 @@
+interface:
+  display_name: "Brand"
+  short_description: "Load a source-bound brand card before branded content, design, marketing, social, or media work. Use /brand when a named brand or approved identity source governs an output."
+  default_prompt: "Use $brand when this request matches: Load a source-bound brand card before branded content, design, marketing, social, or media work. Use /brand when a named brand or approved identity source governs an output."
+policy:
+  allow_implicit_invocation: true

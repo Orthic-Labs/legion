@@ -59,12 +59,12 @@
     {
       "path": "SKILL.md",
       "uri": "legion-skill://dispatch/SKILL.md",
-      "digest": "sha256:f3ec8b29adab361117a486fc6195972428730176faed4899f14afa6531728b54"
+      "digest": "sha256:da639e91c179643f6f267f75bded7f2dc6729643f234b67d948a4ee0f11e6bbf"
     },
     {
       "path": "agents/openai.yaml",
       "uri": "legion-skill://dispatch/agents/openai.yaml",
-      "digest": "sha256:f4d0517fc3f1fe915d26bab8532aa1290dc15f14a3b22d71698b099c2e437c79"
+      "digest": "sha256:db73044833c3decf6efea0c3a57e18428ce77ec59ccc40b7ec68a537b1f7b65e"
     },
     {
       "path": "assets/direct-packet.json",
@@ -75,6 +75,11 @@
       "path": "assets/dispatch-template.md",
       "uri": "legion-skill://dispatch/assets/dispatch-template.md",
       "digest": "sha256:489ee19e3e2ba6b7495cc445071ba927418f3dcf33aeafaf30ac254f00d46380"
+    },
+    {
+      "path": "dependencies.json",
+      "uri": "legion-skill://dispatch/dependencies.json",
+      "digest": "sha256:4906ee5ede30b1455467c20e005f7e25214356413be833b4bcb4770f700930dd"
     },
     {
       "path": "evals/evals.json",
@@ -94,12 +99,12 @@
     {
       "path": "examples/sage-adjudication-dispatch.json",
       "uri": "legion-skill://dispatch/examples/sage-adjudication-dispatch.json",
-      "digest": "sha256:a81ec2444ba01db65b1681045ac96f515a431af7bf8c70090a16ff5cca9c4993"
+      "digest": "sha256:6167ad0c0b4ce25a5fa893d0752a96238623e6acc679a56a3e3fbcd7797b3c5f"
     },
     {
       "path": "examples/sage-adjudication-dispatch.receipt.json",
       "uri": "legion-skill://dispatch/examples/sage-adjudication-dispatch.receipt.json",
-      "digest": "sha256:4e1ad4ea38e54b18273e19a3cce412b95c85a5183190caf12a67d89286b69060"
+      "digest": "sha256:b605f495baa84e81ad37d809de6eeb6062b4f14a17a4790e63d6563410a709ba"
     },
     {
       "path": "examples/sage-adjudication.json",

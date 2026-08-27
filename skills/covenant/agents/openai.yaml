@@ -1,0 +1,6 @@
+interface:
+  display_name: "Covenant"
+  short_description: "Convene Legion's optional independent challenge chamber for a named decision, work artifact, blocker, or packet-only review preparation. Use /covenant."
+  default_prompt: "Use $covenant when this request matches: Convene Legion's optional independent challenge chamber for a named decision, work artifact, blocker, or packet-only review preparation. Use /covenant."
+policy:
+  allow_implicit_invocation: false

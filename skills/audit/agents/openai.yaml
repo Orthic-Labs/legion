@@ -1,0 +1,6 @@
+interface:
+  display_name: "Audit"
+  short_description: "Diagnose a whole repository through Legion's frozen Audit provider plan. Use for /audit or repository-wide read-only health, security, runtime, & evidence review."
+  default_prompt: "Use $audit when this request matches: Diagnose a whole repository through Legion's frozen Audit provider plan. Use for /audit or repository-wide read-only health, security, runtime, & evidence review."
+policy:
+  allow_implicit_invocation: true

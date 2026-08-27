@@ -56,6 +56,7 @@
     "src/evals/architecture/",
     "src/roster/",
     "src/packages/arcane/",
+    "src/packages/context/",
     "src/packages/contracts/",
     "src/packages/oracle/",
     "src/bin/",
@@ -80,14 +81,20 @@
     "scripts/generate-schemas.mjs",
     "scripts/normalize-provider-result.mjs",
     "scripts/check-publication-policy.mjs",
+    "scripts/check-publication-surface.mjs",
+    "scripts/check-packed-import-closure.mjs",
+    "scripts/check-distribution-contract.mjs",
     "scripts/check-portability.mjs",
     "scripts/check-version-parity.mjs",
     "scripts/check-canonical-names.mjs",
     "scripts/check-dependency-closure.mjs",
+    "scripts/generate-codex-skill-sidecars.mjs",
+    "scripts/lib/",
     "scripts/report-to-sarif.mjs",
     "scripts/run-architecture-evals.mjs",
     "references/",
     "release/version.json",
+    "release/distribution-contract.json",
     "MANIFEST.package.json",
     "README.md",
     "docs/CHANGELOG.md",
@@ -101,19 +108,22 @@
     "stage9-runtime-evals": "node scripts/run-stage9-runtime-evals.mjs",
     "self-test": "node scripts/self-test.mjs",
     "naming:check": "node scripts/check-canonical-names.mjs",
-    "legion:check": "node scripts/check-canonical-names.mjs && node scripts/check-portability.mjs && node scripts/check-version-parity.mjs && node scripts/generate-schemas.mjs --check && node scripts/check-dependency-closure.mjs && node scripts/generate-skill-catalog.mjs --check && node scripts/generate-host-projection.mjs --check && node scripts/refresh-local-skill-manifests.mjs --check && node scripts/generate-manifest.mjs --check && node scripts/generate-catalogs.mjs --check && node scripts/verify-plugin-parity.mjs --check",
+    "legion:check": "node scripts/check-canonical-names.mjs && node scripts/check-portability.mjs && node scripts/check-version-parity.mjs && node scripts/generate-schemas.mjs --check && node scripts/check-dependency-closure.mjs && node scripts/check-publication-surface.mjs && node scripts/check-packed-import-closure.mjs && node scripts/check-distribution-contract.mjs && node scripts/generate-codex-skill-sidecars.mjs --check && pnpm biome:check && node scripts/generate-skill-catalog.mjs --check && node scripts/generate-host-projection.mjs --check && node scripts/refresh-local-skill-manifests.mjs --check && node scripts/generate-manifest.mjs --check && node scripts/generate-catalogs.mjs --check && node scripts/verify-plugin-parity.mjs --check",
     "schemas:check": "node scripts/generate-schemas.mjs --check",
     "closure:check": "node scripts/check-dependency-closure.mjs",
     "plugin:surface": "node scripts/verify-plugin-parity.mjs",
     "plugin:verify": "node scripts/verify-plugin-parity.mjs --check",
     "plugin:dev": "node scripts/plugin-dev.mjs",
     "native:assemble": "node scripts/assemble-native-release.mjs",
-    "biome": "biome lint . --max-diagnostics=1000"
+    "biome": "biome lint . --max-diagnostics=1000",
+    "biome:check": "biome lint . --max-diagnostics=1000"
   },
   "dependencies": {
     "@rightkit/hooks": "0.1.1"
   },
   "devDependencies": {
-    "@biomejs/biome": "2.5.10"
+    "@biomejs/biome": "2.5.10",
+    "@rightkit/git": "0.2.1",
+    "@rightkit/release": "0.2.68"
   }
 }

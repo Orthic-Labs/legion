@@ -1,0 +1,6 @@
+interface:
+  display_name: "Marketing"
+  short_description: "Route positioning, offers, packaging, guarantees, launches, validation, growth, analytics, pricing, CRO, retention, and commercial ideation. Use for Grand Slam Offers or what, whom, why, and how to market; route execution to Ads, SEO, Social, Research, or Writing."
+  default_prompt: "Use $marketing when this request matches: Route positioning, offers, packaging, guarantees, launches, validation, growth, analytics, pricing, CRO, retention, and commercial ideation. Use for Grand Slam Offers or what, whom, why, and how to market; route execution to Ads, SEO, Social, Research, or Writing."
+policy:
+  allow_implicit_invocation: true

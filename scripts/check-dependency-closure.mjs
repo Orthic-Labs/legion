@@ -16,9 +16,9 @@ const manifests = Object.fromEntries(
   }),
 );
 
-const { ok, findings } = verifyDependencyClosure({ packageRoot, manifests });
+const { ok, findings, summary } = verifyDependencyClosure({ packageRoot, manifests });
 if (ok) {
-  console.log(`dependency closure ok: ${Object.keys(manifests).length} bundles`);
+  console.log(`dependency closure ok: ${summary.dependencyDeclarations}/${summary.semanticBundles} declarations, ${summary.typedResources} typed resources`);
   process.exit(0);
 }
 for (const finding of findings) {

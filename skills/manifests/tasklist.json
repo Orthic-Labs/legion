@@ -59,17 +59,22 @@
     {
       "path": "SKILL.md",
       "uri": "legion-skill://tasklist/SKILL.md",
-      "digest": "sha256:66b88195b7a036128b4afb27da6fe4e4af9f429a0b563eac8b23d1cad9dece96"
+      "digest": "sha256:35e5070a6889cca71585862ce77525267cdee02a50aa19c33c80f6f2f13087e9"
     },
     {
       "path": "agents/openai.yaml",
       "uri": "legion-skill://tasklist/agents/openai.yaml",
-      "digest": "sha256:aeaa2ef474aff969e3ce7890eb6e957206a89aae0d8043686ad525e4c270cf7d"
+      "digest": "sha256:b4878475c4894c9ebff763320c54b9cb131a2d6e0e994f63fa0abe63f742fe48"
     },
     {
       "path": "assets/tasklist-template.md",
       "uri": "legion-skill://tasklist/assets/tasklist-template.md",
       "digest": "sha256:63de5b7c14dc68832c7a48e774cc215ca7310d80c1d4c7e809615ab0a073a074"
+    },
+    {
+      "path": "dependencies.json",
+      "uri": "legion-skill://tasklist/dependencies.json",
+      "digest": "sha256:1679acc0c01b19721076dfa5428207224d01a8053d80621427e9931839f587a8"
     },
     {
       "path": "evals/evals.json",

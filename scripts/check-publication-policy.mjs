@@ -5,6 +5,8 @@ import { existsSync, readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { checkPublicationSurface } from './check-publication-surface.mjs';
+
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const INTERNAL = new Set(['internal-pack', 'local-test', 'ci-test']);
 
@@ -32,6 +34,13 @@ export function checkPublicationChannel(channel, root = ROOT) {
     return { status: 'blocked', exitCode: 5, message: 'publication blocked: invalid policy' };
   }
   const grant = policy.channels?.[channel];
+  if (grant?.allowed === false) {
+    const evidence = (grant.requiredEvidence ?? []).join(', ');
+    return {
+      status: 'blocked', exitCode: 5,
+      message: `publication blocked: channel ${channel} is denied (${grant.reason ?? 'no authorization'})${evidence ? `; required evidence: ${evidence}` : ''}`,
+    };
+  }
   if (!grant?.allowed || !grant.approvedBy || !grant.approvedAt || !grant.policyDigest) {
     return { status: 'blocked', exitCode: 5, message: `publication blocked: channel ${channel} has no complete grant` };
   }
@@ -41,6 +50,14 @@ export function checkPublicationChannel(channel, root = ROOT) {
       status: 'blocked',
       exitCode: 5,
       message: `publication blocked: channel ${channel} policy digest drift (declared ${grant.policyDigest}, current ${observed})`,
+    };
+  }
+  const surface = checkPublicationSurface(root);
+  if (surface.status !== 'pass') {
+    return {
+      status: 'blocked',
+      exitCode: 5,
+      message: `publication blocked: ${surface.message}`,
     };
   }
   return { status: 'pass', exitCode: 0, message: `publication channel allowed: ${channel}` };

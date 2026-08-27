@@ -1,0 +1,6 @@
+interface:
+  display_name: "Writing"
+  short_description: "Route editorial prose, essays, newsletters, scripts, captions, threads, research articles, blogs, SEO posts, conversion copy, bios, DMs, product copy, email, and changelogs. Use when words are the deliverable."
+  default_prompt: "Use $writing when this request matches: Route editorial prose, essays, newsletters, scripts, captions, threads, research articles, blogs, SEO posts, conversion copy, bios, DMs, product copy, email, and changelogs. Use when words are the deliverable."
+policy:
+  allow_implicit_invocation: true

@@ -116,6 +116,7 @@ pub fn load_compact(
                 description: entry.description,
                 kind: entry.kind,
                 discoverability: entry.discoverability,
+                host_requirement_details: entry.host_requirement_details,
             })
         })
         .collect::<Result<Vec<_>, CatalogError>>()?;
@@ -155,7 +156,7 @@ mod tests {
         let root = temp_root();
         fs::write(
             root.join("registry/index.json"),
-            r#"{"schemaVersion":2,"bundles":[{"id":"visible","source":"skills/visible/SKILL.md","description":"metadata"},{"id":"missing","source":"skills/missing/SKILL.md"}]}"#,
+            r#"{"schemaVersion":2,"bundles":[{"id":"visible","source":"skills/visible/SKILL.md","description":"metadata","hostRequirementDetails":[{"id":"python-runtime","degradation":"degraded","remedy":"install Python","probe":{"kind":"command-any","commands":["python3","python"]}}]},{"id":"missing","source":"skills/missing/SKILL.md"}]}"#,
         ).expect("index");
         fs::create_dir_all(root.join("skills/visible")).expect("visible directory");
         fs::write(root.join("skills/visible/SKILL.md"), "visible body").expect("visible body");
@@ -167,6 +168,17 @@ mod tests {
                 .get("visible")
                 .and_then(|entry| entry.description.as_deref()),
             Some("metadata")
+        );
+        let requirement = &catalog
+            .get("visible")
+            .expect("visible entry")
+            .host_requirement_details[0];
+        assert_eq!(requirement.id, "python-runtime");
+        assert_eq!(requirement.degradation, "degraded");
+        assert_eq!(requirement.remedy, "install Python");
+        assert_eq!(
+            requirement.probe.as_ref().expect("probe")["kind"],
+            "command-any"
         );
         assert_eq!(
             catalog.resolve_body("visible").expect("lazy body"),

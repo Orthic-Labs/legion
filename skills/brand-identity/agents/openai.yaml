@@ -1,0 +1,6 @@
+interface:
+  display_name: "Brand Identity"
+  short_description: "Create, audit, evolve, or apply brand identities, systems, guidelines, visual identity, voice, naming, logo direction, brand books, rebrands, website or app identity, pitch decks, or social kits."
+  default_prompt: "Use $brand-identity when this request matches: Create, audit, evolve, or apply brand identities, systems, guidelines, visual identity, voice, naming, logo direction, brand books, rebrands, website or app identity, pitch decks, or social kits."
+policy:
+  allow_implicit_invocation: true

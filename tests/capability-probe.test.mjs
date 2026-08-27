@@ -35,6 +35,27 @@ test('a capability with no probe is unknown, never assumed present', () => {
   assert.match(result.message, /could not be detected/);
 });
 
+test('a command-any probe accepts either declared runtime command', () => {
+  const result = probeCapability('python-runtime', {
+    registry,
+    env: {},
+    commandExists: (command) => command === 'python',
+  });
+  assert.equal(result.available, true);
+  assert.equal(result.message, null);
+});
+
+test('a missing Pi provider has typed degradation instead of a silent fallback', () => {
+  const result = probeCapability('pi-cli', {
+    registry,
+    env: {},
+    commandExists: () => false,
+  });
+  assert.equal(result.available, false);
+  assert.match(result.degradation, /typed unavailable-provider/);
+  assert.match(result.remedy, /Pi CLI/);
+});
+
 test('probing an undeclared capability is an error, not a silent pass', () => {
   assert.throws(() => probeCapability('not-a-capability'), /not declared in the registry/);
 });

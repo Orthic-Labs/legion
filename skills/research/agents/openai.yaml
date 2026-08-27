@@ -1,0 +1,6 @@
+interface:
+  display_name: "Research"
+  short_description: "Sole top-level evidence router: general, market, technical, scientific, medical, legal, competitor, Reddit, audience, trends, scholarly, documents, authority, and NotebookLM. Medical and legal are private internal routes; India consumer-commission filing is a Legal workflow."
+  default_prompt: "Use $research when this request matches: Sole top-level evidence router: general, market, technical, scientific, medical, legal, competitor, Reddit, audience, trends, scholarly, documents, authority, and NotebookLM. Medical and legal are private internal routes; India consumer-commission filing is a Legal workflow."
+policy:
+  allow_implicit_invocation: true

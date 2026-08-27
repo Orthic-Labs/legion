@@ -54,7 +54,9 @@ function checkDateTimes(schema, value, path, root, issues) {
     issues.push(`${path}:format-date-time`);
   }
   if (Array.isArray(value) && schema.items) {
-    value.forEach((v, i) => checkDateTimes(schema.items, v, `${path}[${i}]`, root, issues));
+    value.forEach((v, i) => {
+      checkDateTimes(schema.items, v, `${path}[${i}]`, root, issues);
+    });
   }
   if (value && typeof value === 'object' && !Array.isArray(value) && schema.properties) {
     for (const [k, child] of Object.entries(schema.properties)) {

@@ -40,7 +40,7 @@ import {
   removeLiveServerInfo,
   resolveDesignSidecarPath,
   writeLiveServerInfo,
-} from './lib/designer-paths.mjs';
+} from './lib/impeccable-paths.mjs';
 import { countByPage as countPendingByPage } from './live/manual-edits-buffer.mjs';
 import {
   createManualApplyController,

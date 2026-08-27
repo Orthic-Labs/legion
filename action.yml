@@ -14,6 +14,6 @@ runs:
   using: composite
   steps:
     - shell: bash
-      run: npm install --global "${{ github.action_path }}"
+      run: corepack pnpm@11.24.0 install --dir "${{ github.action_path }}" --frozen-lockfile --prod
     - shell: bash
-      run: legion audit "$GITHUB_WORKSPACE" --profile "${{ inputs.profile }}" --out "$RUNNER_TEMP/legion"
+      run: node "${{ github.action_path }}/tools/audit/audit-run.mjs" "$GITHUB_WORKSPACE" --profile "${{ inputs.profile }}" --out "$RUNNER_TEMP/legion"

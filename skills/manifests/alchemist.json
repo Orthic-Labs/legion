@@ -59,6 +59,16 @@
       "digest": "sha256:6846c7fc08fbb9b6649605faa82812356a20ce5d592f822e01a9e48245fb2748"
     },
     {
+      "path": "agents/openai.yaml",
+      "uri": "legion-skill://alchemist/agents/openai.yaml",
+      "digest": "sha256:d8635b9df5fffff00b0138e87488deac44158d5d24b037fcca01e85b1771b966"
+    },
+    {
+      "path": "dependencies.json",
+      "uri": "legion-skill://alchemist/dependencies.json",
+      "digest": "sha256:3f70693ffb48cd4cc9bc098c8e91b0f588c9cf82facbc43295dce9eb49fcc596"
+    },
+    {
       "path": "evals/evals.json",
       "uri": "legion-skill://alchemist/evals/evals.json",
       "digest": "sha256:660e3f0a21cb82c58f3439918849969d31d5f57018cb33e9467f6b9bf3407edd"

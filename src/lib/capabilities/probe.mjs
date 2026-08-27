@@ -10,14 +10,10 @@
 // treated as availability.
 
 import { execFileSync } from 'node:child_process';
-import { existsSync, readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { existsSync } from 'node:fs';
+import { loadCapabilityRegistry } from './registry.mjs';
 
-export function loadCapabilityRegistry(packageRoot = resolve(import.meta.dirname, '../../..')) {
-  const path = resolve(packageRoot, 'src/registry/capabilities.json');
-  if (!existsSync(path)) throw new Error(`capability registry is absent: ${path}`);
-  return JSON.parse(readFileSync(path, 'utf8'));
-}
+export { loadCapabilityRegistry } from './registry.mjs';
 
 function onPath(command) {
   try {
@@ -28,18 +24,21 @@ function onPath(command) {
   }
 }
 
-function detect(probe, env) {
+function detect(probe, env, { commandExists = onPath, pathExists = existsSync } = {}) {
   if (!probe) return null;
-  if (probe.kind === 'command') return onPath(probe.command);
+  if (probe.kind === 'command') return commandExists(probe.command);
+  if (probe.kind === 'command-any') return probe.commands.some((command) => commandExists(command));
   if (probe.kind === 'env') return Boolean(env[probe.env]);
-  if (probe.kind === 'path') return existsSync(probe.path);
+  if (probe.kind === 'path') return pathExists(probe.path);
   return null;
 }
 
-export function probeCapability(id, { registry = loadCapabilityRegistry(), env = process.env } = {}) {
+export function probeCapability(id, {
+  registry = loadCapabilityRegistry(), env = process.env, commandExists = onPath, pathExists = existsSync,
+} = {}) {
   const entry = registry.capabilities?.[id];
   if (!entry) throw new Error(`capability is not declared in the registry: ${id}`);
-  const available = detect(entry.probe, env);
+  const available = detect(entry.probe, env, { commandExists, pathExists });
   return {
     id,
     kind: entry.kind,

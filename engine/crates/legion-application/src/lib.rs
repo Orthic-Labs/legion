@@ -2,6 +2,7 @@
 
 use std::{
     collections::{BTreeMap, BTreeSet},
+    path::Path,
     sync::Arc,
     time::{Duration, Instant},
 };
@@ -165,10 +166,43 @@ pub struct M1ApplicationInputs {
     pub policy_pack: ArcanePolicyPack,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize)]
+#[serde(rename_all = "lowercase")]
+pub enum M1Availability {
+    Available,
+    Unavailable,
+    Unknown,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct M1HostRequirementStatus {
+    pub id: String,
+    pub availability: M1Availability,
+    pub available: Option<bool>,
+    pub degradation: String,
+    pub remedy: String,
+    pub probe: Option<serde_json::Value>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct M1CapabilityStatus {
+    pub capability_id: String,
+    pub availability: M1Availability,
+    pub degraded: bool,
+    pub requirements: Vec<M1HostRequirementStatus>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct M1Status {
     pub release_version: String,
     pub capability_count: usize,
+    pub availability: M1Availability,
+    pub degraded_count: usize,
+    pub host_requirements: Vec<M1HostRequirementStatus>,
+    pub capabilities: Vec<M1CapabilityStatus>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize)]
@@ -232,9 +266,40 @@ impl M1Application {
     }
 
     pub fn status(&self) -> M1Status {
+        let mut host_requirements = BTreeMap::new();
+        let capabilities = self
+            .catalog
+            .entries
+            .iter()
+            .map(|entry| {
+                let requirements = entry
+                    .host_requirement_details
+                    .iter()
+                    .map(host_requirement_status)
+                    .collect::<Vec<_>>();
+                for requirement in &requirements {
+                    host_requirements
+                        .entry(requirement.id.clone())
+                        .or_insert_with(|| requirement.clone());
+                }
+                let availability = aggregate_availability(&requirements);
+                M1CapabilityStatus {
+                    capability_id: entry.canonical_id.clone(),
+                    degraded: availability != M1Availability::Available,
+                    availability,
+                    requirements,
+                }
+            })
+            .collect::<Vec<_>>();
+        let degraded_count = capabilities.iter().filter(|entry| entry.degraded).count();
+        let host_requirements = host_requirements.into_values().collect::<Vec<_>>();
         M1Status {
             release_version: self.binding.release_version().into(),
             capability_count: self.catalog.entries.len(),
+            availability: aggregate_availability(&host_requirements),
+            degraded_count,
+            host_requirements,
+            capabilities,
         }
     }
 
@@ -331,6 +396,138 @@ impl M1Application {
         };
         receipt.validate()?;
         Ok(receipt)
+    }
+}
+
+fn host_requirement_status(
+    requirement: &legion_catalog::HostRequirementDetail,
+) -> M1HostRequirementStatus {
+    let availability = probe_host_requirement(requirement.probe.as_ref());
+    M1HostRequirementStatus {
+        id: requirement.id.clone(),
+        available: match availability {
+            M1Availability::Available => Some(true),
+            M1Availability::Unavailable => Some(false),
+            M1Availability::Unknown => None,
+        },
+        availability,
+        degradation: requirement.degradation.clone(),
+        remedy: requirement.remedy.clone(),
+        probe: requirement.probe.clone(),
+    }
+}
+
+fn aggregate_availability(requirements: &[M1HostRequirementStatus]) -> M1Availability {
+    if requirements
+        .iter()
+        .any(|requirement| requirement.availability == M1Availability::Unavailable)
+    {
+        M1Availability::Unavailable
+    } else if requirements
+        .iter()
+        .any(|requirement| requirement.availability == M1Availability::Unknown)
+    {
+        M1Availability::Unknown
+    } else {
+        M1Availability::Available
+    }
+}
+
+/// Probe host requirements without invoking a child process. PATH probes inspect
+/// candidate files directly; env/path probes only read process state.
+fn probe_host_requirement(probe: Option<&serde_json::Value>) -> M1Availability {
+    let Some(probe) = probe.and_then(serde_json::Value::as_object) else {
+        return M1Availability::Unknown;
+    };
+    match probe.get("kind").and_then(serde_json::Value::as_str) {
+        Some("env") => probe
+            .get("env")
+            .and_then(serde_json::Value::as_str)
+            .map(|name| {
+                if std::env::var_os(name).is_some_and(|value| !value.is_empty()) {
+                    M1Availability::Available
+                } else {
+                    M1Availability::Unavailable
+                }
+            })
+            .unwrap_or(M1Availability::Unknown),
+        Some("command") => probe
+            .get("command")
+            .and_then(serde_json::Value::as_str)
+            .map(|command| {
+                if command_on_path(command) {
+                    M1Availability::Available
+                } else {
+                    M1Availability::Unavailable
+                }
+            })
+            .unwrap_or(M1Availability::Unknown),
+        Some("command-any") => {
+            let Some(commands) = probe.get("commands").and_then(serde_json::Value::as_array) else {
+                return M1Availability::Unknown;
+            };
+            let commands = commands
+                .iter()
+                .filter_map(serde_json::Value::as_str)
+                .collect::<Vec<_>>();
+            if commands.is_empty() {
+                M1Availability::Unknown
+            } else if commands.iter().any(|command| command_on_path(command)) {
+                M1Availability::Available
+            } else {
+                M1Availability::Unavailable
+            }
+        }
+        Some("path") => probe
+            .get("path")
+            .and_then(serde_json::Value::as_str)
+            .map(|path| {
+                if Path::new(path).exists() {
+                    M1Availability::Available
+                } else {
+                    M1Availability::Unavailable
+                }
+            })
+            .unwrap_or(M1Availability::Unknown),
+        _ => M1Availability::Unknown,
+    }
+}
+
+fn command_on_path(command: &str) -> bool {
+    let command_path = Path::new(command);
+    if command_path.is_absolute() || command_path.components().count() > 1 {
+        return is_executable_file(command_path);
+    }
+    let Some(path) = std::env::var_os("PATH") else {
+        return false;
+    };
+    let suffixes: &[&str] = if cfg!(windows) {
+        &[".exe", ".cmd", ".bat", ""]
+    } else {
+        &[""]
+    };
+    std::env::split_paths(&path).any(|directory| {
+        suffixes
+            .iter()
+            .any(|suffix| is_executable_file(&directory.join(format!("{command}{suffix}"))))
+    })
+}
+
+fn is_executable_file(path: &Path) -> bool {
+    if !path.is_file() {
+        return false;
+    }
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+
+        return std::fs::metadata(path)
+            .map(|metadata| metadata.permissions().mode() & 0o111 != 0)
+            .unwrap_or(false);
+    }
+    #[cfg(not(unix))]
+    {
+        true
     }
 }
 
@@ -1782,6 +1979,42 @@ mod m1_tests {
             }) => assert_eq!(remediation, legion_runtime::REPAIR_COMMAND),
             error => panic!("wrong failure: {error:?}"),
         }
+        fs::remove_dir_all(root).expect("cleanup");
+    }
+
+    #[test]
+    fn host_requirement_probe_is_typed_without_process_spawn() {
+        assert_eq!(super::probe_host_requirement(None), M1Availability::Unknown);
+        assert_eq!(
+            super::probe_host_requirement(Some(&serde_json::json!({
+                "kind": "command",
+                "command": "__legion_requirement_is_not_installed__"
+            }))),
+            M1Availability::Unavailable
+        );
+        assert_eq!(
+            super::probe_host_requirement(Some(&serde_json::json!({
+                "kind": "env",
+                "env": "__LEGION_REQUIREMENT_IS_NOT_SET__"
+            }))),
+            M1Availability::Unavailable
+        );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn command_probe_requires_executable_permission_on_unix() {
+        use std::os::unix::fs::PermissionsExt;
+
+        let root = temp_root();
+        let candidate = root.join("candidate");
+        fs::write(&candidate, "not executable").expect("candidate");
+        assert!(!super::is_executable_file(&candidate));
+
+        let mut permissions = fs::metadata(&candidate).expect("metadata").permissions();
+        permissions.set_mode(0o755);
+        fs::set_permissions(&candidate, permissions).expect("executable permissions");
+        assert!(super::is_executable_file(&candidate));
         fs::remove_dir_all(root).expect("cleanup");
     }
 }

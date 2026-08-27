@@ -47,20 +47,33 @@ function isProjectableCapability(capability) {
  * entrypoints are included; internal-only surfaces are excluded.
  */
 export function canonicalSkillIds(legionRoot) {
+  return canonicalSkillRequirements(legionRoot).map((capability) => capability.id);
+}
+
+/**
+ * Canonical user-invokable skill ids with their declared host requirements.
+ * Projection never hides an unavailable skill; doctor/qualification report its
+ * typed degradation instead.
+ */
+export function canonicalSkillRequirements(legionRoot) {
   const path = hostProjectionPath(legionRoot);
   if (!existsSync(path)) {
     throw new Error(`host projection missing at ${path}; run: node scripts/generate-host-projection.mjs`);
   }
   const projection = JSON.parse(readFileSync(path, 'utf8'));
-  const ids = (projection.capabilities ?? [])
+  const capabilities = (projection.capabilities ?? [])
     .filter(isProjectableCapability)
-    .map((c) => c.id)
-    .sort();
+    .map((capability) => ({
+      id: capability.id,
+      hostRequirements: [...(capability.hostRequirements ?? [])],
+      hostRequirementDetails: [...(capability.hostRequirementDetails ?? [])],
+    }))
+    .sort((left, right) => left.id.localeCompare(right.id));
   // A capability the projection declares but whose package is absent is a
   // packaging failure, not something to silently skip.
-  const absent = ids.filter((id) => !existsSync(join(legionRoot, 'skills', id, 'SKILL.md')));
+  const absent = capabilities.filter(({ id }) => !existsSync(join(legionRoot, 'skills', id, 'SKILL.md'))).map(({ id }) => id);
   if (absent.length) throw new Error(`host projection declares capabilities with no packaged skill: ${absent.join(', ')}`);
-  return ids;
+  return capabilities;
 }
 
 /**

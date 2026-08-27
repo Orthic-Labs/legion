@@ -1,13 +1,24 @@
 {
   "schemaVersion": 1,
   "kind": "legion-publication-policy",
-  "note": "Grants bind to policyDigest over package.json files[] + MANIFEST allowlistedTopLevel. Changing the shipped surface invalidates the grant and requires re-approval.",
+  "contract": "release/distribution-contract.json",
+  "note": "Node package is private development tooling. Public distribution remains blocked until signed native-release evidence is complete.",
   "channels": {
     "npm": {
-      "allowed": true,
-      "approvedBy": "Orthic Labs",
-      "approvedAt": "2026-08-27",
-      "policyDigest": "sha256:b8fa015955a745d8b3f9010b59aae0c33c721ee8d02e1d559cf2e91797aab24d"
+      "allowed": false,
+      "reason": "private-development-tooling"
+    },
+    "signed-release": {
+      "allowed": false,
+      "reason": "release-readiness-evidence-incomplete",
+      "requiredEvidence": [
+        "immutable-action-pins",
+        "platform-artifacts",
+        "platform-signatures",
+        "provenance-attestations",
+        "package-manager-metadata",
+        "channel-authorization"
+      ]
     }
   }
 }

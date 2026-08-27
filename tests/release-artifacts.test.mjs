@@ -73,19 +73,17 @@ test('verifyReleaseManifest rejects missing required artifacts', () => {
   }
 });
 
-test('release workflow fails closed until pinned signing workflow exists', () => {
-  const workflow = readWorkflow();
-  assert.match(workflow, /workflow_dispatch/);
-  assert.match(workflow, /BLOCKED: immutable action pins/);
-  assert.match(workflow, /exit 1/);
-  assert.ok(!workflow.includes('pull_request'));
+test('right-release config fails closed until local signed targets exist', () => {
+  const config = readReleaseConfig();
+  assert.match(config, /signed: false/);
+  assert.match(config, /publishBlocked/);
+  assert.match(config, /signedProvenanceScheme: "rightkit-release"/);
 });
 
-test('blocked release workflow grants no signing or attestation permissions', () => {
-  const workflow = readWorkflow();
-  assert.doesNotMatch(workflow, /id-token: write/);
-  assert.doesNotMatch(workflow, /attestations: write/);
-  assert.doesNotMatch(workflow, /uses:/);
+test('public Actions surface contains only right-git managed CI', () => {
+  const workflow = readFile(new URL('../.github/workflows/ci.yml', import.meta.url), 'utf8');
+  assert.match(workflow, /^# Managed by right-git/);
+  assert.doesNotMatch(workflow, /id-token: write|attestations: write|sign|publish/i);
 });
 
 test('macOS and Windows signing outlines are documented', () => {
@@ -99,6 +97,6 @@ test('macOS and Windows signing outlines are documented', () => {
   assert.match(win, /signtool\.exe verify/);
 });
 
-function readWorkflow() {
-  return readFile(new URL('../.github/workflows/release.yml', import.meta.url), 'utf8');
+function readReleaseConfig() {
+  return readFile(new URL('../right-release.config.mjs', import.meta.url), 'utf8');
 }

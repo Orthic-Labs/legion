@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "kind": "legion-skill-dependencies",
+  "resources": [
+    {
+      "class": "HOST_CAPABILITY",
+      "capability": "pi-cli"
+    },
+    {
+      "class": "HOST_CAPABILITY",
+      "capability": "python-runtime"
+    },
+    {
+      "class": "PACKAGE_INTERNAL",
+      "path": "scripts/api-worker.py"
+    },
+    {
+      "class": "PACKAGE_INTERNAL",
+      "path": "../../src/lib/coder-api-worker/api-worker.py"
+    }
+  ]
+}

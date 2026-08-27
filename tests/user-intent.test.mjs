@@ -18,7 +18,7 @@ import {
   recentUserInstructions,
   stripNonAuthoritativeDirectiveText,
   userIntent,
-} from '../hooks/user-intent.mjs';
+} from '../src/packages/arcane/lib/user-intent.mjs';
 
 function transcript(entries) {
   return entries

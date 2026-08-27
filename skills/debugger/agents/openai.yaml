@@ -1,0 +1,6 @@
+interface:
+  display_name: "Debugger"
+  short_description: "Diagnosis capability for reproducing failures, isolating evidence, forming disconfirmable hypotheses, establishing root cause, and selecting routine repairs. Do not use for preflight or completion-only verification."
+  default_prompt: "Use $debugger when this request matches: Diagnosis capability for reproducing failures, isolating evidence, forming disconfirmable hypotheses, establishing root cause, and selecting routine repairs. Do not use for preflight or completion-only verification."
+policy:
+  allow_implicit_invocation: true

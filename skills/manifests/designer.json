@@ -80,6 +80,16 @@
       "digest": "sha256:8452c67ca6a897a2c50bcbc30449a039cec790d9e3dfc5d369e5ad6c125ad00b"
     },
     {
+      "path": "agents/openai.yaml",
+      "uri": "legion-skill://designer/agents/openai.yaml",
+      "digest": "sha256:e8b906a6cc86e7a5e26e801f92a4da51342cde2bf69f1f23e1c1c38830390fd5"
+    },
+    {
+      "path": "dependencies.json",
+      "uri": "legion-skill://designer/dependencies.json",
+      "digest": "sha256:d40678f7c62f0461a8a1d8aff05b1a8c46ed071db0ac5da710d89ae3e660c968"
+    },
+    {
       "path": "engine/GUIDE.md",
       "uri": "legion-skill://designer/engine/GUIDE.md",
       "digest": "sha256:f7170def6530eebaa548d1f08edf341c6bba3fef23d48230ebbff41a31b68e9c"
@@ -497,7 +507,7 @@
     {
       "path": "engine/scripts/context-signals.mjs",
       "uri": "legion-skill://designer/engine/scripts/context-signals.mjs",
-      "digest": "sha256:31d21e86d5f29de602eef734feac402155e474b17e217897139632767acb0e19"
+      "digest": "sha256:7846ab9d3f71171b041bd9090b34136686589d53ff87bdc91313f3cee1702ff9"
     },
     {
       "path": "engine/scripts/context.mjs",
@@ -507,7 +517,7 @@
     {
       "path": "engine/scripts/critique-storage.mjs",
       "uri": "legion-skill://designer/engine/scripts/critique-storage.mjs",
-      "digest": "sha256:fa54f0000522ff138fd055dad8f11a114254d76c815f6537207fe5144623525b"
+      "digest": "sha256:86fe8ab3d5c362ebf549a791c476f23759d9b9c8041bdc06e11046f3da60a524"
     },
     {
       "path": "engine/scripts/detect-csp.mjs",
@@ -727,7 +737,7 @@
     {
       "path": "engine/scripts/live/manual-apply.mjs",
       "uri": "legion-skill://designer/engine/scripts/live/manual-apply.mjs",
-      "digest": "sha256:720c32b8185b2c0c453c66fca33a4ba57538d5fccbe9b4fb42e990c1b2c64701"
+      "digest": "sha256:c0e7fc5c3d4a7d6e1d6a8e6f85cbe005e5dc01d77b16fd0735605f287c4c8b66"
     },
     {
       "path": "engine/scripts/live/manual-edit-routes.mjs",
@@ -737,12 +747,12 @@
     {
       "path": "engine/scripts/live/manual-edits-buffer.mjs",
       "uri": "legion-skill://designer/engine/scripts/live/manual-edits-buffer.mjs",
-      "digest": "sha256:fe590f34a1707866436c6d1fd017a11a1447dbe9ace964d678cfe622dbee853d"
+      "digest": "sha256:bbd1aba1b9bc891cba771ee8b891d344542119967ae4666e7147da59de5485fd"
     },
     {
       "path": "engine/scripts/live/session-store.mjs",
       "uri": "legion-skill://designer/engine/scripts/live/session-store.mjs",
-      "digest": "sha256:5b1a8183bad68bda64032ce6b00a402ac4cb86b929804a134ecc29263a5962bc"
+      "digest": "sha256:ad775959c72a04826db970d413943bc9d48ff3d5a21a5cd98e5602ea05ba6dc2"
     },
     {
       "path": "engine/scripts/live/svelte-component.mjs",
@@ -792,7 +802,7 @@
     {
       "path": "engine/scripts/live-complete.mjs",
       "uri": "legion-skill://designer/engine/scripts/live-complete.mjs",
-      "digest": "sha256:ff8b2432d90dc35f512e520fda70a3f744f5f0361243be7c08234579b252bbd6"
+      "digest": "sha256:76e5053c7d912d9368b858a9132e6796546871ec8a25bc3dcce5718018026877"
     },
     {
       "path": "engine/scripts/live-copy-edit-agent.mjs",
@@ -807,7 +817,7 @@
     {
       "path": "engine/scripts/live-inject.mjs",
       "uri": "legion-skill://designer/engine/scripts/live-inject.mjs",
-      "digest": "sha256:6123160fa4ae06d422b681b692930a456a397059e1537dd6b0b4c752c5f21c40"
+      "digest": "sha256:db71c2379c69eaff630e6ab14bfefe53460b2f2e9e90fa32a2ddc7f72bc3d6b3"
     },
     {
       "path": "engine/scripts/live-insert.mjs",
@@ -822,7 +832,7 @@
     {
       "path": "engine/scripts/live-poll.mjs",
       "uri": "legion-skill://designer/engine/scripts/live-poll.mjs",
-      "digest": "sha256:b1cce8f9c317d879992391eda5fb77b43b7a5e60489a8c5069ab2f6c2f89149b"
+      "digest": "sha256:836f88f1a8b25f32ac9559e5fc65dfefa045f78d696351e4335634318b1f8960"
     },
     {
       "path": "engine/scripts/live-resume.mjs",
@@ -832,12 +842,12 @@
     {
       "path": "engine/scripts/live-server.mjs",
       "uri": "legion-skill://designer/engine/scripts/live-server.mjs",
-      "digest": "sha256:5b6114a96c95ca41a1ce73bc9e8985cc9b437f419aead819c5fb1b02ca5b188a"
+      "digest": "sha256:4fb48da099e8be32a9b63e95498f862fd0fff8d05f3d73c6c133e84445a72fbe"
     },
     {
       "path": "engine/scripts/live-status.mjs",
       "uri": "legion-skill://designer/engine/scripts/live-status.mjs",
-      "digest": "sha256:d0b3d0e6fd6367230d55b8a2226330af2d2c8a945fd1a1fc21b4ae0ef01ab2b5"
+      "digest": "sha256:d9186410a2c9671f59396bd315d2f7434f5c35379917c39763a6eb28d76261a8"
     },
     {
       "path": "engine/scripts/live-target.mjs",
@@ -852,7 +862,7 @@
     {
       "path": "engine/scripts/live.mjs",
       "uri": "legion-skill://designer/engine/scripts/live.mjs",
-      "digest": "sha256:1a8b9e4eaef0806b89effbedc346690224e207894d86f413978952d1f71d7ad9"
+      "digest": "sha256:243c8213e097e6ee2f32cf02a90cf33a5338d9800244bcdbbdc7134e8767e046"
     },
     {
       "path": "engine/scripts/modern-screenshot.umd.js",

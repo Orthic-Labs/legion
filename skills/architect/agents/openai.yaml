@@ -1,0 +1,6 @@
+interface:
+  display_name: "Architect"
+  short_description: "Software and system architecture capability for architecture decisions, ADRs, quality attributes, interfaces, invariants, migrations, and architecture-significant planning."
+  default_prompt: "Use $architect when this request matches: Software and system architecture capability for architecture decisions, ADRs, quality attributes, interfaces, invariants, migrations, and architecture-significant planning."
+policy:
+  allow_implicit_invocation: true

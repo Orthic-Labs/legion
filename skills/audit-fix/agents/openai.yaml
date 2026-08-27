@@ -1,0 +1,6 @@
+interface:
+  display_name: "Audit Fix"
+  short_description: "Apply bounded remediation from a frozen Legion Audit report, then rerun its same provider plan. Use only for /audit-fix after /audit evidence exists."
+  default_prompt: "Use $audit-fix when this request matches: Apply bounded remediation from a frozen Legion Audit report, then rerun its same provider plan. Use only for /audit-fix after /audit evidence exists."
+policy:
+  allow_implicit_invocation: true

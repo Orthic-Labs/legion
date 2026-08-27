@@ -1,6 +1,7 @@
 {
   "schemaVersion": 1,
   "kind": "legion-package-manager-channels",
+  "contract": "release/distribution-contract.json",
   "versionSource": "release/version.json",
   "artifactSource": "immutable-github-release",
   "channels": {

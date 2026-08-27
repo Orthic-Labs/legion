@@ -59,9 +59,19 @@
       "digest": "sha256:fa7f46eb01af72a07ceb989f9b163365ca02ec2562a04187004edce8e1ae6543"
     },
     {
+      "path": "agents/openai.yaml",
+      "uri": "legion-skill://covenant/agents/openai.yaml",
+      "digest": "sha256:3aef596387660c9f3e31e61d218e53a4ff569492f3d28d2bf4e8345290b69ded"
+    },
+    {
       "path": "assets/external-review-packet-template.md",
       "uri": "legion-skill://covenant/assets/external-review-packet-template.md",
       "digest": "sha256:4a9c3af5a65021e7faf3b740d3f7d151f9cd7e05283d88b387bd1db9a0df8928"
+    },
+    {
+      "path": "dependencies.json",
+      "uri": "legion-skill://covenant/dependencies.json",
+      "digest": "sha256:d40678f7c62f0461a8a1d8aff05b1a8c46ed071db0ac5da710d89ae3e660c968"
     },
     {
       "path": "engine/packet-validator.py",

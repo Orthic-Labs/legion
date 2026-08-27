@@ -2,10 +2,12 @@
 
 pub mod agent_plugins;
 pub mod capability;
+pub mod codex_skills;
 pub mod descriptor;
 pub mod detect;
 pub mod error;
 pub mod install;
+pub mod legacy_claude;
 pub mod ownership;
 pub mod projection;
 pub mod setup_registry;
@@ -19,6 +21,12 @@ pub use agent_plugins::{
     RIGHTKIT_AX_VERSION,
 };
 pub use capability::{capabilities, capability, Capability, ClientFidelity, Fidelity, SURFACES};
+pub use codex_skills::{
+    apply_codex_skills, inspect_codex_skills, preview_codex_skills, preview_remove_codex_skills,
+    remove_codex_skills, repair_codex_skills, CodexSkillOperation, CodexSkillOperationKind,
+    CodexSkillState, CodexSkillStatus, CodexSkillsApply, CodexSkillsInput, CodexSkillsInspection,
+    CodexSkillsPreview, CODEX_SKILLS_LEDGER_RELATIVE_PATH, CODEX_SKILLS_OWNER,
+};
 pub use descriptor::{
     deterministic_lookup, ClientIdentity, DescriptorRegistry, DetectionRule, HostDescriptor,
     Mechanism, SurfaceDescriptor, SCHEMA_VERSION,
@@ -28,6 +36,11 @@ pub use error::{FailureCode, HostError};
 pub use install::{
     apply, apply_transaction, capture_preimage, digest, install, install_transactional, plan,
     rollback, FileEffects, Mutation, MutationKind, MutationPlan, TransactionPreimage,
+};
+pub use legacy_claude::{
+    inspect_claude_legacy, repair_claude_legacy, ClaudeLegacyInput, ClaudeLegacyInspection,
+    ClaudeLegacyRepair, ClaudePluginCacheGeneration, ClaudeProjectionOwnership,
+    ClaudeSkillsRootKind, ClaudeStandaloneProjection, RETIRED_BLUEPRINT_SKILL_ID,
 };
 pub use ownership::{
     digest_bytes, marker_for, owned_block, parse_marker, validate_relative_path,

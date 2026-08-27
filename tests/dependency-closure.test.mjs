@@ -5,8 +5,10 @@ import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import {
   DEPENDENCY_CLASSES, classifyResource, loadCapabilityRegistry,
-  scanPackagedText, verifyManifestConsumers, verifyCapabilityAliases, verifyDependencyClosure,
+  parseDependencyDeclaration, scanHostCommandReferences, scanPackagedText,
+  verifyManifestConsumers, verifyManifestCoverage, verifyCapabilityAliases, verifyDependencyClosure,
 } from '../src/lib/skills/dependency-closure.mjs';
+import { commandCapabilityMap } from '../src/lib/capabilities/registry.mjs';
 
 const packageRoot = resolve(import.meta.dirname, '..');
 const capabilities = loadCapabilityRegistry(packageRoot).capabilities;
@@ -27,6 +29,27 @@ test('a bare string is not a typed resource', () => {
   const result = classifyResource('references/manual.md', { packageRoot, skillRoot: packageRoot, capabilities });
   assert.equal(result.ok, false);
   assert.equal(result.code, 'untyped-resource');
+});
+
+test('every semantic bundle needs a canonical typed dependency declaration', () => {
+  assert.throws(
+    () => parseDependencyDeclaration('{"schemaVersion":1,"kind":"legion-skill-dependencies"}'),
+    /resources must be an array/,
+  );
+  assert.throws(
+    () => parseDependencyDeclaration('{"schemaVersion":1,"kind":"other","resources":[]}'),
+    /unsupported schema/,
+  );
+});
+
+test('a registry-owned command may not bypass hostRequirements', () => {
+  const findings = scanHostCommandReferences('Run `pi --tools read -p` after `python3 worker.py`.', {
+    path: 'SKILL.md', commandCapabilities: commandCapabilityMap(loadCapabilityRegistry(packageRoot)),
+    hostRequirements: new Set(['python-runtime']),
+  });
+  assert.equal(findings.length, 1);
+  assert.equal(findings[0].code, 'undeclared-host-command');
+  assert.match(findings[0].detail, /pi-cli/);
 });
 
 test('an unresolved TODO cannot masquerade as a resource', () => {
@@ -97,14 +120,21 @@ test('a manifest may not declare a consumer that no longer exists', () => {
   }), []);
 });
 
+test('a semantic bundle cannot bypass closure by omitting its manifest', () => {
+  const findings = verifyManifestCoverage(packageRoot, {});
+  assert.ok(findings.some((finding) => finding.code === 'missing-skill-manifest' && finding.bundleId === 'coder'));
+});
+
 test('a route table of bare strings fails closure', () => {
   const root = mkdtempSync(join(tmpdir(), 'closure-'));
   try {
     mkdirSync(join(root, 'src/registry'), { recursive: true });
     mkdirSync(join(root, 'skills/demo/references'), { recursive: true });
     writeFileSync(join(root, 'src/registry/capabilities.json'), JSON.stringify({
-      schemaVersion: 1, kind: 'legion-capability-registry', classes: {},
-      capabilities: { demo: { kind: 'tool', summary: 'demo', degradation: 'skip' } },
+      schemaVersion: 1, kind: 'legion-capability-registry', classes: {
+        PACKAGE_INTERNAL: 'internal', HOST_CAPABILITY: 'host', PROJECT_OVERLAY: 'overlay', HISTORICAL_EVIDENCE: 'evidence',
+      },
+      capabilities: { demo: { kind: 'tool', summary: 'demo', degradation: 'skip', remedy: 'install demo' } },
     }));
     writeFileSync(join(root, 'skills/demo/references/route-resources.json'),
       JSON.stringify({ providers: { web: ['references/manual.md'] } }));
@@ -113,6 +143,55 @@ test('a route table of bare strings fails closure', () => {
     });
     assert.equal(ok, false);
     assert.ok(findings.some((finding) => finding.code === 'untyped-resource'));
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
+test('dependencies and SKILL hostRequirements must agree for every bundle', () => {
+  const root = mkdtempSync(join(tmpdir(), 'closure-requirements-'));
+  try {
+    mkdirSync(join(root, 'src/registry'), { recursive: true });
+    mkdirSync(join(root, 'skills/demo'), { recursive: true });
+    writeFileSync(join(root, 'src/registry/capabilities.json'), JSON.stringify({
+      schemaVersion: 1,
+      kind: 'legion-capability-registry',
+      classes: { PACKAGE_INTERNAL: 'internal', HOST_CAPABILITY: 'host', PROJECT_OVERLAY: 'overlay', HISTORICAL_EVIDENCE: 'evidence' },
+      capabilities: {
+        'pi-cli': {
+          kind: 'command-line-provider', summary: 'Pi', degradation: 'skip', remedy: 'install Pi',
+          probe: { kind: 'command-any', commands: ['pi'] }, commands: ['pi'],
+        },
+      },
+    }));
+    writeFileSync(join(root, 'skills/demo/SKILL.md'), [
+      '---', 'name: demo', 'description: demo', 'kind: entrypoint', 'discoverability: explicit',
+      'operations:', '  - analyze', 'effects:', '  - source-read', 'hostRequirements:', '  - pi-cli', '---',
+      '', 'Run `pi --tools read -p`.',
+    ].join('\n'));
+    writeFileSync(join(root, 'skills/demo/dependencies.json'), JSON.stringify({
+      schemaVersion: 1, kind: 'legion-skill-dependencies', resources: [],
+    }));
+    const { findings } = verifyDependencyClosure({
+      packageRoot: root, manifests: { demo: { id: 'demo', parity: { consumers: [] } } },
+    });
+    assert.ok(findings.some((finding) => finding.code === 'host-requirement-mismatch'));
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
+test('a missing dependency declaration fails closure even without route-resources', () => {
+  const root = mkdtempSync(join(tmpdir(), 'closure-missing-declaration-'));
+  try {
+    mkdirSync(join(root, 'src/registry'), { recursive: true });
+    mkdirSync(join(root, 'skills/demo'), { recursive: true });
+    writeFileSync(join(root, 'src/registry/capabilities.json'), JSON.stringify({
+      schemaVersion: 1,
+      kind: 'legion-capability-registry',
+      classes: { PACKAGE_INTERNAL: 'internal', HOST_CAPABILITY: 'host', PROJECT_OVERLAY: 'overlay', HISTORICAL_EVIDENCE: 'evidence' },
+      capabilities: {},
+    }));
+    const { findings } = verifyDependencyClosure({
+      packageRoot: root, manifests: { demo: { id: 'demo', parity: { consumers: [] } } },
+    });
+    assert.ok(findings.some((finding) => finding.code === 'missing-dependency-declaration'));
   } finally { rmSync(root, { recursive: true, force: true }); }
 });
 
@@ -145,7 +224,9 @@ test('the shipped package is dependency-closed', async () => {
       const manifest = JSON.parse(readFileSync(join(manifestDir, name), 'utf8'));
       return [manifest.id, manifest];
     }));
-  const { ok, findings } = verifyDependencyClosure({ packageRoot, manifests });
+  const { ok, findings, summary } = verifyDependencyClosure({ packageRoot, manifests });
   assert.deepEqual(findings, []);
   assert.equal(ok, true);
+  assert.equal(summary.dependencyDeclarations, summary.semanticBundles);
+  assert.ok(summary.typedResources > 0);
 });

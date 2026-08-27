@@ -19,6 +19,7 @@ import { readFileSync, writeFileSync, readdirSync, existsSync } from 'node:fs';
 import { resolve, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseSkillFrontmatter } from './lib/skill-frontmatter.mjs';
+import { loadCapabilityRegistry } from '../src/lib/capabilities/registry.mjs';
 
 const ROOT = resolve(fileURLToPath(new URL('..', import.meta.url)));
 // Harness fidelity is derived from the adapter registry — the single source of
@@ -48,6 +49,18 @@ function rosterFrontmatter(text) {
 // support directories and must never surface as peer expertise.
 export function buildProjection(root = ROOT) {
   const skillsDir = join(root, 'skills');
+  const registry = loadCapabilityRegistry(root);
+  const requirementDetails = (ids) => ids.map((id) => {
+    const entry = registry.capabilities?.[id];
+    if (!entry) throw new Error(`skills declare host requirement absent from registry: ${id}`);
+    return {
+      id,
+      kind: entry.kind,
+      summary: entry.summary,
+      degradation: entry.degradation,
+      remedy: entry.remedy,
+    };
+  });
   const capabilities = readdirSync(skillsDir)
     .filter((id) => existsSync(join(skillsDir, id, 'SKILL.md')))
     .sort()
@@ -73,6 +86,8 @@ export function buildProjection(root = ROOT) {
         discoverability: publicCapability ? 'public' : discoverability,
         invocation,
         domain: fm.domain === 'null' || fm.domain === '' ? null : (fm.domain ?? null),
+        hostRequirements: [...(fm.hostRequirements ?? [])],
+        hostRequirementDetails: requirementDetails(fm.hostRequirements ?? []),
         source: path,
       };
     });
@@ -87,7 +102,6 @@ export function buildProjection(root = ROOT) {
       return { id: f.replace(/\.md$/, ''), description: fm.description ?? '', source: path };
     });
 
-  const registry = JSON.parse(readFileSync(join(root, 'src/registry/capabilities.json'), 'utf8'));
   const hostCapabilities = Object.entries(registry.capabilities ?? {}).map(([id, value]) => ({
     id,
     degradation: value?.degradation ?? value?.degrades ?? null,

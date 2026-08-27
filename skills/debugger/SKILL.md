@@ -13,7 +13,8 @@ operations:
 effects:
   - source-read
   - process-exec
-hostRequirements: []
+hostRequirements:
+  - blueprint-graph
 ---
 
 # Debugger

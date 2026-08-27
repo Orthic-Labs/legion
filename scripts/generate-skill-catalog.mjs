@@ -4,6 +4,7 @@
 // Inputs (canonical sources only):
 //   skills/*/SKILL.md               canonical capability/entrypoint semantics
 //   src/config/capability-aliases.json  explicit aliases (independently canonical)
+//   src/registry/capabilities.json      host requirement semantics and probes
 //
 // Outputs (projections, never semantic owners):
 //   src/registry/skills/index.json      compact sorted catalog, all 24 packaged sources
@@ -27,11 +28,24 @@ function listField(value) {
   return [];
 }
 
-function canonicalRecord(id, fm) {
+function canonicalRecord(id, fm, capabilityRegistry) {
   const kind = fm.kind;
   const capabilityClass = kind === 'capability' ? fm.capabilityClass : null;
   const discoverability = fm.discoverability;
   const domain = fm.domain === 'null' || fm.domain === '' ? null : fm.domain;
+  const hostRequirements = listField(fm.hostRequirements);
+  const hostRequirementDetails = hostRequirements.map((requirementId) => {
+    const requirement = capabilityRegistry.capabilities?.[requirementId];
+    if (!requirement) {
+      throw new Error(`skills/${id}/SKILL.md declares host requirement absent from registry: ${requirementId}`);
+    }
+    return {
+      id: requirementId,
+      degradation: requirement.degradation,
+      remedy: requirement.remedy,
+      probe: requirement.probe ?? null,
+    };
+  });
   return {
     id,
     name: fm.name ?? id,
@@ -42,25 +56,31 @@ function canonicalRecord(id, fm) {
     domain,
     operations: listField(fm.operations),
     effects: listField(fm.effects),
-    hostRequirements: listField(fm.hostRequirements),
+    hostRequirements,
+    hostRequirementDetails,
     source: `skills/${id}/SKILL.md`,
   };
 }
 
 export function buildSkillCatalog(root = ROOT) {
   const skillsDir = join(root, 'skills');
+  const capabilityRegistry = readJson(join(root, 'src/registry/capabilities.json'));
   const ids = readdirSync(skillsDir)
     .filter((id) => existsSync(join(skillsDir, id, 'SKILL.md')))
     .sort();
   const bundles = ids.map((id) => {
     const source = join(skillsDir, id, 'SKILL.md');
     const fm = parseSkillFrontmatter(readFileSync(source, 'utf8'), { path: `skills/${id}/SKILL.md` });
-    return { ...canonicalRecord(id, fm), manifest: `skills/manifests/${id}.json` };
+    return { ...canonicalRecord(id, fm, capabilityRegistry), manifest: `skills/manifests/${id}.json` };
   });
   validateAliases(readJson(join(root, 'src/config/capability-aliases.json')), new Set(ids));
   const index = {
     schemaVersion: 2,
-    generatedFrom: ['skills/*/SKILL.md', 'src/config/capability-aliases.json'],
+    generatedFrom: [
+      'skills/*/SKILL.md',
+      'src/config/capability-aliases.json',
+      'src/registry/capabilities.json',
+    ],
     bundles,
   };
 

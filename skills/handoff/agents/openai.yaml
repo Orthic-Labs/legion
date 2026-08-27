@@ -1,4 +1,6 @@
 interface:
   display_name: "Handoff"
-  short_description: "Transfer chat state through bound transcripts"
-  default_prompt: "Use $handoff to emit this source task's bound transcript pointer; target chat requests typed Membrane continuity context then validates a cold-start packet."
+  short_description: "Transfer an ongoing task into a fresh chat through a hash-bound transcript pointer and a validated cold-start continuation packet. Use for fresh-thread continuity, context rollover, or transfer of decisions, state, failures, and landmines; never use for bounded executor delegation."
+  default_prompt: "Use $handoff when this request matches: Transfer an ongoing task into a fresh chat through a hash-bound transcript pointer and a validated cold-start continuation packet. Use for fresh-thread continuity, context rollover, or transfer of decisions, state, failures, and landmines; never use for bounded executor delegation."
+policy:
+  allow_implicit_invocation: true

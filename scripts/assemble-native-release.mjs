@@ -11,6 +11,8 @@ import {
 } from "node:fs";
 import { dirname, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
+import { resolveTargetRoot } from "@rightkit/release/cargo-target.mjs";
+import rightReleaseConfig from "../right-release.config.mjs";
 
 const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const releaseVersionRecord = join(repositoryRoot, "release", "version.json");
@@ -99,9 +101,29 @@ const architecture =
 			: process.arch;
 const executableSuffix = platform === "windows" ? ".exe" : "";
 const releaseVersion = version();
-const binDirectory = resolve(
-	argument("--bin-dir", join(repositoryRoot, "engine", "target", "release")),
+const cargoManifest = resolve(
+	repositoryRoot,
+	rightReleaseConfig.nativeAssembly.cargoManifest,
 );
+const profile = argument(
+	"--profile",
+	rightReleaseConfig.nativeAssembly.defaultProfile,
+);
+if (!/^[a-z0-9][a-z0-9_-]*$/i.test(profile))
+	throw new Error(`invalid Cargo profile: ${profile}`);
+const cargoTarget = argument("--target", process.env.CARGO_BUILD_TARGET ?? null);
+if (cargoTarget && !/^[a-z0-9][a-z0-9_.-]*$/i.test(cargoTarget))
+	throw new Error(`invalid Cargo target: ${cargoTarget}`);
+const suppliedBinDirectory = argument("--bin-dir", null);
+const binDirectory = suppliedBinDirectory
+	? resolve(suppliedBinDirectory)
+	: resolve(
+			join(
+				resolveTargetRoot(cargoManifest),
+				...(cargoTarget ? [cargoTarget] : []),
+				profile,
+			),
+		);
 const output = resolve(
 	argument(
 		"--out",
@@ -116,6 +138,7 @@ const output = resolve(
 );
 const force = process.argv.includes("--force");
 const finalizeSigned = process.argv.includes("--finalize-signed");
+const suppliedProvenance = argument("--provenance", null);
 
 if (existsSync(output)) {
 	if (!force && !finalizeSigned)
@@ -221,10 +244,25 @@ writeJson(policyPath, policyPack);
 
 const runtimePath = join(output, "bin", `legion${executableSuffix}`);
 const runtimeDigest = fileSha256(runtimePath);
-const provenance = argument(
-	"--provenance",
-	`rightkit-release://${platform}-${architecture}/${runtimeDigest}`,
-);
+if (finalizeSigned && !suppliedProvenance)
+	throw new Error("--finalize-signed requires right-release provenance");
+if (
+	finalizeSigned &&
+	!suppliedProvenance.startsWith(
+		`${rightReleaseConfig.nativeAssembly.signedProvenanceScheme}://`,
+	)
+)
+	throw new Error("signed provenance must be minted by right-release");
+if (
+	!finalizeSigned &&
+	suppliedProvenance?.startsWith(
+		`${rightReleaseConfig.nativeAssembly.signedProvenanceScheme}://`,
+	)
+)
+	throw new Error("right-release provenance is reserved for signed finalization");
+const provenance =
+	suppliedProvenance ??
+	`${rightReleaseConfig.nativeAssembly.localProvenanceScheme}://${platform}-${architecture}/${runtimeDigest}`;
 const manifest = {
 	releaseVersion,
 	runtime: { platform, architecture, sha256: runtimeDigest, provenance },
@@ -291,6 +329,7 @@ process.stdout.write(
 			releaseVersion,
 			platform,
 			architecture,
+			cargoTarget,
 			finalizedSigned: finalizeSigned,
 			runtimeSha256: runtimeDigest,
 			assetsSha256: manifest.declarativeAssetsSha256,

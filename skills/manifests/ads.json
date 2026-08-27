@@ -44,7 +44,6 @@
       "references/create.md",
       "references/dna.md",
       "references/gaql-notes.md",
-      "references/generate-assets/compose-helper.mjs",
       "references/generate.md",
       "references/google-audit.md",
       "references/google-creative-specs.md",
@@ -137,9 +136,19 @@
       "digest": "sha256:09296977b718b774172d1ce742780871ccb6174044213df27f0397e116b89dbb"
     },
     {
+      "path": "agents/openai.yaml",
+      "uri": "legion-skill://ads/agents/openai.yaml",
+      "digest": "sha256:fac95c20195fd2a8c0d1dc2d03c21e753972410316f78aa4ce1dcf9d856edf60"
+    },
+    {
       "path": "agents/visual-designer.md",
       "uri": "legion-skill://ads/agents/visual-designer.md",
       "digest": "sha256:e0a94acdd00d775386e43f8d136f7593fbcc8c267621533200414b3609a50190"
+    },
+    {
+      "path": "dependencies.json",
+      "uri": "legion-skill://ads/dependencies.json",
+      "digest": "sha256:d40678f7c62f0461a8a1d8aff05b1a8c46ed071db0ac5da710d89ae3e660c968"
     },
     {
       "path": "evals/evals.json",
@@ -220,11 +229,6 @@
       "path": "references/gaql-notes.md",
       "uri": "legion-skill://ads/references/gaql-notes.md",
       "digest": "sha256:66c733f8a5181b05eea53f231ac965de57c8cd0c6a2867baae4dd23f9882e7d0"
-    },
-    {
-      "path": "references/generate-assets/compose-helper.mjs",
-      "uri": "legion-skill://ads/references/generate-assets/compose-helper.mjs",
-      "digest": "sha256:466890ad7ce41dccb3da9f366cf24466557bf18325cfb9dd1ee11cba14577192"
     },
     {
       "path": "references/generate.md",

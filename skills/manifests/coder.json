@@ -26,7 +26,7 @@
   "parity": {
     "triggers": [
       "/coder",
-      "Explicit opt-in router for scoped read-only code analysis through Pi catalog models. Use only for `/coder`, explicit outsourced analysis, or a named Pi model/tier."
+      "Explicit opt-in router for scoped read-only code analysis through a declared external model-provider CLI. Use only for `/coder`, explicit outsourced analysis, or a named provider model/tier."
     ],
     "outputs": [
       "references/provider-runbook.md"
@@ -53,12 +53,17 @@
     {
       "path": "SKILL.md",
       "uri": "legion-skill://coder/SKILL.md",
-      "digest": "sha256:7b8e597b0fedfecb90c6b3fa0a030d650677945d6fda22d59b24b3f0fef1048f"
+      "digest": "sha256:91fe6b3fa3bc30f3fc81465ff3bb5a40869799ad391621ab521dbf69a647a08a"
     },
     {
       "path": "agents/openai.yaml",
       "uri": "legion-skill://coder/agents/openai.yaml",
-      "digest": "sha256:1caeddd9fc7a956453a837b9253455cb97b89bd250bcee3a239a1a1d629f8233"
+      "digest": "sha256:a1c1b36d59a95673ea19aa745e2bcb8a25f56b0479d1e95a4a73f2c649cc02a8"
+    },
+    {
+      "path": "dependencies.json",
+      "uri": "legion-skill://coder/dependencies.json",
+      "digest": "sha256:745bca3fc8ffd9dfef041b246b4add9f47237031ea68e9033cdbadc5af6ead6c"
     },
     {
       "path": "evals/evals.json",

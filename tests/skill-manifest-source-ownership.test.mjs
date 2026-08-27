@@ -25,6 +25,8 @@ test('catalog semantic lists are exact YAML values, never list-marker text', () 
   const qa = index.bundles.find(({ id }) => id === 'qa');
   assert.deepEqual(qa.operations, ['analyze', 'evaluate', 'execute', 'produce']);
   assert.deepEqual(qa.effects, ['source-read', 'artifact-write', 'process-exec']);
+  const coder = index.bundles.find(({ id }) => id === 'coder');
+  assert.deepEqual(coder.hostRequirements, ['pi-cli', 'python-runtime']);
 });
 
 test('all 24 packaged sources exactly match frozen classifications and repertoires', () => {

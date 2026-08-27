@@ -55,7 +55,9 @@ function validateNode(schema, value, root, at, errors) {
     errors.push(`${at} is below minimum`);
   }
   if (Array.isArray(value) && schema.items) {
-    value.forEach((item, index) => validateNode(schema.items, item, root, `${at}[${index}]`, errors));
+    value.forEach((item, index) => {
+      validateNode(schema.items, item, root, `${at}[${index}]`, errors);
+    });
   }
   if (value !== null && typeof value === 'object' && !Array.isArray(value)) {
     for (const required of schema.required ?? []) {

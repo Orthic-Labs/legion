@@ -13,7 +13,11 @@ effects:
   - source-read
   - artifact-write
   - network-request
-hostRequirements: []
+hostRequirements:
+  - local-corpus
+  - notebooklm
+  - scholarly-search
+  - web-search
 ---
 
 # Research

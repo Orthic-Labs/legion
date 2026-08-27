@@ -2,7 +2,8 @@
   "schemaVersion": 2,
   "generatedFrom": [
     "skills/*/SKILL.md",
-    "src/config/capability-aliases.json"
+    "src/config/capability-aliases.json",
+    "src/registry/capabilities.json"
   ],
   "bundles": [
     {
@@ -23,6 +24,7 @@
         "network-request"
       ],
       "hostRequirements": [],
+      "hostRequirementDetails": [],
       "source": "skills/ads/SKILL.md",
       "manifest": "skills/manifests/ads.json"
     },
@@ -43,6 +45,17 @@
       ],
       "hostRequirements": [
         "omniroute"
+      ],
+      "hostRequirementDetails": [
+        {
+          "id": "omniroute",
+          "degradation": "Alchemist exits 4 (gateway down). Callers must treat Alchemist as unavailable, not as returning an empty result.",
+          "remedy": "Install the OmniRoute gateway and put `omniroute` on PATH, or run Alchemist against a host that provides it.",
+          "probe": {
+            "kind": "command",
+            "command": "omniroute"
+          }
+        }
       ],
       "source": "skills/alchemist/SKILL.md",
       "manifest": "skills/manifests/alchemist.json"
@@ -65,6 +78,7 @@
         "artifact-write"
       ],
       "hostRequirements": [],
+      "hostRequirementDetails": [],
       "source": "skills/architect/SKILL.md",
       "manifest": "skills/manifests/architect.json"
     },
@@ -86,7 +100,20 @@
         "process-exec",
         "artifact-write"
       ],
-      "hostRequirements": [],
+      "hostRequirements": [
+        "blueprint-graph"
+      ],
+      "hostRequirementDetails": [
+        {
+          "id": "blueprint-graph",
+          "degradation": "Use resident Membrane transport when available, then bounded Blueprint one-shot regardless of enrollment. Return a NO_CAPABILITY result naming blueprint-graph only when both are unavailable; never fall back to ad-hoc grep or present ungraphed results as graph results.",
+          "remedy": "Provide Membrane resident transport or install the Blueprint graph engine and put its `blueprint` executable on PATH, then re-run. This package does not ship it.",
+          "probe": {
+            "kind": "command",
+            "command": "blueprint"
+          }
+        }
+      ],
       "source": "skills/audit/SKILL.md",
       "manifest": "skills/manifests/audit.json"
     },
@@ -109,7 +136,20 @@
         "repository-write",
         "process-exec"
       ],
-      "hostRequirements": [],
+      "hostRequirements": [
+        "blueprint-graph"
+      ],
+      "hostRequirementDetails": [
+        {
+          "id": "blueprint-graph",
+          "degradation": "Use resident Membrane transport when available, then bounded Blueprint one-shot regardless of enrollment. Return a NO_CAPABILITY result naming blueprint-graph only when both are unavailable; never fall back to ad-hoc grep or present ungraphed results as graph results.",
+          "remedy": "Provide Membrane resident transport or install the Blueprint graph engine and put its `blueprint` executable on PATH, then re-run. This package does not ship it.",
+          "probe": {
+            "kind": "command",
+            "command": "blueprint"
+          }
+        }
+      ],
       "source": "skills/audit-fix/SKILL.md",
       "manifest": "skills/manifests/audit-fix.json"
     },
@@ -131,7 +171,20 @@
         "artifact-write",
         "process-exec"
       ],
-      "hostRequirements": [],
+      "hostRequirements": [
+        "blueprint-graph"
+      ],
+      "hostRequirementDetails": [
+        {
+          "id": "blueprint-graph",
+          "degradation": "Use resident Membrane transport when available, then bounded Blueprint one-shot regardless of enrollment. Return a NO_CAPABILITY result naming blueprint-graph only when both are unavailable; never fall back to ad-hoc grep or present ungraphed results as graph results.",
+          "remedy": "Provide Membrane resident transport or install the Blueprint graph engine and put its `blueprint` executable on PATH, then re-run. This package does not ship it.",
+          "probe": {
+            "kind": "command",
+            "command": "blueprint"
+          }
+        }
+      ],
       "source": "skills/audit-visual/SKILL.md",
       "manifest": "skills/manifests/audit-visual.json"
     },
@@ -151,6 +204,7 @@
         "source-read"
       ],
       "hostRequirements": [],
+      "hostRequirementDetails": [],
       "source": "skills/brand/SKILL.md",
       "manifest": "skills/manifests/brand.json"
     },
@@ -173,13 +227,14 @@
         "artifact-write"
       ],
       "hostRequirements": [],
+      "hostRequirementDetails": [],
       "source": "skills/brand-identity/SKILL.md",
       "manifest": "skills/manifests/brand-identity.json"
     },
     {
       "id": "coder",
       "name": "coder",
-      "description": "Explicit opt-in router for scoped read-only code analysis through Pi catalog models. Use only for `/coder`, explicit outsourced analysis, or a named Pi model/tier.",
+      "description": "Explicit opt-in router for scoped read-only code analysis through a declared external model-provider CLI. Use only for `/coder`, explicit outsourced analysis, or a named provider model/tier.",
       "kind": "entrypoint",
       "capabilityClass": null,
       "discoverability": "explicit",
@@ -190,7 +245,35 @@
         "source-read",
         "network-request"
       ],
-      "hostRequirements": [],
+      "hostRequirements": [
+        "pi-cli",
+        "python-runtime"
+      ],
+      "hostRequirementDetails": [
+        {
+          "id": "pi-cli",
+          "degradation": "Coder returns a typed unavailable-provider result and performs no outsourced analysis.",
+          "remedy": "Install the Pi CLI and expose its `pi` command on PATH, then invoke Coder again.",
+          "probe": {
+            "kind": "command-any",
+            "commands": [
+              "pi"
+            ]
+          }
+        },
+        {
+          "id": "python-runtime",
+          "degradation": "The dependent skill reports that its local validator or worker adapter is unavailable and does not substitute another runtime.",
+          "remedy": "Install Python 3 and expose either `python3` or `python` on PATH.",
+          "probe": {
+            "kind": "command-any",
+            "commands": [
+              "python3",
+              "python"
+            ]
+          }
+        }
+      ],
       "source": "skills/coder/SKILL.md",
       "manifest": "skills/manifests/coder.json"
     },
@@ -213,6 +296,7 @@
         "network-request"
       ],
       "hostRequirements": [],
+      "hostRequirementDetails": [],
       "source": "skills/commit/SKILL.md",
       "manifest": "skills/manifests/commit.json"
     },
@@ -232,6 +316,7 @@
         "source-read"
       ],
       "hostRequirements": [],
+      "hostRequirementDetails": [],
       "source": "skills/covenant/SKILL.md",
       "manifest": "skills/manifests/covenant.json"
     },
@@ -253,7 +338,20 @@
         "source-read",
         "process-exec"
       ],
-      "hostRequirements": [],
+      "hostRequirements": [
+        "blueprint-graph"
+      ],
+      "hostRequirementDetails": [
+        {
+          "id": "blueprint-graph",
+          "degradation": "Use resident Membrane transport when available, then bounded Blueprint one-shot regardless of enrollment. Return a NO_CAPABILITY result naming blueprint-graph only when both are unavailable; never fall back to ad-hoc grep or present ungraphed results as graph results.",
+          "remedy": "Provide Membrane resident transport or install the Blueprint graph engine and put its `blueprint` executable on PATH, then re-run. This package does not ship it.",
+          "probe": {
+            "kind": "command",
+            "command": "blueprint"
+          }
+        }
+      ],
       "source": "skills/debugger/SKILL.md",
       "manifest": "skills/manifests/debugger.json"
     },
@@ -276,6 +374,7 @@
         "artifact-write"
       ],
       "hostRequirements": [],
+      "hostRequirementDetails": [],
       "source": "skills/designer/SKILL.md",
       "manifest": "skills/manifests/designer.json"
     },
@@ -296,7 +395,23 @@
         "artifact-write",
         "process-exec"
       ],
-      "hostRequirements": [],
+      "hostRequirements": [
+        "python-runtime"
+      ],
+      "hostRequirementDetails": [
+        {
+          "id": "python-runtime",
+          "degradation": "The dependent skill reports that its local validator or worker adapter is unavailable and does not substitute another runtime.",
+          "remedy": "Install Python 3 and expose either `python3` or `python` on PATH.",
+          "probe": {
+            "kind": "command-any",
+            "commands": [
+              "python3",
+              "python"
+            ]
+          }
+        }
+      ],
       "source": "skills/dispatch/SKILL.md",
       "manifest": "skills/manifests/dispatch.json"
     },
@@ -318,6 +433,7 @@
         "repository-write"
       ],
       "hostRequirements": [],
+      "hostRequirementDetails": [],
       "source": "skills/gotchas/SKILL.md",
       "manifest": "skills/manifests/gotchas.json"
     },
@@ -338,7 +454,23 @@
         "artifact-write",
         "process-exec"
       ],
-      "hostRequirements": [],
+      "hostRequirements": [
+        "python-runtime"
+      ],
+      "hostRequirementDetails": [
+        {
+          "id": "python-runtime",
+          "degradation": "The dependent skill reports that its local validator or worker adapter is unavailable and does not substitute another runtime.",
+          "remedy": "Install Python 3 and expose either `python3` or `python` on PATH.",
+          "probe": {
+            "kind": "command-any",
+            "commands": [
+              "python3",
+              "python"
+            ]
+          }
+        }
+      ],
       "source": "skills/handoff/SKILL.md",
       "manifest": "skills/manifests/handoff.json"
     },
@@ -360,6 +492,7 @@
         "network-request"
       ],
       "hostRequirements": [],
+      "hostRequirementDetails": [],
       "source": "skills/marketing/SKILL.md",
       "manifest": "skills/manifests/marketing.json"
     },
@@ -383,6 +516,7 @@
         "process-exec"
       ],
       "hostRequirements": [],
+      "hostRequirementDetails": [],
       "source": "skills/qa/SKILL.md",
       "manifest": "skills/manifests/qa.json"
     },
@@ -404,7 +538,38 @@
         "artifact-write",
         "network-request"
       ],
-      "hostRequirements": [],
+      "hostRequirements": [
+        "local-corpus",
+        "notebooklm",
+        "scholarly-search",
+        "web-search"
+      ],
+      "hostRequirementDetails": [
+        {
+          "id": "local-corpus",
+          "degradation": "Research skips the local-corpus provider and records it as unrun.",
+          "remedy": "Point the host at a local document corpus for offline retrieval.",
+          "probe": null
+        },
+        {
+          "id": "notebooklm",
+          "degradation": "Research skips the notebooklm provider and records it as unrun.",
+          "remedy": "Provide NotebookLM access in the host.",
+          "probe": null
+        },
+        {
+          "id": "scholarly-search",
+          "degradation": "Research returns UNPROVEN for scholarly claims.",
+          "remedy": "Expose a scholarly-search tool in the host.",
+          "probe": null
+        },
+        {
+          "id": "web-search",
+          "degradation": "Research returns UNPROVEN for any claim that required live retrieval.",
+          "remedy": "Expose a web-search tool in the host; Research blocks rather than guessing.",
+          "probe": null
+        }
+      ],
       "source": "skills/research/SKILL.md",
       "manifest": "skills/manifests/research.json"
     },
@@ -428,6 +593,7 @@
         "network-request"
       ],
       "hostRequirements": [],
+      "hostRequirementDetails": [],
       "source": "skills/seo/SKILL.md",
       "manifest": "skills/manifests/seo.json"
     },
@@ -450,6 +616,7 @@
         "network-request"
       ],
       "hostRequirements": [],
+      "hostRequirementDetails": [],
       "source": "skills/social/SKILL.md",
       "manifest": "skills/manifests/social.json"
     },
@@ -471,7 +638,23 @@
         "artifact-write",
         "process-exec"
       ],
-      "hostRequirements": [],
+      "hostRequirements": [
+        "python-runtime"
+      ],
+      "hostRequirementDetails": [
+        {
+          "id": "python-runtime",
+          "degradation": "The dependent skill reports that its local validator or worker adapter is unavailable and does not substitute another runtime.",
+          "remedy": "Install Python 3 and expose either `python3` or `python` on PATH.",
+          "probe": {
+            "kind": "command-any",
+            "commands": [
+              "python3",
+              "python"
+            ]
+          }
+        }
+      ],
       "source": "skills/tasklist/SKILL.md",
       "manifest": "skills/manifests/tasklist.json"
     },
@@ -493,6 +676,7 @@
         "artifact-write"
       ],
       "hostRequirements": [],
+      "hostRequirementDetails": [],
       "source": "skills/wake/SKILL.md",
       "manifest": "skills/manifests/wake.json"
     },
@@ -514,6 +698,7 @@
         "artifact-write"
       ],
       "hostRequirements": [],
+      "hostRequirementDetails": [],
       "source": "skills/writing/SKILL.md",
       "manifest": "skills/manifests/writing.json"
     }

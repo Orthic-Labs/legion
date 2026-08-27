@@ -17,9 +17,7 @@ fn severity_level(severity: &str) -> &'static str {
 fn location(value: &str) -> Value {
     let normalized = value.replace('\\', "/");
     let parsed = normalized.rsplit_once(':').and_then(|(path, suffix)| {
-        let (start, end) = suffix
-            .split_once('-')
-            .map_or((suffix, suffix), |range| range);
+        let (start, end) = suffix.split_once('-').unwrap_or((suffix, suffix));
         let start = start.parse::<u64>().ok()?;
         let end = end.parse::<u64>().ok()?;
         (start > 0 && end >= start).then_some((path, start, end))

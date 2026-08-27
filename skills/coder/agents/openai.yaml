@@ -1,4 +1,6 @@
 interface:
   display_name: "Coder"
-  short_description: "Explicit Pi-worker code analysis"
-  default_prompt: "Use $coder for scoped read-only code analysis with Pi catalog models."
+  short_description: "Explicit opt-in router for scoped read-only code analysis through a declared external model-provider CLI. Use only for `/coder`, explicit outsourced analysis, or a named provider model/tier."
+  default_prompt: "Use $coder when this request matches: Explicit opt-in router for scoped read-only code analysis through a declared external model-provider CLI. Use only for `/coder`, explicit outsourced analysis, or a named provider model/tier."
+policy:
+  allow_implicit_invocation: false

@@ -1,0 +1,6 @@
+interface:
+  display_name: "Social"
+  short_description: "Route Instagram, Pinterest, YouTube, Twitter or X, LinkedIn, Reels, Shorts, pins, threads, calendars, distribution, analytics, and social growth. Use /social or when social strategy or content is the deliverable."
+  default_prompt: "Use $social when this request matches: Route Instagram, Pinterest, YouTube, Twitter or X, LinkedIn, Reels, Shorts, pins, threads, calendars, distribution, analytics, and social growth. Use /social or when social strategy or content is the deliverable."
+policy:
+  allow_implicit_invocation: true

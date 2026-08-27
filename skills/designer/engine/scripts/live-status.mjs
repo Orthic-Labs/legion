@@ -4,7 +4,7 @@
  */
 
 import { createLiveSessionStore } from './live/session-store.mjs';
-import { readLiveServerInfo } from './lib/designer-paths.mjs';
+import { readLiveServerInfo } from './lib/impeccable-paths.mjs';
 import { manualApplyResumeHint } from './live-resume.mjs';
 
 function readServerInfo() {

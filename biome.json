@@ -11,7 +11,7 @@
 			"biome.json",
 			"package.json",
 			"scripts/**/*.mjs",
-			"!!scripts/build-native.mjs"
+			"src/**/*.mjs"
 		]
 	},
 	"formatter": {
@@ -36,5 +36,36 @@
 				"organizeImports": "on"
 			}
 		}
-	}
+	},
+	"overrides": [
+		{
+			"includes": [
+				"src/providers/**/*.mjs",
+				"src/lib/review/untrusted-evidence-envelope.mjs",
+				"src/packages/arcane/lib/architecture-state.mjs",
+				"src/packages/oracle/tests/**/*.mjs"
+			],
+			"linter": {
+				"rules": {
+					"suspicious": {
+						"noAssignInExpressions": "off"
+					}
+				}
+			}
+		},
+		{
+			"includes": [
+				"src/adapters/untrusted-evidence-envelope.mjs",
+				"src/lib/review/untrusted-evidence-envelope.mjs",
+				"src/providers/runtime/web/api/index.mjs"
+			],
+			"linter": {
+				"rules": {
+					"suspicious": {
+						"noControlCharactersInRegex": "off"
+					}
+				}
+			}
+		}
+	]
 }

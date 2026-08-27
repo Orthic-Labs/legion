@@ -42,7 +42,11 @@ export function validateSchema(schema, value, path = '$', root = schema) {
   if (Array.isArray(value)) {
     if (schema.minItems !== undefined && value.length < schema.minItems) issues.push(`${path}:min-items`);
     if (schema.maxItems !== undefined && value.length > schema.maxItems) issues.push(`${path}:max-items`);
-    if (schema.items) value.forEach((item, index) => issues.push(...validateSchema(schema.items, item, `${path}[${index}]`, root)));
+    if (schema.items) {
+      value.forEach((item, index) => {
+        issues.push(...validateSchema(schema.items, item, `${path}[${index}]`, root));
+      });
+    }
   }
   if (value !== null && typeof value === 'object' && !Array.isArray(value)) {
     for (const key of schema.required ?? []) if (!(key in value)) issues.push(`${path}.${key}:required`);

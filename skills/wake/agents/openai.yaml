@@ -1,0 +1,6 @@
+interface:
+  display_name: "Wake"
+  short_description: "Schedule one bounded wakeup for an active job, external review, or goal-alignment check; inspect once per wake, stop polling, & continue only from observed state."
+  default_prompt: "Use $wake when this request matches: Schedule one bounded wakeup for an active job, external review, or goal-alignment check; inspect once per wake, stop polling, & continue only from observed state."
+policy:
+  allow_implicit_invocation: true

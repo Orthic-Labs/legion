@@ -1,0 +1,57 @@
+diff --git a/manifest.mjs b/manifest.mjs
+index dc87cc95ee964b545e9477b9fe73c63236b55756..0fd9063dfbcd72a526b7434ae66fd1f19343c2a8 100644
+--- a/manifest.mjs
++++ b/manifest.mjs
+@@ -233,7 +233,7 @@ function parsePackageManager(spec) {
+   }[name];
+   const runPrefix = { pnpm: "pnpm run", npm: "npm run", yarn: "yarn run" }[name];
+   const setup = {
+-    pnpm: `      - uses: pnpm/action-setup@v4\n        with:\n          version: ${version}`,
++    pnpm: `      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10\n        with:\n          version: ${version}`,
+     npm: "",
+     yarn: `      - run: corepack enable && corepack prepare yarn@${version} --activate`,
+   }[name];
+diff --git a/templates/profiles/rust-hybrid/ci.yml b/templates/profiles/rust-hybrid/ci.yml
+index 8e818cc2352844bb33238c9f2a0ffdb2c10f1cf5..90dee13151993f4a45fec533e5720d9b8b25b065 100644
+--- a/templates/profiles/rust-hybrid/ci.yml
++++ b/templates/profiles/rust-hybrid/ci.yml
+@@ -1,12 +1,15 @@
+ # Managed by right-git — do not hand-edit. Run `right-git sync` to update.
+ # Template: profiles/rust-hybrid/ci.yml | Template version: ${TEMPLATE_VERSION}
+-name: ci
+-on: [push, pull_request]
++name: legion-ci
++on:
++  pull_request:
++  push:
++    branches: [main]
+ permissions:
+   contents: read
+ jobs:
+   private-repo-guard:
+-    runs-on: ubuntu-latest
++    runs-on: ubuntu-24.04
+     steps:
+       - name: Refuse private repository
+         if: ${{ github.event.repository.private }}
+@@ -20,11 +23,17 @@ jobs:
+         node: ${NODE_MATRIX}
+     runs-on: ${{ matrix.os }}
+     steps:
+-      - uses: actions/checkout@v5
+-      - uses: actions/setup-node@v5
++      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
++      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+         with:
+           node-version: ${{ matrix.node }}
+           package-manager-cache: false
+ ${PACKAGE_MANAGER_SETUP}
+-      - run: rustup toolchain install stable --profile minimal
++      - uses: dtolnay/rust-toolchain@f8be11a05b1d4f3fcebe6410cc16743212b999b0
++        with:
++          toolchain: 1.98.0
++          components: rustfmt, clippy
++      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
++        with:
++          workspaces: engine
+       - run: bash ./${GATE_PATH}

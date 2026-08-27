@@ -12,7 +12,8 @@ effects:
   - source-read
   - artifact-write
   - process-exec
-hostRequirements: []
+hostRequirements:
+  - python-runtime
 ---
 
 # Handoff

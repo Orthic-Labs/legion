@@ -15,7 +15,7 @@ import { AMENDED_BUDGET_BOUND_FIELDS, BudgetGovernanceStore, BUDGET_AMENDMENT_BO
 import { TaskBudgetSealStore } from './task-budget-seal-store.mjs';
 import { signRecord } from './receipt-auth.mjs';
 import { digestValue } from './canonical.mjs';
-import { evaluateStopShape } from '../../../../hooks/stop-shape.mjs';
+import { evaluateStopShape } from './stop-shape.mjs';
 
 const SELF = fileURLToPath(import.meta.url);
 const PROBES = Object.freeze([

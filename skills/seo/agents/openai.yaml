@@ -1,0 +1,6 @@
+interface:
+  display_name: "Seo"
+  short_description: "Audit or improve SEO, GEO or AEO, AI citations, crawlability, indexing, Core Web Vitals, schema, sitemaps, content quality, E-E-A-T, images, hreflang, llms.txt, traffic drops, page speed, or repository SEO."
+  default_prompt: "Use $seo when this request matches: Audit or improve SEO, GEO or AEO, AI citations, crawlability, indexing, Core Web Vitals, schema, sitemaps, content quality, E-E-A-T, images, hreflang, llms.txt, traffic drops, page speed, or repository SEO."
+policy:
+  allow_implicit_invocation: true

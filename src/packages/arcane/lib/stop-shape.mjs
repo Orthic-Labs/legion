@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Legion stop-shape gate — deterministic "no stopping short" enforcement.
+// Arcane-owned stop-shape gate — deterministic "no stopping short" enforcement.
 //
 // Doctrine (docs/agent-rules/legion.md): a turn may end in exactly two states —
 // the requested work is complete and verified, or a reserved blocker names the

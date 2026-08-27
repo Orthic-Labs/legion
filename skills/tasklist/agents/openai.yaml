@@ -1,4 +1,6 @@
 interface:
-  display_name: "Task List"
-  short_description: "Shortest reliable same-agent execution list"
-  default_prompt: "Use $tasklist to create an executable same-agent task list for this goal."
+  display_name: "Tasklist"
+  short_description: "Create an executable same-agent task list. Use `/tasklist`; keep it inline unless persistence, audit receipts, or a reusable record is requested. Use Dispatch for another agent & Handoff for a new chat."
+  default_prompt: "Use $tasklist when this request matches: Create an executable same-agent task list. Use `/tasklist`; keep it inline unless persistence, audit receipts, or a reusable record is requested. Use Dispatch for another agent & Handoff for a new chat."
+policy:
+  allow_implicit_invocation: true

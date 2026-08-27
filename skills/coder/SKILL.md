@@ -1,6 +1,6 @@
 ---
 name: coder
-description: Explicit opt-in router for scoped read-only code analysis through Pi catalog models. Use only for `/coder`, explicit outsourced analysis, or a named Pi model/tier.
+description: Explicit opt-in router for scoped read-only code analysis through a declared external model-provider CLI. Use only for `/coder`, explicit outsourced analysis, or a named provider model/tier.
 kind: entrypoint
 discoverability: explicit
 target: outsourced-analysis:coder
@@ -9,12 +9,14 @@ operations:
 effects:
   - source-read
   - network-request
-hostRequirements: []
+hostRequirements:
+  - pi-cli
+  - python-runtime
 ---
 
 # Coder
 
-This public entrypoint routes execution to package-local `lib/coder-api-worker`; it never owns model credentials or mutation authority.
+This public entrypoint routes execution to package-local `lib/coder-api-worker`; it never owns model credentials or mutation authority. `pi-cli` is Legion's declared contract for Pi's external model-provider command, while `python-runtime` runs only package-local adapter code.
 
 ## HARD CONSTRAINT
 

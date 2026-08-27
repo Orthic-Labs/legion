@@ -1,0 +1,6 @@
+interface:
+  display_name: "Gotchas"
+  short_description: "Capture user-confirmed recurring agent failures as concise deduplicated lessons in repository gotchas.md; record symptom, root cause, correction, prevention, & evidence without invention."
+  default_prompt: "Use $gotchas when this request matches: Capture user-confirmed recurring agent failures as concise deduplicated lessons in repository gotchas.md; record symptom, root cause, correction, prevention, & evidence without invention."
+policy:
+  allow_implicit_invocation: true

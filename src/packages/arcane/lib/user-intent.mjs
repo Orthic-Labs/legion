@@ -1,3 +1,4 @@
+// Arcane-owned transcript-intent logic used by the native host runtime.
 // Read the operator's recent instructions and decide, in the hook, whether a block is
 // already authorized.
 //

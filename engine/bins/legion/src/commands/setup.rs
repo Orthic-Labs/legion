@@ -11,7 +11,7 @@ use std::{
 };
 use tokio_util::sync::CancellationToken;
 
-const QUALIFICATION_SCHEMA_VERSION: u32 = 1;
+const QUALIFICATION_SCHEMA_VERSION: u32 = 2;
 const QUALIFICATION_MECHANISM: &str = "agent-plugins-bare-command";
 const QUALIFICATION_TOOL: &str = "legion_m1_status";
 const QUALIFICATION_SERVER: &str = "legion";
@@ -168,6 +168,9 @@ struct ClientQualificationProof {
     invocation_status: String,
     observed_release_version: String,
     capability_count: usize,
+    host_requirements: Vec<Value>,
+    capabilities: Vec<Value>,
+    degraded_count: usize,
     completed: bool,
     output_sha256: String,
     legion_launcher_path: String,
@@ -240,6 +243,7 @@ async fn lifecycle(
     let request = request_from_release(request, action, release, cancellation).await?;
     let mut registry = open_registry(&request)?;
     let recovery = registry.recover().map_err(setup_error)?;
+    let host_integrations = preview_host_integrations(&request)?;
     let preview = registry.preview(request).map_err(setup_error)?;
     if !args.confirm || args.dry_run {
         return Ok(json!({
@@ -248,6 +252,7 @@ async fn lifecycle(
             "status": "complete",
             "recovery": recovery,
             "preview": preview,
+            "hostIntegrations": host_integrations,
         }));
     }
     let confirmation = legion_host::PlanConfirmation {
@@ -257,13 +262,16 @@ async fn lifecycle(
     let confirmed = registry
         .confirm(preview, confirmation)
         .map_err(setup_error)?;
+    let integration_request = confirmed.preview.request.clone();
     let execution = registry.execute(confirmed).map_err(setup_error)?;
+    let host_integrations = apply_host_integrations(&integration_request)?;
     Ok(json!({
         "schemaVersion": 1,
         "kind": "legion-setup-execution",
         "status": "complete",
         "recovery": recovery,
         "execution": execution,
+        "hostIntegrations": host_integrations,
     }))
 }
 
@@ -271,6 +279,7 @@ async fn preview(args: SetupPreviewArgs, cancellation: CancellationToken) -> Com
     let request = request(args.request, args.action.into(), false, cancellation).await?;
     let mut registry = open_registry(&request)?;
     let recovery = registry.recover().map_err(setup_error)?;
+    let host_integrations = preview_host_integrations(&request)?;
     let preview = registry.preview(request).map_err(setup_error)?;
     if let Some(path) = args.out {
         write_json(&path, &preview)?;
@@ -281,21 +290,25 @@ async fn preview(args: SetupPreviewArgs, cancellation: CancellationToken) -> Com
         "status": "complete",
         "recovery": recovery,
         "preview": preview,
+        "hostIntegrations": host_integrations,
     }))
 }
 
 fn status(args: SetupClientArgs) -> CommandResult {
     let release = installed_bound_release()?;
     let selector = selector(args.client);
-    let mut registry = legion_host::SetupRegistry::open_platform(release).map_err(setup_error)?;
+    let mut registry =
+        legion_host::SetupRegistry::open_platform(release.clone()).map_err(setup_error)?;
     let recovery = registry.recover().map_err(setup_error)?;
     let clients = registry.status(&selector).map_err(setup_error)?;
+    let host_integrations = inspect_host_integrations(&selector, &release)?;
     Ok(json!({
         "schemaVersion": 1,
         "kind": "legion-setup-status",
         "status": "complete",
         "recovery": recovery,
         "clients": clients,
+        "hostIntegrations": host_integrations,
     }))
 }
 
@@ -325,6 +338,7 @@ async fn execute(
     .await?;
     let mut registry = open_registry(&preview.request)?;
     let recovery = registry.recover().map_err(setup_error)?;
+    let integration_request = preview.request.clone();
     let confirmation = legion_host::PlanConfirmation {
         plan_id: preview.plan_id.clone(),
         plan_digest: preview.plan_digest.clone(),
@@ -333,12 +347,14 @@ async fn execute(
         .confirm(preview, confirmation)
         .map_err(setup_error)?;
     let execution = registry.execute(confirmed).map_err(setup_error)?;
+    let host_integrations = apply_host_integrations(&integration_request)?;
     Ok(json!({
         "schemaVersion": 1,
         "kind": "legion-setup-execution",
         "status": "complete",
         "recovery": recovery,
         "execution": execution,
+        "hostIntegrations": host_integrations,
     }))
 }
 
@@ -485,6 +501,9 @@ async fn validate_client_evidence(
                 || fresh_command.mcp_args != command_proof.mcp_args
                 || fresh_qualification.observed_release_version
                     != qualification_proof.observed_release_version
+                || fresh_qualification.host_requirements != qualification_proof.host_requirements
+                || fresh_qualification.capabilities != qualification_proof.capabilities
+                || fresh_qualification.degraded_count != qualification_proof.degraded_count
                 || !fresh_qualification.completed
             {
                 return Err(CommandError::incomplete(format!(
@@ -557,6 +576,10 @@ fn validate_proof_pair(
         && qualification.invocation_status == "complete"
         && qualification.observed_release_version == release.release_version
         && qualification.capability_count > 0
+        && qualification.capabilities.len() == qualification.capability_count
+        && qualification.host_requirements.iter().all(Value::is_object)
+        && qualification.capabilities.iter().all(Value::is_object)
+        && qualification.degraded_count <= qualification.capability_count
         && qualification.completed
         && is_sha256(&qualification.output_sha256)
         && command_path.is_file()
@@ -764,8 +787,14 @@ async fn qualify_client(
         )));
     }
     let output_bytes = output_bytes(&output);
-    let (observed_release_version, capability_count) =
-        parse_client_result(client_id, &output_bytes, &release.release_version)?;
+    let parsed = parse_client_result(client_id, &output_bytes, &release.release_version)?;
+    let ParsedClientResult {
+        observed_release_version,
+        capability_count,
+        host_requirements,
+        capabilities,
+        degraded_count,
+    } = parsed;
     let qualification = ClientQualificationProof {
         schema_version: QUALIFICATION_SCHEMA_VERSION,
         kind: "legion-real-client-qualification".into(),
@@ -778,6 +807,9 @@ async fn qualify_client(
         invocation_status: "complete".into(),
         observed_release_version,
         capability_count,
+        host_requirements,
+        capabilities,
+        degraded_count,
         completed: true,
         output_sha256: legion_catalog::hex_digest(&output_bytes),
         legion_launcher_path: command.legion_launcher_path.clone(),
@@ -893,11 +925,20 @@ fn output_bytes(output: &ProcessOutput) -> Vec<u8> {
     bytes
 }
 
+#[derive(Debug)]
+struct ParsedClientResult {
+    observed_release_version: String,
+    capability_count: usize,
+    host_requirements: Vec<Value>,
+    capabilities: Vec<Value>,
+    degraded_count: usize,
+}
+
 fn parse_client_result(
     client_id: &str,
     bytes: &[u8],
     release_version: &str,
-) -> Result<(String, usize), CommandError> {
+) -> Result<ParsedClientResult, CommandError> {
     let text = String::from_utf8_lossy(bytes);
     match client_id {
         "codex" => {
@@ -920,19 +961,8 @@ fn parse_client_result(
                     .ok_or_else(|| {
                         CommandError::incomplete("Codex MCP result lacked structured data")
                     })?;
-                let observed = data
-                    .get("releaseVersion")
-                    .and_then(Value::as_str)
-                    .unwrap_or_default();
-                let count = data
-                    .get("capabilityCount")
-                    .and_then(Value::as_u64)
-                    .unwrap_or_default() as usize;
-                if observed == release_version
-                    && data.get("status").and_then(Value::as_str) == Some("complete")
-                    && count > 0
-                {
-                    return Ok((observed.into(), count));
+                if let Some(parsed) = parse_m1_status_data(client_id, data, release_version)? {
+                    return Ok(parsed);
                 }
             }
         }
@@ -947,19 +977,10 @@ fn parse_client_result(
                 if let Some(result) = value.get("result").and_then(Value::as_str) {
                     if let Some(structured) = parse_embedded_json(result) {
                         let data = structured.get("data").unwrap_or(&structured);
-                        let observed = data
-                            .get("releaseVersion")
-                            .and_then(Value::as_str)
-                            .unwrap_or_default();
-                        let count = data
-                            .get("capabilityCount")
-                            .and_then(Value::as_u64)
-                            .unwrap_or_default() as usize;
-                        if observed == release_version
-                            && data.get("status").and_then(Value::as_str) == Some("complete")
-                            && count > 0
+                        if let Some(parsed) =
+                            parse_m1_status_data(client_id, data, release_version)?
                         {
-                            return Ok((observed.into(), count));
+                            return Ok(parsed);
                         }
                     }
                 }
@@ -972,12 +993,238 @@ fn parse_client_result(
     )))
 }
 
+fn parse_m1_status_data(
+    client_id: &str,
+    data: &Value,
+    release_version: &str,
+) -> Result<Option<ParsedClientResult>, CommandError> {
+    let observed = data
+        .get("releaseVersion")
+        .and_then(Value::as_str)
+        .unwrap_or_default();
+    let count = data
+        .get("capabilityCount")
+        .and_then(Value::as_u64)
+        .unwrap_or_default() as usize;
+    if observed != release_version
+        || data.get("status").and_then(Value::as_str) != Some("complete")
+        || count == 0
+    {
+        return Ok(None);
+    }
+    let host_requirements = data
+        .get("hostRequirements")
+        .and_then(Value::as_array)
+        .cloned()
+        .ok_or_else(|| {
+            CommandError::incomplete(format!(
+                "{client_id} MCP result lacked host requirement results"
+            ))
+        })?;
+    let capabilities = data
+        .get("capabilities")
+        .and_then(Value::as_array)
+        .cloned()
+        .ok_or_else(|| {
+            CommandError::incomplete(format!(
+                "{client_id} MCP result lacked capability availability results"
+            ))
+        })?;
+    let degraded_count = data
+        .get("degradedCount")
+        .and_then(Value::as_u64)
+        .ok_or_else(|| {
+            CommandError::incomplete(format!(
+                "{client_id} MCP result lacked degraded capability count"
+            ))
+        })? as usize;
+    if capabilities.len() != count || degraded_count > count {
+        return Err(CommandError::incomplete(format!(
+            "{client_id} MCP result has inconsistent capability availability results"
+        )));
+    }
+    Ok(Some(ParsedClientResult {
+        observed_release_version: observed.into(),
+        capability_count: count,
+        host_requirements,
+        capabilities,
+        degraded_count,
+    }))
+}
+
 fn parse_embedded_json(text: &str) -> Option<Value> {
     serde_json::from_str(text.trim()).ok().or_else(|| {
         let start = text.find('{')?;
         let end = text.rfind('}')?;
         serde_json::from_str(&text[start..=end]).ok()
     })
+}
+
+struct HostIntegrationInputs {
+    claude: Option<legion_host::ClaudeLegacyInput>,
+    codex: Option<legion_host::CodexSkillsInput>,
+}
+
+fn inspect_host_integrations(
+    selector: &legion_host::ClientSelector,
+    release: &legion_host::BoundRelease,
+) -> Result<Value, CommandError> {
+    let inputs = host_integration_inputs(selector, release)?;
+    let mut integrations = serde_json::Map::new();
+    if let Some(input) = &inputs.claude {
+        integrations.insert(
+            "claudeCodeLegacy".into(),
+            serde_json::to_value(legion_host::inspect_claude_legacy(input).map_err(host_error)?)
+                .map_err(|error| CommandError::incomplete(error.to_string()))?,
+        );
+    }
+    if let Some(input) = &inputs.codex {
+        integrations.insert(
+            "codexSkills".into(),
+            serde_json::to_value(legion_host::inspect_codex_skills(input).map_err(host_error)?)
+                .map_err(|error| CommandError::incomplete(error.to_string()))?,
+        );
+    }
+    Ok(Value::Object(integrations))
+}
+
+fn preview_host_integrations(request: &legion_host::SetupRequest) -> Result<Value, CommandError> {
+    let inputs = host_integration_inputs(&request.selector, &request.release)?;
+    let mut integrations = serde_json::Map::new();
+    if let Some(input) = &inputs.claude {
+        integrations.insert(
+            "claudeCodeLegacy".into(),
+            serde_json::to_value(legion_host::inspect_claude_legacy(input).map_err(host_error)?)
+                .map_err(|error| CommandError::incomplete(error.to_string()))?,
+        );
+    }
+    if let Some(input) = &inputs.codex {
+        let preview = match request.action {
+            legion_host::SetupAction::Remove | legion_host::SetupAction::Purge => {
+                legion_host::preview_remove_codex_skills(input)
+            }
+            legion_host::SetupAction::Apply | legion_host::SetupAction::Repair => {
+                legion_host::preview_codex_skills(input)
+            }
+            _ => {
+                integrations.insert(
+                    "codexSkills".into(),
+                    serde_json::to_value(
+                        legion_host::inspect_codex_skills(input).map_err(host_error)?,
+                    )
+                    .map_err(|error| CommandError::incomplete(error.to_string()))?,
+                );
+                return Ok(Value::Object(integrations));
+            }
+        }
+        .map_err(host_error)?;
+        integrations.insert(
+            "codexSkills".into(),
+            serde_json::to_value(preview)
+                .map_err(|error| CommandError::incomplete(error.to_string()))?,
+        );
+    }
+    Ok(Value::Object(integrations))
+}
+
+fn apply_host_integrations(request: &legion_host::SetupRequest) -> Result<Value, CommandError> {
+    let inputs = host_integration_inputs(&request.selector, &request.release)?;
+    let mut integrations = serde_json::Map::new();
+    if let Some(input) = &inputs.claude {
+        let value = match request.action {
+            legion_host::SetupAction::Repair
+            | legion_host::SetupAction::Remove
+            | legion_host::SetupAction::Purge => {
+                serde_json::to_value(legion_host::repair_claude_legacy(input).map_err(host_error)?)
+            }
+            _ => {
+                serde_json::to_value(legion_host::inspect_claude_legacy(input).map_err(host_error)?)
+            }
+        }
+        .map_err(|error| CommandError::incomplete(error.to_string()))?;
+        integrations.insert("claudeCodeLegacy".into(), value);
+    }
+    if let Some(input) = &inputs.codex {
+        let value = match request.action {
+            legion_host::SetupAction::Apply => {
+                serde_json::to_value(legion_host::apply_codex_skills(input).map_err(host_error)?)
+            }
+            legion_host::SetupAction::Repair => {
+                serde_json::to_value(legion_host::repair_codex_skills(input).map_err(host_error)?)
+            }
+            legion_host::SetupAction::Remove | legion_host::SetupAction::Purge => {
+                serde_json::to_value(legion_host::remove_codex_skills(input).map_err(host_error)?)
+            }
+            _ => {
+                serde_json::to_value(legion_host::inspect_codex_skills(input).map_err(host_error)?)
+            }
+        }
+        .map_err(|error| CommandError::incomplete(error.to_string()))?;
+        integrations.insert("codexSkills".into(), value);
+    }
+    Ok(Value::Object(integrations))
+}
+
+fn host_integration_inputs(
+    selector: &legion_host::ClientSelector,
+    release: &legion_host::BoundRelease,
+) -> Result<HostIntegrationInputs, CommandError> {
+    let installed = installed_release()?;
+    if installed.manifest.release_version != release.release_version
+        || installed.manifest.declarative_assets_sha256 != release.declarative_asset_schema_hash
+    {
+        return Err(CommandError::incomplete(
+            "installed release changed while setup request was active",
+        ));
+    }
+    let release_root = installed.manifest_path.parent().ok_or_else(|| {
+        CommandError::incomplete("installed release manifest has no parent directory")
+    })?;
+    let assets_root = release_root.join("assets");
+    let catalog =
+        legion_catalog::load_compact(&assets_root, "registry/index.json").map_err(|error| {
+            CommandError::incomplete(format!("installed catalog unavailable: {error}"))
+        })?;
+    let current_skill_ids = catalog
+        .entries
+        .into_iter()
+        .map(|entry| entry.canonical_id)
+        .collect::<Vec<_>>();
+    let home = std::env::var_os("USERPROFILE")
+        .or_else(|| std::env::var_os("HOME"))
+        .map(PathBuf::from)
+        .ok_or_else(|| CommandError::incomplete("host home directory is unavailable"))?;
+    let platform_state_root = legion_host::platform_state_root().map_err(setup_error)?;
+    let skills_root = assets_root.join("skills");
+    let claude =
+        selector_includes(selector, "claude-code").then(|| legion_host::ClaudeLegacyInput {
+            home: home.clone(),
+            canonical_skills_root: skills_root.clone(),
+            current_skill_ids: current_skill_ids.clone(),
+        });
+    let codex = selector_includes(selector, "codex").then(|| legion_host::CodexSkillsInput {
+        home,
+        assets_skills_root: skills_root,
+        platform_state_root,
+        current_skill_ids,
+        retired_skill_ids: vec![legion_host::RETIRED_BLUEPRINT_SKILL_ID.into()],
+        generation: format!(
+            "{}:{}",
+            release.release_version, release.declarative_asset_schema_hash
+        ),
+    });
+    Ok(HostIntegrationInputs { claude, codex })
+}
+
+fn selector_includes(selector: &legion_host::ClientSelector, client_id: &str) -> bool {
+    match selector {
+        legion_host::ClientSelector::AllSupported => true,
+        legion_host::ClientSelector::ClientId(selected) => selected == client_id,
+    }
+}
+
+fn host_error(error: legion_host::HostError) -> CommandError {
+    CommandError::incomplete(format!("host integration failed: {error}"))
 }
 
 fn installed_bound_release() -> Result<legion_host::BoundRelease, CommandError> {
@@ -1070,4 +1317,41 @@ fn write_json<T: Serialize>(path: &PathBuf, value: &T) -> Result<(), CommandErro
 
 fn setup_error(error: legion_host::SetupError) -> CommandError {
     CommandError::incomplete(format!("{:?}: {}", error.code, error.remediation))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn m1_result_parser_preserves_host_requirements_and_degradation() {
+        let value = json!({
+            "releaseVersion": "1.0.0",
+            "capabilityCount": 2,
+            "status": "complete",
+            "hostRequirements": [{
+                "id": "python-runtime",
+                "availability": "unavailable",
+                "degradation": "worker unavailable",
+                "remedy": "install Python",
+                "probe": {"kind": "command-any", "commands": ["python3", "python"]}
+            }],
+            "capabilities": [
+                {"capabilityId": "coder", "availability": "unavailable", "degraded": true, "requirements": []},
+                {"capabilityId": "writing", "availability": "available", "degraded": false, "requirements": []}
+            ],
+            "degradedCount": 1
+        });
+        let parsed = parse_m1_status_data("codex", &value, "1.0.0")
+            .expect("parse")
+            .expect("matching status");
+        assert_eq!(parsed.capability_count, 2);
+        assert_eq!(parsed.host_requirements.len(), 1);
+        assert_eq!(parsed.capabilities.len(), 2);
+        assert_eq!(parsed.degraded_count, 1);
+        assert_eq!(
+            parsed.host_requirements[0]["degradation"],
+            "worker unavailable"
+        );
+    }
 }

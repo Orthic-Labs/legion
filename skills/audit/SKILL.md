@@ -13,7 +13,8 @@ effects:
   - source-read
   - process-exec
   - artifact-write
-hostRequirements: []
+hostRequirements:
+  - blueprint-graph
 metadata:
   legion:
     provenance: legion-authored

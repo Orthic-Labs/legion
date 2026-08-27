@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "kind": "legion-skill-dependencies",
+  "resources": [
+    {
+      "class": "HOST_CAPABILITY",
+      "capability": "local-corpus"
+    },
+    {
+      "class": "HOST_CAPABILITY",
+      "capability": "notebooklm"
+    },
+    {
+      "class": "HOST_CAPABILITY",
+      "capability": "scholarly-search"
+    },
+    {
+      "class": "HOST_CAPABILITY",
+      "capability": "web-search"
+    },
+    {
+      "class": "PACKAGE_INTERNAL",
+      "path": "references/route-resources.json"
+    }
+  ]
+}

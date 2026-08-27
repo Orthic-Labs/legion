@@ -1,0 +1,10 @@
+{
+  "schemaVersion": 1,
+  "kind": "legion-skill-dependencies",
+  "resources": [
+    {
+      "class": "HOST_CAPABILITY",
+      "capability": "blueprint-graph"
+    }
+  ]
+}

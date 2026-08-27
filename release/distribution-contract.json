@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1,
+  "kind": "legion-distribution-contract",
+  "nodePackage": {
+    "name": "@orthic-labs/legion",
+    "access": "private-development-tooling",
+    "public": false,
+    "channels": ["internal-pack", "local-test", "ci-test"]
+  },
+  "nativeRelease": {
+    "channel": "signed-release",
+    "public": true,
+    "status": "blocked",
+    "requiredEvidence": [
+      "immutable-action-pins",
+      "platform-artifacts",
+      "platform-signatures",
+      "provenance-attestations",
+      "package-manager-metadata",
+      "channel-authorization"
+    ]
+  },
+  "packageManagers": {
+    "homebrew": "unavailable",
+    "winget": "unavailable"
+  }
+}

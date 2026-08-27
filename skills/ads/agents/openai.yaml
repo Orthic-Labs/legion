@@ -1,0 +1,6 @@
+interface:
+  display_name: "Ads"
+  short_description: "Audit, plan, create, or optimize paid campaigns across Google, Meta, YouTube, LinkedIn, TikTok, Microsoft, or Apple. Use for PPC, ROAS, CPA, targeting, bidding, retargeting, budgets, creative, or ad-spend questions."
+  default_prompt: "Use $ads when this request matches: Audit, plan, create, or optimize paid campaigns across Google, Meta, YouTube, LinkedIn, TikTok, Microsoft, or Apple. Use for PPC, ROAS, CPA, targeting, bidding, retargeting, budgets, creative, or ad-spend questions."
+policy:
+  allow_implicit_invocation: true
