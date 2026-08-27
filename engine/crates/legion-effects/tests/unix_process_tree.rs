@@ -35,7 +35,7 @@ async fn captures_direct_output_and_reaps_child() {
 
 #[tokio::test]
 async fn output_cap_terminates_process() {
-    let mut request = launch("/usr/bin/printf", &["123456789"]);
+    let mut request = launch("/bin/sh", &["-c", "while :; do printf 123456789; done"]);
     request.stdout_limit = 3;
     let output = UnixProcess::new()
         .run(request)
