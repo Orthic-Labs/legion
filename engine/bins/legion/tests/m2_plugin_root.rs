@@ -4,6 +4,7 @@ use std::{
     io::{BufRead, BufReader, Write},
     path::{Path, PathBuf},
     process::{Child, ChildStdin, ChildStdout, Command, Stdio},
+    sync::atomic::{AtomicU64, Ordering},
     time::{SystemTime, UNIX_EPOCH},
 };
 
@@ -27,6 +28,8 @@ struct Fixture {
     root: PathBuf,
     config: PathBuf,
 }
+
+static NEXT_FIXTURE_ID: AtomicU64 = AtomicU64::new(0);
 
 impl Drop for Fixture {
     fn drop(&mut self) {
@@ -96,15 +99,20 @@ fn policy_pack() -> PolicyPack {
 }
 
 fn fixture() -> Fixture {
-    let root = std::env::temp_dir().join(format!(
-        "legion-m2-plugin-root-{}-{}",
+    let requested_root = std::env::temp_dir().join(format!(
+        "legion-m2-plugin-root-{}-{}-{}",
         std::process::id(),
         SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .expect("clock")
-            .as_nanos()
+            .as_nanos(),
+        NEXT_FIXTURE_ID.fetch_add(1, Ordering::Relaxed)
     ));
-    fs::create_dir_all(root.join("registry")).expect("registry directory");
+    fs::create_dir_all(requested_root.join("registry")).expect("registry directory");
+    // macOS exposes its temporary root through `/var`, a symlink to
+    // `/private/var`; use its physical path so portability checks assess this
+    // fixture rather than rejecting the host alias.
+    let root = fs::canonicalize(requested_root).expect("canonical fixture root");
     fs::write(
         root.join("registry/index.json"),
         r#"{"schemaVersion":2,"bundles":[{"id":"demo","source":"skills/demo/SKILL.md","description":"fixture"}]}"#,

@@ -453,8 +453,7 @@ async fn validate_client_evidence(
     live_validation: bool,
     cancellation: CancellationToken,
 ) -> Result<(), CommandError> {
-    let qualification_root =
-        std::fs::canonicalize(platform_state_root.join("qualification")).map_err(io_error)?;
+    let mut qualification_root = None;
     for client in evidence {
         if !client.detected {
             continue;
@@ -464,6 +463,13 @@ async fn validate_client_evidence(
         };
         let Some(qualification_ref) = client.qualification_evidence_ref.as_deref() else {
             continue;
+        };
+        let qualification_root = match &qualification_root {
+            Some(root) => root,
+            None => qualification_root.insert(
+                std::fs::canonicalize(platform_state_root.join("qualification"))
+                    .map_err(io_error)?,
+            ),
         };
         let command_path = std::fs::canonicalize(command_ref).map_err(io_error)?;
         let qualification_path = std::fs::canonicalize(qualification_ref).map_err(io_error)?;
