@@ -77,6 +77,7 @@ test('verifyReleaseManifest rejects missing required artifacts', () => {
 test('right-release config keeps signing and publication fail-closed', () => {
   const config = readReleaseConfig();
   assert.match(config, /hostedWorkflows: "right-git-ci-only"/);
+  assert.match(config, /version: releaseVersion/);
   assert.match(config, /signed: true/);
   assert.match(config, /publishBlocked/);
   assert.match(config, /signedProvenanceScheme: "rightkit-release"/);
@@ -86,6 +87,14 @@ test('right-release config keeps signing and publication fail-closed', () => {
   assert.match(config, /legion-hook\.exe/);
   assert.match(config, /legion-mcp\.exe/);
   assert.doesNotMatch(config, /files:\s*\[/);
+});
+
+test('native skill assembly retains runtime helpers and excludes generated Python cache', () => {
+  const assembly = readFile(new URL('../scripts/assemble-native-release.mjs', import.meta.url), 'utf8');
+  assert.match(assembly, /function copySkillTree/);
+  assert.match(assembly, /segments\.includes\("__pycache__"\)/);
+  assert.match(assembly, /endsWith\("\.pyc"\)/);
+  assert.doesNotMatch(assembly, /LEGACY_RUNTIME_EXTENSIONS/);
 });
 
 test('Windows package binds target identity and emits blocked evidence seams', () => {

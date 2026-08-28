@@ -1164,8 +1164,11 @@ fn read_package_tree(
             return Err(format!("package contains symlink {relative}"));
         }
         if metadata.is_dir() {
-            directories.push(relative);
+            let file_count = files.len();
             read_package_tree(root, &path, directories, files)?;
+            if files.len() > file_count {
+                directories.push(relative);
+            }
         } else if metadata.is_file() {
             files.push(PackageFile {
                 path: relative,
@@ -1423,6 +1426,8 @@ mod tests {
         write_skill(&canonical_root, "audit", "audit v1");
 
         let target = canonical_root.join("audit");
+        let empty_directory = target.join("local-empty-directory");
+        fs::create_dir_all(&empty_directory).unwrap();
         let destination = input.home.join(".agents").join("skills").join("audit");
         fs::create_dir_all(destination.parent().unwrap()).unwrap();
         if !make_dir_symlink(&target, &destination) {
@@ -1451,6 +1456,7 @@ mod tests {
             .is_symlink());
         assert_eq!(fs::read(destination.join("SKILL.md")).unwrap(), b"audit v1");
         assert_eq!(package_digest_at(&target).unwrap(), target_digest);
+        assert!(empty_directory.is_dir());
         assert_eq!(
             inspect_codex_skills(&input).unwrap().statuses[0].state,
             CodexSkillState::Healthy
