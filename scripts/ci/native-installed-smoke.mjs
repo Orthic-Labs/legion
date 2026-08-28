@@ -49,16 +49,23 @@ const invocations = [
 	{ args: ["--json", "setup", "--check"], allowIncomplete: true },
 	{
 		args: ["--json", "setup", "repair", "--client-evidence", evidencePath, "--client", "codex", "--dry-run"],
-		allowIncomplete: true,
+		expectMissingLiveProofs: true,
 	},
 ];
 
-for (const { args, allowIncomplete = false } of invocations) {
+for (const { args, allowIncomplete = false, expectMissingLiveProofs = false } of invocations) {
 	const result = spawnSync(binary, args, { env: environment, encoding: "utf8" });
 	if (result.stdout) process.stdout.write(result.stdout);
 	if (result.stderr) process.stderr.write(result.stderr);
 	if (result.error) throw result.error;
 	if (result.status === 0) continue;
+	if (
+		expectMissingLiveProofs &&
+		result.status === 2 &&
+		result.stderr.includes("requires commandProofRef and qualificationEvidenceRef")
+	) {
+		continue;
+	}
 	if (allowIncomplete && [1, 2].includes(result.status)) {
 		let payload;
 		try {

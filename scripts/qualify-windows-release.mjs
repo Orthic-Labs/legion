@@ -162,13 +162,15 @@ function requireUtf8(path) {
 function walkFiles(root, current = root, output = []) {
 	const metadata = lstatSync(current);
 	if (metadata.isSymbolicLink()) throw new Error(`symlink/reparse escape in extracted archive: ${current}`);
+	let canonicalRoot;
 	let canonical;
 	try {
+		canonicalRoot = realpathSync(root);
 		canonical = realpathSync(current);
 	} catch (error) {
 		throw new Error(`cannot resolve extracted archive path ${current}: ${error.message}`);
 	}
-	if (!isSameOrInside(root, canonical, { platform: process.platform })) {
+	if (!isSameOrInside(canonicalRoot, canonical, { platform: process.platform })) {
 		throw new Error(`extracted archive path escapes isolated root: ${current}`);
 	}
 	if (metadata.isDirectory()) {
@@ -406,7 +408,7 @@ function proofRefsMatch(record, commandPath, qualificationPath) {
 		&& pathsEqual(record.qualificationEvidenceRef, qualificationPath);
 }
 
-function validateLiveCodexProofs({ state, installedLauncher, codexExecutable, current, architecture }) {
+function validateLiveCodexProofs({ state, installedLauncher, codexExecutable, current }) {
 	const qualificationRoot = join(state, "qualification");
 	const commandPath = join(qualificationRoot, "codex-command.json");
 	const qualificationPath = join(qualificationRoot, "codex-qualification.json");
@@ -742,7 +744,6 @@ export function qualifyWindowsRelease({
 			installedLauncher,
 			codexExecutable,
 			current,
-			architecture: normalizedArchitecture,
 		})
 		: {
 			valid: false,
