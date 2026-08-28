@@ -185,7 +185,7 @@ Every installed integration binds its assets to one Legion release using at leas
 - declarative-asset/schema hash.
 
 MCP initialization verifies binding before exposing tools. Mismatch fails closed with exact
-`legion setup --repair` remediation; stale assets never run silently against a newer runtime.
+`legion setup repair --confirm` remediation; stale assets never run silently against a newer runtime.
 Package-manager update and integration refresh may form a bounded skew window, but no mixed-version
 execution is allowed: setup repairs each integration transactionally after update. Existing client
 processes may finish under their bound release; incompatible state migration waits for old runtime

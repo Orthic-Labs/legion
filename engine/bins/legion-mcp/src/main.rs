@@ -13,7 +13,7 @@ async fn run_binary(application: Arc<NativeApplication>) -> std::io::Result<()> 
     // without a verified installed release identity.
     run_with_application(
         application,
-        Arc::new(RejectingBindingGate::new("legion setup --repair")),
+        Arc::new(RejectingBindingGate::new("legion setup repair --confirm")),
     )
     .await
 }

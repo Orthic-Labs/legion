@@ -93,7 +93,7 @@ impl Display for HostError {
             ),
             Self::ReleaseBindingMismatch { reason } => write!(
                 formatter,
-                "RELEASE_BINDING_MISMATCH: {reason}; run legion setup --repair"
+                "RELEASE_BINDING_MISMATCH: {reason}; run legion setup repair --confirm"
             ),
             Self::Verification { reason } => write!(formatter, "VERIFICATION_FAILED: {reason}"),
             Self::Rollback { reason } => write!(formatter, "ROLLBACK_FAILED: {reason}"),

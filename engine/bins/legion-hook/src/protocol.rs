@@ -4,6 +4,29 @@ pub const SCHEMA_VERSION: u32 = 1;
 pub const REQUEST_KIND: &str = "legion-hook-request";
 pub const RESPONSE_KIND: &str = "legion-hook-response";
 
+/// Host lifecycle names accepted by both retained Claude/Codex registrations
+/// & the canonical Arcane event vocabulary. Unknown names are rejected before
+/// any effect can be considered.
+pub const SUPPORTED_EVENT_TYPES: &[&str] = &[
+    "SessionStart",
+    "SubagentStart",
+    "UserPromptSubmit",
+    "PostCompact",
+    "PreToolUse",
+    "PostToolUse",
+    "PostToolUseFailure",
+    "Stop",
+    "session-start",
+    "subagent-start",
+    "user-prompt-submit",
+    "post-compact",
+    "pre-effect",
+    "post-effect",
+    "post-effect-failure",
+    "stop",
+    "ci-boundary",
+];
+
 #[derive(Clone, Debug)]
 pub struct HookRequest {
     pub schema_version: u32,
@@ -19,6 +42,18 @@ impl HookRequest {
         let object = value
             .as_object()
             .ok_or_else(|| crate::error::HookError::invalid("request must be a JSON object"))?;
+        if object.contains_key("payload")
+            && object.keys().any(|key| {
+                !matches!(
+                    key.as_str(),
+                    "schemaVersion" | "kind" | "eventType" | "hook_event_name" | "payload"
+                )
+            })
+        {
+            return Err(crate::error::HookError::invalid(
+                "request contains unknown frame fields",
+            ));
+        }
         // Native host hooks send an unwrapped event object.  Normalize that
         // transport shape to this adapter's versioned frame without assigning
         // any meaning to the event payload. Supplied malformed/overflowing
@@ -30,10 +65,25 @@ impl HookRequest {
                 .and_then(|value| u32::try_from(value).ok())
                 .unwrap_or(0),
         };
-        let kind = string(object, "kind").unwrap_or_else(|| REQUEST_KIND.into());
-        let event_type = string(object, "eventType")
-            .or_else(|| string(object, "hook_event_name"))
-            .unwrap_or_default();
+        let kind = match object.get("kind") {
+            None => REQUEST_KIND.into(),
+            Some(value) => value
+                .as_str()
+                .map(ToOwned::to_owned)
+                .ok_or_else(|| crate::error::HookError::invalid("request kind must be a string"))?,
+        };
+        let event_type = match (
+            string(object, "eventType"),
+            string(object, "hook_event_name"),
+        ) {
+            (Some(event_type), Some(hook_event_name)) if event_type != hook_event_name => {
+                return Err(crate::error::HookError::invalid(
+                    "event type fields disagree",
+                ));
+            }
+            (Some(event_type), _) | (_, Some(event_type)) => event_type,
+            (None, None) => String::new(),
+        };
         let payload = object
             .get("payload")
             .cloned()
@@ -60,7 +110,45 @@ impl HookRequest {
         if self.event_type.trim().is_empty() {
             return Err(crate::error::HookError::invalid("event type is required"));
         }
+        if !SUPPORTED_EVENT_TYPES.contains(&self.event_type.as_str()) {
+            return Err(crate::error::HookError::invalid(
+                "event type is unsupported",
+            ));
+        }
+        if !self.payload.is_object() {
+            return Err(crate::error::HookError::invalid(
+                "request payload must be a JSON object",
+            ));
+        }
         Ok(())
+    }
+
+    pub fn is_lifecycle(&self) -> bool {
+        matches!(
+            self.event_type.as_str(),
+            "SessionStart"
+                | "SubagentStart"
+                | "UserPromptSubmit"
+                | "PostCompact"
+                | "Stop"
+                | "session-start"
+                | "subagent-start"
+                | "user-prompt-submit"
+                | "post-compact"
+                | "stop"
+                | "ci-boundary"
+        )
+    }
+
+    pub fn is_pre_effect(&self) -> bool {
+        matches!(self.event_type.as_str(), "PreToolUse" | "pre-effect")
+    }
+
+    pub fn is_post_effect(&self) -> bool {
+        matches!(
+            self.event_type.as_str(),
+            "PostToolUse" | "PostToolUseFailure" | "post-effect" | "post-effect-failure"
+        )
     }
 }
 
@@ -81,10 +169,22 @@ impl HookResponse {
             schema_version: SCHEMA_VERSION,
             kind: RESPONSE_KIND,
             event_type: event_type.into(),
+            allowed: false,
+            code: Some("ARC_NATIVE_POLICY_UNAVAILABLE".into()),
+            reason: "native hook enforcement is unavailable; effect is refused".into(),
+            enforcement_health: "unsupported",
+        }
+    }
+
+    pub fn allowed(event_type: impl Into<String>, reason: impl Into<String>) -> Self {
+        Self {
+            schema_version: SCHEMA_VERSION,
+            kind: RESPONSE_KIND,
+            event_type: event_type.into(),
             allowed: true,
             code: None,
-            reason: "native hook enforcement is not available through this adapter".into(),
-            enforcement_health: "unsupported",
+            reason: reason.into(),
+            enforcement_health: "strong",
         }
     }
 
@@ -120,6 +220,22 @@ impl HookResponse {
         object.insert("kind".into(), Value::String(self.kind.into()));
         object.insert("reason".into(), Value::String(self.reason.clone()));
         object.insert("schemaVersion".into(), Value::from(self.schema_version));
+
+        // Preserve native Claude/Codex blocking shapes alongside the typed
+        // response envelope. Hosts ignore these fields when an event cannot
+        // be blocked, while PreToolUse/Stop consume them directly.
+        if !self.allowed && matches!(self.event_type.as_str(), "PreToolUse" | "pre-effect") {
+            let mut specific = Map::new();
+            specific.insert("hookEventName".into(), Value::String("PreToolUse".into()));
+            specific.insert("permissionDecision".into(), Value::String("deny".into()));
+            specific.insert(
+                "permissionDecisionReason".into(),
+                Value::String(self.reason.clone()),
+            );
+            object.insert("hookSpecificOutput".into(), Value::Object(specific));
+        } else if !self.allowed && matches!(self.event_type.as_str(), "Stop" | "stop") {
+            object.insert("decision".into(), Value::String("block".into()));
+        }
         Value::Object(object)
     }
 }
@@ -129,4 +245,21 @@ fn string(object: &Map<String, Value>, key: &str) -> Option<String> {
         .get(key)
         .and_then(Value::as_str)
         .map(ToOwned::to_owned)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn non_string_frame_kind_is_rejected() {
+        assert!(HookRequest::parse(br#"{"kind":42,"eventType":"Stop","payload":{}}"#).is_err());
+    }
+
+    #[test]
+    fn unknown_event_is_rejected_by_validation() {
+        let request = HookRequest::parse(br#"{"eventType":"unknown","payload":{}}"#)
+            .expect("frame shape is valid");
+        assert!(request.validate().is_err());
+    }
 }

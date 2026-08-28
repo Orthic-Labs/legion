@@ -306,7 +306,7 @@ mod tests {
 
     impl ReleaseBindingGate for FailingGate {
         fn verify_binding(&self) -> Result<VerifiedReleaseBinding, BindingFailure> {
-            Err(BindingFailure::new("legion setup --repair"))
+            Err(BindingFailure::new("legion setup repair --confirm"))
         }
     }
 
@@ -442,7 +442,10 @@ mod tests {
             .handle(request(1, "initialize", json!({})))
             .await
             .unwrap();
-        assert_eq!(initialize["error"]["message"], "legion setup --repair");
+        assert_eq!(
+            initialize["error"]["message"],
+            "legion setup repair --confirm"
+        );
         assert_eq!(initialize["error"]["data"]["code"], "RELEASE_BINDING");
         assert!(initialize["error"]["data"].get("retryable").is_some());
 
@@ -451,7 +454,10 @@ mod tests {
             request(3, "tools/call", json!({"name":"m1_status", "arguments":{}})),
         ] {
             let response = server.handle(request).await.unwrap();
-            assert_eq!(response["error"]["message"], "legion setup --repair");
+            assert_eq!(
+                response["error"]["message"],
+                "legion setup repair --confirm"
+            );
             assert!(response.get("result").is_none());
         }
         assert_eq!(api.invocations.load(Ordering::SeqCst), 0);

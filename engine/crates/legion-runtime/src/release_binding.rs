@@ -9,7 +9,7 @@ use legion_catalog::json;
 use serde::{Deserialize, Serialize};
 
 /// The sole remediation for a mixed or otherwise invalid installed identity.
-pub const REPAIR_COMMAND: &str = "legion setup --repair";
+pub const REPAIR_COMMAND: &str = "legion setup repair --confirm";
 pub const CANONICAL_RELEASE_MANIFEST: &str = "share/legion/release.json";
 pub const RIGHTKIT_AX_VERSION: &str = "0.2.0";
 pub const RIGHTKIT_AX_SOURCE_COMMIT: &str = "01f52555202da3dffc6b649ca44e803b55238081";
@@ -608,7 +608,7 @@ mod tests {
                 ..
             } => {
                 assert_eq!(component, "state schema version");
-                assert_eq!(remediation, "legion setup --repair");
+                assert_eq!(remediation, "legion setup repair --confirm");
             }
             error => panic!("wrong error: {error:?}"),
         }

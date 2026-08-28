@@ -439,7 +439,10 @@ fn mismatch_remains_a_stdio_protocol_failure_without_tools() {
         &mut stdout,
         json!({"jsonrpc":"2.0", "id":1, "method":"initialize", "params":{}}),
     );
-    assert_eq!(initialized["error"]["message"], "legion setup --repair");
+    assert_eq!(
+        initialized["error"]["message"],
+        "legion setup repair --confirm"
+    );
     assert!(initialized.get("result").is_none());
 
     let listed = request(
@@ -447,7 +450,7 @@ fn mismatch_remains_a_stdio_protocol_failure_without_tools() {
         &mut stdout,
         json!({"jsonrpc":"2.0", "id":2, "method":"tools/list", "params":{}}),
     );
-    assert_eq!(listed["error"]["message"], "legion setup --repair");
+    assert_eq!(listed["error"]["message"], "legion setup repair --confirm");
     assert!(listed.get("result").is_none());
 
     drop(stdin);

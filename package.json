@@ -115,6 +115,8 @@
     "plugin:verify": "node scripts/verify-plugin-parity.mjs --check",
     "plugin:dev": "node scripts/plugin-dev.mjs",
     "native:assemble": "node scripts/assemble-native-release.mjs",
+    "windows:package": "node scripts/package-windows-release.mjs",
+    "release:doctor": "right-release doctor --platform win",
     "biome": "biome lint . --max-diagnostics=1000",
     "biome:check": "biome lint . --max-diagnostics=1000"
   },
@@ -124,6 +126,6 @@
   "devDependencies": {
     "@biomejs/biome": "2.5.10",
     "@rightkit/git": "0.2.1",
-    "@rightkit/release": "0.2.68"
+    "@rightkit/release": "0.2.70"
   }
 }

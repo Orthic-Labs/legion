@@ -311,7 +311,7 @@ impl SetupStore for OnDiskSetupStore {
         let state = serde_json::from_slice(&read(&self.state)?).map_err(|_| {
             err(
                 SetupErrorCode::StateMetadataInvalid,
-                "setup state is corrupt; run legion setup --repair",
+                "setup state is corrupt; run legion setup repair --confirm",
             )
         })?;
         Ok(Some(state))
@@ -475,7 +475,7 @@ impl<S: SetupStore> SetupRegistry<S> {
         let journal: Journal = serde_json::from_slice(&read(&path)?).map_err(|_| {
             err(
                 SetupErrorCode::JournalIncomplete,
-                "interrupted setup journal is invalid; run legion setup --repair",
+                "interrupted setup journal is invalid; run legion setup repair --confirm",
             )
         })?;
         let lock = self.store.acquire_exclusive_lock()?;
@@ -987,7 +987,7 @@ fn validate_release(release: &BoundRelease) -> Result<(), SetupError> {
     {
         Err(err(
             SetupErrorCode::ReleaseBindingMismatch,
-            "release binding is incomplete; run legion setup --repair",
+            "release binding is incomplete; run legion setup repair --confirm",
         ))
     } else {
         Ok(())
@@ -1039,7 +1039,7 @@ fn detected(evidence: &ClientEvidence) -> DetectedClient {
         remediation: if qualified {
             Vec::new()
         } else {
-            vec!["legion setup --repair".into()]
+            vec!["legion setup repair --confirm".into()]
         },
     }
 }

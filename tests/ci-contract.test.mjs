@@ -25,6 +25,8 @@ test('CI pins toolchains, gates all supported hosts, and smoke-tests installed p
   assert.match(smoke, /"setup", "preview"/);
   assert.match(smoke, /"setup", "--check"/);
   assert.match(smoke, /"setup", "repair"/);
+  assert.match(smoke, /allowIncomplete/);
+  assert.match(smoke, /payload\.status === "incomplete"/);
   const actionRefs = [...ci.matchAll(/^\s*-?\s*uses:\s*[^@\s]+@([^\s#]+)/gm)].map((match) => match[1]);
   assert.ok(actionRefs.length >= 5);
   for (const ref of actionRefs) assert.match(ref, /^[0-9a-f]{40}$/);

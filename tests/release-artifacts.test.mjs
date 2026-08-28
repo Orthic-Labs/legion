@@ -1,10 +1,11 @@
 import assert from 'node:assert/strict';
-import { mkdtempSync, writeFileSync, rmSync, readFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, writeFileSync, rmSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import test from 'node:test';
 import { sha256File, verifyReleaseManifest } from '../scripts/verify-release.mjs';
+import { buildWindowsReleasePackage, normalizeWindowsArchitecture } from '../scripts/package-windows-release.mjs';
 
 function readFile(path) {
   return readFileSync(fileURLToPath(path), 'utf8');
@@ -73,11 +74,98 @@ test('verifyReleaseManifest rejects missing required artifacts', () => {
   }
 });
 
-test('right-release config fails closed until local signed targets exist', () => {
+test('right-release config keeps signing and publication fail-closed', () => {
   const config = readReleaseConfig();
-  assert.match(config, /signed: false/);
+  assert.match(config, /hostedWorkflows: "right-git-ci-only"/);
+  assert.match(config, /signed: true/);
   assert.match(config, /publishBlocked/);
   assert.match(config, /signedProvenanceScheme: "rightkit-release"/);
+  assert.match(config, /x86_64-pc-windows-msvc/);
+  assert.match(config, /aarch64-pc-windows-msvc/);
+  assert.match(config, /packageKind: "portable-zip"/);
+  assert.match(config, /legion-hook\.exe/);
+  assert.match(config, /legion-mcp\.exe/);
+  assert.doesNotMatch(config, /files:\s*\[/);
+});
+
+test('Windows package binds target identity and emits blocked evidence seams', () => {
+  const repositoryRoot = mkdtempSync(join(tmpdir(), 'legion-win-package-'));
+  const input = join(repositoryRoot, 'assembled');
+  const output = join(repositoryRoot, 'out');
+  try {
+    mkdirSync(join(repositoryRoot, 'release'), { recursive: true });
+    mkdirSync(join(repositoryRoot, 'docs'), { recursive: true });
+    mkdirSync(join(input, 'bin'), { recursive: true });
+    mkdirSync(join(input, 'share', 'legion'), { recursive: true });
+    writeFileSync(join(repositoryRoot, 'release', 'version.json'), JSON.stringify({ schemaVersion: 1, kind: 'legion-release-version', version: '0.1.0' }));
+    writeFileSync(join(repositoryRoot, 'docs', 'THIRD_PARTY_NOTICES.md'), 'Legion notice\n');
+    for (const name of ['legion.exe', 'legion-hook.exe', 'legion-mcp.exe']) writeFileSync(join(input, 'bin', name), `${name}\n`);
+    const runtimeDigest = sha256File(join(input, 'bin', 'legion.exe')).slice('sha256:'.length);
+    writeFileSync(join(input, 'share', 'legion', 'release.json'), JSON.stringify({
+      releaseVersion: '0.1.0',
+      runtime: { platform: 'windows', architecture: 'x86_64', sha256: runtimeDigest, provenance: 'local-build://windows-x86_64' },
+    }));
+    const result = buildWindowsReleasePackage({ input, output, architecture: 'x86_64', repositoryRoot, sourceRevision: 'a'.repeat(40), force: true });
+    assert.equal(result.status, 'BLOCKED');
+    assert.equal(result.channel, 'BLOCKED');
+    assert.equal(result.targetTriple, 'x86_64-pc-windows-msvc');
+    assert.equal(normalizeWindowsArchitecture('windows-x86_64'), 'x86_64');
+    assert.ok(existsSync(result.archive));
+    const manifest = JSON.parse(readFileSync(result.manifest, 'utf8'));
+    assert.equal(manifest.targetIdentity.architecture, 'x86_64');
+    assert.equal(manifest.targetIdentity.targetTriple, 'x86_64-pc-windows-msvc');
+    assert.equal(manifest.channels[0].decision, 'BLOCKED');
+    assert.equal(manifest.signatures[0].status, 'missing');
+    assert.equal(manifest.qualificationArtifacts[0].status, 'missing');
+    assert.equal(manifest.provenance[0].status, 'missing');
+    assert.ok(existsSync(join(output, 'SHA256SUMS')));
+    assert.ok(existsSync(join(output, 'SBOM.cdx.json')));
+    assert.ok(existsSync(join(output, 'winget-portable.json')));
+
+    const receiptPath = join(repositoryRoot, '.right-release', 'receipts', 'windows-x86_64-raw-exe.json');
+    mkdirSync(join(repositoryRoot, '.right-release', 'receipts'), { recursive: true });
+    const signedFiles = ['legion.exe', 'legion-hook.exe', 'legion-mcp.exe'].map((name) => {
+      const file = join(input, 'bin', name);
+      return {
+        file,
+        after: { sha256: sha256File(file).slice('sha256:'.length), sizeBytes: readFileSync(file).length },
+        authenticode: 'Valid',
+        subject: 'CN=Damned Ventures LLC',
+        timestampPresent: true,
+      };
+    });
+    writeFileSync(receiptPath, JSON.stringify({ schema: 1, files: signedFiles }));
+    const signedResult = buildWindowsReleasePackage({
+      input,
+      output: join(repositoryRoot, 'signed-out'),
+      architecture: 'x86_64',
+      repositoryRoot,
+      sourceRevision: 'a'.repeat(40),
+      signatureReceipt: receiptPath,
+      requireSignature: true,
+      force: true,
+    });
+    assert.equal(signedResult.evidence.signature, 'verified');
+    const signedManifest = JSON.parse(readFileSync(signedResult.manifest, 'utf8'));
+    assert.equal(signedManifest.signatures[0].status, 'verified');
+    assert.equal(JSON.parse(readFileSync(join(signedResult.outputDir, 'signature.json'), 'utf8')).artifacts.length, 3);
+    writeFileSync(receiptPath, JSON.stringify({ schema: 1, files: signedFiles.slice(0, 2) }));
+    assert.throws(
+      () => buildWindowsReleasePackage({
+        input,
+        output: join(repositoryRoot, 'invalid-out'),
+        architecture: 'x86_64',
+        repositoryRoot,
+        sourceRevision: 'a'.repeat(40),
+        signatureReceipt: receiptPath,
+        requireSignature: true,
+        force: true,
+      }),
+      /Windows release signing is not verified/,
+    );
+  } finally {
+    rmSync(repositoryRoot, { recursive: true, force: true });
+  }
 });
 
 test('public Actions surface contains only right-git managed CI', () => {

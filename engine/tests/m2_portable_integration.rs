@@ -196,7 +196,7 @@ fn reference_clients_have_identical_bound_identity_and_fail_closed_on_skew() {
     skewed.mcp_tool_schema_hash = "sha256:stale".into();
     let error = verify_client_identity(&claude, &skewed, &resolution("claude-code")).unwrap_err();
     assert_eq!(error.code(), FailureCode::ReleaseBindingMismatch);
-    assert!(error.to_string().contains("legion setup --repair"));
+    assert!(error.to_string().contains("legion setup repair --confirm"));
 
     assert_eq!(
         ClientFidelity::from_evidence(true, false, false, false, false),

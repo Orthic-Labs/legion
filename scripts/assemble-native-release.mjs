@@ -17,9 +17,69 @@ import rightReleaseConfig from "../right-release.config.mjs";
 const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const releaseVersionRecord = join(repositoryRoot, "release", "version.json");
 
+/**
+ * The Windows target names are part of the release identity.  Do not infer an
+ * ARM64 artifact from the host process architecture: a cross build must name
+ * its target explicitly, otherwise a valid x64 binary can be published under
+ * an ARM64 filename (or vice versa).
+ */
+export const WINDOWS_TARGETS = Object.freeze({
+	x86_64: Object.freeze({
+		platform: "windows",
+		architecture: "x86_64",
+		installerArchitecture: "x64",
+		targetTriple: "x86_64-pc-windows-msvc",
+		executableSuffix: ".exe",
+	}),
+	arm64: Object.freeze({
+		platform: "windows",
+		architecture: "arm64",
+		installerArchitecture: "arm64",
+		targetTriple: "aarch64-pc-windows-msvc",
+		executableSuffix: ".exe",
+	}),
+});
+
+const ARCHITECTURE_ALIASES = new Map([
+	["x64", "x86_64"],
+	["amd64", "x86_64"],
+	["x86_64", "x86_64"],
+	["arm64", "arm64"],
+	["aarch64", "arm64"],
+]);
+
 function argument(name, fallback) {
 	const index = process.argv.indexOf(name);
-	return index === -1 ? fallback : process.argv[index + 1];
+	if (index === -1) return fallback;
+	const value = process.argv[index + 1];
+	if (!value || value.startsWith("--")) throw new Error(`${name} requires a value`);
+	return value;
+}
+
+function normalizePlatform(value) {
+	const platform = String(value ?? "").trim().toLowerCase();
+	if (platform === "win" || platform === "windows") return "windows";
+	if (platform === "mac" || platform === "macos" || platform === "darwin") return "macos";
+	if (/^[a-z0-9][a-z0-9_.-]*$/i.test(platform)) return platform;
+	throw new Error(`invalid release platform: ${value}`);
+}
+
+function normalizeArchitecture(value, platform) {
+	const normalized = ARCHITECTURE_ALIASES.get(String(value ?? "").trim().toLowerCase());
+	if (platform === "windows") {
+		if (!normalized || !WINDOWS_TARGETS[normalized]) {
+			throw new Error(`unsupported Windows architecture: ${value}; expected x86_64 or arm64`);
+		}
+		return normalized;
+	}
+	if (normalized) return platform === "macos" && normalized === "arm64" ? "aarch64" : normalized;
+	if (String(value ?? "").trim() === "") {
+		return process.arch === "x64" ? "x86_64" : process.arch === "arm64" ? "aarch64" : process.arch;
+	}
+	if (!/^[a-z0-9][a-z0-9_.-]*$/i.test(String(value))) {
+		throw new Error(`invalid release architecture: ${value}`);
+	}
+	return String(value);
 }
 
 function sha256(bytes) {
@@ -92,19 +152,26 @@ function version() {
 	return record.version;
 }
 
-const platform =
-	process.platform === "win32"
-		? "windows"
-		: process.platform === "darwin"
-			? "macos"
-			: process.platform;
-const architecture =
-	process.arch === "x64"
-		? "x86_64"
-		: process.arch === "arm64"
-			? "aarch64"
-			: process.arch;
-const executableSuffix = platform === "windows" ? ".exe" : "";
+const platform = normalizePlatform(
+	argument(
+		"--platform",
+		process.platform === "win32" ? "windows" : process.platform === "darwin" ? "macos" : process.platform,
+	),
+);
+const architecture = normalizeArchitecture(
+	argument(
+		"--architecture",
+		platform === "windows" ? process.env.LEGION_WINDOWS_ARCH ?? "x86_64" : null,
+	),
+	platform,
+);
+const explicitWindowsArchitecture = platform === "windows" &&
+	(process.argv.includes("--architecture") || Boolean(process.env.LEGION_WINDOWS_ARCH));
+if (platform === "windows" && process.platform !== "win32" && !explicitWindowsArchitecture) {
+	throw new Error("cross-building Windows requires explicit --architecture x86_64 or arm64");
+}
+const windowsTarget = platform === "windows" ? WINDOWS_TARGETS[architecture] : null;
+const executableSuffix = windowsTarget?.executableSuffix ?? "";
 const releaseVersion = version();
 const cargoManifest = resolve(
 	repositoryRoot,
@@ -116,9 +183,18 @@ const profile = argument(
 );
 if (!/^[a-z0-9][a-z0-9_-]*$/i.test(profile))
 	throw new Error(`invalid Cargo profile: ${profile}`);
-const cargoTarget = argument("--target", process.env.CARGO_BUILD_TARGET ?? null);
+const requestedCargoTarget = argument("--target", process.env.CARGO_BUILD_TARGET ?? null);
+const cargoTarget = windowsTarget && (explicitWindowsArchitecture || requestedCargoTarget)
+	? windowsTarget.targetTriple
+	: requestedCargoTarget;
+const targetTriple = windowsTarget?.targetTriple ?? cargoTarget;
 if (cargoTarget && !/^[a-z0-9][a-z0-9_.-]*$/i.test(cargoTarget))
 	throw new Error(`invalid Cargo target: ${cargoTarget}`);
+if (windowsTarget && requestedCargoTarget && requestedCargoTarget !== windowsTarget.targetTriple) {
+	throw new Error(
+		`Windows target identity mismatch: architecture ${architecture} requires ${windowsTarget.targetTriple}, received ${requestedCargoTarget}`,
+	);
+}
 const suppliedBinDirectory = argument("--bin-dir", null);
 const binDirectory = suppliedBinDirectory
 	? resolve(suppliedBinDirectory)
@@ -268,6 +344,13 @@ if (
 const provenance =
 	suppliedProvenance ??
 	`${rightReleaseConfig.nativeAssembly.localProvenanceScheme}://${platform}-${architecture}/${runtimeDigest}`;
+const targetIdentity = {
+	platform,
+	architecture,
+	targetTriple,
+	executable: binaryNames[0],
+	installerArchitecture: windowsTarget?.installerArchitecture ?? null,
+};
 const manifest = {
 	releaseVersion,
 	runtime: { platform, architecture, sha256: runtimeDigest, provenance },
@@ -335,6 +418,8 @@ process.stdout.write(
 			platform,
 			architecture,
 			cargoTarget,
+			targetTriple,
+			targetIdentity,
 			finalizedSigned: finalizeSigned,
 			runtimeSha256: runtimeDigest,
 			assetsSha256: manifest.declarativeAssetsSha256,

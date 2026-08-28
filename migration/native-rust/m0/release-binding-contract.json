@@ -18,13 +18,13 @@
     "phase": "MCP initialization before exposing any Legion tool",
     "checks": ["runtime digest and provenance", "release version", "capability catalog hash", "MCP schema hash", "declarative asset hash", "state compatibility"],
     "success": "Expose tools with the exact bound release identity.",
-    "failure": "Fail closed without exposing tools and emit exact legion setup --repair remediation."
+    "failure": "Fail closed without exposing tools and emit exact legion setup repair --confirm remediation."
   },
   "skewPolicy": {
     "allowed": "A bounded package-manager update window while no mixed-version execution occurs.",
     "forbidden": "New runtime with stale integration assets, schemas, catalog, or tool contracts.",
     "activeProcesses": "Existing client-owned processes may finish under their bound release; incompatible state migration waits for old runtime leases to close.",
-    "repair": "legion setup --repair refreshes every selected integration transactionally and verifies the complete identity tuple before activation."
+    "repair": "legion setup repair --confirm refreshes every selected integration transactionally and verifies the complete identity tuple before activation."
   },
   "updateTransaction": ["verify new signed runtime", "snapshot compatible durable state", "install runtime and versioned assets", "repair selected integrations", "verify binding handshake", "activate or roll back atomically"],
   "rollbackTransaction": ["wait for incompatible active leases", "restore preceding signed runtime", "restore preceding state snapshot", "restore matching integration assets", "verify binding handshake", "reactivate preceding release"],
