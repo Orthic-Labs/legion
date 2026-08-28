@@ -123,18 +123,14 @@ function writeJson(path, value) {
 	writeFileSync(path, `${JSON.stringify(value, null, 2)}\n`);
 }
 
-const LEGACY_RUNTIME_EXTENSIONS = new Set([
-	".cjs",
-	".js",
-	".mjs",
-	".py",
-	".pyc",
-]);
+function excludedSkillArtifact(path) {
+	const segments = path.toLowerCase().split("/");
+	return segments.includes("__pycache__") || path.toLowerCase().endsWith(".pyc");
+}
 
-function copyDeclarativeTree(source, destination) {
+function copySkillTree(source, destination) {
 	for (const path of filesBelow(source).sort()) {
-		const extension = path.slice(path.lastIndexOf(".")).toLowerCase();
-		if (LEGACY_RUNTIME_EXTENSIONS.has(extension)) continue;
+		if (excludedSkillArtifact(path)) continue;
 		const target = join(destination, path);
 		mkdirSync(dirname(target), { recursive: true });
 		copyFileSync(join(source, path), target);
@@ -256,7 +252,7 @@ copyFileSync(
 	join(repositoryRoot, "src", "registry", "skills", "index.json"),
 	catalogPath,
 );
-copyDeclarativeTree(join(repositoryRoot, "skills"), join(assets, "skills"));
+copySkillTree(join(repositoryRoot, "skills"), join(assets, "skills"));
 
 const mcpToolSchema = {
 	schemaVersion: 1,

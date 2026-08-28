@@ -711,7 +711,7 @@ fn inspect_plugin_cache(
                 && legion_plugin_manifest
                 && skills_root
                     .as_deref()
-                    .is_some_and(|path| content_tree_matches(path, canonical_skills_root));
+                    .is_some_and(|path| content_tree_contains(path, canonical_skills_root));
             let available_skill_ids = skills_root
                 .as_deref()
                 .map(|root| {
@@ -751,11 +751,34 @@ fn string_field(record: &serde_json::Map<String, Value>, field: &str) -> Option<
         .map(str::to_owned)
 }
 
-fn content_tree_matches(left: &Path, right: &Path) -> bool {
-    let Some(left_digest) = release_assets_digest(left) else {
+fn content_tree_contains(candidate: &Path, canonical: &Path) -> bool {
+    let mut candidate_files = BTreeMap::new();
+    let mut candidate_remaining = MAX_TREE_ENTRIES;
+    if collect_release_files(
+        candidate,
+        Path::new(""),
+        &mut candidate_files,
+        &mut candidate_remaining,
+    )
+    .is_none()
+    {
         return false;
-    };
-    release_assets_digest(right).as_deref() == Some(left_digest.as_str())
+    }
+    let mut canonical_files = BTreeMap::new();
+    let mut canonical_remaining = MAX_TREE_ENTRIES;
+    if collect_release_files(
+        canonical,
+        Path::new(""),
+        &mut canonical_files,
+        &mut canonical_remaining,
+    )
+    .is_none()
+    {
+        return false;
+    }
+    canonical_files
+        .iter()
+        .all(|(path, bytes)| candidate_files.get(path) == Some(bytes))
 }
 
 fn is_legion_plugin_id(id: &str) -> bool {
@@ -1326,6 +1349,12 @@ mod tests {
         )
         .unwrap();
         write_skill(&cache.join("skills"), "audit", "current audit");
+        fs::create_dir_all(cache.join("skills").join("audit").join("scripts")).unwrap();
+        fs::write(
+            cache.join("skills").join("audit").join("scripts/helper.py"),
+            "print('plugin-only helper')",
+        )
+        .unwrap();
         let cache_index = home
             .join(".claude")
             .join("plugins")

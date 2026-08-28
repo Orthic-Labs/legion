@@ -88,6 +88,14 @@ test('right-release config keeps signing and publication fail-closed', () => {
   assert.doesNotMatch(config, /files:\s*\[/);
 });
 
+test('native skill assembly retains runtime helpers and excludes generated Python cache', () => {
+  const assembly = readFile(new URL('../scripts/assemble-native-release.mjs', import.meta.url), 'utf8');
+  assert.match(assembly, /function copySkillTree/);
+  assert.match(assembly, /segments\.includes\("__pycache__"\)/);
+  assert.match(assembly, /endsWith\("\.pyc"\)/);
+  assert.doesNotMatch(assembly, /LEGACY_RUNTIME_EXTENSIONS/);
+});
+
 test('Windows package binds target identity and emits blocked evidence seams', () => {
   const repositoryRoot = mkdtempSync(join(tmpdir(), 'legion-win-package-'));
   const input = join(repositoryRoot, 'assembled');
