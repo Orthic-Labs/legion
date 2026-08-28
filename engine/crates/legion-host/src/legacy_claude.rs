@@ -707,9 +707,11 @@ fn inspect_plugin_cache(
                 .as_deref()
                 .is_some_and(has_legion_plugin_manifest);
             let canonical_generation = canonical_skills_root_trusted
+                && cache_managed
+                && legion_plugin_manifest
                 && skills_root
                     .as_deref()
-                    .is_some_and(|path| same_real_path(path, canonical_skills_root));
+                    .is_some_and(|path| content_tree_matches(path, canonical_skills_root));
             let available_skill_ids = skills_root
                 .as_deref()
                 .map(|root| {
@@ -747,6 +749,13 @@ fn string_field(record: &serde_json::Map<String, Value>, field: &str) -> Option<
         .and_then(Value::as_str)
         .filter(|value| !value.trim().is_empty())
         .map(str::to_owned)
+}
+
+fn content_tree_matches(left: &Path, right: &Path) -> bool {
+    let Some(left_digest) = release_assets_digest(left) else {
+        return false;
+    };
+    release_assets_digest(right).as_deref() == Some(left_digest.as_str())
 }
 
 fn is_legion_plugin_id(id: &str) -> bool {
@@ -1289,6 +1298,59 @@ mod tests {
         assert!(standalone.join("blueprint").exists());
         assert_eq!(fs::read(&cache_path).unwrap(), cache);
         assert!(repair.plugin_cache_untouched);
+    }
+
+    #[test]
+    fn current_claude_cache_copy_is_canonical_generation() {
+        let temp = TempRoot::new("current-cache-generation");
+        let home = temp.0.join("home");
+        let canonical = temp
+            .0
+            .join("release")
+            .join("share")
+            .join("legion")
+            .join("assets")
+            .join("skills");
+        write_skill(&canonical, "audit", "current audit");
+        let cache = home
+            .join(".claude")
+            .join("plugins")
+            .join("cache")
+            .join("orthic-labs")
+            .join("legion")
+            .join("0.1.0");
+        fs::create_dir_all(cache.join(".claude-plugin")).unwrap();
+        fs::write(
+            cache.join(".claude-plugin").join("plugin.json"),
+            r#"{"name":"legion","version":"0.1.0"}"#,
+        )
+        .unwrap();
+        write_skill(&cache.join("skills"), "audit", "current audit");
+        let cache_index = home
+            .join(".claude")
+            .join("plugins")
+            .join("installed_plugins.json");
+        fs::write(
+            &cache_index,
+            serde_json::to_vec(&json!({
+                "plugins": {
+                    "legion@orthic-labs": [{
+                        "version": "0.1.0",
+                        "installPath": cache,
+                    }]
+                }
+            }))
+            .unwrap(),
+        )
+        .unwrap();
+
+        let inspection = inspect_claude_legacy(&input(&home, &canonical, &["audit"])).unwrap();
+        assert_eq!(inspection.plugin_cache_generations.len(), 1);
+        assert!(inspection.plugin_cache_generations[0].canonical_generation);
+        assert!(inspection
+            .remediation
+            .iter()
+            .all(|item| !item.contains("non-canonical Legion plugin cache generation")));
     }
 
     #[test]
