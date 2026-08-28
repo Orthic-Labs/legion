@@ -47,7 +47,7 @@ export default {
 	schema: 1,
 	app: "legion",
 	hostedWorkflows: "right-git-ci-only",
-	version: "release/version.json",
+	version: releaseVersion,
 	packageManager: "pnpm@11.24.0",
 	workdir: ".",
 	checks: ["legion:check", "test"],

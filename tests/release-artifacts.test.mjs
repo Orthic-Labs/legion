@@ -77,6 +77,7 @@ test('verifyReleaseManifest rejects missing required artifacts', () => {
 test('right-release config keeps signing and publication fail-closed', () => {
   const config = readReleaseConfig();
   assert.match(config, /hostedWorkflows: "right-git-ci-only"/);
+  assert.match(config, /version: releaseVersion/);
   assert.match(config, /signed: true/);
   assert.match(config, /publishBlocked/);
   assert.match(config, /signedProvenanceScheme: "rightkit-release"/);
