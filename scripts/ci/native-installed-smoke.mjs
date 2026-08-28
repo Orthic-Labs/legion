@@ -40,13 +40,33 @@ const environment = {
 	LEGION_STATE_ROOT: join(home, "state", "Legion"),
 };
 
-for (const args of [
-	["--version"],
-	["setup", "preview", "--client-evidence", evidencePath, "--client", "codex", "--dry-run"],
-	["setup", "--check"],
-	["setup", "repair", "--client-evidence", evidencePath, "--client", "codex", "--dry-run"],
-]) {
-	const result = spawnSync(binary, args, { env: environment, encoding: "utf8", stdio: "inherit" });
+const invocations = [
+	{ args: ["--version"] },
+	{
+		args: ["--json", "setup", "preview", "--client-evidence", evidencePath, "--client", "codex", "--dry-run"],
+		allowIncomplete: true,
+	},
+	{ args: ["--json", "setup", "--check"], allowIncomplete: true },
+	{
+		args: ["--json", "setup", "repair", "--client-evidence", evidencePath, "--client", "codex", "--dry-run"],
+		allowIncomplete: true,
+	},
+];
+
+for (const { args, allowIncomplete = false } of invocations) {
+	const result = spawnSync(binary, args, { env: environment, encoding: "utf8" });
+	if (result.stdout) process.stdout.write(result.stdout);
+	if (result.stderr) process.stderr.write(result.stderr);
 	if (result.error) throw result.error;
-	if (result.status !== 0) throw new Error(`${binary} ${args.join(" ")} exited ${result.status}`);
+	if (result.status === 0) continue;
+	if (allowIncomplete && [1, 2].includes(result.status)) {
+		let payload;
+		try {
+			payload = JSON.parse(result.stdout);
+		} catch {
+			throw new Error(`${binary} ${args.join(" ")} returned non-JSON incomplete output`);
+		}
+		if (payload.status === "incomplete") continue;
+	}
+	throw new Error(`${binary} ${args.join(" ")} exited ${result.status}`);
 }
