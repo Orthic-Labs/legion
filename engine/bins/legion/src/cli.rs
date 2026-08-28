@@ -226,7 +226,7 @@ struct DoctorSummary {
 
 const M1_COMPOSITION_SCHEMA_VERSION: u32 = 1;
 const M1_STATE_SCHEMA_VERSION: u32 = 1;
-const M1_REPAIR: &str = "legion setup --repair";
+const M1_REPAIR: &str = "legion setup repair --confirm";
 const M1_RIGHTKIT_AX_VERSION: &str = "0.2.0";
 const M1_RIGHTKIT_AX_SOURCE_COMMIT: &str = "01f52555202da3dffc6b649ca44e803b55238081";
 const M1_INSTALLED_COMPOSITION: &str = "share/legion/composition.json";

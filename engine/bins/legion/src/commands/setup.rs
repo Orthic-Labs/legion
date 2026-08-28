@@ -17,6 +17,13 @@ const QUALIFICATION_TOOL: &str = "legion_m1_status";
 const QUALIFICATION_SERVER: &str = "legion";
 const QUALIFICATION_TIMEOUT: Duration = Duration::from_secs(180);
 const QUALIFICATION_MCP_ARGS: [&str; 2] = ["serve", "--stdio"];
+const EXPECTED_RELEASE_VERSION: &str = env!("CARGO_PKG_VERSION");
+const PLUGIN_MANIFEST_PATHS: [&str; 2] = ["plugin.json", ".claude-plugin/plugin.json"];
+const CANONICAL_NATIVE_RELEASE_IDENTITY_PATH: &str = "release.json";
+const PLUGIN_RELEASE_IDENTITY_PATHS: [&str; 2] = [
+    "share/legion/release-binding.json",
+    "share/legion/identity/release-identity.json",
+];
 
 /// `legion setup [--dry-run] [--client]` is the installed-product lifecycle
 /// surface; lifecycle subcommands include `legion setup purge --confirm`.
@@ -245,14 +252,24 @@ async fn lifecycle(
     let recovery = registry.recover().map_err(setup_error)?;
     let host_integrations = preview_host_integrations(&request)?;
     let preview = registry.preview(request).map_err(setup_error)?;
+    let preview_value = serde_json::to_value(&preview)
+        .map_err(|error| CommandError::incomplete(error.to_string()))?;
+    let live_identity = inspect_live_identity(&host_integrations)?;
+    let (status, remediation) = setup_health(
+        &preview_value["clients"],
+        &host_integrations,
+        &live_identity,
+    );
     if !args.confirm || args.dry_run {
         return Ok(json!({
             "schemaVersion": 1,
             "kind": "legion-setup-preview",
-            "status": "complete",
+            "status": status,
+            "remediation": remediation,
             "recovery": recovery,
             "preview": preview,
             "hostIntegrations": host_integrations,
+            "liveIdentity": live_identity,
         }));
     }
     let confirmation = legion_host::PlanConfirmation {
@@ -265,13 +282,23 @@ async fn lifecycle(
     let integration_request = confirmed.preview.request.clone();
     let execution = registry.execute(confirmed).map_err(setup_error)?;
     let host_integrations = apply_host_integrations(&integration_request)?;
+    let execution_value = serde_json::to_value(&execution)
+        .map_err(|error| CommandError::incomplete(error.to_string()))?;
+    let live_identity = inspect_live_identity(&host_integrations)?;
+    let (status, remediation) = setup_health(
+        &execution_value["clients"],
+        &host_integrations,
+        &live_identity,
+    );
     Ok(json!({
         "schemaVersion": 1,
         "kind": "legion-setup-execution",
-        "status": "complete",
+        "status": status,
+        "remediation": remediation,
         "recovery": recovery,
         "execution": execution,
         "hostIntegrations": host_integrations,
+        "liveIdentity": live_identity,
     }))
 }
 
@@ -281,34 +308,51 @@ async fn preview(args: SetupPreviewArgs, cancellation: CancellationToken) -> Com
     let recovery = registry.recover().map_err(setup_error)?;
     let host_integrations = preview_host_integrations(&request)?;
     let preview = registry.preview(request).map_err(setup_error)?;
+    let preview_value = serde_json::to_value(&preview)
+        .map_err(|error| CommandError::incomplete(error.to_string()))?;
+    let live_identity = inspect_live_identity(&host_integrations)?;
+    let (status, remediation) = setup_health(
+        &preview_value["clients"],
+        &host_integrations,
+        &live_identity,
+    );
     if let Some(path) = args.out {
         write_json(&path, &preview)?;
     }
     Ok(json!({
         "schemaVersion": 1,
         "kind": "legion-setup-preview",
-        "status": "complete",
+        "status": status,
+        "remediation": remediation,
         "recovery": recovery,
         "preview": preview,
         "hostIntegrations": host_integrations,
+        "liveIdentity": live_identity,
     }))
 }
 
 fn status(args: SetupClientArgs) -> CommandResult {
-    let release = installed_bound_release()?;
+    let installed = installed_release()?;
+    let release = bound_release(&installed.manifest);
     let selector = selector(args.client);
     let mut registry =
         legion_host::SetupRegistry::open_platform(release.clone()).map_err(setup_error)?;
     let recovery = registry.recover().map_err(setup_error)?;
     let clients = registry.status(&selector).map_err(setup_error)?;
     let host_integrations = inspect_host_integrations(&selector, &release)?;
+    let clients_value = serde_json::to_value(&clients)
+        .map_err(|error| CommandError::incomplete(error.to_string()))?;
+    let live_identity = inspect_live_identity(&host_integrations)?;
+    let (status, remediation) = setup_health(&clients_value, &host_integrations, &live_identity);
     Ok(json!({
         "schemaVersion": 1,
         "kind": "legion-setup-status",
-        "status": "complete",
+        "status": status,
+        "remediation": remediation,
         "recovery": recovery,
         "clients": clients,
         "hostIntegrations": host_integrations,
+        "liveIdentity": live_identity,
     }))
 }
 
@@ -348,13 +392,23 @@ async fn execute(
         .map_err(setup_error)?;
     let execution = registry.execute(confirmed).map_err(setup_error)?;
     let host_integrations = apply_host_integrations(&integration_request)?;
+    let execution_value = serde_json::to_value(&execution)
+        .map_err(|error| CommandError::incomplete(error.to_string()))?;
+    let live_identity = inspect_live_identity(&host_integrations)?;
+    let (status, remediation) = setup_health(
+        &execution_value["clients"],
+        &host_integrations,
+        &live_identity,
+    );
     Ok(json!({
         "schemaVersion": 1,
         "kind": "legion-setup-execution",
-        "status": "complete",
+        "status": status,
+        "remediation": remediation,
         "recovery": recovery,
         "execution": execution,
         "hostIntegrations": host_integrations,
+        "liveIdentity": live_identity,
     }))
 }
 
@@ -513,7 +567,7 @@ async fn validate_client_evidence(
                 || !fresh_qualification.completed
             {
                 return Err(CommandError::incomplete(format!(
-                    "live client qualification changed for {}; run legion setup --repair",
+                    "live client qualification changed for {}; run legion setup repair --confirm",
                     client.client_id
                 )));
             }
@@ -592,7 +646,7 @@ fn validate_proof_pair(
         && qualification_path.is_file();
     if !valid {
         return Err(CommandError::incomplete(format!(
-            "client qualification evidence does not bind {} to a resolved launcher, completed MCP call, and installed release; run legion setup --repair",
+            "client qualification evidence does not bind {} to a resolved launcher, completed MCP call, and installed release; run legion setup repair --confirm",
             client.client_id
         )));
     }
@@ -619,13 +673,24 @@ async fn qualify_discovered_clients(
             qualified.push(client);
             continue;
         }
-        let (command, qualification) = qualify_client(
+        let result = qualify_client(
             &client.client_id,
             release,
             platform_state_root,
             cancellation.clone(),
         )
-        .await?;
+        .await;
+        let (command, qualification) = match result {
+            Ok(result) => result,
+            Err(error) if error.code == 2 && !cancellation.is_cancelled() => {
+                // A missing or incompatible client is a truthful baseline.  Keep
+                // it in the request so registry + host repair can reconcile
+                // owned projections without inventing qualification evidence.
+                qualified.push(client);
+                continue;
+            }
+            Err(error) => return Err(error),
+        };
         let root = platform_state_root.join("qualification");
         std::fs::create_dir_all(&root).map_err(io_error)?;
         let command_path = root.join(format!("{}-command.json", client.client_id));
@@ -1066,6 +1131,520 @@ fn parse_embedded_json(text: &str) -> Option<Value> {
     })
 }
 
+fn inspect_live_identity(host_integrations: &Value) -> Result<Value, CommandError> {
+    let installed = installed_release()?;
+    let executable_state = if installed.manifest.release_version == EXPECTED_RELEASE_VERSION {
+        "current"
+    } else {
+        "stale"
+    };
+    let executable = json!({
+        "path": installed.executable_path.clone(),
+        "manifestPath": installed.manifest_path.clone(),
+        "releaseVersion": installed.manifest.release_version.clone(),
+        "expectedReleaseVersion": EXPECTED_RELEASE_VERSION,
+        "state": executable_state,
+        "runtimeDigest": installed.manifest.runtime.sha256.clone(),
+        "runtimePlatform": installed.manifest.runtime.platform.clone(),
+        "runtimeArchitecture": installed.manifest.runtime.architecture.clone(),
+    });
+    let plugin = inspect_live_plugin(&installed, host_integrations);
+    let projections = inspect_live_projections(&installed.manifest, host_integrations);
+    Ok(json!({
+        "executable": executable,
+        "plugin": plugin,
+        "projections": projections,
+    }))
+}
+
+fn inspect_live_plugin(
+    installed: &legion_runtime::release_binding::InstalledRelease,
+    host_integrations: &Value,
+) -> Value {
+    let Some(claude) = integration_inspection(host_integrations, "claudeCodeLegacy") else {
+        return json!({
+            "state": "not_selected",
+            "expectedReleaseVersion": EXPECTED_RELEASE_VERSION,
+            "activeReleaseVersion": installed.manifest.release_version,
+            "roots": [],
+            "cacheMutation": "never",
+        });
+    };
+    let mut roots = BTreeMap::new();
+    if let Some(root) = installed.manifest_path.parent().and_then(Path::parent) {
+        roots.insert(root.to_path_buf(), ());
+    }
+    if let Some(root) = installed.manifest_path.parent() {
+        roots.insert(root.to_path_buf(), ());
+    }
+    if let Some(generations) = claude
+        .get("pluginCacheGenerations")
+        .and_then(Value::as_array)
+    {
+        for generation in generations {
+            if let Some(path) = generation.get("installPath").and_then(Value::as_str) {
+                roots.insert(PathBuf::from(path), ());
+            }
+        }
+    }
+    let records = roots
+        .keys()
+        .map(|root| {
+            inspect_plugin_root(root, installed.manifest_path.parent(), &installed.manifest)
+        })
+        .collect::<Vec<_>>();
+    let state = if records.iter().any(|record| record["state"] == "current") {
+        "current"
+    } else if records.iter().any(|record| record["state"] == "stale") {
+        "stale"
+    } else if records.iter().any(|record| record["state"] == "foreign") {
+        "foreign"
+    } else {
+        "incomplete"
+    };
+    json!({
+        "state": state,
+        "expectedReleaseVersion": EXPECTED_RELEASE_VERSION,
+        "activeReleaseVersion": installed.manifest.release_version,
+        "roots": records,
+        "cacheMutation": "never",
+    })
+}
+
+fn inspect_plugin_root(
+    root: &Path,
+    canonical_root: Option<&Path>,
+    active_manifest: &legion_runtime::ReleaseManifest,
+) -> Value {
+    let is_canonical_root = canonical_root.is_some_and(|path| path == root);
+    let mut manifests = Vec::new();
+    let mut manifest_seen = false;
+    let mut manifest_matches = false;
+    let mut manifest_foreign = false;
+    let mut manifest_mismatch = false;
+    let mut manifest_invalid = false;
+    for relative in PLUGIN_MANIFEST_PATHS {
+        let path = root.join(relative);
+        if !path.is_file() {
+            continue;
+        }
+        manifest_seen = true;
+        match std::fs::read(&path) {
+            Ok(bytes) => {
+                let digest = legion_catalog::hex_digest(&bytes);
+                match serde_json::from_slice::<Value>(&bytes) {
+                    Ok(value) => {
+                        let name = value.get("name").and_then(Value::as_str);
+                        let version = value.get("version").and_then(Value::as_str);
+                        let name_ok = name == Some("legion");
+                        let version_ok = version == Some(active_manifest.release_version.as_str());
+                        if !name_ok {
+                            manifest_foreign = true;
+                        } else if version_ok {
+                            manifest_matches = true;
+                        } else if version.is_some_and(|value| !value.trim().is_empty()) {
+                            manifest_mismatch = true;
+                        } else {
+                            manifest_invalid = true;
+                        }
+                        manifests.push(json!({
+                            "path": path,
+                            "present": true,
+                            "digest": digest,
+                            "name": name,
+                            "version": version,
+                            "expectedVersion": EXPECTED_RELEASE_VERSION,
+                            "matchesActiveRelease": name_ok && version_ok,
+                        }));
+                    }
+                    Err(error) => {
+                        manifest_invalid = true;
+                        manifests.push(json!({
+                            "path": path,
+                            "present": true,
+                            "digest": digest,
+                            "error": error.to_string(),
+                        }));
+                    }
+                }
+            }
+            Err(error) => {
+                manifest_invalid = true;
+                manifests.push(json!({
+                    "path": path,
+                    "present": true,
+                    "error": error.to_string(),
+                }));
+            }
+        }
+    }
+
+    let mut identities = Vec::new();
+    let mut identity_seen = false;
+    let mut identity_mismatch = false;
+    let mut identity_invalid = false;
+    let mut canonical_identity_seen = false;
+    let mut canonical_identity_matches = false;
+    let mut identity_paths = Vec::new();
+    if is_canonical_root {
+        identity_paths.push((
+            "canonical",
+            root.join(CANONICAL_NATIVE_RELEASE_IDENTITY_PATH),
+        ));
+    }
+    identity_paths.extend(
+        PLUGIN_RELEASE_IDENTITY_PATHS
+            .into_iter()
+            .map(|relative| ("plugin", root.join(relative))),
+    );
+    for (kind, path) in identity_paths {
+        if !path.is_file() {
+            continue;
+        }
+        identity_seen = true;
+        if kind == "canonical" {
+            canonical_identity_seen = true;
+        }
+        match std::fs::read(&path) {
+            Ok(bytes) => {
+                let digest = legion_catalog::hex_digest(&bytes);
+                match legion_runtime::load_release_manifest(&path) {
+                    Ok(manifest) => {
+                        let matches_active = manifest == *active_manifest;
+                        if kind == "canonical" && matches_active {
+                            canonical_identity_matches = true;
+                        }
+                        if !matches_active {
+                            identity_mismatch = true;
+                        }
+                        identities.push(json!({
+                            "kind": kind,
+                            "path": path,
+                            "present": true,
+                            "digest": digest,
+                            "releaseVersion": manifest.release_version,
+                            "matchesActiveRelease": matches_active,
+                        }));
+                    }
+                    Err(error) => {
+                        identity_invalid = true;
+                        identities.push(json!({
+                            "kind": kind,
+                            "path": path,
+                            "present": true,
+                            "digest": digest,
+                            "error": error.to_string(),
+                        }));
+                    }
+                }
+            }
+            Err(error) => {
+                identity_invalid = true;
+                identities.push(json!({
+                    "kind": kind,
+                    "path": path,
+                    "present": true,
+                    "error": error.to_string(),
+                }));
+            }
+        }
+    }
+    let state = if is_canonical_root {
+        if !canonical_identity_seen || manifest_invalid || identity_invalid {
+            "incomplete"
+        } else if !canonical_identity_matches
+            || identity_mismatch
+            || active_manifest.release_version != EXPECTED_RELEASE_VERSION
+            || manifest_foreign
+            || manifest_mismatch
+            || (manifest_seen && !manifest_matches)
+        {
+            "stale"
+        } else {
+            "current"
+        }
+    } else if manifest_foreign && !manifest_matches && !manifest_invalid && !identity_seen {
+        "foreign"
+    } else if !manifest_seen || manifest_invalid || identity_invalid {
+        "incomplete"
+    } else if !manifest_matches
+        || manifest_mismatch
+        || identity_mismatch
+        || active_manifest.release_version != EXPECTED_RELEASE_VERSION
+    {
+        "stale"
+    } else {
+        "current"
+    };
+    json!({
+        "root": root,
+        "canonicalNativeRoot": is_canonical_root,
+        "state": state,
+        "manifests": manifests,
+        "releaseIdentities": identities,
+        "cacheMutation": "never",
+    })
+}
+
+fn inspect_live_projections(
+    manifest: &legion_runtime::ReleaseManifest,
+    host_integrations: &Value,
+) -> Value {
+    let generation = format!(
+        "{}:{}",
+        EXPECTED_RELEASE_VERSION, manifest.declarative_assets_sha256
+    );
+    let mut projections = serde_json::Map::new();
+    if let Some(claude) = integration_inspection(host_integrations, "claudeCodeLegacy") {
+        let canonical_trusted = claude
+            .get("canonicalSkillsRootTrusted")
+            .and_then(Value::as_bool)
+            .unwrap_or(false);
+        let missing = claude
+            .get("canonicalMissingSkillIds")
+            .and_then(Value::as_array)
+            .map(|values| values.len())
+            .unwrap_or(0);
+        let cache_error = claude
+            .get("pluginCacheError")
+            .and_then(Value::as_str)
+            .map(str::to_owned);
+        let cache_generations = claude
+            .get("pluginCacheGenerations")
+            .and_then(Value::as_array)
+            .map(|values| {
+                values
+                    .iter()
+                    .map(|value| {
+                        let version = value.get("version").and_then(Value::as_str);
+                        let canonical = value
+                            .get("canonicalGeneration")
+                            .and_then(Value::as_bool)
+                            .unwrap_or(false);
+                        let install_exists = value
+                            .get("installPathExists")
+                            .and_then(Value::as_bool)
+                            .unwrap_or(false);
+                        let manifest_present = value
+                            .get("legionPluginManifest")
+                            .and_then(Value::as_bool)
+                            .unwrap_or(false);
+                        let state = if !install_exists || !manifest_present {
+                            "incomplete"
+                        } else if version != Some(EXPECTED_RELEASE_VERSION)
+                            || manifest.release_version != EXPECTED_RELEASE_VERSION
+                            || !canonical
+                        {
+                            "stale"
+                        } else {
+                            "current"
+                        };
+                        json!({
+                            "generation": value.get("generation"),
+                            "version": version,
+                            "expectedVersion": EXPECTED_RELEASE_VERSION,
+                            "canonicalGeneration": canonical,
+                            "state": state,
+                        })
+                    })
+                    .collect::<Vec<_>>()
+            })
+            .unwrap_or_default();
+        let standalone = claude
+            .get("standaloneProjections")
+            .and_then(Value::as_array)
+            .map(|values| {
+                values
+                    .iter()
+                    .map(|value| {
+                        let ownership = value.get("ownership").cloned().unwrap_or(Value::Null);
+                        let unproven = ownership == Value::String("unproven".into());
+                        let state = if unproven { "preserved" } else { "stale" };
+                        json!({
+                            "id": value.get("id"),
+                            "path": value.get("path"),
+                            "ownership": ownership,
+                            "state": state,
+                        })
+                    })
+                    .collect::<Vec<_>>()
+            })
+            .unwrap_or_default();
+        let state = if cache_error.is_some() || !canonical_trusted {
+            "incomplete"
+        } else if missing > 0
+            || manifest.release_version != EXPECTED_RELEASE_VERSION
+            || cache_generations
+                .iter()
+                .any(|item| item["state"] == "stale")
+            || standalone.iter().any(|item| item["state"] == "stale")
+        {
+            "stale"
+        } else {
+            "current"
+        };
+        projections.insert(
+            "claudeCodeLegacy".into(),
+            json!({
+                "state": state,
+                "expectedGeneration": generation,
+                "canonicalSkillsRootTrusted": canonical_trusted,
+                "canonicalMissingSkillCount": missing,
+                "pluginCacheError": cache_error,
+                "pluginCacheGenerations": cache_generations,
+                "standaloneProjections": standalone,
+                "cacheMutation": "never",
+            }),
+        );
+    }
+    if let Some(codex) = integration_inspection(host_integrations, "codexSkills") {
+        let ledger_error = codex.get("ledgerError").and_then(Value::as_str);
+        let statuses = codex
+            .get("statuses")
+            .and_then(Value::as_array)
+            .map(|values| {
+                values
+                    .iter()
+                    .map(|value| {
+                        let state = value
+                            .get("state")
+                            .and_then(Value::as_str)
+                            .unwrap_or("unknown");
+                        json!({
+                            "id": value.get("id"),
+                            "path": value.get("path"),
+                            "state": state,
+                            "ledgerGeneration": value.get("ledgerGeneration"),
+                            "sourceDigest": value.get("sourceDigest"),
+                            "destinationDigest": value.get("destinationDigest"),
+                        })
+                    })
+                    .collect::<Vec<_>>()
+            })
+            .unwrap_or_default();
+        let state = if ledger_error.is_some()
+            || statuses.iter().any(|item| {
+                matches!(
+                    item["state"].as_str(),
+                    Some("conflict") | Some("foreign") | Some("retired_conflict")
+                )
+            }) {
+            "incomplete"
+        } else if manifest.release_version != EXPECTED_RELEASE_VERSION
+            || statuses.iter().any(|item| {
+                matches!(
+                    item["state"].as_str(),
+                    Some("missing") | Some("stale") | Some("retired_owned")
+                )
+            })
+        {
+            "stale"
+        } else {
+            "current"
+        };
+        projections.insert(
+            "codexSkills".into(),
+            json!({
+                "state": state,
+                "expectedGeneration": generation,
+                "ledgerError": ledger_error,
+                "statuses": statuses,
+            }),
+        );
+    }
+    Value::Object(projections)
+}
+
+fn integration_inspection<'a>(integrations: &'a Value, key: &str) -> Option<&'a Value> {
+    let value = integrations.get(key)?;
+    if value.get("canonicalSkillsRootTrusted").is_some() || value.get("destinationRoot").is_some() {
+        return Some(value);
+    }
+    value.get("inspection").or_else(|| {
+        value
+            .get("preview")
+            .and_then(|preview| preview.get("inspection"))
+    })
+}
+
+fn setup_health(
+    clients: &Value,
+    host_integrations: &Value,
+    live_identity: &Value,
+) -> (&'static str, Vec<String>) {
+    let mut remediation = Vec::new();
+    if live_identity["executable"]["state"] != "current" {
+        remediation.push(format!(
+            "live Legion executable is stale ({}; expected {})",
+            live_identity["executable"]["releaseVersion"]
+                .as_str()
+                .unwrap_or("unknown"),
+            EXPECTED_RELEASE_VERSION
+        ));
+    }
+    match clients.as_array() {
+        Some(values) if values.is_empty() => remediation
+            .push("no supported client is registered with complete setup evidence".into()),
+        Some(values) => {
+            for client in values {
+                let installed = client
+                    .get("installed")
+                    .and_then(Value::as_bool)
+                    .unwrap_or(false);
+                let fidelity = client
+                    .get("fidelity")
+                    .and_then(Value::as_str)
+                    .unwrap_or("Unavailable");
+                if !installed || fidelity != "Full" {
+                    remediation.push(format!(
+                        "client {} is incomplete ({fidelity}); run legion setup repair --confirm",
+                        client
+                            .get("clientId")
+                            .and_then(Value::as_str)
+                            .unwrap_or("unknown")
+                    ));
+                }
+            }
+        }
+        None => remediation.push("setup client status is unavailable".into()),
+    }
+    if let Some(plugin_state) = live_identity["plugin"]["state"].as_str() {
+        if !matches!(plugin_state, "current" | "not_selected") {
+            remediation.push(format!(
+                "Claude plugin identity is {plugin_state}; repair observes cache and preserves its files"
+            ));
+        }
+    }
+    if let Some(projections) = live_identity["projections"].as_object() {
+        for (client, projection) in projections {
+            if let Some(state) = projection.get("state").and_then(Value::as_str) {
+                if state != "current" {
+                    remediation.push(format!(
+                        "{client} projection is {state}; run legion setup repair --confirm"
+                    ));
+                }
+            }
+        }
+    }
+    // Keep direct host observations in output-derived health so repair result
+    // shapes (inspection nested under `preview`) remain truthful too.
+    if integration_inspection(host_integrations, "codexSkills")
+        .and_then(|value| value.get("ledgerError"))
+        .is_some_and(|value| !value.is_null())
+    {
+        remediation.push(
+            "Codex ownership ledger is invalid; conflicting projections are preserved".into(),
+        );
+    }
+    remediation.sort();
+    remediation.dedup();
+    if remediation.is_empty() {
+        ("complete", remediation)
+    } else {
+        ("incomplete", remediation)
+    }
+}
+
 struct HostIntegrationInputs {
     claude: Option<legion_host::ClaudeLegacyInput>,
     codex: Option<legion_host::CodexSkillsInput>,
@@ -1235,21 +1814,24 @@ fn host_error(error: legion_host::HostError) -> CommandError {
 
 fn installed_bound_release() -> Result<legion_host::BoundRelease, CommandError> {
     let installed = installed_release()?;
-    let manifest = installed.manifest;
-    Ok(legion_host::BoundRelease {
-        release_version: manifest.release_version,
-        runtime_digest: manifest.runtime.sha256,
-        capability_catalog_hash: manifest.capability_catalog_sha256,
-        mcp_tool_schema_hash: manifest.mcp_tool_schema_sha256,
-        declarative_asset_schema_hash: manifest.declarative_assets_sha256,
+    Ok(bound_release(&installed.manifest))
+}
+
+fn bound_release(manifest: &legion_runtime::ReleaseManifest) -> legion_host::BoundRelease {
+    legion_host::BoundRelease {
+        release_version: manifest.release_version.clone(),
+        runtime_digest: manifest.runtime.sha256.clone(),
+        capability_catalog_hash: manifest.capability_catalog_sha256.clone(),
+        mcp_tool_schema_hash: manifest.mcp_tool_schema_sha256.clone(),
+        declarative_asset_schema_hash: manifest.declarative_assets_sha256.clone(),
         state_compatibility: manifest.state_schema_version.to_string(),
-    })
+    }
 }
 
 fn installed_release() -> Result<legion_runtime::release_binding::InstalledRelease, CommandError> {
     legion_runtime::release_binding::load_installed_release().map_err(|error| {
         CommandError::incomplete(format!(
-            "installed release binding unavailable: {error}; run legion setup --repair"
+            "installed release binding unavailable: {error}; run legion setup repair --confirm"
         ))
     })
 }
@@ -1291,7 +1873,7 @@ fn open_registry(
         return Err(setup_error(legion_host::SetupError {
             code: legion_host::SetupErrorCode::ReleaseBindingMismatch,
             remediation:
-                "setup plan release differs from installed release; run legion setup --repair"
+                "setup plan release differs from installed release; run legion setup repair --confirm"
                     .into(),
         }));
     }
@@ -1328,6 +1910,80 @@ fn setup_error(error: legion_host::SetupError) -> CommandError {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::{
+        fs,
+        path::PathBuf,
+        sync::atomic::{AtomicU64, Ordering},
+        time::{SystemTime, UNIX_EPOCH},
+    };
+
+    struct TempRoot(PathBuf);
+
+    impl TempRoot {
+        fn new(label: &str) -> Self {
+            static NEXT_ID: AtomicU64 = AtomicU64::new(0);
+            let root = std::env::temp_dir().join(format!(
+                "legion-setup-live-{}-{}-{}-{}",
+                std::process::id(),
+                label,
+                SystemTime::now()
+                    .duration_since(UNIX_EPOCH)
+                    .expect("clock")
+                    .as_nanos(),
+                NEXT_ID.fetch_add(1, Ordering::Relaxed)
+            ));
+            fs::create_dir_all(&root).expect("temporary setup root");
+            Self(root)
+        }
+    }
+
+    impl Drop for TempRoot {
+        fn drop(&mut self) {
+            let _ = fs::remove_dir_all(&self.0);
+        }
+    }
+
+    fn test_release_manifest() -> legion_runtime::ReleaseManifest {
+        let digest = "0".repeat(64);
+        legion_runtime::ReleaseManifest {
+            release_version: EXPECTED_RELEASE_VERSION.into(),
+            runtime: legion_runtime::RuntimeIdentity {
+                platform: std::env::consts::OS.into(),
+                architecture: std::env::consts::ARCH.into(),
+                sha256: digest.clone(),
+                provenance: "rightkit-release://setup-live-test".into(),
+            },
+            capability_catalog_sha256: digest.clone(),
+            mcp_tool_schema_sha256: digest.clone(),
+            declarative_assets_sha256: digest,
+            state_schema_version: 1,
+            rightkit_ax: legion_runtime::RightkitAxIdentity {
+                version: "0.2.0".into(),
+                source_commit: "01f52555202da3dffc6b649ca44e803b55238081".into(),
+            },
+        }
+    }
+
+    fn write_release(path: &Path, manifest: &legion_runtime::ReleaseManifest) {
+        fs::create_dir_all(path.parent().expect("release parent")).expect("release directory");
+        fs::write(
+            path,
+            serde_json::to_vec(manifest).expect("release manifest JSON"),
+        )
+        .expect("release manifest");
+    }
+
+    fn write_plugin_manifest(root: &Path, version: &str) {
+        let path = root.join(".claude-plugin/plugin.json");
+        fs::create_dir_all(path.parent().expect("plugin manifest parent"))
+            .expect("plugin manifest directory");
+        fs::write(
+            path,
+            serde_json::to_vec(&json!({"name": "legion", "version": version}))
+                .expect("plugin manifest JSON"),
+        )
+        .expect("plugin manifest");
+    }
 
     #[test]
     fn m1_result_parser_preserves_host_requirements_and_degradation() {
@@ -1359,5 +2015,109 @@ mod tests {
             parsed.host_requirements[0]["degradation"],
             "worker unavailable"
         );
+    }
+
+    #[test]
+    fn live_plugin_identity_accepts_native_release_and_current_claude_cache() {
+        let temp = TempRoot::new("current");
+        let native_root = temp.0.join("native/share/legion");
+        let current_cache = temp.0.join("cache/0.1.0");
+        let old_cache = temp.0.join("cache/0.1.0-dev.3");
+        let manifest = test_release_manifest();
+        write_release(&native_root.join("release.json"), &manifest);
+        write_plugin_manifest(&current_cache, EXPECTED_RELEASE_VERSION);
+        write_plugin_manifest(&old_cache, "0.1.0-dev.3");
+
+        let installed = legion_runtime::release_binding::InstalledRelease {
+            manifest: manifest.clone(),
+            manifest_path: native_root.join("release.json"),
+            executable_path: temp.0.join("bin/legion.exe"),
+        };
+        let integrations = json!({
+            "claudeCodeLegacy": {
+                "inspection": {
+                    "pluginCacheGenerations": [
+                        {"installPath": current_cache.clone(), "version": EXPECTED_RELEASE_VERSION},
+                        {"installPath": old_cache.clone(), "version": "0.1.0-dev.3"}
+                    ]
+                }
+            }
+        });
+
+        let inspected = inspect_live_plugin(&installed, &integrations);
+        assert_eq!(inspected["state"], "current");
+        let roots = inspected["roots"].as_array().expect("plugin roots");
+        let native = roots
+            .iter()
+            .find(|root| root["canonicalNativeRoot"] == true)
+            .expect("native release root");
+        assert_eq!(native["state"], "current");
+        assert!(native["releaseIdentities"]
+            .as_array()
+            .expect("native identities")
+            .iter()
+            .any(|identity| {
+                identity["kind"] == "canonical" && identity["matchesActiveRelease"] == true
+            }));
+        let cache_state = |path: &Path| {
+            roots
+                .iter()
+                .find(|root| root["root"].as_str() == path.to_str())
+                .and_then(|root| root["state"].as_str())
+        };
+        assert_eq!(cache_state(&current_cache), Some("current"));
+        assert_eq!(cache_state(&old_cache), Some("stale"));
+    }
+
+    #[test]
+    fn live_plugin_identity_marks_mismatched_native_release_stale() {
+        let temp = TempRoot::new("mismatch");
+        let native_root = temp.0.join("native/share/legion");
+        let active = test_release_manifest();
+        let mut mismatched = active.clone();
+        mismatched.release_version = "0.1.0-dev.3".into();
+        write_release(&native_root.join("release.json"), &mismatched);
+
+        let inspected = inspect_plugin_root(&native_root, Some(&native_root), &active);
+
+        assert_eq!(inspected["state"], "stale");
+        assert_eq!(
+            inspected["releaseIdentities"]
+                .as_array()
+                .expect("native identities")
+                .len(),
+            1
+        );
+        assert_eq!(
+            inspected["releaseIdentities"][0]["matchesActiveRelease"],
+            false
+        );
+    }
+
+    #[test]
+    fn setup_health_uses_supported_repair_command() {
+        let clients = json!([{
+            "clientId": "codex",
+            "installed": false,
+            "fidelity": "Unavailable"
+        }]);
+        let live_identity = json!({
+            "executable": {"state": "current"},
+            "plugin": {"state": "current"},
+            "projections": {"codexSkills": {"state": "stale"}}
+        });
+
+        let (status, remediation) = setup_health(&clients, &json!({}), &live_identity);
+
+        assert_eq!(status, "incomplete");
+        assert!(remediation.iter().any(|item| {
+            item == "client codex is incomplete (Unavailable); run legion setup repair --confirm"
+        }));
+        assert!(remediation.iter().any(|item| {
+            item == "codexSkills projection is stale; run legion setup repair --confirm"
+        }));
+        assert!(remediation
+            .iter()
+            .all(|item| !item.contains("legion setup --repair")));
     }
 }

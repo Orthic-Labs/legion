@@ -15,7 +15,7 @@
     "futureUnqualifiedAlias": "brew install legion",
     "artifacts": ["arm64 macOS bottle", "x86_64 macOS bottle"],
     "requirements": ["Developer ID signature", "Apple notarization", "stapled notarization evidence where applicable", "SHA-256 bottle digest", "release provenance", "legion command on Homebrew prefix PATH"],
-    "update": "brew upgrade legion followed transactionally by legion setup --repair",
+    "update": "brew upgrade legion followed transactionally by legion setup repair --confirm",
     "rollback": "reinstall the preceding immutable bottle, restore the matching state snapshot, then repair integrations to the preceding release binding",
     "removal": "brew uninstall legion removes the runtime; legion setup remove handles integrations; durable state is preserved unless explicit verified purge is requested"
   },
@@ -26,7 +26,7 @@
     "installCommand": "winget install --id OrthicLabs.Legion --exact",
     "requirements": ["Authenticode signature", "trusted timestamp", "SHA-256 installer digest", "legion command alias", "silent upgrade", "deterministic uninstall", "release provenance"],
     "fallbackDisposition": "If WinGet portable cannot preserve signature verification, command aliases, update, and removal, M3 must select an archive-based package manifest with the same guarantees; no MSI or desktop installer is introduced.",
-    "update": "winget upgrade --id OrthicLabs.Legion --exact followed transactionally by legion setup --repair",
+    "update": "winget upgrade --id OrthicLabs.Legion --exact followed transactionally by legion setup repair --confirm",
     "rollback": "install the preceding immutable signed version, restore the matching state snapshot, then repair integrations to the preceding release binding",
     "removal": "winget uninstall --id OrthicLabs.Legion --exact removes the runtime; integrations and explicit state purge remain separate legion setup operations"
   },

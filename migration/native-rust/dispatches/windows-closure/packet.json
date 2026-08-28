@@ -1,0 +1,151 @@
+{
+  "schemaVersion": 1,
+  "kind": "legion-authority-dispatch",
+  "packetType": "direct",
+  "repositoryRoot": "D:/Claude/legion",
+  "sourceRevision": "445d85f87793fcc4978709b7c473e927db8f4d8a",
+  "sourceArtifact": "migration/native-rust/dispatches/windows-closure/prompt.md",
+  "promptArtifact": "migration/native-rust/dispatches/windows-closure/prompt.md",
+  "promptDigest": "sha256:89a0e7fa54b81541eb2ec0d4ee7d61afde090b8b6bcd48123e3eb985ec61133f",
+  "modelRouting": {
+    "modelTier": "MID",
+    "workerProfile": "luna-max",
+    "routingRationale": "Three disjoint bounded Windows implementation lanes requested for maximum safe parallelism"
+  },
+  "objective": "Implement source-only Windows closure seams for strong native hooks, truthful/safe live-client reconciliation, & release/WinGet packaging; leave every build, test, generator, install, signing action, commit, push, merge, & expensive check to current orchestrator.",
+  "authority": [
+    "AGENTS.md",
+    "migration/native-rust/dispatches/windows-closure/prompt.md",
+    "docs/LEGION-CANONICAL-SSOT.md",
+    "packaging/windows/sign.md"
+  ],
+  "integrationOwner": "current orchestrator /root",
+  "fileTouchPolicy": {
+    "mode": "once-end-to-end",
+    "plannedFiles": [
+      "engine/bins/legion-hook/Cargo.toml",
+      "engine/bins/legion-hook/src/main.rs",
+      "engine/bins/legion-hook/src/protocol.rs",
+      "engine/bins/legion/src/commands/setup.rs",
+      "engine/bins/legion/tests/m2_plugin_root.rs",
+      "right-release.config.mjs",
+      "scripts/assemble-native-release.mjs",
+      "scripts/package-windows-release.mjs",
+      "tests/release-artifacts.test.mjs",
+      "package.json",
+      "packaging/windows/sign.md"
+    ],
+    "allowUnplannedFiles": false,
+    "ledger": [
+      {"path":"engine/bins/legion-hook/Cargo.toml","owner":"windows-native-hooks","operation":"edit","lane":"windows-native-hooks","finalCheck":"orchestrator Cargo check/test & live hook smoke"},
+      {"path":"engine/bins/legion-hook/src/main.rs","owner":"windows-native-hooks","operation":"edit","lane":"windows-native-hooks","finalCheck":"orchestrator Cargo check/test & live hook smoke"},
+      {"path":"engine/bins/legion-hook/src/protocol.rs","owner":"windows-native-hooks","operation":"edit","lane":"windows-native-hooks","finalCheck":"orchestrator Cargo check/test & live hook smoke"},
+      {"path":"engine/bins/legion/src/commands/setup.rs","owner":"windows-live-repair","operation":"edit","lane":"windows-live-repair","finalCheck":"orchestrator focused Rust tests & isolated/live setup status/repair smoke"},
+      {"path":"engine/bins/legion/tests/m2_plugin_root.rs","owner":"windows-live-repair","operation":"edit","lane":"windows-live-repair","finalCheck":"orchestrator focused Rust test"},
+      {"path":"right-release.config.mjs","owner":"windows-release-package","operation":"edit","lane":"windows-release-package","finalCheck":"orchestrator right-release doctor"},
+      {"path":"scripts/assemble-native-release.mjs","owner":"windows-release-package","operation":"edit","lane":"windows-release-package","finalCheck":"orchestrator Node test & release assembly"},
+      {"path":"scripts/package-windows-release.mjs","owner":"windows-release-package","operation":"create","lane":"windows-release-package","finalCheck":"orchestrator Node test & package verification"},
+      {"path":"tests/release-artifacts.test.mjs","owner":"windows-release-package","operation":"edit","lane":"windows-release-package","finalCheck":"orchestrator focused Node test"},
+      {"path":"package.json","owner":"windows-release-package","operation":"edit","lane":"windows-release-package","finalCheck":"orchestrator package scripts & legion:check"},
+      {"path":"packaging/windows/sign.md","owner":"windows-release-package","operation":"edit","lane":"windows-release-package","finalCheck":"orchestrator static release contract check"}
+    ]
+  },
+  "sourcePortPolicy": {
+    "applicable": true,
+    "sourceImplementation": "src/packages/arcane/host/hook-adapter-core.mjs",
+    "sourceInventory": [
+      "src/packages/arcane/host/hook-adapter-core.mjs",
+      "src/packages/arcane/tests/hook-adapter-core.test.mjs",
+      "engine/crates/legion-policy/src/evaluator.rs",
+      "engine/crates/legion-host/src/codex_skills.rs",
+      "engine/crates/legion-host/src/legacy_claude.rs",
+      "scripts/verify-release.mjs",
+      "release/distribution-contract.json",
+      "packaging/channels.json"
+    ],
+    "directPortFirst": true,
+    "targetLanguage": "Rust for native behavior; JavaScript for release packaging",
+    "rustTargetRequiresRustPort": true,
+    "handRollReplacementWhileSourceExists": false
+  },
+  "workerPolicy": {
+    "mode": "edit-only",
+    "mayInspectReadPaths": true,
+    "mayEditAllowlistOnly": true,
+    "forbiddenActions": ["cargo","tests","builds","generators","installs","commits","pushes","merges","expensive-checks"],
+    "intendedChecksRecordedFor": "current orchestrator /root"
+  },
+  "integrationPolicy": {
+    "owner": "current orchestrator /root",
+    "soleMerger": true,
+    "runsCheckpoints": true,
+    "mayRepairLaneOwnedFiles": false,
+    "repairAction": "return defect to owning lane once; otherwise redesign packet before execution"
+  },
+  "dispatches": [
+    {
+      "id": "A",
+      "dependsOn": [],
+      "lanes": ["windows-native-hooks","windows-live-repair","windows-release-package"],
+      "completionChecks": ["orchestrator reconciles exact changed paths, runs all focused checks/builds/install smoke, & owns final evidence"]
+    }
+  ],
+  "workers": [
+    {
+      "id": "windows-native-hooks",
+      "dispatch": "A",
+      "executor": "Luna max worker",
+      "allowlist": ["engine/bins/legion-hook/Cargo.toml","engine/bins/legion-hook/src/main.rs","engine/bins/legion-hook/src/protocol.rs"],
+      "read": ["migration/native-rust/dispatches/windows-closure/prompt.md","src/packages/arcane/host/hook-adapter-core.mjs","src/packages/arcane/tests/hook-adapter-core.test.mjs","engine/crates/legion-policy/src/evaluator.rs","engine/crates/legion-policy/src/lib.rs","engine/crates/legion-policy-model/src/lib.rs","hooks/hooks.json"],
+      "forbidden": [".git","secrets","live client directories","release/distribution-contract.json","packaging/channels.json"],
+      "checks": ["orchestrator runs cargo fmt/check/test for legion-hook & live valid/invalid hook smoke; worker runs no check"],
+      "dependencies": []
+    },
+    {
+      "id": "windows-live-repair",
+      "dispatch": "A",
+      "executor": "Luna max worker",
+      "allowlist": ["engine/bins/legion/src/commands/setup.rs","engine/bins/legion/tests/m2_plugin_root.rs"],
+      "read": ["migration/native-rust/dispatches/windows-closure/prompt.md","engine/crates/legion-host/src/codex_skills.rs","engine/crates/legion-host/src/legacy_claude.rs","engine/crates/legion-host/src/setup_registry.rs","engine/crates/legion-runtime/src/release_binding.rs","engine/assets/legion-plugin/plugin.json"],
+      "forbidden": [".git","secrets","live client directories"],
+      "checks": ["orchestrator runs focused m2_plugin_root/setup tests plus isolated & live status/repair smoke; worker runs no check"],
+      "dependencies": []
+    },
+    {
+      "id": "windows-release-package",
+      "dispatch": "A",
+      "executor": "Luna max worker",
+      "allowlist": ["right-release.config.mjs","scripts/assemble-native-release.mjs","scripts/package-windows-release.mjs","tests/release-artifacts.test.mjs","package.json","packaging/windows/sign.md"],
+      "read": ["migration/native-rust/dispatches/windows-closure/prompt.md","scripts/verify-release.mjs","release/distribution-contract.json","release/publication-policy.json","packaging/channels.json","migration/native-rust/m0/distribution-contract.json","node_modules/@rightkit/release/release.mjs"],
+      "forbidden": [".git","secrets",".github/workflows/ci.yml"],
+      "checks": ["orchestrator runs focused release Node test, right-release doctor, x64/ARM64 assembly/package verification, signing smoke when credentials exist, & legion:check; worker runs no check"],
+      "dependencies": []
+    }
+  ],
+  "oracleAudit": {
+    "required": true,
+    "mode": "adversarial",
+    "status": "required-before-execution",
+    "checks": ["allowlist-completeness","lane-disjointness","dependency-validity","maximum-safe-parallelization","end-to-end-lane-closure","direct-port-priority","worker-edit-only","integration-owner-checkpoints","exact-byte-review-pass"]
+  },
+  "recovery": {
+    "maxRetries": 2,
+    "stopConditions": ["owned path is dirty before worker edit","required source input missing","allowlist proves insufficient","private signing input required during source-only lane"],
+    "returnFields": ["changedPaths","checks","blockers","baselineRevision","patchDigest"],
+    "failureClasses": {
+      "missingPathOrInput": "re-read exact path, inspect declared read inventory, stop after second absence",
+      "missingToolOrDependency": "source-only lane records intended orchestrator check & continues without installing",
+      "authOrPermission": "not applicable to source-only lane; do not access secrets or external services",
+      "transientExternal": "not applicable; external calls forbidden",
+      "invalidSchemaOrInput": "inspect canonical schema/source & make one bounded correction within allowlist",
+      "integrityMismatch": "stop without editing & return exact digest mismatch",
+      "deterministicFailure": "workers do not run checks; record predicted failing check for orchestrator",
+      "dirtyConflict": "stop immediately on owned-path dirtiness & report exact path",
+      "wrongProvenance": "stop & report source revision/digest mismatch",
+      "resourceCapacity": "stop broad work; return partial exact diff only if every changed path is allowlisted",
+      "ambiguousRequirement": "use smallest fail-closed behavior from prompt; otherwise TRUE_BLOCKER with one non-inferable decision",
+      "unsafeOrOutOfScope": "do not act; continue independent allowlisted work",
+      "unknown": "re-read raw error once, retry smallest read once, then return TRUE_BLOCKER evidence"
+    }
+  }
+}

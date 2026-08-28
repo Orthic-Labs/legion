@@ -124,7 +124,7 @@
     ],
     "failure": {
       "behavior": "fail closed",
-      "remediation": "legion setup --repair",
+      "remediation": "legion setup repair --confirm",
       "forbidden": "silent mixed-version execution"
     }
   },

@@ -183,7 +183,7 @@ fn portable_package(fixture: &Fixture) -> PathBuf {
         let path = root.join(relative);
         fs::create_dir_all(path.parent().expect("package parent")).expect("package directory");
         let content = match relative {
-            "plugin.json" => br#"{"name":"legion"}"#.as_slice(),
+            "plugin.json" => include_bytes!("../../../assets/legion-plugin/plugin.json").as_slice(),
             "mcp.json" => br#"{"$schema":"https://agent-plugins.org/schemas/1.0.0/mcp.schema.json","mcpServers":{"legion":{"type":"stdio","command":"legion","args":["serve","--stdio","--plugin-root","${PLUGIN_ROOT}"]}}}"#.as_slice(),
             "skills/legion/SKILL.md" => b"---\nname: legion\n---\nUse Legion.",
             "share/legion/release-binding.json" => {
@@ -300,7 +300,7 @@ fn plugin_root_release_binding_mismatch_fails_closed_before_mcp_startup() {
 
     assert_eq!(output.status.code(), Some(2));
     assert!(output.stdout.is_empty(), "MCP must not have started");
-    assert!(String::from_utf8_lossy(&output.stderr).contains("legion setup --repair"));
+    assert!(String::from_utf8_lossy(&output.stderr).contains("legion setup repair --confirm"));
 }
 
 #[test]

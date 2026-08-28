@@ -2,9 +2,10 @@
 //!
 //! Codex discovers plain Agent Skills at `$HOME/.agents/skills/<id>`.  Legion
 //! copies each release package verbatim from `assets/skills`; it never prefixes
-//! a skill id, transforms package contents, or claims a pre-existing tree.
-//! A private ledger under Legion platform state is the sole authority to update
-//! or remove a copied tree.
+//! a skill id or transforms package contents.  A pre-existing skill symlink is
+//! adopted only when its resolved package digest exactly matches the source,
+//! after which replacement creates the regular tree owned by the private
+//! ledger under Legion platform state.
 
 use crate::HostError;
 use legion_contracts::canonical_digest;
@@ -164,6 +165,7 @@ enum LedgerRead {
 enum DestinationTree {
     Absent,
     Digest(String),
+    CanonicalSymlink(String),
     Invalid,
 }
 
@@ -211,7 +213,7 @@ pub fn inspect_codex_skills(input: &CodexSkillsInput) -> Result<CodexSkillsInspe
         let source_digest = sources.get(id).map(|tree| tree.digest()).transpose()?;
         let path = destination_root.join(id);
         let destination = if destination_ok {
-            destination_tree(&path)?
+            destination_tree(&path, source_digest.as_deref())?
         } else {
             DestinationTree::Invalid
         };
@@ -246,7 +248,7 @@ pub fn inspect_codex_skills(input: &CodexSkillsInput) -> Result<CodexSkillsInspe
     for id in &retirement_ids {
         let path = destination_root.join(id);
         let destination = if destination_ok {
-            destination_tree(&path)?
+            destination_tree(&path, None)?
         } else {
             DestinationTree::Invalid
         };
@@ -551,26 +553,43 @@ fn execute_write(
     let ledger_path = ledger_path(&input.platform_state_root);
     let mut ledger = load_mutable_ledger(&ledger_path)?;
     let existing = ledger.entries.get(&current.id).cloned();
-    if current.kind == CodexSkillOperationKind::Install {
-        if !matches!(destination_tree(&destination)?, DestinationTree::Absent) {
-            return Ok(false);
-        }
+    let (replacing, expected_existing_digest) = if current.kind == CodexSkillOperationKind::Install
+    {
+        let replacing = match destination_tree(&destination, Some(source_digest.as_str()))? {
+            DestinationTree::Absent => false,
+            DestinationTree::CanonicalSymlink(digest) if digest == source_digest => true,
+            _ => return Ok(false),
+        };
         if existing.is_some()
             && existing.as_ref().map(|entry| entry.digest.as_str())
                 != current.expected_digest.as_deref()
         {
             return Ok(false);
         }
+        let expected = if replacing {
+            Some(source_digest.clone())
+        } else {
+            None
+        };
+        (replacing, expected)
     } else {
         let Some(existing) = existing.as_ref() else {
             return Ok(false);
         };
-        if current.expected_digest.as_deref() != Some(existing.digest.as_str())
-            || !matches!(destination_tree(&destination)?, DestinationTree::Digest(ref digest) if digest == &existing.digest)
-        {
+        if current.expected_digest.as_deref() != Some(existing.digest.as_str()) {
             return Ok(false);
         }
-    }
+        let replacing = match destination_tree(&destination, Some(source_digest.as_str()))? {
+            DestinationTree::Digest(digest) if digest == existing.digest => true,
+            DestinationTree::CanonicalSymlink(digest)
+                if digest == existing.digest && digest == source_digest =>
+            {
+                true
+            }
+            _ => return Ok(false),
+        };
+        (replacing, Some(existing.digest.clone()))
+    };
 
     let stage = create_stage_directory(&root, &current.id, "stage")?;
     if let Err(error) = materialize_tree(&stage, &tree) {
@@ -590,15 +609,16 @@ fn execute_write(
     ledger.entries.insert(
         current.id.clone(),
         CodexSkillsLedgerEntry {
-            digest: source_digest,
+            digest: source_digest.clone(),
             generation: input.generation.clone(),
         },
     );
     replace_with_stage(
         &destination,
         &stage,
-        matches!(current.kind, CodexSkillOperationKind::Update),
-        current.expected_digest.as_deref(),
+        replacing,
+        expected_existing_digest.as_deref(),
+        Some(source_digest.as_str()),
         &ledger_path,
         &ledger,
     )
@@ -647,7 +667,7 @@ fn execute_remove(
     if operation.expected_digest.as_deref() != Some(entry.digest.as_str()) {
         return Ok(false);
     }
-    match destination_tree(&destination)? {
+    match destination_tree(&destination, None)? {
         DestinationTree::Absent if removes_missing_ledger => {
             ledger.entries.remove(&operation.id);
             write_ledger(&ledger_path, &ledger)?;
@@ -674,6 +694,7 @@ fn replace_with_stage(
     stage: &Path,
     replacing: bool,
     expected_existing_digest: Option<&str>,
+    expected_source_digest: Option<&str>,
     ledger_path: &Path,
     ledger: &CodexSkillsLedger,
 ) -> Result<bool, HostError> {
@@ -699,7 +720,7 @@ fn replace_with_stage(
     let backup = create_stage_directory(root, id, "backup")?;
     fs::remove_dir(&backup).map_err(|error| io_error(&backup, error))?;
     fs::rename(destination, &backup).map_err(|error| io_error(destination, error))?;
-    let backup_tree = match destination_tree(&backup) {
+    let backup_tree = match destination_tree(&backup, expected_source_digest) {
         Ok(tree) => tree,
         Err(error) => {
             rollback_rename(&backup, destination)?;
@@ -707,11 +728,15 @@ fn replace_with_stage(
             return Err(error);
         }
     };
-    if !matches!(
-        backup_tree,
-        DestinationTree::Digest(ref digest)
-            if expected_existing_digest == Some(digest.as_str())
-    ) {
+    let backup_is_expected = match backup_tree {
+        DestinationTree::Digest(digest) => expected_existing_digest == Some(digest.as_str()),
+        DestinationTree::CanonicalSymlink(digest) => {
+            expected_source_digest == Some(digest.as_str())
+                && expected_existing_digest == Some(digest.as_str())
+        }
+        DestinationTree::Absent | DestinationTree::Invalid => false,
+    };
+    if !backup_is_expected {
         rollback_rename(&backup, destination)?;
         fs::remove_dir_all(stage).map_err(|error| io_error(stage, error))?;
         return Ok(false);
@@ -838,13 +863,30 @@ fn package_digest_at(path: &Path) -> Result<String, HostError> {
     tree.digest()
 }
 
-fn destination_tree(path: &Path) -> Result<DestinationTree, HostError> {
+fn resolved_package_digest(path: &Path) -> Result<String, HostError> {
+    let resolved = fs::canonicalize(path).map_err(|error| io_error(path, error))?;
+    package_digest_at(&resolved)
+}
+
+fn destination_tree(
+    path: &Path,
+    expected_source_digest: Option<&str>,
+) -> Result<DestinationTree, HostError> {
     match fs::symlink_metadata(path) {
         Err(error) if error.kind() == ErrorKind::NotFound => Ok(DestinationTree::Absent),
         Err(error) => Err(io_error(path, error)),
-        Ok(metadata) if metadata.file_type().is_symlink() || !metadata.is_dir() => {
-            Ok(DestinationTree::Invalid)
+        Ok(metadata) if metadata.file_type().is_symlink() => {
+            let Some(expected_source_digest) = expected_source_digest else {
+                return Ok(DestinationTree::Invalid);
+            };
+            match resolved_package_digest(path) {
+                Ok(digest) if digest == expected_source_digest => {
+                    Ok(DestinationTree::CanonicalSymlink(digest))
+                }
+                Ok(_) | Err(_) => Ok(DestinationTree::Invalid),
+            }
         }
+        Ok(metadata) if !metadata.is_dir() => Ok(DestinationTree::Invalid),
         Ok(_) => match package_tree(path, true) {
             Ok(tree) => Ok(DestinationTree::Digest(tree.digest()?)),
             Err(_) => Ok(DestinationTree::Invalid),
@@ -854,7 +896,9 @@ fn destination_tree(path: &Path) -> Result<DestinationTree, HostError> {
 
 fn destination_digest(destination: &DestinationTree) -> Option<String> {
     match destination {
-        DestinationTree::Digest(digest) => Some(digest.clone()),
+        DestinationTree::Digest(digest) | DestinationTree::CanonicalSymlink(digest) => {
+            Some(digest.clone())
+        }
         DestinationTree::Absent | DestinationTree::Invalid => None,
     }
 }
@@ -880,6 +924,16 @@ fn current_state(
             Some(entry) if destination_digest == &entry.digest => CodexSkillState::Stale,
             Some(_) | None => CodexSkillState::Conflict,
         },
+        DestinationTree::CanonicalSymlink(destination_digest) => match entry {
+            Some(entry)
+                if destination_digest == &entry.digest
+                    && source_digest == Some(entry.digest.as_str()) =>
+            {
+                CodexSkillState::Stale
+            }
+            None if source_digest == Some(destination_digest.as_str()) => CodexSkillState::Missing,
+            Some(_) | None => CodexSkillState::Conflict,
+        },
         DestinationTree::Invalid => CodexSkillState::Conflict,
     }
 }
@@ -899,6 +953,7 @@ fn retired_state(
             Some(_) => CodexSkillState::RetiredConflict,
             None => CodexSkillState::Foreign,
         },
+        DestinationTree::CanonicalSymlink(_) => CodexSkillState::RetiredConflict,
         DestinationTree::Invalid => CodexSkillState::RetiredConflict,
     }
 }
@@ -1313,6 +1368,26 @@ mod tests {
         }
     }
 
+    #[cfg(any(unix, windows))]
+    fn make_dir_symlink(target: &Path, link: &Path) -> bool {
+        #[cfg(unix)]
+        let result = std::os::unix::fs::symlink(target, link);
+        #[cfg(windows)]
+        let result = std::os::windows::fs::symlink_dir(target, link);
+        match result {
+            Ok(()) => true,
+            Err(error) if cfg!(windows) && error.kind() == std::io::ErrorKind::PermissionDenied => {
+                false
+            }
+            Err(error) => panic!("cannot create test directory symlink: {error}"),
+        }
+    }
+
+    #[cfg(not(any(unix, windows)))]
+    fn make_dir_symlink(_target: &Path, _link: &Path) -> bool {
+        panic!("directory symlink tests require a supported platform")
+    }
+
     #[test]
     fn apply_copies_full_plain_package_and_writes_ownership_ledger() {
         let temp = TempRoot::new("copy-full-package");
@@ -1337,6 +1412,220 @@ mod tests {
             inspect_codex_skills(&input).unwrap().statuses[0].state,
             CodexSkillState::Healthy
         );
+    }
+
+    #[test]
+    fn apply_adopts_exact_source_symlink_without_touching_target() {
+        let temp = TempRoot::new("adopt-source-symlink");
+        let input = input(&temp, &["audit"], &[], "dev.1");
+        write_skill(&input.assets_skills_root, "audit", "audit v1");
+        let canonical_root = temp.0.join("canonical");
+        write_skill(&canonical_root, "audit", "audit v1");
+
+        let target = canonical_root.join("audit");
+        let destination = input.home.join(".agents").join("skills").join("audit");
+        fs::create_dir_all(destination.parent().unwrap()).unwrap();
+        if !make_dir_symlink(&target, &destination) {
+            return;
+        }
+        let source_digest = package_digest_at(&input.assets_skills_root.join("audit")).unwrap();
+        let target_digest = package_digest_at(&target).unwrap();
+
+        let preview = preview_codex_skills(&input).unwrap();
+        assert_eq!(
+            preview.inspection.statuses[0].state,
+            CodexSkillState::Missing
+        );
+        assert_eq!(
+            preview.inspection.statuses[0].destination_digest.as_deref(),
+            Some(source_digest.as_str())
+        );
+        assert_eq!(preview.operations[0].kind, CodexSkillOperationKind::Install);
+
+        let applied = apply_codex_skills(&input).unwrap();
+        assert_eq!(applied.applied.len(), 1);
+        assert_eq!(applied.applied[0].kind, CodexSkillOperationKind::Install);
+        assert!(!fs::symlink_metadata(&destination)
+            .unwrap()
+            .file_type()
+            .is_symlink());
+        assert_eq!(fs::read(destination.join("SKILL.md")).unwrap(), b"audit v1");
+        assert_eq!(package_digest_at(&target).unwrap(), target_digest);
+        assert_eq!(
+            inspect_codex_skills(&input).unwrap().statuses[0].state,
+            CodexSkillState::Healthy
+        );
+    }
+
+    #[test]
+    fn apply_replaces_exact_source_symlink_with_existing_ledger() {
+        let temp = TempRoot::new("adopt-source-symlink-ledger");
+        let input = input(&temp, &["audit"], &[], "dev.2");
+        write_skill(&input.assets_skills_root, "audit", "audit v1");
+        let canonical_root = temp.0.join("canonical");
+        write_skill(&canonical_root, "audit", "audit v1");
+
+        let target = canonical_root.join("audit");
+        let destination = input.home.join(".agents").join("skills").join("audit");
+        fs::create_dir_all(destination.parent().unwrap()).unwrap();
+        if !make_dir_symlink(&target, &destination) {
+            return;
+        }
+        let source_digest = package_digest_at(&input.assets_skills_root.join("audit")).unwrap();
+        let target_digest = package_digest_at(&target).unwrap();
+        let mut entries = BTreeMap::new();
+        entries.insert(
+            "audit".into(),
+            CodexSkillsLedgerEntry {
+                digest: source_digest,
+                generation: "dev.1".into(),
+            },
+        );
+        write_ledger(
+            &ledger_path(&input.platform_state_root),
+            &CodexSkillsLedger {
+                schema_version: CODEX_SKILLS_LEDGER_SCHEMA_VERSION,
+                owner: CODEX_SKILLS_OWNER.into(),
+                entries,
+            },
+        )
+        .unwrap();
+
+        let preview = preview_codex_skills(&input).unwrap();
+        assert_eq!(preview.inspection.statuses[0].state, CodexSkillState::Stale);
+        assert_eq!(preview.operations[0].kind, CodexSkillOperationKind::Update);
+
+        let applied = apply_codex_skills(&input).unwrap();
+        assert_eq!(applied.applied.len(), 1);
+        assert_eq!(applied.applied[0].kind, CodexSkillOperationKind::Update);
+        assert!(!fs::symlink_metadata(&destination)
+            .unwrap()
+            .file_type()
+            .is_symlink());
+        assert_eq!(package_digest_at(&target).unwrap(), target_digest);
+    }
+
+    #[test]
+    fn mismatched_source_symlink_is_conflict_and_preserved() {
+        let temp = TempRoot::new("mismatched-source-symlink");
+        let input = input(&temp, &["audit"], &[], "dev.1");
+        write_skill(&input.assets_skills_root, "audit", "audit v1");
+        let foreign_root = temp.0.join("foreign");
+        write_skill(&foreign_root, "audit", "user fork");
+
+        let target = foreign_root.join("audit");
+        let destination = input.home.join(".agents").join("skills").join("audit");
+        fs::create_dir_all(destination.parent().unwrap()).unwrap();
+        if !make_dir_symlink(&target, &destination) {
+            return;
+        }
+        let target_digest = package_digest_at(&target).unwrap();
+
+        let preview = preview_codex_skills(&input).unwrap();
+        assert_eq!(
+            preview.inspection.statuses[0].state,
+            CodexSkillState::Conflict
+        );
+        assert!(preview.inspection.statuses[0].destination_digest.is_none());
+        assert!(preview.operations.is_empty());
+
+        let applied = apply_codex_skills(&input).unwrap();
+        assert!(applied.applied.is_empty());
+        assert!(fs::symlink_metadata(&destination)
+            .unwrap()
+            .file_type()
+            .is_symlink());
+        assert_eq!(package_digest_at(&target).unwrap(), target_digest);
+    }
+
+    #[test]
+    fn broken_source_symlink_is_conflict_and_preserved() {
+        let temp = TempRoot::new("broken-source-symlink");
+        let input = input(&temp, &["audit"], &[], "dev.1");
+        write_skill(&input.assets_skills_root, "audit", "audit v1");
+
+        let target = temp.0.join("missing").join("audit");
+        let destination = input.home.join(".agents").join("skills").join("audit");
+        fs::create_dir_all(destination.parent().unwrap()).unwrap();
+        if !make_dir_symlink(&target, &destination) {
+            return;
+        }
+        let link_target = fs::read_link(&destination).unwrap();
+
+        let preview = preview_codex_skills(&input).unwrap();
+        assert_eq!(
+            preview.inspection.statuses[0].state,
+            CodexSkillState::Conflict
+        );
+        assert!(preview.operations.is_empty());
+
+        let applied = apply_codex_skills(&input).unwrap();
+        assert!(applied.applied.is_empty());
+        assert!(fs::symlink_metadata(&destination)
+            .unwrap()
+            .file_type()
+            .is_symlink());
+        assert_eq!(fs::read_link(&destination).unwrap(), link_target);
+    }
+
+    #[test]
+    fn retired_source_symlink_is_conflict_and_preserved() {
+        let temp = TempRoot::new("retired-source-symlink");
+        let input = input(&temp, &[], &["audit"], "dev.1");
+        let canonical_root = temp.0.join("canonical");
+        write_skill(&canonical_root, "audit", "audit v1");
+
+        let target = canonical_root.join("audit");
+        let destination = input.home.join(".agents").join("skills").join("audit");
+        fs::create_dir_all(destination.parent().unwrap()).unwrap();
+        if !make_dir_symlink(&target, &destination) {
+            return;
+        }
+        let target_digest = package_digest_at(&target).unwrap();
+
+        let preview = preview_remove_codex_skills(&input).unwrap();
+        assert_eq!(
+            preview.inspection.statuses[0].state,
+            CodexSkillState::RetiredConflict
+        );
+        assert!(preview.operations.is_empty());
+
+        let removed = remove_codex_skills(&input).unwrap();
+        assert!(removed.applied.is_empty());
+        assert!(fs::symlink_metadata(&destination)
+            .unwrap()
+            .file_type()
+            .is_symlink());
+        assert_eq!(package_digest_at(&target).unwrap(), target_digest);
+    }
+
+    #[test]
+    fn unrelated_user_symlink_is_reported_and_preserved() {
+        let temp = TempRoot::new("unrelated-user-symlink");
+        let input = input(&temp, &["audit"], &[], "dev.1");
+        write_skill(&input.assets_skills_root, "audit", "audit v1");
+        let user_root = temp.0.join("user");
+        write_skill(&user_root, "personal", "personal");
+
+        let target = user_root.join("personal");
+        let destination = input.home.join(".agents").join("skills").join("personal");
+        fs::create_dir_all(destination.parent().unwrap()).unwrap();
+        if !make_dir_symlink(&target, &destination) {
+            return;
+        }
+        let target_digest = package_digest_at(&target).unwrap();
+
+        let preview = preview_codex_skills(&input).unwrap();
+        assert!(preview.inspection.unrelated_paths.contains(&destination));
+        let applied = apply_codex_skills(&input).unwrap();
+        assert!(applied.applied.iter().any(|operation| {
+            operation.id == "audit" && operation.kind == CodexSkillOperationKind::Install
+        }));
+        assert!(fs::symlink_metadata(&destination)
+            .unwrap()
+            .file_type()
+            .is_symlink());
+        assert_eq!(package_digest_at(&target).unwrap(), target_digest);
     }
 
     #[test]
@@ -1398,6 +1687,7 @@ mod tests {
             &stage,
             true,
             Some(&expected),
+            None,
             &ledger_path,
             &ledger,
         )
