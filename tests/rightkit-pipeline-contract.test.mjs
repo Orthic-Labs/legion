@@ -12,9 +12,11 @@ test('right-git owns exact public CI bytes', () => {
   const manifest = JSON.parse(readFileSync(join(root, '.rightgit.json'), 'utf8'));
   assert.deepEqual(validateManifest(manifest), { valid: true, errors: [] });
   const rendered = renderLanes(manifest, root);
-  assert.equal(rendered.length, 1);
-  assert.equal(rendered[0].content, readFileSync(join(root, '.github/workflows/ci.yml'), 'utf8'));
-  assert.deepEqual(readdirSync(join(root, '.github/workflows')).sort(), ['ci.yml']);
+  assert.equal(rendered.length, 2);
+  for (const lane of rendered) {
+    assert.equal(lane.content, readFileSync(join(root, '.github/workflows', lane.filename), 'utf8'));
+  }
+  assert.deepEqual(readdirSync(join(root, '.github/workflows')).sort(), ['ci.yml', 'release-candidate.yml']);
 });
 
 test('action uses local pinned pnpm without global installation', () => {
