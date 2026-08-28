@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "kind": "legion-distribution-contract",
   "nodePackage": {
     "name": "@orthic-labs/legion",
@@ -8,20 +8,27 @@
     "channels": ["internal-pack", "local-test", "ci-test"]
   },
   "nativeRelease": {
-    "channel": "signed-release",
+    "channel": "direct-bootstrap",
     "public": true,
     "status": "blocked",
+    "payloadAuthority": "immutable-github-release",
+    "bootstrapAuthority": "https://legion.orthiclabs.com/install.ps1",
+    "manifestAuthority": "release-manifest.json+release-manifest.sig",
+    "installRoot": "user-local-versioned-with-stable-current",
+    "activation": ["legion setup repair --confirm", "legion setup status"],
     "requiredEvidence": [
-      "immutable-action-pins",
       "platform-artifacts",
       "platform-signatures",
       "provenance-attestations",
-      "package-manager-metadata",
+      "signed-release-manifest",
+      "bootstrap-transaction",
+      "rollback-transaction",
+      "client-integration-health",
       "channel-authorization"
     ]
   },
   "packageManagers": {
-    "homebrew": "unavailable",
-    "winget": "unavailable"
+    "homebrew": "optional-alias-not-required",
+    "winget": "optional-alias-not-required"
   }
 }

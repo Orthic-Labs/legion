@@ -1,19 +1,25 @@
 {
-  "schemaVersion": 1,
-  "kind": "legion-package-manager-channels",
+  "schemaVersion": 2,
+  "kind": "legion-distribution-channels",
   "contract": "release/distribution-contract.json",
   "versionSource": "release/version.json",
   "artifactSource": "immutable-github-release",
   "channels": {
+    "direct-bootstrap": {
+      "status": "blocked",
+      "stableUrl": "https://legion.orthiclabs.com/install.ps1",
+      "payloadAuthority": "immutable-github-release",
+      "publicationOwner": "RightKit Release"
+    },
     "homebrew": {
-      "status": "unavailable",
+      "status": "optional-alias-not-required",
       "tapRepository": "Orthic-Labs/homebrew-tap",
       "formula": "orthic-labs/tap/legion",
       "requiredArchitectures": ["macos-arm64", "macos-x86_64"],
       "publicationOwner": "RightKit Release"
     },
     "winget": {
-      "status": "unavailable",
+      "status": "optional-alias-not-required",
       "packageIdentifier": "OrthicLabs.Legion",
       "installerType": "portable",
       "requiredArchitectures": ["windows-x86_64", "windows-arm64"],

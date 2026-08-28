@@ -102,6 +102,7 @@ Primary rules:
 | Qualitative design craft | `skills/designer/**` | Audit Visual may provide evidence |
 | Capability/entrypoint semantics | `skills/<id>/SKILL.md` | catalogs/manifests/projections |
 | Host capability availability | `src/registry/capabilities.json` | SKILL `hostRequirements` |
+| Public distribution and client integration | `docs/LEGION-DISTRIBUTION-AND-CLIENT-INTEGRATION.md` | release policy, bootstrap, host adapters |
 | Explicit aliases | `src/config/capability-aliases.json` | resolver/projections |
 | Semantic effect vocabulary | this root SSOT | SKILL declarations |
 | Runtime effect mapping/enforcement | `src/packages/arcane/**` | receipts/projections |
@@ -400,13 +401,14 @@ HOST-SPECIFIC
 .claude/**, .codex/**, .gemini/**, AGENTS.md, plugin packages
 ```
 
-Canonical semantic ownership defined by this SSOT remains authoritative. For target product
-topology, machine installation, portable host integration, client fidelity, and runtime lifecycle,
-`migration/native-rust/PRODUCT-ARCHITECTURE-V2.md` supersedes the frozen descriptor-driven host
-seam. Thin target adapters preserve collision-safe/reversible installation, truthful fidelity,
-legacy-writer quarantine, and conformance/safety guarantees without preserving descriptor-driven
-semantic hosting. Legacy `.claude`, `.codex`, `.gemini`, and equivalent projections are
-migration/compatibility surfaces only and have no target-runtime semantic authority.
+Canonical semantic ownership defined by this SSOT remains authoritative. Target product topology
+and native runtime lifecycle are described by `migration/native-rust/PRODUCT-ARCHITECTURE-V2.md`.
+Public distribution, activation transactions, Agent Plugins packaging, and exact client boundaries
+are owned by `docs/LEGION-DISTRIBUTION-AND-CLIENT-INTEGRATION.md`. Thin target adapters preserve
+collision-safe/reversible installation, truthful fidelity, legacy-writer quarantine, and
+conformance/safety guarantees without preserving descriptor-driven semantic hosting. Legacy
+`.claude`, `.codex`, `.gemini`, and equivalent projections are migration/compatibility surfaces
+only and have no target-runtime semantic authority.
 
 Host projection may be deliberately lossy for compatibility: source `kind=capability` +
 `discoverability=public` projects as a public projectable capability row (using the legacy

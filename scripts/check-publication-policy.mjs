@@ -30,7 +30,7 @@ export function checkPublicationChannel(channel, root = ROOT) {
   const policyPath = resolve(root, 'release/publication-policy.json');
   if (!existsSync(policyPath)) return { status: 'blocked', exitCode: 5, message: `publication blocked: ${policyPath} is absent` };
   const policy = JSON.parse(readFileSync(policyPath, 'utf8'));
-  if (policy.schemaVersion !== 1 || policy.kind !== 'legion-publication-policy') {
+  if (policy.schemaVersion !== 2 || policy.kind !== 'legion-publication-policy') {
     return { status: 'blocked', exitCode: 5, message: 'publication blocked: invalid policy' };
   }
   const grant = policy.channels?.[channel];

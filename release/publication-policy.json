@@ -1,22 +1,24 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "kind": "legion-publication-policy",
   "contract": "release/distribution-contract.json",
-  "note": "Node package is private development tooling. Public distribution remains blocked until signed native-release evidence is complete.",
+  "note": "Node package is private development tooling. Public distribution uses signed GitHub payloads through branded direct bootstrap.",
   "channels": {
     "npm": {
       "allowed": false,
       "reason": "private-development-tooling"
     },
-    "signed-release": {
+    "direct-bootstrap": {
       "allowed": false,
       "reason": "release-readiness-evidence-incomplete",
       "requiredEvidence": [
-        "immutable-action-pins",
         "platform-artifacts",
         "platform-signatures",
         "provenance-attestations",
-        "package-manager-metadata",
+        "signed-release-manifest",
+        "bootstrap-transaction",
+        "rollback-transaction",
+        "client-integration-health",
         "channel-authorization"
       ]
     }
