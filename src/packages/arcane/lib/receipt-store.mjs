@@ -128,7 +128,7 @@ export class ReceiptStore {
       } catch (err) {
         throw new ArcaneError('ARC_STORE_CORRUPT', 'cannot append: last stored entry is unreadable', {
           sequence: lines.length,
-          parseError: String(err && err.message),
+          parseError: String(err?.message),
         });
       }
       prevDigest = digestValue(lastEntry);
