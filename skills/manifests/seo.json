@@ -225,12 +225,12 @@
     {
       "path": "hooks/pre-commit-seo-check.sh",
       "uri": "legion-skill://seo/hooks/pre-commit-seo-check.sh",
-      "digest": "sha256:d31a1cbc3f9f0f51148c2da7f18bf8e2bc149b317d2ae7e2eefce01f5fb76713"
+      "digest": "sha256:61fbd7846781c8b0aab77bcc7b9cba4d05566492ccefd5b4fbec6193eaa1c498"
     },
     {
       "path": "hooks/validate-schema.py",
       "uri": "legion-skill://seo/hooks/validate-schema.py",
-      "digest": "sha256:0837991dc213def229833837cc18d3544b206c9cf46f9ff0064bd32a4dd05e69"
+      "digest": "sha256:972da015a553b2057d2009a34b258e95386807f06f1140bd36b16249ed1674dd"
     },
     {
       "path": "pdf/google-seo-reference.md",
