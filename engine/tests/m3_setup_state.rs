@@ -362,8 +362,8 @@ fn native_client_projection_profiles_reconcile_without_claiming_pi_execution() {
     let root = TempRoot::new("client-projections");
     let state_root = root.path().join("state");
     let source_root = root.path().join("release/plugin");
-    let claude_target = root.path().join("home/.claude/plugins/legion");
-    let pi_target = root.path().join("home/.agents/skills");
+    let claude_target = state_root.join("clients/.claude/plugins/legion");
+    let pi_target = state_root.join("clients/.agents/skills");
     fs::create_dir_all(source_root.join("skills/example")).expect("plugin source");
     fs::write(source_root.join("plugin.json"), br#"{"name":"legion"}"#).expect("plugin manifest");
     fs::write(source_root.join("mcp.json"), br#"{"mcpServers":{}}"#).expect("plugin MCP manifest");
@@ -435,7 +435,11 @@ fn production_projection_reports_identity_and_rejects_escaped_build_paths() {
     let state_root = root.path().join("state");
     let install_root = root.path().join("Legion");
     let current_root = install_root.join("current");
-    let executable = current_root.join("bin/legion");
+    let executable = current_root.join(if cfg!(windows) {
+        "bin/legion.exe"
+    } else {
+        "bin/legion"
+    });
     let source_root = current_root.join("share/legion/plugin");
     let target_root = root.path().join("client/.claude/plugins/legion");
     fs::create_dir_all(&source_root).expect("installed plugin source");
@@ -467,7 +471,11 @@ fn production_projection_reports_identity_and_rejects_escaped_build_paths() {
 
     let escaped_root = root.path().join("target");
     let escaped_current_root = escaped_root.join("current");
-    let escaped_executable = escaped_current_root.join("bin/legion");
+    let escaped_executable = escaped_current_root.join(if cfg!(windows) {
+        "bin/legion.exe"
+    } else {
+        "bin/legion"
+    });
     let escaped_source = escaped_current_root.join("share/legion/plugin");
     fs::create_dir_all(&escaped_source).expect("escaped source");
     fs::write(escaped_source.join("mcp.json"), b"{}").expect("escaped MCP manifest");
