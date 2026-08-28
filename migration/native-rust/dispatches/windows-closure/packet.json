@@ -2,11 +2,11 @@
   "schemaVersion": 1,
   "kind": "legion-authority-dispatch",
   "packetType": "direct",
-  "repositoryRoot": "D:/Claude/legion",
+  "repositoryRoot": "<repository-root>",
   "sourceRevision": "445d85f87793fcc4978709b7c473e927db8f4d8a",
   "sourceArtifact": "migration/native-rust/dispatches/windows-closure/prompt.md",
   "promptArtifact": "migration/native-rust/dispatches/windows-closure/prompt.md",
-  "promptDigest": "sha256:89a0e7fa54b81541eb2ec0d4ee7d61afde090b8b6bcd48123e3eb985ec61133f",
+  "promptDigest": "sha256:26f40beaf5c38114cbdd458f6ad05d28938d1aef076086ebf29a542b3f648144",
   "modelRouting": {
     "modelTier": "MID",
     "workerProfile": "luna-max",

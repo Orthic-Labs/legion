@@ -6,7 +6,7 @@ Remove development suffix from Legion version. Close Windows work only; Apple/ma
 
 ## Frozen facts
 
-- Repository: `D:/Claude/legion`
+- Repository: `<repository-root>`
 - Baseline: `445d85f87793fcc4978709b7c473e927db8f4d8a`
 - Canonical version: `0.1.0`; baseline is clean & synchronized with `origin/main`.
 - CI run `33119242090` passed Ubuntu, Windows, macOS, & private-repo guard.
