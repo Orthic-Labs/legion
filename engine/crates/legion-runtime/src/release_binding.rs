@@ -521,16 +521,20 @@ fn digest(bytes: &[u8]) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::sync::atomic::{AtomicU64, Ordering};
     use std::time::{SystemTime, UNIX_EPOCH};
+
+    static NEXT_ROOT: AtomicU64 = AtomicU64::new(0);
 
     fn root() -> PathBuf {
         let root = std::env::temp_dir().join(format!(
-            "legion-binding-{}-{}",
+            "legion-binding-{}-{}-{}",
             std::process::id(),
             SystemTime::now()
                 .duration_since(UNIX_EPOCH)
                 .expect("clock")
-                .as_nanos()
+                .as_nanos(),
+            NEXT_ROOT.fetch_add(1, Ordering::Relaxed)
         ));
         fs::create_dir_all(root.join("assets/nested")).expect("directory");
         fs::write(root.join("runtime"), b"runtime").expect("runtime");

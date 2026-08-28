@@ -4,6 +4,7 @@ node_modules/
 .audit/
 .audit
 .legion/
+.right-release/
 .agent/
 __pycache__/
 *.pyc
