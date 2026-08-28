@@ -416,6 +416,26 @@ compatibility `kind` the host consumer requires); source `kind=entrypoint` does 
 public host skill membership. That compatibility projection is not read back as canonical
 taxonomy.
 
+### 13.1 Installed product versus development execution
+
+Legion has two explicit execution origins:
+
+```text
+installed   → production harness/PATH/hooks/MCP/client activation bind only to
+              %LOCALAPPDATA%\Orthic Labs\Legion\current\bin\legion.exe
+development → explicit repository commands with isolated development state
+              roots, ports, process identity, and client overrides
+```
+
+Production bindings to repository, `dist`, `target`, or `node_modules` executables are
+prohibited. Default development commands must not mutate global harness configuration, PATH,
+startup registration, the stable `current` target, or installed state; tests use temporary roots.
+Bootstrap is the sole authority that stages immutable versions, journals integrations, switches
+the stable `current` target, and activates clients. Setup/status must report
+`origin=installed|development`, executable, install root, and generation. Production status fails
+closed whenever any binding escapes the stable `current` executable. Private workspace content is
+excluded from installed releases, client projections, and production bindings.
+
 ## 14. Model policy
 
 Model policy is tiered; concrete models are host configuration. Canonical architecture, role

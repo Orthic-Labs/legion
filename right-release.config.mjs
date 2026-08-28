@@ -31,6 +31,24 @@ export const WINDOWS_ARCHITECTURES = Object.freeze({
 	}),
 });
 
+/**
+ * Installed-product boundary shared by packaging, bootstrap, and native
+ * qualification.  Only `current` is a production binding; version roots are
+ * immutable bootstrap state and never appear in client/PATH registrations.
+ */
+export const WINDOWS_INSTALL_CONTRACT = Object.freeze({
+	origin: "installed",
+	localAppDataSubdir: Object.freeze(["Orthic Labs", "Legion"]),
+	installRootSubdir: "Orthic Labs/Legion",
+	stableCurrentName: "current",
+	previousCurrentName: ".current-previous",
+	nextCurrentName: ".current-next",
+	integrationJournalName: "integration-journal.json",
+	executablePath: "bin/legion.exe",
+	generationFormat: "release-version:declarative-assets-sha256",
+	forbiddenBindingSegments: Object.freeze(["repo", "dist", "target", "node_modules"]),
+});
+
 const windowsX64 = WINDOWS_ARCHITECTURES.x86_64;
 const windowsArm64 = WINDOWS_ARCHITECTURES.arm64;
 const selectedArchitecture = String(process.env.LEGION_WINDOWS_ARCH ?? "x86_64").trim().toLowerCase();
@@ -69,9 +87,11 @@ export default {
 			provider: "rightapps-downloads-r2",
 			publisher: "rightkit-release",
 			mode: "branded-bootstrap-only",
+			payloadAuthority: "immutable-github-release",
 			stableUrl: "https://legion.orthiclabs.com/install.ps1",
 			objectKey: "legion/install.ps1",
 		},
+		install: WINDOWS_INSTALL_CONTRACT,
 	},
 	packageManager: "pnpm@11.24.0",
 	workdir: ".",

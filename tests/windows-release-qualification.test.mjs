@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { cpSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, writeFileSync, rmSync } from "node:fs";
+import { cpSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, readdirSync, writeFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { basename, dirname, join } from "node:path";
 import test from "node:test";
@@ -16,12 +16,14 @@ function fixture(root, version, marker) {
 	mkdirSync(bin, { recursive: true });
 	mkdirSync(share, { recursive: true });
 	const runtime = Buffer.from(`fixture legion ${version} ${marker}\n`, "utf8");
+	const generation = `${version}:${digest(runtime).slice("sha256:".length)}`;
 	writeFileSync(join(bin, "legion.exe"), runtime);
 	writeFileSync(join(bin, "legion-hook.exe"), Buffer.from(`hook ${marker}\n`, "utf8"));
 	writeFileSync(join(bin, "legion-mcp.exe"), Buffer.from(`mcp ${marker}\n`, "utf8"));
 	writeFileSync(join(share, "release.json"), JSON.stringify({
 		releaseVersion: version,
 		runtime: { platform: "windows", architecture: "x86_64", sha256: digest(runtime) },
+		generation,
 	}));
 }
 
@@ -54,6 +56,11 @@ function qualificationFixture({ withPrior = true } = {}) {
 		const installedLauncher = join(options.cwd, "bin", "legion.exe");
 		const activeMetadata = JSON.parse(readFileSync(join(options.cwd, "share", "legion", "release.json"), "utf8"));
 		const activeVersion = activeMetadata.releaseVersion;
+		const installRoot = dirname(options.cwd);
+		const activeVersionName = readdirSync(join(installRoot, "versions"))
+			.find((name) => name.startsWith(`${activeVersion}-`));
+		assert.ok(activeVersionName, `version root must be retained for ${activeVersion}`);
+		const resolvedManifestPath = join(installRoot, "versions", activeVersionName, "share", "legion", "release.json");
 		if (args[0] === "--version") return { exitCode: 0, stdout: `legion ${activeVersion}\n`, stderr: "" };
 		const installedDigest = digest(readFileSync(installedLauncher)).slice("sha256:".length);
 		const codexDigest = digest(readFileSync(codexExecutable));
@@ -68,9 +75,16 @@ function qualificationFixture({ withPrior = true } = {}) {
 			qualificationEvidenceRef: qualificationProofPath,
 		};
 		const liveIdentity = {
+			origin: "installed",
+			executablePath: installedLauncher,
+			installRoot,
+			generation: activeMetadata.generation,
 			executable: {
 				path: installedLauncher,
-				manifestPath: join(options.cwd, "share", "legion", "release.json"),
+				manifestPath: resolvedManifestPath,
+				origin: "installed",
+				installRoot,
+				generation: activeMetadata.generation,
 				releaseVersion: activeVersion,
 				expectedReleaseVersion: activeVersion,
 				state: "current",
@@ -190,11 +204,26 @@ test("Windows qualification exercises native lifecycle through injected seams", 
 		assert.notEqual(receipt.archive.current.sha256, receipt.archive.prior.sha256);
 		assert.notEqual(receipt.runtimeSha256, receipt.priorRuntimeSha256);
 		assert.match(receipt.install.currentPath, /Orthic Labs[\\/]Legion[\\/]current$/);
+		assert.equal(receipt.install.origin, "installed");
+		assert.equal(receipt.install.root, dirname(receipt.install.currentPath));
+		assert.equal(receipt.install.executable, join(receipt.install.currentPath, "bin", "legion.exe"));
+		assert.equal(receipt.install.generation, "1.2.3:" + receipt.runtimeSha256.slice("sha256:".length));
+		assert.equal(receipt.origin, "installed");
+		assert.equal(receipt.installRoot, receipt.install.root);
+		assert.equal(receipt.executable, receipt.install.executable);
+		assert.equal(receipt.generation, receipt.install.generation);
 		assert.equal(receipt.integrationJournal.kind, "legion-integration-journal");
+		assert.equal(receipt.integrationJournal.origin, "installed");
+		assert.equal(receipt.integrationJournal.executable, receipt.install.executable);
+		assert.equal(receipt.integrationJournal.generation, receipt.install.generation);
+		assert.equal(receipt.integrationJournal.binding.resolvedVersionRoot, receipt.install.currentVersionRoot);
 		assert.equal(receipt.integrationJournal.state, "ready-for-uninstall");
 		assert.equal(receipt.gates.update.stableCurrentPath, receipt.install.currentPath);
 		assert.equal(receipt.gates.rollback.integrationsRestored, true);
 		assert.equal(receipt.gates.rollback.priorHealthRestored, true);
+		assert.equal(receipt.gates["installed-product"].activationPath, receipt.install.executable);
+		const installedRepair = JSON.parse(receipt.gates["installed-product"].commands[1].stdout);
+		assert.match(installedRepair.liveIdentity.executable.manifestPath, /[\\/]versions[\\/]/);
 		for (const name of ["installed-product", "command-resolution", "client-integration", "update", "rollback", "uninstall"]) {
 			assert.equal(receipt.gates[name].status, "pass", `${name} must pass: ${JSON.stringify(receipt.gates[name])}`);
 		}

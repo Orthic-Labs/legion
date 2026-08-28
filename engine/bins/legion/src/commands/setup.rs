@@ -6,7 +6,7 @@ use serde_json::{json, Value};
 use std::{
     collections::BTreeMap,
     ffi::OsString,
-    path::{Path, PathBuf},
+    path::{Component, Path, PathBuf},
     time::Duration,
 };
 use tokio_util::sync::CancellationToken;
@@ -265,6 +265,14 @@ async fn lifecycle(
             "schemaVersion": 1,
             "kind": "legion-setup-preview",
             "status": status,
+            "origin": live_identity.get("origin").cloned(),
+            "executable": live_identity.get("executablePath").cloned(),
+            "installRoot": live_identity.get("installRoot").cloned(),
+            "stableCurrentRoot": live_identity.get("stableCurrentRoot").cloned(),
+            "stableCurrent": live_identity.get("stableCurrent").cloned(),
+            "resolvedExecutable": live_identity.get("resolvedExecutable").cloned(),
+            "resolvedInstallRoot": live_identity.get("resolvedInstallRoot").cloned(),
+            "generation": live_identity.get("generation").cloned(),
             "remediation": remediation,
             "recovery": recovery,
             "preview": preview,
@@ -280,12 +288,15 @@ async fn lifecycle(
         .confirm(preview, confirmation)
         .map_err(setup_error)?;
     let integration_request = confirmed.preview.request.clone();
+    // Reconcile production client bindings before durable registry mutation.
+    // This keeps an escaped projection from leaving a partially applied plan.
+    preview_host_integrations(&integration_request)?;
     let execution = registry.execute(confirmed).map_err(setup_error)?;
     let host_integrations = apply_host_integrations(&integration_request)?;
     let execution_value = serde_json::to_value(&execution)
         .map_err(|error| CommandError::incomplete(error.to_string()))?;
-    let execution_value = enrich_client_statuses(execution_value);
     let live_identity = inspect_live_identity(&host_integrations)?;
+    let execution_value = enrich_client_statuses(execution_value, &live_identity);
     let (status, remediation) = setup_health(
         &execution_value["clients"],
         &host_integrations,
@@ -295,6 +306,14 @@ async fn lifecycle(
         "schemaVersion": 1,
         "kind": "legion-setup-execution",
         "status": status,
+        "origin": live_identity.get("origin").cloned(),
+        "executable": live_identity.get("executablePath").cloned(),
+        "installRoot": live_identity.get("installRoot").cloned(),
+        "stableCurrentRoot": live_identity.get("stableCurrentRoot").cloned(),
+        "stableCurrent": live_identity.get("stableCurrent").cloned(),
+        "resolvedExecutable": live_identity.get("resolvedExecutable").cloned(),
+        "resolvedInstallRoot": live_identity.get("resolvedInstallRoot").cloned(),
+        "generation": live_identity.get("generation").cloned(),
         "remediation": remediation,
         "recovery": recovery,
         "execution": execution_value,
@@ -324,6 +343,14 @@ async fn preview(args: SetupPreviewArgs, cancellation: CancellationToken) -> Com
         "schemaVersion": 1,
         "kind": "legion-setup-preview",
         "status": status,
+        "origin": live_identity.get("origin").cloned(),
+        "executable": live_identity.get("executablePath").cloned(),
+        "installRoot": live_identity.get("installRoot").cloned(),
+        "stableCurrentRoot": live_identity.get("stableCurrentRoot").cloned(),
+        "stableCurrent": live_identity.get("stableCurrent").cloned(),
+        "resolvedExecutable": live_identity.get("resolvedExecutable").cloned(),
+        "resolvedInstallRoot": live_identity.get("resolvedInstallRoot").cloned(),
+        "generation": live_identity.get("generation").cloned(),
         "remediation": remediation,
         "recovery": recovery,
         "preview": preview,
@@ -333,7 +360,52 @@ async fn preview(args: SetupPreviewArgs, cancellation: CancellationToken) -> Com
 }
 
 fn status(args: SetupClientArgs) -> CommandResult {
-    let installed = installed_release()?;
+    let installed = match installed_release() {
+        Ok(installed) => installed,
+        Err(error) => {
+            let evidence = legion_runtime::release_binding::detect_runtime_origin().map_err(
+                |origin_error| {
+                    CommandError::incomplete(format!(
+                        "{}; runtime origin unavailable: {origin_error}",
+                        error.message
+                    ))
+                },
+            )?;
+            let origin = match &evidence.origin {
+                legion_runtime::release_binding::RuntimeOrigin::Installed => {
+                    legion_host::setup_registry::ORIGIN_INSTALLED
+                }
+                legion_runtime::release_binding::RuntimeOrigin::Development => {
+                    legion_host::setup_registry::ORIGIN_DEVELOPMENT
+                }
+            };
+            let resolved_executable = std::fs::canonicalize(&evidence.executable).ok();
+            let stable_current_root = evidence
+                .install_root
+                .as_ref()
+                .map(|path| path.join("current"));
+            let resolved_install_root = evidence
+                .install_root
+                .as_ref()
+                .map(|path| path.join("current"))
+                .and_then(|path| std::fs::canonicalize(path).ok());
+            return Ok(json!({
+                "schemaVersion": 1,
+                "kind": "legion-setup-status",
+                "status": "failed",
+                "origin": origin,
+                "executable": evidence.executable,
+                "installRoot": evidence.install_root,
+                "stableCurrentRoot": stable_current_root,
+                "resolvedExecutable": resolved_executable,
+                "resolvedInstallRoot": resolved_install_root,
+                "generation": evidence.generation,
+                "stableCurrent": evidence.stable_current,
+                "clients": [],
+                "remediation": [error.message],
+            }));
+        }
+    };
     let release = bound_release(&installed.manifest);
     let selector = selector(args.client);
     let mut registry =
@@ -343,13 +415,21 @@ fn status(args: SetupClientArgs) -> CommandResult {
     let host_integrations = inspect_host_integrations(&selector, &release)?;
     let clients_value = serde_json::to_value(&clients)
         .map_err(|error| CommandError::incomplete(error.to_string()))?;
-    let clients_value = enrich_client_statuses(clients_value);
     let live_identity = inspect_live_identity(&host_integrations)?;
+    let clients_value = enrich_client_statuses(clients_value, &live_identity);
     let (status, remediation) = setup_health(&clients_value, &host_integrations, &live_identity);
     Ok(json!({
         "schemaVersion": 1,
         "kind": "legion-setup-status",
         "status": status,
+        "origin": live_identity.get("origin").cloned(),
+        "executable": live_identity.get("executablePath").cloned(),
+        "installRoot": live_identity.get("installRoot").cloned(),
+        "stableCurrentRoot": live_identity.get("stableCurrentRoot").cloned(),
+        "stableCurrent": live_identity.get("stableCurrent").cloned(),
+        "resolvedExecutable": live_identity.get("resolvedExecutable").cloned(),
+        "resolvedInstallRoot": live_identity.get("resolvedInstallRoot").cloned(),
+        "generation": live_identity.get("generation").cloned(),
         "remediation": remediation,
         "recovery": recovery,
         "clients": clients_value,
@@ -397,12 +477,15 @@ async fn execute(
     let confirmed = registry
         .confirm(preview, confirmation)
         .map_err(setup_error)?;
+    // Reconcile production client bindings before durable registry mutation.
+    // This keeps an escaped projection from leaving a partially applied plan.
+    preview_host_integrations(&integration_request)?;
     let execution = registry.execute(confirmed).map_err(setup_error)?;
     let host_integrations = apply_host_integrations(&integration_request)?;
     let execution_value = serde_json::to_value(&execution)
         .map_err(|error| CommandError::incomplete(error.to_string()))?;
-    let execution_value = enrich_client_statuses(execution_value);
     let live_identity = inspect_live_identity(&host_integrations)?;
+    let execution_value = enrich_client_statuses(execution_value, &live_identity);
     let (status, remediation) = setup_health(
         &execution_value["clients"],
         &host_integrations,
@@ -412,6 +495,14 @@ async fn execute(
         "schemaVersion": 1,
         "kind": "legion-setup-execution",
         "status": status,
+        "origin": live_identity.get("origin").cloned(),
+        "executable": live_identity.get("executablePath").cloned(),
+        "installRoot": live_identity.get("installRoot").cloned(),
+        "stableCurrentRoot": live_identity.get("stableCurrentRoot").cloned(),
+        "stableCurrent": live_identity.get("stableCurrent").cloned(),
+        "resolvedExecutable": live_identity.get("resolvedExecutable").cloned(),
+        "resolvedInstallRoot": live_identity.get("resolvedInstallRoot").cloned(),
+        "generation": live_identity.get("generation").cloned(),
         "remediation": remediation,
         "recovery": recovery,
         "execution": execution_value,
@@ -1176,14 +1267,36 @@ fn parse_embedded_json(text: &str) -> Option<Value> {
 
 fn inspect_live_identity(host_integrations: &Value) -> Result<Value, CommandError> {
     let installed = installed_release()?;
+    let origin = installed.origin_evidence();
+    let executable_path = origin.executable.clone();
+    let install_root = origin.install_root.clone().ok_or_else(|| {
+        CommandError::incomplete("installed release has no stable product install root")
+    })?;
+    let stable_current_root = install_root.join("current");
+    let resolved_executable = installed
+        .resolved_executable_path()
+        .map_err(|error| CommandError::incomplete(error.to_string()))?;
+    let resolved_install_root = installed
+        .resolved_install_root()
+        .map_err(|error| CommandError::incomplete(error.to_string()))?;
+    let generation = format!(
+        "{}:{}",
+        installed.manifest.release_version, installed.manifest.declarative_assets_sha256
+    );
     let executable_state = if installed.manifest.release_version == EXPECTED_RELEASE_VERSION {
         "current"
     } else {
         "stale"
     };
     let executable = json!({
-        "path": installed.executable_path.clone(),
+        "path": executable_path.clone(),
         "manifestPath": installed.manifest_path.clone(),
+        "origin": legion_host::setup_registry::ORIGIN_INSTALLED,
+        "installRoot": install_root.clone(),
+        "stableCurrentRoot": stable_current_root.clone(),
+        "resolvedExecutable": resolved_executable.clone(),
+        "resolvedInstallRoot": resolved_install_root.clone(),
+        "generation": generation.clone(),
         "releaseVersion": installed.manifest.release_version.clone(),
         "expectedReleaseVersion": EXPECTED_RELEASE_VERSION,
         "state": executable_state,
@@ -1192,8 +1305,16 @@ fn inspect_live_identity(host_integrations: &Value) -> Result<Value, CommandErro
         "runtimeArchitecture": installed.manifest.runtime.architecture.clone(),
     });
     let plugin = inspect_live_plugin(&installed, host_integrations);
-    let projections = inspect_live_projections(&installed.manifest, host_integrations);
+    let projections = inspect_live_projections(&installed, host_integrations);
     Ok(json!({
+        "origin": legion_host::setup_registry::ORIGIN_INSTALLED,
+        "executablePath": executable_path,
+        "installRoot": install_root,
+        "stableCurrentRoot": stable_current_root,
+        "stableCurrent": origin.stable_current,
+        "resolvedExecutable": resolved_executable,
+        "resolvedInstallRoot": resolved_install_root,
+        "generation": generation,
         "executable": executable,
         "plugin": plugin,
         "projections": projections,
@@ -1430,9 +1551,16 @@ fn inspect_plugin_root(
 }
 
 fn inspect_live_projections(
-    manifest: &legion_runtime::ReleaseManifest,
+    installed: &legion_runtime::release_binding::InstalledRelease,
     host_integrations: &Value,
 ) -> Value {
+    let manifest = &installed.manifest;
+    let origin = installed.origin_evidence();
+    let executable = origin.executable.clone();
+    let install_root = origin.install_root.clone();
+    let stable_current_root = install_root.as_ref().map(|path| path.join("current"));
+    let resolved_executable = installed.resolved_executable_path().ok();
+    let resolved_install_root = installed.resolved_install_root().ok();
     let generation = format!(
         "{}:{}",
         EXPECTED_RELEASE_VERSION, manifest.declarative_assets_sha256
@@ -1530,7 +1658,14 @@ fn inspect_live_projections(
             "claudeCodeLegacy".into(),
             json!({
                 "state": state,
-                "expectedGeneration": generation,
+                "origin": legion_host::setup_registry::ORIGIN_INSTALLED,
+                "executable": executable.clone(),
+                "installRoot": install_root.clone(),
+                "stableCurrentRoot": stable_current_root.clone(),
+                "resolvedExecutable": resolved_executable.clone(),
+                "resolvedInstallRoot": resolved_install_root.clone(),
+                "generation": generation.clone(),
+                "expectedGeneration": generation.clone(),
                 "canonicalSkillsRootTrusted": canonical_trusted,
                 "canonicalMissingSkillCount": missing,
                 "pluginCacheError": cache_error,
@@ -1589,7 +1724,14 @@ fn inspect_live_projections(
             "codexSkills".into(),
             json!({
                 "state": state,
-                "expectedGeneration": generation,
+                "origin": legion_host::setup_registry::ORIGIN_INSTALLED,
+                "executable": executable.clone(),
+                "installRoot": install_root.clone(),
+                "stableCurrentRoot": stable_current_root.clone(),
+                "resolvedExecutable": resolved_executable.clone(),
+                "resolvedInstallRoot": resolved_install_root.clone(),
+                "generation": generation.clone(),
+                "expectedGeneration": generation.clone(),
                 "ledgerError": ledger_error,
                 "statuses": statuses,
             }),
@@ -1619,7 +1761,31 @@ fn inspect_live_projections(
                 "selectedMechanism": projection.get("selectedMechanism"),
                 "projection": projection.get("projection"),
                 "state": state,
+                "origin": projection
+                    .get("origin")
+                    .cloned()
+                    .unwrap_or_else(|| Value::String(legion_host::setup_registry::ORIGIN_INSTALLED.into())),
                 "ownership": projection.get("ownership"),
+                "executable": projection
+                    .get("executable")
+                    .cloned()
+                    .unwrap_or_else(|| json!(executable.clone())),
+                "installRoot": projection
+                    .get("installRoot")
+                    .cloned()
+                    .unwrap_or_else(|| json!(install_root.clone())),
+                "stableCurrentRoot": projection
+                    .get("stableCurrentRoot")
+                    .cloned()
+                    .unwrap_or_else(|| json!(stable_current_root.clone())),
+                "resolvedExecutable": projection
+                    .get("resolvedExecutable")
+                    .cloned()
+                    .unwrap_or_else(|| json!(resolved_executable.clone())),
+                "resolvedInstallRoot": projection
+                    .get("resolvedInstallRoot")
+                    .cloned()
+                    .unwrap_or_else(|| json!(resolved_install_root.clone())),
                 "targetRoot": projection.get("targetRoot"),
                 "expectedGeneration": projection.get("expectedGeneration"),
                 "generation": projection.get("generation"),
@@ -1656,6 +1822,48 @@ fn setup_health(
     live_identity: &Value,
 ) -> (&'static str, Vec<String>) {
     let mut remediation = Vec::new();
+    if live_identity.get("origin").and_then(Value::as_str)
+        != Some(legion_host::setup_registry::ORIGIN_INSTALLED)
+    {
+        remediation.push("production setup origin is not installed".into());
+    }
+    if live_identity.get("stableCurrent").and_then(Value::as_bool) != Some(true) {
+        remediation.push("production executable is not bound to stable current; run legion setup repair --confirm".into());
+    }
+    let executable_path = live_identity.get("executablePath").or_else(|| {
+        live_identity
+            .get("executable")
+            .and_then(|value| value.get("path"))
+    });
+    if !binding_fields_current(
+        live_identity.get("origin").and_then(Value::as_str),
+        executable_path,
+        live_identity.get("installRoot"),
+    ) {
+        remediation.push("production executable binding escaped stable current; run legion setup repair --confirm".into());
+    }
+    if !resolved_binding_current(
+        live_identity.get("origin").and_then(Value::as_str),
+        executable_path,
+        live_identity.get("installRoot"),
+        live_identity.get("resolvedExecutable"),
+        live_identity.get("resolvedInstallRoot"),
+    ) {
+        remediation.push(
+            "production executable resolved target escaped active release; run legion setup repair --confirm"
+                .into(),
+        );
+    }
+    if live_identity
+        .get("generation")
+        .and_then(Value::as_str)
+        .is_none()
+    {
+        remediation.push(
+            "production executable generation is unavailable; run legion setup repair --confirm"
+                .into(),
+        );
+    }
     if live_identity["executable"]["state"] != "current" {
         remediation.push(format!(
             "live Legion executable is stale ({}; expected {})",
@@ -1710,6 +1918,50 @@ fn setup_health(
                     ));
                 }
             }
+            if projection.get("origin").is_some()
+                && !binding_fields_current(
+                    projection.get("origin").and_then(Value::as_str),
+                    projection.get("executable"),
+                    projection.get("installRoot"),
+                )
+            {
+                remediation.push(format!(
+                    "{client} production binding escaped stable current; run legion setup repair --confirm"
+                ));
+            }
+            if projection.get("origin").is_some()
+                && !resolved_binding_current(
+                    projection.get("origin").and_then(Value::as_str),
+                    projection.get("executable"),
+                    projection.get("installRoot"),
+                    projection.get("resolvedExecutable"),
+                    projection.get("resolvedInstallRoot"),
+                )
+            {
+                remediation.push(format!(
+                    "{client} resolved target escaped active release; run legion setup repair --confirm"
+                ));
+            }
+            if projection.get("origin").is_some()
+                && projection
+                    .get("generation")
+                    .and_then(Value::as_str)
+                    .is_none()
+            {
+                remediation.push(format!(
+                    "{client} production generation is unavailable; run legion setup repair --confirm"
+                ));
+            }
+            if let (Some(expected), Some(actual)) = (
+                live_identity.get("generation").and_then(Value::as_str),
+                projection.get("generation").and_then(Value::as_str),
+            ) {
+                if expected != actual {
+                    remediation.push(format!(
+                        "{client} generation {actual} is stale; run legion setup repair --confirm"
+                    ));
+                }
+            }
         }
     }
     // Keep direct host observations in output-derived health so repair result
@@ -1731,10 +1983,214 @@ fn setup_health(
     }
 }
 
-fn enrich_client_statuses(mut clients: Value) -> Value {
+fn binding_fields_current(
+    origin: Option<&str>,
+    executable: Option<&Value>,
+    install_root: Option<&Value>,
+) -> bool {
+    if origin != Some(legion_host::setup_registry::ORIGIN_INSTALLED) {
+        return false;
+    }
+    let Some(executable) = executable.and_then(Value::as_str) else {
+        return false;
+    };
+    let Some(install_root) = install_root.and_then(Value::as_str) else {
+        return false;
+    };
+    let executable = Path::new(executable);
+    let install_root = Path::new(install_root);
+    if !executable.is_absolute()
+        || !install_root.is_absolute()
+        || executable
+            .components()
+            .chain(install_root.components())
+            .any(|component| matches!(component, Component::ParentDir | Component::CurDir))
+    {
+        return false;
+    }
+    if executable.components().any(|component| {
+        let Component::Normal(name) = component else {
+            return false;
+        };
+        matches!(
+            name.to_string_lossy().to_ascii_lowercase().as_str(),
+            "repo" | "dist" | "target" | "node_modules"
+        )
+    }) || install_root.components().any(|component| {
+        let Component::Normal(name) = component else {
+            return false;
+        };
+        matches!(
+            name.to_string_lossy().to_ascii_lowercase().as_str(),
+            "repo" | "dist" | "target" | "node_modules"
+        )
+    }) {
+        return false;
+    }
+    let Some(bin) = executable.parent() else {
+        return false;
+    };
+    let Some(root) = bin.parent() else {
+        return false;
+    };
+    let stable_current_root = install_root.join("current");
+    let executable_name_matches = executable
+        .file_name()
+        .and_then(|name| name.to_str())
+        .is_some_and(|name| {
+            if cfg!(windows) {
+                name.eq_ignore_ascii_case("legion.exe")
+            } else {
+                name == "legion"
+            }
+        });
+    path_name_is(bin, "bin")
+        && path_name_is(root, "current")
+        && paths_equal(root, &stable_current_root)
+        && executable_name_matches
+}
+
+fn resolved_binding_current(
+    origin: Option<&str>,
+    executable: Option<&Value>,
+    install_root: Option<&Value>,
+    resolved_executable: Option<&Value>,
+    resolved_install_root: Option<&Value>,
+) -> bool {
+    if !binding_fields_current(origin, executable, install_root) {
+        return false;
+    }
+    let Some(install_root) = install_root.and_then(Value::as_str) else {
+        return false;
+    };
+    let Some(resolved_executable) = resolved_executable.and_then(Value::as_str) else {
+        return false;
+    };
+    let Some(resolved_install_root) = resolved_install_root.and_then(Value::as_str) else {
+        return false;
+    };
+    let install_root = Path::new(install_root);
+    let resolved_executable = Path::new(resolved_executable);
+    let resolved_install_root = Path::new(resolved_install_root);
+    if !resolved_executable.is_absolute()
+        || !resolved_install_root.is_absolute()
+        || resolved_executable
+            .components()
+            .chain(resolved_install_root.components())
+            .any(|component| matches!(component, Component::ParentDir | Component::CurDir))
+    {
+        return false;
+    }
+    if resolved_executable
+        .components()
+        .chain(resolved_install_root.components())
+        .any(|component| {
+            let Component::Normal(name) = component else {
+                return false;
+            };
+            matches!(
+                name.to_string_lossy().to_ascii_lowercase().as_str(),
+                "repo" | "dist" | "target" | "node_modules"
+            )
+        })
+    {
+        return false;
+    }
+    path_starts_with(resolved_install_root, install_root)
+        && path_starts_with(resolved_executable, resolved_install_root)
+        && resolved_executable
+            .file_name()
+            .and_then(|name| name.to_str())
+            .is_some_and(|name| {
+                if cfg!(windows) {
+                    name.eq_ignore_ascii_case("legion.exe")
+                } else {
+                    name == "legion"
+                }
+            })
+}
+
+fn path_name_is(path: &Path, expected: &str) -> bool {
+    path.file_name()
+        .and_then(|name| name.to_str())
+        .is_some_and(|actual| {
+            if cfg!(windows) {
+                actual.eq_ignore_ascii_case(expected)
+            } else {
+                actual == expected
+            }
+        })
+}
+
+fn paths_equal(left: &Path, right: &Path) -> bool {
+    if cfg!(windows) {
+        path_starts_with(left, right) && path_starts_with(right, left)
+    } else {
+        left == right
+    }
+}
+
+fn path_starts_with(path: &Path, root: &Path) -> bool {
+    if !cfg!(windows) {
+        return path.starts_with(root);
+    }
+    let normalize = |path: &Path| {
+        let normalized = path.to_string_lossy().replace('\\', "/");
+        let normalized = normalized.strip_prefix("//?/").unwrap_or(&normalized);
+        let normalized = normalized.strip_prefix("UNC/").unwrap_or(normalized);
+        normalized
+            .split('/')
+            .filter(|component| !component.is_empty() && *component != ".")
+            .map(|component| component.to_ascii_lowercase())
+            .collect::<Vec<_>>()
+    };
+    let path = normalize(path);
+    let root = normalize(root);
+    path.len() >= root.len()
+        && path
+            .iter()
+            .zip(root.iter())
+            .all(|(path, root)| path == root)
+}
+
+fn enrich_client_statuses(mut clients: Value, live_identity: &Value) -> Value {
     let Some(values) = clients.as_array_mut() else {
         return clients;
     };
+    let origin = live_identity
+        .get("origin")
+        .cloned()
+        .unwrap_or_else(|| Value::String(legion_host::setup_registry::ORIGIN_INSTALLED.into()));
+    let executable = live_identity
+        .get("executablePath")
+        .cloned()
+        .or_else(|| {
+            live_identity
+                .get("executable")
+                .and_then(|value| value.get("path"))
+                .cloned()
+        })
+        .unwrap_or(Value::Null);
+    let install_root = live_identity
+        .get("installRoot")
+        .cloned()
+        .unwrap_or(Value::Null);
+    let stable_current_root = live_identity
+        .get("stableCurrentRoot")
+        .cloned()
+        .unwrap_or(Value::Null);
+    let resolved_executable = live_identity
+        .get("resolvedExecutable")
+        .cloned()
+        .unwrap_or(Value::Null);
+    let resolved_install_root = live_identity
+        .get("resolvedInstallRoot")
+        .cloned()
+        .unwrap_or(Value::Null);
+    let generation = live_identity
+        .get("generation")
+        .cloned()
+        .unwrap_or(Value::Null);
     for value in values {
         let Some(object) = value.as_object_mut() else {
             continue;
@@ -1755,6 +2211,13 @@ fn enrich_client_statuses(mut clients: Value) -> Value {
             Value::Bool(profile.executable_registration),
         );
         object.insert("explicitOnly".into(), Value::Bool(profile.explicit_only));
+        object.insert("origin".into(), origin.clone());
+        object.insert("executable".into(), executable.clone());
+        object.insert("installRoot".into(), install_root.clone());
+        object.insert("stableCurrentRoot".into(), stable_current_root.clone());
+        object.insert("resolvedExecutable".into(), resolved_executable.clone());
+        object.insert("resolvedInstallRoot".into(), resolved_install_root.clone());
+        object.insert("generation".into(), generation.clone());
     }
     clients
 }
@@ -1955,6 +2418,11 @@ fn host_integration_inputs(
             "installed release changed while setup request was active",
         ));
     }
+    let origin = installed.origin_evidence();
+    let executable = origin.executable.clone();
+    let install_root = origin.install_root.clone().ok_or_else(|| {
+        CommandError::incomplete("installed release has no stable product install root")
+    })?;
     let release_root = installed.manifest_path.parent().ok_or_else(|| {
         CommandError::incomplete("installed release manifest has no parent directory")
     })?;
@@ -2055,6 +2523,9 @@ fn host_integration_inputs(
                 source_root,
                 target_root,
                 state_root: legion_host::platform_state_root().map_err(setup_error)?,
+                origin: legion_host::setup_registry::ORIGIN_INSTALLED.into(),
+                executable: Some(executable.clone()),
+                install_root: Some(install_root.clone()),
                 generation: generation.clone(),
                 executable_registration,
                 explicit_only,

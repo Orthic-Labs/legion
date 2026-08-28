@@ -11,8 +11,73 @@ use serde::{Deserialize, Serialize};
 /// The sole remediation for a mixed or otherwise invalid installed identity.
 pub const REPAIR_COMMAND: &str = "legion setup repair --confirm";
 pub const CANONICAL_RELEASE_MANIFEST: &str = "share/legion/release.json";
+pub const STABLE_INSTALL_PRODUCT_ROOT: &str = "Orthic Labs/Legion";
+pub const ORIGIN_INSTALLED: &str = "installed";
+pub const ORIGIN_DEVELOPMENT: &str = "development";
 pub const RIGHTKIT_AX_VERSION: &str = "0.2.1";
 pub const RIGHTKIT_AX_SOURCE_COMMIT: &str = "4c1a414269d8ffdb95b4b1e685440bd34784b41b";
+
+/// Runtime execution origin. Installed product execution is only trusted from
+/// the user-local stable `current` tree; explicit repository composition is
+/// development execution with isolated state owned by its caller.
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum RuntimeOrigin {
+    Installed,
+    Development,
+}
+
+impl RuntimeOrigin {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Self::Installed => ORIGIN_INSTALLED,
+            Self::Development => ORIGIN_DEVELOPMENT,
+        }
+    }
+}
+
+/// Evidence reported by setup/status and used to gate production bindings.
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RuntimeOriginEvidence {
+    pub origin: RuntimeOrigin,
+    pub executable: PathBuf,
+    /// Lexical product root; stable `current` binding is checked separately.
+    pub install_root: Option<PathBuf>,
+    pub generation: Option<String>,
+    /// Whether executable is classified from the stable `current` path.
+    pub stable_current: bool,
+}
+
+impl RuntimeOriginEvidence {
+    pub fn development(executable: impl Into<PathBuf>) -> Self {
+        Self {
+            origin: RuntimeOrigin::Development,
+            executable: executable.into(),
+            install_root: None,
+            generation: None,
+            stable_current: false,
+        }
+    }
+
+    pub fn installed(
+        executable: impl Into<PathBuf>,
+        install_root: impl Into<PathBuf>,
+        generation: impl Into<String>,
+    ) -> Self {
+        Self {
+            origin: RuntimeOrigin::Installed,
+            executable: executable.into(),
+            install_root: Some(install_root.into()),
+            generation: Some(generation.into()),
+            stable_current: true,
+        }
+    }
+
+    pub fn is_production(&self) -> bool {
+        self.origin == RuntimeOrigin::Installed && self.stable_current
+    }
+}
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -76,6 +141,48 @@ pub struct InstalledRelease {
     pub manifest: ReleaseManifest,
     pub manifest_path: PathBuf,
     pub executable_path: PathBuf,
+}
+
+impl InstalledRelease {
+    pub fn origin_evidence(&self) -> RuntimeOriginEvidence {
+        let install_root = self
+            .manifest_path
+            .parent()
+            .and_then(Path::parent)
+            .and_then(Path::parent)
+            .and_then(Path::parent)
+            .map(Path::to_path_buf)
+            .or_else(stable_product_root);
+        RuntimeOriginEvidence {
+            origin: RuntimeOrigin::Installed,
+            executable: self.executable_path.clone(),
+            install_root,
+            generation: Some(self.manifest.release_version.clone()),
+            stable_current: true,
+        }
+    }
+
+    pub fn resolved_executable_path(&self) -> Result<PathBuf, ReleaseBindingError> {
+        fs::canonicalize(&self.executable_path).map_err(|source| ReleaseBindingError::Io {
+            path: self.executable_path.clone(),
+            source,
+        })
+    }
+
+    /// Resolve immutable version root reached through lexical stable `current`.
+    pub fn resolved_install_root(&self) -> Result<PathBuf, ReleaseBindingError> {
+        let product_root = self.origin_evidence().install_root.ok_or_else(|| {
+            ReleaseBindingError::InvalidManifest {
+                path: self.manifest_path.clone(),
+                reason: "installed release has no stable install root".into(),
+            }
+        })?;
+        let current_root = product_root.join("current");
+        fs::canonicalize(&current_root).map_err(|source| ReleaseBindingError::Io {
+            path: current_root,
+            source,
+        })
+    }
 }
 
 impl VerifiedReleaseBinding {
@@ -210,49 +317,112 @@ pub fn load_release_manifest(
     Ok(manifest)
 }
 
-/// Locate the canonical installed manifest relative to the running executable.
-/// No environment, source checkout, or caller-selected fallback is consulted.
-pub fn load_installed_release() -> Result<InstalledRelease, ReleaseBindingError> {
-    let executable =
-        fs::canonicalize(
-            std::env::current_exe().map_err(|source| ReleaseBindingError::Io {
-                path: PathBuf::from("<current_exe>"),
-                source,
-            })?,
-        )
-        .map_err(|source| ReleaseBindingError::Io {
-            path: PathBuf::from("<current_exe>"),
-            source,
-        })?;
-    let executable_directory =
-        executable
-            .parent()
-            .ok_or_else(|| ReleaseBindingError::InvalidManifest {
-                path: executable.clone(),
-                reason: "installed executable has no parent directory".into(),
-            })?;
-    let mut roots = vec![executable_directory];
-    if executable_directory
-        .file_name()
-        .is_some_and(|name| name == "bin")
-    {
-        if let Some(parent) = executable_directory.parent() {
-            roots.push(parent);
-        }
+/// Return user-local stable product root used by production adapters.
+/// Windows deliberately binds this to `%LOCALAPPDATA%`; no process or shell
+/// state is consulted and a missing root remains a development origin.
+pub fn stable_product_root() -> Option<PathBuf> {
+    let data_root = stable_data_root()?;
+    Some(data_root.join("Orthic Labs").join("Legion"))
+}
+
+/// Return stable lexical `current` tree below product root. It may be a
+/// junction/symlink to an immutable, verified release generation.
+pub fn stable_current_root() -> Option<PathBuf> {
+    stable_product_root().map(|root| root.join("current"))
+}
+
+/// Recognize exactly `<product-root>/current/bin/legion[.exe]`.
+/// Windows path components are compared case-insensitively, including when a
+/// launcher or current directory uses different casing.
+pub fn is_stable_current_executable(path: &Path) -> bool {
+    stable_install_root(path).is_some()
+}
+
+/// Return stable product root for one lexical executable path. This preserves
+/// the user-facing `current` path even when that directory is a Windows
+/// junction to an immutable versioned generation.
+pub fn stable_install_root(path: impl AsRef<Path>) -> Option<PathBuf> {
+    let path = path.as_ref();
+    let product_root = stable_product_root()?;
+    let current_root = product_root.join("current");
+    is_stable_current_executable_at(path, &current_root).then_some(product_root)
+}
+
+/// Classify one executable without loading release files. This is useful for
+/// status output when an installed manifest is missing or invalid.
+pub fn runtime_origin_for_executable(path: impl Into<PathBuf>) -> RuntimeOriginEvidence {
+    let executable = path.into();
+    match stable_install_root(&executable) {
+        Some(root) => RuntimeOriginEvidence {
+            origin: RuntimeOrigin::Installed,
+            executable,
+            install_root: Some(root),
+            generation: None,
+            stable_current: true,
+        },
+        None => RuntimeOriginEvidence::development(executable),
     }
-    let manifest_path = roots
-        .into_iter()
-        .map(|root| root.join(CANONICAL_RELEASE_MANIFEST))
-        .find(|candidate| candidate.is_file())
-        .ok_or_else(|| ReleaseBindingError::InvalidManifest {
-            path: executable.clone(),
-            reason: "installed release manifest share/legion/release.json was not found".into(),
-        })?;
-    let manifest_path =
-        fs::canonicalize(manifest_path.clone()).map_err(|source| ReleaseBindingError::Io {
-            path: manifest_path,
+}
+
+/// Classify the running process from its executable path.
+pub fn detect_runtime_origin() -> Result<RuntimeOriginEvidence, ReleaseBindingError> {
+    let executable = std::env::current_exe().map_err(|source| ReleaseBindingError::Io {
+        path: PathBuf::from("<current_exe>"),
+        source,
+    })?;
+    Ok(runtime_origin_for_executable(executable))
+}
+
+/// Locate the canonical installed manifest below the running executable's
+/// user-local stable `current` root. No source checkout or caller-selected
+/// fallback is consulted.
+pub fn load_installed_release() -> Result<InstalledRelease, ReleaseBindingError> {
+    let executable = std::env::current_exe().map_err(|source| ReleaseBindingError::Io {
+        path: PathBuf::from("<current_exe>"),
+        source,
+    })?;
+    let evidence = runtime_origin_for_executable(executable.clone());
+    let install_root =
+        evidence
+            .install_root
+            .clone()
+            .ok_or_else(|| ReleaseBindingError::Mismatch {
+                component: "runtime origin",
+                expected: format!("{STABLE_INSTALL_PRODUCT_ROOT}/current/bin/legion executable"),
+                actual: executable.display().to_string(),
+                remediation: REPAIR_COMMAND,
+            })?;
+    let current_root = install_root.join("current");
+    let resolved_install_root =
+        fs::canonicalize(&current_root).map_err(|source| ReleaseBindingError::Io {
+            path: current_root.clone(),
             source,
         })?;
+    let resolved_executable =
+        fs::canonicalize(&executable).map_err(|source| ReleaseBindingError::Io {
+            path: executable.clone(),
+            source,
+        })?;
+    if !path_is_within(&resolved_install_root, &resolved_executable) {
+        return Err(ReleaseBindingError::Mismatch {
+            component: "resolved executable",
+            expected: resolved_install_root.display().to_string(),
+            actual: resolved_executable.display().to_string(),
+            remediation: REPAIR_COMMAND,
+        });
+    }
+    let manifest_path = current_root.join(CANONICAL_RELEASE_MANIFEST);
+    if !manifest_path.is_file() {
+        return Err(ReleaseBindingError::InvalidManifest {
+            path: manifest_path,
+            reason: "installed release manifest share/legion/release.json was not found".into(),
+        });
+    }
+    verify_resolved_path(
+        &resolved_install_root,
+        &manifest_path,
+        "resolved release manifest",
+    )?;
     let manifest = load_release_manifest(&manifest_path)?;
     exact(
         "runtime platform",
@@ -270,6 +440,306 @@ pub fn load_installed_release() -> Result<InstalledRelease, ReleaseBindingError>
         manifest_path,
         executable_path: executable,
     })
+}
+
+/// Ensure an installed application binds only files lexically rooted at the
+/// user-local stable `current` tree. Relative paths, parent traversal, and
+/// mismatched executable evidence fail closed.
+pub fn verify_stable_current_binding(
+    evidence: &RuntimeOriginEvidence,
+    manifest_path: &Path,
+    inputs: &ReleaseBindingInputs,
+) -> Result<(), ReleaseBindingError> {
+    if evidence.origin != RuntimeOrigin::Installed || !evidence.stable_current {
+        return Err(ReleaseBindingError::Mismatch {
+            component: "runtime origin",
+            expected: "installed".into(),
+            actual: "development".into(),
+            remediation: REPAIR_COMMAND,
+        });
+    }
+    let root = evidence
+        .install_root
+        .as_deref()
+        .ok_or_else(|| ReleaseBindingError::Mismatch {
+            component: "install root",
+            expected: STABLE_INSTALL_PRODUCT_ROOT.into(),
+            actual: "missing".into(),
+            remediation: REPAIR_COMMAND,
+        })?;
+    if !stable_product_root_is(root) {
+        return Err(ReleaseBindingError::Mismatch {
+            component: "install root",
+            expected: stable_product_root()
+                .map(|path| path.display().to_string())
+                .unwrap_or_else(|| STABLE_INSTALL_PRODUCT_ROOT.into()),
+            actual: root.display().to_string(),
+            remediation: REPAIR_COMMAND,
+        });
+    }
+    let current_root = root.join("current");
+    if !is_stable_current_executable_at(&evidence.executable, &current_root)
+        || !is_stable_current_executable_at(&inputs.runtime_path, &current_root)
+        || path_has_symlink_component(&current_root, &evidence.executable)
+        || path_has_symlink_component(&current_root, &inputs.runtime_path)
+    {
+        return Err(ReleaseBindingError::Mismatch {
+            component: "stable current executable",
+            expected: current_root
+                .join("bin")
+                .join(if cfg!(windows) {
+                    "legion.exe"
+                } else {
+                    "legion"
+                })
+                .display()
+                .to_string(),
+            actual: inputs.runtime_path.display().to_string(),
+            remediation: REPAIR_COMMAND,
+        });
+    }
+    if !same_path(&evidence.executable, &inputs.runtime_path) {
+        return Err(ReleaseBindingError::Mismatch {
+            component: "runtime executable",
+            expected: evidence.executable.display().to_string(),
+            actual: inputs.runtime_path.display().to_string(),
+            remediation: REPAIR_COMMAND,
+        });
+    }
+    let resolved_current_root =
+        fs::canonicalize(&current_root).map_err(|source| ReleaseBindingError::Io {
+            path: current_root.clone(),
+            source,
+        })?;
+    let resolved_executable =
+        fs::canonicalize(&evidence.executable).map_err(|source| ReleaseBindingError::Io {
+            path: evidence.executable.clone(),
+            source,
+        })?;
+    if !path_is_within(&resolved_current_root, &resolved_executable) {
+        return Err(ReleaseBindingError::Mismatch {
+            component: "resolved stable current executable",
+            expected: resolved_current_root.display().to_string(),
+            actual: resolved_executable.display().to_string(),
+            remediation: REPAIR_COMMAND,
+        });
+    }
+    let mut paths = vec![
+        manifest_path,
+        inputs.catalog_path.as_path(),
+        inputs.mcp_tool_schema_path.as_path(),
+    ];
+    match &inputs.declarative_assets {
+        DeclarativeAssets::File(path) | DeclarativeAssets::Directory(path) => paths.push(path),
+    }
+    for path in paths {
+        verify_stable_current_path(evidence, path, "stable current binding")?;
+    }
+    Ok(())
+}
+
+/// Validate one additional installed binding path, such as a catalog root
+/// consumed by the application but not represented in `ReleaseBindingInputs`.
+pub fn verify_stable_current_path(
+    evidence: &RuntimeOriginEvidence,
+    path: &Path,
+    component: &'static str,
+) -> Result<(), ReleaseBindingError> {
+    if evidence.origin != RuntimeOrigin::Installed || !evidence.stable_current {
+        return Err(ReleaseBindingError::Mismatch {
+            component: "runtime origin",
+            expected: "installed".into(),
+            actual: "development".into(),
+            remediation: REPAIR_COMMAND,
+        });
+    }
+    let root = evidence
+        .install_root
+        .as_deref()
+        .ok_or_else(|| ReleaseBindingError::Mismatch {
+            component: "install root",
+            expected: STABLE_INSTALL_PRODUCT_ROOT.into(),
+            actual: "missing".into(),
+            remediation: REPAIR_COMMAND,
+        })?;
+    if !stable_product_root_is(root) {
+        return Err(ReleaseBindingError::Mismatch {
+            component: "install root",
+            expected: stable_product_root()
+                .map(|path| path.display().to_string())
+                .unwrap_or_else(|| STABLE_INSTALL_PRODUCT_ROOT.into()),
+            actual: root.display().to_string(),
+            remediation: REPAIR_COMMAND,
+        });
+    }
+    let current_root = root.join("current");
+    if !path_is_within(&current_root, path) || path_has_symlink_component(&current_root, path) {
+        Err(ReleaseBindingError::Mismatch {
+            component,
+            expected: current_root.display().to_string(),
+            actual: path.display().to_string(),
+            remediation: REPAIR_COMMAND,
+        })
+    } else if resolved_path_is_within(&current_root, path) {
+        Ok(())
+    } else {
+        Err(ReleaseBindingError::Mismatch {
+            component,
+            expected: current_root.display().to_string(),
+            actual: path.display().to_string(),
+            remediation: REPAIR_COMMAND,
+        })
+    }
+}
+
+fn stable_data_root() -> Option<PathBuf> {
+    #[cfg(windows)]
+    {
+        std::env::var_os("LOCALAPPDATA").map(PathBuf::from)
+    }
+    #[cfg(target_os = "macos")]
+    {
+        std::env::var_os("HOME")
+            .map(PathBuf::from)
+            .map(|home| home.join("Library/Application Support"))
+    }
+    #[cfg(all(not(windows), not(target_os = "macos")))]
+    {
+        std::env::var_os("XDG_DATA_HOME")
+            .map(PathBuf::from)
+            .or_else(|| {
+                std::env::var_os("HOME").map(|home| PathBuf::from(home).join(".local/share"))
+            })
+    }
+}
+
+fn is_stable_current_executable_at(path: &Path, root: &Path) -> bool {
+    if !path.is_absolute() || !root.is_absolute() {
+        return false;
+    }
+    let path = normalized_components(path);
+    let root = normalized_components(root);
+    if path.len() != root.len() + 2 {
+        return false;
+    }
+    if !root
+        .iter()
+        .zip(path.iter())
+        .all(|(expected, actual)| path_component_eq(expected, actual))
+    {
+        return false;
+    }
+    let bin = &path[root.len()];
+    let executable = &path[root.len() + 1];
+    path_component_eq(bin, "bin")
+        && path_component_eq(
+            executable,
+            if cfg!(windows) {
+                "legion.exe"
+            } else {
+                "legion"
+            },
+        )
+}
+
+fn path_is_within(root: &Path, path: &Path) -> bool {
+    if !root.is_absolute() || !path.is_absolute() {
+        return false;
+    }
+    let root = normalized_components(root);
+    let path = normalized_components(path);
+    path.len() >= root.len()
+        && root
+            .iter()
+            .zip(path.iter())
+            .all(|(expected, actual)| path_component_eq(expected, actual))
+}
+
+fn stable_product_root_is(root: &Path) -> bool {
+    stable_product_root()
+        .map(|expected| same_path(&expected, root))
+        .unwrap_or(false)
+}
+
+fn verify_resolved_path(
+    root: &Path,
+    path: &Path,
+    component: &'static str,
+) -> Result<(), ReleaseBindingError> {
+    if resolved_path_is_within(root, path) {
+        Ok(())
+    } else {
+        Err(ReleaseBindingError::Mismatch {
+            component,
+            expected: root.display().to_string(),
+            actual: path.display().to_string(),
+            remediation: REPAIR_COMMAND,
+        })
+    }
+}
+
+fn resolved_path_is_within(root: &Path, path: &Path) -> bool {
+    if !path.exists() {
+        return true;
+    }
+    let Ok(root) = fs::canonicalize(root) else {
+        return false;
+    };
+    let Ok(path) = fs::canonicalize(path) else {
+        return false;
+    };
+    path_is_within(&root, &path)
+}
+
+fn path_has_symlink_component(root: &Path, path: &Path) -> bool {
+    let mut cursor = path.to_path_buf();
+    loop {
+        if same_path(&cursor, root) {
+            return false;
+        }
+        if fs::symlink_metadata(&cursor)
+            .map(|metadata| metadata.file_type().is_symlink())
+            .unwrap_or(false)
+        {
+            return true;
+        }
+        let Some(parent) = cursor.parent() else {
+            return false;
+        };
+        if same_path(parent, &cursor) {
+            return false;
+        }
+        cursor = parent.to_path_buf();
+    }
+}
+
+fn same_path(left: &Path, right: &Path) -> bool {
+    let left = normalized_components(left);
+    let right = normalized_components(right);
+    left.len() == right.len()
+        && left
+            .iter()
+            .zip(right.iter())
+            .all(|(expected, actual)| path_component_eq(expected, actual))
+}
+
+fn normalized_components(path: &Path) -> Vec<String> {
+    let normalized = path.to_string_lossy().replace('\\', "/");
+    let normalized = normalized.strip_prefix("//?/").unwrap_or(&normalized);
+    let normalized = normalized.strip_prefix("UNC/").unwrap_or(normalized);
+    normalized
+        .split('/')
+        .filter(|component| !component.is_empty() && *component != ".")
+        .map(|component| component.to_owned())
+        .collect()
+}
+
+fn path_component_eq(expected: &str, actual: &str) -> bool {
+    if cfg!(windows) {
+        expected.eq_ignore_ascii_case(actual)
+    } else {
+        expected == actual
+    }
 }
 
 /// Verify all required runtime, catalog, schema, asset, state, and RightKit identities.

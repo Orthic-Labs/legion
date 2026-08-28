@@ -255,6 +255,30 @@ test('Windows qualification evidence requires native identity, runner, digests, 
   const archiveSha256 = `sha256:${'a'.repeat(64)}`;
   const runtimeSha256 = `sha256:${'b'.repeat(64)}`;
   const sourceRevision = 'c'.repeat(40);
+  const installRoot = join(dir, 'install');
+  const currentPath = join(installRoot, 'current');
+  const executable = join(currentPath, 'bin', 'legion.exe');
+  const versionsRoot = join(installRoot, 'versions');
+  const currentVersionRoot = join(versionsRoot, '0.1.0-aaaaaaaaaaaa-fixture');
+  const integrationJournalPath = join(installRoot, 'integration-journal.json');
+  const generation = `0.1.0:${runtimeSha256.slice('sha256:'.length)}`;
+  const binding = {
+    origin: 'installed',
+    installRoot,
+    currentPath,
+    executable,
+    generation,
+    resolvedVersionRoot: currentVersionRoot,
+  };
+  const integrationJournal = {
+    kind: 'legion-integration-journal',
+    origin: 'installed',
+    installRoot,
+    executable,
+    generation,
+    activeVersionRoot: currentVersionRoot,
+    binding,
+  };
   const gates = Object.fromEntries([
     'installed-product',
     'command-resolution',
@@ -275,6 +299,22 @@ test('Windows qualification evidence requires native identity, runner, digests, 
     archiveSha256,
     runtimeSha256,
     runner: { os: 'win32', architecture: 'x64', simulated: false },
+    origin: 'installed',
+    installRoot,
+    executable,
+    generation,
+    binding,
+    install: {
+      origin: 'installed',
+      root: installRoot,
+      currentPath,
+      executable,
+      generation,
+      versionsRoot,
+      currentVersionRoot,
+      integrationJournal: integrationJournalPath,
+    },
+    integrationJournal,
     gates,
   };
   try {

@@ -416,49 +416,85 @@ impl M1CompositionConfig {
 fn load_m1_application(
     args: &M1ConfigArgs,
 ) -> Result<Arc<legion_application::M1Application>, commands::CommandError> {
-    let config_path = args
-        .config
-        .clone()
-        .or_else(|| {
-            std::env::var_os("LEGION_M1_CONFIG")
-                .filter(|value| !value.is_empty())
-                .map(PathBuf::from)
-        })
-        .map(Ok)
-        .unwrap_or_else(installed_m1_composition)?;
+    let (config_path, origin) = if let Some(config) = args.config.clone() {
+        let executable = std::env::current_exe().map_err(commands::io_error)?;
+        (
+            config,
+            legion_runtime::release_binding::RuntimeOriginEvidence::development(executable),
+        )
+    } else if let Some(config) = std::env::var_os("LEGION_M1_CONFIG")
+        .filter(|value| !value.is_empty())
+        .map(PathBuf::from)
+    {
+        let executable = std::env::current_exe().map_err(commands::io_error)?;
+        (
+            config,
+            legion_runtime::release_binding::RuntimeOriginEvidence::development(executable),
+        )
+    } else {
+        let installed =
+            legion_runtime::release_binding::load_installed_release().map_err(|error| {
+                commands::CommandError::incomplete(format!(
+                    "installed release binding unavailable: {error}; run {M1_REPAIR}"
+                ))
+            })?;
+        let config_path = installed
+            .manifest_path
+            .parent()
+            .map(|directory| directory.join("composition.json"))
+            .ok_or_else(|| {
+                commands::CommandError::incomplete(
+                    "installed composition has no release manifest parent",
+                )
+            })?;
+        (config_path, installed.origin_evidence())
+    };
+    if matches!(
+        &origin.origin,
+        legion_runtime::release_binding::RuntimeOrigin::Installed
+    ) {
+        legion_runtime::release_binding::verify_stable_current_path(
+            &origin,
+            &config_path,
+            "stable current composition",
+        )
+        .map_err(|error| {
+            commands::CommandError::incomplete(format!(
+                "installed composition binding unavailable: {error}; run {M1_REPAIR}"
+            ))
+        })?;
+    }
     let bytes = std::fs::read(&config_path).map_err(commands::io_error)?;
     let config: M1CompositionConfig = serde_json::from_slice(&bytes)
         .map_err(|error| commands::CommandError::usage(error.to_string()))?;
     let inputs = config.into_inputs(&config_path)?;
-    legion_application::M1Application::from_inputs(inputs)
+    legion_application::M1Application::from_inputs_with_origin(inputs, origin)
         .map(Arc::new)
         .map_err(|error| commands::CommandError::incomplete(error.to_string()))
 }
 
 pub(crate) fn installed_m1_composition() -> Result<PathBuf, commands::CommandError> {
-    let executable = std::fs::canonicalize(std::env::current_exe().map_err(commands::io_error)?)
-        .map_err(commands::io_error)?;
-    let executable_directory = executable.parent().ok_or_else(|| {
-        commands::CommandError::incomplete("installed executable has no parent directory")
+    let installed = legion_runtime::release_binding::load_installed_release().map_err(|error| {
+        commands::CommandError::incomplete(format!(
+            "installed release binding unavailable: {error}; run {M1_REPAIR}"
+        ))
     })?;
-    let mut roots = vec![executable_directory];
-    if executable_directory
-        .file_name()
-        .is_some_and(|name| name == "bin")
-    {
-        if let Some(parent) = executable_directory.parent() {
-            roots.push(parent);
-        }
-    }
-    roots
-        .into_iter()
-        .map(|root| root.join(M1_INSTALLED_COMPOSITION))
-        .find(|candidate| candidate.is_file())
+    let composition = installed
+        .manifest_path
+        .parent()
+        .map(|directory| directory.join("composition.json"))
         .ok_or_else(|| {
-            commands::CommandError::incomplete(format!(
-                "installed M1 composition {M1_INSTALLED_COMPOSITION} was not found; run {M1_REPAIR}"
-            ))
-        })
+            commands::CommandError::incomplete(
+                "installed composition has no release manifest parent",
+            )
+        })?;
+    if composition.is_file() {
+        Ok(composition)
+    } else {
+        Err(commands::CommandError::incomplete(format!(
+            "installed M1 composition {M1_INSTALLED_COMPOSITION} was not found; run {M1_REPAIR}"
+        )))
+    }
 }
 
 fn plugin_root_error(reason: impl Into<String>) -> commands::CommandError {
@@ -950,19 +986,48 @@ impl legion_mcp::ReleaseBindingGate for M1BindingGate {
 }
 
 async fn native_m1_status(args: M1ConfigArgs) -> CommandResult {
-    let application = load_m1_application(&args)?;
-    Ok(json!({
-        "schemaVersion": 1,
-        "kind": "legion-m1-status",
-        "status": "incomplete",
-        "fidelity": "degraded",
-        "gaps": [
-            "native hook enforcement is not connected",
-            "native CLI product projections are not fully connected",
-            "M4 capability migration and M6 installed-product qualification are incomplete"
-        ],
-        "native": m1_status_value(&application.status()),
-    }))
+    match load_m1_application(&args) {
+        Ok(application) => {
+            let native = application.status();
+            // installRoot is product root; executable preserves stable current.
+            Ok(json!({
+                "schemaVersion": 1,
+                "kind": "legion-m1-status",
+                "status": "incomplete",
+                "fidelity": "degraded",
+                "origin": native.origin.clone(),
+                "executable": native.executable.clone(),
+                "installRoot": native.install_root.clone(),
+                "generation": native.generation.clone(),
+                "gaps": [
+                    "native hook enforcement is not connected",
+                    "native CLI product projections are not fully connected",
+                    "M4 capability migration and M6 installed-product qualification are incomplete"
+                ],
+                "native": m1_status_value(&native),
+            }))
+        }
+        Err(error) => {
+            let evidence =
+                legion_runtime::release_binding::detect_runtime_origin().unwrap_or_else(|_| {
+                    legion_runtime::release_binding::RuntimeOriginEvidence::development(
+                        PathBuf::from("<current_exe>"),
+                    )
+                });
+            // installRoot is product root; executable preserves stable current.
+            Ok(json!({
+                "schemaVersion": 1,
+                "kind": "legion-m1-status",
+                "status": "failed",
+                "fidelity": "degraded",
+                "origin": evidence.origin,
+                "executable": evidence.executable,
+                "installRoot": evidence.install_root,
+                "generation": evidence.generation,
+                "gaps": [error.message],
+            }))
+        }
+    }
 }
 
 async fn native_m1_serve(args: ServeArgs) -> CommandResult {

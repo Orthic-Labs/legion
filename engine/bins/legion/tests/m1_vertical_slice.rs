@@ -251,13 +251,32 @@ fn installed_composition_is_resolved_from_the_executable() {
             .expect("clock")
             .as_nanos()
     ));
+    let data_root = root.join("data");
+    #[cfg(windows)]
+    let product_root = data_root.join("Orthic Labs/Legion");
+    #[cfg(windows)]
+    let stable_root = product_root.join("current");
+    #[cfg(windows)]
+    let stable_env = ("LOCALAPPDATA", data_root.clone());
+    #[cfg(target_os = "macos")]
+    let product_root = data_root.join("Library/Application Support/Orthic Labs/Legion");
+    #[cfg(target_os = "macos")]
+    let stable_root = product_root.join("current");
+    #[cfg(target_os = "macos")]
+    let stable_env = ("HOME", data_root.clone());
+    #[cfg(all(not(windows), not(target_os = "macos")))]
+    let product_root = data_root.join("Orthic Labs/Legion");
+    #[cfg(all(not(windows), not(target_os = "macos")))]
+    let stable_root = product_root.join("current");
+    #[cfg(all(not(windows), not(target_os = "macos")))]
+    let stable_env = ("XDG_DATA_HOME", data_root.clone());
     let executable_name = if cfg!(windows) {
         "legion.exe"
     } else {
         "legion"
     };
-    let executable = root.join("bin").join(executable_name);
-    let share = root.join("share/legion");
+    let executable = stable_root.join("bin").join(executable_name);
+    let share = stable_root.join("share/legion");
     let assets = share.join("assets");
     fs::create_dir_all(assets.join("registry")).expect("installed registry directory");
     fs::create_dir_all(assets.join("skills/demo")).expect("installed skill directory");
@@ -324,6 +343,7 @@ fn installed_composition_is_resolved_from_the_executable() {
     let output = Command::new(&executable)
         .args(["--json", "status"])
         .env_remove("LEGION_M1_CONFIG")
+        .env(stable_env.0, &stable_env.1)
         .output()
         .expect("installed Legion status");
     assert_eq!(
@@ -336,11 +356,60 @@ fn installed_composition_is_resolved_from_the_executable() {
     assert_eq!(value["kind"], "legion-m1-status");
     assert_eq!(value["status"], "incomplete");
     assert_eq!(value["fidelity"], "degraded");
+    assert_eq!(value["origin"], "installed");
+    let reported_executable =
+        PathBuf::from(value["executable"].as_str().expect("top-level executable"));
+    let expected_executable = product_root
+        .join("current")
+        .join("bin")
+        .join(executable_name);
+    assert_eq!(
+        normalized_path_for_assertion(&reported_executable),
+        normalized_path_for_assertion(&expected_executable)
+    );
+    let reported_install_root = PathBuf::from(
+        value["installRoot"]
+            .as_str()
+            .expect("top-level install root"),
+    );
+    assert_eq!(
+        normalized_path_for_assertion(&reported_install_root),
+        normalized_path_for_assertion(&product_root)
+    );
     assert_eq!(value["native"]["scope"], "m1-vertical-slice");
+    assert_eq!(value["native"]["origin"], "installed");
+    let reported_native_executable = PathBuf::from(
+        value["native"]["executable"]
+            .as_str()
+            .expect("native executable"),
+    );
+    assert_eq!(
+        normalized_path_for_assertion(&reported_native_executable),
+        normalized_path_for_assertion(&expected_executable)
+    );
+    let reported_native_install_root = PathBuf::from(
+        value["native"]["installRoot"]
+            .as_str()
+            .expect("native install root"),
+    );
+    assert_eq!(
+        normalized_path_for_assertion(&reported_native_install_root),
+        normalized_path_for_assertion(&product_root)
+    );
+    assert_eq!(value["native"]["generation"], env!("CARGO_PKG_VERSION"));
     assert!(value["gaps"]
         .as_array()
         .is_some_and(|gaps| !gaps.is_empty()));
     fs::remove_dir_all(root).expect("installed fixture cleanup");
+}
+
+fn normalized_path_for_assertion(path: &std::path::Path) -> String {
+    let normalized = path.to_string_lossy().replace('\\', "/");
+    if cfg!(windows) {
+        normalized.to_ascii_lowercase()
+    } else {
+        normalized
+    }
 }
 
 fn request(stdin: &mut ChildStdin, stdout: &mut BufReader<ChildStdout>, request: Value) -> Value {
@@ -358,10 +427,15 @@ fn actual_binary_serves_the_shared_m1_surface_and_lazy_capability_body() {
     assert_eq!(status.status.code(), Some(2));
     let status: Value = serde_json::from_slice(&status.stdout).expect("status JSON");
     assert_eq!(status["status"], "incomplete");
+    assert_eq!(status["origin"], "development");
+    assert!(status["installRoot"].is_null());
     assert_eq!(
         status["native"]["releaseVersion"],
         env!("CARGO_PKG_VERSION")
     );
+    assert_eq!(status["native"]["origin"], "development");
+    assert!(status["native"]["installRoot"].is_null());
+    assert!(status["native"]["generation"].is_null());
     assert_eq!(status["native"]["status"], "complete");
 
     let (mut child, mut stdin, mut stdout) = start_stdio(&fixture.config);

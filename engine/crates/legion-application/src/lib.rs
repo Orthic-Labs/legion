@@ -2,7 +2,7 @@
 
 use std::{
     collections::{BTreeMap, BTreeSet},
-    path::Path,
+    path::{Path, PathBuf},
     sync::Arc,
     time::{Duration, Instant},
 };
@@ -198,6 +198,13 @@ pub struct M1CapabilityStatus {
 #[serde(rename_all = "camelCase")]
 pub struct M1Status {
     pub release_version: String,
+    /// Typed origin, lexical product root, executable, and generation are
+    /// serialized in every native status response; stable `current` binding
+    /// remains a separate runtime validation.
+    pub origin: legion_runtime::release_binding::RuntimeOrigin,
+    pub executable: PathBuf,
+    pub install_root: Option<PathBuf>,
+    pub generation: Option<String>,
     pub capability_count: usize,
     pub availability: M1Availability,
     pub degraded_count: usize,
@@ -248,10 +255,40 @@ pub struct M1Application {
     binding: legion_runtime::VerifiedReleaseBinding,
     catalog: legion_catalog::CompactCatalog,
     evaluator: PolicyEvaluator,
+    origin: legion_runtime::release_binding::RuntimeOriginEvidence,
 }
 
 impl M1Application {
     pub fn from_inputs(inputs: M1ApplicationInputs) -> Result<Self, M1ApplicationError> {
+        let executable = std::env::current_exe().unwrap_or_else(|_| PathBuf::from("<current_exe>"));
+        let origin =
+            legion_runtime::release_binding::detect_runtime_origin().unwrap_or_else(|_| {
+                legion_runtime::release_binding::RuntimeOriginEvidence::development(
+                    executable.clone(),
+                )
+            });
+        Self::from_inputs_with_origin(inputs, origin)
+    }
+
+    pub fn from_inputs_with_origin(
+        inputs: M1ApplicationInputs,
+        origin: legion_runtime::release_binding::RuntimeOriginEvidence,
+    ) -> Result<Self, M1ApplicationError> {
+        if matches!(
+            &origin.origin,
+            legion_runtime::release_binding::RuntimeOrigin::Installed
+        ) {
+            legion_runtime::release_binding::verify_stable_current_binding(
+                &origin,
+                &inputs.release_manifest_path,
+                &inputs.release_binding_inputs,
+            )?;
+            legion_runtime::release_binding::verify_stable_current_path(
+                &origin,
+                &inputs.catalog_root,
+                "stable current catalog root",
+            )?;
+        }
         let manifest = legion_runtime::load_release_manifest(&inputs.release_manifest_path)?;
         let binding =
             legion_runtime::verify_release_binding(&manifest, &inputs.release_binding_inputs)?;
@@ -262,6 +299,7 @@ impl M1Application {
             binding,
             catalog,
             evaluator,
+            origin,
         })
     }
 
@@ -295,6 +333,10 @@ impl M1Application {
         let host_requirements = host_requirements.into_values().collect::<Vec<_>>();
         M1Status {
             release_version: self.binding.release_version().into(),
+            origin: self.origin.origin.clone(),
+            executable: self.origin.executable.clone(),
+            install_root: self.origin.install_root.clone(),
+            generation: self.origin.generation.clone(),
             capability_count: self.catalog.entries.len(),
             availability: aggregate_availability(&host_requirements),
             degraded_count,

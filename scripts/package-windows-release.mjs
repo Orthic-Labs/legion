@@ -30,7 +30,10 @@ import {
 	materializeCycloneDxSbom,
 	materializeInTotoSlsaProvenance,
 } from "@rightkit/release/supply-chain-evidence.mjs";
-import { WINDOWS_ARCHITECTURES } from "../right-release.config.mjs";
+import {
+	WINDOWS_ARCHITECTURES,
+	WINDOWS_INSTALL_CONTRACT,
+} from "../right-release.config.mjs";
 
 const REPOSITORY_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const PRODUCT = "legion";
@@ -47,6 +50,10 @@ const REQUIRED_QUALIFICATION_GATES = [
 	"uninstall",
 ];
 const SOURCE_REVISION = /^[a-f0-9]{40,64}$/i;
+const FORBIDDEN_BINDING_SEGMENTS = new Set([
+	...WINDOWS_INSTALL_CONTRACT.forbiddenBindingSegments,
+	".git",
+]);
 
 function readJson(path, label) {
 	assertRegularFile(path, label);
@@ -65,6 +72,86 @@ function digestMatches(observed, expected) {
 	const left = bareDigest(observed);
 	const right = bareDigest(expected);
 	return /^[a-f0-9]{64}$/.test(left) && /^[a-f0-9]{64}$/.test(right) && left === right;
+}
+
+function releaseGeneration(metadata, version, runtimeSha256) {
+	const explicit = metadata?.generation
+		?? metadata?.installGeneration
+		?? metadata?.runtime?.generation;
+	if (typeof explicit === "string" && explicit.trim()) return explicit.trim();
+	const assetsDigest = metadata?.declarativeAssetsSha256
+		?? metadata?.declarative_assets_sha256;
+	if (typeof assetsDigest === "string" && /^[a-f0-9]{64}$/i.test(bareDigest(assetsDigest))) {
+		return `${version}:${bareDigest(assetsDigest)}`;
+	}
+	return `${version}:${bareDigest(runtimeSha256)}`;
+}
+
+function normalizedPath(value) {
+	return resolve(String(value ?? "")).replaceAll("\\", "/").toLowerCase();
+}
+
+function pathsEqual(left, right) {
+	return typeof left === "string"
+		&& typeof right === "string"
+		&& normalizedPath(left) === normalizedPath(right);
+}
+
+function canonicalPath(value) {
+	try {
+		return realpathSync(String(value));
+	} catch {
+		return resolve(String(value));
+	}
+}
+
+function canonicalPathsEqual(left, right) {
+	return typeof left === "string"
+		&& typeof right === "string"
+		&& canonicalPath(left).replaceAll("\\", "/").toLowerCase()
+			=== canonicalPath(right).replaceAll("\\", "/").toLowerCase();
+}
+
+function hasForbiddenBindingSegment(value) {
+	const path = String(value ?? "").replaceAll("\\", "/").toLowerCase();
+	return path.split("/").some((segment) => FORBIDDEN_BINDING_SEGMENTS.has(segment));
+}
+
+function pathInside(root, candidate) {
+	if (typeof root !== "string" || typeof candidate !== "string") return false;
+	const rel = relative(canonicalPath(root), canonicalPath(candidate));
+	return Boolean(rel)
+		&& rel !== ".."
+		&& !rel.startsWith(`..${sep}`)
+		&& !isAbsolute(rel);
+}
+
+function versionRootMatches(root, version, archiveDigest) {
+	if (typeof root !== "string" || typeof version !== "string") return false;
+	const prefix = `${version}-${bareDigest(archiveDigest).slice(0, 12)}`.toLowerCase();
+	const name = basename(root.replaceAll("\\", "/")).toLowerCase();
+	return name === prefix || name.startsWith(`${prefix}-`);
+}
+
+function stableInstallBinding(value, generation) {
+	const install = value?.install;
+	if (!install || typeof install !== "object" || Array.isArray(install)) return false;
+	const installRoot = install.root ?? install.installRoot;
+	const currentPath = install.currentPath;
+	const executable = install.executable;
+	return install.origin === WINDOWS_INSTALL_CONTRACT.origin
+		&& typeof installRoot === "string"
+		&& typeof currentPath === "string"
+		&& typeof executable === "string"
+		&& isAbsolute(installRoot)
+		&& isAbsolute(currentPath)
+		&& isAbsolute(executable)
+		&& pathsEqual(currentPath, join(installRoot, WINDOWS_INSTALL_CONTRACT.stableCurrentName))
+		&& pathsEqual(executable, join(currentPath, WINDOWS_INSTALL_CONTRACT.executablePath))
+		&& install.generation === generation
+		&& !hasForbiddenBindingSegment(installRoot)
+		&& !hasForbiddenBindingSegment(currentPath)
+		&& !hasForbiddenBindingSegment(executable);
 }
 
 function assertRegularFile(path, label) {
@@ -185,7 +272,13 @@ function assembledRelease(inputRoot, architecture, version) {
 	if (bareDigest(metadata.runtime.sha256) !== runtimeSha256) {
 		throw new Error("assembled release runtime digest mismatch");
 	}
-	return { identity, metadata, binaries, runtimeSha256 };
+	return {
+		identity,
+		metadata,
+		binaries,
+		runtimeSha256,
+		generation: releaseGeneration(metadata, version, runtimeSha256),
+	};
 }
 
 function signatureEvidence({ receiptPath, inputRoot, binaries }) {
@@ -249,6 +342,7 @@ export function qualificationEvidence({
 	identity,
 	releaseVersion: version,
 	sourceRevision: revision,
+	generation,
 }) {
 	if (!evidencePath || !existsSync(evidencePath)) {
 		return { status: "missing", reason: "native installed-product qualification is required" };
@@ -265,6 +359,7 @@ export function qualificationEvidence({
 	if (!SOURCE_REVISION.test(String(revision ?? ""))) {
 		return { status: "invalid", reason: "qualification source revision is missing or invalid" };
 	}
+	const expectedGeneration = generation ?? `${version}:${bareDigest(runtimeDigest)}`;
 	const runnerArchitecture = identity.architecture === "x86_64" ? "x64" : "arm64";
 	const valid = value.schemaVersion === 1
 		&& value.kind === "legion-windows-installed-product-qualification"
@@ -277,6 +372,28 @@ export function qualificationEvidence({
 		&& value.runner?.os === "win32"
 		&& value.runner?.architecture === runnerArchitecture
 		&& value.runner?.simulated === false
+		&& value.origin === WINDOWS_INSTALL_CONTRACT.origin
+		&& pathsEqual(value.installRoot, value.install?.root)
+		&& pathsEqual(value.executable, value.install?.executable)
+		&& value.generation === expectedGeneration
+		&& stableInstallBinding(value, expectedGeneration)
+		&& stableInstallBinding({ install: value.binding }, expectedGeneration)
+		&& pathsEqual(value.binding?.resolvedVersionRoot, value.install?.currentVersionRoot)
+		&& isAbsolute(String(value.install?.currentVersionRoot ?? ""))
+		&& pathInside(value.install?.versionsRoot, value.install?.currentVersionRoot)
+		&& versionRootMatches(value.install?.currentVersionRoot, version, archiveDigest)
+		&& !hasForbiddenBindingSegment(value.install?.currentVersionRoot)
+		&& pathsEqual(value.install?.versionsRoot, join(value.install?.root ?? "", "versions"))
+		&& canonicalPathsEqual(value.install?.versionsRoot, join(value.install?.root ?? "", "versions"))
+		&& pathsEqual(value.install?.integrationJournal, join(value.install?.root ?? "", WINDOWS_INSTALL_CONTRACT.integrationJournalName))
+		&& value.integrationJournal?.kind === "legion-integration-journal"
+		&& value.integrationJournal?.origin === WINDOWS_INSTALL_CONTRACT.origin
+		&& pathsEqual(value.integrationJournal?.installRoot, value.install?.root)
+		&& pathsEqual(value.integrationJournal?.executable, value.install?.executable)
+		&& value.integrationJournal?.generation === expectedGeneration
+		&& pathsEqual(value.integrationJournal?.activeVersionRoot, value.install?.currentVersionRoot)
+		&& stableInstallBinding({ install: value.integrationJournal?.binding }, expectedGeneration)
+		&& pathsEqual(value.integrationJournal?.binding?.resolvedVersionRoot, value.install?.currentVersionRoot)
 		&& digestMatches(value.archiveSha256, archiveDigest)
 		&& digestMatches(value.runtimeSha256, runtimeDigest)
 		&& qualificationGatesPass(value);
@@ -316,6 +433,7 @@ export function prepareWindowsArchive({
 		archive: archivePath,
 		archiveSha256: archive.sha256,
 		runtimeSha256: assembled.runtimeSha256,
+		generation: assembled.generation,
 		releaseVersion: version,
 		sourceRevision: revision,
 		targetIdentity: assembled.identity,
@@ -364,6 +482,7 @@ export function finalizeWindowsDirectRelease({
 		identity: assembled.identity,
 		releaseVersion: version,
 		sourceRevision: revision,
+		generation: assembled.generation,
 	});
 	if (qualificationRecord.status !== "verified") throw new Error(`Windows release qualification is not verified: ${qualificationRecord.reason}`);
 
@@ -426,13 +545,26 @@ export function finalizeWindowsDirectRelease({
 		repository: GITHUB_REPOSITORY,
 		bootstrapVersion: BOOTSTRAP_VERSION,
 		acceptedManifestSigners: [direct.signing.signer],
-		installRootSubdir: "Orthic Labs/Legion",
-		executablePath: "bin/legion.exe",
+		installRootSubdir: WINDOWS_INSTALL_CONTRACT.installRootSubdir,
+		executablePath: WINDOWS_INSTALL_CONTRACT.executablePath,
 		activationArgs: ["--json", "setup", "repair", "--confirm"],
 		statusArgs: ["--json", "setup", "status"],
 		healthAssertions: [
 			{ path: "kind", equals: "legion-setup-status" },
 			{ path: "status", equals: "complete" },
+			{ path: "liveIdentity.origin", equals: WINDOWS_INSTALL_CONTRACT.origin },
+			{ path: "liveIdentity.executablePath", equals: `{current}/${WINDOWS_INSTALL_CONTRACT.executablePath}` },
+			{ path: "liveIdentity.installRoot", equals: "{installRoot}" },
+			{ path: "liveIdentity.generation", nonempty: true },
+			{ path: "liveIdentity.executable.state", equals: "current" },
+			{ path: "liveIdentity.executable.origin", equals: WINDOWS_INSTALL_CONTRACT.origin },
+			{ path: "liveIdentity.executable.path", equals: `{current}/${WINDOWS_INSTALL_CONTRACT.executablePath}` },
+			{ path: "liveIdentity.executable.installRoot", equals: "{installRoot}" },
+			{ path: "liveIdentity.executable.generation", nonempty: true },
+			{ path: "liveIdentity.executable.releaseVersion", equals: "{version}" },
+			{ path: "liveIdentity.executable.expectedReleaseVersion", equals: "{version}" },
+			{ path: "liveIdentity.executable.manifestPath", nonempty: true },
+			{ path: "liveIdentity.executable.runtimeDigest", nonempty: true },
 		],
 	});
 	const bootstrapPath = join(outputDir, "install.ps1");
@@ -483,9 +615,9 @@ export function finalizeWindowsDirectRelease({
 		sbom: sbomPath,
 		bootstrap: bootstrapPath,
 		releaseVersion: version,
-		sourceRevision: revision,
-		targetIdentity: assembled.identity,
-		archiveSha256: archive.sha256,
+	sourceRevision: revision,
+	targetIdentity: assembled.identity,
+	archiveSha256: archive.sha256,
 		runtimeSha256: assembled.runtimeSha256,
 		github,
 		r2,
