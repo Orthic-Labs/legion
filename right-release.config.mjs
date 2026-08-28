@@ -8,13 +8,13 @@ const releaseVersion = JSON.parse(
 /**
  * Windows release identity is intentionally explicit. The package script
  * accepts only these two entries and binds every archive to its Cargo target
- * triple, WinGet architecture, and executable name.
+ * triple, native architecture, and executable name.
  */
 export const WINDOWS_ARCHITECTURES = Object.freeze({
 	x86_64: Object.freeze({
 		platform: "windows",
 		architecture: "x86_64",
-		wingetArchitecture: "x64",
+		nativeArchitecture: "x64",
 		targetTriple: "x86_64-pc-windows-msvc",
 		artifactId: "windows-x86_64",
 		assemblyRoot: `dist/native/windows-x86_64/legion-${releaseVersion}`,
@@ -23,7 +23,7 @@ export const WINDOWS_ARCHITECTURES = Object.freeze({
 	arm64: Object.freeze({
 		platform: "windows",
 		architecture: "arm64",
-		wingetArchitecture: "arm64",
+		nativeArchitecture: "arm64",
 		targetTriple: "aarch64-pc-windows-msvc",
 		artifactId: "windows-arm64",
 		assemblyRoot: `dist/native/windows-arm64/legion-${releaseVersion}`,
@@ -48,6 +48,31 @@ export default {
 	app: "legion",
 	hostedWorkflows: "right-git-ci-only",
 	version: releaseVersion,
+	distribution: {
+		provider: "github-releases",
+		repository: "Orthic-Labs/legion",
+		payloadAuthority: "immutable-github-release",
+		manifestAuthority: "release-manifest.json+release-manifest.cat",
+		manifest: {
+			file: "release-manifest.json",
+			signature: "release-manifest.cat",
+			signatureAlgorithm: "authenticode-catalog-sha256",
+			signatureProvider: "windows-authenticode-catalog",
+			signatureProviderVersion: 1,
+		},
+		checksums: {
+			file: "checksums.json",
+			role: "manifest-bound-convenience",
+		},
+		publisher: "rightkit-release",
+		bootstrap: {
+			provider: "rightapps-downloads-r2",
+			publisher: "rightkit-release",
+			mode: "branded-bootstrap-only",
+			stableUrl: "https://legion.orthiclabs.com/install.ps1",
+			objectKey: "legion/install.ps1",
+		},
+	},
 	packageManager: "pnpm@11.24.0",
 	workdir: ".",
 	checks: ["legion:check", "test"],
@@ -110,18 +135,19 @@ export default {
 	},
 	targets: {
 		win: {
-			// Portable RightKit signing is enabled, but publication remains blocked
-			// until every raw EXE has a matching verified receipt & qualification.
+			// Portable RightKit signing remains fail-closed until every raw EXE has
+			// matching Authenticode plus installed-product qualification evidence.
 			signed: true,
 			platform: "windows",
 			packageKind: "portable-zip",
-			packageManager: "winget",
+			distribution: "direct-bootstrap",
 			defaultArchitecture: "x86_64",
 			selectedArchitecture,
 			architectures: WINDOWS_ARCHITECTURES,
-			requiredArchitectures: ["x86_64", "arm64"],
+			releaseArchitectures: ["x86_64"],
 			signingContract: "windows-raw-exe-authenticode-before-portable-v1",
-			publishBlocked: "Windows channel blocked until both architecture artifacts have real Authenticode, provenance, qualification, and channel evidence",
+			manifestSigningContract: "windows-authenticode-catalog-v1",
+			publishBlocked: "direct bootstrap remains blocked until signed manifest catalog, native signatures, provenance, qualification, and channel evidence are verified",
 			prePackage: {
 				cmd: "pnpm",
 				args: [
@@ -161,13 +187,14 @@ export default {
 				signature: selectedReceipt,
 				provenance: selectedProvenance,
 				qualification: selectedQualification,
-				artifacts: ["SHA256SUMS", "SBOM.cdx.json", "THIRD_PARTY_NOTICES.md", "winget-portable.json"],
+				artifacts: ["release-manifest.json", "release-manifest.cat", "checksums.json", "*.cdx.json", "*.intoto.jsonl", "install.ps1"],
 			},
 			package: {
 				cmd: "pnpm",
 				args: [
 					"windows:package",
 					"--",
+					"--finalize",
 					"--architecture",
 					selectedWindows.architecture,
 					"--input",
@@ -176,14 +203,13 @@ export default {
 					selectedReceipt,
 					"--output",
 					selectedOutput,
-					"--require-signature",
 				],
 			},
 			packageMatrix: [
 				{
 					platform: windowsX64.platform,
 					architecture: windowsX64.architecture,
-					wingetArchitecture: windowsX64.wingetArchitecture,
+					nativeArchitecture: windowsX64.nativeArchitecture,
 					targetTriple: windowsX64.targetTriple,
 					input: windowsX64.assemblyRoot,
 					output: `dist/releases/windows/${releaseVersion}/x86_64`,
@@ -196,7 +222,7 @@ export default {
 				{
 					platform: windowsArm64.platform,
 					architecture: windowsArm64.architecture,
-					wingetArchitecture: windowsArm64.wingetArchitecture,
+					nativeArchitecture: windowsArm64.nativeArchitecture,
 					targetTriple: windowsArm64.targetTriple,
 					input: windowsArm64.assemblyRoot,
 					output: `dist/releases/windows/${releaseVersion}/arm64`,

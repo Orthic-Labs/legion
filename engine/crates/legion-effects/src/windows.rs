@@ -11,6 +11,7 @@ use std::{
     ffi::c_void,
     mem::{size_of, zeroed},
     os::windows::io::{FromRawHandle, RawHandle},
+    path::Path,
     ptr::{null, null_mut},
     sync::{
         atomic::{AtomicBool, Ordering},
@@ -121,6 +122,46 @@ fn quote_arg(value: &str) -> String {
     result
 }
 
+fn command_application_and_line(launch: &ProcessLaunch) -> (String, String) {
+    let is_command_script = Path::new(&launch.executable)
+        .extension()
+        .and_then(|extension| extension.to_str())
+        .is_some_and(|extension| {
+            extension.eq_ignore_ascii_case("cmd") || extension.eq_ignore_ascii_case("bat")
+        });
+    if !is_command_script {
+        let mut command = quote_arg(&launch.executable);
+        for arg in &launch.args {
+            command.push(' ');
+            command.push_str(&quote_arg(arg));
+        }
+        return (launch.executable.clone(), command);
+    }
+
+    let interpreter = launch
+        .environment
+        .iter()
+        .find(|(name, _)| name.eq_ignore_ascii_case("COMSPEC"))
+        .map(|(_, value)| value.clone())
+        .or_else(|| {
+            launch
+                .environment
+                .iter()
+                .find(|(name, _)| name.eq_ignore_ascii_case("SystemRoot"))
+                .map(|(_, value)| format!(r"{value}\System32\cmd.exe"))
+        })
+        .unwrap_or_else(|| String::from("cmd.exe"));
+    let mut command = quote_arg(&interpreter);
+    for arg in ["/d", "/s", "/c", "call", launch.executable.as_str()]
+        .into_iter()
+        .chain(launch.args.iter().map(String::as_str))
+    {
+        command.push(' ');
+        command.push_str(&quote_arg(arg));
+    }
+    (interpreter, command)
+}
+
 fn environment_block(environment: &BTreeMap<String, String>) -> Vec<u16> {
     let mut block = Vec::new();
     for (name, value) in environment {
@@ -187,13 +228,9 @@ fn spawn_child(launch: &ProcessLaunch) -> Result<ChildHandles, EffectError> {
         return Err(last_error("make stderr reader private"));
     }
     let job = configure_job()?;
-    let mut command = quote_arg(&launch.executable);
-    for arg in &launch.args {
-        command.push(' ');
-        command.push_str(&quote_arg(arg));
-    }
+    let (executable, command) = command_application_and_line(&launch);
     let mut command = wide(&command);
-    let executable = wide(&launch.executable);
+    let executable = wide(&executable);
     let cwd = wide(&launch.cwd);
     let mut environment = environment_block(&launch.environment);
     let mut startup: STARTUPINFOW = unsafe { zeroed() };

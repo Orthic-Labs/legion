@@ -11,6 +11,11 @@ import {
 } from "node:fs";
 import { dirname, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
+import {
+	assemblePortableCore,
+	CLIENT_PROJECTION_KINDS,
+	validatePortableCore,
+} from "@rightkit/ax/plugin/portable-core";
 import { resolveTargetRoot } from "@rightkit/release/cargo-target.mjs";
 import rightReleaseConfig from "../right-release.config.mjs";
 
@@ -358,8 +363,8 @@ const manifest = {
 	declarativeAssetsSha256: directorySha256(assets),
 	stateSchemaVersion: 1,
 	rightkitAx: {
-		version: "0.2.0",
-		sourceCommit: "01f52555202da3dffc6b649ca44e803b55238081",
+		version: "0.2.1",
+		sourceCommit: "4c1a414269d8ffdb95b4b1e685440bd34784b41b",
 	},
 };
 writeJson(join(share, "release.json"), manifest);
@@ -381,32 +386,40 @@ writeJson(join(share, "composition.json"), {
 });
 
 const pluginRoot = join(output, "plugin");
-for (const relativePath of [
-	"plugin.json",
-	"mcp.json",
-	"skills/legion/SKILL.md",
-]) {
-	const source = join(
-		repositoryRoot,
-		"engine",
-		"assets",
-		"legion-plugin",
-		relativePath,
+const skillCatalog = JSON.parse(readFileSync(catalogPath, "utf8"));
+const publicSkills = skillCatalog.bundles
+	.filter((bundle) => bundle.discoverability === "public" || bundle.discoverability === "explicit")
+	.map((bundle) => {
+		if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(bundle.id) || bundle.name !== bundle.id) {
+			throw new Error(`canonical skill must use its plain name: ${bundle.id}`);
+		}
+		const expectedSource = `skills/${bundle.id}/SKILL.md`;
+		if (bundle.source !== expectedSource) {
+			throw new Error(`canonical skill source mismatch for ${bundle.id}: ${bundle.source}`);
+		}
+		return {
+			id: bundle.id,
+			visibility: "public",
+			sourceRoot: join(repositoryRoot, "skills"),
+			sourceDir: join(repositoryRoot, "skills", bundle.id),
+		};
+	});
+if (publicSkills.length !== 24 || new Set(publicSkills.map(({ id }) => id)).size !== 24) {
+	throw new Error("portable core must package all 24 canonical plain-name skills");
+}
+assemblePortableCore({
+	outputDir: pluginRoot,
+	pluginManifestPath: join(repositoryRoot, "engine", "assets", "legion-plugin", "plugin.json"),
+	mcpManifestPath: join(repositoryRoot, "engine", "assets", "legion-plugin", "mcp.json"),
+	skills: publicSkills,
+	clientProjections: CLIENT_PROJECTION_KINDS,
+});
+const portableCoreValidation = validatePortableCore(pluginRoot);
+if (!portableCoreValidation.valid) {
+	throw new Error(
+		`RightAX portable core validation failed: ${portableCoreValidation.errors.join("; ")}`,
 	);
-	const destination = join(pluginRoot, relativePath);
-	mkdirSync(dirname(destination), { recursive: true });
-	copyFileSync(source, destination);
 }
-for (const relativePath of [
-	"share/legion/release-binding.json",
-	"share/legion/identity/release-identity.json",
-]) {
-	writeJson(join(pluginRoot, relativePath), manifest);
-}
-writeJson(
-	join(pluginRoot, "share/legion/schemas/mcp-tools.schema.json"),
-	mcpToolSchema,
-);
 
 process.stdout.write(
 	`${JSON.stringify(

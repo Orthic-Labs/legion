@@ -23,7 +23,7 @@ import {
 	rmSync,
 	writeFileSync,
 } from "node:fs";
-import { delimiter, dirname, join, relative, resolve, sep } from "node:path";
+import { delimiter, dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { WINDOWS_ARCHITECTURES } from "../right-release.config.mjs";
 
@@ -42,6 +42,11 @@ const QUALIFICATION_MECHANISM = "agent-plugins-bare-command";
 const QUALIFICATION_SERVER = "legion";
 const QUALIFICATION_TOOL = "legion_m1_status";
 const QUALIFICATION_MCP_ARGS = ["serve", "--stdio"];
+const USER_LOCAL_INSTALL_SUBDIR = ["Orthic Labs", "Legion"];
+const STABLE_CURRENT_NAME = "current";
+const PREVIOUS_CURRENT_NAME = ".current-previous";
+const INTEGRATION_JOURNAL_NAME = "integration-journal.json";
+const EMPTY_SHA256 = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855";
 const ARCHITECTURE_ALIASES = new Map([
 	["x64", "x86_64"],
 	["amd64", "x86_64"],
@@ -64,7 +69,9 @@ function bareDigest(value) {
 }
 
 function digestMatches(observed, expected) {
-	return typeof observed === "string" && bareDigest(observed) === bareDigest(expected);
+	const left = bareDigest(observed);
+	const right = bareDigest(expected);
+	return /^[a-f0-9]{64}$/.test(left) && /^[a-f0-9]{64}$/.test(right) && left === right;
 }
 
 function normalizeArchitecture(value) {
@@ -77,27 +84,36 @@ function normalizeArchitecture(value) {
 
 function assertSourceRevision(value) {
 	const revision = String(value ?? "").trim();
-	if (!/^[0-9a-f]{7,64}$/i.test(revision)) {
-		throw new Error(`source revision must be a hexadecimal Git revision: ${value ?? "<missing>"}`);
+	if (!/^[0-9a-f]{40,64}$/i.test(revision)) {
+		throw new Error(`source revision must be a 40-64 character hexadecimal Git SHA: ${value ?? "<missing>"}`);
 	}
 	return revision.toLowerCase();
 }
 
 function assertVersion(value, label = "release version") {
-	if (typeof value !== "string" || !/^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/.test(value)) {
+	if (typeof value !== "string" || !/^(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)$/.test(value)) {
 		throw new Error(`invalid ${label}: ${value}`);
 	}
 	return value;
+}
+
+function compareVersions(left, right) {
+	const leftParts = String(left).split(".").map(Number);
+	const rightParts = String(right).split(".").map(Number);
+	for (let index = 0; index < 3; index += 1) {
+		if (leftParts[index] !== rightParts[index]) return leftParts[index] - rightParts[index];
+	}
+	return 0;
 }
 
 function targetIdentity(architecture) {
 	const normalized = normalizeArchitecture(architecture);
 	const configured = WINDOWS_ARCHITECTURES[normalized];
 	return {
-		platform: "windows",
-		architecture: normalized,
+		platform: configured.platform,
+		architecture: configured.architecture,
+		nativeArchitecture: configured.nativeArchitecture,
 		targetTriple: configured.targetTriple,
-		wingetArchitecture: configured.wingetArchitecture,
 		executable: "legion.exe",
 		artifactId: configured.artifactId,
 	};
@@ -195,7 +211,10 @@ function safeArchiveEntry(name) {
 		return false;
 	}
 	const parts = normalized.split("/").filter(Boolean);
-	return parts.length > 0 && !parts.includes("..") && !parts.includes(".");
+	// tar.exe commonly emits `./` and `./bin/...` for archives created with
+	// `-C <root> .`; those entries are contained and must remain valid.
+	return (parts.length === 0 || !parts.includes(".."))
+		&& parts.every((part) => part !== "" && part !== "..");
 }
 
 function nativeTool(command, args, options = {}) {
@@ -277,7 +296,7 @@ function parseJsonOutput(invocation) {
 }
 
 function exactCompleteJson(invocation, kind) {
-	if (!commandSucceeded(invocation)) return null;
+	if (!commandSucceeded(invocation) || !invocation.stdout.trim() || invocation.stderr.trim()) return null;
 	const payload = parseJsonOutput(invocation);
 	return payload
 		&& typeof payload === "object"
@@ -294,6 +313,11 @@ function isHexDigest(value) {
 	return /^[0-9a-f]{64}$/i.test(digest);
 }
 
+function isNonemptyDigest(value) {
+	const digest = bareDigest(value);
+	return isHexDigest(value) && digest !== EMPTY_SHA256;
+}
+
 function canonicalPath(path) {
 	try {
 		return realpathSync(path);
@@ -303,7 +327,7 @@ function canonicalPath(path) {
 }
 
 function pathsEqual(left, right) {
-	if (typeof left !== "string" || typeof right !== "string") return false;
+	if (typeof left !== "string" || typeof right !== "string" || !isAbsolute(left) || !isAbsolute(right)) return false;
 	return canonicalPath(left).toLowerCase() === canonicalPath(right).toLowerCase();
 }
 
@@ -372,7 +396,8 @@ function proofReleaseMatches(proof, current) {
 function proofClientRecord(payload, execution = false) {
 	const clients = execution ? payload?.execution?.clients : payload?.clients;
 	if (!Array.isArray(clients)) return null;
-	return clients.find((client) => client?.clientId === "codex") ?? null;
+	const matches = clients.filter((client) => client?.clientId === "codex");
+	return matches.length === 1 ? matches[0] : null;
 }
 
 function proofRecordComplete(record) {
@@ -431,13 +456,13 @@ function validateLiveCodexProofs({ state, installedLauncher, codexExecutable, cu
 		&& digestMatches(command.launcherSha256, codexDigest)
 		&& command.resolved === true
 		&& command.exitCode === 0
-		&& isHexDigest(command.outputSha256)
+		&& isNonemptyDigest(command.outputSha256)
 		&& command.legionCommand === "legion --version"
 		&& command.legionResolved === true
 		&& command.legionExitCode === 0
 		&& pathsEqual(command.legionLauncherPath, installedLauncher)
 		&& digestMatches(command.legionLauncherSha256, installedDigest)
-		&& isHexDigest(command.legionOutputSha256)
+		&& isNonemptyDigest(command.legionOutputSha256)
 		&& command.mcpCommand === QUALIFICATION_SERVER
 		&& JSON.stringify(command.mcpArgs) === JSON.stringify(QUALIFICATION_MCP_ARGS);
 	const qualificationValid = qualification.schemaVersion === QUALIFICATION_SCHEMA_VERSION
@@ -461,7 +486,7 @@ function validateLiveCodexProofs({ state, installedLauncher, codexExecutable, cu
 		&& qualification.degradedCount >= 0
 		&& qualification.degradedCount <= qualification.capabilityCount
 		&& qualification.completed === true
-		&& isHexDigest(qualification.outputSha256)
+		&& isNonemptyDigest(qualification.outputSha256)
 		&& pathsEqual(qualification.legionLauncherPath, installedLauncher)
 		&& digestMatches(qualification.legionLauncherSha256, installedDigest)
 		&& qualification.mcpCommand === QUALIFICATION_SERVER
@@ -484,7 +509,7 @@ function releaseMetadata(root, architecture, label) {
 		throw new Error(`${label} release identity has no runtime object: ${releasePath}`);
 	}
 	const runtimePlatform = String(metadata.runtime.platform ?? "").toLowerCase();
-	if (!["windows", "win32", "win"].includes(runtimePlatform)) {
+	if (runtimePlatform !== "windows") {
 		throw new Error(`${label} release identity platform is not Windows: ${metadata.runtime.platform}`);
 	}
 	if (metadata.runtime.architecture !== architecture) {
@@ -505,6 +530,17 @@ function validateProductRoot(root, architecture, label) {
 		assertRegularFile(join(root, "bin", binary), `${label} binary ${binary}`);
 	}
 	return releaseMetadata(root, architecture, label);
+}
+
+function retainedVersionMatches(root, expected, architecture, label) {
+	if (!root || !expected) return false;
+	try {
+		const observed = validateProductRoot(root, architecture, label);
+		return observed.releaseVersion === expected.releaseVersion
+			&& digestMatches(observed.runtimeSha256, expected.runtimeSha256);
+	} catch {
+		return false;
+	}
 }
 
 function copyTree(source, destination, workRoot) {
@@ -611,6 +647,122 @@ function allGatesPass(gates) {
 	return REQUIRED_GATES.every((name) => gates[name]?.status === "pass");
 }
 
+function versionOutputMatches(invocation, version) {
+	if (!commandSucceeded(invocation) || !invocation.stdout.trim() || invocation.stderr.trim()) return false;
+	const escaped = String(version).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+	return new RegExp(`(?:^|\\s)${escaped}(?:$|\\s)`).test(invocation.stdout);
+}
+
+function setupHealth({ runCommand, state, installedLauncher, codexExecutable, current, architecture }) {
+	const repairArgs = ["--json", "setup", "repair", "--confirm"];
+	const repairInvocation = runCommand(installedLauncher, repairArgs);
+	const repairPayload = exactCompleteJson(repairInvocation, "legion-setup-execution");
+	const statusArgs = ["--json", "setup", "status"];
+	const statusInvocation = runCommand(installedLauncher, statusArgs);
+	const statusPayload = exactCompleteJson(statusInvocation, "legion-setup-status");
+	let qualificationProofs;
+	if (codexExecutable) {
+		try {
+			qualificationProofs = validateLiveCodexProofs({ state, installedLauncher, codexExecutable, current });
+		} catch (error) {
+			qualificationProofs = {
+				valid: false,
+				commandPath: join(state, "qualification", "codex-command.json"),
+				qualificationPath: join(state, "qualification", "codex-qualification.json"),
+				reason: error.message,
+			};
+		}
+	} else {
+		qualificationProofs = {
+			valid: false,
+			commandPath: join(state, "qualification", "codex-command.json"),
+			qualificationPath: join(state, "qualification", "codex-qualification.json"),
+			reason: "a real Codex executable was not resolved from the host PATH",
+		};
+	}
+	const repairClient = proofClientRecord(repairPayload, true);
+	const statusClient = proofClientRecord(statusPayload);
+	const complete = Boolean(
+		repairPayload
+		&& statusPayload
+		&& proofRecordComplete(repairClient)
+		&& proofRecordComplete(statusClient)
+		&& liveExecutableMatches(repairPayload, installedLauncher, current, architecture)
+		&& liveExecutableMatches(statusPayload, installedLauncher, current, architecture)
+		&& codexProjectionCurrent(repairPayload)
+		&& codexProjectionCurrent(statusPayload)
+		&& qualificationProofs.valid
+		&& (proofRefsMatch(repairClient, qualificationProofs.commandPath, qualificationProofs.qualificationPath)
+			|| proofRefsMatch(statusClient, qualificationProofs.commandPath, qualificationProofs.qualificationPath)),
+	);
+	const fingerprint = sha256(Buffer.from(JSON.stringify({
+		repair: repairPayload,
+		status: statusPayload,
+		commandProof: qualificationProofs.command,
+		qualificationProof: qualificationProofs.qualification,
+	}), "utf8"));
+	return {
+		complete,
+		repairArgs,
+		repairInvocation,
+		repairPayload,
+		statusArgs,
+		statusInvocation,
+		statusPayload,
+		qualificationProofs,
+		repairClient,
+		statusClient,
+		fingerprint,
+	};
+}
+
+function integrationJournalRecord({
+	stateRoot,
+	currentPath,
+	previousPath,
+	activeVersionRoot,
+	priorVersionRoot,
+	targetVersion,
+	priorVersion,
+	stateName,
+	priorHealth,
+	currentHealth,
+}) {
+	const integration = (health) => ({
+		state: health?.complete ? "current" : "unproven",
+		commandProofRef: health?.qualificationProofs?.commandPath ?? null,
+		qualificationEvidenceRef: health?.qualificationProofs?.qualificationPath ?? null,
+		healthSha256: health?.fingerprint ?? null,
+	});
+	return {
+		schemaVersion: 1,
+		kind: "legion-integration-journal",
+		state: stateName,
+		currentPath,
+		previousPath,
+		activeVersionRoot,
+		priorVersionRoot,
+		targetVersion,
+		priorVersion,
+		priorHealthSha256: priorHealth?.fingerprint ?? null,
+		integrations: { codex: integration(currentHealth ?? priorHealth) },
+		stateRoot,
+	};
+}
+
+function writeIntegrationJournal(path, record) {
+	const output = resolve(path);
+	mkdirSync(dirname(output), { recursive: true });
+	writeFileSync(output, `${JSON.stringify(record, null, 2)}\n`, "utf8");
+	return readJson(output, "integration journal");
+}
+
+function writePointer(path, target) {
+	const output = resolve(path);
+	writeFileSync(output, `${resolve(target)}\n`, "utf8");
+	return readFileSync(output, "utf8").trim() === resolve(target);
+}
+
 function writeReceipt(path, receipt) {
 	const output = resolve(path);
 	if (existsSync(output) && lstatSync(output).isDirectory()) throw new Error(`qualification receipt path is a directory: ${output}`);
@@ -652,6 +804,7 @@ export function qualifyWindowsRelease({
 	archiveExtractor = extractWithNativeWindowsTar,
 	commandRunner = nativeTool,
 	codexExecutable: codexExecutableInput = null,
+	allowDowngrade = false,
 	} = {}) {
 	const currentZip = currentZipInput ?? currentArchiveInput;
 	const priorZip = priorZipInput ?? priorArchiveInput ?? previousZip;
@@ -660,12 +813,17 @@ export function qualifyWindowsRelease({
 	const output = outputInput ?? receiptPathInput;
 	const workRoot = workRootInput ?? isolatedRootInput;
 	const runnerArchitecture = processArchitecture ?? runnerArchitectureInput;
+	const downgradeAllowed = allowDowngrade === true;
 	const hostPath = process.env.PATH ?? process.env.Path ?? "";
 	const codexExecutable = codexExecutableInput
 		? canonicalPath(resolve(codexExecutableInput))
 		: resolveCodexExecutable(hostPath, platform);
 	const simulated = archiveExtractor !== extractWithNativeWindowsTar
-		|| commandRunner !== nativeTool;
+		|| commandRunner !== nativeTool
+		|| codexExecutableInput !== null
+		|| platform !== process.platform
+		|| runnerArchitectureInput !== process.arch
+		|| processArchitecture !== null;
 	if (platform !== "win32") throw new Error(`Windows qualification requires a Windows host; observed ${platform}`);
 	const normalizedArchitecture = normalizeArchitecture(architecture);
 	const nativeArchitecture = NATIVE_ARCHITECTURES[normalizedArchitecture];
@@ -688,9 +846,8 @@ export function qualifyWindowsRelease({
 	const runRoot = join(isolatedRoot, `qualification-${process.pid}-${Date.now()}-${runSequence++}`);
 	assertInside(isolatedRoot, runRoot, "qualification run root", { platform });
 	mkdirSync(runRoot, { recursive: true });
-	const currentRoot = join(runRoot, "current");
-	const priorRoot = join(runRoot, "prior");
-	const productRoot = join(runRoot, "product");
+	const currentRoot = join(runRoot, "current-stage");
+	const priorRoot = join(runRoot, "prior-stage");
 	const foreignMarker = join(runRoot, "foreign-marker.txt");
 	const archiveSha256 = sha256(readFileSync(currentArchive));
 	const priorArchiveSha256 = priorArchive ? sha256(readFileSync(priorArchive)) : null;
@@ -711,6 +868,21 @@ export function qualifyWindowsRelease({
 	}
 
 	const env = commandEnvironment(runRoot, { codexExecutable, hostPath });
+	const installRoot = join(env.environment.LOCALAPPDATA, ...USER_LOCAL_INSTALL_SUBDIR);
+	const versionsRoot = join(installRoot, "versions");
+	const productRoot = join(installRoot, STABLE_CURRENT_NAME);
+	const previousPointer = join(installRoot, PREVIOUS_CURRENT_NAME);
+	const integrationJournalPath = join(installRoot, INTEGRATION_JOURNAL_NAME);
+	for (const path of [installRoot, versionsRoot]) {
+		assertInside(runRoot, path, "stable user-local install path", { platform });
+		assertDirectory(path, "stable user-local install directory", { create: true });
+	}
+	const currentVersionRoot = join(versionsRoot, `${current.releaseVersion}-${bareDigest(archiveSha256).slice(0, 12)}`);
+	const priorVersionRoot = prior
+		? join(versionsRoot, `${prior.releaseVersion}-${bareDigest(priorArchiveSha256).slice(0, 12)}`)
+		: null;
+	copyTree(currentRoot, currentVersionRoot, runRoot);
+	if (prior) copyTree(priorRoot, priorVersionRoot, runRoot);
 	const environment = {
 		...env.environment,
 		PATH: `${join(productRoot, "bin")};${env.environment.PATH ?? ""}`,
@@ -731,41 +903,31 @@ export function qualifyWindowsRelease({
 	const installCurrent = atomicReplaceProduct(currentRoot, productRoot, runRoot);
 	const installedLauncher = join(productRoot, "bin", "legion.exe");
 	const versionInvocation = runCommand(installedLauncher, ["--version"]);
-	const versionMatches = versionInvocation.stdout.includes(current.releaseVersion) || versionInvocation.stderr.includes(current.releaseVersion);
-	const repairArgs = ["--json", "setup", "repair", "--client", "codex", "--confirm"];
-	const repairInvocation = runCommand(installedLauncher, repairArgs);
-	const repairPayload = exactCompleteJson(repairInvocation, "legion-setup-execution");
-	const statusArgs = ["--json", "setup", "status", "--client", "codex"];
-	const statusInvocation = runCommand(installedLauncher, statusArgs);
-	const statusPayload = exactCompleteJson(statusInvocation, "legion-setup-status");
-	const qualificationProofs = codexExecutable
-		? validateLiveCodexProofs({
-			state: env.state,
-			installedLauncher,
-			codexExecutable,
-			current,
-		})
-		: {
-			valid: false,
-			commandPath: join(env.state, "qualification", "codex-command.json"),
-			qualificationPath: join(env.state, "qualification", "codex-qualification.json"),
-			reason: "a real Codex executable was not resolved from the host PATH",
-		};
-	const repairClient = proofClientRecord(repairPayload, true);
-	const statusClient = proofClientRecord(statusPayload);
-	const setupComplete = Boolean(
-		repairPayload
-		&& statusPayload
-		&& proofRecordComplete(repairClient)
-		&& proofRecordComplete(statusClient)
-		&& liveExecutableMatches(repairPayload, installedLauncher, current, normalizedArchitecture)
-		&& liveExecutableMatches(statusPayload, installedLauncher, current, normalizedArchitecture)
-		&& codexProjectionCurrent(repairPayload)
-		&& codexProjectionCurrent(statusPayload)
-		&& qualificationProofs.valid
-		&& (proofRefsMatch(repairClient, qualificationProofs.commandPath, qualificationProofs.qualificationPath)
-			|| proofRefsMatch(statusClient, qualificationProofs.commandPath, qualificationProofs.qualificationPath)),
-	);
+	const versionMatches = versionOutputMatches(versionInvocation, current.releaseVersion);
+	const currentHealth = setupHealth({
+		runCommand,
+		state: env.state,
+		installedLauncher,
+		codexExecutable,
+		current,
+		architecture: normalizedArchitecture,
+	});
+	const setupComplete = currentHealth.complete;
+	const repairInvocation = currentHealth.repairInvocation;
+	const statusInvocation = currentHealth.statusInvocation;
+	const qualificationProofs = currentHealth.qualificationProofs;
+	const initialJournal = writeIntegrationJournal(integrationJournalPath, integrationJournalRecord({
+		stateName: "installed",
+		stateRoot: env.state,
+		currentPath: productRoot,
+		previousPath: previousPointer,
+		activeVersionRoot: currentVersionRoot,
+		priorVersionRoot,
+		targetVersion: current.releaseVersion,
+		priorVersion: prior?.releaseVersion ?? null,
+		priorHealth: null,
+		currentHealth,
+	}));
 	const installedPass = Boolean(
 		installCurrent.success
 		&& commandSucceeded(versionInvocation)
@@ -801,7 +963,7 @@ export function qualifyWindowsRelease({
 			const invocation = runCommand("legion.exe", ["--version"], {
 				env: { ...environment, PATH: `${join(productRoot, "bin")};${environment.PATH ?? ""}` },
 			});
-			return resolved && commandSucceeded(invocation) && (invocation.stdout.includes(current.releaseVersion) || invocation.stderr.includes(current.releaseVersion))
+			return resolved && versionOutputMatches(invocation, current.releaseVersion)
 				? gate("command-resolution", "pass", { resolvedPath: resolved, command: invocation })
 				: failedGate("command-resolution", "installed legion.exe was not resolved and executed from isolated PATH", { resolvedPath: resolved, command: invocation });
 		})(),
@@ -832,6 +994,11 @@ export function qualifyWindowsRelease({
 	};
 
 	let priorTreeSha256 = null;
+	let priorHealth = null;
+	let updateHealth = null;
+	let rollbackHealth = null;
+	let finalHealth = null;
+	let integrationJournal = initialJournal;
 	if (!prior) {
 		gates.update = unprovenGate("update", "prior archive was not supplied; update cannot be proven");
 		gates.rollback = unprovenGate("rollback", "prior archive was not supplied; rollback cannot be proven");
@@ -839,28 +1006,98 @@ export function qualifyWindowsRelease({
 		priorTreeSha256 = treeDigest(priorRoot);
 		const archivesDiffer = !digestMatches(priorArchiveSha256, archiveSha256);
 		const runtimesDiffer = !digestMatches(prior.runtimeSha256, current.runtimeSha256);
-		const seedPrior = atomicReplaceProduct(priorRoot, productRoot, runRoot);
-		const updateAttempt = atomicReplaceProduct(currentRoot, productRoot, runRoot);
-		const updatedIdentity = releaseMetadata(productRoot, normalizedArchitecture, "updated product");
-		const updatePass = seedPrior.success
-			&& updateAttempt.success
-			&& updatedIdentity.releaseVersion === current.releaseVersion
-			&& digestMatches(updatedIdentity.runtimeSha256, current.runtimeSha256)
-			&& updateAttempt.backupMoved
-			&& archivesDiffer
-			&& runtimesDiffer;
+		const downgrade = compareVersions(current.releaseVersion, prior.releaseVersion) < 0;
+		if (downgrade && !downgradeAllowed) {
+			gates.update = failedGate("update", "downgrade requires explicit allowDowngrade", {
+				from: prior.releaseVersion,
+				to: current.releaseVersion,
+				allowDowngrade: downgradeAllowed,
+			});
+			gates.rollback = unprovenGate("rollback", "rollback is unproven when downgrade was not explicitly allowed");
+		} else {
+			const seedPrior = atomicReplaceProduct(priorRoot, productRoot, runRoot);
+			const pointerWritten = seedPrior.success && writePointer(previousPointer, priorVersionRoot);
+			priorHealth = seedPrior.success
+				? setupHealth({
+					runCommand,
+					state: env.state,
+					installedLauncher,
+					codexExecutable,
+					current: prior,
+					architecture: normalizedArchitecture,
+				})
+				: null;
+			integrationJournal = writeIntegrationJournal(integrationJournalPath, integrationJournalRecord({
+				stateName: "update-pending",
+				stateRoot: env.state,
+				currentPath: productRoot,
+				previousPath: previousPointer,
+				activeVersionRoot: priorVersionRoot,
+				priorVersionRoot,
+				targetVersion: current.releaseVersion,
+				priorVersion: prior.releaseVersion,
+				priorHealth,
+				currentHealth: priorHealth,
+			}));
+			const updateAttempt = atomicReplaceProduct(currentRoot, productRoot, runRoot);
+			const updatedIdentity = updateAttempt.success
+				? releaseMetadata(productRoot, normalizedArchitecture, "updated product")
+				: null;
+			updateHealth = updateAttempt.success
+				? setupHealth({
+					runCommand,
+					state: env.state,
+					installedLauncher,
+					codexExecutable,
+					current,
+					architecture: normalizedArchitecture,
+				})
+				: null;
+			const retainedVersions = retainedVersionMatches(currentVersionRoot, current, normalizedArchitecture, "retained current version")
+				&& retainedVersionMatches(priorVersionRoot, prior, normalizedArchitecture, "retained prior version");
+			const updatePass = seedPrior.success
+				&& pointerWritten
+				&& priorHealth?.complete === true
+				&& updateAttempt.success
+				&& updateHealth?.complete === true
+				&& updatedIdentity?.releaseVersion === current.releaseVersion
+				&& digestMatches(updatedIdentity?.runtimeSha256, current.runtimeSha256)
+				&& updateAttempt.backupMoved
+				&& archivesDiffer
+				&& runtimesDiffer
+				&& retainedVersions;
+		integrationJournal = writeIntegrationJournal(integrationJournalPath, integrationJournalRecord({
+				stateName: updatePass ? "updated" : "update-failed",
+				stateRoot: env.state,
+				currentPath: productRoot,
+				previousPath: previousPointer,
+				activeVersionRoot: currentVersionRoot,
+				priorVersionRoot,
+				targetVersion: current.releaseVersion,
+				priorVersion: prior.releaseVersion,
+				priorHealth,
+				currentHealth: updateHealth,
+			}));
 		gates.update = updatePass
 			? gate("update", "pass", {
 				from: prior.releaseVersion,
 				to: current.releaseVersion,
 				backupAndAtomicReplacement: true,
+				stableCurrentPath: productRoot,
+				retainedPriorVersionRoot: priorVersionRoot,
+				integrationJournal: integrationJournalPath,
+				priorHealthSha256: priorHealth?.fingerprint,
+				currentHealthSha256: updateHealth?.fingerprint,
 				archivesDiffer,
 				runtimesDiffer,
 				productRoot,
 			})
-			: failedGate("update", "backup plus atomic replacement must install different current archive and runtime bytes", {
+			: failedGate("update", "update must retain prior version, restore integrations, and pass exact setup health", {
 				seedPrior,
 				updateAttempt,
+				priorHealth,
+				updateHealth,
+				retainedVersions,
 				archivesDiffer,
 				runtimesDiffer,
 				priorArchiveSha256,
@@ -877,32 +1114,96 @@ export function qualifyWindowsRelease({
 			},
 		});
 		const restoredPrior = existsSync(productRoot) ? treeDigest(productRoot) : null;
+		rollbackHealth = rollbackAttempt.rolledBack
+			? setupHealth({
+				runCommand,
+				state: env.state,
+				installedLauncher,
+				codexExecutable,
+				current: prior,
+				architecture: normalizedArchitecture,
+			})
+			: null;
+		const restoredPriorHealth = priorHealth?.complete === true
+			&& rollbackHealth?.complete === true
+			&& priorHealth.fingerprint === rollbackHealth.fingerprint;
+		const rollbackPointerRestored = existsSync(previousPointer)
+			&& readFileSync(previousPointer, "utf8").trim() === resolve(priorVersionRoot);
 		const rollbackPass = seedPriorForRollback.success
 			&& !rollbackAttempt.success
 			&& rollbackAttempt.rolledBack
 			&& restoredPrior === priorTreeSha256
+			&& restoredPriorHealth
+			&& rollbackPointerRestored
 			&& archivesDiffer
 			&& runtimesDiffer;
+		integrationJournal = writeIntegrationJournal(integrationJournalPath, integrationJournalRecord({
+			stateName: rollbackPass ? "rollback-restored" : "rollback-failed",
+			stateRoot: env.state,
+			currentPath: productRoot,
+			previousPath: previousPointer,
+			activeVersionRoot: priorVersionRoot,
+			priorVersionRoot,
+			targetVersion: current.releaseVersion,
+			priorVersion: prior.releaseVersion,
+			priorHealth: priorHealth,
+			currentHealth: rollbackHealth,
+		}));
 		gates.rollback = rollbackPass
 			? gate("rollback", "pass", {
 				injectedFailure: true,
+				stableCurrentPath: productRoot,
+				previousPointer: previousPointer,
+				retainedPriorVersionRoot: priorVersionRoot,
+				integrationsRestored: true,
+				priorHealthRestored: true,
+				priorHealthSha256: rollbackHealth?.fingerprint,
+				integrationJournal: integrationJournalPath,
 				restoredPriorSha256: restoredPrior,
 				archivesDiffer,
 				runtimesDiffer,
 				productRoot,
 			})
-			: failedGate("rollback", "injected update failure must restore a different prior product after distinct archive/runtime bytes", {
+			: failedGate("rollback", "failed update must restore pointer, integrations, prior version, and exact prior health", {
 				seedPriorForRollback,
 				rollbackAttempt,
 				restoredPrior,
 				expectedPrior: priorTreeSha256,
+				priorHealth,
+				rollbackHealth,
+				rollbackPointerRestored,
 				archivesDiffer,
 				runtimesDiffer,
 				productRoot,
 			});
 		// Leave product in current state before uninstall, proving a successful
 		// update remains available after rollback recovery.
-		atomicReplaceProduct(currentRoot, productRoot, runRoot);
+		const restoredCurrent = atomicReplaceProduct(currentRoot, productRoot, runRoot);
+		finalHealth = restoredCurrent.success
+			? setupHealth({
+				runCommand,
+				state: env.state,
+				installedLauncher,
+				codexExecutable,
+				current,
+				architecture: normalizedArchitecture,
+				})
+			: null;
+	}
+	}
+	if (finalHealth) {
+		integrationJournal = writeIntegrationJournal(integrationJournalPath, integrationJournalRecord({
+			stateName: "ready-for-uninstall",
+			stateRoot: env.state,
+			currentPath: productRoot,
+			previousPath: previousPointer,
+			activeVersionRoot: currentVersionRoot,
+			priorVersionRoot,
+			targetVersion: current.releaseVersion,
+			priorVersion: prior?.releaseVersion ?? null,
+			priorHealth,
+			currentHealth: finalHealth,
+		}));
 	}
 
 	const markerBytes = Buffer.from("foreign marker\n", "utf8");
@@ -911,10 +1212,29 @@ export function qualifyWindowsRelease({
 	const markerBefore = readFileSync(foreignMarker);
 	removeExact(productRoot, runRoot, "product root for uninstall");
 	const markerAfter = readFileSync(foreignMarker);
-	const uninstallPass = !existsSync(productRoot) && Buffer.compare(markerBefore, markerAfter) === 0;
+	const durableStateRetained = retainedVersionMatches(currentVersionRoot, current, normalizedArchitecture, "retained current version")
+		&& (!prior || retainedVersionMatches(priorVersionRoot, prior, normalizedArchitecture, "retained prior version"))
+		&& existsSync(integrationJournalPath)
+		&& integrationJournal?.kind === "legion-integration-journal";
+	const uninstallPass = !existsSync(productRoot)
+		&& Buffer.compare(markerBefore, markerAfter) === 0
+		&& durableStateRetained;
 	gates.uninstall = uninstallPass
-		? gate("uninstall", "pass", { productRootRemoved: true, foreignMarkerPreserved: true, foreignMarker })
-		: failedGate("uninstall", "product root was not removed or foreign marker changed", { productRoot, foreignMarker });
+		? gate("uninstall", "pass", {
+			productRootRemoved: true,
+			foreignMarkerPreserved: true,
+			foreignMarker,
+			durableStateRetained,
+			retainedCurrentVersionRoot: currentVersionRoot,
+			retainedPriorVersionRoot: priorVersionRoot,
+			integrationJournal: integrationJournalPath,
+		})
+		: failedGate("uninstall", "product root was not removed, durable state was not retained, or foreign marker changed", {
+			productRoot,
+			foreignMarker,
+			durableStateRetained,
+			integrationJournal: integrationJournalPath,
+		});
 
 	const lifecyclePass = allGatesPass(gates);
 	const status = lifecyclePass && !simulated ? "qualified" : "blocked";
@@ -930,6 +1250,23 @@ export function qualifyWindowsRelease({
 		archiveSha256,
 		runtimeSha256: current.runtimeSha256,
 		runner: { os: platform, architecture: runnerArchitecture, simulated },
+		install: {
+			root: installRoot,
+			currentPath: productRoot,
+			previousPath: previousPointer,
+			versionsRoot,
+			currentVersionRoot,
+			priorVersionRoot,
+			integrationJournal: integrationJournalPath,
+			allowDowngrade: downgradeAllowed,
+		},
+		integrationJournal,
+		health: {
+			current: currentHealth.fingerprint,
+			prior: priorHealth?.fingerprint ?? null,
+			rollback: rollbackHealth?.fingerprint ?? null,
+			final: finalHealth?.fingerprint ?? null,
+		},
 		gates,
 		archive: {
 			current: { path: currentArchive, sha256: archiveSha256 },
@@ -946,8 +1283,8 @@ export function qualifyWindowsRelease({
 		...(status === "qualified"
 			? {}
 			: {
-				reason: simulated
-					? "injected archive or command seams are simulated and cannot qualify a native Windows release"
+			reason: simulated
+					? "injected archive, command, platform, architecture, or executable seams are simulated and cannot qualify a native Windows release"
 					: "all six lifecycle gates must pass; unproven gates cannot qualify",
 			}),
 	};
@@ -961,6 +1298,10 @@ function parseArguments(argv) {
 		const raw = argv[index];
 		if (raw === "--") continue;
 		if (raw === "--help" || raw === "-h") return { help: true };
+		if (raw === "--allow-downgrade") {
+			options.allowdowngrade = true;
+			continue;
+		}
 		const equal = raw.indexOf("=");
 		const key = equal === -1 ? raw.slice(2) : raw.slice(2, equal);
 		if (!raw.startsWith("--") || !key) throw new Error(`unknown argument: ${raw}`);
@@ -973,7 +1314,7 @@ function parseArguments(argv) {
 }
 
 function usage(code = 0) {
-	console.error("usage: node scripts/qualify-windows-release.mjs --current-zip <zip> [--prior-zip <zip>] --architecture x86_64|arm64 --source-revision <sha> --output <receipt.json> --work-root <isolated-dir>");
+	console.error("usage: node scripts/qualify-windows-release.mjs --current-zip <zip> [--prior-zip <zip>] --architecture x86_64|arm64 --source-revision <sha> --output <receipt.json> --work-root <isolated-dir> [--allow-downgrade]");
 	process.exit(code);
 }
 
@@ -988,7 +1329,7 @@ if (isMain) {
 		const sourceRevision = options.sourcerevision ?? options.revision;
 		const output = options.output ?? options.outputreceipt ?? options.receipt ?? options.receiptpath;
 		const workRoot = options.workroot ?? options.work ?? options.isolatedworkroot ?? options.isolatedroot;
-		const receipt = qualifyWindowsRelease({ currentZip, priorZip, architecture, sourceRevision, output, workRoot });
+		const receipt = qualifyWindowsRelease({ currentZip, priorZip, architecture, sourceRevision, output, workRoot, allowDowngrade: options.allowdowngrade === true });
 		process.stdout.write(`${JSON.stringify({ status: receipt.status, receiptPath: receipt.receiptPath, archiveSha256: receipt.archiveSha256, runtimeSha256: receipt.runtimeSha256 }, null, 2)}\n`);
 	} catch (error) {
 		console.error(`qualify-windows-release: ${error.message}`);

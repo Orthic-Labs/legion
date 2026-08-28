@@ -227,25 +227,83 @@ struct DoctorSummary {
 const M1_COMPOSITION_SCHEMA_VERSION: u32 = 1;
 const M1_STATE_SCHEMA_VERSION: u32 = 1;
 const M1_REPAIR: &str = "legion setup repair --confirm";
-const M1_RIGHTKIT_AX_VERSION: &str = "0.2.0";
-const M1_RIGHTKIT_AX_SOURCE_COMMIT: &str = "01f52555202da3dffc6b649ca44e803b55238081";
+const M1_RIGHTKIT_AX_VERSION: &str = "0.2.1";
+const M1_RIGHTKIT_AX_SOURCE_COMMIT: &str = "4c1a414269d8ffdb95b4b1e685440bd34784b41b";
 const M1_INSTALLED_COMPOSITION: &str = "share/legion/composition.json";
-const M2_PORTABLE_PACKAGE_FILES: [&str; 6] = [
-    "plugin.json",
-    "mcp.json",
-    "skills/legion/SKILL.md",
-    "share/legion/release-binding.json",
-    "share/legion/identity/release-identity.json",
-    "share/legion/schemas/mcp-tools.schema.json",
+const M2_PUBLIC_SKILLS: [&str; 24] = [
+    "ads",
+    "alchemist",
+    "architect",
+    "audit",
+    "audit-fix",
+    "audit-visual",
+    "brand",
+    "brand-identity",
+    "coder",
+    "commit",
+    "covenant",
+    "debugger",
+    "designer",
+    "dispatch",
+    "gotchas",
+    "handoff",
+    "marketing",
+    "qa",
+    "research",
+    "seo",
+    "social",
+    "tasklist",
+    "wake",
+    "writing",
 ];
-const M2_PORTABLE_PACKAGE_DIRECTORIES: [&str; 6] = [
-    "skills",
-    "skills/legion",
-    "share",
-    "share/legion",
-    "share/legion/identity",
-    "share/legion/schemas",
-];
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct RightAxPortableCore {
+    schema_version: u32,
+    kind: String,
+    plugin: String,
+    public_skills: Vec<String>,
+    public_files: Vec<String>,
+    private_workspace_content: bool,
+    client_projections: Value,
+}
+
+fn expected_right_ax_client_projections() -> Value {
+    json!({
+        "claude": {
+            "portableCore": false,
+            "projection": "claude-native-plugin+standalone-skills",
+            "fidelity": "full+skills-only",
+            "executableRegistration": true
+        },
+        "codex": {
+            "portableCore": true,
+            "projection": "agent-plugins+codex-sidecar",
+            "fidelity": "full+sidecar",
+            "executableRegistration": true
+        },
+        "cursor": {
+            "portableCore": true,
+            "projection": "agent-plugins+optional-cursor-sidecar",
+            "fidelity": "full+optional-sidecar",
+            "executableRegistration": true
+        },
+        "pi": {
+            "portableCore": false,
+            "projection": "agents-skills",
+            "fidelity": "skills-only",
+            "executableRegistration": false
+        },
+        "antigravity": {
+            "portableCore": false,
+            "projection": "antigravity-native-plugin",
+            "fidelity": "native",
+            "schema": "https://antigravity.google/schemas/v1/plugin.json",
+            "executableRegistration": true
+        }
+    })
+}
 
 /// Installed composition is explicit and versioned so the CLI never infers
 /// release assets from a source checkout or developer environment.
@@ -412,7 +470,7 @@ fn plugin_root_error(reason: impl Into<String>) -> commands::CommandError {
 
 fn validate_portable_plugin_root(
     raw_root: &Path,
-    manifest: &legion_runtime::ReleaseManifest,
+    _manifest: &legion_runtime::ReleaseManifest,
 ) -> Result<(), commands::CommandError> {
     if raw_root
         .components()
@@ -452,14 +510,97 @@ fn validate_portable_plugin_root(
         return Err(plugin_root_error("plugin root must be a directory"));
     }
 
-    let expected_files = M2_PORTABLE_PACKAGE_FILES
+    let portable_contract_path = root.join("rightax-portable-core.json");
+    let portable_contract: RightAxPortableCore = serde_json::from_slice(
+        &std::fs::read(&portable_contract_path).map_err(commands::io_error)?,
+    )
+    .map_err(|error| {
+        plugin_root_error(format!("rightax-portable-core.json is invalid: {error}"))
+    })?;
+    if portable_contract.schema_version != 1
+        || portable_contract.kind != "rightax-portable-core"
+        || portable_contract.plugin != "legion"
+        || portable_contract.private_workspace_content
+    {
+        return Err(plugin_root_error(
+            "RightAX portable core identity is invalid",
+        ));
+    }
+    let expected_skills = M2_PUBLIC_SKILLS
         .iter()
-        .map(|path| (*path).to_owned())
+        .map(|skill| (*skill).to_owned())
         .collect::<BTreeSet<_>>();
-    let expected_directories = M2_PORTABLE_PACKAGE_DIRECTORIES
+    let declared_skills = portable_contract
+        .public_skills
         .iter()
-        .map(|path| (*path).to_owned())
+        .cloned()
         .collect::<BTreeSet<_>>();
+    if declared_skills != expected_skills
+        || declared_skills.len() != portable_contract.public_skills.len()
+    {
+        return Err(plugin_root_error(
+            "RightAX portable core does not contain every canonical public skill exactly once",
+        ));
+    }
+    if portable_contract.client_projections != expected_right_ax_client_projections() {
+        if portable_contract
+            .client_projections
+            .get("pi")
+            .and_then(|value| value.get("executableRegistration"))
+            .and_then(Value::as_bool)
+            == Some(true)
+        {
+            return Err(plugin_root_error(
+                "RightAX Pi projection may not register an executable",
+            ));
+        }
+        return Err(plugin_root_error(
+            "RightAX client projections are not exact",
+        ));
+    }
+    let mut expected_files = portable_contract
+        .public_files
+        .iter()
+        .cloned()
+        .collect::<BTreeSet<_>>();
+    if expected_files.len() != portable_contract.public_files.len()
+        || !expected_files.contains("plugin.json")
+        || !expected_files.contains("mcp.json")
+        || expected_skills
+            .iter()
+            .any(|skill| !expected_files.contains(&format!("skills/{skill}/SKILL.md")))
+    {
+        return Err(plugin_root_error(
+            "RightAX public file declaration is incomplete",
+        ));
+    }
+    if portable_contract
+        .public_files
+        .iter()
+        .any(|relative| !is_allowed_portable_public_file(relative, &expected_skills))
+    {
+        return Err(plugin_root_error(
+            "RightAX public file declaration contains an extra or private path",
+        ));
+    }
+    expected_files.insert("rightax-portable-core.json".into());
+    if expected_files
+        .iter()
+        .any(|relative| !is_safe_portable_relative_path(relative))
+    {
+        return Err(plugin_root_error("RightAX public file path is unsafe"));
+    }
+    let mut expected_directories = BTreeSet::new();
+    for relative in &expected_files {
+        let mut parent = Path::new(relative).parent();
+        while let Some(directory) = parent {
+            if directory.as_os_str().is_empty() {
+                break;
+            }
+            expected_directories.insert(directory.to_string_lossy().replace('\\', "/"));
+            parent = directory.parent();
+        }
+    }
     let mut discovered_files = BTreeSet::new();
     let mut discovered_directories = BTreeSet::new();
     collect_portable_package_entries(
@@ -476,47 +617,124 @@ fn validate_portable_plugin_root(
         ));
     }
 
-    for relative in [
-        "plugin.json",
-        "mcp.json",
-        "share/legion/release-binding.json",
-        "share/legion/identity/release-identity.json",
-        "share/legion/schemas/mcp-tools.schema.json",
-    ] {
+    for relative in ["plugin.json", "mcp.json", "rightax-portable-core.json"] {
         serde_json::from_slice::<Value>(
             &std::fs::read(root.join(relative)).map_err(commands::io_error)?,
         )
         .map_err(|error| plugin_root_error(format!("{relative} is not valid JSON: {error}")))?;
     }
-    legion_host::validate_templates(&legion_host::PortableTemplates {
-        plugin_json: std::fs::read(root.join("plugin.json")).map_err(commands::io_error)?,
-        mcp_json: std::fs::read(root.join("mcp.json")).map_err(commands::io_error)?,
-        skill_markdown: std::fs::read(root.join("skills/legion/SKILL.md"))
-            .map_err(commands::io_error)?,
-    })
-    .map_err(|error| plugin_root_error(error.to_string()))?;
+    validate_portable_plugin_manifests(&root)?;
 
-    let binding_path = root.join("share/legion/release-binding.json");
-    let package_binding = legion_runtime::load_release_manifest(&binding_path)
-        .map_err(|error| plugin_root_error(error.to_string()))?;
-    if &package_binding != manifest {
+    Ok(())
+}
+
+fn is_safe_portable_relative_path(relative: &str) -> bool {
+    if relative.is_empty() || relative.contains('\0') {
+        return false;
+    }
+    let normalized = relative.replace('\\', "/");
+    if normalized.starts_with('/') || normalized.contains(':') {
+        return false;
+    }
+    normalized
+        .split('/')
+        .all(|component| !component.is_empty() && component != "." && component != "..")
+}
+
+fn is_allowed_portable_public_file(relative: &str, expected_skills: &BTreeSet<String>) -> bool {
+    if matches!(relative, "plugin.json" | "mcp.json") {
+        return true;
+    }
+    let mut components = relative.split('/');
+    if components.next() != Some("skills") {
+        return false;
+    }
+    let Some(skill) = components.next() else {
+        return false;
+    };
+    if !expected_skills.contains(skill) || components.next().is_none() {
+        return false;
+    }
+    let lower = relative.to_ascii_lowercase();
+    if lower.split('/').any(|component| {
+        component == "private"
+            || component.starts_with("private.")
+            || component == "personal"
+            || component.starts_with("personal.")
+            || component == "secrets"
+            || component.starts_with("secrets.")
+            || component == "credentials"
+            || component.starts_with("credentials.")
+            || component.starts_with(".env")
+    }) {
+        return false;
+    }
+    ![
+        ".pem", ".p12", ".pfx", ".key", ".kdbx", ".sqlite", ".sqlite3",
+    ]
+    .iter()
+    .any(|extension| lower.ends_with(extension))
+}
+
+fn validate_portable_plugin_manifests(root: &Path) -> Result<(), commands::CommandError> {
+    let plugin: Value = serde_json::from_slice(
+        &std::fs::read(root.join("plugin.json")).map_err(commands::io_error)?,
+    )
+    .map_err(|error| plugin_root_error(format!("plugin.json is not valid JSON: {error}")))?;
+    if !plugin.is_object() || plugin.get("name").and_then(Value::as_str) != Some("legion") {
         return Err(plugin_root_error(
-            "release-binding.json does not match the verified native application manifest",
+            "plugin.json must declare the legion plugin",
         ));
     }
-    let identity_path = root.join("share/legion/identity/release-identity.json");
-    let package_identity = legion_runtime::load_release_manifest(&identity_path)
-        .map_err(|error| plugin_root_error(error.to_string()))?;
-    if &package_identity != manifest {
+
+    let mcp: Value =
+        serde_json::from_slice(&std::fs::read(root.join("mcp.json")).map_err(commands::io_error)?)
+            .map_err(|error| plugin_root_error(format!("mcp.json is not valid JSON: {error}")))?;
+    let mcp_object = mcp
+        .as_object()
+        .ok_or_else(|| plugin_root_error("mcp.json must be a JSON object"))?;
+    if mcp_object
+        .keys()
+        .any(|key| key != "$schema" && key != "mcpServers")
+        || mcp.get("$schema").and_then(Value::as_str)
+            != Some("https://agent-plugins.org/schemas/1.0.0/mcp.schema.json")
+    {
         return Err(plugin_root_error(
-            "release-identity.json does not match the verified native application manifest",
+            "mcp.json must use the pinned Agent Plugins schema",
         ));
     }
-    let schema_path = root.join("share/legion/schemas/mcp-tools.schema.json");
-    let package_schema = std::fs::read(&schema_path).map_err(commands::io_error)?;
-    if legion_catalog::hex_digest(&package_schema) != manifest.mcp_tool_schema_sha256 {
+    let servers = mcp
+        .get("mcpServers")
+        .and_then(Value::as_object)
+        .ok_or_else(|| plugin_root_error("mcp.json.mcpServers must be an object"))?;
+    if servers.len() != 1 || !servers.contains_key("legion") {
         return Err(plugin_root_error(
-            "mcp-tools.schema.json digest does not match the verified native application manifest",
+            "mcp.json must declare exactly the legion server",
+        ));
+    }
+    let server = servers
+        .get("legion")
+        .and_then(Value::as_object)
+        .ok_or_else(|| plugin_root_error("mcp.json.mcpServers.legion must be an object"))?;
+    if server
+        .keys()
+        .any(|key| key != "type" && key != "command" && key != "args")
+    {
+        return Err(plugin_root_error(
+            "mcp.json legion server contains an unapproved field",
+        ));
+    }
+    let args = server
+        .get("args")
+        .and_then(Value::as_array)
+        .ok_or_else(|| plugin_root_error("mcp.json.mcpServers.legion.args must be an array"))?;
+    let expected = ["serve", "--stdio", "--plugin-root", "${PLUGIN_ROOT}"];
+    if server.get("type").and_then(Value::as_str) != Some("stdio")
+        || server.get("command").and_then(Value::as_str) != Some("legion")
+        || args.iter().filter_map(Value::as_str).collect::<Vec<_>>() != expected.to_vec()
+    {
+        return Err(plugin_root_error(
+            "mcp.json must use the exact bare legion stdio contract",
         ));
     }
     Ok(())

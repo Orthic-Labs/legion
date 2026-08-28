@@ -1,3 +1,7 @@
+use legion_host::setup_registry::{
+    inspect_client_projection, remove_client_projection, repair_client_projection,
+    ClientProjectionInput, CLIENT_CLAUDE, CLIENT_PI,
+};
 use legion_host::{
     BoundRelease, ClientEvidence, ClientSelector, OnDiskSetupStore, PlanConfirmation, SetupAction,
     SetupErrorCode, SetupRegistry, SetupRequest, SetupState, SetupStore,
@@ -69,8 +73,8 @@ fn release_bound_real_client_evidence_promotes_full_fidelity() {
             "signer": "Damned Ventures LLC",
             "authenticodeStatus": "Valid",
             "timestamped": true,
-            "rightkitAxVersion": "0.2.0",
-            "rightkitAxSourceCommit": "01f52555202da3dffc6b649ca44e803b55238081"
+            "rightkitAxVersion": "0.2.1",
+            "rightkitAxSourceCommit": "4c1a414269d8ffdb95b4b1e685440bd34784b41b"
         })
         .to_string(),
     )
@@ -351,6 +355,72 @@ fn symlinked_platform_roots_are_refused() {
         OnDiskSetupStore::open(link).unwrap_err().code,
         SetupErrorCode::PathEscapeRefused
     );
+}
+
+#[test]
+fn native_client_projection_profiles_reconcile_without_claiming_pi_execution() {
+    let root = TempRoot::new("client-projections");
+    let state_root = root.path().join("state");
+    let source_root = root.path().join("release/plugin");
+    let claude_target = root.path().join("home/.claude/plugins/legion");
+    let pi_target = root.path().join("home/.agents/skills");
+    fs::create_dir_all(source_root.join("skills/example")).expect("plugin source");
+    fs::write(source_root.join("plugin.json"), br#"{"name":"legion"}"#).expect("plugin manifest");
+    fs::write(source_root.join("mcp.json"), br#"{"mcpServers":{}}"#).expect("plugin MCP manifest");
+    fs::write(source_root.join("skills/example/SKILL.md"), b"# Example").expect("plugin skill");
+    fs::create_dir_all(root.path().join("release/skills/example")).expect("Pi skill source");
+    fs::write(
+        root.path().join("release/skills/example/SKILL.md"),
+        b"# Example",
+    )
+    .expect("Pi skill");
+    let _registry = registry(&state_root);
+    let state_root = fs::canonicalize(&state_root).expect("canonical state root");
+    let claude = ClientProjectionInput {
+        client_id: CLIENT_CLAUDE.into(),
+        projection: "native-plugin".into(),
+        source_root: fs::canonicalize(&source_root).expect("canonical plugin source"),
+        target_root: claude_target,
+        state_root: state_root.clone(),
+        generation: "0.1.0-test:assets".into(),
+        executable_registration: true,
+        explicit_only: false,
+        skill_ids: vec!["example".into()],
+    };
+    assert_eq!(
+        inspect_client_projection(&claude)
+            .expect("inspect missing native projection")
+            .state,
+        "stale"
+    );
+    let repaired = repair_client_projection(&claude).expect("repair native projection");
+    assert_eq!(repaired.inspection.state, "current");
+    fs::write(claude.target_root.join("private.txt"), b"must remain").expect("foreign client file");
+    fs::write(claude.target_root.join("plugin.json"), b"user edit").expect("modified Legion file");
+    let removed = remove_client_projection(&claude).expect("remove native projection");
+    assert!(removed
+        .preserved
+        .iter()
+        .any(|path| path.ends_with("plugin.json")));
+    assert!(claude.target_root.join("private.txt").is_file());
+
+    let pi = ClientProjectionInput {
+        client_id: CLIENT_PI.into(),
+        projection: "skills-only".into(),
+        source_root: fs::canonicalize(root.path().join("release/skills"))
+            .expect("canonical Pi source"),
+        target_root: pi_target,
+        state_root,
+        generation: "0.1.0-test:assets".into(),
+        executable_registration: false,
+        explicit_only: true,
+        skill_ids: vec!["example".into()],
+    };
+    let pi_repair = repair_client_projection(&pi).expect("repair Pi skills");
+    assert_eq!(pi_repair.inspection.state, "current");
+    assert!(!pi_repair.inspection.executable_registration);
+    assert!(pi.target_root.join("example/SKILL.md").is_file());
+    assert!(!pi.target_root.join("example/agents").exists());
 }
 
 #[test]

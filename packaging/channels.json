@@ -4,15 +4,49 @@
   "contract": "release/distribution-contract.json",
   "versionSource": "release/version.json",
   "artifactSource": "immutable-github-release",
+  "publicationOwner": "RightKit Release",
+  "bootstrap": {
+    "provider": "rightapps-downloads-r2",
+    "mode": "branded-bootstrap-only",
+    "stableUrl": "https://legion.orthiclabs.com/install.ps1",
+    "objectKey": "legion/install.ps1"
+  },
+  "manifest": {
+    "authority": "release-manifest.json+release-manifest.cat",
+    "file": "release-manifest.json",
+    "signature": "release-manifest.cat",
+    "signatureAlgorithm": "authenticode-catalog-sha256",
+    "signatureProvider": "windows-authenticode-catalog",
+    "signatureProviderVersion": 1
+  },
+  "checksums": {
+    "file": "checksums.json",
+    "role": "manifest-bound-convenience"
+  },
   "channels": {
     "direct-bootstrap": {
       "status": "blocked",
       "stableUrl": "https://legion.orthiclabs.com/install.ps1",
+      "bootstrapProvider": "rightapps-downloads-r2",
+      "bootstrapMode": "branded-bootstrap-only",
       "payloadAuthority": "immutable-github-release",
+      "manifestAuthority": "release-manifest.json+release-manifest.cat",
+      "manifest": {
+        "file": "release-manifest.json",
+        "signature": "release-manifest.cat",
+        "signatureAlgorithm": "authenticode-catalog-sha256",
+        "signatureProvider": "windows-authenticode-catalog",
+        "signatureProviderVersion": 1
+      },
+      "checksums": {
+        "file": "checksums.json",
+        "role": "manifest-bound-convenience"
+      },
       "publicationOwner": "RightKit Release"
     },
     "homebrew": {
       "status": "optional-alias-not-required",
+      "required": false,
       "tapRepository": "Orthic-Labs/homebrew-tap",
       "formula": "orthic-labs/tap/legion",
       "requiredArchitectures": ["macos-arm64", "macos-x86_64"],
@@ -20,6 +54,7 @@
     },
     "winget": {
       "status": "optional-alias-not-required",
+      "required": false,
       "packageIdentifier": "OrthicLabs.Legion",
       "installerType": "portable",
       "requiredArchitectures": ["windows-x86_64", "windows-arm64"],

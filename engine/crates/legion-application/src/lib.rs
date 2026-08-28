@@ -2016,8 +2016,8 @@ mod m1_tests {
             declarative_assets_sha256: digest("assets.json"),
             state_schema_version: 1,
             rightkit_ax: legion_runtime::RightkitAxIdentity {
-                version: "0.2.0".into(),
-                source_commit: "01f52555202da3dffc6b649ca44e803b55238081".into(),
+                version: "0.2.1".into(),
+                source_commit: "4c1a414269d8ffdb95b4b1e685440bd34784b41b".into(),
             },
         };
         let manifest_path = root.join("release.json");
@@ -2041,8 +2041,8 @@ mod m1_tests {
                 ),
                 state_schema_version: 1,
                 rightkit_ax: legion_runtime::RightkitAxIdentity {
-                    version: "0.2.0".into(),
-                    source_commit: "01f52555202da3dffc6b649ca44e803b55238081".into(),
+                    version: "0.2.1".into(),
+                    source_commit: "4c1a414269d8ffdb95b4b1e685440bd34784b41b".into(),
                 },
             },
             catalog_root: root.into(),

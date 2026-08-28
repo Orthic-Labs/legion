@@ -1,65 +1,8 @@
 use legion_host::{
-    assemble_clean_room, classify_external_qualification, verify_client_identity, ClientFidelity,
-    ClientIdentity, CommandResolutionEvidence, ExternalQualificationInputs,
-    ExternalQualificationStatus, FailureCode, PinnedAxEvidence, PortableTemplates,
-    VerifiedPortableInputs, RIGHTKIT_AX_SOURCE_COMMIT, RIGHTKIT_AX_VERSION,
+    classify_external_qualification, verify_client_identity, ClientFidelity, ClientIdentity,
+    CommandResolutionEvidence, ExternalQualificationInputs, ExternalQualificationStatus,
+    FailureCode, PinnedAxEvidence, RIGHTKIT_AX_SOURCE_COMMIT, RIGHTKIT_AX_VERSION,
 };
-use serde_json::Value;
-use std::{
-    fs,
-    path::{Path, PathBuf},
-    time::{SystemTime, UNIX_EPOCH},
-};
-
-const PACKAGE_FILES: [&str; 6] = [
-    "plugin.json",
-    "mcp.json",
-    "skills/legion/SKILL.md",
-    "share/legion/release-binding.json",
-    "share/legion/identity/release-identity.json",
-    "share/legion/schemas/mcp-tools.schema.json",
-];
-
-struct TempRoot(PathBuf);
-
-impl TempRoot {
-    fn new(label: &str) -> Self {
-        let nonce = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .expect("system clock")
-            .as_nanos();
-        let temp_dir = std::env::temp_dir();
-        #[cfg(unix)]
-        let temp_dir = fs::canonicalize(temp_dir).expect("physical temp directory");
-        Self(temp_dir.join(format!("legion-m2-{label}-{}-{nonce}", std::process::id())))
-    }
-
-    fn path(&self) -> &Path {
-        &self.0
-    }
-}
-
-impl Drop for TempRoot {
-    fn drop(&mut self) {
-        let _ = fs::remove_dir_all(&self.0);
-    }
-}
-
-fn templates() -> PortableTemplates {
-    PortableTemplates {
-        plugin_json: include_bytes!("../assets/legion-plugin/plugin.json").to_vec(),
-        mcp_json: include_bytes!("../assets/legion-plugin/mcp.json").to_vec(),
-        skill_markdown: include_bytes!("../assets/legion-plugin/skills/legion/SKILL.md").to_vec(),
-    }
-}
-
-fn verified_inputs() -> VerifiedPortableInputs {
-    VerifiedPortableInputs {
-        release_binding: br#"{"releaseVersion":"0.1.0","runtime":"signed"}"#.to_vec(),
-        release_identity: br#"{"releaseVersion":"0.1.0","catalog":"sha256:catalog"}"#.to_vec(),
-        mcp_tool_schema: br#"{"type":"object","properties":{}}"#.to_vec(),
-    }
-}
 
 fn identity(client_id: &str, selected_mechanism: &str) -> ClientIdentity {
     ClientIdentity {
@@ -83,90 +26,6 @@ fn resolution(client_id: &str) -> CommandResolutionEvidence {
         launch_environment_digest: "sha256:environment".into(),
         source_checkout: false,
         path_sanitized: true,
-    }
-}
-
-fn package_files(root: &Path, current: &Path) -> Vec<String> {
-    let mut entries = Vec::new();
-    for entry in fs::read_dir(current).expect("read assembled package directory") {
-        let entry = entry.expect("package directory entry");
-        let path = entry.path();
-        if path.is_dir() {
-            entries.extend(package_files(root, &path));
-        } else {
-            entries.push(
-                path.strip_prefix(root)
-                    .expect("package path under root")
-                    .to_string_lossy()
-                    .replace('\\', "/"),
-            );
-        }
-    }
-    entries.sort();
-    entries
-}
-
-#[test]
-fn clean_room_assembly_has_exact_closed_layout_and_bare_mcp_contract() {
-    let root = TempRoot::new("clean-room");
-    let templates = templates();
-    let package = assemble_clean_room(root.path(), &templates, &verified_inputs()).unwrap();
-
-    assert_eq!(package.entries, PACKAGE_FILES.map(str::to_string));
-    let mut expected_files = PACKAGE_FILES.map(str::to_string).to_vec();
-    expected_files.sort();
-    assert_eq!(package_files(&package.root, &package.root), expected_files);
-    for relative in PACKAGE_FILES {
-        let path = package.root.join(relative);
-        assert!(path.starts_with(&package.root));
-        let metadata = fs::symlink_metadata(&path).expect("package entry metadata");
-        assert!(metadata.file_type().is_file());
-        assert!(!metadata.file_type().is_symlink());
-    }
-    assert_eq!(
-        fs::read(package.root.join("plugin.json")).unwrap(),
-        templates.plugin_json
-    );
-    let mcp: Value = serde_json::from_slice(&fs::read(package.root.join("mcp.json")).unwrap())
-        .expect("MCP template JSON");
-    assert_eq!(
-        mcp["$schema"],
-        "https://agent-plugins.org/schemas/1.0.0/mcp.schema.json"
-    );
-    assert_eq!(mcp["mcpServers"]["legion"]["command"], "legion");
-    assert_eq!(
-        mcp["mcpServers"]["legion"]["args"],
-        serde_json::json!(["serve", "--stdio", "--plugin-root", "${PLUGIN_ROOT}"])
-    );
-}
-
-#[test]
-fn invalid_template_fails_before_creating_a_partial_clean_room() {
-    let root = TempRoot::new("invalid-template");
-    let mut templates = templates();
-    templates.mcp_json = br#"{"mcpServers":{}}"#.to_vec();
-
-    let error = assemble_clean_room(root.path(), &templates, &verified_inputs()).unwrap_err();
-    assert_eq!(error.code(), FailureCode::InvalidDescriptor);
-    assert!(!root.path().exists());
-}
-
-#[test]
-fn portable_package_contains_no_embedded_runtime_or_interpreter() {
-    let root = TempRoot::new("runtime-free");
-    let package = assemble_clean_room(root.path(), &templates(), &verified_inputs()).unwrap();
-    for relative in PACKAGE_FILES {
-        assert!(
-            !relative.ends_with(".mjs") && !relative.ends_with(".py") && !relative.ends_with(".sh")
-        );
-        let bytes = fs::read(package.root.join(relative)).unwrap();
-        let content = String::from_utf8_lossy(&bytes);
-        for forbidden in ["node", "python", "npx", "npm", "source-checkout"] {
-            assert!(
-                !content.to_ascii_lowercase().contains(forbidden),
-                "{relative} contains forbidden runtime marker {forbidden}"
-            );
-        }
     }
 }
 
@@ -218,7 +77,7 @@ fn absent_external_evidence_is_a_typed_blocker_and_never_a_fabricated_pass() {
     assert_eq!(
         blocked.missing_prerequisites,
         vec![
-            "pinned-rightkit-ax-0.2.0@01f52555202da3dffc6b649ca44e803b55238081",
+            "pinned-rightkit-ax-0.2.1@4c1a414269d8ffdb95b4b1e685440bd34784b41b",
             "real-client-evidence",
             "signed-artifact-evidence",
         ]

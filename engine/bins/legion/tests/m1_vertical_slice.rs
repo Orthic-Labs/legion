@@ -177,8 +177,8 @@ fn fixture(with_body: bool) -> Fixture {
         declarative_assets_sha256: digest("assets.json"),
         state_schema_version: 1,
         rightkit_ax: legion_runtime::RightkitAxIdentity {
-            version: "0.2.0".into(),
-            source_commit: "01f52555202da3dffc6b649ca44e803b55238081".into(),
+            version: "0.2.1".into(),
+            source_commit: "4c1a414269d8ffdb95b4b1e685440bd34784b41b".into(),
         },
     };
     fs::write(
@@ -290,8 +290,8 @@ fn installed_composition_is_resolved_from_the_executable() {
         declarative_assets_sha256: digest(&assets.join("assets.json")),
         state_schema_version: 1,
         rightkit_ax: legion_runtime::RightkitAxIdentity {
-            version: "0.2.0".into(),
-            source_commit: "01f52555202da3dffc6b649ca44e803b55238081".into(),
+            version: "0.2.1".into(),
+            source_commit: "4c1a414269d8ffdb95b4b1e685440bd34784b41b".into(),
         },
     };
     fs::write(

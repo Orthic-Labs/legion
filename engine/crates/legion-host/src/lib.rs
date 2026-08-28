@@ -15,10 +15,8 @@ pub mod uninstall;
 pub mod verify;
 
 pub use agent_plugins::{
-    assemble_clean_room, classify_external_qualification, validate_templates, AssembledPackage,
-    ExternalQualification, ExternalQualificationInputs, ExternalQualificationStatus,
-    PinnedAxEvidence, PortableTemplates, VerifiedPortableInputs, RIGHTKIT_AX_SOURCE_COMMIT,
-    RIGHTKIT_AX_VERSION,
+    classify_external_qualification, ExternalQualification, ExternalQualificationInputs,
+    ExternalQualificationStatus, PinnedAxEvidence, RIGHTKIT_AX_SOURCE_COMMIT, RIGHTKIT_AX_VERSION,
 };
 pub use capability::{capabilities, capability, Capability, ClientFidelity, Fidelity, SURFACES};
 pub use codex_skills::{

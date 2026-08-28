@@ -13,7 +13,7 @@
     "status": "blocked",
     "payloadAuthority": "immutable-github-release",
     "bootstrapAuthority": "https://legion.orthiclabs.com/install.ps1",
-    "manifestAuthority": "release-manifest.json+release-manifest.sig",
+    "manifestAuthority": "release-manifest.json+release-manifest.cat",
     "installRoot": "user-local-versioned-with-stable-current",
     "activation": ["legion setup repair --confirm", "legion setup status"],
     "requiredEvidence": [

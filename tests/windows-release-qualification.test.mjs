@@ -51,8 +51,10 @@ function qualificationFixture({ withPrior = true } = {}) {
 			true,
 		);
 		const executable = basename(command).toLowerCase();
-		if (args[0] === "--version") return { exitCode: 0, stdout: "legion 1.2.3\n", stderr: "" };
 		const installedLauncher = join(options.cwd, "bin", "legion.exe");
+		const activeMetadata = JSON.parse(readFileSync(join(options.cwd, "share", "legion", "release.json"), "utf8"));
+		const activeVersion = activeMetadata.releaseVersion;
+		if (args[0] === "--version") return { exitCode: 0, stdout: `legion ${activeVersion}\n`, stderr: "" };
 		const installedDigest = digest(readFileSync(installedLauncher)).slice("sha256:".length);
 		const codexDigest = digest(readFileSync(codexExecutable));
 		const qualificationRoot = join(options.env.LEGION_STATE_ROOT, "qualification");
@@ -69,8 +71,8 @@ function qualificationFixture({ withPrior = true } = {}) {
 			executable: {
 				path: installedLauncher,
 				manifestPath: join(options.cwd, "share", "legion", "release.json"),
-				releaseVersion: "1.2.3",
-				expectedReleaseVersion: "1.2.3",
+				releaseVersion: activeVersion,
+				expectedReleaseVersion: activeVersion,
 				state: "current",
 				runtimeDigest: installedDigest,
 				runtimePlatform: "windows",
@@ -85,7 +87,7 @@ function qualificationFixture({ withPrior = true } = {}) {
 				kind: "legion-command-resolution-proof",
 				clientId: "codex",
 				mechanism: "agent-plugins-bare-command",
-				release: { releaseVersion: "1.2.3", runtimeDigest: installedDigest },
+				release: { releaseVersion: activeVersion, runtimeDigest: installedDigest },
 				launcherPath: codexExecutable,
 				launcherSha256: codexDigest,
 				resolved: true,
@@ -105,12 +107,12 @@ function qualificationFixture({ withPrior = true } = {}) {
 				kind: "legion-real-client-qualification",
 				clientId: "codex",
 				mechanism: "agent-plugins-bare-command",
-				release: { releaseVersion: "1.2.3", runtimeDigest: installedDigest },
+				release: { releaseVersion: activeVersion, runtimeDigest: installedDigest },
 				launcherPath: codexExecutable,
 				mcpServer: "legion",
 				mcpTool: "legion_m1_status",
 				invocationStatus: "complete",
-				observedReleaseVersion: "1.2.3",
+				observedReleaseVersion: activeVersion,
 				capabilityCount: 1,
 				hostRequirements: [],
 				capabilities: [{ capabilityId: "fixture" }],
@@ -187,6 +189,12 @@ test("Windows qualification exercises native lifecycle through injected seams", 
 		assert.equal(receipt.archive.prior.sha256, receipt.priorArchiveSha256);
 		assert.notEqual(receipt.archive.current.sha256, receipt.archive.prior.sha256);
 		assert.notEqual(receipt.runtimeSha256, receipt.priorRuntimeSha256);
+		assert.match(receipt.install.currentPath, /Orthic Labs[\\/]Legion[\\/]current$/);
+		assert.equal(receipt.integrationJournal.kind, "legion-integration-journal");
+		assert.equal(receipt.integrationJournal.state, "ready-for-uninstall");
+		assert.equal(receipt.gates.update.stableCurrentPath, receipt.install.currentPath);
+		assert.equal(receipt.gates.rollback.integrationsRestored, true);
+		assert.equal(receipt.gates.rollback.priorHealthRestored, true);
 		for (const name of ["installed-product", "command-resolution", "client-integration", "update", "rollback", "uninstall"]) {
 			assert.equal(receipt.gates[name].status, "pass", `${name} must pass: ${JSON.stringify(receipt.gates[name])}`);
 		}

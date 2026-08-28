@@ -11,8 +11,8 @@ use serde::{Deserialize, Serialize};
 /// The sole remediation for a mixed or otherwise invalid installed identity.
 pub const REPAIR_COMMAND: &str = "legion setup repair --confirm";
 pub const CANONICAL_RELEASE_MANIFEST: &str = "share/legion/release.json";
-pub const RIGHTKIT_AX_VERSION: &str = "0.2.0";
-pub const RIGHTKIT_AX_SOURCE_COMMIT: &str = "01f52555202da3dffc6b649ca44e803b55238081";
+pub const RIGHTKIT_AX_VERSION: &str = "0.2.1";
+pub const RIGHTKIT_AX_SOURCE_COMMIT: &str = "4c1a414269d8ffdb95b4b1e685440bd34784b41b";
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -558,8 +558,8 @@ mod tests {
             declarative_assets_sha256: directory_digest(&root.join("assets")).expect("digest"),
             state_schema_version: 2,
             rightkit_ax: RightkitAxIdentity {
-                version: "0.2.0".into(),
-                source_commit: "01f52555202da3dffc6b649ca44e803b55238081".into(),
+                version: "0.2.1".into(),
+                source_commit: "4c1a414269d8ffdb95b4b1e685440bd34784b41b".into(),
             },
         }
     }
@@ -576,8 +576,8 @@ mod tests {
             declarative_assets: DeclarativeAssets::Directory(root.join("assets")),
             state_schema_version: 2,
             rightkit_ax: RightkitAxIdentity {
-                version: "0.2.0".into(),
-                source_commit: "01f52555202da3dffc6b649ca44e803b55238081".into(),
+                version: "0.2.1".into(),
+                source_commit: "4c1a414269d8ffdb95b4b1e685440bd34784b41b".into(),
             },
         }
     }
@@ -650,7 +650,7 @@ mod tests {
         different_inputs.state_schema_version = 3;
         assert_component(&manifest, &different_inputs, "state schema version");
         different_inputs = inputs.clone();
-        different_inputs.rightkit_ax.version = "0.2.1".into();
+        different_inputs.rightkit_ax.version = "0.2.2".into();
         assert_component(&manifest, &different_inputs, "RightKit AX version");
         different_inputs = inputs.clone();
         different_inputs.rightkit_ax.source_commit =

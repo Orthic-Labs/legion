@@ -284,6 +284,7 @@ async fn lifecycle(
     let host_integrations = apply_host_integrations(&integration_request)?;
     let execution_value = serde_json::to_value(&execution)
         .map_err(|error| CommandError::incomplete(error.to_string()))?;
+    let execution_value = enrich_client_statuses(execution_value);
     let live_identity = inspect_live_identity(&host_integrations)?;
     let (status, remediation) = setup_health(
         &execution_value["clients"],
@@ -296,7 +297,7 @@ async fn lifecycle(
         "status": status,
         "remediation": remediation,
         "recovery": recovery,
-        "execution": execution,
+        "execution": execution_value,
         "hostIntegrations": host_integrations,
         "liveIdentity": live_identity,
     }))
@@ -342,6 +343,7 @@ fn status(args: SetupClientArgs) -> CommandResult {
     let host_integrations = inspect_host_integrations(&selector, &release)?;
     let clients_value = serde_json::to_value(&clients)
         .map_err(|error| CommandError::incomplete(error.to_string()))?;
+    let clients_value = enrich_client_statuses(clients_value);
     let live_identity = inspect_live_identity(&host_integrations)?;
     let (status, remediation) = setup_health(&clients_value, &host_integrations, &live_identity);
     Ok(json!({
@@ -350,7 +352,7 @@ fn status(args: SetupClientArgs) -> CommandResult {
         "status": status,
         "remediation": remediation,
         "recovery": recovery,
-        "clients": clients,
+        "clients": clients_value,
         "hostIntegrations": host_integrations,
         "liveIdentity": live_identity,
     }))
@@ -399,6 +401,7 @@ async fn execute(
     let host_integrations = apply_host_integrations(&integration_request)?;
     let execution_value = serde_json::to_value(&execution)
         .map_err(|error| CommandError::incomplete(error.to_string()))?;
+    let execution_value = enrich_client_statuses(execution_value);
     let live_identity = inspect_live_identity(&host_integrations)?;
     let (status, remediation) = setup_health(
         &execution_value["clients"],
@@ -411,7 +414,7 @@ async fn execute(
         "status": status,
         "remediation": remediation,
         "recovery": recovery,
-        "execution": execution,
+        "execution": execution_value,
         "hostIntegrations": host_integrations,
         "liveIdentity": live_identity,
     }))
@@ -525,6 +528,9 @@ async fn validate_client_evidence(
         if !client.detected {
             continue;
         }
+        if !legion_host::setup_registry::client_supports_live_qualification(&client.client_id) {
+            continue;
+        }
         let Some(command_ref) = client.command_proof_ref.as_deref() else {
             continue;
         };
@@ -595,6 +601,9 @@ fn validate_live_evidence_refs(
 ) -> Result<(), CommandError> {
     for client in evidence {
         if !client.detected || selected.is_some_and(|id| id != client.client_id.as_str()) {
+            continue;
+        }
+        if !legion_host::setup_registry::client_supports_live_qualification(&client.client_id) {
             continue;
         }
         if client.command_proof_ref.is_none() || client.qualification_evidence_ref.is_none() {
@@ -701,6 +710,10 @@ async fn qualify_discovered_clients(
     let mut qualified = Vec::with_capacity(discovered.len());
     for client in discovered {
         if !client.detected {
+            qualified.push(client);
+            continue;
+        }
+        if !legion_host::setup_registry::client_supports_live_qualification(&client.client_id) {
             qualified.push(client);
             continue;
         }
@@ -1582,12 +1595,52 @@ fn inspect_live_projections(
             }),
         );
     }
+    for (client_id, key) in [
+        (legion_host::setup_registry::CLIENT_CLAUDE, "claudePlugin"),
+        (legion_host::setup_registry::CLIENT_CODEX, "codexPlugin"),
+        (legion_host::setup_registry::CLIENT_CURSOR, "cursorPlugin"),
+        (legion_host::setup_registry::CLIENT_PI, "piSkills"),
+        (
+            legion_host::setup_registry::CLIENT_ANTIGRAVITY,
+            "antigravityPlugin",
+        ),
+    ] {
+        let Some(projection) = integration_inspection(host_integrations, key) else {
+            continue;
+        };
+        let state = projection
+            .get("state")
+            .and_then(Value::as_str)
+            .unwrap_or("unknown");
+        projections.insert(
+            key.into(),
+            json!({
+                "clientId": client_id,
+                "selectedMechanism": projection.get("selectedMechanism"),
+                "projection": projection.get("projection"),
+                "state": state,
+                "ownership": projection.get("ownership"),
+                "targetRoot": projection.get("targetRoot"),
+                "expectedGeneration": projection.get("expectedGeneration"),
+                "generation": projection.get("generation"),
+                "executableRegistration": projection.get("executableRegistration"),
+                "explicitOnly": projection.get("explicitOnly"),
+                "missingSurfaces": projection.get("missingSurfaces"),
+                "preserved": projection.get("preserved"),
+                "conflicts": projection.get("conflicts"),
+            }),
+        );
+    }
     Value::Object(projections)
 }
 
 fn integration_inspection<'a>(integrations: &'a Value, key: &str) -> Option<&'a Value> {
     let value = integrations.get(key)?;
-    if value.get("canonicalSkillsRootTrusted").is_some() || value.get("destinationRoot").is_some() {
+    if value.get("canonicalSkillsRootTrusted").is_some()
+        || value.get("destinationRoot").is_some()
+        || value.get("targetRoot").is_some()
+        || value.get("projection").is_some()
+    {
         return Some(value);
     }
     value.get("inspection").or_else(|| {
@@ -1625,13 +1678,16 @@ fn setup_health(
                     .get("fidelity")
                     .and_then(Value::as_str)
                     .unwrap_or("Unavailable");
-                if !installed || fidelity != "Full" {
+                let client_id = client
+                    .get("clientId")
+                    .and_then(Value::as_str)
+                    .unwrap_or("unknown");
+                let pi_baseline =
+                    client_id == legion_host::setup_registry::CLIENT_PI && fidelity == "Baseline";
+                if !installed || (fidelity != "Full" && !pi_baseline) {
                     remediation.push(format!(
                         "client {} is incomplete ({fidelity}); run legion setup repair --confirm",
-                        client
-                            .get("clientId")
-                            .and_then(Value::as_str)
-                            .unwrap_or("unknown")
+                        client_id
                     ));
                 }
             }
@@ -1675,9 +1731,38 @@ fn setup_health(
     }
 }
 
+fn enrich_client_statuses(mut clients: Value) -> Value {
+    let Some(values) = clients.as_array_mut() else {
+        return clients;
+    };
+    for value in values {
+        let Some(object) = value.as_object_mut() else {
+            continue;
+        };
+        let Some(client_id) = object.get("clientId").and_then(Value::as_str) else {
+            continue;
+        };
+        let Some(profile) = legion_host::setup_registry::client_boundary(client_id) else {
+            continue;
+        };
+        object.insert(
+            "selectedMechanism".into(),
+            Value::String(profile.selected_mechanism),
+        );
+        object.insert("projection".into(), Value::String(profile.projection));
+        object.insert(
+            "executableRegistration".into(),
+            Value::Bool(profile.executable_registration),
+        );
+        object.insert("explicitOnly".into(), Value::Bool(profile.explicit_only));
+    }
+    clients
+}
+
 struct HostIntegrationInputs {
     claude: Option<legion_host::ClaudeLegacyInput>,
     codex: Option<legion_host::CodexSkillsInput>,
+    client_projections: Vec<legion_host::setup_registry::ClientProjectionInput>,
 }
 
 fn inspect_host_integrations(
@@ -1700,43 +1785,78 @@ fn inspect_host_integrations(
                 .map_err(|error| CommandError::incomplete(error.to_string()))?,
         );
     }
+    for input in &inputs.client_projections {
+        let key = projection_key(&input.client_id);
+        integrations.insert(
+            key.into(),
+            serde_json::to_value(
+                legion_host::setup_registry::inspect_client_projection(input)
+                    .map_err(setup_error)?,
+            )
+            .map_err(|error| CommandError::incomplete(error.to_string()))?,
+        );
+    }
     Ok(Value::Object(integrations))
 }
 
 fn preview_host_integrations(request: &legion_host::SetupRequest) -> Result<Value, CommandError> {
     let inputs = host_integration_inputs(&request.selector, &request.release)?;
     let mut integrations = serde_json::Map::new();
-    if let Some(input) = &inputs.claude {
-        integrations.insert(
-            "claudeCodeLegacy".into(),
-            serde_json::to_value(legion_host::inspect_claude_legacy(input).map_err(host_error)?)
+    if should_process_client(request, legion_host::setup_registry::CLIENT_CLAUDE) {
+        if let Some(input) = &inputs.claude {
+            integrations.insert(
+                "claudeCodeLegacy".into(),
+                serde_json::to_value(
+                    legion_host::inspect_claude_legacy(input).map_err(host_error)?,
+                )
                 .map_err(|error| CommandError::incomplete(error.to_string()))?,
-        );
+            );
+        }
     }
-    if let Some(input) = &inputs.codex {
-        let preview = match request.action {
-            legion_host::SetupAction::Remove | legion_host::SetupAction::Purge => {
-                legion_host::preview_remove_codex_skills(input)
-            }
-            legion_host::SetupAction::Apply | legion_host::SetupAction::Repair => {
-                legion_host::preview_codex_skills(input)
-            }
-            _ => {
-                integrations.insert(
-                    "codexSkills".into(),
-                    serde_json::to_value(
-                        legion_host::inspect_codex_skills(input).map_err(host_error)?,
-                    )
-                    .map_err(|error| CommandError::incomplete(error.to_string()))?,
-                );
-                return Ok(Value::Object(integrations));
+    if should_process_client(request, legion_host::setup_registry::CLIENT_CODEX) {
+        if let Some(input) = &inputs.codex {
+            match request.action {
+                legion_host::SetupAction::Remove | legion_host::SetupAction::Purge => {
+                    let preview =
+                        legion_host::preview_remove_codex_skills(input).map_err(host_error)?;
+                    integrations.insert(
+                        "codexSkills".into(),
+                        serde_json::to_value(preview)
+                            .map_err(|error| CommandError::incomplete(error.to_string()))?,
+                    );
+                }
+                legion_host::SetupAction::Apply | legion_host::SetupAction::Repair => {
+                    let preview = legion_host::preview_codex_skills(input).map_err(host_error)?;
+                    integrations.insert(
+                        "codexSkills".into(),
+                        serde_json::to_value(preview)
+                            .map_err(|error| CommandError::incomplete(error.to_string()))?,
+                    );
+                }
+                _ => {
+                    let inspection =
+                        legion_host::inspect_codex_skills(input).map_err(host_error)?;
+                    integrations.insert(
+                        "codexSkills".into(),
+                        serde_json::to_value(inspection)
+                            .map_err(|error| CommandError::incomplete(error.to_string()))?,
+                    );
+                }
             }
         }
-        .map_err(host_error)?;
+    }
+    for input in &inputs.client_projections {
+        if !should_process_client(request, &input.client_id) {
+            continue;
+        }
+        let key = projection_key(&input.client_id);
         integrations.insert(
-            "codexSkills".into(),
-            serde_json::to_value(preview)
-                .map_err(|error| CommandError::incomplete(error.to_string()))?,
+            key.into(),
+            serde_json::to_value(
+                legion_host::setup_registry::inspect_client_projection(input)
+                    .map_err(setup_error)?,
+            )
+            .map_err(|error| CommandError::incomplete(error.to_string()))?,
         );
     }
     Ok(Value::Object(integrations))
@@ -1745,39 +1865,82 @@ fn preview_host_integrations(request: &legion_host::SetupRequest) -> Result<Valu
 fn apply_host_integrations(request: &legion_host::SetupRequest) -> Result<Value, CommandError> {
     let inputs = host_integration_inputs(&request.selector, &request.release)?;
     let mut integrations = serde_json::Map::new();
-    if let Some(input) = &inputs.claude {
-        let value = match request.action {
-            legion_host::SetupAction::Repair
-            | legion_host::SetupAction::Remove
-            | legion_host::SetupAction::Purge => {
-                serde_json::to_value(legion_host::repair_claude_legacy(input).map_err(host_error)?)
+    if should_process_client(request, legion_host::setup_registry::CLIENT_CLAUDE) {
+        if let Some(input) = &inputs.claude {
+            let value = match request.action {
+                legion_host::SetupAction::Apply
+                | legion_host::SetupAction::Repair
+                | legion_host::SetupAction::Remove
+                | legion_host::SetupAction::Purge => serde_json::to_value(
+                    legion_host::repair_claude_legacy(input).map_err(host_error)?,
+                ),
+                _ => serde_json::to_value(
+                    legion_host::inspect_claude_legacy(input).map_err(host_error)?,
+                ),
             }
-            _ => {
-                serde_json::to_value(legion_host::inspect_claude_legacy(input).map_err(host_error)?)
-            }
+            .map_err(|error| CommandError::incomplete(error.to_string()))?;
+            integrations.insert("claudeCodeLegacy".into(), value);
         }
-        .map_err(|error| CommandError::incomplete(error.to_string()))?;
-        integrations.insert("claudeCodeLegacy".into(), value);
     }
-    if let Some(input) = &inputs.codex {
-        let value = match request.action {
-            legion_host::SetupAction::Apply => {
-                serde_json::to_value(legion_host::apply_codex_skills(input).map_err(host_error)?)
+    if should_process_client(request, legion_host::setup_registry::CLIENT_CODEX) {
+        if let Some(input) = &inputs.codex {
+            let value = match request.action {
+                legion_host::SetupAction::Apply => serde_json::to_value(
+                    legion_host::apply_codex_skills(input).map_err(host_error)?,
+                ),
+                legion_host::SetupAction::Repair => serde_json::to_value(
+                    legion_host::repair_codex_skills(input).map_err(host_error)?,
+                ),
+                legion_host::SetupAction::Remove | legion_host::SetupAction::Purge => {
+                    serde_json::to_value(
+                        legion_host::remove_codex_skills(input).map_err(host_error)?,
+                    )
+                }
+                _ => serde_json::to_value(
+                    legion_host::inspect_codex_skills(input).map_err(host_error)?,
+                ),
             }
-            legion_host::SetupAction::Repair => {
-                serde_json::to_value(legion_host::repair_codex_skills(input).map_err(host_error)?)
+            .map_err(|error| CommandError::incomplete(error.to_string()))?;
+            integrations.insert("codexSkills".into(), value);
+        }
+    }
+    for input in &inputs.client_projections {
+        if !should_process_client(request, &input.client_id) {
+            continue;
+        }
+        let key = projection_key(&input.client_id);
+        let value = match request.action {
+            legion_host::SetupAction::Apply | legion_host::SetupAction::Repair => {
+                serde_json::to_value(
+                    legion_host::setup_registry::repair_client_projection(input)
+                        .map_err(setup_error)?,
+                )
             }
             legion_host::SetupAction::Remove | legion_host::SetupAction::Purge => {
-                serde_json::to_value(legion_host::remove_codex_skills(input).map_err(host_error)?)
+                serde_json::to_value(
+                    legion_host::setup_registry::remove_client_projection(input)
+                        .map_err(setup_error)?,
+                )
             }
-            _ => {
-                serde_json::to_value(legion_host::inspect_codex_skills(input).map_err(host_error)?)
-            }
+            _ => serde_json::to_value(
+                legion_host::setup_registry::inspect_client_projection(input)
+                    .map_err(setup_error)?,
+            ),
         }
         .map_err(|error| CommandError::incomplete(error.to_string()))?;
-        integrations.insert("codexSkills".into(), value);
+        integrations.insert(key.into(), value);
     }
     Ok(Value::Object(integrations))
+}
+
+fn should_process_client(request: &legion_host::SetupRequest, client_id: &str) -> bool {
+    match &request.selector {
+        legion_host::ClientSelector::ClientId(selected) => selected == client_id,
+        legion_host::ClientSelector::AllSupported => request
+            .client_evidence
+            .iter()
+            .any(|evidence| evidence.client_id == client_id && evidence.detected),
+    }
 }
 
 fn host_integration_inputs(
@@ -1818,17 +1981,104 @@ fn host_integration_inputs(
             current_skill_ids: current_skill_ids.clone(),
         });
     let codex = selector_includes(selector, "codex").then(|| legion_host::CodexSkillsInput {
-        home,
+        home: home.clone(),
         assets_skills_root: skills_root,
         platform_state_root,
-        current_skill_ids,
+        current_skill_ids: current_skill_ids.clone(),
         retired_skill_ids: vec![legion_host::RETIRED_BLUEPRINT_SKILL_ID.into()],
         generation: format!(
             "{}:{}",
             release.release_version, release.declarative_asset_schema_hash
         ),
     });
-    Ok(HostIntegrationInputs { claude, codex })
+    let plugin_source_root = release_root.join("plugin");
+    let generation = format!(
+        "{}:{}",
+        release.release_version, release.declarative_asset_schema_hash
+    );
+    let client_projections = [
+        (
+            legion_host::setup_registry::CLIENT_CLAUDE,
+            "native-plugin",
+            home.join(".claude/plugins/legion"),
+            true,
+            false,
+            plugin_source_root.clone(),
+        ),
+        (
+            legion_host::setup_registry::CLIENT_CODEX,
+            "agent-plugins-with-explicit-sidecar",
+            home.join(".codex/plugins/legion"),
+            true,
+            true,
+            plugin_source_root.clone(),
+        ),
+        (
+            legion_host::setup_registry::CLIENT_CURSOR,
+            "agent-plugins-with-thin-sidecar",
+            home.join(".cursor/plugins/legion"),
+            true,
+            false,
+            plugin_source_root.clone(),
+        ),
+        (
+            legion_host::setup_registry::CLIENT_PI,
+            "skills-only",
+            home.join(".agents/skills"),
+            false,
+            true,
+            assets_root.join("skills"),
+        ),
+        (
+            legion_host::setup_registry::CLIENT_ANTIGRAVITY,
+            "native-plugin",
+            home.join(".antigravity/plugins/legion"),
+            true,
+            false,
+            plugin_source_root,
+        ),
+    ]
+    .into_iter()
+    .filter(|(client_id, ..)| selector_includes(selector, client_id))
+    .map(
+        |(
+            client_id,
+            projection,
+            target_root,
+            executable_registration,
+            explicit_only,
+            source_root,
+        )| {
+            Ok(legion_host::setup_registry::ClientProjectionInput {
+                client_id: client_id.into(),
+                projection: projection.into(),
+                source_root,
+                target_root,
+                state_root: legion_host::platform_state_root().map_err(setup_error)?,
+                generation: generation.clone(),
+                executable_registration,
+                explicit_only,
+                skill_ids: current_skill_ids.clone(),
+            })
+        },
+    )
+    .collect::<Result<Vec<_>, CommandError>>()?;
+    Ok(HostIntegrationInputs {
+        claude,
+        codex,
+        client_projections,
+    })
+}
+
+fn projection_key(client_id: &str) -> &'static str {
+    match client_id {
+        legion_host::setup_registry::CLIENT_CLAUDE => "claudePlugin",
+        legion_host::setup_registry::CLIENT_CODEX => "codexPlugin",
+        legion_host::setup_registry::CLIENT_CURSOR => "cursorPlugin",
+        legion_host::setup_registry::CLIENT_PI => "piSkills",
+        legion_host::setup_registry::CLIENT_ANTIGRAVITY => "antigravityPlugin",
+        _ => "unknownPlugin",
+    }
 }
 
 fn selector_includes(selector: &legion_host::ClientSelector, client_id: &str) -> bool {
@@ -1870,10 +2120,36 @@ fn discovered_client_evidence(selected: Option<&str>) -> Vec<legion_host::Client
     let home = std::env::var_os("USERPROFILE")
         .or_else(|| std::env::var_os("HOME"))
         .map(PathBuf::from);
-    let clients = [("claude-code", ".claude"), ("codex", ".codex")];
+    let clients = [
+        (
+            legion_host::setup_registry::CLIENT_CLAUDE,
+            ".claude",
+            vec!["claude-native-plugin", QUALIFICATION_MECHANISM],
+        ),
+        (
+            legion_host::setup_registry::CLIENT_CODEX,
+            ".codex",
+            vec!["codex-agent-plugins", QUALIFICATION_MECHANISM],
+        ),
+        (
+            legion_host::setup_registry::CLIENT_CURSOR,
+            ".cursor",
+            vec!["cursor-agent-plugins"],
+        ),
+        (
+            legion_host::setup_registry::CLIENT_PI,
+            ".agents",
+            vec!["pi-skills-only"],
+        ),
+        (
+            legion_host::setup_registry::CLIENT_ANTIGRAVITY,
+            ".antigravity",
+            vec!["antigravity-native-plugin"],
+        ),
+    ];
     clients
         .into_iter()
-        .filter_map(|(client_id, relative)| {
+        .filter_map(|(client_id, relative, mechanisms)| {
             if selected.is_some_and(|value| value != client_id) {
                 return None;
             }
@@ -1887,7 +2163,7 @@ fn discovered_client_evidence(selected: Option<&str>) -> Vec<legion_host::Client
             Some(legion_host::ClientEvidence {
                 client_id: client_id.into(),
                 detected,
-                mechanisms: vec!["agent-plugins-bare-command".into()],
+                mechanisms: mechanisms.into_iter().map(String::from).collect(),
                 command_proof_ref: None,
                 qualification_evidence_ref: None,
             })
@@ -1988,8 +2264,8 @@ mod tests {
             declarative_assets_sha256: digest,
             state_schema_version: 1,
             rightkit_ax: legion_runtime::RightkitAxIdentity {
-                version: "0.2.0".into(),
-                source_commit: "01f52555202da3dffc6b649ca44e803b55238081".into(),
+                version: "0.2.1".into(),
+                source_commit: "4c1a414269d8ffdb95b4b1e685440bd34784b41b".into(),
             },
         }
     }

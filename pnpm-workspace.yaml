@@ -1,6 +1,7 @@
 minimumReleaseAgeExclude:
   - '@rightkit/hooks@0.1.0 || 0.1.1'
   - '@rightkit/git@0.2.1'
-  - '@rightkit/release@0.2.70 || 0.2.71'
+  - '@rightkit/release@0.2.70 || 0.2.71 || 0.2.73 || 0.2.74'
+  - '@rightkit/ax@0.2.1'
 patchedDependencies:
   '@rightkit/git@0.2.1': patches/@rightkit__git@0.2.1.patch
