@@ -372,8 +372,13 @@ async fn execute(
             "setup command does not match the action recorded in --plan",
         ));
     }
+    let selected = match &preview.request.selector {
+        legion_host::ClientSelector::AllSupported => None,
+        legion_host::ClientSelector::ClientId(client_id) => Some(client_id.as_str()),
+    };
     validate_client_evidence(
         &preview.request.client_evidence,
+        selected,
         &preview.request.release,
         &preview.request.platform_state_root,
         true,
@@ -490,8 +495,12 @@ async fn client_evidence(
         ),
         None => (discovered_client_evidence(selected), false),
     };
+    if live_validation {
+        validate_live_evidence_refs(&evidence, selected)?;
+    }
     validate_client_evidence(
         &evidence,
+        selected,
         release,
         platform_state_root,
         live_validation && !already_live,
@@ -502,11 +511,15 @@ async fn client_evidence(
 }
 async fn validate_client_evidence(
     evidence: &[legion_host::ClientEvidence],
+    selected: Option<&str>,
     release: &legion_host::BoundRelease,
     platform_state_root: &std::path::Path,
     live_validation: bool,
     cancellation: CancellationToken,
 ) -> Result<(), CommandError> {
+    if live_validation {
+        validate_live_evidence_refs(evidence, selected)?;
+    }
     let mut qualification_root = None;
     for client in evidence {
         if !client.detected {
@@ -571,6 +584,24 @@ async fn validate_client_evidence(
                     client.client_id
                 )));
             }
+        }
+    }
+    Ok(())
+}
+
+fn validate_live_evidence_refs(
+    evidence: &[legion_host::ClientEvidence],
+    selected: Option<&str>,
+) -> Result<(), CommandError> {
+    for client in evidence {
+        if !client.detected || selected.is_some_and(|id| id != client.client_id.as_str()) {
+            continue;
+        }
+        if client.command_proof_ref.is_none() || client.qualification_evidence_ref.is_none() {
+            return Err(CommandError::incomplete(format!(
+                "live setup requires commandProofRef and qualificationEvidenceRef for detected client {}; run legion setup repair --confirm",
+                client.client_id
+            )));
         }
     }
     Ok(())
@@ -683,9 +714,8 @@ async fn qualify_discovered_clients(
         let (command, qualification) = match result {
             Ok(result) => result,
             Err(error) if error.code == 2 && !cancellation.is_cancelled() => {
-                // A missing or incompatible client is a truthful baseline.  Keep
-                // it in the request so registry + host repair can reconcile
-                // owned projections without inventing qualification evidence.
+                // Preserve detected-client evidence for the live ref gate in
+                // client_evidence; live setup must not execute a Baseline client.
                 qualified.push(client);
                 continue;
             }
@@ -2015,6 +2045,49 @@ mod tests {
             parsed.host_requirements[0]["degradation"],
             "worker unavailable"
         );
+    }
+
+    #[tokio::test]
+    async fn live_validation_rejects_null_proof_refs_but_preview_keeps_baseline() {
+        let temp = TempRoot::new("missing-proof-refs");
+        let manifest = test_release_manifest();
+        let release = bound_release(&manifest);
+        for (command_proof_ref, qualification_evidence_ref) in [
+            (None, Some("qualification.json")),
+            (Some("command.json"), None),
+            (None, None),
+        ] {
+            let evidence = vec![legion_host::ClientEvidence {
+                client_id: "codex".into(),
+                detected: true,
+                mechanisms: vec![QUALIFICATION_MECHANISM.into()],
+                command_proof_ref: command_proof_ref.map(str::to_owned),
+                qualification_evidence_ref: qualification_evidence_ref.map(str::to_owned),
+            }];
+            let live = validate_client_evidence(
+                &evidence,
+                Some("codex"),
+                &release,
+                &temp.0,
+                true,
+                CancellationToken::new(),
+            )
+            .await
+            .expect_err("live validation must reject incomplete detected-client evidence");
+            assert_eq!(live.code, 2);
+            assert!(live.message.contains("codex"));
+
+            validate_client_evidence(
+                &evidence,
+                Some("codex"),
+                &release,
+                &temp.0,
+                false,
+                CancellationToken::new(),
+            )
+            .await
+            .expect("preview validation keeps baseline semantics");
+        }
     }
 
     #[test]

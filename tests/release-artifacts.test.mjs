@@ -5,7 +5,12 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import test from 'node:test';
 import { sha256File, verifyReleaseManifest } from '../scripts/verify-release.mjs';
-import { buildWindowsReleasePackage, normalizeWindowsArchitecture } from '../scripts/package-windows-release.mjs';
+import {
+  buildWindowsReleasePackage,
+  normalizeWindowsArchitecture,
+  qualificationEvidence,
+  windowsTargetIdentity,
+} from '../scripts/package-windows-release.mjs';
 
 function readFile(path) {
   return readFileSync(fileURLToPath(path), 'utf8');
@@ -174,6 +179,63 @@ test('Windows package binds target identity and emits blocked evidence seams', (
     );
   } finally {
     rmSync(repositoryRoot, { recursive: true, force: true });
+  }
+});
+
+test('Windows qualification evidence requires native identity, runner, digests, and exactly six passing gates', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'legion-win-qualification-evidence-'));
+  const evidencePath = join(dir, 'qualification.json');
+  const identity = windowsTargetIdentity('x86_64');
+  const archiveSha256 = `sha256:${'a'.repeat(64)}`;
+  const runtimeSha256 = `sha256:${'b'.repeat(64)}`;
+  const sourceRevision = 'c'.repeat(40);
+  const gates = Object.fromEntries([
+    'installed-product',
+    'command-resolution',
+    'client-integration',
+    'update',
+    'rollback',
+    'uninstall',
+  ].map((name) => [name, { name, status: 'pass' }]));
+  const valid = {
+    schemaVersion: 1,
+    kind: 'legion-windows-installed-product-qualification',
+    status: 'qualified',
+    nativeExecution: true,
+    executionMode: 'native',
+    targetIdentity: identity,
+    releaseVersion: '0.1.0',
+    sourceRevision,
+    archiveSha256,
+    runtimeSha256,
+    runner: { os: 'win32', architecture: 'x64', simulated: false },
+    gates,
+  };
+  try {
+    writeFileSync(evidencePath, JSON.stringify(valid));
+    assert.equal(
+      qualificationEvidence({ evidencePath, archiveDigest: archiveSha256, runtimeDigest: runtimeSha256, identity, releaseVersion: '0.1.0', sourceRevision }).status,
+      'verified',
+    );
+
+    const invalidCases = [
+      { ...valid, nativeExecution: false },
+      { ...valid, executionMode: 'simulated' },
+      { ...valid, runner: { ...valid.runner, simulated: true } },
+      { ...valid, kind: 'legion-windows-qualification-evidence' },
+      { ...valid, gates: { ...gates, rollback: { name: 'rollback', status: 'fail' } } },
+      { ...valid, gates: { ...gates, uninstall: undefined } },
+      { ...valid, runner: { os: 'linux', architecture: 'x64' } },
+    ];
+    for (const invalid of invalidCases) {
+      writeFileSync(evidencePath, JSON.stringify(invalid));
+      assert.equal(
+        qualificationEvidence({ evidencePath, archiveDigest: archiveSha256, runtimeDigest: runtimeSha256, identity, releaseVersion: '0.1.0', sourceRevision }).status,
+        'invalid',
+      );
+    }
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
   }
 });
 

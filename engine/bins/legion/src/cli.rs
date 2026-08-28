@@ -377,7 +377,7 @@ fn load_m1_application(
         .map_err(|error| commands::CommandError::incomplete(error.to_string()))
 }
 
-fn installed_m1_composition() -> Result<PathBuf, commands::CommandError> {
+pub(crate) fn installed_m1_composition() -> Result<PathBuf, commands::CommandError> {
     let executable = std::fs::canonicalize(std::env::current_exe().map_err(commands::io_error)?)
         .map_err(commands::io_error)?;
     let executable_directory = executable.parent().ok_or_else(|| {

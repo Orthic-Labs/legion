@@ -883,6 +883,131 @@ impl NativeApplicationConfig {
             .build()
     }
 
+    /// Compose standalone Audit from a real in-process ProviderExecutor.
+    /// Provider specifications remain frozen inputs; execution is delegated to
+    /// one concrete native implementation rather than precomputed results.
+    pub fn for_audit_executor(
+        repository_id: impl Into<String>,
+        inventory_source: Arc<dyn BlueprintInventorySource>,
+        provider_specs: Vec<ProviderSpec>,
+        provider_executor: Arc<dyn ProviderExecutor>,
+    ) -> Result<NativeApplication, NativeApplicationError> {
+        let repository_id = repository_id.into();
+        let inventory = inventory_source.inventory(&repository_id)?;
+        if provider_specs.is_empty() {
+            return Err(NativeApplicationError::Configuration(
+                "standalone Audit requires selected provider specifications".into(),
+            ));
+        }
+        AuditPlan::compile(&inventory, &provider_specs)
+            .map_err(|error| NativeApplicationError::Configuration(error.to_string()))?;
+        for specification in &provider_specs {
+            specification
+                .validate()
+                .map_err(|error| NativeApplicationError::Configuration(error.to_string()))?;
+        }
+
+        let profile = legion_runtime::AgentProfile::new(
+            AgentDefinition::new(
+                AgentId::new("legion")
+                    .map_err(|error| NativeApplicationError::Configuration(error.to_string()))?,
+                "Legion",
+                "native standalone Audit",
+                BudgetCeiling {
+                    max_active_time_ms: 300_000,
+                    max_cost_micros: 1,
+                    max_output_bytes: 64 * 1024 * 1024,
+                },
+                ToolCeiling::default(),
+                RoutingCeiling::default(),
+            )
+            .map_err(|error| NativeApplicationError::Configuration(error.to_string()))?,
+        )
+        .map_err(|error| NativeApplicationError::Configuration(error.to_string()))?;
+
+        let definitions = provider_specs
+            .iter()
+            .map(|specification| ProviderDefinition {
+                schema_version: 1,
+                id: specification.id.clone(),
+                provider_version: specification.provider_version.clone(),
+                implementation_key: "native-audit-executor".into(),
+                capabilities: specification.control_ids.clone(),
+                depends_on: specification.depends_on.clone(),
+                required: specification
+                    .execution
+                    .get("required")
+                    .and_then(serde_json::Value::as_bool)
+                    .unwrap_or(true),
+                permissions: Vec::new(),
+                source_provenance: BTreeMap::from([(
+                    "kind".into(),
+                    "native-audit-executor".into(),
+                )]),
+            })
+            .collect::<Vec<_>>();
+        let mut implementations = ImplementationRegistry::new();
+        implementations
+            .register("native-audit-executor", "*", move |definition| {
+                let result = ProviderResult {
+                    schema_version: 1,
+                    provider: definition.id.clone(),
+                    applicable: true,
+                    required: definition.required,
+                    status: ProviderStatus::Partial,
+                    complete: false,
+                    coverage: None,
+                    findings: Vec::new(),
+                    coverage_gaps: vec!["provider-executes-through-audit-boundary".into()],
+                    degradation: Vec::new(),
+                    details: BTreeMap::new(),
+                };
+                Ok(Arc::new(ConfiguredProvider {
+                    definition: definition.clone(),
+                    result,
+                }) as Arc<dyn Provider>)
+            })
+            .map_err(|error| NativeApplicationError::Provider(error.to_string()))?;
+        let registry = ProviderRegistry::load(
+            ProviderRegistryDocument {
+                schema_version: 1,
+                providers: definitions,
+            },
+            &implementations,
+        )
+        .map_err(|error| NativeApplicationError::Provider(error.to_string()))?;
+        let catalog = Catalog::new(Vec::new())?;
+        let report = ReportV1 {
+            schema_version: 1,
+            report_id: ReportId::new("native-audit")
+                .map_err(|error| NativeApplicationError::Configuration(error.to_string()))?,
+            status: ReportStatus::Incomplete,
+            findings: Vec::new(),
+            gaps: vec!["not-executed".into()],
+            claims: BTreeMap::new(),
+            targets: vec![repository_id],
+            extensions: BTreeMap::new(),
+        };
+        NativeApplicationConfig::new()
+            .with_profile(profile)
+            .with_registry(Arc::new(registry))
+            .with_policy(Arc::new(CanonicalEffectPolicy {
+                pack: PolicyPack {
+                    schema_version: 1,
+                    id: "native-audit".into(),
+                    version: 1,
+                    rules: Vec::new(),
+                    extensions: BTreeMap::new(),
+                },
+            }))
+            .with_inventory_source(inventory_source)
+            .with_provider_executor(provider_executor)
+            .with_catalog_source(Arc::new(StaticCatalogSource { catalog }))
+            .with_report_source(Arc::new(StaticReportSource { report }))
+            .with_provider_specs(provider_specs)
+            .build()
+    }
+
     pub fn with_profile(mut self, profile: legion_runtime::AgentProfile) -> Self {
         self.profile = Some(profile);
         self

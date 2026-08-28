@@ -244,6 +244,58 @@ fn native_audit_continues_without_blueprint() {
 }
 
 #[test]
+fn native_audit_composes_builtin_rule_executor_without_host_config() {
+    let root = std::env::temp_dir().join(format!(
+        "legion-native-audit-composed-{}-{}",
+        std::process::id(),
+        std::thread::current().name().unwrap_or("fixture")
+    ));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(root.join("src")).unwrap();
+    std::fs::write(root.join("src/service.rs"), "fn service() {}\n").unwrap();
+    let root = std::fs::canonicalize(root).unwrap();
+    let manifest = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../../../packs/native/manifest.v1.json");
+    let out = root.join("audit");
+    let output = Command::new(env!("CARGO_BIN_EXE_legion"))
+        .args([
+            "audit",
+            root.to_str().unwrap(),
+            "--out",
+            out.to_str().unwrap(),
+            "--native-rule-manifest",
+            manifest.to_str().unwrap(),
+        ])
+        .env_remove("LEGION_NATIVE_APPLICATION_CONFIG")
+        .env("AUDIT_PLAN_SIGNING_KEY", "fixture-signing-key")
+        .output()
+        .unwrap();
+    assert_eq!(
+        output.status.code(),
+        Some(2),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let summary: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(summary["auditStatus"], "incomplete");
+    assert_eq!(summary["qualityGate"], "unproven");
+    assert!(summary["gaps"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|gap| gap == "native-provider-composition-partial"));
+    assert_eq!(
+        summary["plannedProviders"],
+        serde_json::json!(["security.native-rules"])
+    );
+    assert_eq!(summary["resultCount"], 1);
+    assert_eq!(summary["processExecution"], "complete");
+    assert!(out.join("report.json").is_file());
+    assert!(out.join("execution.json").is_file());
+    std::fs::remove_dir_all(root).unwrap();
+}
+
+#[test]
 fn native_rules_report_unproven_for_invalid_source_bytes() {
     let root = std::env::temp_dir().join(format!(
         "legion-native-rules-invalid-{}-{}",

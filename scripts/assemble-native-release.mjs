@@ -247,12 +247,15 @@ const assets = join(share, "assets");
 const catalogPath = join(assets, "registry", "index.json");
 const schemaPath = join(assets, "schemas", "mcp-tools.schema.json");
 const policyPath = join(assets, "policy", "arcane-m1-policy.json");
+const nativeRuleManifestPath = join(assets, "packs", "native", "manifest.v1.json");
 mkdirSync(dirname(catalogPath), { recursive: true });
 copyFileSync(
 	join(repositoryRoot, "src", "registry", "skills", "index.json"),
 	catalogPath,
 );
 copySkillTree(join(repositoryRoot, "skills"), join(assets, "skills"));
+mkdirSync(dirname(nativeRuleManifestPath), { recursive: true });
+copyFileSync(join(repositoryRoot, "packs", "native", "manifest.v1.json"), nativeRuleManifestPath);
 
 const mcpToolSchema = {
 	schemaVersion: 1,

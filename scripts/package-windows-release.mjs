@@ -48,6 +48,14 @@ const ARCHITECTURE_ALIASES = new Map([
 	["aarch64", "arm64"],
 	["windows-arm64", "arm64"],
 ]);
+const REQUIRED_QUALIFICATION_GATES = Object.freeze([
+	"installed-product",
+	"command-resolution",
+	"client-integration",
+	"update",
+	"rollback",
+	"uninstall",
+]);
 
 export function normalizeWindowsArchitecture(value) {
 	const key = String(value ?? "").trim().toLowerCase();
@@ -371,7 +379,29 @@ function provenanceEvidence({ evidencePath, archiveDigest, runtimeDigest, identi
 		: { ...base, status: EVIDENCE_STATUS.invalid, reason: "provenance must be verified, rightkit-release:// bound, and archive-digest bound", source: value };
 }
 
-function qualificationEvidence({ evidencePath, archiveDigest, runtimeDigest, identity, releaseVersion, sourceRevision }) {
+function qualificationTargetIdentityMatches(observed, expected) {
+	if (!observed || typeof observed !== "object" || Array.isArray(observed)) return false;
+	const keys = ["platform", "architecture", "targetTriple", "wingetArchitecture", "executable", "artifactId"];
+	return JSON.stringify(Object.keys(observed).sort()) === JSON.stringify([...keys].sort())
+		&& keys.every((key) => observed[key] === expected[key]);
+}
+
+function qualificationGatesPass(value) {
+	const gates = value?.gates;
+	if (!gates || typeof gates !== "object") return false;
+	const entries = Array.isArray(gates)
+		? gates.map((item) => [item?.name, item])
+		: Object.entries(gates);
+	if (entries.length !== REQUIRED_QUALIFICATION_GATES.length) return false;
+	const names = entries.map(([name]) => name);
+	if (new Set(names).size !== REQUIRED_QUALIFICATION_GATES.length) return false;
+	return REQUIRED_QUALIFICATION_GATES.every((name) => {
+		const gate = entries.find(([entryName]) => entryName === name)?.[1];
+		return gate && typeof gate === "object" && gate.status === "pass" && (gate.name == null || gate.name === name);
+	});
+}
+
+export function qualificationEvidence({ evidencePath, archiveDigest, runtimeDigest, identity, releaseVersion, sourceRevision }) {
 	const base = {
 		schemaVersion: 1,
 		kind: "legion-windows-qualification-evidence",
@@ -386,16 +416,30 @@ function qualificationEvidence({ evidencePath, archiveDigest, runtimeDigest, ide
 		return { ...base, status: EVIDENCE_STATUS.missing, reason: "installed-product qualification evidence is required for publication." };
 	}
 	const value = readJson(evidencePath, "qualification evidence");
-	const observedArchive = value.archiveSha256 ?? value.artifact?.sha256;
-	const observedRuntime = value.runtimeSha256 ?? value.runtime?.sha256;
-	const valid = ["qualified", "verified", "complete", "pass"].includes(String(value.status ?? "").toLowerCase())
-		&& typeof observedArchive === "string"
-		&& typeof observedRuntime === "string"
-		&& bareDigest(observedArchive) === bareDigest(archiveDigest)
-		&& bareDigest(observedRuntime) === bareDigest(runtimeDigest);
+	const expectedRunnerArchitecture = identity.architecture === "x86_64" ? "x64" : "arm64";
+	const runner = value.runner;
+	const valid = value.schemaVersion === 1
+		&& value.kind === "legion-windows-installed-product-qualification"
+		&& value.nativeExecution === true
+		&& qualificationTargetIdentityMatches(value.targetIdentity, identity)
+		&& value.releaseVersion === releaseVersion
+		&& typeof value.sourceRevision === "string"
+		&& value.sourceRevision.toLowerCase() === String(sourceRevision).toLowerCase()
+		&& runner
+		&& typeof runner === "object"
+		&& runner.os === "win32"
+		&& runner.architecture === expectedRunnerArchitecture
+		&& runner.simulated === false
+		&& value.executionMode === "native"
+		&& value.status === "qualified"
+		&& qualificationGatesPass(value)
+		&& typeof value.archiveSha256 === "string"
+		&& typeof value.runtimeSha256 === "string"
+		&& bareDigest(value.archiveSha256) === bareDigest(archiveDigest)
+		&& bareDigest(value.runtimeSha256) === bareDigest(runtimeDigest);
 	return valid
 		? { ...base, status: EVIDENCE_STATUS.verified, source: value }
-		: { ...base, status: EVIDENCE_STATUS.invalid, reason: "qualification must be a passing, archive-digest-bound installed-product receipt", source: value };
+		: { ...base, status: EVIDENCE_STATUS.invalid, reason: "qualification must be a native, target/version/source/digest-bound receipt with exactly six passing lifecycle gates", source: value };
 }
 
 function buildSbom({ identity, releaseVersion, sourceRevision, files, inputRoot }) {
