@@ -1918,17 +1918,24 @@ mod m1_tests {
         collections::BTreeSet,
         fs,
         path::{Path, PathBuf},
+        sync::atomic::{AtomicU64, Ordering},
         time::{SystemTime, UNIX_EPOCH},
     };
 
     fn temp_root() -> PathBuf {
+        // Tests in this module run concurrently in one process, and coarse
+        // SystemTime ticks (notably on macOS) let two of them draw the same
+        // pid+nanos name — the first cleanup then deletes the other test's
+        // fixtures mid-run. The counter makes every root unique.
+        static TEMP_SEQUENCE: AtomicU64 = AtomicU64::new(0);
         let root = std::env::temp_dir().join(format!(
-            "legion-m1-application-{}-{}",
+            "legion-m1-application-{}-{}-{}",
             std::process::id(),
             SystemTime::now()
                 .duration_since(UNIX_EPOCH)
                 .expect("clock")
-                .as_nanos()
+                .as_nanos(),
+            TEMP_SEQUENCE.fetch_add(1, Ordering::Relaxed),
         ));
         fs::create_dir_all(root.join("registry")).expect("registry directory");
         root
