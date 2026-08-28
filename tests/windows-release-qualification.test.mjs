@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { cpSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync, rmSync } from "node:fs";
+import { cpSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, writeFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { basename, dirname, join } from "node:path";
 import test from "node:test";
@@ -46,7 +46,10 @@ function qualificationFixture({ withPrior = true } = {}) {
 		assert.equal(options.env?.LEGION_M1_CONFIG, undefined);
 		assert.equal(options.env?.LEGION_NATIVE_APPLICATION_CONFIG, undefined);
 		assert.equal(options.env?.CODEX_HOME, join(options.env.HOME, ".codex"));
-		assert.equal(String(options.env?.PATH ?? "").split(";").includes(dirname(codexExecutable)), true);
+		assert.equal(
+			String(options.env?.PATH ?? "").split(";").includes(realpathSync(dirname(codexExecutable))),
+			true,
+		);
 		const executable = basename(command).toLowerCase();
 		if (args[0] === "--version") return { exitCode: 0, stdout: "legion 1.2.3\n", stderr: "" };
 		const installedLauncher = join(options.cwd, "bin", "legion.exe");
