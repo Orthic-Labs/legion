@@ -180,6 +180,27 @@ function assembleAndSmoke({ inputRoot, identity, repositoryRoot, env, commandRun
 		? identity.architecture === "arm64" ? "aarch64-pc-windows-msvc" : "x86_64-pc-windows-msvc"
 		: null;
 	runCommand(
+		"pnpm",
+		["legion:check"],
+		{ cwd: repositoryRoot, env: commandEnv, stdio: "inherit", windowsHide: true },
+		"Legion consistency gate",
+		commandRunner,
+	);
+	runCommand(
+		"pnpm",
+		["test"],
+		{ cwd: repositoryRoot, env: commandEnv, stdio: "inherit", windowsHide: true },
+		"Node tests",
+		commandRunner,
+	);
+	runCommand(
+		"cargo",
+		["test", "--locked"],
+		{ cwd: join(repositoryRoot, "engine"), env: commandEnv, stdio: "inherit", windowsHide: true },
+		"Cargo tests",
+		commandRunner,
+	);
+	runCommand(
 		"cargo",
 		["build", "--locked", "--bins", ...(targetTriple ? ["--target", targetTriple] : [])],
 		{ cwd: join(repositoryRoot, "engine"), env: commandEnv, stdio: "inherit", windowsHide: true },
@@ -250,7 +271,7 @@ export function prepareUnsignedCandidate({
 	const revision = readSourceRevision(repositoryRoot, sourceRevision);
 	const target = identity.target;
 	const stem = `${PRODUCT}-${releaseVersion}-${target}`;
-	const archivePath = join(artifactRoot, `${stem}.zip`);
+	const archivePath = join(artifactRoot, `${stem}${identity.platform === "macos" ? ".tar.gz" : ".zip"}`);
 	const sbomPath = join(artifactRoot, `${stem}.cdx.json`);
 	const provenancePath = join(artifactRoot, `${stem}.intoto.jsonl`);
 
@@ -344,7 +365,7 @@ export function checkUnsignedCandidate({
 	const revision = readSourceRevision(repositoryRoot, sourceRevision);
 	const target = identity.target;
 	const stem = `${PRODUCT}-${releaseVersion}-${target}`;
-	const archivePath = join(artifactRoot, `${stem}.zip`);
+	const archivePath = join(artifactRoot, `${stem}${identity.platform === "macos" ? ".tar.gz" : ".zip"}`);
 	const sbomPath = join(artifactRoot, `${stem}.cdx.json`);
 	const provenancePath = join(artifactRoot, `${stem}.intoto.jsonl`);
 	const candidatePath = join(artifactRoot, CANDIDATE_FILE);

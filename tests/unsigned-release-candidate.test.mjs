@@ -42,12 +42,13 @@ test("unsigned candidate binds portable archive to CycloneDX 1.6 and SLSA v1 evi
 		assert.equal(result.target, "macos-arm64");
 		assert.equal(result.version, "0.1.0");
 		assert.equal(result.sourceRevision, "a".repeat(40));
+		assert.ok(result.archive.endsWith("legion-0.1.0-macos-arm64.tar.gz"));
 		assert.ok(result.candidate.endsWith("candidate.json"));
 		const candidate = JSON.parse(readFileSync(result.candidate, "utf8"));
 		assert.deepEqual(Object.keys(candidate.files).sort(), ["archive", "provenance", "sbom"]);
 		const sbom = JSON.parse(readFileSync(result.sbom, "utf8"));
 		assert.equal(sbom.specVersion, "1.6");
-		assert.equal(sbom.components[0].name, "legion-0.1.0-macos-arm64.zip");
+		assert.equal(sbom.components[0].name, "legion-0.1.0-macos-arm64.tar.gz");
 		const provenance = JSON.parse(readFileSync(result.provenance, "utf8"));
 		assert.equal(provenance.predicateType, "https://slsa.dev/provenance/v1");
 		assert.equal(provenance.subject[0].digest.sha256, result.archiveSha256);
