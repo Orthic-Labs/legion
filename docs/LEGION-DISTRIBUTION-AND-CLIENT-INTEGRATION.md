@@ -10,8 +10,9 @@ policy derives from `release/distribution-contract.json`.
 
 ## 1. Decision
 
-Legion ships as signed, per-platform native archives through immutable GitHub Releases. Users
-install or update with one branded command:
+Public CI produces unsigned, per-platform native release candidates. Protected local release hosts
+sign, finalize, & upload candidates through immutable GitHub Releases. Users install or update with
+one branded command:
 
 ```powershell
 irm https://legion.orthiclabs.com/install.ps1 | iex
@@ -26,18 +27,19 @@ requirements. Legion runs no machine-wide service, tray process, or background u
 ```text
 legion.orthiclabs.com TLS/DNS
   -> immutable versioned bootstrap with accepted manifest key IDs
-  -> GitHub release-manifest.json + release-manifest.sig
+  -> GitHub release-manifest.json + release-manifest.cat
   -> exact OS/architecture archive
   -> native signature + manifest-bound digests/provenance/SBOM
   -> staged activation
   -> exact setup health
 ```
 
-`release-manifest.json` plus its detached signature is sole release trust authority.
+`release-manifest.json` plus its Authenticode catalog is sole release trust authority.
 `checksums.json` is discovery/convenience evidence whose digest is bound by release manifest.
 Manifest binds product, version, tag, source commit, asset URL, OS, architecture, size, SHA-256,
 executable path, native-signature policy, provenance digest, SBOM digest, minimum bootstrap
-version, & signing-key ID.
+version, & signing-key ID. On Windows, `release-manifest.cat` is the Authenticode catalog bound
+to manifest bytes & release asset digests.
 
 GitHub release assets use these names when target is supported for tag `vX.Y.Z`:
 
@@ -47,7 +49,7 @@ legion-X.Y.Z-windows-arm64.zip
 legion-X.Y.Z-macos-x86_64.tar.gz
 legion-X.Y.Z-macos-arm64.tar.gz
 release-manifest.json
-release-manifest.sig
+release-manifest.cat
 checksums.json
 provenance-<os>-<arch>.intoto.jsonl
 sbom-<os>-<arch>.cdx.json
@@ -62,13 +64,25 @@ scripts embed accepted manifest key IDs. GitHub assets remain payload authority.
 owns R2 bucket, DNS, TLS, cache, & object policy; RightRelease owns bootstrap publication. Legion
 contains configuration & product activation, never an R2 uploader.
 
+### 2.1 Public CI & protected release boundary
+
+Public `Orthic-Labs/legion` GitHub Actions runs compile, test, unsigned qualification, package
+smoke, SBOM, provenance, & unsigned-candidate production. Package smoke stages each supplied
+candidate into an isolated product-root `current` tree, then exercises installed-boundary runtime
+resolution on its target OS. Public CI has no signing credentials & cannot finalize or upload a
+release.
+
+Protected local release hosts consume exact candidate & evidence digests. They perform only native
+signing, release finalization, & upload to immutable GitHub Releases & approved bootstrap
+publication. They do not rebuild candidates; signing credentials remain local to protected hosts.
+
 ## 3. Install, update, rollback, removal
 
 Bootstrap:
 
 1. detects OS & architecture;
 2. resolves an exact version, defaulting to latest authorized release;
-3. verifies manifest signature, archive digest, bound provenance/SBOM, & native platform signature;
+3. verifies manifest catalog, archive digest, bound provenance/SBOM, & native platform signature;
 4. extracts into a versioned user-local staging root;
 5. preflights activation when supported & journals integration mutations;
 6. atomically switches stable `current` path;
@@ -106,9 +120,9 @@ semantics stay canonical.
 | Concern | Owner |
 |---|---|
 | Legion install UX, roots, PATH, activation, setup health, client matrix, plain skill IDs, rollback integration semantics, & data ownership | Legion |
-| Asset naming, signed manifest schema, key rotation, GitHub publication, R2 bootstrap publication, shared install/update transaction primitives | `@rightkit/release` |
+| Asset naming, signed manifest schema, key rotation, protected-host finalization/upload, R2 bootstrap publication, shared install/update transaction primitives | `@rightkit/release` |
 | Agent Plugins schema, portable package assembly/containment, public-resource closure, & conformance | `@rightkit/ax` |
-| Public CI/workflow generation | `@rightkit/git` |
+| Public CI compile/test/qualification/package smoke/SBOM/provenance/unsigned-candidate workflow | `@rightkit/git` |
 | R2 buckets, DNS, TLS, cache, & object policy | Orthic Labs infrastructure |
 
 RightKit package acceptance includes one end-to-end contract spanning direct bootstrap, signed

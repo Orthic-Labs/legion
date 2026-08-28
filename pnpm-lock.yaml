@@ -4,9 +4,6 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
-patchedDependencies:
-  '@rightkit/git@0.2.1': 8d2d62ccdeeb6cd64c43965900b6c56a984da2e98d6d47cb00848c8aeba27bac
-
 importers:
 
   .:
@@ -22,8 +19,8 @@ importers:
         specifier: 0.2.1
         version: 0.2.1
       '@rightkit/git':
-        specifier: 0.2.1
-        version: 0.2.1(patch_hash=8d2d62ccdeeb6cd64c43965900b6c56a984da2e98d6d47cb00848c8aeba27bac)
+        specifier: 0.2.5
+        version: 0.2.5
       '@rightkit/release':
         specifier: 0.2.76
         version: 0.2.76
@@ -91,8 +88,8 @@ packages:
     resolution: {integrity: sha512-7iBNWoO2LmZLw38mVmHu/56O0Pn4lQrnnmbf26knnpyjPVE7XFUou3tJ9r607HRMmFvNJGEGk/WbVEL5x3AIyg==}
     hasBin: true
 
-  '@rightkit/git@0.2.1':
-    resolution: {integrity: sha512-Cw0igaGlZUD6J21P7olWm/0PpclubXMtVmqZKm6cTFUUD1689vKjlGmuKRX3yKYgCkMULNm06Oq+VQimOm6qOg==}
+  '@rightkit/git@0.2.5':
+    resolution: {integrity: sha512-GvxHXbXhX6V/3d2W49JIC7Nd6qQlY0KGl9Lo8zWJ07BACbe1if+pC3FjVPBwfdJzqChVemCXW4aYYnMXf77lvA==}
     hasBin: true
 
   '@rightkit/hooks@0.1.1':
@@ -142,7 +139,7 @@ snapshots:
 
   '@rightkit/ax@0.2.1': {}
 
-  '@rightkit/git@0.2.1(patch_hash=8d2d62ccdeeb6cd64c43965900b6c56a984da2e98d6d47cb00848c8aeba27bac)': {}
+  '@rightkit/git@0.2.5': {}
 
   '@rightkit/hooks@0.1.1': {}
 

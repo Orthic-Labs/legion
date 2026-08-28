@@ -436,6 +436,20 @@ the stable `current` target, and activates clients. Setup/status must report
 closed whenever any binding escapes the stable `current` executable. Private workspace content is
 excluded from installed releases, client projections, and production bindings.
 
+### 13.2 Public CI & protected release boundary
+
+Public `Orthic-Labs/legion` GitHub Actions owns compile, test, unsigned qualification, package
+smoke, SBOM, provenance, & unsigned-candidate production. Package smoke stages each supplied
+candidate into an isolated product-root `current` tree before exercising installed-boundary
+runtime resolution on its target OS. Public CI has no signing credentials & cannot finalize or
+upload release payloads.
+
+Protected local release hosts consume exact candidate & evidence digests. They own only native
+signing, release finalization, & upload to immutable GitHub Releases & approved bootstrap
+publication; they do not rebuild candidates. Release trust binds `release-manifest.json` to
+`release-manifest.cat`, a Windows Authenticode catalog. An unsigned CI candidate is not a
+published release.
+
 ## 14. Model policy
 
 Model policy is tiered; concrete models are host configuration. Canonical architecture, role

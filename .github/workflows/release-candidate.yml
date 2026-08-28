@@ -1,10 +1,12 @@
 # Managed by right-git — do not hand-edit. Run `right-git sync` to update.
-# Template: profiles/rust-hybrid/ci.yml | Template version: 1.2.0
-name: legion-ci
+# Template: profiles/rust-hybrid/release-candidate.yml | Template version: 1.2.0
+# Public CI produces unsigned candidates only. Signing credentials, finalization,
+# release publication, & stable bootstrap publication remain protected-host work.
+name: release-candidate
 on:
-  pull_request:
+  workflow_dispatch:
   push:
-    branches: [main]
+    tags: ['v*']
 permissions:
   contents: read
 jobs:
@@ -14,12 +16,12 @@ jobs:
       - name: Refuse private repository
         if: ${{ github.event.repository.private }}
         run: exit 1
-  ci:
+  candidate:
     needs: [private-repo-guard]
     strategy:
       fail-fast: false
       matrix:
-        os: ["ubuntu-24.04", "windows-2025", "macos-15"]
+        os: ["windows-2025", "macos-15"]
         node: ["22.23.2"]
     runs-on: ${{ matrix.os }}
     steps:
@@ -38,4 +40,18 @@ jobs:
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
         with:
           workspaces: engine
-      - run: bash ./scripts/ci/right-git-ci.sh
+      - run: pnpm install --frozen-lockfile
+      - name: Build unsigned release candidate
+        run: pnpm run ci:unsigned-candidate
+        env:
+          RIGHT_GIT_ARTIFACT_ROOT: ${{ runner.temp }}/legion-unsigned-candidate
+      - name: Check unsigned release candidate
+        run: pnpm run ci:unsigned-candidate-check
+        env:
+          RIGHT_GIT_ARTIFACT_ROOT: ${{ runner.temp }}/legion-unsigned-candidate
+      - name: Upload unsigned candidate handoff
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: legion-unsigned-${{ matrix.os }}-${{ matrix.node }}
+          path: ${{ runner.temp }}/legion-unsigned-candidate/**
+          if-no-files-found: error

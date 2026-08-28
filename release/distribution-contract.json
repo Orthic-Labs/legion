@@ -49,6 +49,31 @@
       "channel-authorization"
     ]
   },
+  "releasePipeline": {
+    "publicCi": {
+      "provider": "github-actions",
+      "repository": "Orthic-Labs/legion",
+      "steps": [
+        "compile",
+        "test",
+        "unsigned-qualification",
+        "package-smoke",
+        "sbom",
+        "provenance",
+        "unsigned-candidate"
+      ],
+      "signingCredentials": "forbidden",
+      "output": "unsigned-candidate-only"
+    },
+    "protectedLocalHosts": {
+      "execution": "protected-local-host",
+      "steps": ["sign", "finalize", "upload"],
+      "signingCredentials": "local-only",
+      "ciAccess": "forbidden",
+      "rebuild": false,
+      "input": "exact-unsigned-candidate"
+    }
+  },
   "packageManagers": {
     "homebrew": "optional-alias-not-required",
     "winget": "optional-alias-not-required"
