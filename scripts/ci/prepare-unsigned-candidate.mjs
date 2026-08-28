@@ -12,6 +12,7 @@ import {
 import {
 	basename,
 	dirname,
+	isAbsolute,
 	join,
 	relative,
 	resolve,
@@ -33,7 +34,6 @@ const CANDIDATE_ROOT_NAME = "legion-unsigned-candidate";
 const CANDIDATE_FILE = "candidate.json";
 const CANDIDATE_KIND = "legion-unsigned-release-candidate";
 const STABLE_VERSION = /^(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)$/;
-const PNPM_COMMAND = process.platform === "win32" ? "pnpm.cmd" : "pnpm";
 const SOURCE_REVISION = /^[a-f0-9]{40,64}$/i;
 const SHA256 = /^[a-f0-9]{64}$/;
 
@@ -180,23 +180,22 @@ function runCommand(command, args, options, label, commandRunner) {
 
 function assembleAndSmoke({ inputRoot, identity, repositoryRoot, env, commandRunner }) {
 	const commandEnv = { ...process.env, ...env };
+	const pnpmCli = commandEnv.npm_execpath;
+	if (!pnpmCli || !isAbsolute(pnpmCli)) {
+		throw new Error("pnpm npm_execpath is required for cross-platform candidate execution");
+	}
+	const runPnpm = (args, label) => runCommand(
+		process.execPath,
+		[pnpmCli, ...args],
+		{ cwd: repositoryRoot, env: commandEnv, stdio: "inherit", windowsHide: true },
+		label,
+		commandRunner,
+	);
 	const targetTriple = identity.platform === "windows"
 		? identity.architecture === "arm64" ? "aarch64-pc-windows-msvc" : "x86_64-pc-windows-msvc"
 		: null;
-	runCommand(
-		PNPM_COMMAND,
-		["legion:check"],
-		{ cwd: repositoryRoot, env: commandEnv, stdio: "inherit", windowsHide: true },
-		"Legion consistency gate",
-		commandRunner,
-	);
-	runCommand(
-		PNPM_COMMAND,
-		["test"],
-		{ cwd: repositoryRoot, env: commandEnv, stdio: "inherit", windowsHide: true },
-		"Node tests",
-		commandRunner,
-	);
+	runPnpm(["legion:check"], "Legion consistency gate");
+	runPnpm(["test"], "Node tests");
 	runCommand(
 		"cargo",
 		["test", "--locked"],
@@ -211,8 +210,7 @@ function assembleAndSmoke({ inputRoot, identity, repositoryRoot, env, commandRun
 		"cargo build",
 		commandRunner,
 	);
-	runCommand(
-		PNPM_COMMAND,
+	runPnpm(
 		[
 			"native:assemble",
 			"--",
@@ -227,9 +225,7 @@ function assembleAndSmoke({ inputRoot, identity, repositoryRoot, env, commandRun
 			inputRoot,
 			"--force",
 		],
-		{ cwd: repositoryRoot, env: commandEnv, stdio: "inherit", windowsHide: true },
 		"native assembly",
-		commandRunner,
 	);
 	runCommand(
 		process.execPath,

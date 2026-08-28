@@ -42,6 +42,7 @@ test('public release CI selects explicit supported targets and release profile',
   assert.match(releaseCi, /LEGION_RELEASE_PLATFORM: \$\{\{ matrix\.platform \}\}/);
   assert.match(releaseCi, /LEGION_RELEASE_ARCHITECTURE: \$\{\{ matrix\.architecture \}\}/);
   assert.doesNotMatch(releaseCi, /--profile debug/);
-  assert.match(candidate, /process\.platform === "win32" \? "pnpm\.cmd" : "pnpm"/);
+  assert.match(candidate, /pnpm npm_execpath is required for cross-platform candidate execution/);
+  assert.match(candidate, /process\.execPath/);
   assert.match(candidate, /\["build", "--locked", "--release", "--bins"/);
 });
