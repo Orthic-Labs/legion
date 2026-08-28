@@ -1,0 +1,68 @@
+# Managed by right-git — do not hand-edit. Run `right-git sync` to update.
+# Template: profiles/rust-hybrid/release-candidate.yml | Template version: 1.2.0
+# Public CI produces unsigned candidates only. Signing credentials, finalization,
+# release publication, & stable bootstrap publication remain protected-host work.
+name: release-candidate
+on:
+  workflow_dispatch:
+  push:
+    tags: ['v*']
+permissions:
+  contents: read
+jobs:
+  private-repo-guard:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Refuse private repository
+        if: ${{ github.event.repository.private }}
+        run: exit 1
+  candidate:
+    needs: [private-repo-guard]
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: "windows-2025"
+            node: "22.23.2"
+            platform: "windows"
+            architecture: "x86_64"
+          - os: "macos-15"
+            node: "22.23.2"
+            platform: "macos"
+            architecture: "arm64"
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: ${{ matrix.node }}
+          package-manager-cache: false
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
+        with:
+          version: 11.24.0
+      - uses: dtolnay/rust-toolchain@f8be11a05b1d4f3fcebe6410cc16743212b999b0
+        with:
+          toolchain: 1.98.0
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        with:
+          workspaces: engine
+      - run: pnpm install --frozen-lockfile
+      - name: Build unsigned release candidate
+        run: pnpm run ci:unsigned-candidate
+        env:
+          RIGHT_GIT_ARTIFACT_ROOT: ${{ runner.temp }}/legion-unsigned-candidate
+          LEGION_RELEASE_PLATFORM: ${{ matrix.platform }}
+          LEGION_RELEASE_ARCHITECTURE: ${{ matrix.architecture }}
+      - name: Check unsigned release candidate
+        run: pnpm run ci:unsigned-candidate-check
+        env:
+          RIGHT_GIT_ARTIFACT_ROOT: ${{ runner.temp }}/legion-unsigned-candidate
+          LEGION_RELEASE_PLATFORM: ${{ matrix.platform }}
+          LEGION_RELEASE_ARCHITECTURE: ${{ matrix.architecture }}
+      - name: Upload unsigned candidate handoff
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: legion-unsigned-${{ matrix.os }}-${{ matrix.node }}
+          path: ${{ runner.temp }}/legion-unsigned-candidate/**
+          if-no-files-found: error

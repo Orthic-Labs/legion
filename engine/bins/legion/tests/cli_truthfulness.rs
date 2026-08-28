@@ -46,20 +46,14 @@ fn default_doctor_cannot_make_clean_claim() {
 }
 
 #[test]
-fn audit_and_plan_fail_closed_without_native_composition() {
-    for arguments in [vec!["audit", ".", "--json"], vec!["plan", ".", "--json"]] {
-        let output = legion(&arguments);
-        assert_eq!(output.status.code(), Some(2), "{arguments:?}");
-        let value = output_json(&output);
-        let status = value.get("auditStatus").or_else(|| value.get("status"));
-        assert_eq!(
-            status.and_then(serde_json::Value::as_str),
-            Some("incomplete")
-        );
-        assert!(value["gaps"]
-            .as_array()
-            .is_some_and(|gaps| !gaps.is_empty()));
-    }
+fn plan_stays_fail_closed_without_native_composition() {
+    let plan = legion(&["plan", ".", "--json"]);
+    assert_eq!(plan.status.code(), Some(2));
+    let plan_value = output_json(&plan);
+    assert_eq!(plan_value["status"], "incomplete");
+    assert!(plan_value["gaps"]
+        .as_array()
+        .is_some_and(|gaps| !gaps.is_empty()));
 }
 
 #[test]

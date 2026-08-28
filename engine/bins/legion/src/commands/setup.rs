@@ -6,7 +6,7 @@ use serde_json::{json, Value};
 use std::{
     collections::BTreeMap,
     ffi::OsString,
-    path::{Path, PathBuf},
+    path::{Component, Path, PathBuf},
     time::Duration,
 };
 use tokio_util::sync::CancellationToken;
@@ -46,6 +46,84 @@ pub struct SetupArgs {
     check: bool,
     #[command(subcommand)]
     command: Option<SetupCommand>,
+    #[command(flatten)]
+    context: SetupExecutionArgs,
+}
+
+#[derive(Clone, Debug, Args)]
+struct SetupExecutionArgs {
+    /// Opt into repository-backed development setup. Installed remains default.
+    #[arg(long)]
+    development: bool,
+    /// Repository root supplying development plugin/assets.
+    #[arg(long, requires = "development")]
+    development_root: Option<PathBuf>,
+    /// Isolated development state root; required with --development.
+    #[arg(long, requires = "development")]
+    state_root: Option<PathBuf>,
+    /// Development MCP/process port identity.
+    #[arg(long, requires = "development")]
+    port: Option<u16>,
+    /// Explicit process identity used by development status/qualification.
+    #[arg(long, requires = "development")]
+    process_identity: Option<String>,
+    /// Client override as client=source-root,target-root (repeatable).
+    #[arg(long = "client-override", requires = "development")]
+    client_override: Vec<String>,
+}
+
+fn development_context(
+    args: &SetupExecutionArgs,
+) -> Result<Option<legion_host::DevelopmentSetupContext>, CommandError> {
+    if !args.development {
+        if args.development_root.is_some()
+            || args.state_root.is_some()
+            || args.port.is_some()
+            || args.process_identity.is_some()
+            || !args.client_override.is_empty()
+        {
+            return Err(CommandError::usage(
+                "development options require --development",
+            ));
+        }
+        return Ok(None);
+    }
+    let repository_root = args
+        .development_root
+        .clone()
+        .unwrap_or(std::env::current_dir().map_err(io_error)?);
+    let state_root = args
+        .state_root
+        .clone()
+        .ok_or_else(|| CommandError::usage("--development requires --state-root"))?;
+    let process_identity = args
+        .process_identity
+        .clone()
+        .unwrap_or_else(|| format!("legion-dev-{}", std::process::id()));
+    let mut client_overrides = BTreeMap::new();
+    for raw in &args.client_override {
+        let (client, roots) = raw.split_once('=').ok_or_else(|| {
+            CommandError::usage("--client-override must be client=source-root,target-root")
+        })?;
+        let (source_root, target_root) = roots.split_once(',').ok_or_else(|| {
+            CommandError::usage("--client-override must be client=source-root,target-root")
+        })?;
+        client_overrides.insert(
+            client.into(),
+            legion_host::setup_registry::DevelopmentClientOverride {
+                source_root: PathBuf::from(source_root),
+                target_root: PathBuf::from(target_root),
+            },
+        );
+    }
+    let context = legion_host::DevelopmentSetupContext {
+        repository_root,
+        state_root,
+        port: args.port,
+        process_identity,
+        client_overrides,
+    };
+    Ok(Some(context))
 }
 
 #[derive(Debug, Subcommand)]
@@ -187,33 +265,55 @@ struct ClientQualificationProof {
 }
 
 pub async fn run(args: SetupArgs, cancellation: CancellationToken) -> CommandResult {
+    let context = development_context(&args.context)?;
     if args.check {
         if args.command.is_some() || args.dry_run || args.confirm {
             return Err(CommandError::usage(
                 "setup --check cannot be combined with lifecycle commands, --dry-run, or --confirm",
             ));
         }
-        return status(SetupClientArgs {
-            client: args.client,
-        });
+        return status(
+            SetupClientArgs {
+                client: args.client,
+            },
+            context,
+        );
     }
     match args.command {
-        Some(SetupCommand::Preview(args)) => preview(args, cancellation).await,
+        Some(SetupCommand::Preview(args)) => preview(args, context, cancellation).await,
         Some(SetupCommand::Apply(args)) => {
             execute(args, legion_host::SetupAction::Apply, cancellation).await
         }
-        Some(SetupCommand::Status(args)) => status(args),
+        Some(SetupCommand::Status(args)) => status(args, context),
         Some(SetupCommand::Repair(args)) => {
-            lifecycle(args, legion_host::SetupAction::Repair, cancellation).await
+            lifecycle(
+                args,
+                legion_host::SetupAction::Repair,
+                context,
+                cancellation,
+            )
+            .await
         }
         Some(SetupCommand::Disable(args)) => {
-            lifecycle(args, legion_host::SetupAction::Disable, cancellation).await
+            lifecycle(
+                args,
+                legion_host::SetupAction::Disable,
+                context,
+                cancellation,
+            )
+            .await
         }
         Some(SetupCommand::Remove(args)) => {
-            lifecycle(args, legion_host::SetupAction::Remove, cancellation).await
+            lifecycle(
+                args,
+                legion_host::SetupAction::Remove,
+                context,
+                cancellation,
+            )
+            .await
         }
         Some(SetupCommand::Purge(args)) => {
-            lifecycle(args, legion_host::SetupAction::Purge, cancellation).await
+            lifecycle(args, legion_host::SetupAction::Purge, context, cancellation).await
         }
         None => {
             lifecycle(
@@ -224,6 +324,7 @@ pub async fn run(args: SetupArgs, cancellation: CancellationToken) -> CommandRes
                     confirm: args.confirm,
                 },
                 legion_host::SetupAction::Apply,
+                context,
                 cancellation,
             )
             .await
@@ -234,6 +335,7 @@ pub async fn run(args: SetupArgs, cancellation: CancellationToken) -> CommandRes
 async fn lifecycle(
     args: SetupLifecycleArgs,
     action: legion_host::SetupAction,
+    context: Option<legion_host::DevelopmentSetupContext>,
     cancellation: CancellationToken,
 ) -> CommandResult {
     if matches!(action, legion_host::SetupAction::Purge) && !args.confirm && !args.dry_run {
@@ -241,20 +343,21 @@ async fn lifecycle(
             "setup purge requires --confirm for the exact generated plan",
         ));
     }
-    let release = installed_bound_release()?;
+    let release = bound_release_for_context(context.as_ref())?;
     let request = SetupRequestArgs {
         client_evidence: args.client_evidence,
         client: args.client,
         dry_run: args.dry_run,
     };
-    let request = request_from_release(request, action, release, cancellation).await?;
+    let request = request_from_release(request, action, release, context, cancellation).await?;
     let mut registry = open_registry(&request)?;
     let recovery = registry.recover().map_err(setup_error)?;
     let host_integrations = preview_host_integrations(&request)?;
+    let identity_context = request.development.clone();
     let preview = registry.preview(request).map_err(setup_error)?;
     let preview_value = serde_json::to_value(&preview)
         .map_err(|error| CommandError::incomplete(error.to_string()))?;
-    let live_identity = inspect_live_identity(&host_integrations)?;
+    let live_identity = inspect_live_identity(&host_integrations, identity_context.as_ref())?;
     let (status, remediation) = setup_health(
         &preview_value["clients"],
         &host_integrations,
@@ -265,6 +368,14 @@ async fn lifecycle(
             "schemaVersion": 1,
             "kind": "legion-setup-preview",
             "status": status,
+            "origin": live_identity.get("origin").cloned(),
+            "executable": live_identity.get("executablePath").cloned(),
+            "installRoot": live_identity.get("installRoot").cloned(),
+            "stableCurrentRoot": live_identity.get("stableCurrentRoot").cloned(),
+            "stableCurrent": live_identity.get("stableCurrent").cloned(),
+            "resolvedExecutable": live_identity.get("resolvedExecutable").cloned(),
+            "resolvedInstallRoot": live_identity.get("resolvedInstallRoot").cloned(),
+            "generation": live_identity.get("generation").cloned(),
             "remediation": remediation,
             "recovery": recovery,
             "preview": preview,
@@ -280,11 +391,16 @@ async fn lifecycle(
         .confirm(preview, confirmation)
         .map_err(setup_error)?;
     let integration_request = confirmed.preview.request.clone();
+    // Reconcile production client bindings before durable registry mutation.
+    // This keeps an escaped projection from leaving a partially applied plan.
+    preview_host_integrations(&integration_request)?;
     let execution = registry.execute(confirmed).map_err(setup_error)?;
     let host_integrations = apply_host_integrations(&integration_request)?;
     let execution_value = serde_json::to_value(&execution)
         .map_err(|error| CommandError::incomplete(error.to_string()))?;
-    let live_identity = inspect_live_identity(&host_integrations)?;
+    let live_identity =
+        inspect_live_identity(&host_integrations, integration_request.development.as_ref())?;
+    let execution_value = enrich_client_statuses(execution_value, &live_identity);
     let (status, remediation) = setup_health(
         &execution_value["clients"],
         &host_integrations,
@@ -294,23 +410,43 @@ async fn lifecycle(
         "schemaVersion": 1,
         "kind": "legion-setup-execution",
         "status": status,
+        "origin": live_identity.get("origin").cloned(),
+        "executable": live_identity.get("executablePath").cloned(),
+        "installRoot": live_identity.get("installRoot").cloned(),
+        "stableCurrentRoot": live_identity.get("stableCurrentRoot").cloned(),
+        "stableCurrent": live_identity.get("stableCurrent").cloned(),
+        "resolvedExecutable": live_identity.get("resolvedExecutable").cloned(),
+        "resolvedInstallRoot": live_identity.get("resolvedInstallRoot").cloned(),
+        "generation": live_identity.get("generation").cloned(),
         "remediation": remediation,
         "recovery": recovery,
-        "execution": execution,
+        "execution": execution_value,
         "hostIntegrations": host_integrations,
         "liveIdentity": live_identity,
     }))
 }
 
-async fn preview(args: SetupPreviewArgs, cancellation: CancellationToken) -> CommandResult {
-    let request = request(args.request, args.action.into(), false, cancellation).await?;
+async fn preview(
+    args: SetupPreviewArgs,
+    context: Option<legion_host::DevelopmentSetupContext>,
+    cancellation: CancellationToken,
+) -> CommandResult {
+    let request = request(
+        args.request,
+        args.action.into(),
+        context,
+        false,
+        cancellation,
+    )
+    .await?;
     let mut registry = open_registry(&request)?;
     let recovery = registry.recover().map_err(setup_error)?;
     let host_integrations = preview_host_integrations(&request)?;
+    let identity_context = request.development.clone();
     let preview = registry.preview(request).map_err(setup_error)?;
     let preview_value = serde_json::to_value(&preview)
         .map_err(|error| CommandError::incomplete(error.to_string()))?;
-    let live_identity = inspect_live_identity(&host_integrations)?;
+    let live_identity = inspect_live_identity(&host_integrations, identity_context.as_ref())?;
     let (status, remediation) = setup_health(
         &preview_value["clients"],
         &host_integrations,
@@ -323,6 +459,14 @@ async fn preview(args: SetupPreviewArgs, cancellation: CancellationToken) -> Com
         "schemaVersion": 1,
         "kind": "legion-setup-preview",
         "status": status,
+        "origin": live_identity.get("origin").cloned(),
+        "executable": live_identity.get("executablePath").cloned(),
+        "installRoot": live_identity.get("installRoot").cloned(),
+        "stableCurrentRoot": live_identity.get("stableCurrentRoot").cloned(),
+        "stableCurrent": live_identity.get("stableCurrent").cloned(),
+        "resolvedExecutable": live_identity.get("resolvedExecutable").cloned(),
+        "resolvedInstallRoot": live_identity.get("resolvedInstallRoot").cloned(),
+        "generation": live_identity.get("generation").cloned(),
         "remediation": remediation,
         "recovery": recovery,
         "preview": preview,
@@ -331,8 +475,59 @@ async fn preview(args: SetupPreviewArgs, cancellation: CancellationToken) -> Com
     }))
 }
 
-fn status(args: SetupClientArgs) -> CommandResult {
-    let installed = installed_release()?;
+fn status(
+    args: SetupClientArgs,
+    context: Option<legion_host::DevelopmentSetupContext>,
+) -> CommandResult {
+    if let Some(context) = context {
+        return development_status(args, context);
+    }
+    let installed = match installed_release() {
+        Ok(installed) => installed,
+        Err(error) => {
+            let evidence = legion_runtime::release_binding::detect_runtime_origin().map_err(
+                |origin_error| {
+                    CommandError::incomplete(format!(
+                        "{}; runtime origin unavailable: {origin_error}",
+                        error.message
+                    ))
+                },
+            )?;
+            let origin = match &evidence.origin {
+                legion_runtime::release_binding::RuntimeOrigin::Installed => {
+                    legion_host::setup_registry::ORIGIN_INSTALLED
+                }
+                legion_runtime::release_binding::RuntimeOrigin::Development => {
+                    legion_host::setup_registry::ORIGIN_DEVELOPMENT
+                }
+            };
+            let resolved_executable = std::fs::canonicalize(&evidence.executable).ok();
+            let stable_current_root = evidence
+                .install_root
+                .as_ref()
+                .map(|path| path.join("current"));
+            let resolved_install_root = evidence
+                .install_root
+                .as_ref()
+                .map(|path| path.join("current"))
+                .and_then(|path| std::fs::canonicalize(path).ok());
+            return Ok(json!({
+                "schemaVersion": 1,
+                "kind": "legion-setup-status",
+                "status": "failed",
+                "origin": origin,
+                "executable": evidence.executable,
+                "installRoot": evidence.install_root,
+                "stableCurrentRoot": stable_current_root,
+                "resolvedExecutable": resolved_executable,
+                "resolvedInstallRoot": resolved_install_root,
+                "generation": evidence.generation,
+                "stableCurrent": evidence.stable_current,
+                "clients": [],
+                "remediation": [error.message],
+            }));
+        }
+    };
     let release = bound_release(&installed.manifest);
     let selector = selector(args.client);
     let mut registry =
@@ -342,15 +537,24 @@ fn status(args: SetupClientArgs) -> CommandResult {
     let host_integrations = inspect_host_integrations(&selector, &release)?;
     let clients_value = serde_json::to_value(&clients)
         .map_err(|error| CommandError::incomplete(error.to_string()))?;
-    let live_identity = inspect_live_identity(&host_integrations)?;
+    let live_identity = inspect_live_identity(&host_integrations, None)?;
+    let clients_value = enrich_client_statuses(clients_value, &live_identity);
     let (status, remediation) = setup_health(&clients_value, &host_integrations, &live_identity);
     Ok(json!({
         "schemaVersion": 1,
         "kind": "legion-setup-status",
         "status": status,
+        "origin": live_identity.get("origin").cloned(),
+        "executable": live_identity.get("executablePath").cloned(),
+        "installRoot": live_identity.get("installRoot").cloned(),
+        "stableCurrentRoot": live_identity.get("stableCurrentRoot").cloned(),
+        "stableCurrent": live_identity.get("stableCurrent").cloned(),
+        "resolvedExecutable": live_identity.get("resolvedExecutable").cloned(),
+        "resolvedInstallRoot": live_identity.get("resolvedInstallRoot").cloned(),
+        "generation": live_identity.get("generation").cloned(),
         "remediation": remediation,
         "recovery": recovery,
-        "clients": clients,
+        "clients": clients_value,
         "hostIntegrations": host_integrations,
         "liveIdentity": live_identity,
     }))
@@ -372,8 +576,13 @@ async fn execute(
             "setup command does not match the action recorded in --plan",
         ));
     }
+    let selected = match &preview.request.selector {
+        legion_host::ClientSelector::AllSupported => None,
+        legion_host::ClientSelector::ClientId(client_id) => Some(client_id.as_str()),
+    };
     validate_client_evidence(
         &preview.request.client_evidence,
+        selected,
         &preview.request.release,
         &preview.request.platform_state_root,
         true,
@@ -390,11 +599,16 @@ async fn execute(
     let confirmed = registry
         .confirm(preview, confirmation)
         .map_err(setup_error)?;
+    // Reconcile production client bindings before durable registry mutation.
+    // This keeps an escaped projection from leaving a partially applied plan.
+    preview_host_integrations(&integration_request)?;
     let execution = registry.execute(confirmed).map_err(setup_error)?;
     let host_integrations = apply_host_integrations(&integration_request)?;
     let execution_value = serde_json::to_value(&execution)
         .map_err(|error| CommandError::incomplete(error.to_string()))?;
-    let live_identity = inspect_live_identity(&host_integrations)?;
+    let live_identity =
+        inspect_live_identity(&host_integrations, integration_request.development.as_ref())?;
+    let execution_value = enrich_client_statuses(execution_value, &live_identity);
     let (status, remediation) = setup_health(
         &execution_value["clients"],
         &host_integrations,
@@ -404,9 +618,17 @@ async fn execute(
         "schemaVersion": 1,
         "kind": "legion-setup-execution",
         "status": status,
+        "origin": live_identity.get("origin").cloned(),
+        "executable": live_identity.get("executablePath").cloned(),
+        "installRoot": live_identity.get("installRoot").cloned(),
+        "stableCurrentRoot": live_identity.get("stableCurrentRoot").cloned(),
+        "stableCurrent": live_identity.get("stableCurrent").cloned(),
+        "resolvedExecutable": live_identity.get("resolvedExecutable").cloned(),
+        "resolvedInstallRoot": live_identity.get("resolvedInstallRoot").cloned(),
+        "generation": live_identity.get("generation").cloned(),
         "remediation": remediation,
         "recovery": recovery,
-        "execution": execution,
+        "execution": execution_value,
         "hostIntegrations": host_integrations,
         "liveIdentity": live_identity,
     }))
@@ -415,12 +637,16 @@ async fn execute(
 async fn request(
     args: SetupRequestArgs,
     action: legion_host::SetupAction,
+    context: Option<legion_host::DevelopmentSetupContext>,
     live_validation: bool,
     cancellation: CancellationToken,
 ) -> Result<legion_host::SetupRequest, CommandError> {
     let client = args.client.clone();
-    let release = installed_bound_release()?;
-    let platform_state_root = legion_host::platform_state_root().map_err(setup_error)?;
+    let release = bound_release_for_context(context.as_ref())?;
+    let platform_state_root = context
+        .as_ref()
+        .map(|c| c.state_root.clone())
+        .unwrap_or(legion_host::platform_state_root().map_err(setup_error)?);
     let client_evidence = client_evidence(
         args.client_evidence,
         client.as_deref(),
@@ -430,6 +656,11 @@ async fn request(
         cancellation,
     )
     .await?;
+    let client_evidence = if context.is_some() && client_evidence.is_empty() {
+        development_client_evidence(client.as_deref())
+    } else {
+        client_evidence
+    };
     Ok(legion_host::SetupRequest {
         action,
         selector: selector(client.clone()),
@@ -437,6 +668,12 @@ async fn request(
         platform_state_root,
         client_evidence,
         dry_run: args.dry_run,
+        origin: if context.is_some() {
+            legion_host::setup_registry::ORIGIN_DEVELOPMENT.into()
+        } else {
+            legion_host::setup_registry::ORIGIN_INSTALLED.into()
+        },
+        development: context,
     })
 }
 
@@ -444,9 +681,13 @@ async fn request_from_release(
     args: SetupRequestArgs,
     action: legion_host::SetupAction,
     release: legion_host::BoundRelease,
+    context: Option<legion_host::DevelopmentSetupContext>,
     cancellation: CancellationToken,
 ) -> Result<legion_host::SetupRequest, CommandError> {
-    let platform_state_root = legion_host::platform_state_root().map_err(setup_error)?;
+    let platform_state_root = context
+        .as_ref()
+        .map(|c| c.state_root.clone())
+        .unwrap_or(legion_host::platform_state_root().map_err(setup_error)?);
     let client_evidence = client_evidence(
         args.client_evidence,
         args.client.as_deref(),
@@ -459,6 +700,11 @@ async fn request_from_release(
         cancellation,
     )
     .await?;
+    let client_evidence = if context.is_some() && client_evidence.is_empty() {
+        development_client_evidence(args.client.as_deref())
+    } else {
+        client_evidence
+    };
     Ok(legion_host::SetupRequest {
         action,
         selector: selector(args.client.clone()),
@@ -466,6 +712,12 @@ async fn request_from_release(
         platform_state_root,
         client_evidence,
         dry_run: args.dry_run,
+        origin: if context.is_some() {
+            legion_host::setup_registry::ORIGIN_DEVELOPMENT.into()
+        } else {
+            legion_host::setup_registry::ORIGIN_INSTALLED.into()
+        },
+        development: context,
     })
 }
 async fn client_evidence(
@@ -490,8 +742,12 @@ async fn client_evidence(
         ),
         None => (discovered_client_evidence(selected), false),
     };
+    if live_validation {
+        validate_live_evidence_refs(&evidence, selected)?;
+    }
     validate_client_evidence(
         &evidence,
+        selected,
         release,
         platform_state_root,
         live_validation && !already_live,
@@ -502,14 +758,21 @@ async fn client_evidence(
 }
 async fn validate_client_evidence(
     evidence: &[legion_host::ClientEvidence],
+    selected: Option<&str>,
     release: &legion_host::BoundRelease,
     platform_state_root: &std::path::Path,
     live_validation: bool,
     cancellation: CancellationToken,
 ) -> Result<(), CommandError> {
+    if live_validation {
+        validate_live_evidence_refs(evidence, selected)?;
+    }
     let mut qualification_root = None;
     for client in evidence {
         if !client.detected {
+            continue;
+        }
+        if !legion_host::setup_registry::client_supports_live_qualification(&client.client_id) {
             continue;
         }
         let Some(command_ref) = client.command_proof_ref.as_deref() else {
@@ -571,6 +834,27 @@ async fn validate_client_evidence(
                     client.client_id
                 )));
             }
+        }
+    }
+    Ok(())
+}
+
+fn validate_live_evidence_refs(
+    evidence: &[legion_host::ClientEvidence],
+    selected: Option<&str>,
+) -> Result<(), CommandError> {
+    for client in evidence {
+        if !client.detected || selected.is_some_and(|id| id != client.client_id.as_str()) {
+            continue;
+        }
+        if !legion_host::setup_registry::client_supports_live_qualification(&client.client_id) {
+            continue;
+        }
+        if client.command_proof_ref.is_none() || client.qualification_evidence_ref.is_none() {
+            return Err(CommandError::incomplete(format!(
+                "live setup requires commandProofRef and qualificationEvidenceRef for detected client {}; run legion setup repair --confirm",
+                client.client_id
+            )));
         }
     }
     Ok(())
@@ -673,6 +957,10 @@ async fn qualify_discovered_clients(
             qualified.push(client);
             continue;
         }
+        if !legion_host::setup_registry::client_supports_live_qualification(&client.client_id) {
+            qualified.push(client);
+            continue;
+        }
         let result = qualify_client(
             &client.client_id,
             release,
@@ -683,9 +971,8 @@ async fn qualify_discovered_clients(
         let (command, qualification) = match result {
             Ok(result) => result,
             Err(error) if error.code == 2 && !cancellation.is_cancelled() => {
-                // A missing or incompatible client is a truthful baseline.  Keep
-                // it in the request so registry + host repair can reconcile
-                // owned projections without inventing qualification evidence.
+                // Preserve detected-client evidence for the live ref gate in
+                // client_evidence; live setup must not execute a Baseline client.
                 qualified.push(client);
                 continue;
             }
@@ -1131,16 +1418,62 @@ fn parse_embedded_json(text: &str) -> Option<Value> {
     })
 }
 
-fn inspect_live_identity(host_integrations: &Value) -> Result<Value, CommandError> {
+fn inspect_live_identity(
+    host_integrations: &Value,
+    development: Option<&legion_host::DevelopmentSetupContext>,
+) -> Result<Value, CommandError> {
+    if let Some(context) = development {
+        let executable = std::env::current_exe().map_err(io_error)?;
+        let generation = format!("development:{}", context.process_identity);
+        return Ok(json!({
+            "origin": legion_host::setup_registry::ORIGIN_DEVELOPMENT,
+            "executablePath": executable,
+            "installRoot": Value::Null,
+            "stableCurrentRoot": Value::Null,
+            "stableCurrent": false,
+            "resolvedExecutable": std::fs::canonicalize(&executable).ok(),
+            "resolvedInstallRoot": Value::Null,
+            "generation": generation,
+            "port": context.port,
+            "processIdentity": context.process_identity,
+            "stateRoot": context.state_root,
+            "repositoryRoot": context.repository_root,
+            "executable": {"path": executable, "origin": legion_host::setup_registry::ORIGIN_DEVELOPMENT, "state": "development", "generation": generation},
+            "plugin": Value::Null,
+            "projections": host_integrations,
+        }));
+    }
     let installed = installed_release()?;
+    let origin = installed.origin_evidence();
+    let executable_path = origin.executable.clone();
+    let install_root = origin.install_root.clone().ok_or_else(|| {
+        CommandError::incomplete("installed release has no stable product install root")
+    })?;
+    let stable_current_root = install_root.join("current");
+    let resolved_executable = installed
+        .resolved_executable_path()
+        .map_err(|error| CommandError::incomplete(error.to_string()))?;
+    let resolved_install_root = installed
+        .resolved_install_root()
+        .map_err(|error| CommandError::incomplete(error.to_string()))?;
+    let generation = format!(
+        "{}:{}",
+        installed.manifest.release_version, installed.manifest.declarative_assets_sha256
+    );
     let executable_state = if installed.manifest.release_version == EXPECTED_RELEASE_VERSION {
         "current"
     } else {
         "stale"
     };
     let executable = json!({
-        "path": installed.executable_path.clone(),
+        "path": executable_path.clone(),
         "manifestPath": installed.manifest_path.clone(),
+        "origin": legion_host::setup_registry::ORIGIN_INSTALLED,
+        "installRoot": install_root.clone(),
+        "stableCurrentRoot": stable_current_root.clone(),
+        "resolvedExecutable": resolved_executable.clone(),
+        "resolvedInstallRoot": resolved_install_root.clone(),
+        "generation": generation.clone(),
         "releaseVersion": installed.manifest.release_version.clone(),
         "expectedReleaseVersion": EXPECTED_RELEASE_VERSION,
         "state": executable_state,
@@ -1149,8 +1482,16 @@ fn inspect_live_identity(host_integrations: &Value) -> Result<Value, CommandErro
         "runtimeArchitecture": installed.manifest.runtime.architecture.clone(),
     });
     let plugin = inspect_live_plugin(&installed, host_integrations);
-    let projections = inspect_live_projections(&installed.manifest, host_integrations);
+    let projections = inspect_live_projections(&installed, host_integrations);
     Ok(json!({
+        "origin": legion_host::setup_registry::ORIGIN_INSTALLED,
+        "executablePath": executable_path,
+        "installRoot": install_root,
+        "stableCurrentRoot": stable_current_root,
+        "stableCurrent": origin.stable_current,
+        "resolvedExecutable": resolved_executable,
+        "resolvedInstallRoot": resolved_install_root,
+        "generation": generation,
         "executable": executable,
         "plugin": plugin,
         "projections": projections,
@@ -1387,9 +1728,16 @@ fn inspect_plugin_root(
 }
 
 fn inspect_live_projections(
-    manifest: &legion_runtime::ReleaseManifest,
+    installed: &legion_runtime::release_binding::InstalledRelease,
     host_integrations: &Value,
 ) -> Value {
+    let manifest = &installed.manifest;
+    let origin = installed.origin_evidence();
+    let executable = origin.executable.clone();
+    let install_root = origin.install_root.clone();
+    let stable_current_root = install_root.as_ref().map(|path| path.join("current"));
+    let resolved_executable = installed.resolved_executable_path().ok();
+    let resolved_install_root = installed.resolved_install_root().ok();
     let generation = format!(
         "{}:{}",
         EXPECTED_RELEASE_VERSION, manifest.declarative_assets_sha256
@@ -1487,7 +1835,14 @@ fn inspect_live_projections(
             "claudeCodeLegacy".into(),
             json!({
                 "state": state,
-                "expectedGeneration": generation,
+                "origin": legion_host::setup_registry::ORIGIN_INSTALLED,
+                "executable": executable.clone(),
+                "installRoot": install_root.clone(),
+                "stableCurrentRoot": stable_current_root.clone(),
+                "resolvedExecutable": resolved_executable.clone(),
+                "resolvedInstallRoot": resolved_install_root.clone(),
+                "generation": generation.clone(),
+                "expectedGeneration": generation.clone(),
                 "canonicalSkillsRootTrusted": canonical_trusted,
                 "canonicalMissingSkillCount": missing,
                 "pluginCacheError": cache_error,
@@ -1546,9 +1901,76 @@ fn inspect_live_projections(
             "codexSkills".into(),
             json!({
                 "state": state,
-                "expectedGeneration": generation,
+                "origin": legion_host::setup_registry::ORIGIN_INSTALLED,
+                "executable": executable.clone(),
+                "installRoot": install_root.clone(),
+                "stableCurrentRoot": stable_current_root.clone(),
+                "resolvedExecutable": resolved_executable.clone(),
+                "resolvedInstallRoot": resolved_install_root.clone(),
+                "generation": generation.clone(),
+                "expectedGeneration": generation.clone(),
                 "ledgerError": ledger_error,
                 "statuses": statuses,
+            }),
+        );
+    }
+    for (client_id, key) in [
+        (legion_host::setup_registry::CLIENT_CLAUDE, "claudePlugin"),
+        (legion_host::setup_registry::CLIENT_CODEX, "codexPlugin"),
+        (legion_host::setup_registry::CLIENT_CURSOR, "cursorPlugin"),
+        (legion_host::setup_registry::CLIENT_PI, "piSkills"),
+        (
+            legion_host::setup_registry::CLIENT_ANTIGRAVITY,
+            "antigravityPlugin",
+        ),
+    ] {
+        let Some(projection) = integration_inspection(host_integrations, key) else {
+            continue;
+        };
+        let state = projection
+            .get("state")
+            .and_then(Value::as_str)
+            .unwrap_or("unknown");
+        projections.insert(
+            key.into(),
+            json!({
+                "clientId": client_id,
+                "selectedMechanism": projection.get("selectedMechanism"),
+                "projection": projection.get("projection"),
+                "state": state,
+                "origin": projection
+                    .get("origin")
+                    .cloned()
+                    .unwrap_or_else(|| Value::String(legion_host::setup_registry::ORIGIN_INSTALLED.into())),
+                "ownership": projection.get("ownership"),
+                "executable": projection
+                    .get("executable")
+                    .cloned()
+                    .unwrap_or_else(|| json!(executable.clone())),
+                "installRoot": projection
+                    .get("installRoot")
+                    .cloned()
+                    .unwrap_or_else(|| json!(install_root.clone())),
+                "stableCurrentRoot": projection
+                    .get("stableCurrentRoot")
+                    .cloned()
+                    .unwrap_or_else(|| json!(stable_current_root.clone())),
+                "resolvedExecutable": projection
+                    .get("resolvedExecutable")
+                    .cloned()
+                    .unwrap_or_else(|| json!(resolved_executable.clone())),
+                "resolvedInstallRoot": projection
+                    .get("resolvedInstallRoot")
+                    .cloned()
+                    .unwrap_or_else(|| json!(resolved_install_root.clone())),
+                "targetRoot": projection.get("targetRoot"),
+                "expectedGeneration": projection.get("expectedGeneration"),
+                "generation": projection.get("generation"),
+                "executableRegistration": projection.get("executableRegistration"),
+                "explicitOnly": projection.get("explicitOnly"),
+                "missingSurfaces": projection.get("missingSurfaces"),
+                "preserved": projection.get("preserved"),
+                "conflicts": projection.get("conflicts"),
             }),
         );
     }
@@ -1557,7 +1979,11 @@ fn inspect_live_projections(
 
 fn integration_inspection<'a>(integrations: &'a Value, key: &str) -> Option<&'a Value> {
     let value = integrations.get(key)?;
-    if value.get("canonicalSkillsRootTrusted").is_some() || value.get("destinationRoot").is_some() {
+    if value.get("canonicalSkillsRootTrusted").is_some()
+        || value.get("destinationRoot").is_some()
+        || value.get("targetRoot").is_some()
+        || value.get("projection").is_some()
+    {
         return Some(value);
     }
     value.get("inspection").or_else(|| {
@@ -1573,7 +1999,56 @@ fn setup_health(
     live_identity: &Value,
 ) -> (&'static str, Vec<String>) {
     let mut remediation = Vec::new();
-    if live_identity["executable"]["state"] != "current" {
+    let installed = live_identity.get("origin").and_then(Value::as_str)
+        == Some(legion_host::setup_registry::ORIGIN_INSTALLED);
+    let repair_command = if installed {
+        "run legion setup repair --confirm"
+    } else {
+        "rerun setup --development with identical context and repair --confirm"
+    };
+    if installed && live_identity.get("stableCurrent").and_then(Value::as_bool) != Some(true) {
+        remediation.push("production executable is not bound to stable current; run legion setup repair --confirm".into());
+    }
+    let executable_path = live_identity.get("executablePath").or_else(|| {
+        live_identity
+            .get("executable")
+            .and_then(|value| value.get("path"))
+    });
+    if installed
+        && !binding_fields_current(
+            live_identity.get("origin").and_then(Value::as_str),
+            executable_path,
+            live_identity.get("installRoot"),
+        )
+    {
+        remediation.push("production executable binding escaped stable current; run legion setup repair --confirm".into());
+    }
+    if installed
+        && !resolved_binding_current(
+            live_identity.get("origin").and_then(Value::as_str),
+            executable_path,
+            live_identity.get("installRoot"),
+            live_identity.get("resolvedExecutable"),
+            live_identity.get("resolvedInstallRoot"),
+        )
+    {
+        remediation.push(
+            "production executable resolved target escaped active release; run legion setup repair --confirm"
+                .into(),
+        );
+    }
+    if installed
+        && live_identity
+            .get("generation")
+            .and_then(Value::as_str)
+            .is_none()
+    {
+        remediation.push(
+            "production executable generation is unavailable; run legion setup repair --confirm"
+                .into(),
+        );
+    }
+    if installed && live_identity["executable"]["state"] != "current" {
         remediation.push(format!(
             "live Legion executable is stale ({}; expected {})",
             live_identity["executable"]["releaseVersion"]
@@ -1595,13 +2070,16 @@ fn setup_health(
                     .get("fidelity")
                     .and_then(Value::as_str)
                     .unwrap_or("Unavailable");
-                if !installed || fidelity != "Full" {
+                let client_id = client
+                    .get("clientId")
+                    .and_then(Value::as_str)
+                    .unwrap_or("unknown");
+                let pi_baseline =
+                    client_id == legion_host::setup_registry::CLIENT_PI && fidelity == "Baseline";
+                if !installed || (fidelity != "Full" && !pi_baseline) {
                     remediation.push(format!(
-                        "client {} is incomplete ({fidelity}); run legion setup repair --confirm",
-                        client
-                            .get("clientId")
-                            .and_then(Value::as_str)
-                            .unwrap_or("unknown")
+                        "client {} is incomplete ({fidelity}); {repair_command}",
+                        client_id
                     ));
                 }
             }
@@ -1619,8 +2097,53 @@ fn setup_health(
         for (client, projection) in projections {
             if let Some(state) = projection.get("state").and_then(Value::as_str) {
                 if state != "current" {
+                    remediation.push(format!("{client} projection is {state}; {repair_command}"));
+                }
+            }
+            if installed
+                && projection.get("origin").is_some()
+                && !binding_fields_current(
+                    projection.get("origin").and_then(Value::as_str),
+                    projection.get("executable"),
+                    projection.get("installRoot"),
+                )
+            {
+                remediation.push(format!(
+                    "{client} production binding escaped stable current; run legion setup repair --confirm"
+                ));
+            }
+            if installed
+                && projection.get("origin").is_some()
+                && !resolved_binding_current(
+                    projection.get("origin").and_then(Value::as_str),
+                    projection.get("executable"),
+                    projection.get("installRoot"),
+                    projection.get("resolvedExecutable"),
+                    projection.get("resolvedInstallRoot"),
+                )
+            {
+                remediation.push(format!(
+                    "{client} resolved target escaped active release; run legion setup repair --confirm"
+                ));
+            }
+            if installed
+                && projection.get("origin").is_some()
+                && projection
+                    .get("generation")
+                    .and_then(Value::as_str)
+                    .is_none()
+            {
+                remediation.push(format!(
+                    "{client} production generation is unavailable; run legion setup repair --confirm"
+                ));
+            }
+            if let (Some(expected), Some(actual)) = (
+                live_identity.get("generation").and_then(Value::as_str),
+                projection.get("generation").and_then(Value::as_str),
+            ) {
+                if expected != actual {
                     remediation.push(format!(
-                        "{client} projection is {state}; run legion setup repair --confirm"
+                        "{client} generation {actual} is stale; {repair_command}"
                     ));
                 }
             }
@@ -1645,16 +2168,256 @@ fn setup_health(
     }
 }
 
+fn binding_fields_current(
+    origin: Option<&str>,
+    executable: Option<&Value>,
+    install_root: Option<&Value>,
+) -> bool {
+    if origin != Some(legion_host::setup_registry::ORIGIN_INSTALLED) {
+        return false;
+    }
+    let Some(executable) = executable.and_then(Value::as_str) else {
+        return false;
+    };
+    let Some(install_root) = install_root.and_then(Value::as_str) else {
+        return false;
+    };
+    let executable = Path::new(executable);
+    let install_root = Path::new(install_root);
+    if !executable.is_absolute()
+        || !install_root.is_absolute()
+        || executable
+            .components()
+            .chain(install_root.components())
+            .any(|component| matches!(component, Component::ParentDir | Component::CurDir))
+    {
+        return false;
+    }
+    if executable.components().any(|component| {
+        let Component::Normal(name) = component else {
+            return false;
+        };
+        matches!(
+            name.to_string_lossy().to_ascii_lowercase().as_str(),
+            "repo" | "dist" | "target" | "node_modules"
+        )
+    }) || install_root.components().any(|component| {
+        let Component::Normal(name) = component else {
+            return false;
+        };
+        matches!(
+            name.to_string_lossy().to_ascii_lowercase().as_str(),
+            "repo" | "dist" | "target" | "node_modules"
+        )
+    }) {
+        return false;
+    }
+    let Some(bin) = executable.parent() else {
+        return false;
+    };
+    let Some(root) = bin.parent() else {
+        return false;
+    };
+    let stable_current_root = install_root.join("current");
+    let executable_name_matches = executable
+        .file_name()
+        .and_then(|name| name.to_str())
+        .is_some_and(|name| {
+            if cfg!(windows) {
+                name.eq_ignore_ascii_case("legion.exe")
+            } else {
+                name == "legion"
+            }
+        });
+    path_name_is(bin, "bin")
+        && path_name_is(root, "current")
+        && paths_equal(root, &stable_current_root)
+        && executable_name_matches
+}
+
+fn resolved_binding_current(
+    origin: Option<&str>,
+    executable: Option<&Value>,
+    install_root: Option<&Value>,
+    resolved_executable: Option<&Value>,
+    resolved_install_root: Option<&Value>,
+) -> bool {
+    if !binding_fields_current(origin, executable, install_root) {
+        return false;
+    }
+    let Some(install_root) = install_root.and_then(Value::as_str) else {
+        return false;
+    };
+    let Some(resolved_executable) = resolved_executable.and_then(Value::as_str) else {
+        return false;
+    };
+    let Some(resolved_install_root) = resolved_install_root.and_then(Value::as_str) else {
+        return false;
+    };
+    let install_root = Path::new(install_root);
+    let resolved_executable = Path::new(resolved_executable);
+    let resolved_install_root = Path::new(resolved_install_root);
+    if !resolved_executable.is_absolute()
+        || !resolved_install_root.is_absolute()
+        || resolved_executable
+            .components()
+            .chain(resolved_install_root.components())
+            .any(|component| matches!(component, Component::ParentDir | Component::CurDir))
+    {
+        return false;
+    }
+    if resolved_executable
+        .components()
+        .chain(resolved_install_root.components())
+        .any(|component| {
+            let Component::Normal(name) = component else {
+                return false;
+            };
+            matches!(
+                name.to_string_lossy().to_ascii_lowercase().as_str(),
+                "repo" | "dist" | "target" | "node_modules"
+            )
+        })
+    {
+        return false;
+    }
+    path_starts_with(resolved_install_root, install_root)
+        && path_starts_with(resolved_executable, resolved_install_root)
+        && resolved_executable
+            .file_name()
+            .and_then(|name| name.to_str())
+            .is_some_and(|name| {
+                if cfg!(windows) {
+                    name.eq_ignore_ascii_case("legion.exe")
+                } else {
+                    name == "legion"
+                }
+            })
+}
+
+fn path_name_is(path: &Path, expected: &str) -> bool {
+    path.file_name()
+        .and_then(|name| name.to_str())
+        .is_some_and(|actual| {
+            if cfg!(windows) {
+                actual.eq_ignore_ascii_case(expected)
+            } else {
+                actual == expected
+            }
+        })
+}
+
+fn paths_equal(left: &Path, right: &Path) -> bool {
+    if cfg!(windows) {
+        path_starts_with(left, right) && path_starts_with(right, left)
+    } else {
+        left == right
+    }
+}
+
+fn path_starts_with(path: &Path, root: &Path) -> bool {
+    if !cfg!(windows) {
+        return path.starts_with(root);
+    }
+    let normalize = |path: &Path| {
+        let normalized = path.to_string_lossy().replace('\\', "/");
+        let normalized = normalized.strip_prefix("//?/").unwrap_or(&normalized);
+        let normalized = normalized.strip_prefix("UNC/").unwrap_or(normalized);
+        normalized
+            .split('/')
+            .filter(|component| !component.is_empty() && *component != ".")
+            .map(|component| component.to_ascii_lowercase())
+            .collect::<Vec<_>>()
+    };
+    let path = normalize(path);
+    let root = normalize(root);
+    path.len() >= root.len()
+        && path
+            .iter()
+            .zip(root.iter())
+            .all(|(path, root)| path == root)
+}
+
+fn enrich_client_statuses(mut clients: Value, live_identity: &Value) -> Value {
+    let Some(values) = clients.as_array_mut() else {
+        return clients;
+    };
+    let origin = live_identity
+        .get("origin")
+        .cloned()
+        .unwrap_or_else(|| Value::String(legion_host::setup_registry::ORIGIN_INSTALLED.into()));
+    let executable = live_identity
+        .get("executablePath")
+        .cloned()
+        .or_else(|| {
+            live_identity
+                .get("executable")
+                .and_then(|value| value.get("path"))
+                .cloned()
+        })
+        .unwrap_or(Value::Null);
+    let install_root = live_identity
+        .get("installRoot")
+        .cloned()
+        .unwrap_or(Value::Null);
+    let stable_current_root = live_identity
+        .get("stableCurrentRoot")
+        .cloned()
+        .unwrap_or(Value::Null);
+    let resolved_executable = live_identity
+        .get("resolvedExecutable")
+        .cloned()
+        .unwrap_or(Value::Null);
+    let resolved_install_root = live_identity
+        .get("resolvedInstallRoot")
+        .cloned()
+        .unwrap_or(Value::Null);
+    let generation = live_identity
+        .get("generation")
+        .cloned()
+        .unwrap_or(Value::Null);
+    for value in values {
+        let Some(object) = value.as_object_mut() else {
+            continue;
+        };
+        let Some(client_id) = object.get("clientId").and_then(Value::as_str) else {
+            continue;
+        };
+        let Some(profile) = legion_host::setup_registry::client_boundary(client_id) else {
+            continue;
+        };
+        object.insert(
+            "selectedMechanism".into(),
+            Value::String(profile.selected_mechanism),
+        );
+        object.insert("projection".into(), Value::String(profile.projection));
+        object.insert(
+            "executableRegistration".into(),
+            Value::Bool(profile.executable_registration),
+        );
+        object.insert("explicitOnly".into(), Value::Bool(profile.explicit_only));
+        object.insert("origin".into(), origin.clone());
+        object.insert("executable".into(), executable.clone());
+        object.insert("installRoot".into(), install_root.clone());
+        object.insert("stableCurrentRoot".into(), stable_current_root.clone());
+        object.insert("resolvedExecutable".into(), resolved_executable.clone());
+        object.insert("resolvedInstallRoot".into(), resolved_install_root.clone());
+        object.insert("generation".into(), generation.clone());
+    }
+    clients
+}
+
 struct HostIntegrationInputs {
     claude: Option<legion_host::ClaudeLegacyInput>,
     codex: Option<legion_host::CodexSkillsInput>,
+    client_projections: Vec<legion_host::setup_registry::ClientProjectionInput>,
 }
 
 fn inspect_host_integrations(
     selector: &legion_host::ClientSelector,
     release: &legion_host::BoundRelease,
 ) -> Result<Value, CommandError> {
-    let inputs = host_integration_inputs(selector, release)?;
+    let inputs = host_integration_inputs_installed(selector, release)?;
     let mut integrations = serde_json::Map::new();
     if let Some(input) = &inputs.claude {
         integrations.insert(
@@ -1670,87 +2433,177 @@ fn inspect_host_integrations(
                 .map_err(|error| CommandError::incomplete(error.to_string()))?,
         );
     }
+    for input in &inputs.client_projections {
+        let key = projection_key(&input.client_id);
+        integrations.insert(
+            key.into(),
+            serde_json::to_value(
+                legion_host::setup_registry::inspect_client_projection(input)
+                    .map_err(setup_error)?,
+            )
+            .map_err(|error| CommandError::incomplete(error.to_string()))?,
+        );
+    }
     Ok(Value::Object(integrations))
 }
 
 fn preview_host_integrations(request: &legion_host::SetupRequest) -> Result<Value, CommandError> {
-    let inputs = host_integration_inputs(&request.selector, &request.release)?;
+    let inputs = host_integration_inputs(request)?;
     let mut integrations = serde_json::Map::new();
-    if let Some(input) = &inputs.claude {
-        integrations.insert(
-            "claudeCodeLegacy".into(),
-            serde_json::to_value(legion_host::inspect_claude_legacy(input).map_err(host_error)?)
+    if should_process_client(request, legion_host::setup_registry::CLIENT_CLAUDE) {
+        if let Some(input) = &inputs.claude {
+            integrations.insert(
+                "claudeCodeLegacy".into(),
+                serde_json::to_value(
+                    legion_host::inspect_claude_legacy(input).map_err(host_error)?,
+                )
                 .map_err(|error| CommandError::incomplete(error.to_string()))?,
-        );
+            );
+        }
     }
-    if let Some(input) = &inputs.codex {
-        let preview = match request.action {
-            legion_host::SetupAction::Remove | legion_host::SetupAction::Purge => {
-                legion_host::preview_remove_codex_skills(input)
-            }
-            legion_host::SetupAction::Apply | legion_host::SetupAction::Repair => {
-                legion_host::preview_codex_skills(input)
-            }
-            _ => {
-                integrations.insert(
-                    "codexSkills".into(),
-                    serde_json::to_value(
-                        legion_host::inspect_codex_skills(input).map_err(host_error)?,
-                    )
-                    .map_err(|error| CommandError::incomplete(error.to_string()))?,
-                );
-                return Ok(Value::Object(integrations));
+    if should_process_client(request, legion_host::setup_registry::CLIENT_CODEX) {
+        if let Some(input) = &inputs.codex {
+            match request.action {
+                legion_host::SetupAction::Remove | legion_host::SetupAction::Purge => {
+                    let preview =
+                        legion_host::preview_remove_codex_skills(input).map_err(host_error)?;
+                    integrations.insert(
+                        "codexSkills".into(),
+                        serde_json::to_value(preview)
+                            .map_err(|error| CommandError::incomplete(error.to_string()))?,
+                    );
+                }
+                legion_host::SetupAction::Apply | legion_host::SetupAction::Repair => {
+                    let preview = legion_host::preview_codex_skills(input).map_err(host_error)?;
+                    integrations.insert(
+                        "codexSkills".into(),
+                        serde_json::to_value(preview)
+                            .map_err(|error| CommandError::incomplete(error.to_string()))?,
+                    );
+                }
+                _ => {
+                    let inspection =
+                        legion_host::inspect_codex_skills(input).map_err(host_error)?;
+                    integrations.insert(
+                        "codexSkills".into(),
+                        serde_json::to_value(inspection)
+                            .map_err(|error| CommandError::incomplete(error.to_string()))?,
+                    );
+                }
             }
         }
-        .map_err(host_error)?;
+    }
+    for input in &inputs.client_projections {
+        if !should_process_client(request, &input.client_id) {
+            continue;
+        }
+        let key = projection_key(&input.client_id);
         integrations.insert(
-            "codexSkills".into(),
-            serde_json::to_value(preview)
-                .map_err(|error| CommandError::incomplete(error.to_string()))?,
+            key.into(),
+            serde_json::to_value(
+                legion_host::setup_registry::inspect_client_projection(input)
+                    .map_err(setup_error)?,
+            )
+            .map_err(|error| CommandError::incomplete(error.to_string()))?,
         );
     }
     Ok(Value::Object(integrations))
 }
 
 fn apply_host_integrations(request: &legion_host::SetupRequest) -> Result<Value, CommandError> {
-    let inputs = host_integration_inputs(&request.selector, &request.release)?;
+    let inputs = host_integration_inputs(request)?;
     let mut integrations = serde_json::Map::new();
-    if let Some(input) = &inputs.claude {
-        let value = match request.action {
-            legion_host::SetupAction::Repair
-            | legion_host::SetupAction::Remove
-            | legion_host::SetupAction::Purge => {
-                serde_json::to_value(legion_host::repair_claude_legacy(input).map_err(host_error)?)
+    if should_process_client(request, legion_host::setup_registry::CLIENT_CLAUDE) {
+        if let Some(input) = &inputs.claude {
+            let value = match request.action {
+                legion_host::SetupAction::Apply
+                | legion_host::SetupAction::Repair
+                | legion_host::SetupAction::Remove
+                | legion_host::SetupAction::Purge => serde_json::to_value(
+                    legion_host::repair_claude_legacy(input).map_err(host_error)?,
+                ),
+                _ => serde_json::to_value(
+                    legion_host::inspect_claude_legacy(input).map_err(host_error)?,
+                ),
             }
-            _ => {
-                serde_json::to_value(legion_host::inspect_claude_legacy(input).map_err(host_error)?)
-            }
+            .map_err(|error| CommandError::incomplete(error.to_string()))?;
+            integrations.insert("claudeCodeLegacy".into(), value);
         }
-        .map_err(|error| CommandError::incomplete(error.to_string()))?;
-        integrations.insert("claudeCodeLegacy".into(), value);
     }
-    if let Some(input) = &inputs.codex {
-        let value = match request.action {
-            legion_host::SetupAction::Apply => {
-                serde_json::to_value(legion_host::apply_codex_skills(input).map_err(host_error)?)
+    if should_process_client(request, legion_host::setup_registry::CLIENT_CODEX) {
+        if let Some(input) = &inputs.codex {
+            let value = match request.action {
+                legion_host::SetupAction::Apply => serde_json::to_value(
+                    legion_host::apply_codex_skills(input).map_err(host_error)?,
+                ),
+                legion_host::SetupAction::Repair => serde_json::to_value(
+                    legion_host::repair_codex_skills(input).map_err(host_error)?,
+                ),
+                legion_host::SetupAction::Remove | legion_host::SetupAction::Purge => {
+                    serde_json::to_value(
+                        legion_host::remove_codex_skills(input).map_err(host_error)?,
+                    )
+                }
+                _ => serde_json::to_value(
+                    legion_host::inspect_codex_skills(input).map_err(host_error)?,
+                ),
             }
-            legion_host::SetupAction::Repair => {
-                serde_json::to_value(legion_host::repair_codex_skills(input).map_err(host_error)?)
+            .map_err(|error| CommandError::incomplete(error.to_string()))?;
+            integrations.insert("codexSkills".into(), value);
+        }
+    }
+    for input in &inputs.client_projections {
+        if !should_process_client(request, &input.client_id) {
+            continue;
+        }
+        let key = projection_key(&input.client_id);
+        let value = match request.action {
+            legion_host::SetupAction::Apply | legion_host::SetupAction::Repair => {
+                serde_json::to_value(
+                    legion_host::setup_registry::repair_client_projection(input)
+                        .map_err(setup_error)?,
+                )
             }
             legion_host::SetupAction::Remove | legion_host::SetupAction::Purge => {
-                serde_json::to_value(legion_host::remove_codex_skills(input).map_err(host_error)?)
+                serde_json::to_value(
+                    legion_host::setup_registry::remove_client_projection(input)
+                        .map_err(setup_error)?,
+                )
             }
-            _ => {
-                serde_json::to_value(legion_host::inspect_codex_skills(input).map_err(host_error)?)
-            }
+            _ => serde_json::to_value(
+                legion_host::setup_registry::inspect_client_projection(input)
+                    .map_err(setup_error)?,
+            ),
         }
         .map_err(|error| CommandError::incomplete(error.to_string()))?;
-        integrations.insert("codexSkills".into(), value);
+        integrations.insert(key.into(), value);
     }
     Ok(Value::Object(integrations))
 }
 
+fn should_process_client(request: &legion_host::SetupRequest, client_id: &str) -> bool {
+    match &request.selector {
+        legion_host::ClientSelector::ClientId(selected) => selected == client_id,
+        legion_host::ClientSelector::AllSupported => request
+            .client_evidence
+            .iter()
+            .any(|evidence| evidence.client_id == client_id && evidence.detected),
+    }
+}
+
 fn host_integration_inputs(
+    request: &legion_host::SetupRequest,
+) -> Result<HostIntegrationInputs, CommandError> {
+    if request.origin == legion_host::setup_registry::ORIGIN_DEVELOPMENT {
+        let context = request.development.as_ref().ok_or_else(|| {
+            CommandError::usage("development setup requires an explicit execution context")
+        })?;
+        return development_host_integration_inputs(&request.selector, &request.release, context);
+    }
+    host_integration_inputs_installed(&request.selector, &request.release)
+}
+
+fn host_integration_inputs_installed(
     selector: &legion_host::ClientSelector,
     release: &legion_host::BoundRelease,
 ) -> Result<HostIntegrationInputs, CommandError> {
@@ -1762,6 +2615,11 @@ fn host_integration_inputs(
             "installed release changed while setup request was active",
         ));
     }
+    let origin = installed.origin_evidence();
+    let executable = origin.executable.clone();
+    let install_root = origin.install_root.clone().ok_or_else(|| {
+        CommandError::incomplete("installed release has no stable product install root")
+    })?;
     let release_root = installed.manifest_path.parent().ok_or_else(|| {
         CommandError::incomplete("installed release manifest has no parent directory")
     })?;
@@ -1788,17 +2646,233 @@ fn host_integration_inputs(
             current_skill_ids: current_skill_ids.clone(),
         });
     let codex = selector_includes(selector, "codex").then(|| legion_host::CodexSkillsInput {
-        home,
+        home: home.clone(),
         assets_skills_root: skills_root,
         platform_state_root,
-        current_skill_ids,
+        current_skill_ids: current_skill_ids.clone(),
         retired_skill_ids: vec![legion_host::RETIRED_BLUEPRINT_SKILL_ID.into()],
         generation: format!(
             "{}:{}",
             release.release_version, release.declarative_asset_schema_hash
         ),
     });
-    Ok(HostIntegrationInputs { claude, codex })
+    let plugin_source_root = release_root.join("plugin");
+    let generation = format!(
+        "{}:{}",
+        release.release_version, release.declarative_asset_schema_hash
+    );
+    let client_projections = [
+        (
+            legion_host::setup_registry::CLIENT_CLAUDE,
+            "native-plugin",
+            home.join(".claude/plugins/legion"),
+            true,
+            false,
+            plugin_source_root.clone(),
+        ),
+        (
+            legion_host::setup_registry::CLIENT_CODEX,
+            "agent-plugins-with-explicit-sidecar",
+            home.join(".codex/plugins/legion"),
+            true,
+            true,
+            plugin_source_root.clone(),
+        ),
+        (
+            legion_host::setup_registry::CLIENT_CURSOR,
+            "agent-plugins-with-thin-sidecar",
+            home.join(".cursor/plugins/legion"),
+            true,
+            false,
+            plugin_source_root.clone(),
+        ),
+        (
+            legion_host::setup_registry::CLIENT_PI,
+            "skills-only",
+            home.join(".agents/skills"),
+            false,
+            true,
+            assets_root.join("skills"),
+        ),
+        (
+            legion_host::setup_registry::CLIENT_ANTIGRAVITY,
+            "native-plugin",
+            home.join(".antigravity/plugins/legion"),
+            true,
+            false,
+            plugin_source_root,
+        ),
+    ]
+    .into_iter()
+    .filter(|(client_id, ..)| selector_includes(selector, client_id))
+    .map(
+        |(
+            client_id,
+            projection,
+            target_root,
+            executable_registration,
+            explicit_only,
+            source_root,
+        )| {
+            Ok(legion_host::setup_registry::ClientProjectionInput {
+                client_id: client_id.into(),
+                projection: projection.into(),
+                source_root,
+                target_root,
+                state_root: legion_host::platform_state_root().map_err(setup_error)?,
+                origin: legion_host::setup_registry::ORIGIN_INSTALLED.into(),
+                executable: Some(executable.clone()),
+                install_root: Some(install_root.clone()),
+                generation: generation.clone(),
+                executable_registration,
+                explicit_only,
+                skill_ids: current_skill_ids.clone(),
+            })
+        },
+    )
+    .collect::<Result<Vec<_>, CommandError>>()?;
+    Ok(HostIntegrationInputs {
+        claude,
+        codex,
+        client_projections,
+    })
+}
+
+fn development_host_integration_inputs(
+    selector: &legion_host::ClientSelector,
+    release: &legion_host::BoundRelease,
+    context: &legion_host::DevelopmentSetupContext,
+) -> Result<HostIntegrationInputs, CommandError> {
+    let repo_assets = context.repository_root.join("engine/assets/legion-plugin");
+    let state_root = context.state_root.clone();
+    let home = state_root.join("clients");
+    let source = |client_id: &str, fallback: PathBuf| {
+        context
+            .client_overrides
+            .get(client_id)
+            .map(|item| item.source_root.clone())
+            .unwrap_or(fallback)
+    };
+    let target = |client_id: &str, fallback: PathBuf| {
+        context
+            .client_overrides
+            .get(client_id)
+            .map(|item| item.target_root.clone())
+            .unwrap_or(fallback)
+    };
+    let plugin_source = source("claude-code", repo_assets.clone());
+    let skills_source = source("pi", repo_assets.join("skills"));
+    let current_skill_ids = Vec::new();
+    let claude =
+        selector_includes(selector, "claude-code").then(|| legion_host::ClaudeLegacyInput {
+            home: home.clone(),
+            canonical_skills_root: plugin_source.join("skills"),
+            current_skill_ids: current_skill_ids.clone(),
+        });
+    let codex = selector_includes(selector, "codex").then(|| legion_host::CodexSkillsInput {
+        home: home.clone(),
+        assets_skills_root: skills_source.clone(),
+        platform_state_root: state_root.clone(),
+        current_skill_ids: current_skill_ids.clone(),
+        retired_skill_ids: vec![legion_host::RETIRED_BLUEPRINT_SKILL_ID.into()],
+        generation: format!(
+            "{}:{}",
+            release.release_version, release.declarative_asset_schema_hash
+        ),
+    });
+    let generation = format!(
+        "{}:{}",
+        release.release_version, release.declarative_asset_schema_hash
+    );
+    let definitions = [
+        (
+            legion_host::setup_registry::CLIENT_CLAUDE,
+            "native-plugin",
+            true,
+            false,
+            repo_assets.clone(),
+            home.join("claude/plugins/legion"),
+        ),
+        (
+            legion_host::setup_registry::CLIENT_CODEX,
+            "agent-plugins-with-explicit-sidecar",
+            true,
+            true,
+            repo_assets.clone(),
+            home.join("codex/plugins/legion"),
+        ),
+        (
+            legion_host::setup_registry::CLIENT_CURSOR,
+            "agent-plugins-with-thin-sidecar",
+            true,
+            false,
+            repo_assets.clone(),
+            home.join("cursor/plugins/legion"),
+        ),
+        (
+            legion_host::setup_registry::CLIENT_PI,
+            "skills-only",
+            false,
+            true,
+            repo_assets.join("skills"),
+            home.join("agents/skills"),
+        ),
+        (
+            legion_host::setup_registry::CLIENT_ANTIGRAVITY,
+            "native-plugin",
+            true,
+            false,
+            repo_assets,
+            home.join("antigravity/plugins/legion"),
+        ),
+    ];
+    let client_projections = definitions
+        .into_iter()
+        .filter(|(id, ..)| selector_includes(selector, id))
+        .map(
+            |(
+                client_id,
+                projection,
+                executable_registration,
+                explicit_only,
+                fallback_source,
+                fallback_target,
+            )| {
+                let source_root = source(client_id, fallback_source);
+                let target_root = target(client_id, fallback_target);
+                Ok(legion_host::setup_registry::ClientProjectionInput {
+                    client_id: client_id.into(),
+                    projection: projection.into(),
+                    source_root,
+                    target_root,
+                    state_root: state_root.clone(),
+                    origin: legion_host::setup_registry::ORIGIN_DEVELOPMENT.into(),
+                    executable: Some(std::env::current_exe().map_err(io_error)?),
+                    install_root: None,
+                    generation: generation.clone(),
+                    executable_registration,
+                    explicit_only,
+                    skill_ids: current_skill_ids.clone(),
+                })
+            },
+        )
+        .collect::<Result<Vec<_>, CommandError>>()?;
+    Ok(HostIntegrationInputs {
+        claude,
+        codex,
+        client_projections,
+    })
+}
+
+fn projection_key(client_id: &str) -> &'static str {
+    match client_id {
+        legion_host::setup_registry::CLIENT_CLAUDE => "claudePlugin",
+        legion_host::setup_registry::CLIENT_CODEX => "codexPlugin",
+        legion_host::setup_registry::CLIENT_CURSOR => "cursorPlugin",
+        legion_host::setup_registry::CLIENT_PI => "piSkills",
+        legion_host::setup_registry::CLIENT_ANTIGRAVITY => "antigravityPlugin",
+        _ => "unknownPlugin",
+    }
 }
 
 fn selector_includes(selector: &legion_host::ClientSelector, client_id: &str) -> bool {
@@ -1840,10 +2914,36 @@ fn discovered_client_evidence(selected: Option<&str>) -> Vec<legion_host::Client
     let home = std::env::var_os("USERPROFILE")
         .or_else(|| std::env::var_os("HOME"))
         .map(PathBuf::from);
-    let clients = [("claude-code", ".claude"), ("codex", ".codex")];
+    let clients = [
+        (
+            legion_host::setup_registry::CLIENT_CLAUDE,
+            ".claude",
+            vec!["claude-native-plugin", QUALIFICATION_MECHANISM],
+        ),
+        (
+            legion_host::setup_registry::CLIENT_CODEX,
+            ".codex",
+            vec!["codex-agent-plugins", QUALIFICATION_MECHANISM],
+        ),
+        (
+            legion_host::setup_registry::CLIENT_CURSOR,
+            ".cursor",
+            vec!["cursor-agent-plugins"],
+        ),
+        (
+            legion_host::setup_registry::CLIENT_PI,
+            ".agents",
+            vec!["pi-skills-only"],
+        ),
+        (
+            legion_host::setup_registry::CLIENT_ANTIGRAVITY,
+            ".antigravity",
+            vec!["antigravity-native-plugin"],
+        ),
+    ];
     clients
         .into_iter()
-        .filter_map(|(client_id, relative)| {
+        .filter_map(|(client_id, relative, mechanisms)| {
             if selected.is_some_and(|value| value != client_id) {
                 return None;
             }
@@ -1857,7 +2957,7 @@ fn discovered_client_evidence(selected: Option<&str>) -> Vec<legion_host::Client
             Some(legion_host::ClientEvidence {
                 client_id: client_id.into(),
                 detected,
-                mechanisms: vec!["agent-plugins-bare-command".into()],
+                mechanisms: mechanisms.into_iter().map(String::from).collect(),
                 command_proof_ref: None,
                 qualification_evidence_ref: None,
             })
@@ -1865,9 +2965,42 @@ fn discovered_client_evidence(selected: Option<&str>) -> Vec<legion_host::Client
         .collect()
 }
 
+fn development_client_evidence(selected: Option<&str>) -> Vec<legion_host::ClientEvidence> {
+    [
+        legion_host::setup_registry::CLIENT_CLAUDE,
+        legion_host::setup_registry::CLIENT_CODEX,
+        legion_host::setup_registry::CLIENT_CURSOR,
+        legion_host::setup_registry::CLIENT_PI,
+        legion_host::setup_registry::CLIENT_ANTIGRAVITY,
+    ]
+    .into_iter()
+    .filter(|id| selected.is_none_or(|value| value == *id))
+    .map(|client_id| legion_host::ClientEvidence {
+        client_id: client_id.into(),
+        detected: true,
+        mechanisms: vec!["development-explicit-context".into()],
+        command_proof_ref: None,
+        qualification_evidence_ref: None,
+    })
+    .collect()
+}
+
 fn open_registry(
     request: &legion_host::SetupRequest,
 ) -> Result<legion_host::SetupRegistry<legion_host::OnDiskSetupStore>, CommandError> {
+    if request.origin == legion_host::setup_registry::ORIGIN_DEVELOPMENT {
+        let context = request.development.as_ref().ok_or_else(|| {
+            CommandError::usage("development setup requires an explicit execution context")
+        })?;
+        if request.release != bound_release_for_context(Some(context))? {
+            return Err(setup_error(legion_host::SetupError {
+                code: legion_host::SetupErrorCode::ReleaseBindingMismatch,
+                remediation: "development setup plan release differs from its explicit context; regenerate the plan".into(),
+            }));
+        }
+        return legion_host::SetupRegistry::open_development(request.release.clone(), context)
+            .map_err(setup_error);
+    }
     let release = installed_bound_release()?;
     if request.release != release {
         return Err(setup_error(legion_host::SetupError {
@@ -1885,6 +3018,61 @@ fn selector(client: Option<String>) -> legion_host::ClientSelector {
         .filter(|client| !client.trim().is_empty())
         .map(legion_host::ClientSelector::ClientId)
         .unwrap_or(legion_host::ClientSelector::AllSupported)
+}
+
+fn bound_release_for_context(
+    context: Option<&legion_host::DevelopmentSetupContext>,
+) -> Result<legion_host::BoundRelease, CommandError> {
+    if context.is_none() {
+        return installed_bound_release();
+    }
+    Ok(legion_host::BoundRelease {
+        release_version: format!("development-{}", EXPECTED_RELEASE_VERSION),
+        runtime_digest: "development".into(),
+        capability_catalog_hash: "development".into(),
+        mcp_tool_schema_hash: "development".into(),
+        declarative_asset_schema_hash: "development".into(),
+        state_compatibility: "development".into(),
+    })
+}
+
+fn development_status(
+    args: SetupClientArgs,
+    context: legion_host::DevelopmentSetupContext,
+) -> CommandResult {
+    let release = bound_release_for_context(Some(&context))?;
+    let selector = selector(args.client);
+    let platform_state_root = context.state_root.clone();
+    let evidence = discovered_client_evidence(None);
+    let request = legion_host::SetupRequest {
+        action: legion_host::SetupAction::Status,
+        selector: selector.clone(),
+        release: release.clone(),
+        platform_state_root,
+        client_evidence: evidence,
+        dry_run: true,
+        origin: legion_host::setup_registry::ORIGIN_DEVELOPMENT.into(),
+        development: Some(context.clone()),
+    };
+    let mut registry =
+        legion_host::SetupRegistry::open_development(release, &context).map_err(setup_error)?;
+    let recovery = registry.recover().map_err(setup_error)?;
+    let clients = registry.status(&selector).map_err(setup_error)?;
+    let integrations = preview_host_integrations(&request)?;
+    let clients_value = serde_json::to_value(&clients)
+        .map_err(|error| CommandError::incomplete(error.to_string()))?;
+    let identity = inspect_live_identity(&integrations, request.development.as_ref())?;
+    let clients_value = enrich_client_statuses(clients_value, &identity);
+    let (status, remediation) = setup_health(&clients_value, &integrations, &identity);
+    Ok(json!({
+        "schemaVersion": 1, "kind": "legion-setup-status", "status": status,
+        "origin": legion_host::setup_registry::ORIGIN_DEVELOPMENT,
+        "executable": identity.get("executablePath"), "installRoot": Value::Null,
+        "generation": identity.get("generation"), "development": context,
+        "port": identity.get("port"), "processIdentity": identity.get("processIdentity"),
+        "remediation": remediation, "recovery": recovery, "clients": clients_value,
+        "hostIntegrations": integrations, "liveIdentity": identity,
+    }))
 }
 
 fn read_json<T: serde::de::DeserializeOwned>(
@@ -1958,8 +3146,8 @@ mod tests {
             declarative_assets_sha256: digest,
             state_schema_version: 1,
             rightkit_ax: legion_runtime::RightkitAxIdentity {
-                version: "0.2.0".into(),
-                source_commit: "01f52555202da3dffc6b649ca44e803b55238081".into(),
+                version: "0.2.1".into(),
+                source_commit: "4c1a414269d8ffdb95b4b1e685440bd34784b41b".into(),
             },
         }
     }
@@ -2015,6 +3203,49 @@ mod tests {
             parsed.host_requirements[0]["degradation"],
             "worker unavailable"
         );
+    }
+
+    #[tokio::test]
+    async fn live_validation_rejects_null_proof_refs_but_preview_keeps_baseline() {
+        let temp = TempRoot::new("missing-proof-refs");
+        let manifest = test_release_manifest();
+        let release = bound_release(&manifest);
+        for (command_proof_ref, qualification_evidence_ref) in [
+            (None, Some("qualification.json")),
+            (Some("command.json"), None),
+            (None, None),
+        ] {
+            let evidence = vec![legion_host::ClientEvidence {
+                client_id: "codex".into(),
+                detected: true,
+                mechanisms: vec![QUALIFICATION_MECHANISM.into()],
+                command_proof_ref: command_proof_ref.map(str::to_owned),
+                qualification_evidence_ref: qualification_evidence_ref.map(str::to_owned),
+            }];
+            let live = validate_client_evidence(
+                &evidence,
+                Some("codex"),
+                &release,
+                &temp.0,
+                true,
+                CancellationToken::new(),
+            )
+            .await
+            .expect_err("live validation must reject incomplete detected-client evidence");
+            assert_eq!(live.code, 2);
+            assert!(live.message.contains("codex"));
+
+            validate_client_evidence(
+                &evidence,
+                Some("codex"),
+                &release,
+                &temp.0,
+                false,
+                CancellationToken::new(),
+            )
+            .await
+            .expect("preview validation keeps baseline semantics");
+        }
     }
 
     #[test]
@@ -2102,6 +3333,7 @@ mod tests {
             "fidelity": "Unavailable"
         }]);
         let live_identity = json!({
+            "origin": legion_host::setup_registry::ORIGIN_INSTALLED,
             "executable": {"state": "current"},
             "plugin": {"state": "current"},
             "projections": {"codexSkills": {"state": "stale"}}

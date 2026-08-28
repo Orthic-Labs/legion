@@ -1,7 +1,12 @@
-# Package-manager channels
+# Distribution channels
 
-Homebrew & WinGet channels are unavailable until signed installed-product qualification emits immutable release URLs, checksums, provenance, & publication grants. Repository carries no placeholder formula or pseudo-manifest that could be mistaken for publishable output.
+Primary public distribution is one branded PowerShell bootstrap command. R2 hosts bootstrap only;
+immutable GitHub Releases own signed native payloads. Current channel state is recorded in
+`packaging/channels.json`.
 
-Canonical channel identity lives in `packaging/channels.json`; product version lives in `release/version.json`. RightKit Release owns final Homebrew formula & WinGet manifest generation from qualified release bytes.
+Homebrew & WinGet are optional future aliases. They are not release-readiness evidence & cannot
+become another payload or manifest authority.
 
-`release/distribution-contract.json` is publication SSOT. Release policy, private Node package state, channel ledger, & guards must stay consistent with it. Blocked workflows remain blocked until every required evidence class is satisfied together.
+`release/distribution-contract.json` is machine publication SSOT; product architecture lives in
+`docs/LEGION-DISTRIBUTION-AND-CLIENT-INTEGRATION.md`. RightKit Release owns shared bootstrap,
+signed-manifest, immutable GitHub publication, & transaction primitives. Legion owns activation.

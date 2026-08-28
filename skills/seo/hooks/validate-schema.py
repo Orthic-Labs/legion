@@ -4,7 +4,7 @@
 Validates JSON-LD schema after file edits. Returns exit code 2 to block
 if critical validation errors found.
 
-Hook configuration in <private-overlay>/settings.json:
+Hook configuration in host settings:
 {
   "hooks": {
     "PostToolUse": [

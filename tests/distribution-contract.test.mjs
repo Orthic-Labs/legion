@@ -5,6 +5,6 @@ import { validateDistributionContract } from '../scripts/check-distribution-cont
 
 const root = fileURLToPath(new URL('..', import.meta.url));
 
-test('distribution contract keeps Node private and native release blocked coherently', () => {
+test('distribution contract keeps Node private and direct bootstrap blocked coherently', () => {
   assert.deepEqual(validateDistributionContract(root), { ok: true, issues: [] });
 });

@@ -1,24 +1,68 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "kind": "legion-publication-policy",
   "contract": "release/distribution-contract.json",
-  "note": "Node package is private development tooling. Public distribution remains blocked until signed native-release evidence is complete.",
+  "note": "Node package stays private development tooling. Public payloads use immutable GitHub Releases; branded R2 serves bootstrap only.",
+  "publisher": "rightkit-release",
+  "authority": {
+    "payload": "immutable-github-release",
+    "bootstrap": "branded-r2-bootstrap-only",
+    "manifestAuthority": "release-manifest.json+release-manifest.cat",
+    "manifest": {
+      "file": "release-manifest.json",
+      "signature": "release-manifest.cat",
+      "signatureAlgorithm": "authenticode-catalog-sha256",
+      "signatureProvider": "windows-authenticode-catalog",
+      "signatureProviderVersion": 1
+    },
+    "checksums": {
+      "file": "checksums.json",
+      "role": "manifest-bound-convenience"
+    }
+  },
   "channels": {
     "npm": {
       "allowed": false,
       "reason": "private-development-tooling"
     },
-    "signed-release": {
+    "direct-bootstrap": {
       "allowed": false,
       "reason": "release-readiness-evidence-incomplete",
+      "payloadAuthority": "immutable-github-release",
+      "bootstrapProvider": "rightapps-downloads-r2",
+      "bootstrapMode": "branded-bootstrap-only",
+      "stableUrl": "https://legion.orthiclabs.com/install.ps1",
+      "manifestAuthority": "release-manifest.json+release-manifest.cat",
+      "manifest": {
+        "file": "release-manifest.json",
+        "signature": "release-manifest.cat",
+        "signatureAlgorithm": "authenticode-catalog-sha256",
+        "signatureProvider": "windows-authenticode-catalog",
+        "signatureProviderVersion": 1
+      },
+      "checksums": {
+        "file": "checksums.json",
+        "role": "manifest-bound-convenience"
+      },
+      "publisher": "rightkit-release",
       "requiredEvidence": [
-        "immutable-action-pins",
         "platform-artifacts",
         "platform-signatures",
         "provenance-attestations",
-        "package-manager-metadata",
+        "signed-release-manifest",
+        "bootstrap-transaction",
+        "rollback-transaction",
+        "client-integration-health",
         "channel-authorization"
       ]
+    },
+    "homebrew": {
+      "allowed": false,
+      "reason": "optional-alias-not-required"
+    },
+    "winget": {
+      "allowed": false,
+      "reason": "optional-alias-not-required"
     }
   }
 }

@@ -15,10 +15,8 @@ pub mod uninstall;
 pub mod verify;
 
 pub use agent_plugins::{
-    assemble_clean_room, classify_external_qualification, validate_templates, AssembledPackage,
-    ExternalQualification, ExternalQualificationInputs, ExternalQualificationStatus,
-    PinnedAxEvidence, PortableTemplates, VerifiedPortableInputs, RIGHTKIT_AX_SOURCE_COMMIT,
-    RIGHTKIT_AX_VERSION,
+    classify_external_qualification, ExternalQualification, ExternalQualificationInputs,
+    ExternalQualificationStatus, PinnedAxEvidence, RIGHTKIT_AX_SOURCE_COMMIT, RIGHTKIT_AX_VERSION,
 };
 pub use capability::{capabilities, capability, Capability, ClientFidelity, Fidelity, SURFACES};
 pub use codex_skills::{
@@ -51,10 +49,10 @@ pub use projection::{
 };
 pub use setup_registry::{
     platform_state_root, BackupRecord, BoundRelease, ClientEvidence, ClientSelector, ClientStatus,
-    ConfirmedSetup, DetectedClient, OnDiskSetupStore, PlanConfirmation, PlannedMutation,
-    RecoveryReport, RollbackPlan, RuntimeLease, SetupAction, SetupError, SetupErrorCode,
-    SetupExecution, SetupPreview, SetupRegistry, SetupRequest, SetupState, SetupStore, StateLock,
-    SETUP_REGISTRY_SCHEMA_VERSION,
+    ConfirmedSetup, DetectedClient, DevelopmentClientOverride, DevelopmentSetupContext,
+    OnDiskSetupStore, PlanConfirmation, PlannedMutation, RecoveryReport, RollbackPlan,
+    RuntimeLease, SetupAction, SetupError, SetupErrorCode, SetupExecution, SetupPreview,
+    SetupRegistry, SetupRequest, SetupState, SetupStore, StateLock, SETUP_REGISTRY_SCHEMA_VERSION,
 };
 pub use uninstall::{
     plan_uninstall, uninstall, uninstall_transactional, OwnedTarget, UninstallResult,

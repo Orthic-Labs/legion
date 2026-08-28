@@ -17,8 +17,589 @@ use std::{
 pub const SETUP_REGISTRY_SCHEMA_VERSION: u32 = 1;
 const OWNER_MARKER: &str = "legion-host-setup-registry-v1";
 const SIGNING_RECEIPT_RELATIVE_PATH: &str = "qualification/signing-receipt.json";
-const RIGHTKIT_AX_VERSION: &str = "0.2.0";
-const RIGHTKIT_AX_SOURCE_COMMIT: &str = "01f52555202da3dffc6b649ca44e803b55238081";
+const RIGHTKIT_AX_VERSION: &str = "0.2.1";
+const RIGHTKIT_AX_SOURCE_COMMIT: &str = "4c1a414269d8ffdb95b4b1e685440bd34784b41b";
+
+/// Frozen client boundary identifiers used by native setup. These values are
+/// host labels, not semantic capability owners.
+pub const CLIENT_CLAUDE: &str = "claude-code";
+pub const CLIENT_CODEX: &str = "codex";
+pub const CLIENT_CURSOR: &str = "cursor";
+pub const CLIENT_PI: &str = "pi";
+pub const CLIENT_ANTIGRAVITY: &str = "antigravity";
+
+/// The only origins accepted by client activation. Product setup always uses
+/// `installed`; repository workflows must opt into `development` explicitly.
+pub const ORIGIN_INSTALLED: &str = "installed";
+pub const ORIGIN_DEVELOPMENT: &str = "development";
+
+const STABLE_CURRENT_DIRECTORY: &str = "current";
+const STABLE_BIN_DIRECTORY: &str = "bin";
+const STABLE_EXECUTABLE_NAME: &str = if cfg!(windows) {
+    "legion.exe"
+} else {
+    "legion"
+};
+const FORBIDDEN_PRODUCTION_PATH_COMPONENTS: [&str; 4] = ["repo", "dist", "target", "node_modules"];
+
+fn default_projection_origin() -> String {
+    ORIGIN_INSTALLED.into()
+}
+
+/// Native setup profile. The profile only describes mechanical projection
+/// boundaries; executable registration is never inferred from package shape.
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ClientBoundary {
+    pub client_id: String,
+    pub selected_mechanism: String,
+    pub projection: String,
+    pub executable_registration: bool,
+    pub explicit_only: bool,
+    pub required_surfaces: Vec<String>,
+}
+
+/// Returns frozen native setup profiles in stable output order.
+pub fn client_boundaries() -> Vec<ClientBoundary> {
+    vec![
+        ClientBoundary {
+            client_id: CLIENT_CLAUDE.into(),
+            selected_mechanism: "claude-native-plugin".into(),
+            projection: "native-plugin".into(),
+            executable_registration: true,
+            explicit_only: false,
+            required_surfaces: vec![
+                "skills".into(),
+                "executableToolSurface".into(),
+                "mcpLifecycle".into(),
+                "releaseBinding".into(),
+                "executableResolution".into(),
+            ],
+        },
+        ClientBoundary {
+            client_id: CLIENT_CODEX.into(),
+            selected_mechanism: "codex-agent-plugins".into(),
+            projection: "agent-plugins-with-explicit-sidecar".into(),
+            executable_registration: true,
+            explicit_only: true,
+            required_surfaces: vec![
+                "skills".into(),
+                "executableToolSurface".into(),
+                "mcpLifecycle".into(),
+                "releaseBinding".into(),
+                "executableResolution".into(),
+            ],
+        },
+        ClientBoundary {
+            client_id: CLIENT_CURSOR.into(),
+            selected_mechanism: "cursor-agent-plugins".into(),
+            projection: "agent-plugins-with-thin-sidecar".into(),
+            executable_registration: true,
+            explicit_only: false,
+            required_surfaces: vec![
+                "skills".into(),
+                "executableToolSurface".into(),
+                "mcpLifecycle".into(),
+                "releaseBinding".into(),
+                "executableResolution".into(),
+            ],
+        },
+        ClientBoundary {
+            client_id: CLIENT_PI.into(),
+            selected_mechanism: "pi-skills-only".into(),
+            projection: "skills-only".into(),
+            executable_registration: false,
+            explicit_only: true,
+            required_surfaces: vec!["instructions".into(), "skills".into()],
+        },
+        ClientBoundary {
+            client_id: CLIENT_ANTIGRAVITY.into(),
+            selected_mechanism: "antigravity-native-plugin".into(),
+            projection: "native-plugin".into(),
+            executable_registration: true,
+            explicit_only: false,
+            required_surfaces: vec![
+                "mcpConfig".into(),
+                "hooks".into(),
+                "skills".into(),
+                "agents".into(),
+                "rules".into(),
+                "releaseBinding".into(),
+            ],
+        },
+    ]
+}
+
+pub fn client_boundary(client_id: &str) -> Option<ClientBoundary> {
+    client_boundaries()
+        .into_iter()
+        .find(|profile| profile.client_id == client_id)
+}
+
+pub fn client_supports_live_qualification(client_id: &str) -> bool {
+    matches!(client_id, CLIENT_CLAUDE | CLIENT_CODEX)
+}
+
+/// Resolve an executable's stable installed product root. A production
+/// executable is valid only as `<product-root>/current/bin/legion` (or the
+/// Windows `.exe` form) and never from a repository, build, distribution, or
+/// dependency tree. The returned root intentionally excludes the lexical `current`
+/// junction so callers can report stable product identity separately from
+/// resolved release identity.
+pub fn stable_install_root(executable: impl AsRef<Path>) -> Result<PathBuf, SetupError> {
+    let executable = executable.as_ref();
+    reject_production_path(executable)?;
+    if !executable.is_absolute() || !executable.is_file() {
+        return Err(err(
+            SetupErrorCode::PathEscapeRefused,
+            "installed executable is unavailable",
+        ));
+    }
+    let bin = executable.parent().ok_or_else(|| {
+        err(
+            SetupErrorCode::PathEscapeRefused,
+            "installed executable has no parent",
+        )
+    })?;
+    let current_root = bin.parent().ok_or_else(|| {
+        err(
+            SetupErrorCode::PathEscapeRefused,
+            "installed executable has no stable current root",
+        )
+    })?;
+    let install_root = current_root.parent().ok_or_else(|| {
+        err(
+            SetupErrorCode::PathEscapeRefused,
+            "installed executable has no stable product root",
+        )
+    })?;
+    let executable_name = executable
+        .file_name()
+        .and_then(|name| name.to_str())
+        .unwrap_or_default();
+    let executable_name_matches = if cfg!(windows) {
+        executable_name.eq_ignore_ascii_case(STABLE_EXECUTABLE_NAME)
+    } else {
+        executable_name == STABLE_EXECUTABLE_NAME
+    };
+    if !path_component_is(bin, STABLE_BIN_DIRECTORY)
+        || !path_component_is(current_root, STABLE_CURRENT_DIRECTORY)
+        || !executable_name_matches
+    {
+        return Err(err(
+            SetupErrorCode::PathEscapeRefused,
+            "installed executable must be stable product-root/current/bin/legion",
+        ));
+    }
+    Ok(install_root.to_path_buf())
+}
+
+fn stable_current_root(install_root: &Path) -> PathBuf {
+    install_root.join(STABLE_CURRENT_DIRECTORY)
+}
+
+fn path_component_is(path: &Path, expected: &str) -> bool {
+    path.file_name()
+        .and_then(|name| name.to_str())
+        .is_some_and(|actual| {
+            if cfg!(windows) {
+                actual.eq_ignore_ascii_case(expected)
+            } else {
+                actual == expected
+            }
+        })
+}
+
+/// Inspect one client projection without mutating either client or Legion
+/// state. Missing or unowned files are reported as degraded input for repair;
+/// no user file is adopted implicitly.
+pub fn inspect_client_projection(
+    input: &ClientProjectionInput,
+) -> Result<ClientProjectionInspection, SetupError> {
+    validate_projection_input(input)?;
+    let source_available = path_exists(&input.source_root)?;
+    let expected = projection_source_files(input)?;
+    let ledger = read_projection_ledger(input)?;
+    let target_exists = path_exists(&input.target_root)?;
+    let mut files = expected.keys().cloned().collect::<Vec<_>>();
+    files.sort();
+    let mut missing = Vec::new();
+    let mut preserved = Vec::new();
+    let mut conflicts = Vec::new();
+    let mut stale = false;
+    let mut current = !expected.is_empty();
+    let ownership = if let Some(ledger) = &ledger {
+        if ledger.target_root != input.target_root
+            || ledger.client_id != input.client_id
+            || ledger.projection != input.projection
+            || ledger.origin != input.origin
+            || ledger.executable != input.executable
+            || ledger.install_root != input.install_root
+        {
+            current = false;
+            conflicts.push(projection_ledger_path(input));
+            "invalid"
+        } else {
+            "legion"
+        }
+    } else if target_exists {
+        "unproven"
+    } else {
+        "available"
+    };
+    if ledger.is_none() && target_exists {
+        current = false;
+        stale = true;
+    }
+
+    if !source_available {
+        current = false;
+        missing.push("release-bound projection source".into());
+    } else if expected.is_empty() {
+        current = false;
+        missing.push("release-bound projection source".into());
+    }
+    if !target_exists {
+        current = false;
+        if !expected.is_empty() {
+            missing.push("projection target".into());
+        }
+    } else {
+        ensure_projection_tree_safe(&input.target_root)?;
+        for (relative, (_, expected_digest)) in &expected {
+            let destination = input.target_root.join(relative);
+            if !path_exists(&destination)? {
+                current = false;
+                stale = true;
+                missing.push(relative.clone());
+                continue;
+            }
+            let destination_digest = digest_path(&destination)?;
+            let owned_digest = ledger.as_ref().and_then(|value| value.files.get(relative));
+            if destination_digest != *expected_digest {
+                current = false;
+                if owned_digest.is_some_and(|digest| digest == &destination_digest) {
+                    stale = true;
+                } else {
+                    conflicts.push(destination);
+                }
+            }
+        }
+        if let Some(ledger) = &ledger {
+            for (relative, digest) in &ledger.files {
+                let destination = input.target_root.join(relative);
+                if !path_exists(&destination)? {
+                    current = false;
+                    stale = true;
+                    continue;
+                }
+                let actual = digest_path(&destination)?;
+                if actual != *digest && !expected.contains_key(relative) {
+                    current = false;
+                    conflicts.push(destination);
+                }
+            }
+        }
+        for path in projection_tree_files(&input.target_root)? {
+            let relative = path
+                .strip_prefix(&input.target_root)
+                .map_err(|_| {
+                    err(
+                        SetupErrorCode::PathEscapeRefused,
+                        "projection path escapes target",
+                    )
+                })?
+                .to_string_lossy()
+                .replace('\\', "/");
+            if !expected.contains_key(&relative)
+                && !ledger
+                    .as_ref()
+                    .is_some_and(|value| value.files.contains_key(&relative))
+            {
+                preserved.push(path);
+            }
+        }
+    }
+    let generation = ledger.as_ref().map(|value| value.generation.clone());
+    if generation.as_deref() != Some(input.generation.as_str()) && ledger.is_some() {
+        current = false;
+        stale = true;
+    }
+    if !conflicts.is_empty() {
+        current = false;
+    }
+    let mut state = if !source_available {
+        "unavailable"
+    } else if !conflicts.is_empty() {
+        "foreign"
+    } else if current {
+        "current"
+    } else if stale || !missing.is_empty() {
+        "stale"
+    } else if !target_exists {
+        "incomplete"
+    } else {
+        "incomplete"
+    };
+    let mut missing_surfaces = projection_missing_surfaces(input, &expected);
+    if state == "current" && !missing_surfaces.is_empty() {
+        state = "degraded";
+    } else if state == "current" {
+        missing_surfaces.clear();
+    }
+    let remediation = if state == "current" {
+        Vec::new()
+    } else if input.projection == "skills-only" {
+        vec![
+            "legion setup repair --confirm".into(),
+            "Pi remains Baseline; no executable Legion registration is created".into(),
+        ]
+    } else {
+        vec!["legion setup repair --confirm".into()]
+    };
+    Ok(ClientProjectionInspection {
+        client_id: input.client_id.clone(),
+        selected_mechanism: client_boundary(&input.client_id)
+            .map(|profile| profile.selected_mechanism)
+            .unwrap_or_default(),
+        projection: input.projection.clone(),
+        source_root: input.source_root.clone(),
+        target_root: input.target_root.clone(),
+        origin: input.origin.clone(),
+        executable: input.executable.clone(),
+        install_root: input.install_root.clone(),
+        state: state.into(),
+        ownership: ownership.into(),
+        generation,
+        expected_generation: input.generation.clone(),
+        executable_registration: input.executable_registration,
+        explicit_only: input.explicit_only,
+        files,
+        missing_surfaces,
+        preserved,
+        conflicts,
+        remediation,
+    })
+}
+
+/// Reconcile one projection using only release files and a verified ownership
+/// ledger. Existing unproven or user-modified files are retained & reported.
+pub fn repair_client_projection(
+    input: &ClientProjectionInput,
+) -> Result<ClientProjectionRepair, SetupError> {
+    validate_projection_input(input)?;
+    let before = inspect_client_projection(input)?;
+    let expected = projection_source_files(input)?;
+    if expected.is_empty() {
+        return Ok(ClientProjectionRepair {
+            inspection: before.clone(),
+            repaired: Vec::new(),
+            preserved: before.preserved.clone(),
+            removed: Vec::new(),
+        });
+    }
+    let ledger = read_projection_ledger(input)?;
+    let prior_ledger = ledger.clone();
+    let target_exists = path_exists(&input.target_root)?;
+    let skills_only = input.projection == "skills-only";
+    if target_exists {
+        ensure_projection_tree_safe(&input.target_root)?;
+    } else {
+        ensure_projection_parent_safe(&input.target_root)?;
+        fs::create_dir_all(&input.target_root).map_err(io)?;
+    }
+    let root_owned = prior_ledger.as_ref().is_some_and(|value| {
+        value.target_root == input.target_root
+            && value.client_id == input.client_id
+            && value.projection == input.projection
+            && value.origin == input.origin
+            && value.executable == input.executable
+            && value.install_root == input.install_root
+    });
+    let mut repaired = Vec::new();
+    let mut preserved = Vec::new();
+    let mut next_files = prior_ledger
+        .as_ref()
+        .map(|value| value.files.clone())
+        .unwrap_or_default();
+    for (relative, (source, source_digest)) in &expected {
+        let destination = input.target_root.join(relative);
+        if path_exists(&destination)? {
+            let actual = digest_path(&destination)?;
+            let owned = prior_ledger
+                .as_ref()
+                .and_then(|value| value.files.get(relative));
+            if actual != *source_digest {
+                if owned.is_some_and(|digest| digest == &actual) {
+                    write_projection_file(&input.target_root, &destination, source)?;
+                    repaired.push(destination.clone());
+                    next_files.insert(relative.clone(), source_digest.clone());
+                } else {
+                    preserved.push(destination.clone());
+                }
+            } else if owned.is_some() {
+                next_files.insert(relative.clone(), source_digest.clone());
+            } else {
+                preserved.push(destination.clone());
+            }
+        } else if root_owned || skills_only || !target_exists {
+            let unowned_skill_parent = if skills_only {
+                match destination.parent() {
+                    Some(parent) if parent != input.target_root.as_path() => {
+                        let parent_exists = path_exists(parent)?;
+                        parent_exists
+                            && !prior_ledger.as_ref().is_some_and(|value| {
+                                value
+                                    .files
+                                    .keys()
+                                    .any(|owned| input.target_root.join(owned).starts_with(parent))
+                            })
+                    }
+                    _ => false,
+                }
+            } else {
+                false
+            };
+            if unowned_skill_parent {
+                preserved.push(destination.clone());
+            } else {
+                write_projection_file(&input.target_root, &destination, source)?;
+                repaired.push(destination.clone());
+                next_files.insert(relative.clone(), source_digest.clone());
+            }
+        } else {
+            preserved.push(destination.clone());
+        }
+    }
+    if let Some(prior) = &prior_ledger {
+        for (relative, digest) in &prior.files {
+            if expected.contains_key(relative) {
+                continue;
+            }
+            let destination = input.target_root.join(relative);
+            if !path_exists(&destination)? {
+                next_files.remove(relative);
+                continue;
+            }
+            if digest_path(&destination)? == *digest {
+                fs::remove_file(&destination).map_err(io)?;
+                next_files.remove(relative);
+                repaired.push(destination);
+            } else {
+                preserved.push(destination);
+            }
+        }
+    }
+    if !repaired.is_empty() || root_owned || skills_only {
+        let created_root = prior_ledger
+            .as_ref()
+            .map(|value| value.created_root)
+            .unwrap_or(!target_exists && !skills_only);
+        let value = ClientProjectionLedger {
+            schema_version: CLIENT_PROJECTION_LEDGER_SCHEMA_VERSION,
+            owner: CLIENT_PROJECTION_OWNER.into(),
+            client_id: input.client_id.clone(),
+            projection: input.projection.clone(),
+            origin: input.origin.clone(),
+            executable: input.executable.clone(),
+            install_root: input.install_root.clone(),
+            generation: input.generation.clone(),
+            target_root: input.target_root.clone(),
+            created_root,
+            files: next_files,
+        };
+        write_projection_ledger(input, &value)?;
+        // Ledger was written above; inspection below re-reads it so an
+        // interrupted write cannot be reported as active.
+    }
+    let after = inspect_client_projection(input)?;
+    if after.state == "current" {
+        preserved.extend(after.preserved.clone());
+    } else {
+        preserved.extend(after.conflicts.clone());
+    }
+    preserved.sort();
+    preserved.dedup();
+    repaired.sort();
+    repaired.dedup();
+    Ok(ClientProjectionRepair {
+        inspection: after,
+        repaired,
+        preserved,
+        removed: Vec::new(),
+    })
+}
+
+/// Remove only files currently proven by one Legion projection ledger. User
+/// changes, foreign files, & shared Pi roots are retained.
+pub fn remove_client_projection(
+    input: &ClientProjectionInput,
+) -> Result<ClientProjectionRepair, SetupError> {
+    validate_projection_input(input)?;
+    let before = inspect_client_projection(input)?;
+    let Some(ledger) = read_projection_ledger(input)? else {
+        return Ok(ClientProjectionRepair {
+            inspection: before.clone(),
+            repaired: Vec::new(),
+            preserved: before
+                .preserved
+                .iter()
+                .cloned()
+                .chain(before.conflicts.iter().cloned())
+                .collect(),
+            removed: Vec::new(),
+        });
+    };
+    if ledger.target_root != input.target_root
+        || ledger.client_id != input.client_id
+        || ledger.projection != input.projection
+        || ledger.origin != input.origin
+        || ledger.executable != input.executable
+        || ledger.install_root != input.install_root
+    {
+        return Ok(ClientProjectionRepair {
+            inspection: before.clone(),
+            repaired: Vec::new(),
+            preserved: vec![projection_ledger_path(input)],
+            removed: Vec::new(),
+        });
+    }
+    let mut removed = Vec::new();
+    let mut preserved = Vec::new();
+    for (relative, digest) in &ledger.files {
+        let destination = input.target_root.join(relative);
+        if !path_exists(&destination)? {
+            continue;
+        }
+        if digest_path(&destination)? == *digest {
+            fs::remove_file(&destination).map_err(io)?;
+            removed.push(destination);
+        } else {
+            preserved.push(destination);
+        }
+    }
+    if preserved.is_empty() {
+        let path = projection_ledger_path(input);
+        if path.exists() {
+            fs::remove_file(path).map_err(io)?;
+        }
+        if ledger.created_root && input.projection != "skills-only" {
+            remove_empty_projection_root(&input.target_root)?;
+        }
+    }
+    let after = inspect_client_projection(input)?;
+    preserved.extend(after.preserved.clone());
+    preserved.extend(after.conflicts.clone());
+    preserved.sort();
+    preserved.dedup();
+    removed.sort();
+    Ok(ClientProjectionRepair {
+        inspection: after,
+        repaired: Vec::new(),
+        preserved,
+        removed,
+    })
+}
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -50,6 +631,27 @@ pub enum ClientSelector {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct DevelopmentClientOverride {
+    pub source_root: PathBuf,
+    pub target_root: PathBuf,
+}
+
+/// Setup-side representation of explicit development execution. Keeping this
+/// on a request makes preview plans and mutations carry identical isolation
+/// boundaries, instead of relying on process-global environment.
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct DevelopmentSetupContext {
+    pub repository_root: PathBuf,
+    pub state_root: PathBuf,
+    pub port: Option<u16>,
+    pub process_identity: String,
+    #[serde(default)]
+    pub client_overrides: BTreeMap<String, DevelopmentClientOverride>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct ClientEvidence {
     pub client_id: String,
@@ -68,6 +670,16 @@ pub struct SetupRequest {
     pub platform_state_root: PathBuf,
     pub client_evidence: Vec<ClientEvidence>,
     pub dry_run: bool,
+    /// Installed remains the default; development must be explicit and carry
+    /// its complete isolation context in every plan.
+    #[serde(default = "default_setup_origin")]
+    pub origin: String,
+    #[serde(default)]
+    pub development: Option<DevelopmentSetupContext>,
+}
+
+fn default_setup_origin() -> String {
+    ORIGIN_INSTALLED.into()
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
@@ -186,6 +798,86 @@ pub struct SetupState {
     pub schema_version: u32,
     pub migration_generation: String,
 }
+
+/// Inputs for one mechanical client projection. `state_root` is Legion's
+/// verified platform root; `target_root` remains client-owned and is mutated
+/// only for files proven by the projection ledger.
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ClientProjectionInput {
+    pub client_id: String,
+    pub projection: String,
+    pub source_root: PathBuf,
+    pub target_root: PathBuf,
+    pub state_root: PathBuf,
+    /// `installed` binds to the immutable stable `current` release; callers
+    /// using repository assets must opt into `development` explicitly.
+    #[serde(default = "default_projection_origin")]
+    pub origin: String,
+    #[serde(default)]
+    pub executable: Option<PathBuf>,
+    #[serde(default)]
+    pub install_root: Option<PathBuf>,
+    pub generation: String,
+    pub executable_registration: bool,
+    pub explicit_only: bool,
+    pub skill_ids: Vec<String>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ClientProjectionInspection {
+    pub client_id: String,
+    pub selected_mechanism: String,
+    pub projection: String,
+    pub source_root: PathBuf,
+    pub target_root: PathBuf,
+    pub origin: String,
+    pub executable: Option<PathBuf>,
+    pub install_root: Option<PathBuf>,
+    pub state: String,
+    pub ownership: String,
+    pub generation: Option<String>,
+    pub expected_generation: String,
+    pub executable_registration: bool,
+    pub explicit_only: bool,
+    pub files: Vec<String>,
+    pub missing_surfaces: Vec<String>,
+    pub preserved: Vec<PathBuf>,
+    pub conflicts: Vec<PathBuf>,
+    pub remediation: Vec<String>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ClientProjectionRepair {
+    pub inspection: ClientProjectionInspection,
+    pub repaired: Vec<PathBuf>,
+    pub preserved: Vec<PathBuf>,
+    pub removed: Vec<PathBuf>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct ClientProjectionLedger {
+    schema_version: u32,
+    owner: String,
+    client_id: String,
+    projection: String,
+    #[serde(default = "default_projection_origin")]
+    origin: String,
+    #[serde(default)]
+    executable: Option<PathBuf>,
+    #[serde(default)]
+    install_root: Option<PathBuf>,
+    generation: String,
+    target_root: PathBuf,
+    created_root: bool,
+    files: BTreeMap<String, String>,
+}
+
+const CLIENT_PROJECTION_LEDGER_SCHEMA_VERSION: u32 = 1;
+const CLIENT_PROJECTION_OWNER: &str = "legion-client-projection-v1";
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
@@ -506,10 +1198,27 @@ impl<S: SetupStore> SetupRegistry<S> {
             .collect::<Vec<_>>();
         result.sort_by(|a, b| a.client_id.cmp(&b.client_id));
         if let ClientSelector::ClientId(id) = selector {
-            if result.is_empty() || result[0].fidelity == "Unavailable" {
+            if result.is_empty() {
                 return Err(err(
                     SetupErrorCode::ClientNotDetected,
                     format!("supported client {id} was not detected"),
+                ));
+            }
+            if result[0].fidelity == "Unavailable" {
+                let unsupported_mechanism = evidence.iter().any(|item| {
+                    item.client_id == *id && item.detected && !item.mechanisms.is_empty()
+                });
+                return Err(err(
+                    if unsupported_mechanism {
+                        SetupErrorCode::ClientMechanismUnsupported
+                    } else {
+                        SetupErrorCode::ClientNotDetected
+                    },
+                    if unsupported_mechanism {
+                        format!("supported client {id} has no supported setup mechanism")
+                    } else {
+                        format!("supported client {id} was not detected")
+                    },
                 ));
             }
         }
@@ -527,6 +1236,7 @@ impl<S: SetupStore> SetupRegistry<S> {
     }
     pub fn preview(&mut self, request: SetupRequest) -> Result<SetupPreview, SetupError> {
         validate_release(&request.release)?;
+        validate_setup_origin(&request)?;
         same_root(
             self.store.platform_state_root(),
             &request.platform_state_root,
@@ -932,6 +1642,762 @@ impl SetupRegistry<OnDiskSetupStore> {
     ) -> Result<Self, SetupError> {
         Self::open(OnDiskSetupStore::open(platform_state_root)?, release)
     }
+
+    /// Opens an explicitly isolated development state root. Product callers
+    /// must provide a development context before using this seam.
+    pub fn open_development(
+        release: BoundRelease,
+        context: &DevelopmentSetupContext,
+    ) -> Result<Self, SetupError> {
+        validate_development_context(context)?;
+        Self::open_on_disk(release, context.state_root.clone())
+    }
+}
+
+fn validate_setup_origin(request: &SetupRequest) -> Result<(), SetupError> {
+    match request.origin.as_str() {
+        ORIGIN_INSTALLED if request.development.is_none() => Ok(()),
+        ORIGIN_DEVELOPMENT => {
+            let context = request.development.as_ref().ok_or_else(|| {
+                err(
+                    SetupErrorCode::PathEscapeRefused,
+                    "development setup requires an explicit execution context",
+                )
+            })?;
+            if !paths_equal(&request.platform_state_root, &context.state_root) {
+                return Err(err(
+                    SetupErrorCode::PathEscapeRefused,
+                    "development setup request must use its isolated state root",
+                ));
+            }
+            validate_development_context(context)
+        }
+        _ => Err(err(
+            SetupErrorCode::PathEscapeRefused,
+            "setup origin must be exactly installed or development",
+        )),
+    }
+}
+
+fn validate_development_context(context: &DevelopmentSetupContext) -> Result<(), SetupError> {
+    if !context.repository_root.is_absolute()
+        || !context.state_root.is_absolute()
+        || context
+            .repository_root
+            .components()
+            .any(|c| matches!(c, Component::ParentDir | Component::CurDir))
+        || context
+            .state_root
+            .components()
+            .any(|c| matches!(c, Component::ParentDir | Component::CurDir))
+        || context.process_identity.trim().is_empty()
+        || context.port == Some(0)
+    {
+        return Err(err(
+            SetupErrorCode::PathEscapeRefused,
+            "development context requires absolute roots, valid port, and process identity",
+        ));
+    }
+    let state_root =
+        fs::canonicalize(&context.state_root).unwrap_or_else(|_| context.state_root.clone());
+    let native_root = platform_state_root()?;
+    let native_root = fs::canonicalize(&native_root).unwrap_or(native_root);
+    if path_starts_with(&state_root, &native_root) {
+        return Err(err(
+            SetupErrorCode::PathEscapeRefused,
+            "development state root must be isolated from native product state",
+        ));
+    }
+    for (client_id, override_) in &context.client_overrides {
+        if client_id.is_empty()
+            || !override_.source_root.is_absolute()
+            || !override_.target_root.is_absolute()
+            || override_
+                .source_root
+                .components()
+                .any(|c| matches!(c, Component::ParentDir | Component::CurDir))
+            || override_
+                .target_root
+                .components()
+                .any(|c| matches!(c, Component::ParentDir | Component::CurDir))
+        {
+            return Err(err(
+                SetupErrorCode::PathEscapeRefused,
+                "development client overrides require absolute source and target roots",
+            ));
+        }
+        let target_root = fs::canonicalize(&override_.target_root)
+            .unwrap_or_else(|_| override_.target_root.clone());
+        if !path_starts_with(&target_root, &state_root) {
+            return Err(err(
+                SetupErrorCode::PathEscapeRefused,
+                "development client override targets must remain inside isolated state root",
+            ));
+        }
+    }
+    Ok(())
+}
+
+fn validate_projection_input(input: &ClientProjectionInput) -> Result<(), SetupError> {
+    let Some(profile) = client_boundary(&input.client_id) else {
+        return Err(err(
+            SetupErrorCode::ClientMechanismUnsupported,
+            format!("unsupported client projection target {}", input.client_id),
+        ));
+    };
+    if profile.projection != input.projection
+        || profile.executable_registration != input.executable_registration
+        || profile.explicit_only != input.explicit_only
+    {
+        return Err(err(
+            SetupErrorCode::ClientMechanismUnsupported,
+            format!(
+                "client projection profile does not match {}",
+                input.client_id
+            ),
+        ));
+    }
+    if input.generation.trim().is_empty()
+        || !input.state_root.is_absolute()
+        || !input.source_root.is_absolute()
+        || !input.target_root.is_absolute()
+        || input
+            .executable
+            .as_ref()
+            .is_some_and(|path| !path.is_absolute())
+        || input
+            .install_root
+            .as_ref()
+            .is_some_and(|path| !path.is_absolute())
+        || input
+            .client_id
+            .chars()
+            .any(|value| value == '/' || value == '\\' || value == ':')
+    {
+        return Err(err(
+            SetupErrorCode::PathEscapeRefused,
+            "client projection paths or generation are invalid",
+        ));
+    }
+    for path in [&input.source_root, &input.target_root, &input.state_root] {
+        if path
+            .components()
+            .any(|component| matches!(component, Component::ParentDir | Component::CurDir))
+        {
+            return Err(err(
+                SetupErrorCode::PathEscapeRefused,
+                "client projection path contains traversal",
+            ));
+        }
+    }
+    for path in input.executable.iter().chain(input.install_root.iter()) {
+        if path
+            .components()
+            .any(|component| matches!(component, Component::ParentDir | Component::CurDir))
+        {
+            return Err(err(
+                SetupErrorCode::PathEscapeRefused,
+                "client projection executable or install root contains traversal",
+            ));
+        }
+    }
+    validate_projection_origin(input)?;
+    ensure_projection_parent_safe(&input.state_root)?;
+    let allowed_source_root = (input.origin == ORIGIN_INSTALLED)
+        .then(|| input.install_root.as_deref().map(stable_current_root))
+        .flatten();
+    ensure_projection_parent_safe_with_allowed_root(
+        &input.source_root,
+        allowed_source_root.as_deref(),
+    )?;
+    ensure_projection_parent_safe(&input.target_root)?;
+    let state_marker = input.state_root.join(".legion-owned");
+    let state_marker_metadata = fs::symlink_metadata(&state_marker).map_err(|_| {
+        err(
+            SetupErrorCode::PurgeOwnershipUnproven,
+            "client projection state root is not Legion-owned",
+        )
+    })?;
+    if state_marker_metadata.file_type().is_symlink()
+        || read(&state_marker).map_err(|_| {
+            err(
+                SetupErrorCode::PurgeOwnershipUnproven,
+                "client projection state ownership marker is unreadable",
+            )
+        })? != OWNER_MARKER.as_bytes()
+    {
+        return Err(err(
+            SetupErrorCode::PurgeOwnershipUnproven,
+            "client projection state root ownership is unproven",
+        ));
+    }
+    if input.client_id == CLIENT_PI && input.executable_registration {
+        return Err(err(
+            SetupErrorCode::ClientMechanismUnsupported,
+            "Pi projection cannot register an executable Legion surface",
+        ));
+    }
+    Ok(())
+}
+
+fn validate_projection_origin(input: &ClientProjectionInput) -> Result<(), SetupError> {
+    match input.origin.as_str() {
+        ORIGIN_INSTALLED => validate_installed_projection(input),
+        ORIGIN_DEVELOPMENT => validate_development_projection(input),
+        _ => Err(err(
+            SetupErrorCode::PathEscapeRefused,
+            "client projection origin must be exactly installed or development",
+        )),
+    }
+}
+
+fn validate_installed_projection(input: &ClientProjectionInput) -> Result<(), SetupError> {
+    let lexical_executable = input.executable.as_ref().ok_or_else(|| {
+        err(
+            SetupErrorCode::PathEscapeRefused,
+            "installed client projection must bind an executable",
+        )
+    })?;
+    let lexical_install_root = input.install_root.as_ref().ok_or_else(|| {
+        err(
+            SetupErrorCode::PathEscapeRefused,
+            "installed client projection must bind an install root",
+        )
+    })?;
+    reject_production_path(lexical_executable)?;
+    reject_production_path(lexical_install_root)?;
+    reject_production_path(&input.source_root)?;
+    reject_production_path(&input.target_root)?;
+    reject_production_path(&input.state_root)?;
+
+    let derived_install_root = stable_install_root(lexical_executable)?;
+    if !paths_equal(&derived_install_root, lexical_install_root) {
+        return Err(err(
+            SetupErrorCode::PathEscapeRefused,
+            "installed client projection must bind the stable current/bin/legion executable",
+        ));
+    }
+    let lexical_current_root = stable_current_root(lexical_install_root);
+    ensure_projection_parent_safe(lexical_install_root)?;
+    ensure_projection_parent_safe_with_allowed_root(
+        lexical_executable,
+        Some(&lexical_current_root),
+    )?;
+    ensure_projection_parent_safe_with_allowed_root(
+        &lexical_current_root,
+        Some(&lexical_current_root),
+    )?;
+
+    // `current` is an intentionally atomically-swapped junction/symlink. Keep
+    // its lexical identity for status while validating its resolved target
+    // independently as an immutable active release root.
+    let executable = fs::canonicalize(lexical_executable).map_err(|_| {
+        err(
+            SetupErrorCode::PathEscapeRefused,
+            "installed client projection executable is unavailable",
+        )
+    })?;
+    let current_root = fs::canonicalize(&lexical_current_root).map_err(|_| {
+        err(
+            SetupErrorCode::PathEscapeRefused,
+            "installed client projection current root is unavailable",
+        )
+    })?;
+    let install_root = fs::canonicalize(lexical_install_root).map_err(|_| {
+        err(
+            SetupErrorCode::PathEscapeRefused,
+            "installed client projection product root is unavailable",
+        )
+    })?;
+    reject_production_path(&executable)?;
+    reject_production_path(&current_root)?;
+    reject_production_path(&install_root)?;
+    if !executable.is_file()
+        || !current_root.is_dir()
+        || !install_root.is_dir()
+        || !path_starts_with(&current_root, &install_root)
+        || !path_starts_with(&executable, &current_root)
+    {
+        return Err(err(
+            SetupErrorCode::PathEscapeRefused,
+            "installed client projection executable escapes resolved active release",
+        ));
+    }
+    if !path_starts_with(&input.source_root, &lexical_current_root) {
+        return Err(err(
+            SetupErrorCode::PathEscapeRefused,
+            "installed client projection source escapes stable current",
+        ));
+    }
+    if path_exists(&input.source_root)? {
+        let source = fs::canonicalize(&input.source_root).map_err(io)?;
+        reject_production_path(&source)?;
+        if !path_starts_with(&source, &current_root) {
+            return Err(err(
+                SetupErrorCode::PathEscapeRefused,
+                "installed client projection source escapes stable current",
+            ));
+        }
+    }
+    if path_starts_with(&input.target_root, &lexical_current_root)
+        || path_starts_with(&input.state_root, &lexical_current_root)
+        || path_starts_with(&input.target_root, &current_root)
+        || path_starts_with(&input.state_root, &current_root)
+    {
+        return Err(err(
+            SetupErrorCode::PathEscapeRefused,
+            "installed client projection target/state may not mutate stable current",
+        ));
+    }
+    Ok(())
+}
+
+fn validate_development_projection(input: &ClientProjectionInput) -> Result<(), SetupError> {
+    // Explicit development mode is allowed to use repository assets, but its
+    // state must be isolated from the native product root and global client
+    // configuration. The caller-provided state root is the isolation boundary.
+    let native_root = platform_state_root()?;
+    let state_root =
+        fs::canonicalize(&input.state_root).unwrap_or_else(|_| input.state_root.clone());
+    let native_root = fs::canonicalize(&native_root).unwrap_or(native_root);
+    if path_starts_with(&state_root, &native_root) {
+        return Err(err(
+            SetupErrorCode::PathEscapeRefused,
+            "development client projection must use an isolated state root",
+        ));
+    }
+    let home = std::env::var_os("USERPROFILE")
+        .or_else(|| std::env::var_os("HOME"))
+        .map(PathBuf::from)
+        .and_then(|path| fs::canonicalize(path).ok());
+    if let Some(home) = home {
+        let target =
+            fs::canonicalize(&input.target_root).unwrap_or_else(|_| input.target_root.clone());
+        if path_starts_with(&target, &home) && !path_starts_with(&target, &state_root) {
+            return Err(err(
+                SetupErrorCode::PathEscapeRefused,
+                "development client projection must not mutate global client configuration",
+            ));
+        }
+    }
+    Ok(())
+}
+
+fn reject_production_path(path: &Path) -> Result<(), SetupError> {
+    if path.components().any(|component| {
+        let Component::Normal(name) = component else {
+            return false;
+        };
+        let name = name.to_string_lossy();
+        FORBIDDEN_PRODUCTION_PATH_COMPONENTS
+            .iter()
+            .any(|forbidden| name.eq_ignore_ascii_case(forbidden))
+    }) {
+        return Err(err(
+            SetupErrorCode::PathEscapeRefused,
+            "production client projection may not reference repo, dist, target, or node_modules paths",
+        ));
+    }
+    Ok(())
+}
+
+fn projection_source_files(
+    input: &ClientProjectionInput,
+) -> Result<BTreeMap<String, (PathBuf, String)>, SetupError> {
+    if !path_exists(&input.source_root)? {
+        return Ok(BTreeMap::new());
+    }
+    if input.origin == ORIGIN_INSTALLED {
+        reject_source_checkout_reference(&input.source_root)?;
+    }
+    let allowed_source_root = (input.origin == ORIGIN_INSTALLED)
+        .then(|| input.install_root.as_deref().map(stable_current_root))
+        .flatten();
+    ensure_projection_tree_safe_with_allowed_root(
+        &input.source_root,
+        allowed_source_root.as_deref(),
+    )?;
+    let mut files = BTreeMap::new();
+    if input.projection == "skills-only" {
+        for skill_id in &input.skill_ids {
+            if skill_id.trim().is_empty()
+                || skill_id.contains('/')
+                || skill_id.contains('\\')
+                || skill_id == "."
+                || skill_id == ".."
+            {
+                continue;
+            }
+            let source = input.source_root.join(skill_id);
+            if path_exists(&source)? {
+                collect_projection_files(&source, Path::new(skill_id), &mut files)?;
+            }
+        }
+    } else {
+        collect_projection_files(&input.source_root, Path::new(""), &mut files)?;
+        if input.client_id == CLIENT_CLAUDE && files.contains_key("plugin.json") {
+            let source = input.source_root.join("plugin.json");
+            let digest = digest_path(&source)?;
+            files.insert(".claude-plugin/plugin.json".into(), (source, digest));
+        }
+        if input.client_id == CLIENT_ANTIGRAVITY && files.contains_key("mcp.json") {
+            let source = input.source_root.join("mcp.json");
+            let digest = digest_path(&source)?;
+            files.insert("mcp_config.json".into(), (source, digest));
+        }
+    }
+    Ok(files)
+}
+
+fn projection_missing_surfaces(
+    input: &ClientProjectionInput,
+    expected: &BTreeMap<String, (PathBuf, String)>,
+) -> Vec<String> {
+    let mut missing = Vec::new();
+    let has_skill = expected.keys().any(|path| {
+        path == "SKILL.md" || path.starts_with("skills/") || path.contains("/SKILL.md")
+    });
+    if !has_skill {
+        missing.push("skills".into());
+    }
+    if input.executable_registration
+        && !expected.contains_key("mcp.json")
+        && !expected.contains_key("mcp_config.json")
+        && !expected.keys().any(|path| path.ends_with("/mcp.json"))
+    {
+        missing.push("executableToolSurface".into());
+        missing.push("mcpLifecycle".into());
+    }
+    if input.client_id == CLIENT_ANTIGRAVITY {
+        for (surface, marker) in [
+            ("mcpConfig", "mcp_config.json"),
+            ("hooks", "hooks/"),
+            ("agents", "agents/"),
+            ("rules", "rules/"),
+        ] {
+            if !expected.contains_key(marker)
+                && !expected.keys().any(|path| path.starts_with(marker))
+            {
+                missing.push(surface.into());
+            }
+        }
+    }
+    if input.projection == "skills-only" {
+        missing.retain(|surface| surface == "skills" || surface == "instructions");
+    }
+    missing.sort();
+    missing.dedup();
+    missing
+}
+
+fn projection_ledger_path(input: &ClientProjectionInput) -> PathBuf {
+    input
+        .state_root
+        .join("integrations")
+        .join("projections")
+        .join(format!("{}.json", input.client_id))
+}
+
+fn read_projection_ledger(
+    input: &ClientProjectionInput,
+) -> Result<Option<ClientProjectionLedger>, SetupError> {
+    let path = projection_ledger_path(input);
+    require_contained(&input.state_root, &path)?;
+    if !path.exists() {
+        return Ok(None);
+    }
+    let metadata = fs::symlink_metadata(&path).map_err(io)?;
+    if metadata.file_type().is_symlink() {
+        return Err(err(
+            SetupErrorCode::PathEscapeRefused,
+            "client projection ledger is a symlink",
+        ));
+    }
+    let Ok(value) = serde_json::from_slice::<ClientProjectionLedger>(&read(&path)?) else {
+        return Ok(None);
+    };
+    if value.schema_version != CLIENT_PROJECTION_LEDGER_SCHEMA_VERSION
+        || value.owner != CLIENT_PROJECTION_OWNER
+        || value.client_id != input.client_id
+        || value.projection != input.projection
+        || value.target_root != input.target_root
+        || value.origin != input.origin
+        || value.executable != input.executable
+        || value.install_root != input.install_root
+    {
+        return Ok(None);
+    }
+    for relative in value.files.keys() {
+        if relative.is_empty()
+            || Path::new(relative)
+                .components()
+                .any(|component| matches!(component, Component::ParentDir | Component::RootDir))
+        {
+            return Ok(None);
+        }
+    }
+    Ok(Some(value))
+}
+
+fn write_projection_ledger(
+    input: &ClientProjectionInput,
+    ledger: &ClientProjectionLedger,
+) -> Result<(), SetupError> {
+    let path = projection_ledger_path(input);
+    let bytes = serde_json::to_vec(ledger).map_err(|_| {
+        err(
+            SetupErrorCode::StateSerializationFailed,
+            "cannot encode client projection ledger",
+        )
+    })?;
+    atomic_write(&input.state_root, &path, &bytes)
+}
+
+fn path_exists(path: &Path) -> Result<bool, SetupError> {
+    match fs::symlink_metadata(path) {
+        Ok(_) => Ok(true),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(false),
+        Err(error) => Err(io(error)),
+    }
+}
+
+fn ensure_projection_parent_safe(path: &Path) -> Result<(), SetupError> {
+    ensure_projection_parent_safe_with_allowed_root(path, None)
+}
+
+fn ensure_projection_parent_safe_with_allowed_root(
+    path: &Path,
+    allowed_symlink_root: Option<&Path>,
+) -> Result<(), SetupError> {
+    if !path.is_absolute()
+        || path
+            .components()
+            .any(|component| matches!(component, Component::ParentDir | Component::CurDir))
+    {
+        return Err(err(
+            SetupErrorCode::PathEscapeRefused,
+            format!("projection path is not safe: {}", path.display()),
+        ));
+    }
+    let mut current = PathBuf::new();
+    for component in path.components() {
+        current.push(component.as_os_str());
+        #[cfg(windows)]
+        if matches!(component, Component::Prefix(_)) {
+            continue;
+        }
+        match fs::symlink_metadata(&current) {
+            Ok(metadata) if metadata.file_type().is_symlink() => {
+                if !allowed_symlink_root.is_some_and(|root| paths_equal(&current, root)) {
+                    return Err(err(
+                        SetupErrorCode::PathEscapeRefused,
+                        format!("projection path traverses symlink: {}", current.display()),
+                    ));
+                }
+            }
+            Ok(_) => {}
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => break,
+            Err(error) => return Err(io(error)),
+        }
+    }
+    Ok(())
+}
+
+fn ensure_projection_tree_safe(root: &Path) -> Result<(), SetupError> {
+    ensure_projection_tree_safe_with_allowed_root(root, None)
+}
+
+fn ensure_projection_tree_safe_with_allowed_root(
+    root: &Path,
+    allowed_symlink_root: Option<&Path>,
+) -> Result<(), SetupError> {
+    ensure_projection_parent_safe_with_allowed_root(root, allowed_symlink_root)?;
+    if !path_exists(root)? {
+        return Ok(());
+    }
+    let metadata = fs::symlink_metadata(root).map_err(io)?;
+    let allowed_root_symlink = metadata.file_type().is_symlink()
+        && allowed_symlink_root.is_some_and(|allowed| paths_equal(root, allowed));
+    if (!allowed_root_symlink && metadata.file_type().is_symlink())
+        || (!metadata.is_dir()
+            && !(allowed_root_symlink
+                && fs::metadata(root)
+                    .map(|value| value.is_dir())
+                    .unwrap_or(false)))
+    {
+        return Err(err(
+            SetupErrorCode::PathEscapeRefused,
+            format!("projection root is not a directory: {}", root.display()),
+        ));
+    }
+    for entry in fs::read_dir(root).map_err(io)? {
+        let entry = entry.map_err(io)?;
+        let metadata = fs::symlink_metadata(entry.path()).map_err(io)?;
+        if metadata.file_type().is_symlink() {
+            return Err(err(
+                SetupErrorCode::PathEscapeRefused,
+                format!(
+                    "projection tree contains symlink: {}",
+                    entry.path().display()
+                ),
+            ));
+        }
+        if metadata.is_dir() {
+            ensure_projection_tree_safe_with_allowed_root(&entry.path(), allowed_symlink_root)?;
+        }
+    }
+    Ok(())
+}
+
+fn paths_equal(left: &Path, right: &Path) -> bool {
+    if cfg!(windows) {
+        path_starts_with(left, right) && path_starts_with(right, left)
+    } else {
+        left == right
+    }
+}
+
+fn path_starts_with(path: &Path, root: &Path) -> bool {
+    if !cfg!(windows) {
+        return path.starts_with(root);
+    }
+    let normalize = |path: &Path| {
+        let normalized = path.to_string_lossy().replace('\\', "/");
+        let normalized = normalized.strip_prefix("//?/").unwrap_or(&normalized);
+        let normalized = normalized.strip_prefix("UNC/").unwrap_or(normalized);
+        normalized
+            .split('/')
+            .filter(|component| !component.is_empty() && *component != ".")
+            .map(|component| component.to_ascii_lowercase())
+            .collect::<Vec<_>>()
+    };
+    let path = normalize(path);
+    let root = normalize(root);
+    path.len() >= root.len()
+        && path
+            .iter()
+            .zip(root.iter())
+            .all(|(path, root)| path == root)
+}
+
+fn reject_source_checkout_reference(path: &Path) -> Result<(), SetupError> {
+    let canonical = fs::canonicalize(path).map_err(io)?;
+    for ancestor in canonical.ancestors() {
+        if ancestor.join(".git").exists()
+            && (ancestor.join("Cargo.toml").exists() || ancestor.join("package.json").exists())
+        {
+            return Err(err(
+                SetupErrorCode::SourceCheckoutReferenceRefused,
+                format!(
+                    "client projection source may not reference checkout: {}",
+                    path.display()
+                ),
+            ));
+        }
+    }
+    Ok(())
+}
+
+fn collect_projection_files(
+    root: &Path,
+    relative_root: &Path,
+    files: &mut BTreeMap<String, (PathBuf, String)>,
+) -> Result<(), SetupError> {
+    let metadata = fs::symlink_metadata(root).map_err(io)?;
+    if metadata.file_type().is_symlink() {
+        return Err(err(
+            SetupErrorCode::PathEscapeRefused,
+            format!("projection source contains symlink: {}", root.display()),
+        ));
+    }
+    if metadata.is_file() {
+        let relative = relative_root.to_string_lossy().replace('\\', "/");
+        if relative.is_empty() {
+            return Ok(());
+        }
+        files.insert(relative, (root.to_path_buf(), digest_path(root)?));
+        return Ok(());
+    }
+    for entry in fs::read_dir(root).map_err(io)? {
+        let entry = entry.map_err(io)?;
+        let child_relative = relative_root.join(entry.file_name());
+        collect_projection_files(&entry.path(), &child_relative, files)?;
+    }
+    Ok(())
+}
+
+fn projection_tree_files(root: &Path) -> Result<Vec<PathBuf>, SetupError> {
+    let mut files = Vec::new();
+    if !path_exists(root)? {
+        return Ok(files);
+    }
+    for entry in fs::read_dir(root).map_err(io)? {
+        let entry = entry.map_err(io)?;
+        let path = entry.path();
+        let metadata = fs::symlink_metadata(&path).map_err(io)?;
+        if metadata.file_type().is_symlink() {
+            return Err(err(
+                SetupErrorCode::PathEscapeRefused,
+                format!("projection tree contains symlink: {}", path.display()),
+            ));
+        }
+        if metadata.is_dir() {
+            files.extend(projection_tree_files(&path)?);
+        } else if metadata.is_file() {
+            files.push(path);
+        }
+    }
+    Ok(files)
+}
+
+fn digest_path(path: &Path) -> Result<String, SetupError> {
+    Ok(digest_bytes(&read(path)?))
+}
+
+fn write_projection_file(root: &Path, destination: &Path, source: &Path) -> Result<(), SetupError> {
+    if !destination.starts_with(root) {
+        return Err(err(
+            SetupErrorCode::PathEscapeRefused,
+            "projection destination escapes target root",
+        ));
+    }
+    ensure_projection_parent_safe(destination)?;
+    let parent = destination.parent().ok_or_else(|| {
+        err(
+            SetupErrorCode::PathEscapeRefused,
+            "projection destination has no parent",
+        )
+    })?;
+    fs::create_dir_all(parent).map_err(io)?;
+    let bytes = read(source)?;
+    let temporary = parent.join(format!(".legion-projection-tmp-{}", nonce()));
+    {
+        let mut file = OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(&temporary)
+            .map_err(io)?;
+        file.write_all(&bytes).map_err(io)?;
+        file.sync_all().map_err(io)?;
+    }
+    if fs::rename(&temporary, destination).is_err() {
+        if path_exists(destination)? {
+            fs::remove_file(destination).map_err(io)?;
+        }
+        fs::rename(&temporary, destination).map_err(io)?;
+    }
+    Ok(())
+}
+
+fn remove_empty_projection_root(root: &Path) -> Result<(), SetupError> {
+    if !path_exists(root)? {
+        return Ok(());
+    }
+    let mut entries = fs::read_dir(root).map_err(io)?;
+    if entries.next().is_none() {
+        fs::remove_dir(root).map_err(io)?;
+    }
+    Ok(())
 }
 
 /// Resolves the native platform-local data convention with the fixed Legion suffix.
@@ -944,6 +2410,7 @@ pub fn platform_state_root() -> Result<PathBuf, SetupError> {
                 "LEGION_STATE_ROOT must be an absolute path",
             ));
         }
+        reject_production_path(&configured)?;
         return Ok(configured);
     }
     let directories = directories_next::BaseDirs::new().ok_or_else(|| {
@@ -952,7 +2419,9 @@ pub fn platform_state_root() -> Result<PathBuf, SetupError> {
             "native platform user-data directory is unavailable",
         )
     })?;
-    Ok(directories.data_local_dir().join("Legion"))
+    let root = directories.data_local_dir().join("Legion");
+    reject_production_path(&root)?;
+    Ok(root)
 }
 
 fn err(code: SetupErrorCode, remediation: impl Into<String>) -> SetupError {
@@ -998,9 +2467,15 @@ fn matches_selector(selector: &ClientSelector, client: &str) -> bool {
         || matches!(selector, ClientSelector::ClientId(id) if id == client)
 }
 fn detected(evidence: &ClientEvidence) -> DetectedClient {
-    let mut mechanisms = evidence.mechanisms.clone();
-    mechanisms.sort();
-    mechanisms.dedup();
+    let Some(profile) = client_boundary(&evidence.client_id) else {
+        return DetectedClient {
+            client_id: evidence.client_id.clone(),
+            selected_mechanism: String::new(),
+            fidelity: "Unavailable".into(),
+            missing_surfaces: vec!["supported client profile".into()],
+            remediation: vec!["select one supported client profile".into()],
+        };
+    };
     if !evidence.detected {
         return DetectedClient {
             client_id: evidence.client_id.clone(),
@@ -1010,7 +2485,8 @@ fn detected(evidence: &ClientEvidence) -> DetectedClient {
             remediation: vec!["install or select a supported client".into()],
         };
     }
-    if mechanisms.is_empty() {
+    let Some(selected_mechanism) = select_mechanism(&evidence.client_id, &evidence.mechanisms)
+    else {
         return DetectedClient {
             client_id: evidence.client_id.clone(),
             selected_mechanism: String::new(),
@@ -1018,30 +2494,79 @@ fn detected(evidence: &ClientEvidence) -> DetectedClient {
             missing_surfaces: vec!["supported mechanism".into()],
             remediation: vec!["configure a supported integration mechanism".into()],
         };
-    }
+    };
     let mut missing = Vec::new();
-    if evidence.command_proof_ref.is_none() {
+    if evidence.command_proof_ref.is_none() && profile.executable_registration {
         missing.push("command resolution proof".into());
     }
-    if evidence.qualification_evidence_ref.is_none() {
+    if evidence.qualification_evidence_ref.is_none() && profile.executable_registration {
         missing.push("real-client qualification evidence".into());
     }
-    let qualified = missing.is_empty();
+    if evidence.client_id == CLIENT_PI {
+        missing.extend(
+            [
+                "executableToolSurface",
+                "mcpLifecycle",
+                "releaseBinding",
+                "executableResolution",
+                "hostEnforcement",
+            ]
+            .into_iter()
+            .map(String::from),
+        );
+    }
+    let qualified = profile.executable_registration && missing.is_empty();
+    let legacy_bare = selected_mechanism == "agent-plugins-bare-command"
+        && matches!(evidence.client_id.as_str(), CLIENT_CLAUDE | CLIENT_CODEX);
+    let fidelity = if evidence.client_id == CLIENT_PI {
+        "Baseline"
+    } else if qualified {
+        "Full"
+    } else if legacy_bare {
+        "Baseline"
+    } else {
+        "Degraded"
+    };
     DetectedClient {
         client_id: evidence.client_id.clone(),
-        selected_mechanism: mechanisms.remove(0),
-        fidelity: if qualified {
-            "Full".into()
-        } else {
-            "Baseline".into()
-        },
+        selected_mechanism,
+        fidelity: fidelity.into(),
         missing_surfaces: missing,
-        remediation: if qualified {
+        remediation: if qualified || evidence.client_id == CLIENT_PI {
             Vec::new()
         } else {
             vec!["legion setup repair --confirm".into()]
         },
     }
+}
+
+fn select_mechanism(client_id: &str, mechanisms: &[String]) -> Option<String> {
+    let order: &[&str] = match client_id {
+        CLIENT_CLAUDE => &[
+            "claude-native-plugin",
+            "supported-native-exact-path-registration",
+            "agent-plugins-bare-command",
+        ],
+        CLIENT_CODEX => &[
+            "codex-agent-plugins",
+            "supported-native-exact-path-registration",
+            "agent-plugins-bare-command",
+        ],
+        CLIENT_CURSOR => &[
+            "cursor-agent-plugins",
+            "supported-native-exact-path-registration",
+        ],
+        CLIENT_PI => &["pi-skills-only"],
+        CLIENT_ANTIGRAVITY => &[
+            "antigravity-native-plugin",
+            "supported-native-exact-path-registration",
+        ],
+        _ => &[],
+    };
+    order
+        .iter()
+        .find(|candidate| mechanisms.iter().any(|value| value == **candidate))
+        .map(|value| (*value).into())
 }
 fn external_qualification(
     clients: &[DetectedClient],
@@ -1439,6 +2964,8 @@ mod tests {
                 command_proof_ref: Some("proof".into()),
                 qualification_evidence_ref: None,
             }],
+            origin: ORIGIN_INSTALLED.into(),
+            development: None,
         }
     }
 
@@ -1599,5 +3126,49 @@ mod tests {
             .join("Legion");
         assert_eq!(root, native_data);
         assert!(root.is_absolute());
+    }
+
+    #[test]
+    fn development_context_rejects_native_descendants_and_external_targets() {
+        let root = TestRoot::new("development-isolation");
+        let repository_root = root.0.join("repository");
+        let state_root = root.0.join("state");
+        let external_target = root.0.join("external-client");
+        fs::create_dir_all(&repository_root).unwrap();
+        fs::create_dir_all(&state_root).unwrap();
+
+        let native_child = DevelopmentSetupContext {
+            repository_root: repository_root.clone(),
+            state_root: platform_state_root().unwrap().join("development-forbidden"),
+            port: Some(4011),
+            process_identity: "test-development".into(),
+            client_overrides: BTreeMap::new(),
+        };
+        assert_eq!(
+            validate_development_context(&native_child)
+                .unwrap_err()
+                .code,
+            SetupErrorCode::PathEscapeRefused
+        );
+
+        let external_override = DevelopmentSetupContext {
+            repository_root: repository_root.clone(),
+            state_root: state_root.clone(),
+            port: Some(4011),
+            process_identity: "test-development".into(),
+            client_overrides: BTreeMap::from([(
+                "codex".into(),
+                DevelopmentClientOverride {
+                    source_root: repository_root,
+                    target_root: external_target,
+                },
+            )]),
+        };
+        assert_eq!(
+            validate_development_context(&external_override)
+                .unwrap_err()
+                .code,
+            SetupErrorCode::PathEscapeRefused
+        );
     }
 }

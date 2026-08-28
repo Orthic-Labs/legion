@@ -23,36 +23,30 @@ pub struct AuditArgs {
     pub provider_plan: Option<PathBuf>,
     #[arg(long = "provider-result")]
     pub provider_results: Vec<PathBuf>,
+    #[arg(long = "native-rule-manifest")]
+    pub native_rule_manifest: Option<PathBuf>,
+    #[arg(long, default_value_t = 1_048_576)]
+    pub max_file_bytes: u64,
 }
 pub async fn run(args: AuditArgs, cancellation: CancellationToken) -> CommandResult {
     let root = std::fs::canonicalize(&args.root).map_err(super::io_error)?;
     let direct = args.blueprint_packet.is_some()
         || args.provider_plan.is_some()
         || !args.provider_results.is_empty();
-    if !direct && std::env::var_os("LEGION_NATIVE_APPLICATION_CONFIG").is_none() {
-        return Ok(json!({
-            "schemaVersion": 1,
-            "kind": if args.plan_only { "audit-provider-plan" } else { "repository-audit-report" },
-            "root": root,
-            "providers": [],
-            "resultCount": 0,
-            "gaps": ["native frozen provider composition is not connected"],
-            "auditStatus": "incomplete",
-            "qualityGate": "unproven",
-            "processExecution": "not-run",
-            "processState": "not-run",
-            "completionValidation": "not-run",
-        }));
-    }
     let signing_key = super::audit_signing_key()?;
+    let native_provider_subset =
+        !direct && std::env::var_os("LEGION_NATIVE_APPLICATION_CONFIG").is_none();
     let (application, context_notices) = if direct {
         let (application, notices) = direct_application(&args, &root)?;
         (Arc::new(application), notices)
-    } else {
+    } else if std::env::var_os("LEGION_NATIVE_APPLICATION_CONFIG").is_some() {
         (
             super::native_application_for(&root.to_string_lossy())?,
             Vec::new(),
         )
+    } else {
+        let (application, notices) = native_rule_application(&args, &root)?;
+        (Arc::new(application), notices)
     };
     let selected_specs = application.provider_specs();
     let blueprint_dependent = selected_specs.iter().any(|provider| {
@@ -128,6 +122,22 @@ pub async fn run(args: AuditArgs, cancellation: CancellationToken) -> CommandRes
         legion_application::NativeOperationResult::Audit(execution) => {
             let mut report = legion_audit::canonical_report(&root.to_string_lossy(), &execution)
                 .map_err(|error| CommandError::integrity(error.to_string()))?;
+            if native_provider_subset {
+                report
+                    .gaps
+                    .push("native-provider-composition-partial".into());
+                report.gaps.sort();
+                report.gaps.dedup();
+                report.status = legion_contracts::ReportStatus::Incomplete;
+                report.claims.insert(
+                    "providerCoverage".into(),
+                    json!({
+                        "scope": "native-security-rules",
+                        "fullAudit": false,
+                        "plannedProviders": execution.planned_providers.clone(),
+                    }),
+                );
+            }
             if !context_notices.is_empty() {
                 report
                     .claims
@@ -221,6 +231,100 @@ pub async fn run(args: AuditArgs, cancellation: CancellationToken) -> CommandRes
             "native audit application returned an incompatible result",
         )),
     }
+}
+
+fn native_rule_application(
+    args: &AuditArgs,
+    root: &std::path::Path,
+) -> Result<(legion_application::NativeApplication, Vec<String>), CommandError> {
+    let manifest = match &args.native_rule_manifest {
+        Some(path) => std::fs::canonicalize(path).map_err(super::io_error)?,
+        None => {
+            let composition = crate::cli::installed_m1_composition()?;
+            let release_root = composition.parent().ok_or_else(|| {
+                CommandError::incomplete("installed composition has no release root")
+            })?;
+            std::fs::canonicalize(release_root.join("assets/packs/native/manifest.v1.json"))
+                .map_err(|error| {
+                    CommandError::incomplete(format!(
+                        "installed native Audit manifest is unavailable: {error}; run legion setup repair --confirm"
+                    ))
+                })?
+        }
+    };
+    let manifest_bytes = std::fs::read(&manifest).map_err(super::io_error)?;
+    let manifest_digest = sha256_hex(&manifest_bytes);
+    legion_rules::RuleCompiler::compile_manifest_json(
+        std::str::from_utf8(&manifest_bytes).map_err(|error| {
+            CommandError::usage(format!("native rule manifest is not UTF-8: {error}"))
+        })?,
+    )
+    .map_err(|error| CommandError::usage(error.to_string()))?;
+    let specification: legion_contracts::ProviderSpec = serde_json::from_value(json!({
+        "schemaVersion": 2,
+        "id": "security.native-rules",
+        "providerVersion": "1.0.0",
+        "family": "security",
+        "lensIds": [],
+        "role": "deterministic",
+        "phase": "source",
+        "dependsOn": [],
+        "consumes": ["repository-inventory"],
+        "produces": ["provider-result"],
+        "selector": {"op": "always"},
+        "denominatorKind": "repository-inventory",
+        "runner": {
+            "kind": "built-in",
+            "implementation": "native-rule-manifest",
+            "manifestDigest": format!("sha256:{manifest_digest}")
+        },
+        "hostCapabilities": [],
+        "execution": {
+            "scheduleClass": "parallel-safe",
+            "resourceClaims": {"cpu": 1, "memoryMb": 256, "io": 1, "projectExecution": 0, "browser": 0, "nativeSurface": 0, "virtualMachine": 0, "simulator": 0, "physicalDevice": 0, "externalSystem": 0, "reviewer": 0, "signer": 0},
+            "concurrencyKey": null,
+            "maxParallelism": 1,
+            "orderSensitive": false,
+            "interruptible": true,
+            "cachePolicy": "content-addressed",
+            "failurePolicy": "block-dependents",
+            "required": true
+        },
+        "reasoning": {"requirement": "none", "trigger": "none", "subjectKind": "provider-result", "freshContext": true, "producerSeparation": true},
+        "benchmark": {"status": "source-tested", "requiredForCleanClaim": false, "qualificationDigest": format!("sha256:{manifest_digest}")},
+        "cleanClaim": "finding-producing",
+        "controlIds": ["security.source-assurance"],
+        "scopes": ["family:security"],
+        "selectable": true
+    }))
+    .map_err(|error| CommandError::internal(format!("native Audit provider invalid: {error}")))?;
+    specification
+        .validate()
+        .map_err(|error| CommandError::internal(error.to_string()))?;
+    let (source, notices) = super::audit_inventory_source(
+        root,
+        args.blueprint_packet.as_deref(),
+        args.expected_generation.clone(),
+    )?;
+    let executor = super::rules::NativeRuleProviderExecutor::new(
+        root.to_path_buf(),
+        manifest,
+        args.max_file_bytes,
+    )
+    .map_err(|error| CommandError::incomplete(error.to_string()))?;
+    let application = legion_application::NativeApplicationConfig::for_audit_executor(
+        root.to_string_lossy().into_owned(),
+        source,
+        vec![specification],
+        Arc::new(executor),
+    )
+    .map_err(|error| CommandError::incomplete(error.to_string()))?;
+    Ok((application, notices))
+}
+
+fn sha256_hex(bytes: &[u8]) -> String {
+    use sha2::{Digest, Sha256};
+    hex::encode(Sha256::digest(bytes))
 }
 
 fn direct_application(

@@ -15,7 +15,7 @@ The canonical document is stored at the project's product marketing context docu
 
 ### Step 1: Check for Existing Context
 
-First, check if the project's product marketing context document already exists. Also check `<private-overlay>/product-marketing.md` and the project's product marketing context document for older setups. If an older/alternate file exists but the canonical file does not, offer to copy or migrate it.
+First, check if the project's product marketing context document already exists. Also check any configured private workspace overlay's `product-marketing.md` and the project's product marketing context document for older setups. If an older/alternate file exists but the canonical file does not, offer to copy or migrate it.
 
 **If it exists:**
 - Read it and summarize what's captured

@@ -52,30 +52,24 @@ package consumer; Legion docs use *agent client/host* when referring to the broa
 ### 3.1 Machine installation
 
 ```text
-macOS                                  Windows
-brew install legion                    winget install legion
-        |                                      |
-        v                                      v
-signed + notarized legion              signed + timestamped legion.exe
-        |                                      |
-        +------------------+-------------------+
-                           v
-                     legion setup
-                           |
-             detect supported agent clients
-                           |
-               show mechanisms and fidelity
-                           |
-           user selects integrations to enable
-                           |
-          install/register/verify each adapter
+branded one-command bootstrap
+        |
+        v
+immutable GitHub Release manifest + signed platform archive
+        |
+        v
+versioned user-local runtime + stable current path
+        |
+        v
+legion setup repair --confirm
+        |
+        v
+exact legion setup status verification
 ```
 
-M0 freezes Homebrew packaging as formula (optionally bottled) versus cask, then selects appropriate
-tap/distribution channel from release mechanics, signing, provenance, update, and rollback evidence.
-Architecture does not pre-decide those choices.
-WinGet portable packaging is acceptable when it preserves signing, aliases, updates, and removal.
-Neither platform requires a desktop app, DMG, PKG, MSI, tray process, or setup wizard.
+`docs/LEGION-DISTRIBUTION-AND-CLIENT-INTEGRATION.md` owns trust chain, asset names, update/rollback,
+Agent Plugins package, and client projection boundaries. WinGet, Homebrew, setup EXE, DMG, PKG,
+MSI, tray process, and setup wizard are not required distribution paths.
 
 ### 3.2 Active runtime
 
@@ -99,7 +93,7 @@ that client's lifecycle. No machine-wide Legion daemon or socket exists.
 | Conversation, model invocation, native tools, session lifecycle | Agent client/host |
 | Model/provider selection | Agent client/host or OmniRouter |
 | Portable plugin shape and MCP declaration | Agent Plugins 1.0 |
-| Machine installation and client integration | platform package manager + `legion setup` |
+| Machine installation and client integration | RightRelease bootstrap + `legion setup` |
 | Client-specific lifecycle, permissions, and MCP process | agent client/host |
 | Plugin validation and AX gates | pinned RightKit AX release |
 | Signed native artifacts and release publication | RightKit Release |
@@ -118,7 +112,7 @@ machinery crash.
 
 ### 5.1 Machine-installed runtime
 
-Platform package installs one active native command plus versioned Legion-owned runtime assets:
+Bootstrap installs one stable native command plus versioned Legion-owned runtime assets:
 
 ```text
 legion or legion.exe
@@ -130,8 +124,8 @@ share/legion/
 └─ schemas/
 ```
 
-Package manager selects compatible OS and architecture artifact. `legion.exe` is Legion's Windows
-runtime/MCP executable, not an installer.
+Signed release manifest selects compatible OS and architecture artifact. `legion.exe` is Legion's
+Windows runtime/MCP executable, not a setup-installer application.
 
 ### 5.2 Portable Agent Plugin
 
@@ -186,7 +180,7 @@ Every installed integration binds its assets to one Legion release using at leas
 
 MCP initialization verifies binding before exposing tools. Mismatch fails closed with exact
 `legion setup repair --confirm` remediation; stale assets never run silently against a newer runtime.
-Package-manager update and integration refresh may form a bounded skew window, but no mixed-version
+Bootstrap update and integration refresh may form a bounded skew window, but no mixed-version
 execution is allowed: setup repairs each integration transactionally after update. Existing client
 processes may finish under their bound release; incompatible state migration waits for old runtime
 leases to close.
@@ -417,7 +411,7 @@ Rust migration and hard cut are complete only when:
 - shipped Legion algorithms are Rust or declarative assets;
 - shipped product has no Node/Python runtime dependency;
 - no always-on Legion daemon or per-tool Legion self-spawn exists;
-- one platform-native Legion command installs through qualified Homebrew and WinGet paths;
+- one platform-native Legion command installs through qualified branded direct bootstrap;
 - `legion setup` installs and verifies two independent agent-client implementations;
 - portable plugin conforms to Agent Plugins 1.0 without embedded platform binary;
 - every Full client proves installed-command resolution or supported exact-path registration;

@@ -1,3 +1,7 @@
+use legion_host::setup_registry::{
+    inspect_client_projection, remove_client_projection, repair_client_projection,
+    stable_install_root, ClientProjectionInput, CLIENT_CLAUDE, CLIENT_PI,
+};
 use legion_host::{
     BoundRelease, ClientEvidence, ClientSelector, OnDiskSetupStore, PlanConfirmation, SetupAction,
     SetupErrorCode, SetupRegistry, SetupRequest, SetupState, SetupStore,
@@ -69,8 +73,8 @@ fn release_bound_real_client_evidence_promotes_full_fidelity() {
             "signer": "Damned Ventures LLC",
             "authenticodeStatus": "Valid",
             "timestamped": true,
-            "rightkitAxVersion": "0.2.0",
-            "rightkitAxSourceCommit": "01f52555202da3dffc6b649ca44e803b55238081"
+            "rightkitAxVersion": "0.2.1",
+            "rightkitAxSourceCommit": "4c1a414269d8ffdb95b4b1e685440bd34784b41b"
         })
         .to_string(),
     )
@@ -95,6 +99,14 @@ fn request(root: &Path, action: SetupAction) -> SetupRequest {
         platform_state_root: root.to_path_buf(),
         client_evidence: evidence(),
         dry_run: false,
+        origin: "development".into(),
+        development: Some(legion_host::setup_registry::DevelopmentSetupContext {
+            repository_root: root.to_path_buf(),
+            state_root: root.to_path_buf(),
+            port: Some(4010),
+            process_identity: "m3-test".into(),
+            client_overrides: Default::default(),
+        }),
     }
 }
 
@@ -354,6 +366,149 @@ fn symlinked_platform_roots_are_refused() {
 }
 
 #[test]
+fn native_client_projection_profiles_reconcile_without_claiming_pi_execution() {
+    let root = TempRoot::new("client-projections");
+    let state_root = root.path().join("state");
+    let source_root = root.path().join("release/plugin");
+    let claude_target = state_root.join("clients/.claude/plugins/legion");
+    let pi_target = state_root.join("clients/.agents/skills");
+    fs::create_dir_all(source_root.join("skills/example")).expect("plugin source");
+    fs::write(source_root.join("plugin.json"), br#"{"name":"legion"}"#).expect("plugin manifest");
+    fs::write(source_root.join("mcp.json"), br#"{"mcpServers":{}}"#).expect("plugin MCP manifest");
+    fs::write(source_root.join("skills/example/SKILL.md"), b"# Example").expect("plugin skill");
+    fs::create_dir_all(root.path().join("release/skills/example")).expect("Pi skill source");
+    fs::write(
+        root.path().join("release/skills/example/SKILL.md"),
+        b"# Example",
+    )
+    .expect("Pi skill");
+    let _registry = registry(&state_root);
+    let state_root = fs::canonicalize(&state_root).expect("canonical state root");
+    let claude = ClientProjectionInput {
+        client_id: CLIENT_CLAUDE.into(),
+        projection: "native-plugin".into(),
+        source_root: fs::canonicalize(&source_root).expect("canonical plugin source"),
+        target_root: claude_target,
+        state_root: state_root.clone(),
+        origin: "development".into(),
+        executable: None,
+        install_root: None,
+        generation: "0.1.0-test:assets".into(),
+        executable_registration: true,
+        explicit_only: false,
+        skill_ids: vec!["example".into()],
+    };
+    assert_eq!(
+        inspect_client_projection(&claude)
+            .expect("inspect missing native projection")
+            .state,
+        "stale"
+    );
+    let repaired = repair_client_projection(&claude).expect("repair native projection");
+    assert_eq!(repaired.inspection.state, "current");
+    fs::write(claude.target_root.join("private.txt"), b"must remain").expect("foreign client file");
+    fs::write(claude.target_root.join("plugin.json"), b"user edit").expect("modified Legion file");
+    let removed = remove_client_projection(&claude).expect("remove native projection");
+    assert!(removed
+        .preserved
+        .iter()
+        .any(|path| path.ends_with("plugin.json")));
+    assert!(claude.target_root.join("private.txt").is_file());
+
+    let pi = ClientProjectionInput {
+        client_id: CLIENT_PI.into(),
+        projection: "skills-only".into(),
+        source_root: fs::canonicalize(root.path().join("release/skills"))
+            .expect("canonical Pi source"),
+        target_root: pi_target,
+        state_root,
+        origin: "development".into(),
+        executable: None,
+        install_root: None,
+        generation: "0.1.0-test:assets".into(),
+        executable_registration: false,
+        explicit_only: true,
+        skill_ids: vec!["example".into()],
+    };
+    let pi_repair = repair_client_projection(&pi).expect("repair Pi skills");
+    assert_eq!(pi_repair.inspection.state, "current");
+    assert!(!pi_repair.inspection.executable_registration);
+    assert!(pi.target_root.join("example/SKILL.md").is_file());
+    assert!(!pi.target_root.join("example/agents").exists());
+}
+
+#[test]
+fn production_projection_reports_identity_and_rejects_escaped_build_paths() {
+    let root = TempRoot::new("production-binding");
+    let state_root = root.path().join("state");
+    let install_root = root.path().join("Legion");
+    let current_root = install_root.join("current");
+    let executable = current_root.join(if cfg!(windows) {
+        "bin/legion.exe"
+    } else {
+        "bin/legion"
+    });
+    let source_root = current_root.join("share/legion/plugin");
+    let target_root = root.path().join("client/.claude/plugins/legion");
+    fs::create_dir_all(&source_root).expect("installed plugin source");
+    fs::write(source_root.join("mcp.json"), b"{}").expect("installed MCP manifest");
+    fs::create_dir_all(executable.parent().expect("executable parent")).expect("installed bin");
+    fs::write(&executable, b"installed executable").expect("installed executable");
+    let _registry = registry(&state_root);
+    let canonical_install_root = fs::canonicalize(&install_root).expect("canonical install root");
+    assert_eq!(
+        fs::canonicalize(stable_install_root(&executable).unwrap())
+            .expect("canonical derived install root"),
+        canonical_install_root
+    );
+    let input = ClientProjectionInput {
+        client_id: CLIENT_CLAUDE.into(),
+        projection: "native-plugin".into(),
+        source_root: fs::canonicalize(&source_root).expect("canonical installed source"),
+        target_root,
+        state_root: fs::canonicalize(&state_root).expect("canonical state root"),
+        origin: "installed".into(),
+        executable: Some(fs::canonicalize(&executable).expect("canonical executable")),
+        install_root: Some(canonical_install_root),
+        generation: "0.1.0-test:assets".into(),
+        executable_registration: true,
+        explicit_only: false,
+        skill_ids: vec![],
+    };
+    let inspection = inspect_client_projection(&input).expect("inspect installed projection");
+    assert_eq!(inspection.origin, "installed");
+    assert_eq!(inspection.executable, input.executable);
+    assert_eq!(inspection.install_root, input.install_root);
+    assert_eq!(inspection.expected_generation, input.generation);
+
+    let escaped_root = root.path().join("target");
+    let escaped_current_root = escaped_root.join("current");
+    let escaped_executable = escaped_current_root.join(if cfg!(windows) {
+        "bin/legion.exe"
+    } else {
+        "bin/legion"
+    });
+    let escaped_source = escaped_current_root.join("share/legion/plugin");
+    fs::create_dir_all(&escaped_source).expect("escaped source");
+    fs::write(escaped_source.join("mcp.json"), b"{}").expect("escaped MCP manifest");
+    fs::create_dir_all(escaped_executable.parent().expect("escaped bin"))
+        .expect("escaped executable directory");
+    fs::write(&escaped_executable, b"escaped executable").expect("escaped executable");
+    let escaped = ClientProjectionInput {
+        source_root: fs::canonicalize(&escaped_source).expect("canonical escaped source"),
+        executable: Some(
+            fs::canonicalize(&escaped_executable).expect("canonical escaped executable"),
+        ),
+        install_root: Some(fs::canonicalize(&escaped_root).expect("canonical escaped root")),
+        ..input
+    };
+    assert_eq!(
+        inspect_client_projection(&escaped).unwrap_err().code,
+        SetupErrorCode::PathEscapeRefused
+    );
+}
+
+#[test]
 fn m2_plugin_root_and_setup_cli_routes_remain_explicit() {
     let mcp: serde_json::Value =
         serde_json::from_str(include_str!("../assets/legion-plugin/mcp.json"))
@@ -372,10 +527,8 @@ fn m2_plugin_root_and_setup_cli_routes_remain_explicit() {
         assert!(cli.contains(required), "missing CLI route: {required}");
     }
     let setup = include_str!("../bins/legion/src/commands/setup.rs");
-    assert!(
-        !setup.contains("state-root"),
-        "setup CLI must not accept a caller-selected state root"
-    );
+    assert!(setup.contains("state_root") || setup.contains("state-root"));
+    assert!(setup.contains("development"));
     for required in ["platform_state_root()", "open_platform("] {
         assert!(
             setup.contains(required),

@@ -2,7 +2,8 @@
   "schemaVersion": 1,
   "kind": "legion-native-distribution-contract",
   "baselineCommit": "396f427009ade1a4243188c7da75ff335efe9e82",
-  "status": "frozen",
+  "status": "superseded-provenance",
+  "supersededBy": "docs/LEGION-DISTRIBUTION-AND-CLIENT-INTEGRATION.md",
   "productShape": {
     "artifact": "one signed native legion command per platform and architecture",
     "forbidden": ["desktop application", "DMG", "PKG", "MSI", "tray process", "setup wizard", "machine-wide daemon"]

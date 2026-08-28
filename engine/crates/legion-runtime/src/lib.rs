@@ -26,9 +26,9 @@ pub use legion_contracts::{
 pub use plan::{compile_plan, FrozenPlan};
 pub use profile::AgentProfile;
 pub use release_binding::{
-    load_release_manifest, verify_release_binding, DeclarativeAssets, ReleaseBindingError,
-    ReleaseBindingInputs, ReleaseManifest, RightkitAxIdentity, RuntimeIdentity,
-    VerifiedReleaseBinding, REPAIR_COMMAND,
+    load_release_manifest, verify_release_binding, DeclarativeAssets, DevelopmentExecutionContext,
+    ReleaseBindingError, ReleaseBindingInputs, ReleaseManifest, RightkitAxIdentity,
+    RuntimeIdentity, VerifiedReleaseBinding, REPAIR_COMMAND,
 };
 pub use route::{select_route, RouteCandidate, SelectedRoute};
 pub use scheduler::{Scheduler, SchedulerEvent, SchedulerOutput, SchedulerPolicy};

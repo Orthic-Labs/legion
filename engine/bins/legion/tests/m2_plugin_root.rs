@@ -15,13 +15,31 @@ use legion_policy_model::{
 };
 use serde_json::{json, Value};
 
-const PACKAGE_FILES: [&str; 6] = [
-    "plugin.json",
-    "mcp.json",
-    "skills/legion/SKILL.md",
-    "share/legion/release-binding.json",
-    "share/legion/identity/release-identity.json",
-    "share/legion/schemas/mcp-tools.schema.json",
+const PUBLIC_SKILLS: [&str; 24] = [
+    "ads",
+    "alchemist",
+    "architect",
+    "audit",
+    "audit-fix",
+    "audit-visual",
+    "brand",
+    "brand-identity",
+    "coder",
+    "commit",
+    "covenant",
+    "debugger",
+    "designer",
+    "dispatch",
+    "gotchas",
+    "handoff",
+    "marketing",
+    "qa",
+    "research",
+    "seo",
+    "social",
+    "tasklist",
+    "wake",
+    "writing",
 ];
 
 struct Fixture {
@@ -143,8 +161,8 @@ fn fixture() -> Fixture {
         declarative_assets_sha256: digest("assets.json"),
         state_schema_version: 1,
         rightkit_ax: legion_runtime::RightkitAxIdentity {
-            version: "0.2.0".into(),
-            source_commit: "01f52555202da3dffc6b649ca44e803b55238081".into(),
+            version: "0.2.1".into(),
+            source_commit: "4c1a414269d8ffdb95b4b1e685440bd34784b41b".into(),
         },
     };
     fs::write(
@@ -179,29 +197,71 @@ fn fixture() -> Fixture {
 
 fn portable_package(fixture: &Fixture) -> PathBuf {
     let root = fixture.root.join("legion-plugin");
-    for relative in PACKAGE_FILES {
-        let path = root.join(relative);
-        fs::create_dir_all(path.parent().expect("package parent")).expect("package directory");
-        let content = match relative {
-            "plugin.json" => include_bytes!("../../../assets/legion-plugin/plugin.json").as_slice(),
-            "mcp.json" => br#"{"$schema":"https://agent-plugins.org/schemas/1.0.0/mcp.schema.json","mcpServers":{"legion":{"type":"stdio","command":"legion","args":["serve","--stdio","--plugin-root","${PLUGIN_ROOT}"]}}}"#.as_slice(),
-            "skills/legion/SKILL.md" => b"---\nname: legion\n---\nUse Legion.",
-            "share/legion/release-binding.json" => {
-                fs::copy(fixture.root.join("release.json"), &path).expect("release binding");
-                continue;
-            }
-            "share/legion/identity/release-identity.json" => {
-                fs::copy(fixture.root.join("release.json"), &path).expect("release identity");
-                continue;
-            }
-            "share/legion/schemas/mcp-tools.schema.json" => {
-                fs::copy(fixture.root.join("mcp-schema.json"), &path).expect("MCP tool schema");
-                continue;
-            }
-            _ => unreachable!("known package file"),
-        };
-        fs::write(path, content).expect("package file");
+    fs::create_dir_all(&root).expect("plugin root");
+    fs::write(
+        root.join("plugin.json"),
+        include_bytes!("../../../assets/legion-plugin/plugin.json"),
+    )
+    .expect("plugin manifest");
+    fs::write(
+        root.join("mcp.json"),
+        br#"{"$schema":"https://agent-plugins.org/schemas/1.0.0/mcp.schema.json","mcpServers":{"legion":{"type":"stdio","command":"legion","args":["serve","--stdio","--plugin-root","${PLUGIN_ROOT}"]}}}"#,
+    )
+    .expect("MCP manifest");
+    let mut public_files = vec!["plugin.json".to_string(), "mcp.json".to_string()];
+    for skill in PUBLIC_SKILLS {
+        let relative = format!("skills/{skill}/SKILL.md");
+        let path = root.join(&relative);
+        fs::create_dir_all(path.parent().expect("skill parent")).expect("skill directory");
+        fs::write(&path, format!("---\nname: {skill}\n---\nUse {skill}.\n")).expect("skill");
+        public_files.push(relative);
     }
+    fs::write(
+        root.join("rightax-portable-core.json"),
+        serde_json::to_vec(&json!({
+            "schemaVersion": 1,
+            "kind": "rightax-portable-core",
+            "plugin": "legion",
+            "publicSkills": PUBLIC_SKILLS,
+            "publicFiles": public_files,
+            "privateWorkspaceContent": false,
+            "clientProjections": {
+                "claude": {
+                    "portableCore": false,
+                    "projection": "claude-native-plugin+standalone-skills",
+                    "fidelity": "full+skills-only",
+                    "executableRegistration": true
+                },
+                "codex": {
+                    "portableCore": true,
+                    "projection": "agent-plugins+codex-sidecar",
+                    "fidelity": "full+sidecar",
+                    "executableRegistration": true
+                },
+                "cursor": {
+                    "portableCore": true,
+                    "projection": "agent-plugins+optional-cursor-sidecar",
+                    "fidelity": "full+optional-sidecar",
+                    "executableRegistration": true
+                },
+                "pi": {
+                    "portableCore": false,
+                    "projection": "agents-skills",
+                    "fidelity": "skills-only",
+                    "executableRegistration": false
+                },
+                "antigravity": {
+                    "portableCore": false,
+                    "projection": "antigravity-native-plugin",
+                    "fidelity": "native",
+                    "schema": "https://antigravity.google/schemas/v1/plugin.json",
+                    "executableRegistration": true
+                }
+            }
+        }))
+        .expect("RightAX contract"),
+    )
+    .expect("RightAX contract file");
     root
 }
 
@@ -282,19 +342,19 @@ fn invalid_plugin_roots_fail_before_mcp_startup() {
 }
 
 #[test]
-fn plugin_root_release_binding_mismatch_fails_closed_before_mcp_startup() {
+fn plugin_root_public_skill_drift_fails_closed_before_mcp_startup() {
     let fixture = fixture();
     let plugin_root = portable_package(&fixture);
-    let mut binding: Value = serde_json::from_slice(
-        &fs::read(plugin_root.join("share/legion/release-binding.json")).expect("binding"),
-    )
-    .expect("binding JSON");
-    binding["releaseVersion"] = json!("9.9.9");
+    let contract_path = plugin_root.join("rightax-portable-core.json");
+    let mut contract: Value =
+        serde_json::from_slice(&fs::read(&contract_path).expect("RightAX contract"))
+            .expect("RightAX contract JSON");
+    contract["publicSkills"] = json!(["audit"]);
     fs::write(
-        plugin_root.join("share/legion/release-binding.json"),
-        serde_json::to_vec(&binding).expect("binding JSON"),
+        contract_path,
+        serde_json::to_vec(&contract).expect("RightAX contract JSON"),
     )
-    .expect("mismatched binding");
+    .expect("drifted RightAX contract");
 
     let output = serve_output(&plugin_root, &fixture.config);
 
@@ -304,38 +364,33 @@ fn plugin_root_release_binding_mismatch_fails_closed_before_mcp_startup() {
 }
 
 #[test]
-fn plugin_root_identity_and_schema_tampering_fail_closed_before_mcp_startup() {
+fn plugin_root_projection_and_extra_file_tampering_fail_closed_before_mcp_startup() {
     let fixture = fixture();
     let plugin_root = portable_package(&fixture);
-    let identity_path = plugin_root.join("share/legion/identity/release-identity.json");
-    let mut identity: Value = serde_json::from_slice(&fs::read(&identity_path).expect("identity"))
-        .expect("identity JSON");
-    identity["releaseVersion"] = json!("9.9.9");
+    let contract_path = plugin_root.join("rightax-portable-core.json");
+    let original = fs::read(&contract_path).expect("RightAX contract");
+    let mut contract: Value = serde_json::from_slice(&original).expect("RightAX contract JSON");
+    contract["clientProjections"]["pi"]["executableRegistration"] = json!(true);
     fs::write(
-        &identity_path,
-        serde_json::to_vec(&identity).expect("identity JSON"),
+        &contract_path,
+        serde_json::to_vec(&contract).expect("RightAX contract JSON"),
     )
-    .expect("tampered identity");
+    .expect("tampered projection");
 
-    let identity_output = serve_output(&plugin_root, &fixture.config);
-    assert_eq!(identity_output.status.code(), Some(2));
+    let projection_output = serve_output(&plugin_root, &fixture.config);
+    assert_eq!(projection_output.status.code(), Some(2));
     assert!(
-        identity_output.stdout.is_empty(),
+        projection_output.stdout.is_empty(),
         "MCP must not have started"
     );
-    assert!(String::from_utf8_lossy(&identity_output.stderr)
-        .contains("release-identity.json does not match"));
+    assert!(String::from_utf8_lossy(&projection_output.stderr)
+        .contains("Pi projection may not register"));
 
-    fs::copy(fixture.root.join("release.json"), &identity_path).expect("restore identity");
-    fs::write(
-        plugin_root.join("share/legion/schemas/mcp-tools.schema.json"),
-        br#"{"type":"object","properties":{"tampered":{"type":"string"}}}"#,
-    )
-    .expect("tampered schema");
+    fs::write(&contract_path, original).expect("restore RightAX contract");
+    fs::write(plugin_root.join("private.txt"), "unexpected").expect("extra file");
 
-    let schema_output = serve_output(&plugin_root, &fixture.config);
-    assert_eq!(schema_output.status.code(), Some(2));
-    assert!(schema_output.stdout.is_empty(), "MCP must not have started");
-    assert!(String::from_utf8_lossy(&schema_output.stderr)
-        .contains("mcp-tools.schema.json digest does not match"));
+    let extra_output = serve_output(&plugin_root, &fixture.config);
+    assert_eq!(extra_output.status.code(), Some(2));
+    assert!(extra_output.stdout.is_empty(), "MCP must not have started");
+    assert!(String::from_utf8_lossy(&extra_output.stderr).contains("extra file private.txt"));
 }

@@ -102,6 +102,7 @@ Primary rules:
 | Qualitative design craft | `skills/designer/**` | Audit Visual may provide evidence |
 | Capability/entrypoint semantics | `skills/<id>/SKILL.md` | catalogs/manifests/projections |
 | Host capability availability | `src/registry/capabilities.json` | SKILL `hostRequirements` |
+| Public distribution and client integration | `docs/LEGION-DISTRIBUTION-AND-CLIENT-INTEGRATION.md` | release policy, bootstrap, host adapters |
 | Explicit aliases | `src/config/capability-aliases.json` | resolver/projections |
 | Semantic effect vocabulary | this root SSOT | SKILL declarations |
 | Runtime effect mapping/enforcement | `src/packages/arcane/**` | receipts/projections |
@@ -400,19 +401,54 @@ HOST-SPECIFIC
 .claude/**, .codex/**, .gemini/**, AGENTS.md, plugin packages
 ```
 
-Canonical semantic ownership defined by this SSOT remains authoritative. For target product
-topology, machine installation, portable host integration, client fidelity, and runtime lifecycle,
-`migration/native-rust/PRODUCT-ARCHITECTURE-V2.md` supersedes the frozen descriptor-driven host
-seam. Thin target adapters preserve collision-safe/reversible installation, truthful fidelity,
-legacy-writer quarantine, and conformance/safety guarantees without preserving descriptor-driven
-semantic hosting. Legacy `.claude`, `.codex`, `.gemini`, and equivalent projections are
-migration/compatibility surfaces only and have no target-runtime semantic authority.
+Canonical semantic ownership defined by this SSOT remains authoritative. Target product topology
+and native runtime lifecycle are described by `migration/native-rust/PRODUCT-ARCHITECTURE-V2.md`.
+Public distribution, activation transactions, Agent Plugins packaging, and exact client boundaries
+are owned by `docs/LEGION-DISTRIBUTION-AND-CLIENT-INTEGRATION.md`. Thin target adapters preserve
+collision-safe/reversible installation, truthful fidelity, legacy-writer quarantine, and
+conformance/safety guarantees without preserving descriptor-driven semantic hosting. Legacy
+`.claude`, `.codex`, `.gemini`, and equivalent projections are migration/compatibility surfaces
+only and have no target-runtime semantic authority.
 
 Host projection may be deliberately lossy for compatibility: source `kind=capability` +
 `discoverability=public` projects as a public projectable capability row (using the legacy
 compatibility `kind` the host consumer requires); source `kind=entrypoint` does not project as
 public host skill membership. That compatibility projection is not read back as canonical
 taxonomy.
+
+### 13.1 Installed product versus development execution
+
+Legion has two explicit execution origins:
+
+```text
+installed   → production harness/PATH/hooks/MCP/client activation bind only to
+              %LOCALAPPDATA%\Orthic Labs\Legion\current\bin\legion.exe
+development → explicit repository commands with isolated development state
+              roots, ports, process identity, and client overrides
+```
+
+Production bindings to repository, `dist`, `target`, or `node_modules` executables are
+prohibited. Default development commands must not mutate global harness configuration, PATH,
+startup registration, the stable `current` target, or installed state; tests use temporary roots.
+Bootstrap is the sole authority that stages immutable versions, journals integrations, switches
+the stable `current` target, and activates clients. Setup/status must report
+`origin=installed|development`, executable, install root, and generation. Production status fails
+closed whenever any binding escapes the stable `current` executable. Private workspace content is
+excluded from installed releases, client projections, and production bindings.
+
+### 13.2 Public CI & protected release boundary
+
+Public `Orthic-Labs/legion` GitHub Actions owns compile, test, unsigned qualification, package
+smoke, SBOM, provenance, & unsigned-candidate production. Package smoke stages each supplied
+candidate into an isolated product-root `current` tree before exercising installed-boundary
+runtime resolution on its target OS. Public CI has no signing credentials & cannot finalize or
+upload release payloads.
+
+Protected local release hosts consume exact candidate & evidence digests. They own only native
+signing, release finalization, & upload to immutable GitHub Releases & approved bootstrap
+publication; they do not rebuild candidates. Release trust binds `release-manifest.json` to
+`release-manifest.cat`, a Windows Authenticode catalog. An unsigned CI candidate is not a
+published release.
 
 ## 14. Model policy
 

@@ -4,9 +4,6 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
-patchedDependencies:
-  '@rightkit/git@0.2.1': 8d2d62ccdeeb6cd64c43965900b6c56a984da2e98d6d47cb00848c8aeba27bac
-
 importers:
 
   .:
@@ -18,12 +15,15 @@ importers:
       '@biomejs/biome':
         specifier: 2.5.10
         version: 2.5.10
-      '@rightkit/git':
+      '@rightkit/ax':
         specifier: 0.2.1
-        version: 0.2.1(patch_hash=8d2d62ccdeeb6cd64c43965900b6c56a984da2e98d6d47cb00848c8aeba27bac)
+        version: 0.2.1
+      '@rightkit/git':
+        specifier: 0.2.5
+        version: 0.2.5
       '@rightkit/release':
-        specifier: 0.2.70
-        version: 0.2.70
+        specifier: 0.2.79
+        version: 0.2.79
 
 packages:
 
@@ -84,16 +84,20 @@ packages:
     cpu: [x64]
     os: [win32]
 
-  '@rightkit/git@0.2.1':
-    resolution: {integrity: sha512-Cw0igaGlZUD6J21P7olWm/0PpclubXMtVmqZKm6cTFUUD1689vKjlGmuKRX3yKYgCkMULNm06Oq+VQimOm6qOg==}
+  '@rightkit/ax@0.2.1':
+    resolution: {integrity: sha512-7iBNWoO2LmZLw38mVmHu/56O0Pn4lQrnnmbf26knnpyjPVE7XFUou3tJ9r607HRMmFvNJGEGk/WbVEL5x3AIyg==}
+    hasBin: true
+
+  '@rightkit/git@0.2.5':
+    resolution: {integrity: sha512-GvxHXbXhX6V/3d2W49JIC7Nd6qQlY0KGl9Lo8zWJ07BACbe1if+pC3FjVPBwfdJzqChVemCXW4aYYnMXf77lvA==}
     hasBin: true
 
   '@rightkit/hooks@0.1.1':
     resolution: {integrity: sha512-Z8AOe4eRJN90k98D9DB6XgKjSmjNTeQNcpHuTBIJRk0xmFyO7jqzV9AmO7jxFJOSg9YkzEuftra0UhfYLbGXRA==}
     hasBin: true
 
-  '@rightkit/release@0.2.70':
-    resolution: {integrity: sha512-OUrKPV9abM56iQsaCfqh/rU6p5G6dNwvT5YkZ3sqKvRFpBMsCvguwWyyLDkpsLC9GyCJUDAMmSpwCgm3TV92bw==}
+  '@rightkit/release@0.2.79':
+    resolution: {integrity: sha512-rVVoSymA/EVxj2KZSEyF/5fQEoCvp/xpuKERZ1SE/fz89Trg8ugSyCG7iLk7GF7GR9f2f7zHgXR9+WWS6WHgIg==}
     hasBin: true
 
 snapshots:
@@ -133,8 +137,10 @@ snapshots:
   '@biomejs/cli-win32-x64@2.5.10':
     optional: true
 
-  '@rightkit/git@0.2.1(patch_hash=8d2d62ccdeeb6cd64c43965900b6c56a984da2e98d6d47cb00848c8aeba27bac)': {}
+  '@rightkit/ax@0.2.1': {}
+
+  '@rightkit/git@0.2.5': {}
 
   '@rightkit/hooks@0.1.1': {}
 
-  '@rightkit/release@0.2.70': {}
+  '@rightkit/release@0.2.79': {}

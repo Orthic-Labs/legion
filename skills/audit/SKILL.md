@@ -35,11 +35,11 @@ MAY_CALL_SKILLS: NONE
 TERMINAL: Frozen provider plan reconciles to evidence or typed degradation.
 ```
 
-[Execution contract](../../references/execution-contract.md) is normative; this summary never
+[Execution contract](references/execution-contract.md) is normative; this summary never
 overrides it.
 
 1. Freeze repository root, scope, revision, dirty state, & requested mode.
-2. Read [provider architecture](../../references/provider-architecture.md); repository discovery is
+2. Read [provider architecture](references/provider-architecture.md); repository discovery is
    supplied by Legion's direct Membrane Blueprint provider — never build a parallel registry.
    The provider uses resident Hub transport when available, otherwise a bounded one-shot for
    supplied root. Enrollment controls resident watcher operation only; `project is not enrolled`
@@ -52,16 +52,16 @@ overrides it.
    `UNPROVEN`; file-only providers still run.
 5. Read `plan.json` before `facts.json`; every contract-enumerated failure is `UNPROVEN` & keeps
    audit incomplete.
-6. Read [engine interface](../../references/engine-interface.md) for scanner, report, & CLI contracts.
-7. Read [lens routing](../../references/lens-routing.md); reason only inside frozen-plan providers.
+6. Read [engine interface](references/engine-interface.md) for scanner, report, & CLI contracts.
+7. Read [lens routing](references/lens-routing.md); reason only inside frozen-plan providers.
 8. Adjudicate each security candidate independently; no generator closes its own finding.
-9. Deduplicate, then run `../../tools/audit/audit-finalize.mjs` to write `report.json` & `report.sarif`.
+9. Deduplicate, then run `legion audit <root> --out <out-dir>`; native executor writes `report.json`, `report.sarif`, & `execution.json`, while any missing provider coverage stays typed `incomplete`.
 10. Reconcile every provider & denominator; incomplete coverage is never clean.
 
 Return gate vector, coverage, findings with evidence loci, rerun commands, seal, signature, Blueprint
 generation, receipts, artifacts, & typed degradation; `quality_gate` stays separate.
 
-Read [full manual](../../references/manual.md) only for complex runtime, migration, desktop/Tauri,
+Read [full manual](references/manual.md) only for complex runtime, migration, desktop/Tauri,
 data-safety, or report-schema edges. Frozen provider order, executable registry truth, real
 `file:line` evidence, secret redaction, full security-candidate challenge, & no mutable external
 rulesets remain mandatory.

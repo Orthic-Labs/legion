@@ -1,7 +1,8 @@
 {
   "schemaVersion": 1,
   "lanes": [
-    "ci"
+    "ci",
+    "release-candidate"
   ],
   "matrix": {
     "os": [
@@ -14,9 +15,18 @@
     ]
   },
   "packageManager": "pnpm@11.24.0",
-  "templateVersion": "1.1.0",
+  "templateVersion": "1.2.0",
   "profile": "rust-hybrid",
   "gate": {
     "path": "scripts/ci/right-git-ci.sh"
+  },
+  "candidate": {
+    "buildScript": "ci:unsigned-candidate",
+    "checkScript": "ci:unsigned-candidate-check",
+    "artifactRoot": "legion-unsigned-candidate",
+    "os": [
+      "windows-2025",
+      "macos-15"
+    ]
   }
 }

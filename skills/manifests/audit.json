@@ -28,7 +28,13 @@
       "/audit",
       "Diagnose a whole repository through Legion's frozen Audit provider plan. Use for /audit or repository-wide read-only health, security, runtime, & evidence review."
     ],
-    "outputs": [],
+    "outputs": [
+      "references/engine-interface.md",
+      "references/execution-contract.md",
+      "references/lens-routing.md",
+      "references/manual.md",
+      "references/provider-architecture.md"
+    ],
     "scripts": [],
     "templates": [],
     "schemas": [],
@@ -51,7 +57,7 @@
     {
       "path": "SKILL.md",
       "uri": "legion-skill://audit/SKILL.md",
-      "digest": "sha256:a73b5e7b9d9b2652a939eac3ec13dbd7dabc812f5aa9523e14ea6854f4fc611a"
+      "digest": "sha256:d2b4e623b1f6edfda3e347211f1eff230b1d122dd1e160252d4bbdb36c019f30"
     },
     {
       "path": "agents/openai.yaml",
@@ -67,6 +73,31 @@
       "path": "evals/evals.json",
       "uri": "legion-skill://audit/evals/evals.json",
       "digest": "sha256:d82bf4ec5e5d39530721c141731c55f6fa5c8eb3af975d495abcd10b274e7959"
+    },
+    {
+      "path": "references/engine-interface.md",
+      "uri": "legion-skill://audit/references/engine-interface.md",
+      "digest": "sha256:69ee3e43c0c58bd0353fd10adaa51b6c1180aa32c2a0d5338111401e18be7a2c"
+    },
+    {
+      "path": "references/execution-contract.md",
+      "uri": "legion-skill://audit/references/execution-contract.md",
+      "digest": "sha256:b24d0c264d1895027cda33e8e6bf6e1cc2bfbc60e50d2eca76b3786dec0a7f3b"
+    },
+    {
+      "path": "references/lens-routing.md",
+      "uri": "legion-skill://audit/references/lens-routing.md",
+      "digest": "sha256:99926d660f9f740cc53de0b3f481300c492cb1e54fdbaf52ebccecde55c3abd4"
+    },
+    {
+      "path": "references/manual.md",
+      "uri": "legion-skill://audit/references/manual.md",
+      "digest": "sha256:d83ef1761c20c16d19b26d92d0890d465cab9c6f42d1159c61c23b30f53f2cb9"
+    },
+    {
+      "path": "references/provider-architecture.md",
+      "uri": "legion-skill://audit/references/provider-architecture.md",
+      "digest": "sha256:5f470ceae44a8898404cb8a901255a5fa9f3181c52914c8195e33ed007be2cee"
     }
   ]
 }

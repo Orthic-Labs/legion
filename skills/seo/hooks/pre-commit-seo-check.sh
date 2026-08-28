@@ -3,7 +3,7 @@ set -euo pipefail
 
 # Pre-commit SEO validation hook for Claude Code.
 #
-# Hook configuration in <private-overlay>/settings.json:
+# Hook configuration in host settings:
 # {
 #   "hooks": {
 #     "PreToolUse": [

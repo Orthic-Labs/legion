@@ -2,7 +2,7 @@
 
 use std::{
     collections::{BTreeMap, BTreeSet},
-    path::Path,
+    path::{Path, PathBuf},
     sync::Arc,
     time::{Duration, Instant},
 };
@@ -164,6 +164,7 @@ pub struct M1ApplicationInputs {
     pub catalog_root: std::path::PathBuf,
     pub catalog_index_path: std::path::PathBuf,
     pub policy_pack: ArcanePolicyPack,
+    pub development: Option<legion_runtime::DevelopmentExecutionContext>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize)]
@@ -198,6 +199,14 @@ pub struct M1CapabilityStatus {
 #[serde(rename_all = "camelCase")]
 pub struct M1Status {
     pub release_version: String,
+    /// Typed origin, lexical product root, executable, and generation are
+    /// serialized in every native status response; stable `current` binding
+    /// remains a separate runtime validation.
+    pub origin: legion_runtime::release_binding::RuntimeOrigin,
+    pub executable: PathBuf,
+    pub install_root: Option<PathBuf>,
+    pub generation: Option<String>,
+    pub development: Option<legion_runtime::DevelopmentExecutionContext>,
     pub capability_count: usize,
     pub availability: M1Availability,
     pub degraded_count: usize,
@@ -248,10 +257,53 @@ pub struct M1Application {
     binding: legion_runtime::VerifiedReleaseBinding,
     catalog: legion_catalog::CompactCatalog,
     evaluator: PolicyEvaluator,
+    origin: legion_runtime::release_binding::RuntimeOriginEvidence,
 }
 
 impl M1Application {
     pub fn from_inputs(inputs: M1ApplicationInputs) -> Result<Self, M1ApplicationError> {
+        let executable = std::env::current_exe().unwrap_or_else(|_| PathBuf::from("<current_exe>"));
+        let origin =
+            legion_runtime::release_binding::detect_runtime_origin().unwrap_or_else(|_| {
+                legion_runtime::release_binding::RuntimeOriginEvidence::development(
+                    executable.clone(),
+                )
+            });
+        Self::from_inputs_with_origin(inputs, origin)
+    }
+
+    pub fn from_inputs_with_origin(
+        inputs: M1ApplicationInputs,
+        mut origin: legion_runtime::release_binding::RuntimeOriginEvidence,
+    ) -> Result<Self, M1ApplicationError> {
+        if origin.origin == legion_runtime::release_binding::RuntimeOrigin::Development {
+            if origin.development.is_none() {
+                origin.development = inputs.development.clone();
+            }
+        } else if inputs.development.is_some() {
+            return Err(legion_runtime::ReleaseBindingError::Mismatch {
+                component: "runtime origin",
+                expected: "installed without development context".into(),
+                actual: "development context supplied".into(),
+                remediation: legion_runtime::REPAIR_COMMAND.into(),
+            }
+            .into());
+        }
+        if matches!(
+            &origin.origin,
+            legion_runtime::release_binding::RuntimeOrigin::Installed
+        ) {
+            legion_runtime::release_binding::verify_stable_current_binding(
+                &origin,
+                &inputs.release_manifest_path,
+                &inputs.release_binding_inputs,
+            )?;
+            legion_runtime::release_binding::verify_stable_current_path(
+                &origin,
+                &inputs.catalog_root,
+                "stable current catalog root",
+            )?;
+        }
         let manifest = legion_runtime::load_release_manifest(&inputs.release_manifest_path)?;
         let binding =
             legion_runtime::verify_release_binding(&manifest, &inputs.release_binding_inputs)?;
@@ -262,6 +314,7 @@ impl M1Application {
             binding,
             catalog,
             evaluator,
+            origin,
         })
     }
 
@@ -295,6 +348,11 @@ impl M1Application {
         let host_requirements = host_requirements.into_values().collect::<Vec<_>>();
         M1Status {
             release_version: self.binding.release_version().into(),
+            origin: self.origin.origin.clone(),
+            executable: self.origin.executable.clone(),
+            install_root: self.origin.install_root.clone(),
+            generation: self.origin.generation.clone(),
+            development: self.origin.development.clone(),
             capability_count: self.catalog.entries.len(),
             availability: aggregate_availability(&host_requirements),
             degraded_count,
@@ -877,6 +935,131 @@ impl NativeApplicationConfig {
             }))
             .with_inventory_source(inventory_source)
             .with_provider_executor(Arc::new(StaticProviderExecutor { results }))
+            .with_catalog_source(Arc::new(StaticCatalogSource { catalog }))
+            .with_report_source(Arc::new(StaticReportSource { report }))
+            .with_provider_specs(provider_specs)
+            .build()
+    }
+
+    /// Compose standalone Audit from a real in-process ProviderExecutor.
+    /// Provider specifications remain frozen inputs; execution is delegated to
+    /// one concrete native implementation rather than precomputed results.
+    pub fn for_audit_executor(
+        repository_id: impl Into<String>,
+        inventory_source: Arc<dyn BlueprintInventorySource>,
+        provider_specs: Vec<ProviderSpec>,
+        provider_executor: Arc<dyn ProviderExecutor>,
+    ) -> Result<NativeApplication, NativeApplicationError> {
+        let repository_id = repository_id.into();
+        let inventory = inventory_source.inventory(&repository_id)?;
+        if provider_specs.is_empty() {
+            return Err(NativeApplicationError::Configuration(
+                "standalone Audit requires selected provider specifications".into(),
+            ));
+        }
+        AuditPlan::compile(&inventory, &provider_specs)
+            .map_err(|error| NativeApplicationError::Configuration(error.to_string()))?;
+        for specification in &provider_specs {
+            specification
+                .validate()
+                .map_err(|error| NativeApplicationError::Configuration(error.to_string()))?;
+        }
+
+        let profile = legion_runtime::AgentProfile::new(
+            AgentDefinition::new(
+                AgentId::new("legion")
+                    .map_err(|error| NativeApplicationError::Configuration(error.to_string()))?,
+                "Legion",
+                "native standalone Audit",
+                BudgetCeiling {
+                    max_active_time_ms: 300_000,
+                    max_cost_micros: 1,
+                    max_output_bytes: 64 * 1024 * 1024,
+                },
+                ToolCeiling::default(),
+                RoutingCeiling::default(),
+            )
+            .map_err(|error| NativeApplicationError::Configuration(error.to_string()))?,
+        )
+        .map_err(|error| NativeApplicationError::Configuration(error.to_string()))?;
+
+        let definitions = provider_specs
+            .iter()
+            .map(|specification| ProviderDefinition {
+                schema_version: 1,
+                id: specification.id.clone(),
+                provider_version: specification.provider_version.clone(),
+                implementation_key: "native-audit-executor".into(),
+                capabilities: specification.control_ids.clone(),
+                depends_on: specification.depends_on.clone(),
+                required: specification
+                    .execution
+                    .get("required")
+                    .and_then(serde_json::Value::as_bool)
+                    .unwrap_or(true),
+                permissions: Vec::new(),
+                source_provenance: BTreeMap::from([(
+                    "kind".into(),
+                    "native-audit-executor".into(),
+                )]),
+            })
+            .collect::<Vec<_>>();
+        let mut implementations = ImplementationRegistry::new();
+        implementations
+            .register("native-audit-executor", "*", move |definition| {
+                let result = ProviderResult {
+                    schema_version: 1,
+                    provider: definition.id.clone(),
+                    applicable: true,
+                    required: definition.required,
+                    status: ProviderStatus::Partial,
+                    complete: false,
+                    coverage: None,
+                    findings: Vec::new(),
+                    coverage_gaps: vec!["provider-executes-through-audit-boundary".into()],
+                    degradation: Vec::new(),
+                    details: BTreeMap::new(),
+                };
+                Ok(Arc::new(ConfiguredProvider {
+                    definition: definition.clone(),
+                    result,
+                }) as Arc<dyn Provider>)
+            })
+            .map_err(|error| NativeApplicationError::Provider(error.to_string()))?;
+        let registry = ProviderRegistry::load(
+            ProviderRegistryDocument {
+                schema_version: 1,
+                providers: definitions,
+            },
+            &implementations,
+        )
+        .map_err(|error| NativeApplicationError::Provider(error.to_string()))?;
+        let catalog = Catalog::new(Vec::new())?;
+        let report = ReportV1 {
+            schema_version: 1,
+            report_id: ReportId::new("native-audit")
+                .map_err(|error| NativeApplicationError::Configuration(error.to_string()))?,
+            status: ReportStatus::Incomplete,
+            findings: Vec::new(),
+            gaps: vec!["not-executed".into()],
+            claims: BTreeMap::new(),
+            targets: vec![repository_id],
+            extensions: BTreeMap::new(),
+        };
+        NativeApplicationConfig::new()
+            .with_profile(profile)
+            .with_registry(Arc::new(registry))
+            .with_policy(Arc::new(CanonicalEffectPolicy {
+                pack: PolicyPack {
+                    schema_version: 1,
+                    id: "native-audit".into(),
+                    version: 1,
+                    rules: Vec::new(),
+                    extensions: BTreeMap::new(),
+                },
+            }))
+            .with_inventory_source(inventory_source)
+            .with_provider_executor(provider_executor)
             .with_catalog_source(Arc::new(StaticCatalogSource { catalog }))
             .with_report_source(Arc::new(StaticReportSource { report }))
             .with_provider_specs(provider_specs)
@@ -1891,8 +2074,8 @@ mod m1_tests {
             declarative_assets_sha256: digest("assets.json"),
             state_schema_version: 1,
             rightkit_ax: legion_runtime::RightkitAxIdentity {
-                version: "0.2.0".into(),
-                source_commit: "01f52555202da3dffc6b649ca44e803b55238081".into(),
+                version: "0.2.1".into(),
+                source_commit: "4c1a414269d8ffdb95b4b1e685440bd34784b41b".into(),
             },
         };
         let manifest_path = root.join("release.json");
@@ -1916,13 +2099,14 @@ mod m1_tests {
                 ),
                 state_schema_version: 1,
                 rightkit_ax: legion_runtime::RightkitAxIdentity {
-                    version: "0.2.0".into(),
-                    source_commit: "01f52555202da3dffc6b649ca44e803b55238081".into(),
+                    version: "0.2.1".into(),
+                    source_commit: "4c1a414269d8ffdb95b4b1e685440bd34784b41b".into(),
                 },
             },
             catalog_root: root.into(),
             catalog_index_path: PathBuf::from("registry/index.json"),
             policy_pack: policy_pack(),
+            development: None,
         }
     }
 
