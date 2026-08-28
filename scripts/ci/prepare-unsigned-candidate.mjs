@@ -33,6 +33,7 @@ const CANDIDATE_ROOT_NAME = "legion-unsigned-candidate";
 const CANDIDATE_FILE = "candidate.json";
 const CANDIDATE_KIND = "legion-unsigned-release-candidate";
 const STABLE_VERSION = /^(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)$/;
+const PNPM_COMMAND = process.platform === "win32" ? "pnpm.cmd" : "pnpm";
 const SOURCE_REVISION = /^[a-f0-9]{40,64}$/i;
 const SHA256 = /^[a-f0-9]{64}$/;
 
@@ -183,14 +184,14 @@ function assembleAndSmoke({ inputRoot, identity, repositoryRoot, env, commandRun
 		? identity.architecture === "arm64" ? "aarch64-pc-windows-msvc" : "x86_64-pc-windows-msvc"
 		: null;
 	runCommand(
-		"pnpm",
+		PNPM_COMMAND,
 		["legion:check"],
 		{ cwd: repositoryRoot, env: commandEnv, stdio: "inherit", windowsHide: true },
 		"Legion consistency gate",
 		commandRunner,
 	);
 	runCommand(
-		"pnpm",
+		PNPM_COMMAND,
 		["test"],
 		{ cwd: repositoryRoot, env: commandEnv, stdio: "inherit", windowsHide: true },
 		"Node tests",
@@ -205,13 +206,13 @@ function assembleAndSmoke({ inputRoot, identity, repositoryRoot, env, commandRun
 	);
 	runCommand(
 		"cargo",
-		["build", "--locked", "--bins", ...(targetTriple ? ["--target", targetTriple] : [])],
+		["build", "--locked", "--release", "--bins", ...(targetTriple ? ["--target", targetTriple] : [])],
 		{ cwd: join(repositoryRoot, "engine"), env: commandEnv, stdio: "inherit", windowsHide: true },
 		"cargo build",
 		commandRunner,
 	);
 	runCommand(
-		"pnpm",
+		PNPM_COMMAND,
 		[
 			"native:assemble",
 			"--",

@@ -9,6 +9,7 @@ const ci = readFileSync(join(root, '.github/workflows/ci.yml'), 'utf8');
 const releaseCi = readFileSync(join(root, '.github/workflows/release-candidate.yml'), 'utf8');
 const gate = readFileSync(join(root, 'scripts/ci/right-git-ci.sh'), 'utf8');
 const smoke = readFileSync(join(root, 'scripts/ci/native-installed-smoke.mjs'), 'utf8');
+const candidate = readFileSync(join(root, 'scripts/ci/prepare-unsigned-candidate.mjs'), 'utf8');
 
 test('CI pins toolchains, gates all supported hosts, and smoke-tests installed product', () => {
   for (const os of ['ubuntu-24.04', 'windows-2025', 'macos-15']) assert.match(ci, new RegExp(os));
@@ -41,4 +42,6 @@ test('public release CI selects explicit supported targets and release profile',
   assert.match(releaseCi, /LEGION_RELEASE_PLATFORM: \$\{\{ matrix\.platform \}\}/);
   assert.match(releaseCi, /LEGION_RELEASE_ARCHITECTURE: \$\{\{ matrix\.architecture \}\}/);
   assert.doesNotMatch(releaseCi, /--profile debug/);
+  assert.match(candidate, /process\.platform === "win32" \? "pnpm\.cmd" : "pnpm"/);
+  assert.match(candidate, /\["build", "--locked", "--release", "--bins"/);
 });
