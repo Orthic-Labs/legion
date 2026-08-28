@@ -114,7 +114,7 @@ export default {
 		},
 		install: WINDOWS_INSTALL_CONTRACT,
 	},
-	packageManager: "pnpm@11.24.0",
+	packageManager: "pnpm",
 	workdir: ".",
 	checks: ["legion:check", "test"],
 	releaseVerifier: "scripts/verify-release.mjs",
