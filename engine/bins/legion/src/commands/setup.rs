@@ -46,6 +46,84 @@ pub struct SetupArgs {
     check: bool,
     #[command(subcommand)]
     command: Option<SetupCommand>,
+    #[command(flatten)]
+    context: SetupExecutionArgs,
+}
+
+#[derive(Clone, Debug, Args)]
+struct SetupExecutionArgs {
+    /// Opt into repository-backed development setup. Installed remains default.
+    #[arg(long)]
+    development: bool,
+    /// Repository root supplying development plugin/assets.
+    #[arg(long, requires = "development")]
+    development_root: Option<PathBuf>,
+    /// Isolated development state root; required with --development.
+    #[arg(long, requires = "development")]
+    state_root: Option<PathBuf>,
+    /// Development MCP/process port identity.
+    #[arg(long, requires = "development")]
+    port: Option<u16>,
+    /// Explicit process identity used by development status/qualification.
+    #[arg(long, requires = "development")]
+    process_identity: Option<String>,
+    /// Client override as client=source-root,target-root (repeatable).
+    #[arg(long = "client-override", requires = "development")]
+    client_override: Vec<String>,
+}
+
+fn development_context(
+    args: &SetupExecutionArgs,
+) -> Result<Option<legion_host::DevelopmentSetupContext>, CommandError> {
+    if !args.development {
+        if args.development_root.is_some()
+            || args.state_root.is_some()
+            || args.port.is_some()
+            || args.process_identity.is_some()
+            || !args.client_override.is_empty()
+        {
+            return Err(CommandError::usage(
+                "development options require --development",
+            ));
+        }
+        return Ok(None);
+    }
+    let repository_root = args
+        .development_root
+        .clone()
+        .unwrap_or(std::env::current_dir().map_err(io_error)?);
+    let state_root = args
+        .state_root
+        .clone()
+        .ok_or_else(|| CommandError::usage("--development requires --state-root"))?;
+    let process_identity = args
+        .process_identity
+        .clone()
+        .unwrap_or_else(|| format!("legion-dev-{}", std::process::id()));
+    let mut client_overrides = BTreeMap::new();
+    for raw in &args.client_override {
+        let (client, roots) = raw.split_once('=').ok_or_else(|| {
+            CommandError::usage("--client-override must be client=source-root,target-root")
+        })?;
+        let (source_root, target_root) = roots.split_once(',').ok_or_else(|| {
+            CommandError::usage("--client-override must be client=source-root,target-root")
+        })?;
+        client_overrides.insert(
+            client.into(),
+            legion_host::setup_registry::DevelopmentClientOverride {
+                source_root: PathBuf::from(source_root),
+                target_root: PathBuf::from(target_root),
+            },
+        );
+    }
+    let context = legion_host::DevelopmentSetupContext {
+        repository_root,
+        state_root,
+        port: args.port,
+        process_identity,
+        client_overrides,
+    };
+    Ok(Some(context))
 }
 
 #[derive(Debug, Subcommand)]
@@ -187,33 +265,55 @@ struct ClientQualificationProof {
 }
 
 pub async fn run(args: SetupArgs, cancellation: CancellationToken) -> CommandResult {
+    let context = development_context(&args.context)?;
     if args.check {
         if args.command.is_some() || args.dry_run || args.confirm {
             return Err(CommandError::usage(
                 "setup --check cannot be combined with lifecycle commands, --dry-run, or --confirm",
             ));
         }
-        return status(SetupClientArgs {
-            client: args.client,
-        });
+        return status(
+            SetupClientArgs {
+                client: args.client,
+            },
+            context,
+        );
     }
     match args.command {
-        Some(SetupCommand::Preview(args)) => preview(args, cancellation).await,
+        Some(SetupCommand::Preview(args)) => preview(args, context, cancellation).await,
         Some(SetupCommand::Apply(args)) => {
             execute(args, legion_host::SetupAction::Apply, cancellation).await
         }
-        Some(SetupCommand::Status(args)) => status(args),
+        Some(SetupCommand::Status(args)) => status(args, context),
         Some(SetupCommand::Repair(args)) => {
-            lifecycle(args, legion_host::SetupAction::Repair, cancellation).await
+            lifecycle(
+                args,
+                legion_host::SetupAction::Repair,
+                context,
+                cancellation,
+            )
+            .await
         }
         Some(SetupCommand::Disable(args)) => {
-            lifecycle(args, legion_host::SetupAction::Disable, cancellation).await
+            lifecycle(
+                args,
+                legion_host::SetupAction::Disable,
+                context,
+                cancellation,
+            )
+            .await
         }
         Some(SetupCommand::Remove(args)) => {
-            lifecycle(args, legion_host::SetupAction::Remove, cancellation).await
+            lifecycle(
+                args,
+                legion_host::SetupAction::Remove,
+                context,
+                cancellation,
+            )
+            .await
         }
         Some(SetupCommand::Purge(args)) => {
-            lifecycle(args, legion_host::SetupAction::Purge, cancellation).await
+            lifecycle(args, legion_host::SetupAction::Purge, context, cancellation).await
         }
         None => {
             lifecycle(
@@ -224,6 +324,7 @@ pub async fn run(args: SetupArgs, cancellation: CancellationToken) -> CommandRes
                     confirm: args.confirm,
                 },
                 legion_host::SetupAction::Apply,
+                context,
                 cancellation,
             )
             .await
@@ -234,6 +335,7 @@ pub async fn run(args: SetupArgs, cancellation: CancellationToken) -> CommandRes
 async fn lifecycle(
     args: SetupLifecycleArgs,
     action: legion_host::SetupAction,
+    context: Option<legion_host::DevelopmentSetupContext>,
     cancellation: CancellationToken,
 ) -> CommandResult {
     if matches!(action, legion_host::SetupAction::Purge) && !args.confirm && !args.dry_run {
@@ -241,20 +343,21 @@ async fn lifecycle(
             "setup purge requires --confirm for the exact generated plan",
         ));
     }
-    let release = installed_bound_release()?;
+    let release = bound_release_for_context(context.as_ref())?;
     let request = SetupRequestArgs {
         client_evidence: args.client_evidence,
         client: args.client,
         dry_run: args.dry_run,
     };
-    let request = request_from_release(request, action, release, cancellation).await?;
+    let request = request_from_release(request, action, release, context, cancellation).await?;
     let mut registry = open_registry(&request)?;
     let recovery = registry.recover().map_err(setup_error)?;
     let host_integrations = preview_host_integrations(&request)?;
+    let identity_context = request.development.clone();
     let preview = registry.preview(request).map_err(setup_error)?;
     let preview_value = serde_json::to_value(&preview)
         .map_err(|error| CommandError::incomplete(error.to_string()))?;
-    let live_identity = inspect_live_identity(&host_integrations)?;
+    let live_identity = inspect_live_identity(&host_integrations, identity_context.as_ref())?;
     let (status, remediation) = setup_health(
         &preview_value["clients"],
         &host_integrations,
@@ -295,7 +398,8 @@ async fn lifecycle(
     let host_integrations = apply_host_integrations(&integration_request)?;
     let execution_value = serde_json::to_value(&execution)
         .map_err(|error| CommandError::incomplete(error.to_string()))?;
-    let live_identity = inspect_live_identity(&host_integrations)?;
+    let live_identity =
+        inspect_live_identity(&host_integrations, integration_request.development.as_ref())?;
     let execution_value = enrich_client_statuses(execution_value, &live_identity);
     let (status, remediation) = setup_health(
         &execution_value["clients"],
@@ -322,15 +426,27 @@ async fn lifecycle(
     }))
 }
 
-async fn preview(args: SetupPreviewArgs, cancellation: CancellationToken) -> CommandResult {
-    let request = request(args.request, args.action.into(), false, cancellation).await?;
+async fn preview(
+    args: SetupPreviewArgs,
+    context: Option<legion_host::DevelopmentSetupContext>,
+    cancellation: CancellationToken,
+) -> CommandResult {
+    let request = request(
+        args.request,
+        args.action.into(),
+        context,
+        false,
+        cancellation,
+    )
+    .await?;
     let mut registry = open_registry(&request)?;
     let recovery = registry.recover().map_err(setup_error)?;
     let host_integrations = preview_host_integrations(&request)?;
+    let identity_context = request.development.clone();
     let preview = registry.preview(request).map_err(setup_error)?;
     let preview_value = serde_json::to_value(&preview)
         .map_err(|error| CommandError::incomplete(error.to_string()))?;
-    let live_identity = inspect_live_identity(&host_integrations)?;
+    let live_identity = inspect_live_identity(&host_integrations, identity_context.as_ref())?;
     let (status, remediation) = setup_health(
         &preview_value["clients"],
         &host_integrations,
@@ -359,7 +475,13 @@ async fn preview(args: SetupPreviewArgs, cancellation: CancellationToken) -> Com
     }))
 }
 
-fn status(args: SetupClientArgs) -> CommandResult {
+fn status(
+    args: SetupClientArgs,
+    context: Option<legion_host::DevelopmentSetupContext>,
+) -> CommandResult {
+    if let Some(context) = context {
+        return development_status(args, context);
+    }
     let installed = match installed_release() {
         Ok(installed) => installed,
         Err(error) => {
@@ -415,7 +537,7 @@ fn status(args: SetupClientArgs) -> CommandResult {
     let host_integrations = inspect_host_integrations(&selector, &release)?;
     let clients_value = serde_json::to_value(&clients)
         .map_err(|error| CommandError::incomplete(error.to_string()))?;
-    let live_identity = inspect_live_identity(&host_integrations)?;
+    let live_identity = inspect_live_identity(&host_integrations, None)?;
     let clients_value = enrich_client_statuses(clients_value, &live_identity);
     let (status, remediation) = setup_health(&clients_value, &host_integrations, &live_identity);
     Ok(json!({
@@ -484,7 +606,8 @@ async fn execute(
     let host_integrations = apply_host_integrations(&integration_request)?;
     let execution_value = serde_json::to_value(&execution)
         .map_err(|error| CommandError::incomplete(error.to_string()))?;
-    let live_identity = inspect_live_identity(&host_integrations)?;
+    let live_identity =
+        inspect_live_identity(&host_integrations, integration_request.development.as_ref())?;
     let execution_value = enrich_client_statuses(execution_value, &live_identity);
     let (status, remediation) = setup_health(
         &execution_value["clients"],
@@ -514,12 +637,16 @@ async fn execute(
 async fn request(
     args: SetupRequestArgs,
     action: legion_host::SetupAction,
+    context: Option<legion_host::DevelopmentSetupContext>,
     live_validation: bool,
     cancellation: CancellationToken,
 ) -> Result<legion_host::SetupRequest, CommandError> {
     let client = args.client.clone();
-    let release = installed_bound_release()?;
-    let platform_state_root = legion_host::platform_state_root().map_err(setup_error)?;
+    let release = bound_release_for_context(context.as_ref())?;
+    let platform_state_root = context
+        .as_ref()
+        .map(|c| c.state_root.clone())
+        .unwrap_or(legion_host::platform_state_root().map_err(setup_error)?);
     let client_evidence = client_evidence(
         args.client_evidence,
         client.as_deref(),
@@ -529,6 +656,11 @@ async fn request(
         cancellation,
     )
     .await?;
+    let client_evidence = if context.is_some() && client_evidence.is_empty() {
+        development_client_evidence(client.as_deref())
+    } else {
+        client_evidence
+    };
     Ok(legion_host::SetupRequest {
         action,
         selector: selector(client.clone()),
@@ -536,6 +668,12 @@ async fn request(
         platform_state_root,
         client_evidence,
         dry_run: args.dry_run,
+        origin: if context.is_some() {
+            legion_host::setup_registry::ORIGIN_DEVELOPMENT.into()
+        } else {
+            legion_host::setup_registry::ORIGIN_INSTALLED.into()
+        },
+        development: context,
     })
 }
 
@@ -543,9 +681,13 @@ async fn request_from_release(
     args: SetupRequestArgs,
     action: legion_host::SetupAction,
     release: legion_host::BoundRelease,
+    context: Option<legion_host::DevelopmentSetupContext>,
     cancellation: CancellationToken,
 ) -> Result<legion_host::SetupRequest, CommandError> {
-    let platform_state_root = legion_host::platform_state_root().map_err(setup_error)?;
+    let platform_state_root = context
+        .as_ref()
+        .map(|c| c.state_root.clone())
+        .unwrap_or(legion_host::platform_state_root().map_err(setup_error)?);
     let client_evidence = client_evidence(
         args.client_evidence,
         args.client.as_deref(),
@@ -558,6 +700,11 @@ async fn request_from_release(
         cancellation,
     )
     .await?;
+    let client_evidence = if context.is_some() && client_evidence.is_empty() {
+        development_client_evidence(args.client.as_deref())
+    } else {
+        client_evidence
+    };
     Ok(legion_host::SetupRequest {
         action,
         selector: selector(args.client.clone()),
@@ -565,6 +712,12 @@ async fn request_from_release(
         platform_state_root,
         client_evidence,
         dry_run: args.dry_run,
+        origin: if context.is_some() {
+            legion_host::setup_registry::ORIGIN_DEVELOPMENT.into()
+        } else {
+            legion_host::setup_registry::ORIGIN_INSTALLED.into()
+        },
+        development: context,
     })
 }
 async fn client_evidence(
@@ -1265,7 +1418,31 @@ fn parse_embedded_json(text: &str) -> Option<Value> {
     })
 }
 
-fn inspect_live_identity(host_integrations: &Value) -> Result<Value, CommandError> {
+fn inspect_live_identity(
+    host_integrations: &Value,
+    development: Option<&legion_host::DevelopmentSetupContext>,
+) -> Result<Value, CommandError> {
+    if let Some(context) = development {
+        let executable = std::env::current_exe().map_err(io_error)?;
+        let generation = format!("development:{}", context.process_identity);
+        return Ok(json!({
+            "origin": legion_host::setup_registry::ORIGIN_DEVELOPMENT,
+            "executablePath": executable,
+            "installRoot": Value::Null,
+            "stableCurrentRoot": Value::Null,
+            "stableCurrent": false,
+            "resolvedExecutable": std::fs::canonicalize(&executable).ok(),
+            "resolvedInstallRoot": Value::Null,
+            "generation": generation,
+            "port": context.port,
+            "processIdentity": context.process_identity,
+            "stateRoot": context.state_root,
+            "repositoryRoot": context.repository_root,
+            "executable": {"path": executable, "origin": legion_host::setup_registry::ORIGIN_DEVELOPMENT, "state": "development", "generation": generation},
+            "plugin": Value::Null,
+            "projections": host_integrations,
+        }));
+    }
     let installed = installed_release()?;
     let origin = installed.origin_evidence();
     let executable_path = origin.executable.clone();
@@ -1822,12 +1999,14 @@ fn setup_health(
     live_identity: &Value,
 ) -> (&'static str, Vec<String>) {
     let mut remediation = Vec::new();
-    if live_identity.get("origin").and_then(Value::as_str)
-        != Some(legion_host::setup_registry::ORIGIN_INSTALLED)
-    {
-        remediation.push("production setup origin is not installed".into());
-    }
-    if live_identity.get("stableCurrent").and_then(Value::as_bool) != Some(true) {
+    let installed = live_identity.get("origin").and_then(Value::as_str)
+        == Some(legion_host::setup_registry::ORIGIN_INSTALLED);
+    let repair_command = if installed {
+        "run legion setup repair --confirm"
+    } else {
+        "rerun setup --development with identical context and repair --confirm"
+    };
+    if installed && live_identity.get("stableCurrent").and_then(Value::as_bool) != Some(true) {
         remediation.push("production executable is not bound to stable current; run legion setup repair --confirm".into());
     }
     let executable_path = live_identity.get("executablePath").or_else(|| {
@@ -1835,36 +2014,41 @@ fn setup_health(
             .get("executable")
             .and_then(|value| value.get("path"))
     });
-    if !binding_fields_current(
-        live_identity.get("origin").and_then(Value::as_str),
-        executable_path,
-        live_identity.get("installRoot"),
-    ) {
+    if installed
+        && !binding_fields_current(
+            live_identity.get("origin").and_then(Value::as_str),
+            executable_path,
+            live_identity.get("installRoot"),
+        )
+    {
         remediation.push("production executable binding escaped stable current; run legion setup repair --confirm".into());
     }
-    if !resolved_binding_current(
-        live_identity.get("origin").and_then(Value::as_str),
-        executable_path,
-        live_identity.get("installRoot"),
-        live_identity.get("resolvedExecutable"),
-        live_identity.get("resolvedInstallRoot"),
-    ) {
+    if installed
+        && !resolved_binding_current(
+            live_identity.get("origin").and_then(Value::as_str),
+            executable_path,
+            live_identity.get("installRoot"),
+            live_identity.get("resolvedExecutable"),
+            live_identity.get("resolvedInstallRoot"),
+        )
+    {
         remediation.push(
             "production executable resolved target escaped active release; run legion setup repair --confirm"
                 .into(),
         );
     }
-    if live_identity
-        .get("generation")
-        .and_then(Value::as_str)
-        .is_none()
+    if installed
+        && live_identity
+            .get("generation")
+            .and_then(Value::as_str)
+            .is_none()
     {
         remediation.push(
             "production executable generation is unavailable; run legion setup repair --confirm"
                 .into(),
         );
     }
-    if live_identity["executable"]["state"] != "current" {
+    if installed && live_identity["executable"]["state"] != "current" {
         remediation.push(format!(
             "live Legion executable is stale ({}; expected {})",
             live_identity["executable"]["releaseVersion"]
@@ -1894,7 +2078,7 @@ fn setup_health(
                     client_id == legion_host::setup_registry::CLIENT_PI && fidelity == "Baseline";
                 if !installed || (fidelity != "Full" && !pi_baseline) {
                     remediation.push(format!(
-                        "client {} is incomplete ({fidelity}); run legion setup repair --confirm",
+                        "client {} is incomplete ({fidelity}); {repair_command}",
                         client_id
                     ));
                 }
@@ -1913,12 +2097,11 @@ fn setup_health(
         for (client, projection) in projections {
             if let Some(state) = projection.get("state").and_then(Value::as_str) {
                 if state != "current" {
-                    remediation.push(format!(
-                        "{client} projection is {state}; run legion setup repair --confirm"
-                    ));
+                    remediation.push(format!("{client} projection is {state}; {repair_command}"));
                 }
             }
-            if projection.get("origin").is_some()
+            if installed
+                && projection.get("origin").is_some()
                 && !binding_fields_current(
                     projection.get("origin").and_then(Value::as_str),
                     projection.get("executable"),
@@ -1929,7 +2112,8 @@ fn setup_health(
                     "{client} production binding escaped stable current; run legion setup repair --confirm"
                 ));
             }
-            if projection.get("origin").is_some()
+            if installed
+                && projection.get("origin").is_some()
                 && !resolved_binding_current(
                     projection.get("origin").and_then(Value::as_str),
                     projection.get("executable"),
@@ -1942,7 +2126,8 @@ fn setup_health(
                     "{client} resolved target escaped active release; run legion setup repair --confirm"
                 ));
             }
-            if projection.get("origin").is_some()
+            if installed
+                && projection.get("origin").is_some()
                 && projection
                     .get("generation")
                     .and_then(Value::as_str)
@@ -1958,7 +2143,7 @@ fn setup_health(
             ) {
                 if expected != actual {
                     remediation.push(format!(
-                        "{client} generation {actual} is stale; run legion setup repair --confirm"
+                        "{client} generation {actual} is stale; {repair_command}"
                     ));
                 }
             }
@@ -2232,7 +2417,7 @@ fn inspect_host_integrations(
     selector: &legion_host::ClientSelector,
     release: &legion_host::BoundRelease,
 ) -> Result<Value, CommandError> {
-    let inputs = host_integration_inputs(selector, release)?;
+    let inputs = host_integration_inputs_installed(selector, release)?;
     let mut integrations = serde_json::Map::new();
     if let Some(input) = &inputs.claude {
         integrations.insert(
@@ -2263,7 +2448,7 @@ fn inspect_host_integrations(
 }
 
 fn preview_host_integrations(request: &legion_host::SetupRequest) -> Result<Value, CommandError> {
-    let inputs = host_integration_inputs(&request.selector, &request.release)?;
+    let inputs = host_integration_inputs(request)?;
     let mut integrations = serde_json::Map::new();
     if should_process_client(request, legion_host::setup_registry::CLIENT_CLAUDE) {
         if let Some(input) = &inputs.claude {
@@ -2326,7 +2511,7 @@ fn preview_host_integrations(request: &legion_host::SetupRequest) -> Result<Valu
 }
 
 fn apply_host_integrations(request: &legion_host::SetupRequest) -> Result<Value, CommandError> {
-    let inputs = host_integration_inputs(&request.selector, &request.release)?;
+    let inputs = host_integration_inputs(request)?;
     let mut integrations = serde_json::Map::new();
     if should_process_client(request, legion_host::setup_registry::CLIENT_CLAUDE) {
         if let Some(input) = &inputs.claude {
@@ -2407,6 +2592,18 @@ fn should_process_client(request: &legion_host::SetupRequest, client_id: &str) -
 }
 
 fn host_integration_inputs(
+    request: &legion_host::SetupRequest,
+) -> Result<HostIntegrationInputs, CommandError> {
+    if request.origin == legion_host::setup_registry::ORIGIN_DEVELOPMENT {
+        let context = request.development.as_ref().ok_or_else(|| {
+            CommandError::usage("development setup requires an explicit execution context")
+        })?;
+        return development_host_integration_inputs(&request.selector, &request.release, context);
+    }
+    host_integration_inputs_installed(&request.selector, &request.release)
+}
+
+fn host_integration_inputs_installed(
     selector: &legion_host::ClientSelector,
     release: &legion_host::BoundRelease,
 ) -> Result<HostIntegrationInputs, CommandError> {
@@ -2541,6 +2738,132 @@ fn host_integration_inputs(
     })
 }
 
+fn development_host_integration_inputs(
+    selector: &legion_host::ClientSelector,
+    release: &legion_host::BoundRelease,
+    context: &legion_host::DevelopmentSetupContext,
+) -> Result<HostIntegrationInputs, CommandError> {
+    let repo_assets = context.repository_root.join("engine/assets/legion-plugin");
+    let state_root = context.state_root.clone();
+    let home = state_root.join("clients");
+    let source = |client_id: &str, fallback: PathBuf| {
+        context
+            .client_overrides
+            .get(client_id)
+            .map(|item| item.source_root.clone())
+            .unwrap_or(fallback)
+    };
+    let target = |client_id: &str, fallback: PathBuf| {
+        context
+            .client_overrides
+            .get(client_id)
+            .map(|item| item.target_root.clone())
+            .unwrap_or(fallback)
+    };
+    let plugin_source = source("claude-code", repo_assets.clone());
+    let skills_source = source("pi", repo_assets.join("skills"));
+    let current_skill_ids = Vec::new();
+    let claude =
+        selector_includes(selector, "claude-code").then(|| legion_host::ClaudeLegacyInput {
+            home: home.clone(),
+            canonical_skills_root: plugin_source.join("skills"),
+            current_skill_ids: current_skill_ids.clone(),
+        });
+    let codex = selector_includes(selector, "codex").then(|| legion_host::CodexSkillsInput {
+        home: home.clone(),
+        assets_skills_root: skills_source.clone(),
+        platform_state_root: state_root.clone(),
+        current_skill_ids: current_skill_ids.clone(),
+        retired_skill_ids: vec![legion_host::RETIRED_BLUEPRINT_SKILL_ID.into()],
+        generation: format!(
+            "{}:{}",
+            release.release_version, release.declarative_asset_schema_hash
+        ),
+    });
+    let generation = format!(
+        "{}:{}",
+        release.release_version, release.declarative_asset_schema_hash
+    );
+    let definitions = [
+        (
+            legion_host::setup_registry::CLIENT_CLAUDE,
+            "native-plugin",
+            true,
+            false,
+            repo_assets.clone(),
+            home.join("claude/plugins/legion"),
+        ),
+        (
+            legion_host::setup_registry::CLIENT_CODEX,
+            "agent-plugins-with-explicit-sidecar",
+            true,
+            true,
+            repo_assets.clone(),
+            home.join("codex/plugins/legion"),
+        ),
+        (
+            legion_host::setup_registry::CLIENT_CURSOR,
+            "agent-plugins-with-thin-sidecar",
+            true,
+            false,
+            repo_assets.clone(),
+            home.join("cursor/plugins/legion"),
+        ),
+        (
+            legion_host::setup_registry::CLIENT_PI,
+            "skills-only",
+            false,
+            true,
+            repo_assets.join("skills"),
+            home.join("agents/skills"),
+        ),
+        (
+            legion_host::setup_registry::CLIENT_ANTIGRAVITY,
+            "native-plugin",
+            true,
+            false,
+            repo_assets,
+            home.join("antigravity/plugins/legion"),
+        ),
+    ];
+    let client_projections = definitions
+        .into_iter()
+        .filter(|(id, ..)| selector_includes(selector, id))
+        .map(
+            |(
+                client_id,
+                projection,
+                executable_registration,
+                explicit_only,
+                fallback_source,
+                fallback_target,
+            )| {
+                let source_root = source(client_id, fallback_source);
+                let target_root = target(client_id, fallback_target);
+                Ok(legion_host::setup_registry::ClientProjectionInput {
+                    client_id: client_id.into(),
+                    projection: projection.into(),
+                    source_root,
+                    target_root,
+                    state_root: state_root.clone(),
+                    origin: legion_host::setup_registry::ORIGIN_DEVELOPMENT.into(),
+                    executable: Some(std::env::current_exe().map_err(io_error)?),
+                    install_root: None,
+                    generation: generation.clone(),
+                    executable_registration,
+                    explicit_only,
+                    skill_ids: current_skill_ids.clone(),
+                })
+            },
+        )
+        .collect::<Result<Vec<_>, CommandError>>()?;
+    Ok(HostIntegrationInputs {
+        claude,
+        codex,
+        client_projections,
+    })
+}
+
 fn projection_key(client_id: &str) -> &'static str {
     match client_id {
         legion_host::setup_registry::CLIENT_CLAUDE => "claudePlugin",
@@ -2642,9 +2965,42 @@ fn discovered_client_evidence(selected: Option<&str>) -> Vec<legion_host::Client
         .collect()
 }
 
+fn development_client_evidence(selected: Option<&str>) -> Vec<legion_host::ClientEvidence> {
+    [
+        legion_host::setup_registry::CLIENT_CLAUDE,
+        legion_host::setup_registry::CLIENT_CODEX,
+        legion_host::setup_registry::CLIENT_CURSOR,
+        legion_host::setup_registry::CLIENT_PI,
+        legion_host::setup_registry::CLIENT_ANTIGRAVITY,
+    ]
+    .into_iter()
+    .filter(|id| selected.is_none_or(|value| value == *id))
+    .map(|client_id| legion_host::ClientEvidence {
+        client_id: client_id.into(),
+        detected: true,
+        mechanisms: vec!["development-explicit-context".into()],
+        command_proof_ref: None,
+        qualification_evidence_ref: None,
+    })
+    .collect()
+}
+
 fn open_registry(
     request: &legion_host::SetupRequest,
 ) -> Result<legion_host::SetupRegistry<legion_host::OnDiskSetupStore>, CommandError> {
+    if request.origin == legion_host::setup_registry::ORIGIN_DEVELOPMENT {
+        let context = request.development.as_ref().ok_or_else(|| {
+            CommandError::usage("development setup requires an explicit execution context")
+        })?;
+        if request.release != bound_release_for_context(Some(context))? {
+            return Err(setup_error(legion_host::SetupError {
+                code: legion_host::SetupErrorCode::ReleaseBindingMismatch,
+                remediation: "development setup plan release differs from its explicit context; regenerate the plan".into(),
+            }));
+        }
+        return legion_host::SetupRegistry::open_development(request.release.clone(), context)
+            .map_err(setup_error);
+    }
     let release = installed_bound_release()?;
     if request.release != release {
         return Err(setup_error(legion_host::SetupError {
@@ -2662,6 +3018,61 @@ fn selector(client: Option<String>) -> legion_host::ClientSelector {
         .filter(|client| !client.trim().is_empty())
         .map(legion_host::ClientSelector::ClientId)
         .unwrap_or(legion_host::ClientSelector::AllSupported)
+}
+
+fn bound_release_for_context(
+    context: Option<&legion_host::DevelopmentSetupContext>,
+) -> Result<legion_host::BoundRelease, CommandError> {
+    if context.is_none() {
+        return installed_bound_release();
+    }
+    Ok(legion_host::BoundRelease {
+        release_version: format!("development-{}", EXPECTED_RELEASE_VERSION),
+        runtime_digest: "development".into(),
+        capability_catalog_hash: "development".into(),
+        mcp_tool_schema_hash: "development".into(),
+        declarative_asset_schema_hash: "development".into(),
+        state_compatibility: "development".into(),
+    })
+}
+
+fn development_status(
+    args: SetupClientArgs,
+    context: legion_host::DevelopmentSetupContext,
+) -> CommandResult {
+    let release = bound_release_for_context(Some(&context))?;
+    let selector = selector(args.client);
+    let platform_state_root = context.state_root.clone();
+    let evidence = discovered_client_evidence(None);
+    let request = legion_host::SetupRequest {
+        action: legion_host::SetupAction::Status,
+        selector: selector.clone(),
+        release: release.clone(),
+        platform_state_root,
+        client_evidence: evidence,
+        dry_run: true,
+        origin: legion_host::setup_registry::ORIGIN_DEVELOPMENT.into(),
+        development: Some(context.clone()),
+    };
+    let mut registry =
+        legion_host::SetupRegistry::open_development(release, &context).map_err(setup_error)?;
+    let recovery = registry.recover().map_err(setup_error)?;
+    let clients = registry.status(&selector).map_err(setup_error)?;
+    let integrations = preview_host_integrations(&request)?;
+    let clients_value = serde_json::to_value(&clients)
+        .map_err(|error| CommandError::incomplete(error.to_string()))?;
+    let identity = inspect_live_identity(&integrations, request.development.as_ref())?;
+    let clients_value = enrich_client_statuses(clients_value, &identity);
+    let (status, remediation) = setup_health(&clients_value, &integrations, &identity);
+    Ok(json!({
+        "schemaVersion": 1, "kind": "legion-setup-status", "status": status,
+        "origin": legion_host::setup_registry::ORIGIN_DEVELOPMENT,
+        "executable": identity.get("executablePath"), "installRoot": Value::Null,
+        "generation": identity.get("generation"), "development": context,
+        "port": identity.get("port"), "processIdentity": identity.get("processIdentity"),
+        "remediation": remediation, "recovery": recovery, "clients": clients_value,
+        "hostIntegrations": integrations, "liveIdentity": identity,
+    }))
 }
 
 fn read_json<T: serde::de::DeserializeOwned>(
@@ -2922,6 +3333,7 @@ mod tests {
             "fidelity": "Unavailable"
         }]);
         let live_identity = json!({
+            "origin": legion_host::setup_registry::ORIGIN_INSTALLED,
             "executable": {"state": "current"},
             "plugin": {"state": "current"},
             "projections": {"codexSkills": {"state": "stale"}}

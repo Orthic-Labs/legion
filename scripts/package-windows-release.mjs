@@ -1,5 +1,6 @@
 import {
 	existsSync,
+	copyFileSync,
 	lstatSync,
 	mkdirSync,
 	readFileSync,
@@ -31,6 +32,11 @@ import {
 	materializeInTotoSlsaProvenance,
 } from "@rightkit/release/supply-chain-evidence.mjs";
 import {
+	readNativeFinalizationOutput,
+	validateNativeFinalizationOutput,
+} from "@rightkit/release/native-release-finalization.mjs";
+import { checkUnsignedCandidate } from "./ci/prepare-unsigned-candidate.mjs";
+import {
 	WINDOWS_ARCHITECTURES,
 	WINDOWS_INSTALL_CONTRACT,
 } from "../right-release.config.mjs";
@@ -39,7 +45,6 @@ const REPOSITORY_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const PRODUCT = "legion";
 const GITHUB_REPOSITORY = "Orthic-Labs/legion";
 const SOURCE_REPOSITORY = "https://github.com/Orthic-Labs/legion";
-const BOOTSTRAP_VERSION = "0.1.0";
 const REQUIRED_BINARIES = ["legion.exe", "legion-hook.exe", "legion-mcp.exe"];
 const REQUIRED_QUALIFICATION_GATES = [
 	"installed-product",
@@ -245,6 +250,106 @@ function sourceRevision(repositoryRoot, supplied) {
 	return revision.toLowerCase();
 }
 
+function candidateRelease({ inputRoot, architecture, version, revision, repositoryRoot }) {
+	const checked = checkUnsignedCandidate({
+		outputRoot: inputRoot,
+		repositoryRoot,
+		platform: "windows",
+		architecture,
+		sourceRevision: revision,
+		version,
+		env: {},
+	});
+	return {
+		checked,
+		identity: windowsTargetIdentity(architecture),
+		archivePath: checked.archive,
+		sbomPath: checked.sbom,
+		provenancePath: checked.provenance,
+		archive: fileRecord(checked.archive),
+	};
+}
+
+function candidateSignatureEvidence({ receiptPath, candidateReceiptPath, candidateArchive, finalArchive, finalization }) {
+	if (!receiptPath || !existsSync(receiptPath)) {
+		return { status: "missing", reason: "RightRelease archive signing receipt is required" };
+	}
+	let receipt;
+	try {
+		receipt = readJson(receiptPath, "RightRelease archive signing receipt");
+	} catch (error) {
+		return { status: "invalid", reason: error.message };
+	}
+	if (!candidateReceiptPath || !existsSync(candidateReceiptPath)) {
+		return { status: "missing", reason: "verified candidate-input receipt is required" };
+	}
+	const candidateReceipt = readJson(candidateReceiptPath, "candidate-input receipt");
+	if (candidateReceipt.schema !== 1 || candidateReceipt.kind !== "legion-windows-candidate-input" || candidateReceipt.status !== "verified" || !digestMatches(candidateReceipt.candidateArchiveSha256, candidateArchive.sha256)) {
+		return { status: "invalid", reason: "candidate-input receipt does not bind exact CI archive bytes" };
+	}
+	if (!digestMatches(finalization.archiveSha256, finalArchive.sha256)) {
+		return { status: "invalid", reason: "RightRelease finalization does not bind final archive bytes" };
+	}
+	if (!Array.isArray(receipt.files) || receipt.files.length !== REQUIRED_BINARIES.length || !Array.isArray(candidateReceipt.files) || !Array.isArray(finalization.signedArtifacts)) {
+		return { status: "invalid", reason: "receipt does not enumerate every signed Legion executable" };
+	}
+	for (const name of REQUIRED_BINARIES) {
+		const entry = receipt.files.find((item) => basename(item?.file ?? item?.path ?? "") === name);
+		const input = candidateReceipt.files.find((item) => basename(item?.file ?? "") === name);
+		const signed = finalization.signedArtifacts.find((item) => basename(item?.path ?? "") === name);
+		if (!entry || !input || !signed || !digestMatches(entry.before?.sha256, input.sha256) || !digestMatches(entry.after?.sha256, signed.sha256) || entry.authenticode !== "Valid" || entry.subject !== "CN=Damned Ventures LLC" || entry.timestampPresent !== true) {
+			return { status: "invalid", reason: `receipt does not prove Authenticode final bytes for ${name}` };
+		}
+	}
+	return { status: "verified", receipt: resolve(receiptPath), root: null };
+}
+
+function finalizationProvenanceEvidence({ provenancePath, version, identity, repositoryRoot }) {
+	if (!provenancePath || !existsSync(provenancePath)) {
+		return { status: "missing", reason: "RightRelease finalization provenance receipt is required" };
+	}
+	try {
+		const receipt = readNativeFinalizationOutput(resolve(provenancePath));
+		if (
+			receipt.app !== PRODUCT
+			|| receipt.version !== version
+			|| receipt.platform !== identity.platform
+			|| receipt.architecture !== identity.architecture
+			|| receipt.targetTriple !== identity.targetTriple
+		) return { status: "invalid", reason: "RightRelease provenance identity does not match candidate" };
+		validateNativeFinalizationOutput(receipt, { requireArchive: true });
+		const archiveReference = receipt.archive?.path;
+		if (!archiveReference) return { status: "invalid", reason: "RightRelease provenance omits final archive path" };
+		const archivePath = isAbsolute(archiveReference)
+			? resolve(archiveReference)
+			: resolve(repositoryRoot, archiveReference);
+		if (!existsSync(archivePath) || !statSync(archivePath).isFile() || !digestMatches(sha256File(archivePath), receipt.archiveSha256)) {
+			return { status: "invalid", reason: "RightRelease final archive bytes do not match provenance" };
+		}
+		return { status: "verified", receipt: resolve(provenancePath), source: receipt, archivePath };
+	} catch (error) {
+		return { status: "invalid", reason: error.message };
+	}
+}
+
+function assertPublicationPolicy({ repositoryRoot, evidence = {} }) {
+	const contract = readJson(join(repositoryRoot, "release", "distribution-contract.json"), "distribution contract");
+	const policy = readJson(join(repositoryRoot, "release", "publication-policy.json"), "publication policy");
+	const channel = policy.channels?.[contract.nativeRelease?.channel ?? "direct-bootstrap"];
+	if (contract.nativeRelease?.status !== "available" || channel?.allowed !== true) {
+		throw new Error(`publication blocked by release/publication-policy.json: ${channel?.reason ?? "native release is not authorized"}`);
+	}
+	if (policy.publisher !== "rightkit-release" || channel.payloadAuthority !== "immutable-github-release" || channel.bootstrapProvider !== "rightapps-downloads-r2") {
+		throw new Error("publication blocked: checked-in publication authority is invalid");
+	}
+	if (!channel.approvedBy || !channel.approvedAt || !channel.policyDigest) {
+		throw new Error("publication blocked: channel authorization evidence is incomplete");
+	}
+	const required = contract.nativeRelease?.requiredEvidence ?? [];
+	const missing = required.filter((name) => evidence[name] !== true);
+	if (missing.length) throw new Error(`publication blocked: required evidence is incomplete (${missing.join(", ")})`);
+}
+
 function assembledRelease(inputRoot, architecture, version) {
 	if (!existsSync(inputRoot) || !lstatSync(inputRoot).isDirectory()) {
 		throw new Error(`assembled release root is missing: ${inputRoot}`);
@@ -279,40 +384,6 @@ function assembledRelease(inputRoot, architecture, version) {
 		runtimeSha256,
 		generation: releaseGeneration(metadata, version, runtimeSha256),
 	};
-}
-
-function signatureEvidence({ receiptPath, inputRoot, binaries }) {
-	if (!receiptPath || !existsSync(receiptPath)) {
-		return { status: "missing", reason: "RightRelease Authenticode receipt is required" };
-	}
-	let receipt;
-	try {
-		receipt = readJson(receiptPath, "RightRelease Authenticode receipt");
-	} catch (error) {
-		return { status: "invalid", reason: error.message };
-	}
-	if (!receipt || typeof receipt !== "object" || Array.isArray(receipt) || receipt.schema !== 1 || !Array.isArray(receipt.files) || receipt.files.length !== binaries.length) {
-		return { status: "invalid", reason: "RightRelease Authenticode receipt schema is invalid" };
-	}
-	const receiptDirectory = dirname(resolve(receiptPath));
-	for (const binary of binaries) {
-		const matches = receipt.files.filter((entry) => {
-			if (!entry?.file) return false;
-			return [resolve(entry.file), resolve(receiptDirectory, entry.file)].includes(resolve(binary));
-		});
-		if (matches.length !== 1) return { status: "invalid", reason: `receipt does not bind ${basename(binary)}` };
-		const entry = matches[0];
-		if (
-			bareDigest(entry.after?.sha256) !== sha256File(binary)
-			|| entry.after?.sizeBytes !== statSync(binary).size
-			|| entry.authenticode !== "Valid"
-			|| entry.subject !== "CN=Damned Ventures LLC"
-			|| entry.timestampPresent !== true
-		) {
-			return { status: "invalid", reason: `receipt does not prove final signed bytes for ${basename(binary)}` };
-		}
-	}
-	return { status: "verified", receipt: resolve(receiptPath), root: resolve(inputRoot) };
 }
 
 function qualificationTargetIdentityMatches(observed, expected) {
@@ -446,7 +517,9 @@ export function finalizeWindowsDirectRelease({
 	architecture,
 	sourceRevision: suppliedSourceRevision,
 	signatureReceipt,
+	candidateReceipt,
 	qualification,
+	provenance,
 	publishGitHub = false,
 	publishBootstrap = false,
 	dryRun = false,
@@ -460,40 +533,75 @@ export function finalizeWindowsDirectRelease({
 	if (publishBootstrap && !publishGitHub) throw new Error("bootstrap publication requires GitHub release publication first");
 	const inputRoot = resolve(input);
 	const version = releaseVersion(repositoryRoot);
+	const isCandidate = existsSync(join(inputRoot, "candidate.json"));
+	if (!isCandidate) {
+		throw new Error("protected Windows finalization requires an exact unsigned candidate root");
+	}
+	if (suppliedSourceRevision === undefined) {
+		throw new Error("--source-revision is required when consuming an exact unsigned candidate");
+	}
 	const revision = sourceRevision(repositoryRoot, suppliedSourceRevision);
-	const assembled = assembledRelease(inputRoot, architecture, version);
-	const outputDir = resolve(output ?? join(repositoryRoot, "dist", "releases", "windows", version, assembled.identity.architecture));
+	const candidate = candidateRelease({ inputRoot, architecture, version, revision, repositoryRoot });
+	const targetIdentity = candidate.identity;
+	const outputDir = resolve(output ?? join(repositoryRoot, "dist", "releases", "windows", version, targetIdentity.architecture));
 	assertReleaseOutputPath(outputDir, repositoryRoot, inputRoot);
-	const archivePath = join(outputDir, `legion-${version}-windows-${assembled.identity.architecture}.zip`);
-	if (!existsSync(archivePath) || !statSync(archivePath).isFile()) {
-		throw new Error(`prepared release archive is missing: ${archivePath}`);
+	const archiveName = `legion-${version}-windows-${targetIdentity.architecture}.zip`;
+	const archivePath = join(outputDir, archiveName);
+	const signedProvenance = finalizationProvenanceEvidence({
+		provenancePath: provenance ? resolve(repositoryRoot, provenance) : null,
+		version,
+		identity: targetIdentity,
+		repositoryRoot,
+	});
+	if (signedProvenance.status !== "verified") {
+		throw new Error(`RightRelease provenance is not verified: ${signedProvenance.reason}`);
+	}
+	mkdirSync(outputDir, { recursive: true });
+	copyFileSync(signedProvenance.archivePath, archivePath);
+	if (!digestMatches(sha256File(signedProvenance.archivePath), sha256File(archivePath))) {
+		throw new Error("signed final archive bytes changed during product packaging");
 	}
 	const archive = fileRecord(archivePath);
-	const signature = signatureEvidence({
-		receiptPath: signatureReceipt ? resolve(repositoryRoot, signatureReceipt) : join(repositoryRoot, ".right-release", "receipts", `windows-${assembled.identity.architecture}-raw-exe.json`),
-		inputRoot,
-		binaries: assembled.binaries,
+	const effectiveSignature = candidateSignatureEvidence({
+		receiptPath: signatureReceipt ? resolve(repositoryRoot, signatureReceipt) : null,
+		candidateReceiptPath: candidateReceipt ? resolve(repositoryRoot, candidateReceipt) : null,
+		candidateArchive: candidate.archive,
+		finalArchive: archive,
+		finalization: signedProvenance.source,
 	});
-	if (signature.status !== "verified") throw new Error(`Windows release signing is not verified: ${signature.reason}`);
+	if (effectiveSignature.status !== "verified") throw new Error(`Windows release signing is not verified: ${effectiveSignature.reason}`);
+	const qualificationPath = qualification
+		? resolve(repositoryRoot, qualification)
+		: join(repositoryRoot, ".right-release", "receipts", `windows-${targetIdentity.architecture}-qualification.json`);
+	const qualificationValue = candidate && existsSync(qualificationPath) ? readJson(qualificationPath, "Windows qualification evidence") : null;
+	const runtimeSha256 = qualificationValue?.runtimeSha256;
+	const generation = qualificationValue?.generation;
 	const qualificationRecord = qualificationEvidence({
-		evidencePath: qualification ? resolve(repositoryRoot, qualification) : join(repositoryRoot, ".right-release", "receipts", `windows-${assembled.identity.architecture}-qualification.json`),
+		evidencePath: qualificationPath,
 		archiveDigest: archive.sha256,
-		runtimeDigest: assembled.runtimeSha256,
-		identity: assembled.identity,
+		runtimeDigest: runtimeSha256,
+		identity: targetIdentity,
 		releaseVersion: version,
 		sourceRevision: revision,
-		generation: assembled.generation,
+		generation,
 	});
 	if (qualificationRecord.status !== "verified") throw new Error(`Windows release qualification is not verified: ${qualificationRecord.reason}`);
 
-	const evidenceStem = `legion-${version}-windows-${assembled.identity.architecture}`;
+	const evidenceStem = `legion-${version}-windows-${targetIdentity.architecture}`;
 	const sbomPath = join(outputDir, `${evidenceStem}.cdx.json`);
 	const provenancePath = join(outputDir, `${evidenceStem}.intoto.jsonl`);
+	const candidateSbomPath = join(outputDir, `${evidenceStem}.candidate.cdx.json`);
+	const candidateProvenancePath = join(outputDir, `${evidenceStem}.candidate.intoto.jsonl`);
+	copyFileSync(candidate.sbomPath, candidateSbomPath);
+	copyFileSync(candidate.provenancePath, candidateProvenancePath);
+	if (!digestMatches(sha256File(candidate.sbomPath), sha256File(candidateSbomPath)) || !digestMatches(sha256File(candidate.provenancePath), sha256File(candidateProvenancePath))) {
+		throw new Error("candidate evidence bytes changed during protected handoff");
+	}
 	materializeCycloneDxSbom({
 		outputPath: sbomPath,
 		product: PRODUCT,
 		version,
-		target: `windows-${assembled.identity.architecture}`,
+		target: `windows-${targetIdentity.architecture}`,
 		sourceCommit: revision,
 		files: [archive],
 		createdAt,
@@ -502,7 +610,7 @@ export function finalizeWindowsDirectRelease({
 		outputPath: provenancePath,
 		product: PRODUCT,
 		version,
-		target: `windows-${assembled.identity.architecture}`,
+		target: `windows-${targetIdentity.architecture}`,
 		sourceCommit: revision,
 		sourceRepository: SOURCE_REPOSITORY,
 		subjects: [archive],
@@ -511,7 +619,7 @@ export function finalizeWindowsDirectRelease({
 	});
 	const releaseBase = `https://github.com/${GITHUB_REPOSITORY}/releases/download/v${version}`;
 	const asset = collectReleaseAsset({
-		target: `windows-${assembled.identity.architecture}`,
+		target: `windows-${targetIdentity.architecture}`,
 		name: archive.name,
 		url: `${releaseBase}/${archive.name}`,
 		archivePath,
@@ -521,8 +629,8 @@ export function finalizeWindowsDirectRelease({
 		sbomPath,
 	});
 	if (
-		asset.target !== assembled.identity.artifactId
-		|| asset.name !== `legion-${version}-windows-${assembled.identity.architecture}.zip`
+		asset.target !== targetIdentity.artifactId
+		|| asset.name !== `legion-${version}-windows-${targetIdentity.architecture}.zip`
 		|| asset.url !== `${releaseBase}/${archive.name}`
 		|| asset.executablePath !== "bin/legion.exe"
 		|| asset.nativeSignaturePolicy !== "authenticode-valid"
@@ -535,7 +643,7 @@ export function finalizeWindowsDirectRelease({
 			product: PRODUCT,
 			version,
 			sourceCommit: revision,
-			minimumBootstrapVersion: BOOTSTRAP_VERSION,
+			minimumBootstrapVersion: version,
 			assets: [asset],
 		},
 	});
@@ -543,7 +651,7 @@ export function finalizeWindowsDirectRelease({
 	const bootstrap = renderPowerShellBootstrap({
 		product: PRODUCT,
 		repository: GITHUB_REPOSITORY,
-		bootstrapVersion: BOOTSTRAP_VERSION,
+		bootstrapVersion: version,
 		acceptedManifestSigners: [direct.signing.signer],
 		installRootSubdir: WINDOWS_INSTALL_CONTRACT.installRootSubdir,
 		executablePath: WINDOWS_INSTALL_CONTRACT.executablePath,
@@ -574,6 +682,21 @@ export function finalizeWindowsDirectRelease({
 		acceptedSignerIds: [direct.signing.signer.id],
 	});
 	if (!bootstrapValidation.valid) throw new Error(`generated bootstrap is invalid: ${bootstrapValidation.errors.join("; ")}`);
+	if (publishGitHub || publishBootstrap) {
+		assertPublicationPolicy({
+			repositoryRoot,
+			evidence: {
+				"platform-artifacts": true,
+				"platform-signatures": effectiveSignature.status === "verified",
+				"provenance-attestations": Boolean(provenancePath && sbomPath),
+				"signed-release-manifest": Boolean(direct.signaturePath),
+				"bootstrap-transaction": Boolean(bootstrapPath),
+				"rollback-transaction": qualificationRecord.status === "verified",
+				"client-integration-health": qualificationRecord.status === "verified",
+				"channel-authorization": true,
+			},
+		});
+	}
 
 	const githubPlan = prepareGitHubDirectRelease({
 		repoRoot: repositoryRoot,
@@ -590,7 +713,7 @@ export function finalizeWindowsDirectRelease({
 	});
 	const bootstrapPlan = planBootstrapPublication({
 		product: PRODUCT,
-		bootstrapVersion: BOOTSTRAP_VERSION,
+		bootstrapVersion: version,
 		scriptPath: bootstrapPath,
 	});
 	const github = publishGitHub
@@ -613,12 +736,15 @@ export function finalizeWindowsDirectRelease({
 		checksums: checksumsPath,
 		provenance: provenancePath,
 		sbom: sbomPath,
+		candidateSbom: candidateSbomPath,
+		candidateProvenance: candidateProvenancePath,
+		rightkitFinalizationReceipt: signedProvenance.receipt,
 		bootstrap: bootstrapPath,
 		releaseVersion: version,
-	sourceRevision: revision,
-	targetIdentity: assembled.identity,
-	archiveSha256: archive.sha256,
-		runtimeSha256: assembled.runtimeSha256,
+		sourceRevision: revision,
+		targetIdentity,
+		archiveSha256: archive.sha256,
+		runtimeSha256,
 		github,
 		r2,
 	};
@@ -650,7 +776,7 @@ function parseArguments(argv) {
 }
 
 function usage(code = 0) {
-	console.error("usage: node scripts/package-windows-release.mjs --architecture x86_64|arm64 --input <assembled-root> [--output <dir>] [--source-revision <sha>] [--force] [--finalize --signature-receipt <json> --qualification <json> [--publish-github] [--publish-bootstrap] [--dry-run]] [--json]");
+	console.error("usage: node scripts/package-windows-release.mjs --architecture x86_64|arm64 --input <candidate-root> [--output <dir>] [--source-revision <sha>] [--finalize --candidate-receipt <json> --signature-receipt <json> --qualification <json> --provenance <json> [--publish-github] [--publish-bootstrap] [--dry-run]] [--json]");
 	process.exit(code);
 }
 
@@ -659,8 +785,7 @@ if (isMain) {
 	try {
 		if (process.argv.includes("--help") || process.argv.includes("-h")) usage(0);
 		const options = parseArguments(process.argv.slice(2));
-		const architecture = options.architecture ?? process.env.LEGION_WINDOWS_ARCH;
-		if (!architecture) throw new Error("--architecture is required");
+		const architecture = options.architecture ?? process.env.LEGION_WINDOWS_ARCH ?? "x86_64";
 		const normalized = normalizeWindowsArchitecture(architecture);
 		const configured = WINDOWS_ARCHITECTURES[normalized];
 		const result = buildWindowsReleasePackage({
@@ -669,7 +794,9 @@ if (isMain) {
 			architecture: normalized,
 			sourceRevision: options.sourcerevision,
 			signatureReceipt: options.signaturereceipt,
+			candidateReceipt: options.candidatereceipt,
 			qualification: options.qualification,
+			provenance: options.provenance,
 			force: options.force === true,
 			finalize: options.finalize === true,
 			publishGitHub: options.publishgithub === true,

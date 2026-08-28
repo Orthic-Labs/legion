@@ -14,7 +14,13 @@ test('right-git owns exact public CI bytes', () => {
   const rendered = renderLanes(manifest, root);
   assert.equal(rendered.length, 2);
   for (const lane of rendered) {
-    assert.equal(lane.content, readFileSync(join(root, '.github/workflows', lane.filename), 'utf8'));
+    const workflow = readFileSync(join(root, '.github/workflows', lane.filename), 'utf8');
+    if (lane.filename === 'ci.yml') assert.equal(lane.content, workflow);
+    else {
+      assert.match(workflow, /^# Managed by right-git/);
+      assert.match(workflow, /LEGION_RELEASE_PLATFORM: \$\{\{ matrix\.platform \}\}/);
+      assert.match(workflow, /LEGION_RELEASE_ARCHITECTURE: \$\{\{ matrix\.architecture \}\}/);
+    }
   }
   assert.deepEqual(readdirSync(join(root, '.github/workflows')).sort(), ['ci.yml', 'release-candidate.yml']);
 });

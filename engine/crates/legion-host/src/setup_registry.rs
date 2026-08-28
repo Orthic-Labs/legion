@@ -35,7 +35,11 @@ pub const ORIGIN_DEVELOPMENT: &str = "development";
 
 const STABLE_CURRENT_DIRECTORY: &str = "current";
 const STABLE_BIN_DIRECTORY: &str = "bin";
-const STABLE_EXECUTABLE_NAME: &str = if cfg!(windows) { "legion.exe" } else { "legion" };
+const STABLE_EXECUTABLE_NAME: &str = if cfg!(windows) {
+    "legion.exe"
+} else {
+    "legion"
+};
 const FORBIDDEN_PRODUCTION_PATH_COMPONENTS: [&str; 4] = ["repo", "dist", "target", "node_modules"];
 
 fn default_projection_origin() -> String {
@@ -627,6 +631,27 @@ pub enum ClientSelector {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct DevelopmentClientOverride {
+    pub source_root: PathBuf,
+    pub target_root: PathBuf,
+}
+
+/// Setup-side representation of explicit development execution. Keeping this
+/// on a request makes preview plans and mutations carry identical isolation
+/// boundaries, instead of relying on process-global environment.
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct DevelopmentSetupContext {
+    pub repository_root: PathBuf,
+    pub state_root: PathBuf,
+    pub port: Option<u16>,
+    pub process_identity: String,
+    #[serde(default)]
+    pub client_overrides: BTreeMap<String, DevelopmentClientOverride>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct ClientEvidence {
     pub client_id: String,
@@ -645,6 +670,16 @@ pub struct SetupRequest {
     pub platform_state_root: PathBuf,
     pub client_evidence: Vec<ClientEvidence>,
     pub dry_run: bool,
+    /// Installed remains the default; development must be explicit and carry
+    /// its complete isolation context in every plan.
+    #[serde(default = "default_setup_origin")]
+    pub origin: String,
+    #[serde(default)]
+    pub development: Option<DevelopmentSetupContext>,
+}
+
+fn default_setup_origin() -> String {
+    ORIGIN_INSTALLED.into()
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
@@ -1201,6 +1236,7 @@ impl<S: SetupStore> SetupRegistry<S> {
     }
     pub fn preview(&mut self, request: SetupRequest) -> Result<SetupPreview, SetupError> {
         validate_release(&request.release)?;
+        validate_setup_origin(&request)?;
         same_root(
             self.store.platform_state_root(),
             &request.platform_state_root,
@@ -1606,6 +1642,100 @@ impl SetupRegistry<OnDiskSetupStore> {
     ) -> Result<Self, SetupError> {
         Self::open(OnDiskSetupStore::open(platform_state_root)?, release)
     }
+
+    /// Opens an explicitly isolated development state root. Product callers
+    /// must provide a development context before using this seam.
+    pub fn open_development(
+        release: BoundRelease,
+        context: &DevelopmentSetupContext,
+    ) -> Result<Self, SetupError> {
+        validate_development_context(context)?;
+        Self::open_on_disk(release, context.state_root.clone())
+    }
+}
+
+fn validate_setup_origin(request: &SetupRequest) -> Result<(), SetupError> {
+    match request.origin.as_str() {
+        ORIGIN_INSTALLED if request.development.is_none() => Ok(()),
+        ORIGIN_DEVELOPMENT => {
+            let context = request.development.as_ref().ok_or_else(|| {
+                err(
+                    SetupErrorCode::PathEscapeRefused,
+                    "development setup requires an explicit execution context",
+                )
+            })?;
+            if !paths_equal(&request.platform_state_root, &context.state_root) {
+                return Err(err(
+                    SetupErrorCode::PathEscapeRefused,
+                    "development setup request must use its isolated state root",
+                ));
+            }
+            validate_development_context(context)
+        }
+        _ => Err(err(
+            SetupErrorCode::PathEscapeRefused,
+            "setup origin must be exactly installed or development",
+        )),
+    }
+}
+
+fn validate_development_context(context: &DevelopmentSetupContext) -> Result<(), SetupError> {
+    if !context.repository_root.is_absolute()
+        || !context.state_root.is_absolute()
+        || context
+            .repository_root
+            .components()
+            .any(|c| matches!(c, Component::ParentDir | Component::CurDir))
+        || context
+            .state_root
+            .components()
+            .any(|c| matches!(c, Component::ParentDir | Component::CurDir))
+        || context.process_identity.trim().is_empty()
+        || context.port == Some(0)
+    {
+        return Err(err(
+            SetupErrorCode::PathEscapeRefused,
+            "development context requires absolute roots, valid port, and process identity",
+        ));
+    }
+    let state_root =
+        fs::canonicalize(&context.state_root).unwrap_or_else(|_| context.state_root.clone());
+    let native_root = platform_state_root()?;
+    let native_root = fs::canonicalize(&native_root).unwrap_or(native_root);
+    if path_starts_with(&state_root, &native_root) {
+        return Err(err(
+            SetupErrorCode::PathEscapeRefused,
+            "development state root must be isolated from native product state",
+        ));
+    }
+    for (client_id, override_) in &context.client_overrides {
+        if client_id.is_empty()
+            || !override_.source_root.is_absolute()
+            || !override_.target_root.is_absolute()
+            || override_
+                .source_root
+                .components()
+                .any(|c| matches!(c, Component::ParentDir | Component::CurDir))
+            || override_
+                .target_root
+                .components()
+                .any(|c| matches!(c, Component::ParentDir | Component::CurDir))
+        {
+            return Err(err(
+                SetupErrorCode::PathEscapeRefused,
+                "development client overrides require absolute source and target roots",
+            ));
+        }
+        let target_root = fs::canonicalize(&override_.target_root)
+            .unwrap_or_else(|_| override_.target_root.clone());
+        if !path_starts_with(&target_root, &state_root) {
+            return Err(err(
+                SetupErrorCode::PathEscapeRefused,
+                "development client override targets must remain inside isolated state root",
+            ));
+        }
+    }
+    Ok(())
 }
 
 fn validate_projection_input(input: &ClientProjectionInput) -> Result<(), SetupError> {
@@ -1829,10 +1959,8 @@ fn validate_development_projection(input: &ClientProjectionInput) -> Result<(), 
     let native_root = platform_state_root()?;
     let state_root =
         fs::canonicalize(&input.state_root).unwrap_or_else(|_| input.state_root.clone());
-    if fs::canonicalize(&native_root)
-        .ok()
-        .is_some_and(|canonical| canonical == state_root)
-    {
+    let native_root = fs::canonicalize(&native_root).unwrap_or(native_root);
+    if path_starts_with(&state_root, &native_root) {
         return Err(err(
             SetupErrorCode::PathEscapeRefused,
             "development client projection must use an isolated state root",
@@ -2836,6 +2964,8 @@ mod tests {
                 command_proof_ref: Some("proof".into()),
                 qualification_evidence_ref: None,
             }],
+            origin: ORIGIN_INSTALLED.into(),
+            development: None,
         }
     }
 
@@ -2996,5 +3126,49 @@ mod tests {
             .join("Legion");
         assert_eq!(root, native_data);
         assert!(root.is_absolute());
+    }
+
+    #[test]
+    fn development_context_rejects_native_descendants_and_external_targets() {
+        let root = TestRoot::new("development-isolation");
+        let repository_root = root.0.join("repository");
+        let state_root = root.0.join("state");
+        let external_target = root.0.join("external-client");
+        fs::create_dir_all(&repository_root).unwrap();
+        fs::create_dir_all(&state_root).unwrap();
+
+        let native_child = DevelopmentSetupContext {
+            repository_root: repository_root.clone(),
+            state_root: platform_state_root().unwrap().join("development-forbidden"),
+            port: Some(4011),
+            process_identity: "test-development".into(),
+            client_overrides: BTreeMap::new(),
+        };
+        assert_eq!(
+            validate_development_context(&native_child)
+                .unwrap_err()
+                .code,
+            SetupErrorCode::PathEscapeRefused
+        );
+
+        let external_override = DevelopmentSetupContext {
+            repository_root: repository_root.clone(),
+            state_root: state_root.clone(),
+            port: Some(4011),
+            process_identity: "test-development".into(),
+            client_overrides: BTreeMap::from([(
+                "codex".into(),
+                DevelopmentClientOverride {
+                    source_root: repository_root,
+                    target_root: external_target,
+                },
+            )]),
+        };
+        assert_eq!(
+            validate_development_context(&external_override)
+                .unwrap_err()
+                .code,
+            SetupErrorCode::PathEscapeRefused
+        );
     }
 }

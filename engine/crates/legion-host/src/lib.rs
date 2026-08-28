@@ -49,10 +49,10 @@ pub use projection::{
 };
 pub use setup_registry::{
     platform_state_root, BackupRecord, BoundRelease, ClientEvidence, ClientSelector, ClientStatus,
-    ConfirmedSetup, DetectedClient, OnDiskSetupStore, PlanConfirmation, PlannedMutation,
-    RecoveryReport, RollbackPlan, RuntimeLease, SetupAction, SetupError, SetupErrorCode,
-    SetupExecution, SetupPreview, SetupRegistry, SetupRequest, SetupState, SetupStore, StateLock,
-    SETUP_REGISTRY_SCHEMA_VERSION,
+    ConfirmedSetup, DetectedClient, DevelopmentClientOverride, DevelopmentSetupContext,
+    OnDiskSetupStore, PlanConfirmation, PlannedMutation, RecoveryReport, RollbackPlan,
+    RuntimeLease, SetupAction, SetupError, SetupErrorCode, SetupExecution, SetupPreview,
+    SetupRegistry, SetupRequest, SetupState, SetupStore, StateLock, SETUP_REGISTRY_SCHEMA_VERSION,
 };
 pub use uninstall::{
     plan_uninstall, uninstall, uninstall_transactional, OwnedTarget, UninstallResult,

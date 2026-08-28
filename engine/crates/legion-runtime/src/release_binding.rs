@@ -1,6 +1,7 @@
 //! Fail-closed verification of the complete installed Legion release identity.
 
 use std::{
+    collections::BTreeMap,
     fmt, fs,
     path::{Path, PathBuf},
 };
@@ -16,6 +17,48 @@ pub const ORIGIN_INSTALLED: &str = "installed";
 pub const ORIGIN_DEVELOPMENT: &str = "development";
 pub const RIGHTKIT_AX_VERSION: &str = "0.2.1";
 pub const RIGHTKIT_AX_SOURCE_COMMIT: &str = "4c1a414269d8ffdb95b4b1e685440bd34784b41b";
+
+/// Explicit repository execution context. It is never synthesized for an
+/// installed process, so development state cannot accidentally become global
+/// product state.
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct DevelopmentExecutionContext {
+    pub repository_root: PathBuf,
+    pub state_root: PathBuf,
+    pub port: Option<u16>,
+    pub process_identity: String,
+    #[serde(default)]
+    pub client_overrides: BTreeMap<String, PathBuf>,
+}
+
+impl DevelopmentExecutionContext {
+    pub fn validate(&self) -> Result<(), String> {
+        if !self.repository_root.is_absolute() || !self.state_root.is_absolute() {
+            return Err("development repository and state roots must be absolute".into());
+        }
+        if self.repository_root.components().any(|c| {
+            matches!(
+                c,
+                std::path::Component::ParentDir | std::path::Component::CurDir
+            )
+        }) || self.state_root.components().any(|c| {
+            matches!(
+                c,
+                std::path::Component::ParentDir | std::path::Component::CurDir
+            )
+        }) {
+            return Err("development roots may not contain traversal".into());
+        }
+        if self.port == Some(0) {
+            return Err("development port must be non-zero".into());
+        }
+        if self.process_identity.trim().is_empty() {
+            return Err("development process identity must be non-empty".into());
+        }
+        Ok(())
+    }
+}
 
 /// Runtime execution origin. Installed product execution is only trusted from
 /// the user-local stable `current` tree; explicit repository composition is
@@ -47,6 +90,9 @@ pub struct RuntimeOriginEvidence {
     pub generation: Option<String>,
     /// Whether executable is classified from the stable `current` path.
     pub stable_current: bool,
+    /// Present only for explicit development execution.
+    #[serde(default)]
+    pub development: Option<DevelopmentExecutionContext>,
 }
 
 impl RuntimeOriginEvidence {
@@ -57,6 +103,7 @@ impl RuntimeOriginEvidence {
             install_root: None,
             generation: None,
             stable_current: false,
+            development: None,
         }
     }
 
@@ -71,7 +118,31 @@ impl RuntimeOriginEvidence {
             install_root: Some(install_root.into()),
             generation: Some(generation.into()),
             stable_current: true,
+            development: None,
         }
+    }
+
+    pub fn development_with_context(
+        executable: impl Into<PathBuf>,
+        context: DevelopmentExecutionContext,
+    ) -> Result<Self, ReleaseBindingError> {
+        context
+            .validate()
+            .map_err(|reason| ReleaseBindingError::Mismatch {
+                component: "development execution context",
+                expected: "absolute isolated roots, non-empty process identity, and valid port"
+                    .into(),
+                actual: reason,
+                remediation: "use an explicit development context".into(),
+            })?;
+        Ok(Self {
+            origin: RuntimeOrigin::Development,
+            executable: executable.into(),
+            install_root: None,
+            generation: None,
+            stable_current: false,
+            development: Some(context),
+        })
     }
 
     pub fn is_production(&self) -> bool {
@@ -159,6 +230,7 @@ impl InstalledRelease {
             install_root,
             generation: Some(self.manifest.release_version.clone()),
             stable_current: true,
+            development: None,
         }
     }
 
@@ -359,6 +431,7 @@ pub fn runtime_origin_for_executable(path: impl Into<PathBuf>) -> RuntimeOriginE
             install_root: Some(root),
             generation: None,
             stable_current: true,
+            development: None,
         },
         None => RuntimeOriginEvidence::development(executable),
     }

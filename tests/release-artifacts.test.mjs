@@ -9,6 +9,7 @@ import {
   buildWindowsReleasePackage,
   normalizeWindowsArchitecture,
   qualificationEvidence,
+  finalizeWindowsDirectRelease,
   windowsTargetIdentity,
 } from '../scripts/package-windows-release.mjs';
 
@@ -84,6 +85,7 @@ test('right-release config keeps signing and publication fail-closed', () => {
   assert.match(config, /hostedWorkflows: "right-git-ci-only"/);
   assert.match(config, /version: releaseVersion/);
   assert.match(config, /signed: true/);
+  assert.match(config, /targetTriple: selectedWindows\.targetTriple/);
   assert.match(config, /provider: "github-releases"/);
   assert.match(config, /repository: "Orthic-Labs\/legion"/);
   assert.match(config, /payloadAuthority: "immutable-github-release"/);
@@ -106,6 +108,10 @@ test('right-release config keeps signing and publication fail-closed', () => {
   assert.doesNotMatch(config, /packageManager: "winget"|winget-portable\.json|WinGet architecture/);
   assert.doesNotMatch(config, /files:\s*\[/);
   assert.doesNotMatch(config, /release-manifest\.sig|\bcms\b|bespoke uploader|custom uploader/i);
+  assert.match(config, /candidateInput: "exact-unsigned-candidate"/);
+  assert.match(config, /releaseVerifier: "scripts\/verify-release\.mjs"/);
+  assert.match(config, /prepare-windows-candidate-finalization\.mjs/);
+  assert.match(config, /LEGION_UNSIGNED_CANDIDATE_ROOT/);
 });
 
 test('publication policy freezes immutable GitHub payloads, branded R2 bootstrap, and catalog authority', () => {
@@ -234,7 +240,7 @@ test('Windows direct package stages exact archive then fails closed without sign
         sourceRevision: 'a'.repeat(40),
         finalize: true,
       }),
-      /Windows release signing is not verified/,
+      /protected Windows finalization requires an exact unsigned candidate root/,
     );
     const source = readFile(new URL('../scripts/package-windows-release.mjs', import.meta.url), 'utf8');
     for (const sharedApi of [
@@ -243,6 +249,23 @@ test('Windows direct package stages exact archive then fails closed without sign
       'renderPowerShellBootstrap', 'planBootstrapPublication', 'publishBootstrapPlan',
     ]) assert.match(source, new RegExp(`\\b${sharedApi}\\b`));
     assert.doesNotMatch(source, /winget|SHA256SUMS|function createPortableZip|buildSbom/);
+  } finally {
+    rmSync(repositoryRoot, { recursive: true, force: true });
+  }
+});
+
+test('protected finalization requires an exact candidate source identity before any work', () => {
+  const repositoryRoot = mkdtempSync(join(tmpdir(), 'legion-candidate-finalize-'));
+  const candidate = join(repositoryRoot, 'candidate');
+  try {
+    mkdirSync(join(repositoryRoot, 'release'), { recursive: true });
+    mkdirSync(candidate, { recursive: true });
+    writeFileSync(join(repositoryRoot, 'release', 'version.json'), JSON.stringify({ schemaVersion: 1, kind: 'legion-release-version', version: '0.1.0' }));
+    writeFileSync(join(candidate, 'candidate.json'), '{}');
+    assert.throws(
+      () => finalizeWindowsDirectRelease({ input: candidate, architecture: 'x86_64', repositoryRoot }),
+      /--source-revision is required when consuming an exact unsigned candidate/,
+    );
   } finally {
     rmSync(repositoryRoot, { recursive: true, force: true });
   }

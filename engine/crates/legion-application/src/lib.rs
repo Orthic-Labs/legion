@@ -164,6 +164,7 @@ pub struct M1ApplicationInputs {
     pub catalog_root: std::path::PathBuf,
     pub catalog_index_path: std::path::PathBuf,
     pub policy_pack: ArcanePolicyPack,
+    pub development: Option<legion_runtime::DevelopmentExecutionContext>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize)]
@@ -205,6 +206,7 @@ pub struct M1Status {
     pub executable: PathBuf,
     pub install_root: Option<PathBuf>,
     pub generation: Option<String>,
+    pub development: Option<legion_runtime::DevelopmentExecutionContext>,
     pub capability_count: usize,
     pub availability: M1Availability,
     pub degraded_count: usize,
@@ -272,8 +274,21 @@ impl M1Application {
 
     pub fn from_inputs_with_origin(
         inputs: M1ApplicationInputs,
-        origin: legion_runtime::release_binding::RuntimeOriginEvidence,
+        mut origin: legion_runtime::release_binding::RuntimeOriginEvidence,
     ) -> Result<Self, M1ApplicationError> {
+        if origin.origin == legion_runtime::release_binding::RuntimeOrigin::Development {
+            if origin.development.is_none() {
+                origin.development = inputs.development.clone();
+            }
+        } else if inputs.development.is_some() {
+            return Err(legion_runtime::ReleaseBindingError::Mismatch {
+                component: "runtime origin",
+                expected: "installed without development context".into(),
+                actual: "development context supplied".into(),
+                remediation: legion_runtime::REPAIR_COMMAND.into(),
+            }
+            .into());
+        }
         if matches!(
             &origin.origin,
             legion_runtime::release_binding::RuntimeOrigin::Installed
@@ -337,6 +352,7 @@ impl M1Application {
             executable: self.origin.executable.clone(),
             install_root: self.origin.install_root.clone(),
             generation: self.origin.generation.clone(),
+            development: self.origin.development.clone(),
             capability_count: self.catalog.entries.len(),
             availability: aggregate_availability(&host_requirements),
             degraded_count,
@@ -2090,6 +2106,7 @@ mod m1_tests {
             catalog_root: root.into(),
             catalog_index_path: PathBuf::from("registry/index.json"),
             policy_pack: policy_pack(),
+            development: None,
         }
     }
 

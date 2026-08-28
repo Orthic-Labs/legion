@@ -50,7 +50,10 @@ export function normalizeArchitecture(value) {
 	return null;
 }
 
-export function inferTarget({ platform = process.platform, architecture = process.arch } = {}) {
+export function inferTarget({ platform, architecture } = {}) {
+	if (platform == null || architecture == null) {
+		throw new Error("unsigned candidate target requires explicit platform and architecture");
+	}
 	const normalizedPlatform = normalizePlatform(platform);
 	if (!normalizedPlatform) return null;
 	const normalizedArchitecture = normalizeArchitecture(architecture);
@@ -213,7 +216,7 @@ function assembleAndSmoke({ inputRoot, identity, repositoryRoot, env, commandRun
 			"native:assemble",
 			"--",
 			"--profile",
-			"debug",
+			"release",
 			"--platform",
 			identity.platform,
 			"--architecture",
@@ -253,7 +256,10 @@ export function prepareUnsignedCandidate({
 	createArchive = createPortableArchive,
 	commandRunner = spawnSync,
 } = {}) {
-	const identity = inferTarget({ platform, architecture });
+	const identity = inferTarget({
+		platform: platform ?? env.LEGION_RELEASE_PLATFORM,
+		architecture: architecture ?? env.LEGION_RELEASE_ARCHITECTURE,
+	});
 	if (!identity) {
 		throw new Error(`unsigned public candidates require Windows or macOS: ${platform ?? process.platform}`);
 	}
@@ -355,7 +361,10 @@ export function checkUnsignedCandidate({
 	version,
 	env = process.env,
 } = {}) {
-	const identity = inferTarget({ platform, architecture });
+	const identity = inferTarget({
+		platform: platform ?? env.LEGION_RELEASE_PLATFORM,
+		architecture: architecture ?? env.LEGION_RELEASE_ARCHITECTURE,
+	});
 	if (!identity) {
 		throw new Error(`unsigned public candidates require Windows or macOS: ${platform ?? process.platform}`);
 	}
@@ -471,8 +480,8 @@ function main() {
 	const options = {
 		input: argument(args, ["--input"]),
 		outputRoot: argument(args, ["--output", "--out"]),
-		platform: argument(args, ["--platform"]),
-		architecture: argument(args, ["--architecture", "--arch"]),
+		platform: argument(args, ["--platform"]) ?? process.env.LEGION_RELEASE_PLATFORM,
+		architecture: argument(args, ["--architecture", "--arch"]) ?? process.env.LEGION_RELEASE_ARCHITECTURE,
 		sourceRevision: argument(args, ["--source-revision", "--source-sha"]),
 		version: argument(args, ["--version"]),
 		createdAt: argument(args, ["--created-at"]),

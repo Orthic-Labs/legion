@@ -60,6 +60,27 @@ const selectedOutput = `dist/releases/windows/${releaseVersion}/${selectedWindow
 const selectedReceipt = `.right-release/receipts/windows-${selectedWindows.architecture}-raw-exe.json`;
 const selectedProvenance = `.right-release/receipts/windows-${selectedWindows.architecture}-provenance.json`;
 const selectedQualification = `.right-release/receipts/windows-${selectedWindows.architecture}-qualification.json`;
+const selectedCandidateReceipt = `.right-release/receipts/windows-${selectedWindows.architecture}-candidate-input.json`;
+const selectedCandidate = process.env.LEGION_UNSIGNED_CANDIDATE_ROOT ?? "REQUIRED_LEGION_UNSIGNED_CANDIDATE_ROOT";
+const selectedSourceRevision = process.env.LEGION_SOURCE_REVISION ?? "REQUIRED_LEGION_SOURCE_REVISION";
+const selectedCandidatePrePackage = Object.freeze({
+	cmd: "node",
+	args: Object.freeze([
+		"scripts/prepare-windows-candidate-finalization.mjs",
+		"--candidate",
+		selectedCandidate,
+		"--architecture",
+		selectedWindows.architecture,
+		"--source-revision",
+		selectedSourceRevision,
+		"--version",
+		releaseVersion,
+		"--output",
+		selectedWindows.assemblyRoot,
+		"--receipt",
+		selectedCandidateReceipt,
+	]),
+});
 
 export default {
 	schema: 1,
@@ -96,6 +117,7 @@ export default {
 	packageManager: "pnpm@11.24.0",
 	workdir: ".",
 	checks: ["legion:check", "test"],
+	releaseVerifier: "scripts/verify-release.mjs",
 	buildInputs: {
 		include: [
 			"engine/**",
@@ -104,6 +126,7 @@ export default {
 			"src/registry/**",
 			"scripts/assemble-native-release.mjs",
 			"scripts/package-windows-release.mjs",
+			"scripts/prepare-windows-candidate-finalization.mjs",
 			"scripts/qualify-windows-release.mjs",
 			"release/**",
 			"packaging/windows/sign.md",
@@ -118,10 +141,9 @@ export default {
 		localProvenanceScheme: "local-build",
 		signedProvenanceScheme: "rightkit-release",
 		targetArchitectures: WINDOWS_ARCHITECTURES,
-		packageHook: {
-			cmd: "pnpm",
-			args: ["native:assemble", "--", "--profile", "release"],
-		},
+		candidateInput: "exact-unsigned-candidate",
+		archive: `${selectedOutput}/${selectedWindows.archive}`,
+		packageHook: selectedCandidatePrePackage,
 		finalizer: {
 			cmd: "pnpm",
 			args: [
@@ -159,6 +181,7 @@ export default {
 			// matching Authenticode plus installed-product qualification evidence.
 			signed: true,
 			platform: "windows",
+			targetTriple: selectedWindows.targetTriple,
 			packageKind: "portable-zip",
 			distribution: "direct-bootstrap",
 			defaultArchitecture: "x86_64",
@@ -168,24 +191,7 @@ export default {
 			signingContract: "windows-raw-exe-authenticode-before-portable-v1",
 			manifestSigningContract: "windows-authenticode-catalog-v1",
 			publishBlocked: "direct bootstrap remains blocked until signed manifest catalog, native signatures, provenance, qualification, and channel evidence are verified",
-			prePackage: {
-				cmd: "pnpm",
-				args: [
-					"native:assemble",
-					"--",
-					"--profile",
-					"release",
-					"--platform",
-					"windows",
-					"--architecture",
-					selectedWindows.architecture,
-					"--target",
-					selectedWindows.targetTriple,
-					"--out",
-					selectedWindows.assemblyRoot,
-					"--force",
-				],
-			},
+			prePackage: selectedCandidatePrePackage,
 			sign: {
 				// These are evidence seams, not permission to bypass signing. The
 				// release remains blocked while these paths lack a Valid receipt.
@@ -204,6 +210,7 @@ export default {
 				],
 			},
 			evidence: {
+				candidateInput: selectedCandidateReceipt,
 				signature: selectedReceipt,
 				provenance: selectedProvenance,
 				qualification: selectedQualification,
@@ -214,15 +221,15 @@ export default {
 				args: [
 					"windows:package",
 					"--",
-					"--finalize",
 					"--architecture",
 					selectedWindows.architecture,
 					"--input",
 					selectedWindows.assemblyRoot,
-					"--signature-receipt",
-					selectedReceipt,
+					"--source-revision",
+					selectedSourceRevision,
 					"--output",
 					selectedOutput,
+					"--force",
 				],
 			},
 			packageMatrix: [
@@ -231,10 +238,11 @@ export default {
 					architecture: windowsX64.architecture,
 					nativeArchitecture: windowsX64.nativeArchitecture,
 					targetTriple: windowsX64.targetTriple,
-					input: windowsX64.assemblyRoot,
+					input: selectedCandidate,
 					output: `dist/releases/windows/${releaseVersion}/x86_64`,
 					archive: windowsX64.archive,
 					receipt: `.right-release/receipts/windows-${windowsX64.architecture}-raw-exe.json`,
+					candidateReceipt: `.right-release/receipts/windows-${windowsX64.architecture}-candidate-input.json`,
 					provenance: `.right-release/receipts/windows-${windowsX64.architecture}-provenance.json`,
 					qualification: `.right-release/receipts/windows-${windowsX64.architecture}-qualification.json`,
 					artifact: `dist/releases/windows/${releaseVersion}/x86_64/${windowsX64.archive}`,

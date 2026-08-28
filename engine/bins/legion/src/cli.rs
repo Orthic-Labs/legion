@@ -409,6 +409,7 @@ impl M1CompositionConfig {
             catalog_root: resolve(self.catalog_root),
             catalog_index_path: self.catalog_index_path,
             policy_pack: self.policy_pack,
+            development: None,
         })
     }
 }

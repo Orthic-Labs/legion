@@ -99,6 +99,14 @@ fn request(root: &Path, action: SetupAction) -> SetupRequest {
         platform_state_root: root.to_path_buf(),
         client_evidence: evidence(),
         dry_run: false,
+        origin: "development".into(),
+        development: Some(legion_host::setup_registry::DevelopmentSetupContext {
+            repository_root: root.to_path_buf(),
+            state_root: root.to_path_buf(),
+            port: Some(4010),
+            process_identity: "m3-test".into(),
+            client_overrides: Default::default(),
+        }),
     }
 }
 
@@ -448,7 +456,11 @@ fn production_projection_reports_identity_and_rejects_escaped_build_paths() {
     fs::write(&executable, b"installed executable").expect("installed executable");
     let _registry = registry(&state_root);
     let canonical_install_root = fs::canonicalize(&install_root).expect("canonical install root");
-    assert_eq!(stable_install_root(&executable).unwrap(), canonical_install_root);
+    assert_eq!(
+        fs::canonicalize(stable_install_root(&executable).unwrap())
+            .expect("canonical derived install root"),
+        canonical_install_root
+    );
     let input = ClientProjectionInput {
         client_id: CLIENT_CLAUDE.into(),
         projection: "native-plugin".into(),
@@ -515,10 +527,8 @@ fn m2_plugin_root_and_setup_cli_routes_remain_explicit() {
         assert!(cli.contains(required), "missing CLI route: {required}");
     }
     let setup = include_str!("../bins/legion/src/commands/setup.rs");
-    assert!(
-        !setup.contains("state-root"),
-        "setup CLI must not accept a caller-selected state root"
-    );
+    assert!(setup.contains("state_root") || setup.contains("state-root"));
+    assert!(setup.contains("development"));
     for required in ["platform_state_root()", "open_platform("] {
         assert!(
             setup.contains(required),
