@@ -825,14 +825,15 @@ Alchemist.
 
 ## Oracle
 
-Attach proportionately.
+Attach proportionately — via a typed `verificationRequirement` set by
+the route/completion contract based on consequence and risk, never
+inferred from the bare fact that mutation occurred. A typo edit must
+not trigger frontier assurance because `Write` fired.
 
-Potential triggers:
+Conditions that justify setting the requirement:
 
 ``` text
-artifact produced
-OR
-state mutated
+high-consequence artifact or state change
 OR
 high-consequence claim
 OR
@@ -843,7 +844,8 @@ OR
 controlled/contracted work
 ```
 
-A trivial factual answer should not require a full Oracle ceremony.
+A trivial factual answer — or a trivial reversible edit — should not
+require a full Oracle ceremony.
 
 ------------------------------------------------------------------------
 
@@ -932,8 +934,10 @@ consequences follow immediately:
 2. The Guard's live defects are day-zero work for this architecture, not
    a separate track: the shipped binary loads no policy
    (`LEGION_NATIVE_APPLICATION_CONFIG` is set nowhere outside tests) yet
-   labels enforcement `"strong"`; `mcp__*` tools and subagent dispatch
-   are unmatched; and the deployed exe predates the committed
+   labels enforcement `"strong"`; `mcp__*` write/send/delete tools are
+   unmatched (subagent dispatch is deliberately NOT a Guard effect — it
+   is Legion orchestration; only the subagent's own effects are gated,
+   inside its session); and the deployed exe predates the committed
    subdirectory-resolution fix (this lockout was reproduced live on
    2026-08-29). A redesign built on a fail-open, mislabeled gate
    inherits its dishonesty.
@@ -1431,7 +1435,9 @@ no-permission-endings detectors) were orphaned by the native cutover
 
 ## Pending work (ordered)
 
-**P0 — Guard honesty (prerequisite for everything):**
+**P0 — Guard honesty (prerequisite for Guard-dependent enforcement work;
+groundwork, telemetry, evals, doctrine, and provenance proceed in
+parallel — see the tracker's Sequencing section):**
 - Ship a **canonical default Guard policy**, always present in the
   normal installed state: ordinary reversible effects ambient-allowed
   *as an explicit policy decision*; reserved/high-risk effects
@@ -1453,16 +1459,21 @@ no-permission-endings detectors) were orphaned by the native cutover
 - Restore groundwork: `git checkout df1e09bf -- mcps/groundwork
   docs/GROUNDWORK.md` in the workspace repo, re-register in host
   configs, reference from the injection. Pull-based; zero loop risk.
-- Port the ending-shape Stop discipline from
+- Restore the ending-shape discipline from
   `src/packages/arcane/lib/stop-shape.mjs` (anti-caveat family,
   no-permission-endings, ending-only judgment, real-failure exemption)
-  into the Guard's Stop branch with never-hang bounds: deterministic
-  regex only, bounded re-entry (2–3), forced clean exit.
+  as **Arcane-owned ending-shape postflight, invoked through the
+  host/Guard Stop event** — the Guard is the delivery vehicle, never
+  the owner of cognitive response policy. Never-hang bounds:
+  deterministic regex only, bounded re-entry (2–3), forced clean exit.
 
 **P2 — Guard coverage:**
-- Match `mcp__*` and subagent dispatch in hooks.json AND add
+- Match `mcp__*` write/send/delete tools in hooks.json AND add
   `parse_effect_class` arms together (widening the matcher alone
-  fail-closes everything).
+  fail-closes everything). `Task`/`Agent` dispatch is excluded by
+  design: it is Legion orchestration (budgets, authority, executor
+  semantics), never a Guard effect class; the subagent's own effects
+  are gated per-effect in its session.
 - `SubagentStop` event support (binary + hooks.json) so authority
   dispatch outcomes are receipted.
 
@@ -1474,3 +1485,134 @@ no-permission-endings detectors) were orphaned by the native cutover
 Companion work-compilation pending items live in
 `LEGION-MECHANISM-AWARE-WORK-DECOMPOSITION-2026-08-29-REV3.md` §19 and
 the consolidated tracker `PENDING-WORK-2026-08-29.md`.
+
+------------------------------------------------------------------------
+
+# 30. Bounded Falsification (Challenge Pass)
+
+## Motivating example (2026-08-29, verbatim behavior)
+
+A working model concluded "admission pre-filter hard rejection is
+wrong." The user asked only: *"are you sure that's the right
+direction?"* — supplying no new domain knowledge. The model then
+identified the four material assumptions its conclusion depended on
+(cross-scope dedup, same-id blocking, undifferentiated bands,
+restore-through-filter), inspected the implementation, found all four
+held, and NARROWED: the real defect was an untyped error disposition,
+with duplicate (idempotent merge) and conflict (typed refusal)
+deserving different semantics.
+
+The challenge changed the model's cognitive posture — from "answer
+from current interpretation" to "try to falsify my interpretation."
+That posture switch is Arcane's job, not the user's.
+
+## The primitive
+
+> **Bounded Falsification: before committing to a materially
+> assumption-dependent conclusion, Arcane may invoke ONE
+> evidence-directed self-challenge pass that tests the smallest set of
+> decisive assumptions. It must end in KEEP, NARROW, or REVISE and may
+> not recursively review itself.**
+
+``` text
+CURRENT CONCLUSION
+      ↓
+What assumptions would make this conclusion wrong?
+      ↓
+Which 1–3 assumptions are both material AND cheaply checkable?
+      ↓
+check them against available evidence
+      ↓
+KEEP / NARROW / REVISE   (recorded in the route trace)
+```
+
+Evidence-seeking, never prose-seeking. "Reflect on whether your answer
+could be wrong" produces hedging and synthetic doubt — external
+evidence agrees: generic verification scaffolding in prompts measurably
+worsens output (trailofbits AGENTS.md doctrine). The pass exists to
+*inspect decisive evidence*, or it does not run.
+
+## Three levels
+
+``` text
+L0 DIRECT               no challenge pass (the default; most work)
+L1 SELF-CHALLENGE       same working model, one bounded falsification pass
+L2 INDEPENDENT          separate reviewer / Oracle, when independence
+                        itself is the value
+```
+
+L1 triggers (Arcane-detected, or classified by the resident tiny model
+once it exists — the tiny model classifies `challengeRequired`, the
+working model performs the challenge):
+
+-   recommendation resting on assumed rather than inspected
+    implementation;
+-   diagnosis from symptoms while decisive evidence is cheaply
+    available;
+-   architectural choice between materially different options;
+-   consequential extrapolation in the answer;
+-   about to contradict a canonical source;
+-   confidence materially dependent on 1–3 checkable assumptions;
+-   explicit user challenge ("are you sure?", "check that");
+-   the previous answer was challenged or corrected.
+
+Hard bound: **one pass, no recursion**. Never:
+
+``` text
+answer → challenge → challenge-the-challenge → Sage → Oracle → hours gone
+```
+
+Always:
+
+``` text
+candidate → one falsification attempt → commit
+```
+
+## Distinction from Oracle and Sage
+
+``` text
+Challenge Pass (Arcane)        Oracle
+same thinker                   independent context
+cheap, routine                 expensive, proportional
+falsifies interpretation       certifies delivered outcome/evidence
+no independence claim          independence is the point
+cannot BLOCK                   may BLOCK
+```
+
+Sage is orthogonal: it settles a material unresolved *decision* after
+capability reasoning legitimately cannot. It is never invoked merely
+because the model should double-check itself.
+
+``` text
+working capability/model
+        ↓
+candidate conclusion
+        ↓
+ARCANE CHALLENGE? ── no ──┐
+        │ yes             │
+bounded falsification     │
+        ↓                 │
+revised candidate ────────┤
+        ↓
+exceptional unresolved decision? → yes → SAGE
+        ↓
+independent assurance required (verificationRequirement)? → yes → ORACLE
+```
+
+## Telemetry (feeds Section 29 / tracker P1.6)
+
+``` text
+challenge_yield =
+  passes that materially improved or corrected the answer
+  / passes invoked
+
+avoidable_user_challenge_rate =
+  how often the user must say "are you sure?" before the model performs
+  a check it could have performed itself
+```
+
+The second metric is the north star: reactive user challenges should
+trend toward zero as L1 triggers learn from traces (did a pass change
+the answer? narrow or reverse? which trigger predicted useful
+revision? at what latency cost?). KEEP/NARROW/REVISE outcomes are
+recorded in the route trace so both metrics are computable.

@@ -981,7 +981,7 @@ canonical Legion semantics. Short term, Option B can stage migration.
 
 ------------------------------------------------------------------------
 
-## Fact-Derived Work State and Supervision
+## 16.1 Fact-Derived Work State and Supervision (deferred supervision extension — explicitly outside LEG-MR-0..5)
 
 Mechanism-aware execution needs a clean distinction between **what
 happened** and **what Legion currently concludes from it**.

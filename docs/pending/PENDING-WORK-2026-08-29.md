@@ -1,10 +1,12 @@
-# Consolidated Pending Work — 2026-08-29 (rev 3, converged)
+# Consolidated Pending Work — 2026-08-29 (rev 4)
 
 Single tracker merging: the 2026-08-29 subsystem audits (`docs/audits/2026-08-29/`), the remediation
 status after commits `24d52058`/`a188f799`, the two adopted architecture proposals in this folder,
 and the Sol review corrections. Rev 3 records the converged resolutions of both formerly
-owner-reserved decisions (P0.1 canonical default policy; P4.22 delete the fake Oracle package).
-Fixed items are excluded. No open decisions remain.
+owner-reserved decisions (P0.1 canonical default policy; P4.23 delete the fake Oracle package).
+Fixed items are excluded. No owner-reserved decisions block execution (the Guard's final name
+remains open but blocks nothing). Rev 4 adds the Bounded Falsification primitive, FILE_DELETE
+discrimination, and the supervision-deferral disposition.
 
 ## P0 — Guard honesty and hardening (the deterministic effect layer)
 
@@ -17,7 +19,13 @@ Fixed items are excluded. No open decisions remain.
    is a real Guard failure → **fail closed**. Ambient permission is a policy decision, not the
    absence of policy. (The current state asserts, in its own test, that every effect class is
    allowed with `enforcement_health = "strong"` when policy is absent — indefensible for a security
-   subsystem.) (arcane-audit gap 1)
+   subsystem.) **`FILE_DELETE` needs target/operation discrimination, not class-level approval:**
+   ordinary bounded workspace deletion (recoverable, within scope) may be ambient-allowed by
+   policy; destructive/recursive/broad/protected-target deletion is deny/approval. The policy
+   schema filters by `targets` and operation; the effect class alone is too broad — otherwise every
+   source-file removal in a refactor needs approval. Implement together with item 4 (policy-artifact
+   reconciliation) so a second ambiguous historical policy never coexists with the new baseline.
+   (arcane-audit gap 1)
 2. Redeploy the installed binary — the committed subdirectory-resolution and MultiEdit fixes are not
    in the deployed `legion-hook.exe`; the lockout was reproduced live in-session on 2026-08-29.
 3. Fuzz/property-test the Guard's input path **before** widening it to MCP/effects. Threat model:
@@ -34,7 +42,7 @@ Fixed items are excluded. No open decisions remain.
    one disposition:
    - PORT — deterministic mechanisms that belong to the Guard
    - RESTORE — original cognitive-Arcane pieces (Brief/Minimize injection payloads)
-   - MOVE — machinery owned by Legion or another subsystem (completion-gate concepts → P2.15)
+   - MOVE — machinery owned by Legion or another subsystem (completion-gate concepts → P2.16)
    - RETIRE — ceremony and dead architecture, with their tests
 
    Classification is **semantic, not "it was a hook, therefore Guard"**: stop-shape.mjs in
@@ -50,8 +58,12 @@ Fixed items are excluded. No open decisions remain.
    (no-model/tiny/strong), result (success/repair/user-correction/blocked), latency, token/cost.
    Derived metrics: Sage dispatch rate, Oracle BLOCK rate and BLOCK→real-fix rate,
    false-block/override rate, context retrieved-vs-used, no-model execution rate, small-model
-   escalation rate, cost per successful task. This is the tuning substrate for the control plane;
-   without it every routing decision is steered by anecdote.
+   escalation rate, cost per successful task — plus the challenge metrics: `challenge_yield`
+   (passes that materially improved the answer / passes invoked) and
+   `avoidable_user_challenge_rate` (user had to say "are you sure?" before a check the model could
+   have run itself). KEEP/NARROW/REVISE outcomes are recorded in the route trace so both are
+   computable. This is the tuning substrate for the control plane; without it every routing
+   decision is steered by anecdote.
 7. **Behavioral routing evals.** `scripts/run-skill-evals.mjs` is structure-only; `--live` exits
    ("no live grader is wired") — description changes are currently deploy-and-hope (proven by
    `24d52058`, shipped with zero behavioral verification). Build a harness measuring: should-route /
@@ -65,12 +77,22 @@ Fixed items are excluded. No open decisions remain.
 9. Restore groundwork: `git checkout df1e09bf -- mcps/groundwork docs/GROUNDWORK.md` in the
    workspace repo; re-register in host configs; reference from the injection. *Not Guard-dependent —
    can land immediately.*
-10. Port the ending-shape Stop discipline from `stop-shape.mjs` (anti-caveat family,
-    no-permission-endings, ending-only judgment, real-failure exemption) into the Guard's Stop
-    branch with never-hang bounds: deterministic only, re-entry cap 2–3, forced clean exit.
-    *Guard-dependent (P0.2, P0.3).*
+10. Restore the ending-shape discipline from `stop-shape.mjs` (anti-caveat family,
+    no-permission-endings, ending-only judgment, real-failure exemption) as **Arcane-owned
+    postflight, invoked through the host/Guard Stop event** — the Guard is the delivery vehicle,
+    never the owner of cognitive response policy. Never-hang bounds: deterministic only, re-entry
+    cap 2–3, forced clean exit. *Guard-dependent (P0.2, P0.3).*
 11. Write `doctrine/arcane.md` (cognitive plane) and a Guard architecture doc. *Not Guard-dependent.*
-12. **Behavioral provenance via content-addressed digests, not doctrine versions.** Add
+12. **Bounded Falsification (Challenge Pass) — core cognitive primitive** (Arcane proposal §30).
+    One evidence-directed self-challenge pass before committing to a materially
+    assumption-dependent conclusion: identify the 1–3 material, cheaply-checkable assumptions,
+    check them, end in KEEP/NARROW/REVISE. Three levels (L0 direct / L1 self-challenge / L2
+    independent via Oracle); L1 triggers listed in §30; hard bound one pass, no recursion.
+    Evidence-seeking, never "reflect harder" (generic verification scaffolding measurably worsens
+    output). v0 ships as doctrine + SessionStart-injected posture rules; the resident tiny model
+    later classifies `challengeRequired` from traces. Distinct from Oracle (no independence claim,
+    cannot BLOCK) and from Sage (not a decision authority). *Not Guard-dependent.*
+13. **Behavioral provenance via content-addressed digests, not doctrine versions.** Add
     `arcaneProfileDigest` / `legionCanonDigest` / `skillCatalogDigest` / `guardPolicyDigest`; a
     session pins its epoch and meaningful receipts/route traces record it automatically. Answers
     "which exact rules produced this route/verdict?" — including dirty trees, installed projections,
@@ -79,15 +101,15 @@ Fixed items are excluded. No open decisions remain.
 
 ## P2 — Guard coverage
 
-13. Gate `mcp__*` tool effects: widen `hooks/hooks.json` matchers AND add `parse_effect_class` arms
+14. Gate `mcp__*` tool effects: widen `hooks/hooks.json` matchers AND add `parse_effect_class` arms
     together (matcher alone fail-closes everything). Partly blocked on
     `legion_contracts::EffectClass` lacking an `ExternalSideEffect` variant. **Scope: MCP
     writes/sends/deletes only.** `Task`/`Agent` dispatch is an orchestration/compute action — Legion
     governs its budgets, authority, and executor semantics; the subagent's own effects are gated
     per-effect inside its session. Do not classify dispatch itself as an external effect.
-14. Add `SubagentStop` to `SUPPORTED_EVENT_TYPES` + hooks.json — as **observation/receipting** of
+15. Add `SubagentStop` to `SUPPORTED_EVENT_TYPES` + hooks.json — as **observation/receipting** of
     authority dispatch outcomes, not gating.
-15. Verification-proportional Stop gate: the hard gate consults a typed `verificationRequirement`
+16. Verification-proportional Stop gate: the hard gate consults a typed `verificationRequirement`
     emitted by the Arcane route / Legion completion contract — **not** a "session touched files →
     Oracle mandatory" heuristic (a typo edit must not trigger frontier assurance because `Write`
     fired). Wiring the currently producer-less `oracle-completion-validation-v1` receipt is part of
@@ -96,30 +118,34 @@ Fixed items are excluded. No open decisions remain.
 
 ## P3 — Legion mechanism-aware work compilation (LEG-MR sequence, adopted)
 
-16. LEG-MR-0: doctrine sentence — least nondeterministic authorized executor; "mechanical" ≠ "cheap
+17. LEG-MR-0: doctrine sentence — least nondeterministic authorized executor; "mechanical" ≠ "cheap
     model". Ambient cheap/mechanical execution belongs to Legion's mechanism-aware host binding —
     not to Alchemist, which stays the controlled bounded-transformation authority.
-17. LEG-MR-1: `executorRequirement` in `skills/dispatch/assets/direct-packet.json` + validator
+18. LEG-MR-1: `executorRequirement` in `skills/dispatch/assets/direct-packet.json` + validator
     checks (completeness, contradiction, escalation monotonicity — `denied` never escalates) in
     `validate-dispatch.py`; EXECUTOR block in `skills/tasklist/SKILL.md`.
-18. LEG-MR-2: per-lane/action executor requirements in skills; mechanical examples use `forbidden`.
-19. LEG-MR-3: `ExecutorBindingReceiptV1` host-binding receipt shape.
-20. LEG-MR-4: Rust `Plan` migration (Option B staging → Option A when canonical).
-21. LEG-MR-5: eval fixtures (deterministic-sufficient / semantic-required / conditional-escalation /
+19. LEG-MR-2: per-lane/action executor requirements in skills; mechanical examples use `forbidden`.
+20. LEG-MR-3: `ExecutorBindingReceiptV1` host-binding receipt shape.
+21. LEG-MR-4: Rust `Plan` migration (Option B staging → Option A when canonical).
+22. LEG-MR-5: eval fixtures (deterministic-sufficient / semantic-required / conditional-escalation /
     denied-never-escalates).
+    **Explicitly deferred, outside LEG-MR-0..5:** the fact-derived work-state/supervision
+    architecture (Legion proposal §16.1 — typed observations, fact-derived node state, causal
+    invalidation, executor rebinding). Valuable, but LEG-MR-0..5 is a coherent implementation
+    slice; a later supervision extension must not inflate the first landing.
 
 ## P4 — Authority & packaging remainder
 
-22. **RESOLVED (2026-08-29): delete `src/packages/oracle/`, do not rename.** Its own README
+23. **RESOLVED (2026-08-29): delete `src/packages/oracle/`, do not rename.** Its own README
     establishes it is not Oracle, is a facade over Audit with no Oracle semantics, has no consumer
     outside its own tests, ships anyway, and actively misleads searches. Renaming an unused facade
     preserves dead architecture for no product reason. Before deletion: salvage any genuinely
     useful fixtures/regression tests into the real Audit owner (`src/lib/core` side); then the
     package — and its packaging references in `package.json`/`biome.json`/`MANIFEST.package.json` —
     goes. Do not create a new permanent package because the old one existed. (oracle-audit gap 3)
-23. `/oracle` skill entrypoint packaging the ephemeral-packet procedure + input checklist; decide
+24. `/oracle` skill entrypoint packaging the ephemeral-packet procedure + input checklist; decide
     deliberately whether `/sage` gets one or is documented as attach-only.
-24. Sage structural enforcement (retained; Sol concurs — **not** ceremony): behavioral evals answer
+25. Sage structural enforcement (retained; Sol concurs — **not** ceremony): behavioral evals answer
     "when should Sage be selected?"; a `tools:` restriction answers "what may Sage physically do
     once selected?" — different controls. Give `agents/sage.md` a read-only `tools:` grant matching
     "never performs product-state effects" (Oracle already has this). Add the missing Sage branch
@@ -138,21 +164,21 @@ Fixed items are excluded. No open decisions remain.
 
     The audit's checklist-trigger and affirmative ambient-Alchemist-cue proposals stay **dropped** —
     behavioral routing evals (P1.7) are the fix for discoverability, and ambient mechanical
-    execution routes through mechanism-aware host binding (P3.16).
-25. **Clean-environment product qualification** (reframed from "second-user testing"): CI already
+    execution routes through mechanism-aware host binding (P3.17).
+26. **Clean-environment product qualification** (reframed from "second-user testing"): CI already
     runs `native-installed-smoke.mjs` against an isolated install root — what's missing is a
     hermetic acceptance test where nothing from the operator environment can rescue Legion: fresh
     VM/container, no workspace files, no inherited private env, no rhook/OmniRoute/Membrane unless
     explicitly installed, no prior Legion state, release artifact only, harness installed normally.
-26. Binary distribution: populate homebrew/winget or gate plugin activation on a preflight naming
+27. Binary distribution: populate homebrew/winget or gate plugin activation on a preflight naming
     the bootstrap; add a PATH-binary check class to `verify-plugin-parity.mjs`. (plugin-gaps §1.1–1.2)
-27. `.codex-plugin` parity automation; MCP server documented as M1-scoped or given read-only
+28. `.codex-plugin` parity automation; MCP server documented as M1-scoped or given read-only
     discovery/status tools (`m1_status` hardcodes `"complete"`). (plugin-gaps §1.4, §2.4)
-28. Pre-existing clippy failures in `engine/crates/legion-host/src/setup_registry.rs`.
+29. Pre-existing clippy failures in `engine/crates/legion-host/src/setup_registry.rs`.
 
 ## P5 — Documentation separation (adopted direction)
 
-29. One architecture document per role (Sage, Alchemist, Oracle), one for the Guard, one for the
+30. One architecture document per role (Sage, Alchemist, Oracle), one for the Guard, one for the
     Arcane cognitive plane; per-skill docs following the manifest structure; SSOT keeps ownership
     tables and cross-role invariants only. Absorption backlog:
     `docs/audits/2026-08-29/absorption-by-subsystem.md`.
@@ -161,7 +187,7 @@ Fixed items are excluded. No open decisions remain.
 
 Not strictly serial. Hard orderings only: P0.1–P0.3 before any claim of strong enforcement and
 before Guard-dependent P1 items (8, 10) and P2; P1.7 before any resident micro-router; P3 schema
-work (17) before P3 engine work (20). Everything else — groundwork (9), telemetry design (6),
-evals (7), doctrine (11), provenance (12), P4 — proceeds in parallel. "Fix the Guard first" must
-not become a process blockade. The two formerly owner-reserved items (1, 22) are resolved above;
-no open decisions block execution.
+work (18) before P3 engine work (21). Everything else — groundwork (9), telemetry design (6),
+evals (7), doctrine (11), falsification primitive (12), provenance (13), P4 — proceeds in
+parallel. "Fix the Guard first" must not become a process blockade. The two formerly
+owner-reserved items (1, 23) are resolved above; no owner-reserved decisions block execution.
