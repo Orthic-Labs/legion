@@ -1526,19 +1526,22 @@ check them against available evidence
 KEEP / NARROW / REVISE   (recorded in the route trace)
 ```
 
-Evidence-seeking, never prose-seeking. "Reflect on whether your answer
-could be wrong" produces hedging and synthetic doubt — external
-evidence agrees: generic verification scaffolding in prompts measurably
-worsens output (trailofbits AGENTS.md doctrine). The pass exists to
-*inspect decisive evidence*, or it does not run.
+Evidence-seeking, never prose-seeking. Generic self-reflection is
+intentionally excluded because it creates unbounded prose-oriented
+review — hedging and synthetic doubt — rather than evidence-directed
+falsification. The pass exists to *inspect decisive evidence*, or it
+does not run.
 
 ## Three levels
 
 ``` text
 L0 DIRECT               no challenge pass (the default; most work)
 L1 SELF-CHALLENGE       same working model, one bounded falsification pass
-L2 INDEPENDENT          separate reviewer / Oracle, when independence
-                        itself is the value
+L2 INDEPENDENT          separate independent reviewer/challenger, when
+                        independence itself is the value. Oracle is L2
+                        ONLY when independent completion assurance is
+                        actually required — Oracle is the assurance
+                        authority, never a generic second-opinion agent.
 ```
 
 L1 triggers (Arcane-detected, or classified by the resident tiny model
@@ -1549,7 +1552,9 @@ working model performs the challenge):
     implementation;
 -   diagnosis from symptoms while decisive evidence is cheaply
     available;
--   architectural choice between materially different options;
+-   architectural recommendation materially dependent on checkable
+    implementation assumptions (conceptual design work alone does not
+    trigger);
 -   consequential extrapolation in the answer;
 -   about to contradict a canonical source;
 -   confidence materially dependent on 1–3 checkable assumptions;
@@ -1601,18 +1606,35 @@ independent assurance required (verificationRequirement)? → yes → ORACLE
 
 ## Telemetry (feeds Section 29 / tracker P1.6)
 
+Mechanically measurable definitions (no interpretation required at
+measurement time — every term is a recorded trace field):
+
 ``` text
 challenge_yield =
-  passes that materially improved or corrected the answer
-  / passes invoked
+  L1 passes ending NARROW or REVISE
+  / L1 passes invoked
+
+user_challenge_rate =
+  user challenge events
+  / materially assumption-dependent conclusions
+
+reactive_challenge_yield =
+  challenged turns ending NARROW or REVISE after checking
+  pre-existing evidence
+  / challenged turns
 
 avoidable_user_challenge_rate =
-  how often the user must say "are you sure?" before the model performs
-  a check it could have performed itself
+  challenged turns where
+    decisive evidence was available before the first answer
+    AND the challenge produced NARROW or REVISE
+  / materially assumption-dependent conclusions
 ```
 
-The second metric is the north star: reactive user challenges should
-trend toward zero as L1 triggers learn from traces (did a pass change
-the answer? narrow or reverse? which trigger predicted useful
-revision? at what latency cost?). KEEP/NARROW/REVISE outcomes are
-recorded in the route trace so both metrics are computable.
+`avoidable_user_challenge_rate` is the north star and, with these
+definitions, a genuine ratchet: reactive user challenges should trend
+toward zero as L1 triggers learn from traces (did a pass change the
+answer? narrow or reverse? which trigger predicted useful revision? at
+what latency cost?). KEEP/NARROW/REVISE outcomes, the
+assumption-dependent-conclusion flag, and evidence-availability at
+first answer are all recorded in the route trace so every metric is
+computable without human judgment.

@@ -60,10 +60,13 @@ discrimination, and the supervision-deferral disposition.
    false-block/override rate, context retrieved-vs-used, no-model execution rate, small-model
    escalation rate, cost per successful task — plus the challenge metrics: `challenge_yield`
    (passes that materially improved the answer / passes invoked) and
-   `avoidable_user_challenge_rate` (user had to say "are you sure?" before a check the model could
-   have run itself). KEEP/NARROW/REVISE outcomes are recorded in the route trace so both are
-   computable. This is the tuning substrate for the control plane; without it every routing
-   decision is steered by anecdote.
+   `user_challenge_rate`, `reactive_challenge_yield`, and `avoidable_user_challenge_rate` — all
+   with the mechanical definitions in Arcane §30 (every term is a recorded trace field:
+   KEEP/NARROW/REVISE outcome, assumption-dependent-conclusion flag, evidence-availability at
+   first answer; no human judgment at measurement time). This is the tuning substrate for the
+   control plane; without it every routing decision is steered by anecdote. **Land the telemetry
+   schema immediately before or in the same change as P1.12** — otherwise the first live
+   falsification behavior produces exactly the learning data we want without capturing it.
 7. **Behavioral routing evals.** `scripts/run-skill-evals.mjs` is structure-only; `--live` exits
    ("no live grader is wired") — description changes are currently deploy-and-hope (proven by
    `24d52058`, shipped with zero behavioral verification). Build a harness measuring: should-route /
@@ -87,9 +90,11 @@ discrimination, and the supervision-deferral disposition.
     One evidence-directed self-challenge pass before committing to a materially
     assumption-dependent conclusion: identify the 1–3 material, cheaply-checkable assumptions,
     check them, end in KEEP/NARROW/REVISE. Three levels (L0 direct / L1 self-challenge / L2
-    independent via Oracle); L1 triggers listed in §30; hard bound one pass, no recursion.
-    Evidence-seeking, never "reflect harder" (generic verification scaffolding measurably worsens
-    output). v0 ships as doctrine + SessionStart-injected posture rules; the resident tiny model
+    independent reviewer/challenger — Oracle is L2 only when independent completion assurance is
+    actually required, never a generic second opinion); L1 triggers listed in §30; hard bound one
+    pass, no recursion. Evidence-seeking: generic self-reflection is excluded by design because it
+    creates unbounded prose-oriented review rather than evidence-directed falsification. v0 ships
+    as doctrine + SessionStart-injected posture rules; the resident tiny model
     later classifies `challengeRequired` from traces. Distinct from Oracle (no independence claim,
     cannot BLOCK) and from Sage (not a decision authority). *Not Guard-dependent.*
 13. **Behavioral provenance via content-addressed digests, not doctrine versions.** Add
