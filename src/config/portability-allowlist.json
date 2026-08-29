@@ -2,16 +2,35 @@
   "schemaVersion": 1,
   "rules": [
     {
+      "path": "docs/dispatch/2026-08-29-mechanical-remediation.json",
+      "patterns": [
+        "developer-workspace"
+      ],
+      "occurrences": {
+        "developer-workspace": 1
+      },
+      "class": "historical-dispatch",
+      "reason": "immutable executed dispatch record pins the integration checkout it ran against"
+    },
+    {
       "path": "migration/native-rust/dispatches/INSTALLED-COMPOSITION-RESOLUTION-DISPATCH.json",
-      "patterns": ["developer-workspace"],
-      "occurrences": { "developer-workspace": 1 },
+      "patterns": [
+        "developer-workspace"
+      ],
+      "occurrences": {
+        "developer-workspace": 1
+      },
       "class": "historical-dispatch",
       "reason": "immutable migration dispatch records original integration checkout"
     },
     {
       "path": "migration/native-rust/dispatches/REMAINING-CODE-EDIT-REQUEST.md",
-      "patterns": ["developer-workspace"],
-      "occurrences": { "developer-workspace": 2 },
+      "patterns": [
+        "developer-workspace"
+      ],
+      "occurrences": {
+        "developer-workspace": 2
+      },
       "class": "historical-dispatch",
       "reason": "immutable migration request records original integration checkouts"
     }

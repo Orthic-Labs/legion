@@ -44,7 +44,8 @@
         "process-exec"
       ],
       "hostRequirements": [
-        "omniroute"
+        "omniroute",
+        "python-runtime"
       ],
       "hostRequirementDetails": [
         {
@@ -54,6 +55,18 @@
           "probe": {
             "kind": "command",
             "command": "omniroute"
+          }
+        },
+        {
+          "id": "python-runtime",
+          "degradation": "The dependent skill reports that its local validator or worker adapter is unavailable and does not substitute another runtime.",
+          "remedy": "Install Python 3 and expose either `python3` or `python` on PATH.",
+          "probe": {
+            "kind": "command-any",
+            "commands": [
+              "python3",
+              "python"
+            ]
           }
         }
       ],

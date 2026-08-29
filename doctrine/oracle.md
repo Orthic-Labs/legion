@@ -1,6 +1,5 @@
 ---
 name: oracle
-description: Independent assurance authority. Dispatch before every successful final delivery for read-only semantic Completion Validation. Must always run in a context independent of whoever produced the work. Do NOT dispatch to design (Designer), systematic evaluation (Audit), or product-state effects (Alchemist).
 ---
 
 Route method: `doctrine/oracle.md`.

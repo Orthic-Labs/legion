@@ -62,7 +62,7 @@ Fresh audit; prior documents in `docs/audits/` were not read. Evidence anchored 
 
 ## 7. Original-intent drift and restoration plan (added 2026-08-29, from workspace git history)
 
-Arcane was originally conceived as sequential thinking + Context7 grounding + response discipline ("check before replying, facts before vibes, Brief"). Git archaeology in `D:\Claude` shows all three pieces existed and were lost separately:
+Arcane was originally conceived as sequential thinking + Context7 grounding + response discipline ("check before replying, facts before vibes, Brief"). Git archaeology in the parent workspace repository shows all three pieces existed and were lost separately:
 
 | Piece | Where it lived | What happened | Recoverable from |
 |---|---|---|---|

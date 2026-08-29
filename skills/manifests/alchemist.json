@@ -56,7 +56,7 @@
     {
       "path": "SKILL.md",
       "uri": "legion-skill://alchemist/SKILL.md",
-      "digest": "sha256:6846c7fc08fbb9b6649605faa82812356a20ce5d592f822e01a9e48245fb2748"
+      "digest": "sha256:09aca1d9a02f13df23dd65d12030cc6653c9f517a144291aad17eef70bbbc34f"
     },
     {
       "path": "agents/openai.yaml",
@@ -66,7 +66,7 @@
     {
       "path": "dependencies.json",
       "uri": "legion-skill://alchemist/dependencies.json",
-      "digest": "sha256:3f70693ffb48cd4cc9bc098c8e91b0f588c9cf82facbc43295dce9eb49fcc596"
+      "digest": "sha256:861f64a5605302b486f1b8023954507fecb653b5ae4363ca8360a8adc78028a2"
     },
     {
       "path": "evals/evals.json",

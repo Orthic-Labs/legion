@@ -12,6 +12,7 @@ effects:
   - process-exec
 hostRequirements:
   - omniroute
+  - python-runtime
 ---
 
 # Alchemist

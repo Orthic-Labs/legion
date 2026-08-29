@@ -105,6 +105,7 @@
   "scripts": {
     "test": "node --test --test-concurrency=1 \"tests/*.test.mjs\" \"src/packages/arcane/tests/*.test.mjs\"",
     "architecture-evals": "node scripts/run-architecture-evals.mjs --json",
+    "test:python": "node -e \"const{spawnSync}=require('child_process');const c=process.platform==='win32'?'py':'python3';const a=c==='py'?['-3.11']:[];const s=[...a,'-m','unittest','discover','-s','skills/alchemist/tests','-v'];const d=spawnSync(c,s,{stdio:'inherit'});if(d.error&&d.error.code==='ENOENT'){console.error('WARNING: no Python interpreter found; skipping Python test suites (pnpm test:python)');process.exit(0)}if(d.status!==0)process.exit(d.status??1);const t=spawnSync(c,[...a,'src/lib/dispatch-validator/test_validate_dispatch.py'],{stdio:'inherit'});if(t.error&&t.error.code==='ENOENT'){console.error('WARNING: no Python interpreter found; skipping Python test suites (pnpm test:python)');process.exit(0)}process.exit(t.status??1)\"",
     "stage9-runtime-evals": "node scripts/run-stage9-runtime-evals.mjs",
     "self-test": "node scripts/self-test.mjs",
     "naming:check": "node scripts/check-canonical-names.mjs",

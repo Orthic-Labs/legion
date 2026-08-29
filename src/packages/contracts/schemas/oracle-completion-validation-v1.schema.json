@@ -66,7 +66,7 @@
         "digest": {
           "type": "string",
           "pattern": "^sha256:[0-9a-f]{64}$",
-          "description": "Digest binding this verdict to the exact artifact/diff set Oracle inspected. A verdict whose subject digest does not match the current state of the delivery is stale and must not be treated as current (see freshness rule in docs/audits/oracle-audit.md fix 3)."
+          "description": "Digest binding this verdict to the exact artifact/diff set Oracle inspected. A verdict whose subject digest does not match the current state of the delivery is stale and must not be treated as current; re-validate against the current delivery before relying on the earlier verdict."
         },
         "units": {
           "type": "array",

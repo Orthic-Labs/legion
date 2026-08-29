@@ -5,6 +5,10 @@
     {
       "class": "HOST_CAPABILITY",
       "capability": "omniroute"
+    },
+    {
+      "class": "HOST_CAPABILITY",
+      "capability": "python-runtime"
     }
   ]
 }

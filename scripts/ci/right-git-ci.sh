@@ -5,6 +5,8 @@ pnpm install --frozen-lockfile
 pnpm legion:check
 pnpm test
 
+pnpm test:python
+
 (
   cd engine
   cargo test --locked

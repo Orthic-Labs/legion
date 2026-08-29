@@ -1,6 +1,6 @@
 # Dispatch prompt artifact — mechanical remediation lanes (2026-08-29)
 
-Repository: D:\Claude\legion @ ab4c1302. Workers edit ONLY their allowlist. Workers never run
+Repository: this legion checkout @ ab4c1302. Workers edit ONLY their allowlist. Workers never run
 cargo, tests, builds, generators, installs, commits, pushes, merges, or expensive checks; the
 integration owner runs all checks after merge. Inspect any read path needed.
 

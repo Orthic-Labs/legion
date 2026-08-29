@@ -34,7 +34,8 @@
       },
       "domain": null,
       "hostRequirements": [
-        "omniroute"
+        "omniroute",
+        "python-runtime"
       ],
       "hostRequirementDetails": [
         {
@@ -43,6 +44,13 @@
           "summary": "OmniRoute model gateway plus the Codex CLI profile set used by the Alchemist worker.",
           "degradation": "Alchemist exits 4 (gateway down). Callers must treat Alchemist as unavailable, not as returning an empty result.",
           "remedy": "Install the OmniRoute gateway and put `omniroute` on PATH, or run Alchemist against a host that provides it."
+        },
+        {
+          "id": "python-runtime",
+          "kind": "language-runtime",
+          "summary": "Python runtime used by package-local validators and Coder's Pi worker adapter.",
+          "degradation": "The dependent skill reports that its local validator or worker adapter is unavailable and does not substitute another runtime.",
+          "remedy": "Install Python 3 and expose either `python3` or `python` on PATH."
         }
       ],
       "source": "skills/alchemist/SKILL.md"

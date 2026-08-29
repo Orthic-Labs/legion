@@ -35,8 +35,7 @@ As of this writing, no code outside this package's own tests
 `src/packages/oracle`. It is packaged (referenced in `package.json`,
 `biome.json`, `MANIFEST.package.json`) but has no external caller. It is
 also the first hit a code search for "oracle" surfaces, which actively
-misleads anyone looking for the assurance authority — see
-`docs/audits/oracle-audit.md` Finding 5.
+misleads anyone looking for the assurance authority.
 
 ## Open question (not decided here)
 
