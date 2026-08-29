@@ -1503,7 +1503,7 @@ def main() -> int:
         context = authority_context(root)
         digest = lambda path: "sha256:" + hashlib.sha256(path.read_bytes()).hexdigest()
         packet = {
-            "schemaVersion": 1, "kind": "legion-authority-dispatch", "packetType": "seer",
+            "schemaVersion": 1, "kind": "legion-authority-dispatch", "packetType": "oracle",
             "sourceRevision": CONCRETE_GIT_SHA, "promptDigest": REAL_PROMPT_DIGEST,
             "modelRouting": {"modelTier": "MID", "workerProfile": "standard", "routingRationale": "sealed"},
             "lens": {"id": "audit", "path": str(lens), "digest": digest(lens)},
@@ -1517,11 +1517,20 @@ def main() -> int:
         assert not errors, errors
         packet["scope"]["forbidden"] = ["src"]
         errors, _ = validator_module.authority_packet_errors(packet, root / "packet.json")
-        assert "Seer scope overlaps forbidden paths" in errors
+        assert "Oracle scope overlaps forbidden paths" in errors
         packet["scope"]["forbidden"] = ["secrets"]
         packet["lens"]["digest"] = "sha256:" + "f" * 64
         errors, _ = validator_module.authority_packet_errors(packet, root / "packet.json")
-        assert "Seer lens digest mismatch" in errors
+        assert "Oracle lens digest mismatch" in errors
+        packet["lens"]["digest"] = digest(lens)
+        # "seer" is a retired read_only_alias and must still validate identically, so an
+        # in-flight predecessor packet is accepted while "oracle" is the canonical spelling.
+        packet["packetType"] = "seer"
+        errors, _ = validator_module.authority_packet_errors(packet, root / "packet.json")
+        assert not errors, errors
+        packet["packetType"] = "bogus"
+        errors, _ = validator_module.authority_packet_errors(packet, root / "packet.json")
+        assert "authority packet type must be direct, sage, oracle, alchemist, or worker" in errors
     with tempfile.TemporaryDirectory() as directory:
         root = Path(directory)
         subprocess.run(["git", "init", "-q"], cwd=root, check=True)

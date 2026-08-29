@@ -1,6 +1,6 @@
 ---
 name: sage
-description: Exceptional adjudication authority. Attach when a material unresolved decision cannot safely close under the selected capability's routine mandate. Do not dispatch for routine architecture, diagnosis, execution, or independent assurance.
+description: Exceptional adjudication authority. Dispatch when two valid readings of a request would produce materially different outcomes, when ownership or boundaries between capabilities are disputed, or when work is blocked pending an authoritative ruling. Do not dispatch for routine architecture, diagnosis, execution, or independent assurance.
 ---
 
 # Sage — Exceptional adjudication authority

@@ -1,7 +1,8 @@
 ---
 name: oracle
-description: Independent assurance authority. Dispatch before every successful final delivery for read-only semantic Completion Validation.
+description: Independent assurance authority. Dispatch before every successful final delivery for read-only semantic Completion Validation. Do not dispatch to decide architecture or perform product-state effects.
 model: opus
+tools: Read, Grep, Glob
 ---
 
 # Oracle — Independent assurance authority

@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "rules": [
     { "path": "src/config/naming-registry.json", "tokens": ["nemesis", "forge", "seer", "sentinel", "sorcerer"], "occurrences": { "nemesis": 1, "forge": 1, "seer": 1, "sentinel": 1, "sorcerer": 1 }, "class": "R2", "reason": "single compatibility alias source" },
-    { "path": "src/config/naming-legacy-allowlist.json", "tokens": ["nemesis", "forge", "seer", "sentinel", "sorcerer"], "occurrences": { "nemesis": 7, "forge": 50, "seer": 21, "sentinel": 11, "sorcerer": 9 }, "class": "R2", "reason": "legacy-token classification source" },
+    { "path": "src/config/naming-legacy-allowlist.json", "tokens": ["nemesis", "forge", "seer", "sentinel", "sorcerer"], "occurrences": { "nemesis": 7, "forge": 51, "seer": 22, "sentinel": 12, "sorcerer": 10 }, "class": "R2", "reason": "legacy-token classification source" },
     { "path": "src/lib/naming/check.mjs", "tokens": ["nemesis", "forge", "seer", "sentinel", "sorcerer"], "occurrences": { "nemesis": 3, "forge": 1, "seer": 5, "sentinel": 1, "sorcerer": 1 }, "class": "R2", "reason": "legacy-token detector and exact prohibited path checks" },
     { "path": "src/lib/cli/commands/doctor.mjs", "tokens": ["forge", "seer", "sentinel", "sorcerer"], "occurrences": { "forge": 1, "seer": 1, "sentinel": 1, "sorcerer": 1 }, "class": "R3", "reason": "reports legacy MCP bindings without rewriting unowned configuration" },
     { "path": "tests/bind.test.mjs", "tokens": ["seer"], "class": "R5", "reason": "prior binding migration fixture" },
@@ -38,6 +38,7 @@
     { "path": "skills/designer/engine/reference/interaction-design.md", "tokens": ["forge"], "occurrences": { "forge": 1 }, "class": "R0", "reason": "ordinary creative verb" },
     { "path": "skills/designer/engine/scripts/palette.mjs", "tokens": ["forge"], "occurrences": { "forge": 5 }, "class": "R0", "reason": "ordinary creative verb" },
     { "path": "skills/seo/references/local.md", "tokens": ["seer"], "occurrences": { "seer": 3 }, "class": "R0", "reason": "third-party company name" },
-    { "path": "skills/seo/references/local-seo-signals.md", "tokens": ["seer"], "occurrences": { "seer": 3 }, "class": "R0", "reason": "third-party company name" }
+    { "path": "skills/seo/references/local-seo-signals.md", "tokens": ["seer"], "occurrences": { "seer": 3 }, "class": "R0", "reason": "third-party company name" },
+    { "pathPrefix": "docs/audits/", "tokens": ["forge", "seer", "sentinel", "sorcerer"], "class": "R5", "reason": "audit records quote retired names as evidence of naming drift" }
   ]
 }

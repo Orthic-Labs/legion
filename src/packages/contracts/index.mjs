@@ -34,6 +34,7 @@ export const SCHEMA_PATHS = Object.freeze({
   'run-identity-v1': path.join(schemasDir, 'run-identity-v1.schema.json'),
   'legacy-envelope-v1': path.join(schemasDir, 'legacy-envelope-v1.schema.json'),
   'authority-dispatch-v1': path.join(schemasDir, 'authority-dispatch-v1.schema.json'),
+  'oracle-completion-validation-v1': path.join(schemasDir, 'oracle-completion-validation-v1.schema.json'),
 });
 
 export const SCHEMA_NAMES = Object.freeze(Object.keys(SCHEMA_PATHS));

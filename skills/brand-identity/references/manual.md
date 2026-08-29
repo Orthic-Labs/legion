@@ -418,4 +418,4 @@ Before saying the brand identity is complete, verify:
 
 **Post-approval handoff (offer the next step, don't just finish).** Once the user approves the identity, route them to execution — the tokens file makes each of these a real, wired next action:
 - Audit how an existing UI adheres to the new brand → `/audit-visual` (checks the rendered surface against the tokens).
-- Refactor the codebase theme variables to match the tokens → dispatch Sage to plan it.
+- Refactor the codebase theme variables to match the tokens → apply directly; escalate to Sage only if the token ownership boundary is disputed.

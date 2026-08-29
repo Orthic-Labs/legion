@@ -337,7 +337,7 @@ fn parse_effect_class(
 
     let tool = tool_name.unwrap_or_default();
     match tool {
-        "Write" | "Edit" | "NotebookEdit" => Some(EffectClass::FILE_WRITE),
+        "Write" | "Edit" | "MultiEdit" | "NotebookEdit" => Some(EffectClass::FILE_WRITE),
         "WebFetch" | "WebSearch" => Some(EffectClass::NETWORK_EGRESS),
         "shell" | "shell_command" | "Bash" | "PowerShell" | "apply_patch" => {
             Some(command_effect_class(command))
@@ -494,6 +494,13 @@ fn resolve_source_revision(payload: &Map<String, Value>) -> Option<String> {
 }
 
 fn resolve_git_dir(workspace: &Path) -> Option<PathBuf> {
+    // A tool call may run from any subdirectory of the checkout, so walk toward the
+    // filesystem root until a `.git` marker appears. Resolving only `workspace/.git`
+    // denied every effect raised from a subdirectory, which locked the shell out.
+    workspace.ancestors().find_map(git_dir_at)
+}
+
+fn git_dir_at(workspace: &Path) -> Option<PathBuf> {
     let marker = workspace.join(".git");
     if marker.is_dir() {
         return Some(marker);
@@ -644,6 +651,44 @@ mod tests {
             Some(revision)
         );
         fs::remove_dir_all(&root).expect("remove test repository");
+    }
+
+    #[test]
+    fn source_revision_resolves_from_a_subdirectory() {
+        let root = temporary_repository();
+        let revision = "abcdef0123456789abcdef0123456789abcdef01";
+        fs::write(
+            root.join(".git/HEAD"),
+            "ref: refs/heads/main
+",
+        )
+        .expect("write HEAD");
+        fs::write(
+            root.join(".git/refs/heads/main"),
+            format!(
+                "{revision}
+"
+            ),
+        )
+        .expect("write loose ref");
+        let nested = root.join("engine/bins/legion-hook");
+        fs::create_dir_all(&nested).expect("create nested directory");
+        let payload = json!({"cwd": nested.to_string_lossy()});
+        assert_eq!(
+            resolve_source_revision(payload.as_object().expect("payload object")).as_deref(),
+            Some(revision),
+            "a tool call from a subdirectory must still resolve the checkout revision"
+        );
+        fs::remove_dir_all(&root).expect("remove test repository");
+    }
+
+    #[test]
+    fn multi_edit_classifies_as_file_write() {
+        assert_eq!(
+            parse_effect_class(None, Some("MultiEdit"), None),
+            Some(EffectClass::FILE_WRITE),
+            "MultiEdit is matched in hooks.json and must classify, not fail closed"
+        );
     }
 
     #[test]

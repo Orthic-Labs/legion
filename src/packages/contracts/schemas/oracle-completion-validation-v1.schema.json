@@ -1,0 +1,128 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "legion-oracle-completion-validation-v1",
+  "title": "OracleCompletionValidation",
+  "description": "Machine-checkable receipt for Oracle's independent, read-only Completion Validation. Binds a PASS/BLOCK verdict to the exact reconstructed scope, the exact artifact/diff set inspected, and the sources actually consulted — so a verdict can never be asserted (in prose) without Oracle having run, and a later auditor can verify a delivery was actually validated. Oracle reconstructs scope from raw user turns and distrusts implementer prose; this receipt is what Oracle itself emits, not what an implementer reports on Oracle's behalf.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion", "kind", "validationId", "runId", "verdict",
+    "scope", "subject", "sourcesInspected", "findings",
+    "repairRecheck", "sourceRevision", "validatedAt"
+  ],
+  "allOf": [
+    {
+      "if": { "properties": { "verdict": { "const": "BLOCK" } }, "required": ["verdict"] },
+      "then": { "properties": { "findings": { "minItems": 1 } }, "required": ["findings"] }
+    }
+  ],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "kind": { "const": "legion-oracle-completion-validation" },
+
+    "validationId": { "type": "string", "pattern": "^ocv_[0-9A-HJKMNP-TV-Z]{26}$" },
+    "runId": { "type": "string", "pattern": "^run_[0-9A-HJKMNP-TV-Z]{26}$" },
+
+    "verdict": {
+      "enum": ["PASS", "BLOCK"],
+      "description": "Only incorrect requested behavior, regression, data loss, or concrete safety failure may justify BLOCK. Taste, adjacent concerns, missing ceremony, and absent receipts never block (doctrine/oracle.md)."
+    },
+
+    "scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["rawUserTurns", "reconstructedScope"],
+      "properties": {
+        "rawUserTurns": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "minItems": 1,
+          "description": "Verbatim user requests/turns Oracle reconstructed scope from. Never implementer summaries or paraphrase."
+        },
+        "reconstructedScope": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Oracle's own statement of what was actually asked for, independent of any implementer claim."
+        },
+        "userExclusions": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Anything the user explicitly excluded from this delivery's scope."
+        },
+        "scopeCorrections": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Mid-task scope narrowing/correction turns Oracle accounted for."
+        }
+      }
+    },
+
+    "subject": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["description", "digest"],
+      "properties": {
+        "description": { "type": "string", "minLength": 1, "description": "What was validated: a diff, an artifact, a delivered answer." },
+        "digest": {
+          "type": "string",
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "description": "Digest binding this verdict to the exact artifact/diff set Oracle inspected. A verdict whose subject digest does not match the current state of the delivery is stale and must not be treated as current (see freshness rule in docs/audits/oracle-audit.md fix 3)."
+        },
+        "units": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/pathDigest" },
+          "description": "Optional per-file breakdown of the subject digest, when the subject is a multi-file diff."
+        }
+      }
+    },
+
+    "sourcesInspected": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "minItems": 1,
+      "description": "Sources Oracle actually inspected (source files, tests read but not run, live consumers). Empty is invalid: a validation that found nothing to check has not checked anything."
+    },
+
+    "findings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["path", "line", "defect", "violatedRequirement"],
+        "properties": {
+          "path": { "type": "string", "minLength": 1 },
+          "line": { "type": "integer", "minimum": 1 },
+          "defect": { "type": "string", "minLength": 1 },
+          "violatedRequirement": { "type": "string", "minLength": 1, "description": "The specific requirement, from the reconstructed scope, this defect violates." }
+        }
+      },
+      "description": "Required and non-empty when verdict is BLOCK: a BLOCK with zero findings is invalid. Empty on PASS."
+    },
+
+    "repairRecheck": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["repairCount", "recheckCount"],
+      "properties": {
+        "repairCount": { "type": "integer", "minimum": 0, "maximum": 1, "description": "Doctrine caps Completion Validation at one repair attempt." },
+        "recheckCount": { "type": "integer", "minimum": 0, "maximum": 1, "description": "Doctrine caps Completion Validation at one recheck. A second BLOCK escalates to Adrian rather than issuing a further recheck." },
+        "escalated": { "type": "boolean", "description": "True once the one-repair-one-recheck cap is exhausted and the second BLOCK has been escalated." }
+      }
+    },
+
+    "sourceRevision": { "type": "string", "minLength": 7 },
+    "validatedAt": { "type": "string", "format": "date-time" }
+  },
+
+  "$defs": {
+    "pathDigest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "digest"],
+      "properties": {
+        "path": { "type": "string", "minLength": 1 },
+        "digest": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" }
+      }
+    }
+  }
+}

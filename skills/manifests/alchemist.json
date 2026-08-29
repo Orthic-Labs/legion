@@ -119,6 +119,11 @@
       "digest": "sha256:559c94923167abb7e153f7345e6a0d48587858b0d9f635b227c0c920cff31be0"
     },
     {
+      "path": "tests/test_posix_runner.py",
+      "uri": "legion-skill://alchemist/tests/test_posix_runner.py",
+      "digest": "sha256:12b557dbbb946112ee4f226be6cc6a3ed61b5a0ef49ce0b63805f3262bfb1bb2"
+    },
+    {
       "path": "tests/test_windows_runner.py",
       "uri": "legion-skill://alchemist/tests/test_windows_runner.py",
       "digest": "sha256:02cafbe339e572b7bed284733f823341f3aaa86c3185e2ce8bcca7386e956591"

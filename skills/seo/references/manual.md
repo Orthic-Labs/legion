@@ -91,7 +91,7 @@ Run this internally after evidence collection and before recommendations. It is 
 | Backlinks/competitors | Authority analyst, toxic-link skeptic, competitor gap mapper, outreach strategist |
 | Live data tools | Data-source verifier, recency checker, anomaly skeptic, action-priority lead |
 
-Final recommendations should separate: evidence, impact, confidence, effort, and next action. Where the next action is executable, name the downstream skill and offer the handoff rather than ending at the report: technical/config fixes (redirects, sitemap, meta APIs) → dispatch Sage to plan then `/commit` to ship; thin/intent-drift content → `/writing`; CTR / hero / hierarchy problems → `/designer` (many ranking problems are presentation problems, not copy); commercial prioritisation of the findings → `/marketing`.
+Final recommendations should separate: evidence, impact, confidence, effort, and next action. Where the next action is executable, name the downstream skill and offer the handoff rather than ending at the report: technical/config fixes (redirects, sitemap, meta APIs) → apply directly, then `/commit` to ship; thin/intent-drift content → `/writing`; CTR / hero / hierarchy problems → `/designer` (many ranking problems are presentation problems, not copy); commercial prioritisation of the findings → `/marketing`.
 
 ## Quick Reference
 

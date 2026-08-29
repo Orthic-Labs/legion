@@ -14,6 +14,7 @@ effects:
   - artifact-write
   - network-request
 hostRequirements:
+  - legion
   - local-corpus
   - notebooklm
   - scholarly-search

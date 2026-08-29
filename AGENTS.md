@@ -39,8 +39,8 @@ The tiers, in routing order:
 
 1. **Answer.** A question, comparison, or plan mutates nothing — answer or design directly. Never open machinery to answer a question.
 2. **Ambient (the default for mutations).** the operator's explicit, reversible, in-scope request IS the authorization. Legion fixes it directly with verification proportional to blast radius — focused tests, not an audit. A small change that takes twenty minutes of process is a system failure, not rigor.
-3. **Sage.** Ask concise advisory questions about undecided architecture, interfaces, root cause, ownership, reuse, boundaries, or sequencing. Advice is not a contract.
-4. **Contract chain.** Use only where scope rule requires it; stop after two blocked closes until the operator resumes or changes scope.
+3. **Sage.** Dispatch when a material unresolved decision cannot close under the selected capability's routine mandate: two valid readings would produce materially different outcomes, ownership or boundaries between capabilities are disputed, or work is blocked pending an authoritative ruling. Worked example: two capabilities each claim a module and their fixes contradict — Sage names the single owner, records the disposition, and the losing path is abandoned rather than merged. A tier-3 advisory question is not itself a contract; a tier-4 freeze is. Routine architecture, diagnosis, research, design, and strategy judgment stay with their capabilities.
+4. **Contract chain.** Use only where scope rule requires it; stop after two blocked closes until the operator resumes or changes scope. Alchemist is the executing authority here, and it attaches only to an already-bounded contract with no open questions — a Sage freeze handoff with named acceptance IDs, a locked-domain path, or explicitly contracted work. Worked example: Sage freezes a five-file rename with named acceptance IDs; Alchemist applies exactly those, runs the declared checks, and escalates rather than reinterpreting anything the contract left unsaid. `execute` alone does not imply Alchemist — ordinary permitted mutations stay ambient at tier 2.
 5. **Oracle.** Every user-requested task gets independent **Completion Validation** before Legion's successful final delivery. Legion sends verbatim user requests, scope corrections, actual answer/diff/artifact, claims, & user exclusions. Oracle reconstructs scope from raw turns, distrusts Legion prose, & inspects relevant sources plus live consumers. It may read tests but never runs them. It writes nothing & returns `PASS` or `BLOCK` with violated requirement plus path/line. Only incorrect requested behavior, regression, data loss, or concrete safety failure blocks. Taste, adjacent concerns, missing ceremony, & absent receipts never block. One repair plus one recheck maximum; second `BLOCK` goes to the operator. Oracle's validation response does not recursively require validation. Full-repo `/audit` stays the operator-invoked.
 
 Report `produced → verified → completion-validated → committed → pushed → deployed` precisely. Independent nested repositories are delivered separately; record exact SHAs in evidence, never as parent pins. Say "done" only after Oracle completion validation returns `PASS` and every requested state is proven.
@@ -64,6 +64,8 @@ Legion provides shared routing, execution, and independent semantic validation a
 ## Canonical sources
 - Read `docs/LEGION-CANONICAL-SSOT.md` for system architecture and ownership boundaries.
 - Read `doctrine/legion.md` for routing reference.
+- Read `doctrine/sage.md` for adjudication method.
+- Read `doctrine/alchemist.md` for controlled transformation method.
 - Read `doctrine/oracle.md` for Completion Validation.
 
 ## Commands

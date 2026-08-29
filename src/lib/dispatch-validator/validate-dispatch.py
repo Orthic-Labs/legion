@@ -491,13 +491,14 @@ def authority_packet_errors(packet: object, artifact: Path) -> tuple[list[str], 
         route = packet.get("routeBundle")
         if not isinstance(route, dict) or not re.search(r"sage-adjudication(?:\.[a-z0-9]+)?$", str(route.get("path", ""))): errors.append("Sage packet requires an exceptional sage-adjudication route bundle")
         else: reference(route, "Sage route bundle")
-    elif packet_type == "seer":
+    elif packet_type in ("oracle", "seer"):
+        # "seer" is a read_only_alias per src/config/naming-registry.json; accept and canonicalize.
         lens = packet.get("lens"); scope = packet.get("scope"); oracle = packet.get("oracle")
-        if not isinstance(lens, dict) or not lens.get("id"): errors.append("Seer packet requires lens id")
-        else: reference(lens, "Seer lens")
-        if not isinstance(scope, dict) or not isinstance(scope.get("read"), list) or not isinstance(scope.get("forbidden"), list): errors.append("Seer packet requires read-only scope")
-        elif set(scope["read"]) & set(scope["forbidden"]): errors.append("Seer scope overlaps forbidden paths")
-        reference(oracle, "Seer oracle")
+        if not isinstance(lens, dict) or not lens.get("id"): errors.append("Oracle packet requires lens id")
+        else: reference(lens, "Oracle lens")
+        if not isinstance(scope, dict) or not isinstance(scope.get("read"), list) or not isinstance(scope.get("forbidden"), list): errors.append("Oracle packet requires read-only scope")
+        elif set(scope["read"]) & set(scope["forbidden"]): errors.append("Oracle scope overlaps forbidden paths")
+        reference(oracle, "Oracle oracle")
     elif packet_type == "alchemist":
         contract = packet.get("executionContract"); scope = packet.get("scope")
         if not isinstance(contract, dict) or not re.fullmatch(r"EC-\d+", str(contract.get("id", ""))) or contract.get("sealed") is not True or contract.get("executable") is not True: errors.append("Alchemist packet requires sealed executable contract")
@@ -511,7 +512,7 @@ def authority_packet_errors(packet: object, artifact: Path) -> tuple[list[str], 
             reference(packet.get("taskProjection"), "Worker task projection")
             reference(packet.get("artifactProjection"), "Worker artifact projection")
         reference(packet.get("oracle"), "Worker oracle")
-    else: errors.append("authority packet type must be direct, sage, seer, alchemist, or worker")
+    else: errors.append("authority packet type must be direct, sage, oracle, alchemist, or worker")
     if not references:
         errors.append("authority packet requires at least one content-bound artifact")
     return errors, references

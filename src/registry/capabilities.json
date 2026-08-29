@@ -155,6 +155,26 @@
         "env": "FIRECRAWL_API_KEY"
       },
       "remedy": "Set FIRECRAWL_API_KEY in the host environment."
+    },
+    "legion": {
+      "kind": "command-line-tool",
+      "summary": "The Legion native CLI. Backs the `legion` MCP server declared in .claude-plugin/plugin.json and the `legion audit`/`legion run` commands invoked by packaged skills.",
+      "degradation": "The legion MCP server fails to start and legion_m1_invoke/legion_m1_status are absent from the tool list. Skills that shell out to `legion` must treat it as unavailable, never as returning an empty result.",
+      "probe": {
+        "kind": "command",
+        "command": "legion"
+      },
+      "remedy": "Install the Legion native release so `legion` is on PATH, or run against a host that provides it."
+    },
+    "legion-hook": {
+      "kind": "lifecycle-hook",
+      "summary": "The Arcane effect gate binary invoked by every event in hooks/hooks.json.",
+      "degradation": "Fails open and silently: the host treats an unresolvable hook command as a non-blocking error, so every Arcane gate stops running with no operator-visible signal and no receipt is recorded.",
+      "probe": {
+        "kind": "command",
+        "command": "legion-hook"
+      },
+      "remedy": "Install the Legion native release so `legion-hook` is on PATH. Until then Arcane enforcement is absent, not degraded."
     }
   }
 }

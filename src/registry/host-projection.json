@@ -74,7 +74,8 @@
       },
       "domain": "engineering",
       "hostRequirements": [
-        "blueprint-graph"
+        "blueprint-graph",
+        "legion"
       ],
       "hostRequirementDetails": [
         {
@@ -83,6 +84,13 @@
           "summary": "Membrane Blueprint graph and packet transport called directly by Legion for source-grounded repository discovery.",
           "degradation": "Use resident Membrane transport when available, then bounded Blueprint one-shot regardless of enrollment. Return a NO_CAPABILITY result naming blueprint-graph only when both are unavailable; never fall back to ad-hoc grep or present ungraphed results as graph results.",
           "remedy": "Provide Membrane resident transport or install the Blueprint graph engine and put its `blueprint` executable on PATH, then re-run. This package does not ship it."
+        },
+        {
+          "id": "legion",
+          "kind": "command-line-tool",
+          "summary": "The Legion native CLI. Backs the `legion` MCP server declared in .claude-plugin/plugin.json and the `legion audit`/`legion run` commands invoked by packaged skills.",
+          "degradation": "The legion MCP server fails to start and legion_m1_invoke/legion_m1_status are absent from the tool list. Skills that shell out to `legion` must treat it as unavailable, never as returning an empty result.",
+          "remedy": "Install the Legion native release so `legion` is on PATH, or run against a host that provides it."
         }
       ],
       "source": "skills/audit/SKILL.md"
@@ -99,7 +107,8 @@
       },
       "domain": "engineering",
       "hostRequirements": [
-        "blueprint-graph"
+        "blueprint-graph",
+        "legion"
       ],
       "hostRequirementDetails": [
         {
@@ -108,6 +117,13 @@
           "summary": "Membrane Blueprint graph and packet transport called directly by Legion for source-grounded repository discovery.",
           "degradation": "Use resident Membrane transport when available, then bounded Blueprint one-shot regardless of enrollment. Return a NO_CAPABILITY result naming blueprint-graph only when both are unavailable; never fall back to ad-hoc grep or present ungraphed results as graph results.",
           "remedy": "Provide Membrane resident transport or install the Blueprint graph engine and put its `blueprint` executable on PATH, then re-run. This package does not ship it."
+        },
+        {
+          "id": "legion",
+          "kind": "command-line-tool",
+          "summary": "The Legion native CLI. Backs the `legion` MCP server declared in .claude-plugin/plugin.json and the `legion audit`/`legion run` commands invoked by packaged skills.",
+          "degradation": "The legion MCP server fails to start and legion_m1_invoke/legion_m1_status are absent from the tool list. Skills that shell out to `legion` must treat it as unavailable, never as returning an empty result.",
+          "remedy": "Install the Legion native release so `legion` is on PATH, or run against a host that provides it."
         }
       ],
       "source": "skills/audit-fix/SKILL.md"
@@ -124,7 +140,8 @@
       },
       "domain": "engineering",
       "hostRequirements": [
-        "blueprint-graph"
+        "blueprint-graph",
+        "legion"
       ],
       "hostRequirementDetails": [
         {
@@ -133,6 +150,13 @@
           "summary": "Membrane Blueprint graph and packet transport called directly by Legion for source-grounded repository discovery.",
           "degradation": "Use resident Membrane transport when available, then bounded Blueprint one-shot regardless of enrollment. Return a NO_CAPABILITY result naming blueprint-graph only when both are unavailable; never fall back to ad-hoc grep or present ungraphed results as graph results.",
           "remedy": "Provide Membrane resident transport or install the Blueprint graph engine and put its `blueprint` executable on PATH, then re-run. This package does not ship it."
+        },
+        {
+          "id": "legion",
+          "kind": "command-line-tool",
+          "summary": "The Legion native CLI. Backs the `legion` MCP server declared in .claude-plugin/plugin.json and the `legion audit`/`legion run` commands invoked by packaged skills.",
+          "degradation": "The legion MCP server fails to start and legion_m1_invoke/legion_m1_status are absent from the tool list. Skills that shell out to `legion` must treat it as unavailable, never as returning an empty result.",
+          "remedy": "Install the Legion native release so `legion` is on PATH, or run against a host that provides it."
         }
       ],
       "source": "skills/audit-visual/SKILL.md"
@@ -377,12 +401,20 @@
       },
       "domain": "research",
       "hostRequirements": [
+        "legion",
         "local-corpus",
         "notebooklm",
         "scholarly-search",
         "web-search"
       ],
       "hostRequirementDetails": [
+        {
+          "id": "legion",
+          "kind": "command-line-tool",
+          "summary": "The Legion native CLI. Backs the `legion` MCP server declared in .claude-plugin/plugin.json and the `legion audit`/`legion run` commands invoked by packaged skills.",
+          "degradation": "The legion MCP server fails to start and legion_m1_invoke/legion_m1_status are absent from the tool list. Skills that shell out to `legion` must treat it as unavailable, never as returning an empty result.",
+          "remedy": "Install the Legion native release so `legion` is on PATH, or run against a host that provides it."
+        },
         {
           "id": "local-corpus",
           "kind": "tool",
@@ -503,7 +535,7 @@
   "roles": [
     {
       "id": "alchemist",
-      "description": "Controlled transformation authority. Dispatch to apply an already-bounded contract, integrate exact artifacts, run declared checks, & mechanically repair implementation failures. Do not dispatch for undecided meaning or independent assurance.",
+      "description": "Controlled transformation authority. Dispatch to apply an already-bounded contract with no open questions — a Sage freeze handoff, a locked-domain path, or explicitly contracted work: integrate exact artifacts, run declared checks, & mechanically repair implementation failures. Do not dispatch for undecided meaning, ordinary ambient mutations, or independent assurance.",
       "source": "src/roster/alchemist.md"
     },
     {
@@ -513,7 +545,7 @@
     },
     {
       "id": "sage",
-      "description": "Exceptional adjudication authority. Dispatch when a material unresolved decision cannot safely close under the selected capability's routine mandate. Do not dispatch for routine architecture, diagnosis, execution, or independent assurance.",
+      "description": "Exceptional adjudication authority. Dispatch when two valid readings of a request would produce materially different outcomes, when ownership or boundaries between capabilities are disputed, or when work is blocked pending an authoritative ruling. Do not dispatch for routine architecture, diagnosis, execution, or independent assurance.",
       "source": "src/roster/sage.md"
     }
   ],
@@ -541,6 +573,14 @@
     {
       "id": "firecrawl",
       "degradation": "Fall back to raw HTTP fetch and state that no rendered DOM was available."
+    },
+    {
+      "id": "legion",
+      "degradation": "The legion MCP server fails to start and legion_m1_invoke/legion_m1_status are absent from the tool list. Skills that shell out to `legion` must treat it as unavailable, never as returning an empty result."
+    },
+    {
+      "id": "legion-hook",
+      "degradation": "Fails open and silently: the host treats an unresolvable hook command as a non-blocking error, so every Arcane gate stops running with no operator-visible signal and no receipt is recorded."
     },
     {
       "id": "local-corpus",

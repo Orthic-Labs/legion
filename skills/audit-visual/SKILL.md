@@ -15,6 +15,7 @@ effects:
   - process-exec
 hostRequirements:
   - blueprint-graph
+  - legion
 metadata:
   legion:
     provenance: legion-authored

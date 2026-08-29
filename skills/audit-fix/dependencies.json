@@ -5,6 +5,10 @@
     {
       "class": "HOST_CAPABILITY",
       "capability": "blueprint-graph"
+    },
+    {
+      "class": "HOST_CAPABILITY",
+      "capability": "legion"
     }
   ]
 }

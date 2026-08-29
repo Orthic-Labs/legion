@@ -15,6 +15,7 @@ effects:
   - artifact-write
 hostRequirements:
   - blueprint-graph
+  - legion
 metadata:
   legion:
     provenance: legion-authored
