@@ -58,3 +58,7 @@ windows-sys = { version = "0.61.2", features = [
     "Win32_System_Threading",
 ] }
 tiktoken-rs = "0.12.0"
+
+[profile.dev]
+# line-tables-only: full debuginfo dominates large-crate dev codegen; backtraces keep file:line
+debug = "line-tables-only"
