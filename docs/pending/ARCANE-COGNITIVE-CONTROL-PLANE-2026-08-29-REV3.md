@@ -1432,9 +1432,14 @@ no-permission-endings detectors) were orphaned by the native cutover
 ## Pending work (ordered)
 
 **P0 — Guard honesty (prerequisite for everything):**
-- Ship a default policy config and fail closed when absent, or label
-  the ambient-allow path `"advisory"` — never `"strong"`
-  (`engine/bins/legion-hook/src/main.rs:128-141`, `protocol.rs:179-189`).
+- Ship a **canonical default Guard policy**, always present in the
+  normal installed state: ordinary reversible effects ambient-allowed
+  *as an explicit policy decision*; reserved/high-risk effects
+  (credential access, publish, delete, push) deny/approval. A missing
+  or corrupt baseline is a real Guard failure → fail closed. Ambient
+  permission is a policy decision, not the absence of policy.
+  (`engine/bins/legion-hook/src/main.rs:128-141`, `protocol.rs:179-189`;
+  resolution recorded in `PENDING-WORK-2026-08-29.md` P0.1.)
 - Redeploy the built binary: the committed subdirectory-resolution and
   MultiEdit fixes are not in the installed exe (lockout reproduced live
   2026-08-29).

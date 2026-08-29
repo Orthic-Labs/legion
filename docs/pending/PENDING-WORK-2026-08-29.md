@@ -1,15 +1,23 @@
-# Consolidated Pending Work — 2026-08-29 (rev 2, post Sol review)
+# Consolidated Pending Work — 2026-08-29 (rev 3, converged)
 
 Single tracker merging: the 2026-08-29 subsystem audits (`docs/audits/2026-08-29/`), the remediation
 status after commits `24d52058`/`a188f799`, the two adopted architecture proposals in this folder,
-and the Sol review corrections (this revision). Fixed items are excluded. Owner-reserved decisions
-are marked **[ADRIAN]**.
+and the Sol review corrections. Rev 3 records the converged resolutions of both formerly
+owner-reserved decisions (P0.1 canonical default policy; P4.22 delete the fake Oracle package).
+Fixed items are excluded. No open decisions remain.
 
 ## P0 — Guard honesty and hardening (the deterministic effect layer)
 
-1. **[ADRIAN]** Fail-open default: ship a default policy config loaded by `legion-hook` and fail
-   closed when absent, or keep ambient-allow and label it `"advisory"` — never `"strong"`.
-   One line in `authorize_effect`'s `None` branch + config shipping. (arcane-audit gap 1)
+1. **RESOLVED (2026-08-29): ship a canonical default Guard policy.** Neither of the originally
+   written options survives: not "ambient allow with advisory label," not a policy that can simply
+   be absent. The normal installed state is a built-in default policy that is always present:
+   ordinary reversible effects → ambient allow *as an explicit policy decision*; reserved/high-risk
+   effects (credential access, publish, delete, push, …) → deny/approval. Optional user/project
+   policy may tighten or extend the baseline. If the baseline itself cannot load or validate, that
+   is a real Guard failure → **fail closed**. Ambient permission is a policy decision, not the
+   absence of policy. (The current state asserts, in its own test, that every effect class is
+   allowed with `enforcement_health = "strong"` when policy is absent — indefensible for a security
+   subsystem.) (arcane-audit gap 1)
 2. Redeploy the installed binary — the committed subdirectory-resolution and MultiEdit fixes are not
    in the deployed `legion-hook.exe`; the lockout was reproduced live in-session on 2026-08-29.
 3. Fuzz/property-test the Guard's input path **before** widening it to MCP/effects. Threat model:
@@ -24,10 +32,15 @@ are marked **[ADRIAN]**.
    into the policy-pack schema `legion-application` consumes, or mark it historical. (gap 2)
 5. Triage `src/packages/arcane/` (234+ orphaned Node files, tests still green) per-module, not as
    one disposition:
-   - PORT — deterministic mechanisms that belong to the Guard (e.g. stop-shape ending detectors)
+   - PORT — deterministic mechanisms that belong to the Guard
    - RESTORE — original cognitive-Arcane pieces (Brief/Minimize injection payloads)
-   - MOVE — machinery owned by Legion or another subsystem (completion-gate concepts → P2.11)
+   - MOVE — machinery owned by Legion or another subsystem (completion-gate concepts → P2.15)
    - RETIRE — ceremony and dead architecture, with their tests
+
+   Classification is **semantic, not "it was a hook, therefore Guard"**: stop-shape.mjs in
+   particular splits — its effect/safety rules PORT to the Guard, while its ending-shape response
+   discipline (anti-caveat, no-permission-endings) is cognitive-Arcane postflight and RESTOREs to
+   the cognitive plane (delivered through the Guard's Stop event, owned by Arcane).
 
 ## P1 — Cognitive plane v0 + measurement (parallel with P0 except where Guard-dependent)
 
@@ -97,17 +110,35 @@ are marked **[ADRIAN]**.
 
 ## P4 — Authority & packaging remainder
 
-22. **[ADRIAN]** `src/packages/oracle/` rename (`audit-facade`) or deletion — its own README defers
-    the call. (oracle-audit gap 3)
+22. **RESOLVED (2026-08-29): delete `src/packages/oracle/`, do not rename.** Its own README
+    establishes it is not Oracle, is a facade over Audit with no Oracle semantics, has no consumer
+    outside its own tests, ships anyway, and actively misleads searches. Renaming an unused facade
+    preserves dead architecture for no product reason. Before deletion: salvage any genuinely
+    useful fixtures/regression tests into the real Audit owner (`src/lib/core` side); then the
+    package — and its packaging references in `package.json`/`biome.json`/`MANIFEST.package.json` —
+    goes. Do not create a new permanent package because the old one existed. (oracle-audit gap 3)
 23. `/oracle` skill entrypoint packaging the ephemeral-packet procedure + input checklist; decide
     deliberately whether `/sage` gets one or is documented as attach-only.
-24. Sage structural enforcement (retained from the audit; **not** ceremony): add the missing Sage
-    branch to the routing diagram in `doctrine/legion.md`, and give `agents/sage.md` a read-only
-    `tools:` grant matching "never performs product-state effects" (Oracle already has this; it is
-    harness enforcement, not process). The audit's checklist-trigger and affirmative
-    ambient-Alchemist-cue proposals are **dropped** — behavioral routing evals (P1.7) are the
-    correct fix for discoverability, and ambient mechanical execution now routes through
-    mechanism-aware host binding (P3.16).
+24. Sage structural enforcement (retained; Sol concurs — **not** ceremony): behavioral evals answer
+    "when should Sage be selected?"; a `tools:` restriction answers "what may Sage physically do
+    once selected?" — different controls. Give `agents/sage.md` a read-only `tools:` grant matching
+    "never performs product-state effects" (Oracle already has this). Add the missing Sage branch
+    to the routing diagram in `doctrine/legion.md` — **visibly conditional, never a mandatory
+    stage**:
+
+    ```text
+    capability work
+        │
+        ├─ material unresolved decision? → Sage → settled work
+        │
+        └─────────────────────────────────────────┘
+                                  ↓
+                             execution
+    ```
+
+    The audit's checklist-trigger and affirmative ambient-Alchemist-cue proposals stay **dropped** —
+    behavioral routing evals (P1.7) are the fix for discoverability, and ambient mechanical
+    execution routes through mechanism-aware host binding (P3.16).
 25. **Clean-environment product qualification** (reframed from "second-user testing"): CI already
     runs `native-installed-smoke.mjs` against an isolated install root — what's missing is a
     hermetic acceptance test where nothing from the operator environment can rescue Legion: fresh
@@ -132,4 +163,5 @@ Not strictly serial. Hard orderings only: P0.1–P0.3 before any claim of strong
 before Guard-dependent P1 items (8, 10) and P2; P1.7 before any resident micro-router; P3 schema
 work (17) before P3 engine work (20). Everything else — groundwork (9), telemetry design (6),
 evals (7), doctrine (11), provenance (12), P4 — proceeds in parallel. "Fix the Guard first" must
-not become a process blockade. Items 1 and 22 need Adrian before any executor touches them.
+not become a process blockade. The two formerly owner-reserved items (1, 22) are resolved above;
+no open decisions block execution.
