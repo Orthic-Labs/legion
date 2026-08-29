@@ -1,0 +1,281 @@
+{
+  "schemaVersion": 1,
+  "kind": "legion-authority-dispatch",
+  "packetType": "direct",
+  "repositoryRoot": "D:/Claude/legion",
+  "sourceRevision": "ab4c1302fdb3da5f33ed14fb887a896925a04e48",
+  "promptArtifact": "docs/dispatch/2026-08-29-mechanical-remediation-prompt.md",
+  "promptDigest": "sha256:fdb62ad67c20cbe1be3b53fffcb3f6a582c35071b760f50ada55903f95b5e896",
+  "modelRouting": {
+    "modelTier": "CHEAP",
+    "workerProfile": "mechanical-cheap",
+    "routingRationale": "Settled, bounded, single-file-family edits from the 2026-08-29 audits; no open decisions; judgment stays with the integration owner."
+  },
+  "objective": "Apply the four settled mechanical remediation items left open after commit 24d52058: wire Python test suites into CI, declare python-runtime for the alchemist skill, extend authority-parity checking to doctrine descriptions, and remove local audit-report path citations from shipped oracle schema/README.",
+  "authority": [
+    "docs/audits/2026-08-29/alchemist-audit.md",
+    "docs/audits/2026-08-29/oracle-audit.md",
+    "docs/audits/remediation-status.md"
+  ],
+  "integrationOwner": "Legion (this orchestrating session)",
+  "fileTouchPolicy": {
+    "mode": "once-end-to-end",
+    "plannedFiles": [
+      "scripts/ci/right-git-ci.sh",
+      "package.json",
+      "skills/alchemist/dependencies.json",
+      "skills/manifests/alchemist.json",
+      "scripts/check-authority-parity.mjs",
+      "src/packages/contracts/schemas/oracle-completion-validation-v1.schema.json",
+      "src/packages/oracle/README.md",
+      "skills/alchemist/SKILL.md"
+    ],
+    "allowUnplannedFiles": false,
+    "ledger": [
+      {
+        "path": "scripts/ci/right-git-ci.sh",
+        "owner": "lane-ci-python-tests",
+        "operation": "edit",
+        "lane": "lane-ci-python-tests",
+        "finalCheck": "integration owner runs pnpm test:python and full CI script dry pass"
+      },
+      {
+        "path": "package.json",
+        "owner": "lane-ci-python-tests",
+        "operation": "edit",
+        "lane": "lane-ci-python-tests",
+        "finalCheck": "integration owner runs pnpm test:python"
+      },
+      {
+        "path": "skills/alchemist/dependencies.json",
+        "owner": "lane-alchemist-python-capability",
+        "operation": "edit",
+        "lane": "lane-alchemist-python-capability",
+        "finalCheck": "integration owner regenerates and checks manifest"
+      },
+      {
+        "path": "skills/manifests/alchemist.json",
+        "owner": "lane-alchemist-python-capability",
+        "operation": "regenerate",
+        "lane": "lane-alchemist-python-capability",
+        "finalCheck": "integration owner runs refresh-local-skill-manifests.mjs alchemist then --check"
+      },
+      {
+        "path": "scripts/check-authority-parity.mjs",
+        "owner": "lane-parity-doctrine",
+        "operation": "edit",
+        "lane": "lane-parity-doctrine",
+        "finalCheck": "integration owner runs node scripts/check-authority-parity.mjs"
+      },
+      {
+        "path": "src/packages/contracts/schemas/oracle-completion-validation-v1.schema.json",
+        "owner": "lane-schema-citation-hygiene",
+        "operation": "edit",
+        "lane": "lane-schema-citation-hygiene",
+        "finalCheck": "integration owner runs node --test src/packages/contracts/smoke.test.mjs"
+      },
+      {
+        "path": "src/packages/oracle/README.md",
+        "owner": "lane-schema-citation-hygiene",
+        "operation": "edit",
+        "lane": "lane-schema-citation-hygiene",
+        "finalCheck": "integration owner greps for residual docs/audits references"
+      },
+      {
+        "path": "skills/alchemist/SKILL.md",
+        "owner": "lane-alchemist-python-capability",
+        "operation": "edit",
+        "lane": "lane-alchemist-python-capability",
+        "finalCheck": "integration owner runs check-dependency-closure via pnpm legion:check"
+      }
+    ]
+  },
+  "sourcePortPolicy": {
+    "applicable": false,
+    "sourceImplementation": null,
+    "sourceInventory": [],
+    "directPortFirst": true,
+    "targetLanguage": null,
+    "rustTargetRequiresRustPort": true,
+    "handRollReplacementWhileSourceExists": false
+  },
+  "workerPolicy": {
+    "mode": "edit-only",
+    "mayInspectReadPaths": true,
+    "mayEditAllowlistOnly": true,
+    "forbiddenActions": [
+      "cargo",
+      "tests",
+      "builds",
+      "generators",
+      "installs",
+      "commits",
+      "pushes",
+      "merges",
+      "expensive-checks"
+    ],
+    "intendedChecksRecordedFor": "integration owner"
+  },
+  "integrationPolicy": {
+    "owner": "Legion (this orchestrating session)",
+    "soleMerger": true,
+    "runsCheckpoints": true,
+    "mayRepairLaneOwnedFiles": false,
+    "repairAction": "return to owning lane or redesign packet before execution"
+  },
+  "dispatches": [
+    {
+      "id": "A",
+      "dependsOn": [],
+      "lanes": [
+        "lane-ci-python-tests",
+        "lane-alchemist-python-capability",
+        "lane-parity-doctrine",
+        "lane-schema-citation-hygiene"
+      ],
+      "completionChecks": [
+        "integration owner reconciles changed paths against the ledger",
+        "pnpm legion:check PASS (includes manifest --check and authority parity)",
+        "pnpm test 1348+ Node tests PASS",
+        "pnpm test:python PASS (new)",
+        "node --test src/packages/contracts/smoke.test.mjs PASS",
+        "grep confirms no docs/audits references in shipped schema/README"
+      ]
+    }
+  ],
+  "workers": [
+    {
+      "id": "lane-ci-python-tests",
+      "dispatch": "A",
+      "executor": "cheap worker (OmniRoute mechanical-cheap or sonnet subagent)",
+      "allowlist": [
+        "scripts/ci/right-git-ci.sh",
+        "package.json"
+      ],
+      "read": [
+        "skills/alchemist/tests/test_posix_runner.py",
+        "skills/alchemist/tests/test_windows_runner.py",
+        "src/lib/dispatch-validator/test_validate_dispatch.py",
+        ".github/workflows/ci.yml"
+      ],
+      "forbidden": [
+        ".git",
+        "secrets",
+        "dist",
+        "engine/target"
+      ],
+      "checks": [
+        "integration owner runs pnpm test:python and re-runs pnpm legion:check after merge; worker runs no check"
+      ],
+      "dependencies": []
+    },
+    {
+      "id": "lane-alchemist-python-capability",
+      "dispatch": "A",
+      "executor": "cheap worker (OmniRoute mechanical-cheap or sonnet subagent)",
+      "allowlist": [
+        "skills/alchemist/dependencies.json",
+        "skills/manifests/alchemist.json",
+        "skills/alchemist/SKILL.md"
+      ],
+      "read": [
+        "src/registry/capabilities.json",
+        "skills/coder/dependencies.json",
+        "skills/alchemist/scripts/run-worker.sh"
+      ],
+      "forbidden": [
+        ".git",
+        "secrets",
+        "dist",
+        "engine/target"
+      ],
+      "checks": [
+        "integration owner runs node scripts/refresh-local-skill-manifests.mjs alchemist then --check after merge; worker hand-edits no digest"
+      ],
+      "dependencies": []
+    },
+    {
+      "id": "lane-parity-doctrine",
+      "dispatch": "A",
+      "executor": "cheap worker (OmniRoute mechanical-cheap or sonnet subagent)",
+      "allowlist": [
+        "scripts/check-authority-parity.mjs"
+      ],
+      "read": [
+        "agents/sage.md",
+        "agents/alchemist.md",
+        "agents/oracle.md",
+        "doctrine/sage.md",
+        "doctrine/alchemist.md",
+        "doctrine/oracle.md",
+        "src/roster/sage.md",
+        "src/roster/alchemist.md",
+        "src/roster/oracle.md"
+      ],
+      "forbidden": [
+        ".git",
+        "secrets",
+        "doctrine",
+        "agents",
+        "src/roster"
+      ],
+      "checks": [
+        "integration owner runs node scripts/check-authority-parity.mjs after merge; any doctrine mismatch is reported as a finding, never edited by this lane"
+      ],
+      "dependencies": []
+    },
+    {
+      "id": "lane-schema-citation-hygiene",
+      "dispatch": "A",
+      "executor": "cheap worker (OmniRoute mechanical-cheap or sonnet subagent)",
+      "allowlist": [
+        "src/packages/contracts/schemas/oracle-completion-validation-v1.schema.json",
+        "src/packages/oracle/README.md"
+      ],
+      "read": [
+        "src/packages/contracts/index.mjs",
+        "src/packages/contracts/smoke.test.mjs",
+        "doctrine/oracle.md"
+      ],
+      "forbidden": [
+        ".git",
+        "secrets"
+      ],
+      "checks": [
+        "integration owner runs node --test src/packages/contracts/smoke.test.mjs and greps for docs/audits after merge; worker changes no schema structure"
+      ],
+      "dependencies": []
+    }
+  ],
+  "oracleAudit": {
+    "required": true,
+    "mode": "adversarial",
+    "status": "required-before-execution",
+    "checks": [
+      "allowlist-completeness",
+      "lane-disjointness",
+      "dependency-validity",
+      "maximum-safe-parallelization",
+      "end-to-end-lane-closure",
+      "direct-port-priority",
+      "worker-edit-only",
+      "integration-owner-checkpoints",
+      "exact-byte-review-pass"
+    ]
+  },
+  "recovery": {
+    "maxRetries": 2,
+    "stopConditions": [
+      "owned path is already dirty",
+      "required private input is missing",
+      "doctrine text mismatch requires an owner decision"
+    ],
+    "returnFields": [
+      "changedPaths",
+      "checks",
+      "blockers",
+      "baselineRevision",
+      "patchDigest"
+    ]
+  }
+}
