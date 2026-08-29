@@ -63,3 +63,7 @@ Two concrete differences vs Sage/Alchemist:
 5. **[Medium — Agent contract]** Ambient-path dispatch has no structural input contract. *Fix:* minimal checklist/validator Legion runs against its own dispatch prompt (verbatim turns present, diff present, exclusions present, claims present).
 6. **[Low — Consistency]** Doctrine description drift uncaught by CI. *Fix:* add doctrine to the parity check or drop its `description:` frontmatter.
 7. **[Low — Packaging hygiene]** Shipped schema/README cite a local audit report path. *Fix:* move rationale inline or into doctrine/provenance.
+
+## Status update (same day, commit 24d52058)
+
+Partially remediated by a parallel session — see plugin-system-gaps.md §4 and docs/audits/remediation-status.md for exactly which gaps above are closed vs still open.

@@ -81,3 +81,7 @@ Arcane was originally conceived as sequential thinking + Context7 grounding + re
 5. **Anti-ceremony guardrails** (the "stuck in loops for hours" concern): every new gate must be deterministic (regex/marker checks, never an LLM call inside the hook), bounded (fixed re-entry cap, then allow with a recorded `advisory` receipt), and ending-scoped (judge the last paragraph, not the whole turn). A gate that cannot decide in <100ms belongs in doctrine or an MCP tool, not in a hook.
 
 Design rationale: prose alone was already tried (doctrine says plenty about Brief) and the tic persists — matching trailofbits' "put the check in a deterministic validator, not the prompt" and superpowers' pressure-test findings that models rationalize past prose. Hooks for the two deterministic disciplines (caveat/open-question endings, session injection); MCP for grounding; prose only for what regexes can't judge.
+
+## Status update (same day, commit 24d52058)
+
+Partially remediated by a parallel session — see plugin-system-gaps.md §4 and docs/audits/remediation-status.md for exactly which gaps above are closed vs still open.

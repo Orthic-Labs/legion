@@ -72,3 +72,7 @@ Fresh audit; prior documents in `docs/audits/` were not read. Evidence anchored 
 | 6 | **Low** | Arcane has no typed awareness of the worker exit-code contract; purely self-reported. | `hooks/hooks.json`; `engine/bins/legion-hook/src/main.rs` | Have Arcane's completion-gate recognize/record the run-worker exit code, or document the trust-based design explicitly. |
 | 7 | **Low** | No architecture document (current or archived) for the two-layer relay design. | `docs/provenance/` inventory; SSOT never cites `manual.md` | Fold a "worker relay" subsection into the SSOT or cross-reference `manual.md` as canonical. |
 | 8 | **Info** | Generic manifest consumers list implies a routing relationship Alchemist doesn't have. | `scripts/refresh-local-skill-manifests.mjs:79-89`; `src/registry/skills/index.json:36` | Scope consumers per `capabilityClass` or accept as template artifact. |
+
+## Status update (same day, commit 24d52058)
+
+Partially remediated by a parallel session — see plugin-system-gaps.md §4 and docs/audits/remediation-status.md for exactly which gaps above are closed vs still open.

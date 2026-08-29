@@ -82,3 +82,7 @@ Net diagnosis: the system is internally consistent about Sage being rare-and-exc
 6. **[LOW-MEDIUM]** "@sage" convention is prose-only, with no registered mechanism — `AGENTS.md:50`, `stop-shape.mjs:361`. — *Fix:* wire it as a real directive (e.g., a `UserPromptSubmit` hook) or remove the phrasing to avoid implying a nonexistent mechanism.
 7. **[LOW]** Sage's identity files fall outside the skill-manifest digest/drift-detection system; `check-authority-parity.mjs` only diffs one frontmatter line. — *Fix:* extend that script (or add a sibling check) to also diff `doctrine/sage.md` and run the capability-class classification against all three Sage files.
 8. **[LOW]** Sage's "freeze & hand off" output is prose-only (`doctrine/sage.md:42-49`), unlike Oracle's exact copy-pasteable template (`doctrine/oracle.md:33-54`). — *Fix:* add a literal output template block for consistency and greppability.
+
+## Status update (same day, commit 24d52058)
+
+Partially remediated by a parallel session — see plugin-system-gaps.md §4 and docs/audits/remediation-status.md for exactly which gaps above are closed vs still open.

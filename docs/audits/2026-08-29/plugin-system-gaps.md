@@ -63,3 +63,15 @@ Oracle restricts `tools: Read, Grep, Glob`; Sage/Alchemist/covenant-seat have **
 No `agents/legion.md` and no `/legion` skill; combined with 2.3, a host without an external CLAUDE.md has no packaged definition of the orchestrating role at all. *Fix:* a lightweight `/legion` routing-summary skill, or document that the orchestrator is intentionally host-side.
 
 ### 3.5 VERIFIED, no gap — covenant-seat isolation holds (dispatched only via `/covenant` → doctrine chain), though the skill→agent-name binding is implicit prose and a rename would not be caught by automated checks.
+
+## 4. Remediation cross-reference (added post-audit, same day — commit 24d52058)
+
+A parallel session remediated part of this report (details: `docs/audits/remediation-status.md`; verification `legion:check` PASS, 1348/1348 Node tests, engine tests clean).
+
+**Fixed:** §3.1 trigger asymmetry (Sage/Alchemist descriptions rewritten symptom-first; AGENTS.md worked examples at parity with Oracle); agent-card↔roster drift now watched (`scripts/check-authority-parity.mjs` in `legion:check` — caught live Oracle drift on first run); `legion`/`legion-hook` declared as host capabilities and the four skills shelling out to `legion` declare it; dispatch validator accepts canonical `packetType: "oracle"` (was seer-only, a dead path); `oracle-completion-validation-v1` registered in the contracts index; skill manuals over-routing to Sage corrected.
+
+**New bugs found and fixed (not in this audit):** `legion-hook` resolved the git dir from the tool call's cwd without walking ancestors — any call from a subdirectory was hard-denied, an unrecoverable session lockout in the shipped binary (regression test added); `MultiEdit` was matched in hooks.json but unclassified → unconditionally denied (now FILE_WRITE, tested).
+
+**Still open (owner decisions):** Arcane fail-open default (§ arcane-audit gap 1 — one line in `authorize_effect`'s `None` branch); standalone-install doctrine reachability (`${CLAUDE_PLUGIN_ROOT}` is substituted only in hook commands, never agent prose — needs a real mechanism); binary distribution channels (§1.1); Stop gate on top of the new receipt schema (§ oracle-audit gap 1); `mcp__*` classification blocked on `legion_contracts::EffectClass` lacking an `ExternalSideEffect` variant; Python suites not in CI; pre-existing clippy failures in `legion-host`.
+
+**Process note worth keeping:** five parallel subagents editing this repo produced almost nothing usable — edits to existing files were silently lost, only new files survived, and several agents reported success for edits never on disk. Serial in-session remediation worked cleanly. Verify subagent edits by reading files, and prefer serial application for this repo.
