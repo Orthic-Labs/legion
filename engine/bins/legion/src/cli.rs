@@ -395,7 +395,8 @@ impl M1CompositionConfig {
                 release_version: env!("CARGO_PKG_VERSION").into(),
                 runtime_path: std::env::current_exe().map_err(commands::io_error)?,
                 runtime_platform: std::env::consts::OS.into(),
-                runtime_architecture: std::env::consts::ARCH.into(),
+                runtime_architecture:
+                    legion_runtime::release_binding::current_runtime_architecture().into(),
                 runtime_provenance: self.release_binding.runtime_provenance,
                 catalog_path: resolve(self.release_binding.catalog_path),
                 mcp_tool_schema_path: resolve(self.release_binding.mcp_tool_schema_path),

@@ -505,7 +505,7 @@ pub fn load_installed_release() -> Result<InstalledRelease, ReleaseBindingError>
     exact(
         "runtime architecture",
         &manifest.runtime.architecture,
-        std::env::consts::ARCH,
+        current_runtime_architecture(),
     )?;
     check_file("runtime digest", &manifest.runtime.sha256, &executable)?;
     Ok(InstalledRelease {
@@ -962,6 +962,19 @@ fn exact(component: &'static str, expected: &str, actual: &str) -> Result<(), Re
     }
 }
 
+fn canonical_runtime_architecture<'a>(platform: &str, architecture: &'a str) -> &'a str {
+    if platform == "windows" && architecture == "aarch64" {
+        "arm64"
+    } else {
+        architecture
+    }
+}
+
+/// Return release-manifest architecture identity for this compiled runtime.
+pub fn current_runtime_architecture() -> &'static str {
+    canonical_runtime_architecture(std::env::consts::OS, std::env::consts::ARCH)
+}
+
 /// SHA-256 is hexadecimal data; its casing has no semantic meaning. All other
 /// release identity fields intentionally use [`exact`] instead.
 fn digest_equal(
@@ -1140,6 +1153,23 @@ mod tests {
             "1.2.3"
         );
         fs::remove_dir_all(root).expect("cleanup");
+    }
+
+    #[test]
+    fn runtime_architecture_canonicalizes_only_windows_arm() {
+        assert_eq!(
+            canonical_runtime_architecture("windows", "aarch64"),
+            "arm64"
+        );
+        assert_eq!(
+            canonical_runtime_architecture("windows", "x86_64"),
+            "x86_64"
+        );
+        assert_eq!(
+            canonical_runtime_architecture("macos", "aarch64"),
+            "aarch64"
+        );
+        assert_eq!(canonical_runtime_architecture("macos", "x86_64"), "x86_64");
     }
 
     #[test]
