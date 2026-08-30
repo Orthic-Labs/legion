@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { tmpdir } from "node:os";
@@ -185,6 +186,7 @@ test("macOS finalization expands exact verified candidate bytes and records pre-
 			createdAt: "2026-08-28T00:00:00.000Z",
 			env: {},
 		});
+		let extractionInvocation;
 		const result = prepareMacosCandidateFinalization({
 			candidateRoot: outputRoot,
 			outputRoot: extracted,
@@ -193,10 +195,18 @@ test("macOS finalization expands exact verified candidate bytes and records pre-
 			version: "0.1.0",
 			receiptPath,
 			repositoryRoot,
+			commandRunner(command, args, options) {
+				if (args[0] === "-xzf") extractionInvocation = { args, options };
+				return spawnSync(command, args, options);
+			},
 		});
 		assert.equal(result.candidateArchiveSha256, candidate.archiveSha256);
 		assert.deepEqual(result.files.map(({ file }) => file), ["bin/legion", "bin/legion-hook", "bin/legion-mcp"]);
 		assert.equal(JSON.parse(readFileSync(receiptPath, "utf8")).candidateArchiveSha256, candidate.archiveSha256);
+		assert.ok(extractionInvocation);
+		assert.equal(extractionInvocation.args.includes("-C"), false);
+		assert.equal(/^[A-Za-z]:/.test(extractionInvocation.args[1]), false);
+		assert.equal(extractionInvocation.options.cwd.includes("candidate-extract"), true);
 	} finally {
 		rmSync(root, { recursive: true, force: true });
 	}

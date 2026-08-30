@@ -114,8 +114,9 @@ export function prepareMacosCandidateFinalization({
 	rmSync(output, { recursive: true, force: true });
 	mkdirSync(staging, { recursive: true });
 	try {
-		const extracted = commandRunner("tar", ["-xzf", basename(checked.archive), "-C", staging], {
-			cwd: dirname(checked.archive),
+		const archiveFromStaging = relative(staging, checked.archive).split(sep).join("/");
+		const extracted = commandRunner("tar", ["-xzf", archiveFromStaging], {
+			cwd: staging,
 			encoding: "utf8",
 			windowsHide: true,
 		});
