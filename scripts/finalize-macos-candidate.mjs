@@ -40,7 +40,11 @@ function sha256File(path) {
 }
 
 function assertSafeArchiveEntries(archive, commandRunner) {
-	const listed = commandRunner("tar", ["-tzf", archive], { encoding: "utf8", windowsHide: true });
+	const listed = commandRunner("tar", ["-tzf", basename(archive)], {
+		cwd: dirname(archive),
+		encoding: "utf8",
+		windowsHide: true,
+	});
 	if (listed.error) throw listed.error;
 	if (listed.status !== 0) throw new Error(`candidate listing failed: ${(listed.stderr || listed.stdout || "").trim()}`);
 	for (const raw of String(listed.stdout).split(/\r?\n/).filter(Boolean)) {
@@ -110,8 +114,8 @@ export function prepareMacosCandidateFinalization({
 	rmSync(output, { recursive: true, force: true });
 	mkdirSync(staging, { recursive: true });
 	try {
-		const extracted = commandRunner("tar", ["-xzf", checked.archive, "-C", staging], {
-			cwd: repositoryRoot,
+		const extracted = commandRunner("tar", ["-xzf", basename(checked.archive), "-C", staging], {
+			cwd: dirname(checked.archive),
 			encoding: "utf8",
 			windowsHide: true,
 		});
