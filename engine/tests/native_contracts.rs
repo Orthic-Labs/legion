@@ -43,6 +43,7 @@ fn plan_and_provider_results_round_trip_canonically() {
             provider: Some(provider.clone()),
             depends_on: Vec::new(),
             configuration: BTreeMap::new(),
+            executor_requirement: None,
         }],
         vec![provider.clone()],
     )

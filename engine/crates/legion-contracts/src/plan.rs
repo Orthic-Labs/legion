@@ -40,11 +40,9 @@ pub struct ExecutionEscalationPolicy {
 
 /// Portable, host-neutral executor requirements for one materialized node.
 ///
-/// This is the LEG-MR-4 Option B staging shape. Requirements live in a map on
-/// `Plan`, keyed by `NodeId`, while `PlanNode` remains unchanged so existing
-/// producers and consumers continue to compile. Option A can later move this
-/// value onto `PlanNode` and retain this map as a compatibility projection;
-/// the requirement's shape and digest semantics do not need to change again.
+/// This is the LEG-MR-4 requirement shape. The canonical value lives on the
+/// corresponding `PlanNode`; `Plan::executor_requirements` is only a
+/// compatibility projection for consumers that still read the Option B map.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields, rename_all = "camelCase")]
 pub struct ExecutionRequirementV1 {
@@ -168,21 +166,93 @@ pub struct PlanNode {
     pub provider: Option<ProviderId>,
     pub depends_on: Vec<NodeId>,
     pub configuration: BTreeMap<String, serde_json::Value>,
+    /// The single canonical executor requirement for this node, when one is
+    /// declared. `Plan::executor_requirements` is derived from this field.
+    #[serde(default)]
+    pub executor_requirement: Option<ExecutionRequirementV1>,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-pub struct Plan {
+struct PlanSerde {
     #[serde(deserialize_with = "crate::deserialize_schema_version_1")]
+    schema_version: u32,
+    id: PlanId,
+    nodes: Vec<PlanNode>,
+    providers: Vec<ProviderId>,
+    resources: BTreeMap<String, serde_json::Value>,
+    #[serde(default)]
+    executor_requirements: BTreeMap<NodeId, ExecutionRequirementV1>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct Plan {
     pub schema_version: u32,
     pub id: PlanId,
     pub nodes: Vec<PlanNode>,
     pub providers: Vec<ProviderId>,
     pub resources: BTreeMap<String, serde_json::Value>,
-    /// Option B's additive requirement map. `default` keeps plans serialized
-    /// before LEG-MR-4 readable and lets existing producers omit requirements.
-    #[serde(default)]
+    /// Compatibility projection for Option B consumers. Exactly one value is
+    /// canonical: the requirement on the matching `PlanNode`. On
+    /// deserialization, a map entry populates that node only when its node
+    /// field is absent; the node field wins on conflict. Serialization always
+    /// projects node fields back into this map, so the map is never a source
+    /// of truth.
     pub executor_requirements: BTreeMap<NodeId, ExecutionRequirementV1>,
+}
+
+fn projected_executor_requirements(
+    nodes: &[PlanNode],
+) -> BTreeMap<NodeId, ExecutionRequirementV1> {
+    nodes
+        .iter()
+        .filter_map(|node| {
+            node.executor_requirement
+                .as_ref()
+                .map(|requirement| (node.id.clone(), requirement.clone()))
+        })
+        .collect()
+}
+
+impl Serialize for Plan {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        PlanSerde {
+            schema_version: self.schema_version,
+            id: self.id.clone(),
+            nodes: self.nodes.clone(),
+            providers: self.providers.clone(),
+            resources: self.resources.clone(),
+            executor_requirements: projected_executor_requirements(&self.nodes),
+        }
+        .serialize(serializer)
+    }
+}
+
+impl<'de> Deserialize<'de> for Plan {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let mut serialized = PlanSerde::deserialize(deserializer)?;
+        let compatibility_requirements = std::mem::take(&mut serialized.executor_requirements);
+        for node in &mut serialized.nodes {
+            if node.executor_requirement.is_none() {
+                node.executor_requirement = compatibility_requirements.get(&node.id).cloned();
+            }
+        }
+        let executor_requirements = projected_executor_requirements(&serialized.nodes);
+        Ok(Self {
+            schema_version: serialized.schema_version,
+            id: serialized.id,
+            nodes: serialized.nodes,
+            providers: serialized.providers,
+            resources: serialized.resources,
+            executor_requirements,
+        })
+    }
 }
 
 impl Plan {
@@ -192,13 +262,14 @@ impl Plan {
         nodes: Vec<PlanNode>,
         providers: Vec<ProviderId>,
     ) -> Result<Self, ContractError> {
+        let executor_requirements = projected_executor_requirements(&nodes);
         let plan = Self {
             schema_version,
             id,
             nodes,
             providers,
             resources: BTreeMap::new(),
-            executor_requirements: BTreeMap::new(),
+            executor_requirements,
         };
         plan.validate()?;
         Ok(plan)
@@ -229,20 +300,29 @@ impl Plan {
                 });
             }
         }
-        for (node_id, requirement) in &self.executor_requirements {
+        for node in &self.nodes {
+            if let Some(requirement) = &node.executor_requirement {
+                requirement.validate().map_err(|error| match error {
+                    ContractError::InvalidContract { path, reason } => {
+                        ContractError::InvalidContract {
+                            path: format!("nodes.executor_requirement.{}.{path}", node.id),
+                            reason,
+                        }
+                    }
+                    other => other,
+                })?;
+            }
+        }
+        // The public map remains available to old callers, but it is only a
+        // compatibility projection. Check its keys for dangling references
+        // without consulting its values as plan semantics.
+        for node_id in self.executor_requirements.keys() {
             if !ids.contains(node_id) {
                 return Err(ContractError::InvalidContract {
                     path: "executor_requirements".into(),
                     reason: "requirement references unknown node id".into(),
                 });
             }
-            requirement.validate().map_err(|error| match error {
-                ContractError::InvalidContract { path, reason } => ContractError::InvalidContract {
-                    path: format!("executor_requirements.{node_id}.{path}"),
-                    reason,
-                },
-                other => other,
-            })?;
         }
         self.ordered_nodes().map(|_| ())
     }
@@ -290,6 +370,7 @@ mod tests {
                 .map(|dependency| NodeId::new(*dependency).unwrap())
                 .collect(),
             configuration: BTreeMap::new(),
+            executor_requirement: None,
         }
     }
 
@@ -311,12 +392,14 @@ mod tests {
     }
 
     fn sample() -> Plan {
+        let mut nodes = vec![node("node-1", &[]), node("node-2", &["node-1"])];
+        nodes[0].executor_requirement = Some(requirement());
         let mut executor_requirements = BTreeMap::new();
         executor_requirements.insert(NodeId::new("node-1").unwrap(), requirement());
         Plan {
             schema_version: 1,
             id: PlanId::new("plan-1").unwrap(),
-            nodes: vec![node("node-1", &[]), node("node-2", &["node-1"])],
+            nodes,
             providers: vec![ProviderId::new("provider-1").unwrap()],
             resources: BTreeMap::new(),
             executor_requirements,
@@ -324,15 +407,63 @@ mod tests {
     }
 
     #[test]
-    fn round_trips_a_plan_with_executor_requirements_through_json() {
+    fn round_trips_a_node_carried_requirement_through_json() {
         let plan = sample();
         plan.validate().expect("sample plan is valid");
         let json = serde_json::to_string(&plan).expect("serialize");
         let parsed: Plan = serde_json::from_str(&json).expect("deserialize");
         assert_eq!(plan, parsed);
+        assert_eq!(parsed.nodes[0].executor_requirement, Some(requirement()));
+        assert_eq!(parsed.executor_requirements.len(), 1);
         parsed
             .validate()
             .expect("round-tripped plan with requirements is valid");
+    }
+
+    #[test]
+    fn legacy_map_requirement_populates_the_matching_node() {
+        let mut json = serde_json::to_value(sample()).expect("serialize");
+        json["nodes"][0]
+            .as_object_mut()
+            .expect("node is an object")
+            .remove("executor_requirement");
+
+        let parsed: Plan = serde_json::from_value(json).expect("legacy map plan parses");
+        assert_eq!(parsed.nodes[0].executor_requirement, Some(requirement()));
+        assert_eq!(parsed.executor_requirements.len(), 1);
+    }
+
+    #[test]
+    fn node_requirement_wins_over_a_conflicting_legacy_map_entry() {
+        let mut json = serde_json::to_value(sample()).expect("serialize");
+        json["executor_requirements"]["node-1"]["effects"] = serde_json::json!(["FILE_DELETE"]);
+
+        let parsed: Plan = serde_json::from_value(json).expect("conflicting plan parses");
+        assert_eq!(parsed.nodes[0].executor_requirement, Some(requirement()));
+        assert_eq!(
+            parsed.executor_requirements[&NodeId::new("node-1").unwrap()].effects,
+            vec!["FILE_WRITE".to_string()]
+        );
+    }
+
+    #[test]
+    fn plan_with_neither_node_requirement_nor_legacy_map_still_loads() {
+        let mut json = serde_json::to_value(sample()).expect("serialize");
+        json["nodes"][0]
+            .as_object_mut()
+            .expect("node is an object")
+            .remove("executor_requirement");
+        json.as_object_mut()
+            .expect("plan is an object")
+            .remove("executor_requirements");
+
+        let parsed: Plan =
+            serde_json::from_value(json).expect("plan without requirements parses");
+        assert!(parsed
+            .nodes
+            .iter()
+            .all(|node| node.executor_requirement.is_none()));
+        assert!(parsed.executor_requirements.is_empty());
     }
 
     #[test]
@@ -504,9 +635,9 @@ mod tests {
         assert_eq!(first.digest().unwrap(), second.digest().unwrap());
 
         let mut different = sample();
-        different
-            .executor_requirements
-            .get_mut(&NodeId::new("node-1").unwrap())
+        different.nodes[0]
+            .executor_requirement
+            .as_mut()
             .unwrap()
             .effects = vec!["FILE_DELETE".into()];
         assert_ne!(first.digest().unwrap(), different.digest().unwrap());

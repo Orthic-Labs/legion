@@ -57,6 +57,7 @@ pub fn compile_plan(
             provider: Some(provider_id.clone()),
             depends_on,
             configuration: BTreeMap::new(),
+            executor_requirement: None,
         });
         provider_ids.push(provider_id.clone());
     }
