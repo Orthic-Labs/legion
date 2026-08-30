@@ -81,28 +81,22 @@ pub fn dispatch(request: HookRequest) -> HookResponse {
         }
     };
 
-    authorize_effect(request.event_type, &effect, application.as_ref())
+    authorize_effect(request.event_type, &effect, &application)
 }
 
 fn authorize_effect(
     event_type: String,
     effect: &EffectRequest,
-    application: Option<&NativeApplication>,
+    application: &NativeApplication,
 ) -> HookResponse {
-    match application {
-        Some(application) => match application.authorize_hook(effect) {
-            Ok(()) => HookResponse::allowed(event_type, "authorized"),
-            Err(_) => HookResponse::denied(
-                event_type,
-                "ARC_POLICY_DENIED",
-                "native policy denied effect",
-                "strong",
-            ),
-        },
-        // Hook stdin has no prompt, contract, or policy context. Hard gates
-        // already ran in dispatch; absent explicit native policy, ambient
-        // authority supplies the remaining decision.
-        None => HookResponse::allowed(event_type, "ambient effect accepted"),
+    match application.authorize_hook(effect) {
+        Ok(()) => HookResponse::allowed(event_type, "authorized"),
+        Err(_) => HookResponse::denied(
+            event_type,
+            "ARC_POLICY_DENIED",
+            "native policy denied effect",
+            "strong",
+        ),
     }
 }
 
@@ -125,10 +119,18 @@ fn response_for_error(event_type: String, error: HookError) -> HookResponse {
     HookResponse::denied(event_type, error.code(), error.public_message(), health)
 }
 
-fn native_application() -> Result<Option<NativeApplication>, String> {
+/// Policy is never simply absent: the normal installed state is the
+/// canonical default Guard policy, always present. `LEGION_NATIVE_APPLICATION_CONFIG`
+/// lets a project narrow or extend that baseline; when unset, the Guard
+/// falls back to `NativeApplicationConfig::default_for_repository`, which
+/// carries the same embedded default policy pack. Any failure here —
+/// malformed override config, or the embedded default itself failing to
+/// validate or build — is a real Guard failure and must fail closed, never
+/// fall through to ambient allow.
+fn native_application() -> Result<NativeApplication, String> {
     let source = match std::env::var("LEGION_NATIVE_APPLICATION_CONFIG") {
         Ok(source) => source,
-        Err(std::env::VarError::NotPresent) => return Ok(None),
+        Err(std::env::VarError::NotPresent) => return default_native_application(),
         Err(error) => return Err(error.to_string()),
     };
     if source.trim().is_empty() {
@@ -136,8 +138,15 @@ fn native_application() -> Result<Option<NativeApplication>, String> {
     }
     NativeApplicationConfig::from_versioned_source(&source)
         .and_then(NativeApplicationConfig::build)
-        .map(Some)
         .map_err(|error| error.to_string())
+}
+
+fn default_native_application() -> Result<NativeApplication, String> {
+    let repository_id = std::env::current_dir()
+        .ok()
+        .map(|path| path.to_string_lossy().into_owned())
+        .unwrap_or_else(|| ".".into());
+    NativeApplicationConfig::default_for_repository(repository_id).map_err(|error| error.to_string())
 }
 
 fn effect_request(request: &HookRequest) -> Result<EffectRequest, String> {
@@ -463,10 +472,49 @@ fn is_destructive_command(payload: &Value) -> bool {
 }
 
 fn resolve_source_revision(payload: &Map<String, Value>) -> Option<String> {
-    let workspace = first_string(payload, &["cwd", "workspace"])
-        .map(PathBuf::from)
-        .or_else(|| std::env::current_dir().ok())?;
-    let git_dir = resolve_git_dir(&workspace)?;
+    // The payload cwd may sit outside any checkout (e.g. a session scratchpad
+    // under the OS temp root), which previously denied every effect for the
+    // rest of the session. The hook process itself is spawned from the project
+    // directory, so fall back to it before giving up.
+    let mut workspaces: Vec<PathBuf> = Vec::new();
+    if let Some(value) = first_string(payload, &["cwd", "workspace"]) {
+        // Git Bash reports POSIX-style drive paths (`/d/Claude/legion`) that
+        // Windows path resolution cannot follow; translate them back.
+        if let Some(windows) = windows_path_from_posix_drive(&value) {
+            workspaces.push(windows);
+        }
+        workspaces.push(PathBuf::from(value));
+    }
+    if let Ok(current) = std::env::current_dir() {
+        workspaces.push(current);
+    }
+    workspaces
+        .into_iter()
+        .find_map(|workspace| revision_for_workspace(&workspace))
+}
+
+fn windows_path_from_posix_drive(value: &str) -> Option<PathBuf> {
+    let mut chars = value.chars();
+    if chars.next() != Some('/') {
+        return None;
+    }
+    let drive = chars.next()?;
+    if !drive.is_ascii_alphabetic() {
+        return None;
+    }
+    match chars.next() {
+        Some('/') => Some(PathBuf::from(format!(
+            "{}:/{}",
+            drive.to_ascii_uppercase(),
+            chars.as_str()
+        ))),
+        None => Some(PathBuf::from(format!("{}:/", drive.to_ascii_uppercase()))),
+        Some(_) => None,
+    }
+}
+
+fn revision_for_workspace(workspace: &Path) -> Option<String> {
+    let git_dir = resolve_git_dir(workspace)?;
     let head = fs::read_to_string(git_dir.join("HEAD")).ok()?;
     let head = head.trim();
     if valid_revision(head) {
@@ -710,25 +758,58 @@ mod tests {
     }
 
     #[test]
-    fn absent_policy_allows_every_effect_class() {
+    fn canonical_default_policy_allows_ordinary_effect_classes() {
+        let application = legion_application::NativeApplicationConfig::default_for_repository(
+            "test-repository",
+        )
+        .expect("canonical default native application builds");
         for effect_class in [
             EffectClass::FILE_WRITE,
-            EffectClass::FILE_DELETE,
             EffectClass::FILE_MOVE,
-            EffectClass::COMMAND_EXEC,
-            EffectClass::NETWORK_EGRESS,
-            EffectClass::PROCESS_SPAWN,
-            EffectClass::CREDENTIAL_ACCESS,
-            EffectClass::DEPENDENCY_INSTALL,
             EffectClass::VCS_COMMIT,
-            EffectClass::VCS_PUSH,
-            EffectClass::PUBLISH,
+            EffectClass::COMMAND_EXEC,
+            EffectClass::FILE_DELETE,
         ] {
-            let response = authorize_effect("PreToolUse".into(), &effect(effect_class), None);
-            assert!(response.allowed, "ambient effect denied: {effect_class:?}");
+            let response =
+                authorize_effect("PreToolUse".into(), &effect(effect_class), &application);
+            assert!(response.allowed, "ordinary effect denied: {effect_class:?}");
             assert!(response.code.is_none());
             assert_eq!(response.enforcement_health, "strong");
         }
+    }
+
+    #[test]
+    fn canonical_default_policy_denies_reserved_effect_classes() {
+        let application = legion_application::NativeApplicationConfig::default_for_repository(
+            "test-repository",
+        )
+        .expect("canonical default native application builds");
+        for effect_class in [
+            EffectClass::CREDENTIAL_ACCESS,
+            EffectClass::DEPENDENCY_INSTALL,
+            EffectClass::VCS_PUSH,
+            EffectClass::PUBLISH,
+            EffectClass::NETWORK_EGRESS,
+            EffectClass::PROCESS_SPAWN,
+        ] {
+            let response =
+                authorize_effect("PreToolUse".into(), &effect(effect_class), &application);
+            assert!(!response.allowed, "reserved effect allowed: {effect_class:?}");
+            assert_eq!(response.code.as_deref(), Some("ARC_POLICY_DENIED"));
+            assert_eq!(response.enforcement_health, "strong");
+        }
+    }
+
+    #[test]
+    fn policy_is_never_absent_when_env_config_is_unset() {
+        std::env::remove_var("LEGION_NATIVE_APPLICATION_CONFIG");
+        let application = native_application().expect("default application composes");
+        let response = authorize_effect(
+            "PreToolUse".into(),
+            &effect(EffectClass::PUBLISH),
+            &application,
+        );
+        assert!(!response.allowed, "policy must never fall through to ambient allow");
     }
 
     #[test]

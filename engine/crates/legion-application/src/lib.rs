@@ -724,12 +724,14 @@ impl NativeApplicationConfig {
             .with_profile(profile)
             .with_registry(Arc::new(registry))
             .with_policy(Arc::new(CanonicalEffectPolicy {
-                pack: PolicyPack {
-                    schema_version: 1,
-                    id: "native-default".into(),
-                    version: 1,
-                    rules: Vec::new(),
-                    extensions: BTreeMap::new(),
+                pack: {
+                    let pack = legion_contracts::canonical_default_policy_pack();
+                    pack.validate().map_err(|error| {
+                        NativeApplicationError::Configuration(format!(
+                            "canonical default policy pack failed validation: {error}"
+                        ))
+                    })?;
+                    pack
                 },
             }))
             .with_inventory_source(Arc::new(StaticInventorySource {
@@ -1639,6 +1641,10 @@ impl EffectPolicy for CanonicalEffectPolicy {
                         .targets
                         .iter()
                         .any(|target| target == "*" || target == &request.target)
+                    && rule
+                        .operations
+                        .iter()
+                        .any(|operation| operation == "*" || operation == &request.operation)
             })
             .collect();
         if matching.iter().any(|rule| !rule.allowed) {
@@ -1666,6 +1672,116 @@ impl EffectPolicy for CanonicalEffectPolicy {
             ));
         }
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod canonical_effect_policy_tests {
+    use super::*;
+    use legion_contracts::policy::{
+        canonical_default_policy_pack, ApprovalRequirement, EffectClass, PolicyRule,
+    };
+    use legion_contracts::{AgentId, RequestId, TaskId};
+
+    fn request(effect_class: EffectClass, target: &str, operation: &str) -> EffectRequest {
+        EffectRequest {
+            schema_version: 1,
+            request_id: RequestId::new("test-request").expect("valid request id"),
+            task_id: TaskId::new("test-task").expect("valid task id"),
+            requested_by: AgentId::new("test-agent").expect("valid agent id"),
+            effect_class,
+            target: target.into(),
+            operation: operation.into(),
+            preview: None,
+            source_revision: "test-revision".into(),
+            approval_required: false,
+        }
+    }
+
+    #[test]
+    fn canonical_default_pack_validates() {
+        canonical_default_policy_pack()
+            .validate()
+            .expect("canonical default pack is a valid policy pack");
+    }
+
+    #[test]
+    fn canonical_default_pack_allows_ordinary_file_delete_but_denies_destructive_operation() {
+        let policy = CanonicalEffectPolicy {
+            pack: canonical_default_policy_pack(),
+        };
+        policy
+            .authorize(&request(EffectClass::FILE_DELETE, "src/main.rs", "delete"))
+            .expect("ordinary bounded delete is ambient-allowed");
+        policy
+            .authorize(&request(
+                EffectClass::FILE_DELETE,
+                "src/main.rs",
+                "delete-recursive",
+            ))
+            .expect_err("destructive delete operation must deny");
+    }
+
+    #[test]
+    fn canonical_default_pack_denies_reserved_effect_classes() {
+        let policy = CanonicalEffectPolicy {
+            pack: canonical_default_policy_pack(),
+        };
+        for effect_class in [
+            EffectClass::CREDENTIAL_ACCESS,
+            EffectClass::PUBLISH,
+            EffectClass::VCS_PUSH,
+            EffectClass::DEPENDENCY_INSTALL,
+            EffectClass::NETWORK_EGRESS,
+            EffectClass::PROCESS_SPAWN,
+        ] {
+            policy
+                .authorize(&request(effect_class, "target", "op"))
+                .expect_err(&format!("{effect_class:?} must deny by default"));
+        }
+    }
+
+    #[test]
+    fn operation_field_defaults_to_wildcard_for_backward_compatible_rules() {
+        let json = serde_json::json!({
+            "schema_version": 1,
+            "id": "legacy-rule",
+            "effect_class": "FILE_WRITE",
+            "allowed": true,
+            "approval": "NONE",
+            "targets": ["*"],
+            "required_trust": null,
+            "required_enforcement": []
+        });
+        let rule: PolicyRule =
+            serde_json::from_value(json).expect("rule without operations field deserializes");
+        assert_eq!(rule.operations, vec!["*".to_string()]);
+        assert_eq!(rule.approval, ApprovalRequirement::None);
+    }
+
+    #[test]
+    fn operation_mismatch_is_not_matched_by_a_narrowly_scoped_rule() {
+        let pack = PolicyPack {
+            schema_version: 1,
+            id: "test-pack".into(),
+            version: 1,
+            rules: vec![PolicyRule {
+                schema_version: 1,
+                id: "narrow-rule".into(),
+                effect_class: EffectClass::FILE_DELETE,
+                allowed: true,
+                approval: ApprovalRequirement::None,
+                targets: vec!["*".into()],
+                operations: vec!["delete-bounded".into()],
+                required_trust: None,
+                required_enforcement: Vec::new(),
+            }],
+            extensions: BTreeMap::new(),
+        };
+        let policy = CanonicalEffectPolicy { pack };
+        policy
+            .authorize(&request(EffectClass::FILE_DELETE, "target", "delete"))
+            .expect_err("no rule matches this operation, so there is nothing to authorize it");
     }
 }
 
