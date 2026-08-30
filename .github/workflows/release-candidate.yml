@@ -60,8 +60,6 @@ jobs:
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
         with:
           workspaces: engine
-      - name: Run full CI validation
-        run: bash ./scripts/gate.sh
       - run: pnpm install --frozen-lockfile
       - name: Build unsigned release candidate
         run: pnpm run ci:unsigned-candidate

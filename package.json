@@ -129,7 +129,7 @@
   "devDependencies": {
     "@biomejs/biome": "2.5.10",
     "@rightkit/ax": "0.2.1",
-    "@rightkit/git": "0.2.12",
+    "@rightkit/git": "0.2.13",
     "@rightkit/release": "0.2.84"
   }
 }

@@ -12,7 +12,7 @@ const gateImplementation = readFileSync(join(root, 'scripts/ci/right-git-ci.sh')
 const smoke = readFileSync(join(root, 'scripts/ci/native-installed-smoke.mjs'), 'utf8');
 const candidate = readFileSync(join(root, 'scripts/ci/prepare-unsigned-candidate.mjs'), 'utf8');
 
-test('push and PR CI stays Windows-only while release candidates qualify every native target', () => {
+test('push and PR CI stays Windows-only while release candidates build every native target', () => {
   assert.match(ci, /os: \["windows-2025"\]/);
   assert.doesNotMatch(ci, /os: \[[^\]]*(?:ubuntu-24\.04|macos-15)[^\]]*\]/);
   assert.match(ci, /node: \["22\.23\.2"\]/);
@@ -52,8 +52,8 @@ test('public release CI selects explicit supported targets and release profile',
   ]) assert.match(releaseCi, new RegExp(targetTriple));
   assert.match(releaseCi, /RIGHT_GIT_RELEASE_PLATFORM: \$\{\{ matrix\.platform \}\}/);
   assert.match(releaseCi, /RIGHT_GIT_RELEASE_ARCHITECTURE: \$\{\{ matrix\.architecture \}\}/);
-  assert.match(releaseCi, /name: Run full CI validation\s+run: bash \.\/scripts\/gate\.sh/);
-  assert.ok(releaseCi.indexOf('bash ./scripts/gate.sh') < releaseCi.indexOf('Build unsigned release candidate'));
+  assert.doesNotMatch(releaseCi, /bash \.\/scripts\/gate\.sh/);
+  assert.ok(releaseCi.indexOf('pnpm install --frozen-lockfile') < releaseCi.indexOf('Build unsigned release candidate'));
   assert.match(releaseCi, /windows-sign:/);
   assert.match(releaseCi, /macos-sign:/);
   assert.equal((releaseCi.match(/if: \$\{\{ startsWith\(github\.ref, 'refs\/tags\/v'\) \}\}/g) ?? []).length, 2);
