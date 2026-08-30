@@ -31,7 +31,7 @@
       ],
       "occurrences": {
         "nemesis": 7,
-        "forge": 54,
+        "forge": 57,
         "seer": 22,
         "sentinel": 12,
         "sorcerer": 10
@@ -429,6 +429,17 @@
       },
       "class": "R2",
       "reason": "triage inventory names real src/packages/arcane/compatibility/forge/* paths awaiting disposition"
+    },
+    {
+      "path": "docs/pending/arcane-package-triage-v2.md",
+      "tokens": [
+        "forge"
+      ],
+      "occurrences": {
+        "forge": 23
+      },
+      "class": "R2",
+      "reason": "consumer-grounded re-triage names real src/packages/arcane/compatibility/forge/* paths awaiting disposition"
     }
   ]
 }
