@@ -14,6 +14,10 @@ function Remove-WithRetry([string]$Path, [switch]$Recurse) {
         catch { if ($attempt -eq 19) { throw }; Start-Sleep -Milliseconds 100 }
     }
 }
+function Remove-LeadingJsonPreamble([string]$Line) {
+    if ($null -eq $Line) { return $Line }
+    return $Line -replace '^[\s\uFEFF]+', ''
+}
 $brief = (@($input) -join [Environment]::NewLine).TrimStart([char]0xFEFF)
 if ([string]::IsNullOrWhiteSpace($brief)) {
     throw 'Empty brief on stdin - refusing to spawn a worker with no task.'
@@ -108,8 +112,9 @@ if (-not $process.WaitForExit($TimeoutSeconds * 1000)) {
 }
 $jsonEventCount = 0
 foreach ($line in [IO.File]::ReadLines($EventLog)) {
-    if ([string]::IsNullOrWhiteSpace($line)) { continue }
-    try { $null = $line | ConvertFrom-Json -ErrorAction Stop; $jsonEventCount++ } catch { }
+    $jsonLine = Remove-LeadingJsonPreamble $line
+    if ([string]::IsNullOrWhiteSpace($jsonLine)) { continue }
+    try { $null = $jsonLine | ConvertFrom-Json -ErrorAction Stop; $jsonEventCount++ } catch { }
 }
 Remove-WithRetry $inputPath
 Remove-WithRetry $isolatedCodexHome -Recurse
@@ -131,10 +136,13 @@ $pythonCandidates = @(
     (Join-Path $HOME '.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe')
 )
 $python = $pythonCandidates | Where-Object { $_ -and (Test-Path -LiteralPath $_ -PathType Leaf) } | Select-Object -First 1
+# Do not let Windows PowerShell add a BOM while forwarding normalized lines to
+# the native parser. The parser must receive the same BOM-free JSON we counted.
+$OutputEncoding = $utf8
 if ($python) {
-    Get-Content -LiteralPath $EventLog | & $python $parser --stream
+    Get-Content -LiteralPath $EventLog | ForEach-Object { Remove-LeadingJsonPreamble $_ } | & $python $parser --stream
 } else {
-    Get-Content -LiteralPath $EventLog | & py -3.11 $parser --stream
+    Get-Content -LiteralPath $EventLog | ForEach-Object { Remove-LeadingJsonPreamble $_ } | & py -3.11 $parser --stream
 }
 $parseStatus = $LASTEXITCODE
 [Console]::Error.WriteLine("EVENT_LOG=$EventLog")

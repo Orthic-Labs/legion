@@ -18,8 +18,11 @@ class WindowsRunnerTest(unittest.TestCase):
         self.assertIn("[Math]::Min(10, [int]$env:ALCHEMIST_MAX_CONCURRENT)", runner)
         self.assertIn("} else { 10 }", runner)
 
-    def test_routes_stdin_through_omniroute_launcher(self):
+    def test_runner_does_not_depend_on_console_input(self):
         self.assertNotIn("Console.In", RUNNER.read_text(encoding="utf-8"))
+
+    @unittest.skipUnless(sys.platform == "win32", "requires Windows PowerShell (powershell.exe)")
+    def test_routes_stdin_through_omniroute_launcher(self):
         with tempfile.TemporaryDirectory() as raw:
             tmp = Path(raw)
             fake_bin = tmp / "bin"
@@ -99,6 +102,7 @@ class WindowsRunnerTest(unittest.TestCase):
             self.assertIn("booting", Path(str(event_log) + ".stderr").read_text(encoding="utf-8"))
             self.assertFalse(Path(str(event_log) + ".stdin").exists())
 
+    @unittest.skipUnless(sys.platform == "win32", "requires Windows PowerShell (powershell.exe)")
     def test_pipeline_multiline_input_is_preserved(self):
         with tempfile.TemporaryDirectory() as raw:
             tmp = Path(raw)
@@ -127,6 +131,7 @@ class WindowsRunnerTest(unittest.TestCase):
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertEqual(stdin_file.read_text(encoding="utf-8").strip(), "<task>first\nsecond</task>")
 
+    @unittest.skipUnless(sys.platform == "win32", "requires Windows PowerShell (powershell.exe)")
     def test_timeout_persists_both_streams_then_cleans_up(self):
         with tempfile.TemporaryDirectory() as raw:
             tmp = Path(raw)
@@ -157,6 +162,7 @@ class WindowsRunnerTest(unittest.TestCase):
             self.assertIn("stderr-marker", Path(str(event_log) + ".stderr").read_text(encoding="utf-8"))
             self.assertFalse(Path(str(event_log) + ".stdin").exists())
 
+    @unittest.skipUnless(sys.platform == "win32", "requires Windows PowerShell (powershell.exe)")
     def test_rejects_zero_event_launcher_output(self):
         with tempfile.TemporaryDirectory() as raw:
             tmp = Path(raw)

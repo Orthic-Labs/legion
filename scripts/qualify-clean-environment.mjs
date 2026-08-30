@@ -124,7 +124,7 @@ function workspaceMarkers(root, fsOps) {
 function nestedWorkspaceRoots(root, fsOps, depth = 0, found = []) {
 	if (!directory(fsOps, root) || depth > 4) return found;
 	if (workspaceMarkers(root, fsOps).length) {
-		found.push(canonicalPath(fsOps, root));
+		found.push(root);
 		return found;
 	}
 	// Failure to inspect an isolated mount is itself a failed qualification;
@@ -151,15 +151,22 @@ export function detectReachableWorkspace({ cwd = process.cwd(), workspaceRoots =
 	if (cwd) candidates.push(cwd);
 	const pathSeparator = platform === "win32" ? ";" : delimiter;
 	for (const entry of String(pathValue ?? "").split(pathSeparator)) candidates.push(entry || cwd);
-	const found = new Set();
+	// Keep the caller-visible spelling of a finding. On macOS, /var commonly
+	// resolves to /private/var; canonical paths are for identity/deduplication,
+	// not for rewriting the path reported to the caller.
+	const found = new Map();
+	const record = (root) => {
+		const key = canonicalPath(fsOps, root);
+		if (!found.has(key)) found.set(key, root);
+	};
 	for (const candidate of candidates) {
 		const root = findWorkspaceRoot(candidate, { fsOps });
-		if (root) found.add(canonicalPath(fsOps, root));
+		if (root) record(root);
 	}
 	for (const root of scanRoots) {
-		for (const nested of nestedWorkspaceRoots(root, fsOps)) found.add(nested);
+		for (const nested of nestedWorkspaceRoots(root, fsOps)) record(nested);
 	}
-	return [...found].sort().map((root) => issue("reachable-workspace", root, "workspace checkout is reachable"));
+	return [...found.values()].sort().map((root) => issue("reachable-workspace", root, "workspace checkout is reachable"));
 }
 
 export function detectPreexistingState({ roots = [], statePaths = [], fsOps = nativeFs } = {}) {
@@ -172,11 +179,16 @@ export function detectPreexistingState({ roots = [], statePaths = [], fsOps = na
 			for (const relativePath of STATE_RELATIVE_PATHS) candidates.push(join(stateRoot, ...relativePath.split("/")));
 		}
 	}
-	const found = new Set();
+	// As above, canonicalize only to deduplicate aliases; report the path that
+	// was actually inspected so macOS symlinked system prefixes stay stable.
+	const found = new Map();
 	for (const candidate of candidates) {
-		if (fsExists(fsOps, candidate)) found.add(canonicalPath(fsOps, candidate));
+		if (fsExists(fsOps, candidate)) {
+			const key = canonicalPath(fsOps, candidate);
+			if (!found.has(key)) found.set(key, candidate);
+		}
 	}
-	return [...found].sort().map((path) => issue("preexisting-state", path, "state directory or file exists before qualification"));
+	return [...found.values()].sort().map((path) => issue("preexisting-state", path, "state directory or file exists before qualification"));
 }
 
 function capabilityForBinary(name) {
