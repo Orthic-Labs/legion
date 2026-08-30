@@ -746,7 +746,7 @@ fn effect_request(request: &HookRequest) -> Result<Option<EffectRequest>, String
     let effect_class = if explicit_class {
         // An explicit unknown class is never guessed from a tool name.
         parse_effect_class(class_name.as_deref(), tool_name.as_deref(), command.as_deref())
-    } else if tool_name.is_some_and(|name| is_mcp_tool(name)) {
+    } else if tool_name.as_deref().is_some_and(is_mcp_tool) {
         // An explicit MCP operation overrides name-based classification; a
         // read operation on a broadly named server/tool is not a write gate.
         mcp_external_side_effect(tool_name.as_deref(), explicit_operation.as_deref())
@@ -759,7 +759,7 @@ fn effect_request(request: &HookRequest) -> Result<Option<EffectRequest>, String
         parse_effect_class(None, tool_name.as_deref(), command.as_deref())
     };
     let Some(effect_class) = effect_class else {
-        if !explicit_class && tool_name.is_some_and(|name| is_mcp_tool(name)) {
+        if !explicit_class && tool_name.as_deref().is_some_and(is_mcp_tool) {
             return Ok(None);
         }
         return Err("effect class is missing or unsupported".to_owned());
