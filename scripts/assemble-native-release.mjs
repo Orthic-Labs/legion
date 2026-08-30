@@ -404,8 +404,25 @@ const publicSkills = skillCatalog.bundles
 			sourceDir: join(repositoryRoot, "skills", bundle.id),
 		};
 	});
-if (publicSkills.length !== 24 || new Set(publicSkills.map(({ id }) => id)).size !== 24) {
-	throw new Error("portable core must package all 24 canonical plain-name skills");
+// The expected set comes from the canonical catalog rather than a frozen count,
+// so adding a packaged skill does not require editing the release assembler.
+// The check is still exact: every catalog skill that must ship is packaged, and
+// packaged exactly once.
+const expectedSkillIds = skillCatalog.bundles
+	.filter((bundle) => bundle.discoverability === "public" || bundle.discoverability === "explicit")
+	.map((bundle) => bundle.id)
+	.sort();
+const packagedSkillIds = publicSkills.map(({ id }) => id).sort();
+if (expectedSkillIds.length === 0) {
+	throw new Error("skill catalog declares no shippable skills");
+}
+if (
+	new Set(packagedSkillIds).size !== packagedSkillIds.length ||
+	packagedSkillIds.join(",") !== expectedSkillIds.join(",")
+) {
+	throw new Error(
+		`portable core must package every canonical plain-name skill exactly once; expected [${expectedSkillIds.join(", ")}], packaged [${packagedSkillIds.join(", ")}]`,
+	);
 }
 assemblePortableCore({
 	outputDir: pluginRoot,
