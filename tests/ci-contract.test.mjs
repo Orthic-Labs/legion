@@ -59,7 +59,9 @@ test('public release CI selects explicit supported targets and release profile',
   assert.match(releaseCi, /release:finalize-macos/);
   assert.match(releaseCi, /release:qualify-installed/);
   assert.match(releaseCi, /release:publish-qualified/);
-  assert.equal((releaseCi.match(/if: \$\{\{ startsWith\(github\.ref, 'refs\/tags\/v'\) \}\}/g) ?? []).length, 2);
+  assert.match(releaseCi, /signed_qualification:/);
+  assert.equal((releaseCi.match(/if: \$\{\{ startsWith\(github\.ref, 'refs\/tags\/v'\) \|\| \(github\.event_name == 'workflow_dispatch' && inputs\.signed_qualification == true\) \}\}/g) ?? []).length, 2);
+  assert.match(releaseCi, /publish:[\s\S]*?if: \$\{\{ startsWith\(github\.ref, 'refs\/tags\/v'\) && needs\.installed-qualification\.result == 'success' && needs\.macos-sign\.result == 'success' \}\}/);
   assert.match(releaseCi, /name: legion-signed-windows-\$\{\{ matrix\.architecture \}\}-22\.23\.2/);
   assert.match(releaseCi, /name: legion-signed-macos-\$\{\{ matrix\.architecture \}\}-22\.23\.2/);
   assert.match(releaseCi, /pnpm run release:finalize-windows/);
