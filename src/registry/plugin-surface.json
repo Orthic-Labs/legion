@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "kind": "legion-plugin-surface",
-  "version": "0.2.5",
+  "version": "0.2.6",
   "digest": "sha256:e6f89bf6b8798075031a5972bfe985c7fc703d6f37497675b97dc4544072ddc3",
   "counts": {
     "skills": 25,

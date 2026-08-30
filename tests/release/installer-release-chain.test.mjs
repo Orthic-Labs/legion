@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { createHash } from "node:crypto";
+import { spawnSync } from "node:child_process";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import test from "node:test";
@@ -12,6 +13,13 @@ import {
 } from "../../scripts/release/installer-release-chain.mjs";
 
 const REVISION = "a".repeat(40);
+
+test("direct CLI finalizer reads process environment", () => {
+	const result = spawnSync(process.execPath, ["scripts/release/installer-release-chain.mjs", "finalize-windows"], { cwd: process.cwd(), encoding: "utf8", env: {} });
+	assert.notEqual(result.status, 0);
+	assert.doesNotMatch(result.stderr, /Cannot read properties of undefined/);
+	assert.match(result.stderr, /RIGHT_GIT_SOURCE_REVISION is required/);
+});
 
 function fixture() {
 	const root = mkdtempSync(join(tmpdir(), "legion-installer-chain-"));

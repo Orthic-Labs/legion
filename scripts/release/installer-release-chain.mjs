@@ -233,8 +233,8 @@ export function publishQualified({ env = process.env, run = defaultRun, reposito
 	}
 	return { status: "published", tag, version: windows.version, sourceRevision: windows.sourceRevision, windowsFinalizationSha256: windows.digest, macosFinalizationSha256: macos.digest, qualificationSha256: digest(qualificationPath) };
 }
-export function finalizeWindows(options = {}) { return finalizationManifest({ ...options, platform: "windows" }); }
-export function finalizeMacos(options = {}) { return finalizationManifest({ ...options, platform: "macos" }); }
+export function finalizeWindows(options = {}) { return finalizationManifest({ ...options, env: options.env ?? process.env, platform: "windows" }); }
+export function finalizeMacos(options = {}) { return finalizationManifest({ ...options, env: options.env ?? process.env, platform: "macos" }); }
 function main() {
 	const command = process.argv[2];
 	const map = { "finalize-windows": finalizeWindows, "finalize-macos": finalizeMacos, "qualify-installed": qualifyInstalled, "publish-qualified": publishQualified };
