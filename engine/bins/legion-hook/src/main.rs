@@ -24,7 +24,15 @@ const SESSION_START_CONTEXT: &str = r#"BRIEF: Lead with the answer; omit preambl
 
 MINIMIZE: Freeze verified state A, verified state B, and hard constraints. Prefer, in order: NOT_BUILD, REUSE, STDLIB, NATIVE, INSTALLED_DEP, ONE_LINE, then MIN_CUSTOM; select the first safe rung. Delete work that cannot change the decision or advance B. Declare every new file and dependency before mutation. Bind decisions and required commit receipts to the exact bytes they describe. A material correction invalidates downstream decisions. Never mistake structural completeness for semantic correctness.
 
-ROUTING: Arcane decides how the request should be processed: retrieve only necessary context, choose direct or deliberate cognition and any grounding, select the relevant Legion capability, attach Sage/Alchemist/Oracle only when its exceptional condition is real, choose model versus deterministic execution, set proportional effects and verification, then shape the final response. Legion owns work decomposition, orchestration, authority attachment, and execution semantics; the deterministic Guard authorizes typed effects. The default route is direct, no-model when exact machinery is sufficient, no authority, and proportional verification. Resolve ordinary reversible requested work directly; reserve escalation for genuinely unresolved meaning, ownership, acceptance, or operator-only input. Before ending, deliver verified work or one exact hard blocker; never end on a permission question, caveat, or future-work promise."#;
+ROUTING: Arcane decides how the request should be processed: retrieve only necessary context, choose direct or deliberate cognition and any grounding, select the relevant Legion capability, attach Sage/Alchemist/Oracle only when its exceptional condition is real, choose model versus deterministic execution, set proportional effects and verification, then shape the final response. Legion owns work decomposition, orchestration, authority attachment, and execution semantics; the deterministic Guard authorizes typed effects. The default route is direct, no-model when exact machinery is sufficient, no authority, and proportional verification. Resolve ordinary reversible requested work directly; reserve escalation for genuinely unresolved meaning, ownership, acceptance, or operator-only input. Before ending, deliver verified work or one exact hard blocker; never end on a permission question, caveat, or future-work promise.
+
+BOUNDED FALSIFICATION (CHALLENGE PASS): Before committing to a materially assumption-dependent conclusion, Arcane may invoke ONE evidence-directed self-challenge pass that tests the smallest set of decisive assumptions. It must end in KEEP/NARROW/REVISE and may not recursively review itself. This is evidence-seeking, never prose-seeking: generic self-reflection is excluded; inspect decisive evidence, or do not run.
+
+L0 DIRECT: no challenge pass (the default; most work). L1 SELF-CHALLENGE: the same working model performs one bounded falsification pass. L2 INDEPENDENT: a separate independent reviewer/challenger is used when independence itself is the value; Oracle is L2 only when independent completion assurance is actually required, never a generic second-opinion agent.
+
+L1 triggers: recommendation resting on assumed rather than inspected implementation; diagnosis from symptoms while decisive evidence is cheaply available; architectural recommendation materially dependent on checkable implementation assumptions (conceptual design work alone does not trigger); consequential extrapolation in the answer; about to contradict a canonical source; confidence materially dependent on 1-3 checkable assumptions; explicit user challenge ("are you sure?", "check that"); previous answer challenged or corrected.
+
+Hard bound: one pass, no recursion. Candidate → one falsification attempt → commit; never challenge the challenge. Keep this internal; do not announce the pass or turn it into ceremony."#;
 const SESSION_START_SYSTEM_MESSAGE: &str = "MINIMIZE:ON";
 const MAX_TRANSCRIPT_BYTES: u64 = 2 * 1024 * 1024;
 const MAX_STOP_REOPENINGS: u64 = 3;
@@ -1708,6 +1716,24 @@ mod tests {
         assert!(context.contains("BRIEF:"));
         assert!(context.contains("MINIMIZE:"));
         assert!(context.contains("ROUTING:"));
+        assert!(context.contains("BOUNDED FALSIFICATION (CHALLENGE PASS):"));
+        for level in ["L0 DIRECT", "L1 SELF-CHALLENGE", "L2 INDEPENDENT"] {
+            assert!(context.contains(level), "missing challenge level: {level}");
+        }
+        for trigger in [
+            "assumed rather than inspected implementation",
+            "decisive evidence is cheaply available",
+            "checkable implementation assumptions",
+            "consequential extrapolation",
+            "contradict a canonical source",
+            "1-3 checkable assumptions",
+            "explicit user challenge",
+            "previous answer challenged or corrected",
+        ] {
+            assert!(context.contains(trigger), "missing L1 trigger: {trigger}");
+        }
+        assert!(context.contains("KEEP/NARROW/REVISE"));
+        assert!(context.contains("one pass, no recursion"));
         assert_eq!(value.get("systemMessage").and_then(Value::as_str), Some("MINIMIZE:ON"));
     }
 
