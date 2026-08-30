@@ -93,14 +93,16 @@ function entryRecord(root, value, label) {
 	return { role: value.role, ...observed };
 }
 function copyRecord(fromRoot, toRoot, record) {
-	const rel = relative(resolve(fromRoot), record.path);
 	inside(fromRoot, record.path, "finalizer artifact");
-	const target = inside(toRoot, join(toRoot, rel), "finalized output");
+	// GitHub artifact transfer excludes dot-prefixed directories by default. Final
+	// handoff names are already unique, so publish every verified record at its
+	// visible basename rather than retaining a finalizer-private staging layout.
+	const target = inside(toRoot, join(toRoot, record.name), "finalized output");
 	mkdirSync(dirname(target), { recursive: true });
 	if (existsSync(target)) fail(`finalized output already exists: ${target}`);
 	copyFileSync(record.path, target);
 	if (digest(target) !== record.sha256) fail(`copied artifact digest mismatch: ${record.name}`);
-	return { ...record, path: relative(toRoot, target).replaceAll("\\", "/") };
+	return { ...record, path: basename(target) };
 }
 function defaultRun(command, args, options) {
 	return spawnSync(command, args, { cwd: ROOT, encoding: "utf8", windowsHide: true, ...options });
@@ -223,7 +225,7 @@ export function qualifyInstalled({ env = process.env, run = defaultRun, reposito
 	if (installers.length !== 1) fail("Windows finalization must contain exactly one setup EXE");
 	const script = join(repositoryRoot, FINALIZER.qualify);
 	assertFile(script, "Windows installed qualification runner");
-	const response = runJson(run, "node", [script, "--setup", join(finalization.root, installers[0].path), "--output-root", evidenceRoot, "--finalization", finalization.manifestPath, "--source-revision", finalization.sourceRevision, "--version", finalization.version], { cwd: repositoryRoot, env: { ...env, RIGHT_GIT_WINDOWS_SETUP_SILENT: "1" } }, "Windows installed qualification");
+	const response = runJson(run, "node", [script, "--setup", installers[0].path, "--output-root", evidenceRoot, "--finalization", finalization.manifestPath, "--source-revision", finalization.sourceRevision, "--version", finalization.version], { cwd: repositoryRoot, env: { ...env, RIGHT_GIT_WINDOWS_SETUP_SILENT: "1" } }, "Windows installed qualification");
 	if (response.schemaVersion !== 1 || response.kind !== "legion-windows-installed-installer-qualification" || response.status !== "qualified" || response.product !== PRODUCT || response.version !== finalization.version || sourceRevision(response.sourceRevision) !== finalization.sourceRevision || String(response.windowsFinalizationSha256 ?? "").toLowerCase() !== finalization.digest) fail("Windows qualification does not bind exact finalization");
 	const evidence = entryRecord(evidenceRoot, response.evidence, "Windows qualification evidence");
 	return { ...response, evidence, finalizationDigest: finalization.digest };

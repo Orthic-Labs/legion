@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { copyFileSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { createHash } from "node:crypto";
 import { spawnSync } from "node:child_process";
 import { tmpdir } from "node:os";
@@ -87,13 +87,16 @@ function finalizerRun(kind) {
 test("finalizers map RightGit inputs, run RightRelease, & copy only digest-bound installer evidence", () => {
 	const root = fixture();
 	try {
-		const windows = finalizeWindows({ env: env(root, "windows", "x86_64"), repositoryRoot: root, run: finalizerRun("windows") });
+		const values = env(root, "windows", "x86_64");
+		const windows = finalizeWindows({ env: values, repositoryRoot: root, run: finalizerRun("windows") });
 		const macos = finalizeMacos({ env: env(root, "macos", "arm64"), repositoryRoot: root, run: finalizerRun("macos") });
 		assert.equal(windows.assets.length, 1);
 		assert.equal(windows.evidence.length, 2);
 		assert.equal(macos.assets[0].name.endsWith(".dmg"), true);
 		assert.equal(JSON.parse(readFileSync(windows.manifest)).sourceRevision, REVISION);
 		assert.equal(windows.assets[0].path.includes(".staging"), false);
+		assert.equal(windows.assets[0].path.includes(".installer"), false, "artifact handoff must not depend on hidden directories");
+		assert.equal(statSync(join(values.RIGHT_GIT_FINALIZED_WINDOWS_ROOT, windows.assets[0].path)).isFile(), true);
 	} finally { rmSync(root, { recursive: true, force: true }); }
 });
 
@@ -131,9 +134,16 @@ test("installed qualification requires exact finalized setup & returns digest-bo
 	try {
 		const values = env(root, "windows", "x86_64");
 		const finalization = finalizeWindows({ env: values, repositoryRoot: root, run: finalizerRun("windows") });
-		const result = qualifyInstalled({ env: { ...values, RIGHT_GIT_TEST_PLATFORM: "win32" }, repositoryRoot: root, run(command, args) {
+		// Model GitHub's upload/download handoff: only manifest-listed, visible-root
+		// files are transferred. Dot-prefixed finalizer staging must not be required.
+		const downloaded = join(root, "downloaded-finalization");
+		mkdirSync(downloaded, { recursive: true });
+		copyFileSync(finalization.manifest, join(downloaded, "installer-finalization.json"));
+		for (const record of [...finalization.assets, ...finalization.evidence]) copyFileSync(join(values.RIGHT_GIT_FINALIZED_WINDOWS_ROOT, record.path), join(downloaded, record.path));
+		const result = qualifyInstalled({ env: { ...values, RIGHT_GIT_FINALIZED_WINDOWS_ROOT: downloaded, RIGHT_GIT_TEST_PLATFORM: "win32" }, repositoryRoot: root, run(command, args) {
 			assert.equal(command, "node");
 			assert.equal(args.includes("--setup"), true);
+			assert.equal(args[args.indexOf("--setup") + 1], join(downloaded, finalization.assets[0].path));
 			const output = args[args.indexOf("--output-root") + 1];
 			mkdirSync(output, { recursive: true });
 			const evidence = join(output, "installed-qualification.json");
