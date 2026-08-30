@@ -96,7 +96,7 @@
     {
       "path": "scripts/run-worker.ps1",
       "uri": "legion-skill://alchemist/scripts/run-worker.ps1",
-      "digest": "sha256:72e3cec3d3281dae86580ebc7ca4efc96e218777125e48465c271e731215a16d"
+      "digest": "sha256:5e7b819507bcd275bd53f677febe57b99d9449c277b4940cf6e655c3f7fea113"
     },
     {
       "path": "scripts/run-worker.sh",
@@ -126,7 +126,7 @@
     {
       "path": "tests/test_windows_runner.py",
       "uri": "legion-skill://alchemist/tests/test_windows_runner.py",
-      "digest": "sha256:02cafbe339e572b7bed284733f823341f3aaa86c3185e2ce8bcca7386e956591"
+      "digest": "sha256:111f20a5cd68724f5f6f9eaefe6d7bff9b2bfe5e764d8818afe08842584aa737"
     }
   ]
 }
