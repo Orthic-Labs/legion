@@ -38,6 +38,12 @@ checkpoints/resume, receipts, worker-output distrust) applies where justified �
 governed, locked, contracted, expensive/retry-prone, or resumable long-running work — not to
 ambient routine work.
 
+Use the least nondeterministic authorized executor capable of satisfying each node contract.
+“Mechanical” does not mean “cheap model”: a settled mechanical task is a zero-model task unless
+semantic interpretation is genuinely required. Ambient cheap/mechanical execution belongs to
+Legion’s mechanism-aware host binding, not to Alchemist, which stays the controlled
+bounded-transformation authority.
+
 ## Routing shape
 
 ```text
@@ -62,3 +68,15 @@ Natural-language routing is performed by the always-on Legion orchestration mode
 compact catalog in context. The deterministic runtime validates selected IDs and resolves
 explicit aliases only; it does not interpret prose. Domains are grouping metadata only and never
 decide routing. Slash aliases remain deterministic.
+
+Capability work may take this conditional path:
+
+```text
+capability work
+    │
+    ├─ material unresolved decision? → Sage → settled work
+    │
+    └─────────────────────────────────────────┘
+                                  ↓
+                             execution
+```

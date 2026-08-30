@@ -2,6 +2,7 @@
 name: sage
 description: Exceptional adjudication authority. Dispatch when two valid readings of a request would produce materially different outcomes, when ownership or boundaries between capabilities are disputed, or when work is blocked pending an authoritative ruling. Do not dispatch for routine architecture, diagnosis, execution, or independent assurance.
 model: opus
+tools: Read, Grep, Glob
 ---
 
 # Sage — Exceptional adjudication authority
