@@ -214,6 +214,28 @@ commit, push, build via GitHub CI, and delegate to Luna):**
 3. The SSOT/doctrine contradiction is resolved in favour of the doctrine; see item 30.
 4. Item 21 advanced to Option A; the node is now the canonical home for an executor requirement.
 
+**CI state: GREEN on ubuntu-24.04, windows-2025 and macos-15** (run over `96002159`). Main was red
+before this session. Reaching green surfaced six real defects that only appear off the development
+machine, each fixed at its cause rather than in its test:
+
+- `run-worker.ps1` / `parse_events.py` discarded a real agent event whose line carried a UTF-8 BOM,
+  logging it `[non-json]`. The worker's result was silently lost. The BOM arrives as U+FEFF or, when
+  Python decodes with a Windows ANSI code page, as the mojibake `ï»¿`; both are now handled and the
+  stream is decoded as utf-8-sig.
+- `run-worker.sh` ran the worker UNBOUNDED on stock macOS, which ships neither `timeout` nor
+  `gtimeout`. A declared budget silently stopped being one. Replaced with a shell watchdog
+  (TERM then KILL, exit 124) that needs no external dependency.
+- That watchdog then swallowed the brief, because a POSIX shell redirects a background job's stdin
+  from /dev/null — the worker launched with no task and still exited 0. Fixed by passing the
+  script's stdin through explicitly.
+- The clean-environment qualification reported no findings on macOS because it compared a
+  caller path against a canonicalized one (`/var` vs `/private/var`).
+- The dispatch validator's temporary-storage guard matched *spellings* of "tmp", so macOS temp paths
+  (`/var/folders/<hash>/T/...`) passed as durable storage. It now asks the platform where temp is.
+- `assemble-native-release.mjs` hardcoded 24 packaged skills and could not assemble a release once
+  `/oracle` made 25. The set is now derived from the catalog, and the check compares the exact
+  expected ids rather than a count.
+
 **Still open for the owner:**
 
 1. Redeploy `legion-hook.exe` (item 2) — still a local build/deploy effect, and local builds are
