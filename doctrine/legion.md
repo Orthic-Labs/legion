@@ -55,7 +55,7 @@ LEGION — semantic classification over the compact canonical catalog
     ↓
 WORK GRAPH — operations, effects, dependencies, authority only where required
     ↓
-Arcane gates declared effects
+the Guard gates declared effects
     ↓
 execution / integration
     ↓
