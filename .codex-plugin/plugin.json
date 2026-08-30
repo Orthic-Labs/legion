@@ -2,7 +2,16 @@
   "name": "legion",
   "version": "0.2.0",
   "author": "Orthic Labs",
-  "description": "Legion — the authority system for AI-assisted engineering. Orchestrates Sage (decisions), Alchemist (transformation), Oracle (assurance), and Arcane (the deterministic gate), plus the evidence-governed whole-repository audit engine that backs Oracle.",
+  "description": "Legion — orchestration for AI-assisted engineering. Legion selects capabilities & attaches Sage, Alchemist, or Oracle where required; Arcane shapes cognitive processing & response policy; Guard enforcement is host-dependent.",
   "license": "SEE LICENSE IN LICENSE",
-  "interface": { "displayName": "Legion", "category": "Developer Tools", "capabilities": ["Authority agents", "Arcane lifecycle hooks", "Covenant review"], "defaultPrompt": "Use Legion authority routing for repository or system-state changes." }
+  "interface": {
+    "displayName": "Legion",
+    "category": "Developer Tools",
+    "capabilities": [
+      "Legion orchestration",
+      "Arcane cognitive policy",
+      "Covenant review"
+    ],
+    "defaultPrompt": "Use Legion authority routing for repository or system-state changes."
+  }
 }

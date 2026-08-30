@@ -29,9 +29,9 @@ export function assertFidelity(value, where) {
   if (!FIDELITY.includes(value)) throw new TypeError(`${where}: fidelity must be one of ${FIDELITY.join('|')}, got ${value}`);
 }
 
-// Enforcement is the one surface where the transport is necessarily host-specific
-// (a blocking command hook, a permission prompt, or nothing). Arcane's SEMANTICS
-// stay host-neutral; only the transport differs. An adapter must never declare
+// Enforcement is the one surface where transport is necessarily host-specific
+// (a blocking command hook, a permission prompt, or nothing). Guard semantics
+// stay host-neutral; only transport differs. An adapter must never declare
 // `strong` enforcement for a harness that lacks the hook/permission mechanism to
 // actually block an effect — that is the difference between a gate and theatre.
 export function enforcementFidelity(mechanism) {

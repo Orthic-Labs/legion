@@ -65,6 +65,14 @@ test('human host support matrix is generated from adapter projection', () => {
   for (const harness of projection.harnesses) assert.match(generated, new RegExp(`\\| ${harness.id} \\|`));
 });
 
+test('host projection attributes effect enforcement to Guard', () => {
+  const projection = buildProjection(LEGION);
+  for (const harness of projection.harnesses) {
+    assert.equal(Object.hasOwn(harness.fidelity, 'guardEnforcement'), true);
+    assert.equal(Object.hasOwn(harness.fidelity, 'arcaneEnforcement'), false);
+  }
+});
+
 const withRepo = (fn) => {
   const root = realpathSync(mkdtempSync(join(realpathSync(tmpdir()), 'legion-harness-')));
   try { return fn(root); } finally { rmSync(root, { recursive: true, force: true }); }

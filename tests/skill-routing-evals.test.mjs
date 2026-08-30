@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { evaluateRoutingCases, runLiveGrading, scoreRoutingCase } from '../scripts/run-skill-evals.mjs';
+import { evaluateRoutingCases, runLiveGraderCommand, runLiveGrading, scoreRoutingCase } from '../scripts/run-skill-evals.mjs';
 
 const fixture = {
   id: 'routing-all-dimensions',
@@ -86,6 +86,50 @@ test('should-NOT-route fixtures reject a route to their own capability', () => {
 
 test('live grading fails loudly when explicitly requested without a grader', async () => {
   await assert.rejects(() => runLiveGrading([fixture]), (error) => error.code === 'LIVE_GRADER_UNAVAILABLE');
+});
+
+test('live grader rejects observations that omit route mode or context selection', async () => {
+  await assert.rejects(
+    () => runLiveGrading([fixture], async () => ({
+      shouldRoute: true,
+      rankedCapabilities: ['dispatch'],
+      authority: { sage: false, alchemist: false, oracle: true },
+      semanticRequirement: 'REQUIRED',
+    })),
+    (error) => error.code === 'LIVE_GRADER_INVALID_OBSERVATION'
+      && error.message.includes('routeMode')
+      && error.message.includes('contextSelection'),
+  );
+});
+
+test('external live grader command receives opaque prompts and scores all six dimensions', async () => {
+  const grader = String.raw`
+    let input = '';
+    process.stdin.setEncoding('utf8');
+    process.stdin.on('data', chunk => input += chunk);
+    process.stdin.on('end', () => {
+      const batch = JSON.parse(input);
+      if (batch.cases.some(entry => 'skill' in entry || 'expected_skill' in entry || 'routing' in entry)) process.exit(9);
+      process.stdout.write(JSON.stringify({ observations: batch.cases.map(({ caseId }) => ({
+        caseId,
+        shouldRoute: true,
+        rankedCapabilities: ['dispatch', 'tasklist'],
+        authority: { sage: false, alchemist: false, oracle: true },
+        routeMode: 'DIRECT',
+        semanticRequirement: 'REQUIRED',
+        contextSelection: ['blueprint'],
+      })) }));
+    });
+  `;
+  const results = await runLiveGraderCommand([fixture], {
+    command: process.execPath,
+    args: ['-e', grader],
+    repositoryRoot: new URL('..', import.meta.url).pathname.replace(/^\/(?=[A-Za-z]:)/, ''),
+    timeoutMs: 10_000,
+  });
+  assert.equal(results.length, 1);
+  assert.equal(results[0].status, 'PASS');
+  assert.deepEqual(Object.values(results[0].checks).map(({ status }) => status), Array(6).fill('PASS'));
 });
 
 test('live grading is unreachable unless the caller explicitly opts in', async () => {

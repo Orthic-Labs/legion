@@ -1,0 +1,370 @@
+// CONTRACT B — the completion gate (lib/completion-gate.mjs).
+//
+// evaluateCompletion() must never trust caller-asserted evidenceClasses /
+// staleEvidenceCount / enforcementHealth — it derives all three from what
+// ReceiptStore actually holds for the run, and forces extra claim-level
+// prerequisites when a touched path falls inside the policy's lockedDomains.
+
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
+
+import { evaluateCompletion } from '../src/lib/verification/arcane/completion-gate.mjs';
+import { evaluateHostStop } from '../src/lib/host/arcane/hook-adapter-core.mjs';
+import { loadPolicy, PolicyEngine, DEFAULT_POLICY_PATH } from '../src/lib/guard/compat/policy/policy.mjs';
+import { ReceiptStore } from '../src/lib/guard/compat/audit/receipt-store.mjs';
+import { mintId } from '../src/lib/contracts/arcane/ids.mjs';
+import { digestValue } from '../src/lib/contracts/arcane/canonical.mjs';
+import { AcceptanceEvidenceRegistry } from '../src/lib/verification/arcane/evidence-registry.mjs';
+import { loadCompletionEvidence } from '../src/lib/verification/arcane/completion-evidence.mjs';
+import { generateTestKeyRing } from '../src/lib/guard/compat/host/keys.mjs';
+import { signRecord, EVIDENCE_RECEIPT_BOUND_FIELDS } from '../src/lib/guard/compat/audit/receipt-auth.mjs';
+import { HostEventLedger } from '../src/lib/host/arcane/host-event-ledger.mjs';
+import { AuthorityInvocationProofIssuer } from '../src/lib/contracts/arcane/authority-invocation-proof.mjs';
+
+const RUN_ID = 'run_01ARZ3NDEKTSV4RRFFQ69G5FAV';
+
+function tempRoot() {
+  const root = mkdtempSync(path.join(tmpdir(), 'arcane-completion-'));
+  return { root, cleanup: () => rmSync(root, { recursive: true, force: true }) };
+}
+
+/** A policy engine whose bundle carries one locked domain over docs/legal/**. */
+function lockedPolicy() {
+  const loaded = loadPolicy({ path: DEFAULT_POLICY_PATH });
+  const bundle = {
+    ...loaded.bundle,
+    lockedDomains: [{ pattern: 'docs/legal/**', claimLevel: 'signoff', note: 'legal copy needs a real check' }],
+  };
+  return new PolicyEngine({ ...loaded, bundle });
+}
+
+function evidenceRecord({ runId = RUN_ID, evidenceClass = 'deterministic', stale = false, strong = true } = {}) {
+  return {
+    schemaVersion: 1,
+    kind: 'legion-evidence-capability-receipt',
+    evidenceId: mintId('evidenceReceipt'),
+    runId,
+    taskId: 'T-1',
+    contractId: 'EC-44',
+    producerAuthority: 'oracle',
+    capability: 'test-run',
+    observation: { exitCode: 0 },
+    evidenceClass,
+    authentication: {
+      issuerIdentity: 'k1',
+      verificationMethod: strong ? 'capability-signature' : 'host-connection-trust',
+      perMessage: strong,
+      verifiedAt: new Date().toISOString(),
+    },
+    replayDefense: { nonce: `n-${Math.random()}`, sequence: 1, freshnessWindowSeconds: 900, freshAt: new Date().toISOString() },
+    sourceRevision: '0123abcdef',
+    dependsOn: [],
+    stale,
+    observedAt: new Date().toISOString(),
+  };
+}
+
+function acceptanceFixture() {
+  const integratedState = { revision: 'integrated-1', tree: 'tree-1' };
+  const registry = new AcceptanceEvidenceRegistry();
+  registry.register({ acceptanceId: 'AC-1', claimType: 'acceptance-surface', producer: 'ci', durableStore: 'receipt-store', verifier: 'oracle', completionConsumer: 'legion', integratedStateBinding: 'git+tree', validityPolicy: 'until-material-change' });
+  return {
+    registry,
+    integratedState,
+    latestMaterialChange: '2026-08-14T11:00:00.000Z',
+    acceptanceProofs: [{ acceptanceId: 'AC-1', producer: 'ci', verifier: 'oracle', completionConsumer: 'legion', authenticated: true, integratedState, observedAt: '2026-08-14T12:00:00.000Z', validUntil: '2026-08-15T12:00:00.000Z' }],
+  };
+}
+
+test('S09: strict completion rejects caller-built acceptance registry/proofs', () => {
+  const { root, cleanup } = tempRoot();
+  try {
+    const policy = lockedPolicy();
+    const receiptStore = new ReceiptStore({ root });
+    receiptStore.append(evidenceRecord());
+    const missing = evaluateCompletion({ runId: RUN_ID, taskId: 'T-1', claimedLevel: 'signoff' }, { policy, receiptStore, requireAcceptanceEvidence: true });
+    assert.equal(missing.code, 'ARC_EVIDENCE_INSUFFICIENT');
+    const evidence = acceptanceFixture();
+    const forged = evaluateCompletion({ runId: RUN_ID, taskId: 'T-1', claimedLevel: 'signoff' }, { policy, receiptStore, evidenceRegistry: evidence.registry, ...evidence, requireAcceptanceEvidence: true, now: new Date('2026-08-14T12:30:00.000Z') });
+    assert.equal(forged.code, 'ARC_EVIDENCE_INSUFFICIENT');
+  } finally { cleanup(); }
+});
+
+test('S09: genuine unlocked Stop requires acceptance evidence; bare non-completion Stop does not', () => {
+  const policy = { lockedDomainsFor: () => [], claimLevel: () => null, evaluateClaimPrerequisites: () => ({ allowed: true, detail: {} }) };
+  const receiptStore = { list: () => [] };
+  const hostEvent = { runId: RUN_ID, taskId: 'T-1' };
+
+  const bare = evaluateHostStop(hostEvent, { policy, receiptStore, authenticatedClaim: false, intent: 'UNKNOWN' });
+  assert.equal(bare.allowed, true);
+  assert.equal(bare.detail.certification, 'not_claimed');
+
+  const missing = evaluateHostStop(hostEvent, { policy, receiptStore, authenticatedClaim: true, intent: 'UNKNOWN' });
+  assert.equal(missing.allowed, false);
+  assert.equal(missing.code, 'ARC_EVIDENCE_INSUFFICIENT');
+
+  const evidence = acceptanceFixture();
+  const forged = evaluateHostStop(hostEvent, { policy, receiptStore, authenticatedClaim: true, intent: 'UNKNOWN', evidenceRegistry: evidence.registry, ...evidence, now: new Date('2026-08-14T12:30:00.000Z') });
+  assert.equal(forged.code, 'ARC_EVIDENCE_INSUFFICIENT');
+});
+
+test('S09: persisted Oracle evidence admits only current exact-state acceptance proof', () => {
+  const { root, cleanup } = tempRoot();
+  try {
+    const receiptStore = new ReceiptStore({ root }); const keyRing = generateTestKeyRing(['k1']);
+    const execution = { runId: RUN_ID, taskId: 'T-1', contractId: 'EC-44', contractVersion: 1, contractDigest: 'sha256:contract-v1', sourceRevision: '0123abcdef', acceptanceCriteria: [{ id: 'AC-1', statement: 'works' }] };
+    const ledger = new HostEventLedger({ root: path.join(root, 'events'), keyRing, keyId: 'k1', clock: () => '2026-08-14T12:00:00.000Z' });
+    const event = ledger.append({ eventId: 'oracle-proof', adapter: 'codex', eventType: 'UserPromptSubmit', sessionId: 'oracle-session', binding: execution, sourceRevision: execution.sourceRevision, observedAuthority: 'oracle', payload: {} });
+    const issuer = new AuthorityInvocationProofIssuer({ root: path.join(root, 'proofs'), keyRing, keyId: 'k1', ledgerStore: ledger, clock: () => '2026-08-14T12:00:00.000Z' });
+    const authorityProof = issuer.issue({ ledger: event, binding: { ...execution, sessionId: 'oracle-session' }, purpose: 'completion-claim', role: 'oracle' }).proof;
+    const integratedState = 'git:tree-1'; const latestMaterialChange = '2026-08-14T11:00:00.000Z';
+    const record = evidenceRecord({});
+    record.producerAuthority = 'oracle'; record.contractId = execution.contractId; record.observedAt = '2026-08-14T12:00:00.000Z';
+    record.observation = { acceptanceId: 'AC-1', requirementId: 'R-1', productionSymbol: 'src/live.mjs#run', liveConsumer: 'cli close', acceptanceSurface: 'node test', integratedState, latestMaterialChange, contractVersion: execution.contractVersion, contractDigest: execution.contractDigest, sourceRevision: execution.sourceRevision, authorityProofDigest: digestValue(authorityProof), validUntil: '2026-08-15T12:00:00.000Z' };
+    record.authentication = signRecord(record, { keyRing, keyId: 'k1', boundFields: EVIDENCE_RECEIPT_BOUND_FIELDS }); receiptStore.append(record);
+    const evidence = loadCompletionEvidence({ receiptStore, keyRing, authorityProofIssuer: issuer, execution, integratedState, latestMaterialChange, now: new Date('2026-08-14T12:01:00.000Z') });
+    assert.equal(evidence.acceptanceProofs.length, 1);
+    const stale = loadCompletionEvidence({ receiptStore, keyRing, authorityProofIssuer: issuer, execution, integratedState, latestMaterialChange: '2026-08-14T13:00:00.000Z' });
+    assert.equal(stale.acceptanceProofs.length, 0, 'material change invalidates old proof');
+    assert.equal(loadCompletionEvidence({ receiptStore, keyRing, authorityProofIssuer: issuer, execution: { ...execution, contractId: 'EC-45' }, integratedState, latestMaterialChange }).acceptanceProofs.length, 0, 'bound receipt cannot be replayed into another contract');
+    assert.equal(loadCompletionEvidence({ receiptStore, keyRing, authorityProofIssuer: issuer, execution: { ...execution, contractVersion: 99, contractDigest: 'sha256:contract-v99' }, integratedState, latestMaterialChange }).acceptanceProofs.length, 0, 'v1 evidence cannot replay into v99');
+    record.observation.authorityProofDigest = 'sha256:' + '0'.repeat(64); record.authentication = signRecord(record, { keyRing, keyId: 'k1', boundFields: EVIDENCE_RECEIPT_BOUND_FIELDS });
+    const forgedStore = new ReceiptStore({ root: path.join(root, 'forged') }); forgedStore.append(record);
+    assert.equal(loadCompletionEvidence({ receiptStore: forgedStore, keyRing, authorityProofIssuer: issuer, execution, integratedState, latestMaterialChange }).acceptanceProofs.length, 0, 'valid receipt MAC cannot substitute a nonexistent Oracle proof');
+  } finally { cleanup(); }
+});
+
+test('S09: an unlocked path is unaffected — only the claimed level is checked', () => {
+  const { root, cleanup } = tempRoot();
+  try {
+    const policy = lockedPolicy();
+    const receiptStore = new ReceiptStore({ root });
+    receiptStore.append(evidenceRecord());
+
+    const d = evaluateCompletion(
+      { runId: RUN_ID, taskId: 'T-1', claimedLevel: 'signoff', touchedPaths: ['src/exact.ts'] },
+      { policy, receiptStore },
+    );
+    assert.equal(d.allowed, true, d.message);
+    assert.deepEqual(d.detail.levelsChecked, ['signoff']);
+    assert.equal(d.detail.lockedDomainMatches.length, 0);
+  } finally {
+    cleanup();
+  }
+});
+
+test('S09: a locked-domain match forces prerequisite evaluation for the locked level', () => {
+  const { root, cleanup } = tempRoot();
+  try {
+    const policy = lockedPolicy();
+    const receiptStore = new ReceiptStore({ root });
+    // No evidence at all -> even though nothing was "claimed" beyond signoff,
+    // the locked domain still forces the signoff check, which now fails.
+    const d = evaluateCompletion(
+      { runId: RUN_ID, taskId: 'T-1', claimedLevel: 'signoff', touchedPaths: ['docs/legal/terms.md'] },
+      { policy, receiptStore },
+    );
+    assert.equal(d.allowed, false);
+    assert.equal(d.code, 'ARC_EVIDENCE_INSUFFICIENT');
+    assert.equal(d.detail.level, 'signoff');
+    assert.equal(d.detail.lockedDomainMatches.length, 1);
+    assert.equal(d.detail.lockedDomainMatches[0].pattern, 'docs/legal/**');
+  } finally {
+    cleanup();
+  }
+});
+
+test('S09: a claim with real receipts passes', () => {
+  const { root, cleanup } = tempRoot();
+  try {
+    const policy = lockedPolicy();
+    const receiptStore = new ReceiptStore({ root });
+    receiptStore.append(evidenceRecord({ evidenceClass: 'deterministic', strong: true }));
+
+    const d = evaluateCompletion(
+      { runId: RUN_ID, taskId: 'T-1', claimedLevel: 'signoff', touchedPaths: ['docs/legal/terms.md'] },
+      { policy, receiptStore },
+    );
+    assert.equal(d.allowed, true, d.message);
+    assert.equal(d.enforcementHealth, 'strong');
+    assert.deepEqual(d.detail.evidenceClasses, ['deterministic']);
+  } finally {
+    cleanup();
+  }
+});
+
+test('S09: a claim with zero matching receipts is refused with ARC_EVIDENCE_INSUFFICIENT', () => {
+  const { root, cleanup } = tempRoot();
+  try {
+    const policy = lockedPolicy();
+    const receiptStore = new ReceiptStore({ root });
+    // Evidence exists, but for a DIFFERENT run — list({runId}) must not pick it up.
+    receiptStore.append(evidenceRecord({ runId: 'run_00000000000000000000000000' }));
+
+    const d = evaluateCompletion(
+      { runId: RUN_ID, taskId: 'T-1', claimedLevel: 'signoff', touchedPaths: [] },
+      { policy, receiptStore },
+    );
+    assert.equal(d.allowed, false);
+    assert.equal(d.code, 'ARC_EVIDENCE_INSUFFICIENT');
+    assert.deepEqual(d.detail.missingClasses, ['deterministic']);
+  } finally {
+    cleanup();
+  }
+});
+
+test('S09: enforcementHealth is derived from receipts, never from a caller-asserted field', () => {
+  const { root, cleanup } = tempRoot();
+  try {
+    const policy = lockedPolicy();
+    const receiptStore = new ReceiptStore({ root });
+    // Weakly-authenticated evidence -> enforcementHealth caps at read_only,
+    // which fails signoff's requiredEnforcement:'strong' even though the
+    // caller could try to assert 'strong' itself (and evaluateCompletion
+    // accepts no such argument at all).
+    receiptStore.append(evidenceRecord({ strong: false }));
+
+    const d = evaluateCompletion(
+      { runId: RUN_ID, taskId: 'T-1', claimedLevel: 'signoff', touchedPaths: [] },
+      { policy, receiptStore },
+    );
+    assert.equal(d.allowed, false);
+    assert.equal(d.code, 'ARC_CLAIM_PREREQUISITE_UNMET');
+    assert.equal(d.detail.required, 'strong');
+    assert.equal(d.detail.actual, 'read_only');
+  } finally {
+    cleanup();
+  }
+});
+
+// The shipped bundle's real `lockedDomains` — until now this was only ever
+// exercised with an empty array (`lockedPolicy()` above swaps in a synthetic
+// one). These tests run the ACTUAL policy/arcane-policy-v1.json end-to-end
+// through evaluateCompletion, so populating lockedDomains is proven to bite.
+
+function realPolicy() {
+  const loaded = loadPolicy({ path: DEFAULT_POLICY_PATH });
+  return new PolicyEngine(loaded);
+}
+
+test('S09 (real bundle): a completion claim touching the enforcement plane without evidence is refused', () => {
+  const { root, cleanup } = tempRoot();
+  try {
+    const policy = realPolicy();
+    const receiptStore = new ReceiptStore({ root });
+    // No receipts at all for this run.
+    const d = evaluateCompletion(
+      // Claim a level the locked domain does NOT require, so the union's
+      // extra member (highRisk, forced by the locked path) is what's under
+      // test, not the claimed level itself. signoff is checked first in
+      // iteration order and would also fail on zero evidence, so claim
+      // 'release' here and assert the locked highRisk match is present.
+      { runId: RUN_ID, taskId: 'T-1', claimedLevel: 'release', touchedPaths: ['tools/rhook/hook.js'] },
+      { policy, receiptStore },
+    );
+    assert.equal(d.allowed, false);
+    assert.equal(d.detail.lockedDomainMatches.length, 1);
+    assert.equal(d.detail.lockedDomainMatches[0].pattern, 'tools/rhook/**');
+    assert.equal(d.detail.lockedDomainMatches[0].claimLevel, 'highRisk');
+    assert.ok(['release', 'highRisk'].includes(d.detail.level));
+  } finally {
+    cleanup();
+  }
+});
+
+test('S09 (real bundle): a completion claim touching canonical Guard compatibility without evidence is refused', () => {
+  const { root, cleanup } = tempRoot();
+  try {
+    const policy = realPolicy();
+    const receiptStore = new ReceiptStore({ root });
+    const d = evaluateCompletion(
+      { runId: RUN_ID, taskId: 'T-1', claimedLevel: 'release', touchedPaths: ['legion/src/lib/guard/compat/policy/policy.mjs'] },
+      { policy, receiptStore },
+    );
+    assert.equal(d.allowed, false);
+    assert.equal(d.detail.lockedDomainMatches[0].pattern, 'legion/src/lib/guard/**');
+    assert.equal(d.detail.lockedDomainMatches[0].claimLevel, 'highRisk');
+  } finally {
+    cleanup();
+  }
+});
+
+test('S09 (real bundle): a completion claim touching sealed qualification evidence without a receipt is refused, and with proper receipts passes', () => {
+  const { root, cleanup } = tempRoot();
+  try {
+    const policy = realPolicy();
+    const receiptStore = new ReceiptStore({ root });
+
+    const denied = evaluateCompletion(
+      { runId: RUN_ID, taskId: 'T-1', claimedLevel: 'signoff', touchedPaths: ['legion/qualification/book-1.json'] },
+      { policy, receiptStore },
+    );
+    assert.equal(denied.allowed, false);
+    assert.equal(denied.code, 'ARC_EVIDENCE_INSUFFICIENT');
+    assert.equal(denied.detail.level, 'signoff');
+    assert.equal(denied.detail.lockedDomainMatches[0].pattern, 'legion/qualification/**');
+
+    receiptStore.append(evidenceRecord({ evidenceClass: 'deterministic', strong: true }));
+    const allowed = evaluateCompletion(
+      { runId: RUN_ID, taskId: 'T-1', claimedLevel: 'signoff', touchedPaths: ['legion/qualification/book-1.json'] },
+      { policy, receiptStore },
+    );
+    assert.equal(allowed.allowed, true, allowed.message);
+    assert.equal(allowed.enforcementHealth, 'strong');
+  } finally {
+    cleanup();
+  }
+});
+
+test('S09 (real bundle): an unrelated path (e.g. a docs file) forces no locked-domain prerequisite', () => {
+  const { root, cleanup } = tempRoot();
+  try {
+    const policy = realPolicy();
+    const receiptStore = new ReceiptStore({ root });
+    const d = evaluateCompletion(
+      { runId: RUN_ID, taskId: 'T-1', claimedLevel: 'signoff', touchedPaths: ['docs/README.md'] },
+      { policy, receiptStore },
+    );
+    // No locked-domain match at all; still fails on signoff itself (no
+    // evidence recorded), but for the ordinary reason, not a locked one.
+    assert.equal(d.detail.lockedDomainMatches.length, 0);
+  } finally {
+    cleanup();
+  }
+});
+
+test('S09: with no claimed level, a locked-domain touch still forces that domain\'s level', () => {
+  const { root, cleanup } = tempRoot();
+  try {
+    const policy = lockedPolicy();
+    const receiptStore = new ReceiptStore({ root }); // no evidence at all
+    const d = evaluateCompletion(
+      { runId: RUN_ID, taskId: 'T-1', claimedLevel: null, touchedPaths: ['docs/legal/terms.md'] },
+      { policy, receiptStore },
+    );
+    assert.equal(d.allowed, false);
+    assert.equal(d.detail.level, 'signoff');
+    assert.equal(d.detail.lockedDomainMatches.length, 1);
+  } finally {
+    cleanup();
+  }
+});
+
+test('S09: with no claimed level and no locked-domain touch, there is nothing to certify', () => {
+  const { root, cleanup } = tempRoot();
+  try {
+    const policy = lockedPolicy();
+    const receiptStore = new ReceiptStore({ root });
+    const d = evaluateCompletion(
+      { runId: RUN_ID, taskId: 'T-1', claimedLevel: null, touchedPaths: ['src/app.mjs'] },
+      { policy, receiptStore },
+    );
+    assert.equal(d.allowed, true);
+    assert.deepEqual(d.detail.levelsChecked, []);
+  } finally {
+    cleanup();
+  }
+});

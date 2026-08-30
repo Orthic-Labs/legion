@@ -13,7 +13,7 @@
     "legacyKind": {
       "type": "string",
       "minLength": 1,
-      "description": "Identifies a historical Forge record family wrapped for compatibility. Current mapping provenance lives under src/packages/arcane/compatibility/forge/."
+      "description": "Identifies a historical Forge record family wrapped for compatibility. Current mapping provenance lives under src/lib/host/arcane-compatibility/forge/."
     },
     "payload": {
       "description": "Opaque legacy payload, preserved byte-for-byte in structure. Intentionally unconstrained (no additionalProperties restriction) since its shape belongs to the legacy producer, not to this contract. For provenance.legacyInventoryRecordType == 'orthic.tool-receipt.v1', see the S00 report's explicit warning: the payload's 'signature_or_mac' field is a self-hash by the same untrusted process that built the receipt, not authentication — do not treat a non-null payload.signature_or_mac as proof of anything beyond payload integrity-at-capture."
@@ -29,7 +29,7 @@
         "importedBy": { "type": ["string", "null"], "description": "Identity of the translator/adapter that produced this envelope." },
         "legacyInventoryRef": {
           "type": "string",
-          "default": "src/packages/arcane/compatibility/forge/schema-map.json",
+          "default": "src/lib/host/arcane-compatibility/forge/schema-map.json",
           "description": "Path to the S00 inventory document that defines legacyKind's original field list, status vocabulary, and store mechanics. Reference target, not a shape to duplicate here."
         },
         "legacyInventoryRecordType": {

@@ -168,13 +168,13 @@
     },
     "legion-hook": {
       "kind": "lifecycle-hook",
-      "summary": "The Arcane effect gate binary invoked by every event in hooks/hooks.json.",
-      "degradation": "Fails open and silently: the host treats an unresolvable hook command as a non-blocking error, so every Arcane gate stops running with no operator-visible signal and no receipt is recorded.",
+      "summary": "The Guard effect-gate binary invoked by every event in hooks/hooks.json.",
+      "degradation": "Fails open and silently: the host treats an unresolvable hook command as a non-blocking error, so every Guard gate stops running with no operator-visible signal and no effect-decision receipt is recorded.",
       "probe": {
         "kind": "command",
         "command": "legion-hook"
       },
-      "remedy": "Install the Legion native release so `legion-hook` is on PATH. Until then Arcane enforcement is absent, not degraded."
+      "remedy": "Install the Legion native release so `legion-hook` is on PATH. Until then Guard enforcement is absent, not degraded."
     }
   }
 }

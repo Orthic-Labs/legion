@@ -1,7 +1,7 @@
 import {readdir,readFile}from'node:fs/promises';
 import { mkdirSync, renameSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
-import { compilePolicyFiles, PolicyRuleCompileError, renderPolicy } from '../../../packages/arcane/lib/policy-compiler.mjs';
+import { compilePolicyFiles, PolicyRuleCompileError, renderPolicy } from '../../guard/compat/rules/policy-compiler.mjs';
 async function files(url){const entries=await readdir(url,{withFileTypes:true});return(await Promise.all(entries.map((entry)=>entry.isDirectory()?files(new URL(`${entry.name}/`,url)):entry.name.endsWith('.json')?[new URL(entry.name,url)]:[]))).flat();}
 async function packagedRules(){const rows=[];for(const url of await files(new URL('../../../registry/rules/',import.meta.url))){const value=JSON.parse(await readFile(url,'utf8'));for(const rule of value.rules??[])rows.push(rule.id??rule);}return[...new Set(rows)].sort();}
 function compileArgs(argv) {

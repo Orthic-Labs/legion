@@ -4,11 +4,11 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
 
-import { AuthorityBindingStore } from '../../../../packages/arcane/lib/authority-binding-store.mjs';
-import { digestValue } from '../../../../packages/arcane/lib/canonical.mjs';
-import { fingerprintFinding, upsertFinding } from '../../../../packages/arcane/lib/finding-lifecycle.mjs';
-import { generateTestKeyRing } from '../../../../packages/arcane/lib/keys.mjs';
-import { ReceiptStore } from '../../../../packages/arcane/lib/receipt-store.mjs';
+import { AuthorityBindingStore } from '../../../contracts/arcane/authority-binding-store.mjs';
+import { digestValue } from '../../../contracts/arcane/canonical.mjs';
+import { fingerprintFinding, upsertFinding } from './judgment/finding-lifecycle.mjs';
+import { generateTestKeyRing } from '../../../guard/compat/host/keys.mjs';
+import { ReceiptStore } from '../../../guard/compat/audit/receipt-store.mjs';
 import { createJudgmentControlCapability, dispatchGovernanceJudgment, runGovernanceJudgment } from './judgment.mjs';
 
 function durableFindingStore(backing) {

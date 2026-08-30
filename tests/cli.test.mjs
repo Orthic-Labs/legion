@@ -10,21 +10,21 @@ import { EXIT, exitCodeForReport } from '../src/lib/errors.mjs';
 import { LEGION_VERSION } from '../src/lib/version.mjs';
 import { runCli as runCliRaw } from '../src/lib/cli/run.mjs';
 import { runRun as runRunRaw } from '../src/lib/cli/commands/run.mjs';
-import { b5Contract, seedStore } from '../src/packages/arcane/tests/fixtures/runtime-binding-contract.mjs';
-import { ReceiptStore } from '../src/packages/arcane/lib/receipt-store.mjs';
-import { SessionBindingStore } from '../src/packages/arcane/lib/session-binding.mjs';
-import { loadHostKeyRing } from '../src/packages/arcane/lib/keys.mjs';
-import { digestValue } from '../src/packages/arcane/lib/canonical.mjs';
-import { signRecord, EVIDENCE_RECEIPT_BOUND_FIELDS } from '../src/packages/arcane/lib/receipt-auth.mjs';
-import { BudgetGovernanceStore, BUDGET_BOUND_FIELDS } from '../src/packages/arcane/lib/budget-governance-store.mjs';
-import { TaskBudgetSealStore } from '../src/packages/arcane/lib/task-budget-seal-store.mjs';
-import { mintId } from '../src/packages/arcane/lib/ids.mjs';
-import { completionIntegratedStateForRepositories, latestScopedMaterialChange } from '../src/packages/arcane/lib/completion-state.mjs';
-import { loadCompletionEvidence } from '../src/packages/arcane/lib/completion-evidence.mjs';
-import { evaluateCompletion } from '../src/packages/arcane/lib/completion-gate.mjs';
-import { loadPolicy, PolicyEngine } from '../src/packages/arcane/lib/policy.mjs';
-import { HostEventLedger } from '../src/packages/arcane/lib/host-event-ledger.mjs';
-import { AuthorityInvocationProofIssuer } from '../src/packages/arcane/lib/authority-invocation-proof.mjs';
+import { b5Contract, seedStore } from './fixtures/arcane-package/runtime-binding-contract.mjs';
+import { ReceiptStore } from '../src/lib/guard/compat/audit/receipt-store.mjs';
+import { SessionBindingStore } from '../src/lib/host/arcane/session-binding.mjs';
+import { loadHostKeyRing } from '../src/lib/guard/compat/host/keys.mjs';
+import { digestValue } from '../src/lib/contracts/arcane/canonical.mjs';
+import { signRecord, EVIDENCE_RECEIPT_BOUND_FIELDS } from '../src/lib/guard/compat/audit/receipt-auth.mjs';
+import { BudgetGovernanceStore, BUDGET_BOUND_FIELDS } from '../src/lib/cli/commands/governance/execution/budget-governance-store.mjs';
+import { TaskBudgetSealStore } from '../src/lib/cli/commands/governance/execution/task-budget-seal-store.mjs';
+import { mintId } from '../src/lib/contracts/arcane/ids.mjs';
+import { completionIntegratedStateForRepositories, latestScopedMaterialChange } from '../src/lib/verification/arcane/completion-state.mjs';
+import { loadCompletionEvidence } from '../src/lib/verification/arcane/completion-evidence.mjs';
+import { evaluateCompletion } from '../src/lib/verification/arcane/completion-gate.mjs';
+import { loadPolicy, PolicyEngine } from '../src/lib/guard/compat/policy/policy.mjs';
+import { HostEventLedger } from '../src/lib/host/arcane/host-event-ledger.mjs';
+import { AuthorityInvocationProofIssuer } from '../src/lib/contracts/arcane/authority-invocation-proof.mjs';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
 const BIN = fileURLToPath(new URL('../src/bin/legion.mjs', import.meta.url));
@@ -173,8 +173,8 @@ test('runCli returns structured results with injected streams', async () => {
 test('rules compile previews and atomically writes a policy', () => {
   const dir = mkdtempSync(join(tmpdir(), 'legion-rules-'));
   try {
-    const source = join(root, 'src', 'packages', 'arcane', 'policy', 'arcane-policy-v1.rules');
-    const base = join(root, 'src', 'packages', 'arcane', 'policy', 'arcane-policy-v1.json');
+    const source = join(root, 'src', 'lib', 'guard', 'compat', 'rules', 'arcane-policy-v1.rules');
+    const base = join(root, 'src', 'lib', 'guard', 'compat', 'policy', 'arcane-policy-v1.json');
     const preview = capture(['rules', 'compile', source, '--base', base]);
     assert.equal(preview.exitCode, EXIT.PASS, preview.stderr);
     assert.deepEqual(JSON.parse(preview.stdout).effectRules, JSON.parse(readFileSync(base, 'utf8')).effectRules);

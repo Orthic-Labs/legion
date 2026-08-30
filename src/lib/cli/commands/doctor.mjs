@@ -5,7 +5,7 @@ import { EXIT } from '../../errors.mjs';
 import { loadProviderRegistry } from '../../../registry/provider-registry.mjs';
 import { MembraneAdapter } from '../../adapters/membrane/index.mjs';
 import { computeBindingSection } from './bind/drift.mjs';
-import { runSemanticHealth } from '../../../packages/arcane/lib/semantic-health.mjs';
+import { runSemanticHealth } from '../../verification/arcane/semantic-health.mjs';
 import { checkCanonicalNames } from '../../naming/check.mjs';
 import { inspectMcpNaming } from '../../naming/migrations.mjs';
 
@@ -99,7 +99,7 @@ export async function runDoctor(argv, { stdout, stderr, env, cwd, host }) {
       ...(!freshness.fresh ? [{ kind: 'blueprint-stale', detail: freshness.reason ?? null }] : []),
       ...(compatible.ok ? [] : [{ kind: 'membrane-incompatible', detail: compatible.error }]),
       ...(!arcaneSemanticHealth.healthy ? [{ kind: 'arcane-semantic-health-unhealthy', detail: arcaneSemanticHealth.probes.filter((probe) => !probe.ok).map((probe) => ({ id: probe.id, error: probe.error })) }] : []),
-      ...(hostSection.arcane.codexHookTrust.state === 'ARC_HOOK_TRUST_REQUIRED' ? [{ kind: 'arcane-hook-trust-required', code: 'ARC_HOOK_TRUST_REQUIRED', detail: hostSection.arcane.codexHookTrust.missing }] : []),
+      ...(hostSection.guard.codexHookTrust.state === 'ARC_HOOK_TRUST_REQUIRED' ? [{ kind: 'guard-hook-trust-required', code: 'ARC_HOOK_TRUST_REQUIRED', detail: hostSection.guard.codexHookTrust.missing }] : []),
       ...(naming.status === 'pass' ? [] : [{ kind: 'naming-contract-failed', detail: naming.unclassified }]),
       ...(namingBindingsHealthy(namingBindingState) ? [] : [{ kind: 'naming-migration-pending', detail: namingBindingState }]),
     ],
@@ -108,7 +108,7 @@ export async function runDoctor(argv, { stdout, stderr, env, cwd, host }) {
       ...(!env.AUDIT_NETWORK_GUARD ? ['Set AUDIT_NETWORK_GUARD=active for project-executing providers.'] : []),
       ...(!env.AUDIT_PLAN_SIGNING_KEY ? ['Set AUDIT_PLAN_SIGNING_KEY to sign the frozen plan.'] : []),
       ...(!arcaneSemanticHealth.healthy ? ['Run legion doctor after repairing the failing Arcane semantic probe.'] : []),
-      ...(hostSection.arcane.codexHookTrust.state === 'ARC_HOOK_TRUST_REQUIRED' ? ['Open Codex /hooks & trust the current Arcane hook definitions, then rerun legion doctor.'] : []),
+      ...(hostSection.guard.codexHookTrust.state === 'ARC_HOOK_TRUST_REQUIRED' ? ['Open Codex /hooks & trust current Guard hook definitions, then rerun legion doctor.'] : []),
       ...(naming.status === 'pass' ? [] : ['Run pnpm naming:check after repairing unclassified legacy names.']),
       ...(namingBindingsHealthy(namingBindingState) ? [] : ['Run legion bind --write after reviewing reported legacy or conflicting MCP bindings.']),
     ],

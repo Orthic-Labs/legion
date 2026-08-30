@@ -5,7 +5,7 @@ import { readFileSync, readdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { executeStage9Fixtures, stage9ProbeFor } from '../src/packages/arcane/lib/s09-runtime-executor.mjs';
+import { executeStage9Fixtures, stage9ProbeFor } from '../src/lib/verification/arcane/s09-runtime-executor.mjs';
 
 const root = dirname(dirname(fileURLToPath(import.meta.url)));
 const corpus = join(root, 'src', 'evals', 'architecture');

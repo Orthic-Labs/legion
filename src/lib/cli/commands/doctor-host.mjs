@@ -51,7 +51,7 @@ export function codexHookTrust(home = homedir()) {
     trusted: [...trusted].sort(),
     missing,
     state: missing.length === 0 ? 'pass' : 'ARC_HOOK_TRUST_REQUIRED',
-    remediation: missing.length === 0 ? null : 'Review & trust current Arcane hooks with Codex /hooks; setup never manufactures trusted_hash.',
+    remediation: missing.length === 0 ? null : 'Review & trust current Guard hooks (legacy plugin identity arcane@local-brief) with Codex /hooks; setup never manufactures trusted_hash.',
   };
 }
 
@@ -159,8 +159,8 @@ function fidelity(root) {
   };
 }
 
-/** Arcane runtime health: keys present, and which effects the hooks can actually gate. */
-function arcaneHostHealth(root, home) {
+/** Guard runtime health. `arcane-*` paths remain legacy implementation identities. */
+function guardHostHealth(root, home) {
   const keyDirs = [join(home, '.claude', 'arcane-keys'), join(home, '.codex', 'arcane-keys')];
   const canonicalKeyDir = join(home, '.codex', 'arcane-keys');
   const canonicalKeyIds = (() => {
@@ -250,6 +250,6 @@ export function computeHostSection(root, { home = homedir() } = {}) {
     // installs). This is the runtime view of what host-projection.json records.
     harnessAdapters: harnessAdaptersSection(root),
     hostRequirements: hostRequirementHealth(root),
-    arcane: arcaneHostHealth(root, home),
+    guard: guardHostHealth(root, home),
   };
 }

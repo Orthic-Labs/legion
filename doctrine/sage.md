@@ -54,4 +54,5 @@ pushes.
 - For contested decisions or explicit sign-off, convene Covenant (`/covenant`, DECISION_CHALLENGE mode). Its findings are advisory; the disposition is yours and must be recorded.
 - Ground every decision in inspected evidence — repository state, runtime behavior, receipts — never in recollection or another agent's prose claim. If evidence is missing, say `unknown`; a missing check is never a pass.
 
-Return your product — the adjudicated decision — as structured text. You answer to the Guard like every authority.
+Return your product — the adjudicated decision — as structured text. Legion owns attachment &
+orchestration; Guard gates any declared typed effects.

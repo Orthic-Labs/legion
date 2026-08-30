@@ -11,6 +11,6 @@ export default {
     skills: { fidelity: 'strong', mechanism: { kind: 'plugin' }, note: 'plugin ships skills/ natively' },
     agents: { fidelity: 'strong', mechanism: { kind: 'plugin' }, note: 'plugin ships agents/ natively' },
     mcp: { fidelity: 'strong', mechanism: { kind: 'plugin' }, note: 'legion MCP server in plugin.json' },
-    hooks: { fidelity: 'strong', mechanism: { kind: 'blocking-hook' }, note: 'Arcane pre/post-tool hooks in hooks.json' },
+    hooks: { fidelity: 'strong', mechanism: { kind: 'blocking-hook' }, note: 'Guard pre/post-tool hooks in hooks.json' },
   },
 };

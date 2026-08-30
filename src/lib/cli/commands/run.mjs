@@ -28,20 +28,20 @@ import { execFileSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, renameSync, unlinkSync, writeFileSync } from 'node:fs';
 
 import { EXIT, LegionError } from '../../errors.mjs';
-import { isId } from '../../../packages/arcane/lib/ids.mjs';
-import { SessionBindingStore } from '../../../packages/arcane/lib/session-binding.mjs';
-import { ContractSealStore } from '../../../packages/arcane/lib/contract-seal-store.mjs';
-import { ContractLifecycle } from '../../../packages/arcane/lib/contract-lifecycle.mjs';
-import { loadHostKeyRing } from '../../../packages/arcane/lib/keys.mjs';
-import { ReceiptStore } from '../../../packages/arcane/lib/receipt-store.mjs';
-import { evaluateCompletion } from '../../../packages/arcane/lib/completion-gate.mjs';
-import { loadPolicy, PolicyEngine } from '../../../packages/arcane/lib/policy.mjs';
-import { authoritiesAbsent, finalizeClose, openDelivery, prepareClose, validateDeliveryAuthority, validateDeliveryReuse } from '../../../packages/arcane/lib/delivery-guard.mjs';
-import { BudgetGovernanceStore } from '../../../packages/arcane/lib/budget-governance-store.mjs';
-import { TaskBudgetSealStore } from '../../../packages/arcane/lib/task-budget-seal-store.mjs';
-import { completionIntegratedStateForRepositories, latestScopedMaterialChange } from '../../../packages/arcane/lib/completion-state.mjs';
-import { HostEventLedger } from '../../../packages/arcane/lib/host-event-ledger.mjs';
-import { AuthorityInvocationProofIssuer } from '../../../packages/arcane/lib/authority-invocation-proof.mjs';
+import { isId } from '../../contracts/arcane/ids.mjs';
+import { SessionBindingStore } from '../../host/arcane/session-binding.mjs';
+import { ContractSealStore } from './governance/delivery/contract-seal-store.mjs';
+import { ContractLifecycle } from './governance/delivery/contract-lifecycle.mjs';
+import { loadHostKeyRing } from '../../guard/compat/host/keys.mjs';
+import { ReceiptStore } from '../../guard/compat/audit/receipt-store.mjs';
+import { evaluateCompletion } from '../../verification/arcane/completion-gate.mjs';
+import { loadPolicy, PolicyEngine } from '../../guard/compat/policy/policy.mjs';
+import { authoritiesAbsent, finalizeClose, openDelivery, prepareClose, validateDeliveryAuthority, validateDeliveryReuse } from './governance/delivery/delivery-guard.mjs';
+import { BudgetGovernanceStore } from './governance/execution/budget-governance-store.mjs';
+import { TaskBudgetSealStore } from './governance/execution/task-budget-seal-store.mjs';
+import { completionIntegratedStateForRepositories, latestScopedMaterialChange } from '../../verification/arcane/completion-state.mjs';
+import { HostEventLedger } from '../../host/arcane/host-event-ledger.mjs';
+import { AuthorityInvocationProofIssuer } from '../../contracts/arcane/authority-invocation-proof.mjs';
 
 /** Workspace-relative, matching lib/session-binding.mjs's own contract
  * (`<workspace>/.audit/arcane/session-bindings/`) — bindings are per-checkout

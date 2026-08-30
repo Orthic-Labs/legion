@@ -5,8 +5,8 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
 
-import { executeStage9Fixtures, stage9ProbeFor } from '../src/packages/arcane/lib/s09-runtime-executor.mjs';
-import { capabilityIssuanceAudit } from '../src/packages/arcane/lib/policy.mjs';
+import { executeStage9Fixtures, stage9ProbeFor } from '../src/lib/verification/arcane/s09-runtime-executor.mjs';
+import { capabilityIssuanceAudit } from '../src/lib/guard/compat/policy/policy.mjs';
 
 const root = join(import.meta.dirname, '..');
 const corpus = join(root, 'src', 'evals', 'architecture');

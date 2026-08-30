@@ -3,7 +3,7 @@
   "name": "legion",
   "version": "0.2.0",
   "displayName": "Legion",
-  "description": "The Legion authority system: Legion orchestrates, Sage decides, Alchemist transforms, Oracle assures, Arcane gates every effect. Installs the full-fidelity Claude Code binding \u2014 agents, the /covenant skill, Arcane's pre/post-tool hooks, and the legion MCP server.",
+  "description": "Legion orchestrates capability selection & authority attachment; Sage adjudicates exceptional unresolved decisions, Alchemist performs controlled transformations, Oracle independently assures, Arcane shapes cognitive processing & response policy, & Guard gates typed effects. Installs full-fidelity Claude Code binding \u2014 agents, /covenant skill, Guard pre/post-tool hooks, & legion MCP server.",
   "author": {
     "name": "Orthic Labs"
   },

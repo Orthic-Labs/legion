@@ -3,7 +3,7 @@ import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import test from 'node:test';
 
-import { executeArchitectureRuntimeCases, runtimePolicyIds } from '../src/packages/arcane/lib/s11-runtime-executor.mjs';
+import { executeArchitectureRuntimeCases, runtimePolicyIds } from '../src/lib/verification/arcane/s11-runtime-executor.mjs';
 
 const root = join(import.meta.dirname, '..');
 const corpus = join(root, 'src', 'evals', 'architecture');

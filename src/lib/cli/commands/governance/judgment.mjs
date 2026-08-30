@@ -3,17 +3,17 @@ import { parseArgs } from 'node:util';
 import { EXIT, LegionError } from '../../../errors.mjs';
 import {
   applyScopedRecheck, filterFindingsByThreshold, verifyFindingClosure,
-} from '../../../../packages/arcane/lib/finding-lifecycle.mjs';
+} from './judgment/finding-lifecycle.mjs';
 import {
   acknowledgeDownstreamDeficits, classifyAcceptanceDeficits,
   convertDeficitsToDebt, evaluateOutcomeClosure,
-} from '../../../../packages/arcane/lib/deficit-governance.mjs';
+} from './judgment/deficit-governance.mjs';
 import {
   findCurrentAdvisoryJudgment, persistAdvisoryJudgment,
-} from '../../../../packages/arcane/lib/advisory-judgment.mjs';
+} from './judgment/advisory-judgment.mjs';
 import {
   consumeCurrentUserScopeAmendment, verifyCurrentUserScopeAmendment,
-} from '../../../../packages/arcane/lib/current-user-scope-amendment.mjs';
+} from './judgment/current-user-scope-amendment.mjs';
 
 const capabilities = new WeakMap();
 const invalid = (message) => { throw new LegionError(message, { code: 'USAGE', exitCode: EXIT.USAGE }); };

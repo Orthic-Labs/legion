@@ -5,7 +5,7 @@ import { readFileSync, readdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { executeArchitectureRuntimeCases } from '../src/packages/arcane/lib/s11-runtime-executor.mjs';
+import { executeArchitectureRuntimeCases } from '../src/lib/verification/arcane/s11-runtime-executor.mjs';
 
 const root = dirname(dirname(fileURLToPath(import.meta.url)));
 const corpusRoot = join(root, 'src', 'evals', 'architecture');

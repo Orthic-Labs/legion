@@ -10,6 +10,7 @@ pub const RESPONSE_KIND: &str = "legion-hook-response";
 pub const SUPPORTED_EVENT_TYPES: &[&str] = &[
     "SessionStart",
     "SubagentStart",
+    "SubagentStop",
     "UserPromptSubmit",
     "PostCompact",
     "PreToolUse",
@@ -18,6 +19,7 @@ pub const SUPPORTED_EVENT_TYPES: &[&str] = &[
     "Stop",
     "session-start",
     "subagent-start",
+    "subagent-stop",
     "user-prompt-submit",
     "post-compact",
     "pre-effect",
@@ -128,11 +130,13 @@ impl HookRequest {
             self.event_type.as_str(),
             "SessionStart"
                 | "SubagentStart"
+                | "SubagentStop"
                 | "UserPromptSubmit"
                 | "PostCompact"
                 | "Stop"
                 | "session-start"
                 | "subagent-start"
+                | "subagent-stop"
                 | "user-prompt-submit"
                 | "post-compact"
                 | "stop"
@@ -261,5 +265,14 @@ mod tests {
         let request = HookRequest::parse(br#"{"eventType":"unknown","payload":{}}"#)
             .expect("frame shape is valid");
         assert!(request.validate().is_err());
+    }
+
+    #[test]
+    fn subagent_stop_is_a_valid_observation_event() {
+        let request = HookRequest::parse(br#"{"eventType":"SubagentStop","payload":{}}"#)
+            .expect("frame shape is valid");
+        request.validate().expect("SubagentStop is registered");
+        assert!(request.is_lifecycle());
+        assert!(!request.is_pre_effect());
     }
 }

@@ -1,5 +1,5 @@
 // The stop-shape gate: a turn may end only on completed work or a stated
-// reserved blocker. See src/packages/arcane/lib/stop-shape.mjs for the two production failure
+// reserved blocker. See src/lib/cognitive/arcane/stop-shape.mjs for the two production failure
 // modes these tests pin against (format-grinding a correctly blocked agent,
 // and blocking forever).
 import assert from 'node:assert/strict';
@@ -16,7 +16,7 @@ import {
   toolDenialMatch,
   toolUseAfterLastUser,
   workLeftStuck,
-} from '../src/packages/arcane/lib/stop-shape.mjs';
+} from '../src/lib/cognitive/arcane/stop-shape.mjs';
 
 test('permission questions block', () => {
   for (const ending of [

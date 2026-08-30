@@ -116,8 +116,8 @@ export function buildProjection(root = ROOT) {
     hostCapabilities,
     referenceClasses: Object.keys(registry.classes ?? {}).sort(),
     // Fidelity must be true, not aspirational. A harness with no
-    // hook mechanism declares Arcane `unsupported`; it does not claim `strong`
-    // because doctrine says Arcane gates every effect. These values describe
+    // hook mechanism declares Guard enforcement `unsupported`; it does not
+    // claim `strong`. These values describe
     // what the repository actually ships today and are corrected as native
     // projections land, never rounded up.
     // Derived from src/lib/host/registry.mjs. The projection reports the four
@@ -139,7 +139,7 @@ function harnessFidelity() {
       skillDiscovery: caps.surfaces.skills.fidelity,
       authorityAgents: caps.surfaces.agents.fidelity,
       mcp: caps.surfaces.mcp.fidelity,
-      arcaneEnforcement: caps.surfaces.hooks.fidelity,
+      guardEnforcement: caps.surfaces.hooks.fidelity,
     },
     mechanisms: Object.fromEntries(Object.entries(caps.surfaces).map(([k, v]) => [k, v.mechanism?.kind ?? 'none'])),
   }));
@@ -155,7 +155,7 @@ export function renderHarnessSupport(projection) {
     '|---|---|---|---|---|---|---|---|---|',
   ];
   for (const harness of projection.harnesses) {
-    lines.push(`| ${harness.id} | ${harness.installOwner} | ${harness.fidelity.instructions} | ${harness.fidelity.skillDiscovery} | ${harness.fidelity.authorityAgents} | ${harness.fidelity.mcp} | ${harness.fidelity.arcaneEnforcement} | ${harness.mechanisms.skills} | ${harness.mechanisms.mcp} |`);
+    lines.push(`| ${harness.id} | ${harness.installOwner} | ${harness.fidelity.instructions} | ${harness.fidelity.skillDiscovery} | ${harness.fidelity.authorityAgents} | ${harness.fidelity.mcp} | ${harness.fidelity.guardEnforcement} | ${harness.mechanisms.skills} | ${harness.mechanisms.mcp} |`);
   }
   return `${lines.join('\n')}\n`;
 }

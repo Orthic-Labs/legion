@@ -28,7 +28,7 @@ const SESSION_START_CONTEXT: &str = r#"BRIEF: Lead with the answer; omit preambl
 
 MINIMIZE: Freeze verified state A, verified state B, and hard constraints. Prefer, in order: NOT_BUILD, REUSE, STDLIB, NATIVE, INSTALLED_DEP, ONE_LINE, then MIN_CUSTOM; select the first safe rung. Delete work that cannot change the decision or advance B. Declare every new file and dependency before mutation. Bind decisions and required commit receipts to the exact bytes they describe. A material correction invalidates downstream decisions. Never mistake structural completeness for semantic correctness.
 
-ROUTING: Arcane decides how the request should be processed: retrieve only necessary context, choose direct or deliberate cognition and any grounding, select the relevant Legion capability, attach Sage/Alchemist/Oracle only when its exceptional condition is real, choose model versus deterministic execution, set proportional effects and verification, then shape the final response. Legion owns work decomposition, orchestration, authority attachment, and execution semantics; the deterministic Guard authorizes typed effects. The default route is direct, no-model when exact machinery is sufficient, no authority, and proportional verification. Resolve ordinary reversible requested work directly; reserve escalation for genuinely unresolved meaning, ownership, acceptance, or operator-only input. Before ending, deliver verified work or one exact hard blocker; never end on a permission question, caveat, or future-work promise.
+ROUTING: Arcane decides cognitive processing shape: retrieve only necessary context, choose direct or deliberate cognition and any grounding, choose model versus deterministic execution, set proportional verification, then shape final response. Legion owns capability selection, work decomposition, orchestration, authority attachment, and execution semantics; deterministic Guard authorizes typed effects and records receipts. Default route is direct, no-model when exact machinery is sufficient, no authority, and proportional verification. Resolve ordinary reversible requested work directly; reserve escalation for genuinely unresolved meaning, ownership, acceptance, or operator-only input. Before ending, deliver verified work or one exact hard blocker; never end on a permission question, caveat, or future-work promise.
 
 BOUNDED FALSIFICATION (CHALLENGE PASS): Before committing to a materially assumption-dependent conclusion, Arcane may invoke ONE evidence-directed self-challenge pass that tests the smallest set of decisive assumptions. It must end in KEEP/NARROW/REVISE and may not recursively review itself. This is evidence-seeking, never prose-seeking: generic self-reflection is excluded; inspect decisive evidence, or do not run.
 
@@ -46,30 +46,14 @@ const MAX_STOP_REOPENINGS: u64 = 3;
 /// pre-effect frames must carry enough typed identity to reach native policy.
 pub fn dispatch(request: HookRequest) -> HookResponse {
     let started = Instant::now();
+    let provenance = pinned_session_provenance(&request);
     let response = dispatch_inner(request.clone());
-    emit_route_trace(&request, &response, started.elapsed());
+    emit_route_trace(&request, &response, started.elapsed(), provenance.as_ref());
     response
 }
 
 fn dispatch_inner(request: HookRequest) -> HookResponse {
     let event_type = request.event_type.clone();
-    // SubagentStop is an observation-only host event. Keep it outside the
-    // legacy protocol allow-list until that owner can update the shared wire
-    // contract; it must never reach pre-effect classification.
-    if event_type == "SubagentStop" {
-        if request.schema_version != protocol::SCHEMA_VERSION
-            || request.kind != protocol::REQUEST_KIND
-            || !request.payload.is_object()
-        {
-            return HookResponse::denied(
-                event_type,
-                "ARC_HOST_EVENT_INVALID",
-                "invalid SubagentStop observation",
-                "strong",
-            );
-        }
-        return HookResponse::allowed(event_type, "subagent-stop observation accepted");
-    }
     if let Err(error) = request.validate() {
         return response_for_error(event_type, error);
     }
@@ -129,17 +113,19 @@ fn dispatch_inner(request: HookRequest) -> HookResponse {
 
     let application = match native_application() {
         Ok(application) => application,
-        Err(_) => {
-            return HookResponse::denied(
-                request.event_type,
-                "ARC_NATIVE_POLICY_UNAVAILABLE",
-                "native policy configuration is unavailable",
-                "strong",
-            )
-        }
+        Err(_) => return policy_unavailable_response(request.event_type),
     };
 
     authorize_effect(request.event_type, &effect, &application)
+}
+
+fn policy_unavailable_response(event_type: String) -> HookResponse {
+    HookResponse::denied(
+        event_type,
+        "ARC_NATIVE_POLICY_UNAVAILABLE",
+        "native policy configuration is unavailable",
+        "unsupported",
+    )
 }
 
 /// Stop is an Arcane-owned postflight delivered through the Guard event. The
@@ -1362,6 +1348,167 @@ fn read_request() -> Result<Vec<u8>, HookError> {
 
 const MAX_TRACE_FILE_BYTES: u64 = 2 * 1024 * 1024;
 const TRACE_FILE_NAME: &str = "route-outcome-trace.v1.jsonl";
+const SESSION_PROVENANCE_DIRECTORY: &str = "session-provenance";
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+struct SessionProvenance {
+    arcane_profile_digest: Option<String>,
+    legion_canon_digest: Option<String>,
+    skill_catalog_digest: Option<String>,
+    guard_policy_digest: Option<String>,
+}
+
+impl SessionProvenance {
+    fn to_value(&self, session_id_digest: &str) -> Value {
+        serde_json::json!({
+            "schemaVersion": 1,
+            "kind": "legion-session-behavioral-provenance",
+            "sessionIdDigest": session_id_digest,
+            "arcaneProfileDigest": self.arcane_profile_digest,
+            "legionCanonDigest": self.legion_canon_digest,
+            "skillCatalogDigest": self.skill_catalog_digest,
+            "guardPolicyDigest": self.guard_policy_digest,
+        })
+    }
+
+    fn from_value(value: &Value, session_id_digest: &str) -> Option<Self> {
+        let object = value.as_object()?;
+        if object.get("schemaVersion").and_then(Value::as_u64) != Some(1)
+            || object.get("kind").and_then(Value::as_str)
+                != Some("legion-session-behavioral-provenance")
+            || object.get("sessionIdDigest").and_then(Value::as_str) != Some(session_id_digest)
+        {
+            return None;
+        }
+        let digest = |key: &str| match object.get(key) {
+            None | Some(Value::Null) => Some(None),
+            Some(Value::String(value)) if is_sha256_digest(value) => Some(Some(value.clone())),
+            _ => None,
+        };
+        Some(Self {
+            arcane_profile_digest: digest("arcaneProfileDigest")?,
+            legion_canon_digest: digest("legionCanonDigest")?,
+            skill_catalog_digest: digest("skillCatalogDigest")?,
+            guard_policy_digest: digest("guardPolicyDigest")?,
+        })
+    }
+}
+
+/// Pin one behavioral epoch on first observation of a host session. A later
+/// source-tree or installed-asset change cannot silently rewrite trace
+/// provenance for that session. Persistence failure only suppresses automatic
+/// enrichment; it never changes an allow/deny decision.
+fn pinned_session_provenance(request: &HookRequest) -> Option<SessionProvenance> {
+    let payload = request.payload.as_object()?;
+    let session_id = first_string(payload, &["session_id", "sessionId", "conversation_id"])?;
+    let session_id_digest = legion_contracts::canonical_digest(&session_id).ok()?;
+    let path = receipt_root(&request.payload)?
+        .join(SESSION_PROVENANCE_DIRECTORY)
+        .join(format!("{}.json", session_id_digest.trim_start_matches("sha256:")));
+
+    if let Some(pinned) = read_session_provenance(&path, &session_id_digest) {
+        return Some(pinned);
+    }
+
+    let candidate = automatic_session_provenance(payload);
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent).ok()?;
+    }
+    let bytes = serde_json::to_vec(&candidate.to_value(&session_id_digest)).ok()?;
+    match fs::OpenOptions::new().write(true).create_new(true).open(&path) {
+        Ok(mut file) => {
+            file.write_all(&bytes).ok()?;
+            file.write_all(b"\n").ok()?;
+            Some(candidate)
+        }
+        Err(error) if error.kind() == io::ErrorKind::AlreadyExists => {
+            read_session_provenance(&path, &session_id_digest)
+        }
+        Err(_) => None,
+    }
+}
+
+fn read_session_provenance(path: &Path, session_id_digest: &str) -> Option<SessionProvenance> {
+    let bytes = fs::read(path).ok()?;
+    let value: Value = serde_json::from_slice(&bytes).ok()?;
+    SessionProvenance::from_value(&value, session_id_digest)
+}
+
+fn automatic_session_provenance(payload: &Map<String, Value>) -> SessionProvenance {
+    let repository = repository_root_from_payload(payload);
+    let installed_assets = installed_assets_root();
+    let file_digest = |path: &Path| {
+        fs::read(path)
+            .ok()
+            .and_then(|bytes| legion_contracts::canonical_digest(&bytes).ok())
+    };
+    let legion_canon_digest = repository
+        .as_ref()
+        .and_then(|root| file_digest(&root.join("AGENTS.md")))
+        .or_else(|| legion_contracts::canonical_digest(&serde_json::json!({
+            "owner": "legion-routing",
+            "embeddedSessionContext": SESSION_START_CONTEXT,
+        })).ok());
+    let skill_catalog_digest = repository
+        .as_ref()
+        .and_then(|root| file_digest(&root.join("src/registry/skills/index.json")))
+        .or_else(|| installed_assets
+            .as_ref()
+            .and_then(|root| file_digest(&root.join("registry/index.json"))));
+    SessionProvenance {
+        arcane_profile_digest: legion_contracts::canonical_digest(&serde_json::json!({
+            "owner": "arcane-profile",
+            "embeddedSessionContext": SESSION_START_CONTEXT,
+        }))
+        .ok(),
+        legion_canon_digest,
+        skill_catalog_digest,
+        guard_policy_digest: active_guard_policy_digest(),
+    }
+}
+
+fn active_guard_policy_digest() -> Option<String> {
+    match std::env::var("LEGION_NATIVE_APPLICATION_CONFIG") {
+        Ok(source) if source.trim_start().starts_with('{') => {
+            let value: Value = serde_json::from_str(&source).ok()?;
+            legion_contracts::canonical_digest(&value).ok()
+        }
+        Ok(source) if !source.trim().is_empty() => fs::read(source)
+            .ok()
+            .and_then(|bytes| legion_contracts::canonical_digest(&bytes).ok()),
+        Ok(_) => None,
+        Err(std::env::VarError::NotPresent) => legion_contracts::canonical_default_policy_pack()
+            .digest()
+            .ok(),
+        Err(_) => None,
+    }
+}
+
+fn repository_root_from_payload(payload: &Map<String, Value>) -> Option<PathBuf> {
+    let mut candidates = Vec::new();
+    if let Some(value) = first_string(payload, &["cwd", "workspace"]) {
+        if let Some(windows) = windows_path_from_posix_drive(&value) {
+            candidates.push(windows);
+        }
+        candidates.push(PathBuf::from(value));
+    }
+    if let Ok(current) = std::env::current_dir() {
+        candidates.push(current);
+    }
+    candidates.into_iter().find_map(|candidate| {
+        candidate
+            .ancestors()
+            .find(|ancestor| ancestor.join(".git").exists())
+            .map(Path::to_path_buf)
+    })
+}
+
+fn installed_assets_root() -> Option<PathBuf> {
+    let executable = std::env::current_exe().ok()?;
+    let current_root = executable.parent()?.parent()?;
+    let assets = current_root.join("share").join("legion").join("assets");
+    assets.is_dir().then_some(assets)
+}
 
 /// A derived rate. `NotEnoughData` is deliberately distinct from zero: no
 /// observations cannot establish a zero rate.
@@ -1469,15 +1616,18 @@ pub fn fold_trace_metrics(traces: &[RouteOutcomeTrace]) -> TraceMetrics {
     }
 }
 
-fn emit_route_trace(request: &HookRequest, response: &HookResponse, latency: Duration) {
-    if request.event_type != "SubagentStop"
-        && !protocol::SUPPORTED_EVENT_TYPES.contains(&request.event_type.as_str())
-    {
+fn emit_route_trace(
+    request: &HookRequest,
+    response: &HookResponse,
+    latency: Duration,
+    provenance: Option<&SessionProvenance>,
+) {
+    if !protocol::SUPPORTED_EVENT_TYPES.contains(&request.event_type.as_str()) {
         return;
     }
     // A Guard frame is not itself a cognitive route. Emit only when the host
     // supplied the required route envelope; absent fields are not guessed.
-    let Some(trace) = route_trace_from_request(request, response, latency) else {
+    let Some(trace) = route_trace_from_request(request, response, latency, provenance) else {
         return;
     };
     let Some(path) = trace_path(&request.payload) else {
@@ -1490,6 +1640,7 @@ fn route_trace_from_request(
     request: &HookRequest,
     response: &HookResponse,
     latency: Duration,
+    provenance: Option<&SessionProvenance>,
 ) -> Option<RouteOutcomeTrace> {
     let payload = request.payload.as_object()?;
     let source = trace_source(payload);
@@ -1511,10 +1662,18 @@ fn route_trace_from_request(
         trace_id,
         request_id,
         task_id,
-        arcane_profile_digest: trace_string(source, payload, &["arcaneProfileDigest", "arcane_profile_digest"]),
-        legion_canon_digest: trace_string(source, payload, &["legionCanonDigest", "legion_canon_digest"]),
-        skill_catalog_digest: trace_string(source, payload, &["skillCatalogDigest", "skill_catalog_digest"]),
-        guard_policy_digest: trace_string(source, payload, &["guardPolicyDigest", "guard_policy_digest"]),
+        arcane_profile_digest: provenance
+            .and_then(|value| value.arcane_profile_digest.clone())
+            .or_else(|| trace_string(source, payload, &["arcaneProfileDigest", "arcane_profile_digest"])),
+        legion_canon_digest: provenance
+            .and_then(|value| value.legion_canon_digest.clone())
+            .or_else(|| trace_string(source, payload, &["legionCanonDigest", "legion_canon_digest"])),
+        skill_catalog_digest: provenance
+            .and_then(|value| value.skill_catalog_digest.clone())
+            .or_else(|| trace_string(source, payload, &["skillCatalogDigest", "skill_catalog_digest"])),
+        guard_policy_digest: provenance
+            .and_then(|value| value.guard_policy_digest.clone())
+            .or_else(|| trace_string(source, payload, &["guardPolicyDigest", "guard_policy_digest"])),
         route: parse_route(trace_string(source, payload, &["route"]).as_deref())?,
         semantic_requirement: parse_semantic_requirement(trace_string(
             source,
@@ -1653,15 +1812,19 @@ fn parse_compute_posture(value: Option<&str>) -> Option<ComputePosture> {
 }
 
 fn trace_path(payload: &Value) -> Option<PathBuf> {
+    receipt_root(payload).map(|root| root.join(TRACE_FILE_NAME))
+}
+
+fn receipt_root(payload: &Value) -> Option<PathBuf> {
     let object = payload.as_object()?;
     let state_root = first_string(object, &["stateRoot", "state_root"])
         .map(PathBuf::from)
         .or_else(|| std::env::var_os("LEGION_STATE_ROOT").map(PathBuf::from));
     if let Some(root) = state_root {
-        return Some(root.join("receipts").join(TRACE_FILE_NAME));
+        return Some(root.join("receipts"));
     }
     let workspace = std::env::current_dir().ok()?;
-    Some(workspace.join(".audit").join("arcane").join("receipts").join(TRACE_FILE_NAME))
+    Some(workspace.join(".audit").join("arcane").join("receipts"))
 }
 
 fn append_trace(path: &Path, trace: &RouteOutcomeTrace) -> Result<(), ()> {
@@ -1883,7 +2046,7 @@ mod tests {
             payload: complete_trace_payload("unused-trace-path"),
         };
         let response = HookResponse::allowed("SessionStart", "test");
-        let trace = route_trace_from_request(&request, &response, Duration::from_millis(2))
+        let trace = route_trace_from_request(&request, &response, Duration::from_millis(2), None)
             .expect("complete host route envelope emits");
         assert_eq!(trace.arcane_profile_digest, None);
         assert_eq!(trace.legion_canon_digest, None);
@@ -1912,6 +2075,53 @@ mod tests {
             serde_json::from_str(lines.trim()).expect("valid trace JSON");
         assert_eq!(trace.result, OutcomeResult::Success);
         fs::remove_dir_all(path).expect("remove test trace");
+    }
+
+    #[test]
+    fn session_provenance_is_pinned_and_automatically_enriches_traces() {
+        let root = temporary_repository();
+        fs::write(root.join("AGENTS.md"), "routing epoch one").expect("write canon source");
+        fs::create_dir_all(root.join("src/registry/skills")).expect("create catalog directory");
+        fs::write(root.join("src/registry/skills/index.json"), br#"{"bundles":[]}"#)
+            .expect("write catalog source");
+        let state_root = root.join("state");
+        let mut payload = complete_trace_payload(&state_root.to_string_lossy());
+        let object = payload.as_object_mut().expect("trace payload object");
+        object.insert("session_id".into(), Value::String("session-pinned".into()));
+        object.insert("cwd".into(), Value::String(root.to_string_lossy().into_owned()));
+        let request = HookRequest {
+            schema_version: protocol::SCHEMA_VERSION,
+            kind: protocol::REQUEST_KIND.into(),
+            event_type: "SessionStart".into(),
+            payload: payload.clone(),
+        };
+
+        let first = pinned_session_provenance(&request).expect("session epoch is pinned");
+        assert!(first.arcane_profile_digest.as_deref().is_some_and(is_sha256_digest));
+        assert!(first.legion_canon_digest.as_deref().is_some_and(is_sha256_digest));
+        assert!(first.skill_catalog_digest.as_deref().is_some_and(is_sha256_digest));
+        assert!(first.guard_policy_digest.as_deref().is_some_and(is_sha256_digest));
+
+        fs::write(root.join("AGENTS.md"), "routing epoch two").expect("mutate canon source");
+        fs::write(root.join("src/registry/skills/index.json"), br#"{"bundles":[1]}"#)
+            .expect("mutate catalog source");
+        let current = automatic_session_provenance(payload.as_object().expect("payload object"));
+        assert_ne!(current.legion_canon_digest, first.legion_canon_digest);
+        assert_ne!(current.skill_catalog_digest, first.skill_catalog_digest);
+        assert_eq!(pinned_session_provenance(&request), Some(first.clone()));
+
+        let response = dispatch(request);
+        assert!(response.allowed);
+        let trace_file = state_root.join("receipts").join(TRACE_FILE_NAME);
+        let trace: RouteOutcomeTrace = serde_json::from_str(
+            fs::read_to_string(trace_file).expect("trace emitted").trim(),
+        )
+        .expect("trace parses");
+        assert_eq!(trace.arcane_profile_digest, first.arcane_profile_digest);
+        assert_eq!(trace.legion_canon_digest, first.legion_canon_digest);
+        assert_eq!(trace.skill_catalog_digest, first.skill_catalog_digest);
+        assert_eq!(trace.guard_policy_digest, first.guard_policy_digest);
+        fs::remove_dir_all(root).expect("remove test repository");
     }
 
     #[test]
@@ -2164,6 +2374,14 @@ mod tests {
             &application,
         );
         assert!(!response.allowed, "policy must never fall through to ambient allow");
+    }
+
+    #[test]
+    fn unavailable_policy_never_claims_strong_enforcement() {
+        let response = policy_unavailable_response("PreToolUse".into());
+        assert!(!response.allowed);
+        assert_eq!(response.code.as_deref(), Some("ARC_NATIVE_POLICY_UNAVAILABLE"));
+        assert_eq!(response.enforcement_health, "unsupported");
     }
 
     #[test]

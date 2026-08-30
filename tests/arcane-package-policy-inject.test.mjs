@@ -1,0 +1,134 @@
+import assert from 'node:assert/strict';
+import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import test from 'node:test';
+
+import { buildPolicyInjection } from '../src/lib/cognitive/arcane/host/policy-inject.mjs';
+
+test('brief and minimize are injected when no policy.toml is present (falls back to brief-policy.md)', () => {
+  const workspace = mkdtempSync(join(tmpdir(), 'arcane-policy-inject-'));
+  try {
+    const injection = buildPolicyInjection({ workspace });
+    assert.ok(injection);
+    assert.match(injection.additionalContext, /Brief is default/);
+    assert.match(injection.additionalContext, /MINIMIZE/);
+    assert.equal(injection.systemMessage, 'MINIMIZE:ON');
+    // no double-injection: exactly one MINIMIZE block
+    assert.equal(injection.additionalContext.match(/# MINIMIZE/g)?.length, 1);
+  } finally { rmSync(workspace, { recursive: true, force: true }); }
+});
+
+test('policy.toml brief.content wins over brief-policy.md when both are readable', () => {
+  const workspace = mkdtempSync(join(tmpdir(), 'arcane-policy-inject-toml-'));
+  try {
+    mkdirSync(join(workspace, 'tools', 'lib'), { recursive: true });
+    writeFileSync(join(workspace, 'tools', 'lib', 'policy.toml'), '[brief]\ncontent = """\nCUSTOM BRIEF TEXT FROM TOML\n"""\n');
+    const injection = buildPolicyInjection({ workspace });
+    assert.match(injection.additionalContext, /CUSTOM BRIEF TEXT FROM TOML/);
+    assert.doesNotMatch(injection.additionalContext, /Brief is default/);
+  } finally { rmSync(workspace, { recursive: true, force: true }); }
+});
+
+test('policy.toml present but brief.content key missing falls back to brief-policy.md', () => {
+  const workspace = mkdtempSync(join(tmpdir(), 'arcane-policy-inject-notoml-key-'));
+  try {
+    mkdirSync(join(workspace, 'tools', 'lib'), { recursive: true });
+    writeFileSync(join(workspace, 'tools', 'lib', 'policy.toml'), '[other]\nkey = "value"\n');
+    const injection = buildPolicyInjection({ workspace });
+    assert.match(injection.additionalContext, /Brief is default/);
+  } finally { rmSync(workspace, { recursive: true, force: true }); }
+});
+
+test('ccx directive is present only when ANTHROPIC_BASE_URL targets the local gateway on port 8801', () => {
+  const workspace = mkdtempSync(join(tmpdir(), 'arcane-policy-inject-ccx-'));
+  const prior = process.env.ANTHROPIC_BASE_URL;
+  try {
+    delete process.env.ANTHROPIC_BASE_URL;
+    assert.doesNotMatch(buildPolicyInjection({ workspace }).additionalContext, /ccx-mode/);
+
+    process.env.ANTHROPIC_BASE_URL = 'https://api.anthropic.com';
+    assert.doesNotMatch(buildPolicyInjection({ workspace }).additionalContext, /ccx-mode/);
+
+    process.env.ANTHROPIC_BASE_URL = 'http://127.0.0.1:8801';
+    assert.match(buildPolicyInjection({ workspace }).additionalContext, /ccx-mode/);
+
+    process.env.ANTHROPIC_BASE_URL = 'http://localhost:8801/v1';
+    assert.match(buildPolicyInjection({ workspace }).additionalContext, /ccx-mode/);
+  } finally {
+    if (prior === undefined) delete process.env.ANTHROPIC_BASE_URL; else process.env.ANTHROPIC_BASE_URL = prior;
+    rmSync(workspace, { recursive: true, force: true });
+  }
+});
+
+// The two operator kill switches the Python hooks carried. Dropping them in the
+// port would have removed the only way to silence an injector without editing
+// the harness config.
+test('BRIEF_MODE_OFF=1 silences the Brief injection but not Minimize', () => {
+  const prior = process.env.BRIEF_MODE_OFF;
+  try {
+    process.env.BRIEF_MODE_OFF = '1';
+    const out = buildPolicyInjection({ workspace: process.cwd() });
+    assert.doesNotMatch(out.additionalContext, /Brief is default/);
+    assert.equal(out.systemMessage, 'MINIMIZE:ON');
+  } finally {
+    if (prior === undefined) delete process.env.BRIEF_MODE_OFF; else process.env.BRIEF_MODE_OFF = prior;
+  }
+});
+
+test('CCX_GATEWAY_MODE_OFF=1 silences the gateway directive even on the gateway', () => {
+  const priorOff = process.env.CCX_GATEWAY_MODE_OFF;
+  const priorUrl = process.env.ANTHROPIC_BASE_URL;
+  try {
+    process.env.CCX_GATEWAY_MODE_OFF = '1';
+    process.env.ANTHROPIC_BASE_URL = 'http://127.0.0.1:8801';
+    assert.doesNotMatch(buildPolicyInjection({ workspace: process.cwd() }).additionalContext, /ccx-mode/);
+  } finally {
+    if (priorOff === undefined) delete process.env.CCX_GATEWAY_MODE_OFF; else process.env.CCX_GATEWAY_MODE_OFF = priorOff;
+    if (priorUrl === undefined) delete process.env.ANTHROPIC_BASE_URL; else process.env.ANTHROPIC_BASE_URL = priorUrl;
+  }
+});
+
+test('prompt keys inject only matching capped GOTCHAS reminders', () => {
+  const workspace = mkdtempSync(join(tmpdir(), 'arcane-policy-inject-gotchas-'));
+  try {
+    mkdirSync(join(workspace, 'docs'), { recursive: true });
+    writeFileSync(join(workspace, 'docs', 'GOTCHAS.md'), [
+      '# Gotchas',
+      '### Archive safely',
+      '**Keys:** task archive, worktree',
+      '**Fix:** prove commit reachability first.',
+      '### Commit serially',
+      '**Keys:** parallel commit, isolated index',
+      '**Fix:** use one integration owner.',
+      '### Unrelated',
+      '**Keys:** signing certificate',
+      '**Fix:** use release tooling.',
+    ].join('\n'));
+    const out = buildPolicyInjection({ workspace, prompt: 'Archive this task worktree after its commit is reachable.' });
+    assert.match(out.additionalContext, /Archive safely/);
+    assert.match(out.additionalContext, /prove commit reachability first/);
+    assert.doesNotMatch(out.additionalContext, /Commit serially|Unrelated/);
+  } finally { rmSync(workspace, { recursive: true, force: true }); }
+});
+
+test('ordinary prompts do not inject GOTCHAS content', () => {
+  const workspace = mkdtempSync(join(tmpdir(), 'arcane-policy-inject-no-gotcha-'));
+  try {
+    mkdirSync(join(workspace, 'docs'), { recursive: true });
+    writeFileSync(join(workspace, 'docs', 'GOTCHAS.md'), '### Archive safely\n**Keys:** task archive\n**Fix:** prove reachability.\n');
+    assert.doesNotMatch(buildPolicyInjection({ workspace, prompt: 'Explain this function.' }).additionalContext, /Archive safely/);
+  } finally { rmSync(workspace, { recursive: true, force: true }); }
+});
+
+test('UserPromptSubmit mode injects only its keyed GOTCHAS reminder', () => {
+  const workspace = mkdtempSync(join(tmpdir(), 'arcane-policy-inject-prompt-only-'));
+  try {
+    mkdirSync(join(workspace, 'docs'), { recursive: true });
+    writeFileSync(join(workspace, 'docs', 'GOTCHAS.md'), '### Archive safely\n**Keys:** task archive\n**Fix:** prove reachability.\n');
+    const out = buildPolicyInjection({ workspace, prompt: 'task archive', gotchasOnly: true });
+    assert.match(out.additionalContext, /Archive safely/);
+    assert.doesNotMatch(out.additionalContext, /Brief is default|MINIMIZE|ccx-mode/);
+    assert.equal(out.systemMessage, undefined);
+  } finally { rmSync(workspace, { recursive: true, force: true }); }
+});

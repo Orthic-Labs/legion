@@ -28,18 +28,18 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { EXIT, LegionError } from '../../errors.mjs';
-import { ArcaneError } from '../../../packages/arcane/lib/errors.mjs';
-import { ContractSealStore } from '../../../packages/arcane/lib/contract-seal-store.mjs';
-import { AuthorityBindingStore } from '../../../packages/arcane/lib/authority-binding-store.mjs';
-import { AuthorityLedger } from '../../../packages/arcane/lib/authority.mjs';
-import { loadCanonicalHostKeyRing, loadHostKeyRing } from '../../../packages/arcane/lib/keys.mjs';
-import { compileSealReachability } from '../../../packages/arcane/lib/seal-reachability.mjs';
-import { AMENDED_BUDGET_BOUND_FIELDS, BUDGET_AMENDMENT_BOUND_FIELDS, BUDGET_BOUND_FIELDS, BudgetGovernanceStore } from '../../../packages/arcane/lib/budget-governance-store.mjs';
-import { TaskBudgetSealStore } from '../../../packages/arcane/lib/task-budget-seal-store.mjs';
-import { HostEventLedger } from '../../../packages/arcane/lib/host-event-ledger.mjs';
-import { AuthorityInvocationProofIssuer } from '../../../packages/arcane/lib/authority-invocation-proof.mjs';
-import { digestValue } from '../../../packages/arcane/lib/canonical.mjs';
-import { signRecord } from '../../../packages/arcane/lib/receipt-auth.mjs';
+import { ArcaneError } from '../../contracts/arcane/errors.mjs';
+import { ContractSealStore } from './governance/delivery/contract-seal-store.mjs';
+import { AuthorityBindingStore } from '../../contracts/arcane/authority-binding-store.mjs';
+import { AuthorityLedger } from '../../contracts/arcane/authority.mjs';
+import { loadCanonicalHostKeyRing, loadHostKeyRing } from '../../guard/compat/host/keys.mjs';
+import { compileSealReachability } from '../../verification/arcane/seal-reachability.mjs';
+import { AMENDED_BUDGET_BOUND_FIELDS, BUDGET_AMENDMENT_BOUND_FIELDS, BUDGET_BOUND_FIELDS, BudgetGovernanceStore } from './governance/execution/budget-governance-store.mjs';
+import { TaskBudgetSealStore } from './governance/execution/task-budget-seal-store.mjs';
+import { HostEventLedger } from '../../host/arcane/host-event-ledger.mjs';
+import { AuthorityInvocationProofIssuer } from '../../contracts/arcane/authority-invocation-proof.mjs';
+import { digestValue } from '../../contracts/arcane/canonical.mjs';
+import { signRecord } from '../../guard/compat/audit/receipt-auth.mjs';
 
 const stateDir = (cwd, ...parts) => join(cwd, '.audit', 'arcane', ...parts);
 

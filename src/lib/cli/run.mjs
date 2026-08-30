@@ -30,7 +30,7 @@ Commands:
   mcp                Print MCP server configuration
   run open|close     Bind or release this session's run against a contract/task
   budget inspect     Read immutable budget bindings & run budget projection
-  governance         Execute typed Arcane governance controls
+  governance         Execute typed Legion governance controls
 
 Options:
   --help             Show this help

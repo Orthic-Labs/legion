@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import test from 'node:test';
-import { advisoryJudgmentBindings, advisoryJudgmentRuntimeIds, validateAdvisoryJudgmentObservation } from '../src/packages/arcane/lib/s11-bindings/advisory-judgment.mjs';
+import { advisoryJudgmentBindings, advisoryJudgmentRuntimeIds, validateAdvisoryJudgmentObservation } from '../src/lib/verification/arcane/s11-bindings/advisory-judgment.mjs';
 
 const corpus = new Map(readdirSync(join(import.meta.dirname, '..', 'src', 'evals', 'architecture')).flatMap((name) => readFileSync(join(import.meta.dirname, '..', 'src', 'evals', 'architecture', name), 'utf8').trim().split('\n').map(JSON.parse).map((row) => [row.id, row])));
 test('stage11 advisory judgment rows remain pending without external Sage/Oracle records', () => {

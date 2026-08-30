@@ -2,11 +2,11 @@ import { join } from 'node:path';
 import { parseArgs } from 'node:util';
 
 import { EXIT, LegionError } from '../../errors.mjs';
-import { AuthorityBindingStore } from '../../../packages/arcane/lib/authority-binding-store.mjs';
-import { upsertFinding } from '../../../packages/arcane/lib/finding-lifecycle.mjs';
-import { HostEventLedger } from '../../../packages/arcane/lib/host-event-ledger.mjs';
-import { loadCanonicalHostKeyRing, loadHostKeyRing } from '../../../packages/arcane/lib/keys.mjs';
-import { ReceiptStore } from '../../../packages/arcane/lib/receipt-store.mjs';
+import { AuthorityBindingStore } from '../../contracts/arcane/authority-binding-store.mjs';
+import { upsertFinding } from './governance/judgment/finding-lifecycle.mjs';
+import { HostEventLedger } from '../../host/arcane/host-event-ledger.mjs';
+import { loadCanonicalHostKeyRing, loadHostKeyRing } from '../../guard/compat/host/keys.mjs';
+import { ReceiptStore } from '../../guard/compat/audit/receipt-store.mjs';
 import { createDeliveryGovernanceDispatcher, runDeliveryGovernance } from './governance/delivery.mjs';
 import { dispatchExecutionControl } from './governance/execution.mjs';
 import { createJudgmentControlCapability, dispatchGovernanceJudgment } from './governance/judgment.mjs';
@@ -53,7 +53,7 @@ function durableFindingContext(receiptStore) {
   return { findingStore, findingPersistence };
 }
 
-/** Live structured ingress for Arcane governance controls used by S11. */
+/** Live structured ingress for Legion governance controls used by S11. */
 export function runGovernance(argv, { stdout, env, cwd, host = {} }) {
   const [domain, ...rest] = argv;
   if (domain === '--help' || domain === 'help') {

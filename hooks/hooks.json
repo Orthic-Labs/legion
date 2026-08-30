@@ -1,5 +1,5 @@
 {
-  "description": "Arcane lifecycle gates and receipts for Legion.",
+  "description": "Guard lifecycle enforcement and receipts for Legion.",
   "hooks": {
     "SessionStart": [
       {

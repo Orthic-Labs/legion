@@ -27,11 +27,11 @@ import {
   verifyDecision,
   verifyReceipt,
   writeJson,
-} from '../../../packages/arcane/lib/minimize.mjs';
+} from '../../cognitive/arcane/minimize.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
-const ARCANE_LIB = resolve(HERE, '../../../packages/arcane/lib/minimize.mjs');
-const POLICY = resolve(HERE, '../../../packages/arcane/policy/minimize-policy.md');
+const ARCANE_LIB = resolve(HERE, '../../cognitive/arcane/minimize.mjs');
+const POLICY = resolve(HERE, '../../cognitive/arcane/policy/minimize-policy.md');
 
 function paths() {
   return { policyPath: POLICY, validatorPath: ARCANE_LIB };

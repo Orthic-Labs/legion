@@ -3,9 +3,9 @@
 import { parseArgs } from 'node:util';
 
 import { EXIT, LegionError } from '../../../errors.mjs';
-import { decision } from '../../../../packages/arcane/lib/errors.mjs';
-import { verifyCommandResult } from '../../../../packages/arcane/lib/command-verifier.mjs';
-import { EvidenceAuthorityRegistry, classifyTechnologyRequirement, resolveLatencyTarget } from '../../../../packages/arcane/lib/evidence-authority.mjs';
+import { decision } from '../../../contracts/arcane/errors.mjs';
+import { verifyCommandResult } from './execution/command-verifier.mjs';
+import { EvidenceAuthorityRegistry, classifyTechnologyRequirement, resolveLatencyTarget } from './execution/evidence-authority.mjs';
 import {
   admitConvergencePass,
   admitRetry,
@@ -14,7 +14,7 @@ import {
   denyStaleContinuation,
   recordAttempt,
   settleFlakyRetry,
-} from '../../../../packages/arcane/lib/execution-governance.mjs';
+} from './execution/execution-governance.mjs';
 
 export const EXECUTION_CONTROL_OPERATIONS = Object.freeze([
   'command.verify',

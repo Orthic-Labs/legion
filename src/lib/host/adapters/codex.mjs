@@ -20,6 +20,6 @@ export default {
     skills: { fidelity: 'strong', mechanism: { kind: 'skills-dir', path: '.agents/skills' }, note: 'native Agent Skills discovery with generated implicit/explicit invocation policy' },
     agents: { fidelity: 'unsupported', mechanism: { kind: 'none' }, note: 'no native subagents' },
     mcp: { fidelity: 'strong', mechanism: { kind: 'toml', path: '.codex/config.toml', table: 'mcp_servers' } },
-    hooks: { fidelity: 'unsupported', mechanism: { kind: 'none' }, note: 'no effect-enforcement hook surface; Arcane enforcement is absent, not degraded' },
+    hooks: { fidelity: 'unsupported', mechanism: { kind: 'none' }, note: 'no effect-enforcement hook surface; Guard enforcement is absent, not degraded' },
   },
 };

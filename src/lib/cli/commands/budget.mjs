@@ -2,9 +2,9 @@ import { parseArgs } from 'node:util';
 import { join } from 'node:path';
 
 import { EXIT, LegionError } from '../../errors.mjs';
-import { loadHostKeyRing } from '../../../packages/arcane/lib/keys.mjs';
-import { BudgetGovernanceStore } from '../../../packages/arcane/lib/budget-governance-store.mjs';
-import { TaskBudgetSealStore } from '../../../packages/arcane/lib/task-budget-seal-store.mjs';
+import { loadHostKeyRing } from '../../guard/compat/host/keys.mjs';
+import { BudgetGovernanceStore } from './governance/execution/budget-governance-store.mjs';
+import { TaskBudgetSealStore } from './governance/execution/task-budget-seal-store.mjs';
 
 function usage(message) { throw new LegionError(message, { code: 'USAGE', exitCode: EXIT.USAGE }); }
 

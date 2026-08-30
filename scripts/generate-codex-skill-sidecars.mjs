@@ -48,10 +48,10 @@ export function expectedCodexSidecars(root = ROOT) {
 // policy owned here rather than being hand-maintained in .codex-plugin.
 const CODEX_INTERFACE = {
   category: 'Developer Tools',
-  capabilities: ['Authority agents', 'Arcane lifecycle hooks', 'Covenant review'],
+  capabilities: ['Legion orchestration', 'Arcane cognitive policy', 'Covenant review'],
   defaultPrompt: 'Use Legion authority routing for repository or system-state changes.',
 };
-const CODEX_DESCRIPTION = 'Legion — the authority system for AI-assisted engineering. Orchestrates Sage (decisions), Alchemist (transformation), Oracle (assurance), and Arcane (the deterministic gate), plus the evidence-governed whole-repository audit engine that backs Oracle.';
+const CODEX_DESCRIPTION = 'Legion — orchestration for AI-assisted engineering. Legion selects capabilities & attaches Sage, Alchemist, or Oracle where required; Arcane shapes cognitive processing & response policy; Guard enforcement is host-dependent.';
 
 function readJson(path) {
   return JSON.parse(readFileSync(path, 'utf8'));

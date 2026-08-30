@@ -13,14 +13,14 @@ import { join } from 'node:path';
 import test from 'node:test';
 
 import { runContract } from '../src/lib/cli/commands/contract.mjs';
-import { AuthorityBindingStore } from '../src/packages/arcane/lib/authority-binding-store.mjs';
-import { BUDGET_BOUND_FIELDS, BudgetGovernanceStore } from '../src/packages/arcane/lib/budget-governance-store.mjs';
-import { digestValue } from '../src/packages/arcane/lib/canonical.mjs';
-import { loadHostKeyRing } from '../src/packages/arcane/lib/keys.mjs';
-import { signRecord } from '../src/packages/arcane/lib/receipt-auth.mjs';
-import { TaskBudgetSealStore } from '../src/packages/arcane/lib/task-budget-seal-store.mjs';
-import { HostEventLedger } from '../src/packages/arcane/lib/host-event-ledger.mjs';
-import { b5Contract } from '../src/packages/arcane/tests/fixtures/runtime-binding-contract.mjs';
+import { AuthorityBindingStore } from '../src/lib/contracts/arcane/authority-binding-store.mjs';
+import { BUDGET_BOUND_FIELDS, BudgetGovernanceStore } from '../src/lib/cli/commands/governance/execution/budget-governance-store.mjs';
+import { digestValue } from '../src/lib/contracts/arcane/canonical.mjs';
+import { loadHostKeyRing } from '../src/lib/guard/compat/host/keys.mjs';
+import { signRecord } from '../src/lib/guard/compat/audit/receipt-auth.mjs';
+import { TaskBudgetSealStore } from '../src/lib/cli/commands/governance/execution/task-budget-seal-store.mjs';
+import { HostEventLedger } from '../src/lib/host/arcane/host-event-ledger.mjs';
+import { b5Contract } from './fixtures/arcane-package/runtime-binding-contract.mjs';
 
 const SESSION = 'session-seal';
 const ADAPTER = 'claude-code';
@@ -71,8 +71,8 @@ test('a Sage-observed agent mints a contract seal', async () => {
 });
 
 test('authenticated host SessionStart makes ordinary Legion sealing reachable without an agent', async () => {
-  const { createHostRuntime } = await import('../src/packages/arcane/host/host-runtime.mjs');
-  const { claudeCodeHostAdapter } = await import('../src/packages/arcane/host/claude-code-adapter.mjs');
+  const { createHostRuntime } = await import('../src/lib/host/arcane/host-runtime.mjs');
+  const { claudeCodeHostAdapter } = await import('../src/lib/guard/compat/host/claude-code-adapter.mjs');
   const s = scenario();
   try {
     rmSync(join(s.root, '.audit', 'arcane', 'authority-bindings'), { recursive: true, force: true });
@@ -186,8 +186,8 @@ test('sealing is idempotent for an identical contract version', async () => {
 // with no supported way to fix it.
 test('sealed contract + run open lets the gate authorize a locked-domain write', async () => {
   const { execFileSync } = await import('node:child_process');
-  const { createHostRuntime } = await import('../src/packages/arcane/host/host-runtime.mjs');
-  const { claudeCodeHostAdapter } = await import('../src/packages/arcane/host/claude-code-adapter.mjs');
+  const { createHostRuntime } = await import('../src/lib/host/arcane/host-runtime.mjs');
+  const { claudeCodeHostAdapter } = await import('../src/lib/guard/compat/host/claude-code-adapter.mjs');
   const { runRun } = await import('../src/lib/cli/commands/run.mjs');
 
   const s = scenario();

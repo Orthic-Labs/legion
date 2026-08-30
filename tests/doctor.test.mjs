@@ -34,6 +34,8 @@ test('doctor --json emits the canonical shape', () => {
   assert.equal(report.host.discovery['claude-code'].capabilities, 20);
   assert.deepEqual(report.host.discovery['claude-code'].entrypoints, ['alchemist', 'coder', 'commit', 'covenant', 'oracle']);
   assert.equal(Object.hasOwn(report.host.discovery['claude-code'], 'roleEntrypoints'), false);
+  assert.ok(report.host.guard);
+  assert.equal(Object.hasOwn(report.host, 'arcane'), false);
 });
 
 test('doctor reflects the network guard environment', () => {
@@ -65,6 +67,8 @@ test('doctor reports typed Codex hook trust failure without manufacturing hashes
     assert.equal(report.state, 'ARC_HOOK_TRUST_REQUIRED');
     assert.equal(report.trusted.length, 0);
     assert.equal(report.missing.length, 8);
+    assert.match(report.remediation, /Guard hooks/);
+    assert.match(report.remediation, /legacy plugin identity arcane@local-brief/);
     assert.match(report.remediation, /never manufactures trusted_hash/);
   } finally { rmSync(home, { recursive: true, force: true }); }
 });

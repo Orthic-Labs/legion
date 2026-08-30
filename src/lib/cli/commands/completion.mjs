@@ -3,18 +3,18 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { EXIT, LegionError } from '../../errors.mjs';
-import { loadCanonicalHostKeyRing, loadHostKeyRing } from '../../../packages/arcane/lib/keys.mjs';
-import { digestValue, isDigest } from '../../../packages/arcane/lib/canonical.mjs';
-import { SessionBindingStore } from '../../../packages/arcane/lib/session-binding.mjs';
-import { ContractSealStore } from '../../../packages/arcane/lib/contract-seal-store.mjs';
-import { HostEventLedger } from '../../../packages/arcane/lib/host-event-ledger.mjs';
-import { AuthorityInvocationProofIssuer } from '../../../packages/arcane/lib/authority-invocation-proof.mjs';
-import { PendingTerminalOperationStore } from '../../../packages/arcane/lib/pending-terminal-operation-store.mjs';
-import { requireCanonicalAdvisoryProfile } from '../../../packages/arcane/lib/advisory-profile.mjs';
-import { ReceiptStore } from '../../../packages/arcane/lib/receipt-store.mjs';
-import { sealEvidence } from '../../../packages/arcane/lib/evidence-envelope.mjs';
-import { signRecord, EVIDENCE_RECEIPT_BOUND_FIELDS } from '../../../packages/arcane/lib/receipt-auth.mjs';
-import { completionIntegratedStateForRepositories, latestScopedMaterialChange } from '../../../packages/arcane/lib/completion-state.mjs';
+import { loadCanonicalHostKeyRing, loadHostKeyRing } from '../../guard/compat/host/keys.mjs';
+import { digestValue, isDigest } from '../../contracts/arcane/canonical.mjs';
+import { SessionBindingStore } from '../../host/arcane/session-binding.mjs';
+import { ContractSealStore } from './governance/delivery/contract-seal-store.mjs';
+import { HostEventLedger } from '../../host/arcane/host-event-ledger.mjs';
+import { AuthorityInvocationProofIssuer } from '../../contracts/arcane/authority-invocation-proof.mjs';
+import { PendingTerminalOperationStore } from '../../verification/arcane/pending-terminal-operation-store.mjs';
+import { requireCanonicalAdvisoryProfile } from '../../verification/arcane/advisory-profile.mjs';
+import { ReceiptStore } from '../../guard/compat/audit/receipt-store.mjs';
+import { sealEvidence } from '../../verification/arcane/evidence-envelope.mjs';
+import { signRecord, EVIDENCE_RECEIPT_BOUND_FIELDS } from '../../guard/compat/audit/receipt-auth.mjs';
+import { completionIntegratedStateForRepositories, latestScopedMaterialChange } from '../../verification/arcane/completion-state.mjs';
 
 const session = (value, env) => value || env.CODEX_THREAD_ID || env.CLAUDE_CODE_SESSION_ID || env.CLAUDE_SESSION_ID || env.CODEX_SESSION_ID || null;
 

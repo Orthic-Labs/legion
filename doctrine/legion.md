@@ -46,6 +46,10 @@ bounded-transformation authority.
 
 ## Routing shape
 
+Legion owns semantic capability selection, operation/effect derivation, authority attachment, &
+orchestration. Arcane shapes cognitive processing & response policy only; Guard gates declared
+typed effects, reports enforcement health, & owns effect-decision receipts.
+
 ```text
 USER INTENT
     ↓

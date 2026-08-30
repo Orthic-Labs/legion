@@ -31,7 +31,7 @@
       ],
       "occurrences": {
         "nemesis": 7,
-        "forge": 57,
+        "forge": 65,
         "seer": 22,
         "sentinel": 12,
         "sorcerer": 10
@@ -173,7 +173,7 @@
       "reason": "recovered retired eval corpus"
     },
     {
-      "pathPrefix": "src/packages/arcane/compatibility/forge/",
+      "pathPrefix": "src/lib/host/arcane-compatibility/forge/",
       "tokens": [
         "forge"
       ],
@@ -181,7 +181,7 @@
       "reason": "frozen predecessor mapping evidence"
     },
     {
-      "path": "src/packages/arcane/lib/legacy-bridge.mjs",
+      "path": "src/lib/host/arcane/legacy-bridge.mjs",
       "tokens": [
         "forge"
       ],
@@ -192,7 +192,7 @@
       "reason": "predecessor state reader"
     },
     {
-      "path": "src/packages/arcane/tests/s01-bridge.test.mjs",
+      "path": "tests/arcane-package-s01-bridge.test.mjs",
       "tokens": [
         "forge",
         "sentinel"
@@ -201,7 +201,7 @@
       "reason": "predecessor migration fixtures"
     },
     {
-      "path": "src/packages/arcane/tests/codex-adapter.test.mjs",
+      "path": "tests/arcane-package-codex-adapter.test.mjs",
       "tokens": [
         "forge"
       ],
@@ -209,7 +209,7 @@
       "reason": "predecessor adapter fixture"
     },
     {
-      "path": "src/packages/arcane/tests/s02-policy.test.mjs",
+      "path": "tests/arcane-package-s02-policy.test.mjs",
       "tokens": [
         "forge",
         "sentinel"
@@ -218,7 +218,7 @@
       "reason": "predecessor policy fixture"
     },
     {
-      "path": "src/packages/arcane/tests/s03-receipt-auth.test.mjs",
+      "path": "tests/arcane-package-s03-receipt-auth.test.mjs",
       "tokens": [
         "forge"
       ],
@@ -226,7 +226,7 @@
       "reason": "predecessor authentication fixture"
     },
     {
-      "path": "src/packages/arcane/tests/s04-host-event.test.mjs",
+      "path": "tests/arcane-package-s04-host-event.test.mjs",
       "tokens": [
         "forge"
       ],
@@ -234,7 +234,7 @@
       "reason": "predecessor host-event fixture"
     },
     {
-      "path": "src/packages/arcane/tests/s05-evidence-envelope.test.mjs",
+      "path": "tests/arcane-package-s05-evidence-envelope.test.mjs",
       "tokens": [
         "forge"
       ],
@@ -242,7 +242,7 @@
       "reason": "predecessor evidence fixture"
     },
     {
-      "path": "src/packages/arcane/tests/s05-invalidation.test.mjs",
+      "path": "tests/arcane-package-s05-invalidation.test.mjs",
       "tokens": [
         "forge"
       ],
@@ -250,7 +250,7 @@
       "reason": "predecessor invalidation fixture"
     },
     {
-      "path": "src/packages/arcane/tests/s05-migration.test.mjs",
+      "path": "tests/arcane-package-s05-migration.test.mjs",
       "tokens": [
         "forge"
       ],
@@ -258,7 +258,7 @@
       "reason": "predecessor migration fixture"
     },
     {
-      "path": "src/packages/arcane/tests/s07-gate2-integration.test.mjs",
+      "path": "tests/arcane-package-s07-gate2-integration.test.mjs",
       "tokens": [
         "forge"
       ],
@@ -418,6 +418,50 @@
       ],
       "class": "R5",
       "reason": "audit records quote retired names as evidence of naming drift"
+    },
+    {
+      "path": "docs/current/atoms/registers/preservation-map.md",
+      "tokens": [
+        "forge"
+      ],
+      "occurrences": {
+        "forge": 18
+      },
+      "class": "R2",
+      "reason": "generated preservation register quotes historical Arcane migration paths"
+    },
+    {
+      "path": "docs/provenance/migrations/2026-08-29-pending/arcane-package-migration-result.json",
+      "tokens": [
+        "forge"
+      ],
+      "occurrences": {
+        "forge": 38
+      },
+      "class": "R2",
+      "reason": "machine-readable migration evidence preserves exact predecessor paths"
+    },
+    {
+      "path": "docs/provenance/migrations/2026-08-29-pending/migrate-arcane-package.mjs",
+      "tokens": [
+        "forge"
+      ],
+      "occurrences": {
+        "forge": 6
+      },
+      "class": "R2",
+      "reason": "reproducible migration utility preserves exact predecessor path mapping"
+    },
+    {
+      "path": "docs/provenance/migrations/2026-08-29-pending/repair-arcane-migration-imports.mjs",
+      "tokens": [
+        "forge"
+      ],
+      "occurrences": {
+        "forge": 2
+      },
+      "class": "R2",
+      "reason": "reproducible repair utility preserves exact predecessor path mapping"
     },
     {
       "path": "docs/provenance/migrations/2026-08-29-pending/arcane-package-triage.md",

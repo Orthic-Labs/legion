@@ -5,14 +5,14 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
 
-import { canonicalJson } from '../src/packages/arcane/lib/canonical.mjs';
-import { ReceiptStore } from '../src/packages/arcane/lib/receipt-store.mjs';
-import { generateTestKeyRing } from '../src/packages/arcane/lib/keys.mjs';
+import { canonicalJson } from '../src/lib/contracts/arcane/canonical.mjs';
+import { ReceiptStore } from '../src/lib/guard/compat/audit/receipt-store.mjs';
+import { generateTestKeyRing } from '../src/lib/guard/compat/host/keys.mjs';
 import { validateSchema } from '../src/lib/qualification/schema-validator.mjs';
-import { classifyEffect, routeArchitecture } from '../src/packages/arcane/lib/architecture-router.mjs';
-import { applyArchitectureEvent, createArchitectureState, stateFingerprint, validateArchitectureState } from '../src/packages/arcane/lib/architecture-state.mjs';
-import { ArchitectureEventStore } from '../src/packages/arcane/lib/architecture-event-store.mjs';
-import { architectureDecisionFingerprint, architectureEvidenceFingerprint, architectureFindingFingerprint, architectureRetryFingerprint } from '../src/packages/arcane/lib/architecture-fingerprints.mjs';
+import { classifyEffect, routeArchitecture } from '../src/lib/verification/arcane/architecture-router.mjs';
+import { applyArchitectureEvent, createArchitectureState, stateFingerprint, validateArchitectureState } from '../src/lib/verification/arcane/architecture-state.mjs';
+import { ArchitectureEventStore } from '../src/lib/verification/arcane/architecture-event-store.mjs';
+import { architectureDecisionFingerprint, architectureEvidenceFingerprint, architectureFindingFingerprint, architectureRetryFingerprint } from '../src/lib/verification/arcane/architecture-fingerprints.mjs';
 
 const router = JSON.parse(await readFile(new URL('./fixtures/stage3/router.json', import.meta.url)));
 const events = JSON.parse(await readFile(new URL('./fixtures/stage3/events.json', import.meta.url)));

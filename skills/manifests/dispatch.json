@@ -85,7 +85,7 @@
     {
       "path": "evals/evals.json",
       "uri": "legion-skill://dispatch/evals/evals.json",
-      "digest": "sha256:5738bb76bb2b3da6dbc50551a3c07f71af3bcaa0ea06ea5ad554deeb6f4f180f"
+      "digest": "sha256:328ce52c78253de3e72e78a5a8835dfdac953a070aa786784592cfdd128b65b9"
     },
     {
       "path": "evals/executor-requirement.json",

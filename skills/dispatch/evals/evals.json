@@ -8,6 +8,10 @@
       "expected_skill": "dispatch",
       "severity": "error",
       "mode": "discovery",
+      "routing": {
+        "routeMode": "MACHINERY",
+        "contextSelection": []
+      },
       "expected_behavior": "Routes request to dispatch."
     },
     {
@@ -37,6 +41,10 @@
       ],
       "severity": "error",
       "mode": "discovery",
+      "routing": {
+        "routeMode": "DIRECT",
+        "contextSelection": []
+      },
       "expected_behavior": "Does not route request to dispatch."
     },
     {

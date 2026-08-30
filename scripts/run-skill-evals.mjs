@@ -20,6 +20,7 @@
  * explicit opt-in that fails with exit code 3 when no grader is supplied.
  */
 import { readFileSync, readdirSync, statSync } from 'node:fs';
+import { spawn } from 'node:child_process';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -521,9 +522,139 @@ export async function runLiveGrading(cases, grader) {
   const results = [];
   for (const fixture of cases) {
     const observation = await grader(fixture);
+    const issues = validateLiveObservation(observation);
+    if (issues.length) {
+      const error = new Error(`live grader returned an incomplete routing observation for ${fixture.id}: ${issues.join('; ')}`);
+      error.code = 'LIVE_GRADER_INVALID_OBSERVATION';
+      throw error;
+    }
     results.push(scoreRoutingCase(fixture, observation, fixture.category, fixture.skill));
   }
   return results;
+}
+
+function hasAny(object, keys) {
+  return keys.some((key) => key in object);
+}
+
+export function validateLiveObservation(observation) {
+  if (!isPlainObject(observation)) return ['observation must be an object'];
+  const source = isPlainObject(observation.route) ? { ...observation, ...observation.route } : observation;
+  const normalized = normalizeRoutingObservation(observation);
+  const issues = [];
+  if (!hasAny(source, ['shouldRoute', 'should_route', 'routed']) || typeof normalized.shouldRoute !== 'boolean') {
+    issues.push('shouldRoute must be boolean');
+  }
+  if (!hasAny(source, ['rankedCapabilities', 'ranked_capabilities', 'capabilities', 'selectedCapabilities', 'selected_capabilities', 'ranked', 'firstRankedCapability', 'first_ranked_capability', 'selectedCapability', 'selected_capability'])) {
+    issues.push('rankedCapabilities must be present (use [] for no route)');
+  }
+  const rawAuthority = firstDefined(source.authority, source.authorities, source.attachedAuthority, source.attached_authority, source.attachedAuthorities, source.attached_authorities);
+  if (normalized.authority === undefined) {
+    issues.push('authority must be present');
+  } else if (Array.isArray(rawAuthority) && rawAuthority.some((name) => !AUTHORITIES.includes(name))) {
+    issues.push(`authority array may contain only ${AUTHORITIES.join(', ')}`);
+  } else if (isPlainObject(rawAuthority) && AUTHORITIES.some((name) => typeof rawAuthority[name] !== 'boolean')) {
+    issues.push(`authority object must carry boolean ${AUTHORITIES.join(', ')}`);
+  }
+  if (!ROUTE_MODES.has(normalized.routeMode)) issues.push('routeMode must be DIRECT or MACHINERY');
+  if (!SEMANTIC_REQUIREMENTS.has(normalized.semanticRequirement)) {
+    issues.push('semanticRequirement must be FORBIDDEN, CONDITIONAL, or REQUIRED');
+  }
+  if (normalized.contextSelection === undefined) {
+    issues.push('contextSelection must be present (use [] for no context)');
+  } else if (isPlainObject(normalized.contextSelection) && !Array.isArray(normalized.contextSelection.selected)) {
+    issues.push('contextSelection object must include selected[]');
+  }
+  return issues;
+}
+
+function liveGraderCatalog(repositoryRoot) {
+  const path = join(repositoryRoot, 'src', 'registry', 'skills', 'index.json');
+  const document = JSON.parse(readFileSync(path, 'utf8'));
+  if (!Array.isArray(document.bundles)) throw new Error('compact capability catalog has no bundles array');
+  return document.bundles.map(({ id, description, kind, capabilityClass, discoverability, operations, effects, hostRequirements }) => ({
+    id, description, kind, capabilityClass, discoverability, operations, effects, hostRequirements,
+  }));
+}
+
+function parseLiveGraderOutput(stdout, expectedCaseIds) {
+  const document = JSON.parse(stdout);
+  const observations = Array.isArray(document) ? document : document?.observations;
+  if (!Array.isArray(observations)) throw new Error('live grader output must be an array or {observations: []}');
+  const byId = new Map();
+  for (const observation of observations) {
+    if (!isPlainObject(observation) || !isNonEmptyString(observation.caseId)) {
+      throw new Error('every live grader observation must carry caseId');
+    }
+    if (byId.has(observation.caseId)) throw new Error(`duplicate live grader caseId ${observation.caseId}`);
+    byId.set(observation.caseId, observation);
+  }
+  if (byId.size !== expectedCaseIds.length || expectedCaseIds.some((caseId) => !byId.has(caseId))) {
+    throw new Error('live grader output does not cover each opaque caseId exactly once');
+  }
+  return expectedCaseIds.map((caseId) => {
+    const { caseId: _, ...observation } = byId.get(caseId);
+    return observation;
+  });
+}
+
+/**
+ * Invoke one explicit external model-grader adapter. The adapter receives the compact
+ * catalog plus opaque prompts on stdin and must return one complete six-dimension
+ * observation per case. Expectations and owning fixture skills are deliberately omitted.
+ */
+export async function runLiveGraderCommand(cases, {
+  command,
+  args = [],
+  repositoryRoot = root,
+  timeoutMs = 600_000,
+} = {}) {
+  if (!isNonEmptyString(command)) {
+    const error = new Error('no live grader command is configured');
+    error.code = 'LIVE_GRADER_UNAVAILABLE';
+    throw error;
+  }
+  const caseIds = cases.map((_, index) => `case-${String(index + 1).padStart(6, '0')}`);
+  const payload = {
+    schemaVersion: 1,
+    kind: 'legion-routing-live-eval-batch',
+    instruction: 'Classify each prompt independently. Return JSON observations with caseId, shouldRoute, rankedCapabilities, authority, routeMode, semanticRequirement, and contextSelection. Use [] for no capability or context. Do not judge against expected answers; none are supplied.',
+    catalog: liveGraderCatalog(repositoryRoot),
+    cases: cases.map((fixture, index) => ({ caseId: caseIds[index], prompt: fixture.prompt })),
+  };
+  const output = await new Promise((resolvePromise, rejectPromise) => {
+    const child = spawn(command, args, { cwd: repositoryRoot, shell: false, stdio: ['pipe', 'pipe', 'pipe'] });
+    const stdout = [];
+    const stderr = [];
+    const timer = setTimeout(() => {
+      child.kill();
+      rejectPromise(new Error(`live grader timed out after ${timeoutMs}ms`));
+    }, timeoutMs);
+    child.stdout.on('data', (chunk) => stdout.push(chunk));
+    child.stderr.on('data', (chunk) => stderr.push(chunk));
+    child.on('error', (error) => {
+      clearTimeout(timer);
+      rejectPromise(error);
+    });
+    child.on('close', (code) => {
+      clearTimeout(timer);
+      if (code !== 0) {
+        rejectPromise(new Error(`live grader exited ${code}: ${Buffer.concat(stderr).toString('utf8').trim()}`));
+        return;
+      }
+      resolvePromise(Buffer.concat(stdout).toString('utf8'));
+    });
+    child.stdin.end(JSON.stringify(payload));
+  });
+  let observations;
+  try {
+    observations = parseLiveGraderOutput(output, caseIds);
+  } catch (error) {
+    error.code = 'LIVE_GRADER_INVALID_OUTPUT';
+    throw error;
+  }
+  let observationIndex = 0;
+  return runLiveGrading(cases, async () => observations[observationIndex++]);
 }
 
 /**
@@ -539,11 +670,40 @@ async function main(args = process.argv.slice(2)) {
   const asJson = args.includes('--json');
   const live = args.includes('--live');
   if (live) {
-    // Preserve the historical --live contract until a periodic caller supplies a grader.
-    console.error('Live behavioural grading was requested (--live) but no live grader is wired into this package.');
-    console.error('This runner validates structure and coverage deterministically only; grading a case against an');
-    console.error('actual model turn requires a caller-supplied grader, which does not exist yet. Run without --live.');
-    return 3;
+    const commandIndex = args.indexOf('--grader-command');
+    const command = commandIndex >= 0 ? args[commandIndex + 1] : process.env.LEGION_LIVE_GRADER_COMMAND;
+    if (!isNonEmptyString(command)) {
+      console.error('Live behavioural grading requires --grader-command <executable> or LEGION_LIVE_GRADER_COMMAND.');
+      return 3;
+    }
+    const graderArgs = [];
+    for (let index = 0; index < args.length; index += 1) {
+      if (args[index] === '--grader-arg' && args[index + 1] !== undefined) graderArgs.push(args[index + 1]);
+    }
+    const deterministic = runDeterministicEvaluation();
+    if (deterministic.state !== 'PASS') {
+      if (asJson) console.log(JSON.stringify(deterministic, null, 2));
+      else console.error(`FAIL: fixture validation found ${deterministic.issues.length} issue(s)`);
+      return 1;
+    }
+    try {
+      const { cases } = loadEvalCases();
+      const results = await runLiveGraderCommand(cases, { command, args: graderArgs });
+      const failed = results.filter((result) => result.status === 'FAIL');
+      const payload = {
+        schema: 'skill-routing-live-eval.v1',
+        state: failed.length ? 'FAIL' : 'PASS',
+        total_cases: results.length,
+        failed_cases: failed.length,
+        results,
+      };
+      if (asJson) console.log(JSON.stringify(payload, null, 2));
+      else console.log(`${payload.state}: ${payload.total_cases} live routing cases (${payload.failed_cases} failed)`);
+      return failed.length ? 1 : 0;
+    } catch (error) {
+      console.error(`Live behavioural grading failed: ${error.message}`);
+      return 3;
+    }
   }
   const payload = runDeterministicEvaluation();
   if (asJson) console.log(JSON.stringify(payload, null, 2));

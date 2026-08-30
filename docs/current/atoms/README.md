@@ -16,23 +16,33 @@ This directory is Legion's atomic product ledger. Each owned subsystem has one c
 | Arcane | [arcane.md](arcane.md) | cognitive processing shape & response policy |
 | Guard | [guard.md](guard.md) | deterministic effect enforcement |
 | Covenant | [covenant.md](covenant.md) | bounded adversarial challenge |
-| Skills | [skills.md](skills.md) | packaged capabilities & entrypoints |
+| Skills | [skills.md](skills.md) | skill registry & projection infrastructure; each skill owns its semantics |
 
-## Required capability schema
+## Canon model
 
-Only `Capability ledger` rows count as atoms. Every subsystem uses:
+Only `COMMITTED` rows in each `Capability ledger` count as atoms. Every canon declares one required delivery boundary & keeps hierarchy, mechanisms, qualification, preservation, backlog, references, & exclusions outside capability totals.
+
+Capability schema:
 
 `ID | Parent | Owner | Scope | Observable behavior | Implementation | Verification | Qualification | Delivery | Action | Evidence`
 
-- `Parent` references a group ID from that file's non-counted group register.
-- `Scope`: `COMMITTED`, `PROPOSED`, `EXCLUDED`.
-- `Implementation`: `DELIVERED`, `PARTIAL`, `MISSING`, `UNKNOWN`.
-- `Verification`: `FULL_PASS`, `FOCUSED_PASS`, `PENDING`, `FAILED`, `UNKNOWN`.
-- `Qualification`: `PASS`, `NOT_REQUIRED`, `PENDING`, `FAILED`, `UNKNOWN`.
-- `Delivery`: `DEPLOYED`, `INSTALLED`, `RELEASED`, `COMMITTED`, `LOCAL`, `UNKNOWN`.
-- `Action`: `RETAIN`, `REPAIR_WIRE`, `EVIDENCE`, `ADD`, `REMOVE`, `SUPERSEDE`.
+- `Parent` references a group ID from same canon.
+- `Scope`: `COMMITTED`, `EXPLORATORY`, `BACKLOG`, `EXCLUDED`.
+- `Implementation`: `MISSING`, `PARTIAL`, `DELIVERED`, `UNKNOWN`.
+- `Verification`: `PENDING`, `FOCUSED_PASS`, `FAIL`, `STALE`, `UNKNOWN`.
+- `Qualification`: `NOT_REQUIRED`, `PENDING`, `PASS`, `FAIL`, `STALE`, `UNKNOWN`.
+- `Delivery`: `LOCAL`, `COMMITTED`, `PUSHED`, `RELEASED`, `UNKNOWN`.
+- `Action`: planning metadata only; it never changes lifecycle state.
+- `Evidence`: `PENDING` until an acceptance ID, exact material revision or receipt, & freshness marker exist.
 
-An atom is closed only when implementation is `DELIVERED`, verification is `FULL_PASS` or `FOCUSED_PASS`, qualification is `PASS` or `NOT_REQUIRED`, delivery meets its boundary, & evidence is exact. Closed state is derived; it is never stored.
+Each canon also contains:
+
+- a non-counted group ledger with explicit owner, scope, parent, & derived rollup;
+- a non-counted implementation register whose targets must resolve to capabilities;
+- a non-counted qualification ledger whose targets must resolve to capabilities;
+- a non-counted decision register for `REFERENCE`, `EXCLUSION`, & `BACKLOG` dispositions.
+
+Closure is derived only when implementation is `DELIVERED`, verification is `FOCUSED_PASS`, qualification is `PASS` or a recorded `NOT_REQUIRED`, delivery meets canon boundary, evidence is acceptance/revision/receipt/freshness bound, & no blocker contradicts row. Producer status never self-certifies closure.
 
 ## Ownership decisions
 
@@ -46,3 +56,5 @@ An atom is closed only when implementation is `DELIVERED`, verification is `FULL
 ## Derived pending work
 
 [docs/pending/README.md](../../pending/README.md) is generated from open capability rows by `node scripts/check-atomic-canons.mjs --write`. Edit subsystem canons, never generated pending rows.
+
+Historical pending inventory is preservation-mapped in [registers/preservation-map.md](registers/preservation-map.md). Any legacy row absent from this map, unresolved target, semantic ownership overlap, or stale evidence blocks reconciliation.

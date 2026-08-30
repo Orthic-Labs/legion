@@ -58,7 +58,7 @@ function namingFixture() {
   const files = [
     'src/config/naming-registry.json', 'src/config/naming-legacy-allowlist.json', 'README.md', 'package.json', 'MANIFEST.package.json',
     '.claude-plugin/plugin.json', '.codex-plugin/plugin.json', 'src/lib/roster/index.mjs', 'src/lib/cli/commands/doctor.mjs',
-    'src/packages/context/lib/context.mjs', 'src/packages/arcane/lib/architecture-event-store.mjs', 'src/packages/arcane/lib/authority-binding-store.mjs',
+    'src/packages/context/lib/context.mjs', 'src/lib/verification/arcane/architecture-event-store.mjs', 'src/lib/contracts/arcane/authority-binding-store.mjs',
     'src/providers/security/packs/output-handling.mjs',
   ];
   for (const path of files) {

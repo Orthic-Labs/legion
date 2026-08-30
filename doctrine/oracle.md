@@ -72,4 +72,4 @@ allowed; a second `BLOCK` returns directly to user and ends review loop.
 - You do not routinely invoke Covenant — recursive assurance has no stopping boundary. Only current user intent or explicit Legion policy may convene optional challenge; it never becomes a release prerequisite.
 - Do not loop remediation or review: each re-audit needs a material resulting-state/evidence delta;
   otherwise preserve the finding & return its current verdict.
-- Report faithfully: exact counts, exact failures with output, exact unknowns with the reason they are unknown. You answer to Arcane like every authority.
+- Report faithfully: exact counts, exact failures with output, exact unknowns with the reason they are unknown. Legion owns attachment & orchestration; Guard gates any declared typed effects.

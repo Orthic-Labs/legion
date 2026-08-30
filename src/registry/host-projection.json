@@ -603,7 +603,7 @@
     },
     {
       "id": "legion-hook",
-      "degradation": "Fails open and silently: the host treats an unresolvable hook command as a non-blocking error, so every Arcane gate stops running with no operator-visible signal and no receipt is recorded."
+      "degradation": "Fails open and silently: the host treats an unresolvable hook command as a non-blocking error, so every Guard gate stops running with no operator-visible signal and no effect-decision receipt is recorded."
     },
     {
       "id": "local-corpus",
@@ -669,7 +669,7 @@
         "skillDiscovery": "strong",
         "authorityAgents": "strong",
         "mcp": "strong",
-        "arcaneEnforcement": "strong"
+        "guardEnforcement": "strong"
       },
       "mechanisms": {
         "instructions": "plugin",
@@ -687,7 +687,7 @@
         "skillDiscovery": "strong",
         "authorityAgents": "unsupported",
         "mcp": "strong",
-        "arcaneEnforcement": "unsupported"
+        "guardEnforcement": "unsupported"
       },
       "mechanisms": {
         "instructions": "agents-md",
@@ -705,7 +705,7 @@
         "skillDiscovery": "degraded",
         "authorityAgents": "unsupported",
         "mcp": "unsupported",
-        "arcaneEnforcement": "unsupported"
+        "guardEnforcement": "unsupported"
       },
       "mechanisms": {
         "instructions": "native-file",
@@ -723,7 +723,7 @@
         "skillDiscovery": "degraded",
         "authorityAgents": "unsupported",
         "mcp": "unsupported",
-        "arcaneEnforcement": "unsupported"
+        "guardEnforcement": "unsupported"
       },
       "mechanisms": {
         "instructions": "agents-md",
@@ -741,7 +741,7 @@
         "skillDiscovery": "degraded",
         "authorityAgents": "unsupported",
         "mcp": "unsupported",
-        "arcaneEnforcement": "unsupported"
+        "guardEnforcement": "unsupported"
       },
       "mechanisms": {
         "instructions": "agents-md",
@@ -759,7 +759,7 @@
         "skillDiscovery": "degraded",
         "authorityAgents": "unsupported",
         "mcp": "unsupported",
-        "arcaneEnforcement": "unsupported"
+        "guardEnforcement": "unsupported"
       },
       "mechanisms": {
         "instructions": "agents-md",

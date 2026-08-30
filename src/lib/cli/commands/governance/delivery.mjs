@@ -1,7 +1,7 @@
-import { assessControlRetirement } from '../../../../packages/arcane/lib/control-lifecycle.mjs';
-import { recoverControlState } from '../../../../packages/arcane/lib/control-recovery.mjs';
-import { assessMigrationCutover } from '../../../../packages/arcane/lib/migration-cutover.mjs';
-import { admitCapacity, admitTaskPhase, assessRealization, classifyHandoff } from '../../../../packages/arcane/lib/dispatch-scheduler.mjs';
+import { assessControlRetirement } from './delivery/control-lifecycle.mjs';
+import { recoverControlState } from './delivery/control-recovery.mjs';
+import { assessMigrationCutover } from './delivery/migration-cutover.mjs';
+import { admitCapacity, admitTaskPhase, assessRealization, classifyHandoff } from './delivery/dispatch-scheduler.mjs';
 import { EXIT } from '../../../errors.mjs';
 import { closeSync, existsSync, fsyncSync, mkdirSync, openSync, readFileSync, renameSync, unlinkSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';

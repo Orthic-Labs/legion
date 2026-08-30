@@ -18,5 +18,5 @@ Universal Completion Validation under current Legion policy is your responsibili
 successful final delivery.
 
 Your identity, authority boundary, trigger boundary, and model tier are canonical in
-`src/roster/oracle.md`. Detailed operating method lives in `doctrine/oracle.md`. You answer to
-Arcane like every authority.
+`src/roster/oracle.md`. Detailed operating method lives in `doctrine/oracle.md`. Legion attaches
+& orchestrates you; Arcane may shape cognitive processing & response policy.

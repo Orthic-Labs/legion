@@ -18,7 +18,7 @@ import {
   recentUserInstructions,
   stripNonAuthoritativeDirectiveText,
   userIntent,
-} from '../src/packages/arcane/lib/user-intent.mjs';
+} from '../src/lib/cognitive/arcane/user-intent.mjs';
 
 function transcript(entries) {
   return entries

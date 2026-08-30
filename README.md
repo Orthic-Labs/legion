@@ -15,7 +15,7 @@ flowchart LR
 
 ## What it does
 
-Legion begins with current user intent. Already-running model selects zero or more capabilities from compact public catalog, deterministic runtime validates IDs, & Legion materializes work graph. Authority attaches only where work requires it: Sage for material unresolved meaning/ownership/acceptance, Alchemist for bounded transformation, & Oracle for independent Completion Validation. Arcane is deterministic effect-enforcement plane: it can deny unsafe effects, record receipts, & invalidate stale evidence, but it never invents consent.
+Legion begins with current user intent. Legion selects zero or more capabilities from compact public catalog, deterministic runtime validates IDs, & Legion materializes work graph. Legion attaches authority only where work requires it: Sage for material unresolved meaning/ownership/acceptance, Alchemist for bounded transformation, & Oracle for independent Completion Validation. Arcane owns cognitive processing & response policy. Guard deterministically gates typed effects, reports enforcement health, & owns effect-decision receipts; neither can invent consent.
 
 Work splits into independent units where safe, then reunites at delivery. Capabilities supply expertise, method, workflow, & context; capability never grants authority. Optional domains group catalog entries for discovery only.
 
@@ -27,7 +27,8 @@ Work splits into independent units where safe, then reunites at delivery. Capabi
 | **Sage** | Exceptionally adjudicate material unresolved meaning, ownership, or acceptance | Own architecture, diagnosis, routine decisions, or implementation |
 | **Alchemist** | Apply bounded changes, repair mechanical failures, verify its work | Settle new engineering decisions |
 | **Oracle** | Independently perform Completion Validation over requested outcome & evidence | Own Audit/QA/Audit Visual methods or certify its own fix |
-| **Arcane** | Deterministic hook & receipt control plane | Grant authority or impersonate judgment |
+| **Arcane** | Shape bounded cognitive processing & response policy | Select capabilities, attach authority, or authorize effects |
+| **Guard** | Deterministically gate typed effects, report enforcement health, & own effect-decision receipts | Interpret intent, select capabilities, or attach authority |
 | **Covenant** | Isolated challenge chamber over frozen evidence | Override caller authority |
 
 Oracle is independent assurance authority for Completion Validation.
@@ -51,7 +52,7 @@ One doctrine & kernel project into harness-native slots. Legion does not pretend
 |---|---|---|---|
 | Doctrine & routing | yes | yes | yes |
 | Native authority agents | yes | host-dependent | host-dependent |
-| Arcane pre-effect interception | when host hooks support it | when host hooks support it | boundary-gated |
+| Guard pre-effect interception | when host hooks support it | when host hooks support it | boundary-gated |
 | Receipts | hook or CLI | hook or CLI | CLI/boundary |
 | Covenant isolation | engine-owned | engine-owned | engine-owned |
 | Oracle Completion Validation | yes | yes | yes |

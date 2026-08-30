@@ -12,7 +12,6 @@
     "doctrine/",
     "src/evals/architecture/",
     "src/roster/",
-    "src/packages/arcane/",
     "src/packages/context/",
     "src/packages/contracts/",
     "src/bin/",

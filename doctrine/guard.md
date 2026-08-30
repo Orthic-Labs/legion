@@ -23,10 +23,10 @@ It owns effect classification, policy matching, approval-boundary refusal,
 hard safety refusals, enforcement-health reporting, and effect-decision
 receipts when that receipt path is implemented.
 
-The Guard does not interpret user intent. It does not choose capabilities,
-route cognition, attach Sage, Alchemist, or Oracle, decompose work, supervise
-subagents, or shape the final response. Those concerns belong to Arcane,
-Legion, the host, or the relevant authority.
+The Guard does not interpret user intent, choose capabilities, attach Sage,
+Alchemist, or Oracle, decompose work, supervise subagents, route cognition, or
+shape the final response. Legion owns capability selection, authority attachment,
+& orchestration; Arcane owns cognitive processing & response policy.
 
 Arcane may describe the processing topology of a request, but it cannot
 authorize an effect. A route envelope is ephemeral and is not a Guard
@@ -80,15 +80,16 @@ artifacts are not merged here.
 | --- | --- | --- |
 | `SessionStart` | `startup`, `resume`, `clear`, `compact` | acknowledge as lifecycle |
 | `SubagentStart` | all | acknowledge as lifecycle |
+| `SubagentStop` | all | acknowledge as lifecycle |
 | `UserPromptSubmit` | all | acknowledge as lifecycle |
 | `PostCompact` | `manual`, `auto` | acknowledge as lifecycle |
-| `PreToolUse` | shell, command, file-edit, and patch tools | classify and authorize |
-| `PostToolUse` | the pre-effect tools plus `WebFetch` and `WebSearch` | acknowledge as post-effect |
+| `PreToolUse` | shell, command, file-edit, patch, & `mcp__*` tools | classify typed effects & authorize; allow MCP reads as observations |
+| `PostToolUse` | the pre-effect tools plus `WebFetch` & `WebSearch` | acknowledge as post-effect |
 | `PostToolUseFailure` | the same post-effect matcher | acknowledge as post-effect |
 | `Stop` | all | deliver response policy and verify proportionally |
 
 The binary also accepts the lower-case protocol aliases `session-start`,
-`subagent-start`, `user-prompt-submit`, `post-compact`, `pre-effect`,
+`subagent-start`, `subagent-stop`, `user-prompt-submit`, `post-compact`, `pre-effect`,
 `post-effect`, `post-effect-failure`, and `stop`, plus `ci-boundary`.
 Those aliases are protocol support; they are not additional registrations in
 `hooks/hooks.json`.
@@ -99,10 +100,9 @@ Guard event; the Guard delivers that policy but does not own it. Stop completion
 verification is proportional: it consults a typed verification requirement and
 checks the `oracle-completion-validation-v1` receipt only when that requirement
 demands one, rather than treating any file write as grounds for mandatory
-assurance. `SubagentStop` is not currently registered or accepted; adding it
-for observation and receipting is tracked future work. `mcp__*` write, send,
-and delete tools are also not currently matched; widening that surface must
-be accompanied by matching classifier arms.
+assurance. `SubagentStop` is registered as lifecycle observation. `mcp__*`
+write/send/delete tools map to `EXTERNAL_SIDE_EFFECT`; MCP reads remain
+non-effect observations.
 
 The current hook surface deliberately does not treat `Task` or `Agent`
 dispatch as an effect class. Dispatch is Legion orchestration; the
@@ -256,15 +256,13 @@ The Guard has two separate obligations:
 The hook response is schema-versioned and includes `allowed`, `code`,
 `reason`, and `enforcementHealth`. The seed returns `allowed: false` for
 malformed frames, unsupported events, missing effect data, policy denial, and
-native-policy failures. `HookResponse` uses `unsupported` for I/O and
+native-policy failures. `HookResponse` uses `unsupported` for I/O &
 serialization failures; ordinary validated decisions are labelled `strong`.
 
-There is a current honesty defect: the `native_application` failure branch
-returns `ARC_NATIVE_POLICY_UNAVAILABLE` with health `strong`, even though the
-policy boundary was unavailable. This still fails closed, but the health
-label is too strong. Correctly distinguishing unavailable/degraded
-enforcement from strong enforcement is future remediation; no consumer may
-interpret a strong label as proof that a missing baseline was safely loaded.
+The `native_application` failure branch returns
+`ARC_NATIVE_POLICY_UNAVAILABLE` with health `unsupported`. It fails closed
+without claiming strong enforcement; a focused regression test pins this
+label.
 
 ## Receipts
 
@@ -292,13 +290,9 @@ make an authorization decision.
 
 Future Guard work includes:
 
-- correcting enforcement-health labels when the policy baseline is
-  unavailable;
 - completing target-bound approval flow, while keeping reserved classes
   denied until it is real;
 - emitting and retaining effect receipts;
-- adding `mcp__*` write/send/delete coverage with classifier support;
-- adding `SubagentStop` observation/receipting;
 - wiring operation-specific destructive `FILE_DELETE` classification; and
 - fuzzing/property-testing malformed, nested, oversized, Unicode, shell,
   path, multi-target, and unknown-class inputs before broadening coverage.

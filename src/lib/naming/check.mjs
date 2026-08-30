@@ -112,8 +112,8 @@ function semanticIssues(root, registry) {
   if (existsSync(resolve(root, 'packages/seer'))) issues.push({ path: 'packages/seer', reason: 'legacy assurance package still exists' });
   if (existsSync(resolve(root, 'registry/rules/opengrep/nemesis-core.yml'))) issues.push({ path: 'registry/rules/opengrep/nemesis-core.yml', reason: 'legacy product filename still exists' });
   for (const { path, declaration, valuePattern = /['"]([^'"]+)['"]/g, expected: values } of [
-    { path: 'src/packages/arcane/lib/architecture-event-store.mjs', declaration: /const ACTOR_ROLES\s*=\s*new Set\((\[[^\]]+\])\)/, expected: ['alchemist', 'covenant', 'host', 'legion', 'oracle', 'sage', 'worker'] },
-    { path: 'src/packages/arcane/lib/authority-binding-store.mjs', declaration: /const MAP\s*=\s*(\{[^}]+\})/, valuePattern: /:\s*['"]([^'"]+)['"]/g, expected: ['alchemist', 'legion', 'oracle', 'sage'] },
+    { path: 'src/lib/verification/arcane/architecture-event-store.mjs', declaration: /const ACTOR_ROLES\s*=\s*new Set\((\[[^\]]+\])\)/, expected: ['alchemist', 'covenant', 'host', 'legion', 'oracle', 'sage', 'worker'] },
+    { path: 'src/lib/contracts/arcane/authority-binding-store.mjs', declaration: /const MAP\s*=\s*(\{[^}]+\})/, valuePattern: /:\s*['"]([^'"]+)['"]/g, expected: ['alchemist', 'legion', 'oracle', 'sage'] },
   ]) {
     const source = readFileSync(resolve(root, path), 'utf8');
     const literal = declaration.exec(source)?.[1] ?? '';

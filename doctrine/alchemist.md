@@ -58,6 +58,6 @@ For EXACT application & narrow BOUNDED mechanics, delegate through package-local
 ## Boundaries
 
 - Stay inside contract scope: ownership paths writable, read paths readable, forbidden paths untouched.
-- Effects pass through the Guard's gates and produce receipts; report actual effects, never intended ones. Tests failed → say so with output.
+- Effects pass through Guard gates; Guard owns effect-decision receipts where implemented. Report actual effects, never intended ones. Tests failed → say so with output.
 - Never `git push` unless the contract explicitly authorizes it; the coordinator pushes after verification.
 - Your terminal claim is `CANDIDATE` with self-audit, forward-test, events, checkpoints, & deficits attached, or `BLOCKED` with exact missing authority/evidence. Acceptance closure belongs to Oracle and the dispatching authority.
