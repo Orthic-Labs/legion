@@ -68,7 +68,10 @@ launcher emits zero JSON events. Isolation matters: without it the worker loads 
 MCP server and skill, and a trivial turn costs ~75k input tokens.
 
 `run-worker.sh` (Mac) is a simpler port — no isolated home, sandbox, or `--cd` yet. It falls back
-to `gtimeout` when GNU `timeout` is absent, then to unbounded with a warning.
+to `gtimeout` when GNU `timeout` is absent, and when neither binary exists it enforces the same
+bound with a shell watchdog: a wrapper owns the launcher child and forwards `TERM`, the watchdog
+escalates `TERM` then `KILL`, and a timeout exits `124`. The bound is always enforced — stock macOS
+ships neither binary, and the previous unbounded fallback meant a wedged worker ran forever.
 
 Both write raw JSONL to `~/.alchemist/runs/<timestamp>-<profile>.jsonl` (override with
 `ALCHEMIST_RUN_DIR`), emit assistant text on stdout, and put activity plus the final `EVENT_LOG=`

@@ -86,7 +86,7 @@
     {
       "path": "references/manual.md",
       "uri": "legion-skill://alchemist/references/manual.md",
-      "digest": "sha256:4fc1a85fd4f73d2a8ea74b32b34234d9e2b8a5dfee016e62355498d7da55dbda"
+      "digest": "sha256:3b8e1ab49c664aa1d31c5604a51d75a06fb3591604c4fece9a60e6195381a3c4"
     },
     {
       "path": "scripts/parse_events.py",
@@ -121,7 +121,7 @@
     {
       "path": "tests/test_posix_runner.py",
       "uri": "legion-skill://alchemist/tests/test_posix_runner.py",
-      "digest": "sha256:12b557dbbb946112ee4f226be6cc6a3ed61b5a0ef49ce0b63805f3262bfb1bb2"
+      "digest": "sha256:cf0bb6c6adf5ee1ea72a7b4729c0e40a136a3159e0b22f6f02c1fb8ce116724c"
     },
     {
       "path": "tests/test_windows_runner.py",

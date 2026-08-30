@@ -191,13 +191,17 @@ class PosixRunnerTest(unittest.TestCase):
             self.assertIn("stdout-marker", event_log.read_text(encoding="utf-8"))
             self.assertIn("stderr-marker", Path(f"{event_log}.stderr").read_text(encoding="utf-8"))
 
-    def test_no_timeout_binary_falls_back_to_unbounded_with_a_warning(self):
-        """manual.md: 'falls back to gtimeout ... then to unbounded with a warning.' Pin the
-        documented fallback message so a silent removal of the warning is caught."""
+    def test_no_timeout_binary_still_enforces_the_bound_with_a_shell_watchdog(self):
+        """manual.md: 'when neither binary exists it enforces the same bound with a shell
+        watchdog'. Pin the enforcement so a silent return to an unbounded fallback is caught —
+        stock macOS ships neither timeout nor gtimeout, so this path is the normal one there."""
         runner_source = RUNNER.read_text(encoding="utf-8")
         self.assertIn('command -v timeout', runner_source)
         self.assertIn('gtimeout', runner_source)
-        self.assertIn("no timeout binary found; running unbounded", runner_source)
+        self.assertNotIn("running unbounded", runner_source)
+        self.assertIn("watchdog", runner_source)
+        self.assertIn("kill -TERM", runner_source)
+        self.assertIn("kill -KILL", runner_source)
 
     def test_no_concurrency_cap_is_a_known_gap_not_silently_reintroduced(self):
         """Unlike run-worker.ps1 (named-mutex cap, ALCHEMIST_MAX_CONCURRENT, default/max 10),
