@@ -3137,7 +3137,8 @@ mod tests {
             release_version: EXPECTED_RELEASE_VERSION.into(),
             runtime: legion_runtime::RuntimeIdentity {
                 platform: std::env::consts::OS.into(),
-                architecture: std::env::consts::ARCH.into(),
+                architecture: legion_runtime::release_binding::current_runtime_architecture()
+                    .into(),
                 sha256: digest.clone(),
                 provenance: "rightkit-release://setup-live-test".into(),
             },
