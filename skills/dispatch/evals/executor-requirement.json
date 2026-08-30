@@ -1,0 +1,167 @@
+{
+  "schema_version": 1,
+  "skill": "dispatch",
+  "should_trigger": [
+    {
+      "id": "executor-requirement-deterministic-sufficient",
+      "prompt": "Create a dispatch executor requirement for an exact structured-text edit with fixed paths and an exact completion check; semantic interpretation is unnecessary.",
+      "expected_skill": "dispatch",
+      "forbidden_skills": [],
+      "severity": "error",
+      "mode": "static",
+      "expected_behavior": "Produces an executorRequirement with semanticRequirement forbidden, non-empty capabilities, effects, authorityCeiling, completion, and escalation fields; permittedOn is empty because forbidden semantic work cannot escalate.",
+      "assertions": [
+        {
+          "type": "expected_skill",
+          "value": "dispatch"
+        },
+        {
+          "type": "required_text",
+          "value": "executorRequirement"
+        },
+        {
+          "type": "required_text",
+          "value": "semanticRequirement"
+        },
+        {
+          "type": "required_text",
+          "value": "forbidden"
+        },
+        {
+          "type": "required_text",
+          "value": "permittedOn"
+        }
+      ],
+      "routing": {
+        "shouldRoute": true,
+        "firstRankedCapability": "dispatch",
+        "semanticRequirement": "FORBIDDEN"
+      }
+    },
+    {
+      "id": "executor-requirement-semantic-required",
+      "prompt": "Create a dispatch executor requirement for work that must interpret an architectural trade-off before editing the repository.",
+      "expected_skill": "dispatch",
+      "forbidden_skills": [],
+      "severity": "error",
+      "mode": "static",
+      "expected_behavior": "Produces an executorRequirement with semanticRequirement required and the required capability, effect, authority ceiling, completion, and escalation structure; it does not classify architectural interpretation as forbidden semantic work.",
+      "assertions": [
+        {
+          "type": "expected_skill",
+          "value": "dispatch"
+        },
+        {
+          "type": "required_text",
+          "value": "executorRequirement"
+        },
+        {
+          "type": "required_text",
+          "value": "required"
+        },
+        {
+          "type": "required_text",
+          "value": "capabilities"
+        },
+        {
+          "type": "required_text",
+          "value": "effects"
+        },
+        {
+          "type": "required_text",
+          "value": "completion"
+        }
+      ],
+      "routing": {
+        "shouldRoute": true,
+        "firstRankedCapability": "dispatch",
+        "semanticRequirement": "REQUIRED"
+      }
+    },
+    {
+      "id": "executor-requirement-conditional-escalation",
+      "prompt": "Create a dispatch executor requirement for deterministic symbol-reference resolution first, allowing semantic escalation only when the mechanism reports unsupported or ambiguous.",
+      "expected_skill": "dispatch",
+      "forbidden_skills": [],
+      "severity": "error",
+      "mode": "static",
+      "expected_behavior": "Produces a conditional executorRequirement with a non-empty permittedOn containing only typed outcomes such as unsupported or ambiguous, and keeps denied in forbiddenOn rather than permitting escalation for it.",
+      "assertions": [
+        {
+          "type": "expected_skill",
+          "value": "dispatch"
+        },
+        {
+          "type": "required_text",
+          "value": "conditional"
+        },
+        {
+          "type": "required_text",
+          "value": "permittedOn"
+        },
+        {
+          "type": "required_text",
+          "value": "unsupported"
+        },
+        {
+          "type": "required_text",
+          "value": "ambiguous"
+        },
+        {
+          "type": "required_text",
+          "value": "forbiddenOn"
+        },
+        {
+          "type": "required_text",
+          "value": "denied"
+        }
+      ],
+      "routing": {
+        "shouldRoute": true,
+        "firstRankedCapability": "dispatch",
+        "semanticRequirement": "CONDITIONAL"
+      }
+    },
+    {
+      "id": "executor-requirement-denied-never-escalates",
+      "prompt": "Create a dispatch executor requirement for an operation that may be denied by authority; denial must never be converted into semantic fallback.",
+      "expected_skill": "dispatch",
+      "forbidden_skills": [],
+      "severity": "error",
+      "mode": "static",
+      "expected_behavior": "Places denied in escalation.forbiddenOn and never in escalation.permittedOn; the dispatch validator rejects a requirement that permits denied escalation.",
+      "assertions": [
+        {
+          "type": "expected_skill",
+          "value": "dispatch"
+        },
+        {
+          "type": "required_text",
+          "value": "denied"
+        },
+        {
+          "type": "required_text",
+          "value": "forbiddenOn"
+        },
+        {
+          "type": "required_text",
+          "value": "permittedOn"
+        },
+        {
+          "type": "forbidden_text",
+          "value": "permittedOn: denied"
+        }
+      ],
+      "routing": {
+        "shouldRoute": true,
+        "firstRankedCapability": "dispatch",
+        "semanticRequirement": "CONDITIONAL"
+      }
+    }
+  ],
+  "should_not_trigger": [],
+  "output_quality": [],
+  "safety": [],
+  "pressure": [],
+  "compatibility": []
+}

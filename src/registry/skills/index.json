@@ -540,6 +540,24 @@
       "manifest": "skills/manifests/marketing.json"
     },
     {
+      "id": "oracle",
+      "name": "oracle",
+      "description": "Independent read-only Completion Validation against the raw user request. Use /oracle before successful delivery.",
+      "kind": "entrypoint",
+      "capabilityClass": null,
+      "discoverability": "explicit",
+      "operations": [
+        "evaluate"
+      ],
+      "effects": [
+        "source-read"
+      ],
+      "hostRequirements": [],
+      "hostRequirementDetails": [],
+      "source": "skills/oracle/SKILL.md",
+      "manifest": "skills/manifests/oracle.json"
+    },
+    {
       "id": "qa",
       "name": "qa",
       "description": "Add, run, or audit local web or Tauri app QA: hidden servers, deterministic mocks, functional/browser assertions, supporting viewport captures, runtime checks, & contract-test authoring.",

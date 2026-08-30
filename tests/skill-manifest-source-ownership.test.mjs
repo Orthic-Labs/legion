@@ -16,7 +16,7 @@ test('generated manifest parity derives from canonical semantics & package files
 
 test('catalog semantic lists are exact YAML values, never list-marker text', () => {
   const { index } = buildSkillCatalog();
-  assert.equal(index.bundles.length, 24);
+  assert.equal(index.bundles.length, 25);
   for (const bundle of index.bundles) {
     for (const field of ['operations', 'effects', 'hostRequirements']) {
       assert.equal(bundle[field].some((value) => value.startsWith('- ')), false, `${bundle.id}.${field}`);
@@ -29,7 +29,7 @@ test('catalog semantic lists are exact YAML values, never list-marker text', () 
   assert.deepEqual(coder.hostRequirements, ['pi-cli', 'python-runtime']);
 });
 
-test('all 24 packaged sources exactly match frozen classifications and repertoires', () => {
+test('all 25 packaged sources exactly match frozen classifications and repertoires', () => {
   const expected = {
     ads: ['capability', 'domain', 'public', 'commercial', 'analyze,decide,produce', 'source-read,network-request'],
     alchemist: ['entrypoint', null, 'explicit', null, 'execute', 'source-read,repository-write,process-exec'],
@@ -48,6 +48,7 @@ test('all 24 packaged sources exactly match frozen classifications and repertoir
     gotchas: ['capability', 'workflow', 'public', null, 'analyze,execute,produce', 'source-read,repository-write'],
     handoff: ['capability', 'workflow', 'public', null, 'analyze,produce', 'source-read,artifact-write,process-exec'],
     marketing: ['capability', 'domain', 'public', 'commercial', 'analyze,decide,produce', 'source-read,network-request'],
+    oracle: ['entrypoint', null, 'explicit', null, 'evaluate', 'source-read'],
     qa: ['capability', 'domain', 'public', 'engineering', 'analyze,evaluate,execute,produce', 'source-read,artifact-write,process-exec'],
     research: ['capability', 'domain', 'public', 'research', 'route,analyze,produce', 'source-read,artifact-write,network-request'],
     seo: ['capability', 'domain', 'public', 'commercial', 'analyze,diagnose,produce', 'source-read,artifact-write,process-exec,network-request'],

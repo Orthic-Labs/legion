@@ -145,7 +145,7 @@
     {
       "path": "evals/llms-txt.evals.json",
       "uri": "legion-skill://seo/evals/llms-txt.evals.json",
-      "digest": "sha256:37d92172003fdf6fe00d24ac08feead3c7d23032c4fbf87193e28b59c18217af"
+      "digest": "sha256:b133e5458080de52dc3bd864af52df29a374ea7ea939d720caa4f088dbffee16"
     },
     {
       "path": "extensions/banana/references/cost-tracking.md",

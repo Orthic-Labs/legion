@@ -57,7 +57,7 @@ function namingFixture() {
   const fixture = mkdtempSync(join(tmpdir(), 'legion-naming-adversarial-'));
   const files = [
     'src/config/naming-registry.json', 'src/config/naming-legacy-allowlist.json', 'README.md', 'package.json', 'MANIFEST.package.json',
-    '.claude-plugin/plugin.json', '.codex-plugin/plugin.json', 'src/packages/oracle/index.mjs', 'src/lib/roster/index.mjs', 'src/lib/cli/commands/doctor.mjs',
+    '.claude-plugin/plugin.json', '.codex-plugin/plugin.json', 'src/lib/roster/index.mjs', 'src/lib/cli/commands/doctor.mjs',
     'src/packages/context/lib/context.mjs', 'src/packages/arcane/lib/architecture-event-store.mjs', 'src/packages/arcane/lib/authority-binding-store.mjs',
     'src/providers/security/packs/output-handling.mjs',
   ];
@@ -68,7 +68,7 @@ function namingFixture() {
   return fixture;
 }
 
-test('naming checker rejects unclassified active filenames, NUL source, and missing package authority', () => {
+test('naming checker rejects unclassified active filenames, NUL source, and legacy package manifest entries', () => {
   const fixture = namingFixture();
   try {
     mkdirSync(join(fixture, 'src', 'lib', 'naming'), { recursive: true });
@@ -79,7 +79,7 @@ test('naming checker rejects unclassified active filenames, NUL source, and miss
     writeFileSync(doctorPath, `${readFileSync(doctorPath, 'utf8')}\n// seer\n`);
     const manifestPath = join(fixture, 'MANIFEST.package.json');
     const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'));
-    manifest.allowlistedTopLevel = manifest.allowlistedTopLevel.filter((path) => path !== 'src/packages/oracle/');
+    manifest.allowlistedTopLevel.push('packages/seer/');
     writeFileSync(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
     const report = checkCanonicalNames({ root: fixture });
     assert.equal(report.status, 'fail');
@@ -87,7 +87,7 @@ test('naming checker rejects unclassified active filenames, NUL source, and miss
     assert.ok(report.unclassified.some(({ path }) => path === 'active.mjs'));
     assert.ok(report.unclassified.some(({ path, reason }) => path === 'neutral-nul.mjs' && reason === 'active source cannot be decoded for naming scan'));
     assert.ok(report.unclassified.some(({ path, reason }) => path === 'src/lib/cli/commands/doctor.mjs' && reason.includes('occurrence count differs')));
-    assert.ok(report.unclassified.some(({ path, reason }) => path === 'MANIFEST.package.json' && reason.includes('omits canonical Oracle package')));
+    assert.ok(report.unclassified.some(({ path, reason }) => path === 'MANIFEST.package.json' && reason.includes('retains legacy assurance package')));
   } finally { rmSync(fixture, { recursive: true, force: true }); }
 });
 

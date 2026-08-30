@@ -15,7 +15,6 @@
     "src/packages/arcane/",
     "src/packages/context/",
     "src/packages/contracts/",
-    "src/packages/oracle/",
     "src/bin/",
     "tools/audit/audit-complete.mjs",
     "tools/audit/audit-finalize.mjs",

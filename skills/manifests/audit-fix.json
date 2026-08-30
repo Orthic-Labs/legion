@@ -66,7 +66,7 @@
     {
       "path": "evals/evals.json",
       "uri": "legion-skill://audit-fix/evals/evals.json",
-      "digest": "sha256:d3e1ff58d6c5ece6d9a91f6311260949bb9df808a199c5f26a52321cceb01131"
+      "digest": "sha256:4c72829007993a4006f122a2f4a084c516c61f2d22c39612c58eeb96819f105d"
     }
   ]
 }

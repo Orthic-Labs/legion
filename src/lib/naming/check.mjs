@@ -101,17 +101,14 @@ function semanticIssues(root, registry) {
     if (!readme.includes(`| **${display}** |`)) issues.push({ path: 'README.md', reason: `authority table missing ${display}` });
   }
   const packageJson = JSON.parse(readFileSync(resolve(root, 'package.json'), 'utf8'));
-  for (const id of ['legion', ...expected, 'covenant']) if (!packageJson.keywords.includes(id)) issues.push({ path: 'package.json', reason: `missing canonical keyword ${id}` });
-  if (!packageJson.files.includes('src/packages/oracle/')) issues.push({ path: 'package.json', reason: 'published files omit canonical Oracle package' });
+  for (const id of ['legion', 'alchemist', 'arcane', 'sage', 'covenant']) if (!packageJson.keywords.includes(id)) issues.push({ path: 'package.json', reason: `missing canonical keyword ${id}` });
   if (packageJson.files.includes('packages/seer/')) issues.push({ path: 'package.json', reason: 'published files retain legacy assurance package' });
   const packageManifest = JSON.parse(readFileSync(resolve(root, 'MANIFEST.package.json'), 'utf8'));
-  if (!packageManifest.allowlistedTopLevel.includes('src/packages/oracle/')) issues.push({ path: 'MANIFEST.package.json', reason: 'package manifest omits canonical Oracle package' });
   if (packageManifest.allowlistedTopLevel.includes('packages/seer/')) issues.push({ path: 'MANIFEST.package.json', reason: 'package manifest retains legacy assurance package' });
   for (const path of ['.claude-plugin/plugin.json', '.codex-plugin/plugin.json']) {
     const manifest = JSON.parse(readFileSync(resolve(root, path), 'utf8'));
     for (const display of ['Legion', 'Sage', 'Alchemist', 'Oracle', 'Arcane']) if (!manifest.description.includes(display)) issues.push({ path, reason: `description missing ${display}` });
   }
-  if (!existsSync(resolve(root, 'src/packages/oracle/index.mjs'))) issues.push({ path: 'src/packages/oracle/index.mjs', reason: 'canonical Oracle package missing' });
   if (existsSync(resolve(root, 'packages/seer'))) issues.push({ path: 'packages/seer', reason: 'legacy assurance package still exists' });
   if (existsSync(resolve(root, 'registry/rules/opengrep/nemesis-core.yml'))) issues.push({ path: 'registry/rules/opengrep/nemesis-core.yml', reason: 'legacy product filename still exists' });
   for (const { path, declaration, valuePattern = /['"]([^'"]+)['"]/g, expected: values } of [

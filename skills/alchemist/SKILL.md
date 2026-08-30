@@ -36,6 +36,21 @@ absent, report Alchemist as unavailable on that path rather than returning an em
 routing contract above holds regardless of which host executes it.
 
 1. Require settled scope, ownership boundaries, acceptance criteria, and focused checks.
+   EXECUTOR:
+     semantic: required
+     capabilities:
+       - repository-truth-read
+       - source-read
 2. Route implementation to Alchemist; it applies bounded work and escalates undecided design,
    ownership, or boundary questions to Sage.
+   EXECUTOR:
+     semantic: conditional
+     capabilities:
+       - structured-text-edit
+       - architecture-reasoning
 3. Re-run declared checks against actual changed source before reporting completion.
+   EXECUTOR:
+     semantic: forbidden
+     capabilities:
+       - process-exec
+       - source-read

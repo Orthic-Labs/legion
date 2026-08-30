@@ -12,7 +12,7 @@ const aliases = JSON.parse(readFileSync(join(ROOT, 'src', 'config', 'capability-
 const PUBLIC_ENTRYPOINTS = [
   'ads', 'alchemist', 'architect', 'audit', 'audit-fix', 'audit-visual', 'brand',
   'brand-identity', 'coder', 'commit', 'covenant', 'debugger', 'designer', 'dispatch',
-  'gotchas', 'handoff', 'marketing', 'qa', 'research', 'seo', 'social', 'tasklist',
+  'gotchas', 'handoff', 'marketing', 'oracle', 'qa', 'research', 'seo', 'social', 'tasklist',
   'wake', 'writing',
 ];
 

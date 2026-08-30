@@ -47,7 +47,8 @@
       "examples/validated-forward-test.route.receipt.json"
     ],
     "evals": [
-      "evals/evals.json"
+      "evals/evals.json",
+      "evals/executor-requirement.json"
     ],
     "consumers": [
       "src/registry/skills/index.json",
@@ -69,7 +70,7 @@
     {
       "path": "assets/direct-packet.json",
       "uri": "legion-skill://dispatch/assets/direct-packet.json",
-      "digest": "sha256:45d2cf2a2c691ec470d3e66549ee2cb415a364839eec45e3adf800ce5b063efb"
+      "digest": "sha256:e86e4580790b568da64aad401c416defc237efb14d69144ef0e0c38e554884f9"
     },
     {
       "path": "assets/dispatch-template.md",
@@ -85,6 +86,11 @@
       "path": "evals/evals.json",
       "uri": "legion-skill://dispatch/evals/evals.json",
       "digest": "sha256:5738bb76bb2b3da6dbc50551a3c07f71af3bcaa0ea06ea5ad554deeb6f4f180f"
+    },
+    {
+      "path": "evals/executor-requirement.json",
+      "uri": "legion-skill://dispatch/evals/executor-requirement.json",
+      "digest": "sha256:b091c4c3d858816f00705ec529c4df825929d23fcd20e6305bce7af69b439627"
     },
     {
       "path": "examples/dispatch-route-fixture.json",

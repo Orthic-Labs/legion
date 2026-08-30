@@ -62,7 +62,14 @@
     {
       "id": "lane-a-implementation",
       "dispatch": "A",
-      "executor": "configured worker",
+      "executorRequirement": {
+        "semanticRequirement": "forbidden",
+        "capabilities": ["structured-text-edit"],
+        "effects": ["source-read", "artifact-write"],
+        "authorityCeiling": ["workspace"],
+        "completion": [{"kind": "exact-check", "id": "implementation-checkpoint"}],
+        "escalation": {"permittedOn": [], "forbiddenOn": ["denied"]}
+      },
       "allowlist": ["src/example.ts"],
       "read": ["tests/example.test.ts"],
       "forbidden": [".git", "secrets"],
@@ -72,7 +79,14 @@
     {
       "id": "lane-a-test",
       "dispatch": "A",
-      "executor": "configured worker",
+      "executorRequirement": {
+        "semanticRequirement": "forbidden",
+        "capabilities": ["structured-text-edit"],
+        "effects": ["source-read", "artifact-write"],
+        "authorityCeiling": ["workspace"],
+        "completion": [{"kind": "exact-check", "id": "test-checkpoint"}],
+        "escalation": {"permittedOn": [], "forbiddenOn": ["denied"]}
+      },
       "allowlist": ["tests/example.test.ts"],
       "read": ["src/example.ts"],
       "forbidden": [".git", "secrets"],

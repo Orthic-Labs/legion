@@ -223,6 +223,21 @@ def content_reference(
     return path
 
 
+# Executor requirements are optional for legacy direct packets, but every field is
+# structural when the proposal's requirement object is supplied.
+EXECUTOR_SEMANTIC_REQUIREMENTS = {"forbidden", "conditional", "required"}
+EXECUTOR_ESCALATION_OUTCOMES = {
+    "unsupported",
+    "ambiguous",
+    "unreachable",
+    "denied",
+    "terminated",
+    "verification_failed",
+    "observation_unavailable",
+}
+EXECUTOR_TOKEN_RE = re.compile(r"[a-z][a-z0-9]*(?:[-_][a-z0-9]+)*")
+
+
 def authority_packet_errors(packet: object, artifact: Path) -> tuple[list[str], list[dict[str, str]]]:
     errors: list[str] = []
     references: list[dict[str, str]] = []
@@ -395,6 +410,7 @@ def authority_packet_errors(packet: object, artifact: Path) -> tuple[list[str], 
                 worker_id = worker.get("id")
                 dispatch_id = worker.get("dispatch")
                 executor = worker.get("executor")
+                executor_requirement = worker.get("executorRequirement")
                 own = worker.get("allowlist")
                 read = worker.get("read")
                 forbidden = worker.get("forbidden")
@@ -411,7 +427,85 @@ def authority_packet_errors(packet: object, artifact: Path) -> tuple[list[str], 
                     errors.append(f"{label} requires known dispatch wave")
                 elif worker_id not in dispatch_lanes.get(dispatch_id, set()):
                     errors.append(f"{label} is not listed in dispatch {dispatch_id}")
-                if not isinstance(executor, str) or not executor.strip(): errors.append(f"{label} requires executor")
+                if "executorRequirement" in worker:
+                    if not isinstance(executor_requirement, dict):
+                        errors.append(f"{label} executorRequirement must be an object")
+                    else:
+                        semantic_requirement = executor_requirement.get("semanticRequirement")
+                        capabilities = executor_requirement.get("capabilities")
+                        effects = executor_requirement.get("effects")
+                        authority_ceiling = executor_requirement.get("authorityCeiling")
+                        completion = executor_requirement.get("completion")
+                        escalation = executor_requirement.get("escalation")
+                        if semantic_requirement not in EXECUTOR_SEMANTIC_REQUIREMENTS:
+                            errors.append(f"{label} executorRequirement has invalid semanticRequirement")
+                        for field_name, values in (
+                            ("capabilities", capabilities),
+                            ("effects", effects),
+                            ("authorityCeiling", authority_ceiling),
+                        ):
+                            if (
+                                not isinstance(values, list)
+                                or not values
+                                or any(
+                                    not isinstance(value, str)
+                                    or not EXECUTOR_TOKEN_RE.fullmatch(value)
+                                    for value in values
+                                )
+                                or len({value for value in values if isinstance(value, str)}) != len(values)
+                            ):
+                                errors.append(f"{label} executorRequirement requires valid {field_name}")
+                        if (
+                            not isinstance(completion, list)
+                            or not completion
+                            or any(
+                                not isinstance(check, dict)
+                                or not isinstance(check.get("kind"), str)
+                                or not EXECUTOR_TOKEN_RE.fullmatch(check["kind"])
+                                or not isinstance(check.get("id"), str)
+                                or not check["id"].strip()
+                                for check in completion
+                            )
+                        ):
+                            errors.append(f"{label} executorRequirement requires valid completion checks")
+                        elif len({check["id"] for check in completion}) != len(completion):
+                            errors.append(f"{label} executorRequirement completion ids must be unique")
+                        permitted_on: list[object] = []
+                        forbidden_on: list[object] = []
+                        if not isinstance(escalation, dict):
+                            errors.append(f"{label} executorRequirement requires escalation policy")
+                        else:
+                            permitted_on = escalation.get("permittedOn")
+                            forbidden_on = escalation.get("forbiddenOn")
+                            for field_name, outcomes in (
+                                ("permittedOn", permitted_on),
+                                ("forbiddenOn", forbidden_on),
+                            ):
+                                if (
+                                    not isinstance(outcomes, list)
+                                    or any(
+                                        not isinstance(outcome, str)
+                                        or outcome not in EXECUTOR_ESCALATION_OUTCOMES
+                                        for outcome in outcomes
+                                    )
+                                    or len({outcome for outcome in outcomes if isinstance(outcome, str)}) != len(outcomes)
+                                ):
+                                    errors.append(f"{label} executorRequirement requires valid escalation {field_name}")
+                            if (
+                                isinstance(permitted_on, list)
+                                and isinstance(forbidden_on, list)
+                                and all(isinstance(outcome, str) for outcome in permitted_on + forbidden_on)
+                            ):
+                                if set(permitted_on) & set(forbidden_on):
+                                    errors.append(f"{label} executorRequirement escalation policies overlap")
+                                if "denied" in permitted_on:
+                                    errors.append(f"{label} executorRequirement escalation permits denied")
+                                if semantic_requirement == "forbidden" and permitted_on:
+                                    errors.append(f"{label} executorRequirement forbids semantic escalation")
+                                if semantic_requirement == "conditional" and not permitted_on:
+                                    errors.append(f"{label} executorRequirement conditional requires escalation")
+                elif not isinstance(executor, str) or not executor.strip():
+                    errors.append(f"{label} requires executor")
                 scopes = (("OWN", own, True), ("READ", read, False), ("FORBIDDEN", forbidden, False))
                 normalized: dict[str, set[str]] = {}
                 for scope_name, values, required_scope in scopes:

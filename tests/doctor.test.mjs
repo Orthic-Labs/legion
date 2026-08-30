@@ -32,7 +32,7 @@ test('doctor --json emits the canonical shape', () => {
   assert.ok(Array.isArray(report.gaps));
   assert.ok(Array.isArray(report.commands));
   assert.equal(report.host.discovery['claude-code'].capabilities, 20);
-  assert.deepEqual(report.host.discovery['claude-code'].entrypoints, ['alchemist', 'coder', 'commit', 'covenant']);
+  assert.deepEqual(report.host.discovery['claude-code'].entrypoints, ['alchemist', 'coder', 'commit', 'covenant', 'oracle']);
   assert.equal(Object.hasOwn(report.host.discovery['claude-code'], 'roleEntrypoints'), false);
 });
 

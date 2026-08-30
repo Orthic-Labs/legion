@@ -1,0 +1,60 @@
+{
+  "schemaVersion": 1,
+  "id": "oracle",
+  "version": "1.0.0",
+  "entry": "SKILL.md",
+  "rootUri": "legion-skill://oracle/",
+  "provenance": "legion-authored",
+  "licenseState": "licensed",
+  "rightsReceipt": {
+    "kind": "legion-rights-receipt",
+    "basis": "repository-license",
+    "license": "LICENSE",
+    "licenseDigest": "sha256:6519936585434711b6d5971a3081fbd8b499438a39b6a08cc2191d33443926b4"
+  },
+  "profiles": {
+    "audit": {
+      "mutation": false,
+      "publish": false
+    },
+    "authoring": {
+      "mutation": true,
+      "publish": false,
+      "externalOnly": true
+    }
+  },
+  "parity": {
+    "triggers": [
+      "/oracle",
+      "Independent read-only Completion Validation against the raw user request. Use /oracle before successful delivery."
+    ],
+    "outputs": [],
+    "scripts": [],
+    "templates": [],
+    "schemas": [],
+    "receipts": [],
+    "evals": [],
+    "consumers": [
+      "src/registry/skills/index.json",
+      "src/lib/skills/resolver.mjs",
+      "src/registry/routing/domains.json"
+    ]
+  },
+  "files": [
+    {
+      "path": "SKILL.md",
+      "uri": "legion-skill://oracle/SKILL.md",
+      "digest": "sha256:7374424db67233fc73f2744111681d5195067fa019e0948397ad172eb5bb3f4c"
+    },
+    {
+      "path": "agents/openai.yaml",
+      "uri": "legion-skill://oracle/agents/openai.yaml",
+      "digest": "sha256:5e9e3a4064c02a4d408c1b359d8cc02add911abd1085da4a21d55215cd1cc0bf"
+    },
+    {
+      "path": "dependencies.json",
+      "uri": "legion-skill://oracle/dependencies.json",
+      "digest": "sha256:d40678f7c62f0461a8a1d8aff05b1a8c46ed071db0ac5da710d89ae3e660c968"
+    }
+  ]
+}

@@ -42,8 +42,7 @@
 			"includes": [
 				"src/providers/**/*.mjs",
 				"src/lib/review/untrusted-evidence-envelope.mjs",
-				"src/packages/arcane/lib/architecture-state.mjs",
-				"src/packages/oracle/tests/**/*.mjs"
+				"src/packages/arcane/lib/architecture-state.mjs"
 			],
 			"linter": {
 				"rules": {

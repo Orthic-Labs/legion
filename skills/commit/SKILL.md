@@ -28,11 +28,30 @@ Route one frozen diff through packaged `references/manual.md`. This entrypoint d
 review lenses, test gates, or Git effects.
 
 1. Confirm primary checkout, branch, overlay, remote, worktree ownership, & exact frozen scope.
+   EXECUTOR:
+     semantic: forbidden
+     capabilities:
+       - repository-truth-read
 2. Preserve unrelated edits; run shared secret, conflict, schema, generated-file, minimize, &
    focused behavior checks.
+   EXECUTOR:
+     semantic: forbidden
+     capabilities:
+       - process-exec
+       - source-read
 3. Stage explicit in-scope paths, prove staged diff equals frozen scope, then use shared commit
    & push procedure with its required receipts.
+   EXECUTOR:
+     semantic: forbidden
+     capabilities:
+       - process-exec
+       - repository-truth-read
 4. Route repository-wide diagnosis to `/audit`; only route remediation from a frozen Audit report
    to `/audit-fix`.
+   EXECUTOR:
+     semantic: required
+     capabilities:
+       - architecture-reasoning
+       - repository-truth-read
 
 This package wrapper is unpublished: its source rights are unresolved & it has no rights receipt.

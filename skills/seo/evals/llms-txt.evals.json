@@ -41,7 +41,12 @@
       "expected_skill": null,
       "forbidden_skills": [],
       "expected_behavior": "Do not generate an llms.txt for Willow & Pine. It is flagged non-commercial/passion-project in this project's brand policy — llms.txt-for-ranking is banned for such ventures. They get only the defensive AI-training block + passive technical optimization, not active commercial SEO. Decline and explain the venture policy.",
-      "assertions": [],
+      "assertions": [
+        {
+          "type": "expected_skill",
+          "value": null
+        }
+      ],
       "severity": "error",
       "mode": "discovery"
     }
@@ -74,7 +79,12 @@
       "expected_skill": "seo",
       "forbidden_skills": [],
       "expected_behavior": "Refuses to invent URLs or page titles. Requires actual crawl access (site URL + sitemap or firecrawl) before generating any hero-page list.",
-      "assertions": [],
+      "assertions": [
+        {
+          "type": "required_text",
+          "value": "site URL"
+        }
+      ],
       "severity": "error",
       "mode": "static"
     }
@@ -86,9 +96,19 @@
       "expected_skill": "seo",
       "forbidden_skills": [],
       "expected_behavior": "Explicitly rejects the anti-pattern of listing every page (this is not sitemap.xml). Selects 10-20 hero pages that would drive the best citation results if cited by AI crawlers.",
-      "assertions": [],
+      "assertions": [
+        {
+          "type": "required_text",
+          "value": "10-20"
+        },
+        {
+          "type": "required_text",
+          "value": "hero pages"
+        }
+      ],
       "severity": "error",
       "mode": "static"
     }
-  ]
+  ],
+  "compatibility": []
 }

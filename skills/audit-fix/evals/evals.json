@@ -64,5 +64,6 @@
       "severity": "error",
       "mode": "static"
     }
-  ]
+  ],
+  "compatibility": []
 }
