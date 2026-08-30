@@ -46,6 +46,7 @@ TERMINAL: visual.core reconciles its frozen matrix or reports typed UNPROVEN cov
 4. Read frozen `plan.json` before `visual.json`; `visual.core` must be selected before execution.
 5. Missing captures, baselines, matrix cases, readable PNGs, runtime states, or required evidence are
    `UNPROVEN`; zero pixel findings is not a pass without complete coverage.
-6. Finalize through shared report & SARIF pipeline. Do not emit an incompatible report shape.
+6. Finalize through shared report pipeline. Do not emit an incompatible report shape. `report.sarif`
+   is not currently emitted on the reachable `/audit` path (`UNPROVEN`).
 
 Use `/designer` for qualitative critique/remediation, `/qa` for functional/browser/runtime checks, & `/audit` for full repository provider set.

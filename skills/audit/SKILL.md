@@ -46,7 +46,8 @@ overrides it.
    supplied root. Enrollment controls resident watcher operation only; `project is not enrolled`
    must fall through to one-shot.
 3. Run `legion audit <root> --out <run-dir>`: request fresh Blueprint evidence through that
-   provider, signed `plan.json`, & exact frozen provider set; missing signing material is `UNPROVEN`.
+   provider & exact frozen provider set; plan `seal` & `signature` are not currently wired on this
+   path & stay `UNPROVEN` (see `docs/canon/legion.md`).
    If resident & one-shot paths both genuinely fail or are unavailable, record exact typed
    degradation & continue applicable providers; do not treat enrollment alone as unavailable.
 4. Project-executing checks need trusted host network-sandbox receipt; without it they are
@@ -56,11 +57,16 @@ overrides it.
 6. Read [engine interface](references/engine-interface.md) for scanner, report, & CLI contracts.
 7. Read [lens routing](references/lens-routing.md); reason only inside frozen-plan providers.
 8. Adjudicate each security candidate independently; no generator closes its own finding.
-9. Deduplicate, then run `legion audit <root> --out <out-dir>`; native executor writes `report.json`, `report.sarif`, & `execution.json`, while any missing provider coverage stays typed `incomplete`.
+9. Deduplicate, then run `legion audit <root> --out <out-dir>`; native executor writes `report.json`
+   & `receipts.json`, while any missing provider coverage stays typed `incomplete`. `report.sarif`
+   is **not currently emitted** on this path (`UNPROVEN`; writer exists only in
+   `tools/audit/audit-finalize.mjs`'s own CLI, which `legion audit` never calls).
 10. Reconcile every provider & denominator; incomplete coverage is never clean.
 
-Return gate vector, coverage, findings with evidence loci, rerun commands, seal, signature, Blueprint
-generation, receipts, artifacts, & typed degradation; `quality_gate` stays separate.
+Return gate vector, coverage, findings with evidence loci, rerun commands, & receipts, artifacts, &
+typed degradation; `quality_gate` stays separate. Seal, signature, `report.sarif`, & Blueprint
+generation pinning are **not currently emitted** (`UNPROVEN` — REPAIR_WIRE pending, see
+`docs/canon/legion.md`).
 
 Read [full manual](references/manual.md) only for complex runtime, migration, desktop/Tauri,
 data-safety, or report-schema edges. Frozen provider order, executable registry truth, real

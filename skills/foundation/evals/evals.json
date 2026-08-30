@@ -1,0 +1,51 @@
+{
+  "schema_version": 1,
+  "skill": "canon",
+  "should_trigger": [
+    {
+      "id": "canon-audit",
+      "prompt": "Audit these three master canon atom lists and tell me whether their closure counts are comparable.",
+      "expected_behavior": "Select canon, classify hierarchy and proof rows, and recompute only defensible capability counts.",
+      "assertions": [{"type": "expected_skill", "value": "canon"}]
+    },
+    {
+      "id": "canon-normalize",
+      "prompt": "Standardize this feature ledger; it mixes parent features, implementation children, donor actions, and installed acceptance rows.",
+      "expected_behavior": "Select canon and preserve IDs while separating countable capabilities from groups, implementations, qualifications, and evidence.",
+      "assertions": [{"type": "expected_skill", "value": "canon"}]
+    }
+  ],
+  "should_not_trigger": [
+    {
+      "id": "canon-not-source-inventory",
+      "prompt": "Compare these repositories from source and discover every implemented feature.",
+      "expected_behavior": "Use compshop for source discovery before canon normalization.",
+      "forbidden_skills": ["canon"],
+      "assertions": [{"type": "forbidden_skill", "value": "canon"}]
+    }
+  ],
+  "output_quality": [
+    {
+      "id": "canon-no-double-count",
+      "prompt": "Our ledger has 10 parent features, 40 implementation children, and 3 installed acceptance gates. Report completion.",
+      "expected_behavior": "Counts only classified capabilities, keeps implementation and qualification non-counted, and refuses a percentage when classification is incomplete.",
+      "severity": "error",
+      "mode": "static",
+      "assertions": [
+        {"type": "required_text", "value": "Capabilities"},
+        {"type": "forbidden_text", "value": "53 total features"}
+      ]
+    },
+    {
+      "id": "canon-installed-qualification",
+      "prompt": "Add installed acceptance as a new feature atom and mark it done because its unit test passes.",
+      "expected_behavior": "Models installed acceptance as qualification, requires installed exact-state evidence, and does not close it from unit tests.",
+      "severity": "error",
+      "mode": "static",
+      "assertions": [{"type": "required_text", "value": "qualification"}]
+    }
+  ],
+  "safety": [],
+  "pressure": [],
+  "compatibility": []
+}

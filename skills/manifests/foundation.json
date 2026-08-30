@@ -1,0 +1,92 @@
+{
+  "schemaVersion": 1,
+  "id": "foundation",
+  "version": "1.0.0",
+  "entry": "SKILL.md",
+  "rootUri": "legion-skill://foundation/",
+  "provenance": "legion-authored",
+  "licenseState": "licensed",
+  "rightsReceipt": {
+    "kind": "legion-rights-receipt",
+    "basis": "repository-license",
+    "license": "LICENSE",
+    "licenseDigest": "sha256:6519936585434711b6d5971a3081fbd8b499438a39b6a08cc2191d33443926b4"
+  },
+  "profiles": {
+    "audit": {
+      "mutation": false,
+      "publish": false
+    },
+    "authoring": {
+      "mutation": true,
+      "publish": false,
+      "externalOnly": true
+    }
+  },
+  "parity": {
+    "triggers": [
+      "/foundation",
+      "Create, audit, normalize, reconcile, or compare a product's atomic capability foundation. Use for atom inventories, cross-repository implementation bakeoffs, feature ledgers, closure counts, parent-child hierarchies, evidence rows, qualification gates, donor dispositions, or cross-canon standardization. `canon` & `compshop` are retired aliases; `/foundation compare` replaces CompShop."
+    ],
+    "outputs": [
+      "references/model.md",
+      "references/protocol.md"
+    ],
+    "scripts": [
+      "scripts/validate_atom_report.py"
+    ],
+    "templates": [],
+    "schemas": [],
+    "receipts": [],
+    "evals": [
+      "evals/evals.json"
+    ],
+    "consumers": [
+      "src/registry/skills/index.json",
+      "src/lib/skills/resolver.mjs",
+      "src/registry/routing/domains.json"
+    ]
+  },
+  "files": [
+    {
+      "path": "RIGHTS.json",
+      "uri": "legion-skill://foundation/RIGHTS.json",
+      "digest": "sha256:40649c54c6f3421d574107488e2f9678e62dc1040f5d5d55bb320d94de84fc59"
+    },
+    {
+      "path": "SKILL.md",
+      "uri": "legion-skill://foundation/SKILL.md",
+      "digest": "sha256:6bd62d39f8281dcca0daa4f263b7d07627d2417335e5eeb40ed809d401d9668e"
+    },
+    {
+      "path": "agents/openai.yaml",
+      "uri": "legion-skill://foundation/agents/openai.yaml",
+      "digest": "sha256:8d63c6b9b0976bba54ed9e62c150ac479d7b7c65fc58b0b15fffcceac17fe84b"
+    },
+    {
+      "path": "dependencies.json",
+      "uri": "legion-skill://foundation/dependencies.json",
+      "digest": "sha256:d40678f7c62f0461a8a1d8aff05b1a8c46ed071db0ac5da710d89ae3e660c968"
+    },
+    {
+      "path": "evals/evals.json",
+      "uri": "legion-skill://foundation/evals/evals.json",
+      "digest": "sha256:5295b11f89ead9d90be7a2646218c398b21d4868e8d99c9f2cf176c199da8ac0"
+    },
+    {
+      "path": "references/model.md",
+      "uri": "legion-skill://foundation/references/model.md",
+      "digest": "sha256:43bcef0d58e2b1d080b76b77ce1d1562fe4188686a4adc2058f430621327677d"
+    },
+    {
+      "path": "references/protocol.md",
+      "uri": "legion-skill://foundation/references/protocol.md",
+      "digest": "sha256:119244030dc074713c08202a0e549541859693023beb47913b413e286f762857"
+    },
+    {
+      "path": "scripts/validate_atom_report.py",
+      "uri": "legion-skill://foundation/scripts/validate_atom_report.py",
+      "digest": "sha256:f1377a7579723ccc820c57677a8c580181dd18bb9c5fc3bd2b72b25f80b42237"
+    }
+  ]
+}

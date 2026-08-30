@@ -47,6 +47,7 @@ Required delivery boundary: `RELEASED`.
 | SKL-026 | SKL-G06 | Wake | COMMITTED | Provide Wake for one bounded state recheck without polling loop. | DELIVERED | PENDING | PENDING | COMMITTED | EVIDENCE | PENDING |
 | SKL-027 | SKL-G06 | Gotchas | COMMITTED | Provide Gotchas for evidence-bound recurring failure lessons. | DELIVERED | PENDING | PENDING | COMMITTED | EVIDENCE | PENDING |
 | SKL-028 | SKL-G05 | Brand | COMMITTED | Provide Brand for loading approved brand voice, visuals, tone & restrictions before branded work. | DELIVERED | PENDING | PENDING | COMMITTED | EVIDENCE | PENDING |
+| SKL-029 | SKL-G03 | Foundation | COMMITTED | Provide Foundation comparative-intelligence skill: atomic product-foundation creation (Atom protocol Stages 0-4), cross-repository comparison (absorbing retired CompShop as `/foundation compare`), audit, normalize & reconcile modes. | DELIVERED | PENDING | PENDING | LOCAL | EVIDENCE | PENDING |
 
 ## Implementation register
 
@@ -54,6 +55,7 @@ Required delivery boundary: `RELEASED`.
 |---|---|---|---|---|---|---|
 | SKL-I001 | SKL-001 | Canonical skill-catalog generation | `scripts/generate-skill-catalog.mjs@c498a604`; `src/registry/skills/index.json@c498a604` | DIRECT_PORT | DELIVERED | Catalog resolver |
 | SKL-I002 | SKL-003 | Canonical public-skill host projection | `scripts/generate-host-projection.mjs@c498a604`; `docs/architecture/skills.md@c498a604` | DIRECT_PORT | DELIVERED | Host skill surfaces |
+| SKL-I003 | SKL-029 | Unified Foundation skill absorbing Atom protocol (creation Stages 0-4) & CompShop (compare mode); validator ported | `skills/foundation/SKILL.md@LOCAL`; `skills/foundation/references/protocol.md@LOCAL`; `skills/foundation/references/model.md@LOCAL`; `skills/foundation/scripts/validate_atom_report.py@LOCAL` (donors: Atom archive, `compshop` workspace skill) | ADAPT | DELIVERED | Skill catalog, host projection & junctioned workspace/user skill surfaces |
 
 ## Qualification ledger
 
@@ -66,3 +68,4 @@ Required delivery boundary: `RELEASED`.
 | ID | Kind | Capability targets | Decision | Authority/evidence | State |
 |---|---|---|---|---|---|
 | SKL-D001 | REFERENCE | SKL-003 | Skills owns skill projection semantics; Legion owns role & hook projection integration. | Canon reconciliation | RECORDED |
+| SKL-D002 | REFERENCE | SKL-029 | Executed 2026-08-30: skill named **Foundation** (`canon` & `compshop` retained as retired aliases); canonical home `legion/skills/foundation`; workspace & user copies are junctions; Atom protocol installed as creation engine per plan Part B. Artifact directories stay `docs/canon/`. | `docs/pending/plans/2026-08-30-canon-pipeline-and-repairs.md` Part B | RECORDED |

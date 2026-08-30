@@ -46,8 +46,9 @@ writes (authority is not inferred from `repository-write`). Its actual effects r
 Guard-gated.
 
 1. Require prior `plan.json`, `facts.json`, `report.json`, & security adjudication result.
-2. Verify plan seal, repository binding, direct Membrane Blueprint evidence, provider set, &
-   denominators before editing. The provider uses resident Hub transport when available & a
+2. Verify repository binding, direct Membrane Blueprint evidence, provider set, & denominators
+   before editing (plan `seal`/`signature` are `UNPROVEN` on the current reachable path — see
+   `docs/canon/legion.md`). The provider uses resident Hub transport when available & a
    bounded one-shot for supplied root when Hub is off or resident access reports `project is not
    enrolled`; enrollment does not gate one-shot access. Stop on drift & create a new `/audit` plan.
 3. Fix only unambiguous findings. Never auto-fix manual findings, unadjudicated security findings,
@@ -55,4 +56,5 @@ Guard-gated.
 4. Do not install tools, fetch mutable rules, or alter provider selection.
 5. After each bounded batch, rerun `legion audit <root> --out <run-dir>` with identical scope & evidence.
 6. Cap loop at four batches; stop earlier on no progress, regression, drift, or new high/critical finding.
-7. Return changed files, closed/open findings, regressions, rerun commands, & report/SARIF paths.
+7. Return changed files, closed/open findings, regressions, rerun commands, & report path.
+   `report.sarif` is not currently emitted (`UNPROVEN`).

@@ -1,10 +1,10 @@
 {
   "schemaVersion": 1,
   "kind": "legion-plugin-surface",
-  "version": "0.2.0",
-  "digest": "sha256:e6f89bf6b8798075031a5972bfe985c7fc703d6f37497675b97dc4544072ddc3",
+  "version": "0.3.0",
+  "digest": "sha256:462057074a8b302207ee7150b84cd24ca2c8bc900002d456a7cf5ed29a72942c",
   "counts": {
-    "skills": 25,
+    "skills": 26,
     "agents": 4,
     "mcpServers": 1,
     "hookEvents": 9
@@ -25,6 +25,7 @@
       "debugger",
       "designer",
       "dispatch",
+      "foundation",
       "gotchas",
       "handoff",
       "marketing",

@@ -16,7 +16,7 @@ test('generated manifest parity derives from canonical semantics & package files
 
 test('catalog semantic lists are exact YAML values, never list-marker text', () => {
   const { index } = buildSkillCatalog();
-  assert.equal(index.bundles.length, 25);
+  assert.equal(index.bundles.length, 26);
   for (const bundle of index.bundles) {
     for (const field of ['operations', 'effects', 'hostRequirements']) {
       assert.equal(bundle[field].some((value) => value.startsWith('- ')), false, `${bundle.id}.${field}`);
@@ -29,7 +29,7 @@ test('catalog semantic lists are exact YAML values, never list-marker text', () 
   assert.deepEqual(coder.hostRequirements, ['pi-cli', 'python-runtime']);
 });
 
-test('all 25 packaged sources exactly match frozen classifications and repertoires', () => {
+test('all 26 packaged sources exactly match frozen classifications and repertoires', () => {
   const expected = {
     ads: ['capability', 'domain', 'public', 'commercial', 'analyze,decide,produce', 'source-read,network-request'],
     alchemist: ['entrypoint', null, 'explicit', null, 'execute', 'source-read,repository-write,process-exec'],
@@ -39,6 +39,7 @@ test('all 25 packaged sources exactly match frozen classifications and repertoir
     'audit-visual': ['capability', 'domain', 'public', 'engineering', 'analyze,evaluate,produce', 'source-read,artifact-write,process-exec'],
     brand: ['capability', 'context', 'public', null, 'analyze,produce', 'source-read'],
     'brand-identity': ['capability', 'domain', 'public', 'design', 'analyze,decide,produce,evaluate', 'source-read,artifact-write'],
+    foundation: ['capability', 'domain', 'public', 'engineering', 'analyze,evaluate,produce', 'source-read,artifact-write'],
     coder: ['entrypoint', null, 'explicit', null, 'analyze', 'source-read,network-request'],
     commit: ['entrypoint', null, 'explicit', null, 'analyze,evaluate,execute', 'source-read,repository-write,process-exec,network-request'],
     covenant: ['entrypoint', null, 'explicit', null, 'analyze,evaluate,produce', 'source-read'],

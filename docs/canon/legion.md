@@ -32,6 +32,7 @@ Required delivery boundary: `PUSHED`.
 | LEG-013 | LEG-G04 | Legion | COMMITTED | Generate host-specific role & hook projections one-way from canonical host-neutral sources. | DELIVERED | PENDING | PENDING | COMMITTED | EVIDENCE | PENDING |
 | LEG-014 | LEG-G04 | Legion | COMMITTED | Package collision-safe reversible client integrations without transferring canonical semantic ownership to adapters. | DELIVERED | PENDING | PENDING | COMMITTED | EVIDENCE | PENDING |
 | LEG-015 | LEG-G04 | Legion | COMMITTED | Publish exact signed native candidates only after hosted signing & installed qualification gates. | PARTIAL | PENDING | PENDING | LOCAL | REPAIR_WIRE | PENDING |
+| LEG-016 | LEG-G03 | Legion | COMMITTED | Emit signed & sealed audit plans with SARIF, execution receipts & Blueprint generation pinning. | PARTIAL | PENDING | PENDING | LOCAL | REPAIR_WIRE | PENDING |
 
 ## Implementation register
 
@@ -41,6 +42,7 @@ Required delivery boundary: `PUSHED`.
 | LEG-I002 | LEG-013 | Role & hook host projections | `scripts/generate-host-projection.mjs@c498a604`; `scripts/generate-catalogs.mjs@c498a604` | DIRECT_PORT | DELIVERED | Host projection generator |
 | LEG-I003 | LEG-015 | Signed-candidate & publication pipeline | Active release working tree; not durable evidence | ADAPT | PARTIAL | RightKit release pipeline |
 | LEG-I004 | LEG-004, LEG-005, LEG-006, LEG-010, LEG-014 | P0.5 relocation of Legion-owned contracts, governance, host & verification modules | `docs/provenance/migrations/2026-08-29-pending/arcane-package-migration-result.json@LOCAL` | DIRECT_PORT | DELIVERED | `src/lib/contracts`, `src/lib/cli/commands/governance`, `src/lib/host` & `src/lib/verification` consumers |
+| LEG-I005 | LEG-001, LEG-002, LEG-003, LEG-004, LEG-006 | Hand-maintained routing/scope doctrine injected at SessionStart (`SESSION_START_CONTEXT`); not produced by `scripts/generate-host-projection.mjs` | `engine/bins/legion-hook/src/main.rs@LOCAL`; `hooks/hooks.json@LOCAL` | ORIGINAL | DELIVERED | legion-hook SessionStart additionalContext |
 
 ## Qualification ledger
 

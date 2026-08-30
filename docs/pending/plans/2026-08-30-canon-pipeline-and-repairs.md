@@ -8,7 +8,8 @@ Location: `legion/docs/pending/plans/`. All paths in this document are workspace
 | Item | Status |
 |---|---|
 | Part A — Blueprint runtime repair | **NOT STARTED** (git hooks still stale cortex copies; 7 probe files present; watcher down; root `map.json` missing) |
-| Parts B–I | NOT STARTED |
+| Part B — Canon skill | **DONE 2026-08-30** (uncommitted). Canonical home `legion/skills/canon/`; Atom protocol installed as creation Stages 0-4; CompShop retired to `/canon compare` alias & both divergent copies deleted; workspace + user paths are junctions. Canon row `SKL-029` + mechanism `SKL-I003` recorded; `SKL-D002` closed RECORDED. `legion:check` PASS, tests 1372/1372. |
+| Parts C–I | NOT STARTED |
 | Legion docs cleanup (canon adoption, supersession pruning) | DONE 2026-08-30, committed + pushed as `7e98a10268b5ae9953ed6283dc60454c7e257034` |
 
 This plan is the single source of truth for the **canon-pipeline program** (Parts A–I +
@@ -141,12 +142,11 @@ modes; add creation stages. Extend the existing vocabulary in
     Canonicalize the name once — on-disk history says `compshop`, original description said
     `CompShot`; pick one and record the alias.
 
-**Execution baseline caveat:** `canon`/`compshop` currently live in the *workspace* repo at
-`D:\Claude\tools\skills\` (uncommitted/local), while packaged Legion skills live in the
-*legion* repo at `legion/skills/` — the Orthic-Labs/legion `main` shows only the latter.
-Before execution, record the exact working tree + commit baseline for every file this plan
-touches so no agent patches the wrong copy, and decide where Canon's canonical home is
-(packaged Legion skill vs workspace skill).
+**Execution baseline caveat (RESOLVED 2026-08-30):** Canon's canonical home is the packaged
+Legion skill at `legion/skills/canon/`. `D:\Claude\tools\skills\canon` and
+`~/.claude/skills/canon` are now junctions into it, matching every other skill; the former
+workspace copies and both `compshop` copies are deleted. Remaining plan parts still touch
+workspace-rooted paths — record the working tree baseline before editing those.
 
 ## Part C — Architect
 

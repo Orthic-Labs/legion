@@ -5,12 +5,15 @@ normative; the SKILL body summarizes it.
 
 ## Canonical entrypoint (step 3 detail)
 
-`node <audit-skill-dir>/audit-run.mjs <root>` is the canonical entrypoint. It pins one fresh
-Blueprint `generationId`, enriches only audit-owned manifest/toolchain facts, loads the complete
-declarative provider registry, writes a SHA-256-sealed and HMAC-signed `plan.json`, and executes
-the exact frozen provider set. Set `AUDIT_PLAN_SIGNING_KEY` through the trusted host environment.
-Missing signing material is `UNPROVEN`; it never degrades silently to an authenticity claim.
-`audit-complete.mjs` is an internal compatibility runner and is not a public entrypoint.
+`legion audit <root> --out <run-dir>` (implemented by `src/lib/core/audit.mjs`) is the canonical
+entrypoint. It enriches audit-owned manifest/toolchain facts, loads the complete declarative
+provider registry, writes `plan.json`, and executes the exact frozen provider set. `plan.json`'s
+`seal` field is currently a stub (`{sealed:true}`, no cryptographic digest) and it carries no
+HMAC `signature`; Blueprint `generationId` pinning is not wired into this path either. Treat seal,
+signature, and generation pinning as `UNPROVEN` until `REPAIR_WIRE` lands (see `docs/canon/legion.md`
+LEG-0xx). `AUDIT_PLAN_SIGNING_KEY` / real sealing logic exists only in the orphaned
+`tools/audit/audit-run.mjs` and `tools/audit/audit-plan.mjs`, which are not reachable from the CLI
+(only `scripts/self-test.mjs` and tests reference them) — do not invoke them as the entrypoint.
 
 ## Network sandbox and runtime capture (step 4 detail)
 
@@ -30,12 +33,12 @@ unadjudicated security candidate is `UNPROVEN` and keeps the audit incomplete.
 
 ## Finalize invocation (step 9 detail)
 
-```bash
-node <package-root>/tools/audit/audit-finalize.mjs --facts <facts.json> \
-  --candidates <security-candidates.json> --adjudication <security-adjudication-result.json>
-```
-
-Writes both `report.json` and `report.sarif`.
+`legion audit` reaches finalize through `src/lib/core/finalize-run.mjs`, which calls the exported
+`finalizeAudit()` from `tools/audit/audit-finalize.mjs` — it does not run that file's own CLI
+`main()`. Only `report.json` is written on this path; the SARIF writer lives solely inside
+`audit-finalize.mjs`'s CLI `main()` and is never invoked by `legion audit`, so `report.sarif` is
+not currently emitted. Execution results are recorded as `receipts.json` (not `execution.json` —
+that name/shape does not exist on the reachable path).
 
 ## Hard rules (full text)
 

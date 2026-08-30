@@ -31,7 +31,7 @@ Required delivery boundary: `PUSHED`.
 |---|---|---|---|---|---|---|
 | ARC-I001 | ARC-001, ARC-002, ARC-005, ARC-006, ARC-009 | Cognitive route-envelope modules & policy | `doctrine/arcane.md@c498a604`; `src/lib/cognitive/arcane@LOCAL` | ADAPT | PARTIAL | Host cognitive-route producer unresolved |
 | ARC-I002 | ARC-004, ARC-007, ARC-008 | Brief/Minimize, ending-shape & anti-ceremony doctrine | `doctrine/arcane.md@c498a604`; `src/lib/cognitive/arcane/minimize.mjs@LOCAL` | DIRECT_PORT | DELIVERED | SessionStart/Stop cognitive policy surface |
-| ARC-I003 | LEG-008 | Legacy deterministic-executor selection behavior formerly counted as ARC-003 | `docs/current/atoms/arcane.md@d47d3a08` | ABSORB_REFERENCE | UNKNOWN | Legion executor binding |
+| ARC-I003 | LEG-008 | Legacy deterministic-executor selection behavior formerly counted as ARC-003 | `docs/canon/registers/preservation-map.md@LOCAL` (original citation `docs/current/atoms/arcane.md@d47d3a08` no longer exists in-repo) | ABSORB_REFERENCE | UNKNOWN | Legion executor binding |
 | ARC-I004 | ARC-001, ARC-007 | P0.5 relocation of Arcane cognitive-plane modules from mixed package | `docs/provenance/migrations/2026-08-29-pending/arcane-package-migration-result.json@LOCAL` | DIRECT_PORT | DELIVERED | `src/lib/cognitive/arcane` plus CLI & host imports |
 
 ## Qualification ledger
@@ -47,3 +47,5 @@ Required delivery boundary: `PUSHED`.
 | ARC-D001 | REFERENCE | LEG-008 | Arcane compiles cognitive policy only; Legion binds executor. | Canon reconciliation | RECORDED |
 | ARC-D002 | BACKLOG | ARC-002 | Resident micro-router remains deferred until behavioral qualification exists. | Legacy Arcane proposal §29 | DEFERRED |
 | ARC-D003 | REFERENCE | LEG-008 | ARC-003 is retired from capability totals; Legion owns executor binding. | Canon reconciliation migration | RECORDED |
+| ARC-D004 | REFERENCE | ARC-007, ARC-008 | Stop-shape/ending-shape logic exists twice: JS `src/lib/cognitive/arcane/stop-shape.mjs` (SessionStart projection) & an independent Rust reimplementation in `engine/bins/legion-hook/src/main.rs` (the wired Stop hook). Rust is the enforced surface; parity between the two is unverified. | Canon reconciliation 2026-08-30 | RECORDED |
+| ARC-D005 | BACKLOG | ARC-006 | `src/lib/host/arcane/codex-escalation.mjs` is real but unreachable from the wired hook pipeline, & `src/lib/cli/commands/doctor-host.mjs:180` still checks retired pre-migration path `src/packages/arcane/host/claude-code-adapter.mjs`. | Canon reconciliation 2026-08-30 | DEFERRED |
