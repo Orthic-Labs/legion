@@ -16,13 +16,14 @@ delete process.env.CODEX_THREAD_ID;
 // Parity is asserted against the registration Legion actually ships. The
 // previous target was a sibling checkout (codex-brief-plugin) that exists on
 // no other machine, so this acceptance test could never run off its author's
-// laptop. Legion's own hooks.json declares the same eight events and the same
+// laptop. Legion's own hooks.json declares the same events and the same
 // matchers, so every assertion below is preserved and now portable.
 const registrationPath = new URL('../../../../hooks/hooks.json', import.meta.url);
 const hooks = JSON.parse(readFileSync(registrationPath, 'utf8')).hooks;
 const registeredEvents = [
   'SessionStart',
   'SubagentStart',
+  'SubagentStop',
   'UserPromptSubmit',
   'PostCompact',
   'PreToolUse',
@@ -35,7 +36,7 @@ function matcher(eventName) {
   return new Set(hooks[eventName][0].matcher.split('|'));
 }
 
-test('H-13 oracle: adapter covers exactly the eight Arcane plugin registrations', () => {
+test('H-13 oracle: adapter covers exactly the registered Arcane plugin events', () => {
   assert.deepEqual(Object.keys(hooks), registeredEvents);
 
   const expected = {

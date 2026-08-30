@@ -2,12 +2,12 @@
   "schemaVersion": 1,
   "kind": "legion-plugin-surface",
   "version": "0.2.0",
-  "digest": "sha256:67e89fe3be78b6dfea31eb73a1c0a4a16bc8d90e72907e8d9b13167a1d8d892d",
+  "digest": "sha256:e6f89bf6b8798075031a5972bfe985c7fc703d6f37497675b97dc4544072ddc3",
   "counts": {
     "skills": 25,
     "agents": 4,
     "mcpServers": 1,
-    "hookEvents": 8
+    "hookEvents": 9
   },
   "surface": {
     "skills": [
@@ -75,6 +75,7 @@
         "SessionStart",
         "Stop",
         "SubagentStart",
+        "SubagentStop",
         "UserPromptSubmit"
       ],
       "targets": []

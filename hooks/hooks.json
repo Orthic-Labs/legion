@@ -24,6 +24,17 @@
         ]
       }
     ],
+    "SubagentStop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "legion-hook",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
     "UserPromptSubmit": [
       {
         "hooks": [
@@ -49,7 +60,7 @@
     ],
     "PreToolUse": [
       {
-        "matcher": "shell|shell_command|Bash|PowerShell|Write|Edit|MultiEdit|NotebookEdit|apply_patch",
+        "matcher": "shell|shell_command|Bash|PowerShell|Write|Edit|MultiEdit|NotebookEdit|apply_patch|mcp__.*",
         "hooks": [
           {
             "type": "command",
@@ -61,7 +72,7 @@
     ],
     "PostToolUse": [
       {
-        "matcher": "shell|shell_command|Bash|PowerShell|Write|Edit|MultiEdit|NotebookEdit|apply_patch|WebFetch|WebSearch",
+        "matcher": "shell|shell_command|Bash|PowerShell|Write|Edit|MultiEdit|NotebookEdit|apply_patch|WebFetch|WebSearch|mcp__.*",
         "hooks": [
           {
             "type": "command",
@@ -73,7 +84,7 @@
     ],
     "PostToolUseFailure": [
       {
-        "matcher": "shell|shell_command|Bash|PowerShell|Write|Edit|MultiEdit|NotebookEdit|apply_patch|WebFetch|WebSearch",
+        "matcher": "shell|shell_command|Bash|PowerShell|Write|Edit|MultiEdit|NotebookEdit|apply_patch|WebFetch|WebSearch|mcp__.*",
         "hooks": [
           {
             "type": "command",

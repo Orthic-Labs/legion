@@ -21,6 +21,11 @@ pub enum EffectClass {
     VCS_COMMIT,
     VCS_PUSH,
     PUBLISH,
+    /// A write, send, or delete performed through an MCP tool. This is
+    /// intentionally distinct from ordinary filesystem/network classes so
+    /// the Guard can keep the newly covered external-tool surface denied by
+    /// the canonical default policy.
+    EXTERNAL_SIDE_EFFECT,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
@@ -161,6 +166,12 @@ pub fn canonical_default_policy_pack() -> PolicyPack {
             rule("default-dependency-install-deny", EffectClass::DEPENDENCY_INSTALL, false, &["*"]),
             rule("default-network-egress-deny", EffectClass::NETWORK_EGRESS, false, &["*"]),
             rule("default-process-spawn-deny", EffectClass::PROCESS_SPAWN, false, &["*"]),
+            rule(
+                "default-external-side-effect-deny",
+                EffectClass::EXTERNAL_SIDE_EFFECT,
+                false,
+                &["*"],
+            ),
         ],
         extensions: BTreeMap::new(),
     }
@@ -236,6 +247,7 @@ mod tests {
             EffectClass::DEPENDENCY_INSTALL,
             EffectClass::NETWORK_EGRESS,
             EffectClass::PROCESS_SPAWN,
+            EffectClass::EXTERNAL_SIDE_EFFECT,
         ];
         for effect_class in reserved_classes {
             let rule = pack
