@@ -51,7 +51,10 @@ case "$CODE" in
      exit 4 ;;
 esac
 
-BRIEF="$(cat)"
+# Keep the sentinel inside command substitution so trailing newlines in the brief
+# are not stripped before it is sent to the worker.
+BRIEF="$(cat; printf '\001')"
+BRIEF="${BRIEF%?}"
 if [ -z "${BRIEF// }" ]; then
   echo "Empty brief on stdin — refusing to spawn a worker with no task." >&2
   exit 2
@@ -93,23 +96,31 @@ run_worker() {
   WORKER_PID_FILE="${WATCHDOG_DIR}/worker.pid"
   WORKER_DONE_FILE="${WATCHDOG_DIR}/worker.done"
 
-  # The wrapper owns the actual launcher child.  Its trap forwards TERM and
-  # waits for that child, so the watchdog can escalate to KILL without leaving
-  # the launcher behind when TERM is ignored.
+  # Preserve stdin explicitly: a background subshell otherwise receives
+  # /dev/null.  The wrapper gets the saved descriptor as stdin, passes it to
+  # the launcher explicitly, then closes its copy so it cannot hold the pipe
+  # open after the launcher exits.  Its trap forwards TERM and waits for that
+  # child, so the watchdog can escalate to KILL without leaving the launcher
+  # behind when TERM is ignored.
+  exec 3<&0
   (
     child_pid=""
     trap 'if [ -n "${child_pid:-}" ]; then kill -TERM "$child_pid" 2>/dev/null || :; wait "$child_pid" 2>/dev/null || :; fi; exit 143' TERM INT HUP
     omniroute launch-codex --profile "$PROFILE" exec \
-      --model "$MODEL" -c features.multi_agent=false --json - &
+      --model "$MODEL" -c features.multi_agent=false --json - <&0 3<&- &
     child_pid=$!
+    exec 0<&-
     printf '%s\n' "$child_pid" > "$WORKER_PID_FILE"
     wait "$child_pid"
     worker_status=$?
     printf '%s\n' "$worker_status" > "$WORKER_DONE_FILE"
     rm -f "$WORKER_PID_FILE"
     exit "$worker_status"
-  ) &
+  ) <&3 3<&- &
   worker_pid=$!
+  # The worker wrapper has its own stdin copy; do not pass the spare descriptor
+  # into the watchdog process.
+  exec 3<&-
 
   # Put sleep in its own child so the watchdog can be terminated and reaped
   # cleanly when the worker finishes before the deadline.
