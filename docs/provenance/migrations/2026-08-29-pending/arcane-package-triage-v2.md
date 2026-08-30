@@ -18,7 +18,7 @@ Thus **151 files are not actionable by deletion/move alone today**; they have pa
 
 ### Method and coverage
 
-I read the correction at the bottom of `docs/pending/arcane-package-triage.md` first. I then enumerated the live tree and grepped the whole repository (excluding `.git`, `dist`, and `node_modules`) for each module path, its relative import path, its exported symbol names, and for data assets their exact path/value references. The source search covered `src/`, `tests/`, `tools/`, `engine/`, `docs/`, `doctrine/`, `package.json`, and `MANIFEST.package.json`; binary build outputs were not treated as consumers.
+I read the correction at the bottom of `docs/provenance/migrations/2026-08-29-pending/arcane-package-triage.md` first. I then enumerated the live tree and grepped the whole repository (excluding `.git`, `dist`, and `node_modules`) for each module path, its relative import path, its exported symbol names, and for data assets their exact path/value references. The source search covered `src/`, `tests/`, `tools/`, `engine/`, `docs/`, `doctrine/`, `package.json`, and `MANIFEST.package.json`; binary build outputs were not treated as consumers.
 
 **Coverage:** 235/235 files were path-checked. Consumer status was established by grep for **187/235 code modules** and **48/235 JSON/Markdown/rules assets**: **235/235 consumer-verified, 0/235 consumer-inferred**. **0/235 dispositions are inferred solely from filename.** “No live consumers found” below is a grep result, not an architectural assumption. A test runner is not counted as a source-module consumer; a root test or CLI that imports an Arcane file is counted. Documentation mentions and archived evidence are recorded only when relevant, but are not live consumers.
 

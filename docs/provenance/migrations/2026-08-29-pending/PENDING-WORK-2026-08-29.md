@@ -26,7 +26,7 @@ discrimination, and the supervision-deferral disposition.
    source-file removal in a refactor needs approval. Implement together with item 4 (policy-artifact
    reconciliation) so a second ambiguous historical policy never coexists with the new baseline.
    (arcane-audit gap 1)
-2. **NOT DONE (2026-08-30):** build/deploy effect, deliberately left to the owner. The lockout was hit repeatedly during this session's work; the denial string is `engine/bins/legion-hook/src/main.rs:211` ("source revision is missing"), raised when the payload cwd has no resolvable `.git`. Workaround used throughout: keep the shell cwd at the repository root and wrap directory changes in a subshell. Original: Redeploy the installed binary — the committed subdirectory-resolution and MultiEdit fixes are not
+2. **DONE (2026-08-30):** managed RightKit build request `e3c8f866-791c-449b-bf8f-ab5008388929` completed with a `SUCCEEDED` receipt. Its exact `legion-hook.exe` was deployed to `%LOCALAPPDATA%\Programs\Legion\0.1.0\bin\legion-hook.exe`; source and installed bytes are 2,547,712 bytes with SHA-256 `1C2D2251D81C3E6C0C73AF2784BE1136453BE3824343FC7DCB52CAFA1431FD60`. A SessionStart smoke returned `allowed: true`, embedded `additionalContext`, and `MINIMIZE:ON`. The previous installed binary is recoverable beside it as `legion-hook.exe.pre-e3c8f866.bak`. Original: Redeploy the installed binary — the committed subdirectory-resolution and MultiEdit fixes are not
    in the deployed `legion-hook.exe`; the lockout was reproduced live in-session on 2026-08-29.
 3. **DONE (2026-08-30, lane-a1):** `engine/crates/legion-policy/tests/guard_property.rs`, 9 properties, `cargo test -p legion-policy` green. Original: Fuzz/property-test the Guard's input path **before** widening it to MCP/effects. Threat model:
    adversarial model- and tool-controlled payloads (the actual trust boundary), not just an outside
@@ -38,11 +38,11 @@ discrimination, and the supervision-deferral disposition.
    currently has no fuzz/property dependency.
 4. **DONE (2026-08-30, in-flight):** `src/packages/arcane/policy/README.md` marks the Node bundle historical; no rule content needed porting. Original: Reconcile the two policy artifacts: port `src/packages/arcane/policy/arcane-policy-v1.json` rules
    into the policy-pack schema `legion-application` consumes, or mark it historical. (gap 2)
-5. **DONE (2026-08-30, lane-b7): triage written to `docs/pending/arcane-package-triage.md`** — all 235 files classified exactly once (68 PORT, 22 RESTORE, 207 MOVE, 20 RETIRE across per-portion SPLITs; 0 inferred from filename alone, 0 unresolved). `stop-shape.mjs` is recorded as a SPLIT per the tracker's own example, as are `host-runtime.mjs`, `hook-adapter-core.mjs`, and five others. **Execution of the dispositions is NOT done** — this item produced the disposition map only; moving/retiring the files remains.
+5. **RE-TRIAGE DONE; EXECUTION OPEN (2026-08-30):** `docs/pending/arcane-package-triage-v2.md` replaces the unsafe first map with a consumer-grounded disposition of all 235 files. Coverage is 235/235 consumer-verified: 84 Band-1 files have no live source consumer; 94 have package-internal consumers; 57 have external consumers. The 151 consumed files require migration before deletion or movement; execution has not started. The first map remains historical evidence only.
 
     **Execution attempted and correctly refused (2026-08-30, lane-d2): the triage's RETIRE class is wrong.** A lane dispatched to delete the twelve RETIRE files stopped before mutating anything, because they are not dead ceremony — they have live production consumers. `lib/policy.mjs` and `lib/policy-compiler.mjs` back the shipped CLI (`src/lib/cli/commands/run.mjs`, `rules.mjs`) and `tests/cli.test.mjs`; `codex-escalation.mjs` is called by `host/hook-adapter-core.mjs`; `control-lifecycle.mjs` supplies `ENFORCEMENT_RANK` to `lib/completion-gate.mjs` and `assessControlRetirement` to `src/lib/cli/commands/governance/delivery.mjs`; the policy JSON/schema artifacts are resolved directly by `tests/cli.test.mjs`. Retiring them would break the CLI and the suite. The Rust canonical Guard policy supersedes these *in the engine*, but the Node CLI has not been migrated onto it, so the duplication is live, not dead.
 
-    **What this means:** P0.5 execution cannot proceed from the current triage. RETIRE must be re-derived against actual consumers rather than against supersession-in-principle, and the 170 MOVE entries need the same test applied before anyone moves them. This is a re-triage, not a delete pass. Original: Triage `src/packages/arcane/` (234+ orphaned Node files, tests still green) per-module, not as
+    **What this means:** P0.5 now has a safe execution order, but implementation remains open: migrate consumers first for Bands 2–3, then apply Band-1 dispositions with focused verification. Original: Triage `src/packages/arcane/` (234+ orphaned Node files, tests still green) per-module, not as
    one disposition:
    - PORT — deterministic mechanisms that belong to the Guard
    - RESTORE — original cognitive-Arcane pieces (Brief/Minimize injection payloads)
@@ -238,15 +238,8 @@ machine, each fixed at its cause rather than in its test:
 
 **Still open for the owner:**
 
-1. Redeploy `legion-hook.exe` (item 2) — still a local build/deploy effect, and local builds are
-   out of scope by owner instruction. The hook changes from items 8/10/14/15/16 are committed but
-   the running binary predates them.
-2. P0.5 execution — BLOCKED ON A RE-TRIAGE, not on permission. The triage's RETIRE class is wrong:
-   every file in it has live consumers, including the shipped CLI. See item 5.
-3. Release publication. `.github/workflows/release-candidate.yml` produces UNSIGNED candidates as
-   workflow artifacts; its own header states that signing, finalization and release publication
-   remain protected-host work. An unsigned Windows candidate is enough to dogfood; a signed
-   installer is a separate step.
+1. P0.5 execution — re-triage is complete; consumer migrations and dispositions remain. See item 5 and `docs/pending/arcane-package-triage-v2.md`.
+2. Release publication — signed candidate automation is being added for public Windows and macOS lanes; immutable release publication remains separate.
 
 ## Sequencing
 

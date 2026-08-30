@@ -12,11 +12,11 @@
     "workerProfile": "luna-gpt-5.6-high",
     "routingRationale": "Bounded independent implementation lanes over a frozen tracker; lane scope is settled but content is semantic, so a strong external worker writes code while the integration owner runs every check."
   },
-  "objective": "Implement every executable item of docs/pending/PENDING-WORK-2026-08-29.md (rev 5) except the items already in flight in this checkout (P0.1, P0.4, P1.6, P1.11-arcane), the binary redeploy (P0.2), and the workspace-repo groundwork restore (P1.9), through disjoint single-owner lanes executed by luna and integrated, tested, and marked done by the integration owner.",
+  "objective": "Implement every executable item of docs/provenance/migrations/2026-08-29-pending/PENDING-WORK-2026-08-29.md (rev 5) except the items already in flight in this checkout (P0.1, P0.4, P1.6, P1.11-arcane), the binary redeploy (P0.2), and the workspace-repo groundwork restore (P1.9), through disjoint single-owner lanes executed by luna and integrated, tested, and marked done by the integration owner.",
   "authority": [
-    "docs/pending/PENDING-WORK-2026-08-29.md",
-    "docs/pending/ARCANE-COGNITIVE-CONTROL-PLANE-2026-08-29-REV3.md",
-    "docs/pending/LEGION-MECHANISM-AWARE-WORK-DECOMPOSITION-2026-08-29-REV3.md",
+    "docs/provenance/migrations/2026-08-29-pending/PENDING-WORK-2026-08-29.md",
+    "docs/provenance/migrations/2026-08-29-pending/ARCANE-COGNITIVE-CONTROL-PLANE-2026-08-29-REV3.md",
+    "docs/provenance/migrations/2026-08-29-pending/LEGION-MECHANISM-AWARE-WORK-DECOMPOSITION-2026-08-29-REV3.md",
     "AGENTS.md",
     "docs/agent-rules.md"
   ],
@@ -59,7 +59,7 @@
       "scripts/verify-plugin-parity.mjs",
       "scripts/generate-codex-skill-sidecars.mjs",
       "engine/bins/legion-mcp/src/tools.rs",
-      "docs/pending/arcane-package-triage.md",
+      "docs/provenance/migrations/2026-08-29-pending/arcane-package-triage.md",
       "engine/bins/legion-hook/src/main.rs",
       "hooks/hooks.json",
       "engine/crates/legion-application/src/lib.rs",
@@ -317,7 +317,7 @@
         "finalCheck": "integration owner regenerates codex sidecars, runs rightkit cargo test -p legion-mcp and parity checks after merge"
       },
       {
-        "path": "docs/pending/arcane-package-triage.md",
+        "path": "docs/provenance/migrations/2026-08-29-pending/arcane-package-triage.md",
         "owner": "lane-b7-arcane-package-triage",
         "operation": "edit",
         "lane": "lane-b7-arcane-package-triage",
@@ -482,7 +482,7 @@
         "engine/crates/legion-policy/tests/guard_property.rs"
       ],
       "read": [
-        "docs/pending/PENDING-WORK-2026-08-29.md",
+        "docs/provenance/migrations/2026-08-29-pending/PENDING-WORK-2026-08-29.md",
         "engine/crates/legion-policy/src/evaluator.rs",
         "engine/crates/legion-policy/src/precedence.rs",
         "engine/crates/legion-contracts/src/policy.rs",
@@ -506,7 +506,7 @@
         "doctrine/guard.md"
       ],
       "read": [
-        "docs/pending/PENDING-WORK-2026-08-29.md",
+        "docs/provenance/migrations/2026-08-29-pending/PENDING-WORK-2026-08-29.md",
         "doctrine/arcane.md",
         "engine/bins/legion-hook/src/main.rs",
         "engine/crates/legion-application/src/lib.rs",
@@ -531,8 +531,8 @@
         "doctrine/legion.md"
       ],
       "read": [
-        "docs/pending/PENDING-WORK-2026-08-29.md",
-        "docs/pending/LEGION-MECHANISM-AWARE-WORK-DECOMPOSITION-2026-08-29-REV3.md",
+        "docs/provenance/migrations/2026-08-29-pending/PENDING-WORK-2026-08-29.md",
+        "docs/provenance/migrations/2026-08-29-pending/LEGION-MECHANISM-AWARE-WORK-DECOMPOSITION-2026-08-29-REV3.md",
         "agents/sage.md",
         "doctrine/alchemist.md"
       ],
@@ -556,8 +556,8 @@
         "skills/tasklist/SKILL.md"
       ],
       "read": [
-        "docs/pending/PENDING-WORK-2026-08-29.md",
-        "docs/pending/LEGION-MECHANISM-AWARE-WORK-DECOMPOSITION-2026-08-29-REV3.md",
+        "docs/provenance/migrations/2026-08-29-pending/PENDING-WORK-2026-08-29.md",
+        "docs/provenance/migrations/2026-08-29-pending/LEGION-MECHANISM-AWARE-WORK-DECOMPOSITION-2026-08-29-REV3.md",
         "skills/dispatch/SKILL.md",
         "skills/dispatch/scripts/validate-dispatch.py"
       ],
@@ -589,7 +589,7 @@
         "MANIFEST.package.json"
       ],
       "read": [
-        "docs/pending/PENDING-WORK-2026-08-29.md",
+        "docs/provenance/migrations/2026-08-29-pending/PENDING-WORK-2026-08-29.md",
         "src/lib/core"
       ],
       "forbidden": [
@@ -610,7 +610,7 @@
         "engine/crates/legion-host/src/setup_registry.rs"
       ],
       "read": [
-        "docs/pending/PENDING-WORK-2026-08-29.md",
+        "docs/provenance/migrations/2026-08-29-pending/PENDING-WORK-2026-08-29.md",
         "engine/crates/legion-host/src/lib.rs"
       ],
       "forbidden": [
@@ -631,7 +631,7 @@
         "agents/sage.md"
       ],
       "read": [
-        "docs/pending/PENDING-WORK-2026-08-29.md",
+        "docs/provenance/migrations/2026-08-29-pending/PENDING-WORK-2026-08-29.md",
         "agents/oracle.md",
         "doctrine/sage.md"
       ],
@@ -654,7 +654,7 @@
         "skills/oracle/dependencies.json"
       ],
       "read": [
-        "docs/pending/PENDING-WORK-2026-08-29.md",
+        "docs/provenance/migrations/2026-08-29-pending/PENDING-WORK-2026-08-29.md",
         "doctrine/oracle.md",
         "agents/oracle.md",
         "skills/alchemist/SKILL.md",
@@ -679,7 +679,7 @@
         "tests/skill-routing-evals.test.mjs"
       ],
       "read": [
-        "docs/pending/PENDING-WORK-2026-08-29.md",
+        "docs/provenance/migrations/2026-08-29-pending/PENDING-WORK-2026-08-29.md",
         "skills/dispatch/evals/evals.json",
         "scripts/run-architecture-evals.mjs"
       ],
@@ -702,7 +702,7 @@
         "tests/clean-environment-qualification.test.mjs"
       ],
       "read": [
-        "docs/pending/PENDING-WORK-2026-08-29.md",
+        "docs/provenance/migrations/2026-08-29-pending/PENDING-WORK-2026-08-29.md",
         "scripts/qualify-windows-release.mjs",
         "scripts/verify-release.mjs"
       ],
@@ -726,8 +726,8 @@
         "skills/qa/SKILL.md"
       ],
       "read": [
-        "docs/pending/PENDING-WORK-2026-08-29.md",
-        "docs/pending/LEGION-MECHANISM-AWARE-WORK-DECOMPOSITION-2026-08-29-REV3.md",
+        "docs/provenance/migrations/2026-08-29-pending/PENDING-WORK-2026-08-29.md",
+        "docs/provenance/migrations/2026-08-29-pending/LEGION-MECHANISM-AWARE-WORK-DECOMPOSITION-2026-08-29-REV3.md",
         "skills/dispatch/assets/direct-packet.json",
         "skills/tasklist/SKILL.md"
       ],
@@ -749,8 +749,8 @@
         "engine/crates/legion-contracts/src/receipt.rs"
       ],
       "read": [
-        "docs/pending/PENDING-WORK-2026-08-29.md",
-        "docs/pending/LEGION-MECHANISM-AWARE-WORK-DECOMPOSITION-2026-08-29-REV3.md",
+        "docs/provenance/migrations/2026-08-29-pending/PENDING-WORK-2026-08-29.md",
+        "docs/provenance/migrations/2026-08-29-pending/LEGION-MECHANISM-AWARE-WORK-DECOMPOSITION-2026-08-29-REV3.md",
         "engine/crates/legion-contracts/src/lib.rs",
         "engine/crates/legion-contracts/src/trace.rs"
       ],
@@ -772,8 +772,8 @@
         "engine/crates/legion-contracts/src/plan.rs"
       ],
       "read": [
-        "docs/pending/PENDING-WORK-2026-08-29.md",
-        "docs/pending/LEGION-MECHANISM-AWARE-WORK-DECOMPOSITION-2026-08-29-REV3.md",
+        "docs/provenance/migrations/2026-08-29-pending/PENDING-WORK-2026-08-29.md",
+        "docs/provenance/migrations/2026-08-29-pending/LEGION-MECHANISM-AWARE-WORK-DECOMPOSITION-2026-08-29-REV3.md",
         "engine/crates/legion-contracts/src/receipt.rs",
         "engine/crates/legion-contracts/src/lib.rs"
       ],
@@ -795,8 +795,8 @@
         "skills/dispatch/evals/executor-requirement.json"
       ],
       "read": [
-        "docs/pending/PENDING-WORK-2026-08-29.md",
-        "docs/pending/LEGION-MECHANISM-AWARE-WORK-DECOMPOSITION-2026-08-29-REV3.md",
+        "docs/provenance/migrations/2026-08-29-pending/PENDING-WORK-2026-08-29.md",
+        "docs/provenance/migrations/2026-08-29-pending/LEGION-MECHANISM-AWARE-WORK-DECOMPOSITION-2026-08-29-REV3.md",
         "skills/dispatch/evals/evals.json",
         "skills/dispatch/assets/direct-packet.json"
       ],
@@ -818,7 +818,7 @@
         "scripts/verify-plugin-parity.mjs"
       ],
       "read": [
-        "docs/pending/PENDING-WORK-2026-08-29.md",
+        "docs/provenance/migrations/2026-08-29-pending/PENDING-WORK-2026-08-29.md",
         "docs/LEGION-DISTRIBUTION-AND-CLIENT-INTEGRATION.md",
         "scripts/check-distribution-contract.mjs"
       ],
@@ -841,7 +841,7 @@
         "engine/bins/legion-mcp/src/tools.rs"
       ],
       "read": [
-        "docs/pending/PENDING-WORK-2026-08-29.md",
+        "docs/provenance/migrations/2026-08-29-pending/PENDING-WORK-2026-08-29.md",
         "engine/bins/legion-mcp/src/server.rs",
         "scripts/verify-plugin-parity.mjs"
       ],
@@ -860,10 +860,10 @@
       "dispatch": "B",
       "executor": "luna (GPT-5.6 Luna High via /luna)",
       "allowlist": [
-        "docs/pending/arcane-package-triage.md"
+        "docs/provenance/migrations/2026-08-29-pending/arcane-package-triage.md"
       ],
       "read": [
-        "docs/pending/PENDING-WORK-2026-08-29.md",
+        "docs/provenance/migrations/2026-08-29-pending/PENDING-WORK-2026-08-29.md",
         "src/packages/arcane",
         "src/packages/arcane/index.mjs",
         "src/packages/arcane/INTERFACES.md",
@@ -888,8 +888,8 @@
         "hooks/hooks.json"
       ],
       "read": [
-        "docs/pending/PENDING-WORK-2026-08-29.md",
-        "docs/pending/ARCANE-COGNITIVE-CONTROL-PLANE-2026-08-29-REV3.md",
+        "docs/provenance/migrations/2026-08-29-pending/PENDING-WORK-2026-08-29.md",
+        "docs/provenance/migrations/2026-08-29-pending/ARCANE-COGNITIVE-CONTROL-PLANE-2026-08-29-REV3.md",
         "engine/crates/legion-contracts/src/policy.rs",
         "engine/crates/legion-application/src/lib.rs",
         "doctrine/arcane.md",
@@ -913,7 +913,7 @@
         "engine/crates/legion-application/src/lib.rs"
       ],
       "read": [
-        "docs/pending/PENDING-WORK-2026-08-29.md",
+        "docs/provenance/migrations/2026-08-29-pending/PENDING-WORK-2026-08-29.md",
         "engine/crates/legion-contracts/src/trace.rs",
         "engine/crates/legion-contracts/src/receipt.rs",
         "doctrine/oracle.md"
@@ -937,8 +937,8 @@
         "schemas/route-outcome-trace.v1.schema.json"
       ],
       "read": [
-        "docs/pending/PENDING-WORK-2026-08-29.md",
-        "docs/pending/ARCANE-COGNITIVE-CONTROL-PLANE-2026-08-29-REV3.md",
+        "docs/provenance/migrations/2026-08-29-pending/PENDING-WORK-2026-08-29.md",
+        "docs/provenance/migrations/2026-08-29-pending/ARCANE-COGNITIVE-CONTROL-PLANE-2026-08-29-REV3.md",
         "engine/crates/legion-contracts/src/policy.rs",
         "schemas/route-outcome-trace.v1.md"
       ],
@@ -962,7 +962,7 @@
         "docs/architecture/oracle.md"
       ],
       "read": [
-        "docs/pending/PENDING-WORK-2026-08-29.md",
+        "docs/provenance/migrations/2026-08-29-pending/PENDING-WORK-2026-08-29.md",
         "docs/LEGION-CANONICAL-SSOT.md",
         "doctrine/sage.md",
         "doctrine/alchemist.md",

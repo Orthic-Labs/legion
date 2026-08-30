@@ -8,7 +8,7 @@ Node Arcane package's own policy bundle: a different schema (`approvalRequired`,
 compatibility maps. They do not feed the Guard's live authorization path.
 
 The Guard's canonical default policy — the pack that is always present for
-`legion-hook`/`legion-application`, per `docs/pending/PENDING-WORK-2026-08-29.md` P0.1 — is
+`legion-hook`/`legion-application`, per `docs/provenance/migrations/2026-08-29-pending/PENDING-WORK-2026-08-29.md` P0.1 — is
 `canonical_default_policy_pack()` in `engine/crates/legion-contracts/src/policy.rs`, using the
 `PolicyRule`/`PolicyPack` schema in that same file (`effect_class`, `allowed`, `approval`,
 `targets`, `operations`).

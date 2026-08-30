@@ -4,7 +4,7 @@
 //! request. It carries no agent-authored prose — every field is a
 //! mechanically recorded classification, count, or flag — so the four
 //! Bounded Falsification metrics defined in
-//! `docs/pending/ARCANE-COGNITIVE-CONTROL-PLANE-2026-08-29-REV3.md` §30
+//! `docs/provenance/migrations/2026-08-29-pending/ARCANE-COGNITIVE-CONTROL-PLANE-2026-08-29-REV3.md` §30
 //! ("Telemetry (feeds Section 29 / tracker P1.6)") are computable as pure
 //! functions over recorded traces, with no human judgment required at
 //! measurement time. See `schemas/route-outcome-trace.v1.md` for the exact
@@ -289,7 +289,7 @@ mod tests {
             route: Route::Deliberate,
             semantic_requirement: SemanticRequirement::REQUIRED,
             context: ContextUsage {
-                sources: vec!["docs/pending/PENDING-WORK-2026-08-29.md".into()],
+                sources: vec!["docs/provenance/migrations/2026-08-29-pending/PENDING-WORK-2026-08-29.md".into()],
                 size_bytes: 4096,
             },
             capabilities: CapabilityUsage {

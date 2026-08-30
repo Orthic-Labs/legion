@@ -420,7 +420,7 @@
       "reason": "audit records quote retired names as evidence of naming drift"
     },
     {
-      "path": "docs/pending/arcane-package-triage.md",
+      "path": "docs/provenance/migrations/2026-08-29-pending/arcane-package-triage.md",
       "tokens": [
         "forge"
       ],
@@ -431,7 +431,7 @@
       "reason": "triage inventory names real src/packages/arcane/compatibility/forge/* paths awaiting disposition"
     },
     {
-      "path": "docs/pending/arcane-package-triage-v2.md",
+      "path": "docs/provenance/migrations/2026-08-29-pending/arcane-package-triage-v2.md",
       "tokens": [
         "forge"
       ],

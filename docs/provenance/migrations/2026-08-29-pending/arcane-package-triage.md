@@ -1,6 +1,6 @@
 # Arcane package triage
 
-**Tracker item:** P0.5 from `docs/pending/PENDING-WORK-2026-08-29.md`  
+**Tracker item:** P0.5 from `docs/provenance/migrations/2026-08-29-pending/PENDING-WORK-2026-08-29.md`  
 **Scope:** `src/packages/arcane/` only  
 **Action:** disposition only; this document moves or deletes nothing.
 

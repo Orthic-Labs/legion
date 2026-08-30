@@ -6,7 +6,7 @@ Verbatim user request:
 > to /luna then next, then next. luna writes code, you run tests and integrate and mark what's
 > done in the doc.
 
-Scope source: `docs/pending/PENDING-WORK-2026-08-29.md` (rev 5, commit 42f38e4b), items P0.1–P5.30.
+Scope source: `docs/provenance/migrations/2026-08-29-pending/PENDING-WORK-2026-08-29.md` (rev 5, commit 42f38e4b), items P0.1–P5.30.
 
 Excluded from worker lanes (owned by the integration owner, not dispatchable):
 - P0.1 / P0.4 / P1.6 / P1.11(arcane doctrine): already in flight as uncommitted work in this
