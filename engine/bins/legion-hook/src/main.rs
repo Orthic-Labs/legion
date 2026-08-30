@@ -4,11 +4,15 @@ use std::{
     fs,
     io::{self, Read, Seek, SeekFrom, Write},
     path::{Path, PathBuf},
-    time::{SystemTime, UNIX_EPOCH},
+    time::{Duration, Instant, SystemTime, UNIX_EPOCH},
 };
 
 use legion_application::{NativeApplication, NativeApplicationConfig};
-use legion_contracts::{AgentId, EffectClass, EffectRequest, RequestId, TaskId};
+use legion_contracts::{
+    AgentId, AuthorityKind, CapabilityUsage, ChallengePass, ComputePosture, ContextUsage,
+    CostUsage, EffectClass, EffectRequest, OutcomeResult, RequestId, Route, RouteOutcomeTrace,
+    SemanticRequirement, TaskId, TraceId,
+};
 use serde_json::{Map, Value};
 
 mod error;
@@ -41,6 +45,13 @@ const MAX_STOP_REOPENINGS: u64 = 3;
 /// decision. Lifecycle/post-effect observations are safe to acknowledge;
 /// pre-effect frames must carry enough typed identity to reach native policy.
 pub fn dispatch(request: HookRequest) -> HookResponse {
+    let started = Instant::now();
+    let response = dispatch_inner(request.clone());
+    emit_route_trace(&request, &response, started.elapsed());
+    response
+}
+
+fn dispatch_inner(request: HookRequest) -> HookResponse {
     let event_type = request.event_type.clone();
     // SubagentStop is an observation-only host event. Keep it outside the
     // legacy protocol allow-list until that owner can update the shared wire
@@ -1349,6 +1360,343 @@ fn read_request() -> Result<Vec<u8>, HookError> {
     Ok(input)
 }
 
+const MAX_TRACE_FILE_BYTES: u64 = 2 * 1024 * 1024;
+const TRACE_FILE_NAME: &str = "route-outcome-trace.v1.jsonl";
+
+/// A derived rate. `NotEnoughData` is deliberately distinct from zero: no
+/// observations cannot establish a zero rate.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum MetricValue {
+    Value(f64),
+    NotEnoughData,
+}
+
+impl MetricValue {
+    fn ratio(numerator: usize, denominator: usize) -> Self {
+        if denominator == 0 {
+            Self::NotEnoughData
+        } else {
+            Self::Value(numerator as f64 / denominator as f64)
+        }
+    }
+}
+
+/// Metrics folded from one ordered trace sequence. The Oracle repair rate
+/// uses sequence order to identify a later real repair for the same request.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct TraceMetrics {
+    /// Sage dispatches / all traces.
+    pub sage_dispatch_rate: MetricValue,
+    /// blocked Oracle traces / all Oracle-attached traces.
+    pub oracle_block_rate: MetricValue,
+    /// blocked Oracle traces followed by a same-request `Repair` trace /
+    /// blocked Oracle traces.
+    pub oracle_block_to_real_fix_rate: MetricValue,
+    /// L1 traces ending in NARROW or REVISE / all invoked L1 traces.
+    pub challenge_yield: MetricValue,
+    /// challenged, evidence-available traces ending in NARROW or REVISE /
+    /// materially assumption-dependent traces.
+    pub avoidable_user_challenge_rate: MetricValue,
+}
+
+/// Fold route traces into the tracker rates without inspecting prose or
+/// rerunning any validation. Denominators are stated on each result field in
+/// [`TraceMetrics`]; every zero denominator returns `NotEnoughData`.
+pub fn fold_trace_metrics(traces: &[RouteOutcomeTrace]) -> TraceMetrics {
+    let sage_dispatches = traces
+        .iter()
+        .filter(|trace| trace.authority_attached == Some(AuthorityKind::Sage))
+        .count();
+    let oracle_traces = traces
+        .iter()
+        .filter(|trace| trace.authority_attached == Some(AuthorityKind::Oracle))
+        .count();
+    let oracle_blocks = traces
+        .iter()
+        .filter(|trace| {
+            trace.authority_attached == Some(AuthorityKind::Oracle)
+                && trace.result == OutcomeResult::Blocked
+        })
+        .count();
+    let mut oracle_repairs = 0;
+    for (index, trace) in traces.iter().enumerate() {
+        if trace.authority_attached == Some(AuthorityKind::Oracle)
+            && trace.result == OutcomeResult::Blocked
+            && traces[index + 1..].iter().any(|later| {
+                later.request_id == trace.request_id && later.result == OutcomeResult::Repair
+            })
+        {
+            oracle_repairs += 1;
+        }
+    }
+    let l1_invoked = traces
+        .iter()
+        .filter(|trace| trace.challenge.invoked && trace.challenge.level == legion_contracts::ChallengeLevel::L1)
+        .count();
+    let l1_improved = traces
+        .iter()
+        .filter(|trace| {
+            trace.challenge.invoked
+                && trace.challenge.level == legion_contracts::ChallengeLevel::L1
+                && matches!(
+                    trace.challenge.outcome,
+                    Some(legion_contracts::ChallengeOutcome::Narrow | legion_contracts::ChallengeOutcome::Revise)
+                )
+        })
+        .count();
+    let assumption_dependent = traces
+        .iter()
+        .filter(|trace| trace.challenge.assumption_dependent_conclusion)
+        .count();
+    let avoidable_challenges = traces
+        .iter()
+        .filter(|trace| {
+            trace.challenge.user_challenge_event
+                && trace.challenge.evidence_available_at_first_answer
+                && matches!(
+                    trace.challenge.outcome,
+                    Some(legion_contracts::ChallengeOutcome::Narrow | legion_contracts::ChallengeOutcome::Revise)
+                )
+        })
+        .count();
+
+    TraceMetrics {
+        sage_dispatch_rate: MetricValue::ratio(sage_dispatches, traces.len()),
+        oracle_block_rate: MetricValue::ratio(oracle_blocks, oracle_traces),
+        oracle_block_to_real_fix_rate: MetricValue::ratio(oracle_repairs, oracle_blocks),
+        challenge_yield: MetricValue::ratio(l1_improved, l1_invoked),
+        avoidable_user_challenge_rate: MetricValue::ratio(avoidable_challenges, assumption_dependent),
+    }
+}
+
+fn emit_route_trace(request: &HookRequest, response: &HookResponse, latency: Duration) {
+    if request.event_type != "SubagentStop"
+        && !protocol::SUPPORTED_EVENT_TYPES.contains(&request.event_type.as_str())
+    {
+        return;
+    }
+    // A Guard frame is not itself a cognitive route. Emit only when the host
+    // supplied the required route envelope; absent fields are not guessed.
+    let Some(trace) = route_trace_from_request(request, response, latency) else {
+        return;
+    };
+    let Some(path) = trace_path(&request.payload) else {
+        return;
+    };
+    let _ = append_trace(&path, &trace);
+}
+
+fn route_trace_from_request(
+    request: &HookRequest,
+    response: &HookResponse,
+    latency: Duration,
+) -> Option<RouteOutcomeTrace> {
+    let payload = request.payload.as_object()?;
+    let source = trace_source(payload);
+    let request_id = trace_string(source, payload, &["request_id", "requestId", "tool_use_id", "toolUseId", "event_id", "eventId"])?;
+    let request_id = RequestId::new(request_id).ok()?;
+    let trace_id = trace_string(source, payload, &["trace_id", "traceId"])
+        .and_then(|value| TraceId::new(value).ok())
+        .or_else(|| TraceId::new(format!("hook-{}-{}", request_id, unix_nanos())).ok())?;
+    let task_id = trace_string(source, payload, &["task_id", "taskId"])
+        .and_then(|value| TaskId::new(value).ok());
+    let context = trace_context(source, payload)?;
+    let capabilities = trace_capabilities(source, payload)?;
+    let cost = trace_cost(source, payload)?;
+    let challenge = trace_value(source, payload, &["challenge"]).and_then(|value| {
+        serde_json::from_value::<ChallengePass>(value.clone()).ok()
+    })?;
+    let trace = RouteOutcomeTrace {
+        schema_version: 1,
+        trace_id,
+        request_id,
+        task_id,
+        arcane_profile_digest: trace_string(source, payload, &["arcaneProfileDigest", "arcane_profile_digest"]),
+        legion_canon_digest: trace_string(source, payload, &["legionCanonDigest", "legion_canon_digest"]),
+        skill_catalog_digest: trace_string(source, payload, &["skillCatalogDigest", "skill_catalog_digest"]),
+        guard_policy_digest: trace_string(source, payload, &["guardPolicyDigest", "guard_policy_digest"]),
+        route: parse_route(trace_string(source, payload, &["route"]).as_deref())?,
+        semantic_requirement: parse_semantic_requirement(trace_string(
+            source,
+            payload,
+            &["semantic_requirement", "semanticRequirement"],
+        ).as_deref())?,
+        context,
+        capabilities,
+        authority_attached: trace_string(
+            source,
+            payload,
+            &["authority_attached", "authorityAttached", "authority"],
+        )
+        .and_then(|value| parse_authority(value.as_deref())),
+        compute_posture: parse_compute_posture(trace_string(
+            source,
+            payload,
+            &["compute_posture", "computePosture", "compute"],
+        ).as_deref())?,
+        // The terminal result belongs to the Guard decision, never to a
+        // host-supplied field that could disagree with it.
+        result: if response.allowed {
+            OutcomeResult::Success
+        } else {
+            OutcomeResult::Blocked
+        },
+        latency_ms: latency.as_millis().min(u64::MAX as u128) as u64,
+        cost,
+        challenge,
+    };
+    trace.validate().ok().map(|_| trace)
+}
+
+fn trace_source<'a>(payload: &'a Map<String, Value>) -> &'a Map<String, Value> {
+    ["routeOutcomeTrace", "route_outcome_trace", "trace"]
+        .iter()
+        .find_map(|key| payload.get(*key).and_then(Value::as_object))
+        .unwrap_or(payload)
+}
+
+fn trace_value<'a>(
+    source: &'a Map<String, Value>,
+    payload: &'a Map<String, Value>,
+    keys: &[&str],
+) -> Option<&'a Value> {
+    keys.iter()
+        .find_map(|key| source.get(*key).or_else(|| payload.get(*key)))
+}
+
+fn trace_string<'a>(
+    source: &'a Map<String, Value>,
+    payload: &'a Map<String, Value>,
+    keys: &[&str],
+) -> Option<String> {
+    let value = trace_value(source, payload, keys).or_else(|| {
+        source
+            .get("provenance")
+            .and_then(Value::as_object)
+            .and_then(|provenance| trace_value(provenance, payload, keys))
+    });
+    value
+        .and_then(Value::as_str)
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .map(ToOwned::to_owned)
+}
+
+fn trace_context(source: &Map<String, Value>, payload: &Map<String, Value>) -> Option<ContextUsage> {
+    let object = trace_value(source, payload, &["context"])?.as_object()?;
+    let sources = object.get("sources")?.as_array()?.iter().map(|value| {
+        value.as_str().map(str::trim).filter(|value| !value.is_empty()).map(ToOwned::to_owned)
+    }).collect::<Option<Vec<_>>>()?;
+    let size_bytes = object
+        .get("size_bytes")
+        .or_else(|| object.get("sizeBytes"))
+        .and_then(Value::as_u64)?;
+    Some(ContextUsage { sources, size_bytes })
+}
+
+fn trace_capabilities(source: &Map<String, Value>, payload: &Map<String, Value>) -> Option<CapabilityUsage> {
+    let object = trace_value(source, payload, &["capabilities"])?.as_object()?;
+    let values = |key: &str| {
+        object.get(key)?.as_array()?.iter().map(|value| {
+            value.as_str().map(str::trim).filter(|value| !value.is_empty()).map(ToOwned::to_owned)
+        }).collect::<Option<Vec<_>>>()
+    };
+    Some(CapabilityUsage { considered: values("considered")?, selected: values("selected")? })
+}
+
+fn trace_cost(source: &Map<String, Value>, payload: &Map<String, Value>) -> Option<CostUsage> {
+    let object = trace_value(source, payload, &["cost"])?.as_object()?;
+    Some(CostUsage {
+        input_tokens: object.get("input_tokens").or_else(|| object.get("inputTokens"))?.as_u64()?,
+        output_tokens: object.get("output_tokens").or_else(|| object.get("outputTokens"))?.as_u64()?,
+        cost_usd_micros: object
+            .get("cost_usd_micros")
+            .or_else(|| object.get("costUsdMicros"))?
+            .as_u64()?,
+    })
+}
+
+fn parse_route(value: Option<&str>) -> Option<Route> {
+    match value?.trim().to_ascii_lowercase().as_str() {
+        "direct" => Some(Route::Direct),
+        "deliberate" => Some(Route::Deliberate),
+        "grounded" => Some(Route::Grounded),
+        _ => None,
+    }
+}
+
+fn parse_semantic_requirement(value: Option<&str>) -> Option<SemanticRequirement> {
+    match value?.trim().to_ascii_uppercase().as_str() {
+        "FORBIDDEN" => Some(SemanticRequirement::FORBIDDEN),
+        "CONDITIONAL" => Some(SemanticRequirement::CONDITIONAL),
+        "REQUIRED" => Some(SemanticRequirement::REQUIRED),
+        _ => None,
+    }
+}
+
+fn parse_authority(value: Option<&str>) -> Option<AuthorityKind> {
+    match value?.trim().to_ascii_lowercase().as_str() {
+        "sage" => Some(AuthorityKind::Sage),
+        "alchemist" => Some(AuthorityKind::Alchemist),
+        "oracle" => Some(AuthorityKind::Oracle),
+        _ => None,
+    }
+}
+
+fn parse_compute_posture(value: Option<&str>) -> Option<ComputePosture> {
+    match value?.trim().to_ascii_lowercase().as_str() {
+        "no_model" | "no-model" => Some(ComputePosture::NoModel),
+        "tiny" => Some(ComputePosture::Tiny),
+        "strong" => Some(ComputePosture::Strong),
+        _ => None,
+    }
+}
+
+fn trace_path(payload: &Value) -> Option<PathBuf> {
+    let object = payload.as_object()?;
+    let state_root = first_string(object, &["stateRoot", "state_root"])
+        .map(PathBuf::from)
+        .or_else(|| std::env::var_os("LEGION_STATE_ROOT").map(PathBuf::from));
+    if let Some(root) = state_root {
+        return Some(root.join("receipts").join(TRACE_FILE_NAME));
+    }
+    let workspace = std::env::current_dir().ok()?;
+    Some(workspace.join(".audit").join("arcane").join("receipts").join(TRACE_FILE_NAME))
+}
+
+fn append_trace(path: &Path, trace: &RouteOutcomeTrace) -> Result<(), ()> {
+    trace.validate().map_err(|_| ())?;
+    let mut line = serde_json::to_vec(trace).map_err(|_| ())?;
+    if (line.len() as u64).saturating_add(1) > MAX_TRACE_FILE_BYTES {
+        return Err(());
+    }
+    line.push(b'\n');
+    if let Some(parent) = path.parent().filter(|parent| !parent.as_os_str().is_empty()) {
+        fs::create_dir_all(parent).map_err(|_| ())?;
+    }
+    if fs::metadata(path)
+        .ok()
+        .map(|metadata| metadata.len().saturating_add(line.len() as u64) > MAX_TRACE_FILE_BYTES)
+        .unwrap_or(false)
+    {
+        let rotated = PathBuf::from(format!("{}.1", path.display()));
+        fs::rename(path, rotated).map_err(|_| ())?;
+    }
+    let mut file = fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(path)
+        .map_err(|_| ())?;
+    file.write_all(&line).map_err(|_| ())
+}
+
+fn unix_nanos() -> u128 {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|duration| duration.as_nanos())
+        .unwrap_or_default()
+}
+
 fn response_value(response: &HookResponse) -> Value {
     let mut value = response.to_value();
     if response.allowed && response.event_type == "SessionStart" {
@@ -1405,6 +1753,69 @@ mod tests {
     use serde_json::json;
     use std::time::{SystemTime, UNIX_EPOCH};
 
+    fn sample_trace() -> RouteOutcomeTrace {
+        RouteOutcomeTrace {
+            schema_version: 1,
+            trace_id: TraceId::new("trace-test").expect("valid trace id"),
+            request_id: RequestId::new("request-test").expect("valid request id"),
+            task_id: Some(TaskId::new("task-test").expect("valid task id")),
+            arcane_profile_digest: None,
+            legion_canon_digest: None,
+            skill_catalog_digest: None,
+            guard_policy_digest: None,
+            route: Route::Direct,
+            semantic_requirement: SemanticRequirement::CONDITIONAL,
+            context: ContextUsage {
+                sources: Vec::new(),
+                size_bytes: 0,
+            },
+            capabilities: CapabilityUsage {
+                considered: Vec::new(),
+                selected: Vec::new(),
+            },
+            authority_attached: None,
+            compute_posture: ComputePosture::NoModel,
+            result: OutcomeResult::Success,
+            latency_ms: 1,
+            cost: CostUsage {
+                input_tokens: 0,
+                output_tokens: 0,
+                cost_usd_micros: 0,
+            },
+            challenge: ChallengePass {
+                invoked: false,
+                level: legion_contracts::ChallengeLevel::L0,
+                trigger: None,
+                outcome: None,
+                assumption_dependent_conclusion: false,
+                evidence_available_at_first_answer: false,
+                user_challenge_event: false,
+            },
+        }
+    }
+
+    fn complete_trace_payload(trace_path: &str) -> Value {
+        json!({
+            "requestId": "request-test",
+            "stateRoot": trace_path,
+            "route": "direct",
+            "semanticRequirement": "CONDITIONAL",
+            "context": {"sources": [], "size_bytes": 0},
+            "capabilities": {"considered": [], "selected": []},
+            "computePosture": "no_model",
+            "cost": {"input_tokens": 0, "output_tokens": 0, "cost_usd_micros": 0},
+            "challenge": {
+                "invoked": false,
+                "level": "L0",
+                "trigger": null,
+                "outcome": null,
+                "assumption_dependent_conclusion": false,
+                "evidence_available_at_first_answer": false,
+                "user_challenge_event": false
+            }
+        })
+    }
+
     fn effect(effect_class: EffectClass) -> EffectRequest {
         EffectRequest {
             schema_version: 1,
@@ -1452,6 +1863,84 @@ mod tests {
         ));
         fs::create_dir_all(root.join(".git/refs/heads")).expect("create test git directory");
         root
+    }
+
+    #[test]
+    fn trace_round_trips_through_schema_type() {
+        let trace = sample_trace();
+        trace.validate().expect("sample trace is valid");
+        let json = serde_json::to_string(&trace).expect("trace serializes");
+        let parsed: RouteOutcomeTrace = serde_json::from_str(&json).expect("trace parses");
+        assert_eq!(parsed, trace);
+    }
+
+    #[test]
+    fn unobservable_provenance_is_absent_not_defaulted() {
+        let request = HookRequest {
+            schema_version: protocol::SCHEMA_VERSION,
+            kind: protocol::REQUEST_KIND.into(),
+            event_type: "SessionStart".into(),
+            payload: complete_trace_payload("unused-trace-path"),
+        };
+        let response = HookResponse::allowed("SessionStart", "test");
+        let trace = route_trace_from_request(&request, &response, Duration::from_millis(2))
+            .expect("complete host route envelope emits");
+        assert_eq!(trace.arcane_profile_digest, None);
+        assert_eq!(trace.legion_canon_digest, None);
+        assert_eq!(trace.skill_catalog_digest, None);
+        assert_eq!(trace.guard_policy_digest, None);
+    }
+
+    #[test]
+    fn meaningful_route_event_emits_one_json_line() {
+        let path = std::env::temp_dir().join(format!(
+            "legion-hook-route-trace-{}",
+            std::process::id()
+        ));
+        let _ = fs::remove_file(&path);
+        let request = HookRequest {
+            schema_version: protocol::SCHEMA_VERSION,
+            kind: protocol::REQUEST_KIND.into(),
+            event_type: "SessionStart".into(),
+            payload: complete_trace_payload(&path.to_string_lossy()),
+        };
+        let response = dispatch(request);
+        assert!(response.allowed);
+        let trace_file = path.join("receipts").join(TRACE_FILE_NAME);
+        let lines = fs::read_to_string(&trace_file).expect("trace line is persisted");
+        let trace: RouteOutcomeTrace =
+            serde_json::from_str(lines.trim()).expect("valid trace JSON");
+        assert_eq!(trace.result, OutcomeResult::Success);
+        fs::remove_dir_all(path).expect("remove test trace");
+    }
+
+    #[test]
+    fn failed_trace_write_does_not_change_decision() {
+        let path = std::env::temp_dir().join(format!(
+            "legion-hook-trace-write-failure-{}",
+            std::process::id()
+        ));
+        fs::create_dir_all(&path).expect("create directory used as invalid trace file");
+        let request = HookRequest {
+            schema_version: protocol::SCHEMA_VERSION,
+            kind: protocol::REQUEST_KIND.into(),
+            event_type: "SessionStart".into(),
+            payload: complete_trace_payload(&path.to_string_lossy()),
+        };
+        let expected = dispatch_inner(request.clone());
+        let actual = dispatch(request);
+        assert_eq!(actual, expected, "telemetry must not alter the decision");
+        fs::remove_dir_all(path).expect("remove test directory");
+    }
+
+    #[test]
+    fn zero_denominators_are_typed_as_no_data() {
+        let metrics = fold_trace_metrics(&[]);
+        assert_eq!(metrics.sage_dispatch_rate, MetricValue::NotEnoughData);
+        assert_eq!(metrics.oracle_block_rate, MetricValue::NotEnoughData);
+        assert_eq!(metrics.oracle_block_to_real_fix_rate, MetricValue::NotEnoughData);
+        assert_eq!(metrics.challenge_yield, MetricValue::NotEnoughData);
+        assert_eq!(metrics.avoidable_user_challenge_rate, MetricValue::NotEnoughData);
     }
 
     #[test]
