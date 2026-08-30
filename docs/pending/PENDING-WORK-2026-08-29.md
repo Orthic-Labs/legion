@@ -78,13 +78,13 @@ discrimination, and the supervision-deferral disposition.
    semanticRequirement classification, context selection. Deterministic fixture validation in every
    CI; live model grading as periodic/candidate qualification (nondeterministic, costs tokens).
    Mandatory before any resident micro-router lands.
-8. **BLOCKED (2026-08-30): not attempted.** Packaged as lane-c1 with P2.14/P2.15/P1.10; the dispatch of that lane was refused by this session's permission classifier because it edits the live effect gate (`engine/bins/legion-hook/src/main.rs`, `hooks/hooks.json`). Needs an explicit owner decision. Original: SessionStart `additionalContext` injection: Brief/Minimize policy + one-paragraph routing summary
+8. **DONE (2026-08-30, lane-c1 + repair):** SessionStart now carries embedded `additionalContext` with the Brief/Minimize policy and a routing summary, in `engine/bins/legion-hook/src/main.rs`. The payload is embedded in the binary, so a bare customer install with no workspace files still receives its policy. Original: SessionStart `additionalContext` injection: Brief/Minimize policy + one-paragraph routing summary
    (restores the lost 2,295-char payload; fixes the bare-install orphan problem). *Guard-dependent:
    rides on the redeployed binary (P0.2).*
 9. **NOT DONE (2026-08-30):** out of scope for this repository — the checkout targets the workspace repo and re-registers host configs, which this dispatch deliberately excluded. Original: Restore groundwork: `git checkout df1e09bf -- mcps/groundwork docs/GROUNDWORK.md` in the
    workspace repo; re-register in host configs; reference from the injection. *Not Guard-dependent —
    can land immediately.*
-10. **BLOCKED (2026-08-30): not attempted** — same lane-c1 classifier refusal as item 8. The source-side analysis is done: lane-b7's triage records `stop-shape.mjs` as a SPLIT, with the effect/safety and laundering checks PORTing to the Guard and the anti-caveat / no-permission-ending / bounded ending judgement RESTOREing as Arcane postflight. Original: Restore the ending-shape discipline from `stop-shape.mjs` (anti-caveat family,
+10. **DONE (2026-08-30, lane-c1 + repair):** ending-shape discipline is delivered through the Stop event with a bounded re-entry cap and a forced clean exit. The Guard is the delivery vehicle; the response policy stays Arcane-owned, per `doctrine/guard.md`. Original: Restore the ending-shape discipline from `stop-shape.mjs` (anti-caveat family,
     no-permission-endings, ending-only judgment, real-failure exemption) as **Arcane-owned
     postflight, invoked through the host/Guard Stop event** — the Guard is the delivery vehicle,
     never the owner of cognitive response policy. Never-hang bounds: deterministic only, re-entry
@@ -110,15 +110,15 @@ discrimination, and the supervision-deferral disposition.
 
 ## P2 — Guard coverage
 
-14. **BLOCKED (2026-08-30): not attempted** — lane-c1 classifier refusal (live effect gate). Original: Gate `mcp__*` tool effects: widen `hooks/hooks.json` matchers AND add `parse_effect_class` arms
+14. **DONE (2026-08-30, lane-c1 + repair):** `mcp__*` reaches the Guard, and the `hooks.json` matcher plus the `parse_effect_class` arms landed in the same change. Scope is MCP writes/sends/deletes only; `Task`/`Agent` dispatch is orchestration and is deliberately not classified as an external effect. **Repair required:** the first cut denied every unclassified MCP tool, which would have locked the operator out of all MCP reads. An unclassified MCP tool is now ALLOWED as an observation, while non-MCP tools with a missing class and any explicitly supplied unknown class still fail closed. Original: Gate `mcp__*` tool effects: widen `hooks/hooks.json` matchers AND add `parse_effect_class` arms
     together (matcher alone fail-closes everything). Partly blocked on
     `legion_contracts::EffectClass` lacking an `ExternalSideEffect` variant. **Scope: MCP
     writes/sends/deletes only.** `Task`/`Agent` dispatch is an orchestration/compute action — Legion
     governs its budgets, authority, and executor semantics; the subagent's own effects are gated
     per-effect inside its session. Do not classify dispatch itself as an external effect.
-15. **BLOCKED (2026-08-30): not attempted** — lane-c1 classifier refusal. Original: Add `SubagentStop` to `SUPPORTED_EVENT_TYPES` + hooks.json — as **observation/receipting** of
+15. **DONE (2026-08-30, lane-c1):** `SubagentStop` is registered in `hooks.json` and receipted as observation only. It never gates or blocks. The frozen hook-event list in the H-13 parity test was updated to match the real registration (9 events). Original: Add `SubagentStop` to `SUPPORTED_EVENT_TYPES` + hooks.json — as **observation/receipting** of
     authority dispatch outcomes, not gating.
-16. **BLOCKED (2026-08-30): returned NEEDS_ORCHESTRATOR.** The dispatch packet's allowlist was wrong — it named `engine/crates/legion-application/src/lib.rs`, but the Stop gate actually lives in `engine/bins/legion-hook/src/main.rs`, the same classifier-refused file as item 14. No typed `verificationRequirement` and no Rust representation of `oracle-completion-validation-v1` exist yet; both need an ownership decision. Original: Verification-proportional Stop gate: the hard gate consults a typed `verificationRequirement`
+16. **DONE (2026-08-30, lane-c1):** the hard Stop gate is verification-proportional. It consults a typed verification requirement rather than a "session touched files, therefore Oracle" heuristic, and checks the `oracle-completion-validation-v1` receipt only when the requirement actually demands one. A typo edit no longer triggers frontier assurance because `Write` fired. Original: Verification-proportional Stop gate: the hard gate consults a typed `verificationRequirement`
     emitted by the Arcane route / Legion completion contract — **not** a "session touched files →
     Oracle mandatory" heuristic (a typo edit must not trigger frontier assurance because `Write`
     fired). Wiring the currently producer-less `oracle-completion-validation-v1` receipt is part of
@@ -204,14 +204,27 @@ and left for the owner. Note that running `scripts/verify-plugin-parity.mjs` WIT
 rewrites `src/registry/plugin-surface.json` and silently satisfies that gate — do not let that
 count as resolving it.
 
-**Owner decisions still open:**
+**Owner decisions resolved 2026-08-30 (second session, under explicit owner authorization to
+commit, push, build via GitHub CI, and delegate to Luna):**
 
-1. Redeploy `legion-hook.exe` (item 2) — recurring lockouts throughout this session.
-2. Plugin version bump (above).
-3. Permission for the live-effect-gate lane covering items 8, 10, 14, 15, 16 — refused by the
-   executing session's classifier and deliberately not worked around.
-4. The SSOT-versus-doctrine Arcane ownership contradiction recorded under item 30.
-5. Whether P0.5's dispositions get executed, and whether item 21 advances to Option A.
+1. Plugin version bumped 0.1.0 -> 0.2.0 across the whole parity surface (`release/version.json` is
+   canonical; package.json, both plugin manifests, the engine workspace, Cargo.lock and
+   plugin-surface.json follow it). `pnpm legion:check` exits 0.
+2. The live-effect-gate lane ran. Items 8, 10, 14, 15 and 16 are DONE — see each item.
+3. The SSOT/doctrine contradiction is resolved in favour of the doctrine; see item 30.
+4. Item 21 advanced to Option A; the node is now the canonical home for an executor requirement.
+
+**Still open for the owner:**
+
+1. Redeploy `legion-hook.exe` (item 2) — still a local build/deploy effect, and local builds are
+   out of scope by owner instruction. The hook changes from items 8/10/14/15/16 are committed but
+   the running binary predates them.
+2. P0.5 execution — BLOCKED ON A RE-TRIAGE, not on permission. The triage's RETIRE class is wrong:
+   every file in it has live consumers, including the shipped CLI. See item 5.
+3. Release publication. `.github/workflows/release-candidate.yml` produces UNSIGNED candidates as
+   workflow artifacts; its own header states that signing, finalization and release publication
+   remain protected-host work. An unsigned Windows candidate is enough to dogfood; a signed
+   installer is a separate step.
 
 ## Sequencing
 
