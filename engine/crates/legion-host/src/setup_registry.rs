@@ -252,10 +252,7 @@ pub fn inspect_client_projection(
         stale = true;
     }
 
-    if !source_available {
-        current = false;
-        missing.push("release-bound projection source".into());
-    } else if expected.is_empty() {
+    if !source_available || expected.is_empty() {
         current = false;
         missing.push("release-bound projection source".into());
     }
@@ -336,8 +333,6 @@ pub fn inspect_client_projection(
         "current"
     } else if stale || !missing.is_empty() {
         "stale"
-    } else if !target_exists {
-        "incomplete"
     } else {
         "incomplete"
     };
@@ -360,8 +355,7 @@ pub fn inspect_client_projection(
     Ok(ClientProjectionInspection {
         client_id: input.client_id.clone(),
         selected_mechanism: client_boundary(&input.client_id)
-            .map(|profile| profile.selected_mechanism)
-            .unwrap_or_default(),
+            .map_or_else(String::new, |profile| profile.selected_mechanism),
         projection: input.projection.clone(),
         source_root: input.source_root.clone(),
         target_root: input.target_root.clone(),
@@ -398,8 +392,7 @@ pub fn repair_client_projection(
             removed: Vec::new(),
         });
     }
-    let ledger = read_projection_ledger(input)?;
-    let prior_ledger = ledger.clone();
+    let prior_ledger = read_projection_ledger(input)?;
     let target_exists = path_exists(&input.target_root)?;
     let skills_only = input.projection == "skills-only";
     if target_exists {
@@ -418,10 +411,10 @@ pub fn repair_client_projection(
     });
     let mut repaired = Vec::new();
     let mut preserved = Vec::new();
-    let mut next_files = prior_ledger
-        .as_ref()
-        .map(|value| value.files.clone())
-        .unwrap_or_default();
+    let mut next_files = prior_ledger.as_ref().map_or_else(
+        BTreeMap::new,
+        |value| value.files.clone(),
+    );
     for (relative, (source, source_digest)) in &expected {
         let destination = input.target_root.join(relative);
         if path_exists(&destination)? {
@@ -491,10 +484,10 @@ pub fn repair_client_projection(
         }
     }
     if !repaired.is_empty() || root_owned || skills_only {
-        let created_root = prior_ledger
-            .as_ref()
-            .map(|value| value.created_root)
-            .unwrap_or(!target_exists && !skills_only);
+        let created_root = prior_ledger.as_ref().map_or(
+            !target_exists && !skills_only,
+            |value| value.created_root,
+        );
         let value = ClientProjectionLedger {
             schema_version: CLIENT_PROJECTION_LEDGER_SCHEMA_VERSION,
             owner: CLIENT_PROJECTION_OWNER.into(),
@@ -1196,7 +1189,7 @@ impl<S: SetupStore> SetupRegistry<S> {
             .filter(|item| matches_selector(selector, &item.client_id))
             .map(detected)
             .collect::<Vec<_>>();
-        result.sort_by(|a, b| a.client_id.cmp(&b.client_id));
+        result.sort_by_key(|client| client.client_id.clone());
         if let ClientSelector::ClientId(id) = selector {
             if result.is_empty() {
                 return Err(err(
@@ -1231,7 +1224,7 @@ impl<S: SetupStore> SetupRegistry<S> {
             .filter(|item| matches_selector(selector, &item.client_id))
             .cloned()
             .collect::<Vec<_>>();
-        values.sort_by(|a, b| a.client_id.cmp(&b.client_id));
+        values.sort_by_key(|client| client.client_id.clone());
         Ok(values)
     }
     pub fn preview(&mut self, request: SetupRequest) -> Result<SetupPreview, SetupError> {
@@ -1259,10 +1252,10 @@ impl<S: SetupStore> SetupRegistry<S> {
             ));
         }
         let state = self.store.load_state()?;
-        let generation = state
-            .as_ref()
-            .map(|s| s.migration_generation.clone())
-            .unwrap_or_else(|| "0".into());
+        let generation = state.as_ref().map_or_else(
+            || "0".into(),
+            |state| state.migration_generation.clone(),
+        );
         let mutations = clients
             .iter()
             .map(|client| {
@@ -1397,9 +1390,8 @@ impl<S: SetupStore> SetupRegistry<S> {
             Ok(state)
                 if state
                     .as_ref()
-                    .map(|s| &s.migration_generation)
-                    .unwrap_or(&"0".into())
-                    != &confirmed.preview.rollback.generation =>
+                    .map_or("0", |state| state.migration_generation.as_str())
+                    != confirmed.preview.rollback.generation.as_str() =>
             {
                 Err(err(
                     SetupErrorCode::PlanStale,
@@ -1472,8 +1464,7 @@ impl<S: SetupStore> SetupRegistry<S> {
             )
         })?;
         unlock?;
-        let rollback_release = rollback.release.clone();
-        self.release = rollback_release.clone();
+        self.release = rollback.release;
         Ok(SetupExecution {
             action: SetupAction::Repair,
             generation: Some(rollback.generation),
@@ -1482,7 +1473,7 @@ impl<S: SetupStore> SetupRegistry<S> {
             external_qualification: external_qualification(
                 &[],
                 self.store.platform_state_root(),
-                &rollback_release,
+                &self.release,
             ),
             purged: Vec::new(),
             retained: Vec::new(),
@@ -1494,11 +1485,10 @@ impl<S: SetupStore> SetupRegistry<S> {
         client_id: String,
         generation: String,
     ) -> Result<RuntimeLease, SetupError> {
-        let current = self
-            .store
-            .load_state()?
-            .map(|s| s.migration_generation)
-            .unwrap_or_else(|| "0".into());
+        let current = self.store.load_state()?.map_or_else(
+            || "0".into(),
+            |state| state.migration_generation,
+        );
         if generation != current {
             return Err(err(
                 SetupErrorCode::RuntimeLeaseActive,
@@ -1506,7 +1496,7 @@ impl<S: SetupStore> SetupRegistry<S> {
             ));
         }
         let lease = RuntimeLease {
-            lease_id: format!("{}-{}", client_id, nonce()),
+            lease_id: format!("{client_id}-{}", nonce()),
             client_id,
             generation,
         };
@@ -1617,12 +1607,10 @@ impl<S: SetupStore> SetupRegistry<S> {
             external_qualification: preview.external_qualification.clone(),
             purged: purge_receipt
                 .as_ref()
-                .map(|receipt| receipt.purged.clone())
-                .unwrap_or_default(),
+                .map_or_else(Vec::new, |receipt| receipt.purged.clone()),
             retained: purge_receipt
                 .as_ref()
-                .map(|receipt| receipt.retained.clone())
-                .unwrap_or_default(),
+                .map_or_else(Vec::new, |receipt| receipt.retained.clone()),
             ownership_proof: purge_receipt.map(|receipt| receipt.ownership_proof),
         })
     }
@@ -1803,9 +1791,11 @@ fn validate_projection_input(input: &ClientProjectionInput) -> Result<(), SetupE
     }
     validate_projection_origin(input)?;
     ensure_projection_parent_safe(&input.state_root)?;
-    let allowed_source_root = (input.origin == ORIGIN_INSTALLED)
-        .then(|| input.install_root.as_deref().map(stable_current_root))
-        .flatten();
+    let allowed_source_root = if input.origin == ORIGIN_INSTALLED {
+        input.install_root.as_deref().map(stable_current_root)
+    } else {
+        None
+    };
     ensure_projection_parent_safe_with_allowed_root(
         &input.source_root,
         allowed_source_root.as_deref(),
@@ -2010,9 +2000,11 @@ fn projection_source_files(
     if input.origin == ORIGIN_INSTALLED {
         reject_source_checkout_reference(&input.source_root)?;
     }
-    let allowed_source_root = (input.origin == ORIGIN_INSTALLED)
-        .then(|| input.install_root.as_deref().map(stable_current_root))
-        .flatten();
+    let allowed_source_root = if input.origin == ORIGIN_INSTALLED {
+        input.install_root.as_deref().map(stable_current_root)
+    } else {
+        None
+    };
     ensure_projection_tree_safe_with_allowed_root(
         &input.source_root,
         allowed_source_root.as_deref(),
@@ -2221,9 +2213,7 @@ fn ensure_projection_tree_safe_with_allowed_root(
     if (!allowed_root_symlink && metadata.file_type().is_symlink())
         || (!metadata.is_dir()
             && !(allowed_root_symlink
-                && fs::metadata(root)
-                    .map(|value| value.is_dir())
-                    .unwrap_or(false)))
+                && fs::metadata(root).is_ok_and(|value| value.is_dir())))
     {
         return Err(err(
             SetupErrorCode::PathEscapeRefused,
@@ -2263,7 +2253,9 @@ fn path_starts_with(path: &Path, root: &Path) -> bool {
     }
     let normalize = |path: &Path| {
         let normalized = path.to_string_lossy().replace('\\', "/");
-        let normalized = normalized.strip_prefix("//?/").unwrap_or(&normalized);
+        let normalized = normalized
+            .strip_prefix("//?/")
+            .unwrap_or(normalized.as_str());
         let normalized = normalized.strip_prefix("UNC/").unwrap_or(normalized);
         normalized
             .split('/')
@@ -2566,7 +2558,8 @@ fn select_mechanism(client_id: &str, mechanisms: &[String]) -> Option<String> {
     order
         .iter()
         .find(|candidate| mechanisms.iter().any(|value| value == **candidate))
-        .map(|value| (*value).into())
+        .copied()
+        .map(str::to_owned)
 }
 fn external_qualification(
     clients: &[DetectedClient],
@@ -2641,10 +2634,10 @@ fn compute_plan_digest(
     Ok(digest_bytes(&plan_material))
 }
 fn next_generation(generation: &str) -> String {
-    generation
-        .parse::<u64>()
-        .map(|n| n.saturating_add(1).to_string())
-        .unwrap_or_else(|_| format!("{}-next", generation))
+    generation.parse::<u64>().map_or_else(
+        |_| format!("{generation}-next"),
+        |number| number.saturating_add(1).to_string(),
+    )
 }
 fn same_root(expected: &Path, supplied: &Path) -> Result<(), SetupError> {
     let supplied = fs::canonicalize(supplied).map_err(|_| {

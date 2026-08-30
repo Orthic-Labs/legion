@@ -74,6 +74,7 @@ id_type!(ReceiptId, "receipt");
 id_type!(ReportId, "report");
 id_type!(HostId, "host");
 id_type!(InvocationId, "invocation");
+id_type!(TraceId, "trace");
 
 pub fn derived_id<T: FromStr<Err = ContractError>>(
     canonical_bytes: &[u8],

@@ -28,6 +28,7 @@ pub mod provider;
 pub mod receipt;
 pub mod report;
 pub mod task;
+pub mod trace;
 
 pub use agent::{AgentDefinition, BudgetCeiling, InvocationGrant, RoutingCeiling, ToolCeiling};
 pub use canonical::{
@@ -36,11 +37,19 @@ pub use canonical::{
 pub use host::{HostCapability, HostDescriptor, HostSurface};
 pub use id::*;
 pub use plan::{Plan, PlanNode, PlanNodeKind};
-pub use policy::{EffectClass, EffectRequest, PolicyPack, PolicyRule};
+pub use policy::{
+    canonical_default_policy_pack, ApprovalRequirement, EffectClass, EffectRequest, PolicyPack,
+    PolicyRule,
+};
 pub use provider::{Coverage, FindingRef, ProviderResult, ProviderSpec, ProviderStatus};
 pub use receipt::{InvocationReceipt, InvocationStatus};
 pub use report::{Finding, Report, ReportStatus};
 pub use task::{Latitude, TaskSpec, TaskStatus};
+pub use trace::{
+    AuthorityKind, CapabilityUsage, ChallengeLevel, ChallengeOutcome, ChallengePass,
+    ChallengeTrigger, ComputePosture, ContextUsage, CostUsage, OutcomeResult, Route,
+    RouteOutcomeTrace, SemanticRequirement,
+};
 
 pub type AgentProfile = AgentDefinition;
 pub type CapabilityGrant = InvocationGrant;

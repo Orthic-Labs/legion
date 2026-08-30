@@ -8,3 +8,7 @@ license.workspace = true
 legion-contracts = { path = "../legion-contracts" }
 legion-policy-model = { path = "../legion-policy-model" }
 thiserror.workspace = true
+
+[dev-dependencies]
+proptest = "1.6.0"
+serde_json.workspace = true

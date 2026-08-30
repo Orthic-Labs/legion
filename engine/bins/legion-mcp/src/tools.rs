@@ -353,6 +353,11 @@ async fn dispatch<A: NativeApi>(
         .invoke_async(name, arguments)
         .await
         .map_err(McpError::from)?;
+    let result = if matches!(name, "m1_status" | "legion_m1_status") {
+        observed_m1_status(name, result)
+    } else {
+        result
+    };
     if serde_json::to_vec(&result)
         .map_err(|_| McpError::Backend)?
         .len()
@@ -361,6 +366,35 @@ async fn dispatch<A: NativeApi>(
         return Err(McpError::OutputLimit);
     }
     Ok(result)
+}
+
+/// A status string alone is not an observable lifecycle state. Older M1
+/// adapters returned `status: complete` without exposing any typed health or
+/// availability evidence, so do not repeat that claim at the MCP boundary.
+/// Adapters that can observe status must include the typed `availability` field;
+/// otherwise the honest result is explicitly unknown/unavailable.
+fn observed_m1_status(operation: &str, mut value: Value) -> Value {
+    let typed = value
+        .get("availability")
+        .and_then(Value::as_str)
+        .is_some_and(|availability| matches!(availability, "available" | "unavailable"));
+    if typed {
+        // `complete` describes an operation having returned, not the runtime's
+        // health. Preserve the observed availability but remove that false
+        // lifecycle claim when an older adapter supplied it.
+        if value.get("status").and_then(Value::as_str) == Some("complete") {
+            if let Value::Object(object) = &mut value {
+                object.insert("status".into(), json!("unknown"));
+            }
+        }
+        return value;
+    }
+    json!({
+        "operation": operation,
+        "status": "unknown",
+        "availability": "unavailable",
+        "reason": "MCP has no typed observation of M1 runtime status"
+    })
 }
 
 fn validate_arguments(schema: &Value, arguments: &Value) -> Result<(), McpError> {

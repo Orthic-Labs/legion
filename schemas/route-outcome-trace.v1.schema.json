@@ -1,0 +1,41 @@
+{"$schema":"https://json-schema.org/draft/2020-12/schema","$id":"https://orthic.dev/legion/schemas/route-outcome-trace.v1.schema.json","title":"Legion route/outcome telemetry trace v1","description":"Automatic, content-light structured trace emitted once per routed request (tracker P1.6). Mirrors engine/crates/legion-contracts/src/trace.rs::RouteOutcomeTrace. See route-outcome-trace.v1.md for the Arcane §30 metric formulas computed over this schema.","type":"object","additionalProperties":false,
+  "required": ["schema_version", "trace_id", "request_id", "route", "semantic_requirement", "context", "capabilities", "compute_posture", "result", "latency_ms", "cost", "challenge"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "trace_id": {"type": "string", "minLength": 1},
+    "request_id": {"type": "string", "minLength": 1},
+    "task_id": {"type": ["string", "null"], "minLength": 1},
+    "arcaneProfileDigest": {"anyOf": [{"type": "string", "minLength": 1}, {"type": "null"}]},
+    "legionCanonDigest": {"anyOf": [{"type": "string", "minLength": 1}, {"type": "null"}]},
+    "skillCatalogDigest": {"anyOf": [{"type": "string", "minLength": 1}, {"type": "null"}]},
+    "guardPolicyDigest": {"anyOf": [{"type": "string", "minLength": 1}, {"type": "null"}]},
+    "route": {"enum": ["direct", "deliberate", "grounded"]},
+    "semantic_requirement": {"enum": ["FORBIDDEN", "CONDITIONAL", "REQUIRED"]},
+    "context": {"$ref": "#/$defs/context"},
+    "capabilities": {"$ref": "#/$defs/capabilities"},
+    "authority_attached": {"anyOf": [{"enum": ["sage", "alchemist", "oracle"]}, {"type": "null"}]},
+    "compute_posture": {"enum": ["no_model", "tiny", "strong"]},
+    "result": {"enum": ["success", "repair", "user_correction", "blocked"]},
+    "latency_ms": {"type": "integer", "minimum": 0},
+    "cost": {"$ref": "#/$defs/cost"},
+    "challenge": {"$ref": "#/$defs/challenge"}
+  },
+  "$defs": {
+    "context": {"type": "object", "additionalProperties": false, "required": ["sources", "size_bytes"], "properties": {"sources": {"type": "array", "items": {"type": "string", "minLength": 1}}, "size_bytes": {"type": "integer", "minimum": 0}}},
+    "capabilities": {"type": "object", "additionalProperties": false, "required": ["considered", "selected"], "properties": {"considered": {"type": "array", "items": {"type": "string", "minLength": 1}}, "selected": {"type": "array", "items": {"type": "string", "minLength": 1}}}},
+    "cost": {"type": "object", "additionalProperties": false, "required": ["input_tokens", "output_tokens", "cost_usd_micros"], "properties": {"input_tokens": {"type": "integer", "minimum": 0}, "output_tokens": {"type": "integer", "minimum": 0}, "cost_usd_micros": {"type": "integer", "minimum": 0, "description": "Integer micro-USD (1 unit = 1e-6 USD); float-free like goal-route's cost/risk/rework units."}}},
+    "challenge": {
+      "type": "object", "additionalProperties": false,
+      "required": ["invoked", "level", "trigger", "outcome", "assumption_dependent_conclusion", "evidence_available_at_first_answer", "user_challenge_event"],
+      "properties": {
+        "invoked": {"type": "boolean", "description": "Whether a Bounded Falsification (Challenge Pass, Arcane §30) was invoked for this request."},
+        "level": {"enum": ["L0", "L1", "L2"], "description": "L0 when invoked is false."},
+        "trigger": {"anyOf": [{"enum": ["ASSUMED_IMPLEMENTATION", "DIAGNOSIS_FROM_AVAILABLE_EVIDENCE", "ARCHITECTURAL_ASSUMPTION_DEPENDENCY", "CONSEQUENTIAL_EXTRAPOLATION", "CONTRADICTS_CANONICAL_SOURCE", "CHECKABLE_ASSUMPTION_CONFIDENCE", "EXPLICIT_USER_CHALLENGE", "PRIOR_ANSWER_CHALLENGED"]}, {"type": "null"}], "description": "Arcane §30 L1 trigger vocabulary. Null when invoked is false; may be null even when invoked (e.g. an L2 pass invoked outside the L1 trigger set)."},
+        "outcome": {"anyOf": [{"enum": ["KEEP", "NARROW", "REVISE"]}, {"type": "null"}], "description": "Non-null exactly when invoked is true."},
+        "assumption_dependent_conclusion": {"type": "boolean", "description": "Whether the committed conclusion was materially assumption-dependent, independent of whether a pass ran. Denominator of user_challenge_rate and avoidable_user_challenge_rate."},
+        "evidence_available_at_first_answer": {"type": "boolean", "description": "Whether decisive evidence for the checked assumptions was already available before the first answer. Used by avoidable_user_challenge_rate."},
+        "user_challenge_event": {"type": "boolean", "description": "Whether the user explicitly challenged a prior answer this turn (e.g. \"are you sure?\"). Distinct from assumption_dependent_conclusion. Numerator of user_challenge_rate."}
+      }
+    }
+  }
+}
