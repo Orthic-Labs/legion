@@ -1,6 +1,6 @@
 {
   "name": "@orthic-labs/legion",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "description": "Legion routes engineering, research, editorial, design, and commercial work through explicit authority, execution, and evidence controls.",
   "license": "SEE LICENSE IN LICENSE",
@@ -22,7 +22,6 @@
     "authority",
     "sage",
     "alchemist",
-    "oracle",
     "arcane",
     "covenant",
     "claude-code",
@@ -58,7 +57,6 @@
     "src/packages/arcane/",
     "src/packages/context/",
     "src/packages/contracts/",
-    "src/packages/oracle/",
     "src/bin/",
     "tools/audit/audit-complete.mjs",
     "tools/audit/audit-finalize.mjs",
