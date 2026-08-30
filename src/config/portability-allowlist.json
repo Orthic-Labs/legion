@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "rules": [
     {
-      "path": "docs/dispatch/2026-08-29-mechanical-remediation.json",
+      "path": "docs/provenance/dispatch/2026-08-29-mechanical-remediation.json",
       "patterns": [
         "developer-workspace"
       ],
@@ -33,6 +33,17 @@
       },
       "class": "historical-dispatch",
       "reason": "immutable migration request records original integration checkouts"
+    },
+    {
+      "path": "docs/pending/plans/2026-08-30-canon-pipeline-and-repairs.md",
+      "patterns": [
+        "developer-workspace"
+      ],
+      "occurrences": {
+        "developer-workspace": 8
+      },
+      "class": "pending-plan",
+      "reason": "workspace-spanning pending plan names the operator workspace roots it repairs"
     }
   ]
 }

@@ -67,7 +67,7 @@ Legion provides shared routing, execution, and independent semantic validation a
 - Read `doctrine/sage.md` for adjudication method.
 - Read `doctrine/alchemist.md` for controlled transformation method.
 - Read `doctrine/oracle.md` for Completion Validation.
-- Read `docs/current/atoms/README.md` for atomic capability inventory/schema.
+- Read `docs/canon/README.md` for atomic capability inventory/schema.
 - Read generated `docs/pending/README.md` as sole pending-work index.
 
 ## Commands

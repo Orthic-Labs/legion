@@ -19,12 +19,12 @@ test('subsystem atomic canons preserve inventory & derive honest closure', () =>
 });
 
 test('known ownership overlaps are resolved without recycling ARC-003', () => {
-  const legion = readFileSync(new URL('../docs/current/atoms/legion.md', import.meta.url), 'utf8');
-  const alchemist = readFileSync(new URL('../docs/current/atoms/alchemist.md', import.meta.url), 'utf8');
-  const arcane = readFileSync(new URL('../docs/current/atoms/arcane.md', import.meta.url), 'utf8');
-  const guard = readFileSync(new URL('../docs/current/atoms/guard.md', import.meta.url), 'utf8');
-  const skills = readFileSync(new URL('../docs/current/atoms/skills.md', import.meta.url), 'utf8');
-  const preservation = readFileSync(new URL('../docs/current/atoms/registers/preservation-map.md', import.meta.url), 'utf8');
+  const legion = readFileSync(new URL('../docs/canon/legion.md', import.meta.url), 'utf8');
+  const alchemist = readFileSync(new URL('../docs/canon/alchemist.md', import.meta.url), 'utf8');
+  const arcane = readFileSync(new URL('../docs/canon/arcane.md', import.meta.url), 'utf8');
+  const guard = readFileSync(new URL('../docs/canon/guard.md', import.meta.url), 'utf8');
+  const skills = readFileSync(new URL('../docs/canon/skills.md', import.meta.url), 'utf8');
+  const preservation = readFileSync(new URL('../docs/canon/registers/preservation-map.md', import.meta.url), 'utf8');
 
   assert.match(legion, /LEG-013[^\n]+role & hook projections/);
   assert.doesNotMatch(legion.match(/LEG-013[^\n]+/)?.[0] ?? '', /skill/i);

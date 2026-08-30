@@ -28,7 +28,7 @@ this root SSOT
     >
 AGENTS.md (live operational constitution, constrained by this SSOT)
     >
-docs/current/atoms/*.md (atomic capability inventory/state, constrained by this SSOT)
+docs/canon/*.md (atomic capability inventory/state, constrained by this SSOT)
     >
 src/roster/* (role identity/authority) and doctrine/* (delegated method)
     >
@@ -93,7 +93,7 @@ Primary rules:
 |---|---|---|
 | System architecture and ownership boundaries | `docs/LEGION-CANONICAL-SSOT.md` | all architecture summaries/maps |
 | Live Legion constitution | `AGENTS.md` | `CLAUDE.md`, harness context projections |
-| Atomic capability inventory and lifecycle state | `docs/current/atoms/{legion,sage,alchemist,oracle,arcane,guard,covenant,skills}.md` | `docs/current/atoms/README.md`, generated `docs/pending/README.md` |
+| Atomic capability inventory and lifecycle state | `docs/canon/{legion,sage,alchemist,oracle,arcane,guard,covenant,skills}.md` | `docs/canon/README.md`, generated `docs/pending/README.md` |
 | Legion routing/orchestration reference | `doctrine/legion.md` | generated summaries |
 | Sage identity / authority / tier | `src/roster/sage.md` | `agents/sage.md`, doctrine method |
 | Alchemist identity / authority / tier | `src/roster/alchemist.md` | `agents/alchemist.md`, doctrine method |
@@ -526,7 +526,7 @@ first.
 
 ```text
 Legion operational constitution    → AGENTS.md
-Atomic capability inventory/state → docs/current/atoms/{legion,sage,alchemist,oracle,arcane,guard,covenant,skills}.md
+Atomic capability inventory/state → docs/canon/{legion,sage,alchemist,oracle,arcane,guard,covenant,skills}.md
 Legion routing reference           → doctrine/legion.md
 Role identity/authority/tier       → src/roster/{sage,alchemist,oracle}.md
 Role architecture                  → docs/architecture/{sage,alchemist,oracle}.md

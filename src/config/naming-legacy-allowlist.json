@@ -31,10 +31,10 @@
       ],
       "occurrences": {
         "nemesis": 7,
-        "forge": 65,
+        "forge": 64,
         "seer": 22,
         "sentinel": 12,
-        "sorcerer": 10
+        "sorcerer": 9
       },
       "class": "R2",
       "reason": "legacy-token classification source"
@@ -411,16 +411,14 @@
     {
       "pathPrefix": "docs/audits/",
       "tokens": [
-        "forge",
         "seer",
-        "sentinel",
-        "sorcerer"
+        "sentinel"
       ],
       "class": "R5",
       "reason": "audit records quote retired names as evidence of naming drift"
     },
     {
-      "path": "docs/current/atoms/registers/preservation-map.md",
+      "path": "docs/canon/registers/preservation-map.md",
       "tokens": [
         "forge"
       ],

@@ -5,7 +5,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
-const canonDir = join(root, 'docs', 'current', 'atoms');
+const canonDir = join(root, 'docs', 'canon');
 const preservationPath = join(canonDir, 'registers', 'preservation-map.md');
 const pendingPath = join(root, 'docs', 'pending', 'README.md');
 const provenanceDir = join(root, 'docs', 'provenance', 'migrations', '2026-08-29-pending');
@@ -362,7 +362,7 @@ function pendingMarkdown(parsed, inventory) {
     'Open/unproven: **' + open.length + '**',
     'Preserved legacy rows: **' + inventory.rows.length + '**',
     'Unclassified preserved rows: **' + unclassified.length + '**', '',
-    'Atomic state lives in `docs/current/atoms/*.md`; preservation state lives in `docs/current/atoms/registers/preservation-map.md`. This file is derived from both.', '',
+    'Atomic state lives in `docs/canon/*.md`; preservation state lives in `docs/canon/registers/preservation-map.md`. This file is derived from both.', '',
     '## Canon summary', '',
     '| Subsystem | Boundary | Capabilities | Closed | Open | Groups | Implementations | Qualifications | Decisions |',
     '|---|---|---:|---:|---:|---:|---:|---:|---:|',
@@ -370,7 +370,7 @@ function pendingMarkdown(parsed, inventory) {
   for (const canon of parsed) {
     const capabilities = canon.capabilities.filter((row) => row.Scope === 'COMMITTED');
     const canonOpen = capabilities.filter((row) => !closed(row, canon.boundary)).length;
-    lines.push('| [' + canon.owner + '](../current/atoms/' + canon.file + ') | ' + canon.boundary + ' | ' + capabilities.length + ' | ' + (capabilities.length - canonOpen) + ' | ' + canonOpen + ' | ' + canon.groups.length + ' | ' + canon.implementations.length + ' | ' + canon.qualifications.length + ' | ' + canon.decisions.length + ' |');
+    lines.push('| [' + canon.owner + '](../canon/' + canon.file + ') | ' + canon.boundary + ' | ' + capabilities.length + ' | ' + (capabilities.length - canonOpen) + ' | ' + canonOpen + ' | ' + canon.groups.length + ' | ' + canon.implementations.length + ' | ' + canon.qualifications.length + ' | ' + canon.decisions.length + ' |');
   }
   lines.push('', '## Open capability atoms', '');
   for (const canon of parsed) {
@@ -379,7 +379,7 @@ function pendingMarkdown(parsed, inventory) {
     lines.push('### ' + canon.owner, '', '| Atom | Action | Deficit |', '|---|---|---|');
     for (const row of rows) {
       const deficit = 'implementation=' + row.Implementation + '; verification=' + row.Verification + '; qualification=' + row.Qualification + '; delivery=' + row.Delivery + '/' + canon.boundary + '; evidence=' + row.Evidence;
-      lines.push('| [' + row.ID + '](../current/atoms/' + canon.file + ') | ' + row.Action + ' | ' + deficit + ' |');
+      lines.push('| [' + row.ID + '](../canon/' + canon.file + ') | ' + row.Action + ' | ' + deficit + ' |');
     }
     lines.push('');
   }
@@ -387,15 +387,15 @@ function pendingMarkdown(parsed, inventory) {
   if (!unclassified.length) lines.push('None.');
   else {
     lines.push('| Legacy ID | Location | Disposition | Ambiguity |', '|---|---|---|---|');
-    for (const row of unclassified) lines.push('| [' + row[2] + '](../current/atoms/registers/preservation-map.md) | ' + safeCell(row[1]) + ' | ' + safeCell(row[5]) + ' | ' + safeCell(row[6]) + ' |');
+    for (const row of unclassified) lines.push('| [' + row[2] + '](../canon/registers/preservation-map.md) | ' + safeCell(row[1]) + ' | ' + safeCell(row[5]) + ' | ' + safeCell(row[6]) + ' |');
   }
   lines.push('');
   return lines.join('\n');
 }
 export const atomicCanonTestHooks = Object.freeze({ proofEvidence, closed, similarity });
 export function validateAtomicCanons({ write = false } = {}) {
-  const pendingFiles = readdirSync(dirname(pendingPath)).sort();
-  if (pendingFiles.join('|') !== 'README.md') throw new Error('docs/pending must contain only README.md; found ' + pendingFiles.join(', '));
+  const pendingFiles = readdirSync(dirname(pendingPath)).filter((entry) => entry !== 'plans').sort();
+  if (pendingFiles.join('|') !== 'README.md') throw new Error('docs/pending must contain only README.md (plus plans/); found ' + pendingFiles.join(', '));
   const parsed = canons.map(parseCanon);
   const capabilityIds = validateTargets(parsed);
   validateSemanticOwnership(parsed);
