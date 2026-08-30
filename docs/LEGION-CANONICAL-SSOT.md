@@ -17,8 +17,9 @@ the method.
 ## 1. Status, scope, precedence
 
 **Scope.** Legion-wide system architecture, orchestration, capability/authority boundaries,
-execution substrate, deterministic effect policy, adversarial challenge, independent completion
-assurance, routing/discovery architecture, progressive context loading, and canonical ownership.
+execution substrate, deterministic effect enforcement, adversarial challenge, independent
+completion assurance, routing/discovery architecture, progressive context loading, and canonical
+ownership.
 
 **Precedence.**
 
@@ -58,7 +59,9 @@ CAPABILITIES (domain / workflow / context) and ENTRYPOINTS
     ↓
 TOOLS / ENGINES / HOST CAPABILITIES
     ↓
-ARCANE — deterministic effect enforcement
+ARCANE — cognitive control plane
+    ↓
+GUARD — deterministic effect enforcement
     ↓
 ORACLE COMPLETION VALIDATION — current global policy: required before successful delivery
     ↓
@@ -77,7 +80,7 @@ Primary rules:
    judgment only.**
 4. **Authority is attached to the work that requires it, not statically to a domain, capability,
    operation, or effect.**
-5. **Effects are explicit, and deterministic effect policy belongs to Arcane.**
+5. **Effects are explicit, and deterministic effect enforcement belongs to the Guard.**
 6. **Evaluation methodology is not independent assurance.**
 7. **Complexity carries the burden of proof.**
 8. **Universal Oracle Completion Validation remains current Legion policy.**
@@ -92,6 +95,7 @@ Primary rules:
 | Sage identity / authority / tier | `src/roster/sage.md` | `agents/sage.md`, doctrine method |
 | Alchemist identity / authority / tier | `src/roster/alchemist.md` | `agents/alchemist.md`, doctrine method |
 | Oracle identity / authority / tier | `src/roster/oracle.md` | `agents/oracle.md`, doctrine method |
+| Sage / Alchemist / Oracle role architecture | `docs/architecture/{sage,alchemist,oracle}.md` | role-specific architecture summaries |
 | Covenant challenge standing | `doctrine/covenant-seat.md` | `agents/covenant-seat.md`, entrypoint |
 | Architecture craft | `skills/architect/SKILL.md` + `skills/architect/doctrine/architecture/**` | old Sage Architect bundle |
 | Diagnosis craft | `skills/debugger/SKILL.md` + debugger references | old Sage Diagnose bundle |
@@ -105,7 +109,8 @@ Primary rules:
 | Public distribution and client integration | `docs/LEGION-DISTRIBUTION-AND-CLIENT-INTEGRATION.md` | release policy, bootstrap, host adapters |
 | Explicit aliases | `src/config/capability-aliases.json` | resolver/projections |
 | Semantic effect vocabulary | this root SSOT | SKILL declarations |
-| Runtime effect mapping/enforcement | `src/packages/arcane/**` | receipts/projections |
+| Cognitive control plane and response policy | `doctrine/arcane.md` | host delivery surfaces |
+| Runtime effect mapping/enforcement | `doctrine/guard.md` (seed: `engine/bins/legion-hook/**`) | receipts/projections |
 | Executable work-unit materialization | Legion + producing capability | contract runtime |
 | Independent Completion Validation | Oracle (`src/roster/oracle.md` + `doctrine/oracle.md`) | Audit/QA evidence may be inputs |
 
@@ -210,27 +215,24 @@ authority owner.
 
 ## 6. Authority model
 
-Authority attaches to work, not to a domain tree or skill parent. Three authority identities:
+Authority attaches to work, not to a domain tree or skill parent. The three authority identities
+and their detailed mandate, boundary, inputs, outputs, and interactions are delegated to
+`docs/architecture/{sage,alchemist,oracle}.md`; this SSOT retains their cross-role relationships:
 
-```text
-Sage       exceptional adjudication — domain-independent; attaches only when a material
-           unresolved decision cannot safely close under the selected capability's routine mandate
-
-Alchemist  controlled bounded transformation — attaches only where policy, locking, explicit
-           contracting, or risk requires a controlled authority boundary; never inferred
-           from the operation `execute`
-
-Oracle     independent assurance — read-only; owns Completion Validation under current policy;
-           does not implement; does not certify its own fix
-```
+| Authority | Cross-role responsibility |
+|---|---|
+| Sage | exceptional adjudication of material unresolved meaning; never a routine domain owner or product-state executor |
+| Alchemist | controlled bounded transformation of settled meaning; never an independent semantic decision-maker |
+| Oracle | independent, read-only Completion Validation; never an implementer or self-certifier |
 
 Sage does not own architecture, debugging, research, design, marketing, SEO, ordinary strategy,
 or contract compilation as a discipline. "Engineering decision authority", "Sage Architect",
 "Sage Diagnose", and "Execution Compile" as Sage routes are retired.
 
 Executable-contract authorship is orchestration, not Sage authority: the producing capability
-settles routine meaning, Legion materializes the executable work unit/contract, Sage participates
-only when an item remains genuinely OPEN and requires exceptional adjudication.
+settles routine meaning, Legion materializes the executable work unit/contract, and Sage
+participates only when an item remains genuinely OPEN and requires exceptional adjudication.
+Alchemist applies settled bounded work; Oracle independently validates the delivered result.
 
 Covenant is not an authority. It is optional, bounded, advisory, read-only, policy/user-triggered,
 not the default reviewer, and without disposition/effect authority. It does not join the
@@ -270,24 +272,31 @@ execute → Alchemist
 effect X → capability Y
 ```
 
-Never infer effect safety from a mode label. Effects are declared explicitly and Arcane gates
+Never infer effect safety from a mode label. Effects are declared explicitly and the Guard gates
 them deterministically.
 
-## 8. Arcane enforcement boundary
+## 8. Cognitive control and deterministic effect-enforcement boundary
 
 ```text
 Legion  = orchestration control
-Arcane  = deterministic effect enforcement
+Arcane  = cognitive control plane
+Guard   = deterministic effect enforcement
 ```
 
-Arcane owns effect classification, deterministic gates, receipts, evidence freshness/staleness,
-and deterministic state/control validation. It does not choose capability, architecture, strategy,
-or user intent.
+Arcane owns cognitive processing shape and response policy, including Brief/Minimize,
+ending-shape discipline, and Bounded Falsification; its detailed method is delegated to
+`doctrine/arcane.md`. The Guard owns effect classification, policy matching, deterministic
+fail-closed gates, enforcement health, and effect-decision receipts; its detailed method is
+delegated to `doctrine/guard.md`.
 
-Arcane gates effects, not semantic capability labels. Arcane maps canonical effect classes into
-its existing runtime observation/enforcement buckets; its internal runtime effect enums are not
-renamed merely to match the five semantic names. Mandatory authorization/security gates may never
-silently no-op; blocking surfaces are minimal and effect-scoped; gates must be earnable.
+Cross-boundary invariants:
+
+- Arcane does not authorize effects or keep effect-enforcement receipts.
+- The Guard may deliver Arcane-owned cognitive policy through a host lifecycle surface such as
+  the Stop event, but it never becomes the owner or enforcer of that cognitive policy.
+- The Guard gates typed effects, not semantic capability labels. Enforcement failures fail
+  closed; mandatory authorization/security gates may never silently no-op; blocking surfaces are
+  minimal and effect-scoped; gates must be earnable.
 
 ## 9. Routing and discoverability
 
@@ -342,7 +351,8 @@ capability self-verification → method-local correctness
 Audit                        → systematic evaluation methodology
 Covenant                     → adversarial challenge
 Oracle                       → independent assurance
-Arcane                       → deterministic effect/control validity
+Arcane                       → cognitive processing shape and response policy
+Guard                        → deterministic effect enforcement
 Legion                       → integration and delivery ownership
 ```
 
@@ -356,7 +366,7 @@ Ownership boundaries:
 - **Audit Fix** (`skills/audit-fix/**`) is a workflow capability attached to a frozen Audit
   result: bounded remediation of admitted findings, preservation of the frozen Audit plan,
   same-plan rerun, remediation lifecycle. It is not Oracle; it is not Alchemist merely because it
-  writes; actual effects remain Arcane-gated.
+  writes; actual effects remain Guard-gated.
 - **Audit Visual** (`skills/audit-visual/**`) owns rendered-state enumeration, screenshots/
   baselines/regression evidence, visual-state coverage, clipping/overlap/missing-state findings,
   deterministic visual evaluation.
@@ -368,6 +378,9 @@ Ownership boundaries:
   assurance and Completion Validation; it may consume Audit/QA/Audit Visual evidence but does not
   own their methods.
 - **Covenant** (`doctrine/covenant-seat.md`) owns bounded adversarial challenge, advisory only.
+- **Arcane** (`doctrine/arcane.md`) owns the cognitive processing shape and response policy.
+- **Guard** (`doctrine/guard.md`; seed `engine/bins/legion-hook/**`) owns deterministic effect
+  enforcement and its receipts.
 
 Shared capture machinery (screenshots/browser engines) is an internal primitive, not a semantic
 owner.
@@ -375,7 +388,7 @@ owner.
 ## 12. Ambient vs governed execution
 
 Ordinary explicit, reversible, in-scope effects may execute directly under Legion/capability
-control when Arcane policy permits them (ambient execution). Alchemist is used only where policy,
+control when Guard policy permits them (ambient execution). Alchemist is used only where policy,
 locking, explicit contracting, or risk requires it. `execute` does not imply Alchemist.
 
 Controlled/contracted execution requires the appropriate executable contract; ordinary permitted
@@ -393,7 +406,8 @@ hand-author capability or role content.
 ```text
 CANONICAL (host-neutral)
 skills/<id>/SKILL.md, src/roster/*.md, doctrine/**,
-src/registry/capabilities.json, src/packages/arcane/**
+src/registry/capabilities.json, `doctrine/arcane.md`, `doctrine/guard.md`,
+`engine/bins/legion-hook/**`
 
     ↓ projection (generated, one direction only)
 
@@ -454,13 +468,7 @@ published release.
 
 Model policy is tiered; concrete models are host configuration. Canonical architecture, role
 identity, and generic capability doctrine use abstract model classes/tiers where model strength
-matters:
-
-```text
-Sage      → frontier-judgment
-Oracle    → frontier-judgment / independent-assurance-capable tier
-Alchemist → balanced-executor; mechanical-cheap only where policy says safe
-```
+matters; the role-specific policy is delegated to `docs/architecture/{sage,alchemist,oracle}.md`.
 
 Concrete provider/model IDs belong to host/runtime configuration, except when a capability's
 explicit purpose is to invoke a user-selected named provider/model (for example `coder`, which
@@ -515,6 +523,7 @@ first.
 Legion operational constitution    → AGENTS.md
 Legion routing reference           → doctrine/legion.md
 Role identity/authority/tier       → src/roster/{sage,alchemist,oracle}.md
+Role architecture                  → docs/architecture/{sage,alchemist,oracle}.md
 Role method                        → doctrine/{sage,alchemist,oracle}.md
 Covenant challenge seat            → doctrine/covenant-seat.md
 Architecture craft                 → skills/architect/SKILL.md + skills/architect/doctrine/architecture/**
@@ -527,7 +536,8 @@ Design craft                       → skills/designer/**
 Capability/entrypoint semantics    → skills/<id>/SKILL.md
 Host capabilities / ref classes    → src/registry/capabilities.json
 Explicit aliases                   → src/config/capability-aliases.json
-Deterministic effect enforcement   → src/packages/arcane/**
+Cognitive control plane             → doctrine/arcane.md
+Deterministic effect enforcement   → doctrine/guard.md + engine/bins/legion-hook/**
 Executable work-unit materialization → Legion orchestration + producing capability
 Independent Completion Validation  → Oracle (roster + doctrine/oracle.md)
 ```

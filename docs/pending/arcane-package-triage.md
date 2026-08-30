@@ -329,3 +329,27 @@ None. The only apparent mixed cases are recorded as SPLITs with an explicit rece
 5. After merge, run the package’s existing `pnpm test` and confirm no test/CLI/output/exit-code regression.
 
 **Verification status for this lane:** inspection only; no tests, builds, generators, installs, commits, or pushes were run.
+
+## Correction — 2026-08-30 (execution attempt, lane-d2)
+
+The **RETIRE** class above is wrong and must not be executed as written.
+
+An execution lane dispatched to delete the twelve RETIRE files stopped before mutating anything and
+reported live production consumers for every significant entry:
+
+- `lib/policy.mjs` and `lib/policy-compiler.mjs` back the shipped CLI — `src/lib/cli/commands/run.mjs`
+  and `src/lib/cli/commands/rules.mjs` — and `tests/cli.test.mjs`.
+- `lib/codex-escalation.mjs` is imported and called by `host/hook-adapter-core.mjs`.
+- `lib/control-lifecycle.mjs` supplies `ENFORCEMENT_RANK` to `lib/completion-gate.mjs` and
+  `assessControlRetirement` to `src/lib/cli/commands/governance/delivery.mjs`.
+- `policy/arcane-policy-v1.json` and `policy/policy-bundle-v1.schema.json` are resolved directly by
+  `tests/cli.test.mjs`.
+
+The classification error was reasoning from supersession-in-principle rather than from consumers.
+The Rust canonical Guard policy supersedes this bundle **inside the engine**, but the Node CLI was
+never migrated onto it, so the duplication is live. Deleting these files breaks the CLI and the suite.
+
+**Consequence for the whole document:** the same test was not applied to the 170 MOVE entries either.
+Before any disposition here is executed, each file needs its actual consumers enumerated, and MOVE
+targets need a landing owner that exists. Treat this document as a first-pass map, not an executable
+plan.
