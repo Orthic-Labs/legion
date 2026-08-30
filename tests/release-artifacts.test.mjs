@@ -102,6 +102,11 @@ test('right-release config keeps signing and publication fail-closed', () => {
   assert.match(config, /signedProvenanceScheme: "rightkit-release"/);
   assert.match(config, /x86_64-pc-windows-msvc/);
   assert.match(config, /aarch64-pc-windows-msvc/);
+  assert.match(config, /x86_64-apple-darwin/);
+  assert.match(config, /aarch64-apple-darwin/);
+  assert.match(config, /releaseArchitectures: \["x86_64", "arm64"\]/);
+  assert.match(config, /RIGHT_GIT_RELEASE_ARCHITECTURE/);
+  assert.doesNotMatch(config, /"AZURE_ARTIFACT_SIGNING_METADATA"/);
   assert.match(config, /packageKind: "portable-zip"/);
   assert.match(config, /legion-hook\.exe/);
   assert.match(config, /legion-mcp\.exe/);
@@ -111,6 +116,9 @@ test('right-release config keeps signing and publication fail-closed', () => {
   assert.match(config, /candidateInput: "exact-unsigned-candidate"/);
   assert.match(config, /releaseVerifier: "scripts\/verify-release\.mjs"/);
   assert.match(config, /prepare-windows-candidate-finalization\.mjs/);
+  assert.match(config, /finalize-macos-candidate\.mjs/);
+  assert.match(config, /macos-developer-id-notarized-portable-v1/);
+  assert.match(config, /macos-\$\{macArchitecture\}-notarization\.json/);
   assert.match(config, /LEGION_UNSIGNED_CANDIDATE_ROOT/);
 });
 

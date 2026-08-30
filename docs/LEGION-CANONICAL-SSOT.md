@@ -28,6 +28,8 @@ this root SSOT
     >
 AGENTS.md (live operational constitution, constrained by this SSOT)
     >
+docs/current/atoms/*.md (atomic capability inventory/state, constrained by this SSOT)
+    >
 src/roster/* (role identity/authority) and doctrine/* (delegated method)
     >
 skills/<id>/SKILL.md (packaged capability/entrypoint semantics)
@@ -91,6 +93,7 @@ Primary rules:
 |---|---|---|
 | System architecture and ownership boundaries | `docs/LEGION-CANONICAL-SSOT.md` | all architecture summaries/maps |
 | Live Legion constitution | `AGENTS.md` | `CLAUDE.md`, harness context projections |
+| Atomic capability inventory and lifecycle state | `docs/current/atoms/{legion,sage,alchemist,oracle,arcane,guard,covenant,skills}.md` | `docs/current/atoms/README.md`, generated `docs/pending/README.md` |
 | Legion routing/orchestration reference | `doctrine/legion.md` | generated summaries |
 | Sage identity / authority / tier | `src/roster/sage.md` | `agents/sage.md`, doctrine method |
 | Alchemist identity / authority / tier | `src/roster/alchemist.md` | `agents/alchemist.md`, doctrine method |
@@ -452,17 +455,19 @@ excluded from installed releases, client projections, and production bindings.
 
 ### 13.2 Public CI & protected release boundary
 
-Public `Orthic-Labs/legion` GitHub Actions owns compile, test, unsigned qualification, package
-smoke, SBOM, provenance, & unsigned-candidate production. Package smoke stages each supplied
-candidate into an isolated product-root `current` tree before exercising installed-boundary
-runtime resolution on its target OS. Public CI has no signing credentials & cannot finalize or
-upload release payloads.
+Public `Orthic-Labs/legion` GitHub Actions owns compile, test, candidate/package qualification, package smoke, SBOM,
+provenance, candidate production, Windows Azure OIDC signing, & macOS Developer ID
+signing/notarization from protected environment secrets. Package smoke stages each supplied candidate
+into an isolated product-root `current` tree before exercising installed-boundary runtime resolution on
+its target OS. CI cannot publish release payloads.
 
-Protected local release hosts consume exact candidate & evidence digests. They own only native
-signing, release finalization, & upload to immutable GitHub Releases & approved bootstrap
-publication; they do not rebuild candidates. Release trust binds `release-manifest.json` to
-`release-manifest.cat`, a Windows Authenticode catalog. An unsigned CI candidate is not a
-published release.
+Protected local release hosts consume exact candidate & evidence digests. They own post-sign
+installed-artifact qualification, release sealing, manifest-catalog signing, & upload to immutable
+GitHub Releases & approved bootstrap publication; they do not rebuild candidates. Private `bogusyogi`
+repos run same RightKit pipeline locally with zero
+GitHub Actions; public & private differ only by runner, authentication, & spend boundary. Release trust
+binds `release-manifest.json` to `release-manifest.cat`, a Windows Authenticode catalog. An unsigned CI
+candidate is not a published release.
 
 ## 14. Model policy
 
@@ -521,6 +526,7 @@ first.
 
 ```text
 Legion operational constitution    → AGENTS.md
+Atomic capability inventory/state → docs/current/atoms/{legion,sage,alchemist,oracle,arcane,guard,covenant,skills}.md
 Legion routing reference           → doctrine/legion.md
 Role identity/authority/tier       → src/roster/{sage,alchemist,oracle}.md
 Role architecture                  → docs/architecture/{sage,alchemist,oracle}.md

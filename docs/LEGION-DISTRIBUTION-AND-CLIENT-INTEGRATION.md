@@ -10,8 +10,9 @@ policy derives from `release/distribution-contract.json`.
 
 ## 1. Decision
 
-Public CI produces unsigned, per-platform native release candidates. Protected local release hosts
-sign, finalize, & upload candidates through immutable GitHub Releases. Users install or update with
+Public CI produces per-platform native release candidates, signs Windows through environment-scoped
+GitHub OIDC, & signs/notarizes macOS through protected-environment Developer ID secrets. Protected
+local release hosts seal & upload candidates through immutable GitHub Releases. Users install or update with
 one branded command:
 
 ```powershell
@@ -66,15 +67,17 @@ contains configuration & product activation, never an R2 uploader.
 
 ### 2.1 Public CI & protected release boundary
 
-Public `Orthic-Labs/legion` GitHub Actions runs compile, test, unsigned qualification, package
-smoke, SBOM, provenance, & unsigned-candidate production. Package smoke stages each supplied
-candidate into an isolated product-root `current` tree, then exercises installed-boundary runtime
-resolution on its target OS. Public CI has no signing credentials & cannot finalize or upload a
-release.
+Public `Orthic-Labs/legion` GitHub Actions runs compile, test, candidate/package qualification, package smoke, SBOM,
+provenance, candidate production, Windows Azure OIDC signing, & macOS Developer ID
+signing/notarization from protected environment secrets. Package smoke stages each supplied candidate
+into an isolated product-root `current` tree, then exercises installed-boundary runtime resolution on
+its target OS. CI cannot upload a release.
 
-Protected local release hosts consume exact candidate & evidence digests. They perform only native
-signing, release finalization, & upload to immutable GitHub Releases & approved bootstrap
-publication. They do not rebuild candidates; signing credentials remain local to protected hosts.
+Protected local release hosts consume exact candidate & evidence digests. They perform post-sign
+installed-artifact qualification, release sealing, manifest-catalog signing, & upload to immutable
+GitHub Releases & approved bootstrap publication. They do not rebuild candidates. Private `bogusyogi`
+repos run same RightKit pipeline wholly locally, with
+zero GitHub Actions; public & private differ only by runner, authentication, & spend boundary.
 
 ## 3. Install, update, rollback, removal
 
@@ -122,7 +125,7 @@ semantics stay canonical.
 | Legion install UX, roots, PATH, activation, setup health, client matrix, plain skill IDs, rollback integration semantics, & data ownership | Legion |
 | Asset naming, signed manifest schema, key rotation, protected-host finalization/upload, R2 bootstrap publication, shared install/update transaction primitives | `@rightkit/release` |
 | Agent Plugins schema, portable package assembly/containment, public-resource closure, & conformance | `@rightkit/ax` |
-| Public CI compile/test/qualification/package smoke/SBOM/provenance/unsigned-candidate workflow | `@rightkit/git` |
+| Public CI compile/test/qualification/package smoke/SBOM/provenance/candidate workflow plus Windows OIDC & macOS Developer ID/notarization signing | `@rightkit/git` |
 | R2 buckets, DNS, TLS, cache, & object policy | Orthic Labs infrastructure |
 
 RightKit package acceptance includes one end-to-end contract spanning direct bootstrap, signed

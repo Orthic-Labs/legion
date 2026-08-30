@@ -193,7 +193,7 @@ function assembleAndSmoke({ inputRoot, identity, repositoryRoot, env, commandRun
 	);
 	const targetTriple = identity.platform === "windows"
 		? identity.architecture === "arm64" ? "aarch64-pc-windows-msvc" : "x86_64-pc-windows-msvc"
-		: null;
+		: identity.architecture === "arm64" ? "aarch64-apple-darwin" : "x86_64-apple-darwin";
 	runPnpm(["legion:check"], "Legion consistency gate");
 	runPnpm(["test"], "Node tests");
 	runCommand(
@@ -205,7 +205,7 @@ function assembleAndSmoke({ inputRoot, identity, repositoryRoot, env, commandRun
 	);
 	runCommand(
 		"cargo",
-		["build", "--locked", "--release", "--bins", ...(targetTriple ? ["--target", targetTriple] : [])],
+		["build", "--locked", "--release", "--bins", "--target", targetTriple],
 		{ cwd: join(repositoryRoot, "engine"), env: commandEnv, stdio: "inherit", windowsHide: true },
 		"cargo build",
 		commandRunner,
@@ -220,7 +220,8 @@ function assembleAndSmoke({ inputRoot, identity, repositoryRoot, env, commandRun
 			identity.platform,
 			"--architecture",
 			identity.architecture,
-			...(targetTriple ? ["--target", targetTriple] : []),
+			"--target",
+			targetTriple,
 			"--out",
 			inputRoot,
 			"--force",
@@ -254,8 +255,8 @@ export function prepareUnsignedCandidate({
 	commandRunner = spawnSync,
 } = {}) {
 	const identity = inferTarget({
-		platform: platform ?? env.LEGION_RELEASE_PLATFORM,
-		architecture: architecture ?? env.LEGION_RELEASE_ARCHITECTURE,
+		platform: platform ?? env.RIGHT_GIT_RELEASE_PLATFORM ?? env.LEGION_RELEASE_PLATFORM,
+		architecture: architecture ?? env.RIGHT_GIT_RELEASE_ARCHITECTURE ?? env.LEGION_RELEASE_ARCHITECTURE,
 	});
 	if (!identity) {
 		throw new Error(`unsigned public candidates require Windows or macOS: ${platform ?? process.platform}`);
@@ -359,8 +360,8 @@ export function checkUnsignedCandidate({
 	env = process.env,
 } = {}) {
 	const identity = inferTarget({
-		platform: platform ?? env.LEGION_RELEASE_PLATFORM,
-		architecture: architecture ?? env.LEGION_RELEASE_ARCHITECTURE,
+		platform: platform ?? env.RIGHT_GIT_RELEASE_PLATFORM ?? env.LEGION_RELEASE_PLATFORM,
+		architecture: architecture ?? env.RIGHT_GIT_RELEASE_ARCHITECTURE ?? env.LEGION_RELEASE_ARCHITECTURE,
 	});
 	if (!identity) {
 		throw new Error(`unsigned public candidates require Windows or macOS: ${platform ?? process.platform}`);
@@ -477,8 +478,8 @@ function main() {
 	const options = {
 		input: argument(args, ["--input"]),
 		outputRoot: argument(args, ["--output", "--out"]),
-		platform: argument(args, ["--platform"]) ?? process.env.LEGION_RELEASE_PLATFORM,
-		architecture: argument(args, ["--architecture", "--arch"]) ?? process.env.LEGION_RELEASE_ARCHITECTURE,
+		platform: argument(args, ["--platform"]) ?? process.env.RIGHT_GIT_RELEASE_PLATFORM ?? process.env.LEGION_RELEASE_PLATFORM,
+		architecture: argument(args, ["--architecture", "--arch"]) ?? process.env.RIGHT_GIT_RELEASE_ARCHITECTURE ?? process.env.LEGION_RELEASE_ARCHITECTURE,
 		sourceRevision: argument(args, ["--source-revision", "--source-sha"]),
 		version: argument(args, ["--version"]),
 		createdAt: argument(args, ["--created-at"]),

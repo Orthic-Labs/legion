@@ -38,9 +38,26 @@ test('CI pins toolchains, gates all supported hosts, and smoke-tests installed p
 test('public release CI selects explicit supported targets and release profile', () => {
   assert.match(releaseCi, /include:/);
   assert.match(releaseCi, /platform: "windows"[\s\S]*architecture: "x86_64"/);
+  assert.match(releaseCi, /os: "windows-11-arm"[\s\S]*platform: "windows"[\s\S]*architecture: "arm64"/);
   assert.match(releaseCi, /platform: "macos"[\s\S]*architecture: "arm64"/);
-  assert.match(releaseCi, /LEGION_RELEASE_PLATFORM: \$\{\{ matrix\.platform \}\}/);
-  assert.match(releaseCi, /LEGION_RELEASE_ARCHITECTURE: \$\{\{ matrix\.architecture \}\}/);
+  assert.match(releaseCi, /os: "macos-15-intel"[\s\S]*platform: "macos"[\s\S]*architecture: "x86_64"/);
+  for (const targetTriple of [
+    'x86_64-pc-windows-msvc',
+    'aarch64-pc-windows-msvc',
+    'aarch64-apple-darwin',
+    'x86_64-apple-darwin',
+  ]) assert.match(releaseCi, new RegExp(targetTriple));
+  assert.match(releaseCi, /RIGHT_GIT_RELEASE_PLATFORM: \$\{\{ matrix\.platform \}\}/);
+  assert.match(releaseCi, /RIGHT_GIT_RELEASE_ARCHITECTURE: \$\{\{ matrix\.architecture \}\}/);
+  assert.match(releaseCi, /windows-sign:/);
+  assert.match(releaseCi, /macos-sign:/);
+  assert.equal((releaseCi.match(/if: \$\{\{ startsWith\(github\.ref, 'refs\/tags\/v'\) \}\}/g) ?? []).length, 2);
+  assert.match(releaseCi, /name: legion-signed-windows-\$\{\{ matrix\.architecture \}\}-22\.23\.2/);
+  assert.match(releaseCi, /name: legion-signed-macos-\$\{\{ matrix\.architecture \}\}-22\.23\.2/);
+  assert.match(releaseCi, /right-release build --platform win --skip-checks/);
+  assert.match(releaseCi, /right-release build --platform mac --skip-checks/);
+  assert.match(releaseCi, /secrets\.APPLE_CERTIFICATE_BASE64/);
+  assert.doesNotMatch(releaseCi, /pull_request_target/);
   assert.doesNotMatch(releaseCi, /--profile debug/);
   assert.match(candidate, /pnpm npm_execpath is required for cross-platform candidate execution/);
   assert.match(candidate, /process\.execPath/);

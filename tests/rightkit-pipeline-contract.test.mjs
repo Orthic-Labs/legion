@@ -18,8 +18,12 @@ test('right-git owns exact public CI bytes', () => {
     if (lane.filename === 'ci.yml') assert.equal(lane.content, workflow);
     else {
       assert.match(workflow, /^# Managed by right-git/);
-      assert.match(workflow, /LEGION_RELEASE_PLATFORM: \$\{\{ matrix\.platform \}\}/);
-      assert.match(workflow, /LEGION_RELEASE_ARCHITECTURE: \$\{\{ matrix\.architecture \}\}/);
+      assert.match(workflow, /RIGHT_GIT_RELEASE_PLATFORM: \$\{\{ matrix\.platform \}\}/);
+      assert.match(workflow, /RIGHT_GIT_RELEASE_ARCHITECTURE: \$\{\{ matrix\.architecture \}\}/);
+      for (const runner of ['windows-2025', 'windows-11-arm', 'macos-15', 'macos-15-intel']) {
+        assert.match(workflow, new RegExp(`os: "${runner}"`));
+      }
+      assert.equal((workflow.match(/if: \$\{\{ startsWith\(github\.ref, 'refs\/tags\/v'\) \}\}/g) ?? []).length, 2);
     }
   }
   assert.deepEqual(readdirSync(join(root, '.github/workflows')).sort(), ['ci.yml', 'release-candidate.yml']);

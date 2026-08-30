@@ -1,5 +1,5 @@
 # Managed by right-git — do not hand-edit. Run `right-git sync` to update.
-# Template: profiles/rust-hybrid/ci.yml | Template version: 1.2.0
+# Template: profiles/rust-hybrid/ci.yml | Template version: 1.4.0
 name: legion-ci
 on:
   pull_request:

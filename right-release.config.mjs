@@ -31,6 +31,19 @@ export const WINDOWS_ARCHITECTURES = Object.freeze({
 	}),
 });
 
+export const MACOS_ARCHITECTURES = Object.freeze({
+	arm64: Object.freeze({
+		platform: "macos",
+		architecture: "arm64",
+		targetTriple: "aarch64-apple-darwin",
+	}),
+	x86_64: Object.freeze({
+		platform: "macos",
+		architecture: "x86_64",
+		targetTriple: "x86_64-apple-darwin",
+	}),
+});
+
 /**
  * Installed-product boundary shared by packaging, bootstrap, and native
  * qualification.  Only `current` is a production binding; version roots are
@@ -51,7 +64,7 @@ export const WINDOWS_INSTALL_CONTRACT = Object.freeze({
 
 const windowsX64 = WINDOWS_ARCHITECTURES.x86_64;
 const windowsArm64 = WINDOWS_ARCHITECTURES.arm64;
-const selectedArchitecture = String(process.env.LEGION_WINDOWS_ARCH ?? "x86_64").trim().toLowerCase();
+const selectedArchitecture = String(process.env.LEGION_WINDOWS_ARCH ?? process.env.RIGHT_GIT_RELEASE_ARCHITECTURE ?? "x86_64").trim().toLowerCase();
 if (!WINDOWS_ARCHITECTURES[selectedArchitecture]) {
 	throw new Error(`unsupported LEGION_WINDOWS_ARCH: ${selectedArchitecture}; expected x86_64 or arm64`);
 }
@@ -79,6 +92,40 @@ const selectedCandidatePrePackage = Object.freeze({
 		selectedWindows.assemblyRoot,
 		"--receipt",
 		selectedCandidateReceipt,
+	]),
+});
+
+const macArchitecture = String(process.env.LEGION_MACOS_ARCH ?? process.env.RIGHT_GIT_RELEASE_ARCHITECTURE ?? "arm64").trim().toLowerCase();
+if (!MACOS_ARCHITECTURES[macArchitecture]) {
+	throw new Error(`unsupported LEGION_MACOS_ARCH: ${macArchitecture}; expected arm64 or x86_64`);
+}
+const selectedMac = MACOS_ARCHITECTURES[macArchitecture];
+const macAssemblyRoot = `dist/native/macos-${macArchitecture}/legion-${releaseVersion}`;
+const macOutput = `dist/releases/mac/${releaseVersion}/${macArchitecture}`;
+const macStem = `legion-${releaseVersion}-macos-${macArchitecture}`;
+const macArchive = `${macOutput}/${macStem}.tar.gz`;
+const macSbom = `${macOutput}/${macStem}.cdx.json`;
+const macProvenance = `${macOutput}/${macStem}.intoto.jsonl`;
+const macNotarizationArchive = `.right-release/notary/${macStem}.zip`;
+const macCandidateReceipt = `.right-release/receipts/macos-${macArchitecture}-candidate-input.json`;
+const macSigningReceipt = `.right-release/receipts/macos-${macArchitecture}-signing.json`;
+const macNotarizationReceipt = `.right-release/receipts/macos-${macArchitecture}-notarization.json`;
+const macCandidatePrePackage = Object.freeze({
+	cmd: "node",
+	args: Object.freeze([
+		"scripts/finalize-macos-candidate.mjs",
+		"--candidate",
+		selectedCandidate,
+		"--architecture",
+		macArchitecture,
+		"--source-revision",
+		selectedSourceRevision,
+		"--version",
+		releaseVersion,
+		"--output",
+		macAssemblyRoot,
+		"--receipt",
+		macCandidateReceipt,
 	]),
 });
 
@@ -127,9 +174,11 @@ export default {
 			"scripts/assemble-native-release.mjs",
 			"scripts/package-windows-release.mjs",
 			"scripts/prepare-windows-candidate-finalization.mjs",
+			"scripts/finalize-macos-candidate.mjs",
 			"scripts/qualify-windows-release.mjs",
 			"release/**",
 			"packaging/windows/sign.md",
+			"packaging/macos/sign.md",
 			"docs/THIRD_PARTY_NOTICES.md",
 			"package.json",
 			"pnpm-lock.yaml",
@@ -187,7 +236,7 @@ export default {
 			defaultArchitecture: "x86_64",
 			selectedArchitecture,
 			architectures: WINDOWS_ARCHITECTURES,
-			releaseArchitectures: ["x86_64"],
+			releaseArchitectures: ["x86_64", "arm64"],
 			signingContract: "windows-raw-exe-authenticode-before-portable-v1",
 			manifestSigningContract: "windows-authenticode-catalog-v1",
 			publishBlocked: "direct bootstrap remains blocked until signed manifest catalog, native signatures, provenance, qualification, and channel evidence are verified",
@@ -203,7 +252,6 @@ export default {
 				receipt: selectedReceipt,
 				requiredEnvironment: [
 					"AZURE_ARTIFACT_SIGNING_DLIB_PATH",
-					"AZURE_ARTIFACT_SIGNING_METADATA",
 					"AZURE_ARTIFACT_SIGNING_ENDPOINT",
 					"AZURE_ARTIFACT_SIGNING_ACCOUNT",
 					"AZURE_ARTIFACT_SIGNING_PROFILE",
@@ -252,10 +300,11 @@ export default {
 					architecture: windowsArm64.architecture,
 					nativeArchitecture: windowsArm64.nativeArchitecture,
 					targetTriple: windowsArm64.targetTriple,
-					input: windowsArm64.assemblyRoot,
+					input: selectedCandidate,
 					output: `dist/releases/windows/${releaseVersion}/arm64`,
 					archive: windowsArm64.archive,
 					receipt: `.right-release/receipts/windows-${windowsArm64.architecture}-raw-exe.json`,
+					candidateReceipt: `.right-release/receipts/windows-${windowsArm64.architecture}-candidate-input.json`,
 					provenance: `.right-release/receipts/windows-${windowsArm64.architecture}-provenance.json`,
 					qualification: `.right-release/receipts/windows-${windowsArm64.architecture}-qualification.json`,
 					artifact: `dist/releases/windows/${releaseVersion}/arm64/${windowsArm64.archive}`,
@@ -266,9 +315,55 @@ export default {
 			],
 		},
 		mac: {
-			signed: false,
-			publishBlocked: "native signing, notarization, provenance, and channel authorization are incomplete",
-			package: { cmd: "pnpm", args: ["native:assemble", "--", "--profile", "release"] },
+			signed: true,
+			platform: "macos",
+			architecture: macArchitecture,
+			targetTriple: selectedMac.targetTriple,
+			architectures: MACOS_ARCHITECTURES,
+			packageKind: "portable-tar-gz",
+			distribution: "direct-bootstrap",
+			signingContract: "macos-developer-id-notarized-portable-v1",
+			publishBlocked: "release publication remains separate from signed candidate production",
+			prePackage: macCandidatePrePackage,
+			sign: {
+				prePackageFiles: [
+					`${macAssemblyRoot}/bin/legion`,
+					`${macAssemblyRoot}/bin/legion-hook`,
+					`${macAssemblyRoot}/bin/legion-mcp`,
+				],
+				receipt: macSigningReceipt,
+			},
+			notarize: {
+				file: macNotarizationArchive,
+				receipt: macNotarizationReceipt,
+			},
+			package: {
+				cmd: "node",
+				args: [
+					"scripts/finalize-macos-candidate.mjs",
+					"--package",
+					"--input",
+					macAssemblyRoot,
+					"--output",
+					macOutput,
+					"--notarization-archive",
+					macNotarizationArchive,
+					"--architecture",
+					macArchitecture,
+					"--source-revision",
+					selectedSourceRevision,
+					"--version",
+					releaseVersion,
+				],
+			},
+			evidence: {
+				candidateInput: macCandidateReceipt,
+				signature: macSigningReceipt,
+				notarization: macNotarizationReceipt,
+				provenance: macProvenance,
+				sbom: macSbom,
+			},
+			artifacts: [macArchive, macSbom, macProvenance],
 		},
 	},
 };

@@ -9,6 +9,10 @@ import {
 	prepareUnsignedCandidate,
 } from "../scripts/ci/prepare-unsigned-candidate.mjs";
 import { prepareWindowsCandidateFinalization } from "../scripts/prepare-windows-candidate-finalization.mjs";
+import {
+	packageMacosCandidate,
+	prepareMacosCandidateFinalization,
+} from "../scripts/finalize-macos-candidate.mjs";
 
 test("unsigned candidates require explicit platform and architecture", () => {
 	assert.deepEqual(inferTarget({ platform: "win32", architecture: "x64" }), {
@@ -154,6 +158,81 @@ test("Windows finalization expands exact verified candidate bytes and records pr
 		assert.equal(result.candidateArchiveSha256, candidate.archiveSha256);
 		assert.deepEqual(result.files.map(({ file }) => file), ["bin/legion.exe", "bin/legion-hook.exe", "bin/legion-mcp.exe"]);
 		assert.equal(JSON.parse(readFileSync(receiptPath, "utf8")).candidateArchiveSha256, candidate.archiveSha256);
+	} finally {
+		rmSync(root, { recursive: true, force: true });
+	}
+});
+
+test("macOS finalization expands exact verified candidate bytes and records pre-sign identity", () => {
+	const root = mkdtempSync(join(tmpdir(), "legion-macos-candidate-"));
+	const repositoryRoot = join(root, "repo");
+	const input = join(root, "install");
+	const outputRoot = join(root, "candidate");
+	const extracted = join(repositoryRoot, "dist", "native", "macos-arm64", "legion-0.1.0");
+	const receiptPath = join(repositoryRoot, ".right-release", "receipts", "macos-candidate.json");
+	try {
+		mkdirSync(join(repositoryRoot, "release"), { recursive: true });
+		writeFileSync(join(repositoryRoot, "release", "version.json"), JSON.stringify({ schemaVersion: 1, kind: "legion-release-version", version: "0.1.0" }));
+		mkdirSync(join(input, "bin"), { recursive: true });
+		for (const name of ["legion", "legion-hook", "legion-mcp"]) writeFileSync(join(input, "bin", name), `${name}\n`);
+		const candidate = prepareUnsignedCandidate({
+			input,
+			outputRoot,
+			repositoryRoot,
+			platform: "macos",
+			architecture: "arm64",
+			sourceRevision: "c".repeat(40),
+			createdAt: "2026-08-28T00:00:00.000Z",
+			env: {},
+		});
+		const result = prepareMacosCandidateFinalization({
+			candidateRoot: outputRoot,
+			outputRoot: extracted,
+			architecture: "arm64",
+			sourceRevision: "c".repeat(40),
+			version: "0.1.0",
+			receiptPath,
+			repositoryRoot,
+		});
+		assert.equal(result.candidateArchiveSha256, candidate.archiveSha256);
+		assert.deepEqual(result.files.map(({ file }) => file), ["bin/legion", "bin/legion-hook", "bin/legion-mcp"]);
+		assert.equal(JSON.parse(readFileSync(receiptPath, "utf8")).candidateArchiveSha256, candidate.archiveSha256);
+	} finally {
+		rmSync(root, { recursive: true, force: true });
+	}
+});
+
+test("macOS packaging binds signed archive to fresh SBOM, provenance, and notarization ZIP", () => {
+	const root = mkdtempSync(join(tmpdir(), "legion-macos-package-"));
+	const repositoryRoot = join(root, "repo");
+	const input = join(repositoryRoot, "dist", "native", "macos-arm64", "legion-0.1.0");
+	const output = join(repositoryRoot, "dist", "releases", "mac", "0.1.0", "arm64");
+	const notaryZip = join(repositoryRoot, ".right-release", "notary", "legion-0.1.0-macos-arm64.zip");
+	try {
+		mkdirSync(join(input, "bin"), { recursive: true });
+		for (const name of ["legion", "legion-hook", "legion-mcp"]) writeFileSync(join(input, "bin", name), `signed-${name}\n`);
+		const result = packageMacosCandidate({
+			inputRoot: input,
+			outputRoot: output,
+			notarizationArchive: notaryZip,
+			version: "0.1.0",
+			architecture: "arm64",
+			sourceRevision: "d".repeat(40),
+			repositoryRoot,
+			createdAt: "2026-08-28T00:00:00.000Z",
+			createArchive: ({ outputPath }) => {
+				mkdirSync(dirname(outputPath), { recursive: true });
+				writeFileSync(outputPath, "signed portable archive\n");
+				return { path: outputPath };
+			},
+			commandRunner: (_command, args) => {
+				writeFileSync(args.at(-1), "notarization zip\n");
+				return { status: 0, stdout: "", stderr: "" };
+			},
+		});
+		assert.equal(result.notarizationArchive, notaryZip);
+		assert.equal(JSON.parse(readFileSync(result.sbom, "utf8")).components[0].name, "legion-0.1.0-macos-arm64.tar.gz");
+		assert.equal(JSON.parse(readFileSync(result.provenance, "utf8")).subject[0].digest.sha256, result.archiveSha256);
 	} finally {
 		rmSync(root, { recursive: true, force: true });
 	}

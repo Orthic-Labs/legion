@@ -1,7 +1,7 @@
 # Managed by right-git — do not hand-edit. Run `right-git sync` to update.
-# Template: profiles/rust-hybrid/release-candidate.yml | Template version: 1.2.0
-# Public CI produces unsigned candidates only. Signing credentials, finalization,
-# release publication, & stable bootstrap publication remain protected-host work.
+# Template: profiles/rust-hybrid/release-candidate.yml | Template version: 1.4.0
+# Public CI always produces unsigned candidates. Opt-in finalization signs Windows
+# through Azure OIDC & macOS through environment-scoped Apple credentials.
 name: release-candidate
 on:
   workflow_dispatch:
@@ -26,10 +26,22 @@ jobs:
             node: "22.23.2"
             platform: "windows"
             architecture: "x86_64"
+            targetTriple: "x86_64-pc-windows-msvc"
+          - os: "windows-11-arm"
+            node: "22.23.2"
+            platform: "windows"
+            architecture: "arm64"
+            targetTriple: "aarch64-pc-windows-msvc"
           - os: "macos-15"
             node: "22.23.2"
             platform: "macos"
             architecture: "arm64"
+            targetTriple: "aarch64-apple-darwin"
+          - os: "macos-15-intel"
+            node: "22.23.2"
+            platform: "macos"
+            architecture: "x86_64"
+            targetTriple: "x86_64-apple-darwin"
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -44,6 +56,7 @@ jobs:
         with:
           toolchain: 1.98.0
           components: rustfmt, clippy
+          targets: ${{ matrix.targetTriple }}
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
         with:
           workspaces: engine
@@ -52,17 +65,191 @@ jobs:
         run: pnpm run ci:unsigned-candidate
         env:
           RIGHT_GIT_ARTIFACT_ROOT: ${{ runner.temp }}/legion-unsigned-candidate
-          LEGION_RELEASE_PLATFORM: ${{ matrix.platform }}
-          LEGION_RELEASE_ARCHITECTURE: ${{ matrix.architecture }}
+          RIGHT_GIT_RELEASE_PLATFORM: ${{ matrix.platform }}
+          RIGHT_GIT_RELEASE_ARCHITECTURE: ${{ matrix.architecture }}
       - name: Check unsigned release candidate
         run: pnpm run ci:unsigned-candidate-check
         env:
           RIGHT_GIT_ARTIFACT_ROOT: ${{ runner.temp }}/legion-unsigned-candidate
-          LEGION_RELEASE_PLATFORM: ${{ matrix.platform }}
-          LEGION_RELEASE_ARCHITECTURE: ${{ matrix.architecture }}
+          RIGHT_GIT_RELEASE_PLATFORM: ${{ matrix.platform }}
+          RIGHT_GIT_RELEASE_ARCHITECTURE: ${{ matrix.architecture }}
       - name: Upload unsigned candidate handoff
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: legion-unsigned-${{ matrix.os }}-${{ matrix.node }}
+          name: legion-unsigned-${{ matrix.platform }}-${{ matrix.architecture }}-${{ matrix.node }}
           path: ${{ runner.temp }}/legion-unsigned-candidate/**
           if-no-files-found: error
+
+  windows-sign:
+    needs: [candidate]
+    if: ${{ startsWith(github.ref, 'refs/tags/v') }}
+    environment: release
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: "windows-2025"
+            platform: "windows"
+            architecture: "x86_64"
+            targetTriple: "x86_64-pc-windows-msvc"
+            node: "22.23.2"
+          - os: "windows-11-arm"
+            platform: "windows"
+            architecture: "arm64"
+            targetTriple: "aarch64-pc-windows-msvc"
+            node: "22.23.2"
+    runs-on: ${{ matrix.os }}
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Resolve checked-out source revision
+        shell: pwsh
+        run: '"RIGHT_GIT_SOURCE_REVISION=$(git rev-parse HEAD)" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append'
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22.23.2
+          package-manager-cache: false
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
+        with:
+          version: 11.24.0
+      - uses: dtolnay/rust-toolchain@f8be11a05b1d4f3fcebe6410cc16743212b999b0
+        with:
+          toolchain: 1.98.0
+          targets: ${{ matrix.targetTriple }}
+      - run: pnpm install --frozen-lockfile
+      - name: Download exact unsigned Windows candidate
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: legion-unsigned-${{ matrix.platform }}-${{ matrix.architecture }}-22.23.2
+          path: ${{ runner.temp }}/unsigned-windows-candidate
+      - name: Authenticate to Azure with GitHub OIDC
+        uses: azure/login@7ddb5af1ef8758cf1353cf3b42f940aee27ba21c # v3
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+      - name: Install pinned Artifact Signing client
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $tools = Join-Path $env:RUNNER_TEMP 'artifact-signing-tools'
+          New-Item -ItemType Directory -Force -Path $tools | Out-Null
+          $client = Join-Path $tools 'client.zip'
+          $sdk = Join-Path $tools 'sdk.zip'
+          Invoke-WebRequest 'https://api.nuget.org/v3-flatcontainer/microsoft.artifactsigning.client/1.0.128/microsoft.artifactsigning.client.1.0.128.nupkg' -OutFile $client
+          Invoke-WebRequest 'https://api.nuget.org/v3-flatcontainer/microsoft.windows.sdk.buildtools/10.0.26100.4188/microsoft.windows.sdk.buildtools.10.0.26100.4188.nupkg' -OutFile $sdk
+          if ((Get-FileHash $client -Algorithm SHA256).Hash -ne '74BD7D27E6CE1051409C38D9B46BC8DF0400ECD643D51FFBF2AC00869061E40B') { throw 'Artifact Signing client hash mismatch' }
+          if ((Get-FileHash $sdk -Algorithm SHA256).Hash -ne '180DEB372659029864C10A0C04787833234D64AACD1D2C0661D2C00295D8E022') { throw 'Windows SDK Build Tools hash mismatch' }
+          Expand-Archive $client (Join-Path $tools 'client')
+          Expand-Archive $sdk (Join-Path $tools 'sdk')
+          "AZURE_ARTIFACT_SIGNING_DLIB_PATH=$tools\client\bin\x64\Azure.CodeSigning.Dlib.dll" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          "AZURE_SIGNTOOL_PATH=$tools\sdk\bin\10.0.26100.0\x64\signtool.exe" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+      - name: Sign & finalize Windows candidate
+        run: pnpm exec right-release build --platform win --skip-checks
+        env:
+          LEGION_UNSIGNED_CANDIDATE_ROOT: ${{ runner.temp }}/unsigned-windows-candidate
+          LEGION_SOURCE_REVISION: ${{ env.RIGHT_GIT_SOURCE_REVISION }}
+          RIGHT_GIT_RELEASE_PLATFORM: ${{ matrix.platform }}
+          RIGHT_GIT_RELEASE_ARCHITECTURE: ${{ matrix.architecture }}
+          AZURE_ARTIFACT_SIGNING_ENDPOINT: ${{ vars.AZURE_ARTIFACT_SIGNING_ENDPOINT }}
+          AZURE_ARTIFACT_SIGNING_ACCOUNT: ${{ vars.AZURE_ARTIFACT_SIGNING_ACCOUNT }}
+          AZURE_ARTIFACT_SIGNING_PROFILE: ${{ vars.AZURE_ARTIFACT_SIGNING_PROFILE }}
+      - name: Upload signed Windows candidate
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: legion-signed-windows-${{ matrix.architecture }}-22.23.2
+          path: |
+            dist/releases/windows/**
+            .right-release/receipts/windows-*.json
+          if-no-files-found: error
+
+  macos-sign:
+    needs: [candidate]
+    if: ${{ startsWith(github.ref, 'refs/tags/v') }}
+    environment: release
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: "macos-15"
+            platform: "macos"
+            architecture: "arm64"
+            targetTriple: "aarch64-apple-darwin"
+            node: "22.23.2"
+          - os: "macos-15-intel"
+            platform: "macos"
+            architecture: "x86_64"
+            targetTriple: "x86_64-apple-darwin"
+            node: "22.23.2"
+    runs-on: ${{ matrix.os }}
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Resolve checked-out source revision
+        shell: bash
+        run: printf 'RIGHT_GIT_SOURCE_REVISION=%s\n' "$(git rev-parse HEAD)" >> "$GITHUB_ENV"
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22.23.2
+          package-manager-cache: false
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
+        with:
+          version: 11.24.0
+      - uses: dtolnay/rust-toolchain@f8be11a05b1d4f3fcebe6410cc16743212b999b0
+        with:
+          toolchain: 1.98.0
+          targets: ${{ matrix.targetTriple }}
+      - run: pnpm install --frozen-lockfile
+      - name: Download exact unsigned macOS candidate
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: legion-unsigned-${{ matrix.platform }}-${{ matrix.architecture }}-22.23.2
+          path: ${{ runner.temp }}/unsigned-macos-candidate
+      - name: Install Apple signing identity in temporary keychain
+        shell: bash
+        env:
+          APPLE_CERTIFICATE_BASE64: ${{ secrets.APPLE_CERTIFICATE_BASE64 }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_KEYCHAIN_PASSWORD: ${{ secrets.APPLE_KEYCHAIN_PASSWORD }}
+          APPLE_API_KEY_BASE64: ${{ secrets.APPLE_API_KEY_BASE64 }}
+        run: |
+          set -euo pipefail
+          certificate_path="$RUNNER_TEMP/apple-signing.p12"
+          key_path="$RUNNER_TEMP/AuthKey.p8"
+          keychain_path="$RUNNER_TEMP/apple-signing.keychain-db"
+          printf '%s' "$APPLE_CERTIFICATE_BASE64" | base64 --decode > "$certificate_path"
+          printf '%s' "$APPLE_API_KEY_BASE64" | base64 --decode > "$key_path"
+          security create-keychain -p "$APPLE_KEYCHAIN_PASSWORD" "$keychain_path"
+          security set-keychain-settings -lut 21600 "$keychain_path"
+          security unlock-keychain -p "$APPLE_KEYCHAIN_PASSWORD" "$keychain_path"
+          security import "$certificate_path" -P "$APPLE_CERTIFICATE_PASSWORD" -A -t cert -f pkcs12 -k "$keychain_path"
+          security set-key-partition-list -S apple-tool:,apple: -k "$APPLE_KEYCHAIN_PASSWORD" "$keychain_path"
+          security list-keychain -d user -s "$keychain_path"
+          printf 'APPLE_API_KEY_PATH=%s\n' "$key_path" >> "$GITHUB_ENV"
+      - name: Sign, notarize & finalize macOS candidate
+        run: pnpm exec right-release build --platform mac --skip-checks
+        env:
+          LEGION_UNSIGNED_CANDIDATE_ROOT: ${{ runner.temp }}/unsigned-macos-candidate
+          LEGION_SOURCE_REVISION: ${{ env.RIGHT_GIT_SOURCE_REVISION }}
+          RIGHT_GIT_RELEASE_PLATFORM: ${{ matrix.platform }}
+          RIGHT_GIT_RELEASE_ARCHITECTURE: ${{ matrix.architecture }}
+          APPLE_DEVELOPER_ID: ${{ vars.APPLE_DEVELOPER_ID }}
+          APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
+          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+      - name: Upload signed & notarized macOS candidate
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: legion-signed-macos-${{ matrix.architecture }}-22.23.2
+          path: |
+            dist/releases/mac/**
+            .right-release/receipts/macos-*.json
+          if-no-files-found: error
+      - name: Remove Apple signing material
+        if: ${{ always() }}
+        shell: bash
+        run: |
+          security delete-keychain "$RUNNER_TEMP/apple-signing.keychain-db" 2>/dev/null || true
+          rm -f "$RUNNER_TEMP/apple-signing.p12" "$RUNNER_TEMP/AuthKey.p8"
