@@ -101,7 +101,7 @@
     {
       "path": "scripts/run-worker.sh",
       "uri": "legion-skill://alchemist/scripts/run-worker.sh",
-      "digest": "sha256:cd062832367a96d10786426e772f8fe35160b7e3bda9b91ccf52b88dd9d43339"
+      "digest": "sha256:7720d7d5be5f906f4641bc0c1e7ade991e0d5287aab9d68baadb4ac379f91404"
     },
     {
       "path": "scripts/start-stack.vbs",

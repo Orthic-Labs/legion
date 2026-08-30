@@ -65,23 +65,116 @@ else
   mkdir -p "$(dirname "$EVENT_LOG")"
 fi
 
-# macOS has no coreutils `timeout` by default; fall back to gtimeout, then to none.
+# macOS has no coreutils `timeout` by default; use gtimeout when available, then
+# enforce the same bound with the shell when neither binary is installed.
 TIMEOUT_BIN=""
 if command -v timeout >/dev/null 2>&1; then TIMEOUT_BIN="timeout"
 elif command -v gtimeout >/dev/null 2>&1; then TIMEOUT_BIN="gtimeout"
 fi
 
 echo "── alchemist worker: profile=${PROFILE} model=${MODEL} timeout=${TIMEOUT}s events=${EVENT_LOG} ──" >&2
-[ -z "$TIMEOUT_BIN" ] && echo "── note: no timeout binary found; running unbounded ──" >&2
+[ -z "$TIMEOUT_BIN" ] && echo "── note: no timeout binary found; using the shell watchdog ──" >&2
 
 run_worker() {
   if [ -n "$TIMEOUT_BIN" ]; then
     "$TIMEOUT_BIN" "$TIMEOUT" omniroute launch-codex --profile "$PROFILE" exec \
       --model "$MODEL" -c features.multi_agent=false --json -
-  else
-    omniroute launch-codex --profile "$PROFILE" exec \
-      --model "$MODEL" -c features.multi_agent=false --json -
+    return $?
   fi
+
+  # Keep the worker and watchdog state beside the event log.  mkdir gives this
+  # invocation an exclusive, dependency-free state directory without relying
+  # on mktemp or a non-POSIX timeout implementation.
+  WATCHDOG_DIR="${EVENT_LOG}.watchdog.$$"
+  if ! mkdir "$WATCHDOG_DIR" 2>/dev/null; then
+    echo "Unable to create shell watchdog state: $WATCHDOG_DIR" >&2
+    return 4
+  fi
+  WORKER_PID_FILE="${WATCHDOG_DIR}/worker.pid"
+  WORKER_DONE_FILE="${WATCHDOG_DIR}/worker.done"
+
+  # The wrapper owns the actual launcher child.  Its trap forwards TERM and
+  # waits for that child, so the watchdog can escalate to KILL without leaving
+  # the launcher behind when TERM is ignored.
+  (
+    child_pid=""
+    trap 'if [ -n "${child_pid:-}" ]; then kill -TERM "$child_pid" 2>/dev/null || :; wait "$child_pid" 2>/dev/null || :; fi; exit 143' TERM INT HUP
+    omniroute launch-codex --profile "$PROFILE" exec \
+      --model "$MODEL" -c features.multi_agent=false --json - &
+    child_pid=$!
+    printf '%s\n' "$child_pid" > "$WORKER_PID_FILE"
+    wait "$child_pid"
+    worker_status=$?
+    printf '%s\n' "$worker_status" > "$WORKER_DONE_FILE"
+    rm -f "$WORKER_PID_FILE"
+    exit "$worker_status"
+  ) &
+  worker_pid=$!
+
+  # Put sleep in its own child so the watchdog can be terminated and reaped
+  # cleanly when the worker finishes before the deadline.
+  (
+    sleep_pid=""
+    stop_watchdog() {
+      if [ -n "${sleep_pid:-}" ]; then
+        kill -TERM "$sleep_pid" 2>/dev/null || :
+        wait "$sleep_pid" 2>/dev/null || :
+      fi
+      exit 143
+    }
+    trap stop_watchdog TERM INT HUP
+    sleep "$TIMEOUT" &
+    sleep_pid=$!
+    wait "$sleep_pid"
+    sleep_status=$?
+    [ "$sleep_status" -eq 0 ] || exit 143
+
+    # A completed worker writes this marker before it exits.  This avoids
+    # treating a just-reaped normal exit as a timeout at the boundary.
+    if [ -f "$WORKER_DONE_FILE" ]; then
+      exit 0
+    fi
+
+    child_pid=""
+    if [ -f "$WORKER_PID_FILE" ]; then
+      child_pid="$(cat "$WORKER_PID_FILE" 2>/dev/null || :)"
+      case "$child_pid" in
+        ''|*[!0-9]*) child_pid="" ;;
+      esac
+    fi
+    kill -TERM "$worker_pid" 2>/dev/null || :
+    if [ -n "$child_pid" ]; then
+      kill -TERM "$child_pid" 2>/dev/null || :
+    fi
+    # Give TERM a short grace period, then force both wrapper and launcher.
+    sleep 1
+    if kill -0 "$worker_pid" 2>/dev/null; then
+      kill -KILL "$worker_pid" 2>/dev/null || :
+    fi
+    if [ -n "$child_pid" ] && kill -0 "$child_pid" 2>/dev/null; then
+      kill -KILL "$child_pid" 2>/dev/null || :
+    fi
+    exit 124
+  ) &
+  watchdog_pid=$!
+
+  wait "$worker_pid"
+  worker_status=$?
+  if [ -f "$WORKER_DONE_FILE" ]; then
+    # Normal completion: stop and reap the watchdog, including its sleep.
+    kill -TERM "$watchdog_pid" 2>/dev/null || :
+    wait "$watchdog_pid" 2>/dev/null || :
+    rm -rf "$WATCHDOG_DIR"
+    return "$worker_status"
+  fi
+
+  # Timeout path: let the watchdog finish its TERM/KILL sequence, then reap
+  # it before returning the documented timeout status.
+  watchdog_status=0
+  wait "$watchdog_pid" 2>/dev/null || watchdog_status=$?
+  rm -rf "$WATCHDOG_DIR"
+  [ "${watchdog_status:-0}" -eq 124 ] && return 124
+  return "$worker_status"
 }
 
 printf '%s' "$BRIEF" \
