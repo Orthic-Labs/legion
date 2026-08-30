@@ -19,6 +19,30 @@ function cargoManifests(root, cursor = join(root, 'engine'), output = []) {
   return output;
 }
 
+function cargoPackageName(source) {
+  const packageStart = source.indexOf('[package]');
+  if (packageStart < 0) return null;
+  const remaining = source.slice(packageStart + '[package]'.length);
+  const nextSection = remaining.search(/^\[/m);
+  const packageSection = nextSection < 0 ? remaining : remaining.slice(0, nextSection);
+  return /^name\s*=\s*"([^"]+)"$/m.exec(packageSection)?.[1] ?? null;
+}
+
+function cargoWorkspacePackageNames(root) {
+  return cargoManifests(root)
+    .filter((path) => path !== join(root, 'engine', 'Cargo.toml'))
+    .map((path) => cargoPackageName(readFileSync(path, 'utf8')))
+    .filter(Boolean);
+}
+
+function cargoLockPackages(lock) {
+  return lock.split('[[package]]').slice(1).map((section) => ({
+    name: /^\s*name\s*=\s*"([^"]+)"/m.exec(section)?.[1] ?? null,
+    version: /^\s*version\s*=\s*"([^"]+)"/m.exec(section)?.[1] ?? null,
+    source: /^\s*source\s*=/m.test(section),
+  }));
+}
+
 export function versionParityReport(root = ROOT, { stable = false } = {}) {
   const release = readJson(root, 'release/version.json');
   const expected = release.version;
@@ -46,10 +70,14 @@ export function versionParityReport(root = ROOT, { stable = false } = {}) {
     }
   }
   const lock = readFileSync(join(root, 'engine/Cargo.lock'), 'utf8');
-  for (const section of lock.split('[[package]]').slice(1)) {
-    const name = /^\s*name\s*=\s*"([^"]+)"/m.exec(section)?.[1];
-    if (name !== 'legion' && !name?.startsWith('legion-')) continue;
-    const observed = /^\s*version\s*=\s*"([^"]+)"/m.exec(section)?.[1];
+  const lockedPackages = cargoLockPackages(lock);
+  for (const name of cargoWorkspacePackageNames(root)) {
+    const workspaceEntries = lockedPackages.filter((entry) => entry.name === name && !entry.source);
+    if (workspaceEntries.length !== 1) {
+      issues.push({ path: 'engine/Cargo.lock', reason: `${name} workspace lock block is missing, malformed, or sourced externally` });
+      continue;
+    }
+    const observed = workspaceEntries[0].version;
     if (observed !== expected) issues.push({ path: 'engine/Cargo.lock', reason: `${name} lock version ${observed ?? '<missing>'} differs from ${expected}` });
   }
   const library = readFileSync(join(root, 'src/lib/version.mjs'), 'utf8');

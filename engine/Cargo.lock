@@ -917,7 +917,8 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bbd2bcb4c963f2ddae06a2efc7e9f3591312473c50c6685e1f298068316e66fe"
 
 [[package]]
-$10.2.7"
+name = "legion"
+version = "0.2.8"
 dependencies = [
  "clap",
  "hex",
@@ -947,7 +948,8 @@ dependencies = [
 ]
 
 [[package]]
-$10.2.7"
+name = "legion-application"
+version = "0.2.8"
 dependencies = [
  "async-trait",
  "legion-audit",
@@ -966,7 +968,8 @@ dependencies = [
 ]
 
 [[package]]
-$10.2.7"
+name = "legion-audit"
+version = "0.2.8"
 dependencies = [
  "hex",
  "hmac",
@@ -983,7 +986,8 @@ dependencies = [
 ]
 
 [[package]]
-$10.2.7"
+name = "legion-catalog"
+version = "0.2.8"
 dependencies = [
  "legion-contracts",
  "serde",
@@ -995,7 +999,8 @@ dependencies = [
 ]
 
 [[package]]
-$10.2.7"
+name = "legion-contracts"
+version = "0.2.8"
 dependencies = [
  "hex",
  "serde",
@@ -1005,7 +1010,8 @@ dependencies = [
 ]
 
 [[package]]
-$10.2.7"
+name = "legion-decisions"
+version = "0.2.8"
 dependencies = [
  "legion-contracts",
  "rusqlite",
@@ -1015,7 +1021,8 @@ dependencies = [
 ]
 
 [[package]]
-$10.2.7"
+name = "legion-effects"
+version = "0.2.8"
 dependencies = [
  "legion-contracts",
  "legion-policy",
@@ -1028,7 +1035,8 @@ dependencies = [
 ]
 
 [[package]]
-$10.2.7"
+name = "legion-handoff"
+version = "0.2.8"
 dependencies = [
  "async-trait",
  "hex",
@@ -1042,7 +1050,8 @@ dependencies = [
 ]
 
 [[package]]
-$10.2.7"
+name = "legion-hook"
+version = "0.2.8"
 dependencies = [
  "legion-application",
  "legion-contracts",
@@ -1053,7 +1062,8 @@ dependencies = [
 ]
 
 [[package]]
-$10.2.7"
+name = "legion-host"
+version = "0.2.8"
 dependencies = [
  "directories-next",
  "legion-catalog",
@@ -1065,7 +1075,8 @@ dependencies = [
 ]
 
 [[package]]
-$10.2.7"
+name = "legion-mcp"
+version = "0.2.8"
 dependencies = [
  "legion-application",
  "legion-contracts",
@@ -1075,7 +1086,8 @@ dependencies = [
 ]
 
 [[package]]
-$10.2.7"
+name = "legion-policy"
+version = "0.2.8"
 dependencies = [
  "legion-contracts",
  "legion-policy-model",
@@ -1085,7 +1097,8 @@ dependencies = [
 ]
 
 [[package]]
-$10.2.7"
+name = "legion-policy-model"
+version = "0.2.8"
 dependencies = [
  "legion-contracts",
  "serde",
@@ -1093,7 +1106,8 @@ dependencies = [
 ]
 
 [[package]]
-$10.2.7"
+name = "legion-provider-sdk"
+version = "0.2.8"
 dependencies = [
  "async-trait",
  "futures-util",
@@ -1108,14 +1122,16 @@ dependencies = [
 ]
 
 [[package]]
-$10.2.7"
+name = "legion-report"
+version = "0.2.8"
 dependencies = [
  "legion-contracts",
  "serde_json",
 ]
 
 [[package]]
-$10.2.7"
+name = "legion-research"
+version = "0.2.8"
 dependencies = [
  "hex",
  "legion-contracts",
@@ -1126,7 +1142,8 @@ dependencies = [
 ]
 
 [[package]]
-$10.2.7"
+name = "legion-review"
+version = "0.2.8"
 dependencies = [
  "legion-contracts",
  "legion-provider-sdk",
@@ -1137,7 +1154,8 @@ dependencies = [
 ]
 
 [[package]]
-$10.2.7"
+name = "legion-rules"
+version = "0.2.8"
 dependencies = [
  "legion-contracts",
  "legion-policy-model",
@@ -1149,7 +1167,8 @@ dependencies = [
 ]
 
 [[package]]
-$10.2.7"
+name = "legion-runtime"
+version = "0.2.8"
 dependencies = [
  "async-trait",
  "legion-catalog",
@@ -1162,7 +1181,8 @@ dependencies = [
 ]
 
 [[package]]
-$10.2.7"
+name = "legion-testkit"
+version = "0.2.8"
 dependencies = [
  "legion-audit",
  "legion-contracts",
