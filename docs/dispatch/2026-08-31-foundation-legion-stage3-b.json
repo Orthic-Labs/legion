@@ -1,0 +1,210 @@
+{
+  "schemaVersion": 1,
+  "kind": "legion-authority-dispatch",
+  "packetType": "direct",
+  "repositoryRoot": "D:/Claude/legion",
+  "sourceRevision": "sha256:cef763330e8f9612d63389d10af60208de06bbcdb12f8f3d64262bc9de6951fe",
+  "sourceArtifact": "docs/foundation/2026-08-31/legion-stage3-corpus.json",
+  "externalReadBinding": {
+    "aliasPrefix": "external-corpus/",
+    "manifest": "docs/foundation/2026-08-31/legion-stage3-corpus.json",
+    "repoRootsField": "repo_roots",
+    "repositories": ["addyosmani__agent-skills","Agent-Field__agentfield","Agent-Field__SWE-AF","anthropics__claude-code","ArabelaTso__Coding-Skills-Collection","coderabbitai__skills","EricGrill__agents-skills-plugins","garrytan__gstack","instructa__agent-skills","LambdaTest__agent-skills","mattpocock__skills","NeoLabHQ__context-engineering-kit","obra__superpowers","SWE-agent__mini-swe-agent","swe-agent__swe-agent","testdino-hq__playwright-skill","trailofbits__skills","VoltAgent__awesome-agent-skills"]
+  },
+  "promptArtifact": "docs/foundation/2026-08-31/legion-stage3-independent-packet.md",
+  "promptDigest": "sha256:637c70a50c0f198a997f3b655ff34c9967a11ed11a9b056edf4adede16b2c7ee",
+  "modelRouting": {
+    "modelTier": "SOL",
+    "workerProfile": "foundation-independent-stage3-comparison",
+    "routingRationale": "User requires two independent Sol passes; this lane owns B only."
+  },
+  "objective": "Produce blind Foundation Stage 3 comparison B for frozen 109-row Legion canon, current product & 18-donor corpus without reading sibling or prior reports.",
+  "authority": [
+    "AGENTS.md",
+    "D:/Claude/tools/skills/foundation/SKILL.md"
+  ],
+  "integrationOwner": "Legion root agent in D:/Claude/legion",
+  "fileTouchPolicy": {
+    "mode": "once-end-to-end",
+    "plannedFiles": [
+      "docs/foundation/2026-08-31/legion-stage3-pass-b.md"
+    ],
+    "allowUnplannedFiles": false,
+    "ledger": [
+      {
+        "path": "docs/foundation/2026-08-31/legion-stage3-pass-b.md",
+        "owner": "legion-stage3-b",
+        "operation": "create",
+        "lane": "legion-stage3-b",
+        "finalCheck": "integration owner validates 109-row Stage 3 report, repository coverage & source evidence"
+      }
+    ]
+  },
+  "sourcePortPolicy": {
+    "applicable": false,
+    "sourceImplementation": null,
+    "sourceInventory": [],
+    "directPortFirst": true,
+    "targetLanguage": null,
+    "rustTargetRequiresRustPort": true,
+    "handRollReplacementWhileSourceExists": false
+  },
+  "workerPolicy": {
+    "mode": "edit-only",
+    "mayInspectReadPaths": true,
+    "mayEditAllowlistOnly": true,
+    "forbiddenActions": [
+      "cargo",
+      "tests",
+      "builds",
+      "generators",
+      "installs",
+      "commits",
+      "pushes",
+      "merges",
+      "expensive-checks"
+    ],
+    "intendedChecksRecordedFor": "integration owner"
+  },
+  "integrationPolicy": {
+    "owner": "Legion root agent",
+    "soleMerger": true,
+    "runsCheckpoints": true,
+    "mayRepairLaneOwnedFiles": false,
+    "repairAction": "return repair to B lane or redesign packet"
+  },
+  "dispatches": [
+    {
+      "id": "B",
+      "dependsOn": [],
+      "lanes": [
+        "legion-stage3-b"
+      ],
+      "completionChecks": [
+        "integration owner validates structure, paths, semantic evidence, baseline & receipt"
+      ]
+    }
+  ],
+  "workers": [
+    {
+      "id": "legion-stage3-b",
+      "dispatch": "B",
+      "executorRequirement": {
+        "semanticRequirement": "required",
+        "capabilities": [
+          "foundation",
+          "cross-repository-source-comparison"
+        ],
+        "effects": [
+          "source-read",
+          "artifact-write"
+        ],
+        "authorityCeiling": [
+          "workspace"
+        ],
+        "completion": [
+          {
+            "kind": "exact-check",
+            "id": "legion-stage3-comparison-b"
+          }
+        ],
+        "escalation": {
+          "permittedOn": [
+            "ambiguous",
+            "observation_unavailable"
+          ],
+          "forbiddenOn": [
+            "denied"
+          ]
+        }
+      },
+      "allowlist": [
+        "docs/foundation/2026-08-31/legion-stage3-pass-b.md"
+      ],
+      "read": [
+        "docs/foundation/2026-08-31/legion-stage3-corpus.json",
+        "docs/foundation/2026-08-31/legion-stage3-independent-packet.md",
+        "docs/canon/alchemist.md",
+        "docs/canon/arcane.md",
+        "docs/canon/covenant.md",
+        "docs/canon/guard.md",
+        "docs/canon/legion.md",
+        "docs/canon/oracle.md",
+        "docs/canon/sage.md",
+        "docs/canon/skills.md",
+        "AGENTS.md",
+        "src",
+        "engine",
+        "agents",
+        "doctrine",
+        "hooks",
+        "scripts",
+        "skills",
+        "external-corpus/addyosmani__agent-skills",
+        "external-corpus/Agent-Field__agentfield",
+        "external-corpus/Agent-Field__SWE-AF",
+        "external-corpus/anthropics__claude-code",
+        "external-corpus/ArabelaTso__Coding-Skills-Collection",
+        "external-corpus/coderabbitai__skills",
+        "external-corpus/EricGrill__agents-skills-plugins",
+        "external-corpus/garrytan__gstack",
+        "external-corpus/instructa__agent-skills",
+        "external-corpus/LambdaTest__agent-skills",
+        "external-corpus/mattpocock__skills",
+        "external-corpus/NeoLabHQ__context-engineering-kit",
+        "external-corpus/obra__superpowers",
+        "external-corpus/SWE-agent__mini-swe-agent",
+        "external-corpus/swe-agent__swe-agent",
+        "external-corpus/testdino-hq__playwright-skill",
+        "external-corpus/trailofbits__skills",
+        "external-corpus/VoltAgent__awesome-agent-skills"
+      ],
+      "forbidden": [
+        ".git",
+        "docs/pending",
+        "docs/canon/registers",
+        "docs/foundation/2026-08-31/legion-stage3-pass-a.md",
+        "docs/foundation/2026-08-31/legion-pass-a.md",
+        "docs/foundation/2026-08-31/legion-pass-b.md",
+        "docs/foundation/2026-08-31/legion-reconciliation.md",
+        "docs/foundation/2026-08-31/membrane-pass-a.md",
+        "docs/foundation/2026-08-31/membrane-pass-b.md"
+      ],
+      "checks": [
+        "integration owner runs validate_atom_report.py --mode stage3 --expected-rows 109 --manifest legion-stage3-corpus.json plus semantic sampling"
+      ],
+      "dependencies": []
+    }
+  ],
+  "oracleAudit": {
+    "required": true,
+    "mode": "adversarial",
+    "status": "required-before-execution",
+    "checks": [
+      "allowlist-completeness",
+      "lane-disjointness",
+      "dependency-validity",
+      "maximum-safe-parallelization",
+      "end-to-end-lane-closure",
+      "direct-port-priority",
+      "worker-edit-only",
+      "integration-owner-checkpoints",
+      "exact-byte-review-pass"
+    ]
+  },
+  "recovery": {
+    "maxRetries": 1,
+    "stopConditions": [
+      "owned report path is already dirty",
+      "frozen corpus/canon path or revision is unavailable",
+      "source evidence cannot establish required claim"
+    ],
+    "returnFields": [
+      "changedPaths",
+      "checks",
+      "blockers",
+      "baselineRevision",
+      "patchDigest"
+    ]
+  }
+}

@@ -1,0 +1,264 @@
+{
+  "schemaVersion": 1,
+  "kind": "legion-authority-dispatch",
+  "packetType": "direct",
+  "repositoryRoot": "D:/Claude/legion",
+  "sourceRevision": "sha256:a7ae4456d16e236dfaa647a0178f38df32a976d2e04ae0ad928fa43970b83e73",
+  "sourceArtifact": "docs/foundation/2026-08-31/legion-stage3-reconciliation-input.json",
+  "promptArtifact": "docs/foundation/2026-08-31/legion-stage3-reconciliation-packet.md",
+  "promptDigest": "sha256:675cbd9b1557c77cba79a982e1db9cee16d0087f0901d52130a4ec2e9b921ad8",
+  "evidenceReadBinding": {
+    "alias": "reconciliation-evidence",
+    "manifest": "docs/foundation/2026-08-31/legion-stage3-evidence-paths.json",
+    "manifestDigest": "sha256:50b45a1a0fb2d6e7226ab06076cd73eb5f8df0f1a6c3346e543034c9909bc083",
+    "files": 44
+  },
+  "modelRouting": {
+    "modelTier": "SOL",
+    "workerProfile": "foundation-stage3-consolidate-reconcile",
+    "routingRationale": "Reuse two user-requested Sol lanes after blind reports: report-only consolidation precedes source reconciliation."
+  },
+  "objective": "Consolidate 2 immutable Legion Stage 3 reports without source, then reconcile dirty rows source-first into final comparison + material gap ledger.",
+  "authority": [
+    "AGENTS.md",
+    "D:/Claude/tools/skills/foundation/SKILL.md"
+  ],
+  "integrationOwner": "Legion root agent in D:/Claude/legion",
+  "fileTouchPolicy": {
+    "mode": "once-end-to-end",
+    "plannedFiles": [
+      "docs/foundation/2026-08-31/legion-stage3-consolidation.md",
+      "docs/foundation/2026-08-31/legion-stage3-reconciliation.md"
+    ],
+    "allowUnplannedFiles": false,
+    "ledger": [
+      {
+        "path": "docs/foundation/2026-08-31/legion-stage3-consolidation.md",
+        "owner": "stage3-consolidator",
+        "operation": "create",
+        "lane": "C",
+        "finalCheck": "integration owner validates 109-row report-only consolidation"
+      },
+      {
+        "path": "docs/foundation/2026-08-31/legion-stage3-reconciliation.md",
+        "owner": "stage3-reconciler",
+        "operation": "create",
+        "lane": "R",
+        "finalCheck": "integration owner validates 109-row final comparison, source evidence & gap ledger"
+      }
+    ]
+  },
+  "sourcePortPolicy": {
+    "applicable": false,
+    "sourceImplementation": null,
+    "sourceInventory": [],
+    "directPortFirst": true,
+    "targetLanguage": null,
+    "rustTargetRequiresRustPort": true,
+    "handRollReplacementWhileSourceExists": false
+  },
+  "workerPolicy": {
+    "mode": "edit-only",
+    "mayInspectReadPaths": true,
+    "mayEditAllowlistOnly": true,
+    "forbiddenActions": [
+      "cargo",
+      "tests",
+      "builds",
+      "generators",
+      "installs",
+      "commits",
+      "pushes",
+      "merges",
+      "expensive-checks"
+    ],
+    "intendedChecksRecordedFor": "integration owner"
+  },
+  "integrationPolicy": {
+    "owner": "Legion root agent",
+    "soleMerger": true,
+    "runsCheckpoints": true,
+    "mayRepairLaneOwnedFiles": false,
+    "repairAction": "return one bounded repair to owning lane"
+  },
+  "dispatches": [
+    {
+      "id": "C",
+      "dependsOn": [],
+      "lanes": [
+        "stage3-consolidator"
+      ],
+      "completionChecks": [
+        "109 rows aligned; report-only dirty classification; minority findings preserved"
+      ]
+    },
+    {
+      "id": "R",
+      "dependsOn": [
+        "C"
+      ],
+      "lanes": [
+        "stage3-reconciler"
+      ],
+      "completionChecks": [
+        "109 rows reconciled; dirty rows source-resolved; material gaps thresholded"
+      ]
+    }
+  ],
+  "workers": [
+    {
+      "id": "stage3-consolidator",
+      "dispatch": "C",
+      "executorRequirement": {
+        "semanticRequirement": "required",
+        "capabilities": [
+          "foundation",
+          "report-consolidation"
+        ],
+        "effects": [
+          "artifact-read",
+          "artifact-write"
+        ],
+        "authorityCeiling": [
+          "workspace"
+        ],
+        "completion": [
+          {
+            "kind": "exact-check",
+            "id": "stage3-consolidation"
+          }
+        ],
+        "escalation": {
+          "permittedOn": [
+            "ambiguous"
+          ],
+          "forbiddenOn": [
+            "denied"
+          ]
+        }
+      },
+      "allowlist": [
+        "docs/foundation/2026-08-31/legion-stage3-consolidation.md"
+      ],
+      "read": [
+        "docs/foundation/2026-08-31/legion-stage3-reconciliation-input.json",
+        "docs/foundation/2026-08-31/legion-stage3-reconciliation-packet.md",
+        "docs/foundation/2026-08-31/legion-stage3-corpus.json",
+        "docs/foundation/2026-08-31/legion-stage3-pass-a.md",
+        "docs/foundation/2026-08-31/legion-stage3-pass-b.md"
+      ],
+      "forbidden": [
+        ".git",
+        "src",
+        "engine",
+        "agents",
+        "doctrine",
+        "hooks",
+        "scripts",
+        "skills",
+        "docs/canon",
+        "docs/pending",
+        "docs/foundation/2026-08-31/legion-reconciliation.md"
+      ],
+      "checks": [
+        "integration owner validates 109-row consolidation & dirty reasons"
+      ],
+      "dependencies": []
+    },
+    {
+      "id": "stage3-reconciler",
+      "dispatch": "R",
+      "executorRequirement": {
+        "semanticRequirement": "required",
+        "capabilities": [
+          "foundation",
+          "source-reconciliation"
+        ],
+        "effects": [
+          "source-read",
+          "artifact-write"
+        ],
+        "authorityCeiling": [
+          "workspace"
+        ],
+        "completion": [
+          {
+            "kind": "exact-check",
+            "id": "stage3-reconciliation"
+          }
+        ],
+        "escalation": {
+          "permittedOn": [
+            "ambiguous",
+            "observation_unavailable"
+          ],
+          "forbiddenOn": [
+            "denied"
+          ]
+        }
+      },
+      "allowlist": [
+        "docs/foundation/2026-08-31/legion-stage3-reconciliation.md"
+      ],
+      "read": [
+        "docs/foundation/2026-08-31/legion-stage3-reconciliation-input.json",
+        "docs/foundation/2026-08-31/legion-stage3-reconciliation-packet.md",
+        "docs/foundation/2026-08-31/legion-stage3-corpus.json",
+        "docs/foundation/2026-08-31/legion-stage3-pass-a.md",
+        "docs/foundation/2026-08-31/legion-stage3-pass-b.md",
+        "docs/foundation/2026-08-31/legion-stage3-consolidation.md",
+        "docs/foundation/2026-08-31/legion-stage3-evidence-paths.json",
+        "docs/canon/alchemist.md",
+        "docs/canon/arcane.md",
+        "docs/canon/covenant.md",
+        "docs/canon/guard.md",
+        "docs/canon/legion.md",
+        "docs/canon/oracle.md",
+        "docs/canon/sage.md",
+        "docs/canon/skills.md",
+        "reconciliation-evidence"
+      ],
+      "forbidden": [
+        ".git",
+        "docs/pending",
+        "docs/canon/registers",
+        "docs/foundation/2026-08-31/legion-reconciliation.md",
+        "docs/foundation/2026-08-31/legion-license-evidence.md"
+      ],
+      "checks": [
+        "integration owner runs final report validator & semantic source sampling"
+      ],
+      "dependencies": []
+    }
+  ],
+  "oracleAudit": {
+    "required": true,
+    "mode": "adversarial",
+    "status": "required-before-execution",
+    "checks": [
+      "allowlist-completeness",
+      "lane-disjointness",
+      "dependency-validity",
+      "maximum-safe-parallelization",
+      "end-to-end-lane-closure",
+      "worker-edit-only",
+      "integration-owner-checkpoints",
+      "exact-byte-review-pass"
+    ]
+  },
+  "recovery": {
+    "maxRetries": 1,
+    "stopConditions": [
+      "frozen report/input digest mismatch",
+      "owned output path dirty before lane start",
+      "source cannot resolve material claim"
+    ],
+    "returnFields": [
+      "changedPaths",
+      "checks",
+      "blockers",
+      "baselineRevision",
+      "patchDigest"
+    ]
+  }
+}

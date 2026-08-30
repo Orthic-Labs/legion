@@ -1,0 +1,27 @@
+{
+  "schema_version": 4,
+  "sha256": "15a8c1fe44665ddcf11ee48786623e29b10669abf6db8a29248b7a9f1cd298ab",
+  "referenced_artifacts": [
+    {
+      "path": "docs/foundation/2026-08-31/legion-independent-packet.md",
+      "sha256": "sha256:34218b5ffb8102d73242ff45805e1f5a0d78e78a2a8373eaa1cbd7f15b1fff1d"
+    },
+    {
+      "path": "AGENTS.md",
+      "sha256": "sha256:95a975072b3250fc814cb0ed9d2529966b6cdcfc52a54a00cf6cdd925999ae7e"
+    },
+    {
+      "path": "tools/skills/foundation/SKILL.md",
+      "sha256": "sha256:aeb9c4b5028dbbbddd48e684f9058caf722c2a127890ba57125662db95d1eaeb"
+    },
+    {
+      "path": "docs/foundation/2026-08-31/legion-independent-packet.md",
+      "sha256": "sha256:34218b5ffb8102d73242ff45805e1f5a0d78e78a2a8373eaa1cbd7f15b1fff1d"
+    }
+  ],
+  "authority_binding": {
+    "packet_sha256": "15a8c1fe44665ddcf11ee48786623e29b10669abf6db8a29248b7a9f1cd298ab",
+    "source_revision": "ad3d27c6d3d0d04fd7cb850416baa9793db6c9c4",
+    "prompt_digest": "sha256:34218b5ffb8102d73242ff45805e1f5a0d78e78a2a8373eaa1cbd7f15b1fff1d"
+  }
+}

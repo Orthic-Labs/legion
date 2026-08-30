@@ -28,6 +28,7 @@ Required delivery boundary: `RELEASED`.
 | GRD-010 | GRD-G03 | Guard | COMMITTED | Observe SubagentStop lifecycle without making dispatch itself an effect class. | DELIVERED | PENDING | PENDING | COMMITTED | EVIDENCE | PENDING |
 | GRD-011 | GRD-G01 | Guard | COMMITTED | Classify MCP write, send & delete tools through same typed effect gate. | DELIVERED | PENDING | PENDING | COMMITTED | EVIDENCE | PENDING |
 | GRD-012 | GRD-G03 | Guard | COMMITTED | Apply proportional Stop verification & require Oracle receipt only when typed requirement demands it. | DELIVERED | PENDING | PENDING | COMMITTED | EVIDENCE | PENDING |
+| GRD-013 | GRD-G02 | Guard | COMMITTED | Expose provider credentials only inside authorized execution scope & keep credential material out of public receipts. | UNKNOWN | PENDING | PENDING | LOCAL | RECONCILE | PENDING |
 
 ## Implementation register
 
@@ -42,7 +43,7 @@ Required delivery boundary: `RELEASED`.
 
 | ID | Capability targets | Acceptance boundary | State | Evidence | Material revision |
 |---|---|---|---|---|---|
-| GRD-Q001 | GRD-001, GRD-002, GRD-003, GRD-004, GRD-005, GRD-006, GRD-007, GRD-008, GRD-009, GRD-010, GRD-011, GRD-012 | Guard-AC-BOUNDARY-001: reconcile each observable through live consumer at RELEASED boundary | PENDING | NONE | LOCAL |
+| GRD-Q001 | GRD-001, GRD-002, GRD-003, GRD-004, GRD-005, GRD-006, GRD-007, GRD-008, GRD-009, GRD-010, GRD-011, GRD-012, GRD-013 | Guard-AC-BOUNDARY-001: reconcile each observable through live consumer at RELEASED boundary | PENDING | NONE | LOCAL |
 
 ## Decision register
 
@@ -50,3 +51,4 @@ Required delivery boundary: `RELEASED`.
 |---|---|---|---|---|---|
 | GRD-D001 | REFERENCE | GRD-001 | Guard owns deterministic effect enforcement & receipts; Arcane owns cognitive policy. | Root SSOT | RECORDED |
 | GRD-D002 | BACKLOG | — | Final public Guard naming remains deferred & does not change owner boundary. | Legacy tracker | DEFERRED |
+| GRD-D003 | REFERENCE | GRD-013 | Dual blind Foundation inventories identified execution-scoped credential isolation as distinct from generic effect classification. | `docs/foundation/2026-08-31/legion-reconciliation.md` | RECORDED |

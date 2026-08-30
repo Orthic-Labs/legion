@@ -7,9 +7,9 @@ import { atomicCanonTestHooks, validateAtomicCanons } from '../scripts/check-ato
 test('subsystem atomic canons preserve inventory & derive honest closure', () => {
   const result = validateAtomicCanons();
   assert.equal(result.canons, 8);
-  assert.equal(result.atoms, 96);
+  assert.equal(result.atoms, 109);
   assert.equal(result.closed, 0);
-  assert.equal(result.open, 96);
+  assert.equal(result.open, 109);
   assert.equal(result.trackerRows, 30);
   assert.equal(result.triageRows, 235);
   assert.equal(result.preservationRows, 275);

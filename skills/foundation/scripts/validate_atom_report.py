@@ -5,6 +5,8 @@ from __future__ import annotations
 
 import argparse
 import collections
+import datetime
+import hashlib
 import json
 import pathlib
 import re
@@ -14,6 +16,7 @@ import sys
 HEADERS = {
     "inventory": ["Platform", "Domain", "Atom", "Definition / boundary", "Source evidence"],
     "stage2": ["Scope", "Domain", "Atom", "Repository mechanisms", "Best observed", "Best combined", "Rationale / tradeoffs", "Source evidence"],
+    "stage3": ["Scope", "Domain", "Atom", "Current product", "Repository mechanisms", "Best observed", "Best combined", "Rationale / tradeoffs", "Source evidence"],
     "final": ["Scope", "Domain", "Atom", "Best observed", "Recommended implementation", "Why / tradeoffs", "Source evidence", "Confidence"],
 }
 
@@ -124,6 +127,52 @@ def parse_table(path: pathlib.Path, expected_header: list[str]) -> list[tuple[in
     return rows
 
 
+def sha256_file(path: pathlib.Path) -> str:
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def write_pass_receipt(
+    receipt_path: pathlib.Path,
+    report_path: pathlib.Path,
+    manifest_path: pathlib.Path | None,
+    mode: str,
+    expected_rows: int | None,
+    actual_rows: int,
+    output: str,
+) -> None:
+    validator_path = pathlib.Path(__file__).resolve()
+    report_path = report_path.resolve()
+    manifest_path = manifest_path.resolve() if manifest_path is not None else None
+    receipt_path = receipt_path.resolve()
+    protected = {validator_path, report_path}
+    if manifest_path is not None:
+        protected.add(manifest_path)
+    if receipt_path in protected:
+        raise ValueError("receipt path must differ from validator, report, and manifest")
+    if not receipt_path.parent.is_dir():
+        raise ValueError("receipt parent directory does not exist")
+
+    receipt = {
+        "schema_version": 1,
+        "producer": "validate_atom_report.py",
+        "result": "PASS",
+        "output": output,
+        "mode": mode,
+        "expected_rows": expected_rows,
+        "actual_rows": actual_rows,
+        "report": {"path": report_path.as_posix(), "sha256": sha256_file(report_path)},
+        "manifest": (
+            {"path": manifest_path.as_posix(), "sha256": sha256_file(manifest_path)}
+            if manifest_path is not None
+            else None
+        ),
+        "validator": {"path": validator_path.as_posix(), "sha256": sha256_file(validator_path)},
+        "argv": list(sys.argv[1:]),
+        "generated_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+    }
+    receipt_path.write_text(json.dumps(receipt, indent=2) + "\n", encoding="utf-8")
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("report", type=pathlib.Path)
@@ -131,6 +180,7 @@ def main() -> int:
     parser.add_argument("--expected-rows", type=int)
     parser.add_argument("--max-repeat", type=int, default=8)
     parser.add_argument("--manifest", type=pathlib.Path)
+    parser.add_argument("--write-receipt", type=pathlib.Path)
     args = parser.parse_args()
 
     errors: list[str] = []
@@ -190,7 +240,7 @@ def main() -> int:
                     f"line {line_number}: `{cells[index['Atom']]}` recommendation lacks semantic signature: {expected}"
                 )
 
-        if args.mode == "stage2" and scope_repos:
+        if args.mode in {"stage2", "stage3"} and scope_repos:
             scope = cells[index["Scope"]]
             expected_repos = scope_repos.get(scope)
             if expected_repos is None:
@@ -245,7 +295,24 @@ def main() -> int:
             print(f"- {issue}")
         return 1
 
-    print(f"PASS: {args.report} ({len(rows)} rows, mode={args.mode})")
+    output = f"PASS: {args.report} ({len(rows)} rows, mode={args.mode})"
+    if args.write_receipt is not None:
+        try:
+            write_pass_receipt(
+                args.write_receipt,
+                args.report,
+                args.manifest,
+                args.mode,
+                args.expected_rows,
+                len(rows),
+                output,
+            )
+        except (OSError, ValueError) as exc:
+            print(f"FAIL: could not write PASS receipt: {exc}")
+            return 1
+    print(output)
+    if args.write_receipt is not None:
+        print(f"RECEIPT: {args.write_receipt}")
     return 0
 
 

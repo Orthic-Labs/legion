@@ -120,6 +120,20 @@ test('naming checker rejects dead exact-path & unused token exemptions', () => {
   } finally { rmSync(fixture, { recursive: true, force: true }); }
 });
 
+test('naming checker ignores immutable Foundation evidence artifacts', () => {
+  const fixture = namingFixture();
+  try {
+    const reportPath = join(fixture, 'docs', 'foundation', 'comparison.md');
+    mkdirSync(dirname(reportPath), { recursive: true });
+    writeFileSync(reportPath, 'Donor evidence may use historical tokens such as sentinel or seer.\n');
+    const report = checkCanonicalNames({ root: fixture });
+    assert.equal(
+      report.unclassified.filter(({ path }) => path.startsWith('docs/foundation/')).length,
+      0,
+    );
+  } finally { rmSync(fixture, { recursive: true, force: true }); }
+});
+
 test('repository has no unclassified legacy naming', () => {
   assert.deepEqual(checkCanonicalNames({ root }).unclassified, []);
 });

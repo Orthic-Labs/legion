@@ -1,0 +1,76 @@
+{
+  "schema_version": 2,
+  "product": "Legion",
+  "stage": 3,
+  "frozen_at": "2026-08-31",
+  "current_product": {
+    "repository": "legion_current",
+    "base_revision": "ad3d27c6d3d0d04fd7cb850416baa9793db6c9c4",
+    "operative_diff_git_blob": "2200f46733c67328e3158cd0062d8a376eb39dba",
+    "operative_dirty_paths": ["skills/dispatch/SKILL.md"],
+    "canon_rows": 109,
+    "canon_files_sha256": {
+      "docs/canon/alchemist.md": "bf0b393e7ac05664d3bc01b23b746561251c47a8d52cc5b7fc5c404c86920732",
+      "docs/canon/arcane.md": "9e35aaf0a4547a5e2c1861d1e8bce2adcfb2448bbac04109567acfbe3d05833d",
+      "docs/canon/covenant.md": "45f3d5d18a25c4a5728d8d2ef90413a17b8a694b33965c5a473bce5d70d3b0d1",
+      "docs/canon/guard.md": "7af596680839b0c58021d8b6cdd084dcd114b48de291d1f8835fe454249cfb8f",
+      "docs/canon/legion.md": "fad999a47f5f65c0d4b535067901442926e21cd803c7c849fef9a73d64231464",
+      "docs/canon/oracle.md": "272a46f5c601ab6356763d98be6be897b72f09ac58c9ceccba766131f85a800e",
+      "docs/canon/sage.md": "40009f0e3c94deb9d8fe9058787bce834b0287f24b30b0d7036a88ea93bf3f5b",
+      "docs/canon/skills.md": "67bbe660d8f6127babd5550ad446a83bcf7b6fbe4973cb7b66a9a84f6f768431"
+    }
+  },
+  "repo_roots": {
+    "legion_current": "D:/Claude/legion",
+    "addyosmani__agent-skills": "//192.168.1.7/d/claude/repos/legion/addyosmani__agent-skills",
+    "Agent-Field__agentfield": "//192.168.1.7/d/claude/repos/legion/Agent-Field__agentfield",
+    "Agent-Field__SWE-AF": "//192.168.1.7/d/claude/repos/legion/Agent-Field__SWE-AF",
+    "anthropics__claude-code": "//192.168.1.7/d/claude/repos/legion/anthropics__claude-code",
+    "ArabelaTso__Coding-Skills-Collection": "//192.168.1.7/d/claude/repos/legion/ArabelaTso__Coding-Skills-Collection",
+    "coderabbitai__skills": "//192.168.1.7/d/claude/repos/legion/coderabbitai__skills",
+    "EricGrill__agents-skills-plugins": "//192.168.1.7/d/claude/repos/legion/EricGrill__agents-skills-plugins",
+    "garrytan__gstack": "//192.168.1.7/d/claude/repos/legion/garrytan__gstack",
+    "instructa__agent-skills": "//192.168.1.7/d/claude/repos/legion/instructa__agent-skills",
+    "LambdaTest__agent-skills": "//192.168.1.7/d/claude/repos/legion/LambdaTest__agent-skills",
+    "mattpocock__skills": "//192.168.1.7/d/claude/repos/legion/mattpocock__skills",
+    "NeoLabHQ__context-engineering-kit": "//192.168.1.7/d/claude/repos/legion/NeoLabHQ__context-engineering-kit",
+    "obra__superpowers": "//192.168.1.7/d/claude/repos/legion/obra__superpowers",
+    "SWE-agent__mini-swe-agent": "//192.168.1.7/d/claude/repos/legion/SWE-agent__mini-swe-agent",
+    "swe-agent__swe-agent": "//192.168.1.7/d/claude/repos/legion/swe-agent__swe-agent",
+    "testdino-hq__playwright-skill": "//192.168.1.7/d/claude/repos/legion/testdino-hq__playwright-skill",
+    "trailofbits__skills": "//192.168.1.7/d/claude/repos/legion/trailofbits__skills",
+    "VoltAgent__awesome-agent-skills": "//192.168.1.7/d/claude/repos/legion/VoltAgent__awesome-agent-skills"
+  },
+  "scope_repos": {
+    "Legion": [
+      "legion_current", "addyosmani__agent-skills", "Agent-Field__agentfield", "Agent-Field__SWE-AF",
+      "anthropics__claude-code", "ArabelaTso__Coding-Skills-Collection", "coderabbitai__skills",
+      "EricGrill__agents-skills-plugins", "garrytan__gstack", "instructa__agent-skills",
+      "LambdaTest__agent-skills", "mattpocock__skills", "NeoLabHQ__context-engineering-kit",
+      "obra__superpowers", "SWE-agent__mini-swe-agent", "swe-agent__swe-agent",
+      "testdino-hq__playwright-skill", "trailofbits__skills", "VoltAgent__awesome-agent-skills"
+    ]
+  },
+  "commits": {
+    "legion_current": "ad3d27c6d3d0d04fd7cb850416baa9793db6c9c4+worktree:2200f46733c67328e3158cd0062d8a376eb39dba",
+    "addyosmani__agent-skills": "d2c37ef6225dd8726cdd369a8030307f48592d26",
+    "Agent-Field__agentfield": "8bc5e808b1481554628f14fdc98c72e3ad89fb32",
+    "Agent-Field__SWE-AF": "0c64fe7cc4fc216f4d32d0b855015509750eb4aa",
+    "anthropics__claude-code": "f1af9b1f4b1fd4c776135381606edada82ef638e",
+    "ArabelaTso__Coding-Skills-Collection": "e66a625f0dd4e3ce2cdcf7ddcc81eec89b237bf4",
+    "coderabbitai__skills": "aa49953c4cb2590e35480637b1b6a29cf4187cfa",
+    "EricGrill__agents-skills-plugins": "43a037fd7952cc5205bafe146f33369e518e528b",
+    "garrytan__gstack": "07b59e396c6be5a86619a43151cb9ed62a15ae69",
+    "instructa__agent-skills": "7e90526cebf7fa6d15bab3260061d1ca383225b3",
+    "LambdaTest__agent-skills": "0491a3a29aa18558d2c3c64ff09367adb976c56f",
+    "mattpocock__skills": "6654f6b60cd9d5be8b54c6fafe44346dabeb3b76",
+    "NeoLabHQ__context-engineering-kit": "23e2428e809d77717f8acc9659c374a3a1fcb93e",
+    "obra__superpowers": "b36e0829c6d0140e93cfef2ca599b1b07d4a7797",
+    "SWE-agent__mini-swe-agent": "25941c89cfbc91eb40b3f8756348c91d9977d57e",
+    "swe-agent__swe-agent": "3ea751c087f32b16e039a2233dd6eefecef325d5",
+    "testdino-hq__playwright-skill": "d3be9ca4d7303e2aee3eba4842963abf573117b0",
+    "trailofbits__skills": "d1f1575cff97816e5cc08af66cd2506099c681d3",
+    "VoltAgent__awesome-agent-skills": "5e1f3aebcf5de90b5b11fb35a607f95bdddf987e"
+  },
+  "stop_reason": "Stage 3 reuses Foundation Stage 1 frozen 18-repository supplied corpus & adds current Legion worktree as comparison baseline. No corpus discovery occurs during comparison."
+}

@@ -1,0 +1,24 @@
+{
+  "schema_version": 1,
+  "product": "Legion",
+  "scope": "109 committed canon atoms across Legion, Sage, Alchemist, Oracle, Arcane, Guard, Covenant & Skills",
+  "target": {
+    "base_revision": "ad3d27c6d3d0d04fd7cb850416baa9793db6c9c4",
+    "operative_diff_git_blob": "2200f46733c67328e3158cd0062d8a376eb39dba"
+  },
+  "corpus_manifest_sha256": "cef763330e8f9612d63389d10af60208de06bbcdb12f8f3d64262bc9de6951fe",
+  "independent_reports": {
+    "A": "02b3668b766469cd14621ed5ad445dd659e5efea7cd18779a4baa7dbed54fb5a",
+    "B": "0a91542d1e023aa0b7ca4b2a655215abf9e4042a0705f9d429be2e3c85f76a0b"
+  },
+  "stage3_validation_receipts": {
+    "A": "2d5d68d07b9ccb2dd8ef324b17b68d04a5bf5eea40ecf27b725d2c89f01e3ec4",
+    "B": "1db29ba052b072aad3e444793c7357aff41af991d1320aaf3acb26dd6d26a14a"
+  },
+  "consolidation_sha256": "9600b971481a54a6c4a11057540eebdcc8c34f94f569084143c6fb0504275665",
+  "reconciliation_sha256": "26cfa6026810abd213a17189008d50aeea825871116ca8608ae183ff571c4be1",
+  "result": {"requested_atoms": 109, "evaluated_atoms": 109, "dirty_resolved": 106, "dirty_unresolved": 0, "material_gaps": ["LEG-021"], "new_atoms": []},
+  "exclusions": ["No-proven-winner rows are not gaps", "Mechanisms outside frozen corpus", "Implementation & closure work"],
+  "protocol": "D:/Claude/tools/skills/foundation",
+  "freshness": "2026-08-31"
+}

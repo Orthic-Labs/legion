@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "producer": "validate_atom_report.py",
+  "result": "PASS",
+  "output": "PASS: docs\\foundation\\2026-08-31\\legion-stage3-pass-a.md (109 rows, mode=stage3)",
+  "mode": "stage3",
+  "expected_rows": 109,
+  "actual_rows": 109,
+  "report": {
+    "path": "D:/Claude/legion/docs/foundation/2026-08-31/legion-stage3-pass-a.md",
+    "sha256": "02b3668b766469cd14621ed5ad445dd659e5efea7cd18779a4baa7dbed54fb5a"
+  },
+  "manifest": {
+    "path": "D:/Claude/legion/docs/foundation/2026-08-31/legion-stage3-corpus.json",
+    "sha256": "cef763330e8f9612d63389d10af60208de06bbcdb12f8f3d64262bc9de6951fe"
+  },
+  "validator": {
+    "path": "D:/Claude/legion/skills/foundation/scripts/validate_atom_report.py",
+    "sha256": "2ddba8ad232f5763f90aeff5d521c4533116b647da5a01dfcb274e5cd60bd739"
+  },
+  "argv": [
+    "docs/foundation/2026-08-31/legion-stage3-pass-a.md",
+    "--mode",
+    "stage3",
+    "--expected-rows",
+    "109",
+    "--manifest",
+    "docs/foundation/2026-08-31/legion-stage3-corpus.json",
+    "--write-receipt",
+    "docs/foundation/2026-08-31/legion-stage3-pass-a.validation.json"
+  ],
+  "generated_at": "2026-08-30T23:11:19.014379+00:00"
+}

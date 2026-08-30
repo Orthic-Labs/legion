@@ -1,0 +1,5 @@
+# Legion Stage 5 gap handoff
+
+| Atom ID | Deficit | Scope / promotion | Recommended behavior | Evidence | Reuse disposition | Acceptance / qualification boundary |
+|---|---|---|---|---|---|---|
+| LEG-021 | Current canon is `UNKNOWN`/`LOCAL`; frozen current surface proves no executor-action normalizer or malformed-output correction consumer. | Existing `COMMITTED` atom; no new atom. | Parse → normalize → validate before effects; return parser-specific correction guidance; cap correction attempts; terminate malformed output explicitly; pass valid normalized action once. | `legion-stage3-reconciliation.md` SHA-256 `26cfa6026810abd213a17189008d50aeea825871116ca8608ae183ff571c4be1`; donor `swe-agent__swe-agent/sweagent/agent/agents.py#DefaultAgent.forward/forward_with_handling`. | `BEHAVIORAL_REIMPLEMENT` under MIT evidence in Stage 4 ledger. | Zero effects for malformed output; correction includes parser error + prior output; valid action reaches handler once; bounded limit yields explicit terminal failure; executor-neutral contract; focused tests + PUSHED qualification. |

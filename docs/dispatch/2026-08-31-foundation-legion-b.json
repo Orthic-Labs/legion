@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "kind": "legion-authority-dispatch",
+  "packetType": "direct",
+  "repositoryRoot": "D:/Claude/legion",
+  "sourceRevision": "ad3d27c6d3d0d04fd7cb850416baa9793db6c9c4",
+  "sourceArtifact": "docs/foundation/2026-08-31/legion-corpus.json",
+  "promptArtifact": "docs/foundation/2026-08-31/legion-independent-packet.md",
+  "promptDigest": "sha256:34218b5ffb8102d73242ff45805e1f5a0d78e78a2a8373eaa1cbd7f15b1fff1d",
+  "modelRouting": {"modelTier": "SOL", "workerProfile": "foundation-independent-source-inventory", "routingRationale": "User requires 2 independent Sol passes; this lane owns Legion pass B only."},
+  "objective": "Produce blind Foundation source inventory B for frozen Legion corpus without reading sibling/prior inventories or current canon.",
+  "authority": ["AGENTS.md", "D:/Claude/tools/skills/foundation/SKILL.md", "docs/foundation/2026-08-31/legion-independent-packet.md"],
+  "integrationOwner": "Legion root agent in D:/Claude/legion",
+  "fileTouchPolicy": {"mode": "once-end-to-end", "plannedFiles": ["docs/foundation/2026-08-31/legion-pass-b.md"], "allowUnplannedFiles": false, "ledger": [{"path": "docs/foundation/2026-08-31/legion-pass-b.md", "owner": "legion-pass-b", "operation": "create", "lane": "legion-pass-b", "finalCheck": "integration owner validates Foundation inventory & source citations"}]},
+  "sourcePortPolicy": {"applicable": false, "sourceImplementation": null, "sourceInventory": [], "directPortFirst": true, "targetLanguage": null, "rustTargetRequiresRustPort": true, "handRollReplacementWhileSourceExists": false},
+  "workerPolicy": {"mode": "edit-only", "mayInspectReadPaths": true, "mayEditAllowlistOnly": true, "forbiddenActions": ["cargo", "tests", "builds", "generators", "installs", "commits", "pushes", "merges", "expensive-checks"], "intendedChecksRecordedFor": "integration owner"},
+  "integrationPolicy": {"owner": "Legion root agent", "soleMerger": true, "runsCheckpoints": true, "mayRepairLaneOwnedFiles": false, "repairAction": "return repair to legion-pass-b or redesign packet"},
+  "dispatches": [{"id": "A", "dependsOn": [], "lanes": ["legion-pass-b"], "completionChecks": ["integration owner validates inventory, paths, semantic evidence, coverage & receipt"]}],
+  "workers": [{"id": "legion-pass-b", "dispatch": "A", "executorRequirement": {"semanticRequirement": "required", "capabilities": ["foundation", "source-inspection"], "effects": ["source-read", "artifact-write"], "authorityCeiling": ["workspace"], "completion": [{"kind": "exact-check", "id": "legion-inventory-b"}], "escalation": {"permittedOn": ["ambiguous", "observation_unavailable"], "forbiddenOn": ["denied"]}}, "allowlist": ["docs/foundation/2026-08-31/legion-pass-b.md"], "read": ["docs/foundation/2026-08-31/legion-corpus.json", "docs/foundation/2026-08-31/legion-independent-packet.md", "external-corpus/legion"], "forbidden": [".git", "docs/canon", "docs/pending", "docs/foundation/2026-08-31/legion-pass-a.md", "docs/foundation/2026-08-31/membrane-pass-a.md", "docs/foundation/2026-08-31/membrane-pass-b.md"], "checks": ["integration owner runs validate_atom_report.py --mode inventory & source-semantic sampling"], "dependencies": []}],
+  "oracleAudit": {"required": true, "mode": "adversarial", "status": "required-before-execution", "checks": ["allowlist-completeness", "lane-disjointness", "dependency-validity", "maximum-safe-parallelization", "end-to-end-lane-closure", "direct-port-priority", "worker-edit-only", "integration-owner-checkpoints", "exact-byte-review-pass"]},
+  "recovery": {"maxRetries": 1, "stopConditions": ["owned report path is already dirty", "frozen corpus path or commit is unavailable", "source-only evidence cannot establish claim"], "returnFields": ["changedPaths", "checks", "blockers", "baselineRevision", "patchDigest"]}
+}

@@ -1,0 +1,538 @@
+{
+  "schema_version": 1,
+  "source_reports": {
+    "A": "02b3668b766469cd14621ed5ad445dd659e5efea7cd18779a4baa7dbed54fb5a",
+    "B": "0a91542d1e023aa0b7ca4b2a655215abf9e4042a0705f9d429be2e3c85f76a0b"
+  },
+  "files": [
+    {
+      "repository": "Agent-Field__agentfield",
+      "relative_path": "control-plane/cmd/agentfield-server/main.go",
+      "absolute_path": "//192.168.1.7/d/claude/repos/legion/Agent-Field__agentfield/control-plane/cmd/agentfield-server/main.go",
+      "sha256": "e63009a23e46a47ad2e8bc820ed68e4391402b9d006ce8b8b96b6b79c20911bc",
+      "symbols": [
+        "runServer/finishShutdown"
+      ],
+      "reports": [
+        "b"
+      ]
+    },
+    {
+      "repository": "Agent-Field__agentfield",
+      "relative_path": "control-plane/internal/handlers/execute_approval.go",
+      "absolute_path": "//192.168.1.7/d/claude/repos/legion/Agent-Field__agentfield/control-plane/internal/handlers/execute_approval.go",
+      "sha256": "cf7abaf59291cb11f8f52f30c5607699296d41268be93937c7dbb4f5e5d682cc",
+      "symbols": [
+        "RequestApprovalHandler"
+      ],
+      "reports": [
+        "b"
+      ]
+    },
+    {
+      "repository": "Agent-Field__agentfield",
+      "relative_path": "control-plane/internal/handlers/usage_ingest.go",
+      "absolute_path": "//192.168.1.7/d/claude/repos/legion/Agent-Field__agentfield/control-plane/internal/handlers/usage_ingest.go",
+      "sha256": "876494bfb127dd149e3d5789c20aac1b2992f769b9a08f40baeeb77c01a8da64",
+      "symbols": [
+        "ingestUsage/parseUsageEntries"
+      ],
+      "reports": [
+        "b"
+      ]
+    },
+    {
+      "repository": "Agent-Field__agentfield",
+      "relative_path": "control-plane/internal/services/did_registry.go",
+      "absolute_path": "//192.168.1.7/d/claude/repos/legion/Agent-Field__agentfield/control-plane/internal/services/did_registry.go",
+      "sha256": "c07f10670bf2f2f5a94c6ca338c665dda3a642004d4ece34d74fc072bd14b231",
+      "symbols": [
+        "DIDRegistry"
+      ],
+      "reports": [
+        "b"
+      ]
+    },
+    {
+      "repository": "Agent-Field__agentfield",
+      "relative_path": "control-plane/internal/services/trigger_dispatcher.go",
+      "absolute_path": "//192.168.1.7/d/claude/repos/legion/Agent-Field__agentfield/control-plane/internal/services/trigger_dispatcher.go",
+      "sha256": "9ec9c08362c169a871eb0bce7200f2e76eaf33b6ab9c31bb1b4aaa3dc6979209",
+      "symbols": [
+        "DispatchEvent"
+      ],
+      "reports": [
+        "b"
+      ]
+    },
+    {
+      "repository": "Agent-Field__agentfield",
+      "relative_path": "control-plane/internal/services/webhook_dispatcher.go",
+      "absolute_path": "//192.168.1.7/d/claude/repos/legion/Agent-Field__agentfield/control-plane/internal/services/webhook_dispatcher.go",
+      "sha256": "1a696aa6a5dbac3cdb379874a6f8f7bc604bf33015a0a0ebef25f49583f0e589",
+      "symbols": [
+        "Start/process/computeBackoff"
+      ],
+      "reports": [
+        "b"
+      ]
+    },
+    {
+      "repository": "Agent-Field__agentfield",
+      "relative_path": "control-plane/pkg/types/execution.go",
+      "absolute_path": "//192.168.1.7/d/claude/repos/legion/Agent-Field__agentfield/control-plane/pkg/types/execution.go",
+      "sha256": "e3067f1118bd8087474d5a1ff1f0bf7fada95aa67d062fefbd2d0fb937de6748",
+      "symbols": [
+        "Execution/BuildExecutionGraph"
+      ],
+      "reports": [
+        "b"
+      ]
+    },
+    {
+      "repository": "Agent-Field__SWE-AF",
+      "relative_path": "swe_af/execution/dag_executor.py",
+      "absolute_path": "//192.168.1.7/d/claude/repos/legion/Agent-Field__SWE-AF/swe_af/execution/dag_executor.py",
+      "sha256": "d9ae3150ca813612679282ed0a9be3c150418f6ddfc4fc9aa5457fd42954980b",
+      "symbols": [
+        "_save_checkpoint/_load_checkpoint",
+        "run_dag"
+      ],
+      "reports": [
+        "b"
+      ]
+    },
+    {
+      "repository": "Agent-Field__SWE-AF",
+      "relative_path": "swe_af/hitl/ask_user.py",
+      "absolute_path": "//192.168.1.7/d/claude/repos/legion/Agent-Field__SWE-AF/swe_af/hitl/ask_user.py",
+      "sha256": "8fb1216bc045edc9cdf175366593d882bb3b770d1f2b252ad254542cdb5fef21",
+      "symbols": [
+        "request_user_input_and_pause"
+      ],
+      "reports": [
+        "b"
+      ]
+    },
+    {
+      "repository": "Agent-Field__SWE-AF",
+      "relative_path": "swe_af/hitl/credentials_store.py",
+      "absolute_path": "//192.168.1.7/d/claude/repos/legion/Agent-Field__SWE-AF/swe_af/hitl/credentials_store.py",
+      "sha256": "3fe45e3a2ae64d07ff113673132c24a7f17bb758da4d7fd121987bbac1ef60ac",
+      "symbols": [
+        "store_scoped_credentials/inject_credentials_into_env/clear_scoped_credentials"
+      ],
+      "reports": [
+        "b"
+      ]
+    },
+    {
+      "repository": "legion_current",
+      "relative_path": "doctrine/alchemist.md",
+      "absolute_path": "D:/Claude/legion/doctrine/alchemist.md",
+      "sha256": "a22bb9a889881b820aed684d50fdc84a942e9ddb39cd790922cd99dff75d7f85",
+      "symbols": [
+        "Execution loop"
+      ],
+      "reports": [
+        "b"
+      ]
+    },
+    {
+      "repository": "legion_current",
+      "relative_path": "doctrine/oracle.md",
+      "absolute_path": "D:/Claude/legion/doctrine/oracle.md",
+      "sha256": "20053c1d2b109b1390f5e20f99ac49a5aa442669141eee7a91c7bd5a3d26c298",
+      "symbols": [
+        "Completion Validation"
+      ],
+      "reports": [
+        "b"
+      ]
+    },
+    {
+      "repository": "legion_current",
+      "relative_path": "doctrine/sage.md",
+      "absolute_path": "D:/Claude/legion/doctrine/sage.md",
+      "sha256": "a3dec495e9720c8e419b6a4a675b5ad11260ec9af95480a656d70dc46bdd4e20",
+      "symbols": [
+        "Adjudication method"
+      ],
+      "reports": [
+        "b"
+      ]
+    },
+    {
+      "repository": "legion_current",
+      "relative_path": "engine/bins/legion-hook/src/main.rs",
+      "absolute_path": "D:/Claude/legion/engine/bins/legion-hook/src/main.rs",
+      "sha256": "c9f09609c8859170fca946387053b50e649c104f19e092136571f496804761da",
+      "symbols": [
+        "dispatch_inner"
+      ],
+      "reports": [
+        "b"
+      ]
+    },
+    {
+      "repository": "legion_current",
+      "relative_path": "engine/crates/legion-catalog/src/catalog.rs",
+      "absolute_path": "D:/Claude/legion/engine/crates/legion-catalog/src/catalog.rs",
+      "sha256": "83d21b66a130481e43474fa0b8242d501febe1e97ba844eb2935d8db7ae7f33a",
+      "symbols": [
+        "CompactCatalog::resolve_body"
+      ],
+      "reports": [
+        "b"
+      ]
+    },
+    {
+      "repository": "legion_current",
+      "relative_path": "engine/crates/legion-contracts/src/plan.rs",
+      "absolute_path": "D:/Claude/legion/engine/crates/legion-contracts/src/plan.rs",
+      "sha256": "2bfe090d169f5c359cfddc73c0bb9183f0e845641ef04bf430be83c84268d6ed",
+      "symbols": [
+        "ExecutionRequirementV1"
+      ],
+      "reports": [
+        "b"
+      ]
+    },
+    {
+      "repository": "legion_current",
+      "relative_path": "scripts/generate-host-projection.mjs",
+      "absolute_path": "D:/Claude/legion/scripts/generate-host-projection.mjs",
+      "sha256": "88d9aa9d13d0c0bdfce18483bb5a870506fada1ded89be8c702e17a966390efc",
+      "symbols": [
+        "buildProjection"
+      ],
+      "reports": [
+        "b"
+      ]
+    },
+    {
+      "repository": "legion_current",
+      "relative_path": "scripts/generate-skill-catalog.mjs",
+      "absolute_path": "D:/Claude/legion/scripts/generate-skill-catalog.mjs",
+      "sha256": "27c1f0c81b53a9e79e002c84178cd4636350b98f0a5dd58fb19b714b25a6420a",
+      "symbols": [
+        "buildSkillCatalog"
+      ],
+      "reports": [
+        "b"
+      ]
+    },
+    {
+      "repository": "legion_current",
+      "relative_path": "skills/ads/SKILL.md",
+      "absolute_path": "D:/Claude/legion/skills/ads/SKILL.md",
+      "sha256": "17a8e4978978ddea7a054e92e744a761813179d3e0cefeaec32f83c40cff1f11",
+      "symbols": [
+        "frontmatter"
+      ],
+      "reports": [
+        "b"
+      ]
+    },
+    {
+      "repository": "legion_current",
+      "relative_path": "skills/alchemist/SKILL.md",
+      "absolute_path": "D:/Claude/legion/skills/alchemist/SKILL.md",
+      "sha256": "50701ff93798db3f723740798ecc0679d6efd62281533897b17ede4a16c8c56a",
+      "symbols": [
+        "frontmatter"
+      ],
+      "reports": [
+        "b"
+      ]
+    },
+    {
+      "repository": "legion_current",
+      "relative_path": "skills/audit-fix/SKILL.md",
+      "absolute_path": "D:/Claude/legion/skills/audit-fix/SKILL.md",
+      "sha256": "d9868d7ed77e625dc9c6e6dc151a1e423b610e16e5a7f72229a239f20e31b089",
+      "symbols": [
+        "frontmatter"
+      ],
+      "reports": [
+        "b"
+      ]
+    },
+    {
+      "repository": "legion_current",
+      "relative_path": "skills/audit-visual/SKILL.md",
+      "absolute_path": "D:/Claude/legion/skills/audit-visual/SKILL.md",
+      "sha256": "ac8d4255e62d6873b699159e28d25d8cfbffae0715e8ec7e642316423d08bd9d",
+      "symbols": [
+        "frontmatter"
+      ],
+      "reports": [
+        "b"
+      ]
+    },
+    {
+      "repository": "legion_current",
+      "relative_path": "skills/brand/SKILL.md",
+      "absolute_path": "D:/Claude/legion/skills/brand/SKILL.md",
+      "sha256": "c7b76950cc5103ecf64e3b333e156b303886b0c2f6bcd0bc43f9df94ab89a290",
+      "symbols": [
+        "frontmatter"
+      ],
+      "reports": [
+        "b"
+      ]
+    },
+    {
+      "repository": "legion_current",
+      "relative_path": "skills/coder/SKILL.md",
+      "absolute_path": "D:/Claude/legion/skills/coder/SKILL.md",
+      "sha256": "91fe6b3fa3bc30f3fc81465ff3bb5a40869799ad391621ab521dbf69a647a08a",
+      "symbols": [
+        "frontmatter"
+      ],
+      "reports": [
+        "b"
+      ]
+    },
+    {
+      "repository": "legion_current",
+      "relative_path": "skills/commit/SKILL.md",
+      "absolute_path": "D:/Claude/legion/skills/commit/SKILL.md",
+      "sha256": "de7c0dc0dfe1091275d2be22776083c7a0518315672583f37aaccb2236ea51fb",
+      "symbols": [
+        "frontmatter"
+      ],
+      "reports": [
+        "b"
+      ]
+    },
+    {
+      "repository": "legion_current",
+      "relative_path": "skills/covenant/lib/flows.mjs",
+      "absolute_path": "D:/Claude/legion/skills/covenant/lib/flows.mjs",
+      "sha256": "23c683d4bb79b830809b97f905de34ce25662a17acfadab1fb55a78d0f37d41b",
+      "symbols": [
+        "runSeats"
+      ],
+      "reports": [
+        "b"
+      ]
+    },
+    {
+      "repository": "legion_current",
+      "relative_path": "skills/covenant/SKILL.md",
+      "absolute_path": "D:/Claude/legion/skills/covenant/SKILL.md",
+      "sha256": "fa7f46eb01af72a07ceb989f9b163365ca02ec2562a04187004edce8e1ae6543",
+      "symbols": [
+        "frontmatter"
+      ],
+      "reports": [
+        "b"
+      ]
+    },
+    {
+      "repository": "legion_current",
+      "relative_path": "skills/designer/SKILL.md",
+      "absolute_path": "D:/Claude/legion/skills/designer/SKILL.md",
+      "sha256": "8452c67ca6a897a2c50bcbc30449a039cec790d9e3dfc5d369e5ad6c125ad00b",
+      "symbols": [
+        "frontmatter"
+      ],
+      "reports": [
+        "b"
+      ]
+    },
+    {
+      "repository": "legion_current",
+      "relative_path": "skills/dispatch/SKILL.md",
+      "absolute_path": "D:/Claude/legion/skills/dispatch/SKILL.md",
+      "sha256": "593ec1dadff9bf6bb48f954daf077736c37d5072e3d705d56167543a8c236698",
+      "symbols": [
+        "frontmatter"
+      ],
+      "reports": [
+        "b"
+      ]
+    },
+    {
+      "repository": "legion_current",
+      "relative_path": "skills/foundation/SKILL.md",
+      "absolute_path": "D:/Claude/legion/skills/foundation/SKILL.md",
+      "sha256": "6bd62d39f8281dcca0daa4f263b7d07627d2417335e5eeb40ed809d401d9668e",
+      "symbols": [
+        "frontmatter"
+      ],
+      "reports": [
+        "b"
+      ]
+    },
+    {
+      "repository": "legion_current",
+      "relative_path": "skills/gotchas/SKILL.md",
+      "absolute_path": "D:/Claude/legion/skills/gotchas/SKILL.md",
+      "sha256": "17f70d1668bdcb3cf26ad9f5d777ba9e3f4085f64c3892e50ec0365de3583897",
+      "symbols": [
+        "frontmatter"
+      ],
+      "reports": [
+        "b"
+      ]
+    },
+    {
+      "repository": "legion_current",
+      "relative_path": "skills/handoff/SKILL.md",
+      "absolute_path": "D:/Claude/legion/skills/handoff/SKILL.md",
+      "sha256": "b47112831986436dc30e5d9fe6ca00f2492cf5ef80c3dbf1760647040d142220",
+      "symbols": [
+        "frontmatter"
+      ],
+      "reports": [
+        "b"
+      ]
+    },
+    {
+      "repository": "legion_current",
+      "relative_path": "skills/marketing/SKILL.md",
+      "absolute_path": "D:/Claude/legion/skills/marketing/SKILL.md",
+      "sha256": "af2f2472c85ae069221d24b989e0ee303a5c0ff9940652d09c3a1c08d532bf01",
+      "symbols": [
+        "frontmatter"
+      ],
+      "reports": [
+        "b"
+      ]
+    },
+    {
+      "repository": "legion_current",
+      "relative_path": "skills/oracle/SKILL.md",
+      "absolute_path": "D:/Claude/legion/skills/oracle/SKILL.md",
+      "sha256": "7374424db67233fc73f2744111681d5195067fa019e0948397ad172eb5bb3f4c",
+      "symbols": [
+        "frontmatter"
+      ],
+      "reports": [
+        "b"
+      ]
+    },
+    {
+      "repository": "legion_current",
+      "relative_path": "skills/qa/SKILL.md",
+      "absolute_path": "D:/Claude/legion/skills/qa/SKILL.md",
+      "sha256": "7a0cd791b04d6b9d86a3dc93b4704a10253f5eb01e8cc4ff028f9b9c70bf2892",
+      "symbols": [
+        "frontmatter"
+      ],
+      "reports": [
+        "b"
+      ]
+    },
+    {
+      "repository": "legion_current",
+      "relative_path": "skills/research/SKILL.md",
+      "absolute_path": "D:/Claude/legion/skills/research/SKILL.md",
+      "sha256": "70d5db3035cd5567c0ea30e9ba8eea67f84b022893855589b5ad1eaf1c4ac6e0",
+      "symbols": [
+        "frontmatter"
+      ],
+      "reports": [
+        "b"
+      ]
+    },
+    {
+      "repository": "legion_current",
+      "relative_path": "skills/seo/SKILL.md",
+      "absolute_path": "D:/Claude/legion/skills/seo/SKILL.md",
+      "sha256": "b4c7d2f738d562c57ed5406ba2681f5bfb1fed50f6deeff3b8753edbd02ce918",
+      "symbols": [
+        "frontmatter"
+      ],
+      "reports": [
+        "b"
+      ]
+    },
+    {
+      "repository": "legion_current",
+      "relative_path": "skills/social/SKILL.md",
+      "absolute_path": "D:/Claude/legion/skills/social/SKILL.md",
+      "sha256": "eeaf73228b3979045e267ed96513717a5304f4e0912a23f71e7c04d86160b90d",
+      "symbols": [
+        "frontmatter"
+      ],
+      "reports": [
+        "b"
+      ]
+    },
+    {
+      "repository": "legion_current",
+      "relative_path": "skills/tasklist/SKILL.md",
+      "absolute_path": "D:/Claude/legion/skills/tasklist/SKILL.md",
+      "sha256": "9fb6ebbe3c80445f0e359d3954faaffe52c4ec7723a5a5fcb5cdeb4ce4a3f837",
+      "symbols": [
+        "frontmatter"
+      ],
+      "reports": [
+        "b"
+      ]
+    },
+    {
+      "repository": "legion_current",
+      "relative_path": "skills/wake/SKILL.md",
+      "absolute_path": "D:/Claude/legion/skills/wake/SKILL.md",
+      "sha256": "d1b0f622743cdda171e81cc22f86ba143d4e5d2d3a3bddfef4c0a4c3486b86d6",
+      "symbols": [
+        "frontmatter"
+      ],
+      "reports": [
+        "b"
+      ]
+    },
+    {
+      "repository": "legion_current",
+      "relative_path": "skills/writing/SKILL.md",
+      "absolute_path": "D:/Claude/legion/skills/writing/SKILL.md",
+      "sha256": "5582681d9421ba46acb98f990e5a8bc349bef2975562369bae6c58fb2726ae86",
+      "symbols": [
+        "frontmatter"
+      ],
+      "reports": [
+        "b"
+      ]
+    },
+    {
+      "repository": "legion_current",
+      "relative_path": "src/lib/cognitive/arcane/host/policy-inject.mjs",
+      "absolute_path": "D:/Claude/legion/src/lib/cognitive/arcane/host/policy-inject.mjs",
+      "sha256": "ac10e34a0aa87f72a5ce391eb720990e045d38da23fd689b93576e4330c3c02f",
+      "symbols": [
+        "buildPolicyInjection"
+      ],
+      "reports": [
+        "b"
+      ]
+    },
+    {
+      "repository": "SWE-agent__mini-swe-agent",
+      "relative_path": "src/minisweagent/agents/default.py",
+      "absolute_path": "//192.168.1.7/d/claude/repos/legion/SWE-agent__mini-swe-agent/src/minisweagent/agents/default.py",
+      "sha256": "e8ef8aa365942d739c2ec5cb0879f60f377d2dc2de8ec670aaedf3bafb45a4c2",
+      "symbols": [
+        "DefaultAgent.run/query"
+      ],
+      "reports": [
+        "b"
+      ]
+    },
+    {
+      "repository": "swe-agent__swe-agent",
+      "relative_path": "sweagent/agent/agents.py",
+      "absolute_path": "//192.168.1.7/d/claude/repos/legion/swe-agent__swe-agent/sweagent/agent/agents.py",
+      "sha256": "d6cdf7ac66a6509ceba08e3541b856f0734acf79f9a485ed8a6e2c72f0d211a8",
+      "symbols": [
+        "DefaultAgent"
+      ],
+      "reports": [
+        "b"
+      ]
+    }
+  ]
+}
