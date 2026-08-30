@@ -917,8 +917,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bbd2bcb4c963f2ddae06a2efc7e9f3591312473c50c6685e1f298068316e66fe"
 
 [[package]]
-name = "legion"
-version = "0.2.6"
+$10.2.7"
 dependencies = [
  "clap",
  "hex",
@@ -948,8 +947,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "legion-application"
-version = "0.2.6"
+$10.2.7"
 dependencies = [
  "async-trait",
  "legion-audit",
@@ -968,8 +966,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "legion-audit"
-version = "0.2.6"
+$10.2.7"
 dependencies = [
  "hex",
  "hmac",
@@ -986,8 +983,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "legion-catalog"
-version = "0.2.6"
+$10.2.7"
 dependencies = [
  "legion-contracts",
  "serde",
@@ -999,8 +995,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "legion-contracts"
-version = "0.2.6"
+$10.2.7"
 dependencies = [
  "hex",
  "serde",
@@ -1010,8 +1005,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "legion-decisions"
-version = "0.2.6"
+$10.2.7"
 dependencies = [
  "legion-contracts",
  "rusqlite",
@@ -1021,8 +1015,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "legion-effects"
-version = "0.2.6"
+$10.2.7"
 dependencies = [
  "legion-contracts",
  "legion-policy",
@@ -1035,8 +1028,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "legion-handoff"
-version = "0.2.6"
+$10.2.7"
 dependencies = [
  "async-trait",
  "hex",
@@ -1050,8 +1042,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "legion-hook"
-version = "0.2.6"
+$10.2.7"
 dependencies = [
  "legion-application",
  "legion-contracts",
@@ -1062,8 +1053,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "legion-host"
-version = "0.2.6"
+$10.2.7"
 dependencies = [
  "directories-next",
  "legion-catalog",
@@ -1075,8 +1065,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "legion-mcp"
-version = "0.2.6"
+$10.2.7"
 dependencies = [
  "legion-application",
  "legion-contracts",
@@ -1086,8 +1075,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "legion-policy"
-version = "0.2.6"
+$10.2.7"
 dependencies = [
  "legion-contracts",
  "legion-policy-model",
@@ -1097,8 +1085,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "legion-policy-model"
-version = "0.2.6"
+$10.2.7"
 dependencies = [
  "legion-contracts",
  "serde",
@@ -1106,8 +1093,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "legion-provider-sdk"
-version = "0.2.6"
+$10.2.7"
 dependencies = [
  "async-trait",
  "futures-util",
@@ -1122,16 +1108,14 @@ dependencies = [
 ]
 
 [[package]]
-name = "legion-report"
-version = "0.2.6"
+$10.2.7"
 dependencies = [
  "legion-contracts",
  "serde_json",
 ]
 
 [[package]]
-name = "legion-research"
-version = "0.2.6"
+$10.2.7"
 dependencies = [
  "hex",
  "legion-contracts",
@@ -1142,8 +1126,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "legion-review"
-version = "0.2.6"
+$10.2.7"
 dependencies = [
  "legion-contracts",
  "legion-provider-sdk",
@@ -1154,8 +1137,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "legion-rules"
-version = "0.2.6"
+$10.2.7"
 dependencies = [
  "legion-contracts",
  "legion-policy-model",
@@ -1167,8 +1149,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "legion-runtime"
-version = "0.2.6"
+$10.2.7"
 dependencies = [
  "async-trait",
  "legion-catalog",
@@ -1181,8 +1162,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "legion-testkit"
-version = "0.2.6"
+$10.2.7"
 dependencies = [
  "legion-audit",
  "legion-contracts",
@@ -2307,7 +2287,7 @@ dependencies = [
 
 [[package]]
 name = "try-lock"
-version = "0.2.6"
+version = "0.2.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e421abadd41a4225275504ea4d6566923418b7f05506fbc9c0fe86ba7396114b"
 
@@ -2720,7 +2700,7 @@ checksum = "e13c156562582aa81c60cb29407084cdb54c4164760106ab78e6c5b0858cf64e"
 
 [[package]]
 name = "zerotrie"
-version = "0.2.6"
+version = "0.2.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4ea269c3bd32f0a32c321907a2ae912ba6f4649bb0fc764a15627e99a7095a3f"
 dependencies = [
