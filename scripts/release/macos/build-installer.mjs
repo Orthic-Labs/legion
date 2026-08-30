@@ -88,7 +88,7 @@ export function macosInstallerPlan({ inputRoot, outputRoot, version, developerId
 		dmg,
 		receipt,
 		commands: Object.freeze([
-			Object.freeze({ file: "swiftc", args: [join(HERE, "LegionInstaller.swift"), "-framework", "Cocoa", "-o", join(app, "Contents", "MacOS", "Legion Installer")] }),
+			Object.freeze({ file: "swiftc", args: ["-parse-as-library", join(HERE, "LegionInstaller.swift"), "-framework", "Cocoa", "-o", join(app, "Contents", "MacOS", "Legion Installer")] }),
 			Object.freeze({ file: "codesign", args: ["--force", "--options", "runtime", "--timestamp", "--sign", developerId, app] }),
 			Object.freeze({ file: "hdiutil", args: ["create", "-ov", "-fs", "HFS+", "-volname", "Legion Installer", "-srcfolder", app, dmg] }),
 			Object.freeze({ file: "codesign", args: ["--force", "--options", "runtime", "--timestamp", "--sign", developerId, dmg] }),

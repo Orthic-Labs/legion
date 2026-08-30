@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
@@ -12,6 +13,9 @@ import {
 	renderInnoTemplate,
 	verifySigningCommand,
 } from "../../scripts/release/windows/finalize-installer.mjs";
+
+const ISCC = process.env.INNO_SETUP_PATH ?? "iscc.exe";
+const canCompileInno = process.platform === "win32" && !spawnSync(ISCC, ["/?"], { encoding: "utf8", windowsHide: true }).error;
 
 function hash(value) {
 	return createHash("sha256").update(value).digest("hex");
@@ -52,14 +56,14 @@ test("Windows installer identity, template, & commands bind one x64 payload", ()
 	assert.match(template, /current\\bin/);
 	assert.doesNotMatch(template, /@@(?:VERSION|SOURCE_ROOT|OUTPUT_ROOT|SETUP_NAME)@@/);
 	const script = join(output, "installer.iss");
-	assert.deepEqual(innoCommand({ scriptPath: script }), { command: "iscc.exe", args: ["/Qp", script] });
+	assert.deepEqual(innoCommand({ scriptPath: script, isccPath: "iscc.exe" }), { command: "iscc.exe", args: ["/Qp", script] });
 	const setup = join(output, "Legion-1.2.3-windows-x86_64-setup.exe");
 	const receipt = join(output, "setup-signing.json");
 	assert.deepEqual(outerSigningCommand({ installer: setup, receipt }), {
-		command: "pnpm", args: ["exec", "right-release", "sign-windows", "--receipt", receipt, setup],
+		command: process.execPath, args: [join(process.cwd(), "node_modules", "@rightkit", "release", "cli", "right-release.mjs"), "sign-windows", "--receipt", receipt, setup],
 	});
 	assert.deepEqual(verifySigningCommand({ installer: setup }), {
-		command: "pnpm", args: ["exec", "right-release", "sign-windows", "--verify-only", setup],
+		command: process.execPath, args: [join(process.cwd(), "node_modules", "@rightkit", "release", "cli", "right-release.mjs"), "sign-windows", "--verify-only", setup],
 	});
 });
 
@@ -68,15 +72,15 @@ test("finalizer constructs, outer-signs, then verifies expected installer", () =
 	const calls = [];
 	const commandRunner = (command, args) => {
 		calls.push({ command, args });
-		if (command === "iscc.exe") writeFileSync(join(output, "Legion-1.2.3-windows-x86_64-setup.exe"), "inno installer\n");
-		if (command === "pnpm" && args.includes("--receipt")) writeFileSync(args[args.indexOf("--receipt") + 1], "{\"schema\":1}\n");
+		if (args[0] === "/Qp") writeFileSync(join(output, "Legion-1.2.3-windows-x86_64-setup.exe"), "inno installer\n");
+		if (command === process.execPath && args.includes("--receipt")) writeFileSync(args[args.indexOf("--receipt") + 1], "{\"schema\":1}\n");
 		return { status: 0, stdout: "" };
 	};
 	const result = finalizeWindowsInstaller({ inputRoot: source, outputRoot: output, version: "1.2.3", commandRunner });
 	assert.equal(result.status, "signed");
 	assert.ok(existsSync(result.installer));
 	assert.equal(readFileSync(result.receipt, "utf8"), "{\"schema\":1}\n");
-	assert.deepEqual(calls.map(({ command }) => command), ["iscc.exe", "pnpm", "pnpm"]);
+	assert.deepEqual(calls.map(({ command }) => command), [process.env.INNO_SETUP_PATH ?? "iscc.exe", process.execPath, process.execPath]);
 	assert.ok(calls[1].args.includes("sign-windows"));
 	assert.ok(calls[2].args.includes("--verify-only"));
 });
@@ -94,4 +98,19 @@ test("finalizer rejects missing payload or output nested in signed root", () => 
 		() => finalizeWindowsInstaller({ inputRoot: join(incomplete, "missing"), outputRoot: output, version: "1.2.3", commandRunner: () => ({ status: 0 }) }),
 		/input root must be a real directory/,
 	);
+});
+
+test("Windows installer template compiles with Inno Setup", { skip: !canCompileInno }, () => {
+	const { root, source, output } = fixture();
+	try {
+		const script = join(output, "installer.iss");
+		mkdirSync(output, { recursive: true });
+		writeFileSync(script, renderInnoTemplate({ sourceRoot: source, outputRoot: output, version: "1.2.3", architecture: "x86_64" }));
+		const { command, args } = innoCommand({ scriptPath: script });
+		const result = spawnSync(command, args, { encoding: "utf8", windowsHide: true });
+		assert.equal(result.status, 0, result.stderr || result.stdout || "Inno Setup did not start");
+		assert.ok(existsSync(join(output, "Legion-1.2.3-windows-x86_64-setup.exe")));
+	} finally {
+		rmSync(root, { recursive: true, force: true });
+	}
 });

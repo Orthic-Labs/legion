@@ -10,6 +10,7 @@ const REQUIRED_DIRECTORIES = ["bin", "plugin", "share"];
 const REQUIRED_BINARIES = ["legion.exe", "legion-hook.exe", "legion-mcp.exe"];
 const SEMVER = /^(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)$/;
 const ARCHITECTURES = new Set(["x86_64", "arm64"]);
+const RIGHT_RELEASE_CLI = join(resolve(MODULE_ROOT, "../../.."), "node_modules", "@rightkit", "release", "cli", "right-release.mjs");
 
 function fail(message) { throw new Error(`windows-installer: ${message}`); }
 
@@ -92,14 +93,14 @@ export function innoCommand({ scriptPath, isccPath = process.env.INNO_SETUP_PATH
 export function outerSigningCommand({ installer, receipt }) {
 	if (!installer || !isAbsolute(installer) || !receipt || !isAbsolute(receipt)) fail("installer & receipt paths must be absolute");
 	return {
-		command: "pnpm",
-		args: ["exec", "right-release", "sign-windows", "--receipt", receipt, installer],
+		command: process.execPath,
+		args: [RIGHT_RELEASE_CLI, "sign-windows", "--receipt", receipt, installer],
 	};
 }
 
 export function verifySigningCommand({ installer }) {
 	if (!installer || !isAbsolute(installer)) fail("installer path must be absolute");
-	return { command: "pnpm", args: ["exec", "right-release", "sign-windows", "--verify-only", installer] };
+	return { command: process.execPath, args: [RIGHT_RELEASE_CLI, "sign-windows", "--verify-only", installer] };
 }
 
 function execute(commandRunner, command, args, cwd) {

@@ -10,6 +10,7 @@ import {
 	copyFileSync,
 	existsSync,
 	lstatSync,
+	mkdtempSync,
 	mkdirSync,
 	readdirSync,
 	readFileSync,
@@ -18,6 +19,7 @@ import {
 	writeFileSync,
 } from "node:fs";
 import { basename, dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
+import { tmpdir } from "node:os";
 import { fileURLToPath } from "node:url";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
@@ -31,6 +33,7 @@ const FINALIZER = Object.freeze({
 	macos: "scripts/release/macos/finalize.mjs",
 	qualify: "scripts/release/windows/qualify-installed.mjs",
 });
+const RIGHT_RELEASE_CLI = join(ROOT, "node_modules", "@rightkit", "release", "cli", "right-release.mjs");
 
 function fail(message) { throw new Error(message); }
 function digest(path) {
@@ -123,6 +126,33 @@ function rightReleaseEnvironment(env, platform) {
 		RIGHT_GIT_RELEASE_ARCHITECTURE: architecture,
 	};
 }
+function candidateEvidence(candidateRoot, { platform, architecture, version, sourceRevision: revision }) {
+	const candidate = json(join(candidateRoot, "candidate.json"), "unsigned candidate receipt");
+	if (candidate.schemaVersion !== 1 || candidate.kind !== "legion-unsigned-release-candidate" || candidate.product !== PRODUCT || candidate.version !== version || candidate.target !== `${platform}-${architecture}` || sourceRevision(candidate.sourceRevision) !== revision) {
+		fail("unsigned candidate receipt identity is invalid");
+	}
+	const record = (key, suffix) => {
+		const value = candidate.files?.[key];
+		if (!value || typeof value.name !== "string" || !value.name.endsWith(suffix) || !Number.isSafeInteger(value.size) || !SHA.test(String(value.sha256 ?? ""))) fail(`unsigned candidate ${key} record is invalid`);
+		const path = pathFrom(candidateRoot, value.name, `unsigned candidate ${key}`);
+		assertFile(path, `unsigned candidate ${key}`);
+		if (statSync(path).size !== value.size || digest(path) !== value.sha256.toLowerCase()) fail(`unsigned candidate ${key} digest mismatch`);
+		return path;
+	};
+	return { sbom: record("sbom", ".cdx.json"), provenance: record("provenance", ".intoto.jsonl") };
+}
+function signedPortableEvidenceRoot({ portableRoot, candidateRoot, platform, architecture, version, sourceRevision: revision }) {
+	const entries = readdirSync(portableRoot, { withFileTypes: true });
+	const archives = entries.filter((entry) => entry.isFile() && !entry.isSymbolicLink() && entry.name.endsWith(platform === "windows" ? ".zip" : ".tar.gz"));
+	if (archives.length !== 1) fail("RightRelease portable output must contain exactly one signed archive");
+	const root = mkdtempSync(join(tmpdir(), "legion-installer-evidence-"));
+	const archive = join(portableRoot, archives[0].name);
+	copyFileSync(archive, join(root, archives[0].name));
+	const evidence = candidateEvidence(candidateRoot, { platform, architecture, version, sourceRevision: revision });
+	copyFileSync(evidence.sbom, join(root, basename(evidence.sbom)));
+	copyFileSync(evidence.provenance, join(root, basename(evidence.provenance)));
+	return root;
+}
 function finalizationManifest({ platform, env, run = defaultRun, repositoryRoot = ROOT }) {
 	const mapped = rightReleaseEnvironment(env, platform);
 	const version = stableVersion(json(join(repositoryRoot, "release", "version.json"), "release version").version);
@@ -134,14 +164,26 @@ function finalizationManifest({ platform, env, run = defaultRun, repositoryRoot 
 	assertDirectory(mapped.LEGION_UNSIGNED_CANDIDATE_ROOT, "unsigned candidate root");
 	// RightRelease is exact signer/notarizer.  No platform finalizer runs until it
 	// succeeds. --skip-checks only skips package checks already run by candidate CI.
-	const release = run("pnpm", ["exec", "right-release", "build", "--platform", platform === "windows" ? "win" : "mac", "--skip-checks"], { cwd: repositoryRoot, env: mapped });
-	if (release?.status !== 0) fail(`RightRelease ${platform} finalization failed: ${String(release?.stderr ?? "").trim()}`);
+	const release = run(process.execPath, [RIGHT_RELEASE_CLI, "build", "--platform", platform === "windows" ? "win" : "mac", "--skip-checks"], { cwd: repositoryRoot, env: mapped });
+	if (release?.status !== 0) {
+		const detail = [release?.stderr, release?.stdout, release?.error?.message]
+			.map((value) => String(value ?? "").trim())
+			.filter(Boolean)
+			.join("\n");
+		fail(`RightRelease ${platform} finalization failed: ${detail || "unknown error"}`);
+	}
 	assertDirectory(portableRoot, "RightRelease portable output");
 	const finalizerPath = join(repositoryRoot, FINALIZER[platform]);
 	assertFile(finalizerPath, `${platform} installer finalizer`);
 	const staged = join(finalRoot, ".staging");
 	mkdirSync(staged, { recursive: true });
-	const response = runJson(run, "node", [finalizerPath, "--portable-root", portableRoot, "--output-root", staged, "--source-revision", mapped.LEGION_SOURCE_REVISION, "--version", version, "--architecture", mapped.RIGHT_GIT_RELEASE_ARCHITECTURE], { cwd: repositoryRoot, env: mapped }, `${platform} installer finalizer`);
+	const evidenceRoot = signedPortableEvidenceRoot({ portableRoot, candidateRoot: mapped.LEGION_UNSIGNED_CANDIDATE_ROOT, platform, architecture: mapped.RIGHT_GIT_RELEASE_ARCHITECTURE, version, sourceRevision: mapped.LEGION_SOURCE_REVISION });
+	let response;
+	try {
+		response = runJson(run, "node", [finalizerPath, "--portable-root", evidenceRoot, "--output-root", staged, "--source-revision", mapped.LEGION_SOURCE_REVISION, "--version", version, "--architecture", mapped.RIGHT_GIT_RELEASE_ARCHITECTURE], { cwd: repositoryRoot, env: mapped }, `${platform} installer finalizer`);
+	} finally {
+		rmSync(evidenceRoot, { recursive: true, force: true });
+	}
 	if (response.schemaVersion !== 1 || response.kind !== `legion-${platform}-installer-finalization` || response.status !== "finalized" || response.product !== PRODUCT || response.version !== version || sourceRevision(response.sourceRevision) !== mapped.LEGION_SOURCE_REVISION || response.architecture !== mapped.RIGHT_GIT_RELEASE_ARCHITECTURE) fail(`${platform} finalizer identity is invalid`);
 	if (!Array.isArray(response.assets) || !Array.isArray(response.evidence) || !response.assets.length || !response.evidence.length) fail(`${platform} finalizer must declare installer assets & portable evidence`);
 	const all = [...response.assets, ...response.evidence];

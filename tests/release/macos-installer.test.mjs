@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
-import { mkdtempSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { spawnSync } from "node:child_process";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import test from "node:test";
@@ -40,4 +41,15 @@ test("macOS installer lays out app payload & only executes expected signing plan
 	assert.equal(result.status, "verified");
 	assert.match(readFileSync(result.receipt, "utf8"), /notarytool/);
 	assert.match(readFileSync(new URL("../../scripts/release/macos/LegionInstaller.swift", import.meta.url), "utf8"), /task\.arguments = \["doctor"\]/);
+});
+
+test("macOS installer Swift source compiles as a library", { skip: process.platform !== "darwin" }, () => {
+	const output = join(mkdtempSync(join(tmpdir(), "legion-macos-swiftc-")), "Legion Installer");
+	try {
+		const source = new URL("../../scripts/release/macos/LegionInstaller.swift", import.meta.url);
+		const result = spawnSync("swiftc", ["-parse-as-library", source.pathname, "-framework", "Cocoa", "-o", output], { encoding: "utf8" });
+		assert.equal(result.status, 0, result.stderr || result.stdout);
+	} finally {
+		rmSync(join(output, ".."), { recursive: true, force: true });
+	}
 });

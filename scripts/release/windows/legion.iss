@@ -36,13 +36,17 @@ Type: filesandordirs; Name: "{app}"
 
 [Code]
 const PathKey = 'Environment';
+const WM_SETTINGCHANGE = $001A;
+const SMTO_ABORTIFHUNG = $0002;
+function SendMessageTimeout(hWnd: HWND; Msg: UINT; wParam: Longint; lParam: String; fuFlags: UINT; uTimeout: UINT; var lpdwResult: DWORD): Longint;
+  external 'SendMessageTimeoutW@user32.dll stdcall';
 
 procedure BroadcastEnvironmentChange;
 var
   ResultCode: DWORD;
 begin
   SendMessageTimeout(HWND_BROADCAST, WM_SETTINGCHANGE, 0,
-    Integer(PChar('Environment')), SMTO_ABORTIFHUNG, 5000, ResultCode);
+    'Environment', SMTO_ABORTIFHUNG, 5000, ResultCode);
 end;
 
 function PathContains(const Value, Segment: String): Boolean;

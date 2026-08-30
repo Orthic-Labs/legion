@@ -34,6 +34,18 @@ function fixture() {
 function env(root, platform, architecture) {
 	const candidate = join(root, `candidate-${platform}`);
 	mkdirSync(candidate, { recursive: true });
+	const stem = `legion-1.2.3-${platform}-${architecture}`;
+	const sbom = join(candidate, `${stem}.cdx.json`);
+	const provenance = join(candidate, `${stem}.intoto.jsonl`);
+	writeFileSync(sbom, "sbom\n");
+	writeFileSync(provenance, "provenance\n");
+	writeFileSync(join(candidate, "candidate.json"), JSON.stringify({
+		schemaVersion: 1, kind: "legion-unsigned-release-candidate", product: "legion", version: "1.2.3", target: `${platform}-${architecture}`, sourceRevision: REVISION,
+		files: {
+			sbom: { name: `${stem}.cdx.json`, size: statSync(sbom).size, sha256: sha(sbom) },
+			provenance: { name: `${stem}.intoto.jsonl`, size: statSync(provenance).size, sha256: sha(provenance) },
+		},
+	}));
 	return {
 		RIGHT_GIT_SOURCE_REVISION: REVISION,
 		RIGHT_GIT_UNSIGNED_CANDIDATE_ROOT: candidate,
@@ -49,10 +61,11 @@ function sha(path) {
 }
 function finalizerRun(kind) {
 	return (command, args, options = {}) => {
-		if (command === "pnpm") {
+		if (command === process.execPath) {
 			const platform = args.at(-2) === "win" ? "windows" : "macos";
 			const output = join(options.cwd, "dist", "releases", platform === "windows" ? "windows" : "mac", "1.2.3", options.env.RIGHT_GIT_RELEASE_ARCHITECTURE);
 			mkdirSync(output, { recursive: true });
+			writeFileSync(join(output, `legion-1.2.3-${platform}-${options.env.RIGHT_GIT_RELEASE_ARCHITECTURE}.${platform === "windows" ? "zip" : "tar.gz"}`), "signed portable\n");
 			return { status: 0, stdout: "", stderr: "" };
 		}
 		if (command !== "node") throw new Error(`unexpected command ${command}`);
@@ -102,6 +115,17 @@ test("finalization fails closed on stale output & platform-path escape", () => {
 	} finally { rmSync(root, { recursive: true, force: true }); }
 });
 
+test("RightRelease startup failures retain Windows spawn diagnostics", () => {
+	const root = fixture();
+	try {
+		const values = env(root, "windows", "x86_64");
+		assert.throws(
+			() => finalizeWindows({ env: values, repositoryRoot: root, run: () => ({ status: null, stdout: "", stderr: "", error: new Error("spawnSync node EINVAL") }) }),
+			/spawnSync node EINVAL/,
+		);
+	} finally { rmSync(root, { recursive: true, force: true }); }
+});
+
 test("installed qualification requires exact finalized setup & returns digest-bound evidence", () => {
 	const root = fixture();
 	try {
@@ -125,7 +149,7 @@ test("publish creates/resumes release then downloads every exact asset for diges
 	try {
 		const windowsEnv = env(root, "windows", "x86_64");
 		const windows = finalizeWindows({ env: windowsEnv, repositoryRoot: root, run: finalizerRun("windows") });
-		const macos = finalizeMacos({ env: { ...windowsEnv, RIGHT_GIT_RELEASE_PLATFORM: "macos", RIGHT_GIT_RELEASE_ARCHITECTURE: "arm64" }, repositoryRoot: root, run: finalizerRun("macos") });
+		const macos = finalizeMacos({ env: env(root, "macos", "arm64"), repositoryRoot: root, run: finalizerRun("macos") });
 		const qualificationRoot = windowsEnv.RIGHT_GIT_QUALIFICATION_EVIDENCE_ROOT;
 		mkdirSync(qualificationRoot, { recursive: true });
 		const qualification = join(qualificationRoot, "qualification.json");
