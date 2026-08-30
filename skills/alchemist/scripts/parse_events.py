@@ -68,13 +68,29 @@ def classify(event: dict) -> tuple[str, str]:
     return str(kind), first_text(payload)[:400]
 
 
+# Windows PowerShell prefixes a UTF-8 BOM on the first line it writes, and the
+# exact behaviour varies by PowerShell version and redirection. How that BOM
+# reaches us depends on the decoder: as U+FEFF when stdin is decoded as UTF-8,
+# but as the mojibake "ï»¿" when Python falls back to a Windows ANSI code
+# page. Strip both. A BOM is not corruption, and discarding the line loses real
+# worker output.
+BOM_PREFIXES = ("﻿", "ï»¿")
+
+
+def strip_bom(line: str) -> str:
+    changed = True
+    while changed:
+        changed = False
+        for prefix in BOM_PREFIXES:
+            if line.startswith(prefix):
+                line = line[len(prefix):]
+                changed = True
+    return line
+
+
 def iter_events(stream):
     for line in stream:
-        # Windows PowerShell prefixes a UTF-8 BOM on the first line it writes,
-        # and the exact behaviour varies by PowerShell version and redirection.
-        # A BOM here is not corruption, so strip it rather than discarding a
-        # real agent event as unparseable — dropping it loses worker output.
-        line = line.lstrip("﻿").strip()
+        line = strip_bom(line.strip())
         if not line:
             continue
         try:
@@ -84,6 +100,13 @@ def iter_events(stream):
 
 
 def run_stream() -> int:
+    # Decode the worker stream as UTF-8 regardless of the host's default code
+    # page, so agent text is not mangled on Windows. utf-8-sig also consumes a
+    # leading BOM for us; strip_bom still covers BOMs that appear mid-stream.
+    try:
+        sys.stdin.reconfigure(encoding="utf-8-sig", errors="replace")
+    except (AttributeError, ValueError, OSError):
+        pass
     for event in iter_events(sys.stdin):
         kind, detail = classify(event)
         if kind == "assistant" and detail:

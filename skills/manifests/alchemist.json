@@ -91,7 +91,7 @@
     {
       "path": "scripts/parse_events.py",
       "uri": "legion-skill://alchemist/scripts/parse_events.py",
-      "digest": "sha256:4f5fa79f1edfa11439f1c8293823bf586cbd8863313bb1ea219ffe26b2b5704a"
+      "digest": "sha256:c4246ed04d17048f2d6536088d2b4017e2342c225a25ea0123c0b0a232b8c2e2"
     },
     {
       "path": "scripts/run-worker.ps1",
