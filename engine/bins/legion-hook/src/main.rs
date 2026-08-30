@@ -4,6 +4,7 @@ use std::{
     fs,
     io::{self, Read, Seek, SeekFrom, Write},
     path::{Path, PathBuf},
+    time::{SystemTime, UNIX_EPOCH},
 };
 
 use legion_application::{NativeApplication, NativeApplicationConfig};
@@ -123,10 +124,9 @@ pub fn dispatch(request: HookRequest) -> HookResponse {
 }
 
 /// Stop is an Arcane-owned postflight delivered through the Guard event. The
-/// Guard applies only deterministic, bounded response-shape checks here; it
-/// does not decide whether Oracle is required. That typed verification
-/// contract must be supplied by the owning contract/trace layer before P2.16
-/// can be wired safely.
+/// Guard delivers the cognitive response policy through this event but does
+/// not own it. Completion verification is proportional: the typed requirement
+/// below determines whether a fresh Oracle receipt must be checked.
 fn stop_response(request: &HookRequest) -> HookResponse {
     if let Err(error) = validate_stop_verification(&request.payload) {
         let (code, reason) = match error {
@@ -398,7 +398,7 @@ fn validate_oracle_pass_receipt(
     if expected_source_revision.is_some_and(|expected| expected != source_revision) {
         return Err(StopVerificationError::Invalid);
     }
-    if !is_rfc3339_timestamp(object.get("validatedAt").and_then(Value::as_str)) {
+    if !is_current_rfc3339_timestamp(object.get("validatedAt").and_then(Value::as_str)) {
         return Err(StopVerificationError::Invalid);
     }
     Ok(())
@@ -454,7 +454,7 @@ fn is_rfc3339_timestamp(value: Option<&str>) -> bool {
         && bytes[8..10].iter().all(u8::is_ascii_digit)
         && bytes[11..13].iter().all(u8::is_ascii_digit)
         && bytes[14..16].iter().all(u8::is_ascii_digit)
-        && valid_rfc3339_suffix(&bytes[16..])
+        && valid_rfc3339_suffix(&bytes[19..])
 }
 
 fn valid_rfc3339_suffix(value: &[u8]) -> bool {
@@ -484,6 +484,109 @@ fn valid_rfc3339_suffix(value: &[u8]) -> bool {
         }
         _ => false,
     }
+}
+
+const MAX_ORACLE_RECEIPT_AGE_SECS: i64 = 24 * 60 * 60;
+const MAX_ORACLE_FUTURE_SKEW_SECS: i64 = 12 * 60 * 60;
+
+fn is_current_rfc3339_timestamp(value: Option<&str>) -> bool {
+    let Some(timestamp) = rfc3339_timestamp_seconds(value) else {
+        return false;
+    };
+    let Ok(now) = SystemTime::now().duration_since(UNIX_EPOCH) else {
+        return false;
+    };
+    let now = now.as_secs() as i64;
+    if timestamp <= now {
+        now - timestamp <= MAX_ORACLE_RECEIPT_AGE_SECS
+    } else {
+        timestamp - now <= MAX_ORACLE_FUTURE_SKEW_SECS
+    }
+}
+
+fn rfc3339_timestamp_seconds(value: Option<&str>) -> Option<i64> {
+    let value = value?;
+    if !is_rfc3339_timestamp(Some(value)) {
+        return None;
+    }
+    let bytes = value.as_bytes();
+    let year = ascii_digits(bytes, 0, 4)?;
+    let month = ascii_digits(bytes, 5, 7)?;
+    let day = ascii_digits(bytes, 8, 10)?;
+    let hour = ascii_digits(bytes, 11, 13)?;
+    let minute = ascii_digits(bytes, 14, 16)?;
+    let second = ascii_digits(bytes, 17, 19)?;
+    let leap_year = year % 4 == 0 && (year % 100 != 0 || year % 400 == 0);
+    let days_in_month = match month {
+        2 if leap_year => 29,
+        2 => 28,
+        4 | 6 | 9 | 11 => 30,
+        _ => 31,
+    };
+    if !(1..=12).contains(&month)
+        || day < 1
+        || day > days_in_month
+        || hour > 23
+        || minute > 59
+        || second > 59
+    {
+        return None;
+    }
+
+    let zone = bytes[19..]
+        .iter()
+        .position(|byte| matches!(*byte, b'Z' | b'z' | b'+' | b'-'))?
+        + 19;
+    let offset_seconds = match bytes[zone] {
+        b'Z' | b'z' => 0,
+        b'+' | b'-' => {
+            let offset_hour = ascii_digits(bytes, zone + 1, zone + 3)?;
+            let offset_minute = ascii_digits(bytes, zone + 4, zone + 6)?;
+            if offset_hour > 23 || offset_minute > 59 {
+                return None;
+            }
+            let offset = offset_hour * 60 * 60 + offset_minute * 60;
+            if bytes[zone] == b'+' {
+                offset
+            } else {
+                -offset
+            }
+        }
+        _ => return None,
+    };
+    Some(
+        days_from_civil(year, month, day) * 24 * 60 * 60
+            + hour * 60 * 60
+            + minute * 60
+            + second
+            - offset_seconds,
+    )
+}
+
+fn ascii_digits(bytes: &[u8], start: usize, end: usize) -> Option<i64> {
+    let digits = bytes.get(start..end)?;
+    (!digits.is_empty() && digits.iter().all(u8::is_ascii_digit)).then(|| {
+        digits
+            .iter()
+            .fold(0_i64, |value, digit| value * 10 + i64::from(*digit - b'0'))
+    })
+}
+
+fn days_from_civil(year: i64, month: i64, day: i64) -> i64 {
+    let adjusted_year = year - if month <= 2 { 1 } else { 0 };
+    let era = if adjusted_year >= 0 {
+        adjusted_year / 400
+    } else {
+        (adjusted_year - 399) / 400
+    };
+    let year_of_era = adjusted_year - era * 400;
+    let month_prime = month + if month > 2 { -3 } else { 9 };
+    let day_of_year = (153 * month_prime + 2) / 5 + day - 1;
+    let day_of_era = year_of_era * 365
+        + year_of_era / 4
+        - year_of_era / 100
+        + day_of_year;
+    era * 146_097 + day_of_era - 719_468
 }
 
 fn stop_reentry_exhausted(payload: &Value) -> bool {
@@ -616,7 +719,13 @@ fn stop_shape_reason(text: &str) -> Option<&'static str> {
 fn last_phrase_position(text: &str, phrases: &[&str]) -> Option<usize> {
     phrases
         .iter()
-        .filter_map(|phrase| text.rfind(phrase))
+        .filter_map(|phrase| {
+            let position = text.rfind(phrase)?;
+            let negated_fixed = *phrase == "fixed"
+                && position >= 4
+                && text.get(position - 4..position) == Some("not ");
+            (!negated_fixed).then_some(position)
+        })
         .max()
 }
 

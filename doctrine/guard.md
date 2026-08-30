@@ -85,7 +85,7 @@ artifacts are not merged here.
 | `PreToolUse` | shell, command, file-edit, and patch tools | classify and authorize |
 | `PostToolUse` | the pre-effect tools plus `WebFetch` and `WebSearch` | acknowledge as post-effect |
 | `PostToolUseFailure` | the same post-effect matcher | acknowledge as post-effect |
-| `Stop` | all | acknowledge as lifecycle |
+| `Stop` | all | deliver response policy and verify proportionally |
 
 The binary also accepts the lower-case protocol aliases `session-start`,
 `subagent-start`, `user-prompt-submit`, `post-compact`, `pre-effect`,
@@ -93,10 +93,13 @@ The binary also accepts the lower-case protocol aliases `session-start`,
 Those aliases are protocol support; they are not additional registrations in
 `hooks/hooks.json`.
 
-Lifecycle and post-effect acknowledgements are not effect authorization. In
-particular, the current `Stop` path does not perform completion verification
-or cognitive ending-shape policy. That is future work at the Arcane/host
-boundary. `SubagentStop` is not currently registered or accepted; adding it
+Lifecycle and post-effect acknowledgements are not effect authorization. The
+`Stop` path delivers the Arcane-owned cognitive ending-shape policy through the
+Guard event; the Guard delivers that policy but does not own it. Stop completion
+verification is proportional: it consults a typed verification requirement and
+checks the `oracle-completion-validation-v1` receipt only when that requirement
+demands one, rather than treating any file write as grounds for mandatory
+assurance. `SubagentStop` is not currently registered or accepted; adding it
 for observation and receipting is tracked future work. `mcp__*` write, send,
 and delete tools are also not currently matched; widening that surface must
 be accompanied by matching classifier arms.
