@@ -9,22 +9,24 @@ Location: `legion/docs/pending/plans/`. All paths in this document are workspace
 |---|---|
 | Part A — Blueprint runtime repair | **NOT STARTED** (git hooks still stale cortex copies; 7 probe files present; watcher down; root `map.json` missing) |
 | Parts B–I | NOT STARTED |
-| Legion docs cleanup (canon adoption, supersession pruning) | DONE 2026-08-30, uncommitted — `/commit` pending |
+| Legion docs cleanup (canon adoption, supersession pruning) | DONE 2026-08-30, committed + pushed as `7e98a10268b5ae9953ed6283dc60454c7e257034` |
 
 This plan is the single source of truth for the **canon-pipeline program** (Parts A–I +
 absorption checklist). Two companion ledgers track Legion-internal pending work and are NOT
 duplicated here:
 
 1. **Capability closure** — generated `legion/docs/pending/README.md`: 95 committed atoms,
-   0 closure-proven. Audit verdict 2026-08-30: implementation DELIVERED for 89/95,
-   PARTIAL for 6 (`REPAIR_WIRE`: LEG-005, LEG-015, ARC-001, ARC-005, ARC-006, GRD-009);
+   0 closure-proven. Audit verdict 2026-08-30: implementation DELIVERED for 87/95,
+   PARTIAL for 8 (`REPAIR_WIRE`: LEG-005, LEG-015, ARC-001, ARC-005, ARC-006, GRD-009;
+   evidence dispositions: ARC-002, ARC-009);
    every atom awaits verification + qualification + evidence. The canon is structurally
    sound (`legion:check` PASS, 0 unclassified, no duplicate tuples); closure evidence is
    the outstanding work.
 2. **Active dispatch** — `legion/docs/dispatch/2026-08-30-pending-work.json`, executing
    `PENDING-WORK-2026-08-29.md` rev 5 (archived in `legion/docs/provenance/migrations/`).
 
-Consolidated plan from the Blueprint investigation and Sol's review, corrected against source.
+Consolidated plan from the Blueprint investigation and Sol's review, iteratively source-checked
+with known factual corrections incorporated.
 Verdict recap: Blueprint's repo-truth stages migrated to Membrane correctly and the Legion skill
 removal broke nothing; the comparative-intelligence workflow (Canon) was never built as one
 pipeline; the Blueprint runtime is separately broken and must be repaired regardless.

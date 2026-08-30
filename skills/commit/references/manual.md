@@ -305,7 +305,7 @@ CodeRabbit or ponytail binaries (those aren't required; the engine absorbs both,
    for a rule the **user** authored.
 
 8. **Emit Minimize commit authority.** Write `.audit/minimize/commit-review.json` for exact staged
-   tree using `lib/minimize/minimize_gate.py commit init-review`, update it with actual lens
+   tree using `legion minimize commit init-review`, update it with actual lens
    findings/new files/new dependencies, require `CLEAN`, then write
    `.audit/minimize/commit-receipt.json`. Re-run `commit verify` immediately before every commit.
    Missing, stale, open-finding, policy-drift, validator-drift, or staged-tree mismatch blocks commit.
