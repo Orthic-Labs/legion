@@ -51,8 +51,8 @@ case "$CODE" in
      exit 4 ;;
 esac
 
-# Keep the sentinel inside command substitution so trailing newlines in the brief
-# are not stripped before it is sent to the worker.
+# Keep the terminator byte inside the command substitution so trailing newlines
+# in the brief are not stripped before it is sent to the worker.
 BRIEF="$(cat; printf '\001')"
 BRIEF="${BRIEF%?}"
 if [ -z "${BRIEF// }" ]; then
