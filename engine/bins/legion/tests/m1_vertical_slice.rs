@@ -166,7 +166,7 @@ fn fixture(with_body: bool) -> Fixture {
         release_version: env!("CARGO_PKG_VERSION").into(),
         runtime: legion_runtime::RuntimeIdentity {
             platform: std::env::consts::OS.into(),
-            architecture: std::env::consts::ARCH.into(),
+            architecture: legion_runtime::release_binding::current_runtime_architecture().into(),
             sha256: legion_catalog::hex_digest(
                 &fs::read(env!("CARGO_BIN_EXE_legion")).expect("Legion executable"),
             ),
@@ -300,7 +300,7 @@ fn installed_composition_is_resolved_from_the_executable() {
         release_version: env!("CARGO_PKG_VERSION").into(),
         runtime: legion_runtime::RuntimeIdentity {
             platform: std::env::consts::OS.into(),
-            architecture: std::env::consts::ARCH.into(),
+            architecture: legion_runtime::release_binding::current_runtime_architecture().into(),
             sha256: digest(&executable),
             provenance: "rightkit-release://installed-test".into(),
         },
