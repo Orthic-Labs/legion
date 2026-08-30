@@ -1,6 +1,6 @@
 {
   "name": "legion",
-  "version": "0.2.3",
+  "version": "0.2.4",
   "author": "Orthic Labs",
   "description": "Legion — orchestration for AI-assisted engineering. Legion selects capabilities & attaches Sage, Alchemist, or Oracle where required; Arcane shapes cognitive processing & response policy; Guard enforcement is host-dependent.",
   "license": "SEE LICENSE IN LICENSE",
