@@ -24,9 +24,10 @@ import { createHash } from 'node:crypto';
 
 const ROOT = resolve(fileURLToPath(new URL('..', import.meta.url)));
 const SURFACE_FILE = 'src/registry/plugin-surface.json';
+const DISTRIBUTION_CONTRACT = 'release/distribution-contract.json';
+const CHANNELS_FILE = 'packaging/channels.json';
 
 const readJson = (p) => JSON.parse(readFileSync(p, 'utf8'));
-const BOOTSTRAP_COMMAND = 'irm https://legion.orthiclabs.com/install.ps1 | iex';
 const ACTIVATION_PREFLIGHT = 'node scripts/verify-plugin-parity.mjs --check';
 
 // The package-manager channels are optional aliases today. Keep their presence
@@ -91,6 +92,20 @@ function packageManagerManifestProviders(root) {
     .map(({ id }) => id);
 }
 
+function declaredBootstrap(root) {
+  let contract;
+  let channels;
+  try { contract = readJson(join(root, DISTRIBUTION_CONTRACT)); } catch { /* checked below */ }
+  try { channels = readJson(join(root, CHANNELS_FILE)); } catch { /* checked below */ }
+
+  const contractUrl = contract?.nativeRelease?.bootstrapAuthority;
+  const channelUrl = channels?.bootstrap?.stableUrl;
+  if (typeof contractUrl === 'string' && contractUrl === channelUrl) return contractUrl;
+  if (typeof contractUrl === 'string') return contractUrl;
+  if (typeof channelUrl === 'string') return channelUrl;
+  return null;
+}
+
 function declaredPathBinaries(manifest, hooks) {
   const declarations = new Map();
   const add = (command, source) => {
@@ -123,6 +138,7 @@ export function checkPathBinaries(root = ROOT, { manifest, hooks, env = process.
   const pluginManifest = manifest ?? readJson(join(root, '.claude-plugin', 'plugin.json'));
   const hookConfig = hooks ?? readJson(join(root, 'hooks', 'hooks.json'));
   const providers = packageManagerManifestProviders(root);
+  const bootstrap = declaredBootstrap(root);
   const binaries = [];
   const problems = [];
 
@@ -130,14 +146,13 @@ export function checkPathBinaries(root = ROOT, { manifest, hooks, env = process.
     const resolved = executableOnPath(binary, env);
     const record = { binary, sources, resolved, packageManagerManifests: providers };
     binaries.push(record);
-    if (!resolved) {
+    if (!resolved && !bootstrap) {
       const packageNote = providers.length
         ? ` Package-manager metadata is present (${providers.join(', ')}), but it does not put the binary on PATH.`
-        : ' No Homebrew or WinGet manifest is populated for this checkout.';
+        : ' No Homebrew or WinGet manifest is populated for this checkout (informational only; optional aliases are not required).';
+      const bootstrapNote = `Plugin activation is gated by this preflight, but no bootstrap step is declared in the distribution SSOT; declare one before rerunning '${ACTIVATION_PREFLIGHT}'.`;
       problems.push(
-        `plugin binary '${binary}' is not reachable on PATH (required by ${sources.join(', ')}).${packageNote} ` +
-        `Plugin activation is gated by this preflight: run the required Legion bootstrap ` +
-        `'${BOOTSTRAP_COMMAND}', then rerun '${ACTIVATION_PREFLIGHT}'.`,
+        `plugin binary '${binary}' is not reachable on PATH (required by ${sources.join(', ')}).${packageNote} ${bootstrapNote}`,
       );
     }
   }
