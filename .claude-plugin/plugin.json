@@ -1,7 +1,7 @@
 {
   "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
   "name": "legion",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "displayName": "Legion",
   "description": "Legion orchestrates capability selection & authority attachment; Sage adjudicates exceptional unresolved decisions, Alchemist performs controlled transformations, Oracle independently assures, Arcane shapes cognitive processing & response policy, & Guard gates typed effects. Installs full-fidelity Claude Code binding \u2014 agents, /covenant skill, Guard pre/post-tool hooks, & legion MCP server.",
   "author": {
