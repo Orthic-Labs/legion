@@ -12,6 +12,7 @@ import posixpath
 import re
 import subprocess
 import sys
+import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -28,6 +29,25 @@ FORBIDDEN_STORAGE_PARTS = {
     "temp", "tmp", ".tmp", "temporary", "cache", ".cache", "review-run",
     "review-runs", ".review-runs", ".council-runs", "scratch",
 }
+
+
+def in_platform_temp_dir(path: Path) -> bool:
+    """Report whether a path lives under this platform's temporary directory.
+
+    Name matching alone is not enough. Linux gives /tmp/... and Windows gives
+    ...\\Temp\\..., both of which the name set catches, but macOS gives
+    /var/folders/<hash>/T/<name> — no path component of which is a recognisable
+    temp token. Asking the platform where its temp directory actually is closes
+    that gap on every host instead of enumerating spellings.
+    """
+    try:
+        temp_root = Path(tempfile.gettempdir()).expanduser().resolve()
+        resolved = Path(path).expanduser().resolve()
+    except OSError:
+        return False
+    if resolved == temp_root:
+        return True
+    return temp_root in resolved.parents
 
 
 def clean_path_value(value: str) -> str:
@@ -96,8 +116,10 @@ def storage_errors(
         errors.append("declared dispatch artifact path does not match validated file")
 
     artifact_parts = set(normalized_path(actual_artifact).split("/"))
-    if artifact_parts & FORBIDDEN_STORAGE_PARTS or any(
-        part.startswith(".validator-") for part in artifact_parts
+    if (
+        artifact_parts & FORBIDDEN_STORAGE_PARTS
+        or any(part.startswith(".validator-") for part in artifact_parts)
+        or in_platform_temp_dir(actual_artifact)
     ):
         errors.append("canonical dispatch cannot use temporary/cache/review-run storage")
     if actual_artifact.suffix.lower() != ".md":
@@ -118,8 +140,10 @@ def storage_errors(
     if receipt_arg.name != expected_receipt:
         errors.append(f"dispatch receipt must be named {expected_receipt}")
     receipt_parts = set(normalized_path(receipt_arg.resolve()).split("/"))
-    if receipt_parts & FORBIDDEN_STORAGE_PARTS or any(
-        part.startswith(".validator-") for part in receipt_parts
+    if (
+        receipt_parts & FORBIDDEN_STORAGE_PARTS
+        or any(part.startswith(".validator-") for part in receipt_parts)
+        or in_platform_temp_dir(receipt_arg)
     ):
         errors.append("dispatch receipt cannot use temporary/cache/review-run storage")
     return errors
