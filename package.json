@@ -1,6 +1,6 @@
 {
   "name": "@orthic-labs/legion",
-  "version": "0.2.4",
+  "version": "0.2.5",
   "private": true,
   "description": "Legion routes engineering, research, editorial, design, and commercial work through explicit authority, execution, and evidence controls.",
   "license": "SEE LICENSE IN LICENSE",
@@ -119,6 +119,10 @@
     "windows:finalize": "node scripts/package-windows-release.mjs --finalize",
     "windows:publish": "node scripts/package-windows-release.mjs --finalize --publish-github --publish-bootstrap",
     "windows:qualify": "node scripts/qualify-windows-release.mjs",
+    "release:finalize-windows": "node scripts/release/installer-release-chain.mjs finalize-windows",
+    "release:finalize-macos": "node scripts/release/installer-release-chain.mjs finalize-macos",
+    "release:qualify-installed": "node scripts/release/installer-release-chain.mjs qualify-installed",
+    "release:publish-qualified": "node scripts/release/installer-release-chain.mjs publish-qualified",
     "release:doctor": "right-release doctor --platform win",
     "biome": "biome lint . --max-diagnostics=1000",
     "biome:check": "biome lint . --max-diagnostics=1000"

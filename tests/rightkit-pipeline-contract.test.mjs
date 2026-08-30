@@ -20,9 +20,12 @@ test('right-git owns exact public CI bytes', () => {
       assert.match(workflow, /^# Managed by right-git/);
       assert.match(workflow, /RIGHT_GIT_RELEASE_PLATFORM: \$\{\{ matrix\.platform \}\}/);
       assert.match(workflow, /RIGHT_GIT_RELEASE_ARCHITECTURE: \$\{\{ matrix\.architecture \}\}/);
-      for (const runner of ['windows-2025', 'windows-11-arm', 'macos-15', 'macos-15-intel']) {
+      for (const runner of ['windows-2025', 'macos-15']) {
         assert.match(workflow, new RegExp(`os: "${runner}"`));
       }
+      assert.doesNotMatch(workflow, /windows-11-arm|macos-15-intel/);
+      assert.match(workflow, /installed-qualification:/);
+      assert.match(workflow, /publish:/);
       assert.equal((workflow.match(/if: \$\{\{ startsWith\(github\.ref, 'refs\/tags\/v'\) \}\}/g) ?? []).length, 2);
     }
   }

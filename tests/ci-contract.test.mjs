@@ -12,7 +12,7 @@ const gateImplementation = readFileSync(join(root, 'scripts/ci/right-git-ci.sh')
 const smoke = readFileSync(join(root, 'scripts/ci/native-installed-smoke.mjs'), 'utf8');
 const candidate = readFileSync(join(root, 'scripts/ci/prepare-unsigned-candidate.mjs'), 'utf8');
 
-test('push and PR CI stays Windows-only while release candidates build every native target', () => {
+test('push and PR CI stays Windows-only while release candidates build primary installer targets', () => {
   assert.match(ci, /os: \["windows-2025"\]/);
   assert.doesNotMatch(ci, /os: \[[^\]]*(?:ubuntu-24\.04|macos-15)[^\]]*\]/);
   assert.match(ci, /node: \["22\.23\.2"\]/);
@@ -40,15 +40,12 @@ test('push and PR CI stays Windows-only while release candidates build every nat
 
 test('public release CI selects explicit supported targets and release profile', () => {
   assert.match(releaseCi, /include:/);
-  assert.match(releaseCi, /platform: "windows"[\s\S]*architecture: "x86_64"/);
-  assert.match(releaseCi, /os: "windows-11-arm"[\s\S]*platform: "windows"[\s\S]*architecture: "arm64"/);
-  assert.match(releaseCi, /platform: "macos"[\s\S]*architecture: "arm64"/);
-  assert.match(releaseCi, /os: "macos-15-intel"[\s\S]*platform: "macos"[\s\S]*architecture: "x86_64"/);
+  assert.match(releaseCi, /os: "windows-2025"[\s\S]*platform: "windows"[\s\S]*architecture: "x86_64"/);
+  assert.match(releaseCi, /os: "macos-15"[\s\S]*platform: "macos"[\s\S]*architecture: "arm64"/);
+  assert.doesNotMatch(releaseCi, /windows-11-arm|macos-15-intel/);
   for (const targetTriple of [
     'x86_64-pc-windows-msvc',
-    'aarch64-pc-windows-msvc',
     'aarch64-apple-darwin',
-    'x86_64-apple-darwin',
   ]) assert.match(releaseCi, new RegExp(targetTriple));
   assert.match(releaseCi, /RIGHT_GIT_RELEASE_PLATFORM: \$\{\{ matrix\.platform \}\}/);
   assert.match(releaseCi, /RIGHT_GIT_RELEASE_ARCHITECTURE: \$\{\{ matrix\.architecture \}\}/);
@@ -56,11 +53,17 @@ test('public release CI selects explicit supported targets and release profile',
   assert.ok(releaseCi.indexOf('pnpm install --frozen-lockfile') < releaseCi.indexOf('Build unsigned release candidate'));
   assert.match(releaseCi, /windows-sign:/);
   assert.match(releaseCi, /macos-sign:/);
+  assert.match(releaseCi, /installed-qualification:/);
+  assert.match(releaseCi, /publish:/);
+  assert.match(releaseCi, /release:finalize-windows/);
+  assert.match(releaseCi, /release:finalize-macos/);
+  assert.match(releaseCi, /release:qualify-installed/);
+  assert.match(releaseCi, /release:publish-qualified/);
   assert.equal((releaseCi.match(/if: \$\{\{ startsWith\(github\.ref, 'refs\/tags\/v'\) \}\}/g) ?? []).length, 2);
   assert.match(releaseCi, /name: legion-signed-windows-\$\{\{ matrix\.architecture \}\}-22\.23\.2/);
   assert.match(releaseCi, /name: legion-signed-macos-\$\{\{ matrix\.architecture \}\}-22\.23\.2/);
-  assert.match(releaseCi, /right-release build --platform win --skip-checks/);
-  assert.match(releaseCi, /right-release build --platform mac --skip-checks/);
+  assert.match(releaseCi, /pnpm run release:finalize-windows/);
+  assert.match(releaseCi, /pnpm run release:finalize-macos/);
   assert.match(releaseCi, /secrets\.APPLE_CERTIFICATE_BASE64/);
   assert.doesNotMatch(releaseCi, /pull_request_target/);
   assert.doesNotMatch(releaseCi, /--profile debug/);

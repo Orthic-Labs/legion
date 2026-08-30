@@ -27,21 +27,11 @@ jobs:
             platform: "windows"
             architecture: "x86_64"
             targetTriple: "x86_64-pc-windows-msvc"
-          - os: "windows-11-arm"
-            node: "22.23.2"
-            platform: "windows"
-            architecture: "arm64"
-            targetTriple: "aarch64-pc-windows-msvc"
           - os: "macos-15"
             node: "22.23.2"
             platform: "macos"
             architecture: "arm64"
             targetTriple: "aarch64-apple-darwin"
-          - os: "macos-15-intel"
-            node: "22.23.2"
-            platform: "macos"
-            architecture: "x86_64"
-            targetTriple: "x86_64-apple-darwin"
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -93,11 +83,6 @@ jobs:
             architecture: "x86_64"
             targetTriple: "x86_64-pc-windows-msvc"
             node: "22.23.2"
-          - os: "windows-11-arm"
-            platform: "windows"
-            architecture: "arm64"
-            targetTriple: "aarch64-pc-windows-msvc"
-            node: "22.23.2"
     runs-on: ${{ matrix.os }}
     permissions:
       contents: read
@@ -147,10 +132,11 @@ jobs:
           "AZURE_ARTIFACT_SIGNING_DLIB_PATH=$tools\client\bin\x64\Azure.CodeSigning.Dlib.dll" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
           "AZURE_SIGNTOOL_PATH=$tools\sdk\bin\10.0.26100.0\x64\signtool.exe" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
       - name: Sign & finalize Windows candidate
-        run: pnpm exec right-release build --platform win --skip-checks
+        run: pnpm run release:finalize-windows
         env:
-          LEGION_UNSIGNED_CANDIDATE_ROOT: ${{ runner.temp }}/unsigned-windows-candidate
-          LEGION_SOURCE_REVISION: ${{ env.RIGHT_GIT_SOURCE_REVISION }}
+          RIGHT_GIT_UNSIGNED_CANDIDATE_ROOT: ${{ runner.temp }}/unsigned-windows-candidate
+          RIGHT_GIT_FINALIZED_WINDOWS_ROOT: ${{ runner.temp }}/finalized-windows
+          RIGHT_GIT_SOURCE_REVISION: ${{ env.RIGHT_GIT_SOURCE_REVISION }}
           RIGHT_GIT_RELEASE_PLATFORM: ${{ matrix.platform }}
           RIGHT_GIT_RELEASE_ARCHITECTURE: ${{ matrix.architecture }}
           AZURE_ARTIFACT_SIGNING_ENDPOINT: ${{ vars.AZURE_ARTIFACT_SIGNING_ENDPOINT }}
@@ -161,8 +147,7 @@ jobs:
         with:
           name: legion-signed-windows-${{ matrix.architecture }}-22.23.2
           path: |
-            dist/releases/windows/**
-            .right-release/receipts/windows-*.json
+            ${{ runner.temp }}/finalized-windows/**
           if-no-files-found: error
 
   macos-sign:
@@ -177,11 +162,6 @@ jobs:
             platform: "macos"
             architecture: "arm64"
             targetTriple: "aarch64-apple-darwin"
-            node: "22.23.2"
-          - os: "macos-15-intel"
-            platform: "macos"
-            architecture: "x86_64"
-            targetTriple: "x86_64-apple-darwin"
             node: "22.23.2"
     runs-on: ${{ matrix.os }}
     permissions:
@@ -230,10 +210,11 @@ jobs:
           security list-keychain -d user -s "$keychain_path"
           printf 'APPLE_API_KEY_PATH=%s\n' "$key_path" >> "$GITHUB_ENV"
       - name: Sign, notarize & finalize macOS candidate
-        run: pnpm exec right-release build --platform mac --skip-checks
+        run: pnpm run release:finalize-macos
         env:
-          LEGION_UNSIGNED_CANDIDATE_ROOT: ${{ runner.temp }}/unsigned-macos-candidate
-          LEGION_SOURCE_REVISION: ${{ env.RIGHT_GIT_SOURCE_REVISION }}
+          RIGHT_GIT_UNSIGNED_CANDIDATE_ROOT: ${{ runner.temp }}/unsigned-macos-candidate
+          RIGHT_GIT_FINALIZED_MACOS_ROOT: ${{ runner.temp }}/finalized-macos
+          RIGHT_GIT_SOURCE_REVISION: ${{ env.RIGHT_GIT_SOURCE_REVISION }}
           RIGHT_GIT_RELEASE_PLATFORM: ${{ matrix.platform }}
           RIGHT_GIT_RELEASE_ARCHITECTURE: ${{ matrix.architecture }}
           APPLE_DEVELOPER_ID: ${{ vars.APPLE_DEVELOPER_ID }}
@@ -244,8 +225,7 @@ jobs:
         with:
           name: legion-signed-macos-${{ matrix.architecture }}-22.23.2
           path: |
-            dist/releases/mac/**
-            .right-release/receipts/macos-*.json
+            ${{ runner.temp }}/finalized-macos/**
           if-no-files-found: error
       - name: Remove Apple signing material
         if: ${{ always() }}
@@ -253,3 +233,87 @@ jobs:
         run: |
           security delete-keychain "$RUNNER_TEMP/apple-signing.keychain-db" 2>/dev/null || true
           rm -f "$RUNNER_TEMP/apple-signing.p12" "$RUNNER_TEMP/AuthKey.p8"
+
+  installed-qualification:
+    needs: [candidate, windows-sign]
+    if: ${{ always() && startsWith(github.ref, 'refs/tags/v') && needs.candidate.result == 'success' }}
+    environment: release
+    runs-on: ${{ vars.LEGION_QUALIFICATION_RUNNER || 'windows-2025' }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Resolve checked-out source revision
+        shell: pwsh
+        run: '"RIGHT_GIT_SOURCE_REVISION=$(git rev-parse HEAD)" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append'
+      - name: Fail closed when protected finalization is absent
+        if: ${{ needs.windows-sign.result != 'success' }}
+        shell: pwsh
+        run: |
+          throw 'installed_qualification_failed { reason: prerequisites_absent, detail: "same-run Windows signing/finalization did not succeed" }'
+      - name: Download same-run finalized Windows release
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: legion-signed-windows-x86_64-22.23.2
+          path: ${{ runner.temp }}/right-git-release/windows
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22.23.2
+          package-manager-cache: false
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
+        with:
+          version: 11.24.0
+      - run: pnpm install --frozen-lockfile
+      - name: Run installed-artifact qualification
+        run: pnpm run release:qualify-installed
+        env:
+          RIGHT_GIT_FINALIZED_WINDOWS_ROOT: ${{ runner.temp }}/right-git-release/windows
+          RIGHT_GIT_QUALIFICATION_EVIDENCE_ROOT: ${{ runner.temp }}/right-git-release/qualification
+          RIGHT_GIT_SOURCE_REVISION: ${{ env.RIGHT_GIT_SOURCE_REVISION }}
+      - name: Upload installed qualification evidence
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: legion-installed-qualification-22.23.2
+          path: ${{ runner.temp }}/right-git-release/qualification/**
+          if-no-files-found: error
+  publish:
+    needs: [installed-qualification, macos-sign]
+    if: ${{ startsWith(github.ref, 'refs/tags/v') && needs.installed-qualification.result == 'success' && needs.macos-sign.result == 'success' }}
+    environment: release
+    runs-on: ${{ vars.LEGION_QUALIFICATION_RUNNER || 'windows-2025' }}
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Resolve checked-out source revision
+        shell: pwsh
+        run: '"RIGHT_GIT_SOURCE_REVISION=$(git rev-parse HEAD)" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append'
+      - name: Download same-run finalized Windows release
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: legion-signed-windows-x86_64-22.23.2
+          path: ${{ runner.temp }}/right-git-release/windows
+      - name: Download same-run signed & notarized macOS release
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: legion-signed-macos-arm64-22.23.2
+          path: ${{ runner.temp }}/right-git-release/macos
+      - name: Download same-run installed qualification evidence
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: legion-installed-qualification-22.23.2
+          path: ${{ runner.temp }}/right-git-release/qualification
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22.23.2
+          package-manager-cache: false
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
+        with:
+          version: 11.24.0
+      - run: pnpm install --frozen-lockfile
+      - name: Publish qualified signed release
+        run: pnpm run release:publish-qualified
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RIGHT_GIT_FINALIZED_WINDOWS_ROOT: ${{ runner.temp }}/right-git-release/windows
+          RIGHT_GIT_FINALIZED_MACOS_ROOT: ${{ runner.temp }}/right-git-release/macos
+          RIGHT_GIT_QUALIFICATION_EVIDENCE_ROOT: ${{ runner.temp }}/right-git-release/qualification
+          RIGHT_GIT_SOURCE_REVISION: ${{ env.RIGHT_GIT_SOURCE_REVISION }}
