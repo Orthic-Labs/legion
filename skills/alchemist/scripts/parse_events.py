@@ -70,7 +70,11 @@ def classify(event: dict) -> tuple[str, str]:
 
 def iter_events(stream):
     for line in stream:
-        line = line.strip()
+        # Windows PowerShell prefixes a UTF-8 BOM on the first line it writes,
+        # and the exact behaviour varies by PowerShell version and redirection.
+        # A BOM here is not corruption, so strip it rather than discarding a
+        # real agent event as unparseable — dropping it loses worker output.
+        line = line.lstrip("﻿").strip()
         if not line:
             continue
         try:
