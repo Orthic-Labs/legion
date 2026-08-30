@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "kind": "legion-authority-dispatch",
   "packetType": "direct",
-  "repositoryRoot": "D:/Claude/legion",
+  "repositoryRoot": ".",
   "sourceRevision": "42f38e4be8c32c74dab84ad2006842c78e2f9aba",
   "sourceArtifact": null,
   "promptArtifact": "docs/dispatch/2026-08-30-pending-work-prompt.md",
@@ -20,7 +20,7 @@
     "AGENTS.md",
     "docs/agent-rules.md"
   ],
-  "integrationOwner": "Legion (this orchestrator, primary checkout D:/Claude/legion, branch main)",
+  "integrationOwner": "Legion (this orchestrator, primary checkout, branch main)",
   "fileTouchPolicy": {
     "mode": "once-end-to-end",
     "plannedFiles": [
