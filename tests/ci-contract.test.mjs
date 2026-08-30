@@ -7,23 +7,26 @@ import { join } from 'node:path';
 const root = fileURLToPath(new URL('..', import.meta.url));
 const ci = readFileSync(join(root, '.github/workflows/ci.yml'), 'utf8');
 const releaseCi = readFileSync(join(root, '.github/workflows/release-candidate.yml'), 'utf8');
-const gate = readFileSync(join(root, 'scripts/ci/right-git-ci.sh'), 'utf8');
+const gate = readFileSync(join(root, 'scripts/gate.sh'), 'utf8');
+const gateImplementation = readFileSync(join(root, 'scripts/ci/right-git-ci.sh'), 'utf8');
 const smoke = readFileSync(join(root, 'scripts/ci/native-installed-smoke.mjs'), 'utf8');
 const candidate = readFileSync(join(root, 'scripts/ci/prepare-unsigned-candidate.mjs'), 'utf8');
 
-test('CI pins toolchains, gates all supported hosts, and smoke-tests installed product', () => {
-  for (const os of ['ubuntu-24.04', 'windows-2025', 'macos-15']) assert.match(ci, new RegExp(os));
+test('push and PR CI stays Windows-only while release candidates qualify every native target', () => {
+  assert.match(ci, /os: \["windows-2025"\]/);
+  assert.doesNotMatch(ci, /os: \[[^\]]*(?:ubuntu-24\.04|macos-15)[^\]]*\]/);
   assert.match(ci, /node: \["22\.23\.2"\]/);
   assert.match(ci, /node-version: \$\{\{ matrix\.node \}\}/);
   assert.match(ci, /version: 11\.24\.0/);
   assert.match(ci, /toolchain: 1\.98\.0/);
   assert.match(ci, /Managed by right-git/);
-  assert.match(ci, /bash \.\/scripts\/ci\/right-git-ci\.sh/);
-  assert.match(gate, /pnpm install --frozen-lockfile/);
-  assert.match(gate, /pnpm legion:check/);
-  assert.match(gate, /pnpm test/);
-  assert.match(gate, /cargo test --locked/);
-  assert.match(gate, /native:assemble -- --profile debug/);
+  assert.match(ci, /bash \.\/scripts\/gate\.sh/);
+  assert.match(gate, /exec bash .*ci\/right-git-ci\.sh/);
+  assert.match(gateImplementation, /pnpm install --frozen-lockfile/);
+  assert.match(gateImplementation, /pnpm legion:check/);
+  assert.match(gateImplementation, /pnpm test/);
+  assert.match(gateImplementation, /cargo test --locked/);
+  assert.match(gateImplementation, /native:assemble -- --profile debug/);
   assert.match(smoke, /"setup", "preview"/);
   assert.match(smoke, /"setup", "--check"/);
   assert.match(smoke, /"setup", "repair"/);
@@ -49,6 +52,8 @@ test('public release CI selects explicit supported targets and release profile',
   ]) assert.match(releaseCi, new RegExp(targetTriple));
   assert.match(releaseCi, /RIGHT_GIT_RELEASE_PLATFORM: \$\{\{ matrix\.platform \}\}/);
   assert.match(releaseCi, /RIGHT_GIT_RELEASE_ARCHITECTURE: \$\{\{ matrix\.architecture \}\}/);
+  assert.match(releaseCi, /name: Run full CI validation\s+run: bash \.\/scripts\/gate\.sh/);
+  assert.ok(releaseCi.indexOf('bash ./scripts/gate.sh') < releaseCi.indexOf('Build unsigned release candidate'));
   assert.match(releaseCi, /windows-sign:/);
   assert.match(releaseCi, /macos-sign:/);
   assert.equal((releaseCi.match(/if: \$\{\{ startsWith\(github\.ref, 'refs\/tags\/v'\) \}\}/g) ?? []).length, 2);

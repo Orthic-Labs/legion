@@ -18,7 +18,7 @@
   "templateVersion": "1.4.0",
   "profile": "rust-hybrid",
   "gate": {
-    "path": "scripts/ci/right-git-ci.sh"
+    "path": "scripts/gate.sh"
   },
   "candidate": {
     "buildScript": "ci:unsigned-candidate",
