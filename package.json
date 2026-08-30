@@ -1,6 +1,6 @@
 {
   "name": "@orthic-labs/legion",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "private": true,
   "description": "Legion routes engineering, research, editorial, design, and commercial work through explicit authority, execution, and evidence controls.",
   "license": "SEE LICENSE IN LICENSE",
@@ -130,6 +130,6 @@
     "@biomejs/biome": "2.5.10",
     "@rightkit/ax": "0.2.1",
     "@rightkit/git": "0.2.13",
-    "@rightkit/release": "0.2.86"
+    "@rightkit/release": "0.2.87"
   }
 }
