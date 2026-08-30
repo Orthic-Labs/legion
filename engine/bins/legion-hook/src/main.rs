@@ -1528,7 +1528,7 @@ fn route_trace_from_request(
             payload,
             &["authority_attached", "authorityAttached", "authority"],
         )
-        .and_then(|value| parse_authority(value.as_deref())),
+        .and_then(|value| parse_authority(Some(value.as_str()))),
         compute_posture: parse_compute_posture(trace_string(
             source,
             payload,
