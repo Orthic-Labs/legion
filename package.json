@@ -134,6 +134,6 @@
     "@biomejs/biome": "2.5.10",
     "@rightkit/ax": "0.2.1",
     "@rightkit/git": "0.2.15",
-    "@rightkit/release": "0.2.89"
+    "@rightkit/release": "0.2.90"
   }
 }
