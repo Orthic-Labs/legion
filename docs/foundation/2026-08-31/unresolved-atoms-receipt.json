@@ -60,8 +60,9 @@
   },
   "validator_result": "PASS: 3 lane reports + 21-row reconciliation",
   "completion_validation": {
-    "status": "BLOCK_REPAIRED_PENDING_RECHECK",
+    "status": "PASS",
     "agent_id": "01a056c1-f152-7fd3-862e-83d162092847",
-    "verdict": "Initial BLOCK repaired: ARC-005 reachability, LEG-023 emitter claim, worker execution provenance & commit preservation."
+    "reviewed_revision": "812008cede7f0afd60fe19b608ca2eaea8754159",
+    "verdict": "PASS after repair: ARC-005 reachability, LEG-023 emitter claim, worker execution provenance & commit preservation verified on pushed commit."
   }
 }
