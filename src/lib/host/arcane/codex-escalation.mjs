@@ -28,6 +28,13 @@ const ATTEMPT = /\b(?:tried|attempted|ran|launched|installed|pip\s+install|docke
 const RESULT = /(?:\bfailed\b|\berrors?\b|\bexception\b|\bcrashed?\b|\bhung\b|\bdidn'?t work\b|\b\w+Error\b|\b\w+Exception\b|\b(?:exit|return|rc)\s*(?:code\s*)?[1-9]\d*\b|\bdoesn'?t (?:exist|work|load|import|find)\b)/i;
 
 export const REQUIRED_ATTEMPTS = 2;
+const STRONGER_MODEL = Object.freeze({ fast: 'balanced', balanced: 'strong', strong: 'strong' });
+
+export function selectStrongerWorkingModel({ uncertain = false, currentTier = 'balanced', priorEscalations = 0 } = {}) {
+  if (!uncertain) return Object.freeze({ escalated: false, modelTier: currentTier, executions: 0, workflowArtifact: false });
+  if (priorEscalations !== 0) throw Object.assign(new Error('route uncertainty escalation already consumed'), { code: 'ARC_ESCALATION_RECURSION' });
+  return Object.freeze({ escalated: true, modelTier: STRONGER_MODEL[currentTier] ?? 'strong', executions: 1, workflowArtifact: false, responseMode: 'DIRECT' });
+}
 
 /**
  * Count attempts that name a real outcome. An attempt verb only counts when a

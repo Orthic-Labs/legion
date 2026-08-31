@@ -16,14 +16,18 @@
 
 import { ArcaneError } from '../../contracts/arcane/errors.mjs';
 import { ulid } from '../../contracts/arcane/ids.mjs';
+import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
+import { join } from 'node:path';
 
 function depKey(dimension, ref) {
   return `${dimension}::${ref}`;
 }
 
 export class DependencyLedger {
-  constructor({ clock = () => new Date().toISOString() } = {}) {
+  constructor({ clock = () => new Date().toISOString(), root = null } = {}) {
     this._clock = clock;
+    this._root = root;
+    this._hydrating = false;
 
     /** @type {Map<string, object>} evidenceId -> record */
     this._evidence = new Map();
@@ -40,6 +44,45 @@ export class DependencyLedger {
     this._claimCriteria = new Map();
 
     this._quarantine = [];
+    this._hydrate();
+  }
+
+  _statePath() { return this._root ? join(this._root, 'ledger.json') : null; }
+
+  _persist() {
+    if (!this._root || this._hydrating) return;
+    mkdirSync(this._root, { recursive: true });
+    const path = this._statePath();
+    const temporary = join(this._root, `.ledger-${process.pid}.tmp`);
+    writeFileSync(temporary, JSON.stringify({ schemaVersion: 1, ...this.snapshot() }), { flag: 'w' });
+    renameSync(temporary, path);
+  }
+
+  _hydrate() {
+    const path = this._statePath();
+    if (!path || !existsSync(path)) return;
+    this._hydrating = true;
+    try {
+      const state = JSON.parse(readFileSync(path, 'utf8'));
+      if (state.schemaVersion !== 1 || !Array.isArray(state.evidence)) throw new Error('dependency ledger schema mismatch');
+      for (const record of state.evidence) {
+        this.register(record.evidenceId, record.dependencies, { trusted: record.trusted !== false });
+        const current = this._evidence.get(record.evidenceId);
+        current.stale = record.stale === true;
+        current.staleEvents = Array.isArray(record.staleEvents) ? record.staleEvents : [];
+        current.corrupt = record.corrupt === true;
+        current.corruptReason = record.corruptReason ?? null;
+        current.registeredAt = record.registeredAt;
+      }
+      for (const edge of state.criteria ?? []) for (const evidenceId of edge.evidence ?? []) this.link(evidenceId, { criterionId: edge.criterionId });
+      for (const edge of state.claims ?? []) for (const criterionId of edge.criteria ?? []) {
+        const evidenceId = [...(this._criterionEvidence.get(criterionId) ?? [])][0];
+        if (evidenceId) this.link(evidenceId, { criterionId, claimId: edge.claimId });
+      }
+      this._quarantine = Array.isArray(state.quarantined) ? state.quarantined : [];
+    } catch (cause) {
+      throw new ArcaneError('ARC_STORE_CORRUPT', 'dependency ledger cannot be hydrated', { cause: cause.message });
+    } finally { this._hydrating = false; }
   }
 
   /**
@@ -79,6 +122,7 @@ export class DependencyLedger {
         this._evidenceDependents.get(dep.ref).add(evidenceId);
       }
     }
+    this._persist();
     return { evidenceId };
   }
 
@@ -104,6 +148,7 @@ export class DependencyLedger {
       if (!this._claimCriteria.has(claimId)) this._claimCriteria.set(claimId, new Set());
       this._claimCriteria.get(claimId).add(criterionId);
     }
+    this._persist();
   }
 
   /**
@@ -181,7 +226,7 @@ export class DependencyLedger {
     // --- unaffected: every registered evidence id this event did not touch ---
     const unaffected = [...this._evidence.keys()].filter((id) => !touchedAll.has(id));
 
-    return Object.freeze({
+    const event = Object.freeze({
       eventId: `invevt_${ulid()}`,
       at: this._clock(),
       changed: { dimension, ref, from, to: digest },
@@ -191,6 +236,8 @@ export class DependencyLedger {
       affectedClaims,
       unaffected,
     });
+    this._persist();
+    return event;
   }
 
   isStale(evidenceId) {
@@ -217,6 +264,7 @@ export class DependencyLedger {
     rec.corrupt = true;
     rec.corruptReason = reason;
     this._quarantine.push({ evidenceId, reason, at: this._clock() });
+    this._persist();
   }
 
   quarantined() {

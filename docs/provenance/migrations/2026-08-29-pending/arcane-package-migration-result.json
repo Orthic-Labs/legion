@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "migration": "P0.5 Arcane package triage execution",
   "sourceTriage": "docs/provenance/migrations/2026-08-29-pending/arcane-package-triage-v2.md",
-  "generatedAt": "2026-08-30T14:16:55.841Z",
+  "generatedAt": "2026-08-31T11:28:03.293Z",
   "inventory": {
     "expected": 235,
     "observed": 235,
@@ -547,7 +547,7 @@
         "target exists",
         "all resolvable imports rewritten"
       ],
-      "sha256AfterMove": "881dd3dca15d1363ae2f0c36c507da8d356f09a453a08bf89469147b8cd7251a",
+      "sha256AfterMove": "64617bfd94b3eb6c9968372c7d16a43064f617221c10c0e4a837a787fe30d35f",
       "newConsumers": [
         "src/lib/guard/compat/host/claude-code-adapter.mjs",
         "src/lib/guard/compat/host/codex-adapter.mjs",
@@ -575,7 +575,7 @@
         "target exists",
         "all resolvable imports rewritten"
       ],
-      "sha256AfterMove": "ac10e34a0aa87f72a5ce391eb720990e045d38da23fd689b93576e4330c3c02f",
+      "sha256AfterMove": "9f85a90f920f1ea1331b17639e8843be346de30bf07bab7841abfb1785b3580d",
       "newConsumers": [
         "src/lib/host/arcane/host-runtime.mjs",
         "tests/arcane-package-policy-inject.test.mjs"
@@ -839,7 +839,8 @@
         "tests/arcane-package-m7-state-replay.test.mjs",
         "tests/arcane-package-runtime-binding.test.mjs",
         "tests/naming-contract.test.mjs",
-        "tests/stage3-architecture-conformance.test.mjs"
+        "tests/stage3-architecture-conformance.test.mjs",
+        "tests/unresolved-atoms-closure.test.mjs"
       ]
     },
     {
@@ -1253,6 +1254,7 @@
         "src/lib/cli/commands/governance/judgment/advisory-judgment.mjs",
         "src/lib/cli/commands/governance/judgment/current-user-scope-amendment.mjs",
         "src/lib/cli/commands/governance/judgment/finding-lifecycle.mjs",
+        "src/lib/cognitive/arcane/route-envelope.mjs",
         "src/lib/contracts/arcane/authority-binding-store.mjs",
         "src/lib/contracts/arcane/authority-invocation-proof.mjs",
         "src/lib/contracts/arcane/state-paths.mjs",
@@ -1309,7 +1311,8 @@
         "tests/contract-seal-producer.test.mjs",
         "tests/fixtures/arcane-package/runtime-binding-contract.mjs",
         "tests/stage3-architecture-conformance.test.mjs",
-        "tests/stage4-continuity.test.mjs"
+        "tests/stage4-continuity.test.mjs",
+        "tests/unresolved-atoms-closure.test.mjs"
       ]
     },
     {
@@ -1359,10 +1362,11 @@
         "target exists",
         "all resolvable imports rewritten"
       ],
-      "sha256AfterMove": "2ec9a9ac0704a094cd58af9425269fa147ce8a463dedbab48f445a9b02b5f0bc",
+      "sha256AfterMove": "53b46b51d30147598d5f868d3304ccfed0d2b2fe906e32224bc29d7a3af6ea6e",
       "newConsumers": [
         "src/lib/host/arcane/hook-adapter-core.mjs",
-        "tests/arcane-package-codex-escalation.test.mjs"
+        "tests/arcane-package-codex-escalation.test.mjs",
+        "tests/unresolved-atoms-closure.test.mjs"
       ]
     },
     {
@@ -1503,7 +1507,7 @@
         "target exists",
         "all resolvable imports rewritten"
       ],
-      "sha256AfterMove": "cd120589e23102f9ea209f6c439a5a61220d4d3834c3b900b802cb4421161c62",
+      "sha256AfterMove": "d6f1b56fa5a92d8edffddd3508c702624ffd3d84ddff5c1d66e35e67e83ba621",
       "newConsumers": [
         "src/lib/cli/commands/governance/execution/execution-governance.mjs",
         "src/lib/cli/commands/governance/execution/s11-bindings/governance-state.mjs",
@@ -1512,7 +1516,8 @@
         "src/lib/verification/arcane/s11-bindings/m7-production.mjs",
         "tests/arcane-package-m7-state-replay.test.mjs",
         "tests/arcane-package-runtime-binding.test.mjs",
-        "tests/stage4-continuity.test.mjs"
+        "tests/stage4-continuity.test.mjs",
+        "tests/unresolved-atoms-closure.test.mjs"
       ]
     },
     {
@@ -2244,10 +2249,11 @@
         "target exists",
         "all resolvable imports rewritten"
       ],
-      "sha256AfterMove": "214df047a65aaf1055b51c49a6074b108c514766f794b838f92c0fa149a7de54",
+      "sha256AfterMove": "4432ce1e466181842c96349029d9eb3cba2c05529e72707326340d0c0d8d76ec",
       "newConsumers": [
         "src/lib/cli/commands/completion.mjs",
         "src/lib/cli/commands/contract.mjs",
+        "src/lib/cli/commands/doctor-host.mjs",
         "src/lib/cli/commands/governance.mjs",
         "src/lib/cli/commands/governance/judgment/current-user-scope-amendment.mjs",
         "src/lib/cli/commands/host-events.mjs",
@@ -2264,7 +2270,8 @@
         "tests/arcane-package-runtime-binding.test.mjs",
         "tests/arcane-package-s09-completion-gate.test.mjs",
         "tests/cli.test.mjs",
-        "tests/contract-seal-producer.test.mjs"
+        "tests/contract-seal-producer.test.mjs",
+        "tests/unresolved-atoms-closure.test.mjs"
       ]
     },
     {
@@ -2406,13 +2413,17 @@
         "target exists",
         "all resolvable imports rewritten"
       ],
-      "sha256AfterMove": "18e96b199646ada54bfa5538d75ddcb61f1c307f12761a12c687ac2c8bd972ae",
+      "sha256AfterMove": "c5f99c594edec25f5e524cb55009f29ea24c7d09a2312ee4933efcd6b88f1ced",
       "newConsumers": [
+        "src/lib/cli/commands/completion.mjs",
+        "src/lib/cli/commands/run.mjs",
+        "src/lib/host/arcane/host-runtime.mjs",
         "src/lib/verification/arcane/evidence-migration.mjs",
         "src/lib/verification/arcane/s11-bindings/authority-review.mjs",
         "tests/arcane-package-s04-ingest.test.mjs",
         "tests/arcane-package-s05-invalidation.test.mjs",
-        "tests/arcane-package-s05-migration.test.mjs"
+        "tests/arcane-package-s05-migration.test.mjs",
+        "tests/unresolved-atoms-closure.test.mjs"
       ]
     },
     {

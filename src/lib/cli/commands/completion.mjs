@@ -15,6 +15,7 @@ import { ReceiptStore } from '../../guard/compat/audit/receipt-store.mjs';
 import { sealEvidence } from '../../verification/arcane/evidence-envelope.mjs';
 import { signRecord, EVIDENCE_RECEIPT_BOUND_FIELDS } from '../../guard/compat/audit/receipt-auth.mjs';
 import { completionIntegratedStateForRepositories, latestScopedMaterialChange } from '../../verification/arcane/completion-state.mjs';
+import { DependencyLedger } from '../../verification/arcane/invalidation.mjs';
 
 const session = (value, env) => value || env.CODEX_THREAD_ID || env.CLAUDE_CODE_SESSION_ID || env.CLAUDE_SESSION_ID || env.CODEX_SESSION_ID || null;
 
@@ -125,9 +126,17 @@ function runEvidence(argv, { stdout, env, cwd }) {
   const repositories = completionRepositories(cwd, binding, seal.contract.scope.own);
   const latest = latestCompletionChange(receipts, binding.runId, repositories);
   const observation = { acceptanceId: criterion.id, requirementId: item.requirementId, productionSymbol: item.productionSymbol, liveConsumer: item.liveConsumer, acceptanceSurface: item.acceptanceSurface, integratedState: completionIntegratedStateForRepositories(repositories), latestMaterialChange: latest, contractVersion: binding.contractVersion, contractDigest: binding.contractDigest, sourceRevision: seal.sourceRevision, validUntil: item.validUntil, authorityProofDigest: digestValue(authorityProof) };
-  const { receipt } = sealEvidence({ runId: binding.runId, taskId: binding.taskId, contractId: binding.contractId, producerAuthority: 'oracle', capability: 'oracle-acceptance-observation', observation, evidenceClass: 'deterministic', sourceRevision: seal.sourceRevision, authentication: { issuerIdentity: 'oracle', verificationMethod: 'capability-signature', perMessage: true, verifiedAt: new Date().toISOString() }, replayDefense: { nonce: authorityProof.invocationId, sequence: 1, freshnessWindowSeconds: 3600, freshAt: new Date().toISOString() }, observedAt: new Date().toISOString() });
+  const dependencies = [
+    { dimension: 'source-digest', ref: item.liveConsumer, digest: digestValue(seal.sourceRevision) },
+    { dimension: 'upstream-contract-revision', ref: binding.contractId, digest: binding.contractDigest },
+  ];
+  const { receipt } = sealEvidence({ runId: binding.runId, taskId: binding.taskId, contractId: binding.contractId, producerAuthority: 'oracle', capability: 'oracle-acceptance-observation', observation, evidenceClass: 'deterministic', sourceRevision: seal.sourceRevision, dependencies, authentication: { issuerIdentity: 'oracle', verificationMethod: 'capability-signature', perMessage: true, verifiedAt: new Date().toISOString() }, replayDefense: { nonce: authorityProof.invocationId, sequence: 1, freshnessWindowSeconds: 3600, freshAt: new Date().toISOString() }, observedAt: new Date().toISOString() });
   receipt.authentication = { ...receipt.authentication, ...signRecord(receipt, { keyRing: keys, keyId: rootKeyId, boundFields: EVIDENCE_RECEIPT_BOUND_FIELDS }) };
   const consumed = issuer.consume(authorityProof, { artifactDigest: digestValue(receipt) });
   if (!consumed.allowed) throw new LegionError(consumed.code, { code: consumed.code, exitCode: EXIT.INCOMPLETE });
-  receipts.append(receipt); stdout.write(`${JSON.stringify({ evidenceId: receipt.evidenceId, acceptanceId: criterion.id })}\n`); return { exitCode: EXIT.PASS };
+  receipts.append(receipt);
+  const dependenciesLedger = new DependencyLedger({ root: join(cwd, '.audit', 'arcane', 'dependency-ledger') });
+  dependenciesLedger.register(receipt.evidenceId, dependencies);
+  dependenciesLedger.link(receipt.evidenceId, { criterionId: criterion.id });
+  stdout.write(`${JSON.stringify({ evidenceId: receipt.evidenceId, acceptanceId: criterion.id })}\n`); return { exitCode: EXIT.PASS };
 }

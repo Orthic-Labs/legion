@@ -6,10 +6,13 @@ use futures_util::StreamExt;
 use serde_json::{json, Value};
 
 use crate::{
-    auth::{AuthError, BearerAuth},
+    auth::{
+        authorize_credential_access, AuthError, BearerAuth, CredentialAccessGrant,
+        CredentialAuthorizer, CredentialReceipt, SecretProvider,
+    },
     inference::{
-        InferenceClient, InferenceError, InferenceErrorCode, InferenceRequest, InferenceResponse,
-        InferenceStream, InferenceUsage,
+        InferenceCallTrace, InferenceClient, InferenceError, InferenceErrorCode, InferenceRequest,
+        InferenceResponse, InferenceStream, InferenceTraceSink, InferenceUsage,
     },
     retry::{retryable_status, RetryPolicy},
     stream::{SseDecoder, StreamEvent, StreamLimits},
@@ -51,10 +54,16 @@ pub struct HttpInferenceClient {
     client: reqwest::Client,
     config: HttpInferenceConfig,
     auth: BearerAuth,
+    _credential_scope: CredentialAccessGrant,
+    trace_sink: Option<std::sync::Arc<dyn InferenceTraceSink>>,
 }
 
 impl HttpInferenceClient {
-    pub fn new(config: HttpInferenceConfig, auth: BearerAuth) -> Result<Self, InferenceError> {
+    fn new(
+        config: HttpInferenceConfig,
+        auth: BearerAuth,
+        credential_scope: CredentialAccessGrant,
+    ) -> Result<Self, InferenceError> {
         config.validate()?;
         let client = reqwest::Client::builder()
             .use_rustls_tls()
@@ -69,20 +78,92 @@ impl HttpInferenceClient {
             client,
             config,
             auth,
+            _credential_scope: credential_scope,
+            trace_sink: None,
         })
     }
 
-    pub fn with_client(
+    fn with_client(
         client: reqwest::Client,
         config: HttpInferenceConfig,
         auth: BearerAuth,
+        credential_scope: CredentialAccessGrant,
     ) -> Result<Self, InferenceError> {
         config.validate()?;
         Ok(Self {
             client,
             config,
             auth,
+            _credential_scope: credential_scope,
+            trace_sink: None,
         })
+    }
+
+    pub fn authorized(
+        config: HttpInferenceConfig,
+        provider_id: &str,
+        secrets: &dyn SecretProvider,
+        authorizer: &dyn CredentialAuthorizer,
+    ) -> Result<(Self, CredentialReceipt), InferenceError> {
+        let grant = authorize_credential_access(provider_id, authorizer)?;
+        let auth = BearerAuth::from_provider(secrets, &grant)?;
+        let receipt = CredentialReceipt {
+            provider_id: grant.provider_id().into(),
+            auth: auth.redacted(),
+            effect: "CREDENTIAL_ACCESS",
+        };
+        Ok((Self::new(config, auth, grant)?, receipt))
+    }
+
+    pub fn with_authorized_client(
+        client: reqwest::Client,
+        config: HttpInferenceConfig,
+        provider_id: &str,
+        secrets: &dyn SecretProvider,
+        authorizer: &dyn CredentialAuthorizer,
+    ) -> Result<(Self, CredentialReceipt), InferenceError> {
+        let grant = authorize_credential_access(provider_id, authorizer)?;
+        let auth = BearerAuth::from_provider(secrets, &grant)?;
+        let receipt = CredentialReceipt {
+            provider_id: grant.provider_id().into(),
+            auth: auth.redacted(),
+            effect: "CREDENTIAL_ACCESS",
+        };
+        Ok((Self::with_client(client, config, auth, grant)?, receipt))
+    }
+
+    pub fn with_trace_sink(mut self, trace_sink: std::sync::Arc<dyn InferenceTraceSink>) -> Self {
+        self.trace_sink = Some(trace_sink);
+        self
+    }
+
+    fn trace(
+        &self,
+        request: &InferenceRequest,
+        started: Instant,
+        status: &str,
+        usage: Option<&InferenceUsage>,
+    ) {
+        let Some(trace_sink) = &self.trace_sink else {
+            return;
+        };
+        trace_sink.record(InferenceCallTrace {
+            route_id: request
+                .route_id
+                .clone()
+                .unwrap_or_else(|| "unattributed-route".into()),
+            work_unit_id: request
+                .work_unit_id
+                .clone()
+                .unwrap_or_else(|| "unattributed-work-unit".into()),
+            model: request.model.clone(),
+            elapsed_ms: started.elapsed().as_millis().min(u64::MAX as u128) as u64,
+            prompt_tokens: usage.and_then(|value| value.prompt_tokens),
+            completion_tokens: usage.and_then(|value| value.completion_tokens),
+            total_tokens: usage.and_then(|value| value.total_tokens),
+            cost_micros: request.estimated_cost_micros,
+            status: status.into(),
+        });
     }
 
     async fn send(
@@ -273,14 +354,19 @@ impl InferenceClient for HttpInferenceClient {
     async fn infer(&self, request: InferenceRequest) -> Result<InferenceResponse, InferenceError> {
         let mut last = None;
         for attempt in 1..=self.config.retry.max_attempts.max(1) {
+            let started = Instant::now();
             match self.infer_once(request.clone()).await {
-                Ok(response) => return Ok(response),
+                Ok(response) => {
+                    self.trace(&request, started, "complete", Some(&response.usage));
+                    return Ok(response);
+                }
                 Err(error)
                     if self
                         .config
                         .retry
                         .can_retry(&error, attempt, request.deadline) =>
                 {
+                    self.trace(&request, started, "retry", None);
                     let delay = self.config.retry.delay(attempt, request.deadline);
                     tokio::select! {
                         _ = request.cancellation.cancelled() => return Err(InferenceError::cancelled()),
@@ -288,9 +374,10 @@ impl InferenceClient for HttpInferenceClient {
                     }
                 }
                 Err(error) => {
+                    self.trace(&request, started, "failed", None);
                     return Err(last
                         .map(|previous| self.config.retry.exhausted(previous))
-                        .unwrap_or(error))
+                        .unwrap_or(error));
                 }
             }
         }
@@ -301,7 +388,19 @@ impl InferenceClient for HttpInferenceClient {
     }
 
     async fn stream(&self, request: InferenceRequest) -> Result<InferenceStream, InferenceError> {
-        self.stream_once(request).await
+        let started = Instant::now();
+        let result = self.stream_once(request.clone()).await;
+        self.trace(
+            &request,
+            started,
+            if result.is_ok() {
+                "stream-started"
+            } else {
+                "failed"
+            },
+            None,
+        );
+        result
     }
 }
 
@@ -383,5 +482,56 @@ fn validate_response_headers(response: &reqwest::Response) -> Result<(), Inferen
 impl From<AuthError> for InferenceError {
     fn from(error: AuthError) -> Self {
         InferenceError::new(InferenceErrorCode::MissingCredential, error.message)
+    }
+}
+
+#[cfg(test)]
+mod credential_scope_tests {
+    use super::*;
+    use crate::auth::{AuthError, CredentialEffectDecision};
+    use secrecy::SecretString;
+    use std::sync::atomic::{AtomicUsize, Ordering};
+
+    struct Secrets(AtomicUsize);
+    impl SecretProvider for Secrets {
+        fn bearer_token(&self) -> Result<SecretString, AuthError> {
+            self.0.fetch_add(1, Ordering::SeqCst);
+            Ok(SecretString::from("never-print-this-token".to_string()))
+        }
+    }
+
+    struct Authorizer(CredentialEffectDecision);
+    impl CredentialAuthorizer for Authorizer {
+        fn authorize_credential_access(
+            &self,
+            _provider_id: &str,
+        ) -> Result<CredentialEffectDecision, AuthError> {
+            Ok(self.0)
+        }
+    }
+
+    #[test]
+    fn grd_013_credentials_resolve_only_after_authorized_effect_and_receipt_is_redacted() {
+        let secrets = Secrets(AtomicUsize::new(0));
+        let denied = HttpInferenceClient::authorized(
+            HttpInferenceConfig::new("https://provider.invalid"),
+            "provider-1",
+            &secrets,
+            &Authorizer(CredentialEffectDecision::Denied),
+        );
+        assert!(denied.is_err());
+        assert_eq!(secrets.0.load(Ordering::SeqCst), 0);
+
+        let (_, receipt) = HttpInferenceClient::authorized(
+            HttpInferenceConfig::new("https://provider.invalid"),
+            "provider-1",
+            &secrets,
+            &Authorizer(CredentialEffectDecision::Allowed),
+        )
+        .expect("authorized transport");
+        assert_eq!(secrets.0.load(Ordering::SeqCst), 1);
+        assert!(receipt.auth.present);
+        assert_eq!(receipt.effect, "CREDENTIAL_ACCESS");
+        assert!(!format!("{receipt:?}").contains("never-print-this-token"));
     }
 }

@@ -14,13 +14,21 @@ pub mod retry;
 pub mod stream;
 pub mod testkit;
 
+pub use auth::{
+    authorize_credential_access, CredentialAuthorizer, CredentialEffectDecision, CredentialReceipt,
+    RedactedAuth, SecretProvider,
+};
+
 pub use context::{EffectInterface, ProviderContext, SourceInterface};
 pub use coverage::{normalize_coverage, CoverageAssessment};
 pub use error::{ProviderError, ProviderErrorKind};
 pub use external_project_tool::{
     ExecutionReceipt, ExecutionState, ExternalProjectTool, ExternalToolRequest,
 };
-pub use inference::{HostInference, InferenceClient, InferenceRequest, InferenceResponse};
+pub use inference::{
+    HostInference, InferenceCallTrace, InferenceClient, InferenceRequest, InferenceResponse,
+    InferenceTraceSink, MemoryInferenceTrace,
+};
 pub use provider::{Provider, ProviderDefinition, ProviderFactory, ProviderMetadata};
 pub use registry::{ImplementationRegistry, ProviderRegistry, ProviderRegistryDocument};
 pub use result::{normalize_result, ProviderResult, ResultStatus};

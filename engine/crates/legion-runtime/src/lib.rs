@@ -14,8 +14,8 @@ pub mod task;
 
 pub use budget::{BudgetAccount, BudgetReservation};
 pub use engine::{
-    adjudicate, Adjudication, CandidateEvidence, EffectPolicy, EngineOutcome, Invocation,
-    LegionEngine,
+    adjudicate, Adjudication, CandidateEvidence, DrainReport, EffectPolicy, EngineOutcome,
+    Invocation, LegionEngine, RuntimeAdmission, RuntimeState,
 };
 pub use error::RuntimeError;
 pub use escalation::{validate_target, EscalationGrant};
@@ -31,7 +31,10 @@ pub use release_binding::{
     RuntimeIdentity, VerifiedReleaseBinding, REPAIR_COMMAND,
 };
 pub use route::{select_route, RouteCandidate, SelectedRoute};
-pub use scheduler::{Scheduler, SchedulerEvent, SchedulerOutput, SchedulerPolicy};
+pub use scheduler::{
+    replan_remaining, ExecutionJournal, ExecutorActionEnvelope, PauseDecisionReceipt,
+    RunLedgerEntry, Scheduler, SchedulerEvent, SchedulerOutput, SchedulerPolicy, TrajectoryRecord,
+};
 pub use task::{validate_task, ContextRequest};
 
 // LEG-026 owns validation.rs; this declaration is intentionally reserved.

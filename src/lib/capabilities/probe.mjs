@@ -11,9 +11,11 @@
 
 import { execFileSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
+import { createHash } from 'node:crypto';
 import { loadCapabilityRegistry } from './registry.mjs';
 
 export { loadCapabilityRegistry } from './registry.mjs';
+const canonical = (value) => Array.isArray(value) ? value.map(canonical) : value && typeof value === 'object' ? Object.fromEntries(Object.keys(value).sort().map((key) => [key, canonical(value[key])])) : value;
 
 function onPath(command) {
   try {
@@ -34,12 +36,12 @@ function detect(probe, env, { commandExists = onPath, pathExists = existsSync } 
 }
 
 export function probeCapability(id, {
-  registry = loadCapabilityRegistry(), env = process.env, commandExists = onPath, pathExists = existsSync,
+  registry = loadCapabilityRegistry(), env = process.env, commandExists = onPath, pathExists = existsSync, identity = null, sign = null,
 } = {}) {
   const entry = registry.capabilities?.[id];
   if (!entry) throw new Error(`capability is not declared in the registry: ${id}`);
   const available = detect(entry.probe, env, { commandExists, pathExists });
-  return {
+  const metadata = {
     id,
     kind: entry.kind,
     available,                                    // true | false | null (unknown: no probe declared)
@@ -48,6 +50,11 @@ export function probeCapability(id, {
     remedy: entry.remedy ?? null,
     message: available === true ? null : unavailableMessage(id, entry, available),
   };
+  const metadataDigest = `sha256:${createHash('sha256').update(JSON.stringify(canonical(metadata))).digest('hex')}`;
+  const signature = available === true && identity && typeof sign === 'function' ? sign(metadataDigest, identity) : null;
+  const trust = available === false ? 'UNAVAILABLE' : available == null ? 'UNKNOWN' : typeof signature === 'string' && signature ? 'VERIFIED' : 'UNKNOWN';
+  const attestation = { schemaVersion: 1, kind: 'legion-capability-attestation', capabilityId: id, metadataDigest, availability: available, trust, identity: trust === 'VERIFIED' ? identity : null, signature: trust === 'VERIFIED' ? signature : null };
+  return { ...metadata, attestation };
 }
 
 function unavailableMessage(id, entry, available) {

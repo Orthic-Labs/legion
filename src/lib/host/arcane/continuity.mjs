@@ -1,6 +1,8 @@
 import { digestValue } from '../../contracts/arcane/canonical.mjs';
 import { createArchitectureState } from '../../verification/arcane/architecture-state.mjs';
 import { routeArchitecture } from '../../verification/arcane/architecture-router.mjs';
+import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
+import { join } from 'node:path';
 
 const DIGEST = /^sha256:[0-9a-f]{64}$/;
 const clone = (value) => structuredClone(value);
@@ -150,6 +152,72 @@ export async function cancelProcessGroup({ group_id, terminate, alive, max_passe
   fail('process group failed to quiesce');
 }
 
+/** Durable workflow state used by registered host ingress. */
+export class WorkflowContinuityStore {
+  constructor({ root, clock = () => new Date().toISOString() } = {}) {
+    if (!root) fail('workflow continuity root is required');
+    this.root = root;
+    this.clock = clock;
+  }
+
+  _path(runId) { return join(this.root, `${encodeURIComponent(runId)}.json`); }
+  _read(runId) { return existsSync(this._path(runId)) ? JSON.parse(readFileSync(this._path(runId), 'utf8')) : null; }
+  _write(state) {
+    mkdirSync(this.root, { recursive: true });
+    const path = this._path(state.runId);
+    const tmp = join(this.root, `.state-${process.pid}-${Date.now()}.tmp`);
+    const body = { ...state, stateDigest: digestValue(Object.fromEntries(Object.entries(state).filter(([key]) => key !== 'stateDigest'))) };
+    writeFileSync(tmp, JSON.stringify(body), { flag: 'wx' });
+    renameSync(tmp, path);
+    return Object.freeze(body);
+  }
+
+  checkpoint({ runId, fingerprint, nodes = [], completedEffects = [], completedOutputs = {} }) {
+    if (!runId || !DIGEST.test(fingerprint ?? '')) fail('run id & fingerprint are required');
+    const prior = this._read(runId);
+    const nodeMap = new Map((prior?.nodes ?? []).map((node) => [node.id, node]));
+    for (const node of nodes) nodeMap.set(node.id, { id: node.id, dependencies: [...(node.dependencies ?? [])], state: node.state ?? 'PENDING' });
+    const state = {
+      schemaVersion: 1, kind: 'legion-workflow-continuity', runId, fingerprint,
+      continuationEpoch: prior?.continuationEpoch ?? 1,
+      nodes: [...nodeMap.values()],
+      completedEffects: [...new Set([...(prior?.completedEffects ?? []), ...completedEffects])].sort(),
+      completedOutputs: { ...(prior?.completedOutputs ?? {}), ...completedOutputs },
+      pause: prior?.pause ?? null,
+      updatedAt: this.clock(),
+    };
+    return this._write(state);
+  }
+
+  resume({ runId, fingerprint }) {
+    const state = this._read(runId);
+    if (!state || state.fingerprint !== fingerprint) fail('workflow continuity fingerprint mismatch');
+    const unfinished = state.nodes.filter((node) => !['SUCCEEDED', 'SKIPPED'].includes(node.state));
+    return Object.freeze({ runId, continuationEpoch: state.continuationEpoch, unfinished: clone(unfinished), completedEffects: Object.freeze([...state.completedEffects]), completedOutputs: Object.freeze(clone(state.completedOutputs)) });
+  }
+
+  pause({ runId, decisionId, phase, choices, contextFingerprint, continuationToken }) {
+    const state = this._read(runId);
+    if (!state || !decisionId || !Array.isArray(choices) || choices.length < 1 || !DIGEST.test(contextFingerprint ?? '')) fail('named pause decision is invalid');
+    return this._write({ ...state, pause: { decisionId, phase, choices: [...choices], contextFingerprint, continuationToken, chosen: null, responseDigest: null, pausedAt: this.clock() }, updatedAt: this.clock() });
+  }
+
+  applyDirection({ runId, decisionId, choice, response }) {
+    const state = this._read(runId);
+    if (!state?.pause || state.pause.decisionId !== decisionId || !state.pause.choices.includes(choice)) fail('operator direction does not bind current pause');
+    return this._write({ ...state, continuationEpoch: state.continuationEpoch + 1, pause: { ...state.pause, chosen: choice, responseDigest: digestValue(response), resumedAt: this.clock() }, updatedAt: this.clock() });
+  }
+
+  replan({ runId, failure, replacementNodes }) {
+    const state = this._read(runId);
+    if (!state || !failure || !Array.isArray(replacementNodes)) fail('failure & replacement nodes are required');
+    const completed = state.nodes.filter((node) => node.state === 'SUCCEEDED');
+    const completedIds = new Set(completed.map((node) => node.id));
+    if (replacementNodes.some((node) => completedIds.has(node.id))) fail('replan may not replace completed nodes');
+    return this._write({ ...state, continuationEpoch: state.continuationEpoch + 1, nodes: [...completed, ...replacementNodes.map((node) => ({ ...node, dependencies: [...(node.dependencies ?? [])], state: node.state ?? 'PENDING' }))], replan: { failureDigest: digestValue(failure), preservedOutputDigest: digestValue(state.completedOutputs), at: this.clock() }, updatedAt: this.clock() });
+  }
+}
+
 // Host hooks are the only production producer for this minimal lifecycle.
 // They carry no model-authored architecture state: lineage, route, & phase
 // are derived from authenticated host observations before persistence.
@@ -171,12 +239,22 @@ export function createHostArchitectureState({ workspace, sessionId = null } = {}
   });
 }
 
+export const executionTrajectoryPayload = (hostEvent, payload = {}) => Object.freeze({
+  ...payload,
+  parent_execution_id: hostEvent?.extensions?.parentExecutionId ?? null,
+  work_node_id: hostEvent?.extensions?.workNodeId ?? hostEvent?.eventId ?? null,
+  dependency_ids: Object.freeze([...(hostEvent?.extensions?.dependencyIds ?? [])]),
+  submission_state: hostEvent?.eventType === 'stop' ? 'TERMINAL' : 'ACCEPTED',
+  submitted_at: hostEvent?.time ?? null,
+  terminal_state: hostEvent?.eventType === 'stop' ? (payload?.to ?? 'STOPPED') : null,
+});
+
 const proposal = ({ state, hostEvent, binding, event_type, payload, phase = 'route' }) => ({
   objective_lineage_id: state.task.objective_lineage_id,
   intent_epoch: state.intent.intent_epoch,
   execution_id: binding?.runId ?? `host:${hostEvent.sessionId ?? 'unbound'}`,
   repository_id: `workspace:${digestValue(hostEvent.workspace)}`,
-  actor_role: 'host', phase, event_type, payload,
+  actor_role: 'host', phase, event_type, payload: event_type === 'ROUTE_CLASSIFIED' ? executionTrajectoryPayload(hostEvent, payload) : payload,
   acceptance_ids: [], decision_ids: [], finding_ids: [],
   input_fingerprint: digestValue({ eventType: hostEvent.eventType, eventId: hostEvent.eventId, effect: hostEvent.effect }),
   output_refs: [], checkpoint_ref: null, cost_delta: {}, retry_class: 'none', terminal_reason: null, privacy_class: 'metadata',

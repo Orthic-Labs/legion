@@ -9,7 +9,7 @@ use std::{
     collections::BTreeMap,
     fmt,
     pin::Pin,
-    sync::Arc,
+    sync::{Arc, Mutex},
     time::{Duration, Instant},
 };
 
@@ -30,6 +30,9 @@ pub struct InferenceRequest {
     pub deadline: Instant,
     pub cancellation: CancellationToken,
     pub headers: BTreeMap<String, String>,
+    pub route_id: Option<String>,
+    pub work_unit_id: Option<String>,
+    pub estimated_cost_micros: u64,
 }
 
 impl InferenceRequest {
@@ -47,7 +50,20 @@ impl InferenceRequest {
             deadline,
             cancellation: CancellationToken::new(),
             headers: BTreeMap::new(),
+            route_id: Some("direct".into()),
+            work_unit_id: Some("standalone".into()),
+            estimated_cost_micros: 0,
         }
+    }
+
+    pub fn with_attribution(
+        mut self,
+        route_id: impl Into<String>,
+        work_unit_id: impl Into<String>,
+    ) -> Self {
+        self.route_id = Some(route_id.into());
+        self.work_unit_id = Some(work_unit_id.into());
+        self
     }
 
     pub fn remaining(&self) -> Duration {
@@ -69,6 +85,70 @@ impl InferenceRequest {
             return Err(InferenceError::timeout());
         }
         Ok(())
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct InferenceCallTrace {
+    pub route_id: String,
+    pub work_unit_id: String,
+    pub model: String,
+    pub elapsed_ms: u64,
+    pub prompt_tokens: Option<u64>,
+    pub completion_tokens: Option<u64>,
+    pub total_tokens: Option<u64>,
+    pub cost_micros: u64,
+    pub status: String,
+}
+
+pub trait InferenceTraceSink: Send + Sync {
+    fn record(&self, trace: InferenceCallTrace);
+}
+
+#[derive(Default)]
+pub struct MemoryInferenceTrace {
+    calls: Mutex<Vec<InferenceCallTrace>>,
+}
+
+impl MemoryInferenceTrace {
+    pub fn calls(&self) -> Vec<InferenceCallTrace> {
+        self.calls.lock().expect("inference trace").clone()
+    }
+
+    pub fn aggregate_by_work_unit(&self) -> BTreeMap<String, InferenceUsage> {
+        let mut aggregate = BTreeMap::<String, InferenceUsage>::new();
+        for call in self.calls() {
+            let usage = aggregate.entry(call.work_unit_id).or_default();
+            usage.prompt_tokens = sum_optional(usage.prompt_tokens, call.prompt_tokens);
+            usage.completion_tokens = sum_optional(usage.completion_tokens, call.completion_tokens);
+            usage.total_tokens = sum_optional(usage.total_tokens, call.total_tokens);
+        }
+        aggregate
+    }
+
+    pub fn aggregate_cost_by_work_unit(&self) -> BTreeMap<String, u64> {
+        let mut aggregate = BTreeMap::new();
+        for call in self.calls() {
+            let cost = aggregate.entry(call.work_unit_id).or_insert(0u64);
+            *cost = cost.saturating_add(call.cost_micros);
+        }
+        aggregate
+    }
+}
+
+impl InferenceTraceSink for MemoryInferenceTrace {
+    fn record(&self, trace: InferenceCallTrace) {
+        self.calls.lock().expect("inference trace").push(trace);
+    }
+}
+
+fn sum_optional(left: Option<u64>, right: Option<u64>) -> Option<u64> {
+    match (left, right) {
+        (None, None) => None,
+        (left, right) => Some(
+            left.unwrap_or_default()
+                .saturating_add(right.unwrap_or_default()),
+        ),
     }
 }
 
@@ -189,3 +269,47 @@ pub trait InferenceClient: Send + Sync {
 /// Host-provided inference is intentionally an injected capability, not a
 /// process or CLI fallback.
 pub type HostInference = Arc<dyn InferenceClient>;
+
+#[cfg(test)]
+mod trace_tests {
+    use super::*;
+
+    #[test]
+    fn leg_023_every_call_is_attributed_and_operator_aggregation_is_stable() {
+        let trace = MemoryInferenceTrace::default();
+        trace.record(InferenceCallTrace {
+            route_id: "route-1".into(),
+            work_unit_id: "work-1".into(),
+            model: "model".into(),
+            elapsed_ms: 4,
+            prompt_tokens: Some(2),
+            completion_tokens: Some(3),
+            total_tokens: Some(5),
+            cost_micros: 7,
+            status: "complete".into(),
+        });
+        trace.record(InferenceCallTrace {
+            route_id: "route-1".into(),
+            work_unit_id: "work-1".into(),
+            model: "model".into(),
+            elapsed_ms: 5,
+            prompt_tokens: Some(7),
+            completion_tokens: Some(11),
+            total_tokens: Some(18),
+            cost_micros: 11,
+            status: "complete".into(),
+        });
+        let aggregate = trace.aggregate_by_work_unit();
+        assert_eq!(aggregate["work-1"].prompt_tokens, Some(9));
+        assert_eq!(aggregate["work-1"].total_tokens, Some(23));
+        assert_eq!(trace.aggregate_cost_by_work_unit()["work-1"], 18);
+        let request = InferenceRequest::new(
+            "model",
+            "system",
+            "user",
+            Instant::now() + Duration::from_secs(1),
+        );
+        assert_eq!(request.route_id.as_deref(), Some("direct"));
+        assert_eq!(request.work_unit_id.as_deref(), Some("standalone"));
+    }
+}

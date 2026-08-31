@@ -59,10 +59,11 @@ function gotchaReminder(workspace, prompt) {
   return `Relevant workspace gotchas — apply before acting:\n${matches.join('\n')}`;
 }
 
-export function buildPolicyInjection({ workspace, prompt = null, gotchasOnly = false }) {
+export function buildPolicyInjection({ workspace, prompt = null, gotchasOnly = false, routeEnvelope = null }) {
   const minimize = readFileOrNull(MINIMIZE_POLICY)?.trim() ?? null;
   const gotcha = gotchaReminder(workspace, prompt);
-  const parts = gotchasOnly ? [gotcha].filter(Boolean) : [briefContent(workspace), minimize, ccxDirective(), gotcha].filter(Boolean);
+  const route = routeEnvelope?.kind === 'arcane-route-envelope' ? `ARCANE_ROUTE:${JSON.stringify(routeEnvelope)}` : null;
+  const parts = gotchasOnly ? [route, gotcha].filter(Boolean) : [route, briefContent(workspace), minimize, ccxDirective(), gotcha].filter(Boolean);
   if (parts.length === 0) return null;
   const result = { additionalContext: parts.join('\n\n---\n\n') };
   if (!gotchasOnly && minimize) result.systemMessage = 'MINIMIZE:ON';

@@ -19,6 +19,7 @@ import { homedir } from 'node:os';
 
 import * as harnessRegistry from '../../host/registry.mjs';
 import { loadCapabilityRegistry, probeCapability } from '../../capabilities/probe.mjs';
+import { ObservationOutbox } from '../../host/arcane/host-event-ledger.mjs';
 
 const readJson = (path) => { try { return JSON.parse(readFileSync(path, 'utf8')); } catch { return null; } };
 
@@ -250,6 +251,7 @@ export function computeHostSection(root, { home = homedir() } = {}) {
     // installs). This is the runtime view of what host-projection.json records.
     harnessAdapters: harnessAdaptersSection(root),
     hostRequirements: hostRequirementHealth(root),
+    observations: new ObservationOutbox({ root: join(root, '.audit', 'arcane', 'observation-outbox') }).inspect(),
     guard: guardHostHealth(root, home),
   };
 }

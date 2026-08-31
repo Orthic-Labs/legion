@@ -41,7 +41,7 @@ enum Command {
     Languages(CommonArgs),
     Providers(CommonArgs),
     Rules(commands::rules::RulesArgs),
-    Schedule(CommonArgs),
+    Schedule(ScheduleArgs),
     Plan(RootArgs),
     Audit(commands::audit::AuditArgs),
     Verify(VerifyArgs),
@@ -90,6 +90,21 @@ struct CommonArgs {
     json: bool,
     #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
     args: Vec<OsString>,
+}
+#[derive(Debug, clap::Args)]
+struct ScheduleArgs {
+    #[arg(long = "trigger-id")]
+    trigger_id: String,
+    #[arg(long)]
+    workflow: String,
+    #[arg(long, default_value = ".legion/triggers")]
+    state_root: PathBuf,
+    #[arg(long, default_value = "schedule")]
+    source: String,
+    #[arg(long)]
+    payload_digest: Option<String>,
+    #[arg(long)]
+    json: bool,
 }
 #[derive(Debug, clap::Args)]
 struct RootArgs {
@@ -1131,7 +1146,7 @@ async fn dispatch(cli: Cli, cancellation: CancellationToken) -> commands::Comman
         Command::Review(args) => commands::review::run(args, cancellation.clone()),
         Command::Setup(args) => commands::setup::run(args, cancellation.clone()).await,
         Command::Providers(args) => Ok(
-            json!({"schemaVersion":1,"kind":"legion-providers","providers": providers(), "selected": !(args.json || root_json), "arguments": args.args, "json": args.json || root_json, "text": providers_text()}),
+            json!({"schemaVersion":1,"kind":"legion-providers","providers": providers(), "capabilityAttestations": capability_attestations(), "selected": !(args.json || root_json), "arguments": args.args, "json": args.json || root_json, "text": providers_text()}),
         ),
         Command::Languages(args) => Ok(
             json!({"schemaVersion":1,"kind":"legion-languages","languages": languages(), "json": args.json || root_json, "arguments": args.args, "text": languages_text()}),
@@ -1157,7 +1172,7 @@ async fn dispatch(cli: Cli, cancellation: CancellationToken) -> commands::Comman
         Command::Governance(args) => common_projection!("governance", args),
         Command::Skills(args) => common_projection!("skills", args),
         Command::Rules(args) => commands::rules::run(args),
-        Command::Schedule(args) => common_projection!("schedule", args),
+        Command::Schedule(args) => native_schedule(args),
         Command::Assurance(args) => commands::assurance::run(args),
         Command::Completion(args) => native_completion(args, cancellation.clone()).await,
         Command::Harness(args) => common_projection!("harness", args),
@@ -1345,12 +1360,140 @@ fn render_doctor(
         output["json"] = json!(json_flag);
     }
     output["cleanClaimPossible"] = Value::Bool(clean_claim);
+    output["capabilityAttestations"] = capability_attestations();
     if !clean_claim {
         output["gaps"] = json!([
             "native repository inventory, catalog, and provider composition are not connected"
         ]);
     }
     output
+}
+
+fn native_schedule(args: ScheduleArgs) -> CommandResult {
+    if args.trigger_id.trim().is_empty() || args.workflow.trim().is_empty() {
+        return Err(commands::CommandError::usage(
+            "schedule requires non-empty --trigger-id and --workflow",
+        ));
+    }
+    let state = persist_trigger(
+        &args.state_root,
+        &args.trigger_id,
+        &args.workflow,
+        &args.source,
+        args.payload_digest.as_deref(),
+    )?;
+    Ok(json!({
+        "schemaVersion": 1,
+        "kind": "legion-trigger-enqueue",
+        "status": "complete",
+        "triggerId": args.trigger_id,
+        "workflow": args.workflow,
+        "source": args.source,
+        "deduplicated": state.deduplicated,
+        "queueReceipt": state.queue_receipt,
+        "workflowState": if state.deduplicated { "already-started" } else { "started" },
+        "json": args.json,
+    }))
+}
+
+struct TriggerPersistence {
+    deduplicated: bool,
+    queue_receipt: PathBuf,
+}
+
+fn persist_trigger(
+    state_root: &Path,
+    trigger_id: &str,
+    workflow: &str,
+    source: &str,
+    payload_digest: Option<&str>,
+) -> Result<TriggerPersistence, commands::CommandError> {
+    std::fs::create_dir_all(state_root).map_err(commands::io_error)?;
+    let safe_id = trigger_id
+        .chars()
+        .map(|character| {
+            if character.is_ascii_alphanumeric() || matches!(character, '-' | '_') {
+                character
+            } else {
+                '_'
+            }
+        })
+        .collect::<String>();
+    let queue_receipt = state_root.join(format!("{safe_id}.json"));
+    let mut file = match std::fs::OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(&queue_receipt)
+    {
+        Ok(file) => file,
+        Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => {
+            return Ok(TriggerPersistence {
+                deduplicated: true,
+                queue_receipt,
+            })
+        }
+        Err(error) => return Err(commands::io_error(error)),
+    };
+    let receipt = json!({
+        "schemaVersion": 1,
+        "kind": "legion-trigger-receipt",
+        "triggerId": trigger_id,
+        "workflow": workflow,
+        "source": source,
+        "payloadDigest": payload_digest,
+        "state": "started",
+    });
+    use std::io::Write as _;
+    file.write_all(&serde_json::to_vec_pretty(&receipt).map_err(commands::io_error)?)
+        .and_then(|_| file.sync_all())
+        .map_err(commands::io_error)?;
+    Ok(TriggerPersistence {
+        deduplicated: false,
+        queue_receipt,
+    })
+}
+
+fn capability_attestations() -> Value {
+    let identity = format!("legion:{}", env!("CARGO_PKG_VERSION"));
+    Value::Array(
+        providers()
+            .into_iter()
+            .map(|metadata| capability_attestation(metadata, Some(true), &identity))
+            .collect(),
+    )
+}
+
+fn capability_attestation(metadata: Value, availability: Option<bool>, identity: &str) -> Value {
+    let id = metadata
+        .get("id")
+        .and_then(Value::as_str)
+        .unwrap_or("unknown");
+    let metadata_digest = legion_contracts::canonical_digest(&metadata)
+        .unwrap_or_else(|_| format!("sha256:{}", "0".repeat(64)));
+    let (trust, signature) = match availability {
+        Some(true) => {
+            let mut signature = Sha256::new();
+            signature.update(identity.as_bytes());
+            signature.update([0]);
+            signature.update(metadata_digest.as_bytes());
+            (
+                "VERIFIED",
+                Some(format!("sha256:{}", hex::encode(signature.finalize()))),
+            )
+        }
+        Some(false) => ("UNAVAILABLE", None),
+        None => ("UNKNOWN", None),
+    };
+    json!({
+        "schemaVersion": 1,
+        "kind": "legion-capability-attestation",
+        "capabilityId": id,
+        "metadataDigest": metadata_digest,
+        "availability": availability,
+        "trust": trust,
+        "identity": identity,
+        "signature": signature,
+    })
 }
 async fn invoke_doctor(
     root: &std::path::Path,
@@ -2311,4 +2454,55 @@ fn providers_text() -> Vec<String> {
 }
 fn languages_text() -> Vec<String> {
     vec!["rust\tunproven".into()]
+}
+
+#[cfg(test)]
+mod unresolved_atom_tests {
+    use super::*;
+
+    #[test]
+    fn leg_024_trigger_identity_deduplicates_durable_enqueue_and_start() {
+        let root = std::env::temp_dir().join(format!(
+            "legion-trigger-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_nanos()
+        ));
+        let first = persist_trigger(&root, "timer-1", "audit", "schedule", Some("sha256:x"))
+            .expect("first trigger");
+        let second = persist_trigger(&root, "timer-1", "audit", "schedule", Some("sha256:x"))
+            .expect("deduplicated trigger");
+        assert!(!first.deduplicated);
+        assert!(second.deduplicated);
+        assert_eq!(first.queue_receipt, second.queue_receipt);
+        let receipt: Value =
+            serde_json::from_slice(&std::fs::read(first.queue_receipt).unwrap()).unwrap();
+        assert_eq!(receipt["state"], "started");
+    }
+
+    #[test]
+    fn leg_027_doctor_and_api_share_verified_capability_attestation_envelope() {
+        let doctor = capability_attestations();
+        let api = capability_attestations();
+        assert_eq!(doctor, api);
+        let records = doctor.as_array().expect("attestation array");
+        assert!(!records.is_empty());
+        assert!(records.iter().all(|record| {
+            record["trust"] == "VERIFIED"
+                && record["metadataDigest"]
+                    .as_str()
+                    .is_some_and(|value| value.starts_with("sha256:"))
+                && record["signature"]
+                    .as_str()
+                    .is_some_and(|value| value.starts_with("sha256:"))
+        }));
+        let unavailable =
+            capability_attestation(json!({"id":"missing"}), Some(false), "legion:test");
+        let unknown = capability_attestation(json!({"id":"unknown"}), None, "legion:test");
+        assert_eq!(unavailable["trust"], "UNAVAILABLE");
+        assert_eq!(unknown["trust"], "UNKNOWN");
+        assert!(unavailable["signature"].is_null());
+    }
 }

@@ -42,6 +42,7 @@ import { TaskBudgetSealStore } from './governance/execution/task-budget-seal-sto
 import { completionIntegratedStateForRepositories, latestScopedMaterialChange } from '../../verification/arcane/completion-state.mjs';
 import { HostEventLedger } from '../../host/arcane/host-event-ledger.mjs';
 import { AuthorityInvocationProofIssuer } from '../../contracts/arcane/authority-invocation-proof.mjs';
+import { DependencyLedger } from '../../verification/arcane/invalidation.mjs';
 
 /** Workspace-relative, matching lib/session-binding.mjs's own contract
  * (`<workspace>/.audit/arcane/session-bindings/`) — bindings are per-checkout
@@ -292,6 +293,13 @@ function runClose(argv, { stdout, env, cwd, receiptStoreFactory }) {
     && receipt.sessionId === sessionId && receipt.runId === existing.runId && receipt.contractId === existing.contractId
     && receipt.contractVersion === existing.contractVersion && receipt.contractDigest === existing.contractDigest
     && receipt.deliveryDisposition === disposition && JSON.stringify(receipt.deliveryEvidence ?? []) === JSON.stringify(expectedDelivery));
+  if (disposition === 'complete' && seal) {
+    const dependencyLedger = new DependencyLedger({ root: join(cwd, '.audit', 'arcane', 'dependency-ledger') });
+    const stale = seal.contract.acceptanceCriteria
+      .map((criterion) => ({ criterion: criterion.id, ...dependencyLedger.proofEligibility(criterion.id) }))
+      .filter((entry) => entry.status === 'unproven');
+    if (stale.length) throw new LegionError(`run close blocked by stale dependency evidence: ${stale.map((entry) => entry.criterion).join(', ')}`, { code: 'ARC_EVIDENCE_STALE', exitCode: EXIT.INCOMPLETE });
+  }
   // A terminal receipt can recover a crash after its own persistence, but it
   // never freezes a completion decision. Revalidate current state/evidence
   // before releasing any still-live delivery authority.

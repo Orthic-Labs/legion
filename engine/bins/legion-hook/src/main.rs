@@ -57,6 +57,9 @@ fn dispatch_inner(request: HookRequest) -> HookResponse {
     if let Err(error) = request.validate() {
         return response_for_error(event_type, error);
     }
+    if let Some(response) = deterministic_arcane_control(&request) {
+        return response;
+    }
 
     if request.is_lifecycle() {
         if matches!(request.event_type.as_str(), "Stop" | "stop") {
@@ -117,6 +120,56 @@ fn dispatch_inner(request: HookRequest) -> HookResponse {
     };
 
     authorize_effect(request.event_type, &effect, &application)
+}
+
+fn deterministic_arcane_control(request: &HookRequest) -> Option<HookResponse> {
+    if !request.is_lifecycle() {
+        return None;
+    }
+    let payload = request.payload.as_object()?;
+    if let Some(challenge) = payload.get("challengePass") {
+        let Some(challenge) = challenge.as_object() else {
+            return Some(HookResponse::denied(
+                request.event_type.clone(),
+                "ARC_CHALLENGE_INVALID",
+                "challenge pass must be an object",
+                "strong",
+            ));
+        };
+        let pass = challenge.get("passCount").and_then(Value::as_u64);
+        let result = challenge.get("result").and_then(Value::as_str);
+        if pass != Some(1) || !matches!(result, Some("KEEP" | "NARROW" | "REVISE")) {
+            return Some(HookResponse::denied(
+                request.event_type.clone(),
+                "ARC_CHALLENGE_INVALID",
+                "one challenge pass must end KEEP, NARROW or REVISE",
+                "strong",
+            ));
+        }
+        return Some(HookResponse::allowed(
+            request.event_type.clone(),
+            "bounded falsification accepted; pass count is exhausted",
+        ));
+    }
+    if payload.get("routeUncertain").and_then(Value::as_bool) == Some(true) {
+        let prior = payload
+            .get("priorEscalations")
+            .and_then(Value::as_u64)
+            .unwrap_or(0);
+        if prior != 0 {
+            return Some(HookResponse::denied(
+                request.event_type.clone(),
+                "ARC_ESCALATION_RECURSION",
+                "route uncertainty permits one stronger-model execution",
+                "strong",
+            ));
+        }
+        return Some(HookResponse::allowed(
+            request.event_type.clone(),
+            "route uncertainty selected one stronger working-model execution with direct response",
+        ));
+    }
+    None
 }
 
 fn policy_unavailable_response(event_type: String) -> HookResponse {
@@ -207,10 +260,24 @@ fn validate_stop_verification(payload: &Value) -> Result<(), StopVerificationErr
                 .map(|kind| kind.trim().to_ascii_lowercase());
             if !optional_string_fields_valid(
                 value,
-                &["kind", "required", "subjectDigest", "subject_digest", "sourceRevision", "source_revision"],
+                &[
+                    "kind",
+                    "required",
+                    "subjectDigest",
+                    "subject_digest",
+                    "sourceRevision",
+                    "source_revision",
+                ],
             ) || !object_has_only_keys(
                 value,
-                &["kind", "required", "subjectDigest", "subject_digest", "sourceRevision", "source_revision"],
+                &[
+                    "kind",
+                    "required",
+                    "subjectDigest",
+                    "subject_digest",
+                    "sourceRevision",
+                    "source_revision",
+                ],
             ) || value
                 .get("required")
                 .is_some_and(|required| required.as_bool() != Some(true))
@@ -221,14 +288,12 @@ fn validate_stop_verification(payload: &Value) -> Result<(), StopVerificationErr
                 Some("none") => StopVerificationRequirement::None,
                 Some("oracle")
                 | Some("oracle_completion_validation")
-                | Some("oracle-completion-validation") => {
-                    StopVerificationRequirement::Oracle {
-                        subject_digest: first_string(value, &["subjectDigest", "subject_digest"])
-                            .or_else(|| explicit_delivery_digest(object)),
-                        source_revision: first_string(value, &["sourceRevision", "source_revision"])
-                            .or_else(|| explicit_source_revision(object)),
-                    }
-                }
+                | Some("oracle-completion-validation") => StopVerificationRequirement::Oracle {
+                    subject_digest: first_string(value, &["subjectDigest", "subject_digest"])
+                        .or_else(|| explicit_delivery_digest(object)),
+                    source_revision: first_string(value, &["sourceRevision", "source_revision"])
+                        .or_else(|| explicit_source_revision(object)),
+                },
                 _ => return Err(StopVerificationError::Invalid),
             }
         }
@@ -237,13 +302,13 @@ fn validate_stop_verification(payload: &Value) -> Result<(), StopVerificationErr
     let StopVerificationRequirement::Oracle {
         subject_digest: required_subject_digest,
         source_revision: required_source_revision,
-    } = requirement else {
+    } = requirement
+    else {
         return Ok(());
     };
     let expected_subject = required_subject_digest.ok_or(StopVerificationError::Required)?;
     if !is_sha256_digest(&expected_subject)
-        || explicit_delivery_digest(object)
-            .is_some_and(|digest| digest != expected_subject)
+        || explicit_delivery_digest(object).is_some_and(|digest| digest != expected_subject)
     {
         return Err(StopVerificationError::Invalid);
     }
@@ -316,10 +381,8 @@ fn validate_oracle_pass_receipt(
             "sourceRevision",
             "validatedAt",
         ],
-    )
-        || object.get("schemaVersion").and_then(Value::as_u64) != Some(1)
-        || object.get("kind").and_then(Value::as_str)
-            != Some("legion-oracle-completion-validation")
+    ) || object.get("schemaVersion").and_then(Value::as_u64) != Some(1)
+        || object.get("kind").and_then(Value::as_str) != Some("legion-oracle-completion-validation")
         || object.get("verdict").and_then(Value::as_str) != Some("PASS")
     {
         return Err(StopVerificationError::Invalid);
@@ -367,9 +430,11 @@ fn validate_oracle_pass_receipt(
         .and_then(Value::as_array)
         .ok_or(StopVerificationError::Invalid)?;
     if sources.is_empty()
-        || sources
-            .iter()
-            .any(|source| source.as_str().is_none_or(|source| source.trim().is_empty()))
+        || sources.iter().any(|source| {
+            source
+                .as_str()
+                .is_none_or(|source| source.trim().is_empty())
+        })
     {
         return Err(StopVerificationError::Invalid);
     }
@@ -427,7 +492,10 @@ fn is_sha256_digest(value: &str) -> bool {
     let Some(hex) = value.strip_prefix("sha256:") else {
         return false;
     };
-    hex.len() == 64 && hex.bytes().all(|byte| byte.is_ascii_hexdigit() && !byte.is_ascii_uppercase())
+    hex.len() == 64
+        && hex
+            .bytes()
+            .all(|byte| byte.is_ascii_hexdigit() && !byte.is_ascii_uppercase())
 }
 
 fn is_ocv_id(value: Option<&str>, prefix: &str) -> bool {
@@ -560,10 +628,7 @@ fn rfc3339_timestamp_seconds(value: Option<&str>) -> Option<i64> {
         _ => return None,
     };
     Some(
-        days_from_civil(year, month, day) * 24 * 60 * 60
-            + hour * 60 * 60
-            + minute * 60
-            + second
+        days_from_civil(year, month, day) * 24 * 60 * 60 + hour * 60 * 60 + minute * 60 + second
             - offset_seconds,
     )
 }
@@ -587,10 +652,7 @@ fn days_from_civil(year: i64, month: i64, day: i64) -> i64 {
     let year_of_era = adjusted_year - era * 400;
     let month_prime = month + if month > 2 { -3 } else { 9 };
     let day_of_year = (153 * month_prime + 2) / 5 + day - 1;
-    let day_of_era = year_of_era * 365
-        + year_of_era / 4
-        - year_of_era / 100
-        + day_of_year;
+    let day_of_era = year_of_era * 365 + year_of_era / 4 - year_of_era / 100 + day_of_year;
     era * 146_097 + day_of_era - 719_468
 }
 
@@ -598,10 +660,16 @@ fn stop_reentry_exhausted(payload: &Value) -> bool {
     let Some(object) = payload.as_object() else {
         return false;
     };
-    ["stopOrdinal", "stop_ordinal", "stopAttempts", "stop_attempts", "reopenings"]
-        .iter()
-        .filter_map(|key| object.get(*key).and_then(Value::as_u64))
-        .any(|value| value >= MAX_STOP_REOPENINGS)
+    [
+        "stopOrdinal",
+        "stop_ordinal",
+        "stopAttempts",
+        "stop_attempts",
+        "reopenings",
+    ]
+    .iter()
+    .filter_map(|key| object.get(*key).and_then(Value::as_u64))
+    .any(|value| value >= MAX_STOP_REOPENINGS)
 }
 
 fn stop_transcript_text(payload: &Value) -> Option<String> {
@@ -632,10 +700,13 @@ fn transcript_tail(payload: &Value) -> Option<String> {
     let mut file = fs::File::open(path).ok()?;
     let length = file.metadata().ok()?.len();
     if length > MAX_TRANSCRIPT_BYTES {
-        file.seek(SeekFrom::End(-(MAX_TRANSCRIPT_BYTES as i64))).ok()?;
+        file.seek(SeekFrom::End(-(MAX_TRANSCRIPT_BYTES as i64)))
+            .ok()?;
     }
     let mut bytes = Vec::new();
-    file.take(MAX_TRANSCRIPT_BYTES).read_to_end(&mut bytes).ok()?;
+    file.take(MAX_TRANSCRIPT_BYTES)
+        .read_to_end(&mut bytes)
+        .ok()?;
     Some(String::from_utf8_lossy(&bytes).into_owned())
 }
 
@@ -666,7 +737,12 @@ fn text_content(value: &Value) -> Option<String> {
     let text = items
         .iter()
         .filter_map(|item| item.as_object())
-        .filter(|item| matches!(item.get("type").and_then(Value::as_str), Some("text" | "output_text")))
+        .filter(|item| {
+            matches!(
+                item.get("type").and_then(Value::as_str),
+                Some("text" | "output_text")
+            )
+        })
         .filter_map(|item| item.get("text").and_then(Value::as_str))
         .collect::<Vec<_>>()
         .join("\n");
@@ -680,41 +756,83 @@ fn stop_shape_reason(text: &str) -> Option<&'static str> {
         return None;
     }
     if [
-        "say go", "say yes", "shall i", "should i proceed", "should i continue",
-        "do you want me to", "awaiting your approval", "awaiting your confirmation",
-        "tell me to", "if you want, i can", "let me know if", "let me know and i will",
+        "say go",
+        "say yes",
+        "shall i",
+        "should i proceed",
+        "should i continue",
+        "do you want me to",
+        "awaiting your approval",
+        "awaiting your confirmation",
+        "tell me to",
+        "if you want, i can",
+        "let me know if",
+        "let me know and i will",
     ]
     .iter()
-    .any(|phrase| tail.contains(phrase)) {
-        return Some("end the turn with verified work instead of asking permission or offering to act");
+    .any(|phrase| tail.contains(phrase))
+    {
+        return Some(
+            "end the turn with verified work instead of asking permission or offering to act",
+        );
     }
     if [
-        "i can ", "i will ", "i'll ", "we can ", "we will ", "we'll ",
-        "i would ", "we would ", "next step", "recommend ", "would be ",
+        "i can ",
+        "i will ",
+        "i'll ",
+        "we can ",
+        "we will ",
+        "we'll ",
+        "i would ",
+        "we would ",
+        "next step",
+        "recommend ",
+        "would be ",
     ]
-        .iter()
-        .any(|phrase| tail.contains(phrase))
+    .iter()
+    .any(|phrase| tail.contains(phrase))
     {
-        return Some("end with the completed result, not a permission-seeking or future-work ending");
+        return Some(
+            "end with the completed result, not a permission-seeking or future-work ending",
+        );
     }
     let completion_position = last_phrase_position(
         &lower,
-        &["done", "fixed", "shipped", "pushed", "landed", "complete", "verified", "passed", "green"],
+        &[
+            "done", "fixed", "shipped", "pushed", "landed", "complete", "verified", "passed",
+            "green",
+        ],
     );
     let caveat_position = last_phrase_position(
         tail,
         &[
-            "one caveat", "a caveat", "caveat:", "one thing that isn't", "one thing that is not",
-            "keep in mind", "bear in mind", "that said,", "one last thing", "not fixed",
+            "one caveat",
+            "a caveat",
+            "caveat:",
+            "one thing that isn't",
+            "one thing that is not",
+            "keep in mind",
+            "bear in mind",
+            "that said,",
+            "one last thing",
+            "not fixed",
         ],
     )
     .map(|position| position + lower.len() - tail.len());
     if caveat_position.is_some_and(|caveat| completion_position.is_some_and(|done| caveat > done)) {
-        return Some("resolve the ending caveat before stopping, or report the real failure as the outcome");
+        return Some(
+            "resolve the ending caveat before stopping, or report the real failure as the outcome",
+        );
     }
-    if ["left as a follow-up", "left as follow-up", "remains to be done", "do this later", "for later"]
-        .iter()
-        .any(|phrase| tail.contains(phrase))
+    if [
+        "left as a follow-up",
+        "left as follow-up",
+        "remains to be done",
+        "do this later",
+        "for later",
+    ]
+    .iter()
+    .any(|phrase| tail.contains(phrase))
     {
         return Some("complete the promised work now instead of ending on a future-work promise");
     }
@@ -736,9 +854,21 @@ fn last_phrase_position(text: &str, phrases: &[&str]) -> Option<usize> {
 
 fn real_failure(lower: &str) -> bool {
     [
-        "hard blocker", "blocked because", "tests failed", "test failed", "build failed",
-        "command failed", "verification failed", "could not proceed", "couldn't proceed",
-        "cannot proceed", "unable to proceed", "fatal error", "failed", "failure", "error:",
+        "hard blocker",
+        "blocked because",
+        "tests failed",
+        "test failed",
+        "build failed",
+        "command failed",
+        "verification failed",
+        "could not proceed",
+        "couldn't proceed",
+        "cannot proceed",
+        "unable to proceed",
+        "fatal error",
+        "failed",
+        "failure",
+        "error:",
     ]
     .iter()
     .any(|phrase| lower.contains(phrase))
@@ -817,7 +947,8 @@ fn default_native_application() -> Result<NativeApplication, String> {
         .ok()
         .map(|path| path.to_string_lossy().into_owned())
         .unwrap_or_else(|| ".".into());
-    NativeApplicationConfig::default_for_repository(repository_id).map_err(|error| error.to_string())
+    NativeApplicationConfig::default_for_repository(repository_id)
+        .map_err(|error| error.to_string())
 }
 
 fn effect_request(request: &HookRequest) -> Result<Option<EffectRequest>, String> {
@@ -853,22 +984,25 @@ fn effect_request(request: &HookRequest) -> Result<Option<EffectRequest>, String
     let explicit_operation = first_string(effect, &["operation"])
         .or_else(|| first_string(source, &["operation"]))
         .or_else(|| first_string(payload, &["operation"]))
-        .or_else(|| {
-            tool_input.and_then(|input| first_string(input, &["operation", "action"]))
-        });
+        .or_else(|| tool_input.and_then(|input| first_string(input, &["operation", "action"])));
     let operation_hint = explicit_operation.clone().or_else(|| tool_name.clone());
     let effect_class = if explicit_class {
         // An explicit unknown class is never guessed from a tool name.
-        parse_effect_class(class_name.as_deref(), tool_name.as_deref(), command.as_deref())
+        parse_effect_class(
+            class_name.as_deref(),
+            tool_name.as_deref(),
+            command.as_deref(),
+        )
     } else if tool_name.as_deref().is_some_and(is_mcp_tool) {
         // An explicit MCP operation overrides name-based classification; a
         // read operation on a broadly named server/tool is not a write gate.
-        mcp_external_side_effect(tool_name.as_deref(), explicit_operation.as_deref())
-            .or_else(|| {
+        mcp_external_side_effect(tool_name.as_deref(), explicit_operation.as_deref()).or_else(
+            || {
                 (!explicit_operation.is_some())
                     .then(|| parse_effect_class(None, tool_name.as_deref(), command.as_deref()))
                     .flatten()
-            })
+            },
+        )
     } else {
         parse_effect_class(None, tool_name.as_deref(), command.as_deref())
     };
@@ -885,11 +1019,7 @@ fn effect_request(request: &HookRequest) -> Result<Option<EffectRequest>, String
         .or_else(|| {
             tool_input.and_then(|input| first_string(input, &["file_path", "path", "url", "query"]))
         })
-        .or_else(|| {
-            tool_name
-                .clone()
-                .filter(|name| is_mcp_tool(name))
-        })
+        .or_else(|| tool_name.clone().filter(|name| is_mcp_tool(name)))
         .or_else(|| command.clone())
         .filter(|value| !value.trim().is_empty())
         .ok_or_else(|| "effect target is missing".to_owned())?;
@@ -1076,19 +1206,15 @@ fn is_mcp_external_operation(value: &str) -> bool {
 }
 
 fn is_mcp_external_tool(tool_name: &str) -> bool {
-    is_mcp_tool(tool_name)
-        && tool_name
-            .split("__")
-            .any(is_mcp_external_operation)
+    is_mcp_tool(tool_name) && tool_name.split("__").any(is_mcp_external_operation)
 }
 
 fn mcp_external_side_effect(
     tool_name: Option<&str>,
     operation: Option<&str>,
 ) -> Option<EffectClass> {
-    (tool_name.is_some_and(is_mcp_tool)
-        && operation.is_some_and(is_mcp_external_operation))
-    .then_some(EffectClass::EXTERNAL_SIDE_EFFECT)
+    (tool_name.is_some_and(is_mcp_tool) && operation.is_some_and(is_mcp_external_operation))
+        .then_some(EffectClass::EXTERNAL_SIDE_EFFECT)
 }
 
 fn command_effect_class(command: Option<&str>) -> EffectClass {
@@ -1404,7 +1530,10 @@ fn pinned_session_provenance(request: &HookRequest) -> Option<SessionProvenance>
     let session_id_digest = legion_contracts::canonical_digest(&session_id).ok()?;
     let path = receipt_root(&request.payload)?
         .join(SESSION_PROVENANCE_DIRECTORY)
-        .join(format!("{}.json", session_id_digest.trim_start_matches("sha256:")));
+        .join(format!(
+            "{}.json",
+            session_id_digest.trim_start_matches("sha256:")
+        ));
 
     if let Some(pinned) = read_session_provenance(&path, &session_id_digest) {
         return Some(pinned);
@@ -1415,7 +1544,11 @@ fn pinned_session_provenance(request: &HookRequest) -> Option<SessionProvenance>
         fs::create_dir_all(parent).ok()?;
     }
     let bytes = serde_json::to_vec(&candidate.to_value(&session_id_digest)).ok()?;
-    match fs::OpenOptions::new().write(true).create_new(true).open(&path) {
+    match fs::OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(&path)
+    {
         Ok(mut file) => {
             file.write_all(&bytes).ok()?;
             file.write_all(b"\n").ok()?;
@@ -1445,16 +1578,21 @@ fn automatic_session_provenance(payload: &Map<String, Value>) -> SessionProvenan
     let legion_canon_digest = repository
         .as_ref()
         .and_then(|root| file_digest(&root.join("AGENTS.md")))
-        .or_else(|| legion_contracts::canonical_digest(&serde_json::json!({
-            "owner": "legion-routing",
-            "embeddedSessionContext": SESSION_START_CONTEXT,
-        })).ok());
+        .or_else(|| {
+            legion_contracts::canonical_digest(&serde_json::json!({
+                "owner": "legion-routing",
+                "embeddedSessionContext": SESSION_START_CONTEXT,
+            }))
+            .ok()
+        });
     let skill_catalog_digest = repository
         .as_ref()
         .and_then(|root| file_digest(&root.join("src/registry/skills/index.json")))
-        .or_else(|| installed_assets
-            .as_ref()
-            .and_then(|root| file_digest(&root.join("registry/index.json"))));
+        .or_else(|| {
+            installed_assets
+                .as_ref()
+                .and_then(|root| file_digest(&root.join("registry/index.json")))
+        });
     SessionProvenance {
         arcane_profile_digest: legion_contracts::canonical_digest(&serde_json::json!({
             "owner": "arcane-profile",
@@ -1578,7 +1716,9 @@ pub fn fold_trace_metrics(traces: &[RouteOutcomeTrace]) -> TraceMetrics {
     }
     let l1_invoked = traces
         .iter()
-        .filter(|trace| trace.challenge.invoked && trace.challenge.level == legion_contracts::ChallengeLevel::L1)
+        .filter(|trace| {
+            trace.challenge.invoked && trace.challenge.level == legion_contracts::ChallengeLevel::L1
+        })
         .count();
     let l1_improved = traces
         .iter()
@@ -1587,7 +1727,10 @@ pub fn fold_trace_metrics(traces: &[RouteOutcomeTrace]) -> TraceMetrics {
                 && trace.challenge.level == legion_contracts::ChallengeLevel::L1
                 && matches!(
                     trace.challenge.outcome,
-                    Some(legion_contracts::ChallengeOutcome::Narrow | legion_contracts::ChallengeOutcome::Revise)
+                    Some(
+                        legion_contracts::ChallengeOutcome::Narrow
+                            | legion_contracts::ChallengeOutcome::Revise
+                    )
                 )
         })
         .count();
@@ -1602,7 +1745,10 @@ pub fn fold_trace_metrics(traces: &[RouteOutcomeTrace]) -> TraceMetrics {
                 && trace.challenge.evidence_available_at_first_answer
                 && matches!(
                     trace.challenge.outcome,
-                    Some(legion_contracts::ChallengeOutcome::Narrow | legion_contracts::ChallengeOutcome::Revise)
+                    Some(
+                        legion_contracts::ChallengeOutcome::Narrow
+                            | legion_contracts::ChallengeOutcome::Revise
+                    )
                 )
         })
         .count();
@@ -1612,7 +1758,10 @@ pub fn fold_trace_metrics(traces: &[RouteOutcomeTrace]) -> TraceMetrics {
         oracle_block_rate: MetricValue::ratio(oracle_blocks, oracle_traces),
         oracle_block_to_real_fix_rate: MetricValue::ratio(oracle_repairs, oracle_blocks),
         challenge_yield: MetricValue::ratio(l1_improved, l1_invoked),
-        avoidable_user_challenge_rate: MetricValue::ratio(avoidable_challenges, assumption_dependent),
+        avoidable_user_challenge_rate: MetricValue::ratio(
+            avoidable_challenges,
+            assumption_dependent,
+        ),
     }
 }
 
@@ -1644,7 +1793,18 @@ fn route_trace_from_request(
 ) -> Option<RouteOutcomeTrace> {
     let payload = request.payload.as_object()?;
     let source = trace_source(payload);
-    let request_id = trace_string(source, payload, &["request_id", "requestId", "tool_use_id", "toolUseId", "event_id", "eventId"])?;
+    let request_id = trace_string(
+        source,
+        payload,
+        &[
+            "request_id",
+            "requestId",
+            "tool_use_id",
+            "toolUseId",
+            "event_id",
+            "eventId",
+        ],
+    )?;
     let request_id = RequestId::new(request_id).ok()?;
     let trace_id = trace_string(source, payload, &["trace_id", "traceId"])
         .and_then(|value| TraceId::new(value).ok())
@@ -1654,9 +1814,8 @@ fn route_trace_from_request(
     let context = trace_context(source, payload)?;
     let capabilities = trace_capabilities(source, payload)?;
     let cost = trace_cost(source, payload)?;
-    let challenge = trace_value(source, payload, &["challenge"]).and_then(|value| {
-        serde_json::from_value::<ChallengePass>(value.clone()).ok()
-    })?;
+    let challenge = trace_value(source, payload, &["challenge"])
+        .and_then(|value| serde_json::from_value::<ChallengePass>(value.clone()).ok())?;
     let trace = RouteOutcomeTrace {
         schema_version: 1,
         trace_id,
@@ -1664,22 +1823,49 @@ fn route_trace_from_request(
         task_id,
         arcane_profile_digest: provenance
             .and_then(|value| value.arcane_profile_digest.clone())
-            .or_else(|| trace_string(source, payload, &["arcaneProfileDigest", "arcane_profile_digest"])),
+            .or_else(|| {
+                trace_string(
+                    source,
+                    payload,
+                    &["arcaneProfileDigest", "arcane_profile_digest"],
+                )
+            }),
         legion_canon_digest: provenance
             .and_then(|value| value.legion_canon_digest.clone())
-            .or_else(|| trace_string(source, payload, &["legionCanonDigest", "legion_canon_digest"])),
+            .or_else(|| {
+                trace_string(
+                    source,
+                    payload,
+                    &["legionCanonDigest", "legion_canon_digest"],
+                )
+            }),
         skill_catalog_digest: provenance
             .and_then(|value| value.skill_catalog_digest.clone())
-            .or_else(|| trace_string(source, payload, &["skillCatalogDigest", "skill_catalog_digest"])),
+            .or_else(|| {
+                trace_string(
+                    source,
+                    payload,
+                    &["skillCatalogDigest", "skill_catalog_digest"],
+                )
+            }),
         guard_policy_digest: provenance
             .and_then(|value| value.guard_policy_digest.clone())
-            .or_else(|| trace_string(source, payload, &["guardPolicyDigest", "guard_policy_digest"])),
+            .or_else(|| {
+                trace_string(
+                    source,
+                    payload,
+                    &["guardPolicyDigest", "guard_policy_digest"],
+                )
+            }),
         route: parse_route(trace_string(source, payload, &["route"]).as_deref())?,
-        semantic_requirement: parse_semantic_requirement(trace_string(
-            source,
-            payload,
-            &["semantic_requirement", "semanticRequirement"],
-        ).as_deref())?,
+        semantic_requirement: parse_semantic_requirement(
+            trace_string(
+                source,
+                payload,
+                &["semantic_requirement", "semanticRequirement"],
+            )
+            .as_deref(),
+        )?,
         context,
         capabilities,
         authority_attached: trace_string(
@@ -1688,11 +1874,14 @@ fn route_trace_from_request(
             &["authority_attached", "authorityAttached", "authority"],
         )
         .and_then(|value| parse_authority(Some(value.as_str()))),
-        compute_posture: parse_compute_posture(trace_string(
-            source,
-            payload,
-            &["compute_posture", "computePosture", "compute"],
-        ).as_deref())?,
+        compute_posture: parse_compute_posture(
+            trace_string(
+                source,
+                payload,
+                &["compute_posture", "computePosture", "compute"],
+            )
+            .as_deref(),
+        )?,
         // The terminal result belongs to the Guard decision, never to a
         // host-supplied field that could disagree with it.
         result: if response.allowed {
@@ -1741,33 +1930,69 @@ fn trace_string<'a>(
         .map(ToOwned::to_owned)
 }
 
-fn trace_context(source: &Map<String, Value>, payload: &Map<String, Value>) -> Option<ContextUsage> {
+fn trace_context(
+    source: &Map<String, Value>,
+    payload: &Map<String, Value>,
+) -> Option<ContextUsage> {
     let object = trace_value(source, payload, &["context"])?.as_object()?;
-    let sources = object.get("sources")?.as_array()?.iter().map(|value| {
-        value.as_str().map(str::trim).filter(|value| !value.is_empty()).map(ToOwned::to_owned)
-    }).collect::<Option<Vec<_>>>()?;
+    let sources = object
+        .get("sources")?
+        .as_array()?
+        .iter()
+        .map(|value| {
+            value
+                .as_str()
+                .map(str::trim)
+                .filter(|value| !value.is_empty())
+                .map(ToOwned::to_owned)
+        })
+        .collect::<Option<Vec<_>>>()?;
     let size_bytes = object
         .get("size_bytes")
         .or_else(|| object.get("sizeBytes"))
         .and_then(Value::as_u64)?;
-    Some(ContextUsage { sources, size_bytes })
+    Some(ContextUsage {
+        sources,
+        size_bytes,
+    })
 }
 
-fn trace_capabilities(source: &Map<String, Value>, payload: &Map<String, Value>) -> Option<CapabilityUsage> {
+fn trace_capabilities(
+    source: &Map<String, Value>,
+    payload: &Map<String, Value>,
+) -> Option<CapabilityUsage> {
     let object = trace_value(source, payload, &["capabilities"])?.as_object()?;
     let values = |key: &str| {
-        object.get(key)?.as_array()?.iter().map(|value| {
-            value.as_str().map(str::trim).filter(|value| !value.is_empty()).map(ToOwned::to_owned)
-        }).collect::<Option<Vec<_>>>()
+        object
+            .get(key)?
+            .as_array()?
+            .iter()
+            .map(|value| {
+                value
+                    .as_str()
+                    .map(str::trim)
+                    .filter(|value| !value.is_empty())
+                    .map(ToOwned::to_owned)
+            })
+            .collect::<Option<Vec<_>>>()
     };
-    Some(CapabilityUsage { considered: values("considered")?, selected: values("selected")? })
+    Some(CapabilityUsage {
+        considered: values("considered")?,
+        selected: values("selected")?,
+    })
 }
 
 fn trace_cost(source: &Map<String, Value>, payload: &Map<String, Value>) -> Option<CostUsage> {
     let object = trace_value(source, payload, &["cost"])?.as_object()?;
     Some(CostUsage {
-        input_tokens: object.get("input_tokens").or_else(|| object.get("inputTokens"))?.as_u64()?,
-        output_tokens: object.get("output_tokens").or_else(|| object.get("outputTokens"))?.as_u64()?,
+        input_tokens: object
+            .get("input_tokens")
+            .or_else(|| object.get("inputTokens"))?
+            .as_u64()?,
+        output_tokens: object
+            .get("output_tokens")
+            .or_else(|| object.get("outputTokens"))?
+            .as_u64()?,
         cost_usd_micros: object
             .get("cost_usd_micros")
             .or_else(|| object.get("costUsdMicros"))?
@@ -1834,7 +2059,10 @@ fn append_trace(path: &Path, trace: &RouteOutcomeTrace) -> Result<(), ()> {
         return Err(());
     }
     line.push(b'\n');
-    if let Some(parent) = path.parent().filter(|parent| !parent.as_os_str().is_empty()) {
+    if let Some(parent) = path
+        .parent()
+        .filter(|parent| !parent.as_os_str().is_empty())
+    {
         fs::create_dir_all(parent).map_err(|_| ())?;
     }
     if fs::metadata(path)
@@ -2056,10 +2284,8 @@ mod tests {
 
     #[test]
     fn meaningful_route_event_emits_one_json_line() {
-        let path = std::env::temp_dir().join(format!(
-            "legion-hook-route-trace-{}",
-            std::process::id()
-        ));
+        let path =
+            std::env::temp_dir().join(format!("legion-hook-route-trace-{}", std::process::id()));
         let _ = fs::remove_file(&path);
         let request = HookRequest {
             schema_version: protocol::SCHEMA_VERSION,
@@ -2082,13 +2308,19 @@ mod tests {
         let root = temporary_repository();
         fs::write(root.join("AGENTS.md"), "routing epoch one").expect("write canon source");
         fs::create_dir_all(root.join("src/registry/skills")).expect("create catalog directory");
-        fs::write(root.join("src/registry/skills/index.json"), br#"{"bundles":[]}"#)
-            .expect("write catalog source");
+        fs::write(
+            root.join("src/registry/skills/index.json"),
+            br#"{"bundles":[]}"#,
+        )
+        .expect("write catalog source");
         let state_root = root.join("state");
         let mut payload = complete_trace_payload(&state_root.to_string_lossy());
         let object = payload.as_object_mut().expect("trace payload object");
         object.insert("session_id".into(), Value::String("session-pinned".into()));
-        object.insert("cwd".into(), Value::String(root.to_string_lossy().into_owned()));
+        object.insert(
+            "cwd".into(),
+            Value::String(root.to_string_lossy().into_owned()),
+        );
         let request = HookRequest {
             schema_version: protocol::SCHEMA_VERSION,
             kind: protocol::REQUEST_KIND.into(),
@@ -2097,14 +2329,29 @@ mod tests {
         };
 
         let first = pinned_session_provenance(&request).expect("session epoch is pinned");
-        assert!(first.arcane_profile_digest.as_deref().is_some_and(is_sha256_digest));
-        assert!(first.legion_canon_digest.as_deref().is_some_and(is_sha256_digest));
-        assert!(first.skill_catalog_digest.as_deref().is_some_and(is_sha256_digest));
-        assert!(first.guard_policy_digest.as_deref().is_some_and(is_sha256_digest));
+        assert!(first
+            .arcane_profile_digest
+            .as_deref()
+            .is_some_and(is_sha256_digest));
+        assert!(first
+            .legion_canon_digest
+            .as_deref()
+            .is_some_and(is_sha256_digest));
+        assert!(first
+            .skill_catalog_digest
+            .as_deref()
+            .is_some_and(is_sha256_digest));
+        assert!(first
+            .guard_policy_digest
+            .as_deref()
+            .is_some_and(is_sha256_digest));
 
         fs::write(root.join("AGENTS.md"), "routing epoch two").expect("mutate canon source");
-        fs::write(root.join("src/registry/skills/index.json"), br#"{"bundles":[1]}"#)
-            .expect("mutate catalog source");
+        fs::write(
+            root.join("src/registry/skills/index.json"),
+            br#"{"bundles":[1]}"#,
+        )
+        .expect("mutate catalog source");
         let current = automatic_session_provenance(payload.as_object().expect("payload object"));
         assert_ne!(current.legion_canon_digest, first.legion_canon_digest);
         assert_ne!(current.skill_catalog_digest, first.skill_catalog_digest);
@@ -2114,7 +2361,9 @@ mod tests {
         assert!(response.allowed);
         let trace_file = state_root.join("receipts").join(TRACE_FILE_NAME);
         let trace: RouteOutcomeTrace = serde_json::from_str(
-            fs::read_to_string(trace_file).expect("trace emitted").trim(),
+            fs::read_to_string(trace_file)
+                .expect("trace emitted")
+                .trim(),
         )
         .expect("trace parses");
         assert_eq!(trace.arcane_profile_digest, first.arcane_profile_digest);
@@ -2148,9 +2397,15 @@ mod tests {
         let metrics = fold_trace_metrics(&[]);
         assert_eq!(metrics.sage_dispatch_rate, MetricValue::NotEnoughData);
         assert_eq!(metrics.oracle_block_rate, MetricValue::NotEnoughData);
-        assert_eq!(metrics.oracle_block_to_real_fix_rate, MetricValue::NotEnoughData);
+        assert_eq!(
+            metrics.oracle_block_to_real_fix_rate,
+            MetricValue::NotEnoughData
+        );
         assert_eq!(metrics.challenge_yield, MetricValue::NotEnoughData);
-        assert_eq!(metrics.avoidable_user_challenge_rate, MetricValue::NotEnoughData);
+        assert_eq!(
+            metrics.avoidable_user_challenge_rate,
+            MetricValue::NotEnoughData
+        );
     }
 
     #[test]
@@ -2253,7 +2508,10 @@ mod tests {
             "MCP reads carry no external effect"
         );
         let response = dispatch(read);
-        assert!(response.allowed, "MCP reads must be allowed as observations");
+        assert!(
+            response.allowed,
+            "MCP reads must be allowed as observations"
+        );
         assert!(response.reason.contains("no external effect"));
 
         let send = HookRequest {
@@ -2268,10 +2526,7 @@ mod tests {
         let send_effect = effect_request(&send)
             .expect("MCP send classification should succeed")
             .expect("MCP send should carry an external effect");
-        assert_eq!(
-            send_effect.effect_class,
-            EffectClass::EXTERNAL_SIDE_EFFECT
-        );
+        assert_eq!(send_effect.effect_class, EffectClass::EXTERNAL_SIDE_EFFECT);
         let application = NativeApplicationConfig::default_for_repository("test-repository")
             .expect("canonical default native application builds");
         let response = authorize_effect("PreToolUse".into(), &send_effect, &application);
@@ -2322,10 +2577,9 @@ mod tests {
 
     #[test]
     fn canonical_default_policy_allows_ordinary_effect_classes() {
-        let application = legion_application::NativeApplicationConfig::default_for_repository(
-            "test-repository",
-        )
-        .expect("canonical default native application builds");
+        let application =
+            legion_application::NativeApplicationConfig::default_for_repository("test-repository")
+                .expect("canonical default native application builds");
         for effect_class in [
             EffectClass::FILE_WRITE,
             EffectClass::FILE_MOVE,
@@ -2343,10 +2597,9 @@ mod tests {
 
     #[test]
     fn canonical_default_policy_denies_reserved_effect_classes() {
-        let application = legion_application::NativeApplicationConfig::default_for_repository(
-            "test-repository",
-        )
-        .expect("canonical default native application builds");
+        let application =
+            legion_application::NativeApplicationConfig::default_for_repository("test-repository")
+                .expect("canonical default native application builds");
         for effect_class in [
             EffectClass::CREDENTIAL_ACCESS,
             EffectClass::DEPENDENCY_INSTALL,
@@ -2358,7 +2611,10 @@ mod tests {
         ] {
             let response =
                 authorize_effect("PreToolUse".into(), &effect(effect_class), &application);
-            assert!(!response.allowed, "reserved effect allowed: {effect_class:?}");
+            assert!(
+                !response.allowed,
+                "reserved effect allowed: {effect_class:?}"
+            );
             assert_eq!(response.code.as_deref(), Some("ARC_POLICY_DENIED"));
             assert_eq!(response.enforcement_health, "strong");
         }
@@ -2373,14 +2629,20 @@ mod tests {
             &effect(EffectClass::PUBLISH),
             &application,
         );
-        assert!(!response.allowed, "policy must never fall through to ambient allow");
+        assert!(
+            !response.allowed,
+            "policy must never fall through to ambient allow"
+        );
     }
 
     #[test]
     fn unavailable_policy_never_claims_strong_enforcement() {
         let response = policy_unavailable_response("PreToolUse".into());
         assert!(!response.allowed);
-        assert_eq!(response.code.as_deref(), Some("ARC_NATIVE_POLICY_UNAVAILABLE"));
+        assert_eq!(
+            response.code.as_deref(),
+            Some("ARC_NATIVE_POLICY_UNAVAILABLE")
+        );
         assert_eq!(response.enforcement_health, "unsupported");
     }
 
@@ -2441,7 +2703,10 @@ mod tests {
         }
         assert!(context.contains("KEEP/NARROW/REVISE"));
         assert!(context.contains("one pass, no recursion"));
-        assert_eq!(value.get("systemMessage").and_then(Value::as_str), Some("MINIMIZE:ON"));
+        assert_eq!(
+            value.get("systemMessage").and_then(Value::as_str),
+            Some("MINIMIZE:ON")
+        );
     }
 
     #[test]
@@ -2453,11 +2718,17 @@ mod tests {
         let allowed = dispatch(stop(json!({
             "lastAssistantText": "The build failed: cannot proceed without the missing SDK.",
         })));
-        assert!(allowed.allowed, "real failure must be reportable without a loop");
+        assert!(
+            allowed.allowed,
+            "real failure must be reportable without a loop"
+        );
         let ending_only = dispatch(stop(json!({
             "lastAssistantText": "I mentioned a caveat earlier, then fixed it. Done.",
         })));
-        assert!(ending_only.allowed, "resolved mid-report caveats must not block");
+        assert!(
+            ending_only.allowed,
+            "resolved mid-report caveats must not block"
+        );
         let unresolved = dispatch(stop(json!({
             "lastAssistantText": "The change is done. One caveat: the migration is not fixed.",
         })));
@@ -2516,7 +2787,10 @@ mod tests {
             },
             "lastAssistantText": "The requested change is complete and verified.",
         })));
-        assert!(response.allowed, "a current bound Oracle PASS should permit Stop");
+        assert!(
+            response.allowed,
+            "a current bound Oracle PASS should permit Stop"
+        );
     }
 
     #[test]
@@ -2542,5 +2816,42 @@ mod tests {
         assert!(!response.allowed);
         assert_eq!(response.code.as_deref(), Some("ARC_HOST_EVENT_INVALID"));
         assert_eq!(response.enforcement_health, "strong");
+    }
+
+    #[test]
+    fn arc_005_bounded_falsification_is_single_pass() {
+        let accepted = dispatch(HookRequest {
+            schema_version: protocol::SCHEMA_VERSION,
+            kind: protocol::REQUEST_KIND.into(),
+            event_type: "SessionStart".into(),
+            payload: json!({"challengePass":{"passCount":1,"result":"NARROW"}}),
+        });
+        assert!(accepted.allowed);
+        let recursive = dispatch(HookRequest {
+            schema_version: protocol::SCHEMA_VERSION,
+            kind: protocol::REQUEST_KIND.into(),
+            event_type: "SessionStart".into(),
+            payload: json!({"challengePass":{"passCount":2,"result":"KEEP"}}),
+        });
+        assert_eq!(recursive.code.as_deref(), Some("ARC_CHALLENGE_INVALID"));
+    }
+
+    #[test]
+    fn arc_006_route_uncertainty_escalates_once_without_workflow() {
+        let accepted = dispatch(HookRequest {
+            schema_version: protocol::SCHEMA_VERSION,
+            kind: protocol::REQUEST_KIND.into(),
+            event_type: "SessionStart".into(),
+            payload: json!({"routeUncertain":true,"priorEscalations":0}),
+        });
+        assert!(accepted.allowed);
+        assert!(accepted.reason.contains("direct response"));
+        let recursive = dispatch(HookRequest {
+            schema_version: protocol::SCHEMA_VERSION,
+            kind: protocol::REQUEST_KIND.into(),
+            event_type: "SessionStart".into(),
+            payload: json!({"routeUncertain":true,"priorEscalations":1}),
+        });
+        assert_eq!(recursive.code.as_deref(), Some("ARC_ESCALATION_RECURSION"));
     }
 }

@@ -18,11 +18,12 @@ import { handleHookEvent, evaluateHostStop } from './hook-adapter-core.mjs';
 import { RuntimeSchemaSet } from '../../contracts/arcane/runtime-schema.mjs';
 import { renderHostRuntimeOutput } from './host-runtime-output.mjs';
 import { buildPolicyInjection } from '../../cognitive/arcane/host/policy-inject.mjs';
+import { compileArcaneRoute } from '../../cognitive/arcane/route-envelope.mjs';
 import { preEffectDiscipline } from './discipline-controls.mjs';
 import { evaluateTranscriptStop } from '../../cognitive/arcane/stop-shape.mjs';
 import { stopOutcome } from './stop-disposition.mjs';
 import { classifyLatestUserIntent } from '../../cognitive/arcane/user-intent.mjs';
-import { HostEventLedger } from './host-event-ledger.mjs';
+import { HostEventLedger, ObservationOutbox } from './host-event-ledger.mjs';
 import { PendingTerminalOperationStore } from '../../verification/arcane/pending-terminal-operation-store.mjs';
 import { digestValue } from '../../contracts/arcane/canonical.mjs';
 import { AuthorityInvocationProofIssuer } from '../../contracts/arcane/authority-invocation-proof.mjs';
@@ -31,8 +32,9 @@ import { DenialCircuit, applyDenialCircuit } from './denial-circuit.mjs';
 import { BudgetGovernanceStore } from '../../cli/commands/governance/execution/budget-governance-store.mjs';
 import { TaskBudgetSealStore } from '../../cli/commands/governance/execution/task-budget-seal-store.mjs';
 import { ArchitectureEventStore } from '../../verification/arcane/architecture-event-store.mjs';
-import { consumeHostArchitectureLifecycle } from './continuity.mjs';
+import { consumeHostArchitectureLifecycle, WorkflowContinuityStore } from './continuity.mjs';
 import { completionIntegratedStateForRepositories, latestScopedMaterialChange } from '../../verification/arcane/completion-state.mjs';
+import { DependencyLedger } from '../../verification/arcane/invalidation.mjs';
 
 const POLICY_INJECT_EVENTS = new Set(['SessionStart', 'SubagentStart', 'UserPromptSubmit', 'PostCompact']);
 
@@ -170,6 +172,9 @@ export function createHostRuntime({ adapter, workspace, keyDir, verificationKeyD
     denialCircuit: join(stateRoot, 'denial-circuit'),
     budgets: join(stateRoot, 'budget-governance'),
     taskBudgets: join(stateRoot, 'task-budget-seals'),
+    dependencies: join(stateRoot, 'dependency-ledger'),
+    continuity: join(stateRoot, 'workflow-continuity'),
+    observationOutbox: join(stateRoot, 'observation-outbox'),
   };
   const denialCircuit = keyRing ? new DenialCircuit({ root: paths.denialCircuit, keyRing, keyId: keyRing.activeKeyId(), clock: isoClock(clock) }) : null;
   const stores = {
@@ -183,8 +188,11 @@ export function createHostRuntime({ adapter, workspace, keyDir, verificationKeyD
     preEffectCorrelation: new PreEffectCorrelationStore({ root: paths.correlations }),
     budgetGovernance: keyRing ? new BudgetGovernanceStore({ root: paths.budgets, keyRing, monotonicNow: () => Number(process.hrtime.bigint() / 1000000n) }) : null,
     taskBudgetSeals: keyRing ? new TaskBudgetSealStore({ root: paths.taskBudgets, keyRing, keyId: keyRing.activeKeyId(), clock: isoClock(clock) }) : null,
+    dependencyLedger: new DependencyLedger({ root: paths.dependencies, clock: isoClock(clock) }),
   };
   const architectureEvents = keyRing ? new ArchitectureEventStore({ receiptStore: stores.receiptStore, keyRing, keyId: keyRing.activeKeyId(), clock: isoClock(clock) }) : null;
+  const workflowContinuity = new WorkflowContinuityStore({ root: paths.continuity, clock: isoClock(clock) });
+  const observationOutbox = new ObservationOutbox({ root: paths.observationOutbox, clock: isoClock(clock) });
   const userApproval = new UserApprovalAuthority({ keyRing, policy, clock });
   const gate = new PreEffectGate({ policy, capabilityStore: stores.capabilityStore, authorityLedger: stores.authorityLedger, approvalAuthority: userApproval, clock });
   Object.assign(stores, { policy, keyRing, verificationKeyRing, userApproval, gate, denialCircuit });
@@ -286,6 +294,18 @@ export function createHostRuntime({ adapter, workspace, keyDir, verificationKeyD
           lifecycleBinding = stores.authorityBinding.observe({ adapter: adapter.name, eventId: hostEvent.eventId, ...identity });
         }
         hostEvent.ledger = ledger.append({ eventId: identity?.eventId ?? hostEvent.eventId, adapter: adapter.name, eventType, sessionId: hostEvent.sessionId, binding, sourceRevision: boundSeal?.sourceRevision ?? null, observedAuthority: observedAuthorityFor(eventType, identity, stores.authorityBinding, adapter.name, hostEvent.sessionId), payload: hookPayload });
+        observationOutbox.enqueue({ ...hostEvent.ledger, workNodeId: hookPayload?.work_node_id ?? hostEvent.eventId, usage: hookPayload?.usage ?? { calls: 0, inputTokens: 0, outputTokens: 0, costMicros: 0, complete: false } });
+        const continuityRunId = binding?.runId ?? `host:${hostEvent.sessionId ?? hostEvent.eventId}`;
+        const continuityFingerprint = digestValue({ workspace, sessionId: hostEvent.sessionId ?? null, contractDigest: binding?.contractDigest ?? null });
+        workflowContinuity.checkpoint({
+          runId: continuityRunId,
+          fingerprint: continuityFingerprint,
+          nodes: [{ id: hostEvent.eventId, dependencies: hookPayload?.dependency_ids ?? [], state: ['PostToolUse', 'Stop'].includes(eventType) ? 'SUCCEEDED' : 'PENDING' }],
+          completedEffects: ['PostToolUse', 'PostToolUseFailure'].includes(eventType) && hostEvent.idempotencyKey ? [hostEvent.idempotencyKey] : [],
+          completedOutputs: hostEvent.result?.observedDigest ? { [hostEvent.eventId]: hostEvent.result.observedDigest } : {},
+        });
+        if (hookPayload?.pause_decision) workflowContinuity.pause({ runId: continuityRunId, ...hookPayload.pause_decision });
+        if (hookPayload?.operator_direction) workflowContinuity.applyDirection({ runId: continuityRunId, ...hookPayload.operator_direction });
       } catch (error) {
         if (lifecycleBinding?.created) {
           try {
@@ -384,7 +404,7 @@ export function createHostRuntime({ adapter, workspace, keyDir, verificationKeyD
         const outcomes = patch.effects.map((effect) => handleHookEvent(hookPayload, {
           normalize: (payload) => ({ ...adapter.normalize(payload), effect: { effectClass: effect.effectClass, target: effect.target, operation: effect.operation }, idempotencyKey: effect.toolUseId, replayNonce: effect.toolUseId, replaySequence: ++receiptSequence }),
           keyRing, verificationKeyRing, receiptStore: stores.receiptStore, replayGuard: stores.replayGuard, policy,
-          capabilityStore: stores.capabilityStore, clock, sessionBinding: stores.sessionBinding, preEffectCorrelation: stores.preEffectCorrelation,
+          capabilityStore: stores.capabilityStore, dependencyLedger: stores.dependencyLedger, clock, sessionBinding: stores.sessionBinding, preEffectCorrelation: stores.preEffectCorrelation,
         }));
         const failed = outcomes.find((outcome) => !outcome.decision.allowed);
         const outcome = failed ?? outcomes.at(-1);
@@ -392,7 +412,7 @@ export function createHostRuntime({ adapter, workspace, keyDir, verificationKeyD
       }
       const outcome = handleHookEvent(hookPayload, {
         normalize: adapter.normalize, keyRing, verificationKeyRing, receiptStore: stores.receiptStore, replayGuard: stores.replayGuard, policy,
-        capabilityStore: stores.capabilityStore, clock, sessionBinding: stores.sessionBinding, preEffectCorrelation: stores.preEffectCorrelation,
+        capabilityStore: stores.capabilityStore, dependencyLedger: stores.dependencyLedger, clock, sessionBinding: stores.sessionBinding, preEffectCorrelation: stores.preEffectCorrelation,
       });
       if (eventType === 'Stop' && outcome.decision.allowed) {
         const terminalStore = new PendingTerminalOperationStore({ root: paths.terminalOperations, keyRing, keyId: keyRing.activeKeyId(), clock: isoClock(clock) });
@@ -421,7 +441,15 @@ export function createHostRuntime({ adapter, workspace, keyDir, verificationKeyD
       // same injection here, independent of the allow/deny branch above, so it
       // reaches allowed SessionStart/SubagentStart without a parallel path.
       if (result.allowed && result.stdout === null && POLICY_INJECT_EVENTS.has(eventType)) {
-        const injection = buildPolicyInjection({ workspace, prompt: hookPayload?.prompt ?? hookPayload?.user_prompt ?? null, gotchasOnly: eventType === 'UserPromptSubmit' });
+        const prompt = hookPayload?.prompt ?? hookPayload?.user_prompt ?? null;
+        const stageAvailability = typeof adapter.observeArcaneAvailability === 'function' ? adapter.observeArcaneAvailability(hookPayload) : {};
+        const routeEnvelope = compileArcaneRoute({
+          prompt,
+          trivial: eventType === 'SessionStart' && !prompt,
+          uncertain: hookPayload?.route_uncertain === true,
+          requiredStages: contracted ? ['verification'] : [],
+        }, stageAvailability);
+        const injection = buildPolicyInjection({ workspace, prompt, gotchasOnly: eventType === 'UserPromptSubmit', routeEnvelope });
         if (injection) {
           const envelope = createDecisionEnvelope({ allowed: true, code: null });
           const stdout = { hookSpecificOutput: { hookEventName: eventType, additionalContext: injection.additionalContext }, code: envelope.code, publicReason: envelope.publicReason, enforcementHealth: envelope.enforcementHealth, retrySignature: envelope.retrySignature, termination: envelope.termination, certification: envelope.certification, missingClasses: envelope.missingClasses, responsibleProducer: envelope.responsibleProducer, remediationRoutes: envelope.remediationRoutes, missingEvidence: envelope.missingEvidence };

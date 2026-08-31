@@ -36,13 +36,16 @@ pub use canonical::{
 };
 pub use host::{HostCapability, HostDescriptor, HostSurface};
 pub use id::*;
-pub use plan::{Plan, PlanNode, PlanNodeKind};
+pub use plan::{
+    ExecutionCompletionCheck, ExecutionEscalationPolicy, ExecutionRequirementV1,
+    ExecutionSemanticRequirement, Plan, PlanNode, PlanNodeKind,
+};
 pub use policy::{
     canonical_default_policy_pack, ApprovalRequirement, EffectClass, EffectRequest, PolicyPack,
     PolicyRule,
 };
 pub use provider::{Coverage, FindingRef, ProviderResult, ProviderSpec, ProviderStatus};
-pub use receipt::{InvocationReceipt, InvocationStatus};
+pub use receipt::{ExecutorBindingOutcome, InvocationReceipt, InvocationStatus};
 pub use report::{Finding, Report, ReportStatus};
 pub use task::{Latitude, TaskSpec, TaskStatus};
 pub use trace::{

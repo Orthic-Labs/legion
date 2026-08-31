@@ -45,21 +45,70 @@ pub trait SecretProvider: Send + Sync {
     fn bearer_token(&self) -> Result<SecretString, AuthError>;
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum CredentialEffectDecision {
+    Allowed,
+    Denied,
+}
+
+/// Guard-owned boundary. SDK receives only a decision, never policy internals.
+pub trait CredentialAuthorizer: Send + Sync {
+    fn authorize_credential_access(
+        &self,
+        provider_id: &str,
+    ) -> Result<CredentialEffectDecision, AuthError>;
+}
+
+pub struct CredentialAccessGrant {
+    provider_id: String,
+}
+
+impl CredentialAccessGrant {
+    pub fn provider_id(&self) -> &str {
+        &self.provider_id
+    }
+}
+
+pub fn authorize_credential_access(
+    provider_id: &str,
+    authorizer: &dyn CredentialAuthorizer,
+) -> Result<CredentialAccessGrant, AuthError> {
+    if provider_id.trim().is_empty() {
+        return Err(AuthError::invalid("provider identity must be non-empty"));
+    }
+    match authorizer.authorize_credential_access(provider_id)? {
+        CredentialEffectDecision::Allowed => Ok(CredentialAccessGrant {
+            provider_id: provider_id.into(),
+        }),
+        CredentialEffectDecision::Denied => Err(AuthError {
+            code: AuthErrorCode::Rejected,
+            message: "credential access denied".into(),
+        }),
+    }
+}
+
 #[derive(Clone)]
 pub struct BearerAuth {
     token: SecretString,
 }
 
 impl BearerAuth {
-    pub fn new(token: SecretString) -> Result<Self, AuthError> {
+    fn new(token: SecretString) -> Result<Self, AuthError> {
         if token.expose_secret().trim().is_empty() {
             return Err(AuthError::invalid("credential must be non-empty"));
         }
         Ok(Self { token })
     }
 
-    pub fn from_provider(provider: &dyn SecretProvider) -> Result<Self, AuthError> {
-        Self::new(provider.bearer_token()?)
+    pub(crate) fn from_provider(
+        provider: &dyn SecretProvider,
+        _grant: &CredentialAccessGrant,
+    ) -> Result<Self, AuthError> {
+        let token = provider.bearer_token().map_err(|error| AuthError {
+            code: error.code,
+            message: "provider credential is unavailable".into(),
+        })?;
+        Self::new(token)
     }
 
     pub(crate) fn apply(&self, request: reqwest::RequestBuilder) -> reqwest::RequestBuilder {
@@ -80,6 +129,13 @@ impl fmt::Debug for BearerAuth {
 pub struct RedactedAuth {
     pub scheme: &'static str,
     pub present: bool,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct CredentialReceipt {
+    pub provider_id: String,
+    pub auth: RedactedAuth,
+    pub effect: &'static str,
 }
 
 impl BearerAuth {

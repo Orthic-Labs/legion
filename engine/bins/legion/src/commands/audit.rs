@@ -122,22 +122,33 @@ pub async fn run(args: AuditArgs, cancellation: CancellationToken) -> CommandRes
         legion_application::NativeOperationResult::Audit(execution) => {
             let mut report = legion_audit::canonical_report(&root.to_string_lossy(), &execution)
                 .map_err(|error| CommandError::integrity(error.to_string()))?;
+            let parity_gaps = native_audit_parity_gaps(
+                execution.planned_providers.len(),
+                execution.results.len(),
+                &execution.plan_digest,
+                execution.plan_signature.as_deref(),
+            );
+            report.gaps.extend(parity_gaps);
             if native_provider_subset {
                 report
                     .gaps
                     .push("native-provider-composition-partial".into());
-                report.gaps.sort();
-                report.gaps.dedup();
-                report.status = legion_contracts::ReportStatus::Incomplete;
-                report.claims.insert(
-                    "providerCoverage".into(),
-                    json!({
-                        "scope": "native-security-rules",
-                        "fullAudit": false,
-                        "plannedProviders": execution.planned_providers.clone(),
-                    }),
-                );
             }
+            report.gaps.sort();
+            report.gaps.dedup();
+            if !report.gaps.is_empty() {
+                report.status = legion_contracts::ReportStatus::Incomplete;
+            }
+            report.claims.insert(
+                "providerCoverage".into(),
+                json!({
+                    "scope": "frozen-native-provider-plan",
+                    "fullAudit": report.gaps.is_empty(),
+                    "plannedProviders": execution.planned_providers.clone(),
+                    "executedProviders": execution.results.len(),
+                    "sourcePort": ["tools/audit/audit-complete.mjs", "tools/audit/audit-run.mjs", "tools/audit/audit-finalize.mjs"],
+                }),
+            );
             if !context_notices.is_empty() {
                 report
                     .claims
@@ -183,6 +194,27 @@ pub async fn run(args: AuditArgs, cancellation: CancellationToken) -> CommandRes
             let report_json = legion_report::render_json(&report).map_err(super::io_error)?;
             let report_sarif = legion_report::render_sarif(&report).map_err(super::io_error)?;
             if let Some(out) = &args.out {
+                let plan = json!({
+                    "schemaVersion": 1,
+                    "kind": "audit-provider-plan",
+                    "repository": root,
+                    "profile": args.profile,
+                    "binding": {
+                        "blueprint": {"generationId": execution.generation},
+                        "inventoryDigest": execution.inventory_digest,
+                    },
+                    "seal": {
+                        "digest": execution.plan_digest,
+                        "authenticity": "hmac-sha256",
+                        "signature": execution.plan_signature,
+                    },
+                    "providers": execution.planned_providers,
+                });
+                write_artifact(
+                    out,
+                    "plan.json",
+                    &serde_json::to_vec_pretty(&plan).map_err(super::io_error)?,
+                )?;
                 write_artifact(out, "report.json", report_json.as_bytes())?;
                 write_artifact(out, "report.sarif", report_sarif.as_bytes())?;
                 write_artifact(
@@ -215,6 +247,7 @@ pub async fn run(args: AuditArgs, cancellation: CancellationToken) -> CommandRes
                 "contextNotices": context_notices,
                 "gaps": report.gaps,
                 "artifacts": args.out.as_ref().map(|out| json!({
+                    "plan": out.join("plan.json"),
                     "reportJson": out.join("report.json"),
                     "reportSarif": out.join("report.sarif"),
                     "execution": out.join("execution.json")
@@ -231,6 +264,24 @@ pub async fn run(args: AuditArgs, cancellation: CancellationToken) -> CommandRes
             "native audit application returned an incompatible result",
         )),
     }
+}
+
+fn native_audit_parity_gaps(
+    planned_provider_count: usize,
+    result_count: usize,
+    plan_digest: &str,
+    plan_signature: Option<&str>,
+) -> Vec<String> {
+    let mut gaps = Vec::new();
+    if planned_provider_count == 0 || result_count != planned_provider_count {
+        gaps.push("native-provider-plan-not-fully-executed".into());
+    }
+    if !plan_digest.starts_with("sha256:")
+        || plan_signature.map_or(true, |signature| signature.trim().is_empty())
+    {
+        gaps.push("native-provider-plan-not-signed-and-sealed".into());
+    }
+    gaps
 }
 
 fn native_rule_application(
@@ -401,4 +452,21 @@ fn write_artifact(root: &std::path::Path, name: &str, bytes: &[u8]) -> Result<()
     let temporary = root.join(format!(".{name}.tmp-{}", std::process::id()));
     std::fs::write(&temporary, bytes).map_err(super::io_error)?;
     std::fs::rename(&temporary, destination).map_err(super::io_error)
+}
+
+#[cfg(test)]
+mod closure_tests {
+    use super::*;
+
+    #[test]
+    fn leg_016_native_audit_requires_complete_signed_plan_before_parity_claim() {
+        assert!(native_audit_parity_gaps(
+            3,
+            3,
+            &format!("sha256:{}", "a".repeat(64)),
+            Some("hmac")
+        )
+        .is_empty());
+        assert!(!native_audit_parity_gaps(3, 2, "missing", None).is_empty());
+    }
 }

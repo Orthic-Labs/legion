@@ -93,6 +93,69 @@
       "reason": "immutable Foundation Stage 3 validation records source checkout used during executed comparison"
     },
     {
+      "path": "docs/dispatch/2026-08-31-unresolved-atoms-prompt.md",
+      "patterns": ["developer-workspace"],
+      "occurrences": {"developer-workspace": 1},
+      "class": "historical-dispatch",
+      "reason": "immutable closure dispatch prompt pins source checkout used by executed workers"
+    },
+    {
+      "path": "docs/dispatch/2026-08-31-unresolved-atoms.json",
+      "patterns": ["developer-workspace"],
+      "occurrences": {"developer-workspace": 30},
+      "class": "historical-dispatch",
+      "reason": "immutable closure dispatch packet pins exact worker roots & evidence paths"
+    },
+    {
+      "path": "docs/foundation/2026-08-31/closure-dispatch.json",
+      "patterns": ["developer-workspace"],
+      "occurrences": {"developer-workspace": 1},
+      "class": "historical-dispatch",
+      "reason": "immutable closure repair packet pins integration checkout used by executed workers"
+    },
+    {
+      "path": "docs/foundation/2026-08-31/unresolved-arcane.md",
+      "patterns": ["developer-workspace"],
+      "occurrences": {"developer-workspace": 1},
+      "class": "foundation-evidence",
+      "reason": "immutable independent Foundation report pins inspected checkout"
+    },
+    {
+      "path": "docs/foundation/2026-08-31/unresolved-atoms-corpus.json",
+      "patterns": ["developer-workspace"],
+      "occurrences": {"developer-workspace": 2},
+      "class": "foundation-evidence",
+      "reason": "immutable Foundation corpus pins comparison & source checkouts"
+    },
+    {
+      "path": "docs/foundation/2026-08-31/unresolved-atoms-reconciliation.md",
+      "patterns": ["developer-workspace"],
+      "occurrences": {"developer-workspace": 1},
+      "class": "foundation-evidence",
+      "reason": "immutable Foundation reconciliation pins inspected checkout"
+    },
+    {
+      "path": "docs/foundation/2026-08-31/unresolved-atoms-validation.json",
+      "patterns": ["developer-workspace"],
+      "occurrences": {"developer-workspace": 1},
+      "class": "foundation-evidence",
+      "reason": "immutable Foundation validation pins inspected checkout"
+    },
+    {
+      "path": "docs/foundation/2026-08-31/unresolved-governance-guard.md",
+      "patterns": ["developer-workspace"],
+      "occurrences": {"developer-workspace": 1},
+      "class": "foundation-evidence",
+      "reason": "immutable independent Foundation report pins inspected checkout"
+    },
+    {
+      "path": "docs/foundation/2026-08-31/unresolved-legion-runtime.md",
+      "patterns": ["developer-workspace"],
+      "occurrences": {"developer-workspace": 1},
+      "class": "foundation-evidence",
+      "reason": "immutable independent Foundation report pins inspected checkout"
+    },
+    {
       "path": "docs/provenance/dispatch/2026-08-29-mechanical-remediation.json",
       "patterns": [
         "developer-workspace"

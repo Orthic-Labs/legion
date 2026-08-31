@@ -48,16 +48,26 @@ pub struct ExecutionEscalationPolicy {
 pub struct ExecutionRequirementV1 {
     pub semantic_requirement: ExecutionSemanticRequirement,
     pub capabilities: Vec<String>,
+    /// Concrete operations permitted for this work unit. Operations refine
+    /// broad effect classes so an executor never guesses intent from a
+    /// capability or effect name.
+    #[serde(default = "default_execution_operations")]
+    pub operations: Vec<String>,
     pub effects: Vec<String>,
     pub authority_ceiling: Vec<String>,
     pub completion: Vec<ExecutionCompletionCheck>,
     pub escalation: ExecutionEscalationPolicy,
 }
 
+fn default_execution_operations() -> Vec<String> {
+    vec!["*".into()]
+}
+
 impl ExecutionRequirementV1 {
     pub fn validate(&self) -> Result<(), ContractError> {
         for (path, values) in [
             ("capabilities", &self.capabilities),
+            ("operations", &self.operations),
             ("effects", &self.effects),
             ("authority_ceiling", &self.authority_ceiling),
         ] {
@@ -201,9 +211,7 @@ pub struct Plan {
     pub executor_requirements: BTreeMap<NodeId, ExecutionRequirementV1>,
 }
 
-fn projected_executor_requirements(
-    nodes: &[PlanNode],
-) -> BTreeMap<NodeId, ExecutionRequirementV1> {
+fn projected_executor_requirements(nodes: &[PlanNode]) -> BTreeMap<NodeId, ExecutionRequirementV1> {
     nodes
         .iter()
         .filter_map(|node| {
@@ -378,6 +386,7 @@ mod tests {
         ExecutionRequirementV1 {
             semantic_requirement: ExecutionSemanticRequirement::Conditional,
             capabilities: vec!["filesystem".into()],
+            operations: vec!["write-file".into()],
             effects: vec!["FILE_WRITE".into()],
             authority_ceiling: vec!["ambient".into()],
             completion: vec![ExecutionCompletionCheck {
@@ -457,8 +466,7 @@ mod tests {
             .expect("plan is an object")
             .remove("executor_requirements");
 
-        let parsed: Plan =
-            serde_json::from_value(json).expect("plan without requirements parses");
+        let parsed: Plan = serde_json::from_value(json).expect("plan without requirements parses");
         assert!(parsed
             .nodes
             .iter()
@@ -499,15 +507,19 @@ mod tests {
 
     #[test]
     fn rejects_empty_required_requirement_fields() {
-        for field in ["capabilities", "effects", "authority_ceiling"] {
+        for field in ["capabilities", "operations", "effects", "authority_ceiling"] {
             let mut invalid = requirement();
             match field {
                 "capabilities" => invalid.capabilities = vec![],
+                "operations" => invalid.operations = vec![" ".into()],
                 "effects" => invalid.effects = vec![" ".into()],
                 "authority_ceiling" => invalid.authority_ceiling = vec![],
                 _ => unreachable!(),
             }
-            assert!(invalid.validate().is_err(), "empty {field} must be rejected");
+            assert!(
+                invalid.validate().is_err(),
+                "empty {field} must be rejected"
+            );
         }
 
         let mut empty_completion = requirement();
@@ -525,17 +537,21 @@ mod tests {
 
     #[test]
     fn rejects_duplicate_requirement_values_and_completion_ids() {
-        for field in ["capabilities", "effects", "authority_ceiling"] {
+        for field in ["capabilities", "operations", "effects", "authority_ceiling"] {
             let mut invalid = requirement();
             match field {
                 "capabilities" => invalid.capabilities = vec!["same".into(), "same".into()],
+                "operations" => invalid.operations = vec!["same".into(), "same".into()],
                 "effects" => invalid.effects = vec!["same".into(), "same".into()],
                 "authority_ceiling" => {
                     invalid.authority_ceiling = vec!["same".into(), "same".into()]
                 }
                 _ => unreachable!(),
             }
-            assert!(invalid.validate().is_err(), "duplicate {field} must be rejected");
+            assert!(
+                invalid.validate().is_err(),
+                "duplicate {field} must be rejected"
+            );
         }
 
         let mut duplicate_ids = requirement();
@@ -584,7 +600,9 @@ mod tests {
         let mut forbidden = requirement();
         forbidden.semantic_requirement = ExecutionSemanticRequirement::Forbidden;
         forbidden.escalation.permitted_on = vec![];
-        forbidden.validate().expect("forbidden requirement is valid");
+        forbidden
+            .validate()
+            .expect("forbidden requirement is valid");
     }
 
     #[test]
