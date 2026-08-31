@@ -1,5 +1,5 @@
 # Managed by right-git — do not hand-edit. Run `right-git sync` to update.
-# Template: profiles/rust-hybrid/release-candidate.yml | Template version: 1.6.0
+# Template: profiles/rust-hybrid/release-candidate.yml | Template version: 1.7.0
 # Public CI always produces unsigned candidates. Opt-in finalization signs Windows
 # through Azure OIDC & macOS through environment-scoped Apple credentials.
 name: release-candidate

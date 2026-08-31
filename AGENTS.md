@@ -71,9 +71,8 @@ Legion provides shared routing, execution, and independent semantic validation a
 - Read generated `docs/pending/README.md` as sole pending-work index.
 
 ## Commands
-- Run `pnpm test` for package coverage.
-- Run focused Node tests with `node --test --test-concurrency=1 <paths>`.
-- Run `pnpm legion:check` for naming and schema consistency.
+- Bind local work to `local-static-only`; use generated GitHub Actions for every compile, test, package, signing, qualification, installed-smoke, or release task under `compile: github-actions-only`.
+- Run `pnpm test`, focused Node tests, & `pnpm legion:check` only through GitHub Actions.
 
 ## Locked invariants
 - Require independent Oracle Completion Validation before every successful final delivery.

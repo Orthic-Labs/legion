@@ -1,5 +1,6 @@
 {
   "schemaVersion": 1,
+  "compile": "github-actions-only",
   "lanes": [
     "ci",
     "release-candidate"
@@ -15,7 +16,7 @@
     ]
   },
   "packageManager": "pnpm@11.24.0",
-  "templateVersion": "1.6.0",
+  "templateVersion": "1.7.0",
   "profile": "rust-hybrid",
   "gate": {
     "path": "scripts/gate.sh"
