@@ -38,7 +38,7 @@ pub use install::{
 pub use legacy_claude::{
     inspect_claude_legacy, repair_claude_legacy, ClaudeLegacyInput, ClaudeLegacyInspection,
     ClaudeLegacyRepair, ClaudePluginCacheGeneration, ClaudeProjectionOwnership,
-    ClaudeSkillsRootKind, ClaudeStandaloneProjection, RETIRED_BLUEPRINT_SKILL_ID,
+    ClaudeSkillsRootKind, ClaudeStandaloneProjection, RETIRED_SKILL_IDS,
 };
 pub use ownership::{
     digest_bytes, marker_for, owned_block, parse_marker, validate_relative_path,

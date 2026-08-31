@@ -17,7 +17,7 @@ use std::{
     path::{Component, Path, PathBuf},
 };
 
-pub const RETIRED_BLUEPRINT_SKILL_ID: &str = "blueprint";
+pub const RETIRED_SKILL_IDS: &[&str] = &["canon", "compshop"];
 const MAX_TREE_ENTRIES: usize = 4096;
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
@@ -26,7 +26,7 @@ pub struct ClaudeLegacyInput {
     pub home: PathBuf,
     /// `skills/` directory belonging to current installed Legion plugin generation.
     pub canonical_skills_root: PathBuf,
-    /// Current user-invokable Legion skill ids. Retired Blueprint is rejected here.
+    /// Current user-invokable Legion skill ids. Retired aliases are rejected here.
     pub current_skill_ids: Vec<String>,
 }
 
@@ -323,7 +323,7 @@ fn inspect_state(input: &ClaudeLegacyInput) -> Result<InspectedState, HostError>
         .collect::<Vec<_>>();
 
     let mut observed_ids = current_skill_ids.iter().cloned().collect::<BTreeSet<_>>();
-    observed_ids.insert(RETIRED_BLUEPRINT_SKILL_ID.into());
+    observed_ids.extend(RETIRED_SKILL_IDS.iter().map(|id| (*id).into()));
     let plugin_cache_path = input
         .home
         .join(".claude")
@@ -363,7 +363,9 @@ fn inspect_state(input: &ClaudeLegacyInput) -> Result<InspectedState, HostError>
         ClaudeSkillsRootKind::Directory => {
             let entries = standalone_entries(&standalone_skills_root)?;
             for (id, path) in entries {
-                let retired = id.eq_ignore_ascii_case(RETIRED_BLUEPRINT_SKILL_ID);
+                let retired = RETIRED_SKILL_IDS
+                    .iter()
+                    .any(|retired| id.eq_ignore_ascii_case(retired));
                 let ownership = classify_projection(
                     &path,
                     candidates.get(&id).map(Vec::as_slice).unwrap_or(&[]),
@@ -405,13 +407,15 @@ fn inspect_state(input: &ClaudeLegacyInput) -> Result<InspectedState, HostError>
         if projection.retired {
             if projection.ownership.proven() {
                 remediation.push(format!(
-                    "Retired Blueprint exposure {} is a proven Legion projection and is safe to remove during repair.",
-                    projection.path.display()
+                    "Retired skill exposure {} at {} is a proven Legion projection and is safe to remove during repair.",
+                    projection.id,
+                    projection.path.display(),
                 ));
             } else {
                 remediation.push(format!(
-                    "Retired Blueprint exposure {} is kept because Legion ownership is unproven.",
-                    projection.path.display()
+                    "Retired skill exposure {} at {} is kept because Legion ownership is unproven.",
+                    projection.id,
+                    projection.path.display(),
                 ));
             }
         }
@@ -594,10 +598,13 @@ fn normalized_skill_ids(ids: &[String]) -> Result<Vec<String>, HostError> {
                 reason: format!("skill id {id:?} must be one non-empty path component"),
             });
         }
-        if id.eq_ignore_ascii_case(RETIRED_BLUEPRINT_SKILL_ID) {
+        if RETIRED_SKILL_IDS
+            .iter()
+            .any(|retired| id.eq_ignore_ascii_case(retired))
+        {
             return Err(HostError::InvalidDescriptor {
                 path: "claude.currentSkillIds".into(),
-                reason: "retired Blueprint cannot be a current Legion skill".into(),
+                reason: format!("retired skill alias {id:?} cannot be current"),
             });
         }
         normalized.insert(id.clone());
@@ -1264,12 +1271,13 @@ mod tests {
             .join("skills");
         write_skill(&canonical, "audit", "current audit");
         write_skill(&canonical, "wake", "current wake");
+        write_skill(&canonical, "blueprint", "current blueprint");
 
         let standalone = home.join(".claude").join("skills");
         write_skill(&standalone, "audit", "current audit");
         write_skill(&standalone, "compshop", "user-owned compshop");
         write_skill(&standalone, "content", "user-owned content");
-        write_skill(&standalone, "blueprint", "unproven retired skill");
+        write_skill(&standalone, "blueprint", "unproven current skill");
 
         let cache_path = home
             .join(".claude")
@@ -1286,7 +1294,8 @@ mod tests {
         fs::write(&cache_path, &cache).unwrap();
 
         let inspection =
-            inspect_claude_legacy(&input(&home, &canonical, &["audit", "wake"])).unwrap();
+            inspect_claude_legacy(&input(&home, &canonical, &["audit", "blueprint", "wake"]))
+                .unwrap();
         assert!(inspection.missing_current_skill_ids.is_empty());
         assert!(inspection
             .plugin_cache_generations
@@ -1306,8 +1315,17 @@ mod tests {
             .iter()
             .filter(|projection| matches!(projection.id.as_str(), "compshop" | "content"))
             .all(|projection| projection.ownership == ClaudeProjectionOwnership::Unproven));
+        let blueprint = inspection
+            .standalone_projections
+            .iter()
+            .find(|projection| projection.id == "blueprint")
+            .unwrap();
+        assert!(blueprint.current);
+        assert!(!blueprint.retired);
 
-        let repair = repair_claude_legacy(&input(&home, &canonical, &["audit", "wake"])).unwrap();
+        let repair =
+            repair_claude_legacy(&input(&home, &canonical, &["audit", "blueprint", "wake"]))
+                .unwrap();
         assert_eq!(
             repair
                 .removed
@@ -1383,8 +1401,8 @@ mod tests {
     }
 
     #[test]
-    fn repair_removes_retired_blueprint_only_when_cache_proves_exact_ownership() {
-        let temp = TempRoot::new("retired-blueprint");
+    fn repair_removes_retired_alias_only_when_cache_proves_exact_ownership() {
+        let temp = TempRoot::new("retired-alias");
         let home = temp.0.join("home");
         let canonical = temp
             .0
@@ -1406,9 +1424,9 @@ mod tests {
             r#"{"name":"legion"}"#,
         )
         .unwrap();
-        write_skill(&old_plugin.join("skills"), "blueprint", "retired blueprint");
+        write_skill(&old_plugin.join("skills"), "compshop", "retired compshop");
         let standalone = home.join(".claude").join("skills");
-        write_skill(&standalone, "blueprint", "retired blueprint");
+        write_skill(&standalone, "compshop", "retired compshop");
         write_skill(&standalone, "content", "personal content");
 
         let cache_path = home
@@ -1425,21 +1443,21 @@ mod tests {
         fs::write(&cache_path, &cache).unwrap();
 
         let inspection = inspect_claude_legacy(&input(&home, &canonical, &["audit"])).unwrap();
-        let blueprint = inspection
+        let compshop = inspection
             .standalone_projections
             .iter()
-            .find(|projection| projection.id == "blueprint")
+            .find(|projection| projection.id == "compshop")
             .unwrap();
-        assert!(blueprint.retired);
+        assert!(compshop.retired);
         assert!(matches!(
-            &blueprint.ownership,
+            &compshop.ownership,
             ClaudeProjectionOwnership::ExactCachedLegionCopy { .. }
         ));
 
         let repair = repair_claude_legacy(&input(&home, &canonical, &["audit"])).unwrap();
         assert_eq!(repair.removed.len(), 1);
-        assert_eq!(repair.removed[0].id, "blueprint");
-        assert!(!standalone.join("blueprint").exists());
+        assert_eq!(repair.removed[0].id, "compshop");
+        assert!(!standalone.join("compshop").exists());
         assert!(standalone.join("content").exists());
         assert_eq!(fs::read(&cache_path).unwrap(), cache);
     }

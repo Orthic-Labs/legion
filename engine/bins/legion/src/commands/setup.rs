@@ -2650,7 +2650,10 @@ fn host_integration_inputs_installed(
         assets_skills_root: skills_root,
         platform_state_root,
         current_skill_ids: current_skill_ids.clone(),
-        retired_skill_ids: vec![legion_host::RETIRED_BLUEPRINT_SKILL_ID.into()],
+        retired_skill_ids: legion_host::RETIRED_SKILL_IDS
+            .iter()
+            .map(|id| (*id).into())
+            .collect(),
         generation: format!(
             "{}:{}",
             release.release_version, release.declarative_asset_schema_hash
@@ -2774,7 +2777,10 @@ fn development_host_integration_inputs(
         assets_skills_root: skills_source.clone(),
         platform_state_root: state_root.clone(),
         current_skill_ids: current_skill_ids.clone(),
-        retired_skill_ids: vec![legion_host::RETIRED_BLUEPRINT_SKILL_ID.into()],
+        retired_skill_ids: legion_host::RETIRED_SKILL_IDS
+            .iter()
+            .map(|id| (*id).into())
+            .collect(),
         generation: format!(
             "{}:{}",
             release.release_version, release.declarative_asset_schema_hash
