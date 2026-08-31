@@ -18,7 +18,8 @@ import { handleHookEvent, evaluateHostStop } from './hook-adapter-core.mjs';
 import { RuntimeSchemaSet } from '../../contracts/arcane/runtime-schema.mjs';
 import { renderHostRuntimeOutput } from './host-runtime-output.mjs';
 import { buildPolicyInjection } from '../../cognitive/arcane/host/policy-inject.mjs';
-import { compileArcaneRoute } from '../../cognitive/arcane/route-envelope.mjs';
+import { compileArcaneRoute, runFalsificationPass } from '../../cognitive/arcane/route-envelope.mjs';
+import { selectStrongerWorkingModel } from './codex-escalation.mjs';
 import { preEffectDiscipline } from './discipline-controls.mjs';
 import { evaluateTranscriptStop } from '../../cognitive/arcane/stop-shape.mjs';
 import { stopOutcome } from './stop-disposition.mjs';
@@ -443,12 +444,32 @@ export function createHostRuntime({ adapter, workspace, keyDir, verificationKeyD
       if (result.allowed && result.stdout === null && POLICY_INJECT_EVENTS.has(eventType)) {
         const prompt = hookPayload?.prompt ?? hookPayload?.user_prompt ?? null;
         const stageAvailability = typeof adapter.observeArcaneAvailability === 'function' ? adapter.observeArcaneAvailability(hookPayload) : {};
-        const routeEnvelope = compileArcaneRoute({
+        const uncertain = hookPayload?.route_uncertain === true;
+        const currentTier = hookPayload?.route_model_tier ?? 'balanced';
+        const escalation = selectStrongerWorkingModel({
+          uncertain,
+          currentTier,
+          priorEscalations: Number(hookPayload?.route_prior_escalations ?? 0),
+        });
+        const challengeInput = hookPayload?.arcane_challenge;
+        let challenge = null;
+        if (challengeInput) {
+          challenge = runFalsificationPass({
+            claim: challengeInput.claim,
+            evidence: challengeInput.evidence,
+            passCount: Number(challengeInput.passCount ?? 0),
+            evaluate: () => ({ result: challengeInput.result, reason: challengeInput.reason }),
+          });
+          if (typeof challenge?.then === 'function') throw Object.assign(new Error('host challenge evaluator must be synchronous'), { code: 'ARC_CHALLENGE_ASYNC' });
+        }
+        const compiledRoute = compileArcaneRoute({
           prompt,
           trivial: eventType === 'SessionStart' && !prompt,
-          uncertain: hookPayload?.route_uncertain === true,
+          uncertain,
+          modelTier: currentTier,
           requiredStages: contracted ? ['verification'] : [],
         }, stageAvailability);
+        const routeEnvelope = Object.freeze({ ...compiledRoute, escalation, challenge });
         const injection = buildPolicyInjection({ workspace, prompt, gotchasOnly: eventType === 'UserPromptSubmit', routeEnvelope });
         if (injection) {
           const envelope = createDecisionEnvelope({ allowed: true, code: null });

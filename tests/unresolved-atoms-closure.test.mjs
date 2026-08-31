@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, rmSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -15,6 +15,8 @@ import { probeCapability } from '../src/lib/capabilities/probe.mjs';
 import { compileArcaneRoute, runFalsificationPass } from '../src/lib/cognitive/arcane/route-envelope.mjs';
 import { selectStrongerWorkingModel } from '../src/lib/host/arcane/codex-escalation.mjs';
 import { DependencyLedger } from '../src/lib/verification/arcane/invalidation.mjs';
+import { createHostRuntime } from '../src/lib/host/arcane/host-runtime.mjs';
+import { claudeCodeHostAdapter } from '../src/lib/guard/compat/host/claude-code-adapter.mjs';
 
 const temp = () => mkdtempSync(join(tmpdir(), 'legion-unresolved-'));
 const withTemp = (fn) => async () => { const root = temp(); try { await fn(root); } finally { rmSync(root, { recursive: true, force: true }); } };
@@ -105,13 +107,28 @@ test('ARC-002 trivial route is near-empty & makes zero model calls', () => {
 
 test('ARC-005 falsification is one evidence-directed KEEP/NARROW/REVISE pass', async () => {
   const result = await runFalsificationPass({ claim: 'claim', evidence: ['source'], evaluate: async () => ({ result: 'REVISE', reason: 'counterexample' }) });
-  assert.equal(result.result, 'REVISE'); await assert.rejects(() => runFalsificationPass({ claim: 'claim', evidence: ['source'], passCount: 1, evaluate: async () => ({ result: 'KEEP' }) }), { code: 'ARC_CHALLENGE_RECURSION' });
+  assert.equal(result.result, 'REVISE'); assert.throws(() => runFalsificationPass({ claim: 'claim', evidence: ['source'], passCount: 1, evaluate: async () => ({ result: 'KEEP' }) }), { code: 'ARC_CHALLENGE_RECURSION' });
 });
 
 test('ARC-006 uncertain route selects stronger model once & no workflow artifact', () => {
   assert.deepEqual(selectStrongerWorkingModel({ uncertain: true, currentTier: 'balanced' }), { escalated: true, modelTier: 'strong', executions: 1, workflowArtifact: false, responseMode: 'DIRECT' });
   assert.throws(() => selectStrongerWorkingModel({ uncertain: true, priorEscalations: 1 }), { code: 'ARC_ESCALATION_RECURSION' });
 });
+
+test('ARC-005/006 live host emits consumed challenge & executed escalation', withTemp((root) => {
+  const keyDir = join(root, 'keys');
+  mkdirSync(keyDir); writeFileSync(join(keyDir, 'test.key'), '11'.repeat(32));
+  const runtime = createHostRuntime({ adapter: claudeCodeHostAdapter, workspace: root, keyDir });
+  const result = runtime.handle({
+    hook_event_name: 'SessionStart', session_id: 'session', cwd: root,
+    route_uncertain: true, route_model_tier: 'balanced',
+    arcane_challenge: { claim: 'route is sufficient', evidence: ['source:route'], result: 'NARROW', reason: 'remove excess context' },
+  });
+  const context = result.stdout?.hookSpecificOutput?.additionalContext ?? '';
+  const route = JSON.parse(context.split('\n\n---\n\n')[0].replace(/^ARCANE_ROUTE:/, ''));
+  assert.deepEqual(route.escalation, { escalated: true, modelTier: 'strong', executions: 1, workflowArtifact: false, responseMode: 'DIRECT' });
+  assert.equal(route.challenge.result, 'NARROW'); assert.equal(route.challenge.passCount, 1); assert.equal(route.challenge.recursive, false);
+}));
 
 test('ARC-009 unavailable optional stages degrade while ambient route continues', () => {
   const route = compileArcaneRoute({ prompt: 'Perform useful ambient work.' }, { grounding: false, challenge: false }); assert.equal(route.stages.grounding.state, 'DEGRADED'); assert.equal(route.stages.response.state, 'ACTIVE');

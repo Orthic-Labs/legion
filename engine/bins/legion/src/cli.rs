@@ -1143,7 +1143,7 @@ async fn dispatch(cli: Cli, cancellation: CancellationToken) -> commands::Comman
         Command::Decision(args) => commands::decision::run(args),
         Command::Handoff(args) => commands::handoff::run(args),
         Command::Research(args) => commands::research::run(args, cancellation.clone()),
-        Command::Review(args) => commands::review::run(args, cancellation.clone()),
+        Command::Review(args) => commands::review::run(args, cancellation.clone()).await,
         Command::Setup(args) => commands::setup::run(args, cancellation.clone()).await,
         Command::Providers(args) => Ok(
             json!({"schemaVersion":1,"kind":"legion-providers","providers": providers(), "capabilityAttestations": capability_attestations(), "selected": !(args.json || root_json), "arguments": args.args, "json": args.json || root_json, "text": providers_text()}),

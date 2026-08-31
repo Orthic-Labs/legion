@@ -16,7 +16,7 @@ pub mod testkit;
 
 pub use auth::{
     authorize_credential_access, CredentialAuthorizer, CredentialEffectDecision, CredentialReceipt,
-    RedactedAuth, SecretProvider,
+    EnvironmentSecretProvider, RedactedAuth, ScopedCredentialAuthorizer, SecretProvider,
 };
 
 pub use context::{EffectInterface, ProviderContext, SourceInterface};

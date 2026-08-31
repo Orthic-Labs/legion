@@ -58,15 +58,22 @@ export function compileArcaneRoute(input = {}, availability = {}) {
   });
 }
 
+function finalizeChallenge(outcome, evidence) {
+  if (!CHALLENGE_RESULTS.has(outcome?.result)) throw Object.assign(new Error('challenge result must be KEEP, NARROW or REVISE'), { code: 'ARC_CHALLENGE_INVALID' });
+  return Object.freeze({ result: outcome.result, reason: String(outcome.reason ?? ''), evidenceDigest: digestValue(evidence), passCount: 1, recursive: false });
+}
+
 /** One evidence-directed falsification pass. No recursive pass is representable. */
-export async function runFalsificationPass({ claim, evidence, evaluate, passCount = 0 } = {}) {
+export function runFalsificationPass({ claim, evidence, evaluate, passCount = 0 } = {}) {
   if (passCount !== 0) throw Object.assign(new Error('falsification pass already consumed'), { code: 'ARC_CHALLENGE_RECURSION' });
   if (!nonEmpty(claim) || !Array.isArray(evidence) || evidence.length === 0 || typeof evaluate !== 'function') {
     throw Object.assign(new Error('claim, evidence & evaluator are required'), { code: 'ARC_CHALLENGE_INVALID' });
   }
-  const outcome = await evaluate(Object.freeze({ claim, evidence: Object.freeze([...evidence]), pass: 1 }));
-  if (!CHALLENGE_RESULTS.has(outcome?.result)) throw Object.assign(new Error('challenge result must be KEEP, NARROW or REVISE'), { code: 'ARC_CHALLENGE_INVALID' });
-  return Object.freeze({ result: outcome.result, reason: String(outcome.reason ?? ''), evidenceDigest: digestValue(evidence), passCount: 1, recursive: false });
+  const frozenEvidence = Object.freeze([...evidence]);
+  const outcome = evaluate(Object.freeze({ claim, evidence: frozenEvidence, pass: 1 }));
+  return typeof outcome?.then === 'function'
+    ? outcome.then((resolved) => finalizeChallenge(resolved, frozenEvidence))
+    : finalizeChallenge(outcome, frozenEvidence);
 }
 
 export function routeEnvelopeContext(envelope) {
