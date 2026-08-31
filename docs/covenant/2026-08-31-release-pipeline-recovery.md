@@ -9,6 +9,13 @@ Status: `SUPPORTED`
 - Failed release revision: `042c71f1f73793ce3ff654dbcc111bc8f30b9019`
 - Final verdict: two isolated fresh seats returned `SUPPORTED`; no findings, missing evidence, or risks.
 
+Concurrent main commit `30112e8e348cfd548098f06055dd86ac823ad8a6` moved existing conditional Rust gates from `scripts/gate.sh` into `scripts/ci/right-git-ci.sh` without changing release behavior. Fresh source-bound revalidation also returned unanimous `SUPPORTED`:
+
+- Revalidation record: `CV-10`
+- Revalidation request: `req_01ARZ3NDEKTSV4RRFFQ69G5FB0`
+- Revalidation digest: `sha256:9a2d21222dccef673c12a0eb9c6ee596543fe5a5e45f77acf4c24d1cad191e53`
+- Revalidated release baseline: `30112e8e348cfd548098f06055dd86ac823ad8a6`
+
 ## User instruction
 
 > how much longer, i will ask you very simply. if the answer is not 10 minutes. I want you to check whjat you're doing wrong. present the entire pipelien to covenant along with every thing you've tried, each and every failure plus why you're such a failure at achieving a mechanical task that should be well documented online as well as by github. do not proceed till you get a pass
