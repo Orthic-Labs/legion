@@ -1,0 +1,67 @@
+{
+  "schema_version": 1,
+  "foundation_mode": "RECONCILE",
+  "product_scope": "Legion current product; exactly 21 committed open canon atoms",
+  "target_revision": "8b022aa632f21aaa76f4625640b500dd9cdb4e74",
+  "requirements_asrs": {
+    "source": "docs/dispatch/2026-08-31-unresolved-atoms-prompt.md",
+    "sha256": "56e5e320c1bc9b85b96b11b1f93a8a2d0fce76344ad6657c0ee3ace1159f2b1a",
+    "criteria": ["correctness", "privacy", "latency", "recovery visibility", "maintainability", "testability"]
+  },
+  "platform_runtime_set": [
+    "package JavaScript CLI/runtime",
+    "native Rust runtime",
+    "host hooks/adapters",
+    "audit provider pipeline",
+    "native release pipeline"
+  ],
+  "corpus": {
+    "manifest": "docs/foundation/2026-08-31/unresolved-atoms-corpus.json",
+    "sha256": "681ff5930f63ef9c8894856f5361bf2eda7486ee9760658e20b3e46c32a0304b",
+    "repositories": ["Current product@8b022aa632f21aaa76f4625640b500dd9cdb4e74"],
+    "stop_reason": "Current-product-only lifecycle reconciliation; donor comparison excluded."
+  },
+  "exclusions": [
+    "donor comparison",
+    "canon mutation",
+    "pending mutation",
+    "production implementation",
+    "test/build/generator execution",
+    "generated/build/cache evidence"
+  ],
+  "protocol": {
+    "skill_sha256": "e757a78657a6317f8b58665591ac84261c2726fb1ac5dfee43268da44aed4641",
+    "model_sha256": "9e54bf7f40c8ced84671dd0763445a9273f1cbdbb1ee7150d68d32da5130b1b3",
+    "protocol_sha256": "1bcfdf66ae253d712ab6735ce5850e5c46117e7aa2994e587a32d7d1841ae84f",
+    "validator_sha256": "ac39aa86d491dcd9f96890be1c2912913082347b08ca771d29bcdd5cf7f84cc2",
+    "report_mode": "final"
+  },
+  "artifacts": {
+    "runtime_report": {"path": "docs/foundation/2026-08-31/unresolved-legion-runtime.md", "sha256": "d03cb4af906c2d816b5414a8f5715cb937e44a7bb57286d864090c4a62197468"},
+    "governance_report": {"path": "docs/foundation/2026-08-31/unresolved-governance-guard.md", "sha256": "cfe3acdd4e9582ced931234af50cfc3ddd752710792ff1e24a5c5bdcbc6a902e"},
+    "arcane_report": {"path": "docs/foundation/2026-08-31/unresolved-arcane.md", "sha256": "89d23b67029a873d3fd8836ac2650da64059e6f51507eb412707043edf3ba1b7"},
+    "reconciliation": {"path": "docs/foundation/2026-08-31/unresolved-atoms-reconciliation.md", "sha256": "98c7d8e57a3c81dcba645d2b9e45b698463aca9104eaf87eac14df9cc6224da4"},
+    "validation_log": {"path": "docs/foundation/2026-08-31/unresolved-atoms-validation.json", "sha256": "2b31c1449bab1c009d9824af0f9b2f6f636019a99b2ec845839d0e0e2df59a60"},
+    "execution_receipt": {"path": "docs/dispatch/2026-08-31-unresolved-atoms-execution.json", "sha256": "f4db5b63b9bbb28132272c312e8574dcda819c4e5f032b49675fedb70a5260d4"}
+  },
+  "counts": {
+    "requested": 21,
+    "evaluated": 21,
+    "unresolved": 21,
+    "excluded": 0,
+    "implementation_partial": 15,
+    "implementation_missing": 4,
+    "implementation_unknown": 1,
+    "implementation_delivered_candidate": 1,
+    "classification_changes": 13,
+    "classification_retained": 8,
+    "new_atoms": 0,
+    "closures": 0
+  },
+  "validator_result": "PASS: 3 lane reports + 21-row reconciliation",
+  "completion_validation": {
+    "status": "BLOCK_REPAIRED_PENDING_RECHECK",
+    "agent_id": "01a056c1-f152-7fd3-862e-83d162092847",
+    "verdict": "Initial BLOCK repaired: ARC-005 reachability, LEG-023 emitter claim, worker execution provenance & commit preservation."
+  }
+}

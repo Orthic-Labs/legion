@@ -1,0 +1,55 @@
+{
+  "schema_version": 1,
+  "packet": "docs/dispatch/2026-08-31-unresolved-atoms.json",
+  "packet_sha256": "8994b06245713308efbb30cd7f3c6e9f38c7616b5bc04303deeebe4b5006b2e9",
+  "source_revision": "8b022aa632f21aaa76f4625640b500dd9cdb4e74",
+  "integration_owner": "current Legion orchestrator",
+  "workers": [
+    {
+      "agent_id": "01a056a0-9241-7972-94e6-ebe5e7f162c4",
+      "model": "gpt-5.6-sol",
+      "lane": "legion-runtime",
+      "status": "COMPLETE",
+      "artifact": "docs/foundation/2026-08-31/unresolved-legion-runtime.md",
+      "artifact_sha256": "d03cb4af906c2d816b5414a8f5715cb937e44a7bb57286d864090c4a62197468",
+      "corrections": [
+        "Foundation evidence repository label normalized by owning worker",
+        "repository-label prefix order clarified by dispatcher & corrected by owning worker",
+        "Completion Oracle contradiction repaired: live native route/cost trace emitter acknowledged for LEG-023"
+      ],
+      "validation": "PASS: 11 rows, mode=final"
+    },
+    {
+      "agent_id": "01a056a0-959e-71e1-a726-958708ead50d",
+      "model": "gpt-5.6-sol",
+      "lane": "governance-guard",
+      "status": "COMPLETE_WITH_NOTES",
+      "artifact": "docs/foundation/2026-08-31/unresolved-governance-guard.md",
+      "artifact_sha256": "cfe3acdd4e9582ced931234af50cfc3ddd752710792ff1e24a5c5bdcbc6a902e",
+      "corrections": [
+        "Current-product-only gaps changed from YES to UNRESOLVED because donor comparison was excluded"
+      ],
+      "validation": "PASS: 5 rows, mode=final"
+    },
+    {
+      "agent_id": "01a056a0-9960-7c81-88a0-f508b59fb408",
+      "model": "gpt-5.6-sol",
+      "lane": "arcane",
+      "status": "COMPLETE_AFTER_ORACLE_REPAIR",
+      "artifact": "docs/foundation/2026-08-31/unresolved-arcane.md",
+      "artifact_sha256": "89d23b67029a873d3fd8836ac2650da64059e6f51507eb412707043edf3ba1b7",
+      "corrections": [
+        "Completion Oracle contradiction repaired: ARC-005 changed MISSING to PARTIAL using live native SessionStart policy consumer"
+      ],
+      "validation": "PASS: 5 rows, mode=final"
+    }
+  ],
+  "integration": {
+    "reconciliation": "docs/foundation/2026-08-31/unresolved-atoms-reconciliation.md",
+    "reconciliation_sha256": "98c7d8e57a3c81dcba645d2b9e45b698463aca9104eaf87eac14df9cc6224da4",
+    "validation": "PASS: 21 rows, mode=final",
+    "completion_oracle_first_verdict": "BLOCK",
+    "completion_oracle_agent_id": "01a056c1-f152-7fd3-862e-83d162092847",
+    "completion_oracle_repairs": ["ARC-005 source reachability", "LEG-023 emitter claim", "worker output provenance", "commit preservation"]
+  }
+}

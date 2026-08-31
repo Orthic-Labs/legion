@@ -1,0 +1,95 @@
+{
+  "schema_version": 1,
+  "cwd": "D:/Claude/legion-closure",
+  "source_revision": "8b022aa632f21aaa76f4625640b500dd9cdb4e74",
+  "manifest": "docs/foundation/2026-08-31/unresolved-atoms-corpus.json",
+  "attempts": [
+    {
+      "lane": "runtime",
+      "attempt": 1,
+      "command": "python \"D:\\Claude\\tools\\skills\\foundation\\scripts\\validate_atom_report.py\" \"docs/foundation/2026-08-31/unresolved-legion-runtime.md\" --mode final --expected-rows 11 --manifest docs/foundation/2026-08-31/unresolved-atoms-corpus.json",
+      "exit_code": 1,
+      "stdout": "FAIL: 7 issue(s)\r\n- line 9: evidence repository `safeguard inspected, not run` missing from manifest roots\r\n- line 10: evidence repository `safeguard inspected, not run` missing from manifest roots\r\n- line 11: evidence repository `safeguard inspected, not run` missing from manifest roots\r\n- line 12: evidence repository `safeguard inspected, not run` missing from manifest roots\r\n- line 13: evidence repository `safeguard inspected, not run` missing from manifest roots\r\n- line 14: evidence repository `safeguard inspected, not run` missing from manifest roots\r\n- line 19: evidence repository `safeguard inspected, not run` missing from manifest roots"
+    },
+    {
+      "lane": "governance",
+      "attempt": 1,
+      "command": "python \"D:\\Claude\\tools\\skills\\foundation\\scripts\\validate_atom_report.py\" \"docs/foundation/2026-08-31/unresolved-governance-guard.md\" --mode final --expected-rows 5 --manifest docs/foundation/2026-08-31/unresolved-atoms-corpus.json",
+      "exit_code": 1,
+      "stdout": "FAIL: 3 issue(s)\r\n- line 7: material gap YES lacks donor evidence\r\n- line 9: material gap YES lacks donor evidence\r\n- line 10: material gap YES lacks donor evidence"
+    },
+    {
+      "lane": "arcane",
+      "attempt": 1,
+      "command": "python \"D:\\Claude\\tools\\skills\\foundation\\scripts\\validate_atom_report.py\" \"docs/foundation/2026-08-31/unresolved-arcane.md\" --mode final --expected-rows 5 --manifest docs/foundation/2026-08-31/unresolved-atoms-corpus.json",
+      "exit_code": 0,
+      "stdout": "PASS: docs\\foundation\\2026-08-31\\unresolved-arcane.md (5 rows, mode=final)"
+    },
+    {
+      "lane": "runtime",
+      "attempt": 2,
+      "command": "python \"D:\\Claude\\tools\\skills\\foundation\\scripts\\validate_atom_report.py\" \"docs/foundation/2026-08-31/unresolved-legion-runtime.md\" --mode final --expected-rows 11 --manifest docs/foundation/2026-08-31/unresolved-atoms-corpus.json",
+      "exit_code": 1,
+      "stdout": "FAIL: 7 issue(s)\r\n- line 9: evidence repository `safeguard inspected, not run — Current product` missing from manifest roots\r\n- line 10: evidence repository `safeguard inspected, not run — Current product` missing from manifest roots\r\n- line 11: evidence repository `safeguard inspected, not run — Current product` missing from manifest roots\r\n- line 12: evidence repository `safeguard inspected, not run — Current product` missing from manifest roots\r\n- line 13: evidence repository `safeguard inspected, not run — Current product` missing from manifest roots\r\n- line 14: evidence repository `safeguard inspected, not run — Current product` missing from manifest roots\r\n- line 19: evidence repository `safeguard inspected, not run — Current product` missing from manifest roots"
+    },
+    {
+      "lane": "governance",
+      "attempt": 2,
+      "command": "python \"D:\\Claude\\tools\\skills\\foundation\\scripts\\validate_atom_report.py\" \"docs/foundation/2026-08-31/unresolved-governance-guard.md\" --mode final --expected-rows 5 --manifest docs/foundation/2026-08-31/unresolved-atoms-corpus.json",
+      "exit_code": 0,
+      "stdout": "PASS: docs\\foundation\\2026-08-31\\unresolved-governance-guard.md (5 rows, mode=final)"
+    },
+    {
+      "lane": "arcane",
+      "attempt": 2,
+      "command": "python \"D:\\Claude\\tools\\skills\\foundation\\scripts\\validate_atom_report.py\" \"docs/foundation/2026-08-31/unresolved-arcane.md\" --mode final --expected-rows 5 --manifest docs/foundation/2026-08-31/unresolved-atoms-corpus.json",
+      "exit_code": 0,
+      "stdout": "PASS: docs\\foundation\\2026-08-31\\unresolved-arcane.md (5 rows, mode=final)"
+    },
+    {
+      "lane": "runtime",
+      "attempt": 3,
+      "command": "python \"D:\\Claude\\tools\\skills\\foundation\\scripts\\validate_atom_report.py\" \"docs/foundation/2026-08-31/unresolved-legion-runtime.md\" --mode final --expected-rows 11 --manifest docs/foundation/2026-08-31/unresolved-atoms-corpus.json",
+      "exit_code": 0,
+      "stdout": "PASS: docs\\foundation\\2026-08-31\\unresolved-legion-runtime.md (11 rows, mode=final)",
+      "reason": "dispatcher correction example required prefix-order clarification"
+    },
+    {
+      "lane": "runtime",
+      "attempt": "post-completion-oracle-repair",
+      "command": "python \"D:\\Claude\\tools\\skills\\foundation\\scripts\\validate_atom_report.py\" \"docs/foundation/2026-08-31/unresolved-legion-runtime.md\" --mode final --expected-rows 11 --manifest docs/foundation/2026-08-31/unresolved-atoms-corpus.json",
+      "exit_code": 0,
+      "stdout": "PASS: docs\\foundation\\2026-08-31\\unresolved-legion-runtime.md (11 rows, mode=final)"
+    },
+    {
+      "lane": "governance",
+      "attempt": "post-completion-oracle-repair",
+      "command": "python \"D:\\Claude\\tools\\skills\\foundation\\scripts\\validate_atom_report.py\" \"docs/foundation/2026-08-31/unresolved-governance-guard.md\" --mode final --expected-rows 5 --manifest docs/foundation/2026-08-31/unresolved-atoms-corpus.json",
+      "exit_code": 0,
+      "stdout": "PASS: docs\\foundation\\2026-08-31\\unresolved-governance-guard.md (5 rows, mode=final)"
+    },
+    {
+      "lane": "arcane",
+      "attempt": "post-completion-oracle-repair",
+      "command": "python \"D:\\Claude\\tools\\skills\\foundation\\scripts\\validate_atom_report.py\" \"docs/foundation/2026-08-31/unresolved-arcane.md\" --mode final --expected-rows 5 --manifest docs/foundation/2026-08-31/unresolved-atoms-corpus.json",
+      "exit_code": 0,
+      "stdout": "PASS: docs\\foundation\\2026-08-31\\unresolved-arcane.md (5 rows, mode=final)"
+    },
+    {
+      "lane": "reconciliation",
+      "attempt": "post-completion-oracle-repair",
+      "command": "python \"D:\\Claude\\tools\\skills\\foundation\\scripts\\validate_atom_report.py\" \"docs/foundation/2026-08-31/unresolved-atoms-reconciliation.md\" --mode final --expected-rows 21 --manifest docs/foundation/2026-08-31/unresolved-atoms-corpus.json",
+      "exit_code": 0,
+      "stdout": "PASS: docs\\foundation\\2026-08-31\\unresolved-atoms-reconciliation.md (21 rows, mode=final)"
+    }
+  ],
+  "terminal": {
+    "status": "PASS",
+    "runtime": "PASS",
+    "governance": "PASS",
+    "arcane": "PASS",
+    "reconciliation": "PASS",
+    "recovery_exhausted": false,
+    "completion_oracle_first_verdict": "BLOCK_REPAIRED"
+  }
+}

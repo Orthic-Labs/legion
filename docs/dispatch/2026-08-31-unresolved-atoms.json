@@ -1,0 +1,225 @@
+{
+  "schemaVersion": 1,
+  "kind": "legion-authority-dispatch",
+  "packetType": "direct",
+  "repositoryRoot": "D:/Claude/legion-closure",
+  "sourceRevision": "git:8b022aa632f21aaa76f4625640b500dd9cdb4e74",
+  "promptArtifact": "docs/dispatch/2026-08-31-unresolved-atoms-prompt.md",
+  "promptDigest": "sha256:56e5e320c1bc9b85b96b11b1f93a8a2d0fce76344ad6657c0ee3ace1159f2b1a",
+  "modelRouting": {
+    "modelTier": "STRONG",
+    "workerProfile": "gpt-5.6-sol-source-reconciliation",
+    "routingRationale": "Operator requested sub-agents; 21 source-heavy lifecycle judgments split into three independent atom sets."
+  },
+  "objective": "Reconcile implementation state for exactly 21 open canon atoms against operative production source, producing three disjoint provenance reports without canon or pending mutation.",
+  "authority": [
+    "AGENTS.md",
+    "docs/LEGION-CANONICAL-SSOT.md",
+    "docs/canon/README.md",
+    "docs/canon/legion.md",
+    "docs/canon/arcane.md",
+    "docs/canon/guard.md",
+    "docs/dispatch/2026-08-31-unresolved-atoms-prompt.md",
+    "D:/Claude/tools/skills/foundation/SKILL.md",
+    "D:/Claude/tools/skills/foundation/references/model.md",
+    "D:/Claude/tools/skills/foundation/references/protocol.md",
+    "D:/Claude/tools/skills/foundation/scripts/validate_atom_report.py"
+  ],
+  "integrationOwner": "current Legion orchestrator in D:/Claude/legion-closure",
+  "fileTouchPolicy": {
+    "mode": "once-end-to-end",
+    "plannedFiles": [
+      "docs/foundation/2026-08-31/unresolved-legion-runtime.md",
+      "docs/foundation/2026-08-31/unresolved-governance-guard.md",
+      "docs/foundation/2026-08-31/unresolved-arcane.md",
+      "docs/foundation/2026-08-31/unresolved-atoms-corpus.json",
+      "docs/foundation/2026-08-31/unresolved-atoms-reconciliation.md",
+      "docs/foundation/2026-08-31/unresolved-atoms-validation.json",
+      "docs/foundation/2026-08-31/unresolved-atoms-receipt.json",
+      "docs/dispatch/2026-08-31-unresolved-atoms-execution.json"
+    ],
+    "allowUnplannedFiles": false,
+    "ledger": [
+      {"path": "docs/foundation/2026-08-31/unresolved-legion-runtime.md", "owner": "legion-runtime", "operation": "create", "lane": "legion-runtime", "finalCheck": "cwd D:/Claude/legion-closure; python D:/Claude/tools/skills/foundation/scripts/validate_atom_report.py docs/foundation/2026-08-31/unresolved-legion-runtime.md --mode final --expected-rows 11 --manifest docs/foundation/2026-08-31/unresolved-atoms-corpus.json; exit 0 is PASS; otherwise return once to legion-runtime with raw validator output"},
+      {"path": "docs/foundation/2026-08-31/unresolved-governance-guard.md", "owner": "governance-guard", "operation": "create", "lane": "governance-guard", "finalCheck": "cwd D:/Claude/legion-closure; python D:/Claude/tools/skills/foundation/scripts/validate_atom_report.py docs/foundation/2026-08-31/unresolved-governance-guard.md --mode final --expected-rows 5 --manifest docs/foundation/2026-08-31/unresolved-atoms-corpus.json; exit 0 is PASS; otherwise return once to governance-guard with raw validator output"},
+      {"path": "docs/foundation/2026-08-31/unresolved-arcane.md", "owner": "arcane", "operation": "create", "lane": "arcane", "finalCheck": "cwd D:/Claude/legion-closure; python D:/Claude/tools/skills/foundation/scripts/validate_atom_report.py docs/foundation/2026-08-31/unresolved-arcane.md --mode final --expected-rows 5 --manifest docs/foundation/2026-08-31/unresolved-atoms-corpus.json; exit 0 is PASS; otherwise return once to arcane with raw validator output"},
+      {"path": "docs/foundation/2026-08-31/unresolved-atoms-corpus.json", "owner": "integration-owner-validation", "operation": "create", "lane": "integration-owner-validation", "finalCheck": "manifest binds Current product to D:/Claude/legion-closure at frozen SHA & scope_repos to current-product-only reconciliation"},
+      {"path": "docs/foundation/2026-08-31/unresolved-atoms-reconciliation.md", "owner": "integration-owner-reconciliation", "operation": "create", "lane": "integration-owner-reconciliation", "finalCheck": "cwd D:/Claude/legion-closure; python D:/Claude/tools/skills/foundation/scripts/validate_atom_report.py docs/foundation/2026-08-31/unresolved-atoms-reconciliation.md --mode final --expected-rows 21 --manifest docs/foundation/2026-08-31/unresolved-atoms-corpus.json; exit 0 is PASS; one correction only"},
+      {"path": "docs/foundation/2026-08-31/unresolved-atoms-validation.json", "owner": "integration-owner-validation", "operation": "create", "lane": "integration-owner-validation", "finalCheck": "capture exact validator command, cwd, exit code & raw stdout/stderr for every attempt; exhausted correction records RECOVERY_EXHAUSTED, INDEPENDENT_WORK_COMPLETE, RAW_EVIDENCE, MISSING_INPUT & RESUME_COMMAND"},
+      {"path": "docs/foundation/2026-08-31/unresolved-atoms-receipt.json", "owner": "integration-owner-reconciliation", "operation": "create", "lane": "integration-owner-reconciliation", "finalCheck": "receipt fingerprints product/scope, target SHA, requirements/ASRs, runtime/platform set, corpus, exclusions, Foundation protocol/schema, exact report hashes, counts, validator log & Oracle result"},
+      {"path": "docs/dispatch/2026-08-31-unresolved-atoms-execution.json", "owner": "integration-owner-reconciliation", "operation": "create", "lane": "integration-owner-reconciliation", "finalCheck": "records each Sol worker identity, assigned lane, terminal status, correction history, owned output path + final SHA & integration validation result"}
+    ]
+  },
+  "sourcePortPolicy": {
+    "applicable": false,
+    "sourceImplementation": null,
+    "sourceInventory": ["Current product@8b022aa632f21aaa76f4625640b500dd9cdb4e74"],
+    "directPortFirst": true,
+    "targetLanguage": null,
+    "rustTargetRequiresRustPort": true,
+    "handRollReplacementWhileSourceExists": false
+  },
+  "workerPolicy": {
+    "mode": "edit-only",
+    "mayInspectReadPaths": true,
+    "mayEditAllowlistOnly": true,
+    "forbiddenActions": ["cargo", "tests", "builds", "generators", "installs", "commits", "pushes", "merges", "expensive-checks", "canon-edit", "pending-edit"],
+    "intendedChecksRecordedFor": "integration owner"
+  },
+  "integrationPolicy": {
+    "owner": "current Legion orchestrator",
+    "soleMerger": true,
+    "runsCheckpoints": true,
+    "mayRepairLaneOwnedFiles": false,
+    "repairAction": "return report defects to owning lane; integrate findings into separate reconciliation artifact"
+  },
+  "sourcePreflight": {
+    "cwd": "D:/Claude/legion-closure",
+    "command": "git rev-parse HEAD; git status --porcelain -- docs/canon src engine tools scripts release qualification hooks tests .github/workflows/release-candidate.yml package.json right-release.config.mjs",
+    "expected": "first line equals 8b022aa632f21aaa76f4625640b500dd9cdb4e74 & no later output",
+    "failureBranch": "do not inspect source; report observed SHA or dirty path to integration owner; no retry"
+  },
+  "dispatches": [
+    {
+      "id": "A",
+      "dependsOn": [],
+      "lanes": ["legion-runtime", "governance-guard", "arcane"],
+      "completionChecks": ["cwd D:/Claude/legion-closure; integration owner confirms sourcePreflight exact SHA/clean scoped paths; all three reports exist; exact atom union is 21 with no duplicate; workers touched only allowlisted reports"]
+    },
+    {
+      "id": "B",
+      "dependsOn": ["A"],
+      "lanes": ["integration-owner-validation"],
+      "completionChecks": ["current orchestrator runs exact validator commands against completed Wave A reports & writes durable raw outcomes; first failure returns once to owning lane; repeated failure records complete resumable blocker evidence"]
+    },
+    {
+      "id": "C",
+      "dependsOn": ["B"],
+      "lanes": ["integration-owner-reconciliation"],
+      "completionChecks": ["current orchestrator reconciles only validated lane reports into 21-row final artifact, validates it, writes fingerprinted receipt, & on one deterministic final-report failure corrects only integration-owned output once"]
+    }
+  ],
+  "workers": [
+    {
+      "id": "legion-runtime",
+      "dispatch": "A",
+      "executorRequirement": {
+        "semanticRequirement": "forbidden",
+        "capabilities": ["repository-analysis", "markdown-report"],
+        "effects": ["source-read", "artifact-write"],
+        "authorityCeiling": ["workspace"],
+        "completion": [{"kind": "exact-check", "id": "eleven-runtime-atoms"}],
+        "escalation": {"permittedOn": [], "forbiddenOn": ["denied"]}
+      },
+      "allowlist": ["docs/foundation/2026-08-31/unresolved-legion-runtime.md"],
+      "read": ["AGENTS.md", "docs/canon/README.md", "docs/canon/legion.md", "src", "engine", "tools", "scripts", "release", "qualification", "tests"],
+      "forbidden": [".git", "node_modules", "engine/target", "docs/foundation/2026-08-31/unresolved-governance-guard.md", "docs/foundation/2026-08-31/unresolved-arcane.md"],
+      "checks": ["before reading: integration owner proves sourcePreflight; worker creates exactly 11-row assigned report & performs one source-level adversarial self-review; Wave B integration owner runs cwd D:/Claude/legion-closure; python D:/Claude/tools/skills/foundation/scripts/validate_atom_report.py docs/foundation/2026-08-31/unresolved-legion-runtime.md --mode final --expected-rows 11 --manifest docs/foundation/2026-08-31/unresolved-atoms-corpus.json; raw outcome goes to docs/foundation/2026-08-31/unresolved-atoms-validation.json"],
+      "dependencies": []
+    },
+    {
+      "id": "governance-guard",
+      "dispatch": "A",
+      "executorRequirement": {
+        "semanticRequirement": "forbidden",
+        "capabilities": ["repository-analysis", "markdown-report"],
+        "effects": ["source-read", "artifact-write"],
+        "authorityCeiling": ["workspace"],
+        "completion": [{"kind": "exact-check", "id": "five-governance-atoms"}],
+        "escalation": {"permittedOn": [], "forbiddenOn": ["denied"]}
+      },
+      "allowlist": ["docs/foundation/2026-08-31/unresolved-governance-guard.md"],
+      "read": ["AGENTS.md", "docs/canon/README.md", "docs/canon/legion.md", "docs/canon/guard.md", "src", "engine", "tools", "scripts", "release", "qualification", "tests", ".github/workflows/release-candidate.yml", "package.json", "right-release.config.mjs"],
+      "forbidden": [".git", "node_modules", "engine/target", "docs/foundation/2026-08-31/unresolved-legion-runtime.md", "docs/foundation/2026-08-31/unresolved-arcane.md"],
+      "checks": ["before reading: integration owner proves sourcePreflight; worker creates exactly 5-row assigned report & performs one source-level adversarial self-review; Wave B integration owner runs cwd D:/Claude/legion-closure; python D:/Claude/tools/skills/foundation/scripts/validate_atom_report.py docs/foundation/2026-08-31/unresolved-governance-guard.md --mode final --expected-rows 5 --manifest docs/foundation/2026-08-31/unresolved-atoms-corpus.json; raw outcome goes to docs/foundation/2026-08-31/unresolved-atoms-validation.json"],
+      "dependencies": []
+    },
+    {
+      "id": "arcane",
+      "dispatch": "A",
+      "executorRequirement": {
+        "semanticRequirement": "forbidden",
+        "capabilities": ["repository-analysis", "markdown-report"],
+        "effects": ["source-read", "artifact-write"],
+        "authorityCeiling": ["workspace"],
+        "completion": [{"kind": "exact-check", "id": "five-arcane-atoms"}],
+        "escalation": {"permittedOn": [], "forbiddenOn": ["denied"]}
+      },
+      "allowlist": ["docs/foundation/2026-08-31/unresolved-arcane.md"],
+      "read": ["AGENTS.md", "docs/canon/README.md", "docs/canon/arcane.md", "src", "hooks", "scripts", "tests"],
+      "forbidden": [".git", "node_modules", "engine/target", "docs/foundation/2026-08-31/unresolved-legion-runtime.md", "docs/foundation/2026-08-31/unresolved-governance-guard.md"],
+      "checks": ["before reading: integration owner proves sourcePreflight; worker creates exactly 5-row assigned report & performs one source-level adversarial self-review; Wave B integration owner runs cwd D:/Claude/legion-closure; python D:/Claude/tools/skills/foundation/scripts/validate_atom_report.py docs/foundation/2026-08-31/unresolved-arcane.md --mode final --expected-rows 5 --manifest docs/foundation/2026-08-31/unresolved-atoms-corpus.json; raw outcome goes to docs/foundation/2026-08-31/unresolved-atoms-validation.json"],
+      "dependencies": []
+    },
+    {
+      "id": "integration-owner-validation",
+      "dispatch": "B",
+      "executor": "current Legion orchestrator only; never dispatch this lane",
+      "allowlist": ["docs/foundation/2026-08-31/unresolved-atoms-corpus.json", "docs/foundation/2026-08-31/unresolved-atoms-validation.json"],
+      "read": ["docs/foundation/2026-08-31/unresolved-legion-runtime.md", "docs/foundation/2026-08-31/unresolved-governance-guard.md", "docs/foundation/2026-08-31/unresolved-arcane.md"],
+      "forbidden": [".git", "node_modules", "docs/canon", "docs/pending"],
+      "checks": ["create docs/foundation/2026-08-31/unresolved-atoms-corpus.json with product=Current product, current_product_root=D:/Claude/legion-closure, repo_roots.Current product=D:/Claude/legion-closure, scope_repos.Legion current product=[Current product]; cwd D:/Claude/legion-closure; run 3 exact lane validator commands with --manifest; write command/cwd/exit/raw stdout+stderr per attempt; on first failure return raw output once to owning lane & rerun; if still failing record STATUS=TRUE_BLOCKER, RECOVERY_EXHAUSTED=true, INDEPENDENT_WORK_COMPLETE=true, RAW_EVIDENCE, MISSING_INPUT=corrected owning report, RESUME_COMMAND=exact failed validator command, then stop before Wave C"],
+      "dependencies": []
+    },
+    {
+      "id": "integration-owner-reconciliation",
+      "dispatch": "C",
+      "executor": "current Legion orchestrator only; never dispatch this lane",
+      "allowlist": ["docs/foundation/2026-08-31/unresolved-atoms-reconciliation.md", "docs/foundation/2026-08-31/unresolved-atoms-receipt.json", "docs/dispatch/2026-08-31-unresolved-atoms-execution.json"],
+      "read": ["docs/foundation/2026-08-31/unresolved-legion-runtime.md", "docs/foundation/2026-08-31/unresolved-governance-guard.md", "docs/foundation/2026-08-31/unresolved-arcane.md", "docs/foundation/2026-08-31/unresolved-atoms-corpus.json", "docs/foundation/2026-08-31/unresolved-atoms-validation.json"],
+      "forbidden": [".git", "node_modules", "docs/canon", "docs/pending"],
+      "checks": ["cwd D:/Claude/legion-closure; consume PASS outcomes from docs/foundation/2026-08-31/unresolved-atoms-validation.json; python D:/Claude/tools/skills/foundation/scripts/validate_atom_report.py docs/foundation/2026-08-31/unresolved-atoms-reconciliation.md --mode final --expected-rows 21 --manifest docs/foundation/2026-08-31/unresolved-atoms-corpus.json; append command/cwd/exit/raw stdout+stderr to validation log is forbidden here, so capture final result in receipt; exit 0 is PASS; first final-report failure permits one integration-owned correction; if still failing receipt records complete resumable blocker fields & stops; successful receipt hashes all four reports + corpus + validation log & records exact counts"],
+      "dependencies": []
+    }
+  ],
+  "oracleAudit": {
+    "required": true,
+    "mode": "adversarial",
+    "status": "required-before-execution",
+    "checks": [
+      "allowlist-completeness",
+      "lane-disjointness",
+      "dependency-validity",
+      "maximum-safe-parallelization",
+      "end-to-end-lane-closure",
+      "direct-port-priority",
+      "worker-edit-only",
+      "integration-owner-checkpoints",
+      "exact-byte-review-pass"
+    ]
+  },
+  "foundationReceiptContract": {
+    "productScope": "Legion current product; exactly 21 committed open canon atoms assigned in prompt",
+    "targetRevision": "8b022aa632f21aaa76f4625640b500dd9cdb4e74",
+    "requirementsAndASRs": "hash prompt plus observable-behavior rows for assigned IDs; criteria are correctness, privacy, latency, recovery visibility, maintainability & testability",
+    "platformRuntimeSet": ["package JavaScript CLI/runtime", "native Rust runtime", "host hooks/adapters", "audit provider pipeline", "native release pipeline"],
+    "corpus": ["docs/foundation/2026-08-31/unresolved-atoms-corpus.json binds Current product=D:/Claude/legion-closure@8b022aa632f21aaa76f4625640b500dd9cdb4e74"],
+    "exclusions": ["donor comparison", "canon mutation", "pending mutation", "production implementation", "test/build/generator execution", "generated/build/cache evidence"],
+    "protocolSchema": "hash exact D:/Claude/tools/skills/foundation/SKILL.md, references/model.md, references/protocol.md & validator script; record Foundation mode RECONCILE + report mode final",
+    "results": "hash three lane reports, final reconciliation & validation log; record requested/evaluated/unresolved/excluded plus dirty resolved/unresolved & completion-validation result"
+  },
+  "executionReceipt": {
+    "path": "docs/dispatch/2026-08-31-unresolved-atoms-execution.json",
+    "requiredFields": ["packet_sha256", "source_revision", "workers", "agent_id", "lane", "status", "artifact", "artifact_sha256", "corrections", "validation"]
+  },
+  "recovery": {
+    "maxRetries": 1,
+    "stopConditions": ["frozen source revision cannot be read", "assigned atom is absent from canon", "owned report path conflicts with preserved work"],
+    "failureClasses": [
+      "path/input missing: rediscover exact path once, then return TRUE_BLOCKER with raw error",
+      "tool/dependency missing: use repository-native read tools once, then continue with explicit evidence limitation",
+      "auth/permission failure: perform all readable work, then TRUE_BLOCKER only if assigned atom cannot be assessed",
+      "transient external failure: not applicable; no network dependency",
+      "invalid input/schema: reread prompt + canon once, then stop on contradiction",
+      "integrity/hash mismatch: stop before source review & report observed revision",
+      "deterministic command failure: narrow to direct file reads or rg once",
+      "dirty/conflicting state: edit owned report only; stop if owned path is dirty",
+      "wrong producer/provenance: reject generated/build evidence & seek production consumer once",
+      "resource/capacity failure: complete assessed rows & preserve exact unresolved list",
+      "ambiguous requirement: retain UNKNOWN/PARTIAL with explicit ambiguity; do not invent",
+      "unsafe/out-of-scope action: skip action & continue read-only assessment",
+      "unknown failure: preserve report state, raw error & exact resume point"
+    ],
+    "returnFields": ["STATUS", "SUMMARY", "ACCEPTANCE", "ARTIFACTS", "CHANGES", "COMMANDS", "RECOVERY", "DEVIATIONS", "BLOCKER", "NEXT"]
+  }
+}

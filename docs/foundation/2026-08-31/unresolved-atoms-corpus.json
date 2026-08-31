@@ -1,0 +1,14 @@
+{
+  "product": "Current product",
+  "current_product_root": "D:/Claude/legion-closure",
+  "repo_roots": {
+    "Current product": "D:/Claude/legion-closure"
+  },
+  "scope_repos": {
+    "Legion current product": [
+      "Current product"
+    ]
+  },
+  "source_revision": "8b022aa632f21aaa76f4625640b500dd9cdb4e74",
+  "stop_reason": "Current-product-only lifecycle reconciliation; donor comparison excluded."
+}

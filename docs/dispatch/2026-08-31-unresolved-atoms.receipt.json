@@ -1,0 +1,60 @@
+{
+  "schema_version": 4,
+  "line_endings": "LF",
+  "sha256": "8994b06245713308efbb30cd7f3c6e9f38c7616b5bc04303deeebe4b5006b2e9",
+  "referenced_artifacts": [
+    {
+      "path": "docs/dispatch/2026-08-31-unresolved-atoms-prompt.md",
+      "sha256": "sha256:56e5e320c1bc9b85b96b11b1f93a8a2d0fce76344ad6657c0ee3ace1159f2b1a"
+    },
+    {
+      "path": "AGENTS.md",
+      "sha256": "sha256:95a975072b3250fc814cb0ed9d2529966b6cdcfc52a54a00cf6cdd925999ae7e"
+    },
+    {
+      "path": "docs/LEGION-CANONICAL-SSOT.md",
+      "sha256": "sha256:31440c5cd6fb3d918f37ef9173f21f6352d86a09b165baecaafef2954e7c9007"
+    },
+    {
+      "path": "docs/canon/README.md",
+      "sha256": "sha256:9e1c03b92b708c5a6bdf2c01a0a841dad63064904c334b0b0148e03d5689a46d"
+    },
+    {
+      "path": "docs/canon/legion.md",
+      "sha256": "sha256:9569bf31d1355a8612ed675035f69415513271b106416216267e8a23a0eb0e3b"
+    },
+    {
+      "path": "docs/canon/arcane.md",
+      "sha256": "sha256:a4659ef179ad2de807cbc0e197adc153f708e1d2540675cc9580d072386ef405"
+    },
+    {
+      "path": "docs/canon/guard.md",
+      "sha256": "sha256:19cac28469df0f4055e35fb8ed2113aa102862215aacccc901af3dd763e172b2"
+    },
+    {
+      "path": "docs/dispatch/2026-08-31-unresolved-atoms-prompt.md",
+      "sha256": "sha256:56e5e320c1bc9b85b96b11b1f93a8a2d0fce76344ad6657c0ee3ace1159f2b1a"
+    },
+    {
+      "path": "tools/skills/foundation/SKILL.md",
+      "sha256": "sha256:e757a78657a6317f8b58665591ac84261c2726fb1ac5dfee43268da44aed4641"
+    },
+    {
+      "path": "tools/skills/foundation/references/model.md",
+      "sha256": "sha256:9e54bf7f40c8ced84671dd0763445a9273f1cbdbb1ee7150d68d32da5130b1b3"
+    },
+    {
+      "path": "tools/skills/foundation/references/protocol.md",
+      "sha256": "sha256:1bcfdf66ae253d712ab6735ce5850e5c46117e7aa2994e587a32d7d1841ae84f"
+    },
+    {
+      "path": "tools/skills/foundation/scripts/validate_atom_report.py",
+      "sha256": "sha256:ac39aa86d491dcd9f96890be1c2912913082347b08ca771d29bcdd5cf7f84cc2"
+    }
+  ],
+  "authority_binding": {
+    "packet_sha256": "8994b06245713308efbb30cd7f3c6e9f38c7616b5bc04303deeebe4b5006b2e9",
+    "source_revision": "git:8b022aa632f21aaa76f4625640b500dd9cdb4e74",
+    "prompt_digest": "sha256:56e5e320c1bc9b85b96b11b1f93a8a2d0fce76344ad6657c0ee3ace1159f2b1a"
+  }
+}
