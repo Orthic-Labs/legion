@@ -18,11 +18,11 @@ Required delivery boundary: `PUSHED`.
 |---|---|---|---|---|---|---|---|---|---|---|
 | ARC-001 | ARC-G01 | Arcane | COMMITTED | Compile minimum sufficient context, cognition, grounding, compute, challenge, verification & response policy. | PARTIAL | PENDING | PENDING | COMMITTED | REPAIR_WIRE | PENDING |
 | ARC-002 | ARC-G01 | Arcane | COMMITTED | Resolve trivial default route with no model call & near-empty envelope. | PARTIAL | PENDING | PENDING | COMMITTED | EVIDENCE | PENDING |
-| ARC-004 | ARC-G02 | Arcane | COMMITTED | Add cognitive machinery only when it improves task outcome; never create self-justifying ceremony. | DELIVERED | PENDING | PENDING | COMMITTED | EVIDENCE | PENDING |
+| ARC-004 | ARC-G02 | Arcane | COMMITTED | Add cognitive machinery only when it improves task outcome; never create self-justifying ceremony. | DELIVERED | FOCUSED_PASS | PASS | PUSHED | RETAIN | Acceptance: ARC-AC-IMPLEMENTED-CLOSURE-001; Revision: d495db78b8d63be58f288e73a8d0660197791253; Receipt: docs/foundation/2026-08-31/implemented-closure-receipt.json@7da910ed92772c5bca53b8d7eb68c1c2561979078d5df4d2df88bbb8dacc4800; Freshness: 2026-08-31 |
 | ARC-005 | ARC-G02 | Arcane | COMMITTED | Run at most one evidence-directed bounded falsification pass with KEEP, NARROW, or REVISE result. | PARTIAL | PENDING | PENDING | COMMITTED | REPAIR_WIRE | PENDING |
 | ARC-006 | ARC-G02 | Arcane | COMMITTED | Escalate routing uncertainty to stronger working model without creating workflow ritual. | PARTIAL | PENDING | PENDING | COMMITTED | REPAIR_WIRE | PENDING |
-| ARC-007 | ARC-G03 | Arcane | COMMITTED | Apply Brief/Minimize & ending-shape discipline without managing work state. | DELIVERED | PENDING | PENDING | COMMITTED | EVIDENCE | PENDING |
-| ARC-008 | ARC-G03 | Arcane | COMMITTED | Keep cognitive route ephemeral & emit no effect authorization or effect receipt. | DELIVERED | PENDING | PENDING | COMMITTED | EVIDENCE | PENDING |
+| ARC-007 | ARC-G03 | Arcane | COMMITTED | Apply Brief/Minimize & ending-shape discipline without managing work state. | DELIVERED | FOCUSED_PASS | PASS | PUSHED | RETAIN | Acceptance: ARC-AC-IMPLEMENTED-CLOSURE-001; Revision: d495db78b8d63be58f288e73a8d0660197791253; Receipt: docs/foundation/2026-08-31/implemented-closure-receipt.json@7da910ed92772c5bca53b8d7eb68c1c2561979078d5df4d2df88bbb8dacc4800; Freshness: 2026-08-31 |
+| ARC-008 | ARC-G03 | Arcane | COMMITTED | Keep cognitive route ephemeral & emit no effect authorization or effect receipt. | DELIVERED | FOCUSED_PASS | PASS | PUSHED | RETAIN | Acceptance: ARC-AC-IMPLEMENTED-CLOSURE-001; Revision: d495db78b8d63be58f288e73a8d0660197791253; Receipt: docs/foundation/2026-08-31/implemented-closure-receipt.json@7da910ed92772c5bca53b8d7eb68c1c2561979078d5df4d2df88bbb8dacc4800; Freshness: 2026-08-31 |
 | ARC-009 | ARC-G03 | Arcane | COMMITTED | Degrade unavailable optional cognitive machinery while preserving useful permitted work. | PARTIAL | PENDING | PENDING | COMMITTED | EVIDENCE | PENDING |
 
 ## Implementation register
@@ -38,7 +38,8 @@ Required delivery boundary: `PUSHED`.
 
 | ID | Capability targets | Acceptance boundary | State | Evidence | Material revision |
 |---|---|---|---|---|---|
-| ARC-Q001 | ARC-001, ARC-002, ARC-004, ARC-005, ARC-006, ARC-007, ARC-008, ARC-009 | Arcane-AC-BOUNDARY-001: reconcile each observable through live consumer at PUSHED boundary | PENDING | NONE | LOCAL |
+| ARC-Q001 | ARC-001, ARC-002, ARC-005, ARC-006, ARC-009 | Arcane-AC-BOUNDARY-001: reconcile each observable through live consumer at PUSHED boundary | PENDING | NONE | LOCAL |
+| ARC-Q002 | ARC-004, ARC-007, ARC-008 | ARC-AC-IMPLEMENTED-CLOSURE-001: qualify delivered observables at PUSHED boundary | PASS | Acceptance: ARC-AC-IMPLEMENTED-CLOSURE-001; Revision: d495db78b8d63be58f288e73a8d0660197791253; Receipt: docs/foundation/2026-08-31/implemented-closure-receipt.json@7da910ed92772c5bca53b8d7eb68c1c2561979078d5df4d2df88bbb8dacc4800; Freshness: 2026-08-31 | d495db78b8d63be58f288e73a8d0660197791253 |
 
 ## Decision register
 

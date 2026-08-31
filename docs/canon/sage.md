@@ -15,13 +15,13 @@ Required delivery boundary: `PUSHED`.
 
 | ID | Parent | Owner | Scope | Observable behavior | Implementation | Verification | Qualification | Delivery | Action | Evidence |
 |---|---|---|---|---|---|---|---|---|---|---|
-| SAG-001 | SAG-G01 | Sage | COMMITTED | Activate only when material unresolved meaning exceeds selected capability's routine mandate. | DELIVERED | PENDING | PENDING | COMMITTED | EVIDENCE | PENDING |
-| SAG-002 | SAG-G01 | Sage | COMMITTED | Inspect source & runtime evidence before adjudicating; mark absent evidence unknown. | DELIVERED | PENDING | PENDING | COMMITTED | EVIDENCE | PENDING |
-| SAG-003 | SAG-G01 | Sage | COMMITTED | Remain read-only & perform no product-state effects. | DELIVERED | PENDING | PENDING | COMMITTED | EVIDENCE | PENDING |
-| SAG-004 | SAG-G02 | Sage | COMMITTED | Decide one owner, boundary, invariant, interface, reuse, sequencing, or acceptance interpretation when valid paths conflict. | DELIVERED | PENDING | PENDING | COMMITTED | EVIDENCE | PENDING |
-| SAG-005 | SAG-G02 | Sage | COMMITTED | Record chosen disposition, rejected alternatives, evidence & downstream consequences. | DELIVERED | PENDING | PENDING | COMMITTED | EVIDENCE | PENDING |
-| SAG-006 | SAG-G02 | Sage | COMMITTED | Freeze settled meaning for controlled execution only when tier-4 contract boundary applies. | DELIVERED | PENDING | PENDING | COMMITTED | EVIDENCE | PENDING |
-| SAG-007 | SAG-G02 | Sage | COMMITTED | Return settled work to producing capability or Alchemist without executing or certifying it. | DELIVERED | PENDING | PENDING | COMMITTED | EVIDENCE | PENDING |
+| SAG-001 | SAG-G01 | Sage | COMMITTED | Activate only when material unresolved meaning exceeds selected capability's routine mandate. | DELIVERED | FOCUSED_PASS | PASS | PUSHED | RETAIN | Acceptance: SAG-AC-IMPLEMENTED-CLOSURE-001; Revision: d495db78b8d63be58f288e73a8d0660197791253; Receipt: docs/foundation/2026-08-31/implemented-closure-receipt.json@7da910ed92772c5bca53b8d7eb68c1c2561979078d5df4d2df88bbb8dacc4800; Freshness: 2026-08-31 |
+| SAG-002 | SAG-G01 | Sage | COMMITTED | Inspect source & runtime evidence before adjudicating; mark absent evidence unknown. | DELIVERED | FOCUSED_PASS | PASS | PUSHED | RETAIN | Acceptance: SAG-AC-IMPLEMENTED-CLOSURE-001; Revision: d495db78b8d63be58f288e73a8d0660197791253; Receipt: docs/foundation/2026-08-31/implemented-closure-receipt.json@7da910ed92772c5bca53b8d7eb68c1c2561979078d5df4d2df88bbb8dacc4800; Freshness: 2026-08-31 |
+| SAG-003 | SAG-G01 | Sage | COMMITTED | Remain read-only & perform no product-state effects. | DELIVERED | FOCUSED_PASS | PASS | PUSHED | RETAIN | Acceptance: SAG-AC-IMPLEMENTED-CLOSURE-001; Revision: d495db78b8d63be58f288e73a8d0660197791253; Receipt: docs/foundation/2026-08-31/implemented-closure-receipt.json@7da910ed92772c5bca53b8d7eb68c1c2561979078d5df4d2df88bbb8dacc4800; Freshness: 2026-08-31 |
+| SAG-004 | SAG-G02 | Sage | COMMITTED | Decide one owner, boundary, invariant, interface, reuse, sequencing, or acceptance interpretation when valid paths conflict. | DELIVERED | FOCUSED_PASS | PASS | PUSHED | RETAIN | Acceptance: SAG-AC-IMPLEMENTED-CLOSURE-001; Revision: d495db78b8d63be58f288e73a8d0660197791253; Receipt: docs/foundation/2026-08-31/implemented-closure-receipt.json@7da910ed92772c5bca53b8d7eb68c1c2561979078d5df4d2df88bbb8dacc4800; Freshness: 2026-08-31 |
+| SAG-005 | SAG-G02 | Sage | COMMITTED | Record chosen disposition, rejected alternatives, evidence & downstream consequences. | DELIVERED | FOCUSED_PASS | PASS | PUSHED | RETAIN | Acceptance: SAG-AC-IMPLEMENTED-CLOSURE-001; Revision: d495db78b8d63be58f288e73a8d0660197791253; Receipt: docs/foundation/2026-08-31/implemented-closure-receipt.json@7da910ed92772c5bca53b8d7eb68c1c2561979078d5df4d2df88bbb8dacc4800; Freshness: 2026-08-31 |
+| SAG-006 | SAG-G02 | Sage | COMMITTED | Freeze settled meaning for controlled execution only when tier-4 contract boundary applies. | DELIVERED | FOCUSED_PASS | PASS | PUSHED | RETAIN | Acceptance: SAG-AC-IMPLEMENTED-CLOSURE-001; Revision: d495db78b8d63be58f288e73a8d0660197791253; Receipt: docs/foundation/2026-08-31/implemented-closure-receipt.json@7da910ed92772c5bca53b8d7eb68c1c2561979078d5df4d2df88bbb8dacc4800; Freshness: 2026-08-31 |
+| SAG-007 | SAG-G02 | Sage | COMMITTED | Return settled work to producing capability or Alchemist without executing or certifying it. | DELIVERED | FOCUSED_PASS | PASS | PUSHED | RETAIN | Acceptance: SAG-AC-IMPLEMENTED-CLOSURE-001; Revision: d495db78b8d63be58f288e73a8d0660197791253; Receipt: docs/foundation/2026-08-31/implemented-closure-receipt.json@7da910ed92772c5bca53b8d7eb68c1c2561979078d5df4d2df88bbb8dacc4800; Freshness: 2026-08-31 |
 
 ## Implementation register
 
@@ -33,7 +33,7 @@ Required delivery boundary: `PUSHED`.
 
 | ID | Capability targets | Acceptance boundary | State | Evidence | Material revision |
 |---|---|---|---|---|---|
-| SAG-Q001 | SAG-001, SAG-002, SAG-003, SAG-004, SAG-005, SAG-006, SAG-007 | Sage-AC-BOUNDARY-001: reconcile each observable through live consumer at PUSHED boundary | PENDING | NONE | LOCAL |
+| SAG-Q001 | SAG-001, SAG-002, SAG-003, SAG-004, SAG-005, SAG-006, SAG-007 | SAG-AC-IMPLEMENTED-CLOSURE-001: qualify delivered observables at PUSHED boundary | PASS | Acceptance: SAG-AC-IMPLEMENTED-CLOSURE-001; Revision: d495db78b8d63be58f288e73a8d0660197791253; Receipt: docs/foundation/2026-08-31/implemented-closure-receipt.json@7da910ed92772c5bca53b8d7eb68c1c2561979078d5df4d2df88bbb8dacc4800; Freshness: 2026-08-31 | d495db78b8d63be58f288e73a8d0660197791253 |
 
 ## Decision register
 

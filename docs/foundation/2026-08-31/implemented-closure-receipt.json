@@ -1,0 +1,73 @@
+{
+  "schemaVersion": 1,
+  "kind": "legion-implemented-atom-closure-receipt",
+  "freshness": "2026-08-31",
+  "productRevision": "d495db78b8d63be58f288e73a8d0660197791253",
+  "release": {
+    "version": "0.3.2",
+    "tag": "v0.3.2",
+    "url": "https://github.com/Orthic-Labs/legion/releases/tag/v0.3.2",
+    "publishedAt": "2026-08-31T04:22:09Z",
+    "targetCommitish": "d495db78b8d63be58f288e73a8d0660197791253",
+    "draft": false,
+    "prerelease": false,
+    "assets": [
+      { "name": "installer-signing.json", "size": 546, "digest": "sha256:0e9ae2772132beef9f28abdb6b48d42bfdf7e71e711780e403bf5d1818536d96" },
+      { "name": "legion-0.3.2-macos-arm64.cdx.json", "size": 1103, "digest": "sha256:c1d28f0fc8667a9caf9a004da3ea05a024939ec05b528039ca05fe6ec4bc3d16" },
+      { "name": "legion-0.3.2-macos-arm64.intoto.jsonl", "size": 893, "digest": "sha256:6a4fa37dcdfbac37320a99412b635cf6431bebf1a7e5121d19a959272c4aede7" },
+      { "name": "legion-0.3.2-macos-arm64.tar.gz", "size": 10488799, "digest": "sha256:e9f637e515e1736e790906389d10a9e261fa74afad365c9eafeb0d36c2cd7698" },
+      { "name": "legion-0.3.2-macos-installer-finalization.json", "size": 616, "digest": "sha256:abce0223b61dace4deef7ac53782b716908441a156bf6786e15c95046e3be416" },
+      { "name": "legion-0.3.2-macos-installer.dmg", "size": 13890410, "digest": "sha256:32da189567bae9deb0e65774d58aec98bfbc914b361b5f206051fbc53c9beacd" },
+      { "name": "Legion-0.3.2-windows-x86_64-setup.exe", "size": 8231336, "digest": "sha256:1426c4e403bb140e9d1b61d67730bf5e44031f6f92bf8a465323f97a24f44167" },
+      { "name": "legion-0.3.2-windows-x86_64.cdx.json", "size": 1109, "digest": "sha256:e4a06e3c23826a6f656159ed66b1b78fd0a71cfd8f577121aa9a961111e36e9a" },
+      { "name": "legion-0.3.2-windows-x86_64.intoto.jsonl", "size": 896, "digest": "sha256:1f81e935d3067d0bdde86d716b5a594fe2c6a84df433efd00b0369ebb792a232" },
+      { "name": "legion-0.3.2-windows-x86_64.zip", "size": 13219873, "digest": "sha256:8dae08bf945dae0b8796b992278bf04bfe48204b39bc1edfb5f26e83728211e7" },
+      { "name": "qualification.json", "size": 1144, "digest": "sha256:938d4187a7e75942eb0e9b9edc879510e6f734078fe74969a045f908a4953bc8" }
+    ]
+  },
+  "hostedQualification": {
+    "ci": {
+      "runId": 33356000094,
+      "url": "https://github.com/Orthic-Labs/legion/actions/runs/33356000094",
+      "conclusion": "success",
+      "headSha": "d495db78b8d63be58f288e73a8d0660197791253"
+    },
+    "release": {
+      "runId": 33356010577,
+      "url": "https://github.com/Orthic-Labs/legion/actions/runs/33356010577",
+      "conclusion": "success",
+      "headSha": "d495db78b8d63be58f288e73a8d0660197791253",
+      "gates": [
+        "macOS unsigned candidate",
+        "Windows unsigned candidate",
+        "macOS signing & notarization",
+        "Windows signing",
+        "installed-product qualification",
+        "digest-bound publication"
+      ]
+    }
+  },
+  "localQualification": [
+    { "command": "pnpm legion:check", "result": "PASS" },
+    { "command": "pnpm test", "result": "PASS", "tests": { "passed": 1378, "failed": 0 } },
+    { "command": "pnpm self-test", "result": "PASS", "tests": { "passed": 1378, "failed": 0 } },
+    { "command": "pnpm architecture-evals", "result": "PASS" },
+    { "command": "pnpm test:python", "result": "PASS", "tests": { "passed": 7, "skipped": 8, "failed": 0 } },
+    { "command": "cargo test -p legion-host -p legion", "workingDirectory": "engine", "result": "PASS" },
+    { "command": "node --test --test-concurrency=1 tests/version-parity.test.mjs tests/ci-contract.test.mjs tests/rightkit-pipeline-contract.test.mjs tests/release/*.test.mjs", "result": "PASS", "tests": { "passed": 22, "skipped": 2, "failed": 0 } }
+  ],
+  "closure": {
+    "implementedAtoms": 89,
+    "remainingAtoms": 21,
+    "canons": {
+      "legion": { "requiredBoundary": "PUSHED", "atoms": ["LEG-001", "LEG-002", "LEG-003", "LEG-004", "LEG-006", "LEG-007", "LEG-008", "LEG-009", "LEG-010", "LEG-011", "LEG-012", "LEG-013", "LEG-014"] },
+      "sage": { "requiredBoundary": "PUSHED", "atoms": ["SAG-001", "SAG-002", "SAG-003", "SAG-004", "SAG-005", "SAG-006", "SAG-007"] },
+      "alchemist": { "requiredBoundary": "PUSHED", "atoms": ["ALC-001", "ALC-002", "ALC-003", "ALC-004", "ALC-005", "ALC-006", "ALC-007", "ALC-008", "ALC-009"] },
+      "oracle": { "requiredBoundary": "PUSHED", "atoms": ["ORA-001", "ORA-002", "ORA-003", "ORA-004", "ORA-005", "ORA-006", "ORA-007", "ORA-008"] },
+      "guard": { "requiredBoundary": "RELEASED", "atoms": ["GRD-001", "GRD-002", "GRD-003", "GRD-004", "GRD-005", "GRD-006", "GRD-007", "GRD-008", "GRD-010", "GRD-011", "GRD-012"] },
+      "arcane": { "requiredBoundary": "PUSHED", "atoms": ["ARC-004", "ARC-007", "ARC-008"] },
+      "covenant": { "requiredBoundary": "PUSHED", "atoms": ["COV-001", "COV-002", "COV-003", "COV-004", "COV-005", "COV-006", "COV-007", "COV-008"] },
+      "skills": { "requiredBoundary": "RELEASED", "atoms": ["SKL-001", "SKL-002", "SKL-003", "SKL-004", "SKL-005", "SKL-006", "SKL-007", "SKL-008", "SKL-009", "SKL-010", "SKL-011", "SKL-012", "SKL-013", "SKL-014", "SKL-015", "SKL-016", "SKL-017", "SKL-018", "SKL-019", "SKL-020", "SKL-021", "SKL-022", "SKL-023", "SKL-024", "SKL-025", "SKL-026", "SKL-027", "SKL-028", "SKL-029", "SKL-030"] }
+    }
+  }
+}
