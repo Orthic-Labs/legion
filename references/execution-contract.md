@@ -5,7 +5,7 @@ normative; the SKILL body summarizes it.
 
 ## Canonical entrypoint (step 3 detail)
 
-`node <audit-skill-dir>/audit-run.mjs <root>` is the canonical entrypoint. It pins one fresh
+`node <package-root>/tools/audit/audit-run.mjs <root>` is canonical complete entrypoint. It pins one fresh
 Blueprint `generationId`, enriches only audit-owned manifest/toolchain facts, loads the complete
 declarative provider registry, writes a SHA-256-sealed and HMAC-signed `plan.json`, and executes
 the exact frozen provider set. Set `AUDIT_PLAN_SIGNING_KEY` through the trusted host environment.

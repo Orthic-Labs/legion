@@ -33,7 +33,7 @@ const skillOwners = Object.freeze({
   'SKL-016': 'Brand Identity', 'SKL-017': 'Writing', 'SKL-018': 'Alchemist',
   'SKL-019': 'Covenant', 'SKL-020': 'Oracle', 'SKL-021': 'Dispatch',
   'SKL-022': 'Tasklist', 'SKL-023': 'Handoff', 'SKL-024': 'Commit',
-  'SKL-025': 'Coder', 'SKL-026': 'Wake', 'SKL-027': 'Gotchas', 'SKL-028': 'Brand', 'SKL-029': 'Foundation',
+  'SKL-025': 'Coder', 'SKL-026': 'Wake', 'SKL-027': 'Gotchas', 'SKL-028': 'Brand', 'SKL-029': 'Foundation', 'SKL-030': 'Blueprint',
 });
 
 const headers = Object.freeze({

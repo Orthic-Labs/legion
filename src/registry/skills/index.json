@@ -232,6 +232,40 @@
       "manifest": "skills/manifests/audit-visual.json"
     },
     {
+      "id": "blueprint",
+      "name": "blueprint",
+      "description": "Build, query, or reconcile source-grounded current repository truth, architecture, flows, symbols, impact, freshness, & documentation. Use for /blueprint, repository onboarding, current-state maps, docs reconciliation, or grounding Audit/Architect.",
+      "kind": "capability",
+      "capabilityClass": "context",
+      "discoverability": "public",
+      "domain": "engineering",
+      "operations": [
+        "analyze",
+        "produce"
+      ],
+      "effects": [
+        "source-read",
+        "process-exec",
+        "artifact-write"
+      ],
+      "hostRequirements": [
+        "blueprint-graph"
+      ],
+      "hostRequirementDetails": [
+        {
+          "id": "blueprint-graph",
+          "degradation": "Use resident Membrane transport when available, then bounded Blueprint one-shot regardless of enrollment. Return a NO_CAPABILITY result naming blueprint-graph only when both are unavailable; never fall back to ad-hoc grep or present ungraphed results as graph results.",
+          "remedy": "Provide Membrane resident transport or install the Blueprint graph engine and put its `blueprint` executable on PATH, then re-run. This package does not ship it.",
+          "probe": {
+            "kind": "command",
+            "command": "blueprint"
+          }
+        }
+      ],
+      "source": "skills/blueprint/SKILL.md",
+      "manifest": "skills/manifests/blueprint.json"
+    },
+    {
       "id": "brand",
       "name": "brand",
       "description": "Load a source-bound brand card before branded content, design, marketing, social, or media work. Use /brand when a named brand or approved identity source governs an output.",

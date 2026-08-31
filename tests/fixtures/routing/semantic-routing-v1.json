@@ -28,6 +28,18 @@
       "forbiddenSelections": ["sage"]
     },
     {
+      "id": "public-context-blueprint",
+      "concerns": ["public-discovery", "context-capability", "current-state-routing"],
+      "prompt": "Map current architecture, flows, symbols, impact, and documentation truth in this repository.",
+      "source": "semantic",
+      "expectedCapabilities": ["blueprint"],
+      "expectedEntrypoints": [],
+      "operations": ["analyze", "produce"],
+      "effects": ["source-read", "process-exec", "artifact-write"],
+      "attachedAuthorities": [],
+      "forbiddenSelections": ["architect", "audit"]
+    },
+    {
       "id": "public-multi-research-writing",
       "concerns": ["public-discovery", "multi-capability", "capability-composition", "domain-not-routing"],
       "prompt": "Research current evidence for heat-pump adoption, then write a sourced explainer.",

@@ -999,6 +999,231 @@
       "may_close_own_candidates": true
     },
     {
+      "id": "reasoning.doc-drift",
+      "role": "adjudicator",
+      "phase": "reasoning",
+      "runner": {
+        "kind": "reasoning-contract",
+        "contract": "audit-lens-doc-drift-v1"
+      },
+      "benchmark_status": "unproven",
+      "required_for_clean_claim": true,
+      "allow_without_blueprint": false,
+      "produces_security_candidates": false,
+      "fresh_context_required": true,
+      "may_close_own_candidates": true
+    },
+    {
+      "id": "reasoning.architecture",
+      "role": "adjudicator",
+      "phase": "reasoning",
+      "runner": {
+        "kind": "reasoning-contract",
+        "contract": "audit-lens-architecture-v1"
+      },
+      "benchmark_status": "unproven",
+      "required_for_clean_claim": true,
+      "allow_without_blueprint": false,
+      "produces_security_candidates": false,
+      "fresh_context_required": true,
+      "may_close_own_candidates": true
+    },
+    {
+      "id": "reasoning.correctness",
+      "role": "adjudicator",
+      "phase": "reasoning",
+      "runner": {
+        "kind": "reasoning-contract",
+        "contract": "audit-lens-correctness-v1"
+      },
+      "benchmark_status": "unproven",
+      "required_for_clean_claim": true,
+      "allow_without_blueprint": false,
+      "produces_security_candidates": false,
+      "fresh_context_required": true,
+      "may_close_own_candidates": true
+    },
+    {
+      "id": "reasoning.ai-slop",
+      "role": "adjudicator",
+      "phase": "reasoning",
+      "runner": {
+        "kind": "reasoning-contract",
+        "contract": "audit-lens-ai-slop-v1"
+      },
+      "benchmark_status": "unproven",
+      "required_for_clean_claim": true,
+      "allow_without_blueprint": false,
+      "produces_security_candidates": false,
+      "fresh_context_required": true,
+      "may_close_own_candidates": true
+    },
+    {
+      "id": "reasoning.naming",
+      "role": "adjudicator",
+      "phase": "reasoning",
+      "runner": {
+        "kind": "reasoning-contract",
+        "contract": "audit-lens-naming-v1"
+      },
+      "benchmark_status": "unproven",
+      "required_for_clean_claim": true,
+      "allow_without_blueprint": false,
+      "produces_security_candidates": false,
+      "fresh_context_required": true,
+      "may_close_own_candidates": true
+    },
+    {
+      "id": "reasoning.dead-file",
+      "role": "adjudicator",
+      "phase": "reasoning",
+      "runner": {
+        "kind": "reasoning-contract",
+        "contract": "audit-lens-dead-file-v1"
+      },
+      "benchmark_status": "unproven",
+      "required_for_clean_claim": true,
+      "allow_without_blueprint": false,
+      "produces_security_candidates": false,
+      "fresh_context_required": true,
+      "may_close_own_candidates": true
+    },
+    {
+      "id": "reasoning.schema",
+      "role": "adjudicator",
+      "phase": "reasoning",
+      "runner": {
+        "kind": "reasoning-contract",
+        "contract": "audit-lens-schema-v1"
+      },
+      "benchmark_status": "unproven",
+      "required_for_clean_claim": true,
+      "allow_without_blueprint": false,
+      "produces_security_candidates": false,
+      "fresh_context_required": true,
+      "may_close_own_candidates": true
+    },
+    {
+      "id": "reasoning.security",
+      "role": "adjudicator",
+      "phase": "reasoning",
+      "runner": {
+        "kind": "reasoning-contract",
+        "contract": "audit-lens-security-v1"
+      },
+      "benchmark_status": "unproven",
+      "required_for_clean_claim": true,
+      "allow_without_blueprint": false,
+      "produces_security_candidates": false,
+      "fresh_context_required": true,
+      "may_close_own_candidates": true
+    },
+    {
+      "id": "reasoning.minimize",
+      "role": "adjudicator",
+      "phase": "reasoning",
+      "runner": {
+        "kind": "reasoning-contract",
+        "contract": "audit-lens-minimize-v1"
+      },
+      "benchmark_status": "unproven",
+      "required_for_clean_claim": true,
+      "allow_without_blueprint": false,
+      "produces_security_candidates": false,
+      "fresh_context_required": true,
+      "may_close_own_candidates": true
+    },
+    {
+      "id": "reasoning.performance",
+      "role": "adjudicator",
+      "phase": "reasoning",
+      "runner": {
+        "kind": "reasoning-contract",
+        "contract": "audit-lens-performance-v1"
+      },
+      "benchmark_status": "unproven",
+      "required_for_clean_claim": true,
+      "allow_without_blueprint": false,
+      "produces_security_candidates": false,
+      "fresh_context_required": true,
+      "may_close_own_candidates": true
+    },
+    {
+      "id": "reasoning.a11y",
+      "role": "adjudicator",
+      "phase": "reasoning",
+      "runner": {
+        "kind": "reasoning-contract",
+        "contract": "audit-lens-a11y-v1"
+      },
+      "benchmark_status": "unproven",
+      "required_for_clean_claim": true,
+      "allow_without_blueprint": false,
+      "produces_security_candidates": false,
+      "fresh_context_required": true,
+      "may_close_own_candidates": true
+    },
+    {
+      "id": "reasoning.data-safety",
+      "role": "adjudicator",
+      "phase": "reasoning",
+      "runner": {
+        "kind": "reasoning-contract",
+        "contract": "audit-lens-data-safety-v1"
+      },
+      "benchmark_status": "unproven",
+      "required_for_clean_claim": true,
+      "allow_without_blueprint": false,
+      "produces_security_candidates": false,
+      "fresh_context_required": true,
+      "may_close_own_candidates": true
+    },
+    {
+      "id": "reasoning.resilience",
+      "role": "adjudicator",
+      "phase": "reasoning",
+      "runner": {
+        "kind": "reasoning-contract",
+        "contract": "audit-lens-resilience-v1"
+      },
+      "benchmark_status": "unproven",
+      "required_for_clean_claim": true,
+      "allow_without_blueprint": false,
+      "produces_security_candidates": false,
+      "fresh_context_required": true,
+      "may_close_own_candidates": true
+    },
+    {
+      "id": "reasoning.platform-parity",
+      "role": "adjudicator",
+      "phase": "reasoning",
+      "runner": {
+        "kind": "reasoning-contract",
+        "contract": "audit-lens-platform-parity-v1"
+      },
+      "benchmark_status": "unproven",
+      "required_for_clean_claim": true,
+      "allow_without_blueprint": false,
+      "produces_security_candidates": false,
+      "fresh_context_required": true,
+      "may_close_own_candidates": true
+    },
+    {
+      "id": "reasoning.release-readiness",
+      "role": "adjudicator",
+      "phase": "reasoning",
+      "runner": {
+        "kind": "reasoning-contract",
+        "contract": "audit-lens-release-readiness-v1"
+      },
+      "benchmark_status": "unproven",
+      "required_for_clean_claim": true,
+      "allow_without_blueprint": false,
+      "produces_security_candidates": false,
+      "fresh_context_required": true,
+      "may_close_own_candidates": true
+    },
+    {
       "id": "security.adjudication",
       "role": "adjudicator",
       "phase": "reasoning",

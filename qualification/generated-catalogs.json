@@ -688,6 +688,111 @@
       "selectable": true
     },
     {
+      "id": "reasoning.doc-drift",
+      "providerVersion": "1.0.0",
+      "role": "adjudicator",
+      "family": "docs",
+      "selectable": true
+    },
+    {
+      "id": "reasoning.architecture",
+      "providerVersion": "1.0.0",
+      "role": "adjudicator",
+      "family": "architecture",
+      "selectable": true
+    },
+    {
+      "id": "reasoning.correctness",
+      "providerVersion": "1.0.0",
+      "role": "adjudicator",
+      "family": "correctness",
+      "selectable": true
+    },
+    {
+      "id": "reasoning.ai-slop",
+      "providerVersion": "1.0.0",
+      "role": "adjudicator",
+      "family": "ai-slop",
+      "selectable": true
+    },
+    {
+      "id": "reasoning.naming",
+      "providerVersion": "1.0.0",
+      "role": "adjudicator",
+      "family": "quality",
+      "selectable": true
+    },
+    {
+      "id": "reasoning.dead-file",
+      "providerVersion": "1.0.0",
+      "role": "adjudicator",
+      "family": "quality",
+      "selectable": true
+    },
+    {
+      "id": "reasoning.schema",
+      "providerVersion": "1.0.0",
+      "role": "adjudicator",
+      "family": "contracts",
+      "selectable": true
+    },
+    {
+      "id": "reasoning.security",
+      "providerVersion": "1.0.0",
+      "role": "adjudicator",
+      "family": "security",
+      "selectable": true
+    },
+    {
+      "id": "reasoning.minimize",
+      "providerVersion": "1.0.0",
+      "role": "adjudicator",
+      "family": "architecture",
+      "selectable": true
+    },
+    {
+      "id": "reasoning.performance",
+      "providerVersion": "1.0.0",
+      "role": "adjudicator",
+      "family": "performance",
+      "selectable": true
+    },
+    {
+      "id": "reasoning.a11y",
+      "providerVersion": "1.0.0",
+      "role": "adjudicator",
+      "family": "accessibility",
+      "selectable": true
+    },
+    {
+      "id": "reasoning.data-safety",
+      "providerVersion": "1.0.0",
+      "role": "adjudicator",
+      "family": "data",
+      "selectable": true
+    },
+    {
+      "id": "reasoning.resilience",
+      "providerVersion": "1.0.0",
+      "role": "adjudicator",
+      "family": "reliability",
+      "selectable": true
+    },
+    {
+      "id": "reasoning.platform-parity",
+      "providerVersion": "1.0.0",
+      "role": "adjudicator",
+      "family": "platform",
+      "selectable": true
+    },
+    {
+      "id": "reasoning.release-readiness",
+      "providerVersion": "1.0.0",
+      "role": "adjudicator",
+      "family": "release",
+      "selectable": true
+    },
+    {
       "id": "legacy.security.adjudication",
       "providerVersion": "2.0.0",
       "role": "adjudicator",

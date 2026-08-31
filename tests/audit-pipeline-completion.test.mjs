@@ -107,6 +107,32 @@ test('reasoning lenses enter lenses_ran only when they actually ran to completio
   assert.ok(unrun.appended[0].coverageGaps.some((gap) => gap.kind === 'provider-execution-error'));
 });
 
+test('independent reasoning contracts fan out concurrently through native reviewer seam', async () => {
+  const providers = ['reasoning.correctness', 'reasoning.architecture'].map((id) => ({
+    id, role: 'adjudicator', phase: 'reasoning', freshContextRequired: true,
+    runner: { kind: 'reasoning-contract', contract: `${id}-v1` },
+    benchmark: { status: 'unproven', requiredForCleanClaim: true }, hostCapabilities: [],
+  }));
+  const result = {
+    plan: { root: '/repo', binding: {}, denominator: {}, providers },
+    providerResults: [], projection: {}, securityResult: null, outDir: '/tmp',
+  };
+  let active = 0;
+  let maxActive = 0;
+  const completed = await executeUnexecutedProviders({
+    result,
+    host: { reviewer: { review: async () => {
+      active += 1;
+      maxActive = Math.max(maxActive, active);
+      await new Promise((resolve) => setTimeout(resolve, 20));
+      active -= 1;
+      return { complete: true, status: 'pass', findings: [], candidates: [] };
+    } } },
+  });
+  assert.equal(maxActive, 2);
+  assert.deepEqual(completed.ranReasoning, providers.map(({ id }) => id));
+});
+
 test('runtime-script modules without a sealed digest are rejected loudly by the runner contract', async () => {
   const result = {
     plan: {

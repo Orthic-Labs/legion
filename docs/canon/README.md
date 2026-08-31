@@ -1,7 +1,7 @@
 # Legion atomic capability canons
 
 Status: canonical capability-state index  
-Updated: 2026-08-30
+Updated: 2026-08-31
 
 This directory is Legion's atomic product ledger. Each owned subsystem has one canon; this index contains no duplicate capability rows.
 

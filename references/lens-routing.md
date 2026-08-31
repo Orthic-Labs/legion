@@ -4,7 +4,7 @@ Read this file before Stage 2 of `/audit` or every iteration of `/audit-fix`.
 
 ## Execution boundary
 
-The reasoning lenses run on native Claude subagents or inline in the main session, never on external
+The reasoning lenses run on native host subagents or inline in main session, never on external
 model APIs. This is the locked audit-specific exception: prior provider limits and network
 registration repeatedly hung full audit runs. Do not rebuild the retired `api-worker.py --batch`
 path inside this skill.
@@ -35,7 +35,7 @@ When Blueprint Phase 2 exists, pass `understanding.json.architecture.coverageGap
 
 ## Model routing
 
-- Use a judgment-capable seat for `architecture`, `security`, `schema`, `correctness`, `minimize`,
+- Use strongest available judgment-capable seat for `architecture`, `security`, `schema`, `correctness`, `minimize`,
   `doc-drift`, `data-safety`, `resilience`, and `release-readiness` because these require raw logic,
   exact contracts, or failure-mode reasoning.
 - Use a mechanical/fast seat for `ai-slop`, `naming`, `dead-file`, `performance`, `a11y`, and

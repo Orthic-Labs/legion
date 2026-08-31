@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
-  "id": "audit-fix",
+  "id": "blueprint",
   "version": "1.0.0",
   "entry": "SKILL.md",
-  "rootUri": "legion-skill://audit-fix/",
+  "rootUri": "legion-skill://blueprint/",
   "provenance": "legion-authored",
   "licenseState": "licensed",
   "rightsReceipt": {
@@ -25,8 +25,8 @@
   },
   "parity": {
     "triggers": [
-      "/audit-fix",
-      "Apply bounded remediation from a frozen Legion Audit report, then rerun its same provider plan. Use only for /audit-fix after /audit evidence exists."
+      "/blueprint",
+      "Build, query, or reconcile source-grounded current repository truth, architecture, flows, symbols, impact, freshness, & documentation. Use for /blueprint, repository onboarding, current-state maps, docs reconciliation, or grounding Audit/Architect."
     ],
     "outputs": [],
     "scripts": [],
@@ -44,29 +44,24 @@
   },
   "files": [
     {
-      "path": "RIGHTS.json",
-      "uri": "legion-skill://audit-fix/RIGHTS.json",
-      "digest": "sha256:1bec81bb923c5c1a7efe09ad2801f7553ca941d9d35feea4be8c5ac6e504090e"
-    },
-    {
       "path": "SKILL.md",
-      "uri": "legion-skill://audit-fix/SKILL.md",
-      "digest": "sha256:d9868d7ed77e625dc9c6e6dc151a1e423b610e16e5a7f72229a239f20e31b089"
+      "uri": "legion-skill://blueprint/SKILL.md",
+      "digest": "sha256:446e238fc354cfed93afab5d831e27ddd1a5f92dd238612031baf7025511f90e"
     },
     {
       "path": "agents/openai.yaml",
-      "uri": "legion-skill://audit-fix/agents/openai.yaml",
-      "digest": "sha256:fe8e273596e015559bba5b1ed6fe54d5387fdc6b96368b30cd2b35aca677ce50"
+      "uri": "legion-skill://blueprint/agents/openai.yaml",
+      "digest": "sha256:2d8a935f73e4e7379c712c0d1649f74cb7163ce5d95daa85484371c36b2d438a"
     },
     {
       "path": "dependencies.json",
-      "uri": "legion-skill://audit-fix/dependencies.json",
-      "digest": "sha256:8100d1ab59f9956ce1bf293f0b43deeae45b12f4f51cd91dd00114e215630875"
+      "uri": "legion-skill://blueprint/dependencies.json",
+      "digest": "sha256:c1688b89deba2724b4fd41e0c446370441c8ee1b0c2a6987a5b13bc75c5acb07"
     },
     {
       "path": "evals/evals.json",
-      "uri": "legion-skill://audit-fix/evals/evals.json",
-      "digest": "sha256:4c72829007993a4006f122a2f4a084c516c61f2d22c39612c58eeb96819f105d"
+      "uri": "legion-skill://blueprint/evals/evals.json",
+      "digest": "sha256:181a4a6471005fedb6895c9242d9122b9cf674a315d50794674758665fe16938"
     }
   ]
 }

@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "skill": "blueprint",
+  "route": "capability:blueprint",
+  "should_trigger": [
+    {"id":"bp-current-map","prompt":"Map current architecture, flows, symbols, and impact in this repository.","expected_skill":"blueprint","forbidden_skills":["architect","audit"],"expected_behavior":"Builds or queries fresh source-grounded Blueprint current state.","severity":"error","mode":"discovery"},
+    {"id":"bp-doc-reconcile","prompt":"Reconcile repository documentation against current code and show stale claims.","expected_skill":"blueprint","forbidden_skills":["writing"],"expected_behavior":"Uses fresh graph and Blueprint doc-truth reconciliation.","severity":"error","mode":"discovery"}
+  ],
+  "should_not_trigger": [
+    {"id":"bp-not-target-design","prompt":"Design a new deployment topology and migration plan.","expected_skill":"architect","forbidden_skills":[],"expected_behavior":"Blueprint may ground current state, but Architect owns target-state decision.","severity":"error","mode":"discovery"},
+    {"id":"bp-not-repo-health","prompt":"Run a full repository health and security audit.","expected_skill":"audit","forbidden_skills":["blueprint"],"expected_behavior":"Audit owns diagnosis; Blueprint is its context provider.","severity":"error","mode":"discovery"}
+  ],
+  "output_quality": [
+    {"id":"bp-fresh-bound","prompt":"Use blueprint to explain current request flow.","expected_skill":"blueprint","forbidden_skills":[],"expected_behavior":"Carries source revision, generation, freshness, manifest digest, evidence paths, and typed degradation.","severity":"error","mode":"static"}
+  ],
+  "safety": [],
+  "pressure": [],
+  "compatibility": []
+}

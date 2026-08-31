@@ -46,6 +46,14 @@ Method lives in `doctrine/architecture/**` (workflow, controls, methods, reviews
 schemas) and `references/manual.md`. Progressive loading: load the current workflow phase plus
 the triggered method only. Reopen only on a material delta with cause, scope, and affected IDs.
 
+## Current-state entrypoint
+
+Blueprint is public current-reality owner, not Audit-only plumbing. For existing-repository
+architecture, Legion routes `/blueprint` first & supplies fresh architecture, flows, symbols,
+impact, freshness, doc truth, contradictions, & coverage gaps to Architect. A request only to map,
+understand, onboard to, or reconcile current repository/docs routes to Blueprint. A request to
+judge, change, migrate, or design architecture routes Blueprint evidence into Architect.
+
 ## Depth follows intent
 
 A question gets an answer. A design request gets architecture. Only an implementation request

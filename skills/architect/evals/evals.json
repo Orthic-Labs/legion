@@ -7,7 +7,7 @@
     {"id":"ad-plan-refactor","prompt":"Write an implementation plan to refactor the auth module.","expected_skill":"architect","forbidden_skills":["marketing"],"expected_behavior":"Routes engineering planning to Architect as a first-class capability.","severity":"error","mode":"discovery"}
   ],
   "should_not_trigger": [
-    {"id":"ad-not-map-current","prompt":"Map current architecture of this repo without proposing changes.","expected_skill":null,"forbidden_skills":["architect"],"expected_behavior":"Current-state mapping invokes Legion's direct Membrane Blueprint provider, not a routed skill or Architect.","severity":"error","mode":"discovery"},
+    {"id":"ad-not-map-current","prompt":"Map current architecture of this repo without proposing changes.","expected_skill":"blueprint","forbidden_skills":["architect"],"expected_behavior":"Current-state mapping routes through public Blueprint; Architect is reserved for target-state judgment or design.","severity":"error","mode":"discovery"},
     {"id":"ad-not-marketing-plan","prompt":"Plan our Product Hunt launch.","expected_skill":"marketing","forbidden_skills":["architect"],"expected_behavior":"Commercial planning is outside engineering Architect.","severity":"error","mode":"discovery"}
   ],
   "output_quality": [

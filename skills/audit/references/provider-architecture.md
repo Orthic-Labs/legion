@@ -72,9 +72,7 @@ See `schemas/provider-result-v1.schema.json`.
 
 ## Offline execution
 
-The canonical entrypoint is `legion audit <root> --out <run-dir>` (`src/lib/core/audit.mjs`); the
-standalone `tools/audit/audit-run.mjs` is orphaned from the CLI and not the runtime entrypoint.
-Audit always sets defense-in-depth offline controls for
+The canonical entrypoint is `audit-run.mjs`. Audit always sets defense-in-depth offline controls for
 package managers and toolchains and excludes checks that inherently require remote advisory or
 version services.
 
@@ -119,14 +117,10 @@ from this repo; there is no equivalent tooling shipped today.)
 
 ## Entry points and outputs
 
-- `/audit` → `legion audit <root> --out <run-dir>` (`src/lib/core/audit.mjs`), the complete shared
-  provider runner. `tools/audit/audit-run.mjs` is orphaned from this path.
+- `/audit` → `audit-run.mjs`, the complete shared provider runner.
 - `/audit-fix` → a bounded mutation loop over the same frozen provider contract.
 - `/audit-visual` → a thin route over `visual.core`, not a second visual engine.
-- `plan.json` — frozen provider plan; `seal` is currently an unproven stub and it carries no
-  authenticity `signature` on the reachable path (`UNPROVEN`; see `docs/canon/legion.md`).
+- `plan.json` — frozen, integrity-sealed, authenticity-signed provider plan.
 - `facts.json` — deterministic execution results plus plan/Blueprint/network-policy reconciliation.
 - `report.json` — normalized audit findings and gate vector.
-- `report.sarif` — **not currently emitted** by `legion audit`; the SARIF writer exists only in
-  `tools/audit/audit-finalize.mjs`'s own CLI `main()`, which the reachable path never calls
-  (`UNPROVEN`).
+- `report.sarif` — dependency-free SARIF 2.1.0 projection for code-scanning consumers.

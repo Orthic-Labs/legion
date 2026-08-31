@@ -16,7 +16,7 @@ test('generated manifest parity derives from canonical semantics & package files
 
 test('catalog semantic lists are exact YAML values, never list-marker text', () => {
   const { index } = buildSkillCatalog();
-  assert.equal(index.bundles.length, 26);
+  assert.equal(index.bundles.length, 27);
   for (const bundle of index.bundles) {
     for (const field of ['operations', 'effects', 'hostRequirements']) {
       assert.equal(bundle[field].some((value) => value.startsWith('- ')), false, `${bundle.id}.${field}`);
@@ -29,7 +29,7 @@ test('catalog semantic lists are exact YAML values, never list-marker text', () 
   assert.deepEqual(coder.hostRequirements, ['pi-cli', 'python-runtime']);
 });
 
-test('all 26 packaged sources exactly match frozen classifications and repertoires', () => {
+test('all 27 packaged sources exactly match frozen classifications and repertoires', () => {
   const expected = {
     ads: ['capability', 'domain', 'public', 'commercial', 'analyze,decide,produce', 'source-read,network-request'],
     alchemist: ['entrypoint', null, 'explicit', null, 'execute', 'source-read,repository-write,process-exec'],
@@ -37,6 +37,7 @@ test('all 26 packaged sources exactly match frozen classifications and repertoir
     audit: ['capability', 'domain', 'public', 'engineering', 'analyze,evaluate,produce', 'source-read,process-exec,artifact-write'],
     'audit-fix': ['capability', 'workflow', 'public', 'engineering', 'analyze,evaluate,execute,produce', 'source-read,repository-write,process-exec'],
     'audit-visual': ['capability', 'domain', 'public', 'engineering', 'analyze,evaluate,produce', 'source-read,artifact-write,process-exec'],
+    blueprint: ['capability', 'context', 'public', 'engineering', 'analyze,produce', 'source-read,process-exec,artifact-write'],
     brand: ['capability', 'context', 'public', null, 'analyze,produce', 'source-read'],
     'brand-identity': ['capability', 'domain', 'public', 'design', 'analyze,decide,produce,evaluate', 'source-read,artifact-write'],
     foundation: ['capability', 'domain', 'public', 'engineering', 'analyze,evaluate,produce', 'source-read,artifact-write'],

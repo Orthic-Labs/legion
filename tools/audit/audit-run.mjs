@@ -102,16 +102,13 @@ export async function executeUnexecutedProviders({ result, host = {} }) {
     ...(result.projection ? { 'blueprint-packet': result.projection } : {}),
     ...(result.securityResult ? { 'security-candidates': result.securityResult } : {}),
   }));
-  const appended = [];
-  const invokedIds = new Set();
-  const ranReasoning = [];
-  for (const provider of result.plan.providers ?? []) {
-    if (handled.has(provider.id)) continue;
-    // runtime.app and visual.core are condition-invoked inside runCompleteAudit and always emit a result record.
-    if (provider.id === 'runtime.app' || provider.id === 'visual.core') continue;
-    const kind = provider.runner?.kind;
-    if (kind !== 'runtime-script' && kind !== 'reasoning-contract') continue;
-
+  const pending = (result.plan.providers ?? []).filter((provider) => {
+    if (handled.has(provider.id)) return false;
+    if (provider.id === 'runtime.app' || provider.id === 'visual.core') return false;
+    return ['runtime-script', 'reasoning-contract'].includes(provider.runner?.kind);
+  });
+  const execute = async (provider) => {
+    const kind = provider.runner.kind;
     let outcome;
     try {
       if (kind === 'runtime-script') {
@@ -157,13 +154,28 @@ export async function executeUnexecutedProviders({ result, host = {} }) {
     } catch (error) {
       outcome = executionErrorResult(provider, error);
     }
+    return { kind, outcome, providerId: provider.id };
+  };
 
-    appended.push(outcome);
-    invokedIds.add(provider.id);
-    if (kind === 'reasoning-contract' && outcome.complete === true && ['pass', 'fail', 'candidates'].includes(outcome.status)) {
-      ranReasoning.push(provider.id);
-    }
+  // Deterministic modules retain plan order. Every independent reasoning
+  // contract then gets one concurrent reviewer call; injected native reviewer
+  // owns fresh-context/subagent isolation for each packet.
+  const completed = [];
+  for (const provider of pending.filter(({ runner }) => runner.kind === 'runtime-script')) {
+    completed.push(await execute(provider));
   }
+  completed.push(...await Promise.all(
+    pending.filter(({ runner }) => runner.kind === 'reasoning-contract').map(execute),
+  ));
+  const byProvider = new Map(completed.map((entry) => [entry.providerId, entry]));
+  const ordered = pending.map(({ id }) => byProvider.get(id));
+  const appended = ordered.map(({ outcome }) => outcome);
+  const invokedIds = new Set(ordered.map(({ providerId }) => providerId));
+  const ranReasoning = ordered
+    .filter(({ kind, outcome }) => kind === 'reasoning-contract'
+      && outcome.complete === true
+      && ['pass', 'fail', 'candidates'].includes(outcome.status))
+    .map(({ providerId }) => providerId);
   return { appended, invokedIds, ranReasoning };
 }
 

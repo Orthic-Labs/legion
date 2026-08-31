@@ -2,11 +2,11 @@
 
 ```text
 PRIMARY_DELIVERABLE: Re-runnable audit report plus bounded findings.
-SPECIALIST_REFS_MAX: 0
-CHILD_AGENTS_MAX: 0
+SPECIALIST_REFS_MAX: 5
+CHILD_AGENTS_MAX: 16
 EXTERNAL_REQUESTS_MAX: 0
 MAY_ADD_TASKS: NO
-MAY_CALL_SKILLS: NONE
+MAY_CALL_SKILLS: BLUEPRINT, ARCHITECT
 TERMINAL: Frozen audit checks finish with evidence-backed findings or typed degradation.
 ```
 
@@ -60,7 +60,7 @@ A pipeline. Scanners fan out; the build step is the lone serial exception; stage
 | 0 · Blueprint grounding (if available) | Check freshness; query the current graph + flow inventory; use `.agent/` document/claim artifacts as the verified companion layer |
 | 1 · Scanners (`collect-facts.mjs`) | Consume fresh Blueprint hygiene facts first; run only missing/stale checks in a **parallel**, bounded pool `min(cpus-1,4)`. Size metrics nominate review candidates; they do not emit architecture findings. |
 | 1b · `build` / install check | **Sequential, alone**, after the pool (builds/installs are serial) |
-| 2 · Reasoning lenses | After stage 1 (all consume `facts.json`). **Default = parallel native Claude subagents** (one Agent spawn per lens; haiku for mechanical lenses, sonnet for judgment lenses — never opus; see Lens fan-out). Running lenses inline in the main session is the fallback. **NO external model APIs** — no api-worker or any HTTP model provider (locked 2026-07-05: provider limits repeatedly hung runs) |
+| 2 · Reasoning lenses | After stage 1 (all consume `facts.json`). **Default = parallel native host subagents** (one fresh subagent per lens; fast seats for mechanical lenses, strongest available seats for judgment lenses; see Lens fan-out). Running lenses inline in the main session is fallback. **NO external model APIs** — no api-worker or HTTP model provider (locked 2026-07-05: provider limits repeatedly hung runs) |
 | 3 · Synthesize → render → open | Sequential |
 
 ## Procedure
@@ -168,8 +168,8 @@ lens-input compression are specified in `references/engine-interface.md` §CLI e
 metadata is advisory context; scanner coverage remains honest — a scoped report must not claim
 unscanned checks were clean, and none of this turns `/audit` into single-PR review.
 
-2. **Run the applicable lenses over `facts.json` + the repo — as parallel native Claude subagents,
-   one Agent spawn per lens, all in ONE message; inline in the main session is the always-legal
+2. **Run applicable lenses over `facts.json` + repo — as parallel native host subagents,
+   one fresh subagent per lens, all in ONE wave; inline in main session is always-legal
    fallback.** NO external model APIs (locked 2026-07-05). Model routing, structured task bodies,
    secret-safe inputs, and the skel-vs-RAW excerpt-compression split are owned by
    `references/lens-routing.md` — read it before this stage. Each lens is fed its facts (table
@@ -426,7 +426,7 @@ worked examples in `references/coverage-and-trajectory.md`:
   matrix covering every material Blueprint gap; absent matrix or unresolved `undetermined` gap means
   architecture optimality is UNPROVEN.
 
-## Lens fan-out (native parallel subagents — NO external APIs)
+## Lens fan-out (native parallel host subagents — NO external APIs)
 
 Before Stage 2, read [`lens-routing.md`](lens-routing.md). It owns lens routing,
 secret-safe inputs, correctness verification, reconciliation, and fallback. Scanners remain the

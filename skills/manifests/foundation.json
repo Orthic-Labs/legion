@@ -86,7 +86,7 @@
     {
       "path": "scripts/validate_atom_report.py",
       "uri": "legion-skill://foundation/scripts/validate_atom_report.py",
-      "digest": "sha256:f1377a7579723ccc820c57677a8c580181dd18bb9c5fc3bd2b72b25f80b42237"
+      "digest": "sha256:2ddba8ad232f5763f90aeff5d521c4533116b647da5a01dfcb274e5cd60bd739"
     }
   ]
 }

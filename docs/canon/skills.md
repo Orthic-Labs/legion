@@ -24,7 +24,7 @@ Required delivery boundary: `RELEASED`.
 | SKL-003 | SKL-G01 | Skills | COMMITTED | Project canonical public skills to host surfaces while keeping explicit entrypoints out of automatic catalog membership. | DELIVERED | PENDING | PENDING | COMMITTED | EVIDENCE | PENDING |
 | SKL-004 | SKL-G02 | Architect | COMMITTED | Provide Architect for architecture decisions, ADRs, invariants, interfaces & migrations. | DELIVERED | PENDING | PENDING | COMMITTED | EVIDENCE | PENDING |
 | SKL-005 | SKL-G02 | Debugger | COMMITTED | Provide Debugger for reproduction, disconfirmable hypotheses, root cause & routine repair selection. | DELIVERED | PENDING | PENDING | COMMITTED | EVIDENCE | PENDING |
-| SKL-006 | SKL-G02 | Audit | COMMITTED | Provide Audit for frozen-plan repository-wide evidence review. | DELIVERED | PENDING | PENDING | COMMITTED | EVIDENCE | PENDING |
+| SKL-006 | SKL-G02 | Audit | COMMITTED | Execute every applicable frozen-plan scanner & reasoning lens, reconcile evidence, & prevent partial or empty provider runs from being reported as clean. | DELIVERED | PENDING | PENDING | LOCAL | EVIDENCE | PENDING |
 | SKL-007 | SKL-G02 | Audit Fix | COMMITTED | Provide Audit Fix for bounded remediation & same-plan rerun from frozen Audit results. | DELIVERED | PENDING | PENDING | COMMITTED | EVIDENCE | PENDING |
 | SKL-008 | SKL-G02 | Audit Visual | COMMITTED | Provide Audit Visual for rendered-state inventory, capture, comparison & reconciliation. | DELIVERED | PENDING | PENDING | COMMITTED | EVIDENCE | PENDING |
 | SKL-009 | SKL-G02 | QA | COMMITTED | Provide QA for local web/Tauri functional, browser, runtime & contract-test work. | DELIVERED | PENDING | PENDING | COMMITTED | EVIDENCE | PENDING |
@@ -48,6 +48,7 @@ Required delivery boundary: `RELEASED`.
 | SKL-027 | SKL-G06 | Gotchas | COMMITTED | Provide Gotchas for evidence-bound recurring failure lessons. | DELIVERED | PENDING | PENDING | COMMITTED | EVIDENCE | PENDING |
 | SKL-028 | SKL-G05 | Brand | COMMITTED | Provide Brand for loading approved brand voice, visuals, tone & restrictions before branded work. | DELIVERED | PENDING | PENDING | COMMITTED | EVIDENCE | PENDING |
 | SKL-029 | SKL-G03 | Foundation | COMMITTED | Provide Foundation comparative-intelligence skill: atomic product-foundation creation (Atom protocol Stages 0-4), cross-repository comparison (absorbing retired CompShop as `/foundation compare`), audit, normalize & reconcile modes. | DELIVERED | PENDING | PENDING | LOCAL | EVIDENCE | PENDING |
+| SKL-030 | SKL-G02 | Blueprint | COMMITTED | Build, query & reconcile source-grounded current repository truth for onboarding, documentation, architecture & Audit consumers. | DELIVERED | PENDING | PENDING | LOCAL | EVIDENCE | PENDING |
 
 ## Implementation register
 
@@ -56,12 +57,14 @@ Required delivery boundary: `RELEASED`.
 | SKL-I001 | SKL-001 | Canonical skill-catalog generation | `scripts/generate-skill-catalog.mjs@c498a604`; `src/registry/skills/index.json@c498a604` | DIRECT_PORT | DELIVERED | Catalog resolver |
 | SKL-I002 | SKL-003 | Canonical public-skill host projection | `scripts/generate-host-projection.mjs@c498a604`; `docs/architecture/skills.md@c498a604` | DIRECT_PORT | DELIVERED | Host skill surfaces |
 | SKL-I003 | SKL-029 | Unified Foundation skill absorbing Atom protocol (creation Stages 0-4) & CompShop (compare mode); validator ported | `skills/foundation/SKILL.md@LOCAL`; `skills/foundation/references/protocol.md@LOCAL`; `skills/foundation/references/model.md@LOCAL`; `skills/foundation/scripts/validate_atom_report.py@LOCAL` (donors: Atom archive, `compshop` workspace skill) | ADAPT | DELIVERED | Skill catalog, host projection & junctioned workspace/user skill surfaces |
+| SKL-I004 | SKL-006 | Complete package Audit runner, executable broad-lens registry, partial-native rejection & concurrent host-reviewer fan-out with typed unavailable state | `skills/audit/SKILL.md@LOCAL`; `src/registry/providers.json@LOCAL`; `src/lib/cli/commands/audit.mjs@LOCAL`; `tools/audit/audit-run.mjs@LOCAL` | REPAIR_WIRE | DELIVERED | `/audit` & JavaScript `legion audit`; missing reviewer keeps lenses unproven |
+| SKL-I005 | SKL-004, SKL-030 | Public Blueprint route with current-state/docs/Architect/Audit boundaries | `skills/blueprint/SKILL.md@LOCAL`; `skills/architect/SKILL.md@LOCAL` | ADOPT | DELIVERED | Semantic skill router & Architect current-state intake |
 
 ## Qualification ledger
 
 | ID | Capability targets | Acceptance boundary | State | Evidence | Material revision |
 |---|---|---|---|---|---|
-| SKL-Q001 | SKL-001, SKL-002, SKL-003, SKL-004, SKL-005, SKL-006, SKL-007, SKL-008, SKL-009, SKL-010, SKL-011, SKL-012, SKL-013, SKL-014, SKL-015, SKL-016, SKL-017, SKL-018, SKL-019, SKL-020, SKL-021, SKL-022, SKL-023, SKL-024, SKL-025, SKL-026, SKL-027, SKL-028 | Skills-AC-BOUNDARY-001: reconcile each observable through live consumer at RELEASED boundary | PENDING | NONE | LOCAL |
+| SKL-Q001 | SKL-001, SKL-002, SKL-003, SKL-004, SKL-005, SKL-006, SKL-007, SKL-008, SKL-009, SKL-010, SKL-011, SKL-012, SKL-013, SKL-014, SKL-015, SKL-016, SKL-017, SKL-018, SKL-019, SKL-020, SKL-021, SKL-022, SKL-023, SKL-024, SKL-025, SKL-026, SKL-027, SKL-028, SKL-029, SKL-030 | Skills-AC-BOUNDARY-001: reconcile each observable through live consumer at RELEASED boundary | PENDING | NONE | LOCAL |
 
 ## Decision register
 
@@ -69,3 +72,4 @@ Required delivery boundary: `RELEASED`.
 |---|---|---|---|---|---|
 | SKL-D001 | REFERENCE | SKL-003 | Skills owns skill projection semantics; Legion owns role & hook projection integration. | Canon reconciliation | RECORDED |
 | SKL-D002 | REFERENCE | SKL-029 | Executed 2026-08-30: skill named **Foundation** (`canon` & `compshop` retained as retired aliases); canonical home `legion/skills/foundation`; workspace & user copies are junctions; Atom protocol installed as creation engine per plan Part B. Artifact directories stay `docs/canon/`. | `docs/pending/plans/2026-08-30-canon-pipeline-and-repairs.md` Part B | RECORDED |
+| SKL-D003 | REFERENCE | SKL-004, SKL-006, SKL-030 | Blueprint is public current-reality & documentation entrypoint; Architect consumes it for target-state judgment; Audit consumes it for frozen discovery but retains provider execution & diagnosis. | Live-path repair, 2026-08-31 | RECORDED |

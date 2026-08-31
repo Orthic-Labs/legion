@@ -170,6 +170,31 @@
       "source": "skills/audit-visual/SKILL.md"
     },
     {
+      "id": "blueprint",
+      "name": "blueprint",
+      "description": "Build, query, or reconcile source-grounded current repository truth, architecture, flows, symbols, impact, freshness, & documentation. Use for /blueprint, repository onboarding, current-state maps, docs reconciliation, or grounding Audit/Architect.",
+      "kind": "domain-capability",
+      "discoverability": "public",
+      "invocation": {
+        "user": true,
+        "model": true
+      },
+      "domain": "engineering",
+      "hostRequirements": [
+        "blueprint-graph"
+      ],
+      "hostRequirementDetails": [
+        {
+          "id": "blueprint-graph",
+          "kind": "graph-engine",
+          "summary": "Membrane Blueprint graph and packet transport called directly by Legion for source-grounded repository discovery.",
+          "degradation": "Use resident Membrane transport when available, then bounded Blueprint one-shot regardless of enrollment. Return a NO_CAPABILITY result naming blueprint-graph only when both are unavailable; never fall back to ad-hoc grep or present ungraphed results as graph results.",
+          "remedy": "Provide Membrane resident transport or install the Blueprint graph engine and put its `blueprint` executable on PATH, then re-run. This package does not ship it."
+        }
+      ],
+      "source": "skills/blueprint/SKILL.md"
+    },
+    {
       "id": "brand",
       "name": "brand",
       "description": "Load a source-bound brand card before branded content, design, marketing, social, or media work. Use /brand when a named brand or approved identity source governs an output.",
