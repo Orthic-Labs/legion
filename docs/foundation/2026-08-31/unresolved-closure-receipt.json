@@ -1,8 +1,8 @@
 {
   "schemaVersion": 1,
   "kind": "legion-unresolved-atom-closure-receipt",
-  "status": "qualified",
-  "recordedAt": "2026-08-31T12:20:00+05:30",
+  "status": "partial",
+  "recordedAt": "2026-08-31T19:13:40+05:30",
   "scope": {
     "repository": "Orthic-Labs/legion",
     "atoms": [
@@ -32,7 +32,12 @@
       "PARTIAL": 9,
       "UNKNOWN": 11,
       "MISSING": 1
-    }
+    },
+    "closedAtoms": 19,
+    "openAtoms": [
+      "ARC-005",
+      "ARC-006"
+    ]
   },
   "independentInventories": [
     {
@@ -58,14 +63,15 @@
   },
   "implementation": {
     "commit": "52b923674ff188f3ea4e3ad4071979c7085e7148",
-    "releaseCommit": "044ae8f157d001d8633a771e1b15f99a53240cb9",
-    "releaseTag": "v0.3.3",
-    "releaseVersion": "0.3.3"
+    "oracleRepairCommit": "9161ebb7e49fb0ca40c84073d604b44d534a8b00",
+    "releaseCommit": "0d6016c864cffebd480bc72d2b1a46529b0cf3da",
+    "releaseTag": "v0.3.4",
+    "releaseVersion": "0.3.4"
   },
   "verification": {
     "focusedClosure": {
       "command": "node --test tests/unresolved-atoms-closure.test.mjs",
-      "passed": 17,
+      "passed": 18,
       "failed": 0
     },
     "hostRegression": {
@@ -90,9 +96,10 @@
     ],
     "package": {
       "command": "pnpm test",
-      "passed": 1394,
-      "failed": 1,
-      "disposition": "sole initial failure was developer-local portability evidence; immutable evidence paths were classified, then focused portability tests passed 2/2"
+      "passed": 1395,
+      "failed": 0,
+      "skipped": 1,
+      "disposition": "hosted full gate passed against release revision"
     },
     "canonAndSchema": {
       "command": "pnpm legion:check",
@@ -106,14 +113,15 @@
   },
   "hostedDelivery": {
     "mainRun": {
-      "id": 33388142070,
-      "url": "https://github.com/Orthic-Labs/legion/actions/runs/33388142070",
+      "id": 33395248208,
+      "url": "https://github.com/Orthic-Labs/legion/actions/runs/33395248208",
       "status": "success",
-      "revision": "044ae8f157d001d8633a771e1b15f99a53240cb9"
+      "revision": "0d6016c864cffebd480bc72d2b1a46529b0cf3da"
     },
     "releaseRun": {
-      "id": 33388155516,
-      "url": "https://github.com/Orthic-Labs/legion/actions/runs/33388155516",
+      "id": 33396079590,
+      "url": "https://github.com/Orthic-Labs/legion/actions/runs/33396079590",
+      "attempt": 2,
       "status": "success",
       "gates": [
         "private repository guard",
@@ -126,53 +134,53 @@
       ]
     },
     "release": {
-      "url": "https://github.com/Orthic-Labs/legion/releases/tag/v0.3.3",
-      "publishedAt": "2026-08-31T11:59:00Z",
-      "targetRevision": "044ae8f157d001d8633a771e1b15f99a53240cb9",
+      "url": "https://github.com/Orthic-Labs/legion/releases/tag/v0.3.4",
+      "publishedAt": "2026-08-31T13:35:40Z",
+      "targetRevision": "0d6016c864cffebd480bc72d2b1a46529b0cf3da",
       "draft": false,
       "prerelease": false
     },
     "windows": {
-      "installer": "Legion-0.3.3-windows-x86_64-setup.exe",
-      "installerSha256": "01c82fb66dbf2cdcf428f93068adfb2d86d42cea4b5af14824afa674e455f9ea",
-      "qualificationSha256": "d16524679b55a8d026175415ea7d5f790acb5bbc430d11d8b3df3e91aedbbb40",
+      "installer": "Legion-0.3.4-windows-x86_64-setup.exe",
+      "installerSha256": "1972f7a1eb1ccd428f758f0e4a05d50b7aac9264f7d1689bfc6ec122a2a0925b",
+      "qualificationSha256": "d1737d23e35f5c59eb44c3e202f64f4b45d5590728274fbcb8ffcb338e45bbe3",
       "qualificationStatus": "qualified",
-      "qualificationVersion": "0.3.3",
-      "qualificationRevision": "044ae8f157d001d8633a771e1b15f99a53240cb9",
+      "qualificationVersion": "0.3.4",
+      "qualificationRevision": "0d6016c864cffebd480bc72d2b1a46529b0cf3da",
       "attestationTrust": "VERIFIED"
     }
   },
   "localDogfood": {
     "installer": {
       "exitCode": 0,
-      "sha256": "01c82fb66dbf2cdcf428f93068adfb2d86d42cea4b5af14824afa674e455f9ea",
+      "sha256": "1972f7a1eb1ccd428f758f0e4a05d50b7aac9264f7d1689bfc6ec122a2a0925b",
       "authenticode": "Valid",
       "signer": "CN=Damned Ventures LLC, O=Damned Ventures LLC, L=new york, S=New York, C=US",
       "thumbprint": "513773D9947DCD262D899F514CF1341A14DBAA7F"
     },
     "installRoot": "%LOCALAPPDATA%\\Orthic Labs\\Legion",
     "resolvedCommand": "%LOCALAPPDATA%\\Orthic Labs\\Legion\\current\\bin\\legion.exe",
-    "version": "0.3.3",
+    "version": "0.3.4",
     "binaries": [
       {
         "name": "legion.exe",
-        "sha256": "fd59e50961b8992e98fc8793eb238e633866df1ded35e81a21b6d7cb24a72a1a",
+        "sha256": "b261b741fac210024abcf70ce96674e16601ab4576ad20e56d818f5c83b75b97",
         "authenticode": "Valid"
       },
       {
         "name": "legion-hook.exe",
-        "sha256": "0f9f160d3e58b3da2a1769222e239dbbaf27264c0ff0f75362425034ee3353b3",
+        "sha256": "5427710df0fe2b3ea7245e023e9d430f3c9bd9fb12b2a360d606f0946c0b4d55",
         "authenticode": "Valid"
       },
       {
         "name": "legion-mcp.exe",
-        "sha256": "8bd551b672d5778ff56998dc04c5901b701cadf2ef54c0a76cfd170d5f4f12b3",
+        "sha256": "c5a993808987e9371e27364e56bb0a02f330915450057d48cfa52eca9420e8a8",
         "authenticode": "Valid"
       }
     ],
     "stableBinding": {
       "installerJunctionTraversal": "blocked by current Codex host reparse-point isolation",
-      "repair": "materialized current from identical signed versions/0.3.3 tree",
+      "repair": "materialized current from identical signed versions/0.3.4 tree",
       "postRepairResolution": "PASS"
     },
     "codex": {
@@ -180,7 +188,7 @@
       "mcpDiscovery": "PASS",
       "mcpInvocation": "PASS",
       "tool": "legion_m1_status",
-      "observedReleaseVersion": "0.3.3",
+      "observedReleaseVersion": "0.3.4",
       "capabilityCount": 27,
       "observedExecutable": "%LOCALAPPDATA%\\Orthic Labs\\Legion\\current\\bin\\legion.exe"
     },
@@ -207,17 +215,47 @@
     "removedDirectories": [
       "%USERPROFILE%\\.claude\\plugins\\cache\\orthic-labs\\legion",
       "%LOCALAPPDATA%\\Temp\\legion-qualification-replay-33343312360",
-      "%LOCALAPPDATA%\\Temp\\legion-qualify-repro-canonical2-33343312360"
+      "%LOCALAPPDATA%\\Temp\\legion-qualify-repro-canonical2-33343312360",
+      "%LOCALAPPDATA%\\Orthic Labs\\Legion\\versions\\0.3.2",
+      "%LOCALAPPDATA%\\Orthic Labs\\Legion\\versions\\0.3.3"
     ],
     "staleQualificationPathEntriesRemaining": 0,
     "recovery": "not recoverable"
   },
+  "oracleRepair": {
+    "initialResult": "BLOCK",
+    "blockedAtoms": [
+      "ARC-005",
+      "ARC-006",
+      "GRD-013"
+    ],
+    "repairRevision": "0d6016c864cffebd480bc72d2b1a46529b0cf3da",
+    "liveConsumers": [
+      "src/lib/host/arcane/host-runtime.mjs",
+      "engine/bins/legion/src/commands/review.rs"
+    ],
+    "recheck": "BLOCK",
+    "recheckFindings": [
+      {
+        "atom": "ARC-005",
+        "evidence": "src/lib/host/arcane/host-runtime.mjs:461",
+        "finding": "caller-supplied result is returned without evidence evaluation"
+      },
+      {
+        "atom": "ARC-006",
+        "evidence": "src/lib/host/arcane/host-runtime.mjs:449; engine/bins/legion-hook/src/main.rs:154",
+        "finding": "stronger-model escalation is recorded but not executed"
+      }
+    ]
+  },
   "disposition": {
-    "implementation": "DELIVERED",
-    "verification": "FOCUSED_PASS",
-    "qualification": "PASS",
+    "implementation": "PARTIAL",
+    "verification": "PENDING",
+    "qualification": "FAIL",
     "legionAndArcaneDelivery": "PUSHED",
     "guardDelivery": "RELEASED",
-    "action": "RETAIN"
+    "closedAtoms": 19,
+    "openAtoms": 2,
+    "action": "REPAIR_WIRE"
   }
 }
