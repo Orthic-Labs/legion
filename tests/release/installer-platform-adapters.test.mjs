@@ -42,9 +42,10 @@ test("Windows installed qualification silently installs, checks, uninstalls, & b
 	const root = mkdtempSync(join(tmpdir(), "windows-qualify-")); try {
 		const setup = join(root, "Legion-setup.exe"); writeFileSync(setup, "setup"); const finalization = join(root, "installer-finalization.json"); writeFileSync(finalization, JSON.stringify({ schemaVersion: 1, kind: "legion-installer-finalization", product: "legion", platform: "windows", version: "1.2.3", sourceRevision: REVISION, assets: [{ role: "installer" }] }));
 		const output = join(root, "evidence");
-		const result = qualifyInstalledWindows({ setup, outputRoot: output, finalizationPath: finalization, sourceRevision: REVISION, version: "1.2.3", platform: "win32", temporaryRoot: root, commandRunner(command, args) {
-			if (command === setup) { const dir = args.find((item) => item.startsWith("/DIR=")).slice(5); mkdirSync(join(dir, "current", "bin"), { recursive: true }); writeFileSync(join(dir, "current", "bin", "legion.exe"), "legion"); writeFileSync(join(dir, "unins000.exe"), "uninstall"); return { status: 0 }; }
-			if (command.endsWith("unins000.exe")) { rmSync(join(command, ".."), { recursive: true, force: true }); return { status: 0 }; }
+		let localAppData;
+		const result = qualifyInstalledWindows({ setup, outputRoot: output, finalizationPath: finalization, sourceRevision: REVISION, version: "1.2.3", platform: "win32", temporaryRoot: root, commandRunner(command, args, options) {
+			if (command === setup) { const dir = args.find((item) => item.startsWith("/DIR=")).slice(5); assert.match(dir.replaceAll("\\", "/"), /local-app-data\/Orthic Labs\/Legion$/); localAppData = options.env.LOCALAPPDATA; assert.equal(dir, join(localAppData, "Orthic Labs", "Legion")); mkdirSync(join(dir, "current", "bin"), { recursive: true }); writeFileSync(join(dir, "current", "bin", "legion.exe"), "legion"); writeFileSync(join(dir, "unins000.exe"), "uninstall"); return { status: 0 }; }
+			assert.equal(options.env.LOCALAPPDATA, localAppData); if (command.endsWith("unins000.exe")) { rmSync(join(command, ".."), { recursive: true, force: true }); return { status: 0 }; }
 			assert.equal(command.endsWith("current\\bin\\legion.exe"), true); assert.equal(["--version", "doctor"].includes(args[0]), true); return { status: 0, stdout: "ok" };
 		} });
 		assert.equal(result.status, "qualified"); assert.equal(existsSync(join(output, "qualification.json")), true);

@@ -19,6 +19,12 @@ function execute(commandRunner, executable, args, options, label) {
 	if (result?.error || result?.status !== 0) fail(`${label} failed: ${String(result?.stderr ?? result?.error?.message ?? result?.stdout ?? "").trim()}`);
 	return { stdout: String(result?.stdout ?? "").trim(), stderr: String(result?.stderr ?? "").trim() };
 }
+function disappears(path, timeoutMs = 3000) {
+	const wake = new Int32Array(new SharedArrayBuffer(4));
+	const deadline = Date.now() + timeoutMs;
+	while (existsSync(path) && Date.now() < deadline) Atomics.wait(wake, 0, 0, 100);
+	return !existsSync(path);
+}
 function finalization(path, version, sourceRevision) {
 	const value = json(path, "Windows finalization manifest");
 	if (value.schemaVersion !== 1 || value.kind !== "legion-installer-finalization" || value.product !== "legion" || value.platform !== "windows" || value.version !== version || String(value.sourceRevision ?? "").toLowerCase() !== sourceRevision || !Array.isArray(value.assets)) fail("Windows finalization manifest identity is invalid");
@@ -38,17 +44,19 @@ export function qualifyInstalledWindows({ setup, outputRoot, finalizationPath, s
 	const finalizationFile = resolve(required(finalizationPath, "--finalization")); finalization(finalizationFile, version, revision);
 	const finalizationSha256 = sha256(finalizationFile);
 	const workspace = mkdtempSync(join(resolve(temporaryRoot), "legion-installed-qualification-"));
-	const installRoot = join(workspace, "Legion");
+	const localAppData = join(workspace, "local-app-data");
+	const environment = { ...process.env, LOCALAPPDATA: localAppData };
+	const installRoot = join(localAppData, "Orthic Labs", "Legion");
 	try {
-		execute(commandRunner, installer, ["/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART", `/DIR=${installRoot}`], { cwd: workspace }, "silent setup");
+		execute(commandRunner, installer, ["/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART", `/DIR=${installRoot}`], { cwd: workspace, env: environment }, "silent setup");
 		const executable = join(installRoot, "current", "bin", "legion.exe");
 		file(executable, "installed legion.exe");
-		const versionRun = execute(commandRunner, executable, ["--version"], { cwd: installRoot }, "installed legion --version");
-		const doctorRun = execute(commandRunner, executable, ["doctor"], { cwd: installRoot }, "installed legion doctor");
+		const versionRun = execute(commandRunner, executable, ["--version"], { cwd: installRoot, env: environment }, "installed legion --version");
+		const doctorRun = execute(commandRunner, executable, ["doctor"], { cwd: installRoot, env: environment }, "installed legion doctor");
 		const uninstaller = join(installRoot, "unins000.exe");
 		file(uninstaller, "installed uninstaller");
-		execute(commandRunner, uninstaller, ["/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART"], { cwd: workspace }, "silent uninstall");
-		if (existsSync(installRoot)) fail("silent uninstall left installed product behind");
+		execute(commandRunner, uninstaller, ["/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART"], { cwd: workspace, env: environment }, "silent uninstall");
+		if (!disappears(installRoot)) fail("silent uninstall left installed product behind");
 		const evidencePath = join(output, "qualification.json");
 		const evidence = { schemaVersion: 1, kind: "legion-windows-installed-installer-qualification", status: "qualified", product: "legion", version, sourceRevision: revision, windowsFinalizationSha256: finalizationSha256, setup: { name: installer.split(/[\\/]/).at(-1), sha256: sha256(installer), size: statSync(installer).size }, commands: { version: versionRun, doctor: doctorRun, uninstall: "removed" } };
 		writeFileSync(evidencePath, `${JSON.stringify(evidence, null, 2)}\n`);
