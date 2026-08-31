@@ -1,0 +1,27 @@
+{
+  "schema_version": 4,
+  "sha256": "be468ddbf1302116612c3e1564f91c63730dd53b758af5807dbacb8e3f231d7d",
+  "referenced_artifacts": [
+    {
+      "path": "docs/foundation/2026-08-31/unresolved-atoms-reconciliation.md",
+      "sha256": "sha256:98c7d8e57a3c81dcba645d2b9e45b698463aca9104eaf87eac14df9cc6224da4"
+    },
+    {
+      "path": "AGENTS.md",
+      "sha256": "sha256:95a975072b3250fc814cb0ed9d2529966b6cdcfc52a54a00cf6cdd925999ae7e"
+    },
+    {
+      "path": "docs/foundation/2026-08-31/unresolved-atoms-reconciliation.md",
+      "sha256": "sha256:98c7d8e57a3c81dcba645d2b9e45b698463aca9104eaf87eac14df9cc6224da4"
+    },
+    {
+      "path": "docs/canon/README.md",
+      "sha256": "sha256:9e1c03b92b708c5a6bdf2c01a0a841dad63064904c334b0b0148e03d5689a46d"
+    }
+  ],
+  "authority_binding": {
+    "packet_sha256": "be468ddbf1302116612c3e1564f91c63730dd53b758af5807dbacb8e3f231d7d",
+    "source_revision": "f731d084765e2ca735b0d3b3787d762694ac2e4b",
+    "prompt_digest": "sha256:98c7d8e57a3c81dcba645d2b9e45b698463aca9104eaf87eac14df9cc6224da4"
+  }
+}
