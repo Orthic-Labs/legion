@@ -119,6 +119,10 @@
     "windows:finalize": "node scripts/package-windows-release.mjs --finalize",
     "windows:publish": "node scripts/package-windows-release.mjs --finalize --publish-github --publish-bootstrap",
     "windows:qualify": "node scripts/qualify-windows-release.mjs",
+    "release:finalize-windows": "node scripts/release/installer-release-chain.mjs finalize-windows",
+    "release:finalize-macos": "node scripts/release/installer-release-chain.mjs finalize-macos",
+    "release:qualify-installed": "node scripts/release/installer-release-chain.mjs qualify-installed",
+    "release:publish-qualified": "node scripts/release/installer-release-chain.mjs publish-qualified",
     "release:doctor": "right-release doctor --platform win",
     "biome": "biome lint . --max-diagnostics=1000",
     "biome:check": "biome lint . --max-diagnostics=1000"
@@ -129,7 +133,7 @@
   "devDependencies": {
     "@biomejs/biome": "2.5.10",
     "@rightkit/ax": "0.2.1",
-    "@rightkit/git": "0.2.13",
-    "@rightkit/release": "0.2.84"
+    "@rightkit/git": "0.2.15",
+    "@rightkit/release": "0.2.90"
   }
 }

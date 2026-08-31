@@ -20,10 +20,15 @@ test('right-git owns exact public CI bytes', () => {
       assert.match(workflow, /^# Managed by right-git/);
       assert.match(workflow, /RIGHT_GIT_RELEASE_PLATFORM: \$\{\{ matrix\.platform \}\}/);
       assert.match(workflow, /RIGHT_GIT_RELEASE_ARCHITECTURE: \$\{\{ matrix\.architecture \}\}/);
-      for (const runner of ['windows-2025', 'windows-11-arm', 'macos-15', 'macos-15-intel']) {
+      for (const runner of ['windows-2025', 'macos-15']) {
         assert.match(workflow, new RegExp(`os: "${runner}"`));
       }
-      assert.equal((workflow.match(/if: \$\{\{ startsWith\(github\.ref, 'refs\/tags\/v'\) \}\}/g) ?? []).length, 2);
+      assert.doesNotMatch(workflow, /windows-11-arm|macos-15-intel/);
+      assert.match(workflow, /installed-qualification:/);
+      assert.match(workflow, /publish:/);
+      assert.match(workflow, /signed_qualification:/);
+      assert.equal((workflow.match(/if: \$\{\{ startsWith\(github\.ref, 'refs\/tags\/v'\) \|\| \(github\.event_name == 'workflow_dispatch' && inputs\.signed_qualification == true\) \}\}/g) ?? []).length, 2);
+      assert.match(workflow, /publish:[\s\S]*?if: \$\{\{ startsWith\(github\.ref, 'refs\/tags\/v'\) && needs\.installed-qualification\.result == 'success' && needs\.macos-sign\.result == 'success' \}\}/);
     }
   }
   assert.deepEqual(readdirSync(join(root, '.github/workflows')).sort(), ['ci.yml', 'release-candidate.yml']);

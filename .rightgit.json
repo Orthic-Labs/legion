@@ -26,9 +26,7 @@
     "artifactRoot": "legion-unsigned-candidate",
     "os": [
       "windows-2025",
-      "windows-11-arm",
-      "macos-15",
-      "macos-15-intel"
+      "macos-15"
     ],
     "targets": [
       {
@@ -37,22 +35,19 @@
         "architecture": "x86_64"
       },
       {
-        "os": "windows-11-arm",
-        "platform": "windows",
-        "architecture": "arm64"
-      },
-      {
         "os": "macos-15",
         "platform": "macos",
         "architecture": "arm64"
-      },
-      {
-        "os": "macos-15-intel",
-        "platform": "macos",
-        "architecture": "x86_64"
       }
     ],
     "signWindows": true,
-    "signMacos": true
+    "signMacos": true,
+    "releaseChain": {
+      "windowsFinalizeScript": "release:finalize-windows",
+      "macosFinalizeScript": "release:finalize-macos",
+      "installedQualificationScript": "release:qualify-installed",
+      "publishScript": "release:publish-qualified",
+      "qualificationRunnerVariable": "LEGION_QUALIFICATION_RUNNER"
+    }
   }
 }

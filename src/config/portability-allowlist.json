@@ -2,6 +2,97 @@
   "schemaVersion": 1,
   "rules": [
     {
+      "path": "docs/dispatch/2026-08-31-foundation-legion-a.json",
+      "patterns": ["developer-workspace"],
+      "occurrences": {"developer-workspace": 3},
+      "class": "historical-dispatch",
+      "reason": "immutable Foundation Stage 1 dispatch evidence pins source checkout used during executed comparison"
+    },
+    {
+      "path": "docs/dispatch/2026-08-31-foundation-legion-b.json",
+      "patterns": ["developer-workspace"],
+      "occurrences": {"developer-workspace": 3},
+      "class": "historical-dispatch",
+      "reason": "immutable Foundation Stage 1 dispatch evidence pins source checkout used during executed comparison"
+    },
+    {
+      "path": "docs/dispatch/2026-08-31-foundation-legion-stage3-a.json",
+      "patterns": ["developer-workspace"],
+      "occurrences": {"developer-workspace": 3},
+      "class": "historical-dispatch",
+      "reason": "immutable Foundation Stage 3 dispatch evidence pins source checkout used during executed comparison"
+    },
+    {
+      "path": "docs/dispatch/2026-08-31-foundation-legion-stage3-b.json",
+      "patterns": ["developer-workspace"],
+      "occurrences": {"developer-workspace": 3},
+      "class": "historical-dispatch",
+      "reason": "immutable Foundation Stage 3 dispatch evidence pins source checkout used during executed comparison"
+    },
+    {
+      "path": "docs/dispatch/2026-08-31-foundation-legion-stage3-reconcile-r.json",
+      "patterns": ["developer-workspace"],
+      "occurrences": {"developer-workspace": 3},
+      "class": "historical-dispatch",
+      "reason": "immutable Foundation Stage 3 reconciliation evidence pins source checkout used during executed comparison"
+    },
+    {
+      "path": "docs/dispatch/2026-08-31-foundation-legion-stage3-reconcile.json",
+      "patterns": ["developer-workspace"],
+      "occurrences": {"developer-workspace": 3},
+      "class": "historical-dispatch",
+      "reason": "immutable Foundation Stage 3 reconciliation evidence pins source checkout used during executed comparison"
+    },
+    {
+      "path": "docs/foundation/2026-08-31/legion-foundation-receipt.json",
+      "patterns": ["developer-workspace"],
+      "occurrences": {"developer-workspace": 1},
+      "class": "foundation-evidence",
+      "reason": "immutable Foundation receipt records source checkout used during executed comparison"
+    },
+    {
+      "path": "docs/foundation/2026-08-31/legion-independent-packet.md",
+      "patterns": ["developer-workspace"],
+      "occurrences": {"developer-workspace": 3},
+      "class": "foundation-evidence",
+      "reason": "immutable Foundation Stage 1 packet records source checkout used during executed comparison"
+    },
+    {
+      "path": "docs/foundation/2026-08-31/legion-stage3-corpus.json",
+      "patterns": ["developer-workspace"],
+      "occurrences": {"developer-workspace": 1},
+      "class": "foundation-evidence",
+      "reason": "immutable Foundation Stage 3 corpus records source checkout used during executed comparison"
+    },
+    {
+      "path": "docs/foundation/2026-08-31/legion-stage3-evidence-paths.json",
+      "patterns": ["developer-workspace"],
+      "occurrences": {"developer-workspace": 32},
+      "class": "foundation-evidence",
+      "reason": "immutable Foundation Stage 3 evidence index records source checkout used during executed comparison"
+    },
+    {
+      "path": "docs/foundation/2026-08-31/legion-stage3-independent-packet.md",
+      "patterns": ["developer-workspace"],
+      "occurrences": {"developer-workspace": 4},
+      "class": "foundation-evidence",
+      "reason": "immutable Foundation Stage 3 packet records source checkout used during executed comparison"
+    },
+    {
+      "path": "docs/foundation/2026-08-31/legion-stage3-pass-a.validation.json",
+      "patterns": ["developer-workspace"],
+      "occurrences": {"developer-workspace": 3},
+      "class": "foundation-evidence",
+      "reason": "immutable Foundation Stage 3 validation records source checkout used during executed comparison"
+    },
+    {
+      "path": "docs/foundation/2026-08-31/legion-stage3-pass-b.validation.json",
+      "patterns": ["developer-workspace"],
+      "occurrences": {"developer-workspace": 3},
+      "class": "foundation-evidence",
+      "reason": "immutable Foundation Stage 3 validation records source checkout used during executed comparison"
+    },
+    {
       "path": "docs/provenance/dispatch/2026-08-29-mechanical-remediation.json",
       "patterns": [
         "developer-workspace"
