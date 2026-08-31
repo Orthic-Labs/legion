@@ -7,11 +7,13 @@ pnpm test
 
 pnpm test:python
 
-(
-  cd engine
-  cargo test --locked
-  cargo build --locked --bins
-)
+if [[ "${RIGHT_GIT_RUST_CHANGED:-true}" == "true" ]]; then
+  (
+    cd engine
+    cargo test --locked
+    cargo build --locked --bins
+  )
 
-pnpm native:assemble -- --profile debug --out "${RUNNER_TEMP}/legion-install" --force
-node scripts/ci/native-installed-smoke.mjs "${RUNNER_TEMP}/legion-install"
+  pnpm native:assemble -- --profile debug --out "${RUNNER_TEMP}/legion-install" --force
+  node scripts/ci/native-installed-smoke.mjs "${RUNNER_TEMP}/legion-install"
+fi
