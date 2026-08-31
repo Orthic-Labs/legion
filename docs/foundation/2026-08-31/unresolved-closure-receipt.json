@@ -1,0 +1,223 @@
+{
+  "schemaVersion": 1,
+  "kind": "legion-unresolved-atom-closure-receipt",
+  "status": "qualified",
+  "recordedAt": "2026-08-31T12:20:00+05:30",
+  "scope": {
+    "repository": "Orthic-Labs/legion",
+    "atoms": [
+      "LEG-005",
+      "LEG-015",
+      "LEG-016",
+      "LEG-017",
+      "LEG-018",
+      "LEG-019",
+      "LEG-020",
+      "LEG-021",
+      "LEG-022",
+      "LEG-023",
+      "LEG-024",
+      "LEG-025",
+      "LEG-026",
+      "LEG-027",
+      "ARC-001",
+      "ARC-002",
+      "ARC-005",
+      "ARC-006",
+      "ARC-009",
+      "GRD-009",
+      "GRD-013"
+    ],
+    "priorStates": {
+      "PARTIAL": 9,
+      "UNKNOWN": 11,
+      "MISSING": 1
+    }
+  },
+  "independentInventories": [
+    {
+      "worker": "Hubble",
+      "model": "gpt-5.6-sol",
+      "threadId": "01a0575f-7ba4-79e3-ad06-301ad7d5bad3",
+      "patchSha256": "1a18950f5f89f32c1fdc29753855b911dd7cc1d0b68bb3bf3cda41ea35994c7d"
+    },
+    {
+      "worker": "Dirac",
+      "model": "gpt-5.6-sol",
+      "threadId": "01a0575f-c7a9-7692-a520-c4dcac719bd3",
+      "patchSha256": "2d8d2449c5f71ef780ce48aabc4c8cd2a2c6a9f022bc095befff379544dd1a2f"
+    }
+  ],
+  "dispatch": {
+    "packet": "docs/foundation/2026-08-31/closure-dispatch.json",
+    "packetSha256": "be468ddbf1302116612c3e1564f91c63730dd53b758af5807dbacb8e3f231d7d",
+    "commits": [
+      "aa0b45bf",
+      "837a9c07"
+    ]
+  },
+  "implementation": {
+    "commit": "52b923674ff188f3ea4e3ad4071979c7085e7148",
+    "releaseCommit": "044ae8f157d001d8633a771e1b15f99a53240cb9",
+    "releaseTag": "v0.3.3",
+    "releaseVersion": "0.3.3"
+  },
+  "verification": {
+    "focusedClosure": {
+      "command": "node --test tests/unresolved-atoms-closure.test.mjs",
+      "passed": 17,
+      "failed": 0
+    },
+    "hostRegression": {
+      "command": "node --test --test-concurrency=1 tests/core/*.test.mjs tests/host/*.test.mjs tests/unresolved-atoms-closure.test.mjs",
+      "passed": 109,
+      "failed": 0
+    },
+    "native": [
+      {
+        "command": "cargo test -p legion-contracts -p legion-runtime -p legion-provider-sdk -p legion",
+        "status": "PASS"
+      },
+      {
+        "command": "cargo test -p legion-hook",
+        "passed": 29,
+        "failed": 0
+      },
+      {
+        "command": "rustfmt --check <changed Rust sources>",
+        "status": "PASS"
+      }
+    ],
+    "package": {
+      "command": "pnpm test",
+      "passed": 1394,
+      "failed": 1,
+      "disposition": "sole initial failure was developer-local portability evidence; immutable evidence paths were classified, then focused portability tests passed 2/2"
+    },
+    "canonAndSchema": {
+      "command": "pnpm legion:check",
+      "status": "PASS",
+      "baselineDiagnostics": {
+        "warnings": 229,
+        "infos": 122
+      }
+    },
+    "diffCheck": "PASS"
+  },
+  "hostedDelivery": {
+    "mainRun": {
+      "id": 33388142070,
+      "url": "https://github.com/Orthic-Labs/legion/actions/runs/33388142070",
+      "status": "success",
+      "revision": "044ae8f157d001d8633a771e1b15f99a53240cb9"
+    },
+    "releaseRun": {
+      "id": 33388155516,
+      "url": "https://github.com/Orthic-Labs/legion/actions/runs/33388155516",
+      "status": "success",
+      "gates": [
+        "private repository guard",
+        "Windows candidate",
+        "macOS candidate",
+        "Windows signing",
+        "macOS signing and notarization",
+        "installed qualification",
+        "publication"
+      ]
+    },
+    "release": {
+      "url": "https://github.com/Orthic-Labs/legion/releases/tag/v0.3.3",
+      "publishedAt": "2026-08-31T11:59:00Z",
+      "targetRevision": "044ae8f157d001d8633a771e1b15f99a53240cb9",
+      "draft": false,
+      "prerelease": false
+    },
+    "windows": {
+      "installer": "Legion-0.3.3-windows-x86_64-setup.exe",
+      "installerSha256": "01c82fb66dbf2cdcf428f93068adfb2d86d42cea4b5af14824afa674e455f9ea",
+      "qualificationSha256": "d16524679b55a8d026175415ea7d5f790acb5bbc430d11d8b3df3e91aedbbb40",
+      "qualificationStatus": "qualified",
+      "qualificationVersion": "0.3.3",
+      "qualificationRevision": "044ae8f157d001d8633a771e1b15f99a53240cb9",
+      "attestationTrust": "VERIFIED"
+    }
+  },
+  "localDogfood": {
+    "installer": {
+      "exitCode": 0,
+      "sha256": "01c82fb66dbf2cdcf428f93068adfb2d86d42cea4b5af14824afa674e455f9ea",
+      "authenticode": "Valid",
+      "signer": "CN=Damned Ventures LLC, O=Damned Ventures LLC, L=new york, S=New York, C=US",
+      "thumbprint": "513773D9947DCD262D899F514CF1341A14DBAA7F"
+    },
+    "installRoot": "C:\\Users\\adrds\\AppData\\Local\\Orthic Labs\\Legion",
+    "resolvedCommand": "C:\\Users\\adrds\\AppData\\Local\\Orthic Labs\\Legion\\current\\bin\\legion.exe",
+    "version": "0.3.3",
+    "binaries": [
+      {
+        "name": "legion.exe",
+        "sha256": "fd59e50961b8992e98fc8793eb238e633866df1ded35e81a21b6d7cb24a72a1a",
+        "authenticode": "Valid"
+      },
+      {
+        "name": "legion-hook.exe",
+        "sha256": "0f9f160d3e58b3da2a1769222e239dbbaf27264c0ff0f75362425034ee3353b3",
+        "authenticode": "Valid"
+      },
+      {
+        "name": "legion-mcp.exe",
+        "sha256": "8bd551b672d5778ff56998dc04c5901b701cadf2ef54c0a76cfd170d5f4f12b3",
+        "authenticode": "Valid"
+      }
+    ],
+    "stableBinding": {
+      "installerJunctionTraversal": "blocked by current Codex host reparse-point isolation",
+      "repair": "materialized current from identical signed versions/0.3.3 tree",
+      "postRepairResolution": "PASS"
+    },
+    "codex": {
+      "launcherVersion": "codex-cli 0.149.1",
+      "mcpDiscovery": "PASS",
+      "mcpInvocation": "PASS",
+      "tool": "legion_m1_status",
+      "observedReleaseVersion": "0.3.3",
+      "capabilityCount": 27,
+      "observedExecutable": "C:\\Users\\adrds\\AppData\\Local\\Orthic Labs\\Legion\\current\\bin\\legion.exe"
+    },
+    "claudeCode": {
+      "launcherVersion": "2.1.251",
+      "strictMcpConfigurationAccepted": true,
+      "mcpInvocation": "BLOCKED_BY_CLIENT_AUTH",
+      "clientResult": "Not logged in - Please run /login",
+      "productFailureObserved": false
+    },
+    "setupRepair": {
+      "status": "incomplete",
+      "reason": "live qualification requires status=complete; this host reports optional OmniRoute unavailable plus research providers unknown, while Codex MCP invocation itself completes",
+      "productInvocation": "PASS"
+    }
+  },
+  "cleanup": {
+    "removedFiles": [
+      "D:\\Claude\\bin\\legion.exe",
+      "D:\\Claude\\bin\\legion-hook.exe",
+      "D:\\Claude\\bin\\legion-mcp.exe",
+      "D:\\Claude\\bin\\legion-hook.exe.bak-20260830"
+    ],
+    "removedDirectories": [
+      "C:\\Users\\adrds\\.claude\\plugins\\cache\\orthic-labs\\legion",
+      "C:\\Users\\adrds\\AppData\\Local\\Temp\\legion-qualification-replay-33343312360",
+      "C:\\Users\\adrds\\AppData\\Local\\Temp\\legion-qualify-repro-canonical2-33343312360"
+    ],
+    "staleQualificationPathEntriesRemaining": 0,
+    "recovery": "not recoverable"
+  },
+  "disposition": {
+    "implementation": "DELIVERED",
+    "verification": "FOCUSED_PASS",
+    "qualification": "PASS",
+    "legionAndArcaneDelivery": "PUSHED",
+    "guardDelivery": "RELEASED",
+    "action": "RETAIN"
+  }
+}
