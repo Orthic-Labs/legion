@@ -15,10 +15,13 @@
     ]
   },
   "packageManager": "pnpm@11.24.0",
-  "templateVersion": "1.4.0",
+  "templateVersion": "1.6.0",
   "profile": "rust-hybrid",
   "gate": {
     "path": "scripts/gate.sh"
+  },
+  "rustCache": {
+    "workspaces": ["engine"]
   },
   "candidate": {
     "buildScript": "ci:unsigned-candidate",

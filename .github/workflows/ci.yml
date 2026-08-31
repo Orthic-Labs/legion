@@ -1,5 +1,5 @@
 # Managed by right-git — do not hand-edit. Run `right-git sync` to update.
-# Template: profiles/rust-hybrid/ci.yml | Template version: 1.4.0
+# Template: profiles/rust-hybrid/ci.yml | Template version: 1.6.0
 name: legion-ci
 on:
   pull_request:
@@ -16,11 +16,14 @@ jobs:
         run: exit 1
   ci:
     needs: [private-repo-guard]
+    env:
+      SCCACHE_GHA_ENABLED: "true"
+      RUSTC_WRAPPER: "sccache"
     strategy:
       fail-fast: false
       matrix:
-        # Full validation stays on one Windows runner; release-candidate
-        # validates every native target before it builds that target.
+        # Full validation stays on one declared runner; prefer configured
+        # Windows when available, otherwise preserve first configured OS.
         os: ["windows-2025"]
         node: ["22.23.2"]
     runs-on: ${{ matrix.os }}
@@ -39,5 +42,13 @@ jobs:
           components: rustfmt, clippy
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
         with:
-          workspaces: engine
+          workspaces: |
+            engine -> target
+          shared-key: legion-rust
+          add-job-id-key: false
+          cache-workspace-crates: false
+          save-if: ${{ github.event_name != 'pull_request' }}
+      - uses: Mozilla-Actions/sccache-action@fc920bf0ec8de6ee65d409111f7ec508035751ba # v0.0.11
+        with:
+          version: "v0.16.0"
       - run: bash ./scripts/gate.sh
