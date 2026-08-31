@@ -64,6 +64,7 @@ jobs:
           shared-key: legion-rust
           add-job-id-key: false
           cache-workspace-crates: false
+          cache-on-failure: true
           save-if: true
       - uses: Mozilla-Actions/sccache-action@fc920bf0ec8de6ee65d409111f7ec508035751ba # v0.0.11
         with:
