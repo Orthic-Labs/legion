@@ -18,7 +18,10 @@ test('push and PR CI stays Windows-only while release candidates build primary i
   assert.match(ci, /node: \["22\.23\.2"\]/);
   assert.match(ci, /node-version: \$\{\{ matrix\.node \}\}/);
   assert.match(ci, /version: 11\.24\.0/);
-  assert.match(ci, /toolchain: 1\.98\.0/);
+  assert.match(ci, /components: rustfmt, clippy/);
+  assert.doesNotMatch(ci, /^\s*toolchain:/m);
+  assert.match(ci, /fetch-depth: 0/);
+  assert.match(ci, /cache-on-failure: true/);
   assert.match(ci, /Managed by right-git/);
   assert.match(ci, /bash \.\/scripts\/gate\.sh/);
   assert.match(gate, /exec bash .*ci\/right-git-ci\.sh/);
