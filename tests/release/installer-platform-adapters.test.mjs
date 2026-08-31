@@ -83,4 +83,7 @@ test("Windows installed qualification silently installs, checks, uninstalls, & b
 test("release subprocess diagnostics retain buffer & timeout errors when stderr is empty", () => {
 	assert.match(commandDiagnostic({ status: null, signal: "SIGTERM", stderr: "", stdout: "partial", error: new Error("spawnSync legion ENOBUFS") }), /ENOBUFS/);
 	assert.match(commandDiagnostic({ status: null, signal: "SIGTERM", stderr: "", stdout: "", error: new Error("spawnSync legion ETIMEDOUT") }), /ETIMEDOUT/);
+	const diagnostic = commandDiagnostic({ status: 2, stderr: "", stdout: JSON.stringify({ kind: "legion-setup-execution", status: "incomplete", remediation: ["resolved target escaped"], padding: "x".repeat(8192) }) });
+	assert.match(diagnostic, /resolved target escaped/);
+	assert.doesNotMatch(diagnostic, /"padding"/);
 });

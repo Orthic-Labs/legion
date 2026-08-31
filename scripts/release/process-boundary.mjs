@@ -16,6 +16,22 @@ function clipped(value) {
 	return `${normalized.slice(0, DIAGNOSTIC_LIMIT)}… [truncated ${normalized.length - DIAGNOSTIC_LIMIT} chars]`;
 }
 
+function diagnosticOutput(value) {
+	const normalized = text(value);
+	if (normalized.length <= DIAGNOSTIC_LIMIT) return normalized;
+	try {
+		const payload = JSON.parse(normalized);
+		if (payload && typeof payload === "object" && !Array.isArray(payload)) {
+			return JSON.stringify({
+				kind: payload.kind ?? null,
+				status: payload.status ?? null,
+				remediation: payload.remediation ?? [],
+			});
+		}
+	} catch {}
+	return clipped(normalized);
+}
+
 export function releaseSpawnOptions(options = {}, timeout = RELEASE_COMMAND_TIMEOUT_MS) {
 	return {
 		...options,
@@ -33,7 +49,7 @@ export function commandDiagnostic(result) {
 	if (result?.status !== undefined && result?.status !== null) parts.push(`exit=${result.status}`);
 	if (result?.signal) parts.push(`signal=${result.signal}`);
 	const stderr = clipped(result?.stderr);
-	const stdout = clipped(result?.stdout);
+	const stdout = diagnosticOutput(result?.stdout);
 	if (stderr) parts.push(`stderr=${stderr}`);
 	if (stdout) parts.push(`stdout=${stdout}`);
 	return parts.join("; ") || "command returned no diagnostic output";

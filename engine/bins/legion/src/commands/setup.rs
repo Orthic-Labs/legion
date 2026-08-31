@@ -2413,6 +2413,9 @@ fn resolved_binding_current(
     let install_root = Path::new(install_root);
     let resolved_executable = Path::new(resolved_executable);
     let resolved_install_root = Path::new(resolved_install_root);
+    let Ok(canonical_install_root) = std::fs::canonicalize(install_root) else {
+        return false;
+    };
     if !resolved_executable.is_absolute()
         || !resolved_install_root.is_absolute()
         || resolved_executable
@@ -2437,7 +2440,7 @@ fn resolved_binding_current(
     {
         return false;
     }
-    path_starts_with(resolved_install_root, install_root)
+    path_starts_with(resolved_install_root, &canonical_install_root)
         && path_starts_with(resolved_executable, resolved_install_root)
         && resolved_executable
             .file_name()
@@ -3683,5 +3686,29 @@ mod tests {
 
         assert_eq!(status, "complete");
         assert!(remediation.is_empty());
+    }
+
+    #[test]
+    fn resolved_binding_accepts_canonical_installed_root() {
+        let temp = TempRoot::new("resolved-binding");
+        let install_root = temp.0.join("Orthic Labs/Legion");
+        let current = install_root.join("current");
+        let executable = current.join("bin/legion.exe");
+        std::fs::create_dir_all(executable.parent().expect("bin")).expect("create bin");
+        std::fs::write(&executable, b"legion").expect("write executable");
+        let resolved_install_root = std::fs::canonicalize(&current).expect("resolve current");
+        let resolved_executable = std::fs::canonicalize(&executable).expect("resolve executable");
+
+        assert!(resolved_binding_current(
+            Some(legion_host::setup_registry::ORIGIN_INSTALLED),
+            Some(&Value::String(executable.to_string_lossy().into_owned())),
+            Some(&Value::String(install_root.to_string_lossy().into_owned())),
+            Some(&Value::String(
+                resolved_executable.to_string_lossy().into_owned(),
+            )),
+            Some(&Value::String(
+                resolved_install_root.to_string_lossy().into_owned(),
+            )),
+        ));
     }
 }
