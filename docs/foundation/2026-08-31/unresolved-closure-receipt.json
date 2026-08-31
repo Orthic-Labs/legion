@@ -150,8 +150,8 @@
       "signer": "CN=Damned Ventures LLC, O=Damned Ventures LLC, L=new york, S=New York, C=US",
       "thumbprint": "513773D9947DCD262D899F514CF1341A14DBAA7F"
     },
-    "installRoot": "C:\\Users\\adrds\\AppData\\Local\\Orthic Labs\\Legion",
-    "resolvedCommand": "C:\\Users\\adrds\\AppData\\Local\\Orthic Labs\\Legion\\current\\bin\\legion.exe",
+    "installRoot": "%LOCALAPPDATA%\\Orthic Labs\\Legion",
+    "resolvedCommand": "%LOCALAPPDATA%\\Orthic Labs\\Legion\\current\\bin\\legion.exe",
     "version": "0.3.3",
     "binaries": [
       {
@@ -182,7 +182,7 @@
       "tool": "legion_m1_status",
       "observedReleaseVersion": "0.3.3",
       "capabilityCount": 27,
-      "observedExecutable": "C:\\Users\\adrds\\AppData\\Local\\Orthic Labs\\Legion\\current\\bin\\legion.exe"
+      "observedExecutable": "%LOCALAPPDATA%\\Orthic Labs\\Legion\\current\\bin\\legion.exe"
     },
     "claudeCode": {
       "launcherVersion": "2.1.251",
@@ -205,9 +205,9 @@
       "D:\\Claude\\bin\\legion-hook.exe.bak-20260830"
     ],
     "removedDirectories": [
-      "C:\\Users\\adrds\\.claude\\plugins\\cache\\orthic-labs\\legion",
-      "C:\\Users\\adrds\\AppData\\Local\\Temp\\legion-qualification-replay-33343312360",
-      "C:\\Users\\adrds\\AppData\\Local\\Temp\\legion-qualify-repro-canonical2-33343312360"
+      "%USERPROFILE%\\.claude\\plugins\\cache\\orthic-labs\\legion",
+      "%LOCALAPPDATA%\\Temp\\legion-qualification-replay-33343312360",
+      "%LOCALAPPDATA%\\Temp\\legion-qualify-repro-canonical2-33343312360"
     ],
     "staleQualificationPathEntriesRemaining": 0,
     "recovery": "not recoverable"
