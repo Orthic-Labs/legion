@@ -5,6 +5,12 @@ import { existsSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, rmSync, st
 import { tmpdir } from "node:os";
 import { delimiter, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import {
+	commandDiagnostic,
+	commandEvidence,
+	INSTALLED_COMMAND_TIMEOUT_MS,
+	releaseSpawnOptions,
+} from "../process-boundary.mjs";
 
 const REVISION = /^[a-f0-9]{40,64}$/i;
 const VERSION = /^(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)$/;
@@ -15,9 +21,13 @@ function sha256(path) { return createHash("sha256").update(readFileSync(file(pat
 function argument(name) { const index = process.argv.indexOf(name); return index < 0 ? undefined : process.argv[index + 1]; }
 function required(value, label) { if (!value) fail(`${label} is required`); return value; }
 function execute(commandRunner, executable, args, options, label) {
-	const result = commandRunner(executable, args, { encoding: "utf8", windowsHide: true, ...options });
-	if (result?.error || result?.status !== 0) fail(`${label} failed: ${String(result?.stderr ?? result?.error?.message ?? result?.stdout ?? "").trim()}`);
-	return { stdout: String(result?.stdout ?? "").trim(), stderr: String(result?.stderr ?? "").trim() };
+	const result = commandRunner(executable, args, releaseSpawnOptions(options, INSTALLED_COMMAND_TIMEOUT_MS));
+	if (result?.error || result?.status !== 0) fail(`${label} failed: ${commandDiagnostic(result)}`);
+	return {
+		stdout: String(result?.stdout ?? "").trim(),
+		stderr: String(result?.stderr ?? "").trim(),
+		evidence: commandEvidence(result),
+	};
 }
 function setupPayload(run, kind, executable, label) {
 	let value;
@@ -33,7 +43,16 @@ function setupPayload(run, kind, executable, label) {
 	for (const projection of ["claudePlugin", "codexPlugin"]) {
 		if (value.liveIdentity?.projections?.[projection]?.state !== "current") fail(`${label} did not verify current ${projection}`);
 	}
-	return value;
+	return {
+		kind: value.kind,
+		status: value.status,
+		origin: value.origin,
+		executable: value.executable,
+		stableCurrent: value.stableCurrent,
+		clients: clients.map((client) => ({ clientId: client.clientId ?? client.client_id, installed: client.installed, fidelity: client.fidelity })),
+		projections: Object.fromEntries(Object.entries(value.liveIdentity?.projections ?? {}).map(([name, projection]) => [name, projection?.state ?? null])),
+		authenticatedLiveQualification: value.authenticatedLiveQualification?.status ?? null,
+	};
 }
 function disappears(path, timeoutMs = 3000) {
 	const wake = new Int32Array(new SharedArrayBuffer(4));
@@ -72,7 +91,7 @@ export function qualifyInstalledWindows({ setup, outputRoot, finalizationPath, s
 		PATH: `${join(installRoot, "current", "bin")}${delimiter}${process.env.PATH ?? ""}`,
 	};
 	try {
-		execute(commandRunner, installer, ["/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART", `/DIR=${installRoot}`], { cwd: workspace, env: environment }, "silent setup");
+		const installRun = execute(commandRunner, installer, ["/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART", `/DIR=${installRoot}`], { cwd: workspace, env: environment }, "silent setup");
 		file(executable, "installed legion.exe");
 		const versionRun = execute(commandRunner, executable, ["--version"], { cwd: installRoot, env: environment }, "installed legion --version");
 		const repairRun = execute(commandRunner, executable, ["--json", "setup", "repair", "--confirm"], { cwd: installRoot, env: environment }, "installed legion setup repair");
@@ -82,10 +101,10 @@ export function qualifyInstalledWindows({ setup, outputRoot, finalizationPath, s
 		const doctorRun = execute(commandRunner, executable, ["doctor"], { cwd: installRoot, env: environment }, "installed legion doctor");
 		const uninstaller = join(installRoot, "unins000.exe");
 		file(uninstaller, "installed uninstaller");
-		execute(commandRunner, uninstaller, ["/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART"], { cwd: workspace, env: environment }, "silent uninstall");
+		const uninstallRun = execute(commandRunner, uninstaller, ["/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART"], { cwd: workspace, env: environment }, "silent uninstall");
 		if (!disappears(installRoot)) fail("silent uninstall left installed product behind");
 		const evidencePath = join(output, "qualification.json");
-		const evidence = { schemaVersion: 1, kind: "legion-windows-installed-installer-qualification", status: "qualified", product: "legion", version, sourceRevision: revision, windowsFinalizationSha256: finalizationSha256, setup: { name: installer.split(/[\\/]/).at(-1), sha256: sha256(installer), size: statSync(installer).size }, commands: { version: versionRun, repair: repairRun, status: statusRun, doctor: doctorRun, uninstall: "removed" }, activation: { repair, status } };
+		const evidence = { schemaVersion: 1, kind: "legion-windows-installed-installer-qualification", status: "qualified", product: "legion", version, sourceRevision: revision, windowsFinalizationSha256: finalizationSha256, setup: { name: installer.split(/[\\/]/).at(-1), sha256: sha256(installer), size: statSync(installer).size }, commands: { install: installRun.evidence, version: versionRun.evidence, repair: repairRun.evidence, status: statusRun.evidence, doctor: doctorRun.evidence, uninstall: uninstallRun.evidence }, activation: { repair, status } };
 		writeFileSync(evidencePath, `${JSON.stringify(evidence, null, 2)}\n`);
 		return { ...evidence, evidence: { path: evidencePath, role: "qualification", size: statSync(evidencePath).size, sha256: sha256(evidencePath) } };
 	} finally { rmSync(workspace, { recursive: true, force: true }); }

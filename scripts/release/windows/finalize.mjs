@@ -4,6 +4,7 @@ import { spawnSync } from "node:child_process";
 import { copyFileSync, existsSync, lstatSync, mkdirSync, readFileSync, readdirSync, statSync } from "node:fs";
 import { basename, dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
+import { commandDiagnostic, releaseSpawnOptions } from "../process-boundary.mjs";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const WORKER = join(HERE, "finalize-installer.mjs");
@@ -31,8 +32,8 @@ function record(path, role) { return { path: resolve(path), role, size: statSync
 function argument(name) { const index = process.argv.indexOf(name); return index < 0 ? undefined : process.argv[index + 1]; }
 function required(value, label) { if (!value) fail(`${label} is required`); return value; }
 function runJson(runner, command, args, options, label) {
-	const result = runner(command, args, options);
-	if (result?.error || result?.status !== 0) fail(`${label} failed: ${String(result?.stderr ?? result?.error?.message ?? "").trim()}`);
+	const result = runner(command, args, releaseSpawnOptions(options));
+	if (result?.error || result?.status !== 0) fail(`${label} failed: ${commandDiagnostic(result)}`);
 	try { return JSON.parse(String(result.stdout ?? "").trim()); } catch { fail(`${label} did not emit JSON`); }
 }
 function portableEvidence(root, extension) {
@@ -48,8 +49,8 @@ function portableEvidence(root, extension) {
 }
 function extract({ archive, destination, commandRunner }) {
 	mkdirSync(destination, { recursive: true });
-	const result = commandRunner("tar", ["-xf", archive, "-C", destination], { encoding: "utf8", windowsHide: true });
-	if (result?.error || result?.status !== 0) fail(`portable extraction failed: ${String(result?.stderr ?? result?.error?.message ?? "").trim()}`);
+	const result = commandRunner("tar", ["-xf", archive, "-C", destination], releaseSpawnOptions());
+	if (result?.error || result?.status !== 0) fail(`portable extraction failed: ${commandDiagnostic(result)}`);
 	directory(destination, "extracted portable payload");
 	for (const name of ["bin", "plugin", "share"]) directory(join(destination, name), `extracted ${name}`);
 	return destination;

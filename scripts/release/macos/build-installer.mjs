@@ -13,6 +13,7 @@ import {
 } from "node:fs";
 import { basename, dirname, isAbsolute, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { commandDiagnostic, releaseSpawnOptions } from "../process-boundary.mjs";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const REPOSITORY_ROOT = resolve(HERE, "../../..");
@@ -100,9 +101,8 @@ export function macosInstallerPlan({ inputRoot, outputRoot, version, developerId
 }
 
 function invoke(command, commandRunner) {
-	const result = commandRunner(command.file, command.args, { encoding: "utf8", windowsHide: true });
-	if (result?.error) throw result.error;
-	if (result?.status !== 0) throw new Error(`${command.file} failed: ${(result?.stderr || result?.stdout || "").trim()}`);
+	const result = commandRunner(command.file, command.args, releaseSpawnOptions());
+	if (result?.error || result?.status !== 0) throw new Error(`${command.file} failed: ${commandDiagnostic(result)}`);
 	return result;
 }
 

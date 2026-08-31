@@ -3,6 +3,7 @@ import { createHash } from "node:crypto";
 import { existsSync, lstatSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from "node:fs";
 import { basename, dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
+import { commandDiagnostic, releaseSpawnOptions } from "../process-boundary.mjs";
 
 const MODULE_ROOT = dirname(fileURLToPath(import.meta.url));
 const TEMPLATE_PATH = join(MODULE_ROOT, "legion.iss");
@@ -104,9 +105,8 @@ export function verifySigningCommand({ installer }) {
 }
 
 function execute(commandRunner, command, args, cwd) {
-	const result = commandRunner(command, args, { cwd, encoding: "utf8", windowsHide: true });
-	if (result?.error) throw result.error;
-	if (result?.status !== 0 && result?.exitCode !== 0) fail(`${basename(command)} failed: ${(result?.stderr ?? result?.stdout ?? "").trim()}`);
+	const result = commandRunner(command, args, releaseSpawnOptions({ cwd }));
+	if (result?.error || (result?.status !== 0 && result?.exitCode !== 0)) fail(`${basename(command)} failed: ${commandDiagnostic(result)}`);
 }
 
 export function finalizeWindowsInstaller({

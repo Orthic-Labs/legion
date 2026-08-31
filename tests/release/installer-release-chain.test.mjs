@@ -11,6 +11,7 @@ import {
 	publishQualified,
 	qualifyInstalled,
 } from "../../scripts/release/installer-release-chain.mjs";
+import { RELEASE_CAPTURE_MAX_BYTES, RELEASE_COMMAND_TIMEOUT_MS } from "../../scripts/release/process-boundary.mjs";
 
 const REVISION = "a".repeat(40);
 
@@ -140,8 +141,10 @@ test("installed qualification requires exact finalized setup & returns digest-bo
 		mkdirSync(downloaded, { recursive: true });
 		copyFileSync(finalization.manifest, join(downloaded, "installer-finalization.json"));
 		for (const record of [...finalization.assets, ...finalization.evidence]) copyFileSync(join(values.RIGHT_GIT_FINALIZED_WINDOWS_ROOT, record.path), join(downloaded, record.path));
-		const result = qualifyInstalled({ env: { ...values, RIGHT_GIT_FINALIZED_WINDOWS_ROOT: downloaded, RIGHT_GIT_TEST_PLATFORM: "win32" }, repositoryRoot: root, run(command, args) {
+		const result = qualifyInstalled({ env: { ...values, RIGHT_GIT_FINALIZED_WINDOWS_ROOT: downloaded, RIGHT_GIT_TEST_PLATFORM: "win32" }, repositoryRoot: root, run(command, args, options) {
 			assert.equal(command, "node");
+			assert.equal(options.maxBuffer, RELEASE_CAPTURE_MAX_BYTES);
+			assert.equal(options.timeout, RELEASE_COMMAND_TIMEOUT_MS);
 			assert.equal(args.includes("--setup"), true);
 			assert.equal(args[args.indexOf("--setup") + 1], join(downloaded, finalization.assets[0].path));
 			const output = args[args.indexOf("--output-root") + 1];
@@ -151,6 +154,7 @@ test("installed qualification requires exact finalized setup & returns digest-bo
 			return { status: 0, stdout: JSON.stringify({ schemaVersion: 1, kind: "legion-windows-installed-installer-qualification", status: "qualified", product: "legion", version: "1.2.3", sourceRevision: REVISION, windowsFinalizationSha256: finalization.digest, evidence: { path: evidence, role: "qualification", size: statSync(evidence).size, sha256: sha(evidence) } }) };
 		} });
 		assert.equal(result.finalizationDigest, finalization.digest);
+		assert.ok(Buffer.byteLength(JSON.stringify(result)) < 32 * 1024);
 	} finally { rmSync(root, { recursive: true, force: true }); }
 });
 

@@ -8,6 +8,7 @@ import {
 	writeFileSync,
 } from "node:fs";
 import { delimiter, dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
+import { commandDiagnostic, INSTALLED_COMMAND_TIMEOUT_MS, releaseSpawnOptions } from "../release/process-boundary.mjs";
 
 function argument(names) {
 	for (const name of names) {
@@ -129,10 +130,10 @@ const invocations = [
 ];
 
 for (const { args, allowIncomplete = false, requireStructuralPreview = false } of invocations) {
-	const result = spawnSync(binary, args, { env: environment, encoding: "utf8", windowsHide: true });
+	const result = spawnSync(binary, args, releaseSpawnOptions({ env: environment }, INSTALLED_COMMAND_TIMEOUT_MS));
 	if (result.stdout) process.stdout.write(result.stdout);
 	if (result.stderr) process.stderr.write(result.stderr);
-	if (result.error) throw result.error;
+	if (result.error) throw new Error(`${binary} ${args.join(" ")} failed: ${commandDiagnostic(result)}`);
 	if (result.status === 0 && !requireStructuralPreview) continue;
 	if ([0, 2].includes(result.status) && requireStructuralPreview) {
 		let payload;
@@ -154,5 +155,5 @@ for (const { args, allowIncomplete = false, requireStructuralPreview = false } o
 		}
 		if (payload.status === "incomplete") continue;
 	}
-	throw new Error(`${binary} ${args.join(" ")} exited ${result.status}`);
+	throw new Error(`${binary} ${args.join(" ")} failed: ${commandDiagnostic(result)}`);
 }

@@ -19,6 +19,7 @@ import {
 	sep,
 } from "node:path";
 import { fileURLToPath } from "node:url";
+import { commandDiagnostic, releaseSpawnOptions } from "../release/process-boundary.mjs";
 import { createPortableArchive } from "@rightkit/release/direct-bootstrap.mjs";
 import {
 	materializeCycloneDxSbom,
@@ -89,9 +90,7 @@ function readSourceRevision(repositoryRoot, suppliedSourceRevision) {
 		return revision;
 	}
 	const result = spawnSync("git", ["rev-parse", "HEAD"], {
-		cwd: repositoryRoot,
-		encoding: "utf8",
-		windowsHide: true,
+		...releaseSpawnOptions({ cwd: repositoryRoot }),
 	});
 	const revision = String(result.stdout ?? "").trim().toLowerCase();
 	if (result.status !== 0 || !SOURCE_REVISION.test(revision)) {
@@ -173,9 +172,8 @@ function argument(args, names) {
 }
 
 function runCommand(command, args, options, label, commandRunner) {
-	const result = commandRunner(command, args, options);
-	if (result?.error) throw result.error;
-	if (result?.status !== 0) throw new Error(`${label} failed with exit code ${result?.status ?? "unknown"}`);
+	const result = commandRunner(command, args, releaseSpawnOptions(options));
+	if (result?.error || result?.status !== 0) throw new Error(`${label} failed: ${commandDiagnostic(result)}`);
 }
 
 function assembleAndSmoke({ inputRoot, identity, repositoryRoot, env, commandRunner }) {

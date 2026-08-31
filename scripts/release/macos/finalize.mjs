@@ -4,6 +4,7 @@ import { spawnSync } from "node:child_process";
 import { copyFileSync, existsSync, lstatSync, mkdirSync, readFileSync, readdirSync, statSync } from "node:fs";
 import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
+import { commandDiagnostic, releaseSpawnOptions } from "../process-boundary.mjs";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const WORKER = join(HERE, "build-installer.mjs");
@@ -18,14 +19,14 @@ function sha256(path) { return createHash("sha256").update(readFileSync(file(pat
 function record(path, role) { return { path: resolve(path), role, size: statSync(path).size, sha256: sha256(path) }; }
 function argument(name) { const index = process.argv.indexOf(name); return index < 0 ? undefined : process.argv[index + 1]; }
 function required(value, label) { if (!value) fail(`${label} is required`); return value; }
-function runJson(runner, command, args, options, label) { const result = runner(command, args, options); if (result?.error || result?.status !== 0) fail(`${label} failed: ${String(result?.stderr ?? result?.error?.message ?? "").trim()}`); try { return JSON.parse(String(result.stdout ?? "").trim()); } catch { fail(`${label} did not emit JSON`); } }
+function runJson(runner, command, args, options, label) { const result = runner(command, args, releaseSpawnOptions(options)); if (result?.error || result?.status !== 0) fail(`${label} failed: ${commandDiagnostic(result)}`); try { return JSON.parse(String(result.stdout ?? "").trim()); } catch { fail(`${label} did not emit JSON`); } }
 function evidence(root) {
 	directory(root, "portable root"); const entries = readdirSync(root, { withFileTypes: true });
 	if (entries.some((entry) => !entry.isFile() || entry.isSymbolicLink())) fail("portable root contains unsafe nested entry");
 	const one = (suffix, label) => { const found = entries.filter((entry) => entry.name.endsWith(suffix)); if (found.length !== 1) fail(`portable root must contain exactly one ${label}`); return file(join(root, found[0].name), label); };
 	return { archive: one(".tar.gz", "portable archive"), sbom: one(".cdx.json", "SBOM"), provenance: one(".intoto.jsonl", "provenance") };
 }
-function extract(archive, destination, commandRunner) { mkdirSync(destination, { recursive: true }); const result = commandRunner("tar", ["-xzf", archive, "-C", destination], { encoding: "utf8", windowsHide: true }); if (result?.error || result?.status !== 0) fail(`portable extraction failed: ${String(result?.stderr ?? result?.error?.message ?? "").trim()}`); for (const name of ["bin", "plugin", "share"]) directory(join(destination, name), `extracted ${name}`); return destination; }
+function extract(archive, destination, commandRunner) { mkdirSync(destination, { recursive: true }); const result = commandRunner("tar", ["-xzf", archive, "-C", destination], releaseSpawnOptions()); if (result?.error || result?.status !== 0) fail(`portable extraction failed: ${commandDiagnostic(result)}`); for (const name of ["bin", "plugin", "share"]) directory(join(destination, name), `extracted ${name}`); return destination; }
 function copyEvidence(input, output) { const root = join(output, "evidence"); mkdirSync(root, { recursive: true }); const copy = (path) => { const target = join(root, path.split(/[\\/]/).at(-1)); copyFileSync(path, target); if (sha256(target) !== sha256(path)) fail(`portable evidence copy mismatch: ${path}`); return target; }; return { archive: copy(input.archive), sbom: copy(input.sbom), provenance: copy(input.provenance) }; }
 export function finalizeMacos({ portableRoot, outputRoot, sourceRevision, version, architecture, commandRunner = spawnSync, env = process.env } = {}) {
 	if (!VERSION.test(String(version ?? ""))) fail("stable version is required"); if (!REVISION.test(String(sourceRevision ?? ""))) fail("source revision is invalid"); if (!ARCHITECTURES.has(architecture)) fail("architecture must be x86_64 or arm64");

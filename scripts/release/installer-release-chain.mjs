@@ -21,6 +21,7 @@ import {
 import { basename, dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { tmpdir } from "node:os";
 import { fileURLToPath } from "node:url";
+import { commandDiagnostic, releaseSpawnOptions } from "./process-boundary.mjs";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 const PRODUCT = "legion";
@@ -105,11 +106,11 @@ function copyRecord(fromRoot, toRoot, record) {
 	return { ...record, path: basename(target) };
 }
 function defaultRun(command, args, options) {
-	return spawnSync(command, args, { cwd: ROOT, encoding: "utf8", windowsHide: true, ...options });
+	return spawnSync(command, args, releaseSpawnOptions({ cwd: ROOT, ...options }));
 }
 function runJson(run, command, args, options, label) {
-	const result = run(command, args, options);
-	if (result?.status !== 0) fail(`${label} failed: ${String(result?.stderr ?? result?.error?.message ?? "unknown error").trim()}`);
+	const result = run(command, args, releaseSpawnOptions(options));
+	if (result?.error || result?.status !== 0) fail(`${label} failed: ${commandDiagnostic(result)}`);
 	const output = String(result?.stdout ?? "").trim();
 	try { return JSON.parse(output); }
 	catch { fail(`${label} must emit one JSON object`); }
@@ -166,14 +167,8 @@ function finalizationManifest({ platform, env, run = defaultRun, repositoryRoot 
 	assertDirectory(mapped.LEGION_UNSIGNED_CANDIDATE_ROOT, "unsigned candidate root");
 	// RightRelease is exact signer/notarizer.  No platform finalizer runs until it
 	// succeeds. --skip-checks only skips package checks already run by candidate CI.
-	const release = run(process.execPath, [RIGHT_RELEASE_CLI, "build", "--platform", platform === "windows" ? "win" : "mac", "--skip-checks"], { cwd: repositoryRoot, env: mapped });
-	if (release?.status !== 0) {
-		const detail = [release?.stderr, release?.stdout, release?.error?.message]
-			.map((value) => String(value ?? "").trim())
-			.filter(Boolean)
-			.join("\n");
-		fail(`RightRelease ${platform} finalization failed: ${detail || "unknown error"}`);
-	}
+	const release = run(process.execPath, [RIGHT_RELEASE_CLI, "build", "--platform", platform === "windows" ? "win" : "mac", "--skip-checks"], releaseSpawnOptions({ cwd: repositoryRoot, env: mapped }));
+	if (release?.error || release?.status !== 0) fail(`RightRelease ${platform} finalization failed: ${commandDiagnostic(release)}`);
 	assertDirectory(portableRoot, "RightRelease portable output");
 	const finalizerPath = join(repositoryRoot, FINALIZER[platform]);
 	assertFile(finalizerPath, `${platform} installer finalizer`);
@@ -232,8 +227,8 @@ export function qualifyInstalled({ env = process.env, run = defaultRun, reposito
 }
 function gh(run, args, options, _label) { return run("gh", args, options ?? {}); }
 function ghJson(run, args, options, label) {
-	const result = gh(run, args, options, label);
-	if (result?.status !== 0) fail(`${label} failed: ${String(result?.stderr ?? "").trim()}`);
+	const result = gh(run, args, releaseSpawnOptions(options), label);
+	if (result?.error || result?.status !== 0) fail(`${label} failed: ${commandDiagnostic(result)}`);
 	try { return JSON.parse(String(result.stdout ?? "")); } catch { fail(`${label} returned invalid JSON`); }
 }
 export function publishQualified({ env = process.env, run = defaultRun, repositoryRoot = ROOT, downloadRoot = null } = {}) {
@@ -249,10 +244,10 @@ export function publishQualified({ env = process.env, run = defaultRun, reposito
 	if (qualification.schemaVersion !== 1 || qualification.kind !== "legion-windows-installed-installer-qualification" || qualification.status !== "qualified" || qualification.product !== PRODUCT || qualification.version !== windows.version || sourceRevision(qualification.sourceRevision) !== windows.sourceRevision || String(qualification.windowsFinalizationSha256 ?? "").toLowerCase() !== windows.digest) fail("qualification does not match Windows finalization");
 	const tag = `v${windows.version}`;
 	const releaseEnv = { ...env, GH_TOKEN: token };
-	let release = gh(run, ["release", "view", tag, "--repo", REPOSITORY, "--json", "tagName,isDraft,isPrerelease,assets"], { cwd: repositoryRoot, env: releaseEnv }, "GitHub release view");
+	let release = gh(run, ["release", "view", tag, "--repo", REPOSITORY, "--json", "tagName,isDraft,isPrerelease,assets"], releaseSpawnOptions({ cwd: repositoryRoot, env: releaseEnv }), "GitHub release view");
 	if (release.status !== 0) {
-		release = gh(run, ["release", "create", tag, "--repo", REPOSITORY, "--target", windows.sourceRevision, "--title", `Legion ${tag}`, "--notes", `Qualified installers for ${windows.sourceRevision}.`], { cwd: repositoryRoot, env: releaseEnv }, "GitHub release create");
-		if (release.status !== 0) fail(`GitHub release create failed: ${String(release.stderr ?? "").trim()}`);
+		release = gh(run, ["release", "create", tag, "--repo", REPOSITORY, "--target", windows.sourceRevision, "--title", `Legion ${tag}`, "--notes", `Qualified installers for ${windows.sourceRevision}.`], releaseSpawnOptions({ cwd: repositoryRoot, env: releaseEnv }), "GitHub release create");
+		if (release?.error || release.status !== 0) fail(`GitHub release create failed: ${commandDiagnostic(release)}`);
 	}
 	const records = [...windows.records, ...macos.records, entryRecord(qualificationRoot, { role: "qualification", path: qualificationPath, size: statSync(qualificationPath).size, sha256: digest(qualificationPath) }, "qualification evidence")];
 	const names = new Set();
@@ -260,8 +255,8 @@ export function publishQualified({ env = process.env, run = defaultRun, reposito
 		if (names.has(record.name.toLowerCase())) fail(`release asset name is duplicated: ${record.name}`);
 		names.add(record.name.toLowerCase());
 		const source = record.role === "qualification" ? qualificationPath : record.path;
-		const upload = gh(run, ["release", "upload", tag, source, "--repo", REPOSITORY], { cwd: repositoryRoot, env: releaseEnv }, `GitHub release upload ${record.name}`);
-		if (upload.status !== 0 && !/already exists|already been taken/i.test(String(upload.stderr ?? ""))) fail(`GitHub release upload failed for ${record.name}: ${String(upload.stderr ?? "").trim()}`);
+		const upload = gh(run, ["release", "upload", tag, source, "--repo", REPOSITORY], releaseSpawnOptions({ cwd: repositoryRoot, env: releaseEnv }), `GitHub release upload ${record.name}`);
+		if ((upload?.error || upload.status !== 0) && !/already exists|already been taken/i.test(String(upload.stderr ?? ""))) fail(`GitHub release upload failed for ${record.name}: ${commandDiagnostic(upload)}`);
 	}
 	const verified = ghJson(run, ["release", "view", tag, "--repo", REPOSITORY, "--json", "tagName,assets"], { cwd: repositoryRoot, env: releaseEnv }, "GitHub release verify");
 	if (verified.tagName !== tag || !Array.isArray(verified.assets)) fail("GitHub release identity is invalid");
@@ -272,8 +267,9 @@ export function publishQualified({ env = process.env, run = defaultRun, reposito
 		if (asset.length !== 1 || asset[0].size !== record.size) fail(`GitHub release asset is missing or mismatched: ${record.name}`);
 		const destination = join(root, record.name);
 		if (existsSync(destination)) rmSync(destination, { force: true });
-		const download = gh(run, ["release", "download", tag, "--repo", REPOSITORY, "--pattern", record.name, "--dir", root], { cwd: repositoryRoot, env: releaseEnv }, `GitHub release download ${record.name}`);
-		if (download.status !== 0 || digest(destination) !== record.sha256) fail(`GitHub release download verification failed: ${record.name}`);
+		const download = gh(run, ["release", "download", tag, "--repo", REPOSITORY, "--pattern", record.name, "--dir", root], releaseSpawnOptions({ cwd: repositoryRoot, env: releaseEnv }), `GitHub release download ${record.name}`);
+		if (download?.error || download.status !== 0) fail(`GitHub release download failed for ${record.name}: ${commandDiagnostic(download)}`);
+		if (digest(destination) !== record.sha256) fail(`GitHub release download digest mismatch: ${record.name}`);
 	}
 	return { status: "published", tag, version: windows.version, sourceRevision: windows.sourceRevision, windowsFinalizationSha256: windows.digest, macosFinalizationSha256: macos.digest, qualificationSha256: digest(qualificationPath) };
 }

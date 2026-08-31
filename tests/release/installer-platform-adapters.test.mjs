@@ -7,6 +7,11 @@ import test from "node:test";
 import { finalizeWindows } from "../../scripts/release/windows/finalize.mjs";
 import { finalizeMacos } from "../../scripts/release/macos/finalize.mjs";
 import { qualifyInstalledWindows } from "../../scripts/release/windows/qualify-installed.mjs";
+import {
+	commandDiagnostic,
+	INSTALLED_COMMAND_TIMEOUT_MS,
+	RELEASE_CAPTURE_MAX_BYTES,
+} from "../../scripts/release/process-boundary.mjs";
 
 const REVISION = "b".repeat(40);
 const sha = (path) => createHash("sha256").update(readFileSync(path)).digest("hex");
@@ -45,6 +50,8 @@ test("Windows installed qualification silently installs, checks, uninstalls, & b
 		let localAppData;
 		const setupCommands = [];
 		const result = qualifyInstalledWindows({ setup, outputRoot: output, finalizationPath: finalization, sourceRevision: REVISION, version: "1.2.3", platform: "win32", temporaryRoot: root, commandRunner(command, args, options) {
+			assert.equal(options.maxBuffer, RELEASE_CAPTURE_MAX_BYTES);
+			assert.equal(options.timeout, INSTALLED_COMMAND_TIMEOUT_MS);
 			if (command === setup) { const dir = args.find((item) => item.startsWith("/DIR=")).slice(5); assert.match(dir.replaceAll("\\", "/"), /local-app-data\/Orthic Labs\/Legion$/); localAppData = options.env.LOCALAPPDATA; assert.equal(dir, join(localAppData, "Orthic Labs", "Legion")); mkdirSync(join(dir, "current", "bin"), { recursive: true }); writeFileSync(join(dir, "current", "bin", "legion.exe"), "legion"); writeFileSync(join(dir, "unins000.exe"), "uninstall"); return { status: 0 }; }
 			assert.equal(options.env.LOCALAPPDATA, localAppData); if (command.endsWith("unins000.exe")) { rmSync(join(command, ".."), { recursive: true, force: true }); return { status: 0 }; }
 			assert.equal(command.endsWith("current\\bin\\legion.exe"), true);
@@ -57,7 +64,7 @@ test("Windows installed qualification silently installs, checks, uninstalls, & b
 			const liveIdentity = { projections: { claudePlugin: { state: "current" }, codexPlugin: { state: "current" } } };
 			if (args.join(" ") === "--json setup repair --confirm") {
 				setupCommands.push("repair");
-				return { status: 0, stdout: JSON.stringify({ kind: "legion-setup-execution", status: "complete", origin: "installed", executable, stableCurrent: true, execution: { clients }, liveIdentity }) };
+				return { status: 0, stdout: JSON.stringify({ kind: "legion-setup-execution", status: "complete", origin: "installed", executable, stableCurrent: true, execution: { clients }, liveIdentity, diagnosticPadding: "x".repeat(2 * 1024 * 1024) }) };
 			}
 			if (args.join(" ") === "--json setup status") {
 				setupCommands.push("status");
@@ -66,5 +73,14 @@ test("Windows installed qualification silently installs, checks, uninstalls, & b
 			return { status: 1, stderr: `unexpected command: ${args.join(" ")}` };
 		} });
 		assert.equal(result.status, "qualified"); assert.equal(existsSync(join(output, "qualification.json")), true); assert.deepEqual(setupCommands, ["repair", "status"]); assert.equal(result.activation.status.status, "complete");
+		assert.ok(result.commands.repair.stdout.bytes > 1024 * 1024);
+		assert.equal("stdout" in result.activation.repair, false);
+		assert.ok(statSync(join(output, "qualification.json")).size < 32 * 1024);
+		assert.ok(Buffer.byteLength(JSON.stringify(result)) < 32 * 1024);
 	} finally { rmSync(root, { recursive: true, force: true }); }
+});
+
+test("release subprocess diagnostics retain buffer & timeout errors when stderr is empty", () => {
+	assert.match(commandDiagnostic({ status: null, signal: "SIGTERM", stderr: "", stdout: "partial", error: new Error("spawnSync legion ENOBUFS") }), /ENOBUFS/);
+	assert.match(commandDiagnostic({ status: null, signal: "SIGTERM", stderr: "", stdout: "", error: new Error("spawnSync legion ETIMEDOUT") }), /ETIMEDOUT/);
 });
