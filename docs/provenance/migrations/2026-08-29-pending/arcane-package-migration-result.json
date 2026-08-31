@@ -547,7 +547,7 @@
         "target exists",
         "all resolvable imports rewritten"
       ],
-      "sha256AfterMove": "64617bfd94b3eb6c9968372c7d16a43064f617221c10c0e4a837a787fe30d35f",
+      "sha256AfterMove": "58079427498721953af6277f0ec36500a30462e89bedc0a288a79260142e25a5",
       "newConsumers": [
         "src/lib/guard/compat/host/claude-code-adapter.mjs",
         "src/lib/guard/compat/host/codex-adapter.mjs",
