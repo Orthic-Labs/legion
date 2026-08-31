@@ -124,21 +124,25 @@ const invocations = [
 	{ args: ["--json", "setup", "--check"], allowIncomplete: true },
 	{
 		args: ["--json", "setup", "repair", "--client-evidence", evidencePath, "--client", "codex", "--dry-run"],
-		expectMissingLiveProofs: true,
+		requireStructuralPreview: true,
 	},
 ];
 
-for (const { args, allowIncomplete = false, expectMissingLiveProofs = false } of invocations) {
+for (const { args, allowIncomplete = false, requireStructuralPreview = false } of invocations) {
 	const result = spawnSync(binary, args, { env: environment, encoding: "utf8", windowsHide: true });
 	if (result.stdout) process.stdout.write(result.stdout);
 	if (result.stderr) process.stderr.write(result.stderr);
 	if (result.error) throw result.error;
-	if (result.status === 0) continue;
-	if (
-		expectMissingLiveProofs &&
-		result.status === 2 &&
-		result.stderr.includes("requires commandProofRef and qualificationEvidenceRef")
-	) {
+	if (result.status === 0 && !requireStructuralPreview) continue;
+	if ([0, 2].includes(result.status) && requireStructuralPreview) {
+		let payload;
+		try {
+			payload = JSON.parse(result.stdout);
+		} catch {
+			throw new Error(`${binary} ${args.join(" ")} returned non-JSON activation output`);
+		}
+		const client = payload.preview?.clients?.find((item) => item.client_id === "codex");
+		if (client?.fidelity !== "Full" || client?.missing_surfaces?.length !== 0) throw new Error(`${binary} ${args.join(" ")} did not prove proofless structural activation`);
 		continue;
 	}
 	if (allowIncomplete && [1, 2].includes(result.status)) {

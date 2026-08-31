@@ -3,7 +3,7 @@ import { createHash } from "node:crypto";
 import { spawnSync } from "node:child_process";
 import { existsSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join, resolve } from "node:path";
+import { delimiter, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const REVISION = /^[a-f0-9]{40,64}$/i;
@@ -18,6 +18,22 @@ function execute(commandRunner, executable, args, options, label) {
 	const result = commandRunner(executable, args, { encoding: "utf8", windowsHide: true, ...options });
 	if (result?.error || result?.status !== 0) fail(`${label} failed: ${String(result?.stderr ?? result?.error?.message ?? result?.stdout ?? "").trim()}`);
 	return { stdout: String(result?.stdout ?? "").trim(), stderr: String(result?.stderr ?? "").trim() };
+}
+function setupPayload(run, kind, executable, label) {
+	let value;
+	try { value = JSON.parse(run.stdout); }
+	catch (error) { fail(`${label} did not return JSON: ${error.message}`); }
+	if (value?.kind !== kind || value?.status !== "complete" || value?.origin !== "installed") fail(`${label} did not report complete installed activation`);
+	if (resolve(String(value.executable ?? "")) !== resolve(executable) || value.stableCurrent !== true) fail(`${label} did not bind stable current executable`);
+	const clients = kind === "legion-setup-execution" ? value.execution?.clients : value.clients;
+	for (const clientId of ["claude-code", "codex"]) {
+		const client = clients?.find((item) => (item?.clientId ?? item?.client_id) === clientId);
+		if (!client?.installed || client?.fidelity !== "Full") fail(`${label} did not structurally activate ${clientId}`);
+	}
+	for (const projection of ["claudePlugin", "codexPlugin"]) {
+		if (value.liveIdentity?.projections?.[projection]?.state !== "current") fail(`${label} did not verify current ${projection}`);
+	}
+	return value;
 }
 function disappears(path, timeoutMs = 3000) {
 	const wake = new Int32Array(new SharedArrayBuffer(4));
@@ -45,20 +61,31 @@ export function qualifyInstalledWindows({ setup, outputRoot, finalizationPath, s
 	const finalizationSha256 = sha256(finalizationFile);
 	const workspace = mkdtempSync(join(resolve(temporaryRoot), "legion-installed-qualification-"));
 	const localAppData = join(workspace, "local-app-data");
-	const environment = { ...process.env, LOCALAPPDATA: localAppData };
 	const installRoot = join(localAppData, "Orthic Labs", "Legion");
+	const profile = join(workspace, "profile");
+	for (const clientRoot of [".claude", ".codex"]) mkdirSync(join(profile, clientRoot), { recursive: true });
+	const executable = join(installRoot, "current", "bin", "legion.exe");
+	const environment = {
+		...process.env,
+		LOCALAPPDATA: localAppData,
+		USERPROFILE: profile,
+		PATH: `${join(installRoot, "current", "bin")}${delimiter}${process.env.PATH ?? ""}`,
+	};
 	try {
 		execute(commandRunner, installer, ["/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART", `/DIR=${installRoot}`], { cwd: workspace, env: environment }, "silent setup");
-		const executable = join(installRoot, "current", "bin", "legion.exe");
 		file(executable, "installed legion.exe");
 		const versionRun = execute(commandRunner, executable, ["--version"], { cwd: installRoot, env: environment }, "installed legion --version");
+		const repairRun = execute(commandRunner, executable, ["--json", "setup", "repair", "--confirm"], { cwd: installRoot, env: environment }, "installed legion setup repair");
+		const repair = setupPayload(repairRun, "legion-setup-execution", executable, "installed legion setup repair");
+		const statusRun = execute(commandRunner, executable, ["--json", "setup", "status"], { cwd: installRoot, env: environment }, "installed legion setup status");
+		const status = setupPayload(statusRun, "legion-setup-status", executable, "installed legion setup status");
 		const doctorRun = execute(commandRunner, executable, ["doctor"], { cwd: installRoot, env: environment }, "installed legion doctor");
 		const uninstaller = join(installRoot, "unins000.exe");
 		file(uninstaller, "installed uninstaller");
 		execute(commandRunner, uninstaller, ["/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART"], { cwd: workspace, env: environment }, "silent uninstall");
 		if (!disappears(installRoot)) fail("silent uninstall left installed product behind");
 		const evidencePath = join(output, "qualification.json");
-		const evidence = { schemaVersion: 1, kind: "legion-windows-installed-installer-qualification", status: "qualified", product: "legion", version, sourceRevision: revision, windowsFinalizationSha256: finalizationSha256, setup: { name: installer.split(/[\\/]/).at(-1), sha256: sha256(installer), size: statSync(installer).size }, commands: { version: versionRun, doctor: doctorRun, uninstall: "removed" } };
+		const evidence = { schemaVersion: 1, kind: "legion-windows-installed-installer-qualification", status: "qualified", product: "legion", version, sourceRevision: revision, windowsFinalizationSha256: finalizationSha256, setup: { name: installer.split(/[\\/]/).at(-1), sha256: sha256(installer), size: statSync(installer).size }, commands: { version: versionRun, repair: repairRun, status: statusRun, doctor: doctorRun, uninstall: "removed" }, activation: { repair, status } };
 		writeFileSync(evidencePath, `${JSON.stringify(evidence, null, 2)}\n`);
 		return { ...evidence, evidence: { path: evidencePath, role: "qualification", size: statSync(evidencePath).size, sha256: sha256(evidencePath) } };
 	} finally { rmSync(workspace, { recursive: true, force: true }); }

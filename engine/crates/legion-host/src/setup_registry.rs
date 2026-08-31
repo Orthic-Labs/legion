@@ -1306,8 +1306,12 @@ impl<S: SetupStore> SetupRegistry<S> {
             snapshot,
             release: self.release.clone(),
         };
-        let external_qualification =
-            external_qualification(&clients, self.store.platform_state_root(), &request.release);
+        let external_qualification = external_qualification(
+            &clients,
+            &request.client_evidence,
+            self.store.platform_state_root(),
+            &request.release,
+        );
         let plan_digest = compute_plan_digest(
             &request,
             &clients,
@@ -1471,6 +1475,7 @@ impl<S: SetupStore> SetupRegistry<S> {
             clients: self.status(&ClientSelector::AllSupported)?,
             remediation: Vec::new(),
             external_qualification: external_qualification(
+                &[],
                 &[],
                 self.store.platform_state_root(),
                 &self.release,
@@ -2488,12 +2493,6 @@ fn detected(evidence: &ClientEvidence) -> DetectedClient {
         };
     };
     let mut missing = Vec::new();
-    if evidence.command_proof_ref.is_none() && profile.executable_registration {
-        missing.push("command resolution proof".into());
-    }
-    if evidence.qualification_evidence_ref.is_none() && profile.executable_registration {
-        missing.push("real-client qualification evidence".into());
-    }
     if evidence.client_id == CLIENT_PI {
         missing.extend(
             [
@@ -2507,15 +2506,10 @@ fn detected(evidence: &ClientEvidence) -> DetectedClient {
             .map(String::from),
         );
     }
-    let qualified = profile.executable_registration && missing.is_empty();
-    let legacy_bare = selected_mechanism == "agent-plugins-bare-command"
-        && matches!(evidence.client_id.as_str(), CLIENT_CLAUDE | CLIENT_CODEX);
     let fidelity = if evidence.client_id == CLIENT_PI {
         "Baseline"
-    } else if qualified {
+    } else if profile.executable_registration {
         "Full"
-    } else if legacy_bare {
-        "Baseline"
     } else {
         "Degraded"
     };
@@ -2524,7 +2518,7 @@ fn detected(evidence: &ClientEvidence) -> DetectedClient {
         selected_mechanism,
         fidelity: fidelity.into(),
         missing_surfaces: missing,
-        remediation: if qualified || evidence.client_id == CLIENT_PI {
+        remediation: if profile.executable_registration || evidence.client_id == CLIENT_PI {
             Vec::new()
         } else {
             vec!["legion setup repair --confirm".into()]
@@ -2563,12 +2557,20 @@ fn select_mechanism(client_id: &str, mechanisms: &[String]) -> Option<String> {
 }
 fn external_qualification(
     clients: &[DetectedClient],
+    evidence: &[ClientEvidence],
     platform_state_root: &Path,
     release: &BoundRelease,
 ) -> ExternalQualification {
     let mut missing: Vec<String> = clients
         .iter()
-        .filter(|client| client.fidelity != "Full")
+        .filter(|client| client_supports_live_qualification(&client.client_id))
+        .filter(|client| {
+            !evidence.iter().any(|item| {
+                item.client_id == client.client_id
+                    && item.command_proof_ref.is_some()
+                    && item.qualification_evidence_ref.is_some()
+            })
+        })
         .map(|client| format!("qualified client evidence: {}", client.client_id))
         .collect();
     if clients.is_empty() {
@@ -2954,7 +2956,7 @@ mod tests {
                 client_id: "claude-code".into(),
                 detected: true,
                 mechanisms: vec!["agent-plugins-bare-command".into()],
-                command_proof_ref: Some("proof".into()),
+                command_proof_ref: None,
                 qualification_evidence_ref: None,
             }],
             origin: ORIGIN_INSTALLED.into(),
@@ -2974,6 +2976,11 @@ mod tests {
             preview.external_qualification.status,
             ExternalQualificationStatus::ExternalQualificationBlocked
         );
+        assert_eq!(preview.clients[0].fidelity, "Full");
+        assert!(preview.clients[0].missing_surfaces.is_empty());
+        assert!(preview.external_qualification.missing_evidence.iter().any(|item| {
+            item == "qualified client evidence: claude-code"
+        }));
         let wrong = PlanConfirmation {
             plan_id: "wrong".into(),
             plan_digest: preview.plan_digest.clone(),
@@ -2990,7 +2997,9 @@ mod tests {
             .execute(registry.confirm(preview, confirmation).unwrap())
             .unwrap();
         assert_eq!(result.generation.as_deref(), Some("1"));
-        assert!(registry.status(&ClientSelector::AllSupported).unwrap()[0].installed);
+        let status = registry.status(&ClientSelector::AllSupported).unwrap();
+        assert!(status[0].installed);
+        assert_eq!(status[0].fidelity, "Full");
     }
 
     #[test]

@@ -43,11 +43,28 @@ test("Windows installed qualification silently installs, checks, uninstalls, & b
 		const setup = join(root, "Legion-setup.exe"); writeFileSync(setup, "setup"); const finalization = join(root, "installer-finalization.json"); writeFileSync(finalization, JSON.stringify({ schemaVersion: 1, kind: "legion-installer-finalization", product: "legion", platform: "windows", version: "1.2.3", sourceRevision: REVISION, assets: [{ role: "installer" }] }));
 		const output = join(root, "evidence");
 		let localAppData;
+		const setupCommands = [];
 		const result = qualifyInstalledWindows({ setup, outputRoot: output, finalizationPath: finalization, sourceRevision: REVISION, version: "1.2.3", platform: "win32", temporaryRoot: root, commandRunner(command, args, options) {
 			if (command === setup) { const dir = args.find((item) => item.startsWith("/DIR=")).slice(5); assert.match(dir.replaceAll("\\", "/"), /local-app-data\/Orthic Labs\/Legion$/); localAppData = options.env.LOCALAPPDATA; assert.equal(dir, join(localAppData, "Orthic Labs", "Legion")); mkdirSync(join(dir, "current", "bin"), { recursive: true }); writeFileSync(join(dir, "current", "bin", "legion.exe"), "legion"); writeFileSync(join(dir, "unins000.exe"), "uninstall"); return { status: 0 }; }
 			assert.equal(options.env.LOCALAPPDATA, localAppData); if (command.endsWith("unins000.exe")) { rmSync(join(command, ".."), { recursive: true, force: true }); return { status: 0 }; }
-			assert.equal(command.endsWith("current\\bin\\legion.exe"), true); assert.equal(["--version", "doctor"].includes(args[0]), true); return { status: 0, stdout: "ok" };
+			assert.equal(command.endsWith("current\\bin\\legion.exe"), true);
+			assert.equal(options.env.PATH.split(";")[0], join(localAppData, "Orthic Labs", "Legion", "current", "bin"));
+			assert.equal(existsSync(join(options.env.USERPROFILE, ".claude")), true);
+			assert.equal(existsSync(join(options.env.USERPROFILE, ".codex")), true);
+			if (args[0] === "--version" || args[0] === "doctor") return { status: 0, stdout: "ok" };
+			const executable = join(localAppData, "Orthic Labs", "Legion", "current", "bin", "legion.exe");
+			const clients = ["claude-code", "codex"].map((clientId) => ({ clientId, installed: true, fidelity: "Full" }));
+			const liveIdentity = { projections: { claudePlugin: { state: "current" }, codexPlugin: { state: "current" } } };
+			if (args.join(" ") === "--json setup repair --confirm") {
+				setupCommands.push("repair");
+				return { status: 0, stdout: JSON.stringify({ kind: "legion-setup-execution", status: "complete", origin: "installed", executable, stableCurrent: true, execution: { clients }, liveIdentity }) };
+			}
+			if (args.join(" ") === "--json setup status") {
+				setupCommands.push("status");
+				return { status: 0, stdout: JSON.stringify({ kind: "legion-setup-status", status: "complete", origin: "installed", executable, stableCurrent: true, clients, liveIdentity }) };
+			}
+			return { status: 1, stderr: `unexpected command: ${args.join(" ")}` };
 		} });
-		assert.equal(result.status, "qualified"); assert.equal(existsSync(join(output, "qualification.json")), true);
+		assert.equal(result.status, "qualified"); assert.equal(existsSync(join(output, "qualification.json")), true); assert.deepEqual(setupCommands, ["repair", "status"]); assert.equal(result.activation.status.status, "complete");
 	} finally { rmSync(root, { recursive: true, force: true }); }
 });

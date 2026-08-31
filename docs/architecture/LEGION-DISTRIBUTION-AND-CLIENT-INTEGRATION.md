@@ -94,6 +94,10 @@ Bootstrap:
 9. requires exact `legion setup status` health before success.
 
 Harness registrations always bind stable `current` executable, never a disposable version path.
+Activation is structural & offline: it never requires client login, model invocation, or authenticated
+MCP qualification. `legion setup qualify` refreshes authenticated live-client evidence separately;
+failed qualification returns separate `blocked` health, while setup status reports stored evidence as
+`qualified`, `partial`, `not_run`, or `stale` without invalidating current structural activation.
 Rerunning bootstrap updates. Explicit version pins are supported; downgrade requires an explicit
 flag. Prior successful version is retained. Failure restores previous `current` pointer,
 integration journal, & prior exact health. Removal deletes verified Legion-owned runtime &
@@ -113,9 +117,10 @@ core includes every public canonical skill with plain IDs & no private/personal 
 | Pi | Native `.agents/skills` projection; Pi is not claimed as full Agent Plugins support or executable registration. |
 | Antigravity | Dedicated native plugin projection using its schema, `mcp_config.json`, hooks, skills, agents, & rules. |
 
-`legion setup repair --confirm` detects, reconciles, verifies, & journals selected clients.
+`legion setup repair --confirm` detects, reconciles, structurally verifies, & journals selected clients.
 `legion setup status` reports actual runtime binding, projection generation, executable resolution,
-MCP qualification, skill fidelity, & typed degradation. Client adapters remain mechanical; Legion
+stored authenticated MCP qualification, skill fidelity, & typed degradation. Authenticated live
+qualification runs only through `legion setup qualify` & never gates activation. Client adapters remain mechanical; Legion
 semantics stay canonical.
 
 ## 5. Ownership

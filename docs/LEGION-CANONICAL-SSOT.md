@@ -453,6 +453,11 @@ the stable `current` target, and activates clients. Setup/status must report
 closed whenever any binding escapes the stable `current` executable. Private workspace content is
 excluded from installed releases, client projections, and production bindings.
 
+Client activation is structural & offline. Client authentication, model invocation, & live MCP
+qualification never gate setup repair or setup status completeness. `legion setup qualify` refreshes
+that separate health evidence; status reports `qualified`, `partial`, `not_run`, or `stale` without
+conflating it with installed projection state.
+
 ### 13.2 Public CI & protected release boundary
 
 Public `Orthic-Labs/legion` GitHub Actions owns compile, test, candidate/package qualification, package smoke, SBOM,

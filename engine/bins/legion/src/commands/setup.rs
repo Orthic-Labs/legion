@@ -4,7 +4,7 @@ use legion_effects::{PlatformProcess, ProcessLaunch, ProcessOutput};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use std::{
-    collections::BTreeMap,
+    collections::{BTreeMap, BTreeSet},
     ffi::OsString,
     path::{Component, Path, PathBuf},
     time::Duration,
@@ -131,6 +131,7 @@ enum SetupCommand {
     Preview(SetupPreviewArgs),
     Apply(SetupMutationArgs),
     Status(SetupClientArgs),
+    Qualify(SetupClientArgs),
     Repair(SetupLifecycleArgs),
     Disable(SetupLifecycleArgs),
     Remove(SetupLifecycleArgs),
@@ -285,6 +286,7 @@ pub async fn run(args: SetupArgs, cancellation: CancellationToken) -> CommandRes
             execute(args, legion_host::SetupAction::Apply, cancellation).await
         }
         Some(SetupCommand::Status(args)) => status(args, context),
+        Some(SetupCommand::Qualify(args)) => qualify(args, context, cancellation).await,
         Some(SetupCommand::Repair(args)) => {
             lifecycle(
                 args,
@@ -396,6 +398,11 @@ async fn lifecycle(
     preview_host_integrations(&integration_request)?;
     let execution = registry.execute(confirmed).map_err(setup_error)?;
     let host_integrations = apply_host_integrations(&integration_request)?;
+    let authenticated_live_qualification = inspect_stored_live_qualification(
+        &execution.clients,
+        &integration_request.release,
+        &integration_request.platform_state_root,
+    );
     let execution_value = serde_json::to_value(&execution)
         .map_err(|error| CommandError::incomplete(error.to_string()))?;
     let live_identity =
@@ -421,6 +428,7 @@ async fn lifecycle(
         "remediation": remediation,
         "recovery": recovery,
         "execution": execution_value,
+        "authenticatedLiveQualification": authenticated_live_qualification,
         "hostIntegrations": host_integrations,
         "liveIdentity": live_identity,
     }))
@@ -535,6 +543,9 @@ fn status(
     let recovery = registry.recover().map_err(setup_error)?;
     let clients = registry.status(&selector).map_err(setup_error)?;
     let host_integrations = inspect_host_integrations(&selector, &release)?;
+    let platform_state_root = legion_host::platform_state_root().map_err(setup_error)?;
+    let authenticated_live_qualification =
+        inspect_stored_live_qualification(&clients, &release, &platform_state_root);
     let clients_value = serde_json::to_value(&clients)
         .map_err(|error| CommandError::incomplete(error.to_string()))?;
     let live_identity = inspect_live_identity(&host_integrations, None)?;
@@ -555,8 +566,62 @@ fn status(
         "remediation": remediation,
         "recovery": recovery,
         "clients": clients_value,
+        "authenticatedLiveQualification": authenticated_live_qualification,
         "hostIntegrations": host_integrations,
         "liveIdentity": live_identity,
+    }))
+}
+
+async fn qualify(
+    args: SetupClientArgs,
+    context: Option<legion_host::DevelopmentSetupContext>,
+    cancellation: CancellationToken,
+) -> CommandResult {
+    if context.is_some() {
+        return Err(CommandError::usage(
+            "authenticated live qualification is available only for installed Legion",
+        ));
+    }
+    let release = installed_bound_release()?;
+    let platform_state_root = legion_host::platform_state_root().map_err(setup_error)?;
+    let selected = args.client.as_deref();
+    let (evidence, clients) = qualify_discovered_clients(
+        selected,
+        &release,
+        &platform_state_root,
+        cancellation.clone(),
+    )
+    .await?;
+    validate_client_evidence(
+        &evidence,
+        selected,
+        &release,
+        &platform_state_root,
+        false,
+        cancellation,
+    )
+    .await?;
+    let applicable = clients
+        .iter()
+        .filter(|client| client["status"] != "not_supported")
+        .collect::<Vec<_>>();
+    let status = if applicable.is_empty() {
+        "not_applicable"
+    } else if applicable
+        .iter()
+        .all(|client| client["status"] == "qualified")
+    {
+        "qualified"
+    } else {
+        "blocked"
+    };
+    Ok(json!({
+        "schemaVersion": 1,
+        "kind": "legion-setup-authenticated-live-qualification",
+        "status": status,
+        "releaseVersion": release.release_version,
+        "clients": clients,
+        "activationRequired": false,
     }))
 }
 
@@ -585,7 +650,7 @@ async fn execute(
         selected,
         &preview.request.release,
         &preview.request.platform_state_root,
-        true,
+        false,
         cancellation,
     )
     .await?;
@@ -604,6 +669,11 @@ async fn execute(
     preview_host_integrations(&integration_request)?;
     let execution = registry.execute(confirmed).map_err(setup_error)?;
     let host_integrations = apply_host_integrations(&integration_request)?;
+    let authenticated_live_qualification = inspect_stored_live_qualification(
+        &execution.clients,
+        &integration_request.release,
+        &integration_request.platform_state_root,
+    );
     let execution_value = serde_json::to_value(&execution)
         .map_err(|error| CommandError::incomplete(error.to_string()))?;
     let live_identity =
@@ -629,6 +699,7 @@ async fn execute(
         "remediation": remediation,
         "recovery": recovery,
         "execution": execution_value,
+        "authenticatedLiveQualification": authenticated_live_qualification,
         "hostIntegrations": host_integrations,
         "liveIdentity": live_identity,
     }))
@@ -693,10 +764,7 @@ async fn request_from_release(
         args.client.as_deref(),
         &release,
         &platform_state_root,
-        matches!(
-            action,
-            legion_host::SetupAction::Apply | legion_host::SetupAction::Repair
-        ),
+        false,
         cancellation,
     )
     .await?;
@@ -728,19 +796,9 @@ async fn client_evidence(
     live_validation: bool,
     cancellation: CancellationToken,
 ) -> Result<Vec<legion_host::ClientEvidence>, CommandError> {
-    let (evidence, already_live) = match evidence_path {
-        Some(path) => (read_json(&path, "ClientEvidence array")?, false),
-        None if live_validation => (
-            qualify_discovered_clients(
-                selected,
-                release,
-                platform_state_root,
-                cancellation.clone(),
-            )
-            .await?,
-            true,
-        ),
-        None => (discovered_client_evidence(selected), false),
+    let evidence = match evidence_path {
+        Some(path) => read_json(&path, "ClientEvidence array")?,
+        None => discovered_client_evidence(selected),
     };
     if live_validation {
         validate_live_evidence_refs(&evidence, selected)?;
@@ -750,7 +808,7 @@ async fn client_evidence(
         selected,
         release,
         platform_state_root,
-        live_validation && !already_live,
+        live_validation,
         cancellation,
     )
     .await?;
@@ -852,7 +910,7 @@ fn validate_live_evidence_refs(
         }
         if client.command_proof_ref.is_none() || client.qualification_evidence_ref.is_none() {
             return Err(CommandError::incomplete(format!(
-                "live setup requires commandProofRef and qualificationEvidenceRef for detected client {}; run legion setup repair --confirm",
+                "authenticated live qualification evidence is unavailable for detected client {}; authenticate client, then run legion setup qualify",
                 client.client_id
             )));
         }
@@ -946,18 +1004,33 @@ async fn qualify_discovered_clients(
     release: &legion_host::BoundRelease,
     platform_state_root: &Path,
     cancellation: CancellationToken,
-) -> Result<Vec<legion_host::ClientEvidence>, CommandError> {
+) -> Result<(Vec<legion_host::ClientEvidence>, Vec<Value>), CommandError> {
     let discovered = discovered_client_evidence(selected);
     if discovered.is_empty() {
-        return Ok(discovered);
+        return Ok((discovered, Vec::new()));
     }
     let mut qualified = Vec::with_capacity(discovered.len());
+    let mut health = Vec::with_capacity(discovered.len());
     for client in discovered {
         if !client.detected {
+            health.push(json!({
+                "clientId": client.client_id,
+                "status": "not_detected",
+                "commandProofRef": Value::Null,
+                "qualificationEvidenceRef": Value::Null,
+                "detail": "client configuration root was not detected",
+            }));
             qualified.push(client);
             continue;
         }
         if !legion_host::setup_registry::client_supports_live_qualification(&client.client_id) {
+            health.push(json!({
+                "clientId": client.client_id,
+                "status": "not_supported",
+                "commandProofRef": Value::Null,
+                "qualificationEvidenceRef": Value::Null,
+                "detail": "authenticated live qualification is not defined for this client",
+            }));
             qualified.push(client);
             continue;
         }
@@ -971,8 +1044,13 @@ async fn qualify_discovered_clients(
         let (command, qualification) = match result {
             Ok(result) => result,
             Err(error) if error.code == 2 && !cancellation.is_cancelled() => {
-                // Preserve detected-client evidence for the live ref gate in
-                // client_evidence; live setup must not execute a Baseline client.
+                health.push(json!({
+                    "clientId": client.client_id,
+                    "status": "blocked",
+                    "commandProofRef": Value::Null,
+                    "qualificationEvidenceRef": Value::Null,
+                    "detail": error.message,
+                }));
                 qualified.push(client);
                 continue;
             }
@@ -984,13 +1062,21 @@ async fn qualify_discovered_clients(
         let qualification_path = root.join(format!("{}-qualification.json", client.client_id));
         write_json(&command_path, &command)?;
         write_json(&qualification_path, &qualification)?;
-        qualified.push(legion_host::ClientEvidence {
+        let qualified_client = legion_host::ClientEvidence {
             command_proof_ref: Some(command_path.to_string_lossy().into_owned()),
             qualification_evidence_ref: Some(qualification_path.to_string_lossy().into_owned()),
             ..client
-        });
+        };
+        health.push(json!({
+            "clientId": qualified_client.client_id,
+            "status": "qualified",
+            "commandProofRef": qualified_client.command_proof_ref,
+            "qualificationEvidenceRef": qualified_client.qualification_evidence_ref,
+            "detail": "authenticated MCP qualification completed",
+        }));
+        qualified.push(qualified_client);
     }
-    Ok(qualified)
+    Ok((qualified, health))
 }
 
 async fn qualify_client(
@@ -1139,9 +1225,14 @@ async fn qualify_client(
         }
     };
     if output.exit_code != Some(0) {
+        let detail = process_output_detail(&output);
         return Err(CommandError::incomplete(format!(
-            "{client_id} real-client qualification exited with {}",
-            output.exit_code.unwrap_or(-1)
+            "{client_id} real-client qualification exited with {}{}",
+            output.exit_code.unwrap_or(-1),
+            detail
+                .as_deref()
+                .map(|value| format!(": {value}"))
+                .unwrap_or_default()
         )));
     }
     let output_bytes = output_bytes(&output);
@@ -1281,6 +1372,37 @@ fn output_bytes(output: &ProcessOutput) -> Vec<u8> {
     bytes.push(0);
     bytes.extend_from_slice(&output.stderr);
     bytes
+}
+
+fn process_output_detail(output: &ProcessOutput) -> Option<String> {
+    concise_client_output_detail(&output.stderr, &output.stdout)
+}
+
+fn concise_client_output_detail(stderr: &[u8], stdout: &[u8]) -> Option<String> {
+    let combined = [stderr, stdout]
+        .into_iter()
+        .map(String::from_utf8_lossy)
+        .collect::<Vec<_>>()
+        .join("\n");
+    let normalized = combined.to_ascii_lowercase();
+    if normalized.contains("not logged in") || normalized.contains("please run /login") {
+        return Some("client is not logged in; run /login, then retry legion setup qualify".into());
+    }
+    let text = [stderr, stdout]
+        .into_iter()
+        .flat_map(|bytes| {
+            String::from_utf8_lossy(bytes)
+                .lines()
+                .map(str::to_owned)
+                .collect::<Vec<_>>()
+        })
+        .map(|line| line.trim().to_owned())
+        .find(|line| !line.is_empty() && !line.starts_with('{'))?;
+    let mut detail = text.chars().take(240).collect::<String>();
+    if text.chars().count() > 240 {
+        detail.push('…');
+    }
+    Some(detail)
 }
 
 #[derive(Debug)]
@@ -1999,6 +2121,18 @@ fn setup_health(
     live_identity: &Value,
 ) -> (&'static str, Vec<String>) {
     let mut remediation = Vec::new();
+    let active_clients = clients
+        .as_array()
+        .into_iter()
+        .flatten()
+        .filter(|client| client.get("installed").and_then(Value::as_bool) == Some(true))
+        .filter_map(|client| {
+            client
+                .get("clientId")
+                .or_else(|| client.get("client_id"))
+                .and_then(Value::as_str)
+        })
+        .collect::<BTreeSet<_>>();
     let installed = live_identity.get("origin").and_then(Value::as_str)
         == Some(legion_host::setup_registry::ORIGIN_INSTALLED);
     let repair_command = if installed {
@@ -2072,6 +2206,7 @@ fn setup_health(
                     .unwrap_or("Unavailable");
                 let client_id = client
                     .get("clientId")
+                    .or_else(|| client.get("client_id"))
                     .and_then(Value::as_str)
                     .unwrap_or("unknown");
                 let pi_baseline =
@@ -2095,6 +2230,26 @@ fn setup_health(
     }
     if let Some(projections) = live_identity["projections"].as_object() {
         for (client, projection) in projections {
+            let projection_client = projection
+                .get("clientId")
+                .and_then(Value::as_str)
+                .or_else(|| match client.as_str() {
+                    "claudeCodeLegacy" | "claudePlugin" => {
+                        Some(legion_host::setup_registry::CLIENT_CLAUDE)
+                    }
+                    "codexSkills" | "codexPlugin" => {
+                        Some(legion_host::setup_registry::CLIENT_CODEX)
+                    }
+                    "cursorPlugin" => Some(legion_host::setup_registry::CLIENT_CURSOR),
+                    "piSkills" => Some(legion_host::setup_registry::CLIENT_PI),
+                    "antigravityPlugin" => {
+                        Some(legion_host::setup_registry::CLIENT_ANTIGRAVITY)
+                    }
+                    _ => None,
+                });
+            if projection_client.is_some_and(|id| !active_clients.contains(id)) {
+                continue;
+            }
             if let Some(state) = projection.get("state").and_then(Value::as_str) {
                 if state != "current" {
                     remediation.push(format!("{client} projection is {state}; {repair_command}"));
@@ -2151,7 +2306,8 @@ fn setup_health(
     }
     // Keep direct host observations in output-derived health so repair result
     // shapes (inspection nested under `preview`) remain truthful too.
-    if integration_inspection(host_integrations, "codexSkills")
+    if active_clients.contains(legion_host::setup_registry::CLIENT_CODEX)
+        && integration_inspection(host_integrations, "codexSkills")
         .and_then(|value| value.get("ledgerError"))
         .is_some_and(|value| !value.is_null())
     {
@@ -2380,12 +2536,18 @@ fn enrich_client_statuses(mut clients: Value, live_identity: &Value) -> Value {
         let Some(object) = value.as_object_mut() else {
             continue;
         };
-        let Some(client_id) = object.get("clientId").and_then(Value::as_str) else {
+        let Some(client_id) = object
+            .get("clientId")
+            .or_else(|| object.get("client_id"))
+            .and_then(Value::as_str)
+            .map(str::to_owned)
+        else {
             continue;
         };
-        let Some(profile) = legion_host::setup_registry::client_boundary(client_id) else {
+        let Some(profile) = legion_host::setup_registry::client_boundary(&client_id) else {
             continue;
         };
+        object.insert("clientId".into(), Value::String(client_id));
         object.insert(
             "selectedMechanism".into(),
             Value::String(profile.selected_mechanism),
@@ -2405,6 +2567,97 @@ fn enrich_client_statuses(mut clients: Value, live_identity: &Value) -> Value {
         object.insert("generation".into(), generation.clone());
     }
     clients
+}
+
+fn inspect_stored_live_qualification(
+    clients: &[legion_host::ClientStatus],
+    release: &legion_host::BoundRelease,
+    platform_state_root: &Path,
+) -> Value {
+    let mut reports = Vec::new();
+    for client in clients.iter().filter(|client| {
+        client.installed
+            && legion_host::setup_registry::client_supports_live_qualification(&client.client_id)
+    }) {
+        let root = platform_state_root.join("qualification");
+        let command_path = root.join(format!("{}-command.json", client.client_id));
+        let qualification_path = root.join(format!("{}-qualification.json", client.client_id));
+        let command_ref = command_path.to_string_lossy().into_owned();
+        let qualification_ref = qualification_path.to_string_lossy().into_owned();
+        if !command_path.is_file() || !qualification_path.is_file() {
+            reports.push(json!({
+                "clientId": client.client_id,
+                "status": "not_run",
+                "commandProofRef": Value::Null,
+                "qualificationEvidenceRef": Value::Null,
+                "detail": "run legion setup qualify after authenticating this client",
+            }));
+            continue;
+        }
+        let parsed = std::fs::read(&command_path)
+            .map_err(io_error)
+            .and_then(|bytes| {
+                serde_json::from_slice::<ClientCommandProof>(&bytes).map_err(io_error)
+            });
+        let qualification = std::fs::read(&qualification_path)
+            .map_err(io_error)
+            .and_then(|bytes| {
+                serde_json::from_slice::<ClientQualificationProof>(&bytes).map_err(io_error)
+            });
+        let validation = match (parsed, qualification) {
+            (Ok(command), Ok(qualification)) => validate_proof_pair(
+                &legion_host::ClientEvidence {
+                    client_id: client.client_id.clone(),
+                    detected: true,
+                    mechanisms: vec![QUALIFICATION_MECHANISM.into()],
+                    command_proof_ref: Some(command_ref.clone()),
+                    qualification_evidence_ref: Some(qualification_ref.clone()),
+                },
+                release,
+                &command_path,
+                &qualification_path,
+                &command,
+                &qualification,
+            ),
+            (Err(error), _) | (_, Err(error)) => Err(error),
+        };
+        match validation {
+            Ok(()) => reports.push(json!({
+                "clientId": client.client_id,
+                "status": "qualified",
+                "commandProofRef": command_ref,
+                "qualificationEvidenceRef": qualification_ref,
+                "detail": "stored authenticated MCP qualification matches installed release",
+            })),
+            Err(error) => reports.push(json!({
+                "clientId": client.client_id,
+                "status": "stale",
+                "commandProofRef": command_ref,
+                "qualificationEvidenceRef": qualification_ref,
+                "detail": error.message,
+            })),
+        }
+    }
+    let qualified = reports
+        .iter()
+        .filter(|report| report["status"] == "qualified")
+        .count();
+    let status = if reports.is_empty() {
+        "not_applicable"
+    } else if qualified == reports.len() {
+        "qualified"
+    } else if reports.iter().any(|report| report["status"] == "stale") {
+        "stale"
+    } else if qualified > 0 {
+        "partial"
+    } else {
+        "not_run"
+    };
+    json!({
+        "status": status,
+        "clients": reports,
+        "activationRequired": false,
+    })
 }
 
 struct HostIntegrationInputs {
@@ -2620,6 +2873,7 @@ fn host_integration_inputs_installed(
     let install_root = origin.install_root.clone().ok_or_else(|| {
         CommandError::incomplete("installed release has no stable product install root")
     })?;
+    let plugin_source_root = installed_plugin_source_root(&executable)?;
     let release_root = installed.manifest_path.parent().ok_or_else(|| {
         CommandError::incomplete("installed release manifest has no parent directory")
     })?;
@@ -2659,7 +2913,6 @@ fn host_integration_inputs_installed(
             release.release_version, release.declarative_asset_schema_hash
         ),
     });
-    let plugin_source_root = release_root.join("plugin");
     let generation = format!(
         "{}:{}",
         release.release_version, release.declarative_asset_schema_hash
@@ -2739,6 +2992,14 @@ fn host_integration_inputs_installed(
         codex,
         client_projections,
     })
+}
+
+fn installed_plugin_source_root(executable: &Path) -> Result<PathBuf, CommandError> {
+    executable
+        .parent()
+        .and_then(Path::parent)
+        .map(|current| current.join("plugin"))
+        .ok_or_else(|| CommandError::incomplete("installed executable has no stable current root"))
 }
 
 fn development_host_integration_inputs(
@@ -3213,7 +3474,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn live_validation_rejects_null_proof_refs_but_preview_keeps_baseline() {
+    async fn structural_validation_accepts_null_proof_refs_without_live_calls() {
         let temp = TempRoot::new("missing-proof-refs");
         let manifest = test_release_manifest();
         let release = bound_release(&manifest);
@@ -3229,19 +3490,6 @@ mod tests {
                 command_proof_ref: command_proof_ref.map(str::to_owned),
                 qualification_evidence_ref: qualification_evidence_ref.map(str::to_owned),
             }];
-            let live = validate_client_evidence(
-                &evidence,
-                Some("codex"),
-                &release,
-                &temp.0,
-                true,
-                CancellationToken::new(),
-            )
-            .await
-            .expect_err("live validation must reject incomplete detected-client evidence");
-            assert_eq!(live.code, 2);
-            assert!(live.message.contains("codex"));
-
             validate_client_evidence(
                 &evidence,
                 Some("codex"),
@@ -3251,8 +3499,62 @@ mod tests {
                 CancellationToken::new(),
             )
             .await
-            .expect("preview validation keeps baseline semantics");
+            .expect("structural setup must not require authenticated proof refs");
+
+            let live = validate_live_evidence_refs(&evidence, Some("codex"))
+                .expect_err("explicit live qualification still requires both proof refs");
+            assert_eq!(live.code, 2);
+            assert!(live.message.contains("legion setup qualify"));
         }
+    }
+
+    #[test]
+    fn setup_status_separates_not_run_live_qualification_from_activation() {
+        let temp = TempRoot::new("qualification-not-run");
+        let manifest = test_release_manifest();
+        let release = bound_release(&manifest);
+        let clients = vec![legion_host::ClientStatus {
+            client_id: "codex".into(),
+            installed: true,
+            fidelity: "Full".into(),
+            bound_release: Some(release.clone()),
+            missing_surfaces: Vec::new(),
+            remediation: Vec::new(),
+        }];
+
+        let health = inspect_stored_live_qualification(&clients, &release, &temp.0);
+
+        assert_eq!(health["status"], "not_run");
+        assert_eq!(health["activationRequired"], false);
+        assert_eq!(health["clients"][0]["clientId"], "codex");
+        assert_eq!(health["clients"][0]["status"], "not_run");
+    }
+
+    #[test]
+    fn installed_plugin_projection_reads_stable_current_payload_root() {
+        let executable = PathBuf::from("product")
+            .join("current")
+            .join("bin")
+            .join(if cfg!(windows) { "legion.exe" } else { "legion" });
+
+        let root = installed_plugin_source_root(&executable).expect("stable plugin root");
+
+        assert_eq!(root, PathBuf::from("product").join("current").join("plugin"));
+    }
+
+    #[test]
+    fn qualification_output_reports_auth_without_session_payload() {
+        let detail = concise_client_output_detail(
+            br#"{"session_id":"private","result":"Not logged in - Please run /login"}"#,
+            b"",
+        )
+        .expect("auth detail");
+
+        assert_eq!(
+            detail,
+            "client is not logged in; run /login, then retry legion setup qualify"
+        );
+        assert!(!detail.contains("session_id"));
     }
 
     #[test]
@@ -3352,11 +3654,34 @@ mod tests {
         assert!(remediation.iter().any(|item| {
             item == "client codex is incomplete (Unavailable); run legion setup repair --confirm"
         }));
-        assert!(remediation.iter().any(|item| {
-            item == "codexSkills projection is stale; run legion setup repair --confirm"
-        }));
+        assert!(remediation
+            .iter()
+            .all(|item| !item.starts_with("codexSkills projection")));
         assert!(remediation
             .iter()
             .all(|item| !item.contains("legion setup --repair")));
+    }
+
+    #[test]
+    fn setup_health_ignores_unregistered_client_projections() {
+        let clients = json!([{
+            "clientId": "codex",
+            "installed": true,
+            "fidelity": "Full"
+        }]);
+        let live_identity = json!({
+            "origin": legion_host::setup_registry::ORIGIN_DEVELOPMENT,
+            "executable": {"state": "current"},
+            "plugin": {"state": "not_selected"},
+            "projections": {
+                "codexPlugin": {"clientId": "codex", "state": "current"},
+                "cursorPlugin": {"clientId": "cursor", "state": "unavailable"}
+            }
+        });
+
+        let (status, remediation) = setup_health(&clients, &json!({}), &live_identity);
+
+        assert_eq!(status, "complete");
+        assert!(remediation.is_empty());
     }
 }
