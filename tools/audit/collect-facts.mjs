@@ -51,7 +51,11 @@ const CONCURRENCY = Math.max(1, Math.min(cpus().length - 1, 4));
 function run(command, { cwd = root, timeoutMs = 180000 } = {}) {
   return new Promise((resolve) => {
     const started = Date.now();
-    const child = spawn(command, { cwd, shell: true });   // shell:true for cross-platform npm/npx/.cmd
+    const argv = Array.isArray(command);
+    const [file, args] = argv ? [command[0], command.slice(1)] : [command, []];
+    // Tool recipes retain shell compatibility for npm/npx/.cmd. Structured
+    // commands (notably git refs) bypass a shell entirely.
+    const child = spawn(file, args, { cwd, shell: !argv });
     let out = '', err = ''; const CAP = 5 * 1024 * 1024;
     child.stdout.on('data', d => { if (out.length < CAP) out += d; });
     child.stderr.on('data', d => { if (err.length < CAP) err += d; });
@@ -141,7 +145,7 @@ function cleanPath(p) {
 // Memoized `git ls-files` — several grep-style checks walk the tracked set; run it once.
 let _tracked = null;
 async function trackedFiles() {
-  if (!_tracked) _tracked = (await run('git ls-files')).stdout.split('\n').filter(Boolean).map(cleanPath);
+  if (!_tracked) _tracked = (await run(['git', 'ls-files'])).stdout.split('\n').filter(Boolean).map(cleanPath);
   return _tracked;
 }
 
@@ -164,22 +168,22 @@ async function changedFiles(d) {
   // committed-but-unpushed. Distinct from `all`, which means whole-repo (no diff scope).
   if (scopeType === 'local') {
     const out = [
-      (await run('git diff --name-only HEAD')).stdout || '',                  // staged + unstaged (tracked)
-      (await run('git ls-files --others --exclude-standard')).stdout || '',   // new untracked files
+      (await run(['git', 'diff', '--name-only', 'HEAD'])).stdout || '',                  // staged + unstaged (tracked)
+      (await run(['git', 'ls-files', '--others', '--exclude-standard'])).stdout || '',   // new untracked files
     ];
-    const up = await run('git rev-parse --abbrev-ref --symbolic-full-name @{u}');
+    const up = await run(['git', 'rev-parse', '--abbrev-ref', '--symbolic-full-name', '@{u}']);
     if (up.code === 0 && (up.stdout || '').trim()) {
-      out.push((await run('git diff --name-only @{u}..HEAD')).stdout || '');   // committed but not pushed
+      out.push((await run(['git', 'diff', '--name-only', '@{u}..HEAD'])).stdout || '');   // committed but not pushed
     }
     return [...new Set(out.join('\n').split('\n').map(cleanPath).filter(Boolean))]
       .filter(f => !f.startsWith('.audit/') && !isGeneratedOrVendoredPath(f))   // never sweep the audit's own output / vendored
       .filter(f => inScope(f, scopeDir));
   }
   let cmd = null;
-  if (scopeBaseCommit) cmd = `git diff --name-only ${scopeBaseCommit}`;
-  else if (scopeBase) cmd = `git diff --name-only ${scopeBase}...HEAD`;
-  else if (scopeType === 'uncommitted') cmd = 'git diff --name-only';
-  else if (scopeType === 'committed') cmd = 'git diff --name-only HEAD~1..HEAD';
+  if (scopeBaseCommit) cmd = ['git', 'diff', '--name-only', scopeBaseCommit];
+  else if (scopeBase) cmd = ['git', 'diff', '--name-only', `${scopeBase}...HEAD`];
+  else if (scopeType === 'uncommitted') cmd = ['git', 'diff', '--name-only'];
+  else if (scopeType === 'committed') cmd = ['git', 'diff', '--name-only', 'HEAD~1..HEAD'];
   if (!cmd) return [];   // `all` (whole-repo) or unknown → no diff scope
   const r = await run(cmd);
   return (r.stdout || '').split('\n').map(cleanPath).filter(Boolean).filter(f => inScope(f, scopeDir));

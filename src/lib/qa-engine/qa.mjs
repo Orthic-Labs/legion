@@ -291,7 +291,10 @@ function findBrowser() {
 function defaultStartCommand(port) {
   const vite = resolve(root, "node_modules", "vite", "bin", "vite.js");
   if (!existsSync(vite)) throw new Error("No --start command supplied and node_modules/vite/bin/vite.js was not found.");
-  return `"${process.execPath}" "${vite}" --host 127.0.0.1 --port ${port} --strictPort`;
+  return {
+    command: process.execPath,
+    args: [vite, "--host", "127.0.0.1", "--port", String(port), "--strictPort"],
+  };
 }
 
 function startServer(args, port) {
@@ -299,11 +302,20 @@ function startServer(args, port) {
   const env = { ...process.env };
   const [name, ...valueParts] = String(args.qaEnv || "").split("=");
   if (name) env[name] = valueParts.length ? valueParts.join("=") : "1";
-  const command = (args.start || defaultStartCommand(port)).replaceAll("{port}", String(port));
-  const child = spawn(command, {
+  const configuredStart = args.start;
+  const launch = configuredStart
+    ? {
+        command: configuredStart.replaceAll("{port}", String(port)),
+        args: [],
+        // --start deliberately accepts a shell command for operator-controlled
+        // project launchers; default Vite launch is argv-only.
+        shell: true,
+      }
+    : { ...defaultStartCommand(port), shell: false };
+  const child = spawn(launch.command, launch.args, {
     cwd: root,
     env,
-    shell: true,
+    shell: launch.shell,
     windowsHide: true,
     stdio: "ignore",
   });

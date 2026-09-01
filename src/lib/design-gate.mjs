@@ -15,7 +15,7 @@
 // that a verification which found nothing to check has not checked anything, so
 // an unavailable required check fails the gate rather than silently clearing it.
 
-import { execFileSync } from 'node:child_process';
+import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs';
 import { join, relative, resolve } from 'node:path';
 
@@ -175,11 +175,10 @@ function textChecks(root, surface) {
 function toolChecks(surface, env) {
   const results = [];
   for (const [id, bin] of [['lighthouse', 'lighthouse'], ['axe-core', 'axe']]) {
-    let present = false;
-    try {
-      execFileSync('command', ['-v', bin], { stdio: 'ignore', shell: true, env });
-      present = true;
-    } catch { present = false; }
+    // Probe an argv executable directly. `command -v` needs a shell & fails on
+    // Windows; an executable that returns non-zero to --version is still present.
+    const probe = spawnSync(bin, ['--version'], { stdio: 'ignore', shell: false, env });
+    const present = !probe.error || probe.error.code !== 'ENOENT';
     // Capability-gate rather than assume: an absent toolchain is reported
     // loudly and is not a pass.
     results.push(check(id, 'unavailable', {

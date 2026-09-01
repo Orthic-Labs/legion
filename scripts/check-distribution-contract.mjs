@@ -9,8 +9,8 @@ const POLICY_PATH = 'release/publication-policy.json';
 const CHANNELS_PATH = 'packaging/channels.json';
 const RELEASE_CONFIG_PATH = 'right-release.config.mjs';
 const BOOTSTRAP_URL = 'https://legion.orthiclabs.com/install.ps1';
-const BOOTSTRAP_PROVIDER = 'rightapps-downloads-r2';
-const BOOTSTRAP_MODE = 'branded-bootstrap-only';
+const BOOTSTRAP_PROVIDER = 'github-pages';
+const BOOTSTRAP_MODE = 'custom-domain-wrapper';
 const PAYLOAD_AUTHORITY = 'immutable-github-release';
 const MANIFEST_AUTHORITY = 'release-manifest.json+release-manifest.cat';
 const MANIFEST_FILE = 'release-manifest.json';
@@ -21,7 +21,6 @@ const SIGNATURE_PROVIDER_VERSION = 1;
 const CHECKSUMS_FILE = 'checksums.json';
 const CHECKSUMS_ROLE = 'manifest-bound-convenience';
 const PUBLISHER = 'rightkit-release';
-const OPTIONAL_ALIAS_STATUS = 'optional-alias-not-required';
 const REQUIRED_EVIDENCE = [
   'platform-artifacts',
   'platform-signatures',
@@ -73,22 +72,19 @@ export function validateDistributionContract(root = ROOT) {
   if (native.channel !== 'direct-bootstrap') issues.push('native release must use direct-bootstrap');
   if (native.public !== true || native.status !== 'blocked') issues.push('native direct-bootstrap publication must remain blocked until evidence is complete');
   if (native.payloadAuthority !== PAYLOAD_AUTHORITY) issues.push('native payload authority must be immutable GitHub Releases');
-  if (native.bootstrapAuthority !== BOOTSTRAP_URL) issues.push('native bootstrap authority must be the branded R2 URL');
+  if (native.bootstrapAuthority !== BOOTSTRAP_URL) issues.push('native bootstrap authority must be the GitHub Pages URL');
   if (native.manifestAuthority !== MANIFEST_AUTHORITY) issues.push('signed release manifest catalog must be sole release authority');
   if (native.requiredEvidence?.includes('package-manager-metadata')) issues.push('package-manager metadata cannot be required release evidence');
   checkManifestAuthority(policy.authority, issues, 'publication policy authority');
-  if (policy.authority?.payload !== PAYLOAD_AUTHORITY || policy.authority?.bootstrap !== 'branded-r2-bootstrap-only' || policy.publisher !== PUBLISHER) issues.push('publication policy authority is not frozen to GitHub payloads, branded R2 bootstrap, and RightKit Release');
+  if (policy.authority?.payload !== PAYLOAD_AUTHORITY || policy.authority?.bootstrap !== 'github-pages-custom-domain-wrapper' || policy.publisher !== PUBLISHER) issues.push('publication policy authority is not frozen to GitHub payloads, GitHub Pages bootstrap, and RightKit Release');
   if (grant?.payloadAuthority !== PAYLOAD_AUTHORITY || grant?.bootstrapProvider !== BOOTSTRAP_PROVIDER || grant?.bootstrapMode !== BOOTSTRAP_MODE || grant?.stableUrl !== BOOTSTRAP_URL || grant?.publisher !== PUBLISHER) issues.push('direct-bootstrap policy authority is incomplete');
   checkManifestAuthority(grant, issues, 'direct-bootstrap policy');
-  for (const id of ['homebrew', 'winget']) {
-    const alias = policy.channels?.[id];
-    if (alias?.allowed !== false || alias.reason !== OPTIONAL_ALIAS_STATUS || alias.requiredEvidence?.length) issues.push(`${id} must remain an optional alias with no release requirement`);
-  }
+
   if (channels.schemaVersion !== 2 || channels.kind !== 'legion-distribution-channels') issues.push('invalid packaging/channels.json');
   if (channels.contract !== CONTRACT_PATH) issues.push('distribution channel ledger is not bound to distribution contract');
   if (channels.versionSource !== 'release/version.json' || channels.artifactSource !== PAYLOAD_AUTHORITY) issues.push('distribution channel ledger is not bound to versioned immutable GitHub payloads');
   if (channels.publicationOwner !== 'RightKit Release') issues.push('distribution channel publisher must be RightKit Release');
-  if (channels.bootstrap?.provider !== BOOTSTRAP_PROVIDER || channels.bootstrap?.mode !== BOOTSTRAP_MODE || channels.bootstrap?.stableUrl !== BOOTSTRAP_URL || channels.bootstrap?.objectKey !== 'legion/install.ps1') issues.push('distribution channel bootstrap must be branded R2 bootstrap only');
+  if (channels.bootstrap?.provider !== BOOTSTRAP_PROVIDER || channels.bootstrap?.mode !== BOOTSTRAP_MODE || channels.bootstrap?.stableUrl !== BOOTSTRAP_URL || channels.bootstrap?.objectKey !== 'site/install.ps1') issues.push('distribution channel bootstrap must be GitHub Pages bootstrap only');
   checkManifestAuthority({ manifestAuthority: channels.manifest?.authority, manifest: channels.manifest, checksums: channels.checksums }, issues, 'distribution channel authority');
   if (channels.channels?.[native.channel]?.status !== native.status) issues.push('primary distribution channel differs from native release status');
   if (channels.channels?.[native.channel]?.stableUrl !== native.bootstrapAuthority) issues.push('bootstrap URL differs from distribution contract');
@@ -112,8 +108,8 @@ export function validateDistributionContract(root = ROOT) {
       'signatureProvider: "windows-authenticode-catalog"',
       'signatureProviderVersion: 1',
       'role: "manifest-bound-convenience"',
-      'provider: "rightapps-downloads-r2"',
-      'mode: "branded-bootstrap-only"',
+      'provider: "github-pages"',
+      'mode: "custom-domain-wrapper"',
       'publisher: "rightkit-release"',
       'publishBlocked:',
     ]) if (!config.includes(marker)) issues.push(`right-release config is missing ${marker}`);

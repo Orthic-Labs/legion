@@ -1180,19 +1180,6 @@ dependencies = [
  "tokio-util",
 ]
 
-[[package]]
-name = "legion-testkit"
-version = "0.3.7"
-dependencies = [
- "legion-audit",
- "legion-contracts",
- "legion-effects",
- "legion-host",
- "legion-policy-model",
- "legion-rules",
- "serde_json",
- "sha2",
-]
 
 [[package]]
 name = "libc"

@@ -34,7 +34,7 @@ test('publication guard exists and blocks public channels without a grant', () =
   const internal = execFileSync(process.execPath, [check, '--channel', 'internal-pack'], { cwd: root, encoding: 'utf8' });
   assert.match(internal, /internal channel allowed/);
   // Public npm is denied because Node is private development tooling.
-  for (const channel of ['npm', 'homebrew']) {
+  for (const channel of ['npm', 'direct-bootstrap']) {
     try {
       execFileSync(process.execPath, [check, '--channel', channel], { cwd: root, encoding: 'utf8' });
       assert.fail(`${channel} must be blocked without an active grant`);

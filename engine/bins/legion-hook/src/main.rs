@@ -891,13 +891,41 @@ fn authorize_effect(
     application: &NativeApplication,
 ) -> HookResponse {
     match application.authorize_hook(effect) {
-        Ok(()) => HookResponse::allowed(event_type, "authorized"),
-        Err(_) => HookResponse::denied(
-            event_type,
-            "ARC_POLICY_DENIED",
-            "native policy denied effect",
-            "strong",
-        ),
+        Ok(()) => {
+            if matches!(effect.effect_class, EffectClass::MCP_UNCLASSIFIED_OBSERVATION) {
+                // Name the tool and say plainly that classification failed,
+                // even on the allow path, so an operator reviewing receipts
+                // can see and act on it (tighten the pack, or fix the
+                // third-party tool's naming) rather than the decision
+                // reading as an ordinary silent allow.
+                HookResponse::allowed(
+                    event_type,
+                    format!(
+                        "tool '{}' could not be classified as any known effect; allowed as an unclassified MCP observation per policy",
+                        effect.target
+                    ),
+                )
+            } else {
+                HookResponse::allowed(event_type, "authorized")
+            }
+        }
+        Err(_) => {
+            let message = match effect.effect_class {
+                EffectClass::EXTERNAL_SIDE_EFFECT => format!(
+                    "native policy denied effect: tool '{}' is a positively classified external side effect (write/send/delete) via MCP (fail-closed default; no policy rule allows EXTERNAL_SIDE_EFFECT for this target/operation)",
+                    effect.target
+                ),
+                EffectClass::MCP_UNCLASSIFIED_OBSERVATION => format!(
+                    "native policy denied effect: tool '{}' could not be classified as any known effect; classification failed and the configured policy denies unclassified MCP observations for this target/operation",
+                    effect.target
+                ),
+                _ => format!(
+                    "native policy denied effect: {:?} on '{}' (operation '{}')",
+                    effect.effect_class, effect.target, effect.operation
+                ),
+            };
+            HookResponse::denied(event_type, "ARC_POLICY_DENIED", &message, "strong")
+        }
     }
 }
 
@@ -994,22 +1022,25 @@ fn effect_request(request: &HookRequest) -> Result<Option<EffectRequest>, String
             command.as_deref(),
         )
     } else if tool_name.as_deref().is_some_and(is_mcp_tool) {
-        // An explicit MCP operation overrides name-based classification; a
-        // read operation on a broadly named server/tool is not a write gate.
-        mcp_external_side_effect(tool_name.as_deref(), explicit_operation.as_deref()).or_else(
-            || {
-                (!explicit_operation.is_some())
-                    .then(|| parse_effect_class(None, tool_name.as_deref(), command.as_deref()))
-                    .flatten()
-            },
+        // MCP tool names and operations are third-party controlled: a server
+        // can name itself anything. A verb allowlist ("write"/"send"/"delete")
+        // is therefore a denylist an untrusted server can trivially dodge by
+        // naming a tool `exec`, `push_files`, `post`, `create`, `put`, `run`,
+        // etc. A positive write/send/delete signal (or an explicit
+        // non-MCP-specific class) still resolves to a concrete class here.
+        // Anything else is unclassified rather than mislabeled as an external
+        // side effect. Route it to a dedicated class so policy emits a truthful
+        // receipt. Canonical policy denies this uncertainty by default; an
+        // explicit narrow rule can allow a known observation tool.
+        Some(
+            mcp_external_side_effect(tool_name.as_deref(), explicit_operation.as_deref())
+                .or_else(|| parse_effect_class(None, tool_name.as_deref(), command.as_deref()))
+                .unwrap_or(EffectClass::MCP_UNCLASSIFIED_OBSERVATION),
         )
     } else {
         parse_effect_class(None, tool_name.as_deref(), command.as_deref())
     };
     let Some(effect_class) = effect_class else {
-        if !explicit_class && tool_name.as_deref().is_some_and(is_mcp_tool) {
-            return Ok(None);
-        }
         return Err("effect class is missing or unsupported".to_owned());
     };
 
@@ -1266,6 +1297,7 @@ fn default_operation(effect_class: EffectClass) -> &'static str {
         EffectClass::VCS_PUSH => "push",
         EffectClass::PUBLISH => "publish",
         EffectClass::EXTERNAL_SIDE_EFFECT => "external-side-effect",
+        EffectClass::MCP_UNCLASSIFIED_OBSERVATION => "observe",
     }
 }
 
@@ -2516,25 +2548,43 @@ mod tests {
     }
 
     #[test]
-    fn mcp_reads_are_observations_but_external_effects_remain_policy_gated() {
-        let read = HookRequest {
+    fn unrecognized_mcp_tools_fail_closed_with_truthful_receipts() {
+        // A third-party MCP tool whose name matches no positive
+        // classification arm must never be silently skipped (no policy
+        // object built, no receipt) and must never be relabeled as an
+        // EXTERNAL_SIDE_EFFECT (that class means a *positively identified*
+        // write/send/delete, and reusing it here would make the receipt lie
+        // about what was actually observed). It is instead classified
+        // MCP_UNCLASSIFIED_OBSERVATION, which still reaches
+        // `CanonicalEffectPolicy::authorize` for a fail-closed, receipted decision.
+        let unclassified = HookRequest {
             schema_version: protocol::SCHEMA_VERSION,
             kind: protocol::REQUEST_KIND.into(),
             event_type: "PreToolUse".into(),
-            payload: json!({"tool_name": "mcp__docs__query"}),
+            payload: json!({
+                "tool_name": "mcp__docs__query",
+                "sourceRevision": "0123456789abcdef0123456789abcdef01234567"
+            }),
         };
+        let effect = effect_request(&unclassified)
+            .expect("unrecognized MCP tool classification should succeed")
+            .expect("unrecognized MCP tool must carry an effect to adjudicate, not be skipped");
+        assert_eq!(effect.effect_class, EffectClass::MCP_UNCLASSIFIED_OBSERVATION);
+        let response = dispatch(unclassified);
         assert!(
-            effect_request(&read)
-                .expect("MCP read classification should succeed")
-                .is_none(),
-            "MCP reads carry no external effect"
+            !response.allowed,
+            "an unclassified MCP tool must fail closed"
         );
-        let response = dispatch(read);
         assert!(
-            response.allowed,
-            "MCP reads must be allowed as observations"
+            response.reason.contains("mcp__docs__query"),
+            "deny reason should name the unclassified tool: {}",
+            response.reason
         );
-        assert!(response.reason.contains("no external effect"));
+        assert!(
+            response.reason.contains("could not be classified"),
+            "deny reason should state plainly that classification failed: {}",
+            response.reason
+        );
 
         let send = HookRequest {
             schema_version: protocol::SCHEMA_VERSION,

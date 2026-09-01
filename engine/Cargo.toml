@@ -17,7 +17,7 @@ members = [
     "crates/legion-review",
     "crates/legion-rules",
     "crates/legion-runtime",
-    "crates/legion-testkit",
+
     "bins/legion",
     "bins/legion-hook",
     "bins/legion-mcp",

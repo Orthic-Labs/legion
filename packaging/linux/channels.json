@@ -1,5 +1,4 @@
-# Linux release channels per PR43. tar.gz archives first; Homebrew/Linuxbrew
-# and demand-led deb/rpm later.
+# Linux release contract uses GitHub Release tar.gz archives only.
 
 channels:
   archive:

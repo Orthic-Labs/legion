@@ -71,7 +71,7 @@ Required delivery boundary: `PUSHED`.
 |---|---|---|---|---|---|
 | LEG-D001 | REFERENCE | LEG-013 | Skill projection remains SKL-003-owned; LEG-013 retains role & hook projection only. | Canon reconciliation | RECORDED |
 | LEG-D002 | BACKLOG | LEG-005 | Fact-derived work state & supervision remain deferred outside LEG-MR-0..5. | Legacy proposal §16.1 | DEFERRED |
-| LEG-D003 | EXCLUSION | LEG-015 | Homebrew/WinGet metadata is not an active release gate; aliases remain optional derived consumers. | Distribution doctrine | RECORDED |
+| LEG-D003 | EXCLUSION | LEG-015 | Package-manager metadata is unsupported; GitHub Pages plus GitHub Releases are sole public channel. | Distribution doctrine | RECORDED |
 | LEG-D004 | REFERENCE | LEG-016 | Package & installed native Audit entrypoints now reach sealed-plan, SARIF, receipt & Blueprint-generation behavior. | `engine/bins/legion/src/commands/audit.rs@0d6016c8`; closure receipt | RECORDED |
 | LEG-D005 | REFERENCE | LEG-017, LEG-018, LEG-019, LEG-020, LEG-021, LEG-022, LEG-023, LEG-024, LEG-025, LEG-026, LEG-027 | Dual blind Foundation inventories promoted missed contracts; implementation, verification, hosted delivery & v0.3.4 qualification now close them. | `docs/foundation/2026-08-31/unresolved-closure-receipt.json` | RECORDED |
 | LEG-D006 | REFERENCE | LEG-021 | Stage 3 deficit is closed by one bounded action-envelope correction before effects; no new observable atom was required. | `src/lib/providers/executor/external-process.mjs@0d6016c8`; `tests/unresolved-atoms-closure.test.mjs@0d6016c8` | RECORDED |

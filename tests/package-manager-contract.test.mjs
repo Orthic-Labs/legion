@@ -6,15 +6,16 @@ import { join } from 'node:path';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
 
-test('direct bootstrap is primary and package managers remain optional aliases', () => {
+test('direct bootstrap is sole public installation channel', () => {
   const channels = JSON.parse(readFileSync(join(root, 'packaging/channels.json'), 'utf8'));
   const contract = JSON.parse(readFileSync(join(root, 'release/distribution-contract.json'), 'utf8'));
   assert.equal(channels.versionSource, 'release/version.json');
   assert.equal(contract.nativeRelease.channel, 'direct-bootstrap');
   assert.equal(channels.channels['direct-bootstrap'].stableUrl, contract.nativeRelease.bootstrapAuthority);
   assert.equal(channels.channels['direct-bootstrap'].payloadAuthority, 'immutable-github-release');
-  assert.equal(channels.channels.homebrew.status, 'optional-alias-not-required');
-  assert.equal(channels.channels.winget.status, 'optional-alias-not-required');
+  assert.equal(channels.channels.homebrew, undefined);
+  assert.equal(channels.channels.winget, undefined);
+  assert.equal(contract.packageManagers, undefined);
 });
 
 test('repository carries no placeholder formula or pseudo-WinGet manifest', () => {

@@ -30,14 +30,6 @@ const CHANNELS_FILE = 'packaging/channels.json';
 const readJson = (p) => JSON.parse(readFileSync(p, 'utf8'));
 const ACTIVATION_PREFLIGHT = 'node scripts/verify-plugin-parity.mjs --check';
 
-// The package-manager channels are optional aliases today. Keep their presence
-// visible to the diagnostic without treating a manifest as proof that the
-// command is already installed on PATH.
-const PACKAGE_MANAGER_MANIFESTS = [
-  { id: 'homebrew', directory: 'packaging/homebrew', extensions: ['.rb'] },
-  { id: 'winget', directory: 'packaging/winget', extensions: ['.json', '.yaml', '.yml'] },
-];
-
 // Resolve a ${CLAUDE_PLUGIN_ROOT}-relative reference to a repo path.
 const pluginRel = (ref) => ref.replace(`\${CLAUDE_PLUGIN_ROOT}/`, '');
 
@@ -71,39 +63,25 @@ function executableOnPath(command, env = process.env) {
   return null;
 }
 
-function manifestFiles(root, directory, extensions) {
-  const found = [];
-  const walk = (directoryPath) => {
-    let entries;
-    try { entries = readdirSync(directoryPath, { withFileTypes: true }); } catch { return; }
-    for (const entry of entries) {
-      const path = join(directoryPath, entry.name);
-      if (entry.isDirectory()) walk(path);
-      else if (extensions.some((extension) => entry.name.endsWith(extension))) found.push(path);
-    }
-  };
-  walk(join(root, directory));
-  return found;
-}
-
-function packageManagerManifestProviders(root) {
-  return PACKAGE_MANAGER_MANIFESTS
-    .filter(({ directory, extensions }) => manifestFiles(root, directory, extensions).length > 0)
-    .map(({ id }) => id);
-}
-
-function declaredBootstrap(root) {
+export function activeBootstrap(root) {
   let contract;
   let channels;
   try { contract = readJson(join(root, DISTRIBUTION_CONTRACT)); } catch { /* checked below */ }
   try { channels = readJson(join(root, CHANNELS_FILE)); } catch { /* checked below */ }
 
+  const nativeRelease = contract?.nativeRelease;
+  const directChannel = channels?.channels?.['direct-bootstrap'];
+  if (nativeRelease?.status !== 'available' || directChannel?.status !== 'available') return null;
+
   const contractUrl = contract?.nativeRelease?.bootstrapAuthority;
   const channelUrl = channels?.bootstrap?.stableUrl;
-  if (typeof contractUrl === 'string' && contractUrl === channelUrl) return contractUrl;
-  if (typeof contractUrl === 'string') return contractUrl;
-  if (typeof channelUrl === 'string') return channelUrl;
-  return null;
+  const directUrl = directChannel?.stableUrl;
+  if (
+    typeof contractUrl !== 'string'
+    || contractUrl !== channelUrl
+    || contractUrl !== directUrl
+  ) return null;
+  return contractUrl;
 }
 
 function declaredPathBinaries(manifest, hooks) {
@@ -137,22 +115,18 @@ function declaredPathBinaries(manifest, hooks) {
 export function checkPathBinaries(root = ROOT, { manifest, hooks, env = process.env } = {}) {
   const pluginManifest = manifest ?? readJson(join(root, '.claude-plugin', 'plugin.json'));
   const hookConfig = hooks ?? readJson(join(root, 'hooks', 'hooks.json'));
-  const providers = packageManagerManifestProviders(root);
-  const bootstrap = declaredBootstrap(root);
+  const bootstrap = activeBootstrap(root);
   const binaries = [];
   const problems = [];
 
   for (const [binary, sources] of declaredPathBinaries(pluginManifest, hookConfig)) {
     const resolved = executableOnPath(binary, env);
-    const record = { binary, sources, resolved, packageManagerManifests: providers };
+    const record = { binary, sources, resolved };
     binaries.push(record);
     if (!resolved && !bootstrap) {
-      const packageNote = providers.length
-        ? ` Package-manager metadata is present (${providers.join(', ')}), but it does not put the binary on PATH.`
-        : ' No Homebrew or WinGet manifest is populated for this checkout (informational only; optional aliases are not required).';
-      const bootstrapNote = `Plugin activation is gated by this preflight, but no bootstrap step is declared in the distribution SSOT; declare one before rerunning '${ACTIVATION_PREFLIGHT}'.`;
+      const bootstrapNote = `Install via the published direct bootstrap, then rerun '${ACTIVATION_PREFLIGHT}'.`;
       problems.push(
-        `plugin binary '${binary}' is not reachable on PATH (required by ${sources.join(', ')}).${packageNote} ${bootstrapNote}`,
+        `plugin binary '${binary}' is not reachable on PATH (required by ${sources.join(', ')}). ${bootstrapNote}`,
       );
     }
   }

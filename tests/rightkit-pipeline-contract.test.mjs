@@ -31,7 +31,16 @@ test('right-git owns exact public CI bytes', () => {
       assert.match(workflow, /publish:[\s\S]*?if: \$\{\{ startsWith\(github\.ref, 'refs\/tags\/v'\) && needs\.installed-qualification\.result == 'success' && needs\.macos-sign\.result == 'success' \}\}/);
     }
   }
-  assert.deepEqual(readdirSync(join(root, '.github/workflows')).sort(), ['ci.yml', 'release-candidate.yml']);
+  const bootstrap = readFileSync(join(root, '.github/workflows', 'bootstrap-pages.yml'), 'utf8');
+  assert.match(bootstrap, /branches: \[main\]/);
+  assert.match(bootstrap, /path: site/);
+  assert.match(bootstrap, /contents: read/);
+  assert.match(bootstrap, /pages: write/);
+  assert.doesNotMatch(bootstrap, /pull_request|workflow_run|secrets\./);
+  for (const action of bootstrap.matchAll(/uses:\s+[^@\s]+@([^\s]+)/g)) {
+    assert.match(action[1], /^[0-9a-f]{40}$/, `bootstrap action must use a full commit SHA: ${action[0]}`);
+  }
+  assert.deepEqual(readdirSync(join(root, '.github/workflows')).sort(), ['bootstrap-pages.yml', 'ci.yml', 'release-candidate.yml']);
 });
 
 test('action uses local pinned pnpm without global installation', () => {

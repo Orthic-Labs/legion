@@ -4,9 +4,9 @@
 ## Target identity
 
 Each invocation must select exactly one target. The archive name, release
-identity, signing receipt, and WinGet architecture must agree:
+identity, signing receipt, and release architecture must agree:
 
-| Legion architecture | Cargo target | WinGet architecture | signed file |
+| Legion architecture | Cargo target | Release architecture | signed file |
 | --- | --- | --- | --- |
 | `x86_64` | `x86_64-pc-windows-msvc` | `x64` | `bin\legion.exe` |
 | `arm64` | `aarch64-pc-windows-msvc` | `arm64` | `bin\legion.exe` |
@@ -62,7 +62,6 @@ failClosed:
   - "Missing signtool.exe, Azure signing client, metadata, identity, or timestamp fails the step."
   - "A missing, stale, invalid, or digest-mismatched receipt never becomes signed evidence."
   - "Unsigned/local-build provenance remains blocked and cannot produce a publication grant."
-  - "WinGet metadata is emitted as blocked evidence until installed-product qualification and channel authorization exist."
 
 documentation:
   - "The release job must use the current Microsoft Artifact Signing integration metadata."

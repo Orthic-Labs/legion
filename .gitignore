@@ -6,6 +6,8 @@ node_modules/
 .legion/
 .right-release/
 .agent/
+.impeccable/
+.claude/settings.local.json
 __pycache__/
 *.pyc
 repos/

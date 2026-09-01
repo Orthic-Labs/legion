@@ -5,7 +5,11 @@
     "name": "@orthic-labs/legion",
     "access": "private-development-tooling",
     "public": false,
-    "channels": ["internal-pack", "local-test", "ci-test"]
+    "channels": [
+      "internal-pack",
+      "local-test",
+      "ci-test"
+    ]
   },
   "nativeRelease": {
     "channel": "direct-bootstrap",
@@ -16,15 +20,18 @@
     "origin": "installed",
     "executable": "%LOCALAPPDATA%\\Orthic Labs\\Legion\\current\\bin\\legion.exe",
     "bootstrap": {
-      "provider": "rightapps-downloads-r2",
-      "mode": "bootstrap-only",
-      "stableKey": "legion/install.ps1",
+      "provider": "github-pages",
+      "mode": "custom-domain-wrapper",
+      "stableKey": "site/install.ps1",
       "payloadAuthority": "immutable-github-release"
     },
     "manifestAuthority": "release-manifest.json+release-manifest.cat",
     "installRoot": "%LOCALAPPDATA%\\Orthic Labs\\Legion",
     "generation": "release-version:declarative-assets-sha256",
-    "activation": ["legion setup repair --confirm", "legion setup status"],
+    "activation": [
+      "legion setup repair --confirm",
+      "legion setup status"
+    ],
     "activationPath": "%LOCALAPPDATA%\\Orthic Labs\\Legion\\current\\bin\\legion.exe",
     "stablePaths": {
       "origin": "installed",
@@ -37,7 +44,12 @@
       "integrationJournal": "%LOCALAPPDATA%\\Orthic Labs\\Legion\\integration-journal.json",
       "generation": "release-version:declarative-assets-sha256"
     },
-    "forbiddenProductionBindings": ["repo", "dist", "target", "node_modules"],
+    "forbiddenProductionBindings": [
+      "repo",
+      "dist",
+      "target",
+      "node_modules"
+    ],
     "requiredEvidence": [
       "platform-artifacts",
       "platform-signatures",
@@ -67,15 +79,15 @@
     },
     "protectedLocalHosts": {
       "execution": "protected-local-host",
-      "steps": ["sign", "finalize", "upload"],
+      "steps": [
+        "sign",
+        "finalize",
+        "upload"
+      ],
       "signingCredentials": "local-only",
       "ciAccess": "forbidden",
       "rebuild": false,
       "input": "exact-unsigned-candidate"
     }
-  },
-  "packageManagers": {
-    "homebrew": "optional-alias-not-required",
-    "winget": "optional-alias-not-required"
   }
 }

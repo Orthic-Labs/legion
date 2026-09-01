@@ -2955,7 +2955,7 @@ fn host_integration_inputs_installed(
         ),
         (
             legion_host::setup_registry::CLIENT_ANTIGRAVITY,
-            "native-plugin",
+            "agent-plugins-portable-core",
             home.join(".antigravity/plugins/legion"),
             true,
             false,
@@ -3089,7 +3089,7 @@ fn development_host_integration_inputs(
         ),
         (
             legion_host::setup_registry::CLIENT_ANTIGRAVITY,
-            "native-plugin",
+            "agent-plugins-portable-core",
             true,
             false,
             repo_assets,
@@ -3208,7 +3208,7 @@ fn discovered_client_evidence(selected: Option<&str>) -> Vec<legion_host::Client
         (
             legion_host::setup_registry::CLIENT_ANTIGRAVITY,
             ".antigravity",
-            vec!["antigravity-native-plugin"],
+            vec!["antigravity-agent-plugins-portable-core"],
         ),
     ];
     clients

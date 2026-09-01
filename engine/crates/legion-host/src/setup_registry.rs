@@ -114,17 +114,19 @@ pub fn client_boundaries() -> Vec<ClientBoundary> {
         },
         ClientBoundary {
             client_id: CLIENT_ANTIGRAVITY.into(),
-            selected_mechanism: "antigravity-native-plugin".into(),
-            projection: "native-plugin".into(),
+            // Current release assets are Agent Plugins portable core only.
+            // Do not report a native Antigravity surface until its hooks,
+            // agents, rules, and schema-specific manifest ship together.
+            selected_mechanism: "antigravity-agent-plugins-portable-core".into(),
+            projection: "agent-plugins-portable-core".into(),
             executable_registration: true,
             explicit_only: false,
             required_surfaces: vec![
-                "mcpConfig".into(),
-                "hooks".into(),
                 "skills".into(),
-                "agents".into(),
-                "rules".into(),
+                "executableToolSurface".into(),
+                "mcpLifecycle".into(),
                 "releaseBinding".into(),
+                "executableResolution".into(),
             ],
         },
     ]
@@ -2065,7 +2067,7 @@ fn projection_missing_surfaces(
         missing.push("executableToolSurface".into());
         missing.push("mcpLifecycle".into());
     }
-    if input.client_id == CLIENT_ANTIGRAVITY {
+    if input.client_id == CLIENT_ANTIGRAVITY && input.projection == "native-plugin" {
         for (surface, marker) in [
             ("mcpConfig", "mcp_config.json"),
             ("hooks", "hooks/"),
@@ -2544,7 +2546,7 @@ fn select_mechanism(client_id: &str, mechanisms: &[String]) -> Option<String> {
         ],
         CLIENT_PI => &["pi-skills-only"],
         CLIENT_ANTIGRAVITY => &[
-            "antigravity-native-plugin",
+            "antigravity-agent-plugins-portable-core",
             "supported-native-exact-path-registration",
         ],
         _ => &[],

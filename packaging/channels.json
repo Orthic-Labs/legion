@@ -6,10 +6,10 @@
   "artifactSource": "immutable-github-release",
   "publicationOwner": "RightKit Release",
   "bootstrap": {
-    "provider": "rightapps-downloads-r2",
-    "mode": "branded-bootstrap-only",
+    "provider": "github-pages",
+    "mode": "custom-domain-wrapper",
     "stableUrl": "https://legion.orthiclabs.com/install.ps1",
-    "objectKey": "legion/install.ps1"
+    "objectKey": "site/install.ps1"
   },
   "manifest": {
     "authority": "release-manifest.json+release-manifest.cat",
@@ -27,8 +27,8 @@
     "direct-bootstrap": {
       "status": "blocked",
       "stableUrl": "https://legion.orthiclabs.com/install.ps1",
-      "bootstrapProvider": "rightapps-downloads-r2",
-      "bootstrapMode": "branded-bootstrap-only",
+      "bootstrapProvider": "github-pages",
+      "bootstrapMode": "custom-domain-wrapper",
       "payloadAuthority": "immutable-github-release",
       "manifestAuthority": "release-manifest.json+release-manifest.cat",
       "manifest": {
@@ -42,22 +42,6 @@
         "file": "checksums.json",
         "role": "manifest-bound-convenience"
       },
-      "publicationOwner": "RightKit Release"
-    },
-    "homebrew": {
-      "status": "optional-alias-not-required",
-      "required": false,
-      "tapRepository": "Orthic-Labs/homebrew-tap",
-      "formula": "orthic-labs/tap/legion",
-      "requiredArchitectures": ["macos-arm64", "macos-x86_64"],
-      "publicationOwner": "RightKit Release"
-    },
-    "winget": {
-      "status": "optional-alias-not-required",
-      "required": false,
-      "packageIdentifier": "OrthicLabs.Legion",
-      "installerType": "portable",
-      "requiredArchitectures": ["windows-x86_64", "windows-arm64"],
       "publicationOwner": "RightKit Release"
     }
   }

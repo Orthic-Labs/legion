@@ -60,7 +60,7 @@
     {
       "path": "SKILL.md",
       "uri": "legion-skill://dispatch/SKILL.md",
-      "digest": "sha256:da639e91c179643f6f267f75bded7f2dc6729643f234b67d948a4ee0f11e6bbf"
+      "digest": "sha256:593ec1dadff9bf6bb48f954daf077736c37d5072e3d705d56167543a8c236698"
     },
     {
       "path": "agents/openai.yaml",
@@ -110,7 +110,7 @@
     {
       "path": "examples/sage-adjudication-dispatch.receipt.json",
       "uri": "legion-skill://dispatch/examples/sage-adjudication-dispatch.receipt.json",
-      "digest": "sha256:b605f495baa84e81ad37d809de6eeb6062b4f14a17a4790e63d6563410a709ba"
+      "digest": "sha256:8500866fd9a1fb1c00d4ac33fc3cc0e9a438a3693a5821a5ca470efdfde25c46"
     },
     {
       "path": "examples/sage-adjudication.json",

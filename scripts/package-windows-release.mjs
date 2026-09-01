@@ -15,10 +15,7 @@ import { fileURLToPath } from "node:url";
 import {
 	collectReleaseAsset,
 	createPortableArchive,
-	createWranglerR2Client,
 	materializeDirectRelease,
-	planBootstrapPublication,
-	publishBootstrapPlan,
 	renderPowerShellBootstrap,
 	sha256File,
 	validatePowerShellBootstrap,
@@ -339,7 +336,7 @@ function assertPublicationPolicy({ repositoryRoot, evidence = {} }) {
 	if (contract.nativeRelease?.status !== "available" || channel?.allowed !== true) {
 		throw new Error(`publication blocked by release/publication-policy.json: ${channel?.reason ?? "native release is not authorized"}`);
 	}
-	if (policy.publisher !== "rightkit-release" || channel.payloadAuthority !== "immutable-github-release" || channel.bootstrapProvider !== "rightapps-downloads-r2") {
+	if (policy.publisher !== "rightkit-release" || channel.payloadAuthority !== "immutable-github-release" || channel.bootstrapProvider !== "github-pages") {
 		throw new Error("publication blocked: checked-in publication authority is invalid");
 	}
 	if (!channel.approvedBy || !channel.approvedAt || !channel.policyDigest) {
@@ -521,16 +518,13 @@ export function finalizeWindowsDirectRelease({
 	qualification,
 	provenance,
 	publishGitHub = false,
-	publishBootstrap = false,
 	dryRun = false,
 	repositoryRoot = REPOSITORY_ROOT,
 	createdAt = new Date().toISOString(),
 	materializeRelease = materializeDirectRelease,
 	publishGitHubFn = publishGitHubRelease,
-	publishBootstrapFn = publishBootstrapPlan,
 } = {}) {
 	if (!input) throw new Error("--input is required");
-	if (publishBootstrap && !publishGitHub) throw new Error("bootstrap publication requires GitHub release publication first");
 	const inputRoot = resolve(input);
 	const version = releaseVersion(repositoryRoot);
 	const isCandidate = existsSync(join(inputRoot, "candidate.json"));
@@ -682,7 +676,7 @@ export function finalizeWindowsDirectRelease({
 		acceptedSignerIds: [direct.signing.signer.id],
 	});
 	if (!bootstrapValidation.valid) throw new Error(`generated bootstrap is invalid: ${bootstrapValidation.errors.join("; ")}`);
-	if (publishGitHub || publishBootstrap) {
+	if (publishGitHub) {
 		assertPublicationPolicy({
 			repositoryRoot,
 			evidence: {
@@ -710,23 +704,11 @@ export function finalizeWindowsDirectRelease({
 		provenancePaths: [provenancePath],
 		sbomPaths: [sbomPath],
 		signing: direct.signing,
-	});
-	const bootstrapPlan = planBootstrapPublication({
-		product: PRODUCT,
-		bootstrapVersion: version,
-		scriptPath: bootstrapPath,
+		assets: [bootstrapPath],
 	});
 	const github = publishGitHub
 		? publishGitHubFn(githubPlan, { repo: GITHUB_REPOSITORY, dryRun })
 		: { status: "prepared", tag: githubPlan.tag };
-	let r2 = { status: "prepared", ...bootstrapPlan };
-	if (publishBootstrap && !dryRun) {
-		const verificationPath = join(outputDir, ".r2-bootstrap-verification.ps1");
-		r2 = publishBootstrapFn(bootstrapPlan, createWranglerR2Client(), { verificationPath });
-		rmSync(verificationPath, { force: true });
-	} else if (publishBootstrap && dryRun) {
-		r2 = { status: "would-publish", ...bootstrapPlan };
-	}
 	return {
 		status: "qualified",
 		outputDir,
@@ -746,7 +728,6 @@ export function finalizeWindowsDirectRelease({
 		archiveSha256: archive.sha256,
 		runtimeSha256,
 		github,
-		r2,
 	};
 }
 
@@ -761,7 +742,7 @@ function parseArguments(argv) {
 	for (let index = 0; index < argv.length; index += 1) {
 		const raw = argv[index];
 		if (raw === "--") continue;
-		if (["--force", "--finalize", "--publish-github", "--publish-bootstrap", "--dry-run", "--json"].includes(raw)) {
+		if (["--force", "--finalize", "--publish-github", "--dry-run", "--json"].includes(raw)) {
 			options[raw.slice(2).replaceAll("-", "")] = true;
 			continue;
 		}
@@ -776,7 +757,7 @@ function parseArguments(argv) {
 }
 
 function usage(code = 0) {
-	console.error("usage: node scripts/package-windows-release.mjs --architecture x86_64|arm64 --input <candidate-root> [--output <dir>] [--source-revision <sha>] [--finalize --candidate-receipt <json> --signature-receipt <json> --qualification <json> --provenance <json> [--publish-github] [--publish-bootstrap] [--dry-run]] [--json]");
+	console.error("usage: node scripts/package-windows-release.mjs --architecture x86_64|arm64 --input <candidate-root> [--output <dir>] [--source-revision <sha>] [--finalize --candidate-receipt <json> --signature-receipt <json> --qualification <json> --provenance <json> [--publish-github] [--dry-run]] [--json]");
 	process.exit(code);
 }
 
@@ -800,7 +781,6 @@ if (isMain) {
 			force: options.force === true,
 			finalize: options.finalize === true,
 			publishGitHub: options.publishgithub === true,
-			publishBootstrap: options.publishbootstrap === true,
 			dryRun: options.dryrun === true,
 		});
 		if (options.json) process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);

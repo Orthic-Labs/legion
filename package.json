@@ -117,7 +117,7 @@
     "ci:unsigned-candidate-check": "node scripts/ci/prepare-unsigned-candidate.mjs --check",
     "windows:package": "node scripts/package-windows-release.mjs",
     "windows:finalize": "node scripts/package-windows-release.mjs --finalize",
-    "windows:publish": "node scripts/package-windows-release.mjs --finalize --publish-github --publish-bootstrap",
+    "windows:publish": "node scripts/package-windows-release.mjs --finalize --publish-github",
     "windows:qualify": "node scripts/qualify-windows-release.mjs",
     "release:finalize-windows": "node scripts/release/installer-release-chain.mjs finalize-windows",
     "release:finalize-macos": "node scripts/release/installer-release-chain.mjs finalize-macos",

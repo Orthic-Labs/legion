@@ -21,11 +21,18 @@ pub enum EffectClass {
     VCS_COMMIT,
     VCS_PUSH,
     PUBLISH,
-    /// A write, send, or delete performed through an MCP tool. This is
-    /// intentionally distinct from ordinary filesystem/network classes so
-    /// the Guard can keep the newly covered external-tool surface denied by
-    /// the canonical default policy.
+    /// A write, send, or delete *positively identified* through an MCP
+    /// tool's name or operation. This is intentionally distinct from
+    /// ordinary filesystem/network classes so the Guard can keep the newly
+    /// covered external-tool surface denied by the canonical default policy.
     EXTERNAL_SIDE_EFFECT,
+    /// MCP tool lacking a positive classification signal. Kept distinct from
+    /// `EXTERNAL_SIDE_EFFECT` so receipts report observed uncertainty truthfully.
+    /// Canonical policy denies this class by default: unknown tools fail closed
+    /// until an operator supplies a narrower policy rule or classification.
+    /// Only hook fallback logic assigns this class; caller-supplied class strings
+    /// cannot claim unclassified treatment.
+    MCP_UNCLASSIFIED_OBSERVATION,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
@@ -143,6 +150,10 @@ fn rule(
 /// operation tags below. Wiring the adapter to emit them for a genuinely
 /// destructive delete path is future work; this ships the schema capability
 /// (the `operations` field plus the two-rule shape) now.
+///
+/// `MCP_UNCLASSIFIED_OBSERVATION` receives its own deny-by-default rule. This
+/// preserves truthful receipts without silently granting unknown MCP behavior.
+/// Projects may permit a narrow target or operation through an explicit rule.
 pub fn canonical_default_policy_pack() -> PolicyPack {
     PolicyPack {
         schema_version: 1,
@@ -169,6 +180,14 @@ pub fn canonical_default_policy_pack() -> PolicyPack {
             rule(
                 "default-external-side-effect-deny",
                 EffectClass::EXTERNAL_SIDE_EFFECT,
+                false,
+                &["*"],
+            ),
+            // Unclassified MCP tools fail closed. Callers must positively classify
+            // observations before canonical policy can allow them.
+            rule(
+                "default-mcp-unclassified-observation-deny",
+                EffectClass::MCP_UNCLASSIFIED_OBSERVATION,
                 false,
                 &["*"],
             ),
@@ -257,6 +276,30 @@ mod tests {
                 .unwrap_or_else(|| panic!("{effect_class:?} has a default rule"));
             assert!(!rule.allowed, "{effect_class:?} should deny by default");
         }
+    }
+
+    /// Both classes fail closed while preserving truthful receipt classification.
+    #[test]
+    fn external_side_effect_and_mcp_unclassified_observation_both_fail_closed() {
+        let pack = canonical_default_policy_pack();
+        let external_side_effect = pack
+            .rules
+            .iter()
+            .find(|rule| rule.effect_class == EffectClass::EXTERNAL_SIDE_EFFECT)
+            .expect("EXTERNAL_SIDE_EFFECT has a default rule");
+        let unclassified_observation = pack
+            .rules
+            .iter()
+            .find(|rule| rule.effect_class == EffectClass::MCP_UNCLASSIFIED_OBSERVATION)
+            .expect("MCP_UNCLASSIFIED_OBSERVATION has a default rule");
+        assert!(
+            !external_side_effect.allowed,
+            "a positively classified MCP write/send/delete must stay denied by default"
+        );
+        assert!(
+            !unclassified_observation.allowed,
+            "an unclassified MCP tool must fail closed by default"
+        );
     }
 
     #[test]

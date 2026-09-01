@@ -95,9 +95,9 @@ test('right-release config keeps signing and publication fail-closed', () => {
   assert.match(config, /signatureProviderVersion: 1/);
   assert.match(config, /role: "manifest-bound-convenience"/);
   assert.match(config, /publisher: "rightkit-release"/);
-  assert.match(config, /provider: "rightapps-downloads-r2"/);
-  assert.match(config, /mode: "branded-bootstrap-only"/);
-  assert.match(config, /objectKey: "legion\/install\.ps1"/);
+  assert.match(config, /provider: "github-pages"/);
+  assert.match(config, /mode: "custom-domain-wrapper"/);
+  assert.match(config, /objectKey: "site\/install\.ps1"/);
   assert.match(config, /publishBlocked:/);
   assert.match(config, /signedProvenanceScheme: "rightkit-release"/);
   assert.match(config, /x86_64-pc-windows-msvc/);
@@ -122,7 +122,7 @@ test('right-release config keeps signing and publication fail-closed', () => {
   assert.match(config, /LEGION_UNSIGNED_CANDIDATE_ROOT/);
 });
 
-test('publication policy freezes immutable GitHub payloads, branded R2 bootstrap, and catalog authority', () => {
+test('publication policy freezes immutable GitHub payloads, GitHub Pages bootstrap, and catalog authority', () => {
   const policy = JSON.parse(readFile(new URL('../release/publication-policy.json', import.meta.url)));
   const authority = policy.authority;
   const direct = policy.channels['direct-bootstrap'];
@@ -130,7 +130,7 @@ test('publication policy freezes immutable GitHub payloads, branded R2 bootstrap
   assert.equal(policy.kind, 'legion-publication-policy');
   assert.equal(policy.publisher, 'rightkit-release');
   assert.equal(authority.payload, 'immutable-github-release');
-  assert.equal(authority.bootstrap, 'branded-r2-bootstrap-only');
+  assert.equal(authority.bootstrap, 'github-pages-custom-domain-wrapper');
   assert.equal(authority.manifestAuthority, 'release-manifest.json+release-manifest.cat');
   assert.deepEqual(authority.manifest, {
     file: 'release-manifest.json',
@@ -144,15 +144,12 @@ test('publication policy freezes immutable GitHub payloads, branded R2 bootstrap
   assert.equal(policy.channels.npm.reason, 'private-development-tooling');
   assert.equal(direct.allowed, false);
   assert.equal(direct.payloadAuthority, 'immutable-github-release');
-  assert.equal(direct.bootstrapProvider, 'rightapps-downloads-r2');
-  assert.equal(direct.bootstrapMode, 'branded-bootstrap-only');
+  assert.equal(direct.bootstrapProvider, 'github-pages');
+  assert.equal(direct.bootstrapMode, 'custom-domain-wrapper');
   assert.equal(direct.manifestAuthority, 'release-manifest.json+release-manifest.cat');
   assert.deepEqual(direct.checksums, { file: 'checksums.json', role: 'manifest-bound-convenience' });
-  for (const alias of ['homebrew', 'winget']) {
-    assert.equal(policy.channels[alias].allowed, false);
-    assert.equal(policy.channels[alias].reason, 'optional-alias-not-required');
-    assert.equal(policy.channels[alias].requiredEvidence, undefined);
-  }
+  assert.equal(policy.channels.homebrew, undefined);
+  assert.equal(policy.channels.winget, undefined);
   assert.doesNotMatch(JSON.stringify(policy), /release-manifest\.sig|\bcms\b|bespoke uploader|custom uploader/i);
 });
 
@@ -164,10 +161,10 @@ test('distribution channels keep package managers optional and bind direct boots
   assert.equal(channels.artifactSource, 'immutable-github-release');
   assert.equal(channels.publicationOwner, 'RightKit Release');
   assert.deepEqual(channels.bootstrap, {
-    provider: 'rightapps-downloads-r2',
-    mode: 'branded-bootstrap-only',
+    provider: 'github-pages',
+    mode: 'custom-domain-wrapper',
     stableUrl: 'https://legion.orthiclabs.com/install.ps1',
-    objectKey: 'legion/install.ps1',
+    objectKey: 'site/install.ps1',
   });
   assert.deepEqual(channels.manifest, {
     authority: 'release-manifest.json+release-manifest.cat',
@@ -181,12 +178,10 @@ test('distribution channels keep package managers optional and bind direct boots
   assert.equal(direct.status, 'blocked');
   assert.equal(direct.payloadAuthority, 'immutable-github-release');
   assert.equal(direct.manifestAuthority, 'release-manifest.json+release-manifest.cat');
-  assert.equal(direct.bootstrapProvider, 'rightapps-downloads-r2');
-  assert.equal(direct.bootstrapMode, 'branded-bootstrap-only');
-  for (const alias of ['homebrew', 'winget']) {
-    assert.equal(channels.channels[alias].status, 'optional-alias-not-required');
-    assert.equal(channels.channels[alias].required, false);
-  }
+  assert.equal(direct.bootstrapProvider, 'github-pages');
+  assert.equal(direct.bootstrapMode, 'custom-domain-wrapper');
+  assert.equal(channels.channels.homebrew, undefined);
+  assert.equal(channels.channels.winget, undefined);
   assert.doesNotMatch(JSON.stringify(channels), /release-manifest\.sig|\bcms\b|bespoke uploader|custom uploader/i);
 });
 
@@ -254,7 +249,7 @@ test('Windows direct package stages exact archive then fails closed without sign
     for (const sharedApi of [
       'createPortableArchive', 'materializeCycloneDxSbom', 'materializeInTotoSlsaProvenance',
       'materializeDirectRelease', 'prepareGitHubDirectRelease', 'publishGitHubRelease',
-      'renderPowerShellBootstrap', 'planBootstrapPublication', 'publishBootstrapPlan',
+      'renderPowerShellBootstrap',
     ]) assert.match(source, new RegExp(`\\b${sharedApi}\\b`));
     assert.doesNotMatch(source, /winget|SHA256SUMS|function createPortableZip|buildSbom/);
   } finally {

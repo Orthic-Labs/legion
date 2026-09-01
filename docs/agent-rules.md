@@ -8,6 +8,8 @@ Legion provides shared routing, execution, and independent semantic validation a
 - Read `doctrine/oracle.md` for Completion Validation.
 
 ## Commands
+
+- This is an Orthic Labs public repository: `compile: github-actions-only`. Never run cargo, Rust builds/tests, packaging, signing, qualification, or release steps locally; push & read managed CI. Local scope is reads, static checks, JS/node tests, & schema validation.
 - Run `pnpm test` for package coverage.
 - Run focused Node tests with `node --test --test-concurrency=1 <paths>`.
 - Run `pnpm legion:check` for naming, schema, and dependency-closure consistency.

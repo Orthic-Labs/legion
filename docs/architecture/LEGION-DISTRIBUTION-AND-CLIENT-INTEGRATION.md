@@ -19,9 +19,9 @@ one branded command:
 irm https://legion.orthiclabs.com/install.ps1 | iex
 ```
 
-R2 hosts only small bootstrap scripts. It never duplicates release payloads. WinGet, Homebrew,
-MSI, DMG, PKG, setup applications, & store listings are optional future aliases, not release
-requirements. Legion runs no machine-wide service, tray process, or background updater.
+GitHub Pages hosts only the custom-domain bootstrap wrapper. GitHub Releases host
+immutable payloads. Package-manager, vendor, MSI, DMG, PKG, setup-application, & store lanes are
+unsupported. Legion runs no machine-wide service, tray process, or background updater.
 
 ## 2. Trust & publication
 
@@ -60,10 +60,10 @@ THIRD_PARTY_NOTICES.md
 Only supported, signed, qualified targets publish. Absence of another target is truthful, not
 filled with an unqualified artifact.
 
-Stable R2 paths serve or redirect to immutable `versions/<bootstrap-version>/` scripts. Versioned
-scripts embed accepted manifest key IDs. GitHub assets remain payload authority. Infrastructure
-owns R2 bucket, DNS, TLS, cache, & object policy; RightRelease owns bootstrap publication. Legion
-contains configuration & product activation, never an R2 uploader.
+Stable GitHub Pages path resolves the latest immutable GitHub Release bootstrap. Release scripts
+embed accepted manifest key IDs. GitHub Releases remain payload authority. Infrastructure owns DNS
+& TLS; RightKit Release owns bootstrap publication. Legion contains configuration & product
+activation, never a second uploader.
 
 ### 2.1 Public CI & protected release boundary
 
@@ -113,9 +113,10 @@ core includes every public canonical skill with plain IDs & no private/personal 
 |---|---|
 | Claude Code | Native `.claude-plugin` for MCP, hooks, & agents; separate Legion-owned standalone skill projection preserves plain `/name` commands because plugin skills are namespaced. |
 | Codex | Agent Plugins core plus Codex metadata/policy sidecar, including explicit-only invocation policy. |
-| Cursor | Agent Plugins core; thin Cursor sidecar only for rules, agents, or hooks outside portable core. |
+| Cursor | Agent Plugins portable core: bundled skills plus MCP declaration. No Cursor sidecar ships in current release. |
 | Pi | Native `.agents/skills` projection; Pi is not claimed as full Agent Plugins support or executable registration. |
-| Antigravity | Dedicated native plugin projection using its schema, `mcp_config.json`, hooks, skills, agents, & rules. |
+| Antigravity | Agent Plugins portable core. Setup derives `mcp_config.json` from portable MCP declaration; no native hooks, agents, rules, or Antigravity schema are claimed. |
+| Windsurf | No setup projection or packaged client artifact is shipped; Windsurf is unsupported. |
 
 `legion setup repair --confirm` detects, reconciles, structurally verifies, & journals selected clients.
 `legion setup status` reports actual runtime binding, projection generation, executable resolution,
@@ -128,10 +129,10 @@ semantics stay canonical.
 | Concern | Owner |
 |---|---|
 | Legion install UX, roots, PATH, activation, setup health, client matrix, plain skill IDs, rollback integration semantics, & data ownership | Legion |
-| Asset naming, signed manifest schema, key rotation, protected-host finalization/upload, R2 bootstrap publication, shared install/update transaction primitives | `@rightkit/release` |
+| Asset naming, signed manifest schema, key rotation, protected-host finalization/upload, GitHub Pages bootstrap publication, shared install/update transaction primitives | `@rightkit/release` |
 | Agent Plugins schema, portable package assembly/containment, public-resource closure, & conformance | `@rightkit/ax` |
 | Public CI compile/test/qualification/package smoke/SBOM/provenance/candidate workflow plus Windows OIDC & macOS Developer ID/notarization signing | `@rightkit/git` |
-| R2 buckets, DNS, TLS, cache, & object policy | Orthic Labs infrastructure |
+| DNS & TLS policy | Orthic Labs infrastructure |
 
 RightKit package acceptance includes one end-to-end contract spanning direct bootstrap, signed
 manifest, stable-current activation, rollback, & product/client projections. Component-local
@@ -139,10 +140,9 @@ signing, schema, or workflow success cannot claim distribution readiness alone.
 
 ## 6. Retirement & evolution
 
-`migration/native-rust/m0/distribution-contract.json` records superseded Homebrew/WinGet M0
-provenance only. Active release gates must not require package-manager metadata. Package-manager
-aliases may be added later only as derived consumers of same immutable manifest & assets; they
-cannot become another trust authority.
+`migration/native-rust/m0/distribution-contract.json` records superseded package-manager M0
+provenance only. Active release gates reject package-manager metadata; GitHub Pages plus GitHub
+Releases remain sole public channel.
 
 Architecture reopens when official client specifications change, a target cannot satisfy native
 signature/rollback guarantees, or measured activation evidence disproves client fidelity. Release
