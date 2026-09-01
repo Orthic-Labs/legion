@@ -1,0 +1,164 @@
+{
+  "schemaVersion": 1,
+  "kind": "legion-release-obligations",
+  "product": "legion",
+  "note": "Deterministic obligations a Legion release must close, in gate order. Each obligation names the gate that owns it and the evidence that closes it. A verifier computes state transitions from these receipts; no model or reviewer may assert an obligation closed.",
+  "gates": [
+    {
+      "id": "0A",
+      "name": "static-source-closure",
+      "grant": null,
+      "obligations": [
+        {
+          "id": "source-identity",
+          "requirement": "dispatch is first-attempt on refs/heads/main with an exact 40-character lowercase SHA that resolves and is an ancestor of origin/main",
+          "evidence": "release:admission"
+        },
+        {
+          "id": "same-sha-ci-green",
+          "requirement": "every ci.yml run for the exact SHA is completed and at least one concluded success, with no failed run",
+          "evidence": "release:admission"
+        },
+        {
+          "id": "version-identity",
+          "requirement": "dispatched version equals release/version.json and no tag or release exists for it, drafts included",
+          "evidence": "release:admission"
+        },
+        {
+          "id": "publish-implies-qualification",
+          "requirement": "publish=true requires signed_qualification=true",
+          "evidence": "release:admission"
+        },
+        {
+          "id": "channel-projection",
+          "requirement": "one bootstrap object key across contract, policy and channels; stable HTTPS URL projects onto it; shared downloads bucket; no retired GitHub Pages path present",
+          "evidence": "scripts/check-distribution-contract.mjs"
+        },
+        {
+          "id": "generated-state-clean",
+          "requirement": "no drift in schemas, skill catalog, host projection, skill manifests, manifest, catalogs or plugin parity",
+          "evidence": "pnpm legion:check"
+        },
+        {
+          "id": "lockfile-coherent",
+          "requirement": "pnpm-lock.yaml resolves the declared dependency set with no drift",
+          "evidence": "scripts/gate.sh"
+        },
+        {
+          "id": "workflow-inventory",
+          "requirement": "hosted workflow files exactly match the lanes declared by .rightgit.json",
+          "evidence": "tests/rightkit-pipeline-contract.test.mjs"
+        },
+        {
+          "id": "no-developer-local-values",
+          "requirement": "no unclassified developer workspace, home or username value in tracked source",
+          "evidence": "scripts/check-portability.mjs"
+        }
+      ]
+    },
+    {
+      "id": "1",
+      "name": "candidate-construction",
+      "grant": "BUILD_AUTHORIZED",
+      "obligations": [
+        {
+          "id": "candidate-per-target",
+          "requirement": "one candidate per build-input identity, platform and architecture, bound to run id, run attempt, version and source revision",
+          "evidence": "candidate stage-summary"
+        },
+        {
+          "id": "candidate-immutable",
+          "requirement": "candidate bytes are preserved and reused downstream without recompilation",
+          "evidence": "candidate stage-summary"
+        }
+      ]
+    },
+    {
+      "id": "3",
+      "name": "signing",
+      "grant": "SIGNING_AUTHORIZED",
+      "obligations": [
+        {
+          "id": "windows-authenticode",
+          "requirement": "every shipped Windows binary carries a Valid Authenticode signature with a timestamp, bound to the exact candidate digest",
+          "evidence": "release:finalize-windows"
+        },
+        {
+          "id": "macos-notarized",
+          "requirement": "the macOS artifact is signed, notarized and stapled, bound to the exact candidate digest",
+          "evidence": "release:finalize-macos"
+        }
+      ]
+    },
+    {
+      "id": "4",
+      "name": "installed-qualification",
+      "grant": null,
+      "obligations": [
+        {
+          "id": "installed-transaction",
+          "requirement": "install, launch, repair, status, doctor and uninstall succeed against the installed stable-current path under an isolated LOCALAPPDATA and USERPROFILE",
+          "evidence": "release:qualify-installed"
+        },
+        {
+          "id": "stable-pointer-binding",
+          "requirement": "the qualified executable resolves through the installed current pointer and never through a repository, dist, target or node_modules path",
+          "evidence": "release:qualify-installed"
+        },
+        {
+          "id": "failure-evidence",
+          "requirement": "a failed qualification writes qualification-failure.json with failing stage, per-command exit codes and stream digests, and a link-aware install-tree inventory, before any cleanup",
+          "evidence": "qualification-failure.json"
+        }
+      ]
+    },
+    {
+      "id": "6",
+      "name": "release-authorization",
+      "grant": "RELEASE_AUTHORIZED",
+      "obligations": [
+        {
+          "id": "stage-closure",
+          "requirement": "every required stage carries a SUCCEEDED finalize stage-summary bound to this exact version, source revision, run id and run attempt",
+          "evidence": "release:verify-evidence"
+        }
+      ]
+    },
+    {
+      "id": "7",
+      "name": "promotion",
+      "grant": null,
+      "obligations": [
+        {
+          "id": "published-equals-qualified",
+          "requirement": "uploaded GitHub asset digests equal the qualified signed artifact digests",
+          "evidence": "release:publish-qualified"
+        },
+        {
+          "id": "r2-readback",
+          "requirement": "the promoted R2 stable object reads back byte-identical to the versioned object it was promoted from",
+          "evidence": "pub-upload readback"
+        },
+        {
+          "id": "public-route-bytes",
+          "requirement": "the public Worker route serves bytes identical to the R2 stable object",
+          "evidence": null,
+          "implemented": false,
+          "gap": "no producer verifies deployed Worker bytes against the R2 stable object; Gate 7 readback is not yet automated"
+        },
+        {
+          "id": "transport-security",
+          "requirement": "plain HTTP upgrades to HTTPS and every HTTPS response carries HSTS",
+          "evidence": null,
+          "implemented": false,
+          "gap": "enforced by RightKit branded-installs worker tests, outside this repository; no Legion-side producer binds it to a release"
+        },
+        {
+          "id": "zero-compilation",
+          "requirement": "the promotion path compiles nothing",
+          "evidence": "release:publish-qualified"
+        }
+      ]
+    }
+  ]
+}
