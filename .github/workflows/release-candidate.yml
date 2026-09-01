@@ -1,18 +1,31 @@
 # Managed by right-git — do not hand-edit. Run `right-git sync` to update.
-# Template: profiles/rust-hybrid/release-candidate.yml | Template version: 1.7.0
-# Public CI always produces unsigned candidates. Opt-in finalization signs Windows
-# through Azure OIDC & macOS through environment-scoped Apple credentials.
+# Template: profiles/rust-hybrid/release-candidate.yml | Template version: 1.8.0
+# Dispatch-only release chain binds every stage to one admitted main revision.
 name: release-candidate
 on:
   workflow_dispatch:
     inputs:
+      version:
+        description: Stable SemVer to qualify or publish
+        required: true
+        type: string
+      source_revision:
+        description: Exact 40-character lowercase main commit SHA
+        required: true
+        type: string
       signed_qualification:
-        description: Run protected signing & installed qualification without publishing
+        description: Run protected signing, installed qualification, & evidence verification
         required: false
         type: boolean
         default: false
-  push:
-    tags: ['v*']
+      publish:
+        description: Publish only after same-run signed qualification verifies
+        required: false
+        type: boolean
+        default: false
+concurrency:
+  group: release-${{ inputs.version }}
+  cancel-in-progress: false
 permissions:
   contents: read
 jobs:
@@ -22,8 +35,52 @@ jobs:
       - name: Refuse private repository
         if: ${{ github.event.repository.private }}
         run: exit 1
-  candidate:
+  admission:
     needs: [private-repo-guard]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    outputs:
+      version: ${{ steps.admit.outputs.version }}
+      source_revision: ${{ steps.admit.outputs.source_revision }}
+      signed_qualification: ${{ steps.admit.outputs.signed_qualification }}
+      publish: ${{ steps.admit.outputs.publish }}
+    steps:
+      - name: Validate immutable dispatch envelope
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$GITHUB_REF" == "refs/heads/main" ]]
+          [[ "$GITHUB_RUN_ATTEMPT" == "1" ]]
+          [[ "${{ inputs.version }}" =~ ^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]
+          [[ "${{ inputs.source_revision }}" =~ ^[a-f0-9]{40}$ ]]
+          if [[ "${{ inputs.publish }}" == "true" ]]; then [[ "${{ inputs.signed_qualification }}" == "true" ]]; fi
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.source_revision }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "22.23.2"
+          package-manager-cache: false
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
+        with:
+          version: 11.24.0
+      - run: pnpm install --frozen-lockfile
+      - name: Admit exact main revision & version
+        id: admit
+        run: pnpm run release:admission
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RIGHT_GIT_RELEASE_VERSION: ${{ inputs.version }}
+          RIGHT_GIT_SOURCE_REVISION: ${{ inputs.source_revision }}
+          RIGHT_GIT_SIGNED_QUALIFICATION: ${{ inputs.signed_qualification }}
+          RIGHT_GIT_PUBLISH: ${{ inputs.publish }}
+          RIGHT_GIT_WORKFLOW_REF: ${{ github.ref }}
+          RIGHT_GIT_RUN_ATTEMPT: ${{ github.run_attempt }}
+  candidate:
+    needs: [admission]
     env:
       SCCACHE_GHA_ENABLED: "true"
       RUSTC_WRAPPER: "sccache"
@@ -45,7 +102,9 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          ref: ${{ needs.admission.outputs.source_revision }}
           fetch-depth: 0
+          persist-credentials: false
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: ${{ matrix.node }}
@@ -70,28 +129,69 @@ jobs:
         with:
           version: "v0.16.0"
       - run: pnpm install --frozen-lockfile
+      - name: Initialize candidate stage summary
+        run: pnpm run release:stage-summary
+        env:
+          RIGHT_GIT_STAGE_ACTION: init
+          RIGHT_GIT_STAGE_ROOT: ${{ runner.temp }}/right-git-stage-summary
+          RIGHT_GIT_STAGE_EVIDENCE_ROOT: ${{ runner.temp }}/legion-unsigned-candidate
+          RIGHT_GIT_STAGE: candidate
+          RIGHT_GIT_STAGE_PRODUCER: candidate-${{ matrix.platform }}-${{ matrix.architecture }}
+          RIGHT_GIT_RELEASE_VERSION: ${{ needs.admission.outputs.version }}
+          RIGHT_GIT_SOURCE_REVISION: ${{ needs.admission.outputs.source_revision }}
+          RIGHT_GIT_RELEASE_PLATFORM: ${{ matrix.platform }}
+          RIGHT_GIT_RELEASE_ARCHITECTURE: ${{ matrix.architecture }}
+          RIGHT_GIT_RUN_ID: ${{ github.run_id }}
+          RIGHT_GIT_RUN_ATTEMPT: ${{ github.run_attempt }}
       - name: Build unsigned release candidate
         run: pnpm run ci:unsigned-candidate
         env:
           RIGHT_GIT_ARTIFACT_ROOT: ${{ runner.temp }}/legion-unsigned-candidate
           RIGHT_GIT_RELEASE_PLATFORM: ${{ matrix.platform }}
           RIGHT_GIT_RELEASE_ARCHITECTURE: ${{ matrix.architecture }}
+          RIGHT_GIT_SOURCE_REVISION: ${{ needs.admission.outputs.source_revision }}
       - name: Check unsigned release candidate
         run: pnpm run ci:unsigned-candidate-check
         env:
           RIGHT_GIT_ARTIFACT_ROOT: ${{ runner.temp }}/legion-unsigned-candidate
           RIGHT_GIT_RELEASE_PLATFORM: ${{ matrix.platform }}
           RIGHT_GIT_RELEASE_ARCHITECTURE: ${{ matrix.architecture }}
+          RIGHT_GIT_SOURCE_REVISION: ${{ needs.admission.outputs.source_revision }}
+      - name: Finalize candidate stage summary
+        if: ${{ always() }}
+        run: pnpm run release:stage-summary
+        env:
+          RIGHT_GIT_STAGE_ACTION: finalize
+          RIGHT_GIT_STAGE_ROOT: ${{ runner.temp }}/right-git-stage-summary
+          RIGHT_GIT_STAGE_EVIDENCE_ROOT: ${{ runner.temp }}/legion-unsigned-candidate
+          RIGHT_GIT_STAGE: candidate
+          RIGHT_GIT_STAGE_PRODUCER: candidate-${{ matrix.platform }}-${{ matrix.architecture }}
+          RIGHT_GIT_STAGE_STATUS: ${{ job.status == 'success' && 'SUCCEEDED' || 'FAILED' }}
+          RIGHT_GIT_STAGE_EXIT_CODE: ${{ job.status == 'success' && '0' || '1' }}
+          RIGHT_GIT_RELEASE_VERSION: ${{ needs.admission.outputs.version }}
+          RIGHT_GIT_SOURCE_REVISION: ${{ needs.admission.outputs.source_revision }}
+          RIGHT_GIT_RELEASE_PLATFORM: ${{ matrix.platform }}
+          RIGHT_GIT_RELEASE_ARCHITECTURE: ${{ matrix.architecture }}
+          RIGHT_GIT_RUN_ID: ${{ github.run_id }}
+          RIGHT_GIT_RUN_ATTEMPT: ${{ github.run_attempt }}
       - name: Upload unsigned candidate handoff
+        if: ${{ always() }}
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: legion-unsigned-${{ matrix.platform }}-${{ matrix.architecture }}-${{ matrix.node }}
+          name: legion-${{ github.run_id }}-${{ github.run_attempt }}-candidate-${{ matrix.platform }}-${{ matrix.architecture }}-${{ needs.admission.outputs.version }}-${{ needs.admission.outputs.source_revision }}
           path: ${{ runner.temp }}/legion-unsigned-candidate/**
+          if-no-files-found: error
+      - name: Upload candidate stage summary
+        if: ${{ always() }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: legion-${{ github.run_id }}-${{ github.run_attempt }}-summary-candidate-${{ matrix.platform }}-${{ matrix.architecture }}-${{ needs.admission.outputs.version }}-${{ needs.admission.outputs.source_revision }}
+          path: ${{ runner.temp }}/right-git-stage-summary/stage-summary.json
           if-no-files-found: error
 
   windows-sign:
-    needs: [candidate]
-    if: ${{ startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && inputs.signed_qualification == true) }}
+    needs: [admission, candidate]
+    if: ${{ needs.admission.outputs.signed_qualification == 'true' }}
     environment: release
     strategy:
       fail-fast: false
@@ -108,9 +208,9 @@ jobs:
       id-token: write
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - name: Resolve checked-out source revision
-        shell: pwsh
-        run: '"RIGHT_GIT_SOURCE_REVISION=$(git rev-parse HEAD)" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append'
+        with:
+          ref: ${{ needs.admission.outputs.source_revision }}
+          persist-credentials: false
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 22.23.2
@@ -122,10 +222,24 @@ jobs:
         with:
           targets: ${{ matrix.targetTriple }}
       - run: pnpm install --frozen-lockfile
+      - name: Initialize Windows signing stage summary
+        run: pnpm run release:stage-summary
+        env:
+          RIGHT_GIT_STAGE_ACTION: init
+          RIGHT_GIT_STAGE_ROOT: ${{ runner.temp }}/right-git-stage-summary
+          RIGHT_GIT_STAGE_EVIDENCE_ROOT: ${{ runner.temp }}/finalized-windows
+          RIGHT_GIT_STAGE: windows-sign
+          RIGHT_GIT_STAGE_PRODUCER: windows-sign-${{ matrix.architecture }}
+          RIGHT_GIT_RELEASE_VERSION: ${{ needs.admission.outputs.version }}
+          RIGHT_GIT_SOURCE_REVISION: ${{ needs.admission.outputs.source_revision }}
+          RIGHT_GIT_RELEASE_PLATFORM: ${{ matrix.platform }}
+          RIGHT_GIT_RELEASE_ARCHITECTURE: ${{ matrix.architecture }}
+          RIGHT_GIT_RUN_ID: ${{ github.run_id }}
+          RIGHT_GIT_RUN_ATTEMPT: ${{ github.run_attempt }}
       - name: Download exact unsigned Windows candidate
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
-          name: legion-unsigned-${{ matrix.platform }}-${{ matrix.architecture }}-22.23.2
+          name: legion-${{ github.run_id }}-${{ github.run_attempt }}-candidate-${{ matrix.platform }}-${{ matrix.architecture }}-${{ needs.admission.outputs.version }}-${{ needs.admission.outputs.source_revision }}
           path: ${{ runner.temp }}/unsigned-windows-candidate
       - name: Authenticate to Azure with GitHub OIDC
         uses: azure/login@7ddb5af1ef8758cf1353cf3b42f940aee27ba21c # v3
@@ -154,23 +268,48 @@ jobs:
         env:
           RIGHT_GIT_UNSIGNED_CANDIDATE_ROOT: ${{ runner.temp }}/unsigned-windows-candidate
           RIGHT_GIT_FINALIZED_WINDOWS_ROOT: ${{ runner.temp }}/finalized-windows
-          RIGHT_GIT_SOURCE_REVISION: ${{ env.RIGHT_GIT_SOURCE_REVISION }}
+          RIGHT_GIT_SOURCE_REVISION: ${{ needs.admission.outputs.source_revision }}
           RIGHT_GIT_RELEASE_PLATFORM: ${{ matrix.platform }}
           RIGHT_GIT_RELEASE_ARCHITECTURE: ${{ matrix.architecture }}
           AZURE_ARTIFACT_SIGNING_ENDPOINT: ${{ vars.AZURE_ARTIFACT_SIGNING_ENDPOINT }}
           AZURE_ARTIFACT_SIGNING_ACCOUNT: ${{ vars.AZURE_ARTIFACT_SIGNING_ACCOUNT }}
           AZURE_ARTIFACT_SIGNING_PROFILE: ${{ vars.AZURE_ARTIFACT_SIGNING_PROFILE }}
+      - name: Finalize Windows signing stage summary
+        if: ${{ always() }}
+        run: pnpm run release:stage-summary
+        env:
+          RIGHT_GIT_STAGE_ACTION: finalize
+          RIGHT_GIT_STAGE_ROOT: ${{ runner.temp }}/right-git-stage-summary
+          RIGHT_GIT_STAGE_EVIDENCE_ROOT: ${{ runner.temp }}/finalized-windows
+          RIGHT_GIT_STAGE: windows-sign
+          RIGHT_GIT_STAGE_PRODUCER: windows-sign-${{ matrix.architecture }}
+          RIGHT_GIT_STAGE_STATUS: ${{ job.status == 'success' && 'SUCCEEDED' || 'FAILED' }}
+          RIGHT_GIT_STAGE_EXIT_CODE: ${{ job.status == 'success' && '0' || '1' }}
+          RIGHT_GIT_RELEASE_VERSION: ${{ needs.admission.outputs.version }}
+          RIGHT_GIT_SOURCE_REVISION: ${{ needs.admission.outputs.source_revision }}
+          RIGHT_GIT_RELEASE_PLATFORM: ${{ matrix.platform }}
+          RIGHT_GIT_RELEASE_ARCHITECTURE: ${{ matrix.architecture }}
+          RIGHT_GIT_RUN_ID: ${{ github.run_id }}
+          RIGHT_GIT_RUN_ATTEMPT: ${{ github.run_attempt }}
       - name: Upload signed Windows candidate
+        if: ${{ always() }}
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: legion-signed-windows-${{ matrix.architecture }}-22.23.2
+          name: legion-${{ github.run_id }}-${{ github.run_attempt }}-signed-windows-${{ matrix.architecture }}-${{ needs.admission.outputs.version }}-${{ needs.admission.outputs.source_revision }}
           path: |
             ${{ runner.temp }}/finalized-windows/**
           if-no-files-found: error
+      - name: Upload Windows signing stage summary
+        if: ${{ always() }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: legion-${{ github.run_id }}-${{ github.run_attempt }}-summary-windows-sign-${{ matrix.architecture }}-${{ needs.admission.outputs.version }}-${{ needs.admission.outputs.source_revision }}
+          path: ${{ runner.temp }}/right-git-stage-summary/stage-summary.json
+          if-no-files-found: error
 
   macos-sign:
-    needs: [candidate]
-    if: ${{ startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && inputs.signed_qualification == true) }}
+    needs: [admission, candidate]
+    if: ${{ needs.admission.outputs.signed_qualification == 'true' }}
     environment: release
     strategy:
       fail-fast: false
@@ -186,9 +325,9 @@ jobs:
       contents: read
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - name: Resolve checked-out source revision
-        shell: bash
-        run: printf 'RIGHT_GIT_SOURCE_REVISION=%s\n' "$(git rev-parse HEAD)" >> "$GITHUB_ENV"
+        with:
+          ref: ${{ needs.admission.outputs.source_revision }}
+          persist-credentials: false
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 22.23.2
@@ -200,10 +339,24 @@ jobs:
         with:
           targets: ${{ matrix.targetTriple }}
       - run: pnpm install --frozen-lockfile
+      - name: Initialize macOS signing stage summary
+        run: pnpm run release:stage-summary
+        env:
+          RIGHT_GIT_STAGE_ACTION: init
+          RIGHT_GIT_STAGE_ROOT: ${{ runner.temp }}/right-git-stage-summary
+          RIGHT_GIT_STAGE_EVIDENCE_ROOT: ${{ runner.temp }}/finalized-macos
+          RIGHT_GIT_STAGE: macos-sign
+          RIGHT_GIT_STAGE_PRODUCER: macos-sign-${{ matrix.architecture }}
+          RIGHT_GIT_RELEASE_VERSION: ${{ needs.admission.outputs.version }}
+          RIGHT_GIT_SOURCE_REVISION: ${{ needs.admission.outputs.source_revision }}
+          RIGHT_GIT_RELEASE_PLATFORM: ${{ matrix.platform }}
+          RIGHT_GIT_RELEASE_ARCHITECTURE: ${{ matrix.architecture }}
+          RIGHT_GIT_RUN_ID: ${{ github.run_id }}
+          RIGHT_GIT_RUN_ATTEMPT: ${{ github.run_attempt }}
       - name: Download exact unsigned macOS candidate
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
-          name: legion-unsigned-${{ matrix.platform }}-${{ matrix.architecture }}-22.23.2
+          name: legion-${{ github.run_id }}-${{ github.run_attempt }}-candidate-${{ matrix.platform }}-${{ matrix.architecture }}-${{ needs.admission.outputs.version }}-${{ needs.admission.outputs.source_revision }}
           path: ${{ runner.temp }}/unsigned-macos-candidate
       - name: Install Apple signing identity in temporary keychain
         shell: bash
@@ -231,18 +384,43 @@ jobs:
         env:
           RIGHT_GIT_UNSIGNED_CANDIDATE_ROOT: ${{ runner.temp }}/unsigned-macos-candidate
           RIGHT_GIT_FINALIZED_MACOS_ROOT: ${{ runner.temp }}/finalized-macos
-          RIGHT_GIT_SOURCE_REVISION: ${{ env.RIGHT_GIT_SOURCE_REVISION }}
+          RIGHT_GIT_SOURCE_REVISION: ${{ needs.admission.outputs.source_revision }}
           RIGHT_GIT_RELEASE_PLATFORM: ${{ matrix.platform }}
           RIGHT_GIT_RELEASE_ARCHITECTURE: ${{ matrix.architecture }}
           APPLE_DEVELOPER_ID: ${{ vars.APPLE_DEVELOPER_ID }}
           APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
           APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+      - name: Finalize macOS signing stage summary
+        if: ${{ always() }}
+        run: pnpm run release:stage-summary
+        env:
+          RIGHT_GIT_STAGE_ACTION: finalize
+          RIGHT_GIT_STAGE_ROOT: ${{ runner.temp }}/right-git-stage-summary
+          RIGHT_GIT_STAGE_EVIDENCE_ROOT: ${{ runner.temp }}/finalized-macos
+          RIGHT_GIT_STAGE: macos-sign
+          RIGHT_GIT_STAGE_PRODUCER: macos-sign-${{ matrix.architecture }}
+          RIGHT_GIT_STAGE_STATUS: ${{ job.status == 'success' && 'SUCCEEDED' || 'FAILED' }}
+          RIGHT_GIT_STAGE_EXIT_CODE: ${{ job.status == 'success' && '0' || '1' }}
+          RIGHT_GIT_RELEASE_VERSION: ${{ needs.admission.outputs.version }}
+          RIGHT_GIT_SOURCE_REVISION: ${{ needs.admission.outputs.source_revision }}
+          RIGHT_GIT_RELEASE_PLATFORM: ${{ matrix.platform }}
+          RIGHT_GIT_RELEASE_ARCHITECTURE: ${{ matrix.architecture }}
+          RIGHT_GIT_RUN_ID: ${{ github.run_id }}
+          RIGHT_GIT_RUN_ATTEMPT: ${{ github.run_attempt }}
       - name: Upload signed & notarized macOS candidate
+        if: ${{ always() }}
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: legion-signed-macos-${{ matrix.architecture }}-22.23.2
+          name: legion-${{ github.run_id }}-${{ github.run_attempt }}-signed-macos-${{ matrix.architecture }}-${{ needs.admission.outputs.version }}-${{ needs.admission.outputs.source_revision }}
           path: |
             ${{ runner.temp }}/finalized-macos/**
+          if-no-files-found: error
+      - name: Upload macOS signing stage summary
+        if: ${{ always() }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: legion-${{ github.run_id }}-${{ github.run_attempt }}-summary-macos-sign-${{ matrix.architecture }}-${{ needs.admission.outputs.version }}-${{ needs.admission.outputs.source_revision }}
+          path: ${{ runner.temp }}/right-git-stage-summary/stage-summary.json
           if-no-files-found: error
       - name: Remove Apple signing material
         if: ${{ always() }}
@@ -252,15 +430,15 @@ jobs:
           rm -f "$RUNNER_TEMP/apple-signing.p12" "$RUNNER_TEMP/AuthKey.p8"
 
   installed-qualification:
-    needs: [candidate, windows-sign]
-    if: ${{ always() && (startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && inputs.signed_qualification == true)) && needs.candidate.result == 'success' }}
+    needs: [admission, candidate, windows-sign]
+    if: ${{ always() && needs.admission.outputs.signed_qualification == 'true' && needs.candidate.result == 'success' }}
     environment: release
     runs-on: ${{ vars.LEGION_QUALIFICATION_RUNNER || 'windows-2025' }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - name: Resolve checked-out source revision
-        shell: pwsh
-        run: '"RIGHT_GIT_SOURCE_REVISION=$(git rev-parse HEAD)" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append'
+        with:
+          ref: ${{ needs.admission.outputs.source_revision }}
+          persist-credentials: false
       - name: Fail closed when protected finalization is absent
         if: ${{ needs.windows-sign.result != 'success' }}
         shell: pwsh
@@ -269,7 +447,7 @@ jobs:
       - name: Download same-run finalized Windows release
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
-          name: legion-signed-windows-x86_64-22.23.2
+          name: legion-${{ github.run_id }}-${{ github.run_attempt }}-signed-windows-x86_64-${{ needs.admission.outputs.version }}-${{ needs.admission.outputs.source_revision }}
           path: ${{ runner.temp }}/right-git-release/windows
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
@@ -279,46 +457,107 @@ jobs:
         with:
           version: 11.24.0
       - run: pnpm install --frozen-lockfile
+      - name: Initialize installed-qualification stage summary
+        run: pnpm run release:stage-summary
+        env:
+          RIGHT_GIT_STAGE_ACTION: init
+          RIGHT_GIT_STAGE_ROOT: ${{ runner.temp }}/right-git-stage-summary
+          RIGHT_GIT_STAGE_EVIDENCE_ROOT: ${{ runner.temp }}/right-git-release/qualification
+          RIGHT_GIT_STAGE: installed-qualification
+          RIGHT_GIT_STAGE_PRODUCER: installed-qualification
+          RIGHT_GIT_RELEASE_VERSION: ${{ needs.admission.outputs.version }}
+          RIGHT_GIT_SOURCE_REVISION: ${{ needs.admission.outputs.source_revision }}
+          RIGHT_GIT_RUN_ID: ${{ github.run_id }}
+          RIGHT_GIT_RUN_ATTEMPT: ${{ github.run_attempt }}
       - name: Run installed-artifact qualification
         run: pnpm run release:qualify-installed
         env:
           GH_TOKEN: ${{ github.token }}
           RIGHT_GIT_FINALIZED_WINDOWS_ROOT: ${{ runner.temp }}/right-git-release/windows
           RIGHT_GIT_QUALIFICATION_EVIDENCE_ROOT: ${{ runner.temp }}/right-git-release/qualification
-          RIGHT_GIT_SOURCE_REVISION: ${{ env.RIGHT_GIT_SOURCE_REVISION }}
+          RIGHT_GIT_RELEASE_VERSION: ${{ needs.admission.outputs.version }}
+          RIGHT_GIT_SOURCE_REVISION: ${{ needs.admission.outputs.source_revision }}
+      - name: Finalize installed-qualification stage summary
+        if: ${{ always() }}
+        run: pnpm run release:stage-summary
+        env:
+          RIGHT_GIT_STAGE_ACTION: finalize
+          RIGHT_GIT_STAGE_ROOT: ${{ runner.temp }}/right-git-stage-summary
+          RIGHT_GIT_STAGE_EVIDENCE_ROOT: ${{ runner.temp }}/right-git-release/qualification
+          RIGHT_GIT_STAGE: installed-qualification
+          RIGHT_GIT_STAGE_PRODUCER: installed-qualification
+          RIGHT_GIT_STAGE_STATUS: ${{ job.status == 'success' && 'SUCCEEDED' || 'FAILED' }}
+          RIGHT_GIT_STAGE_EXIT_CODE: ${{ job.status == 'success' && '0' || '1' }}
+          RIGHT_GIT_RELEASE_VERSION: ${{ needs.admission.outputs.version }}
+          RIGHT_GIT_SOURCE_REVISION: ${{ needs.admission.outputs.source_revision }}
+          RIGHT_GIT_RUN_ID: ${{ github.run_id }}
+          RIGHT_GIT_RUN_ATTEMPT: ${{ github.run_attempt }}
       - name: Upload installed qualification evidence
+        if: ${{ always() }}
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: legion-installed-qualification-22.23.2
+          name: legion-${{ github.run_id }}-${{ github.run_attempt }}-installed-qualification-${{ needs.admission.outputs.version }}-${{ needs.admission.outputs.source_revision }}
           path: ${{ runner.temp }}/right-git-release/qualification/**
           if-no-files-found: error
+      - name: Upload installed-qualification stage summary
+        if: ${{ always() }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: legion-${{ github.run_id }}-${{ github.run_attempt }}-summary-installed-qualification-${{ needs.admission.outputs.version }}-${{ needs.admission.outputs.source_revision }}
+          path: ${{ runner.temp }}/right-git-stage-summary/stage-summary.json
+          if-no-files-found: error
   publish:
-    needs: [installed-qualification, macos-sign]
-    if: ${{ startsWith(github.ref, 'refs/tags/v') && needs.installed-qualification.result == 'success' && needs.macos-sign.result == 'success' }}
+    needs: [admission, installed-qualification, macos-sign]
+    if: ${{ needs.admission.outputs.publish == 'true' && needs.installed-qualification.result == 'success' && needs.macos-sign.result == 'success' }}
     environment: release
     runs-on: ${{ vars.LEGION_QUALIFICATION_RUNNER || 'windows-2025' }}
     permissions:
       contents: write
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - name: Resolve checked-out source revision
-        shell: pwsh
-        run: '"RIGHT_GIT_SOURCE_REVISION=$(git rev-parse HEAD)" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append'
+        with:
+          ref: ${{ needs.admission.outputs.source_revision }}
+          persist-credentials: false
       - name: Download same-run finalized Windows release
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
-          name: legion-signed-windows-x86_64-22.23.2
+          name: legion-${{ github.run_id }}-${{ github.run_attempt }}-signed-windows-x86_64-${{ needs.admission.outputs.version }}-${{ needs.admission.outputs.source_revision }}
           path: ${{ runner.temp }}/right-git-release/windows
       - name: Download same-run signed & notarized macOS release
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
-          name: legion-signed-macos-arm64-22.23.2
+          name: legion-${{ github.run_id }}-${{ github.run_attempt }}-signed-macos-arm64-${{ needs.admission.outputs.version }}-${{ needs.admission.outputs.source_revision }}
           path: ${{ runner.temp }}/right-git-release/macos
       - name: Download same-run installed qualification evidence
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
-          name: legion-installed-qualification-22.23.2
+          name: legion-${{ github.run_id }}-${{ github.run_attempt }}-installed-qualification-${{ needs.admission.outputs.version }}-${{ needs.admission.outputs.source_revision }}
           path: ${{ runner.temp }}/right-git-release/qualification
+      - name: Download same-run candidate (Windows) stage summary
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: legion-${{ github.run_id }}-${{ github.run_attempt }}-summary-candidate-windows-x86_64-${{ needs.admission.outputs.version }}-${{ needs.admission.outputs.source_revision }}
+          path: ${{ runner.temp }}/right-git-release/stage-summaries/candidate-windows
+      - name: Download same-run candidate (macOS) stage summary
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: legion-${{ github.run_id }}-${{ github.run_attempt }}-summary-candidate-macos-arm64-${{ needs.admission.outputs.version }}-${{ needs.admission.outputs.source_revision }}
+          path: ${{ runner.temp }}/right-git-release/stage-summaries/candidate-macos
+      - name: Download same-run Windows signing stage summary
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: legion-${{ github.run_id }}-${{ github.run_attempt }}-summary-windows-sign-x86_64-${{ needs.admission.outputs.version }}-${{ needs.admission.outputs.source_revision }}
+          path: ${{ runner.temp }}/right-git-release/stage-summaries/windows-sign
+      - name: Download same-run macOS signing stage summary
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: legion-${{ github.run_id }}-${{ github.run_attempt }}-summary-macos-sign-arm64-${{ needs.admission.outputs.version }}-${{ needs.admission.outputs.source_revision }}
+          path: ${{ runner.temp }}/right-git-release/stage-summaries/macos-sign
+      - name: Download same-run installed-qualification stage summary
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: legion-${{ github.run_id }}-${{ github.run_attempt }}-summary-installed-qualification-${{ needs.admission.outputs.version }}-${{ needs.admission.outputs.source_revision }}
+          path: ${{ runner.temp }}/right-git-release/stage-summaries/installed-qualification
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 22.23.2
@@ -327,6 +566,18 @@ jobs:
         with:
           version: 11.24.0
       - run: pnpm install --frozen-lockfile
+      - name: Verify aggregated release evidence
+        run: pnpm run release:verify-evidence
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RIGHT_GIT_FINALIZED_WINDOWS_ROOT: ${{ runner.temp }}/right-git-release/windows
+          RIGHT_GIT_FINALIZED_MACOS_ROOT: ${{ runner.temp }}/right-git-release/macos
+          RIGHT_GIT_QUALIFICATION_EVIDENCE_ROOT: ${{ runner.temp }}/right-git-release/qualification
+          RIGHT_GIT_STAGE_SUMMARY_ROOT: ${{ runner.temp }}/right-git-release/stage-summaries
+          RIGHT_GIT_RELEASE_VERSION: ${{ needs.admission.outputs.version }}
+          RIGHT_GIT_SOURCE_REVISION: ${{ needs.admission.outputs.source_revision }}
+          RIGHT_GIT_RUN_ID: ${{ github.run_id }}
+          RIGHT_GIT_RUN_ATTEMPT: ${{ github.run_attempt }}
       - name: Publish qualified signed release
         run: pnpm run release:publish-qualified
         env:
@@ -334,4 +585,8 @@ jobs:
           RIGHT_GIT_FINALIZED_WINDOWS_ROOT: ${{ runner.temp }}/right-git-release/windows
           RIGHT_GIT_FINALIZED_MACOS_ROOT: ${{ runner.temp }}/right-git-release/macos
           RIGHT_GIT_QUALIFICATION_EVIDENCE_ROOT: ${{ runner.temp }}/right-git-release/qualification
-          RIGHT_GIT_SOURCE_REVISION: ${{ env.RIGHT_GIT_SOURCE_REVISION }}
+          RIGHT_GIT_STAGE_SUMMARY_ROOT: ${{ runner.temp }}/right-git-release/stage-summaries
+          RIGHT_GIT_RELEASE_VERSION: ${{ needs.admission.outputs.version }}
+          RIGHT_GIT_SOURCE_REVISION: ${{ needs.admission.outputs.source_revision }}
+          RIGHT_GIT_RUN_ID: ${{ github.run_id }}
+          RIGHT_GIT_RUN_ATTEMPT: ${{ github.run_attempt }}

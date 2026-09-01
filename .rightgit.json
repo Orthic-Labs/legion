@@ -16,17 +16,21 @@
     ]
   },
   "packageManager": "pnpm@11.24.0",
-  "templateVersion": "1.7.0",
+  "templateVersion": "1.8.0",
   "profile": "rust-hybrid",
   "gate": {
     "path": "scripts/gate.sh"
   },
   "rustCache": {
-    "workspaces": ["engine"]
+    "workspaces": [
+      "engine"
+    ]
   },
   "candidate": {
     "buildScript": "ci:unsigned-candidate",
     "checkScript": "ci:unsigned-candidate-check",
+    "admissionScript": "release:admission",
+    "stageSummaryScript": "release:stage-summary",
     "artifactRoot": "legion-unsigned-candidate",
     "os": [
       "windows-2025",
@@ -47,6 +51,7 @@
     "signWindows": true,
     "signMacos": true,
     "releaseChain": {
+      "evidenceVerificationScript": "release:verify-evidence",
       "windowsFinalizeScript": "release:finalize-windows",
       "macosFinalizeScript": "release:finalize-macos",
       "installedQualificationScript": "release:qualify-installed",

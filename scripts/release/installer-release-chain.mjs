@@ -22,6 +22,7 @@ import { basename, dirname, isAbsolute, join, relative, resolve, sep } from "nod
 import { tmpdir } from "node:os";
 import { fileURLToPath } from "node:url";
 import { commandDiagnostic, releaseSpawnOptions } from "./process-boundary.mjs";
+import { admitRelease, verifyEvidence, writeStageSummary } from "./admission.mjs";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 const PRODUCT = "legion";
@@ -277,8 +278,8 @@ export function finalizeWindows(options = {}) { return finalizationManifest({ ..
 export function finalizeMacos(options = {}) { return finalizationManifest({ ...options, env: options.env ?? process.env, platform: "macos" }); }
 function main() {
 	const command = process.argv[2];
-	const map = { "finalize-windows": finalizeWindows, "finalize-macos": finalizeMacos, "qualify-installed": qualifyInstalled, "publish-qualified": publishQualified };
-	if (!map[command]) fail("usage: installer-release-chain.mjs <finalize-windows|finalize-macos|qualify-installed|publish-qualified>");
+	const map = { "finalize-windows": finalizeWindows, "finalize-macos": finalizeMacos, "qualify-installed": qualifyInstalled, "publish-qualified": publishQualified, admission: admitRelease, "stage-summary": writeStageSummary, "evidence-verification": verifyEvidence };
+	if (!map[command]) fail("usage: installer-release-chain.mjs <finalize-windows|finalize-macos|qualify-installed|publish-qualified|admission|stage-summary|evidence-verification>");
 	process.stdout.write(`${JSON.stringify(map[command](), null, 2)}\n`);
 }
 if (resolve(process.argv[1] ?? "") === fileURLToPath(import.meta.url)) main();
