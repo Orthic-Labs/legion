@@ -6,6 +6,8 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import test from 'node:test';
 import { codexHookTrust, computeHostSection } from '../src/lib/cli/commands/doctor-host.mjs';
+import { DOCTOR_BLUEPRINT_TIMEOUT_MS } from '../src/lib/cli/commands/doctor.mjs';
+import { COMMAND_PROBE_TIMEOUT_MS, probeCapability } from '../src/lib/capabilities/probe.mjs';
 
 const BIN = fileURLToPath(new URL('../src/bin/legion.mjs', import.meta.url));
 const root = fileURLToPath(new URL('..', import.meta.url));
@@ -36,6 +38,19 @@ test('doctor --json emits the canonical shape', () => {
   assert.equal(Object.hasOwn(report.host.discovery['claude-code'], 'roleEntrypoints'), false);
   assert.ok(report.host.guard);
   assert.equal(Object.hasOwn(report.host, 'arcane'), false);
+  const lifecycle = result.stderr.trim().split(/\r?\n/).map((line) => JSON.parse(line));
+  assert.equal(lifecycle[0].phase, 'started');
+  assert.equal(lifecycle.at(-1).phase, 'finished');
+  assert.ok(lifecycle.some(({ phase, detail }) => phase === 'blueprint-probe-started' && detail.timeoutMs === DOCTOR_BLUEPRINT_TIMEOUT_MS));
+});
+
+test('host command probes carry finite timeout policy', () => {
+  assert.equal(COMMAND_PROBE_TIMEOUT_MS, 3_000);
+  const registry = { capabilities: { bounded: { kind: 'external', summary: 'bounded', degradation: 'none', probe: { kind: 'command', command: 'bounded' } } } };
+  let calls = 0;
+  const result = probeCapability('bounded', { registry, commandExists: () => { calls += 1; return false; } });
+  assert.equal(calls, 1);
+  assert.equal(result.available, false);
 });
 
 test('doctor reflects the network guard environment', () => {

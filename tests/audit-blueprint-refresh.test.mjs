@@ -37,6 +37,7 @@ const args = process.argv.slice(2);
 const command = args.slice(0, 2).join(' ');
 const mode = ${JSON.stringify(mode)};
 ${logPath ? `fs.appendFileSync(${JSON.stringify(logPath)}, command + '\\n');` : ''}
+if (mode === 'slow') Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 180);
 const packet = ${JSON.stringify(packetPayload())};
 const outIndex = args.indexOf('--out');
 if (outIndex >= 0 && /^([A-Za-z]:[\\\\/]|[\\\\/])/.test(args[outIndex + 1] ?? '')) {
@@ -99,6 +100,17 @@ test('preserves the exact stale code instead of collapsing it into transport fai
     const packet = readBlueprintPacket(process.cwd(), { blueprintBin: fixture.bin });
     assert.equal(packet.status, 'unavailable');
     assert.equal(packet.reason, 'graph_stale');
+  } finally {
+    rmSync(fixture.dir, { recursive: true, force: true });
+  }
+});
+
+test('one-shot timeout is shared across build, status, and projection', () => {
+  const fixture = fakeBlueprint('slow');
+  try {
+    const packet = readBlueprintPacket(process.cwd(), { blueprintBin: fixture.bin, timeoutMs: 400 });
+    assert.equal(packet.status, 'unavailable');
+    assert.equal(packet.reason, BLUEPRINT_ERROR_CODES.oneShotTimeout);
   } finally {
     rmSync(fixture.dir, { recursive: true, force: true });
   }

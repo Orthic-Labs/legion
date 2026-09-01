@@ -9,6 +9,12 @@ import { runSemanticHealth } from '../../verification/arcane/semantic-health.mjs
 import { checkCanonicalNames } from '../../naming/check.mjs';
 import { inspectMcpNaming } from '../../naming/migrations.mjs';
 
+export const DOCTOR_BLUEPRINT_TIMEOUT_MS = 15_000;
+
+function lifecycle(stderr, phase, detail = null) {
+  stderr.write(`${JSON.stringify({ kind: 'legion-doctor-lifecycle', phase, detail, at: new Date().toISOString() })}\n`);
+}
+
 function namingBindings(root) {
   const claudePath = resolve(root, '.mcp.json');
   let claudeCode = { status: 'absent', legacy: [] };
@@ -41,11 +47,17 @@ export async function runDoctor(argv, { stdout, stderr, env, cwd, host }) {
   const parsed = parseArgs({ args: argv, allowPositionals: true, options: { json: { type: 'boolean' } }, strict: true });
   const root = resolve(parsed.positionals[0] ?? cwd);
   const registry = loadProviderRegistry();
-  const adapter = new MembraneAdapter({ packetPath: env.LEGION_MEMBRANE_PACKET ?? null });
+  lifecycle(stderr, 'started', { root });
+  const adapter = new MembraneAdapter({
+    packetPath: env.LEGION_MEMBRANE_PACKET ?? null,
+    timeoutMs: DOCTOR_BLUEPRINT_TIMEOUT_MS,
+  });
+  lifecycle(stderr, 'blueprint-probe-started', { timeoutMs: DOCTOR_BLUEPRINT_TIMEOUT_MS });
   const compatible = await adapter.ensureCompatible();
   const projection = compatible.ok
     ? await adapter.generateOrLoadProjection({ request: { root } })
     : { status: 'unavailable', reason: compatible.error };
+  lifecycle(stderr, 'blueprint-probe-finished', { status: projection?.status ?? 'unavailable' });
   const freshness = projection?.status !== 'unavailable'
     ? await adapter.verifyFreshness({ packet: projection })
     : { fresh: false, reason: projection?.reason ?? 'Membrane unavailable' };
@@ -55,10 +67,18 @@ export async function runDoctor(argv, { stdout, stderr, env, cwd, host }) {
     ? rawBlueprintState
     : 'missing';
   const toolchains = host?.toolchain?.discover?.({ root, env }) ?? { state: 'unproven', tools: [] };
-  const arcaneSemanticHealth = runSemanticHealth({ cwd: root, env });
+  lifecycle(stderr, 'semantic-probes-started');
+  const arcaneSemanticHealth = runSemanticHealth({
+    cwd: root,
+    env,
+    onProbe: (detail) => lifecycle(stderr, 'semantic-probe', detail),
+  });
+  lifecycle(stderr, 'semantic-probes-finished', { healthy: arcaneSemanticHealth.healthy });
   const naming = checkCanonicalNames({ root: resolve(import.meta.dirname, '..', '..', '..', '..') });
   const namingBindingState = namingBindings(root);
+  lifecycle(stderr, 'host-probes-started');
   const hostSection = computeHostSection(root);
+  lifecycle(stderr, 'host-probes-finished', { state: hostSection.hostRequirements.state });
 
   const report = {
     schemaVersion: 1,
@@ -114,5 +134,6 @@ export async function runDoctor(argv, { stdout, stderr, env, cwd, host }) {
     ],
   };
   stdout.write(`${JSON.stringify(report, null, 2)}\n`);
+  lifecycle(stderr, 'finished', { gaps: report.gaps.length });
   return { exitCode: EXIT.PASS };
 }

@@ -1866,6 +1866,9 @@ fn validate_installed_projection(input: &ClientProjectionInput) -> Result<(), Se
     reject_production_path(&input.source_root)?;
     reject_production_path(&input.target_root)?;
     reject_production_path(&input.state_root)?;
+    reject_source_checkout_descendant(&input.source_root)?;
+    reject_source_checkout_descendant(&input.target_root)?;
+    reject_source_checkout_descendant(&input.state_root)?;
 
     let derived_install_root = stable_install_root(lexical_executable)?;
     if !paths_equal(&derived_install_root, lexical_install_root) {
@@ -1909,10 +1912,16 @@ fn validate_installed_projection(input: &ClientProjectionInput) -> Result<(), Se
     reject_production_path(&executable)?;
     reject_production_path(&current_root)?;
     reject_production_path(&install_root)?;
+    let resolved_current_is_active = path_starts_with(&current_root, &install_root)
+        || windows_localcache_equivalent(
+            &lexical_current_root,
+            &current_root,
+            lexical_install_root,
+        );
     if !executable.is_file()
         || !current_root.is_dir()
         || !install_root.is_dir()
-        || !path_starts_with(&current_root, &install_root)
+        || !resolved_current_is_active
         || !path_starts_with(&executable, &current_root)
     {
         return Err(err(
@@ -1994,6 +2003,33 @@ fn reject_production_path(path: &Path) -> Result<(), SetupError> {
             SetupErrorCode::PathEscapeRefused,
             "production client projection may not reference repo, dist, target, or node_modules paths",
         ));
+    }
+    Ok(())
+}
+
+/// Refuse installed bindings below any source checkout, including workspace
+/// roots whose names do not contain generic markers such as `repo` or `target`.
+fn reject_source_checkout_descendant(path: &Path) -> Result<(), SetupError> {
+    let mut existing = Some(path);
+    while let Some(candidate) = existing {
+        if candidate.exists() {
+            for ancestor in candidate.ancestors() {
+                if ancestor.join(".git").exists()
+                    && (ancestor.join("Cargo.toml").exists()
+                        || ancestor.join("package.json").exists())
+                {
+                    return Err(err(
+                        SetupErrorCode::SourceCheckoutReferenceRefused,
+                        format!(
+                            "installed client projection may not reference source checkout: {}",
+                            path.display()
+                        ),
+                    ));
+                }
+            }
+            return Ok(());
+        }
+        existing = candidate.parent();
     }
     Ok(())
 }
@@ -2277,6 +2313,40 @@ fn path_starts_with(path: &Path, root: &Path) -> bool {
             .iter()
             .zip(root.iter())
             .all(|(path, root)| path == root)
+}
+
+fn windows_localcache_equivalent(lexical: &Path, resolved: &Path, install_root: &Path) -> bool {
+    if !cfg!(windows) {
+        return false;
+    }
+    let Some(local_app_data) = install_root.parent().and_then(Path::parent) else {
+        return false;
+    };
+    let normalize = |path: &Path| {
+        let normalized = path.to_string_lossy().replace('\\', "/");
+        let normalized = normalized.strip_prefix("//?/").unwrap_or(&normalized);
+        normalized
+            .split('/')
+            .filter(|component| !component.is_empty() && *component != ".")
+            .map(|component| component.to_ascii_lowercase())
+            .collect::<Vec<_>>()
+    };
+    let local = normalize(local_app_data);
+    let lexical = normalize(lexical);
+    let resolved = normalize(resolved);
+    if lexical.len() <= local.len()
+        || resolved.len() <= local.len() + 4
+        || lexical[..local.len()] != local
+        || resolved[..local.len()] != local
+    {
+        return false;
+    }
+    let virtual_prefix = &resolved[local.len()..local.len() + 4];
+    virtual_prefix[0] == "packages"
+        && !virtual_prefix[1].is_empty()
+        && virtual_prefix[2] == "localcache"
+        && virtual_prefix[3] == "local"
+        && resolved[local.len() + 4..] == lexical[local.len()..]
 }
 
 fn reject_source_checkout_reference(path: &Path) -> Result<(), SetupError> {
@@ -3174,5 +3244,43 @@ mod tests {
                 .code,
             SetupErrorCode::PathEscapeRefused
         );
+    }
+
+    #[test]
+    fn installed_bindings_reject_checkout_descendants_before_creation() {
+        let root = TestRoot::new("installed-checkout-boundary");
+        fs::create_dir_all(root.0.join(".git")).unwrap();
+        fs::write(root.0.join("package.json"), b"{}").unwrap();
+
+        let error = reject_source_checkout_descendant(&root.0.join("clients/codex"))
+            .expect_err("checkout descendant must be rejected");
+
+        assert_eq!(error.code, SetupErrorCode::SourceCheckoutReferenceRefused);
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn windows_rejects_posix_client_binding_paths() {
+        assert!(!Path::new("/Volumes/D/Claude/legion").is_absolute());
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn windows_accepts_only_matching_localcache_virtualization() {
+        let install_root = PathBuf::from(r"C:\Users\operator\AppData\Local\Orthic Labs\Legion");
+        let lexical = install_root.join("current");
+        let virtualized = PathBuf::from(
+            r"\\?\C:\Users\operator\AppData\Local\Packages\OpenAI.Codex_example\LocalCache\Local\Orthic Labs\Legion\current",
+        );
+        assert!(windows_localcache_equivalent(
+            &lexical,
+            &virtualized,
+            &install_root,
+        ));
+        assert!(!windows_localcache_equivalent(
+            &lexical,
+            &virtualized.join("escaped"),
+            &install_root,
+        ));
     }
 }

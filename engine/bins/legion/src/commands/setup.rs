@@ -2440,8 +2440,22 @@ fn resolved_binding_current(
     {
         return false;
     }
-    path_starts_with(resolved_install_root, &canonical_install_root)
-        && path_starts_with(resolved_executable, resolved_install_root)
+    let stable_current_root = install_root.join("current");
+    let resolved_root_matches = path_starts_with(resolved_install_root, &canonical_install_root)
+        || windows_localcache_equivalent(
+            &stable_current_root,
+            resolved_install_root,
+            install_root,
+        );
+    let resolved_executable_matches = path_starts_with(resolved_executable, resolved_install_root)
+        && (path_starts_with(resolved_executable, &canonical_install_root)
+            || windows_localcache_equivalent(
+                Path::new(executable.and_then(Value::as_str).expect("binding field checked")),
+                resolved_executable,
+                install_root,
+            ));
+    resolved_root_matches
+        && resolved_executable_matches
         && resolved_executable
             .file_name()
             .and_then(|name| name.to_str())
@@ -2452,6 +2466,44 @@ fn resolved_binding_current(
                     name == "legion"
                 }
             })
+}
+
+/// Windows packaged hosts may resolve `%LOCALAPPDATA%` through
+/// `Packages/<family>/LocalCache/Local`. Accept that OS virtualization only
+/// when removing its exact prefix recreates the already-validated lexical
+/// stable-current path.
+fn windows_localcache_equivalent(lexical: &Path, resolved: &Path, install_root: &Path) -> bool {
+    if !cfg!(windows) {
+        return false;
+    }
+    let Some(local_app_data) = install_root.parent().and_then(Path::parent) else {
+        return false;
+    };
+    let normalize = |path: &Path| {
+        let normalized = path.to_string_lossy().replace('\\', "/");
+        let normalized = normalized.strip_prefix("//?/").unwrap_or(&normalized);
+        normalized
+            .split('/')
+            .filter(|component| !component.is_empty() && *component != ".")
+            .map(|component| component.to_ascii_lowercase())
+            .collect::<Vec<_>>()
+    };
+    let local = normalize(local_app_data);
+    let lexical = normalize(lexical);
+    let resolved = normalize(resolved);
+    if lexical.len() <= local.len()
+        || resolved.len() <= local.len() + 4
+        || lexical[..local.len()] != local
+        || resolved[..local.len()] != local
+    {
+        return false;
+    }
+    let virtual_prefix = &resolved[local.len()..local.len() + 4];
+    virtual_prefix[0] == "packages"
+        && !virtual_prefix[1].is_empty()
+        && virtual_prefix[2] == "localcache"
+        && virtual_prefix[3] == "local"
+        && resolved[local.len() + 4..] == lexical[local.len()..]
 }
 
 fn path_name_is(path: &Path, expected: &str) -> bool {
@@ -2890,10 +2942,7 @@ fn host_integration_inputs_installed(
         .into_iter()
         .map(|entry| entry.canonical_id)
         .collect::<Vec<_>>();
-    let home = std::env::var_os("USERPROFILE")
-        .or_else(|| std::env::var_os("HOME"))
-        .map(PathBuf::from)
-        .ok_or_else(|| CommandError::incomplete("host home directory is unavailable"))?;
+    let home = installed_host_home()?;
     let platform_state_root = legion_host::platform_state_root().map_err(setup_error)?;
     let skills_root = assets_root.join("skills");
     let claude =
@@ -3003,6 +3052,29 @@ fn installed_plugin_source_root(executable: &Path) -> Result<PathBuf, CommandErr
         .and_then(Path::parent)
         .map(|current| current.join("plugin"))
         .ok_or_else(|| CommandError::incomplete("installed executable has no stable current root"))
+}
+
+fn installed_host_home() -> Result<PathBuf, CommandError> {
+    let home = if cfg!(windows) {
+        std::env::var_os("USERPROFILE").map(PathBuf::from).or_else(|| {
+            let drive = std::env::var_os("HOMEDRIVE")?;
+            let path = std::env::var_os("HOMEPATH")?;
+            Some(PathBuf::from(drive).join(path))
+        })
+    } else {
+        std::env::var_os("HOME").map(PathBuf::from)
+    }
+    .ok_or_else(|| CommandError::incomplete("native host home directory is unavailable"))?;
+    if !home.is_absolute()
+        || home
+            .components()
+            .any(|component| matches!(component, Component::ParentDir | Component::CurDir))
+    {
+        return Err(CommandError::incomplete(
+            "native host home directory is not an absolute platform path",
+        ));
+    }
+    Ok(home)
 }
 
 fn development_host_integration_inputs(
@@ -3713,6 +3785,35 @@ mod tests {
             Some(&Value::String(
                 resolved_install_root.to_string_lossy().into_owned(),
             )),
+        ));
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn resolved_binding_accepts_windows_localcache_virtualization() {
+        let install_root = PathBuf::from(r"C:\Users\operator\AppData\Local\Orthic Labs\Legion");
+        let executable = install_root.join(r"current\bin\legion.exe");
+        let virtual_root = PathBuf::from(
+            r"\\?\C:\Users\operator\AppData\Local\Packages\OpenAI.Codex_example\LocalCache\Local\Orthic Labs\Legion\current",
+        );
+        let virtual_executable = virtual_root.join(r"bin\legion.exe");
+
+        assert!(windows_localcache_equivalent(
+            &install_root.join("current"),
+            &virtual_root,
+            &install_root,
+        ));
+        assert!(windows_localcache_equivalent(
+            &executable,
+            &virtual_executable,
+            &install_root,
+        ));
+        assert!(!windows_localcache_equivalent(
+            &executable,
+            &PathBuf::from(
+                r"C:\Users\operator\AppData\Local\Packages\OpenAI.Codex_example\LocalCache\Local\Other\legion.exe",
+            ),
+            &install_root,
         ));
     }
 }

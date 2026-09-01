@@ -31,6 +31,7 @@ export const BLUEPRINT_ERROR_CODES = Object.freeze({
 
 const DEFAULT_ONE_SHOT_TIMEOUT_MS = 120_000;
 const MAX_ONE_SHOT_TIMEOUT_MS = 300_000;
+const BLUEPRINT_DISCOVERY_TIMEOUT_MS = 3_000;
 
 /** Resident transport may report these states when Hub is off or enrollment
  * only governs its watcher. Direct Blueprint consumers must then use one-shot. */
@@ -146,11 +147,25 @@ function boundedTimeout(timeoutMs) {
   return Math.min(Math.floor(requested), MAX_ONE_SHOT_TIMEOUT_MS);
 }
 
-function resolveBlueprintInvocation(blueprintBin) {
+function remainingTimeout(options = {}) {
+  if (Number.isFinite(options.deadlineMs)) {
+    return Math.max(0, Math.floor(options.deadlineMs - Date.now()));
+  }
+  return boundedTimeout(options.timeoutMs);
+}
+
+function timeoutResult() {
+  return { error: Object.assign(new Error('Blueprint one-shot timed out'), { code: 'ETIMEDOUT' }), status: null, signal: 'SIGTERM' };
+}
+
+function resolveBlueprintInvocation(blueprintBin, timeoutMs) {
   let executable = blueprintBin;
   const explicitPath = isAbsolute(executable) || /[\\/]/.test(executable);
   if (process.platform === 'win32' && !explicitPath) {
-    const located = spawnSync('where.exe', [executable], { encoding: 'utf8', windowsHide: true, maxBuffer: 1024 * 1024 });
+    const located = spawnSync('where.exe', [executable], {
+      encoding: 'utf8', windowsHide: true, maxBuffer: 1024 * 1024,
+      timeout: Math.min(boundedTimeout(timeoutMs), BLUEPRINT_DISCOVERY_TIMEOUT_MS),
+    });
     if (located.status === 0 && located.stdout) {
       const candidates = String(located.stdout).split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
       executable = candidates.find((candidate) => /\.(?:cmd|bat)$/i.test(candidate)) ?? candidates[0] ?? executable;
@@ -182,13 +197,17 @@ function resolveBlueprintInvocation(blueprintBin) {
 
 function runBlueprintCli(root, blueprintBin, args, maxBuffer, options = {}) {
   if (options.signal?.aborted) return { error: Object.assign(new Error('Blueprint one-shot cancelled'), { code: 'ABORT_ERR' }) };
-  const invocation = resolveBlueprintInvocation(blueprintBin);
+  let timeoutMs = remainingTimeout(options);
+  if (timeoutMs < 1) return timeoutResult();
+  const invocation = resolveBlueprintInvocation(blueprintBin, timeoutMs);
+  timeoutMs = remainingTimeout(options);
+  if (timeoutMs < 1) return timeoutResult();
   const result = spawnSync(invocation.executable, [...invocation.prefix, ...args], {
     cwd: root,
     encoding: 'utf8',
     windowsHide: true,
     maxBuffer,
-    timeout: boundedTimeout(options.timeoutMs),
+    timeout: timeoutMs,
     killSignal: 'SIGTERM',
   });
   return result;
@@ -268,14 +287,21 @@ function invokeBlueprintProjection(rootInput, options = {}) {
   const blueprintBin = options.blueprintBin ?? process.env.BLUEPRINT_BIN ?? 'blueprint';
   const boundary = enforceAuditOutputBoundary(root, options.outDir ?? DEFAULT_OUT_DIR);
   if (!boundary.ok) return unavailablePacket(boundary.code);
-  const built = buildRunScopedGraph(root, { blueprintBin, outDir: boundary.outDir, timeoutMs: options.timeoutMs, signal: options.signal });
+  const boundedOptions = {
+    blueprintBin,
+    outDir: boundary.outDir,
+    timeoutMs: options.timeoutMs,
+    deadlineMs: Date.now() + boundedTimeout(options.timeoutMs),
+    signal: options.signal,
+  };
+  const built = buildRunScopedGraph(root, boundedOptions);
   if (!built.ok) return unavailablePacket(built.code);
-  const status = readBlueprintGraphStatus(root, { blueprintBin, outDir: boundary.outDir, timeoutMs: options.timeoutMs, signal: options.signal });
+  const status = readBlueprintGraphStatus(root, boundedOptions);
   if (!status.ok) return unavailablePacket(status.code);
   const result = runBlueprintCli(root, blueprintBin, [
     'graph', 'audit-projection', '--out', blueprintCliOutDir(root, boundary.outDir),
     '--expected-generation', status.generationId, '--json',
-  ], 128 * 1024 * 1024, options);
+  ], 128 * 1024 * 1024, boundedOptions);
   if (result.error || result.status !== 0) return unavailablePacket(classifyBlueprintFailure(result, BLUEPRINT_ERROR_CODES.transportUnavailable));
   try {
     const packet = consumeBlueprintPacket(JSON.parse(result.stdout));

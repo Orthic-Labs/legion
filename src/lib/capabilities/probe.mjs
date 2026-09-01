@@ -16,10 +16,13 @@ import { loadCapabilityRegistry } from './registry.mjs';
 
 export { loadCapabilityRegistry } from './registry.mjs';
 const canonical = (value) => Array.isArray(value) ? value.map(canonical) : value && typeof value === 'object' ? Object.fromEntries(Object.keys(value).sort().map((key) => [key, canonical(value[key])])) : value;
+export const COMMAND_PROBE_TIMEOUT_MS = 3_000;
 
 function onPath(command) {
   try {
-    execFileSync(process.platform === 'win32' ? 'where' : 'which', [command], { stdio: 'ignore' });
+    execFileSync(process.platform === 'win32' ? 'where' : 'which', [command], {
+      stdio: 'ignore', timeout: COMMAND_PROBE_TIMEOUT_MS, windowsHide: true,
+    });
     return true;
   } catch {
     return false;

@@ -18,6 +18,7 @@ import { digestValue } from '../../contracts/arcane/canonical.mjs';
 import { evaluateStopShape } from '../../cognitive/arcane/stop-shape.mjs';
 
 const SELF = fileURLToPath(import.meta.url);
+export const SEMANTIC_PROBE_TIMEOUT_MS = 3_000;
 const PROBES = Object.freeze([
   'generated-input-rejection',
   'ambient-availability-bypass',
@@ -185,18 +186,25 @@ export function runProbe(name, { env = process.env } = {}) {
   }
 }
 
-export function runSemanticHealth({ cwd = process.cwd(), env = process.env, spawn = spawnSync } = {}) {
+export function runSemanticHealth({ cwd = process.cwd(), env = process.env, spawn = spawnSync, onProbe = () => {} } = {}) {
   const probes = PROBES.map((id) => {
     const childEnv = { ...process.env, ...env };
     // Synthetic probes must not inherit a launcher continuity hint. Native
     // lifecycle payloads remain the only Codex authority source.
     delete childEnv.CODEX_THREAD_ID;
-    const child = spawn(process.execPath, [SELF, '--probe', id, '--json'], { cwd, env: childEnv, encoding: 'utf8', windowsHide: true });
+    onProbe({ id, phase: 'started', timeoutMs: SEMANTIC_PROBE_TIMEOUT_MS });
+    const child = spawn(process.execPath, [SELF, '--probe', id, '--json'], {
+      cwd, env: childEnv, encoding: 'utf8', windowsHide: true, timeout: SEMANTIC_PROBE_TIMEOUT_MS,
+    });
     try {
       const value = JSON.parse(child.stdout);
-      return value?.id === id ? value : { id, ok: false, error: 'semantic probe returned malformed output' };
+      const result = value?.id === id ? value : { id, ok: false, error: 'semantic probe returned malformed output' };
+      onProbe({ id, phase: 'finished', ok: result.ok });
+      return result;
     } catch {
-      return { id, ok: false, error: (child.stderr || child.stdout || child.error?.message || 'semantic probe did not return JSON').trim().slice(0, 300) };
+      const result = { id, ok: false, error: (child.stderr || child.stdout || child.error?.message || 'semantic probe did not return JSON').trim().slice(0, 300) };
+      onProbe({ id, phase: 'finished', ok: false, error: result.error });
+      return result;
     }
   });
   return { schemaVersion: 1, kind: 'arcane-semantic-health', healthy: probes.every((item) => item.ok), probes };
