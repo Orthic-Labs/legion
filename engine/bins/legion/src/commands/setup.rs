@@ -3693,7 +3693,11 @@ mod tests {
         let temp = TempRoot::new("resolved-binding");
         let install_root = temp.0.join("Orthic Labs/Legion");
         let current = install_root.join("current");
-        let executable = current.join("bin/legion.exe");
+        let executable = current.join(if cfg!(windows) {
+            "bin/legion.exe"
+        } else {
+            "bin/legion"
+        });
         std::fs::create_dir_all(executable.parent().expect("bin")).expect("create bin");
         std::fs::write(&executable, b"legion").expect("write executable");
         let resolved_install_root = std::fs::canonicalize(&current).expect("resolve current");
