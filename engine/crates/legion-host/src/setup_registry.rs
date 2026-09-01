@@ -3261,7 +3261,7 @@ mod tests {
     #[cfg(windows)]
     #[test]
     fn windows_rejects_posix_client_binding_paths() {
-        assert!(!Path::new("/Volumes/D/Claude/legion").is_absolute());
+        assert!(!Path::new("/Volumes/external/workspace/legion").is_absolute());
     }
 
     #[cfg(windows)]
