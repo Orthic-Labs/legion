@@ -40,7 +40,31 @@ test("macOS installer lays out app payload & only executes expected signing plan
 	assert.equal(readFileSync(join(plan.app, "Contents", "Resources", "payload", "bin", "legion"), "utf8"), "binary");
 	assert.equal(result.status, "verified");
 	assert.match(readFileSync(result.receipt, "utf8"), /notarytool/);
-	assert.match(readFileSync(new URL("../../scripts/release/macos/LegionInstaller.swift", import.meta.url), "utf8"), /task\.arguments = \["doctor"\]/);
+	const source = readFileSync(new URL("../../scripts/release/macos/LegionInstaller.swift", import.meta.url), "utf8");
+	assert.match(source, /Library\/Application Support\/Orthic Labs\/Legion/);
+	assert.doesNotMatch(source, /Library\/Application Support\/Legion/);
+	assert.match(source, /let binary = current\.appendingPathComponent\("bin\/legion"\)/);
+	const repair = source.indexOf('arguments: ["setup", "repair", "--confirm"]');
+	const status = source.indexOf('arguments: ["setup", "status"]');
+	const doctor = source.indexOf('arguments: ["doctor"]');
+	assert.ok(repair >= 0 && repair < status && status < doctor);
+	assert.match(source, /completed\.wait\(timeout: \.now\(\) \+ commandTimeout\)/);
+	assert.match(source, /kill\(task\.processIdentifier, SIGKILL\)/);
+	assert.match(source, /task\.standardOutput = stdout/);
+	assert.match(source, /task\.standardError = stderr/);
+	assert.match(source, /\[legion-installer\]/);
+});
+
+test("distribution contract binds macOS stable root & bounded activation", () => {
+	const contract = JSON.parse(readFileSync(new URL("../../release/distribution-contract.json", import.meta.url), "utf8"));
+	assert.equal(contract.nativeRelease.macOSStablePaths.root, "~/Library/Application Support/Orthic Labs/Legion");
+	assert.equal(contract.nativeRelease.macOSStablePaths.executable, "~/Library/Application Support/Orthic Labs/Legion/current/bin/legion");
+	assert.deepEqual(contract.nativeRelease.activation, [
+		"legion setup repair --confirm",
+		"legion setup status",
+		"legion doctor",
+	]);
+	assert.equal(contract.nativeRelease.activationTimeoutSeconds, 60);
 });
 
 test("macOS installer Swift source compiles as a library", { skip: process.platform !== "darwin" }, () => {

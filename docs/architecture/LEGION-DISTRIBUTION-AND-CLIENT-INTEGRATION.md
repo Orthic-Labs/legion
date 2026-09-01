@@ -90,8 +90,13 @@ Bootstrap:
 5. preflights activation when supported & journals integration mutations;
 6. atomically switches stable `current` path;
 7. updates user PATH to stable `current/bin`;
-8. invokes stable `current/bin/legion setup repair --confirm`;
-9. requires exact `legion setup status` health before success.
+8. invokes installed stable `current/bin/legion setup repair --confirm`;
+9. requires bounded `legion setup status` & `legion doctor` success before completion, preserving
+   lifecycle plus stdout/stderr diagnostics on failure.
+
+macOS product root is `~/Library/Application Support/Orthic Labs/Legion`; its activation binary is
+`~/Library/Application Support/Orthic Labs/Legion/current/bin/legion`. Installer-created
+`~/.local/bin` links resolve only to this stable-current tree.
 
 Harness registrations always bind stable `current` executable, never a disposable version path.
 Activation is structural & offline: it never requires client login, model invocation, or authenticated

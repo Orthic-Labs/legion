@@ -60,6 +60,18 @@ test("pre-existing Legion state is rejected even when it is empty", () => {
 	}
 });
 
+test("canonical macOS installed root is rejected as pre-existing state", () => {
+	const root = fixtureRoot();
+	try {
+		const installed = join(root, "home", "Library", "Application Support", "Orthic Labs", "Legion");
+		mkdirSync(installed, { recursive: true });
+		const issues = detectPreexistingState({ roots: [root] });
+		assert.ok(issues.some((finding) => finding.path === installed));
+	} finally {
+		rmSync(root, { recursive: true, force: true });
+	}
+});
+
 test("development binaries on PATH fail unless the capability is explicitly installed", () => {
 	const root = fixtureRoot();
 	try {

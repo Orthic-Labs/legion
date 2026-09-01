@@ -30,9 +30,18 @@
     "generation": "release-version:declarative-assets-sha256",
     "activation": [
       "legion setup repair --confirm",
-      "legion setup status"
+      "legion setup status",
+      "legion doctor"
     ],
+    "activationTimeoutSeconds": 60,
     "activationPath": "%LOCALAPPDATA%\\Orthic Labs\\Legion\\current\\bin\\legion.exe",
+    "macOSStablePaths": {
+      "origin": "installed",
+      "root": "~/Library/Application Support/Orthic Labs/Legion",
+      "current": "~/Library/Application Support/Orthic Labs/Legion/current",
+      "executable": "~/Library/Application Support/Orthic Labs/Legion/current/bin/legion",
+      "versions": "~/Library/Application Support/Orthic Labs/Legion/versions"
+    },
     "stablePaths": {
       "origin": "installed",
       "root": "%LOCALAPPDATA%\\Orthic Labs\\Legion",

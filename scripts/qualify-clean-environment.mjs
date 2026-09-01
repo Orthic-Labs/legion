@@ -43,6 +43,7 @@ const STATE_RELATIVE_PATHS = Object.freeze([
 	".local/state/legion",
 	"AppData/Local/Legion",
 	"AppData/Roaming/Legion",
+	"Library/Application Support/Orthic Labs/Legion",
 	"Library/Application Support/Legion",
 	"state/Legion",
 	"state/legion",
