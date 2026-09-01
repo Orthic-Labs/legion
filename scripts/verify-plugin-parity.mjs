@@ -134,7 +134,7 @@ export function checkPathBinaries(root = ROOT, { manifest, hooks, env = process.
   return { binaries, problems };
 }
 
-export function collectSurface(root = ROOT) {
+export function collectSurface(root = ROOT, { checkInstalledBinaries = true } = {}) {
   const problems = [];
 
   // Skills — every subdirectory that ships a SKILL.md. _shared and manifests are
@@ -184,7 +184,7 @@ export function collectSurface(root = ROOT) {
     if (!existsSync(join(root, target))) problems.push(`hook command target missing: ${target}`);
   }
 
-  problems.push(...checkPathBinaries(root, { manifest, hooks }).problems);
+  if (checkInstalledBinaries) problems.push(...checkPathBinaries(root, { manifest, hooks }).problems);
 
   return {
     version: manifest.version,
@@ -208,8 +208,8 @@ export function surfaceDigest(surface) {
   return `sha256:${createHash('sha256').update(JSON.stringify(shape)).digest('hex')}`;
 }
 
-export function buildSurfaceRecord(root = ROOT) {
-  const surface = collectSurface(root);
+export function buildSurfaceRecord(root = ROOT, options = {}) {
+  const surface = collectSurface(root, options);
   return {
     schemaVersion: 1,
     kind: 'legion-plugin-surface',
@@ -228,7 +228,11 @@ export function buildSurfaceRecord(root = ROOT) {
 
 const isMain = process.argv[1] && resolve(process.argv[1]) === resolve(fileURLToPath(import.meta.url));
 if (isMain) {
-  const record = buildSurfaceRecord();
+  // Repository integrity is environment-independent. Installed PATH health is
+  // checked by plugin:verify plus clean-environment release qualification.
+  const record = buildSurfaceRecord(ROOT, {
+    checkInstalledBinaries: !process.argv.includes('--structural-only'),
+  });
   const target = join(ROOT, SURFACE_FILE);
   const rendered = `${JSON.stringify(record, null, 2)}\n`;
 
