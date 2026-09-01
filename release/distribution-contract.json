@@ -20,10 +20,12 @@
     "origin": "installed",
     "executable": "%LOCALAPPDATA%\\Orthic Labs\\Legion\\current\\bin\\legion.exe",
     "bootstrap": {
-      "provider": "github-pages",
-      "mode": "custom-domain-wrapper",
-      "stableKey": "site/install.ps1",
-      "payloadAuthority": "immutable-github-release"
+      "provider": "rightkit-worker-r2",
+      "mode": "worker-r2-stable-object",
+      "stableKey": "legion/install.ps1",
+      "payloadAuthority": "immutable-github-release",
+      "bucket": "rightapps-downloads",
+      "versionedKeyPrefix": "legion/versions"
     },
     "manifestAuthority": "release-manifest.json+release-manifest.cat",
     "installRoot": "%LOCALAPPDATA%\\Orthic Labs\\Legion",

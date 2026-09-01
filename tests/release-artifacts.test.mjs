@@ -95,9 +95,9 @@ test('right-release config keeps signing and publication fail-closed', () => {
   assert.match(config, /signatureProviderVersion: 1/);
   assert.match(config, /role: "manifest-bound-convenience"/);
   assert.match(config, /publisher: "rightkit-release"/);
-  assert.match(config, /provider: "github-pages"/);
-  assert.match(config, /mode: "custom-domain-wrapper"/);
-  assert.match(config, /objectKey: "site\/install\.ps1"/);
+  assert.match(config, /provider: "rightkit-worker-r2"/);
+  assert.match(config, /mode: "worker-r2-stable-object"/);
+  assert.match(config, /objectKey: "legion\/install\.ps1"/);
   assert.match(config, /publishBlocked:/);
   assert.match(config, /signedProvenanceScheme: "rightkit-release"/);
   assert.match(config, /x86_64-pc-windows-msvc/);
@@ -130,7 +130,7 @@ test('publication policy freezes immutable GitHub payloads, GitHub Pages bootstr
   assert.equal(policy.kind, 'legion-publication-policy');
   assert.equal(policy.publisher, 'rightkit-release');
   assert.equal(authority.payload, 'immutable-github-release');
-  assert.equal(authority.bootstrap, 'github-pages-custom-domain-wrapper');
+  assert.equal(authority.bootstrap, 'rightkit-worker-r2-stable-object');
   assert.equal(authority.manifestAuthority, 'release-manifest.json+release-manifest.cat');
   assert.deepEqual(authority.manifest, {
     file: 'release-manifest.json',
@@ -144,8 +144,8 @@ test('publication policy freezes immutable GitHub payloads, GitHub Pages bootstr
   assert.equal(policy.channels.npm.reason, 'private-development-tooling');
   assert.equal(direct.allowed, false);
   assert.equal(direct.payloadAuthority, 'immutable-github-release');
-  assert.equal(direct.bootstrapProvider, 'github-pages');
-  assert.equal(direct.bootstrapMode, 'custom-domain-wrapper');
+  assert.equal(direct.bootstrapProvider, 'rightkit-worker-r2');
+  assert.equal(direct.bootstrapMode, 'worker-r2-stable-object');
   assert.equal(direct.manifestAuthority, 'release-manifest.json+release-manifest.cat');
   assert.deepEqual(direct.checksums, { file: 'checksums.json', role: 'manifest-bound-convenience' });
   assert.equal(policy.channels.homebrew, undefined);
@@ -161,10 +161,11 @@ test('distribution channels keep package managers optional and bind direct boots
   assert.equal(channels.artifactSource, 'immutable-github-release');
   assert.equal(channels.publicationOwner, 'RightKit Release');
   assert.deepEqual(channels.bootstrap, {
-    provider: 'github-pages',
-    mode: 'custom-domain-wrapper',
+    provider: 'rightkit-worker-r2',
+    mode: 'worker-r2-stable-object',
     stableUrl: 'https://legion.orthiclabs.com/install.ps1',
-    objectKey: 'site/install.ps1',
+    objectKey: 'legion/install.ps1',
+    bucket: 'rightapps-downloads',
   });
   assert.deepEqual(channels.manifest, {
     authority: 'release-manifest.json+release-manifest.cat',
@@ -178,8 +179,8 @@ test('distribution channels keep package managers optional and bind direct boots
   assert.equal(direct.status, 'blocked');
   assert.equal(direct.payloadAuthority, 'immutable-github-release');
   assert.equal(direct.manifestAuthority, 'release-manifest.json+release-manifest.cat');
-  assert.equal(direct.bootstrapProvider, 'github-pages');
-  assert.equal(direct.bootstrapMode, 'custom-domain-wrapper');
+  assert.equal(direct.bootstrapProvider, 'rightkit-worker-r2');
+  assert.equal(direct.bootstrapMode, 'worker-r2-stable-object');
   assert.equal(channels.channels.homebrew, undefined);
   assert.equal(channels.channels.winget, undefined);
   assert.doesNotMatch(JSON.stringify(channels), /release-manifest\.sig|\bcms\b|bespoke uploader|custom uploader/i);

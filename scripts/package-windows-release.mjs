@@ -336,7 +336,7 @@ function assertPublicationPolicy({ repositoryRoot, evidence = {} }) {
 	if (contract.nativeRelease?.status !== "available" || channel?.allowed !== true) {
 		throw new Error(`publication blocked by release/publication-policy.json: ${channel?.reason ?? "native release is not authorized"}`);
 	}
-	if (policy.publisher !== "rightkit-release" || channel.payloadAuthority !== "immutable-github-release" || channel.bootstrapProvider !== "github-pages") {
+	if (policy.publisher !== "rightkit-release" || channel.payloadAuthority !== "immutable-github-release" || channel.bootstrapProvider !== "rightkit-worker-r2") {
 		throw new Error("publication blocked: checked-in publication authority is invalid");
 	}
 	if (!channel.approvedBy || !channel.approvedAt || !channel.policyDigest) {

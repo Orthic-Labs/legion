@@ -9,8 +9,13 @@ const POLICY_PATH = 'release/publication-policy.json';
 const CHANNELS_PATH = 'packaging/channels.json';
 const RELEASE_CONFIG_PATH = 'right-release.config.mjs';
 const BOOTSTRAP_URL = 'https://legion.orthiclabs.com/install.ps1';
-const BOOTSTRAP_PROVIDER = 'github-pages';
-const BOOTSTRAP_MODE = 'custom-domain-wrapper';
+const BOOTSTRAP_PROVIDER = 'rightkit-worker-r2';
+const BOOTSTRAP_MODE = 'worker-r2-stable-object';
+const BOOTSTRAP_OBJECT_KEY = 'legion/install.ps1';
+const BOOTSTRAP_BUCKET = 'rightapps-downloads';
+// Pages is a retired, conflicting control plane: RightKit Worker+R2 is the sole
+// bootstrap channel, so any surviving product Pages wrapper must fail closed.
+const RETIRED_PAGES_PATHS = ['docs/CNAME', 'docs/install.ps1', 'site/install.ps1'];
 const PAYLOAD_AUTHORITY = 'immutable-github-release';
 const MANIFEST_AUTHORITY = 'release-manifest.json+release-manifest.cat';
 const MANIFEST_FILE = 'release-manifest.json';
@@ -72,11 +77,11 @@ export function validateDistributionContract(root = ROOT) {
   if (native.channel !== 'direct-bootstrap') issues.push('native release must use direct-bootstrap');
   if (native.public !== true || native.status !== 'blocked') issues.push('native direct-bootstrap publication must remain blocked until evidence is complete');
   if (native.payloadAuthority !== PAYLOAD_AUTHORITY) issues.push('native payload authority must be immutable GitHub Releases');
-  if (native.bootstrapAuthority !== BOOTSTRAP_URL) issues.push('native bootstrap authority must be the GitHub Pages URL');
+  if (native.bootstrapAuthority !== BOOTSTRAP_URL) issues.push('native bootstrap authority must be the stable Worker route');
   if (native.manifestAuthority !== MANIFEST_AUTHORITY) issues.push('signed release manifest catalog must be sole release authority');
   if (native.requiredEvidence?.includes('package-manager-metadata')) issues.push('package-manager metadata cannot be required release evidence');
   checkManifestAuthority(policy.authority, issues, 'publication policy authority');
-  if (policy.authority?.payload !== PAYLOAD_AUTHORITY || policy.authority?.bootstrap !== 'github-pages-custom-domain-wrapper' || policy.publisher !== PUBLISHER) issues.push('publication policy authority is not frozen to GitHub payloads, GitHub Pages bootstrap, and RightKit Release');
+  if (policy.authority?.payload !== PAYLOAD_AUTHORITY || policy.authority?.bootstrap !== 'rightkit-worker-r2-stable-object' || policy.publisher !== PUBLISHER) issues.push('publication policy authority is not frozen to GitHub payloads, RightKit Worker+R2 bootstrap, and RightKit Release');
   if (grant?.payloadAuthority !== PAYLOAD_AUTHORITY || grant?.bootstrapProvider !== BOOTSTRAP_PROVIDER || grant?.bootstrapMode !== BOOTSTRAP_MODE || grant?.stableUrl !== BOOTSTRAP_URL || grant?.publisher !== PUBLISHER) issues.push('direct-bootstrap policy authority is incomplete');
   checkManifestAuthority(grant, issues, 'direct-bootstrap policy');
 
@@ -84,7 +89,7 @@ export function validateDistributionContract(root = ROOT) {
   if (channels.contract !== CONTRACT_PATH) issues.push('distribution channel ledger is not bound to distribution contract');
   if (channels.versionSource !== 'release/version.json' || channels.artifactSource !== PAYLOAD_AUTHORITY) issues.push('distribution channel ledger is not bound to versioned immutable GitHub payloads');
   if (channels.publicationOwner !== 'RightKit Release') issues.push('distribution channel publisher must be RightKit Release');
-  if (channels.bootstrap?.provider !== BOOTSTRAP_PROVIDER || channels.bootstrap?.mode !== BOOTSTRAP_MODE || channels.bootstrap?.stableUrl !== BOOTSTRAP_URL || channels.bootstrap?.objectKey !== 'site/install.ps1') issues.push('distribution channel bootstrap must be GitHub Pages bootstrap only');
+  if (channels.bootstrap?.provider !== BOOTSTRAP_PROVIDER || channels.bootstrap?.mode !== BOOTSTRAP_MODE || channels.bootstrap?.stableUrl !== BOOTSTRAP_URL || channels.bootstrap?.objectKey !== BOOTSTRAP_OBJECT_KEY) issues.push('distribution channel bootstrap must be the RightKit Worker+R2 stable object only');
   checkManifestAuthority({ manifestAuthority: channels.manifest?.authority, manifest: channels.manifest, checksums: channels.checksums }, issues, 'distribution channel authority');
   if (channels.channels?.[native.channel]?.status !== native.status) issues.push('primary distribution channel differs from native release status');
   if (channels.channels?.[native.channel]?.stableUrl !== native.bootstrapAuthority) issues.push('bootstrap URL differs from distribution contract');
@@ -108,12 +113,30 @@ export function validateDistributionContract(root = ROOT) {
       'signatureProvider: "windows-authenticode-catalog"',
       'signatureProviderVersion: 1',
       'role: "manifest-bound-convenience"',
-      'provider: "github-pages"',
-      'mode: "custom-domain-wrapper"',
+      'provider: "rightkit-worker-r2"',
+      'mode: "worker-r2-stable-object"',
       'publisher: "rightkit-release"',
       'publishBlocked:',
     ]) if (!config.includes(marker)) issues.push(`right-release config is missing ${marker}`);
     if (/release-manifest\.sig|\bcms\b|bespoke uploader|custom uploader|packageManager:\s*"(?:winget|homebrew)"/i.test(config)) issues.push('right-release config contains a retired distribution authority');
+  }
+  // Source-to-object-key projection (Gate 0A). Every declaration must name the
+  // same R2 object, and that object must be the one the public host resolves to.
+  const declaredKeys = new Set([
+    native.bootstrap?.stableKey,
+    grant?.objectKey,
+    channels.bootstrap?.objectKey,
+    channels.channels?.[native.channel]?.objectKey,
+  ].filter((value) => value !== undefined));
+  if (declaredKeys.size !== 1 || !declaredKeys.has(BOOTSTRAP_OBJECT_KEY)) issues.push('bootstrap object key is missing or inconsistent across contract, policy, and channels');
+  const host = (() => { try { return new URL(BOOTSTRAP_URL); } catch { return null; } })();
+  if (!host || host.protocol !== 'https:') issues.push('bootstrap stable URL must be HTTPS');
+  else if (`${host.hostname.split('.')[0]}${host.pathname}` !== BOOTSTRAP_OBJECT_KEY) issues.push(`bootstrap stable URL does not project onto ${BOOTSTRAP_OBJECT_KEY}`);
+  for (const bucket of [native.bootstrap?.bucket, grant?.bucket, channels.bootstrap?.bucket]) {
+    if (bucket !== BOOTSTRAP_BUCKET) issues.push('bootstrap R2 bucket is missing or not the shared downloads bucket');
+  }
+  for (const retired of RETIRED_PAGES_PATHS) {
+    if (existsSync(resolve(root, retired))) issues.push(`retired GitHub Pages bootstrap path still present: ${retired}`);
   }
   checkNoRetiredClaims(policy, issues, 'publication policy');
   checkNoRetiredClaims(channels, issues, 'distribution channels');

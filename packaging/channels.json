@@ -6,10 +6,11 @@
   "artifactSource": "immutable-github-release",
   "publicationOwner": "RightKit Release",
   "bootstrap": {
-    "provider": "github-pages",
-    "mode": "custom-domain-wrapper",
+    "provider": "rightkit-worker-r2",
+    "mode": "worker-r2-stable-object",
     "stableUrl": "https://legion.orthiclabs.com/install.ps1",
-    "objectKey": "site/install.ps1"
+    "objectKey": "legion/install.ps1",
+    "bucket": "rightapps-downloads"
   },
   "manifest": {
     "authority": "release-manifest.json+release-manifest.cat",
@@ -27,8 +28,8 @@
     "direct-bootstrap": {
       "status": "blocked",
       "stableUrl": "https://legion.orthiclabs.com/install.ps1",
-      "bootstrapProvider": "github-pages",
-      "bootstrapMode": "custom-domain-wrapper",
+      "bootstrapProvider": "rightkit-worker-r2",
+      "bootstrapMode": "worker-r2-stable-object",
       "payloadAuthority": "immutable-github-release",
       "manifestAuthority": "release-manifest.json+release-manifest.cat",
       "manifest": {
@@ -42,7 +43,9 @@
         "file": "checksums.json",
         "role": "manifest-bound-convenience"
       },
-      "publicationOwner": "RightKit Release"
+      "publicationOwner": "RightKit Release",
+      "objectKey": "legion/install.ps1",
+      "bucket": "rightapps-downloads"
     }
   }
 }

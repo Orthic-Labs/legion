@@ -6,7 +6,7 @@
   "publisher": "rightkit-release",
   "authority": {
     "payload": "immutable-github-release",
-    "bootstrap": "github-pages-custom-domain-wrapper",
+    "bootstrap": "rightkit-worker-r2-stable-object",
     "manifestAuthority": "release-manifest.json+release-manifest.cat",
     "manifest": {
       "file": "release-manifest.json",
@@ -29,8 +29,8 @@
       "allowed": false,
       "reason": "release-readiness-evidence-incomplete",
       "payloadAuthority": "immutable-github-release",
-      "bootstrapProvider": "github-pages",
-      "bootstrapMode": "custom-domain-wrapper",
+      "bootstrapProvider": "rightkit-worker-r2",
+      "bootstrapMode": "worker-r2-stable-object",
       "stableUrl": "https://legion.orthiclabs.com/install.ps1",
       "manifestAuthority": "release-manifest.json+release-manifest.cat",
       "manifest": {
@@ -54,7 +54,9 @@
         "rollback-transaction",
         "client-integration-health",
         "channel-authorization"
-      ]
+      ],
+      "objectKey": "legion/install.ps1",
+      "bucket": "rightapps-downloads"
     }
   }
 }
