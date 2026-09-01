@@ -124,8 +124,8 @@ const migrationOwnerTargets = Object.freeze({
 function cells(line) { return line.trim().slice(1, -1).split('|').map((cell) => cell.trim()); }
 function isSeparator(row) { return row.every((cell) => /^:?-{3,}:?$/.test(cell)); }
 function tableAfter(markdown, heading) {
-  const start = markdown.indexOf(heading + '\n');
-  if (start < 0) throw new Error('missing heading ' + heading);
+  const start = markdown.indexOf(`${heading}\n`);
+  if (start < 0) throw new Error(`missing heading ${heading}`);
   const lines = markdown.slice(start + heading.length).split(/\r?\n/);
   const rows = [];
   let started = false;
@@ -134,14 +134,14 @@ function tableAfter(markdown, heading) {
     if (started && !line.trim().startsWith('|')) break;
     if (started) rows.push(cells(line));
   }
-  if (rows.length < 2) throw new Error('missing table after ' + heading);
+  if (rows.length < 2) throw new Error(`missing table after ${heading}`);
   return rows;
 }
 function records(markdown, heading, expectedHeader) {
   const table = tableAfter(markdown, heading);
-  if (table[0].join('|') !== expectedHeader.join('|')) throw new Error(heading + ' schema mismatch: ' + table[0].join(' | '));
+  if (table[0].join('|') !== expectedHeader.join('|')) throw new Error(`${heading} schema mismatch: ${table[0].join(' | ')}`);
   return table.slice(1).filter((row) => !isSeparator(row)).map((row) => {
-    if (row.length !== expectedHeader.length) throw new Error(heading + ': expected ' + expectedHeader.length + ' fields, got ' + row.length);
+    if (row.length !== expectedHeader.length) throw new Error(`${heading}: expected ${expectedHeader.length} fields, got ${row.length}`);
     return Object.fromEntries(expectedHeader.map((name, index) => [name, row[index]]));
   });
 }
@@ -149,14 +149,14 @@ function targets(value) { return !value || value === '—' ? [] : value.split(',
 function proofEvidence(value) {
   const match = /^Acceptance: ([A-Z][A-Z0-9-]+); Revision: ([0-9a-f]{40}); Receipt: ([^;]+@[0-9a-f]{8,64}); Freshness: (\d{4}-\d{2}-\d{2})$/.exec(value);
   if (!match) return null;
-  const freshness = Date.parse(match[4] + 'T00:00:00Z');
+  const freshness = Date.parse(`${match[4]}T00:00:00Z`);
   if (!Number.isFinite(freshness) || freshness > Date.now()) return null;
   return { acceptance: match[1], revision: match[2], receipt: match[3], freshness: match[4] };
 }
 function parseCanon(config) {
   const markdown = readFileSync(join(canonDir, config.file), 'utf8');
   const boundary = /Required delivery boundary: `(LOCAL|COMMITTED|PUSHED|RELEASED)`\./.exec(markdown)?.[1];
-  if (boundary !== config.boundary) throw new Error(config.file + ': required delivery boundary must be ' + config.boundary);
+  if (boundary !== config.boundary) throw new Error(`${config.file}: required delivery boundary must be ${config.boundary}`);
   const groups = records(markdown, '## Group register', headers.group);
   const capabilities = records(markdown, '## Capability ledger', headers.capability);
   const implementations = records(markdown, '## Implementation register', headers.implementation);
@@ -165,53 +165,53 @@ function parseCanon(config) {
   const groupIds = new Set(groups.map((row) => row.ID));
   const idPrefix = capabilities[0]?.ID.slice(0, 3);
   for (const row of groups) {
-    if (!/^[A-Z]{3}-G\d{2}$/.test(row.ID)) throw new Error(config.file + ': invalid group ID ' + row.ID);
-    if (row.Owner !== config.owner) throw new Error(config.file + ':' + row.ID + ': group owner must be ' + config.owner);
-    if (!enums.Scope.has(row.Scope)) throw new Error(config.file + ':' + row.ID + ': invalid Scope ' + row.Scope);
-    if (row.Parent !== '—' && !groupIds.has(row.Parent)) throw new Error(config.file + ':' + row.ID + ': unknown group parent ' + row.Parent);
+    if (!/^[A-Z]{3}-G\d{2}$/.test(row.ID)) throw new Error(`${config.file}: invalid group ID ${row.ID}`);
+    if (row.Owner !== config.owner) throw new Error(`${config.file}:${row.ID}: group owner must be ${config.owner}`);
+    if (!enums.Scope.has(row.Scope)) throw new Error(`${config.file}:${row.ID}: invalid Scope ${row.Scope}`);
+    if (row.Parent !== '—' && !groupIds.has(row.Parent)) throw new Error(`${config.file}:${row.ID}: unknown group parent ${row.Parent}`);
   }
   const groupById = new Map(groups.map((row) => [row.ID, row]));
   for (const row of groups) {
     const seen = new Set([row.ID]);
     let parent = row.Parent;
     while (parent !== '—') {
-      if (seen.has(parent)) throw new Error(config.file + ':' + row.ID + ': cyclic group parentage');
+      if (seen.has(parent)) throw new Error(`${config.file}:${row.ID}: cyclic group parentage`);
       seen.add(parent);
       parent = groupById.get(parent).Parent;
     }
   }
   for (const row of capabilities) {
-    if (!/^[A-Z]{3}-\d{3}$/.test(row.ID)) throw new Error(config.file + ': invalid capability ID ' + row.ID);
+    if (!/^[A-Z]{3}-\d{3}$/.test(row.ID)) throw new Error(`${config.file}: invalid capability ID ${row.ID}`);
     const expectedOwner = config.owner === 'Skills' ? skillOwners[row.ID] : config.owner;
-    if (!expectedOwner || row.Owner !== expectedOwner) throw new Error(config.file + ':' + row.ID + ': owner ' + row.Owner + ' != ' + expectedOwner);
-    if (!groupIds.has(row.Parent)) throw new Error(config.file + ':' + row.ID + ': unknown parent ' + row.Parent);
+    if (!expectedOwner || row.Owner !== expectedOwner) throw new Error(`${config.file}:${row.ID}: owner ${row.Owner} != ${expectedOwner}`);
+    if (!groupIds.has(row.Parent)) throw new Error(`${config.file}:${row.ID}: unknown parent ${row.Parent}`);
     for (const field of ['Scope', 'Implementation', 'Verification', 'Qualification', 'Delivery']) {
-      if (!enums[field].has(row[field])) throw new Error(config.file + ':' + row.ID + ': invalid ' + field + ' ' + row[field]);
+      if (!enums[field].has(row[field])) throw new Error(`${config.file}:${row.ID}: invalid ${field} ${row[field]}`);
     }
     if ((row.Verification === 'FOCUSED_PASS' || row.Qualification === 'PASS') && !proofEvidence(row.Evidence)) {
-      throw new Error(config.file + ':' + row.ID + ': PASS state lacks acceptance/revision/receipt/freshness evidence');
+      throw new Error(`${config.file}:${row.ID}: PASS state lacks acceptance/revision/receipt/freshness evidence`);
     }
     if (row.Qualification === 'NOT_REQUIRED') {
       const disposition = qualifications.find((qualification) => targets(qualification['Capability targets']).includes(row.ID) && qualification.State === 'NOT_REQUIRED');
-      if (!disposition || !proofEvidence(disposition.Evidence)) throw new Error(config.file + ':' + row.ID + ': NOT_REQUIRED lacks recorded revision-bound disposition');
+      if (!disposition || !proofEvidence(disposition.Evidence)) throw new Error(`${config.file}:${row.ID}: NOT_REQUIRED lacks recorded revision-bound disposition`);
     }
   }
   for (const row of implementations) {
-    if (!new RegExp('^' + idPrefix + '-I\\d{3}$').test(row.ID)) throw new Error(config.file + ': invalid implementation ID ' + row.ID);
-    if (!enums.Implementation.has(row.State)) throw new Error(config.file + ':' + row.ID + ': invalid implementation state ' + row.State);
+    if (!new RegExp(`^${idPrefix}-I\\d{3}$`).test(row.ID)) throw new Error(`${config.file}: invalid implementation ID ${row.ID}`);
+    if (!enums.Implementation.has(row.State)) throw new Error(`${config.file}:${row.ID}: invalid implementation state ${row.State}`);
   }
   for (const row of qualifications) {
-    if (!new RegExp('^' + idPrefix + '-Q\\d{3}$').test(row.ID)) throw new Error(config.file + ': invalid qualification ID ' + row.ID);
-    if (!enums.qualificationState.has(row.State)) throw new Error(config.file + ':' + row.ID + ': invalid qualification state ' + row.State);
+    if (!new RegExp(`^${idPrefix}-Q\\d{3}$`).test(row.ID)) throw new Error(`${config.file}: invalid qualification ID ${row.ID}`);
+    if (!enums.qualificationState.has(row.State)) throw new Error(`${config.file}:${row.ID}: invalid qualification state ${row.State}`);
     if (row.State === 'PASS') {
       const evidence = proofEvidence(row.Evidence);
-      if (!evidence) throw new Error(config.file + ':' + row.ID + ': PASS lacks acceptance/revision/receipt/freshness evidence');
-      if (evidence.revision !== row['Material revision']) throw new Error(config.file + ':' + row.ID + ': PASS predates material revision');
+      if (!evidence) throw new Error(`${config.file}:${row.ID}: PASS lacks acceptance/revision/receipt/freshness evidence`);
+      if (evidence.revision !== row['Material revision']) throw new Error(`${config.file}:${row.ID}: PASS predates material revision`);
     }
   }
   for (const row of decisions) {
-    if (!new RegExp('^' + idPrefix + '-D\\d{3}$').test(row.ID)) throw new Error(config.file + ': invalid decision ID ' + row.ID);
-    if (!enums.decisionKind.has(row.Kind)) throw new Error(config.file + ':' + row.ID + ': invalid decision kind ' + row.Kind);
+    if (!new RegExp(`^${idPrefix}-D\\d{3}$`).test(row.ID)) throw new Error(`${config.file}: invalid decision ID ${row.ID}`);
+    if (!enums.decisionKind.has(row.Kind)) throw new Error(`${config.file}:${row.ID}: invalid decision kind ${row.Kind}`);
   }
   return { ...config, groups, capabilities, implementations, qualifications, decisions };
 }
@@ -242,7 +242,7 @@ function validateSemanticOwnership(parsed) {
   for (let left = 0; left < capabilities.length; left += 1) {
     for (let right = left + 1; right < capabilities.length; right += 1) {
       if (similarity(capabilities[left]['Observable behavior'], capabilities[right]['Observable behavior']) >= 0.86) {
-        throw new Error('semantic duplicate candidates: ' + capabilities[left].ID + ' and ' + capabilities[right].ID);
+        throw new Error(`semantic duplicate candidates: ${capabilities[left].ID} and ${capabilities[right].ID}`);
       }
     }
   }
@@ -253,12 +253,12 @@ function validateTargets(parsed) {
   for (const canon of parsed) {
     for (const [kind, rows] of Object.entries({ group: canon.groups, capability: canon.capabilities, implementation: canon.implementations, qualification: canon.qualifications, decision: canon.decisions })) {
       for (const row of rows) {
-        if (idsByKind[kind].has(row.ID)) throw new Error('duplicate ' + kind + ' ID ' + row.ID);
+        if (idsByKind[kind].has(row.ID)) throw new Error(`duplicate ${kind} ID ${row.ID}`);
         idsByKind[kind].add(row.ID);
       }
     }
     for (const row of [...canon.implementations, ...canon.qualifications, ...canon.decisions]) {
-      for (const target of targets(row['Capability targets'])) if (!capabilityIds.has(target)) throw new Error(canon.file + ':' + row.ID + ': unknown capability target ' + target);
+      for (const target of targets(row['Capability targets'])) if (!capabilityIds.has(target)) throw new Error(`${canon.file}:${row.ID}: unknown capability target ${target}`);
     }
   }
   return capabilityIds;
@@ -270,35 +270,35 @@ function preservationRows(capabilityIds) {
   const tracker = readFileSync(trackerPath, 'utf8'), triage = readFileSync(triagePath, 'utf8');
   const migration = JSON.parse(readFileSync(migrationResultPath, 'utf8'));
   const trackerMatches = [...tracker.matchAll(/^(\d+)\. \*\*/gm)];
-  if (trackerMatches.length !== 30) throw new Error('legacy tracker inventory changed: expected 30 rows, found ' + trackerMatches.length);
+  if (trackerMatches.length !== 30) throw new Error(`legacy tracker inventory changed: expected 30 rows, found ${trackerMatches.length}`);
   const rows = trackerMatches.map((match) => {
     const number = Number(match[1]), mapping = trackerMappings[number];
-    if (!mapping) throw new Error('missing tracker mapping ' + number);
-    const id = 'TRACKER-' + String(number).padStart(2, '0');
-    return [id, 'PENDING-WORK-2026-08-29.md:' + lineNumber(tracker, match.index), id, ...mapping];
+    if (!mapping) throw new Error(`missing tracker mapping ${number}`);
+    const id = `TRACKER-${String(number).padStart(2, '0')}`;
+    return [id, `PENDING-WORK-2026-08-29.md:${lineNumber(tracker, match.index)}`, id, ...mapping];
   });
   const triageMatches = [...triage.matchAll(/^- `(src\/packages\/arcane\/[^`]+)` — (.+)$/gm)];
-  if (triageMatches.length !== 235) throw new Error('legacy triage inventory changed: expected 235 rows, found ' + triageMatches.length);
+  if (triageMatches.length !== 235) throw new Error(`legacy triage inventory changed: expected 235 rows, found ${triageMatches.length}`);
   if (migration.schemaVersion !== 1 || migration.inventory?.expected !== 235 || migration.inventory?.observed !== 235
     || migration.inventory?.migrated !== 232 || migration.inventory?.retiredUnconsumed !== 3 || migration.entries?.length !== 235) {
     throw new Error('P0.5 migration result inventory is incomplete');
   }
   const migrationByOldPath = new Map();
   for (const entry of migration.entries) {
-    if (migrationByOldPath.has(entry.oldPath)) throw new Error('duplicate P0.5 migration source ' + entry.oldPath);
+    if (migrationByOldPath.has(entry.oldPath)) throw new Error(`duplicate P0.5 migration source ${entry.oldPath}`);
     migrationByOldPath.set(entry.oldPath, entry);
   }
   const triagePaths = new Set(triageMatches.map((match) => match[1]));
-  for (const oldPath of migrationByOldPath.keys()) if (!triagePaths.has(oldPath)) throw new Error('P0.5 result is outside frozen triage inventory: ' + oldPath);
+  for (const oldPath of migrationByOldPath.keys()) if (!triagePaths.has(oldPath)) throw new Error(`P0.5 result is outside frozen triage inventory: ${oldPath}`);
   triageMatches.forEach((match, index) => {
-    const id = 'TRIAGE-' + String(index + 1).padStart(3, '0');
+    const id = `TRIAGE-${String(index + 1).padStart(3, '0')}`;
     const entry = migrationByOldPath.get(match[1]);
-    if (!entry) throw new Error('P0.5 migration result omits ' + match[1]);
-    if (!entry.triageDisposition) throw new Error('P0.5 result lacks frozen disposition for ' + match[1]);
-    if (!Array.isArray(entry.owners) || !entry.owners.length) throw new Error('P0.5 result lacks owner for ' + match[1]);
+    if (!entry) throw new Error(`P0.5 migration result omits ${match[1]}`);
+    if (!entry.triageDisposition) throw new Error(`P0.5 result lacks frozen disposition for ${match[1]}`);
+    if (!Array.isArray(entry.owners) || !entry.owners.length) throw new Error(`P0.5 result lacks owner for ${match[1]}`);
     const targetSet = new Set();
     for (const owner of entry.owners) {
-      if (!(owner in migrationOwnerTargets)) throw new Error('P0.5 result has unknown owner ' + owner + ' for ' + match[1]);
+      if (!(owner in migrationOwnerTargets)) throw new Error(`P0.5 result has unknown owner ${owner} for ${match[1]}`);
       for (const target of migrationOwnerTargets[owner]) targetSet.add(target);
     }
     const retired = entry.resultDisposition === 'retired-unconsumed';
@@ -306,32 +306,32 @@ function preservationRows(capabilityIds) {
       if (entry.newPath !== null || entry.oldConsumers?.length !== 0
         || existsSync(join(root, entry.oldPath)) || !entry.verification?.includes('pre-migration consumer scan empty')
         || !entry.verification?.includes('old path removed')) {
-        throw new Error('P0.5 retirement is not consumer-safe for ' + match[1]);
+        throw new Error(`P0.5 retirement is not consumer-safe for ${match[1]}`);
       }
     } else if (entry.resultDisposition === 'migrated') {
       if (!entry.newPath || !entry.sha256AfterMove || !entry.verification?.includes('target exists')
         || !entry.verification?.includes('all resolvable imports rewritten') || existsSync(join(root, entry.oldPath))
         || !existsSync(join(root, entry.newPath)) || sha256File(join(root, entry.newPath)) !== entry.sha256AfterMove) {
-        throw new Error('P0.5 migration lacks target/import verification for ' + match[1]);
+        throw new Error(`P0.5 migration lacks target/import verification for ${match[1]}`);
       }
-      if (!Array.isArray(entry.newConsumers)) throw new Error('P0.5 migration lacks consumer inventory for ' + match[1]);
-      for (const consumer of entry.newConsumers) if (!existsSync(join(root, consumer))) throw new Error('P0.5 consumer is missing: ' + consumer);
+      if (!Array.isArray(entry.newConsumers)) throw new Error(`P0.5 migration lacks consumer inventory for ${match[1]}`);
+      for (const consumer of entry.newConsumers) if (!existsSync(join(root, consumer))) throw new Error(`P0.5 consumer is missing: ${consumer}`);
       if (!targetSet.size && entry.newPath.endsWith('/authority-binding-race-worker.mjs')) targetSet.add('GRD-004');
-      if (!targetSet.size) throw new Error('P0.5 migration lacks capability target for ' + match[1]);
+      if (!targetSet.size) throw new Error(`P0.5 migration lacks capability target for ${match[1]}`);
     } else {
-      throw new Error('P0.5 result has invalid disposition for ' + match[1]);
+      throw new Error(`P0.5 result has invalid disposition for ${match[1]}`);
     }
     const kind = retired ? 'EXCLUSION' : entry.newPath.startsWith('tests/') ? 'QUALIFICATION' : 'IMPLEMENTATION';
     const target = targetSet.size ? [...targetSet].join(', ') : '—';
-    const result = retired ? 'Retired after zero-consumer scan' : 'Migrated to ' + entry.newPath;
-    rows.push([id, 'arcane-package-triage-v2.md:' + lineNumber(triage, match.index), id, kind, target, result, 'NONE']);
+    const result = retired ? 'Retired after zero-consumer scan' : `Migrated to ${entry.newPath}`;
+    rows.push([id, `arcane-package-triage-v2.md:${lineNumber(triage, match.index)}`, id, kind, target, result, 'NONE']);
   });
   rows.push(...extraPreservation);
   const ids = new Set();
   for (const row of rows) {
-    if (ids.has(row[2])) throw new Error('duplicate preserved old ID ' + row[2]);
+    if (ids.has(row[2])) throw new Error(`duplicate preserved old ID ${row[2]}`);
     ids.add(row[2]);
-    if (row[4] !== '—') for (const target of targets(row[4])) if (!capabilityIds.has(target)) throw new Error(row[0] + ': unresolved preservation target ' + target);
+    if (row[4] !== '—') for (const target of targets(row[4])) if (!capabilityIds.has(target)) throw new Error(`${row[0]}: unresolved preservation target ${target}`);
   }
   return { rows, tracker: trackerMatches.length, triage: triageMatches.length };
 }
@@ -341,13 +341,13 @@ function preservationMarkdown(inventory) {
     '# Legacy pending preservation map', '',
     '<!-- GENERATED by scripts/check-atomic-canons.mjs --write. Do not hand-edit. -->', '',
     'Frozen source: `d47d3a081d218fff3356c3e982df7f82df4b07b0` plus relocated 2026-08-29 provenance.', '',
-    '- Tracker rows: **' + inventory.tracker + '**',
-    '- Arcane triage rows: **' + inventory.triage + '**',
-    '- Deferred/exclusion/canon-normalization rows: **' + extraPreservation.length + '**',
-    '- Preserved union: **' + inventory.rows.length + '/' + inventory.rows.length + '**',
-    '- Unclassified: **' + unclassified + '**', '', '## Migration map', '',
-    '| ' + headers.preservation.join(' | ') + ' |', '|---|---|---|---|---|---|---|',
-    ...inventory.rows.map((row) => '| ' + row.map(safeCell).join(' | ') + ' |'), '',
+    `- Tracker rows: **${inventory.tracker}**`,
+    `- Arcane triage rows: **${inventory.triage}**`,
+    `- Deferred/exclusion/canon-normalization rows: **${extraPreservation.length}**`,
+    `- Preserved union: **${inventory.rows.length}/${inventory.rows.length}**`,
+    `- Unclassified: **${unclassified}**`, '', '## Migration map', '',
+    `| ${headers.preservation.join(' | ')} |`, '|---|---|---|---|---|---|---|',
+    ...inventory.rows.map((row) => `| ${row.map(safeCell).join(' | ')} |`), '',
   ].join('\n');
 }
 function pendingMarkdown(parsed, inventory) {
@@ -357,11 +357,11 @@ function pendingMarkdown(parsed, inventory) {
   const lines = [
     '# Legion pending capability work', '',
     '<!-- GENERATED by scripts/check-atomic-canons.mjs --write. Do not hand-edit. -->', '',
-    'Committed capability atoms: **' + committed.length + '**',
-    'Closure-proven: **' + (committed.length - open.length) + '**',
-    'Open/unproven: **' + open.length + '**',
-    'Preserved legacy rows: **' + inventory.rows.length + '**',
-    'Unclassified preserved rows: **' + unclassified.length + '**', '',
+    `Committed capability atoms: **${committed.length}**`,
+    `Closure-proven: **${committed.length - open.length}**`,
+    `Open/unproven: **${open.length}**`,
+    `Preserved legacy rows: **${inventory.rows.length}**`,
+    `Unclassified preserved rows: **${unclassified.length}**`, '',
     'Atomic state lives in `docs/canon/*.md`; preservation state lives in `docs/canon/registers/preservation-map.md`. This file is derived from both.', '',
     '## Canon summary', '',
     '| Subsystem | Boundary | Capabilities | Closed | Open | Groups | Implementations | Qualifications | Decisions |',
@@ -370,16 +370,16 @@ function pendingMarkdown(parsed, inventory) {
   for (const canon of parsed) {
     const capabilities = canon.capabilities.filter((row) => row.Scope === 'COMMITTED');
     const canonOpen = capabilities.filter((row) => !closed(row, canon.boundary)).length;
-    lines.push('| [' + canon.owner + '](../canon/' + canon.file + ') | ' + canon.boundary + ' | ' + capabilities.length + ' | ' + (capabilities.length - canonOpen) + ' | ' + canonOpen + ' | ' + canon.groups.length + ' | ' + canon.implementations.length + ' | ' + canon.qualifications.length + ' | ' + canon.decisions.length + ' |');
+    lines.push(`| [${canon.owner}](../canon/${canon.file}) | ${canon.boundary} | ${capabilities.length} | ${capabilities.length - canonOpen} | ${canonOpen} | ${canon.groups.length} | ${canon.implementations.length} | ${canon.qualifications.length} | ${canon.decisions.length} |`);
   }
   lines.push('', '## Open capability atoms', '');
   for (const canon of parsed) {
     const rows = canon.capabilities.filter((row) => row.Scope === 'COMMITTED' && !closed(row, canon.boundary));
     if (!rows.length) continue;
-    lines.push('### ' + canon.owner, '', '| Atom | Action | Deficit |', '|---|---|---|');
+    lines.push(`### ${canon.owner}`, '', '| Atom | Action | Deficit |', '|---|---|---|');
     for (const row of rows) {
-      const deficit = 'implementation=' + row.Implementation + '; verification=' + row.Verification + '; qualification=' + row.Qualification + '; delivery=' + row.Delivery + '/' + canon.boundary + '; evidence=' + row.Evidence;
-      lines.push('| [' + row.ID + '](../canon/' + canon.file + ') | ' + row.Action + ' | ' + deficit + ' |');
+      const deficit = `implementation=${row.Implementation}; verification=${row.Verification}; qualification=${row.Qualification}; delivery=${row.Delivery}/${canon.boundary}; evidence=${row.Evidence}`;
+      lines.push(`| [${row.ID}](../canon/${canon.file}) | ${row.Action} | ${deficit} |`);
     }
     lines.push('');
   }
@@ -387,7 +387,7 @@ function pendingMarkdown(parsed, inventory) {
   if (!unclassified.length) lines.push('None.');
   else {
     lines.push('| Legacy ID | Location | Disposition | Ambiguity |', '|---|---|---|---|');
-    for (const row of unclassified) lines.push('| [' + row[2] + '](../canon/registers/preservation-map.md) | ' + safeCell(row[1]) + ' | ' + safeCell(row[5]) + ' | ' + safeCell(row[6]) + ' |');
+    for (const row of unclassified) lines.push(`| [${row[2]}](../canon/registers/preservation-map.md) | ${safeCell(row[1])} | ${safeCell(row[5])} | ${safeCell(row[6])} |`);
   }
   lines.push('');
   return lines.join('\n');
@@ -395,7 +395,7 @@ function pendingMarkdown(parsed, inventory) {
 export const atomicCanonTestHooks = Object.freeze({ proofEvidence, closed, similarity });
 export function validateAtomicCanons({ write = false } = {}) {
   const pendingFiles = readdirSync(dirname(pendingPath)).filter((entry) => entry !== 'plans').sort();
-  if (pendingFiles.join('|') !== 'README.md') throw new Error('docs/pending must contain only README.md (plus plans/); found ' + pendingFiles.join(', '));
+  if (pendingFiles.join('|') !== 'README.md') throw new Error(`docs/pending must contain only README.md (plus plans/); found ${pendingFiles.join(', ')}`);
   const parsed = canons.map(parseCanon);
   const capabilityIds = validateTargets(parsed);
   validateSemanticOwnership(parsed);
@@ -416,9 +416,9 @@ export function validateAtomicCanons({ write = false } = {}) {
 if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
   try {
     const result = validateAtomicCanons({ write: process.argv.includes('--write') });
-    console.log('atomic canons PASS: ' + result.canons + ' subsystems, ' + result.atoms + ' atoms, ' + result.closed + ' closed, ' + result.open + ' open, ' + result.preservationRows + ' preserved, ' + result.unclassified + ' unclassified');
+    console.log(`atomic canons PASS: ${result.canons} subsystems, ${result.atoms} atoms, ${result.closed} closed, ${result.open} open, ${result.preservationRows} preserved, ${result.unclassified} unclassified`);
   } catch (error) {
-    console.error('atomic canons FAIL: ' + error.message);
+    console.error(`atomic canons FAIL: ${error.message}`);
     process.exitCode = 1;
   }
 }

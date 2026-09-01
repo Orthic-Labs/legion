@@ -251,10 +251,9 @@ fn portable_package(fixture: &Fixture) -> PathBuf {
                     "executableRegistration": false
                 },
                 "antigravity": {
-                    "portableCore": false,
-                    "projection": "antigravity-native-plugin",
-                    "fidelity": "native",
-                    "schema": "https://antigravity.google/schemas/v1/plugin.json",
+                    "portableCore": true,
+                    "projection": "agent-plugins-portable-core",
+                    "fidelity": "portable-core",
                     "executableRegistration": true
                 }
             }
