@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { createHash } from "node:crypto";
 import { spawnSync } from "node:child_process";
-import { existsSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { existsSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, readlinkSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { delimiter, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -67,6 +67,27 @@ function finalization(path, version, sourceRevision) {
 	if (installers.length !== 1) fail("Windows finalization must contain exactly one installer");
 	return value;
 }
+// Installed-tree inventory captured before cleanup. Stable-pointer defects are
+// invisible without link types and resolved targets, and the workspace that
+// holds them is deleted by the finally block below.
+function inventory(root, depth = 0) {
+	if (!existsSync(root) || depth > 3) return [];
+	let entries;
+	try { entries = readdirSync(root, { withFileTypes: true }); } catch { return []; }
+	return entries.map((entry) => {
+		const path = join(root, entry.name);
+		let link = null;
+		let linkType = null;
+		try {
+			const stat = lstatSync(path);
+			if (stat.isSymbolicLink()) { linkType = "link"; link = readlinkSync(path); }
+		} catch { /* inventory is best-effort evidence, never a failure path */ }
+		const record = { name: entry.name, kind: entry.isDirectory() ? "directory" : "file", linkType, target: link };
+		if (entry.isDirectory()) record.children = inventory(path, depth + 1);
+		return record;
+	});
+}
+
 export function qualifyInstalledWindows({ setup, outputRoot, finalizationPath, sourceRevision, version, commandRunner = spawnSync, platform = process.platform, temporaryRoot = tmpdir() } = {}) {
 	if (platform !== "win32") fail("qualification requires Windows");
 	if (!VERSION.test(String(version ?? ""))) fail("stable version is required");
@@ -90,23 +111,51 @@ export function qualifyInstalledWindows({ setup, outputRoot, finalizationPath, s
 		USERPROFILE: profile,
 		PATH: `${join(installRoot, "current", "bin")}${delimiter}${process.env.PATH ?? ""}`,
 	};
+	const stages = [];
+	let currentStage = "setup";
+	const step = (stage, run) => { currentStage = stage; const result = run(); stages.push({ stage, ...result.evidence }); return result; };
 	try {
-		const installRun = execute(commandRunner, installer, ["/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART", `/DIR=${installRoot}`], { cwd: workspace, env: environment }, "silent setup");
+		const installRun = step("install", () => execute(commandRunner, installer, ["/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART", `/DIR=${installRoot}`], { cwd: workspace, env: environment }, "silent setup"));
 		file(executable, "installed legion.exe");
-		const versionRun = execute(commandRunner, executable, ["--version"], { cwd: installRoot, env: environment }, "installed legion --version");
-		const repairRun = execute(commandRunner, executable, ["--json", "setup", "repair", "--confirm"], { cwd: installRoot, env: environment }, "installed legion setup repair");
+		const versionRun = step("version", () => execute(commandRunner, executable, ["--version"], { cwd: installRoot, env: environment }, "installed legion --version"));
+		const repairRun = step("repair", () => execute(commandRunner, executable, ["--json", "setup", "repair", "--confirm"], { cwd: installRoot, env: environment }, "installed legion setup repair"));
 		const repair = setupPayload(repairRun, "legion-setup-execution", executable, "installed legion setup repair");
-		const statusRun = execute(commandRunner, executable, ["--json", "setup", "status"], { cwd: installRoot, env: environment }, "installed legion setup status");
+		const statusRun = step("status", () => execute(commandRunner, executable, ["--json", "setup", "status"], { cwd: installRoot, env: environment }, "installed legion setup status"));
 		const status = setupPayload(statusRun, "legion-setup-status", executable, "installed legion setup status");
-		const doctorRun = execute(commandRunner, executable, ["doctor"], { cwd: installRoot, env: environment }, "installed legion doctor");
+		const doctorRun = step("doctor", () => execute(commandRunner, executable, ["doctor"], { cwd: installRoot, env: environment }, "installed legion doctor"));
 		const uninstaller = join(installRoot, "unins000.exe");
 		file(uninstaller, "installed uninstaller");
-		const uninstallRun = execute(commandRunner, uninstaller, ["/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART"], { cwd: workspace, env: environment }, "silent uninstall");
+		const uninstallRun = step("uninstall", () => execute(commandRunner, uninstaller, ["/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART"], { cwd: workspace, env: environment }, "silent uninstall"));
 		if (!disappears(installRoot)) fail("silent uninstall left installed product behind");
 		const evidencePath = join(output, "qualification.json");
 		const evidence = { schemaVersion: 1, kind: "legion-windows-installed-installer-qualification", status: "qualified", product: "legion", version, sourceRevision: revision, windowsFinalizationSha256: finalizationSha256, setup: { name: installer.split(/[\\/]/).at(-1), sha256: sha256(installer), size: statSync(installer).size }, commands: { install: installRun.evidence, version: versionRun.evidence, repair: repairRun.evidence, status: statusRun.evidence, doctor: doctorRun.evidence, uninstall: uninstallRun.evidence }, activation: { repair, status } };
 		writeFileSync(evidencePath, `${JSON.stringify(evidence, null, 2)}\n`);
 		return { ...evidence, evidence: { path: evidencePath, role: "qualification", size: statSync(evidencePath).size, sha256: sha256(evidencePath) } };
+	} catch (error) {
+		// Phase A item 9: a failed qualification must leave a readable receipt.
+		// Previously the finally block deleted the workspace and the run produced
+		// no diagnostic bundle at all, forcing signed-artifact re-download.
+		try {
+			const failurePath = join(output, "qualification-failure.json");
+			const failure = {
+				schemaVersion: 1,
+				kind: "legion-windows-installed-installer-qualification-failure",
+				status: "failed",
+				product: "legion",
+				version,
+				sourceRevision: revision,
+				failedStage: currentStage,
+				error: String(error?.message ?? error),
+				setup: { name: installer.split(/[\/]/).at(-1), sha256: sha256(installer), size: statSync(installer).size },
+				completedStages: stages,
+				installRoot,
+				installTree: inventory(installRoot),
+				recordedAt: new Date().toISOString(),
+			};
+			writeFileSync(failurePath, `${JSON.stringify(failure, null, 2)}
+`);
+		} catch { /* evidence is best-effort; never mask the original failure */ }
+		throw error;
 	} finally { rmSync(workspace, { recursive: true, force: true }); }
 }
 if (resolve(process.argv[1] ?? "") === fileURLToPath(import.meta.url)) {
