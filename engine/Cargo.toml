@@ -24,7 +24,7 @@ members = [
 ]
 
 [workspace.package]
-version = "0.3.10"
+version = "0.3.11"
 edition = "2021"
 license = "LicenseRef-Orthic-Labs-Source-Use-1.0"
 license-file = "../LICENSE"
