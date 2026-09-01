@@ -2,11 +2,11 @@
   "schemaVersion": 1,
   "kind": "legion-authority-dispatch",
   "packetType": "direct",
-  "repositoryRoot": "D:/Claude/legion",
+  "repositoryRoot": ".",
   "sourceRevision": "ad3d27c6d3d0d04fd7cb850416baa9793db6c9c4",
   "sourceArtifact": "docs/foundation/2026-08-31/membrane-corpus.json",
   "promptArtifact": "docs/foundation/2026-08-31/membrane-independent-packet.md",
-  "promptDigest": "sha256:52fb06282be1c57b3df730f8706afae98df538c104b75852505a8a6ca47d12df",
+  "promptDigest": "sha256:fc894c6fea4d2aedd808ecca9f4296f9fcc6f657ed8915594a5dc2ddbd8b55a1",
   "modelRouting": {
     "modelTier": "SOL",
     "workerProfile": "foundation-independent-source-inventory",
@@ -15,10 +15,10 @@
   "objective": "Produce blind Foundation source inventory A for frozen Membrane corpus without reading sibling/prior inventories or current canon.",
   "authority": [
     "AGENTS.md",
-    "D:/Claude/tools/skills/foundation/SKILL.md",
+    "skills/foundation/SKILL.md",
     "docs/foundation/2026-08-31/membrane-independent-packet.md"
   ],
-  "integrationOwner": "Legion root agent in D:/Claude/legion",
+  "integrationOwner": "Legion root agent in repository root",
   "fileTouchPolicy": {
     "mode": "once-end-to-end",
     "plannedFiles": ["docs/foundation/2026-08-31/membrane-pass-a.md"],

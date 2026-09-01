@@ -13,9 +13,9 @@
 - Product: Membrane.
 - Requested research: Foundation Stage 1 corpus freeze + Stage 2 independent atomic inventory needed to discover missed atoms. Do not perform implementation comparison, ranking, reuse, license disposition, or target-repository mutation.
 - Frozen corpus/applicability map: `docs/foundation/2026-08-31/membrane-corpus.json`. Every listed repository is in scope at its recorded commit. Do not fetch, pull, switch, or alter any repository.
-- Taxonomy: `Product → Scope → Domain → Atom`; no sub-atoms. Apply split test from `D:/Claude/tools/skills/foundation/references/model.md`.
+- Taxonomy: `Product → Scope → Domain → Atom`; no sub-atoms. Apply split test from `skills/foundation/references/model.md`.
 - Output: exact allowlisted report path from authority dispatch packet. Edit only that path.
-- Each independent pass is blind. Do not read sibling output, prior Foundation/Atom reports, `D:/Claude/legion/docs/canon/**`, `D:/Claude/legion/docs/pending/**`, expected taxonomies, or any other inventory.
+- Each independent pass is blind. Do not read sibling output, prior Foundation/Atom reports, `docs/canon/**`, `docs/pending/**`, expected taxonomies, or any other inventory.
 - Source restriction: read operative production source only. Do not read README files, docs, root Markdown, marketing, web pages, issues, benchmark claims, tests as sole proof, generated/build/cache output, fixtures, backups, or agent artifacts. Package/config files may establish target/platform, never behavior alone.
 - Platform/applicability: map every corpus repository to actual supported runtime/platform from operative source. Mark unresolved platform or non-applicability explicitly; never imply `Not found` from skipped search.
 - Evidence: each observed row states exact repository name, target/platform, production file + semantic symbol, live caller/consumer, concrete behavior, state/persistence/fallback where relevant, & focused safeguard/test only when paired with production path.
