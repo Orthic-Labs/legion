@@ -3493,7 +3493,7 @@
         "target exists",
         "all resolvable imports rewritten"
       ],
-      "sha256AfterMove": "c0843b073ec5d325bb3e6c711c4000c09a1df64702ed96af475f8d64d36b95c2",
+      "sha256AfterMove": "8f2f15b85a155f20bceea01525a0397f11fba458eefbe06eac3052e05ba0f9de",
       "newConsumers": [
         "src/lib/cli/commands/doctor.mjs",
         "tests/arcane-package-semantic-health.test.mjs"
@@ -5724,7 +5724,7 @@
         "target exists",
         "all resolvable imports rewritten"
       ],
-      "sha256AfterMove": "305c2ada030a8ffd0d891410a8ee35501acb0760ee596e4e7895f25dd1cde855",
+      "sha256AfterMove": "aa49cd862a9e80e0a496c6a93500a3f1191c0e4e54611d5697214bf7a9c17ec4",
       "newConsumers": []
     },
     {

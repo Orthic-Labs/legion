@@ -63,10 +63,16 @@ test('public release CI selects explicit supported targets and release profile',
   assert.match(releaseCi, /release:qualify-installed/);
   assert.match(releaseCi, /release:publish-qualified/);
   assert.match(releaseCi, /signed_qualification:/);
-  assert.equal((releaseCi.match(/if: \$\{\{ startsWith\(github\.ref, 'refs\/tags\/v'\) \|\| \(github\.event_name == 'workflow_dispatch' && inputs\.signed_qualification == true\) \}\}/g) ?? []).length, 2);
-  assert.match(releaseCi, /publish:[\s\S]*?if: \$\{\{ startsWith\(github\.ref, 'refs\/tags\/v'\) && needs\.installed-qualification\.result == 'success' && needs\.macos-sign\.result == 'success' \}\}/);
-  assert.match(releaseCi, /name: legion-signed-windows-\$\{\{ matrix\.architecture \}\}-22\.23\.2/);
-  assert.match(releaseCi, /name: legion-signed-macos-\$\{\{ matrix\.architecture \}\}-22\.23\.2/);
+  assert.equal((releaseCi.match(/if: \$\{\{ needs\.admission\.outputs\.signed_qualification == 'true' \}\}/g) ?? []).length, 2);
+  assert.match(releaseCi, /publish:[\s\S]*?if: \$\{\{ needs\.admission\.outputs\.publish == 'true' && needs\.installed-qualification\.result == 'success' && needs\.macos-sign\.result == 'success' \}\}/);
+  // Gate 0A: every stage hangs off admission, so no job can run against a
+  // revision that static source closure has not admitted.
+  assert.match(releaseCi, /^  admission:/m);
+  assert.match(releaseCi, /pnpm run release:admission/);
+  assert.match(releaseCi, /pnpm run release:verify-evidence/);
+  assert.doesNotMatch(releaseCi, /startsWith\(github\.ref, 'refs\/tags\/v'\)/);
+  assert.match(releaseCi, /name: legion-\$\{\{ github\.run_id \}\}-\$\{\{ github\.run_attempt \}\}-signed-windows-\$\{\{ matrix\.architecture \}\}-\$\{\{ needs\.admission\.outputs\.version \}\}-\$\{\{ needs\.admission\.outputs\.source_revision \}\}/);
+  assert.match(releaseCi, /name: legion-\$\{\{ github\.run_id \}\}-\$\{\{ github\.run_attempt \}\}-signed-macos-\$\{\{ matrix\.architecture \}\}-\$\{\{ needs\.admission\.outputs\.version \}\}-\$\{\{ needs\.admission\.outputs\.source_revision \}\}/);
   assert.match(releaseCi, /pnpm run release:finalize-windows/);
   assert.match(releaseCi, /pnpm run release:finalize-macos/);
   assert.match(releaseCi, /secrets\.APPLE_CERTIFICATE_BASE64/);

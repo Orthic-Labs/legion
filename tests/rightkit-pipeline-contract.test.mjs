@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { readFileSync, readdirSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import test from 'node:test';
@@ -27,15 +27,17 @@ test('right-git owns exact public CI bytes', () => {
       assert.match(workflow, /installed-qualification:/);
       assert.match(workflow, /publish:/);
       assert.match(workflow, /signed_qualification:/);
-      assert.equal((workflow.match(/if: \$\{\{ startsWith\(github\.ref, 'refs\/tags\/v'\) \|\| \(github\.event_name == 'workflow_dispatch' && inputs\.signed_qualification == true\) \}\}/g) ?? []).length, 2);
-      assert.match(workflow, /publish:[\s\S]*?if: \$\{\{ startsWith\(github\.ref, 'refs\/tags\/v'\) && needs\.installed-qualification\.result == 'success' && needs\.macos-sign\.result == 'success' \}\}/);
+      assert.equal((workflow.match(/if: \$\{\{ needs\.admission\.outputs\.signed_qualification == 'true' \}\}/g) ?? []).length, 2);
+      assert.match(workflow, /publish:[\s\S]*?if: \$\{\{ needs\.admission\.outputs\.publish == 'true' && needs\.installed-qualification\.result == 'success' && needs\.macos-sign\.result == 'success' \}\}/);
     }
   }
   assert.deepEqual(readdirSync(join(root, '.github/workflows')).sort(), ['ci.yml', 'release-candidate.yml']);
-  assert.equal(readFileSync(join(root, 'docs', 'CNAME'), 'utf8').trim(), 'legion.orthiclabs.com');
-  const bootstrap = readFileSync(join(root, 'docs', 'install.ps1'), 'utf8');
-  assert.match(bootstrap, /Orthic-Labs\/legion\/releases\/latest\/download\/install\.ps1/);
-  assert.doesNotMatch(bootstrap, /homebrew|winget|vendor/i);
+  // The GitHub Pages wrapper was a second, conflicting control plane: the live
+  // route is the RightKit Worker backed by R2, so the product must carry no
+  // Pages CNAME and no unpinned latest-download wrapper of its own.
+  for (const retired of ['docs/CNAME', 'docs/install.ps1', 'site/install.ps1']) {
+    assert.equal(existsSync(join(root, retired)), false, `retired Pages path must stay removed: ${retired}`);
+  }
 });
 
 test('action uses local pinned pnpm without global installation', () => {
