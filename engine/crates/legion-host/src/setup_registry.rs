@@ -2323,13 +2323,52 @@ fn register_host_mcp(input: &ClientProjectionInput) -> Result<(), SetupError> {
         return Err(err(
             SetupErrorCode::VerificationFailed,
             format!(
-                "{} host registration was written but is not readable back from {}",
+                "{} host registration was written but is not readable back from {}: {}",
                 input.client_id,
-                home.display()
+                home.display(),
+                host_registration_diagnosis(input, &home)
             ),
         ));
     }
     Ok(())
+}
+
+/// Describe what is actually on disk after a registration write that did not
+/// read back: which file was inspected, whether it exists, its size, its parse
+/// error, and its first lines. Without this the failure says only "not
+/// readable back" and every diagnosis costs a full release run (33664640926,
+/// 33675225749).
+fn host_registration_diagnosis(input: &ClientProjectionInput, home: &Path) -> String {
+    let path = match input.client_id.as_str() {
+        CLIENT_CLAUDE => home.join(".claude.json"),
+        CLIENT_CODEX => home.join(".codex").join("config.toml"),
+        _ => return "no host config path is modelled for this client".into(),
+    };
+    let bytes = match fs::read(&path) {
+        Ok(bytes) => bytes,
+        Err(error) => return format!("{} is unreadable: {error}", path.display()),
+    };
+    let text = String::from_utf8_lossy(&bytes);
+    let parse_error = match input.client_id.as_str() {
+        CLIENT_CLAUDE => serde_json::from_slice::<serde_json::Value>(&bytes)
+            .err()
+            .map(|error| error.to_string()),
+        _ => text.parse::<toml::Value>().err().map(|error| error.to_string()),
+    };
+    let head = text
+        .lines()
+        .take(8)
+        .collect::<Vec<_>>()
+        .join(" | ")
+        .chars()
+        .take(400)
+        .collect::<String>();
+    format!(
+        "{} is {} bytes; parse: {}; head: {head}",
+        path.display(),
+        bytes.len(),
+        parse_error.unwrap_or_else(|| "ok (the legion entry is missing from a valid file)".into())
+    )
 }
 
 fn write_claude_mcp_registration(
