@@ -14,7 +14,8 @@ effects:
   - artifact-write
   - process-exec
   - network-request
-hostRequirements: []
+hostRequirements:
+  - python-runtime
 ---
 
 # SEO

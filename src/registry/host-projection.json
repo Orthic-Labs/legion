@@ -323,8 +323,18 @@
         "model": true
       },
       "domain": "design",
-      "hostRequirements": [],
-      "hostRequirementDetails": [],
+      "hostRequirements": [
+        "python-runtime"
+      ],
+      "hostRequirementDetails": [
+        {
+          "id": "python-runtime",
+          "kind": "language-runtime",
+          "summary": "Python runtime used by package-local validators and Coder's Pi worker adapter.",
+          "degradation": "The dependent skill reports that its local validator or worker adapter is unavailable and does not substitute another runtime.",
+          "remedy": "Install Python 3 and expose either `python3` or `python` on PATH."
+        }
+      ],
       "source": "skills/designer/SKILL.md"
     },
     {
@@ -520,8 +530,18 @@
         "model": true
       },
       "domain": "commercial",
-      "hostRequirements": [],
-      "hostRequirementDetails": [],
+      "hostRequirements": [
+        "python-runtime"
+      ],
+      "hostRequirementDetails": [
+        {
+          "id": "python-runtime",
+          "kind": "language-runtime",
+          "summary": "Python runtime used by package-local validators and Coder's Pi worker adapter.",
+          "degradation": "The dependent skill reports that its local validator or worker adapter is unavailable and does not substitute another runtime.",
+          "remedy": "Install Python 3 and expose either `python3` or `python` on PATH."
+        }
+      ],
       "source": "skills/seo/SKILL.md"
     },
     {

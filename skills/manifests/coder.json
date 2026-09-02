@@ -83,7 +83,7 @@
     {
       "path": "hooks/install.py",
       "uri": "legion-skill://coder/hooks/install.py",
-      "digest": "sha256:e4c396e2bf40bd856e03e02044dd38a6b4b4e30f23c8b10170b1baa6281c46a2"
+      "digest": "sha256:9853723e95ae29d8912353d1014a6ef8bdee240f0dd0d809fa1865542b84eb25"
     },
     {
       "path": "references/provider-runbook.md",

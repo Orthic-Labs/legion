@@ -1,5 +1,10 @@
 {
   "schemaVersion": 1,
   "kind": "legion-skill-dependencies",
-  "resources": []
+  "resources": [
+    {
+      "class": "HOST_CAPABILITY",
+      "capability": "python-runtime"
+    }
+  ]
 }

@@ -6,8 +6,11 @@ machine's ~/.claude/settings.json (under its event/matcher) and
 hook file in the repo. Idempotent — dedupes by hook filename, safe to re-run.
 Run it after a fresh clone / git pull on any machine (Windows or Mac).
 
-    python  tools/skills/coder/hooks/install.py   # Windows
-    python3 tools/skills/coder/hooks/install.py    # Mac
+    python  <path-to>/skills/coder/hooks/install.py   # Windows
+    python3 <path-to>/skills/coder/hooks/install.py    # Mac
+
+(run it by its own path wherever this skill is installed; the script
+self-locates and does not care about the working directory)
 
 The hook .py files stay in the repo (git-synced); only the per-machine
 registration (which carries absolute paths) is written locally.

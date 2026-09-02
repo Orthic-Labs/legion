@@ -363,6 +363,49 @@ fn plugin_root_public_skill_drift_fails_closed_before_mcp_startup() {
 }
 
 #[test]
+fn plugin_root_accepts_a_core_that_ships_more_skills_than_the_binary_predates() {
+    // The canonical skill set is whatever the release-authored contract
+    // declares. A later release that adds a skill (here `oracle`) must not be
+    // rejected by an older validator as long as the package still closes
+    // exactly against its own contract.
+    let fixture = fixture();
+    let plugin_root = portable_package(&fixture);
+
+    let extra = "oracle";
+    let extra_relative = format!("skills/{extra}/SKILL.md");
+    let extra_path = plugin_root.join(&extra_relative);
+    fs::create_dir_all(extra_path.parent().expect("extra skill parent")).expect("extra skill dir");
+    fs::write(&extra_path, format!("---\nname: {extra}\n---\nUse {extra}.\n")).expect("extra skill");
+
+    let contract_path = plugin_root.join("rightax-portable-core.json");
+    let mut contract: Value =
+        serde_json::from_slice(&fs::read(&contract_path).expect("RightAX contract"))
+            .expect("RightAX contract JSON");
+    let skills = contract["publicSkills"].as_array_mut().expect("publicSkills");
+    skills.push(json!(extra));
+    let files = contract["publicFiles"].as_array_mut().expect("publicFiles");
+    files.push(json!(extra_relative));
+    fs::write(
+        &contract_path,
+        serde_json::to_vec(&contract).expect("RightAX contract JSON"),
+    )
+    .expect("extended RightAX contract");
+
+    let (mut child, mut stdin, mut stdout) = start_stdio(&plugin_root, &fixture.config);
+    let initialized = request(
+        &mut stdin,
+        &mut stdout,
+        json!({"jsonrpc":"2.0", "id":1, "method":"initialize", "params":{}}),
+    );
+    assert_eq!(
+        initialized["result"]["releaseIdentity"]["releaseVersion"],
+        env!("CARGO_PKG_VERSION")
+    );
+    drop(stdin);
+    assert!(child.wait().expect("server exit").success());
+}
+
+#[test]
 fn plugin_root_projection_and_extra_file_tampering_fail_closed_before_mcp_startup() {
     let fixture = fixture();
     let plugin_root = portable_package(&fixture);

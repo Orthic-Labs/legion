@@ -26,46 +26,87 @@ pub struct Cli {
 }
 #[derive(Debug, Subcommand)]
 enum Command {
+    /// Report the native M1 installed-release status.
     Status(M1ConfigArgs),
+    /// Serve the Legion MCP server over stdio for a plugin host.
     Serve(ServeArgs),
+    /// Initialize Legion evidence scaffolding in a repository.
     Init(RootArgs),
+    /// Check the installed product and repository for gaps.
     Doctor(RootArgs),
+    /// Bind a repository to the frozen release composition.
     Bind(RootArgs),
+    /// Inspect the resolved repository composition.
     Inspect(RootArgs),
+    /// List the audit targets discovered for a repository.
     Targets(RootArgs),
+    /// List the capability components available to a repository.
     Components(RootArgs),
+    /// List the technology stacks detected for a repository.
     Stacks(RootArgs),
+    /// List the policy controls in force for a repository.
     Controls(RootArgs),
+    /// Show the governance projection for the current context.
     Governance(CommonArgs),
+    /// List the skills packaged with this Legion release.
     Skills(CommonArgs),
+    /// List the languages this Legion release can qualify.
     Languages(CommonArgs),
+    /// List the audit providers this Legion release composes.
     Providers(CommonArgs),
+    /// Render the workspace and package rule set.
     Rules(commands::rules::RulesArgs),
+    /// Durably enqueue and start a workflow trigger.
     Schedule(ScheduleArgs),
+    /// Produce the frozen audit provider plan for a repository.
     Plan(RootArgs),
+    /// Run an evidence-governed repository audit.
     Audit(commands::audit::AuditArgs),
+    /// Verify audit facts against a sealed provider plan.
     Verify(VerifyArgs),
+    /// Explain an audit finding or capability.
     Explain(CommonArgs),
+    /// Render a stored audit report in another format.
     Report(ReportArgs),
+    /// Project the remediation surface for audit findings.
     Fix(CommonArgs),
+    /// Show the host hook projection.
     Hooks(CommonArgs),
+    /// Show the MCP tool projection.
     Mcp(CommonArgs),
+    /// Manage contracted run transactions (open/close/suspend/supersede/repair).
     Run(RunArgs),
+    /// Show the active budget projection.
     Budget(CommonArgs),
+    /// Show the active contract projection.
     Contract(CommonArgs),
+    /// Inspect assurance machinery evidence.
     Assurance(commands::assurance::AssuranceArgs),
+    /// Bind and record an authenticated completion claim or evidence artifact.
     Completion(CompletionArgs),
+    /// Inspect host lifecycle events and descriptions.
     Host(HostCommandArgs),
+    /// Show the harness projection.
     Harness(CommonArgs),
+    /// Show the authority projection.
     Authority(CommonArgs),
+    /// Snapshot or verify repository working-tree state.
     State(StateArgs),
+    /// Show the Minimize authority projection.
     Minimize(CommonArgs),
+    /// Inspect the native capability catalog.
     Catalog(commands::catalog::CatalogArgs),
+    /// Inspect the native policy pack.
     Policy(commands::policy::PolicyArgs),
+    /// Record or inspect a routing decision.
     Decision(commands::decision::DecisionArgs),
+    /// Prepare or validate a cold-start handoff packet.
     Handoff(commands::handoff::HandoffArgs),
+    /// Route an evidence research request.
     Research(commands::research::ResearchArgs),
+    /// Run an independent completion-validation review.
     Review(commands::review::ReviewArgs),
+    /// Install, check, or purge the installed Legion product.
     Setup(commands::setup::SetupArgs),
 }
 #[derive(Clone, Debug, clap::Args)]
@@ -245,33 +286,6 @@ const M1_REPAIR: &str = "legion setup repair --confirm";
 const M1_RIGHTKIT_AX_VERSION: &str = "0.2.1";
 const M1_RIGHTKIT_AX_SOURCE_COMMIT: &str = "4c1a414269d8ffdb95b4b1e685440bd34784b41b";
 const M1_INSTALLED_COMPOSITION: &str = "share/legion/composition.json";
-const M2_PUBLIC_SKILLS: [&str; 24] = [
-    "ads",
-    "alchemist",
-    "architect",
-    "audit",
-    "audit-fix",
-    "audit-visual",
-    "brand",
-    "brand-identity",
-    "coder",
-    "commit",
-    "covenant",
-    "debugger",
-    "designer",
-    "dispatch",
-    "gotchas",
-    "handoff",
-    "marketing",
-    "qa",
-    "research",
-    "seo",
-    "social",
-    "tasklist",
-    "wake",
-    "writing",
-];
-
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 struct RightAxPortableCore {
@@ -284,39 +298,50 @@ struct RightAxPortableCore {
     client_projections: Value,
 }
 
-fn expected_right_ax_client_projections() -> Value {
-    json!({
-        "claude": {
-            "portableCore": false,
-            "projection": "claude-native-plugin+standalone-skills",
-            "fidelity": "full+skills-only",
-            "executableRegistration": true
-        },
-        "codex": {
-            "portableCore": true,
-            "projection": "agent-plugins+codex-sidecar",
-            "fidelity": "full+sidecar",
-            "executableRegistration": true
-        },
-        "cursor": {
-            "portableCore": true,
-            "projection": "agent-plugins+optional-cursor-sidecar",
-            "fidelity": "full+optional-sidecar",
-            "executableRegistration": true
-        },
-        "pi": {
-            "portableCore": false,
-            "projection": "agents-skills",
-            "fidelity": "skills-only",
-            "executableRegistration": false
-        },
-        "antigravity": {
-            "portableCore": true,
-            "projection": "agent-plugins-portable-core",
-            "fidelity": "portable-core",
-            "executableRegistration": true
+/// Validate the structure of the RightAX client-projection map without
+/// re-asserting a frozen copy of it. `rightax-portable-core.json` is authored
+/// by the release build and is the contract; a later release that adds a
+/// client or changes a projection string must not make the shipped binary
+/// reject its own core. The one invariant enforced here is a safety one: the
+/// Pi projection is skills-only and must never be granted an executable
+/// registration.
+fn validate_right_ax_client_projections(value: &Value) -> Result<(), commands::CommandError> {
+    let clients = value
+        .as_object()
+        .ok_or_else(|| plugin_root_error("RightAX client projections are not an object"))?;
+    if clients.is_empty() {
+        return Err(plugin_root_error("RightAX client projections are empty"));
+    }
+    for (client, projection) in clients {
+        let fields = projection.as_object().ok_or_else(|| {
+            plugin_root_error(format!("RightAX {client} projection is not an object"))
+        })?;
+        let bool_field = |name: &str| -> Result<bool, commands::CommandError> {
+            fields.get(name).and_then(Value::as_bool).ok_or_else(|| {
+                plugin_root_error(format!(
+                    "RightAX {client} projection is missing boolean {name}"
+                ))
+            })
+        };
+        let string_field = |name: &str| -> Result<(), commands::CommandError> {
+            match fields.get(name).and_then(Value::as_str) {
+                Some(text) if !text.trim().is_empty() => Ok(()),
+                _ => Err(plugin_root_error(format!(
+                    "RightAX {client} projection is missing string {name}"
+                ))),
+            }
+        };
+        bool_field("portableCore")?;
+        string_field("projection")?;
+        string_field("fidelity")?;
+        let executable_registration = bool_field("executableRegistration")?;
+        if client == "pi" && executable_registration {
+            return Err(plugin_root_error(
+                "RightAX Pi projection may not register an executable",
+            ));
         }
-    })
+    }
+    Ok(())
 }
 
 /// Installed composition is explicit and versioned so the CLI never infers
@@ -537,7 +562,19 @@ fn validate_portable_plugin_root(
             .map_err(commands::io_error)?
             .join(raw_root)
     };
-    for ancestor in absolute_root.ancestors() {
+    // The installed layout reaches the plugin through the stable `current`
+    // junction (`<install-root>/current` -> `versions/<version>`). Canonicalize
+    // first so that junction is resolved rather than rejected, then run the
+    // symlink scan over the *resolved* path: this still refuses a plugin root
+    // whose real location traverses a symlink, but no longer fails a healthy
+    // install just because it is addressed through `current`.
+    let root = std::fs::canonicalize(&absolute_root).map_err(|error| {
+        plugin_root_error(format!(
+            "cannot resolve {}: {error}",
+            absolute_root.display()
+        ))
+    })?;
+    for ancestor in root.ancestors() {
         let metadata = std::fs::symlink_metadata(ancestor).map_err(|error| {
             plugin_root_error(format!("cannot inspect {}: {error}", ancestor.display()))
         })?;
@@ -548,12 +585,6 @@ fn validate_portable_plugin_root(
             )));
         }
     }
-    let root = std::fs::canonicalize(&absolute_root).map_err(|error| {
-        plugin_root_error(format!(
-            "cannot resolve {}: {error}",
-            absolute_root.display()
-        ))
-    })?;
     if !std::fs::symlink_metadata(&root)
         .map_err(commands::io_error)?
         .file_type()
@@ -578,38 +609,30 @@ fn validate_portable_plugin_root(
             "RightAX portable core identity is invalid",
         ));
     }
-    let expected_skills = M2_PUBLIC_SKILLS
-        .iter()
-        .map(|skill| (*skill).to_owned())
-        .collect::<BTreeSet<_>>();
-    let declared_skills = portable_contract
+    // Derive the canonical skill set from the release-authored contract itself
+    // rather than a constant that drifts every time a skill is added; the exact
+    // correspondence to the files on disk is still enforced by the closure
+    // check below and by `is_allowed_portable_public_file`.
+    let expected_skills = portable_contract
         .public_skills
         .iter()
         .cloned()
         .collect::<BTreeSet<_>>();
-    if declared_skills != expected_skills
-        || declared_skills.len() != portable_contract.public_skills.len()
+    if expected_skills.len() != portable_contract.public_skills.len() {
+        return Err(plugin_root_error(
+            "RightAX portable core lists a public skill more than once",
+        ));
+    }
+    if portable_contract
+        .public_skills
+        .iter()
+        .any(|skill| skill.contains('/') || !is_safe_portable_relative_path(skill))
     {
         return Err(plugin_root_error(
-            "RightAX portable core does not contain every canonical public skill exactly once",
+            "RightAX portable core public skill id is unsafe",
         ));
     }
-    if portable_contract.client_projections != expected_right_ax_client_projections() {
-        if portable_contract
-            .client_projections
-            .get("pi")
-            .and_then(|value| value.get("executableRegistration"))
-            .and_then(Value::as_bool)
-            == Some(true)
-        {
-            return Err(plugin_root_error(
-                "RightAX Pi projection may not register an executable",
-            ));
-        }
-        return Err(plugin_root_error(
-            "RightAX client projections are not exact",
-        ));
-    }
+    validate_right_ax_client_projections(&portable_contract.client_projections)?;
     let mut expected_files = portable_contract
         .public_files
         .iter()
@@ -1169,7 +1192,7 @@ async fn dispatch(cli: Cli, cancellation: CancellationToken) -> commands::Comman
         Command::Budget(args) => common_projection!("budget", args),
         Command::Contract(args) => common_projection!("contract", args),
         Command::Governance(args) => common_projection!("governance", args),
-        Command::Skills(args) => common_projection!("skills", args),
+        Command::Skills(args) => native_skills(args, root_json, cancellation.clone()).await,
         Command::Rules(args) => commands::rules::run(args),
         Command::Schedule(args) => native_schedule(args),
         Command::Assurance(args) => commands::assurance::run(args),
@@ -1263,8 +1286,69 @@ async fn native_common_projection(
         "gaps": [format!("native {kind} implementation is not connected")],
     }))
 }
+async fn native_skills(
+    args: CommonArgs,
+    root_json: bool,
+    _cancellation: CancellationToken,
+) -> CommandResult {
+    let json_output = args.json || root_json;
+    let installed = legion_runtime::release_binding::load_installed_release().map_err(|error| {
+        commands::CommandError::incomplete(format!(
+            "installed release binding unavailable: {error}; run {M1_REPAIR}"
+        ))
+    })?;
+    let assets_root = installed
+        .manifest_path
+        .parent()
+        .ok_or_else(|| {
+            commands::CommandError::incomplete("installed release manifest has no parent directory")
+        })?
+        .join("assets");
+    let catalog = legion_catalog::load_compact(&assets_root, "registry/index.json").map_err(
+        |error| commands::CommandError::incomplete(format!("installed catalog unavailable: {error}")),
+    )?;
+    let mut skills = catalog
+        .entries
+        .iter()
+        .map(|entry| {
+            json!({
+                "id": entry.canonical_id,
+                "name": entry.name,
+                "description": entry.description,
+                "kind": entry.kind,
+                "discoverability": entry.discoverability,
+            })
+        })
+        .collect::<Vec<_>>();
+    skills.sort_by(|left, right| left["id"].as_str().cmp(&right["id"].as_str()));
+    let text = skills
+        .iter()
+        .map(|skill| {
+            format!(
+                "{}  {}",
+                skill["id"].as_str().unwrap_or_default(),
+                skill["description"].as_str().unwrap_or_default()
+            )
+        })
+        .collect::<Vec<_>>();
+    Ok(json!({
+        "schemaVersion": 1,
+        "kind": "legion-skills",
+        "releaseVersion": installed.manifest.release_version,
+        "count": skills.len(),
+        "skills": skills,
+        "json": json_output,
+        "arguments": args.args.iter().map(|arg| arg.to_string_lossy().into_owned()).collect::<Vec<_>>(),
+        "text": text,
+    }))
+}
 async fn native_doctor(args: RootArgs, cancellation: CancellationToken) -> CommandResult {
-    let root = std::fs::canonicalize(&args.root).map_err(commands::io_error)?;
+    let root = std::fs::canonicalize(&args.root).map_err(|error| {
+        commands::CommandError::usage(format!(
+            "cannot resolve working directory {}: {error}",
+            args.root.display()
+        ))
+    })?;
     let summary = match installed_doctor_summary(&root, cancellation).await {
         Ok(summary) => summary,
         Err(error) => {
@@ -1278,21 +1362,41 @@ async fn native_doctor(args: RootArgs, cancellation: CancellationToken) -> Comma
             }));
         }
     };
-    Ok(render_doctor(
+    let mut output = render_doctor(
         "doctor",
         summary,
         json!({"root": root}),
         None,
         None,
         true,
-    ))
+    );
+    if !args.json {
+        let catalog = output["catalogEntries"].as_u64().unwrap_or_default();
+        let providers = output["providerCount"].as_u64().unwrap_or_default();
+        let digest = output["inventoryDigest"].as_str().unwrap_or_default().to_owned();
+        output["json"] = json!(false);
+        output["text"] = json!([
+            format!("legion doctor: {}", output["status"].as_str().unwrap_or("unknown")),
+            format!("repository:       {}", root.display()),
+            format!("catalog entries:  {catalog}"),
+            format!("provider count:   {providers}"),
+            format!("inventory digest: {digest}"),
+            format!("clean claim:      {}", output["cleanClaimPossible"].as_bool().unwrap_or(false)),
+        ]);
+    }
+    Ok(output)
 }
 async fn installed_doctor_summary(
     root: &Path,
     _cancellation: CancellationToken,
 ) -> Result<DoctorSummary, commands::CommandError> {
     let config_path = installed_m1_composition()?;
-    let bytes = std::fs::read(&config_path).map_err(commands::io_error)?;
+    let bytes = std::fs::read(&config_path).map_err(|error| {
+        commands::CommandError::incomplete(format!(
+            "cannot read installed composition {}: {error}; run {M1_REPAIR}",
+            config_path.display()
+        ))
+    })?;
     let config: M1CompositionConfig = serde_json::from_slice(&bytes)
         .map_err(|error| commands::CommandError::usage(error.to_string()))?;
     let provider_count = config.provider_count()?;
@@ -1328,14 +1432,24 @@ fn native_repository_inventory_digest(root: &Path) -> Result<String, commands::C
     }
 
     let mut files = Vec::new();
-    collect(root, root, &mut files).map_err(commands::io_error)?;
+    collect(root, root, &mut files).map_err(|error| {
+        commands::CommandError::incomplete(format!(
+            "cannot walk repository {} for the doctor inventory: {error}",
+            root.display()
+        ))
+    })?;
     files.sort();
     let mut digest = Sha256::new();
     for relative in files {
         let path = root.join(&relative);
         digest.update(relative.to_string_lossy().replace('\\', "/").as_bytes());
         digest.update([0]);
-        digest.update(std::fs::read(path).map_err(commands::io_error)?);
+        digest.update(std::fs::read(&path).map_err(|error| {
+            commands::CommandError::incomplete(format!(
+                "cannot read {} for the doctor inventory: {error}",
+                path.display()
+            ))
+        })?);
     }
     Ok(format!("sha256:{}", hex::encode(digest.finalize())))
 }

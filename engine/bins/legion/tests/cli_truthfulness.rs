@@ -46,6 +46,19 @@ fn default_doctor_cannot_make_clean_claim() {
 }
 
 #[test]
+fn doctor_json_output_carries_no_human_rendering_keys() {
+    // The `--json` contract must stay byte-identical: the human table is only
+    // added when `--json` is absent, never to the machine payload.
+    let output = legion(&["doctor", ".", "--json"]);
+    let value = output_json(&output);
+    assert!(value.get("text").is_none(), "doctor --json must not embed text");
+    assert!(
+        value.get("json").is_none(),
+        "doctor --json must not embed a json flag"
+    );
+}
+
+#[test]
 fn plan_stays_fail_closed_without_native_composition() {
     let plan = legion(&["plan", ".", "--json"]);
     assert_eq!(plan.status.code(), Some(2));

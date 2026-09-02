@@ -450,8 +450,23 @@
         "source-read",
         "artifact-write"
       ],
-      "hostRequirements": [],
-      "hostRequirementDetails": [],
+      "hostRequirements": [
+        "python-runtime"
+      ],
+      "hostRequirementDetails": [
+        {
+          "id": "python-runtime",
+          "degradation": "The dependent skill reports that its local validator or worker adapter is unavailable and does not substitute another runtime.",
+          "remedy": "Install Python 3 and expose either `python3` or `python` on PATH.",
+          "probe": {
+            "kind": "command-any",
+            "commands": [
+              "python3",
+              "python"
+            ]
+          }
+        }
+      ],
       "source": "skills/designer/SKILL.md",
       "manifest": "skills/manifests/designer.json"
     },
@@ -719,8 +734,23 @@
         "process-exec",
         "network-request"
       ],
-      "hostRequirements": [],
-      "hostRequirementDetails": [],
+      "hostRequirements": [
+        "python-runtime"
+      ],
+      "hostRequirementDetails": [
+        {
+          "id": "python-runtime",
+          "degradation": "The dependent skill reports that its local validator or worker adapter is unavailable and does not substitute another runtime.",
+          "remedy": "Install Python 3 and expose either `python3` or `python` on PATH.",
+          "probe": {
+            "kind": "command-any",
+            "commands": [
+              "python3",
+              "python"
+            ]
+          }
+        }
+      ],
       "source": "skills/seo/SKILL.md",
       "manifest": "skills/manifests/seo.json"
     },
