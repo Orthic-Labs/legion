@@ -33,7 +33,14 @@ test('right-git owns exact public CI bytes', () => {
       assert.match(workflow, /RIGHT_GIT_DRY_RUN: \$\{\{ inputs\.dry_run \}\}/);
     }
   }
-  assert.deepEqual(readdirSync(join(root, '.github/workflows')).sort(), ['ci.yml', 'release-candidate.yml']);
+  // unsigned-installer.yml builds an installable package with no certificate
+  // and no publication path: it is the development loop, not a release lane.
+  assert.deepEqual(readdirSync(join(root, '.github/workflows')).sort(), ['ci.yml', 'release-candidate.yml', 'unsigned-installer.yml']);
+  const unsigned = readFileSync(join(root, '.github/workflows/unsigned-installer.yml'), 'utf8');
+  assert.match(unsigned, /^permissions:\n  contents: read$/m, 'the unsigned lane never holds write authority');
+  assert.doesNotMatch(unsigned, /secrets\./, 'the unsigned lane never reads a secret');
+  assert.doesNotMatch(unsigned, /gh release|git tag|sign-windows|publish:/, 'the unsigned lane cannot publish');
+  assert.match(unsigned, /--unsigned/, 'the unsigned lane finalizes without signing');
   // The GitHub Pages wrapper was a second, conflicting control plane: the live
   // route is the RightKit Worker backed by R2, so the product must carry no
   // Pages CNAME and no unpinned latest-download wrapper of its own.
