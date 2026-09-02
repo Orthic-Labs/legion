@@ -394,7 +394,10 @@ fn plugin_root_accepts_python_bytecode_written_by_running_a_skill() {
     let plugin_root = portable_package(&fixture);
     anchor_release(&fixture, &plugin_root);
 
-    let cache = plugin_root.join("skills/alchemist/scripts/__pycache__");
+    // Inside a directory the contract already declares (the skill's own
+    // directory, which holds SKILL.md), so this exercises the bytecode rule
+    // rather than an undeclared parent.
+    let cache = plugin_root.join("skills/alchemist/__pycache__");
     fs::create_dir_all(&cache).expect("bytecode dir");
     fs::write(cache.join("viewer.cpython-313.pyc"), b"\x00bytecode").expect("bytecode file");
 
