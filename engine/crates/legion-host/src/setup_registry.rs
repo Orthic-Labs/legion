@@ -2313,8 +2313,23 @@ fn register_host_mcp(input: &ClientProjectionInput) -> Result<(), SetupError> {
             Ok(())
         }
         CLIENT_CODEX => write_codex_mcp_registration(&home, &command, &args, &input.generation),
-        _ => Ok(()),
+        _ => return Ok(()),
+    }?;
+    // Fail closed on a write that does not survive its own read-back. Without
+    // this a host config that cannot be parsed after the write (or a client
+    // whose registration never ran) surfaces only as "projection is degraded"
+    // with no cause, which cost run 33661716419.
+    if host_registration_absent(input) {
+        return Err(err(
+            SetupErrorCode::VerificationFailed,
+            format!(
+                "{} host registration was written but is not readable back from {}",
+                input.client_id,
+                home.display()
+            ),
+        ));
     }
+    Ok(())
 }
 
 fn write_claude_mcp_registration(
