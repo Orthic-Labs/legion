@@ -2184,26 +2184,16 @@ fn claude_host_registration_present(home: &Path) -> bool {
             }
         }
     }
-    let plugins_index = home
-        .join(".claude")
-        .join("plugins")
-        .join("installed_plugins.json");
-    if let Ok(bytes) = fs::read(&plugins_index) {
-        if let Ok(value) = serde_json::from_slice::<serde_json::Value>(&bytes) {
-            let table = value
-                .get("plugins")
-                .and_then(serde_json::Value::as_object)
-                .or_else(|| value.as_object());
-            if table.is_some_and(|entries| {
-                entries
-                    .keys()
-                    .any(|key| key.to_ascii_lowercase().contains("legion"))
-            }) {
-                return true;
-            }
-        }
-    }
-    false
+    // A skills-directory plugin needs no entry in Claude Code's own
+    // installed_plugins.json: a directory under ~/.claude/skills carrying
+    // .claude-plugin/plugin.json is discovered on its own and loads as
+    // `legion@skills-dir`. Its manifest is therefore the registration.
+    home.join(".claude")
+        .join("skills")
+        .join("legion")
+        .join(".claude-plugin")
+        .join("plugin.json")
+        .is_file()
 }
 
 fn codex_host_registration_present(home: &Path) -> bool {
@@ -2302,17 +2292,6 @@ fn register_host_mcp(input: &ClientProjectionInput) -> Result<(), SetupError> {
     match input.client_id.as_str() {
         CLIENT_CLAUDE => {
             write_claude_mcp_registration(&home, &command, &args, &input.generation)?;
-            // The plugin-index registration shape is unconfirmed against Claude
-            // Code's loader (see the function doc comment). Writing a guessed
-            // shape into the host's own plugin state could break the host, so
-            // it stays opt-in until the shape is verified on a real install.
-            if claude_plugin_index_registration_enabled() {
-                let _ = write_claude_plugin_index_registration_unconfirmed_shape(
-                    &home,
-                    &input.target_root,
-                    &input.generation,
-                );
-            }
             Ok(())
         }
         CLIENT_CODEX => write_codex_mcp_registration(&home, &command, &args, &input.generation),
@@ -2424,103 +2403,6 @@ fn write_codex_mcp_registration(
     atomic_write(home, &path, item.bytes.as_slice())
 }
 
-/// Deterministic placeholder timestamp used for the unconfirmed plugin-index
-/// entry below. A real wall-clock timestamp would make `repair` non-idempotent
-/// (byte-identical output on a second run is a required invariant), and
-/// Claude Code's actual freshness requirements for this field are not
-/// confirmed from the reference entry alone, so a fixed value is used instead
-/// of guessing a scheme.
-const PLUGIN_INDEX_PLACEHOLDER_TIMESTAMP: &str = "1970-01-01T00:00:00.000Z";
-
-/// Best-effort registration of Legion in Claude Code's plugin index
-/// (`installed_plugins.json`) and `settings.json` `enabledPlugins`, mirroring
-/// the on-disk shape of a marketplace-installed plugin (see
-/// `rust-analyzer-lsp@claude-plugins-official` for the reference shape).
-///
-/// NOT CONFIRMED: Legion is not distributed through a Claude Code
-/// marketplace, so (a) whether the key must be `legion` or a
-/// `legion@<marketplace>` compound id, (b) whether Claude Code requires a
-/// marketplace cache entry to treat the plugin as active, and (c) the
-/// `version` field's expected scheme, are all unverified against real Claude
-/// Code plugin-loading behaviour. Failure here is swallowed by the caller and
-/// never blocks the confirmed MCP registration above.
-/// Opt-in switch for the unconfirmed Claude Code plugin-index registration.
-/// Off by default: only the verified MCP registration ships until the plugin
-/// index shape is confirmed against a real Claude Code install.
-fn claude_plugin_index_registration_enabled() -> bool {
-    std::env::var("LEGION_CLAUDE_PLUGIN_INDEX")
-        .map(|value| value == "1")
-        .unwrap_or(false)
-}
-
-fn write_claude_plugin_index_registration_unconfirmed_shape(
-    home: &Path,
-    target_root: &Path,
-    generation: &str,
-) -> Result<(), SetupError> {
-    let index_path = home.join(".claude").join("plugins").join("installed_plugins.json");
-    let mut index: serde_json::Value = if path_exists(&index_path)? {
-        serde_json::from_slice(&read(&index_path)?)
-            .unwrap_or_else(|_| serde_json::json!({"version": 2, "plugins": {}}))
-    } else {
-        serde_json::json!({"version": 2, "plugins": {}})
-    };
-    if !index.is_object() {
-        index = serde_json::json!({"version": 2, "plugins": {}});
-    }
-    let plugins = index
-        .as_object_mut()
-        .unwrap()
-        .entry("plugins")
-        .or_insert_with(|| serde_json::json!({}));
-    if !plugins.is_object() {
-        *plugins = serde_json::json!({});
-    }
-    let entry = serde_json::json!([{
-        "scope": "user",
-        "installPath": target_root.to_string_lossy(),
-        "version": generation,
-        "installedAt": PLUGIN_INDEX_PLACEHOLDER_TIMESTAMP,
-        "lastUpdated": PLUGIN_INDEX_PLACEHOLDER_TIMESTAMP,
-    }]);
-    plugins
-        .as_object_mut()
-        .unwrap()
-        .insert("legion".into(), entry);
-    let bytes = serde_json::to_vec_pretty(&index).map_err(|_| {
-        err(
-            SetupErrorCode::StateSerializationFailed,
-            "cannot encode installed_plugins.json",
-        )
-    })?;
-    atomic_write(home, &index_path, &bytes)?;
-
-    let settings_path = home.join(".claude").join("settings.json");
-    if path_exists(&settings_path)? {
-        if let Ok(mut settings) = serde_json::from_slice::<serde_json::Value>(&read(&settings_path)?) {
-            if let Some(object) = settings.as_object_mut() {
-                let enabled = object
-                    .entry("enabledPlugins")
-                    .or_insert_with(|| serde_json::json!({}));
-                if let Some(enabled_object) = enabled.as_object_mut() {
-                    enabled_object.insert("legion".into(), serde_json::json!(true));
-                    let bytes = serde_json::to_vec_pretty(&settings).map_err(|_| {
-                        err(
-                            SetupErrorCode::StateSerializationFailed,
-                            "cannot encode settings.json",
-                        )
-                    })?;
-                    atomic_write(home, &settings_path, &bytes)?;
-                }
-            }
-        }
-    }
-    Ok(())
-}
-
-/// Reverse of [`register_host_mcp`]: removes exactly the Legion-owned block
-/// from each client's host config, verified by ownership marker, leaving
-/// foreign or user-modified entries untouched.
 fn remove_host_mcp(input: &ClientProjectionInput) -> Result<(), SetupError> {
     if !input.executable_registration || input.projection == "skills-only" {
         return Ok(());
@@ -2531,9 +2413,6 @@ fn remove_host_mcp(input: &ClientProjectionInput) -> Result<(), SetupError> {
     match input.client_id.as_str() {
         CLIENT_CLAUDE => {
             remove_claude_mcp_registration(&home)?;
-            if claude_plugin_index_registration_enabled() {
-                let _ = remove_claude_plugin_index_registration_unconfirmed_shape(&home);
-            }
             Ok(())
         }
         CLIENT_CODEX => remove_codex_mcp_registration(&home),
@@ -2625,44 +2504,6 @@ fn remove_codex_mcp_registration(home: &Path) -> Result<(), SetupError> {
     let mut text = lines.join("\n").trim_end().to_string();
     text.push('\n');
     atomic_write(home, &path, text.as_bytes())
-}
-
-fn remove_claude_plugin_index_registration_unconfirmed_shape(home: &Path) -> Result<(), SetupError> {
-    let index_path = home.join(".claude").join("plugins").join("installed_plugins.json");
-    if path_exists(&index_path)? {
-        if let Ok(mut index) = serde_json::from_slice::<serde_json::Value>(&read(&index_path)?) {
-            if let Some(plugins) = index.get_mut("plugins").and_then(|v| v.as_object_mut()) {
-                if plugins.remove("legion").is_some() {
-                    let bytes = serde_json::to_vec_pretty(&index).map_err(|_| {
-                        err(
-                            SetupErrorCode::StateSerializationFailed,
-                            "cannot encode installed_plugins.json",
-                        )
-                    })?;
-                    atomic_write(home, &index_path, &bytes)?;
-                }
-            }
-        }
-    }
-    let settings_path = home.join(".claude").join("settings.json");
-    if path_exists(&settings_path)? {
-        if let Ok(mut settings) = serde_json::from_slice::<serde_json::Value>(&read(&settings_path)?) {
-            if let Some(object) = settings.as_object_mut() {
-                if let Some(enabled) = object.get_mut("enabledPlugins").and_then(|v| v.as_object_mut()) {
-                    if enabled.remove("legion").is_some() {
-                        let bytes = serde_json::to_vec_pretty(&settings).map_err(|_| {
-                            err(
-                                SetupErrorCode::StateSerializationFailed,
-                                "cannot encode settings.json",
-                            )
-                        })?;
-                        atomic_write(home, &settings_path, &bytes)?;
-                    }
-                }
-            }
-        }
-    }
-    Ok(())
 }
 
 fn projection_ledger_path(input: &ClientProjectionInput) -> PathBuf {

@@ -2973,7 +2973,15 @@ fn host_integration_inputs_installed(
         (
             legion_host::setup_registry::CLIENT_CLAUDE,
             "native-plugin",
-            home.join(".claude/plugins/legion"),
+            // `~/.claude/plugins` is Claude Code's own state directory (its
+            // marketplace cache, installed_plugins.json and blocklist); a
+            // directory dropped there is never discovered, which is why Legion
+            // projected 27 skills that no session could see while
+            // `claude plugin list` showed nothing. A skills-directory plugin is
+            // the documented way to install from a local path with no
+            // marketplace: a directory under ~/.claude/skills carrying
+            // .claude-plugin/plugin.json loads as `legion@skills-dir`.
+            home.join(".claude/skills/legion"),
             true,
             false,
             plugin_source_root.clone(),
@@ -3134,7 +3142,9 @@ fn development_host_integration_inputs(
             true,
             false,
             repo_assets.clone(),
-            home.join("claude/plugins/legion"),
+            // Mirrors the installed target: a skills-directory plugin, the only
+            // documented local-path install for Claude Code.
+            home.join("claude/skills/legion"),
         ),
         (
             legion_host::setup_registry::CLIENT_CODEX,

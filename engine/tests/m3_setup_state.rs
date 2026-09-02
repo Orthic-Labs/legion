@@ -370,7 +370,7 @@ fn native_client_projection_profiles_reconcile_without_claiming_pi_execution() {
     let root = TempRoot::new("client-projections");
     let state_root = root.path().join("state");
     let source_root = root.path().join("release/plugin");
-    let claude_target = state_root.join("clients/.claude/plugins/legion");
+    let claude_target = state_root.join("clients/.claude/skills/legion");
     let pi_target = state_root.join("clients/.agents/skills");
     fs::create_dir_all(source_root.join("skills/example")).expect("plugin source");
     fs::write(source_root.join("plugin.json"), br#"{"name":"legion"}"#).expect("plugin manifest");
@@ -496,7 +496,7 @@ fn host_mcp_registration_applies_repairs_idempotently_and_removes_cleanly() {
         client_id: CLIENT_CLAUDE.into(),
         projection: "native-plugin".into(),
         source_root: fs::canonicalize(&source_root).expect("canonical plugin source"),
-        target_root: state_root.join("clients/.claude/plugins/legion"),
+        target_root: state_root.join("clients/.claude/skills/legion"),
         state_root: state_root.clone(),
         origin: "development".into(),
         executable: Some(executable),
@@ -568,7 +568,7 @@ fn host_mcp_registration_mid_apply_failure_leaves_host_config_untouched() {
         client_id: CLIENT_CLAUDE.into(),
         projection: "native-plugin".into(),
         source_root: fs::canonicalize(&source_root).expect("canonical plugin source"),
-        target_root: state_root.join("clients/.claude/plugins/legion"),
+        target_root: state_root.join("clients/.claude/skills/legion"),
         state_root,
         origin: "development".into(),
         executable: Some(executable),
@@ -679,7 +679,7 @@ fn production_projection_reports_identity_and_rejects_escaped_build_paths() {
         "bin/legion"
     });
     let source_root = current_root.join("share/legion/plugin");
-    let target_root = root.path().join("client/.claude/plugins/legion");
+    let target_root = root.path().join("client/.claude/skills/legion");
     fs::create_dir_all(&source_root).expect("installed plugin source");
     fs::write(source_root.join("mcp.json"), b"{}").expect("installed MCP manifest");
     fs::create_dir_all(executable.parent().expect("executable parent")).expect("installed bin");
