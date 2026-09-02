@@ -116,6 +116,7 @@ export function finalizeWindowsInstaller({
 	architecture = "x86_64",
 	receiptPath,
 	renderedScriptPath,
+	unsigned = false,
 	commandRunner = spawnSync,
 } = {}) {
 	if (!inputRoot || !outputRoot) fail("--input-root & --output are required");
@@ -145,6 +146,21 @@ export function finalizeWindowsInstaller({
 	const inno = innoCommand({ scriptPath });
 	execute(commandRunner, inno.command, inno.args, output);
 	assertRegular(installer, "Inno setup executable");
+	// Building the installer and signing it are separate steps: Inno needs no
+	// certificate. `unsigned` stops after the build so a change can be
+	// installed and tested on a real desktop in minutes, with no certificate
+	// authority in the loop. It returns a distinct status and no receipt, so a
+	// release can never mistake one for the other.
+	if (unsigned) {
+		return {
+			status: "unsigned",
+			installer,
+			sha256: sha256(installer),
+			sizeBytes: statSync(installer).size,
+			identity,
+			runtimeSha256: String(metadata.runtime.sha256).replace(/^sha256:/i, "").toLowerCase(),
+		};
+	}
 	const receipt = resolve(receiptPath ?? join(output, `${identity.name}.signing.json`));
 	const sign = outerSigningCommand({ installer, receipt });
 	execute(commandRunner, sign.command, sign.args, output);
@@ -170,6 +186,7 @@ function option(name) {
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
 	try {
 		const result = finalizeWindowsInstaller({
+			unsigned: process.argv.includes("--unsigned"),
 			inputRoot: option("--input-root") ?? process.env.LEGION_SIGNED_RELEASE_ROOT,
 			outputRoot: option("--output") ?? process.env.LEGION_WINDOWS_INSTALLER_OUTPUT,
 			version: option("--version") ?? process.env.LEGION_RELEASE_VERSION,

@@ -85,6 +85,25 @@ test("finalizer constructs, outer-signs, then verifies expected installer", () =
 	assert.ok(calls[2].args.includes("--verify-only"));
 });
 
+test("unsigned mode builds the same installer and never signs it", () => {
+	// Inno needs no certificate; signing is a separate release concern. The
+	// unsigned lane exists so a change can be installed and tested on a real
+	// desktop in minutes.
+	const { source, output } = fixture();
+	const calls = [];
+	const commandRunner = (command, args) => {
+		calls.push({ command, args });
+		if (args[0] === "/Qp") writeFileSync(join(output, "Legion-1.2.3-windows-x86_64-setup.exe"), "inno installer\n");
+		return { status: 0, stdout: "" };
+	};
+	const result = finalizeWindowsInstaller({ inputRoot: source, outputRoot: output, version: "1.2.3", unsigned: true, commandRunner });
+	assert.equal(result.status, "unsigned");
+	assert.ok(existsSync(result.installer));
+	assert.equal(result.receipt, undefined, "an unsigned build carries no signing receipt");
+	assert.deepEqual(calls.map(({ command }) => command), [process.env.INNO_SETUP_PATH ?? "iscc.exe"]);
+	assert.ok(!calls.some(({ args }) => args.includes("sign-windows")), "unsigned mode never invokes signing");
+});
+
 test("finalizer rejects missing payload or output nested in signed root", () => {
 	const { source } = fixture();
 	assert.throws(

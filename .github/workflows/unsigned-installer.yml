@@ -1,0 +1,87 @@
+# Build an installable Windows package with no certificate in the path.
+#
+# This is the development loop: change something, build, install it on a real
+# desktop, find what is broken, fix it. Signing and publication are a separate
+# concern and live in release-candidate.yml; nothing here can tag, publish, or
+# touch a release channel, and the installer it produces carries no signing
+# receipt so it can never be mistaken for a release artifact.
+name: unsigned-installer
+
+on:
+  workflow_dispatch:
+    inputs:
+      source_revision:
+        description: Commit to build (defaults to the branch head)
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: unsigned-installer-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  private-repo-guard:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Refuse to run outside the public repository
+        run: |
+          set -euo pipefail
+          [[ "${{ github.repository }}" == "Orthic-Labs/legion" ]]
+
+  installer:
+    needs: [private-repo-guard]
+    env:
+      SCCACHE_GHA_ENABLED: "true"
+      RUSTC_WRAPPER: "sccache"
+    runs-on: windows-2025
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.source_revision || github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "22.23.2"
+          package-manager-cache: false
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
+        with:
+          version: 11.24.0
+      - uses: dtolnay/rust-toolchain@f8be11a05b1d4f3fcebe6410cc16743212b999b0
+        with:
+          targets: x86_64-pc-windows-msvc
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        with:
+          workspaces: engine -> target
+          shared-key: legion-rust
+          add-job-id-key: false
+          cache-workspace-crates: false
+          cache-on-failure: true
+          save-if: false
+      - uses: Mozilla-Actions/sccache-action@fc920bf0ec8de6ee65d409111f7ec508035751ba # v0.0.11
+        with:
+          version: "v0.16.0"
+      - run: pnpm install --frozen-lockfile
+      - name: Build the unsigned candidate payload
+        run: pnpm run ci:unsigned-candidate
+      - name: Build the unsigned installer
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="$(node -p "require('./package.json').version")"
+          node scripts/release/windows/finalize-installer.mjs \
+            --unsigned \
+            --input-root "$RUNNER_TEMP/legion-unsigned-candidate" \
+            --output "$RUNNER_TEMP/unsigned" \
+            --version "$version" \
+            --architecture x86_64
+          ls -l "$RUNNER_TEMP/unsigned"
+      - name: Upload the unsigned installer
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          if-no-files-found: error
+          name: legion-unsigned-installer-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/unsigned/*setup.exe
