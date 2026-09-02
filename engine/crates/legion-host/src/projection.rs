@@ -239,9 +239,9 @@ pub fn project_mcp(
             let retained = lines.join("\n");
             let payload = format!(
                 "[{table}.legion]\ncommand = {}\nargs = [{}]",
-                toml::Value::String(command.into()),
+                toml_string(command),
                 args.iter()
-                    .map(|arg| toml::Value::String(arg.clone()).to_string())
+                    .map(|arg| toml_string(arg))
                     .collect::<Vec<_>>()
                     .join(", ")
             );
@@ -272,7 +272,42 @@ pub fn project_mcp(
     })
 }
 
-pub(crate) fn parse_comment_marker(text: &str) -> Option<OwnershipMark> {
+pub(crate) /// Render one TOML string value. A Windows executable path is full of
+/// backslashes, and a basic string would have to escape every one of them; a
+/// literal string carries the path verbatim and is what other products already
+/// write into `config.toml`. Values that cannot be a literal string (they
+/// contain a single quote, a newline, or a control character) fall back to an
+/// escaped basic string. Legion 0.3.13 shipped the unescaped basic form, which
+/// made the whole file unparseable and left Codex unregistered (run
+/// 33664640926).
+fn toml_string(value: &str) -> String {
+    let literal_safe = !value.contains('\'')
+        && !value.contains('\n')
+        && !value.contains('\r')
+        && !value.chars().any(char::is_control);
+    if literal_safe {
+        return format!("'{value}'");
+    }
+    let mut escaped = String::with_capacity(value.len() + 2);
+    escaped.push('"');
+    for character in value.chars() {
+        match character {
+            '"' => escaped.push_str("\\\""),
+            '\\' => escaped.push_str("\\\\"),
+            '\n' => escaped.push_str("\\n"),
+            '\r' => escaped.push_str("\\r"),
+            '\t' => escaped.push_str("\\t"),
+            other if (other as u32) < 0x20 => {
+                escaped.push_str(&format!("\\u{:04X}", other as u32));
+            }
+            other => escaped.push(other),
+        }
+    }
+    escaped.push('"');
+    escaped
+}
+
+fn parse_comment_marker(text: &str) -> Option<OwnershipMark> {
     let fields = text
         .strip_prefix("legion-owned ")?
         .split_whitespace()

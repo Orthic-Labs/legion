@@ -636,6 +636,21 @@ fn host_mcp_registration_round_trips_codex_toml_without_duplicating_blocks() {
         "exactly one legion table after apply"
     );
     assert!(after_apply.starts_with("existing = 1"));
+    // A Windows executable path is full of backslashes. Rendered as a basic
+    // string it makes the file unparseable, which left Codex unregistered in
+    // run 33664640926; a literal string carries it verbatim. repair itself now
+    // re-reads and parses the file, so reaching this line already proves the
+    // write is valid TOML.
+    let executable_display = input
+        .executable
+        .as_ref()
+        .expect("executable")
+        .to_string_lossy()
+        .into_owned();
+    assert!(
+        after_apply.contains(&format!("command = '{executable_display}'")),
+        "codex command is a TOML literal string: {after_apply}"
+    );
 
     repair_client_projection(&input).expect("repair codex projection again");
     let after_second = fs::read_to_string(&config_path).expect("read twice-repaired codex config");
