@@ -39,6 +39,22 @@ test("admission rejects a version that contradicts release/version.json", () => 
 	assert.throws(() => admitRelease({ ...base, GITHUB_OUTPUT: output, RIGHT_GIT_RELEASE_VERSION: wrong }), /contradicts release\/version\.json/);
 });
 
+test("admission dry_run accepts any branch ref, skips first-attempt, and refuses publish=true", () => {
+	const output = join(scratch("dryrun"), "out.txt");
+	writeFileSync(output, "");
+	const declared = JSON.parse(readFileSync(new URL("../../release/version.json", import.meta.url), "utf8")).version;
+	const dryBase = { ...base, GITHUB_OUTPUT: output, RIGHT_GIT_RELEASE_VERSION: declared, RIGHT_GIT_DRY_RUN: "true" };
+	// A real dispatch still requires refs/heads/main + first attempt.
+	assert.throws(() => admitRelease({ ...base, GITHUB_OUTPUT: output, RIGHT_GIT_WORKFLOW_REF: "refs/heads/topic" }), /refs\/heads\/main/);
+	// A dry run accepts a branch ref and a non-first attempt, reaching source-
+	// revision resolution (which only fails because the SHA here is synthetic).
+	assert.throws(() => admitRelease({ ...dryBase, RIGHT_GIT_WORKFLOW_REF: "refs/heads/topic", RIGHT_GIT_RUN_ATTEMPT: "4" }), /known commit/);
+	// A dry run must never be combined with publish=true.
+	assert.throws(() => admitRelease({ ...dryBase, RIGHT_GIT_WORKFLOW_REF: "refs/heads/topic", RIGHT_GIT_PUBLISH: "true" }), /refuses publish=true together with dry_run=true/);
+	// A dry run from a non-branch ref is still rejected.
+	assert.throws(() => admitRelease({ ...dryBase, RIGHT_GIT_WORKFLOW_REF: "refs/tags/v9.9.9" }), /requires dispatch from a branch/);
+});
+
 test("stage-summary cannot mark a nonzero exit code succeeded", () => {
 	const root = scratch("stage");
 	const env = {

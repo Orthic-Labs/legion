@@ -64,7 +64,14 @@ test('public release CI selects explicit supported targets and release profile',
   assert.match(releaseCi, /release:publish-qualified/);
   assert.match(releaseCi, /signed_qualification:/);
   assert.equal((releaseCi.match(/if: \$\{\{ needs\.admission\.outputs\.signed_qualification == 'true' \}\}/g) ?? []).length, 2);
-  assert.match(releaseCi, /publish:[\s\S]*?if: \$\{\{ needs\.admission\.outputs\.publish == 'true' && needs\.installed-qualification\.result == 'success' && needs\.macos-sign\.result == 'success' \}\}/);
+  assert.match(releaseCi, /publish:[\s\S]*?if: \$\{\{ needs\.admission\.outputs\.publish == 'true' && needs\.installed-qualification\.result == 'success' && needs\.macos-sign\.result == 'success' && needs\.admission\.outputs\.dry_run != 'true' \}\}/);
+  // Rule 3: a dry_run input, runnable from a branch, threads through admission so
+  // packaging/signing/qualification run while publication is skipped.
+  assert.match(releaseCi, /^      dry_run:\n        description: .*\n        required: false\n        type: boolean\n        default: false$/m);
+  assert.match(releaseCi, /dry_run: \$\{\{ steps\.admit\.outputs\.dry_run \}\}/);
+  assert.match(releaseCi, /RIGHT_GIT_DRY_RUN: \$\{\{ inputs\.dry_run \}\}/);
+  assert.match(releaseCi, /\$GITHUB_REF" == refs\/heads\/\*/);
+  assert.match(releaseCi, /-\$\{\{ needs\.admission\.outputs\.source_revision \}\}\$\{\{ needs\.admission\.outputs\.artifact_suffix \}\}/);
   // Gate 0A: every stage hangs off admission, so no job can run against a
   // revision that static source closure has not admitted.
   assert.match(releaseCi, /^  admission:/m);

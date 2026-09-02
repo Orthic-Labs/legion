@@ -28,7 +28,9 @@ test('right-git owns exact public CI bytes', () => {
       assert.match(workflow, /publish:/);
       assert.match(workflow, /signed_qualification:/);
       assert.equal((workflow.match(/if: \$\{\{ needs\.admission\.outputs\.signed_qualification == 'true' \}\}/g) ?? []).length, 2);
-      assert.match(workflow, /publish:[\s\S]*?if: \$\{\{ needs\.admission\.outputs\.publish == 'true' && needs\.installed-qualification\.result == 'success' && needs\.macos-sign\.result == 'success' \}\}/);
+      assert.match(workflow, /publish:[\s\S]*?if: \$\{\{ needs\.admission\.outputs\.publish == 'true' && needs\.installed-qualification\.result == 'success' && needs\.macos-sign\.result == 'success' && needs\.admission\.outputs\.dry_run != 'true' \}\}/);
+      assert.match(workflow, /dry_run: \$\{\{ steps\.admit\.outputs\.dry_run \}\}/);
+      assert.match(workflow, /RIGHT_GIT_DRY_RUN: \$\{\{ inputs\.dry_run \}\}/);
     }
   }
   assert.deepEqual(readdirSync(join(root, '.github/workflows')).sort(), ['ci.yml', 'release-candidate.yml']);

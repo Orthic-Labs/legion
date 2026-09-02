@@ -1,5 +1,5 @@
 # Managed by right-git — do not hand-edit. Run `right-git sync` to update.
-# Template: profiles/rust-hybrid/release-candidate.yml | Template version: 1.8.0
+# Template: profiles/rust-hybrid/release-candidate.yml | Template version: 1.9.0
 # Dispatch-only release chain binds every stage to one admitted main revision.
 name: release-candidate
 on:
@@ -20,6 +20,11 @@ on:
         default: false
       publish:
         description: Publish only after same-run signed qualification verifies
+        required: false
+        type: boolean
+        default: false
+      dry_run:
+        description: Rehearse packaging, signing & installed qualification from a branch with publication skipped
         required: false
         type: boolean
         default: false
@@ -45,13 +50,20 @@ jobs:
       source_revision: ${{ steps.admit.outputs.source_revision }}
       signed_qualification: ${{ steps.admit.outputs.signed_qualification }}
       publish: ${{ steps.admit.outputs.publish }}
+      dry_run: ${{ steps.admit.outputs.dry_run }}
+      artifact_suffix: ${{ steps.admit.outputs.artifact_suffix }}
     steps:
       - name: Validate immutable dispatch envelope
         shell: bash
         run: |
           set -euo pipefail
-          [[ "$GITHUB_REF" == "refs/heads/main" ]]
-          [[ "$GITHUB_RUN_ATTEMPT" == "1" ]]
+          if [[ "${{ inputs.dry_run }}" == "true" ]]; then
+            [[ "$GITHUB_REF" == refs/heads/* ]]
+            [[ "${{ inputs.publish }}" != "true" ]]
+          else
+            [[ "$GITHUB_REF" == "refs/heads/main" ]]
+            [[ "$GITHUB_RUN_ATTEMPT" == "1" ]]
+          fi
           [[ "${{ inputs.version }}" =~ ^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]
           [[ "${{ inputs.source_revision }}" =~ ^[a-f0-9]{40}$ ]]
           if [[ "${{ inputs.publish }}" == "true" ]]; then [[ "${{ inputs.signed_qualification }}" == "true" ]]; fi
@@ -77,6 +89,7 @@ jobs:
           RIGHT_GIT_SOURCE_REVISION: ${{ inputs.source_revision }}
           RIGHT_GIT_SIGNED_QUALIFICATION: ${{ inputs.signed_qualification }}
           RIGHT_GIT_PUBLISH: ${{ inputs.publish }}
+          RIGHT_GIT_DRY_RUN: ${{ inputs.dry_run }}
           RIGHT_GIT_WORKFLOW_REF: ${{ github.ref }}
           RIGHT_GIT_RUN_ATTEMPT: ${{ github.run_attempt }}
   candidate:
@@ -178,14 +191,14 @@ jobs:
         if: ${{ always() }}
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: legion-${{ github.run_id }}-${{ github.run_attempt }}-candidate-${{ matrix.platform }}-${{ matrix.architecture }}-${{ needs.admission.outputs.version }}-${{ needs.admission.outputs.source_revision }}
+          name: legion-${{ github.run_id }}-${{ github.run_attempt }}-candidate-${{ matrix.platform }}-${{ matrix.architecture }}-${{ needs.admission.outputs.version }}-${{ needs.admission.outputs.source_revision }}${{ needs.admission.outputs.artifact_suffix }}
           path: ${{ runner.temp }}/legion-unsigned-candidate/**
           if-no-files-found: error
       - name: Upload candidate stage summary
         if: ${{ always() }}
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: legion-${{ github.run_id }}-${{ github.run_attempt }}-summary-candidate-${{ matrix.platform }}-${{ matrix.architecture }}-${{ needs.admission.outputs.version }}-${{ needs.admission.outputs.source_revision }}
+          name: legion-${{ github.run_id }}-${{ github.run_attempt }}-summary-candidate-${{ matrix.platform }}-${{ matrix.architecture }}-${{ needs.admission.outputs.version }}-${{ needs.admission.outputs.source_revision }}${{ needs.admission.outputs.artifact_suffix }}
           path: ${{ runner.temp }}/right-git-stage-summary/stage-summary.json
           if-no-files-found: error
 
@@ -240,7 +253,7 @@ jobs:
       - name: Download exact unsigned Windows candidate
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
-          name: legion-${{ github.run_id }}-${{ github.run_attempt }}-candidate-${{ matrix.platform }}-${{ matrix.architecture }}-${{ needs.admission.outputs.version }}-${{ needs.admission.outputs.source_revision }}
+          name: legion-${{ github.run_id }}-${{ github.run_attempt }}-candidate-${{ matrix.platform }}-${{ matrix.architecture }}-${{ needs.admission.outputs.version }}-${{ needs.admission.outputs.source_revision }}${{ needs.admission.outputs.artifact_suffix }}
           path: ${{ runner.temp }}/unsigned-windows-candidate
       - name: Authenticate to Azure with GitHub OIDC
         uses: azure/login@7ddb5af1ef8758cf1353cf3b42f940aee27ba21c # v3
@@ -296,7 +309,7 @@ jobs:
         if: ${{ always() }}
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: legion-${{ github.run_id }}-${{ github.run_attempt }}-signed-windows-${{ matrix.architecture }}-${{ needs.admission.outputs.version }}-${{ needs.admission.outputs.source_revision }}
+          name: legion-${{ github.run_id }}-${{ github.run_attempt }}-signed-windows-${{ matrix.architecture }}-${{ needs.admission.outputs.version }}-${{ needs.admission.outputs.source_revision }}${{ needs.admission.outputs.artifact_suffix }}
           path: |
             ${{ runner.temp }}/finalized-windows/**
           if-no-files-found: error
@@ -304,7 +317,7 @@ jobs:
         if: ${{ always() }}
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: legion-${{ github.run_id }}-${{ github.run_attempt }}-summary-windows-sign-${{ matrix.architecture }}-${{ needs.admission.outputs.version }}-${{ needs.admission.outputs.source_revision }}
+          name: legion-${{ github.run_id }}-${{ github.run_attempt }}-summary-windows-sign-${{ matrix.architecture }}-${{ needs.admission.outputs.version }}-${{ needs.admission.outputs.source_revision }}${{ needs.admission.outputs.artifact_suffix }}
           path: ${{ runner.temp }}/right-git-stage-summary/stage-summary.json
           if-no-files-found: error
 
@@ -358,7 +371,7 @@ jobs:
       - name: Download exact unsigned macOS candidate
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
-          name: legion-${{ github.run_id }}-${{ github.run_attempt }}-candidate-${{ matrix.platform }}-${{ matrix.architecture }}-${{ needs.admission.outputs.version }}-${{ needs.admission.outputs.source_revision }}
+          name: legion-${{ github.run_id }}-${{ github.run_attempt }}-candidate-${{ matrix.platform }}-${{ matrix.architecture }}-${{ needs.admission.outputs.version }}-${{ needs.admission.outputs.source_revision }}${{ needs.admission.outputs.artifact_suffix }}
           path: ${{ runner.temp }}/unsigned-macos-candidate
       - name: Install Apple signing identity in temporary keychain
         shell: bash
@@ -413,7 +426,7 @@ jobs:
         if: ${{ always() }}
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: legion-${{ github.run_id }}-${{ github.run_attempt }}-signed-macos-${{ matrix.architecture }}-${{ needs.admission.outputs.version }}-${{ needs.admission.outputs.source_revision }}
+          name: legion-${{ github.run_id }}-${{ github.run_attempt }}-signed-macos-${{ matrix.architecture }}-${{ needs.admission.outputs.version }}-${{ needs.admission.outputs.source_revision }}${{ needs.admission.outputs.artifact_suffix }}
           path: |
             ${{ runner.temp }}/finalized-macos/**
           if-no-files-found: error
@@ -421,7 +434,7 @@ jobs:
         if: ${{ always() }}
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: legion-${{ github.run_id }}-${{ github.run_attempt }}-summary-macos-sign-${{ matrix.architecture }}-${{ needs.admission.outputs.version }}-${{ needs.admission.outputs.source_revision }}
+          name: legion-${{ github.run_id }}-${{ github.run_attempt }}-summary-macos-sign-${{ matrix.architecture }}-${{ needs.admission.outputs.version }}-${{ needs.admission.outputs.source_revision }}${{ needs.admission.outputs.artifact_suffix }}
           path: ${{ runner.temp }}/right-git-stage-summary/stage-summary.json
           if-no-files-found: error
       - name: Remove Apple signing material
@@ -450,7 +463,7 @@ jobs:
       - name: Download same-run finalized Windows release
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
-          name: legion-${{ github.run_id }}-${{ github.run_attempt }}-signed-windows-x86_64-${{ needs.admission.outputs.version }}-${{ needs.admission.outputs.source_revision }}
+          name: legion-${{ github.run_id }}-${{ github.run_attempt }}-signed-windows-x86_64-${{ needs.admission.outputs.version }}-${{ needs.admission.outputs.source_revision }}${{ needs.admission.outputs.artifact_suffix }}
           path: ${{ runner.temp }}/right-git-release/windows
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
@@ -499,19 +512,19 @@ jobs:
         if: ${{ always() }}
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: legion-${{ github.run_id }}-${{ github.run_attempt }}-installed-qualification-${{ needs.admission.outputs.version }}-${{ needs.admission.outputs.source_revision }}
+          name: legion-${{ github.run_id }}-${{ github.run_attempt }}-installed-qualification-${{ needs.admission.outputs.version }}-${{ needs.admission.outputs.source_revision }}${{ needs.admission.outputs.artifact_suffix }}
           path: ${{ runner.temp }}/right-git-release/qualification/**
           if-no-files-found: error
       - name: Upload installed-qualification stage summary
         if: ${{ always() }}
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: legion-${{ github.run_id }}-${{ github.run_attempt }}-summary-installed-qualification-${{ needs.admission.outputs.version }}-${{ needs.admission.outputs.source_revision }}
+          name: legion-${{ github.run_id }}-${{ github.run_attempt }}-summary-installed-qualification-${{ needs.admission.outputs.version }}-${{ needs.admission.outputs.source_revision }}${{ needs.admission.outputs.artifact_suffix }}
           path: ${{ runner.temp }}/right-git-stage-summary/stage-summary.json
           if-no-files-found: error
   publish:
     needs: [admission, installed-qualification, macos-sign]
-    if: ${{ needs.admission.outputs.publish == 'true' && needs.installed-qualification.result == 'success' && needs.macos-sign.result == 'success' }}
+    if: ${{ needs.admission.outputs.publish == 'true' && needs.installed-qualification.result == 'success' && needs.macos-sign.result == 'success' && needs.admission.outputs.dry_run != 'true' }}
     environment: release
     runs-on: ${{ vars.LEGION_QUALIFICATION_RUNNER || 'windows-2025' }}
     permissions:
@@ -525,42 +538,42 @@ jobs:
       - name: Download same-run finalized Windows release
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
-          name: legion-${{ github.run_id }}-${{ github.run_attempt }}-signed-windows-x86_64-${{ needs.admission.outputs.version }}-${{ needs.admission.outputs.source_revision }}
+          name: legion-${{ github.run_id }}-${{ github.run_attempt }}-signed-windows-x86_64-${{ needs.admission.outputs.version }}-${{ needs.admission.outputs.source_revision }}${{ needs.admission.outputs.artifact_suffix }}
           path: ${{ runner.temp }}/right-git-release/windows
       - name: Download same-run signed & notarized macOS release
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
-          name: legion-${{ github.run_id }}-${{ github.run_attempt }}-signed-macos-arm64-${{ needs.admission.outputs.version }}-${{ needs.admission.outputs.source_revision }}
+          name: legion-${{ github.run_id }}-${{ github.run_attempt }}-signed-macos-arm64-${{ needs.admission.outputs.version }}-${{ needs.admission.outputs.source_revision }}${{ needs.admission.outputs.artifact_suffix }}
           path: ${{ runner.temp }}/right-git-release/macos
       - name: Download same-run installed qualification evidence
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
-          name: legion-${{ github.run_id }}-${{ github.run_attempt }}-installed-qualification-${{ needs.admission.outputs.version }}-${{ needs.admission.outputs.source_revision }}
+          name: legion-${{ github.run_id }}-${{ github.run_attempt }}-installed-qualification-${{ needs.admission.outputs.version }}-${{ needs.admission.outputs.source_revision }}${{ needs.admission.outputs.artifact_suffix }}
           path: ${{ runner.temp }}/right-git-release/qualification
       - name: Download same-run candidate (Windows) stage summary
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
-          name: legion-${{ github.run_id }}-${{ github.run_attempt }}-summary-candidate-windows-x86_64-${{ needs.admission.outputs.version }}-${{ needs.admission.outputs.source_revision }}
+          name: legion-${{ github.run_id }}-${{ github.run_attempt }}-summary-candidate-windows-x86_64-${{ needs.admission.outputs.version }}-${{ needs.admission.outputs.source_revision }}${{ needs.admission.outputs.artifact_suffix }}
           path: ${{ runner.temp }}/right-git-release/stage-summaries/candidate-windows
       - name: Download same-run candidate (macOS) stage summary
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
-          name: legion-${{ github.run_id }}-${{ github.run_attempt }}-summary-candidate-macos-arm64-${{ needs.admission.outputs.version }}-${{ needs.admission.outputs.source_revision }}
+          name: legion-${{ github.run_id }}-${{ github.run_attempt }}-summary-candidate-macos-arm64-${{ needs.admission.outputs.version }}-${{ needs.admission.outputs.source_revision }}${{ needs.admission.outputs.artifact_suffix }}
           path: ${{ runner.temp }}/right-git-release/stage-summaries/candidate-macos
       - name: Download same-run Windows signing stage summary
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
-          name: legion-${{ github.run_id }}-${{ github.run_attempt }}-summary-windows-sign-x86_64-${{ needs.admission.outputs.version }}-${{ needs.admission.outputs.source_revision }}
+          name: legion-${{ github.run_id }}-${{ github.run_attempt }}-summary-windows-sign-x86_64-${{ needs.admission.outputs.version }}-${{ needs.admission.outputs.source_revision }}${{ needs.admission.outputs.artifact_suffix }}
           path: ${{ runner.temp }}/right-git-release/stage-summaries/windows-sign
       - name: Download same-run macOS signing stage summary
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
-          name: legion-${{ github.run_id }}-${{ github.run_attempt }}-summary-macos-sign-arm64-${{ needs.admission.outputs.version }}-${{ needs.admission.outputs.source_revision }}
+          name: legion-${{ github.run_id }}-${{ github.run_attempt }}-summary-macos-sign-arm64-${{ needs.admission.outputs.version }}-${{ needs.admission.outputs.source_revision }}${{ needs.admission.outputs.artifact_suffix }}
           path: ${{ runner.temp }}/right-git-release/stage-summaries/macos-sign
       - name: Download same-run installed-qualification stage summary
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
-          name: legion-${{ github.run_id }}-${{ github.run_attempt }}-summary-installed-qualification-${{ needs.admission.outputs.version }}-${{ needs.admission.outputs.source_revision }}
+          name: legion-${{ github.run_id }}-${{ github.run_attempt }}-summary-installed-qualification-${{ needs.admission.outputs.version }}-${{ needs.admission.outputs.source_revision }}${{ needs.admission.outputs.artifact_suffix }}
           path: ${{ runner.temp }}/right-git-release/stage-summaries/installed-qualification
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:

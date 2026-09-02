@@ -91,12 +91,23 @@ export function assertSameShaCiIsGreen(revision) {
 export function admitRelease(env = process.env) {
 	const outputPath = env.GITHUB_OUTPUT;
 	if (!outputPath) fail("release chain admission requires GITHUB_OUTPUT");
+	// dry_run: a rehearsal dispatch from a branch that exercises packaging,
+	// signing & installed qualification with publication skipped, so the first
+	// real dispatch is never the first execution. It accepts any refs/heads/*
+	// ref, skips the first-attempt and tag/release-existence checks, and refuses
+	// to be combined with publish=true.
+	const dryRun = env.RIGHT_GIT_DRY_RUN === "true";
 	const ref = env.RIGHT_GIT_WORKFLOW_REF;
-	if (ref !== "refs/heads/main") fail(`release chain admission requires dispatch from refs/heads/main, got: ${ref}`);
+	if (dryRun) {
+		if (!/^refs\/heads\/.+/.test(ref ?? "")) fail(`release chain admission dry run requires dispatch from a branch (refs/heads/*), got: ${ref}`);
+	} else if (ref !== "refs/heads/main") {
+		fail(`release chain admission requires dispatch from refs/heads/main, got: ${ref}`);
+	}
 	const runAttempt = env.RIGHT_GIT_RUN_ATTEMPT;
-	if (!/^\d+$/.test(runAttempt ?? "") || Number(runAttempt) !== 1) fail(`release chain admission requires the first run attempt, got: ${runAttempt}`);
+	if (!dryRun && (!/^\d+$/.test(runAttempt ?? "") || Number(runAttempt) !== 1)) fail(`release chain admission requires the first run attempt, got: ${runAttempt}`);
 	const releaseVersion = env.RIGHT_GIT_RELEASE_VERSION ?? "";
 	if (!/^\d+\.\d+\.\d+$/.test(releaseVersion)) fail(`release chain admission requires an exact semver release version, got: ${releaseVersion}`);
+	if (dryRun && env.RIGHT_GIT_PUBLISH === "true") fail("release chain admission refuses publish=true together with dry_run=true");
 
 	// Version/tag/release contradiction: the dispatched version must be the one
 	// the frozen source actually declares, or the built artifacts carry a
@@ -107,15 +118,18 @@ export function admitRelease(env = process.env) {
 	const revision = env.RIGHT_GIT_SOURCE_REVISION ?? "";
 	if (!/^[a-f0-9]{40}$/.test(revision)) fail("release chain admission requires an exact 40-character lowercase source revision SHA");
 	if (git(["cat-file", "-e", `${revision}^{commit}`]).status !== 0) fail("release chain admission source revision does not resolve to a known commit");
-	assertSourceRevisionIsAncestorOfMain(revision);
+	// A dry run accepts any branch ref, so the source revision need not yet be an
+	// ancestor of main; the tag/release-existence check is skipped too because a
+	// rehearsal never publishes. Same-SHA CI must still be green.
+	if (!dryRun) assertSourceRevisionIsAncestorOfMain(revision);
 	assertSameShaCiIsGreen(revision);
 
 	const signedQualification = env.RIGHT_GIT_SIGNED_QUALIFICATION === "true";
 	const publish = env.RIGHT_GIT_PUBLISH === "true";
 	if (publish && !signedQualification) fail("release chain admission requires signed_qualification=true whenever publish=true");
-	if (tagOrReleaseExists(releaseVersion)) fail(`release chain admission version v${releaseVersion} already has a tag or release (drafts included)`);
+	if (!dryRun && tagOrReleaseExists(releaseVersion)) fail(`release chain admission version v${releaseVersion} already has a tag or release (drafts included)`);
 
-	for (const [key, value] of [["version", releaseVersion], ["source_revision", revision], ["signed_qualification", String(signedQualification)], ["publish", String(publish)]]) {
+	for (const [key, value] of [["version", releaseVersion], ["source_revision", revision], ["signed_qualification", String(signedQualification)], ["publish", String(publish)], ["dry_run", String(dryRun)], ["artifact_suffix", dryRun ? "-dry-run" : ""]]) {
 		appendFileSync(outputPath, `${key}=${value}\n`);
 	}
 	return { status: "admitted", version: releaseVersion, sourceRevision: revision, signedQualification, publish };
