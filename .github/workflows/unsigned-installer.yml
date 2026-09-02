@@ -67,6 +67,11 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - name: Build the unsigned candidate payload
         run: pnpm run ci:unsigned-candidate
+        env:
+          RIGHT_GIT_ARTIFACT_ROOT: ${{ runner.temp }}/legion-unsigned-candidate
+          RIGHT_GIT_RELEASE_PLATFORM: windows
+          RIGHT_GIT_RELEASE_ARCHITECTURE: x86_64
+          RIGHT_GIT_SOURCE_REVISION: ${{ inputs.source_revision || github.sha }}
       - name: Build the unsigned installer
         shell: bash
         run: |
