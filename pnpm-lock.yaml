@@ -16,8 +16,8 @@ importers:
         specifier: 2.5.10
         version: 2.5.10
       '@rightkit/ax':
-        specifier: 0.2.1
-        version: 0.2.1
+        specifier: 0.2.2
+        version: 0.2.2
       '@rightkit/git':
         specifier: 0.2.24
         version: 0.2.24
@@ -84,8 +84,8 @@ packages:
     cpu: [x64]
     os: [win32]
 
-  '@rightkit/ax@0.2.1':
-    resolution: {integrity: sha512-7iBNWoO2LmZLw38mVmHu/56O0Pn4lQrnnmbf26knnpyjPVE7XFUou3tJ9r607HRMmFvNJGEGk/WbVEL5x3AIyg==}
+  '@rightkit/ax@0.2.2':
+    resolution: {integrity: sha512-jtiYjqWyZlpJQTrW5i1bS/wbrrXFqBYW6RmmVcc5DFLMd9cSKd6rof4T32BOv4FyR0t4cdJ1ySxPldiTkP5/Yg==}
     hasBin: true
 
   '@rightkit/git@0.2.24':
@@ -137,7 +137,7 @@ snapshots:
   '@biomejs/cli-win32-x64@2.5.10':
     optional: true
 
-  '@rightkit/ax@0.2.1': {}
+  '@rightkit/ax@0.2.2': {}
 
   '@rightkit/git@0.2.24': {}
 

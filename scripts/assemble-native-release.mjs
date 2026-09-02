@@ -386,6 +386,19 @@ writeJson(join(share, "composition.json"), {
 });
 
 const pluginRoot = join(output, "plugin");
+// Agents come from the same declared surface the plugin advertises, so the
+// shipped core cannot disagree with what Legion claims to provide.
+const pluginSurface = JSON.parse(
+	readFileSync(join(repositoryRoot, "src", "registry", "plugin-surface.json"), "utf8"),
+);
+const publicAgents = (pluginSurface.surface?.agents ?? []).map((agent) => {
+	const source = join(repositoryRoot, agent.file);
+	if (!existsSync(source)) throw new Error(`declared agent is missing: ${agent.file}`);
+	return { name: agent.name, sourceRoot: repositoryRoot, sourceFile: source };
+});
+if (publicAgents.length !== (pluginSurface.counts?.agents ?? publicAgents.length)) {
+	throw new Error("declared agent count does not match the plugin surface");
+}
 const skillCatalog = JSON.parse(readFileSync(catalogPath, "utf8"));
 const publicSkills = skillCatalog.bundles
 	.filter((bundle) => bundle.discoverability === "public" || bundle.discoverability === "explicit")
@@ -429,6 +442,11 @@ assemblePortableCore({
 	pluginManifestPath: join(repositoryRoot, "engine", "assets", "legion-plugin", "plugin.json"),
 	mcpManifestPath: join(repositoryRoot, "engine", "assets", "legion-plugin", "mcp.json"),
 	skills: publicSkills,
+	// The plugin surface declares four agents (sage, alchemist, oracle,
+	// covenant-seat) and the core shipped none of them, so every agent-only
+	// role was unreachable from every client: oracle appeared to work purely
+	// because it is also a skill.
+	agents: publicAgents,
 	clientProjections: CLIENT_PROJECTION_KINDS,
 });
 const portableCoreValidation = validatePortableCore(pluginRoot);
