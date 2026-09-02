@@ -2210,7 +2210,10 @@ fn codex_host_registration_present(home: &Path) -> bool {
     let Ok(text) = fs::read_to_string(home.join(".codex").join("config.toml")) else {
         return false;
     };
-    let Ok(value) = text.parse::<toml::Value>() else {
+    // Parse as a document. `parse::<toml::Value>()` reads a bare value in
+    // toml 1.x, so it rejected the very file this had just written and left
+    // Codex reported unregistered (runs 33664640926, 33675225749, 33677869354).
+    let Ok(value) = toml::from_str::<toml::Value>(&text) else {
         return false;
     };
     value
@@ -2353,7 +2356,7 @@ fn host_registration_diagnosis(input: &ClientProjectionInput, home: &Path) -> St
         CLIENT_CLAUDE => serde_json::from_slice::<serde_json::Value>(&bytes)
             .err()
             .map(|error| error.to_string()),
-        _ => text.parse::<toml::Value>().err().map(|error| error.to_string()),
+        _ => toml::from_str::<toml::Value>(&text).err().map(|error| error.to_string()),
     };
     let head = text
         .lines()

@@ -90,7 +90,7 @@ pub fn plan_uninstall<E: FileEffects>(
             continue;
         }
         if let Some(table) = &target.toml_table {
-            if !text.trim().is_empty() && text.parse::<toml::Value>().is_err() {
+            if !text.trim().is_empty() && toml::from_str::<toml::Value>(text).is_err() {
                 return Err(HostError::HarnessConflict {
                     path: target.path.clone(),
                     reason: "existing TOML does not parse".into(),

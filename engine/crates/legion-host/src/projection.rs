@@ -188,7 +188,10 @@ pub fn project_mcp(
                 }
             })?;
             if !text.trim().is_empty() {
-                text.parse::<toml::Value>()
+                // A document, not a bare value: `parse::<toml::Value>()` in
+                // toml 1.x reads a single value and rejects every real
+                // config.toml with "unexpected content, expected nothing".
+                toml::from_str::<toml::Value>(text)
                     .map_err(|_| HostError::HarnessConflict {
                         path: path.into(),
                         reason: "existing TOML does not parse".into(),
