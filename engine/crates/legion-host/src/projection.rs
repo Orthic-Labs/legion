@@ -196,12 +196,16 @@ pub fn project_mcp(
             }
             let table = mechanism.table.as_deref().unwrap_or("mcp_servers");
             let header = format!("[{table}.legion]");
-            if let Some(start) = text.lines().position(|line| line.trim() == header) {
-                let lines = text.lines().collect::<Vec<_>>();
-                let marker_line = start
-                    .checked_sub(1)
+            // Remove any prior Legion-owned block before appending the fresh
+            // one below. Without this, re-running the projection over its own
+            // previous output (repair, twice) would append a second
+            // `[table.legion]` table on every call instead of replacing it.
+            let mut lines: Vec<String> = text.lines().map(str::to_owned).collect();
+            if let Some(start) = lines.iter().position(|line| line.trim() == header) {
+                let marker_index = start.checked_sub(1);
+                let marker_line = marker_index
                     .and_then(|index| lines.get(index))
-                    .copied()
+                    .cloned()
                     .unwrap_or_default();
                 let marker_text = marker_line.trim_start_matches('#').trim();
                 let mark = parse_comment_marker(marker_text).ok_or_else(|| {
@@ -210,17 +214,29 @@ pub fn project_mcp(
                         reason: "existing Legion TOML entry has no ownership marker".into(),
                     }
                 })?;
-                let end = (start + 1..lines.len())
-                    .find(|index| lines[*index].trim_start().starts_with('['))
-                    .unwrap_or(lines.len());
-                let payload = lines[start..end].join("\n");
+                // The payload digested at write time is exactly the table
+                // (through the last `args = [...]` line), not the trailing
+                // `# /legion-owned` footer comment. Read-back verification
+                // must stop at the same place, or the digest never matches
+                // its own prior output.
+                let footer = (start + 1..lines.len()).find(|index| lines[*index].trim() == "# /legion-owned");
+                let payload_end = footer.unwrap_or_else(|| {
+                    (start + 1..lines.len())
+                        .find(|index| lines[*index].trim_start().starts_with('['))
+                        .unwrap_or(lines.len())
+                });
+                let payload = lines[start..payload_end].join("\n");
                 if mark.owner != descriptor.id || !mark.owns(payload.as_bytes()) {
                     return Err(HostError::HarnessConflict {
                         path: path.into(),
                         reason: "existing Legion TOML ownership digest does not match".into(),
                     });
                 }
+                let removal_end = footer.map_or(payload_end, |index| index + 1);
+                let block_start = marker_index.unwrap_or(start);
+                lines.drain(block_start..removal_end);
             }
+            let retained = lines.join("\n");
             let payload = format!(
                 "[{table}.legion]\ncommand = {}\nargs = [{}]",
                 toml::Value::String(command.into()),
@@ -232,7 +248,7 @@ pub fn project_mcp(
             let mark = OwnershipMark::new(descriptor.id.as_str(), generation, payload.as_bytes())?;
             format!(
                 "{}\n# {}\n{}\n# /legion-owned\n",
-                text.trim_end(),
+                retained.trim_end(),
                 mark.marker()
                     .trim_start_matches("<!-- ")
                     .trim_end_matches(" -->"),
@@ -256,7 +272,7 @@ pub fn project_mcp(
     })
 }
 
-fn parse_comment_marker(text: &str) -> Option<OwnershipMark> {
+pub(crate) fn parse_comment_marker(text: &str) -> Option<OwnershipMark> {
     let fields = text
         .strip_prefix("legion-owned ")?
         .split_whitespace()

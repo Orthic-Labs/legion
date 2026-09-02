@@ -1,6 +1,6 @@
 use legion_host::setup_registry::{
     inspect_client_projection, remove_client_projection, repair_client_projection,
-    stable_install_root, ClientProjectionInput, CLIENT_CLAUDE, CLIENT_PI,
+    stable_install_root, ClientProjectionInput, CLIENT_CLAUDE, CLIENT_CODEX, CLIENT_PI,
 };
 use legion_host::{
     BoundRelease, ClientEvidence, ClientSelector, OnDiskSetupStore, PlanConfirmation, SetupAction,
@@ -461,6 +461,195 @@ fn native_client_projection_profiles_reconcile_without_claiming_pi_execution() {
     assert!(!pi_repair.inspection.executable_registration);
     assert!(pi.target_root.join("example/SKILL.md").is_file());
     assert!(!pi.target_root.join("example/agents").exists());
+}
+
+/// Builds a minimal, valid claude-code projection source tree so `repair`
+/// can reach `current` and exercise host registration.
+fn write_claude_plugin_source(source_root: &Path) {
+    fs::create_dir_all(source_root.join("skills/example")).expect("plugin source");
+    fs::write(source_root.join("plugin.json"), br#"{"name":"legion"}"#).expect("plugin manifest");
+    fs::write(source_root.join("mcp.json"), br#"{"mcpServers":{}}"#).expect("plugin MCP manifest");
+    fs::write(source_root.join("skills/example/SKILL.md"), b"# Example").expect("plugin skill");
+}
+
+#[test]
+fn host_mcp_registration_applies_repairs_idempotently_and_removes_cleanly() {
+    let root = TempRoot::new("host-mcp-claude");
+    let state_root = root.path().join("state");
+    let source_root = root.path().join("release/plugin");
+    write_claude_plugin_source(&source_root);
+    let _registry = registry(&state_root);
+    let state_root = fs::canonicalize(&state_root).expect("canonical state root");
+    let host_home = root.path().join("host-home");
+    fs::create_dir_all(&host_home).expect("host home");
+
+    // Pre-apply host config carries unrelated user content plus an already
+    // empty `mcpServers` table, so a full remove can be verified byte-for-byte
+    // against this exact fixture.
+    let before_value = serde_json::json!({"mcpServers": {}, "other": "keep"});
+    let mut before_bytes = serde_json::to_vec_pretty(&before_value).expect("encode fixture");
+    before_bytes.push(b'\n');
+    fs::write(host_home.join(".claude.json"), &before_bytes).expect("seed claude host config");
+
+    let executable = root.path().join("current/bin/legion");
+    let input = ClientProjectionInput {
+        client_id: CLIENT_CLAUDE.into(),
+        projection: "native-plugin".into(),
+        source_root: fs::canonicalize(&source_root).expect("canonical plugin source"),
+        target_root: state_root.join("clients/.claude/plugins/legion"),
+        state_root: state_root.clone(),
+        origin: "development".into(),
+        executable: Some(executable),
+        install_root: None,
+        generation: "0.1.0-test:assets".into(),
+        executable_registration: true,
+        explicit_only: false,
+        skill_ids: vec!["example".into()],
+        host_config_root: Some(host_home.clone()),
+    };
+
+    // Apply: host config gains the Legion-owned MCP block and the projection
+    // reports `current` with no `host-registration` gap.
+    let applied = repair_client_projection(&input).expect("apply native projection");
+    assert_eq!(applied.inspection.state, "current");
+    assert!(!applied
+        .inspection
+        .missing_surfaces
+        .iter()
+        .any(|surface| surface == "host-registration"));
+    let host_config_path = host_home.join(".claude.json");
+    let after_apply: serde_json::Value =
+        serde_json::from_slice(&fs::read(&host_config_path).expect("read applied host config"))
+            .expect("applied host config parses");
+    assert!(after_apply["mcpServers"]["legion"]["_legionOwnership"].is_object());
+    assert_eq!(after_apply["other"], "keep");
+    let after_apply_bytes = fs::read(&host_config_path).expect("read applied bytes");
+
+    // Repair twice: byte-identical host config on the second run.
+    let repaired_again = repair_client_projection(&input).expect("repair native projection again");
+    assert_eq!(repaired_again.inspection.state, "current");
+    let after_second_repair = fs::read(&host_config_path).expect("read twice-repaired bytes");
+    assert_eq!(after_second_repair, after_apply_bytes);
+
+    // Remove: host config restored to its exact pre-apply bytes.
+    let removed = remove_client_projection(&input).expect("remove native projection");
+    assert!(removed.preserved.is_empty());
+    let after_remove_bytes = fs::read(&host_config_path).expect("read post-remove bytes");
+    assert_eq!(after_remove_bytes, before_bytes);
+    let dark_inspection =
+        inspect_client_projection(&input).expect("inspect projection after removal");
+    assert!(dark_inspection
+        .missing_surfaces
+        .iter()
+        .any(|surface| surface == "host-registration"));
+}
+
+#[test]
+fn host_mcp_registration_mid_apply_failure_leaves_host_config_untouched() {
+    let root = TempRoot::new("host-mcp-readonly");
+    let state_root = root.path().join("state");
+    let source_root = root.path().join("release/plugin");
+    write_claude_plugin_source(&source_root);
+    let _registry = registry(&state_root);
+    let state_root = fs::canonicalize(&state_root).expect("canonical state root");
+    let host_home = root.path().join("host-home");
+    fs::create_dir_all(&host_home).expect("host home");
+    let host_config_path = host_home.join(".claude.json");
+    let before_bytes = br#"{"other":"keep"}"#.to_vec();
+    fs::write(&host_config_path, &before_bytes).expect("seed claude host config");
+    let mut permissions = fs::metadata(&host_config_path)
+        .expect("host config metadata")
+        .permissions();
+    permissions.set_readonly(true);
+    fs::set_permissions(&host_config_path, permissions).expect("mark host config read-only");
+
+    let executable = root.path().join("current/bin/legion");
+    let input = ClientProjectionInput {
+        client_id: CLIENT_CLAUDE.into(),
+        projection: "native-plugin".into(),
+        source_root: fs::canonicalize(&source_root).expect("canonical plugin source"),
+        target_root: state_root.join("clients/.claude/plugins/legion"),
+        state_root,
+        origin: "development".into(),
+        executable: Some(executable),
+        install_root: None,
+        generation: "0.1.0-test:assets".into(),
+        executable_registration: true,
+        explicit_only: false,
+        skill_ids: vec!["example".into()],
+        host_config_root: Some(host_home.clone()),
+    };
+
+    let result = repair_client_projection(&input);
+    assert!(
+        result.is_err(),
+        "read-only host config must fail registration, not silently skip it"
+    );
+
+    let mut permissions = fs::metadata(&host_config_path)
+        .expect("host config metadata")
+        .permissions();
+    permissions.set_readonly(false);
+    fs::set_permissions(&host_config_path, permissions).expect("restore host config permissions");
+    let after_bytes = fs::read(&host_config_path).expect("read host config after failed apply");
+    assert_eq!(after_bytes, before_bytes);
+}
+
+#[test]
+fn host_mcp_registration_round_trips_codex_toml_without_duplicating_blocks() {
+    let root = TempRoot::new("host-mcp-codex");
+    let state_root = root.path().join("state");
+    let source_root = root.path().join("release/plugin");
+    fs::create_dir_all(&source_root).expect("plugin source");
+    fs::write(source_root.join("plugin.json"), br#"{"name":"legion"}"#).expect("plugin manifest");
+    let _registry = registry(&state_root);
+    let state_root = fs::canonicalize(&state_root).expect("canonical state root");
+    let host_home = root.path().join("host-home");
+    let codex_dir = host_home.join(".codex");
+    fs::create_dir_all(&codex_dir).expect("codex home");
+    let before_bytes = b"existing = 1\n".to_vec();
+    fs::write(codex_dir.join("config.toml"), &before_bytes).expect("seed codex config");
+
+    let executable = root.path().join("current/bin/legion");
+    let input = ClientProjectionInput {
+        client_id: CLIENT_CODEX.into(),
+        projection: "agent-plugins-with-explicit-sidecar".into(),
+        source_root: fs::canonicalize(&source_root).expect("canonical plugin source"),
+        target_root: state_root.join("clients/.codex/plugins/legion"),
+        state_root,
+        origin: "development".into(),
+        executable: Some(executable),
+        install_root: None,
+        generation: "0.1.0-test:assets".into(),
+        executable_registration: true,
+        explicit_only: true,
+        skill_ids: vec![],
+        host_config_root: Some(host_home.clone()),
+    };
+
+    repair_client_projection(&input).expect("apply codex projection");
+    let config_path = codex_dir.join("config.toml");
+    let after_apply = fs::read_to_string(&config_path).expect("read applied codex config");
+    assert_eq!(
+        after_apply.matches("[mcp_servers.legion]").count(),
+        1,
+        "exactly one legion table after apply"
+    );
+    assert!(after_apply.starts_with("existing = 1"));
+
+    repair_client_projection(&input).expect("repair codex projection again");
+    let after_second = fs::read_to_string(&config_path).expect("read twice-repaired codex config");
+    assert_eq!(
+        after_second.matches("[mcp_servers.legion]").count(),
+        1,
+        "repair must replace, not duplicate, the owned TOML block"
+    );
+    assert_eq!(after_second, after_apply, "codex config is byte-identical on repeat repair");
+
+    let removed = remove_client_projection(&input).expect("remove codex projection");
+    assert!(removed.preserved.is_empty());
+    let after_remove = fs::read(&config_path).expect("read post-remove codex config");
+    assert_eq!(after_remove, before_bytes);
 }
 
 #[test]
