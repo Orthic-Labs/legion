@@ -893,6 +893,17 @@ fn validate_portable_plugin_manifests(root: &Path) -> Result<(), commands::Comma
     Ok(())
 }
 
+/// Python bytecode written next to a skill's own scripts when the skill runs.
+/// It is never part of the shipped package, so it neither satisfies nor
+/// violates the package contract.
+fn is_generated_bytecode(relative: &str) -> bool {
+    relative
+        .split('/')
+        .any(|segment| segment == "__pycache__")
+        || relative.ends_with(".pyc")
+        || relative.ends_with(".pyo")
+}
+
 fn collect_portable_package_entries(
     root: &Path,
     current: &Path,
@@ -909,6 +920,15 @@ fn collect_portable_package_entries(
             .map_err(commands::io_error)?
             .to_string_lossy()
             .replace('\\', "/");
+        // Running a Python-backed skill writes bytecode beside its source, so a
+        // projection that has simply been used no longer matches the shipped
+        // contract and every later MCP start is refused (observed on the
+        // installed 0.3.13: skills/alchemist, coder and seo each grew a
+        // __pycache__ after use). Bytecode is generated, never authored, so it
+        // is ignored rather than treated as tampering.
+        if is_generated_bytecode(&relative) {
+            continue;
+        }
         let metadata = std::fs::symlink_metadata(&path).map_err(commands::io_error)?;
         if metadata.file_type().is_symlink() {
             return Err(plugin_root_error(format!(

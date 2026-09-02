@@ -386,6 +386,33 @@ fn plugin_root_public_skill_drift_fails_closed_before_mcp_startup() {
 }
 
 #[test]
+fn plugin_root_accepts_python_bytecode_written_by_running_a_skill() {
+    // Running a Python-backed skill writes __pycache__ beside its own scripts.
+    // On the installed 0.3.13 that was enough to make every later MCP start
+    // refuse the plugin root, so the product broke itself on first use.
+    let fixture = fixture();
+    let plugin_root = portable_package(&fixture);
+    anchor_release(&fixture, &plugin_root);
+
+    let cache = plugin_root.join("skills/alchemist/scripts/__pycache__");
+    fs::create_dir_all(&cache).expect("bytecode dir");
+    fs::write(cache.join("viewer.cpython-313.pyc"), b"\x00bytecode").expect("bytecode file");
+
+    let (mut child, mut stdin, mut stdout) = start_stdio(&plugin_root, &fixture.config);
+    let initialized = request(
+        &mut stdin,
+        &mut stdout,
+        json!({"jsonrpc":"2.0", "id":1, "method":"initialize", "params":{}}),
+    );
+    assert_eq!(
+        initialized["result"]["releaseIdentity"]["releaseVersion"],
+        env!("CARGO_PKG_VERSION")
+    );
+    drop(stdin);
+    assert!(child.wait().expect("server exit").success());
+}
+
+#[test]
 fn plugin_root_accepts_a_core_that_ships_more_skills_than_the_binary_predates() {
     // The canonical skill set is whatever the release-authored contract
     // declares. A later release that adds a skill (here `oracle`) must not be
