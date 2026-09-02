@@ -272,7 +272,7 @@ pub fn project_mcp(
     })
 }
 
-pub(crate) /// Render one TOML string value. A Windows executable path is full of
+/// Render one TOML string value. A Windows executable path is full of
 /// backslashes, and a basic string would have to escape every one of them; a
 /// literal string carries the path verbatim and is what other products already
 /// write into `config.toml`. Values that cannot be a literal string (they
@@ -307,7 +307,7 @@ fn toml_string(value: &str) -> String {
     escaped
 }
 
-fn parse_comment_marker(text: &str) -> Option<OwnershipMark> {
+pub(crate) fn parse_comment_marker(text: &str) -> Option<OwnershipMark> {
     let fields = text
         .strip_prefix("legion-owned ")?
         .split_whitespace()
