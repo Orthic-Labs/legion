@@ -384,6 +384,13 @@ fn native_client_projection_profiles_reconcile_without_claiming_pi_execution() {
     .expect("Pi skill");
     let _registry = registry(&state_root);
     let state_root = fs::canonicalize(&state_root).expect("canonical state root");
+    let host_home = root.path().join("host-home");
+    fs::create_dir_all(&host_home).expect("host home");
+    fs::write(
+        host_home.join(".claude.json"),
+        br#"{"mcpServers":{"legion":{"command":"legion"}}}"#,
+    )
+    .expect("claude host config");
     let claude = ClientProjectionInput {
         client_id: CLIENT_CLAUDE.into(),
         projection: "native-plugin".into(),
@@ -397,6 +404,7 @@ fn native_client_projection_profiles_reconcile_without_claiming_pi_execution() {
         executable_registration: true,
         explicit_only: false,
         skill_ids: vec!["example".into()],
+        host_config_root: Some(host_home.clone()),
     };
     assert_eq!(
         inspect_client_projection(&claude)
@@ -406,6 +414,23 @@ fn native_client_projection_profiles_reconcile_without_claiming_pi_execution() {
     );
     let repaired = repair_client_projection(&claude).expect("repair native projection");
     assert_eq!(repaired.inspection.state, "current");
+
+    // Same materialized projection, but a host config that never registered
+    // Legion: the projection is truthfully degraded, not complete.
+    let dark_home = root.path().join("dark-host-home");
+    fs::create_dir_all(&dark_home).expect("dark host home");
+    let dark = ClientProjectionInput {
+        host_config_root: Some(dark_home),
+        ..claude.clone()
+    };
+    let dark_inspection =
+        inspect_client_projection(&dark).expect("inspect projection without host registration");
+    assert_eq!(dark_inspection.state, "degraded");
+    assert!(dark_inspection
+        .missing_surfaces
+        .iter()
+        .any(|surface| surface == "host-registration"));
+
     fs::write(claude.target_root.join("private.txt"), b"must remain").expect("foreign client file");
     fs::write(claude.target_root.join("plugin.json"), b"user edit").expect("modified Legion file");
     let removed = remove_client_projection(&claude).expect("remove native projection");
@@ -429,6 +454,7 @@ fn native_client_projection_profiles_reconcile_without_claiming_pi_execution() {
         executable_registration: false,
         explicit_only: true,
         skill_ids: vec!["example".into()],
+        host_config_root: None,
     };
     let pi_repair = repair_client_projection(&pi).expect("repair Pi skills");
     assert_eq!(pi_repair.inspection.state, "current");
@@ -474,6 +500,7 @@ fn production_projection_reports_identity_and_rejects_escaped_build_paths() {
         executable_registration: true,
         explicit_only: false,
         skill_ids: vec![],
+        host_config_root: Some(root.path().join("client")),
     };
     let inspection = inspect_client_projection(&input).expect("inspect installed projection");
     assert_eq!(inspection.origin, "installed");

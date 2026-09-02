@@ -164,6 +164,8 @@ fn fixture() -> Fixture {
             version: "0.2.1".into(),
             source_commit: "4c1a414269d8ffdb95b4b1e685440bd34784b41b".into(),
         },
+        // Populated once the portable core exists (see `anchor_release`).
+        portable_core_sha256: None,
     };
     fs::write(
         root.join("release.json"),
@@ -261,7 +263,26 @@ fn portable_package(fixture: &Fixture) -> PathBuf {
         .expect("RightAX contract"),
     )
     .expect("RightAX contract file");
+    anchor_release(fixture, &root);
     root
+}
+
+/// Recompute the portable-core digest into the fixture's `release.json`,
+/// mirroring what the real release assembler does after the core is assembled.
+/// Tests that deliberately mutate the core call this again when they want to
+/// reach a check downstream of the anchor.
+fn anchor_release(fixture: &Fixture, plugin_root: &Path) {
+    let core = fs::read(plugin_root.join("rightax-portable-core.json")).expect("core bytes");
+    let manifest_path = fixture.root.join("release.json");
+    let mut manifest: Value =
+        serde_json::from_slice(&fs::read(&manifest_path).expect("release manifest"))
+            .expect("release manifest JSON");
+    manifest["portableCoreSha256"] = json!(legion_catalog::hex_digest(&core));
+    fs::write(
+        &manifest_path,
+        serde_json::to_vec(&manifest).expect("release manifest JSON"),
+    )
+    .expect("release manifest");
 }
 
 fn start_stdio(plugin_root: &Path, config: &Path) -> (Child, ChildStdin, BufReader<ChildStdout>) {
@@ -354,6 +375,8 @@ fn plugin_root_public_skill_drift_fails_closed_before_mcp_startup() {
         serde_json::to_vec(&contract).expect("RightAX contract JSON"),
     )
     .expect("drifted RightAX contract");
+    // Re-anchor so the failure proves the skill-closure check, not the digest.
+    anchor_release(&fixture, &plugin_root);
 
     let output = serve_output(&plugin_root, &fixture.config);
 
@@ -390,6 +413,7 @@ fn plugin_root_accepts_a_core_that_ships_more_skills_than_the_binary_predates() 
         serde_json::to_vec(&contract).expect("RightAX contract JSON"),
     )
     .expect("extended RightAX contract");
+    anchor_release(&fixture, &plugin_root);
 
     let (mut child, mut stdin, mut stdout) = start_stdio(&plugin_root, &fixture.config);
     let initialized = request(
@@ -418,6 +442,7 @@ fn plugin_root_projection_and_extra_file_tampering_fail_closed_before_mcp_startu
         serde_json::to_vec(&contract).expect("RightAX contract JSON"),
     )
     .expect("tampered projection");
+    anchor_release(&fixture, &plugin_root);
 
     let projection_output = serve_output(&plugin_root, &fixture.config);
     assert_eq!(projection_output.status.code(), Some(2));
@@ -429,10 +454,176 @@ fn plugin_root_projection_and_extra_file_tampering_fail_closed_before_mcp_startu
         .contains("Pi projection may not register"));
 
     fs::write(&contract_path, original).expect("restore RightAX contract");
+    anchor_release(&fixture, &plugin_root);
     fs::write(plugin_root.join("private.txt"), "unexpected").expect("extra file");
 
     let extra_output = serve_output(&plugin_root, &fixture.config);
     assert_eq!(extra_output.status.code(), Some(2));
     assert!(extra_output.stdout.is_empty(), "MCP must not have started");
     assert!(String::from_utf8_lossy(&extra_output.stderr).contains("extra file private.txt"));
+}
+
+#[test]
+fn plugin_root_with_a_matching_anchor_starts_mcp() {
+    // The positive half of the F1 anchor: an untouched package whose core bytes
+    // hash to the manifest digest is accepted.
+    let fixture = fixture();
+    let plugin_root = portable_package(&fixture);
+    let (mut child, mut stdin, mut stdout) = start_stdio(&plugin_root, &fixture.config);
+    let initialized = request(
+        &mut stdin,
+        &mut stdout,
+        json!({"jsonrpc":"2.0", "id":1, "method":"initialize", "params":{}}),
+    );
+    assert_eq!(
+        initialized["result"]["releaseIdentity"]["releaseVersion"],
+        env!("CARGO_PKG_VERSION")
+    );
+    drop(stdin);
+    assert!(child.wait().expect("server exit").success());
+}
+
+#[test]
+fn plugin_root_rejects_core_bytes_that_drift_from_the_release_anchor() {
+    let fixture = fixture();
+    let plugin_root = portable_package(&fixture);
+    let core_path = plugin_root.join("rightax-portable-core.json");
+    let mut bytes = fs::read(&core_path).expect("core bytes");
+    bytes.push(b' '); // one extra byte: JSON still parses, digest no longer matches
+    fs::write(&core_path, bytes).expect("mutated core");
+
+    let output = serve_output(&plugin_root, &fixture.config);
+    assert_eq!(output.status.code(), Some(2));
+    assert!(output.stdout.is_empty(), "MCP must not have started");
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stderr.contains("portable core digest mismatch"), "{stderr}");
+    assert!(stderr.contains("legion setup repair --confirm"), "{stderr}");
+}
+
+#[test]
+fn plugin_root_rejects_a_release_without_the_portable_core_anchor() {
+    let fixture = fixture();
+    let plugin_root = portable_package(&fixture);
+    let manifest_path = fixture.root.join("release.json");
+    let mut manifest: Value =
+        serde_json::from_slice(&fs::read(&manifest_path).expect("manifest")).expect("manifest JSON");
+    manifest
+        .as_object_mut()
+        .expect("manifest object")
+        .remove("portableCoreSha256");
+    fs::write(
+        &manifest_path,
+        serde_json::to_vec(&manifest).expect("manifest JSON"),
+    )
+    .expect("manifest");
+
+    let output = serve_output(&plugin_root, &fixture.config);
+    assert_eq!(output.status.code(), Some(2));
+    assert!(String::from_utf8_lossy(&output.stderr).contains("predates the portable-core anchor"));
+}
+
+#[test]
+fn plugin_root_accepts_the_claude_projection_manifest_copy() {
+    let fixture = fixture();
+    let plugin_root = portable_package(&fixture);
+    let projected = plugin_root.join(".claude-plugin");
+    fs::create_dir_all(&projected).expect("claude-plugin dir");
+    fs::copy(plugin_root.join("plugin.json"), projected.join("plugin.json")).expect("copy plugin.json");
+
+    let (mut child, mut stdin, mut stdout) = start_stdio(&plugin_root, &fixture.config);
+    let initialized = request(
+        &mut stdin,
+        &mut stdout,
+        json!({"jsonrpc":"2.0", "id":1, "method":"initialize", "params":{}}),
+    );
+    assert_eq!(
+        initialized["result"]["releaseIdentity"]["releaseVersion"],
+        env!("CARGO_PKG_VERSION")
+    );
+    drop(stdin);
+    assert!(child.wait().expect("server exit").success());
+}
+
+#[test]
+fn plugin_root_rejects_a_mismatched_claude_projection_manifest_copy() {
+    let fixture = fixture();
+    let plugin_root = portable_package(&fixture);
+    let projected = plugin_root.join(".claude-plugin");
+    fs::create_dir_all(&projected).expect("claude-plugin dir");
+    fs::write(
+        projected.join("plugin.json"),
+        r#"{"name":"legion","tampered":true}"#,
+    )
+    .expect("tampered projection copy");
+
+    let output = serve_output(&plugin_root, &fixture.config);
+    assert_eq!(output.status.code(), Some(2));
+    assert!(output.stdout.is_empty(), "MCP must not have started");
+    assert!(String::from_utf8_lossy(&output.stderr).contains("does not match plugin.json"));
+}
+
+#[cfg(windows)]
+fn junction(link: &Path, target: &Path) {
+    // `mklink` rejects the `\\?\` verbatim prefix that `canonicalize` produces.
+    let plain = |path: &Path| {
+        let text = path.to_string_lossy().into_owned();
+        text.strip_prefix(r"\\?\").map(str::to_owned).unwrap_or(text)
+    };
+    let status = Command::new("cmd")
+        .args(["/c", "mklink", "/J", &plain(link), &plain(target)])
+        .status()
+        .expect("mklink /J must run");
+    assert!(status.success(), "mklink /J failed");
+}
+
+#[cfg(windows)]
+fn copy_tree(source: &Path, destination: &Path) {
+    fs::create_dir_all(destination).expect("destination directory");
+    for entry in fs::read_dir(source).expect("read_dir") {
+        let entry = entry.expect("dir entry");
+        let from = entry.path();
+        let to = destination.join(entry.file_name());
+        if entry.file_type().expect("file type").is_dir() {
+            copy_tree(&from, &to);
+        } else {
+            fs::copy(&from, &to).expect("copy file");
+        }
+    }
+}
+
+#[cfg(windows)]
+#[test]
+fn plugin_root_accepts_the_stable_current_junction() {
+    let fixture = fixture();
+    let package = portable_package(&fixture);
+    let versioned = fixture.root.join("versions").join("0.1.0");
+    copy_tree(&package, &versioned);
+    let current = fixture.root.join("current");
+    junction(&current, &versioned);
+
+    let (mut child, mut stdin, mut stdout) = start_stdio(&current, &fixture.config);
+    let initialized = request(
+        &mut stdin,
+        &mut stdout,
+        json!({"jsonrpc":"2.0", "id":1, "method":"initialize", "params":{}}),
+    );
+    assert_eq!(
+        initialized["result"]["releaseIdentity"]["releaseVersion"],
+        env!("CARGO_PKG_VERSION")
+    );
+    drop(stdin);
+    assert!(child.wait().expect("server exit").success());
+}
+
+#[cfg(windows)]
+#[test]
+fn plugin_root_rejects_a_junction_that_is_not_stable_current() {
+    let fixture = fixture();
+    let package = portable_package(&fixture);
+    let sideways = fixture.root.join("sideways");
+    junction(&sideways, &package);
+
+    let output = serve_output(&sideways, &fixture.config);
+    assert_eq!(output.status.code(), Some(2));
+    assert!(String::from_utf8_lossy(&output.stderr).contains("crosses symlink"));
 }

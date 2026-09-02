@@ -160,6 +160,11 @@ pub struct ReleaseManifest {
     pub declarative_assets_sha256: String,
     pub state_schema_version: u32,
     pub rightkit_ax: RightkitAxIdentity,
+    /// SHA-256 (hex) of the shipped `plugin/rightax-portable-core.json` bytes.
+    /// Independent anchor for the portable-core validator; absent on releases
+    /// assembled before the anchor existed.
+    #[serde(default)]
+    pub portable_core_sha256: Option<String>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
@@ -352,6 +357,9 @@ impl ReleaseManifest {
             "declarativeAssetsSha256",
             &self.declarative_assets_sha256,
         )?;
+        if let Some(digest) = &self.portable_core_sha256 {
+            digest_field(path, "portableCoreSha256", digest)?;
+        }
         require(path, "rightkitAx.version", &self.rightkit_ax.version)?;
         if self.rightkit_ax.source_commit.len() != 40
             || !self
@@ -1117,6 +1125,7 @@ mod tests {
                 version: "0.2.1".into(),
                 source_commit: "4c1a414269d8ffdb95b4b1e685440bd34784b41b".into(),
             },
+            portable_core_sha256: None,
         }
     }
 

@@ -2200,6 +2200,7 @@ mod m1_tests {
                 version: "0.2.1".into(),
                 source_commit: "4c1a414269d8ffdb95b4b1e685440bd34784b41b".into(),
             },
+            portable_core_sha256: None,
         };
         let manifest_path = root.join("release.json");
         fs::write(

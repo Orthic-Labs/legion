@@ -3035,6 +3035,7 @@ fn host_integration_inputs_installed(
                 executable_registration,
                 explicit_only,
                 skill_ids: current_skill_ids.clone(),
+                host_config_root: installed_host_home().ok(),
             })
         },
     )
@@ -3195,6 +3196,7 @@ fn development_host_integration_inputs(
                     executable_registration,
                     explicit_only,
                     skill_ids: current_skill_ids.clone(),
+                    host_config_root: Some(home.clone()),
                 })
             },
         )
@@ -3492,6 +3494,7 @@ mod tests {
                 version: "0.2.1".into(),
                 source_commit: "4c1a414269d8ffdb95b4b1e685440bd34784b41b".into(),
             },
+            portable_core_sha256: None,
         }
     }
 

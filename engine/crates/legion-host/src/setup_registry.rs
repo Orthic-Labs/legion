@@ -339,6 +339,16 @@ pub fn inspect_client_projection(
         "incomplete"
     };
     let mut missing_surfaces = projection_missing_surfaces(input, &expected);
+    // A projection whose source files are all present can still be dark to the
+    // host if the client config was never edited to point at Legion. Detect
+    // that from a pure read of the host config; an absent Legion-owned block is
+    // a missing surface that downgrades the projection to `degraded`.
+    if input.executable_registration
+        && input.projection != "skills-only"
+        && host_registration_absent(input)
+    {
+        missing_surfaces.push("host-registration".into());
+    }
     if state == "current" && !missing_surfaces.is_empty() {
         state = "degraded";
     } else if state == "current" {
@@ -817,6 +827,10 @@ pub struct ClientProjectionInput {
     pub executable_registration: bool,
     pub explicit_only: bool,
     pub skill_ids: Vec<String>,
+    /// Home directory to consult for host-registration inspection. Defaults to
+    /// the process `USERPROFILE`/`HOME`; embeddings and tests override it.
+    #[serde(default)]
+    pub host_config_root: Option<PathBuf>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
@@ -2123,6 +2137,80 @@ fn projection_missing_surfaces(
     missing.sort();
     missing.dedup();
     missing
+}
+
+/// Home directory used for host-registration inspection: the explicit override
+/// when provided, otherwise the process environment.
+fn host_config_home(input: &ClientProjectionInput) -> Option<PathBuf> {
+    if let Some(root) = &input.host_config_root {
+        return Some(root.clone());
+    }
+    std::env::var_os("USERPROFILE")
+        .or_else(|| std::env::var_os("HOME"))
+        .map(PathBuf::from)
+}
+
+/// True when the client's host config is readable and definitively contains no
+/// Legion-owned registration block. Returns false when the block is present, or
+/// when this module does not know where the client keeps its config (those
+/// clients are reported separately, not silently downgraded).
+fn host_registration_absent(input: &ClientProjectionInput) -> bool {
+    let Some(home) = host_config_home(input) else {
+        return false;
+    };
+    match input.client_id.as_str() {
+        CLIENT_CLAUDE => !claude_host_registration_present(&home),
+        CLIENT_CODEX => !codex_host_registration_present(&home),
+        // Cursor / Windsurf / Antigravity MCP config paths are not modelled here.
+        _ => false,
+    }
+}
+
+fn claude_host_registration_present(home: &Path) -> bool {
+    if let Ok(bytes) = fs::read(home.join(".claude.json")) {
+        if let Ok(value) = serde_json::from_slice::<serde_json::Value>(&bytes) {
+            if value
+                .get("mcpServers")
+                .and_then(|servers| servers.get("legion"))
+                .is_some()
+            {
+                return true;
+            }
+        }
+    }
+    let plugins_index = home
+        .join(".claude")
+        .join("plugins")
+        .join("installed_plugins.json");
+    if let Ok(bytes) = fs::read(&plugins_index) {
+        if let Ok(value) = serde_json::from_slice::<serde_json::Value>(&bytes) {
+            let table = value
+                .get("plugins")
+                .and_then(serde_json::Value::as_object)
+                .or_else(|| value.as_object());
+            if table.is_some_and(|entries| {
+                entries
+                    .keys()
+                    .any(|key| key.to_ascii_lowercase().contains("legion"))
+            }) {
+                return true;
+            }
+        }
+    }
+    false
+}
+
+fn codex_host_registration_present(home: &Path) -> bool {
+    let Ok(text) = fs::read_to_string(home.join(".codex").join("config.toml")) else {
+        return false;
+    };
+    let Ok(value) = text.parse::<toml::Value>() else {
+        return false;
+    };
+    value
+        .get("mcp_servers")
+        .and_then(toml::Value::as_table)
+        .is_some_and(|servers| servers.contains_key("legion"))
 }
 
 fn projection_ledger_path(input: &ClientProjectionInput) -> PathBuf {

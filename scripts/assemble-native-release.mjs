@@ -438,6 +438,15 @@ if (!portableCoreValidation.valid) {
 	);
 }
 
+// Anchor the shipped portable core to the release manifest: the validator in the
+// installed binary recomputes this digest over the on-disk core bytes and refuses
+// to trust the core if it does not match. Written here (not with the other
+// manifest fields) because the core file only exists after assembly.
+manifest.portableCoreSha256 = fileSha256(
+	join(pluginRoot, "rightax-portable-core.json"),
+);
+writeJson(join(share, "release.json"), manifest);
+
 process.stdout.write(
 	`${JSON.stringify(
 		{

@@ -545,9 +545,27 @@ fn plugin_root_error(reason: impl Into<String>) -> commands::CommandError {
     ))
 }
 
+/// A symlink, or (on Windows) a directory junction / mount point — anything
+/// whose traversal silently redirects to another location.
+fn is_reparse_point(metadata: &std::fs::Metadata) -> bool {
+    if metadata.file_type().is_symlink() {
+        return true;
+    }
+    #[cfg(windows)]
+    {
+        use std::os::windows::fs::MetadataExt;
+        const FILE_ATTRIBUTE_REPARSE_POINT: u32 = 0x400;
+        metadata.file_attributes() & FILE_ATTRIBUTE_REPARSE_POINT != 0
+    }
+    #[cfg(not(windows))]
+    {
+        false
+    }
+}
+
 fn validate_portable_plugin_root(
     raw_root: &Path,
-    _manifest: &legion_runtime::ReleaseManifest,
+    manifest: &legion_runtime::ReleaseManifest,
 ) -> Result<(), commands::CommandError> {
     if raw_root
         .components()
@@ -562,29 +580,43 @@ fn validate_portable_plugin_root(
             .map_err(commands::io_error)?
             .join(raw_root)
     };
-    // The installed layout reaches the plugin through the stable `current`
-    // junction (`<install-root>/current` -> `versions/<version>`). Canonicalize
-    // first so that junction is resolved rather than rejected, then run the
-    // symlink scan over the *resolved* path: this still refuses a plugin root
-    // whose real location traverses a symlink, but no longer fails a healthy
-    // install just because it is addressed through `current`.
+    // Scan the path *as given* (before canonicalize, which resolves every
+    // symlink and junction and would leave nothing to inspect). Reject any
+    // ancestor that is a symlink or junction, with one exception: the stable
+    // `current` junction of the installed layout, recognised by its file name
+    // being exactly `current` and its parent holding a `versions` directory.
+    for ancestor in absolute_root.ancestors() {
+        let metadata = match std::fs::symlink_metadata(ancestor) {
+            Ok(metadata) => metadata,
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => continue,
+            Err(error) => {
+                return Err(plugin_root_error(format!(
+                    "cannot inspect {}: {error}",
+                    ancestor.display()
+                )))
+            }
+        };
+        if is_reparse_point(&metadata) {
+            let is_stable_current = ancestor.file_name().and_then(|name| name.to_str())
+                == Some("current")
+                && ancestor
+                    .parent()
+                    .map(|parent| parent.join("versions").is_dir())
+                    .unwrap_or(false);
+            if !is_stable_current {
+                return Err(plugin_root_error(format!(
+                    "plugin root crosses symlink {}",
+                    ancestor.display()
+                )));
+            }
+        }
+    }
     let root = std::fs::canonicalize(&absolute_root).map_err(|error| {
         plugin_root_error(format!(
             "cannot resolve {}: {error}",
             absolute_root.display()
         ))
     })?;
-    for ancestor in root.ancestors() {
-        let metadata = std::fs::symlink_metadata(ancestor).map_err(|error| {
-            plugin_root_error(format!("cannot inspect {}: {error}", ancestor.display()))
-        })?;
-        if metadata.file_type().is_symlink() {
-            return Err(plugin_root_error(format!(
-                "plugin root crosses symlink {}",
-                ancestor.display()
-            )));
-        }
-    }
     if !std::fs::symlink_metadata(&root)
         .map_err(commands::io_error)?
         .file_type()
@@ -594,12 +626,34 @@ fn validate_portable_plugin_root(
     }
 
     let portable_contract_path = root.join("rightax-portable-core.json");
-    let portable_contract: RightAxPortableCore = serde_json::from_slice(
-        &std::fs::read(&portable_contract_path).map_err(commands::io_error)?,
-    )
-    .map_err(|error| {
-        plugin_root_error(format!("rightax-portable-core.json is invalid: {error}"))
-    })?;
+    let portable_contract_bytes =
+        std::fs::read(&portable_contract_path).map_err(commands::io_error)?;
+    // Independent anchor: the portable core is trusted only if its bytes hash to
+    // the digest the release build recorded in the manifest. Without this the
+    // validator would be checking the core against fields drawn from that same
+    // (potentially tampered) file.
+    let actual_core_digest = {
+        let mut hasher = Sha256::new();
+        hasher.update(&portable_contract_bytes);
+        hex::encode(hasher.finalize())
+    };
+    match &manifest.portable_core_sha256 {
+        None => {
+            return Err(plugin_root_error(
+                "this release predates the portable-core anchor (manifest has no portableCoreSha256)",
+            ))
+        }
+        Some(expected) if expected.eq_ignore_ascii_case(&actual_core_digest) => {}
+        Some(expected) => {
+            return Err(plugin_root_error(format!(
+                "portable core digest mismatch: manifest declares {expected} but package hashes to {actual_core_digest}"
+            )))
+        }
+    }
+    let portable_contract: RightAxPortableCore =
+        serde_json::from_slice(&portable_contract_bytes).map_err(|error| {
+            plugin_root_error(format!("rightax-portable-core.json is invalid: {error}"))
+        })?;
     if portable_contract.schema_version != 1
         || portable_contract.kind != "rightax-portable-core"
         || portable_contract.plugin != "legion"
@@ -664,6 +718,30 @@ fn validate_portable_plugin_root(
         .any(|relative| !is_safe_portable_relative_path(relative))
     {
         return Err(plugin_root_error("RightAX public file path is unsafe"));
+    }
+    // Known per-client projection additions written on purpose by the setup
+    // registry: the Claude native-plugin manifest copy and the Antigravity MCP
+    // config copy. Each is accepted only when its bytes are identical to the
+    // portable-core original; any other extra path still fails the closure check.
+    let claude_projection = root.join(".claude-plugin").join("plugin.json");
+    if claude_projection.is_file() {
+        let projected = std::fs::read(&claude_projection).map_err(commands::io_error)?;
+        let original = std::fs::read(root.join("plugin.json")).map_err(commands::io_error)?;
+        if projected != original {
+            return Err(plugin_root_error(
+                ".claude-plugin/plugin.json does not match plugin.json",
+            ));
+        }
+        expected_files.insert(".claude-plugin/plugin.json".into());
+    }
+    let antigravity_projection = root.join("mcp_config.json");
+    if antigravity_projection.is_file() {
+        let projected = std::fs::read(&antigravity_projection).map_err(commands::io_error)?;
+        let original = std::fs::read(root.join("mcp.json")).map_err(commands::io_error)?;
+        if projected != original {
+            return Err(plugin_root_error("mcp_config.json does not match mcp.json"));
+        }
+        expected_files.insert("mcp_config.json".into());
     }
     let mut expected_directories = BTreeSet::new();
     for relative in &expected_files {
@@ -1331,16 +1409,21 @@ async fn native_skills(
             )
         })
         .collect::<Vec<_>>();
-    Ok(json!({
+    let mut output = json!({
         "schemaVersion": 1,
         "kind": "legion-skills",
         "releaseVersion": installed.manifest.release_version,
         "count": skills.len(),
         "skills": skills,
-        "json": json_output,
         "arguments": args.args.iter().map(|arg| arg.to_string_lossy().into_owned()).collect::<Vec<_>>(),
-        "text": text,
-    }))
+    });
+    // Human-rendering keys only when not emitting JSON, matching the doctor
+    // treatment locked by cli_truthfulness.rs.
+    if !json_output {
+        output["json"] = json!(false);
+        output["text"] = json!(text);
+    }
+    Ok(output)
 }
 async fn native_doctor(args: RootArgs, cancellation: CancellationToken) -> CommandResult {
     let root = std::fs::canonicalize(&args.root).map_err(|error| {

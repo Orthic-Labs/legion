@@ -59,6 +59,23 @@ fn doctor_json_output_carries_no_human_rendering_keys() {
 }
 
 #[test]
+fn skills_json_output_carries_no_human_rendering_keys() {
+    // Same contract as doctor: `--json` never carries the human table keys.
+    // Without an installed release the command fails closed on stderr; when it
+    // does emit a JSON payload it must be the machine shape only.
+    let output = legion(&["skills", "--json"]);
+    if let Ok(value) = serde_json::from_slice::<serde_json::Value>(&output.stdout) {
+        assert!(value.get("text").is_none(), "skills --json must not embed text");
+        assert!(
+            value.get("json").is_none(),
+            "skills --json must not embed a json flag"
+        );
+    } else {
+        assert_eq!(output.status.code(), Some(2));
+    }
+}
+
+#[test]
 fn plan_stays_fail_closed_without_native_composition() {
     let plan = legion(&["plan", ".", "--json"]);
     assert_eq!(plan.status.code(), Some(2));

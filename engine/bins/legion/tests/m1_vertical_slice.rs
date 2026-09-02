@@ -180,6 +180,7 @@ fn fixture(with_body: bool) -> Fixture {
             version: "0.2.1".into(),
             source_commit: "4c1a414269d8ffdb95b4b1e685440bd34784b41b".into(),
         },
+        portable_core_sha256: None,
     };
     fs::write(
         root.join("release.json"),
@@ -312,6 +313,7 @@ fn installed_composition_is_resolved_from_the_executable() {
             version: "0.2.1".into(),
             source_commit: "4c1a414269d8ffdb95b4b1e685440bd34784b41b".into(),
         },
+        portable_core_sha256: None,
     };
     fs::write(
         share.join("release.json"),
