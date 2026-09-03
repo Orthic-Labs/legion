@@ -37,7 +37,7 @@ test('right-git owns exact public CI bytes', () => {
   // and no publication path: it is the development loop, not a release lane.
   assert.deepEqual(readdirSync(join(root, '.github/workflows')).sort(), ['ci.yml', 'release-candidate.yml', 'unsigned-installer.yml']);
   const unsigned = readFileSync(join(root, '.github/workflows/unsigned-installer.yml'), 'utf8');
-  assert.match(unsigned, /^permissions:\n  contents: read$/m, 'the unsigned lane never holds write authority');
+  assert.match(unsigned, /^permissions:\r?\n {2}contents: read\r?$/m, 'the unsigned lane never holds write authority');
   assert.doesNotMatch(unsigned, /secrets\./, 'the unsigned lane never reads a secret');
   assert.doesNotMatch(unsigned, /gh release|git tag|sign-windows|publish:/, 'the unsigned lane cannot publish');
   assert.match(unsigned, /--unsigned/, 'the unsigned lane finalizes without signing');
