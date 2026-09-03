@@ -31,6 +31,16 @@ export function validateCoverageRegistry(registry,{root=ROOT,providerRegistry=nu
     for(const tier of TIERS)if(!Number.isInteger(record.tiers?.[tier])||record.tiers[tier]<0)throw new Error(`invalid tier ${record.id}:${tier}`);
     if(Object.keys(record.tiers).sort().join(',')!==[...TIERS].sort().join(','))throw new Error(`${record.id} tier schema parity mismatch`);
     if(record.tiers.parser>record.tiers.inventory||record.tiers.native>record.tiers.parser||record.tiers['cross-file']>record.tiers.native||record.tiers.runtime>record.tiers['measured-pack']||record.tiers.remediation>record.tiers.runtime)throw new Error(`${record.id} coverage tiers must be monotone`);
+    // A `selected-scope` provider accounts for the denominator: it reports which
+    // files it claims and emits no findings at all. measured-pack is defined as
+    // reproducible precision and recall over a provider's own rule output
+    // (references/provider-architecture.md), so the tier cannot apply to one.
+    // This was previously expressible: all thirteen language records carried
+    // measured-pack over providers that emit nothing to measure.
+    if(record.tiers['measured-pack']){
+      const accounting=(record.providers??[]).filter((providerId)=>providers.find(({id})=>id===providerId)?.denominatorKind==='selected-scope');
+      if(accounting.length===(record.providers??[]).length&&accounting.length)throw new Error(`${record.id} claims measured-pack over accounting-only providers (${accounting.join(', ')}); that tier measures rule output, which these do not emit`);
+    }
     if(record.tiers['measured-pack']){
       if(!record.corpusRoot||!record.corpusDigest||!record.artifactPath||!record.artifactDigest||!record.qualificationPath||!record.qualificationDigest||record.corpusDigest===record.artifactDigest)throw new Error('measured tier requires independent corpus artifact and qualification proof');
       if(corpusDigest(resolve(root,record.corpusRoot))!==record.corpusDigest)throw new Error(`${record.id} corpus digest mismatch`);

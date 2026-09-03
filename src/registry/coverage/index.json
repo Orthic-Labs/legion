@@ -30,7 +30,6 @@
       ],
       "qualificationVersion": "1.0.0",
       "corpusDigest": "sha256:9e42d488a3563973f9f2bd5c4ab58e3932fd630e761f6db8924ecc721a5d48a5",
-      "artifactDigest": "sha256:ac6cf04adc82f622092588ac253f82adf3d6ad543736b2ac806f6e73de2c22bd",
       "tiers": {
         "inventory": 1,
         "parser": 1,
@@ -41,9 +40,6 @@
         "remediation": 0
       },
       "corpusPath": "bench/corpora/javascript/qualification.json",
-      "qualificationPath": "bench/qualifications/book-3/coverage/language.javascript.qualification.json",
-      "qualificationDigest": "sha256:69e09bab31930a0aab291561db687dd10c9a36e53ed1d0b347db0d213c5fd68f",
-      "artifactPath": "bench/qualifications/book-3/coverage/language.javascript.artifact.json",
       "corpusRoot": "bench/corpora/javascript",
       "providerVersions": {
         "code.javascript": "1.0.0"
@@ -65,7 +61,6 @@
       ],
       "qualificationVersion": "1.0.0",
       "corpusDigest": "sha256:a89bee518dac84469e6ba1566b37c1b09b18748e439aa54f19b05517ae842e96",
-      "artifactDigest": "sha256:1eefda67b49c7095bfef6d604731686afbe261eb87476c0ebb43d192cb46a652",
       "tiers": {
         "inventory": 1,
         "parser": 1,
@@ -76,9 +71,6 @@
         "remediation": 0
       },
       "corpusPath": "bench/corpora/python/qualification.json",
-      "qualificationPath": "bench/qualifications/book-3/coverage/language.python.qualification.json",
-      "qualificationDigest": "sha256:8f3a1e35de5c99ae6bde15342951bcc91eb8483f00509f2e3358270eb1524d0b",
-      "artifactPath": "bench/qualifications/book-3/coverage/language.python.artifact.json",
       "corpusRoot": "bench/corpora/python",
       "providerVersions": {
         "code.python": "1.0.0"
@@ -100,7 +92,6 @@
       ],
       "qualificationVersion": "1.0.0",
       "corpusDigest": "sha256:1a2ff75fc24fbb0b2331dfd49bc1e81a1b791b32188972a030130eca2134fa85",
-      "artifactDigest": "sha256:5f3619de15b7595412996b1f3be286b1da3f0f726dcedb525673367411e78cae",
       "tiers": {
         "inventory": 1,
         "parser": 1,
@@ -111,9 +102,6 @@
         "remediation": 0
       },
       "corpusPath": "bench/corpora/rust/qualification.json",
-      "qualificationPath": "bench/qualifications/book-3/coverage/language.rust.qualification.json",
-      "qualificationDigest": "sha256:02aa975dc1fd732e014fc51a0211e21f3d2858fdadd2d1ed34ff1164f1913806",
-      "artifactPath": "bench/qualifications/book-3/coverage/language.rust.artifact.json",
       "corpusRoot": "bench/corpora/rust",
       "providerVersions": {
         "code.rust": "1.0.0"
@@ -135,7 +123,6 @@
       ],
       "qualificationVersion": "1.0.0",
       "corpusDigest": "sha256:9f497387aa8bae472542198783e9c9d8057166eb2ea7de59513e12181b793ca7",
-      "artifactDigest": "sha256:3586296e2de81df2dd121cb6658b460db7dc14381b8c44e8cb06e3579f02ddef",
       "tiers": {
         "inventory": 1,
         "parser": 1,
@@ -146,9 +133,6 @@
         "remediation": 0
       },
       "corpusPath": "bench/corpora/go/qualification.json",
-      "qualificationPath": "bench/qualifications/book-3/coverage/language.go.qualification.json",
-      "qualificationDigest": "sha256:ff62f773ef264960368ad78cf425ebfccef472a9fc4afc210515b7a526933ada",
-      "artifactPath": "bench/qualifications/book-3/coverage/language.go.artifact.json",
       "corpusRoot": "bench/corpora/go",
       "providerVersions": {
         "code.go": "1.0.0"
@@ -172,7 +156,6 @@
       ],
       "qualificationVersion": "1.0.0",
       "corpusDigest": "sha256:343dada6d9721225b4e7f049e75a5039320de514be680fadeaa47f266f8ef8e6",
-      "artifactDigest": "sha256:487395b30b5ec4dcb7e0686971d018457d423a3ef1e5fb94b4b369c374be3724",
       "tiers": {
         "inventory": 1,
         "parser": 1,
@@ -183,9 +166,6 @@
         "remediation": 0
       },
       "corpusPath": "bench/corpora/jvm/qualification.json",
-      "qualificationPath": "bench/qualifications/book-3/coverage/language.jvm.qualification.json",
-      "qualificationDigest": "sha256:0bd6cb1bc3de3f90d4401eb6f99b324a4210f680328d728f92966bea01b8d07b",
-      "artifactPath": "bench/qualifications/book-3/coverage/language.jvm.artifact.json",
       "corpusRoot": "bench/corpora/jvm",
       "providerVersions": {
         "code.jvm": "1.0.0"
@@ -209,7 +189,6 @@
       ],
       "qualificationVersion": "1.0.0",
       "corpusDigest": "sha256:4dd9f7e73d44fcc4bc33da2bdfeb64dd28c265e72d8e49875e1f1374e9f15184",
-      "artifactDigest": "sha256:d20d7ab3550f186ca1080784a1cbbd71ee9e3d13090a67e4633c24338c1ebd94",
       "tiers": {
         "inventory": 1,
         "parser": 1,
@@ -220,9 +199,6 @@
         "remediation": 0
       },
       "corpusPath": "bench/corpora/dotnet/qualification.json",
-      "qualificationPath": "bench/qualifications/book-3/coverage/language.dotnet.qualification.json",
-      "qualificationDigest": "sha256:597cc086c906f01694964ca0ef84dd85c083acb0e9a634d583dfef2b7f350d72",
-      "artifactPath": "bench/qualifications/book-3/coverage/language.dotnet.artifact.json",
       "corpusRoot": "bench/corpora/dotnet",
       "providerVersions": {
         "code.dotnet": "1.0.0"
@@ -248,7 +224,6 @@
       ],
       "qualificationVersion": "1.0.0",
       "corpusDigest": "sha256:5a1b3e594d0e015a97dc174616d55f017c8a0395d07a6a899efcc36e4ea1e60d",
-      "artifactDigest": "sha256:38d041fb099bbc4999cc4b816b81bc706cf28976e45be1df591facdcfb798eaa",
       "tiers": {
         "inventory": 1,
         "parser": 1,
@@ -259,9 +234,6 @@
         "remediation": 0
       },
       "corpusPath": "bench/corpora/c-family/qualification.json",
-      "qualificationPath": "bench/qualifications/book-3/coverage/language.c-family.qualification.json",
-      "qualificationDigest": "sha256:b615b85c1953758046e9ad3105dd1f739912340c9b34b0bcffa465a608159898",
-      "artifactPath": "bench/qualifications/book-3/coverage/language.c-family.artifact.json",
       "corpusRoot": "bench/corpora/c-family",
       "providerVersions": {
         "code.c-family": "1.0.0"
@@ -281,7 +253,6 @@
       ],
       "qualificationVersion": "1.0.0",
       "corpusDigest": "sha256:266ace7cc70411d4a143ba64f404fecedc1106f23f7d4b6cd3f51122623e9c17",
-      "artifactDigest": "sha256:0a8578fd677b45ede9188d809e3fcbe54e3d6a09f0d6a9fd0581ae8ba0b471e5",
       "tiers": {
         "inventory": 1,
         "parser": 1,
@@ -292,9 +263,6 @@
         "remediation": 0
       },
       "corpusPath": "bench/corpora/php-ruby/qualification.json",
-      "qualificationPath": "bench/qualifications/book-3/coverage/language.php-ruby.qualification.json",
-      "qualificationDigest": "sha256:ba721dbdc5e37d26ed2dd37ef2bdc70546bf922ad66f736e1cd8119b58c0f250",
-      "artifactPath": "bench/qualifications/book-3/coverage/language.php-ruby.artifact.json",
       "corpusRoot": "bench/corpora/php-ruby",
       "providerVersions": {
         "code.php-ruby": "1.0.0"
@@ -314,7 +282,6 @@
       ],
       "qualificationVersion": "1.0.0",
       "corpusDigest": "sha256:0fd87f3787ac9a93bd9ce32eb91f9a98566ab00209fc33e0528a4ff8bc78324e",
-      "artifactDigest": "sha256:ae83828de5d6768b5c63f492ecd93b37d58913c15b6a9103bcacdba446264ef3",
       "tiers": {
         "inventory": 1,
         "parser": 1,
@@ -325,9 +292,6 @@
         "remediation": 0
       },
       "corpusPath": "bench/corpora/mobile/qualification.json",
-      "qualificationPath": "bench/qualifications/book-3/coverage/language.mobile.qualification.json",
-      "qualificationDigest": "sha256:fee0372e1bb01560732c3cd98704ce51bb91be9b8a58b288d8d6db1a6325ba1a",
-      "artifactPath": "bench/qualifications/book-3/coverage/language.mobile.artifact.json",
       "corpusRoot": "bench/corpora/mobile",
       "providerVersions": {
         "code.mobile": "1.0.0"
@@ -347,7 +311,6 @@
       ],
       "qualificationVersion": "1.0.0",
       "corpusDigest": "sha256:47b4ff298d661234b24fdcd8da2729dc1890f48f5f853289d5e3417f4f6cbb70",
-      "artifactDigest": "sha256:36fbf3a5ebf731c6e936dcd223bb28ab70a26c195d18479077448ddda44d2157",
       "tiers": {
         "inventory": 1,
         "parser": 1,
@@ -358,9 +321,6 @@
         "remediation": 0
       },
       "corpusPath": "bench/corpora/long-tail/qualification.json",
-      "qualificationPath": "bench/qualifications/book-3/coverage/language.long-tail.qualification.json",
-      "qualificationDigest": "sha256:13b9ac531a5da5586a979c0856000b224ae3714e95d1dec8ff6a1a2ffd0fcf5e",
-      "artifactPath": "bench/qualifications/book-3/coverage/language.long-tail.artifact.json",
       "corpusRoot": "bench/corpora/long-tail",
       "providerVersions": {
         "code.long-tail": "1.0.0"
@@ -380,7 +340,6 @@
       ],
       "qualificationVersion": "1.0.0",
       "corpusDigest": "sha256:69d2b3bf960beb84c4cc178dbdd0a4d0e0627042d757f48e7b9caa2a827d12cb",
-      "artifactDigest": "sha256:21a3a4b39f6beb4a3f7abd89b03683b0b501433d1e70dcfef3ab0dbcefeb744b",
       "tiers": {
         "inventory": 1,
         "parser": 1,
@@ -391,9 +350,6 @@
         "remediation": 0
       },
       "corpusPath": "bench/corpora/frameworks/frontend/qualification.json",
-      "qualificationPath": "bench/qualifications/book-3/coverage/framework.frontend.qualification.json",
-      "qualificationDigest": "sha256:44473416f7e083e6a3cc5bebc4114b01a4df1ecdaebce0a642663bc918a25783",
-      "artifactPath": "bench/qualifications/book-3/coverage/framework.frontend.artifact.json",
       "corpusRoot": "bench/corpora/frameworks/frontend",
       "providerVersions": {
         "framework.frontend": "1.0.0"
@@ -413,7 +369,6 @@
       ],
       "qualificationVersion": "1.0.0",
       "corpusDigest": "sha256:f94b3a0b499d27ce53a145c57bb859e5269ed8ef48472a751d3a2d57df676075",
-      "artifactDigest": "sha256:2c895f7f9884cf2e494eb3a81f4cb8c1df4ba74b229d16f37e1567ce336e37cd",
       "tiers": {
         "inventory": 1,
         "parser": 1,
@@ -424,9 +379,6 @@
         "remediation": 0
       },
       "corpusPath": "bench/corpora/frameworks/backend/qualification.json",
-      "qualificationPath": "bench/qualifications/book-3/coverage/framework.backend.qualification.json",
-      "qualificationDigest": "sha256:1cc9a889c7d6f681292224ba0f5b6a51dc98ac4bfabc1b48a65307264c810f6c",
-      "artifactPath": "bench/qualifications/book-3/coverage/framework.backend.artifact.json",
       "corpusRoot": "bench/corpora/frameworks/backend",
       "providerVersions": {
         "framework.backend": "1.0.0"
@@ -446,7 +398,6 @@
       ],
       "qualificationVersion": "1.0.0",
       "corpusDigest": "sha256:c30962ace41e4722af364890fdc1c8851341bacf598de9b99a20a901822d48f2",
-      "artifactDigest": "sha256:72d4b5cb4eee898dc9ba1c9829b4dfb8fb721e70f921b5f54d560814f6635989",
       "tiers": {
         "inventory": 1,
         "parser": 1,
@@ -457,9 +408,6 @@
         "remediation": 0
       },
       "corpusPath": "bench/corpora/frameworks/data/qualification.json",
-      "qualificationPath": "bench/qualifications/book-3/coverage/framework.data.qualification.json",
-      "qualificationDigest": "sha256:5b8f73da149db6361c5b3f6bc9967f71fbe773ef84c2b7772d9db2a7bf6990b9",
-      "artifactPath": "bench/qualifications/book-3/coverage/framework.data.artifact.json",
       "corpusRoot": "bench/corpora/frameworks/data",
       "providerVersions": {
         "framework.data": "1.0.0"
