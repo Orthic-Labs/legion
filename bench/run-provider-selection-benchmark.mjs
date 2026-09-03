@@ -2,11 +2,11 @@
 import { readFileSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { loadProviderRegistry, selectProviders } from '../registry/provider-registry.mjs';
+import { loadProviderRegistry, selectProviders } from '../src/registry/provider-registry.mjs';
 import { calculatePrecisionRecall } from './precision-recall.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
-const DEFAULT_LABELS = resolve(HERE, '../evals/ground_truth/labeled_samples.json');
+const DEFAULT_LABELS = resolve(HERE, '../src/evals/ground_truth/labeled_samples.json');
 
 export function runProviderSelectionBenchmark(corpus, registry = loadProviderRegistry()) {
   const labels = [];

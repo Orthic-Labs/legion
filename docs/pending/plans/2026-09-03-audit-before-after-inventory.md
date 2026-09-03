@@ -1,6 +1,6 @@
 # Audit skill: before/after inventory across the product extraction
 
-BEFORE is `tools/skills/audit/` in the `D:\Claude` workspace repo at `52a90cf0^` — the
+BEFORE is `tools/skills/audit/` in the `<workspace>` workspace repo at `52a90cf0^` — the
 parent of the commit that deleted it. AFTER is the shipped Legion product. Produced
 2026-09-03 by an independent read-only pass; every claim cites a path.
 
@@ -8,7 +8,7 @@ Section 5 has been acted on: rows 1-4 are done (see `bench/` and
 `tests/run-audit-conformance-tests.mjs`), row 5 is resolved by downgrading the tier rather
 than substantiating it, and rows 6-10 remain open.
 
-**Correction to the brief's provenance:** commit `52a90cf0` is in the **`D:\Claude` workspace repo** (not a separate `bogusyogi` repo — that path is a subdirectory), and it is the commit that **deleted** `tools/skills/audit/`. The BEFORE tree is therefore its parent, `52a90cf0^`. All BEFORE citations below use `git -C D:/Claude show 52a90cf0^:tools/skills/audit/<path>`.
+**Correction to the brief's provenance:** commit `52a90cf0` is in the **`<workspace>` workspace repo** (not a separate `bogusyogi` repo — that path is a subdirectory), and it is the commit that **deleted** `tools/skills/audit/`. The BEFORE tree is therefore its parent, `52a90cf0^`. All BEFORE citations below use `git -C <workspace> show 52a90cf0^:tools/skills/audit/<path>`.
 
 ---
 
@@ -95,7 +95,7 @@ A general labels-vs-detections scorer, independent of AU20. `calculatePrecisionR
 - `tools/audit/collect-facts.mjs:395` — a comment preserving a real defect the bench caught: "false-clean on the highest-stakes check. Found by the AU20 bench."
 - `tools/audit/provider-benchmarks.mjs:1-10` — a **rewritten replacement harness** ("Restores the capability lost with `bench/precision-recall.mjs`"), digest-bound and schema-validated against `references/audit-provider-benchmarks.schema.json`. It is a harness with **no corpus**: no file of `kind: "audit-benchmark-fixtures"` exists anywhere in the repo except the schema itself. It can measure nothing.
 - `src/evals/ground_truth/labeled_samples.json` survives with **no code consumer** (its only reader, `run-provider-selection-benchmark.mjs`, is gone).
-- **Hard breakage:** `tests/run-audit-conformance-tests.mjs:205` still does `readFileSync(join(AUDIT_ROOT, 'bench/run-bench.mjs'))` and line 236 asserts CI runs it. Verified by running it read-only: 6 cases pass, then `Error: ENOENT … D:\Claude\legion\bench\run-bench.mjs` at `test_qualification_receipts`. The suite is unrunnable, and it is not referenced from `package.json` or `.github/workflows/ci.yml`, so nothing notices.
+- **Hard breakage:** `tests/run-audit-conformance-tests.mjs:205` still does `readFileSync(join(AUDIT_ROOT, 'bench/run-bench.mjs'))` and line 236 asserts CI runs it. Verified by running it read-only: 6 cases pass, then `Error: ENOENT … <workspace>\legion\bench\run-bench.mjs` at `test_qualification_receipts`. The suite is unrunnable, and it is not referenced from `package.json` or `.github/workflows/ci.yml`, so nothing notices.
 
 ---
 

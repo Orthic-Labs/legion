@@ -12,6 +12,7 @@ pnpm test:python
 # flags everything cannot pass. It was lost when the skill became a
 # product and the conformance suite has been dead at its ninth case since.
 node bench/run-bench.mjs
+node bench/run-provider-selection-benchmark.mjs
 node tests/run-audit-conformance-tests.mjs
 
 if [[ "${RIGHT_GIT_RUST_CHANGED:-true}" == "true" ]]; then
