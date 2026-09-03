@@ -2252,7 +2252,22 @@ fn setup_health(
             }
             if let Some(state) = projection.get("state").and_then(Value::as_str) {
                 if state != "current" {
-                    remediation.push(format!("{client} projection is {state}; {repair_command}"));
+                    // An opt-in client is maintained only where a projection
+                    // already exists and is never created, so naming the repair
+                    // command here sends the operator to a command that will
+                    // deliberately do nothing.
+                    let opt_in = projection
+                        .get("explicitOnly")
+                        .and_then(Value::as_bool)
+                        .unwrap_or(false);
+                    if opt_in {
+                        remediation.push(format!(
+                            "{client} projection is {state}; this client is opt-in, so repair leaves it alone. Create its projection deliberately, or ignore this."
+                        ));
+                    } else {
+                        remediation
+                            .push(format!("{client} projection is {state}; {repair_command}"));
+                    }
                 }
             }
             if installed
