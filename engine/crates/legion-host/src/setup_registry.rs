@@ -427,7 +427,21 @@ pub fn repair_client_projection(
     // like every other one and skills reappeared wherever the operator had
     // removed them. Maintain such a client only where a projection already
     // exists; never create one.
-    if input.explicit_only && !path_exists(&input.target_root)? {
+    // Judge "already projected" by our own entries, not by the target root.
+    // A skills-only root such as ~/.agents/skills is shared with the operator's
+    // own skill manager, so it always exists and the root test never fired:
+    // repair kept recreating twenty-seven skills into a root the operator had
+    // deliberately emptied.
+    let projected_before = if input.projection == "skills-only" {
+        projection_link_units(input)?
+            .into_iter()
+            .try_fold(false, |seen, (name, _)| {
+                Ok::<bool, SetupError>(seen || path_exists(&input.target_root.join(name))?)
+            })?
+    } else {
+        path_exists(&input.target_root)?
+    };
+    if input.explicit_only && !projected_before {
         return Ok(ClientProjectionRepair {
             inspection: before.clone(),
             repaired: Vec::new(),
