@@ -25,7 +25,12 @@ function defaultRightsReceipt(provenance, licenseState) {
 
 function files(root, current = root, out = []) {
   for (const name of readdirSync(current).sort()) {
+    // Audit receipts and other run evidence get written into whichever tree
+    // Legion is operated on, including its own skills. Digesting them makes the
+    // manifest name files the repository deliberately does not carry, and the
+    // build then fails on drift that no edit caused.
     if (EXCLUDED.has(name) || name === '__pycache__' || name.endsWith('.pyc')) continue;
+    if (name.startsWith('.') && name !== '.gitkeep') continue;
     const path = join(current, name);
     if (statSync(path).isDirectory()) files(root, path, out);
     else out.push(relative(root, path).replaceAll('\\', '/'));

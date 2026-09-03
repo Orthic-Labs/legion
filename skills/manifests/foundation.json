@@ -29,7 +29,6 @@
       "Create, audit, normalize, reconcile, or compare a product's atomic capability foundation. Use for atom inventories, cross-repository implementation bakeoffs, feature ledgers, closure counts, parent-child hierarchies, evidence rows, qualification gates, donor dispositions, or cross-canon standardization. `canon` & `compshop` are retired aliases; `/foundation compare` replaces CompShop."
     ],
     "outputs": [
-      "references/.audit/arcane/receipts/session-provenance/c592aceb1eb93e3e5e051a227599b14a9a44416c6546c099f1ed9f97913658a1.json",
       "references/model.md",
       "references/protocol.md"
     ],
@@ -49,11 +48,6 @@
     ]
   },
   "files": [
-    {
-      "path": ".audit/arcane/receipts/session-provenance/c592aceb1eb93e3e5e051a227599b14a9a44416c6546c099f1ed9f97913658a1.json",
-      "uri": "legion-skill://foundation/.audit/arcane/receipts/session-provenance/c592aceb1eb93e3e5e051a227599b14a9a44416c6546c099f1ed9f97913658a1.json",
-      "digest": "sha256:cd3eff898536921f9a9e7a282c24234cf8b1ae186b7aa72576626082101a34c4"
-    },
     {
       "path": "RIGHTS.json",
       "uri": "legion-skill://foundation/RIGHTS.json",
@@ -78,11 +72,6 @@
       "path": "evals/evals.json",
       "uri": "legion-skill://foundation/evals/evals.json",
       "digest": "sha256:5295b11f89ead9d90be7a2646218c398b21d4868e8d99c9f2cf176c199da8ac0"
-    },
-    {
-      "path": "references/.audit/arcane/receipts/session-provenance/c592aceb1eb93e3e5e051a227599b14a9a44416c6546c099f1ed9f97913658a1.json",
-      "uri": "legion-skill://foundation/references/.audit/arcane/receipts/session-provenance/c592aceb1eb93e3e5e051a227599b14a9a44416c6546c099f1ed9f97913658a1.json",
-      "digest": "sha256:cd3eff898536921f9a9e7a282c24234cf8b1ae186b7aa72576626082101a34c4"
     },
     {
       "path": "references/model.md",
