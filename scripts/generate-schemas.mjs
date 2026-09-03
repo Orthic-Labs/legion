@@ -22,7 +22,9 @@ export function buildProviderResultSchema() {
     $id: 'https://orthic.dev/schemas/audit-provider-result-v1.json',
     type: 'object',
     additionalProperties: false,
-    required: ['schemaVersion', 'provider', 'applicable', 'required', 'status', 'complete', 'coverage', 'candidates', 'findings', 'coverageGaps', 'degradation', 'details'],
+    // `details` is emitted by family providers; accounting providers such as
+    // generic.source-accounting legitimately carry none.
+    required: ['schemaVersion', 'provider', 'applicable', 'required', 'status', 'complete', 'coverage', 'candidates', 'findings', 'coverageGaps', 'degradation'],
     properties: {
       schemaVersion: { const: 1 },
       provider: { type: 'string', minLength: 1 },
@@ -30,20 +32,34 @@ export function buildProviderResultSchema() {
       required: { type: 'boolean' },
       status: { enum: [...PROVIDER_STATUS] },
       complete: { type: 'boolean' },
+      // Providers account for coverage in their own vocabulary — file counts,
+      // path counts, rule counts, extension sets. Closing this set made shipped
+      // providers fail the schema their own executor validates them against,
+      // which throws at provider-executor.mjs. The declared keys keep their
+      // types; the vocabulary stays open, as it was before the extraction.
       coverage: {
         type: 'object',
-        additionalProperties: false,
-        required: ['denominatorDigest','expected','examined'],
+        additionalProperties: true,
         properties: {
-          denominatorDigest: { type: 'string', pattern: '^sha256:[a-f0-9]{64}$' },
+          // normalize-provider-result.mjs emits the literal `sha256:unbound`
+          // when a provider reports coverage with no file denominator.
+          denominatorDigest: { type: 'string', pattern: '^sha256:([a-f0-9]{64}|unbound)$' },
           expected: { type: 'integer', minimum: 0 },
           examined: { type: 'integer', minimum: 0 },
+          unexamined: { type: 'integer', minimum: 0 },
         },
       },
       candidates: { type: 'array' },
       findings: { type: 'array' },
       coverageGaps: { type: 'array' },
       degradation: { type: 'array' },
+      // Emitted by normalize-provider-result.mjs for every provider; declared
+      // before the extraction and dropped when this set was closed.
+      receipts: { type: 'array' },
+      artifacts: { type: 'array' },
+      commands: { type: 'array' },
+      inventory: { type: ['array', 'object'] },
+      phase: { type: 'string' },
       details:{type:'object',additionalProperties:false,required:['family','componentIds','limitations','rawArtifacts'],properties:{family:{type:'string',minLength:1},componentIds:{type:'array',items:{type:'string'}},limitations:{type:'array'},rawArtifacts:{type:'array'}}},
     },
   };

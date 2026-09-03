@@ -14,8 +14,7 @@
     "candidates",
     "findings",
     "coverageGaps",
-    "degradation",
-    "details"
+    "degradation"
   ],
   "properties": {
     "schemaVersion": {
@@ -50,22 +49,21 @@
     },
     "coverage": {
       "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "denominatorDigest",
-        "expected",
-        "examined"
-      ],
+      "additionalProperties": true,
       "properties": {
         "denominatorDigest": {
           "type": "string",
-          "pattern": "^sha256:[a-f0-9]{64}$"
+          "pattern": "^sha256:([a-f0-9]{64}|unbound)$"
         },
         "expected": {
           "type": "integer",
           "minimum": 0
         },
         "examined": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "unexamined": {
           "type": "integer",
           "minimum": 0
         }
@@ -82,6 +80,24 @@
     },
     "degradation": {
       "type": "array"
+    },
+    "receipts": {
+      "type": "array"
+    },
+    "artifacts": {
+      "type": "array"
+    },
+    "commands": {
+      "type": "array"
+    },
+    "inventory": {
+      "type": [
+        "array",
+        "object"
+      ]
+    },
+    "phase": {
+      "type": "string"
     },
     "details": {
       "type": "object",
