@@ -158,6 +158,24 @@ function timeoutResult() {
   return { error: Object.assign(new Error('Blueprint one-shot timed out'), { code: 'ETIMEDOUT' }), status: null, signal: 'SIGTERM' };
 }
 
+function locateOnWindowsPath(executable) {
+  // where.exe is an external dependency for something resolvable directly, and
+  // when it is missing or fails the bare name survives — which Windows cannot
+  // spawn with shell:false, so discovery reported the tool as unavailable
+  // rather than as undiscovered. Scan PATH ourselves, preferring a .cmd or .bat
+  // wrapper over an extensionless shim, and keep where.exe only as a fallback.
+  const separator = process.platform === 'win32' ? ';' : ':';
+  const directories = String(process.env.PATH ?? '').split(separator).filter(Boolean);
+  const extensions = ['.cmd', '.bat', '.exe', ''];
+  for (const extension of extensions) {
+    for (const directory of directories) {
+      const candidate = join(directory, `${executable}${extension}`);
+      if (existsSync(candidate)) return candidate;
+    }
+  }
+  return null;
+}
+
 function resolveBlueprintInvocation(blueprintBin, timeoutMs) {
   let executable = blueprintBin;
   const explicitPath = isAbsolute(executable) || /[\\/]/.test(executable);
@@ -169,6 +187,8 @@ function resolveBlueprintInvocation(blueprintBin, timeoutMs) {
     if (located.status === 0 && located.stdout) {
       const candidates = String(located.stdout).split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
       executable = candidates.find((candidate) => /\.(?:cmd|bat)$/i.test(candidate)) ?? candidates[0] ?? executable;
+    } else {
+      executable = locateOnWindowsPath(executable) ?? executable;
     }
   }
   if (process.platform !== 'win32' || !existsSync(executable)) {
