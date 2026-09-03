@@ -7,7 +7,7 @@
 // generator all went unnoticed.
 import assert from 'node:assert/strict';
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
-import { join, relative } from 'node:path';
+import { dirname, join, relative, resolve } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 
@@ -48,4 +48,29 @@ test('no shipped skill instructs a reader to open a path that never ships', () =
     if (entry.isDirectory()) scan(join(SKILLS, entry.name), entry.name, found);
   }
   assert.deepEqual([...new Set(found)].sort(), [], 'dangling instructions in shipped skills');
+});
+
+// The packaging validator resolves every markdown link in a shipped skill and
+// refuses a core whose reference is missing, so an unresolvable link fails the
+// build rather than the suite. Catch it here instead. Its regex does not skip
+// code spans, so an example of link syntax inside backticks is rejected too —
+// which is why this asserts exactly what the packager asserts.
+test('every markdown link in a shipped skill resolves inside the package', () => {
+  const missing = [];
+  const scanLinks = (dir) => {
+    for (const entry of readdirSync(dir, { withFileTypes: true })) {
+      const path = join(dir, entry.name);
+      if (entry.isDirectory()) { scanLinks(path); continue; }
+      if (!/\.md$/i.test(entry.name)) continue;
+      for (const match of readFileSync(path, 'utf8').matchAll(/\[[^\]]*\]\(([^):#?\s]+)\)/g)) {
+        const target = match[1];
+        if (/^(https?:|mailto:|#)/.test(target)) continue;
+        if (!existsSync(resolve(dirname(path), target))) {
+          missing.push(`${relative(root, path)} -> ${target}`);
+        }
+      }
+    }
+  };
+  scanLinks(SKILLS);
+  assert.deepEqual([...new Set(missing)].sort(), [], 'unresolvable links in shipped skills');
 });

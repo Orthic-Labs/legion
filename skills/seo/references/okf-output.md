@@ -1,7 +1,7 @@
 # OKF output + LLMLingua compression for doc-heavy skills
 
 Canonical pattern for skills that emit **many agent-facing documents + one human doc**
-(`blueprint`, `audit`, `architecture`, `seo`). Tool: [`okf.py`](okf.py). Sibling of SampleApp's
+(`blueprint`, `audit`, `architecture`, `seo`). Tool: `okf.py`. Sibling of SampleApp's
 Rust `okf` module — identical on-disk format, so output is portable into SampleApp and any
 OKF-aware agent.
 
@@ -14,7 +14,7 @@ no SDK, no parser. It is the portable, incrementally-updatable form of the multi
 artifacts these skills already produce.
 
 Compression is the second half: agent-facing prose is the compressible part. LLMLingua-2
-([`compress.py`](compress.py)) drops low-information tokens — but it **breaks code and paths**.
+(`compress.py`) drops low-information tokens — but it **breaks code and paths**.
 So `okf.py` compression is **structure-safe**: frontmatter, code fences, markdown links, URLs,
 inline code, and `path:line` refs are passed through VERBATIM; only the prose *between* protected
 spans is token-dropped. The one human doc is never compressed.
@@ -30,11 +30,11 @@ spans is token-dropped. The one human doc is never compressed.
 
 ```bash
 # emit an OKF bundle from a concepts manifest (one concept per file + index.md)
-py -3.11 D:/workspace/tools/lib/okf.py emit <out_dir>/okf <concepts.json> --compress --rate 0.5
+py -3.11 <workspace>/tools/lib/okf.py emit <out_dir>/okf <concepts.json> --compress --rate 0.5
 #   concepts.json = [{"name","type","title"?,"description"?,"tags"?,"body","links"?}, ...]
 
 # structure-safe compress one existing markdown doc (for an already-emitted agent doc)
-py -3.11 D:/workspace/tools/lib/okf.py compress <doc.md> --rate 0.5 > <doc.min.md>
+py -3.11 <workspace>/tools/lib/okf.py compress <doc.md> --rate 0.5 > <doc.min.md>
 ```
 
 A skill builds `concepts.json` from its structured output (e.g. blueprint's `understanding.json`
@@ -44,7 +44,7 @@ seo → one concept per page/issue), then calls `okf emit --compress`.
 ## Verified (2026-06-29)
 
 - Structure-safety: on a mixed concept (prose + `engine/.../shell.rs:212` + a ```rust fence + a
-  `[sandbox](sandbox.md)` link + `type:` frontmatter) — prose compressed ~50% at `--rate 0.5`,
+  a `sandbox` markdown link plus `type:` frontmatter) — prose compressed ~50% at `--rate 0.5`,
   **every** ref / fence / link / frontmatter field preserved.
 - Real doc floor: `docs/competitors/GROK-BUILD.md` (ref-dense) → **2235→1799 tokens (−20%)**,
   16/16 `path:line` refs + inline code intact. Prose-heavy docs compress more; ref-dense docs are
