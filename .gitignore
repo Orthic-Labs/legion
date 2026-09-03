@@ -32,6 +32,9 @@ qualification/*
 bench/qualifications/
 bench/**/*.receipt.json
 _audit/
-_selfcheck/
+# Bare `_selfcheck/` also matched bench/_selfcheck/, the known-answer pair the
+# shipped manual tells the reader to run against the runtime harness. Ignore
+# only a self-check tree written into a repository being audited.
+/_selfcheck/
 evidence/
 *.receipt.json

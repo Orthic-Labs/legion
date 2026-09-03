@@ -343,9 +343,28 @@ through `runtime`) lives in `references/engine-interface.md` §Scanner registry.
 
 ## AU20 — planted-finding recall/precision bench
 
-Not shipped in this repo. A prior benchmark harness (`bench/run-bench.mjs` and related scripts) that
-measured deterministic-scanner recall/precision against a planted-defect corpus was deliberately
-removed. There is no equivalent tooling in this package today.
+`bench/` measures deterministic-scanner recall and precision against a planted-defect corpus.
+Thirteen fixtures, each planted case paired with a negative control, so a scanner that flags
+everything scores recall 1.0 and still fails the gate.
+
+- `node bench/run-bench.mjs` — default mode, scoring the bench's own detectors. The gate is
+  `recall >= threshold && false_positives === 0` (threshold `0.7`). It emits a qualification
+  receipt carrying `corpusDigest` and `receiptDigest`. **A green default run proves the corpus
+  and harness are sound. It proves nothing about `/audit`.**
+- `node bench/run-bench.mjs --real` — routes each case through the production
+  `collect-facts.mjs --only <check>` in a temp directory. A class whose tool is missing is
+  reported `unavailable` and excluded from every denominator, rather than reading as "no
+  findings" — the exact false-clean this bench exists to catch. Expect `GATE: FAIL` on a machine
+  without jscpd, a typed stack, and a drift scanner.
+- `--threshold <n>` and `--json` are also accepted.
+- `node bench/run-provider-selection-benchmark.mjs` — scores provider routing against
+  `src/evals/ground_truth/labeled_samples.json`; exits non-zero on any false positive or negative.
+- `node bench/run-bench.mjs` and the selection benchmark both run in CI
+  (`scripts/ci/right-git-ci.sh`).
+
+Rule-output measurement is separate: `bench/rule-output/` binds each detector's own findings to
+ruleId, file and line, which is what `provider-architecture.md` reserves the `measured-pack`
+tier for. Provider *selection* coverage lives in `bench/corpora/`.
 
 ## Output shape (`report.json`)
 

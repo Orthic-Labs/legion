@@ -15,6 +15,7 @@ import { scanDeadCode } from '../bench/detectors/dead-code.mjs';
 import { scanTypes } from '../bench/detectors/types.mjs';
 import { scanDuplication } from '../bench/detectors/duplication.mjs';
 import { scanDeps } from '../bench/detectors/deps-cve.mjs';
+import { scanDrift } from '../bench/detectors/drift.mjs';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
 const load = (name) => JSON.parse(readFileSync(join(root, 'bench/rule-output', `${name}.fixtures.json`), 'utf8'));
@@ -33,6 +34,13 @@ const RUNNERS = {
     scanDuplication(text).map((hit) => ({ ruleId, line: lineOf(text, `function ${hit.a}(`) })),
   deps_cve: (text, ruleId) =>
     scanDeps(JSON.parse(text)).map((hit) => ({ ruleId, line: lineOf(text, `"${hit.name}"`) })),
+  // Drift compares a document against code, so it is the one detector needing
+  // the case's sibling README rather than the case file alone.
+  drift: (text, ruleId, file) => {
+    const doc = readFileSync(join(root, 'bench', file.replace(/[^/]+$/, 'README.md')), 'utf8');
+    const hit = scanDrift(doc, text);
+    return hit ? [{ ruleId, line: lineOf(text, 'MAX_RETRIES') }] : [];
+  },
 };
 
 // Bind the measurement to the bytes that produced it. A stale binding is
@@ -43,6 +51,7 @@ const DETECTOR_FILE = {
   types: 'bench/detectors/types.mjs',
   duplication: 'bench/detectors/duplication.mjs',
   deps_cve: 'bench/detectors/deps-cve.mjs',
+  drift: 'bench/detectors/drift.mjs',
 };
 const digestOf = (relative) =>
   `sha256:${createHash('sha256').update(readFileSync(join(root, relative))).digest('hex')}`;
@@ -67,7 +76,7 @@ for (const [detector, run] of Object.entries(RUNNERS)) {
       },
       fixtures,
       measuredAt: '2026-09-03T00:00:00.000Z',
-      runProvider: ({ files }) => run(files[0].text, fixtures.ruleId),
+      runProvider: ({ files }) => run(files[0].text, fixtures.ruleId, files[0].path),
     });
 
     const { precision, recall, falsePositives, falseNegatives } = result.metrics;

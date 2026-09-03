@@ -112,7 +112,7 @@
     {
       "path": "references/manual.md",
       "uri": "legion-skill://audit/references/manual.md",
-      "digest": "sha256:e6c3273bb192f2ecf375eea39d7b8b325bdea7edc9272b4325db3ea19b4f940a"
+      "digest": "sha256:44867d858a96bdd351c5eba9f4fce5f0c0eae8d6cca085aba373760fcb8b3360"
     },
     {
       "path": "references/migration-safety.md",
@@ -127,7 +127,7 @@
     {
       "path": "references/provider-architecture.md",
       "uri": "legion-skill://audit/references/provider-architecture.md",
-      "digest": "sha256:5f470ceae44a8898404cb8a901255a5fa9f3181c52914c8195e33ed007be2cee"
+      "digest": "sha256:132a447c3f926d011b6d6a20ba5f97871631870a4bea4b5281c7fe81e271894c"
     }
   ]
 }

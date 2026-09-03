@@ -3,10 +3,10 @@
 // they asserted retired architecture. The rest tests live code, with the paths
 // the extraction moved.
 import assert from 'node:assert/strict';
-import { mkdtempSync, rmSync, writeFileSync, mkdirSync, readFileSync } from 'node:fs';
+import { mkdtempSync, readdirSync, rmSync, writeFileSync, mkdirSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { execFileSync } from 'node:child_process';
-import { join } from 'node:path';
+import { join, sep } from 'node:path';
 import test from 'node:test';
 import { buildAuditPlan, reconcilePlanWithFacts, verifyPlanBinding, verifyPlanSeal } from '../tools/audit/audit-plan.mjs';
 import { createAdjudicationPacket, createSecurityCandidate, finalizeSecurityVerdict } from '../src/adapters/security-adjudication.mjs';
@@ -113,3 +113,80 @@ test('report conversion emits dependency-free SARIF 2.1.0', () => {
   assert.equal(sarif.runs[0].results[0].locations[0].physicalLocation.region.startLine, 12);
 });
 
+// Projection shape only. The old helper produced this through the retired
+// Cortex adapter; its replacement shells out to the Blueprint CLI, which is not
+// a unit-test dependency. What these cases exercise is the plan, not discovery.
+function projection(root, generation = 'gen-1') {
+  const files = readdirSync(root, { recursive: true, withFileTypes: true })
+    .filter((e) => e.isFile())
+    .map((e) => join(e.parentPath ?? e.path, e.name).slice(root.length + 1).split(sep).join('/'))
+    .sort();
+  return {
+    schemaVersion: 1,
+    state: 'ready',
+    generationId: generation,
+    manifestDigest: 'sha256:manifest',
+    complete: true,
+    files,
+    capabilities: {
+      parsedExtensions: ['js', 'jsx', 'ts', 'tsx', 'rs', 'sh'],
+      unsupportedExtensions: [],
+    },
+  };
+}
+
+// Recovered: enrichFactsWithPlan and reconcilePlanWithFacts are on the path
+// tools/audit executes, and were left with no coverage anywhere when the
+// Cortex cases were dropped alongside them.
+test('selected facts provider that skips remains incomplete', () => {
+  const root = fixtureRepo({
+    'package.json': JSON.stringify({ dependencies: { react: '^19.0.0' } }),
+    'src/App.tsx': 'export function App() { return null; }',
+  });
+  try {
+    const plan = buildAuditPlan({
+      root,
+      registry: loadProviderRegistry(),
+      projection: projection(root),
+      repositoryBinding: { repositoryRevision: 'abc', dirty: false, dirtyPatchDigest: 'sha256:clean' },
+    });
+    plan.qualification = { ...plan.qualification, state: 'ready' };
+    const checks = plan.denominator.expectedChecks.map((check) => ({ check, status: 'ran', findings_count: 0 }));
+    checks[0].status = 'skipped';
+    const facts = enrichFactsWithPlan({
+      facts: { checks, incomplete: false },
+      plan,
+      projection: projection(root),
+      bindingVerification: { valid: true, drift: [] },
+    });
+    assert.equal(facts.incomplete, true);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('final reconciliation rejects missing or extra scanner results', () => {
+  const root = fixtureRepo({
+    'package.json': JSON.stringify({ dependencies: { react: '^19.0.0' } }),
+    'src/App.tsx': 'export function App() { return null; }',
+    'src-tauri/Cargo.toml': '[package]\nname="app"\n',
+    'src-tauri/Cargo.lock': '',
+    'src-tauri/src/lib.rs': 'pub fn run() {}',
+    'src-tauri/tauri.conf.json': '{}',
+    'scripts/release.sh': 'echo release',
+  });
+  try {
+    const plan = buildAuditPlan({
+      root,
+      registry: loadProviderRegistry(),
+      projection: projection(root),
+      repositoryBinding: { repositoryRevision: 'abc', dirty: false, dirtyPatchDigest: 'sha256:clean' },
+    });
+    const facts = { checks: plan.denominator.expectedChecks.slice(1).map((check) => ({ check, status: 'ran', findings_count: 0 })) };
+    const result = reconcilePlanWithFacts(plan, facts);
+    assert.equal(result.valid, false);
+    assert.deepEqual(result.missingChecks, [plan.denominator.expectedChecks[0]]);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});

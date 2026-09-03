@@ -112,8 +112,10 @@ independent. Confirmed findings require a separate variant analysis before closu
 A provider is marked `measured` only when its own rule outputs—not merely provider
 selection—have reproducible precision and recall artifacts. Rule packs without that evidence remain
 `UNPROVEN` and prevent a clean claim. Numerical metrics are evidence metadata, not repository scores.
-(The benchmark harness that once produced these artifacts, `bench/precision-recall.mjs`, was removed
-from this repo; there is no equivalent tooling shipped today.)
+(The harness that produces these artifacts is `tools/audit/provider-benchmarks.mjs`, measured
+against the fixture corpus in `bench/rule-output/` and scored by `bench/precision-recall.mjs`.
+Selection coverage in `bench/corpora/` is deliberately not this evidence: it measures whether a
+provider claims a file, not whether its findings are right.)
 
 ## Entry points and outputs
 
