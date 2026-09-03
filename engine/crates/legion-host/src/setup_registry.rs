@@ -427,13 +427,70 @@ pub fn repair_client_projection(
     // root that nothing else owns. Reads resolve through the link, so every
     // per-file check below still sees exactly the expected files; what changes
     // is that there is one tree instead of one copy per client.
-    if !skills_only && path_exists(&input.source_root)? {
-        let already_linked = projection_root_links_to(&input.target_root, &input.source_root)?;
-        if !already_linked && !path_exists(&input.target_root)? {
-            if let Some(parent) = input.target_root.parent() {
+    // Link each skill directory into the client, replacing a plain copy.
+    // This is what the ecosystem does (`ln -sfn` per skill, with an explicit
+    // remove first so a reinstall does not fail on an existing path), and it
+    // works for every client including a shared skills-only root where a
+    // whole-root link cannot: the destination there holds other products'
+    // skills too, so only our own entries may be touched.
+    if path_exists(&input.source_root)? {
+        for (name, source) in projection_link_units(input)? {
+            let target = input.target_root.join(&name);
+            if projection_root_links_to(&target, &source)? {
+                continue;
+            }
+            let owned = prior_ledger.as_ref().is_some_and(|ledger| {
+                ledger
+                    .files
+                    .keys()
+                    .any(|relative| relative.split('/').next() == Some(name.as_str()))
+            });
+            let exists = path_exists(&target)?;
+            if exists && !owned {
+                continue;
+            }
+            if exists {
+                let link = fs::symlink_metadata(&target)
+                    .map(|metadata| metadata.file_type().is_symlink())
+                    .unwrap_or(false);
+                if link {
+                    fs::remove_dir(&target).map_err(io)?;
+                } else {
+                    fs::remove_dir_all(&target).map_err(io)?;
+                }
+            }
+            if let Some(parent) = target.parent() {
                 fs::create_dir_all(parent).map_err(io)?;
             }
-            link_projection_root(&input.source_root, &input.target_root)?;
+            link_projection_root(&source, &target)?;
+        }
+    }
+    let target_exists = path_exists(&input.target_root)?;
+            // Converting an existing copy is what makes this reach anyone who
+            // already installed. Only convert a copy this ledger proves Legion
+            // wrote in full: nothing preserved, nothing in conflict, and every
+            // file on disk owned. Anything else is the operator's and stays a
+            // copy.
+            let convertible = target_exists
+                && before.preserved.is_empty()
+                && before.conflicts.is_empty()
+                && prior_ledger.as_ref().is_some_and(|ledger| {
+                    expected
+                        .keys()
+                        .all(|relative| ledger.files.contains_key(relative))
+                })
+                && !fs::symlink_metadata(&input.target_root)
+                    .map(|metadata| metadata.file_type().is_symlink())
+                    .unwrap_or(true);
+            if convertible {
+                fs::remove_dir_all(&input.target_root).map_err(io)?;
+            }
+            if convertible || !target_exists {
+                if let Some(parent) = input.target_root.parent() {
+                    fs::create_dir_all(parent).map_err(io)?;
+                }
+                link_projection_root(&input.source_root, &input.target_root)?;
+            }
         }
     }
     let target_exists = path_exists(&input.target_root)?;
@@ -2680,6 +2737,49 @@ fn ensure_projection_parent_safe_with_allowed_root(
         }
     }
     Ok(())
+}
+
+/// The directories a client projection links, as (name in target, source).
+///
+/// A skills-only root is shared with other products, so only the skill
+/// directories are linked and everything else there is left alone. A full
+/// plugin root links every top-level directory the core carries; its
+/// top-level files stay real copies, because a client writes its own
+/// descriptors beside them.
+fn projection_link_units(
+    input: &ClientProjectionInput,
+) -> Result<Vec<(String, PathBuf)>, SetupError> {
+    let skills_only = input.projection == "skills-only";
+    let root = if skills_only {
+        input.source_root.clone()
+    } else {
+        input.source_root.join("skills")
+    };
+    if !path_exists(&root)? {
+        return Ok(Vec::new());
+    }
+    let mut units = Vec::new();
+    for entry in fs::read_dir(&root).map_err(io)? {
+        let entry = entry.map_err(io)?;
+        if !entry.file_type().map_err(io)?.is_dir() {
+            continue;
+        }
+        let name = entry.file_name().to_string_lossy().to_string();
+        if name.starts_with('.') {
+            continue;
+        }
+        if skills_only && !input.skill_ids.iter().any(|id| id == &name) {
+            continue;
+        }
+        let target_name = if skills_only {
+            name.clone()
+        } else {
+            format!("skills/{name}")
+        };
+        units.push((target_name, entry.path()));
+    }
+    units.sort();
+    Ok(units)
 }
 
 /// Link a client plugin root at one installed tree.
