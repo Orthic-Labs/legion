@@ -116,6 +116,22 @@ begin
        '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
 end;
 
+function PrepareToInstall(var NeedsRestart: Boolean): String;
+var
+  ResultCode: Integer;
+begin
+  { A client keeps `legion serve --stdio` running, and Windows will not replace
+    a running executable, so an upgrade aborted with the previous version left
+    in place. Stop the product's own processes first; clients restart the MCP
+    server on their next request. Failure here is not fatal: the file-copy step
+    reports anything still locked. }
+  Exec(ExpandConstant('{cmd}'),
+       '/c taskkill /F /IM legion.exe /IM legion-hook.exe /IM legion-mcp.exe >nul 2>&1',
+       '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+  Sleep(1500);
+  Result := '';
+end;
+
 procedure CurStepChanged(CurStep: TSetupStep);
 begin
   if CurStep = ssPostInstall then begin
