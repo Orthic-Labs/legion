@@ -422,6 +422,19 @@ pub fn repair_client_projection(
         });
     }
     let prior_ledger = read_projection_ledger(input)?;
+    // `explicit_only` was declared, reported in status and checked for
+    // agreement, but never gated anything, so an opt-in client was projected
+    // like every other one and skills reappeared wherever the operator had
+    // removed them. Maintain such a client only where a projection already
+    // exists; never create one.
+    if input.explicit_only && !path_exists(&input.target_root)? {
+        return Ok(ClientProjectionRepair {
+            inspection: before.clone(),
+            repaired: Vec::new(),
+            preserved: before.preserved.clone(),
+            removed: Vec::new(),
+        });
+    }
     let skills_only = input.projection == "skills-only";
     // Link the whole root at the installed tree when this is a full plugin
     // root that nothing else owns. Reads resolve through the link, so every
