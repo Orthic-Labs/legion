@@ -441,6 +441,7 @@ assemblePortableCore({
 	outputDir: pluginRoot,
 	pluginManifestPath: join(repositoryRoot, "engine", "assets", "legion-plugin", "plugin.json"),
 	mcpManifestPath: join(repositoryRoot, "engine", "assets", "legion-plugin", "mcp.json"),
+	hooksManifestPath: join(repositoryRoot, "hooks", "hooks.json"),
 	skills: publicSkills,
 	// The plugin surface declares four agents (sage, alchemist, oracle,
 	// covenant-seat) and the core shipped none of them, so every agent-only

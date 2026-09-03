@@ -716,6 +716,9 @@ fn validate_portable_plugin_root(
     if expected_files.len() != portable_contract.public_files.len()
         || !expected_files.contains("plugin.json")
         || !expected_files.contains("mcp.json")
+        // Hooks are surface, not decoration: a core that declares none
+        // leaves every guard event unregistered in the host.
+        || !expected_files.contains("hooks/hooks.json")
         || expected_skills
             .iter()
             .any(|skill| !expected_files.contains(&format!("skills/{skill}/SKILL.md")))
@@ -810,7 +813,7 @@ fn validate_portable_plugin_root(
         ));
     }
 
-    for relative in ["plugin.json", "mcp.json", "rightax-portable-core.json"] {
+    for relative in ["plugin.json", "mcp.json", "hooks/hooks.json", "rightax-portable-core.json"] {
         serde_json::from_slice::<Value>(
             &std::fs::read(root.join(relative)).map_err(commands::io_error)?,
         )
@@ -839,7 +842,7 @@ fn is_allowed_portable_public_file(
     expected_skills: &BTreeSet<String>,
     expected_agents: &BTreeSet<String>,
 ) -> bool {
-    if matches!(relative, "plugin.json" | "mcp.json") {
+    if matches!(relative, "plugin.json" | "mcp.json" | "hooks/hooks.json") {
         return true;
     }
     // agents/<name>.md, for a name the contract declares.
