@@ -2975,6 +2975,7 @@ fn host_integration_inputs_installed(
             .iter()
             .map(|id| (*id).into())
             .collect(),
+        explicit_only: true,
         generation: format!(
             "{}:{}",
             release.release_version, release.declarative_asset_schema_hash
@@ -3141,6 +3142,7 @@ fn development_host_integration_inputs(
             .iter()
             .map(|id| (*id).into())
             .collect(),
+        explicit_only: true,
         generation: format!(
             "{}:{}",
             release.release_version, release.declarative_asset_schema_hash

@@ -36,6 +36,12 @@ pub struct CodexSkillsInput {
     pub current_skill_ids: Vec<String>,
     #[serde(default)]
     pub retired_skill_ids: Vec<String>,
+    /// Treat `~/.agents/skills` as the operator's directory: install nothing
+    /// there unless Legion is already present. Codex shares that root with
+    /// whatever skill manager the operator runs, so an unconditional repair
+    /// silently reinstates twenty-seven trees they deleted on purpose.
+    #[serde(default)]
+    pub explicit_only: bool,
     pub generation: String,
 }
 
@@ -469,6 +475,17 @@ pub fn remove_codex_skills(input: &CodexSkillsInput) -> Result<CodexSkillsApply,
 
 fn reconcile_codex_skills(input: &CodexSkillsInput) -> Result<CodexSkillsApply, HostError> {
     let initial = preview_codex_skills(input)?;
+    if input.explicit_only && !codex_projection_present(input)? {
+        return Ok(CodexSkillsApply {
+            preview: CodexSkillsPreview {
+                operations: Vec::new(),
+                ..initial
+            },
+            applied: Vec::new(),
+            kept: Vec::new(),
+            remediation: Vec::new(),
+        });
+    }
     let mut applied = Vec::new();
     let mut remediation = initial.remediation.clone();
     for operation in initial.operations {
@@ -813,6 +830,26 @@ fn safe_plain_id(id: &str) -> bool {
                 || (*byte == b'-' && index > 0 && index + 1 < id.len())
         })
         && !id.contains("--")
+}
+
+/// Is any of this release's skills already projected under the Codex root?
+/// Judged per entry rather than by the root's existence: the root is shared,
+/// so it exists whether or not Legion ever wrote into it.
+fn codex_projection_present(input: &CodexSkillsInput) -> Result<bool, HostError> {
+    let normalized = normalized_input(input)?;
+    let root = codex_destination_root(&input.home);
+    for id in normalized
+        .current
+        .iter()
+        .chain(normalized.retired.iter())
+    {
+        match fs::symlink_metadata(root.join(id)) {
+            Ok(_) => return Ok(true),
+            Err(error) if error.kind() == ErrorKind::NotFound => {}
+            Err(error) => return Err(io_error(&root.join(id), error)),
+        }
+    }
+    Ok(false)
 }
 
 fn codex_destination_root(home: &Path) -> PathBuf {
@@ -1367,8 +1404,46 @@ mod tests {
             platform_state_root: temp.0.join("state"),
             current_skill_ids: ids.iter().map(|id| (*id).into()).collect(),
             retired_skill_ids: retired.iter().map(|id| (*id).into()).collect(),
+            explicit_only: false,
             generation: generation.into(),
         }
+    }
+
+    #[test]
+    fn explicit_only_declines_a_root_legion_never_wrote_into() {
+        let temp = TempRoot::new("codex-explicit-only");
+        let input = CodexSkillsInput {
+            explicit_only: true,
+            ..input(&temp, &["audit"], &[], "dev.1")
+        };
+        write_skill(&input.assets_skills_root, "audit", "audit v1");
+        // The operator's own skill manager owns this root, so it exists with
+        // unrelated content. Nothing of ours is in it, so repair must add
+        // nothing.
+        let root = input.home.join(".agents").join("skills");
+        fs::create_dir_all(root.join("their-skill")).unwrap();
+
+        let apply = repair_codex_skills(&input).unwrap();
+        assert!(apply.applied.is_empty());
+        assert!(!root.join("audit").exists());
+
+        // Once Legion is present there, repair resumes maintaining it.
+        let adopted = CodexSkillsInput {
+            explicit_only: false,
+            ..input.clone()
+        };
+        repair_codex_skills(&adopted).unwrap();
+        assert!(root.join("audit").exists());
+        write_skill(&input.assets_skills_root, "audit", "audit v2");
+        let next = CodexSkillsInput {
+            generation: "dev.2".into(),
+            ..input.clone()
+        };
+        repair_codex_skills(&next).unwrap();
+        assert_eq!(
+            fs::read(root.join("audit").join("SKILL.md")).unwrap(),
+            b"audit v2"
+        );
     }
 
     #[cfg(any(unix, windows))]
