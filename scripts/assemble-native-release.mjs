@@ -291,14 +291,37 @@ const mcpToolSchema = {
 };
 writeJson(schemaPath, mcpToolSchema);
 
+// The installed policy pack shipped `effect_rules: []` with
+// `unclassified_effect: "deny"`, so the guard denied every classified effect
+// with no rule that could ever satisfy it. The twelve real rules live in the
+// compat policy; derive the installed pack from them rather than hard-coding
+// an empty list that reads as "deny everything".
+const sourcePolicy = JSON.parse(
+	readFileSync(join(repositoryRoot, "src/lib/guard/compat/policy/arcane-policy-v1.json"), "utf8"),
+);
+const effectRules = sourcePolicy.effectRules.map((rule, index) => ({
+	schema_version: 1,
+	id: `installed-m1-${rule.effectClass.toLowerCase().replaceAll("_", "-")}`,
+	effect_class: rule.effectClass,
+	rule: rule.rule,
+	predicate: { effect_class: rule.effectClass },
+	approval_required: rule.approvalRequired === true,
+	trust_minimum: rule.trustMinimum ?? "capability-signature",
+	required_enforcement: rule.requiredEnforcement ?? "strong",
+	receipt_required: rule.receiptRequired !== false,
+	exception_capable: rule.exceptionCapable === true,
+	note: rule.note ?? null,
+	_order: index,
+})).map(({ _order, ...rule }) => rule);
+
 const policyPack = {
 	schema_version: 1,
 	kind: "arcane-policy-pack",
-	policy_id: "legion-installed-m1-deny-by-default",
+	policy_id: "legion-installed-m1",
 	version: 1,
 	contract_versions: [{ name: "m1", major: 1, minor: 0 }],
 	unclassified_effect: "deny",
-	effect_rules: [],
+	effect_rules: effectRules,
 	capability: {
 		effects: [],
 		operations: [],
