@@ -181,6 +181,15 @@ the primary checkout without editing lane-owned files, reconciles actual changed
 allowlist and global one-touch ledger, and requires a reachable canonical commit or
 content-addressed patch before archive. Clean read-only tasks archive freely.
 
+## Worker authority
+
+Never let a worker read `~/.claude/`; the parent reads sensitive local paths and passes down only
+what the packet needs. A worker may spawn only a cheaper model than its own, and only within its
+own contract and concurrency budget — it never spawns a peer or stronger model. Serialize a lane
+only for a named reason: data dependency, a shared mutable resource (same file, index, port, or
+DB), effect ordering (commit before push, install before qualify), or capacity saturation — not
+phase labels alone.
+
 ## Experiment / correction / lifecycle work
 
 For a corrected objective: stop affected work, preserve old outputs as evidence-only, re-derive

@@ -23,7 +23,7 @@
     "duplicate route engine"
   ],
   "source_refs": [
-    "/workspace/legion/skills/tasklist/examples/validated-tasklist.md"
+    "skills/tasklist/examples/validated-tasklist.md"
   ],
   "revision": 1
 }

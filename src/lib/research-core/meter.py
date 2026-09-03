@@ -10,7 +10,7 @@ from pathlib import Path
 
 
 def _load_manifest_module(workspace: Path):
-    core = workspace / 'tools' / 'research-core'
+    core = workspace / 'src' / 'lib' / 'research-core'
     sys.path.insert(0, str(core))
     path = core / 'manifest.py'
     name = 'research_manifest_' + __import__('hashlib').sha256(str(path).encode()).hexdigest()[:12]

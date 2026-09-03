@@ -34,7 +34,7 @@ LEGAL_AREA_PATTERNS = [
     ('regulatory', re.compile(r"\b(regulatory|regulator|compliance|licence|license|notification)\b", re.I)),
     ('civil', re.compile(r"\b(civil suit|injunction|damages|decree|plaintiff|defendant|tort)\b", re.I)),
 ]
-MEDICAL_SIGNALS = re.compile(r"\b(medical|doctor|patient|drug|dose|dosing|medicine|medication|interaction|side effect|lab|blood test|diagnosis|symptom|[redacted-drug]|semaglutide|trt|testosterone|statin|thyroid|insulin|hba1c|ldl|apo(?:b|a)|peptide|supplement|clinical trial)\b", re.I)
+MEDICAL_SIGNALS = re.compile(r"\b(medical|doctor|patient|drug|dose|dosing|medicine|medication|interaction|side effect|lab|blood test|diagnosis|symptom|semaglutide|trt|testosterone|\w*statin|thyroid|insulin|hba1c|ldl|apo(?:b|a)|peptide|supplement|clinical trial)\b", re.I)
 LEGAL_SIGNALS = re.compile(r"\b(legal|law|court|judgment|statute|regulation|consumer|criminal|bail|fir|contract|clause|lawsuit|complaint|appeal|tribunal|police|refund|trademark|copyright|tax)\b", re.I)
 SCIENTIFIC_SIGNALS = re.compile(r"\b(study|paper|doi|pubmed|trial|meta-analysis|systematic review|scientific literature)\b", re.I)
 TECHNICAL_SIGNALS = re.compile(r"\b(benchmark|latency|throughput|architecture|framework|library|runtime|compiler|api)\b", re.I)

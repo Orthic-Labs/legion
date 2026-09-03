@@ -23,7 +23,7 @@
     "new dependency"
   ],
   "source_refs": [
-    "<workspace>/tools/skills/dispatch/examples/validated-forward-test.md"
+    "skills/dispatch/examples/validated-forward-test.md"
   ],
   "revision": 1
 }

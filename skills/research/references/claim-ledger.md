@@ -1,12 +1,12 @@
 ---
 name: research-claim-ledger
-description: Current durable evidence and atomic-claim contract implemented by src/lib/research-core/ledger.py.
+description: Current durable evidence and atomic-claim contract enforced by the native `legion research` command (legion-research crate).
 ---
 
 # Evidence and claim ledger
 
 The durable truth for a run is `evidence.jsonl` plus `claims.jsonl`; the brief is rendered from those
-records. The executable validator is `src/lib/research-core/ledger.py`.
+records. Validation runs inside `legion research` itself (legion-research crate, `evidence.rs`); there is no separate script to invoke.
 
 Every evidence record must identify its source, retrieval date, locator, bounded quote or explicit
 paraphrase, discovery provenance (`suggested_by`, `seed_chain`), source role, independence cluster,
@@ -24,6 +24,6 @@ Domain extensions are mandatory when applicable:
   `current_as_of`.
 - Medical: study design, PICO, applicability, and regulator/guideline metadata where relevant.
 
-Automatic independence clustering and contradiction/consensus views are derived by
-`src/lib/research-core/independence.py` and `contradictions.py`. Citation-to-sentence support is checked
-against the final draft by `citecheck.py`.
+Automatic independence clustering and contradiction/consensus views are derived inside the same
+native workflow. Citation-to-sentence support against the final draft is likewise a `legion research`
+responsibility, not a standalone script.

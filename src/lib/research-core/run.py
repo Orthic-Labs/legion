@@ -17,7 +17,7 @@ from pathlib import Path
 from typing import Any
 
 HERE = Path(__file__).resolve().parent
-WORKSPACE = HERE.parents[1]
+WORKSPACE = HERE.parents[2]
 sys.path.insert(0, str(HERE))
 sys.path.insert(0, str(HERE / 'router'))
 sys.path.insert(0, str(HERE / 'providers'))

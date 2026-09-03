@@ -44,6 +44,7 @@
       "examples/dispatch-route-fixture.receipt.json",
       "examples/sage-adjudication-dispatch.receipt.json",
       "examples/validated-forward-test.minimize.receipt.json",
+      "examples/validated-forward-test.receipt.json",
       "examples/validated-forward-test.route.receipt.json"
     ],
     "evals": [
@@ -130,17 +131,22 @@
     {
       "path": "examples/validated-forward-test.md",
       "uri": "legion-skill://dispatch/examples/validated-forward-test.md",
-      "digest": "sha256:77da06abd3139fe2366d38956ab4e04685d9a8735f955032501a1a132648b3cc"
+      "digest": "sha256:7f75ed3e8fb7fcbf58a0bdd05602c190242eb0e59c9de324f9761ed3ec0201bb"
     },
     {
       "path": "examples/validated-forward-test.minimize.json",
       "uri": "legion-skill://dispatch/examples/validated-forward-test.minimize.json",
-      "digest": "sha256:c9183bfdc3d11b4932bde0015a6367837402e0dfed1e886d084ad919395eba3c"
+      "digest": "sha256:bfd3eae3370c674aa221c14224a41df7c6b2357bbbaacd187d56b3e558f2cad9"
     },
     {
       "path": "examples/validated-forward-test.minimize.receipt.json",
       "uri": "legion-skill://dispatch/examples/validated-forward-test.minimize.receipt.json",
-      "digest": "sha256:bb97a046f0f9dde7fc60eff0fc117dfa52400bf8b6ecba6c4486c272c8ccb070"
+      "digest": "sha256:fbe5fa9b4b137400d215801c90b5031ea5b9b316148c86195569f012da23e02f"
+    },
+    {
+      "path": "examples/validated-forward-test.receipt.json",
+      "uri": "legion-skill://dispatch/examples/validated-forward-test.receipt.json",
+      "digest": "sha256:8411b829924013d9e47ff0284fc190500c19d1dc46dc74fb8990312c04609139"
     },
     {
       "path": "examples/validated-forward-test.route.json",
@@ -153,6 +159,21 @@
       "digest": "sha256:28c0f7c946196020c98a9736036c117073022fc48d108fe5b3e9a1228c3e2233"
     },
     {
+      "path": "goalroute/scripts/validate-route.py",
+      "uri": "legion-skill://dispatch/goalroute/scripts/validate-route.py",
+      "digest": "sha256:5361292e9a7784d9ffa8febc7c0cc7b18b4876e34a4ef59e56230cb818a3477e"
+    },
+    {
+      "path": "minimize/POLICY.md",
+      "uri": "legion-skill://dispatch/minimize/POLICY.md",
+      "digest": "sha256:1f941eb00ec6974705bc299e4cae2a01c031c51fb699fff310882f86f1c321f7"
+    },
+    {
+      "path": "minimize/minimize_gate.py",
+      "uri": "legion-skill://dispatch/minimize/minimize_gate.py",
+      "digest": "sha256:514f21acf463eed860ae4de30f68a6b1eb73c95b468aa2e2a936b400b7232651"
+    },
+    {
       "path": "references/agent-routing.md",
       "uri": "legion-skill://dispatch/references/agent-routing.md",
       "digest": "sha256:871aeae94797619a82c2575fd8e3c688e38108bf576e877735197579bc003a8a"
@@ -160,7 +181,7 @@
     {
       "path": "references/manual.md",
       "uri": "legion-skill://dispatch/references/manual.md",
-      "digest": "sha256:db6a20d67414b14d00f04c2b4f05a8fdc0ed47fb7bc56fc9565a15654b7d80cf"
+      "digest": "sha256:63dd2e8b95433d1fa60bcba8f4bf0ef7124d7e39c42d22456dfe92be1c0040a7"
     },
     {
       "path": "scripts/test_validate_dispatch.py",

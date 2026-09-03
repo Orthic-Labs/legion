@@ -29,7 +29,7 @@ Indian consumer law is the kind of factual claim CLAUDE.md non-negotiable #2 gov
 | Cite or check a Consumer Protection Act 2019 section | `references/cp-act-2019.md` |
 | Draft the pack, document formatting, consumer-status framing | `references/drafting-standards.md` |
 | File on the portal — steps, what to upload, account setup | `references/ejagriti-filing.md` |
-| Generate the six-document pack | `../../../../../../../src/lib/research-core/workflows/legal/india/consumer/scripts/generate_pack.py` + its sibling `case-template.yaml` |
+| Generate the six-document pack | Not shipped: `generate_pack.py` is a repository-only script (`src/lib/research-core/workflows/legal/india/consumer/scripts/`), unavailable from the installed plugin. Assemble manually per `references/drafting-standards.md` until it is ported natively. |
 
 ## The filing lifecycle
 

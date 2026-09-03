@@ -1,10 +1,10 @@
 {
   "schema_version": 4,
-  "sha256": "b2b1e0eef07e60b081fb0be49b1bab55a130ac235cc661a6e3e1fd52a8e9a5e9",
+  "sha256": "5e3a678add32fe6175fa0ae4c126fa260cb998bced8328324972b2c64d9d514d",
   "referenced_artifacts": [
     {
       "path": "skills/tasklist/SKILL.md",
-      "sha256": "sha256:46491cf58935064e37270fc11b6427fe02a4ea83862f4b131cdc89e164a27017"
+      "sha256": "sha256:d767a8c5e70be75c325e490c6545dda3744520d92000b50ad71a20f08fff2a80"
     },
     {
       "path": "skills/tasklist/examples/tasklist-authority.prompt.txt",
@@ -16,8 +16,8 @@
     }
   ],
   "authority_binding": {
-    "packet_sha256": "b2b1e0eef07e60b081fb0be49b1bab55a130ac235cc661a6e3e1fd52a8e9a5e9",
-    "source_revision": "sha256:46491cf58935064e37270fc11b6427fe02a4ea83862f4b131cdc89e164a27017",
+    "packet_sha256": "5e3a678add32fe6175fa0ae4c126fa260cb998bced8328324972b2c64d9d514d",
+    "source_revision": "sha256:d767a8c5e70be75c325e490c6545dda3744520d92000b50ad71a20f08fff2a80",
     "prompt_digest": "sha256:b4941bde55284b98512ba83b3d4529c5b1637fad825c3ea90e362b5cc15db6e9"
   }
 }

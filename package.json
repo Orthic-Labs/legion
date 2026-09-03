@@ -124,7 +124,7 @@
     "self-test": "node scripts/self-test.mjs",
     "stage9-runtime-evals": "node scripts/run-stage9-runtime-evals.mjs",
     "test": "node --test --test-concurrency=1 \"tests/**/*.test.mjs\"",
-    "test:python": "node -e \"const{spawnSync}=require('child_process');const c=process.platform==='win32'?'py':'python3';const a=c==='py'?['-3.11']:[];const s=[...a,'-m','unittest','discover','-s','skills/alchemist/tests','-v'];const d=spawnSync(c,s,{stdio:'inherit'});if(d.error&&d.error.code==='ENOENT'){console.error('WARNING: no Python interpreter found; skipping Python test suites (pnpm test:python)');process.exit(0)}if(d.status!==0)process.exit(d.status??1);const t=spawnSync(c,[...a,'src/lib/dispatch-validator/test_validate_dispatch.py'],{stdio:'inherit'});if(t.error&&t.error.code==='ENOENT'){console.error('WARNING: no Python interpreter found; skipping Python test suites (pnpm test:python)');process.exit(0)}process.exit(t.status??1)\"",
+    "test:python": "node scripts/test-python.mjs",
     "windows:finalize": "node scripts/package-windows-release.mjs --finalize",
     "windows:package": "node scripts/package-windows-release.mjs",
     "windows:publish": "node scripts/package-windows-release.mjs --finalize --publish-github",

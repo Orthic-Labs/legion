@@ -31,10 +31,13 @@ TERMINAL: Receipt records route, effects, evidence, gaps, checks, verdict.
 `doctor`, `legal`, `consumer-court`, `notebooklm` are internal routes, never catalog entries.
 
 1. Freeze `references/route-schema.json` through native `legion research --query <query>` routing;
-   run `references/route-gates.md`; resume only on recorded approval receipts.
+   run `references/route-gates.md`; resume only on recorded approval receipts. The native CLI
+   currently freezes every route at `domain: general` — see `references/router.md` for the
+   medical/legal domain-classification gap this leaves open.
 2. Supply host-opened evidence as `--source-record <record.json>` inputs; native route validation
    enforces provider denominator & resource bounds.
-3. Execute only through installed `legion research`; Python product runtime is retired.
+3. Execute only through installed `legion research`; Python product runtime is retired. Do not
+   instruct a reader to run any `src/lib/research-core/**` script — it does not ship.
 4. A hit is a lead; evidence needs an opened source and located passage; preserve atomic
    claims, contradictions, dates, scope, uncertainty.
 5. `verified` adds domain verification, citation-support, DOI retraction checks; corrections

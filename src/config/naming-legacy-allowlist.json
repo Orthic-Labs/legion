@@ -31,8 +31,8 @@
       ],
       "occurrences": {
         "nemesis": 7,
-        "forge": 65,
-        "seer": 23,
+        "forge": 68,
+        "seer": 24,
         "sentinel": 12,
         "sorcerer": 9
       },
@@ -128,6 +128,31 @@
       ],
       "class": "R3",
       "reason": "package-local GoalRoute preserves predecessor wire fields"
+    },
+    {
+      "pathPrefix": "skills/dispatch/goalroute/",
+      "tokens": [
+        "forge"
+      ],
+      "class": "R3",
+      "reason": "bundled copy of the package-local GoalRoute, same predecessor wire fields"
+    },
+    {
+      "pathPrefix": "skills/tasklist/engine/",
+      "tokens": [
+        "forge",
+        "seer"
+      ],
+      "class": "R3",
+      "reason": "bundled copy of the package-local validator, same predecessor wire aliases"
+    },
+    {
+      "pathPrefix": "skills/tasklist/goalroute/",
+      "tokens": [
+        "forge"
+      ],
+      "class": "R3",
+      "reason": "bundled copy of the package-local GoalRoute, same predecessor wire fields"
     },
     {
       "path": "engine/crates/legion-runtime/src/validation/dispatch.rs",

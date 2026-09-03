@@ -1,5 +1,12 @@
 # Tasklist Durable Workflow Compatibility
 
-Historical Tasklist Markdown validation was retired with its private validator. This public entrypoint preserves same-agent trigger, durable workflow, receipt, & eight-case eval behavior by adapting to current shared typed-packet validator.
+Legacy Tasklist Markdown validation was **not** retired: it ships in this bundle and stays live.
+`scripts/validate-tasklist.py` routes any `.md` packet, or an invocation carrying
+`--template-self-check`, `--write-receipt`, or `--verify-receipt`, to the bundled
+`engine/validate-tasklist-legacy.py`. Everything else routes to the current typed-packet
+(`dispatch-validator`) engine. `examples/validated-tasklist.md` is a live worked example of the
+legacy path, not a historical artifact — keep it passing against `validate-tasklist-legacy.py`.
 
-Use [durable workflow](durable-workflow.md). Historical Markdown examples remain intentionally retired: they cannot truthfully pass current `legion-authority-dispatch` validation. New durable records use typed packets plus shared-engine receipts.
+Use [durable workflow](durable-workflow.md) for the current typed-packet path. Use this legacy path
+only for an existing Markdown record or a caller that still passes the legacy flags; new durable
+records should default to typed packets plus shared-engine receipts.

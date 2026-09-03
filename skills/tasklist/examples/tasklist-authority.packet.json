@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "kind": "legion-authority-dispatch",
   "packetType": "sage",
-  "sourceRevision": "sha256:46491cf58935064e37270fc11b6427fe02a4ea83862f4b131cdc89e164a27017",
+  "sourceRevision": "sha256:d767a8c5e70be75c325e490c6545dda3744520d92000b50ad71a20f08fff2a80",
   "sourceArtifact": "skills/tasklist/SKILL.md",
   "promptArtifact": "skills/tasklist/examples/tasklist-authority.prompt.txt",
   "promptDigest": "sha256:b4941bde55284b98512ba83b3d4529c5b1637fad825c3ea90e362b5cc15db6e9",

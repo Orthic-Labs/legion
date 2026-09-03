@@ -23,8 +23,17 @@ EXTERNAL_REQUESTS_MAX: 0
 MAY_ADD_TASKS: NO
 MAY_CALL_SKILLS: NONE
 TERMINAL: Declared checks pass, or an exact blocker is reported.
+POST_GREEN_DENIAL: RUN_COMPLETE_FINAL_REQUIRED
 
 REQUIRES_HOST_CAPABILITY: omniroute (worker execution path only)
+
+Declared checks passing ("green") is not itself completion — the final required run/render step
+must still execute & be observed before the contract closes.
+
+Cancellation is explicit owner action only: it transitions the run to the `CANCELLED` invocation
+state, revokes tools, & renders that state. Model text narrating an intent to stop, or a user
+message that merely questions or pauses work, must never be inferred as cancellation — only a
+direct owner instruction to cancel/stop does.
 
 This entrypoint routes to Legion's existing Alchemist authority. It does not own execution
 infrastructure or create a second contract system.

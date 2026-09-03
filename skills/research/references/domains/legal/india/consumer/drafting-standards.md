@@ -1,6 +1,6 @@
 # Drafting Standards — Consumer Complaint Pack
 
-The house style for a District Commission filing pack, distilled from prior consumer-complaint drafting practice. The generator (`../../../../../../../src/lib/research-core/workflows/legal/india/consumer/scripts/generate_pack.py`) produces all of this from the case YAML — this file is the spec the generator follows and the checklist a human uses to review the output.
+The house style for a District Commission filing pack, distilled from prior consumer-complaint drafting practice. A generator script exists in the repository (`src/lib/research-core/workflows/legal/india/consumer/scripts/generate_pack.py`) that would produce all of this from the case YAML, but it is **not part of the installed plugin** and cannot run from an installed skill. Until it is ported natively, this file is the spec a human follows to assemble and review the pack by hand.
 
 ---
 

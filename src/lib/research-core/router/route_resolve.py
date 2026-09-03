@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import Any
 
 HERE = Path(__file__).resolve().parent
-WORKSPACE = HERE.parents[2]
+WORKSPACE = HERE.parents[3]
 sys.path.insert(0, str(HERE))
 from route_detect import *  # noqa: F401,F403,E402
 from route_detect import _unique, _country, _legal_area, _issue  # noqa: E402
@@ -121,7 +121,7 @@ def pending_gates(route: dict[str, Any]) -> tuple[list[str], list[str]]:
             gates.append('confirm-legal-issue')
         if subject.get('country') == 'IN' and subject.get('area') == 'criminal':
             forbidden += [
-                'legion/skills/research/references/domains/legal/india/consumer/**',
+                'skills/research/references/domains/legal/india/consumer/**',
                 'src/lib/research-core/workflows/legal/india/consumer/**',
             ]
         if (

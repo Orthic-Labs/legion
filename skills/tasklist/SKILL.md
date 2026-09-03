@@ -23,6 +23,9 @@ This public entrypoint routes durable validation to package-local `lib/dispatch-
 
 1. Freeze current state, target state, scope, constraints, & completion proof. Then emit exact numbered next actions now; every action names exact repository-relative or absolute file paths it may touch, or `PATHS: none`.
 2. For inline work, each numbered action gives elapsed-clock span, exact action, dependency (`START` or prior step IDs), parallel lane (`LANE <id>` or `SERIAL`), done check, expected result, evidence path, & bounded recovery. Parallelize every independent action; serialize only concrete dependency. Start step 1 when execution was requested.
+   The total is `round(lines / rate) + overhead` — show it, never assert it from feel, & never
+   give a low/high range. Files & lines are also the plan's ceilings; breaching either stops work
+   for a report.
    Each action also declares the execution mechanism:
    ```text
    EXECUTOR:

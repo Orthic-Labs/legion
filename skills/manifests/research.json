@@ -75,7 +75,7 @@
     {
       "path": "SKILL.md",
       "uri": "legion-skill://research/SKILL.md",
-      "digest": "sha256:70d5db3035cd5567c0ea30e9ba8eea67f84b022893855589b5ad1eaf1c4ac6e0"
+      "digest": "sha256:11b002293aa6d5b3e292cb3a69d774f1aa9ec33ae1b290edb1889518d9173ff5"
     },
     {
       "path": "agents/openai.yaml",
@@ -100,7 +100,7 @@
     {
       "path": "references/claim-ledger.md",
       "uri": "legion-skill://research/references/claim-ledger.md",
-      "digest": "sha256:9f1655a4999e7792a6c34b3757e15e0f7a9b20db1765bb2f3c9431017d0d63d2"
+      "digest": "sha256:904da8a5aed201791f4298d742db6f2d7c89bad653458be996a6228b68f98b01"
     },
     {
       "path": "references/competitors-assets/content-architecture.md",
@@ -125,7 +125,7 @@
     {
       "path": "references/domains/legal/india/consumer/GUIDE.md",
       "uri": "legion-skill://research/references/domains/legal/india/consumer/GUIDE.md",
-      "digest": "sha256:aee63d95c20adf7fe9ff0310bf04493be775d89d5d874e36f96a02893b540c07"
+      "digest": "sha256:bbca7bf60c4104974514e962634e8b37ba027181716d18918c1f2b0372eab1ce"
     },
     {
       "path": "references/domains/legal/india/consumer/cp-act-2019.md",
@@ -135,7 +135,7 @@
     {
       "path": "references/domains/legal/india/consumer/drafting-standards.md",
       "uri": "legion-skill://research/references/domains/legal/india/consumer/drafting-standards.md",
-      "digest": "sha256:a5f1cfc6364be9a8836b9d81d0e799767ab7d2cc06ecb63f9cd94ffa5511d845"
+      "digest": "sha256:989656eb36ad5234060c5dc55dbd3264fc4f7fba65d31ea20ac1991cf4618152"
     },
     {
       "path": "references/domains/legal/india/consumer/ejagriti-filing.md",
@@ -150,7 +150,7 @@
     {
       "path": "references/domains/legal/india/consumer/manual.md",
       "uri": "legion-skill://research/references/domains/legal/india/consumer/manual.md",
-      "digest": "sha256:9f584defb6b2b80511e1f3e7fc49497f0f90536ca5c83a2b9807cf051037f31b"
+      "digest": "sha256:28c4fbea4c06da4fae43399393cfe16a47af35f2182e767623d5e06f87bb8594"
     },
     {
       "path": "references/domains/medical/GUIDE.md",
@@ -205,7 +205,7 @@
     {
       "path": "references/providers/notebooklm.md",
       "uri": "legion-skill://research/references/providers/notebooklm.md",
-      "digest": "sha256:9ed82ca550ec782cbf66a003793d288ed8892e6d7d3b4979465025d64fb50dbc"
+      "digest": "sha256:6bfe7708520c24f37047fa8142a5281e1320aa46924dc45286c5f22e0d4f5694"
     },
     {
       "path": "references/route-gates.md",
@@ -225,12 +225,12 @@
     {
       "path": "references/router.md",
       "uri": "legion-skill://research/references/router.md",
-      "digest": "sha256:49ef9646f318989e7ad3e7fd80edf647f5b5828a58a1488722d2106dc6f5cb1f"
+      "digest": "sha256:1a6c50641f840601e54149e1a242cf7a39873fb756ca983e81bf10d2611beabf"
     },
     {
       "path": "references/scale/README.md",
       "uri": "legion-skill://research/references/scale/README.md",
-      "digest": "sha256:0160eb4f3419bcfe8140ed09d7d66adafa65e1063c8f4a45c7aa5729cf9f2649"
+      "digest": "sha256:a98c6f92dae95d059ff42e4a762e1339a8f0e4f641686f7e63372dae12ff79dc"
     }
   ]
 }
