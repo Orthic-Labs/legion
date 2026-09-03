@@ -279,7 +279,7 @@ A perf fix with no before/after number is not verified.
 
 Never test a hypothesis by mutating production data. In this workspace the `prod-db-guard` hook will
 block it, and the dev instance on port 5433 is the correct target — see
-`docs/rules/ssh-server-access.md`.
+the host's SSH server access rules.
 
 ## Multi-component systems
 

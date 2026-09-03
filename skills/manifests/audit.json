@@ -37,6 +37,7 @@
       "references/lens-routing.md",
       "references/manual.md",
       "references/migration-safety.md",
+      "references/okf-output.md",
       "references/ponytail-lens.md",
       "references/provider-architecture.md"
     ],
@@ -92,7 +93,7 @@
     {
       "path": "references/engine-interface.md",
       "uri": "legion-skill://audit/references/engine-interface.md",
-      "digest": "sha256:69ee3e43c0c58bd0353fd10adaa51b6c1180aa32c2a0d5338111401e18be7a2c"
+      "digest": "sha256:8b825c49cd894f7b2dbd132276d115eb13c92de7e43bf31c974a486cb3d74ea9"
     },
     {
       "path": "references/execution-contract.md",
@@ -118,6 +119,11 @@
       "path": "references/migration-safety.md",
       "uri": "legion-skill://audit/references/migration-safety.md",
       "digest": "sha256:b3457703280c270398eb58070f041ad072afe0d6e86eaa9f8ccfde35d11b6565"
+    },
+    {
+      "path": "references/okf-output.md",
+      "uri": "legion-skill://audit/references/okf-output.md",
+      "digest": "sha256:ecfe4e919e424f7a78a35cb63416d7dfa2a3df1a0dd454d097b0c2bb60b53f32"
     },
     {
       "path": "references/ponytail-lens.md",

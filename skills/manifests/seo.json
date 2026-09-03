@@ -71,6 +71,7 @@
       "references/maps-gbp-checklist.md",
       "references/maps-geo-grid.md",
       "references/off-page.md",
+      "references/okf-output.md",
       "references/page.md",
       "references/programmatic.md",
       "references/quality-gates.md",
@@ -420,7 +421,7 @@
     {
       "path": "references/manual.md",
       "uri": "legion-skill://seo/references/manual.md",
-      "digest": "sha256:fe4302e645ed6dfe19ca5ebf533b64337fae4e96a1cab4cd4aeac0d13a5079a9"
+      "digest": "sha256:0bff817b0750b6ffdb59e992d9814952bfaba8369fccfd76905afc00781614fc"
     },
     {
       "path": "references/maps-api-endpoints.md",
@@ -446,6 +447,11 @@
       "path": "references/off-page.md",
       "uri": "legion-skill://seo/references/off-page.md",
       "digest": "sha256:13271b772faa9e4017654e373fc20c49606504dd89870cfe8f1e40f489f0daed"
+    },
+    {
+      "path": "references/okf-output.md",
+      "uri": "legion-skill://seo/references/okf-output.md",
+      "digest": "sha256:ecfe4e919e424f7a78a35cb63416d7dfa2a3df1a0dd454d097b0c2bb60b53f32"
     },
     {
       "path": "references/page.md",

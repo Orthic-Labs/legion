@@ -50,8 +50,8 @@ skills/qa/scripts/
 These runners use installed Chrome/Edge directly through headless flags and raw CDP. They do not
 use Playwright or Puppeteer.
 
-The canonical shared engine lives at `src/lib/qa-engine/qa-functional.mjs` and
-`src/lib/qa-engine/qa-shot.mjs`. `qa-browser.sh`, `qa-browser-stop.sh`, and their `.ps1`
+Run the engine through this skill's own `scripts/qa-functional.mjs` and `scripts/qa-shot.mjs`,
+which resolve the bundled copy first and fall back to the repository only during development. `qa-browser.sh`, `qa-browser-stop.sh`, and their `.ps1`
 equivalents are not package files — they are project scripts a consuming app authors itself.
 
 ## Best Implementation For A New App
