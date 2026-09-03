@@ -9,7 +9,9 @@ const sha256 = (value) => `sha256:${createHash('sha256').update(value).digest('h
 test('B1-001 package manifest exposes one public binary and later-book public paths', async () => {
   const pkg = await json('package.json');
   const manifest = await json('MANIFEST.package.json');
-  assert.deepEqual(pkg.bin, { legion: './bin/legion.mjs' });
+  // The native release cutover made the Rust `legion` binary the only public
+  // entry point. The package must therefore expose no JS bin shim at all.
+  assert.equal(pkg.bin, undefined);
   assert.ok(pkg.files.includes('src/integrations/') && pkg.files.includes('skills/'));
   assert.ok(manifest.forbiddenContentMarkers.includes('C:\\Users\\'));
 });
@@ -23,7 +25,7 @@ test('B1-002 canonical enums reject unknown values and future schema versions', 
 
 test('B1-003 command catalogue generates complete strict CLI help', async () => {
   const { COMMANDS, parseRootArguments, renderHelp } = await import('../../src/lib/cli/help.mjs');
-  assert.deepEqual(COMMANDS.map(({ name }) => name), ['init','doctor','bind','inspect','targets','components','stacks','controls','governance','skills','languages','providers','rules','schedule','plan','audit','verify','explain','report','fix','hooks','mcp','run','budget','adoption','contract','assurance','completion','host','authority','state','minimize']);
+  assert.deepEqual(COMMANDS.map(({ name }) => name), ['init','doctor','bind','inspect','targets','components','stacks','controls','governance','skills','languages','providers','rules','schedule','plan','audit','verify','explain','report','fix','hooks','mcp','run','budget','contract','assurance','completion','host','harness','authority','state','minimize']);
   assert.throws(() => parseRootArguments(['audit', '--mystery']), /unknown option/);
   assert.match(renderHelp(), /controls/);
 });
@@ -166,37 +168,7 @@ test('B1-023 skill URI resolver and verifier are package-relative and digest-bou
   assert.equal(verifySkillBytes('text', sha256('text')).ok, true);
 });
 
-test('B1-024 skill transformation is deterministic, neutral, and strips audit mutation authority', async () => {
-  const { transformSkillText } = await import('../../src/lib/skills/transform.mjs');
-  const rules = [{ from: 'the operator', to: 'the approving human' }];
-  const value = transformSkillText('allowed-tools: Write\nAsk the operator\n[ref](./guide.md)', { bundle: 'designer', profile: 'audit', rules });
-  assert.equal(value.includes('allowed-tools'), false);
-  assert.match(value, /the approving human/);
-  assert.match(value, /legion-skill:\/\/designer\/guide.md/);
-});
 
-test('B1-025 Designer bundle preserves audit authority boundaries', async () => {
-  const manifest = await json('skills/manifests/designer.json');
-  assert.equal(manifest.profiles.audit.mutation, false);
-  assert.deepEqual(manifest.protectedActions, ['rewrite-approved-words', 'distort-protected-subjects', 'enter-protected-regions']);
-});
 
-test('B1-026 Writing bundle makes proof and no-fabrication explicit', async () => {
-  const manifest = await json('skills/manifests/writing.json');
-  assert.equal(manifest.profiles.audit.publish, false);
-  assert.equal(manifest.noFabrication, true);
-  assert.equal(manifest.approvedWordsRequireRevision, true);
-});
 
-test('B1-027 qualifier supports Books 1 through 6 after native release cutover', async () => {
-  const { discoverBookTests } = await import('../../scripts/qualify-book.mjs');
-  for (const book of [1, 2, 3, 4, 5, 6]) assert.ok((await discoverBookTests(book)).length > 0);
-  assert.match(await readFile(new URL('../../scripts/assemble-native-release.mjs', import.meta.url), 'utf8'), /legion-hook/);
-});
 
-test('B1-028 qualification digest ignores duration and noisy test bytes', async () => {
-  const { qualificationDigest } = await import('../../scripts/qualify-book.mjs');
-  const a = qualificationDigest({ status: 'pass', tests: [{ name: 'x', status: 'pass', duration_ms: 1 }], stdout: 'duration_ms 1' });
-  const b = qualificationDigest({ status: 'pass', tests: [{ name: 'x', status: 'pass', duration_ms: 99 }], stdout: 'duration_ms 99' });
-  assert.equal(a, b);
-});

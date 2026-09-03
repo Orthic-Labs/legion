@@ -210,7 +210,19 @@ fn portable_package(fixture: &Fixture) -> PathBuf {
         br#"{"$schema":"https://agent-plugins.org/schemas/1.0.0/mcp.schema.json","mcpServers":{"legion":{"type":"stdio","command":"legion","args":["serve","--stdio","--plugin-root","${PLUGIN_ROOT}"]}}}"#,
     )
     .expect("MCP manifest");
-    let mut public_files = vec!["plugin.json".to_string(), "mcp.json".to_string()];
+    // Hooks are part of the shipped surface: a core without them leaves every
+    // guard event unregistered in the host.
+    fs::create_dir_all(root.join("hooks")).expect("hooks directory");
+    fs::write(
+        root.join("hooks").join("hooks.json"),
+        br#"{"description":"Guard lifecycle enforcement and receipts for Legion.","hooks":{"SessionStart":[{"hooks":[{"type":"command","command":"legion-hook","timeout":10}]}]}}"#,
+    )
+    .expect("hooks manifest");
+    let mut public_files = vec![
+        "plugin.json".to_string(),
+        "mcp.json".to_string(),
+        "hooks/hooks.json".to_string(),
+    ];
     for skill in PUBLIC_SKILLS {
         let relative = format!("skills/{skill}/SKILL.md");
         let path = root.join(&relative);
