@@ -268,7 +268,20 @@ pub fn inspect_client_projection(
             missing.push("projection target".into());
         }
     } else {
-        ensure_projection_tree_safe(&input.target_root)?;
+        // The root itself may be a link: ours at the installed tree, or one the
+        // operator made. Either way it is an allowed root here; every file
+        // below still resolves through it and is checked exactly as before.
+        let root_is_link = fs::symlink_metadata(&input.target_root)
+            .map(|metadata| metadata.file_type().is_symlink())
+            .unwrap_or(false);
+        if root_is_link {
+            ensure_projection_tree_safe_with_allowed_root(
+                &input.target_root,
+                Some(&input.target_root),
+            )?;
+        } else {
+            ensure_projection_tree_safe(&input.target_root)?;
+        }
         for (relative, (_, expected_digest)) in &expected {
             let destination = input.target_root.join(relative);
             if !path_exists(&destination)? {
@@ -409,10 +422,39 @@ pub fn repair_client_projection(
         });
     }
     let prior_ledger = read_projection_ledger(input)?;
-    let target_exists = path_exists(&input.target_root)?;
     let skills_only = input.projection == "skills-only";
-    if target_exists {
-        ensure_projection_tree_safe(&input.target_root)?;
+    // Link the whole root at the installed tree when this is a full plugin
+    // root that nothing else owns. Reads resolve through the link, so every
+    // per-file check below still sees exactly the expected files; what changes
+    // is that there is one tree instead of one copy per client.
+    if !skills_only && path_exists(&input.source_root)? {
+        let already_linked = projection_root_links_to(&input.target_root, &input.source_root)?;
+        if !already_linked && !path_exists(&input.target_root)? {
+            if let Some(parent) = input.target_root.parent() {
+                fs::create_dir_all(parent).map_err(io)?;
+            }
+            link_projection_root(&input.source_root, &input.target_root)?;
+        }
+    }
+    let target_exists = path_exists(&input.target_root)?;
+    let linked_root = projection_root_links_to(&input.target_root, &input.source_root)?;
+    // A link the operator made themselves — one client pointed at another, say
+    // — is their layout, not ours. Treat it as an allowed root rather than
+    // refusing it as an unsafe reparse point, and never replace it.
+    let foreign_link = target_exists
+        && !linked_root
+        && fs::symlink_metadata(&input.target_root)
+            .map(|metadata| metadata.file_type().is_symlink())
+            .unwrap_or(false);
+    if target_exists && !linked_root {
+        if foreign_link {
+            ensure_projection_tree_safe_with_allowed_root(
+                &input.target_root,
+                Some(&input.target_root),
+            )?;
+        } else {
+            ensure_projection_tree_safe(&input.target_root)?;
+        }
     } else {
         ensure_projection_parent_safe(&input.target_root)?;
         fs::create_dir_all(&input.target_root).map_err(io)?;
@@ -547,6 +589,18 @@ pub fn remove_client_projection(
 ) -> Result<ClientProjectionRepair, SetupError> {
     validate_projection_input(input)?;
     let before = inspect_client_projection(input)?;
+    // A linked root holds no files of its own. Deleting per-file through the
+    // link would delete the installed product itself, so remove the link and
+    // stop.
+    if projection_root_links_to(&input.target_root, &input.source_root)? {
+        fs::remove_dir(&input.target_root).map_err(io)?;
+        return Ok(ClientProjectionRepair {
+            inspection: inspect_client_projection(input)?,
+            repaired: Vec::new(),
+            preserved: Vec::new(),
+            removed: vec![input.target_root.clone()],
+        });
+    }
     let Some(ledger) = read_projection_ledger(input)? else {
         return Ok(ClientProjectionRepair {
             inspection: before.clone(),
@@ -2626,6 +2680,47 @@ fn ensure_projection_parent_safe_with_allowed_root(
         }
     }
     Ok(())
+}
+
+/// Link a client plugin root at one installed tree.
+///
+/// Every client read its own copy of the whole skill tree, so an upgrade left
+/// five private forks of the previous version behind and a hand edit in one
+/// client was silently absent from the other four. A link makes the installed
+/// product the single source it claims to be. Windows needs a junction here:
+/// `symlink_dir` requires privilege the installer does not have, while
+/// `mklink /J` does not.
+fn link_projection_root(source: &Path, target: &Path) -> Result<bool, SetupError> {
+    #[cfg(windows)]
+    {
+        let status = std::process::Command::new("cmd")
+            .args(["/c", "mklink", "/J"])
+            .arg(target)
+            .arg(source)
+            .stdout(std::process::Stdio::null())
+            .stderr(std::process::Stdio::null())
+            .status();
+        Ok(matches!(status, Ok(status) if status.success()))
+    }
+    #[cfg(not(windows))]
+    {
+        Ok(std::os::unix::fs::symlink(source, target).is_ok())
+    }
+}
+
+/// True when `target` is a link that resolves to `source`.
+fn projection_root_links_to(target: &Path, source: &Path) -> Result<bool, SetupError> {
+    if !path_exists(target)? {
+        return Ok(false);
+    }
+    let metadata = fs::symlink_metadata(target).map_err(io)?;
+    if !metadata.file_type().is_symlink() {
+        return Ok(false);
+    }
+    match (fs::canonicalize(target), fs::canonicalize(source)) {
+        (Ok(resolved), Ok(expected)) => Ok(paths_equal(&resolved, &expected)),
+        _ => Ok(false),
+    }
 }
 
 fn ensure_projection_tree_safe(root: &Path) -> Result<(), SetupError> {
