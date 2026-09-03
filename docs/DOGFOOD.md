@@ -1,8 +1,8 @@
 # Legion DOGFOOD Checklist — Windows daily-use & breakage catcher
 
 **Product under test:** Legion **0.3.13** (installed)
-**Install root:** `C:\Users\adrds\AppData\Local\Orthic Labs\Legion`
-**Plugin projection (host-served skills):** `C:\Users\adrds\.claude\skills\legion`
+**Install root:** `%USERPROFILE%\AppData\Local\Orthic Labs\Legion`
+**Plugin projection (host-served skills):** `%USERPROFILE%\.claude\skills\legion`
 **Host OS:** Windows 11 (Git Bash / PowerShell)
 **Verified:** 2026-09-03, read-only commands only. Nothing was edited, committed, pushed, or mutated
 during verification of this document. `legion setup repair` had already been run on this machine before
@@ -81,9 +81,9 @@ research, seo, social, tasklist, wake, writing.
 | --- | --- | --- | --- | --- | --- |
 | 2.1 | Install root exists | `Test-Path "$env:LOCALAPPDATA\Orthic Labs\Legion"` | `True` | `True` | PASS |
 | 2.2 | `current` → `versions\0.3.13` | `ls -la "$LOCALAPPDATA/Orthic Labs/Legion"` | reparse point to `versions\0.3.13` | `current -> .../versions/0.3.13/` | PASS |
-| 2.3 | `legion` on PATH | `where legion` | `…\current\bin\legion.exe` | `C:\Users\adrds\AppData\Local\Orthic Labs\Legion\current\bin\legion.exe` | PASS |
+| 2.3 | `legion` on PATH | `where legion` | `…\current\bin\legion.exe` | `%USERPROFILE%\AppData\Local\Orthic Labs\Legion\current\bin\legion.exe` | PASS |
 | 2.4 | Version | `legion --version` | `0.3.13` | `0.3.13` | PASS |
-| 2.5 | Plugin discovered by Claude Code | `claude plugin list --json` | an entry with `id: "legion@skills-dir"`, `enabled: true` | `{"id":"legion@skills-dir","version":"0.3.13","scope":"user","enabled":true,"installPath":"C:\\Users\\adrds\\.claude\\skills\\legion"}` | **PASS (fixed, was FAIL in the 0.3.12 draft)** |
+| 2.5 | Plugin discovered by Claude Code | `claude plugin list --json` | an entry with `id: "legion@skills-dir"`, `enabled: true` | `{"id":"legion@skills-dir","version":"0.3.13","scope":"user","enabled":true,"installPath":"C:\\Users\\<user>\\.claude\\skills\\legion"}` | **PASS (fixed, was FAIL in the 0.3.12 draft)** |
 | 2.6 | Plugin component inventory | `claude plugin details legion@skills-dir` | Skills (27), Agents (4) | `Skills (27)` … `Agents (4) alchemist, covenant-seat, oracle, sage` | **PASS (fixed)** |
 | 2.7 | Skill loader connected | `legion skills` | lists 27 skills with descriptions, no "not connected" gap | 27 rows printed, each with id + description, no error | **PASS (fixed)** |
 | 2.8 | `--json` honoured | `legion --json skills` | valid JSON, `count: 27`, `releaseVersion: "0.3.13"` | `{"arguments":[],"count":27,"kind":"legion-skills","releaseVersion":"0.3.13","schemaVersion":1,"skills":[...]}` | **PASS (fixed)** |
@@ -91,7 +91,7 @@ research, seo, social, tasklist, wake, writing.
 | 2.10 | `legion doctor` outside a git repo | `cd <empty temp dir>; legion doctor` | succeeds, no git-repo requirement | `legion doctor: complete`, `catalog entries: 27`, `provider count: 1`, `inventory digest: sha256:e3b0c4...`, `clean claim: true` — no error | **PASS (fixed, old "os error 2" is gone)** |
 | 2.11 | Claude MCP server registered | read `~/.claude.json` → `mcpServers.legion` | present, with an ownership marker | `mcpServers.legion` present: `command: …\current\bin\legion.exe`, `args: ["serve","--stdio"]`, `_legionOwnership: {owner: "claude-code", generation: "0.3.13:...", digest: "sha256:..."}` | **PASS (fixed)** |
 | 2.12 | Codex MCP server registered | `grep -A5 mcp_servers.legion ~/.codex/config.toml` | present, with an ownership marker | `[mcp_servers.legion]` present: `command = '…\current\bin\legion.exe'`, `args = ['serve', '--stdio']`, `# /legion-owned` comment marker | **PASS (fixed)** |
-| 2.13 | `~/.claude/skills` is a real directory | `ls -la ~/.claude \| grep skills` | real directory (not a junction to the dev tree) | `skills/` is a real directory containing `legion/`; **no junction to `D:\Claude\tools\skills`** | **PASS (fixed)** — the development tree still exists at `D:\Claude\tools\skills` but is no longer on the host's path. |
+| 2.13 | `~/.claude/skills` is a real directory | `ls -la ~/.claude \| grep skills` | real directory (not a junction to the dev tree) | `skills/` is a real directory containing `legion/`; **no junction to `<workspace>\tools\skills`** | **PASS (fixed)** — the development tree still exists at `<workspace>\tools\skills` but is no longer on the host's path. |
 | 2.14 | `legion --json setup status` | `legion --json setup status` | per-client block with `installed: true`, `origin: "installed"`, hashes matching `legion --version` | 5 clients present (`antigravity`, `claude-code`, `codex`, `cursor`, `pi`); `antigravity` block shown: `installed: true`, `origin: "installed"`, `bound_release.release_version: "0.3.13"` | PASS |
 
 ---
@@ -101,7 +101,7 @@ research, seo, social, tasklist, wake, writing.
 ### 3.1 Invoke a skill by slash command in Claude Code
 - **Steps:** open Claude Code in any repo → type `/audit` (or any public skill id) → send.
 - **Pass condition:** Claude Code resolves `/audit` to Legion's `audit` skill from the installed plugin
-  projection `C:\Users\adrds\.claude\skills\legion\skills\audit\SKILL.md`.
+  projection `%USERPROFILE%\.claude\skills\legion\skills\audit\SKILL.md`.
 - **OBSERVED:** the plugin is registered and enabled (§2.5), and `audit` is one of the 27 listed skills
   (§2.7). **UNVERIFIED live** — this document does not fire a real slash command inside a running Claude
   Code session; it verifies plugin discovery and skill listing only.
@@ -137,7 +137,7 @@ research, seo, social, tasklist, wake, writing.
 
 ## 4. Per-skill smoke table (27 skills)
 
-All 27 ship a resolvable `SKILL.md` under `C:\Users\adrds\.claude\skills\legion\skills\<id>\SKILL.md`
+All 27 ship a resolvable `SKILL.md` under `%USERPROFILE%\.claude\skills\legion\skills\<id>\SKILL.md`
 (confirmed by directory listing) and all 27 are listed by `legion skills` with a description (§2.7).
 That proves artifact residency and CLI-loader connectivity for every skill. It does not prove every skill
 executes correctly end-to-end inside a live host session — see §3 for the scope of what was actually
@@ -147,7 +147,7 @@ Known reference-resolution issues, reverified tonight against the installed proj
 
 | Skill | Issue | Verified tonight |
 | --- | --- | --- |
-| audit | `SKILL.md` line 49 instructs `node <package-root>/tools/audit/audit-run.mjs <root> --out <run-dir>`, but no `tools/` directory exists anywhere under the projection root `C:\Users\adrds\.claude\skills\legion` | **CONFIRMED still broken** — `find` for a top-level `tools` dir returns nothing |
+| audit | `SKILL.md` line 49 instructs `node <package-root>/tools/audit/audit-run.mjs <root> --out <run-dir>`, but no `tools/` directory exists anywhere under the projection root `%USERPROFILE%\.claude\skills\legion` | **CONFIRMED still broken** — `find` for a top-level `tools` dir returns nothing |
 | tasklist | `examples/validated-tasklist.md`, `examples/validated-tasklist.minimize.json`, `examples/validated-tasklist.route.json`, and `scripts/test_validate_tasklist.py` all reference `/workspace/...` paths; the doc previously also claimed a `validate-route.py` dependency | **`/workspace` refs CONFIRMED still present.** `validate-route.py` — searched the whole projection, **not found anywhere** (neither present nor referenced by a working path); treat the file-existence sub-claim as moot rather than reproducible |
 | dispatch | `examples/dispatch-route-fixture.json` contains a `/workspace` path | **CONFIRMED still present** |
 
@@ -175,11 +175,11 @@ Known reference-resolution issues, reverified tonight against the installed proj
 | # | Finding | Status | Evidence (verified tonight, 2026-09-03) |
 | --- | --- | --- | --- |
 | 1 | Nothing registered with any host while `setup status` reports complete | **FIXED in 0.3.13** | `claude plugin list --json` shows `legion@skills-dir` enabled; `~/.claude.json` has `mcpServers.legion` with an ownership marker; `~/.codex/config.toml` has `[mcp_servers.legion]` with a `# /legion-owned` marker (§2.5, §2.11, §2.12) |
-| 2 | Shipped `mcp.json` `--plugin-root` command rejected by the binary | **STILL OPEN** | `legion serve --stdio --plugin-root "C:\Users\adrds\.claude\skills\legion"` → exit 2: `portable plugin root rejected: rightax-portable-core.json is invalid: unknown field \`publicAgents\`, expected one of \`schemaVersion\`, \`kind\`, \`plugin\`, \`publicSkills\`, \`publicFiles\`, \`privateWorkspaceContent\`, \`clientProjections\` at line 34 column 16; run legion setup repair --confirm`. The manifest's own `publicAgents` field (line 34 of `C:\Users\adrds\.claude\skills\legion\rightax-portable-core.json`) is rejected by the binary that is supposed to read it. Both hosts avoid this path entirely by invoking `legion serve --stdio` with **no** `--plugin-root` flag (§2.11, §2.12) — that bare form works (§3.7) — so this is currently a latent defect that does not block the registered hosts, not a live blocker. |
+| 2 | Shipped `mcp.json` `--plugin-root` command rejected by the binary | **STILL OPEN** | `legion serve --stdio --plugin-root "%USERPROFILE%\.claude\skills\legion"` → exit 2: `portable plugin root rejected: rightax-portable-core.json is invalid: unknown field \`publicAgents\`, expected one of \`schemaVersion\`, \`kind\`, \`plugin\`, \`publicSkills\`, \`publicFiles\`, \`privateWorkspaceContent\`, \`clientProjections\` at line 34 column 16; run legion setup repair --confirm`. The manifest's own `publicAgents` field (line 34 of `%USERPROFILE%\.claude\skills\legion\rightax-portable-core.json`) is rejected by the binary that is supposed to read it. Both hosts avoid this path entirely by invoking `legion serve --stdio` with **no** `--plugin-root` flag (§2.11, §2.12) — that bare form works (§3.7) — so this is currently a latent defect that does not block the registered hosts, not a live blocker. |
 | 3 | `legion skills` reports "native skills implementation is not connected" | **FIXED in 0.3.13** | `legion skills` lists all 27 with descriptions; `legion --json skills` returns valid JSON with `count: 27` (§2.7, §2.8) |
-| 4 | Host loads development skills via `~/.claude/skills` → `D:\Claude\tools\skills` junction | **FIXED in 0.3.13** | `~/.claude/skills` is now a real directory holding the installed `legion/` plugin projection, not a junction (§2.13). The development tree still exists at `D:\Claude\tools\skills` but is not referenced by any host path checked tonight. |
+| 4 | Host loads development skills via `~/.claude/skills` → `<workspace>\tools\skills` junction | **FIXED in 0.3.13** | `~/.claude/skills` is now a real directory holding the installed `legion/` plugin projection, not a junction (§2.13). The development tree still exists at `<workspace>\tools\skills` but is not referenced by any host path checked tonight. |
 | 5 | `tasklist`/`dispatch` reference `/workspace` paths and a `validate-route.py` not shipped in the projection | **STILL OPEN (partially)** | `/workspace` paths confirmed present in `tasklist/examples/*`, `tasklist/scripts/test_validate_tasklist.py`, and `dispatch/examples/dispatch-route-fixture.json` tonight. `validate-route.py` was not found anywhere in the projection (moot — nothing shipped references a live path to it under this search). |
-| 6 | Plugin manifest declares hooks/MCP but the host reports zero | **STILL OPEN — new detail found tonight** | `claude plugin details legion@skills-dir` reports `Hooks (0)` and `MCP servers (0)` even though the plugin surface declares hook events and one MCP server. Root cause for the MCP half: a plugin's manifest for Claude Code must be named `.mcp.json`, but Legion ships `mcp.json` (no leading dot) at `C:\Users\adrds\.claude\skills\legion\mcp.json` — Claude Code's plugin scanner does not pick it up under that name, hence `MCP servers (0)` in the details view. Legion's MCP integration works anyway, because both hosts register `mcpServers.legion` / `[mcp_servers.legion]` directly at the **user config level** (§2.11, §2.12), a separate mechanism from the plugin-manifest MCP surface the `claude plugin details` counter reads. The Hooks(0)-vs-declared-9 gap was not independently re-derived tonight (no `hooks.json` or hook-event declaration file was found searched for under the projection root) — treat the "9 declared hook events" figure as inherited from prior investigation and **UNVERIFIED** tonight rather than reconfirmed. |
+| 6 | Plugin manifest declares hooks/MCP but the host reports zero | **STILL OPEN — new detail found tonight** | `claude plugin details legion@skills-dir` reports `Hooks (0)` and `MCP servers (0)` even though the plugin surface declares hook events and one MCP server. Root cause for the MCP half: a plugin's manifest for Claude Code must be named `.mcp.json`, but Legion ships `mcp.json` (no leading dot) at `%USERPROFILE%\.claude\skills\legion\mcp.json` — Claude Code's plugin scanner does not pick it up under that name, hence `MCP servers (0)` in the details view. Legion's MCP integration works anyway, because both hosts register `mcpServers.legion` / `[mcp_servers.legion]` directly at the **user config level** (§2.11, §2.12), a separate mechanism from the plugin-manifest MCP surface the `claude plugin details` counter reads. The Hooks(0)-vs-declared-9 gap was not independently re-derived tonight (no `hooks.json` or hook-event declaration file was found searched for under the projection root) — treat the "9 declared hook events" figure as inherited from prior investigation and **UNVERIFIED** tonight rather than reconfirmed. |
 
 ---
 
