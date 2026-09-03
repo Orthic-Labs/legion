@@ -230,11 +230,14 @@ function test_ci_gates() {
   // live in this repository (never a parent workspace path).
   const workflow = readFileSync(join(AUDIT_ROOT, '.github', 'workflows', 'ci.yml'), 'utf8');
   assert(workflow.includes('[main]') || workflow.includes('- main'), 'workflow triggers on pushes to main');
-  assert(workflow.includes('windows-latest'), 'workflow includes windows-latest');
-  assert(workflow.includes('run-audit-conformance-tests.mjs'), 'conformance suite job exists');
-  assert(workflow.includes('generate-schemas.mjs --check'), 'provider schema job exists');
-  assert(workflow.includes('bench/run-bench.mjs'), 'benchmark smoke runs');
-  assert(workflow.includes('verifier-e2e'), 'verifier end-to-end job exists');
+  // right-git generates ci.yml byte-exactly from a manifest, so the gates live
+  // in the script that lane runs, not in the workflow file.
+  const ciScript = readFileSync(join(AUDIT_ROOT, 'scripts/ci/right-git-ci.sh'), 'utf8');
+  assert(workflow.includes('windows-2025'), 'workflow includes a windows runner');
+  assert(ciScript.includes('run-audit-conformance-tests.mjs'), 'conformance suite runs in CI');
+  assert(ciScript.includes('pnpm legion:check'), 'schema and naming checks run in CI');
+  assert(ciScript.includes('bench/run-bench.mjs'), 'benchmark smoke runs');
+  assert(ciScript.includes('native-installed-smoke.mjs'), 'installed smoke runs in CI');
   pass('CI gates: standalone workflow runs on main with windows, conformance, and verifier');
 }
 

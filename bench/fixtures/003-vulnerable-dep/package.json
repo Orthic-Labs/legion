@@ -1,0 +1,9 @@
+{
+  "name": "au20-fixture-vulnerable-dep",
+  "private": true,
+  "version": "0.0.0",
+  "dependencies": {
+    "lodash": "4.17.15",
+    "minimist": "1.2.0"
+  }
+}

@@ -1,0 +1,139 @@
+{
+  "schema_version": 1,
+  "bench": "AU20-planted-findings",
+  "description": "Planted-defect corpus measuring /audit's deterministic-scanner recall and precision. Each entry with planted=true is a defect a correct audit MUST catch; each planted=false entry is a negative control that a correct audit MUST NOT flag. Detector fields name the bench-local detector responsible for that class.",
+  "entries": [
+    {
+      "id": "AU20-001",
+      "class": "secret",
+      "planted": true,
+      "file": "fixtures/001-hardcoded-secret/app.js",
+      "line": 4,
+      "detector": "secrets",
+      "signal": "Hardcoded credential-shaped literal assigned to awsAccessKeyId/awsSecretKey.",
+      "note": "Fake key, format AKIA_EXAMPLE_NOT_REAL_* — never a real credential."
+    },
+    {
+      "id": "AU20-002",
+      "class": "secret",
+      "planted": false,
+      "file": "fixtures/002-negative-apikey-label/app.js",
+      "line": 4,
+      "detector": "secrets",
+      "signal": "Variable named apiKey holding a UI label string, not a secret literal.",
+      "note": "Negative control — must not be flagged."
+    },
+    {
+      "id": "AU20-003",
+      "class": "dependency_cve",
+      "planted": true,
+      "file": "fixtures/003-vulnerable-dep/package.json",
+      "line": 6,
+      "detector": "deps_cve",
+      "signal": "lodash@4.17.15 and minimist@1.2.0 are known-vulnerable pinned versions.",
+      "note": "Curated offline CVE table, not a live npm audit call."
+    },
+    {
+      "id": "AU20-004",
+      "class": "dependency_cve",
+      "planted": false,
+      "file": "fixtures/004-negative-dep-latest/package.json",
+      "line": 6,
+      "detector": "deps_cve",
+      "signal": "lodash@4.17.21 and minimist@1.2.8 are patched versions.",
+      "note": "Negative control — must not be flagged."
+    },
+    {
+      "id": "AU20-005",
+      "class": "dead_code",
+      "planted": true,
+      "file": "fixtures/005-dead-code/app.js",
+      "line": 6,
+      "detector": "dead_code",
+      "signal": "Statements after an unconditional return in computeTotal are unreachable.",
+      "note": "console.log + applyLegacyDiscount(total) can never execute."
+    },
+    {
+      "id": "AU20-006",
+      "class": "dead_code",
+      "planted": false,
+      "file": "fixtures/006-negative-reachable/app.js",
+      "line": 5,
+      "detector": "dead_code",
+      "signal": "applySeasonalDiscount is reachable and exported; not dead code.",
+      "note": "Negative control — must not be flagged."
+    },
+    {
+      "id": "AU20-007",
+      "class": "duplication",
+      "planted": true,
+      "file": "fixtures/007-duplicated-logic/app.js",
+      "line": 2,
+      "detector": "duplication",
+      "signal": "validateUsSignupForm and validateEuSignupForm share an identical body.",
+      "note": "Copy-pasted validation logic, byte-identical apart from names."
+    },
+    {
+      "id": "AU20-008",
+      "class": "duplication",
+      "planted": false,
+      "file": "fixtures/008-negative-similar-shape/app.js",
+      "line": 5,
+      "detector": "duplication",
+      "signal": "validateShippingAddress and validateBillingAddress share if/return shape only; bodies differ.",
+      "note": "Negative control — similar shape, different logic, must not be flagged."
+    },
+    {
+      "id": "AU20-009",
+      "class": "type_error",
+      "planted": true,
+      "file": "fixtures/009-type-error/app.ts",
+      "line": 4,
+      "detector": "types",
+      "signal": "const finalPrice: number = \"not-a-number\" assigns a string to a number binding.",
+      "note": "Heuristic regex-based type check (no tsc available offline in this environment)."
+    },
+    {
+      "id": "AU20-013",
+      "class": "type_error",
+      "planted": false,
+      "file": "fixtures/013-negative-type-ok/app.ts",
+      "line": 4,
+      "detector": "types",
+      "signal": "finalPrice is a consistent number throughout.",
+      "note": "Negative control — must not be flagged."
+    },
+    {
+      "id": "AU20-010",
+      "class": "secret",
+      "planted": false,
+      "file": "fixtures/010-negative-commented-credential/app.js",
+      "line": 5,
+      "detector": "secrets",
+      "signal": "Comment references STRIPE_SECRET_KEY by name only, no secret value present.",
+      "note": "Negative control — commented-out credential NAME with no value must not be flagged."
+    },
+    {
+      "id": "AU20-011",
+      "class": "drift",
+      "planted": true,
+      "file": "fixtures/011-doc-drift/client.js",
+      "line": 3,
+      "doc_file": "fixtures/011-doc-drift/README.md",
+      "detector": "drift",
+      "signal": "README claims 3 retries; MAX_RETRIES is actually 5.",
+      "note": "Classic doc-says-X-code-does-Y drift."
+    },
+    {
+      "id": "AU20-012",
+      "class": "drift",
+      "planted": false,
+      "file": "fixtures/012-negative-doc-matches/client.js",
+      "line": 3,
+      "doc_file": "fixtures/012-negative-doc-matches/README.md",
+      "detector": "drift",
+      "signal": "README claims 4 retries; MAX_RETRIES is 4 — consistent.",
+      "note": "Negative control — must not be flagged."
+    }
+  ]
+}

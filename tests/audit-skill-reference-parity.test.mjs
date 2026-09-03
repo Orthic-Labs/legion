@@ -17,7 +17,10 @@ test('Audit skill ships every consumed manual as a byte-identical package resour
   const skill = readFileSync(resolve(root, 'skills/audit/SKILL.md'), 'utf8');
   assert.doesNotMatch(skill, /\.\.\/\.\.\/references\//);
   assert.doesNotMatch(skill, /\.\.\/\.\.\/tools\/audit\//);
-  assert.match(skill, /node <package-root>\/tools\/audit\/audit-run\.mjs <root> --out <run-dir>/);
+  // The native binary is the packaged runner: no `tools/` directory ships in
+  // an installed plugin root, so the Node path resolved only in a checkout.
+  assert.match(skill, /`legion audit <root> --out <run-dir>`/);
+  assert.doesNotMatch(skill, /node <package-root>\/tools\/audit\/audit-run\.mjs/);
   assert.match(skill, /CHILD_AGENTS_MAX: 16/);
   assert.match(skill, /native-provider-composition-partial/);
   assert.match(skill, /fullAudit: false/);

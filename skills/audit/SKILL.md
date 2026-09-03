@@ -45,13 +45,14 @@ overrides it.
    The provider uses resident Hub transport when available, otherwise a bounded one-shot for
    supplied root. Enrollment controls resident watcher operation only; `project is not enrolled`
    must fall through to one-shot.
-3. Resolve packaged Legion root, then run
-   `node <package-root>/tools/audit/audit-run.mjs <root> --out <run-dir>` so complete declarative
-   provider registry, Blueprint generation, denominators, & reasoning contracts freeze together.
-   `legion audit <root> --out <run-dir>` is acceptable only when its plan contains full selected
-   provider set plus applicable reasoning lenses. `providers: []`, `lensesRan: []` when lenses were
+3. Run `legion audit <root> --out <run-dir>` so complete declarative provider registry,
+   Blueprint generation, denominators, & reasoning contracts freeze together. The native binary
+   is the packaged runner: no `tools/` directory ships in an installed plugin root, so a Node
+   runner path resolves only in a repository checkout. `tools/audit/audit-run.mjs` remains the
+   runner the GitHub Action executes, where that checkout exists.
+   Its plan must contain full selected provider set plus applicable reasoning lenses. `providers: []`, `lensesRan: []` when lenses were
    required, `native-provider-composition-partial`, or `fullAudit: false` is control-plane
-   degradation — never Audit evidence & never “no findings.” Continue with package runner; if that
+   degradation — never Audit evidence & never “no findings.” Continue with the packaged runner; if that
    runner is unavailable, execute deterministic scanners & applicable lenses directly, record
    `audit-runner-unavailable`, & keep result incomplete.
    If resident & one-shot paths both genuinely fail or are unavailable, record exact typed

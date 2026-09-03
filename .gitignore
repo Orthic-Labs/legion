@@ -25,7 +25,12 @@ src/lib/research-core/runs/
 # source-derived package data, not qualification evidence, so it stays tracked.
 qualification/*
 !qualification/generated-catalogs.json
-bench/
+# The bench is measurement INPUT, not evidence: fixtures with known answers,
+# the detectors scored against them, and the harness. Ignoring the whole tree
+# is why bench/corpora could never be committed while src/registry/coverage
+# went on citing its digests. Run output stays ignored below.
+bench/qualifications/
+bench/**/*.receipt.json
 _audit/
 _selfcheck/
 evidence/

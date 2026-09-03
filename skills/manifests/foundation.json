@@ -49,6 +49,11 @@
   },
   "files": [
     {
+      "path": ".audit/arcane/receipts/session-provenance/c592aceb1eb93e3e5e051a227599b14a9a44416c6546c099f1ed9f97913658a1.json",
+      "uri": "legion-skill://foundation/.audit/arcane/receipts/session-provenance/c592aceb1eb93e3e5e051a227599b14a9a44416c6546c099f1ed9f97913658a1.json",
+      "digest": "sha256:cd3eff898536921f9a9e7a282c24234cf8b1ae186b7aa72576626082101a34c4"
+    },
+    {
       "path": "RIGHTS.json",
       "uri": "legion-skill://foundation/RIGHTS.json",
       "digest": "sha256:40649c54c6f3421d574107488e2f9678e62dc1040f5d5d55bb320d94de84fc59"
