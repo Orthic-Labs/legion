@@ -79,7 +79,7 @@ jobs:
           version="$(node -p "require('./package.json').version")"
           node scripts/release/windows/finalize-installer.mjs \
             --unsigned \
-            --input-root "$RUNNER_TEMP/legion-unsigned-candidate" \
+            --input-root "$RUNNER_TEMP/legion-install" \
             --output "$RUNNER_TEMP/unsigned" \
             --version "$version" \
             --architecture x86_64
