@@ -1,0 +1,7 @@
+{
+  "kind": "corpus-component-inventory",
+  "components": [
+    "src/App.tsx",
+    "src/Cart.tsx"
+  ]
+}

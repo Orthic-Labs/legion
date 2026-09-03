@@ -1,0 +1,7 @@
+{
+  "kind": "corpus-route-inventory",
+  "routes": [
+    "GET /health",
+    "POST /orders"
+  ]
+}

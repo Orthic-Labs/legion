@@ -1,0 +1,7 @@
+{
+  "kind": "corpus-model-inventory",
+  "models": [
+    "db/order.sql",
+    "db/customer.sql"
+  ]
+}

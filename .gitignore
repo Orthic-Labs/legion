@@ -45,3 +45,10 @@ evidence/
 # manifest drift, and an earlier review recorded the same file as deleted for
 # no stated reason.
 !skills/*/examples/*.receipt.json
+
+# Corpus fixtures that happen to sit in a directory called evidence are
+# measurement input, not run output. Fourth collision of this kind today:
+# bench/, skills/*/examples/*.receipt.json, receipts digested into manifests,
+# and now this.
+!bench/corpora/**/evidence/
+!bench/corpora/**/evidence/**
