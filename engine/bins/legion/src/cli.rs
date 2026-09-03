@@ -1093,7 +1093,21 @@ impl legion_mcp::NativeApi for M1McpApi {
     ) -> Result<Value, legion_runtime::RuntimeError> {
         let application = self.application()?;
         match operation {
-            "legion_m1_status" => Ok(m1_status_value(&application.status())),
+            "legion_m1_status" => {
+                // Answer with the product status, not the slice status: this
+                // tool previously reported "complete" while `legion m1 status`
+                // reported "incomplete" with three named gaps.
+                let mut value = m1_status_value(&application.status());
+                if let Value::Object(object) = &mut value {
+                    object.insert("status".into(), json!("incomplete"));
+                    object.insert("fidelity".into(), json!("degraded"));
+                    object.insert(
+                        "gaps".into(),
+                        json!(M1_PRODUCT_GAPS),
+                    );
+                }
+                Ok(value)
+            }
             "legion_m1_invoke" => {
                 let capability_id = arguments
                     .get("capabilityId")
@@ -1128,11 +1142,25 @@ impl legion_mcp::NativeApi for M1McpApi {
     }
 }
 
+/// The product-level gaps M1 does not close. One owner, because the CLI and the
+/// MCP tool must not be able to disagree about them.
+const M1_PRODUCT_GAPS: [&str; 3] = [
+    "native hook enforcement is not connected",
+    "native CLI product projections are not fully connected",
+    "M4 capability migration and M6 installed-product qualification are incomplete",
+];
+
 fn m1_status_value(status: &legion_application::M1Status) -> Value {
     let mut value = serde_json::to_value(status).expect("M1 status is serializable");
     if let Value::Object(object) = &mut value {
         object.insert("scope".into(), json!("m1-vertical-slice"));
-        object.insert("status".into(), json!("complete"));
+        // This says the M1 vertical slice is complete, which is true, and says
+        // nothing about the product. Nested under "native" that was clear, but
+        // the MCP tool returns this value at the top level, where a bare
+        // "status": "complete" reads as product status while the CLI answers
+        // "incomplete" with three named gaps. Name the scope it belongs to.
+        object.insert("sliceStatus".into(), json!("complete"));
+        object.remove("status");
     }
     value
 }
@@ -1187,11 +1215,7 @@ async fn native_m1_status(args: M1ConfigArgs) -> CommandResult {
                 "executable": native.executable.clone(),
                 "installRoot": native.install_root.clone(),
                 "generation": native.generation.clone(),
-                "gaps": [
-                    "native hook enforcement is not connected",
-                    "native CLI product projections are not fully connected",
-                    "M4 capability migration and M6 installed-product qualification are incomplete"
-                ],
+                "gaps": M1_PRODUCT_GAPS,
                 "native": m1_status_value(&native),
             }))
         }
