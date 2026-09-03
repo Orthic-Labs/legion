@@ -1935,14 +1935,27 @@ mod route_domain_tests {
     }
 
     #[test]
-    fn every_declared_domain_is_accepted_by_validation() {
-        for domain in ROUTE_DOMAINS {
+    fn ordinary_domains_validate_without_extra_context() {
+        for domain in ["general", "market", "technical", "scientific"] {
             let route = ResearchRoute::host_injected_with("q", domain, "public");
             assert!(
                 route.validate().is_ok(),
                 "declared domain {domain} must validate"
             );
         }
+    }
+
+    // The point of carrying a domain at all: a sensitive route now reaches its
+    // gate instead of being answered as an ordinary one. A medical route with
+    // no patient subject must be refused, not served.
+    #[test]
+    fn a_medical_route_without_a_patient_is_refused() {
+        let route = ResearchRoute::host_injected_with("dosing", "medical", "private");
+        let error = route.validate().expect_err("medical must require a patient subject");
+        assert!(
+            format!("{error}").contains("subject.patient"),
+            "refusal must name the missing subject, got: {error}"
+        );
     }
 
     #[test]
