@@ -772,6 +772,17 @@ fn validate_portable_plugin_root(
         }
         expected_files.insert("mcp_config.json".into());
     }
+    // Claude Code reads a plugin's MCP server from `.mcp.json`, so the Claude
+    // projection writes that dotted copy beside the portable `mcp.json`.
+    let claude_mcp_projection = root.join(".mcp.json");
+    if claude_mcp_projection.is_file() {
+        let projected = std::fs::read(&claude_mcp_projection).map_err(commands::io_error)?;
+        let original = std::fs::read(root.join("mcp.json")).map_err(commands::io_error)?;
+        if projected != original {
+            return Err(plugin_root_error(".mcp.json does not match mcp.json"));
+        }
+        expected_files.insert(".mcp.json".into());
+    }
     let mut expected_directories = BTreeSet::new();
     for relative in &expected_files {
         let mut parent = Path::new(relative).parent();

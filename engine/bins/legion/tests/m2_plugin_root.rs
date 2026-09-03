@@ -599,6 +599,29 @@ fn plugin_root_rejects_a_release_without_the_portable_core_anchor() {
 }
 
 #[test]
+fn plugin_root_accepts_the_claude_dotted_mcp_copy() {
+    // Claude Code reads a plugin's MCP server from `.mcp.json`; the portable
+    // core carries `mcp.json` for every other client, so the Claude projection
+    // writes both and the validator must accept the byte-identical copy.
+    let fixture = fixture();
+    let plugin_root = portable_package(&fixture);
+    fs::copy(plugin_root.join("mcp.json"), plugin_root.join(".mcp.json")).expect("copy mcp.json");
+
+    let (mut child, mut stdin, mut stdout) = start_stdio(&plugin_root, &fixture.config);
+    let initialized = request(
+        &mut stdin,
+        &mut stdout,
+        json!({"jsonrpc":"2.0", "id":1, "method":"initialize", "params":{}}),
+    );
+    assert_eq!(
+        initialized["result"]["releaseIdentity"]["releaseVersion"],
+        env!("CARGO_PKG_VERSION")
+    );
+    drop(stdin);
+    assert!(child.wait().expect("server exit").success());
+}
+
+#[test]
 fn plugin_root_accepts_the_claude_projection_manifest_copy() {
     let fixture = fixture();
     let plugin_root = portable_package(&fixture);

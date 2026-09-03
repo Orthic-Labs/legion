@@ -2095,6 +2095,15 @@ fn projection_source_files(
             let digest = digest_path(&source)?;
             files.insert(".claude-plugin/plugin.json".into(), (source, digest));
         }
+        // Claude Code loads a plugin's MCP server from `.mcp.json`; the portable
+        // core carries `mcp.json`, which every other client reads, so the
+        // projection adds the dotted copy. Without it `claude plugin details`
+        // reports "MCP servers (0)" for a plugin that declares one.
+        if input.client_id == CLIENT_CLAUDE && files.contains_key("mcp.json") {
+            let source = input.source_root.join("mcp.json");
+            let digest = digest_path(&source)?;
+            files.insert(".mcp.json".into(), (source, digest));
+        }
         if input.client_id == CLIENT_ANTIGRAVITY && files.contains_key("mcp.json") {
             let source = input.source_root.join("mcp.json");
             let digest = digest_path(&source)?;
