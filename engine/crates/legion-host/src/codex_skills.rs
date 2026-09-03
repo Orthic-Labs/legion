@@ -105,6 +105,10 @@ pub struct CodexSkillsInspection {
     pub statuses: Vec<CodexSkillStatus>,
     /// Entries Legion did not select or own.  They are informational only.
     pub unrelated_paths: Vec<PathBuf>,
+    /// Echoed so a reader can tell a projection Legion declines to create
+    /// apart from one it failed to maintain. Both look "stale" otherwise.
+    #[serde(default)]
+    pub explicit_only: bool,
     pub remediation: Vec<String>,
 }
 
@@ -299,6 +303,7 @@ pub fn inspect_codex_skills(input: &CodexSkillsInput) -> Result<CodexSkillsInspe
         ledger_error,
         statuses,
         unrelated_paths,
+        explicit_only: input.explicit_only,
         remediation,
     })
 }

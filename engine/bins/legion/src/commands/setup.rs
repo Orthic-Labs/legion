@@ -2023,6 +2023,10 @@ fn inspect_live_projections(
             "codexSkills".into(),
             json!({
                 "state": state,
+                "explicitOnly": codex
+                    .get("explicitOnly")
+                    .and_then(Value::as_bool)
+                    .unwrap_or(false),
                 "origin": legion_host::setup_registry::ORIGIN_INSTALLED,
                 "executable": executable.clone(),
                 "installRoot": install_root.clone(),
@@ -2121,6 +2125,9 @@ fn setup_health(
     live_identity: &Value,
 ) -> (&'static str, Vec<String>) {
     let mut remediation = Vec::new();
+    // Advisory notes about projections Legion deliberately declines to create.
+    // They are reported, but an operator's opt-out is not an incomplete setup.
+    let mut opt_in_notes: Vec<String> = Vec::new();
     let active_clients = clients
         .as_array()
         .into_iter()
@@ -2261,7 +2268,7 @@ fn setup_health(
                         .and_then(Value::as_bool)
                         .unwrap_or(false);
                     if opt_in {
-                        remediation.push(format!(
+                        opt_in_notes.push(format!(
                             "{client} projection is {state}; this client is opt-in, so repair leaves it alone. Create its projection deliberately, or ignore this."
                         ));
                     } else {
@@ -2332,11 +2339,15 @@ fn setup_health(
     }
     remediation.sort();
     remediation.dedup();
-    if remediation.is_empty() {
-        ("complete", remediation)
+    let status = if remediation.is_empty() {
+        "complete"
     } else {
-        ("incomplete", remediation)
-    }
+        "incomplete"
+    };
+    opt_in_notes.sort();
+    opt_in_notes.dedup();
+    remediation.extend(opt_in_notes);
+    (status, remediation)
 }
 
 fn binding_fields_current(
