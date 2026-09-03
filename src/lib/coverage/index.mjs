@@ -3,7 +3,10 @@ import {readFileSync,readdirSync} from 'node:fs';
 import {join,relative,resolve} from 'node:path';
 import {fileURLToPath} from 'node:url';
 
-const ROOT=resolve(fileURLToPath(new URL('../..',import.meta.url)));
+// Repository root: this file is src/lib/coverage/index.mjs, so three levels
+// up. '../..' left ROOT at src/ and every default provider read resolved to
+// src/src/registry/providers.json and threw ENOENT.
+const ROOT=resolve(fileURLToPath(new URL('../../..',import.meta.url)));
 const TIERS=['inventory','parser','native','cross-file','measured-pack','runtime','remediation'];
 const sha=(bytes)=>`sha256:${createHash('sha256').update(bytes).digest('hex')}`;
 const files=(path)=>readdirSync(path,{withFileTypes:true}).flatMap((entry)=>entry.isDirectory()?files(join(path,entry.name)):[join(path,entry.name)]).sort();

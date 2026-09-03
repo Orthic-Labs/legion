@@ -30,9 +30,12 @@ test('legacy semantic aliases resolve only to packaged public Legion capabilitie
   assert.equal(Object.hasOwn(aliases, '/just-do-it'), false);
 });
 
-test('Blueprint remains a direct host capability, not a packaged skill', () => {
+test('Blueprint ships as a packaged skill over a host graph capability', () => {
+  // Blueprint is now packaged (skills/blueprint), so it appears as a
+  // capability. The graph itself stays a host capability underneath it: the
+  // package must never ship a fallback graph of its own.
   const projection = JSON.parse(readFileSync(join(ROOT, 'src', 'registry', 'host-projection.json'), 'utf8'));
-  assert.equal(projection.capabilities.some(({ id }) => id === 'blueprint'), false);
+  assert.equal(projection.capabilities.some(({ id }) => id === 'blueprint'), true);
   assert.equal(projection.hostCapabilities.some(({ id }) => id === 'blueprint-graph'), true);
 });
 
@@ -46,7 +49,7 @@ test('canonical & legacy commands resolve through packaged manifests with negati
   }
   assert.equal(resolveSkillInvocation('/jfdi execute', { root: ROOT }).canonical, 'alchemist');
   assert.equal(resolveSkillInvocation('/council review', { root: ROOT }).canonical, 'covenant');
-  assert.equal(resolveSkillInvocation('/blueprint map', { root: ROOT }).status, 'not-found');
+  assert.equal(resolveSkillInvocation('/blueprint map', { root: ROOT }).canonical, 'blueprint');
   assert.equal(resolveSkillInvocation('/glass refine header', { root: ROOT }).resolvedInvocation, '/designer glass refine header');
   assert.equal(resolveSkillInvocation('/motion hero', { root: ROOT }).resolvedInvocation, '/designer motion hero');
   assert.equal(resolveSkillInvocation('/hormozi launch', { root: ROOT }).resolvedInvocation, '/marketing offer launch');

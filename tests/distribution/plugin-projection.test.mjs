@@ -28,7 +28,9 @@ test('installed client projections do not claim unshipped native client surfaces
   assert.match(setupRegistry, /"antigravity-agent-plugins-portable-core"/);
   assert.match(setupRegistry, /input\.client_id == CLIENT_ANTIGRAVITY && input\.projection == "native-plugin"/);
   assert.match(setupCommand, /"agent-plugins-portable-core"/);
-  assert.match(cli, /"projection": "agent-plugins-portable-core"/);
+  // The projection string is produced by the host registry, not the CLI; the
+  // CLI only validates the result, so assert it where it is actually emitted.
+  assert.match(setupRegistry, /projection: "agent-plugins-portable-core"/);
   assert.doesNotMatch(cli, /"projection": "antigravity-native-plugin"/);
   assert.match(clientDocs, /\| Cursor \| Agent Plugins portable core/);
   assert.match(clientDocs, /\| Antigravity \| Agent Plugins portable core/);

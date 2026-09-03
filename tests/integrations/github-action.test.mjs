@@ -38,8 +38,13 @@ test('hook install and uninstall are idempotent', () => {
 test('action.yml is composite and installs the package', () => {
   const action = readFileSync(new URL('../../action.yml', import.meta.url), 'utf8');
   assert.match(action, /using: composite/);
-  assert.match(action, /npm install --global/);
-  assert.match(action, /legion audit/);
+  // The action installs through pinned corepack pnpm and must never install
+  // anything globally.
+  assert.match(action, /corepack pnpm@[\d.]+ install/);
+  assert.doesNotMatch(action, /install --global|npm install -g/);
+  // The action runs the audit runner directly; there is no `legion audit`
+  // shell invocation in the composite steps.
+  assert.match(action, /tools\/audit\/audit-run\.mjs/);
 });
 
 test('changed-scope classifies introduced vs existing findings', () => {
