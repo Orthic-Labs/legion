@@ -479,34 +479,6 @@ pub fn repair_client_projection(
         }
     }
     let target_exists = path_exists(&input.target_root)?;
-            // Converting an existing copy is what makes this reach anyone who
-            // already installed. Only convert a copy this ledger proves Legion
-            // wrote in full: nothing preserved, nothing in conflict, and every
-            // file on disk owned. Anything else is the operator's and stays a
-            // copy.
-            let convertible = target_exists
-                && before.preserved.is_empty()
-                && before.conflicts.is_empty()
-                && prior_ledger.as_ref().is_some_and(|ledger| {
-                    expected
-                        .keys()
-                        .all(|relative| ledger.files.contains_key(relative))
-                })
-                && !fs::symlink_metadata(&input.target_root)
-                    .map(|metadata| metadata.file_type().is_symlink())
-                    .unwrap_or(true);
-            if convertible {
-                fs::remove_dir_all(&input.target_root).map_err(io)?;
-            }
-            if convertible || !target_exists {
-                if let Some(parent) = input.target_root.parent() {
-                    fs::create_dir_all(parent).map_err(io)?;
-                }
-                link_projection_root(&input.source_root, &input.target_root)?;
-            }
-        }
-    }
-    let target_exists = path_exists(&input.target_root)?;
     let linked_root = projection_root_links_to(&input.target_root, &input.source_root)?;
     // A link the operator made themselves — one client pointed at another, say
     // — is their layout, not ours. Treat it as an allowed root rather than
