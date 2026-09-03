@@ -1,0 +1,56 @@
+{
+  "schemaVersion": 1,
+  "kind": "legion-coverage-corpus",
+  "recordId": "language.dotnet",
+  "provider": "code.dotnet",
+  "description": "Known-answer corpus. Each case declares whether the provider must place the file in its denominator; unselected cases are negative controls and the gate requires zero false positives.",
+  "limitations": [],
+  "cases": [
+    {
+      "id": "dotnet.positive.service-cs",
+      "kind": "positive",
+      "path": "positive/Service.cs",
+      "selected": true,
+      "variant": "csharp"
+    },
+    {
+      "id": "dotnet.positive.math-fs",
+      "kind": "positive",
+      "path": "positive/Math.fs",
+      "selected": true,
+      "variant": "fsharp"
+    },
+    {
+      "id": "dotnet.denominator.legacy-vb",
+      "kind": "denominator",
+      "path": "denominator/Legacy.vb",
+      "selected": true,
+      "variant": "visualBasic"
+    },
+    {
+      "id": "dotnet.negative.app-js",
+      "kind": "negative",
+      "path": "negative/app.js",
+      "selected": false,
+      "variant": null
+    },
+    {
+      "id": "dotnet.unsupported.notes-qqq",
+      "kind": "unsupported",
+      "path": "unsupported/notes.qqq",
+      "selected": false,
+      "variant": null
+    }
+  ],
+  "expected": {
+    "denominator": {
+      "expected": 3,
+      "examined": 3
+    },
+    "variants": {
+      "csharp": 1,
+      "fsharp": 1,
+      "visualBasic": 1
+    }
+  }
+}

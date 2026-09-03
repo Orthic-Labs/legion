@@ -1,0 +1,38 @@
+{
+  "framework": "react",
+  "components": [
+    {
+      "path": "src/App.tsx",
+      "evidenceRefs": [
+        "ev.frontend.component-inventory"
+      ]
+    }
+  ],
+  "authority": {
+    "evidenceIndex": {
+      "ev.frontend.component-inventory": {
+        "path": "evidence/component-inventory.json",
+        "digest": "sha256:9b5c9867bd01d74c16b5f81384ea2ba4312375637bbadaf571f8ea03fffa4f3d",
+        "binding": {
+          "repositoryRevision": "corpus-revision-0",
+          "digest": "sha256:c83ca47e0309c76f69c264c65d55c246c4fcd4ab5f74f0b429975fbb99d244fe"
+        },
+        "storageReceipt": {
+          "immutable": true
+        },
+        "toolReceipt": {
+          "complete": true,
+          "tool": {
+            "id": "corpus-inventory",
+            "executableDigest": "sha256:aa6baecff37ffad9ab8d78e03641e671135d7d718678f6e6c79b08f911f3a14c"
+          }
+        }
+      }
+    },
+    "binding": {
+      "repositoryRevision": "corpus-revision-0",
+      "digest": "sha256:c83ca47e0309c76f69c264c65d55c246c4fcd4ab5f74f0b429975fbb99d244fe"
+    },
+    "now": "2026-01-01T00:00:00.000Z"
+  }
+}

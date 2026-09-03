@@ -1,0 +1,57 @@
+{
+  "schemaVersion": 1,
+  "kind": "legion-coverage-corpus",
+  "recordId": "language.javascript",
+  "provider": "code.javascript",
+  "description": "Known-answer corpus. Each case declares whether the provider must place the file in its denominator; unselected cases are negative controls and the gate requires zero false positives.",
+  "limitations": [],
+  "cases": [
+    {
+      "id": "javascript.positive.app-js",
+      "kind": "positive",
+      "path": "positive/app.js",
+      "selected": true,
+      "variant": "javascript"
+    },
+    {
+      "id": "javascript.positive.widget-tsx",
+      "kind": "positive",
+      "path": "positive/widget.tsx",
+      "selected": true,
+      "variant": "tsx"
+    },
+    {
+      "id": "javascript.denominator.service-ts",
+      "kind": "denominator",
+      "path": "denominator/service.ts",
+      "selected": true,
+      "variant": "typescript"
+    },
+    {
+      "id": "javascript.negative.service-py",
+      "kind": "negative",
+      "path": "negative/service.py",
+      "selected": false,
+      "variant": null
+    },
+    {
+      "id": "javascript.unsupported.notes-qqq",
+      "kind": "unsupported",
+      "path": "unsupported/notes.qqq",
+      "selected": false,
+      "variant": null
+    }
+  ],
+  "expected": {
+    "denominator": {
+      "expected": 3,
+      "examined": 3
+    },
+    "variants": {
+      "javascript": 1,
+      "typescript": 1,
+      "jsx": 0,
+      "tsx": 1
+    }
+  }
+}

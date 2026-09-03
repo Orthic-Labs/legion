@@ -1,0 +1,55 @@
+{
+  "schemaVersion": 1,
+  "kind": "legion-coverage-corpus",
+  "recordId": "language.c-family",
+  "provider": "code.c-family",
+  "description": "Known-answer corpus. Each case declares whether the provider must place the file in its denominator; unselected cases are negative controls and the gate requires zero false positives.",
+  "limitations": [],
+  "cases": [
+    {
+      "id": "c-family.positive.buffer-c",
+      "kind": "positive",
+      "path": "positive/buffer.c",
+      "selected": true,
+      "variant": "c"
+    },
+    {
+      "id": "c-family.positive.buffer-h",
+      "kind": "positive",
+      "path": "positive/buffer.h",
+      "selected": true,
+      "variant": "c"
+    },
+    {
+      "id": "c-family.denominator.engine-cpp",
+      "kind": "denominator",
+      "path": "denominator/engine.cpp",
+      "selected": true,
+      "variant": "cpp"
+    },
+    {
+      "id": "c-family.negative.app-js",
+      "kind": "negative",
+      "path": "negative/app.js",
+      "selected": false,
+      "variant": null
+    },
+    {
+      "id": "c-family.unsupported.notes-qqq",
+      "kind": "unsupported",
+      "path": "unsupported/notes.qqq",
+      "selected": false,
+      "variant": null
+    }
+  ],
+  "expected": {
+    "denominator": {
+      "expected": 3,
+      "examined": 3
+    },
+    "variants": {
+      "c": 2,
+      "cpp": 1
+    }
+  }
+}

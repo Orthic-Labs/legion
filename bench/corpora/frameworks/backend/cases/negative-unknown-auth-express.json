@@ -1,0 +1,39 @@
+{
+  "framework": "express",
+  "routes": [
+    {
+      "path": "/orders",
+      "method": "POST",
+      "evidenceRefs": [
+        "ev.backend.route-inventory"
+      ]
+    }
+  ],
+  "authority": {
+    "evidenceIndex": {
+      "ev.backend.route-inventory": {
+        "path": "evidence/route-inventory.json",
+        "digest": "sha256:fd3e052b05c0ce08833c98cc061ed270ff080dd8b641e4560a2eecb2fd79c650",
+        "binding": {
+          "repositoryRevision": "corpus-revision-0",
+          "digest": "sha256:c83ca47e0309c76f69c264c65d55c246c4fcd4ab5f74f0b429975fbb99d244fe"
+        },
+        "storageReceipt": {
+          "immutable": true
+        },
+        "toolReceipt": {
+          "complete": true,
+          "tool": {
+            "id": "corpus-inventory",
+            "executableDigest": "sha256:388672c0eddbd0acb72e79fe627ef226c6294c00d689dcb80eeaee7532924b34"
+          }
+        }
+      }
+    },
+    "binding": {
+      "repositoryRevision": "corpus-revision-0",
+      "digest": "sha256:c83ca47e0309c76f69c264c65d55c246c4fcd4ab5f74f0b429975fbb99d244fe"
+    },
+    "now": "2026-01-01T00:00:00.000Z"
+  }
+}

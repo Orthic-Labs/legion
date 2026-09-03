@@ -1,0 +1,47 @@
+{
+  "schemaVersion": 1,
+  "kind": "legion-coverage-corpus",
+  "recordId": "language.go",
+  "provider": "code.go",
+  "description": "Known-answer corpus. Each case declares whether the provider must place the file in its denominator; unselected cases are negative controls and the gate requires zero false positives.",
+  "limitations": [],
+  "cases": [
+    {
+      "id": "go.positive.server-go",
+      "kind": "positive",
+      "path": "positive/server.go",
+      "selected": true,
+      "variant": "go"
+    },
+    {
+      "id": "go.denominator.handler-go",
+      "kind": "denominator",
+      "path": "denominator/handler.go",
+      "selected": true,
+      "variant": "go"
+    },
+    {
+      "id": "go.negative.app-js",
+      "kind": "negative",
+      "path": "negative/app.js",
+      "selected": false,
+      "variant": null
+    },
+    {
+      "id": "go.unsupported.notes-qqq",
+      "kind": "unsupported",
+      "path": "unsupported/notes.qqq",
+      "selected": false,
+      "variant": null
+    }
+  ],
+  "expected": {
+    "denominator": {
+      "expected": 2,
+      "examined": 2
+    },
+    "variants": {
+      "go": 2
+    }
+  }
+}

@@ -1,0 +1,58 @@
+{
+  "schemaVersion": 1,
+  "kind": "legion-coverage-corpus",
+  "recordId": "language.mobile",
+  "provider": "code.mobile",
+  "description": "Known-answer corpus. Each case declares whether the provider must place the file in its denominator; unselected cases are negative controls and the gate requires zero false positives.",
+  "limitations": [
+    "code.mobile ships the Apple analyser only; Dart and Android Java sources are not selected"
+  ],
+  "cases": [
+    {
+      "id": "mobile.positive.app-swift",
+      "kind": "positive",
+      "path": "positive/App.swift",
+      "selected": true,
+      "variant": "swift"
+    },
+    {
+      "id": "mobile.positive.bridge-m",
+      "kind": "positive",
+      "path": "positive/Bridge.m",
+      "selected": true,
+      "variant": "objectiveC"
+    },
+    {
+      "id": "mobile.denominator.bridge-mm",
+      "kind": "denominator",
+      "path": "denominator/Bridge.mm",
+      "selected": true,
+      "variant": "objectiveCpp"
+    },
+    {
+      "id": "mobile.negative.main-dart",
+      "kind": "negative",
+      "path": "negative/main.dart",
+      "selected": false,
+      "variant": null
+    },
+    {
+      "id": "mobile.unsupported.notes-qqq",
+      "kind": "unsupported",
+      "path": "unsupported/notes.qqq",
+      "selected": false,
+      "variant": null
+    }
+  ],
+  "expected": {
+    "denominator": {
+      "expected": 3,
+      "examined": 3
+    },
+    "variants": {
+      "swift": 1,
+      "objectiveC": 1,
+      "objectiveCpp": 1
+    }
+  }
+}

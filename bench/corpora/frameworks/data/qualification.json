@@ -1,0 +1,95 @@
+{
+  "schemaVersion": 1,
+  "kind": "legion-coverage-corpus",
+  "recordId": "framework.data",
+  "provider": "framework.data",
+  "description": "Known-answer corpus for analyzeData in src/providers/frameworks/data/index.mjs. Each case declares the exact status, model denominator and coverage gaps the provider must return.",
+  "limitations": [
+    "structured-artifact corpus; the provider consumes an inventory, not source text"
+  ],
+  "binding": {
+    "repositoryRevision": "corpus-revision-0",
+    "digest": "sha256:c83ca47e0309c76f69c264c65d55c246c4fcd4ab5f74f0b429975fbb99d244fe"
+  },
+  "now": "2026-01-01T00:00:00.000Z",
+  "cases": [
+    {
+      "id": "data.positive.evidenced-model",
+      "kind": "positive",
+      "path": "cases/positive-evidenced-model.json",
+      "expect": {
+        "status": "measured",
+        "complete": true,
+        "denominator": {
+          "kind": "data-operations",
+          "expected": 1,
+          "examined": 1
+        },
+        "coverageGaps": []
+      }
+    },
+    {
+      "id": "data.negative.unevidenced-model",
+      "kind": "negative",
+      "path": "cases/negative-unevidenced-model.json",
+      "expect": {
+        "status": "unproven",
+        "complete": false,
+        "denominator": {
+          "kind": "data-operations",
+          "expected": 1,
+          "examined": 0
+        },
+        "coverageGaps": [
+          {
+            "kind": "model-evidence-gap"
+          }
+        ]
+      }
+    },
+    {
+      "id": "data.unsupported.pathless-model",
+      "kind": "unsupported",
+      "path": "cases/unsupported-pathless-model.json",
+      "expect": {
+        "status": "unproven",
+        "complete": false,
+        "denominator": {
+          "kind": "data-operations",
+          "expected": 1,
+          "examined": 0
+        },
+        "coverageGaps": [
+          {
+            "kind": "model-evidence-gap"
+          }
+        ]
+      }
+    },
+    {
+      "id": "data.denominator.empty",
+      "kind": "denominator",
+      "path": "cases/denominator-empty.json",
+      "expect": {
+        "status": "unproven",
+        "complete": false,
+        "denominator": {
+          "kind": "data-operations",
+          "expected": 0,
+          "examined": 0
+        },
+        "coverageGaps": [
+          {
+            "kind": "model-denominator-gap"
+          }
+        ]
+      }
+    },
+    {
+      "id": "data.evidence.inventory",
+      "kind": "evidence",
+      "path": "evidence/model-inventory.json",
+      "expect": null
+    }
+  ]
+}

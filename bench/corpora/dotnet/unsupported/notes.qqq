@@ -1,0 +1,3 @@
+corpus: unsupported extension control
+This file uses the .qqq extension, which no packaged Legion analyser claims.
+It exists so the corpus proves unsupported input is reported, not omitted.

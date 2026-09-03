@@ -1,0 +1,47 @@
+{
+  "schemaVersion": 1,
+  "kind": "legion-coverage-corpus",
+  "recordId": "language.python",
+  "provider": "code.python",
+  "description": "Known-answer corpus. Each case declares whether the provider must place the file in its denominator; unselected cases are negative controls and the gate requires zero false positives.",
+  "limitations": [],
+  "cases": [
+    {
+      "id": "python.positive.service-py",
+      "kind": "positive",
+      "path": "positive/service.py",
+      "selected": true,
+      "variant": "python"
+    },
+    {
+      "id": "python.denominator.worker-py",
+      "kind": "denominator",
+      "path": "denominator/worker.py",
+      "selected": true,
+      "variant": "python"
+    },
+    {
+      "id": "python.negative.app-js",
+      "kind": "negative",
+      "path": "negative/app.js",
+      "selected": false,
+      "variant": null
+    },
+    {
+      "id": "python.unsupported.notes-qqq",
+      "kind": "unsupported",
+      "path": "unsupported/notes.qqq",
+      "selected": false,
+      "variant": null
+    }
+  ],
+  "expected": {
+    "denominator": {
+      "expected": 2,
+      "examined": 2
+    },
+    "variants": {
+      "python": 2
+    }
+  }
+}

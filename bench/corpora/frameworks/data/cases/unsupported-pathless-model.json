@@ -1,0 +1,36 @@
+{
+  "models": [
+    {
+      "evidenceRefs": [
+        "ev.data.model-inventory"
+      ]
+    }
+  ],
+  "authority": {
+    "evidenceIndex": {
+      "ev.data.model-inventory": {
+        "path": "evidence/model-inventory.json",
+        "digest": "sha256:d60abd7c62d651d40855ce9b5a6ef79b1f7d15242d5da80dbb09ea4a8ba4dd93",
+        "binding": {
+          "repositoryRevision": "corpus-revision-0",
+          "digest": "sha256:c83ca47e0309c76f69c264c65d55c246c4fcd4ab5f74f0b429975fbb99d244fe"
+        },
+        "storageReceipt": {
+          "immutable": true
+        },
+        "toolReceipt": {
+          "complete": true,
+          "tool": {
+            "id": "corpus-inventory",
+            "executableDigest": "sha256:158e423cdf412e5ddbc201646422a649f56a1e44ea37c447eff136ca13cf9c12"
+          }
+        }
+      }
+    },
+    "binding": {
+      "repositoryRevision": "corpus-revision-0",
+      "digest": "sha256:c83ca47e0309c76f69c264c65d55c246c4fcd4ab5f74f0b429975fbb99d244fe"
+    },
+    "now": "2026-01-01T00:00:00.000Z"
+  }
+}

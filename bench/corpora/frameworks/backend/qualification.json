@@ -1,0 +1,91 @@
+{
+  "schemaVersion": 1,
+  "kind": "legion-coverage-corpus",
+  "recordId": "framework.backend",
+  "provider": "framework.backend",
+  "description": "Known-answer corpus for analyzeFramework in src/providers/frameworks/backend/index.mjs. Each case declares the exact status, route denominator and coverage gaps the provider must return; a route with unknown auth is never reported measured.",
+  "limitations": [
+    "structured-artifact corpus; the provider consumes an inventory, not source text"
+  ],
+  "binding": {
+    "repositoryRevision": "corpus-revision-0",
+    "digest": "sha256:c83ca47e0309c76f69c264c65d55c246c4fcd4ab5f74f0b429975fbb99d244fe"
+  },
+  "now": "2026-01-01T00:00:00.000Z",
+  "cases": [
+    {
+      "id": "backend.positive.evidenced-express",
+      "kind": "positive",
+      "path": "cases/positive-evidenced-express.json",
+      "expect": {
+        "status": "measured",
+        "complete": true,
+        "denominator": {
+          "kind": "express-routes",
+          "expected": 1,
+          "examined": 1
+        },
+        "coverageGaps": []
+      }
+    },
+    {
+      "id": "backend.negative.unknown-auth-express",
+      "kind": "negative",
+      "path": "cases/negative-unknown-auth-express.json",
+      "expect": {
+        "status": "unproven",
+        "complete": false,
+        "denominator": {
+          "kind": "express-routes",
+          "expected": 1,
+          "examined": 1
+        },
+        "coverageGaps": [
+          {
+            "kind": "route-auth-unknown"
+          }
+        ]
+      }
+    },
+    {
+      "id": "backend.unsupported.sinatra",
+      "kind": "unsupported",
+      "path": "cases/unsupported-sinatra.json",
+      "expect": {
+        "status": "unproven",
+        "complete": false,
+        "denominator": null,
+        "coverageGaps": [
+          {
+            "kind": "unsupported-framework"
+          }
+        ]
+      }
+    },
+    {
+      "id": "backend.denominator.empty-django",
+      "kind": "denominator",
+      "path": "cases/denominator-empty-django.json",
+      "expect": {
+        "status": "unproven",
+        "complete": false,
+        "denominator": {
+          "kind": "django-routes",
+          "expected": 0,
+          "examined": 0
+        },
+        "coverageGaps": [
+          {
+            "kind": "route-denominator-gap"
+          }
+        ]
+      }
+    },
+    {
+      "id": "backend.evidence.inventory",
+      "kind": "evidence",
+      "path": "evidence/route-inventory.json",
+      "expect": null
+    }
+  ]
+}

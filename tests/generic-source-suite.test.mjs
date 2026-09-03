@@ -23,3 +23,15 @@ test('unknown parsed language remains UNPROVEN with a file denominator', () => {
   assert.equal(result.coverageGaps[0].extension, 'xyz');
   assert.equal(result.coverageGaps[0].pathCount, 2);
 });
+
+// --- coverage corpus: framework.data ---------------------------------------
+// bench/corpora/frameworks/data is the measured-pack corpus sealed against
+// this file by scripts/seal-coverage-evidence.mjs.
+import { fileURLToPath } from 'node:url';
+import { analyzeData } from '../src/providers/frameworks/data/index.mjs';
+import { runFrameworkCorpus } from './providers/framework-corpus.mjs';
+
+runFrameworkCorpus({
+  corpusRoot: fileURLToPath(new URL('../bench/corpora/frameworks/data/', import.meta.url)),
+  run: (input, authority) => analyzeData(input, authority),
+});

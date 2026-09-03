@@ -1,0 +1,56 @@
+{
+  "schemaVersion": 1,
+  "kind": "legion-coverage-corpus",
+  "recordId": "language.jvm",
+  "provider": "code.jvm",
+  "description": "Known-answer corpus. Each case declares whether the provider must place the file in its denominator; unselected cases are negative controls and the gate requires zero false positives.",
+  "limitations": [],
+  "cases": [
+    {
+      "id": "jvm.positive.service-java",
+      "kind": "positive",
+      "path": "positive/Service.java",
+      "selected": true,
+      "variant": "java"
+    },
+    {
+      "id": "jvm.positive.client-kt",
+      "kind": "positive",
+      "path": "positive/Client.kt",
+      "selected": true,
+      "variant": "kotlin"
+    },
+    {
+      "id": "jvm.denominator.job-scala",
+      "kind": "denominator",
+      "path": "denominator/Job.scala",
+      "selected": true,
+      "variant": "scala"
+    },
+    {
+      "id": "jvm.negative.app-js",
+      "kind": "negative",
+      "path": "negative/app.js",
+      "selected": false,
+      "variant": null
+    },
+    {
+      "id": "jvm.unsupported.notes-qqq",
+      "kind": "unsupported",
+      "path": "unsupported/notes.qqq",
+      "selected": false,
+      "variant": null
+    }
+  ],
+  "expected": {
+    "denominator": {
+      "expected": 3,
+      "examined": 3
+    },
+    "variants": {
+      "java": 1,
+      "kotlin": 1,
+      "scala": 1
+    }
+  }
+}

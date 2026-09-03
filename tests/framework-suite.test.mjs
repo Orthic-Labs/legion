@@ -60,3 +60,21 @@ test('benign framework fixture emits no candidates', () => {
     assert.equal(result.findings.length, 0);
   } finally { rmSync(root, { recursive: true, force: true }); }
 });
+
+// --- coverage corpora: framework.frontend and framework.backend -------------
+// bench/corpora/frameworks/{frontend,backend} are the measured-pack corpora
+// sealed against this file by scripts/seal-coverage-evidence.mjs.
+import { analyzeFramework as analyzeFrontendFramework } from '../src/providers/frameworks/frontend/index.mjs';
+import { analyzeFramework as analyzeBackendFramework } from '../src/providers/frameworks/backend/index.mjs';
+import { fileURLToPath } from 'node:url';
+import { runFrameworkCorpus } from './providers/framework-corpus.mjs';
+
+runFrameworkCorpus({
+  corpusRoot: fileURLToPath(new URL('../bench/corpora/frameworks/frontend/', import.meta.url)),
+  run: ({ framework, ...input }, authority) => analyzeFrontendFramework(framework, input, authority),
+});
+
+runFrameworkCorpus({
+  corpusRoot: fileURLToPath(new URL('../bench/corpora/frameworks/backend/', import.meta.url)),
+  run: ({ framework, ...input }, authority) => analyzeBackendFramework(framework, input, authority),
+});

@@ -1,0 +1,4 @@
+Extension-less file. lexicalAccounting has no extension to key on, so it
+keys on the last dot-segment of the path, so a file with no dot is keyed by
+its whole path and reported as an unsupported extension. That is the real
+measured lexical-tier behaviour, not an omission.

@@ -1,0 +1,2 @@
+Unsupported-extension control. No packaged analyser claims .qqq, so
+lexical accounting must report it as a coverage gap.

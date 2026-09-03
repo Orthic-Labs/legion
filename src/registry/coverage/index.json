@@ -29,20 +29,20 @@
         "runtime and remediation unproven"
       ],
       "qualificationVersion": "1.0.0",
-      "corpusDigest": "sha256:675a94299e418c2fd1c6b068256df5ab54f80e490ab3c0980686783d5dea6419",
-      "artifactDigest": "sha256:898bc8ea99db2a01e608e46f3765b5772012b9f3507fb10c51c182e62dbe8b15",
+      "corpusDigest": "sha256:9e42d488a3563973f9f2bd5c4ab58e3932fd630e761f6db8924ecc721a5d48a5",
+      "artifactDigest": "sha256:ac6cf04adc82f622092588ac253f82adf3d6ad543736b2ac806f6e73de2c22bd",
       "tiers": {
         "inventory": 1,
         "parser": 1,
         "native": 1,
         "cross-file": 0,
-        "measured-pack": 1,
+        "measured-pack": 0,
         "runtime": 0,
         "remediation": 0
       },
       "corpusPath": "bench/corpora/javascript/qualification.json",
       "qualificationPath": "bench/qualifications/book-3/coverage/language.javascript.qualification.json",
-      "qualificationDigest": "sha256:a0853c39e4e71df9adfcbbbe77920715fc388bf2b5649a432232efc964a9e864",
+      "qualificationDigest": "sha256:69e09bab31930a0aab291561db687dd10c9a36e53ed1d0b347db0d213c5fd68f",
       "artifactPath": "bench/qualifications/book-3/coverage/language.javascript.artifact.json",
       "corpusRoot": "bench/corpora/javascript",
       "providerVersions": {
@@ -64,20 +64,20 @@
         "runtime and remediation unproven"
       ],
       "qualificationVersion": "1.0.0",
-      "corpusDigest": "sha256:9c10ae213d0162904c6b65a5af15b26cb76a615dba527707925c15f3efe849db",
-      "artifactDigest": "sha256:0125e0f24c63c9d7f783060bb93d81a36887f0d4ce67f8decc139090537b7473",
+      "corpusDigest": "sha256:a89bee518dac84469e6ba1566b37c1b09b18748e439aa54f19b05517ae842e96",
+      "artifactDigest": "sha256:1eefda67b49c7095bfef6d604731686afbe261eb87476c0ebb43d192cb46a652",
       "tiers": {
         "inventory": 1,
         "parser": 1,
         "native": 1,
         "cross-file": 0,
-        "measured-pack": 1,
+        "measured-pack": 0,
         "runtime": 0,
         "remediation": 0
       },
       "corpusPath": "bench/corpora/python/qualification.json",
       "qualificationPath": "bench/qualifications/book-3/coverage/language.python.qualification.json",
-      "qualificationDigest": "sha256:e05ca0af4f8dd40eb547cda4c911cdd5db7bb797938db8229592c7671e9fc3d8",
+      "qualificationDigest": "sha256:8f3a1e35de5c99ae6bde15342951bcc91eb8483f00509f2e3358270eb1524d0b",
       "artifactPath": "bench/qualifications/book-3/coverage/language.python.artifact.json",
       "corpusRoot": "bench/corpora/python",
       "providerVersions": {
@@ -99,20 +99,20 @@
         "runtime and remediation unproven"
       ],
       "qualificationVersion": "1.0.0",
-      "corpusDigest": "sha256:6eafeaaa9a9d62324ce2c0ddda206a8d5b02fe2a032d89b386c289d73d72a6b9",
-      "artifactDigest": "sha256:2c8a4655c07a4ac0fcb1e21f41622708893de956a5ac55a3e6c65aa44e650a05",
+      "corpusDigest": "sha256:1a2ff75fc24fbb0b2331dfd49bc1e81a1b791b32188972a030130eca2134fa85",
+      "artifactDigest": "sha256:5f3619de15b7595412996b1f3be286b1da3f0f726dcedb525673367411e78cae",
       "tiers": {
         "inventory": 1,
         "parser": 1,
         "native": 1,
         "cross-file": 0,
-        "measured-pack": 1,
+        "measured-pack": 0,
         "runtime": 0,
         "remediation": 0
       },
       "corpusPath": "bench/corpora/rust/qualification.json",
       "qualificationPath": "bench/qualifications/book-3/coverage/language.rust.qualification.json",
-      "qualificationDigest": "sha256:2e8534e0b8bc2cdae445811055c0a659339b385fde7283e5b68dfbbb24923917",
+      "qualificationDigest": "sha256:02aa975dc1fd732e014fc51a0211e21f3d2858fdadd2d1ed34ff1164f1913806",
       "artifactPath": "bench/qualifications/book-3/coverage/language.rust.artifact.json",
       "corpusRoot": "bench/corpora/rust",
       "providerVersions": {
@@ -134,20 +134,20 @@
         "runtime and remediation unproven"
       ],
       "qualificationVersion": "1.0.0",
-      "corpusDigest": "sha256:3bd9035878a90d5e777fc6ae61c70e7a65da0c421c79b01909b7912a4d9aa729",
-      "artifactDigest": "sha256:99a942e42d2335ca8f34aff33359ba3e3c9e061fc9bace9c67696862d076c785",
+      "corpusDigest": "sha256:9f497387aa8bae472542198783e9c9d8057166eb2ea7de59513e12181b793ca7",
+      "artifactDigest": "sha256:3586296e2de81df2dd121cb6658b460db7dc14381b8c44e8cb06e3579f02ddef",
       "tiers": {
         "inventory": 1,
         "parser": 1,
         "native": 1,
         "cross-file": 0,
-        "measured-pack": 1,
+        "measured-pack": 0,
         "runtime": 0,
         "remediation": 0
       },
       "corpusPath": "bench/corpora/go/qualification.json",
       "qualificationPath": "bench/qualifications/book-3/coverage/language.go.qualification.json",
-      "qualificationDigest": "sha256:15604bdb819906b532466b5981c1a24f3a1a2b7cd52de5a964a813ece4473db2",
+      "qualificationDigest": "sha256:ff62f773ef264960368ad78cf425ebfccef472a9fc4afc210515b7a526933ada",
       "artifactPath": "bench/qualifications/book-3/coverage/language.go.artifact.json",
       "corpusRoot": "bench/corpora/go",
       "providerVersions": {
@@ -171,20 +171,20 @@
         "runtime and remediation unproven"
       ],
       "qualificationVersion": "1.0.0",
-      "corpusDigest": "sha256:455f1a4cdff9e7e312d30eaa593a2aed9a56135be7056c8fd308346dfbec85dd",
-      "artifactDigest": "sha256:9b845a2425ce3a9f4bc8cfc03457ecf43d319ff87c6b4905b5861542799d776c",
+      "corpusDigest": "sha256:343dada6d9721225b4e7f049e75a5039320de514be680fadeaa47f266f8ef8e6",
+      "artifactDigest": "sha256:487395b30b5ec4dcb7e0686971d018457d423a3ef1e5fb94b4b369c374be3724",
       "tiers": {
         "inventory": 1,
         "parser": 1,
         "native": 1,
         "cross-file": 0,
-        "measured-pack": 1,
+        "measured-pack": 0,
         "runtime": 0,
         "remediation": 0
       },
       "corpusPath": "bench/corpora/jvm/qualification.json",
       "qualificationPath": "bench/qualifications/book-3/coverage/language.jvm.qualification.json",
-      "qualificationDigest": "sha256:a24ab80f9c15817b91416c5536bb33e271d10b9a72d84315a8153907eab9d2e4",
+      "qualificationDigest": "sha256:0bd6cb1bc3de3f90d4401eb6f99b324a4210f680328d728f92966bea01b8d07b",
       "artifactPath": "bench/qualifications/book-3/coverage/language.jvm.artifact.json",
       "corpusRoot": "bench/corpora/jvm",
       "providerVersions": {
@@ -208,20 +208,20 @@
         "runtime and remediation unproven"
       ],
       "qualificationVersion": "1.0.0",
-      "corpusDigest": "sha256:b4c613f512d2f00a37b9bc70fd9845845cbe0e2bd8aa65b0bc03d182ee462593",
-      "artifactDigest": "sha256:015313e60e10ea8bd4311427061ed56c67406ce41bb71bc1283f1a8b62a06047",
+      "corpusDigest": "sha256:4dd9f7e73d44fcc4bc33da2bdfeb64dd28c265e72d8e49875e1f1374e9f15184",
+      "artifactDigest": "sha256:d20d7ab3550f186ca1080784a1cbbd71ee9e3d13090a67e4633c24338c1ebd94",
       "tiers": {
         "inventory": 1,
         "parser": 1,
         "native": 1,
         "cross-file": 0,
-        "measured-pack": 1,
+        "measured-pack": 0,
         "runtime": 0,
         "remediation": 0
       },
       "corpusPath": "bench/corpora/dotnet/qualification.json",
       "qualificationPath": "bench/qualifications/book-3/coverage/language.dotnet.qualification.json",
-      "qualificationDigest": "sha256:6aeb9471d0aad7c4da8f57c6127a04581b1c66cf53a7d0b3b60ec23ccefa0928",
+      "qualificationDigest": "sha256:597cc086c906f01694964ca0ef84dd85c083acb0e9a634d583dfef2b7f350d72",
       "artifactPath": "bench/qualifications/book-3/coverage/language.dotnet.artifact.json",
       "corpusRoot": "bench/corpora/dotnet",
       "providerVersions": {
@@ -247,20 +247,20 @@
         "runtime and remediation unproven"
       ],
       "qualificationVersion": "1.0.0",
-      "corpusDigest": "sha256:93fbf81f9e58c276532f52d8da099b9b3eea968d510bf2db250c8018b5e522eb",
-      "artifactDigest": "sha256:48f79133c5b56621b7d6c72dc93a5bfe75e19a255364c30a975f64a907e83483",
+      "corpusDigest": "sha256:5a1b3e594d0e015a97dc174616d55f017c8a0395d07a6a899efcc36e4ea1e60d",
+      "artifactDigest": "sha256:38d041fb099bbc4999cc4b816b81bc706cf28976e45be1df591facdcfb798eaa",
       "tiers": {
         "inventory": 1,
         "parser": 1,
         "native": 1,
         "cross-file": 0,
-        "measured-pack": 1,
+        "measured-pack": 0,
         "runtime": 0,
         "remediation": 0
       },
       "corpusPath": "bench/corpora/c-family/qualification.json",
       "qualificationPath": "bench/qualifications/book-3/coverage/language.c-family.qualification.json",
-      "qualificationDigest": "sha256:47f5918df5a378cee85ed75304bf66c15460253b86b7eff6259d1dca61696766",
+      "qualificationDigest": "sha256:b615b85c1953758046e9ad3105dd1f739912340c9b34b0bcffa465a608159898",
       "artifactPath": "bench/qualifications/book-3/coverage/language.c-family.artifact.json",
       "corpusRoot": "bench/corpora/c-family",
       "providerVersions": {
@@ -280,20 +280,20 @@
         "runtime and remediation unproven"
       ],
       "qualificationVersion": "1.0.0",
-      "corpusDigest": "sha256:2a29718199650f8c2d8dbbaca80e3e1718429391e009e54b556faf1885ec5180",
-      "artifactDigest": "sha256:87d529364263fc71c9042d673c8344a58cf0ea1adc696b62e851527d955bed83",
+      "corpusDigest": "sha256:266ace7cc70411d4a143ba64f404fecedc1106f23f7d4b6cd3f51122623e9c17",
+      "artifactDigest": "sha256:0a8578fd677b45ede9188d809e3fcbe54e3d6a09f0d6a9fd0581ae8ba0b471e5",
       "tiers": {
         "inventory": 1,
         "parser": 1,
         "native": 1,
         "cross-file": 0,
-        "measured-pack": 1,
+        "measured-pack": 0,
         "runtime": 0,
         "remediation": 0
       },
       "corpusPath": "bench/corpora/php-ruby/qualification.json",
       "qualificationPath": "bench/qualifications/book-3/coverage/language.php-ruby.qualification.json",
-      "qualificationDigest": "sha256:95019ca4e38c354de1d014702849dda21f11e83c4cf21a4e69d4a2ae9cfc1766",
+      "qualificationDigest": "sha256:ba721dbdc5e37d26ed2dd37ef2bdc70546bf922ad66f736e1cd8119b58c0f250",
       "artifactPath": "bench/qualifications/book-3/coverage/language.php-ruby.artifact.json",
       "corpusRoot": "bench/corpora/php-ruby",
       "providerVersions": {
@@ -313,20 +313,20 @@
         "runtime and remediation unproven"
       ],
       "qualificationVersion": "1.0.0",
-      "corpusDigest": "sha256:95e430523fc4a53e0a8a19d295d5576f842a2263bd2271cf52125feb50c7929e",
-      "artifactDigest": "sha256:9d2ffae92e3f9a1b8dd70e94dcdbb0dcb68fd22c29e3daf9d93d91c89faa7440",
+      "corpusDigest": "sha256:0fd87f3787ac9a93bd9ce32eb91f9a98566ab00209fc33e0528a4ff8bc78324e",
+      "artifactDigest": "sha256:ae83828de5d6768b5c63f492ecd93b37d58913c15b6a9103bcacdba446264ef3",
       "tiers": {
         "inventory": 1,
         "parser": 1,
         "native": 1,
         "cross-file": 0,
-        "measured-pack": 1,
+        "measured-pack": 0,
         "runtime": 0,
         "remediation": 0
       },
       "corpusPath": "bench/corpora/mobile/qualification.json",
       "qualificationPath": "bench/qualifications/book-3/coverage/language.mobile.qualification.json",
-      "qualificationDigest": "sha256:2b49c1ed9d725758b3b8f0e4ac89fd81345fceddda0ab6c76e891851e1ad28ed",
+      "qualificationDigest": "sha256:fee0372e1bb01560732c3cd98704ce51bb91be9b8a58b288d8d6db1a6325ba1a",
       "artifactPath": "bench/qualifications/book-3/coverage/language.mobile.artifact.json",
       "corpusRoot": "bench/corpora/mobile",
       "providerVersions": {
@@ -346,20 +346,20 @@
         "runtime and remediation unproven"
       ],
       "qualificationVersion": "1.0.0",
-      "corpusDigest": "sha256:bffe6c2e621c63df87fe3bcaf058bef0b845dc3302bf489511450c220954c3a0",
-      "artifactDigest": "sha256:ea8dcd97a52794f2ef06215352208c7f3fea458d113a0430308340d645ccb615",
+      "corpusDigest": "sha256:47b4ff298d661234b24fdcd8da2729dc1890f48f5f853289d5e3417f4f6cbb70",
+      "artifactDigest": "sha256:36fbf3a5ebf731c6e936dcd223bb28ab70a26c195d18479077448ddda44d2157",
       "tiers": {
         "inventory": 1,
         "parser": 1,
         "native": 1,
         "cross-file": 0,
-        "measured-pack": 1,
+        "measured-pack": 0,
         "runtime": 0,
         "remediation": 0
       },
       "corpusPath": "bench/corpora/long-tail/qualification.json",
       "qualificationPath": "bench/qualifications/book-3/coverage/language.long-tail.qualification.json",
-      "qualificationDigest": "sha256:b8366e42dee3f76d1b9254a96e29d904da024301e18b4cad569302d6da837f01",
+      "qualificationDigest": "sha256:13b9ac531a5da5586a979c0856000b224ae3714e95d1dec8ff6a1a2ffd0fcf5e",
       "artifactPath": "bench/qualifications/book-3/coverage/language.long-tail.artifact.json",
       "corpusRoot": "bench/corpora/long-tail",
       "providerVersions": {
@@ -379,20 +379,20 @@
         "runtime unproven"
       ],
       "qualificationVersion": "1.0.0",
-      "corpusDigest": "sha256:0101ababffab66e20fe9e73f9220bec55cb757d558c6c73b37bfbc24305c9f11",
-      "artifactDigest": "sha256:6acf0b9129f22b02ac157b1f7048e26b423939a0adf6a220a4144affc05aa457",
+      "corpusDigest": "sha256:69d2b3bf960beb84c4cc178dbdd0a4d0e0627042d757f48e7b9caa2a827d12cb",
+      "artifactDigest": "sha256:21a3a4b39f6beb4a3f7abd89b03683b0b501433d1e70dcfef3ab0dbcefeb744b",
       "tiers": {
         "inventory": 1,
         "parser": 1,
         "native": 1,
         "cross-file": 1,
-        "measured-pack": 1,
+        "measured-pack": 0,
         "runtime": 0,
         "remediation": 0
       },
       "corpusPath": "bench/corpora/frameworks/frontend/qualification.json",
       "qualificationPath": "bench/qualifications/book-3/coverage/framework.frontend.qualification.json",
-      "qualificationDigest": "sha256:1618b30afae1d1d9a2134d1005f01391a3a21589f1911dca38658b6495ecad8a",
+      "qualificationDigest": "sha256:44473416f7e083e6a3cc5bebc4114b01a4df1ecdaebce0a642663bc918a25783",
       "artifactPath": "bench/qualifications/book-3/coverage/framework.frontend.artifact.json",
       "corpusRoot": "bench/corpora/frameworks/frontend",
       "providerVersions": {
@@ -412,20 +412,20 @@
         "runtime unproven"
       ],
       "qualificationVersion": "1.0.0",
-      "corpusDigest": "sha256:4e125215a9255573e8b15e3eedad978f1b4f08e8f3aa008ae9238a568929c61f",
-      "artifactDigest": "sha256:d878812cde6b99f06ad2634f56f198c3dc26aec5082dcf8af125393665fee522",
+      "corpusDigest": "sha256:f94b3a0b499d27ce53a145c57bb859e5269ed8ef48472a751d3a2d57df676075",
+      "artifactDigest": "sha256:2c895f7f9884cf2e494eb3a81f4cb8c1df4ba74b229d16f37e1567ce336e37cd",
       "tiers": {
         "inventory": 1,
         "parser": 1,
         "native": 1,
         "cross-file": 1,
-        "measured-pack": 1,
+        "measured-pack": 0,
         "runtime": 0,
         "remediation": 0
       },
       "corpusPath": "bench/corpora/frameworks/backend/qualification.json",
       "qualificationPath": "bench/qualifications/book-3/coverage/framework.backend.qualification.json",
-      "qualificationDigest": "sha256:a87a128b1fd719280f1201f9d296dc25b702fd035d82dd077204e206a7bdd6cc",
+      "qualificationDigest": "sha256:1cc9a889c7d6f681292224ba0f5b6a51dc98ac4bfabc1b48a65307264c810f6c",
       "artifactPath": "bench/qualifications/book-3/coverage/framework.backend.artifact.json",
       "corpusRoot": "bench/corpora/frameworks/backend",
       "providerVersions": {
@@ -445,20 +445,20 @@
         "runtime unproven"
       ],
       "qualificationVersion": "1.0.0",
-      "corpusDigest": "sha256:59d22b194047466e52a9c2c8f7ed5c660f91ee27a1ccc9266c5f36e5ea5ba3d5",
-      "artifactDigest": "sha256:f3ce99eedbaa2b7e339d564d57c60e81e4b08f4372a1b16b21167b43ae1fc4b7",
+      "corpusDigest": "sha256:c30962ace41e4722af364890fdc1c8851341bacf598de9b99a20a901822d48f2",
+      "artifactDigest": "sha256:72d4b5cb4eee898dc9ba1c9829b4dfb8fb721e70f921b5f54d560814f6635989",
       "tiers": {
         "inventory": 1,
         "parser": 1,
         "native": 1,
         "cross-file": 1,
-        "measured-pack": 1,
+        "measured-pack": 0,
         "runtime": 0,
         "remediation": 0
       },
       "corpusPath": "bench/corpora/frameworks/data/qualification.json",
       "qualificationPath": "bench/qualifications/book-3/coverage/framework.data.qualification.json",
-      "qualificationDigest": "sha256:d8c3ea8a7f24353425a6f041cc46f330fc6578695b18bb43b1ba4b18dd63cc65",
+      "qualificationDigest": "sha256:5b8f73da149db6361c5b3f6bc9967f71fbe773ef84c2b7772d9db2a7bf6990b9",
       "artifactPath": "bench/qualifications/book-3/coverage/framework.data.artifact.json",
       "corpusRoot": "bench/corpora/frameworks/data",
       "providerVersions": {

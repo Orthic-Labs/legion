@@ -1,0 +1,47 @@
+{
+  "schemaVersion": 1,
+  "kind": "legion-coverage-corpus",
+  "recordId": "language.rust",
+  "provider": "code.rust",
+  "description": "Known-answer corpus. Each case declares whether the provider must place the file in its denominator; unselected cases are negative controls and the gate requires zero false positives.",
+  "limitations": [],
+  "cases": [
+    {
+      "id": "rust.positive.lib-rs",
+      "kind": "positive",
+      "path": "positive/lib.rs",
+      "selected": true,
+      "variant": "rust"
+    },
+    {
+      "id": "rust.denominator.main-rs",
+      "kind": "denominator",
+      "path": "denominator/main.rs",
+      "selected": true,
+      "variant": "rust"
+    },
+    {
+      "id": "rust.negative.app-js",
+      "kind": "negative",
+      "path": "negative/app.js",
+      "selected": false,
+      "variant": null
+    },
+    {
+      "id": "rust.unsupported.notes-qqq",
+      "kind": "unsupported",
+      "path": "unsupported/notes.qqq",
+      "selected": false,
+      "variant": null
+    }
+  ],
+  "expected": {
+    "denominator": {
+      "expected": 2,
+      "examined": 2
+    },
+    "variants": {
+      "rust": 2
+    }
+  }
+}

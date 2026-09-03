@@ -1,0 +1,49 @@
+{
+  "schemaVersion": 1,
+  "kind": "legion-coverage-corpus",
+  "recordId": "language.php-ruby",
+  "provider": "code.php-ruby",
+  "description": "Known-answer corpus. Each case declares whether the provider must place the file in its denominator; unselected cases are negative controls and the gate requires zero false positives.",
+  "limitations": [
+    "code.php-ruby ships the PHP analyser only; Ruby sources are not selected"
+  ],
+  "cases": [
+    {
+      "id": "php-ruby.positive.index-php",
+      "kind": "positive",
+      "path": "positive/index.php",
+      "selected": true,
+      "variant": "php"
+    },
+    {
+      "id": "php-ruby.denominator.router-php",
+      "kind": "denominator",
+      "path": "denominator/router.php",
+      "selected": true,
+      "variant": "php"
+    },
+    {
+      "id": "php-ruby.negative.model-rb",
+      "kind": "negative",
+      "path": "negative/model.rb",
+      "selected": false,
+      "variant": null
+    },
+    {
+      "id": "php-ruby.unsupported.notes-qqq",
+      "kind": "unsupported",
+      "path": "unsupported/notes.qqq",
+      "selected": false,
+      "variant": null
+    }
+  ],
+  "expected": {
+    "denominator": {
+      "expected": 2,
+      "examined": 2
+    },
+    "variants": {
+      "php": 2
+    }
+  }
+}

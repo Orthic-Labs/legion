@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
+import { join, relative, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import test from 'node:test';
 import { lexicalAccounting } from '../src/providers/generic/index.mjs';
@@ -76,3 +77,47 @@ test('coverage registry still accounts long-tail languages', () => {
     assert.ok(registry.languages.some((record) => record.id === id), `${id} accounted`);
   }
 });
+
+// --- coverage corpus: language.long-tail ------------------------------------
+// bench/corpora/long-tail is the measured-pack corpus sealed against this file
+// by scripts/seal-coverage-evidence.mjs. parsedExtensions is fixed by the
+// corpus, so each case's gap (or absence of one) is a known answer.
+{
+  const corpusRoot = fileURLToPath(new URL('../bench/corpora/long-tail/', import.meta.url));
+  const corpus = JSON.parse(readFileSync(new URL('../bench/corpora/long-tail/qualification.json', import.meta.url), 'utf8'));
+  const corpusPaths = corpus.cases.map(({ path }) => path);
+
+  test('language.long-tail: every corpus file carries a declared known answer', () => {
+    const walk = (dir) => readdirSync(dir, { withFileTypes: true })
+      .flatMap((entry) => (entry.isDirectory() ? walk(join(dir, entry.name)) : [join(dir, entry.name)]));
+    const onDisk = walk(corpusRoot)
+      .map((file) => relative(corpusRoot, file).split(sep).join('/'))
+      .filter((file) => file !== 'qualification.json')
+      .sort();
+    assert.deepEqual([...corpusPaths].sort(), onDisk);
+    for (const kind of ['positive', 'negative', 'unsupported', 'denominator']) {
+      assert.ok(corpus.cases.some((item) => item.kind === kind), `missing ${kind} case`);
+    }
+  });
+
+  for (const item of corpus.cases) {
+    test(`language.long-tail: ${item.id} reports ${item.unsupportedExtension ?? 'no'} gap`, () => {
+      const accounting = lexicalAccounting({ files: [item.path], parsedExtensions: corpus.parsedExtensions });
+      assert.equal(accounting.fileCount, 1);
+      assert.equal(accounting.precisionTier, 'lexical');
+      // Zero false positives: a control declaring no gap must produce none.
+      assert.deepEqual(accounting.unsupportedExtensions, item.unsupportedExtension ? [item.unsupportedExtension] : []);
+      assert.deepEqual(
+        accounting.coverageGaps,
+        item.unsupportedExtension ? [{ kind: 'unsupported-extension', extension: item.unsupportedExtension }] : [],
+      );
+    });
+  }
+
+  test('language.long-tail: whole-corpus accounting matches the declared answer', () => {
+    const accounting = lexicalAccounting({ files: corpusPaths, parsedExtensions: corpus.parsedExtensions });
+    assert.equal(accounting.fileCount, corpus.expected.fileCount);
+    assert.deepEqual(accounting.unsupportedExtensions, corpus.expected.unsupportedExtensions);
+    assert.equal(accounting.precisionTier, corpus.expected.precisionTier);
+  });
+}

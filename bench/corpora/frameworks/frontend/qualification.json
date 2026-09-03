@@ -1,0 +1,94 @@
+{
+  "schemaVersion": 1,
+  "kind": "legion-coverage-corpus",
+  "recordId": "framework.frontend",
+  "provider": "framework.frontend",
+  "description": "Known-answer corpus for analyzeFramework in src/providers/frameworks/frontend/index.mjs. Each case declares the exact status, denominator and coverage gaps the provider must return; negative controls must never be reported measured.",
+  "limitations": [
+    "structured-artifact corpus; the provider consumes an inventory, not source text"
+  ],
+  "binding": {
+    "repositoryRevision": "corpus-revision-0",
+    "digest": "sha256:c83ca47e0309c76f69c264c65d55c246c4fcd4ab5f74f0b429975fbb99d244fe"
+  },
+  "now": "2026-01-01T00:00:00.000Z",
+  "cases": [
+    {
+      "id": "frontend.positive.evidenced-react",
+      "kind": "positive",
+      "path": "cases/positive-evidenced-react.json",
+      "expect": {
+        "status": "measured",
+        "complete": true,
+        "denominator": {
+          "kind": "react-components",
+          "expected": 1,
+          "examined": 1
+        },
+        "coverageGaps": []
+      }
+    },
+    {
+      "id": "frontend.negative.unevidenced-react",
+      "kind": "negative",
+      "path": "cases/negative-unevidenced-react.json",
+      "expect": {
+        "status": "unproven",
+        "complete": false,
+        "denominator": {
+          "kind": "react-components",
+          "expected": 1,
+          "examined": 0
+        },
+        "coverageGaps": [
+          {
+            "kind": "framework-evidence-gap"
+          }
+        ]
+      }
+    },
+    {
+      "id": "frontend.unsupported.jquery",
+      "kind": "unsupported",
+      "path": "cases/unsupported-jquery.json",
+      "expect": {
+        "status": "unproven",
+        "complete": false,
+        "denominator": {
+          "kind": "jquery-unsupported",
+          "expected": 0
+        },
+        "coverageGaps": [
+          {
+            "kind": "unsupported-framework"
+          }
+        ]
+      }
+    },
+    {
+      "id": "frontend.denominator.empty-vue",
+      "kind": "denominator",
+      "path": "cases/denominator-empty-vue.json",
+      "expect": {
+        "status": "unproven",
+        "complete": false,
+        "denominator": {
+          "kind": "vue-components",
+          "expected": 0,
+          "examined": 0
+        },
+        "coverageGaps": [
+          {
+            "kind": "denominator-gap"
+          }
+        ]
+      }
+    },
+    {
+      "id": "frontend.evidence.inventory",
+      "kind": "evidence",
+      "path": "evidence/component-inventory.json",
+      "expect": null
+    }
+  ]
+}

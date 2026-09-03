@@ -1,0 +1,48 @@
+{
+  "schemaVersion": 1,
+  "kind": "legion-coverage-corpus",
+  "recordId": "language.long-tail",
+  "provider": "code.long-tail",
+  "description": "Known-answer corpus for the lexical fallback. parsedExtensions is fixed to [\"py\"]; each case declares the unsupported extension it must produce, or null for a negative control that must produce none.",
+  "parsedExtensions": [
+    "py"
+  ],
+  "limitations": [
+    "lexical tier only; never AST or semantic evidence",
+    "extension-less paths are keyed by the whole path, not by an extension"
+  ],
+  "cases": [
+    {
+      "id": "long-tail.positive.telemetry.qqq",
+      "kind": "positive",
+      "path": "positive/telemetry.qqq",
+      "unsupportedExtension": "qqq"
+    },
+    {
+      "id": "long-tail.negative.service.py",
+      "kind": "negative",
+      "path": "negative/service.py",
+      "unsupportedExtension": null
+    },
+    {
+      "id": "long-tail.denominator.worker.py",
+      "kind": "denominator",
+      "path": "denominator/worker.py",
+      "unsupportedExtension": null
+    },
+    {
+      "id": "long-tail.unsupported.license",
+      "kind": "unsupported",
+      "path": "unsupported/LICENSE",
+      "unsupportedExtension": "unsupported/license"
+    }
+  ],
+  "expected": {
+    "fileCount": 4,
+    "unsupportedExtensions": [
+      "qqq",
+      "unsupported/license"
+    ],
+    "precisionTier": "lexical"
+  }
+}
