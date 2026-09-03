@@ -13,6 +13,14 @@ AppPublisher=Orthic Labs
 DefaultDirName={localappdata}\Orthic Labs\Legion
 DefaultGroupName=Legion
 DisableProgramGroupPage=yes
+; Legion installs without a wizard. Every page is disabled so no command
+; can surface an interactive prompt, whatever flags reach the installer.
+DisableWelcomePage=yes
+DisableDirPage=yes
+DisableReadyPage=yes
+DisableReadyMemo=yes
+DisableFinishedPage=yes
+DisableStartupPrompt=yes
 PrivilegesRequired=lowest
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
