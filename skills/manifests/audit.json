@@ -29,10 +29,15 @@
       "Diagnose a whole repository through Legion's frozen Audit provider plan. Use for /audit or repository-wide read-only health, security, runtime, & evidence review."
     ],
     "outputs": [
+      "references/audit-design-decisions.md",
+      "references/coverage-and-trajectory.md",
       "references/engine-interface.md",
       "references/execution-contract.md",
+      "references/lens-cues.md",
       "references/lens-routing.md",
       "references/manual.md",
+      "references/migration-safety.md",
+      "references/ponytail-lens.md",
       "references/provider-architecture.md"
     ],
     "scripts": [],
@@ -75,6 +80,16 @@
       "digest": "sha256:d82bf4ec5e5d39530721c141731c55f6fa5c8eb3af975d495abcd10b274e7959"
     },
     {
+      "path": "references/audit-design-decisions.md",
+      "uri": "legion-skill://audit/references/audit-design-decisions.md",
+      "digest": "sha256:522d2dc750f21365bef500914c2f834df283b6763f5e82e326dff0670b0ed8ad"
+    },
+    {
+      "path": "references/coverage-and-trajectory.md",
+      "uri": "legion-skill://audit/references/coverage-and-trajectory.md",
+      "digest": "sha256:3c9f3f8da4c8ef3a8d9ea08c22057aedd601ce8cd0871f59db9f228bab1acb45"
+    },
+    {
       "path": "references/engine-interface.md",
       "uri": "legion-skill://audit/references/engine-interface.md",
       "digest": "sha256:69ee3e43c0c58bd0353fd10adaa51b6c1180aa32c2a0d5338111401e18be7a2c"
@@ -85,6 +100,11 @@
       "digest": "sha256:1e68cb4c8268de23c7f3c0f7e6e8d04221589047dd8c37bf2c42779a73643163"
     },
     {
+      "path": "references/lens-cues.md",
+      "uri": "legion-skill://audit/references/lens-cues.md",
+      "digest": "sha256:ff9347a5ef3df3b2c4e9de970cd0313e9e1d566359d6b4e6703ad7337babeb56"
+    },
+    {
       "path": "references/lens-routing.md",
       "uri": "legion-skill://audit/references/lens-routing.md",
       "digest": "sha256:f7e27cbc2929577128b657e5b81a69b177f873bd4fd31756bb6230bbd44bd4bb"
@@ -93,6 +113,16 @@
       "path": "references/manual.md",
       "uri": "legion-skill://audit/references/manual.md",
       "digest": "sha256:2152606fb3af995915294e2adce5b6b9ec8fde5a0578613f7e334a3f9219acae"
+    },
+    {
+      "path": "references/migration-safety.md",
+      "uri": "legion-skill://audit/references/migration-safety.md",
+      "digest": "sha256:b3457703280c270398eb58070f041ad072afe0d6e86eaa9f8ccfde35d11b6565"
+    },
+    {
+      "path": "references/ponytail-lens.md",
+      "uri": "legion-skill://audit/references/ponytail-lens.md",
+      "digest": "sha256:cd0c515ad8e953d8b693a10133bb885abba673ea0d21f654c940d33af8a9d3ea"
     },
     {
       "path": "references/provider-architecture.md",
