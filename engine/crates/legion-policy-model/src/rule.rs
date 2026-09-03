@@ -14,8 +14,13 @@ pub enum RuleDecision {
     Deny,
 }
 
+/// A predicate constrains a rule; an absent clause constrains nothing. Every
+/// field therefore defaults, so a rule that matches on effect class alone is
+/// written as `{"effect_class": "FILE_DELETE"}` rather than five empty sets.
+/// Requiring them made the shipped pack unparseable, which took the MCP
+/// server down at startup with `missing field `operations``.
 #[derive(Clone, Debug, Default, Eq, PartialEq, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
+#[serde(default, deny_unknown_fields)]
 pub struct RulePredicate {
     pub effect_class: Option<EffectClass>,
     pub operations: BTreeSet<PathOperation>,
@@ -105,5 +110,40 @@ impl PolicyRule {
             }
         }
         true
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// The shipped pack writes only the clauses a rule actually constrains.
+    /// Requiring the rest made every installed MCP server fail to start.
+    #[test]
+    fn a_predicate_may_name_only_the_clauses_it_constrains() {
+        let rule: PolicyRule = serde_json::from_str(
+            r#"{
+                "schema_version": 1,
+                "id": "installed-m1-file-delete",
+                "effect_class": "FILE_DELETE",
+                "rule": "allow",
+                "predicate": { "effect_class": "FILE_DELETE" },
+                "approval_required": true,
+                "trust_minimum": "capability-signature",
+                "required_enforcement": "strong",
+                "receipt_required": true,
+                "exception_capable": false,
+                "note": null
+            }"#,
+        )
+        .expect("a predicate naming one clause must parse");
+        assert_eq!(rule.predicate.effect_class, Some(EffectClass::FileDelete));
+        assert!(rule.predicate.operations.is_empty());
+        assert!(rule.predicate.repositories.is_empty());
+    }
+
+    #[test]
+    fn an_unknown_predicate_clause_is_still_refused() {
+        assert!(serde_json::from_str::<RulePredicate>(r#"{"effectClass": "FILE_DELETE"}"#).is_err());
     }
 }
