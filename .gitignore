@@ -38,3 +38,10 @@ _audit/
 /_selfcheck/
 evidence/
 *.receipt.json
+
+# Run receipts are evidence and stay out. A receipt under skills/*/examples/
+# is a shipped fixture the skill manifest digests, so ignoring it made the
+# manifest reference a file git could not carry: the build failed on dispatch
+# manifest drift, and an earlier review recorded the same file as deleted for
+# no stated reason.
+!skills/*/examples/*.receipt.json

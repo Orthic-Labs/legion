@@ -1,0 +1,8 @@
+{
+  "schema_version": 2,
+  "artifact_name": "validated-forward-test.md",
+  "artifact_path": "skills/dispatch/examples/validated-forward-test.md",
+  "sha256": "7f75ed3e8fb7fcbf58a0bdd05602c190242eb0e59c9de324f9761ed3ec0201bb",
+  "validated_at": "2026-09-03T18:08:07.240677+00:00",
+  "validator": "dispatch/validate-dispatch.py"
+}

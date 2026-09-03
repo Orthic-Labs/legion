@@ -18,6 +18,14 @@ pub struct ResearchArgs {
     pub source_records: Vec<PathBuf>,
     #[arg(long, default_value_t = 2)]
     pub min_independent_providers: usize,
+    /// Route domain. The medical and legal gates are only reachable when the
+    /// route names them; a route frozen at `general` can never reach either,
+    /// so a sensitive query was silently answered as an ordinary one.
+    #[arg(long, default_value = "general")]
+    pub domain: String,
+    /// Route sensitivity. Bound with the domain because the gates read both.
+    #[arg(long, default_value = "public")]
+    pub sensitivity: String,
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -143,7 +151,11 @@ fn terminal_cancelled(
 }
 
 pub fn run(args: ResearchArgs, cancellation: CancellationToken) -> CommandResult {
-    let route = legion_research::ResearchRoute::host_injected(&args.query);
+    let route = legion_research::ResearchRoute::host_injected_with(
+        &args.query,
+        &args.domain,
+        &args.sensitivity,
+    );
     route
         .validate()
         .map_err(|error| super::CommandError::incomplete(error.to_string()))?;

@@ -386,16 +386,25 @@ impl ResearchRoute {
     /// Explicit route used by public host-injected source-record integration.
     /// It is not a classifier and carries no pending human gate.
     pub fn host_injected(query: &str) -> Self {
+        Self::host_injected_with(query, "general", "public")
+    }
+
+    /// Same route with the domain and sensitivity the host actually resolved.
+    /// `host_injected` froze both, so the medical and legal gates below could
+    /// never be reached from a caller and a sensitive query was answered as an
+    /// ordinary one. Values are validated by `require_route_value` exactly as
+    /// every other route field is.
+    pub fn host_injected_with(query: &str, domain: &str, sensitivity: &str) -> Self {
         Self {
             route_version: 2,
-            domain: "general".into(),
+            domain: domain.into(),
             operation: "discover".into(),
             methods: vec!["document".into()],
             provider: "local-corpus".into(),
             assurance: "standard".into(),
             scale: "focused".into(),
             subject: ResearchSubject::for_query(query),
-            sensitivity: "public".into(),
+            sensitivity: sensitivity.into(),
             decision: query.into(),
             output: "route-scoped evidence report".into(),
             allowed_effects: vec![
@@ -1901,5 +1910,44 @@ mod tests {
         assert_eq!(outcome.budget.usage.calls, 1);
         assert_eq!(outcome.ledger.records().count(), 0);
         assert_eq!(outcome.ledger.claims().count(), 0);
+    }
+}
+
+#[cfg(test)]
+mod route_domain_tests {
+    use super::*;
+
+    // The route was frozen at `general`, so every gate below keyed on domain
+    // was unreachable from any caller: a medical query was answered as an
+    // ordinary one rather than refused for want of a patient subject.
+    #[test]
+    fn host_injected_still_defaults_to_general_and_public() {
+        let route = ResearchRoute::host_injected("compare two web servers");
+        assert_eq!(route.domain, "general");
+        assert_eq!(route.sensitivity, "public");
+    }
+
+    #[test]
+    fn a_supplied_domain_reaches_the_route() {
+        let route = ResearchRoute::host_injected_with("dosing question", "medical", "personal");
+        assert_eq!(route.domain, "medical");
+        assert_eq!(route.sensitivity, "personal");
+    }
+
+    #[test]
+    fn every_declared_domain_is_accepted_by_validation() {
+        for domain in ROUTE_DOMAINS {
+            let route = ResearchRoute::host_injected_with("q", domain, "public");
+            assert!(
+                route.validate().is_ok(),
+                "declared domain {domain} must validate"
+            );
+        }
+    }
+
+    #[test]
+    fn an_undeclared_domain_is_refused() {
+        let route = ResearchRoute::host_injected_with("q", "astrology", "public");
+        assert!(route.validate().is_err(), "undeclared domain must not validate");
     }
 }
