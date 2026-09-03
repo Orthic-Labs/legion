@@ -234,7 +234,21 @@ args = [{}]",
                             .unwrap_or(lines.len());
                         let existing = lines[start..existing_end].join("
 ");
-                        if existing.trim_end() != expected {
+                        // Compare parsed values, not bytes. An older build
+                        // wrote basic strings where this one writes literal
+                        // strings, so a byte compare rejects an entry that is
+                        // ours and semantically identical.
+                        // `parse::<Value>()` reads a bare value in toml 1.x and
+                        // rejects a document; commit f987682d fixed exactly this
+                        // for config.toml. Parse as a document.
+                        let same = match (
+                            toml::from_str::<toml::Value>(existing.trim_end()),
+                            toml::from_str::<toml::Value>(&expected),
+                        ) {
+                            (Ok(left), Ok(right)) => left == right,
+                            _ => existing.trim_end() == expected,
+                        };
+                        if !same {
                             return Err(HostError::HarnessConflict {
                                 path: path.into(),
                                 reason: "existing Legion TOML entry has no ownership marker".into(),
