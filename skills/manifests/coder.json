@@ -66,6 +66,11 @@
       "digest": "sha256:745bca3fc8ffd9dfef041b246b4add9f47237031ea68e9033cdbadc5af6ead6c"
     },
     {
+      "path": "engine/api-worker.py",
+      "uri": "legion-skill://coder/engine/api-worker.py",
+      "digest": "sha256:1dbb5670bd0e2deef095dd9149fbddebaccb940a95e8d3ed8d6272d26f1db705"
+    },
+    {
       "path": "evals/evals.json",
       "uri": "legion-skill://coder/evals/evals.json",
       "digest": "sha256:0b6900fa67f43ec77bb2405ec3625a83cb5564af582e65f3c60fcc77b59b96d0"
@@ -93,7 +98,7 @@
     {
       "path": "scripts/api-worker.py",
       "uri": "legion-skill://coder/scripts/api-worker.py",
-      "digest": "sha256:68be41c4d1f3925ab593d12d67dc70eae6e2148503c74c0870a59bbb4e9e7ffd"
+      "digest": "sha256:67deaeeb17e8af856b74357e333610c6d384d7c3beaeaad0be924119398647ad"
     },
     {
       "path": "tests/coder-entrypoint.test.py",

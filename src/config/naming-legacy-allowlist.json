@@ -31,8 +31,8 @@
       ],
       "occurrences": {
         "nemesis": 7,
-        "forge": 64,
-        "seer": 22,
+        "forge": 65,
+        "seer": 23,
         "sentinel": 12,
         "sorcerer": 9
       },
@@ -111,6 +111,15 @@
       ],
       "class": "R3",
       "reason": "package-local validator preserves predecessor wire aliases"
+    },
+    {
+      "pathPrefix": "skills/dispatch/engine/",
+      "tokens": [
+        "forge",
+        "seer"
+      ],
+      "class": "R3",
+      "reason": "bundled copy of the package-local validator, same predecessor wire aliases"
     },
     {
       "pathPrefix": "src/lib/goalroute/",

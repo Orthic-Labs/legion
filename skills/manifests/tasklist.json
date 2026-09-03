@@ -77,6 +77,16 @@
       "digest": "sha256:1679acc0c01b19721076dfa5428207224d01a8053d80621427e9931839f587a8"
     },
     {
+      "path": "engine/validate-tasklist-legacy.py",
+      "uri": "legion-skill://tasklist/engine/validate-tasklist-legacy.py",
+      "digest": "sha256:bced1d4e2e49cf1de95684a0ab73bbf593f433b5e46804081388c9a877cdf1b7"
+    },
+    {
+      "path": "engine/validate-tasklist.py",
+      "uri": "legion-skill://tasklist/engine/validate-tasklist.py",
+      "digest": "sha256:05a1ab81c051b0bc62499f7e12fe47fa1f868a2cb78f8e43277d10049b67dc65"
+    },
+    {
       "path": "evals/evals.json",
       "uri": "legion-skill://tasklist/evals/evals.json",
       "digest": "sha256:38c4712451dd50f9d9728f50d7437e19698ceec5d488e10b55d8013885cb47be"
@@ -149,7 +159,7 @@
     {
       "path": "scripts/validate-tasklist.py",
       "uri": "legion-skill://tasklist/scripts/validate-tasklist.py",
-      "digest": "sha256:43bb86b80ab21c111fcf8ba79f596bcb275f02e3dc7ba7183067f20d26fae194"
+      "digest": "sha256:2f8d718fea30818770bbf58bb3cdb496becb4afd5208a803916e2fdfba412dd1"
     },
     {
       "path": "tests/tasklist-entrypoint.test.py",

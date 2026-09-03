@@ -83,6 +83,11 @@
       "digest": "sha256:4906ee5ede30b1455467c20e005f7e25214356413be833b4bcb4770f700930dd"
     },
     {
+      "path": "engine/validate-dispatch.py",
+      "uri": "legion-skill://dispatch/engine/validate-dispatch.py",
+      "digest": "sha256:4113cba12f3171083788b9b60f6861ebd7e06b88d730b40a3aabc65392b84b4e"
+    },
+    {
       "path": "evals/evals.json",
       "uri": "legion-skill://dispatch/evals/evals.json",
       "digest": "sha256:328ce52c78253de3e72e78a5a8835dfdac953a070aa786784592cfdd128b65b9"
@@ -165,7 +170,7 @@
     {
       "path": "scripts/validate-dispatch.py",
       "uri": "legion-skill://dispatch/scripts/validate-dispatch.py",
-      "digest": "sha256:6993cdcebc93b33a569fc95ca092e9592f595d26ab5db80a982b2bfead0070d1"
+      "digest": "sha256:6e8bdb347552291e50e8c137ee455e476cd9e0b1823bc6fb08a23c078064b866"
     }
   ]
 }
