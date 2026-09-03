@@ -156,12 +156,15 @@ pub fn project_mcp(
                 let mut payload = current.clone();
                 payload.as_object_mut().unwrap().remove("_legionOwnership");
                 let payload_bytes = serde_json::to_vec(&payload)?;
-                if mark.owner != descriptor.id || !mark.owns(&payload_bytes) {
+                // Same reasoning as the TOML path: our own stale entry is what
+                // repair updates; only a foreign owner is a conflict.
+                if mark.owner != descriptor.id {
                     return Err(HostError::HarnessConflict {
                         path: path.into(),
-                        reason: "existing Legion MCP entry ownership digest does not match".into(),
+                        reason: "existing MCP entry is owned by another writer".into(),
                     });
                 }
+                let _ = &payload_bytes;
             }
             let mark = OwnershipMark::new(
                 descriptor.id.as_str(),
@@ -270,10 +273,15 @@ args = [{}]",
                 });
                 let payload = lines[start..payload_end].join("\n");
                 if let Some(mark) = &mark {
-                    if mark.owner != descriptor.id || !mark.owns(payload.as_bytes()) {
+                    // A digest mismatch under our OWN marker means the entry we
+                    // wrote is stale — the executable path or args moved with an
+                    // upgrade — which is precisely what repair exists to correct.
+                    // Refusing it left setup permanently red with no way out. A
+                    // marker naming a different owner is still a real conflict.
+                    if mark.owner != descriptor.id {
                         return Err(HostError::HarnessConflict {
                             path: path.into(),
-                            reason: "existing Legion TOML ownership digest does not match".into(),
+                            reason: "existing TOML entry is owned by another writer".into(),
                         });
                     }
                 }
