@@ -842,7 +842,17 @@ fn is_allowed_portable_public_file(
     expected_skills: &BTreeSet<String>,
     expected_agents: &BTreeSet<String>,
 ) -> bool {
-    if matches!(relative, "plugin.json" | "mcp.json" | "hooks/hooks.json") {
+    // Client descriptor aliases now ship in the core so every client's plugin
+    // root is byte-identical to one installed tree.
+    if matches!(
+        relative,
+        "plugin.json"
+            | "mcp.json"
+            | "hooks/hooks.json"
+            | ".mcp.json"
+            | "mcp_config.json"
+            | ".claude-plugin/plugin.json"
+    ) {
         return true;
     }
     // agents/<name>.md, for a name the contract declares.
