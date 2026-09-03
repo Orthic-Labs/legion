@@ -211,12 +211,38 @@ pub fn project_mcp(
                     .cloned()
                     .unwrap_or_default();
                 let marker_text = marker_line.trim_start_matches('#').trim();
-                let mark = parse_comment_marker(marker_text).ok_or_else(|| {
-                    HostError::HarnessConflict {
-                        path: path.into(),
-                        reason: "existing Legion TOML entry has no ownership marker".into(),
+                // An unmarked entry is usually Legion's own output from a build
+                // that wrote no marker. Refusing it forever makes `setup repair`
+                // permanently red with no way out, so adopt an entry that is
+                // byte-identical to what this version would write, and keep
+                // refusing anything a user actually authored.
+                let mark = match parse_comment_marker(marker_text) {
+                    Some(mark) => Some(mark),
+                    None => {
+                        let expected = format!(
+                            "[{table}.legion]
+command = {}
+args = [{}]",
+                            toml_string(command),
+                            args.iter()
+                                .map(|arg| toml_string(arg))
+                                .collect::<Vec<_>>()
+                                .join(", ")
+                        );
+                        let existing_end = (start + 1..lines.len())
+                            .find(|index| lines[*index].trim_start().starts_with('['))
+                            .unwrap_or(lines.len());
+                        let existing = lines[start..existing_end].join("
+");
+                        if existing.trim_end() != expected {
+                            return Err(HostError::HarnessConflict {
+                                path: path.into(),
+                                reason: "existing Legion TOML entry has no ownership marker".into(),
+                            });
+                        }
+                        None
                     }
-                })?;
+                };
                 // The payload digested at write time is exactly the table
                 // (through the last `args = [...]` line), not the trailing
                 // `# /legion-owned` footer comment. Read-back verification
@@ -229,14 +255,24 @@ pub fn project_mcp(
                         .unwrap_or(lines.len())
                 });
                 let payload = lines[start..payload_end].join("\n");
-                if mark.owner != descriptor.id || !mark.owns(payload.as_bytes()) {
-                    return Err(HostError::HarnessConflict {
-                        path: path.into(),
-                        reason: "existing Legion TOML ownership digest does not match".into(),
-                    });
+                if let Some(mark) = &mark {
+                    if mark.owner != descriptor.id || !mark.owns(payload.as_bytes()) {
+                        return Err(HostError::HarnessConflict {
+                            path: path.into(),
+                            reason: "existing Legion TOML ownership digest does not match".into(),
+                        });
+                    }
                 }
                 let removal_end = footer.map_or(payload_end, |index| index + 1);
-                let block_start = marker_index.unwrap_or(start);
+                // Only step back over the line above when it really is our
+                // marker. On an adopted, unmarked entry that line belongs to
+                // whatever precedes the table, and removing it would delete
+                // the user's content.
+                let block_start = if mark.is_some() {
+                    marker_index.unwrap_or(start)
+                } else {
+                    start
+                };
                 lines.drain(block_start..removal_end);
             }
             let retained = lines.join("\n");

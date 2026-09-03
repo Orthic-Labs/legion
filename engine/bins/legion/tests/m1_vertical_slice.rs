@@ -438,7 +438,10 @@ fn actual_binary_serves_the_shared_m1_surface_and_lazy_capability_body() {
     assert_eq!(status["native"]["origin"], "development");
     assert!(status["native"]["installRoot"].is_null());
     assert!(status["native"]["generation"].is_null());
-    assert_eq!(status["native"]["status"], "complete");
+    // The slice claim is now `sliceStatus`: a bare `status` here read as
+    // product status when the MCP tool returned this value at the top level.
+    assert_eq!(status["native"]["sliceStatus"], "complete");
+    assert!(status["native"]["status"].is_null());
 
     let (mut child, mut stdin, mut stdout) = start_stdio(&fixture.config);
     write_body(&fixture.root, "late body");
