@@ -112,7 +112,7 @@
     {
       "path": "references/manual.md",
       "uri": "legion-skill://audit/references/manual.md",
-      "digest": "sha256:2152606fb3af995915294e2adce5b6b9ec8fde5a0578613f7e334a3f9219acae"
+      "digest": "sha256:e6c3273bb192f2ecf375eea39d7b8b325bdea7edc9272b4325db3ea19b4f940a"
     },
     {
       "path": "references/migration-safety.md",

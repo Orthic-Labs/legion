@@ -251,7 +251,8 @@ unscanned checks were clean, and none of this turns `/audit` into single-PR revi
      fresh-state crash is a critical `resilience` finding.
    - **No runnable surface** (plain library/repo) → skip with a note; static lenses still run.
    - *Harness self-check* (only if you touch `audit-runtime.mjs`): run it against
-     `_selfcheck/perf.html` (must flag `expensive-typing`) and `_selfcheck/clean.html` (must stay clean).
+     `bench/_selfcheck/perf.html` (must flag `expensive-typing`) and
+     `bench/_selfcheck/clean.html` (must stay clean).
 
 ## Lenses
 
