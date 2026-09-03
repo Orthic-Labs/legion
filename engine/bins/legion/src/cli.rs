@@ -293,6 +293,12 @@ struct RightAxPortableCore {
     kind: String,
     plugin: String,
     public_skills: Vec<String>,
+    /// Agents the core carries. Older cores predate the field, so it defaults
+    /// to empty rather than making the binary reject a package it can still
+    /// validate. The closure check below is what actually proves the declared
+    /// agents exist on disk.
+    #[serde(default)]
+    public_agents: Vec<String>,
     public_files: Vec<String>,
     private_workspace_content: bool,
     client_projections: Value,
@@ -686,6 +692,21 @@ fn validate_portable_plugin_root(
             "RightAX portable core public skill id is unsafe",
         ));
     }
+    let expected_agents = portable_contract
+        .public_agents
+        .iter()
+        .cloned()
+        .collect::<BTreeSet<_>>();
+    if expected_agents.len() != portable_contract.public_agents.len()
+        || portable_contract
+            .public_agents
+            .iter()
+            .any(|agent| agent.contains('/') || !is_safe_portable_relative_path(agent))
+    {
+        return Err(plugin_root_error(
+            "RightAX portable core public agent id is unsafe or repeated",
+        ));
+    }
     validate_right_ax_client_projections(&portable_contract.client_projections)?;
     let mut expected_files = portable_contract
         .public_files
@@ -698,6 +719,14 @@ fn validate_portable_plugin_root(
         || expected_skills
             .iter()
             .any(|skill| !expected_files.contains(&format!("skills/{skill}/SKILL.md")))
+        // Every declared agent must be a declared file too, so a core cannot
+        // advertise an agent it does not carry: shipping skills while silently
+        // dropping the agents is exactly how sage, alchemist and the covenant
+        // seat stayed unreachable from every client.
+        || portable_contract
+            .public_agents
+            .iter()
+            .any(|agent| !expected_files.contains(&format!("agents/{agent}.md")))
     {
         return Err(plugin_root_error(
             "RightAX public file declaration is incomplete",
@@ -706,7 +735,7 @@ fn validate_portable_plugin_root(
     if portable_contract
         .public_files
         .iter()
-        .any(|relative| !is_allowed_portable_public_file(relative, &expected_skills))
+        .any(|relative| !is_allowed_portable_public_file(relative, &expected_skills, &expected_agents))
     {
         return Err(plugin_root_error(
             "RightAX public file declaration contains an extra or private path",
@@ -794,9 +823,17 @@ fn is_safe_portable_relative_path(relative: &str) -> bool {
         .all(|component| !component.is_empty() && component != "." && component != "..")
 }
 
-fn is_allowed_portable_public_file(relative: &str, expected_skills: &BTreeSet<String>) -> bool {
+fn is_allowed_portable_public_file(
+    relative: &str,
+    expected_skills: &BTreeSet<String>,
+    expected_agents: &BTreeSet<String>,
+) -> bool {
     if matches!(relative, "plugin.json" | "mcp.json") {
         return true;
+    }
+    // agents/<name>.md, for a name the contract declares.
+    if let Some(agent) = relative.strip_prefix("agents/").and_then(|rest| rest.strip_suffix(".md")) {
+        return !agent.is_empty() && expected_agents.contains(agent) && is_safe_portable_relative_path(relative);
     }
     let mut components = relative.split('/');
     if components.next() != Some("skills") {

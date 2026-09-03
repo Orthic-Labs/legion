@@ -386,6 +386,52 @@ fn plugin_root_public_skill_drift_fails_closed_before_mcp_startup() {
 }
 
 #[test]
+fn plugin_root_accepts_a_core_that_carries_agents() {
+    // The core gained publicAgents when Legion started shipping the agents its
+    // surface declares. A binary that refuses the field rejects its own
+    // package: "unknown field `publicAgents`" made the shipped plugin
+    // unloadable the moment the assembler started including them.
+    let fixture = fixture();
+    let plugin_root = portable_package(&fixture);
+
+    let agent = "sage";
+    let relative = format!("agents/{agent}.md");
+    let path = plugin_root.join(&relative);
+    fs::create_dir_all(path.parent().expect("agents parent")).expect("agents dir");
+    fs::write(&path, format!("# {agent}
+")).expect("agent file");
+
+    let contract_path = plugin_root.join("rightax-portable-core.json");
+    let mut contract: Value =
+        serde_json::from_slice(&fs::read(&contract_path).expect("RightAX contract"))
+            .expect("RightAX contract JSON");
+    contract["publicAgents"] = json!([agent]);
+    contract["publicFiles"]
+        .as_array_mut()
+        .expect("publicFiles")
+        .push(json!(relative));
+    fs::write(
+        &contract_path,
+        serde_json::to_vec(&contract).expect("RightAX contract JSON"),
+    )
+    .expect("contract with agents");
+    anchor_release(&fixture, &plugin_root);
+
+    let (mut child, mut stdin, mut stdout) = start_stdio(&plugin_root, &fixture.config);
+    let initialized = request(
+        &mut stdin,
+        &mut stdout,
+        json!({"jsonrpc":"2.0", "id":1, "method":"initialize", "params":{}}),
+    );
+    assert_eq!(
+        initialized["result"]["releaseIdentity"]["releaseVersion"],
+        env!("CARGO_PKG_VERSION")
+    );
+    drop(stdin);
+    assert!(child.wait().expect("server exit").success());
+}
+
+#[test]
 fn plugin_root_accepts_python_bytecode_written_by_running_a_skill() {
     // Running a Python-backed skill writes __pycache__ beside its own scripts.
     // On the installed 0.3.13 that was enough to make every later MCP start
