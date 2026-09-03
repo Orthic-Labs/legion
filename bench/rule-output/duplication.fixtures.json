@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "kind": "audit-benchmark-fixtures",
+  "detector": "duplication",
+  "ruleId": "AU20.duplication.identical-body",
+  "cases": [
+    {
+      "id": "AU20-007",
+      "file": "fixtures/007-duplicated-logic/app.js",
+      "text": "// Planted defect AU20-007: duplicated logic block (same body, copy-pasted).\nfunction validateUsSignupForm(fields) {\n  if (!fields.email || !fields.email.includes(\"@\")) {\n    return { ok: false, reason: \"invalid_email\" };\n  }\n  if (!fields.password || fields.password.length < 8) {\n    return { ok: false, reason: \"weak_password\" };\n  }\n  if (!fields.country) {\n    return { ok: false, reason: \"missing_country\" };\n  }\n  return { ok: true };\n}\n\nfunction validateEuSignupForm(fields) {\n  if (!fields.email || !fields.email.includes(\"@\")) {\n    return { ok: false, reason: \"invalid_email\" };\n  }\n  if (!fields.password || fields.password.length < 8) {\n    return { ok: false, reason: \"weak_password\" };\n  }\n  if (!fields.country) {\n    return { ok: false, reason: \"missing_country\" };\n  }\n  return { ok: true };\n}\n\nmodule.exports = { validateUsSignupForm, validateEuSignupForm };\n",
+      "expected": [
+        {
+          "ruleId": "AU20.duplication.identical-body",
+          "line": 2
+        }
+      ]
+    },
+    {
+      "id": "AU20-008",
+      "file": "fixtures/008-negative-similar-shape/app.js",
+      "text": "// Negative control AU20-008: two functions with a similar SHAPE (same\n// structure of if-checks) but genuinely different behavior/values \u2014 not\n// true duplication. Must NOT be flagged as duplicated logic.\nfunction validateShippingAddress(fields) {\n  if (!fields.street || fields.street.length < 3) {\n    return { ok: false, reason: \"invalid_street\" };\n  }\n  if (!fields.zip || !/^\\d{5}$/.test(fields.zip)) {\n    return { ok: false, reason: \"invalid_zip\" };\n  }\n  if (!fields.state) {\n    return { ok: false, reason: \"missing_state\" };\n  }\n  return { ok: true };\n}\n\nfunction validateBillingAddress(fields) {\n  if (!fields.company || fields.company.length < 1) {\n    return { ok: false, reason: \"missing_company\" };\n  }\n  if (!fields.taxId || !/^[A-Z]{2}\\d{9}$/.test(fields.taxId)) {\n    return { ok: false, reason: \"invalid_tax_id\" };\n  }\n  if (!fields.country) {\n    return { ok: false, reason: \"missing_country\" };\n  }\n  return { ok: true };\n}\n\nmodule.exports = { validateShippingAddress, validateBillingAddress };\n",
+      "expected": []
+    }
+  ]
+}

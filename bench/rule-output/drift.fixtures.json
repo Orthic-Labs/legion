@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "kind": "audit-benchmark-fixtures",
+  "detector": "drift",
+  "ruleId": "AU20.drift.doc-code-mismatch",
+  "cases": [
+    {
+      "id": "AU20-011",
+      "file": "fixtures/011-doc-drift/client.js",
+      "text": "// Planted defect AU20-011: doc says 3 retries, code actually retries 5 times.\n// This is intentional drift the bench should catch, not a bug fix target.\nconst MAX_RETRIES = 5;\n\nfunction fetchWithRetry(fetchFn) {\n  let attempt = 0;\n  while (attempt < MAX_RETRIES) {\n    try {\n      return fetchFn();\n    } catch {\n      attempt += 1;\n    }\n  }\n  throw new Error(\"exhausted retries\");\n}\n\nmodule.exports = { fetchWithRetry, MAX_RETRIES };\n",
+      "expected": [
+        {
+          "ruleId": "AU20.drift.doc-code-mismatch",
+          "line": 3
+        }
+      ]
+    },
+    {
+      "id": "AU20-012",
+      "file": "fixtures/012-negative-doc-matches/client.js",
+      "text": "// Negative control AU20-012: doc says 4 retries, code retries 4 times — no\n// drift here. A correct audit must NOT flag this pair.\nconst MAX_RETRIES = 4;\n\nfunction fetchWithRetry(fetchFn) {\n  let attempt = 0;\n  while (attempt < MAX_RETRIES) {\n    try {\n      return fetchFn();\n    } catch {\n      attempt += 1;\n    }\n  }\n  throw new Error(\"exhausted retries\");\n}\n\nmodule.exports = { fetchWithRetry, MAX_RETRIES };\n",
+      "expected": []
+    }
+  ]
+}

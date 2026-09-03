@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "kind": "audit-benchmark-fixtures",
+  "detector": "types",
+  "ruleId": "AU20.type.literal-mismatch",
+  "cases": [
+    {
+      "id": "AU20-009",
+      "file": "fixtures/009-type-error/app.ts",
+      "text": "// Planted defect AU20-009: obvious type error \u2014 assigning a string to a\n// number-typed binding. A correct type check (tsc or equivalent) must flag this.\nfunction computeDiscountedPrice(price: number, discountPct: number): number {\n  const finalPrice: number = \"not-a-number\";\n  return finalPrice - price * (discountPct / 100);\n}\n\nexport { computeDiscountedPrice };\n",
+      "expected": [
+        {
+          "ruleId": "AU20.type.literal-mismatch",
+          "line": 4
+        }
+      ]
+    },
+    {
+      "id": "AU20-013",
+      "file": "fixtures/013-negative-type-ok/app.ts",
+      "text": "// Negative control AU20-013: types are consistent throughout. A correct\n// type check must NOT flag anything in this file.\nfunction computeDiscountedPrice(price: number, discountPct: number): number {\n  const finalPrice: number = price * (1 - discountPct / 100);\n  return finalPrice;\n}\n\nexport { computeDiscountedPrice };\n",
+      "expected": []
+    }
+  ]
+}

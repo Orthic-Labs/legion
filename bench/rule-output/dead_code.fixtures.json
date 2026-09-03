@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "kind": "audit-benchmark-fixtures",
+  "detector": "dead_code",
+  "ruleId": "AU20.dead-code.unreachable",
+  "cases": [
+    {
+      "id": "AU20-005",
+      "file": "fixtures/005-dead-code/app.js",
+      "text": "// Planted defect AU20-005: unreachable dead code after an unconditional return.\nfunction computeTotal(items) {\n  const total = items.reduce((sum, i) => sum + i.price, 0);\n  return total;\n  // Everything below this line can never execute.\n  console.log(\"logging total\", total);\n  applyLegacyDiscount(total);\n}\n\nfunction applyLegacyDiscount(total) {\n  return total * 0.9;\n}\n\nmodule.exports = { computeTotal };\n",
+      "expected": [
+        {
+          "ruleId": "AU20.dead-code.unreachable",
+          "line": 6
+        },
+        {
+          "ruleId": "AU20.dead-code.unreachable",
+          "line": 7
+        }
+      ]
+    },
+    {
+      "id": "AU20-006",
+      "file": "fixtures/006-negative-reachable/app.js",
+      "text": "// Negative control AU20-006: looks like it could be dead code (function defined,\n// only invoked conditionally) but IS reachable and exported \u2014 must NOT be flagged\n// as dead/unreachable code.\nfunction applySeasonalDiscount(total, isHoliday) {\n  if (isHoliday) {\n    return total * 0.8;\n  }\n  return total;\n}\n\nfunction computeTotal(items, isHoliday) {\n  const total = items.reduce((sum, i) => sum + i.price, 0);\n  return applySeasonalDiscount(total, isHoliday);\n}\n\nmodule.exports = { computeTotal, applySeasonalDiscount };\n",
+      "expected": []
+    }
+  ]
+}

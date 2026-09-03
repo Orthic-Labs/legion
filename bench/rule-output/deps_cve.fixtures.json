@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "kind": "audit-benchmark-fixtures",
+  "detector": "deps_cve",
+  "ruleId": "AU20.dependency.known-vulnerable",
+  "cases": [
+    {
+      "id": "AU20-003",
+      "file": "fixtures/003-vulnerable-dep/package.json",
+      "text": "{\n  \"name\": \"au20-fixture-vulnerable-dep\",\n  \"private\": true,\n  \"version\": \"0.0.0\",\n  \"dependencies\": {\n    \"lodash\": \"4.17.15\",\n    \"minimist\": \"1.2.0\"\n  }\n}\n",
+      "expected": [
+        {
+          "ruleId": "AU20.dependency.known-vulnerable",
+          "line": 6
+        },
+        {
+          "ruleId": "AU20.dependency.known-vulnerable",
+          "line": 7
+        }
+      ]
+    },
+    {
+      "id": "AU20-004",
+      "file": "fixtures/004-negative-dep-latest/package.json",
+      "text": "{\n  \"name\": \"au20-fixture-negative-dep\",\n  \"private\": true,\n  \"version\": \"0.0.0\",\n  \"dependencies\": {\n    \"lodash\": \"4.17.21\",\n    \"minimist\": \"1.2.8\"\n  }\n}\n",
+      "expected": []
+    }
+  ]
+}
