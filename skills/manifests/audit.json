@@ -93,7 +93,7 @@
     {
       "path": "references/engine-interface.md",
       "uri": "legion-skill://audit/references/engine-interface.md",
-      "digest": "sha256:8b825c49cd894f7b2dbd132276d115eb13c92de7e43bf31c974a486cb3d74ea9"
+      "digest": "sha256:e961e49e56a0f6ad128adf561d60e37ea5535f47db958b1bb57d2b9e2bf81276"
     },
     {
       "path": "references/execution-contract.md",
