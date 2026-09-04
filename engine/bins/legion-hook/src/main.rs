@@ -2900,9 +2900,13 @@ mod tests {
     fn policy_is_never_absent_when_env_config_is_unset() {
         std::env::remove_var("LEGION_NATIVE_APPLICATION_CONFIG");
         let application = native_application().expect("default application composes");
+        // The point is that a policy is present at all, so this has to name a
+        // class the default pack denies. It used to use PUBLISH, which the
+        // pack now allows -- publishing destroys nothing -- and the test would
+        // then have passed only while the pack was wrong.
         let response = authorize_effect(
             "PreToolUse".into(),
-            &effect(EffectClass::PUBLISH),
+            &effect(EffectClass::CREDENTIAL_ACCESS),
             &application,
         );
         assert!(
