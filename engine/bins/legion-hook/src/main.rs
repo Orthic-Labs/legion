@@ -1393,13 +1393,44 @@ fn is_known_read_only_tool(tool_name: &str) -> bool {
     )
 }
 
+/// Whether a `git push` is a history rewrite.
+///
+/// Only the push's own arguments count. Reading the whole command line meant
+/// an unrelated flag elsewhere condemned the push: `git commit -q -F - && git
+/// push` was refused as a force-push, because the line was lowercased before
+/// tokens were compared and `-F` became `-f`. Short flags are therefore
+/// matched case-sensitively -- `-f` and `-F` are different flags to git, and
+/// treating them as one is what produced the false positive.
 fn command_has_rewrite_flag(command: Option<&str>) -> bool {
-    let command = command.unwrap_or_default().to_ascii_lowercase();
-    command.contains("--force")
-        || command.contains("--delete")
-        || command
-            .split_whitespace()
-            .any(|token| token == "-f" || token == "-d")
+    let command = command.unwrap_or_default();
+    push_arguments(command).is_some_and(|arguments| {
+        arguments.split_whitespace().any(|token| {
+            let token = token.trim_matches(|c| c == '"' || c == '\'');
+            token.eq_ignore_ascii_case("--force")
+                || token.eq_ignore_ascii_case("--force-with-lease")
+                || token.eq_ignore_ascii_case("--delete")
+                || token == "-f"
+                || token == "-d"
+                // A refspec deleting or non-fast-forwarding a remote ref.
+                || token.starts_with('+')
+                || token.starts_with(':')
+        })
+    })
+}
+
+/// The text following `git push`, up to the next shell operator.
+fn push_arguments(command: &str) -> Option<&str> {
+    let lowered = command.to_ascii_lowercase();
+    let start = lowered.find("push")?;
+    let before = lowered[..start].trim_end();
+    if !before.ends_with("git") {
+        return None;
+    }
+    let rest = &command[start + "push".len()..];
+    let end = rest
+        .find(['|', ';', '&', '>', '<'])
+        .unwrap_or(rest.len());
+    Some(&rest[..end])
 }
 
 fn rewrite_push_requires_approval(payload: &Value) -> bool {
@@ -2879,12 +2910,37 @@ mod tests {
         }
     }
 
+    /// An unrelated flag elsewhere on the line must not condemn the push.
+    /// `git commit -q -F -` lowercased to `-f` and was read as a force-push,
+    /// which refused a legitimate push of already-committed work.
+    #[test]
+    fn a_flag_belonging_to_another_command_is_not_a_rewrite() {
+        for command in [
+            "git commit -q -F - && git push origin main",
+            "git push origin main 2>&1 | tail -2",
+            "git diff --stat && git push origin main",
+            "git push --dry-run origin main",
+        ] {
+            let response = dispatch(pre_effect(command));
+            assert!(
+                response.allowed,
+                "an ordinary push was refused as a rewrite: {command}"
+            );
+        }
+    }
+
     /// A rewrite destroys published history, and a prompt an operator
     /// approves without reading is not a gate. It stays refused; someone who
     /// means it can rewrite by hand.
     #[test]
     fn a_rewrite_push_stays_refused() {
-        for command in ["git push --force origin main", "git  push --delete origin main"] {
+        for command in [
+            "git push --force origin main",
+            "git  push --delete origin main",
+            "git push -f origin main",
+            "git push origin +main",
+            "git push origin :stale-branch",
+        ] {
             let response = dispatch(pre_effect(command));
             assert!(!response.allowed, "a rewrite must stay refused: {command}");
             let value = response.to_value();
