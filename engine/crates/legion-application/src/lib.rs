@@ -1727,8 +1727,16 @@ mod canonical_effect_policy_tests {
         let policy = CanonicalEffectPolicy {
             pack: canonical_default_policy_pack(),
         };
+        // What stays denied is what cannot be undone or what leaks. A push, a
+        // publish, an install, an outbound request and a spawned process are
+        // ordinary reversible work: denying them stopped the work and offered
+        // no way to proceed.
+        for effect_class in [EffectClass::CREDENTIAL_ACCESS, EffectClass::EXTERNAL_SIDE_EFFECT] {
+            policy
+                .authorize(&request(effect_class, "target", "op"))
+                .expect_err(&format!("{effect_class:?} must deny by default"));
+        }
         for effect_class in [
-            EffectClass::CREDENTIAL_ACCESS,
             EffectClass::PUBLISH,
             EffectClass::VCS_PUSH,
             EffectClass::DEPENDENCY_INSTALL,
@@ -1737,9 +1745,12 @@ mod canonical_effect_policy_tests {
         ] {
             policy
                 .authorize(&request(effect_class, "target", "op"))
-                .expect_err(&format!("{effect_class:?} must deny by default"));
+                .unwrap_or_else(|error| {
+                    panic!("{effect_class:?} destroys nothing and must be allowed: {error}")
+                });
         }
     }
+
 
     #[test]
     fn operation_field_defaults_to_wildcard_for_backward_compatible_rules() {

@@ -91,7 +91,7 @@ fn dispatch_inner(request: HookRequest) -> HookResponse {
         return HookResponse::denied(
             request.event_type,
             "ARC_APPROVAL_REQUIRED",
-            "git push rewrites published history and needs a target-bound approval",
+            "git push rewrites published history; rewrite it manually if you mean to",
             "strong",
         );
     }
@@ -2792,11 +2792,6 @@ mod tests {
                 .expect("canonical default native application builds");
         for effect_class in [
             EffectClass::CREDENTIAL_ACCESS,
-            EffectClass::DEPENDENCY_INSTALL,
-            EffectClass::VCS_PUSH,
-            EffectClass::PUBLISH,
-            EffectClass::NETWORK_EGRESS,
-            EffectClass::PROCESS_SPAWN,
             EffectClass::EXTERNAL_SIDE_EFFECT,
         ] {
             let response =
@@ -2807,6 +2802,43 @@ mod tests {
             );
             assert_eq!(response.code.as_deref(), Some("ARC_POLICY_DENIED"));
             assert_eq!(response.enforcement_health, "strong");
+        }
+    }
+
+    /// These destroy nothing. Denying them stopped ordinary work in every
+    /// repository here and offered no way to proceed.
+    #[test]
+    fn canonical_default_policy_allows_reversible_effect_classes() {
+        let application =
+            legion_application::NativeApplicationConfig::default_for_repository("test-repository")
+                .expect("canonical default native application builds");
+        for effect_class in [
+            EffectClass::VCS_PUSH,
+            EffectClass::PUBLISH,
+            EffectClass::DEPENDENCY_INSTALL,
+            EffectClass::NETWORK_EGRESS,
+            EffectClass::PROCESS_SPAWN,
+        ] {
+            let response =
+                authorize_effect("PreToolUse".into(), &effect(effect_class), &application);
+            assert!(response.allowed, "reversible effect denied: {effect_class:?}");
+        }
+    }
+
+    /// A rewrite destroys published history, and a prompt an operator
+    /// approves without reading is not a gate. It stays refused; someone who
+    /// means it can rewrite by hand.
+    #[test]
+    fn a_rewrite_push_stays_refused() {
+        for command in ["git push --force origin main", "git  push --delete origin main"] {
+            let response = dispatch(pre_effect(command));
+            assert!(!response.allowed, "a rewrite must stay refused: {command}");
+            let value = response.to_value();
+            assert_eq!(
+                value["hookSpecificOutput"]["permissionDecision"],
+                serde_json::json!("deny"),
+                "a rewrite must block, not prompt: {command}"
+            );
         }
     }
 

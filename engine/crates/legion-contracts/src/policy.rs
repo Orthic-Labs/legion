@@ -132,11 +132,18 @@ fn rule(
 
 /// The Guard's built-in default policy. This pack is always present in the
 /// normal installed state — ambient permission is an explicit policy
-/// decision here, never the absence of policy. Ordinary reversible effects
-/// are ambient-allowed; reserved/high-risk effect classes deny by default
-/// because no approval-flow implementation exists yet to safely grant
-/// `ApprovalRequirement::User`/`Authority` — deny is the safe default until
-/// that plumbing exists, rather than faking an approval grant.
+/// decision here, never the absence of policy.
+///
+/// The line this pack draws is destruction, not caution. A push, a publish, a
+/// dependency install, an outbound request, a spawned process: none of them
+/// destroy anything, and all of them are ordinary work in this workspace.
+/// Denying them by default did not make the operator safer — it stopped the
+/// work and offered no way to proceed, which is how a guard stops being one.
+/// What stays denied is what cannot be undone or what leaks: a destructive
+/// delete, a history-rewriting push, credential material, and an MCP effect
+/// the Guard cannot classify. Those are refusals rather than prompts on
+/// purpose: an approval an operator grants without reading is not a control,
+/// and the rare legitimate rewrite is better done by hand.
 ///
 /// `FILE_DELETE` gets two rules instead of one class-level decision:
 /// ordinary/bounded deletes (`operations: ["*"]`) stay ambient-allowed so a
@@ -172,11 +179,14 @@ pub fn canonical_default_policy_pack() -> PolicyPack {
                 &["delete-recursive", "delete-force", "delete-broad"],
             ),
             rule("default-credential-access-deny", EffectClass::CREDENTIAL_ACCESS, false, &["*"]),
-            rule("default-publish-deny", EffectClass::PUBLISH, false, &["*"]),
-            rule("default-vcs-push-deny", EffectClass::VCS_PUSH, false, &["*"]),
-            rule("default-dependency-install-deny", EffectClass::DEPENDENCY_INSTALL, false, &["*"]),
-            rule("default-network-egress-deny", EffectClass::NETWORK_EGRESS, false, &["*"]),
-            rule("default-process-spawn-deny", EffectClass::PROCESS_SPAWN, false, &["*"]),
+            rule("default-publish-allow", EffectClass::PUBLISH, true, &["*"]),
+            // A push adds commits to a remote. It destroys nothing, and it is
+            // ordinary work in every repository here; denying it stopped that
+            // work with no way to proceed.
+            rule("default-vcs-push-allow", EffectClass::VCS_PUSH, true, &["*"]),
+            rule("default-dependency-install-allow", EffectClass::DEPENDENCY_INSTALL, true, &["*"]),
+            rule("default-network-egress-allow", EffectClass::NETWORK_EGRESS, true, &["*"]),
+            rule("default-process-spawn-allow", EffectClass::PROCESS_SPAWN, true, &["*"]),
             rule(
                 "default-external-side-effect-deny",
                 EffectClass::EXTERNAL_SIDE_EFFECT,
@@ -250,6 +260,14 @@ mod tests {
             EffectClass::FILE_MOVE,
             EffectClass::VCS_COMMIT,
             EffectClass::COMMAND_EXEC,
+            // A push, a dependency install, an outbound request and a spawned
+            // process all destroy nothing. Denying them stopped ordinary work
+            // with no way to proceed, which is not what the guard is for.
+            EffectClass::PUBLISH,
+            EffectClass::VCS_PUSH,
+            EffectClass::DEPENDENCY_INSTALL,
+            EffectClass::NETWORK_EGRESS,
+            EffectClass::PROCESS_SPAWN,
         ];
         for effect_class in allowed_classes {
             let rule = pack
@@ -261,11 +279,6 @@ mod tests {
         }
         let reserved_classes = [
             EffectClass::CREDENTIAL_ACCESS,
-            EffectClass::PUBLISH,
-            EffectClass::VCS_PUSH,
-            EffectClass::DEPENDENCY_INSTALL,
-            EffectClass::NETWORK_EGRESS,
-            EffectClass::PROCESS_SPAWN,
             EffectClass::EXTERNAL_SIDE_EFFECT,
         ];
         for effect_class in reserved_classes {
@@ -275,6 +288,23 @@ mod tests {
                 .find(|rule| rule.effect_class == effect_class)
                 .unwrap_or_else(|| panic!("{effect_class:?} has a default rule"));
             assert!(!rule.allowed, "{effect_class:?} should deny by default");
+        }
+    }
+
+    /// Destructive deletes stay denied while an ordinary delete does not.
+    #[test]
+    fn destructive_delete_stays_denied() {
+        let pack = canonical_default_policy_pack();
+        let destructive = pack
+            .rules
+            .iter()
+            .find(|rule| rule.effect_class == EffectClass::FILE_DELETE && !rule.allowed)
+            .expect("a destructive FILE_DELETE rule is present");
+        for operation in ["delete-recursive", "delete-force", "delete-broad"] {
+            assert!(
+                destructive.operations.iter().any(|value| value == operation),
+                "{operation} must stay denied"
+            );
         }
     }
 
