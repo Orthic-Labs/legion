@@ -1249,7 +1249,11 @@ fn mcp_external_side_effect(
 }
 
 fn command_effect_class(command: Option<&str>) -> EffectClass {
+    // The same wrapper bypass the destructive check had: `git push` is denied,
+    // but `bash -c 'git push origin main'` classified as an ordinary
+    // COMMAND_EXEC and was admitted. Judge the command the shell is running.
     let command = command.unwrap_or_default().trim().to_ascii_lowercase();
+    let command = unwrap_shell_command(&command).to_owned();
     if contains_command_pair(&command, "git", "push") {
         EffectClass::VCS_PUSH
     } else if contains_command_pair(&command, "git", "commit") {
@@ -1329,9 +1333,16 @@ fn contains_command_pair(command: &str, first: &str, second: &str) -> bool {
     command
         .split(|character| matches!(character, ';' | '&' | '|' | '\n'))
         .any(|segment| {
-            let mut tokens = segment.split_whitespace();
+            // Quotes survive tokenizing, so an unwrapped `'git push'` left a
+            // leading quote on the first token and never matched.
+            let strip = |token: &str| {
+                token
+                    .trim_matches(['"', '\''].as_ref())
+                    .to_owned()
+            };
+            let mut tokens = segment.split_whitespace().map(strip);
             while let Some(token) = tokens.next() {
-                if token == first && tokens.next() == Some(second) {
+                if token == first && tokens.next().as_deref() == Some(second) {
                     return true;
                 }
             }
