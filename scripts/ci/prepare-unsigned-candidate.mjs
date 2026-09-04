@@ -194,6 +194,15 @@ function assembleAndSmoke({ inputRoot, identity, repositoryRoot, env, commandRun
 		: identity.architecture === "arm64" ? "aarch64-apple-darwin" : "x86_64-apple-darwin";
 	runPnpm(["legion:check"], "Legion consistency gate");
 	runPnpm(["test"], "Node tests");
+	// Type-check before the test phase so a compile error is reported in
+	// seconds rather than after the whole suite has been rebuilt.
+	runCommand(
+		"cargo",
+		["check", "--workspace", "--all-targets", "--locked"],
+		{ cwd: join(repositoryRoot, "engine"), env: commandEnv, stdio: "inherit", windowsHide: true },
+		"Cargo check",
+		commandRunner,
+	);
 	runCommand(
 		"cargo",
 		["test", "--locked"],

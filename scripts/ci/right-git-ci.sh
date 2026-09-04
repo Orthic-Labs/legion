@@ -18,6 +18,10 @@ node tests/run-audit-conformance-tests.mjs
 if [[ "${RIGHT_GIT_RUST_CHANGED:-true}" == "true" ]]; then
   (
     cd engine
+    # Fail on a compile error before spending the test phase on it: a missing
+    # dependency or a type mismatch used to surface only after the suite, or
+    # later still in the installer build. Test compilation reuses this cache.
+    cargo check --workspace --all-targets --locked
     cargo test --locked
     cargo build --locked --bins
   )
