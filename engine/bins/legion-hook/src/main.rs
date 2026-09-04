@@ -1262,11 +1262,67 @@ fn command_effect_class(command: Option<&str>) -> EffectClass {
         || contains_command_pair(&command, "yarn", "add")
         || contains_command_pair(&command, "cargo", "install")
         || contains_command_pair(&command, "cargo", "add")
+        || contains_command_pair(&command, "pip", "install")
+        || contains_command_pair(&command, "pip3", "install")
+        || contains_command_pair(&command, "gem", "install")
+        || contains_command_pair(&command, "go", "install")
+        || contains_command_pair(&command, "uv", "add")
+        || contains_command_pair(&command, "poetry", "add")
     {
         EffectClass::DEPENDENCY_INSTALL
+    } else if reads_credential_material(&command) {
+        EffectClass::CREDENTIAL_ACCESS
+    } else if publishes_artifact(&command) {
+        EffectClass::PUBLISH
     } else {
         EffectClass::COMMAND_EXEC
     }
+}
+
+/// Well-known credential stores, by the paths and variable names they are kept
+/// under.
+///
+/// The pack denies CREDENTIAL_ACCESS, but nothing ever produced that class
+/// from a shell command, so `cat ~/.ssh/id_rsa` was admitted as an ordinary
+/// COMMAND_EXEC and the rule could not fire. Matching is deliberately narrow —
+/// naming a known secret store, not merely reading a file — because this class
+/// denies rather than warns.
+fn reads_credential_material(command: &str) -> bool {
+    const SECRET_PATHS: [&str; 9] = [
+        ".ssh/id_",
+        "id_rsa",
+        "id_ed25519",
+        ".aws/credentials",
+        ".git-credentials",
+        ".npmrc",
+        ".pypirc",
+        ".docker/config.json",
+        ".kube/config",
+    ];
+    const SECRET_NAMES: [&str; 6] = [
+        "_token",
+        "_secret",
+        "_password",
+        "_api_key",
+        "gh_token",
+        "aws_secret_access_key",
+    ];
+    SECRET_PATHS.iter().any(|needle| command.contains(needle))
+        || SECRET_NAMES.iter().any(|needle| command.contains(needle))
+}
+
+/// Commands that publish an artifact to somewhere other people can fetch it.
+///
+/// Same gap as credential access: PUBLISH existed in the pack with nothing
+/// able to produce it, so `npm publish` was admitted as COMMAND_EXEC.
+fn publishes_artifact(command: &str) -> bool {
+    contains_command_pair(command, "npm", "publish")
+        || contains_command_pair(command, "pnpm", "publish")
+        || contains_command_pair(command, "yarn", "publish")
+        || contains_command_pair(command, "cargo", "publish")
+        || contains_command_pair(command, "twine", "upload")
+        || contains_command_pair(command, "docker", "push")
+        || contains_command_pair(command, "gh", "release")
 }
 
 fn contains_command_pair(command: &str, first: &str, second: &str) -> bool {
