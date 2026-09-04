@@ -11,7 +11,10 @@ export class TaskBudgetSealStore {
   #root; #clock; #keyRing; #keyId;
   constructor({ root, keyRing, keyId = keyRing?.activeKeyId(), clock = () => new Date().toISOString() } = {}) { this.#root = root; this.#clock = clock; this.#keyRing = keyRing; this.#keyId = keyId; }
   #path(contractId, taskId, contractVersion) { return stateFile(this.#root, 'arcane.task-budget-seal.v1', [contractId, taskId, String(contractVersion)]); }
-  #read(path) { try { const value = JSON.parse(readFileSync(path, 'utf8')); if (schema.validate('arcane-task-budget-seal-v1', value).length) fail('ARC_STORE_CORRUPT', 'invalid task budget seal'); return value; } catch (error) { if (error instanceof ArcaneError) throw error; fail('ARC_STORE_CORRUPT', 'unreadable task budget seal'); } }
+  // A seal that was never written is not a corrupt one. Mapping both to
+  // ARC_STORE_CORRUPT left every caller unable to tell a legacy binding from
+  // a tampered record, so the only safe-looking option was to ignore both.
+  #read(path) { try { const value = JSON.parse(readFileSync(path, 'utf8')); if (schema.validate('arcane-task-budget-seal-v1', value).length) fail('ARC_STORE_CORRUPT', 'invalid task budget seal'); return value; } catch (error) { if (error instanceof ArcaneError) throw error; if (error?.code === 'ENOENT') fail('ARC_STORE_MISSING', 'no task budget seal'); fail('ARC_STORE_CORRUPT', 'unreadable task budget seal'); } }
   seal({ contract, task, authorityAssertion }) {
     if (!authorityAssertion || !['legion', 'sage'].includes(authorityAssertion.authority) || authorityAssertion.verificationMethod !== 'capability-signature' || authorityAssertion.perMessage !== true || !authorityAssertion.assertedBy) fail('ARC_SCHEMA_INVALID', 'only Legion or Sage may seal a task budget');
     const budget = task.budgetSeal; if (!budget || budget.contractId !== contract.contractId || budget.contractVersion !== contract.version || budget.contractDigest !== digestValue(contract)) fail('ARC_BINDING_MISMATCH', 'task budget contract binding mismatch');

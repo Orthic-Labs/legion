@@ -325,7 +325,21 @@ export function createHostRuntime({ adapter, workspace, keyDir, verificationKeyD
       if (contracted) {
         try {
           let taskBudget = null;
-          try { taskBudget = stores.taskBudgetSeals.require(binding.contractId, binding.taskId); } catch {}
+          // The seal path is keyed by contract version too; omitting it made
+          // every lookup miss, and the empty catch then reported the miss as
+          // "legacy binding, no seal" — so this gate never ran for anyone.
+          // Only a genuinely absent seal is legacy now. A store that cannot
+          // be reached, or a record that will not verify, denies rather than
+          // quietly skipping a governance control.
+          try {
+            taskBudget = stores.taskBudgetSeals
+              ? stores.taskBudgetSeals.require(binding.contractId, binding.taskId, binding.contractVersion)
+              : null;
+          } catch (error) {
+            if (error?.code !== 'ARC_STORE_MISSING') {
+              return finish(eventType, { decision: denial(codeOf(error), 'task budget seal is unavailable'), enforcementHealth: 'strong' }, { binding, hostEvent, hookPayload });
+            }
+          }
           // Legacy direct bindings have no task-budget seal. `run open` is
           // now exact-budget-gated, so every new governed run has one; retain
           // receipt-only compatibility for existing sealed runtime fixtures.

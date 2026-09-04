@@ -49,6 +49,11 @@ export const ARCANE_ERROR_CODE = Object.freeze([
   'ARC_SELF_CERTIFICATION', // producer attempted to certify its own outcome
   'ARC_DEPENDENCY_UNKNOWN',
   'ARC_STORE_CORRUPT', // digest chain broken -> quarantine, block strong claims
+  // A record that was never written. Distinct from corruption on purpose: a
+  // store that reported both the same way left callers unable to tell a
+  // legacy binding from a tampered one, so they ignored both and the gate
+  // that depended on it never ran.
+  'ARC_STORE_MISSING',
 
   // pre-effect gate (deliverable 6)
   'ARC_GATE_UNAVAILABLE', // gate could not run -> mutation fails closed

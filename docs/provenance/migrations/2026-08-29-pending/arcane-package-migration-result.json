@@ -547,7 +547,7 @@
         "target exists",
         "all resolvable imports rewritten"
       ],
-      "sha256AfterMove": "58079427498721953af6277f0ec36500a30462e89bedc0a288a79260142e25a5",
+      "sha256AfterMove": "b892957ba4e82a92210f356ac43a63b328e1a6326352b5af9bc4182ce104a9af",
       "newConsumers": [
         "src/lib/guard/compat/host/claude-code-adapter.mjs",
         "src/lib/guard/compat/host/codex-adapter.mjs",
@@ -1932,7 +1932,7 @@
         "target exists",
         "all resolvable imports rewritten"
       ],
-      "sha256AfterMove": "41853099ebe6ad751d4bbf091be8546b2621337ebf89c31c06375aa2eb429971",
+      "sha256AfterMove": "921d928f704997018af6c55aa7a67a4f6e31da50f9b34e9c3653a1c0781cbf7e",
       "newConsumers": [
         "src/lib/cli/commands/contract.mjs",
         "src/lib/cli/commands/governance/delivery/contract-lifecycle.mjs",
@@ -3643,7 +3643,7 @@
         "target exists",
         "all resolvable imports rewritten"
       ],
-      "sha256AfterMove": "71d6b5d4cc1074dc337437a9a1f6943915b959f6d837d0ede5ca635e77675af5",
+      "sha256AfterMove": "79b965c1d51f15eb5bbae28993d51fe63ea21aa3348651905a2597bc60d1a7ae",
       "newConsumers": [
         "src/lib/cli/commands/budget.mjs",
         "src/lib/cli/commands/contract.mjs",
