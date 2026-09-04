@@ -386,13 +386,14 @@ proptest! {
 fn live_default_policy_is_valid_and_reserved_classes_are_not_ambient_allowed() {
     let pack = canonical_default_policy_pack();
     pack.validate().expect("live default policy must validate");
+    // The pack draws its line at destruction, not caution. A push, a publish,
+    // an install, an outbound request and a spawned process destroy nothing,
+    // and denying them stopped ordinary work with no way to proceed. What
+    // stays reserved is what cannot be undone or what leaks.
     for effect_class in [
         ContractEffectClass::CREDENTIAL_ACCESS,
-        ContractEffectClass::DEPENDENCY_INSTALL,
-        ContractEffectClass::VCS_PUSH,
-        ContractEffectClass::PUBLISH,
-        ContractEffectClass::NETWORK_EGRESS,
-        ContractEffectClass::PROCESS_SPAWN,
+        ContractEffectClass::EXTERNAL_SIDE_EFFECT,
+        ContractEffectClass::MCP_UNCLASSIFIED_OBSERVATION,
     ] {
         assert!(
             pack.rules
@@ -402,6 +403,14 @@ fn live_default_policy_is_valid_and_reserved_classes_are_not_ambient_allowed() {
             "reserved class {effect_class:?} must remain denied"
         );
     }
+    // A destructive delete is reserved by operation rather than by class, so
+    // assert that shape directly: the ordinary delete stays ambient.
+    assert!(
+        pack.rules
+            .iter()
+            .any(|rule| rule.effect_class == ContractEffectClass::FILE_DELETE && !rule.allowed),
+        "a destructive FILE_DELETE rule must remain in the pack"
+    );
 }
 
 #[test]
