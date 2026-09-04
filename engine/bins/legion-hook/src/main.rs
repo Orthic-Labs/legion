@@ -1377,6 +1377,33 @@ fn rewrite_push_requires_approval(payload: &Value) -> bool {
     contains_command_pair(&command, "git", "push") && command_has_rewrite_flag(Some(&command))
 }
 
+/// The command a shell wrapper is being asked to run, or the input unchanged.
+///
+/// One level only: nesting shells deeper than that is not a pattern any
+/// ordinary invocation needs, and an unbounded unwrap would be its own hazard.
+fn unwrap_shell_command(segment: &str) -> &str {
+    const SHELLS: [&str; 7] = ["bash", "sh", "zsh", "dash", "powershell", "pwsh", "cmd"];
+    let mut tokens = segment.split_whitespace();
+    let Some(head) = tokens.next() else {
+        return segment;
+    };
+    let head = head.rsplit(['/', '\\']).next().unwrap_or(head);
+    let head = head.strip_suffix(".exe").unwrap_or(head);
+    if !SHELLS.contains(&head) {
+        return segment;
+    }
+    let Some(flag_start) = segment.find(|character: char| character.is_whitespace()) else {
+        return segment;
+    };
+    let rest = segment[flag_start..].trim_start();
+    for flag in ["-lc", "-c", "/c", "/d /s /c", "-command", "-Command"] {
+        if let Some(payload) = rest.strip_prefix(flag) {
+            return payload.trim_start().trim_matches(['"', '\''].as_ref());
+        }
+    }
+    segment
+}
+
 fn is_destructive_command(payload: &Value) -> bool {
     let Some(object) = payload.as_object() else {
         return false;
@@ -1386,6 +1413,12 @@ fn is_destructive_command(payload: &Value) -> bool {
     };
     let command = command.to_ascii_lowercase();
     let destructive_segment = |segment: &str| {
+        // A shell wrapper is not a different command. `rm -rf build` was
+        // denied while `bash -c 'rm -rf build'` and
+        // `powershell -c "Remove-Item -Recurse -Force build"` were admitted,
+        // because the segment began with the shell's name. Unwrap one level
+        // and judge what is actually being run.
+        let segment = unwrap_shell_command(segment.trim_start());
         let segment = segment.trim_start();
         if let Some(rest) = segment.strip_prefix("rm") {
             let rest = rest.trim_start();
