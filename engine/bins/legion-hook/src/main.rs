@@ -1044,10 +1044,21 @@ fn effect_request(request: &HookRequest) -> Result<Option<EffectRequest>, String
                 .unwrap_or(EffectClass::MCP_UNCLASSIFIED_OBSERVATION),
         )
     } else {
+        // A host tool the classifier does not recognise is not thereby
+        // dangerous. Returning None here refused it outright -- TaskStop, for
+        // one, which destroys nothing -- and reported only "effect class is
+        // missing or unsupported", which says nothing an operator can act on.
+        // The destructive gates run earlier against the command itself, so an
+        // unrecognised named tool belongs with ordinary execution.
         parse_effect_class(None, tool_name.as_deref(), command.as_deref())
+            .or_else(|| tool_name.as_deref().map(|_| EffectClass::COMMAND_EXEC))
     };
     let Some(effect_class) = effect_class else {
-        return Err("effect class is missing or unsupported".to_owned());
+        return Err(format!(
+            "effect class is missing or unsupported (tool {:?}, command {:?})",
+            tool_name.as_deref().unwrap_or("<none>"),
+            command.as_deref().map(|value| &value[..value.len().min(60)]),
+        ));
     };
 
     let target = first_string(effect, &["target"])
