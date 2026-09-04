@@ -1550,13 +1550,21 @@ async fn native_doctor(args: RootArgs, cancellation: CancellationToken) -> Comma
             }));
         }
     };
+    // Doctor verifies the installed composition and computes a repository
+    // inventory digest. It does not verify the repository itself — targets,
+    // stacks, controls and provider composition all report "not connected" —
+    // so it cannot claim the repository is clean. Claiming it anyway made
+    // `doctor` answer "complete, clean" for a directory with no Legion
+    // scaffolding at all, which is the false clean this product's own tests
+    // (`default_doctor_cannot_make_clean_claim`, tests/doctor.test.mjs)
+    // already forbid.
     let mut output = render_doctor(
         "doctor",
         summary,
         json!({"root": root}),
         None,
         None,
-        true,
+        false,
     );
     if !args.json {
         let catalog = output["catalogEntries"].as_u64().unwrap_or_default();
