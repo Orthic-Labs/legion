@@ -1333,16 +1333,15 @@ fn contains_command_pair(command: &str, first: &str, second: &str) -> bool {
     command
         .split(|character| matches!(character, ';' | '&' | '|' | '\n'))
         .any(|segment| {
-            // Quotes survive tokenizing, so an unwrapped `'git push'` left a
-            // leading quote on the first token and never matched.
-            let strip = |token: &str| {
-                token
-                    .trim_matches(['"', '\''].as_ref())
-                    .to_owned()
-            };
-            let mut tokens = segment.split_whitespace().map(strip);
+            // Tokens are matched as they appear. Stripping quotes here looked
+            // like it would help the unwrapped-shell case, but then any quoted
+            // mention matched: a script that merely contained the words was
+            // classified as running them, and this very edit was refused by
+            // the guard it was fixing. `unwrap_shell_command` already removes
+            // the wrapper quotes, which is the only place they need removing.
+            let mut tokens = segment.split_whitespace();
             while let Some(token) = tokens.next() {
-                if token == first && tokens.next().as_deref() == Some(second) {
+                if token == first && tokens.next() == Some(second) {
                     return true;
                 }
             }
