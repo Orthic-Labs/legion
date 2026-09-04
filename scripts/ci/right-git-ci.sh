@@ -5,6 +5,16 @@ pnpm install --frozen-lockfile
 pnpm legion:check
 pnpm test
 
+# The research-core parity suite uses pytest fixtures (monkeypatch, tmp_path),
+# so pytest is a real dependency of `test:python`, not an optional extra. The
+# runner degrades cleanly when no interpreter exists but cannot conjure a
+# missing module, and CI had been failing on `No module named pytest`.
+if command -v py >/dev/null 2>&1; then
+  py -3.11 -m pip install --quiet --disable-pip-version-check pytest
+else
+  python3 -m pip install --quiet --disable-pip-version-check pytest
+fi
+
 pnpm test:python
 
 # Known-answer recall gate. The bench scores planted defects against
