@@ -1398,7 +1398,26 @@ fn is_destructive_command(payload: &Value) -> bool {
                 }
             }
         }
+        // Windows recursive deletes are the same class as `rm -r`, and this
+        // product ships Windows first: `rmdir /s` and `del /s` were admitted
+        // while `rm -rf` was denied.
+        let windows_recursive_delete = (segment.starts_with("rmdir ") || segment.starts_with("rd ")
+            || segment.starts_with("del "))
+            && segment.split_whitespace().any(|token| token == "/s" || token == "-s");
+        // Discarding the working tree destroys uncommitted work with no undo,
+        // which is exactly what this class is for. `git reset --hard` and
+        // `git checkout -- .` were both admitted.
+        let git_discards_worktree = (contains_command_pair(segment, "git", "reset")
+            && segment.contains("--hard"))
+            || (contains_command_pair(segment, "git", "checkout")
+                && (segment.contains(" -- .") || segment.trim_end().ends_with(" -- ")))
+            // `git restore --staged .` only unstages; it destroys nothing.
+            || (contains_command_pair(segment, "git", "restore")
+                && segment.contains('.')
+                && !segment.contains("--staged"));
         (segment.starts_with("remove-item") && segment.contains("-recurse"))
+            || windows_recursive_delete
+            || git_discards_worktree
             || contains_command_pair(segment, "git", "clean")
             || segment.starts_with("dropdb")
             || contains_command_pair(segment, "terraform", "apply")
