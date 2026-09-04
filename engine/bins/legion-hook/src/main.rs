@@ -1035,6 +1035,12 @@ fn effect_request(request: &HookRequest) -> Result<Option<EffectRequest>, String
         Some(
             mcp_external_side_effect(tool_name.as_deref(), explicit_operation.as_deref())
                 .or_else(|| parse_effect_class(None, tool_name.as_deref(), command.as_deref()))
+                .or_else(|| {
+                    tool_name
+                        .as_deref()
+                        .filter(|name| is_known_read_only_tool(name))
+                        .map(|_| EffectClass::MCP_KNOWN_OBSERVATION)
+                })
                 .unwrap_or(EffectClass::MCP_UNCLASSIFIED_OBSERVATION),
         )
     } else {
@@ -1364,7 +1370,27 @@ fn default_operation(effect_class: EffectClass) -> &'static str {
         EffectClass::PUBLISH => "publish",
         EffectClass::EXTERNAL_SIDE_EFFECT => "external-side-effect",
         EffectClass::MCP_UNCLASSIFIED_OBSERVATION => "observe",
+        EffectClass::MCP_KNOWN_OBSERVATION => "observe",
     }
+}
+
+/// MCP tools this Guard positively recognises as read-only.
+///
+/// Deliberately a list of exact names, not a verb pattern. A pattern like
+/// "contains `read`" is a denylist an untrusted server dodges by naming its
+/// delete tool `read_and_purge`; an exact name is a claim we make about a
+/// tool we know. Anything absent here stays
+/// `MCP_UNCLASSIFIED_OBSERVATION` and stays denied.
+///
+/// Only read paths belong here. `legion_m1_invoke` is deliberately absent:
+/// it runs work and is not an observation.
+fn is_known_read_only_tool(tool_name: &str) -> bool {
+    matches!(
+        tool_name,
+        "mcp__membrane__membrane_context"
+            | "mcp__legion__legion_m1_status"
+            | "mcp__plugin_legion_legion__legion_m1_status"
+    )
 }
 
 fn command_has_rewrite_flag(command: Option<&str>) -> bool {
@@ -2807,6 +2833,34 @@ mod tests {
 
     /// These destroy nothing. Denying them stopped ordinary work in every
     /// repository here and offered no way to proceed.
+    /// A named read-only MCP tool is ordinary work; an unnamed one is still
+    /// unknown and still fails closed.
+    #[test]
+    fn a_known_read_only_mcp_tool_is_allowed_and_an_unknown_one_is_not() {
+        assert!(is_known_read_only_tool("mcp__membrane__membrane_context"));
+        assert!(!is_known_read_only_tool("mcp__membrane__membrane_write"));
+        assert!(
+            !is_known_read_only_tool("mcp__legion__legion_m1_invoke"),
+            "invoke runs work; it is not an observation"
+        );
+
+        let application =
+            legion_application::NativeApplicationConfig::default_for_repository("test-repository")
+                .expect("canonical default native application builds");
+        let known = authorize_effect(
+            "PreToolUse".into(),
+            &effect(EffectClass::MCP_KNOWN_OBSERVATION),
+            &application,
+        );
+        assert!(known.allowed, "a recognised read-only tool must be allowed");
+        let unknown = authorize_effect(
+            "PreToolUse".into(),
+            &effect(EffectClass::MCP_UNCLASSIFIED_OBSERVATION),
+            &application,
+        );
+        assert!(!unknown.allowed, "an unknown MCP tool must still fail closed");
+    }
+
     #[test]
     fn canonical_default_policy_allows_reversible_effect_classes() {
         let application =

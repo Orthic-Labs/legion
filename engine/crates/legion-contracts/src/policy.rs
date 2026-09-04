@@ -33,6 +33,15 @@ pub enum EffectClass {
     /// Only hook fallback logic assigns this class; caller-supplied class strings
     /// cannot claim unclassified treatment.
     MCP_UNCLASSIFIED_OBSERVATION,
+    /// An MCP tool the Guard positively recognises as read-only.
+    ///
+    /// Distinct from `MCP_UNCLASSIFIED_OBSERVATION`, which means "we do not
+    /// know what this does" and must stay denied. A named tool that only
+    /// reads is ordinary work, and denying it stopped that work with no way
+    /// to proceed. The allowlist lives in the hook and is deliberately tiny:
+    /// membership is a claim the Guard makes about a specific tool, never a
+    /// verb pattern a third-party server can match by naming itself well.
+    MCP_KNOWN_OBSERVATION,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
@@ -178,6 +187,7 @@ pub fn canonical_default_policy_pack() -> PolicyPack {
                 false,
                 &["delete-recursive", "delete-force", "delete-broad"],
             ),
+            rule("default-mcp-known-observation-allow", EffectClass::MCP_KNOWN_OBSERVATION, true, &["*"]),
             rule("default-credential-access-deny", EffectClass::CREDENTIAL_ACCESS, false, &["*"]),
             rule("default-publish-allow", EffectClass::PUBLISH, true, &["*"]),
             // A push adds commits to a remote. It destroys nothing, and it is
