@@ -17,3 +17,7 @@ serde.workspace = true
 serde_json.workspace = true
 thiserror.workspace = true
 walkdir.workspace = true
+
+[[test]]
+name = "native_audit"
+path = "../../tests/native_audit.rs"

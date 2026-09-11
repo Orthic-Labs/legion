@@ -1,0 +1,6 @@
+{
+  "schemaVersion": 1,
+  "repository": "Orthic-Labs/legion",
+  "platform": "win32",
+  "purpose": "unsigned-installer"
+}

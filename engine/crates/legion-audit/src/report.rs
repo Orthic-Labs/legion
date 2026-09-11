@@ -12,6 +12,9 @@ pub fn canonical_report(
     let mut finding_ids = BTreeSet::new();
     let mut findings = Vec::new();
     let mut gaps = execution.gaps.clone();
+    if execution.plan_signature.is_none() {
+        gaps.push("unsigned-plan".into());
+    }
     for provider in &execution.results {
         gaps.extend(
             provider

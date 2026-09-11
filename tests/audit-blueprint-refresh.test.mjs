@@ -12,6 +12,7 @@ import {
   describeUntrackedEntry,
   enforceAuditOutputBoundary,
   readBlueprintPacket,
+  resolveBlueprintWrapper,
 } from '../src/adapters/blueprint-packet.mjs';
 
 const GENERATION_ID = 'xxh128:audit-run-1';
@@ -230,5 +231,24 @@ test('collectRepositoryBinding digests untracked changes deterministically witho
     assert.notEqual(collectRepositoryBinding(dir).dirtyPatchDigest, first.dirtyPatchDigest);
   } finally {
     rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('installed native Blueprint wrapper preserves shell-free executable & argv', () => {
+  const wrapperPath = join('installed product & spaces', 'current', 'blueprint.cmd');
+  const wrapper = '@echo off\r\n"%~dp0membrane.exe" cli blueprint %*\r\nexit /b %ERRORLEVEL%\r\n';
+  assert.deepEqual(resolveBlueprintWrapper(wrapperPath, wrapper), {
+    executable: join(dirname(wrapperPath), 'membrane.exe'),
+    prefix: ['cli', 'blueprint'],
+  });
+});
+
+test('native wrapper compatibility never strips extra batch commands', () => {
+  const wrapperPath = join('installed', 'blueprint.cmd');
+  for (const wrapper of [
+    '@echo off\n"%~dp0membrane.exe" cli blueprint %* & extra-command\nexit /b %ERRORLEVEL%\n',
+    '@echo off\nextra-command\n"%~dp0membrane.exe" cli blueprint %*\nexit /b %ERRORLEVEL%\n',
+  ]) {
+    assert.deepEqual(resolveBlueprintWrapper(wrapperPath, wrapper), { executable: wrapperPath, prefix: [] });
   }
 });

@@ -386,3 +386,59 @@ fn native_rules_emits_selector_bound_denominator() {
     );
     std::fs::remove_dir_all(root).unwrap();
 }
+
+#[test]
+fn native_audit_without_signing_material_runs_source_scan_as_unsigned_incomplete() {
+    let root = std::env::temp_dir().join(format!(
+        "legion-native-audit-unsigned-{}-{}",
+        std::process::id(),
+        std::thread::current().name().unwrap_or("fixture")
+    ));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(root.join("src")).unwrap();
+    std::fs::write(root.join("src/service.rs"), "fn service() {}\n").unwrap();
+    let root = std::fs::canonicalize(root).unwrap();
+    let manifest = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../../../packs/native/manifest.v1.json");
+    let out = root.join("audit");
+    let output = Command::new(env!("CARGO_BIN_EXE_legion"))
+        .args([
+            "audit",
+            root.to_str().unwrap(),
+            "--out",
+            out.to_str().unwrap(),
+            "--native-rule-manifest",
+            manifest.to_str().unwrap(),
+        ])
+        .env_remove("LEGION_NATIVE_APPLICATION_CONFIG")
+        .env_remove("AUDIT_PLAN_SIGNING_KEY")
+        .output()
+        .unwrap();
+    assert_eq!(
+        output.status.code(),
+        Some(2),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let summary: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(summary["auditStatus"], "incomplete");
+    assert_eq!(summary["qualityGate"], "unproven");
+    assert!(summary["gaps"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|gap| gap == "native-provider-composition-partial"));
+    assert_eq!(
+        summary["plannedProviders"],
+        serde_json::json!(["security.native-rules"])
+    );
+    assert_eq!(summary["resultCount"], 1);
+    assert_eq!(summary["processExecution"], "complete");
+    assert!(out.join("report.json").is_file());
+    assert!(out.join("execution.json").is_file());
+    assert!(summary["gaps"].as_array().unwrap().iter().any(|gap| gap == "unsigned-plan"));
+    assert!(summary["planSignature"].is_null());
+    let plan: serde_json::Value = serde_json::from_slice(&std::fs::read(out.join("plan.json")).unwrap()).unwrap();
+    assert_eq!(plan["seal"]["authenticity"], "unsigned");
+    std::fs::remove_dir_all(root).unwrap();
+}

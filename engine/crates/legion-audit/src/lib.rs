@@ -23,5 +23,5 @@ pub use inventory::{
 pub use normalize::{normalize, normalize_all};
 pub use plan::{AuditPlan, AuditProvider, FrozenPlan, ProviderKind};
 pub use report::canonical_report;
-pub use verify::{verify_binding, verify_execution};
+pub use verify::{verify_binding, verify_execution, verify_source_diagnostic};
 pub use worktree::{cleanup, create, WorktreeEffect, WorktreeReceipt};

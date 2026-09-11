@@ -1930,12 +1930,19 @@ impl NativeApplication {
             } => {
                 let plan_inventory: InventoryEnvelope =
                     self.inventory_source.inventory(&repository_id)?;
-                let plan = AuditPlan::compile(&plan_inventory, &providers)?
-                    .freeze(signing_key.as_deref())?;
+                let pending = AuditPlan::compile(&plan_inventory, &providers)?;
+                let plan = match signing_key.as_deref() {
+                    Some(key) => pending.freeze(Some(key))?,
+                    None => pending.freeze_source_diagnostic()?,
+                };
                 let execution_inventory = self.inventory_source.inventory(&repository_id)?;
                 verify_binding(&plan, &execution_inventory, signing_key.as_deref())?;
                 let report = execute(&plan, &execution_inventory, self.provider_executor.as_ref())?;
-                verify_execution(&report)?;
+                if signing_key.is_some() {
+                    verify_execution(&report)?;
+                } else {
+                    legion_audit::verify_source_diagnostic(&report, &plan)?;
+                }
                 Ok(NativeOperationResult::Audit(report))
             }
             NativeOperation::Verify {

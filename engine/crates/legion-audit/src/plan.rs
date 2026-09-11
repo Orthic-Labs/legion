@@ -303,6 +303,14 @@ impl AuditPlan {
         Ok(())
     }
 
+    /// Diagnostic source scans may preserve an unsigned plan without claiming authority.
+    /// Authenticated execution continues to use `freeze`.
+    pub fn freeze_source_diagnostic(self) -> Result<FrozenPlan, AuditError> {
+        self.validate()?;
+        let digest = plan_digest(&self)?;
+        Ok(FrozenPlan { plan: self, digest, signature: None })
+    }
+
     pub fn freeze(self, signing_key: Option<&[u8]>) -> Result<FrozenPlan, AuditError> {
         self.validate()?;
         let signing_key = signing_key

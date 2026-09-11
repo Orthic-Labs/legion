@@ -657,3 +657,40 @@ fn candidate_generator_may_complete_generation_but_not_emit_findings() {
     assert!(report.gaps.is_empty());
     assert!(report.results[0].result.complete);
 }
+
+#[test]
+fn unsigned_source_diagnostic_never_certifies_or_executes_host_work() {
+    use legion_audit::{AuditPlan, InventoryEnvelope};
+    struct NoEffects;
+    impl ProviderExecutor for NoEffects {
+        fn execute(&self, _: &AuditProvider, _: &InventoryEnvelope) -> Result<ProviderResult, legion_audit::AuditError> {
+            panic!("unsigned external provider must never execute")
+        }
+    }
+    let inventory = InventoryEnvelope::new("fixture", "generation", Vec::new()).unwrap();
+    for runner in ["external-process", "reasoning-contract"] {
+        let role = if runner == "reasoning-contract" { "reasoning" } else { "deterministic" };
+        let pending = AuditPlan::compile(&inventory, &[spec("external", role, runner, serde_json::json!({"op":"always"}))]).unwrap();
+        let plan = pending.freeze_source_diagnostic().unwrap();
+        let report = execute(&plan, &inventory, &NoEffects).unwrap();
+        assert!(report.plan_signature.is_none());
+        assert!(report.gaps.iter().any(|gap| gap == "unsigned-plan"));
+        assert!(report.results[0].skipped);
+        assert!(legion_audit::verify_source_diagnostic(&report, &plan).is_ok());
+        assert!(legion_audit::verify_execution(&report).is_err());
+        let rendered = legion_audit::canonical_report("fixture", &report).unwrap();
+        assert_eq!(rendered.status, legion_contracts::ReportStatus::Incomplete);
+        let mut drifted = report.clone();
+        drifted.generation = "forged".into();
+        assert!(legion_audit::verify_source_diagnostic(&drifted, &plan).is_err());
+        drifted = report.clone();
+        drifted.inventory_digest = "forged".into();
+        assert!(legion_audit::verify_source_diagnostic(&drifted, &plan).is_err());
+        let mut executed = report.clone();
+        executed.results[0].skipped = false;
+        assert!(legion_audit::verify_source_diagnostic(&executed, &plan).is_err());
+        let mut forged = report;
+        forged.gaps.retain(|gap| gap != "unsigned-plan");
+        assert!(legion_audit::verify_source_diagnostic(&forged, &plan).is_err());
+    }
+}

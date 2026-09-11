@@ -153,10 +153,7 @@ impl NativeEngine for NativeApplicationEngine {
                     "legion_audit" => NativeOperation::Audit {
                         repository_id: repository_id.clone(),
                         providers: application.provider_specs(),
-                        signing_key: match audit_signing_key() {
-                            Ok(key) => Some(key),
-                            Err(error) => return Box::pin(async { Err(error) }),
-                        },
+                        signing_key: audit_signing_key().ok(),
                     },
                     "legion_verify" => NativeOperation::Verify {
                         repository_id,

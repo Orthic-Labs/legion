@@ -33,7 +33,13 @@ pub async fn run(args: AuditArgs, cancellation: CancellationToken) -> CommandRes
     let direct = args.blueprint_packet.is_some()
         || args.provider_plan.is_some()
         || !args.provider_results.is_empty();
-    let signing_key = super::audit_signing_key()?;
+    let signing_key = if args.plan_only {
+        Some(super::audit_signing_key()?)
+    } else {
+        std::env::var_os("AUDIT_PLAN_SIGNING_KEY")
+            .filter(|value| !value.is_empty())
+            .map(|value| value.to_string_lossy().as_bytes().to_vec())
+    };
     let native_provider_subset =
         !direct && std::env::var_os("LEGION_NATIVE_APPLICATION_CONFIG").is_none();
     let (application, context_notices) = if direct {
@@ -72,13 +78,13 @@ pub async fn run(args: AuditArgs, cancellation: CancellationToken) -> CommandRes
         legion_application::NativeOperation::Plan {
             repository_id: root.to_string_lossy().into_owned(),
             providers: application.provider_specs(),
-            signing_key: Some(signing_key.clone()),
+            signing_key: signing_key.clone(),
         }
     } else {
         legion_application::NativeOperation::Audit {
             repository_id: root.to_string_lossy().into_owned(),
             providers: application.provider_specs(),
-            signing_key: Some(signing_key),
+            signing_key,
         }
     };
     let result = application
@@ -205,7 +211,7 @@ pub async fn run(args: AuditArgs, cancellation: CancellationToken) -> CommandRes
                     },
                     "seal": {
                         "digest": execution.plan_digest,
-                        "authenticity": "hmac-sha256",
+                        "authenticity": if execution.plan_signature.is_some() { "hmac-sha256" } else { "unsigned" },
                         "signature": execution.plan_signature,
                     },
                     "providers": execution.planned_providers,

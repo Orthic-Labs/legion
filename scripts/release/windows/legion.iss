@@ -91,16 +91,32 @@ end;
 
 procedure ActivateCurrent;
 var
-  CurrentPath, VersionPath, Params: String;
-  ResultCode: Integer;
+  CurrentPath, VersionPath, BackupPath, Params: String;
+  ResultCode, Suffix: Integer;
+  HadCurrent, Activated: Boolean;
 begin
   CurrentPath := ExpandConstant('{app}\current');
   VersionPath := ExpandConstant('{app}\versions\{#ProductVersion}');
-  RemoveDir(CurrentPath);
+  HadCurrent := DirExists(CurrentPath);
+  BackupPath := ExpandConstant('{app}\.previous-current-') + GetDateTimeString('yyyymmddhhnnss', '', '');
+  Suffix := 0;
+  while DirExists(BackupPath) or FileExists(BackupPath) do begin
+    Suffix := Suffix + 1;
+    BackupPath := ExpandConstant('{app}\.previous-current-') + GetDateTimeString('yyyymmddhhnnss', '', '') + '-' + IntToStr(Suffix);
+  end;
+  { Rename preserves both legacy real directories & junctions without deletion. }
+  if HadCurrent and not RenameFile(CurrentPath, BackupPath) then
+    RaiseException('Could not preserve previous Legion install');
   Params := '/c mklink /J "' + CurrentPath + '" "' + VersionPath + '"';
-  if not Exec(ExpandConstant('{cmd}'), Params, '', SW_HIDE, ewWaitUntilTerminated, ResultCode) then
+  Activated := Exec(ExpandConstant('{cmd}'), Params, '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+  if not Activated or (ResultCode <> 0) then begin
+    if HadCurrent then begin
+      if not RenameFile(BackupPath, CurrentPath) then
+        RaiseException('Activation failed; previous Legion install retained at ' + BackupPath);
+    end;
     RaiseException('Could not activate Legion current install');
-  if ResultCode <> 0 then RaiseException('Could not activate Legion current install');
+  end;
+  Log('Legion activated; previous install retained at ' + BackupPath);
 end;
 
 procedure RefreshClientProjections;

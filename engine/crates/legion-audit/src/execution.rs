@@ -44,6 +44,17 @@ fn provider_id(value: &str) -> Result<ProviderId, AuditError> {
     ProviderId::new(value).map_err(AuditError::from)
 }
 
+pub(crate) fn source_diagnostic_allowed(provider: &AuditProvider) -> bool {
+    matches!(provider.kind,
+            crate::plan::ProviderKind::BuiltIn | crate::plan::ProviderKind::RustAlgorithm)
+            && provider.configuration.get("execution")
+                .and_then(|v| v.get("resourceClaims"))
+                .and_then(Value::as_object)
+                .is_none_or(|claims| claims.iter().all(|(key, value)|
+                    matches!(key.as_str(), "cpu" | "memoryMb" | "io")
+                    || value.as_u64() == Some(0)))
+}
+
 pub fn execute(
     plan: &FrozenPlan,
     inventory: &InventoryEnvelope,
@@ -62,6 +73,9 @@ pub fn execute(
     let mut failed = BTreeSet::new();
     let mut results = Vec::new();
     let mut gaps = Vec::new();
+    if plan.signature().is_none() {
+        gaps.push("unsigned-plan".into());
+    }
     let mut selected_lenses = plan
         .providers()
         .iter()
@@ -94,7 +108,13 @@ pub fn execute(
             .dependencies
             .iter()
             .any(|dependency| !completed.contains(dependency) || failed.contains(dependency));
-        let execution = if blocked {
+        let source_only = source_diagnostic_allowed(provider);
+        let execution = if plan.signature().is_none() && !source_only {
+            let gap = format!("unsigned-plan-provider-not-executed:{}", provider.id);
+            gaps.push(gap.clone());
+            failed.insert(provider.id.clone());
+            failed_execution(provider, gap, "unsigned-source-diagnostic-only", true)?
+        } else if blocked {
             let gap = format!("dependency-failed:{}", provider.id);
             gaps.push(gap.clone());
             failed.insert(provider.id.clone());

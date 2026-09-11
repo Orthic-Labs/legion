@@ -15,7 +15,7 @@
 import { createHash } from 'node:crypto';
 import { existsSync, lstatSync, readFileSync, readlinkSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
-import { isAbsolute, join, relative, resolve, sep } from 'node:path';
+import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
 import { consumeMembranePacket } from '../packages/context/lib/context.mjs';
 
 export const BLUEPRINT_ERROR_CODES = Object.freeze({
@@ -211,6 +211,19 @@ function resolveBlueprintInvocation(blueprintBin, timeoutMs) {
   // explicit & shell-free.
   let wrapper;
   try { wrapper = readFileSync(executable, 'utf8'); } catch { return { executable, prefix: [] }; }
+  return resolveBlueprintWrapper(executable, wrapper);
+}
+
+/** Resolve only known transparent wrappers; never evaluate batch text in a shell. */
+export function resolveBlueprintWrapper(executable, wrapper) {
+  const lines = wrapper.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+  const native = lines.length === 3
+    && /^@echo off$/i.test(lines[0])
+    && /^"%~dp0membrane\.exe" cli blueprint %\*$/i.test(lines[1])
+    && /^exit \/b %ERRORLEVEL%$/i.test(lines[2]);
+  if (native) {
+    return { executable: join(dirname(executable), 'membrane.exe'), prefix: ['cli', 'blueprint'] };
+  }
   const script = wrapper.match(/node(?:\.exe)?\s+"([^"]+\.mjs)"/i)?.[1];
   return script ? { executable: process.execPath, prefix: [script] } : { executable, prefix: [] };
 }
