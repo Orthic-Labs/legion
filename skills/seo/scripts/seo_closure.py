@@ -3,7 +3,7 @@
 
 Proves repository implementation closure, not authenticated live-account availability or
 ranking outcomes. Fails closed on checklist/source drift, missing owners/scripts/tests,
-workflow packs, provider registry, critical-gate declarations, or unwired Python CI.
+workflow packs, provider registry, contracts, qualification gates, or unwired Python CI.
 """
 from __future__ import annotations
 
@@ -18,6 +18,8 @@ REPO_ROOT = SEO_ROOT.parent.parent
 CATALOG = SEO_ROOT / 'config' / 'control-catalog.json'
 SOURCE_MANIFEST = SEO_ROOT / 'config' / 'source-manifest.json'
 PROVIDER_REGISTRY = SEO_ROOT / 'config' / 'provider-registry.json'
+CONTRACTS = SEO_ROOT / 'config' / 'contracts.json'
+QUALIFICATION = SEO_ROOT / 'config' / 'qualification.json'
 WORKFLOW_PACKS = SEO_ROOT / 'references' / 'workflow-packs.md'
 ROUTER = SEO_ROOT / 'SKILL.md'
 REQUIRED_SCRIPTS = {
@@ -25,7 +27,7 @@ REQUIRED_SCRIPTS = {
     'pagespeed_check.py', 'crux_history.py', 'ai_visibility_import.py',
     'templated_metadata.py', 'search_ops.py', 'seo_project.py', 'provider_registry.py',
     'query_ownership.py', 'question_inventory.py', 'rank_tracker.py', 'coverage.py',
-    'checklist_compiler.py', 'seo_closure.py',
+    'contracts.py', 'checklist_compiler.py', 'seo_closure.py',
 }
 REQUIRED_REFS = {
     'manual.md', 'operations.md', 'ai-search-2026.md', 'geo.md', 'technical.md',
@@ -35,7 +37,8 @@ REQUIRED_REFS = {
     'openseo-absorption.md', 'free-data-sources.md', 'quality-gates.md',
 }
 REQUIRED_TEST_FILES = {
-    'test_seo_kernel.py', 'fixtures/gsc_rows.json', 'fixtures/ai_google.csv',
+    'test_seo_kernel.py', 'test_seo_governance.py', 'test_provider_replay.py',
+    'fixtures/gsc_rows.json', 'fixtures/gsc_replay.json', 'fixtures/ai_google.csv',
     'fixtures/ai_bing.csv', 'fixtures/badseo/noindex.html', 'fixtures/badseo/clean.html',
 }
 REQUIRED_PACKS = {
@@ -108,13 +111,25 @@ def check() -> dict[str, Any]:
     for name in sorted(REQUIRED_REFS):
         if not (SEO_ROOT / 'references' / name).exists():
             errors.append(f'required SEO reference missing: {name}')
-    if not PROVIDER_REGISTRY.exists():
-        errors.append('provider-registry.json missing')
-    else:
+
+    for config_path, label in ((PROVIDER_REGISTRY, 'provider-registry.json'), (CONTRACTS, 'contracts.json'), (QUALIFICATION, 'qualification.json')):
+        if not config_path.exists():
+            errors.append(f'{label} missing')
+
+    if PROVIDER_REGISTRY.exists():
         providers = load_json(PROVIDER_REGISTRY).get('providers') or {}
         for required in ('local', 'google_gsc', 'google_ga4', 'google_pagespeed_crux', 'google_generative_export', 'bing_ai_export'):
             if required not in providers:
                 errors.append(f'provider registry missing core provider: {required}')
+    if CONTRACTS.exists():
+        contracts = load_json(CONTRACTS)
+        for key in ('evidence_required', 'finding_required', 'recommendation_required', 'action_required', 'outcome_required'):
+            if not contracts.get(key):
+                errors.append(f'contracts missing {key}')
+    if QUALIFICATION.exists():
+        qual = load_json(QUALIFICATION)
+        if not qual.get('provider_replay_required') or not qual.get('runtime_gates') or not qual.get('installed_path_gates'):
+            errors.append('qualification.json missing provider/runtime/installed-path gate declarations')
 
     declared_packs = set(catalog.get('workflow_packs') or [])
     if REQUIRED_PACKS - declared_packs:
@@ -126,7 +141,7 @@ def check() -> dict[str, Any]:
                 errors.append(f'workflow pack has no documented owner section: {pack}')
 
     router = ROUTER.read_text(encoding='utf-8') if ROUTER.exists() else ''
-    for required in ('workflow-packs.md', 'seo_project.py', 'provider_registry.py', 'gsc_query_v2.py', 'ai_visibility_import.py', 'search_ops.py', 'seo_closure.py'):
+    for required in ('workflow-packs.md', 'seo_project.py', 'provider_registry.py', 'gsc_query_v2.py', 'ai_visibility_import.py', 'search_ops.py', 'coverage.py', 'seo_closure.py'):
         if required not in router:
             errors.append(f'router does not expose/invoke closure component: {required}')
 
@@ -140,8 +155,9 @@ def check() -> dict[str, Any]:
         manifest = load_json(SOURCE_MANIFEST)
         source_by_role = {x.get('role'): x for x in manifest.get('sources') or []}
         checklist = source_by_role.get('control-source')
-        if not checklist:
-            errors.append('source manifest missing control-source')
+        implementation = source_by_role.get('implementation-contract')
+        if not checklist or not implementation:
+            errors.append('source manifest missing control-source or implementation-contract')
         else:
             if checklist.get('sha256') != catalog.get('source_sha256'):
                 errors.append('control catalog source digest does not match source manifest')
@@ -160,6 +176,9 @@ def check() -> dict[str, Any]:
     test_runner = REPO_ROOT / 'scripts' / 'test-python.mjs'
     if not test_runner.exists() or 'skills/seo/tests' not in test_runner.read_text(encoding='utf-8'):
         errors.append('SEO Python regression suite is not wired into repository Python CI')
+    notices = REPO_ROOT / 'docs' / 'THIRD_PARTY_NOTICES.md'
+    if not notices.exists() or not all(x in notices.read_text(encoding='utf-8') for x in ('AgriciDaniel/claude-seo', 'every-app/open-seo')):
+        errors.append('third-party notices do not record SEO donor methodology provenance')
 
     status = 'pass' if not errors else 'fail'
     return {
