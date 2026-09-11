@@ -79,6 +79,7 @@ export function renderInnoTemplate({ sourceRoot, outputRoot, version, architectu
 	const template = readFileSync(TEMPLATE_PATH, "utf8");
 	const replacements = {
 		"@@VERSION@@": version,
+		"@@ACTIVATION_SCRIPT@@": join(MODULE_ROOT, "activate.ps1"),
 		"@@SOURCE_ROOT@@": resolve(sourceRoot),
 		"@@OUTPUT_ROOT@@": resolve(outputRoot),
 		"@@SETUP_NAME@@": identity.name.replace(/\.exe$/i, ""),

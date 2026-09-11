@@ -32,6 +32,7 @@ UninstallDisplayName=Legion
 Uninstallable=yes
 
 [Files]
+Source: "@@ACTIVATION_SCRIPT@@"; DestDir: "{tmp}"; Flags: deleteafterinstall
 Source: "{#SourceRoot}\bin\*"; DestDir: "{app}\versions\{#ProductVersion}\bin"; Flags: ignoreversion recursesubdirs createallsubdirs
 Source: "{#SourceRoot}\plugin\*"; DestDir: "{app}\versions\{#ProductVersion}\plugin"; Flags: ignoreversion recursesubdirs createallsubdirs
 Source: "{#SourceRoot}\share\*"; DestDir: "{app}\versions\{#ProductVersion}\share"; Flags: ignoreversion recursesubdirs createallsubdirs
@@ -91,32 +92,15 @@ end;
 
 procedure ActivateCurrent;
 var
-  CurrentPath, VersionPath, BackupPath, Params: String;
-  ResultCode, Suffix: Integer;
-  HadCurrent, Activated: Boolean;
+  Params: String;
+  ResultCode: Integer;
 begin
-  CurrentPath := ExpandConstant('{app}\current');
-  VersionPath := ExpandConstant('{app}\versions\{#ProductVersion}');
-  HadCurrent := DirExists(CurrentPath);
-  BackupPath := ExpandConstant('{app}\.previous-current-') + GetDateTimeString('yyyymmddhhnnss', '', '');
-  Suffix := 0;
-  while DirExists(BackupPath) or FileExists(BackupPath) do begin
-    Suffix := Suffix + 1;
-    BackupPath := ExpandConstant('{app}\.previous-current-') + GetDateTimeString('yyyymmddhhnnss', '', '') + '-' + IntToStr(Suffix);
-  end;
-  { Rename preserves both legacy real directories & junctions without deletion. }
-  if HadCurrent and not RenameFile(CurrentPath, BackupPath) then
-    RaiseException('Could not preserve previous Legion install');
-  Params := '/c mklink /J "' + CurrentPath + '" "' + VersionPath + '"';
-  Activated := Exec(ExpandConstant('{cmd}'), Params, '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
-  if not Activated or (ResultCode <> 0) then begin
-    if HadCurrent then begin
-      if not RenameFile(BackupPath, CurrentPath) then
-        RaiseException('Activation failed; previous Legion install retained at ' + BackupPath);
-    end;
-    RaiseException('Could not activate Legion current install');
-  end;
-  Log('Legion activated; previous install retained at ' + BackupPath);
+  Params := '-NoProfile -NonInteractive -ExecutionPolicy Bypass -File "' + ExpandConstant('{tmp}\activate.ps1') +
+    '" -InstallRoot "' + ExpandConstant('{app}') + '" -Version "{#ProductVersion}"';
+  if not Exec(ExpandConstant('{sys}\WindowsPowerShell\v1.0\powershell.exe'), Params, '', SW_HIDE, ewWaitUntilTerminated, ResultCode) then
+    RaiseException('Could not launch Legion activation');
+  Log('Legion activation exit=' + IntToStr(ResultCode));
+  if ResultCode <> 0 then RaiseException('Could not activate Legion current install');
 end;
 
 procedure RefreshClientProjections;

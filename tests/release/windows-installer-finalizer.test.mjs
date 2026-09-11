@@ -52,7 +52,7 @@ test("Windows installer identity, template, & commands bind one x64 payload", ()
 	assert.match(template, /Source: "[^"]+\\bin\\\*"/);
 	assert.match(template, /Source: "[^"]+\\plugin\\\*"/);
 	assert.match(template, /Source: "[^"]+\\share\\\*"/);
-	assert.match(template, /mklink \/J/);
+	assert.match(template, /activate\.ps1/);
 	assert.match(template, /current\\bin/);
 	assert.doesNotMatch(template, /@@(?:VERSION|SOURCE_ROOT|OUTPUT_ROOT|SETUP_NAME)@@/);
 	const script = join(output, "installer.iss");
