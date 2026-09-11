@@ -28,18 +28,18 @@ run(['-m', 'unittest', 'discover', '-s', 'skills/alchemist/tests', '-v']);
 run(['src/lib/dispatch-validator/test_validate_dispatch.py']);
 
 // 2a. Shipped skill bundles — exercise the packaged copy under skills/, not just the
-//     src/lib development copy, so a bundle-only defect (dead vendored authority path,
-//     stale fixture) cannot regress silently the way it did before these were wired in.
+//     src/lib development copy, so a bundle-only defect cannot regress silently.
 run(['skills/dispatch/scripts/test_validate_dispatch.py']);
 run(['skills/tasklist/scripts/test_validate_tasklist.py']);
 run(['skills/tasklist/tests/tasklist-entrypoint.test.py']);
 
+// 2b. SEO kernel/control closure, replay fixtures, state and no-false-clean semantics.
+run(['-m', 'unittest', 'discover', '-s', 'skills/seo/tests', '-p', 'test_*.py', '-v']);
+
 // 3. Research-core entrypoint parity (pytest-style fixtures).
 run(['-m', 'pytest', 'src/lib/research-core/test_entrypoint_parity.py', '-v']);
 
-// 4. Research-core recovered evidence/router/meter/shard/stopping suite —
-//    standalone scripts with `if __name__ == '__main__'`, one process each so a
-//    failure names its own file instead of hiding behind unittest discovery.
+// 4. Research-core recovered evidence/router/meter/shard/stopping suite.
 const researchTestsDir = path.join(ROOT, 'src', 'lib', 'research-core', 'tests');
 const researchTests = readdirSync(researchTestsDir)
   .filter((name) => name.startsWith('test_') && name.endsWith('.py'))
@@ -48,4 +48,4 @@ for (const name of researchTests) {
   run([path.join('src', 'lib', 'research-core', 'tests', name)]);
 }
 
-console.log(`OK: python suites passed (alchemist, dispatch-validator, entrypoint-parity, ${researchTests.length} research-core tests)`);
+console.log(`OK: python suites passed (alchemist, dispatch-validator, SEO kernel, entrypoint-parity, ${researchTests.length} research-core tests)`);
