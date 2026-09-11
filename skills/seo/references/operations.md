@@ -12,6 +12,22 @@ Canonical loop:
 
 A full audit is one input to this loop, not the loop itself.
 
+## Deterministic state tool
+
+Where artifact writes are permitted, use `scripts/search_ops.py` to persist run/intervention state under `.seo/search-ops.json` (or an explicitly supplied state path). It does **not** schedule itself; a host scheduler invokes the recurring SEO job. Its job is to preserve baselines, deployment identity, verification state, later outcomes, and compact operator-run history.
+
+Typical lifecycle:
+
+```text
+search_ops.py start ...
+search_ops.py deploy ...
+search_ops.py outcome ...
+search_ops.py run --cadence weekly ...
+search_ops.py brief
+```
+
+Do not bypass Legion authority: the state script records actions; it does not authorize publication, redirects, indexing pushes, deletion, spend, or outreach.
+
 ## State contract
 
 Keep these objects distinct:
@@ -28,9 +44,9 @@ Never turn missing credentials, unavailable reports, sampling, or failed collect
 
 For owned sites, collect the best available subset:
 
-1. Google Search Console search performance with explicit date range, dimensions, aggregation/completeness notes.
-2. Google Search Generative AI report export when available; keep separate from ordinary Search Analytics unless Google documents an API mapping.
-3. Bing Webmaster traditional search/crawl/index evidence and Bing AI Performance export when available.
+1. Google Search Console search performance with explicit date range, dimensions, aggregation/completeness notes. Prefer `gsc_query_v2.py` so dimensionless aggregate totals remain separate from dimension-row coverage.
+2. Google Search Generative AI report export when available; normalize with `ai_visibility_import.py google ...` and keep separate from ordinary Search Analytics unless Google documents an API mapping.
+3. Bing Webmaster traditional search/crawl/index evidence and Bing AI Performance export when available; normalize AI Performance with `ai_visibility_import.py bing ...`.
 4. GA4 or business events where authorized and useful.
 5. Crawl/indexability/render state, sitemap, canonical/redirect graph, CWV.
 6. Page-family, query-ownership and internal-link graph for affected pages.
@@ -96,7 +112,7 @@ intervention:
   status: proposed
 ```
 
-After execution, record deployment identity and technical verification. Later record outcome as `improved|declined|mixed|inconclusive|not_measurable`, plus confounders. Before/after movement is observational unless experimental design supports causality.
+After execution, record deployment identity and technical verification. Later record outcome as `improved|worsened|neutral|inconclusive|immature`, plus confounders. Before/after movement is observational unless experimental design supports causality.
 
 Do not repeatedly edit a page while its experiment is still maturing unless correcting a material defect; doing so destroys attribution.
 
