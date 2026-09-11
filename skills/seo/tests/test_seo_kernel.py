@@ -122,12 +122,15 @@ class SeoKernelTests(unittest.TestCase):
             def run(*args):
                 return subprocess.run([sys.executable, str(script), '--state', str(state), *args], check=True, capture_output=True, text=True)
             run('start','--id','i1','--target','https://e/x','--hypothesis','better snippet','--action','change title','--metric','ctr','--evaluate-after','2026-10-01')
-            run('deploy','--id','i1','--identity','commit:abc')
-            run('verify','--id','i1','--result','pass','--evidence','recrawl')
-            run('outcome','--id','i1','--verdict','inconclusive','--evidence','gsc')
+            run('deploy','--id','i1','--identity','commit:abc','--authorized-capability','repo-write','--idempotency-key','seo-i1','--effect-receipt','github:commit:abc','--rollback','git revert abc')
+            run('verify','--id','i1','--result','pass','--evidence','recrawl:https://e/x')
+            run('outcome','--id','i1','--verdict','inconclusive','--evidence','gsc:window')
             data = json.loads(state.read_text())
-            self.assertEqual(data['interventions'][0]['status'], 'outcome_recorded')
-            self.assertEqual(data['interventions'][0]['verification']['result'], 'pass')
+            row = data['interventions'][0]
+            self.assertEqual(row['status'], 'outcome_recorded')
+            self.assertEqual(row['verification']['result'], 'pass')
+            self.assertEqual(row['deployment']['effect_receipt'], 'github:commit:abc')
+            self.assertEqual(row['deployment']['authorized_capability'], 'repo-write')
 
     def test_repository_closure_gate(self):
         result = self.closure.check()
