@@ -1,94 +1,80 @@
----
-name: seo-page
-description: >
-  Deep single-page SEO analysis covering on-page elements, content quality,
-  technical meta tags, schema, images, and performance. Use when user says
-  "analyze this page", "check page SEO", "single URL", "check this page",
-  "page analysis", or provides a single URL for review.
-user-invokable: true
-argument-hint: "[url]"
-license: MIT
-metadata:
-  author: AgriciDaniel
-  version: "1.7.0"
-  category: seo
----
+# Page Engine — evidence-driven single-page analysis
 
-# Single Page Analysis
+Use for one URL or one page-family representative. This reference does not award a universal page score and does not use keyword-density, fixed word-count, or fixed title/meta-length targets as ranking rules.
 
-## What to Analyze
+## Required context
 
-### On-Page SEO
-- Title tag: 50-60 characters, includes primary keyword, unique
-- Meta description: 150-160 characters, compelling, includes keyword
-- H1: exactly one, matches page intent, includes keyword
-- H2-H6: logical hierarchy (no skipped levels), descriptive
-- URL: short, descriptive, hyphenated, no parameters
-- Internal links: sufficient, relevant anchor text, no orphan pages
-- External links: to authoritative sources, reasonable count
+Freeze:
 
-### Content Quality
-- Word count vs page type minimums (see quality-gates.md)
-- Readability: Flesch Reading Ease score, grade level
-- Keyword density: natural (1-3%), semantic variations present
-- E-E-A-T signals: author bio, credentials, first-hand experience markers
-- Content freshness: publication date, last updated date
+`URL | page family | market | language | device | intended query/topic | business purpose | date window | repository/template if known`
 
-### Technical Elements
-- Canonical tag: present, self-referencing or correct
-- Meta robots: index/follow unless intentionally blocked
-- Open Graph: og:title, og:description, og:image, og:url
-- Twitter Card: twitter:card, twitter:title, twitter:description
-- Hreflang: if multi-language, correct implementation
+If intended query/topic is unknown, infer only as a hypothesis and label it.
 
-### Schema Markup
-- Detect all types (JSON-LD preferred)
-- Validate required properties
-- Identify missing opportunities
-- NEVER recommend HowTo (deprecated) or FAQ (restricted to gov/health)
+## Evidence order
 
-### Images
-- Alt text: present, descriptive, includes keywords where natural
-- File size: flag >200KB (warning), >500KB (critical)
-- Format: recommend WebP/AVIF over JPEG/PNG
-- Dimensions: width/height set for CLS prevention
-- Lazy loading: loading="lazy" on below-fold images
+1. **Eligibility** — status, redirects, robots/X-Robots, canonical, index evidence, renderability.
+2. **Ownership** — intended query/topic, GSC observed queries, intended vs observed page, cannibalization/switching.
+3. **SERP fit** — current result-set page types/features when evidence is available; use `search-experience.md`.
+4. **Page family/template** — route/template/component and sibling behavior where repository evidence exists.
+5. **Content/information gain** — task completion, originality, factual support, entity clarity, freshness appropriate to the topic.
+6. **Search appearance** — title/snippet inputs, headings, visible dates, images/video, structured data eligibility.
+7. **Internal graph** — inlinks/outlinks, anchors, orphan/depth/context and parent-child role.
+8. **Performance/UX** — field CWV first where available; lab/browser evidence as a different tier.
+9. **AEO/GEO** — question coverage, factual extractability, sources, information gain and measured generative visibility where available.
+10. **Business outcome** — qualified organic sessions/conversions where instrumented.
 
-### Core Web Vitals (reference only, not measurable from HTML alone)
-- Flag potential LCP issues (huge hero images, render-blocking resources)
-- Flag potential INP issues (heavy JS, no async/defer)
-- Flag potential CLS issues (missing image dimensions, injected content)
+## Titles and descriptions
+
+Evaluate descriptiveness, uniqueness, intent fit, entity clarity, spam risk and observed search appearance. Pixel/character ranges are diagnostics for likely truncation or templating, not ranking requirements. Google may rewrite title links/snippets. Do not force a keyword to the front or manufacture a CTA solely to satisfy a template.
+
+## Content depth
+
+There is no canonical minimum word count or keyword density. Judge sufficiency against the user task, page type, SERP/competitor evidence, unique information and business purpose. A concise tool/product/reference page can be complete; a long generic article can be thin.
+
+Flag:
+- missing answer/task-critical information;
+- unsupported or stale claims;
+- commodity summary with no information gain;
+- templated boilerplate overwhelming unique content;
+- page-type/intent mismatch;
+- duplicate/near-duplicate target where ownership evidence supports it.
+
+Do not flag merely because a page misses an arbitrary word threshold.
+
+## Structured data
+
+Validate only markup supported by visible page content and current platform eligibility. Schema improves machine understanding/eligibility; it does not prove a rich result, ranking lift or AI citation. Current platform restrictions/deprecations override old recipes.
+
+## Images/media
+
+Evaluate relevance, accessible text alternatives, intrinsic dimensions/CLS, delivery size/format, lazy loading where appropriate, surrounding context, previews/licensing and media-specific search eligibility. Decorative images may correctly use empty alt text.
+
+## Page verdict
+
+Every material page review ends with one primary lifecycle disposition:
+
+`KEEP | REFRESH | EXPAND | REPOSITION | CONSOLIDATE | SPLIT | REDIRECT | NOINDEX | DELETE | INVESTIGATE | WAIT`
+
+The verdict must record:
+
+`evidence | mechanism | business value | confidence | downside | dependencies | validation method`
+
+Low traffic alone cannot justify deletion or redirect.
+
+## Information-gain gate
+
+Before `EXPAND`, `SPLIT`, or creating a replacement page, state what useful information/task capability will exist afterward that is absent from the current page and competitive result set. If the answer is only more words, keyword variants, synthetic FAQs or rephrasing, prefer `KEEP`, `WAIT`, consolidation, or acquiring better evidence/data.
 
 ## Output
 
-### Page Score Card
-```
-Overall Score: XX/100
+Return:
 
-On-Page SEO:     XX/100  ████████░░
-Content Quality: XX/100  ██████████
-Technical:       XX/100  ███████░░░
-Schema:          XX/100  █████░░░░░
-Images:          XX/100  ████████░░
-```
+1. frozen scope and evidence coverage;
+2. eligibility/ownership/SERP-fit findings;
+3. page-family and content findings;
+4. AEO/GEO/business evidence when applicable;
+5. one lifecycle verdict;
+6. one primary next action or `WAIT`;
+7. exact validation method and missing evidence.
 
-### Issues Found
-Organized by priority: Critical -> High -> Medium -> Low
-
-### Recommendations
-Specific, actionable improvements with expected impact
-
-### Schema Suggestions
-Ready-to-use JSON-LD code for detected opportunities
-
-## DataForSEO Integration (Optional)
-
-If DataForSEO MCP tools are available, use `serp_organic_live_advanced` for real SERP positions and `backlinks_summary` for backlink data and spam scores.
-
-## Error Handling
-
-| Scenario | Action |
-|----------|--------|
-| URL unreachable (DNS failure, connection refused) | Report the error clearly. Do not guess page content. Suggest the user verify the URL and try again. |
-| Page requires authentication (401/403) | Report that the page is behind authentication. Suggest the user provide the rendered HTML directly or a publicly accessible URL. |
-| JavaScript-rendered content (empty body in HTML) | Note that key content may be rendered client-side. Analyze the available HTML and flag that results may be incomplete. Suggest using a browser-rendered snapshot if available. |
+Use canonical `Pass | Partial | Fail | N/A | Not testable` control states. Never convert unavailable GSC, CWV, SERP, analytics or generative data into a pass.
