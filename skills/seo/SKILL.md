@@ -29,7 +29,7 @@ MAY_ADD_TASKS: NO
 MAY_CALL_SKILLS: NONE
 TERMINAL: Frozen scope has explicit evidence coverage, one primary next action or justified no-action, and verification/outcome state where applicable.
 
-Freeze domain, market, language, page/query set, dates, repository, access, business goal, irreversible effects, and evidence budget.
+Freeze domain, market, language, page/query set, dates, repository, access, business goal, irreversible effects, and evidence budget. When durable project context exists, load it rather than rediscovering goals/market/competitors/key pages every run; `references/openseo-absorption.md` defines the portable project-state contract.
 
 SEO owns search diagnosis and search-specific methods. Legion owns orchestration across capabilities; this skill does not spawn agents or invoke other skills. Writing owns prose, Marketing owns broader commercial strategy, Designer owns presentation/UX work, and authorized execution follows Legion's normal effect/verification lifecycle.
 
@@ -37,6 +37,7 @@ SEO owns search diagnosis and search-specific methods. Legion owns orchestration
 
 - Full audit or unfamiliar request: `references/manual.md` + `references/quality-gates.md`.
 - Recurring operation, prioritization, "what next", decay, or intervention review: `references/operations.md`.
+- Durable project context, rank tracking, provider-cost/provenance behavior, or OpenSEO-derived operating concepts: `references/openseo-absorption.md`.
 - GEO/AEO/AI search, Google AI Overviews/AI Mode, Bing Copilot/AI citations, ChatGPT/Claude/Perplexity visibility: `references/ai-search-2026.md` + `references/geo.md` when deeper page criteria are needed.
 - Technical/crawl/index/render/CWV: `references/technical.md`, `sitemap.md`, `schema.md`, `hreflang.md`, or `cwv-thresholds.md` as needed.
 - Page/content/query ownership: `references/page.md`, `eeat-framework.md`, `blog-post-contract.md`, or `images.md`.
@@ -58,8 +59,9 @@ SEO owns search diagnosis and search-specific methods. Legion owns orchestration
 7. For Search Console analytics, prefer `scripts/gsc_query_v2.py`: aggregate totals come from a separate dimensionless query and returned-dimension coverage is explicit. Do not use summed query/page rows as authoritative property totals.
 8. For Google/Bing AI-search exports, normalize with `scripts/ai_visibility_import.py`. Preserve provider/source limitations and never equate impressions, citations, visits, rankings or conversions.
 9. For site-scale metadata audits, use `scripts/templated_metadata.py` where parsed page data is available; its output is heuristic evidence, not a ranking verdict.
-10. Prefer current Google, Bing, schema.org, browser/platform, or protocol authority for unstable rules. `references/ai-search-2026.md` is the current correction layer for AI-search crawler/control/report semantics.
-11. Produce machine findings plus one concise human report. A scheduled run is an operator brief, not a full audit dump.
-12. Require explicit current authority before indexing submission, external mutation, spend, outreach, publication, deletion, redirect/consolidation, or other consequential effect.
+10. Apply project country/language defaults to compatible keyword/SERP/rank/provider work. Retrieve deeper SERPs only when the decision requires it. Paid-provider work must preserve cost/provenance and must not become a dependency for owned-site first-party operation.
+11. Prefer current Google, Bing, schema.org, browser/platform, or protocol authority for unstable rules. `references/ai-search-2026.md` is the current correction layer for AI-search crawler/control/report semantics.
+12. Produce machine findings plus one concise human report. A scheduled run is an operator brief, not a full audit dump.
+13. Require explicit current authority before indexing submission, external mutation, spend, outreach, publication, deletion, redirect/consolidation, or other consequential effect.
 
 Never treat `llms.txt`, AI crawler training access, schema markup, prompt samples, or third-party visibility estimates as proof of Google/Bing AI citation performance. Never conflate training crawlers with search/citation crawlers.
