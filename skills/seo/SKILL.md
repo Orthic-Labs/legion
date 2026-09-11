@@ -35,13 +35,14 @@ SEO owns search diagnosis and search-specific methods. Legion owns orchestration
 
 ## Route
 
-- Full audit, ecommerce, or unfamiliar request: `references/manual.md` + `references/quality-gates.md`.
+- Full audit or unfamiliar request: `references/manual.md` + `references/quality-gates.md`.
 - Recurring operation, prioritization, "what next", decay, or intervention review: `references/operations.md`.
 - GEO/AEO/AI search, Google AI Overviews/AI Mode, Bing Copilot/AI citations, ChatGPT/Claude/Perplexity visibility: `references/ai-search-2026.md` + `references/geo.md` when deeper page criteria are needed.
 - Technical/crawl/index/render/CWV: `references/technical.md`, `sitemap.md`, `schema.md`, `hreflang.md`, or `cwv-thresholds.md` as needed.
 - Page/content/query ownership: `references/page.md`, `eeat-framework.md`, `blog-post-contract.md`, or `images.md`.
 - SERP intent/page-type mismatch or search experience: `references/search-experience.md`.
 - Keyword/topic architecture or semantic clustering: `references/topic-clusters.md`.
+- Ecommerce/product/category/Merchant Center/shopping: `references/ecommerce-2026.md` plus `schema.md` when markup is in scope.
 - Local: `references/local.md` plus only relevant maps/local-schema reference.
 - Links/authority: `references/backlinks.md`, `backlink-quality.md`, or `off-page.md`.
 - Programmatic: `references/programmatic.md`; international: `references/hreflang.md`.
@@ -53,9 +54,12 @@ SEO owns search diagnosis and search-specific methods. Legion owns orchestration
 3. Diagnose structural blockers before copy: indexability, canonical/redirect state, render gaps, page family, query ownership, SERP page-type fit, internal links, and intent.
 4. Keep `Evidence -> Finding -> Recommendation -> Action -> Outcome` distinct. Missing evidence is `partial` or `not_testable`, never pass. Separate observed fact, estimate, hypothesis, recommendation, and causal claim.
 5. For decision requests, compare eligible interventions and select one primary next action, or explicitly choose `wait`/`retain` when intervention is not justified. Do not optimize for producing work.
-6. For changes, capture baseline + hypothesis + target + deployment identity + primary metric + guardrails + evaluation condition before execution; verify deployment separately from later search/business outcome.
-7. Prefer current Google, Bing, schema.org, browser/platform, or protocol authority for unstable rules. `references/ai-search-2026.md` is the current correction layer for AI-search crawler/control/report semantics.
-8. Produce machine findings plus one concise human report. A scheduled run is an operator brief, not a full audit dump.
-9. Require explicit current authority before indexing submission, external mutation, spend, outreach, publication, deletion, redirect/consolidation, or other consequential effect.
+6. For changes, capture baseline + hypothesis + target + deployment identity + primary metric + guardrails + evaluation condition before execution; verify deployment separately from later search/business outcome. Use `scripts/search_ops.py` for durable intervention/run state when the host/repo permits artifact writes.
+7. For Search Console analytics, prefer `scripts/gsc_query_v2.py`: aggregate totals come from a separate dimensionless query and returned-dimension coverage is explicit. Do not use summed query/page rows as authoritative property totals.
+8. For Google/Bing AI-search exports, normalize with `scripts/ai_visibility_import.py`. Preserve provider/source limitations and never equate impressions, citations, visits, rankings or conversions.
+9. For site-scale metadata audits, use `scripts/templated_metadata.py` where parsed page data is available; its output is heuristic evidence, not a ranking verdict.
+10. Prefer current Google, Bing, schema.org, browser/platform, or protocol authority for unstable rules. `references/ai-search-2026.md` is the current correction layer for AI-search crawler/control/report semantics.
+11. Produce machine findings plus one concise human report. A scheduled run is an operator brief, not a full audit dump.
+12. Require explicit current authority before indexing submission, external mutation, spend, outreach, publication, deletion, redirect/consolidation, or other consequential effect.
 
 Never treat `llms.txt`, AI crawler training access, schema markup, prompt samples, or third-party visibility estimates as proof of Google/Bing AI citation performance. Never conflate training crawlers with search/citation crawlers.
