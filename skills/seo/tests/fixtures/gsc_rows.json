@@ -1,0 +1,11 @@
+{
+  "rows": [
+    {"date":"2026-08-01","query":"how to use viewright","page":"https://example.com/guide","clicks":20,"impressions":200,"position":5.2},
+    {"date":"2026-08-01","query":"how to use viewright","page":"https://example.com/blog/how-to-use","clicks":2,"impressions":40,"position":11.0},
+    {"date":"2026-08-02","query":"how to use viewright","page":"https://example.com/guide","clicks":18,"impressions":180,"position":5.5},
+    {"date":"2026-08-02","query":"how to use viewright","page":"https://example.com/blog/how-to-use","clicks":3,"impressions":45,"position":10.5},
+    {"date":"2026-08-01","query":"viewright alternative","page":"https://example.com/compare","clicks":5,"impressions":100,"position":8.0},
+    {"date":"2026-08-02","query":"viewright alternative","page":"https://example.com/alternatives","clicks":7,"impressions":120,"position":7.5},
+    {"date":"2026-08-01","query":"viewright pricing","page":"https://example.com/pricing","clicks":30,"impressions":250,"position":2.5}
+  ]
+}
