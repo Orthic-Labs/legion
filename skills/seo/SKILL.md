@@ -35,7 +35,7 @@ SEO owns search diagnosis and search-specific methods. Legion owns orchestration
 
 ## Route
 
-- Full audit or unfamiliar request: `references/manual.md` + `references/quality-gates.md`.
+- Full audit, ecommerce, or unfamiliar request: `references/manual.md` + `references/quality-gates.md`.
 - Recurring operation, prioritization, "what next", decay, or intervention review: `references/operations.md`.
 - GEO/AEO/AI search, Google AI Overviews/AI Mode, Bing Copilot/AI citations, ChatGPT/Claude/Perplexity visibility: `references/ai-search-2026.md` + `references/geo.md` when deeper page criteria are needed.
 - Technical/crawl/index/render/CWV: `references/technical.md`, `sitemap.md`, `schema.md`, `hreflang.md`, or `cwv-thresholds.md` as needed.
@@ -44,7 +44,7 @@ SEO owns search diagnosis and search-specific methods. Legion owns orchestration
 - Keyword/topic architecture or semantic clustering: `references/topic-clusters.md`.
 - Local: `references/local.md` plus only relevant maps/local-schema reference.
 - Links/authority: `references/backlinks.md`, `backlink-quality.md`, or `off-page.md`.
-- Programmatic/ecommerce/international: load the matching specialist reference only.
+- Programmatic: `references/programmatic.md`; international: `references/hreflang.md`.
 
 ## Execute
 
