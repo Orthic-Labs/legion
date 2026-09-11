@@ -2,7 +2,8 @@
 """Persistent SEO intervention and recurring-run state.
 
 The state machine keeps recommendation/action/deployment verification/outcome distinct.
-It never treats a process/API success as a ranking, citation or business outcome.
+A deployment record requires an exact authorized capability, host-observed effect receipt,
+idempotency key and rollback material. It never treats execution as ranking/business success.
 """
 from __future__ import annotations
 
@@ -88,6 +89,9 @@ def cmd_deploy(args, state):
     row['deployment'] = {
         'recorded_at': utc_now(),
         'identity': args.identity,
+        'authorized_capability': args.authorized_capability,
+        'idempotency_key': args.idempotency_key,
+        'effect_receipt': args.effect_receipt,
         'evidence': args.evidence,
         'rollback': args.rollback,
     }
@@ -148,10 +152,7 @@ def cmd_brief(args, state):
     return {
         'run': run,
         'open_interventions': [
-            {
-                'id': x['id'], 'target': x['target'], 'status': x['status'],
-                'evaluation': x.get('evaluation'),
-            }
+            {'id': x['id'], 'target': x['target'], 'status': x['status'], 'evaluation': x.get('evaluation')}
             for x in pending
         ],
     }
@@ -177,8 +178,11 @@ def main() -> int:
     p = sub.add_parser('deploy')
     p.add_argument('--id', required=True)
     p.add_argument('--identity', required=True)
+    p.add_argument('--authorized-capability', required=True)
+    p.add_argument('--idempotency-key', required=True)
+    p.add_argument('--effect-receipt', required=True, help='host-observed receipt/reference, not self-reported success')
+    p.add_argument('--rollback', required=True)
     p.add_argument('--evidence')
-    p.add_argument('--rollback')
 
     p = sub.add_parser('verify')
     p.add_argument('--id', required=True)
