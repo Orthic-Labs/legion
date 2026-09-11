@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "sources": [
+    {"id":"google-ai-optimization","authority":"Google Search Central","url":"https://developers.google.com/search/docs/fundamentals/ai-optimization-guide","checked_at":"2026-09-11","review_interval_days":30,"applies_to":["geo","aeo","google_ai"]},
+    {"id":"google-gen-ai-performance","authority":"Google Search Console","url":"https://support.google.com/webmasters/answer/16984139","checked_at":"2026-09-11","review_interval_days":14,"applies_to":["google_ai_reporting"]},
+    {"id":"google-search-analytics-data","authority":"Google Search Console","url":"https://developers.google.com/webmaster-tools/v1/how-tos/all-your-data","checked_at":"2026-09-11","review_interval_days":90,"applies_to":["gsc","measurement"]},
+    {"id":"google-crawlers","authority":"Google","url":"https://developers.google.com/crawling/docs/crawlers-fetchers/overview-google-crawlers","checked_at":"2026-09-11","review_interval_days":30,"applies_to":["crawler_policy"]},
+    {"id":"google-structured-data","authority":"Google Search Central","url":"https://developers.google.com/search/docs/appearance/structured-data/search-gallery","checked_at":"2026-09-11","review_interval_days":30,"applies_to":["schema","rich_results"]},
+    {"id":"bing-ai-performance","authority":"Bing Webmaster Tools","url":"https://www.bing.com/webmasters/help/ai-performance-9f8e7d6c","checked_at":"2026-09-11","review_interval_days":14,"applies_to":["bing_ai_reporting","geo"]},
+    {"id":"bing-webmaster-guidelines","authority":"Bing Webmaster Tools","url":"https://www.bing.com/webmasters/help/webmaster-guidelines-30fba23a","checked_at":"2026-09-11","review_interval_days":90,"applies_to":["bing","policy"]},
+    {"id":"openai-crawlers","authority":"OpenAI","url":"https://platform.openai.com/docs/bots","checked_at":"2026-09-11","review_interval_days":30,"applies_to":["crawler_policy","chatgpt_search"]},
+    {"id":"anthropic-crawlers","authority":"Anthropic","url":"https://support.anthropic.com/en/articles/8896518-does-anthropic-crawl-data-from-the-web-and-how-can-site-owners-block-the-crawler","checked_at":"2026-09-11","review_interval_days":30,"applies_to":["crawler_policy","claude_search"]},
+    {"id":"applebot-extended","authority":"Apple","url":"https://support.apple.com/en-us/119829","checked_at":"2026-09-11","review_interval_days":60,"applies_to":["crawler_policy","apple_intelligence"]},
+    {"id":"schema-org","authority":"Schema.org","url":"https://schema.org/docs/full.html","checked_at":"2026-09-11","review_interval_days":90,"applies_to":["schema"]},
+    {"id":"web-vitals","authority":"web.dev","url":"https://web.dev/articles/vitals","checked_at":"2026-09-11","review_interval_days":90,"applies_to":["cwv","performance"]}
+  ],
+  "trigger_rule":"A platform announcement, API/report schema change, crawler-name/purpose change, rich-result eligibility change, search-spam policy change, or failed provider replay triggers immediate re-review regardless of interval."
+}
