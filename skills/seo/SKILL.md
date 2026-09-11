@@ -35,8 +35,8 @@ SEO owns search diagnosis and search-specific methods. Legion owns orchestration
 
 ## Route
 
-- Project setup, provider/capability doctor, market defaults, cache/cost preflight: `references/openseo-absorption.md`; use `scripts/seo_project.py`.
-- Full audit, coverage, scorecard, or unfamiliar request: `references/manual.md` + `references/quality-gates.md`; `scripts/seo_closure.py` is the repository implementation closure gate.
+- Project setup, provider/capability doctor, market defaults, cache/cost preflight: `references/openseo-absorption.md`; use `scripts/seo_project.py` and `scripts/provider_registry.py`.
+- Full audit, coverage, scorecard, or unfamiliar request: `references/manual.md` + `references/quality-gates.md`; use `scripts/coverage.py` for control coverage and `scripts/seo_closure.py` for repository implementation closure.
 - Recurring operation, prioritization, "what next", decay, monitoring, release verification, intervention review: `references/operations.md`; use `scripts/search_ops.py` for durable state.
 - Policy, bot-policy, logs/crawl efficiency, agent readiness, search appearance/Discover, media/documents, publisher, access states, migration, analytics, forecast/experiment, monitor/release-gate/incident, feeds: `references/workflow-packs.md`.
 - GEO/AEO/AI search, Google AI Overviews/AI Mode, Bing Copilot/AI citations, ChatGPT/Claude/Perplexity visibility: `references/ai-search-2026.md` + `references/geo.md` when deeper page criteria are needed.
@@ -63,7 +63,7 @@ SEO owns search diagnosis and search-specific methods. Legion owns orchestration
 8. For Google/Bing AI-search exports, normalize with `scripts/ai_visibility_import.py`. Preserve provider/source limitations and never equate impressions, citations, visits, rankings or conversions.
 9. For site-scale metadata audits, use `scripts/templated_metadata.py` where parsed page data is available; its output is heuristic evidence, not a ranking verdict.
 10. Apply project country/language defaults to compatible keyword/SERP/rank/provider work. Retrieve deeper SERPs only when the decision requires it. Paid-provider work must preserve cost/provenance and must not become a dependency for owned-site first-party operation.
-11. The governed checklist source is `config/control-catalog.json`; all 30 phases require an owner. Run `scripts/seo_closure.py` before claiming repository implementation completeness.
+11. The governed checklist source is `config/control-catalog.json`; all 30 phases require an owner and exact source range. `scripts/checklist_compiler.py` keeps source changes reviewable. Run `scripts/seo_closure.py` before claiming repository implementation completeness.
 12. Prefer current Google, Bing, schema.org, browser/platform, or protocol authority for unstable rules. `references/ai-search-2026.md` is the current correction layer for AI-search crawler/control/report semantics.
 13. Produce machine findings plus one concise human report. A scheduled run is an operator brief, not a full audit dump.
 14. Require explicit current authority before indexing submission, external mutation, spend, outreach, publication, deletion, redirect/consolidation, or other consequential effect.
