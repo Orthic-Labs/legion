@@ -1,183 +1,101 @@
----
-name: seo-technical
-description: >
-  Technical SEO audit across 9 categories: crawlability, indexability, security,
-  URL structure, mobile, Core Web Vitals, structured data, JavaScript rendering,
-  and IndexNow protocol. Use when user says "technical SEO", "crawl issues",
-  "robots.txt", "Core Web Vitals", "site speed", or "security headers".
-user-invokable: true
-argument-hint: "[url]"
-license: MIT
-metadata:
-  author: AgriciDaniel
-  version: "1.7.0"
-  category: seo
----
+# Technical SEO — crawl, index, render and delivery evidence
 
-ROLE: Technical & Semantic SEO Auditor. You are a Senior Technical SEO. You view websites not as visual experiences, but as DOM trees, entity graphs, and crawl budgets. You know that without a flawless technical foundation, the best content in the world will remain invisible. You despise AI-generated content spam.
+Use for technical search eligibility and delivery. This reference follows the canonical five-state control model and current platform authority; it does not emit a universal technical score.
 
-Four audit phases:
-1. **Crawl & Index** — robots.txt, sitemap, crawl depth, redirect chains, noindex misuse, crawl budget waste.
-2. **On-Page & Semantics** — canonical conflicts, title/meta uniqueness, heading hierarchy, internal link graph, content/intent alignment.
-3. **Entities & Rich Results** — JSON-LD schema presence, entity co-occurrence, Knowledge Panel eligibility, structured data validation against Google's supported types.
-4. **SEO Slop Detection** — AI content spam signals (thin, repetitive, no original insight), keyword cannibalization (≥2 URLs same primary intent), schema theater (markup not matching visible content).
+## Evidence order
 
-**CWV authority:** `seo-performance` is the single Core Web Vitals authority for the full audit. Category 6 (Core Web Vitals) in this reference reports the summary scores from `seo-performance` output only — it does not measure CWV independently. Do not duplicate CWV measurement; reference `seo-performance` results.
+1. HTTP/DNS/TLS/status/redirect evidence.
+2. robots.txt + X-Robots/meta robots + sitemap/feed intent.
+3. canonical/hreflang and URL-state consistency.
+4. static vs rendered main content/metadata/schema/internal links.
+5. Search Console URL Inspection/sitemaps/search evidence when authorized.
+6. field CWV (CrUX) where available; lab/browser diagnostics separately.
+7. server/CDN/WAF/log evidence where supplied.
+8. crawler-policy evidence by purpose.
 
-# Technical SEO Audit
+## Crawlability
 
-## Categories
+Check:
+- robots syntax and applicable rules;
+- robots-discovered sitemap files/indexes;
+- reachable internal graph and orphan/dead-end states;
+- redirect chains/loops and soft-error patterns;
+- parameter/facet/calendar/search traps;
+- important asset blocking where it changes rendering;
+- server/WAF/CDN denials, throttling or bot challenges;
+- crawl evidence from logs/GSC when available.
 
-### 1. Crawlability
-- robots.txt: exists, valid, not blocking important resources
-- XML sitemap: exists, referenced in robots.txt, valid format
-- Noindex tags: intentional vs accidental
-- Crawl depth: important pages within 3 clicks of homepage
-- JavaScript rendering: check if critical content requires JS execution
-- Crawl budget: for large sites (>10k pages), efficiency matters
+Do not apply a universal “three clicks” or site-size threshold as a ranking gate. Depth and crawl efficiency are impact signals conditioned on architecture and observed behavior.
 
-#### AI Crawler Management
+## Indexability
 
-As of 2025-2026, AI companies actively crawl the web to train models and power AI search. Managing these crawlers via robots.txt is a critical technical SEO consideration.
+Reconcile:
 
-**Known AI crawlers:**
+`HTTP state -> robots access -> X-Robots/meta robots -> canonical -> rendered content -> sitemap intent -> hreflang -> Search Console indexed-version evidence`
 
-| Crawler | Company | robots.txt token | Purpose |
-|---------|---------|-----------------|---------|
-| GPTBot | OpenAI | `GPTBot` | Model training |
-| ChatGPT-User | OpenAI | `ChatGPT-User` | Real-time browsing |
-| ClaudeBot | Anthropic | `ClaudeBot` | Model training |
-| PerplexityBot | Perplexity | `PerplexityBot` | Search index + training |
-| Bytespider | ByteDance | `Bytespider` | Model training |
-| Google-Extended | Google | `Google-Extended` | Gemini training (NOT search) |
-| CCBot | Common Crawl | `CCBot` | Open dataset |
+Conflicts are findings. A self-canonical is common but not mandatory when a different canonical is intentional and valid. Canonical is a hint; do not report it as guaranteed selection.
 
-**Key distinctions:**
-- Blocking `Google-Extended` prevents Gemini training use but does NOT affect Google Search indexing or AI Overviews (those use `Googlebot`)
-- Blocking `GPTBot` prevents OpenAI training but does NOT prevent ChatGPT from citing your content via browsing (`ChatGPT-User`)
-- ~3-5% of websites now use AI-specific robots.txt rules
+Noindex, canonical and robots have different semantics. Blocking crawl can prevent a crawler from seeing page-level directives; do not recommend robots blocking as a generic removal mechanism.
 
-**Example, selective AI crawler blocking:**
-```
-# Allow search indexing, block AI training crawlers
-User-agent: GPTBot
-Disallow: /
+## Crawler purpose
 
-User-agent: Google-Extended
-Disallow: /
+Use `ai-search-2026.md` and `workflow-packs.md` bot-policy rules. Keep at minimum:
 
-User-agent: Bytespider
-Disallow: /
+- Google Search/AI Overview/AI Mode eligibility → Googlebot/search indexing controls;
+- Google model/grounding use preference → Google-Extended;
+- ChatGPT Search citability → OAI-SearchBot;
+- OpenAI model training → GPTBot;
+- Claude search citability → Claude-SearchBot;
+- Anthropic model training → ClaudeBot;
+- user-triggered agents/fetchers → separate access/authority class.
 
-# Allow all other crawlers (including Googlebot for search)
-User-agent: *
-Allow: /
-```
+Never infer search eligibility from a training crawler, or vice versa.
 
-**Recommendation:** Consider your AI visibility strategy before blocking. Being cited by AI systems drives brand awareness and referral traffic. Cross-reference the `seo-geo` skill for full AI visibility optimization.
+## Security/delivery
 
-### 2. Indexability
-- Canonical tags: self-referencing, no conflicts with noindex
-- Duplicate content: near-duplicates, parameter URLs, www vs non-www
-- Thin content: pages below minimum word counts per type
-- Pagination: rel=next/prev or load-more pattern
-- Hreflang: correct for multi-language/multi-region sites
-- Index bloat: unnecessary pages consuming crawl budget
+Check HTTPS validity, mixed content and security/WAF behavior that materially affects crawl/render/access. Security headers may be useful security controls but are not generic SEO ranking requirements. Escalate hacked/injected/spam/private-data issues through the policy/security pack.
 
-### 3. Security
-- HTTPS: enforced, valid SSL certificate, no mixed content
-- Security headers:
-  - Content-Security-Policy (CSP)
-  - Strict-Transport-Security (HSTS)
-  - X-Frame-Options
-  - X-Content-Type-Options
-  - Referrer-Policy
-- HSTS preload: check preload list inclusion for high-security sites
+## URL structure
 
-### 4. URL Structure
-- Clean URLs: descriptive, hyphenated, no query parameters for content
-- Hierarchy: logical folder structure reflecting site architecture
-- Redirects: no chains (max 1 hop), 301 for permanent moves
-- URL length: flag >100 characters
-- Trailing slashes: consistent usage
+Judge stability, normalization, duplication, hierarchy and user/search meaning. Long URLs and query parameters are diagnostic signals, not automatic failures. Query parameters can be correct canonical URLs; path shape alone does not decide indexability.
 
-### 5. Mobile Optimization
-- Responsive design: viewport meta tag, responsive CSS
-- Touch targets: minimum 48x48px with 8px spacing
-- Font size: minimum 16px base
-- No horizontal scroll
-- Mobile-first indexing: Google indexes mobile version. **Mobile-first indexing is 100% complete as of July 5, 2024.** Google now crawls and indexes ALL websites exclusively with the mobile Googlebot user-agent.
+Redirects should express real moves/replacements. Minimize unnecessary hops but do not invent a universal “maximum one hop” ranking rule.
 
-### 6. Core Web Vitals
-- **LCP** (Largest Contentful Paint): target <2.5s
-- **INP** (Interaction to Next Paint): target <200ms
-  - INP replaced FID on March 12, 2024. FID was fully removed from all Chrome tools (CrUX API, PageSpeed Insights, Lighthouse) on September 9, 2024. Do NOT reference FID anywhere.
-- **CLS** (Cumulative Layout Shift): target <0.1
-- Evaluation uses 75th percentile of real user data
-- Use PageSpeed Insights API or CrUX data if MCP available
+## Mobile/accessibility
 
-### 7. Structured Data
-- Detection: JSON-LD (preferred), Microdata, RDFa
-- Validation against Google's supported types
-- See seo-schema skill for full analysis
+Verify viewport, responsive layout, critical content parity, interaction usability and accessibility of search-critical tasks. Do not enforce universal font/touch-pixel values as SEO ranking gates. Use actual browser/accessibility evidence and current standards.
 
-### 8. JavaScript Rendering
-- Check if content visible in initial HTML vs requires JS
-- Identify client-side rendered (CSR) vs server-side rendered (SSR)
-- Flag SPA frameworks (React, Vue, Angular) that may cause indexing issues
-- Verify dynamic rendering setup if applicable
+## Core Web Vitals
 
-#### JavaScript SEO: Canonical & Indexing Guidance (December 2025)
+Use current `cwv-thresholds.md`. Prefer field CrUX at the appropriate URL/origin scope and 75th percentile where available. Keep Lighthouse/lab data as a different evidence tier. Missing CrUX is `Not testable` for field experience, not Pass or Fail.
 
-Google updated its JavaScript SEO documentation in December 2025 with critical clarifications:
+## JavaScript/rendering
 
-1. **Canonical conflicts:** If a canonical tag in raw HTML differs from one injected by JavaScript, Google may use EITHER one. Ensure canonical tags are identical between server-rendered HTML and JS-rendered output.
-2. **noindex with JavaScript:** If raw HTML contains `<meta name="robots" content="noindex">` but JavaScript removes it, Google MAY still honor the noindex from raw HTML. Serve correct robots directives in the initial HTML response.
-3. **Non-200 status codes:** Google does NOT render JavaScript on pages returning non-200 HTTP status codes. Any content or meta tags injected via JS on error pages will be invisible to Googlebot.
-4. **Structured data in JavaScript:** Product, Article, and other structured data injected via JS may face delayed processing. For time-sensitive structured data (especially e-commerce Product markup), include it in the initial server-rendered HTML.
+Compare initial response and rendered DOM for:
 
-**Best practice:** Serve critical SEO elements (canonical, meta robots, structured data, title, meta description) in the initial server-rendered HTML rather than relying on JavaScript injection.
+- title/meta robots/canonical;
+- H1/main text;
+- internal links;
+- structured data;
+- status/error/soft-404 behavior;
+- lazy/interaction-loaded critical content.
 
-### 9. IndexNow Protocol
-- Check if site supports IndexNow for Bing, Yandex, Naver
-- Supported by search engines other than Google
-- Recommend implementation for faster indexing on non-Google engines
+Framework identity alone is not a problem. Flag observed render/index consequences. Critical directives should not conflict across server and rendered states.
+
+## Structured data
+
+Validate syntax, visible-content agreement, entity identity and current rich-result eligibility. Schema is not proof of a rich result/ranking/citation.
+
+## IndexNow / submissions
+
+Treat submissions as controlled external effects. Verify current engine support before use. A successful submission receipt proves submission only, not crawl/index/rank. Google general web indexing must not be represented as supported by the restricted Indexing API where it is not.
 
 ## Output
 
-### Technical Score: XX/100
+For each control record:
 
-### Category Breakdown
-| Category | Status | Score |
-|----------|--------|-------|
-| Crawlability | pass/warn/fail | XX/100 |
-| Indexability | pass/warn/fail | XX/100 |
-| Security | pass/warn/fail | XX/100 |
-| URL Structure | pass/warn/fail | XX/100 |
-| Mobile | pass/warn/fail | XX/100 |
-| Core Web Vitals | pass/warn/fail | XX/100 |
-| Structured Data | pass/warn/fail | XX/100 |
-| JS Rendering | pass/warn/fail | XX/100 |
-| IndexNow | pass/warn/fail | XX/100 |
+`control | subject | evidence/source/time/market | status | impact | confidence | affected reach | missing evidence | remediation | validation`
 
-### Critical Issues (fix immediately)
-### High Priority (fix within 1 week)
-### Medium Priority (fix within 1 month)
-### Low Priority (backlog)
+Use `Pass | Partial | Fail | N/A | Not testable`. Keep critical gates (indexability, canonical/redirect integrity, security/private-data, measurement and authority boundaries) outside any optional score.
 
-## DataForSEO Integration (Optional)
-
-If DataForSEO MCP tools are available, use `on_page_instant_pages` for real page analysis (status codes, page timing, broken links, on-page checks), `on_page_lighthouse` for Lighthouse audits (performance, accessibility, SEO scores), and `domain_analytics_technologies_domain_technologies` for technology stack detection.
-
-## Google API Integration (Optional)
-
-If Google API credentials are configured, run from `skills/seo` and use `python scripts/pagespeed_check.py <url> --json` for real PSI + CrUX field data (replaces lab-only CWV estimates), `python scripts/crux_history.py <url> --json` for 25-week CWV trends, and `python scripts/gsc_inspect.py <url> --json` for real indexation status per URL.
-
-## Error Handling
-
-| Scenario | Action |
-|----------|--------|
-| URL unreachable | Report connection error with status code. Suggest verifying URL, checking DNS resolution, and confirming the site is publicly accessible. |
-| robots.txt not found | Note that no robots.txt was detected at the root domain. Recommend creating one with appropriate directives. Continue audit on remaining categories. |
-| HTTPS not configured | Flag as a critical issue. Report whether HTTP is served without redirect, mixed content exists, or SSL certificate is missing/expired. |
-| Core Web Vitals data unavailable | Note that CrUX data is not available (common for low-traffic sites). Suggest using Lighthouse lab data as a proxy and recommend increasing traffic before re-testing. |
+Use deterministic scripts first: `site_audit.py`, `fetch_page.py`, render/browser evidence, `gsc_inspect.py`, `pagespeed_check.py`, `crux_history.py`, and provider/log evidence as applicable.

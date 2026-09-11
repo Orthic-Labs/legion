@@ -1,0 +1,1 @@
+{"environment":"production","measurement_id":"G-TEST","primary_conversion":"purchase","events":[{"name":"purchase","event_id":"same","count":2}],"staging_measurement_id":"G-TEST","expected":{"purchase_once":true,"environment_isolation":true}}

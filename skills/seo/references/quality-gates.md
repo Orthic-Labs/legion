@@ -1,155 +1,93 @@
-# Content Quality Gates
+# SEO quality gates
 
-## Minimum Word Counts by Page Type
+These are **risk and evidence gates**, not universal ranking formulas. Do not turn character counts, word counts, link counts, content age, or keyword density into pass/fail ranking rules without page-type and live evidence.
 
-| Page Type | Min Words | Unique Content % | Notes |
-|-----------|-----------|-----------------|-------|
-| Homepage | 500 | 100% | Must clearly communicate value proposition |
-| Service / Feature Page | 800 | 100% | Detailed explanation of offering |
-| Location (Primary) | 600 | 60%+ | City headquarters or main service area |
-| Location (Secondary) | 500 | 40%+ | Satellite locations |
-| Blog Post | 1,500 | 100% | In-depth, valuable content |
-| Product Page | 400 | 80%+ | Unique descriptions, specs |
-| Category Page | 400 | 100% | Unique intro, not just product listings |
-| About Page | 400 | 100% | Company story, team, values |
-| Landing Page | 600 | 100% | Focused conversion content |
-| FAQ Page | 800 | 100% | Comprehensive Q&A |
+## Universal hard gates
 
----
+A page/control cannot be clean when any applicable gate is unresolved:
 
-## Location Page Thresholds
+- crawl/index intent conflicts with robots, X-Robots, canonical, redirect or status evidence;
+- important main content fails to render reliably;
+- serious security/spam-policy/private-data exposure exists;
+- migration/domain redirect controls are materially broken;
+- primary analytics/conversions required for the claim are known broken;
+- a binding browser/agent action lacks exact authority;
+- a finding relies on missing evidence but is reported as Pass.
 
-### Warning Level (30+ pages)
-- ⚠️ **WARNING** at 30+ location pages
-- Enforce 60%+ unique content per page
-- Content must include:
-  - Unique local information (landmarks, neighborhoods)
-  - Location-specific services or offerings
-  - Local team or staff information
-  - Genuine customer testimonials from that area
+Critical gates remain visible outside any optional score.
 
-### Hard Stop (50+ pages)
-- 🛑 **HARD STOP** at 50+ location pages
-- Require explicit user justification
-- Must demonstrate:
-  - Legitimate business presence in each location
-  - Unique content strategy for each page
-  - Local signals (Google Business Profile, local reviews)
+## Content sufficiency
 
-### Why This Matters
-Google's doorway page algorithm penalizes programmatic location pages with thin/duplicate content. Signs of doorway pages:
-- Only city/state name changed between pages
-- No unique local information
-- No local business signals
-- Keyword-stuffed URLs
+Judge content by **task completion, originality/information gain, factual support, page purpose, market/language, and current result-set expectations**.
 
----
+Do not enforce canonical minimum word counts. Use length only as a diagnostic signal when it helps explain a concrete deficiency. Examples:
 
-## Safe vs. Risky Programmatic Pages
+- a short calculator/tool page can provide high standalone value;
+- a long article can still be thin if it merely restates commodity information;
+- product/category/location pages require unique useful facts appropriate to their entities, not a percentage-of-words quota.
 
-### Safe at Scale ✅
-| Page Type | Why It's Safe |
-|-----------|---------------|
-| Integration pages | Real setup documentation, unique technical content |
-| Template/tool pages | Downloadable assets, unique functionality |
-| Glossary pages | 200+ word unique definitions |
-| Product pages | Unique specs, images, reviews |
-| User profile pages | User-generated unique content |
+For scaled/programmatic pages, require a real reason each URL should exist independently. Detect mass template substitution, overlapping intent, insufficient entity/data differentiation, index bloat and maintenance risk. Progressive rollout and sampling may be recommended based on risk, not arbitrary page-count folklore.
 
-### Penalty Risk ❌
-| Page Type | Why It's Risky |
-|-----------|----------------|
-| Location pages with only city swapped | Duplicate content, doorway pages |
-| "Best [tool] for [industry]" | Often thin, no industry-specific value |
-| "[Competitor] alternative" | Requires genuine comparison data |
-| AI-generated mass content | No unique value, E-E-A-T failure |
+## Location/programmatic pages
 
----
+Hard stop when evidence indicates doorway/scaled-content abuse risk, such as:
 
-## Title Tag Requirements
+- substantially interchangeable pages whose only meaningful change is a location/keyword token;
+- pages funnelling users to the same destination without independent value;
+- fabricated local presence, testimonials, staff, reviews or facts;
+- no standalone user task or entity-specific information;
+- page volume exceeds the organization's ability to keep factual claims current.
 
-| Aspect | Requirement |
-|--------|-------------|
-| Minimum length | 30 characters |
-| Maximum length | 60 characters (Google truncates ~60) |
-| Primary keyword | Near the beginning |
-| Brand name | At end (if included) |
-| Uniqueness | Each page must have unique title |
+The number of pages alone is not the violation. Record affected count/reach as impact evidence.
 
-### Good Examples
-- "Emergency Plumbing Services in Austin | ABC Plumbing"
-- "How to Fix a Leaky Faucet: Step-by-Step Guide"
-- "Enterprise SEO Software | Comprehensive Platform"
+## Titles and snippets
 
-### Bad Examples
-- "Home" (too short, not descriptive)
-- "Best Plumbing Services for All Your Plumbing Needs in Austin Texas and Surrounding Areas" (too long)
-- "ABC Plumbing - Plumbing - Plumber - Plumbing Services" (keyword stuffing)
+Evaluate:
 
----
+- descriptive accuracy and visible-page consistency;
+- uniqueness where distinct pages need distinct search representation;
+- entity/intent clarity;
+- boilerplate/template risk;
+- spam/repetition;
+- observed title-link/snippet behavior when Search Console/SERP evidence exists.
 
-## Meta Description Requirements
+Character/pixel length can predict truncation and is useful diagnostically, but there is no universal minimum/maximum ranking gate. Google may generate/rewrite title links and snippets.
 
-| Aspect | Requirement |
-|--------|-------------|
-| Minimum length | 120 characters |
-| Maximum length | 160 characters (Google truncates ~155-160) |
-| Call-to-action | Include compelling CTA |
-| Primary keyword | Include naturally |
-| Uniqueness | Each page must have unique description |
+## Internal links
 
----
+Evaluate graph function, not quota:
 
-## Image Alt Text Requirements
+- important pages have discoverable contextual paths;
+- orphan/deep pages are intentional or fixed;
+- anchors describe destination purpose without manipulation;
+- parent/child, hub/spoke and sibling links match information architecture;
+- template links do not create crawl traps or sitewide irrelevant repetition.
 
-| Aspect | Requirement |
-|--------|-------------|
-| Required on | All non-decorative images |
-| Length | 10-125 characters |
-| Content | Describe the image content, not "image" or filename |
-| Keywords | Include naturally where relevant |
-| Decorative images | Use `alt=""` or `role="presentation"` |
+Do not require a fixed number of links per thousand words or page type.
 
-### Good Examples
-- "Professional plumber repairing kitchen sink faucet"
-- "Red 2024 Toyota Camry sedan front view"
-- "Team meeting in modern office conference room"
+## Images/media
 
-### Bad Examples
-- "image.jpg" (filename, not description)
-- "plumber plumbing plumber services" (keyword stuffing)
-- "Click here" (not descriptive)
+Non-decorative images need useful accessible alternatives where appropriate; decorative images may correctly use `alt=""`. Evaluate intrinsic dimensions/CLS, delivery, format/compression, relevance/context, preview controls, rights/licensing and search/media eligibility. Do not fail an image merely for exceeding a universal byte or alt-text character threshold without context.
 
----
+## Freshness
 
-## Internal Linking Guidelines
+Freshness is query- and fact-dependent. Update when facts/product states/regulations/prices/availability/source evidence change, when the search task rewards recency, or when performance/ownership evidence indicates decay. Never rewrite evergreen material solely because an arbitrary number of months elapsed.
 
-| Page Type | Internal Links Target |
-|-----------|----------------------|
-| Blog post (1,500+ words) | 5-10 internal links |
-| Service page | 3-5 internal links |
-| Category page | Links to all child pages |
-| Product page | 2-4 internal links |
+## Structured data
 
-### Anchor Text Rules
-- Use descriptive anchor text (not "click here")
-- Vary anchor text (don't always use exact match keywords)
-- Link to relevant, related content
-- Ensure no orphan pages (every page linked from at least one other page)
+Markup must match visible content and current platform eligibility. Unsupported/deprecated rich-result expectations are removed, not retained as historical recipes. Structured data is evidence/eligibility support, never proof of ranking or citation lift.
 
----
+## AI/AEO/GEO quality
 
-## Content Freshness Signals
+Require eligibility/access, information gain, factual extractability, source clarity, entity consistency/corroboration, answer coverage and measured visibility kept as separate dimensions. No fixed passage length, FAQ count, heading formula, `llms.txt`, crawler-training permission or third-party correlation is a universal AI-search ranking gate.
 
-| Content Type | Update Frequency |
-|--------------|------------------|
-| News/current events | Within hours/days |
-| Blog posts (evergreen) | Review annually |
-| Product pages | When specs change |
-| Service pages | Review quarterly |
-| Company info | When changes occur |
+## Control states
 
-### Required Elements
-- Publication date visible (for articles/blogs)
-- Last updated date (if significantly revised)
-- Changelog for major updates (optional but good)
+Every applicable check ends in exactly one:
+
+`Pass | Partial | Fail | N/A | Not testable`
+
+- `Partial` names tested and untested scope.
+- `N/A` requires rationale.
+- `Not testable` remains in the evidence-coverage denominator.
+- Missing data never becomes Pass.
