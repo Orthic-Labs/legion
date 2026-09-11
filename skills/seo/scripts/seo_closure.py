@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """Static closure gate for Legion SEO implementation coverage.
 
-This gate proves repository implementation closure, not authenticated runtime availability or
-live ranking outcomes. It fails closed if checklist phases, workflow packs, required scripts,
-references, source digests or SEO test fixtures are missing.
+Proves repository implementation closure, not authenticated live-account availability or
+ranking outcomes. Fails closed on checklist/source drift, missing owners/scripts/tests,
+workflow packs, provider registry, critical-gate declarations, or unwired Python CI.
 """
 from __future__ import annotations
 
@@ -14,15 +14,18 @@ from pathlib import Path
 from typing import Any
 
 SEO_ROOT = Path(__file__).resolve().parent.parent
+REPO_ROOT = SEO_ROOT.parent.parent
 CATALOG = SEO_ROOT / 'config' / 'control-catalog.json'
 SOURCE_MANIFEST = SEO_ROOT / 'config' / 'source-manifest.json'
+PROVIDER_REGISTRY = SEO_ROOT / 'config' / 'provider-registry.json'
 WORKFLOW_PACKS = SEO_ROOT / 'references' / 'workflow-packs.md'
 ROUTER = SEO_ROOT / 'SKILL.md'
 REQUIRED_SCRIPTS = {
-    'site_audit.py', 'gsc_query_v2.py', 'gsc_inspect.py', 'ga4_report.py',
+    'site_audit.py', 'gsc_query.py', 'gsc_query_v2.py', 'gsc_inspect.py', 'ga4_report.py',
     'pagespeed_check.py', 'crux_history.py', 'ai_visibility_import.py',
-    'templated_metadata.py', 'search_ops.py', 'seo_project.py',
-    'query_ownership.py', 'question_inventory.py', 'rank_tracker.py', 'seo_closure.py',
+    'templated_metadata.py', 'search_ops.py', 'seo_project.py', 'provider_registry.py',
+    'query_ownership.py', 'question_inventory.py', 'rank_tracker.py', 'coverage.py',
+    'checklist_compiler.py', 'seo_closure.py',
 }
 REQUIRED_REFS = {
     'manual.md', 'operations.md', 'ai-search-2026.md', 'geo.md', 'technical.md',
@@ -41,6 +44,10 @@ REQUIRED_PACKS = {
     'access-states', 'migration', 'analytics', 'forecast', 'experiment', 'monitor',
     'release-gate', 'incident', 'feeds',
 }
+REQUIRED_CRITICAL_GATES = {
+    'indexability', 'canonical-integrity', 'redirect-integrity', 'security-policy',
+    'measurement-integrity', 'deployment-verification', 'authority-boundary',
+}
 
 
 def load_json(path: Path) -> dict[str, Any]:
@@ -48,9 +55,8 @@ def load_json(path: Path) -> dict[str, Any]:
 
 
 def headings(path: Path) -> set[str]:
-    text = path.read_text(encoding='utf-8')
     out = set()
-    for line in text.splitlines():
+    for line in path.read_text(encoding='utf-8').splitlines():
         match = re.match(r'^##\s+(.+?)\s*$', line)
         if match:
             out.add(re.sub(r'[^a-z0-9]+', '-', match.group(1).lower()).strip('-'))
@@ -69,32 +75,50 @@ def check() -> dict[str, Any]:
         errors.append(f'checklist phases must be exactly 1..30; got {ids}')
     if set(catalog.get('statuses') or []) != {'pass', 'partial', 'fail', 'na', 'not_testable'}:
         errors.append('status vocabulary does not match canonical five-state contract')
+    if set(catalog.get('critical_gates') or []) != REQUIRED_CRITICAL_GATES:
+        errors.append('critical gate set differs from governed SEO closure contract')
 
+    previous_end = 73
     for phase in phases:
+        pid = phase.get('id')
+        source_lines = phase.get('source_lines')
+        if not (isinstance(source_lines, list) and len(source_lines) == 2 and all(isinstance(x, int) for x in source_lines)):
+            errors.append(f'phase {pid} missing exact source_lines')
+        else:
+            start, end = source_lines
+            if start != previous_end + 1:
+                errors.append(f'phase {pid} source range is not contiguous after line {previous_end}: {source_lines}')
+            if end < start:
+                errors.append(f'phase {pid} has invalid source range: {source_lines}')
+            previous_end = end
         if not phase.get('owners'):
-            errors.append(f"phase {phase.get('id')} has no owner")
+            errors.append(f'phase {pid} has no owner')
         for rel in phase.get('owners') or []:
-            path = SEO_ROOT / rel
-            if not path.exists():
-                errors.append(f"phase {phase.get('id')} owner missing: {rel}")
+            if not (SEO_ROOT / rel).exists():
+                errors.append(f'phase {pid} owner missing: {rel}')
         for script in phase.get('scripts') or []:
-            path = SEO_ROOT / 'scripts' / script
-            if not path.exists():
-                errors.append(f"phase {phase.get('id')} script missing: {script}")
+            if not (SEO_ROOT / 'scripts' / script).exists():
+                errors.append(f'phase {pid} script missing: {script}')
+    if previous_end != catalog.get('source_line_count'):
+        errors.append(f'phase source ranges stop at {previous_end}, source line count is {catalog.get("source_line_count")}')
 
-    script_dir = SEO_ROOT / 'scripts'
     for name in sorted(REQUIRED_SCRIPTS):
-        if not (script_dir / name).exists():
+        if not (SEO_ROOT / 'scripts' / name).exists():
             errors.append(f'required SEO implementation script missing: {name}')
-    ref_dir = SEO_ROOT / 'references'
     for name in sorted(REQUIRED_REFS):
-        if not (ref_dir / name).exists():
+        if not (SEO_ROOT / 'references' / name).exists():
             errors.append(f'required SEO reference missing: {name}')
+    if not PROVIDER_REGISTRY.exists():
+        errors.append('provider-registry.json missing')
+    else:
+        providers = load_json(PROVIDER_REGISTRY).get('providers') or {}
+        for required in ('local', 'google_gsc', 'google_ga4', 'google_pagespeed_crux', 'google_generative_export', 'bing_ai_export'):
+            if required not in providers:
+                errors.append(f'provider registry missing core provider: {required}')
 
     declared_packs = set(catalog.get('workflow_packs') or [])
-    missing_declared = REQUIRED_PACKS - declared_packs
-    if missing_declared:
-        errors.append(f'workflow packs missing from catalog: {sorted(missing_declared)}')
+    if REQUIRED_PACKS - declared_packs:
+        errors.append(f'workflow packs missing from catalog: {sorted(REQUIRED_PACKS - declared_packs)}')
     if WORKFLOW_PACKS.exists():
         hs = headings(WORKFLOW_PACKS)
         for pack in sorted(REQUIRED_PACKS):
@@ -102,35 +126,48 @@ def check() -> dict[str, Any]:
                 errors.append(f'workflow pack has no documented owner section: {pack}')
 
     router = ROUTER.read_text(encoding='utf-8') if ROUTER.exists() else ''
-    for required in ('workflow-packs.md', 'seo_project.py', 'gsc_query_v2.py', 'ai_visibility_import.py', 'search_ops.py'):
+    for required in ('workflow-packs.md', 'seo_project.py', 'provider_registry.py', 'gsc_query_v2.py', 'ai_visibility_import.py', 'search_ops.py', 'seo_closure.py'):
         if required not in router:
             errors.append(f'router does not expose/invoke closure component: {required}')
 
-    test_root = SEO_ROOT / 'tests'
     for rel in sorted(REQUIRED_TEST_FILES):
-        if not (test_root / rel).exists():
+        if not (SEO_ROOT / 'tests' / rel).exists():
             errors.append(f'required SEO regression fixture/test missing: {rel}')
 
     if not SOURCE_MANIFEST.exists():
         errors.append('missing source-manifest.json')
     else:
         manifest = load_json(SOURCE_MANIFEST)
+        source_by_role = {x.get('role'): x for x in manifest.get('sources') or []}
+        checklist = source_by_role.get('control-source')
+        if not checklist:
+            errors.append('source manifest missing control-source')
+        else:
+            if checklist.get('sha256') != catalog.get('source_sha256'):
+                errors.append('control catalog source digest does not match source manifest')
+            if checklist.get('line_count') != catalog.get('source_line_count'):
+                errors.append('control catalog line count does not match source manifest')
         for source in manifest.get('sources') or []:
             if not source.get('sha256') or not source.get('line_count'):
-                errors.append(f"source manifest incomplete for {source.get('name')}")
+                errors.append(f'source manifest incomplete for {source.get("name")}')
 
-    legacy = script_dir / 'gsc_query.py'
+    legacy = SEO_ROOT / 'scripts' / 'gsc_query.py'
     if legacy.exists():
         text = legacy.read_text(encoding='utf-8')
-        if 'dimensionless' not in text.lower() and 'gsc_query_v2' not in text:
-            errors.append('legacy gsc_query.py does not advertise/use provenance-safe v2 aggregate semantics')
+        if 'dimensionless' not in text.lower() or 'gsc_query_v2' not in text:
+            errors.append('legacy gsc_query.py does not delegate to provenance-safe v2 aggregate semantics')
+
+    test_runner = REPO_ROOT / 'scripts' / 'test-python.mjs'
+    if not test_runner.exists() or 'skills/seo/tests' not in test_runner.read_text(encoding='utf-8'):
+        errors.append('SEO Python regression suite is not wired into repository Python CI')
 
     status = 'pass' if not errors else 'fail'
     return {
         'status': status,
-        'scope': 'repository implementation closure; live credentials/runtime are separately evidenced',
+        'scope': 'repository implementation closure; authenticated runtime availability/outcomes are separately evidenced',
         'phase_count': len(phases),
         'workflow_pack_count': len(declared_packs),
+        'critical_gate_count': len(catalog.get('critical_gates') or []),
         'errors': errors,
         'warnings': warnings,
     }
@@ -144,7 +181,7 @@ def main() -> int:
     if args.json:
         print(json.dumps(result, indent=2))
     else:
-        print(f"SEO closure: {result['status'].upper()} — {result['phase_count']} phases, {result['workflow_pack_count']} workflow packs")
+        print(f"SEO closure: {result['status'].upper()} — {result['phase_count']} phases, {result['workflow_pack_count']} workflow packs, {result['critical_gate_count']} critical gates")
         for error in result['errors']:
             print(f'FAIL: {error}')
         for warning in result['warnings']:
