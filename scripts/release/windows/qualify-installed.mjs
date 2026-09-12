@@ -18,6 +18,11 @@ function fail(message) { throw new Error(`windows-installed-qualification: ${mes
 function file(path, label) { if (!existsSync(path) || !lstatSync(path).isFile() || lstatSync(path).isSymbolicLink()) fail(`${label} is missing or unsafe: ${path}`); return path; }
 function json(path, label) { try { return JSON.parse(readFileSync(file(path, label), "utf8")); } catch (error) { fail(`${label} is invalid JSON: ${error.message}`); } }
 function sha256(path) { return createHash("sha256").update(readFileSync(file(path, "file"))).digest("hex"); }
+function textTail(path, maxBytes = 32768) {
+	if (!existsSync(path) || !lstatSync(path).isFile()) return null;
+	const value = readFileSync(path, "utf8");
+	return value.slice(-maxBytes);
+}
 function argument(name) { const index = process.argv.indexOf(name); return index < 0 ? undefined : process.argv[index + 1]; }
 function required(value, label) { if (!value) fail(`${label} is required`); return value; }
 function execute(commandRunner, executable, args, options, label) {
@@ -111,6 +116,11 @@ export function qualifyInstalledWindows({ setup, outputRoot, finalizationPath, s
 	const profile = join(workspace, "profile");
 	for (const clientRoot of [".claude", ".codex"]) mkdirSync(join(profile, clientRoot), { recursive: true });
 	const executable = join(installRoot, "current", "bin", "legion.exe");
+	const setupLogs = {
+		install: join(workspace, "setup-install.log"),
+		forcedRefreshFailure: join(workspace, "setup-forced-refresh-failure.log"),
+		stalledChild: join(workspace, "setup-stalled-child.log"),
+	};
 	const environment = {
 		...process.env,
 		LOCALAPPDATA: localAppData,
@@ -121,13 +131,13 @@ export function qualifyInstalledWindows({ setup, outputRoot, finalizationPath, s
 	let currentStage = "setup";
 	const step = (stage, run) => { currentStage = stage; const result = run(); stages.push({ stage, ...result.evidence }); return result; };
 	try {
-		const installRun = step("install", () => execute(commandRunner, installer, ["/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART", `/DIR=${installRoot}`], { cwd: workspace, env: environment }, "silent setup"));
+		const installRun = step("install", () => execute(commandRunner, installer, ["/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART", `/DIR=${installRoot}`, `/LOG=${setupLogs.install}`], { cwd: workspace, env: environment }, "silent setup"));
 		file(executable, "installed legion.exe");
 		const versionRun = step("version", () => execute(commandRunner, executable, ["--version"], { cwd: installRoot, env: environment }, "installed legion --version"));
 		const activatedSha256 = sha256(executable);
-		const forcedFailureRun = step("forced-refresh-failure", () => executeExpectedFailure(commandRunner, installer, ["/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART", `/DIR=${installRoot}`], { cwd: workspace, env: { ...environment, LEGION_INSTALL_TEST_MODE: "refresh-failure" } }, "forced client refresh failure"));
+		const forcedFailureRun = step("forced-refresh-failure", () => executeExpectedFailure(commandRunner, installer, ["/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART", `/DIR=${installRoot}`, `/LOG=${setupLogs.forcedRefreshFailure}`], { cwd: workspace, env: { ...environment, LEGION_INSTALL_TEST_MODE: "refresh-failure" } }, "forced client refresh failure"));
 		if (sha256(executable) !== activatedSha256) fail("forced client refresh failure did not restore previous activation");
-		const stalledChildRun = step("stalled-child", () => executeExpectedFailure(commandRunner, installer, ["/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART", `/DIR=${installRoot}`], { cwd: workspace, env: { ...environment, LEGION_INSTALL_TEST_MODE: "stalled-child", LEGION_INSTALL_CHILD_TIMEOUT_SECONDS: "1" } }, "stalled installer child"));
+		const stalledChildRun = step("stalled-child", () => executeExpectedFailure(commandRunner, installer, ["/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART", `/DIR=${installRoot}`, `/LOG=${setupLogs.stalledChild}`], { cwd: workspace, env: { ...environment, LEGION_INSTALL_TEST_MODE: "stalled-child", LEGION_INSTALL_CHILD_TIMEOUT_SECONDS: "1" } }, "stalled installer child"));
 		if (sha256(executable) !== activatedSha256) fail("stalled installer child did not restore previous activation");
 		const repairRun = step("repair", () => execute(commandRunner, executable, ["--json", "setup", "repair", "--confirm"], { cwd: installRoot, env: environment }, "installed legion setup repair"));
 		const repair = setupPayload(repairRun, "legion-setup-execution", executable, "installed legion setup repair");
@@ -161,6 +171,8 @@ export function qualifyInstalledWindows({ setup, outputRoot, finalizationPath, s
 				completedStages: stages,
 				installRoot,
 				installTree: inventory(installRoot),
+				activationEvents: textTail(join(installRoot, "install-events.jsonl")),
+				setupLogs: Object.fromEntries(Object.entries(setupLogs).map(([name, path]) => [name, textTail(path)])),
 				recordedAt: new Date().toISOString(),
 			};
 			writeFileSync(failurePath, `${JSON.stringify(failure, null, 2)}
