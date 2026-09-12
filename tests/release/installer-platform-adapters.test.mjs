@@ -52,7 +52,7 @@ test("Windows installed qualification silently installs, checks, uninstalls, & b
 		const result = qualifyInstalledWindows({ setup, outputRoot: output, finalizationPath: finalization, sourceRevision: REVISION, version: "1.2.3", platform: "win32", temporaryRoot: root, commandRunner(command, args, options) {
 			assert.equal(options.maxBuffer, RELEASE_CAPTURE_MAX_BYTES);
 			assert.equal(options.timeout, INSTALLED_COMMAND_TIMEOUT_MS);
-			if (command === setup) { const dir = args.find((item) => item.startsWith("/DIR=")).slice(5); assert.match(dir.replaceAll("\\", "/"), /local-app-data\/Orthic Labs\/Legion$/); localAppData = options.env.LOCALAPPDATA; assert.equal(dir, join(localAppData, "Orthic Labs", "Legion")); mkdirSync(join(dir, "current", "bin"), { recursive: true }); writeFileSync(join(dir, "current", "bin", "legion.exe"), "legion"); writeFileSync(join(dir, "unins000.exe"), "uninstall"); return { status: 0 }; }
+			if (command === setup) { const dir = args.find((item) => item.startsWith("/DIR=")).slice(5); assert.match(dir.replaceAll("\\", "/"), /local-app-data\/Orthic Labs\/Legion$/); localAppData = options.env.LOCALAPPDATA; assert.equal(dir, join(localAppData, "Orthic Labs", "Legion")); if (options.env.LEGION_INSTALL_TEST_MODE) return { status: 1, stderr: options.env.LEGION_INSTALL_TEST_MODE }; mkdirSync(join(dir, "current", "bin"), { recursive: true }); writeFileSync(join(dir, "current", "bin", "legion.exe"), "legion"); writeFileSync(join(dir, "unins000.exe"), "uninstall"); return { status: 0 }; }
 			assert.equal(options.env.LOCALAPPDATA, localAppData); if (command.endsWith("unins000.exe")) { rmSync(join(command, ".."), { recursive: true, force: true }); return { status: 0 }; }
 			assert.equal(command.endsWith("current\\bin\\legion.exe"), true);
 			assert.equal(options.env.PATH.split(";")[0], join(localAppData, "Orthic Labs", "Legion", "current", "bin"));
@@ -73,6 +73,7 @@ test("Windows installed qualification silently installs, checks, uninstalls, & b
 			return { status: 1, stderr: `unexpected command: ${args.join(" ")}` };
 		} });
 		assert.equal(result.status, "qualified"); assert.equal(existsSync(join(output, "qualification.json")), true); assert.deepEqual(setupCommands, ["repair", "status"]); assert.equal(result.activation.status.status, "complete");
+		assert.equal(result.activation.rollbackVerified, true); assert.equal(result.activation.stalledChildBounded, true);
 		assert.ok(result.commands.repair.stdout.bytes > 1024 * 1024);
 		assert.equal("stdout" in result.activation.repair, false);
 		assert.ok(statSync(join(output, "qualification.json")).size < 32 * 1024);
