@@ -49,6 +49,8 @@ const WM_SETTINGCHANGE = $001A;
 const SMTO_ABORTIFHUNG = $0002;
 function SendMessageTimeout(hWnd: HWND; Msg: UINT; wParam: Longint; lParam: String; fuFlags: UINT; uTimeout: UINT; var lpdwResult: DWORD): Longint;
   external 'SendMessageTimeoutW@user32.dll stdcall';
+var
+  ActivationExitCode: Integer;
 
 procedure BroadcastEnvironmentChange;
 var
@@ -98,9 +100,20 @@ begin
   Params := '-NoProfile -NonInteractive -ExecutionPolicy Bypass -File "' + ExpandConstant('{tmp}\activate.ps1') +
     '" -InstallRoot "' + ExpandConstant('{app}') + '" -Version "{#ProductVersion}"';
   if not Exec(ExpandConstant('{sys}\WindowsPowerShell\v1.0\powershell.exe'), Params, '', SW_HIDE, ewWaitUntilTerminated, ResultCode) then
+  begin
+    ActivationExitCode := 4;
     RaiseException('Could not launch Legion activation');
+  end;
   Log('Legion activation exit=' + IntToStr(ResultCode));
-  if ResultCode <> 0 then RaiseException('Could not activate Legion current install');
+  if ResultCode <> 0 then begin
+    ActivationExitCode := 4;
+    RaiseException('Could not activate Legion current install');
+  end;
+end;
+
+function GetCustomSetupExitCode: Integer;
+begin
+  Result := ActivationExitCode;
 end;
 
 function PrepareToInstall(var NeedsRestart: Boolean): String;

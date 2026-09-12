@@ -35,10 +35,11 @@ function Invoke-Bounded([string]$Stage, [string]$FilePath, [string[]]$Arguments)
       Write-InstallEvent $Stage 'failed' "timeout=${ChildTimeoutSeconds}s"
       throw "$Stage timed out after ${ChildTimeoutSeconds}s"
     }
-    $stdout = if (Test-Path -LiteralPath $stdoutPath) { Get-Content -LiteralPath $stdoutPath -Raw } else { '' }
-    $stderr = if (Test-Path -LiteralPath $stderrPath) { Get-Content -LiteralPath $stderrPath -Raw } else { '' }
+	$process.WaitForExit()
+    $stdout = [string]$(if (Test-Path -LiteralPath $stdoutPath) { Get-Content -LiteralPath $stdoutPath -Raw } else { '' })
+    $stderr = [string]$(if (Test-Path -LiteralPath $stderrPath) { Get-Content -LiteralPath $stderrPath -Raw } else { '' })
     if ($process.ExitCode -ne 0) {
-      Write-InstallEvent $Stage 'failed' "exit=$($process.ExitCode); stderr=$($stderr.Trim())"
+	  Write-InstallEvent $Stage 'failed' "exit=$($process.ExitCode); stdout=$($stdout.Trim()); stderr=$($stderr.Trim())"
       throw "$Stage exited $($process.ExitCode)"
     }
     Write-InstallEvent $Stage 'complete' 'exit=0'
