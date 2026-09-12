@@ -39,7 +39,7 @@ function Invoke-Bounded([string]$Stage, [string]$FilePath, [string[]]$Arguments)
     $stdout = [string]$(if (Test-Path -LiteralPath $stdoutPath) { Get-Content -LiteralPath $stdoutPath -Raw } else { '' })
     $stderr = [string]$(if (Test-Path -LiteralPath $stderrPath) { Get-Content -LiteralPath $stderrPath -Raw } else { '' })
     if ($process.ExitCode -ne 0) {
-	  Write-InstallEvent $Stage 'failed' "exit=$($process.ExitCode); stdout=$($stdout.Trim()); stderr=$($stderr.Trim())"
+	  Write-InstallEvent $Stage 'failed' "exit=$($process.ExitCode); stdout=$(([string]$stdout).Trim()); stderr=$(([string]$stderr).Trim())"
       throw "$Stage exited $($process.ExitCode)"
     }
     Write-InstallEvent $Stage 'complete' 'exit=0'
