@@ -618,17 +618,17 @@
   "roles": [
     {
       "id": "alchemist",
-      "description": "Controlled transformation authority. Dispatch to apply an already-bounded contract with no open questions — a Sage freeze handoff, a locked-domain path, or explicitly contracted work: integrate exact artifacts, run declared checks, & mechanically repair implementation failures. Do not dispatch for undecided meaning, ordinary ambient mutations, or independent assurance.",
+      "description": "Bounded implementation authority. Dispatch for routine implementation within settled acceptance criteria, or for governed work requiring a contract, lock, checkpoint, or controlled execution boundary. Escalate changed requirements, public boundaries, or material tradeoffs. Never dispatch for undecided meaning or independent assurance.",
       "source": "src/roster/alchemist.md"
     },
     {
       "id": "oracle",
-      "description": "Independent read-only assurance. Dispatch for explicit review requests or concrete outcome/safety risks. Routine replies and small reversible changes do not need Oracle. Never implements or certifies its own fix.",
+      "description": "Optional independent read-only assurance. Dispatch only for explicit review requests or a concrete outcome/safety risk that benefits from independent examination. Routine replies, read-only answers, and small reversible changes do not need Oracle. Never implements or certifies its own fix.",
       "source": "src/roster/oracle.md"
     },
     {
       "id": "sage",
-      "description": "Exceptional adjudication authority. Dispatch when two valid readings of a request would produce materially different outcomes, when ownership or boundaries between capabilities are disputed, or when work is blocked pending an authoritative ruling. Do not dispatch for routine architecture, diagnosis, execution, or independent assurance.",
+      "description": "Optional cross-cutting design and adjudication authority. Dispatch for material unresolved choices, disputed ownership or boundaries, bounded reassessment before expensive commitment, repeated local repairs that fail to advance the outcome, or explicit adjudication. Do not dispatch for routine local work.",
       "source": "src/roster/sage.md"
     }
   ],

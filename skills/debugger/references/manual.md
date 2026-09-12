@@ -7,10 +7,10 @@ only when evidence exposes a material unresolved semantic/ownership/acceptance d
 
 **Read `SKILL.md` first.** This manual is the craft underneath that capability.
 
-**S10 handoff override:** Debugger produces frozen evidence, decisions, & a handoff; it never
-performs product effects. The handoff binds acceptance IDs, ownership, cutover obligations,
-event/checkpoint requirements, deficits, & an explicit diagnosis trigger. Execution DAGs follow
-actual file/artifact consumption, not stage order.
+Debugger produces evidence, decisions, & a concise result for its lead; it never performs product
+effects. When work is explicitly governed, a durable handoff may bind acceptance IDs, ownership,
+cutover obligations, event/checkpoint requirements, deficits, & an explicit diagnosis trigger.
+Execution DAGs follow actual file/artifact consumption, not stage order.
 
 ## Iron law
 
@@ -138,20 +138,22 @@ an architectural change. Crypt is durable memory, not current execution proof.
 - Each hypothesis must be testable with one specific change.
 - Rank them, and say what would *disconfirm* each. A hypothesis with no disconfirming test is a belief.
 
-#### GoalRoute v2 diagnostic gate
+#### GoalRoute v2 diagnostic aid
 
 For nontrivial diagnosis (multiple plausible hypotheses, intermittent/performance/concurrency/data/
-multi-component failure, or repeated failed fixes), compile a `DIAGNOSTIC` GoalRoute through the
-internal engine before launching new probes. B is a Level-4 proven cause or exact resolved
-diagnostic decision, never merely "more information." Candidate paths are complete evidence
-sequences from current oracle to proof.
+multi-component failure, or repeated failed fixes), a `DIAGNOSTIC` GoalRoute can make evidence
+sequences, trade-offs, & next probes explicit. Use it when explicitly governed or when its comparison
+materially improves the investigation; ordinary diagnosis may keep this reasoning inline without a
+route artifact or receipt. B is a Level-4 proven cause or exact resolved diagnostic decision, never
+merely "more information." Candidate paths are complete evidence sequences from current oracle to
+proof.
 
 Compare expected time to proof including probe duration, retry probability, inconclusive-result
 recovery, and instrumentation rework. Existing evidence outranks new collection; non-invasive evidence
-outranks perturbing code. Every step must disconfirm at least one live hypothesis or satisfy a required
-safety dependency. Validate route artifact/receipt before first new probe and bind the next action to
-selected route. A changed observation set or rejected hypothesis invalidates remaining route; recompile
-from current evidence. This does not lower Level-4 root-cause bar.
+outranks perturbing code. Each selected step should disconfirm a live hypothesis or satisfy a required
+safety dependency. If a governed route is used, validate its artifact/receipt before the first new
+probe and bind the next action to it. A changed observation set or rejected hypothesis invalidates
+remaining route; revise from current evidence. This does not lower Level-4 root-cause bar.
 
 | Symptom class | Default first hypotheses | Discriminating move |
 |---|---|---|

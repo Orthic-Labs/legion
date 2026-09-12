@@ -24,25 +24,26 @@ It may describe:
 Legion routes work by capability descriptions and explicit authority invocation. A frozen Sage
 handoff goes to Alchemist. Oracle review is used when explicitly requested or justified by concrete
 outcome/safety risk; Covenant is only a one-shot advisory escalation. Execution derives a
-file/artifact task DAG from actual consumption, launches the maximal ready antichain, & never
-copies a stage DAG into execution. Only shared contract writes, integration, commits, pins, &
-pushes serialize. Constitution, authority, scope, acceptance, & completion semantics remain owned
-by the canonical sources above.
+file/artifact task DAG from actual consumption only for genuinely parallel or governed work,
+launches maximal ready antichains where useful, and never copies a stage DAG into execution.
+Routine work may remain inline. Only shared contract writes, integration, commits, pins, and
+pushes serialize. Constitution, authority, scope, acceptance, and completion semantics remain
+owned by the canonical sources above.
 
 ## Orchestration boundary
 
 Dispatch is Legion's fresh-context delegation primitive; ordinary work uses an inline assignment. Its governed
 deterministic mechanics live in `skills/dispatch/**` and the dispatch-validator/contracts
 runtime. The bounded-execution substrate (typed terminals, numeric budgets, same-failure stop,
-checkpoints/resume, receipts, worker-output distrust) applies where justified —
-governed, locked, contracted, expensive/retry-prone, or resumable long-running work — not to
-ambient routine work. Delegation alone does not require contracts or independent review.
+checkpoints/resume, receipts, worker-output distrust) applies to explicitly governed work,
+including locked or contracted work and long-running work designated for resumable control. Cost,
+difficulty, retry risk, or delegation alone does not require contracts or independent review.
 
 Use the least nondeterministic authorized executor capable of satisfying each node contract.
 “Mechanical” does not mean “cheap model”: a settled mechanical task is a zero-model task unless
-semantic interpretation is genuinely required. Ambient cheap/mechanical execution belongs to
-Legion’s mechanism-aware host binding, not to Alchemist, which stays the controlled
-bounded-transformation authority.
+semantic interpretation is genuinely required. Legion may use its mechanism-aware host binding or
+Alchemist for bounded implementation; Alchemist retains routine judgment inside settled acceptance
+criteria without turning ordinary work into governed execution.
 
 ## Routing shape
 
@@ -63,7 +64,7 @@ the Guard gates declared effects
     ↓
 execution / integration
     ↓
-Oracle Completion Validation under current policy
+conditional independent review when explicitly requested or justified by concrete risk
     ↓
 delivery
 ```

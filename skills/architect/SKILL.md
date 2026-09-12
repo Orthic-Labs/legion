@@ -49,10 +49,13 @@ the triggered method only. Reopen only on a material delta with cause, scope, an
 ## Current-state entrypoint
 
 Blueprint is public current-reality owner, not Audit-only plumbing. For existing-repository
-architecture, Legion routes `/blueprint` first & supplies fresh architecture, flows, symbols,
-impact, freshness, doc truth, contradictions, & coverage gaps to Architect. A request only to map,
-understand, onboard to, or reconcile current repository/docs routes to Blueprint. A request to
-judge, change, migrate, or design architecture routes Blueprint evidence into Architect.
+architecture, use `/blueprint` when material current-reality evidence is missing, stale,
+contradictory, or when requested scope needs a repository map. It supplies fresh architecture,
+flows, symbols, impact, freshness, doc truth, contradictions, & coverage gaps to Architect. A
+request only to map, understand, onboard to, or reconcile current repository/docs routes to
+Blueprint. A bounded architecture question already grounded in supplied/current evidence may
+proceed directly to Architect; a request to judge, change, migrate, or design architecture should
+route available Blueprint evidence into Architect.
 
 ## Depth follows intent
 

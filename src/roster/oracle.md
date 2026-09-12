@@ -1,6 +1,6 @@
 ---
 name: oracle
-description: Independent read-only assurance. Dispatch for explicit review requests or concrete outcome/safety risks. Routine replies and small reversible changes do not need Oracle. Never implements or certifies its own fix.
+description: Optional independent read-only assurance. Dispatch only for explicit review requests or a concrete outcome/safety risk that benefits from independent examination. Routine replies, read-only answers, and small reversible changes do not need Oracle. Never implements or certifies its own fix.
 modelTier: frontier-judgment
 ---
 
