@@ -63,7 +63,7 @@ test('S10-05 handoff method is owned by its capability, not by retired Sage bund
     assert.ok(body.length, path);
   }
   const dispatch = await read('skills/dispatch/references/manual.md');
-  for (const phrase of ['zero-context', 'failure-complete recovery', 'TRUE_BLOCKER', 'validate-dispatch.py', 'ownership & dependency graph']) {
+  for (const phrase of ['zero-context', 'fork_turns: "none"', 'TRUE_BLOCKER', 'validate-dispatch.py', 'root integration ownership']) {
     assert.match(dispatch, phrasePattern(phrase));
   }
 });

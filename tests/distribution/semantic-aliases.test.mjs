@@ -118,7 +118,7 @@ test('all routed eval cases remain after capability migration', () => {
       .filter(([key, value]) => !['schema_version', 'skill', 'legacy_skill'].includes(key) && Array.isArray(value))
       .reduce((sum, [, rows]) => sum + rows.length, 0);
   }, 0);
-  assert.equal(count, 115);
+  assert.equal(count, 118);
 });
 
 test('deterministic selection validation accepts semantic public capabilities and rejects entrypoints', () => {

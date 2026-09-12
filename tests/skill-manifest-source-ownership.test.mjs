@@ -53,7 +53,7 @@ test('all 27 packaged sources exactly match frozen classifications and repertoir
     oracle: ['entrypoint', null, 'explicit', null, 'evaluate', 'source-read'],
     qa: ['capability', 'domain', 'public', 'engineering', 'analyze,evaluate,execute,produce', 'source-read,artifact-write,process-exec'],
     research: ['capability', 'domain', 'public', 'research', 'route,analyze,produce', 'source-read,artifact-write,network-request'],
-    seo: ['capability', 'domain', 'public', 'commercial', 'analyze,diagnose,produce', 'source-read,artifact-write,process-exec,network-request'],
+    seo: ['capability', 'domain', 'public', 'commercial', 'analyze,diagnose,decide,produce', 'source-read,artifact-write,process-exec,network-request'],
     social: ['capability', 'domain', 'public', 'commercial', 'analyze,decide,produce', 'source-read,artifact-write,network-request'],
     tasklist: ['capability', 'workflow', 'public', null, 'analyze,produce,execute', 'source-read,artifact-write,process-exec'],
     wake: ['capability', 'workflow', 'public', null, 'analyze,execute,produce', 'source-read,artifact-write'],

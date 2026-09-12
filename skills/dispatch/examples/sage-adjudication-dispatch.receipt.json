@@ -1,10 +1,10 @@
 {
   "schema_version": 4,
-  "sha256": "6167ad0c0b4ce25a5fa893d0752a96238623e6acc679a56a3e3fbcd7797b3c5f",
+  "sha256": "ffd32e6a98623efa7f1069a95e2b112d3046ec329f345fee4beb0e9a4694b4bd",
   "referenced_artifacts": [
     {
       "path": "skills/dispatch/SKILL.md",
-      "sha256": "sha256:593ec1dadff9bf6bb48f954daf077736c37d5072e3d705d56167543a8c236698"
+      "sha256": "sha256:f5fb7f01048209bb5bcdfd11f309537d0017f0363b4fc306955c131755b404a5"
     },
     {
       "path": "skills/dispatch/examples/sage-adjudication.prompt.txt",
@@ -16,8 +16,8 @@
     }
   ],
   "authority_binding": {
-    "packet_sha256": "6167ad0c0b4ce25a5fa893d0752a96238623e6acc679a56a3e3fbcd7797b3c5f",
-    "source_revision": "sha256:593ec1dadff9bf6bb48f954daf077736c37d5072e3d705d56167543a8c236698",
+    "packet_sha256": "ffd32e6a98623efa7f1069a95e2b112d3046ec329f345fee4beb0e9a4694b4bd",
+    "source_revision": "sha256:f5fb7f01048209bb5bcdfd11f309537d0017f0363b4fc306955c131755b404a5",
     "prompt_digest": "sha256:3ccd2e7126de4f9d794e0da667d1d589f6801f9a4975b3e4b560219f06485f54"
   }
 }

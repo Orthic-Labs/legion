@@ -111,12 +111,12 @@
     {
       "path": "examples/sage-adjudication-dispatch.json",
       "uri": "legion-skill://dispatch/examples/sage-adjudication-dispatch.json",
-      "digest": "sha256:6167ad0c0b4ce25a5fa893d0752a96238623e6acc679a56a3e3fbcd7797b3c5f"
+      "digest": "sha256:ffd32e6a98623efa7f1069a95e2b112d3046ec329f345fee4beb0e9a4694b4bd"
     },
     {
       "path": "examples/sage-adjudication-dispatch.receipt.json",
       "uri": "legion-skill://dispatch/examples/sage-adjudication-dispatch.receipt.json",
-      "digest": "sha256:8500866fd9a1fb1c00d4ac33fc3cc0e9a438a3693a5821a5ca470efdfde25c46"
+      "digest": "sha256:38d914315f43ecd58714901376e48aa7146f293bf36a3c8de162e1b5f7634adc"
     },
     {
       "path": "examples/sage-adjudication.json",
@@ -181,7 +181,7 @@
     {
       "path": "references/manual.md",
       "uri": "legion-skill://dispatch/references/manual.md",
-      "digest": "sha256:2b7d365c1b17072b3ba7a11c5fd0c8e45dfd16a2c0b55a1f6bb362e1e7ef27a2"
+      "digest": "sha256:e95ce27e09cb6dcc96094a75a2c90a7f0b9f7e8c377b8ca5ffd3ea0accca3839"
     },
     {
       "path": "scripts/test_validate_dispatch.py",

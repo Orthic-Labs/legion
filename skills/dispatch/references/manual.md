@@ -101,6 +101,9 @@ ownership, dependency order, worker boundary, bounded recovery, acceptance
 evidence, & root integration ownership. Any packet edit requires its governing
 validation and review to run again. Do not add those artifacts to ambient work.
 
+Validate zero-context durable packets with `scripts/validate-dispatch.py <packet>`;
+use `--write-receipt <receipt>` or `--verify-receipt <receipt>` when required.
+
 Use `assets/dispatch-template.md` with `--packet-type legacy` only for explicit
 legacy compatibility. Read `references/agent-routing.md` when authority routing
 is needed. Never rely on unseen chat or delegate user-reserved decisions.
