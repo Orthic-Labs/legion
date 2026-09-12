@@ -104,12 +104,12 @@
     {
       "path": "examples/tasklist-authority.packet.json",
       "uri": "legion-skill://tasklist/examples/tasklist-authority.packet.json",
-      "digest": "sha256:5e3a678add32fe6175fa0ae4c126fa260cb998bced8328324972b2c64d9d514d"
+      "digest": "sha256:56539789fd304d0bc66fb33aedc184ed08ae487fcb2f281ebc64e9fd3558a9c2"
     },
     {
       "path": "examples/tasklist-authority.packet.receipt.json",
       "uri": "legion-skill://tasklist/examples/tasklist-authority.packet.receipt.json",
-      "digest": "sha256:338d242707623f0bce99e6400f3c4fb96588b39cb69da1c4d29916501ef83365"
+      "digest": "sha256:d86c598b7d925ade3fca1382fb2ade5d9985dd683b603939778f1652305a60c9"
     },
     {
       "path": "examples/tasklist-authority.prompt.txt",
