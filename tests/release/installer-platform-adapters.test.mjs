@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { existsSync, mkdirSync, mkdtempSync, rmSync, statSync, writeFileSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { delimiter, join } from "node:path";
 import test from "node:test";
 import { finalizeWindows } from "../../scripts/release/windows/finalize.mjs";
 import { finalizeMacos } from "../../scripts/release/macos/finalize.mjs";
@@ -54,8 +54,8 @@ test("Windows installed qualification silently installs, checks, uninstalls, & b
 			assert.equal(options.timeout, INSTALLED_COMMAND_TIMEOUT_MS);
 			if (command === setup) { const dir = args.find((item) => item.startsWith("/DIR=")).slice(5); assert.match(dir.replaceAll("\\", "/"), /local-app-data\/Orthic Labs\/Legion$/); localAppData = options.env.LOCALAPPDATA; assert.equal(dir, join(localAppData, "Orthic Labs", "Legion")); if (options.env.LEGION_INSTALL_TEST_MODE) return { status: 1, stderr: options.env.LEGION_INSTALL_TEST_MODE }; mkdirSync(join(dir, "current", "bin"), { recursive: true }); writeFileSync(join(dir, "current", "bin", "legion.exe"), "legion"); writeFileSync(join(dir, "unins000.exe"), "uninstall"); return { status: 0 }; }
 			assert.equal(options.env.LOCALAPPDATA, localAppData); if (command.endsWith("unins000.exe")) { rmSync(join(command, ".."), { recursive: true, force: true }); return { status: 0 }; }
-			assert.equal(command.endsWith("current\\bin\\legion.exe"), true);
-			assert.equal(options.env.PATH.split(";")[0], join(localAppData, "Orthic Labs", "Legion", "current", "bin"));
+			assert.equal(command.replaceAll("\\", "/").endsWith("current/bin/legion.exe"), true);
+			assert.equal(options.env.PATH.split(delimiter)[0], join(localAppData, "Orthic Labs", "Legion", "current", "bin"));
 			assert.equal(existsSync(join(options.env.USERPROFILE, ".claude")), true);
 			assert.equal(existsSync(join(options.env.USERPROFILE, ".codex")), true);
 			if (args[0] === "--version" || args[0] === "doctor") return { status: 0, stdout: "ok" };
