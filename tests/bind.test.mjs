@@ -184,7 +184,7 @@ test('codex bind refreshes its stale generated current-role block without touchi
     assert.match(config, /model = "gpt"/);
     assert.match(config, /\[history\]\npersistence = "save-all"/);
     assert.match(config, /# >>> legion:managed-block v1 >>>/);
-    assert.match(config, /Exceptional adjudication authority/);
+    assert.match(config, /Optional cross-cutting design and adjudication authority/);
     assert.doesNotMatch(config, /old\.mjs|description = "old"/);
     for (const header of ['agents.sage', 'agents.alchemist', 'agents.oracle', 'agents.covenant-seat', 'mcp_servers.legion']) {
       assert.equal((config.match(new RegExp(`^\\[${header.replace('.', '\\.')}\\]$`, 'gm')) ?? []).length, 1, header);

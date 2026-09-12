@@ -116,7 +116,7 @@
     {
       "path": "examples/sage-adjudication-dispatch.receipt.json",
       "uri": "legion-skill://dispatch/examples/sage-adjudication-dispatch.receipt.json",
-      "digest": "sha256:38d914315f43ecd58714901376e48aa7146f293bf36a3c8de162e1b5f7634adc"
+      "digest": "sha256:a9fab9d865f4b33ffc5bf84b75801f945328e97a943cf3dd718ad283c3155108"
     },
     {
       "path": "examples/sage-adjudication.json",

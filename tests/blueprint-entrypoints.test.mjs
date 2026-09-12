@@ -14,6 +14,6 @@ test('Blueprint is public current-state & docs entrypoint consumed by Architect 
   assert.match(blueprint, /blueprint reconcile --json/);
   assert.match(blueprint, /graph architecture/);
   assert.match(blueprint, /graph flows/);
-  assert.match(architect, /routes `\/blueprint` first/);
+  assert.match(architect, /use `\/blueprint` when material current-reality evidence is missing/);
   assert.match(audit, /public Blueprint\/Membrane/);
 });
