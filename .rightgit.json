@@ -3,8 +3,7 @@
   "compile": "github-actions-only",
   "lanes": [
     "ci",
-    "release-candidate",
-    "unsigned-installer"
+    "release-candidate"
   ],
   "matrix": {
     "os": [
