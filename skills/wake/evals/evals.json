@@ -66,14 +66,16 @@
       "prompt": "/wake 10 for the active job",
       "expected_skill": "wake",
       "forbidden_skills": [],
-      "expected_behavior": "Schedules one heartbeat, keeps unchanged running state quiet, distinguishes completed state, and schedules the next wake only after one inspection.",
+      "expected_behavior": "Schedules one heartbeat, performs one inspection focused on the next acceptance outcome or blocking dependency, keeps unchanged running state quiet, distinguishes completed state, and schedules the next wake only after inspection.",
       "severity": "error",
       "mode": "static",
       "assertions": [
         { "type": "required_text", "value": "one state inspection" },
+        { "type": "required_text", "value": "next acceptance outcome" },
         { "type": "required_text", "value": "Still running" },
         { "type": "required_text", "value": "suppress unchanged-status notification" },
-        { "type": "forbidden_text", "value": "poll every" }
+        { "type": "forbidden_text", "value": "poll every" },
+        { "type": "forbidden_text", "value": "full changed-file inventory" }
       ]
     }
   ],
@@ -106,6 +108,19 @@
     }
   ],
   "pressure": [
+    {
+      "id": "wake-carry-corrections",
+      "prompt": "The user corrected the acceptance condition before the next wake. Carry that correction into the next bounded inspection.",
+      "expected_skill": "wake",
+      "forbidden_skills": [],
+      "expected_behavior": "Carries the latest correction and exclusions forward, then acts within existing authorization.",
+      "severity": "error",
+      "mode": "static",
+      "assertions": [
+        { "type": "required_text", "value": "Carry corrections forward" },
+        { "type": "required_text", "value": "existing authorization" }
+      ]
+    },
     {
       "id": "wake-no-silent-divergence",
       "prompt": "The external reviewer started changing unrelated files. Keep the wake alive and let it continue.",

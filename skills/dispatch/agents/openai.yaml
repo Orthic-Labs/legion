@@ -1,6 +1,6 @@
 interface:
   display_name: "Dispatch"
-  short_description: "Create a validated zero-context work packet for another agent or executor while current orchestrator retains responsibility. Use for delegation, parallel workers, or copy-paste executor instructions. Same-agent work stays inline; session continuity uses handoff."
-  default_prompt: "Use $dispatch when this request matches: Create a validated zero-context work packet for another agent or executor while current orchestrator retains responsibility. Use for delegation, parallel workers, or copy-paste executor instructions. Same-agent work stays inline; session continuity uses handoff."
+  short_description: "Delegate bounded work to fresh-context agents with clear ownership & integration. Use for subagents, parallel workers, or executor instructions. Same-agent planning uses Tasklist; new-session continuity uses Handoff."
+  default_prompt: "Use $dispatch when this request matches: Delegate bounded work to fresh-context agents with clear ownership & integration. Use for subagents, parallel workers, or executor instructions. Same-agent planning uses Tasklist; new-session continuity uses Handoff."
 policy:
   allow_implicit_invocation: true

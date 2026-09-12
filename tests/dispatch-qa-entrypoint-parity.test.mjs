@@ -9,8 +9,17 @@ for (const skill of ['dispatch', 'qa']) test(`${skill} public capability routes 
   const base = resolve(root, 'skills', skill);
   assert.ok(existsSync(resolve(base, 'SKILL.md')));
   const evals = JSON.parse(readFileSync(resolve(base, 'evals/evals.json')));
-  const count = Object.values(evals).filter(Array.isArray).flat().length;
-  assert.equal(count, skill === 'dispatch' ? 38 : 12);
+  const groups = Object.entries(evals).filter(([, value]) => Array.isArray(value));
+  const cases = groups.flatMap(([, value]) => value);
+  const ids = cases.map(({ id }) => id);
+  assert.equal(new Set(ids).size, ids.length, `${skill} eval IDs must be unique`);
+  assert.ok(cases.every(({ expected_behavior }) => typeof expected_behavior === 'string' && expected_behavior.trim()), `${skill} evals need meaningful expected behavior`);
+  if (skill === 'dispatch') {
+    for (const family of ['should_trigger', 'should_not_trigger', 'output_quality', 'safety', 'pressure', 'compatibility']) assert.ok(groups.some(([name]) => name === family), `dispatch needs ${family} eval family`);
+    for (const id of ['dispatch-acceptance-readback', 'dispatch-relay-never-authority', 'dispatch-worker-result-contract']) assert.ok(ids.includes(id), `dispatch needs ${id}`);
+  } else {
+    assert.equal(cases.length, 12);
+  }
 });
 
 test('dispatch & qa scripts are adapters, not duplicated engines', () => {

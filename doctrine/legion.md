@@ -22,8 +22,8 @@ It may describe:
 ## Handoff reference
 
 Legion routes work by capability descriptions and explicit authority invocation. A frozen Sage
-handoff goes to Alchemist, then independent Oracle completion validation is required before every
-successful final delivery; Covenant is only a one-shot advisory escalation. Execution derives a
+handoff goes to Alchemist. Oracle review is used when explicitly requested or justified by concrete
+outcome/safety risk; Covenant is only a one-shot advisory escalation. Execution derives a
 file/artifact task DAG from actual consumption, launches the maximal ready antichain, & never
 copies a stage DAG into execution. Only shared contract writes, integration, commits, pins, &
 pushes serialize. Constitution, authority, scope, acceptance, & completion semantics remain owned
@@ -31,12 +31,12 @@ by the canonical sources above.
 
 ## Orchestration boundary
 
-Dispatch is a Legion orchestration primitive for validated zero-context delegation packets. Its
+Dispatch is Legion's fresh-context delegation primitive; ordinary work uses an inline assignment. Its governed
 deterministic mechanics live in `skills/dispatch/**` and the dispatch-validator/contracts
 runtime. The bounded-execution substrate (typed terminals, numeric budgets, same-failure stop,
-checkpoints/resume, receipts, worker-output distrust) applies where justified — dispatched,
+checkpoints/resume, receipts, worker-output distrust) applies where justified —
 governed, locked, contracted, expensive/retry-prone, or resumable long-running work — not to
-ambient routine work.
+ambient routine work. Delegation alone does not require contracts or independent review.
 
 Use the least nondeterministic authorized executor capable of satisfying each node contract.
 “Mechanical” does not mean “cheap model”: a settled mechanical task is a zero-model task unless

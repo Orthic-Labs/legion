@@ -65,7 +65,7 @@ ARCANE — cognitive control plane
     ↓
 GUARD — deterministic effect enforcement
     ↓
-ORACLE COMPLETION VALIDATION — current global policy: required before successful delivery
+ORACLE COMPLETION VALIDATION — when requested or justified by concrete outcome/safety risk
     ↓
 DELIVERY
 
@@ -85,7 +85,7 @@ Primary rules:
 5. **Effects are explicit, and deterministic effect enforcement belongs to the Guard.**
 6. **Evaluation methodology is not independent assurance.**
 7. **Complexity carries the burden of proof.**
-8. **Universal Oracle Completion Validation remains current Legion policy.**
+8. **Oracle review is proportional, not universal.** Use Oracle when explicitly requested or when a concrete outcome or safety risk needs independent review. Routine replies, read-only answers, status updates & small reversible changes need no Oracle.
 
 ## 3. Canonical ownership model
 
@@ -395,9 +395,11 @@ control when Guard policy permits them (ambient execution). Alchemist is used on
 locking, explicit contracting, or risk requires it. `execute` does not imply Alchemist.
 
 Controlled/contracted execution requires the appropriate executable contract; ordinary permitted
-ambient work does not acquire contract ceremony solely because it mutates. Typed terminals,
+ambient work does not acquire contract ceremony solely because it mutates or delegates. Ordinary
+delegation uses a self-contained inline assignment with fresh context, owned paths, current
+constraints & expected result. Typed terminals,
 numeric budgets, same-failure stop, checkpoints, and resumability are execution substrate used
-where justified: locked/governed work, contracted work, dispatched workers, expensive/retry-prone
+where justified: locked/governed work, contracted work, expensive/retry-prone
 work, resumable long-running work. Ambient routine work does not require the full ceremony.
 
 ## 13. Host/runtime and projection boundary

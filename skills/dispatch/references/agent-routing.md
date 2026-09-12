@@ -1,3 +1,3 @@
 # Dispatch routing
 
-Use Dispatch only for bounded executor delegation. Attach Sage only for material unresolved meaning, ownership, or acceptance that routine capability mandates cannot settle; route bounded execution to Alchemist, independent certification to Oracle, & fresh-session continuity to Handoff. A dispatcher retains integration ownership; each worker receives non-overlapping OWN, READ, & FORBIDDEN scopes.
+Use Dispatch for bounded executor delegation. Ordinary workers stay ambient. Attach Sage only for material unresolved meaning or ownership that routine capability mandates cannot settle; use Alchemist for controlled contracts & Oracle for requested or risk-justified independent review. Fresh-session continuity uses Handoff. Dispatcher retains integration ownership; worker write scopes do not overlap, while reads may overlap.

@@ -70,34 +70,32 @@ chooses one outcome. It must not poll again during that wake.
 ### Evidence floor
 
 A status label, worker state, or elapsed-time estimate alone is never an
-inspection. Before choosing an outcome, inspect all available evidence below:
+inspection. Inspect only evidence needed to decide the next acceptance outcome
+or blocking dependency:
 
-1. Exact changed-file inventory plus relevant bounded diffs since the prior wake,
-   including tracked, untracked, generated, & deleted files. Never start an
-   unbounded repository scan to build this inventory.
-2. Active agent/worker state plus new messages, receipts, failures, & completed
-   outputs since the prior wake.
-3. Completed behavior proven by current command, test, build, delivery, or
-   artifact evidence; distinguish produced work from verified work.
-4. Remaining work reconstructed from latest user requests, corrections,
+1. The latest worker state, messages, receipts, failures, & completed outputs.
+2. Relevant bounded diffs, artifacts, or command/test/build/delivery evidence
+   for that acceptance outcome. Build a full changed-file inventory only when
+   the acceptance criterion requires it.
+3. Remaining work reconstructed from latest user requests, corrections,
    exclusions, active plan, & unresolved acceptance criteria.
-5. Relevant host-visible desktop/task artifacts, including current terminal,
-   review, file, or automation state when the host exposes them. Record
+4. Relevant host-visible desktop/task artifacts when available; record
    `unavailable` rather than infer unseen state.
 
-Compare this evidence with the prior wake and name material deltas. If no
-evidence changed, report that exact fact quietly; never substitute shallow
-`running`, `active`, or `complete` labels for inspection.
+Compare with the prior wake & name material deltas. If no evidence changed,
+report that exact fact quietly; never substitute shallow `running`, `active`, or
+`complete` labels for inspection.
 
 | Observed state | Action |
 | --- | --- |
-| Still running | Schedule the next bounded wake, suppress unchanged-status notification, and stop. |
+| Still running | Schedule the next bounded wake only while the next acceptance outcome remains unresolved & target stays active; suppress unchanged-status notification, and stop. |
 | Completed successfully | Check requested acceptance against evidence, continue the workflow, and cancel the wake if terminal. |
 | Completed with failure | Retry only when failure is transient, retry is safe/idempotent, and declared budget remains; otherwise stop & report. A retry gets its own bounded next wake. |
 | Missing, stale, or ambiguous | Do not claim completion. Preserve evidence, schedule one next check only while target remains active & within bounds, or report a blocker when it cannot safely continue. |
 | Stopped, paused, revoked, or scope-narrowed | Cancel/suppress continuation immediately; preserve artifacts and do not reschedule. |
 
-Completion means observed success, not merely elapsed time or worker silence.
+Completion means observed success, not merely elapsed time, quota progress, or
+worker silence.
 Never retry destructive or non-idempotent work without an explicit safe retry
 rule. Never convert an exhausted retry budget into a new budget silently.
 An unchanged running state is quiet: use the host's non-notifying heartbeat
@@ -120,9 +118,10 @@ the exact failed property. Do not repair a divergent review by inventing scope.
 
 ## Goal-alignment mode
 
-Compare latest user instructions (including corrections and exclusions) with
-active plan, scheduled work, changes, and proposed next action. This is a user
-compliance check, not a progress estimate. If aligned, keep
+Compare latest user instructions (including corrections & exclusions) with
+active plan, scheduled work, changes, & proposed next action. This is a user
+compliance check, not a progress or quota estimate. Carry corrections forward
+into the next inspection & act within existing authorization. If aligned, keep
 the same bounded target. If divergent, self-correct within explicit scope:
 cancel or suppress irrelevant continuation, retain useful artifacts, and set the
 next action to the latest request. Do not resurrect a revoked goal or add a new
@@ -137,10 +136,11 @@ Return a compact `WAKE_RESULT` containing:
 mode: active-job | external-review | goal-alignment
 observed_at: <timestamp>
 state: running | succeeded | failed | ambiguous | stopped
-evidence: <paths, IDs, or user-confirmed observations>
-changed_files: <exact bounded delta or none>
+evidence: <relevant paths, IDs, or user-confirmed observations>
+changed_files: <relevant bounded delta or none; full inventory only when required>
 agents: <new messages, outputs, failures, or unchanged>
 completed_behavior: <current proof or none>
+next_acceptance: <next outcome or blocking dependency>
 remaining_work: <latest-scope acceptance items>
 desktop_artifacts: <observed artifacts or unavailable>
 action: <one action taken or explicitly none>

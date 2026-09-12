@@ -30,6 +30,8 @@ MINIMIZE: Freeze verified state A, verified state B, and hard constraints. Prefe
 
 ROUTING: Arcane decides cognitive processing shape: retrieve only necessary context, choose direct or deliberate cognition and any grounding, choose model versus deterministic execution, set proportional verification, then shape final response. Legion owns capability selection, work decomposition, orchestration, authority attachment, and execution semantics; deterministic Guard authorizes typed effects and records receipts. Default route is direct, no-model when exact machinery is sufficient, no authority, and proportional verification. Resolve ordinary reversible requested work directly; reserve escalation for genuinely unresolved meaning, ownership, acceptance, or operator-only input. Before ending, deliver verified work or one exact hard blocker; never end on a permission question, caveat, or future-work promise.
 
+FRESH DELEGATION CONTEXT: Start bounded subagents with fork_turns:"none" unless the user explicitly requests inherited history. Send current scope, exclusions, ownership, evidence pointers and expected result. Bound reads and tool output; split large assignments. On each return, integrate accepted work and reassign remaining ready work or finish it inline. A partial return does not close scope. Verify requested behavior on its actual platform, application mode and installed build; transport success does not prove user-visible completion. Ordinary delegation needs no contract or Oracle solely because it delegates.
+
 BOUNDED FALSIFICATION (CHALLENGE PASS): Before committing to a materially assumption-dependent conclusion, Arcane may invoke ONE evidence-directed self-challenge pass that tests the smallest set of decisive assumptions. It must end in KEEP/NARROW/REVISE and may not recursively review itself. This is evidence-seeking, never prose-seeking: generic self-reflection is excluded; inspect decisive evidence, or do not run.
 
 L0 DIRECT: no challenge pass (the default; most work). L1 SELF-CHALLENGE: the same working model performs one bounded falsification pass. L2 INDEPENDENT: a separate independent reviewer/challenger is used when independence itself is the value; Oracle is L2 only when independent completion assurance is actually required, never a generic second-opinion agent.
@@ -2009,6 +2011,19 @@ fn route_trace_from_request(
     latency: Duration,
     provenance: Option<&SessionProvenance>,
 ) -> Option<RouteOutcomeTrace> {
+    // Post-effect and child-lifecycle frames acknowledge host activity; an
+    // allowed acknowledgement is not execution success or task completion.
+    // Keep SessionStart/Stop route envelopes and explicit PreToolUse decisions
+    // observable, while refusing false terminal success for acknowledgements.
+    if request.is_post_effect()
+        || (request.is_lifecycle()
+            && !matches!(
+                request.event_type.as_str(),
+                "SessionStart" | "session-start" | "Stop" | "stop"
+            ))
+    {
+        return None;
+    }
     let payload = request.payload.as_object()?;
     let source = trace_source(payload);
     let request_id = trace_string(
@@ -2520,6 +2535,45 @@ mod tests {
         assert_eq!(trace.legion_canon_digest, None);
         assert_eq!(trace.skill_catalog_digest, None);
         assert_eq!(trace.guard_policy_digest, None);
+    }
+
+    #[test]
+    fn host_acknowledgements_do_not_emit_terminal_success() {
+        for event_type in [
+            "PostToolUse",
+            "PostToolUseFailure",
+            "SubagentStart",
+            "SubagentStop",
+            "UserPromptSubmit",
+            "PostCompact",
+        ] {
+            let request = HookRequest {
+                schema_version: protocol::SCHEMA_VERSION,
+                kind: protocol::REQUEST_KIND.into(),
+                event_type: event_type.into(),
+                payload: complete_trace_payload("unused-trace-path"),
+            };
+            let response = HookResponse::allowed(event_type, "observation accepted");
+            assert!(
+                route_trace_from_request(&request, &response, Duration::from_millis(2), None)
+                    .is_none(),
+                "{event_type} acknowledgement must not become terminal success"
+            );
+        }
+    }
+
+    #[test]
+    fn explicit_pre_effect_refusal_remains_blocked_trace() {
+        let request = HookRequest {
+            schema_version: protocol::SCHEMA_VERSION,
+            kind: protocol::REQUEST_KIND.into(),
+            event_type: "PreToolUse".into(),
+            payload: complete_trace_payload("unused-trace-path"),
+        };
+        let response = HookResponse::denied("PreToolUse", "ARC_POLICY_DENIED", "blocked", "strong");
+        let trace = route_trace_from_request(&request, &response, Duration::from_millis(2), None)
+            .expect("explicit Guard refusal remains observable");
+        assert_eq!(trace.result, OutcomeResult::Blocked);
     }
 
     #[test]

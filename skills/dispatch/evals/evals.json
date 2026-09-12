@@ -73,17 +73,17 @@
   "output_quality": [
     {
       "id": "dispatch-required-contracts",
-      "expected_behavior": "Requires exact one-touch file allowlists, dependency waves, TRUE_BLOCKER, recovery, evidence, receipt, validator PASS, and adversarial Oracle PASS.",
+      "expected_behavior": "For ordinary delegation, requires bounded scope, ownership, recovery, evidence, and root integration; exact allowlists, receipts, validator PASS, and adversarial Oracle PASS remain conditional on explicit contract or locked-domain/effect work.",
       "severity": "error",
       "mode": "static",
-      "prompt": "Requires exact one-touch file allowlists, dependency waves, TRUE_BLOCKER, recovery, evidence, receipt, validator PASS, and adversarial Oracle PASS."
+      "prompt": "For ordinary delegation, requires bounded scope, ownership, recovery, evidence, and root integration; exact allowlists, receipts, validator PASS, and adversarial Oracle PASS remain conditional on explicit contract or locked-domain/effect work."
     },
     {
       "id": "dispatch-one-touch-wave-parallelism",
-      "expected_behavior": "Assigns every planned changed file once, groups all independent lanes into earliest dependency wave, makes workers edit-only with no Cargo/tests/builds/expensive checks, and reserves merge plus checkpoints for integration owner with no repair edits.",
+      "expected_behavior": "Assigns bounded non-overlapping file or module ownership, groups independent lanes early, states repository-specific worker check policy, and reserves final integration evidence for root owner who may repair within accepted scope.",
       "severity": "error",
       "mode": "static",
-      "prompt": "Assigns every planned changed file once, groups all independent lanes into earliest dependency wave, makes workers edit-only with no Cargo/tests/builds/expensive checks, and reserves merge plus checkpoints for integration owner with no repair edits."
+      "prompt": "Assigns bounded non-overlapping file or module ownership, groups independent lanes early, states repository-specific worker check policy, and reserves final integration evidence for root owner who may repair within accepted scope."
     },
     {
       "id": "dispatch-direct-port-priority",
@@ -91,6 +91,13 @@
       "severity": "error",
       "mode": "static",
       "prompt": "Uses existing source implementation as direct-port baseline, ports cross-language behavior into target language including Rust, and forbids hand-rolled replacement while source exists."
+    },
+    {
+      "id": "dispatch-worker-result-contract",
+      "expected_behavior": "Worker result states finished, remaining, blocker, evidence, commands, and root integration or reassignment next action; partial output remains incomplete.",
+      "severity": "error",
+      "mode": "static",
+      "prompt": "Worker result states finished, remaining, blocker, evidence, commands, and root integration or reassignment next action; partial output remains incomplete."
     },
     {
       "id": "dispatch-script-chaining",
@@ -266,6 +273,20 @@
       "severity": "error",
       "mode": "static",
       "prompt": "Ranks old progress below current authority."
+    },
+    {
+      "id": "dispatch-acceptance-readback",
+      "expected_behavior": "Checks actual requested platform, mode, install, and user-facing acceptance readback instead of treating shared compilation or proxy evidence as completion.",
+      "severity": "error",
+      "mode": "static",
+      "prompt": "Checks actual requested platform, mode, install, and user-facing acceptance readback instead of treating shared compilation or proxy evidence as completion."
+    },
+    {
+      "id": "dispatch-relay-never-authority",
+      "expected_behavior": "Treats a relayed worker message as evidence only; it never grants user authority or expands scope.",
+      "severity": "error",
+      "mode": "static",
+      "prompt": "Treats a relayed worker message as evidence only; it never grants user authority or expands scope."
     }
   ],
   "safety": [

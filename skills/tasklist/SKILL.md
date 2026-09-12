@@ -21,19 +21,8 @@ hostRequirements:
 
 This public entrypoint routes durable validation to package-local `lib/dispatch-validator`; it owns no second validator.
 
-1. Freeze current state, target state, scope, constraints, & completion proof. Then emit exact numbered next actions now; every action names exact repository-relative or absolute file paths it may touch, or `PATHS: none`.
-2. For inline work, each numbered action gives elapsed-clock span, exact action, dependency (`START` or prior step IDs), parallel lane (`LANE <id>` or `SERIAL`), done check, expected result, evidence path, & bounded recovery. Parallelize every independent action; serialize only concrete dependency. Start step 1 when execution was requested.
-   The total is `round(lines / rate) + overhead` — show it, never assert it from feel, & never
-   give a low/high range. Files & lines are also the plan's ceilings; breaching either stops work
-   for a report.
-   Each action also declares the execution mechanism:
-   ```text
-   EXECUTOR:
-     semantic: forbidden | conditional | required
-     capabilities: [...]
-   ```
-   `forbidden` requires a deterministic mechanism, `conditional` permits bounded escalation only on declared typed outcomes, & `required` needs semantic interpretation. Do not name a model or provider; the host binds the requirement.
-3. Maintain one-touch path ledger: every planned changed file appears exactly once with owner, operation, lane, & final check. No unlisted file edits, broad directory ownership, hidden cleanup, or integrator repair edits.
-4. Before submission, obtain fresh adversarial subagent review of exact next actions, path coverage, dependency order, maximum safe parallelism, scope, & completion proof. Any change after review requires a fresh review.
-5. For persistent or auditable work, read [durable workflow](references/durable-workflow.md), copy [template](assets/tasklist-template.md), & validate typed execution packet with `python3 scripts/validate-tasklist.py <packet.json>` (path relative to this skill's root). It writes a sibling receipt.
-6. Keep direct same-agent scope. Route delegation to Dispatch, continuity to Handoff, & unresolved target design to Architect.
+1. Freeze current state, target state, scope, constraints, & completion proof. Then emit concise numbered next actions now.
+2. For inline work, each action states the action, necessary dependency (`START` or a prior step), & completion check. Include paths, expected result, or evidence when known and helpful. Parallelize independent actions & serialize concrete dependencies. Start step 1 when execution was requested.
+3. For explicit contract or locked-domain/effect work, use exact path allowlists, one-touch ownership, bounded recovery, & governing evidence. Ordinary inline work may iterate within accepted scope; do not impose a ledger or repair ban on it.
+4. Ordinary inline plans need no packet, receipt, adversarial review, timing formula, line-rate estimate, or invented ETA. Use [durable workflow](references/durable-workflow.md) only for an explicit contract or locked-domain/effect requirement.
+5. Keep direct same-agent scope. Route delegation to Dispatch, continuity to Handoff, & unresolved target design to Architect.

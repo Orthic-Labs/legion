@@ -340,7 +340,7 @@
     {
       "id": "dispatch",
       "name": "dispatch",
-      "description": "Create a validated zero-context work packet for another agent or executor while current orchestrator retains responsibility. Use for delegation, parallel workers, or copy-paste executor instructions. Same-agent work stays inline; session continuity uses handoff.",
+      "description": "Delegate bounded work to fresh-context agents with clear ownership & integration. Use for subagents, parallel workers, or executor instructions. Same-agent planning uses Tasklist; new-session continuity uses Handoff.",
       "kind": "domain-capability",
       "discoverability": "public",
       "invocation": {
@@ -522,7 +522,7 @@
     {
       "id": "seo",
       "name": "seo",
-      "description": "Audit or improve SEO, GEO or AEO, AI citations, crawlability, indexing, Core Web Vitals, schema, sitemaps, content quality, E-E-A-T, images, hreflang, llms.txt, traffic drops, page speed, or repository SEO.",
+      "description": "Operate SEO, AEO, GEO and AI-search visibility: diagnose, prioritize, improve, verify and measure crawl/indexation, query ownership, SERP fit, content, entities, citations, Google generative visibility, Bing AI citations, CWV, schema, links, local/international/ecommerce search, and traffic or visibility changes.",
       "kind": "domain-capability",
       "discoverability": "public",
       "invocation": {
@@ -623,7 +623,7 @@
     },
     {
       "id": "oracle",
-      "description": "Independent assurance authority. Dispatch before every successful final delivery for read-only semantic Completion Validation. Do not dispatch to decide architecture or perform product-state effects.",
+      "description": "Independent read-only assurance. Dispatch for explicit review requests or concrete outcome/safety risks. Routine replies and small reversible changes do not need Oracle. Never implements or certifies its own fix.",
       "source": "src/roster/oracle.md"
     },
     {

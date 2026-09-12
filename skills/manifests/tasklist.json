@@ -59,7 +59,7 @@
     {
       "path": "SKILL.md",
       "uri": "legion-skill://tasklist/SKILL.md",
-      "digest": "sha256:d767a8c5e70be75c325e490c6545dda3744520d92000b50ad71a20f08fff2a80"
+      "digest": "sha256:8d31981d9e0d8543f0b4626dbe974db7f2c9e286346d6ff529e11119f982282b"
     },
     {
       "path": "agents/openai.yaml",
@@ -94,7 +94,7 @@
     {
       "path": "evals/evals.json",
       "uri": "legion-skill://tasklist/evals/evals.json",
-      "digest": "sha256:38c4712451dd50f9d9728f50d7437e19698ceec5d488e10b55d8013885cb47be"
+      "digest": "sha256:304a664c25ea167f432c2ecdb80b93db52d136fdbc6010fee7696bceb35346df"
     },
     {
       "path": "examples/sage-adjudication.json",
@@ -164,7 +164,7 @@
     {
       "path": "references/durable-workflow.md",
       "uri": "legion-skill://tasklist/references/durable-workflow.md",
-      "digest": "sha256:abd92c98dca17ed190b6c27445e38752795dd821acbb57542ae111647bfd651d"
+      "digest": "sha256:fbbf55f6c77793931db834b6aaa9237d1264ba15a9075bd2f2d1c9b2649fcc48"
     },
     {
       "path": "references/legacy-durable-workflow.md",

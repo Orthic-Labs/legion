@@ -67,6 +67,32 @@
         { "type": "required_text", "value": "Prevention" },
         { "type": "required_text", "value": "Evidence" }
       ]
+    },
+    {
+      "id": "gotchas-relevant-retrieval",
+      "prompt": "/gotchas for this confirmed repeated failure",
+      "expected_skill": "gotchas",
+      "forbidden_skills": [],
+      "expected_behavior": "Retrieves applicable gotcha sections for deduplication without requiring an unbounded inventory.",
+      "severity": "error",
+      "mode": "static",
+      "assertions": [
+        { "type": "required_text", "value": "applicable sections" },
+        { "type": "required_text", "value": "duplicate" }
+      ]
+    },
+    {
+      "id": "gotchas-historic-facts",
+      "prompt": "/gotchas use this old machine-path lesson as evidence",
+      "expected_skill": "gotchas",
+      "forbidden_skills": [],
+      "expected_behavior": "Treats dated machinery claims as leads and verifies current source or command evidence before using them as live facts.",
+      "severity": "error",
+      "mode": "static",
+      "assertions": [
+        { "type": "required_text", "value": "historic" },
+        { "type": "required_text", "value": "live facts" }
+      ]
     }
   ],
   "safety": [

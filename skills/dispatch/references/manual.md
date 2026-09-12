@@ -1,207 +1,106 @@
 # Dispatch manual
 
-Default to one compact typed `direct` packet for bounded delegation. It carries objective,
-authority sources, integration owner, model route, exact non-overlapping worker scopes, checks,
-dependencies, bounded recovery, & return fields. Validate it in `authority` mode; no GoalRoute,
-timing model, Minimize receipt, or author checklist is required for ambient bounded work.
+Default to one compact inline assignment for bounded delegation. It must carry
+the current objective, authority, scope, exclusions, bounded worker paths or
+modules, relevant evidence, expected result, & root integration action. Start workers
+with `fork_turns: "none"`; pass bounded excerpts instead of full transcripts or
+unbounded command output.
 
-Use legacy Markdown only when compatibility is explicitly requested. Locked or explicitly
-contracted work uses its governing contract chain rather than enlarging an ambient dispatch
-packet.
+Use the durable contract path only when the user explicitly requests a contract
+or when locked-domain/effect rules require it. Ordinary delegation does not
+require a packet file or validator receipt. Oracle remains available for an
+explicit review or a concrete outcome/safety risk.
 
-## Zero-context relay (lossless)
+## Decide whether dispatch helps
 
-A dispatch packet must carry the full context an executor needs, verbatim — never a compressed
-digest. Executor must succeed without chat history, dispatcher memory, or unstated judgment.
+Dispatch only when delegation adds useful parallelism, isolation, machine
+access, or focused execution. Keep tiny edits, orchestration, architecture,
+synthesis, & user-reserved decisions in the current session. Do not delegate a
+decision the user reserved.
 
-Iron law:
+## Build a bounded assignment
+
+1. Read the current user request, applicable workspace/repository rules, exact
+   source inputs, relevant errors, & scoped Git status. Pass only the excerpts
+   the worker needs; never write “use existing context” or “as discussed.”
+2. Define one end-to-end outcome per lane. Give lanes bounded non-overlapping
+   file or module ownership. Use exact file allowlists, one-touch ledgers, &
+   strict repair reassignment only when the governing contract requires them.
+   Put independent lanes together & add dependencies only for concrete data,
+   file, resource, or effect order.
+3. State a repository-specific check policy. Workers inspect declared inputs &
+   edit owned paths; they may run named focused checks when policy allows. In
+   this public-CI run, workers are edit-only. They do not commit, push, merge,
+   or perform unbounded/expensive checks unless accepted policy permits it.
+4. Tell the integration owner to reconcile actual changed paths, integrate
+   output, run required checkpoints, own final evidence, & repair or reassign
+   within accepted scope. Governed contract work keeps strict allowlists & repair
+   reassignment.
+
+## Acceptance & authority
+
+Name the actual acceptance surface, including requested platform, mode, install,
+or user-facing readback when relevant. Shared compilation, input injection,
+worker silence, or a relayed message is proxy evidence only. A relay carries
+facts or results; it never grants user authority or expands scope. Re-check
+authority against the current user request or governing contract before acting.
+
+## Specialized experiment & lifecycle work
+
+Apply these checks only when the assignment is an experiment, selection,
+correction, or lifecycle run. Freeze State A/B, named decision metrics, provider,
+dataset, mode, admission, pass, exclusions, workload, job ceiling, & value rule.
+Use one canonical trace before batch work, ordered survivor stages with each
+fixture assigned once, & reconcile actual launches against the ceiling. Bind
+selected path, smoke, check, blast, ship, producer, lifecycle, delivery, &
+user-value evidence when those stages are in scope.
+
+Treat old progress, outputs, labels, paths, & producer claims as evidence only;
+current authority decides. Reject incompatible runs, reset stale producers,
+stop & globally rederive after a correction, remove inherited clauses with no
+decision effect, reject invented ground truth or unrelated metrics, admit
+downstream fixtures only after their stage, & treat runtime loadability as
+runnability rather than behavioral qualification. Use a provider only when it
+has a named acceptance metric. Offline logical work has no physical sleep. Full
+comparison requires explicit authority.
+
+## Recovery & blockers
+
+For a failure, re-read the exact error, rediscover the relevant live path or
+configuration, rerun the smallest deterministic reproduction, apply the
+smallest in-scope correction, then retry only when safe and bounded. Continue
+independent work when possible. A worker may return `TRUE_BLOCKER` only when the
+requested outcome cannot safely advance because of an external or
+non-inferable blocker, every applicable recovery ran, safe work is finished, &
+the return names the failed action, raw error, evidence, preserved state, one
+missing input, & exact resume action. `PARTIAL`, `NEEDS_CONTEXT`, & vague
+`BLOCKED` are not completion statuses.
+
+## Worker return & integration contract
+
+Require a compact result with:
 
 ```text
-NO AGENT TASK SHIPS UNTIL:
-1. target can execute it from zero context;
-2. every expected failure has a bounded next action;
-3. completion is proven by named evidence;
-4. TRUE_BLOCKER requires exhausted recovery + proof;
-5. script-bearing work passes the execution-preflight tool with executable evidence;
-6. validate-dispatch.py returns PASS.
+finished: <requested work completed>
+remaining: <acceptance items still open>
+blocker: <none or exact bounded blocker>
+evidence: <commands, outputs, or artifact paths>
+commands: <actions run or none>
+next: <root integration or reassignment action>
 ```
 
-Clear prose is not executable. A referenced plan is not transferred context. A command without
-cwd, expected result, failure branch, & evidence path is incomplete.
+An incomplete or partial result is a handoff for continued work, not delivery.
+The root agent reruns relevant checks after integration & verifies actual paths
+against ownership before claiming completion.
 
-## Step 0 — Decide whether dispatch should exist
+## Durable contract path
 
-Dispatch only when delegation adds useful parallelism, isolation, machine access, or focused
-execution. Keep orchestration, architecture, synthesis, tiny edits, & user-reserved decisions in
-current session. When the request explicitly asks for dispatch, create it. Compactness never
-removes required fields.
+When contract or locked-domain/effect rules apply, use the repository's
+governing packet schema, validator, receipts, & review requirements. Keep exact
+ownership, dependency order, worker boundary, bounded recovery, acceptance
+evidence, & root integration ownership. Any packet edit requires its governing
+validation and review to run again. Do not add those artifacts to ambient work.
 
-## Step 1 — Ground task before writing
-
-Read: user request (including granted authority & reserved decisions); nearest `AGENTS.md` /
-workspace rules; exact source documents, plans, files, errors, & current state; relevant skill
-bodies or runbooks the executor must follow; current scoped Git status for edit tasks; live
-launcher/model/tool/API/environment config when routing can drift.
-
-Never write "use existing context", "as discussed", "follow plan", or equivalent. Cite exact
-accessible paths + required sections. Embed essential facts which exist only in chat.
-
-When task compares repositories or implementations, inspect source implementation first & direct-port it as initial route. If source & target languages differ, port behavior into target language; for Rust targets, write Rust. Do not hand-roll a replacement while source implementation is available.
-
-## Step 2 — Design ownership & dependency graph
-
-First compile full expected changed-file inventory. Partition work into ordered dispatch waves. Wave A
-contains every lane with no unmet dependency; each later wave names exact completed-wave outputs or
-shared-state gate it consumes. Lanes within one wave are mutually independent and run in parallel.
-If a lane can safely move earlier, move it; phase labels alone never justify serialization.
-
-For each lane define one end-to-end outcome; exact repository-relative write `allowlist`; `READ`
-paths; `FORBIDDEN` paths/actions; upstream inputs; downstream consumer; wave; checks; integration
-owner. Write allowlists contain files only—no glob, directory, or path-prefix ownership. Include
-created files, tests, fixtures, docs, lockfiles, manifests, and generated outputs the lane will
-change.
-
-Each planned changed file appears in exactly one lane across complete dispatch set. That lane owns
-all requested changes to file from first edit through final check. No later cleanup, integration, or
-repair lane may edit it. Integrator stages, checks, commits, and pushes but does not edit lane-owned
-files. When two outcomes require same file, merge them into one lane or redesign boundary; never
-schedule sequential file touching.
-
-Multiple agents receive separate complete lane instructions. READ scopes may overlap; write
-allowlists may not. Serialize only concrete data, file, build/install, render, deploy, migration,
-paid-call, or production-write dependency. If independence is uncertain, investigate before packet
-is declared ready.
-
-Worker boundary is edit-only: worker may inspect declared READ inputs & edit only exact OWN paths. Worker must not run Cargo, tests, builds, generators, installs, commits, pushes, merges, or expensive checks. Lane instructions record intended checks as integration-owner actions. Integration owner alone reconciles paths, merges outputs, runs checkpoints (including Cargo/tests/builds/expensive checks when required), & owns final evidence; integrator repair edits are forbidden.
-
-## Step 3 — Author from required template
-
-Copy `assets/direct-packet.json` for normal work. Fill every placeholder, dispatch wave, lane,
-file-touch entry, and Oracle contract. Use exact paths, commands/tool
-actions, cwd, expected outputs, checks, artifacts, & limits. Every execution step must answer:
-why does this step exist; what exact inputs it consumes; where it runs; what exact command or tool
-action runs; what stdout/state + exit/result proves success; what timeout + retry bound applies;
-where outputs + evidence are stored; what happens for each failure. If command differs by OS,
-provide both branches & selection rule.
-
-## Step 4 — Build failure-complete recovery
-
-Include all failure classes below, even when response is "not applicable — reason": path/input
-missing; tool/dependency missing; auth/permission failure; transient external failure;
-invalid input/schema; integrity/hash mismatch; deterministic command failure; dirty/conflicting
-state; wrong producer/provenance; resource/capacity failure; ambiguous requirement;
-unsafe/out-of-scope action; unknown failure. Each failure row needs: primary recovery branch;
-second executable branch; degraded/independent continuation; retry/stop bound; exact proceed
-condition; exact TRUE_BLOCKER threshold.
-
-Recovery ladder, in order: re-read exact error & failing artifact; re-discover paths/config from
-live workspace; re-run smallest deterministic reproduction; apply smallest in-scope correction;
-retry transient failure within declared limit; use documented existing fallback with equivalent
-acceptance criteria; split failed step so unaffected work continues; escalate only under
-TRUE_BLOCKER law.
-
-## Step 5 — Enforce TRUE_BLOCKER law
-
-Executor may return `TRUE_BLOCKER` only when all are true: requested outcome cannot advance
-safely; blocker is external or non-inferable (missing secret/private input, unavailable required
-service/hardware, explicit user-reserved decision, unauthorized destructive/production action, or
-unavoidable conflict with preserved user work); every applicable recovery action ran; all
-independent safe work completed; blocker packet includes exact failed step, commands/actions
-attempted, raw error, evidence paths, state preserved, single missing input, & exact resume
-command.
-
-If any condition is false, executor continues. `PARTIAL`, `NEEDS_CONTEXT`, & vague `BLOCKED` are
-forbidden terminal statuses.
-
-## Step 6 — Make acceptance executable
-
-Map each requirement to: exact verification command/action; expected value, threshold, schema,
-visual state, or hash; evidence artifact path; responsible owner. "Tests pass", "looks correct",
-"reviewed", & "done" are not evidence without command/output or artifact. Delegated work is not
-proof of completion; dispatcher/integrator reruns relevant final checks after integration.
-
-## Step 7 — Zero-context simulation
-
-Before dispatch, simulate a fresh executor encountering: source path missing; dirty checkout;
-required tool absent; auth failure; transient timeout/rate limit; invalid schema/input;
-hash/integrity mismatch; existing run from wrong producer; missing producer/provenance proof;
-incomplete expected→started→terminal→delivery→value chain; direct closure/synthetic stand-in;
-deterministic test failure; partial output/checkpoint; unsafe next action; conflicting
-instructions; no safe degraded path. For each, the dispatch must identify next action, retry
-bound, evidence, & escalation threshold without asking the dispatcher to reconstruct intent.
-
-Any "no" means revise.
-
-## Step 8 — Validate and adversarially review before sending
-
-Write direct dispatch to durable named `.json` artifact before validation. Temporary-only and
-inline-only dispatches are forbidden. Validate:
-
-```bash
-python3 skills/dispatch/scripts/validate-dispatch.py <dispatch.json> --packet-type authority --write-receipt <dispatch.receipt.json>
-```
-
-Do not spawn/send until exit code is `0` and output begins `PASS:`. Receiver recomputes digest
-before execution:
-
-```bash
-python3 skills/dispatch/scripts/validate-dispatch.py <dispatch.json> --packet-type authority --verify-receipt <dispatch.receipt.json>
-```
-
-Embedded self-hash is forbidden (changing the document to add its hash changes the hash); the
-sidecar binds exact bytes without circularity.
-
-Then give a fresh adversarial Oracle/subagent exact packet, receipt, authoritative requirements, & source/file inventory.
-Oracle must adversarially try to disprove:
-
-1. full planned-file coverage;
-2. one-touch ownership and disjoint write allowlists;
-3. necessary, acyclic wave dependencies;
-4. earliest legal wave placement and maximum safe parallelism;
-5. lane-local end-to-end acceptance and absence of integrator repair edits.
-
-Review must also verify direct-port priority, target-language porting, worker edit-only boundary, integration-owner-only checkpoints, & maximum safe parallelism. Any packet byte change invalidates review; revalidate & obtain fresh review.
-
-Oracle returns `PASS` or exact blocking defect. Any packet change invalidates its review. Revalidate
-and rerun Oracle after correction. No execution begins without fresh PASS.
-
-## Executor return & integration contract
-
-Require exactly: `STATUS` (`COMPLETE | COMPLETE_WITH_NOTES | TRUE_BLOCKER`), `SUMMARY`,
-`ACCEPTANCE` (criterion → command/check → result → evidence path), `ARTIFACTS`, `CHANGES`,
-`COMMANDS`, `RECOVERY`, `DEVIATIONS`, `BLOCKER`, `NEXT`.
-
-`COMPLETE_WITH_NOTES` still requires every acceptance criterion to pass; notes are non-blocking
-observations only.
-
-## Worker output is untrusted
-
-Delegated work is never proof of completion. The integrator reruns the relevant final checks in
-the primary checkout without editing lane-owned files, reconciles actual changed paths against each
-allowlist and global one-touch ledger, and requires a reachable canonical commit or
-content-addressed patch before archive. Clean read-only tasks archive freely.
-
-## Worker authority
-
-Never let a worker read `~/.claude/`; the parent reads sensitive local paths and passes down only
-what the packet needs. A worker may spawn only a cheaper model than its own, and only within its
-own contract and concurrency budget — it never spawns a peer or stronger model. Serialize a lane
-only for a named reason: data dependency, a shared mutable resource (same file, index, port, or
-DB), effect ordering (commit before push, install before qualify), or capacity saturation — not
-phase labels alone.
-
-## Experiment / correction / lifecycle work
-
-For a corrected objective: stop affected work, preserve old outputs as evidence-only, re-derive
-from current authority, & reject incompatible resume. For a selection workload: use ordered
-survivor stages, assign every fixture one stage, prohibit broad selectors, declare
-`JOB_TOTAL_MAX` plus wall-time floor, run one trace before batch, & reconcile actual counts. A
-`TRUE_BLOCKER` requires `RECOVERY_EXHAUSTED`, `INDEPENDENT_WORK_COMPLETE`, `RAW_EVIDENCE`,
-`MISSING_INPUT`, & `RESUME_COMMAND`.
-
-## Boundaries
-
-Dispatch is an orchestration entrypoint, not peer domain expertise. It never delegates a
-user-reserved decision, never ships a packet that depends on unseen chat, and never runs beside a
-second executor for the same scope. The orchestration boundary belongs to `doctrine/legion.md`;
-the deterministic mechanics belong to the dispatch validator and contracts runtime.
+Use `assets/dispatch-template.md` with `--packet-type legacy` only for explicit
+legacy compatibility. Read `references/agent-routing.md` when authority routing
+is needed. Never rely on unseen chat or delegate user-reserved decisions.

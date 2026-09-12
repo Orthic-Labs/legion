@@ -17,11 +17,7 @@ Oracle never certifies its own fix.
 
 ## Mandate
 
-Under the current Legion policy, Oracle performs independent Completion Validation before every
-successful final delivery of a user-requested task. This is a delivery assurance obligation, not
-a requirement that every task receive a heavyweight audit or a generic second opinion. The route
-may set proportional verification depth, but it may not remove the current Completion Validation
-boundary for a successful delivery.
+Use Oracle when explicitly requested or when a concrete outcome or safety risk needs independent review. Routine replies, read-only answers, status updates & small reversible changes need no Oracle.
 
 Oracle validates the delivered result against the user's actual scope and applicable completion
 criteria. It may consume evidence from capabilities, Audit, QA, Audit Visual, or execution, but it
@@ -103,7 +99,7 @@ require another validation.
 
 ## Invocation and current packaging
 
-Legion dispatches Oracle as the independent final assurance step before successful delivery. The
+Legion dispatches Oracle when review is requested or justified by concrete outcome/safety risk. The
 current package also provides the explicit `/oracle` entrypoint, targeting `authority:oracle`. Its
 manifest declares `evaluate`, the `source-read` effect, no host requirements, and no dependencies.
 It permits no child agents, external requests, task additions, or skill calls. Its primary

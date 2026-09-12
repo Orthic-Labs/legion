@@ -26,7 +26,7 @@
   "parity": {
     "triggers": [
       "/dispatch",
-      "Create a validated zero-context work packet for another agent or executor while current orchestrator retains responsibility. Use for delegation, parallel workers, or copy-paste executor instructions. Same-agent work stays inline; session continuity uses handoff."
+      "Delegate bounded work to fresh-context agents with clear ownership & integration. Use for subagents, parallel workers, or executor instructions. Same-agent planning uses Tasklist; new-session continuity uses Handoff."
     ],
     "outputs": [
       "references/agent-routing.md",
@@ -61,12 +61,12 @@
     {
       "path": "SKILL.md",
       "uri": "legion-skill://dispatch/SKILL.md",
-      "digest": "sha256:593ec1dadff9bf6bb48f954daf077736c37d5072e3d705d56167543a8c236698"
+      "digest": "sha256:f5fb7f01048209bb5bcdfd11f309537d0017f0363b4fc306955c131755b404a5"
     },
     {
       "path": "agents/openai.yaml",
       "uri": "legion-skill://dispatch/agents/openai.yaml",
-      "digest": "sha256:db73044833c3decf6efea0c3a57e18428ce77ec59ccc40b7ec68a537b1f7b65e"
+      "digest": "sha256:601b54542d92f72bb030a88153b9337344c3d8091722f46496d5fb2e44e63bad"
     },
     {
       "path": "assets/direct-packet.json",
@@ -91,7 +91,7 @@
     {
       "path": "evals/evals.json",
       "uri": "legion-skill://dispatch/evals/evals.json",
-      "digest": "sha256:328ce52c78253de3e72e78a5a8835dfdac953a070aa786784592cfdd128b65b9"
+      "digest": "sha256:0c9e63bd0f2c673bc01790d62985c27800d3361dbd8c4a66eb45ac5ef0ce16a4"
     },
     {
       "path": "evals/executor-requirement.json",
@@ -176,12 +176,12 @@
     {
       "path": "references/agent-routing.md",
       "uri": "legion-skill://dispatch/references/agent-routing.md",
-      "digest": "sha256:871aeae94797619a82c2575fd8e3c688e38108bf576e877735197579bc003a8a"
+      "digest": "sha256:e1a46732afb175619fa649764f121b39682e07d6178fa0f42d64c9bfeb01f5cb"
     },
     {
       "path": "references/manual.md",
       "uri": "legion-skill://dispatch/references/manual.md",
-      "digest": "sha256:63dd2e8b95433d1fa60bcba8f4bf0ef7124d7e39c42d22456dfe92be1c0040a7"
+      "digest": "sha256:2b7d365c1b17072b3ba7a11c5fd0c8e45dfd16a2c0b55a1f6bb362e1e7ef27a2"
     },
     {
       "path": "scripts/test_validate_dispatch.py",

@@ -26,7 +26,8 @@ history of lessons.
 Use when the same agent failure has recurred and its cause has been reasoned
 through with the user. Natural language such as “record this gotcha”, “save this
 lesson for future agents”, or “we hit this failure again” routes here only when
-the lesson is evidence-backed.
+the lesson is evidence-backed. Diagnosis, wake, or ordinary delivery does not
+automatically create a durable gotcha.
 
 Require all of the following before appending:
 
@@ -46,10 +47,12 @@ user confirmation, or evidence reference.
 1. Resolve repository root from current workspace/git state. Target exactly
    `<repository-root>/gotchas.md`, not this skill directory or an unrelated
    workspace.
-2. Read existing entries before writing. Compare normalized symptom, root cause,
-   affected area, and prevention; an exact or materially equivalent lesson is a
-   duplicate. If duplicate, do not append or rewrite it; report its heading and
-   any new evidence separately.
+2. Retrieve applicable sections before writing. Read enough surrounding text to
+   compare normalized symptom, root cause, affected area, and prevention; an
+   exact or materially equivalent lesson is a duplicate. Do not inventory an
+   entire gotchas file when relevant sections are identifiable. If duplicate,
+   do not append or rewrite it; report its heading and any new evidence
+   separately.
 3. Append one concise Markdown entry at end of file. If file is absent, create it
    with a `# Gotchas` heading followed by the entry. Preserve existing entries,
    formatting, and unrelated changes.
@@ -78,8 +81,11 @@ not evidence. A useful prevention rule is specific enough to check before the
 failure recurs.
 
 When a duplicate exists, prefer no mutation. Update it only if the user
-explicitly asks to enrich that entry and the new material is verified. A gotcha
-entry is a lesson, not a license to broaden current task scope.
+explicitly asks to enrich that entry and the new material is verified. Treat
+dated machinery states, executable paths, and enforcement claims in historic
+lessons as leads; verify them against current source or command evidence before
+using them as live facts. A gotcha entry is a lesson, not a license to broaden
+current task scope.
 
 ## Result contract
 

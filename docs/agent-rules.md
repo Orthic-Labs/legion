@@ -9,14 +9,11 @@ Legion provides shared routing, execution, and independent semantic validation a
 
 ## Commands
 
-- This is an Orthic Labs public repository: `compile: github-actions-only`. Never run cargo, Rust builds/tests, packaging, signing, qualification, or release steps locally; push & read managed CI. Local scope is reads, static checks, JS/node tests, & schema validation.
-- Run `pnpm test` for package coverage.
-- Run focused Node tests with `node --test --test-concurrency=1 <paths>`.
-- Run `pnpm legion:check` for naming, schema, and dependency-closure consistency.
-- Run `pnpm closure:check` for the package boundary alone.
+- Bind local work to `local-static-only`; use generated GitHub Actions for every compile, test, package, signing, qualification, installed-smoke, or release task under `compile: github-actions-only`.
+- Run `pnpm test`, focused Node tests, & `pnpm legion:check` only through GitHub Actions.
 
 ## Locked invariants
-- Require independent Oracle Completion Validation before every successful final delivery.
+- Use Oracle when explicitly requested or when a concrete outcome or safety risk needs independent review. Routine replies, read-only answers, status updates & small reversible changes need no Oracle.
 - Keep Completion Validation read-only, semantic, source-first, and free of test reruns or review artifacts.
 - Reconstruct scope from raw user requests rather than implementer summaries.
 - Preserve one canonical owner for each role and routing concept.
