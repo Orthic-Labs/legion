@@ -4,6 +4,10 @@ param(
     [ValidatePattern('^[A-Za-z0-9._-]+$')]
     [string]$Profile,
     [int]$TimeoutSeconds = 900,
+    [int]$MaxInputBytes = 65536,
+    [int]$MaxContextTokens = 131072,
+    [int]$MaxOutputBytes = 10485760,
+    [ValidateSet(0)][int]$RetryLimit = 0,
     [string]$EventLog = '',
     [string]$WorkDir = (Get-Location).Path
 )
@@ -21,6 +25,14 @@ function Remove-LeadingJsonPreamble([string]$Line) {
 $brief = (@($input) -join [Environment]::NewLine).TrimStart([char]0xFEFF)
 if ([string]::IsNullOrWhiteSpace($brief)) {
     throw 'Empty brief on stdin - refusing to spawn a worker with no task.'
+}
+$briefBytes = [Text.Encoding]::UTF8.GetByteCount($brief)
+if ($briefBytes -gt $MaxInputBytes) {
+    [Console]::Error.WriteLine("Worker input exceeded MaxInputBytes: ${briefBytes} > ${MaxInputBytes}.")
+    exit 66
+}
+if ($TimeoutSeconds -lt 1 -or $MaxContextTokens -lt 1024 -or $MaxOutputBytes -lt 1) {
+    throw 'TimeoutSeconds, MaxContextTokens, and MaxOutputBytes must be positive bounded values.'
 }
 $resolvedWorkDir = (Resolve-Path -LiteralPath $WorkDir -ErrorAction Stop).Path
 if (-not (Test-Path -LiteralPath $resolvedWorkDir -PathType Container)) {
@@ -81,7 +93,7 @@ while ($null -eq $workerSlot) {
 }
 $psi = [Diagnostics.ProcessStartInfo]::new()
 $psi.FileName = $env:ComSpec
-$psi.Arguments = "/d /s /c `"`"$omniroute`" launch-codex --profile $Profile -- exec --model $model --dangerously-bypass-approvals-and-sandbox --skip-git-repo-check --ephemeral --color never --cd `"$resolvedWorkDir`" -c approval_policy=`"never`" -c features.multi_agent=false --json - < `"%ALCHEMIST_INPUT_PATH%`" 1> `"%ALCHEMIST_EVENT_LOG%`" 2> `"%ALCHEMIST_STDERR_LOG%`"`""
+$psi.Arguments = "/d /s /c `"`"$omniroute`" launch-codex --profile $Profile -- exec --model $model --dangerously-bypass-approvals-and-sandbox --skip-git-repo-check --ephemeral --color never --cd `"$resolvedWorkDir`" -c approval_policy=`"never`" -c features.multi_agent=false -c model_context_window=$MaxContextTokens --json - < `"%ALCHEMIST_INPUT_PATH%`" 1> `"%ALCHEMIST_EVENT_LOG%`" 2> `"%ALCHEMIST_STDERR_LOG%`"`""
 $psi.WorkingDirectory = $resolvedWorkDir
 $psi.UseShellExecute = $false
 $psi.CreateNoWindow = $true
@@ -100,15 +112,22 @@ if (-not $started) {
     $workerSlot.ReleaseMutex(); $workerSlot.Dispose()
     throw 'Failed to start OmniRoute Codex launcher.'
 }
-if (-not $process.WaitForExit($TimeoutSeconds * 1000)) {
+$deadline = [DateTime]::UtcNow.AddSeconds($TimeoutSeconds)
+$limitReason = $null
+while (-not $process.WaitForExit(100)) {
+    $outputBytes = (Get-Item -LiteralPath $EventLog -ErrorAction SilentlyContinue).Length + (Get-Item -LiteralPath $stderrPath -ErrorAction SilentlyContinue).Length
+    if ($outputBytes -gt $MaxOutputBytes) { $limitReason = "output exceeded MaxOutputBytes: ${outputBytes} > ${MaxOutputBytes}"; break }
+    if ([DateTime]::UtcNow -ge $deadline) { $limitReason = "timed out after ${TimeoutSeconds}s"; break }
+}
+if ($limitReason) {
     try { & taskkill.exe /PID $process.Id /T /F 2>$null | Out-Null } catch { }; if (-not $process.HasExited) { try { $process.Kill() } catch { } }
     $process.WaitForExit()
     Remove-WithRetry $inputPath
     Remove-WithRetry $isolatedCodexHome -Recurse
     $workerSlot.ReleaseMutex(); $workerSlot.Dispose()
     [Console]::Error.WriteLine("EVENT_LOG=$EventLog")
-    [Console]::Error.WriteLine("Alchemist worker timed out after ${TimeoutSeconds}s.")
-    exit 124
+    [Console]::Error.WriteLine("Alchemist worker limit exceeded: $limitReason. Useful output preserved.")
+    if ($limitReason.StartsWith('timed out')) { exit 124 } else { exit 125 }
 }
 $jsonEventCount = 0
 foreach ($line in [IO.File]::ReadLines($EventLog)) {

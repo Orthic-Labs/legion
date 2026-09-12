@@ -1,20 +1,77 @@
-param([Parameter(Mandatory=$true)][string]$InstallRoot, [Parameter(Mandatory=$true)][string]$Version)
+param(
+  [Parameter(Mandatory=$true)][string]$InstallRoot,
+  [Parameter(Mandatory=$true)][string]$Version,
+  [ValidateRange(1, 600)][int]$ChildTimeoutSeconds = 60
+)
 $ErrorActionPreference = 'Stop'
 $rootPath = [IO.Path]::GetFullPath($InstallRoot).TrimEnd('\')
 if ($Version -notmatch '^\d+\.\d+\.\d+$') { throw 'Invalid Legion version' }
 $currentPath = Join-Path $rootPath 'current'
 $versionPath = Join-Path $rootPath ('versions\' + $Version)
 $backupPath = Join-Path $rootPath ('.previous-current-' + [Guid]::NewGuid().ToString('N'))
-foreach ($path in @($currentPath, $versionPath, $backupPath)) {
+$stagePath = Join-Path $rootPath ('.next-current-' + [Guid]::NewGuid().ToString('N'))
+$eventLog = Join-Path $rootPath 'install-events.jsonl'
+if ($env:LEGION_INSTALL_CHILD_TIMEOUT_SECONDS -match '^\d+$') {
+  $ChildTimeoutSeconds = [Math]::Max(1, [Math]::Min(600, [int]$env:LEGION_INSTALL_CHILD_TIMEOUT_SECONDS))
+}
+foreach ($path in @($currentPath, $versionPath, $backupPath, $stagePath, $eventLog)) {
   if (-not [IO.Path]::GetFullPath($path).StartsWith($rootPath + '\', [StringComparison]::OrdinalIgnoreCase)) { throw 'Activation path escaped install root' }
+}
+function Write-InstallEvent([string]$Stage, [string]$Status, [string]$Detail = '') {
+  [ordered]@{schema='legion.install.event.v1';timestamp=[DateTime]::UtcNow.ToString('o');stage=$Stage;status=$Status;detail=$Detail} |
+    ConvertTo-Json -Compress | Add-Content -LiteralPath $eventLog -Encoding UTF8
+}
+function Stop-ProcessTree([int]$ProcessId) {
+  try { & taskkill.exe /PID $ProcessId /T /F 2>$null | Out-Null } catch { }
+}
+function Invoke-Bounded([string]$Stage, [string]$FilePath, [string[]]$Arguments) {
+  $stdoutPath = Join-Path $rootPath ('.install-' + $Stage + '-stdout-' + [Guid]::NewGuid().ToString('N') + '.txt')
+  $stderrPath = Join-Path $rootPath ('.install-' + $Stage + '-stderr-' + [Guid]::NewGuid().ToString('N') + '.txt')
+  try {
+    Write-InstallEvent $Stage 'started' "timeout=${ChildTimeoutSeconds}s"
+    $process = Start-Process -FilePath $FilePath -ArgumentList $Arguments -WindowStyle Hidden -RedirectStandardOutput $stdoutPath -RedirectStandardError $stderrPath -PassThru
+    if (-not $process.WaitForExit($ChildTimeoutSeconds * 1000)) {
+      Stop-ProcessTree $process.Id
+      Write-InstallEvent $Stage 'failed' "timeout=${ChildTimeoutSeconds}s"
+      throw "$Stage timed out after ${ChildTimeoutSeconds}s"
+    }
+    $stdout = if (Test-Path -LiteralPath $stdoutPath) { Get-Content -LiteralPath $stdoutPath -Raw } else { '' }
+    $stderr = if (Test-Path -LiteralPath $stderrPath) { Get-Content -LiteralPath $stderrPath -Raw } else { '' }
+    if ($process.ExitCode -ne 0) {
+      Write-InstallEvent $Stage 'failed' "exit=$($process.ExitCode); stderr=$($stderr.Trim())"
+      throw "$Stage exited $($process.ExitCode)"
+    }
+    Write-InstallEvent $Stage 'complete' 'exit=0'
+    return $stdout
+  } finally {
+    Remove-Item -LiteralPath $stdoutPath,$stderrPath -Force -ErrorAction SilentlyContinue
+  }
 }
 if (-not (Test-Path -LiteralPath (Join-Path $versionPath 'bin\legion.exe') -PathType Leaf)) { throw 'Installed Legion executable missing' }
 $hadCurrent = $null -ne (Get-Item -LiteralPath $currentPath -Force -ErrorAction SilentlyContinue)
+Write-InstallEvent 'activation' 'started' "version=$Version"
 if ($hadCurrent) { Move-Item -LiteralPath $currentPath -Destination $backupPath }
 try {
-  New-Item -ItemType Junction -Path $currentPath -Target $versionPath -ErrorAction Stop | Out-Null
+  Copy-Item -LiteralPath $versionPath -Destination $stagePath -Recurse
+  Move-Item -LiteralPath $stagePath -Destination $currentPath
+  $legion = Join-Path $currentPath 'bin\legion.exe'
+  $reportedVersion = (Invoke-Bounded 'activation-version' $legion @('--version')).Trim()
+  if ($reportedVersion -ne $Version) { throw "Activation verification returned version $reportedVersion" }
+  if ($env:LEGION_INSTALL_TEST_MODE -eq 'refresh-failure') { throw 'Forced client refresh failure' }
+  if ($env:LEGION_INSTALL_TEST_MODE -eq 'stalled-child') {
+    Invoke-Bounded 'client-refresh' "$env:SystemRoot\System32\WindowsPowerShell\v1.0\powershell.exe" @('-NoProfile','-NonInteractive','-Command','Start-Sleep -Seconds 30') | Out-Null
+  } else {
+    $refreshJson = Invoke-Bounded 'client-refresh' $legion @('--json','setup','repair','--confirm')
+    try { $refresh = $refreshJson | ConvertFrom-Json -ErrorAction Stop } catch { throw 'Client refresh returned invalid JSON' }
+    if ($refresh.status -ne 'complete') { throw "Client refresh status=$($refresh.status)" }
+  }
+  Remove-Item -LiteralPath $backupPath -Recurse -Force -ErrorAction SilentlyContinue
+  [ordered]@{schema='legion.install.activation.v1';state='activated';current=$currentPath;target=$versionPath;previous=$null;refresh='complete'} | ConvertTo-Json -Compress | Set-Content -LiteralPath (Join-Path $rootPath 'activation.json') -Encoding UTF8
+  Write-InstallEvent 'activation' 'complete' "version=$Version"
 } catch {
-  if ($hadCurrent -and -not (Test-Path -LiteralPath $currentPath)) { Move-Item -LiteralPath $backupPath -Destination $currentPath }
+  Remove-Item -LiteralPath $stagePath,$currentPath -Recurse -Force -ErrorAction SilentlyContinue
+  if ($hadCurrent -and (Test-Path -LiteralPath $backupPath)) { Move-Item -LiteralPath $backupPath -Destination $currentPath }
+  Write-InstallEvent 'activation' 'failed' $_.Exception.Message
+  Write-InstallEvent 'rollback' 'complete' $(if ($hadCurrent) { 'previous current restored' } else { 'new current removed' })
   throw
 }
-[ordered]@{schema='legion.install.activation.v1';state='activated';current=$currentPath;target=$versionPath;previous=$(if($hadCurrent){$backupPath}else{$null})} | ConvertTo-Json -Compress | Set-Content -LiteralPath (Join-Path $rootPath 'activation.json') -Encoding UTF8

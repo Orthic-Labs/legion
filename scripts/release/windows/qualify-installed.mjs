@@ -29,6 +29,12 @@ function execute(commandRunner, executable, args, options, label) {
 		evidence: commandEvidence(result),
 	};
 }
+function executeExpectedFailure(commandRunner, executable, args, options, label) {
+	const result = commandRunner(executable, args, releaseSpawnOptions(options, INSTALLED_COMMAND_TIMEOUT_MS));
+	if (result?.error) fail(`${label} did not return control: ${commandDiagnostic(result)}`);
+	if (result?.status === 0) fail(`${label} falsely reported success`);
+	return { stdout: String(result?.stdout ?? "").trim(), stderr: String(result?.stderr ?? "").trim(), evidence: commandEvidence(result) };
+}
 function setupPayload(run, kind, executable, label) {
 	let value;
 	try { value = JSON.parse(run.stdout); }
@@ -118,6 +124,11 @@ export function qualifyInstalledWindows({ setup, outputRoot, finalizationPath, s
 		const installRun = step("install", () => execute(commandRunner, installer, ["/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART", `/DIR=${installRoot}`], { cwd: workspace, env: environment }, "silent setup"));
 		file(executable, "installed legion.exe");
 		const versionRun = step("version", () => execute(commandRunner, executable, ["--version"], { cwd: installRoot, env: environment }, "installed legion --version"));
+		const activatedSha256 = sha256(executable);
+		const forcedFailureRun = step("forced-refresh-failure", () => executeExpectedFailure(commandRunner, installer, ["/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART", `/DIR=${installRoot}`], { cwd: workspace, env: { ...environment, LEGION_INSTALL_TEST_MODE: "refresh-failure" } }, "forced client refresh failure"));
+		if (sha256(executable) !== activatedSha256) fail("forced client refresh failure did not restore previous activation");
+		const stalledChildRun = step("stalled-child", () => executeExpectedFailure(commandRunner, installer, ["/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART", `/DIR=${installRoot}`], { cwd: workspace, env: { ...environment, LEGION_INSTALL_TEST_MODE: "stalled-child", LEGION_INSTALL_CHILD_TIMEOUT_SECONDS: "1" } }, "stalled installer child"));
+		if (sha256(executable) !== activatedSha256) fail("stalled installer child did not restore previous activation");
 		const repairRun = step("repair", () => execute(commandRunner, executable, ["--json", "setup", "repair", "--confirm"], { cwd: installRoot, env: environment }, "installed legion setup repair"));
 		const repair = setupPayload(repairRun, "legion-setup-execution", executable, "installed legion setup repair");
 		const statusRun = step("status", () => execute(commandRunner, executable, ["--json", "setup", "status"], { cwd: installRoot, env: environment }, "installed legion setup status"));
@@ -128,7 +139,7 @@ export function qualifyInstalledWindows({ setup, outputRoot, finalizationPath, s
 		const uninstallRun = step("uninstall", () => execute(commandRunner, uninstaller, ["/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART"], { cwd: workspace, env: environment }, "silent uninstall"));
 		if (!disappears(installRoot)) fail("silent uninstall left installed product behind");
 		const evidencePath = join(output, "qualification.json");
-		const evidence = { schemaVersion: 1, kind: "legion-windows-installed-installer-qualification", status: "qualified", product: "legion", version, sourceRevision: revision, windowsFinalizationSha256: finalizationSha256, setup: { name: installer.split(/[\\/]/).at(-1), sha256: sha256(installer), size: statSync(installer).size }, commands: { install: installRun.evidence, version: versionRun.evidence, repair: repairRun.evidence, status: statusRun.evidence, doctor: doctorRun.evidence, uninstall: uninstallRun.evidence }, activation: { repair, status } };
+		const evidence = { schemaVersion: 1, kind: "legion-windows-installed-installer-qualification", status: "qualified", product: "legion", version, sourceRevision: revision, windowsFinalizationSha256: finalizationSha256, setup: { name: installer.split(/[\\/]/).at(-1), sha256: sha256(installer), size: statSync(installer).size }, commands: { install: installRun.evidence, version: versionRun.evidence, forcedRefreshFailure: forcedFailureRun.evidence, stalledChild: stalledChildRun.evidence, repair: repairRun.evidence, status: statusRun.evidence, doctor: doctorRun.evidence, uninstall: uninstallRun.evidence }, activation: { repair, status, rollbackVerified: true, stalledChildBounded: true } };
 		writeFileSync(evidencePath, `${JSON.stringify(evidence, null, 2)}\n`);
 		return { ...evidence, evidence: { path: evidencePath, role: "qualification", size: statSync(evidencePath).size, sha256: sha256(evidencePath) } };
 	} catch (error) {

@@ -21,6 +21,59 @@ class WindowsRunnerTest(unittest.TestCase):
     def test_runner_does_not_depend_on_console_input(self):
         self.assertNotIn("Console.In", RUNNER.read_text(encoding="utf-8"))
 
+    def test_runner_declares_external_resource_limits(self):
+        runner = RUNNER.read_text(encoding="utf-8")
+        self.assertIn("[int]$MaxInputBytes = 65536", runner)
+        self.assertIn("[int]$MaxContextTokens = 131072", runner)
+        self.assertIn("[int]$MaxOutputBytes = 10485760", runner)
+        self.assertIn("[ValidateSet(0)][int]$RetryLimit = 0", runner)
+        self.assertIn("-c model_context_window=$MaxContextTokens", runner)
+
+    @unittest.skipUnless(sys.platform == "win32", "requires Windows PowerShell (powershell.exe)")
+    def test_oversized_input_stops_before_launcher(self):
+        with tempfile.TemporaryDirectory() as raw:
+            tmp = Path(raw)
+            codex_home = tmp / ".codex"
+            codex_home.mkdir()
+            (codex_home / "mimo.config.toml").write_text('model = "opencode-go/mimo-v2.5"\n', encoding="utf-8")
+            env = os.environ.copy()
+            env["CODEX_HOME"] = str(codex_home)
+            result = subprocess.run(
+                ["powershell.exe", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", str(RUNNER), "-Profile", "mimo", "-MaxInputBytes", "8", "-WorkDir", str(tmp)],
+                input="0123456789", text=True, capture_output=True, env=env, timeout=10,
+            )
+            self.assertEqual(result.returncode, 66, result.stderr)
+            self.assertIn("exceeded MaxInputBytes", result.stderr)
+
+    @unittest.skipUnless(sys.platform == "win32", "requires Windows PowerShell (powershell.exe)")
+    def test_oversized_output_stops_and_preserves_output(self):
+        with tempfile.TemporaryDirectory() as raw:
+            tmp = Path(raw)
+            fake_bin = tmp / "bin"
+            fake_bin.mkdir()
+            codex_home = tmp / ".codex"
+            codex_home.mkdir()
+            (codex_home / "mimo.config.toml").write_text('model = "opencode-go/mimo-v2.5"\n', encoding="utf-8")
+            fake = fake_bin / "omniroute.cmd"
+            fake.write_text(
+                "@echo off\r\n"
+                "more > nul\r\n"
+                ":loop\r\n"
+                "echo {\"type\":\"item.completed\",\"text\":\"01234567890123456789\"}\r\n"
+                "goto loop\r\n",
+                encoding="utf-8",
+            )
+            event_log = tmp / "oversized.jsonl"
+            env = os.environ.copy()
+            env.update({"PATH": str(fake_bin) + os.pathsep + env["PATH"], "CODEX_HOME": str(codex_home), "ALCHEMIST_PYTHON": sys.executable})
+            result = subprocess.run(
+                ["powershell.exe", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", str(RUNNER), "-Profile", "mimo", "-TimeoutSeconds", "10", "-MaxOutputBytes", "256", "-EventLog", str(event_log), "-WorkDir", str(tmp)],
+                input="<task>probe</task>", text=True, capture_output=True, env=env, timeout=20,
+            )
+            self.assertEqual(result.returncode, 125, result.stderr)
+            self.assertIn("output exceeded MaxOutputBytes", result.stderr)
+            self.assertGreater(event_log.stat().st_size, 256)
+
     @unittest.skipUnless(sys.platform == "win32", "requires Windows PowerShell (powershell.exe)")
     def test_routes_stdin_through_omniroute_launcher(self):
         with tempfile.TemporaryDirectory() as raw:

@@ -103,19 +103,6 @@ begin
   if ResultCode <> 0 then RaiseException('Could not activate Legion current install');
 end;
 
-procedure RefreshClientProjections;
-var
-  ResultCode: Integer;
-begin
-  { Each client reads its own copy of the skill tree, so an upgrade that only
-    swaps `current` leaves every client serving the previous version until
-    somebody re-runs setup by hand. Refresh them here. A non-zero result means
-    one client could not be adopted, not that the install failed, so report it
-    and leave the installed product in place. }
-  Exec(ExpandConstant('{app}') + '\current\bin\legion.exe', 'setup repair --confirm',
-       '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
-end;
-
 function PrepareToInstall(var NeedsRestart: Boolean): String;
 var
   ResultCode: Integer;
@@ -137,7 +124,6 @@ begin
   if CurStep = ssPostInstall then begin
     ActivateCurrent;
     AddCurrentToUserPath;
-    RefreshClientProjections;
   end;
 end;
 
