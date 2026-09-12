@@ -56,7 +56,7 @@ try {
   Copy-Item -LiteralPath $versionPath -Destination $stagePath -Recurse
   Move-Item -LiteralPath $stagePath -Destination $currentPath
   $legion = Join-Path $currentPath 'bin\legion.exe'
-  $reportedVersion = (Invoke-Bounded 'activation-version' $legion @('--version')).Trim()
+  $reportedVersion = ([string](Invoke-Bounded 'activation-version' $legion @('--version'))).Trim()
   if ($reportedVersion -ne $Version) { throw "Activation verification returned version $reportedVersion" }
   if ($env:LEGION_INSTALL_TEST_MODE -eq 'refresh-failure') { throw 'Forced client refresh failure' }
   if ($env:LEGION_INSTALL_TEST_MODE -eq 'stalled-child') {
@@ -72,7 +72,7 @@ try {
 } catch {
   Remove-Item -LiteralPath $stagePath,$currentPath -Recurse -Force -ErrorAction SilentlyContinue
   if ($hadCurrent -and (Test-Path -LiteralPath $backupPath)) { Move-Item -LiteralPath $backupPath -Destination $currentPath }
-  Write-InstallEvent 'activation' 'failed' $_.Exception.Message
+  Write-InstallEvent 'activation' 'failed' ($_ | Out-String).Trim()
   Write-InstallEvent 'rollback' 'complete' $(if ($hadCurrent) { 'previous current restored' } else { 'new current removed' })
   throw
 }
