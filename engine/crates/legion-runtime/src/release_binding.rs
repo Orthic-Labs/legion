@@ -1127,25 +1127,16 @@ mod tests {
 
     #[cfg(windows)]
     fn short_path(path: &Path) -> Option<PathBuf> {
-        use std::os::windows::ffi::OsStrExt;
-
-        unsafe extern "system" {
-            fn GetShortPathNameW(
-                long_path: *const u16,
-                short_path: *mut u16,
-                short_path_length: u32,
-            ) -> u32;
-        }
-
-        let input: Vec<u16> = path.as_os_str().encode_wide().chain(Some(0)).collect();
-        let mut output = vec![0u16; 32_768];
-        let length = unsafe { GetShortPathNameW(input.as_ptr(), output.as_mut_ptr(), output.len() as u32) };
-        if length == 0 || length >= output.len() as u32 {
+        let output = std::process::Command::new("cmd.exe")
+            .args(["/d", "/c", "for %I in (\"%LEGION_ALIAS_PATH%\") do @echo %~sI"])
+            .env("LEGION_ALIAS_PATH", path)
+            .output()
+            .ok()?;
+        if !output.status.success() {
             return None;
         }
-        Some(PathBuf::from(String::from_utf16_lossy(
-            &output[..length as usize],
-        )))
+        let value = String::from_utf8(output.stdout).ok()?;
+        (!value.trim().is_empty()).then(|| PathBuf::from(value.trim()))
     }
 
     static NEXT_ROOT: AtomicU64 = AtomicU64::new(0);
