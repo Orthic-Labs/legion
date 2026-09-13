@@ -2042,7 +2042,7 @@ fn validate_installed_projection(input: &ClientProjectionInput) -> Result<(), Se
     reject_production_path(&executable)?;
     reject_production_path(&current_root)?;
     reject_production_path(&install_root)?;
-    let resolved_current_is_active = path_starts_with(&current_root, &install_root)
+    let resolved_current_is_active = installed_path_starts_with(&current_root, &install_root)
         || windows_localcache_equivalent(
             &lexical_current_root,
             &current_root,
@@ -2052,14 +2052,14 @@ fn validate_installed_projection(input: &ClientProjectionInput) -> Result<(), Se
         || !current_root.is_dir()
         || !install_root.is_dir()
         || !resolved_current_is_active
-        || !path_starts_with(&executable, &current_root)
+        || !installed_path_starts_with(&executable, &current_root)
     {
         return Err(err(
             SetupErrorCode::PathEscapeRefused,
             "installed client projection executable escapes resolved active release",
         ));
     }
-    if !path_starts_with(&input.source_root, &lexical_current_root) {
+    if !installed_path_starts_with(&input.source_root, &lexical_current_root) {
         return Err(err(
             SetupErrorCode::PathEscapeRefused,
             "installed client projection source escapes stable current",
@@ -2068,17 +2068,17 @@ fn validate_installed_projection(input: &ClientProjectionInput) -> Result<(), Se
     if path_exists(&input.source_root)? {
         let source = fs::canonicalize(&input.source_root).map_err(io)?;
         reject_production_path(&source)?;
-        if !path_starts_with(&source, &current_root) {
+        if !installed_path_starts_with(&source, &current_root) {
             return Err(err(
                 SetupErrorCode::PathEscapeRefused,
                 "installed client projection source escapes stable current",
             ));
         }
     }
-    if path_starts_with(&input.target_root, &lexical_current_root)
-        || path_starts_with(&input.state_root, &lexical_current_root)
-        || path_starts_with(&input.target_root, &current_root)
-        || path_starts_with(&input.state_root, &current_root)
+    if installed_path_starts_with(&input.target_root, &lexical_current_root)
+        || installed_path_starts_with(&input.state_root, &lexical_current_root)
+        || installed_path_starts_with(&input.target_root, &current_root)
+        || installed_path_starts_with(&input.state_root, &current_root)
     {
         return Err(err(
             SetupErrorCode::PathEscapeRefused,
@@ -2906,6 +2906,15 @@ fn path_starts_with(path: &Path, root: &Path) -> bool {
             .iter()
             .zip(root.iter())
             .all(|(path, root)| path == root)
+}
+
+fn installed_path_starts_with(path: &Path, root: &Path) -> bool {
+    path_starts_with(path, root)
+        || (cfg!(windows)
+            && match (fs::canonicalize(path), fs::canonicalize(root)) {
+                (Ok(path), Ok(root)) => path_starts_with(&path, &root),
+                _ => false,
+            })
 }
 
 fn windows_localcache_equivalent(lexical: &Path, resolved: &Path, install_root: &Path) -> bool {
@@ -3884,7 +3893,8 @@ mod tests {
 
         let root = TestRoot::new("short-alias");
         let current = root.0.join("current");
-        fs::create_dir_all(&current).unwrap();
+        let source = current.join("share/legion/assets");
+        fs::create_dir_all(&source).unwrap();
         let short = std::process::Command::new("cmd.exe")
             .args(["/d", "/c"])
             .raw_arg("for %I in (\"%LEGION_ALIAS_PATH%\") do @echo %~sI")
@@ -3898,6 +3908,8 @@ mod tests {
         let outside = TestRoot::new("short-alias-outside");
         fs::create_dir_all(&outside.0).unwrap();
         assert!(paths_equal(&short, &current));
+        assert!(installed_path_starts_with(&source, &short));
         assert!(!paths_equal(&short, &outside.0));
+        assert!(!installed_path_starts_with(&outside.0, &short));
     }
 }
