@@ -1,11 +1,14 @@
 dist/
+.cache/
 engine/target/
 node_modules/
 .audit/
 .audit
 .legion/
 .right-release/
-.agent/
+.agent/*
+!.agent/config.json
+.workbuddy-ai/
 .impeccable/
 .claude/settings.local.json
 __pycache__/

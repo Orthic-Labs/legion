@@ -40,7 +40,7 @@ function executeExpectedFailure(commandRunner, executable, args, options, label)
 	if (result?.status === 0) fail(`${label} falsely reported success`);
 	return { stdout: String(result?.stdout ?? "").trim(), stderr: String(result?.stderr ?? "").trim(), evidence: commandEvidence(result) };
 }
-function setupPayload(run, kind, executable, label) {
+function setupPayload(run, kind, executable, label, { requiredProjections = ["claudePlugin"] } = {}) {
 	let value;
 	try { value = JSON.parse(run.stdout); }
 	catch (error) { fail(`${label} did not return JSON: ${error.message}`); }
@@ -51,7 +51,7 @@ function setupPayload(run, kind, executable, label) {
 		const client = clients?.find((item) => (item?.clientId ?? item?.client_id) === clientId);
 		if (!client?.installed || client?.fidelity !== "Full") fail(`${label} did not structurally activate ${clientId}`);
 	}
-	for (const projection of ["claudePlugin", "codexPlugin"]) {
+	for (const projection of requiredProjections) {
 		if (value.liveIdentity?.projections?.[projection]?.state !== "current") fail(`${label} did not verify current ${projection}`);
 	}
 	return {
@@ -149,13 +149,16 @@ export function qualifyInstalledWindows({ setup, outputRoot, finalizationPath, s
 		const repair = setupPayload(repairRun, "legion-setup-execution", executable, "installed legion setup repair");
 		const statusRun = step("status", () => execute(commandRunner, executable, ["--json", "setup", "status"], { cwd: installRoot, env: environment }, "installed legion setup status"));
 		const status = setupPayload(statusRun, "legion-setup-status", executable, "installed legion setup status");
+		mkdirSync(join(profile, ".codex", "plugins", "legion"), { recursive: true });
+		const codexPluginRepairRun = step("codex-plugin-opt-in", () => execute(commandRunner, executable, ["--json", "setup", "repair", "--confirm", "--client", "codex"], { cwd: installRoot, env: environment }, "installed legion setup repair for codex plugin"));
+		const codexPluginRepair = setupPayload(codexPluginRepairRun, "legion-setup-execution", executable, "installed legion setup repair for codex plugin", { requiredProjections: ["codexPlugin"] });
 		const doctorRun = step("doctor", () => execute(commandRunner, executable, ["doctor"], { cwd: installRoot, env: environment }, "installed legion doctor"));
 		const uninstaller = join(installRoot, "unins000.exe");
 		file(uninstaller, "installed uninstaller");
 		const uninstallRun = step("uninstall", () => execute(commandRunner, uninstaller, ["/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART"], { cwd: workspace, env: environment }, "silent uninstall"));
 		if (!disappears(installRoot)) fail("silent uninstall left installed product behind");
 		const evidencePath = join(output, "qualification.json");
-		const evidence = { schemaVersion: 1, kind: "legion-windows-installed-installer-qualification", status: "qualified", product: "legion", version, sourceRevision: revision, windowsFinalizationSha256: finalizationSha256, setup: { name: installer.split(/[\\/]/).at(-1), sha256: sha256(installer), size: statSync(installer).size }, commands: { install: installRun.evidence, version: versionRun.evidence, forcedRefreshFailure: forcedFailureRun.evidence, stalledChild: stalledChildRun.evidence, repair: repairRun.evidence, status: statusRun.evidence, doctor: doctorRun.evidence, uninstall: uninstallRun.evidence }, activation: { repair, status, rollbackVerified: true, stalledChildBounded: true } };
+		const evidence = { schemaVersion: 1, kind: "legion-windows-installed-installer-qualification", status: "qualified", product: "legion", version, sourceRevision: revision, windowsFinalizationSha256: finalizationSha256, setup: { name: installer.split(/[\\/]/).at(-1), sha256: sha256(installer), size: statSync(installer).size }, commands: { install: installRun.evidence, version: versionRun.evidence, forcedRefreshFailure: forcedFailureRun.evidence, stalledChild: stalledChildRun.evidence, repair: repairRun.evidence, status: statusRun.evidence, codexPluginOptIn: codexPluginRepairRun.evidence, doctor: doctorRun.evidence, uninstall: uninstallRun.evidence }, activation: { repair, status, codexPluginRepair, rollbackVerified: true, stalledChildBounded: true } };
 		writeFileSync(evidencePath, `${JSON.stringify(evidence, null, 2)}\n`);
 		return { ...evidence, evidence: { path: evidencePath, role: "qualification", size: statSync(evidencePath).size, sha256: sha256(evidencePath) } };
 	} catch (error) {

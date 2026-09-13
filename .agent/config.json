@@ -1,0 +1,38 @@
+{
+  "canonicalDocs": [
+    "AGENTS.md",
+    "CLAUDE.md",
+    "README.md"
+  ],
+  "archiveGlobs": [
+    "docs/archive/",
+    "docs/history/"
+  ],
+  "budgets": {
+    "briefMaxLines": 160,
+    "maxReadFirstFiles": 8,
+    "maxSourceSpans": 30,
+    "maxTruths": 10,
+    "maxGotchas": 8,
+    "maxCodeEvidence": 14
+  },
+  "hygiene": {
+    "decompositionReviewLoc": 400,
+    "secondAssessorIncomingRelationships": 25
+  },
+  "ignoredPrefixes": [
+    ".agent/",
+    ".audit/",
+    ".git/",
+    ".codex-tmp/",
+    ".cache/",
+    ".workbuddy-ai/",
+    ".gstack/",
+    "node_modules/",
+    "target/",
+    "engine/target",
+    "dist/",
+    "docs/product.md",
+    "docs/architecture.md"
+  ]
+}

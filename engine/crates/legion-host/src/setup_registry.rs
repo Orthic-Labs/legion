@@ -455,6 +455,11 @@ pub fn repair_client_projection(
             removed: Vec::new(),
         });
     }
+    // An empty opt-in root signals intent to activate an explicit-only client.
+    // Materialize the projection and write a ledger even though the directory
+    // already existed before repair began.
+    let explicit_opt_in_activation =
+        input.explicit_only && projected_before && prior_ledger.is_none();
     let skills_only = input.projection == "skills-only";
     // Link the whole root at the installed tree when this is a full plugin
     // root that nothing else owns. Reads resolve through the link, so every
@@ -466,11 +471,12 @@ pub fn repair_client_projection(
     // works for every client including a shared skills-only root where a
     // whole-root link cannot: the destination there holds other products'
     // skills too, so only our own entries may be touched.
+    let link_units = projection_link_units(input)?;
     let mut linked_units_created = Vec::new();
     if path_exists(&input.source_root)? {
-        for (name, source) in projection_link_units(input)? {
-            let target = input.target_root.join(&name);
-            if projection_root_links_to(&target, &source)? {
+        for (name, source) in &link_units {
+            let target = input.target_root.join(name);
+            if projection_root_links_to(&target, source)? {
                 continue;
             }
             let owned = prior_ledger.as_ref().is_some_and(|ledger| {
@@ -496,11 +502,29 @@ pub fn repair_client_projection(
             if let Some(parent) = target.parent() {
                 fs::create_dir_all(parent).map_err(io)?;
             }
-            if link_projection_root(&source, &target)? {
-                linked_units_created.push(name);
+            if link_projection_root(source, &target)? {
+                linked_units_created.push(name.clone());
             }
         }
     }
+    let valid_linked_units: Vec<String> = link_units
+        .iter()
+        .filter_map(|(name, source)| {
+            let target = input.target_root.join(name);
+            projection_root_links_to(&target, source)
+                .ok()
+                .filter(|linked| *linked)
+                .map(|_| name.clone())
+        })
+        .collect();
+    let projection_links_complete =
+        !link_units.is_empty() && valid_linked_units.len() == link_units.len();
+    let reclaimable_orphan = prior_ledger.is_none()
+        && target_existed_before
+        && (projection_links_complete || read_projection_claim(input)?.is_some());
+    // Installer rollback can leave junctions or a prior Legion projection behind
+    // while the ledger is missing or no longer matches the active release binding.
+    let orphan_projection = reclaimable_orphan;
     let target_exists = path_exists(&input.target_root)?;
     let linked_root = projection_root_links_to(&input.target_root, &input.source_root)?;
     // A link the operator made themselves — one client pointed at another, say
@@ -544,6 +568,10 @@ pub fn repair_client_projection(
         let linked_by_this_repair = linked_units_created
             .iter()
             .any(|unit| projection_relative_is_under_unit(relative, unit));
+        let linked_by_existing = valid_linked_units
+            .iter()
+            .any(|unit| projection_relative_is_under_unit(relative, unit));
+        let reclaim_orphan = orphan_projection;
         if path_exists(&destination)? {
             let actual = digest_path(&destination)?;
             let owned = prior_ledger
@@ -557,15 +585,30 @@ pub fn repair_client_projection(
                 } else {
                     preserved.push(destination.clone());
                 }
-            } else if owned.is_some() || linked_by_this_repair {
+            } else if owned.is_some()
+                || linked_by_this_repair
+                || linked_by_existing
+                || reclaim_orphan
+                || explicit_opt_in_activation
+            {
                 next_files.insert(relative.clone(), source_digest.clone());
-                if linked_by_this_repair && owned.is_none() {
+                if owned.is_none()
+                    && (linked_by_this_repair
+                        || linked_by_existing
+                        || reclaim_orphan
+                        || explicit_opt_in_activation)
+                {
                     repaired.push(destination.clone());
                 }
             } else {
                 preserved.push(destination.clone());
             }
-        } else if root_owned || skills_only || !target_existed_before {
+        } else if root_owned
+            || skills_only
+            || !target_existed_before
+            || reclaim_orphan
+            || explicit_opt_in_activation
+        {
             let unowned_skill_parent = if skills_only {
                 match destination.parent() {
                     Some(parent) if parent != input.target_root.as_path() => {
@@ -613,9 +656,13 @@ pub fn repair_client_projection(
             }
         }
     }
-    if !repaired.is_empty() || root_owned || skills_only {
+    if !repaired.is_empty()
+        || root_owned
+        || skills_only
+        || (explicit_opt_in_activation && !next_files.is_empty())
+    {
         let created_root = prior_ledger.as_ref().map_or(
-            !target_existed_before && !skills_only,
+            (!target_existed_before || explicit_opt_in_activation) && !skills_only,
             |value| value.created_root,
         );
         let value = ClientProjectionLedger {
@@ -632,6 +679,7 @@ pub fn repair_client_projection(
             files: next_files,
         };
         write_projection_ledger(input, &value)?;
+        write_projection_claim(input, &value)?;
         // Ledger was written above; inspection below re-reads it so an
         // interrupted write cannot be reported as active.
     }
@@ -732,6 +780,7 @@ pub fn remove_client_projection(
         if path.exists() {
             fs::remove_file(path).map_err(io)?;
         }
+        remove_projection_claim(input)?;
         if ledger.created_root && input.projection != "skills-only" {
             remove_empty_projection_root(&input.target_root)?;
         }
@@ -1031,7 +1080,21 @@ struct ClientProjectionLedger {
 }
 
 const CLIENT_PROJECTION_LEDGER_SCHEMA_VERSION: u32 = 1;
+const CLIENT_PROJECTION_CLAIM_SCHEMA_VERSION: u32 = 1;
 const CLIENT_PROJECTION_OWNER: &str = "legion-client-projection-v1";
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct ClientProjectionClaim {
+    schema_version: u32,
+    owner: String,
+    client_id: String,
+    projection: String,
+    #[serde(default = "default_projection_origin")]
+    origin: String,
+    generation: String,
+    target_root: PathBuf,
+}
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
@@ -2662,6 +2725,75 @@ fn projection_ledger_path(input: &ClientProjectionInput) -> PathBuf {
         .join(format!("{}.json", input.client_id))
 }
 
+fn projection_claim_path(input: &ClientProjectionInput) -> PathBuf {
+    input
+        .state_root
+        .join("integrations")
+        .join("projections")
+        .join(format!("{}.claim.json", input.client_id))
+}
+
+fn read_projection_claim(input: &ClientProjectionInput) -> Result<Option<ClientProjectionClaim>, SetupError> {
+    let path = projection_claim_path(input);
+    require_contained(&input.state_root, &path)?;
+    if !path.exists() {
+        return Ok(None);
+    }
+    let metadata = fs::symlink_metadata(&path).map_err(io)?;
+    if metadata.file_type().is_symlink() {
+        return Err(err(
+            SetupErrorCode::PathEscapeRefused,
+            "client projection claim is a symlink",
+        ));
+    }
+    let Ok(value) = serde_json::from_slice::<ClientProjectionClaim>(&read(&path)?) else {
+        return Ok(None);
+    };
+    if value.schema_version != CLIENT_PROJECTION_CLAIM_SCHEMA_VERSION
+        || value.owner != CLIENT_PROJECTION_OWNER
+        || value.client_id != input.client_id
+        || value.projection != input.projection
+        || value.target_root != input.target_root
+        || value.origin != input.origin
+        || value.generation != input.generation
+    {
+        return Ok(None);
+    }
+    Ok(Some(value))
+}
+
+fn write_projection_claim(
+    input: &ClientProjectionInput,
+    ledger: &ClientProjectionLedger,
+) -> Result<(), SetupError> {
+    let claim = ClientProjectionClaim {
+        schema_version: CLIENT_PROJECTION_CLAIM_SCHEMA_VERSION,
+        owner: CLIENT_PROJECTION_OWNER.into(),
+        client_id: ledger.client_id.clone(),
+        projection: ledger.projection.clone(),
+        origin: ledger.origin.clone(),
+        generation: ledger.generation.clone(),
+        target_root: ledger.target_root.clone(),
+    };
+    let path = projection_claim_path(input);
+    let bytes = serde_json::to_vec(&claim).map_err(|_| {
+        err(
+            SetupErrorCode::StateSerializationFailed,
+            "cannot encode client projection claim",
+        )
+    })?;
+    atomic_write(&input.state_root, &path, &bytes)
+}
+
+fn remove_projection_claim(input: &ClientProjectionInput) -> Result<(), SetupError> {
+    let path = projection_claim_path(input);
+    require_contained(&input.state_root, &path)?;
+    if path.exists() {
+        fs::remove_file(path).map_err(io)?;
+    }
+    Ok(())
+}
+
 fn read_projection_ledger(
     input: &ClientProjectionInput,
 ) -> Result<Option<ClientProjectionLedger>, SetupError> {
@@ -2833,13 +2965,20 @@ fn projection_relative_is_under_unit(relative: &str, unit: &str) -> bool {
 /// product the single source it claims to be. Windows needs a junction here:
 /// `symlink_dir` requires privilege the installer does not have, while
 /// `mklink /J` does not.
+fn windows_mklink_path(path: &Path) -> String {
+    let text = path.to_string_lossy().into_owned();
+    text.strip_prefix(r"\\?\")
+        .map(str::to_owned)
+        .unwrap_or(text)
+}
+
 fn link_projection_root(source: &Path, target: &Path) -> Result<bool, SetupError> {
     #[cfg(windows)]
     {
         let status = std::process::Command::new("cmd")
             .args(["/c", "mklink", "/J"])
-            .arg(target)
-            .arg(source)
+            .arg(windows_mklink_path(target))
+            .arg(windows_mklink_path(source))
             .stdout(std::process::Stdio::null())
             .stderr(std::process::Stdio::null())
             .status();
@@ -4008,6 +4147,29 @@ mod tests {
     }
 
     #[test]
+    fn orphaned_projection_links_are_reclaimed_on_repair() {
+        let root = TestRoot::new("projection-orphaned-links");
+        let input = projection_test_input(&root, CLIENT_CLAUDE, "native-plugin", false);
+
+        repair_client_projection(&input).unwrap();
+        let ledger_path = projection_ledger_path(&input);
+        assert!(ledger_path.is_file());
+        fs::remove_file(&ledger_path).unwrap();
+
+        let result = repair_client_projection(&input).unwrap();
+
+        assert_eq!(result.inspection.state, "current");
+        assert_eq!(result.inspection.ownership, "legion");
+        assert_eq!(
+            result.inspection.generation.as_deref(),
+            Some(input.generation.as_str())
+        );
+        let ledger = read_projection_ledger(&input).unwrap().unwrap();
+        assert!(ledger.files.contains_key("skills/example/SKILL.md"));
+        assert!(ledger.files.contains_key("plugin.json"));
+    }
+
+    #[test]
     fn preexisting_unowned_matching_plugin_stays_preserved() {
         let root = TestRoot::new("projection-unowned-matching");
         let input = projection_test_input(&root, CLIENT_CLAUDE, "native-plugin", false);
@@ -4068,6 +4230,28 @@ mod tests {
         assert!(result.removed.is_empty());
         assert!(!input.target_root.exists());
         assert!(read_projection_ledger(&input).unwrap().is_none());
+    }
+
+    #[test]
+    fn explicit_opt_in_projection_materializes_empty_target() {
+        let root = TestRoot::new("projection-explicit-opt-in");
+        let input = projection_test_input(
+            &root,
+            CLIENT_CODEX,
+            "agent-plugins-with-explicit-sidecar",
+            true,
+        );
+        fs::create_dir_all(&input.target_root).unwrap();
+
+        let result = repair_client_projection(&input).unwrap();
+
+        assert_eq!(result.inspection.ownership, "legion");
+        assert!(read_projection_ledger(&input).unwrap().is_some());
+        assert!(!result.repaired.is_empty());
+        // Development test inputs omit an installed executable, so host MCP
+        // registration stays advisory and the projection is degraded rather
+        // than current even though the ledger is written.
+        assert_eq!(result.inspection.state, "degraded");
     }
 
     #[cfg(windows)]
