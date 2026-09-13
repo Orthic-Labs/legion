@@ -2868,7 +2868,16 @@ fn ensure_projection_tree_safe_with_allowed_root(
 
 fn paths_equal(left: &Path, right: &Path) -> bool {
     if cfg!(windows) {
-        path_starts_with(left, right) && path_starts_with(right, left)
+        // Windows may present one existing product root through its 8.3 alias
+        // (for example `RUNNER~1`) while another path uses its long form.
+        // Lexical comparison handles casing, then canonicalization handles
+        // this alias without broadening the accepted path shape.
+        (path_starts_with(left, right) && path_starts_with(right, left))
+            || match (fs::canonicalize(left), fs::canonicalize(right)) {
+                (Ok(left), Ok(right)) => path_starts_with(&left, &right)
+                    && path_starts_with(&right, &left),
+                _ => false,
+            }
     } else {
         left == right
     }
@@ -3866,5 +3875,29 @@ mod tests {
             &virtualized.join("escaped"),
             &install_root,
         ));
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn windows_paths_equal_accepts_existing_short_long_alias_but_not_escape() {
+        use std::os::windows::process::CommandExt;
+
+        let root = TestRoot::new("short-alias");
+        let current = root.0.join("current");
+        fs::create_dir_all(&current).unwrap();
+        let short = std::process::Command::new("cmd.exe")
+            .args(["/d", "/c"])
+            .raw_arg("for %I in (\"%LEGION_ALIAS_PATH%\") do @echo %~sI")
+            .env("LEGION_ALIAS_PATH", &current)
+            .output()
+            .unwrap();
+        if !short.status.success() {
+            return;
+        }
+        let short = PathBuf::from(String::from_utf8(short.stdout).unwrap().trim());
+        let outside = TestRoot::new("short-alias-outside");
+        fs::create_dir_all(&outside.0).unwrap();
+        assert!(paths_equal(&short, &current));
+        assert!(!paths_equal(&short, &outside.0));
     }
 }
