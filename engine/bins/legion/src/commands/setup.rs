@@ -2257,16 +2257,48 @@ fn setup_health(
             if projection_client.is_some_and(|id| !active_clients.contains(id)) {
                 continue;
             }
+            let projection_state = projection.get("state").and_then(Value::as_str);
+            let opt_in = projection
+                .get("explicitOnly")
+                .and_then(Value::as_bool)
+                .unwrap_or(false);
+            let no_projection_ownership = projection
+                .get("ownership")
+                .and_then(Value::as_str)
+                .is_some_and(|ownership| ownership == "available");
+            let no_codex_skill_projection = projection
+                .get("statuses")
+                .and_then(Value::as_array)
+                .is_some_and(|statuses| {
+                    !statuses.is_empty()
+                        && statuses.iter().all(|status| {
+                            status.get("state").and_then(Value::as_str) == Some("missing")
+                                && status
+                                    .get("ledgerGeneration")
+                                    .and_then(Value::as_str)
+                                    .is_none()
+                                && status
+                                    .get("destinationDigest")
+                                    .is_none_or(Value::is_null)
+                        })
+                });
+            // An opt-in projection with no generation & no recorded Legion
+            // ownership has never been created. Its installed binding fields
+            // are inherited identity, not evidence that an opt-in projection
+            // escaped the active release.
+            let opt_in_never_created = opt_in
+                && projection_state != Some("current")
+                && projection
+                    .get("generation")
+                    .and_then(Value::as_str)
+                    .is_none()
+                && (no_projection_ownership || no_codex_skill_projection);
             if let Some(state) = projection.get("state").and_then(Value::as_str) {
                 if state != "current" {
                     // An opt-in client is maintained only where a projection
                     // already exists and is never created, so naming the repair
                     // command here sends the operator to a command that will
                     // deliberately do nothing.
-                    let opt_in = projection
-                        .get("explicitOnly")
-                        .and_then(Value::as_bool)
-                        .unwrap_or(false);
                     if opt_in {
                         opt_in_notes.push(format!(
                             "{client} projection is {state}; this client is opt-in, so repair leaves it alone. Create its projection deliberately, or ignore this."
@@ -2278,6 +2310,7 @@ fn setup_health(
                 }
             }
             if installed
+                && !opt_in_never_created
                 && projection.get("origin").is_some()
                 && !binding_fields_current(
                     projection.get("origin").and_then(Value::as_str),
@@ -2290,6 +2323,7 @@ fn setup_health(
                 ));
             }
             if installed
+                && !opt_in_never_created
                 && projection.get("origin").is_some()
                 && !resolved_binding_current(
                     projection.get("origin").and_then(Value::as_str),
@@ -2304,6 +2338,7 @@ fn setup_health(
                 ));
             }
             if installed
+                && !opt_in_never_created
                 && projection.get("origin").is_some()
                 && projection
                     .get("generation")
@@ -3569,6 +3604,37 @@ mod tests {
         .expect("plugin manifest");
     }
 
+    fn installed_health_identity(root: &Path) -> Value {
+        let install_root = root.join("Legion");
+        let current_root = install_root.join("current");
+        let executable = current_root.join(if cfg!(windows) {
+            "bin/legion.exe"
+        } else {
+            "bin/legion"
+        });
+        fs::create_dir_all(executable.parent().expect("health executable parent"))
+            .expect("health executable directory");
+        fs::write(&executable, b"legion").expect("health executable");
+        let resolved_install_root = fs::canonicalize(&current_root).expect("health current root");
+        let resolved_executable = fs::canonicalize(&executable).expect("health executable path");
+        json!({
+            "origin": legion_host::setup_registry::ORIGIN_INSTALLED,
+            "stableCurrent": true,
+            "installRoot": install_root.clone(),
+            "stableCurrentRoot": current_root,
+            "resolvedExecutable": resolved_executable,
+            "resolvedInstallRoot": resolved_install_root,
+            "generation": "active-generation",
+            "executable": {
+                "state": "current",
+                "path": executable,
+                "origin": legion_host::setup_registry::ORIGIN_INSTALLED,
+                "installRoot": install_root,
+            },
+            "plugin": {"state": "current"},
+        })
+    }
+
     #[test]
     fn m1_result_parser_preserves_host_requirements_and_degradation() {
         let value = json!({
@@ -3811,6 +3877,113 @@ mod tests {
 
         assert_eq!(status, "complete");
         assert!(remediation.is_empty());
+    }
+
+    #[test]
+    fn setup_health_advises_but_completes_for_absent_opt_in_projections() {
+        let temp = TempRoot::new("opt-in-absent");
+        let clients = json!([{
+            "clientId": "codex",
+            "installed": true,
+            "fidelity": "Full"
+        }]);
+        let mut live_identity = installed_health_identity(&temp.0);
+        live_identity["projections"] = json!({
+            "codexPlugin": {
+                "clientId": "codex",
+                "state": "stale",
+                "explicitOnly": true,
+                "ownership": "available",
+                "origin": legion_host::setup_registry::ORIGIN_INSTALLED,
+                "executable": live_identity["executable"]["path"].clone(),
+                "installRoot": live_identity["executable"]["installRoot"].clone(),
+            },
+            "codexSkills": {
+                "clientId": "codex",
+                "state": "stale",
+                "explicitOnly": true,
+                "ownership": "available",
+                "origin": legion_host::setup_registry::ORIGIN_INSTALLED,
+                "executable": live_identity["executable"]["path"].clone(),
+                "installRoot": live_identity["executable"]["installRoot"].clone(),
+            }
+        });
+
+        let (status, remediation) = setup_health(&clients, &json!({}), &live_identity);
+
+        assert_eq!(status, "complete");
+        assert_eq!(remediation.len(), 2);
+        assert!(remediation
+            .iter()
+            .all(|item| item.contains("opt-in, so repair leaves it alone")));
+    }
+
+    #[test]
+    fn setup_health_keeps_stale_non_opt_in_projection_incomplete() {
+        let temp = TempRoot::new("non-opt-in-stale");
+        let clients = json!([{
+            "clientId": "cursor",
+            "installed": true,
+            "fidelity": "Full"
+        }]);
+        let mut live_identity = installed_health_identity(&temp.0);
+        live_identity["projections"] = json!({
+            "cursorPlugin": {
+                "clientId": "cursor",
+                "state": "stale",
+                "explicitOnly": false,
+                "origin": legion_host::setup_registry::ORIGIN_INSTALLED,
+                "executable": live_identity["executable"]["path"].clone(),
+                "installRoot": live_identity["executable"]["installRoot"].clone(),
+                "resolvedExecutable": live_identity["resolvedExecutable"].clone(),
+                "resolvedInstallRoot": live_identity["resolvedInstallRoot"].clone(),
+                "generation": "old-generation"
+            }
+        });
+
+        let (status, remediation) = setup_health(&clients, &json!({}), &live_identity);
+
+        assert_eq!(status, "incomplete");
+        assert!(remediation
+            .iter()
+            .any(|item| item.starts_with("cursorPlugin projection is stale;")));
+    }
+
+    #[test]
+    fn setup_health_blocks_escaped_binding_on_current_explicit_projection() {
+        let temp = TempRoot::new("current-explicit-binding");
+        let clients = json!([{
+            "clientId": "codex",
+            "installed": true,
+            "fidelity": "Full"
+        }]);
+        let mut live_identity = installed_health_identity(&temp.0);
+        let escaped = temp.0.join("outside/current/bin").join(if cfg!(windows) {
+            "legion.exe"
+        } else {
+            "legion"
+        });
+        live_identity["projections"] = json!({
+            "codexPlugin": {
+                "clientId": "codex",
+                "state": "current",
+                "explicitOnly": true,
+                "ownership": "legion",
+                "origin": legion_host::setup_registry::ORIGIN_INSTALLED,
+                "executable": escaped,
+                "installRoot": live_identity["executable"]["installRoot"].clone(),
+                "resolvedExecutable": live_identity["resolvedExecutable"].clone(),
+                "resolvedInstallRoot": live_identity["resolvedInstallRoot"].clone(),
+                "generation": "active-generation"
+            }
+        });
+
+        let (status, remediation) = setup_health(&clients, &json!({}), &live_identity);
+
+        assert_eq!(status, "incomplete");
+        assert!(remediation.iter().any(|item| {
+            item == "codexPlugin production binding escaped stable current; run legion setup repair --confirm"
+        }));
     }
 
     #[test]

@@ -280,7 +280,8 @@ pub fn inspect_client_projection(
                 Some(&input.target_root),
             )?;
         } else {
-            ensure_projection_tree_safe(&input.target_root)?;
+            let allowed_links = projection_link_targets(input)?;
+            ensure_projection_tree_safe_with_allowed_links(&input.target_root, &allowed_links)?;
         }
         for (relative, (_, expected_digest)) in &expected {
             let destination = input.target_root.join(relative);
@@ -316,7 +317,8 @@ pub fn inspect_client_projection(
                 }
             }
         }
-        for path in projection_tree_files(&input.target_root)? {
+        let allowed_links = projection_link_targets(input)?;
+        for path in projection_tree_files(&input.target_root, &allowed_links)? {
             let relative = path
                 .strip_prefix(&input.target_root)
                 .map_err(|_| {
@@ -422,6 +424,10 @@ pub fn repair_client_projection(
         });
     }
     let prior_ledger = read_projection_ledger(input)?;
+    // Linking a fresh target creates its parent root before reconciliation.
+    // Preserve pre-mutation state so fresh files can be claimed without
+    // adopting an existing client tree.
+    let target_existed_before = path_exists(&input.target_root)?;
     // `explicit_only` was declared, reported in status and checked for
     // agreement, but never gated anything, so an opt-in client was projected
     // like every other one and skills reappeared wherever the operator had
@@ -460,6 +466,7 @@ pub fn repair_client_projection(
     // works for every client including a shared skills-only root where a
     // whole-root link cannot: the destination there holds other products'
     // skills too, so only our own entries may be touched.
+    let mut linked_units_created = Vec::new();
     if path_exists(&input.source_root)? {
         for (name, source) in projection_link_units(input)? {
             let target = input.target_root.join(&name);
@@ -489,7 +496,9 @@ pub fn repair_client_projection(
             if let Some(parent) = target.parent() {
                 fs::create_dir_all(parent).map_err(io)?;
             }
-            link_projection_root(&source, &target)?;
+            if link_projection_root(&source, &target)? {
+                linked_units_created.push(name);
+            }
         }
     }
     let target_exists = path_exists(&input.target_root)?;
@@ -509,7 +518,8 @@ pub fn repair_client_projection(
                 Some(&input.target_root),
             )?;
         } else {
-            ensure_projection_tree_safe(&input.target_root)?;
+            let allowed_links = projection_link_targets(input)?;
+            ensure_projection_tree_safe_with_allowed_links(&input.target_root, &allowed_links)?;
         }
     } else {
         ensure_projection_parent_safe(&input.target_root)?;
@@ -531,6 +541,9 @@ pub fn repair_client_projection(
     );
     for (relative, (source, source_digest)) in &expected {
         let destination = input.target_root.join(relative);
+        let linked_by_this_repair = linked_units_created
+            .iter()
+            .any(|unit| projection_relative_is_under_unit(relative, unit));
         if path_exists(&destination)? {
             let actual = digest_path(&destination)?;
             let owned = prior_ledger
@@ -544,12 +557,15 @@ pub fn repair_client_projection(
                 } else {
                     preserved.push(destination.clone());
                 }
-            } else if owned.is_some() {
+            } else if owned.is_some() || linked_by_this_repair {
                 next_files.insert(relative.clone(), source_digest.clone());
+                if linked_by_this_repair && owned.is_none() {
+                    repaired.push(destination.clone());
+                }
             } else {
                 preserved.push(destination.clone());
             }
-        } else if root_owned || skills_only || !target_exists {
+        } else if root_owned || skills_only || !target_existed_before {
             let unowned_skill_parent = if skills_only {
                 match destination.parent() {
                     Some(parent) if parent != input.target_root.as_path() => {
@@ -599,7 +615,7 @@ pub fn repair_client_projection(
     }
     if !repaired.is_empty() || root_owned || skills_only {
         let created_root = prior_ledger.as_ref().map_or(
-            !target_exists && !skills_only,
+            !target_existed_before && !skills_only,
             |value| value.created_root,
         );
         let value = ClientProjectionLedger {
@@ -686,8 +702,21 @@ pub fn remove_client_projection(
     }
     let mut removed = Vec::new();
     let mut preserved = Vec::new();
+    let linked_targets = projection_link_targets(input)?;
+    for (target, source) in &linked_targets {
+        if projection_root_links_to(target, source)? {
+            fs::remove_dir(target).map_err(io)?;
+            removed.push(target.clone());
+        }
+    }
     for (relative, digest) in &ledger.files {
         let destination = input.target_root.join(relative);
+        if linked_targets
+            .iter()
+            .any(|(target, _)| destination.starts_with(target))
+        {
+            continue;
+        }
         if !path_exists(&destination)? {
             continue;
         }
@@ -2781,6 +2810,21 @@ fn projection_link_units(
     Ok(units)
 }
 
+fn projection_link_targets(
+    input: &ClientProjectionInput,
+) -> Result<Vec<(PathBuf, PathBuf)>, SetupError> {
+    Ok(projection_link_units(input)?
+        .into_iter()
+        .map(|(relative, source)| (input.target_root.join(relative), source))
+        .collect())
+}
+
+fn projection_relative_is_under_unit(relative: &str, unit: &str) -> bool {
+    relative
+        .strip_prefix(unit)
+        .is_some_and(|suffix| suffix.starts_with('/'))
+}
+
 /// Link a client plugin root at one installed tree.
 ///
 /// Every client read its own copy of the whole skill tree, so an upgrade left
@@ -2822,8 +2866,51 @@ fn projection_root_links_to(target: &Path, source: &Path) -> Result<bool, SetupE
     }
 }
 
-fn ensure_projection_tree_safe(root: &Path) -> Result<(), SetupError> {
-    ensure_projection_tree_safe_with_allowed_root(root, None)
+fn ensure_projection_tree_safe_with_allowed_links(
+    root: &Path,
+    allowed_links: &[(PathBuf, PathBuf)],
+) -> Result<(), SetupError> {
+    ensure_projection_parent_safe(root)?;
+    if !path_exists(root)? {
+        return Ok(());
+    }
+    let metadata = fs::symlink_metadata(root).map_err(io)?;
+    if !metadata.is_dir() {
+        return Err(err(
+            SetupErrorCode::PathEscapeRefused,
+            format!("projection root is not a directory: {}", root.display()),
+        ));
+    }
+    for entry in fs::read_dir(root).map_err(io)? {
+        let entry = entry.map_err(io)?;
+        let path = entry.path();
+        let metadata = fs::symlink_metadata(&path).map_err(io)?;
+        if metadata.file_type().is_symlink() {
+            if !projection_link_is_allowed(&path, allowed_links)? {
+                return Err(err(
+                    SetupErrorCode::PathEscapeRefused,
+                    format!("projection tree contains symlink: {}", path.display()),
+                ));
+            }
+            continue;
+        }
+        if metadata.is_dir() {
+            ensure_projection_tree_safe_with_allowed_links(&path, allowed_links)?;
+        }
+    }
+    Ok(())
+}
+
+fn projection_link_is_allowed(
+    path: &Path,
+    allowed_links: &[(PathBuf, PathBuf)],
+) -> Result<bool, SetupError> {
+    for (target, source) in allowed_links {
+        if paths_equal(path, target) && projection_root_links_to(target, source)? {
+            return Ok(true);
+        }
+    }
+    Ok(false)
 }
 
 fn ensure_projection_tree_safe_with_allowed_root(
@@ -2997,7 +3084,10 @@ fn collect_projection_files(
     Ok(())
 }
 
-fn projection_tree_files(root: &Path) -> Result<Vec<PathBuf>, SetupError> {
+fn projection_tree_files(
+    root: &Path,
+    allowed_links: &[(PathBuf, PathBuf)],
+) -> Result<Vec<PathBuf>, SetupError> {
     let mut files = Vec::new();
     if !path_exists(root)? {
         return Ok(files);
@@ -3007,13 +3097,16 @@ fn projection_tree_files(root: &Path) -> Result<Vec<PathBuf>, SetupError> {
         let path = entry.path();
         let metadata = fs::symlink_metadata(&path).map_err(io)?;
         if metadata.file_type().is_symlink() {
+            if projection_link_is_allowed(&path, allowed_links)? {
+                continue;
+            }
             return Err(err(
                 SetupErrorCode::PathEscapeRefused,
                 format!("projection tree contains symlink: {}", path.display()),
             ));
         }
         if metadata.is_dir() {
-            files.extend(projection_tree_files(&path)?);
+            files.extend(projection_tree_files(&path, allowed_links)?);
         } else if metadata.is_file() {
             files.push(path);
         }
@@ -3858,6 +3951,123 @@ mod tests {
             .expect_err("checkout descendant must be rejected");
 
         assert_eq!(error.code, SetupErrorCode::SourceCheckoutReferenceRefused);
+    }
+
+    fn projection_test_input(
+        root: &TestRoot,
+        client_id: &str,
+        projection: &str,
+        explicit_only: bool,
+    ) -> ClientProjectionInput {
+        let state_root = root.0.join("state");
+        fs::create_dir_all(&state_root).unwrap();
+        fs::write(state_root.join(".legion-owned"), OWNER_MARKER).unwrap();
+        let source_root = root.0.join("release/plugin");
+        fs::create_dir_all(source_root.join("skills/example")).unwrap();
+        fs::write(source_root.join("plugin.json"), br#"{"name":"legion"}"#).unwrap();
+        fs::write(source_root.join("mcp.json"), br#"{"mcpServers":{}}"#).unwrap();
+        fs::write(source_root.join("skills/example/SKILL.md"), b"# Example").unwrap();
+        let host_home = root.0.join("host-home");
+        fs::create_dir_all(&host_home).unwrap();
+        fs::write(
+            host_home.join(".claude.json"),
+            br#"{"mcpServers":{"legion":{"command":"legion"}}}"#,
+        )
+        .unwrap();
+        ClientProjectionInput {
+            client_id: client_id.into(),
+            projection: projection.into(),
+            source_root: fs::canonicalize(source_root).unwrap(),
+            target_root: root.0.join("client/plugin"),
+            state_root: fs::canonicalize(state_root).unwrap(),
+            origin: ORIGIN_DEVELOPMENT.into(),
+            executable: None,
+            install_root: None,
+            generation: "test-generation".into(),
+            executable_registration: client_id != CLIENT_PI,
+            explicit_only,
+            skill_ids: vec!["example".into()],
+            host_config_root: Some(host_home),
+        }
+    }
+
+    #[test]
+    fn fresh_non_explicit_plugin_is_current_and_ledger_backed() {
+        let root = TestRoot::new("projection-fresh-links");
+        let input = projection_test_input(&root, CLIENT_CLAUDE, "native-plugin", false);
+
+        let result = repair_client_projection(&input).unwrap();
+
+        assert_eq!(result.inspection.state, "current");
+        assert_eq!(result.inspection.ownership, "legion");
+        let ledger = read_projection_ledger(&input).unwrap().unwrap();
+        assert!(ledger.files.contains_key("skills/example/SKILL.md"));
+        assert!(ledger.files.contains_key("plugin.json"));
+        assert!(ledger.files.contains_key(".claude-plugin/plugin.json"));
+        assert!(!result.repaired.is_empty());
+    }
+
+    #[test]
+    fn preexisting_unowned_matching_plugin_stays_preserved() {
+        let root = TestRoot::new("projection-unowned-matching");
+        let input = projection_test_input(&root, CLIENT_CLAUDE, "native-plugin", false);
+        fs::create_dir_all(input.target_root.join("skills/example")).unwrap();
+        fs::copy(
+            input.source_root.join("skills/example/SKILL.md"),
+            input.target_root.join("skills/example/SKILL.md"),
+        )
+        .unwrap();
+        fs::copy(
+            input.source_root.join("plugin.json"),
+            input.target_root.join("plugin.json"),
+        )
+        .unwrap();
+        fs::copy(
+            input.source_root.join("mcp.json"),
+            input.target_root.join("mcp.json"),
+        )
+        .unwrap();
+        fs::create_dir_all(input.target_root.join(".claude-plugin")).unwrap();
+        fs::copy(
+            input.source_root.join("plugin.json"),
+            input.target_root.join(".claude-plugin/plugin.json"),
+        )
+        .unwrap();
+        fs::create_dir_all(input.target_root.join(".mcp.json").parent().unwrap()).unwrap();
+        fs::copy(
+            input.source_root.join("mcp.json"),
+            input.target_root.join(".mcp.json"),
+        )
+        .unwrap();
+
+        let result = repair_client_projection(&input).unwrap();
+
+        assert_eq!(result.inspection.ownership, "unproven");
+        assert_eq!(result.inspection.state, "stale");
+        assert!(result.repaired.is_empty());
+        assert!(read_projection_ledger(&input).unwrap().is_none());
+        assert!(result
+            .preserved
+            .iter()
+            .any(|path| path.ends_with("plugin.json")));
+    }
+
+    #[test]
+    fn explicit_projection_still_requires_existing_target() {
+        let root = TestRoot::new("projection-explicit-gate");
+        let input = projection_test_input(
+            &root,
+            CLIENT_CODEX,
+            "agent-plugins-with-explicit-sidecar",
+            true,
+        );
+
+        let result = repair_client_projection(&input).unwrap();
+
+        assert!(result.repaired.is_empty());
+        assert!(result.removed.is_empty());
+        assert!(!input.target_root.exists());
+        assert!(read_projection_ledger(&input).unwrap().is_none());
     }
 
     #[cfg(windows)]
