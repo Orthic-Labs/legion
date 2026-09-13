@@ -10,13 +10,16 @@ $currentPath = Join-Path $rootPath 'current'
 $versionPath = Join-Path $rootPath ('versions\' + $Version)
 $backupPath = Join-Path $rootPath ('.previous-current-' + [Guid]::NewGuid().ToString('N'))
 $stagePath = Join-Path $rootPath ('.next-current-' + [Guid]::NewGuid().ToString('N'))
-$eventLog = Join-Path $rootPath 'install-events.jsonl'
+$eventLog = if ($env:LEGION_INSTALL_EVENT_LOG) { [IO.Path]::GetFullPath($env:LEGION_INSTALL_EVENT_LOG) } else { Join-Path $rootPath 'install-events.jsonl' }
 if ($env:LEGION_INSTALL_CHILD_TIMEOUT_SECONDS -match '^\d+$') {
   $ChildTimeoutSeconds = [Math]::Max(1, [Math]::Min(600, [int]$env:LEGION_INSTALL_CHILD_TIMEOUT_SECONDS))
 }
-foreach ($path in @($currentPath, $versionPath, $backupPath, $stagePath, $eventLog)) {
+foreach ($path in @($currentPath, $versionPath, $backupPath, $stagePath)) {
   if (-not [IO.Path]::GetFullPath($path).StartsWith($rootPath + '\', [StringComparison]::OrdinalIgnoreCase)) { throw 'Activation path escaped install root' }
 }
+if (-not [IO.Path]::IsPathRooted($eventLog)) { throw 'Activation event log must be absolute' }
+$eventDirectory = Split-Path -Parent $eventLog
+if ($eventDirectory) { New-Item -ItemType Directory -Path $eventDirectory -Force | Out-Null }
 function Write-InstallEvent([string]$Stage, [string]$Status, [string]$Detail = '') {
   [ordered]@{schema='legion.install.event.v1';timestamp=[DateTime]::UtcNow.ToString('o');stage=$Stage;status=$Status;detail=$Detail} |
     ConvertTo-Json -Compress | Add-Content -LiteralPath $eventLog -Encoding UTF8

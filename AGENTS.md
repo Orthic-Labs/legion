@@ -74,8 +74,9 @@ Legion provides shared routing, execution, and independent semantic validation a
 - Read generated `docs/pending/README.md` as sole pending-work index.
 
 ## Commands
-- Bind local work to `local-static-only`; use generated GitHub Actions for every compile, test, package, signing, qualification, installed-smoke, or release task under `compile: github-actions-only`.
-- Run `pnpm test`, focused Node tests, & `pnpm legion:check` only through GitHub Actions.
+- For Windows installer development, run `pnpm run release:local:win:unsigned` from primary checkout. This is default pre-publication path: managed RightKit warm cache → unsigned installer → isolated installed qualification → exact stable-`current` install. See `docs/reference/release/local-windows-development.md`.
+- Use `pnpm run release:build:win:unsigned` only when build output is requested without install or qualification. Focused local tests supporting this route are allowed.
+- Do not use GitHub Actions, signing, publication, or Mac work for Windows installer development. Use public release machinery only after local installed route passes & operator explicitly requests publication.
 
 ## Locked invariants
 - Use Oracle when explicitly requested or when a concrete outcome or safety risk needs independent review. Routine replies, read-only answers, status updates & small reversible changes need no Oracle.

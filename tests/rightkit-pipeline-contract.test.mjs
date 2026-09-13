@@ -56,6 +56,7 @@ test('native assembly consumes right-release target & provenance contracts', () 
   assert.match(assembler, /@rightkit\/release\/cargo-target\.mjs/);
   assert.match(assembler, /resolveTargetRoot\(cargoManifest\)/);
   assert.match(assembler, /cargoTarget \? \[cargoTarget\] : \[\]/);
+	for (const ignored of ['.audit', '.cache', '.workbuddy-ai', '__pycache__']) assert.equal(assembler.includes(`"${ignored}"`), true);
   assert.match(assembler, /process\.platform === "darwin"\s*\? "macos"/);
   assert.doesNotMatch(assembler, /engine["'],\s*["']target["'],\s*["'](?:debug|release)/);
   assert.match(assembler, /localProvenanceScheme/);

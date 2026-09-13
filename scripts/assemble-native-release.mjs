@@ -130,7 +130,8 @@ function writeJson(path, value) {
 
 function excludedSkillArtifact(path) {
 	const segments = path.toLowerCase().split("/");
-	return segments.includes("__pycache__") || path.toLowerCase().endsWith(".pyc");
+	return segments.some((segment) => ["__pycache__", ".audit", ".cache", ".workbuddy-ai"].includes(segment))
+		|| path.toLowerCase().endsWith(".pyc");
 }
 
 function copySkillTree(source, destination) {
@@ -414,6 +415,8 @@ const pluginRoot = join(output, "plugin");
 const pluginSurface = JSON.parse(
 	readFileSync(join(repositoryRoot, "src", "registry", "plugin-surface.json"), "utf8"),
 );
+const portableSkillSourceRoot = join(output, ".portable-skill-staging");
+rmSync(portableSkillSourceRoot, { recursive: true, force: true });
 const publicAgents = (pluginSurface.surface?.agents ?? []).map((agent) => {
 	const source = join(repositoryRoot, agent.file);
 	if (!existsSync(source)) throw new Error(`declared agent is missing: ${agent.file}`);
@@ -433,11 +436,14 @@ const publicSkills = skillCatalog.bundles
 		if (bundle.source !== expectedSource) {
 			throw new Error(`canonical skill source mismatch for ${bundle.id}: ${bundle.source}`);
 		}
+		const sourceDir = join(repositoryRoot, "skills", bundle.id);
+		const stagedDir = join(portableSkillSourceRoot, bundle.id);
+		copySkillTree(sourceDir, stagedDir);
 		return {
 			id: bundle.id,
 			visibility: "public",
-			sourceRoot: join(repositoryRoot, "skills"),
-			sourceDir: join(repositoryRoot, "skills", bundle.id),
+			sourceRoot: portableSkillSourceRoot,
+			sourceDir: stagedDir,
 		};
 	});
 // The expected set comes from the canonical catalog rather than a frozen count,
@@ -460,19 +466,23 @@ if (
 		`portable core must package every canonical plain-name skill exactly once; expected [${expectedSkillIds.join(", ")}], packaged [${packagedSkillIds.join(", ")}]`,
 	);
 }
-assemblePortableCore({
-	outputDir: pluginRoot,
-	pluginManifestPath: join(repositoryRoot, "engine", "assets", "legion-plugin", "plugin.json"),
-	mcpManifestPath: join(repositoryRoot, "engine", "assets", "legion-plugin", "mcp.json"),
-	hooksManifestPath: join(repositoryRoot, "hooks", "hooks.json"),
-	skills: publicSkills,
-	// The plugin surface declares four agents (sage, alchemist, oracle,
-	// covenant-seat) and the core shipped none of them, so every agent-only
-	// role was unreachable from every client: oracle appeared to work purely
-	// because it is also a skill.
-	agents: publicAgents,
-	clientProjections: CLIENT_PROJECTION_KINDS,
-});
+try {
+	assemblePortableCore({
+		outputDir: pluginRoot,
+		pluginManifestPath: join(repositoryRoot, "engine", "assets", "legion-plugin", "plugin.json"),
+		mcpManifestPath: join(repositoryRoot, "engine", "assets", "legion-plugin", "mcp.json"),
+		hooksManifestPath: join(repositoryRoot, "hooks", "hooks.json"),
+		skills: publicSkills,
+		// The plugin surface declares four agents (sage, alchemist, oracle,
+		// covenant-seat) and the core shipped none of them, so every agent-only
+		// role was unreachable from every client: oracle appeared to work purely
+		// because it is also a skill.
+		agents: publicAgents,
+		clientProjections: CLIENT_PROJECTION_KINDS,
+	});
+} finally {
+	rmSync(portableSkillSourceRoot, { recursive: true, force: true });
+}
 const portableCoreValidation = validatePortableCore(pluginRoot);
 if (!portableCoreValidation.valid) {
 	throw new Error(

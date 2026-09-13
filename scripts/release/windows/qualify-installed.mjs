@@ -40,14 +40,14 @@ function executeExpectedFailure(commandRunner, executable, args, options, label)
 	if (result?.status === 0) fail(`${label} falsely reported success`);
 	return { stdout: String(result?.stdout ?? "").trim(), stderr: String(result?.stderr ?? "").trim(), evidence: commandEvidence(result) };
 }
-function setupPayload(run, kind, executable, label, { requiredProjections = ["claudePlugin"] } = {}) {
+function setupPayload(run, kind, executable, label, { requiredClients = ["claude-code", "codex"], requiredProjections = ["claudePlugin"] } = {}) {
 	let value;
 	try { value = JSON.parse(run.stdout); }
 	catch (error) { fail(`${label} did not return JSON: ${error.message}`); }
 	if (value?.kind !== kind || value?.status !== "complete" || value?.origin !== "installed") fail(`${label} did not report complete installed activation`);
 	if (resolve(String(value.executable ?? "")) !== resolve(executable) || value.stableCurrent !== true) fail(`${label} did not bind stable current executable`);
 	const clients = kind === "legion-setup-execution" ? value.execution?.clients : value.clients;
-	for (const clientId of ["claude-code", "codex"]) {
+	for (const clientId of requiredClients) {
 		const client = clients?.find((item) => (item?.clientId ?? item?.client_id) === clientId);
 		if (!client?.installed || client?.fidelity !== "Full") fail(`${label} did not structurally activate ${clientId}`);
 	}
@@ -124,13 +124,16 @@ export function qualifyInstalledWindows({ setup, outputRoot, finalizationPath, s
 	for (const clientRoot of [".claude", ".codex"]) mkdirSync(join(profile, clientRoot), { recursive: true });
 	const executable = join(installRoot, "current", "bin", "legion.exe");
 	const setupLogs = {
-		install: join(workspace, "setup-install.log"),
-		forcedRefreshFailure: join(workspace, "setup-forced-refresh-failure.log"),
-		stalledChild: join(workspace, "setup-stalled-child.log"),
+		install: join(output, "setup-install.log"),
+		activationEvents: join(output, "activation-events.jsonl"),
+		forcedRefreshFailure: join(output, "setup-forced-refresh-failure.log"),
+		stalledChild: join(output, "setup-stalled-child.log"),
 	};
 	const environment = windowsEnvironment(process.env, {
 		LOCALAPPDATA: localAppData,
 		USERPROFILE: profile,
+		LEGION_STATE_ROOT: join(localAppData, "Legion"),
+		LEGION_INSTALL_EVENT_LOG: setupLogs.activationEvents,
 		PATH: `${join(installRoot, "current", "bin")}${delimiter}${process.env.PATH ?? ""}`,
 	});
 	const stages = [];
@@ -151,7 +154,7 @@ export function qualifyInstalledWindows({ setup, outputRoot, finalizationPath, s
 		const status = setupPayload(statusRun, "legion-setup-status", executable, "installed legion setup status");
 		mkdirSync(join(profile, ".codex", "plugins", "legion"), { recursive: true });
 		const codexPluginRepairRun = step("codex-plugin-opt-in", () => execute(commandRunner, executable, ["--json", "setup", "repair", "--confirm", "--client", "codex"], { cwd: installRoot, env: environment }, "installed legion setup repair for codex plugin"));
-		const codexPluginRepair = setupPayload(codexPluginRepairRun, "legion-setup-execution", executable, "installed legion setup repair for codex plugin", { requiredProjections: ["codexPlugin"] });
+		const codexPluginRepair = setupPayload(codexPluginRepairRun, "legion-setup-execution", executable, "installed legion setup repair for codex plugin", { requiredClients: ["codex"], requiredProjections: ["codexPlugin"] });
 		const doctorRun = step("doctor", () => execute(commandRunner, executable, ["doctor"], { cwd: installRoot, env: environment }, "installed legion doctor"));
 		const uninstaller = join(installRoot, "unins000.exe");
 		file(uninstaller, "installed uninstaller");
@@ -180,7 +183,7 @@ export function qualifyInstalledWindows({ setup, outputRoot, finalizationPath, s
 				completedStages: stages,
 				installRoot,
 				installTree: inventory(installRoot),
-				activationEvents: textTail(join(installRoot, "install-events.jsonl")),
+				activationEvents: textTail(setupLogs.activationEvents),
 				setupLogs: Object.fromEntries(Object.entries(setupLogs).map(([name, path]) => [name, textTail(path)])),
 				recordedAt: new Date().toISOString(),
 			};

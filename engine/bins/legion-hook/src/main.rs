@@ -1023,7 +1023,10 @@ fn effect_request(request: &HookRequest) -> Result<Option<EffectRequest>, String
             tool_name.as_deref(),
             command.as_deref(),
         )
-    } else if tool_name.as_deref().is_some_and(is_mcp_tool) {
+    } else if tool_name
+        .as_deref()
+        .is_some_and(|name| is_mcp_tool(name) && !is_first_party_host_tool(name))
+    {
         // MCP tool names and operations are third-party controlled: a server
         // can name itself anything. A verb allowlist ("write"/"send"/"delete")
         // is therefore a denylist an untrusted server can trivially dodge by
@@ -1237,6 +1240,20 @@ fn parse_effect_class(
         _ if command.is_some() => Some(command_effect_class(command)),
         _ => None,
     }
+}
+
+/// Claude Code Desktop exposes its own session bus (`mcp__ccd_session__*`,
+/// `mcp__ccd_session_mgmt__*`, `mcp__ccd_directory__*`, `mcp__ccd_sidebar__*`)
+/// through the MCP tool namespace, but it is the host itself, not a third-party
+/// server: spawning a sibling session, messaging one, or listing them is host
+/// dispatch, the same family as Task/Agent. Treating these as unclassified
+/// third-party observations denied every cross-session orchestration call.
+/// Only the exact `ccd_` host prefix qualifies; nothing a foreign server can
+/// name itself starts with it inside the host-registered namespace.
+fn is_first_party_host_tool(tool_name: &str) -> bool {
+    tool_name
+        .get(..9)
+        .is_some_and(|prefix| prefix.eq_ignore_ascii_case("mcp__ccd_"))
 }
 
 fn is_mcp_tool(tool_name: &str) -> bool {
@@ -2867,6 +2884,32 @@ mod tests {
         let response = dispatch(explicit_unknown);
         assert!(!response.allowed);
         assert_eq!(response.code.as_deref(), Some("ARC_HOST_EVENT_INVALID"));
+    }
+
+    #[test]
+    fn first_party_host_session_tools_are_host_dispatch_not_unclassified_mcp() {
+        for tool in [
+            "mcp__ccd_session__spawn_task",
+            "mcp__ccd_session_mgmt__send_message",
+            "mcp__ccd_session_mgmt__list_sessions",
+            "mcp__ccd_session_mgmt__set_session_title",
+        ] {
+            assert!(is_first_party_host_tool(tool), "{tool} must be recognised as host");
+            let request = HookRequest {
+                schema_version: protocol::SCHEMA_VERSION,
+                kind: protocol::REQUEST_KIND.into(),
+                event_type: "PreToolUse".into(),
+                payload: json!({"tool_name": tool, "tool_input": {"title": "x"}}),
+            };
+            let effect = effect_request(&request)
+                .expect("host session tool classification should succeed")
+                .expect("host session tool yields an effect");
+            assert_eq!(effect.effect_class, EffectClass::COMMAND_EXEC, "{tool}");
+            let response = dispatch(request);
+            assert!(response.allowed, "{tool} must not fail closed: {}", response.reason);
+        }
+        assert!(!is_first_party_host_tool("mcp__ccdfake__spawn_task"));
+        assert!(!is_first_party_host_tool("mcp__docs__query"));
     }
 
     #[test]

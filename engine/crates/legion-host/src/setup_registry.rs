@@ -295,7 +295,7 @@ pub fn inspect_client_projection(
             let owned_digest = ledger.as_ref().and_then(|value| value.files.get(relative));
             if destination_digest != *expected_digest {
                 current = false;
-                if owned_digest.is_some_and(|digest| digest == &destination_digest) {
+                if owned_digest.is_some() {
                     stale = true;
                 } else {
                     conflicts.push(destination);
@@ -578,7 +578,7 @@ pub fn repair_client_projection(
                 .as_ref()
                 .and_then(|value| value.files.get(relative));
             if actual != *source_digest {
-                if owned.is_some_and(|digest| digest == &actual) {
+                if owned.is_some() {
                     write_projection_file(&input.target_root, &destination, source)?;
                     repaired.push(destination.clone());
                     next_files.insert(relative.clone(), source_digest.clone());
@@ -4167,6 +4167,34 @@ mod tests {
         let ledger = read_projection_ledger(&input).unwrap().unwrap();
         assert!(ledger.files.contains_key("skills/example/SKILL.md"));
         assert!(ledger.files.contains_key("plugin.json"));
+    }
+
+    #[test]
+    fn ledger_owned_hooks_drift_reconciles_from_source() {
+        let root = TestRoot::new("projection-hooks-drift");
+        let input = projection_test_input(&root, CLIENT_CLAUDE, "native-plugin", false);
+        let hooks_source = input.source_root.join("hooks/hooks.json");
+        fs::create_dir_all(hooks_source.parent().unwrap()).unwrap();
+        let hooks_v1 = br#"{"description":"v1","hooks":{}}"#;
+        let hooks_v2 = br#"{"description":"v2","hooks":{"PreToolUse":[{"matcher":"mcp__.*"}]}}"#;
+        let hooks_intermediate = br#"{"description":"v1.5","hooks":{"PreToolUse":[{"matcher":"shell"}]}}"#;
+        fs::write(&hooks_source, hooks_v1).unwrap();
+
+        repair_client_projection(&input).unwrap();
+        let hooks_dest = input.target_root.join("hooks/hooks.json");
+        fs::write(&hooks_dest, hooks_intermediate).unwrap();
+        fs::write(&hooks_source, hooks_v2).unwrap();
+
+        let before = inspect_client_projection(&input).unwrap();
+        assert_eq!(before.state, "stale");
+        assert_eq!(before.ownership, "legion");
+        assert!(before.conflicts.is_empty());
+
+        let result = repair_client_projection(&input).unwrap();
+
+        assert_eq!(result.inspection.state, "current");
+        assert!(result.repaired.iter().any(|path| path.ends_with("hooks.json")));
+        assert_eq!(fs::read(&hooks_dest).unwrap(), hooks_v2);
     }
 
     #[test]

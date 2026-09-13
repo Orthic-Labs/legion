@@ -56,6 +56,7 @@ test("Windows installed qualification silently installs, checks, uninstalls, & b
 			assert.equal(options.env.LOCALAPPDATA, localAppData); if (command.endsWith("unins000.exe")) { rmSync(join(command, ".."), { recursive: true, force: true }); return { status: 0 }; }
 			assert.equal(command.replaceAll("\\", "/").endsWith("current/bin/legion.exe"), true);
 			assert.equal(options.env.PATH.split(delimiter)[0], join(localAppData, "Orthic Labs", "Legion", "current", "bin"));
+			assert.equal(options.env.LEGION_STATE_ROOT, join(localAppData, "Legion"));
 			assert.equal(existsSync(join(options.env.USERPROFILE, ".claude")), true);
 			assert.equal(existsSync(join(options.env.USERPROFILE, ".codex")), true);
 			if (args[0] === "--version" || args[0] === "doctor") return { status: 0, stdout: "ok" };
@@ -66,13 +67,17 @@ test("Windows installed qualification silently installs, checks, uninstalls, & b
 				setupCommands.push("repair");
 				return { status: 0, stdout: JSON.stringify({ kind: "legion-setup-execution", status: "complete", origin: "installed", executable, stableCurrent: true, execution: { clients }, liveIdentity, diagnosticPadding: "x".repeat(2 * 1024 * 1024) }) };
 			}
+			if (args.join(" ") === "--json setup repair --confirm --client codex") {
+				setupCommands.push("codex-opt-in");
+				return { status: 0, stdout: JSON.stringify({ kind: "legion-setup-execution", status: "complete", origin: "installed", executable, stableCurrent: true, execution: { clients: clients.filter(({ clientId }) => clientId === "codex") }, liveIdentity }) };
+			}
 			if (args.join(" ") === "--json setup status") {
 				setupCommands.push("status");
 				return { status: 0, stdout: JSON.stringify({ kind: "legion-setup-status", status: "complete", origin: "installed", executable, stableCurrent: true, clients, liveIdentity }) };
 			}
 			return { status: 1, stderr: `unexpected command: ${args.join(" ")}` };
 		} });
-		assert.equal(result.status, "qualified"); assert.equal(existsSync(join(output, "qualification.json")), true); assert.deepEqual(setupCommands, ["repair", "status"]); assert.equal(result.activation.status.status, "complete");
+		assert.equal(result.status, "qualified"); assert.equal(existsSync(join(output, "qualification.json")), true); assert.deepEqual(setupCommands, ["repair", "status", "codex-opt-in"]); assert.equal(result.activation.status.status, "complete");
 		assert.equal(result.activation.rollbackVerified, true); assert.equal(result.activation.stalledChildBounded, true);
 		assert.ok(result.commands.repair.stdout.bytes > 1024 * 1024);
 		assert.equal("stdout" in result.activation.repair, false);
