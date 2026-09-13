@@ -2546,7 +2546,12 @@ fn path_name_is(path: &Path, expected: &str) -> bool {
 
 fn paths_equal(left: &Path, right: &Path) -> bool {
     if cfg!(windows) {
-        path_starts_with(left, right) && path_starts_with(right, left)
+        (path_starts_with(left, right) && path_starts_with(right, left))
+            || match (std::fs::canonicalize(left), std::fs::canonicalize(right)) {
+                (Ok(left), Ok(right)) => path_starts_with(&left, &right)
+                    && path_starts_with(&right, &left),
+                _ => false,
+            }
     } else {
         left == right
     }
@@ -2566,13 +2571,20 @@ fn path_starts_with(path: &Path, root: &Path) -> bool {
             .map(|component| component.to_ascii_lowercase())
             .collect::<Vec<_>>()
     };
-    let path = normalize(path);
-    let root = normalize(root);
-    path.len() >= root.len()
-        && path
-            .iter()
-            .zip(root.iter())
-            .all(|(path, root)| path == root)
+    let lexical_starts_with = |path: &Path, root: &Path| {
+        let path = normalize(path);
+        let root = normalize(root);
+        path.len() >= root.len()
+            && path
+                .iter()
+                .zip(root.iter())
+                .all(|(path, root)| path == root)
+    };
+    lexical_starts_with(path, root)
+        || match (std::fs::canonicalize(path), std::fs::canonicalize(root)) {
+            (Ok(path), Ok(root)) => lexical_starts_with(&path, &root),
+            _ => false,
+        }
 }
 
 fn enrich_client_statuses(mut clients: Value, live_identity: &Value) -> Value {
@@ -3827,6 +3839,40 @@ mod tests {
                 resolved_install_root.to_string_lossy().into_owned(),
             )),
         ));
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn binding_health_accepts_existing_windows_short_long_aliases() {
+        use std::os::windows::process::CommandExt;
+
+        let temp = TempRoot::new("binding-short-alias");
+        let install_root = temp.0.join("Orthic Labs/Legion");
+        let executable = install_root.join("current/bin/legion.exe");
+        std::fs::create_dir_all(executable.parent().expect("bin")).expect("create bin");
+        std::fs::write(&executable, b"legion").expect("write executable");
+        let short = std::process::Command::new("cmd.exe")
+            .args(["/d", "/c"])
+            .raw_arg("for %I in (\"%LEGION_ALIAS_PATH%\") do @echo %~sI")
+            .env("LEGION_ALIAS_PATH", &install_root)
+            .output()
+            .expect("query short alias");
+        assert!(short.status.success());
+        let short_install_root = PathBuf::from(
+            String::from_utf8(short.stdout)
+                .expect("utf8 alias")
+                .trim(),
+        );
+
+        assert!(binding_fields_current(
+            Some(legion_host::setup_registry::ORIGIN_INSTALLED),
+            Some(&Value::String(executable.to_string_lossy().into_owned())),
+            Some(&Value::String(
+                short_install_root.to_string_lossy().into_owned(),
+            )),
+        ));
+        assert!(path_starts_with(&executable, &short_install_root));
+        assert!(!path_starts_with(&temp.0.join("outside"), &short_install_root));
     }
 
     #[cfg(windows)]
