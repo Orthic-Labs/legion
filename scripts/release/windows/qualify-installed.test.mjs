@@ -3,10 +3,23 @@ import { existsSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
-import { qualifyInstalledWindows } from "./qualify-installed.mjs";
+import { qualifyInstalledWindows, windowsEnvironment } from "./qualify-installed.mjs";
 
 const VERSION = "0.3.12";
 const REVISION = "a".repeat(40);
+
+test("Windows qualification replaces environment keys case-insensitively", () => {
+	const environment = windowsEnvironment(
+		{ LocalAppData: "real", USERPROFILE: "real-profile", Path: "real-path", KEEP: "yes" },
+		{ LOCALAPPDATA: "isolated", USERPROFILE: "isolated-profile", PATH: "isolated-path" },
+	);
+	assert.deepEqual(environment, {
+		KEEP: "yes",
+		LOCALAPPDATA: "isolated",
+		USERPROFILE: "isolated-profile",
+		PATH: "isolated-path",
+	});
+});
 
 function fixture() {
 	const root = mkdtempSync(join(tmpdir(), "legion-qualify-evidence-"));

@@ -71,6 +71,13 @@ function disappears(path, timeoutMs = 3000) {
 	while (existsSync(path) && Date.now() < deadline) Atomics.wait(wake, 0, 0, 100);
 	return !existsSync(path);
 }
+export function windowsEnvironment(base, overrides) {
+	const replaced = new Set(Object.keys(overrides).map((key) => key.toLowerCase()));
+	return {
+		...Object.fromEntries(Object.entries(base).filter(([key]) => !replaced.has(key.toLowerCase()))),
+		...overrides,
+	};
+}
 function finalization(path, version, sourceRevision) {
 	const value = json(path, "Windows finalization manifest");
 	if (value.schemaVersion !== 1 || value.kind !== "legion-installer-finalization" || value.product !== "legion" || value.platform !== "windows" || value.version !== version || String(value.sourceRevision ?? "").toLowerCase() !== sourceRevision || !Array.isArray(value.assets)) fail("Windows finalization manifest identity is invalid");
@@ -121,12 +128,11 @@ export function qualifyInstalledWindows({ setup, outputRoot, finalizationPath, s
 		forcedRefreshFailure: join(workspace, "setup-forced-refresh-failure.log"),
 		stalledChild: join(workspace, "setup-stalled-child.log"),
 	};
-	const environment = {
-		...process.env,
+	const environment = windowsEnvironment(process.env, {
 		LOCALAPPDATA: localAppData,
 		USERPROFILE: profile,
 		PATH: `${join(installRoot, "current", "bin")}${delimiter}${process.env.PATH ?? ""}`,
-	};
+	});
 	const stages = [];
 	let currentStage = "setup";
 	const step = (stage, run) => { currentStage = stage; const result = run(); stages.push({ stage, ...result.evidence }); return result; };
