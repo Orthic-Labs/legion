@@ -85,6 +85,41 @@ test("finalizer constructs, outer-signs, then verifies expected installer", () =
 	assert.ok(calls[2].args.includes("--verify-only"));
 });
 
+test("activation uses direct Process exit metadata for bounded children", () => {
+	const activation = readFileSync(join(process.cwd(), "scripts", "release", "windows", "activate.ps1"), "utf8");
+	assert.match(activation, /\[Diagnostics\.Process\]::new\(\)[\s\S]+\$process\.WaitForExit\(\$ChildTimeoutSeconds \* 1000\)/);
+	assert.match(activation, /\$exitCode = \$process\.ExitCode[\s\S]+if \(\$exitCode -ne 0\)/);
+	assert.doesNotMatch(activation, /Start-Process/);
+});
+
+test("activation preserves real redirected child exit codes", { skip: process.platform !== "win32" }, () => {
+	const root = mkdtempSync(join(tmpdir(), "legion-activation-child-"));
+	try {
+		const activation = readFileSync(join(process.cwd(), "scripts", "release", "windows", "activate.ps1"), "utf8");
+		const invokeBounded = activation.match(/function Invoke-Bounded[\s\S]+?(?=\r?\nif \(-not \(Test-Path)/)?.[0];
+		assert.ok(invokeBounded, "Invoke-Bounded source missing");
+		const escapedRoot = root.replaceAll("'", "''");
+		const probe = [
+			"$ErrorActionPreference = 'Stop'",
+			`$rootPath = '${escapedRoot}'`,
+			"$eventLog = Join-Path $rootPath 'events.txt'",
+			"$ChildTimeoutSeconds = 10",
+			"function Write-InstallEvent([string]$Stage,[string]$Status,[string]$Detail='') { Add-Content -LiteralPath $eventLog -Value ($Stage + '|' + $Status + '|' + $Detail) }",
+			"function Stop-ProcessTree([int]$ProcessId) { & taskkill.exe /PID $ProcessId /T /F 2>$null | Out-Null }",
+			invokeBounded,
+			"$ok = ([string](Invoke-Bounded 'ok' $env:ComSpec @('/d','/c','echo ok'))).Trim()",
+			"try { Invoke-Bounded 'bad' $env:ComSpec @('/d','/c','exit /b 7') | Out-Null; throw 'expected failure' } catch { $failure = $_.Exception.Message }",
+			"Write-Output ($ok + '|' + $failure)",
+		].join("\n");
+		const result = spawnSync("powershell.exe", ["-NoProfile", "-NonInteractive", "-Command", probe], { encoding: "utf8", windowsHide: true });
+		assert.equal(result.status, 0, result.stderr || result.stdout);
+		assert.match(result.stdout, /ok\|bad exited 7/);
+		assert.match(readFileSync(join(root, "events.txt"), "utf8"), /bad\|failed\|exit=7;/);
+	} finally {
+		rmSync(root, { recursive: true, force: true });
+	}
+});
+
 test("unsigned mode builds the same installer and never signs it", () => {
 	// Inno needs no certificate; signing is a separate release concern. The
 	// unsigned lane exists so a change can be installed and tested on a real

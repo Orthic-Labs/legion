@@ -25,27 +25,38 @@ function Stop-ProcessTree([int]$ProcessId) {
   try { & taskkill.exe /PID $ProcessId /T /F 2>$null | Out-Null } catch { }
 }
 function Invoke-Bounded([string]$Stage, [string]$FilePath, [string[]]$Arguments) {
-  $stdoutPath = Join-Path $rootPath ('.install-' + $Stage + '-stdout-' + [Guid]::NewGuid().ToString('N') + '.txt')
-  $stderrPath = Join-Path $rootPath ('.install-' + $Stage + '-stderr-' + [Guid]::NewGuid().ToString('N') + '.txt')
+  if ($Arguments | Where-Object { $_ -match '"' }) { throw "$Stage argument contains unsupported quote" }
+  $argumentLine = ($Arguments | ForEach-Object { if ($_ -match '\s') { '"' + $_ + '"' } else { $_ } }) -join ' '
+  $startInfo = [Diagnostics.ProcessStartInfo]::new()
+  $startInfo.FileName = $FilePath
+  $startInfo.Arguments = $argumentLine
+  $startInfo.UseShellExecute = $false
+  $startInfo.CreateNoWindow = $true
+  $startInfo.RedirectStandardOutput = $true
+  $startInfo.RedirectStandardError = $true
+  $process = [Diagnostics.Process]::new()
+  $process.StartInfo = $startInfo
   try {
     Write-InstallEvent $Stage 'started' "timeout=${ChildTimeoutSeconds}s"
-    $process = Start-Process -FilePath $FilePath -ArgumentList $Arguments -WindowStyle Hidden -RedirectStandardOutput $stdoutPath -RedirectStandardError $stderrPath -PassThru
+    if (-not $process.Start()) { throw "$Stage failed to start" }
+    $stdoutTask = $process.StandardOutput.ReadToEndAsync()
+    $stderrTask = $process.StandardError.ReadToEndAsync()
     if (-not $process.WaitForExit($ChildTimeoutSeconds * 1000)) {
       Stop-ProcessTree $process.Id
       Write-InstallEvent $Stage 'failed' "timeout=${ChildTimeoutSeconds}s"
       throw "$Stage timed out after ${ChildTimeoutSeconds}s"
     }
-	$process.WaitForExit()
-    $stdout = [string]$(if (Test-Path -LiteralPath $stdoutPath) { Get-Content -LiteralPath $stdoutPath -Raw } else { '' })
-    $stderr = [string]$(if (Test-Path -LiteralPath $stderrPath) { Get-Content -LiteralPath $stderrPath -Raw } else { '' })
-    if ($process.ExitCode -ne 0) {
-	  Write-InstallEvent $Stage 'failed' "exit=$($process.ExitCode); stdout=$(([string]$stdout).Trim()); stderr=$(([string]$stderr).Trim())"
-      throw "$Stage exited $($process.ExitCode)"
+    $exitCode = $process.ExitCode
+    $stdout = [string]$stdoutTask.GetAwaiter().GetResult()
+    $stderr = [string]$stderrTask.GetAwaiter().GetResult()
+    if ($exitCode -ne 0) {
+      Write-InstallEvent $Stage 'failed' "exit=$exitCode; stdout=$(([string]$stdout).Trim()); stderr=$(([string]$stderr).Trim())"
+      throw "$Stage exited $exitCode"
     }
     Write-InstallEvent $Stage 'complete' 'exit=0'
     return $stdout
   } finally {
-    Remove-Item -LiteralPath $stdoutPath,$stderrPath -Force -ErrorAction SilentlyContinue
+    $process.Dispose()
   }
 }
 if (-not (Test-Path -LiteralPath (Join-Path $versionPath 'bin\legion.exe') -PathType Leaf)) { throw 'Installed Legion executable missing' }
