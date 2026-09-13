@@ -1127,8 +1127,11 @@ mod tests {
 
     #[cfg(windows)]
     fn short_path(path: &Path) -> Option<PathBuf> {
+        use std::os::windows::process::CommandExt;
+
         let output = std::process::Command::new("cmd.exe")
-            .args(["/d", "/c", "for %I in (\"%LEGION_ALIAS_PATH%\") do @echo %~sI"])
+            .args(["/d", "/c"])
+            .raw_arg("for %I in (\"%LEGION_ALIAS_PATH%\") do @echo %~sI")
             .env("LEGION_ALIAS_PATH", path)
             .output()
             .ok()?;
@@ -1360,8 +1363,11 @@ mod tests {
             return;
         }
         let short_executable = short_current.join("bin/legion.exe");
-        assert!(is_stable_current_executable_at(&executable, &short_current));
-        assert!(is_stable_current_executable_at(&short_executable, &current));
+        assert!(short_current.is_dir(), "short path must resolve: {short_current:?}");
+        assert!(is_stable_current_executable_at(&executable, &short_current),
+            "long executable {executable:?}, short root {short_current:?}");
+        assert!(is_stable_current_executable_at(&short_executable, &current),
+            "short executable {short_executable:?}, long root {current:?}");
         fs::remove_dir_all(root).expect("cleanup");
     }
 
