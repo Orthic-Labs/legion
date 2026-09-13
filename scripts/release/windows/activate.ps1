@@ -27,6 +27,27 @@ function Write-InstallEvent([string]$Stage, [string]$Status, [string]$Detail = '
 function Stop-ProcessTree([int]$ProcessId) {
   try { & taskkill.exe /PID $ProcessId /T /F 2>$null | Out-Null } catch { }
 }
+function Sync-PackagedLocalCacheMirrors([string]$CurrentPath) {
+  $localAppData = [Environment]::GetFolderPath('LocalApplicationData')
+  $packagesRoot = Join-Path $localAppData 'Packages'
+  if (-not (Test-Path -LiteralPath $packagesRoot -PathType Container)) { return }
+  foreach ($package in Get-ChildItem -LiteralPath $packagesRoot -Directory -ErrorAction SilentlyContinue) {
+    $mirrorProductRoot = Join-Path $package.FullName 'LocalCache\Local\Orthic Labs\Legion'
+    if (-not (Test-Path -LiteralPath $mirrorProductRoot -PathType Container)) { continue }
+    $mirrorCurrent = Join-Path $mirrorProductRoot 'current'
+    $stagePath = Join-Path $mirrorProductRoot ('.next-current-' + [Guid]::NewGuid().ToString('N'))
+    try {
+      Write-InstallEvent 'localcache-mirror' 'started' $mirrorCurrent
+      Copy-Item -LiteralPath $CurrentPath -Destination $stagePath -Recurse
+      if (Test-Path -LiteralPath $mirrorCurrent) { Remove-Item -LiteralPath $mirrorCurrent -Recurse -Force }
+      Move-Item -LiteralPath $stagePath -Destination $mirrorCurrent
+      Write-InstallEvent 'localcache-mirror' 'complete' $mirrorCurrent
+    } catch {
+      Remove-Item -LiteralPath $stagePath -Recurse -Force -ErrorAction SilentlyContinue
+      Write-InstallEvent 'localcache-mirror' 'failed' ($_ | Out-String).Trim()
+    }
+  }
+}
 function Invoke-Bounded([string]$Stage, [string]$FilePath, [string[]]$Arguments) {
   if ($Arguments | Where-Object { $_ -match '"' }) { throw "$Stage argument contains unsupported quote" }
   $argumentLine = ($Arguments | ForEach-Object { if ($_ -match '\s') { '"' + $_ + '"' } else { $_ } }) -join ' '
@@ -89,6 +110,7 @@ try {
   }
   Remove-Item -LiteralPath $backupPath -Recurse -Force -ErrorAction SilentlyContinue
   [ordered]@{schema='legion.install.activation.v1';state='activated';current=$currentPath;target=$versionPath;previous=$null;refresh='complete'} | ConvertTo-Json -Compress | Set-Content -LiteralPath (Join-Path $rootPath 'activation.json') -Encoding UTF8
+  Sync-PackagedLocalCacheMirrors $currentPath
   Write-InstallEvent 'activation' 'complete' "version=$Version"
 } catch {
   Remove-Item -LiteralPath $stagePath,$currentPath -Recurse -Force -ErrorAction SilentlyContinue

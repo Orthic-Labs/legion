@@ -235,13 +235,7 @@ pub fn inspect_client_projection(
     let mut stale = false;
     let mut current = !expected.is_empty();
     let ownership = if let Some(ledger) = &ledger {
-        if ledger.target_root != input.target_root
-            || ledger.client_id != input.client_id
-            || ledger.projection != input.projection
-            || ledger.origin != input.origin
-            || ledger.executable != input.executable
-            || ledger.install_root != input.install_root
-        {
+        if !ledger_metadata_matches(ledger, input) {
             current = false;
             conflicts.push(projection_ledger_path(input));
             "invalid"
@@ -313,7 +307,7 @@ pub fn inspect_client_projection(
                 let actual = digest_path(&destination)?;
                 if actual != *digest && !expected.contains_key(relative) {
                     current = false;
-                    conflicts.push(destination);
+                    stale = true;
                 }
             }
         }
@@ -549,14 +543,9 @@ pub fn repair_client_projection(
         ensure_projection_parent_safe(&input.target_root)?;
         fs::create_dir_all(&input.target_root).map_err(io)?;
     }
-    let root_owned = prior_ledger.as_ref().is_some_and(|value| {
-        value.target_root == input.target_root
-            && value.client_id == input.client_id
-            && value.projection == input.projection
-            && value.origin == input.origin
-            && value.executable == input.executable
-            && value.install_root == input.install_root
-    });
+    let root_owned = prior_ledger
+        .as_ref()
+        .is_some_and(|value| ledger_metadata_matches(value, input));
     let mut repaired = Vec::new();
     let mut preserved = Vec::new();
     let mut next_files = prior_ledger.as_ref().map_or_else(
@@ -638,7 +627,7 @@ pub fn repair_client_projection(
         }
     }
     if let Some(prior) = &prior_ledger {
-        for (relative, digest) in &prior.files {
+        for relative in prior.files.keys() {
             if expected.contains_key(relative) {
                 continue;
             }
@@ -647,13 +636,9 @@ pub fn repair_client_projection(
                 next_files.remove(relative);
                 continue;
             }
-            if digest_path(&destination)? == *digest {
-                fs::remove_file(&destination).map_err(io)?;
-                next_files.remove(relative);
-                repaired.push(destination);
-            } else {
-                preserved.push(destination);
-            }
+            fs::remove_file(&destination).map_err(io)?;
+            next_files.remove(relative);
+            repaired.push(destination);
         }
     }
     if !repaired.is_empty()
@@ -734,13 +719,7 @@ pub fn remove_client_projection(
             removed: Vec::new(),
         });
     };
-    if ledger.target_root != input.target_root
-        || ledger.client_id != input.client_id
-        || ledger.projection != input.projection
-        || ledger.origin != input.origin
-        || ledger.executable != input.executable
-        || ledger.install_root != input.install_root
-    {
+    if !ledger_metadata_matches(&ledger, input) {
         return Ok(ClientProjectionRepair {
             inspection: before.clone(),
             repaired: Vec::new(),
@@ -2813,6 +2792,41 @@ fn remove_projection_claim(input: &ClientProjectionInput) -> Result<(), SetupErr
     Ok(())
 }
 
+fn ledger_binding_path_match(
+    ledger: &Option<PathBuf>,
+    input: &Option<PathBuf>,
+    install_root: &Option<PathBuf>,
+) -> bool {
+    match (ledger, input) {
+        (None, None) => true,
+        (Some(ledger_path), Some(input_path)) => {
+            if paths_equal(ledger_path, input_path) {
+                return true;
+            }
+            if let Some(root) = install_root {
+                cfg!(windows)
+                    && windows_localcache_equivalent(ledger_path, input_path, root)
+            } else {
+                false
+            }
+        }
+        _ => false,
+    }
+}
+
+fn ledger_metadata_matches(ledger: &ClientProjectionLedger, input: &ClientProjectionInput) -> bool {
+    ledger.client_id == input.client_id
+        && ledger.projection == input.projection
+        && ledger.origin == input.origin
+        && paths_equal(&ledger.target_root, &input.target_root)
+        && ledger_binding_path_match(&ledger.executable, &input.executable, &input.install_root)
+        && ledger_binding_path_match(
+            &ledger.install_root,
+            &input.install_root,
+            &input.install_root,
+        )
+}
+
 fn read_projection_ledger(
     input: &ClientProjectionInput,
 ) -> Result<Option<ClientProjectionLedger>, SetupError> {
@@ -2833,12 +2847,7 @@ fn read_projection_ledger(
     };
     if value.schema_version != CLIENT_PROJECTION_LEDGER_SCHEMA_VERSION
         || value.owner != CLIENT_PROJECTION_OWNER
-        || value.client_id != input.client_id
-        || value.projection != input.projection
-        || value.target_root != input.target_root
-        || value.origin != input.origin
-        || value.executable != input.executable
-        || value.install_root != input.install_root
+        || !ledger_metadata_matches(&value, input)
     {
         return Ok(None);
     }
@@ -4345,6 +4354,83 @@ mod tests {
     #[test]
     fn windows_rejects_posix_client_binding_paths() {
         assert!(!Path::new("/Volumes/external/workspace/legion").is_absolute());
+    }
+
+    #[test]
+    fn repair_drops_ledger_owned_files_no_longer_projected() {
+        let root = TestRoot::new("projection-obsolete-ledger-file");
+        let input = projection_test_input(&root, CLIENT_CLAUDE, "native-plugin", false);
+        repair_client_projection(&input).unwrap();
+        let obsolete = input.target_root.join("hooks/hooks.json");
+        fs::create_dir_all(obsolete.parent().unwrap()).unwrap();
+        fs::write(&obsolete, br#"{"description":"legacy","hooks":{}}"#).unwrap();
+        let ledger_path = projection_ledger_path(&input);
+        let mut value: serde_json::Value =
+            serde_json::from_slice(&fs::read(&ledger_path).unwrap()).unwrap();
+        value["files"]["hooks/hooks.json"] =
+            serde_json::Value::String("sha256:deadbeef".into());
+        fs::write(&ledger_path, serde_json::to_vec(&value).unwrap()).unwrap();
+
+        let before = inspect_client_projection(&input).unwrap();
+        assert_eq!(before.state, "stale");
+        assert!(before.conflicts.is_empty());
+
+        let result = repair_client_projection(&input).unwrap();
+
+        assert_eq!(result.inspection.state, "current");
+        assert!(!obsolete.exists());
+        assert!(!read_projection_ledger(&input)
+            .unwrap()
+            .expect("ledger")
+            .files
+            .contains_key("hooks/hooks.json"));
+    }
+
+    #[test]
+    fn projection_ledger_reads_with_mixed_target_root_separators() {
+        let root = TestRoot::new("projection-ledger-mixed-separators");
+        let input = projection_test_input(&root, CLIENT_CLAUDE, "native-plugin", false);
+        repair_client_projection(&input).unwrap();
+        let ledger_path = projection_ledger_path(&input);
+        let mut value: serde_json::Value =
+            serde_json::from_slice(&fs::read(&ledger_path).unwrap()).unwrap();
+        let mixed_target = input
+            .target_root
+            .to_string_lossy()
+            .replace('\\', "/")
+            .replace("/client/", r"\client/");
+        value["targetRoot"] = serde_json::Value::String(mixed_target.into_owned());
+        fs::write(&ledger_path, serde_json::to_vec(&value).unwrap()).unwrap();
+        let canonical_target = fs::canonicalize(&input.target_root).unwrap();
+        let input = ClientProjectionInput {
+            target_root: canonical_target,
+            ..input
+        };
+        assert!(read_projection_ledger(&input).unwrap().is_some());
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn projection_ledger_reads_with_localcache_executable() {
+        let root = TestRoot::new("projection-ledger-localcache");
+        let input = projection_test_input(&root, CLIENT_CLAUDE, "native-plugin", false);
+        let install_root = PathBuf::from(r"C:\Users\operator\AppData\Local\Orthic Labs\Legion");
+        let lexical_executable = install_root.join("current/bin/legion.exe");
+        let virtualized_executable = PathBuf::from(
+            r"C:\Users\operator\AppData\Local\Packages\OpenAI.Codex_example\LocalCache\Local\Orthic Labs\Legion\current\bin\legion.exe",
+        );
+        let ledger_input = ClientProjectionInput {
+            executable: Some(lexical_executable.clone()),
+            install_root: Some(install_root.clone()),
+            ..input.clone()
+        };
+        repair_client_projection(&ledger_input).unwrap();
+        let virtualized_input = ClientProjectionInput {
+            executable: Some(virtualized_executable),
+            install_root: Some(install_root),
+            ..input
+        };
+        assert!(read_projection_ledger(&virtualized_input).unwrap().is_some());
     }
 
     #[cfg(windows)]

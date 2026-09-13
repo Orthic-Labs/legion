@@ -2354,9 +2354,14 @@ fn setup_health(
                 projection.get("generation").and_then(Value::as_str),
             ) {
                 if expected != actual {
-                    remediation.push(format!(
-                        "{client} generation {actual} is stale; {repair_command}"
-                    ));
+                    let message = format!("{client} generation {actual} is stale; {repair_command}");
+                    if opt_in {
+                        opt_in_notes.push(format!(
+                            "{client} generation {actual} is stale; this client is opt-in, so repair leaves it alone. Create its projection deliberately, or ignore this."
+                        ));
+                    } else {
+                        remediation.push(message);
+                    }
                 }
             }
         }
@@ -2509,7 +2514,13 @@ fn resolved_binding_current(
             resolved_install_root,
             install_root,
         );
-    let resolved_executable_matches = path_starts_with(resolved_executable, resolved_install_root)
+    let resolved_current = resolved_executable.parent().and_then(Path::parent);
+    let under_resolved_root = path_starts_with(resolved_executable, resolved_install_root)
+        || resolved_current.is_some_and(|current| {
+            path_starts_with(current, resolved_install_root)
+                || windows_localcache_equivalent(resolved_install_root, current, install_root)
+        });
+    let resolved_executable_matches = under_resolved_root
         && (path_starts_with(resolved_executable, &canonical_install_root)
             || windows_localcache_equivalent(
                 Path::new(executable.and_then(Value::as_str).expect("binding field checked")),
@@ -3959,6 +3970,39 @@ mod tests {
 
         assert_eq!(status, "complete");
         assert_eq!(remediation.len(), 2);
+        assert!(remediation
+            .iter()
+            .all(|item| item.contains("opt-in, so repair leaves it alone")));
+    }
+
+    #[test]
+    fn setup_health_advises_but_completes_for_stale_opt_in_generation() {
+        let temp = TempRoot::new("opt-in-stale-generation");
+        let clients = json!([{
+            "clientId": "pi",
+            "installed": true,
+            "fidelity": "Full"
+        }]);
+        let mut live_identity = installed_health_identity(&temp.0);
+        live_identity["generation"] = json!("0.3.14:current");
+        live_identity["projections"] = json!({
+            "piSkills": {
+                "clientId": "pi",
+                "state": "stale",
+                "explicitOnly": true,
+                "generation": "0.3.13:old",
+                "origin": legion_host::setup_registry::ORIGIN_INSTALLED,
+                "executable": live_identity["executable"]["path"].clone(),
+                "installRoot": live_identity["executable"]["installRoot"].clone(),
+            }
+        });
+
+        let (status, remediation) = setup_health(&clients, &json!({}), &live_identity);
+
+        assert_eq!(status, "complete");
+        assert!(remediation
+            .iter()
+            .any(|item| item.contains("piSkills generation 0.3.13:old is stale")));
         assert!(remediation
             .iter()
             .all(|item| item.contains("opt-in, so repair leaves it alone")));
