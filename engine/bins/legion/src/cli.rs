@@ -1356,7 +1356,12 @@ async fn dispatch(cli: Cli, cancellation: CancellationToken) -> commands::Comman
         Command::Languages(args) => Ok(
             json!({"schemaVersion":1,"kind":"legion-languages","languages": languages(), "json": args.json || root_json, "arguments": args.args, "text": languages_text()}),
         ),
-        Command::Doctor(args) => native_doctor(args, cancellation.clone()).await,
+        Command::Doctor(mut args) => {
+            if root_json {
+                args.json = true;
+            }
+            native_doctor(args, cancellation.clone()).await
+        }
         Command::Init(args) => root_projection!("init", args),
         Command::Bind(args) => root_projection!("bind", args),
         Command::Inspect(args) => root_projection!("inspect", args),
@@ -1537,8 +1542,8 @@ async fn native_doctor(args: RootArgs, cancellation: CancellationToken) -> Comma
             args.root.display()
         ))
     })?;
-    let summary = match installed_doctor_summary(&root, cancellation).await {
-        Ok(summary) => summary,
+    let inventory = match installed_doctor_inventory(&root, cancellation).await {
+        Ok(inventory) => inventory,
         Err(error) => {
             return Ok(json!({
                 "schemaVersion": 1,
@@ -1550,42 +1555,55 @@ async fn native_doctor(args: RootArgs, cancellation: CancellationToken) -> Comma
             }));
         }
     };
-    // Doctor verifies the installed composition and computes a repository
-    // inventory digest. It does not verify the repository itself — targets,
-    // stacks, controls and provider composition all report "not connected" —
-    // so it cannot claim the repository is clean. Claiming it anyway made
-    // `doctor` answer "complete, clean" for a directory with no Legion
-    // scaffolding at all, which is the false clean this product's own tests
-    // (`default_doctor_cannot_make_clean_claim`, tests/doctor.test.mjs)
-    // already forbid.
+    // Installed-product doctor verifies the bound composition and catalog.
+    // It does not certify that an arbitrary working directory is a clean
+    // Legion workspace; that remains a separate repository-audit claim.
     let mut output = render_doctor(
         "doctor",
-        summary,
-        json!({"root": root}),
+        inventory.summary,
+        inventory.repository,
         None,
-        None,
+        Some(args.json),
         false,
+        true,
     );
     if !args.json {
         let catalog = output["catalogEntries"].as_u64().unwrap_or_default();
         let providers = output["providerCount"].as_u64().unwrap_or_default();
         let digest = output["inventoryDigest"].as_str().unwrap_or_default().to_owned();
+        let scope = output["repository"]["scope"]
+            .as_str()
+            .unwrap_or("workspace")
+            .to_owned();
+        let inventory_root = output["repository"]["inventoryRoot"]
+            .as_str()
+            .map(|value| format!("inventory root:  {value}"))
+            .unwrap_or_default();
         output["json"] = json!(false);
         output["text"] = json!([
             format!("legion doctor: {}", output["status"].as_str().unwrap_or("unknown")),
             format!("repository:       {}", root.display()),
+            format!("inventory scope:  {scope}"),
+            inventory_root,
             format!("catalog entries:  {catalog}"),
             format!("provider count:   {providers}"),
             format!("inventory digest: {digest}"),
             format!("clean claim:      {}", output["cleanClaimPossible"].as_bool().unwrap_or(false)),
-        ]);
+        ]
+        .into_iter()
+        .filter(|line| !line.is_empty())
+        .collect::<Vec<_>>());
     }
     Ok(output)
 }
-async fn installed_doctor_summary(
+struct DoctorInventory {
+    summary: DoctorSummary,
+    repository: Value,
+}
+async fn installed_doctor_inventory(
     root: &Path,
     _cancellation: CancellationToken,
-) -> Result<DoctorSummary, commands::CommandError> {
+) -> Result<DoctorInventory, commands::CommandError> {
     let config_path = installed_m1_composition()?;
     let bytes = std::fs::read(&config_path).map_err(|error| {
         commands::CommandError::incomplete(format!(
@@ -1601,11 +1619,66 @@ async fn installed_doctor_summary(
         .map(Arc::new)
         .map_err(|error| commands::CommandError::incomplete(error.to_string()))?;
     let status = application.status();
-    Ok(DoctorSummary {
-        inventory_digest: native_repository_inventory_digest(root)?,
-        catalog_entries: status.capability_count,
-        provider_count,
+    let (inventory_digest, repository) = doctor_inventory_scope(root, &config_path)?;
+    Ok(DoctorInventory {
+        summary: DoctorSummary {
+            inventory_digest,
+            catalog_entries: status.capability_count,
+            provider_count,
+        },
+        repository,
     })
+}
+fn doctor_inventory_scope(
+    root: &Path,
+    composition_path: &Path,
+) -> Result<(String, Value), commands::CommandError> {
+    match native_repository_inventory_digest(root) {
+        Ok(digest) => Ok((
+            digest,
+            json!({
+                "root": root,
+                "scope": "workspace",
+                "inventoryRoot": root,
+            }),
+        )),
+        Err(workspace_error) => {
+            let assets_root = composition_path
+                .parent()
+                .map(|directory| directory.join("assets"))
+                .filter(|path| path.is_dir())
+                .ok_or_else(|| {
+                    commands::CommandError::incomplete(format!(
+                        "installed product assets are unavailable; run {M1_REPAIR}"
+                    ))
+                })?;
+            let digest = native_repository_inventory_digest(&assets_root)?;
+            let installed =
+                legion_runtime::release_binding::load_installed_release().map_err(|error| {
+                    commands::CommandError::incomplete(format!(
+                        "installed release binding unavailable: {error}; run {M1_REPAIR}"
+                    ))
+                })?;
+            let origin = installed.origin_evidence();
+            Ok((
+                digest,
+                json!({
+                    "root": root,
+                    "scope": "installed-product",
+                    "inventoryRoot": assets_root,
+                    "installRoot": origin.install_root,
+                    "stableCurrentRoot": origin
+                        .install_root
+                        .as_ref()
+                        .map(|install_root| install_root.join("current")),
+                    "workspaceScope": {
+                        "status": "unavailable",
+                        "detail": workspace_error.message,
+                    },
+                }),
+            ))
+        }
+    }
 }
 fn native_repository_inventory_digest(root: &Path) -> Result<String, commands::CommandError> {
     fn collect(root: &Path, directory: &Path, files: &mut Vec<PathBuf>) -> std::io::Result<()> {
@@ -1656,9 +1729,15 @@ fn render_doctor(
     arguments: Option<Vec<String>>,
     json_flag: Option<bool>,
     clean_claim: bool,
+    product_verified: bool,
 ) -> Value {
+    let status = if clean_claim || product_verified {
+        "complete"
+    } else {
+        "incomplete"
+    };
     let mut output = json!({
-        "schemaVersion": 1, "kind": format!("legion-{kind}"), "status": if clean_claim { "complete" } else { "incomplete" },
+        "schemaVersion": 1, "kind": format!("legion-{kind}"), "status": status,
         "repository": repository, "inventoryDigest": summary.inventory_digest,
         "catalogEntries": summary.catalog_entries, "providerCount": summary.provider_count,
     });
@@ -1671,9 +1750,12 @@ fn render_doctor(
     output["cleanClaimPossible"] = Value::Bool(clean_claim);
     output["capabilityAttestations"] = capability_attestations();
     if !clean_claim {
-        output["gaps"] = json!([
+        let gap = if product_verified {
+            "repository clean claim is not evaluated by installed-product doctor"
+        } else {
             "native repository inventory, catalog, and provider composition are not connected"
-        ]);
+        };
+        output["gaps"] = json!([gap]);
     }
     output
 }
@@ -2789,6 +2871,32 @@ mod unresolved_atom_tests {
         let receipt: Value =
             serde_json::from_slice(&std::fs::read(first.queue_receipt).unwrap()).unwrap();
         assert_eq!(receipt["state"], "started");
+    }
+
+    #[test]
+    fn installed_product_doctor_reports_complete_without_clean_claim() {
+        let output = render_doctor(
+            "doctor",
+            DoctorSummary {
+                inventory_digest: "sha256:test".into(),
+                catalog_entries: 27,
+                provider_count: 1,
+            },
+            json!({"root": "C:\\workspace", "scope": "installed-product"}),
+            None,
+            Some(true),
+            false,
+            true,
+        );
+        assert_eq!(output["status"], "complete");
+        assert_eq!(output["cleanClaimPossible"], false);
+        assert!(output["gaps"]
+            .as_array()
+            .expect("gaps")
+            .iter()
+            .any(|gap| gap.as_str() == Some(
+                "repository clean claim is not evaluated by installed-product doctor"
+            )));
     }
 
     #[test]
