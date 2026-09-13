@@ -47,6 +47,13 @@ function Invoke-Bounded([string]$Stage, [string]$FilePath, [string[]]$Arguments)
       throw "$Stage timed out after ${ChildTimeoutSeconds}s"
     }
     $exitCode = $process.ExitCode
+    $drainTimeoutMs = [Math]::Min(5000, $ChildTimeoutSeconds * 1000)
+    if (-not [Threading.Tasks.Task]::WaitAll([Threading.Tasks.Task[]]@($stdoutTask, $stderrTask), $drainTimeoutMs)) {
+      $process.StandardOutput.Dispose()
+      $process.StandardError.Dispose()
+      Write-InstallEvent $Stage 'failed' "output-drain-timeout=${drainTimeoutMs}ms"
+      throw "$Stage output drain timed out after ${drainTimeoutMs}ms"
+    }
     $stdout = [string]$stdoutTask.GetAwaiter().GetResult()
     $stderr = [string]$stderrTask.GetAwaiter().GetResult()
     if ($exitCode -ne 0) {

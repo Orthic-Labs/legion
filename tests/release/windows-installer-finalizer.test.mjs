@@ -120,6 +120,32 @@ test("activation preserves real redirected child exit codes", { skip: process.pl
 	}
 });
 
+test("activation bounds redirected output drain retained by descendants", { skip: process.platform !== "win32" }, () => {
+	const root = mkdtempSync(join(tmpdir(), "legion-activation-drain-"));
+	try {
+		const activation = readFileSync(join(process.cwd(), "scripts", "release", "windows", "activate.ps1"), "utf8");
+		const invokeBounded = activation.match(/function Invoke-Bounded[\s\S]+?(?=\r?\nif \(-not \(Test-Path)/)?.[0];
+		assert.ok(invokeBounded, "Invoke-Bounded source missing");
+		const escapedRoot = root.replaceAll("'", "''");
+		const probe = [
+			"$ErrorActionPreference = 'Stop'",
+			`$rootPath = '${escapedRoot}'`,
+			"$eventLog = Join-Path $rootPath 'events.txt'",
+			"$ChildTimeoutSeconds = 1",
+			"function Write-InstallEvent([string]$Stage,[string]$Status,[string]$Detail='') { Add-Content -LiteralPath $eventLog -Value ($Stage + '|' + $Status + '|' + $Detail) }",
+			"function Stop-ProcessTree([int]$ProcessId) { & taskkill.exe /PID $ProcessId /T /F 2>$null | Out-Null }",
+			invokeBounded,
+			"try { Invoke-Bounded 'drain' 'powershell.exe' @('-NoProfile','-Command','Start-Process ping.exe -ArgumentList 127.0.0.1,-n,10 -NoNewWindow') | Out-Null; throw 'expected drain failure' } catch { Write-Output $_.Exception.Message }",
+		].join("\n");
+		const result = spawnSync("powershell.exe", ["-NoProfile", "-NonInteractive", "-Command", probe], { encoding: "utf8", windowsHide: true, timeout: 12000 });
+		assert.equal(result.status, 0, result.stderr || result.stdout);
+		assert.match(result.stdout, /drain output drain timed out/);
+		assert.match(readFileSync(join(root, "events.txt"), "utf8"), /drain\|failed\|output-drain-timeout=1000ms/);
+	} finally {
+		rmSync(root, { recursive: true, force: true });
+	}
+});
+
 test("unsigned mode builds the same installer and never signs it", () => {
 	// Inno needs no certificate; signing is a separate release concern. The
 	// unsigned lane exists so a change can be installed and tested on a real
