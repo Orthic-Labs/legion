@@ -698,29 +698,66 @@ fn is_stable_current_executable_at(path: &Path, root: &Path) -> bool {
     if !path.is_absolute() || !root.is_absolute() {
         return false;
     }
-    let path = normalized_components(path);
-    let root = normalized_components(root);
-    if path.len() != root.len() + 2 {
-        return false;
+    let matches_lexical = || {
+        let path = normalized_components(path);
+        let root = normalized_components(root);
+        if path.len() != root.len() + 2 {
+            return false;
+        }
+        if !root
+            .iter()
+            .zip(path.iter())
+            .all(|(expected, actual)| path_component_eq(expected, actual))
+        {
+            return false;
+        }
+        let bin = &path[root.len()];
+        let executable = &path[root.len() + 1];
+        path_component_eq(bin, "bin")
+            && path_component_eq(
+                executable,
+                if cfg!(windows) {
+                    "legion.exe"
+                } else {
+                    "legion"
+                },
+            )
+    };
+    if matches_lexical() {
+        return true;
     }
-    if !root
-        .iter()
-        .zip(path.iter())
-        .all(|(expected, actual)| path_component_eq(expected, actual))
+
+    // Canonicalization below is only an alias fixup; traversal must remain
+    // rejected even when it happens to resolve inside the stable tree.
+    if path
+        .components()
+        .chain(root.components())
+        .any(|component| component == std::path::Component::ParentDir)
     {
         return false;
     }
-    let bin = &path[root.len()];
-    let executable = &path[root.len() + 1];
-    path_component_eq(bin, "bin")
-        && path_component_eq(
-            executable,
-            if cfg!(windows) {
-                "legion.exe"
-            } else {
-                "legion"
-            },
-        )
+
+    // Windows may expose the same existing path through an 8.3 short name
+    // (for example RUNNER~1) in one environment and its long name in another.
+    // Resolve both sides only for this alias equivalence; retain the exact
+    // stable-current suffix and let symlink/junction checks run separately.
+    #[cfg(windows)]
+    {
+        if path_has_symlink_component(root, path) {
+            return false;
+        }
+        let Ok(path) = fs::canonicalize(path) else {
+            return false;
+        };
+        let Ok(root) = fs::canonicalize(root) else {
+            return false;
+        };
+        same_path(&path, &root.join("bin").join("legion.exe"))
+    }
+    #[cfg(not(windows))]
+    {
+        false
+    }
 }
 
 fn path_is_within(root: &Path, path: &Path) -> bool {
@@ -1088,6 +1125,29 @@ mod tests {
     use std::sync::atomic::{AtomicU64, Ordering};
     use std::time::{SystemTime, UNIX_EPOCH};
 
+    #[cfg(windows)]
+    fn short_path(path: &Path) -> Option<PathBuf> {
+        use std::os::windows::ffi::OsStrExt;
+
+        unsafe extern "system" {
+            fn GetShortPathNameW(
+                long_path: *const u16,
+                short_path: *mut u16,
+                short_path_length: u32,
+            ) -> u32;
+        }
+
+        let input: Vec<u16> = path.as_os_str().encode_wide().chain(Some(0)).collect();
+        let mut output = vec![0u16; 32_768];
+        let length = unsafe { GetShortPathNameW(input.as_ptr(), output.as_mut_ptr(), output.len() as u32) };
+        if length == 0 || length >= output.len() as u32 {
+            return None;
+        }
+        Some(PathBuf::from(String::from_utf16_lossy(
+            &output[..length as usize],
+        )))
+    }
+
     static NEXT_ROOT: AtomicU64 = AtomicU64::new(0);
 
     fn root() -> PathBuf {
@@ -1285,6 +1345,60 @@ mod tests {
         inputs.rightkit_ax.source_commit = manifest.rightkit_ax.source_commit.clone();
         manifest.runtime.sha256 = manifest.runtime.sha256.to_uppercase();
         assert!(verify_release_binding(&manifest, &inputs).is_ok());
+        fs::remove_dir_all(root).expect("cleanup");
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn stable_current_accepts_actual_short_long_root_alias() {
+        let root = std::env::temp_dir().join(format!(
+            "legion-short-alias-regression-{}-{}",
+            std::process::id(),
+            NEXT_ROOT.fetch_add(1, Ordering::Relaxed)
+        ));
+        let current = root.join("current");
+        let executable = current.join("bin/legion.exe");
+        fs::create_dir_all(executable.parent().expect("bin")).expect("directories");
+        fs::write(&executable, b"legion").expect("executable");
+        let Some(short_current) = short_path(&current) else {
+            fs::remove_dir_all(root).expect("cleanup");
+            return;
+        };
+        if same_path(&short_current, &current) {
+            fs::remove_dir_all(root).expect("cleanup");
+            return;
+        }
+        let short_executable = short_current.join("bin/legion.exe");
+        assert!(is_stable_current_executable_at(&executable, &short_current));
+        assert!(is_stable_current_executable_at(&short_executable, &current));
+        fs::remove_dir_all(root).expect("cleanup");
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn stable_current_alias_fallback_rejects_outside_root_and_traversal() {
+        let root = std::env::temp_dir().join(format!(
+            "legion-alias-boundary-regression-{}-{}",
+            std::process::id(),
+            NEXT_ROOT.fetch_add(1, Ordering::Relaxed)
+        ));
+        let current = root.join("current");
+        let executable = current.join("bin/legion.exe");
+        let outside = root.join("outside/bin/legion.exe");
+        fs::create_dir_all(executable.parent().expect("bin")).expect("directories");
+        fs::create_dir_all(outside.parent().expect("outside bin")).expect("directories");
+        fs::write(&executable, b"legion").expect("executable");
+        fs::write(&outside, b"foreign").expect("foreign executable");
+        assert!(!is_stable_current_executable_at(&outside, &current));
+        let linked = root.join("linked/bin/legion.exe");
+        fs::create_dir_all(linked.parent().expect("linked bin")).expect("linked directories");
+        if std::os::windows::fs::symlink_file(&executable, &linked).is_ok() {
+            assert!(!is_stable_current_executable_at(&linked, &current));
+        }
+        assert!(!is_stable_current_executable_at(
+            &current.join("bin/../bin/legion.exe"),
+            &current
+        ));
         fs::remove_dir_all(root).expect("cleanup");
     }
 }
