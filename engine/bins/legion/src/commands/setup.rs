@@ -2448,7 +2448,8 @@ fn binding_fields_current(
         });
     path_name_is(bin, "bin")
         && path_name_is(root, "current")
-        && paths_equal(root, &stable_current_root)
+        && (paths_equal(root, &stable_current_root)
+            || windows_localcache_equivalent(&stable_current_root, root, install_root))
         && executable_name_matches
 }
 
@@ -2514,6 +2515,11 @@ fn resolved_binding_current(
                 Path::new(executable.and_then(Value::as_str).expect("binding field checked")),
                 resolved_executable,
                 install_root,
+            )
+            || windows_localcache_within(
+                &stable_current_root,
+                resolved_executable,
+                install_root,
             ));
     resolved_root_matches
         && resolved_executable_matches
@@ -2533,6 +2539,46 @@ fn resolved_binding_current(
 /// `Packages/<family>/LocalCache/Local`. Accept that OS virtualization only
 /// when removing its exact prefix recreates the already-validated lexical
 /// stable-current path.
+fn windows_localcache_within(lexical: &Path, resolved: &Path, install_root: &Path) -> bool {
+    if windows_localcache_equivalent(lexical, resolved, install_root) {
+        return true;
+    }
+    let Some(local_app_data) = install_root.parent().and_then(Path::parent) else {
+        return false;
+    };
+    let normalize = |path: &Path| {
+        let normalized = path.to_string_lossy().replace('\\', "/");
+        let normalized = normalized.strip_prefix("//?/").unwrap_or(&normalized);
+        normalized
+            .split('/')
+            .filter(|component| !component.is_empty() && *component != ".")
+            .map(|component| component.to_ascii_lowercase())
+            .collect::<Vec<_>>()
+    };
+    let local = normalize(local_app_data);
+    let lexical = normalize(lexical);
+    let resolved = normalize(resolved);
+    if lexical.len() <= local.len()
+        || resolved.len() <= local.len() + 4
+        || lexical[..local.len()] != local
+        || resolved[..local.len()] != local
+    {
+        return false;
+    }
+    let virtual_prefix = &resolved[local.len()..local.len() + 4];
+    if virtual_prefix[0] != "packages"
+        || virtual_prefix[1].is_empty()
+        || virtual_prefix[2] != "localcache"
+        || virtual_prefix[3] != "local"
+    {
+        return false;
+    }
+    let lexical_suffix = &lexical[local.len()..];
+    let resolved_suffix = &resolved[local.len() + 4..];
+    resolved_suffix.len() >= lexical_suffix.len()
+        && resolved_suffix[..lexical_suffix.len()] == lexical_suffix[..]
+}
+
 fn windows_localcache_equivalent(lexical: &Path, resolved: &Path, install_root: &Path) -> bool {
     if !cfg!(windows) {
         return false;

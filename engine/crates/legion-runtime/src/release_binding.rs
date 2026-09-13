@@ -479,16 +479,15 @@ pub fn load_installed_release() -> Result<InstalledRelease, ReleaseBindingError>
             path: current_root.clone(),
             source,
         })?;
-    let resolved_executable =
-        fs::canonicalize(&executable).map_err(|source| ReleaseBindingError::Io {
-            path: executable.clone(),
-            source,
-        })?;
-    if !path_is_within(&resolved_install_root, &resolved_executable) {
+    if !is_stable_current_executable_at(&executable, &current_root) {
         return Err(ReleaseBindingError::Mismatch {
             component: "resolved executable",
-            expected: resolved_install_root.display().to_string(),
-            actual: resolved_executable.display().to_string(),
+            expected: current_root.join("bin").join(if cfg!(windows) {
+                "legion.exe"
+            } else {
+                "legion"
+            }).display().to_string(),
+            actual: executable.display().to_string(),
             remediation: REPAIR_COMMAND,
         });
     }
@@ -579,7 +578,14 @@ pub fn verify_stable_current_binding(
             remediation: REPAIR_COMMAND,
         });
     }
-    if !same_path(&evidence.executable, &inputs.runtime_path) {
+    if !same_path(&evidence.executable, &inputs.runtime_path)
+        && !(cfg!(windows)
+            && windows_localcache_equivalent(
+                &evidence.executable,
+                &inputs.runtime_path,
+                root,
+            ))
+    {
         return Err(ReleaseBindingError::Mismatch {
             component: "runtime executable",
             expected: evidence.executable.display().to_string(),
@@ -587,21 +593,19 @@ pub fn verify_stable_current_binding(
             remediation: REPAIR_COMMAND,
         });
     }
-    let resolved_current_root =
-        fs::canonicalize(&current_root).map_err(|source| ReleaseBindingError::Io {
-            path: current_root.clone(),
-            source,
-        })?;
-    let resolved_executable =
-        fs::canonicalize(&evidence.executable).map_err(|source| ReleaseBindingError::Io {
-            path: evidence.executable.clone(),
-            source,
-        })?;
-    if !path_is_within(&resolved_current_root, &resolved_executable) {
+    if !resolved_path_is_within(&current_root, &evidence.executable) {
         return Err(ReleaseBindingError::Mismatch {
             component: "resolved stable current executable",
-            expected: resolved_current_root.display().to_string(),
-            actual: resolved_executable.display().to_string(),
+            expected: current_root
+                .join("bin")
+                .join(if cfg!(windows) {
+                    "legion.exe"
+                } else {
+                    "legion"
+                })
+                .display()
+                .to_string(),
+            actual: evidence.executable.display().to_string(),
             remediation: REPAIR_COMMAND,
         });
     }
@@ -727,6 +731,18 @@ fn is_stable_current_executable_at(path: &Path, root: &Path) -> bool {
         return true;
     }
 
+    #[cfg(windows)]
+    if let Some(install_root) = root.parent() {
+        let lexical_executable = root.join("bin").join(if cfg!(windows) {
+            "legion.exe"
+        } else {
+            "legion"
+        });
+        if windows_localcache_equivalent(&lexical_executable, path, install_root) {
+            return true;
+        }
+    }
+
     // Canonicalization below is only an alias fixup; traversal must remain
     // rejected even when it happens to resolve inside the stable tree.
     if path
@@ -797,16 +813,109 @@ fn verify_resolved_path(
 }
 
 fn resolved_path_is_within(root: &Path, path: &Path) -> bool {
+    if path_is_within(root, path) {
+        return true;
+    }
+    #[cfg(windows)]
+    if let Some(install_root) = root.parent() {
+        if windows_localcache_within(root, path, install_root) {
+            return true;
+        }
+    }
     if !path.exists() {
         return true;
     }
-    let Ok(root) = fs::canonicalize(root) else {
+    let Ok(canonical_root) = fs::canonicalize(root) else {
         return false;
     };
-    let Ok(path) = fs::canonicalize(path) else {
+    let Ok(canonical_path) = fs::canonicalize(path) else {
         return false;
     };
-    path_is_within(&root, &path)
+    if path_is_within(&canonical_root, &canonical_path) {
+        return true;
+    }
+    #[cfg(windows)]
+    if let Some(install_root) = root.parent() {
+        return windows_localcache_within(root, path, install_root)
+            || windows_localcache_within(root, &canonical_path, install_root);
+    }
+    false
+}
+
+/// Windows packaged hosts may resolve `%LOCALAPPDATA%` through
+/// `Packages/<family>/LocalCache/Local`. Accept that OS virtualization only
+/// when removing its exact prefix recreates the already-validated lexical
+/// stable-current path.
+#[cfg(windows)]
+fn windows_localcache_within(lexical: &Path, resolved: &Path, install_root: &Path) -> bool {
+    if windows_localcache_equivalent(lexical, resolved, install_root) {
+        return true;
+    }
+    let Some(local_app_data) = install_root.parent().and_then(Path::parent) else {
+        return false;
+    };
+    let normalize = |path: &Path| {
+        let normalized = path.to_string_lossy().replace('\\', "/");
+        let normalized = normalized.strip_prefix("//?/").unwrap_or(&normalized);
+        normalized
+            .split('/')
+            .filter(|component| !component.is_empty() && *component != ".")
+            .map(|component| component.to_ascii_lowercase())
+            .collect::<Vec<_>>()
+    };
+    let local = normalize(local_app_data);
+    let lexical = normalize(lexical);
+    let resolved = normalize(resolved);
+    if lexical.len() <= local.len()
+        || resolved.len() <= local.len() + 4
+        || lexical[..local.len()] != local
+        || resolved[..local.len()] != local
+    {
+        return false;
+    }
+    let virtual_prefix = &resolved[local.len()..local.len() + 4];
+    if virtual_prefix[0] != "packages"
+        || virtual_prefix[1].is_empty()
+        || virtual_prefix[2] != "localcache"
+        || virtual_prefix[3] != "local"
+    {
+        return false;
+    }
+    let lexical_suffix = &lexical[local.len()..];
+    let resolved_suffix = &resolved[local.len() + 4..];
+    resolved_suffix.len() >= lexical_suffix.len()
+        && resolved_suffix[..lexical_suffix.len()] == lexical_suffix[..]
+}
+
+fn windows_localcache_equivalent(lexical: &Path, resolved: &Path, install_root: &Path) -> bool {
+    let Some(local_app_data) = install_root.parent().and_then(Path::parent) else {
+        return false;
+    };
+    let normalize = |path: &Path| {
+        let normalized = path.to_string_lossy().replace('\\', "/");
+        let normalized = normalized.strip_prefix("//?/").unwrap_or(&normalized);
+        normalized
+            .split('/')
+            .filter(|component| !component.is_empty() && *component != ".")
+            .map(|component| component.to_ascii_lowercase())
+            .collect::<Vec<_>>()
+    };
+    let local = normalize(local_app_data);
+    let lexical = normalize(lexical);
+    let resolved = normalize(resolved);
+    if lexical.len() <= local.len()
+        || resolved.len() <= local.len() + 4
+        || lexical[..local.len()] != local
+        || resolved[..local.len()] != local
+    {
+        return false;
+    }
+    let virtual_prefix = &resolved[local.len()..local.len() + 4];
+    virtual_prefix[0] == "packages"
+        && !virtual_prefix[1].is_empty()
+        && virtual_prefix[2] == "localcache"
+        && virtual_prefix[3] == "local"
+        && resolved[local.len() + 4..] == lexical[local.len()..]
 }
 
 fn path_has_symlink_component(root: &Path, path: &Path) -> bool {
@@ -1369,6 +1478,34 @@ mod tests {
         assert!(is_stable_current_executable_at(&short_executable, &current),
             "short executable {short_executable:?}, long root {current:?}");
         fs::remove_dir_all(root).expect("cleanup");
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn stable_current_accepts_localcache_virtualized_executable() {
+        let install_root = PathBuf::from(r"C:\Users\operator\AppData\Local\Orthic Labs\Legion");
+        let current = install_root.join("current");
+        let lexical_executable = current.join("bin/legion.exe");
+        let virtualized = PathBuf::from(
+            r"\\?\C:\Users\operator\AppData\Local\Packages\OpenAI.Codex_example\LocalCache\Local\Orthic Labs\Legion\current\bin\legion.exe",
+        );
+        assert!(windows_localcache_equivalent(
+            &lexical_executable,
+            &virtualized,
+            &install_root,
+        ));
+        assert!(is_stable_current_executable_at(&virtualized, &current));
+        assert!(!is_stable_current_executable_at(
+            &PathBuf::from(
+                r"C:\Users\operator\AppData\Local\Packages\OpenAI.Codex_example\LocalCache\Local\Other\Legion\current\bin\legion.exe",
+            ),
+            &current,
+        ));
+        let manifest = current.join("share/legion/release.json");
+        let virtual_manifest = PathBuf::from(
+            r"\\?\C:\Users\operator\AppData\Local\Packages\OpenAI.Codex_example\LocalCache\Local\Orthic Labs\Legion\current\share\legion\release.json",
+        );
+        assert!(windows_localcache_within(&current, &virtual_manifest, &install_root));
     }
 
     #[cfg(windows)]

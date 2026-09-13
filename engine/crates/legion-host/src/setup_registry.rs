@@ -2093,7 +2093,13 @@ fn validate_installed_projection(input: &ClientProjectionInput) -> Result<(), Se
     reject_source_checkout_descendant(&input.state_root)?;
 
     let derived_install_root = stable_install_root(lexical_executable)?;
-    if !paths_equal(&derived_install_root, lexical_install_root) {
+    if !paths_equal(&derived_install_root, lexical_install_root)
+        && !windows_localcache_equivalent(
+            lexical_install_root,
+            &derived_install_root,
+            lexical_install_root,
+        )
+    {
         return Err(err(
             SetupErrorCode::PathEscapeRefused,
             "installed client projection must bind the stable current/bin/legion executable",
@@ -2144,14 +2150,25 @@ fn validate_installed_projection(input: &ClientProjectionInput) -> Result<(), Se
         || !current_root.is_dir()
         || !install_root.is_dir()
         || !resolved_current_is_active
-        || !installed_path_starts_with(&executable, &current_root)
+        || (!installed_path_starts_with(&executable, &current_root)
+            && !windows_localcache_within(
+                &lexical_current_root,
+                &executable,
+                lexical_install_root,
+            ))
     {
         return Err(err(
             SetupErrorCode::PathEscapeRefused,
             "installed client projection executable escapes resolved active release",
         ));
     }
-    if !installed_path_starts_with(&input.source_root, &lexical_current_root) {
+    if !installed_path_starts_with(&input.source_root, &lexical_current_root)
+        && !windows_localcache_within(
+            &lexical_current_root,
+            &input.source_root,
+            lexical_install_root,
+        )
+    {
         return Err(err(
             SetupErrorCode::PathEscapeRefused,
             "installed client projection source escapes stable current",
@@ -2160,7 +2177,9 @@ fn validate_installed_projection(input: &ClientProjectionInput) -> Result<(), Se
     if path_exists(&input.source_root)? {
         let source = fs::canonicalize(&input.source_root).map_err(io)?;
         reject_production_path(&source)?;
-        if !installed_path_starts_with(&source, &current_root) {
+        if !installed_path_starts_with(&source, &current_root)
+            && !windows_localcache_within(&lexical_current_root, &source, lexical_install_root)
+        {
             return Err(err(
                 SetupErrorCode::PathEscapeRefused,
                 "installed client projection source escapes stable current",
@@ -3141,6 +3160,46 @@ fn installed_path_starts_with(path: &Path, root: &Path) -> bool {
                 (Ok(path), Ok(root)) => path_starts_with(&path, &root),
                 _ => false,
             })
+}
+
+fn windows_localcache_within(lexical: &Path, resolved: &Path, install_root: &Path) -> bool {
+    if windows_localcache_equivalent(lexical, resolved, install_root) {
+        return true;
+    }
+    let Some(local_app_data) = install_root.parent().and_then(Path::parent) else {
+        return false;
+    };
+    let normalize = |path: &Path| {
+        let normalized = path.to_string_lossy().replace('\\', "/");
+        let normalized = normalized.strip_prefix("//?/").unwrap_or(&normalized);
+        normalized
+            .split('/')
+            .filter(|component| !component.is_empty() && *component != ".")
+            .map(|component| component.to_ascii_lowercase())
+            .collect::<Vec<_>>()
+    };
+    let local = normalize(local_app_data);
+    let lexical = normalize(lexical);
+    let resolved = normalize(resolved);
+    if lexical.len() <= local.len()
+        || resolved.len() <= local.len() + 4
+        || lexical[..local.len()] != local
+        || resolved[..local.len()] != local
+    {
+        return false;
+    }
+    let virtual_prefix = &resolved[local.len()..local.len() + 4];
+    if virtual_prefix[0] != "packages"
+        || virtual_prefix[1].is_empty()
+        || virtual_prefix[2] != "localcache"
+        || virtual_prefix[3] != "local"
+    {
+        return false;
+    }
+    let lexical_suffix = &lexical[local.len()..];
+    let resolved_suffix = &resolved[local.len() + 4..];
+    resolved_suffix.len() >= lexical_suffix.len()
+        && resolved_suffix[..lexical_suffix.len()] == lexical_suffix[..]
 }
 
 fn windows_localcache_equivalent(lexical: &Path, resolved: &Path, install_root: &Path) -> bool {
