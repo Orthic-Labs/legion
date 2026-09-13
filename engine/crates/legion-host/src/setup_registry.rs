@@ -3967,7 +3967,7 @@ mod tests {
         fs::write(source_root.join("plugin.json"), br#"{"name":"legion"}"#).unwrap();
         fs::write(source_root.join("mcp.json"), br#"{"mcpServers":{}}"#).unwrap();
         fs::write(source_root.join("skills/example/SKILL.md"), b"# Example").unwrap();
-        let host_home = root.0.join("host-home");
+        let host_home = state_root.join("host-home");
         fs::create_dir_all(&host_home).unwrap();
         fs::write(
             host_home.join(".claude.json"),
@@ -3978,7 +3978,7 @@ mod tests {
             client_id: client_id.into(),
             projection: projection.into(),
             source_root: fs::canonicalize(source_root).unwrap(),
-            target_root: root.0.join("client/plugin"),
+            target_root: state_root.join("client/plugin"),
             state_root: fs::canonicalize(state_root).unwrap(),
             origin: ORIGIN_DEVELOPMENT.into(),
             executable: None,
