@@ -14,6 +14,11 @@ runs:
   using: composite
   steps:
     - shell: bash
-      run: corepack pnpm@11.24.0 install --dir "${{ github.action_path }}" --frozen-lockfile --prod
+      env:
+        ACTION_PATH: ${{ github.action_path }}
+      run: corepack pnpm@11.24.0 install --dir "$ACTION_PATH" --frozen-lockfile --prod
     - shell: bash
-      run: node "${{ github.action_path }}/tools/audit/audit-run.mjs" "$GITHUB_WORKSPACE" --profile "${{ inputs.profile }}" --out "$RUNNER_TEMP/legion"
+      env:
+        ACTION_PATH: ${{ github.action_path }}
+        AUDIT_PROFILE: ${{ inputs.profile }}
+      run: node "$ACTION_PATH/tools/audit/audit-run.mjs" "$GITHUB_WORKSPACE" --profile "$AUDIT_PROFILE" --out "$RUNNER_TEMP/legion"
