@@ -1,18 +1,15 @@
 import assert from 'node:assert/strict';
-import { spawnSync } from 'node:child_process';
 import { mkdtempSync, rmSync, mkdirSync, existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import test from 'node:test';
+import { runNativeCli } from '../scripts/native-cli/test-helper.mjs';
 
-const BIN = fileURLToPath(new URL('../src/bin/legion.mjs', import.meta.url));
 const root = fileURLToPath(new URL('..', import.meta.url));
 
 function bind(args = []) {
-  return spawnSync(process.execPath, [BIN, 'bind', ...args], {
-    cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'],
-  });
+  return runNativeCli(['bind', ...args], { cwd: root });
 }
 
 function makeClaudeCodeDir() {

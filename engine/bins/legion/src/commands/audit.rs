@@ -10,6 +10,34 @@ pub struct AuditArgs {
     #[arg(long)]
     pub plan_only: bool,
     #[arg(long)]
+    pub quiet: bool,
+    #[arg(long = "only")]
+    pub only: Vec<String>,
+    #[arg(long = "skip")]
+    pub skip: Vec<String>,
+    #[arg(long)]
+    pub url: Option<String>,
+    #[arg(long)]
+    pub surfaces: Option<String>,
+    #[arg(long = "visual-spec")]
+    pub visual_spec: Option<PathBuf>,
+    #[arg(long = "visual-baselines")]
+    pub visual_baselines: Option<PathBuf>,
+    #[arg(long, default_value_t = 1280)]
+    pub width: u32,
+    #[arg(long, default_value_t = 800)]
+    pub height: u32,
+    #[arg(long = "blueprint-out")]
+    pub blueprint_out: Option<PathBuf>,
+    #[arg(long)]
+    pub r#type: Option<String>,
+    #[arg(long)]
+    pub base: Option<String>,
+    #[arg(long = "base-commit")]
+    pub base_commit: Option<String>,
+    #[arg(long)]
+    pub dir: Option<PathBuf>,
+    #[arg(long)]
     pub json: bool,
     #[arg(long, default_value = "standard")]
     pub profile: String,
@@ -40,8 +68,9 @@ pub async fn run(args: AuditArgs, cancellation: CancellationToken) -> CommandRes
             .filter(|value| !value.is_empty())
             .map(|value| value.to_string_lossy().as_bytes().to_vec())
     };
-    let native_provider_subset =
-        !direct && std::env::var_os("LEGION_NATIVE_APPLICATION_CONFIG").is_none();
+    let native_provider_subset = !direct
+        && std::env::var_os("LEGION_NATIVE_APPLICATION_CONFIG").is_none()
+        && native_provider_registry_path().is_none();
     let (application, context_notices) = if direct {
         let (application, notices) = direct_application(&args, &root)?;
         (Arc::new(application), notices)
@@ -54,7 +83,28 @@ pub async fn run(args: AuditArgs, cancellation: CancellationToken) -> CommandRes
         let (application, notices) = native_rule_application(&args, &root)?;
         (Arc::new(application), notices)
     };
-    let selected_specs = application.provider_specs();
+    let mut selected_specs = application.provider_specs();
+    let configured_ids = selected_specs.iter().map(|provider| provider.id.as_str()).collect::<std::collections::BTreeSet<_>>();
+    for requested in args.only.iter().chain(args.skip.iter()) {
+        if !configured_ids.contains(requested.as_str()) {
+            return Err(CommandError::usage(format!("unknown provider: {requested}")));
+        }
+    }
+    // Keep provider selection deterministic and equivalent to audit-run's
+    // repeated --only/--skip flags. Filtering happens before plan compilation,
+    // therefore excluded providers cannot affect frozen denominators or DAG.
+    if !args.only.is_empty() {
+        selected_specs.retain(|provider| args.only.iter().any(|id| id == provider.id.as_str()));
+    }
+    if !args.skip.is_empty() {
+        selected_specs.retain(|provider| !args.skip.iter().any(|id| id == provider.id.as_str()));
+    }
+    if let Some(family) = &args.r#type {
+        selected_specs.retain(|provider| provider.family == *family);
+    }
+    if selected_specs.is_empty() {
+        return Err(CommandError::usage("provider selection produced an empty plan"));
+    }
     let blueprint_dependent = selected_specs.iter().any(|provider| {
         provider
             .consumes
@@ -77,13 +127,13 @@ pub async fn run(args: AuditArgs, cancellation: CancellationToken) -> CommandRes
     let operation = if args.plan_only {
         legion_application::NativeOperation::Plan {
             repository_id: root.to_string_lossy().into_owned(),
-            providers: application.provider_specs(),
+            providers: selected_specs.clone(),
             signing_key: signing_key.clone(),
         }
     } else {
         legion_application::NativeOperation::Audit {
             repository_id: root.to_string_lossy().into_owned(),
-            providers: application.provider_specs(),
+            providers: selected_specs.clone(),
             signing_key,
         }
     };
@@ -114,6 +164,7 @@ pub async fn run(args: AuditArgs, cancellation: CancellationToken) -> CommandRes
                 "processState": "not-run",
                 "completionValidation": "not-run",
                 "gaps": ["plan-only"],
+                "inputGaps": native_audit_input_gaps(&args),
                 "blueprintDegradations": blueprint_degradations
             });
             if let Some(out) = &args.out {
@@ -135,6 +186,7 @@ pub async fn run(args: AuditArgs, cancellation: CancellationToken) -> CommandRes
                 execution.plan_signature.as_deref(),
             );
             report.gaps.extend(parity_gaps);
+            report.gaps.extend(native_audit_input_gaps(&args));
             if native_provider_subset {
                 report
                     .gaps
@@ -290,10 +342,47 @@ fn native_audit_parity_gaps(
     gaps
 }
 
+fn native_audit_input_gaps(args: &AuditArgs) -> Vec<String> {
+    let mut gaps = Vec::new();
+    if args.url.is_some() || args.surfaces.is_some() || args.visual_spec.is_some() || args.visual_baselines.is_some() || args.width != 1280 || args.height != 800 { gaps.push("native-visual-provider-options-not-applied".into()); }
+    if args.base.is_some() || args.base_commit.is_some() || args.dir.is_some() { gaps.push("native-diff-scope-not-applied".into()); }
+    if args.blueprint_out.is_some() { gaps.push("native-blueprint-output-not-applied".into()); }
+    gaps
+}
+
 fn native_rule_application(
     args: &AuditArgs,
     root: &std::path::Path,
 ) -> Result<(legion_application::NativeApplication, Vec<String>), CommandError> {
+    // Native composition is sourced from the same provider registry as the JS
+    // runner. This keeps plan selection/freeze coverage at 78 providers while
+    // the executor dispatches migrated analyzers in-process and leaves host
+    // reasoning/external providers receipt-bound.
+    if let Some(registry) = native_provider_registry_path() {
+        let bytes = std::fs::read(&registry).map_err(super::io_error)?;
+        let value: serde_json::Value = serde_json::from_slice(&bytes)
+            .map_err(|error| CommandError::usage(format!("invalid provider registry: {error}")))?;
+        let providers = value
+            .get("providers")
+            .and_then(serde_json::Value::as_array)
+            .ok_or_else(|| CommandError::usage("provider registry must contain providers"))?
+            .iter()
+            .cloned()
+            .map(serde_json::from_value)
+            .collect::<Result<Vec<legion_contracts::ProviderSpec>, _>>()
+            .map_err(|error| CommandError::usage(format!("invalid provider specification: {error}")))?;
+        let (source, notices) = super::audit_inventory_source(
+            root,
+            args.blueprint_packet.as_deref(),
+            args.expected_generation.clone(),
+        )?;
+        let executor = std::sync::Arc::new(legion_audit::NativeProviderRegistry::new(root.to_path_buf()));
+        let application = legion_application::NativeApplicationConfig::for_audit_executor(
+            root.to_string_lossy().into_owned(), source, providers, executor,
+        )
+        .map_err(|error| CommandError::incomplete(error.to_string()))?;
+        return Ok((application, notices));
+    }
     let manifest = match &args.native_rule_manifest {
         Some(path) => std::fs::canonicalize(path).map_err(super::io_error)?,
         None => {
@@ -377,6 +466,19 @@ fn native_rule_application(
     )
     .map_err(|error| CommandError::incomplete(error.to_string()))?;
     Ok((application, notices))
+}
+
+fn native_provider_registry_path() -> Option<std::path::PathBuf> {
+    if let Some(path) = std::env::var_os("LEGION_PROVIDER_REGISTRY") {
+        let path = std::path::PathBuf::from(path);
+        if path.is_file() {
+            return Some(path);
+        }
+    }
+    let composition = crate::cli::installed_m1_composition().ok()?;
+    let share = composition.parent()?;
+    let path = share.join("assets/registry/providers.json");
+    path.is_file().then_some(path)
 }
 
 fn sha256_hex(bytes: &[u8]) -> String {

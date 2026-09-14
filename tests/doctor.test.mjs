@@ -1,21 +1,18 @@
 import assert from 'node:assert/strict';
-import { spawnSync } from 'node:child_process';
 import { mkdirSync, mkdtempSync, rmSync, existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import test from 'node:test';
+import { runNativeCli } from '../scripts/native-cli/test-helper.mjs';
 import { codexHookTrust, computeHostSection } from '../src/lib/cli/commands/doctor-host.mjs';
 import { DOCTOR_BLUEPRINT_TIMEOUT_MS } from '../src/lib/cli/commands/doctor.mjs';
 import { COMMAND_PROBE_TIMEOUT_MS, probeCapability } from '../src/lib/capabilities/probe.mjs';
 
-const BIN = fileURLToPath(new URL('../src/bin/legion.mjs', import.meta.url));
 const root = fileURLToPath(new URL('..', import.meta.url));
 
 function doctor(args = [], env = {}) {
-  return spawnSync(process.execPath, [BIN, 'doctor', ...args, '--json'], {
-    cwd: root, encoding: 'utf8', env: { ...process.env, ...env }, stdio: ['ignore', 'pipe', 'pipe'],
-  });
+  return runNativeCli(['doctor', ...args, '--json'], { cwd: root, env });
 }
 
 test('doctor --json emits the canonical shape', () => {
@@ -125,10 +122,8 @@ test('doctor reports pending Codex legacy MCP migration', () => {
 test('init dry-run previews without writing', () => {
   const dir = mkdtempSync(join(tmpdir(), 'legion-init-'));
   try {
-    const init = spawnSync(process.execPath, [BIN, 'init', dir, '--dry-run'], {
-      cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'],
-    });
-    assert.equal(init.status, 0);
+    const init = runNativeCli(['init', dir, '--dry-run'], { cwd: root });
+    assert.equal(init.exitCode, 0);
     const preview = JSON.parse(init.stdout);
     assert.equal(preview.kind, 'legion-init-preview');
     assert.equal(preview.dryRun, true);
@@ -141,10 +136,8 @@ test('init dry-run previews without writing', () => {
 test('init --write creates config and ignore entries', () => {
   const dir = mkdtempSync(join(tmpdir(), 'legion-init-'));
   try {
-    const init = spawnSync(process.execPath, [BIN, 'init', dir, '--write'], {
-      cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'],
-    });
-    assert.equal(init.status, 0);
+    const init = runNativeCli(['init', dir, '--write'], { cwd: root });
+    assert.equal(init.exitCode, 0);
     assert.ok(existsSync(join(dir, 'legion.config.json')), 'config written');
     assert.ok(existsSync(join(dir, '.gitignore')), 'gitignore written');
     assert.ok(readFileSync(join(dir, '.gitignore'), 'utf8').includes('.legion/'));

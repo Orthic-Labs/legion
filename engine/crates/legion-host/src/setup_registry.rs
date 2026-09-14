@@ -4399,7 +4399,7 @@ mod tests {
             .to_string_lossy()
             .replace('\\', "/")
             .replace("/client/", r"\client/");
-        value["targetRoot"] = serde_json::Value::String(mixed_target.into_owned());
+        value["targetRoot"] = serde_json::Value::String(mixed_target);
         fs::write(&ledger_path, serde_json::to_vec(&value).unwrap()).unwrap();
         let canonical_target = fs::canonicalize(&input.target_root).unwrap();
         let input = ClientProjectionInput {

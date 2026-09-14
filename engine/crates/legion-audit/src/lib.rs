@@ -10,6 +10,7 @@ mod plan;
 mod report;
 mod verify;
 mod worktree;
+pub mod native_providers;
 
 pub use dag::topological;
 pub use error::AuditError;
@@ -25,3 +26,4 @@ pub use plan::{AuditPlan, AuditProvider, FrozenPlan, ProviderKind};
 pub use report::canonical_report;
 pub use verify::{verify_binding, verify_execution, verify_source_diagnostic};
 pub use worktree::{cleanup, create, WorktreeEffect, WorktreeReceipt};
+pub use native_providers::NativeProviderRegistry;

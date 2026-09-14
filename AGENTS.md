@@ -74,7 +74,8 @@ Legion provides shared routing, execution, and independent semantic validation a
 - Read generated `docs/pending/README.md` as sole pending-work index.
 
 ## Commands
-- For Windows installer development, run `pnpm run release:local:win:unsigned` from primary checkout. This is default pre-publication path: managed RightKit warm cache → unsigned installer → isolated installed qualification → exact stable-`current` install. See `docs/reference/release/local-windows-development.md`.
+- Before any Windows installer build, run `pnpm run native:check:local` from primary checkout. It compile-checks whole Rust workspace/all targets through managed RightKit using same external release cache; do not spend an installer build until it passes.
+- For Windows installer development, run `pnpm run release:local:win:unsigned` from primary checkout after local native check passes. This is default pre-publication path: managed RightKit warm cache → unsigned installer → isolated installed qualification → exact stable-`current` install. See `docs/reference/release/local-windows-development.md`.
 - Use `pnpm run release:build:win:unsigned` only when build output is requested without install or qualification. Focused local tests supporting this route are allowed.
 - Do not use GitHub Actions, signing, publication, or Mac work for Windows installer development. Use public release machinery only after local installed route passes & operator explicitly requests publication.
 

@@ -1,0 +1,67 @@
+[
+  {
+    "id": "claude-code",
+    "displayName": "Claude Code",
+    "installOwner": "plugin",
+    "detect": { "anyOf": [".claude", ".claude-plugin/plugin.json", "CLAUDE.md"] },
+    "surfaces": {
+      "instructions": { "fidelity": "strong", "mechanism": { "kind": "plugin" }, "note": "CLAUDE.md + plugin doctrine" },
+      "skills": { "fidelity": "strong", "mechanism": { "kind": "plugin" }, "note": "plugin ships skills/ natively" },
+      "agents": { "fidelity": "strong", "mechanism": { "kind": "plugin" }, "note": "plugin ships agents/ natively" },
+      "mcp": { "fidelity": "strong", "mechanism": { "kind": "plugin" }, "note": "legion MCP server in plugin.json" },
+      "hooks": { "fidelity": "strong", "mechanism": { "kind": "blocking-hook" }, "note": "Guard pre/post-tool hooks in hooks.json" }
+    }
+  },
+  {
+    "id": "codex",
+    "displayName": "Codex",
+    "installOwner": "adapter",
+    "detect": { "anyOf": [".codex", ".codex/config.toml"], "env": ["CODEX_HOME", "CODEX_THREAD_ID", "CODEX_SESSION_ID"] },
+    "surfaces": {
+      "instructions": { "fidelity": "strong", "mechanism": { "kind": "agents-md", "path": "AGENTS.md" } },
+      "skills": { "fidelity": "strong", "mechanism": { "kind": "skills-dir", "path": ".agents/skills" }, "note": "native Agent Skills discovery with generated implicit/explicit invocation policy" },
+      "agents": { "fidelity": "unsupported", "mechanism": { "kind": "none" }, "note": "no native subagents" },
+      "mcp": { "fidelity": "strong", "mechanism": { "kind": "toml", "path": ".codex/config.toml", "table": "mcp_servers" } },
+      "hooks": { "fidelity": "unsupported", "mechanism": { "kind": "none" }, "note": "no effect-enforcement hook surface; Guard enforcement is absent, not degraded" }
+    }
+  },
+  {
+    "id": "cline",
+    "displayName": "Cline",
+    "installOwner": "adapter",
+    "detect": { "anyOf": [".clinerules"], "env": ["CLINE_ACTIVE"] },
+    "surfaces": {
+      "instructions": { "fidelity": "strong", "mechanism": { "kind": "native-file", "path": ".clinerules/legion.md" } },
+      "skills": { "fidelity": "degraded", "mechanism": { "kind": "skills-dir", "path": ".agents/skills" }, "note": "no native skill discovery; canonical packages projected to .agents/skills and referenced from .clinerules" },
+      "agents": { "fidelity": "unsupported", "mechanism": { "kind": "none" }, "note": "no native subagent primitive" },
+      "mcp": { "fidelity": "unsupported", "mechanism": { "kind": "none" }, "note": "MCP registry is extension-managed (cline_mcp_settings.json), outside the repo; Legion does not install it" },
+      "hooks": { "fidelity": "unsupported", "mechanism": { "kind": "none" }, "note": "no blocking effect gate" }
+    }
+  },
+  {
+    "id": "command-code",
+    "displayName": "Command Code",
+    "installOwner": "adapter",
+    "detect": { "anyOf": [".commandcode", ".command-code"], "env": ["COMMAND_CODE_HOME"] },
+    "surfaces": {
+      "instructions": { "fidelity": "strong", "mechanism": { "kind": "agents-md", "path": "AGENTS.md" } },
+      "skills": { "fidelity": "degraded", "mechanism": { "kind": "skills-dir", "path": ".agents/skills" }, "note": "no verified native skill discovery; canonical packages projected to .agents/skills and referenced from AGENTS.md" },
+      "agents": { "fidelity": "unsupported", "mechanism": { "kind": "none" }, "note": "native subagent support unconfirmed for this harness" },
+      "mcp": { "fidelity": "unsupported", "mechanism": { "kind": "none" }, "note": "MCP registration path unconfirmed for this harness" },
+      "hooks": { "fidelity": "unsupported", "mechanism": { "kind": "none" } }
+    }
+  },
+  {
+    "id": "pi",
+    "displayName": "Pi",
+    "installOwner": "adapter",
+    "detect": { "anyOf": [".pi", ".pi/config"], "env": ["PI_HOME", "PI_SESSION"] },
+    "surfaces": {
+      "instructions": { "fidelity": "strong", "mechanism": { "kind": "agents-md", "path": "AGENTS.md" } },
+      "skills": { "fidelity": "degraded", "mechanism": { "kind": "skills-dir", "path": ".agents/skills" }, "note": "no verified native skill discovery; canonical packages projected to .agents/skills and referenced from AGENTS.md" },
+      "agents": { "fidelity": "unsupported", "mechanism": { "kind": "none" }, "note": "native subagent support unconfirmed for this harness" },
+      "mcp": { "fidelity": "unsupported", "mechanism": { "kind": "none" }, "note": "MCP registration path unconfirmed for this harness" },
+      "hooks": { "fidelity": "unsupported", "mechanism": { "kind": "none" } }
+    }
+  }
+]

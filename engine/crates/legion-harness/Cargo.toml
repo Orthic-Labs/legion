@@ -1,0 +1,13 @@
+[package]
+name = "legion-harness"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+legion-runtime = { path = "../legion-runtime" }
+regex.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+walkdir.workspace = true

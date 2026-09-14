@@ -1,0 +1,381 @@
+{
+  "schemaVersion": 1,
+  "kind": "legion-native-cli-characterization-fixtures",
+  "note": "Black-box corpus for zero-loss cutover. Expand until every Node command path is covered.",
+  "fixtures": [
+    {
+      "id": "root-help",
+      "command": "help",
+      "argv": ["--help"],
+      "expect": { "exitCode": 0, "stdoutIncludes": ["Usage: legion"] }
+    },
+    {
+      "id": "root-version",
+      "command": "version",
+      "argv": ["--version"],
+      "expect": { "exitCode": 0 }
+    },
+    {
+      "id": "root-unknown-command",
+      "command": "unknown",
+      "argv": ["frobnicate"],
+      "expect": { "exitCode": 4, "stderrIncludes": ["unknown command"] }
+    },
+    {
+      "id": "assurance-help",
+      "command": "assurance",
+      "argv": ["assurance", "--help"],
+      "captureOnly": true
+    },
+    { "id": "catalog-help", "command": "catalog", "argv": ["catalog", "--help"], "rustExpect": { "exitCode": 0 } },
+    { "id": "decision-help", "command": "decision", "argv": ["decision", "--help"], "rustExpect": { "exitCode": 0 } },
+    { "id": "handoff-help", "command": "handoff", "argv": ["handoff", "--help"], "rustExpect": { "exitCode": 0 } },
+    { "id": "policy-help", "command": "policy", "argv": ["policy", "--help"], "rustExpect": { "exitCode": 0 } },
+    { "id": "research-help", "command": "research", "argv": ["research", "--help"], "rustExpect": { "exitCode": 0 } },
+    { "id": "review-help", "command": "review", "argv": ["review", "--help"], "rustExpect": { "exitCode": 0 } },
+    { "id": "serve-help", "command": "serve", "argv": ["serve", "--help"], "rustExpect": { "exitCode": 0 } },
+    { "id": "setup-help", "command": "setup", "argv": ["setup", "--help"], "rustExpect": { "exitCode": 0 } },
+    { "id": "status-help", "command": "status", "argv": ["status", "--help"], "rustExpect": { "exitCode": 0 } },
+    { "id": "run-open-help", "command": "run", "subcommand": "open", "argv": ["run", "open", "--help"], "rustExpect": { "exitCode": 0 } },
+    { "id": "run-close-help", "command": "run", "subcommand": "close", "argv": ["run", "close", "--help"], "rustExpect": { "exitCode": 0 } },
+    { "id": "run-suspend-help", "command": "run", "subcommand": "suspend", "argv": ["run", "suspend", "--help"], "rustExpect": { "exitCode": 0 } },
+    { "id": "run-supersede-help", "command": "run", "subcommand": "supersede", "argv": ["run", "supersede", "--help"], "rustExpect": { "exitCode": 0 } },
+    { "id": "run-repair-help", "command": "run", "subcommand": "repair", "argv": ["run", "repair", "--help"], "rustExpect": { "exitCode": 0 } },
+    { "id": "completion-claim-help", "command": "completion", "subcommand": "claim", "argv": ["completion", "claim", "--help"], "rustExpect": { "exitCode": 0 } },
+    { "id": "completion-evidence-help", "command": "completion", "subcommand": "evidence", "argv": ["completion", "evidence", "--help"], "rustExpect": { "exitCode": 0 } },
+    { "id": "host-events-help", "command": "host", "subcommand": "events", "argv": ["host", "events", "--help"], "rustExpect": { "exitCode": 0 } },
+    { "id": "host-events-inspect-help", "command": "host", "subcommand": "events.inspect", "argv": ["host", "events", "inspect", "--help"], "rustExpect": { "exitCode": 0 } },
+    { "id": "host-describe-help", "command": "host", "subcommand": "describe", "argv": ["host", "describe", "--help"], "rustExpect": { "exitCode": 0 } },
+    { "id": "state-snapshot-help", "command": "state", "subcommand": "snapshot", "argv": ["state", "snapshot", "--help"], "rustExpect": { "exitCode": 0 } },
+    { "id": "state-verify-help", "command": "state", "subcommand": "verify", "argv": ["state", "verify", "--help"], "rustExpect": { "exitCode": 0 } },
+    {
+      "id": "providers-json",
+      "command": "providers",
+      "argv": ["providers", "--json"],
+      "expect": { "exitCode": 0, "kind": "legion-providers" }
+    },
+    {
+      "id": "languages-json",
+      "command": "languages",
+      "argv": ["languages", "--json"],
+      "expect": { "exitCode": 0, "kind": "legion-languages" }
+    },
+    {
+      "id": "init-dry-run",
+      "command": "init",
+      "argv": ["init", ".", "--dry-run"],
+      "cwd": "tests/fixtures/minimal-repo",
+      "expect": { "exitCode": 0, "kind": "legion-init-preview" }
+    },
+    {
+      "id": "hooks-install",
+      "command": "hooks",
+      "argv": ["hooks", "install"],
+      "expect": { "exitCode": 0, "kind": "legion-hooks" }
+    },
+    {
+      "id": "mcp-print-config",
+      "command": "mcp",
+      "argv": ["mcp", "print-config"],
+      "expect": { "exitCode": 0, "kind": "legion-mcp-config" }
+    },
+    {
+      "id": "mcp-unknown-subcommand",
+      "command": "mcp",
+      "argv": ["mcp", "frobnicate"],
+      "expect": { "exitCode": 4 }
+    },
+    {
+      "id": "authority-proof-inspect",
+      "command": "authority",
+      "argv": ["authority", "proof", "inspect"],
+      "expect": { "exitCode": 0 }
+    },
+    {
+      "id": "doctor-json",
+      "command": "doctor",
+      "argv": ["doctor", ".", "--json"],
+      "expect": { "exitCode": 0, "stdoutIncludes": ["legion-doctor"] },
+      "rustExpect": { "exitCode": 2, "captureOnly": true }
+    },
+    {
+      "id": "bind-help",
+      "command": "bind",
+      "argv": ["bind", "--help"],
+      "captureOnly": true
+    },
+    {
+      "id": "bind-registrations",
+      "command": "bind",
+      "argv": ["bind", "--registrations"],
+      "expect": { "exitCode": 0, "kind": "legion-bind-registrations" }
+    },
+    {
+      "id": "bind-unknown-harness",
+      "command": "bind",
+      "argv": ["bind", "--harness", "frobnicate", "."],
+      "cwd": "tests/fixtures/minimal-repo",
+      "expect": { "exitCode": 4 }
+    },
+    {
+      "id": "bind-claude-retired",
+      "command": "bind",
+      "argv": ["bind", "--harness", "claude-code", "."],
+      "cwd": "tests/fixtures/minimal-repo",
+      "expect": { "exitCode": 0, "kind": "legion-bind-preview" }
+    },
+    {
+      "id": "audit-help",
+      "command": "audit",
+      "argv": ["audit", "--help"],
+      "captureOnly": true
+    },
+    {
+      "id": "run-help",
+      "command": "run",
+      "argv": ["run", "--help"],
+      "captureOnly": true
+    },
+    {
+      "id": "governance-help",
+      "command": "governance",
+      "argv": ["governance", "--help"],
+      "captureOnly": true
+    },
+    {
+      "id": "contract-help",
+      "command": "contract",
+      "argv": ["contract", "--help"],
+      "captureOnly": true
+    },
+    {
+      "id": "budget-help",
+      "command": "budget",
+      "argv": ["budget", "--help"],
+      "captureOnly": true
+    },
+    {
+      "id": "budget-inspect-usage",
+      "command": "budget",
+      "argv": ["budget", "inspect"],
+      "expect": { "exitCode": 4 }
+    },
+    {
+      "id": "governance-execution-classify",
+      "command": "governance",
+      "argv": [
+        "governance",
+        "execution",
+        "--json",
+        "{\"operation\":\"execution.retry.classify\",\"input\":{\"failure_class\":\"AUTHENTICATION\"}}"
+      ],
+      "expect": { "exitCode": 2, "kind": "arcane-execution-control-decision" }
+    },
+    {
+      "id": "governance-malformed-json",
+      "command": "governance",
+      "argv": ["governance", "execution", "--json", "{"],
+      "expect": { "exitCode": 4 }
+    },
+    {
+      "id": "governance-delivery-capacity",
+      "command": "governance",
+      "argv": [
+        "governance",
+        "delivery",
+        "--json",
+        "{\"operation\":\"dispatch-capacity\",\"input\":{\"readyTasks\":[{\"id\":\"t1\"}],\"constraints\":[]}}"
+      ],
+      "expect": { "exitCode": 2 }
+    },
+    {
+      "id": "governance-judgment-verify-closure",
+      "command": "governance",
+      "argv": [
+        "governance",
+        "judgment",
+        "--json",
+        "{\"operation\":\"finding.verify-closure\",\"payload\":{}}"
+      ],
+      "expect": { "exitCode": 2, "code": "ARC_INTERNAL_ERROR" }
+    },
+    {
+      "id": "governance-judgment-deficit-classify",
+      "command": "governance",
+      "argv": [
+        "governance",
+        "judgment",
+        "--json",
+        "{\"operation\":\"deficit.classify\",\"payload\":{}}"
+      ],
+      "expect": { "exitCode": 2, "code": "ARC_INTERNAL_ERROR" }
+    },
+    {
+      "id": "governance-judgment-advisory-query",
+      "command": "governance",
+      "argv": [
+        "governance",
+        "judgment",
+        "--json",
+        "{\"operation\":\"advisory.query\",\"payload\":{\"expected\":{}}}"
+      ],
+      "expect": { "exitCode": 2, "code": "ARC_AUTH_KEY_UNAVAILABLE" }
+    },
+    {
+      "id": "schedule-help",
+      "command": "schedule",
+      "argv": ["schedule", "--help"],
+      "captureOnly": true
+    },
+    {
+      "id": "rules-help",
+      "command": "rules",
+      "argv": ["rules", "--help"],
+      "captureOnly": true
+    },
+    {
+      "id": "hooks-help",
+      "command": "hooks",
+      "argv": ["hooks", "--help"],
+      "captureOnly": true
+    },
+    {
+      "id": "mcp-help",
+      "command": "mcp",
+      "argv": ["mcp", "--help"],
+      "captureOnly": true
+    },
+    {
+      "id": "state-help",
+      "command": "state",
+      "argv": ["state", "--help"],
+      "captureOnly": true
+    },
+    {
+      "id": "completion-help",
+      "command": "completion",
+      "argv": ["completion", "--help"],
+      "captureOnly": true
+    },
+    {
+      "id": "host-help",
+      "command": "host",
+      "argv": ["host", "--help"],
+      "captureOnly": true
+    },
+    {
+      "id": "harness-help",
+      "command": "harness",
+      "argv": ["harness", "--help"],
+      "captureOnly": true
+    },
+    {
+      "id": "harness-list",
+      "command": "harness",
+      "argv": ["harness", "list"],
+      "expect": { "exitCode": 0, "kind": "legion-harness-list" }
+    },
+    {
+      "id": "harness-unknown-subcommand",
+      "command": "harness",
+      "argv": ["harness", "frobnicate"],
+      "expect": { "exitCode": 4 }
+    },
+    {
+      "id": "harness-capabilities-codex",
+      "command": "harness",
+      "argv": ["harness", "capabilities", "codex", "."],
+      "expect": { "exitCode": 0, "kind": "legion-harness-capabilities" }
+    },
+    {
+      "id": "authority-help",
+      "command": "authority",
+      "argv": ["authority", "--help"],
+      "captureOnly": true
+    },
+    {
+      "id": "minimize-help",
+      "command": "minimize",
+      "argv": ["minimize", "--help"],
+      "captureOnly": true
+    },
+    {
+      "id": "minimize-usage",
+      "command": "minimize",
+      "argv": ["minimize"],
+      "expect": { "exitCode": 4 }
+    },
+    {
+      "id": "minimize-commit-init-review-usage",
+      "command": "minimize",
+      "argv": ["minimize", "commit", "init-review"],
+      "expect": { "exitCode": 4 }
+    },
+    {
+      "id": "inspect-help",
+      "command": "inspect",
+      "argv": ["inspect", "--help"],
+      "captureOnly": true
+    },
+    {
+      "id": "targets-help",
+      "command": "targets",
+      "argv": ["targets", "--help"],
+      "captureOnly": true
+    },
+    {
+      "id": "components-help",
+      "command": "components",
+      "argv": ["components", "--help"],
+      "captureOnly": true
+    },
+    {
+      "id": "stacks-help",
+      "command": "stacks",
+      "argv": ["stacks", "--help"],
+      "captureOnly": true
+    },
+    {
+      "id": "controls-help",
+      "command": "controls",
+      "argv": ["controls", "--help"],
+      "captureOnly": true
+    },
+    {
+      "id": "skills-help",
+      "command": "skills",
+      "argv": ["skills", "--help"],
+      "captureOnly": true
+    },
+    {
+      "id": "plan-help",
+      "command": "plan",
+      "argv": ["plan", "--help"],
+      "captureOnly": true
+    },
+    {
+      "id": "verify-help",
+      "command": "verify",
+      "argv": ["verify", "--", "--help"],
+      "captureOnly": true
+    },
+    {
+      "id": "explain-help",
+      "command": "explain",
+      "argv": ["explain", "--help"],
+      "captureOnly": true
+    },
+    {
+      "id": "report-help",
+      "command": "report",
+      "argv": ["report", "--", "--help"],
+      "captureOnly": true
+    },
+    {
+      "id": "fix-help",
+      "command": "fix",
+      "argv": ["fix", "--help"],
+      "captureOnly": true
+    }
+  ]
+}

@@ -2,6 +2,7 @@
 resolver = "2"
 members = [
     "crates/legion-application",
+    "crates/legion-arcane",
     "crates/legion-audit",
     "crates/legion-catalog",
     "crates/legion-contracts",
@@ -9,6 +10,8 @@ members = [
     "crates/legion-effects",
     "crates/legion-handoff",
     "crates/legion-host",
+    "crates/legion-harness",
+    "crates/legion-minimize",
     "crates/legion-policy-model",
     "crates/legion-policy",
     "crates/legion-provider-sdk",
@@ -17,6 +20,7 @@ members = [
     "crates/legion-review",
     "crates/legion-rules",
     "crates/legion-runtime",
+    "crates/legion-topology",
 
     "bins/legion",
     "bins/legion-hook",

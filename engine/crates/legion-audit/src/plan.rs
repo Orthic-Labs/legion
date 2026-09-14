@@ -96,6 +96,8 @@ impl AuditPlan {
                     .and_then(Value::as_str)
                     .unwrap_or_default();
                 let kind = match runner_kind {
+                    // Every production runtime-script provider is now backed
+                    // by the in-process native provider registry.
                     "runtime-script" => ProviderKind::RustAlgorithm,
                     "legacy-check" => ProviderKind::TypedExternalProjectTool,
                     "reasoning-contract" => ProviderKind::HostService,

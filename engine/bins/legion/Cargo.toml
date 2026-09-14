@@ -12,6 +12,7 @@ hmac.workspace = true
 hex.workspace = true
 legion-audit = { path = "../../crates/legion-audit" }
 legion-application = { path = "../../crates/legion-application" }
+legion-arcane = { path = "../../crates/legion-arcane" }
 legion-catalog = { path = "../../crates/legion-catalog" }
 legion-contracts = { path = "../../crates/legion-contracts" }
 legion-decisions = { path = "../../crates/legion-decisions" }
@@ -19,6 +20,8 @@ legion-effects = { path = "../../crates/legion-effects" }
 legion-handoff = { path = "../../crates/legion-handoff" }
 legion-mcp = { path = "../legion-mcp" }
 legion-host = { path = "../../crates/legion-host" }
+legion-harness = { path = "../../crates/legion-harness" }
+legion-minimize = { path = "../../crates/legion-minimize" }
 legion-policy = { path = "../../crates/legion-policy" }
 legion-policy-model = { path = "../../crates/legion-policy-model" }
 legion-provider-sdk = { path = "../../crates/legion-provider-sdk" }
@@ -27,6 +30,7 @@ legion-research = { path = "../../crates/legion-research" }
 legion-review = { path = "../../crates/legion-review" }
 legion-rules = { path = "../../crates/legion-rules" }
 legion-runtime = { path = "../../crates/legion-runtime" }
+legion-topology = { path = "../../crates/legion-topology" }
 serde.workspace = true
 serde_json.workspace = true
 sha2.workspace = true

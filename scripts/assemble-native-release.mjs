@@ -251,6 +251,7 @@ for (const name of binaryNames) {
 const share = join(output, "share", "legion");
 const assets = join(share, "assets");
 const catalogPath = join(assets, "registry", "index.json");
+const providerRegistryPath = join(assets, "registry", "providers.json");
 const schemaPath = join(assets, "schemas", "mcp-tools.schema.json");
 const policyPath = join(assets, "policy", "arcane-m1-policy.json");
 const nativeRuleManifestPath = join(assets, "packs", "native", "manifest.v1.json");
@@ -258,6 +259,10 @@ mkdirSync(dirname(catalogPath), { recursive: true });
 copyFileSync(
 	join(repositoryRoot, "src", "registry", "skills", "index.json"),
 	catalogPath,
+);
+copyFileSync(
+	join(repositoryRoot, "src", "registry", "providers.json"),
+	providerRegistryPath,
 );
 copySkillTree(join(repositoryRoot, "skills"), join(assets, "skills"));
 mkdirSync(dirname(nativeRuleManifestPath), { recursive: true });

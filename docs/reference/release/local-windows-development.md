@@ -7,6 +7,18 @@ Adrian authorized local unsigned Legion installer development. Tracked
 From primary Legion checkout, run:
 
 ```powershell
+pnpm run native:check:local
+```
+
+This is required before spending an installer build. It runs
+`cargo check --workspace --all-targets --locked --release` for Windows MSVC
+through managed RightKit. It uses same persistent external Cargo target &
+compiler cache as release build, but performs no assembly, installer creation,
+qualification, installation, signing, or publication.
+
+After check passes, run:
+
+```powershell
 pnpm run release:local:win:unsigned
 ```
 

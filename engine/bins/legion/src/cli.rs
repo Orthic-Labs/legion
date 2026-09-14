@@ -31,11 +31,11 @@ enum Command {
     /// Serve the Legion MCP server over stdio for a plugin host.
     Serve(ServeArgs),
     /// Initialize Legion evidence scaffolding in a repository.
-    Init(RootArgs),
+    Init(commands::init::InitArgs),
     /// Check the installed product and repository for gaps.
     Doctor(RootArgs),
     /// Bind a repository to the frozen release composition.
-    Bind(RootArgs),
+    Bind(commands::bind::BindArgs),
     /// Inspect the resolved repository composition.
     Inspect(RootArgs),
     /// List the audit targets discovered for a repository.
@@ -57,17 +57,17 @@ enum Command {
     /// Render the workspace and package rule set.
     Rules(commands::rules::RulesArgs),
     /// Durably enqueue and start a workflow trigger.
-    Schedule(ScheduleArgs),
+    Schedule(commands::schedule::ScheduleArgs),
     /// Produce the frozen audit provider plan for a repository.
-    Plan(RootArgs),
+    Plan(commands::plan::PlanArgs),
     /// Run an evidence-governed repository audit.
     Audit(commands::audit::AuditArgs),
     /// Verify audit facts against a sealed provider plan.
-    Verify(VerifyArgs),
+    Verify(commands::verify::VerifyArgs),
     /// Explain an audit finding or capability.
     Explain(CommonArgs),
     /// Render a stored audit report in another format.
-    Report(ReportArgs),
+    Report(commands::report::ReportArgs),
     /// Project the remediation surface for audit findings.
     Fix(CommonArgs),
     /// Show the host hook projection.
@@ -75,7 +75,7 @@ enum Command {
     /// Show the MCP tool projection.
     Mcp(CommonArgs),
     /// Manage contracted run transactions (open/close/suspend/supersede/repair).
-    Run(RunArgs),
+    Run(CommonArgs),
     /// Show the active budget projection.
     Budget(CommonArgs),
     /// Show the active contract projection.
@@ -83,15 +83,15 @@ enum Command {
     /// Inspect assurance machinery evidence.
     Assurance(commands::assurance::AssuranceArgs),
     /// Bind and record an authenticated completion claim or evidence artifact.
-    Completion(CompletionArgs),
+    Completion(CommonArgs),
     /// Inspect host lifecycle events and descriptions.
-    Host(HostCommandArgs),
+    Host(CommonArgs),
     /// Show the harness projection.
     Harness(CommonArgs),
     /// Show the authority projection.
     Authority(CommonArgs),
     /// Snapshot or verify repository working-tree state.
-    State(StateArgs),
+    State(CommonArgs),
     /// Show the Minimize authority projection.
     Minimize(CommonArgs),
     /// Inspect the native capability catalog.
@@ -126,11 +126,11 @@ struct ServeArgs {
     m1: M1ConfigArgs,
 }
 #[derive(Debug, clap::Args)]
-struct CommonArgs {
+pub(crate) struct CommonArgs {
     #[arg(long)]
-    json: bool,
+    pub(crate) json: bool,
     #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
-    args: Vec<OsString>,
+    pub(crate) args: Vec<OsString>,
 }
 #[derive(Debug, clap::Args)]
 struct ScheduleArgs {
@@ -148,11 +148,11 @@ struct ScheduleArgs {
     json: bool,
 }
 #[derive(Debug, clap::Args)]
-struct RootArgs {
+pub(crate) struct RootArgs {
     #[arg(default_value = ".")]
-    root: std::path::PathBuf,
+    pub(crate) root: std::path::PathBuf,
     #[arg(long)]
-    json: bool,
+    pub(crate) json: bool,
 }
 #[derive(Debug, clap::Args)]
 struct VerifyArgs {
@@ -1344,51 +1344,47 @@ async fn dispatch(cli: Cli, cancellation: CancellationToken) -> commands::Comman
         Command::Catalog(args) => commands::catalog::run(args),
         Command::Policy(args) => commands::policy::run(args),
         Command::Audit(args) => commands::audit::run(args, cancellation.clone()).await,
-        Command::Host(args) => native_host(args, cancellation.clone()).await,
+        Command::Host(args) => commands::host_runtime::run(args),
         Command::Decision(args) => commands::decision::run(args),
         Command::Handoff(args) => commands::handoff::run(args),
         Command::Research(args) => commands::research::run(args, cancellation.clone()),
         Command::Review(args) => commands::review::run(args, cancellation.clone()).await,
         Command::Setup(args) => commands::setup::run(args, cancellation.clone()).await,
-        Command::Providers(args) => Ok(
-            json!({"schemaVersion":1,"kind":"legion-providers","providers": providers(), "capabilityAttestations": capability_attestations(), "selected": !(args.json || root_json), "arguments": args.args, "json": args.json || root_json, "text": providers_text()}),
-        ),
-        Command::Languages(args) => Ok(
-            json!({"schemaVersion":1,"kind":"legion-languages","languages": languages(), "json": args.json || root_json, "arguments": args.args, "text": languages_text()}),
-        ),
+        Command::Providers(args) => commands::providers::run(args),
+        Command::Languages(args) => commands::languages::run(args),
         Command::Doctor(mut args) => {
             if root_json {
                 args.json = true;
             }
-            native_doctor(args, cancellation.clone()).await
+            commands::doctor::run(args, cancellation.clone()).await
         }
-        Command::Init(args) => root_projection!("init", args),
-        Command::Bind(args) => root_projection!("bind", args),
-        Command::Inspect(args) => root_projection!("inspect", args),
-        Command::Targets(args) => root_projection!("targets", args),
-        Command::Components(args) => root_projection!("components", args),
-        Command::Stacks(args) => root_projection!("stacks", args),
-        Command::Controls(args) => root_projection!("controls", args),
-        Command::Plan(args) => native_plan(args, cancellation.clone()).await,
-        Command::Verify(args) => native_verify(args, cancellation.clone()).await,
-        Command::Explain(args) => common_projection!("explain", args),
-        Command::Report(args) => native_report(args, cancellation.clone()).await,
-        Command::Fix(args) => common_projection!("fix", args),
-        Command::Hooks(args) => common_projection!("hooks", args),
-        Command::Mcp(args) => common_projection!("mcp", args),
-        Command::Run(args) => native_run(args, cancellation.clone()).await,
-        Command::Budget(args) => common_projection!("budget", args),
-        Command::Contract(args) => common_projection!("contract", args),
-        Command::Governance(args) => common_projection!("governance", args),
-        Command::Skills(args) => native_skills(args, root_json, cancellation.clone()).await,
+        Command::Init(args) => commands::init::run(args),
+        Command::Bind(args) => commands::bind::run(args),
+        Command::Inspect(args) => commands::topology::run_inspect(args),
+        Command::Targets(args) => commands::topology::run_targets(args),
+        Command::Components(args) => commands::topology::run_components(args),
+        Command::Stacks(args) => commands::topology::run_stacks(args),
+        Command::Controls(args) => commands::topology::run_controls(args),
+        Command::Plan(args) => commands::plan::run(args, cancellation.clone()).await,
+        Command::Verify(args) => commands::verify::run(args, cancellation.clone()).await,
+        Command::Explain(args) => commands::explain::run(args),
+        Command::Report(args) => commands::report::run(args, cancellation.clone()).await,
+        Command::Fix(args) => commands::fix::run(args),
+        Command::Hooks(args) => commands::hooks::run(args),
+        Command::Mcp(args) => commands::mcp_config::run(args),
+        Command::Run(args) => commands::run::run(args, cancellation.clone()).await,
+        Command::Budget(args) => commands::budget::run(args),
+        Command::Contract(args) => commands::contract::run(args),
+        Command::Governance(args) => commands::governance::run(args),
+        Command::Skills(args) => commands::skills::run(args),
         Command::Rules(args) => commands::rules::run(args),
-        Command::Schedule(args) => native_schedule(args),
+        Command::Schedule(args) => commands::schedule::run(args),
         Command::Assurance(args) => commands::assurance::run(args),
-        Command::Completion(args) => native_completion(args, cancellation.clone()).await,
-        Command::Harness(args) => common_projection!("harness", args),
-        Command::Authority(args) => common_projection!("authority", args),
-        Command::State(args) => native_state(args, cancellation.clone()).await,
-        Command::Minimize(args) => common_projection!("minimize", args),
+        Command::Completion(args) => commands::completion::run(args),
+        Command::Harness(args) => commands::harness::run(args),
+        Command::Authority(args) => commands::authority::run(args),
+        Command::State(args) => commands::state::run(args),
+        Command::Minimize(args) => commands::minimize::run(args),
     };
     result
 }
@@ -1427,6 +1423,78 @@ fn finish(result: CommandResult) -> i32 {
                 || value.get("decision").and_then(Value::as_str) == Some("deny")
             {
                 return 1;
+            }
+            if value.get("kind").and_then(Value::as_str) == Some("legion-explain")
+                && value.get("found").and_then(Value::as_bool) == Some(false)
+            {
+                return 4;
+            }
+            if value.get("kind").and_then(Value::as_str) == Some("legion-harness-verify")
+                && value.get("ok").and_then(Value::as_bool) == Some(false)
+            {
+                return 2;
+            }
+            if value.get("kind").and_then(Value::as_str) == Some("legion-state-verify")
+                && value.get("verdict").and_then(Value::as_str) == Some("breach")
+            {
+                return 1;
+            }
+            if value.get("status").and_then(Value::as_str) == Some("fail")
+                && value.get("findings").and_then(Value::as_array).is_some()
+                && value.get("count").and_then(Value::as_u64).is_some()
+            {
+                return 5;
+            }
+            if value.get("kind").and_then(Value::as_str) == Some("legion-bind-registrations")
+                && value
+                    .get("duplicates")
+                    .and_then(Value::as_array)
+                    .is_some_and(|items| !items.is_empty())
+            {
+                return 1;
+            }
+            if value.get("kind").and_then(Value::as_str) == Some("arcane-execution-control-decision")
+                && value
+                    .get("result")
+                    .and_then(|result| result.get("allowed"))
+                    .and_then(Value::as_bool)
+                    != Some(true)
+            {
+                return 2;
+            }
+            if value.get("consumable").and_then(Value::as_bool) == Some(true) {
+                return 0;
+            }
+            if value.get("code").and_then(Value::as_str) == Some("ARC_OPERATION_UNKNOWN")
+                || value.get("code").and_then(Value::as_str) == Some("ARC_DIAGNOSTIC_ONLY")
+            {
+                return 2;
+            }
+            if value.get("allowed").and_then(Value::as_bool) == Some(false)
+                && value.get("kind").is_none()
+                && (value.get("code").is_some() || value.get("detail").is_some())
+            {
+                return 2;
+            }
+            if value.get("complete").and_then(Value::as_bool) == Some(false) {
+                return 2;
+            }
+            if value.get("artifact").is_some()
+                && value.get("selectionTrace").is_some()
+                && value.get("complete").is_none()
+            {
+                return 2;
+            }
+            if value.get("artifact").is_some()
+                && value.pointer("/artifact/kind").and_then(Value::as_str) == Some("legion-control-baseline")
+                && value.get("selectionTrace").is_none()
+            {
+                return 2;
+            }
+            if value.get("outcome").is_some()
+                && value.get("consumable").and_then(Value::as_bool) != Some(true)
+            {
+                return 2;
             }
             match value
                 .get("auditStatus")

@@ -14,7 +14,7 @@ use std::{
 #[derive(Debug, Args)]
 pub struct RulesArgs {
     #[arg(long)]
-    pub manifest: PathBuf,
+    pub manifest: Option<PathBuf>,
     #[arg(long = "blueprint-packet")]
     pub blueprint_packet: Option<PathBuf>,
     #[arg(long = "expected-generation")]
@@ -22,13 +22,15 @@ pub struct RulesArgs {
     #[arg(long, default_value = ".")]
     pub root: PathBuf,
     #[arg(long)]
-    pub provider: String,
+    pub provider: Option<String>,
     #[arg(long, default_value = r#"{"op":"always"}"#)]
     pub selector: String,
     #[arg(long = "pack")]
     pub packs: Vec<String>,
     #[arg(long, default_value_t = 1_048_576)]
     pub max_file_bytes: u64,
+    #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
+    pub command: Vec<String>,
 }
 
 #[derive(Clone, Debug)]
@@ -264,10 +266,19 @@ pub fn run(args: RulesArgs) -> CommandResult {
     if args.max_file_bytes == 0 {
         return Err(CommandError::usage("max-file-bytes must be positive"));
     }
+    if args.command.first().map(String::as_str) == Some("compile") {
+        return compile_policy(&args);
+    }
+    if !args.command.is_empty() {
+        return Err(CommandError::usage(format!("unknown option: {}", args.command[0])));
+    }
+    let Some(manifest) = args.manifest.as_ref() else {
+        return Ok(json!({ "rules": packaged_rules()? }));
+    };
     let root = std::fs::canonicalize(&args.root).map_err(super::io_error)?;
-    let manifest_path = std::fs::canonicalize(&args.manifest).map_err(super::io_error)?;
-    let provider =
-        ProviderId::new(args.provider).map_err(|error| CommandError::usage(error.to_string()))?;
+    let manifest_path = std::fs::canonicalize(manifest).map_err(super::io_error)?;
+    let provider = ProviderId::new(args.provider.ok_or_else(|| CommandError::usage("rules requires --provider when --manifest is supplied"))?)
+        .map_err(|error| CommandError::usage(error.to_string()))?;
     let selector: Value = serde_json::from_str(&args.selector)
         .map_err(|error| CommandError::usage(format!("selector must be JSON: {error}")))?;
     let manifest = std::fs::read_to_string(&manifest_path).map_err(super::io_error)?;
@@ -457,6 +468,90 @@ fn select_packs(
         .into_iter()
         .filter(|(pack, _)| requested.contains(pack))
         .collect())
+}
+
+fn packaged_rules() -> Result<Vec<String>, CommandError> {
+    fn walk(path: &Path, out: &mut BTreeSet<String>) -> Result<(), CommandError> {
+        for entry in std::fs::read_dir(path).map_err(super::io_error)? {
+            let entry = entry.map_err(super::io_error)?;
+            let path = entry.path();
+            if path.is_dir() { walk(&path, out)?; }
+            else if path.extension().and_then(|x| x.to_str()) == Some("json") {
+                let value: Value = serde_json::from_slice(&std::fs::read(&path).map_err(super::io_error)?)
+                    .map_err(|e| CommandError::internal(e.to_string()))?;
+                if let Some(rules) = value.get("rules").and_then(Value::as_array) {
+                    for rule in rules {
+                        if let Some(id) = rule.get("id").and_then(Value::as_str).or_else(|| rule.as_str()) {
+                            out.insert(id.to_owned());
+                        }
+                    }
+                }
+            }
+        }
+        Ok(())
+    }
+    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../../src/registry/rules");
+    let mut rules = BTreeSet::new();
+    walk(&root, &mut rules)?;
+    Ok(rules.into_iter().collect())
+}
+
+fn compile_policy(args: &RulesArgs) -> CommandResult {
+    let command = &args.command;
+    if command.len() < 2 { return Err(CommandError::usage("Usage: legion rules compile <source> --base <policy> [--out <output>]")); }
+    let source = std::fs::read_to_string(&command[1]).map_err(|e| CommandError::usage(format!("rule source unreadable: {} ({e})", command[1])))?;
+    let mut base_path = None;
+    let mut out_path = None;
+    let mut index = 2;
+    while index < command.len() {
+        let flag = &command[index];
+        let Some(value) = command.get(index + 1) else { return Err(CommandError::usage("Usage: legion rules compile <source> --base <policy> [--out <output>]")); };
+        match flag.as_str() {
+            "--base" if base_path.is_none() => base_path = Some(value),
+            "--out" if out_path.is_none() => out_path = Some(value),
+            "--base" => return Err(CommandError::usage("duplicate --base")),
+            "--out" => return Err(CommandError::usage("duplicate --out")),
+            _ => return Err(CommandError::usage("Usage: legion rules compile <source> --base <policy> [--out <output>]")),
+        }
+        index += 2;
+    }
+    let Some(base_path) = base_path else { return Err(CommandError::usage("Usage: legion rules compile <source> --base <policy> [--out <output>]")); };
+    let mut base: Value = serde_json::from_slice(&std::fs::read(base_path).map_err(|e| CommandError::usage(format!("base policy unreadable: {base_path} ({e})")))?)
+        .map_err(|e| CommandError::usage(format!("base policy unreadable: {base_path} ({e})")))?;
+    let classes = base.get("effectRules").and_then(Value::as_array).ok_or_else(|| CommandError::usage("base policy has no effectRules"))?
+        .iter().filter_map(|r| r.get("effectClass").and_then(Value::as_str)).map(str::to_owned).collect::<Vec<_>>();
+    let mut parsed = Vec::new();
+    for (line_no, raw) in source.lines().enumerate() {
+        let line = raw.trim(); if line.is_empty() || line.starts_with('#') { continue; }
+        let (head, note): (&str, Option<&str>) = if let Some((h, n)) = line.split_once(" note=\"") {
+            (h, Some(n.strip_suffix('"').ok_or_else(|| CommandError::usage(format!("line {}: invalid note string", line_no + 1)))?))
+        } else { (line, None) };
+        let fields = head.split_whitespace().collect::<Vec<_>>();
+        if fields.len() != 5 || !matches!(fields[0], "allow"|"deny") || !fields[1].starts_with("approval=") || !fields[2].starts_with("trust=") || !fields[3].starts_with("enforcement=") || fields[4].is_empty() {
+            return Err(CommandError::usage(format!("line {}: invalid rule", line_no + 1)));
+        }
+        let effect = fields[1];
+        let mut rule = json!({"effectClass": effect, "rule": fields[0], "approvalRequired": fields[2]=="approval=required", "trustMinimum": fields[3].trim_start_matches("trust="), "requiredEnforcement": fields[4].trim_start_matches("enforcement=")});
+        if let Some(note) = note {
+            let decoded: String = serde_json::from_str(&format!("\"{}\"", note)).map_err(|_| CommandError::usage(format!("line {}: invalid note string", line_no + 1)))?;
+            rule["note"] = Value::String(decoded);
+        }
+        if !classes.iter().any(|c| c == effect) { return Err(CommandError::usage(format!("unknown effect class: {effect}"))); }
+        if parsed.iter().any(|(c, _): &(String, Value)| c == effect) { return Err(CommandError::usage(format!("duplicate effect class: {effect}"))); }
+        parsed.push((effect.to_owned(), rule));
+    }
+    let missing = classes.iter().filter(|c| !parsed.iter().any(|(p, _)| p == *c)).cloned().collect::<Vec<_>>();
+    if !missing.is_empty() { return Err(CommandError::usage(format!("missing effect class(es): {}", missing.join(", ")))); }
+    base["effectRules"] = Value::Array(classes.iter().map(|c| parsed.iter().find(|(p, _)| p == c).unwrap().1.clone()).collect());
+    let bytes = serde_json::to_vec_pretty(&base).map_err(|e| CommandError::internal(e.to_string()))?;
+    if let Some(out) = out_path {
+        let output = std::path::absolute(out).map_err(super::io_error)?;
+        if let Some(parent) = output.parent() { std::fs::create_dir_all(parent).map_err(super::io_error)?; }
+        std::fs::write(&output, format!("{}\n", String::from_utf8_lossy(&bytes))).map_err(super::io_error)?;
+        Ok(json!({"output": output}))
+    } else {
+        Ok(json!({"__raw": format!("{}\n", String::from_utf8_lossy(&bytes))}))
+    }
 }
 
 fn severity_name(severity: Severity) -> &'static str {

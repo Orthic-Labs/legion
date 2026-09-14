@@ -6,6 +6,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import test from 'node:test';
+import { runNativeCli } from '../scripts/native-cli/test-helper.mjs';
 import { EXIT, exitCodeForReport } from '../src/lib/errors.mjs';
 import { LEGION_VERSION } from '../src/lib/version.mjs';
 import { runCli as runCliRaw } from '../src/lib/cli/run.mjs';
@@ -27,20 +28,13 @@ import { HostEventLedger } from '../src/lib/host/arcane/host-event-ledger.mjs';
 import { AuthorityInvocationProofIssuer } from '../src/lib/contracts/arcane/authority-invocation-proof.mjs';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
-const BIN = fileURLToPath(new URL('../src/bin/legion.mjs', import.meta.url));
 const testKeyDir = (cwd) => join(cwd, '.audit', 'arcane', 'test-keys');
 const withTestKeys = (options) => ({ ...options, env: { ARCANE_KEY_DIR: testKeyDir(options.cwd), ...options.env } });
 const runCli = (args, options) => runCliRaw(args, withTestKeys(options));
 const runRun = (args, options) => runRunRaw(args, withTestKeys(options));
 
 function capture(args) {
-  const result = spawnSync(process.execPath, [BIN, ...args], {
-    cwd: root,
-    encoding: 'utf8',
-    env: { ...process.env },
-    stdio: ['ignore', 'pipe', 'pipe'],
-  });
-  return { exitCode: result.status, stdout: result.stdout, stderr: result.stderr };
+  return runNativeCli(args, { cwd: root });
 }
 
 test('--help prints usage and exits 0', () => {
