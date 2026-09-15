@@ -195,18 +195,36 @@ export function compareObservations(expected, actual, { fixture = {}, tempRoots 
   if (baselineProblems.length || actualProblems.length) return mismatches;
   if (actual.exitCode !== expected.exitCode) mismatches.push(`exit ${actual.exitCode} != baseline ${expected.exitCode}`);
   const normalization = fixture.normalization ?? fixture.normalize ?? {};
-  const expectedStdout = normalizeText(expected.stdout, normalization, tempRoots);
-  const actualStdout = normalizeText(actual.stdout, normalization, tempRoots);
-  const expectedStderr = normalizeText(expected.stderr, normalization, tempRoots);
-  const actualStderr = normalizeText(actual.stderr, normalization, tempRoots);
+  const allTempRoots = [...new Set([...tempRoots, ...(expected.sandboxRoots ?? []), ...(actual.sandboxRoots ?? [])])];
+  const expectedStdout = normalizeText(expected.stdout, normalization, allTempRoots);
+  const actualStdout = normalizeText(actual.stdout, normalization, allTempRoots);
+  const expectedStderr = normalizeText(expected.stderr, normalization, allTempRoots);
+  const actualStderr = normalizeText(actual.stderr, normalization, allTempRoots);
   if (expectedStdout !== actualStdout) mismatches.push('stdout differs from baseline');
   if (expectedStderr !== actualStderr) mismatches.push('stderr differs from baseline');
-  const expectedBefore = normalizeEvidenceValue(expected.filesystem.before, normalization, tempRoots);
-  const actualBefore = normalizeEvidenceValue(actual.filesystem.before, normalization, tempRoots);
-  const expectedAfter = normalizeEvidenceValue(expected.filesystem.after, normalization, tempRoots);
-  const actualAfter = normalizeEvidenceValue(actual.filesystem.after, normalization, tempRoots);
-  if (canonicalJson(expectedBefore) !== canonicalJson(actualBefore)) mismatches.push('filesystem mutation differs from baseline');
-  if (canonicalJson(expectedAfter) !== canonicalJson(actualAfter)) mismatches.push('filesystem mutation differs from baseline');
+  const mutation = (filesystem) => {
+    const before = filesystem.before ?? {};
+    const after = filesystem.after ?? {};
+    const changed = {};
+    for (const root of [...new Set([...Object.keys(before), ...Object.keys(after)])].sort()) {
+      const left = before[root];
+      const right = after[root];
+      if (Array.isArray(left) && Array.isArray(right)) {
+        const leftByPath = new Map(left.map((entry) => [entry.path, entry]));
+        const rightByPath = new Map(right.map((entry) => [entry.path, entry]));
+        const entries = [...new Set([...leftByPath.keys(), ...rightByPath.keys()])].sort()
+          .filter((path) => canonicalJson(leftByPath.get(path) ?? null) !== canonicalJson(rightByPath.get(path) ?? null))
+          .map((path) => ({ path, before: leftByPath.get(path) ?? null, after: rightByPath.get(path) ?? null }));
+        if (entries.length) changed[root] = entries;
+      } else if (canonicalJson(left ?? null) !== canonicalJson(right ?? null)) {
+        changed[root] = { before: left ?? null, after: right ?? null };
+      }
+    }
+    return changed;
+  };
+  const expectedMutation = normalizeEvidenceValue(mutation(expected.filesystem), normalization, allTempRoots);
+  const actualMutation = normalizeEvidenceValue(mutation(actual.filesystem), normalization, allTempRoots);
+  if (canonicalJson(expectedMutation) !== canonicalJson(actualMutation)) mismatches.push('filesystem mutation differs from baseline');
   return mismatches;
 }
 
