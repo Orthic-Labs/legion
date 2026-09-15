@@ -356,8 +356,9 @@ fn installed_composition_is_resolved_from_the_executable() {
     );
     let value: Value = serde_json::from_slice(&output.stdout).expect("installed status JSON");
     assert_eq!(value["kind"], "legion-m1-status");
-    assert_eq!(value["status"], "incomplete");
-    assert_eq!(value["fidelity"], "degraded");
+    assert_eq!(value["status"], "unknown");
+    assert_eq!(value["fidelity"], "unknown");
+    assert_eq!(value["scope"], "legion-product");
     assert_eq!(value["origin"], "installed");
     let reported_executable =
         PathBuf::from(value["executable"].as_str().expect("top-level executable"));
@@ -399,7 +400,7 @@ fn installed_composition_is_resolved_from_the_executable() {
         normalized_path_for_assertion(&product_root)
     );
     assert_eq!(value["native"]["generation"], env!("CARGO_PKG_VERSION"));
-    assert!(value["gaps"]
+    assert!(value["unverifiedChecks"]
         .as_array()
         .is_some_and(|gaps| !gaps.is_empty()));
     fs::remove_dir_all(root).expect("installed fixture cleanup");
@@ -428,7 +429,7 @@ fn actual_binary_serves_the_shared_m1_surface_and_lazy_capability_body() {
     let status = legion(&["status"], &fixture.config);
     assert_eq!(status.status.code(), Some(2));
     let status: Value = serde_json::from_slice(&status.stdout).expect("status JSON");
-    assert_eq!(status["status"], "incomplete");
+    assert_eq!(status["status"], "unknown");
     assert_eq!(status["origin"], "development");
     assert!(status["installRoot"].is_null());
     assert_eq!(

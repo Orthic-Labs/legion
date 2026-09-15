@@ -1110,19 +1110,9 @@ impl legion_mcp::NativeApi for M1McpApi {
         let application = self.application()?;
         match operation {
             "legion_m1_status" => {
-                // Answer with the product status, not the slice status: this
-                // tool previously reported "complete" while `legion m1 status`
-                // reported "incomplete" with three named gaps.
-                let mut value = m1_status_value(&application.status());
-                if let Value::Object(object) = &mut value {
-                    object.insert("status".into(), json!("incomplete"));
-                    object.insert("fidelity".into(), json!("degraded"));
-                    object.insert(
-                        "gaps".into(),
-                        json!(M1_PRODUCT_GAPS),
-                    );
-                }
-                Ok(value)
+                // The application can prove its native M1 slice, but it has
+                // no evidence for the product-wide Codex/host surfaces.
+                Ok(m1_product_status_value(&application.status()))
             }
             "legion_m1_invoke" => {
                 let capability_id = arguments
@@ -1160,11 +1150,26 @@ impl legion_mcp::NativeApi for M1McpApi {
 
 /// The product-level gaps M1 does not close. One owner, because the CLI and the
 /// MCP tool must not be able to disagree about them.
-const M1_PRODUCT_GAPS: [&str; 3] = [
-    "native hook enforcement is not connected",
-    "native CLI product projections are not fully connected",
-    "M4 capability migration and M6 installed-product qualification are incomplete",
+const M1_UNVERIFIED_CHECKS: [&str; 3] = [
+    "Codex hook enforcement qualification has not been observed",
+    "native CLI projection qualification has not been observed",
+    "installed product qualification has not been observed",
 ];
+
+fn m1_product_status_value(status: &legion_application::M1Status) -> Value {
+    let mut value = m1_status_value(status);
+    if let Value::Object(object) = &mut value {
+        object.insert("scope".into(), json!("legion-product"));
+        // Transport and native-slice evidence do not establish a global
+        // completion or fidelity claim. Keep known gaps visible and name the
+        // product-level result as unknown until host qualification supplies
+        // that evidence.
+        object.insert("status".into(), json!("unknown"));
+        object.insert("fidelity".into(), json!("unknown"));
+        object.insert("unverifiedChecks".into(), json!(M1_UNVERIFIED_CHECKS));
+    }
+    value
+}
 
 fn m1_status_value(status: &legion_application::M1Status) -> Value {
     let mut value = serde_json::to_value(status).expect("M1 status is serializable");
@@ -1225,13 +1230,14 @@ async fn native_m1_status(args: M1ConfigArgs) -> CommandResult {
             Ok(json!({
                 "schemaVersion": 1,
                 "kind": "legion-m1-status",
-                "status": "incomplete",
-                "fidelity": "degraded",
+                "status": "unknown",
+                "fidelity": "unknown",
+                "scope": "legion-product",
                 "origin": native.origin.clone(),
                 "executable": native.executable.clone(),
                 "installRoot": native.install_root.clone(),
                 "generation": native.generation.clone(),
-                "gaps": M1_PRODUCT_GAPS,
+                "unverifiedChecks": M1_UNVERIFIED_CHECKS,
                 "native": m1_status_value(&native),
             }))
         }
@@ -1247,7 +1253,8 @@ async fn native_m1_status(args: M1ConfigArgs) -> CommandResult {
                 "schemaVersion": 1,
                 "kind": "legion-m1-status",
                 "status": "failed",
-                "fidelity": "degraded",
+                "fidelity": "unknown",
+                "scope": "legion-product",
                 "origin": evidence.origin,
                 "executable": evidence.executable,
                 "installRoot": evidence.install_root,

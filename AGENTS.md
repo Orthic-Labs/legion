@@ -19,8 +19,8 @@ Legion selects capabilities, attaches authority where required, & orchestrates w
 
 **Sage, Alchemist, & Oracle are the three authority roles:**
 
-- **Sage** provides exceptional adjudication when a material unresolved decision cannot safely close under the selected capability's routine mandate. Sage is domain-independent.
-- **Alchemist** performs controlled bounded transformation where policy, locking, explicit contracting, or risk requires a controlled authority boundary.
+- **Sage** provides optional cross-cutting design, reassessment, and adjudication when a material choice exceeds routine capability judgment. Sage is domain-independent.
+- **Alchemist** performs bounded implementation within settled acceptance criteria, with controlled transformation where policy, locking, explicit contracting, or risk requires it.
 - **Oracle** performs independent read-only assurance; only outcome & safety findings block delivery.
 
 Never infer authority from an operation or effect: `diagnose` does not imply Sage, `execute` does not imply Alchemist, `repository-write` does not imply Alchemist. `execute` is ambient unless policy requires a controlled boundary.
@@ -40,10 +40,10 @@ The tiers, in routing order:
 1. **Answer.** A question, comparison, or plan mutates nothing — answer or design directly. Never open machinery to answer a question.
 2. **Ambient (the default for mutations).** the operator's explicit, reversible, in-scope request IS the authorization. Legion fixes it directly with verification proportional to blast radius — focused tests, not an audit. A small change that takes twenty minutes of process is a system failure, not rigor.
 3. **Sage.** Dispatch when a material unresolved decision cannot close under the selected capability's routine mandate: two valid readings would produce materially different outcomes, ownership or boundaries between capabilities are disputed, or work is blocked pending an authoritative ruling. Worked example: two capabilities each claim a module and their fixes contradict — Sage names the single owner, records the disposition, and the losing path is abandoned rather than merged. A tier-3 advisory question is not itself a contract; a tier-4 freeze is. Routine architecture, diagnosis, research, design, and strategy judgment stay with their capabilities.
-4. **Contract chain.** Use only where scope rule requires it; stop after two blocked closes until the operator resumes or changes scope. Alchemist is the executing authority here, and it attaches only to an already-bounded contract with no open questions — a Sage freeze handoff with named acceptance IDs, a locked-domain path, or explicitly contracted work. Worked example: Sage freezes a five-file rename with named acceptance IDs; Alchemist applies exactly those, runs the declared checks, and escalates rather than reinterpreting anything the contract left unsaid. `execute` alone does not imply Alchemist — ordinary permitted mutations stay ambient at tier 2.
+4. **Contract chain.** Use only where scope rule requires it; stop after two blocked closes until the operator resumes or changes scope. Alchemist executes governed work against its bounded contract. Ordinary bounded implementation may use Alchemist without contract ceremony; routine decisions inside settled acceptance criteria remain with the executor. Escalate changed requirements, public boundaries, or material tradeoffs.
 5. **Oracle.** Use Oracle when explicitly requested or when a concrete outcome or safety risk needs independent review. Routine replies, read-only answers, status updates & small reversible changes need no Oracle. When invoked, send raw user requests, corrections, actual result & intended claims. Oracle reviews read-only, blocks only outcome or safety defects, & does not rerun tests or create review artifacts. Full-repository Audit remains user-invoked.
 
-Report `produced → verified → completion-validated → committed → pushed → deployed` precisely. Independent nested repositories are delivered separately; record exact SHAs in evidence, never as parent pins. Say "done" only when every requested state is proven; claim completion validation only when Oracle actually ran.
+Report requested states actually reached. Independent nested repositories are delivered separately; record exact SHAs in evidence, never as parent pins. Say "done" only when every requested state is proven; claim independent review only when performed.
 
 ## How dispatch works
 

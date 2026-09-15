@@ -63,7 +63,8 @@ fn init_write_creates_config_and_ignore_entries_idempotently() {
 fn bind_write_projects_codex_harness_and_is_idempotent() {
     let fixture = Fixture::new();
     std::fs::create_dir(fixture.0.join(".codex")).unwrap();
-    let output = fixture.run(&["bind", "--write", "--harness", "codex", "."]);
+    std::fs::write(fixture.0.join(".codex/config.toml"), "[user]\nkeep = true\n\n# >>> legion:managed-block v1 >>>\n[mcp_servers.legion]\ncommand = \"legion\"\n# <<< legion:managed-block v1 <<<\n").unwrap();
+    let output = fixture.run(&["bind", "--write", "."]);
     assert_eq!(output.status.code(), Some(0), "{}", String::from_utf8_lossy(&output.stderr));
     let result = json(&output);
     assert_eq!(result["kind"], "legion-bind-result");
@@ -71,6 +72,10 @@ fn bind_write_projects_codex_harness_and_is_idempotent() {
     assert!(fixture.0.join(".codex/agents/sage.toml").is_file());
     assert!(fixture.0.join(".codex/config.toml").is_file());
     assert!(fixture.0.join(".legion/binding.json").is_file());
+    let config = std::fs::read_to_string(fixture.0.join(".codex/config.toml")).unwrap();
+    assert!(config.contains("[user]"));
+    assert!(config.contains("keep = true"));
+    assert!(!config.contains("[mcp_servers.legion]"));
     let binding = std::fs::read(&fixture.0.join(".legion/binding.json")).unwrap();
     let second = fixture.run(&["bind", "--write", "--harness", "codex", "."]);
     assert_eq!(second.status.code(), Some(0));

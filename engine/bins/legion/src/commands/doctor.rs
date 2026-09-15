@@ -480,7 +480,7 @@ fn codex_hook_trust(home: &Path) -> Value {
         .filter(|key| !trusted.contains(*key))
         .cloned()
         .collect::<Vec<_>>();
-    json!({"configPath":config_path,"configPresent":!text.is_empty(),"plugin":"arcane@local-brief","required":required,"trusted":trusted.into_iter().collect::<Vec<_>>(),"missing":missing,"state":if missing.is_empty() {"pass"} else {"ARC_HOOK_TRUST_REQUIRED"},"remediation":if missing.is_empty() {Value::Null} else {json!("Review & trust current Guard hooks (legacy plugin identity arcane@local-brief) with Codex /hooks; setup never manufactures trusted_hash.")}})
+    json!({"configPath":config_path,"configPresent":!text.is_empty(),"plugin":"arcane@local-brief","required":required,"trusted":trusted.into_iter().collect::<Vec<_>>(),"missing":missing,"state":if missing.is_empty() {"pass"} else {"ARC_HOOK_TRUST_REQUIRED"},"remediation":if missing.is_empty() {Value::Null} else {json!("Review & trust observed Guard hooks with Codex /hooks; setup never manufactures trusted_hash.")}})
 }
 
 fn host_requirements(root: &Path) -> Value {
