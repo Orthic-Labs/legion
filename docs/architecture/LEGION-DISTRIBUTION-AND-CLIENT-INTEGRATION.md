@@ -121,7 +121,7 @@ core includes every public canonical skill with plain IDs & no private/personal 
 | Cursor | Agent Plugins portable core: bundled skills plus MCP declaration. No Cursor sidecar ships in current release. |
 | Pi | Native `.agents/skills` projection; Pi is not claimed as full Agent Plugins support or executable registration. |
 | Antigravity | Agent Plugins portable core. Setup derives `mcp_config.json` from portable MCP declaration; no native hooks, agents, rules, or Antigravity schema are claimed. |
-| Windsurf | No setup projection or packaged client artifact is shipped; Windsurf is unsupported. |
+| Devin | Devin user surfaces: `skills/` & `agents/` projected into the Devin user config root; owned `mcp_config.json` MCP entry & `config.json` hooks block (packaged events mapped to Devin's event names) written into Devin's own config files. The account-gated `devin plugins install` path is not used; Devin CLI/Desktop picks up skills, subagent profiles, hooks, & MCP from these documented user surfaces. |
 
 `legion setup repair --confirm` detects, reconciles, structurally verifies, & journals selected clients.
 `legion setup status` reports actual runtime binding, projection generation, executable resolution,

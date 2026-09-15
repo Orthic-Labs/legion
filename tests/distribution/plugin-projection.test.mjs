@@ -34,7 +34,8 @@ test('installed client projections do not claim unshipped native client surfaces
   assert.doesNotMatch(cli, /"projection": "antigravity-native-plugin"/);
   assert.match(clientDocs, /\| Cursor \| Agent Plugins portable core/);
   assert.match(clientDocs, /\| Antigravity \| Agent Plugins portable core/);
-  assert.match(clientDocs, /\| Windsurf \| No setup projection or packaged client artifact is shipped/);
+  assert.match(clientDocs, /\| Devin \| Devin user surfaces/);
+  assert.match(setupRegistry, /"devin-user-surfaces"/);
 });
 
 test('shell launchers use argv for fixed commands', () => {

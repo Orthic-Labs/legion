@@ -31,6 +31,7 @@ pub const CLIENT_CODEX: &str = "codex";
 pub const CLIENT_CURSOR: &str = "cursor";
 pub const CLIENT_PI: &str = "pi";
 pub const CLIENT_ANTIGRAVITY: &str = "antigravity";
+pub const CLIENT_DEVIN: &str = "devin";
 
 /// The only origins accepted by client activation. Product setup always uses
 /// `installed`; repository workflows must opt into `development` explicitly.
@@ -129,6 +130,27 @@ pub fn client_boundaries() -> Vec<ClientBoundary> {
                 "skills".into(),
                 "executableToolSurface".into(),
                 "mcpLifecycle".into(),
+                "releaseBinding".into(),
+                "executableResolution".into(),
+            ],
+        },
+        ClientBoundary {
+            client_id: CLIENT_DEVIN.into(),
+            // Devin's plugin installer is account-gated, so the supported local
+            // path is its documented user surfaces: global skills/ and agents/
+            // directories plus owned entries in the user mcp_config.json and
+            // config.json hooks map. The projection only carries the skills and
+            // agents subtrees into that shared config root.
+            selected_mechanism: "devin-user-surfaces".into(),
+            projection: "devin-user".into(),
+            executable_registration: true,
+            explicit_only: false,
+            required_surfaces: vec![
+                "skills".into(),
+                "agents".into(),
+                "executableToolSurface".into(),
+                "mcpLifecycle".into(),
+                "hooks".into(),
                 "releaseBinding".into(),
                 "executableResolution".into(),
             ],
@@ -275,7 +297,7 @@ pub fn inspect_client_projection(
             )?;
         } else {
             let allowed_links = projection_link_targets(input)?;
-            ensure_projection_tree_safe_with_allowed_links(&input.target_root, &allowed_links)?;
+            ensure_projection_target_safe(input, &allowed_links)?;
         }
         for (relative, (_, expected_digest)) in &expected {
             let destination = input.target_root.join(relative);
@@ -312,23 +334,25 @@ pub fn inspect_client_projection(
             }
         }
         let allowed_links = projection_link_targets(input)?;
-        for path in projection_tree_files(&input.target_root, &allowed_links)? {
-            let relative = path
-                .strip_prefix(&input.target_root)
-                .map_err(|_| {
-                    err(
-                        SetupErrorCode::PathEscapeRefused,
-                        "projection path escapes target",
-                    )
-                })?
-                .to_string_lossy()
-                .replace('\\', "/");
-            if !expected.contains_key(&relative)
-                && !ledger
-                    .as_ref()
-                    .is_some_and(|value| value.files.contains_key(&relative))
-            {
-                preserved.push(path);
+        for scan_root in projection_scan_roots(input) {
+            for path in projection_tree_files(&scan_root, &allowed_links)? {
+                let relative = path
+                    .strip_prefix(&input.target_root)
+                    .map_err(|_| {
+                        err(
+                            SetupErrorCode::PathEscapeRefused,
+                            "projection path escapes target",
+                        )
+                    })?
+                    .to_string_lossy()
+                    .replace('\\', "/");
+                if !expected.contains_key(&relative)
+                    && !ledger
+                        .as_ref()
+                        .is_some_and(|value| value.files.contains_key(&relative))
+                {
+                    preserved.push(path);
+                }
             }
         }
     }
@@ -537,7 +561,7 @@ pub fn repair_client_projection(
             )?;
         } else {
             let allowed_links = projection_link_targets(input)?;
-            ensure_projection_tree_safe_with_allowed_links(&input.target_root, &allowed_links)?;
+            ensure_projection_target_safe(input, &allowed_links)?;
         }
     } else {
         ensure_projection_parent_safe(&input.target_root)?;
@@ -594,6 +618,7 @@ pub fn repair_client_projection(
             }
         } else if root_owned
             || skills_only
+            || input.projection == "devin-user"
             || !target_existed_before
             || reclaim_orphan
             || explicit_opt_in_activation
@@ -2288,6 +2313,16 @@ fn projection_source_files(
                 collect_projection_files(&source, Path::new(skill_id), &mut files)?;
             }
         }
+    } else if input.projection == "devin-user" {
+        // Devin's user config root is shared with the host's own files, so the
+        // projection carries only the two subtrees Devin actually scans:
+        // skills/<name>/ and agents/<name>.md.
+        for subtree in ["skills", "agents"] {
+            let source = input.source_root.join(subtree);
+            if path_exists(&source)? {
+                collect_projection_files(&source, Path::new(subtree), &mut files)?;
+            }
+        }
     } else {
         collect_projection_files(&input.source_root, Path::new(""), &mut files)?;
         if input.client_id == CLIENT_CLAUDE && files.contains_key("plugin.json") {
@@ -2325,12 +2360,20 @@ fn projection_missing_surfaces(
         missing.push("skills".into());
     }
     if input.executable_registration
+        && input.projection != "devin-user"
         && !expected.contains_key("mcp.json")
         && !expected.contains_key("mcp_config.json")
         && !expected.keys().any(|path| path.ends_with("/mcp.json"))
     {
         missing.push("executableToolSurface".into());
         missing.push("mcpLifecycle".into());
+    }
+    if input.projection == "devin-user"
+        && !expected.keys().any(|path| path.starts_with("agents/"))
+    {
+        // Devin role exposure lives in its user agents/ directory; without it
+        // the projection supplies skills only and roles stay unavailable.
+        missing.push("agents".into());
     }
     if input.client_id == CLIENT_ANTIGRAVITY && input.projection == "native-plugin" {
         for (surface, marker) in [
@@ -2376,7 +2419,8 @@ fn host_registration_absent(input: &ClientProjectionInput) -> bool {
     match input.client_id.as_str() {
         CLIENT_CLAUDE => !claude_host_registration_present(&home),
         CLIENT_CODEX => !codex_host_registration_present(&home),
-        // Cursor / Windsurf / Antigravity MCP config paths are not modelled here.
+        CLIENT_DEVIN => !devin_host_registration_present(&home),
+        // Cursor / Antigravity MCP config paths are not modelled here.
         _ => false,
     }
 }
@@ -2419,6 +2463,103 @@ fn codex_host_registration_present(home: &Path) -> bool {
         .get("mcp_servers")
         .and_then(toml::Value::as_table)
         .is_some_and(|servers| servers.contains_key("legion"))
+}
+
+/// Devin's user configuration root: `%APPDATA%\devin` on Windows,
+/// `~/.config/devin` elsewhere. Resolved relative to the inspected home so
+/// development contexts and tests can substitute their own root.
+fn devin_config_root(home: &Path) -> PathBuf {
+    if cfg!(windows) {
+        home.join("AppData").join("Roaming").join("devin")
+    } else {
+        home.join(".config").join("devin")
+    }
+}
+
+fn devin_host_registration_present(home: &Path) -> bool {
+    let path = devin_config_root(home).join("mcp_config.json");
+    let Ok(bytes) = fs::read(&path) else {
+        return false;
+    };
+    let Ok(value) = serde_json::from_slice::<serde_json::Value>(&bytes) else {
+        return false;
+    };
+    value
+        .get("mcpServers")
+        .and_then(|servers| servers.get("legion"))
+        .is_some()
+        && devin_hooks_present(home)
+}
+
+/// Devin reads user-level hooks from the `hooks` key of its config.json.
+/// Legion's hook entries are identified by their command: every hook we write
+/// invokes the installed legion-hook executable, so ownership is determined by
+/// content rather than a marker the host schema would not understand.
+fn devin_hooks_present(home: &Path) -> bool {
+    let path = devin_config_root(home).join("config.json");
+    let Ok(bytes) = fs::read(&path) else {
+        return false;
+    };
+    let Ok(value) = serde_json::from_slice::<serde_json::Value>(&bytes) else {
+        return false;
+    };
+    value
+        .get("hooks")
+        .and_then(|hooks| hooks.as_object())
+        .is_some_and(|events| {
+            events.values().any(|entries| {
+                entries.as_array().is_some_and(|list| {
+                    list.iter().any(|entry| devin_hook_entry_is_legion(entry))
+                })
+            })
+        })
+}
+
+fn devin_hook_entry_is_legion(entry: &serde_json::Value) -> bool {
+    entry
+        .get("hooks")
+        .and_then(|hooks| hooks.as_array())
+        .is_some_and(|hooks| {
+            hooks.iter().any(|hook| {
+                hook.get("command")
+                    .and_then(|command| command.as_str())
+                    .is_some_and(|command| command.contains("legion-hook"))
+            })
+        })
+}
+
+/// Legion's packaged hook events use Claude names; Devin delivers a subset of
+/// those events plus its own. Events with no Devin counterpart
+/// (SubagentStart/SubagentStop/PostToolUseFailure) are dropped rather than
+/// registered under a name the host will never fire.
+fn devin_hook_event(event: &str) -> Option<&'static str> {
+    match event {
+        "SessionStart" => Some("SessionStart"),
+        "UserPromptSubmit" => Some("UserPromptSubmit"),
+        "PreToolUse" => Some("PreToolUse"),
+        "PostToolUse" => Some("PostToolUse"),
+        "PostCompact" => Some("PostCompaction"),
+        "Stop" => Some("Stop"),
+        _ => None,
+    }
+}
+
+/// Devin applies `matcher` to the event's `tool_name`; non-tool events carry
+/// none, so a copied matcher would never fire. Tool events also need Devin's
+/// own tool names (`exec`, `edit`, ...) alongside the packaged Claude names.
+fn devin_tool_event(event: &str) -> bool {
+    matches!(event, "PreToolUse" | "PostToolUse" | "PermissionRequest")
+}
+
+fn devin_hook_matcher(event: &str, matcher: Option<&str>) -> Option<String> {
+    if !devin_tool_event(event) {
+        return None;
+    }
+    const DEVIN_TOOLS: &str = "exec|write|edit|notebook_edit|webfetch|web_search|browser_preview";
+    match matcher {
+        Some(existing) if !existing.is_empty() => Some(format!("{existing}|{DEVIN_TOOLS}")),
+        _ => Some(DEVIN_TOOLS.to_string()),
+    }
 }
 
 /// Frozen `mcp` surface descriptor used only to drive [`project_mcp`] for
@@ -2472,6 +2613,30 @@ fn codex_mcp_descriptor() -> HostDescriptor {
     }
 }
 
+fn devin_mcp_descriptor() -> HostDescriptor {
+    HostDescriptor {
+        schema_version: crate::descriptor::SCHEMA_VERSION,
+        kind: "legion-host-descriptor".into(),
+        id: CLIENT_DEVIN.into(),
+        display_name: "Devin".into(),
+        install_owner: "plugin".into(),
+        detect: DetectionRule::default(),
+        surfaces: BTreeMap::from([(
+            "mcp".into(),
+            SurfaceDescriptor {
+                fidelity: "strong".into(),
+                mechanism: Mechanism {
+                    kind: "json".into(),
+                    path: None,
+                    table: None,
+                    key: Some("mcpServers".into()),
+                },
+                note: None,
+            },
+        )]),
+    }
+}
+
 fn host_projection_error(error: HostError) -> SetupError {
     match &error {
         HostError::HarnessConflict { .. } => err(SetupErrorCode::ConfigOwnershipConflict, error.to_string()),
@@ -2504,6 +2669,10 @@ fn register_host_mcp(input: &ClientProjectionInput) -> Result<(), SetupError> {
             Ok(())
         }
         CLIENT_CODEX => write_codex_mcp_registration(&home, &command, &args, &input.generation),
+        CLIENT_DEVIN => {
+            write_devin_mcp_registration(&home, &command, &args, &input.generation)?;
+            write_devin_hooks(input, &home)
+        }
         _ => return Ok(()),
     }?;
     // Fail closed on a write that does not survive its own read-back. Without
@@ -2533,6 +2702,7 @@ fn host_registration_diagnosis(input: &ClientProjectionInput, home: &Path) -> St
     let path = match input.client_id.as_str() {
         CLIENT_CLAUDE => home.join(".claude.json"),
         CLIENT_CODEX => home.join(".codex").join("config.toml"),
+        CLIENT_DEVIN => devin_config_root(&home).join("mcp_config.json"),
         _ => return "no host config path is modelled for this client".into(),
     };
     let bytes = match fs::read(&path) {
@@ -2541,7 +2711,7 @@ fn host_registration_diagnosis(input: &ClientProjectionInput, home: &Path) -> St
     };
     let text = String::from_utf8_lossy(&bytes);
     let parse_error = match input.client_id.as_str() {
-        CLIENT_CLAUDE => serde_json::from_slice::<serde_json::Value>(&bytes)
+        CLIENT_CLAUDE | CLIENT_DEVIN => serde_json::from_slice::<serde_json::Value>(&bytes)
             .err()
             .map(|error| error.to_string()),
         _ => toml::from_str::<toml::Value>(&text).err().map(|error| error.to_string()),
@@ -2612,6 +2782,155 @@ fn write_codex_mcp_registration(
     atomic_write(home, &path, item.bytes.as_slice())
 }
 
+fn write_devin_mcp_registration(
+    home: &Path,
+    command: &str,
+    args: &[String],
+    generation: &str,
+) -> Result<(), SetupError> {
+    let path = devin_config_root(home).join("mcp_config.json");
+    let existing = if path_exists(&path)? {
+        Some(read(&path)?)
+    } else {
+        None
+    };
+    let descriptor = devin_mcp_descriptor();
+    let item = project_mcp(
+        &descriptor,
+        &path.to_string_lossy(),
+        existing.as_deref(),
+        command,
+        args,
+        generation,
+    )
+    .map_err(host_projection_error)?;
+    atomic_write(&devin_config_root(home), &path, &item.bytes)
+}
+
+/// Merge Legion's packaged hook set into Devin's user `config.json` under the
+/// `hooks` key, translating the packaged event names to Devin's event names and
+/// binding each command to the installed legion-hook executable next to the
+/// registered legion binary. Prior Legion entries are replaced in place; hooks
+/// whose commands do not invoke legion-hook are preserved untouched.
+fn write_devin_hooks(input: &ClientProjectionInput, home: &Path) -> Result<(), SetupError> {
+    let hooks_source = input.source_root.join("hooks").join("hooks.json");
+    let Some(executable) = &input.executable else {
+        return Ok(());
+    };
+    let hook_name = if cfg!(windows) {
+        "legion-hook.exe"
+    } else {
+        "legion-hook"
+    };
+    let hook_command = executable
+        .parent()
+        .map(|bin| bin.join(hook_name))
+        .map(|path| path.to_string_lossy().into_owned())
+        .unwrap_or_else(|| "legion-hook".into());
+    let mut packaged: BTreeMap<String, Vec<serde_json::Value>> = BTreeMap::new();
+    if path_exists(&hooks_source)? {
+        let value: serde_json::Value = serde_json::from_slice(&read(&hooks_source)?)
+            .map_err(|error| {
+                err(
+                    SetupErrorCode::ConfigParseRefused,
+                    format!("packaged hooks.json does not parse: {error}"),
+                )
+            })?;
+        if let Some(events) = value.get("hooks").and_then(|hooks| hooks.as_object()) {
+            for (event, entries) in events {
+                let Some(mapped) = devin_hook_event(event) else {
+                    continue;
+                };
+                let Some(list) = entries.as_array() else {
+                    continue;
+                };
+                for entry in list {
+                    let Some(entry_object) = entry.as_object().cloned() else {
+                        continue;
+                    };
+                    let mut entry_object = entry_object;
+                    match devin_hook_matcher(
+                        mapped,
+                        entry_object.get("matcher").and_then(|v| v.as_str()),
+                    ) {
+                        Some(matcher) => {
+                            entry_object
+                                .insert("matcher".into(), serde_json::Value::String(matcher));
+                        }
+                        None => {
+                            entry_object.remove("matcher");
+                        }
+                    }
+                    if let Some(hooks) = entry_object
+                        .get_mut("hooks")
+                        .and_then(|hooks| hooks.as_array_mut())
+                    {
+                        for hook in hooks.iter_mut() {
+                            if let Some(object) = hook.as_object_mut() {
+                                object.insert(
+                                    "command".into(),
+                                    serde_json::Value::String(hook_command.clone()),
+                                );
+                            }
+                        }
+                    }
+                    packaged
+                        .entry(mapped.to_string())
+                        .or_default()
+                        .push(serde_json::Value::Object(entry_object));
+                }
+            }
+        }
+    }
+    let path = devin_config_root(home).join("config.json");
+    let mut config: serde_json::Value = if path_exists(&path)? {
+        serde_json::from_slice(&read(&path)?).map_err(|error| {
+            err(
+                SetupErrorCode::ConfigParseRefused,
+                format!("{} does not parse: {error}", path.display()),
+            )
+        })?
+    } else {
+        serde_json::json!({})
+    };
+    let root = config.as_object_mut().ok_or_else(|| {
+        err(
+            SetupErrorCode::ConfigOwnershipConflict,
+            format!("{} root is not an object", path.display()),
+        )
+    })?;
+    let hooks_value = root
+        .entry("hooks".to_string())
+        .or_insert_with(|| serde_json::json!({}));
+    let hooks_map = hooks_value.as_object_mut().ok_or_else(|| {
+        err(
+            SetupErrorCode::ConfigOwnershipConflict,
+            format!("{} hooks is not an object", path.display()),
+        )
+    })?;
+    for (event, entries) in &packaged {
+        let list = hooks_map
+            .entry(event.clone())
+            .or_insert_with(|| serde_json::json!([]));
+        let list = list.as_array_mut().ok_or_else(|| {
+            err(
+                SetupErrorCode::ConfigOwnershipConflict,
+                format!("{} hooks.{event} is not an array", path.display()),
+            )
+        })?;
+        list.retain(|entry| !devin_hook_entry_is_legion(entry));
+        list.extend(entries.iter().cloned());
+    }
+    let mut bytes = serde_json::to_vec_pretty(&config).map_err(|_| {
+        err(
+            SetupErrorCode::StateSerializationFailed,
+            "cannot encode devin config.json",
+        )
+    })?;
+    bytes.push(b'\n');
+    atomic_write(&devin_config_root(home), &path, &bytes)
+}
+
 fn remove_host_mcp(input: &ClientProjectionInput) -> Result<(), SetupError> {
     if !input.executable_registration || input.projection == "skills-only" {
         return Ok(());
@@ -2625,6 +2944,10 @@ fn remove_host_mcp(input: &ClientProjectionInput) -> Result<(), SetupError> {
             Ok(())
         }
         CLIENT_CODEX => remove_codex_mcp_registration(&home),
+        CLIENT_DEVIN => {
+            remove_devin_mcp_registration(&home)?;
+            remove_devin_hooks(&home)
+        }
         _ => Ok(()),
     }
 }
@@ -2713,6 +3036,86 @@ fn remove_codex_mcp_registration(home: &Path) -> Result<(), SetupError> {
     let mut text = lines.join("\n").trim_end().to_string();
     text.push('\n');
     atomic_write(home, &path, text.as_bytes())
+}
+
+fn remove_devin_mcp_registration(home: &Path) -> Result<(), SetupError> {
+    let path = devin_config_root(home).join("mcp_config.json");
+    if !path_exists(&path)? {
+        return Ok(());
+    }
+    let Ok(mut value) = serde_json::from_slice::<serde_json::Value>(&read(&path)?) else {
+        return Ok(());
+    };
+    let Some(servers) = value.get_mut("mcpServers").and_then(|v| v.as_object_mut()) else {
+        return Ok(());
+    };
+    let Some(entry) = servers.get("legion").cloned() else {
+        return Ok(());
+    };
+    let Some(entry_object) = entry.as_object() else {
+        return Ok(());
+    };
+    let Some(metadata) = entry_object.get("_legionOwnership") else {
+        return Ok(());
+    };
+    let Ok(mark) = serde_json::from_value::<OwnershipMark>(metadata.clone()) else {
+        return Ok(());
+    };
+    let mut payload = entry.clone();
+    payload.as_object_mut().unwrap().remove("_legionOwnership");
+    let Ok(payload_bytes) = serde_json::to_vec(&payload) else {
+        return Ok(());
+    };
+    if mark.owner != CLIENT_DEVIN || !mark.owns(&payload_bytes) {
+        // Foreign or user-modified entry: leave it alone.
+        return Ok(());
+    }
+    servers.remove("legion");
+    let mut bytes = serde_json::to_vec_pretty(&value).map_err(|_| {
+        err(
+            SetupErrorCode::StateSerializationFailed,
+            "cannot encode devin mcp_config.json",
+        )
+    })?;
+    bytes.push(b'\n');
+    atomic_write(&devin_config_root(home), &path, &bytes)
+}
+
+/// Drop only the hook entries Legion wrote (identified by their legion-hook
+/// command) from Devin's user config.json, leaving every foreign entry and
+/// unrelated key untouched. Emptied event keys are removed with them.
+fn remove_devin_hooks(home: &Path) -> Result<(), SetupError> {
+    let path = devin_config_root(home).join("config.json");
+    if !path_exists(&path)? {
+        return Ok(());
+    }
+    let Ok(mut config) = serde_json::from_slice::<serde_json::Value>(&read(&path)?) else {
+        return Ok(());
+    };
+    let Some(hooks_map) = config
+        .get_mut("hooks")
+        .and_then(|hooks| hooks.as_object_mut())
+    else {
+        return Ok(());
+    };
+    for entries in hooks_map.values_mut() {
+        if let Some(list) = entries.as_array_mut() {
+            list.retain(|entry| !devin_hook_entry_is_legion(entry));
+        }
+    }
+    hooks_map.retain(|_, entries| {
+        entries
+            .as_array()
+            .is_some_and(|list| !list.is_empty())
+    });
+    let mut bytes = serde_json::to_vec_pretty(&config).map_err(|_| {
+        err(
+            SetupErrorCode::StateSerializationFailed,
+            "cannot encode devin config.json",
+        )
+    })?;
+    bytes.push(b'\n');
+    atomic_write(&devin_config_root(home), &path, &bytes)
 }
 
 fn projection_ledger_path(input: &ClientProjectionInput) -> PathBuf {
@@ -2977,6 +3380,53 @@ fn projection_link_targets(
         .into_iter()
         .map(|(relative, source)| (input.target_root.join(relative), source))
         .collect())
+}
+
+/// Subtrees of the target root a projection may contain. Shared host roots
+/// (devin-user projects into Devin's own user config directory) only scan the
+/// directories Legion actually writes: enumerating the host's whole config
+/// tree misreports unrelated files as preserved and is unboundedly slow.
+fn projection_scan_roots(input: &ClientProjectionInput) -> Vec<PathBuf> {
+    if input.projection == "devin-user" {
+        vec![
+            input.target_root.join("skills"),
+            input.target_root.join("agents"),
+        ]
+    } else {
+        vec![input.target_root.clone()]
+    }
+}
+
+/// Reparse-point safety over the projection's scan roots. For shared host
+/// roots this checks the target root itself plus the writable subtrees, not
+/// the host's entire config tree.
+fn ensure_projection_target_safe(
+    input: &ClientProjectionInput,
+    allowed_links: &[(PathBuf, PathBuf)],
+) -> Result<(), SetupError> {
+    if input.projection != "devin-user" {
+        return ensure_projection_tree_safe_with_allowed_links(
+            &input.target_root,
+            allowed_links,
+        );
+    }
+    ensure_projection_parent_safe(&input.target_root)?;
+    if path_exists(&input.target_root)? {
+        let metadata = fs::symlink_metadata(&input.target_root).map_err(io)?;
+        if metadata.file_type().is_symlink() || !metadata.is_dir() {
+            return Err(err(
+                SetupErrorCode::PathEscapeRefused,
+                format!(
+                    "projection root is not a directory: {}",
+                    input.target_root.display()
+                ),
+            ));
+        }
+    }
+    for root in projection_scan_roots(input) {
+        ensure_projection_tree_safe_with_allowed_links(&root, allowed_links)?;
+    }
+    Ok(())
 }
 
 fn projection_relative_is_under_unit(relative: &str, unit: &str) -> bool {
@@ -3519,6 +3969,10 @@ fn select_mechanism(client_id: &str, mechanisms: &[String]) -> Option<String> {
         CLIENT_PI => &["pi-skills-only"],
         CLIENT_ANTIGRAVITY => &[
             "antigravity-agent-plugins-portable-core",
+            "supported-native-exact-path-registration",
+        ],
+        CLIENT_DEVIN => &[
+            "devin-user-surfaces",
             "supported-native-exact-path-registration",
         ],
         _ => &[],
@@ -4488,5 +4942,101 @@ mod tests {
         assert!(installed_path_starts_with(&source, &short));
         assert!(!paths_equal(&short, &outside.0));
         assert!(!installed_path_starts_with(&outside.0, &short));
+    }
+
+    #[test]
+    fn devin_user_projection_registers_mcp_and_hooks_in_shared_config_root() {
+        let root = TestRoot::new("devin-user-surfaces");
+        let state_root = root.0.join("state");
+        fs::create_dir_all(&state_root).unwrap();
+        fs::write(state_root.join(".legion-owned"), OWNER_MARKER).unwrap();
+        let host_home = state_root.join("host-home");
+        let devin_root = devin_config_root(&host_home);
+        // The target is Devin's own config root; host files already live there
+        // and must survive every projection lifecycle.
+        fs::create_dir_all(&devin_root).unwrap();
+        fs::write(devin_root.join("sessions.db"), b"host").unwrap();
+        fs::write(devin_root.join("config.json"), br#"{"version":1}"#).unwrap();
+        let source_root = root.0.join("release/plugin");
+        fs::create_dir_all(source_root.join("skills/example")).unwrap();
+        fs::create_dir_all(source_root.join("agents")).unwrap();
+        fs::create_dir_all(source_root.join("hooks")).unwrap();
+        fs::write(source_root.join("plugin.json"), br#"{"name":"legion"}"#).unwrap();
+        fs::write(source_root.join("skills/example/SKILL.md"), b"# Example").unwrap();
+        fs::write(source_root.join("agents/sage.md"), b"# Sage").unwrap();
+        fs::write(
+            source_root.join("hooks/hooks.json"),
+            br#"{"hooks":{"SessionStart":[{"hooks":[{"type":"command","command":"legion-hook"}]}],"PostCompact":[{"hooks":[{"type":"command","command":"legion-hook"}]}],"SubagentStart":[{"hooks":[{"type":"command","command":"legion-hook"}]}]}}"#,
+        )
+        .unwrap();
+        let executable = state_root.join("current/bin").join(STABLE_EXECUTABLE_NAME);
+        fs::create_dir_all(executable.parent().unwrap()).unwrap();
+        fs::write(&executable, b"exe").unwrap();
+        let input = ClientProjectionInput {
+            client_id: CLIENT_DEVIN.into(),
+            projection: "devin-user".into(),
+            source_root: fs::canonicalize(&source_root).unwrap(),
+            target_root: devin_root.clone(),
+            state_root: fs::canonicalize(&state_root).unwrap(),
+            origin: ORIGIN_DEVELOPMENT.into(),
+            executable: Some(executable.clone()),
+            install_root: None,
+            generation: "test-generation".into(),
+            executable_registration: true,
+            explicit_only: false,
+            skill_ids: vec!["example".into()],
+            host_config_root: Some(host_home.clone()),
+        };
+
+        let result = repair_client_projection(&input).unwrap();
+        assert_eq!(result.inspection.state, "current");
+        assert_eq!(result.inspection.ownership, "legion");
+        assert!(devin_root.join("skills/example/SKILL.md").exists());
+        assert_eq!(
+            fs::read(devin_root.join("agents/sage.md")).unwrap(),
+            b"# Sage"
+        );
+        // The portable manifest itself never lands in the shared root.
+        assert!(!devin_root.join("plugin.json").exists());
+
+        let mcp: serde_json::Value =
+            serde_json::from_slice(&fs::read(devin_root.join("mcp_config.json")).unwrap()).unwrap();
+        let legion = &mcp["mcpServers"]["legion"];
+        assert_eq!(
+            legion["command"].as_str().unwrap(),
+            executable.to_string_lossy()
+        );
+        assert_eq!(
+            legion["_legionOwnership"]["owner"].as_str().unwrap(),
+            CLIENT_DEVIN
+        );
+
+        let config: serde_json::Value =
+            serde_json::from_slice(&fs::read(devin_root.join("config.json")).unwrap()).unwrap();
+        assert_eq!(config["version"].as_u64().unwrap(), 1);
+        let hooks = &config["hooks"];
+        let command = hooks["SessionStart"][0]["hooks"][0]["command"]
+            .as_str()
+            .unwrap();
+        assert!(command.contains("legion-hook"));
+        // PostCompact maps to Devin's PostCompaction; events Devin never fires
+        // are dropped rather than registered under a dead name.
+        assert!(hooks["PostCompaction"].is_array());
+        assert!(hooks.get("PostCompact").is_none());
+        assert!(hooks.get("SubagentStart").is_none());
+
+        remove_client_projection(&input).unwrap();
+        let mcp: serde_json::Value =
+            serde_json::from_slice(&fs::read(devin_root.join("mcp_config.json")).unwrap()).unwrap();
+        assert!(mcp["mcpServers"].get("legion").is_none());
+        let config: serde_json::Value =
+            serde_json::from_slice(&fs::read(devin_root.join("config.json")).unwrap()).unwrap();
+        let empty = config["hooks"]
+            .as_object()
+            .is_none_or(|events| events.is_empty());
+        assert!(empty);
+        assert_eq!(config["version"].as_u64().unwrap(), 1);
+        assert!(!devin_root.join("agents/sage.md").exists());
+        assert!(devin_root.join("sessions.db").exists());
     }
 }

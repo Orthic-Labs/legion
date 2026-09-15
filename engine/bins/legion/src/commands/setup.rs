@@ -3147,6 +3147,14 @@ fn host_integration_inputs_installed(
             home.join(".antigravity/plugins/legion"),
             true,
             false,
+            plugin_source_root.clone(),
+        ),
+        (
+            legion_host::setup_registry::CLIENT_DEVIN,
+            "devin-user",
+            devin_config_root(&home),
+            true,
+            false,
             plugin_source_root,
         ),
     ]
@@ -3192,6 +3200,17 @@ fn installed_plugin_source_root(executable: &Path) -> Result<PathBuf, CommandErr
         .and_then(Path::parent)
         .map(|current| current.join("plugin"))
         .ok_or_else(|| CommandError::incomplete("installed executable has no stable current root"))
+}
+
+/// Devin's user configuration root — `%APPDATA%\devin` on Windows and
+/// `~/.config/devin` elsewhere — resolved relative to the inspected home so
+/// development contexts substitute their own client root.
+fn devin_config_root(home: &Path) -> PathBuf {
+    if cfg!(windows) {
+        home.join("AppData").join("Roaming").join("devin")
+    } else {
+        home.join(".config").join("devin")
+    }
 }
 
 fn installed_host_home() -> Result<PathBuf, CommandError> {
@@ -3307,8 +3326,16 @@ fn development_host_integration_inputs(
             "agent-plugins-portable-core",
             true,
             false,
-            repo_assets,
+            repo_assets.clone(),
             home.join("antigravity/plugins/legion"),
+        ),
+        (
+            legion_host::setup_registry::CLIENT_DEVIN,
+            "devin-user",
+            true,
+            false,
+            repo_assets,
+            devin_config_root(&home),
         ),
     ];
     let client_projections = definitions
@@ -3357,6 +3384,7 @@ fn projection_key(client_id: &str) -> &'static str {
         legion_host::setup_registry::CLIENT_CURSOR => "cursorPlugin",
         legion_host::setup_registry::CLIENT_PI => "piSkills",
         legion_host::setup_registry::CLIENT_ANTIGRAVITY => "antigravityPlugin",
+        legion_host::setup_registry::CLIENT_DEVIN => "devinUserSurfaces",
         _ => "unknownPlugin",
     }
 }
@@ -3426,6 +3454,15 @@ fn discovered_client_evidence(selected: Option<&str>) -> Vec<legion_host::Client
             ".antigravity",
             vec!["antigravity-agent-plugins-portable-core"],
         ),
+        (
+            legion_host::setup_registry::CLIENT_DEVIN,
+            if cfg!(windows) {
+                "AppData/Roaming/devin"
+            } else {
+                ".config/devin"
+            },
+            vec!["devin-user-surfaces"],
+        ),
     ];
     clients
         .into_iter()
@@ -3458,6 +3495,7 @@ fn development_client_evidence(selected: Option<&str>) -> Vec<legion_host::Clien
         legion_host::setup_registry::CLIENT_CURSOR,
         legion_host::setup_registry::CLIENT_PI,
         legion_host::setup_registry::CLIENT_ANTIGRAVITY,
+        legion_host::setup_registry::CLIENT_DEVIN,
     ]
     .into_iter()
     .filter(|id| selected.is_none_or(|value| value == *id))
