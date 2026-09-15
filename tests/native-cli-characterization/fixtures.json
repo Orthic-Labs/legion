@@ -397,6 +397,10 @@
           "legion-doctor"
         ]
       },
+      "nativeOracle": {
+        "exitCode": 0,
+        "kind": "legion-doctor"
+      },
       "nativeOnly": true,
       "normalization": {
         "timestamps": true,
