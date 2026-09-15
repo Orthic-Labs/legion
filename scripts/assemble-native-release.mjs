@@ -488,12 +488,6 @@ try {
 } finally {
 	rmSync(portableSkillSourceRoot, { recursive: true, force: true });
 }
-const portableCoreValidation = validatePortableCore(pluginRoot);
-if (!portableCoreValidation.valid) {
-	throw new Error(
-		`RightAX portable core validation failed: ${portableCoreValidation.errors.join("; ")}`,
-	);
-}
 
 // Harness commands resolve their registry from the installed plugin root.
 // Ship the generated projection at that exact runtime-owned location.
@@ -501,13 +495,26 @@ const installedHostProjection = join(pluginRoot, "share", "legion", "src", "regi
 mkdirSync(dirname(installedHostProjection), { recursive: true });
 copyFileSync(join(repositoryRoot, "src", "registry", "host-projection.json"), installedHostProjection);
 
+// The host projection ships inside the plugin root, so the portable core
+// contract must declare it: the installed validator closes the package to
+// exactly the declared files and rejects undeclared entries.
+const portableCorePath = join(pluginRoot, "rightax-portable-core.json");
+const portableCore = JSON.parse(readFileSync(portableCorePath, "utf8"));
+portableCore.publicFiles.push("share/legion/src/registry/host-projection.json");
+writeJson(portableCorePath, portableCore);
+
+const portableCoreValidation = validatePortableCore(pluginRoot);
+if (!portableCoreValidation.valid) {
+	throw new Error(
+		`RightAX portable core validation failed: ${portableCoreValidation.errors.join("; ")}`,
+	);
+}
+
 // Anchor the shipped portable core to the release manifest: the validator in the
 // installed binary recomputes this digest over the on-disk core bytes and refuses
 // to trust the core if it does not match. Written here (not with the other
 // manifest fields) because the core file only exists after assembly.
-manifest.portableCoreSha256 = fileSha256(
-	join(pluginRoot, "rightax-portable-core.json"),
-);
+manifest.portableCoreSha256 = fileSha256(portableCorePath);
 writeJson(join(share, "release.json"), manifest);
 
 process.stdout.write(

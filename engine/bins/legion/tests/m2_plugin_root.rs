@@ -656,6 +656,49 @@ fn plugin_root_accepts_the_claude_projection_manifest_copy() {
 }
 
 #[test]
+fn plugin_root_accepts_the_declared_host_projection_asset() {
+    // The assembled plugin root ships the generated host projection at
+    // share/legion/src/registry/host-projection.json. Undeclared it must read
+    // as an unexpected package entry; declared in the contract it is accepted
+    // at exactly that path.
+    let fixture = fixture();
+    let plugin_root = portable_package(&fixture);
+    let asset = plugin_root.join("share/legion/src/registry/host-projection.json");
+    fs::create_dir_all(asset.parent().expect("share parent")).expect("share dir");
+    fs::write(&asset, br#"{"kind":"legion-host-projection"}"#).expect("host projection");
+
+    let undeclared = serve_output(&plugin_root, &fixture.config);
+    assert_eq!(undeclared.status.code(), Some(2));
+    assert!(undeclared.stdout.is_empty(), "MCP must not have started");
+    assert!(String::from_utf8_lossy(&undeclared.stderr).contains("extra directory share"));
+
+    let contract_path = plugin_root.join("rightax-portable-core.json");
+    let mut contract: Value =
+        serde_json::from_slice(&fs::read(&contract_path).expect("RightAX contract"))
+            .expect("RightAX contract JSON");
+    contract["publicFiles"]
+        .as_array_mut()
+        .expect("publicFiles")
+        .push(json!("share/legion/src/registry/host-projection.json"));
+    fs::write(&contract_path, serde_json::to_vec(&contract).expect("contract JSON"))
+        .expect("declared contract");
+    anchor_release(&fixture, &plugin_root);
+
+    let (mut child, mut stdin, mut stdout) = start_stdio(&plugin_root, &fixture.config);
+    let initialized = request(
+        &mut stdin,
+        &mut stdout,
+        json!({"jsonrpc":"2.0", "id":1, "method":"initialize", "params":{}}),
+    );
+    assert_eq!(
+        initialized["result"]["releaseIdentity"]["releaseVersion"],
+        env!("CARGO_PKG_VERSION")
+    );
+    drop(stdin);
+    assert!(child.wait().expect("server exit").success());
+}
+
+#[test]
 fn plugin_root_rejects_a_mismatched_claude_projection_manifest_copy() {
     let fixture = fixture();
     let plugin_root = portable_package(&fixture);

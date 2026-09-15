@@ -855,6 +855,12 @@ fn is_allowed_portable_public_file(
     ) {
         return true;
     }
+    // The assembled plugin root carries the generated host projection under
+    // share/legion; the contract declares it and only this exact path is
+    // permitted — no other share/ content is public plugin surface.
+    if relative == "share/legion/src/registry/host-projection.json" {
+        return true;
+    }
     // agents/<name>.md, for a name the contract declares.
     if let Some(agent) = relative.strip_prefix("agents/").and_then(|rest| rest.strip_suffix(".md")) {
         return !agent.is_empty() && expected_agents.contains(agent) && is_safe_portable_relative_path(relative);
