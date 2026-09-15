@@ -29,7 +29,8 @@
       "Execute a settled, bounded change through Legion's Alchemist authority. Use /alchemist after scope, ownership, checks, and acceptance are decided."
     ],
     "outputs": [
-      "references/manual.md"
+      "references/manual.md",
+      "references/route-resources.json"
     ],
     "scripts": [
       "scripts/parse_events.py",
@@ -56,7 +57,7 @@
     {
       "path": "SKILL.md",
       "uri": "legion-skill://alchemist/SKILL.md",
-      "digest": "sha256:631945991f04ee30fe8d8fe1d33280c6c85fccfde260d0f3026f94312b0f1e07"
+      "digest": "sha256:d422ea95e7e4f55ccc2eab11868cadf6cc6caebaec90e6e1699deaadb0bdbc3d"
     },
     {
       "path": "agents/openai.yaml",
@@ -66,7 +67,7 @@
     {
       "path": "dependencies.json",
       "uri": "legion-skill://alchemist/dependencies.json",
-      "digest": "sha256:861f64a5605302b486f1b8023954507fecb653b5ae4363ca8360a8adc78028a2"
+      "digest": "sha256:5a233c02faa241883698b216e55c00ee9cb8acb6155f6784bf42a6ec27f009d6"
     },
     {
       "path": "evals/evals.json",
@@ -86,7 +87,12 @@
     {
       "path": "references/manual.md",
       "uri": "legion-skill://alchemist/references/manual.md",
-      "digest": "sha256:3b8e1ab49c664aa1d31c5604a51d75a06fb3591604c4fece9a60e6195381a3c4"
+      "digest": "sha256:b36cfd0f224f4d0362b04b2935ed50cc8eb632184d5aa3c1392c7dcc71bd94cc"
+    },
+    {
+      "path": "references/route-resources.json",
+      "uri": "legion-skill://alchemist/references/route-resources.json",
+      "digest": "sha256:12619ae4cf47f89778dbd33c16af828aa0ad426be135e8d6550a002108e34553"
     },
     {
       "path": "scripts/parse_events.py",
@@ -96,12 +102,12 @@
     {
       "path": "scripts/run-worker.ps1",
       "uri": "legion-skill://alchemist/scripts/run-worker.ps1",
-      "digest": "sha256:2b9cf7a0b6f34437afec9bf42ca8cfcda94e724fe015a02a1f3f86a8f58f5ee6"
+      "digest": "sha256:f2767fb414d285c88f06b1fb4481b79392b16e2df698bb1e364732f921e69a96"
     },
     {
       "path": "scripts/run-worker.sh",
       "uri": "legion-skill://alchemist/scripts/run-worker.sh",
-      "digest": "sha256:c9c9118364cc803a30a472fe9365866d4b62aad08849e290d11cbdf8deeb1bd5"
+      "digest": "sha256:a665c65dcabc98dde11a5201bc248c1d96271b2a9bea1398dfb9644d2cf5e8ff"
     },
     {
       "path": "scripts/start-stack.vbs",
@@ -121,12 +127,12 @@
     {
       "path": "tests/test_posix_runner.py",
       "uri": "legion-skill://alchemist/tests/test_posix_runner.py",
-      "digest": "sha256:cf0bb6c6adf5ee1ea72a7b4729c0e40a136a3159e0b22f6f02c1fb8ce116724c"
+      "digest": "sha256:f958aaf27e9ba7fa4d3756fd96eba7cb5e60949014ae18f39705e506afaedba9"
     },
     {
       "path": "tests/test_windows_runner.py",
       "uri": "legion-skill://alchemist/tests/test_windows_runner.py",
-      "digest": "sha256:1aa9217a7441e93263245c1b6c3502dbe5334cd72d4d72256fe51b5c49f15366"
+      "digest": "sha256:19ae1158cba87c63fa8d24ef9e5cb204d5bfb054156533aac26fb2661a0382d4"
     }
   ]
 }

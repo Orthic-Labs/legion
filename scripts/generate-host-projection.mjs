@@ -8,9 +8,11 @@
 // from canonical owners and writes it as data.
 //
 // Inputs are canonical sources only:
-//   skills/<id>/SKILL.md            capability/entrypoint semantics
-//   src/roster/*.md                 role identity
-//   src/registry/capabilities.json  host capabilities
+//   skills/<id>/SKILL.md                          capability/entrypoint semantics
+//   skills/<id>/references/route-resources.json   route/adapter-scoped requirements
+//   src/roster/*.md                               role identity
+//   src/config/model-tiers.json                   tier → host model policy
+//   src/registry/capabilities.json                host capabilities
 //
 // Output is a projection, never semantic authority.
 //
@@ -20,6 +22,7 @@ import { resolve, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseSkillFrontmatter } from './lib/skill-frontmatter.mjs';
 import { loadCapabilityRegistry } from '../src/lib/capabilities/registry.mjs';
+import { scopedRequirementDetails } from '../src/lib/skills/route-resources.mjs';
 
 const ROOT = resolve(fileURLToPath(new URL('..', import.meta.url)));
 import claudeCode from '../src/lib/host/adapters/claude-code.mjs';
@@ -63,6 +66,7 @@ export function buildProjection(root = ROOT) {
       summary: entry.summary,
       degradation: entry.degradation,
       remedy: entry.remedy,
+      probe: entry.probe ?? null,
     };
   });
   const capabilities = readdirSync(skillsDir)
@@ -92,6 +96,7 @@ export function buildProjection(root = ROOT) {
         domain: fm.domain === 'null' || fm.domain === '' ? null : (fm.domain ?? null),
         hostRequirements: [...(fm.hostRequirements ?? [])],
         hostRequirementDetails: requirementDetails(fm.hostRequirements ?? []),
+        scopedRequirements: scopedRequirementDetails(join(skillsDir, id), registry, { id }),
         source: path,
       };
     });
@@ -103,8 +108,19 @@ export function buildProjection(root = ROOT) {
     .map((f) => {
       const path = `src/roster/${f}`;
       const fm = rosterFrontmatter(readFileSync(join(root, path), 'utf8'));
-      return { id: f.replace(/\.md$/, ''), description: fm.description ?? '', source: path };
+      return {
+        id: f.replace(/\.md$/, ''),
+        description: fm.description ?? '',
+        modelTier: fm.modelTier ?? null,
+        source: path,
+      };
     });
+
+  // Intelligence tiers are portable; model ids are host policy. The projection
+  // carries the configured tier map verbatim so a host resolves
+  // `role.modelTier` → `modelTiers.tiers[tier].hosts[host]` itself, and an
+  // explicit operator model choice still overrides the resolved default.
+  const modelTiers = JSON.parse(readFileSync(join(root, 'src/config/model-tiers.json'), 'utf8'));
 
   const hostCapabilities = Object.entries(registry.capabilities ?? {}).map(([id, value]) => ({
     id,
@@ -114,9 +130,10 @@ export function buildProjection(root = ROOT) {
   return {
     schemaVersion: 1,
     kind: 'legion-host-projection',
-    generatedFrom: ['skills/*/SKILL.md', 'src/roster/*.md', 'src/registry/capabilities.json'],
+    generatedFrom: ['skills/*/SKILL.md', 'skills/*/references/route-resources.json', 'src/roster/*.md', 'src/config/model-tiers.json', 'src/registry/capabilities.json'],
     capabilities,
     roles,
+    modelTiers: modelTiers.tiers,
     hostCapabilities,
     referenceClasses: Object.keys(registry.classes ?? {}).sort(),
     // Fidelity must be true, not aspirational. A harness with no

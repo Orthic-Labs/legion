@@ -30,13 +30,13 @@
     },
     "omniroute": {
       "kind": "local-gateway",
-      "summary": "OmniRoute model gateway plus the Codex CLI profile set used by the Alchemist worker.",
-      "degradation": "Alchemist exits 4 (gateway down). Callers must treat Alchemist as unavailable, not as returning an empty result.",
+      "summary": "OmniRoute model gateway plus the Codex CLI profile set used by the optional Alchemist worker adapter.",
+      "degradation": "The optional OmniRoute worker adapter is unavailable; host-native Alchemist execution and every other Legion capability are unaffected. Callers selecting the adapter must treat that route as unavailable, never as an empty result.",
       "probe": {
         "kind": "command",
         "command": "omniroute"
       },
-      "remedy": "Install the OmniRoute gateway and put `omniroute` on PATH, or run Alchemist against a host that provides it."
+      "remedy": "Only when the OmniRoute worker adapter is explicitly selected: install the OmniRoute gateway and put `omniroute` on PATH. Hosts that do not select the adapter need nothing."
     },
     "pi-cli": {
       "kind": "command-line-provider",
@@ -55,20 +55,22 @@
     },
     "python-runtime": {
       "kind": "language-runtime",
-      "summary": "Python runtime used by package-local validators and Coder's Pi worker adapter.",
+      "summary": "Python runtime used by package-local validators and the optional worker adapters' event parsers.",
       "degradation": "The dependent skill reports that its local validator or worker adapter is unavailable and does not substitute another runtime.",
       "probe": {
         "kind": "command-any",
         "commands": [
           "python3",
-          "python"
+          "python",
+          "py"
         ]
       },
       "commands": [
         "python3",
-        "python"
+        "python",
+        "py"
       ],
-      "remedy": "Install Python 3 and expose either `python3` or `python` on PATH."
+      "remedy": "Install Python 3 and expose `python3`, `python`, or the `py` launcher (`py -3.11`) on PATH."
     },
     "morph": {
       "kind": "tool",

@@ -73,8 +73,38 @@ class PosixRunnerTest(unittest.TestCase):
             self.assertEqual(result.returncode, 0, result.stderr)
             args = args_file.read_text(encoding="utf-8")
             self.assertIn("--model opencode-go/mimo-v2.5", args)
+            self.assertIn("--sandbox workspace-write", args)
+            self.assertNotIn("--dangerously-bypass-approvals-and-sandbox", args)
             self.assertNotIn("--ignore-user-config", args)
             self.assertIn("FAKE_OK", result.stdout)
+
+    def test_full_access_is_an_explicit_opt_in(self):
+        """The bypass flag must never be default: ALCHEMIST_FULL_ACCESS=1 selects it deliberately."""
+        with tempfile.TemporaryDirectory() as raw:
+            tmp = Path(raw)
+            fake_bin, env = self._fake_bin_env(tmp)
+            codex_home = tmp / ".codex"
+            self._write_profile(codex_home, "mimo", "opencode-go/mimo-v2.5")
+            self._write_healthy_curl(fake_bin)
+            args_file = tmp / "args.txt"
+            _write_fake(
+                fake_bin / "omniroute",
+                f'echo "$@" > "{args_file}"\ncat > /dev/null\necho \'{{"type":"item.completed","item":{{"type":"agent_message","text":"FAKE_OK"}}}}\'',
+            )
+            env["CODEX_HOME"] = str(codex_home)
+            env["ALCHEMIST_FULL_ACCESS"] = "1"
+            result = subprocess.run(
+                [BASH, str(RUNNER), "mimo", "10", str(tmp / "run.jsonl")],
+                input="<task>probe</task>",
+                text=True,
+                capture_output=True,
+                env=env,
+                timeout=20,
+            )
+            self.assertEqual(result.returncode, 0, result.stderr)
+            args = args_file.read_text(encoding="utf-8")
+            self.assertIn("--dangerously-bypass-approvals-and-sandbox", args)
+            self.assertNotIn("--sandbox workspace-write", args)
 
     def test_missing_model_in_profile_is_a_typed_failure(self):
         with tempfile.TemporaryDirectory() as raw:

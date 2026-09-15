@@ -177,6 +177,43 @@ test('dependencies and SKILL hostRequirements must agree for every bundle', () =
   } finally { rmSync(root, { recursive: true, force: true }); }
 });
 
+test('a route-scoped capability satisfies command references without a global requirement', () => {
+  const root = mkdtempSync(join(tmpdir(), 'closure-scoped-'));
+  try {
+    mkdirSync(join(root, 'src/registry'), { recursive: true });
+    mkdirSync(join(root, 'skills/demo/references'), { recursive: true });
+    writeFileSync(join(root, 'src/registry/capabilities.json'), JSON.stringify({
+      schemaVersion: 1,
+      kind: 'legion-capability-registry',
+      classes: { PACKAGE_INTERNAL: 'internal', HOST_CAPABILITY: 'host', PROJECT_OVERLAY: 'overlay', HISTORICAL_EVIDENCE: 'evidence' },
+      capabilities: {
+        'pi-cli': {
+          kind: 'command-line-provider', summary: 'Pi', degradation: 'skip', remedy: 'install Pi',
+          probe: { kind: 'command-any', commands: ['pi'] }, commands: ['pi'],
+        },
+      },
+    }));
+    writeFileSync(join(root, 'skills/demo/SKILL.md'), [
+      '---', 'name: demo', 'description: demo', 'kind: entrypoint', 'discoverability: explicit',
+      'operations:', '  - analyze', 'effects:', '  - source-read', 'hostRequirements: []', '---',
+      '', 'The `pi` command backs only the optional adapter.',
+    ].join('\n'));
+    writeFileSync(join(root, 'skills/demo/dependencies.json'), JSON.stringify({
+      schemaVersion: 1, kind: 'legion-skill-dependencies',
+      resources: [{ class: 'PACKAGE_INTERNAL', path: 'references/route-resources.json' }],
+    }));
+    writeFileSync(join(root, 'skills/demo/references/route-resources.json'), JSON.stringify({
+      schema_version: 2,
+      adapters: { 'demo-adapter': [{ class: 'HOST_CAPABILITY', capability: 'pi-cli' }] },
+    }));
+    const { ok, findings } = verifyDependencyClosure({
+      packageRoot: root, manifests: { demo: { id: 'demo', parity: { consumers: [] } } },
+    });
+    assert.deepEqual(findings, []);
+    assert.equal(ok, true);
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
 test('a missing dependency declaration fails closure even without route-resources', () => {
   const root = mkdtempSync(join(tmpdir(), 'closure-missing-declaration-'));
   try {

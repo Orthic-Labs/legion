@@ -2,6 +2,7 @@
   "schemaVersion": 2,
   "generatedFrom": [
     "skills/*/SKILL.md",
+    "skills/*/references/route-resources.json",
     "src/config/capability-aliases.json",
     "src/registry/capabilities.json"
   ],
@@ -25,6 +26,7 @@
       ],
       "hostRequirements": [],
       "hostRequirementDetails": [],
+      "scopedRequirementDetails": [],
       "source": "skills/ads/SKILL.md",
       "manifest": "skills/manifests/ads.json"
     },
@@ -43,29 +45,36 @@
         "repository-write",
         "process-exec"
       ],
-      "hostRequirements": [
-        "omniroute",
-        "python-runtime"
-      ],
-      "hostRequirementDetails": [
+      "hostRequirements": [],
+      "hostRequirementDetails": [],
+      "scopedRequirementDetails": [
         {
+          "scope": "adapter:omniroute-codex-worker",
+          "scopeKind": "adapter",
           "id": "omniroute",
-          "degradation": "Alchemist exits 4 (gateway down). Callers must treat Alchemist as unavailable, not as returning an empty result.",
-          "remedy": "Install the OmniRoute gateway and put `omniroute` on PATH, or run Alchemist against a host that provides it.",
+          "kind": "local-gateway",
+          "summary": "OmniRoute model gateway plus the Codex CLI profile set used by the optional Alchemist worker adapter.",
+          "degradation": "The optional OmniRoute worker adapter is unavailable; host-native Alchemist execution and every other Legion capability are unaffected. Callers selecting the adapter must treat that route as unavailable, never as an empty result.",
+          "remedy": "Only when the OmniRoute worker adapter is explicitly selected: install the OmniRoute gateway and put `omniroute` on PATH. Hosts that do not select the adapter need nothing.",
           "probe": {
             "kind": "command",
             "command": "omniroute"
           }
         },
         {
+          "scope": "adapter:omniroute-codex-worker",
+          "scopeKind": "adapter",
           "id": "python-runtime",
+          "kind": "language-runtime",
+          "summary": "Python runtime used by package-local validators and the optional worker adapters' event parsers.",
           "degradation": "The dependent skill reports that its local validator or worker adapter is unavailable and does not substitute another runtime.",
-          "remedy": "Install Python 3 and expose either `python3` or `python` on PATH.",
+          "remedy": "Install Python 3 and expose `python3`, `python`, or the `py` launcher (`py -3.11`) on PATH.",
           "probe": {
             "kind": "command-any",
             "commands": [
               "python3",
-              "python"
+              "python",
+              "py"
             ]
           }
         }
@@ -92,6 +101,7 @@
       ],
       "hostRequirements": [],
       "hostRequirementDetails": [],
+      "scopedRequirementDetails": [],
       "source": "skills/architect/SKILL.md",
       "manifest": "skills/manifests/architect.json"
     },
@@ -137,6 +147,7 @@
           }
         }
       ],
+      "scopedRequirementDetails": [],
       "source": "skills/audit/SKILL.md",
       "manifest": "skills/manifests/audit.json"
     },
@@ -183,6 +194,7 @@
           }
         }
       ],
+      "scopedRequirementDetails": [],
       "source": "skills/audit-fix/SKILL.md",
       "manifest": "skills/manifests/audit-fix.json"
     },
@@ -228,6 +240,7 @@
           }
         }
       ],
+      "scopedRequirementDetails": [],
       "source": "skills/audit-visual/SKILL.md",
       "manifest": "skills/manifests/audit-visual.json"
     },
@@ -262,6 +275,7 @@
           }
         }
       ],
+      "scopedRequirementDetails": [],
       "source": "skills/blueprint/SKILL.md",
       "manifest": "skills/manifests/blueprint.json"
     },
@@ -282,6 +296,7 @@
       ],
       "hostRequirements": [],
       "hostRequirementDetails": [],
+      "scopedRequirementDetails": [],
       "source": "skills/brand/SKILL.md",
       "manifest": "skills/manifests/brand.json"
     },
@@ -305,6 +320,7 @@
       ],
       "hostRequirements": [],
       "hostRequirementDetails": [],
+      "scopedRequirementDetails": [],
       "source": "skills/brand-identity/SKILL.md",
       "manifest": "skills/manifests/brand-identity.json"
     },
@@ -341,16 +357,18 @@
         {
           "id": "python-runtime",
           "degradation": "The dependent skill reports that its local validator or worker adapter is unavailable and does not substitute another runtime.",
-          "remedy": "Install Python 3 and expose either `python3` or `python` on PATH.",
+          "remedy": "Install Python 3 and expose `python3`, `python`, or the `py` launcher (`py -3.11`) on PATH.",
           "probe": {
             "kind": "command-any",
             "commands": [
               "python3",
-              "python"
+              "python",
+              "py"
             ]
           }
         }
       ],
+      "scopedRequirementDetails": [],
       "source": "skills/coder/SKILL.md",
       "manifest": "skills/manifests/coder.json"
     },
@@ -374,6 +392,7 @@
       ],
       "hostRequirements": [],
       "hostRequirementDetails": [],
+      "scopedRequirementDetails": [],
       "source": "skills/commit/SKILL.md",
       "manifest": "skills/manifests/commit.json"
     },
@@ -394,6 +413,7 @@
       ],
       "hostRequirements": [],
       "hostRequirementDetails": [],
+      "scopedRequirementDetails": [],
       "source": "skills/covenant/SKILL.md",
       "manifest": "skills/manifests/covenant.json"
     },
@@ -419,6 +439,7 @@
       ],
       "hostRequirements": [],
       "hostRequirementDetails": [],
+      "scopedRequirementDetails": [],
       "source": "skills/debugger/SKILL.md",
       "manifest": "skills/manifests/debugger.json"
     },
@@ -447,16 +468,18 @@
         {
           "id": "python-runtime",
           "degradation": "The dependent skill reports that its local validator or worker adapter is unavailable and does not substitute another runtime.",
-          "remedy": "Install Python 3 and expose either `python3` or `python` on PATH.",
+          "remedy": "Install Python 3 and expose `python3`, `python`, or the `py` launcher (`py -3.11`) on PATH.",
           "probe": {
             "kind": "command-any",
             "commands": [
               "python3",
-              "python"
+              "python",
+              "py"
             ]
           }
         }
       ],
+      "scopedRequirementDetails": [],
       "source": "skills/designer/SKILL.md",
       "manifest": "skills/manifests/designer.json"
     },
@@ -484,16 +507,18 @@
         {
           "id": "python-runtime",
           "degradation": "The dependent skill reports that its local validator or worker adapter is unavailable and does not substitute another runtime.",
-          "remedy": "Install Python 3 and expose either `python3` or `python` on PATH.",
+          "remedy": "Install Python 3 and expose `python3`, `python`, or the `py` launcher (`py -3.11`) on PATH.",
           "probe": {
             "kind": "command-any",
             "commands": [
               "python3",
-              "python"
+              "python",
+              "py"
             ]
           }
         }
       ],
+      "scopedRequirementDetails": [],
       "source": "skills/dispatch/SKILL.md",
       "manifest": "skills/manifests/dispatch.json"
     },
@@ -516,6 +541,7 @@
       ],
       "hostRequirements": [],
       "hostRequirementDetails": [],
+      "scopedRequirementDetails": [],
       "source": "skills/foundation/SKILL.md",
       "manifest": "skills/manifests/foundation.json"
     },
@@ -538,6 +564,7 @@
       ],
       "hostRequirements": [],
       "hostRequirementDetails": [],
+      "scopedRequirementDetails": [],
       "source": "skills/gotchas/SKILL.md",
       "manifest": "skills/manifests/gotchas.json"
     },
@@ -565,16 +592,18 @@
         {
           "id": "python-runtime",
           "degradation": "The dependent skill reports that its local validator or worker adapter is unavailable and does not substitute another runtime.",
-          "remedy": "Install Python 3 and expose either `python3` or `python` on PATH.",
+          "remedy": "Install Python 3 and expose `python3`, `python`, or the `py` launcher (`py -3.11`) on PATH.",
           "probe": {
             "kind": "command-any",
             "commands": [
               "python3",
-              "python"
+              "python",
+              "py"
             ]
           }
         }
       ],
+      "scopedRequirementDetails": [],
       "source": "skills/handoff/SKILL.md",
       "manifest": "skills/manifests/handoff.json"
     },
@@ -597,6 +626,7 @@
       ],
       "hostRequirements": [],
       "hostRequirementDetails": [],
+      "scopedRequirementDetails": [],
       "source": "skills/marketing/SKILL.md",
       "manifest": "skills/manifests/marketing.json"
     },
@@ -615,6 +645,7 @@
       ],
       "hostRequirements": [],
       "hostRequirementDetails": [],
+      "scopedRequirementDetails": [],
       "source": "skills/oracle/SKILL.md",
       "manifest": "skills/manifests/oracle.json"
     },
@@ -639,6 +670,7 @@
       ],
       "hostRequirements": [],
       "hostRequirementDetails": [],
+      "scopedRequirementDetails": [],
       "source": "skills/qa/SKILL.md",
       "manifest": "skills/manifests/qa.json"
     },
@@ -661,11 +693,7 @@
         "network-request"
       ],
       "hostRequirements": [
-        "legion",
-        "local-corpus",
-        "notebooklm",
-        "scholarly-search",
-        "web-search"
+        "legion"
       ],
       "hostRequirementDetails": [
         {
@@ -676,29 +704,57 @@
             "kind": "command",
             "command": "legion"
           }
-        },
+        }
+      ],
+      "scopedRequirementDetails": [
         {
-          "id": "local-corpus",
-          "degradation": "Research skips the local-corpus provider and records it as unrun.",
-          "remedy": "Point the host at a local document corpus for offline retrieval.",
+          "scope": "provider:browser",
+          "scopeKind": "provider",
+          "id": "web-search",
+          "kind": "tool",
+          "summary": "Live web search and page fetch used by Research browser and domain-default providers.",
+          "degradation": "Research returns UNPROVEN for any claim that required live retrieval.",
+          "remedy": "Expose a web-search tool in the host; Research blocks rather than guessing.",
           "probe": null
         },
         {
-          "id": "notebooklm",
-          "degradation": "Research skips the notebooklm provider and records it as unrun.",
-          "remedy": "Provide NotebookLM access in the host.",
-          "probe": null
-        },
-        {
+          "scope": "provider:domain-default",
+          "scopeKind": "provider",
           "id": "scholarly-search",
+          "kind": "tool",
+          "summary": "Academic and citation-graph retrieval.",
           "degradation": "Research returns UNPROVEN for scholarly claims.",
           "remedy": "Expose a scholarly-search tool in the host.",
           "probe": null
         },
         {
+          "scope": "provider:domain-default",
+          "scopeKind": "provider",
           "id": "web-search",
+          "kind": "tool",
+          "summary": "Live web search and page fetch used by Research browser and domain-default providers.",
           "degradation": "Research returns UNPROVEN for any claim that required live retrieval.",
           "remedy": "Expose a web-search tool in the host; Research blocks rather than guessing.",
+          "probe": null
+        },
+        {
+          "scope": "provider:local-corpus",
+          "scopeKind": "provider",
+          "id": "local-corpus",
+          "kind": "tool",
+          "summary": "Retrieval over a caller-supplied local document corpus.",
+          "degradation": "Research skips the local-corpus provider and records it as unrun.",
+          "remedy": "Point the host at a local document corpus for offline retrieval.",
+          "probe": null
+        },
+        {
+          "scope": "provider:notebooklm",
+          "scopeKind": "provider",
+          "id": "notebooklm",
+          "kind": "tool",
+          "summary": "NotebookLM-backed synthesis over a supplied source set.",
+          "degradation": "Research skips the notebooklm provider and records it as unrun.",
+          "remedy": "Provide NotebookLM access in the host.",
           "probe": null
         }
       ],
@@ -732,16 +788,18 @@
         {
           "id": "python-runtime",
           "degradation": "The dependent skill reports that its local validator or worker adapter is unavailable and does not substitute another runtime.",
-          "remedy": "Install Python 3 and expose either `python3` or `python` on PATH.",
+          "remedy": "Install Python 3 and expose `python3`, `python`, or the `py` launcher (`py -3.11`) on PATH.",
           "probe": {
             "kind": "command-any",
             "commands": [
               "python3",
-              "python"
+              "python",
+              "py"
             ]
           }
         }
       ],
+      "scopedRequirementDetails": [],
       "source": "skills/seo/SKILL.md",
       "manifest": "skills/manifests/seo.json"
     },
@@ -765,6 +823,7 @@
       ],
       "hostRequirements": [],
       "hostRequirementDetails": [],
+      "scopedRequirementDetails": [],
       "source": "skills/social/SKILL.md",
       "manifest": "skills/manifests/social.json"
     },
@@ -793,16 +852,18 @@
         {
           "id": "python-runtime",
           "degradation": "The dependent skill reports that its local validator or worker adapter is unavailable and does not substitute another runtime.",
-          "remedy": "Install Python 3 and expose either `python3` or `python` on PATH.",
+          "remedy": "Install Python 3 and expose `python3`, `python`, or the `py` launcher (`py -3.11`) on PATH.",
           "probe": {
             "kind": "command-any",
             "commands": [
               "python3",
-              "python"
+              "python",
+              "py"
             ]
           }
         }
       ],
+      "scopedRequirementDetails": [],
       "source": "skills/tasklist/SKILL.md",
       "manifest": "skills/manifests/tasklist.json"
     },
@@ -825,6 +886,7 @@
       ],
       "hostRequirements": [],
       "hostRequirementDetails": [],
+      "scopedRequirementDetails": [],
       "source": "skills/wake/SKILL.md",
       "manifest": "skills/manifests/wake.json"
     },
@@ -847,6 +909,7 @@
       ],
       "hostRequirements": [],
       "hostRequirementDetails": [],
+      "scopedRequirementDetails": [],
       "source": "skills/writing/SKILL.md",
       "manifest": "skills/manifests/writing.json"
     }

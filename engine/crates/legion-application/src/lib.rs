@@ -186,6 +186,17 @@ pub struct M1HostRequirementStatus {
     pub probe: Option<serde_json::Value>,
 }
 
+/// A host requirement that binds only inside a named route or adapter scope.
+/// It reports its own availability but never gates the capability's.
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct M1ScopedRequirementStatus {
+    pub scope: String,
+    pub scope_kind: String,
+    #[serde(flatten)]
+    pub requirement: M1HostRequirementStatus,
+}
+
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct M1CapabilityStatus {
@@ -193,6 +204,7 @@ pub struct M1CapabilityStatus {
     pub availability: M1Availability,
     pub degraded: bool,
     pub requirements: Vec<M1HostRequirementStatus>,
+    pub scoped_requirements: Vec<M1ScopedRequirementStatus>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize)]
@@ -335,12 +347,30 @@ impl M1Application {
                         .entry(requirement.id.clone())
                         .or_insert_with(|| requirement.clone());
                 }
+                let scoped_requirements = entry
+                    .scoped_requirement_details
+                    .iter()
+                    .map(|detail| M1ScopedRequirementStatus {
+                        scope: detail.scope.clone(),
+                        scope_kind: detail.scope_kind.clone(),
+                        requirement: host_requirement_status(&detail.requirement),
+                    })
+                    .collect::<Vec<_>>();
+                // Global requirements gate whether the capability can run at all.
+                // Scoped requirements bind a named route or adapter: their absence
+                // degrades exactly that scope, never the capability itself.
                 let availability = aggregate_availability(&requirements);
                 M1CapabilityStatus {
                     capability_id: entry.canonical_id.clone(),
-                    degraded: availability != M1Availability::Available,
+                    degraded: availability != M1Availability::Available
+                        || scoped_requirements
+                            .iter()
+                            .any(|requirement| {
+                                requirement.requirement.availability != M1Availability::Available
+                            }),
                     availability,
                     requirements,
+                    scoped_requirements,
                 }
             })
             .collect::<Vec<_>>();
@@ -492,8 +522,9 @@ fn aggregate_availability(requirements: &[M1HostRequirementStatus]) -> M1Availab
 }
 
 /// Probe host requirements without invoking a child process. PATH probes inspect
-/// candidate files directly; env/path probes only read process state.
-fn probe_host_requirement(probe: Option<&serde_json::Value>) -> M1Availability {
+/// candidate files directly; env/path probes only read process state. Shared by
+/// status aggregation and `legion doctor` so both report one probe semantics.
+pub fn probe_host_requirement(probe: Option<&serde_json::Value>) -> M1Availability {
     let Some(probe) = probe.and_then(serde_json::Value::as_object) else {
         return M1Availability::Unknown;
     };
@@ -2209,11 +2240,19 @@ mod m1_tests {
     }
 
     fn inputs(root: &Path, write_body: bool) -> M1ApplicationInputs {
-        fs::write(
-            root.join("registry/index.json"),
+        inputs_with_catalog(
+            root,
+            write_body,
             r#"{"schemaVersion":2,"bundles":[{"id":"demo","source":"skills/demo/SKILL.md","description":"M1 fixture"}]}"#,
         )
-        .expect("compact catalog");
+    }
+
+    fn inputs_with_catalog(
+        root: &Path,
+        write_body: bool,
+        catalog: &str,
+    ) -> M1ApplicationInputs {
+        fs::write(root.join("registry/index.json"), catalog).expect("compact catalog");
         if write_body {
             fs::create_dir_all(root.join("skills/demo")).expect("skill directory");
             fs::write(root.join("skills/demo/SKILL.md"), "deterministic body").expect("skill body");
@@ -2327,6 +2366,47 @@ mod m1_tests {
             }) => assert_eq!(remediation, legion_runtime::REPAIR_COMMAND),
             error => panic!("wrong failure: {error:?}"),
         }
+        fs::remove_dir_all(root).expect("cleanup");
+    }
+
+    #[test]
+    fn scoped_requirements_degrade_their_scope_without_gating_the_capability() {
+        let root = temp_root();
+        let app = M1Application::from_inputs(inputs_with_catalog(
+            &root,
+            true,
+            r#"{"schemaVersion":2,"bundles":[{"id":"demo","source":"skills/demo/SKILL.md","description":"M1 fixture","scopedRequirementDetails":[{"scope":"adapter:demo-worker","scopeKind":"adapter","id":"omniroute","degradation":"adapter down","remedy":"install it","probe":{"kind":"command","command":"__legion_requirement_is_not_installed__"}},{"scope":"provider:demo-search","scopeKind":"provider","id":"demo-search","degradation":"unprobeable","remedy":"","probe":null}]}]}"#,
+        ))
+        .expect("application");
+        let status = app.status();
+        let capability = status
+            .capabilities
+            .iter()
+            .find(|entry| entry.capability_id == "demo")
+            .expect("demo capability");
+        // An unavailable optional adapter and an unprobeable provider degrade
+        // exactly their scopes: the capability and the whole status stay
+        // available while reporting the scoped gaps.
+        assert_eq!(capability.availability, M1Availability::Available);
+        assert!(capability.degraded);
+        assert_eq!(capability.scoped_requirements.len(), 2);
+        assert_eq!(
+            capability.scoped_requirements[0].scope,
+            "adapter:demo-worker"
+        );
+        assert_eq!(
+            capability.scoped_requirements[0].scope_kind,
+            "adapter"
+        );
+        assert_eq!(
+            capability.scoped_requirements[0].requirement.availability,
+            M1Availability::Unavailable
+        );
+        assert_eq!(
+            capability.scoped_requirements[1].requirement.availability,
+            M1Availability::Unknown
+        );
+        assert_eq!(status.availability, M1Availability::Available);
         fs::remove_dir_all(root).expect("cleanup");
     }
 

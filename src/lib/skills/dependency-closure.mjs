@@ -7,6 +7,7 @@ import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { join, resolve, relative, dirname, isAbsolute, sep } from 'node:path';
 import { commandCapabilityMap, loadCapabilityRegistry as loadRegistry } from '../capabilities/registry.mjs';
 import { parseSkillFrontmatter } from './skill-frontmatter.mjs';
+import { scopedHostCapabilities } from './route-resources.mjs';
 
 export { loadCapabilityRegistry } from '../capabilities/registry.mjs';
 
@@ -133,14 +134,20 @@ function codeSnippets(text) {
 }
 
 /** Reject use of a registry-owned executable command without its host requirement. */
-export function scanHostCommandReferences(text, { path, commandCapabilities, hostRequirements }) {
+export function scanHostCommandReferences(text, { path, commandCapabilities, hostRequirements, scopedCapabilities }) {
   const findings = [];
   const seen = new Set();
+  // A command is declared when its capability is either a global host requirement or a
+  // route/adapter-scoped entry in references/route-resources.json. Scoping narrows when the
+  // requirement binds, not whether it is declared.
+  const declared = scopedCapabilities?.size
+    ? new Set([...hostRequirements, ...scopedCapabilities])
+    : hostRequirements;
   for (const snippet of codeSnippets(text)) {
     for (const line of snippet.split(/\r?\n/)) {
       const command = COMMAND_START.exec(line.trim())?.[1]?.toLowerCase();
       const capability = command && commandCapabilities.get(command);
-      if (!capability || hostRequirements.has(capability)) continue;
+      if (!capability || declared.has(capability)) continue;
       const key = `${command}:${capability}`;
       if (seen.has(key)) continue;
       seen.add(key);
@@ -209,6 +216,7 @@ function verifyBundleDependencies({ packageRoot, manifest, capabilities, command
     }
     for (const finding of scanHostCommandReferences(readFileSync(skillPath, 'utf8'), {
       path: 'SKILL.md', commandCapabilities, hostRequirements: required,
+      scopedCapabilities: scopedHostCapabilities(skillRoot),
     })) findings.push({ bundleId: manifest.id, ...finding });
   } catch (error) {
     findings.push({ bundleId: manifest.id, path: 'SKILL.md', code: 'invalid-skill-frontmatter', detail: error.message });

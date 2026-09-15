@@ -8,6 +8,7 @@ param(
     [int]$MaxContextTokens = 131072,
     [int]$MaxOutputBytes = 10485760,
     [ValidateSet(0)][int]$RetryLimit = 0,
+    [switch]$FullAccess,
     [string]$EventLog = '',
     [string]$WorkDir = (Get-Location).Path
 )
@@ -46,16 +47,25 @@ if (-not (Test-Path -LiteralPath $profilePath -PathType Leaf)) {
 $modelMatch = [regex]::Match((Get-Content -LiteralPath $profilePath -Raw), '(?m)^\s*model\s*=\s*"([A-Za-z0-9._:/-]+)"')
 if (-not $modelMatch.Success) { throw "No safe model value in profile: $profilePath" }
 $model = $modelMatch.Groups[1].Value
+$omnirouteCommand = Get-Command 'omniroute' -ErrorAction SilentlyContinue
+if (-not $omnirouteCommand) {
+    [Console]::Error.WriteLine('OmniRoute worker adapter unavailable: `omniroute` is not on PATH. The adapter is optional; host-native Alchemist execution is unaffected.')
+    exit 4
+}
+$omniroute = $omnirouteCommand.Source
 $isolatedCodexHome = Join-Path ([IO.Path]::GetTempPath()) "alchemist-codex-$PID-$([guid]::NewGuid().ToString('N'))"
 [IO.Directory]::CreateDirectory($isolatedCodexHome) | Out-Null
 Copy-Item -LiteralPath $profilePath -Destination (Join-Path $isolatedCodexHome "$Profile.config.toml")
-$modelCatalog = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot '..\model-catalog.json') -ErrorAction Stop).Path.Replace('\', '\\')
+# The catalog entry is model-specific metadata: injecting it for any other
+# selected model would stamp the wrong identity onto the profile's choice.
+$modelCatalogPath = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot '..\model-catalog.json') -ErrorAction Stop).Path
+$modelCataloged = @((Get-Content -LiteralPath $modelCatalogPath -Raw | ConvertFrom-Json).models | Where-Object { $_.slug -eq $model }).Count -gt 0
+$modelCatalogLine = if ($modelCataloged) { "model_catalog_json = `"$($modelCatalogPath.Replace('\', '\\'))`"`r`n`r`n" } else { '' }
+$gatewayUrl = if ($env:OMNIROUTE_URL) { $env:OMNIROUTE_URL.TrimEnd('/') } else { 'http://127.0.0.1:20128' }
 $minimalConfig = @"
-model_catalog_json = "$modelCatalog"
-
-[model_providers.omniroute]
+$modelCatalogLine[model_providers.omniroute]
 name = "OmniRoute"
-base_url = "http://127.0.0.1:20128/v1"
+base_url = "$gatewayUrl/v1"
 env_key = "OMNIROUTE_API_KEY"
 wire_api = "responses"
 requires_openai_auth = false
@@ -76,7 +86,6 @@ if (-not $EventLog) {
     $parent = Split-Path -Parent $EventLog
     if ($parent) { [IO.Directory]::CreateDirectory($parent) | Out-Null }
 }
-$omniroute = (Get-Command 'omniroute.cmd' -ErrorAction Stop).Source
 $stderrPath = "$EventLog.stderr"
 $utf8 = [Text.UTF8Encoding]::new($false)
 $inputPath = "$EventLog.stdin"
@@ -91,9 +100,13 @@ while ($null -eq $workerSlot) {
     }
     if ($null -eq $workerSlot) { Start-Sleep -Milliseconds 500 }
 }
+# Bounded default: writes stay inside the workdir sandbox and approvals are
+# never requested. Full host access is an explicit operator choice (-FullAccess),
+# never the default.
+$accessArgs = if ($FullAccess) { '--dangerously-bypass-approvals-and-sandbox' } else { '--sandbox workspace-write' }
 $psi = [Diagnostics.ProcessStartInfo]::new()
 $psi.FileName = $env:ComSpec
-$psi.Arguments = "/d /s /c `"`"$omniroute`" launch-codex --profile $Profile -- exec --model $model --dangerously-bypass-approvals-and-sandbox --skip-git-repo-check --ephemeral --color never --cd `"$resolvedWorkDir`" -c approval_policy=`"never`" -c features.multi_agent=false -c model_context_window=$MaxContextTokens --json - < `"%ALCHEMIST_INPUT_PATH%`" 1> `"%ALCHEMIST_EVENT_LOG%`" 2> `"%ALCHEMIST_STDERR_LOG%`"`""
+$psi.Arguments = "/d /s /c `"`"$omniroute`" launch-codex --profile $Profile -- exec --model $model $accessArgs --skip-git-repo-check --ephemeral --color never --cd `"$resolvedWorkDir`" -c approval_policy=`"never`" -c features.multi_agent=false -c model_context_window=$MaxContextTokens --json - < `"%ALCHEMIST_INPUT_PATH%`" 1> `"%ALCHEMIST_EVENT_LOG%`" 2> `"%ALCHEMIST_STDERR_LOG%`"`""
 $psi.WorkingDirectory = $resolvedWorkDir
 $psi.UseShellExecute = $false
 $psi.CreateNoWindow = $true

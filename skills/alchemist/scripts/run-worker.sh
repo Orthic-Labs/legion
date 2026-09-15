@@ -75,13 +75,21 @@ if command -v timeout >/dev/null 2>&1; then TIMEOUT_BIN="timeout"
 elif command -v gtimeout >/dev/null 2>&1; then TIMEOUT_BIN="gtimeout"
 fi
 
+# Bounded default: writes stay inside the workspace sandbox and approvals are
+# never requested. Full host access requires explicit operator opt-in, never
+# the default.
+ACCESS_ARGS=(--sandbox workspace-write)
+if [ "${ALCHEMIST_FULL_ACCESS:-}" = "1" ]; then
+  ACCESS_ARGS=(--dangerously-bypass-approvals-and-sandbox)
+fi
+
 echo "── alchemist worker: profile=${PROFILE} model=${MODEL} timeout=${TIMEOUT}s events=${EVENT_LOG} ──" >&2
 [ -z "$TIMEOUT_BIN" ] && echo "── note: no timeout binary found; using the shell watchdog ──" >&2
 
 run_worker() {
   if [ -n "$TIMEOUT_BIN" ]; then
     "$TIMEOUT_BIN" "$TIMEOUT" omniroute launch-codex --profile "$PROFILE" exec \
-      --model "$MODEL" -c features.multi_agent=false --json -
+      --model "$MODEL" "${ACCESS_ARGS[@]}" -c features.multi_agent=false --json -
     return $?
   fi
 
@@ -107,7 +115,7 @@ run_worker() {
     child_pid=""
     trap 'if [ -n "${child_pid:-}" ]; then kill -TERM "$child_pid" 2>/dev/null || :; wait "$child_pid" 2>/dev/null || :; fi; exit 143' TERM INT HUP
     omniroute launch-codex --profile "$PROFILE" exec \
-      --model "$MODEL" -c features.multi_agent=false --json - <&0 3<&- &
+      --model "$MODEL" "${ACCESS_ARGS[@]}" -c features.multi_agent=false --json - <&0 3<&- &
     child_pid=$!
     exec 0<&-
     printf '%s\n' "$child_pid" > "$WORKER_PID_FILE"

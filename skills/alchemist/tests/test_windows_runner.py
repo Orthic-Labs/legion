@@ -1,5 +1,6 @@
 import json
 import os
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -138,8 +139,8 @@ class WindowsRunnerTest(unittest.TestCase):
             self.assertIn("FAKE_OK", result.stdout, result.stderr + result.stdout)
             args = args_file.read_text(encoding="utf-8").strip()
             self.assertIn("launch-codex --profile mimo -- exec", args)
-            self.assertIn("--dangerously-bypass-approvals-and-sandbox", args)
-            self.assertNotIn("--sandbox workspace-write", args)
+            self.assertIn("--sandbox workspace-write", args)
+            self.assertNotIn("--dangerously-bypass-approvals-and-sandbox", args)
             self.assertIn("--skip-git-repo-check", args)
             self.assertIn(f'--cd "{workdir}"', args)
             self.assertIn("--model opencode-go/mimo-v2.5", args)
@@ -149,11 +150,96 @@ class WindowsRunnerTest(unittest.TestCase):
             self.assertFalse(isolated_home.exists())
             config = codex_config_file.read_text(encoding="utf-8")
             self.assertIn("model_providers.omniroute", config)
-            self.assertIn("model_catalog_json", config)
+            # mimo-v2.5 is not cataloged: model-specific metadata must not be
+            # stamped onto a model it does not describe.
+            self.assertNotIn("model_catalog_json", config)
             self.assertEqual(stdin_file.read_text(encoding="utf-8").strip(), "<task>probe</task>")
             self.assertIn('"text":"FAKE_OK"', event_log.read_text(encoding="utf-8"))
             self.assertIn("booting", Path(str(event_log) + ".stderr").read_text(encoding="utf-8"))
             self.assertFalse(Path(str(event_log) + ".stdin").exists())
+
+    def _run_with_fake_omniroute(self, extra_runner_args=None, extra_env=None, profile="mimo", model="opencode-go/mimo-v2.5"):
+        """Shared fixture: a fake omniroute.cmd that records argv and emits one event."""
+        tmp = Path(tempfile.mkdtemp())
+        self.addCleanup(lambda: __import__("shutil").rmtree(tmp, ignore_errors=True))
+        fake_bin = tmp / "bin"
+        fake_bin.mkdir()
+        codex_home = tmp / ".codex"
+        codex_home.mkdir()
+        (codex_home / f"{profile}.config.toml").write_text(f'model = "{model}"\n', encoding="utf-8")
+        args_file = tmp / "args.txt"
+        codex_config_file = tmp / "codex-config.txt"
+        fake = fake_bin / "omniroute.cmd"
+        fake.write_text(
+            "@echo off\r\n"
+            'echo %* > "%FAKE_ARGS%"\r\n'
+            'type "%CODEX_HOME%\\config.toml" > "%FAKE_CODEX_CONFIG%"\r\n'
+            'more > nul\r\n'
+            'echo {"type":"item.completed","item":{"type":"agent_message","text":"FAKE_OK"}}\r\n'
+            "exit /b 0\r\n",
+            encoding="utf-8",
+        )
+        event_log = tmp / "run.jsonl"
+        env = os.environ.copy()
+        env.update({"PATH": str(fake_bin) + os.pathsep + env["PATH"], "CODEX_HOME": str(codex_home),
+                    "FAKE_ARGS": str(args_file), "FAKE_CODEX_CONFIG": str(codex_config_file),
+                    "ALCHEMIST_PYTHON": sys.executable})
+        env.update(extra_env or {})
+        result = subprocess.run(
+            ["powershell.exe", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", str(RUNNER),
+             "-Profile", profile, "-TimeoutSeconds", "10", "-EventLog", str(event_log),
+             "-WorkDir", str(tmp)] + list(extra_runner_args or []),
+            input="<task>probe</task>", text=True, capture_output=True, env=env, timeout=20,
+        )
+        return result, args_file, codex_config_file
+
+    @unittest.skipUnless(sys.platform == "win32", "requires Windows PowerShell (powershell.exe)")
+    def test_full_access_is_an_explicit_opt_in(self):
+        """The bypass flag must never be default: -FullAccess selects it deliberately."""
+        result, args_file, _ = self._run_with_fake_omniroute(extra_runner_args=["-FullAccess"])
+        self.assertEqual(result.returncode, 0, result.stderr)
+        args = args_file.read_text(encoding="utf-8").strip()
+        self.assertIn("--dangerously-bypass-approvals-and-sandbox", args)
+        self.assertNotIn("--sandbox workspace-write", args)
+
+    @unittest.skipUnless(sys.platform == "win32", "requires Windows PowerShell (powershell.exe)")
+    def test_cataloged_model_gets_catalog_metadata(self):
+        """A model actually present in model-catalog.json still receives its metadata."""
+        result, _, codex_config_file = self._run_with_fake_omniroute(
+            profile="flash", model="opencode-go/deepseek-v4-flash")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("model_catalog_json", codex_config_file.read_text(encoding="utf-8"))
+
+    @unittest.skipUnless(sys.platform == "win32", "requires Windows PowerShell (powershell.exe)")
+    def test_gateway_url_is_configurable(self):
+        result, _, codex_config_file = self._run_with_fake_omniroute(
+            extra_env={"OMNIROUTE_URL": "http://127.0.0.1:39999/"})
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn('base_url = "http://127.0.0.1:39999/v1"',
+                      codex_config_file.read_text(encoding="utf-8"))
+
+    @unittest.skipUnless(sys.platform == "win32", "requires Windows PowerShell (powershell.exe)")
+    def test_missing_omniroute_is_a_typed_adapter_failure(self):
+        """No `omniroute` on PATH must report the optional adapter unavailable (exit 4),
+        not an untyped launcher crash."""
+        with tempfile.TemporaryDirectory() as raw:
+            tmp = Path(raw)
+            fake_bin = tmp / "bin"
+            fake_bin.mkdir()
+            codex_home = tmp / ".codex"
+            codex_home.mkdir()
+            (codex_home / "mimo.config.toml").write_text('model = "opencode-go/mimo-v2.5"\n', encoding="utf-8")
+            powershell = shutil.which("powershell.exe") or "powershell.exe"
+            env = os.environ.copy()
+            env["PATH"] = str(fake_bin)
+            env["CODEX_HOME"] = str(codex_home)
+            result = subprocess.run(
+                [powershell, "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", str(RUNNER),
+                 "-Profile", "mimo", "-TimeoutSeconds", "10", "-WorkDir", str(tmp)],
+                input="<task>probe</task>", text=True, capture_output=True, env=env, timeout=20,
+            )
+            self.assertEqual(result.returncode, 4, result.stderr)
+            self.assertIn("adapter unavailable", result.stderr)
 
     @unittest.skipUnless(sys.platform == "win32", "requires Windows PowerShell (powershell.exe)")
     def test_pipeline_multiline_input_is_preserved(self):

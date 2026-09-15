@@ -1,0 +1,31 @@
+{
+  "schema_version": 2,
+  "adapters": {
+    "omniroute-codex-worker": [
+      {
+        "class": "HOST_CAPABILITY",
+        "capability": "omniroute"
+      },
+      {
+        "class": "HOST_CAPABILITY",
+        "capability": "python-runtime"
+      },
+      {
+        "class": "PACKAGE_INTERNAL",
+        "path": "scripts/run-worker.ps1"
+      },
+      {
+        "class": "PACKAGE_INTERNAL",
+        "path": "scripts/run-worker.sh"
+      },
+      {
+        "class": "PACKAGE_INTERNAL",
+        "path": "scripts/parse_events.py"
+      },
+      {
+        "class": "PACKAGE_INTERNAL",
+        "path": "model-catalog.json"
+      }
+    ]
+  }
+}

@@ -44,7 +44,7 @@ test('all 27 packaged sources exactly match frozen classifications and repertoir
     coder: ['entrypoint', null, 'explicit', null, 'analyze', 'source-read,network-request'],
     commit: ['entrypoint', null, 'explicit', null, 'analyze,evaluate,execute', 'source-read,repository-write,process-exec,network-request'],
     covenant: ['entrypoint', null, 'explicit', null, 'analyze,evaluate,produce', 'source-read'],
-    debugger: ['capability', 'domain', 'public', 'engineering', 'analyze,diagnose,decide,produce', 'source-read,process-exec'],
+    debugger: ['capability', 'domain', 'public', 'engineering', 'analyze,diagnose,decide,execute,produce', 'source-read,process-exec,artifact-write'],
     designer: ['capability', 'domain', 'public', 'design', 'analyze,decide,produce,evaluate', 'source-read,artifact-write'],
     dispatch: ['capability', 'workflow', 'public', null, 'route,produce', 'source-read,artifact-write,process-exec'],
     gotchas: ['capability', 'workflow', 'public', null, 'analyze,execute,produce', 'source-read,repository-write'],

@@ -3,12 +3,28 @@
   "kind": "legion-skill-dependencies",
   "resources": [
     {
-      "class": "HOST_CAPABILITY",
-      "capability": "omniroute"
+      "class": "PACKAGE_INTERNAL",
+      "path": "references/manual.md"
     },
     {
-      "class": "HOST_CAPABILITY",
-      "capability": "python-runtime"
+      "class": "PACKAGE_INTERNAL",
+      "path": "references/route-resources.json"
+    },
+    {
+      "class": "PACKAGE_INTERNAL",
+      "path": "model-catalog.json"
+    },
+    {
+      "class": "PACKAGE_INTERNAL",
+      "path": "scripts/parse_events.py"
+    },
+    {
+      "class": "PACKAGE_INTERNAL",
+      "path": "scripts/run-worker.ps1"
+    },
+    {
+      "class": "PACKAGE_INTERNAL",
+      "path": "scripts/run-worker.sh"
     }
   ]
 }

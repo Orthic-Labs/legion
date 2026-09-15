@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "kind": "legion-model-tier-map",
+  "comment": "Host model policy: each intelligence tier resolves to a host-native model id per harness. Roster roles declare tiers only; explicit model choices live here, never in role or skill sources.",
+  "tiers": {
+    "frontier-judgment": {
+      "hosts": {
+        "claude-code": "opus"
+      }
+    },
+    "balanced-executor": {
+      "hosts": {
+        "claude-code": "sonnet"
+      }
+    },
+    "mechanical-cheap": {
+      "hosts": {
+        "claude-code": "haiku"
+      }
+    }
+  }
+}

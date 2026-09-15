@@ -10,28 +10,24 @@ effects:
   - source-read
   - repository-write
   - process-exec
-hostRequirements:
-  - omniroute
-  - python-runtime
+hostRequirements: []
 ---
 
 # Alchemist
 
-PRIMARY_DELIVERABLE: Contract-conformant repository state with focused verification.
+PRIMARY_DELIVERABLE: Requested repository state with declared checks passing.
 CHILD_AGENTS_MAX: 0
 EXTERNAL_REQUESTS_MAX: 0
 MAY_ADD_TASKS: NO
 MAY_CALL_SKILLS: NONE
 TERMINAL: Declared checks pass, or an exact blocker is reported.
-POST_GREEN_DENIAL: RUN_COMPLETE_FINAL_REQUIRED
 
-REQUIRES_HOST_CAPABILITY: omniroute (worker execution path only)
+Contracts, events, and checkpoints apply only where the work is governed — a locked domain,
+an explicit contract, or a Sage freeze handoff. Ordinary bounded implementation runs ambient:
+the operator's settled request is the authorization, and routine decisions inside acceptance
+criteria stay with the executor.
 
-Declared checks passing ("green") is not itself completion — the final required run/render step
-must still execute & be observed before the contract closes.
-
-Cancellation is explicit owner action only: it transitions the run to the `CANCELLED` invocation
-state, revokes tools, & renders that state. Model text narrating an intent to stop, or a user
+Cancellation is explicit owner action only. Model text narrating an intent to stop, or a user
 message that merely questions or pauses work, must never be inferred as cancellation — only a
 direct owner instruction to cancel/stop does.
 
@@ -40,9 +36,10 @@ infrastructure or create a second contract system.
 
 The packaged worker scripts under `scripts/` are an **adapter** for one specific host: a local
 OmniRoute gateway plus a Codex CLI profile set. They are not Legion's general execution path and
-must not be treated as one. Probe for the `omniroute` capability before using them; if it is
-absent, report Alchemist as unavailable on that path rather than returning an empty result. The
-routing contract above holds regardless of which host executes it.
+must not be treated as one. Their host requirements are adapter-scoped in
+`references/route-resources.json`: a host that never selects the adapter needs neither the
+`omniroute` command nor `python-runtime`. When the adapter is selected and its probe fails,
+report that adapter as unavailable — host-native Alchemist execution is unaffected.
 
 1. Require settled scope, ownership boundaries, acceptance criteria, and focused checks.
    EXECUTOR:
@@ -50,8 +47,8 @@ routing contract above holds regardless of which host executes it.
      capabilities:
        - repository-truth-read
        - source-read
-2. Route implementation to Alchemist; it applies bounded work and escalates undecided design,
-   ownership, or boundary questions to Sage.
+2. Route implementation to Alchemist; it applies bounded work and escalates changed
+   requirements, public boundaries, or material tradeoffs to Sage.
    EXECUTOR:
      semantic: conditional
      capabilities:

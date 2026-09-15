@@ -60,16 +60,21 @@ fn init_write_creates_config_and_ignore_entries_idempotently() {
 }
 
 #[test]
-fn bind_write_is_typed_incomplete_and_does_not_mutate_checkout() {
+fn bind_write_projects_codex_harness_and_is_idempotent() {
     let fixture = Fixture::new();
     std::fs::create_dir(fixture.0.join(".codex")).unwrap();
-    let before = std::fs::read_dir(&fixture.0).unwrap().count();
     let output = fixture.run(&["bind", "--write", "--harness", "codex", "."]);
-    assert_eq!(output.status.code(), Some(2));
-    assert!(output.stdout.is_empty());
-    assert!(String::from_utf8_lossy(&output.stderr).contains("native bind --write is not connected"));
-    assert_eq!(std::fs::read_dir(&fixture.0).unwrap().count(), before);
-    assert!(!fixture.0.join(".legion/binding.json").exists());
+    assert_eq!(output.status.code(), Some(0), "{}", String::from_utf8_lossy(&output.stderr));
+    let result = json(&output);
+    assert_eq!(result["kind"], "legion-bind-result");
+    assert_eq!(result["dryRun"], false);
+    assert!(fixture.0.join(".codex/agents/sage.toml").is_file());
+    assert!(fixture.0.join(".codex/config.toml").is_file());
+    assert!(fixture.0.join(".legion/binding.json").is_file());
+    let binding = std::fs::read(&fixture.0.join(".legion/binding.json")).unwrap();
+    let second = fixture.run(&["bind", "--write", "--harness", "codex", "."]);
+    assert_eq!(second.status.code(), Some(0));
+    assert_eq!(std::fs::read(&fixture.0.join(".legion/binding.json")).unwrap(), binding);
 }
 
 #[test]

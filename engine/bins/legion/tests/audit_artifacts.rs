@@ -142,7 +142,6 @@ fn configured_audit_writes_reconciled_json_and_sarif() {
     let output = Command::new(env!("CARGO_BIN_EXE_legion"))
         .args([
             "audit",
-            &repository_id,
             "--out",
             out.to_str().unwrap(),
             "--json",
@@ -154,6 +153,7 @@ fn configured_audit_writes_reconciled_json_and_sarif() {
             plan_path.to_str().unwrap(),
             "--provider-result",
             result_path.to_str().unwrap(),
+            &repository_id,
         ])
         .env("AUDIT_PLAN_SIGNING_KEY", "fixture-signing-key")
         .output()

@@ -61,6 +61,18 @@ pub struct HostRequirementDetail {
     pub probe: Option<serde_json::Value>,
 }
 
+/// A host requirement that binds only inside a named route or adapter scope —
+/// never a gate on the capability as a whole.
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ScopedRequirementDetail {
+    pub scope: String,
+    #[serde(default)]
+    pub scope_kind: String,
+    #[serde(flatten)]
+    pub requirement: HostRequirementDetail,
+}
+
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct CompactCatalogEntry {
     pub canonical_id: String,
@@ -72,6 +84,8 @@ pub struct CompactCatalogEntry {
     pub discoverability: Option<String>,
     #[serde(rename = "hostRequirementDetails", default)]
     pub host_requirement_details: Vec<HostRequirementDetail>,
+    #[serde(rename = "scopedRequirementDetails", default)]
+    pub scoped_requirement_details: Vec<ScopedRequirementDetail>,
 }
 
 /// A catalog index plus its content root. Bodies are read only by
@@ -102,6 +116,8 @@ pub(crate) struct CompactCatalogDocumentEntry {
     pub discoverability: Option<String>,
     #[serde(default)]
     pub host_requirement_details: Vec<HostRequirementDetail>,
+    #[serde(default)]
+    pub scoped_requirement_details: Vec<ScopedRequirementDetail>,
 }
 
 impl CatalogEntry {

@@ -3,7 +3,9 @@
   "kind": "legion-host-projection",
   "generatedFrom": [
     "skills/*/SKILL.md",
+    "skills/*/references/route-resources.json",
     "src/roster/*.md",
+    "src/config/model-tiers.json",
     "src/registry/capabilities.json"
   ],
   "capabilities": [
@@ -20,6 +22,7 @@
       "domain": "commercial",
       "hostRequirements": [],
       "hostRequirementDetails": [],
+      "scopedRequirements": [],
       "source": "skills/ads/SKILL.md"
     },
     {
@@ -33,24 +36,38 @@
         "model": false
       },
       "domain": null,
-      "hostRequirements": [
-        "omniroute",
-        "python-runtime"
-      ],
-      "hostRequirementDetails": [
+      "hostRequirements": [],
+      "hostRequirementDetails": [],
+      "scopedRequirements": [
         {
+          "scope": "adapter:omniroute-codex-worker",
+          "scopeKind": "adapter",
           "id": "omniroute",
           "kind": "local-gateway",
-          "summary": "OmniRoute model gateway plus the Codex CLI profile set used by the Alchemist worker.",
-          "degradation": "Alchemist exits 4 (gateway down). Callers must treat Alchemist as unavailable, not as returning an empty result.",
-          "remedy": "Install the OmniRoute gateway and put `omniroute` on PATH, or run Alchemist against a host that provides it."
+          "summary": "OmniRoute model gateway plus the Codex CLI profile set used by the optional Alchemist worker adapter.",
+          "degradation": "The optional OmniRoute worker adapter is unavailable; host-native Alchemist execution and every other Legion capability are unaffected. Callers selecting the adapter must treat that route as unavailable, never as an empty result.",
+          "remedy": "Only when the OmniRoute worker adapter is explicitly selected: install the OmniRoute gateway and put `omniroute` on PATH. Hosts that do not select the adapter need nothing.",
+          "probe": {
+            "kind": "command",
+            "command": "omniroute"
+          }
         },
         {
+          "scope": "adapter:omniroute-codex-worker",
+          "scopeKind": "adapter",
           "id": "python-runtime",
           "kind": "language-runtime",
-          "summary": "Python runtime used by package-local validators and Coder's Pi worker adapter.",
+          "summary": "Python runtime used by package-local validators and the optional worker adapters' event parsers.",
           "degradation": "The dependent skill reports that its local validator or worker adapter is unavailable and does not substitute another runtime.",
-          "remedy": "Install Python 3 and expose either `python3` or `python` on PATH."
+          "remedy": "Install Python 3 and expose `python3`, `python`, or the `py` launcher (`py -3.11`) on PATH.",
+          "probe": {
+            "kind": "command-any",
+            "commands": [
+              "python3",
+              "python",
+              "py"
+            ]
+          }
         }
       ],
       "source": "skills/alchemist/SKILL.md"
@@ -68,6 +85,7 @@
       "domain": "engineering",
       "hostRequirements": [],
       "hostRequirementDetails": [],
+      "scopedRequirements": [],
       "source": "skills/architect/SKILL.md"
     },
     {
@@ -91,16 +109,25 @@
           "kind": "graph-engine",
           "summary": "Membrane Blueprint graph and packet transport called directly by Legion for source-grounded repository discovery.",
           "degradation": "Use resident Membrane transport when available, then bounded Blueprint one-shot regardless of enrollment. Return a NO_CAPABILITY result naming blueprint-graph only when both are unavailable; never fall back to ad-hoc grep or present ungraphed results as graph results.",
-          "remedy": "Provide Membrane resident transport or install the Blueprint graph engine and put its `blueprint` executable on PATH, then re-run. This package does not ship it."
+          "remedy": "Provide Membrane resident transport or install the Blueprint graph engine and put its `blueprint` executable on PATH, then re-run. This package does not ship it.",
+          "probe": {
+            "kind": "command",
+            "command": "blueprint"
+          }
         },
         {
           "id": "legion",
           "kind": "command-line-tool",
           "summary": "The Legion native CLI. Backs the `legion` MCP server declared in .claude-plugin/plugin.json and the `legion audit`/`legion run` commands invoked by packaged skills.",
           "degradation": "The legion MCP server fails to start and legion_m1_invoke/legion_m1_status are absent from the tool list. Skills that shell out to `legion` must treat it as unavailable, never as returning an empty result.",
-          "remedy": "Install the Legion native release so `legion` is on PATH, or run against a host that provides it."
+          "remedy": "Install the Legion native release so `legion` is on PATH, or run against a host that provides it.",
+          "probe": {
+            "kind": "command",
+            "command": "legion"
+          }
         }
       ],
+      "scopedRequirements": [],
       "source": "skills/audit/SKILL.md"
     },
     {
@@ -124,16 +151,25 @@
           "kind": "graph-engine",
           "summary": "Membrane Blueprint graph and packet transport called directly by Legion for source-grounded repository discovery.",
           "degradation": "Use resident Membrane transport when available, then bounded Blueprint one-shot regardless of enrollment. Return a NO_CAPABILITY result naming blueprint-graph only when both are unavailable; never fall back to ad-hoc grep or present ungraphed results as graph results.",
-          "remedy": "Provide Membrane resident transport or install the Blueprint graph engine and put its `blueprint` executable on PATH, then re-run. This package does not ship it."
+          "remedy": "Provide Membrane resident transport or install the Blueprint graph engine and put its `blueprint` executable on PATH, then re-run. This package does not ship it.",
+          "probe": {
+            "kind": "command",
+            "command": "blueprint"
+          }
         },
         {
           "id": "legion",
           "kind": "command-line-tool",
           "summary": "The Legion native CLI. Backs the `legion` MCP server declared in .claude-plugin/plugin.json and the `legion audit`/`legion run` commands invoked by packaged skills.",
           "degradation": "The legion MCP server fails to start and legion_m1_invoke/legion_m1_status are absent from the tool list. Skills that shell out to `legion` must treat it as unavailable, never as returning an empty result.",
-          "remedy": "Install the Legion native release so `legion` is on PATH, or run against a host that provides it."
+          "remedy": "Install the Legion native release so `legion` is on PATH, or run against a host that provides it.",
+          "probe": {
+            "kind": "command",
+            "command": "legion"
+          }
         }
       ],
+      "scopedRequirements": [],
       "source": "skills/audit-fix/SKILL.md"
     },
     {
@@ -157,16 +193,25 @@
           "kind": "graph-engine",
           "summary": "Membrane Blueprint graph and packet transport called directly by Legion for source-grounded repository discovery.",
           "degradation": "Use resident Membrane transport when available, then bounded Blueprint one-shot regardless of enrollment. Return a NO_CAPABILITY result naming blueprint-graph only when both are unavailable; never fall back to ad-hoc grep or present ungraphed results as graph results.",
-          "remedy": "Provide Membrane resident transport or install the Blueprint graph engine and put its `blueprint` executable on PATH, then re-run. This package does not ship it."
+          "remedy": "Provide Membrane resident transport or install the Blueprint graph engine and put its `blueprint` executable on PATH, then re-run. This package does not ship it.",
+          "probe": {
+            "kind": "command",
+            "command": "blueprint"
+          }
         },
         {
           "id": "legion",
           "kind": "command-line-tool",
           "summary": "The Legion native CLI. Backs the `legion` MCP server declared in .claude-plugin/plugin.json and the `legion audit`/`legion run` commands invoked by packaged skills.",
           "degradation": "The legion MCP server fails to start and legion_m1_invoke/legion_m1_status are absent from the tool list. Skills that shell out to `legion` must treat it as unavailable, never as returning an empty result.",
-          "remedy": "Install the Legion native release so `legion` is on PATH, or run against a host that provides it."
+          "remedy": "Install the Legion native release so `legion` is on PATH, or run against a host that provides it.",
+          "probe": {
+            "kind": "command",
+            "command": "legion"
+          }
         }
       ],
+      "scopedRequirements": [],
       "source": "skills/audit-visual/SKILL.md"
     },
     {
@@ -189,9 +234,14 @@
           "kind": "graph-engine",
           "summary": "Membrane Blueprint graph and packet transport called directly by Legion for source-grounded repository discovery.",
           "degradation": "Use resident Membrane transport when available, then bounded Blueprint one-shot regardless of enrollment. Return a NO_CAPABILITY result naming blueprint-graph only when both are unavailable; never fall back to ad-hoc grep or present ungraphed results as graph results.",
-          "remedy": "Provide Membrane resident transport or install the Blueprint graph engine and put its `blueprint` executable on PATH, then re-run. This package does not ship it."
+          "remedy": "Provide Membrane resident transport or install the Blueprint graph engine and put its `blueprint` executable on PATH, then re-run. This package does not ship it.",
+          "probe": {
+            "kind": "command",
+            "command": "blueprint"
+          }
         }
       ],
+      "scopedRequirements": [],
       "source": "skills/blueprint/SKILL.md"
     },
     {
@@ -207,6 +257,7 @@
       "domain": null,
       "hostRequirements": [],
       "hostRequirementDetails": [],
+      "scopedRequirements": [],
       "source": "skills/brand/SKILL.md"
     },
     {
@@ -222,6 +273,7 @@
       "domain": "design",
       "hostRequirements": [],
       "hostRequirementDetails": [],
+      "scopedRequirements": [],
       "source": "skills/brand-identity/SKILL.md"
     },
     {
@@ -245,16 +297,31 @@
           "kind": "command-line-provider",
           "summary": "Pi command-line model provider used only by Coder's explicit, bounded read-only analysis route.",
           "degradation": "Coder returns a typed unavailable-provider result and performs no outsourced analysis.",
-          "remedy": "Install the Pi CLI and expose its `pi` command on PATH, then invoke Coder again."
+          "remedy": "Install the Pi CLI and expose its `pi` command on PATH, then invoke Coder again.",
+          "probe": {
+            "kind": "command-any",
+            "commands": [
+              "pi"
+            ]
+          }
         },
         {
           "id": "python-runtime",
           "kind": "language-runtime",
-          "summary": "Python runtime used by package-local validators and Coder's Pi worker adapter.",
+          "summary": "Python runtime used by package-local validators and the optional worker adapters' event parsers.",
           "degradation": "The dependent skill reports that its local validator or worker adapter is unavailable and does not substitute another runtime.",
-          "remedy": "Install Python 3 and expose either `python3` or `python` on PATH."
+          "remedy": "Install Python 3 and expose `python3`, `python`, or the `py` launcher (`py -3.11`) on PATH.",
+          "probe": {
+            "kind": "command-any",
+            "commands": [
+              "python3",
+              "python",
+              "py"
+            ]
+          }
         }
       ],
+      "scopedRequirements": [],
       "source": "skills/coder/SKILL.md"
     },
     {
@@ -270,6 +337,7 @@
       "domain": null,
       "hostRequirements": [],
       "hostRequirementDetails": [],
+      "scopedRequirements": [],
       "source": "skills/commit/SKILL.md"
     },
     {
@@ -285,6 +353,7 @@
       "domain": null,
       "hostRequirements": [],
       "hostRequirementDetails": [],
+      "scopedRequirements": [],
       "source": "skills/covenant/SKILL.md"
     },
     {
@@ -300,6 +369,7 @@
       "domain": "engineering",
       "hostRequirements": [],
       "hostRequirementDetails": [],
+      "scopedRequirements": [],
       "source": "skills/debugger/SKILL.md"
     },
     {
@@ -320,11 +390,20 @@
         {
           "id": "python-runtime",
           "kind": "language-runtime",
-          "summary": "Python runtime used by package-local validators and Coder's Pi worker adapter.",
+          "summary": "Python runtime used by package-local validators and the optional worker adapters' event parsers.",
           "degradation": "The dependent skill reports that its local validator or worker adapter is unavailable and does not substitute another runtime.",
-          "remedy": "Install Python 3 and expose either `python3` or `python` on PATH."
+          "remedy": "Install Python 3 and expose `python3`, `python`, or the `py` launcher (`py -3.11`) on PATH.",
+          "probe": {
+            "kind": "command-any",
+            "commands": [
+              "python3",
+              "python",
+              "py"
+            ]
+          }
         }
       ],
+      "scopedRequirements": [],
       "source": "skills/designer/SKILL.md"
     },
     {
@@ -345,11 +424,20 @@
         {
           "id": "python-runtime",
           "kind": "language-runtime",
-          "summary": "Python runtime used by package-local validators and Coder's Pi worker adapter.",
+          "summary": "Python runtime used by package-local validators and the optional worker adapters' event parsers.",
           "degradation": "The dependent skill reports that its local validator or worker adapter is unavailable and does not substitute another runtime.",
-          "remedy": "Install Python 3 and expose either `python3` or `python` on PATH."
+          "remedy": "Install Python 3 and expose `python3`, `python`, or the `py` launcher (`py -3.11`) on PATH.",
+          "probe": {
+            "kind": "command-any",
+            "commands": [
+              "python3",
+              "python",
+              "py"
+            ]
+          }
         }
       ],
+      "scopedRequirements": [],
       "source": "skills/dispatch/SKILL.md"
     },
     {
@@ -365,6 +453,7 @@
       "domain": "engineering",
       "hostRequirements": [],
       "hostRequirementDetails": [],
+      "scopedRequirements": [],
       "source": "skills/foundation/SKILL.md"
     },
     {
@@ -380,6 +469,7 @@
       "domain": null,
       "hostRequirements": [],
       "hostRequirementDetails": [],
+      "scopedRequirements": [],
       "source": "skills/gotchas/SKILL.md"
     },
     {
@@ -400,11 +490,20 @@
         {
           "id": "python-runtime",
           "kind": "language-runtime",
-          "summary": "Python runtime used by package-local validators and Coder's Pi worker adapter.",
+          "summary": "Python runtime used by package-local validators and the optional worker adapters' event parsers.",
           "degradation": "The dependent skill reports that its local validator or worker adapter is unavailable and does not substitute another runtime.",
-          "remedy": "Install Python 3 and expose either `python3` or `python` on PATH."
+          "remedy": "Install Python 3 and expose `python3`, `python`, or the `py` launcher (`py -3.11`) on PATH.",
+          "probe": {
+            "kind": "command-any",
+            "commands": [
+              "python3",
+              "python",
+              "py"
+            ]
+          }
         }
       ],
+      "scopedRequirements": [],
       "source": "skills/handoff/SKILL.md"
     },
     {
@@ -420,6 +519,7 @@
       "domain": "commercial",
       "hostRequirements": [],
       "hostRequirementDetails": [],
+      "scopedRequirements": [],
       "source": "skills/marketing/SKILL.md"
     },
     {
@@ -435,6 +535,7 @@
       "domain": null,
       "hostRequirements": [],
       "hostRequirementDetails": [],
+      "scopedRequirements": [],
       "source": "skills/oracle/SKILL.md"
     },
     {
@@ -450,6 +551,7 @@
       "domain": "engineering",
       "hostRequirements": [],
       "hostRequirementDetails": [],
+      "scopedRequirements": [],
       "source": "skills/qa/SKILL.md"
     },
     {
@@ -464,11 +566,7 @@
       },
       "domain": "research",
       "hostRequirements": [
-        "legion",
-        "local-corpus",
-        "notebooklm",
-        "scholarly-search",
-        "web-search"
+        "legion"
       ],
       "hostRequirementDetails": [
         {
@@ -476,35 +574,63 @@
           "kind": "command-line-tool",
           "summary": "The Legion native CLI. Backs the `legion` MCP server declared in .claude-plugin/plugin.json and the `legion audit`/`legion run` commands invoked by packaged skills.",
           "degradation": "The legion MCP server fails to start and legion_m1_invoke/legion_m1_status are absent from the tool list. Skills that shell out to `legion` must treat it as unavailable, never as returning an empty result.",
-          "remedy": "Install the Legion native release so `legion` is on PATH, or run against a host that provides it."
-        },
+          "remedy": "Install the Legion native release so `legion` is on PATH, or run against a host that provides it.",
+          "probe": {
+            "kind": "command",
+            "command": "legion"
+          }
+        }
+      ],
+      "scopedRequirements": [
         {
-          "id": "local-corpus",
-          "kind": "tool",
-          "summary": "Retrieval over a caller-supplied local document corpus.",
-          "degradation": "Research skips the local-corpus provider and records it as unrun.",
-          "remedy": "Point the host at a local document corpus for offline retrieval."
-        },
-        {
-          "id": "notebooklm",
-          "kind": "tool",
-          "summary": "NotebookLM-backed synthesis over a supplied source set.",
-          "degradation": "Research skips the notebooklm provider and records it as unrun.",
-          "remedy": "Provide NotebookLM access in the host."
-        },
-        {
-          "id": "scholarly-search",
-          "kind": "tool",
-          "summary": "Academic and citation-graph retrieval.",
-          "degradation": "Research returns UNPROVEN for scholarly claims.",
-          "remedy": "Expose a scholarly-search tool in the host."
-        },
-        {
+          "scope": "provider:browser",
+          "scopeKind": "provider",
           "id": "web-search",
           "kind": "tool",
           "summary": "Live web search and page fetch used by Research browser and domain-default providers.",
           "degradation": "Research returns UNPROVEN for any claim that required live retrieval.",
-          "remedy": "Expose a web-search tool in the host; Research blocks rather than guessing."
+          "remedy": "Expose a web-search tool in the host; Research blocks rather than guessing.",
+          "probe": null
+        },
+        {
+          "scope": "provider:domain-default",
+          "scopeKind": "provider",
+          "id": "scholarly-search",
+          "kind": "tool",
+          "summary": "Academic and citation-graph retrieval.",
+          "degradation": "Research returns UNPROVEN for scholarly claims.",
+          "remedy": "Expose a scholarly-search tool in the host.",
+          "probe": null
+        },
+        {
+          "scope": "provider:domain-default",
+          "scopeKind": "provider",
+          "id": "web-search",
+          "kind": "tool",
+          "summary": "Live web search and page fetch used by Research browser and domain-default providers.",
+          "degradation": "Research returns UNPROVEN for any claim that required live retrieval.",
+          "remedy": "Expose a web-search tool in the host; Research blocks rather than guessing.",
+          "probe": null
+        },
+        {
+          "scope": "provider:local-corpus",
+          "scopeKind": "provider",
+          "id": "local-corpus",
+          "kind": "tool",
+          "summary": "Retrieval over a caller-supplied local document corpus.",
+          "degradation": "Research skips the local-corpus provider and records it as unrun.",
+          "remedy": "Point the host at a local document corpus for offline retrieval.",
+          "probe": null
+        },
+        {
+          "scope": "provider:notebooklm",
+          "scopeKind": "provider",
+          "id": "notebooklm",
+          "kind": "tool",
+          "summary": "NotebookLM-backed synthesis over a supplied source set.",
+          "degradation": "Research skips the notebooklm provider and records it as unrun.",
+          "remedy": "Provide NotebookLM access in the host.",
+          "probe": null
         }
       ],
       "source": "skills/research/SKILL.md"
@@ -527,11 +653,20 @@
         {
           "id": "python-runtime",
           "kind": "language-runtime",
-          "summary": "Python runtime used by package-local validators and Coder's Pi worker adapter.",
+          "summary": "Python runtime used by package-local validators and the optional worker adapters' event parsers.",
           "degradation": "The dependent skill reports that its local validator or worker adapter is unavailable and does not substitute another runtime.",
-          "remedy": "Install Python 3 and expose either `python3` or `python` on PATH."
+          "remedy": "Install Python 3 and expose `python3`, `python`, or the `py` launcher (`py -3.11`) on PATH.",
+          "probe": {
+            "kind": "command-any",
+            "commands": [
+              "python3",
+              "python",
+              "py"
+            ]
+          }
         }
       ],
+      "scopedRequirements": [],
       "source": "skills/seo/SKILL.md"
     },
     {
@@ -547,6 +682,7 @@
       "domain": "commercial",
       "hostRequirements": [],
       "hostRequirementDetails": [],
+      "scopedRequirements": [],
       "source": "skills/social/SKILL.md"
     },
     {
@@ -567,11 +703,20 @@
         {
           "id": "python-runtime",
           "kind": "language-runtime",
-          "summary": "Python runtime used by package-local validators and Coder's Pi worker adapter.",
+          "summary": "Python runtime used by package-local validators and the optional worker adapters' event parsers.",
           "degradation": "The dependent skill reports that its local validator or worker adapter is unavailable and does not substitute another runtime.",
-          "remedy": "Install Python 3 and expose either `python3` or `python` on PATH."
+          "remedy": "Install Python 3 and expose `python3`, `python`, or the `py` launcher (`py -3.11`) on PATH.",
+          "probe": {
+            "kind": "command-any",
+            "commands": [
+              "python3",
+              "python",
+              "py"
+            ]
+          }
         }
       ],
+      "scopedRequirements": [],
       "source": "skills/tasklist/SKILL.md"
     },
     {
@@ -587,6 +732,7 @@
       "domain": null,
       "hostRequirements": [],
       "hostRequirementDetails": [],
+      "scopedRequirements": [],
       "source": "skills/wake/SKILL.md"
     },
     {
@@ -602,6 +748,7 @@
       "domain": "editorial",
       "hostRequirements": [],
       "hostRequirementDetails": [],
+      "scopedRequirements": [],
       "source": "skills/writing/SKILL.md"
     }
   ],
@@ -609,19 +756,39 @@
     {
       "id": "alchemist",
       "description": "Bounded implementation authority. Dispatch for routine implementation within settled acceptance criteria, or for governed work requiring a contract, lock, checkpoint, or controlled execution boundary. Escalate changed requirements, public boundaries, or material tradeoffs. Never dispatch for undecided meaning or independent assurance.",
+      "modelTier": "balanced-executor",
       "source": "src/roster/alchemist.md"
     },
     {
       "id": "oracle",
       "description": "Optional independent read-only assurance. Dispatch only for explicit review requests or a concrete outcome/safety risk that benefits from independent examination. Routine replies, read-only answers, and small reversible changes do not need Oracle. Never implements or certifies its own fix.",
+      "modelTier": "frontier-judgment",
       "source": "src/roster/oracle.md"
     },
     {
       "id": "sage",
       "description": "Optional cross-cutting design and adjudication authority. Dispatch for material unresolved choices, disputed ownership or boundaries, bounded reassessment before expensive commitment, repeated local repairs that fail to advance the outcome, or explicit adjudication. Do not dispatch for routine local work.",
+      "modelTier": "frontier-judgment",
       "source": "src/roster/sage.md"
     }
   ],
+  "modelTiers": {
+    "frontier-judgment": {
+      "hosts": {
+        "claude-code": "opus"
+      }
+    },
+    "balanced-executor": {
+      "hosts": {
+        "claude-code": "sonnet"
+      }
+    },
+    "mechanical-cheap": {
+      "hosts": {
+        "claude-code": "haiku"
+      }
+    }
+  },
   "hostCapabilities": [
     {
       "id": "agent-host-config",
@@ -681,7 +848,7 @@
     },
     {
       "id": "omniroute",
-      "degradation": "Alchemist exits 4 (gateway down). Callers must treat Alchemist as unavailable, not as returning an empty result."
+      "degradation": "The optional OmniRoute worker adapter is unavailable; host-native Alchemist execution and every other Legion capability are unaffected. Callers selecting the adapter must treat that route as unavailable, never as an empty result."
     },
     {
       "id": "pi-cli",

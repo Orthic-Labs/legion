@@ -102,22 +102,6 @@ fn home_dir() -> PathBuf {
         .unwrap_or_else(|| PathBuf::from("."))
 }
 
-fn command_on_path(command: &str) -> bool {
-    let path = std::env::var_os("PATH").unwrap_or_default();
-    for directory in std::env::split_paths(&path) {
-        if directory.join(command).is_file() {
-            return true;
-        }
-        #[cfg(windows)]
-        for extension in [".exe", ".cmd", ".bat"] {
-            if directory.join(format!("{command}{extension}")).is_file() {
-                return true;
-            }
-        }
-    }
-    false
-}
-
 fn command_path(command: &str) -> Option<PathBuf> {
     let path = std::env::var_os("PATH").unwrap_or_default();
     for directory in std::env::split_paths(&path) {
@@ -163,42 +147,6 @@ fn installed_roots() -> (Option<PathBuf>, Option<PathBuf>, Option<PathBuf>) {
     let current = share.parent().map(Path::to_path_buf);
     let plugin = current.as_ref().map(|root| root.join("plugin"));
     (Some(share.join("assets")), plugin, Some(composition))
-}
-
-fn provider_projection(assets: Option<&Path>) -> (Vec<String>, Vec<String>, usize) {
-    let Some(index) = assets.map(|root| root.join("registry/index.json")) else {
-        return (Vec::new(), Vec::new(), 0);
-    };
-    let Some(value) = read_json(&index) else {
-        return (Vec::new(), Vec::new(), 0);
-    };
-    let mut languages = BTreeSet::new();
-    let mut entrypoints = Vec::new();
-    let mut public = 0;
-    for bundle in value
-        .get("bundles")
-        .and_then(Value::as_array)
-        .into_iter()
-        .flatten()
-    {
-        let kind = bundle.get("kind").and_then(Value::as_str);
-        let visibility = bundle.get("discoverability").and_then(Value::as_str);
-        if kind == Some("capability") && visibility == Some("public") {
-            public += 1;
-        }
-        if kind == Some("entrypoint") && visibility == Some("explicit") {
-            if let Some(id) = bundle.get("id").and_then(Value::as_str) {
-                entrypoints.push(id.to_owned());
-            }
-        }
-        if let Some(domain) = bundle.get("domain").and_then(Value::as_str) {
-            if !domain.is_empty() {
-                languages.insert(domain.to_owned());
-            }
-        }
-    }
-    entrypoints.sort();
-    (languages.into_iter().collect(), entrypoints, public)
 }
 
 fn coverage_families() -> Vec<String> {
@@ -545,7 +493,7 @@ fn host_requirements(root: &Path) -> Value {
     };
     let mut skills = Vec::new();
     for bundle in value
-        .get("bundles")
+        .get("capabilities")
         .and_then(Value::as_array)
         .into_iter()
         .flatten()
@@ -557,22 +505,71 @@ fn host_requirements(root: &Path) -> Value {
         {
             continue;
         }
+        let requirement_row = |detail: &Value, scope: &str, scope_kind: &str| -> Value {
+            let id = detail
+                .get("id")
+                .and_then(Value::as_str)
+                .unwrap_or_default();
+            let probe = detail.get("probe").cloned().unwrap_or(Value::Null);
+            let availability = legion_application::probe_host_requirement(if probe.is_null() {
+                None
+            } else {
+                Some(&probe)
+            });
+            let (available, availability_name) = match availability {
+                legion_application::M1Availability::Available => (json!(true), "available"),
+                legion_application::M1Availability::Unavailable => (json!(false), "unavailable"),
+                legion_application::M1Availability::Unknown => (Value::Null, "unknown"),
+            };
+            json!({
+                "id": id,
+                "scope": scope,
+                "scopeKind": scope_kind,
+                "available": available,
+                "availability": availability_name,
+                "degradation": detail.get("degradation").cloned().unwrap_or_else(|| json!("The projected skill requirement could not be probed by native doctor.")),
+                "remedy": detail.get("remedy").cloned().unwrap_or_else(|| json!("Run doctor on a host that declares this requirement.")),
+                "probe": probe,
+            })
+        };
         let mut requirements = Vec::new();
-        for req in bundle
-            .get("hostRequirements")
+        if let Some(details) = bundle
+            .get("hostRequirementDetails")
+            .and_then(Value::as_array)
+        {
+            for detail in details {
+                requirements.push(requirement_row(detail, "global", "capability"));
+            }
+        } else {
+            for req in bundle
+                .get("hostRequirements")
+                .and_then(Value::as_array)
+                .into_iter()
+                .flatten()
+            {
+                requirements.push(requirement_row(
+                    &json!({"id": req.as_str().unwrap_or_default()}),
+                    "global",
+                    "capability",
+                ));
+            }
+        }
+        let mut scoped_requirements = Vec::new();
+        for detail in bundle
+            .get("scopedRequirements")
             .and_then(Value::as_array)
             .into_iter()
             .flatten()
         {
-            let id = req.as_str().unwrap_or_default();
-            let (available, degradation, remedy) = match id {
-                "python-runtime" => (Some(command_on_path("python3") || command_on_path("python")), "The dependent skill reports that its local validator or worker adapter is unavailable and does not substitute another runtime.", "Install Python 3 and expose either `python3` or `python` on PATH."),
-                "pi-cli" => (Some(command_on_path("pi")), "The dependent skill cannot start its Pi worker without the host CLI.", "Install Pi CLI and expose `pi` on PATH."),
-                "omniroute" => (Some(command_on_path("omniroute")), "Alchemist is unavailable because its host gateway is unavailable.", "Install the OmniRoute gateway and put `omniroute` on PATH."),
-                "blueprint-graph" => (Some(command_on_path("blueprint")), "Blueprint structural context is unavailable; semantic coverage is reduced.", "Install Blueprint and expose `blueprint` on PATH."),
-                _ => (None, "The projected skill requirement could not be probed by native doctor.", "Run doctor on a host that declares this requirement."),
-            };
-            requirements.push(json!({"id":id,"available":available,"degradation":degradation,"remedy":remedy,"probe":if available.is_some() {json!({"kind":"command","command":id})} else {Value::Null}}));
+            let scope = detail
+                .get("scope")
+                .and_then(Value::as_str)
+                .unwrap_or("scope:unknown");
+            let scope_kind = detail
+                .get("scopeKind")
+                .and_then(Value::as_str)
+                .unwrap_or("scope");
+            scoped_requirements.push(requirement_row(detail, scope, scope_kind));
         }
         let state = if requirements.iter().any(|item| item["available"] == false) {
             "missing"
@@ -581,7 +578,16 @@ fn host_requirements(root: &Path) -> Value {
         } else {
             "pass"
         };
-        skills.push(json!({"id":bundle.get("id").cloned().unwrap_or(Value::Null),"state":state,"requirements":requirements}));
+        // Scoped probes bind one route or adapter: an unavailable adapter reports
+        // that scope only and never downgrades the capability's global state.
+        let scoped_state = if scoped_requirements.iter().any(|item| item["available"] == false) {
+            "unavailable"
+        } else if scoped_requirements.iter().any(|item| item["available"].is_null()) {
+            "unknown"
+        } else {
+            "pass"
+        };
+        skills.push(json!({"id":bundle.get("id").cloned().unwrap_or(Value::Null),"state":state,"requirements":requirements,"scopedState":scoped_state,"scopedRequirements":scoped_requirements}));
     }
     let state = if skills.iter().any(|item| item["state"] == "missing") {
         "missing"

@@ -108,7 +108,6 @@ fn native_rules_evaluate_blueprint_bound_source() {
     let audit = Command::new(env!("CARGO_BIN_EXE_legion"))
         .args([
             "audit",
-            root.to_str().unwrap(),
             "--out",
             audit_out.to_str().unwrap(),
             "--blueprint-packet",
@@ -119,6 +118,7 @@ fn native_rules_evaluate_blueprint_bound_source() {
             plan_path.to_str().unwrap(),
             "--provider-result",
             result_path.to_str().unwrap(),
+            root.to_str().unwrap(),
         ])
         .env("AUDIT_PLAN_SIGNING_KEY", "fixture-signing-key")
         .output()
@@ -211,13 +211,13 @@ fn native_audit_continues_without_blueprint() {
     let audit = Command::new(env!("CARGO_BIN_EXE_legion"))
         .args([
             "audit",
-            root.to_str().unwrap(),
             "--out",
             audit_out.to_str().unwrap(),
             "--provider-plan",
             plan_path.to_str().unwrap(),
             "--provider-result",
             result_path.to_str().unwrap(),
+            root.to_str().unwrap(),
         ])
         .env("AUDIT_PLAN_SIGNING_KEY", "fixture-signing-key")
         .output()
@@ -260,11 +260,11 @@ fn native_audit_composes_builtin_rule_executor_without_host_config() {
     let output = Command::new(env!("CARGO_BIN_EXE_legion"))
         .args([
             "audit",
-            root.to_str().unwrap(),
             "--out",
             out.to_str().unwrap(),
             "--native-rule-manifest",
             manifest.to_str().unwrap(),
+            root.to_str().unwrap(),
         ])
         .env_remove("LEGION_NATIVE_APPLICATION_CONFIG")
         .env("AUDIT_PLAN_SIGNING_KEY", "fixture-signing-key")
@@ -404,11 +404,11 @@ fn native_audit_without_signing_material_runs_source_scan_as_unsigned_incomplete
     let output = Command::new(env!("CARGO_BIN_EXE_legion"))
         .args([
             "audit",
-            root.to_str().unwrap(),
             "--out",
             out.to_str().unwrap(),
             "--native-rule-manifest",
             manifest.to_str().unwrap(),
+            root.to_str().unwrap(),
         ])
         .env_remove("LEGION_NATIVE_APPLICATION_CONFIG")
         .env_remove("AUDIT_PLAN_SIGNING_KEY")

@@ -33,6 +33,23 @@ function declaresDescription(path) {
   return /^description:[ \t]*(.+)$/m.test(frontmatter[1]);
 }
 
+function frontmatterField(path, field) {
+  const text = readFileSync(path, "utf8");
+  const frontmatter = /^---\r?\n([\s\S]*?)\r?\n---/.exec(text);
+  if (!frontmatter) return null;
+  const match = new RegExp(`^${field}:[ \\t]*(.+)$`, "m").exec(frontmatter[1]);
+  return match ? match[1].trim() : null;
+}
+
+// Intelligence tiers are resolved to host-native model ids through one
+// configurable policy document. `agents/<role>.md` `model:` fields are that
+// mapping's resolved value for claude-code — a host-specific projection, not a
+// portable role requirement — so they must match `src/config/model-tiers.json`
+// exactly. Changing the host's model choice is a map edit plus agent resync,
+// never a roster, doctrine, or skill edit.
+const MODEL_TIER_MAP = JSON.parse(readFileSync("src/config/model-tiers.json", "utf8"));
+const MODEL_HOST = "claude-code";
+
 const problems = [];
 for (const role of ROLES) {
   if (declaresDescription(`doctrine/${role}.md`)) {
@@ -57,6 +74,20 @@ for (const role of ROLES) {
           `  ${other.path}: ${other.value}`,
       );
     }
+  }
+
+  const tier = frontmatterField(`src/roster/${role}.md`, "modelTier");
+  const expectedModel = tier && MODEL_TIER_MAP.tiers?.[tier]?.hosts?.[MODEL_HOST];
+  const actualModel = frontmatterField(`agents/${role}.md`, "model");
+  if (!expectedModel) {
+    problems.push(
+      `${role}: no ${MODEL_HOST} host model mapping for roster tier '${tier}' in src/config/model-tiers.json`,
+    );
+  } else if (actualModel !== expectedModel) {
+    problems.push(
+      `${role}: agents/${role}.md model '${actualModel}' does not match the configured ${MODEL_HOST} mapping ` +
+        `for tier '${tier}' (expected '${expectedModel}'). Resolve the mapping in src/config/model-tiers.json.`,
+    );
   }
 }
 

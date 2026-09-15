@@ -52,8 +52,10 @@ features.multi_agent=false --json -`. Three rules, each learned from a real fail
 
 ## Preconditions
 
-1. Gateway healthy — the runners probe `/healthz` (**not** `/health`, which 404s). If it is
-   unreachable, stop and say so; never silently do the work yourself instead.
+1. Gateway healthy — `run-worker.sh` probes `/healthz` (**not** `/health`, which 404s) and exits
+   `4` when unreachable; `run-worker.ps1` verifies the `omniroute` command exists and lets a
+   launcher failure surface as the worker's exit. If the adapter is unavailable, stop and say
+   so; never silently do the work yourself instead.
 2. The named profile file exists.
 3. Repo is a git worktree. Record `git status --porcelain` first — pre-existing dirt must be
    excluded from the review or the diff is unattributable.
@@ -61,13 +63,20 @@ features.multi_agent=false --json -`. Three rules, each learned from a real fail
 ## Runner differences
 
 `run-worker.ps1` (Windows) builds an **isolated `CODEX_HOME`** containing only the provider table,
-profile, and model catalog, then passes `--dangerously-bypass-approvals-and-sandbox --cd <dir>`.
-The operator accepts this full-host trust boundary when managed Windows workers stay read-only.
-limits concurrency with named mutexes (`ALCHEMIST_MAX_CONCURRENT`, default and maximum 10), and fails when the
+profile, and — only when the profile's selected model is actually cataloged there —
+`model-catalog.json` (a catalog entry is model-specific metadata; injecting it for another model
+would stamp the wrong identity onto the profile's choice). It then passes
+`--sandbox workspace-write --cd <dir>` so worker writes stay bounded to the assigned directory.
+Full host access is an explicit operator choice: `-FullAccess` swaps the sandbox for
+`--dangerously-bypass-approvals-and-sandbox`. If `omniroute` is absent the runner exits `4` with
+an adapter-unavailable message — the adapter is optional and host-native Alchemist execution is
+unaffected. It limits concurrency with named mutexes (`ALCHEMIST_MAX_CONCURRENT`, default and maximum 10), and fails when the
 launcher emits zero JSON events. Isolation matters: without it the worker loads every configured
 MCP server and skill, and a trivial turn costs ~75k input tokens.
 
-`run-worker.sh` (Mac) is a simpler port — no isolated home, sandbox, or `--cd` yet. It falls back
+`run-worker.sh` (Mac) is a simpler port — no isolated home or `--cd` yet. It applies the same
+bounded default (`--sandbox workspace-write`; `ALCHEMIST_FULL_ACCESS=1` opts into the bypass
+flag). It falls back
 to `gtimeout` when GNU `timeout` is absent, and when neither binary exists it enforces the same
 bound with a shell watchdog: a wrapper owns the launcher child and forwards `TERM`, the watchdog
 escalates `TERM` then `KILL`, and a timeout exits `124`. The bound is always enforced — stock macOS

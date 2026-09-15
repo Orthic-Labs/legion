@@ -3,6 +3,7 @@
 //
 // Inputs (canonical sources only):
 //   skills/*/SKILL.md               canonical capability/entrypoint semantics
+//   skills/*/references/route-resources.json  route/adapter-scoped requirements
 //   src/config/capability-aliases.json  explicit aliases (independently canonical)
 //   src/registry/capabilities.json      host requirement semantics and probes
 //
@@ -17,6 +18,7 @@ import { readFileSync, writeFileSync, readdirSync, existsSync } from 'node:fs';
 import { resolve, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseSkillFrontmatter } from './lib/skill-frontmatter.mjs';
+import { scopedRequirementDetails } from '../src/lib/skills/route-resources.mjs';
 
 const ROOT = resolve(fileURLToPath(new URL('..', import.meta.url)));
 const OUT_INDEX = 'src/registry/skills/index.json';
@@ -28,7 +30,7 @@ function listField(value) {
   return [];
 }
 
-function canonicalRecord(id, fm, capabilityRegistry) {
+function canonicalRecord(id, fm, capabilityRegistry, skillsDir) {
   const kind = fm.kind;
   const capabilityClass = kind === 'capability' ? fm.capabilityClass : null;
   const discoverability = fm.discoverability;
@@ -58,6 +60,7 @@ function canonicalRecord(id, fm, capabilityRegistry) {
     effects: listField(fm.effects),
     hostRequirements,
     hostRequirementDetails,
+    scopedRequirementDetails: scopedRequirementDetails(join(skillsDir, id), capabilityRegistry, { id }),
     source: `skills/${id}/SKILL.md`,
   };
 }
@@ -71,13 +74,14 @@ export function buildSkillCatalog(root = ROOT) {
   const bundles = ids.map((id) => {
     const source = join(skillsDir, id, 'SKILL.md');
     const fm = parseSkillFrontmatter(readFileSync(source, 'utf8'), { path: `skills/${id}/SKILL.md` });
-    return { ...canonicalRecord(id, fm, capabilityRegistry), manifest: `skills/manifests/${id}.json` };
+    return { ...canonicalRecord(id, fm, capabilityRegistry, skillsDir), manifest: `skills/manifests/${id}.json` };
   });
   validateAliases(readJson(join(root, 'src/config/capability-aliases.json')), new Set(ids));
   const index = {
     schemaVersion: 2,
     generatedFrom: [
       'skills/*/SKILL.md',
+      'skills/*/references/route-resources.json',
       'src/config/capability-aliases.json',
       'src/registry/capabilities.json',
     ],

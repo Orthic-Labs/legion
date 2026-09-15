@@ -117,6 +117,7 @@ pub fn load_compact(
                 kind: entry.kind,
                 discoverability: entry.discoverability,
                 host_requirement_details: entry.host_requirement_details,
+                scoped_requirement_details: entry.scoped_requirement_details,
             })
         })
         .collect::<Result<Vec<_>, CatalogError>>()?;
@@ -156,7 +157,7 @@ mod tests {
         let root = temp_root();
         fs::write(
             root.join("registry/index.json"),
-            r#"{"schemaVersion":2,"bundles":[{"id":"visible","source":"skills/visible/SKILL.md","description":"metadata","hostRequirementDetails":[{"id":"python-runtime","degradation":"degraded","remedy":"install Python","probe":{"kind":"command-any","commands":["python3","python"]}}]},{"id":"missing","source":"skills/missing/SKILL.md"}]}"#,
+            r#"{"schemaVersion":2,"bundles":[{"id":"visible","source":"skills/visible/SKILL.md","description":"metadata","hostRequirementDetails":[{"id":"python-runtime","degradation":"degraded","remedy":"install Python","probe":{"kind":"command-any","commands":["python3","python"]}}],"scopedRequirementDetails":[{"scope":"adapter:demo-worker","scopeKind":"adapter","id":"omniroute","degradation":"adapter down","remedy":"install it","probe":{"kind":"command","command":"omniroute"}}]},{"id":"missing","source":"skills/missing/SKILL.md"}]}"#,
         ).expect("index");
         fs::create_dir_all(root.join("skills/visible")).expect("visible directory");
         fs::write(root.join("skills/visible/SKILL.md"), "visible body").expect("visible body");
@@ -180,6 +181,13 @@ mod tests {
             requirement.probe.as_ref().expect("probe")["kind"],
             "command-any"
         );
+        let scoped = &catalog
+            .get("visible")
+            .expect("visible entry")
+            .scoped_requirement_details[0];
+        assert_eq!(scoped.scope, "adapter:demo-worker");
+        assert_eq!(scoped.scope_kind, "adapter");
+        assert_eq!(scoped.requirement.id, "omniroute");
         assert_eq!(
             catalog.resolve_body("visible").expect("lazy body"),
             b"visible body"

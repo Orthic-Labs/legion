@@ -15,10 +15,6 @@ effects:
   - network-request
 hostRequirements:
   - legion
-  - local-corpus
-  - notebooklm
-  - scholarly-search
-  - web-search
 ---
 
 # Research

@@ -247,7 +247,7 @@ fn skills_json_output_carries_no_human_rendering_keys() {
 
 #[test]
 fn plan_stays_fail_closed_without_native_composition() {
-    let plan = legion(&["plan", ".", "--json"]);
+    let plan = legion(&["plan", "--json", "."]);
     assert_eq!(plan.status.code(), Some(2));
     let plan_value = output_json(&plan);
     assert_eq!(plan_value["status"], "incomplete");
