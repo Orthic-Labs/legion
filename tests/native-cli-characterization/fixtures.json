@@ -397,6 +397,7 @@
           "legion-doctor"
         ]
       },
+      "nativeOnly": true,
       "normalization": {
         "timestamps": true,
         "tempRoots": true
